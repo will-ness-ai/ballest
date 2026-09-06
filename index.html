@@ -105,9 +105,10 @@ function activeBoards(){ return INDEX.boards.filter(b=>b.group!=="Trials"); }
 
 function rowHtml(r, st){
   const m=r.rank<=3?`m${r.rank}`:"";
-  const av=r.avatar?`<img src="${r.avatar}" alt="" loading="lazy">`:`<img alt="">`;
+  const av=r.avatar?`<img src="${escapeHtml(r.avatar)}" alt="" loading="lazy">`:`<img alt="">`;
   const nm=r.persona||("("+r.steam_id+")");
-  const link=r.profileurl?`<a href="${r.profileurl}" target="_blank" rel="noopener">${escapeHtml(nm)}</a>`:escapeHtml(nm);
+  const url=(r.profileurl && /^https?:\/\//i.test(r.profileurl)) ? r.profileurl : "";
+  const link=url?`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(nm)}</a>`:escapeHtml(nm);
   const val = st==="points" ? `<td class="val">${(+r.score_ms).toLocaleString()}</td>`
                             : `<td class="time">${fmtMs(r.score_ms)}</td>`;
   return `<tr><td class="rank ${m}">${r.rank}</td><td><div class="player">${av}${link}</div></td>${val}</tr>`;
@@ -152,7 +153,11 @@ function onScroll(){
 }
 function buildTable(){
   const tw=document.getElementById('tablewrap');
-  if(!curRows.length){ tw.innerHTML=`<div class="empty">No players match your search.</div>`; return; }
+  if(!curRows.length){
+    const q=document.getElementById('search').value.trim();
+    tw.innerHTML=`<div class="empty">${q?`No players match “${escapeHtml(q)}”.`:"No entries on this board yet."}</div>`;
+    return;
+  }
   const st=scoreType(curBoard);
   const head = st==="points"
     ? `<th class="rank">#</th><th>Player</th><th class="num">Points</th>`

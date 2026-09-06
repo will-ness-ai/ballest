@@ -128,6 +128,19 @@ def resolve_names(key, ids):
     return out
 
 
+def load_existing_board(name):
+    """Return the previously-written data/boards/<name>.json (dict), or None.
+    Used to keep last-good data for a board whose live read failed this run."""
+    path = os.path.join(BOARDS_DIR, name + ".json")
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"  (could not read existing {name}.json: {e!r})")
+    return None
+
+
 def write_site(boards_out, all_ids):
     """Resolve names, then write one file per board (data/boards/<name>.json) plus
     a small data/index.json the page loads first. Board files omit generated_at so
@@ -144,9 +157,12 @@ def write_site(boards_out, all_ids):
     for b in boards_out:
         for r in b["rows"]:
             info = names.get(r["steam_id"], {})
-            r["persona"] = info.get("persona", "")
-            r["avatar"] = info.get("avatar", "")
-            r["profileurl"] = info.get("profileurl", "")
+            # Prefer a freshly-resolved value, but keep any existing one if this
+            # run's resolution came back empty (e.g. a failed GetPlayerSummaries
+            # chunk, or rows reused from a previous run).
+            r["persona"] = info.get("persona") or r.get("persona", "")
+            r["avatar"] = info.get("avatar") or r.get("avatar", "")
+            r["profileurl"] = info.get("profileurl") or r.get("profileurl", "")
             unique.add(r["steam_id"])
         fname = b["name"] + ".json"
         board_doc = {"name": b["name"], "display": b["display"], "group": b["group"],

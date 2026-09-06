@@ -65,7 +65,10 @@ async def fetch_board(lid):
             total = msg.leaderboard_entry_count
         batch = list(msg.entries)
         entries.extend(batch)
-        if not batch or len(entries) >= total or len(batch) < cc.FETCH_WINDOW:
+        # Stop when the board is exhausted. Do NOT stop just because a batch was
+        # smaller than the window — that would silently truncate a board if the CM
+        # ever caps entries-per-request below FETCH_WINDOW; keep paging instead.
+        if not batch or len(entries) >= total:
             break
         start = len(entries) + 1
     return total, entries
@@ -79,15 +82,16 @@ async def on_ready():
     try:
         boards_out = []
         all_ids = set()
+        reused = []       # boards whose live read failed but kept last-good data
+        hard_failed = []  # boards that failed AND had no previous data to fall back on
         for name, group in cc.BOARDS:
             lid = cc.LEADERBOARD_IDS.get(name)
             if not lid:
                 print(f"  [skip] no leaderboard ID for {name}")
                 continue
-            rows = []
-            total = 0
             try:
                 total, entries = await fetch_board(lid)
+                rows = []
                 for e in entries:
                     sid = str(e.steam_id_user)
                     all_ids.add(sid)
@@ -98,20 +102,45 @@ async def on_ready():
                         "time": cc.fmt_time(e.score),
                         "ugc_id": _ugc(e.ugc_id),
                     })
+                boards_out.append({
+                    "name": name, "display": cc.display_name(name), "group": group,
+                    "handle": str(lid), "entry_count": int(total or len(rows)), "rows": rows,
+                })
+                print(f"  {name:34s} total={int(total):6d} pulled={len(rows)}")
             except Exception as e:
-                print(f"  [warn] read failed: {name}: {e!r}")
-            boards_out.append({
-                "name": name,
-                "display": cc.display_name(name),
-                "group": group,
-                "handle": str(lid),
-                "entry_count": int(total or len(rows)),
-                "rows": rows,
-            })
-            print(f"  {name:34s} total={int(total):6d} pulled={len(rows)}")
+                # Don't overwrite good committed data with an empty board. Reuse the
+                # previous file if we have one; otherwise flag a hard failure.
+                prev = cc.load_existing_board(name)
+                if prev and prev.get("rows"):
+                    for r in prev["rows"]:
+                        all_ids.add(r["steam_id"])
+                    boards_out.append({
+                        "name": name, "display": cc.display_name(name), "group": group,
+                        "handle": str(lid),
+                        "entry_count": int(prev.get("entry_count") or len(prev["rows"])),
+                        "rows": prev["rows"],
+                    })
+                    reused.append(name)
+                    print(f"  [warn] read failed: {name}: {e!r} — reusing {len(prev['rows'])} prior rows")
+                else:
+                    hard_failed.append(name)
+                    print(f"  [error] read failed and no prior data: {name}: {e!r}")
+
+        # Refuse to publish a wiped/degraded dataset: if any board has no data at
+        # all, leave the committed files untouched and fail the run so CI flags it.
+        if hard_failed:
+            _state["error"] = RuntimeError(f"boards with no data and no prior copy: {hard_failed}")
+            print(f"ERROR: {len(hard_failed)} board(s) unreadable with no fallback; not writing.")
+            return
+        if not any(b["rows"] for b in boards_out):
+            _state["error"] = RuntimeError("no board data collected")
+            print("ERROR: no board data collected; not writing.")
+            return
 
         cc.write_site(boards_out, all_ids)
         _state["wrote"] = True
+        if reused:
+            print(f"NOTE: reused previous data for {len(reused)} board(s): {reused}")
     except Exception as e:
         _state["error"] = e
         import traceback

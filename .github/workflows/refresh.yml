@@ -1,6 +1,6 @@
 name: Refresh leaderboards
 
-# Regenerates data/campaign.json from Steam and commits it.
+# Regenerates data/index.json + data/boards/*.json from Steam and commits them.
 # GitHub Pages ("Deploy from a branch": main / root) redeploys automatically
 # whenever this push lands.
 
@@ -49,5 +49,10 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "data: refresh campaign leaderboards ($(date -u +%Y-%m-%dT%H:%MZ))"
-            git push
+            # Rebase-and-retry so an unrelated push to main during the run doesn't
+            # fail the cycle. Data files are regenerated, so rebasing is safe.
+            for i in 1 2 3; do
+              git pull --rebase --autostash origin main && git push && break
+              echo "push attempt $i failed; retrying..."; sleep 5
+            done
           fi
