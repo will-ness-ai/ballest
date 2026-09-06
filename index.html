@@ -448,10 +448,12 @@ function relTime(dt){
   const d = Math.round(h/24); return d + (d===1 ? " day ago" : " days ago");
 }
 
-/* the season already labels the column, so "Season 2 — Overall" is just "Overall" */
+/* The season already labels the column, so "Season 2 — Overall" is just
+   "Overall". Match the season prefix specifically rather than any dash, so a
+   track that legitimately contains one keeps its whole name. */
+const SEASON_PREFIX = /^(?:season\s*\d+|s\d+)\s*[—–-]\s*/i;
 function shortName(display){
-  const m = display.split(/\s+[—–-]\s+/);
-  return m.length > 1 ? m.slice(1).join(" ") : display;
+  return display.replace(SEASON_PREFIX, "").trim() || display;
 }
 /* aggregate season boards are points, higher is better; a track board is a run time */
 const isPoints = board => board.name.startsWith("Overall");
@@ -568,7 +570,7 @@ function headHtml(){
     <span class="c-score">${isPoints(boardData) ? "Points" : "Time"}</span></div>`;
 }
 function renderMore(){
-  if(shown >= visible.length) return;
+  if(!boardData || shown >= visible.length) return;
   const board = $("#board"), lead = boardData.rows[0];
   const end = Math.min(shown + CHUNK, visible.length);
   let html = "";
@@ -593,12 +595,13 @@ function fillViewport(){
   }
 }
 function onScroll(){
-  if(shown >= visible.length) return;
+  if(!boardData || shown >= visible.length) return;
   if(window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 900) renderMore();
 }
 
 function updateMeta(){
   const meta = boardMeta();
+  if(!meta) return;
   const noun = isPoints(meta) ? "players" : "runs";
   const text = filtering
     ? `${group} · ${fmtN(visible.length)} of ${fmtN(meta.entry_count)} ${noun} match`
@@ -656,6 +659,11 @@ async function selectBoard(name){
   try { data = await loadBoard(name); }
   catch(err){
     if(boardKey !== name) return;
+    /* drop the previous board entirely. Leaving visible/shown/boardData in place
+       lets the next scroll event append the old board's rows under this message,
+       counted against the new board's field size. */
+    boardData = null; visible = []; shown = 0; filtering = false;
+    $("#bmetaD").textContent = $("#bmetaM").textContent = group + " · unavailable";
     $("#board").innerHTML = `<div class="empty"><b>That board didn't load.</b>
       The data file may still be refreshing. Try again in a moment.</div>`;
     return;
@@ -668,11 +676,40 @@ async function selectBoard(name){
 }
 
 /* ---------- the sheet ---------- */
-const openSheet  = () => { $("#sheet").classList.add("open"); $("#scrim").classList.add("open"); };
-const closeSheet = () => { $("#sheet").classList.remove("open"); $("#scrim").classList.remove("open"); };
+let sheetOpen = false;
+function openSheet(){
+  sheetOpen = true;
+  $("#sheet").classList.add("open");
+  $("#scrim").classList.add("open");
+  /* the scroller in this layout is the root element, not body, so lock both */
+  document.documentElement.style.overflow = "hidden";
+  document.body.style.overflow = "hidden";
+  const current = $("#sheetList .bbtn[aria-current='true']") || $("#sheetList .bbtn");
+  if(current) current.focus();
+}
+function closeSheet(){
+  if(!sheetOpen) return;
+  sheetOpen = false;
+  $("#sheet").classList.remove("open");
+  $("#scrim").classList.remove("open");
+  document.documentElement.style.overflow = "";
+  document.body.style.overflow = "";
+  $("#boardBtn").focus();                            /* hand focus back to the trigger */
+}
 $("#boardBtn").onclick = openSheet;
 $("#scrim").onclick = closeSheet;
-addEventListener("keydown", e => { if(e.key === "Escape") closeSheet(); });
+addEventListener("keydown", e => {
+  if(e.key === "Escape"){ closeSheet(); return; }
+  if(e.key !== "Tab" || !sheetOpen) return;
+  /* aria-modal hides the rest of the page from assistive tech, so keyboard
+     focus has to be kept inside the sheet to match */
+  const items = [...$("#sheet").querySelectorAll("button")];
+  if(!items.length) return;
+  const first = items[0], last = items[items.length-1];
+  if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  else if(!$("#sheet").contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+});
 
 /* ---------- events ---------- */
 $("#groups").addEventListener("click", e => {
@@ -685,7 +722,9 @@ $("#groups").addEventListener("click", e => {
 function pickBoard(e){
   const t = e.target.closest("[data-b]"); if(!t) return;
   closeSheet();
-  if(t.dataset.b === boardKey) return;
+  /* a board that failed to load is still the current boardKey, so let the reader
+     click it again to retry; only a board actually on screen is a no-op */
+  if(t.dataset.b === boardKey && boardData) return;
   $("#q").value = ""; filtering = false;
   scrollTo({top:0});
   selectBoard(t.dataset.b);
