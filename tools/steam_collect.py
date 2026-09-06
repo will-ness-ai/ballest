@@ -49,9 +49,14 @@ class LBEntry(C.Structure):
     _pack_ = 8; _fields_ = [("steam_id", C.c_uint64), ("rank", C.c_int32),
                             ("score", C.c_int32), ("cdetails", C.c_int32), ("ugc", C.c_uint64)]
 
-def fmt_time(ms):
-    ms = int(ms); m, rem = divmod(abs(ms), 60000); s, msec = divmod(rem, 1000)
-    return f"{m}:{s:02d}.{msec:03d}"
+# Scores are hundred-thousandths of a second, not milliseconds. See the note on
+# SCORE_TICKS_PER_SECOND in campaign_common.py for the evidence.
+SCORE_TICKS_PER_SECOND = 100000
+
+def fmt_time(score):
+    ms = abs(int(score)) * 1000 // SCORE_TICKS_PER_SECOND
+    h, rem = divmod(ms, 3600000); m, rem = divmod(rem, 60000); s, msec = divmod(rem, 1000)
+    return (f"{h}:{m:02d}" if h else f"{m}") + f":{s:02d}.{msec:03d}"
 
 def load_key():
     for line in open(os.path.join(PROJ, ".env"), encoding="utf-8"):

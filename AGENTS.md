@@ -35,12 +35,22 @@ it and reading its per-board output lines.
 
 ## Invariants worth knowing before you edit
 
-**`score_ms` is two different things.** On `Map_*` boards it is milliseconds and lower is
-better. On `Overall*` boards it is points and higher is better — the field name lies
-there, and the collector's sibling `time` field is meaningless for those rows. The site
-discriminates on the name prefix alone (`index.html:459`); gap arithmetic, column
+**`score_ms` is two different things, and its name lies in both.** On `Map_*` boards it
+is a run time in *hundred-thousandths of a second* — seconds = `score_ms / 100000`, lower
+is better — **not** milliseconds. On `Overall*` boards it is points and higher is better,
+and the collector's sibling `time` field is meaningless for those rows. The site
+discriminates on the name prefix alone (`index.html:467`); gap arithmetic, column
 headers, and row nouns all flip off it. Renaming an Overall board, or adding an aggregate
 board not named `Overall*`, silently renders a point total as a duration.
+
+The unit is pinned by two independent checks, so don't "correct" it back: every Workshop
+map publishes its own medal times in seconds, and under `/100000` each world record lands
+10-56% faster than that map's author medal (under `/1000` each would be 27-90x *slower*
+than author, which no finished run can be); and the board shapes come out right, with
+`Map_Track13` reading 0:10.267 / 0:12.541 / 1:46 for best / median / worst. Do the
+conversion through `SCORE_TICKS_PER_SECOND` (`tools/campaign_common.py`, `index.html`)
+rather than a bare literal — reading the field name as milliseconds is exactly the bug
+that shipped 100x-too-long times to production once already.
 
 **Adding a board takes two edits, both in `tools/campaign_common.py`**: the tuple in
 `BOARDS` (`:64`, which is also the site's ordering) and the numeric ID in
@@ -62,7 +72,7 @@ the interval to the next rung up, so sorting, filtering, or de-duping the array 
 breaks it.
 
 **`display_name()` emits an em dash** (`Season 2 — Overall`) and `index.html`'s
-`SEASON_PREFIX` regex (`:454`) must keep matching it. Change the separator on one side
+`SEASON_PREFIX` regex (`:462`) must keep matching it. Change the separator on one side
 and the other quietly stops shortening.
 
 **The theme lives in CSS custom properties** on `:root` in `index.html`. It is dark-only

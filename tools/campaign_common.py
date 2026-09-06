@@ -92,11 +92,23 @@ def display_name(name):
     return name
 
 
-def fmt_time(ms):
-    ms = int(ms)
-    m, rem = divmod(abs(ms), 60000)
+# Track and UGC boards store a run time as hundred-thousandths of a second, NOT
+# milliseconds: seconds = raw_score / 100000. Confirmed against the medal times
+# each Workshop map publishes (every world record lands faster than its map's
+# author medal only under this unit) and against board shape — Map_Track13 reads
+# 0:10.267 / 0:12.541 / 1:46 for best / median / worst, versus a nonsensical
+# 17:06 / 20:54 / 2:57:00 if the score were milliseconds.
+# Overall* boards are unaffected: those are points, not times.
+SCORE_TICKS_PER_SECOND = 100000
+
+
+def fmt_time(score):
+    """Format a raw track/UGC score as m:ss.mmm (h:mm:ss.mmm past an hour)."""
+    ms = abs(int(score)) * 1000 // SCORE_TICKS_PER_SECOND
+    h, rem = divmod(ms, 3600000)
+    m, rem = divmod(rem, 60000)
     s, msec = divmod(rem, 1000)
-    return f"{m}:{s:02d}.{msec:03d}"
+    return (f"{h}:{m:02d}" if h else f"{m}") + f":{s:02d}.{msec:03d}"
 
 
 def load_key():
