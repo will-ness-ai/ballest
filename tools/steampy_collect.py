@@ -3,7 +3,7 @@ Ballest campaign leaderboard collector — HEADLESS (GitHub Actions path).
 
 Logs into Steam with a refresh token (no Steam client, no password at runtime),
 reads every campaign leaderboard over the Steam CM via steam.py, resolves player
-names via the Steam Web API, and writes data/campaign.json.
+names via the Steam Web API, and writes data/index.json + data/boards/*.json.
 
 Auth (secrets, provided as env vars in CI):
   STEAM_REFRESH_TOKEN  — minted once locally with steampy_mint.py
@@ -41,22 +41,34 @@ def _ugc(val):
 
 
 async def fetch_board(lid):
-    """Read a leaderboard's top entries directly by ID (LBSGetLBEntries).
-    Returns (total_entry_count, [entry, ...]). steam.py's find-by-name is broken
-    for this app, so we go straight to the entries request with the known ID."""
-    msg = await client._state.ws.send_proto_and_wait(
-        leaderboards.CMsgClientLbsGetLbEntries(
-            leaderboard_id=lid,
-            app_id=cc.APP_ID,
-            range_start=1,
-            range_end=cc.TOP_N,
-            leaderboard_data_request=0,  # Global
-            steamids=[],
+    """Read a leaderboard's ENTIRE entry list directly by ID (LBSGetLBEntries).
+    steam.py's find-by-name is broken for this app, so we go straight to the
+    entries request with the known ID. Pages defensively in case a board ever
+    exceeds a server-side per-request cap (none observed at ~3000)."""
+    total = None
+    entries = []
+    start = 1
+    while True:
+        msg = await client._state.ws.send_proto_and_wait(
+            leaderboards.CMsgClientLbsGetLbEntries(
+                leaderboard_id=lid,
+                app_id=cc.APP_ID,
+                range_start=start,
+                range_end=start + cc.FETCH_WINDOW - 1,
+                leaderboard_data_request=0,  # Global
+                steamids=[],
+            )
         )
-    )
-    if msg.result != steam.Result.OK:
-        raise RuntimeError(f"LBSGetLBEntries result={msg.result!r}")
-    return msg.leaderboard_entry_count, msg.entries
+        if msg.result != steam.Result.OK:
+            raise RuntimeError(f"LBSGetLBEntries result={msg.result!r}")
+        if total is None:
+            total = msg.leaderboard_entry_count
+        batch = list(msg.entries)
+        entries.extend(batch)
+        if not batch or len(entries) >= total or len(batch) < cc.FETCH_WINDOW:
+            break
+        start = len(entries) + 1
+    return total, entries
 
 
 @client.event
@@ -98,7 +110,7 @@ async def on_ready():
             })
             print(f"  {name:34s} total={int(total):6d} pulled={len(rows)}")
 
-        cc.write_campaign(boards_out, all_ids)
+        cc.write_site(boards_out, all_ids)
         _state["wrote"] = True
     except Exception as e:
         _state["error"] = e

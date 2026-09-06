@@ -1,19 +1,21 @@
 # Hosting Ballest leaderboards on `ballest.willness.dev`
 
-The site is **static** (`index.html` + `data/campaign.json`), served by **GitHub Pages**.
-The data is refreshed by a **GitHub Actions** job that logs into Steam with a
-**refresh token** (via `steam.py`), reads the leaderboards, and commits an updated
-`data/campaign.json`. Pages redeploys automatically on that commit.
+The site is **static** (`index.html` + `data/index.json` + `data/boards/*.json`),
+served by **GitHub Pages**. The page loads the small `index.json` first, then lazy-
+loads each board's full entry list on demand (infinite scroll). The data is refreshed
+by a **GitHub Actions** job that logs into Steam with a **refresh token** (via
+`steam.py`), reads the full leaderboards, and commits the updated data. Pages
+redeploys automatically on that commit.
 
 No machine of yours has to be running — the refresh happens entirely in CI.
 
 ```
-GitHub Actions (daily cron)
+GitHub Actions (every 3 hours)
   └─ steam.py logs in with STEAM_REFRESH_TOKEN (secret)
-      └─ reads leaderboards for appid 3339810
+      └─ reads every campaign leaderboard (full) for appid 3339810
           └─ resolves names via STEAM_API_KEY (secret)
-              └─ commits data/campaign.json  ──►  GitHub Pages redeploys
-                                                    (ballest.willness.dev)
+              └─ commits data/index.json + data/boards/*.json  ──►  Pages redeploys
+                                                                     (ballest.willness.dev)
 ```
 
 ---
@@ -82,14 +84,14 @@ Value: <you>.github.io
 ### 6. Populate the data
 
 Repo → **Actions → "Refresh leaderboards" → Run workflow**. It logs in, writes
-`data/campaign.json`, and commits it. The site goes live at
+`data/index.json` + `data/boards/*.json`, and commits them. The site goes live at
 `https://ballest.willness.dev` shortly after.
 
 ---
 
 ## Ongoing
 
-- The cron in `.github/workflows/refresh.yml` runs **daily at 09:00 UTC**. Change the
+- The cron in `.github/workflows/refresh.yml` runs **every 3 hours**. Change the
   `cron:` line to adjust cadence, or trigger manually anytime via **Run workflow**.
 - To change which boards appear, edit `tools/campaign_common.py` (`BOARDS`).
 - If a refresh fails with a login/token error, re-mint (step 1) and update the
@@ -110,6 +112,7 @@ Then preview the site with any static server, e.g.
 ## Notes
 
 - `tools/steam_collect.py` (the Steamworks-SDK collector) is the **legacy/local**
-  path — it needs the Steam client running. The CI path uses `steampy_collect.py`
-  instead; both write the identical `data/campaign.json` schema.
+  path — it needs the Steam client running and writes the older single
+  `data/campaign.json`. The CI path uses `steampy_collect.py`, which does the full
+  scrape and writes `data/index.json` + `data/boards/*.json`.
 - `steam.py` is pinned with `aiohttp<3.13` (newer aiohttp removed a symbol it imports).

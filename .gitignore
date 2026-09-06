@@ -24,7 +24,8 @@ tools/stop-capture.ps1
 __pycache__/
 *.pyc
 
-# data: the site needs campaign.json committed (GitHub Pages serves it),
-# but ignore any other local data artifacts.
+# data: the site serves index.json + boards/*.json (committed so Pages can serve
+# them); ignore any other local data artifacts (e.g. the SDK collector's campaign.json).
 data/*
-!data/campaign.json
+!data/index.json
+!data/boards/

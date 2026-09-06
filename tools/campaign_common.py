@@ -10,11 +10,16 @@ Pure stdlib so it imports under any Python the collectors run on.
 import os, time, json, urllib.request, urllib.parse
 
 APP_ID = 3339810
-TOP_N = 100
+# Steam returns an entire board in one LBSGetLBEntries call at these sizes
+# (tested: a single 1..100000 request returned all ~3000 entries). The collector
+# still pages defensively in case a board ever exceeds a server-side cap.
+FETCH_WINDOW = 100000
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.dirname(HERE)
-OUT = os.path.join(PROJ, "data", "campaign.json")
+DATA_DIR = os.path.join(PROJ, "data")
+BOARDS_DIR = os.path.join(DATA_DIR, "boards")
+INDEX_PATH = os.path.join(DATA_DIR, "index.json")
 
 # Leaderboard names = level asset names, verbatim (discovered by probing the pak).
 S1_TRACKS = ["Map_Track13", "Map_Track15", "Map_Track16", "Map_Track05",
@@ -123,22 +128,38 @@ def resolve_names(key, ids):
     return out
 
 
-def write_campaign(boards_out, all_ids):
-    """Resolve names into the rows and write data/campaign.json. Returns the path."""
+def write_site(boards_out, all_ids):
+    """Resolve names, then write one file per board (data/boards/<name>.json) plus
+    a small data/index.json the page loads first. Board files omit generated_at so
+    an unchanged board produces no diff (only index.json changes every run)."""
     key = load_key()
     if not key:
         print("WARNING: no STEAM_API_KEY (env or .env) — names will be blank (ids still collected).")
     print(f"Resolving {len(all_ids)} player names...")
     names = resolve_names(key, all_ids)
+
+    os.makedirs(BOARDS_DIR, exist_ok=True)
+    index_boards = []
+    unique = set()
     for b in boards_out:
         for r in b["rows"]:
             info = names.get(r["steam_id"], {})
             r["persona"] = info.get("persona", "")
             r["avatar"] = info.get("avatar", "")
             r["profileurl"] = info.get("profileurl", "")
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with open(OUT, "w", encoding="utf-8") as f:
+            unique.add(r["steam_id"])
+        fname = b["name"] + ".json"
+        board_doc = {"name": b["name"], "display": b["display"], "group": b["group"],
+                     "handle": b["handle"], "entry_count": b["entry_count"], "rows": b["rows"]}
+        with open(os.path.join(BOARDS_DIR, fname), "w", encoding="utf-8") as f:
+            json.dump(board_doc, f, ensure_ascii=False, separators=(",", ":"))
+        index_boards.append({"name": b["name"], "display": b["display"], "group": b["group"],
+                             "handle": b["handle"], "entry_count": b["entry_count"],
+                             "rows": len(b["rows"]), "file": "boards/" + fname})
+
+    with open(INDEX_PATH, "w", encoding="utf-8") as f:
         json.dump({"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                   "app_id": APP_ID, "boards": boards_out}, f, indent=2)
-    print(f"\nWrote {OUT}  ({len(boards_out)} boards, {len(all_ids)} players)")
-    return OUT
+                   "app_id": APP_ID, "player_count": len(unique),
+                   "boards": index_boards}, f, ensure_ascii=False, indent=2)
+    print(f"\nWrote {INDEX_PATH} + {len(boards_out)} board files ({len(unique)} unique players)")
+    return INDEX_PATH
