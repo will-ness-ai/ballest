@@ -36,6 +36,7 @@ if (-not (Test-Path $tokenPath)) { throw "$tokenPath missing. Run: tools\.venv-s
 $token = (Get-Content $tokenPath -Raw).Trim()
 if (-not $token) { throw "$tokenPath is empty." }
 
+if (-not (Test-Path ".env")) { throw ".env not found in the project root (expected STEAM_API_KEY=...)." }
 $apikey = ""
 foreach ($line in Get-Content ".env") {
   if ($line -match '^\s*STEAM_API_KEY\s*=\s*(.+?)\s*$') { $apikey = $Matches[1].Trim() }

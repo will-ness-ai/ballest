@@ -540,8 +540,10 @@ function renderLeaders(){
 }
 function nameHtml(r){
   const n = esc(personaOf(r));
-  return r.profileurl
-    ? `<a href="${esc(r.profileurl)}" target="_blank" rel="noopener">${n}</a>` : n;
+  /* defence in depth: a persona is escaped, but a profile URL becomes an href,
+     so only http(s) is ever linked. Anything else renders as plain text. */
+  const url = (r.profileurl && /^https?:\/\//i.test(r.profileurl)) ? r.profileurl : "";
+  return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${n}</a>` : n;
 }
 
 /* ---------- the row ---------- */
@@ -613,8 +615,12 @@ function updateMeta(){
 function buildList(){
   const board = $("#board");
   if(!visible.length){
-    board.innerHTML = `<div class="empty"><b>Nobody here by that name.</b>
-      Names come from Steam personas, so try a shorter fragment, or paste a Steam ID.</div>`;
+    const q = $("#q").value.trim();
+    board.innerHTML = q
+      ? `<div class="empty"><b>Nobody here by that name.</b>
+          Names come from Steam personas, so try a shorter fragment, or paste a Steam ID.</div>`
+      : `<div class="empty"><b>No runs on this board yet.</b>
+          Nobody has set a time here, or the board has only just been added.</div>`;
     updateMeta();
     return;
   }
