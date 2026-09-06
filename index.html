@@ -67,10 +67,12 @@ input{font:inherit}
 .row .marble .face{box-shadow:0 0 0 2px hsl(var(--h) 78% 58%)}
 
 .ambient{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-.ambient span{position:absolute;filter:blur(1.5px);opacity:.13}
-.ambient span:nth-child(1){top:-80px;right:-50px;width:320px;height:320px}
-.ambient span:nth-child(2){top:46%;left:-100px;width:230px;height:230px;opacity:.08}
-.ambient span:nth-child(3){bottom:-100px;right:24%;width:270px;height:270px;opacity:.07}
+/* direct children only: .marble is itself a span, so an unscoped descendant
+   selector matched twice and multiplied the opacity down to 1.7% */
+.ambient > span{position:absolute;filter:blur(1.5px);opacity:.13}
+.ambient > span:nth-child(1){top:-80px;right:-50px;width:320px;height:320px}
+.ambient > span:nth-child(2){top:46%;left:-100px;width:230px;height:230px;opacity:.08}
+.ambient > span:nth-child(3){bottom:-100px;right:24%;width:270px;height:270px;opacity:.07}
 .ambient .marble{width:100%;height:100%}
 
 /* ==========================================================================
@@ -448,9 +450,10 @@ function relTime(dt){
   const d = Math.round(h/24); return d + (d===1 ? " day ago" : " days ago");
 }
 
-/* The season already labels the column, so "Season 2 — Overall" is just
-   "Overall". Match the season prefix specifically rather than any dash, so a
-   track that legitimately contains one keeps its whole name. */
+/* The collector now emits bare names, so this is a shim for index.json files
+   written before that change (up to one refresh cycle, plus anything cached).
+   Match the season prefix specifically rather than any dash, so a track that
+   legitimately contains one keeps its whole name. */
 const SEASON_PREFIX = /^(?:season\s*\d+|s\d+)\s*[—–-]\s*/i;
 function shortName(display){
   return display.replace(SEASON_PREFIX, "").trim() || display;
@@ -459,6 +462,8 @@ function shortName(display){
 const isPoints = board => board.name.startsWith("Overall");
 const value = (board, n) => isPoints(board) ? fmtN(n) : fmtMs(n);
 
+/* The collector no longer emits Trials at all. This stays as a guard so a
+   stale or cached index.json cannot put The Tower back in the season tabs. */
 const activeBoards = () => INDEX.boards.filter(b => b.group !== "Trials");
 /* the current season leads; index.json happens to list the older one first */
 function groupsOf(){
@@ -614,6 +619,8 @@ function updateMeta(){
 
 function buildList(){
   const board = $("#board");
+  shown = 0;                       /* before the early return, or an empty board
+                                      reports the previous board's row count */
   if(!visible.length){
     const q = $("#q").value.trim();
     board.innerHTML = q
@@ -626,7 +633,6 @@ function buildList(){
   }
   board.innerHTML = headHtml() +
     (visible.length > CHUNK ? `<div class="more" id="more">Loading more</div>` : "");
-  shown = 0;
   renderMore();
   fillViewport();
 }

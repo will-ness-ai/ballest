@@ -66,19 +66,27 @@ BOARDS = (
     [(t, "Season 1") for t in S1_TRACKS] +
     [("OverallLeaderboard_EASeason2", "Season 2")] +
     [(t, "Season 2") for t in S2_TRACKS] +
-    [("Map_TheTower", "Trials")]
+    []
 )
+# Map_TheTower is parked, not deleted: it reports an internal metric rather than
+# run times, so the site never had anything trustworthy to show. Its ID is kept
+# above so it can be put back by re-adding it to BOARDS.
+
 
 
 def display_name(name):
-    if name == "OverallLeaderboard":
-        return "Season 1 — Overall"
-    if name == "OverallLeaderboard_EASeason2":
-        return "Season 2 — Overall"
+    """The board's own name, without the season.
+
+    The season is already carried by the "group" field and shown by the site's
+    season tabs and rail heading, so repeating it here only duplicated it on
+    screen. Names are bare and dash free.
+    """
+    if name in ("OverallLeaderboard", "OverallLeaderboard_EASeason2"):
+        return "Overall"
     if name == "Map_TheTower":
         return "The Tower"
     if name.startswith("Map_Track_S2_"):
-        return "S2 — " + name[len("Map_Track_S2_"):]
+        return name[len("Map_Track_S2_"):]
     if name.startswith("Map_Track"):
         return "Track " + name[len("Map_Track"):].lstrip("_")
     return name
