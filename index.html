@@ -3,240 +3,783 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ballest of Them All — Campaign Leaderboards</title>
+<meta name="color-scheme" content="dark">
+<title>Ballest of Them All</title>
+<meta name="description" content="Campaign leaderboards for Ballest of Them All, read straight from Steam.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bungee&family=Chakra+Petch:wght@400;500;600;700&display=swap">
+
 <style>
-  :root{
-    --bg:#0e1116; --panel:#161b22; --panel2:#1c2330; --line:#242c39;
-    --text:#e6edf3; --dim:#8b98a9; --accent:#ffb638; --accent2:#57b6ff;
-    --gold:#ffcf40; --silver:#c7d0da; --bronze:#e08a4b;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);
-    font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-  header{padding:22px 20px 10px;max-width:1000px;margin:0 auto}
-  h1{margin:0;font-size:26px;letter-spacing:.2px}
-  h1 .ball{display:inline-block;width:16px;height:16px;border-radius:50%;
-    background:radial-gradient(circle at 30% 30%,#fff,var(--accent) 60%,#a06b00);
-    vertical-align:-1px;margin-right:8px}
-  .sub{color:var(--dim);font-size:13px;margin-top:4px}
-  .dim{color:var(--dim)}
-  .wrap{max-width:1000px;margin:0 auto;padding:0 20px 60px}
-  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0}
-  select,input{background:var(--panel2);color:var(--text);border:1px solid var(--line);
-    border-radius:8px;padding:9px 11px;font-size:14px}
-  input{flex:1;min-width:160px}
-  .groups{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
-  .chip{padding:6px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--line);
-    color:var(--dim);cursor:pointer;font-size:13px;user-select:none}
-  .chip.active{background:var(--accent);color:#1a1200;border-color:var(--accent);font-weight:600}
-  .meta{color:var(--dim);font-size:13px;margin:2px 0 14px}
-  /* corners rounded per-cell (no overflow:hidden on a tall table — that trips a
-     Chromium paint bug on very long pages). */
-  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);
-    border:1px solid var(--line);border-radius:12px}
-  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line)}
-  th{background:var(--panel2);color:var(--dim);font-size:12px;text-transform:uppercase;
-    letter-spacing:.5px;position:sticky;top:0;z-index:1}
-  thead th:first-child{border-top-left-radius:12px}
-  thead th:last-child{border-top-right-radius:12px}
-  tbody tr:last-child td{border-bottom:none}
-  tr:hover td{background:#1a2130}
-  .rank{width:56px;font-variant-numeric:tabular-nums;color:var(--dim);font-weight:600}
-  .rank.m1{color:var(--gold)} .rank.m2{color:var(--silver)} .rank.m3{color:var(--bronze)}
-  .player{display:flex;align-items:center;gap:10px}
-  .player img{width:26px;height:26px;border-radius:6px;background:var(--panel2)}
-  .player a{color:var(--text);text-decoration:none}
-  .player a:hover{color:var(--accent2)}
-  .time{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
-  .val{font-variant-numeric:tabular-nums;color:var(--accent2);text-align:right}
-  th.num,td.num{text-align:right}
-  .note{background:#20180a;border:1px solid #3a2c10;color:#e8c98a;padding:8px 12px;
-    border-radius:8px;font-size:12.5px;margin:10px 0}
-  .empty{color:var(--dim);padding:30px;text-align:center}
-  .loading{color:var(--dim);text-align:center;padding:14px;font-size:13px}
-  footer{max-width:1000px;margin:0 auto;padding:0 20px 40px;color:var(--dim);font-size:12px}
-  code{background:var(--panel2);padding:1px 5px;border-radius:4px}
+/* ==========================================================================
+   BALLEST OF THEM ALL, campaign leaderboards
+
+     overall    GLASS CABINET, a HUD chassis with the arcade given one room
+     row        TWO LINE
+     subline    INTERVALS, behind the lead and behind the rung above
+     podium     MARBLE ROW, no container, medal rings, sized by rank
+     mobile     SHEET RAIL, the track rail folded into a bottom sheet
+
+   Every player carries a marble whose hue comes from their Steam ID. Hover it
+   on a pointer, tap it on a phone, and it rolls aside to show their avatar.
+   ========================================================================== */
+
+:root{
+  --bg:#0a1020; --surface:rgba(255,255,255,.05); --surface2:rgba(255,255,255,.09);
+  --solid:#111a2c;
+  --line:rgba(150,175,245,.18); --line2:rgba(255,255,255,.055);
+  --text:#eaf0ff; --dim:#93a2c8; --faint:#63719a;
+  --accent:#8be03c; --accent-ink:#0d2000; --accent-soft:rgba(139,224,60,.14);
+  --gold:#ffd447; --silver:#d3dcea; --bronze:#ef9a52;
+  --radius:11px; --pad:16px;
+  --f-marquee:'Bungee',system-ui,sans-serif;
+  --f-hud:'Chakra Petch',system-ui,sans-serif;
+  --f-body:'Archivo',system-ui,sans-serif;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; color:var(--text); font:400 15px/1.5 var(--f-body);
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(900px 520px at 80% -10%, rgba(88,168,255,.16), transparent 62%),
+    radial-gradient(680px 460px at 4% 2%, rgba(139,224,60,.10), transparent 64%),
+    var(--bg);
+  background-attachment:fixed;
+}
+img{max-width:100%}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input{font:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- the marble ---------- */
+.marble{position:relative;display:block;flex:none;border-radius:50%;line-height:0}
+.marble .ball{display:block;width:100%;height:100%;
+  transition:transform .22s cubic-bezier(.2,.8,.3,1), opacity .14s ease}
+.marble .face{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;
+  object-fit:cover;opacity:0;transform:scale(.5) rotate(14deg);background:var(--surface2);
+  transition:opacity .14s ease, transform .22s cubic-bezier(.2,.85,.3,1.35)}
+.marble.on .face,.marble:focus-visible .face,
+.row:hover .marble .face,.plate:hover .marble .face{opacity:1;transform:scale(1) rotate(0)}
+.marble.on .ball,.marble:focus-visible .ball,
+.row:hover .marble .ball,.plate:hover .marble .ball{transform:scale(.84) rotate(-18deg);opacity:.16}
+/* in the list the avatar keeps the marble's colour as a ring; on the podium the
+   medal ring is already doing that job */
+.row .marble .face{box-shadow:0 0 0 2px hsl(var(--h) 78% 58%)}
+
+.ambient{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.ambient span{position:absolute;filter:blur(1.5px);opacity:.13}
+.ambient span:nth-child(1){top:-80px;right:-50px;width:320px;height:320px}
+.ambient span:nth-child(2){top:46%;left:-100px;width:230px;height:230px;opacity:.08}
+.ambient span:nth-child(3){bottom:-100px;right:24%;width:270px;height:270px;opacity:.07}
+.ambient .marble{width:100%;height:100%}
+
+/* ==========================================================================
+   MOBILE FIRST, up to 819px: SHEET RAIL
+   ========================================================================== */
+.app{max-width:1180px;margin:0 auto;padding:12px 0 40px;position:relative;z-index:1}
+
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  padding:10px var(--pad) 12px}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.rack{display:flex;flex:none}
+.rack .marble{width:20px;height:20px}
+.rack .marble+.marble{margin-left:-7px}
+.wordmark{font-family:var(--f-marquee);font-size:13.5px;letter-spacing:.02em;line-height:1.2}
+.tagline{display:none}
+.freshness{margin:0;font-size:11px;color:var(--faint);text-align:right;line-height:1.3;flex:none}
+.freshness b{color:var(--dim);font-family:var(--f-hud);font-weight:600}
+
+.groups{display:flex;gap:4px;margin:0 var(--pad) 12px;padding:3px;border-radius:11px;
+  background:var(--surface);border:1px solid var(--line)}
+.gtab{flex:1;padding:8px 0;border-radius:8px;font-family:var(--f-hud);font-size:12.5px;
+  font-weight:600;color:var(--dim);letter-spacing:.03em}
+.gtab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+
+/* the rail is a sheet down here */
+.rail{display:none}
+.boardbtn{display:flex;width:calc(100% - var(--pad)*2);margin:0 var(--pad) 12px;
+  align-items:center;gap:10px;padding:11px 14px;border-radius:12px;
+  background:var(--surface);border:1px solid var(--line);text-align:left}
+.boardbtn .bb-name{font-family:var(--f-hud);font-size:16px;font-weight:700}
+.boardbtn .bb-cnt{font-size:11.5px;color:var(--faint);margin-left:auto;font-family:var(--f-hud);
+  font-variant-numeric:tabular-nums}
+.boardbtn .chev{color:var(--dim);font-size:12px;flex:none}
+
+.boardtitle{display:none}
+.search{padding:0 var(--pad) 12px}
+.search input{width:100%;padding:10px 13px;border-radius:11px;background:var(--surface2);
+  border:1px solid var(--line);color:var(--text);font-size:14px}
+.search input::placeholder{color:var(--faint)}
+
+.tiles{display:none}
+
+/* podium */
+.leaders{display:flex;align-items:flex-end;justify-content:center;gap:14px;
+  padding:8px var(--pad) 20px}
+.leaders[hidden]{display:none !important}
+.plate{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;
+  flex:1 1 0;max-width:118px}
+.plate .marble{width:66px;height:66px;box-shadow:0 0 0 3px var(--gold),0 10px 24px rgba(0,0,0,.42)}
+.plate[data-p="2"] .marble{width:56px;height:56px;
+  box-shadow:0 0 0 3px var(--silver),0 10px 24px rgba(0,0,0,.42)}
+.plate[data-p="3"] .marble{width:52px;height:52px;
+  box-shadow:0 0 0 3px var(--bronze),0 10px 24px rgba(0,0,0,.42)}
+.pl-text{display:flex;flex-direction:column;align-items:center;gap:2px;max-width:100%;min-width:0}
+.pl-name{font-size:13px;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.pl-name a{color:inherit;text-decoration:none}
+.pl-name a:hover{color:var(--accent)}
+.pl-score{font-family:var(--f-hud);font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.pl-gap{display:none}
+.pl-rank{font-family:var(--f-marquee);font-size:9.5px;letter-spacing:.12em;color:var(--gold)}
+.plate[data-p="2"] .pl-rank{color:var(--silver)}
+.plate[data-p="3"] .pl-rank{color:var(--bronze)}
+
+.bmeta{margin:0 var(--pad) 9px;font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+
+/* the list.
+   No overflow:hidden here, however tempting: on a board with three thousand
+   rows it trips a Chromium paint bug that blanks the page on long scrolls.
+   The corners are rounded per cell instead. */
+.board{margin:0 var(--pad);border:1px solid var(--line);border-radius:14px;
+  background:var(--solid)}
+.head{display:none}
+.row{display:grid;grid-template-columns:26px 26px minmax(0,1fr) auto;align-items:center;
+  gap:9px;padding:9px 12px;min-height:58px;border-bottom:1px solid var(--line2)}
+.row:nth-child(2){border-radius:13px 13px 0 0}   /* the head is hidden here */
+.row:last-child{border-bottom:0;border-radius:0 0 13px 13px}
+.row .marble{width:26px;height:26px}
+.c-rank{font-family:var(--f-hud);font-size:13px;font-weight:600;color:var(--dim);
+  font-variant-numeric:tabular-nums;text-align:right}
+.row[data-m="1"] .c-rank{color:var(--gold)}
+.row[data-m="2"] .c-rank{color:var(--silver)}
+.row[data-m="3"] .c-rank{color:var(--bronze)}
+.c-text{min-width:0}
+.nm{display:block;font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.nm a{color:inherit;text-decoration:none}
+.nm a:hover{color:var(--accent)}
+.sub{display:none;font-family:var(--f-hud);font-size:10px;color:var(--faint);margin-top:1px;
+  font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub em{font-style:normal;color:var(--dim)}
+.sub-m{display:block}          /* the narrow phrasing, actionable half first */
+.c-score{font-family:var(--f-hud);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;
+  display:flex;align-items:center;gap:7px}
+.pill{width:12px;height:6px;border-radius:3px;flex:none;background:hsl(var(--h) 76% 55%);
+  box-shadow:inset 0 0 0 1px hsl(var(--h) 60% 24%)}
+
+.empty{padding:38px 18px;text-align:center;color:var(--dim);font-size:13.5px}
+.empty b{display:block;color:var(--text);font-size:15px;margin-bottom:5px;font-weight:600}
+.skel{display:flex;align-items:center;gap:11px;padding:0 12px;min-height:58px;
+  border-bottom:1px solid var(--line2)}
+.skel span{height:9px;border-radius:5px;background:var(--surface2);
+  animation:pulse 1.2s ease-in-out infinite}
+.skel span:nth-child(1){width:18px}
+.skel span:nth-child(2){flex:1;max-width:170px}
+.skel span:nth-child(3){margin-left:auto;width:70px}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+.more{padding:16px;text-align:center;font-family:var(--f-hud);font-size:11px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+
+footer{margin:20px var(--pad) 0;font-size:10.5px;color:var(--faint);line-height:1.55;max-width:64ch}
+footer p{margin:0 0 6px}
+footer a{color:var(--dim)}
+
+/* the track sheet */
+.scrim{position:fixed;inset:0;background:rgba(4,7,14,.66);z-index:40;opacity:0;
+  pointer-events:none;transition:opacity .22s ease}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-height:76vh;
+  background:var(--solid);border-radius:22px 22px 0 0;border-top:1px solid var(--line);
+  transform:translateY(102%);transition:transform .26s cubic-bezier(.2,.85,.3,1);
+  display:flex;flex-direction:column}
+.sheet.open{transform:translateY(0)}
+.sheet .grab{width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.25);
+  margin:10px auto 4px;flex:none}
+.sheet h2{margin:6px 18px 10px;font-family:var(--f-hud);font-size:10.5px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--dim);font-weight:600}
+.sheetlist{overflow-y:auto;padding:0 12px 26px;display:flex;flex-direction:column;gap:1px;
+  -webkit-overflow-scrolling:touch}
+
+/* one definition serves the sheet and, above 820px, the rail */
+.bbtn{display:flex;flex-direction:column;align-items:stretch;gap:5px;width:100%;
+  border-radius:9px;padding:10px;color:var(--dim);font-size:13px;text-align:left}
+.bbtn .brow{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%}
+.bbtn .cnt{font-family:var(--f-hud);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.bbtn:hover{background:var(--surface2);color:var(--text)}
+.bbtn[aria-current="true"]{background:var(--accent-soft);color:var(--text);font-weight:600}
+.bbtn[aria-current="true"] .cnt{color:var(--accent);opacity:1}
+.bmeter{display:block;height:3px;border-radius:2px;background:rgba(255,255,255,.1)}
+.bmeter i{display:block;height:100%;width:var(--w);border-radius:2px;background:var(--faint)}
+.bbtn[aria-current="true"] .bmeter i{background:var(--accent)}
+
+/* ==========================================================================
+   820px AND UP: GLASS CABINET
+   ========================================================================== */
+@media (min-width:820px){
+  :root{--pad:24px}
+  .app{padding:30px 24px 90px}
+
+  .hdr{flex-direction:column;align-items:flex-start;gap:7px;padding:0 0 22px}
+  .rack .marble{width:24px;height:24px}
+  .rack .marble+.marble{margin-left:-9px}
+  .wordmark{font-size:20px;line-height:1.25}
+  .tagline{display:block;margin:0;font-family:var(--f-hud);font-size:11px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--dim);font-weight:600}
+  .freshness{text-align:left;font-size:12.5px}
+
+  .groups{gap:2px;margin:0 0 20px;padding:0;background:none;border:0;
+    border-bottom:1px solid var(--line)}
+  .gtab{flex:0 0 auto;padding:10px 15px;border-radius:0;border-bottom:2px solid transparent;
+    margin-bottom:-1px}
+  .gtab[aria-selected="true"]{background:none;color:var(--accent);border-bottom-color:var(--accent);
+    font-weight:600}
+
+  .main{display:grid;grid-template-columns:242px minmax(0,1fr);gap:24px;align-items:start}
+  .rail{display:block;position:sticky;top:16px;background:var(--surface);
+    border:1px solid var(--line);border-radius:var(--radius);padding:13px;
+    backdrop-filter:blur(10px);max-height:calc(100vh - 32px);overflow-y:auto}
+  .rail h2{margin:0 0 9px;font-family:var(--f-hud);font-size:10.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--dim);font-weight:600}
+  .boards{display:flex;flex-direction:column;gap:1px}
+  .bbtn{font-size:12.5px;padding:7px 9px;border-radius:8px}
+  .boardbtn,.sheet,.scrim{display:none}
+
+  .boardbar{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
+    flex-wrap:wrap;margin-bottom:14px}
+  .boardtitle{display:block}
+  .boardtitle h1{margin:0;font-family:var(--f-hud);font-size:22px;font-weight:700}
+  .boardtitle .bmeta{margin:3px 0 0;font-size:12.5px;color:var(--dim)}
+  #bmetaM{display:none}          /* the standalone meta line is a phone affordance */
+  .search{padding:0;flex:0 0 auto}
+  .search input{width:230px;border-radius:9px;font-size:13.5px;padding:8px 12px}
+
+  .tiles{display:flex;gap:10px;margin:0 0 16px}
+  .tile{flex:1 1 0;min-width:0;padding:12px 15px;border:1px solid var(--line);
+    border-radius:var(--radius);background:var(--surface);backdrop-filter:blur(10px)}
+  .tile dt{font-family:var(--f-hud);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--dim);font-weight:600}
+  .tile dd{margin:5px 0 0;font-family:var(--f-hud);font-size:20px;font-weight:600;
+    font-variant-numeric:tabular-nums}
+  .tile .tsub{display:flex;align-items:center;gap:6px;font-family:var(--f-body);font-size:12px;
+    color:var(--dim);margin-top:3px;font-weight:400;min-width:0}
+  .tile .tsub .marble{width:13px;height:13px}
+  .tile .tsub span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* podium, full size */
+  .leaders{gap:34px;padding:14px 0 22px}
+  .plate{flex:0 0 auto;max-width:190px;gap:11px}
+  .plate .marble{width:96px;height:96px;box-shadow:0 0 0 3px var(--gold),0 12px 30px rgba(0,0,0,.4)}
+  .plate[data-p="2"] .marble{width:76px;height:76px;
+    box-shadow:0 0 0 3px var(--silver),0 12px 30px rgba(0,0,0,.4)}
+  .plate[data-p="3"] .marble{width:70px;height:70px;
+    box-shadow:0 0 0 3px var(--bronze),0 12px 30px rgba(0,0,0,.4)}
+  .pl-name{font-size:16px}
+  .pl-score{font-size:19px}
+  .pl-rank{font-size:10px}
+  .pl-gap{display:block;font-family:var(--f-hud);font-size:11.5px;color:var(--faint);
+    font-variant-numeric:tabular-nums}
+
+  /* the list */
+  .board{margin:0;border-radius:var(--radius)}
+  .head{display:grid;grid-template-columns:48px 26px minmax(160px,1fr) 176px;align-items:center;
+    gap:12px;padding:9px 12px;font-family:var(--f-hud);font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--dim);font-weight:600;background:rgba(255,255,255,.035);
+    border-radius:10px 10px 0 0}
+  .row{grid-template-columns:48px 26px minmax(160px,1fr) 176px;gap:12px;padding:0 12px;
+    min-height:56px}
+  .row:nth-child(2){border-radius:0}
+  .row:last-child{border-radius:0 0 10px 10px}
+  .c-rank{font-size:14px;text-align:left}
+  .nm{font-size:15px}
+  .sub{font-size:11.5px}
+  .sub-m{display:none}
+  .sub-d{display:block}
+  .c-score{font-size:17px;justify-content:flex-end;gap:11px}
+  .pill{width:17px;height:7px}
+
+  .empty{padding:46px 12px;font-size:14px}
+  .empty b{font-size:16px}
+  .skel{padding:0 12px;min-height:56px}
+  footer{margin:30px 0 0;padding-top:16px;border-top:1px solid var(--line2);font-size:12px;
+    line-height:1.6}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
 </style>
 </head>
 <body>
-<header>
-  <h1><span class="ball"></span>Ballest of Them All — Campaign Leaderboards</h1>
-  <div class="sub" id="sub">Loading…</div>
-</header>
-<div class="wrap">
-  <div class="groups" id="groups"></div>
-  <div class="toolbar">
-    <select id="board"></select>
-    <input id="search" placeholder="Filter players…">
+
+<div class="ambient" id="ambient" aria-hidden="true"></div>
+
+<div class="app">
+  <header class="hdr">
+    <div class="brand">
+      <span class="rack" id="rack" aria-hidden="true"></span>
+      <span class="wordmark">Ballest of Them All</span>
+    </div>
+    <p class="tagline">Campaign leaderboards</p>
+    <p class="freshness" id="freshness">Loading</p>
+  </header>
+
+  <nav class="groups" id="groups" role="tablist" aria-label="Season"></nav>
+
+  <div class="main">
+    <aside class="rail">
+      <h2 id="railhead">&nbsp;</h2>
+      <nav class="boards" id="boards" aria-label="Leaderboard"></nav>
+    </aside>
+
+    <section class="content">
+      <button class="boardbtn" id="boardBtn" aria-haspopup="dialog">
+        <span class="bb-name" id="bbName">&nbsp;</span>
+        <span class="bb-cnt" id="bbCnt"></span>
+        <span class="chev" aria-hidden="true">&#9662;</span>
+      </button>
+
+      <div class="boardbar">
+        <div class="boardtitle">
+          <h1 id="btitle">&nbsp;</h1>
+          <p class="bmeta" id="bmetaD"></p>
+        </div>
+        <div class="search">
+          <input id="q" type="search" placeholder="Find a player" aria-label="Find a player">
+        </div>
+      </div>
+
+      <dl class="tiles" id="tiles"></dl>
+      <div class="leaders" id="leaders" hidden></div>
+      <p class="bmeta" id="bmetaM"></p>
+      <div class="board" id="board"></div>
+    </section>
   </div>
-  <div class="meta" id="boardmeta"></div>
-  <div id="note"></div>
-  <div id="tablewrap"></div>
+
+  <footer>
+    <p>Read straight from the Steam leaderboards for app 3339810, refreshed every three hours.
+    A fan project, not affiliated with the developer.</p>
+    <p>Marble colours are derived from each player's Steam ID. The leaderboard API doesn't expose
+    the ball someone actually raced with.</p>
+  </footer>
 </div>
-<footer id="footer"></footer>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Choose a leaderboard">
+  <span class="grab" aria-hidden="true"></span>
+  <h2 id="sheetHead">&nbsp;</h2>
+  <div class="sheetlist" id="sheetList"></div>
+</div>
 
 <script>
-let INDEX=null, curGroup="all", curBoard=null;
-const BOARD_CACHE={};
-let curBoardData=null, curRows=[], shown=0;
-const CHUNK=50;
+"use strict";
 
-function scoreType(name){
-  if(name.startsWith("Overall")) return "points";     // aggregate points, higher better
-  if(name==="Map_TheTower") return "tower";           // suspect / experimental
-  return "time";                                       // per-track: ms, lower better
+const CHUNK = 50;                  /* rows appended per scroll step */
+const $ = s => document.querySelector(s);
+
+let INDEX = null;                  /* data/index.json */
+let group = null;                  /* "Season 2" */
+let boardKey = null;               /* the board's raw Steam name, unique across seasons */
+let boardData = null;              /* the loaded board file */
+let visible = [];                  /* rows currently listed, filtered or not */
+let shown = 0;                     /* how many of them are in the DOM */
+let filtering = false;
+const CACHE = {};
+
+/* ---------- marbles ---------- */
+let _bid = 0;
+function hueFor(seed){
+  let h = 2166136261;
+  for(let i=0;i<seed.length;i++){ h ^= seed.charCodeAt(i); h = Math.imul(h,16777619); }
+  return Math.abs(h) % 360;
 }
+function ballSvg(h){
+  const id = "m"+(_bid++);
+  return `<svg class="ball" viewBox="0 0 40 40" aria-hidden="true">
+<defs>
+<radialGradient id="g${id}" cx="34%" cy="27%" r="80%">
+<stop offset="0%" stop-color="hsl(${h} 94% 90%)"/>
+<stop offset="34%" stop-color="hsl(${h} 80% 64%)"/>
+<stop offset="100%" stop-color="hsl(${h} 62% 25%)"/>
+</radialGradient>
+<clipPath id="c${id}"><circle cx="20" cy="20" r="19"/></clipPath>
+</defs>
+<circle cx="20" cy="20" r="19" fill="url(#g${id})"/>
+<g clip-path="url(#c${id})">
+<path d="M-4 27C6 34 18 33 26 26s10-16 8-24" fill="none" stroke="hsl(${h} 66% 20%)"
+ stroke-opacity=".26" stroke-width="4.5"/>
+<path d="M2 8c8 2 16 8 19 17" fill="none" stroke="hsl(${h} 96% 92%)"
+ stroke-opacity=".2" stroke-width="3"/>
+</g>
+<ellipse cx="13" cy="11.5" rx="5.4" ry="3.4" fill="#fff" fill-opacity=".62"
+ transform="rotate(-28 13 11.5)"/>
+<circle cx="20" cy="20" r="19" fill="none" stroke="hsl(${h} 60% 16%)" stroke-opacity=".35"/>
+</svg>`;
+}
+/* the marble is the control that reveals the avatar, so where there is an avatar
+   to reveal it is a real button; where Steam gave us none it stays inert */
+function marble(r){
+  const h = hueFor(r.steam_id), style = `style="--h:${h}"`;
+  if(!r.avatar) return `<span class="marble" ${style}>${ballSvg(h)}</span>`;
+  return `<button type="button" class="marble" ${style}
+    aria-label="Show ${esc(personaOf(r))}'s Steam avatar">${ballSvg(h)}<img class="face"
+    src="${esc(r.avatar)}" alt="" loading="lazy" decoding="async"></button>`;
+}
+
+/* ---------- helpers ---------- */
+const fmtN = n => (+n).toLocaleString("en-US");
+const esc = s => String(s).replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ord = n => n + (["th","st","nd","rd"][(n%100-20)%10] || ["th","st","nd","rd"][n%100] || "th");
+const personaOf = r => r.persona || ("Player " + r.steam_id.slice(-6));
+
 function fmtMs(ms){
-  ms=Math.abs(+ms); const h=Math.floor(ms/3600000);
-  const m=Math.floor(ms%3600000/60000), s=Math.floor(ms%60000/1000), x=ms%1000;
-  const mm=String(m).padStart(h?2:1,'0'), ss=String(s).padStart(2,'0'), xx=String(x).padStart(3,'0');
-  return (h?h+":":"")+mm+":"+ss+"."+xx;
+  ms = Math.abs(+ms);
+  const h = Math.floor(ms/3600000), m = Math.floor(ms%3600000/60000),
+        s = Math.floor(ms%60000/1000), x = ms%1000;
+  return (h ? h+":" : "") + String(m).padStart(h?2:1,"0") + ":" +
+         String(s).padStart(2,"0") + "." + String(x).padStart(3,"0");
 }
 function relTime(dt){
-  const s=Math.round((Date.now()-dt.getTime())/1000);
-  if(s<60) return "just now";
-  const m=Math.round(s/60); if(m<60) return m+(m===1?" min ago":" mins ago");
-  const h=Math.round(m/60); if(h<24) return h+(h===1?" hour ago":" hours ago");
-  const d=Math.round(h/24); return d+(d===1?" day ago":" days ago");
-}
-function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-
-function activeBoards(){ return INDEX.boards.filter(b=>b.group!=="Trials"); }
-
-function rowHtml(r, st){
-  const m=r.rank<=3?`m${r.rank}`:"";
-  const av=r.avatar?`<img src="${escapeHtml(r.avatar)}" alt="" loading="lazy">`:`<img alt="">`;
-  const nm=r.persona||("("+r.steam_id+")");
-  const url=(r.profileurl && /^https?:\/\//i.test(r.profileurl)) ? r.profileurl : "";
-  const link=url?`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(nm)}</a>`:escapeHtml(nm);
-  const val = st==="points" ? `<td class="val">${(+r.score_ms).toLocaleString()}</td>`
-                            : `<td class="time">${fmtMs(r.score_ms)}</td>`;
-  return `<tr><td class="rank ${m}">${r.rank}</td><td><div class="player">${av}${link}</div></td>${val}</tr>`;
+  const s = Math.round((Date.now()-dt.getTime())/1000);
+  if(s < 60) return "just now";
+  const m = Math.round(s/60); if(m < 60) return m + (m===1 ? " minute ago" : " minutes ago");
+  const h = Math.round(m/60); if(h < 24) return h + (h===1 ? " hour ago" : " hours ago");
+  const d = Math.round(h/24); return d + (d===1 ? " day ago" : " days ago");
 }
 
-function showNote(b){
-  const st=scoreType(b.name);
-  document.getElementById('note').innerHTML = st==="tower"
-    ? `<div class="note">⚠ This board (<code>Map_TheTower</code>) returns unusual values and very few entries — likely an internal/legacy metric, not clean run times.</div>`
-    : (st==="points"
-      ? `<div class="note">This is an aggregate <b>points</b> board (higher is better), not a single-run time.</div>` : "");
+/* The season already labels the column, so "Season 2 — Overall" is just
+   "Overall". Match the season prefix specifically rather than any dash, so a
+   track that legitimately contains one keeps its whole name. */
+const SEASON_PREFIX = /^(?:season\s*\d+|s\d+)\s*[—–-]\s*/i;
+function shortName(display){
+  return display.replace(SEASON_PREFIX, "").trim() || display;
 }
-function updateMeta(){
-  const b=curBoardData;
-  document.getElementById('boardmeta').textContent =
-    `${b.entry_count.toLocaleString()} players on this board · showing ${shown.toLocaleString()} of ${curRows.length.toLocaleString()}`;
+/* aggregate season boards are points, higher is better; a track board is a run time */
+const isPoints = board => board.name.startsWith("Overall");
+const value = (board, n) => isPoints(board) ? fmtN(n) : fmtMs(n);
+
+const activeBoards = () => INDEX.boards.filter(b => b.group !== "Trials");
+/* the current season leads; index.json happens to list the older one first */
+function groupsOf(){
+  return [...new Set(activeBoards().map(b => b.group))].sort((a,b) => {
+    const na = parseInt(a.replace(/\D+/g,""),10), nb = parseInt(b.replace(/\D+/g,""),10);
+    if(!isNaN(na) && !isNaN(nb)) return nb - na;
+    return a.localeCompare(b);
+  });
+}
+const boardsIn = g => activeBoards().filter(b => b.group === g);
+const boardMeta = () => activeBoards().find(b => b.name === boardKey);
+
+/* ---------- chrome ---------- */
+function renderChrome(){
+  const three = [212,332,96].map(h => `<span class="marble">${ballSvg(h)}</span>`);
+  $("#rack").innerHTML = three.join("");
+  $("#ambient").innerHTML = [212,332,96]
+    .map(h => `<span><span class="marble">${ballSvg(h)}</span></span>`).join("");
+}
+function renderGroups(){
+  $("#groups").innerHTML = groupsOf().map(g =>
+    `<button class="gtab" role="tab" aria-selected="${g===group}" data-g="${esc(g)}">${esc(g)}</button>`
+  ).join("");
+}
+function renderSelectors(){
+  const list = boardsIn(group), max = Math.max(...list.map(b => b.entry_count));
+  const items = list.map(b => `
+    <button class="bbtn" data-b="${esc(b.name)}" aria-current="${b.name===boardKey}">
+      <span class="brow"><span>${esc(shortName(b.display))}</span>
+        <span class="cnt">${fmtN(b.entry_count)}</span></span>
+      <span class="bmeter"><i style="--w:${Math.round(b.entry_count/max*100)}%"></i></span>
+    </button>`).join("");
+  $("#boards").innerHTML = items;
+  $("#sheetList").innerHTML = items;
+  $("#railhead").textContent = group;
+  $("#sheetHead").textContent = group;
+
+  const meta = boardMeta();
+  $("#bbName").textContent = shortName(meta.display);
+  $("#bbCnt").textContent = fmtN(meta.entry_count) + (isPoints(meta) ? " players" : " runs");
+  $("#btitle").textContent = shortName(meta.display);
 }
 
+/* ---------- board furniture ---------- */
+function renderTiles(){
+  const rows = boardData.rows, t = $("#tiles");
+  if(!rows.length){ t.innerHTML = ""; return; }
+  const lead = rows[0], tenth = rows[Math.min(9, rows.length-1)];
+  const spread = isPoints(boardData)
+    ? fmtN(lead.score_ms - tenth.score_ms) + " pts"
+    : fmtMs(tenth.score_ms - lead.score_ms);
+  t.innerHTML = `
+    <div class="tile"><dt>Leader</dt><dd>${value(boardData, lead.score_ms)}
+      <span class="tsub">${marble(lead)}<span>${esc(personaOf(lead))}</span></span></dd></div>
+    <div class="tile"><dt>Field</dt><dd>${fmtN(boardData.entry_count)}
+      <span class="tsub"><span>${isPoints(boardData) ? "players ranked" : "runs recorded"}</span></span></dd></div>
+    <div class="tile"><dt>Top ten spread</dt><dd>${spread}
+      <span class="tsub"><span>1st to ${Math.min(10, rows.length)}th</span></span></dd></div>`;
+}
+function renderLeaders(){
+  const rows = boardData.rows, el = $("#leaders");
+  if(rows.length < 3){ el.hidden = true; el.innerHTML = ""; return; }
+  el.hidden = false;
+  const labels = ["1st","2nd","3rd"], lead = rows[0], pts = isPoints(boardData);
+  el.innerHTML = rows.slice(0,3).map((r,i) => {
+    const gap = pts ? lead.score_ms - r.score_ms : r.score_ms - lead.score_ms;
+    const gapTxt = i === 0 ? "sets the pace"
+      : (pts ? fmtN(gap) + " pts back" : "+" + fmtMs(gap) + " back");
+    return `<div class="plate" data-p="${i+1}">
+      ${marble(r)}
+      <span class="pl-text">
+        <span class="pl-name">${nameHtml(r)}</span>
+        <span class="pl-score">${value(boardData, r.score_ms)}</span>
+        <span class="pl-gap">${gapTxt}</span>
+      </span>
+      <span class="pl-rank">${labels[i]}</span>
+    </div>`;
+  }).join("");
+}
+function nameHtml(r){
+  const n = esc(personaOf(r));
+  /* defence in depth: a persona is escaped, but a profile URL becomes an href,
+     so only http(s) is ever linked. Anything else renders as plain text. */
+  const url = (r.profileurl && /^https?:\/\//i.test(r.profileurl)) ? r.profileurl : "";
+  return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${n}</a>` : n;
+}
+
+/* ---------- the row ---------- */
+function rowHtml(r, lead, prev){
+  const h = hueFor(r.steam_id), pts = isPoints(boardData);
+  const gap  = pts ? lead.score_ms - r.score_ms : r.score_ms - lead.score_ms;
+  const step = prev ? (pts ? prev.score_ms - r.score_ms : r.score_ms - prev.score_ms) : 0;
+  const g  = pts ? fmtN(gap) + " pts"  : "+" + fmtMs(gap);
+  const st = pts ? fmtN(step) + " pts" : "+" + fmtMs(step);
+  const up = ord(r.rank - 1);
+  const sub = r.rank === 1
+    ? `<span class="sub sub-d">Leads the board</span><span class="sub sub-m">Leads the board</span>`
+    : `<span class="sub sub-d"><em>${g}</em> behind &middot; ${st} to ${up}</span>
+       <span class="sub sub-m"><em>${st}</em> to ${up} &middot; ${g} back</span>`;
+  return `<div class="row" style="--h:${h}" data-m="${r.rank<=3 ? r.rank : 0}">
+    <span class="c-rank">${r.rank}</span>
+    ${marble(r)}
+    <span class="c-text"><span class="nm">${nameHtml(r)}</span>${sub}</span>
+    <span class="c-score"><span>${value(boardData, r.score_ms)}</span><i class="pill"></i></span>
+  </div>`;
+}
+
+/* ---------- the list, chunked ---------- */
+function headHtml(){
+  return `<div class="head"><span>#</span><span></span><span>Player</span>
+    <span class="c-score">${isPoints(boardData) ? "Points" : "Time"}</span></div>`;
+}
 function renderMore(){
-  const tbody=document.getElementById('tbody'); if(!tbody) return;
-  if(shown>=curRows.length) return;
-  const st=scoreType(curBoard);
-  const end=Math.min(shown+CHUNK, curRows.length);
-  let html="";
-  for(let i=shown;i<end;i++) html+=rowHtml(curRows[i], st);
-  tbody.insertAdjacentHTML('beforeend', html);
-  shown=end;
+  if(!boardData || shown >= visible.length) return;
+  const board = $("#board"), lead = boardData.rows[0];
+  const end = Math.min(shown + CHUNK, visible.length);
+  let html = "";
+  for(let i = shown; i < end; i++){
+    const r = visible[i];
+    html += rowHtml(r, lead, boardData.rows[r.rank - 2]);
+  }
+  const more = $("#more");
+  if(more) more.insertAdjacentHTML("beforebegin", html);
+  else board.insertAdjacentHTML("beforeend", html);
+  shown = end;
+  if(shown >= visible.length && more) more.remove();
   updateMeta();
 }
-// Keep loading until the content overflows the viewport (so there's always
-// something to scroll to), guarded against runaway loops.
+/* keep appending until the page actually overflows, so there is always something
+   to scroll towards; guarded so a short board cannot spin */
 function fillViewport(){
-  let guard=0;
-  while(shown<curRows.length &&
-        document.documentElement.scrollHeight <= window.innerHeight+800 && guard<500){
+  let guard = 0;
+  while(shown < visible.length &&
+        document.documentElement.scrollHeight <= window.innerHeight + 800 && guard < 400){
     renderMore(); guard++;
   }
 }
 function onScroll(){
-  if(!curRows.length || shown>=curRows.length) return;
-  if(window.innerHeight+window.scrollY >= document.documentElement.scrollHeight-800) renderMore();
+  if(!boardData || shown >= visible.length) return;
+  if(window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 900) renderMore();
 }
-function buildTable(){
-  const tw=document.getElementById('tablewrap');
-  if(!curRows.length){
-    const q=document.getElementById('search').value.trim();
-    tw.innerHTML=`<div class="empty">${q?`No players match “${escapeHtml(q)}”.`:"No entries on this board yet."}</div>`;
+
+function updateMeta(){
+  const meta = boardMeta();
+  if(!meta) return;
+  const noun = isPoints(meta) ? "players" : "runs";
+  const text = filtering
+    ? `${group} · ${fmtN(visible.length)} of ${fmtN(meta.entry_count)} ${noun} match`
+    : `${group} · ${fmtN(meta.entry_count)} ${noun} · showing ${fmtN(shown)}`;
+  $("#bmetaD").textContent = text;
+  $("#bmetaM").textContent = text;
+}
+
+function buildList(){
+  const board = $("#board");
+  if(!visible.length){
+    const q = $("#q").value.trim();
+    board.innerHTML = q
+      ? `<div class="empty"><b>Nobody here by that name.</b>
+          Names come from Steam personas, so try a shorter fragment, or paste a Steam ID.</div>`
+      : `<div class="empty"><b>No runs on this board yet.</b>
+          Nobody has set a time here, or the board has only just been added.</div>`;
+    updateMeta();
     return;
   }
-  const st=scoreType(curBoard);
-  const head = st==="points"
-    ? `<th class="rank">#</th><th>Player</th><th class="num">Points</th>`
-    : `<th class="rank">#</th><th>Player</th><th class="num">Time</th>`;
-  tw.innerHTML =
-    `<table><thead><tr>${head}</tr></thead><tbody id="tbody"></tbody></table>`;
-  shown=0;
+  board.innerHTML = headHtml() +
+    (visible.length > CHUNK ? `<div class="more" id="more">Loading more</div>` : "");
+  shown = 0;
   renderMore();
   fillViewport();
 }
-function applyFilterAndRender(){
-  const q=document.getElementById('search').value.trim().toLowerCase();
-  curRows = !q ? curBoardData.rows
-    : curBoardData.rows.filter(r=>(r.persona||"").toLowerCase().includes(q) || r.steam_id.includes(q));
-  buildTable();
+
+function applyFilter(){
+  const q = $("#q").value.trim().toLowerCase();
+  filtering = q.length > 0;
+  /* unfiltered, the top three are already up on the podium */
+  visible = filtering
+    ? boardData.rows.filter(r =>
+        personaOf(r).toLowerCase().includes(q) || r.steam_id.includes(q))
+    : boardData.rows.filter(r => r.rank > 3);
+  buildList();
 }
 
+/* ---------- loading ---------- */
 async function loadBoard(name){
-  if(BOARD_CACHE[name]) return BOARD_CACHE[name];
-  const meta=INDEX.boards.find(b=>b.name===name);
-  const res=await fetch('data/'+meta.file);
-  if(!res.ok) throw new Error('fetch '+meta.file+' -> '+res.status);
-  const data=await res.json();
-  BOARD_CACHE[name]=data;
+  if(CACHE[name]) return CACHE[name];
+  const meta = activeBoards().find(b => b.name === name);
+  const res = await fetch("data/" + meta.file);
+  if(!res.ok) throw new Error("fetch " + meta.file + " -> " + res.status);
+  const data = await res.json();
+  CACHE[name] = data;
   return data;
 }
 async function selectBoard(name){
-  curBoard=name;
-  document.getElementById('board').value=name;
-  document.getElementById('note').innerHTML="";
-  document.getElementById('boardmeta').textContent="";
-  document.getElementById('tablewrap').innerHTML=`<div class="loading">Loading leaderboard…</div>`;
+  boardKey = name;
+  renderSelectors();
+  $("#leaders").hidden = true;
+  $("#tiles").innerHTML = "";
+  $("#bmetaD").textContent = $("#bmetaM").textContent = group + " · loading";
+  $("#board").innerHTML = Array.from({length:8}, () =>
+    `<div class="skel"><span></span><span></span><span></span></div>`).join("");
+
   let data;
-  try { data=await loadBoard(name); }
-  catch(e){ document.getElementById('tablewrap').innerHTML=`<div class="empty">Couldn’t load this board.</div>`; return; }
-  if(curBoard!==name) return;   // user switched while it was loading
-  curBoardData=data;
-  showNote(data);
-  applyFilterAndRender();
+  try { data = await loadBoard(name); }
+  catch(err){
+    if(boardKey !== name) return;
+    /* drop the previous board entirely. Leaving visible/shown/boardData in place
+       lets the next scroll event append the old board's rows under this message,
+       counted against the new board's field size. */
+    boardData = null; visible = []; shown = 0; filtering = false;
+    $("#bmetaD").textContent = $("#bmetaM").textContent = group + " · unavailable";
+    $("#board").innerHTML = `<div class="empty"><b>That board didn't load.</b>
+      The data file may still be refreshing. Try again in a moment.</div>`;
+    return;
+  }
+  if(boardKey !== name) return;      /* the reader moved on while it was fetching */
+  boardData = data;
+  renderTiles();
+  renderLeaders();
+  applyFilter();
 }
 
-function buildBoardSelect(){
-  const sel=document.getElementById('board'); sel.innerHTML="";
-  const boards=activeBoards().filter(b=>b.group===curGroup);
-  for(const b of boards){
-    const o=document.createElement('option'); o.value=b.name; o.textContent=b.display; sel.appendChild(o);
-  }
-  if(!boards.find(b=>b.name===curBoard)) curBoard=boards[0]?.name;
-  sel.value=curBoard;
+/* ---------- the sheet ---------- */
+let sheetOpen = false;
+function openSheet(){
+  sheetOpen = true;
+  $("#sheet").classList.add("open");
+  $("#scrim").classList.add("open");
+  /* the scroller in this layout is the root element, not body, so lock both */
+  document.documentElement.style.overflow = "hidden";
+  document.body.style.overflow = "hidden";
+  const current = $("#sheetList .bbtn[aria-current='true']") || $("#sheetList .bbtn");
+  if(current) current.focus();
 }
-function buildGroups(){
-  const groups=[...new Set(activeBoards().map(b=>b.group))];
-  const el=document.getElementById('groups'); el.innerHTML="";
-  for(const g of groups){
-    const c=document.createElement('div'); c.className="chip"+(g===curGroup?" active":"");
-    c.textContent=g; c.onclick=()=>{ curGroup=g; buildGroups(); buildBoardSelect(); selectBoard(curBoard); };
-    el.appendChild(c);
-  }
+function closeSheet(){
+  if(!sheetOpen) return;
+  sheetOpen = false;
+  $("#sheet").classList.remove("open");
+  $("#scrim").classList.remove("open");
+  document.documentElement.style.overflow = "";
+  document.body.style.overflow = "";
+  $("#boardBtn").focus();                            /* hand focus back to the trigger */
 }
-
-fetch('data/index.json').then(r=>r.json()).then(idx=>{
-  INDEX=idx;
-  const boards=activeBoards();
-  const dt=new Date(idx.generated_at);
-  document.getElementById('sub').innerHTML =
-    `${boards.length} boards · ${idx.player_count.toLocaleString()} players · last refreshed ` +
-    `<span title="${dt.toLocaleString()}">${relTime(dt)}</span> <span class="dim">(${dt.toLocaleString()})</span>`;
-  curGroup = boards.find(b=>b.group==="Season 2") ? "Season 2" : boards[0].group;
-  curBoard = (boards.find(b=>b.name==="OverallLeaderboard_EASeason2") || boards[0]).name;
-  buildGroups(); buildBoardSelect(); selectBoard(curBoard);
-  document.getElementById('board').onchange=e=>selectBoard(e.target.value);
-  document.getElementById('search').oninput=()=>{ if(curBoardData) applyFilterAndRender(); };
-  window.addEventListener('scroll', onScroll, {passive:true});
-  window.addEventListener('resize', ()=>{ onScroll(); fillViewport(); });
-  document.getElementById('footer').innerHTML =
-    `Data read from Steam leaderboards for appid 3339810 · fan project, not affiliated with the developer.`;
-}).catch(e=>{
-  document.getElementById('sub').textContent="Failed to load data/index.json — run the collector first.";
+$("#boardBtn").onclick = openSheet;
+$("#scrim").onclick = closeSheet;
+addEventListener("keydown", e => {
+  if(e.key === "Escape"){ closeSheet(); return; }
+  if(e.key !== "Tab" || !sheetOpen) return;
+  /* aria-modal hides the rest of the page from assistive tech, so keyboard
+     focus has to be kept inside the sheet to match */
+  const items = [...$("#sheet").querySelectorAll("button")];
+  if(!items.length) return;
+  const first = items[0], last = items[items.length-1];
+  if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  else if(!$("#sheet").contains(document.activeElement)){ e.preventDefault(); first.focus(); }
 });
+
+/* ---------- events ---------- */
+$("#groups").addEventListener("click", e => {
+  const t = e.target.closest("[data-g]"); if(!t) return;
+  group = t.dataset.g;
+  $("#q").value = ""; filtering = false;
+  renderGroups();
+  selectBoard(boardsIn(group)[0].name);
+});
+function pickBoard(e){
+  const t = e.target.closest("[data-b]"); if(!t) return;
+  closeSheet();
+  /* a board that failed to load is still the current boardKey, so let the reader
+     click it again to retry; only a board actually on screen is a no-op */
+  if(t.dataset.b === boardKey && boardData) return;
+  $("#q").value = ""; filtering = false;
+  scrollTo({top:0});
+  selectBoard(t.dataset.b);
+}
+$("#boards").addEventListener("click", pickBoard);
+$("#sheetList").addEventListener("click", pickBoard);
+
+/* a phone has no hover, so tapping a marble turns it over, top three included */
+document.addEventListener("click", e => {
+  const m = e.target.closest(".marble"); if(!m || m.tagName !== "BUTTON") return;
+  const wasOn = m.classList.contains("on");
+  document.querySelectorAll(".marble.on").forEach(n => n.classList.remove("on"));
+  if(!wasOn) m.classList.add("on");
+});
+
+let searchTimer;
+$("#q").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { if(boardData) applyFilter(); }, 120);
+});
+
+addEventListener("scroll", onScroll, {passive:true});
+addEventListener("resize", () => { onScroll(); fillViewport(); });
+
+/* ---------- start ---------- */
+renderChrome();
+fetch("data/index.json")
+  .then(r => r.json())
+  .then(idx => {
+    INDEX = idx;
+    const boards = activeBoards();
+    if(!boards.length) throw new Error("no boards");
+
+    const dt = new Date(idx.generated_at);
+    $("#freshness").innerHTML =
+      `Refreshed <b>${relTime(dt)}</b>`;
+    $("#freshness").title = dt.toLocaleString();
+
+    group = groupsOf().includes("Season 2") ? "Season 2" : groupsOf()[0];
+    const preferred = boards.find(b => b.name === "OverallLeaderboard_EASeason2");
+    renderGroups();
+    selectBoard((preferred || boardsIn(group)[0]).name);
+  })
+  .catch(() => {
+    $("#freshness").textContent = "Data unavailable";
+    $("#board").innerHTML = `<div class="empty"><b>The leaderboard data didn't load.</b>
+      <code>data/index.json</code> is missing or unreadable. If you are running this locally,
+      the collector needs to run first.</div>`;
+  });
 </script>
 </body>
 </html>
