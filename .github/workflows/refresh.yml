@@ -6,8 +6,9 @@ name: Refresh leaderboards
 
 on:
   schedule:
-    # Daily at 09:00 UTC. GitHub may delay scheduled runs by a few minutes.
-    - cron: "0 9 * * *"
+    # Every 3 hours (00:00, 03:00, ... UTC). GitHub may delay scheduled runs by
+    # a few minutes under load.
+    - cron: "0 */3 * * *"
   workflow_dispatch: {}   # allow manual "Run workflow" from the Actions tab
 
 # Don't let two refreshes overlap.

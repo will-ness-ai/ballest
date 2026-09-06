@@ -135,6 +135,14 @@ function render(){
 }
 function gotoPage(n){ curPage=n; render(); window.scrollTo({top:0}); }
 function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function relTime(dt){
+  const s=Math.round((Date.now()-dt.getTime())/1000);
+  if(s<0) return "just now";
+  if(s<60) return "just now";
+  const m=Math.round(s/60); if(m<60) return m+(m===1?" min ago":" mins ago");
+  const h=Math.round(m/60); if(h<24) return h+(h===1?" hour ago":" hours ago");
+  const d=Math.round(h/24); return d+(d===1?" day ago":" days ago");
+}
 
 function activeBoards(){ return DATA.boards.filter(b=>b.group!=="Trials"); }
 
@@ -162,8 +170,10 @@ fetch('data/campaign.json').then(r=>r.json()).then(d=>{
   const boards=activeBoards();
   const players=new Set(); boards.forEach(b=>b.rows.forEach(r=>players.add(r.steam_id)));
   const dt=new Date(d.generated_at);
-  document.getElementById('sub').textContent =
-    `${boards.length} boards · ${players.size} players · updated ${dt.toLocaleString()}`;
+  document.getElementById('sub').innerHTML =
+    `${boards.length} boards · ${players.size} players · last refreshed ` +
+    `<span title="${dt.toLocaleString()}">${relTime(dt)}</span> ` +
+    `<span style="color:var(--dim)">(${dt.toLocaleString()})</span>`;
   curGroup = boards.find(b=>b.group==="Season 2") ? "Season 2" : boards[0].group;
   curBoard = (boards.find(b=>b.name==="OverallLeaderboard_EASeason2") || boards[0]).name;
   buildGroups(); buildBoardSelect(); render();
