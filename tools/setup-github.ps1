@@ -50,9 +50,12 @@ $exists = $false
 try { gh repo view "$who/$RepoName" 1>$null 2>$null; if ($LASTEXITCODE -eq 0) { $exists = $true } } catch {}
 if ($exists) {
   Write-Host "  repo $who/$RepoName already exists - pushing current main."
-  git remote get-url origin 2>$null; if ($LASTEXITCODE -ne 0) { gh repo view "$who/$RepoName" --json url -q .url | ForEach-Object { git remote add origin "https://github.com/$who/$RepoName.git" } }
+  git remote get-url origin 2>$null; if ($LASTEXITCODE -ne 0) { git remote add origin "https://github.com/$who/$RepoName.git" }
   git push -u origin main
 } else {
+  # Drop any stale local 'origin' (e.g. left over after deleting a prior repo)
+  # so gh can create the remote cleanly.
+  git remote remove origin 2>$null | Out-Null
   gh repo create $RepoName $vis --source=. --remote=origin --push
 }
 
