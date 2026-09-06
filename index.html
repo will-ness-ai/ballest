@@ -435,8 +435,13 @@ const esc = s => String(s).replace(/[&<>"']/g,
 const ord = n => n + (["th","st","nd","rd"][(n%100-20)%10] || ["th","st","nd","rd"][n%100] || "th");
 const personaOf = r => r.persona || ("Player " + r.steam_id.slice(-6));
 
-function fmtMs(ms){
-  ms = Math.abs(+ms);
+/* Track boards store a run time as hundred-thousandths of a second, NOT
+   milliseconds: seconds = score / 100000. Verified against the medal times each
+   Workshop map publishes and against board shape (Map_Track13's leader is
+   0:10.267, not 17:06). Overall* boards are points and never come through here. */
+const SCORE_TICKS_PER_SECOND = 100000;
+function fmtTime(score){
+  const ms = Math.floor(Math.abs(+score) * 1000 / SCORE_TICKS_PER_SECOND);
   const h = Math.floor(ms/3600000), m = Math.floor(ms%3600000/60000),
         s = Math.floor(ms%60000/1000), x = ms%1000;
   return (h ? h+":" : "") + String(m).padStart(h?2:1,"0") + ":" +
@@ -460,7 +465,7 @@ function shortName(display){
 }
 /* aggregate season boards are points, higher is better; a track board is a run time */
 const isPoints = board => board.name.startsWith("Overall");
-const value = (board, n) => isPoints(board) ? fmtN(n) : fmtMs(n);
+const value = (board, n) => isPoints(board) ? fmtN(n) : fmtTime(n);
 
 /* The collector no longer emits Trials at all. This stays as a guard so a
    stale or cached index.json cannot put The Tower back in the season tabs. */
@@ -514,7 +519,7 @@ function renderTiles(){
   const lead = rows[0], tenth = rows[Math.min(9, rows.length-1)];
   const spread = isPoints(boardData)
     ? fmtN(lead.score_ms - tenth.score_ms) + " pts"
-    : fmtMs(tenth.score_ms - lead.score_ms);
+    : fmtTime(tenth.score_ms - lead.score_ms);
   t.innerHTML = `
     <div class="tile"><dt>Leader</dt><dd>${value(boardData, lead.score_ms)}
       <span class="tsub">${marble(lead)}<span>${esc(personaOf(lead))}</span></span></dd></div>
@@ -531,7 +536,7 @@ function renderLeaders(){
   el.innerHTML = rows.slice(0,3).map((r,i) => {
     const gap = pts ? lead.score_ms - r.score_ms : r.score_ms - lead.score_ms;
     const gapTxt = i === 0 ? "sets the pace"
-      : (pts ? fmtN(gap) + " pts back" : "+" + fmtMs(gap) + " back");
+      : (pts ? fmtN(gap) + " pts back" : "+" + fmtTime(gap) + " back");
     return `<div class="plate" data-p="${i+1}">
       ${marble(r)}
       <span class="pl-text">
@@ -556,8 +561,8 @@ function rowHtml(r, lead, prev){
   const h = hueFor(r.steam_id), pts = isPoints(boardData);
   const gap  = pts ? lead.score_ms - r.score_ms : r.score_ms - lead.score_ms;
   const step = prev ? (pts ? prev.score_ms - r.score_ms : r.score_ms - prev.score_ms) : 0;
-  const g  = pts ? fmtN(gap) + " pts"  : "+" + fmtMs(gap);
-  const st = pts ? fmtN(step) + " pts" : "+" + fmtMs(step);
+  const g  = pts ? fmtN(gap) + " pts"  : "+" + fmtTime(gap);
+  const st = pts ? fmtN(step) + " pts" : "+" + fmtTime(step);
   const up = ord(r.rank - 1);
   const sub = r.rank === 1
     ? `<span class="sub sub-d">Leads the board</span><span class="sub sub-m">Leads the board</span>`
