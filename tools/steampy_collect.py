@@ -1,0 +1,134 @@
+"""
+Ballest campaign leaderboard collector — HEADLESS (GitHub Actions path).
+
+Logs into Steam with a refresh token (no Steam client, no password at runtime),
+reads every campaign leaderboard over the Steam CM via steam.py, resolves player
+names via the Steam Web API, and writes data/campaign.json.
+
+Auth (secrets, provided as env vars in CI):
+  STEAM_REFRESH_TOKEN  — minted once locally with steampy_mint.py
+  STEAM_API_KEY        — Steam Web API key (name resolution)
+
+Run locally to test:  python tools/steampy_collect.py
+Requires: steamio, aiohttp<3.13  (see tools/requirements-steampy.txt)
+"""
+import os, sys, asyncio, logging
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import campaign_common as cc
+
+import warnings
+warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
+
+import steam
+from steam.protobufs import leaderboards
+
+logging.basicConfig(level=logging.WARNING)
+logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
+
+TOKEN = os.environ.get("STEAM_REFRESH_TOKEN", "").strip()
+
+client = steam.Client()
+_state = {"done": False, "error": None, "wrote": False}
+
+
+def _ugc(val):
+    try:
+        n = int(val)
+    except (TypeError, ValueError):
+        return "0"
+    return str(n)
+
+
+async def fetch_board(lid):
+    """Read a leaderboard's top entries directly by ID (LBSGetLBEntries).
+    Returns (total_entry_count, [entry, ...]). steam.py's find-by-name is broken
+    for this app, so we go straight to the entries request with the known ID."""
+    msg = await client._state.ws.send_proto_and_wait(
+        leaderboards.CMsgClientLbsGetLbEntries(
+            leaderboard_id=lid,
+            app_id=cc.APP_ID,
+            range_start=1,
+            range_end=cc.TOP_N,
+            leaderboard_data_request=0,  # Global
+            steamids=[],
+        )
+    )
+    if msg.result != steam.Result.OK:
+        raise RuntimeError(f"LBSGetLBEntries result={msg.result!r}")
+    return msg.leaderboard_entry_count, msg.entries
+
+
+@client.event
+async def on_ready():
+    if _state["done"]:
+        return
+    _state["done"] = True
+    try:
+        boards_out = []
+        all_ids = set()
+        for name, group in cc.BOARDS:
+            lid = cc.LEADERBOARD_IDS.get(name)
+            if not lid:
+                print(f"  [skip] no leaderboard ID for {name}")
+                continue
+            rows = []
+            total = 0
+            try:
+                total, entries = await fetch_board(lid)
+                for e in entries:
+                    sid = str(e.steam_id_user)
+                    all_ids.add(sid)
+                    rows.append({
+                        "rank": e.global_rank,
+                        "steam_id": sid,
+                        "score_ms": int(e.score),
+                        "time": cc.fmt_time(e.score),
+                        "ugc_id": _ugc(e.ugc_id),
+                    })
+            except Exception as e:
+                print(f"  [warn] read failed: {name}: {e!r}")
+            boards_out.append({
+                "name": name,
+                "display": cc.display_name(name),
+                "group": group,
+                "handle": str(lid),
+                "entry_count": int(total or len(rows)),
+                "rows": rows,
+            })
+            print(f"  {name:34s} total={int(total):6d} pulled={len(rows)}")
+
+        cc.write_campaign(boards_out, all_ids)
+        _state["wrote"] = True
+    except Exception as e:
+        _state["error"] = e
+        import traceback
+        traceback.print_exc()
+    finally:
+        await client.close()
+
+
+def main():
+    if not TOKEN:
+        print("ERROR: STEAM_REFRESH_TOKEN not set. Mint one with tools/steampy_mint.py.")
+        return 2
+    try:
+        client.run(refresh_token=TOKEN)
+    except Exception as e:
+        # steam.py commonly raises a ConnectionClosed/ExceptionGroup during the
+        # session teardown that follows client.close(). If the data was already
+        # written, that teardown noise is not a failure.
+        if _state["wrote"]:
+            print("(note: benign Steam session-teardown error after write — ignored)")
+        else:
+            print(f"ERROR: Steam login/run failed: {e!r}")
+            print("If the token is invalid/expired, re-mint with tools/steampy_mint.py.")
+            return 1
+    if _state["error"] or not _state["wrote"]:
+        print("ERROR: collection did not complete (no data written).")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

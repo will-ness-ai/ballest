@@ -1,0 +1,5 @@
+# Headless Steam leaderboard collector (steam.py) — Python 3.11+
+# aiohttp is capped: steamio 1.1.3 imports AsyncStreamReaderMixin, which
+# aiohttp >=3.13 removed. 3.12.x still has it.
+steamio==1.1.3
+aiohttp>=3.10,<3.13

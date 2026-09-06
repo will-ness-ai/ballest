@@ -1,0 +1,30 @@
+# secrets
+.env
+tools/refresh_token.txt
+
+# local editor / Claude Code settings
+.claude/settings.local.json
+
+# steamworks runtime files (copied in / generated)
+tools/steam_api64.dll
+tools/steam_appid.txt
+
+# local python env for the steam.py collector (bundled 3.11 + venv)
+tools/pythons/
+tools/.venv-steampy/
+
+# private reverse-engineering notes + capture tooling: these reference the
+# game's internal backend (hostnames/endpoints). Kept local, never published.
+research/
+capture/
+tools/start-capture.ps1
+tools/stop-capture.ps1
+
+# local scratch
+__pycache__/
+*.pyc
+
+# data: the site needs campaign.json committed (GitHub Pages serves it),
+# but ignore any other local data artifacts.
+data/*
+!data/campaign.json
