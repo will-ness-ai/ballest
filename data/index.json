@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T01:24:10Z",
+  "generated_at": "2026-09-08T01:25:02Z",
   "app_id": 3339810,
   "player_count": 5479,
   "boards": [
@@ -19,8 +19,8 @@
       "group": "Season 1",
       "tier": null,
       "handle": "17800617",
-      "entry_count": 1414,
-      "rows": 1414,
+      "entry_count": 1418,
+      "rows": 1418,
       "file": "boards/Map_Track13.json"
     },
     {
@@ -119,8 +119,8 @@
       "group": "Season 2",
       "tier": "Beginner",
       "handle": "20687727",
-      "entry_count": 4295,
-      "rows": 4295,
+      "entry_count": 4297,
+      "rows": 4297,
       "file": "boards/Map_Track_S2_Longhaul.json"
     },
     {
@@ -139,8 +139,8 @@
       "group": "Season 2",
       "tier": "Beginner",
       "handle": "20687722",
-      "entry_count": 2550,
-      "rows": 2550,
+      "entry_count": 2551,
+      "rows": 2551,
       "file": "boards/Map_Track_S2_BigStairs.json"
     },
     {
