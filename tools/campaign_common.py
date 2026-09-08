@@ -7,7 +7,7 @@ Used by:
 
 Pure stdlib so it imports under any Python the collectors run on.
 """
-import os, time, json, urllib.request, urllib.parse
+import os, re, time, json, urllib.request, urllib.parse
 
 APP_ID = 3339810
 # Steam returns an entire board in one LBSGetLBEntries call at these sizes
@@ -22,6 +22,9 @@ BOARDS_DIR = os.path.join(DATA_DIR, "boards")
 INDEX_PATH = os.path.join(DATA_DIR, "index.json")
 
 # Leaderboard names = level asset names, verbatim (discovered by probing the pak).
+# LIST ORDER IS THE IN-GAME NUMBERING: the game labels Circuit tracks only "01".."NN"
+# per season, and a track's 1-based position here is that number. Verified 2026-09-07
+# against every track's in-game leaderboard. Reordering a list renumbers the site.
 S1_TRACKS = ["Map_Track13", "Map_Track15", "Map_Track16", "Map_Track05",
              "Map_Track18", "Map_Track21", "Map_Track22", "Map_Track19"]
 S2_TRACKS = ["Map_Track_S2_Sampler", "Map_Track_S2_Longhaul", "Map_Track_S2_Pyramids",
@@ -74,21 +77,45 @@ BOARDS = (
 
 
 
-def display_name(name):
-    """The board's own name, without the season.
+def track_number(name):
+    """1-based in-game number of a Circuit track, or None for any other board."""
+    for tracks in (S1_TRACKS, S2_TRACKS):
+        if name in tracks:
+            return tracks.index(name) + 1
+    return None
 
-    The season is already carried by the "group" field and shown by the site's
-    season tabs and rail heading, so repeating it here only duplicated it on
-    screen. Names are bare and dash free.
+
+# Season 2's track-selection screen groups tracks in rows of four under these
+# headings. Season 1's shows no headings at all.
+S2_TIERS = ("Beginner", "Intermediate", "Advanced")
+
+
+def track_tier(name):
+    """The in-game difficulty heading a track sits under, or None if there is none."""
+    if name in S2_TRACKS:
+        return S2_TIERS[min(S2_TRACKS.index(name) // 4, len(S2_TIERS) - 1)]
+    return None
+
+
+def display_name(name):
+    """What the site calls a board: the in-game track number, then a nickname.
+
+    Players know Circuit tracks only by the "01".."12" the game shows, so the
+    number leads. Season 2 keeps its asset nickname after the number (Sampler,
+    Night Condo) because those are memorable; Season 1's asset names are just
+    *other* numbers (Map_Track13 is in-game 01) and only confuse, so those are
+    the number alone. The season is carried by the "group" field, not repeated.
     """
     if name in ("OverallLeaderboard", "OverallLeaderboard_EASeason2"):
         return "Overall"
     if name == "Map_TheTower":
         return "The Tower"
+    n = track_number(name)
     if name.startswith("Map_Track_S2_"):
-        return name[len("Map_Track_S2_"):]
-    if name.startswith("Map_Track"):
-        return "Track " + name[len("Map_Track"):].lstrip("_")
+        nick = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name[len("Map_Track_S2_"):])
+        return f"{n:02d} {nick}"
+    if n is not None:
+        return f"{n:02d}"
     return name
 
 
