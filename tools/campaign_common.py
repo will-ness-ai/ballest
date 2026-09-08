@@ -217,6 +217,7 @@ def write_site(boards_out, all_ids):
         with open(os.path.join(BOARDS_DIR, fname), "w", encoding="utf-8") as f:
             json.dump(board_doc, f, ensure_ascii=False, separators=(",", ":"))
         index_boards.append({"name": b["name"], "display": b["display"], "group": b["group"],
+                             "tier": b.get("tier"),
                              "handle": b["handle"], "entry_count": b["entry_count"],
                              "rows": len(b["rows"]), "file": "boards/" + fname})
 
