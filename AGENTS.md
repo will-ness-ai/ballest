@@ -53,8 +53,8 @@ rather than a bare literal — reading the field name as milliseconds is exactly
 that shipped 100x-too-long times to production once already.
 
 **Adding a board takes two edits, both in `tools/campaign_common.py`**: the tuple in
-`BOARDS` (`:64`, which is also the site's ordering) and the numeric ID in
-`LEADERBOARD_IDS` (`:37`). steam.py's find-by-name is broken for this app, so the ID
+`BOARDS` (`:67`, which is also the site's ordering and, for tracks, the in-game number) and the numeric ID in
+`LEADERBOARD_IDS` (`:40`). steam.py's find-by-name is broken for this app, so the ID
 table is mandatory — a board missing from it is skipped without an error.
 
 **Never let a run publish an empty board.** `steampy_collect.py` falls back to the
@@ -71,9 +71,13 @@ production.
 the interval to the next rung up, so sorting, filtering, or de-duping the array in place
 breaks it.
 
-**`display_name()` emits an em dash** (`Season 2 — Overall`) and `index.html`'s
-`SEASON_PREFIX` regex (`:462`) must keep matching it. Change the separator on one side
-and the other quietly stops shortening.
+**Track list order is the in-game numbering.** The game labels Circuit tracks only
+`01`..`NN` per season and never shows a name, so `display_name()` derives that number
+from a track's position in `S1_TRACKS` / `S2_TRACKS`, and `track_tier()` derives Season
+2's Beginner / Intermediate / Advanced heading from the same index in rows of four.
+Inserting or reordering a track renumbers everything after it on the site. Append new
+tracks in the game's own order and verify in-game: the pre-race screen shows each track's
+top five, which is enough to match against `data/boards/`.
 
 **The theme lives in CSS custom properties** on `:root` in `index.html`. It is dark-only
 and mobile-first with a single `min-width:820px` breakpoint. Use the variables rather

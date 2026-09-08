@@ -104,6 +104,7 @@ async def on_ready():
                     })
                 boards_out.append({
                     "name": name, "display": cc.display_name(name), "group": group,
+                    "tier": cc.track_tier(name),
                     "handle": str(lid), "entry_count": int(total or len(rows)), "rows": rows,
                 })
                 print(f"  {name:34s} total={int(total):6d} pulled={len(rows)}")
@@ -116,6 +117,7 @@ async def on_ready():
                         all_ids.add(r["steam_id"])
                     boards_out.append({
                         "name": name, "display": cc.display_name(name), "group": group,
+                    "tier": cc.track_tier(name),
                         "handle": str(lid),
                         "entry_count": int(prev.get("entry_count") or len(prev["rows"])),
                         "rows": prev["rows"],

@@ -211,6 +211,9 @@ footer a{color:var(--dim)}
 .bbtn:hover{background:var(--surface2);color:var(--text)}
 .bbtn[aria-current="true"]{background:var(--accent-soft);color:var(--text);font-weight:600}
 .bbtn[aria-current="true"] .cnt{color:var(--accent);opacity:1}
+.tierhead{display:block;margin:9px 9px 2px;font-family:var(--f-hud);font-size:10px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+.tierhead:first-child{margin-top:2px}
 .bmeter{display:block;height:3px;border-radius:2px;background:rgba(255,255,255,.1)}
 .bmeter i{display:block;height:100%;width:var(--w);border-radius:2px;background:var(--faint)}
 .bbtn[aria-current="true"] .bmeter i{background:var(--accent)}
@@ -495,12 +498,19 @@ function renderGroups(){
 }
 function renderSelectors(){
   const list = boardsIn(group), max = Math.max(...list.map(b => b.entry_count));
-  const items = list.map(b => `
+  /* the in-game track-selection screen groups tracks under difficulty headings;
+     mirror them so the rail reads like the screen players already know */
+  let tier = null;
+  const items = list.map(b => {
+    const head = (b.tier && b.tier !== tier) ? `<span class="tierhead">${esc(b.tier)}</span>` : "";
+    tier = b.tier || tier;
+    return head + `
     <button class="bbtn" data-b="${esc(b.name)}" aria-current="${b.name===boardKey}">
       <span class="brow"><span>${esc(shortName(b.display))}</span>
         <span class="cnt">${fmtN(b.entry_count)}</span></span>
       <span class="bmeter"><i style="--w:${Math.round(b.entry_count/max*100)}%"></i></span>
-    </button>`).join("");
+    </button>`;
+  }).join("");
   $("#boards").innerHTML = items;
   $("#sheetList").innerHTML = items;
   $("#railhead").textContent = group;
