@@ -32,11 +32,15 @@ python -m http.server 8731
 ```
 
 (or use the `ballest` config in `.claude/launch.json`). Refreshing data locally needs a
-Steam refresh token; the mint-and-collect runbook is `tools/README-hosting.md`.
+Steam refresh token; the mint-and-collect runbook is `tools/README-hosting.md`. The
+secrets (`.env`, `tools/refresh_token.txt`) are gitignored and live in the main checkout;
+the collector finds them from a worktree on its own, or takes `STEAM_API_KEY` and
+`STEAM_REFRESH_TOKEN` from the environment.
 
-There are no tests, linters, or type checks here — nothing to run before committing.
-Verify front-end changes by loading the served page. Verify collector changes by running
-it and reading its per-board output lines.
+There are no tests, linters, or type checks here. Verify front-end changes by loading
+the served page. Verify collector changes with `python tools/check_data.py`, which
+rebuilds everything the collector derives from the committed boards without Steam, then
+by a live run if the read path changed. Review diffs against `CODING_STANDARDS.md`.
 
 ## Invariants worth knowing before you edit
 
@@ -67,9 +71,9 @@ been switched over.
 
 **Never let a run publish an empty board.** `steampy_collect.py` falls back to the
 previously committed file when a read fails, and aborts the run without writing anything
-if a board has neither (`tools/steampy_collect.py:105-138`). Preserve that in any change
-to the write path. The pagination stop condition (`tools/steampy_collect.py:71`) is
-deliberately conservative for the same reason — don't simplify it.
+if a board has neither (the `except` branch and the `hard_failed` check in `on_ready`).
+Preserve that in any change to the write path. The pagination stop condition in
+`fetch_board` is deliberately conservative for the same reason — don't simplify it.
 
 **`.gitignore` ignores `data/*`**, re-including only `!data/index.json`, `!data/boards/`
 and `!data/podiums.json`. A new artifact written under `data/` is invisible to git and
@@ -88,20 +92,18 @@ tracks in the game's own order and verify in-game: the pre-race screen shows eac
 top five, which is enough to match against `data/boards/`.
 
 **The theme lives in CSS custom properties** on `:root` in `index.html`. It is dark-only
-and mobile-first with a single `min-width:820px` breakpoint. Use the variables rather
-than literal colors, and put every interpolated value through `esc()`.
+and mobile-first with a single `min-width:820px` breakpoint.
 
 ## Data and git
 
 `data/` is CI-owned. The refresh workflow commits straight to `main` every three hours,
 so don't hand-edit data files and don't carry regenerated data on a feature branch — it
-will conflict. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch
-only `data/index.json`, `data/boards/` and `data/podiums.json`; keep code changes out
-of them.
+will conflict. A brand-new data artifact is the exception: its first copy ships with the
+code that introduces it, so the feature works on merge rather than after the next
+refresh. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch only
+`data/index.json`, `data/boards/` and `data/podiums.json`; keep code changes out of them.
 
-Commits use the repo-local identity `will-ness-ai <n3s.online@gmail.com>`, not the
-machine default. Work happens on `claude/<slug>` branches merged by squash — this history
-has no merge commits.
+Branch, commit and review conventions are in `CODING_STANDARDS.md`.
 
 ## Do not publish the reverse-engineering material
 

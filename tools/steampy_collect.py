@@ -5,7 +5,9 @@ Logs into Steam with a refresh token (no Steam client, no password at runtime),
 reads every campaign leaderboard over the Steam CM via steam.py, resolves player
 names via the Steam Web API, and writes data/index.json + data/boards/*.json.
 
-Auth (secrets, provided as env vars in CI):
+Auth (secrets, provided as env vars in CI; locally they fall back to the files
+steampy_mint.py and .env hold, in this checkout or the main one if this is a
+worktree):
   STEAM_REFRESH_TOKEN  — minted once locally with steampy_mint.py
   STEAM_API_KEY        — Steam Web API key (name resolution)
 
@@ -26,7 +28,7 @@ from steam.protobufs import leaderboards
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
 
-TOKEN = os.environ.get("STEAM_REFRESH_TOKEN", "").strip()
+TOKEN = cc.load_refresh_token()
 
 client = steam.Client()
 _state = {"done": False, "error": None, "wrote": False}
