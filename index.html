@@ -496,6 +496,10 @@ const esc = s => String(s).replace(/[&<>"']/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ord = n => n + (["th","st","nd","rd"][(n%100-20)%10] || ["th","st","nd","rd"][n%100] || "th");
 const personaOf = r => r.persona || ("Player " + r.steam_id.slice(-6));
+/* the search box matches a persona fragment or a Steam ID, on boards and in the cabinet alike */
+const matchesQuery = (r, q) => personaOf(r).toLowerCase().includes(q) || r.steam_id.includes(q);
+const NOBODY = `<div class="empty"><b>Nobody here by that name.</b>
+  Names come from Steam personas, so try a shorter fragment, or paste a Steam ID.</div>`;
 
 /* Track boards store a run time as hundred-thousandths of a second, NOT
    milliseconds: seconds = score / 100000. Verified against the medal times each
@@ -567,12 +571,15 @@ function renderSelectors(){
   const items = list.map((b, i) => {
     const head = (b.tier && b.tier !== tier) ? `<span class="tierhead">${esc(b.tier)}</span>` : "";
     tier = b.tier || tier;
-    /* the cabinet sits right under the season's Overall board, before the tracks */
+    /* the cabinet sits right under the season's Overall board, before the tracks.
+       Its meter is how spread out the podiums are: distinct players over the
+       season's podium spots, three per track. Measured against run counts it
+       would never leave the left edge. */
     const podium = (i === 0 && pod) ? `
     <button class="bbtn podium" data-b="${PODIUM_KEY}" aria-current="${isPodiums()}">
       <span class="brow"><span>Podiums</span>
         <span class="cnt">${fmtN(pod.players.length)}</span></span>
-      <span class="bmeter"><i style="--w:${Math.round(pod.players.length/max*100)}%"></i></span>
+      <span class="bmeter"><i style="--w:${Math.round(pod.players.length/(3*pod.tracks)*100)}%"></i></span>
     </button>` : "";
     return head + `
     <button class="bbtn" data-b="${esc(b.name)}" aria-current="${b.name===boardKey}">
@@ -614,25 +621,35 @@ function renderTiles(){
     <div class="tile"><dt>Top ten spread</dt><dd>${spread}
       <span class="tsub"><span>1st to ${Math.min(10, rows.length)}th</span></span></dd></div>`;
 }
-function renderLeaders(){
-  const rows = boardData.rows, el = $("#leaders");
-  if(rows.length < 3){ el.hidden = true; el.innerHTML = ""; return; }
+/* the marble row: three plates, each a player, what they scored, and a line
+   under it. Boards and the cabinet share the plate and differ only in those two
+   slots, which `slots(r, i)` returns as [score html, line text]. */
+const PLACE = ["1st","2nd","3rd"];
+function renderPlates(top, slots){
+  const el = $("#leaders");
+  if(top.length < 3){ el.hidden = true; el.innerHTML = ""; return; }
   el.hidden = false;
-  const labels = ["1st","2nd","3rd"], lead = rows[0], pts = isPoints(boardData);
-  el.innerHTML = rows.slice(0,3).map((r,i) => {
-    const gap = pts ? lead.score_ms - r.score_ms : r.score_ms - lead.score_ms;
-    const gapTxt = i === 0 ? "sets the pace"
-      : (pts ? fmtN(gap) + " pts back" : "+" + fmtTime(gap) + " back");
+  el.innerHTML = top.map((r,i) => {
+    const [score, line] = slots(r, i);
     return `<div class="plate" data-p="${i+1}">
       ${marble(r)}
       <span class="pl-text">
         <span class="pl-name">${nameHtml(r)}</span>
-        <span class="pl-score">${value(boardData, r.score_ms)}</span>
-        <span class="pl-gap">${gapTxt}</span>
+        <span class="pl-score">${score}</span>
+        <span class="pl-gap">${line}</span>
       </span>
-      <span class="pl-rank">${labels[i]}</span>
+      <span class="pl-rank">${PLACE[i]}</span>
     </div>`;
   }).join("");
+}
+function renderLeaders(){
+  const rows = boardData.rows, lead = rows[0], pts = isPoints(boardData);
+  renderPlates(rows.slice(0,3), (r,i) => {
+    const gap = pts ? lead.score_ms - r.score_ms : r.score_ms - lead.score_ms;
+    const gapTxt = i === 0 ? "sets the pace"
+      : (pts ? fmtN(gap) + " pts back" : "+" + fmtTime(gap) + " back");
+    return [value(boardData, r.score_ms), gapTxt];
+  });
 }
 function nameHtml(r){
   const n = esc(personaOf(r));
@@ -722,9 +739,7 @@ function buildList(){
                                       reports the previous board's row count */
   if(!visible.length){
     const q = $("#q").value.trim();
-    board.innerHTML = q
-      ? `<div class="empty"><b>Nobody here by that name.</b>
-          Names come from Steam personas, so try a shorter fragment, or paste a Steam ID.</div>`
+    board.innerHTML = q ? NOBODY
       : `<div class="empty"><b>No runs on this board yet.</b>
           Nobody has set a time here, or the board has only just been added.</div>`;
     updateMeta();
@@ -737,25 +752,21 @@ function buildList(){
 }
 
 /* ---------- the trophy cabinet ---------- */
-const PLACE = ["1st", "2nd", "3rd"];
 function medalCounts(p){
   return `<span class="mc">` + [p.gold, p.silver, p.bronze].map((n, i) =>
     `<span class="m${i+1}${n ? "" : " z"}"><i></i>${n}</span>`).join("") + `</span>`;
 }
 const podiumTotal = p => p.gold + p.silver + p.bronze;
+/* how many players share each rank; equal medal counts share one (1, 2, 2, 4) */
+function rankCounts(pod){
+  const n = {};
+  pod.players.forEach(p => { n[p.rank] = (n[p.rank] || 0) + 1; });
+  return n;
+}
 function renderPodiumLeaders(pod){
-  const P = pod.players, el = $("#leaders");
-  if(P.length < 3){ el.hidden = true; el.innerHTML = ""; return; }
-  el.hidden = false;
-  el.innerHTML = P.slice(0,3).map((p,i) => `<div class="plate" data-p="${i+1}">
-      ${marble(p)}
-      <span class="pl-text">
-        <span class="pl-name">${nameHtml(p)}</span>
-        <span class="pl-score">${medalCounts(p)}</span>
-        <span class="pl-gap">on ${podiumTotal(p)} of ${pod.tracks} podiums</span>
-      </span>
-      <span class="pl-rank">${PLACE[i]}</span>
-    </div>`).join("");
+  const shared = rankCounts(pod);
+  renderPlates(pod.players.slice(0,3), p => [medalCounts(p),
+    (shared[p.rank] > 1 ? "tied &middot; " : "") + `on ${podiumTotal(p)} of ${pod.tracks} podiums`]);
 }
 function cardHtml(p, pod, tied){
   const h = hueFor(p.steam_id);
@@ -774,22 +785,19 @@ function cardHtml(p, pod, tied){
     <div class="tl">${lines}</div>
   </div>`;
 }
-/* every card fits in one go: a season has at most three podium places per track */
+/* every card fits in one go: a season has at most three podium places per track.
+   Unlike a board's list, the top three get a card as well as a plate: the plate
+   shows their counts, the card is the only place their finishes are listed. */
 function renderCabinet(){
   const pod = podiumsIn(group), cab = $("#cabinet");
   const q = $("#q").value.trim().toLowerCase();
   filtering = q.length > 0;
-  const perRank = {};
-  pod.players.forEach(p => { perRank[p.rank] = (perRank[p.rank] || 0) + 1; });
-  /* unfiltered, the top three are already up on the marble row */
-  const list = filtering
-    ? pod.players.filter(p => personaOf(p).toLowerCase().includes(q) || p.steam_id.includes(q))
-    : pod.players.slice(3);
+  const shared = rankCounts(pod);
+  const list = filtering ? pod.players.filter(p => matchesQuery(p, q)) : pod.players;
   shown = list.length;
   cab.innerHTML = list.length
-    ? list.map(p => cardHtml(p, pod, perRank[p.rank] > 1)).join("")
-    : `<div class="empty"><b>Nobody here by that name.</b>
-        Names come from Steam personas, so try a shorter fragment, or paste a Steam ID.</div>`;
+    ? list.map(p => cardHtml(p, pod, shared[p.rank] > 1)).join("")
+    : NOBODY;
   updateMeta();
 }
 function selectPodiums(){
@@ -811,8 +819,7 @@ function applyFilter(){
   filtering = q.length > 0;
   /* unfiltered, the top three are already up on the podium */
   visible = filtering
-    ? boardData.rows.filter(r =>
-        personaOf(r).toLowerCase().includes(q) || r.steam_id.includes(q))
+    ? boardData.rows.filter(r => matchesQuery(r, q))
     : boardData.rows.filter(r => r.rank > 3);
   buildList();
 }

@@ -206,15 +206,13 @@ def build_podiums(boards_out):
         players = {}
         for b in tracks:
             for r in b["rows"][:3]:    # rows are rank-ordered; the podium is the first three
-                if r["rank"] > 3:
-                    continue
                 p = players.setdefault(r["steam_id"], {
                     "steam_id": r["steam_id"], "persona": r.get("persona", ""),
                     "avatar": r.get("avatar", ""), "profileurl": r.get("profileurl", ""),
                     "gold": 0, "silver": 0, "bronze": 0, "finishes": []})
                 p[("gold", "silver", "bronze")[r["rank"] - 1]] += 1
-                p["finishes"].append({"board": b["name"], "track": b["display"],
-                                      "rank": r["rank"], "score_ms": r["score_ms"],
+                p["finishes"].append({"track": b["display"], "rank": r["rank"],
+                                      "score_ms": r["score_ms"],
                                       "time": fmt_time(r["score_ms"])})
         ordered = sorted(players.values(),
                          key=lambda p: (-p["gold"], -p["silver"], -p["bronze"]))
@@ -263,12 +261,19 @@ def write_site(boards_out, all_ids):
 
     # The podium tally is derived from the rows above, fallback data included, so
     # it can never disagree with the boards the page shows. Like the board files
-    # it omits generated_at so an unchanged season produces no diff.
+    # it omits generated_at so an unchanged season produces no diff. The same
+    # never-publish-empty rule as the boards applies: a season with track boards
+    # but nobody on a podium can only mean the rows were empty, so the previous
+    # file is left in place rather than overwritten with a blank cabinet.
     seasons = build_podiums(boards_out)
-    with open(PODIUMS_PATH, "w", encoding="utf-8") as f:
-        json.dump({"seasons": seasons}, f, ensure_ascii=False, separators=(",", ":"))
-    for s in seasons:
-        print(f"  podiums {s['group']:10s} tracks={s['tracks']:2d} players={len(s['players'])}")
+    empty = [s["group"] for s in seasons if not s["players"]]
+    if not seasons or empty:
+        print(f"  [warn] podium tally empty for {empty or 'every season'}; keeping the previous podiums.json")
+    else:
+        with open(PODIUMS_PATH, "w", encoding="utf-8") as f:
+            json.dump({"seasons": seasons}, f, ensure_ascii=False, separators=(",", ":"))
+        for s in seasons:
+            print(f"  podiums {s['group']:10s} tracks={s['tracks']:2d} players={len(s['players'])}")
 
     with open(INDEX_PATH, "w", encoding="utf-8") as f:
         json.dump({"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
