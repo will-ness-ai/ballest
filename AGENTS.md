@@ -41,7 +41,7 @@ it and reading its per-board output lines.
 is a run time in *hundred-thousandths of a second* — seconds = `score_ms / 100000`, lower
 is better — **not** milliseconds. On `Overall*` boards it is points and higher is better,
 and the collector's sibling `time` field is meaningless for those rows. The site
-discriminates on the name prefix alone (`index.html:467`); gap arithmetic, column
+discriminates on the name prefix alone (`isPoints` in `index.html`); gap arithmetic, column
 headers, and row nouns all flip off it. Renaming an Overall board, or adding an aggregate
 board not named `Overall*`, silently renders a point total as a duration.
 
@@ -55,8 +55,8 @@ rather than a bare literal — reading the field name as milliseconds is exactly
 that shipped 100x-too-long times to production once already.
 
 **Adding a board takes two edits, both in `tools/campaign_common.py`**: the tuple in
-`BOARDS` (`:67`, which is also the site's ordering and, for tracks, the in-game number) and the numeric ID in
-`LEADERBOARD_IDS` (`:40`). steam.py's find-by-name is broken for this app, so the ID
+`BOARDS` (which is also the site's ordering and, for tracks, the in-game number) and the
+numeric ID in `LEADERBOARD_IDS`. steam.py's find-by-name is broken for this app, so the ID
 table is mandatory — a board missing from it is skipped without an error.
 
 **Never let a run publish an empty board.** `steampy_collect.py` falls back to the
