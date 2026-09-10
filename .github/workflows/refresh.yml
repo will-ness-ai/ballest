@@ -1,6 +1,7 @@
 name: Refresh leaderboards
 
-# Regenerates data/index.json + data/boards/*.json from Steam and commits them.
+# Regenerates data/index.json + data/boards/*.json + data/podiums.json from Steam
+# and commits them.
 # GitHub Pages ("Deploy from a branch": main / root) redeploys automatically
 # whenever this push lands.
 
@@ -44,7 +45,7 @@ jobs:
         run: |
           git config user.name  "will-ness-ai"
           git config user.email "n3s.online@gmail.com"
-          git add data/index.json data/boards
+          git add data/index.json data/boards data/podiums.json
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else

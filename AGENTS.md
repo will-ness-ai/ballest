@@ -12,6 +12,8 @@ JSON that the page fetches.
   framework, no JS CDN (Google Fonts is the only external request).
 - `data/index.json` — board list, counts, `generated_at`. Loaded first.
 - `data/boards/<board>.json` — one file per board, lazy-loaded on selection.
+- `data/podiums.json` — per-season podium tally (who holds each track's top three),
+  derived by the collector from the board rows. Loaded alongside `index.json`.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
 - `tools/steampy_collect.py` — the collector CI runs. **This is the live path.**
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`.
@@ -63,9 +65,9 @@ if a board has neither (`tools/steampy_collect.py:105-138`). Preserve that in an
 to the write path. The pagination stop condition (`tools/steampy_collect.py:71`) is
 deliberately conservative for the same reason — don't simplify it.
 
-**`.gitignore` ignores `data/*`**, re-including only `!data/index.json` and
-`!data/boards/`. A new artifact written under `data/` is invisible to git and 404s in
-production.
+**`.gitignore` ignores `data/*`**, re-including only `!data/index.json`, `!data/boards/`
+and `!data/podiums.json`. A new artifact written under `data/` is invisible to git and
+404s in production; the workflow's `git add` line also has to name it.
 
 **Rows are index-aligned to rank.** `rowHtml` reaches for `rows[r.rank - 2]` to compute
 the interval to the next rung up, so sorting, filtering, or de-duping the array in place
@@ -88,7 +90,8 @@ than literal colors, and put every interpolated value through `esc()`.
 `data/` is CI-owned. The refresh workflow commits straight to `main` every three hours,
 so don't hand-edit data files and don't carry regenerated data on a feature branch — it
 will conflict. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch
-only `data/index.json` and `data/boards/`; keep code changes out of them.
+only `data/index.json`, `data/boards/` and `data/podiums.json`; keep code changes out
+of them.
 
 Commits use the repo-local identity `will-ness-ai <n3s.online@gmail.com>`, not the
 machine default. Work happens on `claude/<slug>` branches merged by squash — this history
