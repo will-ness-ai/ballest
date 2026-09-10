@@ -109,6 +109,24 @@ tools\.venv-steampy\Scripts\python.exe tools\steampy_collect.py
 Then preview the site with any static server, e.g.
 `python -m http.server 8765` and open <http://localhost:8765>.
 
+## Discord custom-map standings (local, on demand)
+
+`tools/ugc_discord_leaderboard.py` lists every Workshop map, reads each map's Steam
+leaderboard by name, and prints a Discord-ready post: who has beaten the most custom
+maps, who holds the most author medals, and (with a Workshop link per map) which maps
+are still unbeaten and which author medals are still unclaimed. It needs the same two credentials as the
+collector and reads them from `tools/refresh_token.txt` and `.env` by itself:
+
+```powershell
+tools/.venv-steampy/Scripts/python.exe tools/ugc_discord_leaderboard.py --out post.md
+```
+
+Paste `post.md` into Discord, then `post-2.md` as a second message (the post is split
+wherever it would pass Discord's 2000-character limit). `--top N` sets rows per board
+(default 10); `--json FILE` dumps the per-player and per-map numbers behind the post.
+A creator counts on their own map only by beating their own author time, since the
+author time is their publishing run. A full run takes about two minutes.
+
 ## Notes
 
 - `tools/steam_collect.py` (the Steamworks-SDK collector) is the **legacy/local**

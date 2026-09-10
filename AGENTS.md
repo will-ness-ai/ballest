@@ -14,6 +14,9 @@ JSON that the page fetches.
 - `data/boards/<board>.json` — one file per board, lazy-loaded on selection.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
 - `tools/steampy_collect.py` — the collector CI runs. **This is the live path.**
+- `tools/ugc_discord_leaderboard.py` — local, on demand: reads every Workshop map's
+  board and prints a Discord post (most custom maps beaten, most author medals).
+  Not part of CI and writes nothing into the repo.
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
   reverse-engineering spike. Read `tools/README-hosting.md` before touching any of it.
@@ -54,8 +57,11 @@ that shipped 100x-too-long times to production once already.
 
 **Adding a board takes two edits, both in `tools/campaign_common.py`**: the tuple in
 `BOARDS` (`:67`, which is also the site's ordering and, for tracks, the in-game number) and the numeric ID in
-`LEADERBOARD_IDS` (`:40`). steam.py's find-by-name is broken for this app, so the ID
-table is mandatory — a board missing from it is skipped without an error.
+`LEADERBOARD_IDS` (`:40`). The collector reads by ID only, so a board missing from the
+table is skipped without an error. steam.py's find-by-name does work for this app once
+the message header's `routing_app_id` is set to the app (`find_board_id` in
+`tools/ugc_discord_leaderboard.py`); the collector predates that finding and has not
+been switched over.
 
 **Never let a run publish an empty board.** `steampy_collect.py` falls back to the
 previously committed file when a read fails, and aborts the run without writing anything

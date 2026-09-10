@@ -33,8 +33,10 @@ S2_TRACKS = ["Map_Track_S2_Sampler", "Map_Track_S2_Longhaul", "Map_Track_S2_Pyra
              "Map_Track_S2_NightVents", "Map_Track_S2_NightWay", "Map_Track_S2_NightClimb"]
 
 # Steam leaderboard IDs, keyed by name. steam.py's find-by-name (LBSFindOrCreateLB)
-# returns InvalidParameter for this app, so the collector reads entries directly by
-# ID (LBSGetLBEntries), which works. These IDs are stable for the campaign boards.
+# returns InvalidParameter for this app unless the message header's routing_app_id
+# is set to the app (see find_board_id in ugc_discord_leaderboard.py); the collector
+# predates that finding and reads entries directly by ID (LBSGetLBEntries), which
+# works. These IDs are stable for the campaign boards.
 # To add a board: add it to BOARDS below AND its ID here. (Get a new ID from the
 # SDK collector's output, or from an existing data/campaign.json "handle".)
 LEADERBOARD_IDS = {
