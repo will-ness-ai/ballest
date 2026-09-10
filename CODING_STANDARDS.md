@@ -1,43 +1,33 @@
 # Coding standards
 
-Rules a reviewer checks a diff against. The reasons behind the data rules live in
-`CLAUDE.md` under "Invariants"; this file is the checklist.
+The review checklist. A review is complete when every hunk has been read against every
+rule here and every invariant in `CLAUDE.md`, and each finding names the rule it breaks.
+`CLAUDE.md` carries the reasons; this file carries the checks.
 
 ## Page (`index.html`)
 
-- Every interpolated value goes through `esc()`. Numbers from our own JSON included.
-- Colors come from the custom properties on `:root`, never literals, except the
-  translucent black and white used for shadows and hairlines.
-- Mobile-first: base rules serve phones, the single `min-width:820px` block overrides.
-- Score conversions go through `SCORE_TICKS_PER_SECOND`. A bare `1000` or `100000`
-  next to `score_ms` is the bug that shipped once already.
-- Point and time behaviour branches only on `isPoints`; nothing else infers a
-  board's kind from its name.
-- Anything that walks a board's rows keeps them index-aligned to rank: filter into a
-  new array, never sort or splice `rows` in place.
+- Every interpolated value goes through `esc()`, numbers from our own JSON included.
+- Colors come from the custom properties on `:root`. The translucent black and white
+  used for shadows and hairlines are the one literal allowed.
+- Base rules serve phones; the single `min-width:820px` block carries every desktop
+  override.
+- `isPoints` is the one place that reads a board's kind from its name.
+- Code that walks a board's rows filters into a new array; `rows` itself stays in rank
+  order.
 
 ## Collector (`tools/`)
 
-- A change to the write path keeps the fallback-then-abort shape: a board that fails
-  to read reuses its committed file, and a board with neither stops the run before
-  anything is written. Derived files such as `podiums.json` keep their previous copy
-  when their input comes out empty.
-- Score conversions go through `SCORE_TICKS_PER_SECOND` here too (`fmt_time`).
-- A board is added in `BOARDS` and `LEADERBOARD_IDS` together, appended in the
-  game's own order.
+- A change to the write path keeps the fallback-then-abort shape described under
+  "Never let a run publish an empty board" in `CLAUDE.md`. A derived file such as
+  `podiums.json` keeps its previous copy when its input comes out empty.
 - `python tools/check_data.py` passes on the committed data after any collector change.
 
 ## Docs
 
-- `CLAUDE.md`, `CODING_STANDARDS.md` and `tools/README-hosting.md` cite symbols
-  (`fetch_board`, `isPoints`), never line numbers. Line numbers drift on the next edit.
-- Nothing from `research/` or `capture/` appears in a committed file, commit message,
-  or pull request.
+- `CLAUDE.md`, this file and `tools/README-hosting.md` cite symbols (`fetch_board`,
+  `isPoints`). A symbol survives the next edit; a line number drifts.
 
 ## Git
 
-- Work lands on `claude/<slug>` branches, squash-merged; no merge commits on `main`.
-- Commits use the repo-local identity `will-ness-ai <n3s.online@gmail.com>`.
-- Code changes stay out of `data:` commits. A feature branch carries no regenerated
-  data; a brand-new data artifact may ship its first copy with the code that
-  introduces it.
+- Work lands on `claude/<slug>` branches, squash-merged onto `main`.
+- Commits carry the repo-local identity `will-ness-ai <n3s.online@gmail.com>`.

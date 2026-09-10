@@ -33,14 +33,12 @@ python -m http.server 8731
 
 (or use the `ballest` config in `.claude/launch.json`). Refreshing data locally needs a
 Steam refresh token; the mint-and-collect runbook is `tools/README-hosting.md`. The
-secrets (`.env`, `tools/refresh_token.txt`) are gitignored and live in the main checkout;
-the collector finds them from a worktree on its own, or takes `STEAM_API_KEY` and
-`STEAM_REFRESH_TOKEN` from the environment.
+secrets (`.env`, `tools/refresh_token.txt`) live in the main checkout and are found from
+a worktree.
 
 There are no tests, linters, or type checks here. Verify front-end changes by loading
-the served page. Verify collector changes with `python tools/check_data.py`, which
-rebuilds everything the collector derives from the committed boards without Steam, then
-by a live run if the read path changed. Review diffs against `CODING_STANDARDS.md`.
+the served page. Verify collector changes with `python tools/check_data.py` (no Steam
+needed), then a live run if the read path changed.
 
 ## Invariants worth knowing before you edit
 
@@ -103,7 +101,8 @@ code that introduces it, so the feature works on merge rather than after the nex
 refresh. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch only
 `data/index.json`, `data/boards/` and `data/podiums.json`; keep code changes out of them.
 
-Branch, commit and review conventions are in `CODING_STANDARDS.md`.
+`CODING_STANDARDS.md` is the review checklist; it also holds the branch and commit
+conventions.
 
 ## Do not publish the reverse-engineering material
 
