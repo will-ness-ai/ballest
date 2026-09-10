@@ -50,9 +50,9 @@ async def on_ready():
         print("\nAlso saved to:", TOKEN_OUT, "(gitignored — do not commit)")
         print("=" * 70 + "\n")
 
-        # Validate the full read path against one real board (read by ID —
-        # steam.py's find-by-name is broken for this app, so the collector and
-        # this check both use LBSGetLBEntries directly).
+        # Validate the full read path against one real board (read by ID, as the
+        # collector does; find-by-name also works once the header's routing_app_id
+        # is set — see ugc_discord_leaderboard.find_board_id).
         print("Validating: reading top 5 of Season 2 Overall...")
         lid = cc.LEADERBOARD_IDS["OverallLeaderboard_EASeason2"]
         msg = await client._state.ws.send_proto_and_wait(

@@ -43,6 +43,11 @@ logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
 AUTHOR_MEDAL_INDEX = 3  # medal_times_by_index = [bronze, silver, gold, author], seconds
 DISCORD_MESSAGE_LIMIT = 2000
+# A creator's own time must be faster than their author time by at least this much to
+# count as a beat. The author time in the Workshop metadata and the leaderboard score
+# of the very same publishing run disagree by up to ~0.75 ms in observed data (float
+# noise), so anything under 1 ms would count the publishing run itself as a beat.
+CREATOR_BEAT_MARGIN_TICKS = 100  # 1 ms
 
 
 def log(msg):
@@ -147,12 +152,10 @@ async def collect(client, maps):
     """Read every map's board. Returns (per-player stats, per-map stats, unreadable maps).
 
     Rule for a map's own creator: their entry counts (as a finish and as a medal) only
-    if it is strictly faster than the author time recorded when the map was published.
-    The author time IS the creator's publishing run, so merely matching it is not a
-    beat. Everyone else counts on any finish, and medals at or under the author time.
-    Scores are compared in leaderboard ticks with the same truncation the game applies
-    to a run, so a creator's re-submitted publishing run lands exactly on the author
-    time rather than a rounding hair under it."""
+    if it beats the author time recorded when the map was published by at least
+    CREATOR_BEAT_MARGIN_TICKS. The author time IS the creator's publishing run, so
+    matching it is not a beat. Everyone else counts on any finish, and medals at or
+    under the author time. Scores are compared in leaderboard ticks."""
     players = defaultdict(lambda: {"beaten": 0, "author": 0})
     per_map, failed = [], []
     for i, m in enumerate(maps, 1):
@@ -170,7 +173,7 @@ async def collect(client, maps):
             sid = str(e.steam_id_user)
             score = int(e.score)
             if sid == m["creator"]:
-                if score >= author_ticks:
+                if score > author_ticks - CREATOR_BEAT_MARGIN_TICKS:
                     continue
                 creator_beat_own = True
             players[sid]["beaten"] += 1
@@ -192,7 +195,9 @@ WORKSHOP_URL = "https://steamcommunity.com/sharedfiles/filedetails/?id="
 
 
 def md_escape(s):
-    return "".join("\\" + c if c in "\\*_~`|>[]" else c for c in s)
+    """Neutralise Discord markdown and mentions in player names and map titles."""
+    s = "".join("\\" + c if c in "\\*_~`|>[]" else c for c in s)
+    return s.replace("@", "@​").replace("<", "<​")  # no @everyone / <@id> pings
 
 
 def map_link(m):
@@ -201,14 +206,10 @@ def map_link(m):
 
 
 def ranked(players, key, top):
+    """Top players by one stat as (steam_id, n), best first, ties broken by id."""
     rows = sorted(((p[key], sid) for sid, p in players.items() if p[key] > 0),
                   key=lambda t: (-t[0], t[1]))[:top]
-    out, rank = [], 0
-    for i, (n, sid) in enumerate(rows, 1):
-        if i == 1 or n != rows[i - 2][0]:
-            rank = i  # competition ranking: ties share a rank
-        out.append((rank, sid, n))
-    return out
+    return [(sid, n) for n, sid in rows]
 
 
 def build_sections(players, per_map, names, top, failed):
@@ -220,7 +221,7 @@ def build_sections(players, per_map, names, top, failed):
     Returns the post as a list of sections (strings) for pack_messages to split."""
     def board(title, key, noun):
         lines = [f"> ### {title}"]
-        for pos, (_rank, sid, n) in enumerate(ranked(players, key, top), 1):
+        for pos, (sid, n) in enumerate(ranked(players, key, top), 1):
             who = md_escape(names.get(sid, {}).get("persona") or sid)
             lines.append(f"> {pos}. **{who}** — {n} {noun}")
         if len(lines) == 1:
@@ -251,20 +252,33 @@ def build_sections(players, per_map, names, top, failed):
             unbeaten_sec, unclaimed_sec, "-# " + foot]
 
 
+def split_lines(text, limit):
+    """Split text between lines into pieces of at most `limit` chars."""
+    pieces, cur = [], ""
+    for line in text.split("\n"):
+        cand = line if not cur else cur + "\n" + line
+        if cur and len(cand) > limit:
+            pieces.append(cur)
+            cand = line
+        cur = cand
+    return pieces + [cur]
+
+
 def pack_messages(sections, limit=DISCORD_MESSAGE_LIMIT):
-    """Join sections with blank lines into as few messages as fit under Discord's limit,
-    never splitting a section. A single over-long section goes out as its own message."""
+    """Join sections with blank lines into as few messages as fit within Discord's
+    limit (trailing newline included). A section stays whole where it can; one that is
+    itself too long (a very long map list) is split between its lines."""
     messages, cur = [], ""
     for s in sections:
-        cand = s if not cur else cur + "\n\n" + s
-        if cur and len(cand) > limit:
-            messages.append(cur)
-            cur = s
-        else:
+        for piece in split_lines(s, limit - 1):
+            cand = piece if not cur else cur + "\n\n" + piece
+            if cur and len(cand) + 1 > limit:
+                messages.append(cur + "\n")
+                cand = piece
             cur = cand
     if cur:
-        messages.append(cur)
-    return [m + "\n" for m in messages]
+        messages.append(cur + "\n")
+    return messages
 
 
 # ---------------------------------------------------------------- main
@@ -324,7 +338,7 @@ def main():
         log("ERROR: no board could be read; not producing a post.")
         return 1
 
-    shown = {sid for k in ("beaten", "author") for _, sid, _ in ranked(players, k, args.top)}
+    shown = {sid for k in ("beaten", "author") for sid, _ in ranked(players, k, args.top)}
     log(f"Resolving {len(shown)} player names...")
     names = cc.resolve_names(key, shown)
 

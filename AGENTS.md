@@ -56,8 +56,8 @@ rather than a bare literal — reading the field name as milliseconds is exactly
 that shipped 100x-too-long times to production once already.
 
 **Adding a board takes two edits, both in `tools/campaign_common.py`**: the tuple in
-`BOARDS` (`:67`, which is also the site's ordering and, for tracks, the in-game number) and the numeric ID in
-`LEADERBOARD_IDS` (`:40`). The collector reads by ID only, so a board missing from the
+`BOARDS` (`:69`, which is also the site's ordering and, for tracks, the in-game number) and the numeric ID in
+`LEADERBOARD_IDS` (`:42`). The collector reads by ID only, so a board missing from the
 table is skipped without an error. steam.py's find-by-name does work for this app once
 the message header's `routing_app_id` is set to the app (`find_board_id` in
 `tools/ugc_discord_leaderboard.py`); the collector predates that finding and has not
