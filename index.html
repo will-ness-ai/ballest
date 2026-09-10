@@ -17,6 +17,8 @@
      row        TWO LINE
      subline    INTERVALS, behind the lead and behind the rung above
      podium     MARBLE ROW, no container, medal rings, sized by rank
+     podiums    TROPHY CABINET, a card per player under the marble row,
+                one line per top-three finish
      mobile     SHEET RAIL, the track rail folded into a bottom sheet
 
    Every player carries a marble whose hue comes from their Steam ID. Hover it
@@ -59,12 +61,14 @@ input{font:inherit}
   object-fit:cover;opacity:0;transform:scale(.5) rotate(14deg);background:var(--surface2);
   transition:opacity .14s ease, transform .22s cubic-bezier(.2,.85,.3,1.35)}
 .marble.on .face,.marble:focus-visible .face,
-.row:hover .marble .face,.plate:hover .marble .face{opacity:1;transform:scale(1) rotate(0)}
+.row:hover .marble .face,.plate:hover .marble .face,
+.card:hover .marble .face{opacity:1;transform:scale(1) rotate(0)}
 .marble.on .ball,.marble:focus-visible .ball,
-.row:hover .marble .ball,.plate:hover .marble .ball{transform:scale(.84) rotate(-18deg);opacity:.16}
-/* in the list the avatar keeps the marble's colour as a ring; on the podium the
-   medal ring is already doing that job */
-.row .marble .face{box-shadow:0 0 0 2px hsl(var(--h) 78% 58%)}
+.row:hover .marble .ball,.plate:hover .marble .ball,
+.card:hover .marble .ball{transform:scale(.84) rotate(-18deg);opacity:.16}
+/* in the list and on a card the avatar keeps the marble's colour as a ring; on
+   the podium the medal ring is already doing that job */
+.row .marble .face,.card .marble .face{box-shadow:0 0 0 2px hsl(var(--h) 78% 58%)}
 
 .ambient{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
 /* direct children only: .marble is itself a span, so an unscoped descendant
@@ -182,6 +186,52 @@ input{font:inherit}
 @keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
 .more{padding:16px;text-align:center;font-family:var(--f-hud);font-size:11px;
   letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+
+/* podiums: the trophy cabinet.
+   Three medal counts read the same everywhere they appear: on the marble row,
+   beside a card's name, and in the rail. A zero is kept but dimmed so the three
+   columns stay aligned across cards. */
+.bbtn.podium{margin-bottom:4px}
+.bbtn.podium .cnt{color:var(--gold)}
+.mc{display:inline-flex;gap:10px;font-family:var(--f-hud);font-weight:700;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.mc span{display:inline-flex;align-items:center;gap:5px}
+.mc i{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.mc .m1 i{background:var(--gold)}
+.mc .m2 i{background:var(--silver)}
+.mc .m3 i{background:var(--bronze)}
+.mc .z{opacity:.32}
+.pl-score .mc{gap:8px}
+
+.cab{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;
+  margin:0 var(--pad)}
+.cab[hidden]{display:none !important}
+.card{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+  padding:13px 13px 12px;backdrop-filter:blur(10px);display:flex;flex-direction:column;
+  gap:11px;min-width:0}
+.card-top{display:flex;align-items:center;gap:10px;min-width:0}
+.card-top .marble{width:38px;height:38px}
+.card-top .who{min-width:0;flex:1}
+.card-top .mc{font-size:14px}
+.rk{display:block;font-family:var(--f-hud);font-size:11px;color:var(--faint);
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk b{font-weight:700;color:var(--dim)}
+.card[data-m="1"] .rk b{color:var(--gold)}
+.card[data-m="2"] .rk b{color:var(--silver)}
+.card[data-m="3"] .rk b{color:var(--bronze)}
+/* one line per top-three finish: track, place, time */
+.tl{display:flex;flex-direction:column;gap:2px;font-family:var(--f-hud);
+  font-variant-numeric:tabular-nums}
+.tl div{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;
+  padding:4px 6px;border-radius:6px;font-size:12.5px}
+.tl div:nth-child(odd){background:rgba(255,255,255,.03)}
+.tl .t{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl .p{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.tl .p.m1{color:var(--gold)}
+.tl .p.m2{color:var(--silver)}
+.tl .p.m3{color:var(--bronze)}
+.tl .tm{color:var(--dim);font-size:12px}
+.cab .empty{grid-column:1 / -1;border:1px solid var(--line);border-radius:14px;background:var(--solid)}
 
 footer{margin:20px var(--pad) 0;font-size:10.5px;color:var(--faint);line-height:1.55;max-width:64ch}
 footer p{margin:0 0 6px}
@@ -306,6 +356,11 @@ footer a{color:var(--dim)}
   .empty{padding:46px 12px;font-size:14px}
   .empty b{font-size:16px}
   .skel{padding:0 12px;min-height:56px}
+
+  /* the cabinet */
+  .mc{gap:14px}
+  .pl-score .mc{gap:10px}
+  .cab{margin:0}
   footer{margin:30px 0 0;padding-top:16px;border-top:1px solid var(--line2);font-size:12px;
     line-height:1.6}
 }
@@ -358,6 +413,7 @@ footer a{color:var(--dim)}
       <div class="leaders" id="leaders" hidden></div>
       <p class="bmeta" id="bmetaM"></p>
       <div class="board" id="board"></div>
+      <div class="cab" id="cabinet" hidden></div>
     </section>
   </div>
 
@@ -383,8 +439,11 @@ const CHUNK = 50;                  /* rows appended per scroll step */
 const $ = s => document.querySelector(s);
 
 let INDEX = null;                  /* data/index.json */
+let PODIUMS = null;                /* data/podiums.json, or null if it didn't load */
 let group = null;                  /* "Season 2" */
-let boardKey = null;               /* the board's raw Steam name, unique across seasons */
+let boardKey = null;               /* the board's raw Steam name, unique across seasons,
+                                      or PODIUM_KEY for the season's trophy cabinet */
+const PODIUM_KEY = "podiums";
 let boardData = null;              /* the loaded board file */
 let visible = [];                  /* rows currently listed, filtered or not */
 let shown = 0;                     /* how many of them are in the DOM */
@@ -483,6 +542,9 @@ function groupsOf(){
 }
 const boardsIn = g => activeBoards().filter(b => b.group === g);
 const boardMeta = () => activeBoards().find(b => b.name === boardKey);
+/* the season's podium tally, or undefined when the file is missing or predates it */
+const podiumsIn = g => PODIUMS && PODIUMS.seasons && PODIUMS.seasons.find(s => s.group === g);
+const isPodiums = () => boardKey === PODIUM_KEY;
 
 /* ---------- chrome ---------- */
 function renderChrome(){
@@ -501,21 +563,35 @@ function renderSelectors(){
   /* the in-game track-selection screen groups tracks under difficulty headings;
      mirror them so the rail reads like the screen players already know */
   let tier = null;
-  const items = list.map(b => {
+  const pod = podiumsIn(group);
+  const items = list.map((b, i) => {
     const head = (b.tier && b.tier !== tier) ? `<span class="tierhead">${esc(b.tier)}</span>` : "";
     tier = b.tier || tier;
+    /* the cabinet sits right under the season's Overall board, before the tracks */
+    const podium = (i === 0 && pod) ? `
+    <button class="bbtn podium" data-b="${PODIUM_KEY}" aria-current="${isPodiums()}">
+      <span class="brow"><span>Podiums</span>
+        <span class="cnt">${fmtN(pod.players.length)}</span></span>
+      <span class="bmeter"><i style="--w:${Math.round(pod.players.length/max*100)}%"></i></span>
+    </button>` : "";
     return head + `
     <button class="bbtn" data-b="${esc(b.name)}" aria-current="${b.name===boardKey}">
       <span class="brow"><span>${esc(shortName(b.display))}</span>
         <span class="cnt">${fmtN(b.entry_count)}</span></span>
       <span class="bmeter"><i style="--w:${Math.round(b.entry_count/max*100)}%"></i></span>
-    </button>`;
+    </button>` + podium;
   }).join("");
   $("#boards").innerHTML = items;
   $("#sheetList").innerHTML = items;
   $("#railhead").textContent = group;
   $("#sheetHead").textContent = group;
 
+  if(isPodiums()){
+    $("#bbName").textContent = "Podiums";
+    $("#bbCnt").textContent = fmtN(pod.players.length) + " players";
+    $("#btitle").textContent = "Podiums";
+    return;
+  }
   const meta = boardMeta();
   $("#bbName").textContent = shortName(meta.display);
   $("#bbCnt").textContent = fmtN(meta.entry_count) + (isPoints(meta) ? " players" : " runs");
@@ -622,6 +698,14 @@ function onScroll(){
 }
 
 function updateMeta(){
+  if(isPodiums()){
+    const pod = podiumsIn(group), text = filtering
+      ? `${group} · ${fmtN(shown)} of ${fmtN(pod.players.length)} players match`
+      : `${group} · ${fmtN(pod.players.length)} players on a podium · ${pod.tracks} tracks`;
+    $("#bmetaD").textContent = text;
+    $("#bmetaM").textContent = text;
+    return;
+  }
   const meta = boardMeta();
   if(!meta) return;
   const noun = isPoints(meta) ? "players" : "runs";
@@ -652,7 +736,77 @@ function buildList(){
   fillViewport();
 }
 
+/* ---------- the trophy cabinet ---------- */
+const PLACE = ["1st", "2nd", "3rd"];
+function medalCounts(p){
+  return `<span class="mc">` + [p.gold, p.silver, p.bronze].map((n, i) =>
+    `<span class="m${i+1}${n ? "" : " z"}"><i></i>${n}</span>`).join("") + `</span>`;
+}
+const podiumTotal = p => p.gold + p.silver + p.bronze;
+function renderPodiumLeaders(pod){
+  const P = pod.players, el = $("#leaders");
+  if(P.length < 3){ el.hidden = true; el.innerHTML = ""; return; }
+  el.hidden = false;
+  el.innerHTML = P.slice(0,3).map((p,i) => `<div class="plate" data-p="${i+1}">
+      ${marble(p)}
+      <span class="pl-text">
+        <span class="pl-name">${nameHtml(p)}</span>
+        <span class="pl-score">${medalCounts(p)}</span>
+        <span class="pl-gap">on ${podiumTotal(p)} of ${pod.tracks} podiums</span>
+      </span>
+      <span class="pl-rank">${PLACE[i]}</span>
+    </div>`).join("");
+}
+function cardHtml(p, pod, tied){
+  const h = hueFor(p.steam_id);
+  const lines = p.finishes.map(f => `<div>
+      <span class="t">${esc(shortName(f.track))}</span>
+      <span class="p m${f.rank}">${PLACE[f.rank-1]}</span>
+      <span class="tm">${fmtTime(f.score_ms)}</span></div>`).join("");
+  return `<div class="card" style="--h:${h}" data-m="${p.rank<=3 ? p.rank : 0}">
+    <div class="card-top">
+      ${marble(p)}
+      <span class="who"><span class="nm">${nameHtml(p)}</span>
+        <span class="rk"><b>#${p.rank}</b>${tied ? " tied" : ""} &middot;
+          ${podiumTotal(p)} of ${pod.tracks} podiums</span></span>
+      ${medalCounts(p)}
+    </div>
+    <div class="tl">${lines}</div>
+  </div>`;
+}
+/* every card fits in one go: a season has at most three podium places per track */
+function renderCabinet(){
+  const pod = podiumsIn(group), cab = $("#cabinet");
+  const q = $("#q").value.trim().toLowerCase();
+  filtering = q.length > 0;
+  const perRank = {};
+  pod.players.forEach(p => { perRank[p.rank] = (perRank[p.rank] || 0) + 1; });
+  /* unfiltered, the top three are already up on the marble row */
+  const list = filtering
+    ? pod.players.filter(p => personaOf(p).toLowerCase().includes(q) || p.steam_id.includes(q))
+    : pod.players.slice(3);
+  shown = list.length;
+  cab.innerHTML = list.length
+    ? list.map(p => cardHtml(p, pod, perRank[p.rank] > 1)).join("")
+    : `<div class="empty"><b>Nobody here by that name.</b>
+        Names come from Steam personas, so try a shorter fragment, or paste a Steam ID.</div>`;
+  updateMeta();
+}
+function selectPodiums(){
+  boardKey = PODIUM_KEY;
+  /* nothing chunked here: a null boardData keeps the scroll loader idle */
+  boardData = null; visible = []; shown = 0;
+  renderSelectors();
+  $("#tiles").innerHTML = "";
+  $("#board").hidden = true;
+  $("#board").innerHTML = "";
+  $("#cabinet").hidden = false;
+  renderPodiumLeaders(podiumsIn(group));
+  renderCabinet();
+}
+
 function applyFilter(){
+  if(isPodiums()){ renderCabinet(); return; }
   const q = $("#q").value.trim().toLowerCase();
   filtering = q.length > 0;
   /* unfiltered, the top three are already up on the podium */
@@ -674,8 +828,12 @@ async function loadBoard(name){
   return data;
 }
 async function selectBoard(name){
+  if(name === PODIUM_KEY){ selectPodiums(); return; }
   boardKey = name;
   renderSelectors();
+  $("#cabinet").hidden = true;
+  $("#cabinet").innerHTML = "";
+  $("#board").hidden = false;
   $("#leaders").hidden = true;
   $("#tiles").innerHTML = "";
   $("#bmetaD").textContent = $("#bmetaM").textContent = group + " · loading";
@@ -770,7 +928,7 @@ document.addEventListener("click", e => {
 let searchTimer;
 $("#q").addEventListener("input", () => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { if(boardData) applyFilter(); }, 120);
+  searchTimer = setTimeout(() => { if(boardData || isPodiums()) applyFilter(); }, 120);
 });
 
 addEventListener("scroll", onScroll, {passive:true});
@@ -778,10 +936,15 @@ addEventListener("resize", () => { onScroll(); fillViewport(); });
 
 /* ---------- start ---------- */
 renderChrome();
-fetch("data/index.json")
-  .then(r => r.json())
-  .then(idx => {
+/* podiums.json is small and feeds the rail, so it loads with the index rather
+   than on demand. It is optional: without it the rail simply has no cabinet. */
+const podiumsReq = fetch("data/podiums.json")
+  .then(r => r.ok ? r.json() : null)
+  .catch(() => null);
+Promise.all([fetch("data/index.json").then(r => r.json()), podiumsReq])
+  .then(([idx, pods]) => {
     INDEX = idx;
+    PODIUMS = pods;
     const boards = activeBoards();
     if(!boards.length) throw new Error("no boards");
 

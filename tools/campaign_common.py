@@ -20,6 +20,7 @@ PROJ = os.path.dirname(HERE)
 DATA_DIR = os.path.join(PROJ, "data")
 BOARDS_DIR = os.path.join(DATA_DIR, "boards")
 INDEX_PATH = os.path.join(DATA_DIR, "index.json")
+PODIUMS_PATH = os.path.join(DATA_DIR, "podiums.json")
 
 # Leaderboard names = level asset names, verbatim (discovered by probing the pak).
 # LIST ORDER IS THE IN-GAME NUMBERING: the game labels Circuit tracks only "01".."NN"
@@ -188,6 +189,45 @@ def load_existing_board(name):
     return None
 
 
+def build_podiums(boards_out):
+    """Per-season podium tally: who holds the 1st, 2nd and 3rd places across a
+    season's tracks. Only Map_* boards count (an Overall board is points, not a
+    race), so a season with no track boards is left out entirely.
+
+    Players are sorted by golds, then silvers, then bronzes, and equal counts
+    share a rank (1, 2, 2, 4 ...) rather than being split by some fourth key the
+    reader can't see. Rows come from boards_out AFTER name resolution, so each
+    player carries the same persona/avatar the board files do."""
+    seasons = []
+    for group in dict.fromkeys(g for _, g in BOARDS):
+        tracks = [b for b in boards_out if b["group"] == group and b["name"].startswith("Map_")]
+        if not tracks:
+            continue
+        players = {}
+        for b in tracks:
+            for r in b["rows"][:3]:    # rows are rank-ordered; the podium is the first three
+                if r["rank"] > 3:
+                    continue
+                p = players.setdefault(r["steam_id"], {
+                    "steam_id": r["steam_id"], "persona": r.get("persona", ""),
+                    "avatar": r.get("avatar", ""), "profileurl": r.get("profileurl", ""),
+                    "gold": 0, "silver": 0, "bronze": 0, "finishes": []})
+                p[("gold", "silver", "bronze")[r["rank"] - 1]] += 1
+                p["finishes"].append({"board": b["name"], "track": b["display"],
+                                      "rank": r["rank"], "score_ms": r["score_ms"],
+                                      "time": fmt_time(r["score_ms"])})
+        ordered = sorted(players.values(),
+                         key=lambda p: (-p["gold"], -p["silver"], -p["bronze"]))
+        prev = None
+        for i, p in enumerate(ordered):
+            counts = (p["gold"], p["silver"], p["bronze"])
+            p["rank"] = i + 1 if counts != prev else ordered[i - 1]["rank"]
+            prev = counts
+            p["finishes"].sort(key=lambda f: (f["rank"], f["track"]))
+        seasons.append({"group": group, "tracks": len(tracks), "players": ordered})
+    return seasons
+
+
 def write_site(boards_out, all_ids):
     """Resolve names, then write one file per board (data/boards/<name>.json) plus
     a small data/index.json the page loads first. Board files omit generated_at so
@@ -220,6 +260,15 @@ def write_site(boards_out, all_ids):
                              "tier": b.get("tier"),
                              "handle": b["handle"], "entry_count": b["entry_count"],
                              "rows": len(b["rows"]), "file": "boards/" + fname})
+
+    # The podium tally is derived from the rows above, fallback data included, so
+    # it can never disagree with the boards the page shows. Like the board files
+    # it omits generated_at so an unchanged season produces no diff.
+    seasons = build_podiums(boards_out)
+    with open(PODIUMS_PATH, "w", encoding="utf-8") as f:
+        json.dump({"seasons": seasons}, f, ensure_ascii=False, separators=(",", ":"))
+    for s in seasons:
+        print(f"  podiums {s['group']:10s} tracks={s['tracks']:2d} players={len(s['players'])}")
 
     with open(INDEX_PATH, "w", encoding="utf-8") as f:
         json.dump({"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
