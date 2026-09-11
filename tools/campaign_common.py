@@ -141,17 +141,50 @@ def fmt_time(score):
     return (f"{h}:{m:02d}" if h else f"{m}") + f":{s:02d}.{msec:03d}"
 
 
+def secret_roots():
+    """Where gitignored secrets (.env, tools/refresh_token.txt) may live: this
+    checkout first, then the main checkout when this is a git worktree. Secrets
+    are minted once into the main checkout and worktrees never see them, so a
+    collector run from a worktree used to come back with every name blank."""
+    roots = [PROJ]
+    try:
+        import subprocess
+        common = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=PROJ,
+                                capture_output=True, text=True, timeout=10).stdout.strip()
+        if common:
+            main = os.path.dirname(os.path.abspath(os.path.join(PROJ, common)))
+            if main != PROJ:
+                roots.append(main)
+    except Exception:
+        pass
+    return roots
+
+
 def load_key():
-    """Steam Web API key: env STEAM_API_KEY first (CI), then the local .env file."""
+    """Steam Web API key: env STEAM_API_KEY first (CI), then a .env file."""
     key = os.environ.get("STEAM_API_KEY", "").strip()
     if key:
         return key
-    env_path = os.path.join(PROJ, ".env")
-    if os.path.exists(env_path):
-        for line in open(env_path, encoding="utf-8"):
-            line = line.strip()
-            if line.startswith("STEAM_API_KEY=") and not line.startswith("#"):
-                return line.split("=", 1)[1].strip()
+    for root in secret_roots():
+        env_path = os.path.join(root, ".env")
+        if os.path.exists(env_path):
+            for line in open(env_path, encoding="utf-8"):
+                line = line.strip()
+                if line.startswith("STEAM_API_KEY=") and not line.startswith("#"):
+                    return line.split("=", 1)[1].strip()
+    return ""
+
+
+def load_refresh_token():
+    """Steam refresh token: env STEAM_REFRESH_TOKEN first (CI), then the file
+    steampy_mint.py saved (tools/refresh_token.txt, gitignored)."""
+    token = os.environ.get("STEAM_REFRESH_TOKEN", "").strip()
+    if token:
+        return token
+    for root in secret_roots():
+        path = os.path.join(root, "tools", "refresh_token.txt")
+        if os.path.exists(path):
+            return open(path, encoding="utf-8").read().strip()
     return ""
 
 
