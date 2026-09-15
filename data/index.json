@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-15T08:16:18Z",
+  "generated_at": "2026-09-15T14:04:50Z",
   "app_id": 3339810,
-  "player_count": 9525,
+  "player_count": 9567,
   "boards": [
     {
       "name": "OverallLeaderboard",
@@ -19,8 +19,8 @@
       "group": "Season 1",
       "tier": null,
       "handle": "17800617",
-      "entry_count": 3321,
-      "rows": 3321,
+      "entry_count": 3337,
+      "rows": 3337,
       "file": "boards/Map_Track13.json"
     },
     {
@@ -29,8 +29,8 @@
       "group": "Season 1",
       "tier": null,
       "handle": "17800873",
-      "entry_count": 2848,
-      "rows": 2848,
+      "entry_count": 2865,
+      "rows": 2865,
       "file": "boards/Map_Track15.json"
     },
     {
@@ -39,8 +39,8 @@
       "group": "Season 1",
       "tier": null,
       "handle": "17800874",
-      "entry_count": 2350,
-      "rows": 2350,
+      "entry_count": 2361,
+      "rows": 2361,
       "file": "boards/Map_Track16.json"
     },
     {
@@ -49,8 +49,8 @@
       "group": "Season 1",
       "tier": null,
       "handle": "17800870",
-      "entry_count": 2118,
-      "rows": 2118,
+      "entry_count": 2126,
+      "rows": 2126,
       "file": "boards/Map_Track05.json"
     },
     {
@@ -59,8 +59,8 @@
       "group": "Season 1",
       "tier": null,
       "handle": "17800878",
-      "entry_count": 1416,
-      "rows": 1416,
+      "entry_count": 1423,
+      "rows": 1423,
       "file": "boards/Map_Track18.json"
     },
     {
@@ -69,8 +69,8 @@
       "group": "Season 1",
       "tier": null,
       "handle": "17800881",
-      "entry_count": 1366,
-      "rows": 1366,
+      "entry_count": 1377,
+      "rows": 1377,
       "file": "boards/Map_Track21.json"
     },
     {
@@ -79,8 +79,8 @@
       "group": "Season 1",
       "tier": null,
       "handle": "17800887",
-      "entry_count": 1309,
-      "rows": 1309,
+      "entry_count": 1321,
+      "rows": 1321,
       "file": "boards/Map_Track22.json"
     },
     {
@@ -89,8 +89,8 @@
       "group": "Season 1",
       "tier": null,
       "handle": "17800880",
-      "entry_count": 1351,
-      "rows": 1351,
+      "entry_count": 1362,
+      "rows": 1362,
       "file": "boards/Map_Track19.json"
     },
     {
@@ -99,8 +99,8 @@
       "group": "Season 2",
       "tier": null,
       "handle": "20484546",
-      "entry_count": 8660,
-      "rows": 8660,
+      "entry_count": 8701,
+      "rows": 8701,
       "file": "boards/OverallLeaderboard_EASeason2.json"
     },
     {
@@ -109,8 +109,8 @@
       "group": "Season 2",
       "tier": "Beginner",
       "handle": "20687737",
-      "entry_count": 8621,
-      "rows": 8621,
+      "entry_count": 8662,
+      "rows": 8662,
       "file": "boards/Map_Track_S2_Sampler.json"
     },
     {
@@ -119,8 +119,8 @@
       "group": "Season 2",
       "tier": "Beginner",
       "handle": "20687727",
-      "entry_count": 7745,
-      "rows": 7745,
+      "entry_count": 7776,
+      "rows": 7776,
       "file": "boards/Map_Track_S2_Longhaul.json"
     },
     {
@@ -129,8 +129,8 @@
       "group": "Season 2",
       "tier": "Beginner",
       "handle": "20687736",
-      "entry_count": 6303,
-      "rows": 6303,
+      "entry_count": 6338,
+      "rows": 6338,
       "file": "boards/Map_Track_S2_Pyramids.json"
     },
     {
@@ -139,8 +139,8 @@
       "group": "Season 2",
       "tier": "Beginner",
       "handle": "20687722",
-      "entry_count": 4999,
-      "rows": 4999,
+      "entry_count": 5032,
+      "rows": 5032,
       "file": "boards/Map_Track_S2_BigStairs.json"
     },
     {
@@ -149,8 +149,8 @@
       "group": "Season 2",
       "tier": "Intermediate",
       "handle": "20687725",
-      "entry_count": 4289,
-      "rows": 4289,
+      "entry_count": 4314,
+      "rows": 4314,
       "file": "boards/Map_Track_S2_Checkerboard.json"
     },
     {
@@ -159,8 +159,8 @@
       "group": "Season 2",
       "tier": "Intermediate",
       "handle": "20687729",
-      "entry_count": 3135,
-      "rows": 3135,
+      "entry_count": 3151,
+      "rows": 3151,
       "file": "boards/Map_Track_S2_Loopworks.json"
     },
     {
@@ -169,8 +169,8 @@
       "group": "Season 2",
       "tier": "Intermediate",
       "handle": "20687738",
-      "entry_count": 2775,
-      "rows": 2775,
+      "entry_count": 2795,
+      "rows": 2795,
       "file": "boards/Map_Track_S2_TinyTower.json"
     },
     {
@@ -179,8 +179,8 @@
       "group": "Season 2",
       "tier": "Intermediate",
       "handle": "20687726",
-      "entry_count": 2882,
-      "rows": 2882,
+      "entry_count": 2904,
+      "rows": 2904,
       "file": "boards/Map_Track_S2_Downhill.json"
     },
     {
@@ -189,8 +189,8 @@
       "group": "Season 2",
       "tier": "Advanced",
       "handle": "20687732",
-      "entry_count": 1406,
-      "rows": 1406,
+      "entry_count": 1418,
+      "rows": 1418,
       "file": "boards/Map_Track_S2_NightCondo.json"
     },
     {
@@ -199,8 +199,8 @@
       "group": "Season 2",
       "tier": "Advanced",
       "handle": "20687734",
-      "entry_count": 1017,
-      "rows": 1017,
+      "entry_count": 1028,
+      "rows": 1028,
       "file": "boards/Map_Track_S2_NightVents.json"
     },
     {
@@ -209,8 +209,8 @@
       "group": "Season 2",
       "tier": "Advanced",
       "handle": "20687735",
-      "entry_count": 1396,
-      "rows": 1396,
+      "entry_count": 1408,
+      "rows": 1408,
       "file": "boards/Map_Track_S2_NightWay.json"
     },
     {
@@ -219,8 +219,8 @@
       "group": "Season 2",
       "tier": "Advanced",
       "handle": "20687731",
-      "entry_count": 1324,
-      "rows": 1324,
+      "entry_count": 1334,
+      "rows": 1334,
       "file": "boards/Map_Track_S2_NightClimb.json"
     }
   ]
