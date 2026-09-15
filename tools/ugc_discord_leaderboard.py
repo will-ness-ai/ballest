@@ -8,7 +8,8 @@ and prints a Discord-ready markdown post with two boards:
   * most author medals        — their time is at or under the map's author medal time
 
 plus two lists with a Workshop link per map: maps nobody has beaten, and finished maps
-whose author medal nobody has claimed, and the three longest-standing campaign world
+whose author medal nobody has claimed (both only for maps published at least a day ago,
+so a fresh upload gets a chance first), and the three longest-standing campaign world
 records (dated from each record's ghost replay). The post is split into as many Discord
 messages as its sections need (usually two).
 
@@ -49,6 +50,9 @@ DISCORD_MESSAGE_LIMIT = 2000
 # of the very same publishing run disagree by up to ~0.75 ms in observed data (float
 # noise), so anything under 1 ms would count the publishing run itself as a beat.
 CREATOR_BEAT_MARGIN_TICKS = 100  # 1 ms
+# A map has to have been on the Workshop this long before it can be listed as unbeaten
+# or as having an unclaimed author medal; anything younger simply hasn't been played yet.
+LIST_MIN_AGE_SECONDS = 24 * 3600
 
 
 def log(msg):
@@ -99,7 +103,8 @@ def workshop_maps(key):
                 log(f"  [skip] {pfid} {it.get('title')!r}: no usable ballest metadata")
                 continue
             maps.append({"pfid": pfid, "title": it.get("title", ""), "creator": str(it.get("creator", "")),
-                         "board": board, "author_time": author})
+                         "board": board, "author_time": author,
+                         "created": int(it.get("time_created") or 0)})
         nxt = resp.get("next_cursor")
         if not batch or not nxt or nxt == cursor:
             break
@@ -320,13 +325,16 @@ def build_sections(players, per_map, names, top, failed, oldest=(), undated=()):
 
     # "Unbeaten" and "unclaimed" follow the same rule as the standings (see collect):
     # a creator's own entry is on the board only if it beats their own author time.
-    unbeaten = sorted((m for m in per_map if m["finishers"] == 0), key=lambda m: m["title"].lower())
-    unclaimed = sorted((m for m in per_map if m["finishers"] and not m["author_medalists"]),
+    # Both skip maps younger than LIST_MIN_AGE_SECONDS.
+    listable = [m for m in per_map if time.time() - m["created"] >= LIST_MIN_AGE_SECONDS]
+    unbeaten = sorted((m for m in listable if m["finishers"] == 0), key=lambda m: m["title"].lower())
+    unclaimed = sorted((m for m in listable if m["finishers"] and not m["author_medalists"]),
                        key=lambda m: (-m["finishers"], m["title"].lower()))
-    lines = ["> ### 🚫 Unbeaten maps", "> Nobody has finished these yet."]
+    lines = ["> ### 🚫 Unbeaten maps", "> Nobody has finished these yet (maps up for at least a day)."]
     lines += [f"> - {map_link(m)}" for m in unbeaten] or ["> - _none — every map has been beaten_"]
     unbeaten_sec = "\n".join(lines)
-    lines = ["> ### 🎯 Author medals still unclaimed", "> Finished, but nobody has matched the author time."]
+    lines = ["> ### 🎯 Author medals still unclaimed",
+             "> Finished, but nobody has matched the author time (maps up for at least a day)."]
     lines += [f"> - {map_link(m)} — {m['finishers']} finisher{'s' if m['finishers'] != 1 else ''}" for m in unclaimed] \
         or ["> - _none — every finished map has an author medal_"]
     unclaimed_sec = "\n".join(lines)
