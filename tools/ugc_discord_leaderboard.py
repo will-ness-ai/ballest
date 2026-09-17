@@ -261,23 +261,22 @@ def ghost_set_at(key, ugc_id):
 
 
 def oldest_records(key, records, n=OLDEST_RECORDS):
-    """The n longest-standing records, oldest first, each with its `set_at`, plus the
-    boards whose record could not be dated (no ghost attached, or the fetch failed)."""
-    dated, undated = [], []
+    """The n longest-standing records, oldest first, each with its `set_at`. A record
+    that cannot be dated (no ghost attached, or the fetch failed) is logged and left
+    out of the ranking."""
+    dated = []
     for rec in records:
         if rec["ugc_id"] == UGC_HANDLE_INVALID:
             log(f"  [note] {rec['board']}: record has no ghost replay, cannot be dated")
-            undated.append(rec["board"])
             continue
         try:
             rec = {**rec, "set_at": ghost_set_at(key, rec["ugc_id"])}
         except Exception as e:
             log(f"  [warn] {rec['board']}: ghost fetch failed: {e!r}")
-            undated.append(rec["board"])
             continue
         dated.append(rec)
     dated.sort(key=lambda r: r["set_at"])
-    return dated[:n], undated
+    return dated[:n]
 
 
 # ---------------------------------------------------------------- Discord post
@@ -303,7 +302,7 @@ def ranked(players, key, top):
     return [(sid, n) for n, sid in rows]
 
 
-def build_sections(players, per_map, names, top, failed, oldest=(), undated=()):
+def build_sections(players, per_map, names, top, failed, oldest=()):
     """The "quote cards" layout chosen in the design round: each board is a quoted block
     with Discord's own numbered list inside, so the client draws the rank column and the
     bar. Discord renumbers list items sequentially whatever number is written, so ties
@@ -351,8 +350,6 @@ def build_sections(players, per_map, names, top, failed, oldest=(), undated=()):
         days = (time.mktime(today) - time.mktime(r["set_at"])) // 86400
         lines.append(f"> {pos}. **{who}** — {track(r['board'])} in {cc.fmt_time(r['score'])}"
                      f" — set {when} ({int(days)} days ago)")
-    if undated:
-        lines.append(f"> -# Not ranked: {', '.join(track(b) for b in undated)} — no ghost replay, so no date.")
     oldest_sec = "\n".join(lines) if oldest else ""
 
     foot = "Creators count on their own maps only by beating their own author time. Source: Steam leaderboards."
@@ -452,14 +449,14 @@ def main():
         return 1
 
     log(f"Dating {len(state['records'])} campaign records from their ghosts...")
-    oldest, undated = oldest_records(key, state["records"])
+    oldest = oldest_records(key, state["records"])
 
     shown = {sid for k in ("beaten", "author") for sid, _ in ranked(players, k, args.top)}
     shown |= {r["steam_id"] for r in oldest}
     log(f"Resolving {len(shown)} player names...")
     names = cc.resolve_names(key, shown)
 
-    messages = pack_messages(build_sections(players, per_map, names, args.top, failed, oldest, undated))
+    messages = pack_messages(build_sections(players, per_map, names, args.top, failed, oldest))
     for i, msg in enumerate(messages, 1):
         if len(msg) > DISCORD_MESSAGE_LIMIT:
             log(f"NOTE: message {i} is {len(msg)} chars, over Discord's {DISCORD_MESSAGE_LIMIT}-char limit; lower --top.")
