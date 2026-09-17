@@ -8,8 +8,10 @@ and prints a Discord-ready markdown post with two boards:
   * most author medals        — their time is at or under the map's author medal time
 
 plus two lists with a Workshop link per map: maps nobody has beaten, and finished maps
-whose author medal nobody has claimed. The post is split into as many Discord messages
-as its sections need (usually two).
+whose author medal nobody has claimed (both only for maps published at least a day ago,
+so a fresh upload gets a chance first), and the three longest-standing campaign world
+records (dated from each record's ghost replay). The post is split into as many Discord
+messages as its sections need (usually two).
 
 A map's own creator counts on it only by beating their own author time: the author
 time is the creator's publishing run, so matching it is not a beat (see collect()).
@@ -48,6 +50,9 @@ DISCORD_MESSAGE_LIMIT = 2000
 # of the very same publishing run disagree by up to ~0.75 ms in observed data (float
 # noise), so anything under 1 ms would count the publishing run itself as a beat.
 CREATOR_BEAT_MARGIN_TICKS = 100  # 1 ms
+# A map has to have been on the Workshop this long before it can be listed as unbeaten
+# or as having an unclaimed author medal; anything younger simply hasn't been played yet.
+LIST_MIN_AGE_SECONDS = 24 * 3600
 
 
 def log(msg):
@@ -98,7 +103,8 @@ def workshop_maps(key):
                 log(f"  [skip] {pfid} {it.get('title')!r}: no usable ballest metadata")
                 continue
             maps.append({"pfid": pfid, "title": it.get("title", ""), "creator": str(it.get("creator", "")),
-                         "board": board, "author_time": author})
+                         "board": board, "author_time": author,
+                         "created": int(it.get("time_created") or 0)})
         nxt = resp.get("next_cursor")
         if not batch or not nxt or nxt == cursor:
             break
@@ -122,6 +128,25 @@ async def find_board_id(client, name):
     if resp.result != steam.Result.OK:
         raise RuntimeError(f"LBSFindOrCreateLB result={resp.result!r}")
     return int(resp.leaderboard_id)
+
+
+async def find_map_board_id(client, board):
+    """A map's board id, or 0 if nobody has finished it.
+
+    The Workshop metadata's leaderboard name carries the display name whitespace-trimmed,
+    but the game names the board from the untrimmed name in the map file, so a title
+    typed with a leading or trailing space (seen once: " dfgzdfgg", pfid 3794947252)
+    resolves only with the space put back. Try those before calling a map unbeaten."""
+    lid = await find_board_id(client, board)
+    if lid:
+        return lid
+    prefix, sep, name = board.partition("_Climb_")
+    if sep:
+        for cand in (f"{prefix}{sep} {name}", f"{prefix}{sep}{name} "):
+            lid = await find_board_id(client, cand)
+            if lid:
+                return lid
+    return 0
 
 
 async def fetch_entries(client, lid):
@@ -160,7 +185,7 @@ async def collect(client, maps):
     per_map, failed = [], []
     for i, m in enumerate(maps, 1):
         try:
-            lid = await find_board_id(client, m["board"])
+            lid = await find_map_board_id(client, m["board"])
             entries = await fetch_entries(client, lid) if lid else []
         except Exception as e:
             failed.append(m["board"])
@@ -189,6 +214,71 @@ async def collect(client, maps):
     return players, per_map, failed
 
 
+# ---------------------------------------------------------------- campaign records
+
+OLDEST_RECORDS = 3
+GHOST_STAMP_FORMAT = "%Y.%m.%d-%H.%M.%S"  # Unreal FDateTime, e.g. 2025.11.07-17.25.22
+UGC_HANDLE_INVALID = str(2 ** 64 - 1)  # k_UGCHandleInvalid: the entry has no ghost attached
+
+
+async def campaign_records(client):
+    """The rank-1 entry of every Circuit track: (board name, steam id, score, ugc id).
+    Read by ID like the collector does; a board that fails to read is skipped."""
+    records = []
+    for name in cc.S1_TRACKS + cc.S2_TRACKS:
+        try:
+            msg = await client._state.ws.send_proto_and_wait(
+                leaderboards.CMsgClientLbsGetLbEntries(
+                    leaderboard_id=cc.LEADERBOARD_IDS[name], app_id=cc.APP_ID,
+                    range_start=1, range_end=1, leaderboard_data_request=0, steamids=[],
+                )
+            )
+            if msg.result != steam.Result.OK or not msg.entries:
+                raise RuntimeError(f"LBSGetLBEntries result={msg.result!r}")
+        except Exception as e:
+            log(f"  [warn] {name}: record read failed: {e!r}")
+            continue
+        e = msg.entries[0]
+        records.append({"board": name, "steam_id": str(e.steam_id_user), "score": int(e.score),
+                        "ugc_id": str(e.ugc_id)})
+        await asyncio.sleep(0.05)
+    return records
+
+
+def ghost_set_at(key, ugc_id):
+    """When a record was set: the `timestamp` inside its ghost replay, as a UTC struct_time.
+
+    Steam's entry carries no date; the ghost attached to it does. Two hops:
+    GetUGCFileDetails for the CDN url, then the replay itself, which is plain JSON."""
+    q = urllib.parse.urlencode({"key": key, "appid": cc.APP_ID, "ugcid": ugc_id})
+    with urllib.request.urlopen(
+            "https://api.steampowered.com/ISteamRemoteStorage/GetUGCFileDetails/v1/?" + q,
+            timeout=60) as r:
+        url = json.load(r)["data"]["url"]
+    with urllib.request.urlopen(url, timeout=60) as r:
+        stamp = json.load(r)["timestamp"]
+    return time.strptime(stamp, GHOST_STAMP_FORMAT)
+
+
+def oldest_records(key, records, n=OLDEST_RECORDS):
+    """The n longest-standing records, oldest first, each with its `set_at`. A record
+    that cannot be dated (no ghost attached, or the fetch failed) is logged and left
+    out of the ranking."""
+    dated = []
+    for rec in records:
+        if rec["ugc_id"] == UGC_HANDLE_INVALID:
+            log(f"  [note] {rec['board']}: record has no ghost replay, cannot be dated")
+            continue
+        try:
+            rec = {**rec, "set_at": ghost_set_at(key, rec["ugc_id"])}
+        except Exception as e:
+            log(f"  [warn] {rec['board']}: ghost fetch failed: {e!r}")
+            continue
+        dated.append(rec)
+    dated.sort(key=lambda r: r["set_at"])
+    return dated[:n]
+
+
 # ---------------------------------------------------------------- Discord post
 
 WORKSHOP_URL = "https://steamcommunity.com/sharedfiles/filedetails/?id="
@@ -212,7 +302,7 @@ def ranked(players, key, top):
     return [(sid, n) for n, sid in rows]
 
 
-def build_sections(players, per_map, names, top, failed):
+def build_sections(players, per_map, names, top, failed, oldest=()):
     """The "quote cards" layout chosen in the design round: each board is a quoted block
     with Discord's own numbered list inside, so the client draws the rank column and the
     bar. Discord renumbers list items sequentially whatever number is written, so ties
@@ -234,22 +324,41 @@ def build_sections(players, per_map, names, top, failed):
 
     # "Unbeaten" and "unclaimed" follow the same rule as the standings (see collect):
     # a creator's own entry is on the board only if it beats their own author time.
-    unbeaten = sorted((m for m in per_map if m["finishers"] == 0), key=lambda m: m["title"].lower())
-    unclaimed = sorted((m for m in per_map if m["finishers"] and not m["author_medalists"]),
+    # Both skip maps younger than LIST_MIN_AGE_SECONDS.
+    listable = [m for m in per_map if time.time() - m["created"] >= LIST_MIN_AGE_SECONDS]
+    unbeaten = sorted((m for m in listable if m["finishers"] == 0), key=lambda m: m["title"].lower())
+    unclaimed = sorted((m for m in listable if m["finishers"] and not m["author_medalists"]),
                        key=lambda m: (-m["finishers"], m["title"].lower()))
-    lines = ["> ### 🚫 Unbeaten maps", "> Nobody has finished these yet."]
+    lines = ["> ### 🚫 Unbeaten maps", "> Nobody has finished these yet (maps up for at least a day)."]
     lines += [f"> - {map_link(m)}" for m in unbeaten] or ["> - _none — every map has been beaten_"]
     unbeaten_sec = "\n".join(lines)
-    lines = ["> ### 🎯 Author medals still unclaimed", "> Finished, but nobody has matched the author time."]
+    lines = ["> ### 🎯 Author medals still unclaimed",
+             "> Finished, but nobody has matched the author time (maps up for at least a day)."]
     lines += [f"> - {map_link(m)} — {m['finishers']} finisher{'s' if m['finishers'] != 1 else ''}" for m in unclaimed] \
         or ["> - _none — every finished map has an author medal_"]
     unclaimed_sec = "\n".join(lines)
 
-    foot = "Creators count on their own maps only by beating their own author time. Source: Steam leaderboards."
+    # Circuit tracks are numbered per season, so the season has to lead the track name.
+    def track(name):
+        return "S" + dict(cc.BOARDS)[name].split()[-1] + " " + cc.display_name(name)
+
+    lines = ["> ### 🕰️ Longest-standing campaign records"]
+    today = time.gmtime()
+    for pos, r in enumerate(oldest, 1):
+        who = md_escape(names.get(r["steam_id"], {}).get("persona") or r["steam_id"])
+        when = time.strftime("%-d %b %Y" if os.name != "nt" else "%#d %b %Y", r["set_at"])
+        days = (time.mktime(today) - time.mktime(r["set_at"])) // 86400
+        lines.append(f"> {pos}. **{who}** — {track(r['board'])} in {cc.fmt_time(r['score'])}"
+                     f" — set {when} ({int(days)} days ago)")
+    oldest_sec = "\n".join(lines) if oldest else ""
+
+    foot = ("Creators count on their own maps only by beating their own author time. "
+            "Maps must be > 24hr old to show up. Source: Steam leaderboards.")
     if failed:
         foot += f" ⚠️ {len(failed)} maps were unreadable this run."
-    return [head, board("🏁 Most maps beaten", "beaten", "maps"), board("🏅 Most author medals", "author", "medals"),
-            unbeaten_sec, unclaimed_sec, "-# " + foot]
+    return [sec for sec in (head, board("🏁 Most maps beaten", "beaten", "maps"),
+                            board("🏅 Most author medals", "author", "medals"),
+                            unbeaten_sec, unclaimed_sec, oldest_sec, "-# " + foot) if sec]
 
 
 def split_lines(text, limit):
@@ -307,7 +416,7 @@ def main():
         return 1
 
     client = steam.Client()
-    state = {"done": False, "result": None}
+    state = {"done": False, "result": None, "records": []}
 
     @client.event
     async def on_ready():
@@ -317,6 +426,8 @@ def main():
         try:
             log("Reading leaderboards...")
             state["result"] = await collect(client, maps)
+            log("Reading campaign records...")
+            state["records"] = await campaign_records(client)
         except Exception:
             import traceback
             traceback.print_exc()
@@ -338,11 +449,15 @@ def main():
         log("ERROR: no board could be read; not producing a post.")
         return 1
 
+    log(f"Dating {len(state['records'])} campaign records from their ghosts...")
+    oldest = oldest_records(key, state["records"])
+
     shown = {sid for k in ("beaten", "author") for sid, _ in ranked(players, k, args.top)}
+    shown |= {r["steam_id"] for r in oldest}
     log(f"Resolving {len(shown)} player names...")
     names = cc.resolve_names(key, shown)
 
-    messages = pack_messages(build_sections(players, per_map, names, args.top, failed))
+    messages = pack_messages(build_sections(players, per_map, names, args.top, failed, oldest))
     for i, msg in enumerate(messages, 1):
         if len(msg) > DISCORD_MESSAGE_LIMIT:
             log(f"NOTE: message {i} is {len(msg)} chars, over Discord's {DISCORD_MESSAGE_LIMIT}-char limit; lower --top.")
@@ -363,7 +478,9 @@ def main():
                        "failed": failed,
                        "players": {sid: {**p, "persona": names.get(sid, {}).get("persona", "")}
                                    for sid, p in players.items()},
-                       "maps": per_map}, f, ensure_ascii=False, indent=1)
+                       "maps": per_map,
+                       "oldest_records": [{**r, "set_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", r["set_at"])}
+                                          for r in oldest]}, f, ensure_ascii=False, indent=1)
         log(f"Wrote {args.json}")
     sys.stdout.reconfigure(encoding="utf-8")
     print(post, end="")
