@@ -352,7 +352,8 @@ def build_sections(players, per_map, names, top, failed, oldest=()):
                      f" — set {when} ({int(days)} days ago)")
     oldest_sec = "\n".join(lines) if oldest else ""
 
-    foot = "Creators count on their own maps only by beating their own author time. Source: Steam leaderboards."
+    foot = ("Creators count on their own maps only by beating their own author time. "
+            "Maps must be > 24hr old to show up. Source: Steam leaderboards.")
     if failed:
         foot += f" ⚠️ {len(failed)} maps were unreadable this run."
     return [sec for sec in (head, board("🏁 Most maps beaten", "beaten", "maps"),
