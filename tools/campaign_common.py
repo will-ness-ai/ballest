@@ -274,8 +274,9 @@ def build_composite(boards_out):
     season, ranked highest first. A player missing from a season simply adds
     nothing for it, so a Season-2-only player ranks on Season 2 points alone.
 
-    Equal totals share a rank (1, 2, 2, 4 ...) — there is no fourth key the
-    reader could see, and totals do tie often at the bottom of the field. Each
+    Ranks are sequential (1, 2, 3 ...) like every Steam board, because the
+    site indexes rows by rank; equal totals keep their order of first
+    appearance, oldest season first, which is stable from run to run. Each
     row keeps the per-season parts under "seasons" so the site can show where
     a total came from. Rows carry persona/avatar copied from the source rows,
     which write_site then refreshes along with every other board."""
@@ -291,8 +292,7 @@ def build_composite(boards_out):
             p["seasons"][b["group"]] = r["score_ms"]
     rows = sorted(players.values(), key=lambda p: -p["score_ms"])
     for i, p in enumerate(rows):
-        tied = i and rows[i - 1]["score_ms"] == p["score_ms"]
-        p["rank"] = rows[i - 1]["rank"] if tied else i + 1
+        p["rank"] = i + 1
     return {"name": COMPOSITE_BOARD, "display": display_name(COMPOSITE_BOARD),
             "group": COMPOSITE_GROUP, "tier": None, "handle": None,
             "entry_count": len(rows), "rows": rows}

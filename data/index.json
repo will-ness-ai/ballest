@@ -222,6 +222,16 @@
       "entry_count": 1742,
       "rows": 1742,
       "file": "boards/Map_Track_S2_NightClimb.json"
+    },
+    {
+      "name": "OverallLeaderboard_AllSeasons",
+      "display": "Overall",
+      "group": "All Seasons",
+      "tier": null,
+      "handle": null,
+      "entry_count": 10241,
+      "rows": 10241,
+      "file": "boards/OverallLeaderboard_AllSeasons.json"
     }
   ]
 }

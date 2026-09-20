@@ -674,7 +674,7 @@ function rowHtml(r, lead, prev){
      The narrow line has no room for that and both gaps, so there the breakdown
      takes the place of the gap to the leader. */
   const parts = r.seasons ? " &middot; " + Object.entries(r.seasons)
-    .map(([g, n]) => esc(g.replace(/^Season\s*/i, "S")) + " " + fmtN(n)).join(" &middot; ") : "";
+    .map(([season, n]) => esc(season.replace(/^Season\s*/i, "S") + " " + fmtN(n))).join(" &middot; ") : "";
   const sub = r.rank === 1
     ? `<span class="sub sub-d">Leads the board${parts}</span><span class="sub sub-m">Leads the board${parts}</span>`
     : `<span class="sub sub-d"><em>${g}</em> behind &middot; ${st} to ${up}${parts}</span>
