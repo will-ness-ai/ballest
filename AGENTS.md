@@ -12,6 +12,10 @@ JSON that the page fetches.
   framework, no JS CDN (Google Fonts is the only external request).
 - `data/index.json` — board list, counts, `generated_at`. Loaded first.
 - `data/boards/<board>.json` — one file per board, lazy-loaded on selection.
+- `data/boards/OverallLeaderboard_AllSeasons.json` — the one board Steam does not have:
+  every season's Overall points summed per player (`build_composite` in
+  `tools/campaign_common.py`). Derived by the collector from the `Overall*` rows it just
+  read, so it is written and indexed like any other board and needs no leaderboard ID.
 - `data/podiums.json` — per-season podium tally (who holds each track's top three),
   derived by the collector from the board rows. Loaded alongside `index.json`.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
@@ -59,7 +63,7 @@ conversion through `SCORE_TICKS_PER_SECOND` (`tools/campaign_common.py`, `index.
 rather than a bare literal — reading the field name as milliseconds is exactly the bug
 that shipped 100x-too-long times to production once already.
 
-**Adding a board takes two edits, both in `tools/campaign_common.py`**: the tuple in
+**Adding a Steam board takes two edits, both in `tools/campaign_common.py`**: the tuple in
 `BOARDS` (which is also the site's ordering and, for tracks, the in-game number) and the
 numeric ID in `LEADERBOARD_IDS`. The collector reads by ID only, so a board missing from
 the table is skipped without an error. steam.py's find-by-name does work for this app
