@@ -78,6 +78,14 @@ BOARDS = (
 # run times, so the site never had anything trustworthy to show. Its ID is kept
 # above so it can be put back by re-adding it to BOARDS.
 
+# The one board Steam does not have: every season's Overall points added up per
+# player. It is derived by the collector from the Overall* boards above (see
+# build_composite), so it has no leaderboard ID and is not in BOARDS. The name
+# keeps the Overall prefix on purpose — that prefix is how the site knows a
+# board is points rather than run times.
+COMPOSITE_BOARD = "OverallLeaderboard_AllSeasons"
+COMPOSITE_GROUP = "All Seasons"
+
 
 
 def track_number(name):
@@ -109,7 +117,7 @@ def display_name(name):
     *other* numbers (Map_Track13 is in-game 01) and only confuse, so those are
     the number alone. The season is carried by the "group" field, not repeated.
     """
-    if name in ("OverallLeaderboard", "OverallLeaderboard_EASeason2"):
+    if name in ("OverallLeaderboard", "OverallLeaderboard_EASeason2", COMPOSITE_BOARD):
         return "Overall"
     if name == "Map_TheTower":
         return "The Tower"
@@ -261,6 +269,35 @@ def build_podiums(boards_out):
     return seasons
 
 
+def build_composite(boards_out):
+    """The all-seasons board: each player's Overall points summed across every
+    season, ranked highest first. A player missing from a season simply adds
+    nothing for it, so a Season-2-only player ranks on Season 2 points alone.
+
+    Ranks are sequential (1, 2, 3 ...) like every Steam board, because the
+    site indexes rows by rank; equal totals keep their order of first
+    appearance, oldest season first, which is stable from run to run. Each
+    row keeps the per-season parts under "seasons" so the site can show where
+    a total came from. Rows carry persona/avatar copied from the source rows,
+    which write_site then refreshes along with every other board."""
+    overall = [b for b in boards_out if b["name"].startswith("Overall")]
+    players = {}
+    for b in overall:
+        for r in b["rows"]:
+            p = players.setdefault(r["steam_id"], {
+                "steam_id": r["steam_id"], "persona": r.get("persona", ""),
+                "avatar": r.get("avatar", ""), "profileurl": r.get("profileurl", ""),
+                "score_ms": 0, "seasons": {}})
+            p["score_ms"] += r["score_ms"]
+            p["seasons"][b["group"]] = r["score_ms"]
+    rows = sorted(players.values(), key=lambda p: -p["score_ms"])
+    for i, p in enumerate(rows):
+        p["rank"] = i + 1
+    return {"name": COMPOSITE_BOARD, "display": display_name(COMPOSITE_BOARD),
+            "group": COMPOSITE_GROUP, "tier": None, "handle": None,
+            "entry_count": len(rows), "rows": rows}
+
+
 def write_site(boards_out, all_ids):
     """Resolve names, then write one file per board (data/boards/<name>.json) plus
     a small data/index.json the page loads first. Board files omit generated_at so
@@ -270,6 +307,18 @@ def write_site(boards_out, all_ids):
         print("WARNING: no STEAM_API_KEY (env or .env) — names will be blank (ids still collected).")
     print(f"Resolving {len(all_ids)} player names...")
     names = resolve_names(key, all_ids)
+
+    # The composite is derived from the rows above, fallback data included, so
+    # it can never disagree with the season boards the page shows. Appending it
+    # here puts it through the same name refresh, file write and index entry as
+    # a Steam board. It is empty only if every Overall board is, which the
+    # collector's never-publish-empty check has already refused to write.
+    composite = build_composite(boards_out)
+    if composite["rows"]:
+        boards_out = boards_out + [composite]
+        print(f"  {composite['name']:34s} derived  players={len(composite['rows'])}")
+    else:
+        print(f"  [warn] {composite['name']}: no Overall rows to derive from; not written")
 
     os.makedirs(BOARDS_DIR, exist_ok=True)
     index_boards = []

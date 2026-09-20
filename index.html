@@ -536,11 +536,14 @@ const value = (board, n) => isPoints(board) ? fmtN(n) : fmtTime(n);
 /* The collector no longer emits Trials at all. This stays as a guard so a
    stale or cached index.json cannot put The Tower back in the season tabs. */
 const activeBoards = () => INDEX.boards.filter(b => b.group !== "Trials");
-/* the current season leads; index.json happens to list the older one first */
+/* the current season leads; index.json happens to list the older one first.
+   A group with no number ("All Seasons", the derived composite) goes after the
+   seasons it is made from. */
 function groupsOf(){
   return [...new Set(activeBoards().map(b => b.group))].sort((a,b) => {
     const na = parseInt(a.replace(/\D+/g,""),10), nb = parseInt(b.replace(/\D+/g,""),10);
     if(!isNaN(na) && !isNaN(nb)) return nb - na;
+    if(isNaN(na) !== isNaN(nb)) return isNaN(na) ? 1 : -1;
     return a.localeCompare(b);
   });
 }
@@ -667,10 +670,15 @@ function rowHtml(r, lead, prev){
   const g  = pts ? fmtN(gap) + " pts"  : "+" + fmtTime(gap);
   const st = pts ? fmtN(step) + " pts" : "+" + fmtTime(step);
   const up = ord(r.rank - 1);
+  /* a composite row says where its total came from: "S1 260,000 · S2 188,560".
+     The narrow line has no room for that and both gaps, so there the breakdown
+     takes the place of the gap to the leader. */
+  const parts = r.seasons ? " &middot; " + Object.entries(r.seasons)
+    .map(([season, n]) => esc(season.replace(/^Season\s*/i, "S") + " " + fmtN(n))).join(" &middot; ") : "";
   const sub = r.rank === 1
-    ? `<span class="sub sub-d">Leads the board</span><span class="sub sub-m">Leads the board</span>`
-    : `<span class="sub sub-d"><em>${g}</em> behind &middot; ${st} to ${up}</span>
-       <span class="sub sub-m"><em>${st}</em> to ${up} &middot; ${g} back</span>`;
+    ? `<span class="sub sub-d">Leads the board${parts}</span><span class="sub sub-m">Leads the board${parts}</span>`
+    : `<span class="sub sub-d"><em>${g}</em> behind &middot; ${st} to ${up}${parts}</span>
+       <span class="sub sub-m"><em>${st}</em> to ${up}${parts || " &middot; " + g + " back"}</span>`;
   return `<div class="row" style="--h:${h}" data-m="${r.rank<=3 ? r.rank : 0}">
     <span class="c-rank">${r.rank}</span>
     ${marble(r)}

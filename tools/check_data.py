@@ -11,6 +11,8 @@ Checks:
   - every board in BOARDS has a file, index.json lists it, and the two agree
   - no board is empty, and rows are index-aligned to rank (rows[i].rank == i+1)
   - podiums.json equals build_podiums() over the committed boards
+  - the composite board file equals build_composite() over the committed boards,
+    and index.json lists it
 """
 import os, sys, json
 
@@ -61,12 +63,28 @@ def main():
     for s in expected["seasons"]:
         print(f"  podiums {s['group']:10s} tracks={s['tracks']:2d} players={len(s['players'])}")
 
+    comp = cc.build_composite(boards_out)
+    comp_path = os.path.join(cc.BOARDS_DIR, cc.COMPOSITE_BOARD + ".json")
+    if os.path.exists(comp_path):
+        actual = load(comp_path)
+        if actual.get("rows") != comp["rows"]:
+            problems.append(f"{cc.COMPOSITE_BOARD}.json does not match build_composite() over the committed boards")
+        entry = listed.get(cc.COMPOSITE_BOARD)
+        if not entry:
+            problems.append(f"{cc.COMPOSITE_BOARD}: missing from index.json")
+        elif entry["rows"] != len(comp["rows"]) or entry["group"] != cc.COMPOSITE_GROUP:
+            problems.append(f"{cc.COMPOSITE_BOARD}: index.json says {entry['rows']} rows in "
+                            f"{entry['group']!r}, file has {len(comp['rows'])} in {cc.COMPOSITE_GROUP!r}")
+    else:
+        problems.append(f"{cc.COMPOSITE_BOARD}.json is missing")
+    print(f"  {cc.COMPOSITE_BOARD:34s} rows={len(comp['rows']):5d} (derived)")
+
     if problems:
         print("\nFAILED:")
         for p in problems:
             print("  - " + p)
         return 1
-    print(f"\nOK: {len(boards_out)} boards, index and podiums consistent")
+    print(f"\nOK: {len(boards_out)} boards, index, podiums and composite consistent")
     return 0
 
 
