@@ -6,13 +6,13 @@
 -- card, F8 writes the current map's line to ue4ss/UE4SS.log.
 --
 -- Data lives in ue4ss/Mods/BallestGrindStats/grindstats.txt, one tab-separated
--- line per map: name, seconds, attempts, finishes, best (see save()).
+-- line per map: name, seconds, attempts, finishes (see save()). Tabs in a map
+-- title are replaced with spaces so the line stays parseable.
 --
 -- Game signals (Blueprint events, found 2026-09-20; see tools/ue4ss_mod/README.md):
 --   map       BP_MyPlayerController_C.NameOfMap, set once the ball exists
 --   attempt   BP_RollingBall_C:RaceStarted — first spawn and every restart
---   finish    BP_BallGameState_C:RaceHasEnded_Handler — never fired by restarts;
---             the run time is BP_MyPlayerController_C.ActualRaceTime
+--   finish    BP_BallGameState_C:RaceHasEnded_Handler — never fired by restarts
 --   paused    BP_BallGameState_C.CurrentGameContext ~= 0
 --   session   one per level load: InitGameState fires for menu <-> track, not for R
 -- Time counts once a second while the ball exists, the game is not paused and the
@@ -29,6 +29,7 @@ local SAVE_EVERY_S = 10     -- Lua gets no shutdown callback, so quitting mid-ma
 local BALL_CLASS = "BP_RollingBall_C"
 local CONTROLLER_CLASS = "BP_MyPlayerController_C"
 local CONTEXT_RACING = 0    -- BP_BallGameState_C.CurrentGameContext; 1 = editor, 2 = paused/finished
+local MOVING_SPEED_SQ = 4   -- (cm/s)^2; below this the ball counts as idle
 
 local function log(fmt, ...)
     print(string.format("[GrindStats] " .. fmt .. "\n", ...))
@@ -41,15 +42,18 @@ local function className(obj)
 end
 
 -- ---------------------------------------------------------------- persistence
-local stats = {}      -- map name -> { time=, attempts=, finishes=, best= }
+local function newCounters() return { time = 0, attempts = 0, finishes = 0 } end
 
-local function load()
+local stats = {}      -- map name -> counters, all-time
+
+local function loadStats()
     local f = io.open(DATA_FILE, "r")
     if not f then return end
     for line in f:lines() do
-        local name, t, a, fin, best = line:match("^(.-)\t(%d+)\t(%d+)\t(%d+)\t([%d%.]+)$")
+        -- earlier files carried a fifth "best" column; anything past finishes is ignored
+        local name, t, a, fin = line:match("^(.-)\t(%d+)\t(%d+)\t(%d+)")
         if name then
-            stats[name] = { time = tonumber(t), attempts = tonumber(a), finishes = tonumber(fin), best = tonumber(best) }
+            stats[name] = { time = tonumber(t), attempts = tonumber(a), finishes = tonumber(fin) }
         end
     end
     f:close()
@@ -59,32 +63,27 @@ local function save()
     local f = io.open(DATA_FILE, "w")
     if not f then log("cannot write %s", DATA_FILE) return end
     for name, s in pairs(stats) do
-        f:write(string.format("%s\t%d\t%d\t%d\t%.3f\n", name, s.time, s.attempts, s.finishes, s.best))
+        f:write(string.format("%s\t%d\t%d\t%d\n", (name:gsub("[\t\r\n]", " ")), s.time, s.attempts, s.finishes))
     end
     f:close()
 end
 
 local function entry(name)
-    if not stats[name] then stats[name] = { time = 0, attempts = 0, finishes = 0, best = 0 } end
+    if not stats[name] then stats[name] = newCounters() end
     return stats[name]
 end
 
 -- ---------------------------------------------------------------- session
 local cur = nil          -- current map name, nil outside a map
-local session = nil      -- { time=, attempts=, finishes=, best= } for cur
+local session = nil      -- counters for cur since it loaded
 local lastMoveT = 0
-
-local function fmtClock(sec)
-    sec = math.floor(sec)
-    return string.format("%d:%02d:%02d", sec // 3600, (sec % 3600) // 60, sec % 60)
-end
 
 local function report(tag)
     if not cur then log("%s: no map", tag) return end
     local t = entry(cur)
-    log("%s  %s | total %s  session %s | attempts %d (+%d) | finishes %d (+%d) | best %.3f (session %.3f)",
-        tag, cur, fmtClock(t.time), fmtClock(session.time), t.attempts, session.attempts,
-        t.finishes, session.finishes, t.best, session.best)
+    log("%s  %s | total %s  session %s | attempts %d (+%d) | finishes %d (+%d)",
+        tag, cur, Overlay.fmtTime(t.time), Overlay.fmtTime(session.time), t.attempts, session.attempts,
+        t.finishes, session.finishes)
 end
 
 local function mapName()
@@ -103,8 +102,8 @@ end
 
 local function enterMap(name)
     cur = name
-    session = { time = 0, attempts = 0, finishes = 0, best = 0 }
-    lastMoveT = os.clock()
+    session = newCounters()
+    lastMoveT = os.time()
     log("enter %s", name)
 end
 
@@ -122,26 +121,32 @@ local function overlayData()
              sessionAttempts = session.attempts, sessionFinishes = session.finishes }
 end
 
+-- ---------------------------------------------------------------- startup
+-- Read the file before any hook can create an entry the file would then replace.
+loadStats()
+do
+    local n = 0
+    for _ in pairs(stats) do n = n + 1 end
+    log("loaded, %d maps on record", n)
+end
+
 -- ---------------------------------------------------------------- game hooks
 local function onRaceStarted()
     local name = mapName()
     if name and name ~= cur then enterMap(name) end
     if not cur then return end
-    entry(cur).attempts = entry(cur).attempts + 1
+    local e = entry(cur)
+    e.attempts = e.attempts + 1
     session.attempts = session.attempts + 1
-    lastMoveT = os.clock()
+    lastMoveT = os.time()
     report("attempt")
 end
 
 local function onRaceEnded()
     if not cur then return end
-    local t = 0
-    pcall(function() t = UEHelpers.GetPlayerController().ActualRaceTime end)
     local e = entry(cur)
     e.finishes = e.finishes + 1
     session.finishes = session.finishes + 1
-    if t > 0 and (e.best == 0 or t < e.best) then e.best = t end
-    if t > 0 and (session.best == 0 or t < session.best) then session.best = t end
     report("finish")
     save()
 end
@@ -180,10 +185,11 @@ LoopAsync(1000, function()
         local gs = UEHelpers.GetGameStateBase()
         if gs:IsValid() and gs.CurrentGameContext ~= CONTEXT_RACING then return end
         local v = pawn:GetVelocity()
-        if v.X * v.X + v.Y * v.Y + v.Z * v.Z > 4 then lastMoveT = os.clock() end
-        if os.clock() - lastMoveT > IDLE_AFTER_S then return end
+        if v.X * v.X + v.Y * v.Y + v.Z * v.Z > MOVING_SPEED_SQ then lastMoveT = os.time() end
+        if os.time() - lastMoveT > IDLE_AFTER_S then return end
 
-        entry(cur).time = entry(cur).time + 1
+        local e = entry(cur)
+        e.time = e.time + 1
         session.time = session.time + 1
         if session.time % SAVE_EVERY_S == 0 then save() end
     end)
@@ -193,8 +199,3 @@ end)
 
 RegisterKeyBind(Key.F6, function() Overlay.toggle(); Overlay.update(overlayData()) end)
 RegisterKeyBind(Key.F8, function() report("F8") end)
-
-load()
-local n = 0
-for _ in pairs(stats) do n = n + 1 end
-log("loaded, %d maps on record", n)
