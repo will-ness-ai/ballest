@@ -27,6 +27,9 @@ JSON that the page fetches.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
   covers install and how it hooks the game.
+- `leth/` — a second, self-contained page at `/leth/`: a 3D ghost-route viewer for the
+  Leth Trial #1 event board. Frozen snapshots, its own `data/`, not touched by the
+  collector; `leth/README.md` covers it.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
   reverse-engineering spike. Read `tools/README-hosting.md` before touching any of it.
 
