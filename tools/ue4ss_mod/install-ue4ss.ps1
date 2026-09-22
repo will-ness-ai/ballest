@@ -16,6 +16,7 @@ if (-not (Test-Path "$Win64\ue4ss\UE4SS.dll")) {
     if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
     Expand-Archive $Zip -DestinationPath $tmp
     Move-Item "$tmp\dwmapi.dll" "$Win64\dwmapi.dll" -Force
+    if (Test-Path "$Win64\ue4ss") { Remove-Item -Recurse -Force "$Win64\ue4ss" }   # a half-installed leftover
     Move-Item "$tmp\ue4ss" "$Win64\ue4ss"
     Remove-Item -Recurse -Force $tmp
 

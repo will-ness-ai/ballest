@@ -32,7 +32,7 @@ Uninstall by deleting `Win64\dwmapi.dll` and `Win64\ue4ss\`.
 - **F6** hides / shows the card. **F8** writes the current map's line to `ue4ss\UE4SS.log`.
 - **Ctrl+R** reloads the Lua after an edit (hot reload is enabled by the installer).
 - Stats persist in `Win64\ue4ss\Mods\BallestGrindStats\grindstats.txt`, one tab-separated
-  line per map: `name  seconds  attempts  finishes  best`. Campaign maps use their asset
+  line per map: `name  seconds  attempts  finishes`. Campaign maps use their asset
   names (`Map_Track_S2_Sampler`, the same as `data/boards/`); custom maps use their title.
 
 ## How it reads the game

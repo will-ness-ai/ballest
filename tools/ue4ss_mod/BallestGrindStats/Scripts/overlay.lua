@@ -5,6 +5,7 @@
 -- Overlay.update(data) creates the widget on demand and refreshes the text;
 -- data = { total=, session=, attempts=, finishes=, sessionAttempts=, sessionFinishes= }
 -- (seconds / counts), or nil to hide it. Overlay.toggle() flips user visibility.
+-- Overlay.fmtTime(sec) is the card's clock format, shared with main.lua's log lines.
 
 local UEHelpers = require("UEHelpers")
 
@@ -19,8 +20,11 @@ local LABEL_SIZE, VALUE_SIZE, GAP = 12, 15, 18
 local ORIGIN = { X = 40, Y = 110 }        -- below the game's pause-screen PB box
 local ROOT_NAME = "GrindStats_Root"      -- how sweep() recognises our widgets
 
--- ESlateVisibility
-local VIS_HIDDEN, VIS_HIT_TEST_INVISIBLE = 1, 3
+-- UMG enum literals: the Lua API takes the raw values
+local VIS_HIDDEN, VIS_HIT_TEST_INVISIBLE = 1, 3   -- ESlateVisibility
+local VALIGN_CENTER = 2                            -- EVerticalAlignment
+local SIZE_RULE_FILL = 1                           -- ESlateSizeRule
+local COLOR_USE_SPECIFIED = 0                      -- ESlateColorStylingMode
 
 local function log(f, ...) print(string.format("[GrindStats.Overlay] " .. f .. "\n", ...)) end
 
@@ -37,7 +41,7 @@ local function text(name, size, color)
     local fo = StaticFindObject(FONT)
     if fo and fo:IsValid() then f.FontObject = fo end
     t:SetFont(f)
-    t:SetColorAndOpacity({ SpecifiedColor = color, ColorUseRule = 0 })
+    t:SetColorAndOpacity({ SpecifiedColor = color, ColorUseRule = COLOR_USE_SPECIFIED })
     texts[name] = t
     return t
 end
@@ -45,13 +49,13 @@ end
 local function row(vbox, key, label, valueKeys)
     local h = new("HorizontalBox", "H_" .. key)
     local l = h:AddChildToHorizontalBox(text("l_" .. key, LABEL_SIZE, DIM))
-    l:SetSize({ SizeRule = 1, Value = 1 })   -- fill: pushes the values to the right edge
-    l:SetVerticalAlignment(2)                -- VAlign_Center
+    l:SetSize({ SizeRule = SIZE_RULE_FILL, Value = 1 })   -- pushes the values to the right edge
+    l:SetVerticalAlignment(VALIGN_CENTER)
     texts["l_" .. key]:SetText(FText(label))
     for i, vk in ipairs(valueKeys) do
         local s = h:AddChildToHorizontalBox(text(vk[1], VALUE_SIZE, vk[2]))
         s:SetPadding({ Left = i == 1 and GAP or 10, Top = 0, Right = 0, Bottom = 0 })
-        s:SetVerticalAlignment(2)
+        s:SetVerticalAlignment(VALIGN_CENTER)
     end
     vbox:AddChildToVerticalBox(h)
 end
@@ -89,13 +93,12 @@ local function sweep()
     for _, w in ipairs(FindAllOf("UserWidget") or {}) do
         pcall(function()
             local root = w.WidgetTree and w.WidgetTree.RootWidget
-            local n = root and root:IsValid() and root:GetFName():ToString() or ""
-            if n == ROOT_NAME or n == "GS_Root" then w:RemoveFromParent() end   -- GS_Root: pre-release name
+            if root and root:IsValid() and root:GetFName():ToString() == ROOT_NAME then w:RemoveFromParent() end
         end)
     end
 end
 
-local function fmtTime(sec)
+function Overlay.fmtTime(sec)
     sec = math.floor(sec or 0)
     if sec >= 3600 then return string.format("%d:%02d:%02d", sec // 3600, (sec % 3600) // 60, sec % 60) end
     return string.format("%d:%02d", sec // 60, sec % 60)
@@ -117,8 +120,8 @@ function Overlay.update(data)
             if not build() then return end
         end
         widget:SetVisibility(VIS_HIT_TEST_INVISIBLE)
-        set("total", fmtTime(data.total))
-        set("session", fmtTime(data.session))
+        set("total", Overlay.fmtTime(data.total))
+        set("session", Overlay.fmtTime(data.session))
         set("attempts", tostring(data.attempts))
         set("finishes", tostring(data.finishes))
         set("attemptsPlus", "+" .. data.sessionAttempts)

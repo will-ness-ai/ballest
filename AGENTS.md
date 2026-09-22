@@ -24,6 +24,9 @@ JSON that the page fetches.
   board and prints a Discord post (most custom maps beaten, most author medals).
   Not part of CI and writes nothing into the repo.
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`.
+- `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
+  inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
+  covers install and how it hooks the game.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
   reverse-engineering spike. Read `tools/README-hosting.md` before touching any of it.
 
