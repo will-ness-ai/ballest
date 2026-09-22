@@ -1,0 +1,505 @@
+<title>Leth Trial Ghost Viewer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Single visual world: the map is black rock and lava, so the viewer commits to a dark stage. */
+  :root {
+    --ground: #121014;
+    --panel: #1b171c;
+    --panel-2: #241f26;
+    --line: #322b34;
+    --text: #efe8e2;
+    --muted: #9c908c;
+    --accent: #ff7a1a;
+    --accent-ink: #1a0d02;
+    --focus: #ffd166;
+    --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--text);
+    font-family: var(--font-body); font-size: 14px; line-height: 1.4;
+    overflow: hidden;
+  }
+  * { box-sizing: border-box; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .app {
+    height: 100%; display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "head head" "side stage" "side bar";
+  }
+  header.head {
+    grid-area: head; display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  header h1 { font-family: var(--font-display); font-weight: 700; font-size: 18px; margin: 0; letter-spacing: .02em; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  header .sub b { color: var(--text); font-weight: 500; }
+
+  aside.side {
+    grid-area: side; display: flex; flex-direction: column; min-height: 0;
+    border-right: 1px solid var(--line); background: var(--panel);
+  }
+  .side-tools { padding: 12px 14px 10px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .side-tools input[type=search] {
+    flex: 1 1 120px; min-width: 0; padding: 6px 8px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--ground);
+  }
+  select {
+    flex: 1 1 100%; min-width: 0; padding: 6px 8px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--ground); color: var(--text);
+  }
+  .chip {
+    padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--panel-2); font-size: 12px; font-family: var(--font-display); font-weight: 600;
+  }
+  .chip:hover { border-color: var(--muted); }
+  .chip.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .hint { font-size: 11px; color: var(--muted); }
+  .side-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 8px 14px 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+    font-family: var(--font-display);
+  }
+  .list { flex: 1; overflow-y: auto; min-height: 0; padding: 0 6px 12px; }
+  .player {
+    display: grid; grid-template-columns: 18px 14px 34px 1fr auto; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  }
+  .player[hidden] { display: none; }   /* display:grid above would otherwise beat the hidden attribute */
+  .player:hover { background: var(--panel-2); }
+  .player.on { background: var(--panel-2); }
+  .player input { margin: 0; accent-color: var(--accent); }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.5); }
+  .rank { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; font-size: 12px; }
+  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .time { font-variant-numeric: tabular-nums; font-family: var(--font-display); font-weight: 600; font-size: 13px; }
+  .pips { grid-column: 3 / 6; display: flex; gap: 2px; align-items: center; height: 8px; }
+  .pip { width: 12px; height: 6px; border-radius: 2px; opacity: .9; }
+  .pips .prog { color: var(--muted); font-size: 11px; margin-left: auto; font-variant-numeric: tabular-nums; }
+  .player.on .prog { color: var(--text); }
+
+  main.stage { grid-area: stage; position: relative; min-height: 0; min-width: 0; background: var(--ground); }
+  main canvas { display: block; width: 100%; height: 100%; }
+  .stage-hud {
+    position: absolute; top: 10px; left: 12px; right: 12px; display: flex; justify-content: space-between;
+    align-items: flex-start; pointer-events: none; gap: 8px;
+  }
+  .clock {
+    font-family: var(--font-display); font-weight: 700; font-size: 30px; font-variant-numeric: tabular-nums;
+    letter-spacing: .02em; text-shadow: 0 2px 8px rgba(0,0,0,.7);
+  }
+  .cams { display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; justify-content: flex-end; }
+  .cams .chip { background: rgba(27,23,28,.85); }
+  .cams .chip.on { border-color: var(--accent); color: var(--accent); }
+  .key {
+    position: absolute; left: 12px; bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap;
+    font-size: 11px; color: var(--muted); pointer-events: none;
+  }
+  .key span { display: inline-flex; align-items: center; gap: 4px; }
+  .key i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,.6); }
+
+  footer.bar {
+    grid-area: bar; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--panel);
+  }
+  .transport { display: flex; gap: 6px; align-items: center; }
+  .transport .chip.big { padding: 7px 14px; font-size: 13px; min-width: 76px; text-align: center; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .speed { display: flex; gap: 4px; align-items: center; font-size: 12px; color: var(--muted); }
+  .speed .chip.on { border-color: var(--accent); color: var(--accent); }
+
+  @media (max-width: 820px) {
+    body { overflow: auto; }
+    .app {
+      grid-template-columns: 1fr; grid-template-rows: auto 60vh auto auto;
+      grid-template-areas: "head" "stage" "bar" "side"; height: auto; min-height: 100%;
+    }
+    aside.side { border-right: 0; border-top: 1px solid var(--line); max-height: 70vh; }
+    .clock { font-size: 22px; }
+    footer.bar { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { .chip { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="head">
+    <h1>Leth Trial #1 &mdash; ghost viewer</h1>
+    <span class="sub">Steam board <b>Map_LethTrial_01</b> &middot; <b id="nplayers">0</b> of 1,628 entries loaded &middot; author time <b>30.000</b> &middot; snapshot 2026-09-19</span>
+  </header>
+
+  <aside class="side">
+    <div class="side-tools">
+      <div class="row">
+        <input type="search" id="q" placeholder="Search players" aria-label="Search players">
+      </div>
+      <div class="row">
+        <button class="chip primary" id="top10">Top 10</button>
+        <button class="chip" id="top25">Top 25</button>
+        <button class="chip" id="podium">WR route</button>
+        <button class="chip" id="clear">Clear</button>
+      </div>
+      <div class="row">
+        <button class="chip" id="bestRoute">Best per route</button>
+        <span class="hint" id="routeHint"></span>
+      </div>
+      <div class="row">
+        <select id="routeSel" aria-label="Select everyone on a route">
+          <option value="">Select everyone on a route&hellip;</option>
+        </select>
+      </div>
+    </div>
+    <div class="side-head"><span>Players</span><span id="selcount">0 shown</span></div>
+    <div class="list" id="list" role="list"></div>
+  </aside>
+
+  <main class="stage">
+    <canvas id="c"></canvas>
+    <div class="stage-hud">
+      <div class="clock" id="clock">00.000</div>
+      <div class="cams">
+        <button class="chip" id="camSide">Side</button>
+        <button class="chip" id="camTop">Top</button>
+        <button class="chip" id="camIso">Corner</button>
+        <button class="chip" id="orbit">Auto-orbit</button>
+        <button class="chip on" id="mapToggle">Map</button>
+        <button class="chip" id="names">Names</button>
+      </div>
+    </div>
+    <div class="key" id="key"></div>
+  </main>
+
+  <footer class="bar">
+    <div class="transport">
+      <button class="chip big" id="play">Play</button>
+      <button class="chip" id="restart">&#8635;</button>
+      <button class="chip" id="loop">Loop</button>
+    </div>
+    <input type="range" id="scrub" min="0" max="30" step="0.02" value="0" aria-label="Scrub time">
+    <div class="speed">
+      speed
+      <button class="chip" data-speed="0.25">&frac14;&times;</button>
+      <button class="chip" data-speed="0.5">&frac12;&times;</button>
+      <button class="chip on" data-speed="1">1&times;</button>
+      <button class="chip" data-speed="2">2&times;</button>
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="data/ghosts.js"></script>
+<script src="data/map2.js"></script>
+<script src="data/rings.js"></script>
+<script>
+(function () {
+  'use strict';
+  const D = window.LETH_DATA;
+  const players = D.players;
+  const CP = D.checkpoints, CPN = D.cp_names, CPC = D.cp_colors;
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- coordinates: UE (x fwd, y right, z up, left-handed, cm) -> three (x, y up, z), metres
+  const S = 0.01;
+  const toV = (x, y, z) => new THREE.Vector3(x * S, z * S, y * S);
+  const groundZ = Math.min(...Object.values(CP).map(p => p[2])) - 250;
+
+  // ---------- per-player colour: golden-angle hues so neighbours in the list differ
+  function colorFor(i) {
+    const h = (i * 0.618034) % 1, s = 0.85, v = i % 2 === 0 ? 0.95 : 0.75;
+    const c = new THREE.Color().setHSL(h, s, v * 0.55 + 0.1);
+    return c;
+  }
+  players.forEach((p, i) => {
+    p.color = colorFor(i); p.hex = '#' + p.color.getHexString();
+    const n = p.p.length / 4;
+    p.T = new Float32Array(n); p.X = new Float32Array(n); p.Y = new Float32Array(n); p.Z = new Float32Array(n);
+    for (let k = 0; k < n; k++) { p.T[k] = p.p[4*k]; p.X[k] = p.p[4*k+1]; p.Y[k] = p.p[4*k+2]; p.Z[k] = p.p[4*k+3]; }
+    p.p = null;
+    p.routeKey = p.order.join('-');
+  });
+  $('nplayers').textContent = players.length;
+  const tmax = Math.max(...players.map(p => p.time)) + 2;
+  $('scrub').max = tmax.toFixed(2);
+
+  // ---------- position at time t (linear interpolation, clamped to the finish)
+  const tmp = new THREE.Vector3();
+  function posAt(p, t, out) {
+    const T = p.T, n = T.length;
+    t = Math.min(t, p.time);
+    if (t <= T[0]) return out.set(p.X[0] * S, p.Z[0] * S, p.Y[0] * S);
+    if (t >= T[n-1]) return out.set(p.X[n-1] * S, p.Z[n-1] * S, p.Y[n-1] * S);
+    let lo = 0, hi = n - 1;
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (T[m] <= t) lo = m; else hi = m - 1; }
+    const f = T[lo+1] > T[lo] ? (t - T[lo]) / (T[lo+1] - T[lo]) : 0;
+    return out.set((p.X[lo] + f * (p.X[lo+1] - p.X[lo])) * S, (p.Z[lo] + f * (p.Z[lo+1] - p.Z[lo])) * S, (p.Y[lo] + f * (p.Y[lo+1] - p.Y[lo])) * S);
+  }
+
+  // ---------- scene
+  const canvas = $('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x121014);
+  scene.fog = new THREE.Fog(0x121014, 140, 320);
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  const centre = toV(CP['9'][0], CP['9'][1], (groundZ + CP['2'][2]) / 2);
+  controls.target.copy(centre);
+
+  const grid = new THREE.GridHelper(160, 16, 0x3a3038, 0x26202a);
+  grid.position.set(centre.x, groundZ * S, centre.z);
+  scene.add(grid);
+
+  // lava-ish glow under the grid so the ground reads as a surface, not a void
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), new THREE.MeshBasicMaterial({ color: 0x1a1216 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.set(centre.x, groundZ * S - 0.05, centre.z);
+  scene.add(floor);
+
+  function labelSprite(text, fg, bg, size) {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = bg; g.beginPath(); g.arc(64, 64, 60, 0, Math.PI * 2); g.fill();
+    g.lineWidth = 6; g.strokeStyle = 'rgba(0,0,0,.6)'; g.stroke();
+    g.fillStyle = fg; g.font = 'bold 64px Chakra Petch, Segoe UI, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, 64, 68);
+    const m = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true });
+    const sp = new THREE.Sprite(m); sp.scale.set(size, size, 1); sp.renderOrder = 5; return sp;
+  }
+  function textSprite(text, color) {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 96;
+    const g = c.getContext('2d');
+    g.font = '600 44px IBM Plex Sans, Segoe UI, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+    g.lineWidth = 8; g.strokeStyle = 'rgba(0,0,0,.85)'; g.strokeText(text, 8, 48);
+    g.fillStyle = color; g.fillText(text, 8, 48);
+    const m = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true });
+    const sp = new THREE.Sprite(m); sp.scale.set(16, 3, 1); sp.center.set(0, 0.5); sp.renderOrder = 6; return sp;
+  }
+
+  // checkpoints: sphere + rod + shadow disc + number
+  const dark = new Set(['2', '4', '6', '8']);
+  // The real goal rings: SM_GoalRing (5.3 m across, scale 1.5) on each BP_Checkpoint's world
+  // transform from the cooked level. The mesh sits in its local XY plane with the hole on local
+  // Z, and the matrices are in the y/z-swapped frame, so the torus is turned to match once.
+  const RING = window.LETH_RINGS || { meta: { r: 3.75, t: 0.225 }, rings: [] };
+  const ringByCp = new Map(RING.rings.map(r => [String(r.k), r]));
+  const ringGeo = new THREE.TorusGeometry(RING.meta.r, RING.meta.t, 10, 56); ringGeo.rotateX(Math.PI / 2);
+  for (const k of Object.keys(CP)) {
+    const [x, y, z] = CP[k]; const v = toV(x, y, z); const col = new THREE.Color(CPC[k]);
+    const ring = ringByCp.get(k);
+    if (ring) {
+      const r = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: col }));
+      r.matrixAutoUpdate = false; r.matrix.fromArray(ring.m); r.matrixWorldNeedsUpdate = true;
+      scene.add(r);
+    } else {
+      const s = new THREE.Mesh(new THREE.SphereGeometry(1.6, 24, 16), new THREE.MeshBasicMaterial({ color: col }));
+      s.position.copy(v); scene.add(s);
+    }
+    const rod = new THREE.Line(new THREE.BufferGeometry().setFromPoints([v, new THREE.Vector3(v.x, groundZ * S, v.z)]),
+      new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.55 }));
+    scene.add(rod);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(2.2, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.35 }));
+    disc.rotation.x = -Math.PI / 2; disc.position.set(v.x, groundZ * S + 0.02, v.z); scene.add(disc);
+    const lab = labelSprite(k, dark.has(k) ? '#ffffff' : '#000000', CPC[k], 2.6);
+    lab.position.copy(v); scene.add(lab);
+  }
+  // start pad
+  const st = toV(D.start[0], D.start[1], D.start[2]);
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, 2.4), new THREE.MeshBasicMaterial({ color: 0xa3e635 }));
+  pad.position.copy(st); scene.add(pad);
+  const stLab = textSprite('start', '#a3e635'); stLab.position.copy(st).add(new THREE.Vector3(1.5, 1.2, 0)); scene.add(stLab);
+
+  // ---------- the map itself: every placed piece from the cooked level, as a box / 4-sided cone / cylinder
+  // (bounds from the piece catalog, world transform decoded from the level; arena shell pieces filtered out)
+  scene.add(new THREE.HemisphereLight(0xfff1e0, 0x2a1a14, 0.9));
+  const sun = new THREE.DirectionalLight(0xffe6c8, 0.7); sun.position.set(-60, 120, -80); scene.add(sun);
+  const mapGroup = new THREE.Group();
+  const geoCache = new Map();
+  for (const pc of (window.LETH_MAP || [])) {
+    const [sx, sy, sz] = pc.s; let geo;
+    if (pc.k === 'pyramid') {
+      geo = new THREE.ConeGeometry(Math.max(sx, sz) / 2 * Math.SQRT2, sy, 4, 1); geo.rotateY(Math.PI / 4);
+    } else if (pc.k === 'pipe') {
+      const L = Math.max(sx, sy, sz), r = Math.min(sx, sy, sz) / 2;
+      geo = new THREE.CylinderGeometry(r, r, L, 20, 1, true);
+      if (L === sx) geo.rotateZ(Math.PI / 2); else if (L === sz) geo.rotateX(Math.PI / 2);
+    } else {
+      const key = pc.s.join(',');
+      geo = geoCache.get(key); if (!geo) { geo = new THREE.BoxGeometry(sx, sy, sz); geoCache.set(key, geo); }
+    }
+    const mat = pc.g
+      ? new THREE.MeshBasicMaterial({ color: pc.c, transparent: !!pc.t, opacity: pc.t ? 0.55 : 1 })
+      : new THREE.MeshLambertMaterial({ color: pc.c, transparent: !!pc.t, opacity: pc.t ? 0.45 : 1, side: pc.k === 'pipe' ? THREE.DoubleSide : THREE.FrontSide });
+    const m = new THREE.Mesh(geo, mat);
+    m.matrixAutoUpdate = false; m.matrix.fromArray(pc.m); m.matrixWorldNeedsUpdate = true;
+    mapGroup.add(m);
+  }
+  scene.add(mapGroup);
+  $('mapToggle').onclick = (e) => { mapGroup.visible = !mapGroup.visible; e.currentTarget.classList.toggle('on', mapGroup.visible); };
+
+  // ---------- per-player render objects, built lazily
+  const TRAIL = 14;
+  function build(p) {
+    const g = new THREE.Group();
+    const pts = []; for (let k = 0; k < p.T.length; k++) pts.push(new THREE.Vector3(p.X[k] * S, p.Z[k] * S, p.Y[k] * S));
+    const path = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: p.color, transparent: true, opacity: 0.22 }));
+    const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL * 3), 3));
+    const trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ color: p.color, linewidth: 2 }));
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 12), new THREE.MeshBasicMaterial({ color: p.color }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.4, 32), new THREE.MeshBasicMaterial({ color: p.color, side: THREE.DoubleSide }));
+    ring.visible = false;
+    const nm = textSprite(p.name, p.hex); nm.visible = false;
+    g.add(path, trail, dot, ring, nm);
+    p.obj = { g, path, trail, dot, ring, nm };
+    scene.add(g);
+  }
+  const selected = new Set();
+  function setSel(p, on) {
+    if (on) { if (!p.obj) build(p); p.obj.g.visible = true; selected.add(p); }
+    else if (p.obj) { p.obj.g.visible = false; selected.delete(p); }
+    const row = p.row; if (row) { row.classList.toggle('on', on); row.querySelector('input').checked = on; }
+    updateCount();
+  }
+  function updateCount() { $('selcount').textContent = selected.size + ' shown'; }
+
+  // ---------- playback
+  let t = 0, playing = false, speed = 1, loop = true, showNames = false, last = performance.now();
+  function setT(v) { t = Math.max(0, Math.min(tmax, v)); $('scrub').value = t; $('clock').textContent = t.toFixed(3).padStart(6, '0'); }
+  const q = new THREE.Vector3();
+  function updatePlayers() {
+    for (const p of selected) {
+      const o = p.obj; const tt = Math.min(t, p.time);
+      posAt(p, tt, q); o.dot.position.copy(q);
+      const a = o.trail.geometry.attributes.position.array;
+      for (let k = 0; k < TRAIL; k++) {
+        const ts = Math.max(0, tt - (TRAIL - 1 - k) * 0.08);
+        posAt(p, ts, tmp); a[3*k] = tmp.x; a[3*k+1] = tmp.y; a[3*k+2] = tmp.z;
+      }
+      o.trail.geometry.attributes.position.needsUpdate = true;
+      const done = t >= p.time;
+      o.ring.visible = done; if (done) { o.ring.position.copy(q); o.ring.lookAt(camera.position); }
+      o.nm.visible = showNames; if (showNames) o.nm.position.copy(q).add(new THREE.Vector3(1, 1, 0));
+      if (p.prog) {
+        let n = 0; for (const s of p.splits) if (s <= t) n++;
+        p.prog.textContent = done ? p.time.toFixed(3) : n + '/9';
+      }
+    }
+  }
+  function resize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio())) {
+      renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    }
+  }
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (playing) {
+      let nt = t + dt * speed;
+      if (nt >= tmax) { if (loop) nt = 0; else { nt = tmax; setPlaying(false); } }
+      setT(nt);
+    }
+    resize(); updatePlayers(); controls.update(); renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  function setPlaying(v) { playing = v; $('play').textContent = v ? 'Pause' : 'Play'; }
+
+  // ---------- cameras
+  function fly(pos, target) { camera.position.copy(pos); controls.target.copy(target || centre); controls.update(); }
+  const c = centre;
+  // Side: camera on the UE -y side looking +y, so screen-right is -x: Grey (7, east) left, Red (2, west) right, Lime centred.
+  $('camSide').onclick = () => fly(new THREE.Vector3(c.x, c.y + 38, c.z - 112));
+  $('camTop').onclick = () => fly(new THREE.Vector3(c.x, c.y + 175, c.z + 0.01));
+  $('camIso').onclick = () => fly(new THREE.Vector3(c.x - 95, c.y + 70, c.z - 95));
+  $('orbit').onclick = (e) => { controls.autoRotate = !controls.autoRotate; controls.autoRotateSpeed = 1.2; e.currentTarget.classList.toggle('on', controls.autoRotate); };
+  $('names').onclick = (e) => { showNames = !showNames; e.currentTarget.classList.toggle('on', showNames); };
+  $('camSide').click();
+
+  // ---------- transport
+  $('play').onclick = () => setPlaying(!playing);
+  $('restart').onclick = () => { setT(0); };
+  $('loop').classList.add('on');
+  $('loop').onclick = (e) => { loop = !loop; e.currentTarget.classList.toggle('on', loop); };
+  $('scrub').oninput = (e) => setT(parseFloat(e.target.value));
+  document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
+    speed = parseFloat(b.dataset.speed);
+    document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('on', x === b));
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
+    if (e.code === 'ArrowLeft') setT(t - 1);
+    if (e.code === 'ArrowRight') setT(t + 1);
+  });
+
+  // ---------- player list
+  const list = $('list');
+  const routeCounts = new Map();
+  for (const p of players) routeCounts.set(p.routeKey, (routeCounts.get(p.routeKey) || 0) + 1);
+  for (const p of players) {
+    const row = document.createElement('label'); row.className = 'player'; row.setAttribute('role', 'listitem');
+    row.innerHTML = `<input type="checkbox" id="p${p.rank}"><span class="swatch" style="background:${p.hex}"></span>` +
+      `<span class="rank">${p.rank}</span><span class="name"></span><span class="time">${p.time.toFixed(3)}</span>` +
+      `<span class="pips">${p.order.map(k => `<i class="pip" title="${CPN[k]}" style="background:${CPC[k]}"></i>`).join('')}<span class="prog"></span></span>`;
+    row.querySelector('.name').textContent = p.name;
+    row.title = `${p.name} \u2014 ${p.order.map(k => CPN[k]).join(' \u2192 ')} (${routeCounts.get(p.routeKey)} on this route) \u00b7 set ${p.ts}`;
+    row.querySelector('input').addEventListener('change', (e) => setSel(p, e.target.checked));
+    p.row = row; p.prog = row.querySelector('.prog');
+    list.appendChild(row);
+  }
+  // Players arrive in rank order, so the first one seen on a route is that route's best run.
+  const bestOfRoute = new Set();
+  const seenRoute = new Set();
+  for (const p of players) if (!seenRoute.has(p.routeKey)) { seenRoute.add(p.routeKey); bestOfRoute.add(p); }
+
+  let routeFilter = false, search = '';
+  function visible(p) {
+    if (routeFilter && !bestOfRoute.has(p)) return false;
+    return !search || p.name.toLowerCase().includes(search) || String(p.rank) === search;
+  }
+  // `shown` is the list as the reader sees it: quick picks act on that, so with the filter on
+  // "Top 10" means the ten fastest distinct routes rather than the ten fastest runs.
+  let shown = players;
+  function applyFilter() {
+    shown = players.filter(visible);
+    for (const p of players) p.row.hidden = !shown.includes(p);
+    $('routeHint').textContent = routeFilter
+      ? `${shown.length} routes, fastest run of each`
+      : `${seenRoute.size} distinct routes in these ${players.length}`;
+  }
+  $('q').addEventListener('input', (e) => { search = e.target.value.trim().toLowerCase(); applyFilter(); });
+  $('bestRoute').onclick = (e) => {
+    routeFilter = !routeFilter; e.currentTarget.classList.toggle('on', routeFilter);
+    e.currentTarget.classList.toggle('primary', routeFilter);
+    applyFilter();
+  };
+  function selectOnly(pred) { for (const p of players) setSel(p, shown.includes(p) && pred(p)); }
+  $('top10').onclick = () => selectOnly(p => shown.indexOf(p) < 10);
+  $('top25').onclick = () => selectOnly(p => shown.indexOf(p) < 25);
+  $('podium').onclick = () => selectOnly(p => p.routeKey === '1-2-3-4-5-6-7-8-9');
+  $('clear').onclick = () => selectOnly(() => false);
+
+  // route dropdown: every route present in the loaded set, most popular first
+  const sel = $('routeSel');
+  [...routeCounts.entries()].sort((a, b) => b[1] - a[1]).forEach(([key, n]) => {
+    const o = document.createElement('option'); o.value = key;
+    o.textContent = `${n} \u00d7 ${key.split('-').map(k => CPN[k]).join(' \u2192 ')}`;
+    sel.appendChild(o);
+  });
+  sel.onchange = () => { if (sel.value) selectOnly(p => p.routeKey === sel.value); };
+  applyFilter();
+
+  // legend of checkpoint colours
+  $('key').innerHTML = Object.keys(CP).map(k => `<span><i style="background:${CPC[k]}"></i>${k} ${CPN[k]}</span>`).join('');
+
+  // ---------- boot: top 10 shown, paused at t=0 so the first frame already tells the story
+  selectOnly(p => p.rank <= 10);
+  setT(0); updatePlayers();
+  requestAnimationFrame(frame);
+})();
+</script>
