@@ -4,8 +4,9 @@ The site is **static** (`index.html` + `data/index.json` + `data/boards/*.json`)
 served by **GitHub Pages**. The page loads the small `index.json` first, then lazy-
 loads each board's full entry list on demand (infinite scroll). The data is refreshed
 by a **GitHub Actions** job that logs into Steam with a **refresh token** (via
-`steam.py`), reads the full leaderboards, and commits the updated data. Pages
-redeploys automatically on that commit.
+`steam.py`), reads the full leaderboards, commits the updated data, and then runs
+the Pages deploy (`.github/workflows/deploy.yml`), which publishes only the site
+files.
 
 No machine of yours has to be running — the refresh happens entirely in CI.
 
@@ -64,8 +65,7 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 ### 4. Enable GitHub Pages
 
 Repo → **Settings → Pages**:
-- **Source:** Deploy from a branch
-- **Branch:** `main`  /  **Folder:** `/ (root)`
+- **Source:** GitHub Actions (`.github/workflows/deploy.yml` does the deploy)
 - **Custom domain:** `ballest.willness.dev` → Save (the committed `CNAME` file matches this)
 - Tick **Enforce HTTPS** once the cert is issued.
 
@@ -84,7 +84,7 @@ Value: <you>.github.io
 ### 6. Populate the data
 
 Repo → **Actions → "Refresh leaderboards" → Run workflow**. It logs in, writes
-`data/index.json` + `data/boards/*.json`, and commits them. The site goes live at
+`data/index.json` + `data/boards/*.json`, commits them, and deploys. The site goes live at
 `https://ballest.willness.dev` shortly after.
 
 ---
