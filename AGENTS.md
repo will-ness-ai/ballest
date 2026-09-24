@@ -24,7 +24,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `tools/campaign_common.py` — the board table and every shared collector helper.
 - `tools/steampy_collect.py` — the collector CI runs. **This is the live path.**
 - `tools/ugc_discord_leaderboard.py` — local, on demand: reads every Workshop map's
-  board and prints a Discord post (most custom maps beaten, most author medals).
+  board and prints a Discord post (most custom maps beaten, most author medals, most
+  world records and top 5s, and the longest-standing campaign and Workshop records).
   Not part of CI and writes nothing into the repo.
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
   then calls `deploy.yml`.
