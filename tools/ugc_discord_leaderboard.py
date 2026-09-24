@@ -15,8 +15,8 @@ a two-column table (Discord has no markdown tables, so it is a monospaced code b
 plus two lists with a Workshop link per map: maps nobody has beaten, and finished maps
 whose author medal nobody has claimed (both only for maps published at least a day ago,
 so a fresh upload gets a chance first), and the three longest-standing world records
-on the campaign and on the Workshop (dated from each record's ghost replay). The post is
-split into as many Discord messages as its sections need (usually two).
+on the campaign and on the Workshop (dated from each record's ghost replay). The whole
+post fits one Nitro message; it is split only if it outgrows the limit (see --limit).
 
 A map's own creator counts on it only by beating their own author time: the author
 time is the creator's publishing run, so matching it is not a beat (see collect()).
@@ -28,6 +28,7 @@ Run (from the repo root, in the steam.py venv — see tools/README-hosting.md):
   tools\\.venv-steampy\\Scripts\\python.exe tools\\ugc_discord_leaderboard.py
 Options:
   --top N          rows per board (default 10)
+  --limit N        chars per Discord message (default 4000, a Nitro message; 2000 without)
   --out FILE       also write the post to FILE (a second message goes to FILE-2, etc.)
   --json FILE      also dump per-player and per-map numbers for checking
 Auth: STEAM_REFRESH_TOKEN env var, else tools/refresh_token.txt (from steampy_mint.py);
@@ -49,7 +50,8 @@ logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
 AUTHOR_MEDAL_INDEX = 3  # medal_times_by_index = [bronze, silver, gold, author], seconds
-DISCORD_MESSAGE_LIMIT = 2000
+# Discord's per-message cap: 4000 characters with Nitro, 2000 without (--limit).
+DISCORD_MESSAGE_LIMIT = 4000
 # A creator's own time must be faster than their author time by at least this much to
 # count as a beat. The author time in the Workshop metadata and the leaderboard score
 # of the very same publishing run disagree by up to ~0.75 ms in observed data (float
@@ -487,6 +489,9 @@ def pack_messages(sections, limit=DISCORD_MESSAGE_LIMIT):
 def main():
     ap = argparse.ArgumentParser(description="Discord post: who has beaten the most custom maps / author medals.")
     ap.add_argument("--top", type=int, default=10, help="rows per board (default 10)")
+    ap.add_argument("--limit", type=int, default=DISCORD_MESSAGE_LIMIT,
+                    help=f"chars per Discord message (default {DISCORD_MESSAGE_LIMIT}, "
+                         "a Nitro message; pass 2000 without Nitro)")
     ap.add_argument("--out", help="also write the post to this file")
     ap.add_argument("--json", help="also dump per-player and per-map numbers to this file")
     args = ap.parse_args()
@@ -553,10 +558,11 @@ def main():
     log(f"Resolving {len(shown)} player names...")
     names = cc.resolve_names(key, shown)
 
-    messages = pack_messages(build_sections(players, per_map, names, args.top, failed, oldest, oldest_ugc))
+    messages = pack_messages(build_sections(players, per_map, names, args.top, failed, oldest, oldest_ugc),
+                             args.limit)
     for i, msg in enumerate(messages, 1):
-        if len(msg) > DISCORD_MESSAGE_LIMIT:
-            log(f"NOTE: message {i} is {len(msg)} chars, over Discord's {DISCORD_MESSAGE_LIMIT}-char limit; lower --top.")
+        if len(msg) > args.limit:
+            log(f"NOTE: message {i} is {len(msg)} chars, over the {args.limit}-char limit; lower --top.")
     if args.out:
         root, ext = os.path.splitext(args.out)
         for i, msg in enumerate(messages, 1):
