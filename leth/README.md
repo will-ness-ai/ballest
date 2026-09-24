@@ -1,7 +1,7 @@
 # Leth Trial #1 ghost viewer
 
 A static 3D replay of the Steam leaderboard for **Leth Trial #1**, the Collabs event map,
-served at https://ballest.willness.dev/leth/ off the same GitHub Pages branch as the main
+served at https://ballest.willness.dev/leth/ by the same GitHub Pages deploy as the main
 site. Pick players from the list and their ghosts replay together over the map; the event let
 you take the nine checkpoints in any order, so the point of the page is comparing *routes*.
 

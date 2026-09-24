@@ -5,7 +5,7 @@
     1. creates the GitHub repo and pushes this project,
     2. sets the STEAM_REFRESH_TOKEN + STEAM_API_KEY Actions secrets
        (read from your local files -- they never appear on the command line),
-    3. enables GitHub Pages (deploy from main / root).
+    3. enables GitHub Pages (source: GitHub Actions, via .github/workflows/deploy.yml).
 
   Prereqs (one time):
     winget install --id GitHub.cli        # then open a NEW terminal
@@ -65,14 +65,14 @@ $token  | gh secret set STEAM_REFRESH_TOKEN --repo "$who/$RepoName"
 $apikey | gh secret set STEAM_API_KEY       --repo "$who/$RepoName"
 Write-Host "  secrets set."
 
-Write-Host "== Enabling GitHub Pages (main / root) ==" -ForegroundColor Cyan
-$body = '{"source":{"branch":"main","path":"/"}}'
+Write-Host "== Enabling GitHub Pages (source: GitHub Actions) ==" -ForegroundColor Cyan
+$body = '{"build_type":"workflow"}'
 $body | gh api -X POST "repos/$who/$RepoName/pages" --input - 2>$null
 if ($LASTEXITCODE -ne 0) {
   # Already enabled? Update instead.
   $body | gh api -X PUT "repos/$who/$RepoName/pages" --input - 2>$null | Out-Null
 }
-Write-Host "  Pages enabled (custom domain comes from the committed CNAME file)."
+Write-Host "  Pages enabled. An Actions deploy ignores the CNAME file: set the custom domain in Settings -> Pages."
 
 Write-Host ""
 Write-Host "================= NEXT: DNS =================" -ForegroundColor Green

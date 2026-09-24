@@ -1,10 +1,13 @@
-# Ballest leaderboards
+# Ballest community tools
 
-A static, read-only mirror of the Steam leaderboards for **Ballest of Them All**
-(appid `3339810`), live at https://ballest.willness.dev on GitHub Pages
-(deploy-from-branch, `main` / root). The game's leaderboards are not exposed through any
-public web API, so a collector reads them from Steam directly and commits the results as
-JSON that the page fetches.
+The public monorepo for **Ballest of Them All** (appid `3339810`) community tools. Its
+main tool is a static, read-only mirror of the game's Steam leaderboards, live at
+https://ballest.willness.dev on GitHub Pages. The game's leaderboards are not exposed
+through any public web API, so a collector reads them from Steam directly and commits the
+results as JSON that the page fetches.
+
+`CONTEXT.md` is the domain glossary (Map, Track, Match, ...); use its terms. Decisions
+that shape the repo are recorded in `docs/adr/`; read them before restructuring anything.
 
 ## Layout
 
@@ -23,7 +26,12 @@ JSON that the page fetches.
 - `tools/ugc_discord_leaderboard.py` — local, on demand: reads every Workshop map's
   board and prints a Discord post (most custom maps beaten, most author medals).
   Not part of CI and writes nothing into the repo.
-- `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`.
+- `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
+  then calls `deploy.yml`.
+- `.github/workflows/deploy.yml` — the Pages deploy (Source: GitHub Actions). Publishes
+  only `index.html`, `data/`, `leth/` and `CNAME`, so a new site file must be added to
+  its `cp` line or it 404s in production. Runs on push to `main`, by hand, and from
+  `refresh.yml`, whose `GITHUB_TOKEN` push triggers no other workflow.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
   covers install and how it hooks the game.
