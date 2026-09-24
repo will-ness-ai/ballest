@@ -1,4 +1,4 @@
-<title>Ballest Match Surfaces</title>
+<title>Multiballs Surfaces</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Lilita+One&family=Fredoka:wght@600;700&family=Baloo+2:wght@700;800&family=Titan+One&family=Nunito:wght@800;900&family=Rubik:wght@700;800&family=Poppins:wght@600;700&family=Bungee&family=Chakra+Petch:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Source+Code+Pro:wght@400;600&display=swap">
@@ -227,7 +227,7 @@ code{font:13px var(--mono);background:var(--bg3);border-radius:3px;padding:1px 3
 
 <div class="app">
   <section class="pane channel" aria-label="Channel">
-    <div class="bar"><span class="hash">#</span><b>ballest-matches</b><span class="topic">Timed Matches on a Workshop Map no one here has finished</span></div>
+    <div class="bar"><span class="hash">#</span><b>👯│community-matches</b><span class="topic">Timed Matches on a Workshop Map no one here has finished</span></div>
     <div class="scroll" id="channel"></div>
     <div class="composer locked">You do not have permission to send messages in this channel.</div>
   </section>
@@ -254,7 +254,7 @@ code{font:13px var(--mono);background:var(--bg3);border-radius:3px;padding:1px 3
 </div>
 
 <script>
-const BOT = "Ballest Matches";
+const BOT = "Multiballs";
 const MAP = {title:"Gutter Run", by:"pebblewright", url:"https://steamcommunity.com/sharedfiles/filedetails/?id=3791550212",
   wr:"0:12.981", wrBy:"heliobounce", medals:{author:"0:14.200", gold:"0:15.500", silver:"0:17.000", bronze:"0:20.000"}};
 const OLD_MAP = {title:"Cliffside Spiral", by:"kettlecorn", url:"#", wr:"0:31.402", wrBy:"gravwell", medals:{author:"0:34.900",gold:"0:37.000",silver:"0:41.000",bronze:"0:48.000"}, alt:true};
@@ -266,7 +266,7 @@ function hueFor(seed){ let h = 2166136261; for (let i=0;i<seed.length;i++){ h ^=
 let _bid = 0;
 function ball(seed, size=24){ const h = typeof seed==="number" ? seed : hueFor(seed), id = "m"+(_bid++);
   return `<svg class="ball" width="${size}" height="${size}" viewBox="0 0 40 40" aria-hidden="true"><defs><radialGradient id="g${id}" cx="34%" cy="27%" r="80%"><stop offset="0%" stop-color="hsl(${h} 94% 90%)"/><stop offset="34%" stop-color="hsl(${h} 80% 64%)"/><stop offset="100%" stop-color="hsl(${h} 62% 25%)"/></radialGradient><clipPath id="c${id}"><circle cx="20" cy="20" r="19"/></clipPath></defs><circle cx="20" cy="20" r="19" fill="url(#g${id})"/><g clip-path="url(#c${id})"><path d="M-4 27C6 34 18 33 26 26s10-16 8-24" fill="none" stroke="hsl(${h} 66% 20%)" stroke-opacity=".26" stroke-width="4.5"/><path d="M2 8c8 2 16 8 19 17" fill="none" stroke="hsl(${h} 96% 92%)" stroke-opacity=".2" stroke-width="3"/></g><ellipse cx="13" cy="11.5" rx="5.4" ry="3.4" fill="#fff" fill-opacity=".62" transform="rotate(-28 13 11.5)"/><circle cx="20" cy="20" r="19" fill="none" stroke="hsl(${h} 60% 16%)" stroke-opacity=".35"/></svg>`; }
-const logo = () => `<span class="logo"><span class="ms">${ball(212,16)}${ball(332,16)}${ball(96,16)}</span>Ballest Match</span>`;
+const logo = () => `<span class="logo"><span class="ms">${ball(212,16)}${ball(332,16)}${ball(96,16)}</span>Multiballs</span>`;
 
 function build(type, phase){
   const creator = "ChknThugget";
