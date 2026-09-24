@@ -1,0 +1,504 @@
+<title>Ballest Match Surfaces</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Lilita+One&family=Fredoka:wght@600;700&family=Baloo+2:wght@700;800&family=Titan+One&family=Nunito:wght@800;900&family=Rubik:wght@700;800&family=Poppins:wght@600;700&family=Bungee&family=Chakra+Petch:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Source+Code+Pro:wght@400;600&display=swap">
+<style>
+/* PROTOTYPE, throwaway. Discord chrome is mocked in its dark theme (deliberately single-theme);
+   everything inside .img is what the bot would render to a PNG, in the ballest.willness.dev theme. */
+:root{
+  color-scheme:dark;
+  /* Discord chrome */
+  --bg:#313338; --bg2:#2b2d31; --bg3:#1e1f22; --hover:#2e3035;
+  --text:#dbdee1; --head:#f2f3f5; --muted:#949ba4; --faint:#6d6f78;
+  --blurple:#5865f2; --green:#248046; --red:#da373c; --grey:#4e5058; --link:#00a8fc;
+  --mention-bg:rgba(88,101,242,.3); --mention:#c9cdfb;
+  --sans:"Noto Sans","gg sans","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --mono:"Source Code Pro",Consolas,monospace;
+  /* ballest.willness.dev theme (index.html :root) */
+  --s-bg:#0a1020; --s-surface:rgba(255,255,255,.05); --s-surface2:rgba(255,255,255,.09); --s-solid:#111a2c;
+  --s-line:rgba(150,175,245,.18); --s-line2:rgba(255,255,255,.055);
+  --s-text:#eaf0ff; --s-dim:#93a2c8; --s-faint:#63719a;
+  --s-accent:#8be03c; --s-accent-ink:#0d2000;
+  --gold:#ffd447; --silver:#d3dcea; --bronze:#ef9a52; --author:#b36be8;
+  /* the game's medal gradients (medal screen) */
+  --mg-bronze:linear-gradient(90deg,#b07f2a,#e0a650 45%,#f9cb85);
+  --mg-silver:linear-gradient(90deg,#808080,#c9c9c9 45%,#ffffff);
+  --mg-gold:linear-gradient(90deg,#ffe600,#fff27a 50%,#fff7b0);
+  --mg-author:linear-gradient(90deg,#b86ae6,#8fa2f0 50%,#5ef0f5);
+  --f-medal:"Nunito",sans-serif; --w-medal:900; --f-num:"Nunito",sans-serif; --w-num:800;
+  --f-marquee:"Bungee","Chakra Petch",sans-serif; --f-hud:"Chakra Petch","Archivo",sans-serif; --f-body:"Archivo","Helvetica Neue",Arial,sans-serif;
+}
+html,body{height:100%}
+body{background:var(--bg3);color:var(--text);font:15px/1.375 var(--sans);margin:0}
+*{box-sizing:border-box}
+.app{display:flex;min-height:100%}
+.pane{display:flex;flex-direction:column;min-width:0}
+.channel{flex:1;background:var(--bg)}
+.thread{width:460px;flex:none;background:var(--bg);border-left:1px solid var(--bg3)}
+.bar{height:48px;display:flex;align-items:center;gap:8px;padding-inline:16px;border-bottom:1px solid var(--bg3);box-shadow:0 1px 0 rgba(0,0,0,.2);flex:none;min-width:0}
+.bar b{color:var(--head);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .hash{color:var(--muted);font-size:22px;font-weight:300}
+.bar .topic{color:var(--muted);font-size:13px;border-left:1px solid var(--grey);padding-left:10px;margin-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scroll{flex:1;overflow:auto;padding-block:16px 8px}
+.composer{margin:0 16px 20px;background:#383a40;border-radius:8px;padding:11px 16px;color:var(--faint);font-size:14px;flex:none}
+.composer.locked{background:var(--bg2);text-align:center}
+.divider{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:600;margin:8px 16px}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:#3f4147}
+.msg{display:grid;grid-template-columns:40px 1fr;column-gap:16px;padding:2px 16px;margin-top:17px}
+.msg:hover{background:var(--hover)}
+.msg.cont{margin-top:0}.msg.cont .av{visibility:hidden;height:0}.msg.cont .hdr{display:none}
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;overflow:hidden}
+.av.bot{background:var(--s-bg)}
+.av svg{width:34px;height:34px}
+.body{min-width:0}
+.hdr{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.hdr .name{color:var(--head);font-weight:600}
+.hdr .app-tag{background:var(--blurple);color:#fff;font-size:10px;font-weight:600;padding:1px 4px;border-radius:3px;position:relative;top:-1px}
+.hdr .time{color:var(--muted);font-size:12px}
+.content{overflow-wrap:anywhere}
+.content p{margin:0}
+.content h2{font-size:20px;line-height:1.3;color:var(--head);font-weight:700}
+.content h3{font-size:16px;color:var(--head);font-weight:700}
+.sub{font-size:12.5px;color:var(--muted)}
+.mention{background:var(--mention-bg);color:var(--mention);border-radius:3px;padding:0 2px;font-weight:500}
+.ts{background:rgba(255,255,255,.06);border-radius:3px;padding:0 2px}
+a{color:var(--link);text-decoration:none}
+code{font:13px var(--mono);background:var(--bg3);border-radius:3px;padding:1px 3px}
+.threadlink{display:inline-flex;align-items:center;gap:8px;margin-top:6px;background:var(--bg2);border-radius:6px;padding:6px 10px;font-size:13px;max-width:100%}
+.threadlink b{color:var(--head);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.threadlink span{color:var(--link);white-space:nowrap}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.btn{font:500 14px var(--sans);color:#fff;border:0;border-radius:3px;padding:2px 16px;height:32px;cursor:pointer;display:inline-flex;align-items:center}
+.btn.primary{background:var(--blurple)}.btn.success{background:var(--green)}.btn.danger{background:var(--red)}.btn.secondary,.btn.link{background:var(--grey)}
+.btn:focus-visible,.pick button:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+.medal{display:inline-flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap}
+.medal i{width:9px;height:9px;border-radius:50%;background:var(--m);box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.imgtag{font-size:11px;color:var(--faint);margin-top:3px}
+
+/* ---------------- the rendered image (site theme) ---------------- */
+.img{width:100%;max-width:520px;border-radius:8px;overflow:hidden;margin-top:4px;position:relative;user-select:none;
+  color:var(--s-text);font:400 14px/1.4 var(--f-body);
+  background:radial-gradient(420px 240px at 85% -20%,rgba(88,168,255,.18),transparent 62%),radial-gradient(320px 220px at 0% 0%,rgba(139,224,60,.10),transparent 64%),var(--s-bg)}
+.img .pad{padding:14px 16px}
+.lbl{font:600 10px var(--f-hud);letter-spacing:.16em;text-transform:uppercase;color:var(--s-dim)}
+.num{font-family:var(--f-hud);font-weight:600;font-variant-numeric:tabular-nums}
+.head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.logo{display:flex;align-items:center;gap:8px;font:12px var(--f-marquee);letter-spacing:.02em}
+.logo .ms{display:flex}.logo .ms svg{width:16px;height:16px}.logo .ms svg+svg{margin-left:-6px}
+.chip{font:700 10px var(--f-hud);letter-spacing:.16em;text-transform:uppercase;border-radius:999px;padding:3px 9px;border:1px solid var(--s-line);color:var(--s-dim)}
+.chip.live{background:var(--s-accent);color:var(--s-accent-ink);border-color:transparent}
+.chip.live::before{content:"● "}
+.chip.final{color:var(--gold);border-color:rgba(255,212,71,.4)}
+.ttl{font:700 21px/1.15 var(--f-hud);margin-top:10px;letter-spacing:.01em}
+.meta{font:500 11.5px var(--f-hud);color:var(--s-faint);margin-top:2px}
+.meta em{font-style:normal;color:var(--s-dim)}
+.ball{display:block}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{background:var(--s-surface);border:1px solid var(--s-line);border-radius:9px;padding:7px 10px;min-width:0}
+.tile .num{font-size:16px;display:block}
+.pill{width:17px;height:7px;border-radius:3px;background:hsl(var(--h) 76% 55%);box-shadow:inset 0 0 0 1px hsl(var(--h) 60% 24%);display:inline-block}
+.p1{color:var(--gold)}.p2{color:var(--silver)}.p3{color:var(--bronze)}
+.bar-prog{height:4px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden}.bar-prog i{display:block;height:100%;background:var(--s-accent)}
+.sealed{background:repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0 12px,rgba(255,255,255,.06) 12px 24px),var(--s-solid);display:grid;place-items:center;font:28px var(--f-marquee);color:var(--s-faint)}
+.art{position:relative;overflow:hidden;background:radial-gradient(circle at 78% 22%,#ffe7a8 0 7%,transparent 8%),linear-gradient(170deg,#3b7dd8 0%,#7fb6f2 45%,#f5c58a 70%,#e0874a 100%)}
+.art::before{content:"";position:absolute;inset:auto -10% -20% -10%;height:70%;background:repeating-linear-gradient(100deg,#2e2a3a 0 14px,#403a52 14px 28px);transform:skewY(-9deg);border-top:6px solid #8be03c}
+.art.alt{background:radial-gradient(circle at 20% 25%,#d7f5ff 0 6%,transparent 7%),linear-gradient(160deg,#16324f,#2b6a7e 55%,#7fd1b9)}
+.art.alt::before{transform:skewY(7deg)}
+
+/* in-game medal bars (from the game's own medal screen) */
+.mb{display:grid;grid-template-columns:1fr auto;align-items:stretch;border-radius:3px;overflow:hidden;font-family:var(--f-medal)}
+.mb .l{display:flex;align-items:center;gap:6px;padding:2px 8px;background:var(--mg);color:#fff;font-size:15px;font-weight:var(--w-medal);letter-spacing:.01em;
+  text-shadow:-1px -1px 0 #111,1px -1px 0 #111,-1px 1px 0 #111,1px 1px 0 #111,0 2px 0 #111}
+.mb .l::before{content:"✓";display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:#111;color:var(--gold);font:700 10px var(--f-body);text-shadow:none;flex:none}
+.mb .v{background:#1f1f22;color:#fff;font:var(--w-num) 14px var(--f-num);font-variant-numeric:tabular-nums;padding:2px 12px;display:grid;place-items:center;min-width:76px}
+.ladder{display:grid;gap:4px}
+.ladder.row4{grid-template-columns:repeat(4,1fr)}
+.ladder.row4 .mb{grid-template-columns:1fr}.ladder.row4 .mb .v{min-width:0}
+.mtag{display:inline-block;width:26px;height:9px;border-radius:2px;background:var(--mg);box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.embed{display:block;background:var(--bg2);border-left:4px solid var(--c,var(--grey));border-radius:4px;padding:8px 14px;max-width:520px;margin-top:6px;font-size:14px}
+.embed b{color:var(--head)}
+.emo{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--mg);box-shadow:inset 0 0 0 2px #111;vertical-align:-5px;color:#111;font:900 11px var(--f-body)}
+.emo::before{content:"✓"}
+.lead-h{font:700 16px var(--sans);color:var(--head);margin:2px 0}
+.rowimg{max-width:420px}
+.rowimg .r{display:grid;grid-template-columns:30px 24px 1fr auto;gap:10px;align-items:center;padding:0 12px;min-height:44px}
+.rowimg .r .rk{font:600 14px var(--f-hud)}
+.rowimg .r .nm{font-weight:600;font-size:14.5px;min-width:0}
+.rowimg .r .nm small{display:block;font:500 10.5px var(--f-hud);color:var(--s-faint)}
+.rowimg .r .sc{font:600 16px var(--f-hud);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:8px}
+.tk{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;font-size:14px;align-items:center}
+.tk .tm{font:13px var(--mono);color:var(--head)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:5;overflow:auto;padding:24px 16px;display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;justify-content:center}
+.stagebox{display:flex;flex-direction:column;gap:8px;width:460px;max-width:100%}
+.stagebox>.cap{font:600 11px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:#b5bac1}
+.modal{background:#313338;border-radius:8px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.modal .mh{padding:16px 16px 0;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.modal .mh b{font-size:20px;color:var(--head);font-weight:700}
+.modal .mh span{color:var(--muted);font-size:20px}
+.modal .mbody{padding:16px;display:grid;gap:16px}
+.fl .lab{display:block;font:700 12px var(--sans);text-transform:uppercase;letter-spacing:.02em;color:#b5bac1;margin-bottom:4px}
+.fl .desc{font-size:12.5px;color:var(--muted);margin:-2px 0 8px}
+.inp{background:#1e1f22;border:1px solid #1e1f22;border-radius:4px;padding:9px 10px;color:var(--text);font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px}
+.inp.ph{color:var(--faint)}
+.inp.sel::after{content:"⌄";color:var(--muted);font-size:16px;line-height:1}
+.inp .who{display:flex;align-items:center;gap:8px}
+.modal .mf{background:#2b2d31;padding:16px;display:flex;justify-content:flex-end;gap:8px}
+.btn.plain{background:transparent}
+.ephpanel{background:#313338;border-radius:8px;padding:4px 0 12px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.ephnote{font-size:12px;color:var(--muted);margin-top:6px}.ephnote a{cursor:pointer}
+.menu{background:#2b2d31;border:1px solid #1e1f22;border-radius:4px;margin-top:8px;max-width:400px}
+.menu .inp{background:#1e1f22}
+.presets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px;max-width:420px}
+.presets .btn{justify-content:center;height:auto;min-height:44px;padding:6px 8px;flex-direction:column;line-height:1.2}
+.presets .btn small{font-size:11px;opacity:.8;font-weight:400}
+.medalsvg{display:inline-block;vertical-align:middle;flex:none}
+/* V1 board slab */
+.slab .rows{margin-top:10px;border:1px solid var(--s-line);border-radius:11px;overflow:hidden;background:var(--s-solid)}
+.slab .th{display:grid;grid-template-columns:34px 24px 1fr auto;gap:10px;padding:5px 12px;background:rgba(255,255,255,.035)}
+.slab .r{display:grid;grid-template-columns:34px 24px 1fr auto;gap:10px;align-items:center;padding:0 12px;min-height:44px;border-top:1px solid var(--s-line2)}
+.slab .r .rk{font:600 14px var(--f-hud);color:var(--s-dim)}
+.slab .r .nm{font-weight:600;font-size:14.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slab .r .nm small{display:block;font:500 10.5px var(--f-hud);color:var(--s-faint)}
+.slab .r .sc{font:600 16px var(--f-hud);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:8px}
+.slab .r.open{color:var(--s-faint)}.slab .r.open .ball{opacity:.25}
+.slab .tiles{margin-top:10px}
+/* V2 podium */
+.pod .stage{display:flex;align-items:flex-end;justify-content:center;gap:28px;padding:18px 8px 6px;flex-wrap:wrap}
+.pod .pl{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:84px}
+.pod .pl .ball{border-radius:50%;box-shadow:0 0 0 3px var(--ring),0 10px 24px rgba(0,0,0,.42)}
+.pod .pl b{font-weight:700;font-size:14px;margin-top:6px}
+.pod .pl .num{font-size:18px;font-weight:700}
+.pod .pl .gp{font:500 11px var(--f-hud);color:var(--s-faint)}
+.pod .pl .place{font:9.5px var(--f-marquee);letter-spacing:.12em}
+.pod .rest{display:flex;justify-content:center;gap:16px;font:500 12px var(--f-hud);color:var(--s-dim);padding-bottom:4px}
+/* V3 versus */
+.vs .face{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:16px 12px}
+.vs .side{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;min-width:0}
+.vs .side b{font-weight:700;font-size:15px}
+.vs .side .num{font-size:24px}
+.vs .side.win .num{color:var(--gold)}
+.vs .mid{display:flex;flex-direction:column;align-items:center;gap:4px}
+.vs .mid .v{font:26px var(--f-marquee);color:var(--s-accent)}
+.vs .grid4{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.vs .cell{display:flex;align-items:center;gap:10px;background:var(--s-surface);border:1px solid var(--s-line);border-radius:11px;padding:10px}
+.vs .cell .num{font-size:17px;display:block}
+.vs .q{width:64px;height:64px;border-radius:50%;border:2px dashed var(--s-line);display:grid;place-items:center;font:22px var(--f-marquee);color:var(--s-faint)}
+/* V4 ticker */
+.tick{display:grid;grid-template-columns:96px 1fr auto;min-height:118px}
+.tick .thumbx{min-height:100%}
+.tick .mid{padding:12px 14px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.tick .chips{display:flex;flex-wrap:wrap;gap:6px}
+.tick .c{display:flex;align-items:center;gap:6px;background:var(--s-surface);border:1px solid var(--s-line);border-radius:999px;padding:3px 10px 3px 4px;font-size:12.5px;font-weight:600}
+.tick .c .num{font-size:13px;color:var(--s-dim)}
+.tick .c.lead .num{color:var(--gold)}
+.tick .clock{padding:12px 16px;border-left:1px solid var(--s-line2);display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:2px}
+.tick .clock .num{font-size:26px}
+/* V5 map hero */
+.hero{position:relative;min-height:250px;display:flex;flex-direction:column;justify-content:space-between}
+.hero .bgx{position:absolute;inset:0}
+.hero .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,16,32,.15) 0%,rgba(10,16,32,.55) 45%,rgba(10,16,32,.96) 100%)}
+.hero .pad{position:relative}
+.hero .mt{font:26px/1 var(--f-marquee);letter-spacing:.01em;text-shadow:0 2px 12px rgba(0,0,0,.5)}
+.hero .ln{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}
+.hero .ln span{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600}
+.hero .ln .num{font-size:15px}
+
+/* picker */
+.pick{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:330px;max-width:calc(100vw - 32px);background:#111214;border:1px solid #3f4147;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.5);z-index:10;font-size:13px}
+.pick .grip{cursor:grab;padding:8px 12px;border-bottom:1px solid #26282d;color:var(--faint);font-size:11px;letter-spacing:.08em;text-transform:uppercase;display:flex;justify-content:space-between;user-select:none;touch-action:none}
+.pick .v{display:flex;align-items:center;gap:8px;padding:10px 12px}
+.pick .v div{flex:1;min-width:0}
+.pick .v b{display:block;color:var(--head);font-size:15px}
+.pick .v span{color:var(--muted);font-size:12px;display:block}
+.pick .arrow{width:32px;height:32px;border-radius:6px;border:0;background:var(--grey);color:#fff;font-size:16px;cursor:pointer}
+.pick .seg{display:flex;gap:4px;padding:0 12px 10px;flex-wrap:wrap}
+.pick .seg label{color:var(--faint);width:100%;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.pick .seg button{flex:1;border:0;border-radius:6px;background:#2b2d31;color:var(--text);padding:6px 4px;font:500 12.5px var(--sans);cursor:pointer}
+.pick .seg button[aria-pressed="true"]{background:var(--blurple);color:#fff}
+.pick .note{padding:0 12px 12px;color:var(--muted);font-size:12px;line-height:1.45}
+@media (max-width:900px){
+  .app{flex-direction:column}
+  .thread{width:auto;border-left:0;border-top:8px solid var(--bg3)}
+  .scroll{overflow:visible}
+  .pick .note{display:none}
+}
+@media (max-width:480px){ .tick{grid-template-columns:64px 1fr} .tick .clock{grid-column:1/-1;border-left:0;border-top:1px solid var(--s-line2);flex-direction:row;justify-content:space-between;align-items:center} }
+</style>
+
+<div class="app">
+  <section class="pane channel" aria-label="Channel">
+    <div class="bar"><span class="hash">#</span><b>ballest-matches</b><span class="topic">Timed Matches on a Workshop Map no one here has finished</span></div>
+    <div class="scroll" id="channel"></div>
+    <div class="composer locked">You do not have permission to send messages in this channel.</div>
+  </section>
+  <aside class="pane thread" aria-label="Match thread">
+    <div class="bar"><span class="hash">⌗</span><b id="threadName">Match</b></div>
+    <div class="scroll" id="thread"></div>
+    <div class="composer">Message thread</div>
+  </aside>
+</div>
+
+<div class="overlay" id="overlay" hidden></div>
+
+<div class="pick" id="pick" role="region" aria-label="Prototype picker">
+  <div class="grip" id="grip"><span>Settled design · all surfaces</span><span>drag ⠿</span></div>
+  <div class="v">
+    <button class="arrow" id="prev" aria-label="Previous design">←</button>
+    <div><b id="vName"></b><span id="vIdx"></span></div>
+    <button class="arrow" id="next" aria-label="Next design">→</button>
+  </div>
+  <div class="seg" id="segView"><label>Screen</label></div>
+  <div class="seg" id="segPhase"><label>Match state</label></div>
+  <div class="seg" id="segType"><label>Match type</label></div>
+  <div class="note" id="vNote"></div>
+</div>
+
+<script>
+const BOT = "Ballest Matches";
+const MAP = {title:"Gutter Run", by:"pebblewright", url:"https://steamcommunity.com/sharedfiles/filedetails/?id=3791550212",
+  wr:"0:12.981", wrBy:"heliobounce", medals:{author:"0:14.200", gold:"0:15.500", silver:"0:17.000", bronze:"0:20.000"}};
+const OLD_MAP = {title:"Cliffside Spiral", by:"kettlecorn", url:"#", wr:"0:31.402", wrBy:"gravwell", medals:{author:"0:34.900",gold:"0:37.000",silver:"0:41.000",bronze:"0:48.000"}, alt:true};
+const MEDAL = {author:["Author","var(--author)"], gold:["Gold","var(--gold)"], silver:["Silver","var(--silver)"], bronze:["Bronze","var(--bronze)"], none:["No medal","var(--s-faint)"]};
+const TYPE = {public:"Public 1v1", challenge:"Challenge", lobby:"Lobby"};
+
+/* the site's marble, keyed by name here (the bot would key it by SteamID, as the site does) */
+function hueFor(seed){ let h = 2166136261; for (let i=0;i<seed.length;i++){ h ^= seed.charCodeAt(i); h = Math.imul(h,16777619); } return Math.abs(h) % 360; }
+let _bid = 0;
+function ball(seed, size=24){ const h = typeof seed==="number" ? seed : hueFor(seed), id = "m"+(_bid++);
+  return `<svg class="ball" width="${size}" height="${size}" viewBox="0 0 40 40" aria-hidden="true"><defs><radialGradient id="g${id}" cx="34%" cy="27%" r="80%"><stop offset="0%" stop-color="hsl(${h} 94% 90%)"/><stop offset="34%" stop-color="hsl(${h} 80% 64%)"/><stop offset="100%" stop-color="hsl(${h} 62% 25%)"/></radialGradient><clipPath id="c${id}"><circle cx="20" cy="20" r="19"/></clipPath></defs><circle cx="20" cy="20" r="19" fill="url(#g${id})"/><g clip-path="url(#c${id})"><path d="M-4 27C6 34 18 33 26 26s10-16 8-24" fill="none" stroke="hsl(${h} 66% 20%)" stroke-opacity=".26" stroke-width="4.5"/><path d="M2 8c8 2 16 8 19 17" fill="none" stroke="hsl(${h} 96% 92%)" stroke-opacity=".2" stroke-width="3"/></g><ellipse cx="13" cy="11.5" rx="5.4" ry="3.4" fill="#fff" fill-opacity=".62" transform="rotate(-28 13 11.5)"/><circle cx="20" cy="20" r="19" fill="none" stroke="hsl(${h} 60% 16%)" stroke-opacity=".35"/></svg>`; }
+const logo = () => `<span class="logo"><span class="ms">${ball(212,16)}${ball(332,16)}${ball(96,16)}</span>Ballest Match</span>`;
+
+function build(type, phase){
+  const creator = "ChknThugget";
+  const others = type==="lobby" ? ["tilt_queen","gravwell","marblemaxxer"] : ["tilt_queen"];
+  const players = phase==="invite" ? [creator, ...(type==="lobby" ? ["tilt_queen","gravwell"] : [])] : [creator, ...others];
+  const live = type==="lobby"
+    ? [{n:"gravwell",t:"0:14.590",m:"gold"},{n:"ChknThugget",t:"0:15.118",m:"gold"},{n:"tilt_queen",t:"0:16.402",m:"silver"},{n:"marblemaxxer",t:null}]
+    : [{n:"ChknThugget",t:"0:15.118",m:"gold"},{n:"tilt_queen",t:"0:16.402",m:"silver"}];
+  const results = type==="lobby"
+    ? [{n:"gravwell",t:"0:13.977",m:"author"},{n:"ChknThugget",t:"0:14.861",m:"gold"},{n:"tilt_queen",t:"0:16.402",m:"silver"},{n:"marblemaxxer",t:null}]
+    : [{n:"ChknThugget",t:"0:14.861",m:"gold"},{n:"tilt_queen",t:"0:15.930",m:"gold"}];
+  return {type, phase, creator, target: type==="challenge"?"tilt_queen":null, players, duration:15, map:MAP, live, results,
+    list: phase==="live" ? live : results, left:"11:04", pct:26, ended:"Today at 9:58 PM"};
+}
+const OLD = {type:"public", phase:"finished", creator:"gravwell", players:["gravwell","marblemaxxer"], duration:10, map:OLD_MAP, old:true,
+  results:[{n:"gravwell",t:"0:33.118",m:"author"},{n:"marblemaxxer",t:"0:39.740",m:"silver"}], ended:"Today at 8:12 PM"};
+OLD.list = OLD.results;
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const at = n => `<span class="mention">@${esc(n)}</span>`;
+const ts = t => `<span class="ts">${esc(t)}</span>`;
+const medal = k => { const [l,c] = MEDAL[k||"none"]; return `<span class="medal" style="--m:${c}"><i></i>${l}</span>`; };
+const btn = (l, s="secondary") => `<button class="btn ${s}" type="button">${l}${s==="link"?" ↗":""}</button>`;
+const secs = x => { const [mm,ss] = x.split(":"); return +mm*60 + +ss; };
+const gap = (t, lead) => "+" + (secs(t)-secs(lead)).toFixed(3);
+const pc = i => ["p1","p2","p3"][i] || "";
+const chip = m => m.phase==="invite" ? `<span class="chip">Invite · ${m.duration}:00</span>` : m.phase==="live" ? `<span class="chip live">Live</span>` : `<span class="chip final">Final</span>`;
+const slots = m => { const s = m.players.map(n => ({n})); if (m.type==="public") s.push({open:"Open slot"}); if (m.type==="challenge") s.push({n:m.target, pending:true}); return s; };
+const titleOf = m => m.phase==="invite" ? `${TYPE[m.type]} · ${m.duration} minutes` : m.map.title;
+const metaOf = m => m.phase==="invite" ? `Map drawn at the start · one <em>nobody here</em> has played` : `by ${esc(m.map.by)} · <em>${TYPE[m.type]}</em> · ${m.duration} min`;
+const medTiles = m => `<div class="tiles"><div class="tile"><span class="lbl">World record</span><span class="num">${m.map.wr}</span></div><div class="tile"><span class="lbl" style="color:var(--author)">Author</span><span class="num">${m.map.medals.author}</span></div><div class="tile"><span class="lbl" style="color:var(--gold)">Gold</span><span class="num">${m.map.medals.gold}</span></div></div>`;
+
+function buttons(m){
+  if (m.phase!=="invite") return m.phase==="live" ? `<div class="row">${btn("Open Map in Workshop","link")}</div>` : "";
+  if (m.type==="public") return `<div class="row">${btn("Accept","success")}${btn("Cancel")}</div>`;
+  if (m.type==="challenge") return `<div class="row">${btn("Accept","success")}${btn("Decline","danger")}${btn("Cancel")}</div>`;
+  return `<div class="row">${btn(`Join (${m.players.length})`,"success")}${btn("Leave")}${btn("Start","primary")}${btn("Cancel")}</div>`;
+}
+const tag = m => m.phase==="invite" ? `<div class="embed" style="--c:#4e5058">Invite expires ${ts("in 4 minutes")}</div>` : m.phase==="live" ? `<div class="embed" style="--c:var(--s-accent)"><b>Live</b> · ends ${ts("in 11 minutes")}</div>` : `<div class="imgtag">Ended ${m.ended}</div>`;
+
+/* ------------------------------------------------------------------ Card layouts: Board Slab + where the Map image goes */
+const MG = k => `var(--mg-${k})`;
+const MSTOP = {bronze:["#9c6c1f","#e0a650","#f9cb85"], silver:["#7a7a7a","#c9c9c9","#ffffff"], gold:["#e0b800","#ffe600","#fff7b0"], author:["#b86ae6","#8fa2f0","#5ef0f5"]};
+const medalSvg = (k, size=16) => { const [a,b,c] = MSTOP[k], id = "md"+(_bid++);
+  return `<svg class="medalsvg" width="${size}" height="${Math.round(size*1.3)}" viewBox="0 0 20 26" role="img" aria-label="${k} medal"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c}"/><stop offset=".5" stop-color="${b}"/><stop offset="1" stop-color="${a}"/></linearGradient></defs><path d="M4 0h5l3 9H7z" fill="#1c2a4a"/><path d="M11 0h5l-3 9H8z" fill="#2d4476"/><circle cx="10" cy="16.5" r="8.4" fill="url(#${id})" stroke="#111" stroke-width="1.4"/><circle cx="10" cy="16.5" r="5.4" fill="none" stroke="#111" stroke-opacity=".28" stroke-width="1.2"/><path d="M6.6 13.2a4.6 4.6 0 0 1 4.4-2.1" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="1.3" stroke-linecap="round"/></svg>`; };
+const ladder = (m, cls="") => `<div class="ladder ${cls}">${["bronze","silver","gold","author"].map(k=>`<div class="mb"><span class="l" style="--mg:${MG(k)}">${k}</span><span class="v">${m.map.medals[k].replace(/^0:/,"")}</span></div>`).join("")}</div>`;
+function slabRows(m, style=""){
+  const lead = m.list?.[0]?.t;
+  const rows = m.phase==="invite"
+    ? slots(m).map((s,i)=> s.open ? `<div class="r open"><span class="rk">${i+1}</span>${ball(0,24)}<span class="nm">Open slot<small>first to accept</small></span><span class="sc">—</span></div>`
+        : `<div class="r ${s.pending?"open":""}"><span class="rk">${i+1}</span>${ball(s.n,24)}<span class="nm">${esc(s.n)}<small>${s.pending?"challenged":i===0?"opened the Invite":"joined"}</small></span><span class="sc">${s.pending?"—":"ready"}</span></div>`).join("")
+    : m.list.map((r,i)=> `<div class="r"><span class="rk ${r.t?pc(i):""}">${r.t?i+1:"–"}</span>${ball(r.n,24)}<span class="nm">${esc(r.n)}<small>${!r.t?(m.phase==="live"?"no time yet":"did not finish"):i===0?(m.phase==="live"?"leads":"wins"):gap(r.t,lead)+" behind"}</small></span><span class="sc">${r.t||"DNF"}${r.m?medalSvg(r.m):""}</span></div>`).join("");
+  return `<div class="rows" style="${style}"><div class="th"><span class="lbl">${m.phase==="invite"?"Slot":"Rank"}</span><span></span><span class="lbl">Player</span><span class="lbl">${m.phase==="invite"?"":"Time"}</span></div>${rows}</div>`;
+}
+const pic = (m, style="") => m.phase==="invite" ? `<div class="sealed" style="${style}">?</div>` : `<div class="art${m.map.alt?" alt":""}" style="${style}"></div>`;
+const T = m => esc(m.phase==="invite" ? "Mystery map" : m.map.title);
+const M = m => m.phase==="invite" ? `${TYPE[m.type]} · ${m.duration} min · drawn at the start` : `by ${esc(m.map.by)} · <em>${TYPE[m.type]}</em> · ${m.duration} min · WR <em>${m.map.wr}</em>`;
+const foot = m => m.phase==="invite" ? "" : `<div style="margin-top:10px">${ladder(m,"row4")}</div>`;
+
+const INGAME = { card(m){ return `<div class="img slab"><div style="position:relative;height:${m.phase==="invite"?110:150}px">${pic(m,"position:absolute;inset:0")}<div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,16,32,.88),rgba(10,16,32,.15) 65%)"></div>
+    <div class="pad" style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;max-width:56%"><div class="head">${logo()}</div><div><div class="ttl" style="margin:0;font:var(--w-medal) 24px/1.1 var(--f-medal);text-shadow:-1px -1px 0 #111,1px -1px 0 #111,-1px 1px 0 #111,1px 1px 0 #111,0 2px 0 #111">${T(m)}</div><div class="meta" style="color:var(--s-dim)">${M(m)}</div><div style="margin-top:6px">${chip(m)}</div></div></div>
+    ${m.phase==="invite"?"":`<div style="position:absolute;right:10px;top:10px;width:44%;max-width:200px">${ladder(m)}</div>`}</div><div class="pad" style="padding-top:2px">${slabRows(m)}</div></div>`; } };
+const emo = k => `<span class="emo" style="--mg:var(--mg-${k})" title="${k}"></span>`;
+const rankOf = (e) => e.lead ? 1 : e.rank || 2;
+const dPrev = e => e.prev ? "-" + (secs(e.prev)-secs(e.t)).toFixed(3) : null;
+const pbLine = e => e.prev ? `new PB · ${dPrev(e)} on ${e.prev}` : "first time on the board";
+const posLine = e => e.rank===1 ? (e.ahead ? `leads by ${e.ahead.slice(1)}` : "leads") : `P${e.rank} · ${e.behind} behind`;
+const rowCore = (e, sub, extra="") => `<div class="r"${extra}><span class="rk ${e.rank===1?"p1":""}">${e.rank}</span>${ball(e.n,24)}<span class="nm">${esc(e.n)}<small>${sub}</small></span><span class="sc">${e.t}<span class="mtag" style="--mg:var(--mg-${e.m})"></span></span></div>`;
+const stamp = (txt, bg) => `<span style="font:900 12px var(--f-medal);letter-spacing:.02em;text-transform:uppercase;padding:2px 8px;border-radius:3px;background:${bg};color:#fff;text-shadow:-1px -1px 0 #111,1px -1px 0 #111,-1px 1px 0 #111,1px 1px 0 #111,0 2px 0 #111">${txt}</span>`;
+const edge = e => e.rank===1 ? "box-shadow:inset 4px 0 0 var(--gold);background:linear-gradient(90deg,rgba(255,212,71,.16),transparent 70%),var(--s-bg)" : "box-shadow:inset 4px 0 0 var(--s-line)";
+const diff = e => e.prev ? "-" + (secs(e.prev)-secs(e.t)).toFixed(3) : "";
+const moved = e => e.prevRank && e.prevRank > e.rank ? `▲${e.prevRank-e.rank}` : "";
+const mt = e => medalSvg(e.m);
+const dpill = e => diff(e) ? `<span class="num" style="font-size:12px;padding:1px 6px;border-radius:4px;background:rgba(139,224,60,.14);color:var(--s-accent)">${diff(e)}</span>` : "";
+const rk = (e, size=14) => `<span class="num" style="font-size:${size}px;color:${e.rank===1?"var(--gold)":"var(--s-dim)"}">${e.rank}</span>`;
+/* Improvement row: settled in round 7 (Gold Edge look, Big Rank, diff with the time) */
+const ROW = e => `<div class="img rowimg" style="${edge(e)};display:grid;grid-template-columns:58px 1fr"><div style="display:grid;place-items:center;font:800 22px var(--f-hud);color:${e.rank===1?"var(--gold)":"var(--s-dim)"}">P${e.rank}</div><div class="r" style="grid-template-columns:24px 1fr auto;padding-left:0">${ball(e.n,24)}<span class="nm">${esc(e.n)}</span><span class="sc" style="align-items:baseline">${e.t}${diff(e)?`<span class="num" style="font-size:13px;color:var(--s-accent)">${diff(e)}</span>`:""}${mt(e)}</span></div></div>`;
+
+/* Footer candidates (round 8) */
+const STAMP = (t, bg) => `<span style="display:inline-block;font:900 20px/1.1 var(--f-medal);padding:4px 10px;border-radius:4px;background:${bg};color:#fff;text-shadow:-1px -1px 0 #111,1px -1px 0 #111,-1px 1px 0 #111,1px 1px 0 #111,0 2px 0 #111">${t}</span>`;
+const FOOTER = () => `<div class="img"><div class="pad"><div class="head">${logo()}<span class="chip">5–60 min</span></div><div class="tiles" style="margin-top:10px">${[["1","Pick a mode","Public 1v1, Challenge or Lobby"],["2","Map is drawn","A Map no one here has finished"],["3","Fastest wins","best time when the clock runs out"]].map(([n,a,b])=>`<div class="tile"><span class="num" style="font-size:18px;color:var(--s-accent)">${n}</span><b style="display:block;font-size:13px">${a}</b><span style="font-size:11px;color:var(--s-faint)">${b}</span></div>`).join("")}</div></div></div>`;
+const sel = (v, ph) => `<div class="inp sel ${v?"":"ph"}">${v||ph}</div>`;
+const userSel = (n) => n ? `<div class="inp sel"><span class="who">${ball(n,20)}${esc(n)}</span></div>` : `<div class="inp sel ph">Pick a Player (Challenge only)</div>`;
+const modal = (title, body, submit) => `<div class="modal"><div class="mh"><b>${title}</b><span>✕</span></div><div class="mbody">${body}</div><div class="mf">${btn("Cancel","plain")}${btn(submit,"primary")}</div></div>`;
+const eph = (inner, time="Today at 9:41 PM") => `<div class="ephpanel">${msg(inner + `<div class="ephnote">Only you can see this · <a>Dismiss message</a></div>`, {time})}</div>`;
+const box = (cap, html) => `<div class="stagebox"><span class="cap">${cap}</span>${html}</div>`;
+const TYPEFIRST = {name:"Type First", note:"A private message with three big buttons for the Match type; picking one swaps in the duration buttons (and the Opponent picker for a Challenge). All taps, no dropdowns; two steps.",
+    flow:t => box("Step 1", eph(`<b>What kind of Match?</b><div class="row">${btn("Public 1v1",t==="public"?"primary":"secondary")}${btn("Challenge",t==="challenge"?"primary":"secondary")}${btn("Lobby",t==="lobby"?"primary":"secondary")}</div>`)) +
+      box("Step 2 (same message, redrawn)", eph(`<b>${TYPE[t]} · how long?</b><div class="row">${[5,10,15,20,30,45,60].map(n=>btn(n+"m", n===15?"primary":"secondary")).join("")}</div>${t==="challenge"?`<div class="menu" style="border:0;background:none">${userSel("tilt_queen")}</div>`:""}<div class="row">${btn("Open Invite","success")}</div>`))};
+const mi = (h) => `<span style="display:inline-block;vertical-align:-4px;margin-right:6px">${ball(h,18)}</span>`;
+const count = m => m.type==="lobby" ? ` <span class="sub">(${m.players.length} in)</span>` : "";
+const V = [
+  {name:"Grey System", note:"Every lifecycle line is small grey system text, like Discord's own 'joined the thread' notices; only the Challenge ping and the start ping are full-size, because they mention people. Quietest.",
+    lines:{
+      opened:(e,m)=>`<p class="sub">${esc(m.creator)} opened a ${m.duration}-minute ${TYPE[m.type]}.</p>`,
+      challenged:(e,m)=>`${at(m.target)} ${esc(m.creator)} challenged you to a ${m.duration}-minute 1v1. Accept or decline on the card ${ts("in 4 minutes")}.`,
+      joined:(e,m)=>`<p class="sub">→ ${esc(e.n)} ${m.type==="lobby"?"joined":"accepted"}</p>`,
+      left:(e,m)=>`<p class="sub">← ${esc(e.n)} left</p>`,
+      started:(e,m)=>`${m.players.map(at).join(" ")} Go! Ends ${ts("in 15 minutes")}.${INGAME.card({...m, phase:"live", list:m.players.map(n=>({n,t:null}))})}<div class="row">${btn("Open Map in Workshop","link")}</div>`,
+      result:(e,m)=>`<p class="sub">Final result</p>${INGAME.card({...m, phase:"finished", list:m.results})}`}},
+  {name:"Marble Icons", note:"Each line leads with a small marble app-emoji: the Player's own colour for joins and leaves (as on the site), the lime marble for the start. Bold name, plain verb. Ties the text lines to the images.",
+    lines:{
+      opened:(e,m)=>`${mi(m.creator)}<b>${esc(m.creator)}</b> opened a ${m.duration}-minute ${TYPE[m.type]}`,
+      challenged:(e,m)=>`${mi(m.creator)}${at(m.target)} <b>${esc(m.creator)}</b> challenges you · ${m.duration} min · answer ${ts("in 4 minutes")}`,
+      joined:(e,m)=>`${mi(e.n)}<b>${esc(e.n)}</b> ${m.type==="lobby"?"joined":"accepted"}`,
+      left:(e,m)=>`${mi(e.n)}<span class="sub"><b>${esc(e.n)}</b> left</span>`,
+      started:(e,m)=>`${mi(96)}${m.players.map(at).join(" ")} <b>Go!</b> Ends ${ts("in 15 minutes")}${INGAME.card({...m, phase:"live", list:m.players.map(n=>({n,t:null}))})}<div class="row">${btn("Open Map in Workshop","link")}</div>`,
+      result:(e,m)=>`${mi(50)}<b>Final result</b>${INGAME.card({...m, phase:"finished", list:m.results})}`}},
+  {name:"Roll Call", note:"Joins aren't separate posts: one 'Players' message is edited as people join and leave, so a busy Lobby doesn't spam the thread. Start and Result stay separate posts.",
+    lines:{
+      opened:(e,m)=>`<b>${esc(m.creator)}</b> opened a ${m.duration}-minute ${TYPE[m.type]}.<div class="embed" style="--c:#4e5058;margin-top:6px"><b>Players</b>${count(m)}<div style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px">${m.players.map(n=>`<span style="display:flex;align-items:center;gap:6px">${ball(n,18)}${esc(n)}</span>`).join("")}${m.type==="lobby"?`<span class="sub">kettlecorn left</span>`:m.phase==="invite"?`<span class="sub">${m.type==="challenge"?esc(m.target)+" · waiting":"open slot"}</span>`:""}</div><div class="sub" style="margin-top:6px">edited as Players join and leave</div></div>`,
+      challenged:(e,m)=>`${at(m.target)} you've been challenged. Answer ${ts("in 4 minutes")}.`,
+      joined:()=>"", left:()=>"",
+      started:(e,m)=>`${m.players.map(at).join(" ")} Go! Ends ${ts("in 15 minutes")}.${INGAME.card({...m, phase:"live", list:m.players.map(n=>({n,t:null}))})}<div class="row">${btn("Open Map in Workshop","link")}</div>`,
+      result:(e,m)=>`Final result${INGAME.card({...m, phase:"finished", list:m.results})}`}},
+  {name:"Headings", note:"The two moments that matter get Discord headings (## Go! and ## Final result); everything else is grey subtext. The thread reads as chapters: invite, race, result.",
+    lines:{
+      opened:(e,m)=>`<p class="sub">${esc(m.creator)} opened a ${m.duration}-minute ${TYPE[m.type]}</p>`,
+      challenged:(e,m)=>`<h3 style="margin:0">Challenge!</h3>${at(m.target)} ${esc(m.creator)} wants a ${m.duration}-minute 1v1. Answer ${ts("in 4 minutes")}.`,
+      joined:(e,m)=>`<p class="sub">${esc(e.n)} ${m.type==="lobby"?"joined":"accepted"}</p>`,
+      left:(e,m)=>`<p class="sub">${esc(e.n)} left</p>`,
+      started:(e,m)=>`<h2 style="margin:0">Go!</h2>${m.players.map(at).join(" ")} · ends ${ts("in 15 minutes")}${INGAME.card({...m, phase:"live", list:m.players.map(n=>({n,t:null}))})}<div class="row">${btn("Open Map in Workshop","link")}</div>`,
+      result:(e,m)=>`<h2 style="margin:0">Final result</h2>${INGAME.card({...m, phase:"finished", list:m.results})}`}},
+  {name:"HUD Strips", note:"Lifecycle events are thin rendered strips in the Card's style (marble, name, a Chakra label like JOINED or GO), matching the Improvement rows. Fully on-brand; every line becomes an image.",
+    lines:{
+      opened:(e,m)=>`<div class="img rowimg" style="box-shadow:inset 4px 0 0 var(--s-line)"><div class="r" style="grid-template-columns:24px 1fr auto">${ball(m.creator,22)}<span class="nm">${esc(m.creator)}</span><span class="lbl">Opened · ${TYPE[m.type]} · ${m.duration} min</span></div></div>`,
+      challenged:(e,m)=>`${at(m.target)}<div class="img rowimg" style="box-shadow:inset 4px 0 0 var(--gold)"><div class="r" style="grid-template-columns:24px 1fr auto">${ball(m.creator,22)}<span class="nm">${esc(m.creator)}</span><span class="lbl" style="color:var(--gold)">Challenges ${esc(m.target)}</span></div></div>`,
+      joined:(e,m)=>`<div class="img rowimg" style="box-shadow:inset 4px 0 0 var(--s-accent)"><div class="r" style="grid-template-columns:24px 1fr auto">${ball(e.n,22)}<span class="nm">${esc(e.n)}</span><span class="lbl" style="color:var(--s-accent)">${m.type==="lobby"?"Joined":"Accepted"}</span></div></div>`,
+      left:(e,m)=>`<div class="img rowimg" style="opacity:.7"><div class="r" style="grid-template-columns:24px 1fr auto">${ball(e.n,22)}<span class="nm">${esc(e.n)}</span><span class="lbl">Left</span></div></div>`,
+      started:(e,m)=>`${m.players.map(at).join(" ")} ends ${ts("in 15 minutes")}${INGAME.card({...m, phase:"live", list:m.players.map(n=>({n,t:null}))})}<div class="row">${btn("Open Map in Workshop","link")}</div>`,
+      result:(e,m)=>`${INGAME.card({...m, phase:"finished", list:m.results})}`}},
+];
+V.splice(0, V.length, ...V.filter(f => f.name==="Marble Icons"));
+const LINK = () => box("Link Steam → form", modal("Link your Steam account", `<div class="fl"><span class="lab">Steam profile</span><div class="desc">Your profile link or SteamID64. The bot reads your public name and your leaderboard times, nothing else.</div><div class="inp">steamcommunity.com/id/ChknThugget</div></div>`, "Find account")) +
+  box("Then a private confirmation", eph(`<div class="img" style="max-width:400px"><div class="pad" style="display:flex;gap:12px;align-items:center">${ball("ChknThugget",48)}<div style="min-width:0"><div style="font:700 17px var(--f-hud)">ChknThugget</div><div class="meta">SteamID 76561198012345678 · 312 leaderboard times</div></div></div></div><p style="margin-top:6px">Is this your Steam account?</p><div class="row">${btn("Yes, link it","success")}${btn("Try again")}</div>`));
+
+/* ------------------------------------------------------------------ shared: Footer + thread events (next round) */
+function footer0(){ return `<div class="img"><div class="pad"><div class="head">${logo()}<span class="chip">5–60 min</span></div><div class="ttl">Race a map nobody's played.</div><div class="meta">Public 1v1 · Challenge · Lobby</div></div></div><div class="imgtag">image.png · rendered by the bot</div><div class="row">${btn("New Match","primary")}${btn("Link Steam")}</div>`; }
+function startImg0(m){ return `<div class="img"><div class="art" style="height:130px"></div><div class="pad"><div class="head">${logo()}<span class="chip live">Go · ${m.duration}:00</span></div><div class="ttl">${esc(m.map.title)}</div><div class="meta">by ${esc(m.map.by)} · WR by ${esc(m.map.wrBy)}</div><div style="margin-top:10px">${ladder(m,"row4")}</div></div></div>`; }
+function event(e, v, m){ const o = v.lines && v.lines[e.k]; if (o) return o(e, m); return {
+  opened:`<p class="sub">${esc(m.creator)} opened a ${m.duration}-minute ${TYPE[m.type]}.</p>`,
+  challenged:`${at(m.target)}, ${esc(m.creator)} challenges you. Answer on the card ${ts("in 4 minutes")}.`,
+  joined:`<p class="sub">${esc(e.n)} ${m.type==="lobby"?"joined":"accepted"}.</p>`,
+  left:`<p class="sub">${esc(e.n)} left.</p>`,
+  started:`${m.players.map(at).join(" ")} go! Ends ${ts("in 15 minutes")}.${INGAME.card({...m, phase:"live", list:m.players.map(n=>({n,t:null}))})}<div class="row">${btn("Open Map in Workshop","link")}</div>`,
+  imp:e.k==="imp" ? ROW(e) : "",
+  lead:`${m.players.filter(n=>n!==e.n).map(at).join(" ")} ${emo(e.m)} <b>${esc(e.n)}</b> takes the lead with <code>${e.t}</code>`,
+  ticker:`<div class="embed" style="--c:var(--s-accent)"><b>Live feed</b> · edited on every Improvement<div class="tk" style="margin-top:6px">${(e.imps||[]).map(i=>`${emo(i.m)}<span>${esc(i.n)}</span><span class="tm">${i.t}</span>`).join("")}</div></div>`,
+  result:`Final result${INGAME.card({...m, phase:"finished", list:m.results})}`
+}[e.k]; }
+
+const S = {v:0, phase:"live", type:"lobby", view:"channel"};
+try { const saved = JSON.parse(localStorage.getItem("bm-proto-final")||"null"); if (saved) Object.assign(S, saved); } catch {}
+const AV = {ChknThugget:1, tilt_queen:1, gravwell:1, marblemaxxer:1};
+function msg(inner, {bot=true, name=BOT, time="Today at 9:41 PM", cont=false}={}){
+  return `<div class="msg ${cont?"cont":""}"><div class="av ${bot?"bot":""}">${bot?ball(96,34):ball(name,40)}</div><div class="body"><div class="hdr"><span class="name">${esc(name)}</span>${bot?'<span class="app-tag">APP</span>':""}<span class="time">${time}</span></div><div class="content">${inner}</div></div></div>`;
+}
+function events(m){
+  const ev = [{k:"opened"}];
+  if (m.type==="challenge") ev.push({k:"challenged"});
+  if (m.type==="lobby") ev.push({k:"joined",n:"tilt_queen"},{k:"joined",n:"kettlecorn"},{k:"left",n:"kettlecorn"},{k:"joined",n:"gravwell"});
+  if (m.phase==="invite") return ev;
+  ev.push(m.type==="lobby" ? {k:"joined",n:"marblemaxxer"} : {k:"joined",n:"tilt_queen"}, {k:"started"});
+  const I = o => ({k:"imp", ...o});
+  if (m.type==="lobby") ev.push(
+    I({n:"gravwell",t:"0:17.244",m:"bronze",rank:1,lead:true}),
+    {k:"chat",n:"marblemaxxer",x:"that second jump is evil"},
+    I({n:"ChknThugget",t:"0:15.118",m:"gold",rank:1,lead:true,over:"gravwell",overT:"0:17.244"}),
+    I({n:"tilt_queen",t:"0:16.402",m:"silver",rank:2,behind:"+1.284"}),
+    I({n:"gravwell",t:"0:14.590",m:"gold",prev:"0:17.244",prevRank:2,rank:1,lead:true,over:"ChknThugget",overT:"0:15.118"}));
+  else ev.push(
+    I({n:"tilt_queen",t:"0:16.402",m:"silver",rank:1,lead:true}),
+    {k:"chat",n:"ChknThugget",x:"how are you hitting the second jump"},
+    I({n:"ChknThugget",t:"0:15.118",m:"gold",rank:1,lead:true,over:"tilt_queen",overT:"0:16.402"}),
+    I({n:"tilt_queen",t:"0:16.117",m:"silver",prev:"0:16.402",prevRank:2,rank:2}));
+  if (m.phase==="live") return ev;
+  if (m.type==="lobby") ev.push(
+    I({n:"ChknThugget",t:"0:14.861",m:"gold",prev:"0:15.118",prevRank:2,rank:2,behind:"+0.271"}),
+    I({n:"gravwell",t:"0:13.977",m:"author",prev:"0:14.590",prevRank:1,rank:1,ahead:"-0.884"}));
+  else ev.push(
+    I({n:"tilt_queen",t:"0:15.930",m:"gold",prev:"0:16.117",prevRank:2,rank:2,behind:"+0.812"}),
+    I({n:"ChknThugget",t:"0:14.861",m:"gold",prev:"0:15.118",prevRank:1,rank:1,ahead:"-1.069"}));
+  ev.push({k:"chat",n:"tilt_queen",x:"gg, rematch?"},{k:"result"});
+  return ev;
+}
+const threadTitle = m => m.phase==="invite" ? `${TYPE[m.type]} · ${m.duration} min · ${m.creator}` : `${m.map.title} · ${m.players.join(m.players.length>2?", ":" vs ")}`;
+
+function render(){
+  _bid = 0;
+  const v = V[S.v], m = build(S.type, S.phase);
+  document.getElementById("channel").innerHTML =
+    msg(INGAME.card(OLD) + `${tag(OLD)}<div class="threadlink"><b>Cliffside Spiral · gravwell vs marblemaxxer</b><span>14 Messages ›</span></div>`, {time:"Today at 7:59 PM"}) +
+    `<div class="divider">New</div>` +
+    msg(INGAME.card(m) + `${tag(m)}${buttons(m)}<div class="threadlink"><b>${esc(threadTitle(m))}</b><span>${events(m).length} Messages ›</span></div>`) +
+    msg(FOOTER() + `<div class="row">${btn("New Match","primary")}${btn("Link Steam")}</div>`);
+  let prev = null;
+  let evs = events(m);
+  if (v.ticker && m.phase!=="invite") { const imps = evs.filter(e=>e.k==="imp"); const at0 = evs.findIndex(e=>e.k==="started");
+    evs = evs.filter(e=>e.k!=="imp"); evs.splice(at0+1, 0, {k:"ticker", imps});
+    const leads = imps.filter(e=>e.lead && !e.first).map(e=>({...e,k:"lead"})); const ri = evs.findIndex(e=>e.k==="result"); evs.splice(ri<0?evs.length:ri, 0, ...leads); }
+  evs = evs.filter(e => e.k==='chat' || event(e,v,m) !== '');
+  document.getElementById("thread").innerHTML = evs.map(e => {
+    const isChat = e.k==="chat", who = isChat ? e.n : BOT;
+    const out = msg(isChat ? esc(e.x) : event(e,v,m), {bot:!isChat, name:who, cont: prev===who && e.k!=="started" && e.k!=="result"});
+    prev = who; return out;
+  }).join("");
+  const ov = document.getElementById("overlay");
+  ov.hidden = S.view==="channel";
+  ov.innerHTML = S.view==="newmatch" ? TYPEFIRST.flow(S.type) : S.view==="link" ? LINK() : "";
+  document.getElementById("threadName").textContent = threadTitle(m);
+  document.getElementById("vName").textContent = v.name;
+  document.getElementById("vIdx").textContent = `Settled design · ← → to switch`;
+  document.getElementById("vNote").textContent = v.note;
+  for (const b of document.querySelectorAll("#segPhase button")) b.setAttribute("aria-pressed", b.dataset.val===S.phase);
+  for (const b of document.querySelectorAll("#segType button")) b.setAttribute("aria-pressed", b.dataset.val===S.type);
+  for (const b of document.querySelectorAll("#segView button")) b.setAttribute("aria-pressed", b.dataset.val===S.view);
+  try { localStorage.setItem("bm-proto-final", JSON.stringify(S)); } catch {}
+}
+function seg(id, key, opts){ const el = document.getElementById(id);
+  for (const [val,label] of opts){ const b = document.createElement("button"); b.type="button"; b.dataset.val=val; b.textContent=label; b.onclick=()=>{S[key]=val; render();}; el.appendChild(b); } }
+seg("segPhase","phase",[["invite","Invite open"],["live","Live"],["finished","Finished"]]);
+seg("segType","type",[["public","Public 1v1"],["challenge","Challenge"],["lobby","Lobby"]]);
+seg("segView","view",[["channel","Channel"],["newmatch","New Match"],["link","Link Steam"]]);
+const step = d => { S.v = (S.v + d + V.length) % V.length; render(); };
+document.getElementById("prev").onclick = () => step(-1);
+document.getElementById("next").onclick = () => step(1);
+addEventListener("keydown", e => { if (e.key==="ArrowLeft") step(-1); if (e.key==="ArrowRight") step(1); });
+(() => { const pick = document.getElementById("pick"), grip = document.getElementById("grip"); let sx=null, sy, ox, oy;
+  grip.addEventListener("pointerdown", e => { const r = pick.getBoundingClientRect(); sx=e.clientX; sy=e.clientY; ox=r.left; oy=r.top; grip.setPointerCapture(e.pointerId); });
+  grip.addEventListener("pointermove", e => { if (sx==null) return;
+    const x = Math.min(Math.max(0, ox + e.clientX - sx), innerWidth - pick.offsetWidth), y = Math.min(Math.max(0, oy + e.clientY - sy), innerHeight - pick.offsetHeight);
+    Object.assign(pick.style, {left:x+"px", top:y+"px", right:"auto", bottom:"auto"}); });
+  grip.addEventListener("pointerup", () => { sx=null; }); })();
+render();
+</script>
