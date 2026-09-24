@@ -1,0 +1,52 @@
+name: Deploy site
+
+# Publishes only the site (index.html, data/, leth/, CNAME) to GitHub Pages, so
+# the rest of the monorepo is never served (docs/adr/0002). Pages' Source must
+# be set to "GitHub Actions".
+#
+# refresh.yml pushes its data commit with GITHUB_TOKEN, which does not trigger
+# `push` workflows, so it calls this one as a job after the push instead.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+  workflow_call: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # One deploy at a time; a queued deploy supersedes an older queued one,
+    # which is fine because every run checks out the tip of main.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Always the tip of main: when called from refresh.yml, github.sha is
+          # the commit from before the refresh's data commit.
+          ref: main
+
+      - name: Assemble site
+        run: |
+          mkdir _site
+          cp -r index.html CNAME data leth _site/
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
