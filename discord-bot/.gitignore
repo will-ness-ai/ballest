@@ -1,1 +1,5 @@
 node_modules/
+# the bot's database (the path comes from discord-bot/.env)
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
