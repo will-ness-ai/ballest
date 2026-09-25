@@ -1,7 +1,8 @@
 # Ballest community tools
 
 Tools built around **Ballest of Them All**: a read-only mirror of the game's Steam
-leaderboards, and a Discord bot that runs timed head-to-head Matches on Workshop maps.
+leaderboards, and **Multiballs**, an unofficial community Discord bot that runs timed
+head-to-head Matches on Workshop maps.
 
 ## Language
 
@@ -14,6 +15,11 @@ _Avoid_: custom map, UGC map, level
 **Track**:
 One of the game's own campaign courses (Season 1 or Season 2).
 _Avoid_: campaign map
+
+**Medal**:
+One of a Map's four time targets, Bronze, Silver, Gold and Author (fastest), set by its
+creator. A time earns the best Medal whose target it meets.
+_Avoid_: tier, grade
 
 **Played**:
 A player has Played a Map if they hold a time on that Map's leaderboard. Attempts that
