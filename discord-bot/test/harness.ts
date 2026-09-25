@@ -40,6 +40,8 @@ export interface FakeSteamControl {
   /** The next n per-player reads fail as if Steam dropped the reply. */
   readonly failNextReads: (n: number) => Effect.Effect<void>
   readonly setCatalogue: (maps: ReadonlyArray<MapInfo>) => Effect.Effect<void>
+  /** Every per-player read takes this long (on the TestClock), like a real ~150 ms Steam round trip. */
+  readonly setReadDelay: (delay: Duration.DurationInput) => Effect.Effect<void>
 }
 
 export const makeFakeSteam = (profiles: Record<string, ProfilePreview>) =>
@@ -47,10 +49,12 @@ export const makeFakeSteam = (profiles: Record<string, ProfilePreview>) =>
     const boards = yield* Ref.make(new Map<number, Map<string, number>>())
     const failures = yield* Ref.make(0)
     const catalogue = yield* Ref.make<ReadonlyArray<MapInfo>>([])
+    const readDelay = yield* Ref.make<Duration.DurationInput>(0)
     const port = Steam.of({
       catalogue: Ref.get(catalogue),
       readPlayers: (boardId, steamIds) =>
         Effect.gen(function* () {
+          yield* Effect.sleep(yield* Ref.get(readDelay))
           const fail = yield* Ref.getAndUpdate(failures, (n) => Math.max(0, n - 1))
           if (fail > 0) return yield* new SteamUnavailable({ reason: "reply dropped" })
           const board = (yield* Ref.get(boards)).get(boardId) ?? new Map<string, number>()
@@ -72,7 +76,8 @@ export const makeFakeSteam = (profiles: Record<string, ProfilePreview>) =>
           return next
         }),
       failNextReads: (n) => Ref.set(failures, n),
-      setCatalogue: (maps) => Ref.set(catalogue, maps)
+      setCatalogue: (maps) => Ref.set(catalogue, maps),
+      setReadDelay: (delay) => Ref.set(readDelay, delay)
     }
     return { port, control }
   })

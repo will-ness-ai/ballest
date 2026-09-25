@@ -68,6 +68,7 @@ export interface Improvement {
 export type ThreadPost = Data.TaggedEnum<{
   Opened: { readonly by: Player; readonly type: MatchType; readonly minutes: Minutes }
   Challenged: { readonly by: Player; readonly target: Player }
+  Accepted: { readonly player: Player }
   Joined: { readonly player: Player }
   Left: { readonly player: Player }
   Started: { readonly players: ReadonlyArray<Player>; readonly map: MapInfo; readonly endsAt: number }

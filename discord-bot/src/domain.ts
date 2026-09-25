@@ -61,13 +61,17 @@ export interface Match {
   readonly startedAt: number | null
   readonly endsAt: number | null
   readonly map: MapInfo | null
-  /** Best time (ticks) each Player set during the Match, by SteamID. */
-  readonly best: Readonly<Record<string, number>>
+  /** Best time (ticks) each Player set during the Match, keyed by SteamID. */
+  readonly bestTicks: Readonly<Record<string, number>>
 }
 
 export const expiresAt = (m: Match): number => m.createdAt + INVITE_TTL_MS
 
 export const inMatch = (m: Match, discordId: string): boolean => m.players.some((p) => p.discordId === discordId)
+
+/** In the Match, or named by its still-open Challenge: either way, busy. */
+export const involves = (m: Match, discordId: string): boolean =>
+  inMatch(m, discordId) || (m.state === "invite" && m.target?.discordId === discordId)
 
 export const seconds = (ticks: number): number => ticks / SCORE_TICKS_PER_SECOND
 
@@ -81,11 +85,11 @@ export const medalFor = (ticks: number, medals: Medals): MedalKind | null => {
   return null
 }
 
-/** Eligible Map rules that need no per-Player read: world record 5 s–5 min, author time ≤ duration / 10. */
+/** Eligible Map rules that need no per-Player read: world record 5 s to 5 min inclusive, author time ≤ duration / 10. */
 export const fitsDuration = (map: MapInfo, minutes: Minutes): boolean => {
   if (map.boardId === null || map.worldRecordTicks === null) return false
   const wr = seconds(map.worldRecordTicks)
-  return wr > 5 && wr < 300 && map.medals.author <= (minutes * 60) / 10
+  return wr >= 5 && wr <= 300 && map.medals.author <= (minutes * 60) / 10
 }
 
 export interface Standing {
@@ -98,9 +102,9 @@ export interface Standing {
 
 /** Players ranked by best time; ties share a rank, Players with no time come last. */
 export const standings = (m: Match): ReadonlyArray<Standing> => {
-  const timed = m.players.filter((p) => m.best[p.steamId] !== undefined)
-  const untimed = m.players.filter((p) => m.best[p.steamId] === undefined)
-  const time = (p: Player): number => m.best[p.steamId] ?? Infinity
+  const timed = m.players.filter((p) => m.bestTicks[p.steamId] !== undefined)
+  const untimed = m.players.filter((p) => m.bestTicks[p.steamId] === undefined)
+  const time = (p: Player): number => m.bestTicks[p.steamId] ?? Infinity
   const sorted = [...timed].sort((a, b) => time(a) - time(b))
   return [
     ...sorted.map((p) => ({
