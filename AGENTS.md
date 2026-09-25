@@ -39,6 +39,10 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `leth/` — a second, self-contained page at `/leth/`: a 3D ghost-route viewer for the
   Leth Trial #1 event board. Frozen snapshots, its own `data/`, not touched by the
   collector; `leth/README.md` covers it.
+- `discord-bot/` — Multiballs, the unofficial Discord Match bot (TypeScript, Effect 3,
+  Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site. Its secrets are
+  in `discord-bot/.env` in the main checkout, and it only ever posts to the channel that
+  file names.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
   reverse-engineering spike. Read `tools/README-hosting.md` before touching any of it.
 
@@ -55,9 +59,12 @@ Steam refresh token; the mint-and-collect runbook is `tools/README-hosting.md`. 
 secrets (`.env`, `tools/refresh_token.txt`) live in the main checkout and are found from
 a worktree.
 
-There are no tests, linters, or type checks here. Verify front-end changes by loading
+The site and the collector have no tests, linters, or type checks. Verify front-end changes by loading
 the served page. Verify collector changes with `python tools/check_data.py` (no Steam
 needed), then a live run if the read path changed.
+
+`discord-bot/` is the exception: `pnpm test` and `pnpm typecheck` there. Its tests drive the
+whole Match engine through fake Steam, Discord and storage ports and Effect's TestClock.
 
 ## Invariants worth knowing before you edit
 
