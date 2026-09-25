@@ -22,16 +22,21 @@ export interface Medals {
   readonly author: number
 }
 
+/** A Workshop Map as the Workshop list describes it. Its board is looked up only when it's a candidate. */
 export interface MapInfo {
   readonly pfid: string
   readonly title: string
   readonly creator: string
   readonly previewUrl: string
-  /** Steam leaderboard id; null when nobody has finished the Map yet (no board exists). */
-  readonly boardId: number | null
+  /** The Steam leaderboard name the game gives the Map's board. */
+  readonly boardName: string
   readonly medals: Medals
-  /** Rank-1 time on the board, null with no board. */
-  readonly worldRecordTicks: number | null
+}
+
+/** The Map a Match was drawn on, with the board facts checked at the draw. */
+export interface DrawnMap extends MapInfo {
+  readonly boardId: number
+  readonly worldRecordTicks: number
 }
 
 export interface Player {
@@ -60,7 +65,7 @@ export interface Match {
   readonly createdAt: number
   readonly startedAt: number | null
   readonly endsAt: number | null
-  readonly map: MapInfo | null
+  readonly map: DrawnMap | null
   /** Best time (ticks) each Player set during the Match, keyed by SteamID. */
   readonly bestTicks: Readonly<Record<string, number>>
 }
@@ -85,11 +90,13 @@ export const medalFor = (ticks: number, medals: Medals): MedalKind | null => {
   return null
 }
 
-/** Eligible Map rules that need no per-Player read: world record 5 s to 5 min inclusive, author time ≤ duration / 10. */
-export const fitsDuration = (map: MapInfo, minutes: Minutes): boolean => {
-  if (map.boardId === null || map.worldRecordTicks === null) return false
-  const wr = seconds(map.worldRecordTicks)
-  return wr >= 5 && wr <= 300 && map.medals.author <= (minutes * 60) / 10
+/** Eligible Map rule from the Workshop list alone: author time at most a tenth of the duration. */
+export const authorTimeFits = (map: MapInfo, minutes: Minutes): boolean => map.medals.author <= (minutes * 60) / 10
+
+/** Eligible Map rule from the board: world record between 5 s and 5 min, inclusive. */
+export const worldRecordFits = (worldRecordTicks: number): boolean => {
+  const wr = seconds(worldRecordTicks)
+  return wr >= 5 && wr <= 300
 }
 
 export interface Standing {

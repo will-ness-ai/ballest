@@ -219,7 +219,16 @@ describe("Eligible Map", () => {
     })
   )
 
-  it.effect("counts a world record of exactly 5 s or 5 min as fitting", () =>
+  it.effect("reads only the boards it tries, not the whole Workshop", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: Array.from({ length: 50 }, (_, i) => makeMap(100 + i)) })
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1)
+      yield* h.engine.accept(BOB.discordId, id)
+      expect(yield* h.steam.reads).toBe(1)
+    })
+  )
+
+  it.effect("counts a world record of exactly 5 s as fitting", () =>
     Effect.gen(function* () {
       const five = makeMap(6, { worldRecordTicks: ticks(5) })
       const h = yield* makeHarness({ maps: [five] })

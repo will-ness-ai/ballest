@@ -1,7 +1,7 @@
 // The engine's edges. Real adapters (steam-user, discord.js, SQLite) and test fakes both
 // implement these; the engine never sees Discord ids or Steam protobufs.
 import { Context, Data, type Effect, type Option } from "effect"
-import type { Link, MapInfo, Match, MatchState, MatchType, MedalKind, Minutes, Player, Standing } from "./domain.js"
+import type { DrawnMap, Link, MapInfo, Match, MatchState, MatchType, MedalKind, Minutes, Player, Standing } from "./domain.js"
 
 // ---------------------------------------------------------------- Steam
 
@@ -11,6 +11,15 @@ export class ProfileNotFound extends Data.TaggedError("ProfileNotFound")<{ reado
 export interface Entry {
   readonly steamId: string
   readonly ticks: number
+}
+
+/** What a candidate Map's board says, for the Eligible Map check. */
+export interface MapCheck {
+  /** Null when no board exists yet: nobody has finished the Map. */
+  readonly boardId: number | null
+  readonly worldRecordTicks: number | null
+  /** Which of the asked-about Players hold a time on it. */
+  readonly playedBy: ReadonlyArray<string>
 }
 
 export interface ProfilePreview {
@@ -24,8 +33,10 @@ export interface ProfilePreview {
 export class Steam extends Context.Tag("multiballs/Steam")<
   Steam,
   {
-    /** Every Workshop Map with its board, Medal times and world record. */
+    /** Every Workshop Map, from the Workshop list alone (no board reads). */
     readonly catalogue: Effect.Effect<ReadonlyArray<MapInfo>, SteamUnavailable>
+    /** One candidate Map's board: its id, world record, and which of these Players have Played it. */
+    readonly check: (map: MapInfo, steamIds: ReadonlyArray<string>) => Effect.Effect<MapCheck, SteamUnavailable>
     /** The given Players' entries on a board; Players without an entry are simply absent. */
     readonly readPlayers: (
       boardId: number,
@@ -47,7 +58,7 @@ export interface CardView {
   readonly creator: Player
   readonly target: Player | null
   readonly players: ReadonlyArray<Player>
-  readonly map: MapInfo | null
+  readonly map: DrawnMap | null
   readonly standings: ReadonlyArray<Standing>
   /** Shown as a live Discord timestamp while the Invite is open. */
   readonly expiresAt: number | null
@@ -71,7 +82,7 @@ export type ThreadPost = Data.TaggedEnum<{
   Accepted: { readonly player: Player }
   Joined: { readonly player: Player }
   Left: { readonly player: Player }
-  Started: { readonly players: ReadonlyArray<Player>; readonly map: MapInfo; readonly endsAt: number }
+  Started: { readonly players: ReadonlyArray<Player>; readonly map: DrawnMap; readonly endsAt: number }
   Improved: { readonly improvement: Improvement }
   Result: { readonly standings: ReadonlyArray<Standing> }
 }>

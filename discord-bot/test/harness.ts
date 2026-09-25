@@ -21,11 +21,18 @@ export const ticks = (secondsValue: number) => Math.round(secondsValue * SCORE_T
 
 const MEDALS: Medals = { bronze: 40, silver: 30, gold: 25, author: 20 }
 
-export const makeMap = (boardId: number | null, over: Partial<MapInfo> = {}): MapInfo => ({
+/** A Workshop Map plus the board facts the fake Steam answers `check` with. */
+export interface FakeMap extends MapInfo {
+  readonly boardId: number | null
+  readonly worldRecordTicks: number | null
+}
+
+export const makeMap = (boardId: number | null, over: Partial<FakeMap> = {}): FakeMap => ({
   pfid: `pf${boardId ?? "none"}`,
   title: `Map ${boardId ?? "none"}`,
   creator: "pebblewright",
   previewUrl: `https://example.invalid/${boardId}.png`,
+  boardName: `ballest_v0_pf${boardId ?? "none"}_Climb_Map`,
   boardId,
   medals: MEDALS,
   worldRecordTicks: boardId === null ? null : ticks(15),
@@ -39,30 +46,43 @@ export interface FakeSteamControl {
   readonly setTime: (boardId: number, steamId: string, seconds: number) => Effect.Effect<void>
   /** The next n per-player reads fail as if Steam dropped the reply. */
   readonly failNextReads: (n: number) => Effect.Effect<void>
-  readonly setCatalogue: (maps: ReadonlyArray<MapInfo>) => Effect.Effect<void>
+  readonly setCatalogue: (maps: ReadonlyArray<FakeMap>) => Effect.Effect<void>
   /** Every per-player read takes this long (on the TestClock), like a real ~150 ms Steam round trip. */
   readonly setReadDelay: (delay: Duration.DurationInput) => Effect.Effect<void>
+  /** How many board reads have been made so far. */
+  readonly reads: Effect.Effect<number>
 }
 
 export const makeFakeSteam = (profiles: Record<string, ProfilePreview>) =>
   Effect.gen(function* () {
     const boards = yield* Ref.make(new Map<number, Map<string, number>>())
     const failures = yield* Ref.make(0)
-    const catalogue = yield* Ref.make<ReadonlyArray<MapInfo>>([])
+    const catalogue = yield* Ref.make<ReadonlyArray<FakeMap>>([])
     const readDelay = yield* Ref.make<Duration.DurationInput>(0)
+    const readCount = yield* Ref.make(0)
+    /** One board read: slow and failing as configured, like the real one-at-a-time queue. */
+    const read = (boardId: number, steamIds: ReadonlyArray<string>) =>
+      Effect.gen(function* () {
+        yield* Effect.sleep(yield* Ref.get(readDelay))
+        yield* Ref.update(readCount, (n) => n + 1)
+        const fail = yield* Ref.getAndUpdate(failures, (n) => Math.max(0, n - 1))
+        if (fail > 0) return yield* new SteamUnavailable({ reason: "reply dropped" })
+        const board = (yield* Ref.get(boards)).get(boardId) ?? new Map<string, number>()
+        return steamIds.flatMap((steamId) => {
+          const t = board.get(steamId)
+          return t === undefined ? [] : [{ steamId, ticks: t }]
+        })
+      })
     const port = Steam.of({
       catalogue: Ref.get(catalogue),
-      readPlayers: (boardId, steamIds) =>
+      check: (map, steamIds) =>
         Effect.gen(function* () {
-          yield* Effect.sleep(yield* Ref.get(readDelay))
-          const fail = yield* Ref.getAndUpdate(failures, (n) => Math.max(0, n - 1))
-          if (fail > 0) return yield* new SteamUnavailable({ reason: "reply dropped" })
-          const board = (yield* Ref.get(boards)).get(boardId) ?? new Map<string, number>()
-          return steamIds.flatMap((steamId) => {
-            const t = board.get(steamId)
-            return t === undefined ? [] : [{ steamId, ticks: t }]
-          })
+          const known = (yield* Ref.get(catalogue)).find((m) => m.boardName === map.boardName)
+          if (known === undefined || known.boardId === null) return { boardId: null, worldRecordTicks: null, playedBy: [] }
+          const entries = yield* read(known.boardId, steamIds)
+          return { boardId: known.boardId, worldRecordTicks: known.worldRecordTicks, playedBy: entries.map((e) => e.steamId) }
         }),
+      readPlayers: read,
       resolveProfile: (input) => {
         const found = profiles[input]
         return found ? Effect.succeed(found) : Effect.fail(new ProfileNotFound({ input, reason: "no such profile" }))
@@ -77,7 +97,8 @@ export const makeFakeSteam = (profiles: Record<string, ProfilePreview>) =>
         }),
       failNextReads: (n) => Ref.set(failures, n),
       setCatalogue: (maps) => Ref.set(catalogue, maps),
-      setReadDelay: (delay) => Ref.set(readDelay, delay)
+      setReadDelay: (delay) => Ref.set(readDelay, delay),
+      reads: Ref.get(readCount)
     }
     return { port, control }
   })
@@ -138,7 +159,7 @@ export const PROFILES: Record<string, ProfilePreview> = {
  * Everything a test needs: the engine plus the fakes behind it. `restart` tears the engine
  * down (as a crash would) and builds a fresh one over the same Store, fakes and clock.
  */
-export const makeHarness = (opts: { readonly maps: ReadonlyArray<MapInfo>; readonly linked?: boolean }) =>
+export const makeHarness = (opts: { readonly maps: ReadonlyArray<FakeMap>; readonly linked?: boolean }) =>
   Effect.gen(function* () {
     const store = yield* makeMemoryStore
     if (opts.linked !== false) for (const p of [ALICE, BOB, CARA, DAN]) yield* store.putLink(link(p))

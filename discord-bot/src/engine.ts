@@ -2,8 +2,8 @@
 // Inputs are Player actions (the methods below) and the clock; outputs go to Surface.
 import { Clock, Data, Effect, FiberMap, Option, Random, Ref } from "effect"
 import {
+  authorTimeFits,
   expiresAt,
-  fitsDuration,
   inMatch,
   involves,
   LOBBY_MIN_PLAYERS,
@@ -11,7 +11,8 @@ import {
   POLL_INTERVAL_MS,
   rankOf,
   standings,
-  type MapInfo,
+  worldRecordFits,
+  type DrawnMap,
   type Match,
   type MatchType,
   type Minutes,
@@ -147,15 +148,21 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
 
     // ---------------------------------------------------------------- Map selection
 
-    /** A random Map no Player in the Match has Played, fitting its duration. */
+    /**
+     * A random Eligible Map. The author-time rule filters the Workshop list for free; each
+     * shuffled candidate then costs one board check (world record, who has Played it), so
+     * only the Maps actually tried are ever read.
+     */
     const pickMap = Effect.fn("pickMap")(function* (m: Match) {
       const catalogue = yield* steam.catalogue
-      const shuffled = yield* Random.shuffle(catalogue.filter((map) => fitsDuration(map, m.minutes)))
+      const shuffled = yield* Random.shuffle(catalogue.filter((map) => authorTimeFits(map, m.minutes)))
       const steamIds = m.players.map((p) => p.steamId)
       for (const map of shuffled) {
-        if (map.boardId === null) continue
-        const entries = yield* steam.readPlayers(map.boardId, steamIds).pipe(Effect.retry({ times: 2 }))
-        if (entries.length === 0) return map
+        const c = yield* steam.check(map, steamIds).pipe(Effect.retry({ times: 2 }))
+        if (c.boardId === null || c.worldRecordTicks === null) continue
+        if (!worldRecordFits(c.worldRecordTicks) || c.playedBy.length > 0) continue
+        const drawn: DrawnMap = { ...map, boardId: c.boardId, worldRecordTicks: c.worldRecordTicks }
+        return drawn
       }
       return yield* new NoEligibleMap({ matchId: m.id })
     })
@@ -203,7 +210,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     })
 
     const readMatch = (m: Match) =>
-      m.map?.boardId == null
+      m.map === null
         ? Effect.succeed<ReadonlyArray<Entry>>([])
         : steam.readPlayers(
             m.map.boardId,
@@ -265,7 +272,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * `accepted` is the Player whose Accept started a 1v1.
      */
     const launch = Effect.fn("launch")(function* (full: Match, accepted: Player | null) {
-      const map: MapInfo = yield* pickMap(full).pipe(
+      const map = yield* pickMap(full).pipe(
         Effect.tapErrorTag("NoEligibleMap", () => locked(withdrawInvite(full.id, "noEligibleMap")))
       )
       yield* locked(
