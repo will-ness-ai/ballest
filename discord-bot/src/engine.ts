@@ -26,8 +26,10 @@ import {
   type CardView,
   type Entry,
   type Improvement,
+  type ProfileNotFound,
   type ProfilePreview,
-  type RemovalReason
+  type RemovalReason,
+  type SteamUnavailable
 } from "./ports.js"
 
 // ---------------------------------------------------------------- rejections (the Discord adapter shows each privately)
@@ -39,6 +41,18 @@ export class NotOpen extends Data.TaggedError("NotOpen")<{ readonly matchId: str
 export class NotAllowed extends Data.TaggedError("NotAllowed")<{ readonly reason: string }> {}
 export class NotEnoughPlayers extends Data.TaggedError("NotEnoughPlayers")<{ readonly count: number }> {}
 export class NoEligibleMap extends Data.TaggedError("NoEligibleMap")<{ readonly matchId: string }> {}
+
+/** Every way an action can be turned down. */
+export type Rejection =
+  | NotLinked
+  | Busy
+  | MatchNotFound
+  | NotOpen
+  | NotAllowed
+  | NotEnoughPlayers
+  | NoEligibleMap
+  | SteamUnavailable
+  | ProfileNotFound
 
 export interface InviteRequest {
   readonly type: MatchType
@@ -273,7 +287,14 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      */
     const launch = Effect.fn("launch")(function* (full: Match, accepted: Player | null) {
       const map = yield* pickMap(full).pipe(
-        Effect.tapErrorTag("NoEligibleMap", () => locked(withdrawInvite(full.id, "noEligibleMap")))
+        Effect.tapErrorTag("NoEligibleMap", () =>
+          locked(
+            Effect.gen(function* () {
+              yield* surface.post(full.id, ThreadPost.NoMap({ players: full.players }))
+              yield* withdrawInvite(full.id, "noEligibleMap")
+            })
+          )
+        )
       )
       yield* locked(
         Effect.gen(function* () {
