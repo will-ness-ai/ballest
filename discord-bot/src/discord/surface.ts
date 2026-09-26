@@ -17,8 +17,7 @@ import { SqlClient, SqlSchema } from "@effect/sql"
 import { Effect, Layer, Option, Ref, Schema } from "effect"
 import { MigratorLive } from "../db.js"
 import { type CardView, type RemovalReason, Surface, type ThreadPost } from "../ports.js"
-import { Channel, Drawing, type Gone } from "./channel.js"
-import type { DiscordError } from "./client.js"
+import { Channel, type ChannelError, Drawing } from "./channel.js"
 
 interface CardRef {
   readonly messageId: string
@@ -49,11 +48,15 @@ const LayoutJson = Schema.parseJson(
   })
 )
 
-const logFailure = (e: Gone | DiscordError) =>
-  e._tag === "Gone" ? Effect.logWarning(`${e.id} is gone`) : Effect.logError(`discord ${e.op} failed`, e.cause)
+const logFailure = (e: ChannelError) =>
+  e._tag === "Gone"
+    ? Effect.logWarning(`${e.id} is gone`)
+    : e._tag === "RenderError"
+      ? Effect.logError("drawing an image failed", e.cause)
+      : Effect.logError(`discord ${e.op} failed`, e.cause)
 
 /** Deleting or closing something already gone counts as done. */
-const unlessGone = <E extends Gone | DiscordError>(effect: Effect.Effect<void, E>) =>
+const unlessGone = <E extends ChannelError>(effect: Effect.Effect<void, E>) =>
   effect.pipe(Effect.catchAll((e) => (e._tag === "Gone" ? Effect.void : logFailure(e))))
 
 const make = Effect.gen(function* () {
@@ -92,8 +95,8 @@ const make = Effect.gen(function* () {
       next.delete(matchId)
       return next
     }
-    yield* Ref.update(views, without)
-    yield* Ref.update(clocks, without)
+    yield* Ref.update(views, (m) => without(m))
+    yield* Ref.update(clocks, (m) => without(m))
     yield* setLayout((l) => {
       const cards = new Map(l.cards)
       cards.delete(matchId)
@@ -122,13 +125,21 @@ const make = Effect.gen(function* () {
     return threadId
   })
 
-  /** Redraw a thread's clock when the Match has moved on. */
-  const redrawClock = Effect.fn("redrawClock")(function* (card: CardRef, view: CardView) {
-    if (card.threadId === null || card.clockId === null) return
+  /** Redraw a thread's clock when the Match has moved on, or post it if that failed before. */
+  const redrawClock = Effect.fn("redrawClock")(function* (matchId: string, card: CardRef, view: CardView) {
+    const { threadId, clockId } = card
+    if (threadId === null) return
     const key = clockKey(view)
-    if ((yield* Ref.get(clocks)).get(view.matchId) === key) return
-    yield* unlessGone(channel.redrawClock(card.threadId, card.clockId, view))
-    yield* Ref.update(clocks, (m) => new Map(m).set(view.matchId, key))
+    if ((yield* Ref.get(clocks)).get(matchId) === key) return
+    if (clockId === null) {
+      const posted = yield* channel.postClock(threadId, view).pipe(
+        Effect.tapError((e) => logFailure(e)),
+        Effect.option
+      )
+      if (Option.isNone(posted)) return
+      yield* setCard(matchId, { ...card, clockId: posted.value })
+    } else yield* unlessGone(channel.redrawClock(threadId, clockId, view))
+    yield* Ref.update(clocks, (m) => new Map(m).set(matchId, key))
   })
 
   /** A new Card in the Footer's place (or fresh if the Footer is gone), then a new Footer below it. */
@@ -154,7 +165,7 @@ const make = Effect.gen(function* () {
       const card = (yield* Ref.get(layout)).cards.get(view.matchId)
       if (card === undefined) return yield* createCard(view)
       yield* channel.redraw(card.messageId, Drawing.Card({ view }))
-      yield* redrawClock(card, view)
+      yield* redrawClock(view.matchId, card, view)
     },
     Effect.catchAll((e) => logFailure(e)),
     lock.withPermits(1)

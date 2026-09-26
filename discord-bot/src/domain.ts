@@ -5,6 +5,9 @@ export const SCORE_TICKS_PER_SECOND = 100_000
 
 export type MatchType = "public" | "challenge" | "lobby"
 
+/** What each Match type is called wherever a member reads it. */
+export const MATCH_TYPE_NAME: Record<MatchType, string> = { public: "Public 1v1", challenge: "Challenge", lobby: "Lobby" }
+
 export const DURATIONS = [5, 10, 15, 20, 30, 45, 60] as const
 export type Minutes = (typeof DURATIONS)[number]
 

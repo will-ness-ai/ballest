@@ -1,9 +1,9 @@
 // What each image looks like, as element trees for Satori (flexbox and CSS, no browser). The
 // settled design is the prototype on branch claude/prototype-discord-bot-surfaces; check any
 // change by eye with `pnpm render:samples`.
-import { type MatchType, type MedalKind, type Medals, SCORE_TICKS_PER_SECOND } from "../domain.js"
+import { MATCH_TYPE_NAME, type MedalKind, type Medals, SCORE_TICKS_PER_SECOND } from "../domain.js"
 import type { CardView, Improvement, ProfilePreview } from "../ports.js"
-import { hueFor, MEDAL_BAR, marbleSvg, medalSvg, svgUri } from "./art.js"
+import { hueFor, MEDAL_BAR, marbleSvg, medalHeight, medalSvg, svgUri } from "./art.js"
 
 // ---------------------------------------------------------------- elements
 
@@ -24,7 +24,7 @@ const img = (src: string, width: number, height: number, style: Style = {}): El 
   props: { src, width, height, style: { width, height, ...style } }
 })
 const marble = (hue: number, size: number, style: Style = {}) => img(svgUri(marbleSvg(hue, size)), size, size, style)
-const medal = (kind: MedalKind, size: number) => img(svgUri(medalSvg(kind, size)), size, Math.round(size * 1.3))
+const medal = (kind: MedalKind, size: number) => img(svgUri(medalSvg(kind, size)), size, medalHeight(size))
 
 // ---------------------------------------------------------------- the site's theme
 
@@ -76,7 +76,7 @@ const logo = () =>
     box({ fontFamily: F.marquee, fontSize: 12, letterSpacing: 0.3 }, "Multiballs")
   )
 
-const chip = (text: string, style: Style = {}) =>
+const chip = (text: string, style: Style = {}, lead: El | null = null) =>
   box(
     {
       alignItems: "center",
@@ -91,15 +91,14 @@ const chip = (text: string, style: Style = {}) =>
       color: C.dim,
       ...style
     },
+    lead,
     text
   )
 
 // ---------------------------------------------------------------- formatting
 
-const TYPE_NAME: Record<MatchType, string> = { public: "Public 1v1", challenge: "Challenge", lobby: "Lobby" }
-
 /** m:ss.mmm, as the leaderboard site writes times. */
-export const formatTime = (ticks: number): string => {
+const formatTime = (ticks: number): string => {
   const totalMs = Math.round((ticks / SCORE_TICKS_PER_SECOND) * 1000)
   const m = Math.floor(totalMs / 60_000)
   const s = Math.floor((totalMs % 60_000) / 1000)
@@ -285,7 +284,11 @@ const stateChip = (view: CardView) =>
   view.state === "invite"
     ? chip(`Invite · ${view.minutes}:00`)
     : view.state === "live"
-      ? chip("Live", { backgroundColor: C.accent, color: C.accentInk, border: "1px solid transparent", gap: 5 })
+      ? chip(
+          "Live",
+          { backgroundColor: C.accent, color: C.accentInk, border: "1px solid transparent", gap: 5 },
+          box({ width: 6, height: 6, borderRadius: 3, backgroundColor: C.accentInk })
+        )
       : chip("Final", { color: C.gold, border: "1px solid rgba(255,212,71,0.4)" })
 
 export const cardScene = (card: CardImage): El => {
@@ -294,8 +297,8 @@ export const cardScene = (card: CardImage): El => {
   const title = view.map === null || view.state === "invite" ? "Map pending" : view.map.title
   const meta =
     view.map === null || view.state === "invite"
-      ? `${TYPE_NAME[view.type]} · ${view.minutes} min · drawn at the start`
-      : `by ${view.map.creator} · ${TYPE_NAME[view.type]} · ${view.minutes} min · WR ${formatTime(view.map.worldRecordTicks)}`
+      ? `${MATCH_TYPE_NAME[view.type]} · ${view.minutes} min · drawn at the start`
+      : `by ${view.map.creator} · ${MATCH_TYPE_NAME[view.type]} · ${view.minutes} min · WR ${formatTime(view.map.worldRecordTicks)}`
   return backdrop(
     { width: CARD_WIDTH },
     box(
@@ -353,7 +356,7 @@ export const improvementScene = (improvement: Improvement, name: string): El => 
       ...(lead ? { backgroundImage: "linear-gradient(90deg, rgba(255,212,71,0.16), transparent 70%)" } : {})
     },
     box(
-      { width: 54, alignItems: "center", justifyContent: "center", fontFamily: F.hud, fontWeight: 700, fontSize: 22, color: lead ? C.gold : C.dim },
+      { width: 58, alignItems: "center", justifyContent: "center", fontFamily: F.hud, fontWeight: 700, fontSize: 22, color: lead ? C.gold : C.dim },
       `P${improvement.rank}`
     ),
     box(

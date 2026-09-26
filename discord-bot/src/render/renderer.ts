@@ -4,11 +4,25 @@
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { Resvg } from "@resvg/resvg-js"
-import { Effect } from "effect"
+import { Data, Effect } from "effect"
 import satori, { type Font } from "satori"
 import type { Improvement, ProfilePreview } from "../ports.js"
 import { marbleSvg } from "./art.js"
-import { cardScene, type CardImage, type El, footerScene, improvementScene, linkScene } from "./scenes.js"
+import {
+  CARD_WIDTH,
+  cardScene,
+  type CardImage,
+  type El,
+  FOOTER_WIDTH,
+  footerScene,
+  improvementScene,
+  LINK_WIDTH,
+  linkScene,
+  ROW_WIDTH
+} from "./scenes.js"
+
+/** An image that couldn't be drawn: a font, layout or rasterising failure. */
+export class RenderError extends Data.TaggedError("RenderError")<{ readonly cause: unknown }> {}
 
 const SCALE = 2
 
@@ -33,31 +47,36 @@ const loadFonts = Effect.fn("loadFonts")(function* () {
   for (const [name, pkg, weight] of FACES)
     for (const subset of ["latin", "latin-ext"]) {
       const path = require.resolve(`@fontsource/${pkg}/files/${pkg}-${subset}-${weight}-normal.woff`)
-      const data = yield* Effect.promise(() => readFile(path))
+      const data = yield* Effect.tryPromise({ try: () => readFile(path), catch: (cause) => new RenderError({ cause }) })
       fonts.push({ name, data, weight, style: "normal" })
     }
   return fonts
 })
 
-const rasterise = (svg: string) => new Resvg(svg, { fitTo: { mode: "zoom", value: SCALE }, font: { loadSystemFonts: false } }).render().asPng()
+const rasterise = (svg: string) =>
+  Effect.try({
+    try: () => new Resvg(svg, { fitTo: { mode: "zoom", value: SCALE }, font: { loadSystemFonts: false } }).render().asPng(),
+    catch: (cause) => new RenderError({ cause })
+  })
 
 export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", {
   effect: Effect.gen(function* () {
-    const fonts = yield* loadFonts()
+    // Without its fonts the bot can draw nothing: that stops it at startup.
+    const fonts = yield* loadFonts().pipe(Effect.orDie)
     const draw = Effect.fn("draw")(function* (scene: El, width: number) {
-      const svg = yield* Effect.promise(() => satori(scene, { width, fonts }))
-      return rasterise(svg)
+      const svg = yield* Effect.tryPromise({ try: () => satori(scene, { width, fonts }), catch: (cause) => new RenderError({ cause }) })
+      return yield* rasterise(svg)
     })
-    const footer = yield* Effect.cached(draw(footerScene(), 520))
+    const footer = yield* Effect.cached(draw(footerScene(), FOOTER_WIDTH))
 
     return {
       /** The Match Card, in any state. */
-      card: (card: CardImage) => draw(cardScene(card), 520),
-      improvement: (improvement: Improvement, name: string) => draw(improvementScene(improvement, name), 420),
+      card: (card: CardImage) => draw(cardScene(card), CARD_WIDTH),
+      improvement: (improvement: Improvement, name: string) => draw(improvementScene(improvement, name), ROW_WIDTH),
       footer,
-      link: (preview: ProfilePreview) => draw(linkScene(preview), 400),
+      link: (preview: ProfilePreview) => draw(linkScene(preview), LINK_WIDTH),
       /** A bare marble, for the lifecycle-line emojis. */
-      marble: (hue: number) => Effect.sync(() => rasterise(marbleSvg(hue, 64)))
-    } as const
+      marble: (hue: number) => rasterise(marbleSvg(hue, 64))
+    }
   })
 }) {}

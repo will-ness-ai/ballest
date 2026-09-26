@@ -3,12 +3,12 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { Effect } from "effect"
-import type { Player, Standing } from "../src/domain.js"
+import { type Player, SCORE_TICKS_PER_SECOND, type Standing } from "../src/domain.js"
 import type { CardView } from "../src/ports.js"
 import { Renderer } from "../src/render/renderer.js"
 
 const out = process.argv[2] ?? "render-samples"
-const T = 100_000
+const T = SCORE_TICKS_PER_SECOND
 const p = (name: string): Player => ({ discordId: name, steamId: `7656119800${name.length}${name.charCodeAt(0)}${name.charCodeAt(1)}` })
 const [chkn, tilt, grav, maxx] = [p("ChknThugget"), p("tilt_queen"), p("gravwell"), p("marblemaxxer")] as const
 const names = new Map([chkn, tilt, grav, maxx].map((x) => [x.discordId, x.discordId]))
@@ -63,8 +63,10 @@ const cards: Record<string, CardView> = {
 
 const program = Effect.gen(function* () {
   const renderer = yield* Renderer
-  yield* Effect.promise(() => mkdir(out, { recursive: true }))
-  const save = (name: string, png: Buffer) => Effect.promise(() => writeFile(join(out, `${name}.png`), png))
+  yield* Effect.tryPromise(() => mkdir(out, { recursive: true }))
+  const save = Effect.fn("save")(function* (name: string, png: Buffer) {
+    yield* Effect.tryPromise(() => writeFile(join(out, `${name}.png`), png))
+  })
   for (const [name, view] of Object.entries(cards)) yield* save(name, yield* renderer.card({ view, names, preview: null }))
   yield* save(
     "row-lead",

@@ -37,11 +37,14 @@ const MEDAL_STOPS: Record<MedalKind, readonly [string, string, string]> = {
   author: ["#b86ae6", "#8fa2f0", "#5ef0f5"]
 }
 
-/** A round medal on a ribbon, never a rectangle. `size` is its width; it is 1.3 times as tall. */
+/** A medal drawing is 1.3 times as tall as it is wide. */
+export const medalHeight = (width: number) => Math.round(width * 1.3)
+
+/** A round medal on a ribbon, never a rectangle. `size` is its width. */
 export const medalSvg = (kind: MedalKind, size: number): string => {
   const [dark, mid, light] = MEDAL_STOPS[kind]
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${Math.round(size * 1.3)}" viewBox="0 0 20 26">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${medalHeight(size)}" viewBox="0 0 20 26">` +
     `<defs><linearGradient id="m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${light}"/><stop offset=".5" stop-color="${mid}"/><stop offset="1" stop-color="${dark}"/></linearGradient></defs>` +
     `<path d="M4 0h5l3 9H7z" fill="#1c2a4a"/><path d="M11 0h5l-3 9H8z" fill="#2d4476"/>` +
     `<circle cx="10" cy="16.5" r="8.4" fill="url(#m)" stroke="#111" stroke-width="1.4"/>` +

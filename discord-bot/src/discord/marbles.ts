@@ -10,7 +10,7 @@ const STEP = 15
 const HUES = Array.from({ length: 360 / STEP }, (_, i) => i * STEP)
 const nameOf = (hue: number) => `marble_${String(hue).padStart(3, "0")}`
 
-interface MarbleEmojis {
+export interface MarbleEmojis {
   /** The emoji nearest a hue, or nothing if Discord wouldn't take them. */
   readonly forHue: (hue: number) => string
   /** A Player's marble, the same colour as on the Card and the site. */
@@ -25,13 +25,17 @@ export class Marbles extends Effect.Service<Marbles>()("multiballs/Marbles", {
     const renderer = yield* Renderer
 
     const ids = new Map(yield* discord.appEmojis)
+    // A step Discord won't take is skipped: its Players' lines go without a marble.
     for (const hue of HUES) {
       const name = nameOf(hue)
       if (ids.has(name)) continue
-      const id = yield* discord.createAppEmoji(name, yield* renderer.marble(hue))
-      ids.set(name, id)
+      yield* renderer.marble(hue).pipe(
+        Effect.flatMap((png) => discord.createAppEmoji(name, png)),
+        Effect.tap((id) => Effect.sync(() => ids.set(name, id))),
+        Effect.catchAll((e) => Effect.logWarning(`marble emoji ${name} unavailable (${e._tag})`, e.cause))
+      )
     }
-    yield* Effect.log(`marble emojis ready (${HUES.length})`)
+    yield* Effect.log(`marble emojis ready (${[...ids.keys()].filter((n) => n.startsWith("marble_")).length} of ${HUES.length})`)
 
     const forHue = (hue: number) => {
       const nearest = (Math.round(hue / STEP) * STEP) % 360

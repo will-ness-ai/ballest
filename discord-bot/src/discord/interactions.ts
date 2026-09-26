@@ -10,7 +10,7 @@ import {
 import { Effect, Layer, Match, Option, Ref, Stream } from "effect"
 import { Engine, type Rejection } from "../engine.js"
 import { Store, type ProfilePreview } from "../ports.js"
-import { Renderer } from "../render/renderer.js"
+import { Renderer, type RenderError } from "../render/renderer.js"
 import { Discord, type DiscordError, tryDiscord } from "./client.js"
 import { type Action, parseControl } from "./controls.js"
 import {
@@ -179,7 +179,7 @@ export const InteractionsLive = Layer.scopedDiscard(
       yield* tryDiscord("edit reply", () => i.editReply(linkPreviewMessage(png)))
     })
 
-    const route = (i: Interaction): Effect.Effect<void, DiscordError> => {
+    const route = (i: Interaction): Effect.Effect<void, DiscordError | RenderError> => {
       if (i.isButton()) return Effect.asVoid(onButton(i))
       if (i.isUserSelectMenu() && parseControl(i.customId)?._tag === "PickTarget") return onPickTarget(i)
       if (i.isModalSubmit() && parseControl(i.customId)?._tag === "LinkForm") return Effect.asVoid(onLinkForm(i))

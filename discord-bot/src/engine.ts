@@ -74,7 +74,10 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     const surface = yield* Surface
     const store = yield* Store
     /** Fewest Players a Lobby starts with; the test server lowers it to try a Match alone. */
-    const lobbyMinPlayers = yield* Config.integer("LOBBY_MIN_PLAYERS").pipe(Config.withDefault(LOBBY_MIN_PLAYERS))
+    const lobbyMinPlayers = yield* Config.integer("LOBBY_MIN_PLAYERS").pipe(
+      Config.validate({ message: "LOBBY_MIN_PLAYERS must be at least 1", validation: (n) => n >= 1 }),
+      Config.withDefault(LOBBY_MIN_PLAYERS)
+    )
     const lock = yield* Effect.makeSemaphore(1)
     /** Engine state changes happen one at a time. Steam reads are kept outside it. */
     const locked = lock.withPermits(1)

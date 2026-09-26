@@ -12,10 +12,11 @@ import {
   UserSelectMenuBuilder,
   type BaseMessageOptions
 } from "discord.js"
-import { DURATIONS, type MatchType, type Minutes } from "../domain.js"
+import { DURATIONS, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js"
 import { RESULT_HUE, START_HUE } from "../render/art.js"
 import type { CardView, ThreadPost } from "../ports.js"
 import { type Action, type Control, controlId } from "./controls.js"
+import type { MarbleEmojis } from "./marbles.js"
 
 /**
  * A message to post or edit. `attachments: []` on an edit drops the old image; discord.js adds
@@ -27,7 +28,6 @@ export const PROFILE_FIELD = "profile"
 
 // ---------------------------------------------------------------- formatting
 
-const TYPE_NAME: Record<MatchType, string> = { public: "Public 1v1", challenge: "Challenge", lobby: "Lobby" }
 
 const unix = (ms: number) => Math.floor(ms / 1000)
 const who = (discordId: string) => `<@${discordId}>`
@@ -59,7 +59,7 @@ export const footerMessage = (png: Buffer): Payload => ({
 
 // ---------------------------------------------------------------- the Match Card
 
-export const threadName = (v: CardView, creatorName: string) => `${creatorName}'s ${TYPE_NAME[v.type]} · ${v.minutes} min`
+export const threadName = (v: CardView, creatorName: string) => `${creatorName}'s ${MATCH_TYPE_NAME[v.type]} · ${v.minutes} min`
 
 const act = (action: Action, matchId: string): Control => ({ _tag: "Act", action, matchId })
 const acceptButton = (matchId: string) => button("Accept", act("accept", matchId), ButtonStyle.Success)
@@ -81,14 +81,21 @@ const cardButtons = (v: CardView) => {
   ]
 }
 
-/** The Card image, with the clock as a Discord timestamp below it: the image never shows one. */
+/** The Match's clock as Discord timestamps (each reader sees their own time); none once it's over. */
+const clockText = (v: CardView): string | null =>
+  v.state === "invite" && v.expiresAt !== null
+    ? `Invite expires <t:${unix(v.expiresAt)}:R>`
+    : v.state === "live" && v.endsAt !== null
+      ? `**Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
+      : null
+
+const INVITE_GREY = 0x4e5058
+const LIVE_LIME = 0x8be03c
+
+/** The Card image, with the clock in an embed below it: the image never shows one. */
 export const cardMessage = (v: CardView, png: Buffer): Payload => {
-  const clock =
-    v.expiresAt !== null
-      ? new EmbedBuilder().setColor(0x4e5058).setDescription(`Invite expires <t:${unix(v.expiresAt)}:R>`)
-      : v.endsAt !== null
-        ? new EmbedBuilder().setColor(0x8be03c).setDescription(`**Live** · ends <t:${unix(v.endsAt)}:R>`)
-        : null
+  const text = clockText(v)
+  const clock = text === null ? null : new EmbedBuilder().setColor(v.state === "live" ? LIVE_LIME : INVITE_GREY).setDescription(text)
   return {
     content: "",
     embeds: clock === null ? [] : [clock],
@@ -112,23 +119,12 @@ export const closedCardMessage = (): Payload => ({
 
 // ---------------------------------------------------------------- Match Thread posts ("Marble Icons")
 
-/** The Match Thread's first message: when the Invite expires, then when the Match ends. */
-export const clockMessage = (v: CardView): Payload => ({
-  content:
-    v.state === "invite" && v.expiresAt !== null
-      ? `⏳ Invite expires <t:${unix(v.expiresAt)}:R>`
-      : v.state === "live" && v.endsAt !== null
-        ? `⏱️ **Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
-        : "🏁 **Finished**",
-  ...quiet
-})
+/** The Match Thread's first message: the same clock as under the Card, kept at the thread's top. */
+export const clockMessage = (v: CardView): Payload => ({ content: clockText(v) ?? "**Finished**", ...quiet })
 
 /** What a thread post is drawn with, beyond the post itself. */
 export interface ThreadArt {
-  /** A Player's marble emoji, by SteamID. */
-  readonly marbleOf: (steamId: string) => string
-  /** The marble emoji nearest a hue. */
-  readonly marbleAt: (hue: number) => string
+  readonly marbles: MarbleEmojis
   /** The Match's latest Card, when the bot has it. */
   readonly view: CardView | null
   /** The post's image: the Card for Go! and the Result, the row for an Improvement. */
@@ -142,7 +138,7 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
   switch (post._tag) {
     case "Opened":
       return {
-        content: line(art.marbleOf(post.by.steamId), `**${who(post.by.discordId)}** opened a ${post.minutes}-minute ${TYPE_NAME[post.type]}`),
+        content: line(art.marbles.forPlayer(post.by.steamId), `**${who(post.by.discordId)}** opened a ${post.minutes}-minute ${MATCH_TYPE_NAME[post.type]}`),
         ...quiet
       }
     case "Challenged": {
@@ -150,20 +146,20 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
       const length = v === null ? "" : ` · ${v.minutes} min`
       const answer = v === null || v.expiresAt === null ? "" : ` · answer <t:${unix(v.expiresAt)}:R>`
       return {
-        content: line(art.marbleOf(post.by.steamId), `${who(post.target.discordId)} **${who(post.by.discordId)}** challenges you${length}${answer}`),
+        content: line(art.marbles.forPlayer(post.by.steamId), `${who(post.target.discordId)} **${who(post.by.discordId)}** challenges you${length}${answer}`),
         components: [row(acceptButton(matchId), declineButton(matchId))],
         allowedMentions: { users: [post.target.discordId] }
       }
     }
     case "Accepted":
-      return { content: line(art.marbleOf(post.player.steamId), `**${who(post.player.discordId)}** accepted`), ...quiet }
+      return { content: line(art.marbles.forPlayer(post.player.steamId), `**${who(post.player.discordId)}** accepted`), ...quiet }
     case "Joined":
-      return { content: line(art.marbleOf(post.player.steamId), `**${who(post.player.discordId)}** joined`), ...quiet }
+      return { content: line(art.marbles.forPlayer(post.player.steamId), `**${who(post.player.discordId)}** joined`), ...quiet }
     case "Left":
-      return { content: `-# ${line(art.marbleOf(post.player.steamId), `**${who(post.player.discordId)}** left`)}`, ...quiet }
+      return { content: `-# ${line(art.marbles.forPlayer(post.player.steamId), `**${who(post.player.discordId)}** left`)}`, ...quiet }
     case "Started":
       return {
-        content: line(art.marbleAt(START_HUE), `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** Ends <t:${unix(post.endsAt)}:R>`),
+        content: line(art.marbles.forHue(START_HUE), `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** Ends <t:${unix(post.endsAt)}:R>`),
         ...pic,
         components: [workshopButton(post.map.pfid)],
         allowedMentions: { users: post.players.map((p) => p.discordId) }
@@ -172,7 +168,7 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
       return { content: "", ...pic, ...quiet }
     case "Result":
       return {
-        content: line(art.marbleAt(RESULT_HUE), post.standings.every((s) => s.rank === null) ? "**Final result** · no finishers" : "**Final result**"),
+        content: line(art.marbles.forHue(RESULT_HUE), post.standings.every((s) => s.rank === null) ? "**Final result** · no finishers" : "**Final result**"),
         ...pic,
         ...quiet
       }
@@ -215,7 +211,7 @@ export const pickDurationMessage = (type: MatchType, target: string | null, chos
     )
   )
   return {
-    content: `**${TYPE_NAME[type]}${target ? ` vs ${who(target)}` : ""} · how long?**`,
+    content: `**${MATCH_TYPE_NAME[type]}${target ? ` vs ${who(target)}` : ""} · how long?**`,
     components: [
       row(...durations.slice(0, 4)),
       row(...durations.slice(4)),
