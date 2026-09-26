@@ -112,6 +112,10 @@ export const formatTime = (ticks: number): string => {
 const formatGain = (ticks: number) => `-${((ticks / SCORE_TICKS_PER_SECOND)).toFixed(3)}`
 const unix = (ms: number) => Math.floor(ms / 1000)
 const who = (discordId: string) => `<@${discordId}>`
+const workshopUrl = (pfid: string) => `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`
+
+/** Mentions shown as names without pinging anyone. */
+export const quiet = { allowedMentions: { parse: [] } } as const
 
 const standingLines = (standings: ReadonlyArray<Standing>) =>
   standings
@@ -145,25 +149,28 @@ export const footerMessage = (): BaseMessageOptions => ({
       )
   ],
   components: [row(button("New Match", { _tag: "NewMatch" }, ButtonStyle.Primary), button("Link Steam", { _tag: "LinkSteam" }))],
-  allowedMentions: { parse: [] }
+  ...quiet
 })
 
 // ---------------------------------------------------------------- the Match Card
 
 export const threadName = (v: CardView, creatorName: string) => `${creatorName}'s ${TYPE_NAME[v.type]} · ${v.minutes} min`
 
+const act = (action: Action, matchId: string): Control => ({ _tag: "Act", action, matchId })
+const acceptButton = (matchId: string) => button("Accept", act("accept", matchId), ButtonStyle.Success)
+const declineButton = (matchId: string) => button("Decline", act("decline", matchId), ButtonStyle.Danger)
+
 const cardButtons = (v: CardView) => {
   if (v.state !== "invite") return []
-  const act = (action: Action) => ({ _tag: "Act", action, matchId: v.matchId }) as const
-  if (v.type === "public") return [row(button("Accept", act("accept"), ButtonStyle.Success), button("Cancel", act("cancel")))]
-  if (v.type === "challenge")
-    return [row(button("Accept", act("accept"), ButtonStyle.Success), button("Decline", act("decline"), ButtonStyle.Danger), button("Cancel", act("cancel")))]
+  const cancel = button("Cancel", act("cancel", v.matchId))
+  if (v.type === "public") return [row(acceptButton(v.matchId), cancel)]
+  if (v.type === "challenge") return [row(acceptButton(v.matchId), declineButton(v.matchId), cancel)]
   return [
     row(
-      button(`Join (${v.players.length})`, act("join"), ButtonStyle.Success),
-      button("Leave", act("leave")),
-      button("Start", act("start"), ButtonStyle.Primary),
-      button("Cancel", act("cancel"))
+      button(`Join (${v.players.length})`, act("join", v.matchId), ButtonStyle.Success),
+      button("Leave", act("leave", v.matchId)),
+      button("Start", act("start", v.matchId), ButtonStyle.Primary),
+      cancel
     )
   ]
 }
@@ -185,7 +192,7 @@ export const cardMessage = (v: CardView): BaseMessageOptions => {
   } else if (v.map) {
     card
       .setTitle(`${v.state === "live" ? "Live" : "Final"} · ${v.map.title}`)
-      .setURL(`https://steamcommunity.com/sharedfiles/filedetails/?id=${v.map.pfid}`)
+      .setURL(workshopUrl(v.map.pfid))
       .setDescription(
         [`by ${v.map.creator} · ${TYPE_NAME[v.type]} · ${v.minutes} min · WR \`${formatTime(v.map.worldRecordTicks)}\``, "", standingLines(v.standings)].join("\n")
       )
@@ -197,19 +204,29 @@ export const cardMessage = (v: CardView): BaseMessageOptions => {
       : v.endsAt !== null
         ? new EmbedBuilder().setDescription(`**Live** · ends <t:${unix(v.endsAt)}:R>`)
         : null
-  return { content: "", embeds: clock ? [card, clock] : [card], components: cardButtons(v), allowedMentions: { parse: [] } }
+  return { content: "", embeds: clock ? [card, clock] : [card], components: cardButtons(v), ...quiet }
 }
+
+const NO_MAP = "No Map fits this Match: someone here has finished every candidate, or none suits the length."
+
+/** A Card whose Invite was cancelled because no Map is eligible: it stays, saying why. */
+export const closedCardMessage = (): BaseMessageOptions => ({
+  content: "",
+  embeds: [new EmbedBuilder().setTitle("Cancelled").setDescription(NO_MAP)],
+  components: [],
+  ...quiet
+})
 
 // ---------------------------------------------------------------- Match Thread posts
 
-export const threadMessage = (post: ThreadPost): BaseMessageOptions => {
-  const quiet = { allowedMentions: { parse: [] } } as const
+export const threadMessage = (matchId: string, post: ThreadPost): BaseMessageOptions => {
   switch (post._tag) {
     case "Opened":
       return { content: `${who(post.by.discordId)} opened a ${post.minutes}-minute ${TYPE_NAME[post.type]}`, ...quiet }
     case "Challenged":
       return {
-        content: `${who(post.target.discordId)} ${who(post.by.discordId)} challenges you. Accept or decline on the Card.`,
+        content: `${who(post.target.discordId)} ${who(post.by.discordId)} challenges you.`,
+        components: [row(acceptButton(matchId), declineButton(matchId))],
         allowedMentions: { users: [post.target.discordId] }
       }
     case "Accepted":
@@ -219,7 +236,7 @@ export const threadMessage = (post: ThreadPost): BaseMessageOptions => {
     case "Left":
       return { content: `${who(post.player.discordId)} left`, ...quiet }
     case "Started": {
-      const url = `https://steamcommunity.com/sharedfiles/filedetails/?id=${post.map.pfid}`
+      const url = workshopUrl(post.map.pfid)
       const m = post.map.medals
       return {
         content: `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** Ends <t:${unix(post.endsAt)}:R>`,
@@ -237,10 +254,10 @@ export const threadMessage = (post: ThreadPost): BaseMessageOptions => {
       }
     }
     case "Improved": {
-      const i = post.improvement
-      const gain = i.previousTicks === null ? "" : ` ${formatGain(i.previousTicks - i.ticks)}`
+      const imp = post.improvement
+      const gain = imp.previousTicks === null ? "" : ` ${formatGain(imp.previousTicks - imp.ticks)}`
       return {
-        content: `${i.rank === 1 ? "🥇 " : ""}**P${i.rank}** ${who(i.player.discordId)} \`${formatTime(i.ticks)}\`${gain}${i.medal ? ` · ${MEDAL_NAME[i.medal]}` : ""}`,
+        content: `${imp.rank === 1 ? "🥇 " : ""}**P${imp.rank}** ${who(imp.player.discordId)} \`${formatTime(imp.ticks)}\`${gain}${imp.medal ? ` · ${MEDAL_NAME[imp.medal]}` : ""}`,
         ...quiet
       }
     }
@@ -248,6 +265,11 @@ export const threadMessage = (post: ThreadPost): BaseMessageOptions => {
       return {
         content: post.standings.every((s) => s.rank === null) ? "**Final result:** no finishers" : `**Final result**\n${standingLines(post.standings)}`,
         ...quiet
+      }
+    case "NoMap":
+      return {
+        content: `${post.players.map((p) => who(p.discordId)).join(" ")} **Match cancelled.** ${NO_MAP}`,
+        allowedMentions: { users: post.players.map((p) => p.discordId) }
       }
   }
 }
@@ -292,7 +314,7 @@ export const pickDurationMessage = (type: MatchType, target: string | null, chos
         )
       )
     ],
-    allowedMentions: { parse: [] }
+    ...quiet
   }
 }
 

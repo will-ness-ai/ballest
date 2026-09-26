@@ -85,6 +85,8 @@ export type ThreadPost = Data.TaggedEnum<{
   Started: { readonly players: ReadonlyArray<Player>; readonly map: DrawnMap; readonly endsAt: number }
   Improved: { readonly improvement: Improvement }
   Result: { readonly standings: ReadonlyArray<Standing> }
+  /** No Map is eligible, so the Invite is cancelled; everyone in it is told. */
+  NoMap: { readonly players: ReadonlyArray<Player> }
 }>
 export const ThreadPost = Data.taggedEnum<ThreadPost>()
 
@@ -96,7 +98,10 @@ export class Surface extends Context.Tag("multiballs/Surface")<
     /** Create or redraw a Match's Card (the adapter handles the Footer and the Match Thread). */
     readonly showCard: (view: CardView) => Effect.Effect<void>
     readonly post: (matchId: string, post: ThreadPost) => Effect.Effect<void>
-    /** An Invite that never became a Match: its Card and Match Thread go. */
+    /**
+     * An Invite that never became a Match: its Card and Match Thread go, except after
+     * "noEligibleMap", where they stay so the Players can read why.
+     */
     readonly remove: (matchId: string, reason: RemovalReason) => Effect.Effect<void>
   }
 >() {}

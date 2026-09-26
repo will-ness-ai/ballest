@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Fiber, Option } from "effect"
 import type { Match } from "../src/domain.js"
-import type { ThreadPost } from "../src/ports.js"
+import { ThreadPost } from "../src/ports.js"
 import { ALICE, advance, BOB, CARA, DAN, makeHarness, makeMap, PROFILES, ticks, UNLINKED } from "./harness.js"
 
 const MAP = makeMap(1)
@@ -249,6 +249,8 @@ describe("Eligible Map", () => {
       const short = yield* h.engine.openInvite(ALICE.discordId, public1v1)
       expect((yield* Effect.flip(h.engine.accept(BOB.discordId, short)))._tag).toBe("NoEligibleMap")
       expect(yield* h.surface.removed(short)).toEqual(Option.some("noEligibleMap"))
+      // Both Players are told, not just the one who clicked
+      expect((yield* h.surface.posts(short)).at(-1)).toEqual(ThreadPost.NoMap({ players: [ALICE, BOB] }))
       // 15 minutes allows 90 s: the slow Map fits
       const long = yield* h.engine.openInvite(ALICE.discordId, { ...public1v1, minutes: 15 })
       yield* h.engine.accept(BOB.discordId, long)

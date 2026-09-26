@@ -17,7 +17,7 @@
     "@effect/platform-node": "0.108.2",
     "@effect/sql": "0.52.1",
     "@effect/sql-sqlite-node": "0.53.0",
-    "discord.js": "^14.27.0",
+    "discord.js": "14.27.0",
     "effect": "3.22.2",
     "steam-user": "5.3.0"
   },

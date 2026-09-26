@@ -7,7 +7,7 @@ import { Config, Data, Effect, Redacted, Stream } from "effect"
 
 export class DiscordError extends Data.TaggedError("DiscordError")<{ readonly op: string; readonly cause: unknown }> {}
 
-const REQUIRED: ReadonlyArray<[string, bigint]> = [
+const REQUIRED_PERMISSIONS: ReadonlyArray<[string, bigint]> = [
   ["View Channel", PermissionFlagsBits.ViewChannel],
   ["Send Messages", PermissionFlagsBits.SendMessages],
   ["Embed Links", PermissionFlagsBits.EmbedLinks],
@@ -46,7 +46,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       return yield* Effect.dieMessage(`channel ${channelId} is in server ${channel.guildId}, not DISCORD_GUILD_ID ${guildId}`)
     const me = client.user
     const perms = me === null ? null : channel.permissionsFor(me)
-    const missing = REQUIRED.filter(([, flag]) => !perms?.has(flag)).map(([name]) => name)
+    const missing = REQUIRED_PERMISSIONS.filter(([, flag]) => !perms?.has(flag)).map(([name]) => name)
     if (missing.length > 0)
       return yield* Effect.dieMessage(`the bot is missing permissions in #${channel.name}: ${missing.join(", ")}`)
     yield* Effect.log(`logged in as ${me?.tag}; posting in #${channel.name} (${channel.guild.name})`)
@@ -54,14 +54,14 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
         Effect.sync(() => {
-          const h = (i: Interaction) => {
+          const onInteraction = (i: Interaction) => {
             if (i.channelId === channelId || (i.channel?.isThread() && i.channel.parentId === channelId)) emit.single(i)
             else if (i.isRepliable()) void i.reply({ content: "Multiballs only works in its own channel.", ephemeral: true }).catch(() => {})
           }
-          client.on(Events.InteractionCreate, h)
-          return h
+          client.on(Events.InteractionCreate, onInteraction)
+          return onInteraction
         }),
-        (h) => Effect.sync(() => client.off(Events.InteractionCreate, h))
+        (onInteraction) => Effect.sync(() => client.off(Events.InteractionCreate, onInteraction))
       )
     )
 
@@ -69,11 +69,12 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       channel,
       interactions,
       /** The member's name in this server, for thread titles. */
-      displayName: (discordId: string) =>
-        tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(
-          Effect.map((m) => m.displayName),
+      displayName: Effect.fn("displayName")(function* (discordId: string) {
+        return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(
+          Effect.map((member) => member.displayName),
           Effect.orElseSucceed(() => "Someone")
         )
+      })
     } as const
   })
 }) {}
