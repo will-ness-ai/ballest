@@ -7,7 +7,7 @@ import type { CardView, ThreadPost } from "../ports.js"
 import { Renderer } from "../render/renderer.js"
 import { Discord, DiscordError, tryDiscord } from "./client.js"
 import { Marbles } from "./marbles.js"
-import { cardMessage, closedCardMessage, footerMessage, threadMessage, type ThreadArt, threadName } from "./messages.js"
+import { cardMessage, clockMessage, closedCardMessage, footerMessage, threadMessage, type ThreadArt, threadName } from "./messages.js"
 
 /** What a channel message shows. */
 export type Drawing = Data.TaggedEnum<{
@@ -31,6 +31,9 @@ export class Channel extends Context.Tag("multiballs/Channel")<
     /** Start a Card's Match Thread on its message; the thread's id. */
     readonly startThread: (messageId: string, view: CardView) => Effect.Effect<string, Gone | DiscordError>
     readonly deleteThread: (threadId: string) => Effect.Effect<void, Gone | DiscordError>
+    /** Open a Match Thread with its clock; the clock message's id. */
+    readonly postClock: (threadId: string, view: CardView) => Effect.Effect<string, Gone | DiscordError>
+    readonly redrawClock: (threadId: string, messageId: string, view: CardView) => Effect.Effect<void, Gone | DiscordError>
     /** `view` is the Match's latest Card, which the start ping and the Result are drawn from. */
     readonly postInThread: (
       threadId: string,
@@ -64,6 +67,12 @@ const fetchPreview = (url: string) =>
 /** Discord's "Unknown Message" and "Unknown Channel" errors. */
 const isUnknown = (e: DiscordError) =>
   typeof e.cause === "object" && e.cause !== null && "code" in e.cause && (e.cause.code === 10008 || e.cause.code === 10003)
+
+/** Like goneIfUnknown, but passes a Gone from an earlier step through. */
+const goneIfUnknownOr =
+  (id: string) =>
+  (e: Gone | DiscordError): Effect.Effect<never, Gone | DiscordError> =>
+    e._tag === "Gone" ? Effect.fail(e) : goneIfUnknown(id)(e)
 
 const goneIfUnknown =
   (id: string) =>
@@ -151,6 +160,18 @@ export const DiscordChannelLive = Layer.effect(
       }),
       deleteThread: (threadId) =>
         fetchThread(threadId).pipe(Effect.flatMap((t) => tryDiscord("delete thread", async () => void (await t.delete())))),
+      postClock: (threadId, view) =>
+        fetchThread(threadId).pipe(
+          Effect.flatMap((thread) => tryDiscord("post clock", () => thread.send(clockMessage(view)))),
+          Effect.map((m) => m.id)
+        ),
+      redrawClock: (threadId, messageId, view) =>
+        fetchThread(threadId).pipe(
+          Effect.flatMap((thread) => tryDiscord("fetch clock", () => thread.messages.fetch(messageId))),
+          Effect.catchAll(goneIfUnknownOr(messageId)),
+          Effect.flatMap((m) => tryDiscord("redraw clock", () => m.edit(clockMessage(view)))),
+          Effect.asVoid
+        ),
       postInThread: Effect.fn("postInThread")(function* (threadId: string, matchId: string, post: ThreadPost, view: CardView | null) {
         const thread = yield* fetchThread(threadId)
         const png = yield* threadPng(post, view).pipe(asDiscordError("render"))

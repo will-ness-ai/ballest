@@ -112,6 +112,17 @@ export const closedCardMessage = (): Payload => ({
 
 // ---------------------------------------------------------------- Match Thread posts ("Marble Icons")
 
+/** The Match Thread's first message: when the Invite expires, then when the Match ends. */
+export const clockMessage = (v: CardView): Payload => ({
+  content:
+    v.state === "invite" && v.expiresAt !== null
+      ? `⏳ Invite expires <t:${unix(v.expiresAt)}:R>`
+      : v.state === "live" && v.endsAt !== null
+        ? `⏱️ **Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
+        : "🏁 **Finished**",
+  ...quiet
+})
+
 /** What a thread post is drawn with, beyond the post itself. */
 export interface ThreadArt {
   /** A Player's marble emoji, by SteamID. */
