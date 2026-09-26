@@ -19,6 +19,9 @@ import {
   improvementScene,
   LINK_WIDTH,
   linkScene,
+  PROGRESSION_WIDTH,
+  type ProgressionImage,
+  progressionScene,
   ROW_WIDTH
 } from "./scenes.js"
 
@@ -88,6 +91,8 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
       improvement: (improvement: Improvement, name: string) => draw(improvementScene(improvement, name), ROW_WIDTH),
       footer,
       link: (preview: ProfilePreview) => draw(linkScene(preview), LINK_WIDTH),
+      /** After the Result: every PB of the Match over its clock. */
+      progression: (image: ProgressionImage) => draw(progressionScene(image), PROGRESSION_WIDTH),
       /** A bare marble, for the lifecycle-line emojis. */
       marble: (hue: number) => rasterise(marbleSvg(hue, 64))
     }

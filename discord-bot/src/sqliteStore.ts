@@ -35,7 +35,10 @@ const MatchSchema = Schema.Struct({
   startedAt: Schema.NullOr(Schema.Number),
   endsAt: Schema.NullOr(Schema.Number),
   map: Schema.NullOr(DrawnMapSchema),
-  bestTicks: Schema.Record({ key: Schema.String, value: Schema.Number })
+  bestTicks: Schema.Record({ key: Schema.String, value: Schema.Number }),
+  history: Schema.optionalWith(Schema.Array(Schema.Struct({ steamId: Schema.String, ticks: Schema.Number, at: Schema.Number })), {
+    default: () => []
+  })
 })
 
 /** Fails to compile if the stored shape and the domain's Match drift apart, in either direction. */

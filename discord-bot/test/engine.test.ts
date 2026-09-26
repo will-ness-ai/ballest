@@ -253,7 +253,7 @@ describe("Eligible Map", () => {
       yield* advance("10 seconds")
       expect(improvements(yield* h.surface.posts(id)).map((i) => i.player)).toEqual([ALICE])
       yield* advance("5 minutes")
-      const result = (yield* h.surface.posts(id)).at(-1)
+      const result = (yield* h.surface.posts(id)).findLast((p) => p._tag === "Result")
       if (result?._tag !== "Result") return expect.unreachable()
       expect(result.standings.map((s) => [s.player.discordId, s.rank])).toEqual([
         [ALICE.discordId, 1],
@@ -345,9 +345,9 @@ describe("during the Match", () => {
       yield* advance("10 seconds")
       yield* advance("10 seconds") // nothing new: nothing posted
       expect(improvements(yield* h.surface.posts(id))).toEqual([
-        { player: BOB, ticks: ticks(26), medal: "silver", rank: 1, previousTicks: null, previousRank: null },
-        { player: ALICE, ticks: ticks(24), medal: "gold", rank: 1, previousTicks: null, previousRank: null },
-        { player: BOB, ticks: ticks(19.5), medal: "author", rank: 1, previousTicks: ticks(26), previousRank: 2 }
+        { player: BOB, ticks: ticks(26), medal: "silver", rank: 1, previousTicks: null, previousRank: null, beatWorldRecord: null },
+        { player: ALICE, ticks: ticks(24), medal: "gold", rank: 1, previousTicks: null, previousRank: null, beatWorldRecord: null },
+        { player: BOB, ticks: ticks(19.5), medal: "author", rank: 1, previousTicks: ticks(26), previousRank: 2, beatWorldRecord: null }
       ])
       const card = Option.getOrThrow(yield* h.surface.card(id))
       expect(card.standings.map((s) => [s.player.discordId, s.rank])).toEqual([
@@ -387,6 +387,78 @@ describe("during the Match", () => {
   )
 })
 
+describe("world records", () => {
+  it.scoped("marks each PB that beats the WR as it stands, measured against the WR it beat", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] }) // WR 15 s at the start
+      const id = yield* h.engine.openInvite(ALICE.discordId, { type: "lobby", minutes: 5, target: null })
+      yield* h.engine.join(BOB.discordId, id)
+      yield* h.engine.start(ALICE.discordId, id)
+      yield* h.steam.setTime(1, ALICE.steamId, 16)
+      yield* advance("10 seconds")
+      yield* h.steam.setTime(1, ALICE.steamId, 14.8)
+      yield* advance("10 seconds")
+      yield* h.steam.setTime(1, BOB.steamId, 14.9) // under the old WR, but not Alice's new one
+      yield* advance("10 seconds")
+      yield* h.steam.setTime(1, BOB.steamId, 14.5)
+      yield* advance("10 seconds")
+      expect(improvements(yield* h.surface.posts(id)).map((i) => [i.player.discordId, i.beatWorldRecord])).toEqual([
+        [ALICE.discordId, null],
+        [ALICE.discordId, ticks(15)],
+        [BOB.discordId, null],
+        [BOB.discordId, ticks(14.8)]
+      ])
+    })
+  )
+
+  it.scoped("measures two breaks in one poll each against the WR it beat", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] })
+      const id = yield* h.engine.openInvite(ALICE.discordId, { type: "lobby", minutes: 5, target: null })
+      yield* h.engine.join(BOB.discordId, id)
+      yield* h.engine.start(ALICE.discordId, id)
+      yield* h.steam.setTime(1, ALICE.steamId, 14.9)
+      yield* h.steam.setTime(1, BOB.steamId, 14.7)
+      yield* advance("10 seconds")
+      const byPlayer = Object.fromEntries(improvements(yield* h.surface.posts(id)).map((i) => [i.player.discordId, i.beatWorldRecord]))
+      expect(byPlayer).toEqual({ [ALICE.discordId]: ticks(15), [BOB.discordId]: ticks(14.9) })
+    })
+  )
+})
+
+describe("the progression graph", () => {
+  it.scoped("follows the Result with every PB of the Match and when it was set", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] })
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1)
+      yield* h.engine.accept(BOB.discordId, id)
+      yield* h.steam.setTime(1, BOB.steamId, 22)
+      yield* advance("30 seconds")
+      yield* h.steam.setTime(1, BOB.steamId, 20)
+      yield* advance("5 minutes")
+      const posts = yield* h.surface.posts(id)
+      expect(tags(posts).slice(-2)).toEqual(["Result", "Progression"])
+      const graph = posts.at(-1)
+      if (graph?._tag !== "Progression") return expect.unreachable()
+      expect(graph.history).toEqual([
+        { steamId: BOB.steamId, ticks: ticks(22), at: 10_000 },
+        { steamId: BOB.steamId, ticks: ticks(20), at: 40_000 }
+      ])
+      expect(graph.card.state).toBe("finished")
+    })
+  )
+
+  it.scoped("isn't posted when nobody set a time", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] })
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1)
+      yield* h.engine.accept(BOB.discordId, id)
+      yield* advance("5 minutes")
+      expect(tags(yield* h.surface.posts(id)).at(-1)).toBe("Result")
+    })
+  )
+})
+
 describe("the Result", () => {
   it.scoped("is read the moment the Match ends, ranked, with DNF last", () =>
     Effect.gen(function* () {
@@ -402,7 +474,7 @@ describe("the Result", () => {
       yield* h.steam.setTime(1, CARA.steamId, 18) // after the end: doesn't count
       yield* advance("1 minute")
       const posts = yield* h.surface.posts(id)
-      const result = posts.at(-1)
+      const result = posts.findLast((p) => p._tag === "Result")
       expect(result?._tag).toBe("Result")
       if (result?._tag !== "Result") return
       expect(result.standings.map((s) => [s.player.discordId, s.rank, s.medal])).toEqual([
@@ -424,7 +496,7 @@ describe("the Result", () => {
       yield* h.steam.setTime(1, ALICE.steamId, 23)
       yield* h.steam.setTime(1, BOB.steamId, 23)
       yield* advance("5 minutes")
-      const result = (yield* h.surface.posts(id)).at(-1)
+      const result = (yield* h.surface.posts(id)).findLast((p) => p._tag === "Result")
       if (result?._tag !== "Result") return expect.unreachable()
       expect(result.standings.map((s) => s.rank)).toEqual([1, 1])
     })
@@ -452,7 +524,7 @@ describe("the Result", () => {
       yield* h.steam.setTime(1, BOB.steamId, 21)
       yield* h.steam.failNextReads(3)
       yield* advance("10 seconds")
-      const result = (yield* h.surface.posts(id)).at(-1)
+      const result = (yield* h.surface.posts(id)).findLast((p) => p._tag === "Result")
       if (result?._tag !== "Result") return expect.unreachable()
       expect(result.standings.map((s) => [s.player.discordId, s.rank])).toEqual([
         [ALICE.discordId, 1],
@@ -470,7 +542,7 @@ describe("the Result", () => {
       yield* h.steam.setTime(1, BOB.steamId, 25)
       yield* h.steam.failNextReads(2)
       yield* advance("5 seconds")
-      const result = (yield* h.surface.posts(id)).at(-1)
+      const result = (yield* h.surface.posts(id)).findLast((p) => p._tag === "Result")
       if (result?._tag !== "Result") return expect.unreachable()
       expect(result.standings[0]?.player).toEqual(BOB)
     })
@@ -493,7 +565,7 @@ describe("restart", () => {
       yield* advance("0 seconds")
       const stored = Option.getOrThrow(yield* h.store.getMatch(id)) satisfies Match
       expect(stored.state).toBe("finished")
-      expect((yield* h.surface.posts(id)).at(-1)?._tag).toBe("Result")
+      expect(tags(yield* h.surface.posts(id))).toContain("Result")
     })
   )
 

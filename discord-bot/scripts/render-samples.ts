@@ -60,8 +60,34 @@ const cards: Record<string, CardView> = {
     players: [chkn, tilt, grav, maxx],
     map,
     standings: [standing(grav, 13.977, 1, "author"), standing(chkn, 14.861, 2, "gold"), standing(tilt, 16.402, 3, "silver"), standing(maxx, null, null, null)]
+  },
+  // gravwell beat the 12.981 WR: the WR ribbon replaces their medal
+  "card-final-wr": {
+    ...base,
+    state: "finished",
+    players: [chkn, tilt, grav, maxx],
+    map,
+    standings: [standing(grav, 12.94, 1, "author"), standing(chkn, 13.2, 2, "author"), standing(tilt, 16.402, 3, "silver"), standing(maxx, null, null, null)]
   }
 }
+
+/** A 15-minute Lobby's PBs as they happened: seconds into the Match, Player, time. */
+const pbs = (events: ReadonlyArray<readonly [number, Player, number]>) =>
+  events.map(([s, player, t]) => ({ steamId: player.steamId, ticks: Math.round(t * T), at: s * 1000 }))
+const race = pbs([
+  [70, tilt, 19.45],
+  [112, chkn, 17.09],
+  [150, chkn, 15.66],
+  [210, grav, 16.96],
+  [265, chkn, 14.89],
+  [300, grav, 14.18],
+  [375, tilt, 15.75],
+  [428, tilt, 14.52],
+  [511, grav, 13.31],
+  [665, grav, 12.94],
+  [728, chkn, 13.2],
+  [870, tilt, 14.02]
+])
 
 const program = Effect.gen(function* () {
   const renderer = yield* Renderer
@@ -72,9 +98,23 @@ const program = Effect.gen(function* () {
   for (const [name, view] of Object.entries(cards)) yield* save(name, yield* renderer.card({ view, names, preview: null }))
   yield* save(
     "row-lead",
-    yield* renderer.improvement({ player: grav, ticks: 14.59 * T, medal: "gold", rank: 1, previousTicks: 17.244 * T, previousRank: 2 }, "gravwell")
+    yield* renderer.improvement({ player: grav, ticks: 14.59 * T, medal: "gold", rank: 1, previousTicks: 17.244 * T, previousRank: 2, beatWorldRecord: null }, "gravwell")
   )
-  yield* save("row-first", yield* renderer.improvement({ player: tilt, ticks: 16.402 * T, medal: "silver", rank: 2, previousTicks: null, previousRank: null }, "tilt_queen"))
+  yield* save("row-first", yield* renderer.improvement({ player: tilt, ticks: 16.402 * T, medal: "silver", rank: 2, previousTicks: null, previousRank: null, beatWorldRecord: null }, "tilt_queen"))
+  yield* save(
+    "row-wr",
+    yield* renderer.improvement(
+      { player: grav, ticks: 12.94 * T, medal: "author", rank: 1, previousTicks: 13.31 * T, previousRank: 1, beatWorldRecord: 12.981 * T },
+      "gravwell"
+    )
+  )
+  const finalWr = cards["card-final-wr"]
+  if (finalWr !== undefined) {
+    yield* save("progression-wr", yield* renderer.progression({ view: finalWr, history: race, names }))
+    // シドニー brought a PB into the Match: dotted until beaten (here, never)
+    const withPb = { ...finalWr, map: { ...map, personalBests: { [maxx.steamId]: 14.3 * T } } }
+    yield* save("progression-pb", yield* renderer.progression({ view: withPb, history: race, names }))
+  }
   yield* save("footer", yield* renderer.footer)
   yield* save("link", yield* renderer.link({ steamId: "76561198012345678", personaName: "ChknThugget", avatarUrl: "", campaignTracks: 21, campaignTrackTotal: 23 }))
   yield* save("marble", yield* renderer.marble(96))

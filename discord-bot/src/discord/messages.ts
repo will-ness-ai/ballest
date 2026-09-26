@@ -125,7 +125,7 @@ export const clockMessage = (v: CardView): Payload => ({ content: clockText(v) ?
 /** What a thread post is drawn with, beyond the post itself. */
 export interface ThreadArt {
   readonly marbles: MarbleEmojis
-  /** The post's image: the Card for Go! and the Result, the row for an Improvement. */
+  /** The post's image: the Card for Go! and the Result, the row for an Improvement, the graph after the Result. */
   readonly png: Buffer | null
 }
 
@@ -163,6 +163,13 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
         allowedMentions: { users: post.players.map((p) => p.discordId) }
       }
     case "Improved":
+      // A world record gets its line; no pings.
+      return {
+        content: post.improvement.beatWorldRecord === null ? "" : `🏆 **NEW WORLD RECORD** · ${who(post.improvement.player.discordId)}`,
+        ...pic,
+        ...quiet
+      }
+    case "Progression":
       return { content: "", ...pic, ...quiet }
     case "Result":
       return {

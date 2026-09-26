@@ -240,6 +240,20 @@ describe("the channel", () => {
   )
 })
 
+describe("the end of a Match", () => {
+  it.scoped("posts the progression graph after the Result, in the same thread", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup
+      const surface = yield* start
+      const finished = view("m1", { state: "finished", standings: [{ player: ALICE, ticks: 1_500_000, rank: 1, medal: null }] })
+      yield* surface.showCard(view("m1"))
+      yield* surface.post("m1", ThreadPost.Result({ standings: finished.standings, card: finished }))
+      yield* surface.post("m1", ThreadPost.Progression({ card: finished, history: [{ steamId: ALICE.steamId, ticks: 1_500_000, at: 60_000 }] }))
+      expect(channel.threadPosts("m1")).toEqual(["Result", "Progression"])
+    })
+  )
+})
+
 describe("after a restart", () => {
   it.scoped("leaves the Footer alone when it's still last, and keeps drawing Cards in place", () =>
     Effect.gen(function* () {

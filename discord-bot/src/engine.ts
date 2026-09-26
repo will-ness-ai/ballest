@@ -3,6 +3,7 @@
 import { Chunk, Clock, Config, Data, Effect, FiberMap, Option, Random, Ref } from "effect"
 import {
   authorTimeFits,
+  currentWorldRecord,
   expiresAt,
   inMatch,
   involves,
@@ -215,9 +216,20 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         return before.players.some((p) => p.steamId === e.steamId) && (bar === undefined || e.ticks < bar)
       })
       if (changed.length === 0) return before
+      const at = (yield* Clock.currentTimeMillis) - (before.startedAt ?? 0)
+      // Slowest first, so two WR breaks in one poll are each measured against the WR they beat.
+      const inOrder = [...changed].sort((a, b) => b.ticks - a.ticks)
+      let worldRecord = currentWorldRecord(before) ?? Infinity
+      const beaten = new Map<string, number>()
+      for (const e of inOrder)
+        if (e.ticks < worldRecord) {
+          beaten.set(e.steamId, worldRecord)
+          worldRecord = e.ticks
+        }
       const after: Match = {
         ...before,
-        bestTicks: { ...before.bestTicks, ...Object.fromEntries(changed.map((e) => [e.steamId, e.ticks])) }
+        bestTicks: { ...before.bestTicks, ...Object.fromEntries(changed.map((e) => [e.steamId, e.ticks])) },
+        history: [...before.history, ...inOrder.map((e) => ({ steamId: e.steamId, ticks: e.ticks, at }))]
       }
       const improvements = changed
         .flatMap((e): Array<Improvement> => {
@@ -231,7 +243,8 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
                   medal: medalFor(e.ticks, map.medals),
                   rank: rankOf(after, e.steamId) ?? 1,
                   previousTicks: barOf(e.steamId) ?? null,
-                  previousRank: rankOf(before, e.steamId)
+                  previousRank: rankOf(before, e.steamId),
+                  beatWorldRecord: beaten.get(e.steamId) ?? null
                 }
               ]
         })
@@ -280,6 +293,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
             const done: Match = { ...withFinalRead, state: "finished" }
             yield* save(done)
             yield* surface.post(done.id, ThreadPost.Result({ standings: standings(done), card: cardOf(done) }))
+            if (done.history.length > 0) yield* surface.post(done.id, ThreadPost.Progression({ card: cardOf(done), history: done.history }))
           })
         )
       },
@@ -320,7 +334,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           if (accepted !== null) yield* surface.post(full.id, ThreadPost.Accepted({ player: accepted }))
           const startedAt = yield* Clock.currentTimeMillis
           const endsAt = startedAt + full.minutes * 60_000
-          const live: Match = { ...full, state: "live", startedAt, endsAt, map, bestTicks: {} }
+          const live: Match = { ...full, state: "live", startedAt, endsAt, map, bestTicks: {}, history: [] }
           yield* save(live)
           yield* surface.post(live.id, ThreadPost.Started({ players: live.players, map, endsAt, card: cardOf(live) }))
           const bars = live.players.flatMap((player) => {
@@ -387,7 +401,8 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           startedAt: null,
           endsAt: null,
           map: null,
-          bestTicks: {}
+          bestTicks: {},
+          history: []
         }
         yield* save(m)
         yield* surface.post(m.id, ThreadPost.Opened({ by: creator, type: m.type, minutes: m.minutes }))

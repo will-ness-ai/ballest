@@ -42,7 +42,8 @@ it.scoped("keeps Links and Matches across a reopen of the database file", () =>
         worldRecordTicks: 1_500_000,
         personalBests: { "s-b": 2_400_000 }
       },
-      bestTicks: { "s-a": 2_100_000 }
+      bestTicks: { "s-a": 2_100_000 },
+      history: [{ steamId: "s-a", ticks: 2_100_000, at: 42_000 }]
     }
 
     yield* Effect.scoped(
