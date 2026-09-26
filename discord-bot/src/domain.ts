@@ -40,6 +40,11 @@ export interface MapInfo {
 export interface DrawnMap extends MapInfo {
   readonly boardId: number
   readonly worldRecordTicks: number
+  /**
+   * PBs the Match's Players already held on this Map when it was drawn, keyed by SteamID;
+   * empty unless every candidate had been Played. A Player's run counts only if it beats theirs.
+   */
+  readonly personalBests: Readonly<Record<string, number>>
 }
 
 export interface Player {
@@ -129,3 +134,11 @@ export const standings = (m: Match): ReadonlyArray<Standing> => {
 
 export const rankOf = (m: Match, steamId: string): number | null =>
   standings(m).find((s) => s.player.steamId === steamId)?.rank ?? null
+
+/** m:ss.mmm, as the leaderboard site writes times. */
+export const formatTime = (ticks: number): string => {
+  const totalMs = Math.round((ticks / SCORE_TICKS_PER_SECOND) * 1000)
+  const m = Math.floor(totalMs / 60_000)
+  const s = Math.floor((totalMs % 60_000) / 1000)
+  return `${m}:${String(s).padStart(2, "0")}.${String(totalMs % 1000).padStart(3, "0")}`
+}

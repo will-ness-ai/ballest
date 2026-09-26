@@ -1,6 +1,6 @@
 // The Match engine: every Match rule, with Discord, Steam and storage behind ports.
 // Inputs are Player actions (the methods below) and the clock; outputs go to Surface.
-import { Clock, Config, Data, Effect, FiberMap, Option, Random, Ref } from "effect"
+import { Chunk, Clock, Config, Data, Effect, FiberMap, Option, Random, Ref } from "effect"
 import {
   authorTimeFits,
   expiresAt,
@@ -40,6 +40,9 @@ export class MatchNotFound extends Data.TaggedError("MatchNotFound")<{ readonly 
 export class NotOpen extends Data.TaggedError("NotOpen")<{ readonly matchId: string }> {}
 export class NotAllowed extends Data.TaggedError("NotAllowed")<{ readonly reason: string }> {}
 export class NotEnoughPlayers extends Data.TaggedError("NotEnoughPlayers")<{ readonly count: number; readonly min: number }> {}
+/** Most candidate Maps checked when drawing, about 20 s of Steam reads. */
+const MAP_CHECKS = 60
+
 export class NoEligibleMap extends Data.TaggedError("NoEligibleMap")<{ readonly matchId: string }> {}
 
 /** Every way an action can be turned down. */
@@ -170,20 +173,29 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     /**
      * A random Eligible Map. The author-time rule filters the Workshop list for free; each
      * shuffled candidate then costs one board check (world record, who has Played it), so
-     * only the Maps actually tried are ever read.
+     * only the Maps actually tried are ever read. When every Map tried has been Played by
+     * someone here, the one the fewest have Played is drawn, and their PBs become the bar.
+     * At most MAP_CHECKS are tried, so a Player who has Played nearly everything can't stall
+     * the start.
      */
     const pickMap = Effect.fn("pickMap")(function* (m: Match) {
       const catalogue = yield* steam.catalogue
       const shuffled = yield* Random.shuffle(catalogue.filter((map) => authorTimeFits(map, m.minutes)))
       const steamIds = m.players.map((p) => p.steamId)
-      for (const map of shuffled) {
+      let fallback: DrawnMap | null = null
+      for (const map of Chunk.take(shuffled, MAP_CHECKS)) {
         const c = yield* steam.check(map, steamIds).pipe(Effect.retry({ times: 2 }))
-        if (c.boardId === null || c.worldRecordTicks === null) continue
-        if (!worldRecordFits(c.worldRecordTicks) || c.playedBy.length > 0) continue
-        const drawn: DrawnMap = { ...map, boardId: c.boardId, worldRecordTicks: c.worldRecordTicks }
-        return drawn
+        if (c.boardId === null || c.worldRecordTicks === null || !worldRecordFits(c.worldRecordTicks)) continue
+        const drawn: DrawnMap = {
+          ...map,
+          boardId: c.boardId,
+          worldRecordTicks: c.worldRecordTicks,
+          personalBests: Object.fromEntries(c.played.map((e) => [e.steamId, e.ticks]))
+        }
+        if (c.played.length === 0) return drawn
+        if (fallback === null || c.played.length < Object.keys(fallback.personalBests).length) fallback = drawn
       }
-      return yield* new NoEligibleMap({ matchId: m.id })
+      return fallback ?? (yield* new NoEligibleMap({ matchId: m.id }))
     })
 
     // ---------------------------------------------------------------- the live Match
@@ -196,9 +208,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     const applyEntries = Effect.fn("applyEntries")(function* (before: Match, entries: ReadonlyArray<Entry>) {
       const map = before.map
       if (map === null) return before
+      /** The time to beat: the Player's best this Match, else the PB they held on the Map before it. */
+      const barOf = (steamId: string) => before.bestTicks[steamId] ?? map.personalBests[steamId]
       const changed = entries.filter((e) => {
-        const previous = before.bestTicks[e.steamId]
-        return before.players.some((p) => p.steamId === e.steamId) && (previous === undefined || e.ticks < previous)
+        const bar = barOf(e.steamId)
+        return before.players.some((p) => p.steamId === e.steamId) && (bar === undefined || e.ticks < bar)
       })
       if (changed.length === 0) return before
       const after: Match = {
@@ -216,7 +230,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
                   ticks: e.ticks,
                   medal: medalFor(e.ticks, map.medals),
                   rank: rankOf(after, e.steamId) ?? 1,
-                  previousTicks: before.bestTicks[e.steamId] ?? null,
+                  previousTicks: barOf(e.steamId) ?? null,
                   previousRank: rankOf(before, e.steamId)
                 }
               ]
@@ -309,6 +323,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           const live: Match = { ...full, state: "live", startedAt, endsAt, map, bestTicks: {} }
           yield* save(live)
           yield* surface.post(live.id, ThreadPost.Started({ players: live.players, map, endsAt, card: cardOf(live) }))
+          const bars = live.players.flatMap((player) => {
+            const ticks = map.personalBests[player.steamId]
+            return ticks === undefined ? [] : [{ player, ticks }]
+          })
+          if (bars.length > 0) yield* surface.post(live.id, ThreadPost.PlayedBefore({ bars }))
           yield* FiberMap.run(timers, live.id, runLive(live.id))
         })
       )

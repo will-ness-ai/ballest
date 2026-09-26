@@ -82,13 +82,13 @@ const make = Effect.gen(function* () {
     check: (map, steamIds) =>
       Effect.gen(function* () {
         const boardId = yield* boardIdOf(map)
-        if (Option.isNone(boardId)) return { boardId: null, worldRecordTicks: null, playedBy: [] }
+        if (Option.isNone(boardId)) return { boardId: null, worldRecordTicks: null, played: [] }
         const top = yield* session.top(boardId.value)
         const played = yield* session.players(boardId.value, steamIds)
         return {
           boardId: boardId.value,
           worldRecordTicks: Option.match(top, { onNone: () => null, onSome: (e) => e.score }),
-          playedBy: played.map((e) => e.steamId)
+          played: played.map((e) => ({ steamId: e.steamId, ticks: e.score }))
         }
       }),
 

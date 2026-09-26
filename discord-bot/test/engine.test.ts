@@ -227,6 +227,65 @@ describe("Eligible Map", () => {
     })
   )
 
+  it.scoped("draws a Played Map when every candidate has been Played, and pings whoever must beat their PB", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [makeMap(2)] })
+      yield* h.steam.setTime(2, BOB.steamId, 20)
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1)
+      yield* h.engine.accept(BOB.discordId, id)
+      expect(Option.getOrThrow(yield* h.surface.card(id)).map).toMatchObject({ boardId: 2, personalBests: { [BOB.steamId]: ticks(20) } })
+      const posts = yield* h.surface.posts(id)
+      expect(tags(posts).slice(-2)).toEqual(["Started", "PlayedBefore"])
+      expect(posts.at(-1)).toEqual(ThreadPost.PlayedBefore({ bars: [{ player: BOB, ticks: ticks(20) }] }))
+    })
+  )
+
+  it.scoped("counts a Player's run on a Played Map only once it beats their PB, and makes them DNF otherwise", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [makeMap(2)] })
+      yield* h.steam.setTime(2, BOB.steamId, 20)
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1)
+      yield* h.engine.accept(BOB.discordId, id)
+      // Bob's board entry is still his old PB: it doesn't count
+      yield* advance("10 seconds")
+      expect(improvements(yield* h.surface.posts(id))).toEqual([])
+      yield* h.steam.setTime(2, ALICE.steamId, 25)
+      yield* advance("10 seconds")
+      expect(improvements(yield* h.surface.posts(id)).map((i) => i.player)).toEqual([ALICE])
+      yield* advance("5 minutes")
+      const result = (yield* h.surface.posts(id)).at(-1)
+      if (result?._tag !== "Result") return expect.unreachable()
+      expect(result.standings.map((s) => [s.player.discordId, s.rank])).toEqual([
+        [ALICE.discordId, 1],
+        [BOB.discordId, null]
+      ])
+    })
+  )
+
+  it.scoped("shows a run that beats the PB as an Improvement over it", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [makeMap(2)] })
+      yield* h.steam.setTime(2, BOB.steamId, 20)
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1)
+      yield* h.engine.accept(BOB.discordId, id)
+      yield* h.steam.setTime(2, BOB.steamId, 19)
+      yield* advance("10 seconds")
+      expect(improvements(yield* h.surface.posts(id))).toMatchObject([{ player: BOB, ticks: ticks(19), previousTicks: ticks(20), rank: 1 }])
+    })
+  )
+
+  it.scoped("tries at most 60 Maps before settling on a Played one", () =>
+    Effect.gen(function* () {
+      const maps = Array.from({ length: 100 }, (_, i) => makeMap(100 + i))
+      const h = yield* makeHarness({ maps })
+      for (const map of maps) if (map.boardId !== null) yield* h.steam.setTime(map.boardId, BOB.steamId, 20)
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1)
+      yield* h.engine.accept(BOB.discordId, id)
+      expect(yield* h.steam.reads).toBe(60)
+      expect(Option.getOrThrow(yield* h.surface.card(id)).state).toBe("live")
+    })
+  )
+
   it.scoped("reads only the boards it tries, not the whole Workshop", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: Array.from({ length: 50 }, (_, i) => makeMap(100 + i)) })

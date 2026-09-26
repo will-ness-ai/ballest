@@ -78,9 +78,9 @@ export const makeFakeSteam = (profiles: Record<string, ProfilePreview>) =>
       check: (map, steamIds) =>
         Effect.gen(function* () {
           const known = (yield* Ref.get(catalogue)).find((m) => m.boardName === map.boardName)
-          if (known === undefined || known.boardId === null) return { boardId: null, worldRecordTicks: null, playedBy: [] }
+          if (known === undefined || known.boardId === null) return { boardId: null, worldRecordTicks: null, played: [] }
           const entries = yield* read(known.boardId, steamIds)
-          return { boardId: known.boardId, worldRecordTicks: known.worldRecordTicks, playedBy: entries.map((e) => e.steamId) }
+          return { boardId: known.boardId, worldRecordTicks: known.worldRecordTicks, played: entries }
         }),
       readPlayers: read,
       resolveProfile: (input) => {

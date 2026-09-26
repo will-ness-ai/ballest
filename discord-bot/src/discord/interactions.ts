@@ -40,7 +40,7 @@ const explain = (e: Rejection, self: string): string =>
     NotAllowed: ({ reason }) => reason,
     NotEnoughPlayers: ({ min }) => `A Lobby needs at least ${min} Players to start.`,
     NoEligibleMap: () =>
-      "No Map fits this Match: someone here has finished every candidate, or none suits the length. The Invite is closed.",
+      "No Map suits this length. The Invite is closed; a longer Match allows more Maps.",
     SteamUnavailable: () => "Steam didn't answer. Try again in a moment.",
     ProfileNotFound: ({ reason }) => reason
   })

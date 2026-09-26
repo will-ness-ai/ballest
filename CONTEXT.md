@@ -61,9 +61,11 @@ starts it, with at least two Players.
 _Avoid_: public lobby, room
 
 **Eligible Map**:
-A Map that no Player in the Match has Played, whose world record is between 5 seconds
-and 5 minutes, and whose author time is at most a tenth of the Match's duration. The
-Match's Map is drawn at random from these.
+A Map whose world record is between 5 seconds and 5 minutes and whose author time is at
+most a tenth of the Match's duration. The Match's Map is drawn at random from the ones no
+Player in the Match has Played. When every one tried has been Played, the one the fewest
+Players have Played is drawn instead, and each of them counts only with a run faster than
+the PB they already held on it; otherwise they finish DNF.
 _Avoid_: map pool, candidate
 
 **Match Thread**:

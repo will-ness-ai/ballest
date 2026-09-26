@@ -40,7 +40,7 @@ const program = Effect.gen(function* () {
   const candidate = maps.find((m) => authorTimeFits(m, 15))
   if (candidate === undefined) return yield* Effect.die("no Map fits 15 minutes")
   const c1 = yield* timed(`check "${candidate.title}"`, steam.check(candidate, [MAIN, BOT]))
-  console.log(`  board ${c1.boardId}, WR ${c1.worldRecordTicks === null ? "-" : seconds(c1.worldRecordTicks) + " s"}, played by [${c1.playedBy}]`)
+  console.log(`  board ${c1.boardId}, WR ${c1.worldRecordTicks === null ? "-" : seconds(c1.worldRecordTicks) + " s"}, played by [${c1.played.map((e) => e.steamId)}]`)
   yield* timed("check again (board id cached)", steam.check(candidate, [MAIN, BOT]))
 
   const e = yield* timed("readPlayers Map_Track13", steam.readPlayers(MAP_TRACK13, [MAIN, BOT]))
