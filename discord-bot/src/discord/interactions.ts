@@ -38,7 +38,7 @@ const explain = (e: Rejection, self: string): string =>
     MatchNotFound: () => "That Invite is gone.",
     NotOpen: () => "That Invite isn't open anymore.",
     NotAllowed: ({ reason }) => reason,
-    NotEnoughPlayers: () => "A Lobby needs at least 2 Players to start.",
+    NotEnoughPlayers: ({ min }) => `A Lobby needs at least ${min} Players to start.`,
     NoEligibleMap: () =>
       "No Map fits this Match: someone here has finished every candidate, or none suits the length. The Invite is closed.",
     SteamUnavailable: () => "Steam didn't answer. Try again in a moment.",
