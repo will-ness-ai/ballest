@@ -125,8 +125,6 @@ export const clockMessage = (v: CardView): Payload => ({ content: clockText(v) ?
 /** What a thread post is drawn with, beyond the post itself. */
 export interface ThreadArt {
   readonly marbles: MarbleEmojis
-  /** The Match's latest Card, when the bot has it. */
-  readonly view: CardView | null
   /** The post's image: the Card for Go! and the Result, the row for an Improvement. */
   readonly png: Buffer | null
 }
@@ -142,11 +140,11 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
         ...quiet
       }
     case "Challenged": {
-      const v = art.view
-      const length = v === null ? "" : ` · ${v.minutes} min`
-      const answer = v === null || v.expiresAt === null ? "" : ` · answer <t:${unix(v.expiresAt)}:R>`
       return {
-        content: line(art.marbles.forPlayer(post.by.steamId), `${who(post.target.discordId)} **${who(post.by.discordId)}** challenges you${length}${answer}`),
+        content: line(
+          art.marbles.forPlayer(post.by.steamId),
+          `${who(post.target.discordId)} **${who(post.by.discordId)}** challenges you · ${post.minutes} min · answer <t:${unix(post.expiresAt)}:R>`
+        ),
         components: [row(acceptButton(matchId), declineButton(matchId))],
         allowedMentions: { users: [post.target.discordId] }
       }

@@ -84,7 +84,7 @@ const make = Effect.gen(function* () {
     setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }))
   const setFooter = (footerId: string | null) => setLayout((l) => ({ ...l, footerId }))
 
-  /** The latest view of each Card, to name a Match Thread started late. */
+  /** The latest view of each Card, only to name a Match Thread started late. */
   const views = yield* Ref.make(new Map<string, CardView>())
   /** What each thread's clock last showed, so it is only redrawn when that changes. */
   const clocks = yield* Ref.make(new Map<string, string>())
@@ -195,8 +195,7 @@ const make = Effect.gen(function* () {
     function* (matchId: string, post: ThreadPost) {
       const threadId = yield* threadOf(matchId)
       if (Option.isNone(threadId)) return yield* Effect.logWarning(`no thread for ${matchId}; dropped a ${post._tag} post`)
-      const view = (yield* Ref.get(views)).get(matchId) ?? null
-      yield* channel.postInThread(threadId.value, matchId, post, view)
+      yield* channel.postInThread(threadId.value, matchId, post)
       // The Result is the last thing a Match's Card and thread ever get.
       if (post._tag === "Result") yield* lock.withPermits(1)(forget(matchId))
     },

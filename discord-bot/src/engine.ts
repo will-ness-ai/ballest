@@ -265,7 +265,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
             const withFinalRead = Option.isSome(entries) ? yield* applyEntries(current, entries.value) : current
             const done: Match = { ...withFinalRead, state: "finished" }
             yield* save(done)
-            yield* surface.post(done.id, ThreadPost.Result({ standings: standings(done) }))
+            yield* surface.post(done.id, ThreadPost.Result({ standings: standings(done), card: cardOf(done) }))
           })
         )
       },
@@ -308,7 +308,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           const endsAt = startedAt + full.minutes * 60_000
           const live: Match = { ...full, state: "live", startedAt, endsAt, map, bestTicks: {} }
           yield* save(live)
-          yield* surface.post(live.id, ThreadPost.Started({ players: live.players, map, endsAt }))
+          yield* surface.post(live.id, ThreadPost.Started({ players: live.players, map, endsAt, card: cardOf(live) }))
           yield* FiberMap.run(timers, live.id, runLive(live.id))
         })
       )
@@ -372,7 +372,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         }
         yield* save(m)
         yield* surface.post(m.id, ThreadPost.Opened({ by: creator, type: m.type, minutes: m.minutes }))
-        if (target !== null) yield* surface.post(m.id, ThreadPost.Challenged({ by: creator, target }))
+        if (target !== null) yield* surface.post(m.id, ThreadPost.Challenged({ by: creator, target, minutes: m.minutes, expiresAt: expiresAt(m) }))
         yield* scheduleExpiry(m)
         return m.id
       }, locked),

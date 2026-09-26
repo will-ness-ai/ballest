@@ -80,6 +80,10 @@ describe("Public 1v1", () => {
       expect(card).toMatchObject({ state: "live", expiresAt: null, endsAt: 6 * 60_000 })
       expect(card.map?.boardId).toBe(1)
       expect(tags(yield* h.surface.posts(id))).toEqual(["Opened", "Accepted", "Started"])
+      // The start ping shows the live Card itself
+      const started = (yield* h.surface.posts(id)).at(-1)
+      if (started?._tag !== "Started") return expect.unreachable()
+      expect(started.card).toEqual(card)
     })
   )
 
@@ -131,6 +135,10 @@ describe("Challenge", () => {
       const h = yield* makeHarness({ maps: [MAP] })
       const id = yield* h.engine.openInvite(ALICE.discordId, challenge(BOB.discordId))
       expect(tags(yield* h.surface.posts(id))).toEqual(["Opened", "Challenged"])
+      // The ping says how long the Match is and when the answer is due
+      const ping = (yield* h.surface.posts(id)).at(-1)
+      if (ping?._tag !== "Challenged") return expect.unreachable()
+      expect(ping).toMatchObject({ minutes: challenge(BOB.discordId).minutes, expiresAt: Option.getOrThrow(yield* h.surface.card(id)).expiresAt })
       expect((yield* Effect.flip(h.engine.accept(CARA.discordId, id)))._tag).toBe("NotAllowed")
       yield* h.engine.accept(BOB.discordId, id)
       expect(Option.getOrThrow(yield* h.surface.card(id)).state).toBe("live")
@@ -344,6 +352,8 @@ describe("the Result", () => {
         [CARA.discordId, null, null]
       ])
       expect(Option.getOrThrow(yield* h.surface.card(id))).toMatchObject({ state: "finished", endsAt: null })
+      // The Result shows the finished Card itself
+      expect(result.card).toEqual(Option.getOrThrow(yield* h.surface.card(id)))
     })
   )
 

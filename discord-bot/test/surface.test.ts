@@ -94,7 +94,7 @@ const makeFakeChannel = () => {
         clockDraws++
         return Effect.void
       }),
-    postInThread: (threadId, _matchId, post, _view) =>
+    postInThread: (threadId, _matchId, post) =>
       Effect.suspend(() => {
         const thread = threads.get(threadId)
         if (thread === undefined) return Effect.fail(new Gone({ id: threadId }))
@@ -248,7 +248,7 @@ describe("after a restart", () => {
       const surface = yield* start
       expect(channel.order()).toEqual(["card m1", "footer"])
       yield* surface.showCard(view("m1", { state: "live" }))
-      yield* surface.post("m1", ThreadPost.Result({ standings: [] }))
+      yield* surface.post("m1", ThreadPost.Result({ standings: [], card: view("m1", { state: "finished" }) }))
       expect(channel.order()).toEqual(["card m1", "footer"])
       expect(channel.threadPosts("m1")).toEqual(["Result"])
     })

@@ -40,13 +40,7 @@ export class Channel extends Context.Tag("multiballs/Channel")<
     /** Open a Match Thread with its clock; the clock message's id. */
     readonly postClock: (threadId: string, view: CardView) => Effect.Effect<string, Gone | DiscordError>
     readonly redrawClock: (threadId: string, messageId: string, view: CardView) => Effect.Effect<void, Gone | DiscordError>
-    /** `view` is the Match's latest Card, which the start ping and the Result are drawn from. */
-    readonly postInThread: (
-      threadId: string,
-      matchId: string,
-      post: ThreadPost,
-      view: CardView | null
-    ) => Effect.Effect<void, ChannelError>
+    readonly postInThread: (threadId: string, matchId: string, post: ThreadPost) => Effect.Effect<void, ChannelError>
     /** The id of the channel's newest message, whoever posted it. */
     readonly lastMessageId: Effect.Effect<string | null, DiscordError>
   }
@@ -136,10 +130,10 @@ export const DiscordChannelLive = Layer.effect(
       })
 
     /** The image a thread post carries, if any. */
-    const threadPng = Effect.fn("threadPng")(function* (post: ThreadPost, view: CardView | null) {
+    const threadPng = Effect.fn("threadPng")(function* (post: ThreadPost) {
       if (post._tag === "Improved")
         return yield* renderer.improvement(post.improvement, yield* discord.displayName(post.improvement.player.discordId))
-      if ((post._tag === "Started" || post._tag === "Result") && view !== null) return yield* drawCard(view)
+      if (post._tag === "Started" || post._tag === "Result") return yield* drawCard(post.card)
       return null
     })
 
@@ -179,10 +173,10 @@ export const DiscordChannelLive = Layer.effect(
           Effect.flatMap((m) => tryDiscord("redraw clock", () => m.edit(clockMessage(view)))),
           Effect.asVoid
         ),
-      postInThread: Effect.fn("postInThread")(function* (threadId: string, matchId: string, post: ThreadPost, view: CardView | null) {
+      postInThread: Effect.fn("postInThread")(function* (threadId: string, matchId: string, post: ThreadPost) {
         const thread = yield* fetchThread(threadId)
-        const png = yield* threadPng(post, view)
-        const art: ThreadArt = { marbles, view, png }
+        const png = yield* threadPng(post)
+        const art: ThreadArt = { marbles, png }
         yield* tryDiscord(`post ${post._tag}`, () => thread.send(threadMessage(matchId, post, art)))
       }),
       lastMessageId: tryDiscord("fetch last message", () => channel.messages.fetch({ limit: 1 })).pipe(
