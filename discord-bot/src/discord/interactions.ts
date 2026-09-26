@@ -10,6 +10,7 @@ import {
 import { Effect, Layer, Match, Option, Ref, Stream } from "effect"
 import { Engine, type Rejection } from "../engine.js"
 import { Store, type ProfilePreview } from "../ports.js"
+import { Renderer } from "../render/renderer.js"
 import { Discord, type DiscordError, tryDiscord } from "./client.js"
 import { type Action, parseControl } from "./controls.js"
 import {
@@ -53,6 +54,7 @@ export const InteractionsLive = Layer.scopedDiscard(
     const discord = yield* Discord
     const engine = yield* Engine
     const store = yield* Store
+    const renderer = yield* Renderer
     const previews = yield* Ref.make(new Map<string, ProfilePreview>())
     const pending = yield* Ref.make(new Map<string, Pending>())
 
@@ -173,7 +175,8 @@ export const InteractionsLive = Layer.scopedDiscard(
       const found = yield* engine.previewLink(input).pipe(Effect.either)
       if (found._tag === "Left") return yield* tryDiscord("edit reply", () => i.editReply(tryAgainMessage(explain(found.left, i.user.id))))
       yield* Ref.update(previews, (m) => new Map(m).set(i.user.id, found.right))
-      yield* tryDiscord("edit reply", () => i.editReply(linkPreviewMessage(found.right)))
+      const png = yield* renderer.link(found.right)
+      yield* tryDiscord("edit reply", () => i.editReply(linkPreviewMessage(png)))
     })
 
     const route = (i: Interaction): Effect.Effect<void, DiscordError> => {

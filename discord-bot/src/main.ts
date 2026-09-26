@@ -7,8 +7,10 @@ import { Config, Layer } from "effect"
 import { Discord } from "./discord/client.js"
 import { InteractionsLive } from "./discord/interactions.js"
 import { DiscordChannelLive } from "./discord/channel.js"
+import { Marbles } from "./discord/marbles.js"
 import { ChannelSurfaceLive } from "./discord/surface.js"
 import { Engine } from "./engine.js"
+import { Renderer } from "./render/renderer.js"
 import { SqliteStoreLive } from "./sqliteStore.js"
 import { SteamLive } from "./steam/steamLive.js"
 
@@ -22,9 +24,10 @@ const SqlLive = SqliteClient.layerConfig({
 })
 
 // Discord first, so the Footer is in place before the engine's restart recovery redraws Cards.
-const SurfaceLive = ChannelSurfaceLive.pipe(Layer.provide(DiscordChannelLive))
+const SurfaceLive = ChannelSurfaceLive.pipe(Layer.provide(DiscordChannelLive), Layer.provide(Marbles.Default))
 
 const PortsLive = Layer.mergeAll(SteamLive, SurfaceLive, SqliteStoreLive).pipe(
+  Layer.provideMerge(Renderer.Default),
   Layer.provideMerge(Discord.Default),
   Layer.provideMerge(SqlLive)
 )

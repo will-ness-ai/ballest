@@ -152,7 +152,7 @@ export const UNLINKED = "d-nobody"
 const link = (p: { discordId: string; steamId: string }): Link => ({ ...p, personaName: p.discordId.slice(2) })
 
 export const PROFILES: Record<string, ProfilePreview> = {
-  "https://steamcommunity.com/id/alice": { steamId: ALICE.steamId, personaName: "alice", avatarUrl: "", campaignTracks: 21 }
+  "https://steamcommunity.com/id/alice": { steamId: ALICE.steamId, personaName: "alice", avatarUrl: "", campaignTracks: 21, campaignTrackTotal: 23 }
 }
 
 /**

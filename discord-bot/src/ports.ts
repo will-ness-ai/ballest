@@ -28,6 +28,8 @@ export interface ProfilePreview {
   readonly avatarUrl: string
   /** How many of the campaign Tracks this account holds a time on (the Link confirmation shows it). */
   readonly campaignTracks: number
+  /** How many campaign Tracks there are. */
+  readonly campaignTrackTotal: number
 }
 
 export class Steam extends Context.Tag("multiballs/Steam")<

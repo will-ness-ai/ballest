@@ -151,7 +151,8 @@ const make = Effect.gen(function* () {
     function* (matchId: string, post: ThreadPost) {
       const threadId = yield* threadOf(matchId)
       if (Option.isNone(threadId)) return yield* Effect.logWarning(`no thread for ${matchId}; dropped a ${post._tag} post`)
-      yield* channel.postInThread(threadId.value, matchId, post)
+      const view = (yield* Ref.get(views)).get(matchId) ?? null
+      yield* channel.postInThread(threadId.value, matchId, post, view)
       // The Result is the last thing a Match's Card and thread ever get.
       if (post._tag === "Result") yield* lock.withPermits(1)(forget(matchId))
     },

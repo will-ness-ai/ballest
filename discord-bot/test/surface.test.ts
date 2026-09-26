@@ -76,7 +76,7 @@ const makeFakeChannel = () => {
       }),
     deleteThread: (threadId) =>
       Effect.suspend(() => (threads.delete(threadId) ? Effect.void : Effect.fail(new Gone({ id: threadId })))),
-    postInThread: (threadId, _matchId, post) =>
+    postInThread: (threadId, _matchId, post, _view) =>
       Effect.suspend(() => {
         const thread = threads.get(threadId)
         if (thread === undefined) return Effect.fail(new Gone({ id: threadId }))

@@ -114,14 +114,16 @@ const make = Effect.gen(function* () {
         const summary = (yield* web.summaries([steamId]))[0]
         if (summary === undefined) return yield* new ProfileNotFound({ input, reason: "no Steam account with that id" })
         let campaignTracks = 0
-        for (const boardId of yield* web.campaignBoardIds()) {
+        const campaign = yield* web.campaignBoardIds()
+        for (const boardId of campaign) {
           if ((yield* session.players(boardId, [steamId])).length > 0) campaignTracks++
         }
         const preview: ProfilePreview = {
           steamId,
           personaName: summary.personaname,
           avatarUrl: summary.avatarfull,
-          campaignTracks
+          campaignTracks,
+          campaignTrackTotal: campaign.length
         }
         return preview
       })

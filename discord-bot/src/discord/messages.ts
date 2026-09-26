@@ -1,9 +1,8 @@
-// Every message the bot posts, as discord.js payloads, and the ids its buttons carry.
-//
-// Interim look: embeds and text. The rendered images (Match Card, Improvement rows, Footer)
-// replace these in the renderer PR; the layout, buttons and flows here stay.
+// Every message the bot posts, as discord.js payloads. The images in them come from
+// src/render/; here they are only attached, with the buttons and text around them.
 import {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
@@ -13,25 +12,23 @@ import {
   UserSelectMenuBuilder,
   type BaseMessageOptions
 } from "discord.js"
-import { DURATIONS, SCORE_TICKS_PER_SECOND, type MatchType, type MedalKind, type Minutes, type Standing } from "../domain.js"
-import type { CardView, ProfilePreview, ThreadPost } from "../ports.js"
+import { DURATIONS, type MatchType, type Minutes } from "../domain.js"
+import { RESULT_HUE, START_HUE } from "../render/art.js"
+import type { CardView, ThreadPost } from "../ports.js"
 import { type Action, type Control, controlId } from "./controls.js"
+
+/**
+ * A message to post or edit. `attachments: []` on an edit drops the old image; discord.js adds
+ * the new files to it, so the same payload posts and redraws.
+ */
+export type Payload = BaseMessageOptions & { readonly attachments?: Array<never> }
 
 export const PROFILE_FIELD = "profile"
 
 // ---------------------------------------------------------------- formatting
 
 const TYPE_NAME: Record<MatchType, string> = { public: "Public 1v1", challenge: "Challenge", lobby: "Lobby" }
-const MEDAL_NAME: Record<MedalKind, string> = { bronze: "Bronze", silver: "Silver", gold: "Gold", author: "Author" }
 
-/** m:ss.mmm, as the leaderboard site writes times. */
-export const formatTime = (ticks: number): string => {
-  const totalMs = Math.round((ticks / SCORE_TICKS_PER_SECOND) * 1000)
-  const m = Math.floor(totalMs / 60_000)
-  const s = Math.floor((totalMs % 60_000) / 1000)
-  return `${m}:${String(s).padStart(2, "0")}.${String(totalMs % 1000).padStart(3, "0")}`
-}
-const formatGain = (ticks: number) => `-${((ticks / SCORE_TICKS_PER_SECOND)).toFixed(3)}`
 const unix = (ms: number) => Math.floor(ms / 1000)
 const who = (discordId: string) => `<@${discordId}>`
 const workshopUrl = (pfid: string) => `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`
@@ -39,37 +36,23 @@ const workshopUrl = (pfid: string) => `https://steamcommunity.com/sharedfiles/fi
 /** Mentions shown as names without pinging anyone. */
 export const quiet = { allowedMentions: { parse: [] } } as const
 
-const standingLines = (standings: ReadonlyArray<Standing>) =>
-  standings
-    .map((s) =>
-      s.ticks === null
-        ? `– ${who(s.player.discordId)} · DNF`
-        : `**${s.rank}.** ${who(s.player.discordId)} · \`${formatTime(s.ticks)}\`${s.medal ? ` · ${MEDAL_NAME[s.medal]}` : ""}`
-    )
-    .join("\n")
-
 const button = (label: string, control: Control, style = ButtonStyle.Secondary, disabled = false) =>
   new ButtonBuilder().setCustomId(controlId(control)).setLabel(label).setStyle(style).setDisabled(disabled)
 
 const row = (...buttons: Array<ButtonBuilder>) => new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons)
 
+const workshopButton = (pfid: string) =>
+  row(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Open Map in Workshop").setURL(workshopUrl(pfid)))
+
+/** A rendered image, attached; editing a message with one replaces the old. */
+const image = (png: Buffer, name: string) => ({ files: [new AttachmentBuilder(png, { name })], attachments: [] })
+
 // ---------------------------------------------------------------- the Footer
 
-export const footerMessage = (): BaseMessageOptions => ({
+export const footerMessage = (png: Buffer): Payload => ({
   content: "",
-  embeds: [
-    new EmbedBuilder()
-      .setTitle("Multiballs")
-      .setDescription(
-        [
-          "**1 · Pick a mode:** Public 1v1, Challenge or Lobby",
-          "**2 · Map is drawn:** a Map no one here has finished",
-          "**3 · Fastest wins:** best time when the clock runs out",
-          "",
-          "-# Unofficial community tool · not made or supported by the Ballest developers"
-        ].join("\n")
-      )
-  ],
+  embeds: [],
+  ...image(png, "multiballs.png"),
   components: [row(button("New Match", { _tag: "NewMatch" }, ButtonStyle.Primary), button("Link Steam", { _tag: "LinkSteam" }))],
   ...quiet
 })
@@ -83,6 +66,7 @@ const acceptButton = (matchId: string) => button("Accept", act("accept", matchId
 const declineButton = (matchId: string) => button("Decline", act("decline", matchId), ButtonStyle.Danger)
 
 const cardButtons = (v: CardView) => {
+  if (v.state === "live" && v.map !== null) return [workshopButton(v.map.pfid)]
   if (v.state !== "invite") return []
   const cancel = button("Cancel", act("cancel", v.matchId))
   if (v.type === "public") return [row(acceptButton(v.matchId), cancel)]
@@ -97,95 +81,88 @@ const cardButtons = (v: CardView) => {
   ]
 }
 
-export const cardMessage = (v: CardView): BaseMessageOptions => {
-  const card = new EmbedBuilder()
-  if (v.state === "invite") {
-    card
-      .setTitle(`${TYPE_NAME[v.type]} · ${v.minutes} minutes`)
-      .setDescription(
-        [
-          v.type === "challenge" && v.target ? `${who(v.creator.discordId)} challenges ${who(v.target.discordId)}` : "",
-          `**Players:** ${v.players.map((p) => who(p.discordId)).join(", ")}`,
-          "**Map:** drawn at the start, one no one here has finished"
-        ]
-          .filter(Boolean)
-          .join("\n")
-      )
-  } else if (v.map) {
-    card
-      .setTitle(`${v.state === "live" ? "Live" : "Final"} · ${v.map.title}`)
-      .setURL(workshopUrl(v.map.pfid))
-      .setDescription(
-        [`by ${v.map.creator} · ${TYPE_NAME[v.type]} · ${v.minutes} min · WR \`${formatTime(v.map.worldRecordTicks)}\``, "", standingLines(v.standings)].join("\n")
-      )
-    if (v.map.previewUrl) card.setThumbnail(v.map.previewUrl)
-  }
+/** The Card image, with the clock as a Discord timestamp below it: the image never shows one. */
+export const cardMessage = (v: CardView, png: Buffer): Payload => {
   const clock =
     v.expiresAt !== null
-      ? new EmbedBuilder().setDescription(`Invite expires <t:${unix(v.expiresAt)}:R>`)
+      ? new EmbedBuilder().setColor(0x4e5058).setDescription(`Invite expires <t:${unix(v.expiresAt)}:R>`)
       : v.endsAt !== null
-        ? new EmbedBuilder().setDescription(`**Live** · ends <t:${unix(v.endsAt)}:R>`)
+        ? new EmbedBuilder().setColor(0x8be03c).setDescription(`**Live** · ends <t:${unix(v.endsAt)}:R>`)
         : null
-  return { content: "", embeds: clock ? [card, clock] : [card], components: cardButtons(v), ...quiet }
+  return {
+    content: "",
+    embeds: clock === null ? [] : [clock],
+    ...image(png, `match-${v.matchId}.png`),
+    components: cardButtons(v),
+    ...quiet
+  }
 }
 
 const NO_MAP = "No Map fits this Match: someone here has finished every candidate, or none suits the length."
 
 /** A Card whose Invite was cancelled because no Map is eligible: it stays, saying why. */
-export const closedCardMessage = (): BaseMessageOptions => ({
+export const closedCardMessage = (): Payload => ({
   content: "",
   embeds: [new EmbedBuilder().setTitle("Cancelled").setDescription(NO_MAP)],
+  files: [],
+  attachments: [],
   components: [],
   ...quiet
 })
 
-// ---------------------------------------------------------------- Match Thread posts
+// ---------------------------------------------------------------- Match Thread posts ("Marble Icons")
 
-export const threadMessage = (matchId: string, post: ThreadPost): BaseMessageOptions => {
+/** What a thread post is drawn with, beyond the post itself. */
+export interface ThreadArt {
+  /** A Player's marble emoji, by SteamID. */
+  readonly marbleOf: (steamId: string) => string
+  /** The marble emoji nearest a hue. */
+  readonly marbleAt: (hue: number) => string
+  /** The Match's latest Card, when the bot has it. */
+  readonly view: CardView | null
+  /** The post's image: the Card for Go! and the Result, the row for an Improvement. */
+  readonly png: Buffer | null
+}
+
+const line = (marble: string, text: string) => (marble === "" ? text : `${marble} ${text}`)
+
+export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt): Payload => {
+  const pic = art.png === null ? {} : image(art.png, `${post._tag.toLowerCase()}.png`)
   switch (post._tag) {
     case "Opened":
-      return { content: `${who(post.by.discordId)} opened a ${post.minutes}-minute ${TYPE_NAME[post.type]}`, ...quiet }
-    case "Challenged":
       return {
-        content: `${who(post.target.discordId)} ${who(post.by.discordId)} challenges you.`,
+        content: line(art.marbleOf(post.by.steamId), `**${who(post.by.discordId)}** opened a ${post.minutes}-minute ${TYPE_NAME[post.type]}`),
+        ...quiet
+      }
+    case "Challenged": {
+      const v = art.view
+      const length = v === null ? "" : ` · ${v.minutes} min`
+      const answer = v === null || v.expiresAt === null ? "" : ` · answer <t:${unix(v.expiresAt)}:R>`
+      return {
+        content: line(art.marbleOf(post.by.steamId), `${who(post.target.discordId)} **${who(post.by.discordId)}** challenges you${length}${answer}`),
         components: [row(acceptButton(matchId), declineButton(matchId))],
         allowedMentions: { users: [post.target.discordId] }
       }
+    }
     case "Accepted":
-      return { content: `${who(post.player.discordId)} accepted`, ...quiet }
+      return { content: line(art.marbleOf(post.player.steamId), `**${who(post.player.discordId)}** accepted`), ...quiet }
     case "Joined":
-      return { content: `${who(post.player.discordId)} joined`, ...quiet }
+      return { content: line(art.marbleOf(post.player.steamId), `**${who(post.player.discordId)}** joined`), ...quiet }
     case "Left":
-      return { content: `${who(post.player.discordId)} left`, ...quiet }
-    case "Started": {
-      const url = workshopUrl(post.map.pfid)
-      const m = post.map.medals
+      return { content: `-# ${line(art.marbleOf(post.player.steamId), `**${who(post.player.discordId)}** left`)}`, ...quiet }
+    case "Started":
       return {
-        content: `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** Ends <t:${unix(post.endsAt)}:R>`,
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(post.map.title)
-            .setURL(url)
-            .setDescription(
-              `by ${post.map.creator}\nWR \`${formatTime(post.map.worldRecordTicks)}\` · Author \`${m.author}s\` · Gold \`${m.gold}s\` · Silver \`${m.silver}s\` · Bronze \`${m.bronze}s\``
-            )
-            .setImage(post.map.previewUrl || null)
-        ],
-        components: [row(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Open Map in Workshop").setURL(url))],
+        content: line(art.marbleAt(START_HUE), `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** Ends <t:${unix(post.endsAt)}:R>`),
+        ...pic,
+        components: [workshopButton(post.map.pfid)],
         allowedMentions: { users: post.players.map((p) => p.discordId) }
       }
-    }
-    case "Improved": {
-      const imp = post.improvement
-      const gain = imp.previousTicks === null ? "" : ` ${formatGain(imp.previousTicks - imp.ticks)}`
-      return {
-        content: `${imp.rank === 1 ? "🥇 " : ""}**P${imp.rank}** ${who(imp.player.discordId)} \`${formatTime(imp.ticks)}\`${gain}${imp.medal ? ` · ${MEDAL_NAME[imp.medal]}` : ""}`,
-        ...quiet
-      }
-    }
+    case "Improved":
+      return { content: "", ...pic, ...quiet }
     case "Result":
       return {
-        content: post.standings.every((s) => s.rank === null) ? "**Final result:** no finishers" : `**Final result**\n${standingLines(post.standings)}`,
+        content: line(art.marbleAt(RESULT_HUE), post.standings.every((s) => s.rank === null) ? "**Final result** · no finishers" : "**Final result**"),
+        ...pic,
         ...quiet
       }
     case "NoMap":
@@ -198,7 +175,7 @@ export const threadMessage = (matchId: string, post: ThreadPost): BaseMessageOpt
 
 // ---------------------------------------------------------------- New Match (Type First), privately
 
-export const pickTypeMessage = (): BaseMessageOptions => ({
+export const pickTypeMessage = (): Payload => ({
   content: "**What kind of Match?**",
   components: [
     row(
@@ -209,7 +186,7 @@ export const pickTypeMessage = (): BaseMessageOptions => ({
   ]
 })
 
-export const pickTargetMessage = (): BaseMessageOptions => ({
+export const pickTargetMessage = (): Payload => ({
   content: "**Challenge · who?**",
   components: [
     new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(
@@ -218,7 +195,7 @@ export const pickTargetMessage = (): BaseMessageOptions => ({
   ]
 })
 
-export const pickDurationMessage = (type: MatchType, target: string | null, chosen: Minutes | null): BaseMessageOptions => {
+export const pickDurationMessage = (type: MatchType, target: string | null, chosen: Minutes | null): Payload => {
   const durations = DURATIONS.map((minutes) =>
     button(
       `${minutes}m`,
@@ -261,20 +238,17 @@ export const linkForm = () =>
       )
     )
 
-export const linkPreviewMessage = (p: ProfilePreview): BaseMessageOptions => ({
+export const linkPreviewMessage = (png: Buffer): Payload => ({
   content: "**Is this your Steam account?**",
-  embeds: [
-    new EmbedBuilder()
-      .setTitle(p.personaName)
-      .setURL(`https://steamcommunity.com/profiles/${p.steamId}`)
-      .setDescription(`SteamID ${p.steamId} · times on ${p.campaignTracks} campaign Tracks`)
-      .setThumbnail(p.avatarUrl || null)
-  ],
+  embeds: [],
+  ...image(png, "steam-account.png"),
   components: [row(button("Yes, link it", { _tag: "ConfirmLink" }, ButtonStyle.Success), button("Try again", { _tag: "LinkSteam" }))]
 })
 
-export const tryAgainMessage = (text: string): BaseMessageOptions => ({
+export const tryAgainMessage = (text: string): Payload => ({
   content: text,
   embeds: [],
+  files: [],
+  attachments: [],
   components: [row(button("Try again", { _tag: "LinkSteam" }))]
 })
