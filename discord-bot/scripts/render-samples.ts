@@ -20,7 +20,8 @@ const map = {
   boardName: "",
   medals: { bronze: 20, silver: 17, gold: 15.5, author: 14.2 },
   boardId: 1,
-  worldRecordTicks: 12.981 * T
+  worldRecordTicks: 12.981 * T,
+  personalBests: {}
 }
 const standing = (player: Player, seconds: number | null, rank: number | null, medal: Standing["medal"]): Standing => ({
   player,
@@ -49,7 +50,8 @@ const cards: Record<string, CardView> = {
     ...base,
     state: "live",
     players: [chkn, tilt, grav, maxx],
-    map,
+    // シドニー had finished this Map before, so only a run under their PB counts
+    map: { ...map, personalBests: { [maxx.steamId]: 14.95 * T } },
     standings: [standing(grav, 14.59, 1, "gold"), standing(chkn, 15.118, 2, "gold"), standing(tilt, 16.402, 3, "silver"), standing(maxx, null, null, null)]
   },
   "card-final-lobby": {

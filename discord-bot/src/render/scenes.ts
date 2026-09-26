@@ -1,7 +1,7 @@
 // What each image looks like, as element trees for Satori (flexbox and CSS, no browser). The
 // settled design is the prototype on branch claude/prototype-discord-bot-surfaces; check any
 // change by eye with `pnpm render:samples`.
-import { MATCH_TYPE_NAME, type MedalKind, type Medals, SCORE_TICKS_PER_SECOND } from "../domain.js"
+import { formatTime, MATCH_TYPE_NAME, type MedalKind, type Medals, SCORE_TICKS_PER_SECOND } from "../domain.js"
 import type { CardView, Improvement, ProfilePreview } from "../ports.js"
 import { hueFor, MEDAL_BAR, marbleSvg, medalHeight, medalSvg, svgUri } from "./art.js"
 
@@ -97,13 +97,6 @@ const chip = (text: string, style: Style = {}, lead: El | null = null) =>
 
 // ---------------------------------------------------------------- formatting
 
-/** m:ss.mmm, as the leaderboard site writes times. */
-const formatTime = (ticks: number): string => {
-  const totalMs = Math.round((ticks / SCORE_TICKS_PER_SECOND) * 1000)
-  const m = Math.floor(totalMs / 60_000)
-  const s = Math.floor((totalMs % 60_000) / 1000)
-  return `${m}:${String(s).padStart(2, "0")}.${String(totalMs % 1000).padStart(3, "0")}`
-}
 /** A medal target in seconds, as the medal bars show it: 14.200, or 1:02.500 past a minute. */
 const formatTarget = (seconds: number) => formatTime(seconds * SCORE_TICKS_PER_SECOND).replace(/^0:/, "")
 const formatSeconds = (ticks: number) => (ticks / SCORE_TICKS_PER_SECOND).toFixed(3)
@@ -228,6 +221,13 @@ const rowsOf = (card: CardImage): ReadonlyArray<Row> => {
   }
   const live = view.state === "live"
   const leader = view.standings[0]?.ticks ?? null
+  const personalBests = view.map?.personalBests ?? {}
+  /** What a Player without a counted time is told, which differs for one who must beat their PB. */
+  const untimed = (steamId: string) => {
+    const pb = personalBests[steamId]
+    if (pb === undefined) return live ? "no time yet" : "did not finish"
+    return live ? `must beat their PB ${formatTime(pb)}` : `didn't beat their PB ${formatTime(pb)}`
+  }
   return view.standings.map((s) => ({
     rank: s.rank === null ? "–" : String(s.rank),
     rankColour: placeColour(s.rank),
@@ -236,9 +236,7 @@ const rowsOf = (card: CardImage): ReadonlyArray<Row> => {
     name: nameOf(s.player.discordId),
     note:
       s.ticks === null
-        ? live
-          ? "no time yet"
-          : "did not finish"
+        ? untimed(s.player.steamId)
         : s.rank === 1
           ? live
             ? "leads"

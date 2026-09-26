@@ -18,8 +18,8 @@ export interface MapCheck {
   /** Null when no board exists yet: nobody has finished the Map. */
   readonly boardId: number | null
   readonly worldRecordTicks: number | null
-  /** Which of the asked-about Players hold a time on it. */
-  readonly playedBy: ReadonlyArray<string>
+  /** The asked-about Players who hold a time on it, with that time: their PB. */
+  readonly played: ReadonlyArray<Entry>
 }
 
 export interface ProfilePreview {
@@ -89,6 +89,8 @@ export type ThreadPost = Data.TaggedEnum<{
   Started: { readonly players: ReadonlyArray<Player>; readonly map: DrawnMap; readonly endsAt: number; readonly card: CardView }
   Improved: { readonly improvement: Improvement }
   /** `card` is the finished Card the Result shows. */
+  /** Players who had finished the drawn Map before: only a run faster than `ticks`, their PB, counts. */
+  PlayedBefore: { readonly bars: ReadonlyArray<{ readonly player: Player; readonly ticks: number }> }
   Result: { readonly standings: ReadonlyArray<Standing>; readonly card: CardView }
   /** No Map is eligible, so the Invite is cancelled; everyone in it is told. */
   NoMap: { readonly players: ReadonlyArray<Player> }

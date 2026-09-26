@@ -19,7 +19,8 @@ const DrawnMapSchema = Schema.Struct({
   boardName: Schema.String,
   medals: Schema.Struct({ bronze: Schema.Number, silver: Schema.Number, gold: Schema.Number, author: Schema.Number }),
   boardId: Schema.Number,
-  worldRecordTicks: Schema.Number
+  worldRecordTicks: Schema.Number,
+  personalBests: Schema.optionalWith(Schema.Record({ key: Schema.String, value: Schema.Number }), { default: () => ({}) })
 })
 
 const MatchSchema = Schema.Struct({

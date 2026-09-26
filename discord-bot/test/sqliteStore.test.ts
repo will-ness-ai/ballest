@@ -39,7 +39,8 @@ it.scoped("keeps Links and Matches across a reopen of the database file", () =>
         boardName: "b",
         medals: { bronze: 40, silver: 30, gold: 25, author: 20 },
         boardId: 7,
-        worldRecordTicks: 1_500_000
+        worldRecordTicks: 1_500_000,
+        personalBests: { "s-b": 2_400_000 }
       },
       bestTicks: { "s-a": 2_100_000 }
     }

@@ -12,7 +12,7 @@ import {
   UserSelectMenuBuilder,
   type BaseMessageOptions
 } from "discord.js"
-import { DURATIONS, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js"
+import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js"
 import { RESULT_HUE, START_HUE } from "../render/art.js"
 import type { CardView, ThreadPost } from "../ports.js"
 import { type Action, type Control, controlId } from "./controls.js"
@@ -105,7 +105,7 @@ export const cardMessage = (v: CardView, png: Buffer): Payload => {
   }
 }
 
-const NO_MAP = "No Map fits this Match: someone here has finished every candidate, or none suits the length."
+const NO_MAP = "No Map fits this Match: none suits the length. A longer Match allows more Maps."
 
 /** A Card whose Invite was cancelled because no Map is eligible: it stays, saying why. */
 export const closedCardMessage = (): Payload => ({
@@ -170,6 +170,15 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
         ...pic,
         ...quiet
       }
+    case "PlayedBefore": {
+      const pings = post.bars.map((b) => who(b.player.discordId)).join(" ")
+      const pbs = post.bars.map((b) => `${who(b.player.discordId)} \`${formatTime(b.ticks)}\``).join(" · ")
+      return {
+        content: `${pings} you've finished this Map before, so only a run **faster than your PB** counts; otherwise you're DNF.
+-# PB to beat: ${pbs}`,
+        allowedMentions: { users: post.bars.map((b) => b.player.discordId) }
+      }
+    }
     case "NoMap":
       return {
         content: `${post.players.map((p) => who(p.discordId)).join(" ")} **Match cancelled.** ${NO_MAP}`,
