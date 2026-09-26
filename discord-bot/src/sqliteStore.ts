@@ -1,10 +1,10 @@
 // The Store, on SQLite. The running bot uses a file; tests use ":memory:", which runs the
 // same queries and migrations, so there is no separate hand-written store to drift.
-import { NodeContext } from "@effect/platform-node"
-import { Migrator, SqlClient, SqlSchema } from "@effect/sql"
-import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node"
+import { SqlClient, SqlSchema } from "@effect/sql"
+import { SqliteClient } from "@effect/sql-sqlite-node"
 import { Effect, Layer, Option, Schema } from "effect"
 import { DURATIONS, type Link, type Match } from "./domain.js"
+import { MigratorLive } from "./db.js"
 import { Store } from "./ports.js"
 
 // ---------------------------------------------------------------- how a Match is stored
@@ -50,28 +50,6 @@ void matchRoundTrips
 const MatchRow = Schema.Struct({ data: Schema.parseJson(MatchSchema) })
 
 const LinkRow = Schema.Struct({ discord_id: Schema.String, steam_id: Schema.String, persona_name: Schema.String })
-
-// ---------------------------------------------------------------- migrations
-
-export const MigratorLive = SqliteMigrator.layer({
-  loader: Migrator.fromRecord({
-    "0001_links_and_matches": Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient
-      yield* sql`CREATE TABLE links (
-        discord_id TEXT PRIMARY KEY,
-        steam_id TEXT NOT NULL,
-        persona_name TEXT NOT NULL
-      )`
-      yield* sql`CREATE TABLE matches (
-        id TEXT PRIMARY KEY,
-        state TEXT NOT NULL,
-        data TEXT NOT NULL
-      )`
-      yield* sql`CREATE INDEX matches_state ON matches (state)`
-      yield* sql`CREATE TABLE match_ids (n INTEGER PRIMARY KEY AUTOINCREMENT)`
-    })
-  })
-}).pipe(Layer.provide(NodeContext.layer))
 
 // ---------------------------------------------------------------- the Store
 
