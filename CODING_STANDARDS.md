@@ -22,6 +22,21 @@ rule here and every invariant in `CLAUDE.md`, and each finding names the rule it
   `podiums.json` keeps its previous copy when its input comes out empty.
 - `python tools/check_data.py` passes on the committed data after any collector change.
 
+## Discord bot (`discord-bot/`)
+
+- Every hunk follows the Effect rules in the `effect` skill (`~/.claude/skills/effect/SKILL.md`).
+  The ones this code has broken before:
+  - A Promise or a call that can throw is wrapped with `Effect.tryPromise` / `Effect.try` into a
+    tagged error; `Effect.promise` and `Effect.sync` wrap only calls that cannot fail.
+  - A function that returns an Effect is `Effect.fn("name")(function* ...)`, and a callback is
+    an explicit lambda.
+  - A failure is recovered by its tag; a defect stays a defect.
+- Run times convert through `SCORE_TICKS_PER_SECOND`, never a bare `100_000`.
+- A thread post or Card view carries everything its message shows; the Channel draws from the
+  post, never from state the post didn't bring.
+- Behaviour a Player could see is tested through the engine or the Surface port
+  (`test/engine.test.ts`, `test/surface.test.ts`).
+
 ## Docs
 
 - `CLAUDE.md`, this file and `tools/README-hosting.md` cite symbols (`fetch_board`,

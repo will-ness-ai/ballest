@@ -1,15 +1,17 @@
 // Multiballs: `pnpm start` from discord-bot/ in the main checkout (where .env lives).
-// Elsewhere, point MULTIBALLS_ENV at that .env file.
+// Elsewhere, point MULTIBALLS_ENV at that .env file, or run `pnpm dev` (scripts/dev.ts).
+import { appendFileSync } from "node:fs"
 import { PlatformConfigProvider } from "@effect/platform"
 import { NodeContext, NodeRuntime } from "@effect/platform-node"
 import { SqliteClient } from "@effect/sql-sqlite-node"
-import { Config, ConfigProvider, Effect, Layer } from "effect"
+import { Config, ConfigProvider, Effect, Layer, Logger, Option } from "effect"
 import { Discord } from "./discord/client.js"
 import { InteractionsLive } from "./discord/interactions.js"
 import { DiscordChannelLive } from "./discord/channel.js"
 import { Marbles } from "./discord/marbles.js"
 import { ChannelSurfaceLive } from "./discord/surface.js"
 import { Engine } from "./engine.js"
+import { InstanceLockLive } from "./instanceLock.js"
 import { Renderer } from "./render/renderer.js"
 import { SqliteStoreLive } from "./sqliteStore.js"
 import { SteamLive } from "./steam/steamLive.js"
@@ -31,6 +33,16 @@ const DevServerLive = Layer.unwrapEffect(
   })
 )
 
+/** With LOG_FILE set, every log line is also appended there as logfmt, for grepping. */
+const FileLogLive = Layer.unwrapEffect(
+  Effect.gen(function* () {
+    const file = yield* Config.option(Config.string("LOG_FILE"))
+    if (Option.isNone(file)) return Layer.empty
+    return Logger.add(Logger.map(Logger.logfmtLogger, (line) => appendFileSync(file.value, `${line}
+`)))
+  })
+)
+
 const SqlLive = SqliteClient.layerConfig({
   filename: Config.string("DB_PATH").pipe(Config.withDefault("multiballs.sqlite"))
 })
@@ -47,7 +59,9 @@ const PortsLive = Layer.mergeAll(SteamLive, SurfaceLive, SqliteStoreLive).pipe(
 const MainLive = InteractionsLive.pipe(
   Layer.provide(Engine.Default),
   Layer.provide(PortsLive),
+  Layer.provide(InstanceLockLive),
   Layer.provide(DevServerLive),
+  Layer.provide(FileLogLive),
   Layer.provide(ConfigLive)
 )
 

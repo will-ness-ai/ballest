@@ -1,4 +1,6 @@
 node_modules/
+# `pnpm dev`: its log and database
+.logs/
 # the bot's database (the path comes from discord-bot/.env)
 *.sqlite
 *.sqlite-shm

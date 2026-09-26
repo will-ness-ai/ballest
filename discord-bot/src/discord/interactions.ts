@@ -11,7 +11,7 @@ import { Effect, Layer, Match, Option, Ref, Stream } from "effect"
 import { Engine, type Rejection } from "../engine.js"
 import { Store, type ProfilePreview } from "../ports.js"
 import { Renderer, type RenderError } from "../render/renderer.js"
-import { Discord, type DiscordError, tryDiscord } from "./client.js"
+import { describeDiscordError, Discord, type DiscordError, oneLine, tryDiscord } from "./client.js"
 import { type Action, parseControl } from "./controls.js"
 import {
   linkForm,
@@ -186,9 +186,15 @@ export const InteractionsLive = Layer.scopedDiscard(
       return Effect.void
     }
 
+    const label = (i: Interaction) => ("customId" in i ? i.customId : String(i.type))
+
     const handle = (i: Interaction) =>
       route(i).pipe(
-        Effect.catchAllCause((cause) => Effect.logError(`interaction ${"customId" in i ? i.customId : i.type} failed`, cause))
+        // A Discord or drawing failure is one line; a defect is a bug, so it keeps its stack.
+        Effect.catchAll((e) =>
+          Effect.logError(`interaction ${label(i)} failed: ${e._tag === "DiscordError" ? describeDiscordError(e) : oneLine(e.cause)}`)
+        ),
+        Effect.catchAllDefect((defect) => Effect.logError(`interaction ${label(i)} failed`, defect))
       )
 
     yield* discord.interactions.pipe(
