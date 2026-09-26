@@ -1,25 +1,33 @@
-// The Surface port on Discord: runs the layout's plans against the channel and keeps the
-// resulting message and thread ids in SQLite. Discord failures are logged, never thrown at
+// The Surface port on a Channel: where each Card, its Match Thread and the Footer sit, kept in
+// SQLite so a restart picks up where it left off. Channel failures are logged, never thrown at
 // the engine: a Card that fails to redraw must not stop a Match.
+//
+// The rules (spec #21, stories 19-22, 31, 38):
+// - The Footer is always the channel's last message.
+// - A new Card is made by editing the Footer into it, then posting a fresh Footer, so Cards read
+//   top to bottom in the order their Invites opened. If the Footer was deleted by hand, the Card
+//   is posted fresh. If the Card can't be drawn at all, no Footer is posted above the gap.
+// - An expired, cancelled or declined Invite loses its Card and its Match Thread. One cancelled
+//   because no Map is eligible keeps both, its Card saying why, so every Player can see it.
+// - A Match Thread that fails to start is started on the Match's next thread post.
+// - A Card is forgotten once it will never change again: after its Result, or once removed.
 import { SqlClient, SqlSchema } from "@effect/sql"
-import { type Message } from "discord.js"
-import { Effect, Layer, Option, Ref, Schedule, Schema } from "effect"
+import { Effect, Layer, Option, Ref, Schema } from "effect"
 import { MigratorLive } from "../db.js"
 import { type CardView, type RemovalReason, Surface, type ThreadPost } from "../ports.js"
-import { Discord, DiscordError, tryDiscord } from "./client.js"
-import {
-  applyOp,
-  type Created,
-  emptyLayout,
-  forget,
-  type Layout,
-  Op,
-  planRemove,
-  planShowCard,
-  planStartup,
-  withThread
-} from "./layout.js"
-import { cardMessage, closedCardMessage, footerMessage, threadMessage, threadName } from "./messages.js"
+import { Channel, Drawing, type Gone } from "./channel.js"
+import type { DiscordError } from "./client.js"
+
+interface CardRef {
+  readonly messageId: string
+  /** Null until the Match Thread has started. */
+  readonly threadId: string | null
+}
+
+interface Layout {
+  readonly footerId: string | null
+  readonly cards: ReadonlyMap<string, CardRef>
+}
 
 const LayoutJson = Schema.parseJson(
   Schema.Struct({
@@ -30,21 +38,16 @@ const LayoutJson = Schema.parseJson(
   })
 )
 
-/** A missing message or thread (already deleted by hand). */
-const isUnknown = (e: DiscordError) =>
-  typeof e.cause === "object" && e.cause !== null && "code" in e.cause && (e.cause.code === 10008 || e.cause.code === 10003)
+const logFailure = (e: Gone | DiscordError) =>
+  e._tag === "Gone" ? Effect.logWarning(`${e.id} is gone`) : Effect.logError(`discord ${e.op} failed`, e.cause)
 
-/** Deleting something already gone counts as done. */
-const ignoreUnknown = <A>(effect: Effect.Effect<A, DiscordError>) =>
-  effect.pipe(
-    Effect.asVoid,
-    Effect.catchIf(isUnknown, () => Effect.void)
-  )
+/** Deleting or closing something already gone counts as done. */
+const unlessGone = <E extends Gone | DiscordError>(effect: Effect.Effect<void, E>) =>
+  effect.pipe(Effect.catchAll((e) => (e._tag === "Gone" ? Effect.void : logFailure(e))))
 
 const make = Effect.gen(function* () {
-  const discord = yield* Discord
+  const channel = yield* Channel
   const sql = yield* SqlClient.SqlClient
-  const channel = discord.channel
 
   const loadLayout = SqlSchema.findOne({
     Request: Schema.Void,
@@ -54,7 +57,7 @@ const make = Effect.gen(function* () {
   const saved = yield* loadLayout(undefined).pipe(Effect.orDie)
   const layout = yield* Ref.make<Layout>(
     Option.match(saved, {
-      onNone: () => emptyLayout,
+      onNone: () => ({ footerId: null, cards: new Map() }),
       onSome: ({ data }) => ({ footerId: data.footerId, cards: new Map(data.cards) })
     })
   )
@@ -63,138 +66,112 @@ const make = Effect.gen(function* () {
     const data = yield* Schema.encode(LayoutJson)({ footerId: next.footerId, cards: [...next.cards] })
     yield* sql`INSERT INTO discord_layout (id, data) VALUES (1, ${data}) ON CONFLICT (id) DO UPDATE SET data = excluded.data`
   }, Effect.orDie)
+  const setCard = (matchId: string, card: CardRef) =>
+    setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }))
+  const setFooter = (footerId: string | null) => setLayout((l) => ({ ...l, footerId }))
+
+  /** The latest view of each Card, to name a Match Thread started late. */
+  const views = yield* Ref.make(new Map<string, CardView>())
+
+  const forget = Effect.fn("forget")(function* (matchId: string) {
+    yield* Ref.update(views, (m) => {
+      const next = new Map(m)
+      next.delete(matchId)
+      return next
+    })
+    yield* setLayout((l) => {
+      const cards = new Map(l.cards)
+      cards.delete(matchId)
+      return { ...l, cards }
+    })
+  })
 
   const lock = yield* Effect.makeSemaphore(1)
-  const fetchMessage = (id: string) => tryDiscord("fetch message", () => channel.messages.fetch(id))
 
-  /** Start a Match Thread, retrying briefly. A failure leaves the Card thread-less; the next post tries again. */
-  const startThread = Effect.fn("startThread")(function* (message: Message, name: string) {
-    return yield* tryDiscord("start thread", () => message.startThread({ name })).pipe(
-      Effect.retry({ times: 2, schedule: Schedule.exponential("1 second") }),
-      Effect.map((thread) => thread.id),
-      Effect.tapError((e) => Effect.logError(`starting a thread failed (${e.op})`, e.cause)),
-      Effect.option,
-      Effect.map(Option.getOrUndefined)
+  /** Start a Card's Match Thread, retrying twice; none if it still won't start. */
+  const startThread = Effect.fn("startThread")(function* (matchId: string, messageId: string, view: CardView) {
+    const threadId = yield* channel.startThread(messageId, view).pipe(
+      Effect.retry({ times: 2, while: (e) => e._tag !== "Gone" }),
+      Effect.tapError((e) => logFailure(e)),
+      Effect.option
     )
+    if (Option.isSome(threadId)) yield* setCard(matchId, { messageId, threadId: threadId.value })
+    return threadId
   })
 
-  const threadNameOf = Effect.fn("threadNameOf")(function* (view: CardView) {
-    return threadName(view, yield* discord.displayName(view.creator.discordId))
+  /** A new Card in the Footer's place (or fresh if the Footer is gone), then a new Footer below it. */
+  const createCard = Effect.fn("createCard")(function* (view: CardView) {
+    const { footerId } = yield* Ref.get(layout)
+    const card = Drawing.Card({ view })
+    const messageId =
+      footerId === null
+        ? yield* channel.post(card)
+        : yield* channel.redraw(footerId, card).pipe(
+            Effect.as(footerId),
+            Effect.catchTag("Gone", () => channel.post(card))
+          )
+    yield* setFooter(null)
+    yield* setCard(view.matchId, { messageId, threadId: null })
+    yield* startThread(view.matchId, messageId, view)
+    yield* setFooter(yield* channel.post(Drawing.Footer()))
   })
 
-  /** A new Card: the Footer edited into it, or a fresh message if the Footer is gone. */
-  const createCard = Effect.fn("createCard")(function* (footerId: string | null, view: CardView) {
-    const footer = footerId === null ? Option.none() : yield* fetchMessage(footerId).pipe(
-      Effect.map(Option.some),
-      Effect.catchIf(isUnknown, () => Effect.succeedNone)
-    )
-    const message = Option.isSome(footer)
-      ? yield* tryDiscord("edit footer into card", () => footer.value.edit(cardMessage(view)))
-      : yield* tryDiscord("post card", () => channel.send(cardMessage(view)))
-    const threadId = yield* startThread(message, yield* threadNameOf(view))
-    const created: Created = threadId === undefined ? { messageId: message.id } : { messageId: message.id, threadId }
-    return created
-  })
-
-  /** Run one op, then record what it changed. */
-  const run = Effect.fn("run")(function* (op: Op, view: CardView | null) {
-    const created: Created = yield* Op.$match(op, {
-      FooterBecomesCard: ({ messageId }) => (view === null ? Effect.succeed({}) : createCard(messageId, view)),
-      PostCard: () => (view === null ? Effect.succeed({}) : createCard(null, view)),
-      EditCard: ({ messageId }) =>
-        view === null
-          ? Effect.succeed({})
-          : fetchMessage(messageId).pipe(
-              Effect.flatMap((message) => tryDiscord("edit card", () => message.edit(cardMessage(view)))),
-              Effect.as({})
-            ),
-      CloseCard: ({ messageId }) =>
-        fetchMessage(messageId).pipe(
-          Effect.flatMap((message) => tryDiscord("close card", () => message.edit(closedCardMessage()))),
-          ignoreUnknown,
-          Effect.as({})
-        ),
-      PostFooter: () =>
-        tryDiscord("post footer", () => channel.send(footerMessage())).pipe(Effect.map((m) => ({ messageId: m.id }))),
-      DeleteMessage: ({ messageId }) =>
-        fetchMessage(messageId).pipe(
-          Effect.flatMap((m) => tryDiscord("delete message", () => m.delete())),
-          ignoreUnknown,
-          Effect.as({})
-        ),
-      DeleteThread: ({ threadId }) =>
-        tryDiscord("fetch thread", () => channel.threads.fetch(threadId)).pipe(
-          Effect.flatMap((t) => (t === null ? Effect.void : tryDiscord("delete thread", async () => void (await t.delete())))),
-          ignoreUnknown,
-          Effect.as({})
-        )
-    })
-    yield* setLayout((current) => applyOp(current, op, created))
-  })
-
-  const logFailure = (e: DiscordError) => Effect.logError(`discord ${e.op} failed`, e.cause)
-
-  /** Every op, each on its own: one that fails is logged and the rest still run. */
-  const runEach = (ops: ReadonlyArray<Op>) =>
-    Effect.forEach(ops, (op) => run(op, null).pipe(Effect.catchAll((e) => logFailure(e))), { discard: true })
-
-  /** A Card's ops in order, stopping at the first failure so no Footer is posted above a missing Card. */
-  const runInOrder = (ops: ReadonlyArray<Op>, view: CardView) =>
-    Effect.forEach(ops, (op) => run(op, view), { discard: true }).pipe(Effect.catchAll((e) => logFailure(e)))
-
-  // Startup: the Footer must be the channel's last message, with today's wording.
-  yield* lock.withPermits(1)(
-    Effect.gen(function* () {
-      const latest = yield* tryDiscord("fetch last message", () => channel.messages.fetch({ limit: 1 })).pipe(
-        Effect.map((ms) => ms.first()?.id ?? null),
-        Effect.orElseSucceed(() => null)
-      )
-      const ops = planStartup(yield* Ref.get(layout), latest)
-      yield* runEach(ops)
-      const footerId = (yield* Ref.get(layout)).footerId
-      if (ops.length === 0 && footerId !== null)
-        yield* fetchMessage(footerId).pipe(
-          Effect.flatMap((m) => tryDiscord("refresh footer", () => m.edit(footerMessage()))),
-          Effect.catchAll((e) => Effect.logWarning(`footer refresh failed (${e.op})`))
-        )
-    })
+  const showCard = Effect.fn("showCard")(
+    function* (view: CardView) {
+      yield* Ref.update(views, (m) => new Map(m).set(view.matchId, view))
+      const card = (yield* Ref.get(layout)).cards.get(view.matchId)
+      if (card === undefined) return yield* createCard(view)
+      yield* channel.redraw(card.messageId, Drawing.Card({ view }))
+    },
+    Effect.catchAll((e) => logFailure(e)),
+    lock.withPermits(1)
   )
 
-  const showCard = Effect.fn("showCard")(function* (view: CardView) {
-    yield* runInOrder(planShowCard(yield* Ref.get(layout), view.matchId), view)
-  }, lock.withPermits(1))
-
   const remove = Effect.fn("remove")(function* (matchId: string, reason: RemovalReason) {
-    yield* runEach(planRemove(yield* Ref.get(layout), matchId, reason))
+    const card = (yield* Ref.get(layout)).cards.get(matchId)
+    if (card === undefined) return
+    if (reason === "noEligibleMap") yield* unlessGone(channel.redraw(card.messageId, Drawing.Closed()))
+    else {
+      if (card.threadId !== null) yield* unlessGone(channel.deleteThread(card.threadId))
+      yield* unlessGone(channel.deleteMessage(card.messageId))
+    }
+    yield* forget(matchId)
   }, lock.withPermits(1))
 
-  /** The Match Thread for a Card, started now if it couldn't be at the time. */
+  /** A Match's thread, started now if it couldn't be when its Card was drawn. */
   const threadOf = Effect.fn("threadOf")(function* (matchId: string) {
     const card = (yield* Ref.get(layout)).cards.get(matchId)
     if (card === undefined) return Option.none<string>()
     if (card.threadId !== null) return Option.some(card.threadId)
-    const message = yield* fetchMessage(card.messageId)
-    const threadId = yield* startThread(message, `Match #${matchId}`)
-    if (threadId === undefined) return Option.none<string>()
-    yield* setLayout((current) => withThread(current, matchId, threadId))
-    return Option.some(threadId)
+    const view = (yield* Ref.get(views)).get(matchId)
+    return view === undefined ? Option.none<string>() : yield* startThread(matchId, card.messageId, view)
   }, lock.withPermits(1))
 
   const post = Effect.fn("post")(
     function* (matchId: string, post: ThreadPost) {
       const threadId = yield* threadOf(matchId)
       if (Option.isNone(threadId)) return yield* Effect.logWarning(`no thread for ${matchId}; dropped a ${post._tag} post`)
-      const thread = yield* tryDiscord("fetch thread", () => channel.threads.fetch(threadId.value))
-      if (thread === null) return yield* Effect.logWarning(`thread for ${matchId} is gone`)
-      yield* tryDiscord(`post ${post._tag}`, () => thread.send(threadMessage(matchId, post)))
+      yield* channel.postInThread(threadId.value, matchId, post)
       // The Result is the last thing a Match's Card and thread ever get.
-      if (post._tag === "Result") yield* lock.withPermits(1)(setLayout((current) => forget(current, matchId)))
+      if (post._tag === "Result") yield* lock.withPermits(1)(forget(matchId))
     },
     Effect.catchAll((e) => logFailure(e))
   )
 
+  // Startup: the Footer must be the channel's last message, with today's wording.
+  const { footerId } = yield* Ref.get(layout)
+  const last = yield* channel.lastMessageId.pipe(Effect.orElseSucceed(() => null))
+  if (footerId !== null && footerId === last) yield* unlessGone(channel.redraw(footerId, Drawing.Footer()))
+  else {
+    if (footerId !== null) yield* unlessGone(channel.deleteMessage(footerId))
+    yield* channel.post(Drawing.Footer()).pipe(
+      Effect.flatMap((id) => setFooter(id)),
+      Effect.catchAll((e) => logFailure(e))
+    )
+  }
+
   return Surface.of({ showCard, remove, post })
 })
 
-/** The Surface port on Discord. Needs the Discord service and a SqlClient. */
-export const DiscordSurfaceLive = Layer.effect(Surface, make).pipe(Layer.provide(MigratorLive))
+/** The Surface port on a Channel. Needs the Channel and a SqlClient. */
+export const ChannelSurfaceLive = Layer.effect(Surface, make).pipe(Layer.provide(MigratorLive))

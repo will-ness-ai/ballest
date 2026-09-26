@@ -8,20 +8,19 @@ import {
   type UserSelectMenuInteraction
 } from "discord.js"
 import { Effect, Layer, Match, Option, Ref, Stream } from "effect"
-import { Engine, type InviteRequest, type Rejection } from "../engine.js"
+import { Engine, type Rejection } from "../engine.js"
 import { Store, type ProfilePreview } from "../ports.js"
 import { Discord, type DiscordError, tryDiscord } from "./client.js"
+import { type Action, parseControl } from "./controls.js"
 import {
   linkForm,
   linkPreviewMessage,
-  parseControl,
   pickDurationMessage,
   pickTargetMessage,
   pickTypeMessage,
   PROFILE_FIELD,
   quiet,
-  tryAgainMessage,
-  type Action
+  tryAgainMessage
 } from "./messages.js"
 
 /** What a member was doing when they had to link Steam first; it runs once they've linked. */
@@ -128,11 +127,13 @@ export const InteractionsLive = Layer.scopedDiscard(
             i.update(control.type === "challenge" ? pickTargetMessage() : pickDurationMessage(control.type, null, null))
           )
         case "PickDuration":
-          return yield* tryDiscord("update", () => i.update(pickDurationMessage(control.type, control.target, control.minutes)))
+          return yield* tryDiscord("update", () => {
+            const { type, target, minutes } = control.request
+            return i.update(pickDurationMessage(type, target, minutes))
+          })
         case "OpenInvite": {
           yield* tryDiscord("defer", () => i.deferUpdate())
-          const request: InviteRequest = { type: control.type, minutes: control.minutes, target: control.target }
-          const text = yield* engine.openInvite(self, request).pipe(
+          const text = yield* engine.openInvite(self, control.request).pipe(
             Effect.as("Invite opened. It's in the channel now."),
             Effect.catchAll((e) => Effect.succeed(explain(e, self)))
           )

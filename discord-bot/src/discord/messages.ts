@@ -15,85 +15,7 @@ import {
 } from "discord.js"
 import { DURATIONS, SCORE_TICKS_PER_SECOND, type MatchType, type MedalKind, type Minutes, type Standing } from "../domain.js"
 import type { CardView, ProfilePreview, ThreadPost } from "../ports.js"
-
-// ---------------------------------------------------------------- button and form ids
-
-export type Action = "accept" | "decline" | "join" | "leave" | "start" | "cancel"
-const ACTIONS: ReadonlyArray<Action> = ["accept", "decline", "join", "leave", "start", "cancel"]
-const TYPES: ReadonlyArray<MatchType> = ["public", "challenge", "lobby"]
-
-/** What a clicked button (or submitted form) asks for. Choices so far ride along in the id. */
-export type Control =
-  | { readonly _tag: "NewMatch" }
-  | { readonly _tag: "LinkSteam" }
-  | { readonly _tag: "PickType"; readonly type: MatchType }
-  | { readonly _tag: "PickTarget" }
-  | { readonly _tag: "PickDuration"; readonly type: MatchType; readonly target: string | null; readonly minutes: Minutes }
-  | { readonly _tag: "OpenInvite"; readonly type: MatchType; readonly target: string | null; readonly minutes: Minutes }
-  | { readonly _tag: "Act"; readonly action: Action; readonly matchId: string }
-  | { readonly _tag: "ConfirmLink" }
-  | { readonly _tag: "LinkForm" }
-
-const minutesOf = (s: string | undefined): Minutes | undefined => DURATIONS.find((d) => String(d) === s)
-const typeOf = (s: string | undefined): MatchType | undefined => TYPES.find((t) => t === s)
-const targetOf = (s: string | undefined) => (s === undefined || s === "-" ? null : s)
-
-export const controlId = (c: Control): string => {
-  switch (c._tag) {
-    case "NewMatch":
-      return "mb:new"
-    case "LinkSteam":
-      return "mb:link"
-    case "PickType":
-      return `mb:type:${c.type}`
-    case "PickTarget":
-      return "mb:target"
-    case "PickDuration":
-      return `mb:dur:${c.type}:${c.target ?? "-"}:${c.minutes}`
-    case "OpenInvite":
-      return `mb:open:${c.type}:${c.target ?? "-"}:${c.minutes}`
-    case "Act":
-      return `mb:act:${c.action}:${c.matchId}`
-    case "ConfirmLink":
-      return "mb:linkyes"
-    case "LinkForm":
-      return "mb:linkform"
-  }
-}
-
-export const parseControl = (id: string): Control | null => {
-  const [ns, kind, a, b, c] = id.split(":")
-  if (ns !== "mb") return null
-  switch (kind) {
-    case "new":
-      return { _tag: "NewMatch" }
-    case "link":
-      return { _tag: "LinkSteam" }
-    case "linkyes":
-      return { _tag: "ConfirmLink" }
-    case "linkform":
-      return { _tag: "LinkForm" }
-    case "target":
-      return { _tag: "PickTarget" }
-    case "type": {
-      const type = typeOf(a)
-      return type ? { _tag: "PickType", type } : null
-    }
-    case "dur":
-    case "open": {
-      const type = typeOf(a)
-      const minutes = minutesOf(c)
-      if (!type || !minutes) return null
-      return { _tag: kind === "dur" ? "PickDuration" : "OpenInvite", type, target: targetOf(b), minutes }
-    }
-    case "act": {
-      const action = ACTIONS.find((x) => x === a)
-      return action && b ? { _tag: "Act", action, matchId: b } : null
-    }
-    default:
-      return null
-  }
-}
+import { type Action, type Control, controlId } from "./controls.js"
 
 export const PROFILE_FIELD = "profile"
 
@@ -298,7 +220,11 @@ export const pickTargetMessage = (): BaseMessageOptions => ({
 
 export const pickDurationMessage = (type: MatchType, target: string | null, chosen: Minutes | null): BaseMessageOptions => {
   const durations = DURATIONS.map((minutes) =>
-    button(`${minutes}m`, { _tag: "PickDuration", type, target, minutes }, minutes === chosen ? ButtonStyle.Primary : ButtonStyle.Secondary)
+    button(
+      `${minutes}m`,
+      { _tag: "PickDuration", request: { type, target, minutes } },
+      minutes === chosen ? ButtonStyle.Primary : ButtonStyle.Secondary
+    )
   )
   return {
     content: `**${TYPE_NAME[type]}${target ? ` vs ${who(target)}` : ""} · how long?**`,
@@ -308,7 +234,7 @@ export const pickDurationMessage = (type: MatchType, target: string | null, chos
       row(
         button(
           "Open Invite",
-          { _tag: "OpenInvite", type, target, minutes: chosen ?? DURATIONS[0] },
+          { _tag: "OpenInvite", request: { type, target, minutes: chosen ?? DURATIONS[0] } },
           ButtonStyle.Success,
           chosen === null
         )
