@@ -531,10 +531,15 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
   const wr = map === null ? Infinity : secs(map.worldRecordTicks)
   const personalBests = map?.personalBests ?? {}
   const times = [...history.map((e) => secs(e.ticks)), ...Object.values(personalBests).map(secs)]
-  const lo = Math.min(wr, ...times) - 0.35
-  const hi = Math.min(Math.max(...times), (map?.medals.author ?? Math.max(...times)) + 1.5) + 0.3
+  // The scale covers every PB and the WR; medals outside it are listed above the chart.
+  const pad = Math.max(0.3, (Math.max(...times) - Math.min(wr, ...times)) * 0.04)
+  const hi = Math.max(...times) + pad
   const x = (t: number) => L + (Math.min(t, duration) / duration) * (W - L - R)
-  const y = (s: number) => T + ((hi - Math.min(s, hi)) / (hi - lo)) * (H - T - B)
+  // Logarithmic from just under the fastest time: close finishes get room, a slow first run still fits.
+  const bottom = Math.min(wr, ...times) - 0.15
+  const floor = bottom - Math.max(0.5, pad)
+  const f = (s: number) => Math.log(Math.max(s, bottom) - floor)
+  const y = (s: number) => T + ((f(hi) - f(Math.min(s, hi))) / (f(hi) - f(bottom))) * (H - T - B)
   const nameOf = (steamId: string) => {
     const p = view.players.find((pl) => pl.steamId === steamId)
     return p === undefined ? "Player" : (names.get(p.discordId) ?? "Player")
@@ -550,6 +555,7 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
   }
 
   const above: Array<string> = []
+  const leftLabels: Array<{ y: number; text: string; style: Style; medal: MedalKind | null }> = []
   if (map !== null)
     for (const kind of MEDAL_ORDER) {
       const v = map.medals[kind]
@@ -558,8 +564,7 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
         continue
       }
       lines += `<line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" stroke="${MEDAL_COLOUR[kind]}" stroke-opacity="0.55" stroke-width="1.2"/>`
-      overlays.push(img(svgUri(medalSvg(kind, 11)), 11, medalHeight(11), { position: "absolute", left: L - 17, top: y(v) - 8 }))
-      overlays.push(textAt(L - 22, y(v) + 3.5, label10(v * SCORE_TICKS_PER_SECOND), { fontFamily: F.hud, fontSize: 10, color: MEDAL_COLOUR[kind] }, "end"))
+      leftLabels.push({ y: y(v), text: label10(v * SCORE_TICKS_PER_SECOND), style: { fontFamily: F.hud, fontSize: 10, color: MEDAL_COLOUR[kind] }, medal: kind })
     }
   if (above.length > 0) overlays.push(textAt(L, T - 10, `▲ above the chart: ${above.join(" · ")}`, { fontFamily: F.hud, fontSize: 10, color: C.faint }))
 
@@ -575,7 +580,7 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
     let d = `M${x(0)} ${y(wr)}`
     for (const e of breaks) d += `H${x(e.at / 1000)}V${y(secs(e.ticks))}`
     lines += `<path d="${d}H${x(duration)}" fill="none" stroke="#fff" stroke-dasharray="5 4" stroke-width="1.3"/>`
-    overlays.push(textAt(L - 22, y(wr) + 3.5, `WR ${label10(map.worldRecordTicks)}`, { fontFamily: F.hud, fontWeight: 700, fontSize: 10, color: "#fff" }, "end"))
+    leftLabels.push({ y: y(wr), text: `WR ${label10(map.worldRecordTicks)}`, style: { fontFamily: F.hud, fontWeight: 700, fontSize: 10, color: "#fff" }, medal: null })
   }
 
   for (const player of view.players) {
@@ -593,6 +598,23 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
   }
   for (const e of breaks)
     lines += `<circle cx="${x(e.at / 1000)}" cy="${y(secs(e.ticks))}" r="15" fill="${C.gold}" fill-opacity="0.18"/>${starPath(x(e.at / 1000), y(secs(e.ticks)), 10)}`
+
+  // At least a line apart: pushed down in order, then back up from the bottom edge.
+  const gap = 13
+  const placed = [...leftLabels].sort((a, b) => a.y - b.y).map((l) => ({ ...l, at: l.y }))
+  for (let i = 1; i < placed.length; i++) {
+    const prev = placed[i - 1], cur = placed[i]
+    if (prev !== undefined && cur !== undefined) cur.at = Math.max(cur.at, prev.at + gap)
+  }
+  for (let i = placed.length - 1; i >= 0; i--) {
+    const cur = placed[i], next = placed[i + 1]
+    if (cur !== undefined) cur.at = Math.min(cur.at, next === undefined ? H - B + 4 : next.at - gap)
+  }
+  for (const l of placed) {
+    if (Math.abs(l.at - l.y) > 2) lines += `<path d="M${L - 6} ${l.at}L${L} ${l.y}" stroke="${String(l.style["color"])}" stroke-opacity="0.6"/>`
+    if (l.medal !== null) overlays.push(img(svgUri(medalSvg(l.medal, 11)), 11, medalHeight(11), { position: "absolute", left: L - 19, top: l.at - 8 }))
+    overlays.push(textAt(L - 24, l.at + 3.5, l.text, l.style, "end"))
+  }
 
   const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`
   const holder = breaks.at(-1)?.steamId

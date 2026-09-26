@@ -90,7 +90,8 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       /** The member's name in this server, for thread titles. */
       displayName: Effect.fn("displayName")(function* (discordId: string) {
         return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(
-          Effect.map((member) => member.displayName),
+          // NFKC turns "fancy text" (𝐁𝐨𝐥𝐝, Ｗｉｄｅ, ⓒⓘⓡⓒⓛⓔⓓ letters) into the plain letters the image fonts have.
+          Effect.map((member) => member.displayName.normalize("NFKC")),
           Effect.orElseSucceed(() => "Someone")
         )
       })
