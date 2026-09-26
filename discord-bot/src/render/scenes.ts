@@ -1,7 +1,7 @@
 // What each image looks like, as element trees for Satori (flexbox and CSS, no browser). The
 // settled design is the prototype on branch claude/prototype-discord-bot-surfaces; check any
 // change by eye with `pnpm render:samples`.
-import { formatTime, MATCH_TYPE_NAME, type MedalKind, type Medals, SCORE_TICKS_PER_SECOND } from "../domain.js"
+import { formatTime, MATCH_TYPE_NAME, type MedalKind, type Medals, type PbEvent, SCORE_TICKS_PER_SECOND } from "../domain.js"
 import type { CardView, Improvement, ProfilePreview } from "../ports.js"
 import { hueFor, MEDAL_BAR, marbleSvg, medalHeight, medalSvg, svgUri } from "./art.js"
 
@@ -187,6 +187,8 @@ interface Row {
   readonly note: string
   readonly score: string
   readonly medal: MedalKind | null
+  /** This Player holds the world record, set during the Match: a WR ribbon replaces the medal. */
+  readonly worldRecord: boolean
 }
 
 const rowsOf = (card: CardImage): ReadonlyArray<Row> => {
@@ -201,11 +203,12 @@ const rowsOf = (card: CardImage): ReadonlyArray<Row> => {
       name: nameOf(p.discordId),
       note: i === 0 ? "opened the Invite" : "joined",
       score: "ready",
-      medal: null
+      medal: null,
+      worldRecord: false
     }))
     const next = String(slots.length + 1)
     if (view.type === "public")
-      slots.push({ rank: next, rankColour: C.faint, hue: 0, faded: true, name: "Open slot", note: "first to accept", score: "—", medal: null })
+      slots.push({ rank: next, rankColour: C.faint, hue: 0, faded: true, name: "Open slot", note: "first to accept", score: "—", medal: null, worldRecord: false })
     if (view.type === "challenge" && view.target !== null)
       slots.push({
         rank: next,
@@ -215,7 +218,8 @@ const rowsOf = (card: CardImage): ReadonlyArray<Row> => {
         name: nameOf(view.target.discordId),
         note: "challenged",
         score: "—",
-        medal: null
+        medal: null,
+        worldRecord: false
       })
     return slots
   }
@@ -245,7 +249,8 @@ const rowsOf = (card: CardImage): ReadonlyArray<Row> => {
             ? ""
             : `+${formatSeconds(s.ticks - leader)} behind`,
     score: s.ticks === null ? (live ? "—" : "DNF") : formatTime(s.ticks),
-    medal: s.medal
+    medal: s.medal,
+    worldRecord: s.rank === 1 && s.ticks !== null && view.map !== null && s.ticks < view.map.worldRecordTicks
   }))
 }
 
@@ -272,7 +277,11 @@ const slab = (card: CardImage) => {
           box({ fontWeight: 600, fontSize: 14.5, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }, r.name),
           r.note === "" ? null : box({ fontFamily: F.hud, fontWeight: 500, fontSize: 10.5, color: C.faint }, r.note)
         ),
-        box({ alignItems: "center", gap: 8, fontFamily: F.hud, fontWeight: 600, fontSize: 16 }, r.score, r.medal === null ? null : medal(r.medal, 16))
+        box(
+          { alignItems: "center", gap: 8, fontFamily: F.hud, fontWeight: 600, fontSize: 16 },
+          r.score,
+          r.worldRecord ? wrRibbon() : r.medal === null ? null : medal(r.medal, 16)
+        )
       )
     )
   )
@@ -341,7 +350,53 @@ export const cardScene = (card: CardImage): El => {
 
 export const ROW_WIDTH = 420
 
+/** A WR in the game's gold: the medal bar's gradient and its outlined lettering. */
+const wrRibbon = () =>
+  box(
+    {
+      alignItems: "center",
+      padding: "1px 6px",
+      borderRadius: 3,
+      border: "1.5px solid #111",
+      backgroundImage: MEDAL_BAR.gold,
+      fontFamily: F.medal,
+      fontWeight: 900,
+      fontSize: 12,
+      color: "#fff",
+      textShadow: OUTLINE
+    },
+    "WR"
+  )
+
+/** "Gold Takeover": a PB that beat the world record, as the game's gold medal bar. */
+const worldRecordScene = (improvement: Improvement, name: string, beaten: number): El =>
+  box(
+    {
+      width: ROW_WIDTH,
+      height: 56,
+      alignItems: "center",
+      borderRadius: 8,
+      backgroundImage: MEDAL_BAR.gold,
+      fontFamily: F.medal,
+      fontWeight: 900,
+      color: "#fff",
+      textShadow: OUTLINE
+    },
+    box({ width: 58, justifyContent: "center", fontSize: 24 }, "WR"),
+    marble(hueFor(improvement.player.steamId), 28),
+    box(
+      { flexGrow: 1, flexDirection: "column", marginLeft: 10, minWidth: 0 },
+      box({ fontSize: 15, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }, name),
+      box(
+        { fontFamily: F.hud, fontWeight: 700, fontSize: 11, color: "#3a2a00", textShadow: "none" },
+        `beat ${formatTime(beaten)} by ${formatSeconds(beaten - improvement.ticks)}`
+      )
+    ),
+    box({ fontSize: 22, paddingRight: 16 }, formatTime(improvement.ticks))
+  )
+
 export const improvementScene = (improvement: Improvement, name: string): El => {
+  if (improvement.beatWorldRecord !== null) return worldRecordScene(improvement, name, improvement.beatWorldRecord)
   const lead = improvement.rank === 1
   const diff = improvement.previousTicks === null ? null : `-${formatSeconds(improvement.previousTicks - improvement.ticks)}`
   return backdrop(
@@ -427,3 +482,155 @@ export const linkScene = (preview: ProfilePreview): El =>
       )
     )
   )
+
+// ---------------------------------------------------------------- the progression graph ("Staircase")
+
+export const PROGRESSION_WIDTH = 520
+
+export interface ProgressionImage {
+  readonly view: CardView
+  readonly history: ReadonlyArray<PbEvent>
+  /** Each Player's display name, by Discord id. */
+  readonly names: ReadonlyMap<string, string>
+}
+
+const MEDAL_COLOUR: Record<MedalKind, string> = { bronze: C.bronze, silver: C.silver, gold: C.gold, author: "#b36be8" }
+const MEDAL_ORDER: ReadonlyArray<MedalKind> = ["bronze", "silver", "gold", "author"]
+
+const starPath = (x: number, y: number, r: number) => {
+  let d = ""
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5
+    const rr = i % 2 ? r * 0.45 : r
+    d += `${i ? "L" : "M"}${(x + rr * Math.cos(a)).toFixed(1)} ${(y + rr * Math.sin(a)).toFixed(1)}`
+  }
+  return `<path d="${d}Z" fill="${C.gold}" stroke="#111" stroke-width="1.2"/>`
+}
+
+/** A line of text placed like SVG text: `x` is where it starts, ends or centres, `y` its baseline. */
+const textAt = (x: number, y: number, text: string, style: Style, anchor: "start" | "end" | "middle" = "start"): El => {
+  const size = typeof style["fontSize"] === "number" ? style["fontSize"] : 10
+  const place: Style =
+    anchor === "start" ? { left: x } : anchor === "end" ? { right: PROGRESSION_WIDTH - x } : { left: x - 60, width: 120, justifyContent: "center" }
+  return box({ position: "absolute", top: y - size * 0.82, lineHeight: 1, whiteSpace: "nowrap", ...style, ...place }, text)
+}
+
+const clockLabel = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`
+
+/**
+ * Every Player's PB over the Match clock as a step line, with the medals in range, the world
+ * record as it stood (stepping down when beaten, each break a star), and any PB a Player
+ * brought into the Match dotted in until they beat it.
+ */
+export const progressionScene = ({ view, history, names }: ProgressionImage): El => {
+  const W = PROGRESSION_WIDTH, H = 470, L = 78, R = 150, T = 100, B = 58
+  const map = view.map
+  const secs = (ticks: number) => ticks / SCORE_TICKS_PER_SECOND
+  const label10 = (ticks: number) => formatSeconds(ticks)
+  const duration = view.minutes * 60
+  const wr = map === null ? Infinity : secs(map.worldRecordTicks)
+  const personalBests = map?.personalBests ?? {}
+  const times = [...history.map((e) => secs(e.ticks)), ...Object.values(personalBests).map(secs)]
+  const lo = Math.min(wr, ...times) - 0.35
+  const hi = Math.min(Math.max(...times), (map?.medals.author ?? Math.max(...times)) + 1.5) + 0.3
+  const x = (t: number) => L + (Math.min(t, duration) / duration) * (W - L - R)
+  const y = (s: number) => T + ((hi - Math.min(s, hi)) / (hi - lo)) * (H - T - B)
+  const nameOf = (steamId: string) => {
+    const p = view.players.find((pl) => pl.steamId === steamId)
+    return p === undefined ? "Player" : (names.get(p.discordId) ?? "Player")
+  }
+  const colourOf = (steamId: string) => `hsl(${hueFor(steamId)},78%,60%)`
+
+  let lines = ""
+  const overlays: Array<El> = []
+  const tick = duration >= 1200 ? 300 : 120
+  for (let t = 0; t <= duration; t += tick) {
+    lines += `<line x1="${x(t)}" y1="${T}" x2="${x(t)}" y2="${H - B}" stroke="rgba(255,255,255,0.05)"/>`
+    overlays.push(textAt(x(t), H - B + 16, clockLabel(t), { fontFamily: F.hud, fontSize: 10, color: C.faint }, "middle"))
+  }
+
+  const above: Array<string> = []
+  if (map !== null)
+    for (const kind of MEDAL_ORDER) {
+      const v = map.medals[kind]
+      if (v > hi) {
+        above.push(`${kind} ${label10(v * SCORE_TICKS_PER_SECOND)}`)
+        continue
+      }
+      lines += `<line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" stroke="${MEDAL_COLOUR[kind]}" stroke-opacity="0.55" stroke-width="1.2"/>`
+      overlays.push(img(svgUri(medalSvg(kind, 11)), 11, medalHeight(11), { position: "absolute", left: L - 17, top: y(v) - 8 }))
+      overlays.push(textAt(L - 22, y(v) + 3.5, label10(v * SCORE_TICKS_PER_SECOND), { fontFamily: F.hud, fontSize: 10, color: MEDAL_COLOUR[kind] }, "end"))
+    }
+  if (above.length > 0) overlays.push(textAt(L, T - 10, `▲ above the chart: ${above.join(" · ")}`, { fontFamily: F.hud, fontSize: 10, color: C.faint }))
+
+  // The world record as it stood through the Match.
+  const breaks: Array<PbEvent> = []
+  let standing = wr
+  for (const e of history)
+    if (secs(e.ticks) < standing) {
+      standing = secs(e.ticks)
+      breaks.push(e)
+    }
+  if (map !== null) {
+    let d = `M${x(0)} ${y(wr)}`
+    for (const e of breaks) d += `H${x(e.at / 1000)}V${y(secs(e.ticks))}`
+    lines += `<path d="${d}H${x(duration)}" fill="none" stroke="#fff" stroke-dasharray="5 4" stroke-width="1.3"/>`
+    overlays.push(textAt(L - 22, y(wr) + 3.5, `WR ${label10(map.worldRecordTicks)}`, { fontFamily: F.hud, fontWeight: 700, fontSize: 10, color: "#fff" }, "end"))
+  }
+
+  for (const player of view.players) {
+    const pts = history.filter((e) => e.steamId === player.steamId)
+    const colour = colourOf(player.steamId)
+    const pb = personalBests[player.steamId]
+    const first = pts[0]
+    if (pb !== undefined)
+      lines += `<line x1="${x(0)}" y1="${y(secs(pb))}" x2="${x(first === undefined ? duration : first.at / 1000)}" y2="${y(secs(pb))}" stroke="${colour}" stroke-width="1.6" stroke-dasharray="2 3"/>`
+    if (first === undefined) continue
+    let d = `M${x(first.at / 1000)} ${y(secs(first.ticks))}`
+    for (const e of pts.slice(1)) d += `H${x(e.at / 1000)}V${y(secs(e.ticks))}`
+    lines += `<path d="${d}H${x(duration)}" fill="none" stroke="${colour}" stroke-width="2.3" stroke-linejoin="round"/>`
+    for (const e of pts) lines += `<circle cx="${x(e.at / 1000)}" cy="${y(secs(e.ticks))}" r="2.8" fill="${colour}" stroke="${C.bg}" stroke-width="1"/>`
+  }
+  for (const e of breaks)
+    lines += `<circle cx="${x(e.at / 1000)}" cy="${y(secs(e.ticks))}" r="15" fill="${C.gold}" fill-opacity="0.18"/>${starPath(x(e.at / 1000), y(secs(e.ticks)), 10)}`
+
+  const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`
+  const holder = breaks.at(-1)?.steamId
+  const timed = view.standings.filter((s) => s.ticks !== null)
+  const untimed = view.standings.filter((s) => s.ticks === null)
+
+  return backdrop(
+    { width: W, height: H, position: "relative" },
+    img(svgUri(chart), W, H, { position: "absolute", left: 0, top: 0 }),
+    ...overlays,
+    box(
+      { position: "absolute", left: 16, top: 12, width: W - 32, flexDirection: "column" },
+      box({ justifyContent: "space-between", alignItems: "center" }, logo(), label("Progression")),
+      box({ fontFamily: F.medal, fontWeight: 900, fontSize: 20, textShadow: OUTLINE, marginTop: 8 }, map?.title ?? "Match"),
+      box(
+        { fontFamily: F.hud, fontWeight: 500, fontSize: 10.5, color: C.dim },
+        `${view.minutes}-minute ${MATCH_TYPE_NAME[view.type]} · WR at the start ${map === null ? "none" : label10(map.worldRecordTicks)} · every PB as it happened`
+      )
+    ),
+    box(
+      { position: "absolute", left: W - R + 12, top: T - 4, width: R - 24, flexDirection: "column", gap: 10 },
+      ...timed.map((s) =>
+        box(
+          { gap: 8, alignItems: "flex-start" },
+          marble(hueFor(s.player.steamId), 16, { marginTop: 1 }),
+          box(
+            { flexDirection: "column", flexShrink: 1, minWidth: 0 },
+            box({ fontWeight: 600, fontSize: 11 }, nameOf(s.player.steamId)),
+            box(
+              { fontFamily: F.hud, fontWeight: 600, fontSize: 10, color: s.player.steamId === holder ? C.gold : C.dim },
+              `${s.ticks === null ? "" : formatTime(s.ticks)}${s.player.steamId === holder ? "  ★ new WR" : ""}`
+            )
+          )
+        )
+      )
+    ),
+    untimed.length === 0
+      ? null
+      : textAt(L, H - 12, `No time: ${untimed.map((s) => nameOf(s.player.steamId)).join(", ")}`, { fontFamily: F.hud, fontSize: 10, color: C.faint })
+  )
+}

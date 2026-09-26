@@ -76,7 +76,20 @@ export interface Match {
   readonly map: DrawnMap | null
   /** Best time (ticks) each Player set during the Match, keyed by SteamID. */
   readonly bestTicks: Readonly<Record<string, number>>
+  /** Every PB set during the Match, in order, for the progression graph. */
+  readonly history: ReadonlyArray<PbEvent>
 }
+
+/** A PB set during a Match: who, the time, and when (ms after the Match started). */
+export interface PbEvent {
+  readonly steamId: string
+  readonly ticks: number
+  readonly at: number
+}
+
+/** The world record as it stands during a Match: the one at the start, or a faster time set since. */
+export const currentWorldRecord = (m: Match): number | null =>
+  m.map === null ? null : Math.min(m.map.worldRecordTicks, ...m.history.map((e) => e.ticks))
 
 export const expiresAt = (m: Match): number => m.createdAt + INVITE_TTL_MS
 

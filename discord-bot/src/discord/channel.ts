@@ -134,6 +134,8 @@ export const DiscordChannelLive = Layer.effect(
       if (post._tag === "Improved")
         return yield* renderer.improvement(post.improvement, yield* discord.displayName(post.improvement.player.discordId))
       if (post._tag === "Started" || post._tag === "Result") return yield* drawCard(post.card)
+      if (post._tag === "Progression")
+        return yield* renderer.progression({ view: post.card, history: post.history, names: yield* namesOf(post.card) })
       return null
     })
 

@@ -1,7 +1,7 @@
 // The engine's edges. Real adapters (steam-user, discord.js, SQLite) and test fakes both
 // implement these; the engine never sees Discord ids or Steam protobufs.
 import { Context, Data, type Effect, type Option } from "effect"
-import type { DrawnMap, Link, MapInfo, Match, MatchState, MatchType, MedalKind, Minutes, Player, Standing } from "./domain.js"
+import type { DrawnMap, Link, MapInfo, Match, MatchState, MatchType, MedalKind, Minutes, PbEvent, Player, Standing } from "./domain.js"
 
 // ---------------------------------------------------------------- Steam
 
@@ -76,6 +76,8 @@ export interface Improvement {
   readonly rank: number
   readonly previousTicks: number | null
   readonly previousRank: number | null
+  /** The world record this run beat, as it stood at that moment; null if it didn't beat one. */
+  readonly beatWorldRecord: number | null
 }
 
 export type ThreadPost = Data.TaggedEnum<{
@@ -91,6 +93,8 @@ export type ThreadPost = Data.TaggedEnum<{
   /** `card` is the finished Card the Result shows. */
   /** Players who had finished the drawn Map before: only a run faster than `ticks`, their PB, counts. */
   PlayedBefore: { readonly bars: ReadonlyArray<{ readonly player: Player; readonly ticks: number }> }
+  /** After the Result: every PB of the Match over time, for the progression graph. */
+  Progression: { readonly card: CardView; readonly history: ReadonlyArray<PbEvent> }
   Result: { readonly standings: ReadonlyArray<Standing>; readonly card: CardView }
   /** No Map is eligible, so the Invite is cancelled; everyone in it is told. */
   NoMap: { readonly players: ReadonlyArray<Player> }
