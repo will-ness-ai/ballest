@@ -27,6 +27,10 @@ export const oneLine = (cause: unknown): string => {
 /** A Discord failure in one line: what the bot was doing, and what Discord said. */
 export const describeDiscordError = (e: DiscordError) => `${e.op}: ${oneLine(e.cause)}`
 
+/** Discord's "Unknown Message" and "Unknown Channel" errors: the thing was already deleted. */
+export const isUnknown = (e: DiscordError) =>
+  typeof e.cause === "object" && e.cause !== null && "code" in e.cause && (e.cause.code === 10008 || e.cause.code === 10003)
+
 export const tryDiscord = <A>(op: string, run: () => Promise<A>) =>
   Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) })
 

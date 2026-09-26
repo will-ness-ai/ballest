@@ -4,6 +4,8 @@
 //
 // The rules (spec #21, stories 19-22, 31, 38):
 // - The Footer is always the channel's last message.
+// - The channel holds only Cards and the Footer; the Channel deletes Discord's "started a
+//   thread" notices.
 // - A new Card is made by editing the Footer into it, then posting a fresh Footer, so Cards read
 //   top to bottom in the order their Invites opened. If the Footer was deleted by hand, the Card
 //   is posted fresh. If the Card can't be drawn at all, no Footer is posted above the gap.

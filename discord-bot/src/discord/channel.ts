@@ -1,13 +1,13 @@
 // The bot's channel, as the Surface sees it: messages and Match Threads to draw things in.
 // It speaks in what to draw, not how, so the Surface's rules run against an in-memory channel
 // in tests; this adapter draws each one with the renderer and runs it on discord.js.
-import { MessageType } from "discord.js"
 import { Context, Data, Effect, Layer, Option, Ref } from "effect"
 import type { MapInfo } from "../domain.js"
 import type { CardView, ThreadPost } from "../ports.js"
 import { Renderer, type RenderError } from "../render/renderer.js"
-import { describeDiscordError, Discord, type DiscordError, oneLine, tryDiscord } from "./client.js"
+import { Discord, type DiscordError, isUnknown, oneLine, tryDiscord } from "./client.js"
 import { Marbles } from "./marbles.js"
+import { makeThreadNotices } from "./threadNotices.js"
 import { cardMessage, clockMessage, closedCardMessage, footerMessage, threadMessage, type ThreadArt, threadName } from "./messages.js"
 
 /** What a channel message shows. */
@@ -59,10 +59,6 @@ const fetchPreview = Effect.fn("fetchPreview")(function* (url: string) {
   return `data:${type};base64,${Buffer.from(body).toString("base64")}`
 })
 
-/** Discord's "Unknown Message" and "Unknown Channel" errors. */
-const isUnknown = (e: DiscordError) =>
-  typeof e.cause === "object" && e.cause !== null && "code" in e.cause && (e.cause.code === 10008 || e.cause.code === 10003)
-
 /** Like goneIfUnknown, but passes a Gone from an earlier step through. */
 const goneIfUnknownOr =
   (id: string) =>
@@ -74,34 +70,17 @@ const goneIfUnknown =
   (e: DiscordError): Effect.Effect<never, Gone | DiscordError> =>
     isUnknown(e) ? Effect.fail(new Gone({ id })) : Effect.fail(e)
 
-export const DiscordChannelLive = Layer.effect(
+export const DiscordChannelLive = Layer.scoped(
   Channel,
   Effect.gen(function* () {
     const discord = yield* Discord
     const renderer = yield* Renderer
     const marbles = yield* Marbles
     const channel = discord.channel
+    const notices = makeThreadNotices(channel)
+    // In the background: startup doesn't wait on a few hundred message reads.
+    yield* Effect.forkScoped(notices.sweep())
 
-    /**
-     * Delete Discord's "MULTIBALLS started a thread" notices, which it posts in the channel for
-     * every Match Thread: the channel holds only Cards and the Footer. They're the bot's own
-     * messages, so no extra permission is needed. With a thread id, only that thread's notice;
-     * without, every one among the channel's recent messages.
-     */
-    const deleteThreadNotices = Effect.fn("deleteThreadNotices")(
-      function* (threadId: string | null) {
-        const recent = yield* tryDiscord("fetch recent messages", () => channel.messages.fetch({ limit: threadId === null ? 100 : 10 }))
-        const notices = [...recent.values()].filter(
-          (m) =>
-            m.type === MessageType.ThreadCreated &&
-            m.author.id === channel.client.user.id &&
-            (threadId === null || m.reference?.channelId === threadId)
-        )
-        yield* Effect.forEach(notices, (m) => tryDiscord("delete thread notice", () => m.delete()), { discard: true })
-      },
-      Effect.catchAll((e) => Effect.logWarning(`thread notice left in place: ${describeDiscordError(e)}`))
-    )
-    yield* deleteThreadNotices(null)
 
     const fetchMessage = (id: string) =>
       tryDiscord("fetch message", () => channel.messages.fetch(id)).pipe(Effect.catchAll((e) => goneIfUnknown(id)(e)))
@@ -179,7 +158,7 @@ export const DiscordChannelLive = Layer.effect(
         const message = yield* fetchMessage(messageId)
         const name = threadName(view, yield* discord.displayName(view.creator.discordId))
         const thread = yield* tryDiscord("start thread", () => message.startThread({ name }))
-        yield* deleteThreadNotices(thread.id)
+        yield* notices.deleteNoticeOf(thread.id)
         return thread.id
       }),
       deleteThread: (threadId) =>
