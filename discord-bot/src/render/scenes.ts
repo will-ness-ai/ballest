@@ -291,7 +291,7 @@ const stateChip = (view: CardView) =>
 export const cardScene = (card: CardImage): El => {
   const { view } = card
   const height = view.state === "invite" ? 110 : 150
-  const title = view.map === null || view.state === "invite" ? "Mystery map" : view.map.title
+  const title = view.map === null || view.state === "invite" ? "Map pending" : view.map.title
   const meta =
     view.map === null || view.state === "invite"
       ? `${TYPE_NAME[view.type]} · ${view.minutes} min · drawn at the start`
