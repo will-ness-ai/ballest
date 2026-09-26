@@ -70,6 +70,12 @@ Steam with the bot account's secrets, and is the check to run after changing `sr
 Steam drops leaderboard replies when requests overlap, so `src/steam/session.ts` sends them
 strictly one at a time; keep it that way.
 
+Run the bot with `pnpm start` in `discord-bot/` of the main checkout (from a worktree, set
+`MULTIBALLS_ENV` to that `.env` and `DB_PATH` to a scratch file). `.env` names the server and
+channel; point it at the test server while iterating. At startup the bot refuses to run
+without its channel permissions. The channel denies Send Messages to `@everyone` to stay
+read-only, so the bot's role needs an explicit Send Messages allow on that channel.
+
 ## Invariants worth knowing before you edit
 
 **`score_ms` is two different things, and its name lies in both.** On `Map_*` boards it

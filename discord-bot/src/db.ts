@@ -27,6 +27,11 @@ export const MigratorLive = SqliteMigrator.layer({
     "0002_board_ids": Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient
       yield* sql`CREATE TABLE board_ids (board_name TEXT PRIMARY KEY, board_id INTEGER NOT NULL)`
+    }),
+    // Where the Footer and each Match's Card and Match Thread are, so a restart can find them.
+    "0003_discord_layout": Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient
+      yield* sql`CREATE TABLE discord_layout (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)`
     })
   })
 }).pipe(Layer.provide(NodeContext.layer))
