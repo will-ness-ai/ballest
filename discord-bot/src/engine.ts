@@ -1,6 +1,6 @@
 // The Match engine: every Match rule, with Discord, Steam and storage behind ports.
 // Inputs are Player actions (the methods below) and the clock; outputs go to Surface.
-import { Clock, Data, Effect, FiberMap, Option, Random, Ref } from "effect"
+import { Clock, Config, Data, Effect, FiberMap, Option, Random, Ref } from "effect"
 import {
   authorTimeFits,
   expiresAt,
@@ -39,7 +39,7 @@ export class Busy extends Data.TaggedError("Busy")<{ readonly discordId: string 
 export class MatchNotFound extends Data.TaggedError("MatchNotFound")<{ readonly matchId: string }> {}
 export class NotOpen extends Data.TaggedError("NotOpen")<{ readonly matchId: string }> {}
 export class NotAllowed extends Data.TaggedError("NotAllowed")<{ readonly reason: string }> {}
-export class NotEnoughPlayers extends Data.TaggedError("NotEnoughPlayers")<{ readonly count: number }> {}
+export class NotEnoughPlayers extends Data.TaggedError("NotEnoughPlayers")<{ readonly count: number; readonly min: number }> {}
 export class NoEligibleMap extends Data.TaggedError("NoEligibleMap")<{ readonly matchId: string }> {}
 
 /** Every way an action can be turned down. */
@@ -73,6 +73,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     const steam = yield* Steam
     const surface = yield* Surface
     const store = yield* Store
+    /** Fewest Players a Lobby starts with; the test server lowers it to try a Match alone. */
+    const lobbyMinPlayers = yield* Config.integer("LOBBY_MIN_PLAYERS").pipe(
+      Config.validate({ message: "LOBBY_MIN_PLAYERS must be at least 1", validation: (n) => n >= 1 }),
+      Config.withDefault(LOBBY_MIN_PLAYERS)
+    )
     const lock = yield* Effect.makeSemaphore(1)
     /** Engine state changes happen one at a time. Steam reads are kept outside it. */
     const locked = lock.withPermits(1)
@@ -260,7 +265,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
             const withFinalRead = Option.isSome(entries) ? yield* applyEntries(current, entries.value) : current
             const done: Match = { ...withFinalRead, state: "finished" }
             yield* save(done)
-            yield* surface.post(done.id, ThreadPost.Result({ standings: standings(done) }))
+            yield* surface.post(done.id, ThreadPost.Result({ standings: standings(done), card: cardOf(done) }))
           })
         )
       },
@@ -303,7 +308,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           const endsAt = startedAt + full.minutes * 60_000
           const live: Match = { ...full, state: "live", startedAt, endsAt, map, bestTicks: {} }
           yield* save(live)
-          yield* surface.post(live.id, ThreadPost.Started({ players: live.players, map, endsAt }))
+          yield* surface.post(live.id, ThreadPost.Started({ players: live.players, map, endsAt, card: cardOf(live) }))
           yield* FiberMap.run(timers, live.id, runLive(live.id))
         })
       )
@@ -367,7 +372,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         }
         yield* save(m)
         yield* surface.post(m.id, ThreadPost.Opened({ by: creator, type: m.type, minutes: m.minutes }))
-        if (target !== null) yield* surface.post(m.id, ThreadPost.Challenged({ by: creator, target }))
+        if (target !== null) yield* surface.post(m.id, ThreadPost.Challenged({ by: creator, target, minutes: m.minutes, expiresAt: expiresAt(m) }))
         yield* scheduleExpiry(m)
         return m.id
       }, locked),
@@ -417,14 +422,15 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         yield* surface.post(matchId, ThreadPost.Left({ player }))
       }, locked),
 
-      /** Lobby only: its creator starts it, with at least two Players. */
+      /** Lobby only: its creator starts it, with at least the Lobby minimum of Players. */
       start: Effect.fn("start")(function* (discordId: string, matchId: string) {
         const full = yield* locked(
           Effect.gen(function* () {
             const m = yield* getInvite(matchId)
             if (m.type !== "lobby" || m.creator.discordId !== discordId)
               return yield* new NotAllowed({ reason: "Only the Lobby's creator can start it." })
-            if (m.players.length < LOBBY_MIN_PLAYERS) return yield* new NotEnoughPlayers({ count: m.players.length })
+            if (m.players.length < lobbyMinPlayers)
+              return yield* new NotEnoughPlayers({ count: m.players.length, min: lobbyMinPlayers })
             yield* markStarting(m)
             return m
           })

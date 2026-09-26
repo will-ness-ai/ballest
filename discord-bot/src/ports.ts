@@ -28,6 +28,8 @@ export interface ProfilePreview {
   readonly avatarUrl: string
   /** How many of the campaign Tracks this account holds a time on (the Link confirmation shows it). */
   readonly campaignTracks: number
+  /** How many campaign Tracks there are. */
+  readonly campaignTrackTotal: number
 }
 
 export class Steam extends Context.Tag("multiballs/Steam")<
@@ -78,13 +80,16 @@ export interface Improvement {
 
 export type ThreadPost = Data.TaggedEnum<{
   Opened: { readonly by: Player; readonly type: MatchType; readonly minutes: Minutes }
-  Challenged: { readonly by: Player; readonly target: Player }
+  /** `expiresAt` is when the challenged Player must answer by. */
+  Challenged: { readonly by: Player; readonly target: Player; readonly minutes: Minutes; readonly expiresAt: number }
   Accepted: { readonly player: Player }
   Joined: { readonly player: Player }
   Left: { readonly player: Player }
-  Started: { readonly players: ReadonlyArray<Player>; readonly map: DrawnMap; readonly endsAt: number }
+  /** `card` is the live Card the start ping shows. */
+  Started: { readonly players: ReadonlyArray<Player>; readonly map: DrawnMap; readonly endsAt: number; readonly card: CardView }
   Improved: { readonly improvement: Improvement }
-  Result: { readonly standings: ReadonlyArray<Standing> }
+  /** `card` is the finished Card the Result shows. */
+  Result: { readonly standings: ReadonlyArray<Standing>; readonly card: CardView }
   /** No Map is eligible, so the Invite is cancelled; everyone in it is told. */
   NoMap: { readonly players: ReadonlyArray<Player> }
 }>

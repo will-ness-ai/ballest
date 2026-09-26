@@ -31,7 +31,8 @@ type Failable = "post" | "redraw" | "startThread"
 const makeFakeChannel = () => {
   let next = 1
   const messages: Array<{ id: string; drawing: Drawing | null }> = []
-  const threads = new Map<string, { messageId: string; posts: Array<ThreadPost> }>()
+  const threads = new Map<string, { messageId: string; posts: Array<ThreadPost>; clock: { id: string; shows: string } | null }>()
+  let clockDraws = 0
   const failures = new Map<Failable, number>()
 
   const fail = (op: Failable) => {
@@ -71,11 +72,28 @@ const makeFakeChannel = () => {
         if (fail("startThread")) return Effect.fail(broken("startThread"))
         if (find(messageId) === undefined) return Effect.fail(new Gone({ id: messageId }))
         const id = `thr${next++}`
-        threads.set(id, { messageId, posts: [] })
+        threads.set(id, { messageId, posts: [], clock: null })
         return Effect.succeed(id)
       }),
     deleteThread: (threadId) =>
       Effect.suspend(() => (threads.delete(threadId) ? Effect.void : Effect.fail(new Gone({ id: threadId })))),
+    postClock: (threadId, view) =>
+      Effect.suspend(() => {
+        const thread = threads.get(threadId)
+        if (thread === undefined) return Effect.fail(new Gone({ id: threadId }))
+        const id = `clk${next++}`
+        thread.clock = { id, shows: view.state }
+        clockDraws++
+        return Effect.succeed(id)
+      }),
+    redrawClock: (threadId, messageId, view) =>
+      Effect.suspend(() => {
+        const thread = threads.get(threadId)
+        if (thread?.clock?.id !== messageId) return Effect.fail(new Gone({ id: messageId }))
+        thread.clock = { id: messageId, shows: view.state }
+        clockDraws++
+        return Effect.void
+      }),
     postInThread: (threadId, _matchId, post) =>
       Effect.suspend(() => {
         const thread = threads.get(threadId)
@@ -100,6 +118,12 @@ const makeFakeChannel = () => {
       return thread?.posts.map((p) => p._tag) ?? null
     },
     threadCount: () => threads.size,
+    /** What the clock at the top of a Match's thread shows, and how often clocks were drawn. */
+    clock: (matchId: string) => {
+      const card = messages.find((m) => m.drawing !== null && label(m.drawing) === `card ${matchId}`)
+      return [...threads.values()].find((t) => t.messageId === card?.id)?.clock?.shows ?? null
+    },
+    clockDraws: () => clockDraws,
     failNext: (op: Failable, n: number) => failures.set(op, n),
     postByAnyone: () => messages.push({ id: `msg${next++}`, drawing: null }),
     deleteFooter: () => {
@@ -140,6 +164,19 @@ describe("the channel", () => {
       yield* surface.showCard(view("m1", { players: [ALICE, ALICE] }))
       expect(channel.order()).toEqual(["card m1", "card m2", "footer"])
       expect(channel.threadCount()).toBe(2)
+    })
+  )
+
+  it.scoped("opens each Match Thread with a clock, redrawn only when the Match moves on", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup
+      const surface = yield* start
+      yield* surface.showCard(view("m1", { expiresAt: 300_000 }))
+      expect(channel.clock("m1")).toBe("invite")
+      yield* surface.showCard(view("m1", { state: "live", expiresAt: null, endsAt: 900_000 }))
+      yield* surface.showCard(view("m1", { state: "live", expiresAt: null, endsAt: 900_000, players: [ALICE, ALICE] }))
+      expect(channel.clock("m1")).toBe("live")
+      expect(channel.clockDraws()).toBe(2)
     })
   )
 
@@ -211,7 +248,7 @@ describe("after a restart", () => {
       const surface = yield* start
       expect(channel.order()).toEqual(["card m1", "footer"])
       yield* surface.showCard(view("m1", { state: "live" }))
-      yield* surface.post("m1", ThreadPost.Result({ standings: [] }))
+      yield* surface.post("m1", ThreadPost.Result({ standings: [], card: view("m1", { state: "finished" }) }))
       expect(channel.order()).toEqual(["card m1", "footer"])
       expect(channel.threadPosts("m1")).toEqual(["Result"])
     })

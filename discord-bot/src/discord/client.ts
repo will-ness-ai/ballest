@@ -65,9 +65,19 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       )
     )
 
+    const application = client.application
+    if (application === null) return yield* Effect.dieMessage("logged in without an application")
+
     return {
       channel,
       interactions,
+      /** The application's own emojis (usable anywhere the bot posts), name to id. */
+      appEmojis: tryDiscord("fetch app emojis", () => application.emojis.fetch()).pipe(
+        Effect.map((all) => new Map(all.map((emoji) => [emoji.name ?? "", emoji.id])))
+      ),
+      /** Upload an application emoji; its id. */
+      createAppEmoji: (name: string, png: Buffer) =>
+        tryDiscord("create app emoji", () => application.emojis.create({ name, attachment: png })).pipe(Effect.map((emoji) => emoji.id)),
       /** The member's name in this server, for thread titles. */
       displayName: Effect.fn("displayName")(function* (discordId: string) {
         return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(

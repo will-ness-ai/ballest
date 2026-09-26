@@ -9,19 +9,22 @@
 //   is posted fresh. If the Card can't be drawn at all, no Footer is posted above the gap.
 // - An expired, cancelled or declined Invite loses its Card and its Match Thread. One cancelled
 //   because no Map is eligible keeps both, its Card saying why, so every Player can see it.
+// - A Match Thread opens with a clock: when the Invite expires, then when the Match ends, as a
+//   Discord timestamp, redrawn as the Match moves on.
 // - A Match Thread that fails to start is started on the Match's next thread post.
 // - A Card is forgotten once it will never change again: after its Result, or once removed.
 import { SqlClient, SqlSchema } from "@effect/sql"
 import { Effect, Layer, Option, Ref, Schema } from "effect"
 import { MigratorLive } from "../db.js"
 import { type CardView, type RemovalReason, Surface, type ThreadPost } from "../ports.js"
-import { Channel, Drawing, type Gone } from "./channel.js"
-import type { DiscordError } from "./client.js"
+import { Channel, type ChannelError, Drawing } from "./channel.js"
 
 interface CardRef {
   readonly messageId: string
   /** Null until the Match Thread has started. */
   readonly threadId: string | null
+  /** The clock that opens the Match Thread; null until it's posted. */
+  readonly clockId: string | null
 }
 
 interface Layout {
@@ -33,16 +36,27 @@ const LayoutJson = Schema.parseJson(
   Schema.Struct({
     footerId: Schema.NullOr(Schema.String),
     cards: Schema.Array(
-      Schema.Tuple(Schema.String, Schema.Struct({ messageId: Schema.String, threadId: Schema.NullOr(Schema.String) }))
+      Schema.Tuple(
+        Schema.String,
+        Schema.Struct({
+          messageId: Schema.String,
+          threadId: Schema.NullOr(Schema.String),
+          clockId: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null })
+        })
+      )
     )
   })
 )
 
-const logFailure = (e: Gone | DiscordError) =>
-  e._tag === "Gone" ? Effect.logWarning(`${e.id} is gone`) : Effect.logError(`discord ${e.op} failed`, e.cause)
+const logFailure = (e: ChannelError) =>
+  e._tag === "Gone"
+    ? Effect.logWarning(`${e.id} is gone`)
+    : e._tag === "RenderError"
+      ? Effect.logError("drawing an image failed", e.cause)
+      : Effect.logError(`discord ${e.op} failed`, e.cause)
 
 /** Deleting or closing something already gone counts as done. */
-const unlessGone = <E extends Gone | DiscordError>(effect: Effect.Effect<void, E>) =>
+const unlessGone = <E extends ChannelError>(effect: Effect.Effect<void, E>) =>
   effect.pipe(Effect.catchAll((e) => (e._tag === "Gone" ? Effect.void : logFailure(e))))
 
 const make = Effect.gen(function* () {
@@ -70,15 +84,19 @@ const make = Effect.gen(function* () {
     setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }))
   const setFooter = (footerId: string | null) => setLayout((l) => ({ ...l, footerId }))
 
-  /** The latest view of each Card, to name a Match Thread started late. */
+  /** The latest view of each Card, only to name a Match Thread started late. */
   const views = yield* Ref.make(new Map<string, CardView>())
+  /** What each thread's clock last showed, so it is only redrawn when that changes. */
+  const clocks = yield* Ref.make(new Map<string, string>())
 
   const forget = Effect.fn("forget")(function* (matchId: string) {
-    yield* Ref.update(views, (m) => {
+    const without = <V>(m: Map<string, V>) => {
       const next = new Map(m)
       next.delete(matchId)
       return next
-    })
+    }
+    yield* Ref.update(views, (m) => without(m))
+    yield* Ref.update(clocks, (m) => without(m))
     yield* setLayout((l) => {
       const cards = new Map(l.cards)
       cards.delete(matchId)
@@ -88,15 +106,40 @@ const make = Effect.gen(function* () {
 
   const lock = yield* Effect.makeSemaphore(1)
 
-  /** Start a Card's Match Thread, retrying twice; none if it still won't start. */
+  const clockKey = (view: CardView) => `${view.state}:${view.expiresAt}:${view.endsAt}`
+
+  /** Start a Card's Match Thread, retrying twice, and open it with the clock. None if it won't start. */
   const startThread = Effect.fn("startThread")(function* (matchId: string, messageId: string, view: CardView) {
     const threadId = yield* channel.startThread(messageId, view).pipe(
       Effect.retry({ times: 2, while: (e) => e._tag !== "Gone" }),
       Effect.tapError((e) => logFailure(e)),
       Effect.option
     )
-    if (Option.isSome(threadId)) yield* setCard(matchId, { messageId, threadId: threadId.value })
+    if (Option.isNone(threadId)) return threadId
+    const clockId = yield* channel.postClock(threadId.value, view).pipe(
+      Effect.tapError((e) => logFailure(e)),
+      Effect.option
+    )
+    if (Option.isSome(clockId)) yield* Ref.update(clocks, (m) => new Map(m).set(matchId, clockKey(view)))
+    yield* setCard(matchId, { messageId, threadId: threadId.value, clockId: Option.getOrNull(clockId) })
     return threadId
+  })
+
+  /** Redraw a thread's clock when the Match has moved on, or post it if that failed before. */
+  const redrawClock = Effect.fn("redrawClock")(function* (matchId: string, card: CardRef, view: CardView) {
+    const { threadId, clockId } = card
+    if (threadId === null) return
+    const key = clockKey(view)
+    if ((yield* Ref.get(clocks)).get(matchId) === key) return
+    if (clockId === null) {
+      const posted = yield* channel.postClock(threadId, view).pipe(
+        Effect.tapError((e) => logFailure(e)),
+        Effect.option
+      )
+      if (Option.isNone(posted)) return
+      yield* setCard(matchId, { ...card, clockId: posted.value })
+    } else yield* unlessGone(channel.redrawClock(threadId, clockId, view))
+    yield* Ref.update(clocks, (m) => new Map(m).set(matchId, key))
   })
 
   /** A new Card in the Footer's place (or fresh if the Footer is gone), then a new Footer below it. */
@@ -111,7 +154,7 @@ const make = Effect.gen(function* () {
             Effect.catchTag("Gone", () => channel.post(card))
           )
     yield* setFooter(null)
-    yield* setCard(view.matchId, { messageId, threadId: null })
+    yield* setCard(view.matchId, { messageId, threadId: null, clockId: null })
     yield* startThread(view.matchId, messageId, view)
     yield* setFooter(yield* channel.post(Drawing.Footer()))
   })
@@ -122,6 +165,7 @@ const make = Effect.gen(function* () {
       const card = (yield* Ref.get(layout)).cards.get(view.matchId)
       if (card === undefined) return yield* createCard(view)
       yield* channel.redraw(card.messageId, Drawing.Card({ view }))
+      yield* redrawClock(view.matchId, card, view)
     },
     Effect.catchAll((e) => logFailure(e)),
     lock.withPermits(1)
