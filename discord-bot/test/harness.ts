@@ -4,7 +4,7 @@ import { Context, type Duration, Effect, Exit, Layer, Option, Ref, Scope, TestCl
 import type { Link, MapInfo, Medals } from "../src/domain.js"
 import { SCORE_TICKS_PER_SECOND } from "../src/domain.js"
 import { Engine } from "../src/engine.js"
-import { makeMemoryStore } from "../src/memoryStore.js"
+import { SqliteStoreInMemory } from "../src/sqliteStore.js"
 import {
   ProfileNotFound,
   Steam,
@@ -156,12 +156,13 @@ export const PROFILES: Record<string, ProfilePreview> = {
 }
 
 /**
- * Everything a test needs: the engine plus the fakes behind it. `restart` tears the engine
+ * Everything a test needs (run it under `it.scoped`: the database lives for the test's scope): the engine plus the fakes behind it. `restart` tears the engine
  * down (as a crash would) and builds a fresh one over the same Store, fakes and clock.
  */
 export const makeHarness = (opts: { readonly maps: ReadonlyArray<FakeMap>; readonly linked?: boolean }) =>
   Effect.gen(function* () {
-    const store = yield* makeMemoryStore
+    // The real SQLite Store on a throwaway in-memory database, alive for the whole test.
+    const store = Context.get(yield* Layer.build(SqliteStoreInMemory), Store)
     if (opts.linked !== false) for (const p of [ALICE, BOB, CARA, DAN]) yield* store.putLink(link(p))
     const steam = yield* makeFakeSteam(PROFILES)
     yield* steam.control.setCatalogue(opts.maps)
