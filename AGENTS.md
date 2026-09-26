@@ -64,7 +64,11 @@ the served page. Verify collector changes with `python tools/check_data.py` (no 
 needed), then a live run if the read path changed.
 
 `discord-bot/` is the exception: `pnpm test` and `pnpm typecheck` there. Its tests drive the
-whole Match engine through fake Steam, Discord and storage ports and Effect's TestClock.
+whole Match engine through fake Steam and Discord ports, SQLite in memory and Effect's
+TestClock. The real Steam adapter has no unit tests; `pnpm smoke:steam` runs it against live
+Steam with the bot account's secrets, and is the check to run after changing `src/steam/`.
+Steam drops leaderboard replies when requests overlap, so `src/steam/session.ts` sends them
+strictly one at a time; keep it that way.
 
 ## Invariants worth knowing before you edit
 
