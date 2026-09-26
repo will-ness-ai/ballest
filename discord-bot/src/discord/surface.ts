@@ -18,6 +18,7 @@ import { Effect, Layer, Option, Ref, Schema } from "effect"
 import { MigratorLive } from "../db.js"
 import { type CardView, type RemovalReason, Surface, type ThreadPost } from "../ports.js"
 import { Channel, type ChannelError, Drawing } from "./channel.js"
+import { describeDiscordError } from "./client.js"
 
 interface CardRef {
   readonly messageId: string
@@ -53,7 +54,7 @@ const logFailure = (e: ChannelError) =>
     ? Effect.logWarning(`${e.id} is gone`)
     : e._tag === "RenderError"
       ? Effect.logError("drawing an image failed", e.cause)
-      : Effect.logError(`discord ${e.op} failed`, e.cause)
+      : Effect.logError(`discord ${describeDiscordError(e)}`)
 
 /** Deleting or closing something already gone counts as done. */
 const unlessGone = <E extends ChannelError>(effect: Effect.Effect<void, E>) =>

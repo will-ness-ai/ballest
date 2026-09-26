@@ -5,7 +5,7 @@ import { Context, Data, Effect, Layer, Option, Ref } from "effect"
 import type { MapInfo } from "../domain.js"
 import type { CardView, ThreadPost } from "../ports.js"
 import { Renderer, type RenderError } from "../render/renderer.js"
-import { Discord, type DiscordError, tryDiscord } from "./client.js"
+import { Discord, type DiscordError, oneLine, tryDiscord } from "./client.js"
 import { Marbles } from "./marbles.js"
 import { cardMessage, clockMessage, closedCardMessage, footerMessage, threadMessage, type ThreadArt, threadName } from "./messages.js"
 
@@ -105,7 +105,7 @@ export const DiscordChannelLive = Layer.effect(
       const known = (yield* Ref.get(previews)).get(map.previewUrl)
       if (known !== undefined) return known
       const uri = yield* fetchPreview(map.previewUrl).pipe(
-        Effect.tapError((e) => Effect.logWarning(`no preview for ${map.pfid}; drawing the stand-in`, e.cause)),
+        Effect.tapError((e) => Effect.logWarning(`no preview for ${map.pfid} (${oneLine(e.cause)}); drawing the stand-in`)),
         Effect.option
       )
       if (Option.isNone(uri)) return null

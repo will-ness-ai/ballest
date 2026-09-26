@@ -4,7 +4,7 @@
 import { Effect } from "effect"
 import { hueFor } from "../render/art.js"
 import { Renderer } from "../render/renderer.js"
-import { Discord } from "./client.js"
+import { Discord, describeDiscordError, oneLine } from "./client.js"
 
 const STEP = 15
 const HUES = Array.from({ length: 360 / STEP }, (_, i) => i * STEP)
@@ -32,7 +32,7 @@ export class Marbles extends Effect.Service<Marbles>()("multiballs/Marbles", {
       yield* renderer.marble(hue).pipe(
         Effect.flatMap((png) => discord.createAppEmoji(name, png)),
         Effect.tap((id) => Effect.sync(() => ids.set(name, id))),
-        Effect.catchAll((e) => Effect.logWarning(`marble emoji ${name} unavailable (${e._tag})`, e.cause))
+        Effect.catchAll((e) => Effect.logWarning(`marble emoji ${name} unavailable: ${e._tag === "DiscordError" ? describeDiscordError(e) : oneLine(e.cause)}`))
       )
     }
     yield* Effect.log(`marble emojis ready (${[...ids.keys()].filter((n) => n.startsWith("marble_")).length} of ${HUES.length})`)
@@ -46,7 +46,7 @@ export class Marbles extends Effect.Service<Marbles>()("multiballs/Marbles", {
     return emojis
   }).pipe(
     Effect.catchAll((e) =>
-      Effect.logWarning(`marble emojis unavailable (${e.op}); lifecycle lines go without them`, e.cause).pipe(
+      Effect.logWarning(`marble emojis unavailable (${describeDiscordError(e)}); lifecycle lines go without them`).pipe(
         Effect.as(NONE)
       )
     )

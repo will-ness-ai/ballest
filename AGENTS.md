@@ -40,9 +40,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   Leth Trial #1 event board. Frozen snapshots, its own `data/`, not touched by the
   collector; `leth/README.md` covers it.
 - `discord-bot/` — Multiballs, the unofficial Discord Match bot (TypeScript, Effect 3,
-  Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site. Its secrets are
-  in `discord-bot/.env` in the main checkout, and it only ever posts to the channel that
-  file names.
+  Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site; its own
+  `AGENTS.md` covers it.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
   reverse-engineering spike. Read `tools/README-hosting.md` before touching any of it.
 
@@ -63,23 +62,8 @@ The site and the collector have no tests, linters, or type checks. Verify front-
 the served page. Verify collector changes with `python tools/check_data.py` (no Steam
 needed), then a live run if the read path changed.
 
-`discord-bot/` is the exception: `pnpm test` and `pnpm typecheck` there. Its tests drive the
-whole Match engine through fake Steam and Discord ports, SQLite in memory and Effect's
-TestClock, and the Discord Surface (where Cards, Match Threads and the Footer go) over an
-in-memory channel. The discord.js edge (`client.ts`, `channel.ts`, `messages.ts`,
-`interactions.ts`) is checked by running the bot against the test server. Every image the bot
-posts is drawn by `src/render/` (Satori and resvg, fonts from `@fontsource`); `pnpm
-render:samples <dir>` writes each one as a PNG to check by eye against the design prototype on
-branch `claude/prototype-discord-bot-surfaces`. The real Steam adapter has no unit tests; `pnpm smoke:steam` runs it against live
-Steam with the bot account's secrets, and is the check to run after changing `src/steam/`.
-Steam drops leaderboard replies when requests overlap, so `src/steam/session.ts` sends them
-strictly one at a time; keep it that way.
-
-Run the bot with `pnpm start` in `discord-bot/` of the main checkout (from a worktree, set
-`MULTIBALLS_ENV` to that `.env` and `DB_PATH` to a scratch file). `.env` names the server and
-channel; point it at the test server while iterating. At startup the bot refuses to run
-without its channel permissions. The channel denies Send Messages to `@everyone` to stay
-read-only, so the bot's role needs an explicit Send Messages allow on that channel.
+`discord-bot/` has its own tests and type checks; `discord-bot/AGENTS.md` covers testing and
+running the bot.
 
 ## Invariants worth knowing before you edit
 

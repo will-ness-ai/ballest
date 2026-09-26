@@ -18,6 +18,15 @@ const REQUIRED_PERMISSIONS: ReadonlyArray<[string, bigint]> = [
   ["Manage Threads", PermissionFlagsBits.ManageThreads]
 ]
 
+/** A cause in one line: Discord's error code, if any, and its message. Stack traces stay out of the log. */
+export const oneLine = (cause: unknown): string => {
+  const code = typeof cause === "object" && cause !== null && "code" in cause ? `[${String(cause.code)}] ` : ""
+  return `${code}${cause instanceof Error ? cause.message : String(cause)}`
+}
+
+/** A Discord failure in one line: what the bot was doing, and what Discord said. */
+export const describeDiscordError = (e: DiscordError) => `${e.op}: ${oneLine(e.cause)}`
+
 export const tryDiscord = <A>(op: string, run: () => Promise<A>) =>
   Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) })
 
