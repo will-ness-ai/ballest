@@ -10,7 +10,10 @@ const EVERY_KIND: ReadonlyArray<Control> = [
   { _tag: "OpenInvite", request: { type: "lobby", target: null, minutes: 60 } },
   { _tag: "Act", action: "decline", matchId: "42" },
   { _tag: "ConfirmLink" },
-  { _tag: "LinkForm" }
+  { _tag: "LinkForm" },
+  { _tag: "AskLeave", matchId: "42" },
+  { _tag: "ConfirmLeave", matchId: "42" },
+  { _tag: "Stay" }
 ]
 
 describe("button and form ids", () => {
@@ -27,7 +30,7 @@ describe("button and form ids", () => {
   })
 
   it("ignore ids that aren't ours or no longer make sense", () => {
-    for (const id of ["", "other:new", "mb", "mb:nope", "mb:type:solo", "mb:dur:lobby:-:7", "mb:act:explode:1", "mb:act:join"])
+    for (const id of ["", "other:new", "mb", "mb:nope", "mb:type:solo", "mb:dur:lobby:-:7", "mb:act:explode:1", "mb:act:join", "mb:quit", "mb:quityes"])
       expect(parseControl(id)).toBeNull()
   })
 })

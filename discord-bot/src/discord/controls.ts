@@ -15,6 +15,10 @@ export type Control =
   | { readonly _tag: "PickDuration"; readonly request: InviteRequest }
   | { readonly _tag: "OpenInvite"; readonly request: InviteRequest }
   | { readonly _tag: "Act"; readonly action: Action; readonly matchId: string }
+  /** Leave on a live Card: asks first, privately. */
+  | { readonly _tag: "AskLeave"; readonly matchId: string }
+  | { readonly _tag: "ConfirmLeave"; readonly matchId: string }
+  | { readonly _tag: "Stay" }
   | { readonly _tag: "ConfirmLink" }
   | { readonly _tag: "LinkForm" }
 
@@ -45,12 +49,27 @@ const readRequest = ([type, target, minutes]: ReadonlyArray<string | undefined>)
 
 const bare = <K extends Tag>(prefix: string, control: Of<K>): Codec<K> => ({ prefix, write: () => [], read: () => control })
 
+const matchIdOf = (s: string | undefined) => (s === undefined || s === "" ? null : s)
+
+/** A Control that carries only a Match id. */
+const forMatch = <K extends "AskLeave" | "ConfirmLeave">(prefix: string, make: (matchId: string) => Of<K>): Codec<K> => ({
+  prefix,
+  write: (c: { readonly matchId: string }) => [c.matchId],
+  read: ([id]) => {
+    const matchId = matchIdOf(id)
+    return matchId === null ? null : make(matchId)
+  }
+})
+
 const CODECS: { readonly [K in Tag]: Codec<K> } = {
   NewMatch: bare("new", { _tag: "NewMatch" }),
   LinkSteam: bare("link", { _tag: "LinkSteam" }),
   PickTarget: bare("target", { _tag: "PickTarget" }),
   ConfirmLink: bare("linkyes", { _tag: "ConfirmLink" }),
   LinkForm: bare("linkform", { _tag: "LinkForm" }),
+  Stay: bare("stay", { _tag: "Stay" }),
+  AskLeave: forMatch("quit", (matchId) => ({ _tag: "AskLeave", matchId })),
+  ConfirmLeave: forMatch("quityes", (matchId) => ({ _tag: "ConfirmLeave", matchId })),
   PickType: {
     prefix: "type",
     write: (c) => [c.type],
@@ -78,9 +97,10 @@ const CODECS: { readonly [K in Tag]: Codec<K> } = {
   Act: {
     prefix: "act",
     write: (c) => [c.action, c.matchId],
-    read: ([action, matchId]) => {
+    read: ([action, id]) => {
       const a = ACTIONS.find((x) => x === action)
-      return a === undefined || matchId === undefined || matchId === "" ? null : { _tag: "Act", action: a, matchId }
+      const matchId = matchIdOf(id)
+      return a === undefined || matchId === null ? null : { _tag: "Act", action: a, matchId }
     }
   }
 }
