@@ -1,11 +1,12 @@
 // The bot's channel, as the Surface sees it: messages and Match Threads to draw things in.
 // It speaks in what to draw, not how, so the Surface's rules run against an in-memory channel
 // in tests; this adapter draws each one with the renderer and runs it on discord.js.
-import { Context, Data, Effect, Layer, Option, Ref } from "effect"
+import { Context, Data, Effect, Layer, Option } from "effect"
 import type { MapInfo } from "../domain.js"
 import type { CardView, KeptReason, ThreadPost } from "../ports.js"
+import { MapPreviews } from "../previews.js"
 import { Renderer, type RenderError } from "../render/renderer.js"
-import { Discord, type DiscordError, isUnknown, oneLine, tryDiscord } from "./client.js"
+import { Discord, type DiscordError, isUnknown, tryDiscord } from "./client.js"
 import { Marbles } from "./marbles.js"
 import { makeThreadNotices } from "./threadNotices.js"
 import { cardMessage, clockMessage, closedCardMessage, footerMessage, threadMessage, type ThreadArt, threadName } from "./messages.js"
@@ -24,9 +25,6 @@ export class Gone extends Data.TaggedError("Gone")<{ readonly id: string }> {}
 
 /** Anything a channel operation can fail with. */
 export type ChannelError = Gone | DiscordError | RenderError
-
-/** A Workshop preview that couldn't be fetched as an image the renderer can draw. */
-class PreviewUnavailable extends Data.TaggedError("PreviewUnavailable")<{ readonly cause: unknown }> {}
 
 export class Channel extends Context.Tag("multiballs/Channel")<
   Channel,
@@ -48,18 +46,6 @@ export class Channel extends Context.Tag("multiballs/Channel")<
   }
 >() {}
 
-/** A Workshop preview image as a data URI; only PNG and JPEG, which the renderer can draw. */
-const fetchPreview = Effect.fn("fetchPreview")(function* (url: string) {
-  const response = yield* Effect.tryPromise({
-    try: () => fetch(url, { signal: AbortSignal.timeout(5000) }),
-    catch: (cause) => new PreviewUnavailable({ cause })
-  })
-  const type = response.headers.get("content-type") ?? ""
-  if (!response.ok || !/^image\/(png|jpeg)/.test(type)) return yield* new PreviewUnavailable({ cause: `${response.status} ${type}` })
-  const body = yield* Effect.tryPromise({ try: () => response.arrayBuffer(), catch: (cause) => new PreviewUnavailable({ cause }) })
-  return `data:${type};base64,${Buffer.from(body).toString("base64")}`
-})
-
 /** Like goneIfUnknown, but passes a Gone from an earlier step through. */
 const goneIfUnknownOr =
   (id: string) =>
@@ -76,6 +62,7 @@ export const DiscordChannelLive = Layer.scoped(
   Effect.gen(function* () {
     const discord = yield* Discord
     const renderer = yield* Renderer
+    const previews = yield* MapPreviews
     const marbles = yield* Marbles
     const channel = discord.channel
     const notices = makeThreadNotices(channel)
@@ -99,25 +86,11 @@ export const DiscordChannelLive = Layer.scoped(
       return names
     })
 
-    /** Recent Workshop previews, so a live Card's redraws don't refetch; a failure is tried again next time. */
-    const previews = yield* Ref.make(new Map<string, string>())
-    const PREVIEWS_KEPT = 50
+    /** The Map's preview as the renderer takes it, or null to draw the stand-in. */
     const previewOf = Effect.fn("previewOf")(function* (map: MapInfo | null) {
-      if (map === null || map.previewUrl === "") return null
-      const known = (yield* Ref.get(previews)).get(map.previewUrl)
-      if (known !== undefined) return known
-      const uri = yield* fetchPreview(map.previewUrl).pipe(
-        Effect.tapError((e) => Effect.logWarning(`no preview for ${map.pfid} (${oneLine(e.cause)}); drawing the stand-in`)),
-        Effect.option
-      )
-      if (Option.isNone(uri)) return null
-      yield* Ref.update(previews, (m) => {
-        const next = new Map(m).set(map.previewUrl, uri.value)
-        // Oldest first: past the limit, the oldest goes.
-        for (const key of next.keys()) if (next.size > PREVIEWS_KEPT) next.delete(key)
-        return next
-      })
-      return uri.value
+      if (map === null) return null
+      const preview = yield* previews.of(map.previewUrl)
+      return Option.getOrNull(Option.map(preview, (p) => `data:${p.type};base64,${Buffer.from(p.body).toString("base64")}`))
     })
 
     const drawCard = Effect.fn("drawCard")(function* (view: CardView) {

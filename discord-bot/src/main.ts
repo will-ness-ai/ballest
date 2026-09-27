@@ -16,6 +16,7 @@ import { ChannelSurfaceLive } from "./discord/surface.js"
 import { Engine } from "./engine.js"
 import { InstanceLockLive } from "./instanceLock.js"
 import { OpsLive } from "./ops.js"
+import { MapPreviews, PreviewSourceLive } from "./previews.js"
 import { Renderer } from "./render/renderer.js"
 import { SqliteStoreLive } from "./sqliteStore.js"
 import { SteamLive } from "./steam/steamLive.js"
@@ -80,7 +81,11 @@ const SqlLive = SqliteClient.layerConfig({
 // Discord first, so the Footer is in place before the engine's restart recovery redraws Cards.
 const SurfaceLive = ChannelSurfaceLive.pipe(Layer.provide(DiscordChannelLive), Layer.provide(Marbles.Default))
 
+// One preview cache for both surfaces: the Card and the Activity show the same Workshop art.
+const PreviewsLive = MapPreviews.Default.pipe(Layer.provide(PreviewSourceLive))
+
 const PortsLive = Layer.mergeAll(SteamLive, SurfaceLive, SqliteStoreLive).pipe(
+  Layer.provideMerge(PreviewsLive),
   Layer.provideMerge(Renderer.Default),
   Layer.provideMerge(Discord.Default),
   Layer.provideMerge(SqlLive)
