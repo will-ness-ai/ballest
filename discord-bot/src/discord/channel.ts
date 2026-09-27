@@ -3,7 +3,7 @@
 // in tests; this adapter draws each one with the renderer and runs it on discord.js.
 import { Context, Data, Effect, Layer, Option, Ref } from "effect"
 import type { MapInfo } from "../domain.js"
-import type { CardView, ThreadPost } from "../ports.js"
+import type { CardView, KeptReason, ThreadPost } from "../ports.js"
 import { Renderer, type RenderError } from "../render/renderer.js"
 import { Discord, type DiscordError, isUnknown, oneLine, tryDiscord } from "./client.js"
 import { Marbles } from "./marbles.js"
@@ -14,8 +14,8 @@ import { cardMessage, clockMessage, closedCardMessage, footerMessage, threadMess
 export type Drawing = Data.TaggedEnum<{
   Footer: {}
   Card: { readonly view: CardView }
-  /** An Invite cancelled because no Map is eligible. */
-  Closed: {}
+  /** A Match cancelled but kept in view: no Map was eligible, or everyone left before setting a time. */
+  Closed: { readonly reason: KeptReason }
 }>
 export const Drawing = Data.taggedEnum<Drawing>()
 
@@ -40,7 +40,8 @@ export class Channel extends Context.Tag("multiballs/Channel")<
     readonly deleteThread: (threadId: string) => Effect.Effect<void, Gone | DiscordError>
     /** Open a Match Thread with its clock; the clock message's id. */
     readonly postClock: (threadId: string, view: CardView) => Effect.Effect<string, Gone | DiscordError>
-    readonly redrawClock: (threadId: string, messageId: string, view: CardView) => Effect.Effect<void, Gone | DiscordError>
+    /** Redraw a thread's clock for the Match as it stands, or as "cancelled" once it's closed. */
+    readonly redrawClock: (threadId: string, messageId: string, view: CardView | "cancelled") => Effect.Effect<void, Gone | DiscordError>
     readonly postInThread: (threadId: string, matchId: string, post: ThreadPost) => Effect.Effect<void, ChannelError>
     /** The id of the channel's newest message, whoever posted it. */
     readonly lastMessageId: Effect.Effect<string | null, DiscordError>
@@ -127,7 +128,7 @@ export const DiscordChannelLive = Layer.scoped(
       Drawing.$match(drawing, {
         Footer: () => renderer.footer.pipe(Effect.map((png) => footerMessage(png))),
         Card: ({ view }) => drawCard(view).pipe(Effect.map((png) => cardMessage(view, png))),
-        Closed: () => Effect.succeed(closedCardMessage())
+        Closed: ({ reason }) => Effect.succeed(closedCardMessage(reason))
       })
 
     /** The image a thread post carries, if any. */

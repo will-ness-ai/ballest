@@ -14,6 +14,8 @@ import { Renderer, type RenderError } from "../render/renderer.js"
 import { describeDiscordError, Discord, type DiscordError, oneLine, tryDiscord } from "./client.js"
 import { type Action, parseControl } from "./controls.js"
 import {
+  confirmLeaveMessage,
+  LEFT_TEXT,
   linkForm,
   linkPreviewMessage,
   pickDurationMessage,
@@ -156,6 +158,21 @@ export const InteractionsLive = Layer.scopedDiscard(
           return yield* showLinkForm(i)
         case "ConfirmLink":
           return yield* confirmLink(i)
+        case "AskLeave": {
+          const allowed = yield* engine.mayLeave(self, control.matchId).pipe(Effect.either)
+          const message = allowed._tag === "Left" ? { content: explain(allowed.left, self), ...quiet } : confirmLeaveMessage(control.matchId)
+          return yield* tryDiscord("reply", () => i.reply({ ...message, ...ephemeral }))
+        }
+        case "ConfirmLeave": {
+          yield* tryDiscord("defer", () => i.deferUpdate())
+          const text = yield* engine.leave(self, control.matchId).pipe(
+            Effect.as(LEFT_TEXT),
+            Effect.catchAll((e) => Effect.succeed(explain(e, self)))
+          )
+          return yield* tryDiscord("edit reply", () => i.editReply({ content: text, components: [], ...quiet }))
+        }
+        case "Stay":
+          return yield* tryDiscord("update", () => i.update({ content: "Still racing.", components: [] }))
         default:
           return
       }

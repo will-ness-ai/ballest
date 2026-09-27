@@ -78,6 +78,8 @@ export interface Match {
   readonly bestTicks: Readonly<Record<string, number>>
   /** Every PB set during the Match, in order, for the progression graph. */
   readonly history: ReadonlyArray<PbEvent>
+  /** SteamIDs of Players who left the live Match: their best time so far stands, later runs don't count. */
+  readonly left: ReadonlyArray<string>
 }
 
 /** A PB set during a Match: who, the time, and when (ms after the Match started). */
@@ -95,9 +97,12 @@ export const expiresAt = (m: Match): number => m.createdAt + INVITE_TTL_MS
 
 export const inMatch = (m: Match, discordId: string): boolean => m.players.some((p) => p.discordId === discordId)
 
-/** In the Match, or named by its still-open Challenge: either way, busy. */
+/** The Players still racing: everyone who hasn't left. */
+export const racing = (m: Match): ReadonlyArray<Player> => m.players.filter((p) => !m.left.includes(p.steamId))
+
+/** Still racing in the Match, or named by its still-open Challenge: either way, busy. A Player who left is free. */
 export const involves = (m: Match, discordId: string): boolean =>
-  inMatch(m, discordId) || (m.state === "invite" && m.target?.discordId === discordId)
+  racing(m).some((p) => p.discordId === discordId) || (m.state === "invite" && m.target?.discordId === discordId)
 
 export const seconds = (ticks: number): number => ticks / SCORE_TICKS_PER_SECOND
 
