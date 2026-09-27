@@ -12,7 +12,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 ## Layout
 
 - `index.html` — the entire site. Vanilla JS and CSS in one file: no build step, no
-  framework, no JS CDN (Google Fonts is the only external request).
+  framework, no JS CDN. The only external requests are Google Fonts and the Plausible
+  analytics script, served from our own instance on Railway.
 - `data/index.json` — board list, counts, `generated_at`. Loaded first.
 - `data/boards/<board>.json` — one file per board, lazy-loaded on selection.
 - `data/boards/OverallLeaderboard_AllSeasons.json` — the one board Steam does not have:
