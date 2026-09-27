@@ -12,6 +12,8 @@ rule here and every invariant in `CLAUDE.md`, and each finding names the rule it
 - Base rules serve phones; the single `min-width:820px` block carries every desktop
   override.
 - `isPoints` is the one place that reads a board's kind from its name.
+- A Steam ID that becomes an href, a fetch path or a query selector passes
+  `isSteamId` first: one of them arrives from the URL bar.
 - Code that walks a board's rows filters into a new array; `rows` itself stays in rank
   order.
 
