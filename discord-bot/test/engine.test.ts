@@ -528,6 +528,98 @@ describe("the progression graph", () => {
   )
 })
 
+describe("leaving a live Match", () => {
+  const live1v1 = Effect.gen(function* () {
+    const h = yield* makeHarness({ maps: [MAP] })
+    const id = yield* h.engine.openInvite(ALICE.discordId, public1v1)
+    yield* h.engine.accept(BOB.discordId, id)
+    return { h, id }
+  })
+
+  it.scoped("counts a run finished just before leaving, and nothing after it", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* live1v1
+      yield* advance("10 seconds")
+      yield* h.steam.setTime(1, BOB.steamId, 24) // not polled yet
+      yield* h.engine.leave(BOB.discordId, id)
+      yield* h.steam.setTime(1, BOB.steamId, 18)
+      yield* h.steam.setTime(1, ALICE.steamId, 26)
+      yield* advance("5 minutes")
+      const posts = yield* h.surface.posts(id)
+      expect(tags(posts)).toContain("Left")
+      const result = posts.find((p) => p._tag === "Result")
+      if (result?._tag !== "Result") return expect.unreachable()
+      expect(result.standings.map((s) => [s.player.discordId, s.ticks, s.rank])).toEqual([
+        [BOB.discordId, ticks(24), 1],
+        [ALICE.discordId, ticks(26), 2]
+      ])
+    })
+  )
+
+  it.scoped("ends the Match with its Result when the last Player leaves, if anyone set a time", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* live1v1
+      yield* h.steam.setTime(1, ALICE.steamId, 22)
+      yield* h.engine.leave(ALICE.discordId, id)
+      yield* h.engine.leave(BOB.discordId, id)
+      expect(tags(yield* h.surface.posts(id)).slice(-3)).toEqual(["Left", "Result", "Progression"])
+      expect(Option.getOrThrow(yield* h.surface.card(id)).state).toBe("finished")
+      yield* advance("5 minutes") // the clock is stopped: no second Result
+      expect(tags(yield* h.surface.posts(id)).filter((t) => t === "Result")).toHaveLength(1)
+    })
+  )
+
+  it.scoped("cancels the Match when everyone leaves before anyone set a time", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* live1v1
+      yield* h.engine.leave(ALICE.discordId, id)
+      yield* h.engine.leave(BOB.discordId, id)
+      expect(tags(yield* h.surface.posts(id)).slice(-3)).toEqual(["Left", "Left", "Abandoned"])
+      expect(yield* h.surface.removed(id)).toEqual(Option.some("abandoned"))
+      expect(yield* h.store.activeMatches).toEqual([])
+      yield* h.engine.openInvite(ALICE.discordId, public1v1) // free again
+    })
+  )
+
+  it.scoped("only lets a Player still racing leave", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* live1v1
+      yield* h.engine.mayLeave(ALICE.discordId, id)
+      yield* h.engine.leave(ALICE.discordId, id)
+      expect((yield* Effect.flip(h.engine.mayLeave(ALICE.discordId, id)))._tag).toBe("NotAllowed") // no confirm to show
+      const again = yield* Effect.flip(h.engine.leave(ALICE.discordId, id))
+      const stranger = yield* Effect.flip(h.engine.leave(CARA.discordId, id))
+      expect([again._tag, stranger._tag]).toEqual(["NotAllowed", "NotAllowed"])
+      yield* h.engine.openInvite(ALICE.discordId, public1v1) // free to play again while Bob races on
+    })
+  )
+
+  it.scoped("in a live Lobby, lets a late joiner leave, but not a leaver back in", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] })
+      const id = yield* h.engine.openInvite(ALICE.discordId, { type: "lobby", minutes: 5, target: null })
+      yield* h.engine.join(BOB.discordId, id)
+      yield* h.engine.start(ALICE.discordId, id)
+      yield* h.engine.leave(BOB.discordId, id)
+      const back = yield* Effect.flip(h.engine.join(BOB.discordId, id))
+      expect(back._tag === "NotAllowed" && back.reason).toBe("You left this Match, so you can't rejoin it.")
+      yield* h.engine.join(CARA.discordId, id)
+      yield* h.engine.leave(CARA.discordId, id)
+      expect(Option.getOrThrow(yield* h.store.getMatch(id)).state).toBe("live") // Alice races on
+    })
+  )
+
+  it.scoped("stays open until Steam answers the leaving Player's read", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* live1v1
+      yield* h.steam.failNextReads(3) // the read and both retries
+      const failed = yield* Effect.flip(h.engine.leave(ALICE.discordId, id))
+      expect(failed._tag).toBe("SteamUnavailable")
+      yield* h.engine.leave(ALICE.discordId, id)
+    })
+  )
+})
+
 describe("the Result", () => {
   it.scoped("is read the moment the Match ends, ranked, with DNF last", () =>
     Effect.gen(function* () {
@@ -625,7 +717,9 @@ describe("restart", () => {
       const id = yield* h.engine.openInvite(ALICE.discordId, public1v1)
       yield* h.engine.accept(BOB.discordId, id)
       yield* advance("1 minute")
+      const cardsBefore = (yield* h.surface.all).filter((e) => e._tag === "Card").length
       yield* h.restart("1 minute")
+      expect((yield* h.surface.all).filter((e) => e._tag === "Card").length).toBe(cardsBefore + 1) // redrawn on boot
       yield* h.steam.setTime(1, ALICE.steamId, 27)
       yield* advance("10 seconds")
       expect(improvements(yield* h.surface.posts(id))).toHaveLength(1)

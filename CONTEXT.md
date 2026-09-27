@@ -45,7 +45,9 @@ _Avoid_: challenge (that is a Match type), request
 
 **Match**:
 A timed contest on one Map, starting when its Invite is filled and ending when the
-duration runs out.
+duration runs out, or once every Player has left it: a Player who leaves keeps their best
+time so far, and nothing they set afterwards counts. If everyone leaves before anyone set
+a time, the Match is cancelled.
 _Avoid_: game, race, session
 
 **Public 1v1**:
@@ -58,7 +60,7 @@ _Avoid_: private 1v1, duel
 **Lobby**:
 A Match type whose Invite any number of Players can join; it starts when its creator
 starts it, with at least two Players. Players can still join once it is live; a late
-joiner's PB on the Map when they join is the PB they must beat.
+joiner's PB on the Map when they join is the PB they must beat. A Player who left can't rejoin.
 _Avoid_: public lobby, room
 
 **Eligible Map**:

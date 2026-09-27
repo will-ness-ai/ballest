@@ -10,7 +10,8 @@
 //   top to bottom in the order their Invites opened. If the Footer was deleted by hand, the Card
 //   is posted fresh. If the Card can't be drawn at all, no Footer is posted above the gap.
 // - An expired, cancelled or declined Invite loses its Card and its Match Thread. One cancelled
-//   because no Map is eligible keeps both, its Card saying why, so every Player can see it.
+//   because no Map is eligible, or a live Match everyone left before setting a time, keeps both,
+//   its Card saying why, so every Player can see it.
 // - A Match Thread opens with a clock: when the Invite expires, then when the Match ends, as a
 //   Discord timestamp, redrawn as the Match moves on.
 // - A Match Thread that fails to start is started on the Match's next thread post.
@@ -18,7 +19,7 @@
 import { SqlClient, SqlSchema } from "@effect/sql"
 import { Effect, Layer, Option, Ref, Schema } from "effect"
 import { MigratorLive } from "../db.js"
-import { type CardView, type RemovalReason, Surface, type ThreadPost } from "../ports.js"
+import { type CardView, isKept, type RemovalReason, Surface, type ThreadPost } from "../ports.js"
 import { Channel, type ChannelError, Drawing } from "./channel.js"
 import { describeDiscordError } from "./client.js"
 
@@ -177,8 +178,10 @@ const make = Effect.gen(function* () {
   const remove = Effect.fn("remove")(function* (matchId: string, reason: RemovalReason) {
     const card = (yield* Ref.get(layout)).cards.get(matchId)
     if (card === undefined) return
-    if (reason === "noEligibleMap") yield* unlessGone(channel.redraw(card.messageId, Drawing.Closed()))
-    else {
+    if (isKept(reason)) {
+      yield* unlessGone(channel.redraw(card.messageId, Drawing.Closed({ reason })))
+      if (card.threadId !== null && card.clockId !== null) yield* unlessGone(channel.redrawClock(card.threadId, card.clockId, "cancelled"))
+    } else {
       if (card.threadId !== null) yield* unlessGone(channel.deleteThread(card.threadId))
       yield* unlessGone(channel.deleteMessage(card.messageId))
     }

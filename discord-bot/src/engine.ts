@@ -10,6 +10,7 @@ import {
   LOBBY_MIN_PLAYERS,
   medalFor,
   POLL_INTERVAL_MS,
+  racing,
   rankOf,
   standings,
   worldRecordFits,
@@ -240,7 +241,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       const barOf = (steamId: string) => before.bestTicks[steamId] ?? map.personalBests[steamId]
       const changed = entries.filter((e) => {
         const bar = barOf(e.steamId)
-        return before.players.some((p) => p.steamId === e.steamId) && (bar === undefined || e.ticks < bar)
+        return racing(before).some((p) => p.steamId === e.steamId) && (bar === undefined || e.ticks < bar)
       })
       if (changed.length === 0) return before
       const at = (yield* Clock.currentTimeMillis) - (before.startedAt ?? 0)
@@ -287,7 +288,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         ? Effect.succeed<ReadonlyArray<Entry>>([])
         : steam.readPlayers(
             m.map.boardId,
-            m.players.map((p) => p.steamId)
+            racing(m).map((p) => p.steamId)
           )
 
     /** Apply a read to the Match if it is still live. */
@@ -305,6 +306,21 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       (effect, matchId) => Effect.catchAll(effect, (e) => Effect.logWarning(`poll ${matchId} failed: ${e._tag}`))
     )
 
+    /** Finished: the Result, then the graph if anyone set a time. Called under the lock. */
+    const conclude = Effect.fn("conclude")(function* (m: Match) {
+      const done: Match = { ...m, state: "finished" }
+      yield* save(done)
+      yield* surface.post(done.id, ThreadPost.Result({ standings: standings(done), card: cardOf(done) }))
+      if (done.history.length > 0) yield* surface.post(done.id, ThreadPost.Progression({ card: cardOf(done), history: done.history }))
+    })
+
+    /** Cancelled: everyone left before anyone set a time. Its Card and thread stay, saying so. Called under the lock. */
+    const abandon = Effect.fn("abandon")(function* (m: Match) {
+      yield* surface.post(m.id, ThreadPost.Abandoned())
+      yield* store.deleteMatch(m.id)
+      yield* surface.remove(m.id, "abandoned")
+    })
+
     /** The end: one read, retried only immediately, then the Result. */
     const finish = Effect.fn("finish")(
       function* (matchId: string) {
@@ -316,11 +332,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           Effect.gen(function* () {
             const current = yield* getMatch(matchId)
             if (current.state !== "live") return
-            const withFinalRead = Option.isSome(entries) ? yield* applyEntries(current, entries.value) : current
-            const done: Match = { ...withFinalRead, state: "finished" }
-            yield* save(done)
-            yield* surface.post(done.id, ThreadPost.Result({ standings: standings(done), card: cardOf(done) }))
-            if (done.history.length > 0) yield* surface.post(done.id, ThreadPost.Progression({ card: cardOf(done), history: done.history }))
+            yield* conclude(Option.isSome(entries) ? yield* applyEntries(current, entries.value) : current)
           })
         )
       },
@@ -380,7 +392,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     /** Who may join a Lobby: a linked Player who isn't in it yet and isn't busy elsewhere. */
     const joiner = Effect.fn("joiner")(function* (m: Match, discordId: string) {
       if (m.type !== "lobby") return yield* new NotAllowed({ reason: "Only a Lobby can be joined." })
-      if (inMatch(m, discordId)) return yield* new NotAllowed({ reason: "You're already in this Lobby." })
+      const already = m.players.find((p) => p.discordId === discordId)
+      if (already !== undefined)
+        return yield* new NotAllowed({
+          reason: m.left.includes(already.steamId) ? "You left this Match, so you can't rejoin it." : "You're already in this Lobby."
+        })
       const player = yield* playerOf(discordId)
       yield* assertFree(discordId)
       return player
@@ -428,6 +444,49 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       )
     })
 
+    // ---------------------------------------------------------------- leaving
+
+    /** A Lobby Invite: the Player is simply out of it. Its creator cancels instead. */
+    const leaveLobby = Effect.fn("leaveLobby")(function* (discordId: string, matchId: string) {
+      const m = yield* getInvite(matchId)
+      const player = m.players.find((p) => p.discordId === discordId)
+      if (m.type !== "lobby" || player === undefined) return yield* new NotAllowed({ reason: "You're not in this Lobby." })
+      if (m.creator.discordId === discordId) return yield* new NotAllowed({ reason: "Cancel the Lobby instead." })
+      yield* save({ ...m, players: m.players.filter((p) => p.discordId !== discordId) })
+      yield* surface.post(matchId, ThreadPost.Left({ player }))
+    }, locked)
+
+    /** Who may leave: a Player still racing in a live Match. */
+    const liveRacer = Effect.fn("liveRacer")(function* (matchId: string, discordId: string) {
+      const m = yield* getMatch(matchId)
+      if (m.state !== "live") return yield* new NotAllowed({ reason: "That Match is over." })
+      const player = racing(m).find((p) => p.discordId === discordId)
+      if (player === undefined) return yield* new NotAllowed({ reason: "You're not racing in this Match." })
+      return { m, player }
+    })
+
+    /**
+     * A live Match: the Player's board is read first, so a run finished just before leaving
+     * still counts; nothing they set after it does. When the last Player leaves, the Match
+     * ends there: with its Result if anyone set a time, cancelled if nobody did.
+     */
+    const leaveLive = Effect.fn("leaveLive")(function* (discordId: string, matchId: string) {
+      const { m, player } = yield* liveRacer(matchId, discordId)
+      const entries = m.map === null ? [] : yield* steam.readPlayers(m.map.boardId, [player.steamId]).pipe(Effect.retry({ times: READ_RETRIES }))
+      yield* locked(
+        Effect.gen(function* () {
+          // Checked again: the Match may have ended, or they left elsewhere, during the read.
+          const { m: current } = yield* liveRacer(matchId, discordId)
+          const read = yield* applyEntries(current, entries)
+          const after: Match = { ...read, left: [...read.left, player.steamId] }
+          yield* surface.post(after.id, ThreadPost.Left({ player }))
+          if (racing(after).length > 0) return yield* save(after)
+          yield* FiberMap.remove(timers, after.id)
+          yield* after.history.length > 0 ? conclude(after) : abandon(after)
+        })
+      )
+    })
+
     // ---------------------------------------------------------------- restart recovery
 
     for (const m of yield* store.activeMatches) {
@@ -436,6 +495,8 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         if (now >= expiresAt(m)) yield* dropInvite(m.id, "expired")
         else yield* scheduleExpiry(m)
       } else {
+        // Redrawn, so a Card drawn by an older build gets today's buttons.
+        yield* surface.showCard(cardOf(m))
         yield* FiberMap.run(timers, m.id, runLive(m.id))
       }
     }
@@ -477,7 +538,8 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           endsAt: null,
           map: null,
           bestTicks: {},
-          history: []
+          history: [],
+          left: []
         }
         yield* save(m)
         yield* surface.post(m.id, ThreadPost.Opened({ by: creator, type: m.type, minutes: m.minutes }))
@@ -520,14 +582,16 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         yield* locked(joinInvite(discordId, matchId)).pipe(Effect.catchTag("NotOpen", () => joinLive(discordId, matchId)))
       }),
 
+      /** Whether the Player may leave this live Match, asked before the confirm is shown. */
+      mayLeave: Effect.fn("mayLeave")(function* (discordId: string, matchId: string) {
+        yield* liveRacer(matchId, discordId)
+      }),
+
+      /** Out of a Lobby Invite, or out of a live Match with the best time so far standing. */
       leave: Effect.fn("leave")(function* (discordId: string, matchId: string) {
-        const m = yield* getInvite(matchId)
-        const player = m.players.find((p) => p.discordId === discordId)
-        if (m.type !== "lobby" || player === undefined) return yield* new NotAllowed({ reason: "You're not in this Lobby." })
-        if (m.creator.discordId === discordId) return yield* new NotAllowed({ reason: "Cancel the Lobby instead." })
-        yield* save({ ...m, players: m.players.filter((p) => p.discordId !== discordId) })
-        yield* surface.post(matchId, ThreadPost.Left({ player }))
-      }, locked),
+        const m = yield* getMatch(matchId)
+        return m.state === "live" ? yield* leaveLive(discordId, matchId) : yield* leaveLobby(discordId, matchId)
+      }),
 
       /** Lobby only: its creator starts it, with at least the Lobby minimum of Players. */
       start: Effect.fn("start")(function* (discordId: string, matchId: string) {

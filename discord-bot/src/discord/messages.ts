@@ -14,7 +14,7 @@ import {
 } from "discord.js"
 import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js"
 import { RESULT_HUE, START_HUE } from "../render/art.js"
-import type { CardView, ThreadPost } from "../ports.js"
+import type { CardView, KeptReason, ThreadPost } from "../ports.js"
 import { type Action, type Control, controlId } from "./controls.js"
 import type { MarbleEmojis } from "./marbles.js"
 
@@ -69,8 +69,10 @@ const declineButton = (matchId: string) => button("Decline", act("decline", matc
 
 const cardButtons = (v: CardView) => {
   const join = () => button(`Join (${v.players.length})`, act("join", v.matchId), ButtonStyle.Success)
-  if (v.state === "live" && v.map !== null)
-    return [v.type === "lobby" ? row(join(), workshopLink(v.map.pfid)) : workshopButton(v.map.pfid)]
+  if (v.state === "live" && v.map !== null) {
+    const leave = button("Leave", { _tag: "AskLeave", matchId: v.matchId })
+    return [v.type === "lobby" ? row(join(), workshopLink(v.map.pfid), leave) : row(workshopLink(v.map.pfid), leave)]
+  }
   if (v.state !== "invite") return []
   const cancel = button("Cancel", act("cancel", v.matchId))
   if (v.type === "public") return [row(acceptButton(v.matchId), cancel)]
@@ -109,12 +111,16 @@ export const cardMessage = (v: CardView, png: Buffer): Payload => {
   }
 }
 
-const NO_MAP = "No Map fits this Match: none suits the length. A longer Match allows more Maps."
+/** Why a kept Match was cancelled, on its Card and in its thread. */
+const WHY_CANCELLED: Record<KeptReason, string> = {
+  noEligibleMap: "No Map fits this Match: none suits the length. A longer Match allows more Maps.",
+  abandoned: "Everyone left before anyone set a time."
+}
 
-/** A Card whose Invite was cancelled because no Map is eligible: it stays, saying why. */
-export const closedCardMessage = (): Payload => ({
+/** A cancelled Card that stays, saying why. */
+export const closedCardMessage = (reason: KeptReason): Payload => ({
   content: "",
-  embeds: [new EmbedBuilder().setTitle("Cancelled").setDescription(NO_MAP)],
+  embeds: [new EmbedBuilder().setTitle("Cancelled").setDescription(WHY_CANCELLED[reason])],
   files: [],
   attachments: [],
   components: [],
@@ -124,7 +130,10 @@ export const closedCardMessage = (): Payload => ({
 // ---------------------------------------------------------------- Match Thread posts ("Marble Icons")
 
 /** The Match Thread's first message: the same clock as under the Card, kept at the thread's top. */
-export const clockMessage = (v: CardView): Payload => ({ content: clockText(v) ?? "**Finished**", ...quiet })
+export const clockMessage = (v: CardView | "cancelled"): Payload => ({
+  content: v === "cancelled" ? "**Cancelled**" : (clockText(v) ?? "**Finished**"),
+  ...quiet
+})
 
 /** What a thread post is drawn with, beyond the post itself. */
 export interface ThreadArt {
@@ -192,9 +201,11 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
     }
     case "NoMap":
       return {
-        content: `${post.players.map((p) => who(p.discordId)).join(" ")} **Match cancelled.** ${NO_MAP}`,
+        content: `${post.players.map((p) => who(p.discordId)).join(" ")} **Match cancelled.** ${WHY_CANCELLED.noEligibleMap}`,
         allowedMentions: { users: post.players.map((p) => p.discordId) }
       }
+    case "Abandoned":
+      return { content: `**Match cancelled.** ${WHY_CANCELLED.abandoned}`, ...quiet }
   }
 }
 
@@ -245,6 +256,15 @@ export const pickDurationMessage = (type: MatchType, target: string | null, chos
     ...quiet
   }
 }
+
+// ---------------------------------------------------------------- Leave a live Match, privately
+
+export const LEFT_TEXT = "You left the Match. Your best time so far stands."
+
+export const confirmLeaveMessage = (matchId: string): Payload => ({
+  content: "**Leave this Match?** Your best time so far stands, but nothing after this counts.",
+  components: [row(button("Leave", { _tag: "ConfirmLeave", matchId }, ButtonStyle.Danger), button("Stay", { _tag: "Stay" }))]
+})
 
 // ---------------------------------------------------------------- Link Steam
 

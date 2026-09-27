@@ -101,10 +101,15 @@ export type ThreadPost = Data.TaggedEnum<{
   Result: { readonly standings: ReadonlyArray<Standing>; readonly card: CardView }
   /** No Map is eligible, so the Invite is cancelled; everyone in it is told. */
   NoMap: { readonly players: ReadonlyArray<Player> }
+  /** Every Player left the live Match before anyone set a time, so it is cancelled. */
+  Abandoned: {}
 }>
 export const ThreadPost = Data.taggedEnum<ThreadPost>()
 
-export type RemovalReason = "expired" | "cancelled" | "declined" | "noEligibleMap"
+/** Why a cancelled Match keeps its Card and thread: no Map was eligible, or everyone left before setting a time. */
+export type KeptReason = "noEligibleMap" | "abandoned"
+export type RemovalReason = "expired" | "cancelled" | "declined" | KeptReason
+export const isKept = (reason: RemovalReason): reason is KeptReason => reason === "noEligibleMap" || reason === "abandoned"
 
 export class Surface extends Context.Tag("multiballs/Surface")<
   Surface,
@@ -113,8 +118,9 @@ export class Surface extends Context.Tag("multiballs/Surface")<
     readonly showCard: (view: CardView) => Effect.Effect<void>
     readonly post: (matchId: string, post: ThreadPost) => Effect.Effect<void>
     /**
-     * An Invite that never became a Match: its Card and Match Thread go, except after
-     * "noEligibleMap", where they stay so the Players can read why.
+     * A Match that ends without a Result: an Invite that never started, or a live Match
+     * everyone left before setting a time. Its Card and Match Thread go, unless the reason
+     * is a KeptReason: then they stay, saying why, so the Players can read it.
      */
     readonly remove: (matchId: string, reason: RemovalReason) => Effect.Effect<void>
   }

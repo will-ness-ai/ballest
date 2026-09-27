@@ -74,7 +74,7 @@ const makeFakeChannel = () => {
       Effect.suspend(() => {
         const thread = threads.get(threadId)
         if (thread?.clock?.id !== messageId) return Effect.fail(new Gone({ id: messageId }))
-        thread.clock = { id: messageId, shows: view.state }
+        thread.clock = { id: messageId, shows: view === "cancelled" ? view : view.state }
         clockDraws++
         return Effect.void
       }),
@@ -89,7 +89,7 @@ const makeFakeChannel = () => {
   })
 
   const label = (d: Drawing | null) =>
-    d === null ? "someone else" : Drawing.$match(d, { Footer: () => "footer", Card: ({ view }) => `card ${view.matchId}`, Closed: () => "closed" })
+    d === null ? "someone else" : Drawing.$match(d, { Footer: () => "footer", Card: ({ view }) => `card ${view.matchId}`, Closed: ({ reason }) => `closed ${reason}` })
 
   return {
     port,
@@ -108,6 +108,8 @@ const makeFakeChannel = () => {
       return [...threads.values()].find((t) => t.messageId === card?.id)?.clock?.shows ?? null
     },
     clockDraws: () => clockDraws,
+    /** What every thread's clock shows, whatever its Card became. */
+    clocks: () => [...threads.values()].map((t) => t.clock?.shows ?? null),
     failNext: (op: Failable, n: number) => failures.set(op, n),
     postByAnyone: () => messages.push({ id: `msg${next++}`, drawing: null }),
     deleteFooter: () => {
@@ -183,8 +185,21 @@ describe("the channel", () => {
       yield* surface.showCard(view("m1"))
       yield* surface.post("m1", ThreadPost.NoMap({ players: [ALICE] }))
       yield* surface.remove("m1", "noEligibleMap")
-      expect(channel.order()).toEqual(["closed", "footer"])
+      expect(channel.order()).toEqual(["closed noEligibleMap", "footer"])
       expect(channel.threadCount()).toBe(1)
+    })
+  )
+
+  it.scoped("keeps the Card of a Match everyone left, saying why, with its thread", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup
+      const surface = yield* start
+      yield* surface.showCard(view("m1", { state: "live" }))
+      yield* surface.post("m1", ThreadPost.Abandoned())
+      yield* surface.remove("m1", "abandoned")
+      expect(channel.order()).toEqual(["closed abandoned", "footer"])
+      expect(channel.threadCount()).toBe(1)
+      expect(channel.clocks()).toEqual(["cancelled"])
     })
   )
 
