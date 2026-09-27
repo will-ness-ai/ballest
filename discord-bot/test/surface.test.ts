@@ -6,24 +6,8 @@ import { Context, Effect, Layer } from "effect"
 import { Channel, Drawing, Gone } from "../src/discord/channel.js"
 import { DiscordError } from "../src/discord/client.js"
 import { ChannelSurfaceLive } from "../src/discord/surface.js"
-import { type CardView, Surface, ThreadPost } from "../src/ports.js"
-
-const ALICE = { discordId: "d-alice", steamId: "s-alice" }
-
-const view = (matchId: string, over: Partial<CardView> = {}): CardView => ({
-  matchId,
-  state: "invite",
-  type: "public",
-  minutes: 10,
-  creator: ALICE,
-  target: null,
-  players: [ALICE],
-  map: null,
-  standings: [],
-  expiresAt: null,
-  endsAt: null,
-  ...over
-})
+import { Surface, ThreadPost } from "../src/ports.js"
+import { ALICE, cardView as view } from "./harness.js"
 
 type Failable = "post" | "redraw" | "startThread"
 

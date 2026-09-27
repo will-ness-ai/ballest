@@ -1,7 +1,7 @@
 // Fakes for the engine's ports, and a harness that builds the whole engine the way the bot
 // does. Tests drive Player actions and the TestClock, and assert on what reached Surface.
 import { Context, type Duration, Effect, Exit, Layer, Option, Ref, Scope, TestClock } from "effect"
-import type { Link, MapInfo, Medals } from "../src/domain.js"
+import type { DrawnMap, Link, MapInfo, Medals } from "../src/domain.js"
 import { SCORE_TICKS_PER_SECOND } from "../src/domain.js"
 import { Engine } from "../src/engine.js"
 import { SqliteStoreInMemory } from "../src/sqliteStore.js"
@@ -148,6 +148,30 @@ export const BOB = { discordId: "d-bob", steamId: "s-bob" }
 export const CARA = { discordId: "d-cara", steamId: "s-cara" }
 export const DAN = { discordId: "d-dan", steamId: "s-dan" }
 export const UNLINKED = "d-nobody"
+
+/** A Match's Map as drawn, from a fake Map. */
+export const drawnMap = (map: FakeMap = makeMap(1)): DrawnMap => ({
+  ...map,
+  boardId: map.boardId ?? 0,
+  worldRecordTicks: map.worldRecordTicks ?? 0,
+  personalBests: {}
+})
+
+/** A Card view: a Public 1v1 Invite by Alice unless told otherwise. */
+export const cardView = (matchId: string, over: Partial<CardView> = {}): CardView => ({
+  matchId,
+  state: "invite",
+  type: "public",
+  minutes: 10,
+  creator: ALICE,
+  target: null,
+  players: [ALICE],
+  map: null,
+  standings: [],
+  expiresAt: null,
+  endsAt: null,
+  ...over
+})
 
 const link = (p: { discordId: string; steamId: string }): Link => ({ ...p, personaName: p.discordId.slice(2) })
 
