@@ -64,14 +64,23 @@ The page fetches with relative paths, so `file://` will not work. Serve it:
 python -m http.server 8731
 ```
 
-(or use the `ballest` config in `.claude/launch.json`). Refreshing data locally needs a
+(or use the `ballest` config in `.claude/launch.json`, which takes whatever port it is
+given). A page you want to look at but not commit goes in `scratch/`, which is served
+like any other folder and is gitignored. Refreshing data locally needs a
 Steam refresh token; the mint-and-collect runbook is `tools/README-hosting.md`. The
 secrets (`.env`, `tools/refresh_token.txt`) live in the main checkout and are found from
 a worktree.
 
-The site and the collector have no tests, linters, or type checks. Verify front-end changes by loading
-the served page. Verify collector changes with `python tools/check_data.py` (no Steam
-needed), then a live run if the read path changed.
+The site and the collector have no tests, linters, or type checks. Verify front-end
+changes by loading the served page. Verify collector changes with
+`python tools/check_data.py` (no Steam needed), then a live run if the read path
+changed. CI runs that same check on every pull request and on `main`
+(`.github/workflows/check.yml`), against the merge result rather than the branch,
+because a derived file and a board can each be current and still disagree once merged.
+
+`python tools/check_data.py --write` rewrites the derived files from the committed
+boards before checking them. That is how a new artifact's first copy is made, and how a
+branch carrying one recovers after a rebase moves the boards underneath it.
 
 `discord-bot/` has its own tests and type checks; `discord-bot/AGENTS.md` covers testing and
 running the bot.
@@ -124,14 +133,8 @@ marks that player's row once the board is open. Every player name links to a pla
 Selecting a board goes through the route too (`go(boardHash(...))`), so nothing calls
 `selectBoard` to navigate — that is what makes a board, and a player's row on it,
 something you can link to. Anything else in the hash means the board already on screen,
-or the default one.
-
-**`playerRecord` is the only part of the player page that reads the board table.**
-It turns a shard plus a Steam ID into everything the page shows — identity, medals,
-seasons, tiers, each track with its own field size and record — and the rendering below
-it is markup over that record. A finish is matched to the board table **by name**
-through the shard's own `boards` list, never by position in `index.json`, which a cached
-shard may disagree with.
+or the default one. `playerRecord` turns a shard plus a Steam ID into everything the
+player page shows, and the rendering below it is markup over that record.
 
 **Rows are index-aligned to rank.** `rowHtml` reaches for `rows[r.rank - 2]` to compute
 the interval to the next rung up, so sorting, filtering, or de-duping the array in place
@@ -145,8 +148,8 @@ Inserting or reordering a track renumbers everything after it on the site. Appen
 tracks in the game's own order and verify in-game: the pre-race screen shows each track's
 top five, which is enough to match against `data/boards/`.
 
-**The theme lives in CSS custom properties** on `:root` in `index.html`. It is dark-only
-and mobile-first with a single `min-width:820px` breakpoint.
+**The theme lives in CSS custom properties** on `:root` in `index.html`, and it is
+dark-only.
 
 ## Data and git
 
@@ -160,6 +163,22 @@ changes out of them.
 
 `CODING_STANDARDS.md` is the review checklist; it also holds the branch and commit
 conventions.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub issues and pull requests on `will-ness-ai/ballest`, through the `gh` CLI. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, each label string equal to its name. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
 ## Do not publish the reverse-engineering material
 

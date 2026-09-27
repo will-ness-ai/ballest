@@ -6,12 +6,19 @@ rule here and every invariant in `CLAUDE.md`, and each finding names the rule it
 
 ## Page (`index.html`)
 
-- Every interpolated value goes through `esc()`, numbers from our own JSON included.
+- Every interpolated value that can carry text from Steam — a persona, a board name, an
+  avatar or profile URL — goes through `esc()`, and so does anything that lands inside an
+  `href` or another attribute. A number this file formatted itself (`fmtN`, `fmtTime`,
+  `ord`, a rank) is already digits and is left alone, as the page does throughout.
 - Colors come from the custom properties on `:root`. The translucent black and white
   used for shadows and hairlines are the one literal allowed.
 - Base rules serve phones; the single `min-width:820px` block carries every desktop
   override.
 - `isPoints` is the one place that reads a board's kind from its name.
+- The player page reads the board table in `playerRecord` and nowhere below it: the
+  rendering takes that record and nothing else.
+- A player's finish is matched to a board **by name**, through the shard's own `boards`
+  list. A cached shard can disagree with a newer `index.json` about position.
 - A Steam ID that becomes an href, a fetch path or a query selector passes
   `isSteamId` first: one of them arrives from the URL bar.
 - Code that walks a board's rows filters into a new array; `rows` itself stays in rank

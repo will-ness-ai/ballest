@@ -1,11 +1,20 @@
 """
-Offline check of the committed data against the collector's own rules.
+Offline check of the committed data against the collector's own rules, and the
+one way to rebuild what it checks.
 
 Needs no Steam credentials: it reads data/ as committed and rebuilds what the
 collector derives, so a change to campaign_common.py can be verified without a
 live run. Exit status is non-zero on any failure, so it can gate a commit.
 
-  python tools/check_data.py
+  python tools/check_data.py            # check
+  python tools/check_data.py --write    # rewrite the derived files, then check
+
+--write is for the two times the committed derived files legitimately disagree
+with the boards: a new artifact whose first copy ships with the code that adds
+it, and a branch rebased onto boards that moved underneath it. It writes the
+same files write_site does, from the same derive() call, so there is no second
+description of what a derived file should contain. It never touches the board
+files or index.json: those come from Steam.
 
 Checks:
   - every board in BOARDS has a file, index.json lists it, and the two agree
@@ -26,7 +35,17 @@ def load(path):
         return json.load(f)
 
 
-def main():
+def write(artifacts):
+    """Rewrite every derived file from derive()'s list, the way write_site does."""
+    for a in artifacts:
+        path = os.path.join(cc.DATA_DIR, a["path"])
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(a["doc"], f, ensure_ascii=False, separators=(",", ":"))
+        print("  wrote " + a["path"])
+
+
+def main(rewrite=False):
     problems = []
     index = load(cc.INDEX_PATH)
     listed = {b["name"]: b for b in index["boards"]}
@@ -57,6 +76,8 @@ def main():
     # One call, so the check cannot drift from the write: derive() is what the
     # collector publishes, including the order the shards' board indices mean.
     boards_out, artifacts = cc.derive(boards_out)
+    if rewrite:
+        write(artifacts)
     for a in artifacts:
         path = os.path.join(cc.DATA_DIR, a["path"])
         if not os.path.exists(path):
@@ -93,4 +114,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(rewrite="--write" in sys.argv[1:]))
