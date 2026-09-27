@@ -89,6 +89,52 @@ export interface PbEvent {
   readonly at: number
 }
 
+/** A PB of the Match as every surface shows it: the rank it gave, the time it beat, and any world record it broke. */
+export interface Progress extends PbEvent {
+  /** Rank in the Match once the whole Steam read it came in on is counted; 1 is drawn gold. */
+  readonly rank: number
+  /** The Player's rank just before that read; null if they had no time yet. */
+  readonly previousRank: number | null
+  /** The time it beat: the Player's best this Match, else the PB they brought into it. */
+  readonly previousTicks: number | null
+  /** The world record this run beat, as it stood at that moment; null if it didn't beat one. */
+  readonly beatWorldRecord: number | null
+}
+
+/**
+ * Every PB of a Match in order, worked out from its history alone, so the Match Thread, the
+ * graph and the Activity can't tell it differently. PBs from the same Steam read (the same `at`)
+ * are ranked against the whole read, so two Players improving at once can't both be P1. A read's
+ * PBs are stored slowest first, so each world-record break is measured against the WR it beat.
+ */
+export const progress = (map: DrawnMap, history: ReadonlyArray<PbEvent>): ReadonlyArray<Progress> => {
+  const rankIn = (bests: ReadonlyMap<string, number>, ticks: number) => 1 + [...bests.values()].filter((t) => t < ticks).length
+  const best = new Map<string, number>()
+  let worldRecord = map.worldRecordTicks
+  const out: Array<Progress> = []
+  for (let i = 0; i < history.length; ) {
+    let end = i
+    while (history[end]?.at === history[i]?.at) end++
+    const read = history.slice(i, end)
+    const before = new Map(best)
+    for (const e of read) best.set(e.steamId, e.ticks)
+    for (const e of read) {
+      const previous = before.get(e.steamId)
+      const beat = e.ticks < worldRecord ? worldRecord : null
+      if (beat !== null) worldRecord = e.ticks
+      out.push({
+        ...e,
+        rank: rankIn(best, e.ticks),
+        previousRank: previous === undefined ? null : rankIn(before, previous),
+        previousTicks: previous ?? map.personalBests[e.steamId] ?? null,
+        beatWorldRecord: beat
+      })
+    }
+    i += read.length
+  }
+  return out
+}
+
 /** The world record as it stands during a Match: the one at the start, or a faster time set since. */
 export const currentWorldRecord = (m: Match): number | null =>
   m.map === null ? null : Math.min(m.map.worldRecordTicks, ...m.history.map((e) => e.ticks))
@@ -103,6 +149,30 @@ export const racing = (m: Match): ReadonlyArray<Player> => m.players.filter((p) 
 /** Still racing in the Match, or named by its still-open Challenge: either way, busy. A Player who left is free. */
 export const involves = (m: Match, discordId: string): boolean =>
   racing(m).some((p) => p.discordId === discordId) || (m.state === "invite" && m.target?.discordId === discordId)
+
+/** What a Player can do to a Match: the Card's buttons. */
+export type Action = "accept" | "decline" | "join" | "leave" | "start" | "cancel"
+export const ACTIONS: ReadonlyArray<Action> = ["accept", "decline", "join", "leave", "start", "cancel"]
+
+/**
+ * What a member may press on a Match by its rules, for a surface that shows each member their own
+ * buttons. Whether they're busy in another Match isn't checked: the engine turns that down, in words.
+ */
+export const actionsFor = (m: Match, discordId: string): ReadonlyArray<Action> => {
+  const creator = m.creator.discordId === discordId
+  const player = m.players.find((p) => p.discordId === discordId)
+  if (m.state === "invite") {
+    if (m.type === "lobby") return creator ? ["start", "cancel"] : player !== undefined ? ["leave"] : ["join"]
+    if (creator) return ["cancel"]
+    if (m.type === "challenge") return m.target?.discordId === discordId ? ["accept", "decline"] : []
+    return ["accept"]
+  }
+  if (m.state === "live") {
+    if (player !== undefined) return m.left.includes(player.steamId) ? [] : ["leave"]
+    return m.type === "lobby" ? ["join"] : []
+  }
+  return []
+}
 
 export const seconds = (ticks: number): number => ticks / SCORE_TICKS_PER_SECOND
 

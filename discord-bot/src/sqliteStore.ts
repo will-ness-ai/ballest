@@ -66,6 +66,11 @@ const make = Effect.gen(function* () {
     Result: LinkRow,
     execute: (discordId) => sql`SELECT * FROM links WHERE discord_id = ${discordId}`
   })
+  const findLinks = SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: LinkRow,
+    execute: () => sql`SELECT * FROM links ORDER BY discord_id`
+  })
   const findMatch = SqlSchema.findOne({
     Request: Schema.String,
     Result: MatchRow,
@@ -78,13 +83,18 @@ const make = Effect.gen(function* () {
   })
   const encodeMatch = Schema.encode(Schema.parseJson(MatchSchema))
 
+  const linkOf = (r: typeof LinkRow.Type): Link => ({ discordId: r.discord_id, steamId: r.steam_id, personaName: r.persona_name })
+
   // A database error is a bug or a broken disk, not something a Player can act on: it dies.
   return Store.of({
-    getLink: (discordId) =>
-      findLink(discordId).pipe(
-        Effect.map(Option.map((r): Link => ({ discordId: r.discord_id, steamId: r.steam_id, personaName: r.persona_name }))),
+    getLink: (discordId) => findLink(discordId).pipe(
+        Effect.map((row) => Option.map(row, (r) => linkOf(r))),
         Effect.orDie
       ),
+    links: findLinks(undefined).pipe(
+      Effect.map((rows) => rows.map(linkOf)),
+      Effect.orDie
+    ),
     putLink: (link) =>
       sql`INSERT INTO links ${sql.insert({ discord_id: link.discordId, steam_id: link.steamId, persona_name: link.personaName })}
           ON CONFLICT (discord_id) DO UPDATE SET steam_id = excluded.steam_id, persona_name = excluded.persona_name`.pipe(

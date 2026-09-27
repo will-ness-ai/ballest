@@ -1,6 +1,7 @@
 // The engine's edges. Real adapters (steam-user, discord.js, SQLite) and test fakes both
 // implement these; the engine never sees Discord ids or Steam protobufs.
 import { Context, Data, type Effect, type Option } from "effect"
+import { expiresAt, standings } from "./domain.js"
 import type { DrawnMap, Link, MapInfo, Match, MatchState, MatchType, MedalKind, Minutes, PbEvent, Player, Standing } from "./domain.js"
 
 // ---------------------------------------------------------------- Steam
@@ -68,6 +69,21 @@ export interface CardView {
   readonly endsAt: number | null
 }
 
+/** A Match as its Card shows it: the Map stays sealed while the Invite is open. */
+export const cardView = (m: Match): CardView => ({
+  matchId: m.id,
+  state: m.state,
+  type: m.type,
+  minutes: m.minutes,
+  creator: m.creator,
+  target: m.target,
+  players: m.players,
+  map: m.state === "invite" ? null : m.map,
+  standings: standings(m),
+  expiresAt: m.state === "invite" ? expiresAt(m) : null,
+  endsAt: m.state === "live" ? m.endsAt : null
+})
+
 export interface Improvement {
   readonly player: Player
   readonly ticks: number
@@ -126,6 +142,21 @@ export class Surface extends Context.Tag("multiballs/Surface")<
   }
 >() {}
 
+/** Where a Match sits in the channel: its Card's message, and its Match Thread once started. */
+export interface MatchPlace {
+  readonly messageId: string
+  readonly threadId: string | null
+}
+
+/** Where each Match's Card and Match Thread are, so the Activity can link to them. */
+export class MatchLinks extends Context.Tag("multiballs/MatchLinks")<
+  MatchLinks,
+  {
+    /** None when the channel holds no Card for it (yet, or any more). */
+    readonly of: (matchId: string) => Effect.Effect<Option.Option<MatchPlace>>
+  }
+>() {}
+
 // ---------------------------------------------------------------- Store
 
 export class Store extends Context.Tag("multiballs/Store")<
@@ -133,6 +164,8 @@ export class Store extends Context.Tag("multiballs/Store")<
   {
     readonly getLink: (discordId: string) => Effect.Effect<Option.Option<Link>>
     readonly putLink: (link: Link) => Effect.Effect<void>
+    /** Every Link, for picking who to challenge. */
+    readonly links: Effect.Effect<ReadonlyArray<Link>>
     readonly nextMatchId: Effect.Effect<string>
     readonly getMatch: (id: string) => Effect.Effect<Option.Option<Match>>
     readonly putMatch: (match: Match) => Effect.Effect<void>

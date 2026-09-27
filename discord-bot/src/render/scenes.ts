@@ -1,8 +1,9 @@
 // What each image looks like, as element trees for Satori (flexbox and CSS, no browser). The
 // settled design is the prototype on branch claude/prototype-discord-bot-surfaces; check any
 // change by eye with `pnpm render:samples`.
-import { formatTime, MATCH_TYPE_NAME, type MedalKind, type Medals, type PbEvent, SCORE_TICKS_PER_SECOND } from "../domain.js"
+import { formatTime, MATCH_TYPE_NAME, type MedalKind, type Medals, type PbEvent, progress, SCORE_TICKS_PER_SECOND } from "../domain.js"
 import type { CardView, Improvement, ProfilePreview } from "../ports.js"
+import { boardRows, formatGap, mapTitle, matchDetails } from "../present.js"
 import { hueFor, MEDAL_BAR, marbleSvg, medalHeight, medalSvg, svgUri } from "./art.js"
 
 // ---------------------------------------------------------------- elements
@@ -99,7 +100,6 @@ const chip = (text: string, style: Style = {}, lead: El | null = null) =>
 
 /** A medal target in seconds, as the medal bars show it: 14.200, or 1:02.500 past a minute. */
 const formatTarget = (seconds: number) => formatTime(seconds * SCORE_TICKS_PER_SECOND).replace(/^0:/, "")
-const formatSeconds = (ticks: number) => (ticks / SCORE_TICKS_PER_SECOND).toFixed(3)
 
 const PLACE_COLOUR = [C.gold, C.silver, C.bronze]
 const placeColour = (rank: number | null) => (rank === null ? C.dim : (PLACE_COLOUR[rank - 1] ?? C.dim))
@@ -178,81 +178,8 @@ const picture = (card: CardImage, height: number) => {
     : img(card.preview, CARD_WIDTH, height, { ...fill, objectFit: "cover" })
 }
 
-interface Row {
-  readonly rank: string
-  readonly rankColour: string
-  readonly hue: number
-  readonly faded: boolean
-  readonly name: string
-  readonly note: string
-  readonly score: string
-  readonly medal: MedalKind | null
-  /** This Player holds the world record, set during the Match: a WR ribbon replaces the medal. */
-  readonly worldRecord: boolean
-}
-
-const rowsOf = (card: CardImage): ReadonlyArray<Row> => {
-  const { view, names } = card
-  const nameOf = (discordId: string) => names.get(discordId) ?? "Player"
-  if (view.state === "invite") {
-    const slots: Array<Row> = view.players.map((p, i) => ({
-      rank: String(i + 1),
-      rankColour: C.dim,
-      hue: hueFor(p.steamId),
-      faded: false,
-      name: nameOf(p.discordId),
-      note: i === 0 ? "opened the Invite" : "joined",
-      score: "ready",
-      medal: null,
-      worldRecord: false
-    }))
-    const next = String(slots.length + 1)
-    if (view.type === "public")
-      slots.push({ rank: next, rankColour: C.faint, hue: 0, faded: true, name: "Open slot", note: "first to accept", score: "—", medal: null, worldRecord: false })
-    if (view.type === "challenge" && view.target !== null)
-      slots.push({
-        rank: next,
-        rankColour: C.faint,
-        hue: hueFor(view.target.steamId),
-        faded: true,
-        name: nameOf(view.target.discordId),
-        note: "challenged",
-        score: "—",
-        medal: null,
-        worldRecord: false
-      })
-    return slots
-  }
-  const live = view.state === "live"
-  const leader = view.standings[0]?.ticks ?? null
-  const personalBests = view.map?.personalBests ?? {}
-  /** What a Player without a counted time is told, which differs for one who must beat their PB. */
-  const untimed = (steamId: string) => {
-    const pb = personalBests[steamId]
-    if (pb === undefined) return live ? "no time yet" : "did not finish"
-    return live ? `must beat their PB ${formatTime(pb)}` : `didn't beat their PB ${formatTime(pb)}`
-  }
-  return view.standings.map((s) => ({
-    rank: s.rank === null ? "–" : String(s.rank),
-    rankColour: placeColour(s.rank),
-    hue: hueFor(s.player.steamId),
-    faded: false,
-    name: nameOf(s.player.discordId),
-    note:
-      s.ticks === null
-        ? untimed(s.player.steamId)
-        : s.rank === 1
-          ? live
-            ? "leads"
-            : "wins"
-          : leader === null
-            ? ""
-            : `+${formatSeconds(s.ticks - leader)} behind`,
-    score: s.ticks === null ? (live ? "—" : "DNF") : formatTime(s.ticks),
-    medal: s.medal,
-    worldRecord: s.rank === 1 && s.ticks !== null && view.map !== null && s.ticks < view.map.worldRecordTicks
-  }))
-}
+/** The Card's rows, from the shared Board Slab (present.ts). */
+const rowsOf = (card: CardImage) => boardRows(card.view, (id) => card.names.get(id) ?? "Player")
 
 const COLUMNS = { rank: 34, marble: 24 } as const
 
@@ -270,8 +197,8 @@ const slab = (card: CardImage) => {
     ...rowsOf(card).map((r) =>
       box(
         { alignItems: "center", gap: 10, padding: "0 12px", minHeight: 44, borderTop: `1px solid ${C.line2}`, color: r.faded ? C.faint : C.text },
-        box({ width: COLUMNS.rank, fontFamily: F.hud, fontWeight: 600, fontSize: 14, color: r.rankColour }, r.rank),
-        marble(r.hue, 24, r.faded ? { opacity: 0.25 } : {}),
+        box({ width: COLUMNS.rank, fontFamily: F.hud, fontWeight: 600, fontSize: 14, color: r.faded ? C.faint : placeColour(r.place) }, r.rank),
+        marble(r.steamId === null ? 0 : hueFor(r.steamId), 24, r.faded ? { opacity: 0.25 } : {}),
         box(
           { flexGrow: 1, flexDirection: "column", minWidth: 0 },
           box({ fontWeight: 600, fontSize: 14.5, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }, r.name),
@@ -301,11 +228,8 @@ const stateChip = (view: CardView) =>
 export const cardScene = (card: CardImage): El => {
   const { view } = card
   const height = view.state === "invite" ? 110 : 150
-  const title = view.map === null || view.state === "invite" ? "Map pending" : view.map.title
-  const meta =
-    view.map === null || view.state === "invite"
-      ? `${MATCH_TYPE_NAME[view.type]} · ${view.minutes} min · drawn at the start`
-      : `by ${view.map.creator} · ${MATCH_TYPE_NAME[view.type]} · ${view.minutes} min · WR ${formatTime(view.map.worldRecordTicks)}`
+  const title = mapTitle(view)
+  const meta = matchDetails(view)
   return backdrop(
     { width: CARD_WIDTH },
     box(
@@ -389,7 +313,7 @@ const worldRecordScene = (improvement: Improvement, name: string, beaten: number
       box({ fontSize: 15, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }, name),
       box(
         { fontFamily: F.hud, fontWeight: 700, fontSize: 11, color: "#3a2a00", textShadow: "none" },
-        `beat ${formatTime(beaten)} by ${formatSeconds(beaten - improvement.ticks)}`
+        `beat ${formatTime(beaten)} by ${formatGap(beaten - improvement.ticks)}`
       )
     ),
     box({ fontSize: 22, paddingRight: 16 }, formatTime(improvement.ticks))
@@ -398,7 +322,7 @@ const worldRecordScene = (improvement: Improvement, name: string, beaten: number
 export const improvementScene = (improvement: Improvement, name: string): El => {
   if (improvement.beatWorldRecord !== null) return worldRecordScene(improvement, name, improvement.beatWorldRecord)
   const lead = improvement.rank === 1
-  const diff = improvement.previousTicks === null ? null : `-${formatSeconds(improvement.previousTicks - improvement.ticks)}`
+  const diff = improvement.previousTicks === null ? null : `-${formatGap(improvement.previousTicks - improvement.ticks)}`
   return backdrop(
     {
       width: ROW_WIDTH,
@@ -526,7 +450,7 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
   const W = PROGRESSION_WIDTH, H = 470, L = 78, R = 150, T = 100, B = 58
   const map = view.map
   const secs = (ticks: number) => ticks / SCORE_TICKS_PER_SECOND
-  const label10 = (ticks: number) => formatSeconds(ticks)
+  const label10 = (ticks: number) => formatGap(ticks)
   const duration = view.minutes * 60
   const wr = map === null ? Infinity : secs(map.worldRecordTicks)
   const personalBests = map?.personalBests ?? {}
@@ -569,13 +493,7 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
   if (above.length > 0) overlays.push(textAt(L, T - 10, `▲ above the chart: ${above.join(" · ")}`, { fontFamily: F.hud, fontSize: 10, color: C.faint }))
 
   // Each PB that beat the world record standing at the time.
-  const breaks: Array<PbEvent> = []
-  let standing = wr
-  for (const e of history)
-    if (secs(e.ticks) < standing) {
-      standing = secs(e.ticks)
-      breaks.push(e)
-    }
+  const breaks = map === null ? [] : progress(map, history).filter((e) => e.beatWorldRecord !== null)
   if (map !== null) {
     lines += `<line x1="${L}" y1="${y(wr)}" x2="${W - R}" y2="${y(wr)}" stroke="#fff" stroke-dasharray="2 4" stroke-width="1.3"/>`
     leftLabels.push({ y: y(wr), text: `WR ${label10(map.worldRecordTicks)}`, style: { fontFamily: F.hud, fontWeight: 700, fontSize: 10, color: "#fff" }, medal: null })

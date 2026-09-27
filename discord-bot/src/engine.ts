@@ -3,15 +3,14 @@
 import { Chunk, Clock, Config, Data, Effect, FiberMap, Option, Random, Ref } from "effect"
 import {
   authorTimeFits,
-  currentWorldRecord,
   expiresAt,
   inMatch,
   involves,
   LOBBY_MIN_PLAYERS,
   medalFor,
   POLL_INTERVAL_MS,
+  progress,
   racing,
-  rankOf,
   standings,
   worldRecordFits,
   type DrawnMap,
@@ -25,7 +24,7 @@ import {
   Store,
   Surface,
   ThreadPost,
-  type CardView,
+  cardView,
   type Entry,
   type Improvement,
   type ProfileNotFound,
@@ -65,6 +64,9 @@ export interface InviteRequest {
   /** The challenged Player's Discord id; required for a Challenge, ignored otherwise. */
   readonly target: string | null
 }
+
+/** How many ended Matches' reasons are remembered. */
+const CLOSED_KEPT = 100
 
 /** A board read that Steam drops is retried this many times. */
 const READ_RETRIES = 2
@@ -107,27 +109,22 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * with the Players they are about to start with. Nothing else may touch them meanwhile.
      */
     const starting = yield* Ref.make(new Map<string, Match>())
+    /** Why each recent Match ended without a Result, so everyone who was in it can be told. */
+    const closed = yield* Ref.make(new Map<string, RemovalReason>())
+    const noteClosed = Effect.fn("noteClosed")(function* (matchId: string, reason: RemovalReason) {
+      yield* Ref.update(closed, (m) => {
+        const next = new Map(m).set(matchId, reason)
+        for (const key of next.keys()) if (next.size > CLOSED_KEPT) next.delete(key)
+        return next
+      })
+    })
 
     // ---------------------------------------------------------------- helpers
-
-    const cardOf = (m: Match): CardView => ({
-      matchId: m.id,
-      state: m.state,
-      type: m.type,
-      minutes: m.minutes,
-      creator: m.creator,
-      target: m.target,
-      players: m.players,
-      map: m.state === "invite" ? null : m.map,
-      standings: standings(m),
-      expiresAt: m.state === "invite" ? expiresAt(m) : null,
-      endsAt: m.state === "live" ? m.endsAt : null
-    })
 
     /** Persist a Match and redraw its Card. */
     const save = Effect.fn("save")(function* (m: Match) {
       yield* store.putMatch(m)
-      yield* surface.showCard(cardOf(m))
+      yield* surface.showCard(cardView(m))
     })
 
     const orFail = <A, E>(found: Effect.Effect<Option.Option<A>>, missing: () => E) =>
@@ -162,6 +159,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
 
     /** An Invite that never became a Match goes. Its expiry timer is left alone: it may be the caller. */
     const dropInvite = Effect.fn("dropInvite")(function* (matchId: string, reason: RemovalReason) {
+      yield* noteClosed(matchId, reason)
       yield* store.deleteMatch(matchId)
       yield* surface.remove(matchId, reason)
     })
@@ -224,7 +222,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       endsAt: number,
       players: ReadonlyArray<Player>
     ) {
-      yield* surface.post(m.id, ThreadPost.Started({ players, map, endsAt, card: cardOf(m) }))
+      yield* surface.post(m.id, ThreadPost.Started({ players, map, endsAt, card: cardView(m) }))
       const bars = barsOf(players, map)
       if (bars.length > 0) yield* surface.post(m.id, ThreadPost.PlayedBefore({ bars }))
     })
@@ -247,39 +245,33 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       const at = (yield* Clock.currentTimeMillis) - (before.startedAt ?? 0)
       // Slowest first, so two WR breaks in one poll are each measured against the WR they beat.
       const inOrder = [...changed].sort((a, b) => b.ticks - a.ticks)
-      let worldRecord = currentWorldRecord(before) ?? Infinity
-      const beaten = new Map<string, number>()
-      for (const e of inOrder)
-        if (e.ticks < worldRecord) {
-          beaten.set(e.steamId, worldRecord)
-          worldRecord = e.ticks
-        }
       const after: Match = {
         ...before,
         bestTicks: { ...before.bestTicks, ...Object.fromEntries(changed.map((e) => [e.steamId, e.ticks])) },
         history: [...before.history, ...inOrder.map((e) => ({ steamId: e.steamId, ticks: e.ticks, at }))]
       }
-      const improvements = changed
-        .flatMap((e): Array<Improvement> => {
-          const player = after.players.find((p) => p.steamId === e.steamId)
+      // This read's PBs, told the way every surface tells them.
+      const improvements = progress(map, after.history)
+        .slice(-inOrder.length)
+        .flatMap((p): Array<Improvement> => {
+          const player = after.players.find((pl) => pl.steamId === p.steamId)
           return player === undefined
             ? []
             : [
                 {
                   player,
-                  ticks: e.ticks,
-                  medal: medalFor(e.ticks, map.medals),
-                  rank: rankOf(after, e.steamId) ?? 1,
-                  previousTicks: barOf(e.steamId) ?? null,
-                  previousRank: rankOf(before, e.steamId),
-                  beatWorldRecord: beaten.get(e.steamId) ?? null
+                  ticks: p.ticks,
+                  medal: medalFor(p.ticks, map.medals),
+                  rank: p.rank,
+                  previousTicks: p.previousTicks,
+                  previousRank: p.previousRank,
+                  beatWorldRecord: p.beatWorldRecord
                 }
               ]
         })
-        .sort((a, b) => b.ticks - a.ticks)
       yield* store.putMatch(after)
       for (const improvement of improvements) yield* surface.post(after.id, ThreadPost.Improved({ improvement }))
-      yield* surface.showCard(cardOf(after))
+      yield* surface.showCard(cardView(after))
       return after
     })
 
@@ -310,13 +302,14 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     const conclude = Effect.fn("conclude")(function* (m: Match) {
       const done: Match = { ...m, state: "finished" }
       yield* save(done)
-      yield* surface.post(done.id, ThreadPost.Result({ standings: standings(done), card: cardOf(done) }))
-      if (done.history.length > 0) yield* surface.post(done.id, ThreadPost.Progression({ card: cardOf(done), history: done.history }))
+      yield* surface.post(done.id, ThreadPost.Result({ standings: standings(done), card: cardView(done) }))
+      if (done.history.length > 0) yield* surface.post(done.id, ThreadPost.Progression({ card: cardView(done), history: done.history }))
     })
 
     /** Cancelled: everyone left before anyone set a time. Its Card and thread stay, saying so. Called under the lock. */
     const abandon = Effect.fn("abandon")(function* (m: Match) {
       yield* surface.post(m.id, ThreadPost.Abandoned())
+      yield* noteClosed(m.id, "abandoned")
       yield* store.deleteMatch(m.id)
       yield* surface.remove(m.id, "abandoned")
     })
@@ -496,7 +489,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         else yield* scheduleExpiry(m)
       } else {
         // Redrawn, so a Card drawn by an older build gets today's buttons.
-        yield* surface.showCard(cardOf(m))
+        yield* surface.showCard(cardView(m))
         yield* FiberMap.run(timers, m.id, runLive(m.id))
       }
     }
@@ -580,6 +573,24 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
        */
       join: Effect.fn("join")(function* (discordId: string, matchId: string) {
         yield* locked(joinInvite(discordId, matchId)).pipe(Effect.catchTag("NotOpen", () => joinLive(discordId, matchId)))
+      }),
+
+      /** A member's PB on a live Match's Map, the time a late join would have to beat; null if they haven't Played it. */
+      personalBest: Effect.fn("personalBest")(function* (discordId: string, matchId: string) {
+        const player = yield* playerOf(discordId)
+        const { map } = yield* getLive(matchId)
+        const pb = (yield* steam.readPlayers(map.boardId, [player.steamId]).pipe(Effect.retry({ times: READ_RETRIES }))).at(0)
+        return pb?.ticks ?? null
+      }),
+
+      /** Whether this Invite's Map is being drawn right now. */
+      isStarting: Effect.fn("isStarting")(function* (matchId: string) {
+        return (yield* Ref.get(starting)).has(matchId)
+      }),
+
+      /** Why a Match that's gone ended without a Result, if it was recent; null otherwise. */
+      whyClosed: Effect.fn("whyClosed")(function* (matchId: string) {
+        return (yield* Ref.get(closed)).get(matchId) ?? null
       }),
 
       /** Whether the Player may leave this live Match, asked before the confirm is shown. */

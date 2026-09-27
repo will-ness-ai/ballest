@@ -12,7 +12,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 ## Layout
 
 - `index.html` — the entire site. Vanilla JS and CSS in one file: no build step, no
-  framework, no JS CDN (Google Fonts is the only external request).
+  framework, no JS CDN. The only external requests are Google Fonts and the Plausible
+  analytics script, served from our own instance on Railway.
 - `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `og.png` — the lime-marble icon
   and the 1200×630 link-preview image. Rendered once and committed; `og.png` bakes in its
   text, so the collector never touches it.
@@ -43,8 +44,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
   then calls `deploy.yml`.
 - `.github/workflows/deploy.yml` — the Pages deploy (Source: GitHub Actions). Publishes
-  only `index.html`, the icons and `og.png`, `data/`, `leth/` and `CNAME`, so a new site
-  file must be added to its `cp` line or it 404s in production. Runs on push to `main`, by hand, and from
+  only `index.html`, the icons and `og.png`, `data/`, `leth/`, `multiballs/` and `CNAME`,
+  so a new site file must be added to its `cp` line or it 404s in production. Runs on
+  push to `main`, by hand, and from
   `refresh.yml`, whose `GITHUB_TOKEN` push triggers no other workflow.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
@@ -56,6 +58,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site: it runs on
   Fly.io, deployed by `.github/workflows/bot.yml`; its own `AGENTS.md` covers running it
   locally (dev app only) and production.
+- `multiballs/` — the bot's Terms of Service and Privacy Policy, published with the site at
+  `/multiballs/` because the Discord Developer Portal links to them.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
   reverse-engineering spike. Read `tools/README-hosting.md` before touching any of it.
 

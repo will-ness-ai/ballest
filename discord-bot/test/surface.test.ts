@@ -2,11 +2,11 @@
 // memory: where Cards, Match Threads and the Footer end up, across failures and restarts.
 import { SqliteClient } from "@effect/sql-sqlite-node"
 import { describe, expect, it } from "@effect/vitest"
-import { Context, Effect, Layer } from "effect"
+import { Context, Effect, Layer, Option } from "effect"
 import { Channel, Drawing, Gone } from "../src/discord/channel.js"
 import { DiscordError } from "../src/discord/client.js"
 import { ChannelSurfaceLive } from "../src/discord/surface.js"
-import { Surface, ThreadPost } from "../src/ports.js"
+import { MatchLinks, Surface, ThreadPost } from "../src/ports.js"
 import { ALICE, cardView as view } from "./harness.js"
 
 type Failable = "post" | "redraw" | "startThread"
@@ -123,13 +123,17 @@ const makeFakeChannel = () => {
 const setup = Effect.gen(function* () {
   const channel = makeFakeChannel()
   const sql = yield* Layer.build(SqliteClient.layer({ filename: ":memory:" }))
+  let links = MatchLinks.of({ of: () => Effect.succeed(Option.none()) })
   const start = Effect.gen(function* () {
     const ctx = yield* Layer.build(ChannelSurfaceLive).pipe(
       Effect.provide(Context.add(sql, Channel, channel.port))
     )
+    links = Context.get(ctx, MatchLinks)
     return Context.get(ctx, Surface)
   })
-  return { channel, start }
+  /** Where the latest start says a Match's Card and thread are. */
+  const placeOf = (matchId: string) => Effect.suspend(() => links.of(matchId)).pipe(Effect.map(Option.getOrNull))
+  return { channel, start, placeOf }
 })
 
 describe("the channel", () => {
@@ -249,6 +253,22 @@ describe("the end of a Match", () => {
       yield* surface.post("m1", ThreadPost.Result({ standings: finished.standings, card: finished }))
       yield* surface.post("m1", ThreadPost.Progression({ card: finished, history: [{ steamId: ALICE.steamId, ticks: 1_500_000, at: 60_000 }] }))
       expect(channel.threadPosts("m1")).toEqual(["Result", "Progression"])
+    })
+  )
+
+  it.scoped("still knows where a finished Match's Card and thread are, across a restart, for the Activity's links", () =>
+    Effect.gen(function* () {
+      const { start, placeOf } = yield* setup
+      const surface = yield* start
+      const finished = view("m1", { state: "finished" })
+      yield* surface.showCard(view("m1"))
+      yield* surface.showCard(view("m2"))
+      expect(yield* placeOf("m1")).toEqual({ messageId: "msg1", threadId: "thr2" })
+      yield* surface.post("m1", ThreadPost.Result({ standings: [], card: finished }))
+      yield* surface.remove("m2", "expired")
+      yield* start
+      expect(yield* placeOf("m1")).toEqual({ messageId: "msg1", threadId: "thr2" })
+      expect(yield* placeOf("m2")).toBeNull()
     })
   )
 })

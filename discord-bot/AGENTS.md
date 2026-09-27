@@ -43,6 +43,37 @@ At startup the bot refuses to run without its channel permissions. The channel d
 Messages to `@everyone` to stay read-only, so the bot's role needs an explicit Send Messages
 allow on that channel.
 
+## The Activity
+
+`src/activity/` is a Discord Activity (spec #46): the same Matches in a page Discord shows in an
+iframe, from Link Steam to the live standings and the Result. `api.ts` is an HTTP API over the
+Engine, tested in `test/activity.test.ts` like the engine tests; it names Players as the server
+does and refuses anyone outside `DISCORD_GUILD_ID`. `auth.ts` swaps the SDK's OAuth code for an
+access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
+page (`web/`: `view.ts` is the markup, `app.ts` the state and actions, bundled by esbuild at
+startup), its fonts from `@fontsource`, and each Map's Workshop preview, fetched here because
+Discord's proxy blocks every other host. The page polls every two seconds. The visual reference
+is the prototype on branch `claude/prototype-activity-surfaces`.
+
+The channel and the Activity show the same Matches, so what they say comes from one place, and a
+change there reaches both: the Board Slab's rows and a Match's words from `src/present.ts`, every
+PB's rank, gain and world record from `progress` in `domain.ts` (the engine posts exactly that),
+marbles and Medals from `render/art.ts`, and each member's buttons from `actionsFor`. Test those in
+`test/present.test.ts` and at the API; the surfaces only lay them out.
+
+`pnpm activity:demo` (or the `activity-demo` launch config) runs the page and API on port 8740
+over the tests' fake Steam, with no Discord: pick a member to sign in as, or add `?as=d-bob` for a
+second tab (alice starts unlinked; paste `https://steamcommunity.com/id/alice`). Fake racers set
+times once a Match is live. The page is bundled at startup, so restart the demo after editing it.
+
+The bot serves it on `PORT` (default 8080) only when `DISCORD_CLIENT_SECRET` and
+`DISCORD_APPLICATION_ID` are set; otherwise nothing listens. Trying it in Discord needs, in the
+Developer Portal: Activities enabled, a URL Mapping from `/` to the server's public host (a
+`cloudflared tunnel --url http://localhost:8080` works locally), and the OAuth2 client secret.
+Production serves it at `https://multiballs.fly.dev` (`fly.toml`'s `http_service`), with
+`DISCORD_APPLICATION_ID` and `DISCORD_CLIENT_SECRET` in `fly secrets` and the production app's
+URL Mapping pointing there.
+
 ## Production
 
 Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,

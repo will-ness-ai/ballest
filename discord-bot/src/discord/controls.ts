@@ -1,10 +1,10 @@
 // What a clicked button or submitted form asks for, and the custom id that carries it. Discord
 // hands the id back on every click, so choices made so far ride along in it: one table below
 // says how each kind of Control is written and read, so the two can't drift apart.
-import { DURATIONS, type MatchType, type Minutes } from "../domain.js"
+import { type Action, ACTIONS, DURATIONS, type MatchType, type Minutes } from "../domain.js"
 import type { InviteRequest } from "../engine.js"
 
-export type Action = "accept" | "decline" | "join" | "leave" | "start" | "cancel"
+export type { Action }
 
 export type Control =
   | { readonly _tag: "NewMatch" }
@@ -32,7 +32,6 @@ interface Codec<K extends Tag> {
   read(fields: ReadonlyArray<string | undefined>): Of<K> | null
 }
 
-const ACTIONS: ReadonlyArray<Action> = ["accept", "decline", "join", "leave", "start", "cancel"]
 const TYPES: ReadonlyArray<MatchType> = ["public", "challenge", "lobby"]
 const NO_TARGET = "-"
 
