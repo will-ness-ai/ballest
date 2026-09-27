@@ -40,7 +40,7 @@ jobs:
       - name: Assemble site
         run: |
           mkdir _site
-          cp -r index.html CNAME data leth _site/
+          cp -r index.html favicon.ico favicon.svg apple-touch-icon.png og.png CNAME data leth _site/
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v4
