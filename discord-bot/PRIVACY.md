@@ -13,7 +13,7 @@ keeps about you and why.
 - **Matches:** who played, when, on which Map, and each time you set during the Match. Finished
   Matches are kept.
 - **Logs:** short technical logs of what the bot did, which can include Discord and Steam IDs.
-  They are kept for a few days.
+  They stay only as long as the host keeps logs, and are never used for anything but fixing the bot.
 
 ## What it reads but doesn't keep
 
