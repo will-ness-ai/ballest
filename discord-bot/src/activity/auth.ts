@@ -5,6 +5,8 @@ import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } fr
 import { Config, Context, Data, Effect, Layer, type Option, Redacted, Schema } from "effect"
 
 export class AuthFailed extends Data.TaggedError("AuthFailed")<{ readonly reason: string }> {}
+/** Discord couldn't say who is in the server just now. */
+export class MembersUnavailable extends Data.TaggedError("MembersUnavailable")<{ readonly reason: string }> {}
 
 export class DiscordAuth extends Context.Tag("multiballs/DiscordAuth")<
   DiscordAuth,
@@ -21,7 +23,7 @@ export class DiscordMembers extends Context.Tag("multiballs/DiscordMembers")<
   DiscordMembers,
   {
     /** A member's display name in the server; None if they aren't in it. */
-    readonly nameOf: (discordId: string) => Effect.Effect<Option.Option<string>>
+    readonly nameOf: (discordId: string) => Effect.Effect<Option.Option<string>, MembersUnavailable>
   }
 >() {}
 
@@ -37,33 +39,28 @@ export const DiscordAuthLive = Layer.effect(
     const clientId = yield* Config.string("DISCORD_APPLICATION_ID")
     const secret = yield* Config.redacted("DISCORD_CLIENT_SECRET")
     const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk)
-    const failed = (what: string) => (e: { readonly message: string }) => new AuthFailed({ reason: `${what}: ${e.message}` })
+    const failed = (what: string, e: { readonly message: string }) => new AuthFailed({ reason: `${what}: ${e.message}` })
     return DiscordAuth.of({
-      exchange: (code) =>
-        http
-          .execute(
-            HttpClientRequest.post(`${API}/oauth2/token`).pipe(
-              HttpClientRequest.bodyUrlParams({
-                client_id: clientId,
-                client_secret: Redacted.value(secret),
-                grant_type: "authorization_code",
-                code
-              })
-            )
-          )
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(TokenReply)),
-            Effect.map((r) => r.access_token),
-            Effect.scoped,
-            Effect.mapError(failed("token exchange"))
-          ),
-      userOf: (accessToken) =>
-        http.execute(HttpClientRequest.get(`${API}/users/@me`).pipe(HttpClientRequest.bearerToken(accessToken))).pipe(
-          Effect.flatMap(HttpClientResponse.schemaBodyJson(UserReply)),
-          Effect.map((u) => u.id),
-          Effect.scoped,
-          Effect.mapError(failed("who is this"))
+      exchange: Effect.fn("exchange")(function* (code: string) {
+        const request = HttpClientRequest.post(`${API}/oauth2/token`).pipe(
+          HttpClientRequest.bodyUrlParams({ client_id: clientId, client_secret: Redacted.value(secret), grant_type: "authorization_code", code })
         )
+        const reply = yield* http.execute(request).pipe(
+          Effect.flatMap((response) => HttpClientResponse.schemaBodyJson(TokenReply)(response)),
+          Effect.scoped,
+          Effect.mapError((e) => failed("token exchange", e))
+        )
+        return reply.access_token
+      }),
+      userOf: Effect.fn("userOf")(function* (accessToken: string) {
+        const request = HttpClientRequest.get(`${API}/users/@me`).pipe(HttpClientRequest.bearerToken(accessToken))
+        const user = yield* http.execute(request).pipe(
+          Effect.flatMap((response) => HttpClientResponse.schemaBodyJson(UserReply)(response)),
+          Effect.scoped,
+          Effect.mapError((e) => failed("who is this", e))
+        )
+        return user.id
+      })
     })
   })
 ).pipe(Layer.provide(FetchHttpClient.layer))

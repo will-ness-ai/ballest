@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url"
 import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
 import { NodeHttpServer } from "@effect/platform-node"
 import { build } from "esbuild"
-import { Config, Effect, Layer, Option, Ref } from "effect"
+import { Clock, Config, Data, Effect, Layer, Option, Ref } from "effect"
 import { Store } from "../ports.js"
 import { makeActivityApi } from "./api.js"
 
@@ -41,100 +41,131 @@ const FACES: ReadonlyArray<readonly [string, ReadonlyArray<number>]> = [
   ["nunito", [800, 900]]
 ]
 
-const loadFonts = Effect.promise(async () => {
-  const fonts = new Map<string, Buffer>()
-  for (const [pkg, weights] of FACES)
-    for (const weight of weights) {
-      const file = `${pkg}-latin-${weight}-normal.woff2`
-      fonts.set(file, await readFile(require.resolve(`@fontsource/${pkg}/files/${file}`)))
-    }
-  return fonts
+/** The page, its script or its fonts couldn't be read or built: the Activity can't start. */
+export class ActivityUnavailable extends Data.TaggedError("ActivityUnavailable")<{ readonly what: string; readonly cause: unknown }> {}
+/** Steam wouldn't give a Map's preview. */
+class PreviewUnavailable extends Data.TaggedError("PreviewUnavailable")<{ readonly reason: string }> {}
+
+const loadFonts = Effect.tryPromise({
+  try: async () => {
+    const fonts = new Map<string, Buffer>()
+    for (const [pkg, weights] of FACES)
+      for (const weight of weights) {
+        const file = `${pkg}-latin-${weight}-normal.woff2`
+        fonts.set(file, await readFile(require.resolve(`@fontsource/${pkg}/files/${file}`)))
+      }
+    return fonts
+  },
+  catch: (cause) => new ActivityUnavailable({ what: "fonts", cause })
 })
 
-const bundle = Effect.promise(() =>
-  build({
-    entryPoints: [`${WEB}app.ts`],
-    bundle: true,
-    format: "esm",
-    target: "es2022",
-    minify: true,
-    write: false,
-    logLevel: "silent"
-  })
-).pipe(Effect.map((result) => result.outputFiles[0]!.text))
+const bundle = Effect.tryPromise({
+  try: async () => {
+    const result = await build({
+      entryPoints: [`${WEB}app.ts`],
+      bundle: true,
+      format: "esm",
+      target: "es2022",
+      minify: true,
+      write: false,
+      logLevel: "silent"
+    })
+    const script = result.outputFiles[0]
+    if (script === undefined) throw new Error("esbuild wrote nothing")
+    return script.text
+  },
+  catch: (cause) => new ActivityUnavailable({ what: "script", cause })
+})
 
-/** Recent Map previews (null for one Steam wouldn't give), so every viewer's page doesn't refetch them from Steam. */
+const loadPage = Effect.tryPromise({
+  try: () => readFile(`${WEB}index.html`, "utf8"),
+  catch: (cause) => new ActivityUnavailable({ what: "page", cause })
+})
+
+/** Recent Map previews, so every viewer's page doesn't refetch them from Steam. */
 const PREVIEWS_KEPT = 50
+/** A preview Steam wouldn't give is asked for again after this long. */
+const MISSING_RETRY_MS = 5 * 60_000
 
 interface Image {
   readonly type: string
   readonly body: Uint8Array
 }
 
-const fetchImage = (url: string) =>
-  Effect.tryPromise(async (): Promise<Image> => {
-    const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
-    const type = response.headers.get("content-type") ?? ""
-    if (!response.ok || !type.startsWith("image/")) throw new Error(`${response.status} ${type}`)
-    return { type, body: new Uint8Array(await response.arrayBuffer()) }
+const fetchImage = Effect.fn("fetchImage")(function* (url: string) {
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(url, { signal: AbortSignal.timeout(5000) }),
+    catch: (cause) => new PreviewUnavailable({ reason: String(cause) })
   })
+  const type = response.headers.get("content-type") ?? ""
+  if (!response.ok || !type.startsWith("image/")) return yield* new PreviewUnavailable({ reason: `${response.status} ${type}` })
+  const body = yield* Effect.tryPromise({
+    try: () => response.arrayBuffer(),
+    catch: (cause) => new PreviewUnavailable({ reason: String(cause) })
+  })
+  const image: Image = { type, body: new Uint8Array(body) }
+  return image
+})
 
 const DAY = "public, max-age=86400"
 
 /** The whole app: page, script, fonts, previews, config, API. `channelId` is where the links point. */
-export const makeActivityApp = (config: PageConfig & { readonly channelId: string }) =>
-  Effect.gen(function* () {
-    const { channelId, ...page } = config
-    const api = yield* makeActivityApi({ guildId: config.guildId, channelId })
-    const store = yield* Store
-    const script = yield* bundle
-    const html = yield* Effect.promise(() => readFile(`${WEB}index.html`, "utf8"))
-    const fonts = yield* loadFonts
-    const previews = yield* Ref.make(new Map<string, Image | null>())
+export const makeActivityApp = Effect.fn("makeActivityApp")(function* (config: PageConfig & { readonly channelId: string }) {
+  const { channelId, ...page } = config
+  const api = yield* makeActivityApi({ guildId: config.guildId, channelId })
+  const store = yield* Store
+  const script = yield* bundle
+  const html = yield* loadPage
+  const fonts = yield* loadFonts
+  /** Each preview, or null (with when it went missing) for one Steam wouldn't give. */
+  const previews = yield* Ref.make(new Map<string, { readonly image: Image | null; readonly at: number }>())
 
-    /** A Match's Map preview, only for a Match the bot has drawn a Map for: this is no open proxy. */
-    const preview = Effect.gen(function* () {
-      const { id = "" } = yield* HttpRouter.params
-      const url = Option.flatMap(yield* store.getMatch(id), (m) => Option.fromNullable(m.map?.previewUrl || null))
-      if (Option.isNone(url)) return HttpServerResponse.empty({ status: 404 })
-      const known = (yield* Ref.get(previews)).get(url.value)
-      const image =
-        known !== undefined
-          ? known
-          : yield* fetchImage(url.value).pipe(
-              Effect.tapError((e) => Effect.logWarning(`activity: no preview for ${id} (${e.message})`)),
-              Effect.option,
-              Effect.map(Option.getOrNull),
-              Effect.tap((img) =>
-                Ref.update(previews, (m) => {
-                  const next = new Map(m).set(url.value, img)
-                  for (const key of next.keys()) if (next.size > PREVIEWS_KEPT) next.delete(key)
-                  return next
-                })
-              )
-            )
-      // A missing preview is remembered by the browser for a while, so polling redraws don't ask again.
-      if (image === null) return HttpServerResponse.empty({ status: 404, headers: { "cache-control": "public, max-age=300" } })
-      return HttpServerResponse.uint8Array(image.body, { contentType: image.type, headers: { "cache-control": DAY } })
-    })
-
-    const font = Effect.gen(function* () {
-      const { file = "" } = yield* HttpRouter.params
-      const body = fonts.get(file)
-      return body === undefined
-        ? HttpServerResponse.empty({ status: 404 })
-        : HttpServerResponse.uint8Array(body, { contentType: "font/woff2", headers: { "cache-control": DAY } })
-    })
-
-    const pages = HttpRouter.empty.pipe(
-      HttpRouter.get("/", Effect.succeed(HttpServerResponse.html(html))),
-      HttpRouter.get("/app.js", Effect.succeed(HttpServerResponse.text(script, { contentType: "text/javascript" }))),
-      HttpRouter.get("/fonts/:file", font),
-      HttpRouter.get("/previews/:id", preview),
-      HttpRouter.get("/api/config", Effect.succeed(HttpServerResponse.unsafeJson(page)))
+  /** Steam's preview for this URL: kept, or fetched now. A missing one is tried again after a while. */
+  const imageOf = Effect.fn("imageOf")(function* (id: string, url: string) {
+    const now = yield* Clock.currentTimeMillis
+    const known = (yield* Ref.get(previews)).get(url)
+    if (known !== undefined && (known.image !== null || now - known.at < MISSING_RETRY_MS)) return known.image
+    const image = yield* fetchImage(url).pipe(
+      Effect.tapError((e) => Effect.logWarning(`activity: no preview for ${id} (${e.reason})`)),
+      Effect.option,
+      Effect.map((found) => Option.getOrNull(found))
     )
-    return pages.pipe(Effect.catchTag("RouteNotFound", () => api))
+    yield* Ref.update(previews, (m) => {
+      const next = new Map(m).set(url, { image, at: now })
+      for (const key of next.keys()) if (next.size > PREVIEWS_KEPT) next.delete(key)
+      return next
+    })
+    return image
   })
+
+  /** A Match's Map preview, only for a Match the bot has drawn a Map for: this is no open proxy. */
+  const preview = Effect.gen(function* () {
+    const { id = "" } = yield* HttpRouter.params
+    const url = Option.flatMap(yield* store.getMatch(id), (m) => Option.fromNullable(m.map?.previewUrl || null))
+    if (Option.isNone(url)) return HttpServerResponse.empty({ status: 404 })
+    const image = yield* imageOf(id, url.value)
+    // A missing preview is remembered by the browser for a while too, so redraws don't ask again.
+    if (image === null) return HttpServerResponse.empty({ status: 404, headers: { "cache-control": "public, max-age=300" } })
+    return HttpServerResponse.uint8Array(image.body, { contentType: image.type, headers: { "cache-control": DAY } })
+  })
+
+  const font = Effect.gen(function* () {
+    const { file = "" } = yield* HttpRouter.params
+    const body = fonts.get(file)
+    return body === undefined
+      ? HttpServerResponse.empty({ status: 404 })
+      : HttpServerResponse.uint8Array(body, { contentType: "font/woff2", headers: { "cache-control": DAY } })
+  })
+
+  const pages = HttpRouter.empty.pipe(
+    HttpRouter.get("/", Effect.succeed(HttpServerResponse.html(html))),
+    HttpRouter.get("/app.js", Effect.succeed(HttpServerResponse.text(script, { contentType: "text/javascript" }))),
+    HttpRouter.get("/fonts/:file", font),
+    HttpRouter.get("/previews/:id", preview),
+    HttpRouter.get("/api/config", Effect.succeed(HttpServerResponse.unsafeJson(page)))
+  )
+  return pages.pipe(Effect.catchTag("RouteNotFound", () => api))
+})
 
 /** Serve the Activity on PORT. Needs the Engine, the Store, where Cards are, and Discord's sign-in and members. */
 export const activityServer = (config: PageConfig & { readonly channelId: string }) =>

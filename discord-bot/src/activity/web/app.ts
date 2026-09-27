@@ -83,7 +83,9 @@ const ui = {
 class ApiError extends Error {
   constructor(
     message: string,
-    readonly error: string
+    readonly error: string,
+    /** For a Match that's gone: why it ended without a Result, if it did lately. */
+    readonly closed: string | null = null
   ) {
     super(message)
   }
@@ -94,7 +96,7 @@ const api = async <A>(method: string, path: string, body?: unknown): Promise<A> 
   if (body !== undefined) init.body = JSON.stringify(body)
   const res = await fetch(path, init)
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new ApiError(data.message ?? "Something went wrong. Try again in a moment.", data.error ?? "")
+  if (!res.ok) throw new ApiError(data.message ?? "Something went wrong. Try again in a moment.", data.error ?? "", data.closed ?? null)
   return data as A
 }
 
@@ -174,11 +176,19 @@ const refresh = async () => {
     ui.composing = false
   }
   const id = ui.mine ?? ui.watching
+  let closed: string | null = null
   let focus =
     id === null
       ? null
       : (list.matches.find((m) => m.matchId === id) ??
-        (await api<{ match: MatchView | null }>("GET", `/api/matches/${id}`).catch(() => ({ match: null }))).match)
+        (
+          await api<{ match: MatchView | null }>("GET", `/api/matches/${id}`).catch((e) => {
+            closed = e instanceof ApiError ? e.closed : null
+            return { match: null }
+          })
+        ).match)
+  // Your Invite went because no Map fitted: say so, whoever pressed Start.
+  if (ui.mine !== null && focus === null && closed === "noEligibleMap" && ui.focus?.matchId === ui.mine) ui.noMap = ui.focus
   // No longer in it (left from the channel, or it ended): a live one is watched, a Result stays, an Invite goes.
   if (ui.mine !== null && me.matchId !== ui.mine && focus?.state !== "finished") {
     if (focus?.state === "live") ui.watching = ui.mine
@@ -512,8 +522,8 @@ const screen = (): string => {
   if (ui.starting !== null) page = V.picking(ui.starting, viewer)
   else if (ui.noMap !== null) page = V.noMap(ui.noMap, viewer)
   else if (f !== null && ui.mine === f.matchId) {
-    page = f.state === "invite" ? V.myInvite(f, viewer, ui.busy) : matchScreen(f, true)
-    if (f.state === "live" && ui.goFor === f.matchId && Date.now() < ui.goUntil) page = V.goBar(f) + page
+    page = f.state === "invite" ? (f.starting ? V.picking(f, viewer) : V.myInvite(f, viewer, ui.busy)) : matchScreen(f, true)
+    if (f.state === "live" && ui.goFor === f.matchId && Date.now() < ui.goUntil) page = V.goBar(f, offset) + page
   } else if (f !== null) page = matchScreen(f, false)
   else
     page = V.gallery(

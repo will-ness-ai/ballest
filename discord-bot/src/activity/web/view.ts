@@ -429,9 +429,9 @@ export const matchView = ({ m, viewer, locked, now, wide, pb, reveal }: MatchScr
   return `<div class="vE ${reveal ? "reveal-in" : ""}">${top}${hero}${racing}${rest}</div>`
 }
 
-/** The first moments of your live Match: Go!, when it ends, and the Workshop button. */
-export const goBar = (m: MatchView) => {
-  const ends = new Date(m.endsAt ?? 0).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+/** The first moments of your live Match: Go!, when it ends (on this device's clock), and the Workshop button. */
+export const goBar = (m: MatchView, offset: number) => {
+  const ends = new Date((m.endsAt ?? 0) - offset).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   return `<div class="gobar"><b>Go!</b> Ends at ${ends} ${m.map === null ? "" : btn(`workshop:${m.map.pfid}`, "Open Map in Workshop", "sm")}</div>`
 }
 

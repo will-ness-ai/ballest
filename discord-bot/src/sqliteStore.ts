@@ -87,7 +87,10 @@ const make = Effect.gen(function* () {
 
   // A database error is a bug or a broken disk, not something a Player can act on: it dies.
   return Store.of({
-    getLink: (discordId) => findLink(discordId).pipe(Effect.map(Option.map(linkOf)), Effect.orDie),
+    getLink: (discordId) => findLink(discordId).pipe(
+        Effect.map((row) => Option.map(row, (r) => linkOf(r))),
+        Effect.orDie
+      ),
     links: findLinks(undefined).pipe(
       Effect.map((rows) => rows.map(linkOf)),
       Effect.orDie
