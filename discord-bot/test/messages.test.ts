@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest"
 import type { MatchState, MatchType } from "../src/domain.js"
 import { parseControl } from "../src/discord/controls.js"
 import type { MarbleEmojis } from "../src/discord/marbles.js"
-import { cardMessage, type Payload, threadMessage } from "../src/discord/messages.js"
+import { cardMessage, confirmLeaveMessage, type Payload, threadMessage } from "../src/discord/messages.js"
 import { ThreadPost } from "../src/ports.js"
 import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js"
 
@@ -41,9 +41,9 @@ describe("the Card", () => {
     ["invite", "public", ["Accept", "Cancel"]],
     ["invite", "challenge", ["Accept", "Decline", "Cancel"]],
     ["invite", "lobby", ["Join (2)", "Leave", "Start", "Cancel"]],
-    ["live", "public", [WORKSHOP]],
-    ["live", "challenge", [WORKSHOP]],
-    ["live", "lobby", ["Join (2)", WORKSHOP]],
+    ["live", "public", [WORKSHOP, "Leave"]],
+    ["live", "challenge", [WORKSHOP, "Leave"]],
+    ["live", "lobby", ["Join (2)", WORKSHOP, "Leave"]],
     ["finished", "public", []],
     ["finished", "lobby", []]
   ] as const)("a %s %s offers %j", (state, type, expected) => {
@@ -58,6 +58,10 @@ describe("the Card", () => {
     const live = buttons(cardMessage(card("live", "lobby"), PNG))
     expect(live[0]?.does).toEqual({ _tag: "Act", action: "join", matchId: "7" })
     expect(live[1]?.does).toContain(MAP.pfid)
+    // Leave on a live Match asks first
+    expect(live[2]?.does).toEqual({ _tag: "AskLeave", matchId: "7" })
+    const confirm = buttons(confirmLeaveMessage("7"))
+    expect(confirm.map((b) => b.does)).toEqual([{ _tag: "ConfirmLeave", matchId: "7" }, { _tag: "Stay" }])
   })
 
   it("never pings", () => {
@@ -83,6 +87,7 @@ describe("thread posts", () => {
     ["Left", ThreadPost.Left({ player: CARA })],
     ["Result", ThreadPost.Result({ standings: [], card: live })],
     ["Progression", ThreadPost.Progression({ card: live, history: [] })],
+    ["Abandoned", ThreadPost.Abandoned()],
     [
       "Improved",
       ThreadPost.Improved({
