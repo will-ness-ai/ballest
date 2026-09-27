@@ -1,5 +1,5 @@
-// `pnpm render:samples [dir]`: renders every image the bot draws, in every state, as PNGs to
-// check by eye against the prototype (branch claude/prototype-discord-bot-surfaces).
+// `pnpm render:samples [dir]`: renders every image the bot draws, in every state, as PNGs (to
+// the gitignored `.logs/samples` by default) to check by eye against the prototype (branch claude/prototype-discord-bot-surfaces).
 import { mkdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { Effect } from "effect"
@@ -7,7 +7,7 @@ import { type Player, SCORE_TICKS_PER_SECOND, type Standing } from "../src/domai
 import type { CardView } from "../src/ports.js"
 import { Renderer } from "../src/render/renderer.js"
 
-const out = process.argv[2] ?? "render-samples"
+const out = process.argv[2] ?? ".logs/samples"
 const T = SCORE_TICKS_PER_SECOND
 const p = (name: string): Player => ({ discordId: name, steamId: `7656119800${name.length}${name.charCodeAt(0)}${name.charCodeAt(1)}` })
 const [chkn, tilt, grav, maxx] = [p("ChknThugget"), p("tilt_queen"), p("gravwell"), p("シドニー")] as const
