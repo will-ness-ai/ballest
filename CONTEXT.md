@@ -57,15 +57,16 @@ _Avoid_: private 1v1, duel
 
 **Lobby**:
 A Match type whose Invite any number of Players can join; it starts when its creator
-starts it, with at least two Players.
+starts it, with at least two Players. Players can still join once it is live; a late
+joiner's PB on the Map when they join is the PB they must beat.
 _Avoid_: public lobby, room
 
 **Eligible Map**:
 A Map whose world record is between 5 seconds and 5 minutes and whose author time is at
 most a tenth of the Match's duration. The Match's Map is drawn at random from the ones no
-Player in the Match has Played. When every one tried has been Played, the one the fewest
-Players have Played is drawn instead, and each of them counts only with a run faster than
-the PB they already held on it; otherwise they finish DNF.
+Player in the Match at the draw has Played. When every one tried has been Played, the one
+the fewest Players have Played is drawn instead, and each of them counts only with a run
+faster than the PB they already held on it; otherwise they finish DNF.
 _Avoid_: map pool, candidate
 
 **Match Thread**:
