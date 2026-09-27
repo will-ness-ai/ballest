@@ -65,6 +65,9 @@ export interface InviteRequest {
   readonly target: string | null
 }
 
+/** How many ended Matches' reasons are remembered. */
+const CLOSED_KEPT = 100
+
 /** A board read that Steam drops is retried this many times. */
 const READ_RETRIES = 2
 
@@ -106,6 +109,15 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * with the Players they are about to start with. Nothing else may touch them meanwhile.
      */
     const starting = yield* Ref.make(new Map<string, Match>())
+    /** Why each recent Match ended without a Result, so everyone who was in it can be told. */
+    const closed = yield* Ref.make(new Map<string, RemovalReason>())
+    const noteClosed = Effect.fn("noteClosed")(function* (matchId: string, reason: RemovalReason) {
+      yield* Ref.update(closed, (m) => {
+        const next = new Map(m).set(matchId, reason)
+        for (const key of next.keys()) if (next.size > CLOSED_KEPT) next.delete(key)
+        return next
+      })
+    })
 
     // ---------------------------------------------------------------- helpers
 
@@ -147,6 +159,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
 
     /** An Invite that never became a Match goes. Its expiry timer is left alone: it may be the caller. */
     const dropInvite = Effect.fn("dropInvite")(function* (matchId: string, reason: RemovalReason) {
+      yield* noteClosed(matchId, reason)
       yield* store.deleteMatch(matchId)
       yield* surface.remove(matchId, reason)
     })
@@ -296,6 +309,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     /** Cancelled: everyone left before anyone set a time. Its Card and thread stay, saying so. Called under the lock. */
     const abandon = Effect.fn("abandon")(function* (m: Match) {
       yield* surface.post(m.id, ThreadPost.Abandoned())
+      yield* noteClosed(m.id, "abandoned")
       yield* store.deleteMatch(m.id)
       yield* surface.remove(m.id, "abandoned")
     })
@@ -567,6 +581,16 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         const { map } = yield* getLive(matchId)
         const pb = (yield* steam.readPlayers(map.boardId, [player.steamId]).pipe(Effect.retry({ times: READ_RETRIES }))).at(0)
         return pb?.ticks ?? null
+      }),
+
+      /** Whether this Invite's Map is being drawn right now. */
+      isStarting: Effect.fn("isStarting")(function* (matchId: string) {
+        return (yield* Ref.get(starting)).has(matchId)
+      }),
+
+      /** Why a Match that's gone ended without a Result, if it was recent; null otherwise. */
+      whyClosed: Effect.fn("whyClosed")(function* (matchId: string) {
+        return (yield* Ref.get(closed)).get(matchId) ?? null
       }),
 
       /** Whether the Player may leave this live Match, asked before the confirm is shown. */

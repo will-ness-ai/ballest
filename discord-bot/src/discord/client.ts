@@ -103,17 +103,13 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
           Effect.orElseSucceed(() => "Someone")
         )
       }),
-      /**
-       * The member's name in this server, or None if they aren't in it. Any other failure lets
-       * them through as "Someone": a Discord hiccup shouldn't lock members out of the Activity.
-       */
+      /** The member's name in this server, or None if they aren't in it; any other failure is Discord's. */
       member: Effect.fn("member")(function* (discordId: string) {
         return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(
           Effect.map((member) => Option.some(member.displayName.normalize("NFKC"))),
-          Effect.catchAll((e) =>
-            isNotMember(e)
-              ? Effect.succeed(Option.none<string>())
-              : Effect.logWarning(`activity: ${describeDiscordError(e)}`).pipe(Effect.as(Option.some("Someone")))
+          Effect.catchIf(
+            (e) => isNotMember(e),
+            () => Effect.succeed(Option.none<string>())
           )
         )
       })

@@ -6,9 +6,9 @@ import { PlatformConfigProvider } from "@effect/platform"
 import { NodeContext, NodeRuntime } from "@effect/platform-node"
 import { SqliteClient } from "@effect/sql-sqlite-node"
 import { Config, ConfigProvider, Effect, Layer, Logger, Option } from "effect"
-import { DiscordAuthLive, DiscordMembers } from "./activity/auth.js"
+import { DiscordAuthLive, DiscordMembers, MembersUnavailable } from "./activity/auth.js"
 import { activityServer } from "./activity/server.js"
-import { Discord } from "./discord/client.js"
+import { describeDiscordError, Discord } from "./discord/client.js"
 import { InteractionsLive } from "./discord/interactions.js"
 import { DiscordChannelLive } from "./discord/channel.js"
 import { Marbles } from "./discord/marbles.js"
@@ -49,7 +49,8 @@ const FileLogLive = Layer.unwrapEffect(
 
 /**
  * The Discord Activity (the same Matches in a page inside Discord), on PORT, once the app's
- * OAuth client secret is configured. Without it the bot runs as before, with no web server.
+ * OAuth client secret is configured. Without it the bot runs as before, with no web server. If
+ * the Activity can't start (a setting missing, the port taken), it says so and the bot runs on.
  */
 const ActivityLive = Layer.unwrapEffect(
   Effect.gen(function* () {
@@ -60,11 +61,17 @@ const ActivityLive = Layer.unwrapEffect(
     const channelId = yield* Config.string("DISCORD_CHANNEL_ID")
     const members = Layer.effect(
       DiscordMembers,
-      Discord.pipe(Effect.map((discord) => DiscordMembers.of({ nameOf: discord.member })))
+      Effect.gen(function* () {
+        const discord = yield* Discord
+        return DiscordMembers.of({
+          nameOf: (discordId) =>
+            discord.member(discordId).pipe(Effect.mapError((e) => new MembersUnavailable({ reason: describeDiscordError(e) })))
+        })
+      })
     )
     return activityServer({ clientId, guildId, channelId, devUsers: [] }).pipe(Layer.provide(DiscordAuthLive), Layer.provide(members))
   })
-)
+).pipe(Layer.catchAll((e) => Layer.effectDiscard(Effect.logError("activity: not serving", e))))
 
 const SqlLive = SqliteClient.layerConfig({
   filename: Config.string("DB_PATH").pipe(Config.withDefault("multiballs.sqlite"))

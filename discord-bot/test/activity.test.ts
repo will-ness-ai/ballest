@@ -3,15 +3,17 @@
 // server knows its members' display names, and the channel knows where each Match's Card is.
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import { Effect, Fiber, Option } from "effect"
 import { makeActivityApi } from "../src/activity/api.js"
-import { AuthFailed, DiscordAuth, DiscordMembers } from "../src/activity/auth.js"
+import { AuthFailed, DiscordAuth, DiscordMembers, MembersUnavailable } from "../src/activity/auth.js"
 import { Engine } from "../src/engine.js"
 import { MatchLinks, Store } from "../src/ports.js"
 import { ALICE, advance, BOB, CARA, DAN, makeHarness, makeMap, ticks, UNLINKED } from "./harness.js"
 
 /** Signed in with Discord, but not a member of the server. */
 const OUTSIDER = "d-outsider"
+/** Someone Discord can't say anything about just now. */
+const UNKNOWN = "d-unknown"
 
 /** Each member's name in the server; their Steam names are the lower-case ones the harness links. */
 const MEMBERS: Record<string, string> = {
@@ -37,7 +39,10 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
           ? Effect.succeed(token.slice(6))
           : Effect.fail(new AuthFailed({ reason: "bad token" }))
     })
-    const members = DiscordMembers.of({ nameOf: (discordId) => Effect.succeed(Option.fromNullable(MEMBERS[discordId])) })
+    const members = DiscordMembers.of({
+      nameOf: (discordId) =>
+        discordId === UNKNOWN ? Effect.fail(new MembersUnavailable({ reason: "Discord is down" })) : Effect.succeed(Option.fromNullable(MEMBERS[discordId]))
+    })
     /** Every Match's Card is message `msg-<id>`, and its thread `thread-<id>`. */
     const links = MatchLinks.of({ of: (matchId) => Effect.succeed(Option.some({ messageId: `msg-${matchId}`, threadId: `thread-${matchId}` })) })
     const app = yield* makeActivityApi(WHERE).pipe(
@@ -102,6 +107,16 @@ describe("signing in", () => {
         body: { error: "NotMember", message: "Multiballs only runs in the Ballest server. Open it from a channel there." }
       })
       expect((yield* call("GET", "/api/matches", { as: OUTSIDER })).status).toBe(403)
+    })
+  )
+
+  it.scoped("lets nobody in while Discord can't say who is in the server", () =>
+    Effect.gen(function* () {
+      const { call } = yield* setup({ maps: [MAP] })
+      expect(yield* call("GET", "/api/me", { as: UNKNOWN })).toEqual({
+        status: 503,
+        body: { error: "DiscordUnavailable", message: "Discord didn't answer. Try again in a moment." }
+      })
     })
   )
 
@@ -222,7 +237,8 @@ describe("opening a Match", () => {
             names: { [ALICE.discordId]: "Alice" },
             history: [],
             links: { card: `https://discord.com/channels/g1/c1/msg-${matchId}`, thread: `https://discord.com/channels/g1/thread-${matchId}` },
-            actions: ["join"]
+            actions: ["join"],
+            starting: false
           }
         ]
       })
@@ -328,7 +344,29 @@ describe("joining and starting", () => {
         status: 409,
         body: { error: "NoEligibleMap", message: "No Map suits this length. The Invite is closed; a longer Match allows more Maps." }
       })
-      expect((yield* call("GET", `/api/matches/${matchId}`, { as: ALICE.discordId })).status).toBe(404)
+      expect(yield* call("GET", `/api/matches/${matchId}`, { as: ALICE.discordId })).toEqual({
+        status: 404,
+        body: { error: "NotFound", closed: "noEligibleMap" }
+      })
+    })
+  )
+
+  it.scoped("shows everyone in a Lobby that its Map is being picked, then that none fitted", () =>
+    Effect.gen(function* () {
+      const { h, call, open } = yield* setup({ maps: [makeMap(1, { worldRecordTicks: ticks(400) })] })
+      const matchId = yield* open(ALICE.discordId, lobby)
+      yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId })
+      // Each board read takes a second, so the draw is still going when Bob looks.
+      yield* h.steam.setReadDelay("1 second")
+      const starting = yield* Effect.fork(call("POST", `/api/matches/${matchId}/start`, { as: ALICE.discordId }))
+      yield* Effect.yieldNow()
+      expect((yield* call("GET", `/api/matches/${matchId}`, { as: BOB.discordId })).body.match).toMatchObject({ state: "invite", starting: true })
+      yield* advance("10 seconds")
+      yield* Fiber.join(starting)
+      expect(yield* call("GET", `/api/matches/${matchId}`, { as: BOB.discordId })).toEqual({
+        status: 404,
+        body: { error: "NotFound", closed: "noEligibleMap" }
+      })
     })
   )
 
