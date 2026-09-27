@@ -8,9 +8,10 @@ The unofficial Discord Match bot: TypeScript on Effect 3 with discord.js and ste
 
 `pnpm test` and `pnpm typecheck`. The tests drive the whole Match engine through fake Steam and
 Discord ports, SQLite in memory and Effect's TestClock, and the Discord Surface (where Cards,
-Match Threads and the Footer go) over an in-memory channel. The discord.js edge (`client.ts`,
-`channel.ts`, `messages.ts`, `interactions.ts`) is checked by running the bot against the test
-server.
+Match Threads and the Footer go) over an in-memory channel. Every message the bot sends is built
+in `messages.ts` from plain data; `test/messages.test.ts` checks each one's buttons and pings, so
+a new button or post gets a case there. The discord.js calls (`client.ts`, `channel.ts`,
+`interactions.ts`) are checked by running the bot against the test server.
 
 Every image the bot posts is drawn by `src/render/` (Satori and resvg, fonts from
 `@fontsource`); `pnpm render:samples` writes each one as a PNG to `.logs/samples/` to check by
