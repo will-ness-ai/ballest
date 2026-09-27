@@ -1,0 +1,1032 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Multiballs Activity Prototype</title>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bungee&family=Chakra+Petch:wght@400;500;600;700&family=Nunito:wght@800;900&display=swap">
+<style>
+/* PROTOTYPE, throwaway: never merge. The settled design of the Multiballs Discord Activity, from the /grill-design
+   session of 2026-09-27 (eight rounds; the spec issue has the verdicts). Open this file in a browser. The picker
+   (bottom right, draggable) lists every screen state; Desktop / Phone switch the frame. The code for the losing
+   variants of each round is still in here, unused, as a record of what was tried.
+   Tokens are the site's (index.html :root) plus the bot's medal art (render/art.ts). Dark-only by design. */
+:root{
+  color-scheme:dark;
+  --bg:#0a1020; --surface:rgba(255,255,255,.05); --surface2:rgba(255,255,255,.09); --solid:#111a2c;
+  --line:rgba(150,175,245,.18); --line2:rgba(255,255,255,.055);
+  --text:#eaf0ff; --dim:#93a2c8; --faint:#63719a;
+  --accent:#8be03c; --accent-ink:#0d2000; --accent-soft:rgba(139,224,60,.14);
+  --gold:#ffd447; --silver:#d3dcea; --bronze:#ef9a52;
+  --radius:11px;
+  --f-marquee:'Bungee',system-ui,sans-serif;
+  --f-hud:'Chakra Petch',system-ui,sans-serif;
+  --f-body:'Archivo',system-ui,sans-serif;
+  --f-medal:'Nunito','Arial Rounded MT Bold',system-ui,sans-serif;
+  --outline:-1px -1px 0 #111,1px -1px 0 #111,-1px 1px 0 #111,1px 1px 0 #111,0 2px 0 #111;
+  --mg-bronze:linear-gradient(90deg,#b07f2a,#e0a650 45%,#f9cb85);
+  --mg-silver:linear-gradient(90deg,#808080,#c9c9c9 45%,#ffffff);
+  --mg-gold:linear-gradient(90deg,#ffe600,#fff27a 50%,#fff7b0);
+  --mg-author:linear-gradient(90deg,#b86ae6,#8fa2f0 50%,#5ef0f5);
+  --art:linear-gradient(170deg,#3b7dd8 0%,#7fb6f2 45%,#f5c58a 70%,#e0874a 100%);
+  --art2:linear-gradient(160deg,#2c6e4f 0%,#6fcf97 40%,#f2e28b 72%,#d98b3a 100%);
+  --sealed:repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0 12px,rgba(255,255,255,.06) 12px 24px),var(--solid);
+  --chrome:#1b1c20; --chrome2:#232428; --chrome-line:#2e3035; --chrome-text:#dbdee1; --chrome-dim:#949ba4;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:#101114;color:var(--text);font:400 15px/1.5 var(--f-body);-webkit-font-smoothing:antialiased;padding-inline:16px;padding-block:16px 140px}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ---------- the call frame (not under review) ---------- */
+.frame{margin:0 auto;background:var(--chrome);border:1px solid var(--chrome-line);border-radius:12px;overflow:hidden;display:grid;grid-template-rows:44px 1fr auto;width:min(1180px,100%);height:760px;max-width:100%}
+.frame.phone{width:min(390px,100%);height:820px;border-radius:28px}
+.topbar{display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--chrome2);border-bottom:1px solid var(--chrome-line);color:var(--chrome-text);font:600 14px/1 system-ui,sans-serif}
+.topbar .sp{color:var(--chrome-dim);font-weight:500}.topbar .grow{flex:1}
+.app{position:relative;overflow:auto;container-type:inline-size;background:radial-gradient(900px 520px at 80% -10%,rgba(88,168,255,.16),transparent 62%),radial-gradient(680px 460px at 4% 2%,rgba(139,224,60,.10),transparent 64%),var(--bg)}
+.callbar{display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 12px;background:#000;flex-wrap:wrap}
+.tile{display:flex;align-items:center;gap:7px;background:#2b2d31;border-radius:8px;padding:6px 10px 6px 6px;color:var(--chrome-text);font:500 12.5px system-ui,sans-serif}
+.tile .av{width:26px;height:26px;border-radius:50%;background:#3a3c42;display:grid;place-items:center;font-weight:700;font-size:12px}
+.phone .callbar .tile span{display:none}
+
+/* ---------- shared pieces ---------- */
+.marble{display:inline-block;flex:none;line-height:0}.marble svg{width:100%;height:100%;display:block}
+.hud{font-family:var(--f-hud);font-variant-numeric:tabular-nums}
+.mt{font-family:var(--f-medal);font-weight:900;color:#fff;text-shadow:var(--outline);letter-spacing:.005em;line-height:1.05}
+.label{font:600 10px/1.2 var(--f-hud);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.note{font:500 11.5px/1.35 var(--f-hud);color:var(--faint)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:99px;padding:3px 9px;font:700 10px/1.2 var(--f-hud);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);white-space:nowrap;font-variant-numeric:tabular-nums}
+.chip.live{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.live::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent-ink)}
+.chip.final{color:var(--gold);border-color:rgba(255,212,71,.4)}
+.chip.you{color:var(--accent);border-color:rgba(139,224,60,.5)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface2);border-radius:9px;padding:9px 15px;font:700 14px/1 var(--f-body);white-space:nowrap}
+.btn:hover{border-color:var(--dim)}
+.btn.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:none}.btn.warn{color:#ff9a8a;border-color:rgba(255,154,138,.4);background:none}
+.btn.big{padding:14px 24px;font-size:16px;border-radius:12px}
+.btn.sm{padding:7px 11px;font-size:13px}
+.btn[disabled]{opacity:.45;cursor:default}
+.rack{display:inline-flex;align-items:center}.rack .marble+.marble{margin-left:-7px}
+.stack{display:inline-flex;align-items:center}.stack .marble+.marble{margin-left:-8px}
+.wordmark{font:400 15px/1 var(--f-marquee);letter-spacing:.02em}.wordmark b{font-weight:400;color:var(--accent)}
+.logo{display:inline-flex;align-items:center;gap:9px}
+.me-link{font:500 12px var(--f-hud);color:var(--dim);display:inline-flex;gap:8px;align-items:center}
+.me-link u{color:var(--text);text-decoration-color:var(--line);text-underline-offset:3px}
+.ladder{display:grid;gap:4px}
+.lrow{display:grid;grid-template-columns:1fr auto;border-radius:3px;overflow:hidden;border:1.5px solid #111;min-height:24px}
+.lrow .l{display:flex;align-items:center;gap:6px;padding:0 8px;font:900 13px/1 var(--f-medal);color:#fff;text-shadow:var(--outline)}
+.lrow .r{background:#1f1f22;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;min-width:66px;font:800 13px/1 var(--f-medal);color:#fff}
+.lrow .tick{width:15px;height:15px;border-radius:50%;background:#111;display:grid;place-items:center;color:var(--gold);font:900 10px/1 system-ui;text-shadow:none}
+.lrow.bronze .l{background:var(--mg-bronze)}.lrow.silver .l{background:var(--mg-silver)}.lrow.gold .l{background:var(--mg-gold)}.lrow.author .l{background:var(--mg-author)}
+.wr{display:inline-flex;align-items:center;background:var(--mg-gold);border:1.5px solid #111;border-radius:3px;padding:1px 5px;font:900 11px/1.1 var(--f-medal);color:#fff;text-shadow:var(--outline)}
+.art{background:var(--art);position:relative;overflow:hidden}
+.art.loop{background:var(--art2)}
+.art::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(118deg,transparent 0 46px,rgba(255,255,255,.10) 46px 50px,transparent 50px 120px)}
+.sealed{background:var(--sealed);display:grid;place-items:center;font:400 28px/1 var(--f-marquee);color:var(--faint)}
+.dnf{font-weight:400}.diff{color:var(--accent)}
+.r1{color:var(--gold)}.r2{color:var(--silver)}.r3{color:var(--bronze)}.rn{color:var(--dim)}
+.seg{display:inline-flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 11px;font:600 13px/1 var(--f-hud)}
+.seg button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.panel{border:1px solid var(--line);border-radius:var(--radius);background:var(--solid);overflow:hidden}
+.panel-h{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 14px;background:rgba(255,255,255,.035);border-bottom:1px solid var(--line2)}
+/* Board Slab */
+.slab .row{display:grid;grid-template-columns:34px 26px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 14px;border-top:1px solid var(--line2);min-height:48px}
+.slab .row:first-child{border-top:0}
+.slab .rk{font:600 15px var(--f-hud)}
+.slab .nm{font:600 14.5px var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slab .sc{display:flex;align-items:center;gap:8px;font:600 16px var(--f-hud)}
+.slab .row.me{background:rgba(139,224,60,.07)}
+.slab .row.open{opacity:.5}
+/* Improvement feed */
+.feed{display:grid}
+.imp{display:grid;grid-template-columns:52px 24px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 14px 8px 0;border-left:4px solid var(--line);border-top:1px solid var(--line2)}
+.imp:first-child{border-top:0}
+.imp.gold{border-left-color:var(--gold);background:linear-gradient(90deg,rgba(255,212,71,.16),transparent 70%)}
+.imp .pk{font:700 19px var(--f-hud);text-align:center;color:var(--dim)}.imp.gold .pk{color:var(--gold)}
+.imp .nm{font:600 14px var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imp .tm{display:flex;gap:8px;align-items:center;font:600 15px var(--f-hud)}
+.imp.wrk{border:1.5px solid #111;border-radius:8px;margin:6px 8px;padding:8px 12px;grid-template-columns:40px 26px minmax(0,1fr) auto;background:var(--mg-gold)}
+.imp.wrk .pk,.imp.wrk .nm,.imp.wrk .tm{font-family:var(--f-medal);font-weight:900;color:#fff;text-shadow:var(--outline)}
+.imp.wrk .sub{font:700 10.5px var(--f-hud);color:#3a2a00}
+/* graph */
+.graph svg{display:block;width:100%;height:auto}
+/* link + composer */
+.form{display:grid;gap:12px;padding:16px}
+.field{display:flex;gap:8px;flex-wrap:wrap}
+.field input{flex:1 1 200px;min-width:0;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.preview{display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);flex-wrap:wrap}
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.type{padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);text-align:left;display:grid;gap:3px}
+.type.on{border-color:var(--accent);background:var(--accent-soft)}
+.type b{font:700 14px var(--f-body)}.type span{font:500 11.5px/1.35 var(--f-hud);color:var(--faint)}
+.why{font:500 11.5px/1.3 var(--f-hud);color:var(--faint)}
+@container (max-width:600px){.types{grid-template-columns:1fr}}
+
+/* ================= A · Card Stack ================= */
+.vA{max-width:720px;margin:0 auto;padding:16px 18px 100px;display:grid;gap:14px}
+.vA .top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.vA .sec{display:grid;gap:8px}
+.vA .mc{display:grid;grid-template-columns:120px minmax(0,1fr) auto;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--solid);text-align:left}
+.vA .mc.you{border-color:rgba(139,224,60,.55);box-shadow:0 0 0 1px rgba(139,224,60,.25)}
+.vA .mc .th{min-height:96px}
+.vA .mc .bd{padding:12px 14px;display:grid;gap:5px;align-content:center;min-width:0}
+.vA .mc .bd .mt{font-size:19px}
+.vA .mc .ac{padding:12px 14px;display:grid;gap:6px;align-content:center;justify-items:end}
+.vA .hero{display:grid;grid-template-columns:1fr 210px;min-height:180px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.vA .hero>.art,.vA .hero>.sealed,.vA .hero>.scrim{grid-column:1/-1;grid-row:1}
+.vA .hero .scrim{background:linear-gradient(90deg,rgba(10,16,32,.9),rgba(10,16,32,.15) 70%);z-index:1}
+.vA .hero .copy{grid-column:1;grid-row:1;z-index:2;align-self:end;padding:16px;display:grid;gap:6px}
+.vA .hero .copy .mt{font-size:28px}
+.vA .hero .ladder{grid-column:2;grid-row:1;z-index:2;margin:12px 12px 0 0;align-self:start}
+.vA .yourline{padding:12px 14px;border-radius:10px;border:1px solid rgba(139,224,60,.35);background:var(--accent-soft);font:500 13px var(--f-hud);color:var(--dim)}
+.vA .yourline b{color:var(--text);font-weight:600}
+.vA .dock{position:sticky;bottom:0;margin:0 -18px -100px;padding:12px 18px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:linear-gradient(180deg,rgba(10,16,32,0),rgba(10,16,32,.94) 30%)}
+.vA .back{font:600 13px var(--f-hud);color:var(--dim)}
+@container (max-width:600px){
+  .vA{padding:12px 12px 100px}
+  .vA .mc{grid-template-columns:78px minmax(0,1fr)}
+  .vA .mc .ac{grid-column:1/-1;justify-items:stretch;border-top:1px solid var(--line2);padding:8px 12px}
+  .vA .hero{grid-template-columns:1fr}
+  .vA .hero>.art,.vA .hero>.sealed,.vA .hero>.scrim{grid-row:1/3}
+  .vA .hero .ladder{grid-column:1;grid-row:1;margin:10px 10px 0 auto;width:150px}
+  .vA .hero .copy{grid-row:2}.vA .hero .copy .mt{font-size:22px}
+  .vA .dock{margin:0 -12px -100px;padding:10px 12px}
+}
+
+/* ================= B · Server Browser ================= */
+.vB{display:grid;grid-template-rows:auto 1fr;min-height:100%}
+.vB .bar{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);background:rgba(5,9,20,.55);flex-wrap:wrap}
+.vB .bar .grow{flex:1}
+.vB .body{display:grid;grid-template-columns:minmax(0,1fr) 380px;min-height:0}
+.vB .table{padding:10px 12px;display:grid;align-content:start;gap:4px}
+.vB .thd,.vB .tr{display:grid;grid-template-columns:92px minmax(0,1fr) 110px 58px 110px 96px;gap:10px;align-items:center;padding:8px 10px}
+.vB .thd{padding-block:4px}
+.vB .tr{border-radius:8px;border:1px solid transparent;text-align:left}
+.vB .tr:hover{background:var(--surface)}
+.vB .tr.sel{background:var(--surface2);border-color:var(--line)}
+.vB .tr.you{box-shadow:inset 3px 0 0 var(--accent)}
+.vB .tr .host{font:600 14px var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vB .tr .c{font:600 13px var(--f-hud);color:var(--dim)}
+.vB .insp{border-left:1px solid var(--line);background:rgba(5,9,20,.45);padding:14px;display:grid;align-content:start;gap:12px;overflow:auto}
+.vB .insp .mh{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center}
+.vB .insp .mh .th{height:60px;border-radius:8px;border:1px solid var(--line)}
+.vB .match{display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-height:100%}
+.vB .strip{display:flex;align-items:center;gap:16px;padding:12px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.vB .strip .th{width:110px;height:62px;border-radius:8px;border:1px solid var(--line)}
+.vB .strip .clk{margin-left:auto;font:400 34px/1 var(--f-marquee)}
+.vB .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;padding:14px 18px;align-content:start}
+.vB .tabs{display:flex;gap:4px}.vB .tabs button{padding:4px 10px;border-radius:6px;font:600 12px var(--f-hud);color:var(--dim)}.vB .tabs button.on{background:var(--surface2);color:var(--text)}
+.vB .foot{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:12px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
+@container (max-width:600px){
+  .vB .body{grid-template-columns:1fr}
+  .vB .insp{display:none}
+  .vB .thd{display:none}
+  .vB .tr{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}
+  .vB .tr .hide-sm{display:none}
+  .vB .split{grid-template-columns:1fr;padding:12px}
+  .vB .strip .clk{font-size:26px}
+}
+
+/* ================= C · Board Wall ================= */
+.vC{padding:16px 18px 30px;display:grid;gap:14px;align-content:start}
+.vC .top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.vC .wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.vC .bt{border:1px solid var(--line);border-radius:12px;background:var(--solid);overflow:hidden;display:grid;grid-template-rows:auto 1fr auto;text-align:left;min-height:250px}
+.vC .bt.you{border-color:rgba(139,224,60,.6)}
+.vC .bt .hd{position:relative;height:84px}
+.vC .bt .hd .ov{position:absolute;inset:0;padding:10px 12px;display:grid;align-content:space-between;background:linear-gradient(180deg,rgba(10,16,32,.1),rgba(10,16,32,.85))}
+.vC .bt .hd .ov .mt{font-size:17px}
+.vC .bt .mini{padding:6px 0}
+.vC .bt .mr{display:grid;grid-template-columns:26px 20px minmax(0,1fr) auto;gap:8px;align-items:center;padding:4px 12px;font:600 13px var(--f-hud)}
+.vC .bt .mr .n{font:600 13px var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vC .bt .ft{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line2)}
+.vC .bt.new{place-items:center;border-style:dashed;background:none;grid-template-rows:1fr;text-align:center}
+/* broadcast match view */
+.vC .bc{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100%;margin:-16px -18px -30px}
+.vC .tower{background:rgba(5,9,20,.72);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.vC .tower .th{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.vC .tw{display:grid;grid-template-columns:28px 22px minmax(0,1fr) auto;gap:9px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line2)}
+.vC .tw .pos{font:700 13px var(--f-hud);text-align:center;border-radius:4px;padding:3px 0;background:var(--surface2)}
+.vC .tw.p1 .pos{background:var(--gold);color:#2a1d00}
+.vC .tw.me{box-shadow:inset 3px 0 0 var(--accent)}
+.vC .tw .n{font:600 14px var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vC .tw .g{font:600 13px var(--f-hud);color:var(--dim)}
+.vC .stage{padding:18px 22px;display:grid;gap:14px;align-content:start;min-width:0}
+.vC .stage .hdr{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.vC .bigclock{font:400 clamp(48px,9cqi,96px)/.95 var(--f-marquee)}
+.vC .medals{display:flex;gap:6px;flex-wrap:wrap}.vC .medals .lrow{min-width:104px}
+@container (max-width:600px){
+  .vC{padding:12px}
+  .vC .bc{grid-template-columns:1fr;margin:-12px}
+  .vC .tower{order:2;border-right:0;border-top:1px solid var(--line)}
+  .vC .stage{padding:14px}
+}
+
+/* ================= D · Master–Detail ================= */
+.vD{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:100%}
+.vD .rail{border-right:1px solid var(--line);padding:14px 10px;display:grid;align-content:start;gap:14px;background:rgba(5,9,20,.4)}
+.vD .grp{display:grid;gap:4px}
+.vD .item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border-radius:9px;border:1px solid transparent;text-align:left}
+.vD .item:hover{background:var(--surface)}
+.vD .item.on{background:var(--surface2);border-color:var(--line)}
+.vD .item.you{border-color:rgba(139,224,60,.5);background:var(--accent-soft)}
+.vD .item .t1{font:600 13.5px/1.2 var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vD .item .t2{font:500 11.5px/1.3 var(--f-hud);color:var(--faint)}
+.vD .pane{padding:16px 20px;display:grid;align-content:start;gap:14px;min-width:0}
+.vD .head{display:grid;grid-template-columns:150px minmax(0,1fr) 190px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--solid);min-height:112px}
+.vD .head .info{padding:14px 16px;display:grid;align-content:center;gap:6px;min-width:0}
+.vD .head .info .mt{font-size:22px}
+.vD .head .ladder{padding:10px}
+.vD .cols{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:start}
+.vD .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vD .locked{padding:14px 12px;display:grid;gap:10px;align-content:start}
+@container (max-width:600px){
+  .vD{grid-template-columns:1fr}
+  .vD .rail{border-right:0;border-bottom:1px solid var(--line)}
+  .vD .rail.hide-sm,.vD .pane.hide-sm{display:none}
+  .vD .head{grid-template-columns:1fr}
+  .vD .head>.art,.vD .head>.sealed{height:80px}
+  .vD .cols{grid-template-columns:1fr}
+  .vD .pane{padding:12px}
+}
+
+/* ================= E · Map Gallery ================= */
+.vE{padding:16px 18px 30px;display:grid;gap:16px;align-content:start;max-width:980px;margin:0 auto}
+.vE .top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.vE .gal{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.vE .gt{position:relative;border-radius:14px;overflow:hidden;min-height:190px;border:1px solid var(--line);text-align:left;display:grid}
+.vE .gt>.art,.vE .gt>.sealed{grid-area:1/1}
+.vE .gt .ov{grid-area:1/1;z-index:1;padding:14px;display:grid;align-content:space-between;background:linear-gradient(180deg,rgba(10,16,32,.15),rgba(10,16,32,.9) 80%)}
+.vE .gt .ov .mt{font-size:22px}
+.vE .gt.you{border-color:var(--accent);box-shadow:0 0 0 2px rgba(139,224,60,.35)}
+.vE .gt.new{place-items:center;border-style:dashed;background:none;min-height:120px}
+.vE .gt .sealed{font-size:64px}
+.vE .hero{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);display:grid;min-height:210px}
+.vE .hero>.art,.vE .hero>.sealed{grid-area:1/1}
+.vE .hero .ov{grid-area:1/1;z-index:1;padding:18px;display:grid;align-content:space-between;background:linear-gradient(180deg,rgba(10,16,32,.2),rgba(10,16,32,.92) 85%)}
+.vE .hero .ov .mt{font-size:32px}
+.track{position:relative;height:64px;margin:4px 6px 6px}
+.track .bar{position:absolute;left:0;right:0;top:26px;height:12px;border-radius:6px;overflow:hidden;display:flex;border:1.5px solid #111}
+.track .bar i{flex:1}
+.track .pin{position:absolute;top:0;transform:translateX(-50%);display:grid;justify-items:center}
+.track .pin .marble{filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
+.track .tl{position:absolute;top:44px;transform:translateX(-50%);font:600 10.5px var(--f-hud);color:var(--faint);white-space:nowrap}
+.vE .hudme{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 20px;align-items:center;padding:18px;border-radius:16px;border:1px solid var(--line);background:var(--surface)}
+.vE .hudme .rk{grid-row:span 2;font:700 88px/.85 var(--f-hud)}
+.vE .hudme .t{font:600 30px/1 var(--f-hud)}
+.vE .hudme .s{font:500 13px var(--f-hud);color:var(--dim)}.vE .hudme .s b{color:var(--text);font-weight:600}
+.vE .chips{display:flex;gap:8px;flex-wrap:wrap}
+.vE .ch{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font:600 13px var(--f-hud)}
+.vE .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+@container (max-width:600px){
+  .vE{padding:12px}
+  .vE .gal,.vE .two{grid-template-columns:1fr}
+  .vE .hudme .rk{font-size:64px}.vE .hudme .t{font-size:22px}
+  .vE .hero .ov .mt{font-size:24px}
+}
+
+/* ---------- round 3: the Match view ---------- */
+.yourline{padding:11px 14px;border-radius:10px;border:1px solid rgba(139,224,60,.35);background:var(--accent-soft);font:500 13px var(--f-hud);color:var(--dim)}
+.yourline b{color:var(--text);font-weight:600}
+.feed.scroll{overflow-y:auto;overscroll-behavior:contain}
+.stamp{color:var(--dim);font-weight:600}
+.vE .hero.compact{min-height:170px}.vE .hero.compact .ov .mt{font-size:24px}
+.boardhero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,360px);border-radius:16px;overflow:hidden;border:1px solid var(--line);min-height:250px}
+.boardhero>.art,.boardhero>.sealed{grid-area:1/1/2/3}
+.boardhero .ov{grid-area:1/1;z-index:1;padding:18px;display:grid;align-content:end;gap:8px;background:linear-gradient(90deg,rgba(10,16,32,.92),rgba(10,16,32,.35))}
+.boardhero .onart{grid-area:1/2;z-index:1;padding:14px;align-self:center}
+.boardhero .onart .panel{background:rgba(10,16,32,.86);backdrop-filter:blur(8px)}
+.vE.side{max-width:1180px;padding:14px 16px}
+.side .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sidegrid{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:14px;align-items:start}
+.sidegrid .left{display:grid;gap:12px;position:sticky;top:0}
+.sidegrid .right{display:grid;gap:12px}
+.gb{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:12px;align-items:start}
+.legend{padding:4px 0}
+.lg{display:grid;grid-template-columns:20px 10px minmax(0,1fr) auto auto;gap:4px 8px;align-items:center;padding:8px 12px;border-top:1px solid var(--line2)}
+.lg:first-child{border-top:0}.lg.me{background:rgba(139,224,60,.07)}
+.lg .rk{font:600 14px var(--f-hud)}.lg .sw{width:10px;height:10px;border-radius:3px}
+.lg .nm{font:600 13.5px var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lg .hud{font-weight:600;font-size:13.5px}.lg .gl{grid-column:3/-1}
+@container (max-width:600px){
+  .boardhero{grid-template-columns:1fr}.boardhero>.art,.boardhero>.sealed{grid-area:1/1/3/2}
+  .boardhero .ov{grid-area:1/1}.boardhero .onart{grid-area:2/1;padding:0 10px 10px}
+  .sidegrid,.gb{grid-template-columns:1fr}.sidegrid .left{position:static}
+}
+
+/* ---------- round 4: Browse tiles ---------- */
+.vE .sec{display:grid;gap:8px}
+.emptyb{display:grid;justify-items:center;gap:14px;padding:60px 16px;border:1px dashed var(--line);border-radius:16px}
+.seats{display:inline-flex;gap:6px;flex-wrap:wrap}
+.seat{display:inline-grid;place-items:center;line-height:0}
+.seat.empty{border:1.5px dashed var(--line);border-radius:50%;color:var(--faint);font:600 14px/1 var(--f-hud)}
+.seat.you{border-radius:50%;box-shadow:0 0 0 2px var(--accent)}
+.t3s{display:grid;gap:3px}
+.t3{display:grid;grid-template-columns:16px 18px minmax(0,1fr) auto;gap:7px;align-items:center;font:600 12.5px var(--f-hud)}
+.t3 .n{font:600 12.5px var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.posters{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.poster{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--solid);display:grid;grid-template-rows:130px 1fr;text-align:left}
+.poster.you{border-color:var(--accent)}
+.poster .pa{position:relative;display:grid}.poster .pa>*{grid-area:1/1}.poster .pa .sealed{font-size:44px}
+.poster .pc{place-self:start;margin:10px;z-index:1}
+.poster .pb{padding:12px;display:grid;gap:8px;align-content:start}
+.poster .pf{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.poster.new{grid-template-rows:1fr;place-items:center;align-content:center;gap:6px;border-style:dashed;background:none;min-height:260px;text-align:center}
+.seatile{border:1px solid var(--line);border-radius:14px;background:var(--solid);padding:14px;display:grid;gap:12px;align-content:space-between;min-height:190px;position:relative;overflow:hidden;text-align:left}
+.seatile.you{border-color:var(--accent)}
+.seatile .sh{display:flex;justify-content:space-between;align-items:start;gap:8px}
+.seatile .sb{padding:4px 0}.seatile .sf{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.seatile.live{padding:0}.seatile .lart{position:absolute;inset:0}
+.seatile .lov{position:relative;z-index:1;padding:14px;display:grid;gap:10px;background:linear-gradient(180deg,rgba(10,16,32,.35),rgba(10,16,32,.92) 70%);height:100%}
+.seatile.new{place-items:center;align-content:center;border-style:dashed;background:none;text-align:center}
+.banners{display:grid;gap:10px}
+.banner{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:92px;display:grid;text-align:left}
+.banner.you{border-color:var(--accent)}
+.banner .bart{position:absolute;inset:0}.banner .sealed.bart{font-size:0}
+.banner .bov{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 16px;background:linear-gradient(90deg,rgba(10,16,32,.92) 30%,rgba(10,16,32,.6))}
+.banner .br{display:grid;gap:6px;justify-items:end}
+.banner.new{place-items:center;align-content:center;border-style:dashed;background:none;min-height:64px;gap:2px}
+.tray{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px;display:grid;gap:12px;align-content:start;text-align:left}
+.tray.you{border-color:var(--accent)}
+.tray .th2{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:10px;align-items:center}
+.tray .tart{height:40px;border-radius:8px;border:1px solid var(--line)}.tray .sealed.tart{font-size:16px}
+.tray .t1{font:700 14px var(--f-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tray .tm{display:flex;gap:10px;flex-wrap:wrap}
+.tray .tp{display:grid;justify-items:center;gap:2px;width:58px}
+.tray .tn{font:600 11.5px var(--f-body);max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tray .tt{font:700 10.5px var(--f-hud);color:var(--dim)}
+.tray .tf{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tray.new{place-items:center;align-content:center;border-style:dashed;background:none;min-height:150px}
+@container (max-width:600px){
+  .banner .bov{grid-template-columns:1fr;gap:8px}.banner .br{justify-items:start}
+  .posters{grid-template-columns:1fr 1fr}.poster{grid-template-rows:96px 1fr}
+}
+
+/* ---------- round 5: settled tile + New Match ---------- */
+.gal .gt{min-height:220px}
+.gt.new{display:grid;place-items:center}
+.gt.composing,.gt.quick,.gt.wysiwyg{grid-column:span 2;background:var(--solid);border-color:var(--accent)}
+.gt.quick{grid-column:auto}
+.gt.wysiwyg>.sealed{grid-area:1/1}
+.pickme{font:inherit;color:inherit;text-shadow:inherit;border-bottom:1.5px dashed rgba(255,255,255,.5)}
+.pickme.mt{font-size:24px}
+.who{display:grid;gap:8px}
+.who input{background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:9px;padding:9px 12px;width:100%}
+.wl{display:flex;flex-wrap:wrap;gap:6px;max-height:120px;overflow:auto}
+.wp{display:flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font:600 13px var(--f-body)}
+.wp.on{border-color:var(--accent);background:var(--accent-soft)}
+.dimmed{filter:brightness(.45) blur(1px);pointer-events:none}
+.sheet{position:sticky;bottom:0;margin:-300px auto 0;max-width:640px;background:#0f1728;border:1px solid var(--line);border-bottom:0;border-radius:18px 18px 0 0;box-shadow:0 -20px 60px rgba(0,0,0,.6);z-index:5}
+.sheet .grabber{width:44px;height:5px;border-radius:3px;background:var(--line);margin:10px auto 0}
+.steps{max-width:640px;gap:18px}
+.bigtypes{display:grid;gap:10px}
+.bigtype{display:grid;gap:3px;text-align:left;padding:18px;border-radius:14px;border:1px solid var(--line);background:var(--surface)}
+.bigtype b{font:700 18px var(--f-body)}.bigtype span{font:500 13px var(--f-hud);color:var(--faint)}
+.bigtype.on{border-color:var(--accent);background:var(--accent-soft)}
+@container (max-width:600px){.gt.composing,.gt.wysiwyg{grid-column:auto}}
+
+/* ---------- round 6: Link Steam ---------- */
+.hint{font:500 12px/1.4 var(--f-hud);color:var(--faint)}
+.hint summary{cursor:pointer;color:var(--dim);width:max-content}
+.hint[open] summary{margin-bottom:4px}
+.wp[disabled]{opacity:.45;cursor:default}
+.found{display:flex;gap:14px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.err{padding:9px 12px;border-radius:9px;background:rgba(255,122,122,.12);border:1px solid rgba(255,122,122,.4);color:#ff9a8a;font:500 13px var(--f-body)}
+.ctx{display:flex;gap:8px;align-items:center;font:500 12.5px var(--f-hud);color:var(--dim)}
+.dialog{position:sticky;bottom:40%;margin:-420px auto 0;max-width:520px;width:calc(100% - 32px);background:#0f1728;border:1px solid var(--line);border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.65);z-index:5}
+.linkpage{max-width:560px;gap:16px}
+.drawerwrap{position:relative;min-height:100%}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:min(380px,100%);background:#0f1728;border-left:1px solid var(--line);box-shadow:-20px 0 60px rgba(0,0,0,.5);z-index:5}
+
+/* ---------- round 7: the start ---------- */
+.dots::after{content:"";animation:dots 1.2s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.reveal-in .vE .hero>.art{animation:slidein .7s cubic-bezier(.2,.85,.3,1) both}
+.reveal-in .vE .hero .mt{animation:pop .5s .35s cubic-bezier(.2,.85,.3,1.35) both}
+@keyframes slidein{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes pop{from{transform:scale(.8);opacity:0}to{transform:none;opacity:1}}
+.countwrap{position:relative;min-height:100%}
+.countdown{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:14px;background:rgba(10,16,32,.86);z-index:5;animation:fadeout .4s 3.2s both}
+.cd{font:400 120px/1 var(--f-marquee);color:var(--accent)}
+.cd::after{content:"GO!";animation:count 3s linear both}
+@keyframes count{0%{content:"3"}33%{content:"2"}66%{content:"1"}100%{content:"GO!"}}
+@keyframes fadeout{to{opacity:0;visibility:hidden}}
+.roulette{height:34px;overflow:hidden}
+.reel{display:grid;animation:spin 2.4s cubic-bezier(.3,.1,.2,1) infinite}
+.reel span{height:34px;font:900 28px/34px var(--f-medal);color:#fff;text-shadow:var(--outline)}
+@keyframes spin{from{transform:translateY(0)}to{transform:translateY(-170px)}}
+.gobar{position:sticky;top:0;z-index:6;display:flex;gap:12px;align-items:center;justify-content:center;padding:10px 14px;background:var(--accent);color:var(--accent-ink);font:600 14px var(--f-hud)}
+.gobar b{font:400 18px var(--f-marquee)}
+.gobar .btn{background:var(--accent-ink);color:var(--accent);border-color:var(--accent-ink)}
+.mapcard{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:min(440px,calc(100% - 32px));background:#0f1728;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.7);z-index:5}
+.countwrap:has(.mapcard)>.vE{filter:brightness(.4)}
+
+.toast{position:sticky;top:10px;z-index:7;margin:10px auto 0;width:max-content;max-width:calc(100% - 32px);padding:10px 14px;border-radius:10px;background:#3a1418;border:1px solid rgba(255,122,122,.5);color:#ffb3a8;font:600 13px var(--f-body);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+/* ---------- prototype picker (not part of the design) ---------- */
+.picker{position:fixed;right:16px;bottom:16px;z-index:50;width:330px;max-width:calc(100vw - 32px);background:#f3f4f6;color:#111;border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.55);font:500 12.5px/1.35 system-ui,sans-serif;user-select:none}
+.picker .grab{cursor:grab;padding:8px 12px 4px;display:flex;justify-content:space-between;color:#6b7280;font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.picker .nav{display:grid;grid-template-columns:34px 1fr 34px;align-items:center;gap:6px;padding:0 8px}
+.picker .nav button{height:34px;border-radius:9px;background:#111;color:#fff;font-size:16px}
+.picker .nm{text-align:center;font-weight:700;font-size:14px}
+.picker .desc{padding:6px 12px 8px;color:#374151;min-height:52px}
+.picker .row{display:flex;gap:4px;flex-wrap:wrap;padding:0 8px 8px}
+.picker .row button{padding:5px 8px;border-radius:7px;background:#e5e7eb;color:#111;font-weight:600;font-size:12px}
+.picker .row button.on{background:#111;color:#fff}
+.picker .row .lb{align-self:center;color:#6b7280;font-size:11px;width:100%}
+</style>
+
+<div class="frame" id="frame">
+  <div class="topbar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#949ba4" stroke-width="2" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+    <span>General</span><span class="sp">·</span><span>Multiballs</span><span class="grow"></span><span class="sp">Ballest (dev)</span>
+  </div>
+  <div class="app" id="app"></div>
+  <div class="callbar" id="callbar"></div>
+</div>
+
+<div class="picker" id="picker" role="region" aria-label="Prototype picker">
+  <div class="grab" id="grab"><span>Round 8 · Settled</span><span>drag</span></div>
+  <div class="nav"><button id="prev" aria-label="Previous design">←</button><div class="nm" id="vname"></div><button id="next" aria-label="Next design">→</button></div>
+  <div class="desc" id="vdesc"></div>
+  <div class="row" id="states"><span class="lb">Where the viewer is</span></div>
+    <div class="row" id="frames"><span class="lb">Device</span></div>
+</div>
+
+<script>
+// ---------------------------------------------------------------- art
+const hueFor = (seed) => { let h = 2166136261; for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619) } return Math.abs(h) % 360 }
+let uid = 0
+const marble = (seed, size = 24, hue) => {
+  const h = hue ?? hueFor(seed), id = 'm' + (uid++)
+  return `<span class="marble" style="width:${size}px;height:${size}px"><svg viewBox="0 0 40 40" aria-hidden="true"><defs><radialGradient id="g${id}" cx="34%" cy="27%" r="80%"><stop offset="0%" stop-color="hsl(${h} 94% 90%)"/><stop offset="34%" stop-color="hsl(${h} 80% 64%)"/><stop offset="100%" stop-color="hsl(${h} 62% 25%)"/></radialGradient><clipPath id="c${id}"><circle cx="20" cy="20" r="19"/></clipPath></defs><circle cx="20" cy="20" r="19" fill="url(#g${id})"/><g clip-path="url(#c${id})"><path d="M-4 27C6 34 18 33 26 26s10-16 8-24" fill="none" stroke="hsl(${h} 66% 20%)" stroke-opacity=".26" stroke-width="4.5"/><path d="M2 8c8 2 16 8 19 17" fill="none" stroke="hsl(${h} 96% 92%)" stroke-opacity=".2" stroke-width="3"/></g><ellipse cx="13" cy="11.5" rx="5.4" ry="3.4" fill="#fff" fill-opacity=".62" transform="rotate(-28 13 11.5)"/><circle cx="20" cy="20" r="19" fill="none" stroke="hsl(${h} 60% 16%)" stroke-opacity=".35"/></svg></span>`
+}
+const MEDAL_STOPS = { bronze: ['#9c6c1f', '#e0a650', '#f9cb85'], silver: ['#7a7a7a', '#c9c9c9', '#fff'], gold: ['#e0b800', '#ffe600', '#fff7b0'], author: ['#b86ae6', '#8fa2f0', '#5ef0f5'] }
+const MEDAL_LINE = { bronze: '#e0a650', silver: '#c9c9c9', gold: '#ffe600', author: '#b86ae6' }
+const medal = (kind, w = 16) => {
+  if (!kind) return ''
+  const [d, m, l] = MEDAL_STOPS[kind], id = 'md' + (uid++)
+  return `<svg width="${w}" height="${Math.round(w * 1.3)}" viewBox="0 0 20 26" role="img" aria-label="${kind} medal" style="flex:none"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${l}"/><stop offset=".5" stop-color="${m}"/><stop offset="1" stop-color="${d}"/></linearGradient></defs><path d="M4 0h5l3 9H7z" fill="#1c2a4a"/><path d="M11 0h5l-3 9H8z" fill="#2d4476"/><circle cx="10" cy="16.6" r="8.4" fill="url(#${id})" stroke="#111" stroke-width="1.4"/></svg>`
+}
+const fmt = (s) => { const ms = Math.round(s * 1000), m = Math.floor(ms / 60000), r = ms % 60000; return `${m}:${String(Math.floor(r / 1000)).padStart(2, '0')}.${String(r % 1000).padStart(3, '0')}` }
+const clockTxt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+const rankClass = (r) => r === 1 ? 'r1' : r === 2 ? 'r2' : r === 3 ? 'r3' : 'rn'
+const cap = (s) => s[0].toUpperCase() + s.slice(1)
+const logo = () => `<span class="logo"><span class="rack">${marble('a', 18, 212)}${marble('b', 18, 332)}${marble('c', 18, 96)}</span><span class="wordmark">Multi<b>balls</b></span></span>`
+
+// ---------------------------------------------------------------- example data (the test server, this evening)
+const PEOPLE = {
+  will: { name: 'Will', steam: '76561198047685844' }, kiko: { name: 'kiko', steam: '76561198011112222' },
+  rollo: { name: 'Rollo', steam: '76561198033334444' }, mq: { name: 'marbleQueen', steam: '76561198055556666' },
+  tess: { name: 'tess', steam: '76561198077778888' }, gus: { name: 'gus', steam: '76561198099990000' },
+  nell: { name: 'nell', steam: '76561198012121212' }, pip: { name: 'pip', steam: '76561198034343434' }, sam: { name: 'sam', steam: null }
+}
+const MAPS = {
+  rail: { title: 'The Rail Updated', creator: 'pebblewright', art: 'art', wr: 18.412, medals: { bronze: 36, silver: 28, gold: 23, author: 19.5 } },
+  loop: { title: 'Nine Loops', creator: 'rollo', art: 'art loop', wr: 42.118, medals: { bronze: 70, silver: 58, gold: 50, author: 44 } }
+}
+const TYPE = { public: 'Public 1v1', challenge: 'Challenge', lobby: 'Lobby' }
+const M = {
+  tess: { id: 'tess', type: 'public', minutes: 10, creator: 'tess', players: ['tess'], state: 'invite', clock: 220 },
+  gus: { id: 'gus', type: 'challenge', minutes: 20, creator: 'gus', target: 'will', players: ['gus'], state: 'invite', clock: 170 },
+  kiko: { id: 'kiko', type: 'lobby', minutes: 15, creator: 'kiko', players: ['kiko', 'rollo', 'mq'], state: 'live', clock: 462, map: 'rail', pb: { mq: 24.9 },
+    hist: { kiko: [[62, 31.2], [140, 24.8], [260, 21.0], [401, 19.203]], rollo: [[180, 33.1], [300, 27.65]] } },
+  nell: { id: 'nell', type: 'challenge', minutes: 30, creator: 'nell', target: 'pip', players: ['nell', 'pip'], state: 'live', clock: 724, map: 'loop',
+    hist: { nell: [[300, 48.2], [820, 46.9]], pip: [[410, 51.0]] } },
+  mine: { id: 'mine', type: 'lobby', minutes: 15, creator: 'will', players: ['will', 'kiko', 'rollo'], state: 'invite', clock: 192 },
+  myLive: { id: 'myLive', type: 'lobby', minutes: 15, creator: 'kiko', players: ['kiko', 'rollo', 'mq', 'will'], state: 'live', clock: 462, map: 'rail', pb: { mq: 24.9 },
+    hist: { kiko: [[62, 31.2], [140, 24.8], [260, 21.0], [401, 19.203]], will: [[95, 29.5], [210, 24.1], [330, 22.296], [430, 21.884]], rollo: [[180, 33.1], [300, 27.65]] } },
+  done: { id: 'done', type: 'lobby', minutes: 15, creator: 'kiko', players: ['kiko', 'rollo', 'mq', 'will'], state: 'finished', clock: 0, map: 'rail', pb: { mq: 24.9 },
+    hist: { kiko: [[62, 31.2], [140, 24.8], [260, 21.0], [401, 19.203], [700, 18.09]], will: [[95, 29.5], [210, 24.1], [330, 22.296], [430, 21.884], [610, 20.551]], rollo: [[180, 33.1], [300, 27.65], [520, 26.004]] } }
+}
+const LIST = ['gus', 'tess', 'kiko', 'nell']
+
+/** Where the viewer (Will) is. `view` is the Match open in the detail, `lock` the Match they're in. */
+const STATES = {
+  browse: { label: 'Browsing', linked: true, view: null, lock: null },
+  empty: { label: 'No active Matches', linked: true, view: null, lock: null, empty: true },
+  compose: { label: 'New Match', linked: true, view: null, lock: null, composing: 'lobby' },
+  composeCh: { label: 'New Match · Challenge', linked: true, view: null, lock: null, composing: 'challenge' },
+  unlinked: { label: 'Browsing · not linked', linked: false, view: null, lock: null },
+  watch: { label: 'Watching a Match', linked: true, view: 'kiko', lock: null },
+  paste: { label: 'Link · paste', linked: false, view: null, lock: null, linkStep: 'paste' },
+  notfound: { label: 'Link · not found', linked: false, view: null, lock: null, linkStep: 'notfound' },
+  preview: { label: 'Link · is this you?', linked: false, view: null, lock: null, linkStep: 'preview' },
+  change: { label: 'Change account', linked: true, view: null, lock: null, linkStep: 'paste', changing: true },
+  lobby: { label: 'My Lobby', linked: true, view: 'mine', lock: 'mine' },
+  picking: { label: 'Start · picking a Map', linked: true, view: null, lock: 'mine', start: 'picking' },
+  go: { label: 'Start · Map picked', linked: true, view: null, lock: 'mine', start: 'go' },
+  nomap: { label: 'Start · no Map fits', linked: true, view: null, lock: 'mine', start: 'nomap' },
+  live: { label: 'My live Match', linked: true, view: 'myLive', lock: 'myLive' },
+  result: { label: 'My Result', linked: true, view: 'done', lock: 'done' },
+  joiner: { label: 'In a Lobby (not host)', linked: true, extra: 'joiner' },
+  wait1v1: { label: 'My Challenge, waiting', linked: true, extra: 'wait1v1' },
+  leave: { label: 'Leave a live Match', linked: true, view: 'myLive', lock: 'myLive', extra: 'leave' },
+  signin: { label: 'Signing in', linked: true, extra: 'signin' },
+  wrong: { label: 'Wrong server', linked: true, extra: 'wrong' },
+  steam: { label: 'Steam error', linked: true, extra: 'steam' }
+}
+
+// ---------------------------------------------------------------- the Match, derived
+const elapsed = (m) => m.minutes * 60 - m.clock
+const bestOf = (m, id) => { const h = m.hist?.[id]; return h?.length ? h[h.length - 1][1] : null }
+const medalOf = (m, t) => { if (t == null || !m.map) return null; const md = MAPS[m.map].medals; return t <= md.author ? 'author' : t <= md.gold ? 'gold' : t <= md.silver ? 'silver' : t <= md.bronze ? 'bronze' : null }
+const standings = (m) => {
+  const ps = m.players.map((id) => ({ id, ...PEOPLE[id], t: bestOf(m, id), me: id === 'will' }))
+  const timed = ps.filter((p) => p.t != null).sort((a, b) => a.t - b.t)
+  timed.forEach((p) => { p.rank = 1 + timed.filter((q) => q.t < p.t).length; p.medal = medalOf(m, p.t) })
+  return [...timed, ...ps.filter((p) => p.t == null).map((p) => ({ ...p, rank: null, medal: null }))]
+}
+/** Every PB in order, newest first, with the rank it gave and whether it broke the world record. */
+const events = (m) => {
+  if (!m.hist) return []
+  const all = Object.entries(m.hist).flatMap(([id, h]) => h.map(([at, t], i) => ({ id, at, t, prev: i ? h[i - 1][1] : m.pb?.[id] ?? null }))).sort((a, b) => a.at - b.at)
+  let wr = MAPS[m.map].wr
+  const best = {}
+  for (const e of all) { best[e.id] = e.t; e.rank = 1 + Object.values(best).filter((t) => t < e.t).length; if (e.t < wr) { e.wrBeat = wr; wr = e.t } }
+  return all.reverse()
+}
+const clockSpan = (s) => `<span data-clock="${s}">${clockTxt(s)}</span>`
+const chipFor = (m) => m.state === 'invite' ? `<span class="chip">Invite · ${clockSpan(m.clock)}</span>` : m.state === 'live' ? `<span class="chip live">Live · ${clockSpan(m.clock)}</span>` : `<span class="chip final">Final</span>`
+const titleOf = (m) => m.type === 'challenge' ? `${PEOPLE[m.creator].name} v ${PEOPLE[m.target].name}` : `${PEOPLE[m.creator].name}'s ${TYPE[m.type]}`
+const metaOf = (m) => m.map ? `${MAPS[m.map].title} · ${m.minutes} min` : `${TYPE[m.type]} · ${m.minutes} min · Map picked at start`
+const mapMeta = (m) => `by ${MAPS[m.map].creator} · ${TYPE[m.type]} · ${m.minutes} min · WR ${fmt(MAPS[m.map].wr)}`
+const thumb = (m, cls = '') => m.map ? `<div class="${MAPS[m.map].art} ${cls}"></div>` : `<div class="sealed ${cls}">?</div>`
+const stackOf = (m, size = 22) => `<span class="stack">${m.players.map((id) => marble(PEOPLE[id].steam, size)).join('')}</span>`
+
+/** What the viewer can do with a Match from the list or its detail: [buttons, reason]. */
+const offer = (m, s, size = '') => {
+  if (m.type === 'challenge' && m.target !== 'will') return [`<span class="note">Watch only</span>`, '']
+  const needLink = !s.linked ? '<span class="why">Link Steam to join</span>' : ''
+  if (m.type === 'challenge') return [`<button class="btn go ${size}">Accept</button><button class="btn warn ${size}">Decline</button>`, needLink || `<span class="why">${clockSpan(m.clock)} to answer</span>`]
+  if (m.type === 'public') return [`<button class="btn go ${size}">Accept</button>`, needLink]
+  if (m.state === 'live') {
+    const pb = 'Only runs faster than your PB count'
+    return [`<button class="btn go ${size}">Join late</button>`, needLink || `<span class="why">${pb}</span>`]
+  }
+  return [`<button class="btn go ${size}">Join (${m.players.length})</button>`, needLink]
+}
+/** Your own Match's controls. */
+const ownControls = (m, size = '') => {
+  if (m.state === 'invite') return m.creator === 'will'
+    ? `<button class="btn ghost ${size}">Cancel</button><button class="btn go ${size}">Start · ${m.players.length} Players</button>`
+    : `<button class="btn ghost ${size}">Leave</button>`
+  if (m.state === 'live') return `<button class="btn ${size}">Open Map in Workshop</button><button class="btn ${size}">Match Thread</button><button class="btn warn ${size}">Leave</button>`
+  return `<button class="btn ${size}">See it in the channel</button><button class="btn go ${size}">Back to Matches</button>`
+}
+const meLink = (s) => s.linked ? `<span class="me-link">${marble(PEOPLE.will.steam, 18)}Linked as <u>Will</u> · <u>Change</u></span>` : `<span class="me-link">Not linked · <u>Link Steam</u></span>`
+
+// ---------------------------------------------------------------- shared components
+const ladder = (m, mine) => { const md = MAPS[m.map].medals; return `<div class="ladder">${['bronze', 'silver', 'gold', 'author'].map((k) => `<div class="lrow ${k}"><div class="l">${mine != null && mine <= md[k] ? '<span class="tick">✓</span>' : ''}${cap(k)}</div><div class="r">${md[k].toFixed(3)}</div></div>`).join('')}</div>` }
+const noteFor = (m, p, top) => {
+  if (m.state === 'invite') return p.id === m.creator ? 'opened the Lobby' : 'joined'
+  const bar = m.pb?.[p.id]
+  if (p.t == null) return m.state === 'finished' ? (bar ? `didn't beat their PB ${fmt(bar)}` : 'did not finish') : bar ? `must beat their PB ${fmt(bar)}` : 'no time yet'
+  if (p.rank === 1) return m.state === 'finished' ? 'wins' : 'leads'
+  return `+${(p.t - top).toFixed(3)} behind`
+}
+const slab = (m) => {
+  const st = standings(m), top = st[0]?.t
+  const wrHolder = m.state !== 'invite' && events(m).find((e) => e.wrBeat)
+  const rows = st.map((p) => `<div class="row ${p.me ? 'me' : ''}"><span class="rk ${rankClass(p.rank)}">${m.state === 'invite' ? '' : p.rank ?? '–'}</span>${marble(p.steam, 26)}
+    <div style="min-width:0"><div class="nm">${p.name}</div><div class="note">${noteFor(m, p, top)}</div></div>
+    <div class="sc">${m.state === 'invite' ? '<span class="note">ready</span>' : p.t == null ? (m.state === 'finished' ? '<span class="dnf">DNF</span>' : '<span class="rn">—</span>') : fmt(p.t) + medal(p.medal) + (wrHolder && wrHolder.id === p.id && p.rank === 1 ? '<span class="wr">WR</span>' : '')}</div></div>`).join('')
+  const open = m.state === 'invite' && m.type === 'lobby' ? `<div class="row open"><span></span>${marble('open', 26, 220)}<div><div class="nm">Open slot</div></div><div class="sc"><span class="rn">—</span></div></div>` : ''
+  return `<div class="panel slab">${rows}${open}</div>`
+}
+const feed = (m, n = 5) => {
+  const ev = events(m).slice(0, n)
+  if (!ev.length) return `<div class="panel"><div class="panel-h"><span class="label">Improvements</span></div><div style="padding:14px" class="note">Each PB lands here as Steam reports it, within about 10 seconds.</div></div>`
+  return `<div class="panel"><div class="panel-h"><span class="label">Improvements</span><span class="note">newest first</span></div><div class="feed">${ev.map((e) => {
+    const p = PEOPLE[e.id], ago = elapsed(m) - e.at, when = m.state === 'finished' ? clockTxt(e.at) : ago < 60 ? `${ago}s ago` : `${Math.floor(ago / 60)} min ago`
+    if (e.wrBeat) return `<div class="imp wrk"><span class="pk">WR</span>${marble(p.steam, 26)}<div style="min-width:0"><div class="nm">${p.name}</div><div class="sub">beat ${fmt(e.wrBeat)} by ${(e.wrBeat - e.t).toFixed(3)}</div></div><span class="tm">${fmt(e.t)}</span></div>`
+    return `<div class="imp ${e.rank === 1 ? 'gold' : ''}"><span class="pk">P${e.rank}</span>${marble(p.steam, 24)}<div style="min-width:0"><div class="nm">${p.name}</div><div class="note">${when}</div></div><span class="tm">${fmt(e.t)}${e.prev ? `<span class="diff" style="font-size:12.5px">-${(e.prev - e.t).toFixed(3)}</span>` : ''}${medal(medalOf(m, e.t))}</span></div>`
+  }).join('')}</div></div>`
+}
+/** The progression graph: every PB over the Match's clock, log-scaled, with Medal and WR lines. */
+const graph = (m, W = 520, H = 280) => {
+  if (!m.map) return ''
+  const L = 52, R = 96, T = 14, B = 30, map = MAPS[m.map], dur = m.minutes * 60, now = m.state === 'finished' ? dur : elapsed(m)
+  const all = Object.values(m.hist ?? {}).flat().map(([, t]) => t).concat(Object.values(m.pb ?? {}))
+  const lo = Math.min(map.wr, ...all) * 0.97, hi = Math.max(map.medals.bronze, ...all) * 1.04
+  const x = (s) => L + (s / dur) * (W - L - R), y = (t) => T + (Math.log(hi) - Math.log(t)) / (Math.log(hi) - Math.log(lo)) * (H - T - B)
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Progression graph">`
+  for (let s = 0; s <= dur; s += 300) svg += `<line x1="${x(s)}" x2="${x(s)}" y1="${T}" y2="${H - B}" stroke="rgba(255,255,255,.05)"/><text x="${x(s)}" y="${H - 10}" fill="#63719a" font-family="Chakra Petch" font-size="10" text-anchor="middle">${s / 60}:00</text>`
+  for (const k of ['bronze', 'silver', 'gold', 'author']) { const v = map.medals[k]; if (v > hi || v < lo) continue; svg += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${MEDAL_LINE[k]}" stroke-opacity=".55" stroke-dasharray="2 4"/><text x="${L - 6}" y="${y(v) + 3}" fill="${MEDAL_LINE[k]}" font-family="Chakra Petch" font-size="9.5" text-anchor="end">${v.toFixed(1)}</text>` }
+  svg += `<line x1="${L}" x2="${W - R}" y1="${y(map.wr)}" y2="${y(map.wr)}" stroke="#fff" stroke-opacity=".6" stroke-dasharray="4 3"/><text x="${L - 6}" y="${y(map.wr) + 3}" fill="#fff" font-family="Chakra Petch" font-size="9.5" text-anchor="end">WR</text>`
+  if (m.state === 'live') svg += `<line x1="${x(now)}" x2="${x(now)}" y1="${T}" y2="${H - B}" stroke="#8be03c" stroke-opacity=".5"/>`
+  const st = standings(m)
+  for (const p of st) {
+    const h = m.hist?.[p.id], col = `hsl(${hueFor(p.steam)} 78% 60%)`
+    if (m.pb?.[p.id] && (!h || h[0][1] > m.pb[p.id])) svg += `<line x1="${x(0)}" x2="${x(h ? h[0][0] : now)}" y1="${y(m.pb[p.id])}" y2="${y(m.pb[p.id])}" stroke="${col}" stroke-width="2" stroke-dasharray="2 3"/>`
+    if (!h) continue
+    let d = `M${x(h[0][0])} ${y(h[0][1])}`
+    for (let i = 1; i < h.length; i++) d += ` H${x(h[i][0])} V${y(h[i][1])}`
+    d += ` H${x(now)}`
+    svg += `<path d="${d}" fill="none" stroke="${col}" stroke-width="2.3"/>` + h.map(([a, t]) => `<circle cx="${x(a)}" cy="${y(t)}" r="2.8" fill="${col}"/>`).join('')
+    svg += `<text x="${x(now) + 8}" y="${y(p.t) + 4}" fill="${col}" font-family="Archivo" font-weight="600" font-size="11">${p.name}</text>`
+  }
+  for (const e of events(m).filter((e) => e.wrBeat)) svg += `<circle cx="${x(e.at)}" cy="${y(e.t)}" r="10" fill="#ffd447" fill-opacity=".18"/><path d="${star(x(e.at), y(e.t), 7, 3)}" fill="#ffd447" stroke="#111"/>`
+  return `<div class="panel graph"><div class="panel-h"><span class="label">Progression</span><span class="note">${m.state === 'live' ? 'live' : 'final'}</span></div><div style="padding:6px 8px">${svg}</svg></div></div>`
+}
+const star = (cx, cy, r1, r2) => { let d = ''; for (let i = 0; i < 10; i++) { const r = i % 2 ? r2 : r1, a = -Math.PI / 2 + i * Math.PI / 5; d += `${i ? 'L' : 'M'}${(cx + r * Math.cos(a)).toFixed(1)} ${(cy + r * Math.sin(a)).toFixed(1)}` } return d + 'Z' }
+const linkForm = (m) => `<div class="panel form"><div class="label">Link Steam to join ${titleOf(m)}</div>
+  <div class="note" style="font-size:12.5px;color:var(--dim)">Paste your Steam profile link, custom URL or SteamID64.</div>
+  <div class="field"><input id="profile" value="steamcommunity.com/id/willness" aria-label="Steam profile"><button class="btn go">Check</button></div>
+  <div class="preview">${marble(PEOPLE.will.steam, 40)}<div style="flex:1;min-width:160px"><div class="hud" style="font-weight:700;font-size:16px">Will</div><div class="note">SteamID 76561198047685844 · times on 21 of 23 campaign Tracks</div></div><button class="btn go">Yes, link it and join</button><button class="btn ghost">Try again</button></div></div>`
+const composer = () => `<div class="panel form"><div class="label">New Match</div>
+  <div class="types"><button class="type"><b>Public 1v1</b><span>First to accept races you</span></button><button class="type"><b>Challenge</b><span>Name one Player</span></button><button class="type on"><b>Lobby</b><span>Anyone joins; you start it</span></button></div>
+  <div class="seg">${[5, 10, 15, 20, 30, 45, 60].map((d) => `<button class="${d === 15 ? 'on' : ''}">${d}m</button>`).join('')}</div>
+  <div><button class="btn go">Open Invite</button></div></div>`
+const yourLine = (m) => {
+  const st = standings(m), me = st.find((p) => p.me)
+  if (!me || me.t == null) return ''
+  const md = MAPS[m.map].medals, next = ['bronze', 'silver', 'gold', 'author'].find((k) => me.t > md[k])
+  return `You're <b class="${rankClass(me.rank)}">P${me.rank}</b> · ${me.rank === 1 ? '<b>leading</b>' : `<b>+${(me.t - st[0].t).toFixed(3)}</b> to ${st[0].name}`} · ${next ? `<b>${(me.t - md[next]).toFixed(3)}</b> to ${next}` : 'every Medal'}`
+}
+
+// ================================================================ settled screens (rounds 1-2)
+/** Browse: the Map Gallery. */
+const browse = (s) => {
+  const tile = (m) => { const [btns] = offer(m, s, 'sm')
+    return `<div class="gt ${m.target === 'will' ? 'you' : ''}">${m.map ? `<div class="${MAPS[m.map].art}"></div>` : '<div class="sealed">?</div>'}<div class="ov"><div style="display:flex;justify-content:space-between;gap:8px">${chipFor(m)}${stackOf(m, 24)}</div><div style="display:grid;gap:6px"><div class="mt">${m.map ? MAPS[m.map].title : titleOf(m)}</div><div class="note" style="color:#c9d3f0">${m.map ? titleOf(m) + ' · ' + m.minutes + ' min' : metaOf(m)}${m.target === 'will' ? ' · <b style="color:var(--accent)">challenges you</b>' : ''}</div><div style="display:flex;gap:6px">${btns.includes('Watch only') ? '<button class="btn sm">Watch</button>' : btns}${m.state === 'live' && !btns.includes('Watch only') ? '<button class="btn sm">Watch</button>' : ''}</div></div></div></div>` }
+  return `<div class="vE"><div class="top">${logo()}${meLink(s)}</div><div class="gal"><button class="gt new"><span style="display:grid;gap:6px;justify-items:center"><span class="mt" style="font-size:22px">+ New Match</span><span class="note">The Map is sealed until the start</span></span></button>${LIST.map((id) => tile(M[id])).join('')}</div></div>`
+}
+/** My Lobby: the Card Stack's locked Card, sealed Map, sticky bar. */
+const myLobby = (s, m) => `<div class="vA"><div class="top">${logo()}<span class="note">${titleOf(m)}</span></div>
+  <div class="hero"><div class="sealed">?</div><div class="scrim"></div><div class="copy"><div class="mt">Map pending</div><div class="hud" style="font-size:12px;color:var(--dim)">${metaOf(m)}</div><div style="display:flex;gap:8px">${chipFor(m)}<span class="chip you">Your Match</span></div></div></div>
+  ${slab(m)}<div class="panel" style="padding:12px 14px"><span class="note">Players get pinged in the Match Thread when you start.</span></div>
+  <div class="dock"><span class="note">Invite expires in ${clockSpan(m.clock)}</span><span style="display:flex;gap:8px;flex-wrap:wrap">${ownControls(m)}</span></div></div>`
+
+// ================================================================ the Match view: pieces
+const heroOf = (s, m, locked, compact) => {
+  const [btns, why] = locked ? [ownControls(m, 'sm'), ''] : offer(m, s, 'sm')
+  return `<div class="hero ${compact ? 'compact' : ''}">${m.map ? `<div class="${MAPS[m.map].art}"></div>` : '<div class="sealed">?</div>'}<div class="ov"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span style="display:flex;gap:6px">${chipFor(m)}${locked ? '<span class="chip you">Your Match</span>' : ''}</span>${stackOf(m, 26)}</div>
+    <div style="display:grid;gap:8px"><div class="mt">${m.map ? MAPS[m.map].title : 'Map pending'}</div><div class="note" style="color:#c9d3f0">${titleOf(m)} · ${m.map ? mapMeta(m) : metaOf(m)}</div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${btns}${why}</div></div></div></div>`
+}
+const topOf = (s, m, locked) => locked ? `<div class="top">${logo()}<span></span></div>` : `<div class="top"><button class="note" style="font-size:13px">← All Matches</button>${meLink(s)}</div>`
+const yourBox = (m, locked) => locked && m.state !== 'invite' && yourLine(m) ? `<div class="yourline">${yourLine(m)}</div>` : ''
+/** The Improvements feed as the bottom container: every PB, newest first, stamped with the Match clock. */
+const feedScroll = (m, h = 260) => {
+  const ev = events(m)
+  const rows = ev.map((e) => { const p = PEOPLE[e.id], at = `<span class="stamp">${clockTxt(e.at)}</span>`
+    if (e.wrBeat) return `<div class="imp wrk"><span class="pk">WR</span>${marble(p.steam, 26)}<div style="min-width:0"><div class="nm">${p.name}</div><div class="sub">beat ${fmt(e.wrBeat)} by ${(e.wrBeat - e.t).toFixed(3)} · at ${clockTxt(e.at)}</div></div><span class="tm">${fmt(e.t)}</span></div>`
+    return `<div class="imp ${e.rank === 1 ? 'gold' : ''}"><span class="pk">P${e.rank}</span>${marble(p.steam, 24)}<div style="min-width:0"><div class="nm">${p.name}</div><div class="note">at ${at}${e.prev == null ? ' · first time' : ''}</div></div><span class="tm">${fmt(e.t)}${e.prev ? `<span class="diff" style="font-size:12.5px">-${(e.prev - e.t).toFixed(3)}</span>` : ''}${medal(medalOf(m, e.t))}</span></div>` }).join('')
+  return `<div class="panel"><div class="panel-h"><span class="label">Improvements · ${ev.length}</span></div><div class="feed scroll" style="max-height:${h}px">${rows || '<div style="padding:14px" class="note">No times yet.</div>'}</div></div>`
+}
+/** Standings merged into the graph: the legend is the board. */
+const graphBoard = (m) => {
+  const st = standings(m), top = st[0]?.t
+  return `<div class="gb">${graph(m, 560, 300)}<div class="panel legend">${st.map((p) => `<div class="lg ${p.me ? 'me' : ''}"><span class="rk ${rankClass(p.rank)}">${p.rank ?? '–'}</span><span class="sw" style="background:hsl(${hueFor(p.steam)} 78% 60%)"></span><span class="nm">${p.name}</span><span class="hud">${p.t ? fmt(p.t) : m.state === 'finished' ? 'DNF' : '—'}</span>${medal(p.medal, 13)}<span class="note gl">${noteFor(m, p, top)}</span></div>`).join('')}</div></div>`
+}
+
+/** Everyone's best time on a bar of the four Medals, with the world record marked. */
+const track = (m) => {
+  const md = MAPS[m.map].medals, lo = MAPS[m.map].wr * 0.95, hi = md.bronze * 1.05, x = (t) => `${Math.max(0, Math.min(100, ((hi - t) / (hi - lo)) * 100))}%`
+  const pins = standings(m).filter((p) => p.t != null).map((p) => `<div class="pin" style="left:${x(p.t)};z-index:${p.me ? 3 : 1}">${marble(p.steam, p.me ? 28 : 22)}</div>`).join('')
+  const ticks = ['bronze', 'silver', 'gold', 'author'].map((k) => `<span class="tl" style="left:${x(md[k])}">${cap(k)[0]} ${md[k].toFixed(1)}</span>`).join('') + `<span class="tl" style="left:${x(MAPS[m.map].wr)};color:var(--gold)">WR</span>`
+  return `<div class="track"><div class="bar"><i style="background:var(--mg-bronze)"></i><i style="background:var(--mg-silver)"></i><i style="background:var(--mg-gold)"></i><i style="background:var(--mg-author)"></i></div>${pins}${ticks}</div>`
+}
+
+// ================================================================ five arrangements of the Match view
+const V1 = (s, m, locked) => `<div class="vE mv">${topOf(s, m, locked)}${heroOf(s, m, locked)}${s.linking ? linkForm(m) : ''}${yourBox(m, locked)}${track(m)}${graph(m, 900, 280)}${slab(m)}${feedScroll(m)}</div>`
+const V2 = (s, m, locked) => `<div class="vE mv">${topOf(s, m, locked)}${heroOf(s, m, locked)}${s.linking ? linkForm(m) : ''}${yourBox(m, locked)}${graph(m, 900, 260)}<div class="two">${slab(m)}${feedScroll(m, 300)}</div></div>`
+const V3 = (s, m, locked) => {
+  const [btns, why] = locked ? [ownControls(m, 'sm'), ''] : offer(m, s, 'sm')
+  return `<div class="vE mv">${topOf(s, m, locked)}<div class="boardhero">${m.map ? `<div class="${MAPS[m.map].art}"></div>` : '<div class="sealed">?</div>'}<div class="ov"><div style="display:flex;gap:6px">${chipFor(m)}${locked ? '<span class="chip you">Your Match</span>' : ''}</div><div class="mt" style="font-size:30px">${MAPS[m.map].title}</div><div class="note" style="color:#c9d3f0">${titleOf(m)} · ${mapMeta(m)}</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${btns}${why}</div></div><div class="onart">${slab(m)}</div></div>
+    ${s.linking ? linkForm(m) : ''}${yourBox(m, locked)}${track(m)}${graph(m, 900, 260)}${feedScroll(m)}</div>`
+}
+const V4 = (s, m, locked) => `<div class="vE side">${topOf(s, m, locked)}<div class="sidegrid"><div class="left">${heroOf(s, m, locked, true)}${s.linking ? linkForm(m) : ''}${yourBox(m, locked)}${slab(m)}${track(m)}</div><div class="right">${graph(m, 560, 300)}${feedScroll(m, 340)}</div></div></div>`
+const V5 = (s, m, locked) => `<div class="vE mv">${topOf(s, m, locked)}${heroOf(s, m, locked)}${s.linking ? linkForm(m) : ''}${yourBox(m, locked)}${graphBoard(m)}${track(m)}${feedScroll(m)}</div>`
+
+const screen = (arrange) => (s) => {
+  if (s.lock && M[s.lock].state === 'invite') return myLobby(s, M[s.lock])
+  if (s.lock) return arrange(s, M[s.lock], true)
+  if (s.view) return arrange(s, M[s.view], false)
+  return browse(s)
+}
+
+// ================================================================ round 4: the Browse page's tiles
+/** The seats an Invite has: filled marbles, then empty seats to take (a Lobby shows one spare). */
+const seats = (m, size = 26) => {
+  const filled = m.players.map((id) => `<span class="seat">${marble(PEOPLE[id].steam, size)}</span>`)
+  const empty = m.type === 'lobby' ? 1 : 2 - m.players.length
+  const you = m.target === 'will' ? `<span class="seat you">${marble(PEOPLE.will.steam, size)}</span>` : ''
+  return `<span class="seats">${filled.join('')}${you || Array.from({ length: Math.max(0, empty) }, () => `<span class="seat empty" style="width:${size}px;height:${size}px">+</span>`).join('')}</span>`
+}
+const btnsFor = (m, s) => { const [b] = offer(m, s, 'sm'); return b.includes('Watch only') ? '<button class="btn sm">Watch</button>' : b + (m.state === 'live' ? '<button class="btn sm ghost">Watch</button>' : '') }
+const top3 = (m) => standings(m).slice(0, 3).map((p) => `<div class="t3"><span class="${rankClass(p.rank)}">${p.rank ?? '–'}</span>${marble(p.steam, 18)}<span class="n">${p.name}</span><span class="hud">${p.t ? fmt(p.t) : '—'}</span></div>`).join('')
+const youBadge = (m) => m.target === 'will' ? '<span class="chip you">Challenges you</span>' : ''
+
+/** T1 · Picture tile: the settled gallery tile, Map art full-bleed with everything overlaid. */
+const T1 = {
+  tile: (m, s) => `<div class="gt ${m.target === 'will' ? 'you' : ''}">${m.map ? `<div class="${MAPS[m.map].art}"></div>` : '<div class="sealed">?</div>'}<div class="ov"><div style="display:flex;justify-content:space-between;gap:8px">${chipFor(m)}${stackOf(m, 24)}</div><div style="display:grid;gap:6px"><div class="mt">${m.map ? MAPS[m.map].title : titleOf(m)}</div><div class="note" style="color:#c9d3f0">${m.map ? titleOf(m) + ' · ' + m.minutes + ' min' : metaOf(m)}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${youBadge(m)}${btnsFor(m, s)}</div></div></div></div>`,
+  add: () => `<button class="gt new"><span style="display:grid;gap:6px;justify-items:center"><span class="mt" style="font-size:22px">+ New Match</span><span class="note">The Map is sealed until the start</span></span></button>`,
+  grid: 'gal'
+}
+/** T2 · Poster: tall cards, art on top, a solid info panel below with the button at the foot. */
+const T2 = {
+  tile: (m, s) => `<div class="poster ${m.target === 'will' ? 'you' : ''}"><div class="pa">${m.map ? `<div class="${MAPS[m.map].art}"></div>` : '<div class="sealed">?</div>'}<span class="pc">${chipFor(m)}</span></div>
+    <div class="pb"><div class="mt" style="font-size:18px">${m.map ? MAPS[m.map].title : 'Map sealed'}</div><div class="note">${titleOf(m)} · ${m.minutes} min</div>${m.state === 'live' ? `<div class="t3s">${top3(m)}</div>` : `<div>${seats(m, 24)}</div>`}${youBadge(m)}<div class="pf">${btnsFor(m, s)}</div></div></div>`,
+  add: () => `<button class="poster new"><span class="mt" style="font-size:40px">+</span><span class="mt" style="font-size:18px">New Match</span><span class="note">Pick a type and a length</span></button>`,
+  grid: 'posters'
+}
+/** T3 · Seats: the Invite is a row of seats to take; live tiles show the top three over the art. */
+const T3 = {
+  tile: (m, s) => m.state === 'invite'
+    ? `<div class="seatile ${m.target === 'will' ? 'you' : ''}"><div class="sh"><div><div class="mt" style="font-size:19px">${titleOf(m)}</div><div class="note">${TYPE[m.type]} · ${m.minutes} min · Map sealed until the start</div></div>${chipFor(m)}</div><div class="sb">${seats(m, 40)}</div><div class="sf">${youBadge(m)}${btnsFor(m, s)}</div></div>`
+    : `<div class="seatile live"><div class="${MAPS[m.map].art} lart"></div><div class="lov"><div class="sh"><div><div class="mt" style="font-size:19px">${MAPS[m.map].title}</div><div class="note" style="color:#c9d3f0">${titleOf(m)} · ${m.minutes} min</div></div>${chipFor(m)}</div><div class="t3s">${top3(m)}</div><div class="sf">${btnsFor(m, s)}</div></div></div>`,
+  add: () => `<button class="seatile new"><span class="mt" style="font-size:20px">+ New Match</span><span class="note">Your Invite gets seats like these</span></button>`,
+  grid: 'gal'
+}
+/** T4 · Banner list: one wide banner per Match, art as a strip behind, read top to bottom. */
+const T4 = {
+  tile: (m, s) => `<div class="banner ${m.target === 'will' ? 'you' : ''}">${m.map ? `<div class="${MAPS[m.map].art} bart"></div>` : '<div class="sealed bart">?</div>'}<div class="bov">
+    <div class="bl"><div class="mt" style="font-size:20px">${m.map ? MAPS[m.map].title : titleOf(m)}</div><div class="note" style="color:#c9d3f0">${m.map ? titleOf(m) + ' · ' + m.minutes + ' min' : metaOf(m)}</div></div>
+    <div class="bm">${m.state === 'live' ? top3(m) : seats(m, 26)}</div><div class="br">${chipFor(m)}${youBadge(m)}<span style="display:flex;gap:6px">${btnsFor(m, s)}</span></div></div></div>`,
+  add: () => `<button class="banner new"><span class="mt" style="font-size:18px">+ New Match</span><span class="note">Lobby, Public 1v1 or Challenge · 5 to 60 min</span></button>`,
+  grid: 'banners'
+}
+/** T5 · Marble tray: small art chips, the Players' marbles the biggest thing on the tile. */
+const T5 = {
+  tile: (m, s) => `<div class="tray ${m.target === 'will' ? 'you' : ''}"><div class="th2">${m.map ? `<div class="${MAPS[m.map].art} tart"></div>` : '<div class="sealed tart">?</div>'}<div style="min-width:0"><div class="t1">${m.map ? MAPS[m.map].title : 'Map sealed'}</div><div class="note">${titleOf(m)} · ${m.minutes} min</div></div>${chipFor(m)}</div>
+    <div class="tm">${m.state === 'live' ? standings(m).map((p) => `<span class="tp">${marble(p.steam, 38)}<span class="tn">${p.name}</span><span class="tt ${rankClass(p.rank)}">${p.rank ? 'P' + p.rank : '—'}</span></span>`).join('') : m.players.map((id) => `<span class="tp">${marble(PEOPLE[id].steam, 38)}<span class="tn">${PEOPLE[id].name}</span><span class="tt">${id === m.creator ? 'host' : 'in'}</span></span>`).join('') + (m.target === 'will' ? `<span class="tp">${marble(PEOPLE.will.steam, 38)}<span class="tn" style="color:var(--accent)">you?</span><span class="tt"></span></span>` : `<span class="tp"><span class="seat empty" style="width:38px;height:38px">+</span><span class="tn">open</span><span class="tt"></span></span>`)}</div>
+    <div class="tf">${youBadge(m)}${btnsFor(m, s)}</div></div>`,
+  add: () => `<button class="tray new"><span class="mt" style="font-size:20px">+ New Match</span></button>`,
+  grid: 'gal'
+}
+
+let sectioned = false
+const SECTIONS = [['For you', (m) => m.target === 'will'], ['Open to join', (m) => m.state === 'invite' && m.target !== 'will'], ['Live now', (m) => m.state === 'live']]
+const browseWith = (T) => (s) => {
+  const top = `<div class="top">${logo()}${meLink(s)}</div>`
+  if (s.empty) return `<div class="vE">${top}<div class="emptyb"><div class="sealed" style="width:96px;height:96px;border-radius:16px;font-size:40px">?</div><div class="mt" style="font-size:26px">Nothing's on right now</div><div class="note" style="max-width:360px;text-align:center">Open an Invite and anyone on the server can take a seat. The Map is one nobody in the Match has finished.</div><button class="btn go big">New Match</button></div></div>`
+  const ms = LIST.map((id) => M[id])
+  const body = sectioned
+    ? `<div class="${T.grid}">${T.add()}</div>` + SECTIONS.map(([label, f]) => { const xs = ms.filter(f); return xs.length ? `<div class="sec"><span class="label">${label} · ${xs.length}</span><div class="${T.grid}">${xs.map((m) => T.tile(m, s)).join('')}</div></div>` : '' }).join('')
+    : `<div class="${T.grid}">${T.add()}${ms.map((m) => T.tile(m, s)).join('')}</div>`
+  return `<div class="vE">${top}${body}</div>`
+}
+
+/** The settled Match view: straight down, board above the graph. */
+const matchView = (s, m, locked) => `<div class="vE mv">${topOf(s, m, locked)}${heroOf(s, m, locked)}${s.linking ? linkForm(m) : ''}${yourBox(m, locked)}${track(m)}${slab(m)}${graph(m, 900, 280)}${feedScroll(m)}</div>`
+const screen4 = (T) => (s) => {
+  if (s.lock && M[s.lock].state === 'invite') return myLobby(s, M[s.lock])
+  if (s.lock) return matchView(s, M[s.lock], true)
+  if (s.view) return matchView(s, M[s.view], false)
+  return browseWith(T)(s)
+}
+
+// ================================================================ round 5: settled Browse, and the New Match flow
+/** The settled tile: Picture tile styling; an Invite shows its seats, a live Match its top three. */
+const tile = (m, s) => `<div class="gt ${m.target === 'will' ? 'you' : ''}">${m.map ? `<div class="${MAPS[m.map].art}"></div>` : '<div class="sealed">?</div>'}<div class="ov">
+  <div style="display:flex;justify-content:space-between;gap:8px;align-items:start">${chipFor(m)}${youBadge(m)}</div>
+  <div style="display:grid;gap:8px"><div><div class="mt">${m.map ? MAPS[m.map].title : titleOf(m)}</div><div class="note" style="color:#c9d3f0">${m.map ? titleOf(m) + ' · ' + m.minutes + ' min' : metaOf(m)}</div></div>
+  ${m.state === 'live' ? `<div class="t3s">${top3(m)}</div>` : seats(m, 30)}<div style="display:flex;gap:6px;flex-wrap:wrap">${btnsFor(m, s)}</div></div></div></div>`
+/** Open Invites soonest to expire, then live Matches most recently started. */
+const ordered = () => {
+  const ms = LIST.map((id) => M[id])
+  return [...ms.filter((m) => m.state === 'invite').sort((a, b) => a.clock - b.clock), ...ms.filter((m) => m.state === 'live').sort((a, b) => elapsed(a) - elapsed(b))]
+}
+const newTile = () => `<button class="gt new"><span class="mt" style="font-size:22px">+ New Match</span></button>`
+const gallery = (s, first = newTile()) => `<div class="gal">${first}${ordered().map((m) => tile(m, s)).join('')}</div>`
+const topBar = (s) => `<div class="top">${logo()}${meLink(s)}</div>`
+const emptyPage = (s) => `<div class="vE">${topBar(s)}<div class="emptyb"><div class="mt" style="font-size:24px">No active Matches</div><button class="btn go big">New Match</button></div></div>`
+
+// ---------------------------------------------------------------- the composer's parts
+const LINKED = ['kiko', 'rollo', 'mq', 'tess', 'gus', 'nell', 'pip']
+const draft = { type: 'lobby', minutes: 15, target: null }
+const typeBtns = (cls = 'type') => [['public', 'Public 1v1', 'First to accept plays you'], ['challenge', 'Challenge', 'Pick who you play'], ['lobby', 'Lobby', 'Anyone can join; you start it']]
+  .map(([k, t, d]) => `<button class="${cls} ${draft.type === k ? 'on' : ''}" data-type="${k}"><b>${t}</b><span>${d}</span></button>`).join('')
+const lengthBtns = () => `<div class="seg">${[5, 10, 15, 20, 30, 45, 60].map((d) => `<button class="${draft.minutes === d ? 'on' : ''}" data-min="${d}">${d} min</button>`).join('')}</div>`
+const whoPicker = () => draft.type !== 'challenge' ? '' : `<div class="who"><input id="who" placeholder="Search Players" aria-label="Search Players"><div class="wl">${LINKED.map((id) => `<button class="wp ${draft.target === id ? 'on' : ''}" data-who="${id}">${marble(PEOPLE[id].steam, 22)}<span>${PEOPLE[id].name}</span>${id === 'gus' ? '<span class="note">in a Match</span>' : ''}</button>`).join('')}</div></div>`
+const openBtn = (cls = 'btn go') => `<button class="${cls}" ${draft.type === 'challenge' && !draft.target ? 'disabled' : ''}>Open Invite</button>`
+const summary = () => `${TYPE[draft.type]}${draft.type === 'challenge' && draft.target ? ' v ' + PEOPLE[draft.target].name : ''} · ${draft.minutes} min`
+
+/** N1 · Tile opens in place: the New Match tile grows into the form, the gallery stays around it. */
+const N1 = (s) => `<div class="vE">${topBar(s)}${gallery(s, `<div class="gt composing"><div class="form"><div style="display:flex;justify-content:space-between;align-items:center"><span class="label">New Match</span><button class="note">Close</button></div><div class="types">${typeBtns()}</div>${whoPicker()}${lengthBtns()}<div>${openBtn()}</div></div></div>`)}</div>`
+/** N2 · Sheet: a panel slides up over the gallery with every choice on it. */
+const N2 = (s) => `<div class="vE dimmed">${topBar(s)}${gallery(s)}</div><div class="sheet"><div class="grabber"></div><div class="form"><div style="display:flex;justify-content:space-between;align-items:center"><span class="mt" style="font-size:22px">New Match</span><button class="note">Close</button></div><div class="label">Type</div><div class="types">${typeBtns()}</div>${whoPicker()}<div class="label">Length</div>${lengthBtns()}<div>${openBtn('btn go big')}</div></div></div>`
+/** N3 · Steps: a page per question, big buttons, a back link. */
+const N3 = (s) => {
+  const step = draft.type === 'challenge' && !draft.target ? 'who' : 'type'
+  return `<div class="vE steps"><div class="top"><button class="note" style="font-size:13px">← Back</button><span class="note">${step === 'who' ? 'Step 2 of 3' : 'Step 1 of 2'}</span></div>
+    ${step === 'who' ? `<div class="mt" style="font-size:28px">Who do you want to play?</div>${whoPicker()}` : `<div class="mt" style="font-size:28px">What kind of Match?</div><div class="bigtypes">${typeBtns('bigtype')}</div><div class="mt" style="font-size:22px;margin-top:8px">How long?</div>${lengthBtns()}<div>${openBtn('btn go big')}</div>`}</div>`
+}
+/** N4 · One tap: the tile offers the usual Match straight away; everything else is behind Change. */
+const N4 = (s) => `<div class="vE">${topBar(s)}${gallery(s, `<div class="gt quick"><div class="ov" style="background:none"><span class="label">New Match</span><div style="display:grid;gap:10px"><div class="mt" style="font-size:24px">${summary()}</div><button class="btn go big">Open Invite</button><button class="note" style="justify-self:start">Change type or length</button></div></div></div>`)}
+  <div class="panel form" style="max-width:560px"><div class="label">Change</div><div class="types">${typeBtns()}</div>${whoPicker()}${lengthBtns()}</div></div>`
+/** N5 · Edit the Invite itself: the form is the tile you'll post, and each part of it is a control. */
+const N5 = (s) => `<div class="vE">${topBar(s)}${gallery(s, `<div class="gt wysiwyg"><div class="sealed"></div><div class="ov">
+  <div style="display:flex;justify-content:space-between;gap:8px"><span class="chip">Invite · 5:00</span><button class="note">Cancel</button></div>
+  <div style="display:grid;gap:10px"><div><button class="pickme mt" data-cycle="type">${TYPE[draft.type]} ▾</button><div class="note" style="color:#c9d3f0"><button class="pickme" data-cycle="min">${draft.minutes} min ▾</button> · Map picked at start</div></div>
+  <span class="seats"><span class="seat you">${marble(PEOPLE.will.steam, 30)}</span>${draft.type === 'challenge' ? `<button class="seat empty pickseat" style="width:30px;height:30px">${draft.target ? marble(PEOPLE[draft.target].steam, 30) : '?'}</button>` : `<span class="seat empty" style="width:30px;height:30px">+</span>`}</span>
+  ${draft.type === 'challenge' ? whoPicker() : ''}<div>${openBtn()}</div></div></div></div>`)}</div>`
+
+const COMPOSERS = { N1, N2, N3, N4, N5 }
+let draftFor = null
+const screen5 = (key) => (s) => {
+  if (s.lock && M[s.lock].state === 'invite') return myLobby(s, M[s.lock])
+  if (s.lock) return matchView(s, M[s.lock], true)
+  if (s.view) return matchView(s, M[s.view], false)
+  if (s.empty) return emptyPage(s)
+  if (s.composing) { if (draftFor !== s) { draftFor = s; draft.type = s.composing; draft.minutes = 15; draft.target = null } return COMPOSERS[key](s) }
+  return `<div class="vE">${topBar(s)}${gallery(s)}</div>`
+}
+
+// ================================================================ round 6: Link Steam
+/** Steam names differ from Discord names; the Challenge picker shows both and searches both. */
+const STEAM_NAME = { kiko: 'kikoballs', rollo: 'R0LL0', mq: 'marble queen', tess: 'tess', gus: 'gusgus', nell: 'nellie', pip: 'pip!' }
+/** Settled New Match flow (round 5, variant 1) with the Challenge hint. */
+const whoPicker6 = () => draft.type !== 'challenge' ? '' : `<div class="who"><input id="who" placeholder="Search by Discord or Steam name" aria-label="Search Players"><div class="wl">${LINKED.map((id) => `<button class="wp ${draft.target === id ? 'on' : ''}" data-who="${id}" ${id === 'gus' ? 'disabled' : ''}>${marble(PEOPLE[id].steam, 22)}<span style="display:grid;line-height:1.15;text-align:left"><span>${PEOPLE[id].name}</span><span class="note">${STEAM_NAME[id]}${id === 'gus' ? ' · in a Match' : ''}</span></span></button>`).join('')}</div>
+  <details class="hint"><summary>Can't find someone?</summary>They need to link Steam in Multiballs first. Search by Discord or Steam name.</details></div>`
+const composer6 = (s) => `<div class="vE">${topBar(s)}${gallery(s, `<div class="gt composing"><div class="form"><div style="display:flex;justify-content:space-between;align-items:center"><span class="label">New Match</span><button class="note">Close</button></div><div class="types">${typeBtns()}</div>${whoPicker6()}${lengthBtns()}<div>${openBtn()}</div></div></div>`)}</div>`
+
+// ---------------------------------------------------------------- the Link form's steps, shared by every variant
+const FOUND = { name: 'Will', steam: '76561198047685844', tracks: 21 }
+/** `ctx` says what happens after: joining a Match, or just (re)linking. */
+const linkSteps = (s, ctx) => {
+  const after = s.changing ? 'Yes, link this one' : ctx ? 'Link and join' : 'Yes, link it'
+  const field = `<div class="field"><input id="profile" value="${s.linkStep === 'notfound' ? 'steamcommunity.com/id/wilness' : 'steamcommunity.com/id/willness'}" aria-label="Steam profile link, custom URL or SteamID64"><button class="btn go">Check</button></div>`
+  if (s.linkStep === 'preview') return `<div class="found">${marble(FOUND.steam, 52)}<div style="min-width:0"><div class="hud" style="font-weight:700;font-size:18px">${FOUND.name}</div><div class="note">SteamID ${FOUND.steam} · times on ${FOUND.tracks} of 23 campaign Tracks</div></div></div>
+    <div class="note" style="font-size:13px;color:var(--dim)">Is this you?</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn go">${after}</button><button class="btn ghost">Try again</button></div>`
+  return `${s.changing ? `<div class="note" style="font-size:13px;color:var(--dim)">Linked to <b style="color:var(--text)">Will</b> (76561198047685844).</div>` : ''}
+    <label class="label" for="profile">Steam profile link, custom URL or SteamID64</label>${field}
+    ${s.linkStep === 'notfound' ? '<div class="err">Couldn\'t find that profile. Check the link and try again.</div>' : ''}`
+}
+const JOINING = 'kiko'
+const linkTitle = (s) => s.changing ? 'Change your Steam account' : 'Link your Steam account'
+
+/** L1 · Inline: the form opens right under the button you pressed. */
+const L1 = (s) => s.changing
+  ? `<div class="vE">${topBar(s)}<div class="panel form" style="max-width:560px"><div class="mt" style="font-size:20px">${linkTitle(s)}</div>${linkSteps(s)}</div>${gallery(s)}</div>`
+  : `<div class="vE mv">${topOf(s, M[JOINING], false)}${heroOf({ ...s, linked: false }, M[JOINING], false)}<div class="panel form"><div class="mt" style="font-size:20px">${linkTitle(s)}</div>${linkSteps(s, M[JOINING])}</div>${track(M[JOINING])}${slab(M[JOINING])}</div>`
+/** L2 · Dialog: a box over the dimmed page, the same wherever you started. */
+const L2 = (s) => `<div class="vE dimmed">${topBar({ ...s, linked: s.changing })}${gallery({ ...s, linked: s.changing })}</div>
+  <div class="dialog" role="dialog" aria-label="${linkTitle(s)}"><div class="form"><div style="display:flex;justify-content:space-between;align-items:center"><span class="mt" style="font-size:20px">${linkTitle(s)}</span><button class="note">Close</button></div>
+  ${!s.changing ? `<div class="ctx">${stackOf(M[JOINING], 20)}<span>Joining ${titleOf(M[JOINING])}</span></div>` : ''}${linkSteps(s, !s.changing && M[JOINING])}</div></div>`
+/** L3 · In the tile: the tile you pressed turns into the form, the rest of the gallery stays put. */
+const L3 = (s) => {
+  const m = M[JOINING]
+  const form = `<div class="gt composing"><div class="form"><div style="display:flex;justify-content:space-between;align-items:center"><span class="label">${s.changing ? 'Change Steam account' : 'Link Steam to join ' + titleOf(m)}</span><button class="note">Close</button></div>${linkSteps(s, !s.changing && m)}</div></div>`
+  const tiles = ordered().map((x) => x.id === JOINING && !s.changing ? form : tile(x, { ...s, linked: s.changing })).join('')
+  return `<div class="vE">${topBar({ ...s, linked: s.changing })}<div class="gal">${s.changing ? form : newTile()}${tiles}</div></div>`
+}
+/** L4 · Its own page: one job on screen, a back link, and the Match you were joining shown small. */
+const L4 = (s) => `<div class="vE linkpage"><div class="top"><button class="note" style="font-size:13px">← Back</button>${logo()}</div>
+  <div class="mt" style="font-size:30px">${linkTitle(s)}</div>${!s.changing ? `<div class="ctx">${stackOf(M[JOINING], 22)}<span>Then you'll join ${titleOf(M[JOINING])}</span></div>` : ''}
+  <div class="panel form">${linkSteps(s, !s.changing && M[JOINING])}</div></div>`
+/** L5 · Drawer: the account lives in a side panel from the header; Join opens it too. */
+const L5 = (s) => `<div class="drawerwrap"><div class="vE dimmed">${topBar({ ...s, linked: s.changing })}${gallery({ ...s, linked: s.changing })}</div>
+  <aside class="drawer"><div class="form"><div style="display:flex;justify-content:space-between;align-items:center"><span class="label">Your account</span><button class="note">Close</button></div>
+  <div class="mt" style="font-size:20px">${linkTitle(s)}</div>${!s.changing ? `<div class="ctx">${stackOf(M[JOINING], 20)}<span>Joining ${titleOf(M[JOINING])}</span></div>` : ''}${linkSteps(s, !s.changing && M[JOINING])}</div></aside></div>`
+
+const LINKERS = { L1, L2, L3, L4, L5 }
+const screen6 = (key) => (s) => {
+  if (s.linkStep) return LINKERS[key](s)
+  if (s.composing) { if (draftFor !== s) { draftFor = s; draft.type = s.composing; draft.minutes = 15; draft.target = null } return composer6(s) }
+  return screen5('N1')(s)
+}
+
+// ================================================================ round 7: the start
+/** The Lobby a moment after Start: the same Players, now live on the drawn Map. */
+const started = { ...M.mine, state: 'live', clock: 900, map: 'rail', players: ['will', 'kiko', 'rollo'], hist: {} }
+const stillLobby = M.mine
+const workshopBtn = (cls = 'btn go') => `<button class="${cls}">Open Map in Workshop</button>`
+const lobbyShell = (s, heroInner, dock, extra = '') => `<div class="vA"><div class="top">${logo()}<span class="note">${titleOf(stillLobby)}</span></div>
+  <div class="hero">${heroInner}</div>${extra}${slab(stillLobby)}<div class="dock">${dock}</div></div>`
+const sealedHero = (line) => `<div class="sealed">?</div><div class="scrim"></div><div class="copy"><div class="mt">${line}</div><div class="hud" style="font-size:12px;color:var(--dim)">${metaOf(stillLobby)}</div><div style="display:flex;gap:8px"><span class="chip">Starting</span><span class="chip you">Your Match</span></div></div>`
+const noMap = (s) => lobbyShell(s, sealedHero('No Map fits'), `<span class="note">No Map fits a 15-minute Match, so the Lobby was cancelled.</span><span style="display:flex;gap:8px"><button class="btn ghost">Back to Matches</button><button class="btn go">New 30-min Lobby</button></span>`)
+
+/** S1 · Reveal in place: the sealed Card shows "Picking a Map…", then the art slides in behind the title. */
+const S1 = {
+  picking: (s) => lobbyShell(s, sealedHero('Picking a Map…<span class="dots"></span>'), `<span class="note">Up to 20 seconds</span><span><button class="btn" disabled>Starting…</button></span>`),
+  go: (s) => `<div class="reveal-in">${matchView(s, started, true).replace('<div class="yourline">', '<div class="yourline" hidden>')}</div>`
+}
+/** S2 · Countdown: when the Map is picked, a 3-2-1 over the page, then the Match view. */
+const S2 = {
+  picking: S1.picking,
+  go: (s) => `<div class="countwrap">${matchView(s, started, true)}<div class="countdown"><div class="cd"></div><div class="mt" style="font-size:26px">${MAPS.rail.title}</div>${workshopBtn('btn go big')}</div></div>`
+}
+/** S3 · Roulette: Map titles spin through the Card while the server picks, and land on the one it drew. */
+const S3 = {
+  picking: (s) => lobbyShell(s, `<div class="sealed">?</div><div class="scrim"></div><div class="copy"><div class="roulette"><div class="reel"><span>Nine Loops</span><span>Pebble Ramp</span><span>Spiral Sprint</span><span>The Rail Updated</span><span>Cliffside</span><span>Nine Loops</span></div></div><div class="hud" style="font-size:12px;color:var(--dim)">${metaOf(stillLobby)}</div><div style="display:flex;gap:8px"><span class="chip">Starting</span></div></div>`, `<span class="note">Picking a Map…</span><span><button class="btn" disabled>Starting…</button></span>`),
+  go: (s) => `<div class="reveal-in">${matchView(s, started, true)}</div>`
+}
+/** S4 · Quiet: the button says Starting…, then the page is simply the Match, with a Go! bar for the first seconds. */
+const S4 = {
+  picking: (s) => lobbyShell(s, sealedHero('Map pending'), `<span class="note">Picking a Map…</span><span style="display:flex;gap:8px"><button class="btn" disabled>Starting…</button></span>`),
+  go: (s) => `<div class="gobar"><b>Go!</b> Ends at 20:56 ${workshopBtn('btn sm')}</div>${matchView(s, started, true)}`
+}
+/** S5 · Map card first: the start shows one big card with the Map and its Workshop button; close it to see the Match. */
+const S5 = {
+  picking: S1.picking,
+  go: (s) => `<div class="countwrap">${matchView(s, started, true)}<div class="mapcard"><div class="${MAPS.rail.art}" style="height:170px"></div><div class="form"><span class="chip live">Live · 15:00</span><div class="mt" style="font-size:28px">${MAPS.rail.title}</div><div class="note">by ${MAPS.rail.creator} · WR ${fmt(MAPS.rail.wr)}</div>${ladder(started, null)}${workshopBtn('btn go big')}<button class="note" style="justify-self:center">Show the Match</button></div></div></div>`
+}
+
+const STARTS = { S1, S2, S3, S4, S5 }
+const screen7 = (key) => (s) => {
+  if (s.start === 'picking') return STARTS[key].picking(s)
+  if (s.start === 'go') return STARTS[key].go(s)
+  if (s.start === 'nomap') return noMap(s)
+  return screen6('L2')(s)
+}
+
+// ================================================================ round 8: the settled design, plus the last small screens
+/** Start: reveal in place while picking, then the Match with the Go! bar. */
+const startSettled = {
+  picking: S1.picking,
+  go: (s) => `<div class="gobar"><b>Go!</b> Ends at 20:56 ${workshopBtn('btn sm')}</div><div class="reveal-in">${matchView(s, started, true)}</div>`,
+  nomap: (s) => lobbyShell(s, sealedHero('No Map fits'), `<span class="note">No Map fits a 15-minute Match, so the Lobby was cancelled.</span><span><button class="btn go">Back to Matches</button></span>`)
+}
+/** A Lobby you joined but don't host: wait for the host, or leave. */
+const joinedLobby = { ...M.mine, creator: 'kiko', players: ['kiko', 'rollo', 'will'] }
+const asJoiner = (s) => `<div class="vA"><div class="top">${logo()}<span class="note">${titleOf(joinedLobby)}</span></div>
+  <div class="hero"><div class="sealed">?</div><div class="scrim"></div><div class="copy"><div class="mt">Map pending</div><div class="hud" style="font-size:12px;color:var(--dim)">${metaOf(joinedLobby)}</div><div style="display:flex;gap:8px">${chipFor(joinedLobby)}<span class="chip you">Your Match</span></div></div></div>
+  ${slab(joinedLobby)}<div class="dock"><span class="note">Waiting for kiko to start</span><span><button class="btn ghost">Leave</button></span></div></div>`
+/** Your Public 1v1 or Challenge, waiting for the other Player. */
+const my1v1 = { ...M.mine, type: 'challenge', target: 'rollo', players: ['will'] }
+const waiting1v1 = (s) => `<div class="vA"><div class="top">${logo()}<span class="note">${titleOf(my1v1)}</span></div>
+  <div class="hero"><div class="sealed">?</div><div class="scrim"></div><div class="copy"><div class="mt">Map pending</div><div class="hud" style="font-size:12px;color:var(--dim)">${metaOf(my1v1)}</div><div style="display:flex;gap:8px">${chipFor(my1v1)}<span class="chip you">Your Match</span></div></div></div>
+  <div class="panel slab"><div class="row me"><span></span>${marble(PEOPLE.will.steam, 26)}<div><div class="nm">Will</div><div class="note">opened the Challenge</div></div><div class="sc"><span class="note">ready</span></div></div><div class="row open"><span></span>${marble(PEOPLE.rollo.steam, 26)}<div><div class="nm">Rollo</div><div class="note">hasn't answered</div></div><div class="sc"><span class="rn">—</span></div></div></div>
+  <div class="dock"><span class="note">Waiting for Rollo · ${clockSpan(my1v1.clock)} left</span><span><button class="btn ghost">Cancel</button></span></div></div>`
+/** Leaving a live Match: the settled dialog, with the channel's wording. */
+const leaveConfirm = (s) => `<div class="vE dimmed" style="max-width:980px">${matchView(s, M.myLive, true).replace('<div class="vE mv">', '<div>')}</div>
+  <div class="dialog" role="dialog" aria-label="Leave this Match?"><div class="form"><span class="mt" style="font-size:20px">Leave this Match?</span><div class="note" style="font-size:13px;color:var(--dim)">Your best time so far stands, but nothing after this counts.</div><div style="display:flex;gap:8px"><button class="btn warn">Leave</button><button class="btn go">Stay</button></div></div></div>`
+/** Before anything else: signing in through Discord. */
+const signingIn = () => `<div class="vE"><div class="emptyb" style="border:0">${logo()}<span class="note">Signing in…</span></div></div>`
+/** Opened somewhere other than the Ballest server. */
+const wrongServer = () => `<div class="vE"><div class="emptyb">${logo()}<div class="mt" style="font-size:22px">Multiballs only runs in the Ballest server</div><div class="note">Open it from a channel there.</div></div></div>`
+/** Steam didn't answer an action; the page stays where it was. */
+const steamDown = (s) => `<div class="toast">Steam didn't answer. Try again in a moment.</div><div class="vE">${topBar(s)}${gallery(s)}</div>`
+
+const settled = (s) => {
+  if (s.extra === 'joiner') return asJoiner(s)
+  if (s.extra === 'wait1v1') return waiting1v1(s)
+  if (s.extra === 'leave') return leaveConfirm(s)
+  if (s.extra === 'signin') return signingIn()
+  if (s.extra === 'wrong') return wrongServer()
+  if (s.extra === 'steam') return steamDown(s)
+  if (s.start) return startSettled[s.start](s)
+  return screen6('L2')(s)
+}
+
+// ================================================================ the picker
+const VARIANTS = [
+  { key: 'S', name: 'Settled · every screen', fn: settled, desc: 'Everything decided so far. The last few states (joiner, 1v1 wait, Leave, sign-in, wrong server, Steam error) use the settled patterns; pick them in the list below.' }
+]
+const STATE_KEYS = Object.keys(STATES)
+let vi = Math.max(0, VARIANTS.findIndex((v) => '#' + v.key === location.hash)), si = 11, phone = false
+try { const saved = JSON.parse(localStorage.getItem('mb-proto8') || '{}'); if (typeof saved.si === 'number') si = saved.si; if (saved.phone) phone = true } catch {}
+if (window.innerWidth < 700) phone = true
+const app = document.getElementById('app')
+const render = () => {
+  uid = 0
+  const v = VARIANTS[vi], s = STATES[STATE_KEYS[si]]
+  app.innerHTML = v.fn(s); app.scrollTop = 0
+  document.getElementById('vname').textContent = v.name
+  document.getElementById('vdesc').textContent = v.desc
+  document.querySelectorAll('#states button').forEach((b, i) => b.classList.toggle('on', i === si))
+  document.querySelectorAll('#frames button').forEach((b, i) => b.classList.toggle('on', (i === 1) === phone))
+  document.getElementById('frame').classList.toggle('phone', phone)
+  document.getElementById('callbar').innerHTML = ['will', 'kiko', 'rollo', 'mq', 'sam'].map((id) => `<span class="tile"><span class="av">${PEOPLE[id].name[0].toUpperCase()}</span><span>${PEOPLE[id].name}</span></span>`).join('')
+  try { history.replaceState(null, '', '#' + v.key) } catch {}
+  try { localStorage.setItem('mb-proto8', JSON.stringify({ si, phone })) } catch {}
+}
+const states = document.getElementById('states'), frames = document.getElementById('frames')
+STATE_KEYS.forEach((k, i) => { const b = document.createElement('button'); b.textContent = STATES[k].label; b.onclick = () => { si = i; render() }; states.appendChild(b) })
+;['Desktop', 'Phone'].forEach((k, i) => { const b = document.createElement('button'); b.textContent = k; b.onclick = () => { phone = i === 1; render() }; frames.appendChild(b) })
+const step = (d) => { vi = (vi + d + VARIANTS.length) % VARIANTS.length; render() }
+document.getElementById('prev').onclick = () => step(-1)
+document.getElementById('next').onclick = () => step(1)
+document.addEventListener('keydown', (e) => { if (e.target.closest('input,textarea,[contenteditable]')) return; if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1) })
+const picker = document.getElementById('picker'), grab = document.getElementById('grab')
+grab.addEventListener('pointerdown', (e) => {
+  const r = picker.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top
+  grab.setPointerCapture(e.pointerId)
+  const move = (ev) => { picker.style.left = Math.max(0, Math.min(innerWidth - r.width, ev.clientX - dx)) + 'px'; picker.style.top = Math.max(0, Math.min(innerHeight - 40, ev.clientY - dy)) + 'px'; picker.style.right = 'auto'; picker.style.bottom = 'auto' }
+  const up = () => { grab.removeEventListener('pointermove', move); grab.removeEventListener('pointerup', up) }
+  grab.addEventListener('pointermove', move); grab.addEventListener('pointerup', up)
+})
+// The composer's buttons work, so each flow can be tried.
+app.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-type],[data-min],[data-who],[data-cycle],.pickseat')
+  if (!b) return
+  if (b.dataset.type) { draft.type = b.dataset.type; draft.target = null }
+  if (b.dataset.min) draft.minutes = Number(b.dataset.min)
+  if (b.dataset.who) draft.target = b.dataset.who
+  if (b.dataset.cycle === 'type') { const ks = ['lobby', 'public', 'challenge']; draft.type = ks[(ks.indexOf(draft.type) + 1) % 3]; draft.target = null }
+  if (b.dataset.cycle === 'min') { const ds = [5, 10, 15, 20, 30, 45, 60]; draft.minutes = ds[(ds.indexOf(draft.minutes) + 1) % ds.length] }
+  const y = app.scrollTop; app.innerHTML = VARIANTS[vi].fn(STATES[STATE_KEYS[si]]); app.scrollTop = y
+})
+setInterval(() => document.querySelectorAll('[data-clock]').forEach((el) => { const n = Math.max(0, Number(el.dataset.clock) - 1); el.dataset.clock = n; el.textContent = clockTxt(n) }), 1000)
+render()
+</script>
+
+</html>
