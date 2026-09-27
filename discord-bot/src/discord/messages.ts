@@ -41,8 +41,10 @@ const button = (label: string, control: Control, style = ButtonStyle.Secondary, 
 
 const row = (...buttons: Array<ButtonBuilder>) => new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons)
 
-const workshopButton = (pfid: string) =>
-  row(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Open Map in Workshop").setURL(workshopUrl(pfid)))
+const workshopLink = (pfid: string) =>
+  new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Open Map in Workshop").setURL(workshopUrl(pfid))
+
+const workshopButton = (pfid: string) => row(workshopLink(pfid))
 
 /** A rendered image, attached; editing a message with one replaces the old. */
 const image = (png: Buffer, name: string) => ({ files: [new AttachmentBuilder(png, { name })], attachments: [] })
@@ -66,14 +68,16 @@ const acceptButton = (matchId: string) => button("Accept", act("accept", matchId
 const declineButton = (matchId: string) => button("Decline", act("decline", matchId), ButtonStyle.Danger)
 
 const cardButtons = (v: CardView) => {
-  if (v.state === "live" && v.map !== null) return [workshopButton(v.map.pfid)]
+  const join = () => button(`Join (${v.players.length})`, act("join", v.matchId), ButtonStyle.Success)
+  if (v.state === "live" && v.map !== null)
+    return [v.type === "lobby" ? row(join(), workshopLink(v.map.pfid)) : workshopButton(v.map.pfid)]
   if (v.state !== "invite") return []
   const cancel = button("Cancel", act("cancel", v.matchId))
   if (v.type === "public") return [row(acceptButton(v.matchId), cancel)]
   if (v.type === "challenge") return [row(acceptButton(v.matchId), declineButton(v.matchId), cancel)]
   return [
     row(
-      button(`Join (${v.players.length})`, act("join", v.matchId), ButtonStyle.Success),
+      join(),
       button("Leave", act("leave", v.matchId)),
       button("Start", act("start", v.matchId), ButtonStyle.Primary),
       cancel

@@ -87,7 +87,10 @@ export type ThreadPost = Data.TaggedEnum<{
   Accepted: { readonly player: Player }
   Joined: { readonly player: Player }
   Left: { readonly player: Player }
-  /** `card` is the live Card the start ping shows. */
+  /**
+   * The start ping. `players` are the ones sent off, and pinged: everyone at the start, or
+   * one Player joining a live Lobby. `card` is the live Card it shows.
+   */
   Started: { readonly players: ReadonlyArray<Player>; readonly map: DrawnMap; readonly endsAt: number; readonly card: CardView }
   Improved: { readonly improvement: Improvement }
   /** `card` is the finished Card the Result shows. */

@@ -186,6 +186,75 @@ describe("Lobby", () => {
       expect(tags(yield* h.surface.posts(id))).toEqual(["Opened", "Joined", "Joined", "Left", "Started"])
     })
   )
+
+  it.scoped("takes joins while live, with a joiner's PB on the Map as their bar", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] })
+      const id = yield* h.engine.openInvite(ALICE.discordId, lobby)
+      yield* h.engine.join(BOB.discordId, id)
+      yield* h.engine.start(ALICE.discordId, id)
+      yield* h.steam.setTime(1, CARA.steamId, 20) // held before she joined
+      yield* h.engine.join(CARA.discordId, id)
+      expect((yield* Effect.flip(h.engine.join(CARA.discordId, id)))._tag).toBe("NotAllowed")
+      const card = Option.getOrThrow(yield* h.surface.card(id))
+      expect(card.state).toBe("live")
+      expect(card.players.map((p) => p.discordId)).toEqual([ALICE.discordId, BOB.discordId, CARA.discordId])
+      const posts = yield* h.surface.posts(id)
+      expect(tags(posts).slice(-3)).toEqual(["Joined", "Started", "PlayedBefore"])
+      const ping = posts.at(-2)
+      if (ping?._tag !== "Started") return expect.unreachable()
+      expect(ping.players).toEqual([CARA]) // only the joiner is pinged, with the Map
+      expect(ping.map.boardId).toBe(1)
+      expect(posts.at(-1)).toEqual(ThreadPost.PlayedBefore({ bars: [{ player: CARA, ticks: ticks(20) }] }))
+      yield* advance("10 seconds")
+      expect(improvements(yield* h.surface.posts(id))).toHaveLength(0)
+      yield* h.steam.setTime(1, CARA.steamId, 19)
+      yield* advance("10 seconds")
+      expect(improvements(yield* h.surface.posts(id)).map((i) => [i.player.discordId, i.previousTicks])).toEqual([
+        [CARA.discordId, ticks(20)]
+      ])
+      yield* advance("5 minutes")
+      expect((yield* Effect.flip(h.engine.join(DAN.discordId, id)))._tag).toBe("NotOpen")
+    })
+  )
+
+  it.scoped("turns a late join down when Steam can't read the joiner's PB", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] })
+      const id = yield* h.engine.openInvite(ALICE.discordId, lobby)
+      yield* h.engine.join(BOB.discordId, id)
+      yield* h.engine.start(ALICE.discordId, id)
+      yield* h.steam.failNextReads(3)
+      expect((yield* Effect.flip(h.engine.join(CARA.discordId, id)))._tag).toBe("SteamUnavailable")
+      expect(Option.getOrThrow(yield* h.surface.card(id)).players).toHaveLength(2)
+    })
+  )
+
+  it.scoped("checks a late joiner again after the PB read", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] })
+      const id = yield* h.engine.openInvite(ALICE.discordId, lobby)
+      yield* h.engine.join(BOB.discordId, id)
+      yield* h.engine.start(ALICE.discordId, id)
+      yield* h.steam.setReadDelay("150 millis")
+      const joining = yield* Effect.fork(h.engine.join(CARA.discordId, id))
+      yield* Effect.yieldNow()
+      // Cara opens an Invite of her own while her PB is being read
+      yield* h.engine.openInvite(CARA.discordId, public1v1)
+      yield* advance("150 millis")
+      expect((yield* Effect.flip(Fiber.join(joining)))._tag).toBe("Busy")
+      expect(Option.getOrThrow(yield* h.surface.card(id)).players).toHaveLength(2)
+    })
+  )
+
+  it.scoped("a 1v1 can't be joined once live", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] })
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1)
+      yield* h.engine.accept(BOB.discordId, id)
+      expect((yield* Effect.flip(h.engine.join(CARA.discordId, id)))._tag).toBe("NotAllowed")
+    })
+  )
 })
 
 describe("Invite lifetime", () => {

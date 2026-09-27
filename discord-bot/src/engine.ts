@@ -65,6 +65,21 @@ export interface InviteRequest {
   readonly target: string | null
 }
 
+/** A board read that Steam drops is retried this many times. */
+const READ_RETRIES = 2
+
+/** Of these Players, those who held a PB on the Map before the Match: only a faster run counts. */
+const barsOf = (players: ReadonlyArray<Player>, map: DrawnMap) =>
+  players.flatMap((player) => {
+    const ticks = map.personalBests[player.steamId]
+    return ticks === undefined ? [] : [{ player, ticks }]
+  })
+
+const withPersonalBest = (map: DrawnMap, pb: Entry): DrawnMap => ({
+  ...map,
+  personalBests: { ...map.personalBests, [pb.steamId]: pb.ticks }
+})
+
 /**
  * The read at the end is retried straight away, never after a wait: a retry that lands
  * seconds late could count a run finished after the Match ended. If every try fails, the
@@ -185,7 +200,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       const steamIds = m.players.map((p) => p.steamId)
       let fallback: DrawnMap | null = null
       for (const map of Chunk.take(shuffled, MAP_CHECKS)) {
-        const c = yield* steam.check(map, steamIds).pipe(Effect.retry({ times: 2 }))
+        const c = yield* steam.check(map, steamIds).pipe(Effect.retry({ times: READ_RETRIES }))
         if (c.boardId === null || c.worldRecordTicks === null || !worldRecordFits(c.worldRecordTicks)) continue
         const drawn: DrawnMap = {
           ...map,
@@ -200,6 +215,18 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     })
 
     // ---------------------------------------------------------------- the live Match
+
+    /** Sends Players off: the start ping with the Map, then the PB each must beat, if any. */
+    const announceStart = Effect.fn("announceStart")(function* (
+      m: Match,
+      map: DrawnMap,
+      endsAt: number,
+      players: ReadonlyArray<Player>
+    ) {
+      yield* surface.post(m.id, ThreadPost.Started({ players, map, endsAt, card: cardOf(m) }))
+      const bars = barsOf(players, map)
+      if (bars.length > 0) yield* surface.post(m.id, ThreadPost.PlayedBefore({ bars }))
+    })
 
     /**
      * Fold one Steam read into the Match and post each Improvement. Every rank is taken
@@ -336,12 +363,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           const endsAt = startedAt + full.minutes * 60_000
           const live: Match = { ...full, state: "live", startedAt, endsAt, map, bestTicks: {}, history: [] }
           yield* save(live)
-          yield* surface.post(live.id, ThreadPost.Started({ players: live.players, map, endsAt, card: cardOf(live) }))
-          const bars = live.players.flatMap((player) => {
-            const ticks = map.personalBests[player.steamId]
-            return ticks === undefined ? [] : [{ player, ticks }]
-          })
-          if (bars.length > 0) yield* surface.post(live.id, ThreadPost.PlayedBefore({ bars }))
+          yield* announceStart(live, map, endsAt, live.players)
           yield* FiberMap.run(timers, live.id, runLive(live.id))
         })
       )
@@ -352,6 +374,59 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     })))
 
     const markStarting = (full: Match) => Ref.update(starting, (s) => new Map(s).set(full.id, full))
+
+    // ---------------------------------------------------------------- joining a Lobby
+
+    /** Who may join a Lobby: a linked Player who isn't in it yet and isn't busy elsewhere. */
+    const joiner = Effect.fn("joiner")(function* (m: Match, discordId: string) {
+      if (m.type !== "lobby") return yield* new NotAllowed({ reason: "Only a Lobby can be joined." })
+      if (inMatch(m, discordId)) return yield* new NotAllowed({ reason: "You're already in this Lobby." })
+      const player = yield* playerOf(discordId)
+      yield* assertFree(discordId)
+      return player
+    })
+
+    const joinInvite = Effect.fn("joinInvite")(function* (discordId: string, matchId: string) {
+      const m = yield* getInvite(matchId)
+      const player = yield* joiner(m, discordId)
+      yield* save({ ...m, players: [...m.players, player] })
+      yield* surface.post(matchId, ThreadPost.Joined({ player }))
+    })
+
+    /** A live Match, with the Map and end it always has once live. */
+    const getLive = Effect.fn("getLive")(function* (matchId: string) {
+      const m = yield* getMatch(matchId)
+      if (m.state !== "live" || m.map === null || m.endsAt === null) return yield* new NotOpen({ matchId })
+      return { m, map: m.map, endsAt: m.endsAt }
+    })
+
+    /**
+     * A late join. The Player's PB on the Map is read first, outside the lock, and becomes the
+     * PB they must beat, so a time they set before joining can't count as an Improvement. They
+     * get their own start ping with the Map. Joining after the final read has begun leaves
+     * them DNF.
+     */
+    const joinLive = Effect.fn("joinLive")(function* (discordId: string, matchId: string) {
+      const { player, boardId } = yield* locked(
+        Effect.gen(function* () {
+          const { m, map } = yield* getLive(matchId)
+          return { player: yield* joiner(m, discordId), boardId: map.boardId }
+        })
+      )
+      const pb = (yield* steam.readPlayers(boardId, [player.steamId]).pipe(Effect.retry({ times: READ_RETRIES }))).at(0)
+      yield* locked(
+        Effect.gen(function* () {
+          // The Match may have ended, or the Player joined another, during the read.
+          const { m, map, endsAt } = yield* getLive(matchId)
+          yield* joiner(m, discordId)
+          const withPb = pb === undefined ? map : withPersonalBest(map, pb)
+          const joined: Match = { ...m, map: withPb, players: [...m.players, player] }
+          yield* save(joined)
+          yield* surface.post(matchId, ThreadPost.Joined({ player }))
+          yield* announceStart(joined, withPb, endsAt, [player])
+        })
+      )
+    })
 
     // ---------------------------------------------------------------- restart recovery
 
@@ -437,15 +512,13 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         yield* withdrawInvite(matchId, "declined")
       }, locked),
 
+      /**
+       * A Lobby takes joins while it is an Invite and while it is live. One whose Map is still
+       * being drawn is neither, so a join then is turned down as not open.
+       */
       join: Effect.fn("join")(function* (discordId: string, matchId: string) {
-        const m = yield* getInvite(matchId)
-        if (m.type !== "lobby") return yield* new NotAllowed({ reason: "Only a Lobby can be joined." })
-        if (inMatch(m, discordId)) return yield* new NotAllowed({ reason: "You're already in this Lobby." })
-        const player = yield* playerOf(discordId)
-        yield* assertFree(discordId)
-        yield* save({ ...m, players: [...m.players, player] })
-        yield* surface.post(matchId, ThreadPost.Joined({ player }))
-      }, locked),
+        yield* locked(joinInvite(discordId, matchId)).pipe(Effect.catchTag("NotOpen", () => joinLive(discordId, matchId)))
+      }),
 
       leave: Effect.fn("leave")(function* (discordId: string, matchId: string) {
         const m = yield* getInvite(matchId)
