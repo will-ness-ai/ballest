@@ -27,6 +27,13 @@ a time; keep it that way.
 (the "Multiballs (dev)" app on the test server), its own database in `.logs/dev.sqlite`, and
 writes its log to `.logs/bot.log`, emptied at each start. Grep that file for what happened.
 
+Every local run is the dev app on the test server: `pnpm dev`, or `pnpm smoke:steam` for the
+Steam adapter. Production lives only on Fly (below): change it by merging to `main`, inspect it
+with `fly status -a multiballs` and `fly logs -a multiballs`, and bring it back with
+`fly machine restart -a multiballs`. A local copy logged in as the production app answers every
+click alongside Fly, so a checkout never holds production's token or starts production, not even
+to restore it while it is down.
+
 One copy runs per channel on a machine: a second start stops with "already running (pid N)".
 Stop the running copy by that pid before starting another. On Windows, stopping a background
 shell leaves its Node process running.

@@ -1,5 +1,6 @@
-// Multiballs: `pnpm start` from discord-bot/ in the main checkout (where .env lives).
-// Elsewhere, point MULTIBALLS_ENV at that .env file, or run `pnpm dev` (scripts/dev.ts).
+// Multiballs. Locally, `pnpm dev` (scripts/dev.ts) runs it as the dev app; production runs on
+// Fly.io (fly.toml, Dockerfile) with its config in `fly secrets`. MULTIBALLS_ENV names the .env
+// file read after the real environment.
 import { appendFileSync } from "node:fs"
 import { PlatformConfigProvider } from "@effect/platform"
 import { NodeContext, NodeRuntime } from "@effect/platform-node"
