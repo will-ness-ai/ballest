@@ -13,8 +13,8 @@ Match Threads and the Footer go) over an in-memory channel. The discord.js edge 
 server.
 
 Every image the bot posts is drawn by `src/render/` (Satori and resvg, fonts from
-`@fontsource`); `pnpm render:samples <dir>` writes each one as a PNG to check by eye against the
-design prototype on branch `claude/prototype-discord-bot-surfaces`.
+`@fontsource`); `pnpm render:samples` writes each one as a PNG to `.logs/samples/` to check by
+eye against the design prototype on branch `claude/prototype-discord-bot-surfaces`.
 
 The real Steam adapter has no unit tests; `pnpm smoke:steam` runs it against live Steam with the
 bot account's secrets, and is the check to run after changing `src/steam/`. Steam drops
