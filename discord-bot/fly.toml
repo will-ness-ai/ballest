@@ -11,6 +11,17 @@ kill_timeout = 30
 
 [env]
   DB_PATH = "/data/multiballs.sqlite"
+  PORT = "8080"
+
+# The Discord Activity: Discord's URL Mapping sends the page's requests to multiballs.fly.dev,
+# and Fly's proxy passes them to the bot. The bot only listens once DISCORD_CLIENT_SECRET is
+# set. The machine is the bot, so the proxy must never stop it for being idle.
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
 
 # One volume, so one machine: a deploy stops the old copy before starting the new one, and the
 # engine's restart recovery picks live Matches back up.
