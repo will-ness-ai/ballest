@@ -12,9 +12,11 @@
     "render:samples": "tsx scripts/render-samples.ts",
     "smoke:steam": "tsx scripts/smoke-steam.ts",
     "start": "tsx src/main.ts",
-    "dev": "node --import tsx scripts/dev.ts"
+    "dev": "node --import tsx scripts/dev.ts",
+    "activity:demo": "node --import tsx scripts/activity-demo.ts"
   },
   "dependencies": {
+    "@discord/embedded-app-sdk": "2.5.0",
     "@effect/platform": "0.97.2",
     "@effect/platform-node": "0.108.2",
     "@effect/sql": "0.52.1",
@@ -27,6 +29,7 @@
     "@resvg/resvg-js": "2.6.2",
     "discord.js": "14.27.0",
     "effect": "3.22.2",
+    "esbuild": "0.28.2",
     "satori": "0.33.5",
     "steam-user": "5.3.0"
   },

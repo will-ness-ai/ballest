@@ -10,6 +10,16 @@
       ],
       "port": 8731,
       "autoPort": true
+    },
+    {
+      "name": "activity-demo",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "discord-bot",
+        "activity:demo"
+      ],
+      "port": 8740
     }
   ]
 }

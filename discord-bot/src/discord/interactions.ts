@@ -8,7 +8,8 @@ import {
   type UserSelectMenuInteraction
 } from "discord.js"
 import { Effect, Layer, Match, Option, Ref, Stream } from "effect"
-import { Engine, type Rejection } from "../engine.js"
+import { Engine } from "../engine.js"
+import { explain } from "../explain.js"
 import { Store, type ProfilePreview } from "../ports.js"
 import { Renderer, type RenderError } from "../render/renderer.js"
 import { describeDiscordError, Discord, type DiscordError, oneLine, tryDiscord } from "./client.js"
@@ -28,24 +29,6 @@ import {
 
 /** What a member was doing when they had to link Steam first; it runs once they've linked. */
 type Pending = { readonly _tag: "NewMatch" } | { readonly _tag: "Act"; readonly action: Action; readonly matchId: string }
-
-/** A rejection in words, for the member who clicked. */
-const explain = (e: Rejection, self: string): string =>
-  Match.valueTags(e, {
-    NotLinked: ({ discordId }) => (discordId === self ? "Link your Steam account first." : `<@${discordId}> hasn't linked Steam yet.`),
-    Busy: ({ discordId }) =>
-      discordId === self
-        ? "You're already in an open Invite or a live Match."
-        : `<@${discordId}> is already in an open Invite or a live Match.`,
-    MatchNotFound: () => "That Invite is gone.",
-    NotOpen: () => "That Invite isn't open anymore.",
-    NotAllowed: ({ reason }) => reason,
-    NotEnoughPlayers: ({ min }) => `A Lobby needs at least ${min} Players to start.`,
-    NoEligibleMap: () =>
-      "No Map suits this length. The Invite is closed; a longer Match allows more Maps.",
-    SteamUnavailable: () => "Steam didn't answer. Try again in a moment.",
-    ProfileNotFound: ({ reason }) => reason
-  })
 
 const ephemeral = { flags: MessageFlags.Ephemeral } as const
 
