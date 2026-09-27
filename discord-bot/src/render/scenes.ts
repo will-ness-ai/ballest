@@ -518,9 +518,9 @@ const textAt = (x: number, y: number, text: string, style: Style, anchor: "start
 const clockLabel = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`
 
 /**
- * Every Player's PB over the Match clock as a step line, with the medals in range, the world
- * record as it stood (stepping down when beaten, each break a star), and any PB a Player
- * brought into the Match dotted in until they beat it.
+ * Every Player's PB over the Match clock as a step line, with the medals in range and the world
+ * record from the start of the Match as dotted lines (each break of it a star), and any PB a
+ * Player brought into the Match dotted in until they beat it.
  */
 export const progressionScene = ({ view, history, names }: ProgressionImage): El => {
   const W = PROGRESSION_WIDTH, H = 470, L = 78, R = 150, T = 100, B = 58
@@ -563,12 +563,12 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
         above.push(`${kind} ${label10(v * SCORE_TICKS_PER_SECOND)}`)
         continue
       }
-      lines += `<line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" stroke="${MEDAL_COLOUR[kind]}" stroke-opacity="0.55" stroke-width="1.2"/>`
+      lines += `<line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" stroke="${MEDAL_COLOUR[kind]}" stroke-opacity="0.55" stroke-width="1.2" stroke-dasharray="2 4"/>`
       leftLabels.push({ y: y(v), text: label10(v * SCORE_TICKS_PER_SECOND), style: { fontFamily: F.hud, fontSize: 10, color: MEDAL_COLOUR[kind] }, medal: kind })
     }
   if (above.length > 0) overlays.push(textAt(L, T - 10, `▲ above the chart: ${above.join(" · ")}`, { fontFamily: F.hud, fontSize: 10, color: C.faint }))
 
-  // The world record as it stood through the Match.
+  // Each PB that beat the world record standing at the time.
   const breaks: Array<PbEvent> = []
   let standing = wr
   for (const e of history)
@@ -577,9 +577,7 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
       breaks.push(e)
     }
   if (map !== null) {
-    let d = `M${x(0)} ${y(wr)}`
-    for (const e of breaks) d += `H${x(e.at / 1000)}V${y(secs(e.ticks))}`
-    lines += `<path d="${d}H${x(duration)}" fill="none" stroke="#fff" stroke-dasharray="5 4" stroke-width="1.3"/>`
+    lines += `<line x1="${L}" y1="${y(wr)}" x2="${W - R}" y2="${y(wr)}" stroke="#fff" stroke-dasharray="2 4" stroke-width="1.3"/>`
     leftLabels.push({ y: y(wr), text: `WR ${label10(map.worldRecordTicks)}`, style: { fontFamily: F.hud, fontWeight: 700, fontSize: 10, color: "#fff" }, medal: null })
   }
 
