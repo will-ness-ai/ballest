@@ -5,7 +5,7 @@ name: Multiballs cost
 
 on:
   schedule:
-    - cron: "0 15 * * 1" # Mondays, 10:00 Chicago
+    - cron: "0 15 * * 1" # Mondays, 15:00 UTC
   workflow_dispatch: {}
 
 permissions:
