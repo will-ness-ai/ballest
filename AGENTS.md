@@ -14,6 +14,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `index.html` — the entire site. Vanilla JS and CSS in one file: no build step, no
   framework, no JS CDN. The only external requests are Google Fonts and the Plausible
   analytics script, served from our own instance on Railway.
+- `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `og.png` — the lime-marble icon
+  and the 1200×630 link-preview image. Rendered once and committed; `og.png` bakes in its
+  text, so the collector never touches it.
 - `data/index.json` — board list, counts, `generated_at`. Loaded first.
 - `data/boards/<board>.json` — one file per board, lazy-loaded on selection.
 - `data/boards/OverallLeaderboard_AllSeasons.json` — the one board Steam does not have:
@@ -41,8 +44,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
   then calls `deploy.yml`.
 - `.github/workflows/deploy.yml` — the Pages deploy (Source: GitHub Actions). Publishes
-  only `index.html`, `data/`, `leth/`, `multiballs/` and `CNAME`, so a new site file must be added to
-  its `cp` line or it 404s in production. Runs on push to `main`, by hand, and from
+  only `index.html`, the icons and `og.png`, `data/`, `leth/`, `multiballs/` and `CNAME`,
+  so a new site file must be added to its `cp` line or it 404s in production. Runs on
+  push to `main`, by hand, and from
   `refresh.yml`, whose `GITHUB_TOKEN` push triggers no other workflow.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
