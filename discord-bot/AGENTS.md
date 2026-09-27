@@ -49,4 +49,5 @@ engine's restart recovery resumes live Matches. `src/ops.ts` pings Healthchecks.
 posts there daily (`OPS_WEBHOOK_URL`) once the Steam refresh token has 30 days left; renew it
 with `tools/steampy_mint.py` and `fly secrets set STEAM_REFRESH_TOKEN=...`. Logs: `fly logs`.
 `.github/workflows/bot-cost.yml` posts a weekly cost estimate there (`scripts/cost_report.py`;
-Fly has no billing API, so it prices what is provisioned with the rates in that script).
+Fly has no billing API, so it prices what is provisioned with the rates in that script, and
+reads payment health, billing status and card on file, from Fly's undocumented GraphQL API).
