@@ -1,10 +1,14 @@
 // Turns a scene into a PNG: Satori lays it out to SVG with the bundled fonts, resvg rasterises it
 // at twice the layout size so it stays sharp on high-density screens. Pure apart from reading
-// the font files once at startup.
+// the font files and resvg's WebAssembly once at startup.
+//
+// resvg is the WebAssembly build, and every image is freed the moment its PNG is taken. The
+// native build (@resvg/resvg-js) never frees what `render()` returns: each Card, several MB of
+// pixels, stayed in memory until the process died, and that ran production out of memory.
 import { readdir, readFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { createRequire } from "node:module"
-import { Resvg } from "@resvg/resvg-js"
+import { initWasm, Resvg } from "@resvg/resvg-wasm"
 import { Data, Effect } from "effect"
 import satori, { type Font } from "satori"
 import type { Improvement, ProfilePreview } from "../ports.js"
@@ -69,15 +73,40 @@ const loadFonts = Effect.fn("loadFonts")(function* () {
   return fonts
 })
 
+/** resvg's WebAssembly, loaded once per process however many Renderers are built. */
+let wasmReady: Promise<void> | null = null
+const loadResvg = Effect.tryPromise({
+  try: () => {
+    const require = createRequire(import.meta.url)
+    wasmReady ??= readFile(require.resolve("@resvg/resvg-wasm/index_bg.wasm")).then((wasm) => initWasm(wasm))
+    return wasmReady
+  },
+  catch: (cause) => new RenderError({ cause })
+})
+
+/** One PNG, with resvg's copy of the SVG and of the pixels freed whatever happens. */
 const rasterise = (svg: string) =>
   Effect.try({
-    try: () => new Resvg(svg, { fitTo: { mode: "zoom", value: SCALE }, font: { loadSystemFonts: false } }).render().asPng(),
+    try: () => {
+      const resvg = new Resvg(svg, { fitTo: { mode: "zoom", value: SCALE }, font: { loadSystemFonts: false } })
+      try {
+        const image = resvg.render()
+        try {
+          return Buffer.from(image.asPng())
+        } finally {
+          image.free()
+        }
+      } finally {
+        resvg.free()
+      }
+    },
     catch: (cause) => new RenderError({ cause })
   })
 
 export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", {
   effect: Effect.gen(function* () {
-    // Without its fonts the bot can draw nothing: that stops it at startup.
+    // Without its fonts or resvg the bot can draw nothing: that stops it at startup.
+    yield* loadResvg.pipe(Effect.orDie)
     const fonts = yield* loadFonts().pipe(Effect.orDie)
     const draw = Effect.fn("draw")(function* (scene: El, width: number) {
       const svg = yield* Effect.tryPromise({ try: () => satori(scene, { width, fonts }), catch: (cause) => new RenderError({ cause }) })
