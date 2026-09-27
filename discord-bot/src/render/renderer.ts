@@ -1,14 +1,15 @@
 // Turns a scene into a PNG: Satori lays it out to SVG with the bundled fonts, resvg rasterises it
 // at twice the layout size so it stays sharp on high-density screens. Pure apart from reading
-// the font files and resvg's WebAssembly once at startup.
+// the font files once at startup.
 //
-// resvg is the WebAssembly build, and every image is freed the moment its PNG is taken. The
-// native build (@resvg/resvg-js) never frees what `render()` returns: each Card, several MB of
-// pixels, stayed in memory until the process died, and that ran production out of memory.
+// Rasterising runs on a worker thread (rasterise.worker.mjs), about a second a Card, so the bot
+// keeps answering clicks and the Activity meanwhile. The worker uses resvg's WebAssembly build
+// and frees every image: the native build (@resvg/resvg-js) never freed what `render()` returns,
+// and that once ran production out of memory.
 import { readdir, readFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { createRequire } from "node:module"
-import { initWasm, Resvg } from "@resvg/resvg-wasm"
+import { Worker } from "node:worker_threads"
 import { Data, Effect } from "effect"
 import satori, { type Font } from "satori"
 import type { Improvement, ProfilePreview } from "../ports.js"
@@ -73,41 +74,73 @@ const loadFonts = Effect.fn("loadFonts")(function* () {
   return fonts
 })
 
-/** resvg's WebAssembly, loaded once per process however many Renderers are built. */
-let wasmReady: Promise<void> | null = null
-const loadResvg = Effect.tryPromise({
-  try: () => {
-    const require = createRequire(import.meta.url)
-    wasmReady ??= readFile(require.resolve("@resvg/resvg-wasm/index_bg.wasm")).then((wasm) => initWasm(wasm))
-    return wasmReady
-  },
-  catch: (cause) => new RenderError({ cause })
+interface Rasterised {
+  readonly id: number
+  readonly png?: Uint8Array
+  readonly error?: string
+}
+
+/** A draw that takes this long is given up, and its worker replaced: a Card takes about a second. */
+const RASTERISE_TIMEOUT = "30 seconds"
+
+/**
+ * The rasteriser's worker thread, started on the first draw and again if it ever dies, stopped
+ * with the Renderer. Each draw waits for its own PNG; one that never comes back times out, and
+ * the stuck worker is stopped, which fails every draw still waiting on it.
+ */
+const makeRasteriser = Effect.gen(function* () {
+  const waiting = new Map<number, (result: Effect.Effect<Buffer, RenderError>) => void>()
+  let next = 0
+  let worker: Worker | null = null
+  const failWaiting = (cause: unknown) => {
+    for (const resume of waiting.values()) resume(Effect.fail(new RenderError({ cause })))
+    waiting.clear()
+  }
+  const start = () => {
+    const started = new Worker(new URL("./rasterise.worker.mjs", import.meta.url))
+    started.on("message", ({ id, png, error }: Rasterised) => {
+      const resume = waiting.get(id)
+      waiting.delete(id)
+      resume?.(png === undefined ? Effect.fail(new RenderError({ cause: error })) : Effect.succeed(Buffer.from(png)))
+    })
+    // A worker that failed or stopped takes no more draws; the next draw starts a fresh one.
+    const retire = (cause: unknown) => {
+      if (worker === started) worker = null
+      failWaiting(cause)
+    }
+    started.on("error", (cause) => retire(cause))
+    started.on("exit", () => retire("the rasteriser stopped"))
+    return started
+  }
+  const stop = Effect.promise(async () => void (await worker?.terminate()))
+  yield* Effect.addFinalizer(() => stop)
+  return Effect.fn("rasterise")(function* (svg: string) {
+    return yield* Effect.async<Buffer, RenderError>((resume) => {
+      const id = next++
+      try {
+        worker ??= start()
+        worker.postMessage({ id, svg, scale: SCALE })
+        // The answer can't arrive before this tick ends, so waiting after posting is safe.
+        waiting.set(id, resume)
+      } catch (cause) {
+        resume(Effect.fail(new RenderError({ cause })))
+      }
+      return Effect.sync(() => waiting.delete(id))
+    }).pipe(
+      Effect.timeout(RASTERISE_TIMEOUT),
+      Effect.catchTag("TimeoutException", () =>
+        stop.pipe(Effect.zipRight(Effect.fail(new RenderError({ cause: `rasterising took over ${RASTERISE_TIMEOUT}` }))))
+      )
+    )
+  })
 })
 
-/** One PNG, with resvg's copy of the SVG and of the pixels freed whatever happens. */
-const rasterise = (svg: string) =>
-  Effect.try({
-    try: () => {
-      const resvg = new Resvg(svg, { fitTo: { mode: "zoom", value: SCALE }, font: { loadSystemFonts: false } })
-      try {
-        const image = resvg.render()
-        try {
-          return Buffer.from(image.asPng())
-        } finally {
-          image.free()
-        }
-      } finally {
-        resvg.free()
-      }
-    },
-    catch: (cause) => new RenderError({ cause })
-  })
-
 export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", {
-  effect: Effect.gen(function* () {
-    // Without its fonts or resvg the bot can draw nothing: that stops it at startup.
-    yield* loadResvg.pipe(Effect.orDie)
+  scoped: Effect.gen(function* () {
+    const rasterise = yield* makeRasteriser
+    // Without its fonts or its rasteriser the bot can draw nothing: that stops it at startup.
     const fonts = yield* loadFonts().pipe(Effect.orDie)
+    yield* rasterise(marbleSvg(0, 8)).pipe(Effect.orDie)
     const draw = Effect.fn("draw")(function* (scene: El, width: number) {
       const svg = yield* Effect.tryPromise({ try: () => satori(scene, { width, fonts }), catch: (cause) => new RenderError({ cause }) })
       return yield* rasterise(svg)

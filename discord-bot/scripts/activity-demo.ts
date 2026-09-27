@@ -10,6 +10,7 @@ import { activityServer } from "../src/activity/server.js"
 import { seconds as tickSeconds } from "../src/domain.js"
 import { Engine } from "../src/engine.js"
 import { MatchLinks, Store, Steam, Surface } from "../src/ports.js"
+import { MapPreviews, PreviewSource, PreviewUnavailable } from "../src/previews.js"
 import { SqliteStoreInMemory } from "../src/sqliteStore.js"
 import { BOB, CARA, DAN, makeFakeSteam, makeMap, PROFILES } from "../test/harness.js"
 
@@ -49,6 +50,11 @@ const DemoMembers = Layer.succeed(
 /** There is no channel, so no Card or Match Thread to link to. */
 const NoLinks = Layer.succeed(MatchLinks, MatchLinks.of({ of: () => Effect.succeed(Option.none()) }))
 
+/** The demo's Maps have no Workshop art: every tile draws the stand-in. */
+const NoPreviews = MapPreviews.Default.pipe(
+  Layer.provide(Layer.succeed(PreviewSource, PreviewSource.of({ fetch: () => Effect.fail(new PreviewUnavailable({ reason: "no previews in the demo" })) })))
+)
+
 /** The channel isn't here; say what would have been posted. */
 const LogSurface = Layer.succeed(
   Surface,
@@ -65,7 +71,7 @@ const Demo = Layer.unwrapScoped(
     for (const p of [BOB, CARA, DAN]) yield* store.putLink({ ...p, personaName: p.discordId.slice(2) })
     const steam = yield* makeFakeSteam(PROFILES)
     yield* steam.control.setCatalogue(MAPS)
-    const ports = Layer.mergeAll(Layer.succeed(Store, store), Layer.succeed(Steam, steam.port), LogSurface, NoLinks)
+    const ports = Layer.mergeAll(Layer.succeed(Store, store), Layer.succeed(Steam, steam.port), LogSurface, NoLinks, NoPreviews)
 
     // The racers: each live Player sometimes finishes a run, usually a little faster than before.
     const race = Effect.gen(function* () {

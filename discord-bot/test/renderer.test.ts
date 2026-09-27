@@ -1,10 +1,11 @@
 // The Renderer through its interface. Drawing is checked by eye (`pnpm render:samples`); what a
 // test can hold it to is that every image it draws is let go. A Card redraws each time a time
 // lands, so memory kept per draw adds up until the machine runs out: it once took production down.
+import { performance } from "node:perf_hooks"
 import { setFlagsFromString } from "node:v8"
 import { runInNewContext } from "node:vm"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { Effect, Fiber } from "effect"
 import { Renderer } from "../src/render/renderer.js"
 import { ALICE, BOB, cardView, drawnMap, ticks } from "./harness.js"
 
@@ -44,6 +45,27 @@ describe("the Renderer", () => {
         // Each live Card is about 3 MB of pixels; kept, 40 of them would be over 100 MB.
         for (let i = 0; i < 40; i++) yield* renderer.card({ view: live, names, preview: null })
         expect(resident() - before).toBeLessThan(40)
+      }).pipe(Effect.provide(Renderer.Default)),
+    60_000
+  )
+
+  it.effect(
+    "keeps the bot answering while it draws",
+    () =>
+      Effect.gen(function* () {
+        const renderer = yield* Renderer
+        yield* renderer.card({ view: live, names, preview: null })
+        // A draw takes about a second; a 10 ms timer set while it runs must still fire on time.
+        const drawing = yield* Effect.fork(renderer.card({ view: live, names, preview: null }))
+        const late = yield* Effect.promise(
+          () =>
+            new Promise<number>((resolve) => {
+              const start = performance.now()
+              setTimeout(() => resolve(performance.now() - start - 10), 10)
+            })
+        )
+        yield* Fiber.join(drawing)
+        expect(late).toBeLessThan(300)
       }).pipe(Effect.provide(Renderer.Default)),
     60_000
   )
