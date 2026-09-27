@@ -32,6 +32,8 @@
   --text:#eaf0ff; --dim:#93a2c8; --faint:#63719a;
   --accent:#8be03c; --accent-ink:#0d2000; --accent-soft:rgba(139,224,60,.14);
   --gold:#ffd447; --silver:#d3dcea; --bronze:#ef9a52;
+  --gold-soft:rgba(255,212,71,.10); --silver-soft:rgba(211,220,234,.08);
+  --bronze-soft:rgba(239,154,82,.10);
   --radius:11px; --pad:16px;
   --f-marquee:'Bungee',system-ui,sans-serif;
   --f-hud:'Chakra Petch',system-ui,sans-serif;
@@ -62,10 +64,10 @@ input{font:inherit}
   transition:opacity .14s ease, transform .22s cubic-bezier(.2,.85,.3,1.35)}
 .marble.on .face,.marble:focus-visible .face,
 .row:hover .marble .face,.plate:hover .marble .face,
-.card:hover .marble .face{opacity:1;transform:scale(1) rotate(0)}
+.card:hover .marble .face,.pid:hover .marble .face{opacity:1;transform:scale(1) rotate(0)}
 .marble.on .ball,.marble:focus-visible .ball,
 .row:hover .marble .ball,.plate:hover .marble .ball,
-.card:hover .marble .ball{transform:scale(.84) rotate(-18deg);opacity:.16}
+.card:hover .marble .ball,.pid:hover .marble .ball{transform:scale(.84) rotate(-18deg);opacity:.16}
 /* in the list and on a card the avatar keeps the marble's colour as a ring; on
    the podium the medal ring is already doing that job */
 .row .marble .face,.card .marble .face{box-shadow:0 0 0 2px hsl(var(--h) 78% 58%)}
@@ -233,6 +235,108 @@ input{font:inherit}
 .tl .tm{color:var(--dim);font-size:12px}
 .cab .empty{grid-column:1 / -1;border:1px solid var(--line);border-radius:14px;background:var(--solid)}
 
+/* ---------- a player's page ----------
+   A player is not inside any one board, so their page takes the whole content
+   column: no season tabs, no rail, none of the board furniture. */
+.app[data-view="player"] .groups,
+.app[data-view="player"] .rail,
+.app[data-view="player"] .boardbtn,
+.app[data-view="player"] .boardbar,
+.app[data-view="player"] .tiles,
+.app[data-view="player"] .leaders,
+.app[data-view="player"] .board,
+.app[data-view="player"] .cab,
+.app[data-view="player"] #bmetaM{display:none}
+.pp[hidden]{display:none}
+.back{display:inline-flex;align-items:center;gap:7px;margin:0 var(--pad) 12px;
+  font-family:var(--f-hud);font-size:11.5px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--dim);text-decoration:none}
+.back:hover{color:var(--accent)}
+
+.pid{display:flex;align-items:center;gap:12px;margin:0 var(--pad) 16px;flex-wrap:wrap}
+.pid .marble{width:56px;height:56px}
+.pid h1{margin:0;font-family:var(--f-hud);font-size:22px;font-weight:700;line-height:1.1;
+  overflow-wrap:anywhere}
+.pwho{min-width:0;flex:1}
+.pline{font-size:12.5px;color:var(--dim);margin-top:2px;font-variant-numeric:tabular-nums}
+.pline b{font-family:var(--f-hud);color:var(--text)}
+/* the one link off this site, so it wears Steam's own mark */
+.steam{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:9px;
+  border:1px solid var(--line);background:var(--surface);color:var(--dim);
+  font-family:var(--f-hud);font-size:12.5px;font-weight:600;text-decoration:none;white-space:nowrap}
+.steam:hover{background:var(--surface2);color:var(--text)}
+.steam svg{width:15px;height:15px;fill:currentColor;flex:none}
+
+.pstats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 var(--pad) 16px}
+/* the same box and label as the board's own stat tile, which only exists from
+   820px up; a player's summary shows at every width, so the shared part lives
+   here and each keeps its own padding and figure size */
+.tile,.pstat{min-width:0;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--surface);backdrop-filter:blur(10px)}
+.tile dt,.pstat dt{font-family:var(--f-hud);font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim);font-weight:600}
+.pstat{padding:11px 13px}
+.pstat dd{margin:5px 0 0;font-family:var(--f-hud);font-size:19px;font-weight:700;
+  font-variant-numeric:tabular-nums}
+.pstat dd .mc{font-size:17px;gap:12px}
+.pstat small{display:block;font-family:var(--f-body);font-size:11.5px;color:var(--dim);
+  font-weight:400;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* one panel per season, and inside it one row of tiles per in-game tier */
+.pseason{margin:0 var(--pad) 14px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--solid);overflow:hidden}
+.pslab{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  padding:11px 13px;background:rgba(255,255,255,.035);border-bottom:1px solid var(--line2)}
+.pslab h2{margin:0;font-family:var(--f-hud);font-size:14px;font-weight:700}
+.pov{font-family:var(--f-hud);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.pov b{font-size:14px;color:var(--text)}
+.pov[data-m="1"] b{color:var(--gold)}
+.pov[data-m="2"] b{color:var(--silver)}
+.pov[data-m="3"] b{color:var(--bronze)}
+.ptier{display:grid;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line2)}
+.ptier:last-child{border-bottom:0}
+.ptlab{font-family:var(--f-hud);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint)}
+.pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+
+.ptile{display:flex;flex-direction:column;gap:5px;min-height:84px;padding:9px 10px 20px;
+  border-radius:9px;border:1px solid var(--line);background:var(--surface);text-decoration:none;
+  position:relative;overflow:hidden;min-width:0}
+.ptile:hover{background:var(--surface2)}
+.pt-name{font-family:var(--f-hud);font-size:10.5px;font-weight:600;letter-spacing:.06em;
+  color:var(--dim);margin-bottom:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pt-line{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.pt-rank{font-family:var(--f-hud);font-size:22px;font-weight:700;line-height:1;
+  font-variant-numeric:tabular-nums}
+.pt-rank sup{font-size:10px;vertical-align:top}
+.pt-of{font-size:11px;font-weight:600;color:var(--faint)}
+.pt-gap{font-family:var(--f-hud);font-size:12px;font-weight:600;color:var(--dim);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.pt-time{font-family:var(--f-hud);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.pt-pct{position:absolute;right:9px;bottom:7px;font-family:var(--f-hud);font-size:9.5px;
+  letter-spacing:.06em;color:var(--faint);font-variant-numeric:tabular-nums}
+/* how far up the field this run sits: linear in rank, so 1st fills the bar and
+   last empties it. Medal tiles do not tint it — a gauge is only readable when
+   every tile draws it the same way, and the border already says which medal. */
+.pt-bar{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.055)}
+.pt-bar i{display:block;height:100%;width:var(--w);background:var(--dim);opacity:.55}
+.ptile[data-m="1"]{border-color:var(--gold);background:var(--gold-soft)}
+.ptile[data-m="1"] .pt-rank{color:var(--gold)}
+.ptile[data-m="1"] .pt-gap{color:var(--gold);opacity:.9}
+.ptile[data-m="2"]{border-color:var(--silver);background:var(--silver-soft)}
+.ptile[data-m="2"] .pt-rank{color:var(--silver)}
+.ptile[data-m="3"]{border-color:var(--bronze);background:var(--bronze-soft)}
+.ptile[data-m="3"] .pt-rank{color:var(--bronze)}
+/* a track they have never posted a time on keeps its place in the row: for a
+   player with one time, the empty tiles are the whole story */
+.ptile.untimed{opacity:.38;border-style:dashed;padding-bottom:9px}
+.ptile.untimed .pt-rank{font-size:16px;color:var(--faint)}
+
+/* the row a tile sent you to, once its board is open */
+.row.focus{background:var(--accent-soft)}
+.plate.focus .pl-name{color:var(--accent)}
+
 footer{margin:20px var(--pad) 0;font-size:10.5px;color:var(--faint);line-height:1.55;max-width:64ch}
 footer p{margin:0 0 6px}
 footer a{color:var(--dim)}
@@ -310,10 +414,7 @@ footer a{color:var(--dim)}
   .search input{width:230px;border-radius:9px;font-size:13.5px;padding:8px 12px}
 
   .tiles{display:flex;gap:10px;margin:0 0 16px}
-  .tile{flex:1 1 0;min-width:0;padding:12px 15px;border:1px solid var(--line);
-    border-radius:var(--radius);background:var(--surface);backdrop-filter:blur(10px)}
-  .tile dt{font-family:var(--f-hud);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
-    color:var(--dim);font-weight:600}
+  .tile{flex:1 1 0;padding:12px 15px}
   .tile dd{margin:5px 0 0;font-family:var(--f-hud);font-size:20px;font-weight:600;
     font-variant-numeric:tabular-nums}
   .tile .tsub{display:flex;align-items:center;gap:6px;font-family:var(--f-body);font-size:12px;
@@ -361,6 +462,22 @@ footer a{color:var(--dim)}
   .mc{gap:14px}
   .pl-score .mc{gap:10px}
   .cab{margin:0}
+
+  /* a player's page: the rail is gone, so the content column is the whole width,
+     and a tier's tracks sit in one row of four beside their heading */
+  .app[data-view="player"] .main{grid-template-columns:minmax(0,1fr)}
+  .back,.pid,.pstats,.pseason{margin-left:0;margin-right:0}
+  .pid{gap:14px}
+  .pid .marble{width:64px;height:64px}
+  .pid h1{font-size:24px}
+  .pstats{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .pstat{padding:12px 15px}
+  .pstat dd{font-size:20px}
+  .pseason{margin-bottom:16px}
+  .ptier{grid-template-columns:120px minmax(0,1fr);gap:14px;padding:12px 14px;align-items:center}
+  .pgrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .ptile{min-height:92px}
+
   footer{margin:30px 0 0;padding-top:16px;border-top:1px solid var(--line2);font-size:12px;
     line-height:1.6}
 }
@@ -374,7 +491,7 @@ footer a{color:var(--dim)}
 
 <div class="ambient" id="ambient" aria-hidden="true"></div>
 
-<div class="app">
+<div class="app" id="app" data-view="board">
   <header class="hdr">
     <div class="brand">
       <span class="rack" id="rack" aria-hidden="true"></span>
@@ -414,6 +531,7 @@ footer a{color:var(--dim)}
       <p class="bmeta" id="bmetaM"></p>
       <div class="board" id="board"></div>
       <div class="cab" id="cabinet" hidden></div>
+      <div class="pp" id="player" hidden></div>
     </section>
   </div>
 
@@ -444,6 +562,7 @@ let group = null;                  /* "Season 2" */
 let boardKey = null;               /* the board's raw Steam name, unique across seasons,
                                       or PODIUM_KEY for the season's trophy cabinet */
 const PODIUM_KEY = "podiums";
+const SITE_TITLE = document.title;
 let boardData = null;              /* the loaded board file */
 let visible = [];                  /* rows currently listed, filtered or not */
 let shown = 0;                     /* how many of them are in the DOM */
@@ -496,6 +615,13 @@ const esc = s => String(s).replace(/[&<>"']/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ord = n => n + (["th","st","nd","rd"][(n%100-20)%10] || ["th","st","nd","rd"][n%100] || "th");
 const personaOf = r => r.persona || ("Player " + r.steam_id.slice(-6));
+/* every ID the collector writes is a Steam64, but one reaches us from the URL
+   bar too, so anything that becomes a link, a fetch path or a selector is
+   checked against this first. The routes are built from the same shape, so
+   there is one description of what an ID looks like. */
+const STEAM_ID = /\d{5,25}/;
+const IS_STEAM_ID = new RegExp("^" + STEAM_ID.source + "$");
+const isSteamId = id => typeof id === "string" && IS_STEAM_ID.test(id);
 /* the search box matches a persona fragment or a Steam ID, on boards and in the cabinet alike */
 const matchesQuery = (r, q) => personaOf(r).toLowerCase().includes(q) || r.steam_id.includes(q);
 const NOBODY = `<div class="empty"><b>Nobody here by that name.</b>
@@ -634,7 +760,7 @@ function renderPlates(top, slots){
   el.hidden = false;
   el.innerHTML = top.map((r,i) => {
     const [score, line] = slots(r, i);
-    return `<div class="plate" data-p="${i+1}">
+    return `<div class="plate" data-p="${i+1}" data-id="${esc(r.steam_id)}">
       ${marble(r)}
       <span class="pl-text">
         <span class="pl-name">${nameHtml(r)}</span>
@@ -656,10 +782,10 @@ function renderLeaders(){
 }
 function nameHtml(r){
   const n = esc(personaOf(r));
-  /* defence in depth: a persona is escaped, but a profile URL becomes an href,
-     so only http(s) is ever linked. Anything else renders as plain text. */
-  const url = (r.profileurl && /^https?:\/\//i.test(r.profileurl)) ? r.profileurl : "";
-  return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${n}</a>` : n;
+  /* a name leads to that player's page on this site; the link out to Steam
+     lives there. Defence in depth: the ID becomes part of an href, so only a
+     plain Steam64 is ever linked and anything else renders as flat text. */
+  return isSteamId(r.steam_id) ? `<a href="#/player/${esc(r.steam_id)}">${n}</a>` : n;
 }
 
 /* ---------- the row ---------- */
@@ -679,7 +805,8 @@ function rowHtml(r, lead, prev){
     ? `<span class="sub sub-d">Leads the board${parts}</span><span class="sub sub-m">Leads the board${parts}</span>`
     : `<span class="sub sub-d"><em>${g}</em> behind &middot; ${st} to ${up}${parts}</span>
        <span class="sub sub-m"><em>${st}</em> to ${up}${parts || " &middot; " + g + " back"}</span>`;
-  return `<div class="row" style="--h:${h}" data-m="${r.rank<=3 ? r.rank : 0}">
+  return `<div class="row" style="--h:${h}" data-m="${r.rank<=3 ? r.rank : 0}"
+    data-id="${esc(r.steam_id)}">
     <span class="c-rank">${r.rank}</span>
     ${marble(r)}
     <span class="c-text"><span class="nm">${nameHtml(r)}</span>${sub}</span>
@@ -708,16 +835,19 @@ function renderMore(){
   if(shown >= visible.length && more) more.remove();
   updateMeta();
 }
-/* keep appending until the page actually overflows, so there is always something
-   to scroll towards; guarded so a short board cannot spin */
+/* The list only grows on scroll, so anything that needs rows further down asks
+   for them here rather than driving renderMore itself. Guarded so a short board
+   cannot spin. */
+function ensureRendered(enough){
+  for(let guard = 0; !enough() && shown < visible.length && guard < 400; guard++) renderMore();
+}
+/* keep appending until the page actually overflows, so there is always
+   something to scroll towards */
 function fillViewport(){
-  let guard = 0;
-  while(shown < visible.length &&
-        document.documentElement.scrollHeight <= window.innerHeight + 800 && guard < 400){
-    renderMore(); guard++;
-  }
+  ensureRendered(() => document.documentElement.scrollHeight > window.innerHeight + 800);
 }
 function onScroll(){
+  if(playerId) return;            /* the board is behind a player page, not on screen */
   if(!boardData || shown >= visible.length) return;
   if(window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 900) renderMore();
 }
@@ -832,6 +962,198 @@ function applyFilter(){
   buildList();
 }
 
+/* ---------- a player's page ----------
+   One player's finish on every board at once. The rows come from
+   data/players/<last digit of the Steam ID>.json, the transpose of the board
+   files, so the page fetches one shard instead of all twenty-odd boards. */
+/* Steam's own mark, so the one link that leaves this site looks like it does */
+const STEAM_MARK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-9.96 9.1l5.36 2.22a2.83 2.83 0 0 1 1.6-.5l2.38-3.46v-.05a3.77 3.77 0 1 1 3.77 3.77h-.09l-3.4 2.43v.1a2.83 2.83 0 0 1-5.6.56L2.23 14.6A10 10 0 1 0 12 2Zm-5.7 15.2a2.12 2.12 0 0 0 3.9-1.5l-1.72-.7a1.53 1.53 0 1 1 1.14-2.83l1.7.7a2.12 2.12 0 0 0-3.9 1.5l-1.12-.47Zm8.85-7.9a2.51 2.51 0 1 0 .01.01Zm-1.88 0a1.89 1.89 0 1 1 3.77 0 1.89 1.89 0 0 1-3.77 0Z"/></svg>`;
+const SHARDS = {};                 /* players/<digit>.json, fetched once each */
+let playerId = null;               /* the player on screen, or null on a board */
+
+function loadShard(id){
+  const s = id.slice(-1);
+  if(!SHARDS[s]) SHARDS[s] = fetch("data/players/" + s + ".json")
+    .then(r => { if(!r.ok) throw new Error("fetch players/" + s + " -> " + r.status); return r.json(); })
+    .catch(err => { delete SHARDS[s]; throw err; });   /* let the next visit retry */
+  return SHARDS[s];
+}
+/* the all-seasons composite: the points board of the group that has no tracks.
+   Found by shape rather than by name, so renaming it cannot strand this page. */
+const compositeBoard = () =>
+  activeBoards().find(b => isPoints(b) && !boardsIn(b.group).some(x => !isPoints(x)));
+
+/* Everything the page shows about a player, worked out in one place: the board
+   table is read here and nowhere below, so the rendering underneath is only
+   markup. A track carries its own field size and record, so a tile needs
+   nothing but itself.
+
+   A finish is matched to the site's board table by name through the shard's own
+   board list, never by position in index.json: a shard cached beside a newer
+   index still reads correctly, and a board dropped from the table falls out. */
+function playerRecord(doc, id){
+  const p = doc.players[id];
+  const by = {};
+  for(const [i, rank, score] of p.rows){
+    const b = doc.boards[i], meta = b && activeBoards().find(x => x.name === b.name);
+    if(meta) by[meta.name] = {rank, score, lead: b.lead};
+  }
+  const track = b => ({name: b.name, display: shortName(b.display),
+                       field: b.entry_count, finish: by[b.name] || null});
+  const tracks = activeBoards().filter(b => !isPoints(b)).map(track);
+  const run = tracks.filter(t => t.finish);
+  const medals = {gold: 0, silver: 0, bronze: 0};
+  for(const t of run) if(t.finish.rank <= 3) medals[["gold","silver","bronze"][t.finish.rank-1]]++;
+  const byName = new Map(tracks.map(t => [t.name, t]));
+  /* A season is a group that actually raced; the composite's group has no
+     tracks, so it falls out here and shows up in the header line instead. The
+     in-game track-selection screen groups a season's tracks under difficulty
+     headings, and a season with none is one unheaded run. */
+  const seasons = groupsOf().map(group => {
+    const tiers = [];
+    for(const b of boardsIn(group).filter(x => !isPoints(x))){
+      const tier = b.tier || "Circuit";
+      if(!tiers.length || tiers[tiers.length-1].tier !== tier) tiers.push({tier, tracks: []});
+      tiers[tiers.length-1].tracks.push(byName.get(b.name));
+    }
+    const overall = boardsIn(group).find(isPoints);
+    return {group, overall: (overall && by[overall.name]) || null, tiers};
+  }).filter(s => s.tiers.length);
+  const comp = compositeBoard();
+  /* the board behind this page, when the reader came from one */
+  const from = boardKey && (isPodiums() ? {name: PODIUM_KEY, display: "Podiums"} : boardMeta());
+  return {
+    id, profileurl: p.profileurl,
+    back: from ? {href: boardHash(from.name), label: shortName(from.display)}
+                : {href: "#/", label: "All leaderboards"},
+    who: {steam_id: id, persona: p.persona, avatar: p.avatar},
+    allSeasons: comp ? by[comp.name] || null : null,
+    medals, golds: run.filter(t => t.finish.rank === 1).map(t => t.display),
+    run: run.length, tracks: tracks.length, seasons,
+  };
+}
+/* where a run sits in its field. Inside the first percent it reads "top 0.1%"
+   at worst: a rounded "top 0.0%" would claim a share that cannot exist. */
+function pctOf(t){
+  const x = t.finish.rank / t.field * 100;
+  return "top " + (x < 1 ? Math.max(0.1, Math.round(x * 10) / 10).toFixed(1) : Math.ceil(x)) + "%";
+}
+/* under a minute the leading "0:0" of a gap is noise */
+function shortGap(ticks){
+  const s = ticks / SCORE_TICKS_PER_SECOND;
+  return "+" + (s < 60 ? s.toFixed(3) : fmtTime(ticks));
+}
+function tileHtml(t, id){
+  if(!t.finish) return `<span class="ptile untimed"><span class="pt-name">${esc(t.display)}</span>
+    <span class="pt-rank">&mdash;</span><span class="pt-time">no time</span></span>`;
+  const f = t.finish;
+  return `<a class="ptile" data-m="${f.rank<=3 ? f.rank : 0}" href="${esc(boardHash(t.name, id))}">
+    <span class="pt-name">${esc(t.display)}</span>
+    <span class="pt-line"><span class="pt-rank">${f.rank}<sup>${ord(f.rank).slice(-2)}</sup><span
+      class="pt-of">/${fmtN(t.field)}</span></span>
+      <span class="pt-gap">${f.rank === 1 ? "record" : shortGap(f.score - f.lead)}</span></span>
+    <span class="pt-time">${fmtTime(f.score)}</span>
+    <span class="pt-pct">${pctOf(t)}</span>
+    <span class="pt-bar"><i style="--w:${Math.max(0, Math.round((1 - (f.rank-1)/t.field) * 100))}%"></i></span>
+  </a>`;
+}
+function seasonHtml(s, id){
+  return `<section class="pseason"><div class="pslab"><h2>${esc(s.group)}</h2>
+      ${s.overall
+        ? `<span class="pov" data-m="${s.overall.rank<=3 ? s.overall.rank : 0}"><b>${ord(s.overall.rank)}</b>
+            overall &middot; ${fmtN(s.overall.score)} pts</span>`
+        : `<span class="pov">not ranked overall</span>`}</div>
+    ${s.tiers.map(t => `<div class="ptier"><span class="ptlab">${esc(t.tier)}</span>
+      <div class="pgrid">${t.tracks.map(x => tileHtml(x, id)).join("")}</div></div>`).join("")}
+  </section>`;
+}
+function playerHtml(rec){
+  const url = (rec.profileurl && /^https?:\/\//i.test(rec.profileurl)) ? rec.profileurl : "";
+  return `<a class="back" href="${esc(rec.back.href)}">&larr; ${esc(rec.back.label)}</a>
+  <div class="pid">${marble(rec.who)}
+    <span class="pwho"><h1>${esc(personaOf(rec.who))}</h1>
+      <span class="pline">${rec.allSeasons
+        ? `<b>${ord(rec.allSeasons.rank)}</b> across all seasons &middot; ${fmtN(rec.allSeasons.score)} pts`
+        : "Not on the all-seasons board"}</span></span>
+    ${url ? `<a class="steam" href="${esc(url)}" target="_blank" rel="noopener">${STEAM_MARK}Steam profile</a>` : ""}
+  </div>
+  <dl class="pstats">
+    <div class="pstat"><dt>World records</dt><dd>${rec.medals.gold}
+      <small>${rec.golds.length ? esc(rec.golds.join(", ")) : "none yet"}</small></dd></div>
+    <div class="pstat"><dt>Podiums</dt><dd>${medalCounts(rec.medals)}
+      <small>gold, silver, bronze</small></dd></div>
+    <div class="pstat"><dt>Tracks run</dt><dd>${fmtN(rec.run)}
+      <small>of ${fmtN(rec.tracks)} in the campaign</small></dd></div>
+    <div class="pstat"><dt>All seasons</dt><dd>${rec.allSeasons ? ord(rec.allSeasons.rank) : "&mdash;"}
+      <small>${rec.allSeasons ? fmtN(rec.allSeasons.score) + " points" : "no season points"}</small></dd></div>
+  </dl>
+  ${rec.seasons.map(s => seasonHtml(s, rec.id)).join("")}`;
+}
+
+async function showPlayer(id){
+  if(!isSteamId(id)){ showBoard(); return; }   /* the ID becomes a fetch path below */
+  playerId = id;
+  $("#app").dataset.view = "player";
+  const el = $("#player");
+  el.hidden = false;
+  el.innerHTML = `<div class="pseason">${Array.from({length:3}, () =>
+      `<div class="skel"><span></span><span></span><span></span></div>`).join("")}</div>`;
+  closeSheet();
+  scrollTo({top:0});
+  let doc;
+  try { doc = await loadShard(id); }
+  catch(err){
+    if(playerId !== id) return;
+    el.innerHTML = `<div class="empty"><b>That player's page didn't load.</b>
+      The data file may still be refreshing. Try again in a moment.</div>`;
+    return;
+  }
+  if(playerId !== id) return;      /* the reader moved on while it was fetching */
+  if(!doc.players[id]){
+    el.innerHTML = `<div class="empty"><b>Nobody with that Steam ID is on a board.</b>
+      Only players with a time on at least one campaign leaderboard have a page here.</div>`;
+    return;
+  }
+  const rec = playerRecord(doc, id);
+  el.innerHTML = playerHtml(rec);
+  document.title = personaOf(rec.who) + " · " + SITE_TITLE;
+}
+
+/* ---------- routes ----------
+   Two of them: a board, optionally with one player's row marked, and a player.
+   Anything else means the board already on screen, or the default one. A board
+   being addressable is what lets a tile link back to its own leaderboard. */
+const PLAYER_ROUTE = new RegExp("^#/player/(" + STEAM_ID.source + ")$");
+const BOARD_ROUTE = new RegExp("^#/board/([A-Za-z0-9_]{1,64})(?:/(" + STEAM_ID.source + "))?$");
+const boardHash = (name, focus) => "#/board/" + name + (focus ? "/" + focus : "");
+function route(){
+  const p = PLAYER_ROUTE.exec(location.hash);
+  if(p){ showPlayer(p[1]); return; }
+  const b = BOARD_ROUTE.exec(location.hash);
+  showBoard(b && b[1], b && b[2]);
+}
+/* setting the hash to what it already is fires no hashchange, so a reader
+   clicking the board they are already on (to retry a failed load) routes here */
+function go(hash){
+  if(location.hash === hash) route();
+  else location.hash = hash;
+}
+function showBoard(name, focus){
+  playerId = null;
+  $("#app").dataset.view = "board";
+  $("#player").hidden = true;
+  $("#player").innerHTML = "";
+  document.title = SITE_TITLE;
+  const meta = name && name !== PODIUM_KEY ? activeBoards().find(b => b.name === name) : null;
+  /* a shared link can name a board in a season other than the one on screen */
+  if(meta && meta.group !== group){ group = meta.group; renderGroups(); }
+  const want = meta ? meta.name : (name === PODIUM_KEY && podiumsIn(group) ? PODIUM_KEY : null);
+  if(!want){ if(!boardKey) selectBoard(defaultBoard()); return; }
+  if(want === boardKey && (boardData || isPodiums())){ if(focus) focusPlayer(focus); return; }
+  selectBoard(want, focus);
+}
+addEventListener("hashchange", route);
+
 /* ---------- loading ---------- */
 async function loadBoard(name){
   if(CACHE[name]) return CACHE[name];
@@ -842,7 +1164,8 @@ async function loadBoard(name){
   CACHE[name] = data;
   return data;
 }
-async function selectBoard(name){
+/* focus is a Steam ID a player page sent us here to show */
+async function selectBoard(name, focus){
   if(name === PODIUM_KEY){ selectPodiums(); return; }
   boardKey = name;
   renderSelectors();
@@ -873,6 +1196,26 @@ async function selectBoard(name){
   renderTiles();
   renderLeaders();
   applyFilter();
+  if(focus) focusPlayer(focus);
+}
+
+/* Show one player's row on the board a tile pointed at. Their rank can be far
+   down a chunked list, so grow the list until the row exists. The top three are
+   not in the list at all — they are up on the podium — so those get their plate
+   marked instead. */
+function focusPlayer(id){
+  if(!isSteamId(id)) return;
+  /* a hand-edited or stale link can name someone with no time here; without
+     this the search below would render the whole board looking for them */
+  if(!boardData || !boardData.rows.some(r => r.steam_id === id)) return;
+  document.querySelectorAll(".focus").forEach(n => n.classList.remove("focus"));
+  const sel = `[data-id="${id}"]`;
+  const found = () => $("#leaders " + sel) || $("#board " + sel);
+  ensureRendered(() => !!found());
+  const el = found();
+  if(!el) return;
+  el.classList.add("focus");
+  el.scrollIntoView({block: "center"});
 }
 
 /* ---------- the sheet ---------- */
@@ -914,10 +1257,9 @@ addEventListener("keydown", e => {
 /* ---------- events ---------- */
 $("#groups").addEventListener("click", e => {
   const t = e.target.closest("[data-g]"); if(!t) return;
-  group = t.dataset.g;
   $("#q").value = ""; filtering = false;
-  renderGroups();
-  selectBoard(boardsIn(group)[0].name);
+  /* the route carries the board, and showBoard reads the season off it */
+  go(boardHash(boardsIn(t.dataset.g)[0].name));
 });
 function pickBoard(e){
   const t = e.target.closest("[data-b]"); if(!t) return;
@@ -927,7 +1269,7 @@ function pickBoard(e){
   if(t.dataset.b === boardKey && boardData) return;
   $("#q").value = ""; filtering = false;
   scrollTo({top:0});
-  selectBoard(t.dataset.b);
+  go(boardHash(t.dataset.b));
 }
 $("#boards").addEventListener("click", pickBoard);
 $("#sheetList").addEventListener("click", pickBoard);
@@ -950,6 +1292,8 @@ addEventListener("scroll", onScroll, {passive:true});
 addEventListener("resize", () => { onScroll(); fillViewport(); });
 
 /* ---------- start ---------- */
+const defaultBoard = () =>
+  (activeBoards().find(b => b.name === "OverallLeaderboard_EASeason2") || boardsIn(group)[0]).name;
 renderChrome();
 /* podiums.json is small and feeds the rail, so it loads with the index rather
    than on demand. It is optional: without it the rail simply has no cabinet. */
@@ -969,9 +1313,9 @@ Promise.all([fetch("data/index.json").then(r => r.json()), podiumsReq])
     $("#freshness").title = dt.toLocaleString();
 
     group = groupsOf().includes("Season 2") ? "Season 2" : groupsOf()[0];
-    const preferred = boards.find(b => b.name === "OverallLeaderboard_EASeason2");
     renderGroups();
-    selectBoard((preferred || boardsIn(group)[0]).name);
+    /* a link shared into the site can name a player rather than a board */
+    route();
   })
   .catch(() => {
     $("#freshness").textContent = "Data unavailable";

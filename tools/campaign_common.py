@@ -20,7 +20,7 @@ PROJ = os.path.dirname(HERE)
 DATA_DIR = os.path.join(PROJ, "data")
 BOARDS_DIR = os.path.join(DATA_DIR, "boards")
 INDEX_PATH = os.path.join(DATA_DIR, "index.json")
-PODIUMS_PATH = os.path.join(DATA_DIR, "podiums.json")
+# Everything else under data/ is named by derive(), relative to DATA_DIR.
 
 # Leaderboard names = level asset names, verbatim (discovered by probing the pak).
 # LIST ORDER IS THE IN-GAME NUMBERING: the game labels Circuit tracks only "01".."NN"
@@ -298,6 +298,83 @@ def build_composite(boards_out):
             "entry_count": len(rows), "rows": rows}
 
 
+def player_shard(steam_id):
+    """Which players file a Steam ID lives in: the last digit of the ID.
+
+    A player's page needs that player's rank on every board at once, which is
+    the transpose of the board files. Written whole it is a few megabytes, so it
+    is split ten ways and the page fetches only the shard its player is in.
+    Steam64 IDs are decimal, so the last digit divides them evenly; anything
+    else (there should be nothing) lands in shard 0."""
+    last = steam_id[-1:] if steam_id else ""
+    return last if last.isdigit() else "0"
+
+
+PLAYER_SHARDS = tuple("0123456789")
+
+
+def build_players(boards_out):
+    """Every player's finish on every board, keyed by Steam ID, split into the
+    ten shards player_shard() describes. Returns {shard: doc}.
+
+    A player's rows are [board index, rank, score] triples, indexed against the
+    shard's own "boards" list rather than index.json, so a shard the page has
+    cached alongside a newer index can still be read correctly. Each board in
+    that list carries "lead", its rank-1 score, which is all the page needs to
+    show a run's gap to the record without fetching the board itself.
+
+    persona/avatar/profileurl are copied from the rows, so this must be built
+    after write_site's name refresh. profileurl is carried rather than derived:
+    a third of players have a vanity /id/ URL that a Steam ID cannot produce."""
+    boards = [{"name": b["name"],
+               "lead": b["rows"][0]["score_ms"] if b["rows"] else None}
+              for b in boards_out]
+    players = {s: {} for s in PLAYER_SHARDS}
+    for i, b in enumerate(boards_out):
+        for r in b["rows"]:
+            sid = r["steam_id"]
+            p = players[player_shard(sid)].setdefault(sid, {
+                "persona": r.get("persona", ""), "avatar": r.get("avatar", ""),
+                "profileurl": r.get("profileurl", ""), "rows": []})
+            p["rows"].append([i, r["rank"], r["score_ms"]])
+    return {s: {"shard": s, "boards": boards, "players": players[s]}
+            for s in PLAYER_SHARDS}
+
+
+def derive(boards_out):
+    """Everything the collector works out from the board rows it just read.
+
+    Returns (boards_out with the composite appended, [artifact, ...]) where an
+    artifact is {"path" (relative to data/), "doc", "empty", "summary"}. This is
+    the one description of what is derived, where it lands, what counts as empty
+    and how it reads in a log: write_site publishes the list, check_data compares
+    the committed files against it, and neither has to restate the assembly —
+    which matters, because the shards' board indices are positions in exactly
+    this list of boards, composite last. Nor does either caller have to know one
+    artifact from another; both just write or compare, and print the summary.
+
+    Each artifact carries its own idea of empty, because only its builder knows
+    what nothing looks like: no seasons, or a season with nobody on a podium, or
+    a shard with no players."""
+    composite = build_composite(boards_out)
+    if composite["rows"]:
+        boards_out = boards_out + [composite]
+    seasons = build_podiums(boards_out)
+    artifacts = [{
+        "path": "podiums.json", "doc": {"seasons": seasons},
+        "empty": not seasons or any(not s["players"] for s in seasons),
+        # ASCII only: this prints to a Windows console in the local runbook
+        "summary": "podiums  " + ", ".join(
+            f"{s['group']} tracks={s['tracks']} players={len(s['players'])}" for s in seasons),
+    }]
+    artifacts += [{
+        "path": "players/" + shard + ".json", "doc": doc,
+        "empty": not doc["players"],
+        "summary": f"players/{shard}  {len(doc['players'])} players",
+    } for shard, doc in build_players(boards_out).items()]
+    return boards_out, artifacts
+
+
 def write_site(boards_out, all_ids):
     """Resolve names, then write one file per board (data/boards/<name>.json) plus
     a small data/index.json the page loads first. Board files omit generated_at so
@@ -308,17 +385,16 @@ def write_site(boards_out, all_ids):
     print(f"Resolving {len(all_ids)} player names...")
     names = resolve_names(key, all_ids)
 
-    # The composite is derived from the rows above, fallback data included, so
-    # it can never disagree with the season boards the page shows. Appending it
-    # here puts it through the same name refresh, file write and index entry as
-    # a Steam board. It is empty only if every Overall board is, which the
-    # collector's never-publish-empty check has already refused to write.
-    composite = build_composite(boards_out)
-    if composite["rows"]:
-        boards_out = boards_out + [composite]
-        print(f"  {composite['name']:34s} derived  players={len(composite['rows'])}")
+    # Everything below the boards is derived from the rows above, fallback data
+    # included, so it can never disagree with the boards the page shows. The
+    # composite comes back inside boards_out, which puts it through the same
+    # name refresh, file write and index entry as a Steam board.
+    boards_out, artifacts = derive(boards_out)
+    composite = next((b for b in boards_out if b["name"] == COMPOSITE_BOARD), None)
+    if composite:
+        print(f"  {COMPOSITE_BOARD:34s} derived  players={len(composite['rows'])}")
     else:
-        print(f"  [warn] {composite['name']}: no Overall rows to derive from; not written")
+        print(f"  [warn] {COMPOSITE_BOARD}: no Overall rows to derive from; not written")
 
     os.makedirs(BOARDS_DIR, exist_ok=True)
     index_boards = []
@@ -343,21 +419,22 @@ def write_site(boards_out, all_ids):
                              "handle": b["handle"], "entry_count": b["entry_count"],
                              "rows": len(b["rows"]), "file": "boards/" + fname})
 
-    # The podium tally is derived from the rows above, fallback data included, so
-    # it can never disagree with the boards the page shows. Like the board files
-    # it omits generated_at so an unchanged season produces no diff. The same
-    # never-publish-empty rule as the boards applies: a season with track boards
-    # but nobody on a podium can only mean the rows were empty, so the previous
-    # file is left in place rather than overwritten with a blank cabinet.
-    seasons = build_podiums(boards_out)
-    empty = [s["group"] for s in seasons if not s["players"]]
-    if not seasons or empty:
-        print(f"  [warn] podium tally empty for {empty or 'every season'}; keeping the previous podiums.json")
+    # The derived files carry the same never-publish-empty rule as the boards,
+    # and they carry it together: they all come from the one set of rows, so one
+    # of them arriving blank says the rows were blank, and every committed copy
+    # is the better copy. Like the board files they omit generated_at, so an
+    # unchanged season produces no diff.
+    blank = [a["path"] for a in artifacts if a["empty"]]
+    if blank:
+        print(f"  [warn] derived empty: {blank}; keeping the committed copies of all "
+              f"{len(artifacts)} derived files")
     else:
-        with open(PODIUMS_PATH, "w", encoding="utf-8") as f:
-            json.dump({"seasons": seasons}, f, ensure_ascii=False, separators=(",", ":"))
-        for s in seasons:
-            print(f"  podiums {s['group']:10s} tracks={s['tracks']:2d} players={len(s['players'])}")
+        for a in artifacts:
+            path = os.path.join(DATA_DIR, a["path"])
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(a["doc"], f, ensure_ascii=False, separators=(",", ":"))
+            print("  " + a["summary"])
 
     with open(INDEX_PATH, "w", encoding="utf-8") as f:
         json.dump({"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

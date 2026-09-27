@@ -10,9 +10,10 @@ live run. Exit status is non-zero on any failure, so it can gate a commit.
 Checks:
   - every board in BOARDS has a file, index.json lists it, and the two agree
   - no board is empty, and rows are index-aligned to rank (rows[i].rank == i+1)
-  - podiums.json equals build_podiums() over the committed boards
-  - the composite board file equals build_composite() over the committed boards,
-    and index.json lists it
+  - every file derive() produces from the committed boards — podiums.json and
+    players/<shard>.json — matches the committed copy
+  - the composite board file equals the one derive() appends, and index.json
+    lists it
 """
 import os, sys, json
 
@@ -53,17 +54,20 @@ def main():
         boards_out.append(board)
         print(f"  {name:34s} rows={len(rows):5d}")
 
-    expected = {"seasons": cc.build_podiums(boards_out)}
-    if os.path.exists(cc.PODIUMS_PATH):
-        actual = load(cc.PODIUMS_PATH)
-        if actual != expected:
-            problems.append("podiums.json does not match build_podiums() over the committed boards")
-    else:
-        problems.append("podiums.json is missing")
-    for s in expected["seasons"]:
-        print(f"  podiums {s['group']:10s} tracks={s['tracks']:2d} players={len(s['players'])}")
+    # One call, so the check cannot drift from the write: derive() is what the
+    # collector publishes, including the order the shards' board indices mean.
+    boards_out, artifacts = cc.derive(boards_out)
+    for a in artifacts:
+        path = os.path.join(cc.DATA_DIR, a["path"])
+        if not os.path.exists(path):
+            problems.append(f"{a['path']} is missing")
+        elif load(path) != a["doc"]:
+            problems.append(f"{a['path']} does not match derive() over the committed boards")
+        if a["empty"]:
+            problems.append(f"{a['path']} came out empty over the committed boards")
+        print("  " + a["summary"])
 
-    comp = cc.build_composite(boards_out)
+    comp = next((b for b in boards_out if b["name"] == cc.COMPOSITE_BOARD), {"rows": []})
     comp_path = os.path.join(cc.BOARDS_DIR, cc.COMPOSITE_BOARD + ".json")
     if os.path.exists(comp_path):
         actual = load(comp_path)
@@ -84,7 +88,7 @@ def main():
         for p in problems:
             print("  - " + p)
         return 1
-    print(f"\nOK: {len(boards_out)} boards, index, podiums and composite consistent")
+    print(f"\nOK: {len(boards_out)} boards (composite included), index and every derived file consistent")
     return 0
 
 

@@ -21,6 +21,16 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   read, so it is written and indexed like any other board and needs no leaderboard ID.
 - `data/podiums.json` — per-season podium tally (who holds each track's top three),
   derived by the collector from the board rows. Loaded alongside `index.json`.
+- `data/players/<digit>.json` — the board files transposed: every player's rank and
+  score on every board, keyed by Steam ID (`build_players` in
+  `tools/campaign_common.py`). Split ten ways by the ID's last digit so a player page
+  fetches one ~400KB shard rather than every board. Loaded only on a player page.
+- `derive()` in `tools/campaign_common.py` is the one list of what the collector works
+  out from the board rows and where each file lands. `write_site` publishes that list,
+  `check_data` compares the committed files against it, and neither restates the
+  assembly — which matters, because a shard's board indices are positions in exactly
+  the board list `derive` returns, composite last. A new derived artifact is one entry
+  there, and is then written, guarded and checked for free.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
 - `tools/steampy_collect.py` — the collector CI runs. **This is the live path.**
 - `tools/ugc_discord_leaderboard.py` — local, on demand: reads every Workshop map's
@@ -96,12 +106,32 @@ been switched over.
 **Never let a run publish an empty board.** `steampy_collect.py` falls back to the
 previously committed file when a read fails, and aborts the run without writing anything
 if a board has neither (the `except` branch and the `hard_failed` check in `on_ready`).
+The derived files carry the same rule, once, in `write_site`: each artifact `derive()`
+returns says whether it came out empty, and one empty artifact keeps the committed copy
+of every derived file, since they all come from the same rows.
 Preserve that in any change to the write path. The pagination stop condition in
 `fetch_board` is deliberately conservative for the same reason — don't simplify it.
 
-**`.gitignore` ignores `data/*`**, re-including only `!data/index.json`, `!data/boards/`
-and `!data/podiums.json`. A new artifact written under `data/` is invisible to git and
-404s in production; the workflow's `git add` line also has to name it.
+**`.gitignore` ignores `data/*`**, re-including only `!data/index.json`, `!data/boards/`,
+`!data/podiums.json` and `!data/players/`. A new artifact written under `data/` is
+invisible to git and 404s in production; the workflow's `git add` line also has to name
+it.
+
+**The page has two hash routes**, read by `route()` on load and on `hashchange`:
+`#/player/<steam_id>` and `#/board/<board name>` with an optional `/<steam_id>` that
+marks that player's row once the board is open. Every player name links to a player page
+(`nameHtml`), and the link out to Steam lives on that page rather than on the name.
+Selecting a board goes through the route too (`go(boardHash(...))`), so nothing calls
+`selectBoard` to navigate — that is what makes a board, and a player's row on it,
+something you can link to. Anything else in the hash means the board already on screen,
+or the default one.
+
+**`playerRecord` is the only part of the player page that reads the board table.**
+It turns a shard plus a Steam ID into everything the page shows — identity, medals,
+seasons, tiers, each track with its own field size and record — and the rendering below
+it is markup over that record. A finish is matched to the board table **by name**
+through the shard's own `boards` list, never by position in `index.json`, which a cached
+shard may disagree with.
 
 **Rows are index-aligned to rank.** `rowHtml` reaches for `rows[r.rank - 2]` to compute
 the interval to the next rung up, so sorting, filtering, or de-duping the array in place
@@ -125,7 +155,8 @@ so don't hand-edit data files and don't carry regenerated data on a feature bran
 will conflict. A brand-new data artifact is the exception: its first copy ships with the
 code that introduces it, so the feature works on merge rather than after the next
 refresh. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch only
-`data/index.json`, `data/boards/` and `data/podiums.json`; keep code changes out of them.
+`data/index.json`, `data/boards/`, `data/podiums.json` and `data/players/`; keep code
+changes out of them.
 
 `CODING_STANDARDS.md` is the review checklist; it also holds the branch and commit
 conventions.
