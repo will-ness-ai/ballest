@@ -16,10 +16,11 @@
 //   Discord timestamp, redrawn as the Match moves on.
 // - A Match Thread that fails to start is started on the Match's next thread post.
 // - A Card is forgotten once it will never change again: after its Result, or once removed.
+//   A finished Match's place is still kept (the most recent ones), for the Activity's links.
 import { SqlClient, SqlSchema } from "@effect/sql"
-import { Effect, Layer, Option, Ref, Schema } from "effect"
+import { Context, Effect, Layer, Option, Ref, Schema } from "effect"
 import { MigratorLive } from "../db.js"
-import { type CardView, isKept, type RemovalReason, Surface, type ThreadPost } from "../ports.js"
+import { type CardView, isKept, MatchLinks, type MatchPlace, type RemovalReason, Surface, type ThreadPost } from "../ports.js"
 import { Channel, type ChannelError, Drawing } from "./channel.js"
 import { describeDiscordError } from "./client.js"
 
@@ -34,7 +35,12 @@ interface CardRef {
 interface Layout {
   readonly footerId: string | null
   readonly cards: ReadonlyMap<string, CardRef>
+  /** Where finished Matches' Cards and threads are, oldest first. */
+  readonly finished: ReadonlyMap<string, MatchPlace>
 }
+
+/** How many finished Matches' places are kept. */
+const FINISHED_KEPT = 100
 
 const LayoutJson = Schema.parseJson(
   Schema.Struct({
@@ -48,6 +54,10 @@ const LayoutJson = Schema.parseJson(
           clockId: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null })
         })
       )
+    ),
+    finished: Schema.optionalWith(
+      Schema.Array(Schema.Tuple(Schema.String, Schema.Struct({ messageId: Schema.String, threadId: Schema.NullOr(Schema.String) }))),
+      { default: () => [] }
     )
   })
 )
@@ -75,13 +85,13 @@ const make = Effect.gen(function* () {
   const saved = yield* loadLayout(undefined).pipe(Effect.orDie)
   const layout = yield* Ref.make<Layout>(
     Option.match(saved, {
-      onNone: () => ({ footerId: null, cards: new Map() }),
-      onSome: ({ data }) => ({ footerId: data.footerId, cards: new Map(data.cards) })
+      onNone: () => ({ footerId: null, cards: new Map(), finished: new Map() }),
+      onSome: ({ data }) => ({ footerId: data.footerId, cards: new Map(data.cards), finished: new Map(data.finished) })
     })
   )
   const setLayout = Effect.fn("setLayout")(function* (change: (current: Layout) => Layout) {
     const next = yield* Ref.updateAndGet(layout, (current) => change(current))
-    const data = yield* Schema.encode(LayoutJson)({ footerId: next.footerId, cards: [...next.cards] })
+    const data = yield* Schema.encode(LayoutJson)({ footerId: next.footerId, cards: [...next.cards], finished: [...next.finished] })
     yield* sql`INSERT INTO discord_layout (id, data) VALUES (1, ${data}) ON CONFLICT (id) DO UPDATE SET data = excluded.data`
   }, Effect.orDie)
   const setCard = (matchId: string, card: CardRef) =>
@@ -93,7 +103,8 @@ const make = Effect.gen(function* () {
   /** What each thread's clock last showed, so it is only redrawn when that changes. */
   const clocks = yield* Ref.make(new Map<string, string>())
 
-  const forget = Effect.fn("forget")(function* (matchId: string) {
+  /** Stop tracking a Card; `finished` keeps where it was, for links. */
+  const forget = Effect.fn("forget")(function* (matchId: string, finished = false) {
     const without = <V>(m: Map<string, V>) => {
       const next = new Map(m)
       next.delete(matchId)
@@ -102,9 +113,13 @@ const make = Effect.gen(function* () {
     yield* Ref.update(views, (m) => without(m))
     yield* Ref.update(clocks, (m) => without(m))
     yield* setLayout((l) => {
+      const card = l.cards.get(matchId)
       const cards = new Map(l.cards)
       cards.delete(matchId)
-      return { ...l, cards }
+      if (!finished || card === undefined) return { ...l, cards }
+      const kept = new Map(l.finished).set(matchId, { messageId: card.messageId, threadId: card.threadId })
+      for (const key of kept.keys()) if (kept.size > FINISHED_KEPT) kept.delete(key)
+      return { ...l, cards, finished: kept }
     })
   })
 
@@ -204,7 +219,7 @@ const make = Effect.gen(function* () {
       yield* channel.postInThread(threadId.value, matchId, post)
       // The last thing a Match's thread gets: the graph after the Result, or the Result when nobody set a time.
       const last = post._tag === "Progression" || (post._tag === "Result" && post.standings.every((s) => s.ticks === null))
-      if (last) yield* lock.withPermits(1)(forget(matchId))
+      if (last) yield* lock.withPermits(1)(forget(matchId, true))
     },
     Effect.catchAll((e) => logFailure(e))
   )
@@ -221,8 +236,18 @@ const make = Effect.gen(function* () {
     )
   }
 
-  return Surface.of({ showCard, remove, post })
+  const links = MatchLinks.of({
+    of: (matchId) =>
+      Ref.get(layout).pipe(
+        Effect.map(({ cards, finished }) => {
+          const card = cards.get(matchId)
+          return Option.fromNullable(card === undefined ? finished.get(matchId) : { messageId: card.messageId, threadId: card.threadId })
+        })
+      )
+  })
+
+  return Context.make(Surface, Surface.of({ showCard, remove, post })).pipe(Context.add(MatchLinks, links))
 })
 
-/** The Surface port on a Channel. Needs the Channel and a SqlClient. */
-export const ChannelSurfaceLive = Layer.effect(Surface, make).pipe(Layer.provide(MigratorLive))
+/** The Surface port on a Channel, and where it put each Match. Needs the Channel and a SqlClient. */
+export const ChannelSurfaceLive = Layer.effectContext(make).pipe(Layer.provide(MigratorLive))

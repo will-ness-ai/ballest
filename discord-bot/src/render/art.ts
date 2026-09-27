@@ -17,14 +17,17 @@ export const START_HUE = 96
 /** The warm marble that heads a Result. */
 export const RESULT_HUE = 50
 
-/** The site's marble, as a standalone SVG. */
-export const marbleSvg = (hue: number, size: number): string =>
+/**
+ * The site's marble, as a standalone SVG. `id` keeps its gradient apart from other marbles when
+ * several are inline in one page; an image holds one, so it can leave it out.
+ */
+export const marbleSvg = (hue: number, size: number, id = ""): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 40 40">` +
-  `<defs><radialGradient id="g" cx="34%" cy="27%" r="80%">` +
+  `<defs><radialGradient id="g${id}" cx="34%" cy="27%" r="80%">` +
   `<stop offset="0%" stop-color="hsl(${hue},94%,90%)"/><stop offset="34%" stop-color="hsl(${hue},80%,64%)"/><stop offset="100%" stop-color="hsl(${hue},62%,25%)"/>` +
-  `</radialGradient><clipPath id="c"><circle cx="20" cy="20" r="19"/></clipPath></defs>` +
-  `<circle cx="20" cy="20" r="19" fill="url(#g)"/>` +
-  `<g clip-path="url(#c)"><path d="M-4 27C6 34 18 33 26 26s10-16 8-24" fill="none" stroke="hsl(${hue},66%,20%)" stroke-opacity=".26" stroke-width="4.5"/>` +
+  `</radialGradient><clipPath id="c${id}"><circle cx="20" cy="20" r="19"/></clipPath></defs>` +
+  `<circle cx="20" cy="20" r="19" fill="url(#g${id})"/>` +
+  `<g clip-path="url(#c${id})"><path d="M-4 27C6 34 18 33 26 26s10-16 8-24" fill="none" stroke="hsl(${hue},66%,20%)" stroke-opacity=".26" stroke-width="4.5"/>` +
   `<path d="M2 8c8 2 16 8 19 17" fill="none" stroke="hsl(${hue},96%,92%)" stroke-opacity=".2" stroke-width="3"/></g>` +
   `<ellipse cx="13" cy="11.5" rx="5.4" ry="3.4" fill="#fff" fill-opacity=".62" transform="rotate(-28 13 11.5)"/>` +
   `<circle cx="20" cy="20" r="19" fill="none" stroke="hsl(${hue},60%,16%)" stroke-opacity=".35"/></svg>`
@@ -40,14 +43,14 @@ const MEDAL_STOPS: Record<MedalKind, readonly [string, string, string]> = {
 /** A medal drawing is 1.3 times as tall as it is wide. */
 export const medalHeight = (width: number) => Math.round(width * 1.3)
 
-/** A round medal on a ribbon, never a rectangle. `size` is its width. */
-export const medalSvg = (kind: MedalKind, size: number): string => {
+/** A round medal on a ribbon, never a rectangle. `size` is its width; `id` as for marbleSvg. */
+export const medalSvg = (kind: MedalKind, size: number, id = ""): string => {
   const [dark, mid, light] = MEDAL_STOPS[kind]
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${medalHeight(size)}" viewBox="0 0 20 26">` +
-    `<defs><linearGradient id="m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${light}"/><stop offset=".5" stop-color="${mid}"/><stop offset="1" stop-color="${dark}"/></linearGradient></defs>` +
+    `<defs><linearGradient id="m${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${light}"/><stop offset=".5" stop-color="${mid}"/><stop offset="1" stop-color="${dark}"/></linearGradient></defs>` +
     `<path d="M4 0h5l3 9H7z" fill="#1c2a4a"/><path d="M11 0h5l-3 9H8z" fill="#2d4476"/>` +
-    `<circle cx="10" cy="16.5" r="8.4" fill="url(#m)" stroke="#111" stroke-width="1.4"/>` +
+    `<circle cx="10" cy="16.5" r="8.4" fill="url(#m${id})" stroke="#111" stroke-width="1.4"/>` +
     `<circle cx="10" cy="16.5" r="5.4" fill="none" stroke="#111" stroke-opacity=".28" stroke-width="1.2"/>` +
     `<path d="M6.6 13.2a4.6 4.6 0 0 1 4.4-2.1" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="1.3" stroke-linecap="round"/></svg>`
   )

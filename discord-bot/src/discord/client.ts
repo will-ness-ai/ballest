@@ -3,7 +3,7 @@
 // The bot never creates or edits channels (spec #21, story 16): it is given the channel's id,
 // and at startup it checks it can do everything it needs there, or refuses to start.
 import { ChannelType, Client, Events, GatewayIntentBits, PermissionFlagsBits, type Interaction, type TextChannel } from "discord.js"
-import { Config, Data, Effect, Redacted, Stream } from "effect"
+import { Config, Data, Effect, Option, Redacted, Stream } from "effect"
 
 export class DiscordError extends Data.TaggedError("DiscordError")<{ readonly op: string; readonly cause: unknown }> {}
 
@@ -26,6 +26,10 @@ export const oneLine = (cause: unknown): string => {
 
 /** A Discord failure in one line: what the bot was doing, and what Discord said. */
 export const describeDiscordError = (e: DiscordError) => `${e.op}: ${oneLine(e.cause)}`
+
+/** Discord's "Unknown Member" and "Unknown User" errors: nobody by that id is in the server. */
+const isNotMember = (e: DiscordError) =>
+  typeof e.cause === "object" && e.cause !== null && "code" in e.cause && (e.cause.code === 10007 || e.cause.code === 10013)
 
 /** Discord's "Unknown Message" and "Unknown Channel" errors: the thing was already deleted. */
 export const isUnknown = (e: DiscordError) =>
@@ -97,6 +101,20 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
           // NFKC turns "fancy text" (𝐁𝐨𝐥𝐝, Ｗｉｄｅ, ⓒⓘⓡⓒⓛⓔⓓ letters) into the plain letters the image fonts have.
           Effect.map((member) => member.displayName.normalize("NFKC")),
           Effect.orElseSucceed(() => "Someone")
+        )
+      }),
+      /**
+       * The member's name in this server, or None if they aren't in it. Any other failure lets
+       * them through as "Someone": a Discord hiccup shouldn't lock members out of the Activity.
+       */
+      member: Effect.fn("member")(function* (discordId: string) {
+        return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(
+          Effect.map((member) => Option.some(member.displayName.normalize("NFKC"))),
+          Effect.catchAll((e) =>
+            isNotMember(e)
+              ? Effect.succeed(Option.none<string>())
+              : Effect.logWarning(`activity: ${describeDiscordError(e)}`).pipe(Effect.as(Option.some("Someone")))
+          )
         )
       })
     } as const

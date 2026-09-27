@@ -6,6 +6,8 @@ import { PlatformConfigProvider } from "@effect/platform"
 import { NodeContext, NodeRuntime } from "@effect/platform-node"
 import { SqliteClient } from "@effect/sql-sqlite-node"
 import { Config, ConfigProvider, Effect, Layer, Logger, Option } from "effect"
+import { DiscordAuthLive, DiscordMembers } from "./activity/auth.js"
+import { activityServer } from "./activity/server.js"
 import { Discord } from "./discord/client.js"
 import { InteractionsLive } from "./discord/interactions.js"
 import { DiscordChannelLive } from "./discord/channel.js"
@@ -45,6 +47,25 @@ const FileLogLive = Layer.unwrapEffect(
   })
 )
 
+/**
+ * The Discord Activity (the same Matches in a page inside Discord), on PORT, once the app's
+ * OAuth client secret is configured. Without it the bot runs as before, with no web server.
+ */
+const ActivityLive = Layer.unwrapEffect(
+  Effect.gen(function* () {
+    const secret = yield* Config.option(Config.redacted("DISCORD_CLIENT_SECRET"))
+    if (Option.isNone(secret)) return Layer.empty
+    const clientId = yield* Config.string("DISCORD_APPLICATION_ID")
+    const guildId = yield* Config.string("DISCORD_GUILD_ID")
+    const channelId = yield* Config.string("DISCORD_CHANNEL_ID")
+    const members = Layer.effect(
+      DiscordMembers,
+      Discord.pipe(Effect.map((discord) => DiscordMembers.of({ nameOf: discord.member })))
+    )
+    return activityServer({ clientId, guildId, channelId, devUsers: [] }).pipe(Layer.provide(DiscordAuthLive), Layer.provide(members))
+  })
+)
+
 const SqlLive = SqliteClient.layerConfig({
   filename: Config.string("DB_PATH").pipe(Config.withDefault("multiballs.sqlite"))
 })
@@ -58,7 +79,7 @@ const PortsLive = Layer.mergeAll(SteamLive, SurfaceLive, SqliteStoreLive).pipe(
   Layer.provideMerge(SqlLive)
 )
 
-const MainLive = Layer.mergeAll(InteractionsLive, OpsLive).pipe(
+const MainLive = Layer.mergeAll(InteractionsLive, OpsLive, ActivityLive).pipe(
   Layer.provide(Engine.Default),
   Layer.provide(PortsLive),
   Layer.provide(InstanceLockLive),
