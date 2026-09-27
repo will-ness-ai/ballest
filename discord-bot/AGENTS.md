@@ -24,14 +24,27 @@ a time; keep it that way.
 ## Running it
 
 `pnpm dev` runs the bot for iterating, from any checkout: it uses the main checkout's `.env`
-(the test server), its own database in `.logs/dev.sqlite`, and writes its log to
-`.logs/bot.log`, emptied at each start. Grep that file for what happened.
+(the "Multiballs (dev)" app on the test server), its own database in `.logs/dev.sqlite`, and
+writes its log to `.logs/bot.log`, emptied at each start. Grep that file for what happened.
 
 One copy runs per channel on a machine: a second start stops with "already running (pid N)".
 Stop the running copy by that pid before starting another. On Windows, stopping a background
 shell leaves its Node process running.
 
-`pnpm start` in the main checkout is the plain run. `.env` there holds the secrets and names
-the server and channel. At startup the bot refuses to run without its channel permissions. The
-channel denies Send Messages to `@everyone` to stay read-only, so the bot's role needs an
-explicit Send Messages allow on that channel.
+At startup the bot refuses to run without its channel permissions. The channel denies Send
+Messages to `@everyone` to stay read-only, so the bot's role needs an explicit Send Messages
+allow on that channel.
+
+## Production
+
+Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,
+`Dockerfile`). `.github/workflows/bot.yml` tests every PR and deploys every push to `main` that
+touches `discord-bot/`; nothing else deploys, and no checkout holds production's secrets. They
+live in `fly secrets`, and the repo holds only `FLY_API_TOKEN`, a deploy token for the one app.
+`.dockerignore` keeps `.env` and databases out of the image; keep it that way.
+
+A deploy stops the old copy before starting the new one (one volume, one machine), and the
+engine's restart recovery resumes live Matches. `src/ops.ts` pings Healthchecks.io every minute
+(`HEALTHCHECK_URL`), which alerts the private `#multiballs-ops` channel when pings stop, and
+posts there daily (`OPS_WEBHOOK_URL`) once the Steam refresh token has 30 days left; renew it
+with `tools/steampy_mint.py` and `fly secrets set STEAM_REFRESH_TOKEN=...`. Logs: `fly logs`.
