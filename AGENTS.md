@@ -40,8 +40,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   Leth Trial #1 event board. Frozen snapshots, its own `data/`, not touched by the
   collector; `leth/README.md` covers it.
 - `discord-bot/` — Multiballs, the unofficial Discord Match bot (TypeScript, Effect 3,
-  Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site; its own
-  `AGENTS.md` covers it.
+  Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site: it runs on
+  Fly.io, deployed by `.github/workflows/bot.yml`; its own `AGENTS.md` covers it.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
   reverse-engineering spike. Read `tools/README-hosting.md` before touching any of it.
 

@@ -1,0 +1,10 @@
+# Secrets and local state never enter the image.
+.env
+.env.*
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.logs/
+node_modules/
+test/
+scripts/

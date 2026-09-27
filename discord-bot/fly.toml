@@ -1,0 +1,26 @@
+# Multiballs in production. CI deploys it on every push to main that touches discord-bot/
+# (.github/workflows/bot.yml). Secrets live in `fly secrets`, never here.
+app = "multiballs"
+primary_region = "ord"
+# The bot shuts down cleanly on SIGTERM (Steam log off, Discord destroy, SQLite closed).
+kill_signal = "SIGTERM"
+kill_timeout = 30
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DB_PATH = "/data/multiballs.sqlite"
+
+# One volume, so one machine: a deploy stops the old copy before starting the new one, and the
+# engine's restart recovery picks live Matches back up.
+[mounts]
+  source = "multiballs_data"
+  destination = "/data"
+
+[[restart]]
+  policy = "always"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

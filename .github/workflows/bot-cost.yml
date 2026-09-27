@@ -1,0 +1,23 @@
+name: Multiballs cost
+
+# Posts a weekly Fly.io cost estimate for Multiballs to the private ops channel
+# (discord-bot/scripts/cost_report.py). Fly has no billing API, so it prices what is provisioned.
+
+on:
+  schedule:
+    - cron: "0 15 * * 1" # Mondays, 10:00 Chicago
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: python3 discord-bot/scripts/cost_report.py multiballs
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          OPS_WEBHOOK_URL: ${{ secrets.OPS_WEBHOOK_URL }}

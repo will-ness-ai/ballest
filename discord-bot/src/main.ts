@@ -12,6 +12,7 @@ import { Marbles } from "./discord/marbles.js"
 import { ChannelSurfaceLive } from "./discord/surface.js"
 import { Engine } from "./engine.js"
 import { InstanceLockLive } from "./instanceLock.js"
+import { OpsLive } from "./ops.js"
 import { Renderer } from "./render/renderer.js"
 import { SqliteStoreLive } from "./sqliteStore.js"
 import { SteamLive } from "./steam/steamLive.js"
@@ -56,7 +57,7 @@ const PortsLive = Layer.mergeAll(SteamLive, SurfaceLive, SqliteStoreLive).pipe(
   Layer.provideMerge(SqlLive)
 )
 
-const MainLive = InteractionsLive.pipe(
+const MainLive = Layer.mergeAll(InteractionsLive, OpsLive).pipe(
   Layer.provide(Engine.Default),
   Layer.provide(PortsLive),
   Layer.provide(InstanceLockLive),
