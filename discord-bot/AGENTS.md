@@ -70,7 +70,9 @@ The bot serves it on `PORT` (default 8080) only when `DISCORD_CLIENT_SECRET` and
 `DISCORD_APPLICATION_ID` are set; otherwise nothing listens. Trying it in Discord needs, in the
 Developer Portal: Activities enabled, a URL Mapping from `/` to the server's public host (a
 `cloudflared tunnel --url http://localhost:8080` works locally), and the OAuth2 client secret.
-Production doesn't run it: `fly.toml` has no `http_service`.
+Production serves it at `https://multiballs.fly.dev` (`fly.toml`'s `http_service`), with
+`DISCORD_APPLICATION_ID` and `DISCORD_CLIENT_SECRET` in `fly secrets` and the production app's
+URL Mapping pointing there.
 
 ## Production
 
