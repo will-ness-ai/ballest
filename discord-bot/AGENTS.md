@@ -48,3 +48,5 @@ engine's restart recovery resumes live Matches. `src/ops.ts` pings Healthchecks.
 (`HEALTHCHECK_URL`), which alerts the private `#multiballs-ops` channel when pings stop, and
 posts there daily (`OPS_WEBHOOK_URL`) once the Steam refresh token has 30 days left; renew it
 with `tools/steampy_mint.py` and `fly secrets set STEAM_REFRESH_TOKEN=...`. Logs: `fly logs`.
+`.github/workflows/bot-cost.yml` posts a weekly cost estimate there (`scripts/cost_report.py`;
+Fly has no billing API, so it prices what is provisioned with the rates in that script).
