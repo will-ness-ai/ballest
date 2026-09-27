@@ -1,0 +1,35 @@
+name: Check data
+
+# The committed data has to agree with itself: every board listed, rows aligned
+# to rank, and every derived file equal to what derive() makes from those boards.
+# refresh.yml writes all of that together so its commits are consistent by
+# construction; a human or agent change is where they drift. The drift is not
+# always visible on the branch: a branch carrying a derived file merges cleanly
+# into a main whose boards have moved on since, and the merge result is wrong
+# while neither side was. A pull_request run checks out that merge result, which
+# is the only place that mismatch exists. The push run then covers a merge that
+# went in before the check did, and costs seconds. No Steam credentials either
+# way — that is what check_data.py is for.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  check-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Pure stdlib, like the collector's shared helpers it imports.
+      - name: Check the committed data
+        run: python tools/check_data.py

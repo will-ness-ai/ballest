@@ -20,7 +20,9 @@ capture/
 tools/start-capture.ps1
 tools/stop-capture.ps1
 
-# local scratch
+# local scratch. scratch/ is served by the dev server like any other folder, so
+# a prototype page can be opened at /scratch/<name>.html without landing in a commit.
+scratch/
 __pycache__/
 *.pyc
 
