@@ -2,7 +2,9 @@
 
 Fly has no billing API, so this prices what is actually provisioned with Fly's published rates
 (https://fly.io/docs/about/pricing/) and links the dashboard for the real bill. Bandwidth is
-left out: the bot's traffic is a few MB a day.
+left out: the bot's traffic is a few MB a day. Payment health (billing status, card on file) comes
+from Fly's undocumented GraphQL API, which has no bill amounts; if that query breaks, the report
+says so and posts the rest.
 
 Usage: python cost_report.py <app>   (posts to OPS_WEBHOOK_URL if set, else prints)
 """
@@ -28,6 +30,38 @@ FLY = os.environ.get("FLYCTL", "flyctl")
 def fly(*args: str):
     out = subprocess.run([FLY, *args, "--json"], check=True, capture_output=True, text=True).stdout
     return json.loads(out) or []
+
+
+def payment_line(app: str) -> str:
+    """Billing status and card on file, from Fly's undocumented GraphQL API."""
+    query = '{ app(name: "%s") { organization { billingStatus isCreditCardSaved } } }' % app
+    try:
+        req = urllib.request.Request(
+            "https://api.fly.io/graphql",
+            json.dumps({"query": query}).encode(),
+            {"Authorization": auth_header(fly_token()), "Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=30) as res:
+            org = json.load(res)["data"]["app"]["organization"]
+        status, card = org["billingStatus"], org["isCreditCardSaved"]
+    except Exception as e:  # undocumented API: report the gap, never fail the report
+        return f"• Payment status unavailable ({type(e).__name__})"
+    if status == "CURRENT" and card:
+        return "• Payment: billing current, card on file"
+    problems = ([f"billing status {status}"] if status != "CURRENT" else []) + ([] if card else ["no card on file"])
+    return f"• ⚠ Payment: {', '.join(problems)} (without a card Fly stops the machine after 5 minutes)"
+
+
+def auth_header(token: str) -> str:
+    """Deploy tokens carry their own "FlyV1 " scheme; a user token from `flyctl auth token` is a bearer."""
+    return token if token.startswith("FlyV1 ") else f"Bearer {token}"
+
+
+def fly_token() -> str:
+    token = os.environ.get("FLY_API_TOKEN")
+    if token:
+        return token
+    return subprocess.run([FLY, "auth", "token"], check=True, capture_output=True, text=True).stdout.strip()
 
 
 def machine_month(m: dict) -> float:
@@ -60,6 +94,7 @@ def report(app: str) -> str:
     snap_cost = max(0.0, snapshot_gb - SNAPSHOT_FREE_GB) * SNAPSHOT_GB_MONTH
     total += snap_cost
     lines.append(f"• Snapshots · {snapshot_gb:.2f} GB · ~${snap_cost:.2f}/mo (first {SNAPSHOT_FREE_GB} GB free)")
+    lines.append(payment_line(app))
     flag = "" if total <= BUDGET else f" ⚠ over the ${BUDGET:.2f} budget"
     return "\n".join(
         [
