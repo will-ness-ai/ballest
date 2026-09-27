@@ -382,7 +382,9 @@ def build_sections(players, per_map, names, top, failed, oldest=(), oldest_ugc=(
         """Several top lists side by side in one monospaced block, one per column:
         (header, stat, tiebreak stat). Names are clipped to TABLE_NAME_WIDTH so the
         rows stay on one line; markdown is inert inside a code block, so no escaping,
-        but a backtick would end the block early and is swapped out."""
+        but a backtick would end the block early and is swapped out. Unlike the other
+        sections it is not quoted: Discord does not render a code block inside a quote,
+        and the stray fence breaks the markdown of every section after it."""
         cols = []
         for header, key, then in columns:
             rows = [(pos, names.get(sid, {}).get("persona") or sid, n)
@@ -403,8 +405,8 @@ def build_sections(players, per_map, names, top, failed, oldest=(), oldest_ugc=(
             return f"{pos:>2}  {who:<{TABLE_NAME_WIDTH}} {n:>4}"
 
         body = ["  ".join(cell(h, r, i) for h, r in cols).rstrip() for i in range(-1, height)]
-        lines = [f"> ### {title}", "> ```"] + ["> " + b for b in body] + ["> ```"]
-        return "\n".join(lines) if height else f"> ### {title}\n> _nobody yet_"
+        lines = [f"### {title}", "```"] + body + ["```"]
+        return "\n".join(lines) if height else f"### {title}\n_nobody yet_"
 
     when = time.strftime("%-d %b %Y" if os.name != "nt" else "%#d %b %Y", time.gmtime())
     head = "\n".join(["# Custom Map Standings",
