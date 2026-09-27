@@ -1,7 +1,7 @@
 # Multiballs in production. CI deploys it on every push to main that touches discord-bot/
 # (.github/workflows/bot.yml). Secrets live in `fly secrets`, never here.
 app = "multiballs"
-primary_region = "iad"
+primary_region = "ord"
 # The bot shuts down cleanly on SIGTERM (Steam log off, Discord destroy, SQLite closed).
 kill_signal = "SIGTERM"
 kill_timeout = 30
