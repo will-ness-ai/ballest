@@ -1,6 +1,7 @@
 // Each Workshop Map's preview image, for both surfaces: the Card draws it behind the Map's title,
 // and the Activity page shows it on the Map's tile and in the Match view. One fetch and one cache
-// serve both, so a preview one shows the other shows, and Steam is asked once per Map.
+// serve both, so a preview one shows the other shows, and Steam is asked about a Map only when it
+// isn't kept (two draws at the same moment can both ask).
 import { Clock, Context, Data, Effect, Layer, Option, Ref } from "effect"
 
 /** A preview image as Steam serves it: PNG or JPEG, the formats the Card's renderer can draw. */
@@ -37,7 +38,7 @@ export class MapPreviews extends Effect.Service<MapPreviews>()("multiballs/MapPr
         const known = (yield* Ref.get(kept)).get(url)
         if (known !== undefined && (Option.isSome(known.preview) || now - known.at < MISSING_RETRY_MS)) return known.preview
         const preview = yield* source.fetch(url).pipe(
-          Effect.tapError((e) => Effect.logWarning(`no preview at ${url} (${e.reason}); drawing the stand-in`)),
+          Effect.tapError((e) => Effect.logWarning(`no preview at ${url} (${e.reason}); showing the stand-in`)),
           Effect.option
         )
         yield* Ref.update(kept, (m) => {

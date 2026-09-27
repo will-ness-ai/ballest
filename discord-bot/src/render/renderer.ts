@@ -80,9 +80,13 @@ interface Rasterised {
   readonly error?: string
 }
 
+/** A draw that takes this long is given up, and its worker replaced: a Card takes about a second. */
+const RASTERISE_TIMEOUT = "30 seconds"
+
 /**
  * The rasteriser's worker thread, started on the first draw and again if it ever dies, stopped
- * with the Renderer. Each draw waits for its own PNG.
+ * with the Renderer. Each draw waits for its own PNG; one that never comes back times out, and
+ * the stuck worker is stopped, which fails every draw still waiting on it.
  */
 const makeRasteriser = Effect.gen(function* () {
   const waiting = new Map<number, (result: Effect.Effect<Buffer, RenderError>) => void>()
@@ -99,22 +103,35 @@ const makeRasteriser = Effect.gen(function* () {
       waiting.delete(id)
       resume?.(png === undefined ? Effect.fail(new RenderError({ cause: error })) : Effect.succeed(Buffer.from(png)))
     })
-    started.on("error", (cause) => failWaiting(cause))
-    started.on("exit", () => {
+    // A worker that failed or stopped takes no more draws; the next draw starts a fresh one.
+    const retire = (cause: unknown) => {
       if (worker === started) worker = null
-      failWaiting("the rasteriser stopped")
-    })
+      failWaiting(cause)
+    }
+    started.on("error", (cause) => retire(cause))
+    started.on("exit", () => retire("the rasteriser stopped"))
     return started
   }
-  yield* Effect.addFinalizer(() => Effect.promise(async () => void (await worker?.terminate())))
+  const stop = Effect.promise(async () => void (await worker?.terminate()))
+  yield* Effect.addFinalizer(() => stop)
   return Effect.fn("rasterise")(function* (svg: string) {
     return yield* Effect.async<Buffer, RenderError>((resume) => {
       const id = next++
-      waiting.set(id, resume)
-      worker ??= start()
-      worker.postMessage({ id, svg, scale: SCALE })
+      try {
+        worker ??= start()
+        worker.postMessage({ id, svg, scale: SCALE })
+        // The answer can't arrive before this tick ends, so waiting after posting is safe.
+        waiting.set(id, resume)
+      } catch (cause) {
+        resume(Effect.fail(new RenderError({ cause })))
+      }
       return Effect.sync(() => waiting.delete(id))
-    })
+    }).pipe(
+      Effect.timeout(RASTERISE_TIMEOUT),
+      Effect.catchTag("TimeoutException", () =>
+        stop.pipe(Effect.zipRight(Effect.fail(new RenderError({ cause: `rasterising took over ${RASTERISE_TIMEOUT}` }))))
+      )
+    )
   })
 })
 

@@ -7,22 +7,21 @@ import { MapPreviews, type Preview, PreviewSource, PreviewUnavailable } from "..
 const JPEG: Preview = { type: "image/jpeg", body: new Uint8Array([1, 2, 3]) }
 
 /** A host that serves `images` by URL and counts every fetch. */
-const setup = (images: Record<string, Preview | "down">) =>
-  Effect.gen(function* () {
-    const fetches = yield* Ref.make(0)
-    const source = PreviewSource.of({
-      fetch: (url) =>
-        Ref.update(fetches, (n) => n + 1).pipe(
-          Effect.zipRight(
-            images[url] === undefined || images[url] === "down"
-              ? Effect.fail(new PreviewUnavailable({ reason: "404" }))
-              : Effect.succeed(images[url])
-          )
+const setup = Effect.fn("setup")(function* (images: Record<string, Preview | "down">) {
+  const fetches = yield* Ref.make(0)
+  const source = PreviewSource.of({
+    fetch: (url) =>
+      Ref.update(fetches, (n) => n + 1).pipe(
+        Effect.zipRight(
+          images[url] === undefined || images[url] === "down"
+            ? Effect.fail(new PreviewUnavailable({ reason: "404" }))
+            : Effect.succeed(images[url])
         )
-    })
-    const previews = yield* MapPreviews.pipe(Effect.provide(MapPreviews.Default.pipe(Layer.provide(Layer.succeed(PreviewSource, source)))))
-    return { previews, fetches: Ref.get(fetches) }
+      )
   })
+  const previews = yield* MapPreviews.pipe(Effect.provide(MapPreviews.Default.pipe(Layer.provide(Layer.succeed(PreviewSource, source)))))
+  return { previews, fetches: Ref.get(fetches) }
+})
 
 describe("Map previews", () => {
   it.effect("fetch each preview once, however many times it's drawn", () =>

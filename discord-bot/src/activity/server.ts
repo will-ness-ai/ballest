@@ -96,10 +96,10 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (config: P
   const preview = Effect.gen(function* () {
     const { id = "" } = yield* HttpRouter.params
     const m = yield* store.getMatch(id)
-    const preview = Option.isSome(m) && m.value.map !== null ? yield* previews.of(m.value.map.previewUrl) : Option.none()
+    const found = Option.isSome(m) && m.value.map !== null ? yield* previews.of(m.value.map.previewUrl) : Option.none()
     // A missing preview is remembered by the browser for a while too, so redraws don't ask again.
-    if (Option.isNone(preview)) return HttpServerResponse.empty({ status: 404, headers: { "cache-control": "public, max-age=300" } })
-    return HttpServerResponse.uint8Array(preview.value.body, { contentType: preview.value.type, headers: { "cache-control": DAY } })
+    if (Option.isNone(found)) return HttpServerResponse.empty({ status: 404, headers: { "cache-control": "public, max-age=300" } })
+    return HttpServerResponse.uint8Array(found.value.body, { contentType: found.value.type, headers: { "cache-control": DAY } })
   })
 
   const font = Effect.gen(function* () {
