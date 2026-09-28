@@ -572,3 +572,96 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
       : textAt(L, H - 12, `No time: ${untimed.map((s) => nameOf(s.player.steamId)).join(", ")}`, { fontFamily: F.hud, fontSize: 10, color: C.faint })
   )
 }
+
+// ---------------------------------------------------------------- the Activity's art
+// The images uploaded to the Developer Portal (Activities -> Art Assets, and the app icon), written
+// by `pnpm render:activity-art`. The settled design is the prototype on branch claude/prototype-activity-art:
+// the logo's three marbles racked in a triangle, pink at the front. Scenes are laid out at half
+// size; the renderer draws them at twice that.
+
+export type ActivityArt = "icon" | "cover" | "background"
+
+/** Layout sizes: a 1024 icon, and a 1920x1080 cover and grid-view background. */
+export const ACTIVITY_ART_SIZE: Record<ActivityArt, readonly [width: number, height: number]> = {
+  icon: [512, 512],
+  cover: [960, 540],
+  background: [960, 540]
+}
+
+const LOGO_HUES = { blue: 212, pink: 332, lime: 96 } as const
+
+/** Art drawn in a 1600x900 (or 1024 square) SVG, placed over the whole scene. */
+const artSvg = (w: number, h: number, body: string) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>`
+const placedMarble = (hue: number, cx: number, cy: number, r: number, id: string) =>
+  `<g transform="translate(${cx - r} ${cy - r})">${marbleSvg(hue, r * 2, id)}</g>`
+const floorShadow = (cx: number, cy: number, rx: number) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${rx * 0.22}" fill="#000" opacity=".5"/>`
+const glow = (id: string, cx: string, cy: string, r: string, color: string, opacity: number, w: number, h: number) =>
+  `<defs><radialGradient id="${id}" cx="${cx}" cy="${cy}" r="${r}"><stop offset="0" stop-color="${color}" stop-opacity="${opacity}"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient></defs><rect width="${w}" height="${h}" fill="url(#${id})"/>`
+
+/** The cover: the rack under one soft light, on a lit floor. Everything sits inside the 13:11 centre crop (x 268..1332). */
+const coverArt = () =>
+  artSvg(
+    1600,
+    900,
+    `<rect width="1600" height="900" fill="#070c18"/>` +
+      glow("spot", "50%", "38%", "55%", "#3a5fa8", 0.55, 1600, 900) +
+      `<ellipse cx="800" cy="610" rx="544" ry="63" fill="#8fb4ff" opacity=".10"/>` +
+      floorShadow(640, 610, 130) + floorShadow(960, 610, 130) + floorShadow(800, 640, 140) +
+      placedMarble(LOGO_HUES.blue, 640, 460, 140, "b") + placedMarble(LOGO_HUES.lime, 960, 460, 140, "l") + placedMarble(LOGO_HUES.pink, 800, 500, 150, "p")
+  )
+
+/** The icon: the same triangle filling the circle Discord masks it to, on flat navy. */
+const iconArt = () =>
+  artSvg(
+    1024,
+    1024,
+    `<rect width="1024" height="1024" fill="${C.bg}"/>` +
+      placedMarble(LOGO_HUES.blue, 318, 380, 236, "b") + placedMarble(LOGO_HUES.lime, 706, 380, 236, "l") + placedMarble(LOGO_HUES.pink, 512, 700, 250, "p")
+  )
+
+/** Grid view: the Activity page's navy glow, with a marble cropped into three corners and the centre clear for Discord's tiles. */
+const backgroundArt = () =>
+  artSvg(
+    1600,
+    900,
+    `<rect width="1600" height="900" fill="${C.bg}"/>` +
+      glow("blue", "80%", "-10%", "75%", "#58a8ff", 0.3, 1600, 900) +
+      glow("lime", "4%", "4%", "65%", "#8be03c", 0.18, 1600, 900) +
+      placedMarble(LOGO_HUES.blue, 60, 40, 260, "b") + placedMarble(LOGO_HUES.pink, 1580, 880, 300, "p") + placedMarble(LOGO_HUES.lime, 1560, 60, 170, "l")
+  )
+
+/** "DEV", on the dev app's art so the two apps tell apart on the test server's shelf. */
+const devTag = (fontSize: number) =>
+  box(
+    {
+      fontFamily: F.hud,
+      fontWeight: 700,
+      fontSize,
+      letterSpacing: fontSize * 0.14,
+      color: C.accentInk,
+      backgroundColor: C.accent,
+      borderRadius: fontSize * 0.4,
+      padding: `${fontSize * 0.12}px ${fontSize * 0.45}px`
+    },
+    "DEV"
+  )
+
+export const activityArtScene = (art: ActivityArt, dev: boolean): El => {
+  const [w, h] = ACTIVITY_ART_SIZE[art]
+  const svg = art === "icon" ? iconArt() : art === "cover" ? coverArt() : backgroundArt()
+  return box(
+    { position: "relative", width: w, height: h, backgroundColor: C.bg },
+    img(svgUri(svg), w, h, { position: "absolute", left: 0, top: 0 }),
+    art === "cover"
+      ? box(
+          { position: "absolute", left: 0, top: 432, width: w, justifyContent: "center", fontFamily: F.marquee, fontSize: 47, letterSpacing: 1.4, color: C.text },
+          "MULTI",
+          box({ color: C.accent }, "BALLS")
+        )
+      : null,
+    // The icon's tag sits bottom centre, where the circle mask keeps it; the cover's sits inside the 13:11 crop.
+    dev && art === "icon" ? box({ position: "absolute", left: 0, bottom: 34, width: w, justifyContent: "center" }, devTag(60)) : null,
+    dev && art === "cover" ? box({ position: "absolute", right: 180, bottom: 22 }, devTag(26)) : null
+  )
+}

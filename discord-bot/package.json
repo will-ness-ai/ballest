@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "render:samples": "tsx scripts/render-samples.ts",
+    "render:activity-art": "tsx scripts/render-activity-art.ts",
     "smoke:steam": "tsx scripts/smoke-steam.ts",
     "start": "tsx src/main.ts",
     "dev": "node --import tsx scripts/dev.ts",
