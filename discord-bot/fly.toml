@@ -32,6 +32,8 @@ kill_timeout = 30
 [[restart]]
   policy = "always"
 
+# 1 GB: the bot idles near 335 MB, and resvg's WebAssembly memory grows about 110 MB to fit the
+# largest image it draws, then holds. At 512 MB that plateau ran it out of memory (2026-09-27).
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "512mb"
+  memory = "1gb"

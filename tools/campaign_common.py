@@ -385,10 +385,23 @@ def write_site(boards_out, all_ids):
     print(f"Resolving {len(all_ids)} player names...")
     names = resolve_names(key, all_ids)
 
-    # Everything below the boards is derived from the rows above, fallback data
-    # included, so it can never disagree with the boards the page shows. The
-    # composite comes back inside boards_out, which puts it through the same
-    # name refresh, file write and index entry as a Steam board.
+    # Names first: derive() copies persona/avatar/profileurl from the rows, so
+    # rows it reads without names publish derived files with blank ones while
+    # the boards get theirs (the 2026-09-27T23:32Z refresh did exactly that).
+    for b in boards_out:
+        for r in b["rows"]:
+            info = names.get(r["steam_id"], {})
+            # Prefer a freshly-resolved value, but keep any existing one if this
+            # run's resolution came back empty (e.g. a failed GetPlayerSummaries
+            # chunk, or rows reused from a previous run).
+            r["persona"] = info.get("persona") or r.get("persona", "")
+            r["avatar"] = info.get("avatar") or r.get("avatar", "")
+            r["profileurl"] = info.get("profileurl") or r.get("profileurl", "")
+
+    # Everything below the boards is derived from the named rows above, fallback
+    # data included, so it can never disagree with the boards the page shows.
+    # The composite comes back inside boards_out, which puts it through the same
+    # file write and index entry as a Steam board.
     boards_out, artifacts = derive(boards_out)
     composite = next((b for b in boards_out if b["name"] == COMPOSITE_BOARD), None)
     if composite:
@@ -401,13 +414,6 @@ def write_site(boards_out, all_ids):
     unique = set()
     for b in boards_out:
         for r in b["rows"]:
-            info = names.get(r["steam_id"], {})
-            # Prefer a freshly-resolved value, but keep any existing one if this
-            # run's resolution came back empty (e.g. a failed GetPlayerSummaries
-            # chunk, or rows reused from a previous run).
-            r["persona"] = info.get("persona") or r.get("persona", "")
-            r["avatar"] = info.get("avatar") or r.get("avatar", "")
-            r["profileurl"] = info.get("profileurl") or r.get("profileurl", "")
             unique.add(r["steam_id"])
         fname = b["name"] + ".json"
         board_doc = {"name": b["name"], "display": b["display"], "group": b["group"],

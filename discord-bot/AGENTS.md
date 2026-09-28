@@ -51,8 +51,8 @@ Engine, tested in `test/activity.test.ts` like the engine tests; it names Player
 does and refuses anyone outside `DISCORD_GUILD_ID`. `auth.ts` swaps the SDK's OAuth code for an
 access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
 page (`web/`: `view.ts` is the markup, `app.ts` the state and actions, bundled by esbuild at
-startup), its fonts from `@fontsource`, and each Map's Workshop preview, fetched here because
-Discord's proxy blocks every other host. The page polls every two seconds. The visual reference
+startup), its fonts from `@fontsource`, and each Map's Workshop preview (from `src/previews.ts`),
+because Discord's proxy blocks every other host. The page polls every two seconds. The visual reference
 is the prototype on branch `claude/prototype-activity-surfaces`.
 
 The Activity's art in the Developer Portal (the app icon, and the cover and grid-view background
@@ -63,7 +63,8 @@ The PNGs are committed; upload them by hand after changing them.
 The channel and the Activity show the same Matches, so what they say comes from one place, and a
 change there reaches both: the Board Slab's rows and a Match's words from `src/present.ts`, every
 PB's rank, gain and world record from `progress` in `domain.ts` (the engine posts exactly that),
-marbles and Medals from `render/art.ts`, and each member's buttons from `actionsFor`. Test those in
+marbles and Medals from `render/art.ts`, each Map's preview from `src/previews.ts`, and each
+member's buttons from `actionsFor`. Test those in
 `test/present.test.ts` and at the API; the surfaces only lay them out.
 
 `pnpm activity:demo` (or the `activity-demo` launch config) runs the page and API on port 8740

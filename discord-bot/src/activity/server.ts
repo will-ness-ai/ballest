@@ -13,8 +13,9 @@ import { fileURLToPath } from "node:url"
 import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
 import { NodeHttpServer } from "@effect/platform-node"
 import { build } from "esbuild"
-import { Clock, Config, Data, Effect, Layer, Option, Ref } from "effect"
+import { Config, Data, Effect, Layer, Option } from "effect"
 import { Store } from "../ports.js"
+import { MapPreviews } from "../previews.js"
 import { makeActivityApi } from "./api.js"
 
 const WEB = fileURLToPath(new URL("./web/", import.meta.url))
@@ -43,8 +44,6 @@ const FACES: ReadonlyArray<readonly [string, ReadonlyArray<number>]> = [
 
 /** The page, its script or its fonts couldn't be read or built: the Activity can't start. */
 export class ActivityUnavailable extends Data.TaggedError("ActivityUnavailable")<{ readonly what: string; readonly cause: unknown }> {}
-/** Steam wouldn't give a Map's preview. */
-class PreviewUnavailable extends Data.TaggedError("PreviewUnavailable")<{ readonly reason: string }> {}
 
 const loadFonts = Effect.tryPromise({
   try: async () => {
@@ -82,31 +81,6 @@ const loadPage = Effect.tryPromise({
   catch: (cause) => new ActivityUnavailable({ what: "page", cause })
 })
 
-/** Recent Map previews, so every viewer's page doesn't refetch them from Steam. */
-const PREVIEWS_KEPT = 50
-/** A preview Steam wouldn't give is asked for again after this long. */
-const MISSING_RETRY_MS = 5 * 60_000
-
-interface Image {
-  readonly type: string
-  readonly body: Uint8Array
-}
-
-const fetchImage = Effect.fn("fetchImage")(function* (url: string) {
-  const response = yield* Effect.tryPromise({
-    try: () => fetch(url, { signal: AbortSignal.timeout(5000) }),
-    catch: (cause) => new PreviewUnavailable({ reason: String(cause) })
-  })
-  const type = response.headers.get("content-type") ?? ""
-  if (!response.ok || !type.startsWith("image/")) return yield* new PreviewUnavailable({ reason: `${response.status} ${type}` })
-  const body = yield* Effect.tryPromise({
-    try: () => response.arrayBuffer(),
-    catch: (cause) => new PreviewUnavailable({ reason: String(cause) })
-  })
-  const image: Image = { type, body: new Uint8Array(body) }
-  return image
-})
-
 const DAY = "public, max-age=86400"
 
 /** The whole app: page, script, fonts, previews, config, API. `channelId` is where the links point. */
@@ -114,39 +88,18 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (config: P
   const { channelId, ...page } = config
   const api = yield* makeActivityApi({ guildId: config.guildId, channelId })
   const store = yield* Store
+  const previews = yield* MapPreviews
   const script = yield* bundle
   const html = yield* loadPage
   const fonts = yield* loadFonts
-  /** Each preview, or null (with when it went missing) for one Steam wouldn't give. */
-  const previews = yield* Ref.make(new Map<string, { readonly image: Image | null; readonly at: number }>())
-
-  /** Steam's preview for this URL: kept, or fetched now. A missing one is tried again after a while. */
-  const imageOf = Effect.fn("imageOf")(function* (id: string, url: string) {
-    const now = yield* Clock.currentTimeMillis
-    const known = (yield* Ref.get(previews)).get(url)
-    if (known !== undefined && (known.image !== null || now - known.at < MISSING_RETRY_MS)) return known.image
-    const image = yield* fetchImage(url).pipe(
-      Effect.tapError((e) => Effect.logWarning(`activity: no preview for ${id} (${e.reason})`)),
-      Effect.option,
-      Effect.map((found) => Option.getOrNull(found))
-    )
-    yield* Ref.update(previews, (m) => {
-      const next = new Map(m).set(url, { image, at: now })
-      for (const key of next.keys()) if (next.size > PREVIEWS_KEPT) next.delete(key)
-      return next
-    })
-    return image
-  })
-
   /** A Match's Map preview, only for a Match the bot has drawn a Map for: this is no open proxy. */
   const preview = Effect.gen(function* () {
     const { id = "" } = yield* HttpRouter.params
-    const url = Option.flatMap(yield* store.getMatch(id), (m) => Option.fromNullable(m.map?.previewUrl || null))
-    if (Option.isNone(url)) return HttpServerResponse.empty({ status: 404 })
-    const image = yield* imageOf(id, url.value)
+    const m = yield* store.getMatch(id)
+    const found = Option.isSome(m) && m.value.map !== null ? yield* previews.of(m.value.map.previewUrl) : Option.none()
     // A missing preview is remembered by the browser for a while too, so redraws don't ask again.
-    if (image === null) return HttpServerResponse.empty({ status: 404, headers: { "cache-control": "public, max-age=300" } })
-    return HttpServerResponse.uint8Array(image.body, { contentType: image.type, headers: { "cache-control": DAY } })
+    if (Option.isNone(found)) return HttpServerResponse.empty({ status: 404, headers: { "cache-control": "public, max-age=300" } })
+    return HttpServerResponse.uint8Array(found.value.body, { contentType: found.value.type, headers: { "cache-control": DAY } })
   })
 
   const font = Effect.gen(function* () {
