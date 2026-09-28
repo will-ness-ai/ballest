@@ -55,6 +55,11 @@ startup), its fonts from `@fontsource`, and each Map's Workshop preview, fetched
 Discord's proxy blocks every other host. The page polls every two seconds. The visual reference
 is the prototype on branch `claude/prototype-activity-surfaces`.
 
+The Activity's art in the Developer Portal (the app icon, and the cover and grid-view background
+under Activities -> Art Assets) is drawn by `src/render/` too: `pnpm render:activity-art` writes it
+to `assets/activity/`, with a DEV-tagged icon and cover for the dev app in `assets/activity/dev/`.
+The PNGs are committed; upload them by hand after changing them.
+
 The channel and the Activity show the same Matches, so what they say comes from one place, and a
 change there reaches both: the Board Slab's rows and a Match's words from `src/present.ts`, every
 PB's rank, gain and world record from `progress` in `domain.ts` (the engine posts exactly that),

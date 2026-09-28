@@ -10,6 +10,9 @@ import satori, { type Font } from "satori"
 import type { Improvement, ProfilePreview } from "../ports.js"
 import { marbleSvg } from "./art.js"
 import {
+  ACTIVITY_ART_SIZE,
+  type ActivityArt,
+  activityArtScene,
   CARD_WIDTH,
   cardScene,
   type CardImage,
@@ -93,6 +96,8 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
       link: (preview: ProfilePreview) => draw(linkScene(preview), LINK_WIDTH),
       /** After the Result: every PB of the Match over its clock. */
       progression: (image: ProgressionImage) => draw(progressionScene(image), PROGRESSION_WIDTH),
+      /** The Activity's art for the Developer Portal; `dev` tags it for the dev app. */
+      activityArt: (art: ActivityArt, dev: boolean) => draw(activityArtScene(art, dev), ACTIVITY_ART_SIZE[art][0]),
       /** A bare marble, for the lifecycle-line emojis. */
       marble: (hue: number) => rasterise(marbleSvg(hue, 64))
     }
