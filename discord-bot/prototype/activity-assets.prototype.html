@@ -1,0 +1,320 @@
+<title>Multiballs Activity Art</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Bungee&family=Chakra+Petch:wght@500;600;700&family=Nunito:wght@800;900&display=swap">
+<style>
+/* PROTOTYPE, throwaway. Grill-design for the Activity's art.
+   Round 1: The Rack (logo marbles on the Activity navy); wordmark small.
+   Round 2: cover = Centred Rack, icon = Packed; slots = cover, icon, grid-view background.
+   Round 3: cover ground = Spotlight; icon = flat navy, no light; grid background = Corner Marbles. */
+:root{
+  color-scheme:dark;
+  --bg:#0a1020; --solid:#111a2c; --line:rgba(150,175,245,.18); --text:#eaf0ff; --dim:#93a2c8; --faint:#63719a;
+  --accent:#8be03c; --accent-ink:#0d2000;
+  --dc-pop:#1e1f22; --dc-card:#2b2d31; --dc-card2:#232428; --dc-text:#f2f3f5; --dc-dim:#b5bac1; --dc-blurple:#5865f2;
+  --f-marquee:'Bungee',system-ui,sans-serif; --f-hud:'Chakra Petch',system-ui,sans-serif; --f-body:'Archivo',system-ui,sans-serif;
+  --f-dc:'gg sans','Noto Sans','Helvetica Neue',Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--text);font:400 14px/1.5 var(--f-body);padding:20px 16px 170px}
+.wrap{max-width:1120px;margin:0 auto;display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;justify-content:space-between}
+header h1{margin:0;font:400 20px/1.1 var(--f-marquee);letter-spacing:.02em}
+header h1 b{font-weight:400;color:var(--accent)}
+header p{margin:0;color:var(--dim);font:500 13px var(--f-hud)}
+.eyebrow{font:600 10.5px/1.2 var(--f-hud);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.pitches{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px}
+@media (max-width:820px){.pitches{grid-template-columns:1fr}}
+.pitch{font:500 14px/1.45 var(--f-body);margin:4px 0 0;max-width:62ch}
+.pitch b{color:var(--accent);font-weight:700}
+.pitchbox.active .eyebrow{color:var(--accent)}
+
+.scene{display:grid;grid-template-columns:minmax(0,470px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){.scene{grid-template-columns:1fr}}
+.pop{background:var(--dc-pop);border:1px solid #3a3c43;border-radius:10px;padding:14px 16px 18px;font-family:var(--f-dc);color:var(--dc-text);box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.pop .dev{font-size:13px;color:var(--dc-dim);margin-bottom:10px}
+.pop .search{border:2px solid var(--dc-blurple);border-radius:8px;padding:7px 10px;color:#80848e;font-size:14px;margin-bottom:14px}
+.pop h4{margin:0 0 8px;font-size:14px;font-weight:700;display:flex;justify-content:space-between}
+.pop h4 span{color:#949cf7;font-weight:600}
+.recents{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.recents .ri{width:44px;height:44px;border-radius:12px;overflow:hidden;flex:none;background:#3a3c43}
+.recents .ri svg,.card .ic svg,.m svg{width:100%;height:100%;display:block}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{background:var(--dc-card);border-radius:8px;overflow:hidden}
+.cv{aspect-ratio:16/9;position:relative;overflow:hidden;background:var(--dc-card2)}
+.cv svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.cv.sq{aspect-ratio:13/11}
+.card .meta{display:flex;align-items:center;gap:9px;padding:9px 10px 11px}
+.card .ic{width:30px;height:30px;border-radius:50%;overflow:hidden;flex:none;background:#3a3c43}
+.card .nm{font-size:13.5px;font-weight:700;line-height:1.15}
+.card .ds{font-size:12px;color:var(--dc-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.other .cv{background:linear-gradient(135deg,#4b2a6b,#b8487a)}
+.card.other.o2 .cv{background:linear-gradient(135deg,#1f3b5a,#2c8f8a)}
+.card.other .ic{background:#6d6f78}
+
+.big{display:grid;gap:12px}
+.covers{display:grid;grid-template-columns:minmax(0,1.64fr) minmax(0,1fr);gap:12px;align-items:end}
+.covers .cv{border-radius:10px;border:1px solid var(--line)}
+.covers figure,.iconrow figure{margin:0;display:grid;gap:6px}
+figcaption{font:500 11px var(--f-hud);color:var(--faint)}
+.iconrow{display:flex;gap:18px;align-items:end;flex-wrap:wrap}
+.iconrow figure{justify-items:center}
+.m{overflow:hidden;flex:none}
+.circle{border-radius:50%}.squircle{border-radius:22%}
+
+/* Discord's grid view: the Activity's tile and the call tiles over the Embedded Background */
+.gridview{border-radius:12px;overflow:hidden;position:relative;aspect-ratio:16/9;border:1px solid var(--line);font-family:var(--f-dc)}
+.gridview>.bgart{position:absolute;inset:0}
+.gridview>.bgart svg{width:100%;height:100%;display:block}
+.gv-ui{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:1fr 1fr;gap:1.4%;padding:14% 20% 16%}
+.gv-ui>div{border-radius:10px;background:#1e1f22;display:grid;place-items:center;color:var(--dc-dim);font-size:clamp(9px,1.2vw,13px);box-shadow:0 6px 20px rgba(0,0,0,.45)}
+.gv-ui .act{grid-column:1/3;grid-row:1/3;background:#0a1020;border:2px solid #5865f2;color:var(--dc-text);font-weight:700}
+.gv-ui .av{width:34%;aspect-ratio:1;border-radius:50%;background:#5865f2;opacity:.8}
+.gv-bar{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);display:flex;gap:8px;padding:6px 10px;border-radius:12px;background:#1e1f22e6}
+.gv-bar i{width:clamp(16px,2.6vw,30px);aspect-ratio:1;border-radius:50%;background:#4e5058}
+.gv-bar i:last-child{background:#da373c}
+
+.picker{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:10;width:min(340px,calc(100vw - 32px));
+  background:rgba(17,26,44,.96);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.55);backdrop-filter:blur(8px);font-family:var(--f-hud)}
+.picker .grip{cursor:grab;padding:8px 12px 4px;display:flex;justify-content:space-between;align-items:center;touch-action:none;user-select:none}
+.picker .grip:active{cursor:grabbing}
+.picker .grip i{width:34px;height:4px;border-radius:2px;background:var(--line)}
+.picker .now{display:grid;grid-template-columns:36px 1fr 36px;gap:8px;align-items:center;padding:4px 10px 8px}
+.picker .now button{height:36px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);font:700 16px var(--f-hud);cursor:pointer}
+.picker .now button:hover{border-color:var(--dim)}
+.picker .name{text-align:center;font:700 15px/1.15 var(--f-hud)}
+.picker .name small{display:block;font:500 11px var(--f-hud);color:var(--dim);letter-spacing:.08em}
+.picker .dots{display:flex;justify-content:center;gap:6px;padding-bottom:8px}
+.picker .dots button{width:8px;height:8px;border-radius:50%;border:0;padding:0;background:var(--line);cursor:pointer}
+.picker .dots button.on{background:var(--accent)}
+.picker .states{display:flex;gap:6px;padding:0 10px 8px}
+.picker .states:last-child{padding-bottom:10px}
+.picker .states button{flex:1;border:1px solid var(--line);background:none;color:var(--dim);border-radius:8px;padding:6px 0;font:600 12px var(--f-hud);cursor:pointer}
+.picker .states button.on{border-color:var(--accent);color:var(--accent);background:rgba(139,224,60,.12)}
+.picker .states.target button{font-weight:700;padding:8px 0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Multi<b>balls</b> · Activity art</h1>
+    <p>Settled · Spotlight cover, flat-navy icon, Corner Marbles background</p>
+  </header>
+  <div class="pitches">
+    <div class="pitchbox" id="pb-ground"><div class="eyebrow" id="vn-ground"></div><p class="pitch" id="vp-ground"></p></div>
+    <div class="pitchbox" id="pb-embed"><div class="eyebrow" id="vn-embed"></div><p class="pitch" id="vp-embed"></p></div>
+  </div>
+
+  <div class="scene" id="shelf">
+    <div class="pop">
+      <div class="dev">You are using the "Developer Activity Shelf". So fancy!</div>
+      <div class="search">Search</div>
+      <h4>Recents <span>View More</span></h4>
+      <div class="recents" id="recents"></div>
+      <h4>Activities</h4>
+      <div class="cards">
+        <div class="card"><div class="cv" data-slot="cover"></div><div class="meta"><div class="ic" data-slot="icon"></div><div style="min-width:0"><div class="nm">MULTIBALLS</div><div class="ds">Race your friends on Ballest</div></div></div></div>
+        <div class="card other"><div class="cv"></div><div class="meta"><div class="ic"></div><div style="min-width:0"><div class="nm">Another Activity</div><div class="ds">For contrast on the shelf</div></div></div></div>
+        <div class="card other o2"><div class="cv"></div><div class="meta"><div class="ic"></div><div style="min-width:0"><div class="nm">Another Activity</div><div class="ds">For contrast on the shelf</div></div></div></div>
+        <div class="card"><div class="cv" data-slot="cover"></div><div class="meta"><div class="ic" data-slot="icon"></div><div style="min-width:0"><div class="nm">Multiballs (dev)</div><div class="ds">Race your friends on Ballest</div></div></div></div>
+      </div>
+    </div>
+    <div class="big">
+      <div class="eyebrow">Cover art · 16:9 and the 13:11 crop</div>
+      <div class="covers">
+        <figure><div class="cv" data-slot="cover"></div><figcaption>16:9</figcaption></figure>
+        <figure><div class="cv sq" data-slot="cover"></div><figcaption>13:11</figcaption></figure>
+      </div>
+      <div class="eyebrow">App icon</div>
+      <div class="iconrow">
+        <figure><div class="m circle" style="width:128px;height:128px" data-slot="icon"></div><figcaption>card</figcaption></figure>
+        <figure><div class="m squircle" style="width:128px;height:128px" data-slot="icon"></div><figcaption>recents</figcaption></figure>
+        <figure><div class="m circle" style="width:40px;height:40px" data-slot="icon"></div><figcaption>40</figcaption></figure>
+        <figure><div class="m circle" style="width:24px;height:24px" data-slot="icon"></div><figcaption>24</figcaption></figure>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene" id="grid" hidden style="grid-template-columns:1fr">
+    <div class="big">
+      <div class="eyebrow">Grid view · the background behind the Activity and the call</div>
+      <div class="gridview">
+        <div class="bgart" data-slot="embed"></div>
+        <div class="gv-ui"><div class="act">Multiballs</div><div><span class="av"></span></div><div><span class="av" style="background:#e67e22"></span></div></div>
+        <div class="gv-bar"><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="eyebrow">Background · raw</div>
+      <div class="cv" style="border-radius:10px;border:1px solid var(--line)" data-slot="embed"></div>
+    </div>
+  </div>
+</div>
+
+<div class="picker" id="picker" role="group" aria-label="Design picker">
+  <div class="grip" id="grip"><span class="eyebrow">Choosing</span><i></i><span class="eyebrow">← →</span></div>
+  <div class="states target">
+    <button id="t-ground" class="on">Ground</button>
+    <button id="t-embed">Grid background</button>
+  </div>
+  <div class="now">
+    <button id="prev" aria-label="Previous design">←</button>
+    <div class="name" id="pname"></div>
+    <button id="next" aria-label="Next design">→</button>
+  </div>
+  <div class="dots" id="dots"></div>
+  <div class="states">
+    <button id="st-shelf" class="on">On the shelf</button>
+    <button id="st-grid">In grid view</button>
+  </div>
+</div>
+
+<script>
+let uid = 0
+// The bot's marble (render/art.ts), as a <g> placed at cx,cy with radius r.
+const marble = (hue, cx, cy, r) => {
+  const id = 'k' + (uid++), s = r / 19
+  return `<g transform="translate(${cx - 20 * s} ${cy - 20 * s}) scale(${s})">
+  <defs><radialGradient id="g${id}" cx="34%" cy="27%" r="80%"><stop offset="0%" stop-color="hsl(${hue},94%,90%)"/><stop offset="34%" stop-color="hsl(${hue},80%,64%)"/><stop offset="100%" stop-color="hsl(${hue},62%,25%)"/></radialGradient><clipPath id="c${id}"><circle cx="20" cy="20" r="19"/></clipPath></defs>
+  <circle cx="20" cy="20" r="19" fill="url(#g${id})"/>
+  <g clip-path="url(#c${id})"><path d="M-4 27C6 34 18 33 26 26s10-16 8-24" fill="none" stroke="hsl(${hue},66%,20%)" stroke-opacity=".26" stroke-width="4.5"/><path d="M2 8c8 2 16 8 19 17" fill="none" stroke="hsl(${hue},96%,92%)" stroke-opacity=".2" stroke-width="3"/></g>
+  <ellipse cx="13" cy="11.5" rx="5.4" ry="3.4" fill="#fff" fill-opacity=".62" transform="rotate(-28 13 11.5)"/>
+  <circle cx="20" cy="20" r="19" fill="none" stroke="hsl(${hue},60%,16%)" stroke-opacity=".35"/></g>`
+}
+const shadow = (cx, cy, rx, op = .45) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${rx * .22}" fill="#000" opacity="${op}"/>`
+const svg = (w, h, body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid slice">${body}</svg>`
+const radial = (w, h, cx, cy, r, color, op) => { const id = 'r' + (uid++); return `<defs><radialGradient id="${id}" cx="${cx}" cy="${cy}" r="${r}"><stop offset="0" stop-color="${color}" stop-opacity="${op}"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient></defs><rect width="${w}" height="${h}" fill="url(#${id})"/>` }
+const B = 212, P = 332, L = 96 // the logo's blue, pink, lime
+const word = (x, y, size) => `<text x="${x}" y="${y}" text-anchor="middle" font-family="Bungee" font-size="${size}" fill="#eaf0ff" letter-spacing="${size * .03}">MULTI<tspan fill="#8be03c">BALLS</tspan></text>`
+
+// Grounds: what the cover and the icon both sit on. (w, h, floorY) -> svg under the marbles.
+const GROUNDS = [
+  {
+    name: 'Navy Glow', sub: 'the Activity page itself',
+    pitch: 'Exactly the Activity\'s own page background: <b>navy with a blue glow top-right and a faint lime one top-left</b>. The shelf matches what opens.',
+    draw: (w, h) => `<rect width="${w}" height="${h}" fill="#0a1020"/>` + radial(w, h, '80%', '-10%', '75%', '#58a8ff', .30) + radial(w, h, '4%', '4%', '65%', '#8be03c', .18)
+  },
+  {
+    name: 'Spotlight', sub: 'one light from above',
+    pitch: 'Flat navy with <b>a single soft light falling on the rack</b> and a lit floor under it. The marbles become the only bright thing in the frame.',
+    draw: (w, h, fy) => `<rect width="${w}" height="${h}" fill="#070c18"/>` + radial(w, h, '50%', '38%', '55%', '#3a5fa8', .55) + `<ellipse cx="${w / 2}" cy="${fy}" rx="${w * .34}" ry="${h * .07}" fill="#8fb4ff" opacity=".10"/>`
+  },
+  {
+    name: 'Chalk Stripes', sub: 'the Map art\'s diagonal lines',
+    pitch: 'Navy with <b>the thin diagonal stripes the Activity puts over Map art</b>. Adds texture without adding a picture.',
+    draw: (w, h) => { const id = 'p' + (uid++); return `<rect width="${w}" height="${h}" fill="#0c1426"/>` + radial(w, h, '80%', '-10%', '75%', '#58a8ff', .22) + `<defs><pattern id="${id}" width="120" height="120" patternUnits="userSpaceOnUse" patternTransform="rotate(28)"><rect x="0" width="5" height="120" fill="#fff" opacity=".06"/></pattern></defs><rect width="${w}" height="${h}" fill="url(#${id})"/>` }
+  },
+  {
+    name: 'Chequered Floor', sub: 'the start grid, in perspective',
+    pitch: 'The rack sitting on <b>a faint chequered floor running back to the horizon</b>. A small nod to racing under a logo that\'s otherwise just marbles.',
+    draw: (w, h, fy) => {
+      const hz = fy - h * .28, rows = 7, cols = 16
+      let q = ''
+      for (let r = 0; r < rows; r++) {
+        const t0 = Math.pow(r / rows, 1.8), t1 = Math.pow((r + 1) / rows, 1.8)
+        const y0 = hz + (h - hz) * t0, y1 = hz + (h - hz) * t1, sp0 = .2 + t0 * 1.8, sp1 = .2 + t1 * 1.8
+        for (let c = -cols / 2; c < cols / 2; c++) if ((r + c) % 2 === 0) {
+          const x = (k, sp) => w / 2 + k * (w / cols) * sp
+          q += `<path d="M${x(c, sp0)} ${y0}L${x(c + 1, sp0)} ${y0}L${x(c + 1, sp1)} ${y1}L${x(c, sp1)} ${y1}Z"/>`
+        }
+      }
+      const id = 'f' + (uid++)
+      return `<rect width="${w}" height="${h}" fill="#0a1020"/>` + radial(w, h, '80%', '-10%', '75%', '#58a8ff', .22) +
+        `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".12"/></linearGradient><mask id="${id}m"><rect y="${hz}" width="${w}" height="${h - hz}" fill="url(#${id})"/></mask></defs><g fill="#fff" mask="url(#${id}m)">${q}</g>`
+    }
+  },
+  {
+    name: 'Lime Horizon', sub: 'a lime line under the rack',
+    pitch: 'Navy above and darker navy below, split by <b>one lime start line</b> the rack rests on. The accent colour shows up once, where it means something.',
+    draw: (w, h, fy) => `<rect width="${w}" height="${h}" fill="#0a1020"/>` + radial(w, h, '50%', '0%', '80%', '#58a8ff', .22) + `<rect y="${fy}" width="${w}" height="${h - fy}" fill="#060a14"/><rect y="${fy - h * .006}" width="${w}" height="${h * .012}" fill="#8be03c"/>`
+  }
+]
+
+// The settled pieces: Centred Rack cover (small wordmark), Packed icon.
+const cover = (g) => svg(1600, 900, g.draw(1600, 900, 610) +
+  shadow(640, 610, 130, .5) + shadow(960, 610, 130, .5) + shadow(800, 640, 140, .5) +
+  marble(B, 640, 460, 140) + marble(L, 960, 460, 140) + marble(P, 800, 500, 150) + word(800, 790, 78))
+const icon = () => svg(1024, 1024, `<rect width="1024" height="1024" fill="#0a1020"/>` + marble(B, 318, 380, 236) + marble(L, 706, 380, 236) + marble(P, 512, 700, 250))
+
+// Grid-view backgrounds: 16:9, art at the edges, centre left clear for Discord's tiles.
+const scatter = (n, seed) => { let s = seed; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647; return [...Array(n)].map(() => [rnd(), rnd(), rnd()]) }
+const EMBEDS = [
+  {
+    name: 'Corner Marbles', sub: 'the rack\'s marbles, cropped in the corners',
+    pitch: '<b>One big marble peeking in from three corners</b>, blue, pink and lime, on the navy glow. Nothing reaches the middle.',
+    draw: () => GROUNDS[0].draw(1600, 900) + marble(B, 60, 40, 260) + marble(P, 1580, 880, 300) + marble(L, 1560, 60, 170)
+  },
+  {
+    name: 'Scatter', sub: 'small marbles round the edge',
+    pitch: '<b>Dozens of small marbles in every player colour</b> scattered round the edges and fading out toward the middle, like a Match lobby filling up.',
+    draw: () => GROUNDS[0].draw(1600, 900) + scatter(70, 7).map(([a, b, c]) => {
+      const x = a * 1600, y = b * 900, dx = Math.abs(x - 800) / 800, dy = Math.abs(y - 450) / 450
+      if (Math.max(dx, dy) < .72) return ''
+      return `<g opacity="${.5 + c * .5}">${marble(Math.floor(c * 360), x, y, 18 + c * 36)}</g>`
+    }).join('')
+  },
+  {
+    name: 'Track Loop', sub: 'a lime track round the frame',
+    pitch: '<b>A lime track running round the whole frame</b> with the three rack marbles racing along it. Frames the call like a circuit.',
+    draw: () => GROUNDS[0].draw(1600, 900) +
+      `<rect x="70" y="70" width="1460" height="760" rx="200" fill="none" stroke="#8be03c" stroke-opacity=".22" stroke-width="44"/><rect x="70" y="70" width="1460" height="760" rx="200" fill="none" stroke="#8be03c" stroke-width="4" stroke-dasharray="30 26" opacity=".7"/>` +
+      marble(B, 520, 70, 40) + marble(P, 600, 70, 40) + marble(L, 700, 70, 42)
+  },
+  {
+    name: 'Colour Glows', sub: 'no marbles, just their light',
+    pitch: 'No objects at all: <b>soft glows in the three logo colours</b> from the corners. The quietest option; the call UI stays the thing you look at.',
+    draw: () => `<rect width="1600" height="900" fill="#0a1020"/>` + radial(1600, 900, '0%', '0%', '60%', `hsl(${B},80%,60%)`, .45) + radial(1600, 900, '100%', '100%', '65%', `hsl(${P},80%,60%)`, .38) + radial(1600, 900, '100%', '0%', '45%', `hsl(${L},80%,55%)`, .3)
+  },
+  {
+    name: 'Rack Frieze', sub: 'the logo repeated along the edges',
+    pitch: 'The <b>three-marble logo repeated in a row</b> along the top and bottom edges, like a border. The most "branded" one.',
+    draw: () => {
+      let out = GROUNDS[0].draw(1600, 900)
+      for (let x = -40; x < 1680; x += 190) {
+        for (const y of [30, 870]) out += `<g opacity=".8">${marble(B, x, y, 32) + marble(P, x + 50, y, 32) + marble(L, x + 100, y, 32)}</g>`
+      }
+      return out
+    }
+  }
+]
+
+const S = { target: 'ground', ground: 1, embed: 0, view: 'shelf' }
+try { Object.assign(S, JSON.parse(localStorage.getItem('mb-art-final') || '{}')) } catch {}
+const $ = (s) => document.querySelector(s)
+const LISTS = { ground: GROUNDS, embed: EMBEDS }
+function render() {
+  const g = GROUNDS[S.ground], e = EMBEDS[S.embed], list = LISTS[S.target], cur = S[S.target]
+  $('#vn-ground').textContent = `Ground ${S.ground + 1} / ${GROUNDS.length} · ${g.name}`; $('#vp-ground').innerHTML = g.pitch
+  $('#vn-embed').textContent = `Grid background ${S.embed + 1} / ${EMBEDS.length} · ${e.name}`; $('#vp-embed').innerHTML = e.pitch
+  $('#pb-ground').classList.toggle('active', S.target === 'ground'); $('#pb-embed').classList.toggle('active', S.target === 'embed')
+  $('#pname').innerHTML = `${list[cur].name}<small>${list[cur].sub}</small>`
+  document.querySelectorAll('[data-slot="cover"]').forEach((el) => el.innerHTML = cover(g))
+  document.querySelectorAll('[data-slot="icon"]').forEach((el) => el.innerHTML = icon(g))
+  document.querySelectorAll('[data-slot="embed"]').forEach((el) => el.innerHTML = svg(1600, 900, e.draw()))
+  const others = ['#5a3f8f', '#2c7b5a', '#b24a3a', '#34568f', '#8f7a2c', '#445']
+  $('#recents').innerHTML = `<div class="ri">${icon(g)}</div>` + others.map((x) => `<div class="ri" style="background:${x}"></div>`).join('')
+  $('#dots').innerHTML = list.map((x, n) => `<button class="${n === cur ? 'on' : ''}" aria-label="${x.name}" data-i="${n}"></button>`).join('')
+  $('#shelf').hidden = S.view !== 'shelf'; $('#grid').hidden = S.view !== 'grid'
+  for (const [id, on] of [['#st-shelf', S.view === 'shelf'], ['#st-grid', S.view === 'grid'], ['#t-ground', S.target === 'ground'], ['#t-embed', S.target === 'embed']]) $(id).classList.toggle('on', on)
+  try { localStorage.setItem('mb-art-final', JSON.stringify(S)) } catch {}
+}
+const go = (n) => { const len = LISTS[S.target].length; S[S.target] = (S[S.target] + n + len) % len; render() }
+$('#prev').onclick = () => go(-1); $('#next').onclick = () => go(1)
+$('#dots').onclick = (ev) => { if (ev.target.dataset.i) { S[S.target] = +ev.target.dataset.i; render() } }
+// choosing a slot also shows where it lives
+$('#t-ground').onclick = () => { S.target = 'ground'; S.view = 'shelf'; render() }; $('#t-embed').onclick = () => { S.target = 'embed'; S.view = 'grid'; render() }
+$('#st-shelf').onclick = () => { S.view = 'shelf'; render() }; $('#st-grid').onclick = () => { S.view = 'grid'; render() }
+addEventListener('keydown', (ev) => { if (ev.key === 'ArrowLeft') go(-1); if (ev.key === 'ArrowRight') go(1) })
+
+const pk = $('#picker'), grip = $('#grip')
+grip.addEventListener('pointerdown', (ev) => {
+  const r = pk.getBoundingClientRect(), ox = ev.clientX - r.left, oy = ev.clientY - r.top
+  grip.setPointerCapture(ev.pointerId)
+  const move = (m) => {
+    const x = Math.min(Math.max(0, m.clientX - ox), innerWidth - r.width), y = Math.min(Math.max(0, m.clientY - oy), innerHeight - r.height)
+    Object.assign(pk.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' })
+  }
+  const up = () => { grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up) }
+  grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up)
+})
+document.fonts.ready.then(render)
+render()
+</script>
