@@ -13,8 +13,8 @@ A player-made track published to the Steam Workshop, with its own Steam leaderbo
 _Avoid_: custom map, UGC map, level
 
 **Track**:
-One of the game's own campaign courses (Season 1 or Season 2).
-_Avoid_: campaign map
+One of the game's own courses in its Circuit mode (Season 1 or Season 2).
+_Avoid_: campaign, campaign map
 
 **Medal**:
 One of a Map's four time targets, Bronze, Silver, Gold and Author (fastest), set by its

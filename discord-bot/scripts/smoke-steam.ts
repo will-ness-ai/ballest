@@ -47,7 +47,7 @@ const program = Effect.gen(function* () {
   console.log(`  ${e.map((x) => `${x.steamId}: ${seconds(x.ticks)} s`).join(", ")}  (the bot account should be absent)`)
 
   const p = yield* timed("resolveProfile /id/ChknThugget", steam.resolveProfile("https://steamcommunity.com/id/ChknThugget/"))
-  console.log(`  ${p.personaName} ${p.steamId}, times on ${p.campaignTracks} campaign Tracks`)
+  console.log(`  ${p.personaName} ${p.steamId}, times on ${p.campaignTracks} Circuit Tracks`)
   const bad = yield* Effect.flip(steam.resolveProfile("nonexistentvanity-zzqq9"))
   console.log(`resolveProfile unknown → ${bad._tag}`)
   return Option.none()

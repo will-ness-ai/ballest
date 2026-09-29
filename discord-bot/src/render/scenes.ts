@@ -402,7 +402,7 @@ export const linkScene = (preview: ProfilePreview): El =>
       box({ fontFamily: F.hud, fontWeight: 700, fontSize: 17 }, preview.personaName),
       box(
         { fontFamily: F.hud, fontWeight: 500, fontSize: 11.5, color: C.faint, marginTop: 2 },
-        `SteamID ${preview.steamId} · times on ${preview.campaignTracks} of ${preview.campaignTrackTotal} campaign Tracks`
+        `SteamID ${preview.steamId} · times on ${preview.campaignTracks} of ${preview.campaignTrackTotal} Circuit Tracks`
       )
     )
   )

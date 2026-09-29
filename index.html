@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <title>Ballest of Them All</title>
-<meta name="description" content="Campaign leaderboards for Ballest of Them All, read straight from Steam.">
+<meta name="description" content="Circuit and Workshop leaderboards for Ballest of Them All, read straight from Steam.">
 <meta name="theme-color" content="#ffd447">
 <link rel="icon" href="favicon.ico" sizes="32x32">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -13,7 +13,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ballest.willness.dev">
 <meta property="og:title" content="Ballest of Them All">
-<meta property="og:description" content="Campaign leaderboards for Ballest of Them All, read straight from Steam.">
+<meta property="og:description" content="Circuit and Workshop leaderboards for Ballest of Them All, read straight from Steam.">
 <meta property="og:url" content="https://ballest.willness.dev/">
 <meta property="og:image" content="https://ballest.willness.dev/og.png">
 <meta property="og:image:width" content="1200">
@@ -26,7 +26,7 @@
 
 <style>
 /* ==========================================================================
-   BALLEST OF THEM ALL, campaign leaderboards
+   BALLEST OF THEM ALL, Circuit and Workshop leaderboards
 
      overall    GLASS CABINET, a HUD chassis with the arcade given one room
      row        TWO LINE
@@ -682,7 +682,7 @@ footer a{color:var(--dim)}
       <span class="rack" id="rack" aria-hidden="true"></span>
       <span class="wordmark">Ballest of Them All</span>
     </div>
-    <p class="tagline">Campaign and Workshop leaderboards</p>
+    <p class="tagline">Circuit and Workshop leaderboards</p>
     <p class="freshness" id="freshness">Loading</p>
   </header>
 
@@ -1290,7 +1290,7 @@ function playerHtml(rec){
     <div class="pstat"><dt>Podiums</dt><dd>${medalCounts(rec.medals)}
       <small>gold, silver, bronze</small></dd></div>
     <div class="pstat"><dt>Tracks run</dt><dd>${fmtN(rec.run)}
-      <small>of ${fmtN(rec.tracks)} in the campaign</small></dd></div>
+      <small>of ${fmtN(rec.tracks)} on the Circuit</small></dd></div>
     <div class="pstat"><dt>All seasons</dt><dd>${rec.allSeasons ? ord(rec.allSeasons.rank) : "&mdash;"}
       <small>${rec.allSeasons ? fmtN(rec.allSeasons.score) + " points" : "no season points"}</small></dd></div>
   </dl>
@@ -1318,7 +1318,7 @@ async function showPlayer(id){
   if(playerId !== id) return;      /* the reader moved on while it was fetching */
   if(!doc.players[id]){
     el.innerHTML = `<div class="empty"><b>Nobody with that Steam ID is on a board.</b>
-      Only players with a time on at least one campaign leaderboard have a page here.</div>`;
+      Only players with a time on at least one Circuit track have a page here.</div>`;
     return;
   }
   const rec = playerRecord(doc, id);
