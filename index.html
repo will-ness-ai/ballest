@@ -920,9 +920,6 @@ let boardKey = null;               /* the board's raw Steam name, unique across 
 const SITE_TITLE = document.title;
 let boardData = null;              /* the loaded board file */
 let tally = null;                  /* an Overall board's podium tally (tallyFor), else null */
-let podSort = false;               /* that board sorted by podiums: #/board/<name>/podiums */
-let tallyBy = new Map();           /* the tally's players by Steam ID */
-let pointsBy = new Map();          /* the Overall board's rows by Steam ID, for the podium sort */
 const PODIUM_SORT = "podiums";
 let visible = [];                  /* rows currently listed, filtered or not */
 let shown = 0;                     /* how many of them are in the DOM */
@@ -1041,30 +1038,16 @@ const boardByName = name => activeBoards().find(b => b.name === name) || WORKSHO
 const boardMeta = () => boardByName(boardKey);
 /* the meta line leads with the season, or for a Map, who made it */
 const whereOf = b => b && b.group === WORKSHOP_GROUP ? "by " + b.creator : group;
-/* the season's podium tally, or undefined when the file is missing or predates it */
+/* a group's podium tally from podiums.json: a season's, or "All Seasons", every season's
+   tracks counted at once. Undefined when the file is missing or predates the group */
 const podiumsIn = g => PODIUMS && PODIUMS.seasons && PODIUMS.seasons.find(s => s.group === g);
-/* The podium tally an Overall board shows beside its points: its season's, or for the
-   all-seasons board every season's added up. Ranked as podiums.json ranks a season:
-   golds, then silvers, then bronzes, and equal counts share a rank. Null for a track,
-   a Map, or when podiums.json didn't load. */
+/* The podium tally an Overall board shows beside its points, with its players by Steam
+   ID: the tally of the board's own group. Null for a track, a Map, or when podiums.json
+   didn't load. The ranking is the collector's (build_podiums), never redone here. */
 function tallyFor(b){
-  if(!b || !isPoints(b) || !PODIUMS || !PODIUMS.seasons) return null;
-  const own = podiumsIn(b.group);
-  if(own) return {tracks: own.tracks, players: own.players};
-  const comp = compositeBoard();
-  if(!comp || comp.name !== b.name) return null;
-  const by = new Map();
-  for(const s of PODIUMS.seasons) for(const p of s.players){
-    if(!by.has(p.steam_id)) by.set(p.steam_id, {...p, gold: 0, silver: 0, bronze: 0});
-    const t = by.get(p.steam_id);
-    t.gold += p.gold; t.silver += p.silver; t.bronze += p.bronze;
-  }
-  const players = [...by.values()].sort((a, c) => c.gold - a.gold || c.silver - a.silver || c.bronze - a.bronze);
-  players.forEach((p, i) => {
-    const q = players[i-1];
-    p.rank = q && q.gold === p.gold && q.silver === p.silver && q.bronze === p.bronze ? q.rank : i + 1;
-  });
-  return {tracks: PODIUMS.seasons.reduce((n, s) => n + s.tracks, 0), players};
+  const own = b && isPoints(b) ? podiumsIn(b.group) : null;
+  return own ? {tracks: own.tracks, players: own.players,
+                by: new Map(own.players.map(p => [p.steam_id, p]))} : null;
 }
 
 /* The Circuit's fixed facts, keyed by board name: each track's screenshot, taken from
@@ -1160,9 +1143,8 @@ function stripHtml(b){
 function renderCard(){
   const b = boardMeta(), el = $("#bcard"), sw = $("#sortsw");
   sw.hidden = !tally;
-  sw.innerHTML = tally ? `<span class="eyebrow">Sort by</span><span class="sw">
-    <a href="${esc(boardHash(b.name))}"${podSort ? "" : ` aria-current="page"`}>Points</a>
-    <a href="${esc(boardHash(b.name, PODIUM_SORT))}"${podSort ? ` aria-current="page"` : ""}>Podiums</a></span>` : "";
+  sw.innerHTML = tally ? `<span class="eyebrow">Sort by</span><span class="sw">${[BY_SCORE, BY_PODIUMS].map(o =>
+    `<a href="${esc(boardHash(b.name, o.slot))}"${o === order ? ` aria-current="page"` : ""}>${o.label}</a>`).join("")}</span>` : "";
   if(!b || b.group === WORKSHOP_GROUP){ el.hidden = true; el.innerHTML = ""; return; }
   const rows = boardData && boardData.name === b.name ? boardData.rows : null;
   const t = TRACKS[b.name], pic = isPoints(b) || t;
@@ -1182,23 +1164,16 @@ function trackCard(b, t, rows){
       ${!rows ? `<p class="sp-cap">Loading</p>` : t ? spreadHtml(rows.map(r => r.score_ms), t.medals, true) : ""}
       ${t ? `<p class="bc-cap">Track screenshot from the game.</p>` : ""}</div>`;
 }
-/* where a track has its screenshot, the Overall board has its top six as bars:
-   points, or sorted by podiums, gold, silver and bronze stacked */
+/* where a track has its screenshot, the Overall board has its top six as bars, drawn
+   by the order in use */
 function overallCard(b, rows){
   /* a season's tracks; the all-seasons board has none of its own, so every track */
   const count = list => list.filter(x => !isPoints(x)).length;
   const tracks = tally ? tally.tracks : count(boardsIn(b.group)) || count(activeBoards());
-  const top = podSort ? tally.players.slice(0, 6) : rows.slice(0, 6);
-  /* the tally ranks golds first, so the most podiums, and the longest bar, need not be the top one */
+  /* the tally ranks golds first, so the most podiums need not be the top one */
   const most = tally && tally.players.length
     ? tally.players.reduce((a, p) => podiumTotal(p) > podiumTotal(a) ? p : a) : null;
-  const widest = podSort ? Math.max(...top.map(podiumTotal)) : 0;
-  const bar = podSort
-    ? p => [p.gold, p.silver, p.bronze].map((n, j) =>
-        `<u class="m${j+1}" style="width:${(n / widest * 100).toFixed(1)}%"></u>`).join("")
-    : r => `<u style="width:${(r.score_ms / rows[0].score_ms * 100).toFixed(1)}%"></u>`;
-  return `<div class="stand">${top.map(r => `<div style="--h:${hueFor(r.steam_id)}"><span>${esc(personaOf(r))}</span>
-      <i>${bar(r)}</i><b>${podSort ? podiumTotal(r) : fmtN(r.score_ms)}</b></div>`).join("")}</div>
+  return `<div class="stand">${order.stand(rows)}</div>
     <div class="bc-body"><div class="bc-top"><div><h1>${esc(shortName(b.display))}</h1>
       <span class="bc-by">${esc(b.group)} &middot; points${tally ? " and podiums" : ""} across all ${fmtN(tracks)} tracks</span></div>
       ${factsHtml([["Players", fmtN(b.entry_count)], ["Leader", rows[0] ? nameHtml(rows[0]) : "&mdash;"]]
@@ -1206,7 +1181,7 @@ function overallCard(b, rows){
 }
 function renderTiles(){
   const rows = boardData.rows, t = $("#tiles");
-  if(!rows.length || podSort){ t.innerHTML = ""; return; }
+  if(!rows.length || !order.tiles){ t.innerHTML = ""; return; }
   const lead = rows[0], tenth = rows[Math.min(9, rows.length-1)];
   const spread = isPoints(boardData)
     ? fmtN(lead.score_ms - tenth.score_ms) + " pts"
@@ -1240,8 +1215,7 @@ function renderPlates(top, slots){
     </div>`;
   }).join("");
 }
-function renderLeaders(){
-  if(podSort){ renderPodiumLeaders(); return; }
+function scoreLeaders(){
   const rows = boardData.rows, lead = rows[0], pts = isPoints(boardData);
   renderPlates(rows.slice(0,3), (r,i) => {
     const gap = pts ? lead.score_ms - r.score_ms : r.score_ms - lead.score_ms;
@@ -1280,7 +1254,7 @@ function rowHtml(r, lead, prev){
     <span class="c-rank">${r.rank}</span>
     ${marble(r)}
     <span class="c-text"><span class="nm">${nameHtml(r)}</span>${sub}</span>
-    ${tally ? podsCell(tallyBy.get(r.steam_id)) : ""}
+    ${tally ? podsCell(tally.by.get(r.steam_id)) : ""}
     <span class="c-score"><span>${value(boardData, r.score_ms)}</span><i class="pill"></i></span>
   </div>`;
 }
@@ -1289,7 +1263,7 @@ const podsCell = p => `<span class="c-pods">${p ? medalCounts(p) : ""}</span>`;
 /* a row of the podium sort: ranked by the tally, the total in the score column,
    and where they stand on points underneath */
 function podRowHtml(p){
-  const r = pointsBy.get(p.steam_id);
+  const r = tally.points.get(p.steam_id);
   const sub = r ? `<em>${fmtN(r.score_ms)} pts</em> &middot; ${ord(r.rank)} on points` : "not ranked on points";
   return `<div class="row" style="--h:${hueFor(p.steam_id)}" data-m="${p.rank<=3 ? p.rank : 0}"
     data-id="${esc(p.steam_id)}">
@@ -1305,17 +1279,14 @@ function podRowHtml(p){
 function headHtml(){
   return `<div class="head"><span>#</span><span></span><span>Player</span>
     ${tally ? `<span class="c-pods">Podiums</span>` : ""}
-    <span class="c-score">${podSort ? "Total" : isPoints(boardData) ? "Points" : "Time"}</span></div>`;
+    <span class="c-score">${order.scoreHead()}</span></div>`;
 }
 function renderMore(){
   if(!boardData || shown >= visible.length) return;
-  const board = $("#board"), lead = boardData.rows[0];
+  const board = $("#board");
   const end = Math.min(shown + CHUNK, visible.length);
   let html = "";
-  for(let i = shown; i < end; i++){
-    const r = visible[i];
-    html += podSort ? podRowHtml(r) : rowHtml(r, lead, boardData.rows[r.rank - 2]);
-  }
+  for(let i = shown; i < end; i++) html += order.row(visible[i]);
   const more = $("#more");
   if(more) more.insertAdjacentHTML("beforebegin", html);
   else board.insertAdjacentHTML("beforeend", html);
@@ -1342,22 +1313,18 @@ function onScroll(){
 }
 
 function updateMeta(){
-  if(podSort){
-    const n = tally.players.length, text = filtering
-      ? `${group} · ${fmtN(visible.length)} of ${plural(n, "player", "players")} match`
-      : `${group} · ${plural(n, "player", "players")} on a podium · ${plural(tally.tracks, "track", "tracks")}`;
-    $("#bmetaD").textContent = text;
-    $("#bmetaM").textContent = text;
-    return;
-  }
-  const meta = boardMeta();
-  if(!meta) return;
-  const noun = meta.entry_count === 1 ? (isPoints(meta) ? "player" : "run") : (isPoints(meta) ? "players" : "runs");
-  const text = filtering
-    ? `${whereOf(meta)} · ${fmtN(visible.length)} of ${fmtN(meta.entry_count)} ${noun} match`
-    : `${whereOf(meta)} · ${fmtN(meta.entry_count)} ${noun} · showing ${fmtN(shown)}`;
+  const text = order.meta();
+  if(text == null) return;
   $("#bmetaD").textContent = text;
   $("#bmetaM").textContent = text;
+}
+function scoreMeta(){
+  const meta = boardMeta();
+  if(!meta) return null;
+  const noun = meta.entry_count === 1 ? (isPoints(meta) ? "player" : "run") : (isPoints(meta) ? "players" : "runs");
+  return filtering
+    ? `${whereOf(meta)} · ${fmtN(visible.length)} of ${fmtN(meta.entry_count)} ${noun} match`
+    : `${whereOf(meta)} · ${fmtN(meta.entry_count)} ${noun} · showing ${fmtN(shown)}`;
 }
 
 function buildList(){
@@ -1384,19 +1351,59 @@ function medalCounts(p){
     `<span class="m${i+1}${n ? "" : " z"}"><i></i>${n}</span>`).join("") + `</span>`;
 }
 const podiumTotal = p => p.gold + p.silver + p.bronze;
-/* the podium sort's marble row; equal counts share a rank (1, 2, 2, 4) */
-function renderPodiumLeaders(){
+/* the podium order's marble row; equal counts share a rank (1, 2, 2, 4) */
+function podiumLeaders(){
   const shared = {};
   tally.players.forEach(p => { shared[p.rank] = (shared[p.rank] || 0) + 1; });
   renderPlates(tally.players.slice(0,3), p => [medalCounts(p),
     (shared[p.rank] > 1 ? "tied &middot; " : "") + `on ${podiumTotal(p)} of ${tally.tracks} podiums`]);
 }
+/* one of the header card's bars: a player's name, the bar, and its figure */
+const standRow = (r, bar, fig) => `<div style="--h:${hueFor(r.steam_id)}"><span>${esc(personaOf(r))}</span>
+  <i>${bar}</i><b>${fig}</b></div>`;
+
+/* ---------- the board's two orders ----------
+   Every board lists its rows by score. An Overall board with a podium tally can list
+   its players by podiums instead, at #/board/<name>/podiums. Everything the board view
+   shows that depends on the order comes from the order in use, so nothing else asks
+   which one it is. BY_PODIUMS is only ever in use while `tally` is set. */
+const BY_SCORE = {
+  label: "Points", slot: null,           /* slot: what follows the board name in its route */
+  tiles: true,
+  rows: () => boardData.rows,
+  row: r => rowHtml(r, boardData.rows[0], boardData.rows[r.rank - 2]),
+  scoreHead: () => isPoints(boardData) ? "Points" : "Time",
+  leaders: scoreLeaders,
+  meta: scoreMeta,
+  stand: rows => rows.slice(0, 6).map(r => standRow(r,
+    `<u style="width:${(r.score_ms / rows[0].score_ms * 100).toFixed(1)}%"></u>`, fmtN(r.score_ms))).join(""),
+};
+const BY_PODIUMS = {
+  label: "Podiums", slot: PODIUM_SORT,
+  tiles: false,                          /* the tiles are about points */
+  rows: () => tally.players,             /* only the players who have a podium */
+  row: podRowHtml,
+  scoreHead: () => "Total",
+  leaders: podiumLeaders,
+  meta: () => {
+    const n = tally.players.length;
+    return filtering
+      ? `${group} · ${fmtN(visible.length)} of ${plural(n, "player", "players")} match`
+      : `${group} · ${plural(n, "player", "players")} on a podium · ${plural(tally.tracks, "track", "tracks")}`;
+  },
+  /* gold, silver and bronze stacked; ranked golds first, so the longest bar need not be the top one */
+  stand: () => {
+    const top = tally.players.slice(0, 6), widest = Math.max(...top.map(podiumTotal));
+    return top.map(p => standRow(p, [p.gold, p.silver, p.bronze].map((n, j) =>
+      `<u class="m${j+1}" style="width:${(n / widest * 100).toFixed(1)}%"></u>`).join(""), podiumTotal(p))).join("");
+  },
+};
+let order = BY_SCORE;
 
 function applyFilter(){
   const q = $("#q").value.trim().toLowerCase();
   filtering = q.length > 0;
-  /* sorted by podiums, the board is the players who have one */
-  const rows = podSort ? tally.players : boardData.rows;
+  const rows = order.rows();
   /* unfiltered, the top three are already up on the podium. A board with fewer than
      three runs has no podium (renderPlates), so its runs stay in the list: plenty of
      Workshop Maps have only one or two. By position, not rank: podium ranks can tie */
@@ -1484,7 +1491,7 @@ function playerRecord(doc, id){
   const from = boardKey && boardMeta();
   return {
     id, profileurl: p.profileurl,
-    back: from ? {href: boardHash(from.name, podSort ? PODIUM_SORT : null), label: shortName(from.display)}
+    back: from ? {href: boardHash(from.name, order.slot), label: shortName(from.display)}
                 : {href: "#/", label: "All leaderboards"},
     who: {steam_id: id, persona: p.persona, avatar: p.avatar},
     allSeasons: comp ? by[comp.name] || null : null,
@@ -2115,15 +2122,15 @@ function showBoard(name, focus){
   /* a shared link can name a board in a season other than the one on screen */
   if(meta && meta.group !== group){ group = meta.group; renderGroups(); }
   if(!meta){ if(!boardKey) selectBoard(defaultBoard()); return; }
-  const sort = focus === PODIUM_SORT && !!tallyFor(meta);
+  const want = focus === PODIUM_SORT && tallyFor(meta) ? BY_PODIUMS : BY_SCORE;
   if(focus === PODIUM_SORT) focus = null;
   if(meta.name === boardKey && boardData){
-    /* the same board with its other sort: no refetch */
-    if(sort !== podSort){ podSort = sort; renderBoard(); }
+    /* the same board in its other order: no refetch */
+    if(want !== order){ order = want; renderBoard(); }
     if(focus) focusPlayer(focus);
     return;
   }
-  podSort = sort;
+  order = want;
   selectBoard(meta.name, focus);
 }
 addEventListener("hashchange", route);
@@ -2142,8 +2149,7 @@ async function loadBoard(name){
 async function selectBoard(name, focus){
   boardKey = name;
   tally = tallyFor(boardByName(name));
-  tallyBy = new Map(tally ? tally.players.map(p => [p.steam_id, p]) : []);
-  if(!tally) podSort = false;
+  if(!tally) order = BY_SCORE;
   renderSelectors();
   renderCard();
   $("#board").classList.toggle("pods", !!tally);
@@ -2169,7 +2175,7 @@ async function selectBoard(name, focus){
   }
   if(boardKey !== name) return;      /* the reader moved on while it was fetching */
   boardData = data;
-  pointsBy = new Map(tally ? data.rows.map(r => [r.steam_id, r]) : []);
+  if(tally) tally.points = new Map(data.rows.map(r => [r.steam_id, r]));   /* the podium order's sublines */
   renderBoard();
   if(focus) focusPlayer(focus);
 }
@@ -2177,7 +2183,7 @@ async function selectBoard(name, focus){
 function renderBoard(){
   renderCard();
   renderTiles();
-  renderLeaders();
+  order.leaders();
   applyFilter();
 }
 
@@ -2189,7 +2195,7 @@ function focusPlayer(id){
   if(!isSteamId(id)) return;
   /* a hand-edited or stale link can name someone with no time here; without
      this the search below would render the whole board looking for them */
-  if(!boardData || !(podSort ? tally.players : boardData.rows).some(r => r.steam_id === id)) return;
+  if(!boardData || !order.rows().some(r => r.steam_id === id)) return;
   document.querySelectorAll(".focus").forEach(n => n.classList.remove("focus"));
   const sel = `[data-id="${id}"]`;
   const found = () => $("#leaders " + sel) || $("#board " + sel);

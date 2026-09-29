@@ -12,7 +12,10 @@ here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
   `tools/campaign_common.py`). Derived by the collector from the `Overall*` rows it just
   read, so it is written and indexed like any other board and needs no leaderboard ID.
 - `data/podiums.json`: per-season podium tally (who holds each track's top three),
-  derived by the collector from the board rows. Loaded alongside `index.json`.
+  then one more entry, `All Seasons`, tallied over every season's tracks at once, for the
+  all-seasons board (`build_podiums`). Derived by the collector from the board rows, and
+  ranked there; the site shows it as each Overall board's podium column and sort, and
+  never re-ranks it. Loaded alongside `index.json`.
 - `data/players/<digit>.json`: the board files transposed, every player's rank and
   score on every board, Circuit and Workshop, keyed by Steam ID (`build_players`). Split
   ten ways by the ID's last digit so a player page fetches one ~580KB shard rather than
