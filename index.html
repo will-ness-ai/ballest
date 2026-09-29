@@ -930,7 +930,7 @@ function renderSelectors(){
   }
   const meta = boardMeta();
   $("#bbName").textContent = shortName(meta.display);
-  $("#bbCnt").textContent = fmtN(meta.entry_count) + (isPoints(meta) ? " players" : " runs");
+  $("#bbCnt").textContent = fmtN(meta.entry_count) + (isPoints(meta) ? " players" : meta.entry_count === 1 ? " run" : " runs");
   $("#btitle").textContent = shortName(meta.display);
 }
 
@@ -1064,7 +1064,7 @@ function updateMeta(){
   }
   const meta = boardMeta();
   if(!meta) return;
-  const noun = isPoints(meta) ? "players" : "runs";
+  const noun = meta.entry_count === 1 ? (isPoints(meta) ? "player" : "run") : (isPoints(meta) ? "players" : "runs");
   const text = filtering
     ? `${whereOf(meta)} · ${fmtN(visible.length)} of ${fmtN(meta.entry_count)} ${noun} match`
     : `${whereOf(meta)} · ${fmtN(meta.entry_count)} ${noun} · showing ${fmtN(shown)}`;
@@ -1156,10 +1156,13 @@ function applyFilter(){
   if(isPodiums()){ renderCabinet(); return; }
   const q = $("#q").value.trim().toLowerCase();
   filtering = q.length > 0;
-  /* unfiltered, the top three are already up on the podium */
+  /* unfiltered, the top three are already up on the podium. A board with fewer than
+     three runs has no podium (renderPlates), so its runs stay in the list: plenty of
+     Workshop Maps have only one or two */
+  const podium = boardData.rows.length >= 3;
   visible = filtering
     ? boardData.rows.filter(r => matchesQuery(r, q))
-    : boardData.rows.filter(r => r.rank > 3);
+    : boardData.rows.filter(r => !podium || r.rank > 3);
   buildList();
 }
 
