@@ -17,41 +17,12 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `og.png` — the lime-marble icon
   and the 1200×630 link-preview image. Rendered once and committed; `og.png` bakes in its
   text, so the collector never touches it.
-- `data/index.json` — board list, counts, `generated_at`. Loaded first.
-- `data/boards/<board>.json` — one file per board, lazy-loaded on selection.
-- `data/boards/OverallLeaderboard_AllSeasons.json` — the one board Steam does not have:
-  every season's Overall points summed per player (`build_composite` in
-  `tools/campaign_common.py`). Derived by the collector from the `Overall*` rows it just
-  read, so it is written and indexed like any other board and needs no leaderboard ID.
-- `data/podiums.json` — per-season podium tally (who holds each track's top three),
-  derived by the collector from the board rows. Loaded alongside `index.json`.
-- `data/players/<digit>.json` — the board files transposed: every player's rank and
-  score on every board, keyed by Steam ID (`build_players` in
-  `tools/campaign_common.py`). Split ten ways by the ID's last digit so a player page
-  fetches one ~400KB shard rather than every board. Loaded only on a player page.
-- `data/workshop.json` — every Workshop Map (title, creator and their Steam ID, preview
-  picture URL, Medals, board ID, entry count), what the homepage shows of its board
-  without fetching it (`workshop_stats`: the top three, the 1st-to-3rd gap, runs within
-  a second of the record, runs that beat the author time), and the collector's memory of
-  what it last read: each Map's Workshop session and subscription counts as of its last
-  board read, and `full_sweep_at`. Loaded with `index.json`; it drives the Workshop
-  homepage and All maps.
-- `data/workshop/<pfid>.json` — one board file per Map that has a time, the same shape as
-  a campaign board file. Maps stay out of `index.json`, `BOARDS` and `derive()`, so the
-  podiums, the composite and the player shards are campaign-only.
-- `derive()` in `tools/campaign_common.py` is the one list of what the collector works
-  out from the board rows and where each file lands. `write_site` publishes that list,
-  `check_data` compares the committed files against it, and neither restates the
-  assembly — which matters, because a shard's board indices are positions in exactly
-  the board list `derive` returns, composite last. A new derived artifact is one entry
-  there, and is then written, guarded and checked for free.
+- `data/` — what the collector writes and the site loads, file by file, and how derived
+  files are assembled (`derive()`): `docs/data.md`. Read it before adding or changing a
+  data file.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
-- `tools/steampy_collect.py` — the collector CI runs. **This is the live path.** Besides
-  the campaign boards it keeps the Workshop boards current (`collect_workshop`), reading
-  a Map's board only when its Workshop session or subscription count moved since the
-  last read, plus every board once every `FULL_SWEEP_SECONDS`. Player names are carried
-  forward from the committed board files; a run looks up only players with no name, plus
-  one rotating slice of the rest (`names_due`), so every name refreshes about weekly.
+- `tools/steampy_collect.py` — the collector CI runs. **This is the live path.** It reads
+  the Circuit boards and keeps the Workshop boards current (`collect_workshop`).
 - `tools/steampy_common.py` — the steam.py leaderboard requests the collector and the
   Discord script share: read a board by ID, find a board by name.
 - `tools/ugc_discord_leaderboard.py` — local, on demand: reads every Workshop map's
@@ -93,10 +64,14 @@ given). A page you want to look at but not commit goes in `scratch/`, which is s
 like any other folder and is gitignored. Refreshing data locally needs a
 Steam refresh token; the mint-and-collect runbook is `tools/README-hosting.md`. The
 secrets (`.env`, `tools/refresh_token.txt`) live in the main checkout and are found from
-a worktree.
+a worktree. From a feature branch, run the collector with `--workshop-only`, which writes
+only `data/workshop.json` and `data/workshop/`; a full run rewrites the Circuit data too,
+which does not belong on a branch.
 
 The site and the collector have no tests, linters, or type checks. Verify front-end
-changes by loading the served page. Verify collector changes with
+changes by loading the served page. After editing `index.html`, reload the page (a hash
+change keeps the old script), and test the board's infinite scroll with a real wheel
+scroll: a scripted `scrollTo` does not trigger it in the preview pane. Verify collector changes with
 `python tools/check_data.py` (no Steam needed), then a live run if the read path
 changed. CI runs that same check on every pull request and on `main`
 (`.github/workflows/check.yml`), against the merge result rather than the branch,

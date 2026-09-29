@@ -1,0 +1,45 @@
+# The data files
+
+What the collector writes under `data/` and what the site loads, file by file. Every file
+here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
+
+## Circuit boards
+
+- `data/index.json`: board list, counts, `generated_at`. Loaded first.
+- `data/boards/<board>.json`: one file per board, lazy-loaded on selection.
+- `data/boards/OverallLeaderboard_AllSeasons.json`: the one board Steam does not have,
+  every season's Overall points summed per player (`build_composite` in
+  `tools/campaign_common.py`). Derived by the collector from the `Overall*` rows it just
+  read, so it is written and indexed like any other board and needs no leaderboard ID.
+- `data/podiums.json`: per-season podium tally (who holds each track's top three),
+  derived by the collector from the board rows. Loaded alongside `index.json`.
+- `data/players/<digit>.json`: the board files transposed, every player's rank and
+  score on every board, keyed by Steam ID (`build_players`). Split ten ways by the ID's
+  last digit so a player page fetches one ~400KB shard rather than every board. Loaded
+  only on a player page.
+
+`derive()` in `tools/campaign_common.py` is the one list of what the collector works out
+from the board rows and where each file lands. `write_site` publishes that list,
+`check_data` compares the committed files against it, and neither restates the assembly.
+That matters because a shard's board indices are positions in exactly the board list
+`derive` returns, composite last. A new derived artifact is one entry there, and is then
+written, guarded and checked for free.
+
+## Workshop Maps
+
+- `data/workshop.json`: every Workshop Map (title, creator and their Steam ID, preview
+  picture URL, Medals, board ID, entry count), what the homepage shows of its board
+  without fetching it (`workshop_stats`: the top three, the 1st-to-3rd gap, runs within a
+  second of the record, runs that beat the author time), and the collector's memory of
+  what it last read: each Map's Workshop session and subscription counts as of its last
+  board read, and `full_sweep_at`. Loaded with `index.json`; it drives the Workshop
+  homepage and All maps.
+- `data/workshop/<pfid>.json`: one board file per Map that has a time, the same shape as a
+  Circuit board file. Maps stay out of `index.json`, `BOARDS` and `derive()`, so the
+  podiums, the composite and the player shards are Circuit-only.
+
+`collect_workshop` in `tools/steampy_collect.py` reads a Map's board only when its Workshop
+session or subscription count moved since the last read, plus every board once every
+`FULL_SWEEP_SECONDS`. Player names are carried forward from the committed board files; a
+run looks up only players with no name, plus one rotating slice of the rest (`names_due`),
+so every name refreshes about weekly.

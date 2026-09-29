@@ -107,24 +107,27 @@ def main(rewrite=False):
         problems.append(f"{cc.COMPOSITE_BOARD}.json is missing")
     print(f"  {cc.COMPOSITE_BOARD:34s} rows={len(comp['rows']):5d} (derived)")
 
-    problems += check_workshop()
+    ws_problems, ws_checked = check_workshop()
+    problems += ws_problems
 
     if problems:
         print("\nFAILED:")
         for p in problems:
             print("  - " + p)
         return 1
-    print(f"\nOK: {len(boards_out)} boards (composite included), index and every derived file consistent")
+    print(f"\nOK: {len(boards_out)} boards (composite included), index and every derived file consistent; "
+          f"{ws_checked} Workshop boards checked")
     return 0
 
 
 def check_workshop():
-    """The Workshop list against its board files. Missing entirely is fine (a
-    checkout from before Workshop Maps); a list and files that disagree is not."""
+    """The Workshop list against its board files. Returns (problems, Maps checked).
+    Missing entirely is fine (a checkout from before Workshop Maps); a list and
+    files that disagree is not, and neither is a list with no board to check."""
     ws = cc.load_workshop()
     if ws is None:
         print("  workshop.json absent; skipping Workshop checks")
-        return []
+        return [], 0
     problems, files = [], set()
     for m in ws.get("maps", []):
         if not m.get("file"):
@@ -155,7 +158,9 @@ def check_workshop():
             if fname.endswith(".json") and fname not in files:
                 problems.append(f"workshop/{fname} belongs to no Map in workshop.json")
     print(f"  workshop.json  {len(ws.get('maps', []))} Maps, {len(files)} board files")
-    return problems
+    if not files:
+        problems.append("workshop.json lists no Map with a board file: nothing was checked")
+    return problems, len(files)
 
 
 if __name__ == "__main__":
