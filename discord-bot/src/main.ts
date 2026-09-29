@@ -5,7 +5,7 @@ import { appendFileSync } from "node:fs"
 import { PlatformConfigProvider } from "@effect/platform"
 import { NodeContext, NodeRuntime } from "@effect/platform-node"
 import { SqliteClient } from "@effect/sql-sqlite-node"
-import { Config, ConfigProvider, Effect, Layer, Logger, Option } from "effect"
+import { Config, Effect, Layer, Logger, Option } from "effect"
 import { DiscordAuthLive, DiscordMembers, MembersUnavailable } from "./activity/auth.js"
 import { activityServer } from "./activity/server.js"
 import { describeDiscordError, Discord } from "./discord/client.js"
@@ -24,18 +24,6 @@ import { SteamLive } from "./steam/steamLive.js"
 /** The real environment first, then .env for anything it leaves out. */
 const ConfigLive = PlatformConfigProvider.layerDotEnvAdd(process.env["MULTIBALLS_ENV"] ?? ".env").pipe(
   Layer.provide(NodeContext.layer)
-)
-
-/** The test server ("Ballest (dev)"): a Lobby can start with one Player, to try a Match alone. */
-const DEV_GUILD_ID = "1552729776165486602"
-const DevServerLive = Layer.unwrapEffect(
-  Effect.gen(function* () {
-    if ((yield* Config.string("DISCORD_GUILD_ID")) !== DEV_GUILD_ID) return Layer.empty
-    const configured = yield* Effect.configProviderWith((provider) => Effect.succeed(provider))
-    const dev = ConfigProvider.fromMap(new Map([["LOBBY_MIN_PLAYERS", "1"]]))
-    yield* Effect.log("test server: a Lobby can start with one Player")
-    return Layer.setConfigProvider(ConfigProvider.orElse(dev, () => configured))
-  })
 )
 
 /** With LOG_FILE set, every log line is also appended there as logfmt, for grepping. */
@@ -95,7 +83,6 @@ const MainLive = Layer.mergeAll(InteractionsLive, OpsLive, ActivityLive).pipe(
   Layer.provide(Engine.Default),
   Layer.provide(PortsLive),
   Layer.provide(InstanceLockLive),
-  Layer.provide(DevServerLive),
   Layer.provide(FileLogLive),
   Layer.provide(ConfigLive)
 )

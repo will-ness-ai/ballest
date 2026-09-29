@@ -169,11 +169,10 @@ describe("Challenge", () => {
 describe("Lobby", () => {
   const lobby = { type: "lobby", minutes: 5, target: null } as const
 
-  it.scoped("takes joins and leaves, and starts only by its creator with two or more", () =>
+  it.scoped("takes joins and leaves, and starts only by its creator", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] })
       const id = yield* h.engine.openInvite(ALICE.discordId, lobby)
-      expect((yield* Effect.flip(h.engine.start(ALICE.discordId, id)))._tag).toBe("NotEnoughPlayers")
       yield* h.engine.join(BOB.discordId, id)
       yield* h.engine.join(CARA.discordId, id)
       yield* h.engine.leave(CARA.discordId, id)

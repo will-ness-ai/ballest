@@ -13,7 +13,6 @@ export const explain = (e: Rejection, self: string, mention: (discordId: string)
     MatchNotFound: () => "That Invite is gone.",
     NotOpen: () => "That Invite isn't open anymore.",
     NotAllowed: ({ reason }) => reason,
-    NotEnoughPlayers: ({ min }) => `A Lobby needs at least ${min} Players to start.`,
     NoEligibleMap: () =>
       "No Map suits this length. The Invite is closed; a longer Match allows more Maps.",
     SteamUnavailable: () => "Steam didn't answer. Try again in a moment.",
