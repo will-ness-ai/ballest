@@ -455,6 +455,7 @@ a.mkcard:hover b{color:var(--accent)}
 .mkcard span{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   font-variant-numeric:tabular-nums}
 .mkcard .f{color:var(--faint)}
+.mkgrid{margin-top:12px}
 
 /* the row a tile sent you to, once its board is open */
 .row.focus{background:var(--accent-soft)}
@@ -1476,10 +1477,10 @@ function trophiesHtml(w){
     ${w.tiers[k] ? "" : "data-zero"}>${medalHtml(k, 40)}<b data-tc="${k}">${fmtN(w.tiers[k])}</b>
     <span class="eyebrow">${label}</span></button>`).join("");
 }
-function shelfCards(title, list, fig){
+function shelfCards(title, list, id, fig){
   if(!list.length) return "";
   return `<section class="shelf"><div class="shelf-h"><h2>${title}</h2></div>
-    <div class="strip">${list.map(f => `<a class="scard" href="${esc(boardHash(f.name, playerRec.id))}">
+    <div class="strip">${list.map(f => `<a class="scard" href="${esc(boardHash(f.name, id))}">
       <span class="top">${thumbHtml(f)}<span><b>${esc(f.display)}</b><span class="by">by ${esc(f.creator)}</span></span></span>
       ${fig(f)}</a>`).join("")}</div></section>`;
 }
@@ -1489,8 +1490,8 @@ function pwRows(w){
       && (!q || (f.display + " " + f.creator).toLowerCase().includes(q)))
     .sort(PW_SORTS[pw.sort][1]);
 }
-function wrowHtml(f){
-  return `<a class="wrow" href="${esc(boardHash(f.name, playerRec.id))}">${thumbHtml(f)}
+function wrowHtml(f, id){
+  return `<a class="wrow" href="${esc(boardHash(f.name, id))}">${thumbHtml(f)}
     <span class="wt"><b>${esc(f.display)}</b><small>by ${esc(f.creator)}</small>
       <span class="fbar"><i style="left:${fieldPos(f).toFixed(1)}%"></i></span></span>
     <span class="wrk" data-m="${f.rank <= 3 ? f.rank : 0}">${f.rank}<sup>${ord(f.rank).slice(-2)}</sup><small>/${fmtN(f.field)}</small></span>
@@ -1501,9 +1502,9 @@ function pwBarHtml(n){
   return `${pw.tier ? `<button type="button" class="chip" data-pwclear>${TIER_LABEL[pw.tier]} only &times;</button>` : ""}
     <span class="ws-count">${plural(n, "map", "maps")}</span>`;
 }
-function pwListHtml(rows){
+function pwListHtml(rows, id){
   if(!rows.length) return `<div class="empty"><b>No map matches.</b></div>`;
-  return `<div class="wlist">${rows.slice(0, pw.shown).map(wrowHtml).join("")}</div>` + (rows.length > pw.shown
+  return `<div class="wlist">${rows.slice(0, pw.shown).map(f => wrowHtml(f, id)).join("")}</div>` + (rows.length > pw.shown
     ? `<button type="button" class="more-btn" data-pwmore>Show ${Math.min(PW_CHUNK, rows.length - pw.shown)} more</button>` : "");
 }
 function workshopHtml(rec){
@@ -1515,9 +1516,9 @@ function workshopHtml(rec){
   return `<div class="pws"><div class="trophies" id="pwtro">${trophiesHtml(w)}</div>
     <p class="wsline">${fmtN(w.finishes.length)} of ${fmtN(w.maps)} maps finished &middot;
       ${plural(w.podiums, "podium", "podiums")} &middot; ${fmtN(w.near)} within a second of a record</p>
-    ${shelfCards(`World records <span class="shelf-n">${fmtN(recs.length)}</span>`, recs.slice(0, PW_SHELF),
+    ${shelfCards(`World records <span class="shelf-n">${fmtN(recs.length)}</span>`, recs.slice(0, PW_SHELF), rec.id,
       f => `<span class="fig"><b data-tc="wr">1st</b> of ${fmtN(f.field)} &middot; ${fmtTime(f.score)}</span>`)}
-    ${shelfCards("Closest to a record", close.slice(0, PW_SHELF),
+    ${shelfCards("Closest to a record", close.slice(0, PW_SHELF), rec.id,
       f => `<span class="big">${shortGap(f.gap)}</span><span class="by">${ord(f.rank)} of ${fmtN(f.field)},
         record by ${esc(personaOf(f.holder))}</span>`)}
     <h2 class="pwall" id="pwall">All ${plural(w.finishes.length, "map", "maps")}</h2>
@@ -1526,14 +1527,14 @@ function workshopHtml(rec){
       <select class="pwsort" id="pwsort" aria-label="Sort maps">${Object.entries(PW_SORTS).map(([k, [label]]) =>
         `<option value="${k}"${pw.sort === k ? " selected" : ""}>${label}</option>`).join("")}</select>
       <span class="pwbar" id="pwbar">${pwBarHtml(rows.length)}</span></div>
-    <div id="pwrows">${pwListHtml(rows)}</div></div>`;
+    <div id="pwrows">${pwListHtml(rows, rec.id)}</div></div>`;
 }
 /* the trophy shelf, the chip and the list redrawn in place, so the search box keeps focus */
 function redrawPw(){
   const w = playerRec.workshop, rows = pwRows(w);
   $("#pwtro").innerHTML = trophiesHtml(w);
   $("#pwbar").innerHTML = pwBarHtml(rows.length);
-  $("#pwrows").innerHTML = pwListHtml(rows);
+  $("#pwrows").innerHTML = pwListHtml(rows, playerRec.id);
 }
 
 /* ---------- a player's Made tab ---------- */
@@ -1551,7 +1552,7 @@ function madeHtml(rec){
   return `<div class="pws"><p class="wsline">${plural(rec.made.length, "map", "maps")} &middot;
       ${plural(runs, "run", "runs")} on them &middot; ${plural(subs, "subscriber", "subscribers")} &middot;
       still holds the record on ${fmtN(rec.holds)}</p>
-    <div class="mgrid" style="margin-top:12px">${list.map(m => madeCard(m, rec.id)).join("")}</div>
+    <div class="mgrid mkgrid">${list.map(m => madeCard(m, rec.id)).join("")}</div>
     ${list.length < rec.made.length ? `<button type="button" class="more-btn" data-madeall>All ${fmtN(rec.made.length)} maps</button>` : ""}</div>`;
 }
 
@@ -1570,7 +1571,7 @@ $("#player").addEventListener("click", e => {
     return;
   }
   if(t.closest("[data-pwclear]")){ pw.tier = null; pw.shown = PW_CHUNK; redrawPw(); return; }
-  if(t.closest("[data-pwmore]")){ pw.shown += PW_CHUNK; $("#pwrows").innerHTML = pwListHtml(pwRows(playerRec.workshop)); return; }
+  if(t.closest("[data-pwmore]")){ pw.shown += PW_CHUNK; $("#pwrows").innerHTML = pwListHtml(pwRows(playerRec.workshop), playerRec.id); return; }
   if(t.closest("[data-madeall]")){ pw.allMade = true; renderPlayer(); }
 });
 let pwTimer;

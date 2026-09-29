@@ -134,8 +134,9 @@ it.
 
 **The page's hash routes** are read by `route()` on load and on `hashchange`:
 `#/player/<steam_id>` with an optional `/circuit`, `/workshop` or `/made` tab (without
-one, Workshop for anyone with a Workshop time, else Circuit), `#/board/<board name>` with an optional `/<steam_id>` that
-marks that player's row once the board is open, and the Workshop's three:
+one, Workshop for anyone with a Workshop time, else Circuit), `#/board/<board name>`
+with an optional `/<steam_id>` that marks that player's row once the board is open, and
+the Workshop's three:
 `#/workshop` (the homepage, and what no hash at all opens), `#/maps` or
 `#/maps/<view>` (All maps, opened on one of `VIEWS` or `PRESETS`), and
 `#/map/<pfid>` with the same optional `/<steam_id>`. A Map's page is the board view

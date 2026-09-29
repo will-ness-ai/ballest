@@ -627,14 +627,21 @@ def write_site(boards_out, all_ids, workshop=None):
     # the boards get theirs (the 2026-09-27T23:32Z refresh did exactly that).
     ws_rows = list(workshop["boards"].values()) if workshop else []
     names = name_rows([b["rows"] for b in boards_out] + ws_rows, all_ids)
+    if workshop:
+        # Guarded: nothing on the Workshop side may stop the campaign files below.
+        try:
+            write_workshop(workshop, names)
+        except Exception as e:
+            print(f"  [warn] Workshop files not written: {e!r}")
 
     # Everything below the boards is derived from the named rows above, fallback
     # data included, so it can never disagree with the boards the page shows.
     # The composite comes back inside boards_out, which puts it through the same
-    # file write and index entry as a Steam board. The Maps are this run's reads over
-    # the committed files, or the committed files alone when the Workshop step failed,
-    # so a bad run never blanks anyone's Workshop times on their page.
-    boards_out, artifacts = derive(boards_out, workshop_boards(workshop))
+    # file write and index entry as a Steam board. The Maps are read back from the
+    # Workshop files as they now stand on disk: this run's, or the committed ones when
+    # the Workshop step failed or its write did. Either way the shards agree with the
+    # Map files, and a bad run never blanks anyone's Workshop times on their page.
+    boards_out, artifacts = derive(boards_out, workshop_boards())
     composite = next((b for b in boards_out if b["name"] == COMPOSITE_BOARD), None)
     if composite:
         print(f"  {COMPOSITE_BOARD:34s} derived  players={len(composite['rows'])}")
@@ -679,10 +686,4 @@ def write_site(boards_out, all_ids, workshop=None):
                    "app_id": APP_ID, "player_count": len(unique),
                    "boards": index_boards}, f, ensure_ascii=False, indent=2)
     print(f"\nWrote {INDEX_PATH} + {len(boards_out)} board files ({len(unique)} unique players)")
-    if workshop:
-        # The campaign files are written by now; nothing on the Workshop side may undo that.
-        try:
-            write_workshop(workshop, names)
-        except Exception as e:
-            print(f"  [warn] Workshop files not written: {e!r}")
     return INDEX_PATH

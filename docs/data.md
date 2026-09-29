@@ -37,7 +37,7 @@ written, guarded and checked for free.
 - `data/workshop/<pfid>.json`: one board file per Map that has a time, the same shape as a
   Circuit board file. Maps stay out of `index.json` and `BOARDS`, so the podiums and the
   composite are Circuit-only. The player shards are not: `derive()` takes every Map's rows
-  from `workshop_boards` (the committed files, or this run's reads laid over them) and
+  from `workshop_boards`, read back from the Map files after the run has written them, and
   lists them after the composite in each shard's board list, which is what the player
   page's Workshop tab reads.
 
