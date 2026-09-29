@@ -25,8 +25,9 @@ _Avoid_: tier, grade
 
 **Played**:
 A player has Played a Map if they hold a time on that Map's leaderboard. Attempts that
-never finished are invisible and do not count.
-_Avoid_: attempted, beaten
+never finished are invisible and do not count. A time can still beat the author time:
+that is a Medal, not Played.
+_Avoid_: attempted, beaten (for Played)
 
 ### Matches
 

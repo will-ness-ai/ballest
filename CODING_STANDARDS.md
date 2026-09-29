@@ -1,8 +1,9 @@
 # Coding standards
 
 The review checklist. A review is complete when every hunk has been read against every
-rule here and every invariant in `CLAUDE.md`, and each finding names the rule it breaks.
-`CLAUDE.md` carries the reasons; this file carries the checks.
+rule here and every invariant in `CLAUDE.md`, plus `docs/site.md` for a hunk in
+`index.html` and `docs/data.md` for one on the write path, and each finding names the rule
+it breaks. Those files carry the reasons; this file carries the checks.
 
 ## Page (`index.html`)
 
@@ -34,6 +35,8 @@ rule here and every invariant in `CLAUDE.md`, and each finding names the rule it
 - A change to the write path keeps the fallback-then-abort shape described under
   "Never let a run publish an empty board" in `CLAUDE.md`. A derived file such as
   `podiums.json` keeps its previous copy when its input comes out empty.
+- A derived file is built from its inputs as written to disk, after every guarded write of
+  those inputs, so a write that fails leaves the two agreeing.
 - `python tools/check_data.py` passes on the committed data after any collector change.
 
 ## Discord bot (`discord-bot/`)

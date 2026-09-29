@@ -106,8 +106,10 @@ $env:STEAM_REFRESH_TOKEN = (Get-Content tools\refresh_token.txt)
 tools\.venv-steampy\Scripts\python.exe tools\steampy_collect.py
 ```
 
-From a feature branch, add `--workshop-only`: it reads and writes only the Workshop Maps
-(`data/workshop.json`, `data/workshop/`), leaving the Circuit data as committed.
+From a feature branch, add `--out scratch/data` and check the copy with
+`python tools/check_data.py --data scratch/data`: the run reads and writes a fresh copy of
+`data/`, and the committed data stays as it is. `--workshop-only` reads only the Workshop
+Maps, and rebuilds the player shards from them and the committed Circuit boards.
 
 Then preview the site with any static server, e.g.
 `python -m http.server 8765` and open <http://localhost:8765>.
