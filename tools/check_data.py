@@ -8,6 +8,7 @@ live run. Exit status is non-zero on any failure, so it can gate a commit.
 
   python tools/check_data.py            # check
   python tools/check_data.py --write    # rewrite the derived files, then check
+  python tools/check_data.py --data scratch/data   # check a copy (steampy_collect --out)
 
 --write is for the two times the committed derived files legitimately disagree
 with the boards: a new artifact whose first copy ships with the code that adds
@@ -165,4 +166,6 @@ def check_workshop():
 
 
 if __name__ == "__main__":
+    if "--data" in sys.argv[1:]:
+        cc.use_data_dir(sys.argv[sys.argv.index("--data") + 1])
     sys.exit(main(rewrite="--write" in sys.argv[1:]))

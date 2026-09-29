@@ -16,8 +16,13 @@ worktree):
 
 Run locally to test:  python tools/steampy_collect.py
 From a feature branch: python tools/steampy_collect.py --workshop-only
-  (reads and writes only data/workshop.json + data/workshop/; the Circuit data is
-  CI-owned and stays as committed)
+  (reads and writes only the Workshop files, then rebuilds the player shards from
+  them and the committed Circuit boards; the Circuit boards are CI-owned and stay
+  as committed)
+To try the whole write path without touching data/:
+  python tools/steampy_collect.py --out scratch/data
+  python tools/check_data.py --data scratch/data
+  (--out copies the committed data/ into that folder, then reads and writes there)
 Requires: steamio, aiohttp<3.13  (see tools/requirements-steampy.txt)
 """
 import os, sys, time, asyncio, logging
@@ -36,6 +41,14 @@ logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown 
 
 TOKEN = cc.load_refresh_token()
 WORKSHOP_ONLY = "--workshop-only" in sys.argv[1:]
+if "--out" in sys.argv[1:]:
+    import shutil
+    OUT = sys.argv[sys.argv.index("--out") + 1]
+    # a fresh copy each run, so it starts from exactly what is committed
+    shutil.rmtree(OUT, ignore_errors=True)
+    shutil.copytree(cc.DATA_DIR, OUT)
+    cc.use_data_dir(OUT)
+    print(f"Reading and writing {cc.DATA_DIR}, a copy of data/")
 
 client = steam.Client()
 _state = {"done": False, "error": None, "wrote": False, "catalogue": None}
@@ -115,7 +128,9 @@ async def collect_workshop(catalogue, all_ids):
 
 
 async def workshop_only():
-    """--workshop-only: the Workshop step alone, with its own name lookup."""
+    """--workshop-only: the Workshop step alone, with its own name lookup. The player
+    shards carry Workshop times, so they are rebuilt too, from the committed Circuit
+    boards and the Map files just written, as write_site would."""
     if not _state["catalogue"]:
         _state["error"] = RuntimeError("Workshop catalogue unavailable")
         return
@@ -126,6 +141,8 @@ async def workshop_only():
         return
     names = cc.name_rows(list(workshop["boards"].values()), all_ids)
     cc.write_workshop(workshop, names)
+    _, artifacts = cc.derive(cc.committed_boards(), cc.workshop_boards())
+    cc.write_derived(artifacts)
     _state["wrote"] = True
 
 
