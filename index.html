@@ -650,7 +650,10 @@ footer a{color:var(--dim)}
   .strip{grid-auto-columns:minmax(200px,220px)}
   .mgrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
   .app[data-view="map"] .main{grid-template-columns:320px minmax(0,1fr)}
-  .mpanel{margin:0}
+  /* the panel stays put while the board scrolls past it, like the rail; if it is taller
+     than the window it scrolls on its own */
+  .mpanel{margin:0;position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;
+    overscroll-behavior:contain;scrollbar-width:thin}
   /* with a pointer, a card's top three appear over its picture instead of the leader under it */
   @media (hover:hover){
     .mcard .lead{display:none}
