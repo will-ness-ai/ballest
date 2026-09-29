@@ -69,7 +69,8 @@ member's buttons from `actionsFor`. Test those in
 
 `pnpm activity:demo` (or the `activity-demo` launch config) runs the page and API on port 8740
 over the tests' fake Steam, with no Discord: pick a member to sign in as, or add `?as=d-bob` for a
-second tab (alice starts unlinked; paste `https://steamcommunity.com/id/alice`). Fake racers set
+second tab (alice starts unlinked; paste `https://steamcommunity.com/id/alice`), and `?pip` for
+the small view Discord's picture-in-picture window gets. Fake racers set
 times once a Match is live. The page is bundled at startup, so restart the demo after editing it.
 
 The bot serves it on `PORT` (default 8080) only when `DISCORD_CLIENT_SECRET` and

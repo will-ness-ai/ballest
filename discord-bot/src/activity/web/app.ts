@@ -2,10 +2,11 @@
 // it offers the demo's members instead. It asks the API for everything every two seconds (the
 // bot itself reads Steam every ten), and redraws only when the page would look different.
 //
-// What's on screen, in order: your own Match if you're in one (the lock), else a Match you
+// When Discord shrinks it to picture-in-picture, it shows just the standings of the Match on
+// screen. Otherwise, in order: your own Match if you're in one (the lock), else a Match you
 // opened to watch, else the Map Gallery. A Match you were in stays on screen after its Result
 // until Back to Matches.
-import { DiscordSDK } from "@discord/embedded-app-sdk"
+import { Common, DiscordSDK } from "@discord/embedded-app-sdk"
 import type { MatchType, Minutes } from "../../domain.js"
 import type { Challengeable, MatchView } from "../api.js"
 import type { PageConfig } from "../server.js"
@@ -75,7 +76,9 @@ const ui = {
   revealUntil: 0,
   /** The viewer's PB on each live Lobby's Map they looked at, for Join late. */
   pbs: new Map<string, number | null>(),
-  busy: false
+  busy: false,
+  /** Discord has shrunk the Activity to its picture-in-picture window. */
+  pip: false
 }
 
 // ---------------------------------------------------------------- talking to the bot
@@ -131,8 +134,16 @@ const signIn = async (): Promise<boolean> => {
     const { access_token } = await res.json()
     await sdk.commands.authenticate({ access_token })
     token = access_token
+    void sdk
+      .subscribe("ACTIVITY_LAYOUT_MODE_UPDATE", ({ layout_mode }) => {
+        ui.pip = layout_mode === Common.LayoutModeTypeObject.PIP
+        render()
+      })
+      .catch(() => undefined)
     return true
   }
+  // The demo's stand-in for Discord's picture-in-picture.
+  ui.pip = params.has("pip")
   if (config.devUsers.length === 0) {
     ui.phase = "failed"
     ui.failure = "Open Multiballs from a channel in the Ballest server."
@@ -508,6 +519,7 @@ const screen = (): string => {
   if (ui.phase === "failed" || ui.me === null) return V.failed(ui.failure)
   const viewer = ui.me
   const f = ui.focus
+  if (ui.pip) return V.pip(viewer, f, ui.matches)
   const matchScreen = (m: MatchView, locked: boolean) =>
     V.matchView({
       m,
