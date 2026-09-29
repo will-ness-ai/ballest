@@ -46,7 +46,7 @@
   --line:rgba(150,175,245,.18); --line2:rgba(255,255,255,.055);
   --text:#eaf0ff; --dim:#93a2c8; --faint:#63719a;
   --accent:#8be03c; --accent-ink:#0d2000; --accent-soft:rgba(139,224,60,.14);
-  --gold:#ffd447; --silver:#d3dcea; --bronze:#ef9a52;
+  --gold:#ffd447; --silver:#d3dcea; --bronze:#ef9a52; --author:#5fd4ff;
   --gold-soft:rgba(255,212,71,.10); --silver-soft:rgba(211,220,234,.08);
   --bronze-soft:rgba(239,154,82,.10);
   --radius:11px; --pad:16px;
@@ -387,6 +387,153 @@ footer a{color:var(--dim)}
 .bmeter i{display:block;height:100%;width:var(--w);border-radius:2px;background:var(--faint)}
 .bbtn[aria-current="true"] .bmeter i{background:var(--accent)}
 
+
+/* ---------- the Workshop ----------
+   Three views over data/workshop.json: the homepage (a carousel of five picks, then
+   shelves of Map cards), All maps (ready-made views plus a Refine panel), and a Map's
+   page, which is the board view above with a panel of the Map's facts where the rail
+   would be. The homepage and All maps take the whole width, so the board view hides. */
+.ws{margin:0 var(--pad)}
+.ws[hidden],.mpanel[hidden]{display:none !important}
+.app[data-view="workshop"] .main,
+.app[data-view="maps"] .main,
+.app[data-view="map"] .rail,
+.app[data-view="map"] .boardbtn,
+.app[data-view="map"] .tiles,
+.app[data-view="map"] #btitle{display:none}
+.ws-head{display:flex;align-items:center;justify-content:space-between;gap:10px 14px;flex-wrap:wrap;margin-bottom:14px}
+.ws-h1{margin:0;font-family:var(--f-marquee);font-weight:400;font-size:21px;letter-spacing:.01em}
+.ws-tools{display:flex;align-items:center;gap:14px;flex:1 1 240px;justify-content:flex-end}
+.alllink{font-family:var(--f-hud);font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;white-space:nowrap}
+.alllink:hover{text-decoration:underline}
+.ws-q{flex:1;max-width:280px;min-width:0;padding:9px 12px;border-radius:10px;background:var(--surface2);
+  border:1px solid var(--line);color:var(--text);font-size:14px}
+.ws-q::placeholder{color:var(--faint)}
+.ws-count,.ws-note{font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.ws-note{margin:0 0 12px}
+.res-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 12px;
+  font-size:13px;color:var(--dim)}
+.linkbtn{color:var(--accent);font-size:12.5px}
+.go{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:10px;
+  background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:14px;text-decoration:none}
+.go:hover{filter:brightness(1.08)}
+.eyebrow{font-family:var(--f-hud);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);font-weight:600}
+
+/* the carousel: picture on one side, the pick on the other. The progress line under
+   the pick is the timer; pointing at the carousel pauses it */
+.car{display:grid;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--solid);
+  margin-bottom:26px}
+.car-pic{position:relative;aspect-ratio:400/270;max-height:340px}
+.car-pic .sl{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .7s ease}
+.car-pic .sl.on{opacity:1}
+.car-in{padding:16px;display:grid;gap:10px;animation:carin .45s ease}
+@keyframes carin{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+.car-in .why{color:var(--faint);letter-spacing:.04em;text-transform:none;font-weight:500}
+.car-t{margin:0;font-family:var(--f-marquee);font-weight:400;font-size:24px;line-height:1.08;overflow-wrap:anywhere}
+.car-by{font-size:13px;color:var(--dim);margin-top:-6px}
+.car-stats{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--dim)}
+.car-stats b{display:block;color:var(--text);font-family:var(--f-hud);font-size:17px;font-variant-numeric:tabular-nums}
+.car-pod{display:grid;gap:3px;border-top:1px solid var(--line2);padding-top:9px}
+.car-acts{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.car-nav{display:flex;align-items:center;gap:8px;font-family:var(--f-hud);font-size:12.5px;color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.car-nav button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line)}
+.car-nav button:hover{border-color:var(--accent)}
+.car-line{height:2px;background:var(--line2);border-radius:2px;overflow:hidden}
+.car-line .prog{display:block;height:100%;background:var(--accent);transform:scaleX(0);transform-origin:left;
+  animation:carfill 6s linear forwards}
+@keyframes carfill{to{transform:scaleX(1)}}
+.car:hover .prog,.car:focus-within .prog{animation-play-state:paused}
+
+/* one podium line: place, marble, name, time. The carousel and the cards share it */
+.p3{display:grid;grid-template-columns:14px 22px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:13px}
+.p3 b{font-family:var(--f-hud);font-weight:700;text-align:right}
+.p3[data-m="1"] b{color:var(--gold)}
+.p3[data-m="2"] b{color:var(--silver)}
+.p3[data-m="3"] b{color:var(--bronze)}
+.p3 .marble{width:22px;height:22px}
+.p3n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.p3t{font-family:var(--f-hud);font-variant-numeric:tabular-nums}
+
+/* shelves, and the Map card they and every grid are made of. On a phone the card shows
+   the record holder under it; with a pointer, the top three appear over the picture */
+.shelf{margin-bottom:26px}
+.shelf-h{display:flex;justify-content:space-between;align-items:baseline;gap:4px 12px;flex-wrap:wrap;margin-bottom:10px}
+.shelf-h h2{margin:0;font-family:var(--f-hud);font-size:15px;font-weight:700}
+.shelf-n{font-size:12px;color:var(--faint)}
+.shelf-n a{color:var(--accent);text-decoration:none;font-weight:600}
+.shelf-n a:hover{text-decoration:underline}
+.strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(170px,190px);gap:12px;overflow-x:auto;
+  padding-bottom:8px;scroll-snap-type:x proximity}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px 12px}
+.mcard{display:grid;gap:5px;align-content:start;min-width:0;color:inherit;text-decoration:none;scroll-snap-align:start}
+.mcard .im{position:relative;display:block;border-radius:10px;overflow:hidden;border:1px solid var(--line);
+  aspect-ratio:400/270;background:var(--surface2)}
+.mcard img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:filter .2s ease}
+.mcard .pod3{position:absolute;inset:0;display:none;align-content:center;gap:4px;padding:10px 12px}
+.mcard .pod3 .p3{font-size:12px;grid-template-columns:12px 18px minmax(0,1fr) auto;gap:6px}
+.mcard .pod3 .marble{width:18px;height:18px}
+.mcard .t{font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcard:hover .t{color:var(--accent)}
+.mcard .s{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--dim);min-width:0}
+.mcard .s span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcard .num{white-space:nowrap;font-family:var(--f-hud);font-variant-numeric:tabular-nums}
+.mcard .lead{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:7px;align-items:center;
+  font-size:12px;color:var(--dim)}
+.mcard .lead .marble{width:18px;height:18px}
+.mcard .lead span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* All maps: views as tabs, and the Refine panel sliding in from the side */
+.views{display:flex;gap:6px;align-items:center;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+.views a,.views button{padding:7px 13px;border-radius:99px;font-size:13px;color:var(--dim);white-space:nowrap;
+  border:1px solid transparent;text-decoration:none}
+.views a:hover{color:var(--text)}
+.views a.on{background:var(--surface2);border-color:var(--line);color:var(--text);font-weight:600}
+.views .sp{flex:1}
+.views .refine{border-color:var(--line)}
+.views .refine.on{border-color:var(--accent);color:var(--accent)}
+.more-btn{display:block;margin:18px auto 0;padding:10px 18px;border-radius:10px;border:1px solid var(--line);
+  font-size:13.5px;color:var(--dim)}
+.more-btn:hover{color:var(--text);border-color:var(--faint)}
+.dscrim{position:fixed;inset:0;background:rgba(4,7,14,.66);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(360px,100%);z-index:41;background:var(--solid);
+  border-left:1px solid var(--line);padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:18px;overflow-y:auto;animation:din .22s ease}
+@keyframes din{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+.dh{display:flex;justify-content:space-between;align-items:center;font-size:16px}
+.dh button{font-size:24px;line-height:1;color:var(--dim)}
+.fg{display:grid;gap:7px}
+.opts{display:flex;flex-wrap:wrap;gap:5px}
+.opt{padding:5px 10px;border-radius:99px;border:1px solid var(--line);font-size:12.5px;color:var(--dim)}
+.opt:hover{color:var(--text)}
+.opt.on{background:var(--accent-soft);border-color:var(--accent);color:var(--text);font-weight:600}
+.dfoot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:10px}
+
+/* a Map's page: its panel sits where the rail would, above the board on a phone */
+.mpanel{margin:0 var(--pad) 18px;display:grid;gap:14px;align-content:start;min-width:0}
+.mpanel .back{margin:0}
+.mp-img{width:100%;aspect-ratio:400/270;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+.mp-t{margin:0;font-family:var(--f-hud);font-size:22px;font-weight:700;line-height:1.15;overflow-wrap:anywhere}
+.mp-by{font-size:13px;color:var(--dim)}
+.mp-facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin:0;background:var(--line2);border-radius:10px;
+  overflow:hidden;border:1px solid var(--line2)}
+.mp-facts div{background:var(--solid);padding:8px 11px}
+.mp-facts dt{font-size:11px;color:var(--faint)}
+.mp-facts dd{margin:0;font-family:var(--f-hud);font-weight:600;font-variant-numeric:tabular-nums}
+.mp-medals{display:grid;gap:4px}
+.mp-medals div{display:flex;justify-content:space-between;align-items:center;font-size:13.5px}
+.mp-medals span{display:flex;align-items:center;gap:8px}
+.mp-medals i{width:10px;height:10px;border-radius:50%}
+.mp-medals b{font-family:var(--f-hud);font-weight:600;font-variant-numeric:tabular-nums}
+.mp-chart{display:grid;gap:6px;padding:10px 12px;border-radius:12px;background:var(--solid);border:1px solid var(--line2)}
+.spread{width:100%;height:auto;display:block;font-family:var(--f-hud)}
+.sp-bar{fill:var(--faint)}
+.sp-axis{stroke:var(--line)}
+.sp-lbl{fill:var(--dim);font-size:10px}
+.sp-cap{margin:0;font-size:11.5px;color:var(--faint)}
+.mp-ws{width:100%}
+
 /* ==========================================================================
    820px AND UP: GLASS CABINET
    ========================================================================== */
@@ -493,12 +640,32 @@ footer a{color:var(--dim)}
   .pgrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
   .ptile{min-height:92px}
 
+  /* the Workshop, full size */
+  .ws{margin:0}
+  .ws-h1{font-size:26px}
+  .car{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+  .car-pic{aspect-ratio:auto;max-height:none;min-height:360px}
+  .car-in{padding:22px}
+  .car-t{font-size:30px}
+  .strip{grid-auto-columns:minmax(200px,220px)}
+  .mgrid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .app[data-view="map"] .main{grid-template-columns:320px minmax(0,1fr)}
+  .mpanel{margin:0}
+  /* with a pointer, a card's top three appear over its picture instead of the leader under it */
+  @media (hover:hover){
+    .mcard .lead{display:none}
+    .mcard .pod3{display:grid;opacity:0;transition:opacity .2s ease}
+    .mcard:hover .pod3,.mcard:focus-visible .pod3{opacity:1}
+    .mcard:hover img,.mcard:focus-visible img{filter:brightness(.28) blur(1px)}
+  }
+
   footer{margin:30px 0 0;padding-top:16px;border-top:1px solid var(--line2);font-size:12px;
     line-height:1.6}
 }
 
 @media (prefers-reduced-motion:reduce){
   *{transition-duration:.01ms !important;animation-duration:.01ms !important}
+  .car-line .prog{animation:none !important}   /* no autoplay: the arrows still work */
 }
 </style>
 </head>
@@ -512,13 +679,16 @@ footer a{color:var(--dim)}
       <span class="rack" id="rack" aria-hidden="true"></span>
       <span class="wordmark">Ballest of Them All</span>
     </div>
-    <p class="tagline">Campaign leaderboards</p>
+    <p class="tagline">Campaign and Workshop leaderboards</p>
     <p class="freshness" id="freshness">Loading</p>
   </header>
 
   <nav class="groups" id="groups" role="tablist" aria-label="Season"></nav>
 
+  <section class="ws" id="ws" hidden></section>
+
   <div class="main">
+    <aside class="mpanel" id="mpanel" hidden></aside>
     <aside class="rail">
       <h2 id="railhead">&nbsp;</h2>
       <nav class="boards" id="boards" aria-label="Leaderboard"></nav>
@@ -573,6 +743,8 @@ const $ = s => document.querySelector(s);
 
 let INDEX = null;                  /* data/index.json */
 let PODIUMS = null;                /* data/podiums.json, or null if it didn't load */
+let WORKSHOP = [];                 /* data/workshop.json's Maps that have a time; [] without it */
+const WORKSHOP_GROUP = "Workshop";
 let group = null;                  /* "Season 2" */
 let boardKey = null;               /* the board's raw Steam name, unique across seasons,
                                       or PODIUM_KEY for the season's trophy cabinet */
@@ -689,7 +861,13 @@ function groupsOf(){
   });
 }
 const boardsIn = g => activeBoards().filter(b => b.group === g);
-const boardMeta = () => activeBoards().find(b => b.name === boardKey);
+/* Workshop Maps are never a season: the rail, the podiums, the composite and the player
+   page all read activeBoards() and groupsOf(), which stay campaign-only. Loading a board
+   and the board view's meta line are the two places that also know about Maps. */
+const boardByName = name => activeBoards().find(b => b.name === name) || WORKSHOP.find(b => b.name === name);
+const boardMeta = () => boardByName(boardKey);
+/* the meta line leads with the season, or for a Map, who made it */
+const whereOf = b => b && b.group === WORKSHOP_GROUP ? "by " + b.creator : group;
 /* the season's podium tally, or undefined when the file is missing or predates it */
 const podiumsIn = g => PODIUMS && PODIUMS.seasons && PODIUMS.seasons.find(s => s.group === g);
 const isPodiums = () => boardKey === PODIUM_KEY;
@@ -702,11 +880,18 @@ function renderChrome(){
     .map(h => `<span><span class="marble">${ballSvg(h)}</span></span>`).join("");
 }
 function renderGroups(){
-  $("#groups").innerHTML = groupsOf().map(g =>
+  /* the Workshop is the homepage, so its tab leads */
+  $("#groups").innerHTML = (WORKSHOP.length ? [WORKSHOP_GROUP] : []).concat(groupsOf()).map(g =>
     `<button class="gtab" role="tab" aria-selected="${g===group}" data-g="${esc(g)}">${esc(g)}</button>`
   ).join("");
 }
 function renderSelectors(){
+  /* a Map's page has its own panel where the rail would be */
+  if(group === WORKSHOP_GROUP){
+    const meta = boardMeta();
+    if(meta) $("#btitle").textContent = $("#bbName").textContent = meta.display;
+    return;
+  }
   const list = boardsIn(group), max = Math.max(...list.map(b => b.entry_count));
   /* the in-game track-selection screen groups tracks under difficulty headings;
      mirror them so the rail reads like the screen players already know */
@@ -863,6 +1048,7 @@ function fillViewport(){
 }
 function onScroll(){
   if(playerId) return;            /* the board is behind a player page, not on screen */
+  if(!/^(board|map)$/.test($("#app").dataset.view)) return;   /* or behind the Workshop */
   if(!boardData || shown >= visible.length) return;
   if(window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 900) renderMore();
 }
@@ -880,8 +1066,8 @@ function updateMeta(){
   if(!meta) return;
   const noun = isPoints(meta) ? "players" : "runs";
   const text = filtering
-    ? `${group} · ${fmtN(visible.length)} of ${fmtN(meta.entry_count)} ${noun} match`
-    : `${group} · ${fmtN(meta.entry_count)} ${noun} · showing ${fmtN(shown)}`;
+    ? `${whereOf(meta)} · ${fmtN(visible.length)} of ${fmtN(meta.entry_count)} ${noun} match`
+    : `${whereOf(meta)} · ${fmtN(meta.entry_count)} ${noun} · showing ${fmtN(shown)}`;
   $("#bmetaD").textContent = text;
   $("#bmetaM").textContent = text;
 }
@@ -1107,8 +1293,8 @@ function playerHtml(rec){
 
 async function showPlayer(id){
   if(!isSteamId(id)){ showBoard(); return; }   /* the ID becomes a fetch path below */
+  setView("player");
   playerId = id;
-  $("#app").dataset.view = "player";
   const el = $("#player");
   el.hidden = false;
   el.innerHTML = `<div class="pseason">${Array.from({length:3}, () =>
@@ -1134,17 +1320,326 @@ async function showPlayer(id){
   document.title = personaOf(rec.who) + " · " + SITE_TITLE;
 }
 
+/* ---------- the Workshop ----------
+   Three views, none of which fetches a board file until a Map is opened:
+   data/workshop.json carries each Map's top three and the numbers the shelves sort on.
+     #/workshop           the homepage: a carousel of five picks, then shelves
+     #/maps[/<view>]      every Map, in ready-made views plus a Refine panel
+     #/map/<pfid>[/<id>]  a Map's page: its board in the board view above, with a
+                          panel of the Map's facts where the rail would be */
+/* the one place that reads a Map's board name: Workshop_<pfid>, or null for a campaign board */
+const MAP_PREFIX = "Workshop_";
+const mapPfidOf = name => name && name.startsWith(MAP_PREFIX) ? name.slice(MAP_PREFIX.length) : null;
+const mapHash = (pfid, focus) => "#/map/" + pfid + (focus ? "/" + focus : "");
+/* preview pictures come from Steam's CDN; anything that isn't plain https is dropped */
+const safeImg = u => /^https:\/\//.test(u || "") ? u : "";
+const plural = (n, one, many) => fmtN(n) + " " + (n === 1 ? one : many);
+const fmtSec = s => fmtTime(Math.round(s * SCORE_TICKS_PER_SECOND));
+const secs = t => (t / SCORE_TICKS_PER_SECOND).toFixed(3) + "s";
+const recordOf = m => m.top3[0][2];
+const authorSec = m => m.medals[3];     /* medal_times_by_index is [bronze, silver, gold, author] */
+/* how far the record is under the author time, in ticks; negative when it is slower */
+const underAuthor = m => authorSec(m) * SCORE_TICKS_PER_SECOND - recordOf(m);
+const unbeaten = m => m.author_beaten === 0;
+const ageDays = m => (Date.now() / 1000 - m.created) / 86400;
+function ageText(m){
+  const d = Math.floor(ageDays(m));
+  return d < 1 ? "today" : d === 1 ? "yesterday" : d < 60 ? d + " days ago" : Math.round(d / 30) + " months ago";
+}
+/* medal_times_by_index is [bronze, silver, gold, author]; the page lists them best first */
+const MEDALS = [["Author", "var(--author)", 3], ["Gold", "var(--gold)", 2],
+                ["Silver", "var(--silver)", 1], ["Bronze", "var(--bronze)", 0]];
+
+/* Each sort carries the number a card shows while it is on: a shelf, or All maps
+   sorted that way, shows the figure its order is about. */
+const gapOrLast = m => m.gap13 == null ? Infinity : m.gap13;
+const runsStat = m => plural(m.entry_count, "run", "runs");
+const SORTS = {
+  runs:   {label: "Most runs",           cmp: (a,b) => b.entry_count - a.entry_count, stat: runsStat},
+  fewest: {label: "Fewest runs",         cmp: (a,b) => a.entry_count - b.entry_count || a.created - b.created, stat: runsStat},
+  new:    {label: "Newest",              cmp: (a,b) => b.created - a.created, stat: ageText},
+  plays:  {label: "Most played",         cmp: (a,b) => b.sessions - a.sessions, stat: m => plural(m.sessions, "play", "plays")},
+  short:  {label: "Shortest",            cmp: (a,b) => authorSec(a) - authorSec(b), stat: m => "author " + fmtSec(authorSec(m))},
+  tight:  {label: "Tightest top three",  cmp: (a,b) => gapOrLast(a) - gapOrLast(b),
+           stat: m => m.gap13 == null ? "under 3 runs" : "1st to 3rd " + secs(m.gap13)},
+  crowd:  {label: "Most crowded",        cmp: (a,b) => b.crowd - a.crowd, stat: m => fmtN(m.crowd) + " within 1s"},
+  under:  {label: "Author time crushed", cmp: (a,b) => underAuthor(b) / authorSec(b) - underAuthor(a) / authorSec(a),
+           stat: m => underAuthor(m) > 0 ? secs(underAuthor(m)) + " under" : "not beaten"},
+};
+const FILTERS = {
+  len:    {label: "Length", any: "Any length", opts: {
+            short: ["Under 15s", m => authorSec(m) < 15],
+            mid:   ["15 to 40s", m => authorSec(m) >= 15 && authorSec(m) < 40],
+            long:  ["40s and up", m => authorSec(m) >= 40]}},
+  age:    {label: "Published", any: "Any time", opts: {
+            week:  ["This week", m => ageDays(m) <= 7],
+            month: ["This month", m => ageDays(m) <= 30],
+            older: ["Over a month ago", m => ageDays(m) > 30]}},
+  author: {label: "Author time", any: "Beaten or not", opts: {
+            unbeaten: ["Unbeaten", unbeaten],
+            beaten:   ["Beaten", m => !unbeaten(m)]}},
+  runs:   {label: "Runs", any: "Any number", opts: {
+            few:  ["Under 10", m => m.entry_count < 10],
+            some: ["10 to 99", m => m.entry_count >= 10 && m.entry_count < 100],
+            many: ["100 or more", m => m.entry_count >= 100]}},
+};
+const NO_FILTER = () => ({len: "any", age: "any", author: "any", runs: "any", sort: "runs"});
+/* All maps' tabs, and the presets a shelf's See all opens; each is a link, #/maps/<key> */
+const VIEWS = [["all", "All", {}], ["unbeaten", "Unbeaten", {author: "unbeaten"}],
+               ["new", "New this week", {age: "week", sort: "new"}], ["short", "Under 15s", {len: "short"}],
+               ["tight", "Tight racing", {sort: "tight"}], ["plays", "Most played", {sort: "plays"}]];
+const PRESETS = {...Object.fromEntries(VIEWS.map(([k,,f]) => [k, f])),
+                 crowd: {sort: "crowd"}, under: {sort: "under"}, quiet: {sort: "fewest"}};
+const SHELVES = [
+  {title: "Most played", note: "by Workshop play sessions", sort: "plays", all: "plays"},
+  {title: "New this week", note: "newest first", sort: "new", all: "new", keep: m => ageDays(m) <= 7},
+  {title: "Unbeaten author time", note: "nobody has beaten the creator", sort: "runs", all: "unbeaten", keep: unbeaten},
+  {title: "Tightest top three", note: "1st to 3rd closest together", sort: "tight", all: "tight", keep: m => m.gap13 != null},
+  {title: "Crowded at the top", note: "most runs within a second of the record", sort: "crowd", all: "crowd"},
+  {title: "Author time crushed", note: "record furthest under the author time", sort: "under", all: "under"},
+  {title: "Barely played", note: "fewest runs so far", sort: "fewest", all: "quiet"},
+];
+const SHELF_SIZE = 12, MAPS_CHUNK = 60;
+
+/* ---------- the pieces every Workshop view shares ---------- */
+const imgTag = (m, cls) => safeImg(m.preview)
+  ? `<img${cls ? ` class="${cls}"` : ""} src="${esc(m.preview)}" alt="" loading="lazy" decoding="async">` : "";
+const podLine = ([id, persona, t], i) => { const r = {steam_id: id, persona};
+  return `<span class="p3" data-m="${i+1}"><b>${i+1}</b>${marble(r)}<span class="p3n">${esc(personaOf(r))}</span>
+    <span class="p3t">${fmtTime(t)}</span></span>`; };
+function cardHtml(m, stat){
+  const r = {steam_id: m.top3[0][0], persona: m.top3[0][1]};
+  return `<a class="mcard" href="${esc(mapHash(m.pfid))}"><span class="im">${imgTag(m)}<span class="pod3">${m.top3.map(podLine).join("")}</span></span>
+    <span class="t">${esc(m.display)}</span><span class="s"><span>by ${esc(m.creator)}</span><span class="num">${esc(stat(m))}</span></span>
+    <span class="lead">${marble(r)}<span>${esc(personaOf(r))}</span><span class="num">${fmtTime(recordOf(m))}</span></span></a>`;
+}
+const gridHtml = (list, stat) => `<div class="mgrid">${list.map(m => cardHtml(m, stat)).join("")}</div>`;
+const sorted = (keep, sort) => WORKSHOP.filter(keep || (() => true)).sort(SORTS[sort].cmp);
+/* the view a Map's page came from, for its back link */
+let listHash = "#/workshop";
+
+/* ---------- the homepage ---------- */
+let PICKS = [], slide = 0, wsQuery = "";
+/* five different Maps, each up for a different reason */
+function picks(){
+  const used = new Set();
+  const pick = (label, sort, keep) => {
+    const m = sorted(x => !used.has(x) && (!keep || keep(x)), sort)[0];
+    if(!m) return null;
+    used.add(m);
+    return {label, m, why: sort === "new" ? "published " + ageText(m) : SORTS[sort].stat(m)};
+  };
+  return [pick("Most played", "plays"), pick("Newest", "new"), pick("Most runs", "runs"),
+          pick("Barely played", "fewest"), pick("Tightest top three", "tight", m => m.gap13 != null)].filter(Boolean);
+}
+function carouselHtml(){
+  if(!PICKS.length) return "";
+  return `<div class="car" id="car"><div class="car-pic">${PICKS.map((p, i) =>
+      imgTag(p.m, "sl" + (i === slide ? " on" : ""))).join("")}</div><div id="carInfo">${carInfo()}</div></div>`;
+}
+/* re-rendered on every change, so the copy slides in and the progress line restarts */
+function carInfo(){
+  const p = PICKS[slide], m = p.m;
+  return `<div class="car-in"><span class="eyebrow">${esc(p.label)} <span class="why">&middot; ${esc(p.why)}</span></span>
+    <h2 class="car-t">${esc(m.display)}</h2><span class="car-by">by ${esc(m.creator)}</span>
+    <div class="car-stats"><span><b>${fmtN(m.entry_count)}</b>runs</span><span><b>${fmtTime(recordOf(m))}</b>record</span>
+      <span><b>${fmtN(m.sessions)}</b>plays</span></div>
+    <div class="car-pod">${m.top3.map(podLine).join("")}</div>
+    <div class="car-acts"><a class="go" href="${esc(mapHash(m.pfid))}">See the leaderboard</a>
+      <span class="car-nav"><button type="button" data-step="-1" aria-label="Previous pick">&larr;</button>
+        <span>${slide + 1} / ${PICKS.length}</span>
+        <button type="button" data-step="1" aria-label="Next pick">&rarr;</button></span></div>
+    <div class="car-line"><i class="prog"></i></div></div>`;
+}
+function setSlide(i){
+  if(!$("#carInfo")) return;
+  slide = (i + PICKS.length) % PICKS.length;
+  document.querySelectorAll("#car .sl").forEach((el, j) => el.classList.toggle("on", j === slide));
+  $("#carInfo").innerHTML = carInfo();
+}
+/* the timer is the progress line itself: when it finishes filling, move on */
+document.addEventListener("animationend", e => { if(e.animationName === "carfill") setSlide(slide + 1); });
+
+function shelfHtml(d){
+  const list = sorted(d.keep, d.sort).slice(0, SHELF_SIZE);
+  if(!list.length) return "";
+  return `<section class="shelf"><div class="shelf-h"><h2>${d.title}</h2>
+    <span class="shelf-n">${d.note} &middot; <a href="#/maps/${d.all}">See all</a></span></div>
+    <div class="strip">${list.map(m => cardHtml(m, SORTS[d.sort].stat)).join("")}</div></section>`;
+}
+function searchHtml(){
+  const q = wsQuery.trim().toLowerCase();
+  const hits = sorted(m => (m.display + " " + m.creator).toLowerCase().includes(q), "runs");
+  return `<div class="res-h"><span>${plural(hits.length, "map", "maps")} match &ldquo;${esc(wsQuery.trim())}&rdquo;</span>
+    <button type="button" class="linkbtn" data-wsclear>Clear</button></div>` +
+    (hits.length ? gridHtml(hits.slice(0, MAPS_CHUNK), runsStat) : `<div class="empty"><b>No map or creator by that name.</b></div>`) +
+    (hits.length > MAPS_CHUNK ? `<p class="ws-note">Showing the ${MAPS_CHUNK} with the most runs.</p>` : "");
+}
+const wsBody = () => wsQuery.trim() ? searchHtml() : carouselHtml() + SHELVES.map(shelfHtml).join("");
+function showWorkshop(){
+  setView("workshop");
+  document.title = SITE_TITLE;
+  listHash = "#/workshop";
+  if(!PICKS.length) PICKS = picks();
+  $("#ws").innerHTML = `<div class="ws-head"><h1 class="ws-h1">Workshop</h1><span class="ws-tools">
+      <a class="alllink" href="#/maps">All maps &rarr;</a>
+      <input class="ws-q" id="wsq" type="search" placeholder="Search maps" aria-label="Search maps by title or creator"
+        autocomplete="off" value="${esc(wsQuery)}"></span></div><div id="wsbody">${wsBody()}</div>`;
+}
+
+/* ---------- All maps ---------- */
+let F = NO_FILTER(), mapsShown = MAPS_CHUNK, drawerOpen = false;
+const activeFilters = () => Object.keys(FILTERS).filter(k => F[k] !== "any");
+const filteredMaps = () => sorted(m => activeFilters().every(k => FILTERS[k].opts[F[k]][1](m)), F.sort);
+function drawerHtml(n){
+  const opt = (k, v, label) => `<button type="button" class="opt${F[k] === v ? " on" : ""}" data-f="${k}:${v}">${esc(label)}</button>`;
+  return `<div class="dscrim" data-drawer></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="Refine maps">
+    <div class="dh"><b>Refine</b><button type="button" data-drawer aria-label="Close">&times;</button></div>
+    ${Object.entries(FILTERS).map(([k, f]) => `<div class="fg"><span class="eyebrow">${f.label}</span><div class="opts">
+      ${opt(k, "any", f.any)}${Object.entries(f.opts).map(([v, [label]]) => opt(k, v, label)).join("")}</div></div>`).join("")}
+    <div class="fg"><span class="eyebrow">Sort</span><div class="opts">
+      ${Object.entries(SORTS).map(([k, s]) => opt("sort", k, s.label)).join("")}</div></div>
+    <div class="dfoot"><button type="button" class="linkbtn" data-freset>Clear all</button>
+      <button type="button" class="go" data-drawer>Show ${plural(n, "map", "maps")}</button></div></aside>`;
+}
+function renderMaps(){
+  const list = filteredMaps(), n = activeFilters().length;
+  const isView = f => { const want = {...NO_FILTER(), ...f}; return Object.keys(want).every(k => F[k] === want[k]); };
+  $("#ws").innerHTML = `<a class="back" href="#/workshop">&larr; Workshop</a>
+    <div class="ws-head"><h1 class="ws-h1">All maps</h1><span class="ws-count">${plural(WORKSHOP.length, "map", "maps")} with a time</span></div>
+    <div class="views">${VIEWS.map(([k, label, f]) => `<a href="#/maps/${k}" class="${isView(f) ? "on" : ""}">${label}</a>`).join("")}
+      <span class="sp"></span><button type="button" class="refine${n ? " on" : ""}" data-drawer>Refine${n ? " &middot; " + n : ""}</button></div>
+    <p class="ws-note">${plural(list.length, "map", "maps")} &middot; ${SORTS[F.sort].label.toLowerCase()} first</p>
+    ${list.length ? gridHtml(list.slice(0, mapsShown), SORTS[F.sort].stat) +
+        (list.length > mapsShown ? `<button type="button" class="more-btn" data-more>Show more maps</button>` : "")
+      : `<div class="empty"><b>No map fits all of these filters.</b></div>`}
+    ${drawerOpen ? drawerHtml(list.length) : ""}`;
+}
+function showMaps(view){
+  setView("maps");
+  document.title = "All maps · " + SITE_TITLE;
+  listHash = location.hash;
+  F = {...NO_FILTER(), ...(PRESETS[view] || {})};
+  mapsShown = MAPS_CHUNK;
+  renderMaps();
+  scrollTo({top: 0});
+}
+
+$("#ws").addEventListener("click", e => {
+  const t = e.target;
+  const st = t.closest("[data-step]");
+  if(st){ setSlide(slide + +st.dataset.step); return; }
+  if(t.closest("[data-wsclear]")){ wsQuery = ""; $("#wsq").value = ""; $("#wsbody").innerHTML = wsBody(); return; }
+  const f = t.closest("[data-f]");
+  if(f){
+    const [k, v] = f.dataset.f.split(":");
+    F[k] = v; mapsShown = MAPS_CHUNK; renderMaps();
+    const again = document.querySelector(`[data-f="${f.dataset.f}"]`);  /* keep focus in the panel */
+    if(again) again.focus({preventScroll: true});
+    return;
+  }
+  if(t.closest("[data-freset]")){ F = NO_FILTER(); mapsShown = MAPS_CHUNK; renderMaps(); return; }
+  if(t.closest("[data-drawer]")){
+    drawerOpen = !drawerOpen; renderMaps();
+    if(drawerOpen) $(".drawer .dh button").focus();
+    return;
+  }
+  if(t.closest("[data-more]")){ mapsShown += MAPS_CHUNK; renderMaps(); }
+});
+let wsTimer;
+$("#ws").addEventListener("input", e => {
+  if(e.target.id !== "wsq") return;
+  clearTimeout(wsTimer);
+  wsTimer = setTimeout(() => { wsQuery = e.target.value; $("#wsbody").innerHTML = wsBody(); }, 120);
+});
+
+/* ---------- a Map's page ---------- */
+function renderMapPanel(m){
+  $("#mpanel").innerHTML = `<a class="back" href="${esc(listHash)}">&larr; ${listHash.startsWith("#/maps") ? "All maps" : "Workshop"}</a>
+    ${imgTag(m, "mp-img")}
+    <div><h1 class="mp-t">${esc(m.display)}</h1><span class="mp-by">by ${esc(m.creator)}</span></div>
+    <dl class="mp-facts"><div><dt>Runs</dt><dd>${fmtN(m.entry_count)}</dd></div><div><dt>Plays</dt><dd>${fmtN(m.sessions)}</dd></div>
+      <div><dt>Published</dt><dd>${ageText(m)}</dd></div><div><dt>Record</dt><dd>${fmtTime(recordOf(m))}</dd></div></dl>
+    <div class="mp-medals">${MEDALS.map(([name, c, i]) =>
+      `<div><span><i style="background:${c}"></i>${name}</span><b>${fmtSec(m.medals[i])}</b></div>`).join("")}</div>
+    <div class="mp-chart"><span class="eyebrow">Every run</span><div id="spread"><p class="sp-cap">Loading</p></div></div>
+    <a class="go mp-ws" href="https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(m.pfid)}" target="_blank" rel="noopener">Open in Steam Workshop</a>`;
+}
+/* How every run on the board spreads out, with each medal's cut-off drawn in. The
+   slowest twentieth is left off the right edge, or one abandoned run would squash
+   the rest into a single bar. */
+function drawSpread(m){
+  const el = $("#spread");
+  if(!el || !boardData || boardData.name !== m.name) return;
+  const ts = boardData.rows.map(r => r.score_ms);
+  if(ts.length < 2){ el.innerHTML = `<p class="sp-cap">One run so far.</p>`; return; }
+  const lo = ts[0], hi = Math.max(ts[Math.min(ts.length - 1, Math.floor(ts.length * .95))], lo + 1);
+  const N = 24, bins = new Array(N).fill(0);
+  let over = 0;
+  for(const t of ts){ if(t > hi){ over++; continue; } bins[Math.min(N - 1, Math.floor((t - lo) / (hi - lo) * N))]++; }
+  const W = 320, H = 118, top = 16, base = H - 22, bw = W / N, max = Math.max(...bins);
+  const x = t => ((t - lo) / (hi - lo) * W).toFixed(1);
+  const bars = bins.map((n, i) => n ? `<rect class="sp-bar" x="${(i * bw + 1).toFixed(1)}" y="${(base - n / max * (base - top)).toFixed(1)}"
+    width="${(bw - 2).toFixed(1)}" height="${(n / max * (base - top)).toFixed(1)}" rx="1.5"/>` : "").join("");
+  const lines = MEDALS.map(([name, c, i]) => {
+    const t = m.medals[i] * SCORE_TICKS_PER_SECOND;
+    if(t < lo || t > hi) return "";
+    return `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 6}" y2="${base}" style="stroke:${c}" stroke-width="1.5"/>
+      <text x="${x(t)}" y="${top - 9}" style="fill:${c}" font-size="9.5" text-anchor="middle">${name[0]}</text>`;
+  }).join("");
+  el.innerHTML = `<svg class="spread" viewBox="-8 -8 ${W + 16} ${H + 8}" role="img"
+      aria-label="How all ${ts.length} run times spread out, with the medal cut-offs">
+    <line class="sp-axis" x1="0" x2="${W}" y1="${base}" y2="${base}"/>${bars}${lines}
+    <text class="sp-lbl" x="0" y="${H - 6}">${fmtTime(lo)} record</text>
+    <text class="sp-lbl" x="${W}" y="${H - 6}" text-anchor="end">${fmtTime(hi)}</text></svg>
+    <p class="sp-cap">${plural(ts.length, "run", "runs")}${over ? `; the slowest ${fmtN(over)} are off the right edge` : ""}.</p>`;
+}
+function showMap(pfid, focus){
+  const m = WORKSHOP.find(x => x.pfid === pfid);
+  if(!m){ showWorkshop(); return; }      /* a stale link: the Map has left the Workshop */
+  setView("map");
+  document.title = m.display + " · " + SITE_TITLE;
+  renderMapPanel(m);
+  if(m.name === boardKey && boardData){ drawSpread(m); if(focus) focusPlayer(focus); return; }
+  $("#q").value = ""; filtering = false;
+  scrollTo({top: 0});
+  selectBoard(m.name, focus).then(() => drawSpread(m));
+}
+
+/* which of the page's views is on screen: a campaign board, a player, or one of the
+   Workshop's three. Each show* function calls this first. */
+function setView(v){
+  $("#app").dataset.view = v;
+  if(v !== "player"){ playerId = null; $("#player").hidden = true; $("#player").innerHTML = ""; }
+  $("#ws").hidden = v !== "workshop" && v !== "maps";
+  $("#mpanel").hidden = v !== "map";
+  if(v !== "maps") drawerOpen = false;
+  if(/^(workshop|maps|map)$/.test(v) && group !== WORKSHOP_GROUP){ group = WORKSHOP_GROUP; renderGroups(); }
+}
+
 /* ---------- routes ----------
-   Two of them: a board, optionally with one player's row marked, and a player.
-   Anything else means the board already on screen, or the default one. A board
-   being addressable is what lets a tile link back to its own leaderboard. */
+   A board, optionally with one player's row marked; a player; and the Workshop's
+   three (see above). No hash at all is the Workshop homepage. Anything else means
+   the view already on screen, or the default one. A board being addressable is what
+   lets a tile link back to its own leaderboard. */
 const PLAYER_ROUTE = new RegExp("^#/player/(" + STEAM_ID.source + ")$");
 const BOARD_ROUTE = new RegExp("^#/board/([A-Za-z0-9_]{1,64})(?:/(" + STEAM_ID.source + "))?$");
-const boardHash = (name, focus) => "#/board/" + name + (focus ? "/" + focus : "");
+const MAP_ROUTE = new RegExp("^#/map/(\\d{1,20})(?:/(" + STEAM_ID.source + "))?$");
+const MAPS_ROUTE = /^#\/maps(?:\/([a-z]{1,12}))?$/;
+const HOME_HASHES = ["", "#", "#/", "#/workshop"];
+const boardHash = (name, focus) => mapPfidOf(name)
+  ? mapHash(mapPfidOf(name), focus) : "#/board/" + name + (focus ? "/" + focus : "");
 function route(){
   const p = PLAYER_ROUTE.exec(location.hash);
   if(p){ showPlayer(p[1]); return; }
+  if(WORKSHOP.length){
+    const m = MAP_ROUTE.exec(location.hash);
+    if(m){ showMap(m[1], m[2]); return; }
+    const all = MAPS_ROUTE.exec(location.hash);
+    if(all){ showMaps(all[1]); return; }
+  }
   const b = BOARD_ROUTE.exec(location.hash);
+  if(WORKSHOP.length && (HOME_HASHES.includes(location.hash) || (!b && group === WORKSHOP_GROUP))){ showWorkshop(); return; }
   showBoard(b && b[1], b && b[2]);
 }
 /* setting the hash to what it already is fires no hashchange, so a reader
@@ -1154,10 +1649,8 @@ function go(hash){
   else location.hash = hash;
 }
 function showBoard(name, focus){
-  playerId = null;
-  $("#app").dataset.view = "board";
-  $("#player").hidden = true;
-  $("#player").innerHTML = "";
+  if(mapPfidOf(name)){ showMap(mapPfidOf(name), focus); return; }
+  setView("board");
   document.title = SITE_TITLE;
   const meta = name && name !== PODIUM_KEY ? activeBoards().find(b => b.name === name) : null;
   /* a shared link can name a board in a season other than the one on screen */
@@ -1172,7 +1665,7 @@ addEventListener("hashchange", route);
 /* ---------- loading ---------- */
 async function loadBoard(name){
   if(CACHE[name]) return CACHE[name];
-  const meta = activeBoards().find(b => b.name === name);
+  const meta = boardByName(name);
   const res = await fetch("data/" + meta.file);
   if(!res.ok) throw new Error("fetch " + meta.file + " -> " + res.status);
   const data = await res.json();
@@ -1189,7 +1682,7 @@ async function selectBoard(name, focus){
   $("#board").hidden = false;
   $("#leaders").hidden = true;
   $("#tiles").innerHTML = "";
-  $("#bmetaD").textContent = $("#bmetaM").textContent = group + " · loading";
+  $("#bmetaD").textContent = $("#bmetaM").textContent = whereOf(boardMeta()) + " · loading";
   $("#board").innerHTML = Array.from({length:8}, () =>
     `<div class="skel"><span></span><span></span><span></span></div>`).join("");
 
@@ -1201,7 +1694,7 @@ async function selectBoard(name, focus){
        lets the next scroll event append the old board's rows under this message,
        counted against the new board's field size. */
     boardData = null; visible = []; shown = 0; filtering = false;
-    $("#bmetaD").textContent = $("#bmetaM").textContent = group + " · unavailable";
+    $("#bmetaD").textContent = $("#bmetaM").textContent = whereOf(boardMeta()) + " · unavailable";
     $("#board").innerHTML = `<div class="empty"><b>That board didn't load.</b>
       The data file may still be refreshing. Try again in a moment.</div>`;
     return;
@@ -1257,7 +1750,7 @@ function closeSheet(){
 $("#boardBtn").onclick = openSheet;
 $("#scrim").onclick = closeSheet;
 addEventListener("keydown", e => {
-  if(e.key === "Escape"){ closeSheet(); return; }
+  if(e.key === "Escape"){ closeSheet(); if(drawerOpen){ drawerOpen = false; renderMaps(); } return; }
   if(e.key !== "Tab" || !sheetOpen) return;
   /* aria-modal hides the rest of the page from assistive tech, so keyboard
      focus has to be kept inside the sheet to match */
@@ -1274,7 +1767,7 @@ $("#groups").addEventListener("click", e => {
   const t = e.target.closest("[data-g]"); if(!t) return;
   $("#q").value = ""; filtering = false;
   /* the route carries the board, and showBoard reads the season off it */
-  go(boardHash(boardsIn(t.dataset.g)[0].name));
+  go(t.dataset.g === WORKSHOP_GROUP ? "#/workshop" : boardHash(boardsIn(t.dataset.g)[0].name));
 });
 function pickBoard(e){
   const t = e.target.closest("[data-b]"); if(!t) return;
@@ -1315,10 +1808,16 @@ renderChrome();
 const podiumsReq = fetch("data/podiums.json")
   .then(r => r.ok ? r.json() : null)
   .catch(() => null);
-Promise.all([fetch("data/index.json").then(r => r.json()), podiumsReq])
-  .then(([idx, pods]) => {
+/* optional the same way: without it the site is the campaign boards alone */
+const workshopReq = fetch("data/workshop.json")
+  .then(r => r.ok ? r.json() : null)
+  .catch(() => null);
+Promise.all([fetch("data/index.json").then(r => r.json()), podiumsReq, workshopReq])
+  .then(([idx, pods, ws]) => {
     INDEX = idx;
     PODIUMS = pods;
+    WORKSHOP = ws && Array.isArray(ws.maps)
+      ? ws.maps.filter(m => m.file && m.top3 && m.top3.length).map(m => ({...m, group: WORKSHOP_GROUP})) : [];
     const boards = activeBoards();
     if(!boards.length) throw new Error("no boards");
 

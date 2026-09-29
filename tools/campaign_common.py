@@ -35,7 +35,7 @@ S2_TRACKS = ["Map_Track_S2_Sampler", "Map_Track_S2_Longhaul", "Map_Track_S2_Pyra
 
 # Steam leaderboard IDs, keyed by name. steam.py's find-by-name (LBSFindOrCreateLB)
 # returns InvalidParameter for this app unless the message header's routing_app_id
-# is set to the app (see find_board_id in ugc_discord_leaderboard.py); the collector
+# is set to the app (see find_board_id in steampy_common.py); the collector
 # predates that finding and reads entries directly by ID (LBSGetLBEntries), which
 # works. These IDs are stable for the campaign boards.
 # To add a board: add it to BOARDS below AND its ID here. (Get a new ID from the
@@ -85,6 +85,25 @@ BOARDS = (
 # board is points rather than run times.
 COMPOSITE_BOARD = "OverallLeaderboard_AllSeasons"
 COMPOSITE_GROUP = "All Seasons"
+
+# Workshop Maps live apart from the campaign boards: their own list, data/workshop.json
+# (what the site's Workshop tab lists, and the collector's memory of what it last read),
+# and one board file per Map, data/workshop/<pfid>.json. They are not in BOARDS, not in
+# index.json and not in derive(), so the podiums, the composite and the player shards
+# stay campaign-only.
+WORKSHOP_GROUP = "Workshop"
+WORKSHOP_PATH = os.path.join(DATA_DIR, "workshop.json")
+WORKSHOP_DIR = os.path.join(DATA_DIR, "workshop")
+# Every Map's board is read at least this often, whatever the Workshop counters say:
+# nothing on the Workshop moves when a player beats their own time.
+FULL_SWEEP_SECONDS = 24 * 3600
+# A catalogue this much smaller than the last one is a broken read, not mass deletion.
+WORKSHOP_SHRINK_LIMIT = 0.9
+# A creator's own time must be faster than their author time by at least this much to
+# count as a beat. The author time in the Workshop metadata and the leaderboard score
+# of the very same publishing run disagree by up to ~0.75 ms in observed data (float
+# noise), so anything under 1 ms would count the publishing run itself as a beat.
+CREATOR_BEAT_MARGIN_TICKS = 100  # 1 ms
 
 
 
@@ -217,6 +236,169 @@ def resolve_names(key, ids):
             print(f"  name-resolve chunk failed: {e!r}")
         time.sleep(0.3)
     return out
+
+
+# Names are carried forward from the committed board files rather than looked up
+# every run (13k players is 131 GetPlayerSummaries calls). A run looks up players it
+# has no name for, plus one slice of everyone else: slices rotate every three hours,
+# so every name is refreshed about once a week.
+NAME_REFRESH_SLICES = 56
+
+
+def known_names():
+    """SteamID64 -> {persona, avatar, profileurl}, from every committed board file."""
+    out = {}
+    for folder in (BOARDS_DIR, WORKSHOP_DIR):
+        if not os.path.isdir(folder):
+            continue
+        for fname in os.listdir(folder):
+            if not fname.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(folder, fname), encoding="utf-8") as f:
+                    rows = json.load(f).get("rows") or []
+            except Exception as e:
+                print(f"  (could not read {fname} for names: {e!r})")
+                continue
+            for r in rows:
+                if r.get("persona"):
+                    out[r["steam_id"]] = {"persona": r["persona"], "avatar": r.get("avatar", ""),
+                                          "profileurl": r.get("profileurl", "")}
+    return out
+
+
+def names_due(ids, known, now=None):
+    """The IDs this run looks up: every one without a name, plus this run's slice."""
+    slot = int(now if now is not None else time.time()) // (3 * 3600) % NAME_REFRESH_SLICES
+    return [sid for sid in ids
+            if sid not in known or (sid.isdigit() and int(sid) % NAME_REFRESH_SLICES == slot)]
+
+
+def workshop_catalogue(key):
+    """Every published Workshop Map, from IPublishedFileService/QueryFiles.
+
+    The game records each Map's Steam leaderboard name in the item's metadata
+    (ballest_v0_<pfid>_Climb_<title>); key off that, never the Workshop title,
+    which a rename changes. lifetime_playtime_sessions and lifetime_subscriptions
+    are what tell the collector a Map was played since it last read the board.
+    Raises if the pages come back short of the total Steam reports, so a partial
+    read can never look like deleted Maps."""
+    maps, cursor, seen, fetched, total = [], "*", set(), 0, None
+    while True:
+        q = urllib.parse.urlencode({
+            "key": key, "appid": APP_ID, "query_type": 1, "numperpage": 100,
+            "cursor": cursor, "return_metadata": 1, "return_playtime_stats": 1,
+        })
+        with urllib.request.urlopen(
+                "https://api.steampowered.com/IPublishedFileService/QueryFiles/v1/?" + q,
+                timeout=60) as r:
+            resp = json.load(r)["response"]
+        total = int(resp.get("total", 0))
+        batch = resp.get("publishedfiledetails") or []
+        for it in batch:
+            pfid = it.get("publishedfileid")
+            if not pfid or pfid in seen:
+                continue
+            seen.add(pfid)
+            fetched += 1
+            try:
+                b = json.loads(it.get("metadata") or "{}")["ballest"]
+                board = b["leaderboard_name_current"]
+                medals = [float(t) for t in b["medal_times_by_index"]]
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                print(f"  [skip] Map {pfid} {it.get('title')!r}: no usable ballest metadata")
+                continue
+            maps.append({
+                "pfid": pfid, "title": it.get("title") or b.get("level_display_name") or pfid,
+                "creator": b.get("creator_name", ""), "created": int(it.get("time_created") or 0),
+                "medals": medals, "board": board,
+                "cid": str(it.get("creator") or ""), "preview": it.get("preview_url") or "",
+                "sessions": int(it.get("lifetime_playtime_sessions") or 0),
+                "subs": int(it.get("lifetime_subscriptions") or 0),
+            })
+        nxt = resp.get("next_cursor")
+        if not batch or not nxt or nxt == cursor:
+            break
+        cursor = nxt
+        time.sleep(0.3)
+    if fetched < total:
+        raise RuntimeError(f"Workshop catalogue came back short: {fetched} of {total} items")
+    return maps
+
+
+def load_workshop():
+    """The committed data/workshop.json, or None."""
+    if os.path.exists(WORKSHOP_PATH):
+        try:
+            with open(WORKSHOP_PATH, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"  (could not read existing workshop.json: {e!r})")
+    return None
+
+
+def workshop_board_doc(m, rows):
+    """A Map's board file: the same shape as a campaign board file."""
+    return {"name": m["name"], "display": m["display"], "group": WORKSHOP_GROUP,
+            "handle": m["handle"], "entry_count": m["entry_count"], "rows": rows}
+
+
+AUTHOR_MEDAL_INDEX = 3  # medal_times_by_index = [bronze, silver, gold, author], seconds
+
+
+def workshop_stats(m, rows):
+    """What the Workshop homepage shows of a Map without fetching its board: the top
+    three (for the cards and the carousel) and the numbers the shelves sort on. Rows
+    are rank-ordered and carry names. author_beaten counts runs at or under the author
+    time, where the creator's own run counts only if CREATOR_BEAT_MARGIN_TICKS faster:
+    the author time is their publishing run."""
+    lead = rows[0]["score_ms"]
+    author = m["medals"][AUTHOR_MEDAL_INDEX] * SCORE_TICKS_PER_SECOND
+    return {
+        "top3": [[r["steam_id"], r.get("persona", ""), r["score_ms"]] for r in rows[:3]],
+        "gap13": rows[2]["score_ms"] - lead if len(rows) >= 3 else None,
+        "crowd": sum(1 for r in rows if r["score_ms"] - lead <= SCORE_TICKS_PER_SECOND),
+        "author_beaten": sum(1 for r in rows if r["score_ms"] <= (
+            author - CREATOR_BEAT_MARGIN_TICKS if r["steam_id"] == m.get("cid") else author)),
+    }
+
+
+def write_workshop(ws, names):
+    """Write the boards read this run, drop the files of Maps no longer on the
+    Workshop, then the list. Boards not read this run keep their committed file, and
+    their stats are worked out again from it, with this run's names on the top three
+    so a renamed leader shows on the homepage before their board is next read. A Map
+    whose committed file has gone missing is listed without a board until it is read."""
+    os.makedirs(WORKSHOP_DIR, exist_ok=True)
+    by_pfid = {m["pfid"]: m for m in ws["maps"]}
+    for m in ws["maps"]:
+        if not m.get("file"):
+            continue
+        rows = ws["boards"].get(m["pfid"])
+        if rows is None:
+            path = os.path.join(DATA_DIR, m["file"])
+            if not os.path.exists(path):
+                print(f"  [warn] Workshop Map {m['pfid']}: {m['file']} is missing; listed without a board")
+                m.update(file=None, rows=0)
+                continue
+            with open(path, encoding="utf-8") as f:
+                rows = json.load(f)["rows"]
+        m.update(workshop_stats(m, rows))
+        for t in m["top3"]:
+            t[1] = names.get(t[0], {}).get("persona") or t[1]
+    for pfid, rows in ws["boards"].items():
+        with open(os.path.join(WORKSHOP_DIR, pfid + ".json"), "w", encoding="utf-8") as f:
+            json.dump(workshop_board_doc(by_pfid[pfid], rows), f, ensure_ascii=False,
+                      separators=(",", ":"))
+    keep = {m["file"].split("/", 1)[1] for m in ws["maps"] if m.get("file")}
+    for fname in os.listdir(WORKSHOP_DIR):
+        if fname.endswith(".json") and fname not in keep:
+            os.remove(os.path.join(WORKSHOP_DIR, fname))
+    with open(WORKSHOP_PATH, "w", encoding="utf-8") as f:
+        json.dump({"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                   "full_sweep_at": ws["full_sweep_at"], "maps": ws["maps"]},
+                  f, ensure_ascii=False, separators=(",", ":"))
+    print(f"Wrote {WORKSHOP_PATH}: {len(ws['maps'])} Maps, {len(ws['boards'])} boards read this run")
 
 
 def load_existing_board(name):
@@ -375,21 +557,34 @@ def derive(boards_out):
     return boards_out, artifacts
 
 
-def write_site(boards_out, all_ids):
+def write_site(boards_out, all_ids, workshop=None):
     """Resolve names, then write one file per board (data/boards/<name>.json) plus
     a small data/index.json the page loads first. Board files omit generated_at so
-    an unchanged board produces no diff (only index.json changes every run)."""
+    an unchanged board produces no diff (only index.json changes every run).
+
+    workshop, when given, is {"maps", "boards": {pfid: rows}, "full_sweep_at"}:
+    its rows get names from the same lookup, then write_workshop publishes it."""
     key = load_key()
     if not key:
         print("WARNING: no STEAM_API_KEY (env or .env) — names will be blank (ids still collected).")
-    print(f"Resolving {len(all_ids)} player names...")
-    names = resolve_names(key, all_ids)
+    known = known_names()
+    # The slice covers every player we know, not only this run's rows: a Workshop board
+    # is re-read only when played, so its players would otherwise rarely come up.
+    due = names_due(set(all_ids) | set(known), known)
+    print(f"Resolving {len(due)} of {len(all_ids)} player names (new, plus this run's slice)...")
+    names = {sid: dict(v) for sid, v in known.items()}
+    for sid, info in resolve_names(key, due).items():
+        cur = names.setdefault(sid, {})
+        for field, val in info.items():
+            if val:
+                cur[field] = val
 
     # Names first: derive() copies persona/avatar/profileurl from the rows, so
     # rows it reads without names publish derived files with blank ones while
     # the boards get theirs (the 2026-09-27T23:32Z refresh did exactly that).
-    for b in boards_out:
-        for r in b["rows"]:
+    ws_rows = [rows for rows in workshop["boards"].values()] if workshop else []
+    for rows in [b["rows"] for b in boards_out] + ws_rows:
+        for r in rows:
             info = names.get(r["steam_id"], {})
             # Prefer a freshly-resolved value, but keep any existing one if this
             # run's resolution came back empty (e.g. a failed GetPlayerSummaries
@@ -447,4 +642,10 @@ def write_site(boards_out, all_ids):
                    "app_id": APP_ID, "player_count": len(unique),
                    "boards": index_boards}, f, ensure_ascii=False, indent=2)
     print(f"\nWrote {INDEX_PATH} + {len(boards_out)} board files ({len(unique)} unique players)")
+    if workshop:
+        # The campaign files are written by now; nothing on the Workshop side may undo that.
+        try:
+            write_workshop(workshop, names)
+        except Exception as e:
+            print(f"  [warn] Workshop files not written: {e!r}")
     return INDEX_PATH

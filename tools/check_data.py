@@ -23,6 +23,9 @@ Checks:
     players/<shard>.json — matches the committed copy
   - the composite board file equals the one derive() appends, and index.json
     lists it
+  - every Map workshop.json lists with a board has that file, rank-aligned and
+    the size the list says, with the top three and shelf stats workshop_stats()
+    gives, and no board file is left for a Map it doesn't list
 """
 import os, sys, json
 
@@ -104,6 +107,8 @@ def main(rewrite=False):
         problems.append(f"{cc.COMPOSITE_BOARD}.json is missing")
     print(f"  {cc.COMPOSITE_BOARD:34s} rows={len(comp['rows']):5d} (derived)")
 
+    problems += check_workshop()
+
     if problems:
         print("\nFAILED:")
         for p in problems:
@@ -111,6 +116,46 @@ def main(rewrite=False):
         return 1
     print(f"\nOK: {len(boards_out)} boards (composite included), index and every derived file consistent")
     return 0
+
+
+def check_workshop():
+    """The Workshop list against its board files. Missing entirely is fine (a
+    checkout from before Workshop Maps); a list and files that disagree is not."""
+    ws = cc.load_workshop()
+    if ws is None:
+        print("  workshop.json absent; skipping Workshop checks")
+        return []
+    problems, files = [], set()
+    for m in ws.get("maps", []):
+        if not m.get("file"):
+            continue
+        files.add(os.path.basename(m["file"]))
+        path = os.path.join(cc.DATA_DIR, m["file"])
+        if not os.path.exists(path):
+            problems.append(f"Workshop Map {m['pfid']}: no board file {m['file']}")
+            continue
+        rows = load(path).get("rows") or []
+        if not rows:
+            problems.append(f"Workshop Map {m['pfid']}: empty board file")
+        if len(rows) != m.get("rows"):
+            problems.append(f"Workshop Map {m['pfid']}: workshop.json says {m.get('rows')} rows, "
+                            f"file has {len(rows)}")
+        if any(r.get("rank") != i + 1 for i, r in enumerate(rows)):
+            problems.append(f"Workshop Map {m['pfid']}: rows are not rank-aligned")
+        # names aside: the list's top three carry this run's names, which can be newer
+        # than a board file that was not re-read
+        if rows:
+            want = cc.workshop_stats(m, rows)
+            same = lambda k, v: ([[t[0], t[2]] for t in v] == [[t[0], t[2]] for t in m.get(k) or []]
+                                 if k == "top3" else m.get(k) == v)
+            if not all(same(k, v) for k, v in want.items()):
+                problems.append(f"Workshop Map {m['pfid']}: top three or shelf stats do not match its board file")
+    if os.path.isdir(cc.WORKSHOP_DIR):
+        for fname in os.listdir(cc.WORKSHOP_DIR):
+            if fname.endswith(".json") and fname not in files:
+                problems.append(f"workshop/{fname} belongs to no Map in workshop.json")
+    print(f"  workshop.json  {len(ws.get('maps', []))} Maps, {len(files)} board files")
+    return problems
 
 
 if __name__ == "__main__":

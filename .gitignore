@@ -27,6 +27,7 @@ __pycache__/
 *.pyc
 
 # data: the site serves index.json + boards/*.json + podiums.json + players/*.json
+# + workshop.json + workshop/*.json
 # (committed so Pages can serve them); ignore any other local data artifacts (e.g.
 # the SDK collector's campaign.json).
 data/*
@@ -34,3 +35,5 @@ data/*
 !data/boards/
 !data/podiums.json
 !data/players/
+!data/workshop.json
+!data/workshop/
