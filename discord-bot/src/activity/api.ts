@@ -24,7 +24,6 @@ const STATUS: Record<Rejection["_tag"], number> = {
   MatchNotFound: 404,
   NotOpen: 409,
   NotAllowed: 403,
-  NotEnoughPlayers: 409,
   NoEligibleMap: 409,
   SteamUnavailable: 503,
   ProfileNotFound: 404

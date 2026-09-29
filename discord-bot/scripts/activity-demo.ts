@@ -98,8 +98,7 @@ const Demo = Layer.unwrapScoped(
 
 Layer.launch(Demo).pipe(
   Effect.withConfigProvider(
-    // One Player is enough to start a Lobby here, so a single tab can try the whole flow.
-    ConfigProvider.fromMap(new Map([["PORT", "8740"], ["LOBBY_MIN_PLAYERS", "1"]]))
+    ConfigProvider.fromMap(new Map([["PORT", "8740"]]))
   ),
   NodeRuntime.runMain
 )

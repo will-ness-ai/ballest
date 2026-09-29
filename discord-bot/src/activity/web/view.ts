@@ -435,6 +435,34 @@ export const goBar = (m: MatchView, offset: number) => {
   return `<div class="gobar"><b>Go!</b> Ends at ${ends} ${m.map === null ? "" : btn(`workshop:${m.map.pfid}`, "Open Map in Workshop", "sm")}</div>`
 }
 
+// Picture-in-picture: Discord shrinks the Activity to a small window when you leave the call's view.
+// Nothing in it is pressed (a click brings the full page back), so it only shows where things stand.
+
+/** The Match on screen as its top three, each with their time and gap to P1; your row replaces third if you're lower. */
+const pipMatch = (m: MatchView, viewer: Viewer) => {
+  const top = m.standings.slice(0, 3)
+  const me = m.standings.find((s) => s.player.discordId === viewer.discordId)
+  const shown = me === undefined || top.includes(me) ? top : [...top.slice(0, 2), me]
+  const lead = m.standings[0]?.ticks ?? null
+  const rows = shown
+    .map((s) => {
+      const gap = s.ticks === null || lead === null || s.ticks === lead ? "" : `+${formatGap(s.ticks - lead)}`
+      return `<div class="pr ${s.player.discordId === viewer.discordId ? "me" : ""}"><span class="${rankClass(s.rank)}">${s.rank ?? "–"}</span>${marble(s.player.steamId, 15)}<span class="n">${esc(nameOf(m)(s.player.discordId))}</span><span>${s.ticks === null ? "—" : formatTime(s.ticks)}</span><span class="gap">${gap}</span></div>`
+    })
+    .join("")
+  return `<div class="pip"><div class="pip-h"><span class="mt">${esc(mapTitle(m))}</span>${chipFor(m)}</div><div class="pip-rows">${rows}</div></div>`
+}
+
+/** The small window: the Match on screen, else a Challenge that names you, else how many Matches are on. */
+export const pip = (viewer: Viewer, focus: MatchView | null, matches: ReadonlyArray<MatchView>) => {
+  if (focus !== null) return pipMatch(focus, viewer)
+  const challenge = matches.find((m) => m.actions.includes("decline"))
+  if (challenge !== undefined)
+    return `<div class="pip">${logo()}<div class="pip-box you">${marble(challenge.creator.steamId, 22)}<div><div class="mt">${esc(nameOf(challenge)(challenge.creator.discordId))} challenges you</div><div class="note">${esc(matchDetails(challenge))} · ${until(challenge.expiresAt)} to answer</div></div></div></div>`
+  const n = matches.length
+  return `<div class="pip">${logo()}<div class="pip-box"><div class="mt">${n === 0 ? "No active Matches" : `${n} active Match${n === 1 ? "" : "es"}`}</div></div></div>`
+}
+
 // Dialogs and toasts
 
 export interface LinkState {

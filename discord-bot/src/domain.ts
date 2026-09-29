@@ -13,8 +13,6 @@ export type Minutes = (typeof DURATIONS)[number]
 
 export const INVITE_TTL_MS = 5 * 60_000
 export const POLL_INTERVAL_MS = 10_000
-export const LOBBY_MIN_PLAYERS = 2
-
 export type MedalKind = "bronze" | "silver" | "gold" | "author"
 
 /** A Map's Medal targets, in seconds, as its Workshop metadata publishes them. */
