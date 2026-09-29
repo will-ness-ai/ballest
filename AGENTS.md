@@ -66,7 +66,8 @@ Steam refresh token; the mint-and-collect runbook is `tools/README-hosting.md`. 
 secrets (`.env`, `tools/refresh_token.txt`) live in the main checkout and are found from
 a worktree. From a feature branch, run the collector with `--workshop-only`, which writes
 only `data/workshop.json` and `data/workshop/`; a full run rewrites the Circuit data too,
-which does not belong on a branch.
+which does not belong on a branch. The player shards carry the Workshop times, so after a
+`--workshop-only` run they lag until `python tools/check_data.py --write` catches them up.
 
 The site and the collector have no tests, linters, or type checks. Verify front-end
 changes by loading the served page. After editing `index.html`, reload the page (a hash
@@ -120,7 +121,9 @@ of every derived file, since they all come from the same rows.
 The Workshop step never blocks the campaign and never wipes a Map: a failed Map read
 keeps its committed file and its old counters (so the next run retries it), and a
 catalogue that fails, comes back short of Steam's total, or shrinks by more than
-`WORKSHOP_SHRINK_LIMIT` leaves every Workshop file as committed.
+`WORKSHOP_SHRINK_LIMIT` leaves every Workshop file as committed. The player shards take
+the Maps from `workshop_boards`, so when the Workshop step fails they are built from the
+committed Map files and nobody's Workshop times drop off their page.
 Preserve that in any change to the write path. The pagination stop condition in
 `fetch_board` is deliberately conservative for the same reason — don't simplify it.
 
@@ -130,7 +133,8 @@ invisible to git and 404s in production; the workflow's `git add` line also has 
 it.
 
 **The page's hash routes** are read by `route()` on load and on `hashchange`:
-`#/player/<steam_id>`, `#/board/<board name>` with an optional `/<steam_id>` that
+`#/player/<steam_id>` with an optional `/circuit`, `/workshop` or `/made` tab (without
+one, Workshop for anyone with a Workshop time, else Circuit), `#/board/<board name>` with an optional `/<steam_id>` that
 marks that player's row once the board is open, and the Workshop's three:
 `#/workshop` (the homepage, and what no hash at all opens), `#/maps` or
 `#/maps/<view>` (All maps, opened on one of `VIEWS` or `PRESETS`), and
