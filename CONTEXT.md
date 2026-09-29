@@ -59,7 +59,7 @@ _Avoid_: private 1v1, duel
 
 **Lobby**:
 A Match type whose Invite any number of Players can join; it starts when its creator
-starts it, with at least two Players. Players can still join once it is live; a late
+starts it, even if no one else has joined. Players can still join once it is live; a late
 joiner's PB on the Map when they join is the PB they must beat. A Player who left can't rejoin.
 _Avoid_: public lobby, room
 
