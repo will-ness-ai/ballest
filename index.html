@@ -401,6 +401,15 @@ input{font:inherit}
 
 /* the two shelves: a player's world records, and their runs closest to one */
 .pws .shelf{margin:18px 0 0}
+/* the shelves move with the arrows in their heading, or a swipe; no scrollbar */
+.pws .shelf-h{align-items:center}
+.pws .strip{scrollbar-width:none;padding-bottom:0}
+.pws .strip::-webkit-scrollbar{display:none}
+.snav{display:flex;gap:6px}
+.snav[hidden]{display:none}
+.snav button{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);color:var(--dim)}
+.snav button:hover:not(:disabled){border-color:var(--accent);color:var(--text)}
+.snav button:disabled{opacity:.3;cursor:default}
 .scard{display:grid;gap:6px;align-content:start;padding:10px 12px;border:1px solid var(--line);
   border-radius:var(--radius);background:var(--surface);color:inherit;text-decoration:none;font-size:12.5px;
   scroll-snap-align:start;min-width:0}
@@ -1422,11 +1431,17 @@ function seasonHtml(s, id){
   </section>`;
 }
 /* the tabs a player's page has; Made only for someone who published a Map */
-const playerTabs = rec => [["circuit", "Circuit", rec.run], ["workshop", "Workshop", rec.workshop.finishes.length],
-  ...(rec.made.length ? [["made", "Made", rec.made.length]] : [])];
+/* A player page's tabs, in order: the one list the tab bar, each tab's body and the
+   #/player/<id>/<key> route are all built from. Made shows only for a map maker. */
+const PLAYER_TABS = [
+  {key: "circuit",  label: "Circuit",  count: rec => rec.run,                      html: circuitHtml},
+  {key: "workshop", label: "Workshop", count: rec => rec.workshop.finishes.length, html: workshopHtml},
+  {key: "made",     label: "Made",     count: rec => rec.made.length,              html: madeHtml,
+   shown: rec => rec.made.length > 0},
+];
+const playerTabs = rec => PLAYER_TABS.filter(t => !t.shown || t.shown(rec));
 function playerHtml(rec, tab){
   const url = (rec.profileurl && /^https?:\/\//i.test(rec.profileurl)) ? rec.profileurl : "";
-  const body = tab === "workshop" ? workshopHtml(rec) : tab === "made" ? madeHtml(rec) : circuitHtml(rec);
   return `<a class="back" href="${esc(rec.back.href)}">&larr; ${esc(rec.back.label)}</a>
   <div class="pid">${marble(rec.who)}
     <span class="pwho"><h1>${esc(personaOf(rec.who))}</h1>
@@ -1436,9 +1451,9 @@ function playerHtml(rec, tab){
       ${rec.made.length ? `<br><span class="maker">Map maker &middot; ${plural(rec.made.length, "map", "maps")}</span>` : ""}</span>
     ${url ? `<a class="steam" href="${esc(url)}" target="_blank" rel="noopener">${STEAM_MARK}Steam profile</a>` : ""}
   </div>
-  <nav class="ptabs">${playerTabs(rec).map(([k, label, n]) => `<a href="#/player/${esc(rec.id)}/${k}"
-    ${k === tab ? `aria-current="page"` : ""}>${label}<small>${fmtN(n)}</small></a>`).join("")}</nav>
-  ${body}`;
+  <nav class="ptabs">${playerTabs(rec).map(t => `<a href="#/player/${esc(rec.id)}/${t.key}"
+    ${t === tab ? `aria-current="page"` : ""}>${t.label}<small>${fmtN(t.count(rec))}</small></a>`).join("")}</nav>
+  ${tab.html(rec)}`;
 }
 function circuitHtml(rec){
   return `<dl class="pstats">
@@ -1479,7 +1494,9 @@ function trophiesHtml(w){
 }
 function shelfCards(title, list, id, fig){
   if(!list.length) return "";
-  return `<section class="shelf"><div class="shelf-h"><h2>${title}</h2></div>
+  return `<section class="shelf"><div class="shelf-h"><h2>${title}</h2>
+      <span class="snav"><button type="button" data-shelf="-1" aria-label="Scroll left">&larr;</button>
+        <button type="button" data-shelf="1" aria-label="Scroll right">&rarr;</button></span></div>
     <div class="strip">${list.map(f => `<a class="scard" href="${esc(boardHash(f.name, id))}">
       <span class="top">${thumbHtml(f)}<span><b>${esc(f.display)}</b><span class="by">by ${esc(f.creator)}</span></span></span>
       ${fig(f)}</a>`).join("")}</div></section>`;
@@ -1557,12 +1574,29 @@ function madeHtml(rec){
 }
 
 function renderPlayer(){
-  const tabs = playerTabs(playerRec).map(([k]) => k);
-  const tab = tabs.includes(playerTab) ? playerTab : playerRec.home;
+  const tabs = playerTabs(playerRec);
+  const tab = tabs.find(t => t.key === playerTab) || tabs.find(t => t.key === playerRec.home);
   $("#player").innerHTML = playerHtml(playerRec, tab);
+  document.querySelectorAll("#player .strip").forEach(shelfArrows);
 }
+/* an arrow greys out at its end; a shelf that fits on screen has none */
+function shelfArrows(strip){
+  const nav = strip.closest(".shelf").querySelector(".snav"), end = strip.scrollWidth - strip.clientWidth;
+  nav.hidden = end <= 1;
+  nav.children[0].disabled = strip.scrollLeft <= 1;
+  nav.children[1].disabled = strip.scrollLeft >= end - 1;
+}
+/* scroll does not bubble, so the page listens while it is captured on the way down */
+$("#player").addEventListener("scroll", e => { if(e.target.classList && e.target.classList.contains("strip")) shelfArrows(e.target); }, true);
+addEventListener("resize", () => document.querySelectorAll("#player .strip").forEach(shelfArrows));
 $("#player").addEventListener("click", e => {
   const t = e.target;
+  const arrow = t.closest("[data-shelf]");
+  if(arrow){
+    const strip = arrow.closest(".shelf").querySelector(".strip");
+    strip.scrollBy({left: +arrow.dataset.shelf * strip.clientWidth * .9, behavior: "smooth"});
+    return;
+  }
   const tier = t.closest("[data-tier]");
   if(tier){
     pw.tier = pw.tier === tier.dataset.tier ? null : tier.dataset.tier;
@@ -1585,7 +1619,7 @@ $("#player").addEventListener("change", e => {
   pw.sort = e.target.value; pw.shown = PW_CHUNK; redrawPw();
 });
 
-/* tab is circuit, workshop or made from the route, or undefined for the player's home tab */
+/* tab is a PLAYER_TABS key from the route, or undefined for the player's home tab */
 async function showPlayer(id, tab){
   if(!isSteamId(id)){ showBoard(); return; }   /* the ID becomes a fetch path below */
   playerTab = tab;
@@ -1922,7 +1956,7 @@ function setView(v){
    three (see above). No hash at all is the Workshop homepage. Anything else means
    the view already on screen, or the default one. A board being addressable is what
    lets a tile link back to its own leaderboard. */
-const PLAYER_ROUTE = new RegExp("^#/player/(" + STEAM_ID.source + ")(?:/(circuit|workshop|made))?$");
+const PLAYER_ROUTE = new RegExp("^#/player/(" + STEAM_ID.source + ")(?:/(" + PLAYER_TABS.map(t => t.key).join("|") + "))?$");
 const BOARD_ROUTE = new RegExp("^#/board/([A-Za-z0-9_]{1,64})(?:/(" + STEAM_ID.source + "))?$");
 const MAP_ROUTE = new RegExp("^#/map/(\\d{1,20})(?:/(" + STEAM_ID.source + "))?$");
 const MAPS_ROUTE = /^#\/maps(?:\/([a-z]{1,12}))?$/;
