@@ -15,6 +15,9 @@ worktree):
   STEAM_API_KEY        — Steam Web API key (name resolution)
 
 Run locally to test:  python tools/steampy_collect.py
+From a feature branch: python tools/steampy_collect.py --workshop-only
+  (reads and writes only data/workshop.json + data/workshop/; the Circuit data is
+  CI-owned and stays as committed)
 Requires: steamio, aiohttp<3.13  (see tools/requirements-steampy.txt)
 """
 import os, sys, time, asyncio, logging
@@ -32,6 +35,7 @@ logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
 
 TOKEN = cc.load_refresh_token()
+WORKSHOP_ONLY = "--workshop-only" in sys.argv[1:]
 
 client = steam.Client()
 _state = {"done": False, "error": None, "wrote": False, "catalogue": None}
@@ -110,12 +114,30 @@ async def collect_workshop(catalogue, all_ids):
             "full_sweep_at": now if full and streak < WORKSHOP_GIVE_UP else prev_doc.get("full_sweep_at")}
 
 
+async def workshop_only():
+    """--workshop-only: the Workshop step alone, with its own name lookup."""
+    if not _state["catalogue"]:
+        _state["error"] = RuntimeError("Workshop catalogue unavailable")
+        return
+    all_ids = set()
+    workshop = await collect_workshop(_state["catalogue"], all_ids)
+    if workshop is None:
+        _state["error"] = RuntimeError("Workshop step declined to write")
+        return
+    names = cc.name_rows(list(workshop["boards"].values()), all_ids)
+    cc.write_workshop(workshop, names)
+    _state["wrote"] = True
+
+
 @client.event
 async def on_ready():
     if _state["done"]:
         return
     _state["done"] = True
     try:
+        if WORKSHOP_ONLY:
+            await workshop_only()
+            return
         boards_out = []
         all_ids = set()
         reused = []       # boards whose live read failed but kept last-good data

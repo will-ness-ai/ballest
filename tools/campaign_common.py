@@ -557,13 +557,11 @@ def derive(boards_out):
     return boards_out, artifacts
 
 
-def write_site(boards_out, all_ids, workshop=None):
-    """Resolve names, then write one file per board (data/boards/<name>.json) plus
-    a small data/index.json the page loads first. Board files omit generated_at so
-    an unchanged board produces no diff (only index.json changes every run).
-
-    workshop, when given, is {"maps", "boards": {pfid: rows}, "full_sweep_at"}:
-    its rows get names from the same lookup, then write_workshop publishes it."""
+def name_rows(row_lists, all_ids):
+    """Put persona/avatar/profileurl on every row in row_lists, and return the
+    SteamID64 -> names map they came from. Names are carried forward from the
+    committed board files; only players without one, plus this run's slice
+    (names_due), are looked up."""
     key = load_key()
     if not key:
         print("WARNING: no STEAM_API_KEY (env or .env) — names will be blank (ids still collected).")
@@ -579,11 +577,7 @@ def write_site(boards_out, all_ids, workshop=None):
             if val:
                 cur[field] = val
 
-    # Names first: derive() copies persona/avatar/profileurl from the rows, so
-    # rows it reads without names publish derived files with blank ones while
-    # the boards get theirs (the 2026-09-27T23:32Z refresh did exactly that).
-    ws_rows = [rows for rows in workshop["boards"].values()] if workshop else []
-    for rows in [b["rows"] for b in boards_out] + ws_rows:
+    for rows in row_lists:
         for r in rows:
             info = names.get(r["steam_id"], {})
             # Prefer a freshly-resolved value, but keep any existing one if this
@@ -592,6 +586,21 @@ def write_site(boards_out, all_ids, workshop=None):
             r["persona"] = info.get("persona") or r.get("persona", "")
             r["avatar"] = info.get("avatar") or r.get("avatar", "")
             r["profileurl"] = info.get("profileurl") or r.get("profileurl", "")
+    return names
+
+
+def write_site(boards_out, all_ids, workshop=None):
+    """Resolve names, then write one file per board (data/boards/<name>.json) plus
+    a small data/index.json the page loads first. Board files omit generated_at so
+    an unchanged board produces no diff (only index.json changes every run).
+
+    workshop, when given, is {"maps", "boards": {pfid: rows}, "full_sweep_at"}:
+    its rows get names from the same lookup, then write_workshop publishes it."""
+    # Names first: derive() copies persona/avatar/profileurl from the rows, so
+    # rows it reads without names publish derived files with blank ones while
+    # the boards get theirs (the 2026-09-27T23:32Z refresh did exactly that).
+    ws_rows = list(workshop["boards"].values()) if workshop else []
+    names = name_rows([b["rows"] for b in boards_out] + ws_rows, all_ids)
 
     # Everything below the boards is derived from the named rows above, fallback
     # data included, so it can never disagree with the boards the page shows.
