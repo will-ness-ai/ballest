@@ -27,9 +27,9 @@ export interface ProfilePreview {
   readonly steamId: string
   readonly personaName: string
   readonly avatarUrl: string
-  /** How many of the campaign Tracks this account holds a time on (the Link confirmation shows it). */
+  /** How many of the Circuit Tracks this account holds a time on (the Link confirmation shows it). */
   readonly campaignTracks: number
-  /** How many campaign Tracks there are. */
+  /** How many Circuit Tracks there are. */
   readonly campaignTrackTotal: number
 }
 

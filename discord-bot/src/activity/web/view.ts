@@ -484,7 +484,7 @@ export const linkDialog = (s: LinkState, viewer: Viewer) => {
   if (s.step === "preview" && s.preview !== null) {
     const p = s.preview
     const yes = s.joining !== null ? "Link and join" : s.changing ? "Yes, link this one" : "Yes, link it"
-    body = `<div class="found">${marble(p.steamId, 52)}<div style="min-width:0"><div class="hud" style="font-weight:700;font-size:18px">${esc(p.personaName)}</div><div class="note">SteamID ${esc(p.steamId)} · times on ${p.campaignTracks} of ${p.campaignTrackTotal} campaign Tracks</div></div></div>
+    body = `<div class="found">${marble(p.steamId, 52)}<div style="min-width:0"><div class="hud" style="font-weight:700;font-size:18px">${esc(p.personaName)}</div><div class="note">SteamID ${esc(p.steamId)} · times on ${p.campaignTracks} of ${p.campaignTrackTotal} Circuit Tracks</div></div></div>
       <div class="note" style="font-size:13px;color:var(--dim)">Is this you?</div>${s.error === "" ? "" : `<div class="err">${esc(s.error)}</div>`}
       <div class="row-btns">${btn("confirm", yes, "go", s.busy)}${btn("retry", "Try again", "ghost", s.busy)}</div>`
   } else {
