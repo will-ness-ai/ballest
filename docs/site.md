@@ -12,6 +12,7 @@ How `index.html` is put together, for anyone editing it. What it loads is in
   Circuit.
 - `#/board/<board name>`, with an optional `/<steam_id>` that marks that player's row once
   the board is open.
+- `#/vs/<steam_id>/<steam_id>`, a head to head of two players.
 - The Workshop's three: `#/workshop` (the homepage, and what no hash at all opens),
   `#/maps` or `#/maps/<view>` (All maps, opened on one of `VIEWS` or `PRESETS`), and
   `#/map/<pfid>` with the same optional `/<steam_id>`.
@@ -31,6 +32,14 @@ so a player page's back link lands there. Every player name links to a player pa
 Workshop finishes with their medal (`tierOf`), and the Maps the player made. The rendering
 below it is markup over that record. A tab is one entry in `PLAYER_TABS`, which the tab bar,
 each tab's body and the route are all built from.
+
+## Head to head
+
+`matchup` pairs two player records up: the rows both have a time on, each with its winner
+and margin, the tally for All, Circuit and Workshop, and the comparison band. The head to
+head page and a player page's score card both read it. The score card appears once "This is
+me" has put a Steam ID in `localStorage` (`getMe` / `setMe`). The Compare dialog searches
+`data/names.json`, fetched the first time it opens.
 
 ## Rows are index-aligned to rank
 
