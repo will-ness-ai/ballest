@@ -88,9 +88,9 @@ COMPOSITE_GROUP = "All Seasons"
 
 # Workshop Maps live apart from the campaign boards: their own list, data/workshop.json
 # (what the site's Workshop tab lists, and the collector's memory of what it last read),
-# and one board file per Map, data/workshop/<pfid>.json. They are not in BOARDS, not in
-# index.json and not in derive(), so the podiums, the composite and the player shards
-# stay campaign-only.
+# and one board file per Map, data/workshop/<pfid>.json. They are not in BOARDS or
+# index.json, so the podiums and the composite stay campaign-only; derive() takes their
+# rows (workshop_boards) only to put them in the player shards.
 WORKSHOP_GROUP = "Workshop"
 WORKSHOP_PATH = os.path.join(DATA_DIR, "workshop.json")
 WORKSHOP_DIR = os.path.join(DATA_DIR, "workshop")
@@ -363,6 +363,30 @@ def workshop_stats(m, rows):
     }
 
 
+def workshop_boards(ws=None):
+    """The Workshop boards as they stand: {"Workshop_<pfid>": rows} for every Map with
+    a board, in the list's order. Without ws, the committed workshop.json and board
+    files. With ws (what collect_workshop returns), this run's reads laid over the
+    committed files of the Maps it did not read. A Map whose file is missing or empty
+    is left out, as write_workshop lists it without a board."""
+    maps = ws["maps"] if ws else (load_workshop() or {}).get("maps", [])
+    fresh = ws["boards"] if ws else {}
+    out = {}
+    for m in maps:
+        if not m.get("file"):
+            continue
+        rows = fresh.get(m["pfid"])
+        if rows is None:
+            path = os.path.join(DATA_DIR, m["file"])
+            if not os.path.exists(path):
+                continue
+            with open(path, encoding="utf-8") as f:
+                rows = json.load(f).get("rows") or []
+        if rows:
+            out["Workshop_" + m["pfid"]] = rows
+    return out
+
+
 def write_workshop(ws, names):
     """Write the boards read this run, drop the files of Maps no longer on the
     Workshop, then the list. Boards not read this run keep their committed file, and
@@ -371,18 +395,15 @@ def write_workshop(ws, names):
     whose committed file has gone missing is listed without a board until it is read."""
     os.makedirs(WORKSHOP_DIR, exist_ok=True)
     by_pfid = {m["pfid"]: m for m in ws["maps"]}
+    boards = workshop_boards(ws)
     for m in ws["maps"]:
         if not m.get("file"):
             continue
-        rows = ws["boards"].get(m["pfid"])
+        rows = boards.get("Workshop_" + m["pfid"])
         if rows is None:
-            path = os.path.join(DATA_DIR, m["file"])
-            if not os.path.exists(path):
-                print(f"  [warn] Workshop Map {m['pfid']}: {m['file']} is missing; listed without a board")
-                m.update(file=None, rows=0)
-                continue
-            with open(path, encoding="utf-8") as f:
-                rows = json.load(f)["rows"]
+            print(f"  [warn] Workshop Map {m['pfid']}: {m['file']} is missing or empty; listed without a board")
+            m.update(file=None, rows=0)
+            continue
         m.update(workshop_stats(m, rows))
         for t in m["top3"]:
             t[1] = names.get(t[0], {}).get("persona") or t[1]
@@ -495,9 +516,11 @@ def player_shard(steam_id):
 PLAYER_SHARDS = tuple("0123456789")
 
 
-def build_players(boards_out):
+def build_players(boards_out, maps):
     """Every player's finish on every board, keyed by Steam ID, split into the
-    ten shards player_shard() describes. Returns {shard: doc}.
+    ten shards player_shard() describes. Returns {shard: doc}. The boards are
+    boards_out (campaign boards, composite last), then every Map's board from
+    maps, {"Workshop_<pfid>": rows}, so a Workshop-only player has a page too.
 
     A player's rows are [board index, rank, score] triples, indexed against the
     shard's own "boards" list rather than index.json, so a shard the page has
@@ -508,12 +531,12 @@ def build_players(boards_out):
     persona/avatar/profileurl are copied from the rows, so this must be built
     after write_site's name refresh. profileurl is carried rather than derived:
     a third of players have a vanity /id/ URL that a Steam ID cannot produce."""
-    boards = [{"name": b["name"],
-               "lead": b["rows"][0]["score_ms"] if b["rows"] else None}
-              for b in boards_out]
+    sources = [(b["name"], b["rows"]) for b in boards_out] + list(maps.items())
+    boards = [{"name": name, "lead": rows[0]["score_ms"] if rows else None}
+              for name, rows in sources]
     players = {s: {} for s in PLAYER_SHARDS}
-    for i, b in enumerate(boards_out):
-        for r in b["rows"]:
+    for i, (_, rows) in enumerate(sources):
+        for r in rows:
             sid = r["steam_id"]
             p = players[player_shard(sid)].setdefault(sid, {
                 "persona": r.get("persona", ""), "avatar": r.get("avatar", ""),
@@ -523,8 +546,11 @@ def build_players(boards_out):
             for s in PLAYER_SHARDS}
 
 
-def derive(boards_out):
+def derive(boards_out, maps):
     """Everything the collector works out from the board rows it just read.
+
+    maps is the Workshop boards, {"Workshop_<pfid>": rows} (workshop_boards). They
+    go into the player shards and nowhere else: not the podiums, not the composite.
 
     Returns (boards_out with the composite appended, [artifact, ...]) where an
     artifact is {"path" (relative to data/), "doc", "empty", "summary"}. This is
@@ -532,7 +558,7 @@ def derive(boards_out):
     and how it reads in a log: write_site publishes the list, check_data compares
     the committed files against it, and neither has to restate the assembly —
     which matters, because the shards' board indices are positions in exactly
-    this list of boards, composite last. Nor does either caller have to know one
+    this list of boards: campaign boards, composite, then every Map. Nor does either caller have to know one
     artifact from another; both just write or compare, and print the summary.
 
     Each artifact carries its own idea of empty, because only its builder knows
@@ -553,7 +579,7 @@ def derive(boards_out):
         "path": "players/" + shard + ".json", "doc": doc,
         "empty": not doc["players"],
         "summary": f"players/{shard}  {len(doc['players'])} players",
-    } for shard, doc in build_players(boards_out).items()]
+    } for shard, doc in build_players(boards_out, maps).items()]
     return boards_out, artifacts
 
 
@@ -601,12 +627,21 @@ def write_site(boards_out, all_ids, workshop=None):
     # the boards get theirs (the 2026-09-27T23:32Z refresh did exactly that).
     ws_rows = list(workshop["boards"].values()) if workshop else []
     names = name_rows([b["rows"] for b in boards_out] + ws_rows, all_ids)
+    if workshop:
+        # Guarded: nothing on the Workshop side may stop the campaign files below.
+        try:
+            write_workshop(workshop, names)
+        except Exception as e:
+            print(f"  [warn] Workshop files not written: {e!r}")
 
     # Everything below the boards is derived from the named rows above, fallback
     # data included, so it can never disagree with the boards the page shows.
     # The composite comes back inside boards_out, which puts it through the same
-    # file write and index entry as a Steam board.
-    boards_out, artifacts = derive(boards_out)
+    # file write and index entry as a Steam board. The Maps are read back from the
+    # Workshop files as they now stand on disk: this run's, or the committed ones when
+    # the Workshop step failed or its write did. Either way the shards agree with the
+    # Map files, and a bad run never blanks anyone's Workshop times on their page.
+    boards_out, artifacts = derive(boards_out, workshop_boards())
     composite = next((b for b in boards_out if b["name"] == COMPOSITE_BOARD), None)
     if composite:
         print(f"  {COMPOSITE_BOARD:34s} derived  players={len(composite['rows'])}")
@@ -651,10 +686,4 @@ def write_site(boards_out, all_ids, workshop=None):
                    "app_id": APP_ID, "player_count": len(unique),
                    "boards": index_boards}, f, ensure_ascii=False, indent=2)
     print(f"\nWrote {INDEX_PATH} + {len(boards_out)} board files ({len(unique)} unique players)")
-    if workshop:
-        # The campaign files are written by now; nothing on the Workshop side may undo that.
-        try:
-            write_workshop(workshop, names)
-        except Exception as e:
-            print(f"  [warn] Workshop files not written: {e!r}")
     return INDEX_PATH

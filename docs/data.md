@@ -14,15 +14,15 @@ here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
 - `data/podiums.json`: per-season podium tally (who holds each track's top three),
   derived by the collector from the board rows. Loaded alongside `index.json`.
 - `data/players/<digit>.json`: the board files transposed, every player's rank and
-  score on every board, keyed by Steam ID (`build_players`). Split ten ways by the ID's
-  last digit so a player page fetches one ~400KB shard rather than every board. Loaded
-  only on a player page.
+  score on every board, Circuit and Workshop, keyed by Steam ID (`build_players`). Split
+  ten ways by the ID's last digit so a player page fetches one ~580KB shard rather than
+  every board. Loaded only on a player page.
 
 `derive()` in `tools/campaign_common.py` is the one list of what the collector works out
 from the board rows and where each file lands. `write_site` publishes that list,
 `check_data` compares the committed files against it, and neither restates the assembly.
 That matters because a shard's board indices are positions in exactly the board list
-`derive` returns, composite last. A new derived artifact is one entry there, and is then
+`derive` builds: Circuit boards, composite, then every Map. A new derived artifact is one entry there, and is then
 written, guarded and checked for free.
 
 ## Workshop Maps
@@ -35,8 +35,11 @@ written, guarded and checked for free.
   board read, and `full_sweep_at`. Loaded with `index.json`; it drives the Workshop
   homepage and All maps.
 - `data/workshop/<pfid>.json`: one board file per Map that has a time, the same shape as a
-  Circuit board file. Maps stay out of `index.json`, `BOARDS` and `derive()`, so the
-  podiums, the composite and the player shards are Circuit-only.
+  Circuit board file. Maps stay out of `index.json` and `BOARDS`, so the podiums and the
+  composite are Circuit-only. The player shards are not: `derive()` takes every Map's rows
+  from `workshop_boards`, read back from the Map files after the run has written them, and
+  lists them after the composite in each shard's board list, which is what the player
+  page's Workshop tab reads.
 
 `collect_workshop` in `tools/steampy_collect.py` reads a Map's board only when its Workshop
 session or subscription count moved since the last read, plus every board once every

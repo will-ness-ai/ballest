@@ -20,7 +20,8 @@ Checks:
   - every board in BOARDS has a file, index.json lists it, and the two agree
   - no board is empty, and rows are index-aligned to rank (rows[i].rank == i+1)
   - every file derive() produces from the committed boards — podiums.json and
-    players/<shard>.json — matches the committed copy
+    players/<shard>.json, the shards over the Workshop boards too — matches the
+    committed copy
   - the composite board file equals the one derive() appends, and index.json
     lists it
   - every Map workshop.json lists with a board has that file, rank-aligned and
@@ -78,7 +79,7 @@ def main(rewrite=False):
 
     # One call, so the check cannot drift from the write: derive() is what the
     # collector publishes, including the order the shards' board indices mean.
-    boards_out, artifacts = cc.derive(boards_out)
+    boards_out, artifacts = cc.derive(boards_out, cc.workshop_boards())
     if rewrite:
         write(artifacts)
     for a in artifacts:
