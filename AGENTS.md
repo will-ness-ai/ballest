@@ -17,6 +17,12 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `og.png` — the lime-marble icon
   and the 1200×630 link-preview image. Rendered once and committed; `og.png` bakes in its
   text, so the collector never touches it.
+- `circuit/<board name>.webp` — each Circuit track's own screenshot, ~640px wide, for the
+  rail and the board's header card. Taken from the game files by hand (the private
+  `ballest-map-making` repo's `extract/`, `dump_level.py`'s `screenshot()`) and rerun
+  after a game update. The Season 2 textures are not named in track order: map each
+  from its level's data asset. The collector never touches them; the page's `TRACKS`
+  table pairs each with that track's Medal times.
 - `data/` — what the collector writes and the site loads, file by file, and how derived
   files are assembled (`derive()`): `docs/data.md`. Read it before adding or changing a
   data file.
@@ -32,7 +38,7 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
   then calls `deploy.yml`.
 - `.github/workflows/deploy.yml` — the Pages deploy (Source: GitHub Actions). Publishes
-  only `index.html`, the icons and `og.png`, `data/`, `leth/`, `multiballs/` and `CNAME`,
+  only `index.html`, the icons and `og.png`, `data/`, `circuit/`, `leth/`, `multiballs/` and `CNAME`,
   so a new site file must be added to its `cp` line or it 404s in production. Runs on
   push to `main`, by hand, and from
   `refresh.yml`, whose `GITHUB_TOKEN` push triggers no other workflow.
@@ -135,8 +141,9 @@ it.
 **The page's hash routes** are read by `route()` on load and on `hashchange`:
 `#/player/<steam_id>` with an optional `/circuit`, `/workshop` or `/made` tab (without
 one, Workshop for anyone with a Workshop time, else Circuit), `#/board/<board name>`
-with an optional `/<steam_id>` that marks that player's row once the board is open, and
-the Workshop's three:
+with an optional `/<steam_id>` that marks that player's row once the board is open (or,
+on an Overall board, `/podiums`, which sorts it by podiums: a Steam ID is all digits, so
+the two cannot collide), and the Workshop's three:
 `#/workshop` (the homepage, and what no hash at all opens), `#/maps` or
 `#/maps/<view>` (All maps, opened on one of `VIEWS` or `PRESETS`), and
 `#/map/<pfid>` with the same optional `/<steam_id>`. A Map's page is the board view
