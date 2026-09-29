@@ -128,15 +128,15 @@ Preserve that in any change to the write path. The pagination stop condition in
 `fetch_board` is deliberately conservative for the same reason — don't simplify it.
 
 **`.gitignore` ignores `data/*`**, re-including only `!data/index.json`, `!data/boards/`,
-`!data/podiums.json`, `!data/players/`, `!data/workshop.json` and `!data/workshop/`. A new artifact written under `data/` is
+`!data/podiums.json`, `!data/players/`, `!data/workshop.json`, `!data/workshop/` and `!data/names.json`. A new artifact written under `data/` is
 invisible to git and 404s in production; the workflow's `git add` line also has to name
 it.
 
 **The page's hash routes** are read by `route()` on load and on `hashchange`:
 `#/player/<steam_id>` with an optional `/circuit`, `/workshop` or `/made` tab (without
 one, Workshop for anyone with a Workshop time, else Circuit), `#/board/<board name>`
-with an optional `/<steam_id>` that marks that player's row once the board is open, and
-the Workshop's three:
+with an optional `/<steam_id>` that marks that player's row once the board is open,
+`#/vs/<steam_id>/<steam_id>` (a head to head), and the Workshop's three:
 `#/workshop` (the homepage, and what no hash at all opens), `#/maps` or
 `#/maps/<view>` (All maps, opened on one of `VIEWS` or `PRESETS`), and
 `#/map/<pfid>` with the same optional `/<steam_id>`. A Map's page is the board view
@@ -147,7 +147,9 @@ Selecting a board goes through the route too (`go(boardHash(...))`), so nothing 
 `selectBoard` to navigate — that is what makes a board, and a player's row on it,
 something you can link to. Anything else in the hash means the board already on screen,
 or the default one. `playerRecord` turns a shard plus a Steam ID into everything the
-player page shows, and the rendering below it is markup over that record.
+player page shows, and the rendering below it is markup over that record. `matchup`
+pairs two such records up for the head to head and a player page's score card, which
+appears once "This is me" has put a Steam ID in `localStorage`.
 
 **Rows are index-aligned to rank.** `rowHtml` reaches for `rows[r.rank - 2]` to compute
 the interval to the next rung up, so sorting, filtering, or de-duping the array in place
@@ -172,7 +174,7 @@ will conflict. A brand-new data artifact is the exception: its first copy ships 
 code that introduces it, so the feature works on merge rather than after the next
 refresh. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch only
 `data/index.json`, `data/boards/`, `data/podiums.json`, `data/players/`,
-`data/workshop.json` and `data/workshop/`; keep code changes out of them.
+`data/workshop.json`, `data/workshop/` and `data/names.json`; keep code changes out of them.
 
 `CODING_STANDARDS.md` is the review checklist; it also holds the branch and commit
 conventions.

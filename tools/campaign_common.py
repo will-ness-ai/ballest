@@ -546,6 +546,12 @@ def build_players(boards_out, maps):
             for s in PLAYER_SHARDS}
 
 
+def build_names(shards):
+    """[[steam_id, persona], ...] for every player in the shards, in Steam ID order:
+    what the head to head's Compare dialog searches, without fetching ten shards."""
+    return sorted([sid, p["persona"]] for doc in shards.values() for sid, p in doc["players"].items())
+
+
 def derive(boards_out, maps):
     """Everything the collector works out from the board rows it just read.
 
@@ -575,11 +581,15 @@ def derive(boards_out, maps):
         "summary": "podiums  " + ", ".join(
             f"{s['group']} tracks={s['tracks']} players={len(s['players'])}" for s in seasons),
     }]
+    shards = build_players(boards_out, maps)
     artifacts += [{
         "path": "players/" + shard + ".json", "doc": doc,
         "empty": not doc["players"],
         "summary": f"players/{shard}  {len(doc['players'])} players",
-    } for shard, doc in build_players(boards_out, maps).items()]
+    } for shard, doc in shards.items()]
+    names = build_names(shards)
+    artifacts.append({"path": "names.json", "doc": names, "empty": not names,
+                      "summary": f"names  {len(names)} players"})
     return boards_out, artifacts
 
 

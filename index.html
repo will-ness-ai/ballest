@@ -50,6 +50,7 @@
   --gold-soft:rgba(255,212,71,.10); --silver-soft:rgba(211,220,234,.08);
   --bronze-soft:rgba(239,154,82,.10); --author-soft:rgba(95,212,255,.13);
   --none:#3a4566; --ribbon:#c9485a; --ribbon2:#4a6fd0;
+  --a:#ff7a8a; --a-soft:rgba(255,122,138,.13); --b:#5fd4ff; --b-soft:rgba(95,212,255,.12);
   --radius:11px; --pad:16px;
   --f-marquee:'Bungee',system-ui,sans-serif;
   --f-hud:'Chakra Petch',system-ui,sans-serif;
@@ -262,7 +263,16 @@ input{font:inherit}
 .app[data-view="player"] .leaders,
 .app[data-view="player"] .board,
 .app[data-view="player"] .cab,
-.app[data-view="player"] #bmetaM{display:none}
+.app[data-view="player"] #bmetaM,
+.app[data-view="vs"] .groups,
+.app[data-view="vs"] .rail,
+.app[data-view="vs"] .boardbtn,
+.app[data-view="vs"] .boardbar,
+.app[data-view="vs"] .tiles,
+.app[data-view="vs"] .leaders,
+.app[data-view="vs"] .board,
+.app[data-view="vs"] .cab,
+.app[data-view="vs"] #bmetaM{display:none}
 .pp[hidden]{display:none}
 .back{display:inline-flex;align-items:center;gap:7px;margin:0 var(--pad) 12px;
   font-family:var(--f-hud);font-size:11.5px;font-weight:600;letter-spacing:.08em;
@@ -465,6 +475,92 @@ a.mkcard:hover b{color:var(--accent)}
   font-variant-numeric:tabular-nums}
 .mkcard .f{color:var(--faint)}
 .mkgrid{margin-top:12px}
+
+/* ---------- head to head ----------
+   Two players, A on the left in --a and B on the right in --b. The same two colours
+   mark "you" and "them" on the score card a player page shows once "This is me" is set. */
+.ca{color:var(--a)} .cb{color:var(--b)}
+.pme{display:flex;align-items:center;gap:10px;margin-top:6px}
+.mebtn{padding:3px 10px;border-radius:99px;border:1px solid var(--line);font-family:var(--f-hud);
+  font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.mebtn:hover{border-color:var(--a);color:var(--text)}
+.you{padding:3px 9px;border-radius:99px;background:var(--a-soft);color:var(--a);font-family:var(--f-hud);
+  font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.score{display:flex;align-items:center;justify-content:center;gap:12px;font:400 40px/1 var(--f-marquee);
+  font-variant-numeric:tabular-nums}
+.score .d{color:var(--faint);font-size:.45em}
+
+.mecard{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px 14px;align-items:center;
+  margin:0 var(--pad) 16px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--surface)}
+.mecard .side{display:flex;align-items:center;gap:10px;min-width:0}
+.mecard .side.r{justify-content:flex-end;text-align:right}
+.mecard .side span{display:grid;min-width:0}
+.mecard .side b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mecard .side small{font-size:12px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mecard .marble{width:34px;height:34px}
+.mecard .mid{display:grid;justify-items:center;gap:6px}
+.mecard .score{font-size:30px}
+.mecard .go{grid-column:1 / -1;justify-self:center}
+
+.vsp{margin:0 var(--pad)}
+.vsp .back{margin:0 0 12px}
+.vsp .empty{border:1px solid var(--line);border-radius:var(--radius);background:var(--solid)}
+.vshead{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center;margin-bottom:16px}
+.vsside{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;text-align:center}
+.vsside .marble{width:44px;height:44px}
+.vsside > span{display:grid;justify-items:inherit;min-width:0;max-width:100%}
+.vsside a{font-family:var(--f-hud);font-size:15px;font-weight:700;text-decoration:none;color:inherit;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.vsside a:hover{text-decoration:underline}
+.vsside .linkbtn{color:var(--faint);font-size:12px}
+.vsmid{display:grid;justify-items:center;gap:6px}
+.tape{margin-bottom:16px;padding:2px 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+.trow{display:grid;grid-template-columns:minmax(0,1fr) minmax(96px,170px) minmax(0,1fr);gap:10px;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--line2)}
+.trow:last-child{border-bottom:0}
+.trow .eyebrow{text-align:center}
+.tv{font-family:var(--f-hud);font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.tv.l{text-align:right}
+.tv.lose{color:var(--faint)}
+.vstools{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-bottom:10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{padding:7px 12px;font-family:var(--f-hud);font-size:12.5px;font-weight:600;color:var(--dim)}
+.seg button[aria-pressed="true"]{background:var(--surface2);color:var(--text)}
+.vstools .opts{flex:1 1 auto}
+.vlist{display:grid;gap:3px;padding:6px;border:1px solid var(--line);border-radius:var(--radius);background:var(--solid)}
+.vrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr);gap:4px;align-items:stretch}
+/* a side is that player's time and rank; the winner's side is tinted in their colour */
+.vside{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;padding:7px 10px;
+  border-radius:9px;color:var(--dim);font-family:var(--f-hud);font-variant-numeric:tabular-nums;min-width:0}
+.vside.r{align-items:flex-start}
+.vside b{font-size:14px;font-weight:600}
+.vside small{font-size:11px;color:var(--faint)}
+.vside.wa{background:var(--a-soft);color:var(--text)}
+.vside.wb{background:var(--b-soft);color:var(--text)}
+.vmid{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0;padding:4px;
+  text-align:center;color:inherit;text-decoration:none}
+.vmid .thumb,.vmid .ctag{display:none}
+.vmid > span{min-width:0}
+.vmid b{display:block;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vmid:hover b{color:var(--accent)}
+.vmid small{display:block;font-family:var(--f-hud);font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.ctag{flex:none;padding:2px 6px;border-radius:5px;background:var(--surface2);color:var(--accent);
+  font-family:var(--f-hud);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+
+/* Compare: pick the other player by name */
+.cmp{position:fixed;left:50%;top:12vh;z-index:41;transform:translateX(-50%);width:min(460px,calc(100% - 32px));
+  display:grid;gap:12px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--solid);
+  box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.cmp[hidden],.dscrim[hidden]{display:none}
+.cmp h2{margin:0;font-family:var(--f-hud);font-size:16px;overflow-wrap:anywhere}
+.cmp .ws-q{max-width:none;width:100%}
+.hits{display:grid;gap:2px;max-height:50vh;overflow-y:auto}
+.hits p{margin:4px;font-size:13px;color:var(--faint)}
+.hit{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border-radius:9px;text-align:left}
+.hit:hover,.hit:focus-visible{background:var(--surface2)}
+.hit .marble{width:24px;height:24px}
+.hit b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* the row a tile sent you to, once its board is open */
 .row.focus{background:var(--accent-soft)}
@@ -745,7 +841,7 @@ footer a{color:var(--dim)}
 
   /* a player's page: the rail is gone, so the content column is the whole width,
      and a tier's tracks sit in one row of four beside their heading */
-  .app[data-view="player"] .main{grid-template-columns:minmax(0,1fr)}
+  .app[data-view="player"] .main,.app[data-view="vs"] .main{grid-template-columns:minmax(0,1fr)}
   .back,.pid,.pstats,.pseason{margin-left:0;margin-right:0}
   .pid{gap:14px}
   .pid .marble{width:64px;height:64px}
@@ -762,6 +858,18 @@ footer a{color:var(--dim)}
   .wrow{grid-template-columns:56px minmax(0,1fr) 92px 112px 20px;gap:12px}
   .wrow .thumb{width:56px}
   .wtm{display:block}
+  .mecard{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;margin-left:0;margin-right:0}
+  .mecard .go{grid-column:auto}
+  .vsp{margin:0}
+  .vsside{flex-direction:row;text-align:left}
+  .vsside.r{flex-direction:row-reverse;text-align:right}
+  .vsside .marble{width:56px;height:56px}
+  .vsside a{font-size:20px}
+  .vshead .score{font-size:60px}
+  .vside{flex-direction:row;align-items:center;justify-content:flex-end;gap:8px}
+  .vside.r{flex-direction:row-reverse}
+  .vmid .thumb,.vmid .ctag{display:block}
+  .vmid .thumb{width:40px}
 
   /* the Workshop, full size */
   .ws{margin:0}
@@ -843,6 +951,7 @@ footer a{color:var(--dim)}
       <div class="board" id="board"></div>
       <div class="cab" id="cabinet" hidden></div>
       <div class="pp" id="player" hidden></div>
+      <div class="pp vsp" id="vs" hidden></div>
     </section>
   </div>
 
@@ -855,6 +964,12 @@ footer a{color:var(--dim)}
 </div>
 
 <div class="scrim" id="scrim"></div>
+<div class="dscrim" id="cmpScrim" hidden></div>
+<div class="cmp" id="cmp" role="dialog" aria-modal="true" aria-labelledby="cmpHead" hidden>
+  <div class="dh"><h2 id="cmpHead">&nbsp;</h2><button type="button" data-cmpclose aria-label="Close">&times;</button></div>
+  <input class="ws-q" id="cmpq" type="search" placeholder="Type a player's name" aria-label="Find a player" autocomplete="off">
+  <div class="hits" id="cmpHits"></div>
+</div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Choose a leaderboard">
   <span class="grab" aria-hidden="true"></span>
   <h2 id="sheetHead">&nbsp;</h2>
@@ -1440,7 +1555,9 @@ const PLAYER_TABS = [
    shown: rec => rec.made.length > 0},
 ];
 const playerTabs = rec => PLAYER_TABS.filter(t => !t.shown || t.shown(rec));
-function playerHtml(rec, tab){
+/* me is the Steam ID "This is me" remembers, and mine that player's record once
+   their shard is in: on anyone else's page it becomes the score card */
+function playerHtml(rec, tab, me, mine){
   const url = (rec.profileurl && /^https?:\/\//i.test(rec.profileurl)) ? rec.profileurl : "";
   return `<a class="back" href="${esc(rec.back.href)}">&larr; ${esc(rec.back.label)}</a>
   <div class="pid">${marble(rec.who)}
@@ -1448,9 +1565,14 @@ function playerHtml(rec, tab){
       <span class="pline">${rec.allSeasons
         ? `<b>${ord(rec.allSeasons.rank)}</b> across all seasons &middot; ${fmtN(rec.allSeasons.score)} pts`
         : "Not on the all-seasons board"}</span>
-      ${rec.made.length ? `<br><span class="maker">Map maker &middot; ${plural(rec.made.length, "map", "maps")}</span>` : ""}</span>
+      ${rec.made.length ? `<br><span class="maker">Map maker &middot; ${plural(rec.made.length, "map", "maps")}</span>` : ""}
+      ${me === rec.id ? `<span class="pme"><span class="you">This is you</span>
+          <button type="button" class="linkbtn" data-me="">undo</button></span>`
+        : me ? "" : `<span class="pme"><button type="button" class="mebtn" data-me="${esc(rec.id)}">This is me</button></span>`}</span>
+    <button type="button" class="steam" data-compare>&#9876; Compare</button>
     ${url ? `<a class="steam" href="${esc(url)}" target="_blank" rel="noopener">${STEAM_MARK}Steam profile</a>` : ""}
   </div>
+  ${mine && mine.id !== rec.id ? scoreCardHtml(mine, rec) : ""}
   <nav class="ptabs">${playerTabs(rec).map(t => `<a href="#/player/${esc(rec.id)}/${t.key}"
     ${t === tab ? `aria-current="page"` : ""}>${t.label}<small>${fmtN(t.count(rec))}</small></a>`).join("")}</nav>
   ${tab.html(rec)}`;
@@ -1576,8 +1698,21 @@ function madeHtml(rec){
 function renderPlayer(){
   const tabs = playerTabs(playerRec);
   const tab = tabs.find(t => t.key === playerTab) || tabs.find(t => t.key === playerRec.home);
-  $("#player").innerHTML = playerHtml(playerRec, tab);
+  const me = getMe();
+  $("#player").innerHTML = playerHtml(playerRec, tab, me, myRec && myRec.id === me ? myRec : null);
   document.querySelectorAll("#player .strip").forEach(shelfArrows);
+}
+/* With "This is me" set, anyone else's page fetches your shard too, for the score card.
+   The page is drawn first and the card lands when the shard does. */
+let myRec = null;
+async function loadMine(){
+  const me = getMe(), id = playerRec && playerRec.id;
+  if(!me || me === id || (myRec && myRec.id === me)) return;
+  let doc;
+  try { doc = await loadShard(me); } catch(err){ return; }   /* no card, the page is still whole */
+  if(getMe() !== me || !doc.players[me]) return;
+  myRec = playerRecord(doc, me);
+  if(playerRec && playerRec.id === id && playerId === id) renderPlayer();
 }
 /* an arrow greys out at its end; a shelf that fits on screen has none */
 function shelfArrows(strip){
@@ -1606,7 +1741,10 @@ $("#player").addEventListener("click", e => {
   }
   if(t.closest("[data-pwclear]")){ pw.tier = null; pw.shown = PW_CHUNK; redrawPw(); return; }
   if(t.closest("[data-pwmore]")){ pw.shown += PW_CHUNK; $("#pwrows").innerHTML = pwListHtml(pwRows(playerRec.workshop), playerRec.id); return; }
-  if(t.closest("[data-madeall]")){ pw.allMade = true; renderPlayer(); }
+  if(t.closest("[data-madeall]")){ pw.allMade = true; renderPlayer(); return; }
+  if(t.closest("[data-compare]")){ openCompare(playerRec, "b"); return; }
+  const mark = t.closest("[data-me]");
+  if(mark){ setMe(mark.dataset.me || null); renderPlayer(); }
 });
 let pwTimer;
 $("#player").addEventListener("input", e => {
@@ -1652,7 +1790,243 @@ async function showPlayer(id, tab){
   playerRec = playerRecord(doc, id);
   renderPlayer();
   document.title = personaOf(playerRec.who) + " · " + SITE_TITLE;
+  loadMine();
 }
+
+/* ---------- head to head ----------
+   #/vs/<a>/<b>: every Map and Circuit track two players both have a time on. It is
+   built from two playerRecords and nothing else, so matchup() is the only place that
+   pairs finishes up, and the page and a player page's score card both read it. */
+
+/* "This is me": one Steam ID, kept in this browser and nowhere else */
+const ME_KEY = "ballest-me";
+function getMe(){
+  try { const id = localStorage.getItem(ME_KEY); return isSteamId(id) ? id : null; }
+  catch(err){ return null; }
+}
+function setMe(id){
+  try { if(isSteamId(id)) localStorage.setItem(ME_KEY, id); else localStorage.removeItem(ME_KEY); }
+  catch(err){}
+}
+
+/* "Season 2" -> "S2", so a track reads "S2 07" beside a Map's title */
+const seasonTag = g => { const n = /\d+/.exec(g); return n ? "S" + n[0] : g; };
+/* A against B: the shared rows, each with its winner and margin, the tally for each
+   scope, and the comparison band. d < 0 means A was faster; rel is the margin as a
+   share of the faster time, so a close call on a long Map sorts beside one on a short. */
+function matchup(A, B){
+  const rows = [];
+  const bMaps = new Map(B.workshop.finishes.map(f => [f.name, f]));
+  for(const a of A.workshop.finishes){
+    const b = bMaps.get(a.name);
+    if(b) rows.push({scope: "workshop", name: a.name, title: a.display, preview: a.preview, field: a.field, a, b});
+  }
+  const bTracks = new Map(B.seasons.flatMap(s => s.tiers.flatMap(t => t.tracks))
+    .filter(t => t.finish).map(t => [t.name, t.finish]));
+  for(const s of A.seasons) for(const t of s.tiers.flatMap(x => x.tracks)){
+    const b = t.finish && bTracks.get(t.name);
+    if(b) rows.push({scope: "circuit", name: t.name, title: seasonTag(s.group) + " " + t.display,
+                     field: t.field, a: t.finish, b});
+  }
+  for(const r of rows){
+    r.d = r.a.score - r.b.score;
+    r.win = r.d < 0 ? "a" : r.d > 0 ? "b" : "tie";
+    r.rel = Math.abs(r.d) / Math.min(r.a.score, r.b.score);
+  }
+  const tally = keep => { const xs = rows.filter(keep);
+    return {n: xs.length, a: xs.filter(r => r.win === "a").length, b: xs.filter(r => r.win === "b").length}; };
+  /* the newest season on the Circuit leads the list; a rank is better low, a count high */
+  const cur = A.seasons[0];
+  const stat = (label, a, b, low) => ({label, a, b, rank: low,
+    win: a == null || b == null || a === b ? null : (low ? a < b : a > b) ? "a" : "b"});
+  const rankIn = (rec, group) => { const s = rec.seasons.find(x => x.group === group); return s && s.overall ? s.overall.rank : null; };
+  const wrs = rec => rec.medals.gold + rec.workshop.tiers.wr;
+  return {
+    rows,
+    tally: {all: tally(() => true), circuit: tally(r => r.scope === "circuit"), workshop: tally(r => r.scope === "workshop")},
+    band: [
+      stat("All seasons", A.allSeasons && A.allSeasons.rank, B.allSeasons && B.allSeasons.rank, true),
+      ...(cur ? [stat(cur.group + " overall", rankIn(A, cur.group), rankIn(B, cur.group), true)] : []),
+      stat("World records", wrs(A), wrs(B)),
+      stat("Workshop maps finished", A.workshop.finishes.length, B.workshop.finishes.length),
+      stat("Maps made", A.made.length, B.made.length),
+    ],
+  };
+}
+const vsHash = (a, b) => "#/vs/" + a + "/" + b;
+const scoreHtml = t => `<span class="score"><span class="ca">${fmtN(t.a)}</span><span class="d">&ndash;</span><span class="cb">${fmtN(t.b)}</span></span>`;
+
+/* the score card: you against the player on screen, on every page but your own */
+function scoreCardHtml(me, rec){
+  const t = matchup(me, rec).tally.all;
+  return `<div class="mecard"><span class="side">${marble(me.who)}<span><b>You</b><small>${esc(personaOf(me.who))}</small></span></span>
+    <span class="mid">${scoreHtml(t)}<small class="eyebrow">${plural(t.n, "shared map", "shared maps")}</small></span>
+    <span class="side r"><span><b>${esc(personaOf(rec.who))}</b></span>${marble(rec.who)}</span>
+    <a class="go" href="${vsHash(me.id, rec.id)}">Head to head &rarr;</a></div>`;
+}
+
+const VS_CHUNK = 60;
+const VS_SCOPES = [["all", "All"], ["circuit", "Circuit"], ["workshop", "Workshop"]];
+const VS_SORTS = {
+  close: ["Closest first", (p, q) => p.rel - q.rel],
+  big:   ["Biggest margins", (p, q) => q.rel - p.rel],
+  runs:  ["Most runs", (p, q) => q.field - p.field],
+};
+let vs = null;                     /* {key, A, B, m, scope, filter, sort, shown}, the pair on screen */
+
+function vsSideHtml(rec, side){
+  return `<div class="vsside${side === "b" ? " r" : ""}">${marble(rec.who)}<span>
+    <a class="c${side}" href="#/player/${esc(rec.id)}">${esc(personaOf(rec.who))}</a>
+    <button type="button" class="linkbtn" data-change="${side}">change</button></span></div>`;
+}
+function vsRowHtml(r){
+  const side = (x, s) => `<span class="vside${s === "b" ? " r" : ""}${r.win === s ? " w" + s : ""}">
+    <b>${fmtTime(x.score)}</b><small>${ord(x.rank)}</small></span>`;
+  const tag = r.scope === "workshop" ? thumbHtml(r) : `<span class="ctag">Circuit</span>`;
+  return `<div class="vrow">${side(r.a, "a")}
+    <a class="vmid" href="${esc(boardHash(r.name))}">${tag}<span><b>${esc(r.title)}</b>
+      <small>${r.win === "tie" ? "tie" : Math.abs(r.d) < SCORE_TICKS_PER_SECOND / 1000 ? "by under 0.001s"
+        : "by " + secs(Math.abs(r.d))} &middot; ${plural(r.field, "run", "runs")}</small></span></a>
+    ${side(r.b, "b")}</div>`;
+}
+function vsRows(){
+  const keep = {all: () => true, a: r => r.win === "a", b: r => r.win === "b"}[vs.filter];
+  return vs.m.rows.filter(r => (vs.scope === "all" || r.scope === vs.scope) && keep(r)).sort(VS_SORTS[vs.sort][1]);
+}
+function vsHtml(){
+  const {A, B, m} = vs, t = m.tally[vs.scope], nA = esc(personaOf(A.who)), nB = esc(personaOf(B.who));
+  const what = vs.scope === "circuit" ? ["track", "tracks"] : ["map", "maps"];
+  const tv = (s, side) => `<span class="tv${side === "a" ? " l" : ""}${s.win === side ? " c" + side : s.win ? " lose" : ""}">${
+    s[side] == null ? "&mdash;" : s.rank ? ord(s[side]) : fmtN(s[side])}</span>`;
+  const rows = vsRows();
+  const list = !t.n
+    ? `<div class="empty"><b>Nothing in common yet.</b>${nA} and ${nB} have no times on the same ${
+        vs.scope === "circuit" ? "Circuit tracks" : vs.scope === "workshop" ? "Workshop maps" : "maps"}.</div>`
+    : !rows.length ? `<div class="empty"><b>No ${what[1]} here.</b></div>`
+    : `<div class="vlist">${rows.slice(0, vs.shown).map(vsRowHtml).join("")}</div>` + (rows.length > vs.shown
+      ? `<button type="button" class="more-btn" data-vsmore>Show ${Math.min(VS_CHUNK, rows.length - vs.shown)} more</button>` : "");
+  return `<a class="back" href="#/player/${esc(A.id)}">&larr; ${nA}</a>
+    <div class="vshead">${vsSideHtml(A, "a")}
+      <div class="vsmid">${scoreHtml(t)}<span class="eyebrow">${fmtN(t.n)} ${t.n === 1 ? what[0] : what[1]} in common</span></div>
+      ${vsSideHtml(B, "b")}</div>
+    <div class="tape">${m.band.map(s => `<div class="trow">${tv(s, "a")}<span class="eyebrow">${esc(s.label)}</span>${tv(s, "b")}</div>`).join("")}</div>
+    <div class="vstools">
+      <span class="seg">${VS_SCOPES.map(([k, label]) => `<button type="button" data-scope="${k}" aria-pressed="${vs.scope === k}">${label}</button>`).join("")}</span>
+      <span class="opts">${[["all", "All"], ["a", nA + " faster"], ["b", nB + " faster"]].map(([k, label]) =>
+        `<button type="button" class="opt${vs.filter === k ? " on" : ""}" data-filter="${k}" aria-pressed="${vs.filter === k}">${label}</button>`).join("")}</span>
+      <select class="pwsort" id="vssort" aria-label="Sort">${Object.entries(VS_SORTS).map(([k, [label]]) =>
+        `<option value="${k}"${vs.sort === k ? " selected" : ""}>${label}</option>`).join("")}</select></div>
+    ${list}`;
+}
+const renderVs = () => { $("#vs").innerHTML = vsHtml(); };
+
+async function showVs(a, b){
+  if(a === b){ showPlayer(a); return; }
+  const key = a + "/" + b;
+  setView("vs");
+  vs = {key};
+  const el = $("#vs");
+  el.hidden = false;
+  el.innerHTML = `<div class="pseason">${Array.from({length:3}, () =>
+      `<div class="skel"><span></span><span></span><span></span></div>`).join("")}</div>`;
+  closeSheet();
+  scrollTo({top:0});
+  let docs;
+  /* two players with the same last digit share a shard, and loadShard fetches it once */
+  try { docs = await Promise.all([loadShard(a), loadShard(b)]); }
+  catch(err){
+    if(!vs || vs.key !== key) return;
+    el.innerHTML = `<div class="empty"><b>That head to head didn't load.</b>
+      The data file may still be refreshing. Try again in a moment.</div>`;
+    return;
+  }
+  if(!vs || vs.key !== key) return;  /* the reader moved on while it was fetching */
+  if(!docs[0].players[a] || !docs[1].players[b]){
+    el.innerHTML = `<div class="empty"><b>Nobody with that Steam ID is on a board.</b>
+      Only players with a time on at least one board can be compared.</div>`;
+    return;
+  }
+  const A = playerRecord(docs[0], a), B = playerRecord(docs[1], b);
+  vs = {key, A, B, m: matchup(A, B), scope: "all", filter: "all", sort: "close", shown: VS_CHUNK};
+  renderVs();
+  document.title = personaOf(A.who) + " vs " + personaOf(B.who) + " · " + SITE_TITLE;
+}
+$("#vs").addEventListener("click", e => {
+  const t = e.target;
+  const scope = t.closest("[data-scope]");
+  if(scope){ vs.scope = scope.dataset.scope; vs.shown = VS_CHUNK; renderVs(); return; }
+  const filter = t.closest("[data-filter]");
+  if(filter){ vs.filter = filter.dataset.filter; vs.shown = VS_CHUNK; renderVs(); return; }
+  if(t.closest("[data-vsmore]")){ vs.shown += VS_CHUNK; renderVs(); return; }
+  /* change one side: the other stays, and the pick takes this side's place */
+  const change = t.closest("[data-change]");
+  if(change) openCompare(change.dataset.change === "a" ? vs.B : vs.A, change.dataset.change);
+});
+$("#vs").addEventListener("change", e => {
+  if(e.target.id !== "vssort") return;
+  vs.sort = e.target.value; vs.shown = VS_CHUNK; renderVs();
+});
+
+/* ---------- Compare: find the other player by name ----------
+   data/names.json is every player's Steam ID and persona, fetched the first time the
+   dialog opens. A pick fills one side of the head to head; keep is the other side. */
+let NAMES = null;
+function loadNames(){
+  if(!NAMES) NAMES = fetch("data/names.json")
+    .then(r => { if(!r.ok) throw new Error("fetch names -> " + r.status); return r.json(); })
+    .catch(err => { NAMES = null; throw err; });   /* let the next open retry */
+  return NAMES;
+}
+const CMP_HITS = 10;
+let cmp = null;                    /* {keep, side}: the player staying put, and the side the pick takes */
+function openCompare(keep, side){
+  cmp = {keep, side};
+  $("#cmpHead").textContent = "Compare " + personaOf(keep.who) + " with…";
+  $("#cmpq").value = "";
+  $("#cmpHits").innerHTML = "";
+  $("#cmpScrim").hidden = $("#cmp").hidden = false;
+  $("#cmpq").focus();
+  loadNames().then(drawHits, () => {
+    if(cmp) $("#cmpHits").innerHTML = `<p>The player list didn't load. Try again in a moment.</p>`;
+  });
+}
+function closeCompare(){
+  if(!cmp) return;
+  cmp = null;
+  $("#cmpScrim").hidden = $("#cmp").hidden = true;
+}
+/* names that start with the query come before names that only contain it */
+function drawHits(names){
+  if(!cmp) return;
+  const q = $("#cmpq").value.trim().toLowerCase();
+  if(!q){ $("#cmpHits").innerHTML = ""; return; }
+  const hits = names.map(([steam_id, persona]) => ({steam_id, persona}))
+    .filter(r => r.steam_id !== cmp.keep.id && isSteamId(r.steam_id) && matchesQuery(r, q))
+    .sort((x, y) => personaOf(y).toLowerCase().startsWith(q) - personaOf(x).toLowerCase().startsWith(q))
+    .slice(0, CMP_HITS);
+  $("#cmpHits").innerHTML = hits.length
+    ? hits.map(r => `<button type="button" class="hit" data-pick="${esc(r.steam_id)}">${marble(r)}<b>${esc(personaOf(r))}</b></button>`).join("")
+    : `<p>Nobody by that name.</p>`;
+}
+let cmpTimer;
+$("#cmpq").addEventListener("input", () => {
+  clearTimeout(cmpTimer);
+  cmpTimer = setTimeout(() => { if(NAMES) NAMES.then(drawHits, () => {}); }, 120);
+});
+$("#cmpq").addEventListener("keydown", e => {
+  if(e.key !== "Enter") return;
+  const first = $("#cmpHits [data-pick]");
+  if(first) first.click();
+});
+$("#cmp").addEventListener("click", e => {
+  if(e.target.closest("[data-cmpclose]")){ closeCompare(); return; }
+  const pick = e.target.closest("[data-pick]");
+  if(!pick) return;
+  const {keep, side} = cmp;
+  closeCompare();
+  go(side === "a" ? vsHash(pick.dataset.pick, keep.id) : vsHash(keep.id, pick.dataset.pick));
+});
+$("#cmpScrim").onclick = closeCompare;
 
 /* ---------- the Workshop ----------
    Three views, none of which fetches a board file until a Map is opened:
@@ -1940,11 +2314,13 @@ function showMap(pfid, focus){
   selectBoard(m.name, focus).then(() => drawSpread(m));
 }
 
-/* which of the page's views is on screen: a campaign board, a player, or one of the
-   Workshop's three. Each show* function calls this first. */
+/* which of the page's views is on screen: a campaign board, a player, a head to head,
+   or one of the Workshop's three. Each show* function calls this first. */
 function setView(v){
   $("#app").dataset.view = v;
   if(v !== "player"){ playerId = null; $("#player").hidden = true; $("#player").innerHTML = ""; }
+  if(v !== "vs"){ vs = null; $("#vs").hidden = true; $("#vs").innerHTML = ""; }
+  closeCompare();
   $("#ws").hidden = v !== "workshop" && v !== "maps";
   $("#mpanel").hidden = v !== "map";
   if(v !== "maps") drawerOpen = false;
@@ -1952,20 +2328,23 @@ function setView(v){
 }
 
 /* ---------- routes ----------
-   A board, optionally with one player's row marked; a player; and the Workshop's
-   three (see above). No hash at all is the Workshop homepage. Anything else means
+   A board, optionally with one player's row marked; a player; a head to head of two
+   players; and the Workshop's three (see above). No hash at all is the Workshop homepage. Anything else means
    the view already on screen, or the default one. A board being addressable is what
    lets a tile link back to its own leaderboard. */
 const PLAYER_ROUTE = new RegExp("^#/player/(" + STEAM_ID.source + ")(?:/(" + PLAYER_TABS.map(t => t.key).join("|") + "))?$");
 const BOARD_ROUTE = new RegExp("^#/board/([A-Za-z0-9_]{1,64})(?:/(" + STEAM_ID.source + "))?$");
 const MAP_ROUTE = new RegExp("^#/map/(\\d{1,20})(?:/(" + STEAM_ID.source + "))?$");
 const MAPS_ROUTE = /^#\/maps(?:\/([a-z]{1,12}))?$/;
+const VS_ROUTE = new RegExp("^#/vs/(" + STEAM_ID.source + ")/(" + STEAM_ID.source + ")$");
 const HOME_HASHES = ["", "#", "#/", "#/workshop"];
 const boardHash = (name, focus) => mapPfidOf(name)
   ? mapHash(mapPfidOf(name), focus) : "#/board/" + name + (focus ? "/" + focus : "");
 function route(){
   const p = PLAYER_ROUTE.exec(location.hash);
   if(p){ showPlayer(p[1], p[2]); return; }
+  const v = VS_ROUTE.exec(location.hash);
+  if(v){ showVs(v[1], v[2]); return; }
   if(WORKSHOP.length){
     const m = MAP_ROUTE.exec(location.hash);
     if(m){ showMap(m[1], m[2]); return; }
@@ -2084,7 +2463,7 @@ function closeSheet(){
 $("#boardBtn").onclick = openSheet;
 $("#scrim").onclick = closeSheet;
 addEventListener("keydown", e => {
-  if(e.key === "Escape"){ closeSheet(); if(drawerOpen){ drawerOpen = false; renderMaps(); } return; }
+  if(e.key === "Escape"){ closeSheet(); closeCompare(); if(drawerOpen){ drawerOpen = false; renderMaps(); } return; }
   if(e.key !== "Tab" || !sheetOpen) return;
   /* aria-modal hides the rest of the page from assistive tech, so keyboard
      focus has to be kept inside the sheet to match */
