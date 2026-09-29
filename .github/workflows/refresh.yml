@@ -1,7 +1,7 @@
 name: Refresh leaderboards
 
 # Regenerates data/index.json + data/boards/*.json + data/podiums.json +
-# data/players/*.json from Steam
+# data/players/*.json + data/workshop.json + data/workshop/*.json from Steam
 # and commits them.
 # Its push uses GITHUB_TOKEN, which does not trigger deploy.yml's `push`
 # trigger, so the deploy job below calls deploy.yml once the data is on main.
@@ -49,7 +49,7 @@ jobs:
         run: |
           git config user.name  "will-ness-ai"
           git config user.email "n3s.online@gmail.com"
-          git add data/index.json data/boards data/podiums.json data/players
+          git add -A data/index.json data/boards data/podiums.json data/players data/workshop.json data/workshop
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else

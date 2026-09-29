@@ -45,6 +45,7 @@ warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warni
 
 import steam
 from steam.protobufs import leaderboards
+from steampy_common import fetch_board, find_map_board_id
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
@@ -52,11 +53,8 @@ logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 AUTHOR_MEDAL_INDEX = 3  # medal_times_by_index = [bronze, silver, gold, author], seconds
 # Discord's per-message cap: 4000 characters with Nitro, 2000 without (--limit).
 DISCORD_MESSAGE_LIMIT = 4000
-# A creator's own time must be faster than their author time by at least this much to
-# count as a beat. The author time in the Workshop metadata and the leaderboard score
-# of the very same publishing run disagree by up to ~0.75 ms in observed data (float
-# noise), so anything under 1 ms would count the publishing run itself as a beat.
-CREATOR_BEAT_MARGIN_TICKS = 100  # 1 ms
+# A creator's own time must beat their author time by this much to count (see campaign_common).
+CREATOR_BEAT_MARGIN_TICKS = cc.CREATOR_BEAT_MARGIN_TICKS
 # A map has to have been on the Workshop this long before it can be listed as unbeaten
 # or as having an unclaimed author medal; anything younger simply hasn't been played yet.
 LIST_MIN_AGE_SECONDS = 24 * 3600
@@ -122,62 +120,9 @@ def workshop_maps(key):
 
 # ---------------------------------------------------------------- Steam leaderboards
 
-async def find_board_id(client, name):
-    """Leaderboard name -> id, or 0 if the board doesn't exist (a map nobody has finished).
-
-    steam.py's own fetch_leaderboard() fails with InvalidParameter for this app because
-    it leaves the message header's routing_app_id unset; the CM only resolves a name
-    when the request is routed under the app, as the game's SDK session does."""
-    msg = leaderboards.CMsgClientLbsFindOrCreateLb(
-        app_id=cc.APP_ID, leaderboard_name=name, create_if_not_found=False)
-    msg.header.routing_app_id = cc.APP_ID
-    resp = await client._state.ws.send_proto_and_wait(msg)
-    if resp.result != steam.Result.OK:
-        raise RuntimeError(f"LBSFindOrCreateLB result={resp.result!r}")
-    return int(resp.leaderboard_id)
-
-
-async def find_map_board_id(client, board):
-    """A map's board id, or 0 if nobody has finished it.
-
-    The Workshop metadata's leaderboard name carries the display name whitespace-trimmed,
-    but the game names the board from the untrimmed name in the map file, so a title
-    typed with a leading or trailing space (seen once: " dfgzdfgg", pfid 3794947252)
-    resolves only with the space put back. Try those before calling a map unbeaten."""
-    lid = await find_board_id(client, board)
-    if lid:
-        return lid
-    prefix, sep, name = board.partition("_Climb_")
-    if sep:
-        for cand in (f"{prefix}{sep} {name}", f"{prefix}{sep}{name} "):
-            lid = await find_board_id(client, cand)
-            if lid:
-                return lid
-    return 0
-
-
 async def fetch_entries(client, lid):
-    """Every entry on a board. Same conservative paging as steampy_collect.fetch_board:
-    stop only when the board is exhausted, not on a short batch."""
-    total, entries, start = None, [], 1
-    while True:
-        msg = await client._state.ws.send_proto_and_wait(
-            leaderboards.CMsgClientLbsGetLbEntries(
-                leaderboard_id=lid, app_id=cc.APP_ID,
-                range_start=start, range_end=start + cc.FETCH_WINDOW - 1,
-                leaderboard_data_request=0, steamids=[],
-            )
-        )
-        if msg.result != steam.Result.OK:
-            raise RuntimeError(f"LBSGetLBEntries result={msg.result!r}")
-        if total is None:
-            total = msg.leaderboard_entry_count
-        batch = list(msg.entries)
-        entries.extend(batch)
-        if not batch or len(entries) >= total:
-            break
-        start = len(entries) + 1
-    return entries
+    """Every entry on a board (steampy_common.fetch_board without the count)."""
+    return (await fetch_board(client, lid))[1]
 
 
 async def collect(client, maps):

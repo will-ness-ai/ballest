@@ -4,6 +4,9 @@ Ballest campaign leaderboard collector — HEADLESS (GitHub Actions path).
 Logs into Steam with a refresh token (no Steam client, no password at runtime),
 reads every campaign leaderboard over the Steam CM via steam.py, resolves player
 names via the Steam Web API, and writes data/index.json + data/boards/*.json.
+It also keeps the Workshop Maps' boards current (data/workshop.json +
+data/workshop/*.json), reading only the ones played since the last run
+(collect_workshop).
 
 Auth (secrets, provided as env vars in CI; locally they fall back to the files
 steampy_mint.py and .env hold, in this checkout or the main one if this is a
@@ -14,7 +17,7 @@ worktree):
 Run locally to test:  python tools/steampy_collect.py
 Requires: steamio, aiohttp<3.13  (see tools/requirements-steampy.txt)
 """
-import os, sys, asyncio, logging
+import os, sys, time, asyncio, logging
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import campaign_common as cc
@@ -23,7 +26,7 @@ import warnings
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
 
 import steam
-from steam.protobufs import leaderboards
+from steampy_common import fetch_board, board_rows, find_map_board_id
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
@@ -31,49 +34,80 @@ logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown 
 TOKEN = cc.load_refresh_token()
 
 client = steam.Client()
-_state = {"done": False, "error": None, "wrote": False}
+_state = {"done": False, "error": None, "wrote": False, "catalogue": None}
 
 
-def _ugc(val):
-    try:
-        n = int(val)
-    except (TypeError, ValueError):
-        return "0"
-    return str(n)
+WORKSHOP_GIVE_UP = 10
 
 
-async def fetch_board(lid):
-    """Read a leaderboard's ENTIRE entry list directly by ID (LBSGetLBEntries).
-    steam.py's find-by-name is broken for this app, so we go straight to the
-    entries request with the known ID. Pages defensively in case a board ever
-    exceeds a server-side per-request cap (none observed at ~3000)."""
-    total = None
-    entries = []
-    start = 1
-    while True:
-        msg = await client._state.ws.send_proto_and_wait(
-            leaderboards.CMsgClientLbsGetLbEntries(
-                leaderboard_id=lid,
-                app_id=cc.APP_ID,
-                range_start=start,
-                range_end=start + cc.FETCH_WINDOW - 1,
-                leaderboard_data_request=0,  # Global
-                steamids=[],
-            )
-        )
-        if msg.result != steam.Result.OK:
-            raise RuntimeError(f"LBSGetLBEntries result={msg.result!r}")
-        if total is None:
-            total = msg.leaderboard_entry_count
-        batch = list(msg.entries)
-        entries.extend(batch)
-        # Stop when the board is exhausted. Do NOT stop just because a batch was
-        # smaller than the window — that would silently truncate a board if the CM
-        # ever caps entries-per-request below FETCH_WINDOW; keep paging instead.
-        if not batch or len(entries) >= total:
-            break
-        start = len(entries) + 1
-    return total, entries
+async def collect_workshop(catalogue, all_ids):
+    """Bring the Workshop Maps' boards up to date. Returns what write_site takes as
+    `workshop`, or None to leave every committed Workshop file as it is.
+
+    Reading every Map's board is one request per Map, one at a time, and Maps arrive
+    at ~225 a week. So a board is read only when its Map's Workshop counters moved
+    since the last read: a first finish subscribes to the Map, and the session count
+    catches most players improving their own time, a few hours late. Nothing moves
+    for the rest, so every board is read once every FULL_SWEEP_SECONDS as well.
+    Measured 2026-09-28: 96% of board changes came with a counter move.
+
+    A Map's stored counters are the ones seen at its last successful read. A read
+    that fails leaves them behind, so the next run tries that Map again, and the
+    board keeps its committed file meanwhile. After WORKSHOP_GIVE_UP failures in a
+    row the step stops reading: Steam is refusing, and every Map left is tried
+    again next run."""
+    prev_doc = cc.load_workshop() or {}
+    prev = {m["pfid"]: m for m in prev_doc.get("maps", [])}
+    if prev and len(catalogue) < cc.WORKSHOP_SHRINK_LIMIT * len(prev):
+        print(f"  [warn] Workshop catalogue shrank from {len(prev)} to {len(catalogue)} Maps; "
+              f"keeping the committed Workshop files")
+        return None
+    now = int(time.time())
+    full = now - int(prev_doc.get("full_sweep_at") or 0) >= cc.FULL_SWEEP_SECONDS
+    maps, boards, finds, reads, failed, streak = [], {}, 0, 0, [], 0
+    for c in catalogue:
+        p = prev.get(c["pfid"], {})
+        m = {"name": "Workshop_" + c["pfid"], "pfid": c["pfid"], "display": c["title"],
+             "creator": c["creator"], "cid": c["cid"], "preview": c["preview"],
+             "created": c["created"], "medals": c["medals"],
+             "handle": p.get("handle"), "entry_count": p.get("entry_count", 0),
+             "rows": p.get("rows", 0), "file": p.get("file"),
+             "sessions": p.get("sessions"), "subs": p.get("subs")}
+        maps.append(m)
+        moved = (m["sessions"], m["subs"]) != (c["sessions"], c["subs"])
+        if not (moved or full) or streak >= WORKSHOP_GIVE_UP:
+            continue
+        try:
+            if not m["handle"]:
+                # A board appears on a Map's first finish, and its ID never changes.
+                finds += 1
+                lid = await find_map_board_id(client, c["board"])
+                m["handle"] = str(lid) if lid else None
+            if m["handle"]:
+                reads += 1
+                total, entries = await fetch_board(client, int(m["handle"]))
+                rows = board_rows(entries)
+                if not rows and m["rows"]:
+                    raise RuntimeError("board came back empty")
+                if rows:
+                    boards[c["pfid"]] = rows
+                    all_ids.update(r["steam_id"] for r in rows)
+                    m.update(entry_count=int(total or len(rows)), rows=len(rows),
+                             file="workshop/" + c["pfid"] + ".json")
+        except Exception as e:
+            failed.append(c["pfid"])
+            print(f"  [warn] Workshop Map {c['pfid']} {c['title']!r}: {e!r}")
+            streak += 1
+            if streak == WORKSHOP_GIVE_UP:
+                print(f"  [warn] {streak} Workshop failures in a row; leaving the rest for next run")
+            continue
+        streak = 0
+        m["sessions"], m["subs"] = c["sessions"], c["subs"]
+    print(f"  Workshop: {len(maps)} Maps, {'full sweep' if full else 'played since last run'}: "
+          f"{reads} boards read, {finds} looked up, {len(failed)} failed")
+    return {"maps": maps, "boards": boards,
+            # a sweep cut short is not a sweep: the next run starts another
+            "full_sweep_at": now if full and streak < WORKSHOP_GIVE_UP else prev_doc.get("full_sweep_at")}
 
 
 @client.event
@@ -92,18 +126,9 @@ async def on_ready():
                 print(f"  [skip] no leaderboard ID for {name}")
                 continue
             try:
-                total, entries = await fetch_board(lid)
-                rows = []
-                for e in entries:
-                    sid = str(e.steam_id_user)
-                    all_ids.add(sid)
-                    rows.append({
-                        "rank": e.global_rank,
-                        "steam_id": sid,
-                        "score_ms": int(e.score),
-                        "time": cc.fmt_time(e.score),
-                        "ugc_id": _ugc(e.ugc_id),
-                    })
+                total, entries = await fetch_board(client, lid)
+                rows = board_rows(entries)
+                all_ids.update(r["steam_id"] for r in rows)
                 boards_out.append({
                     "name": name, "display": cc.display_name(name), "group": group,
                     "tier": cc.track_tier(name),
@@ -141,7 +166,14 @@ async def on_ready():
             print("ERROR: no board data collected; not writing.")
             return
 
-        cc.write_site(boards_out, all_ids)
+        workshop = None
+        if _state["catalogue"]:
+            try:
+                workshop = await collect_workshop(_state["catalogue"], all_ids)
+            except Exception as e:
+                # The campaign still publishes; the Workshop files stay as committed.
+                print(f"  [warn] Workshop step failed: {e!r}")
+        cc.write_site(boards_out, all_ids, workshop)
         _state["wrote"] = True
         if reused:
             print(f"NOTE: reused previous data for {len(reused)} board(s): {reused}")
@@ -157,6 +189,13 @@ def main():
     if not TOKEN:
         print("ERROR: STEAM_REFRESH_TOKEN not set. Mint one with tools/steampy_mint.py.")
         return 2
+    # The Workshop catalogue is plain Web API, so it is fetched before logging in.
+    key = cc.load_key()
+    if key:
+        try:
+            _state["catalogue"] = cc.workshop_catalogue(key)
+        except Exception as e:
+            print(f"  [warn] Workshop catalogue unavailable: {e!r}; Workshop files stay as committed")
     try:
         client.run(refresh_token=TOKEN)
     except Exception as e:

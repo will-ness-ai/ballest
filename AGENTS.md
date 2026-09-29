@@ -29,6 +29,16 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   score on every board, keyed by Steam ID (`build_players` in
   `tools/campaign_common.py`). Split ten ways by the ID's last digit so a player page
   fetches one ~400KB shard rather than every board. Loaded only on a player page.
+- `data/workshop.json` — every Workshop Map (title, creator and their Steam ID, preview
+  picture URL, Medals, board ID, entry count), what the homepage shows of its board
+  without fetching it (`workshop_stats`: the top three, the 1st-to-3rd gap, runs within
+  a second of the record, runs that beat the author time), and the collector's memory of
+  what it last read: each Map's Workshop session and subscription counts as of its last
+  board read, and `full_sweep_at`. Loaded with `index.json`; it drives the Workshop
+  homepage and All maps.
+- `data/workshop/<pfid>.json` — one board file per Map that has a time, the same shape as
+  a campaign board file. Maps stay out of `index.json`, `BOARDS` and `derive()`, so the
+  podiums, the composite and the player shards are campaign-only.
 - `derive()` in `tools/campaign_common.py` is the one list of what the collector works
   out from the board rows and where each file lands. `write_site` publishes that list,
   `check_data` compares the committed files against it, and neither restates the
@@ -36,7 +46,14 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   the board list `derive` returns, composite last. A new derived artifact is one entry
   there, and is then written, guarded and checked for free.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
-- `tools/steampy_collect.py` — the collector CI runs. **This is the live path.**
+- `tools/steampy_collect.py` — the collector CI runs. **This is the live path.** Besides
+  the campaign boards it keeps the Workshop boards current (`collect_workshop`), reading
+  a Map's board only when its Workshop session or subscription count moved since the
+  last read, plus every board once every `FULL_SWEEP_SECONDS`. Player names are carried
+  forward from the committed board files; a run looks up only players with no name, plus
+  one rotating slice of the rest (`names_due`), so every name refreshes about weekly.
+- `tools/steampy_common.py` — the steam.py leaderboard requests the collector and the
+  Discord script share: read a board by ID, find a board by name.
 - `tools/ugc_discord_leaderboard.py` — local, on demand: reads every Workshop map's
   board and prints a Discord post (most custom maps beaten, most author medals, most
   world records and top 5s, and the longest-standing campaign and Workshop records).
@@ -116,7 +133,7 @@ that shipped 100x-too-long times to production once already.
 numeric ID in `LEADERBOARD_IDS`. The collector reads by ID only, so a board missing from
 the table is skipped without an error. steam.py's find-by-name does work for this app
 once the message header's `routing_app_id` is set to the app (`find_board_id` in
-`tools/ugc_discord_leaderboard.py`); the collector predates that finding and has not
+`tools/steampy_common.py`); the collector predates that finding and has not
 been switched over.
 
 **Never let a run publish an empty board.** `steampy_collect.py` falls back to the
@@ -125,17 +142,26 @@ if a board has neither (the `except` branch and the `hard_failed` check in `on_r
 The derived files carry the same rule, once, in `write_site`: each artifact `derive()`
 returns says whether it came out empty, and one empty artifact keeps the committed copy
 of every derived file, since they all come from the same rows.
+The Workshop step never blocks the campaign and never wipes a Map: a failed Map read
+keeps its committed file and its old counters (so the next run retries it), and a
+catalogue that fails, comes back short of Steam's total, or shrinks by more than
+`WORKSHOP_SHRINK_LIMIT` leaves every Workshop file as committed.
 Preserve that in any change to the write path. The pagination stop condition in
 `fetch_board` is deliberately conservative for the same reason — don't simplify it.
 
 **`.gitignore` ignores `data/*`**, re-including only `!data/index.json`, `!data/boards/`,
-`!data/podiums.json` and `!data/players/`. A new artifact written under `data/` is
+`!data/podiums.json`, `!data/players/`, `!data/workshop.json` and `!data/workshop/`. A new artifact written under `data/` is
 invisible to git and 404s in production; the workflow's `git add` line also has to name
 it.
 
-**The page has two hash routes**, read by `route()` on load and on `hashchange`:
-`#/player/<steam_id>` and `#/board/<board name>` with an optional `/<steam_id>` that
-marks that player's row once the board is open. Every player name links to a player page
+**The page's hash routes** are read by `route()` on load and on `hashchange`:
+`#/player/<steam_id>`, `#/board/<board name>` with an optional `/<steam_id>` that
+marks that player's row once the board is open, and the Workshop's three:
+`#/workshop` (the homepage, and what no hash at all opens), `#/maps` or
+`#/maps/<view>` (All maps, opened on one of `VIEWS` or `PRESETS`), and
+`#/map/<pfid>` with the same optional `/<steam_id>`. A Map's page is the board view
+with the Map's panel where the rail would be; `boardHash` turns a `Workshop_<pfid>`
+board name into its `#/map/` link, so a player page's back link lands there. Every player name links to a player page
 (`nameHtml`), and the link out to Steam lives on that page rather than on the name.
 Selecting a board goes through the route too (`go(boardHash(...))`), so nothing calls
 `selectBoard` to navigate — that is what makes a board, and a player's row on it,
@@ -165,8 +191,8 @@ so don't hand-edit data files and don't carry regenerated data on a feature bran
 will conflict. A brand-new data artifact is the exception: its first copy ships with the
 code that introduces it, so the feature works on merge rather than after the next
 refresh. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch only
-`data/index.json`, `data/boards/`, `data/podiums.json` and `data/players/`; keep code
-changes out of them.
+`data/index.json`, `data/boards/`, `data/podiums.json`, `data/players/`,
+`data/workshop.json` and `data/workshop/`; keep code changes out of them.
 
 `CODING_STANDARDS.md` is the review checklist; it also holds the branch and commit
 conventions.
