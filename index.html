@@ -1367,7 +1367,7 @@ function playerRecord(doc, id){
     allSeasons: comp ? by[comp.name] || null : null,
     medals, golds: run.filter(t => t.finish.rank === 1).map(t => t.display),
     run: run.length, tracks: tracks.length, seasons,
-    workshop: {finishes, tiers, maps: WORKSHOP.length,
+    workshop: {finishes, tiers, maps: ALL_MAPS.length,
                podiums: finishes.filter(f => f.rank <= 3).length,
                near: finishes.filter(f => f.rank > 1 && f.gap <= SCORE_TICKS_PER_SECOND).length},
     made, holds: made.filter(m => m.record && m.record.who.steam_id === id).length,
