@@ -1862,7 +1862,7 @@ function scoreCardHtml(me, rec){
   return `<div class="mecard"><span class="side">${marble(me.who)}<span><b>You</b><small>${esc(personaOf(me.who))}</small></span></span>
     <span class="mid">${scoreHtml(t)}<small class="eyebrow">${plural(t.n, "shared map", "shared maps")}</small></span>
     <span class="side r"><span><b>${esc(personaOf(rec.who))}</b></span>${marble(rec.who)}</span>
-    <a class="go" href="${vsHash(me.id, rec.id)}">Head to head &rarr;</a></div>`;
+    <a class="go" href="${esc(vsHash(me.id, rec.id))}">Head to head &rarr;</a></div>`;
 }
 
 const VS_CHUNK = 60;
@@ -1921,7 +1921,7 @@ function vsHtml(){
 const renderVs = () => { $("#vs").innerHTML = vsHtml(); };
 
 async function showVs(a, b){
-  if(a === b){ showPlayer(a); return; }
+  if(a === b){ location.replace("#/player/" + a); return; }   /* hashchange routes it */
   const key = a + "/" + b;
   setView("vs");
   vs = {key};
@@ -2027,6 +2027,14 @@ $("#cmp").addEventListener("click", e => {
   go(side === "a" ? vsHash(pick.dataset.pick, keep.id) : vsHash(keep.id, pick.dataset.pick));
 });
 $("#cmpScrim").onclick = closeCompare;
+/* aria-modal: keep Tab inside the dialog, as the sheet does */
+function trapTab(e, box){
+  const items = [...box.querySelectorAll("button,input")];
+  const first = items[0], last = items[items.length-1];
+  if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  else if(!box.contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+}
 
 /* ---------- the Workshop ----------
    Three views, none of which fetches a board file until a Map is opened:
@@ -2314,7 +2322,7 @@ function showMap(pfid, focus){
   selectBoard(m.name, focus).then(() => drawSpread(m));
 }
 
-/* which of the page's views is on screen: a campaign board, a player, a head to head,
+/* which of the page's views is on screen: a Circuit board, a player, a head to head,
    or one of the Workshop's three. Each show* function calls this first. */
 function setView(v){
   $("#app").dataset.view = v;
@@ -2464,6 +2472,7 @@ $("#boardBtn").onclick = openSheet;
 $("#scrim").onclick = closeSheet;
 addEventListener("keydown", e => {
   if(e.key === "Escape"){ closeSheet(); closeCompare(); if(drawerOpen){ drawerOpen = false; renderMaps(); } return; }
+  if(e.key === "Tab" && cmp){ trapTab(e, $("#cmp")); return; }
   if(e.key !== "Tab" || !sheetOpen) return;
   /* aria-modal hides the rest of the page from assistive tech, so keyboard
      focus has to be kept inside the sheet to match */
