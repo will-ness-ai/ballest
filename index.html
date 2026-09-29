@@ -1149,7 +1149,7 @@ function stripHtml(b){
   if(isPoints(b)) return `<button class="tstrip plain" ${cur}><span class="lab"><b>${esc(shortName(b.display))}</b>
     <small>${plural(b.entry_count, "player", "players")}</small></span></button>`;
   const t = TRACKS[b.name], rec = trackRecord(b);
-  return `<button class="tstrip" ${cur}>${t ? `<img src="${t.img}" alt="" loading="lazy" decoding="async">` : ""}
+  return `<button class="tstrip" ${cur}>${t ? `<img src="${esc(t.img)}" alt="" loading="lazy" decoding="async">` : ""}
     <span class="lab"><b>${esc(trackNo(b))}</b><span class="rt">${rec ? fmtTime(rec) : "&nbsp;"}</span>
     <small>${plural(b.entry_count, "run", "runs")}</small></span></button>`;
 }
@@ -1174,7 +1174,7 @@ const factsHtml = facts => `<dl class="bc-facts">${facts.map(([k, v]) =>
   `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>`;
 function trackCard(b, t, rows){
   const lead = rows && rows[0];
-  return `${t ? `<img class="bc-pic" src="${t.img}" alt="">` : ""}
+  return `${t ? `<img class="bc-pic" src="${esc(t.img)}" alt="">` : ""}
     <div class="bc-body"><div class="bc-top"><div><h1>${esc(trackNo(b))}</h1>
       <span class="bc-by">${esc(b.group)}${b.tier ? " &middot; " + esc(b.tier) : ""}</span></div>
       ${factsHtml([["Runs", fmtN(b.entry_count)], ["Record", lead ? fmtTime(lead.score_ms) : "&mdash;"],
