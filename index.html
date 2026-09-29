@@ -1476,6 +1476,7 @@ const PW_CHUNK = 40, PW_SHELF = 14;
 const PW_SORTS = {
   /* the share of the field ahead of them, so every record is 0; biggest board first among equals */
   best:   ["Best placing", (a, b) => (a.rank - 1) / a.field - (b.rank - 1) / b.field || b.field - a.field],
+  rank:   ["Highest rank", (a, b) => a.rank - b.rank || b.field - a.field],
   close:  ["Closest to the record", (a, b) => (a.rank === 1) - (b.rank === 1) || a.gap / a.score - b.gap / b.score],
   runs:   ["Most runs", (a, b) => b.field - a.field],
   newest: ["Newest maps", (a, b) => b.created - a.created],
