@@ -31,6 +31,11 @@ const REFRESH_MS = 2_000
 const GO_MS = 60_000
 const REVEAL_MS = 1_500
 const TOAST_MS = 6_000
+/**
+ * A window this short is Discord's picture-in-picture (about 180px tall) even if its layout event
+ * hasn't arrived, so it gets the small view too.
+ */
+const PIP_MAX_HEIGHT = 240
 
 const root = document.getElementById("app")!
 
@@ -519,7 +524,7 @@ const screen = (): string => {
   if (ui.phase === "failed" || ui.me === null) return V.failed(ui.failure)
   const viewer = ui.me
   const f = ui.focus
-  if (ui.pip) return V.pip(viewer, f, ui.matches)
+  if (ui.pip || innerHeight < PIP_MAX_HEIGHT) return V.pip(viewer, f, ui.matches)
   const matchScreen = (m: MatchView, locked: boolean) =>
     V.matchView({
       m,
