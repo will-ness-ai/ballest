@@ -146,9 +146,10 @@ top five, which is enough to match against `data/boards/`.
 
 ## Data and git
 
-`data/` is CI-owned. The refresh workflow commits straight to `main` every three hours,
-so don't hand-edit data files and don't carry regenerated data on a feature branch — it
-will conflict. A brand-new data artifact is the exception: its first copy ships with the
+`data/` is CI-owned. The refresh workflow commits straight to `main`: scheduled every
+three hours, but GitHub starts scheduled runs late or skips them, so commits land 3-10 hours
+apart (`gh run list -w refresh.yml`). So don't hand-edit data files and don't carry
+regenerated data on a feature branch — it will conflict. A brand-new data artifact is the exception: its first copy ships with the
 code that introduces it, so the feature works on merge rather than after the next
 refresh. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch only
 `data/index.json`, `data/boards/`, `data/podiums.json`, `data/players/`,

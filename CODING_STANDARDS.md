@@ -40,6 +40,9 @@ it breaks. Those files carry the reasons; this file carries the checks.
 - A derived file is built from its inputs as written to disk, after every guarded write of
   those inputs, so a write that fails leaves the two agreeing.
 - `python tools/check_data.py` passes on the committed data after any collector change.
+- A change to when a board is read (`collect_workshop`'s trigger, `FULL_SWEEP_SECONDS`, the
+  `refresh.yml` cron) updates the refresh dialog's copy (`#rfx` in `index.html`), which
+  restates those rules for players.
 
 ## Discord bot (`discord-bot/`)
 
