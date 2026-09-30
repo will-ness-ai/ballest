@@ -15,7 +15,7 @@ import {
   type BaseMessageOptions
 } from "discord.js"
 import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js"
-import { STEAM_LINK_HOWTO } from "../present.js"
+import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js"
 import { RESULT_HUE, START_HUE } from "../render/art.js"
 import type { CardView, KeptReason, ThreadPost } from "../ports.js"
 import { type Action, type Control, controlId } from "./controls.js"
@@ -271,6 +271,9 @@ export const confirmLeaveMessage = (matchId: string): Payload => ({
 
 // ---------------------------------------------------------------- Link Steam
 
+const howtoMarkdown = (parts: ReadonlyArray<HowtoPart>) =>
+  parts.map((p) => (typeof p === "string" ? p : "menu" in p ? `**${p.menu}**` : `\`${p.example}\``)).join("")
+
 export const linkForm = () =>
   new ModalBuilder()
     .setCustomId(controlId({ _tag: "LinkForm" }))
@@ -278,9 +281,9 @@ export const linkForm = () =>
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         [
-          ...STEAM_LINK_HOWTO.steps.map((step, n) => `${n + 1}. ${step}`),
+          ...STEAM_LINK_HOWTO.steps.map((step, n) => `${n + 1}. ${howtoMarkdown(step)}`),
           "",
-          `It looks like \`${STEAM_LINK_HOWTO.example}\``,
+          howtoMarkdown(STEAM_LINK_HOWTO.looksLike),
           `-# ${STEAM_LINK_HOWTO.notThis}`
         ].join("\n")
       )

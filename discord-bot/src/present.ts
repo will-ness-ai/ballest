@@ -1,5 +1,6 @@
-// What a Match looks like in words and rows, the same on both surfaces: the Card image in the
-// channel (render/scenes.ts) and the Activity page (activity/web/view.ts) only lay these out.
+// The words both surfaces share, and what a Match looks like in words and rows: the channel
+// (the Card image in render/scenes.ts, the forms in discord/messages.ts) and the Activity page
+// (activity/web/view.ts) only lay these out.
 // Pure, and free of Node, so the page's bundle uses it as it is.
 import { formatTime, MATCH_TYPE_NAME, SCORE_TICKS_PER_SECOND, type MedalKind } from "./domain.js"
 import type { CardView } from "./ports.js"
@@ -100,16 +101,28 @@ export const matchName = (view: CardView, nameOf: NameOf) =>
     ? `${nameOf(view.creator.discordId)} v ${nameOf(view.target.discordId)}`
     : `${nameOf(view.creator.discordId)}'s ${MATCH_TYPE_NAME[view.type]}`
 
+/** A run of how-to text: plain words, a word from Steam's own menus, or an example link. */
+export type HowtoPart = string | { readonly menu: string } | { readonly example: string }
+
 /**
- * Where to find the link Link Steam asks for; Steam hides it behind a right-click. Steps mark
- * Steam's own menu words with **bold**, Discord's markdown, which the Activity turns into <b>.
+ * Where to find the link Link Steam asks for; Steam hides it behind a right-click. Each
+ * surface draws the menu words and examples its own way (Discord markdown, or HTML).
  */
-export const STEAM_LINK_HOWTO = {
+export const STEAM_LINK_HOWTO: {
+  readonly steps: ReadonlyArray<ReadonlyArray<HowtoPart>>
+  readonly looksLike: ReadonlyArray<HowtoPart>
+  readonly notThis: string
+} = {
   steps: [
-    "In Steam, hover your name at the top and pick **Profile**.",
-    "Right-click the page and choose **Copy Page URL**.",
-    "Paste it below."
+    ["In Steam, hover your name at the top and pick ", { menu: "Profile" }, "."],
+    ["Right-click the page and choose ", { menu: "Copy Page URL" }, "."],
+    ["Paste it below."]
   ],
-  example: "https://steamcommunity.com/profiles/76561198…",
+  looksLike: [
+    "It looks like ",
+    { example: "https://steamcommunity.com/profiles/76561198…" },
+    " or ",
+    { example: "https://steamcommunity.com/id/yourname" }
+  ],
   notThis: "Not your display name or friend code."
-} as const
+}
