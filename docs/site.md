@@ -25,6 +25,8 @@ on it, something you can link to. A Map's page is the board view with the Map's 
 the rail would be; `boardHash` turns a `Workshop_<pfid>` board name into its `#/map/` link,
 so a player page's back link lands there. Every player name links to a player page
 (`nameHtml`), and the link out to Steam lives on that page rather than on the name.
+A Map's creator links to their player page's Made tab (`creatorHtml`), except inside a
+card or row that is itself a link.
 
 ## The header
 
