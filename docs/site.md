@@ -11,7 +11,8 @@ How `index.html` is put together, for anyone editing it. What it loads is in
   `/made`). Without one the page opens on Workshop for anyone with a Workshop time, else
   Circuit.
 - `#/board/<board name>`, with an optional `/<steam_id>` that marks that player's row once
-  the board is open.
+  the board is open, or on an Overall board `/podiums`, which lists it in its podium order
+  (`BY_PODIUMS`). A Steam ID is all digits, so the two cannot collide.
 - `#/vs/<steam_id>/<steam_id>`, a head to head of two players.
 - The Workshop's three: `#/workshop` (the homepage, and what no hash at all opens),
   `#/maps` or `#/maps/<view>` (All maps, opened on one of `VIEWS` or `PRESETS`), and

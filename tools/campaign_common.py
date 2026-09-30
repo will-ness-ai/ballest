@@ -450,38 +450,47 @@ def load_existing_board(name):
 def build_podiums(boards_out):
     """Per-season podium tally: who holds the 1st, 2nd and 3rd places across a
     season's tracks. Only Map_* boards count (an Overall board is points, not a
-    race), so a season with no track boards is left out entirely.
+    race), so a season with no track boards is left out entirely. After the
+    seasons comes one more entry, COMPOSITE_GROUP, tallied over every season's
+    tracks at once, which is what the all-seasons board shows beside its points;
+    its finishes name the season as well as the track, since each season has an 01.
 
     Players are sorted by golds, then silvers, then bronzes, and equal counts
     share a rank (1, 2, 2, 4 ...) rather than being split by some fourth key the
     reader can't see. Rows come from boards_out AFTER name resolution, so each
     player carries the same persona/avatar the board files do."""
-    seasons = []
-    for group in dict.fromkeys(g for _, g in BOARDS):
-        tracks = [b for b in boards_out if b["group"] == group and b["name"].startswith("Map_")]
-        if not tracks:
-            continue
-        players = {}
-        for b in tracks:
-            for r in b["rows"][:3]:    # rows are rank-ordered; the podium is the first three
-                p = players.setdefault(r["steam_id"], {
-                    "steam_id": r["steam_id"], "persona": r.get("persona", ""),
-                    "avatar": r.get("avatar", ""), "profileurl": r.get("profileurl", ""),
-                    "gold": 0, "silver": 0, "bronze": 0, "finishes": []})
-                p[("gold", "silver", "bronze")[r["rank"] - 1]] += 1
-                p["finishes"].append({"track": b["display"], "rank": r["rank"],
-                                      "score_ms": r["score_ms"],
-                                      "time": fmt_time(r["score_ms"])})
-        ordered = sorted(players.values(),
-                         key=lambda p: (-p["gold"], -p["silver"], -p["bronze"]))
-        prev = None
-        for i, p in enumerate(ordered):
-            counts = (p["gold"], p["silver"], p["bronze"])
-            p["rank"] = i + 1 if counts != prev else ordered[i - 1]["rank"]
-            prev = counts
-            p["finishes"].sort(key=lambda f: (f["rank"], f["track"]))
-        seasons.append({"group": group, "tracks": len(tracks), "players": ordered})
+    tracks = [b for b in boards_out if b["name"].startswith("Map_")]
+    seasons = [tally_podiums(group, [b for b in tracks if b["group"] == group], lambda b: b["display"])
+               for group in dict.fromkeys(g for _, g in BOARDS)]
+    seasons = [s for s in seasons if s["tracks"]]
+    if len(seasons) > 1:
+        seasons.append(tally_podiums(COMPOSITE_GROUP, tracks, lambda b: b["group"] + " " + b["display"]))
     return seasons
+
+
+def tally_podiums(group, tracks, label):
+    """One entry of build_podiums: the top three of each board in tracks, counted and
+    ranked. label(board) is what a finish calls its track."""
+    players = {}
+    for b in tracks:
+        for r in b["rows"][:3]:    # rows are rank-ordered; the podium is the first three
+            p = players.setdefault(r["steam_id"], {
+                "steam_id": r["steam_id"], "persona": r.get("persona", ""),
+                "avatar": r.get("avatar", ""), "profileurl": r.get("profileurl", ""),
+                "gold": 0, "silver": 0, "bronze": 0, "finishes": []})
+            p[("gold", "silver", "bronze")[r["rank"] - 1]] += 1
+            p["finishes"].append({"track": label(b), "rank": r["rank"],
+                                  "score_ms": r["score_ms"],
+                                  "time": fmt_time(r["score_ms"])})
+    ordered = sorted(players.values(),
+                     key=lambda p: (-p["gold"], -p["silver"], -p["bronze"]))
+    prev = None
+    for i, p in enumerate(ordered):
+        counts = (p["gold"], p["silver"], p["bronze"])
+        p["rank"] = i + 1 if counts != prev else ordered[i - 1]["rank"]
+        prev = counts
+        p["finishes"].sort(key=lambda f: (f["rank"], f["track"]))
+    return {"group": group, "tracks": len(tracks), "players": ordered}
 
 
 def build_composite(boards_out):

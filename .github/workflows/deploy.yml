@@ -1,6 +1,6 @@
 name: Deploy site
 
-# Publishes only the site (index.html, data/, leth/, multiballs/, CNAME) to GitHub Pages, so
+# Publishes only the site (index.html, data/, circuit/, leth/, multiballs/, CNAME) to GitHub Pages, so
 # the rest of the monorepo is never served (docs/adr/0002). Pages' Source must
 # be set to "GitHub Actions".
 #
@@ -40,7 +40,7 @@ jobs:
       - name: Assemble site
         run: |
           mkdir _site
-          cp -r index.html favicon.ico favicon.svg apple-touch-icon.png og.png CNAME data leth multiballs _site/
+          cp -r index.html favicon.ico favicon.svg apple-touch-icon.png og.png CNAME data circuit leth multiballs _site/
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v4

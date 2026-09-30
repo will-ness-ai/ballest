@@ -32,8 +32,10 @@
      row        TWO LINE
      subline    INTERVALS, behind the lead and behind the rung above
      podium     MARBLE ROW, no container, medal rings, sized by rank
-     podiums    TROPHY CABINET, a card per player under the marble row,
-                one line per top-three finish
+     rail       PICTURE RAIL, a strip of each track's screenshot
+     card       HEADER CARD, the track's screenshot, or the Overall standings,
+                beside its facts and every run
+     podiums    A COLUMN on the Overall board, and a sort
      mobile     SHEET RAIL, the track rail folded into a bottom sheet
 
    Every player carries a marble whose hue comes from their Steam ID. Hover it
@@ -81,13 +83,13 @@ input{font:inherit}
   transition:opacity .14s ease, transform .22s cubic-bezier(.2,.85,.3,1.35)}
 .marble.on .face,.marble:focus-visible .face,
 .row:hover .marble .face,.plate:hover .marble .face,
-.card:hover .marble .face,.pid:hover .marble .face{opacity:1;transform:scale(1) rotate(0)}
+.pid:hover .marble .face{opacity:1;transform:scale(1) rotate(0)}
 .marble.on .ball,.marble:focus-visible .ball,
 .row:hover .marble .ball,.plate:hover .marble .ball,
-.card:hover .marble .ball,.pid:hover .marble .ball{transform:scale(.84) rotate(-18deg);opacity:.16}
-/* in the list and on a card the avatar keeps the marble's colour as a ring; on
-   the podium the medal ring is already doing that job */
-.row .marble .face,.card .marble .face{box-shadow:0 0 0 2px hsl(var(--h) 78% 58%)}
+.pid:hover .marble .ball{transform:scale(.84) rotate(-18deg);opacity:.16}
+/* in the list the avatar keeps the marble's colour as a ring; on the podium the
+   medal ring is already doing that job */
+.row .marble .face{box-shadow:0 0 0 2px hsl(var(--h) 78% 58%)}
 
 .ambient{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
 /* direct children only: .marble is itself a span, so an unscoped descendant
@@ -130,6 +132,8 @@ input{font:inherit}
 .boardbtn{display:flex;width:calc(100% - var(--pad)*2);margin:0 var(--pad) 12px;
   align-items:center;gap:10px;padding:11px 14px;border-radius:12px;
   background:var(--surface);border:1px solid var(--line);text-align:left}
+.boardbtn .bb-img{width:56px;height:36px;object-fit:cover;border-radius:6px;flex:none}
+.boardbtn .bb-img[hidden]{display:none}
 .boardbtn .bb-name{font-family:var(--f-hud);font-size:16px;font-weight:700}
 .boardbtn .bb-cnt{font-size:11.5px;color:var(--faint);margin-left:auto;font-family:var(--f-hud);
   font-variant-numeric:tabular-nums}
@@ -211,12 +215,9 @@ input{font:inherit}
 .more{padding:16px;text-align:center;font-family:var(--f-hud);font-size:11px;
   letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 
-/* podiums: the trophy cabinet.
-   Three medal counts read the same everywhere they appear: on the marble row,
-   beside a card's name, and in the rail. A zero is kept but dimmed so the three
-   columns stay aligned across cards. */
-.bbtn.podium{margin-bottom:4px}
-.bbtn.podium .cnt{color:var(--gold)}
+/* podiums. Three counts, gold, silver and bronze, read the same everywhere they
+   appear: on the marble row, in the Overall board's column, and on a player's
+   page. A zero is kept but dimmed so the three columns stay aligned down the board. */
 .mc{display:inline-flex;gap:10px;font-family:var(--f-hud);font-weight:700;
   font-variant-numeric:tabular-nums;white-space:nowrap}
 .mc span{display:inline-flex;align-items:center;gap:5px}
@@ -227,35 +228,56 @@ input{font:inherit}
 .mc .z{opacity:.32}
 .pl-score .mc{gap:8px}
 
-.cab{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;
-  margin:0 var(--pad)}
-.cab[hidden]{display:none !important}
-.card{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
-  padding:13px 13px 12px;backdrop-filter:blur(10px);display:flex;flex-direction:column;
-  gap:11px;min-width:0}
-.card-top{display:flex;align-items:center;gap:10px;min-width:0}
-.card-top .marble{width:38px;height:38px}
-.card-top .who{min-width:0;flex:1}
-.card-top .mc{font-size:14px}
-.rk{display:block;font-family:var(--f-hud);font-size:11px;color:var(--faint);
-  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rk b{font-weight:700;color:var(--dim)}
-.card[data-m="1"] .rk b{color:var(--gold)}
-.card[data-m="2"] .rk b{color:var(--silver)}
-.card[data-m="3"] .rk b{color:var(--bronze)}
-/* one line per top-three finish: track, place, time */
-.tl{display:flex;flex-direction:column;gap:2px;font-family:var(--f-hud);
+/* the Overall board's podium column. On a phone the counts drop under the name,
+   so the row's other cells span both lines */
+.c-pods .mc{font-size:12px;gap:9px}
+.board.pods .row{grid-template-rows:auto auto;row-gap:2px}
+.board.pods .row>.c-rank{grid-area:1/1/3/2}
+.board.pods .row>.marble{grid-area:1/2/3/3}
+.board.pods .row>.c-text{grid-area:1/3}
+.board.pods .row>.c-pods{grid-area:2/3}
+.board.pods .row>.c-score{grid-area:1/4/3/5}
+
+/* Sort by Points / Podiums: two links, since each order is its own route */
+.sortsw{display:flex;align-items:center;gap:8px;margin:0 var(--pad) 10px}
+.sortsw[hidden]{display:none}
+.sw{display:inline-grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border-radius:9px;
+  background:var(--bg);border:1px solid var(--line)}
+.sw a{padding:5px 12px;border-radius:6px;font-family:var(--f-hud);font-size:12.5px;font-weight:600;
+  color:var(--dim);text-align:center;text-decoration:none}
+.sw a:hover{color:var(--text)}
+.sw a[aria-current="page"]{background:var(--accent);color:var(--accent-ink)}
+
+/* the header card: a track's screenshot, or the Overall board's standings, on
+   top of (from 820px, beside) its facts */
+.bcard{display:grid;margin:0 var(--pad) 12px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--surface);overflow:hidden}
+.bcard[hidden]{display:none}
+.bc-pic{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--solid)}
+.bc-body{display:grid;gap:10px;align-content:start;padding:12px 14px;min-width:0}
+.bc-top{display:flex;justify-content:space-between;align-items:flex-end;gap:10px 18px;flex-wrap:wrap}
+.bc-top h1{margin:0;font-family:var(--f-hud);font-size:26px;font-weight:700;line-height:1}
+.bc-by{font-size:12.5px;color:var(--dim)}
+.bc-facts{display:flex;gap:16px;flex-wrap:wrap;margin:0;min-width:0}
+.bc-facts div{display:flex;flex-direction:column;min-width:0}
+.bc-facts dt{font-size:11px;color:var(--faint)}
+.bc-facts dd{margin:0;max-width:18ch;font-family:var(--f-hud);font-size:15px;font-weight:700;
+  font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bc-facts dd a{color:inherit;text-decoration:none}
+.bc-facts dd a:hover{color:var(--accent)}
+.bc-cap{margin:0;font-size:11px;color:var(--faint)}
+/* the Overall board's picture: the top six as bars, points or podiums */
+.stand{display:grid;align-content:center;gap:6px;padding:14px;background:var(--solid);min-width:0}
+.stand div{display:grid;grid-template-columns:minmax(0,90px) minmax(0,1fr) auto;gap:8px;align-items:center;
+  font-size:11.5px;color:var(--dim)}
+.stand span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stand b{font-family:var(--f-hud);font-weight:600;color:var(--text);text-align:right;
   font-variant-numeric:tabular-nums}
-.tl div{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;
-  padding:4px 6px;border-radius:6px;font-size:12.5px}
-.tl div:nth-child(odd){background:rgba(255,255,255,.03)}
-.tl .t{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tl .p{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
-.tl .p.m1{color:var(--gold)}
-.tl .p.m2{color:var(--silver)}
-.tl .p.m3{color:var(--bronze)}
-.tl .tm{color:var(--dim);font-size:12px}
-.cab .empty{grid-column:1 / -1;border:1px solid var(--line);border-radius:14px;background:var(--solid)}
+.stand i{display:flex;height:9px;border-radius:2px;overflow:hidden;background:var(--line2)}
+.stand u{display:block;height:100%;background:hsl(var(--h) 70% 55%)}
+.stand u.m1{background:var(--gold)}
+.stand u.m2{background:var(--silver)}
+.stand u.m3{background:var(--bronze)}
 
 /* ---------- a player's page ----------
    A player is not inside any one board, so their page takes the whole content
@@ -264,19 +286,19 @@ input{font:inherit}
 .app[data-view="player"] .rail,
 .app[data-view="player"] .boardbtn,
 .app[data-view="player"] .boardbar,
+.app[data-view="player"] .bcard,
 .app[data-view="player"] .tiles,
 .app[data-view="player"] .leaders,
 .app[data-view="player"] .board,
-.app[data-view="player"] .cab,
 .app[data-view="player"] #bmetaM,
 .app[data-view="vs"] .groups,
 .app[data-view="vs"] .rail,
 .app[data-view="vs"] .boardbtn,
 .app[data-view="vs"] .boardbar,
+.app[data-view="vs"] .bcard,
 .app[data-view="vs"] .tiles,
 .app[data-view="vs"] .leaders,
 .app[data-view="vs"] .board,
-.app[data-view="vs"] .cab,
 .app[data-view="vs"] #bmetaM{display:none}
 .pp[hidden]{display:none}
 .back{display:inline-flex;align-items:center;gap:7px;margin:0 var(--pad) 12px;
@@ -599,23 +621,31 @@ footer a{color:var(--dim)}
   margin:10px auto 4px;flex:none}
 .sheet h2{margin:6px 18px 10px;font-family:var(--f-hud);font-size:10.5px;letter-spacing:.18em;
   text-transform:uppercase;color:var(--dim);font-weight:600}
-.sheetlist{overflow-y:auto;padding:0 12px 26px;display:flex;flex-direction:column;gap:1px;
+.sheetlist{overflow-y:auto;padding:0 12px 26px;display:flex;flex-direction:column;gap:6px;
   -webkit-overflow-scrolling:touch}
 
-/* one definition serves the sheet and, above 820px, the rail */
-.bbtn{display:flex;flex-direction:column;align-items:stretch;gap:5px;width:100%;
-  border-radius:9px;padding:10px;color:var(--dim);font-size:13px;text-align:left}
-.bbtn .brow{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%}
-.bbtn .cnt{font-family:var(--f-hud);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
-.bbtn:hover{background:var(--surface2);color:var(--text)}
-.bbtn[aria-current="true"]{background:var(--accent-soft);color:var(--text);font-weight:600}
-.bbtn[aria-current="true"] .cnt{color:var(--accent);opacity:1}
-.tierhead{display:block;margin:9px 9px 2px;font-family:var(--f-hud);font-size:10px;
+/* one definition serves the sheet and, above 820px, the rail: a strip of the
+   track's screenshot behind a fade, its number, record and run count on top */
+.tstrip{position:relative;display:block;flex:none;width:100%;height:62px;border-radius:9px;overflow:hidden;
+  border:1px solid var(--line2);background:var(--solid);text-align:left}
+.tstrip img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.7) brightness(.8)}
+.tstrip::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,
+  color-mix(in srgb,var(--bg) 94%,transparent),color-mix(in srgb,var(--bg) 70%,transparent) 45%,transparent 85%)}
+.tstrip .lab{position:relative;z-index:1;height:100%;display:grid;grid-template-columns:auto minmax(0,1fr);
+  column-gap:12px;align-content:center;padding:0 12px}
+.tstrip b{grid-row:span 2;align-self:center;font-family:var(--f-hud);font-size:26px;font-weight:700;line-height:1}
+.tstrip .rt{font-family:var(--f-hud);font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.tstrip small{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+.tstrip:hover{border-color:var(--line)}
+.tstrip:hover img{filter:none}
+.tstrip[aria-current="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tstrip[aria-current="true"] img{filter:none}
+/* Overall has no screenshot: a plain strip with words */
+.tstrip.plain{height:54px;background:var(--surface)}
+.tstrip.plain::after{display:none}
+.tstrip.plain b{font-size:20px}
+.tierhead{display:block;margin:9px 2px 0;font-family:var(--f-hud);font-size:10px;
   letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
-.tierhead:first-child{margin-top:2px}
-.bmeter{display:block;height:3px;border-radius:2px;background:rgba(255,255,255,.1)}
-.bmeter i{display:block;height:100%;width:var(--w);border-radius:2px;background:var(--faint)}
-.bbtn[aria-current="true"] .bmeter i{background:var(--accent)}
 
 
 /* ---------- the Workshop ----------
@@ -630,7 +660,8 @@ footer a{color:var(--dim)}
 .app[data-view="map"] .rail,
 .app[data-view="map"] .boardbtn,
 .app[data-view="map"] .tiles,
-.app[data-view="map"] #btitle{display:none}
+.app[data-view="map"] .bcard,
+.app[data-view="map"] .sortsw{display:none}
 .ws-head{display:flex;align-items:center;justify-content:space-between;gap:10px 14px;flex-wrap:wrap;margin-bottom:14px}
 .ws-h1{margin:0;font-family:var(--f-marquee);font-weight:400;font-size:21px;letter-spacing:.01em}
 .ws-tools{display:flex;align-items:center;gap:14px;flex:1 1 240px;justify-content:flex-end}
@@ -794,15 +825,22 @@ footer a{color:var(--dim)}
     backdrop-filter:blur(10px);max-height:calc(100vh - 32px);overflow-y:auto}
   .rail h2{margin:0 0 9px;font-family:var(--f-hud);font-size:10.5px;letter-spacing:.18em;
     text-transform:uppercase;color:var(--dim);font-weight:600}
-  .boards{display:flex;flex-direction:column;gap:1px}
-  .bbtn{font-size:12.5px;padding:7px 9px;border-radius:8px}
+  .boards{display:flex;flex-direction:column;gap:6px}
   .boardbtn,.sheet,.scrim{display:none}
 
-  .boardbar{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
+  .bcard{margin:0 0 14px;grid-template-columns:260px minmax(0,1fr)}
+  .bcard.nopic{grid-template-columns:minmax(0,1fr)}
+  .bc-pic{aspect-ratio:auto;height:100%;min-height:200px}
+  .bc-body{padding:14px 18px}
+  .bc-top h1{font-size:30px}
+  .bc-facts{gap:22px}
+  .bc-facts dd{font-size:17px}
+
+  .boardbar{display:flex;align-items:center;justify-content:space-between;gap:18px;
     flex-wrap:wrap;margin-bottom:14px}
   .boardtitle{display:block}
-  .boardtitle h1{margin:0;font-family:var(--f-hud);font-size:22px;font-weight:700}
-  .boardtitle .bmeta{margin:3px 0 0;font-size:12.5px;color:var(--dim)}
+  .boardtitle .bmeta{margin:0;font-size:12.5px;color:var(--dim)}
+  .sortsw{margin:0 0 0 auto}
   #bmetaM{display:none}          /* the standalone meta line is a phone affordance */
   .search{padding:0;flex:0 0 auto}
   .search input{width:230px;border-radius:9px;font-size:13.5px;padding:8px 12px}
@@ -840,6 +878,11 @@ footer a{color:var(--dim)}
     min-height:56px}
   .row:nth-child(2){border-radius:0}
   .row:last-child{border-radius:0 0 10px 10px}
+  .board.pods .head,.board.pods .row{grid-template-columns:48px 26px minmax(160px,1fr) 150px 176px}
+  .board.pods .row{grid-template-rows:auto}
+  .board.pods .row>.c-rank,.board.pods .row>.marble,.board.pods .row>.c-text,
+  .board.pods .row>.c-pods,.board.pods .row>.c-score{grid-area:auto}
+  .c-pods .mc{font-size:13.5px;gap:12px}
   .c-rank{font-size:14px;text-align:left}
   .nm{font-size:15px}
   .sub{font-size:11.5px}
@@ -852,10 +895,8 @@ footer a{color:var(--dim)}
   .empty b{font-size:16px}
   .skel{padding:0 12px;min-height:56px}
 
-  /* the cabinet */
   .mc{gap:14px}
   .pl-score .mc{gap:10px}
-  .cab{margin:0}
 
   /* a player's page: the rail is gone, so the content column is the whole width,
      and a tier's tracks sit in one row of four beside their heading */
@@ -948,16 +989,19 @@ footer a{color:var(--dim)}
 
     <section class="content">
       <button class="boardbtn" id="boardBtn" aria-haspopup="dialog">
+        <img class="bb-img" id="bbImg" alt="" hidden>
         <span class="bb-name" id="bbName">&nbsp;</span>
         <span class="bb-cnt" id="bbCnt"></span>
         <span class="chev" aria-hidden="true">&#9662;</span>
       </button>
 
+      <div class="bcard" id="bcard" hidden></div>
+
       <div class="boardbar">
         <div class="boardtitle">
-          <h1 id="btitle">&nbsp;</h1>
           <p class="bmeta" id="bmetaD"></p>
         </div>
+        <span class="sortsw" id="sortsw" hidden></span>
         <div class="search">
           <input id="q" type="search" placeholder="Find a player" aria-label="Find a player">
         </div>
@@ -967,7 +1011,6 @@ footer a{color:var(--dim)}
       <div class="leaders" id="leaders" hidden></div>
       <p class="bmeta" id="bmetaM"></p>
       <div class="board" id="board"></div>
-      <div class="cab" id="cabinet" hidden></div>
       <div class="pp" id="player" hidden></div>
       <div class="pp vsp" id="vs" hidden></div>
     </section>
@@ -1023,11 +1066,11 @@ let WORKSHOP = [];                 /* data/workshop.json's Maps that have a time
 let ALL_MAPS = [];                 /* every Map it lists, timed or not: a player's Made tab */
 const WORKSHOP_GROUP = "Workshop";
 let group = null;                  /* "Season 2" */
-let boardKey = null;               /* the board's raw Steam name, unique across seasons,
-                                      or PODIUM_KEY for the season's trophy cabinet */
-const PODIUM_KEY = "podiums";
+let boardKey = null;               /* the board's raw Steam name, unique across seasons */
 const SITE_TITLE = document.title;
 let boardData = null;              /* the loaded board file */
+let tally = null;                  /* an Overall board's podium tally (tallyFor), else null */
+const PODIUM_SORT = "podiums";
 let visible = [];                  /* rows currently listed, filtered or not */
 let shown = 0;                     /* how many of them are in the DOM */
 let filtering = false;
@@ -1086,7 +1129,7 @@ const personaOf = r => r.persona || ("Player " + r.steam_id.slice(-6));
 const STEAM_ID = /\d{5,25}/;
 const IS_STEAM_ID = new RegExp("^" + STEAM_ID.source + "$");
 const isSteamId = id => typeof id === "string" && IS_STEAM_ID.test(id);
-/* the search box matches a persona fragment or a Steam ID, on boards and in the cabinet alike */
+/* the search box matches a persona fragment or a Steam ID, on a board and its podium sort alike */
 const matchesQuery = (r, q) => personaOf(r).toLowerCase().includes(q) || r.steam_id.includes(q);
 const NOBODY = `<div class="empty"><b>Nobody here by that name.</b>
   Names come from Steam personas, so try a shorter fragment, or paste a Steam ID.</div>`;
@@ -1145,9 +1188,54 @@ const boardByName = name => activeBoards().find(b => b.name === name) || WORKSHO
 const boardMeta = () => boardByName(boardKey);
 /* the meta line leads with the season, or for a Map, who made it */
 const whereOf = b => b && b.group === WORKSHOP_GROUP ? "by " + b.creator : group;
-/* the season's podium tally, or undefined when the file is missing or predates it */
+/* a group's podium tally from podiums.json: a season's, or "All Seasons", every season's
+   tracks counted at once. Undefined when the file is missing or predates the group */
 const podiumsIn = g => PODIUMS && PODIUMS.seasons && PODIUMS.seasons.find(s => s.group === g);
-const isPodiums = () => boardKey === PODIUM_KEY;
+/* The podium tally an Overall board shows beside its points, with its players by Steam
+   ID: the tally of the board's own group. Null for a track, a Map, or when podiums.json
+   didn't load. The ranking is the collector's (build_podiums), never redone here. */
+function tallyFor(b){
+  const own = b && isPoints(b) ? podiumsIn(b.group) : null;
+  return own ? {tracks: own.tracks, players: own.players,
+                by: new Map(own.players.map(p => [p.steam_id, p]))} : null;
+}
+
+/* The Circuit's fixed facts, keyed by board name: each track's screenshot, taken from
+   the game's own files, and its Medal times in seconds, [bronze, silver, gold, author],
+   read off the in-game HUD. Not Steam data, so the collector never touches them. */
+const TRACKS = {
+  Map_Track13:               {img: "circuit/Map_Track13.webp",               medals: [21, 16, 14, 12.792]},
+  Map_Track15:               {img: "circuit/Map_Track15.webp",               medals: [34, 26, 23, 21.186]},
+  Map_Track16:               {img: "circuit/Map_Track16.webp",               medals: [43, 32, 29, 26.509]},
+  Map_Track05:               {img: "circuit/Map_Track05.webp",               medals: [29, 22, 20, 17.935]},
+  Map_Track18:               {img: "circuit/Map_Track18.webp",               medals: [47, 35, 31, 28.921]},
+  Map_Track21:               {img: "circuit/Map_Track21.webp",               medals: [32, 24, 22, 19.817]},
+  Map_Track22:               {img: "circuit/Map_Track22.webp",               medals: [25, 19, 17, 15.352]},
+  Map_Track19:               {img: "circuit/Map_Track19.webp",               medals: [52, 39, 35, 32.353]},
+  Map_Track_S2_Sampler:      {img: "circuit/Map_Track_S2_Sampler.webp",      medals: [49, 37, 33, 30.419]},
+  Map_Track_S2_Longhaul:     {img: "circuit/Map_Track_S2_Longhaul.webp",     medals: [58, 44, 39, 36.129]},
+  Map_Track_S2_Pyramids:     {img: "circuit/Map_Track_S2_Pyramids.webp",     medals: [54, 41, 36, 33.338]},
+  Map_Track_S2_BigStairs:    {img: "circuit/Map_Track_S2_BigStairs.webp",    medals: [72, 54, 48, 44.532]},
+  Map_Track_S2_Checkerboard: {img: "circuit/Map_Track_S2_Checkerboard.webp", medals: [55, 41, 36, 33.774]},
+  Map_Track_S2_Loopworks:    {img: "circuit/Map_Track_S2_Loopworks.webp",    medals: [52, 39, 35, 32.090]},
+  Map_Track_S2_TinyTower:    {img: "circuit/Map_Track_S2_TinyTower.webp",    medals: [80, 60, 53, 49.749]},
+  Map_Track_S2_Downhill:     {img: "circuit/Map_Track_S2_Downhill.webp",     medals: [38, 29, 26, 23.589]},
+  Map_Track_S2_NightCondo:   {img: "circuit/Map_Track_S2_NightCondo.webp",   medals: [49, 37, 32, 30.174]},
+  Map_Track_S2_NightVents:   {img: "circuit/Map_Track_S2_NightVents.webp",   medals: [39, 29, 26, 24.074]},
+  Map_Track_S2_NightWay:     {img: "circuit/Map_Track_S2_NightWay.webp",     medals: [51, 38, 34, 31.573]},
+  Map_Track_S2_NightClimb:   {img: "circuit/Map_Track_S2_NightClimb.webp",   medals: [61, 46, 41, 38.053]},
+};
+/* the in-game number a track's display name leads with, "08" of "08 Downhill" */
+const trackNo = b => (shortName(b.display).match(/^\d+/) || [shortName(b.display)])[0];
+/* a track's record without fetching its board: podiums.json lists who is 1st on it */
+function trackRecord(b){
+  const pod = podiumsIn(b.group);
+  for(const p of pod ? pod.players : []){
+    const f = p.finishes.find(x => x.rank === 1 && x.track === b.display);
+    if(f) return f.score_ms;
+  }
+  return null;
+}
 
 /* ---------- chrome ---------- */
 function renderChrome(){
@@ -1166,55 +1254,84 @@ function renderSelectors(){
   /* a Map's page has its own panel where the rail would be */
   if(group === WORKSHOP_GROUP){
     const meta = boardMeta();
-    if(meta) $("#btitle").textContent = $("#bbName").textContent = meta.display;
+    if(meta) $("#bbName").textContent = meta.display;
     return;
   }
-  const list = boardsIn(group), max = Math.max(...list.map(b => b.entry_count));
   /* the in-game track-selection screen groups tracks under difficulty headings;
      mirror them so the rail reads like the screen players already know */
   let tier = null;
-  const pod = podiumsIn(group);
-  const items = list.map((b, i) => {
+  const items = boardsIn(group).map(b => {
     const head = (b.tier && b.tier !== tier) ? `<span class="tierhead">${esc(b.tier)}</span>` : "";
     tier = b.tier || tier;
-    /* the cabinet sits right under the season's Overall board, before the tracks.
-       Its meter is how spread out the podiums are: distinct players over the
-       season's podium spots, three per track. Measured against run counts it
-       would never leave the left edge. */
-    const podium = (i === 0 && pod) ? `
-    <button class="bbtn podium" data-b="${PODIUM_KEY}" aria-current="${isPodiums()}">
-      <span class="brow"><span>Podiums</span>
-        <span class="cnt">${fmtN(pod.players.length)}</span></span>
-      <span class="bmeter"><i style="--w:${Math.round(pod.players.length/(3*pod.tracks)*100)}%"></i></span>
-    </button>` : "";
-    return head + `
-    <button class="bbtn" data-b="${esc(b.name)}" aria-current="${b.name===boardKey}">
-      <span class="brow"><span>${esc(shortName(b.display))}</span>
-        <span class="cnt">${fmtN(b.entry_count)}</span></span>
-      <span class="bmeter"><i style="--w:${Math.round(b.entry_count/max*100)}%"></i></span>
-    </button>` + podium;
+    return head + stripHtml(b);
   }).join("");
   $("#boards").innerHTML = items;
   $("#sheetList").innerHTML = items;
   $("#railhead").textContent = group;
   $("#sheetHead").textContent = group;
 
-  if(isPodiums()){
-    $("#bbName").textContent = "Podiums";
-    $("#bbCnt").textContent = fmtN(pod.players.length) + " players";
-    $("#btitle").textContent = "Podiums";
-    return;
-  }
-  const meta = boardMeta();
-  $("#bbName").textContent = shortName(meta.display);
-  $("#bbCnt").textContent = fmtN(meta.entry_count) + (isPoints(meta) ? " players" : meta.entry_count === 1 ? " run" : " runs");
-  $("#btitle").textContent = shortName(meta.display);
+  const meta = boardMeta(), t = TRACKS[meta.name];
+  $("#bbImg").hidden = !t;
+  if(t) $("#bbImg").src = t.img;
+  $("#bbName").textContent = isPoints(meta) ? shortName(meta.display) : trackNo(meta);
+  $("#bbCnt").textContent = plural(meta.entry_count, isPoints(meta) ? "player" : "run", isPoints(meta) ? "players" : "runs");
+}
+/* one rail entry: Overall in words, a track as a strip of its screenshot */
+function stripHtml(b){
+  const cur = `data-b="${esc(b.name)}" aria-current="${b.name === boardKey}"`;
+  if(isPoints(b)) return `<button class="tstrip plain" ${cur}><span class="lab"><b>${esc(shortName(b.display))}</b>
+    <small>${plural(b.entry_count, "player", "players")}</small></span></button>`;
+  const t = TRACKS[b.name], rec = trackRecord(b);
+  return `<button class="tstrip" ${cur}>${t ? `<img src="${esc(t.img)}" alt="" loading="lazy" decoding="async">` : ""}
+    <span class="lab"><b>${esc(trackNo(b))}</b><span class="rt">${rec ? fmtTime(rec) : "&nbsp;"}</span>
+    <small>${plural(b.entry_count, "run", "runs")}</small></span></button>`;
 }
 
 /* ---------- board furniture ---------- */
+/* The card across the top of a Circuit board, and the Overall board's sort switch.
+   Drawn once from the index when a board is picked, and again when its rows arrive. */
+function renderCard(){
+  const b = boardMeta(), el = $("#bcard"), sw = $("#sortsw");
+  sw.hidden = !tally;
+  sw.innerHTML = tally ? `<span class="eyebrow">Sort by</span><span class="sw">${[BY_SCORE, BY_PODIUMS].map(o =>
+    `<a href="${esc(boardHash(b.name, o.slot))}"${o === order ? ` aria-current="page"` : ""}>${o.label}</a>`).join("")}</span>` : "";
+  if(!b || b.group === WORKSHOP_GROUP){ el.hidden = true; el.innerHTML = ""; return; }
+  const rows = boardData && boardData.name === b.name ? boardData.rows : null;
+  const t = TRACKS[b.name], pic = isPoints(b) || t;
+  el.hidden = false;
+  el.classList.toggle("nopic", !pic);
+  el.innerHTML = isPoints(b) ? overallCard(b, rows || []) : trackCard(b, t, rows);
+}
+const factsHtml = facts => `<dl class="bc-facts">${facts.map(([k, v]) =>
+  `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>`;
+function trackCard(b, t, rows){
+  const lead = rows && rows[0];
+  return `${t ? `<img class="bc-pic" src="${esc(t.img)}" alt="">` : ""}
+    <div class="bc-body"><div class="bc-top"><div><h1>${esc(trackNo(b))}</h1>
+      <span class="bc-by">${esc(b.group)}${b.tier ? " &middot; " + esc(b.tier) : ""}</span></div>
+      ${factsHtml([["Runs", fmtN(b.entry_count)], ["Record", lead ? fmtTime(lead.score_ms) : "&mdash;"],
+                   ["Record holder", lead ? nameHtml(lead) : "&mdash;"]])}</div>
+      ${!rows ? `<p class="sp-cap">Loading</p>` : t ? spreadHtml(rows.map(r => r.score_ms), t.medals, true) : ""}
+      ${t ? `<p class="bc-cap">Track screenshot from the game.</p>` : ""}</div>`;
+}
+/* where a track has its screenshot, the Overall board has its top six as bars, drawn
+   by the order in use */
+function overallCard(b, rows){
+  /* a season's tracks; the all-seasons board has none of its own, so every track */
+  const count = list => list.filter(x => !isPoints(x)).length;
+  const tracks = tally ? tally.tracks : count(boardsIn(b.group)) || count(activeBoards());
+  /* the tally ranks golds first, so the most podiums need not be the top one */
+  const most = tally && tally.players.length
+    ? tally.players.reduce((a, p) => podiumTotal(p) > podiumTotal(a) ? p : a) : null;
+  return `<div class="stand">${order.stand(rows)}</div>
+    <div class="bc-body"><div class="bc-top"><div><h1>${esc(shortName(b.display))}</h1>
+      <span class="bc-by">${esc(b.group)} &middot; points${tally ? " and podiums" : ""} across all ${fmtN(tracks)} tracks</span></div>
+      ${factsHtml([["Players", fmtN(b.entry_count)], ["Leader", rows[0] ? nameHtml(rows[0]) : "&mdash;"]]
+        .concat(most ? [["Most podiums", nameHtml(most) + " &middot; " + podiumTotal(most)]] : []))}</div></div>`;
+}
 function renderTiles(){
   const rows = boardData.rows, t = $("#tiles");
-  if(!rows.length){ t.innerHTML = ""; return; }
+  if(!rows.length || !order.tiles){ t.innerHTML = ""; return; }
   const lead = rows[0], tenth = rows[Math.min(9, rows.length-1)];
   const spread = isPoints(boardData)
     ? fmtN(lead.score_ms - tenth.score_ms) + " pts"
@@ -1228,8 +1345,8 @@ function renderTiles(){
       <span class="tsub"><span>1st to ${Math.min(10, rows.length)}th</span></span></dd></div>`;
 }
 /* the marble row: three plates, each a player, what they scored, and a line
-   under it. Boards and the cabinet share the plate and differ only in those two
-   slots, which `slots(r, i)` returns as [score html, line text]. */
+   under it. A board and its podium sort share the plate and differ only in those
+   two slots, which `slots(r, i)` returns as [score html, line text]. */
 const PLACE = ["1st","2nd","3rd"];
 function renderPlates(top, slots){
   const el = $("#leaders");
@@ -1248,7 +1365,7 @@ function renderPlates(top, slots){
     </div>`;
   }).join("");
 }
-function renderLeaders(){
+function scoreLeaders(){
   const rows = boardData.rows, lead = rows[0], pts = isPoints(boardData);
   renderPlates(rows.slice(0,3), (r,i) => {
     const gap = pts ? lead.score_ms - r.score_ms : r.score_ms - lead.score_ms;
@@ -1292,24 +1409,39 @@ function rowHtml(r, lead, prev){
     <span class="c-rank">${r.rank}</span>
     ${marble(r)}
     <span class="c-text"><span class="nm">${nameHtml(r)}</span>${sub}</span>
+    ${tally ? podsCell(tally.by.get(r.steam_id)) : ""}
     <span class="c-score"><span>${value(boardData, r.score_ms)}</span><i class="pill"></i></span>
+  </div>`;
+}
+/* an Overall row's podium counts, blank for a player with none */
+const podsCell = p => `<span class="c-pods">${p ? medalCounts(p) : ""}</span>`;
+/* a row of the podium sort: ranked by the tally, the total in the score column,
+   and where they stand on points underneath */
+function podRowHtml(p){
+  const r = tally.points.get(p.steam_id);
+  const sub = r ? `<em>${fmtN(r.score_ms)} pts</em> &middot; ${ord(r.rank)} on points` : "not ranked on points";
+  return `<div class="row" style="--h:${hueFor(p.steam_id)}" data-m="${p.rank<=3 ? p.rank : 0}"
+    data-id="${esc(p.steam_id)}">
+    <span class="c-rank">${p.rank}</span>
+    ${marble(p)}
+    <span class="c-text"><span class="nm">${nameHtml(p)}</span><span class="sub sub-d">${sub}</span><span class="sub sub-m">${sub}</span></span>
+    ${podsCell(p)}
+    <span class="c-score"><span>${podiumTotal(p)}</span><i class="pill"></i></span>
   </div>`;
 }
 
 /* ---------- the list, chunked ---------- */
 function headHtml(){
   return `<div class="head"><span>#</span><span></span><span>Player</span>
-    <span class="c-score">${isPoints(boardData) ? "Points" : "Time"}</span></div>`;
+    ${tally ? `<span class="c-pods">Podiums</span>` : ""}
+    <span class="c-score">${order.scoreHead()}</span></div>`;
 }
 function renderMore(){
   if(!boardData || shown >= visible.length) return;
-  const board = $("#board"), lead = boardData.rows[0];
+  const board = $("#board");
   const end = Math.min(shown + CHUNK, visible.length);
   let html = "";
-  for(let i = shown; i < end; i++){
-    const r = visible[i];
-    html += rowHtml(r, lead, boardData.rows[r.rank - 2]);
-  }
+  for(let i = shown; i < end; i++) html += order.row(visible[i]);
   const more = $("#more");
   if(more) more.insertAdjacentHTML("beforebegin", html);
   else board.insertAdjacentHTML("beforeend", html);
@@ -1336,22 +1468,18 @@ function onScroll(){
 }
 
 function updateMeta(){
-  if(isPodiums()){
-    const pod = podiumsIn(group), text = filtering
-      ? `${group} · ${fmtN(shown)} of ${fmtN(pod.players.length)} players match`
-      : `${group} · ${fmtN(pod.players.length)} players on a podium · ${pod.tracks} tracks`;
-    $("#bmetaD").textContent = text;
-    $("#bmetaM").textContent = text;
-    return;
-  }
-  const meta = boardMeta();
-  if(!meta) return;
-  const noun = meta.entry_count === 1 ? (isPoints(meta) ? "player" : "run") : (isPoints(meta) ? "players" : "runs");
-  const text = filtering
-    ? `${whereOf(meta)} · ${fmtN(visible.length)} of ${fmtN(meta.entry_count)} ${noun} match`
-    : `${whereOf(meta)} · ${fmtN(meta.entry_count)} ${noun} · showing ${fmtN(shown)}`;
+  const text = order.meta();
+  if(text == null) return;
   $("#bmetaD").textContent = text;
   $("#bmetaM").textContent = text;
+}
+function scoreMeta(){
+  const meta = boardMeta();
+  if(!meta) return null;
+  const noun = meta.entry_count === 1 ? (isPoints(meta) ? "player" : "run") : (isPoints(meta) ? "players" : "runs");
+  return filtering
+    ? `${whereOf(meta)} · ${fmtN(visible.length)} of ${fmtN(meta.entry_count)} ${noun} match`
+    : `${whereOf(meta)} · ${fmtN(meta.entry_count)} ${noun} · showing ${fmtN(shown)}`;
 }
 
 function buildList(){
@@ -1372,79 +1500,72 @@ function buildList(){
   fillViewport();
 }
 
-/* ---------- the trophy cabinet ---------- */
+/* ---------- podiums ---------- */
 function medalCounts(p){
   return `<span class="mc">` + [p.gold, p.silver, p.bronze].map((n, i) =>
     `<span class="m${i+1}${n ? "" : " z"}"><i></i>${n}</span>`).join("") + `</span>`;
 }
 const podiumTotal = p => p.gold + p.silver + p.bronze;
-/* how many players share each rank; equal medal counts share one (1, 2, 2, 4) */
-function rankCounts(pod){
-  const n = {};
-  pod.players.forEach(p => { n[p.rank] = (n[p.rank] || 0) + 1; });
-  return n;
+/* the podium order's marble row; equal counts share a rank (1, 2, 2, 4) */
+function podiumLeaders(){
+  const shared = {};
+  tally.players.forEach(p => { shared[p.rank] = (shared[p.rank] || 0) + 1; });
+  renderPlates(tally.players.slice(0,3), p => [medalCounts(p),
+    (shared[p.rank] > 1 ? "tied &middot; " : "") + `on ${podiumTotal(p)} of ${tally.tracks} podiums`]);
 }
-function renderPodiumLeaders(pod){
-  const shared = rankCounts(pod);
-  renderPlates(pod.players.slice(0,3), p => [medalCounts(p),
-    (shared[p.rank] > 1 ? "tied &middot; " : "") + `on ${podiumTotal(p)} of ${pod.tracks} podiums`]);
-}
-function cardHtml(p, pod, tied){
-  const h = hueFor(p.steam_id);
-  const lines = p.finishes.map(f => `<div>
-      <span class="t">${esc(shortName(f.track))}</span>
-      <span class="p m${f.rank}">${PLACE[f.rank-1]}</span>
-      <span class="tm">${fmtTime(f.score_ms)}</span></div>`).join("");
-  return `<div class="card" style="--h:${h}" data-m="${p.rank<=3 ? p.rank : 0}">
-    <div class="card-top">
-      ${marble(p)}
-      <span class="who"><span class="nm">${nameHtml(p)}</span>
-        <span class="rk"><b>#${p.rank}</b>${tied ? " tied" : ""} &middot;
-          ${podiumTotal(p)} of ${pod.tracks} podiums</span></span>
-      ${medalCounts(p)}
-    </div>
-    <div class="tl">${lines}</div>
-  </div>`;
-}
-/* every card fits in one go: a season has at most three podium places per track.
-   Unlike a board's list, the top three get a card as well as a plate: the plate
-   shows their counts, the card is the only place their finishes are listed. */
-function renderCabinet(){
-  const pod = podiumsIn(group), cab = $("#cabinet");
-  const q = $("#q").value.trim().toLowerCase();
-  filtering = q.length > 0;
-  const shared = rankCounts(pod);
-  const list = filtering ? pod.players.filter(p => matchesQuery(p, q)) : pod.players;
-  shown = list.length;
-  cab.innerHTML = list.length
-    ? list.map(p => cardHtml(p, pod, shared[p.rank] > 1)).join("")
-    : NOBODY;
-  updateMeta();
-}
-function selectPodiums(){
-  boardKey = PODIUM_KEY;
-  /* nothing chunked here: a null boardData keeps the scroll loader idle */
-  boardData = null; visible = []; shown = 0;
-  renderSelectors();
-  $("#tiles").innerHTML = "";
-  $("#board").hidden = true;
-  $("#board").innerHTML = "";
-  $("#cabinet").hidden = false;
-  renderPodiumLeaders(podiumsIn(group));
-  renderCabinet();
-}
+/* one of the header card's bars: a player's name, the bar, and its figure */
+const standRow = (r, bar, fig) => `<div style="--h:${hueFor(r.steam_id)}"><span>${esc(personaOf(r))}</span>
+  <i>${bar}</i><b>${fig}</b></div>`;
+
+/* ---------- the board's two orders ----------
+   Every board lists its rows by score. An Overall board with a podium tally can list
+   its players by podiums instead, at #/board/<name>/podiums. Everything the board view
+   shows that depends on the order comes from the order in use, so nothing else asks
+   which one it is. BY_PODIUMS is only ever in use while `tally` is set. */
+const BY_SCORE = {
+  label: "Points", slot: null,           /* slot: what follows the board name in its route */
+  tiles: true,
+  rows: () => boardData.rows,
+  row: r => rowHtml(r, boardData.rows[0], boardData.rows[r.rank - 2]),
+  scoreHead: () => isPoints(boardData) ? "Points" : "Time",
+  leaders: scoreLeaders,
+  meta: scoreMeta,
+  stand: rows => rows.slice(0, 6).map(r => standRow(r,
+    `<u style="width:${(r.score_ms / rows[0].score_ms * 100).toFixed(1)}%"></u>`, fmtN(r.score_ms))).join(""),
+};
+const BY_PODIUMS = {
+  label: "Podiums", slot: PODIUM_SORT,
+  tiles: false,                          /* the tiles are about points */
+  rows: () => tally.players,             /* only the players who have a podium */
+  row: podRowHtml,
+  scoreHead: () => "Total",
+  leaders: podiumLeaders,
+  meta: () => {
+    const n = tally.players.length;
+    return filtering
+      ? `${group} · ${fmtN(visible.length)} of ${plural(n, "player", "players")} match`
+      : `${group} · ${plural(n, "player", "players")} on a podium · ${plural(tally.tracks, "track", "tracks")}`;
+  },
+  /* gold, silver and bronze stacked; ranked golds first, so the longest bar need not be the top one */
+  stand: () => {
+    const top = tally.players.slice(0, 6), widest = Math.max(...top.map(podiumTotal));
+    return top.map(p => standRow(p, [p.gold, p.silver, p.bronze].map((n, j) =>
+      `<u class="m${j+1}" style="width:${(n / widest * 100).toFixed(1)}%"></u>`).join(""), podiumTotal(p))).join("");
+  },
+};
+let order = BY_SCORE;
 
 function applyFilter(){
-  if(isPodiums()){ renderCabinet(); return; }
   const q = $("#q").value.trim().toLowerCase();
   filtering = q.length > 0;
+  const rows = order.rows();
   /* unfiltered, the top three are already up on the podium. A board with fewer than
      three runs has no podium (renderPlates), so its runs stay in the list: plenty of
-     Workshop Maps have only one or two */
-  const podium = boardData.rows.length >= 3;
+     Workshop Maps have only one or two. By position, not rank: podium ranks can tie */
+  const podium = rows.length >= 3;
   visible = filtering
-    ? boardData.rows.filter(r => matchesQuery(r, q))
-    : boardData.rows.filter(r => !podium || r.rank > 3);
+    ? rows.filter(r => matchesQuery(r, q))
+    : rows.filter((r, i) => !podium || i >= 3);
   buildList();
 }
 
@@ -1522,10 +1643,10 @@ function playerRecord(doc, id){
   }).filter(s => s.tiers.length);
   const comp = compositeBoard();
   /* the board behind this page, when the reader came from one */
-  const from = boardKey && (isPodiums() ? {name: PODIUM_KEY, display: "Podiums"} : boardMeta());
+  const from = boardKey && boardMeta();
   return {
     id, profileurl: p.profileurl,
-    back: from ? {href: boardHash(from.name), label: shortName(from.display)}
+    back: from ? {href: boardHash(from.name, order.slot), label: shortName(from.display)}
                 : {href: "#/", label: "All leaderboards"},
     who: {steam_id: id, persona: p.persona, avatar: p.avatar},
     allSeasons: comp ? by[comp.name] || null : null,
@@ -2337,34 +2458,43 @@ function renderMapPanel(m){
     <div class="mp-chart"><span class="eyebrow">Every run</span><div id="spread"><p class="sp-cap">Loading</p></div></div>
     <a class="go mp-ws" href="https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(m.pfid)}" target="_blank" rel="noopener">Open in Steam Workshop</a>`;
 }
-/* How every run on the board spreads out, with each medal's cut-off drawn in. The
-   slowest twentieth is left off the right edge, or one abandoned run would squash
-   the rest into a single bar. */
-function drawSpread(m){
-  const el = $("#spread");
-  if(!el || !boardData || boardData.name !== m.name) return;
-  const ts = boardData.rows.map(r => r.score_ms);
-  if(ts.length < 2){ el.innerHTML = `<p class="sp-cap">One run so far.</p>`; return; }
-  const lo = ts[0], hi = Math.max(ts[Math.min(ts.length - 1, Math.floor(ts.length * .95))], lo + 1);
-  const N = 24, bins = new Array(N).fill(0);
+/* How every run on a board spreads out, with each Medal's cut-off drawn in. `ts` is
+   the run times in rank order, `medals` [bronze, silver, gold, author] in seconds.
+   On a Map's panel the slowest twentieth is left off the right edge, or one abandoned
+   run would squash the rest into a single bar. `wide` is a Circuit track's header card:
+   the chart runs to just past Bronze and each line carries its Medal's name and time,
+   staggered over two rows so neighbouring labels don't collide. */
+function spreadHtml(ts, medals, wide){
+  if(ts.length < 2) return `<p class="sp-cap">${ts.length ? "One run so far." : "No runs yet."}</p>`;
+  const lo = ts[0];
+  const cut = wide ? medals[0] * 1.08 * SCORE_TICKS_PER_SECOND : ts[Math.min(ts.length - 1, Math.floor(ts.length * .95))];
+  const hi = Math.max(cut, lo + 1);
+  const N = wide ? 44 : 24, bins = new Array(N).fill(0);
   let over = 0;
   for(const t of ts){ if(t > hi){ over++; continue; } bins[Math.min(N - 1, Math.floor((t - lo) / (hi - lo) * N))]++; }
-  const W = 320, H = 118, top = 16, base = H - 22, bw = W / N, max = Math.max(...bins);
+  const W = wide ? 560 : 320, H = wide ? 132 : 118, top = wide ? 30 : 16, base = H - 22, bw = W / N, max = Math.max(...bins);
   const x = t => ((t - lo) / (hi - lo) * W).toFixed(1);
   const bars = bins.map((n, i) => n ? `<rect class="sp-bar" x="${(i * bw + 1).toFixed(1)}" y="${(base - n / max * (base - top)).toFixed(1)}"
     width="${(bw - 2).toFixed(1)}" height="${(n / max * (base - top)).toFixed(1)}" rx="1.5"/>` : "").join("");
-  const lines = MEDALS.map(([name, c, i]) => {
-    const t = m.medals[i] * SCORE_TICKS_PER_SECOND;
+  const lines = MEDALS.map(([name, c, i], k) => {
+    const t = medals[i] * SCORE_TICKS_PER_SECOND;
     if(t < lo || t > hi) return "";
+    const at = +x(t), anchor = !wide ? "middle" : at < 40 ? "start" : at > W - 40 ? "end" : "middle";
+    const label = wide ? name + " " + fmtSec(medals[i]).replace(/^0:/, "") : name[0];
     return `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 6}" y2="${base}" style="stroke:${c}" stroke-width="1.5"/>
-      <text x="${x(t)}" y="${top - 9}" style="fill:${c}" font-size="9.5" text-anchor="middle">${name[0]}</text>`;
+      <text x="${x(t)}" y="${top - 9 - (wide && k % 2 ? 12 : 0)}" style="fill:${c}" font-size="9.5" text-anchor="${anchor}">${label}</text>`;
   }).join("");
-  el.innerHTML = `<svg class="spread" viewBox="-8 -8 ${W + 16} ${H + 8}" role="img"
+  return `<svg class="spread" viewBox="-8 -8 ${W + 16} ${H + 8}" role="img"
       aria-label="How all ${ts.length} run times spread out, with the medal cut-offs">
     <line class="sp-axis" x1="0" x2="${W}" y1="${base}" y2="${base}"/>${bars}${lines}
     <text class="sp-lbl" x="0" y="${H - 6}">${fmtTime(lo)} record</text>
     <text class="sp-lbl" x="${W}" y="${H - 6}" text-anchor="end">${fmtTime(hi)}</text></svg>
     <p class="sp-cap">${plural(ts.length, "run", "runs")}${over ? `; the slowest ${fmtN(over)} are off the right edge` : ""}.</p>`;
+}
+function drawSpread(m){
+  const el = $("#spread");
+  if(!el || !boardData || boardData.name !== m.name) return;
+  el.innerHTML = spreadHtml(boardData.rows.map(r => r.score_ms), m.medals, false);
 }
 function showMap(pfid, focus){
   const m = WORKSHOP.find(x => x.pfid === pfid);
@@ -2397,7 +2527,9 @@ function setView(v){
    the view already on screen, or the default one. A board being addressable is what
    lets a tile link back to its own leaderboard. */
 const PLAYER_ROUTE = new RegExp("^#/player/(" + STEAM_ID.source + ")(?:/(" + PLAYER_TABS.map(t => t.key).join("|") + "))?$");
-const BOARD_ROUTE = new RegExp("^#/board/([A-Za-z0-9_]{1,64})(?:/(" + STEAM_ID.source + "))?$");
+/* the slot after a board takes a Steam ID to mark, or on an Overall board "podiums"
+   for the podium sort; an ID is all digits, so the two cannot collide */
+const BOARD_ROUTE = new RegExp("^#/board/([A-Za-z0-9_]{1,64})(?:/(" + STEAM_ID.source + "|" + PODIUM_SORT + "))?$");
 const MAP_ROUTE = new RegExp("^#/map/(\\d{1,20})(?:/(" + STEAM_ID.source + "))?$");
 const MAPS_ROUTE = /^#\/maps(?:\/([a-z]{1,12}))?$/;
 const VS_ROUTE = new RegExp("^#/vs/(" + STEAM_ID.source + ")/(" + STEAM_ID.source + ")$");
@@ -2429,13 +2561,20 @@ function showBoard(name, focus){
   if(mapPfidOf(name)){ showMap(mapPfidOf(name), focus); return; }
   setView("board");
   document.title = SITE_TITLE;
-  const meta = name && name !== PODIUM_KEY ? activeBoards().find(b => b.name === name) : null;
+  const meta = name ? activeBoards().find(b => b.name === name) : null;
   /* a shared link can name a board in a season other than the one on screen */
   if(meta && meta.group !== group){ group = meta.group; renderGroups(); }
-  const want = meta ? meta.name : (name === PODIUM_KEY && podiumsIn(group) ? PODIUM_KEY : null);
-  if(!want){ if(!boardKey) selectBoard(defaultBoard()); return; }
-  if(want === boardKey && (boardData || isPodiums())){ if(focus) focusPlayer(focus); return; }
-  selectBoard(want, focus);
+  if(!meta){ if(!boardKey) selectBoard(defaultBoard()); return; }
+  const want = focus === PODIUM_SORT && tallyFor(meta) ? BY_PODIUMS : BY_SCORE;
+  if(focus === PODIUM_SORT) focus = null;
+  if(meta.name === boardKey && boardData){
+    /* the same board in its other order: no refetch */
+    if(want !== order){ order = want; renderBoard(); }
+    if(focus) focusPlayer(focus);
+    return;
+  }
+  order = want;
+  selectBoard(meta.name, focus);
 }
 addEventListener("hashchange", route);
 
@@ -2451,12 +2590,12 @@ async function loadBoard(name){
 }
 /* focus is a Steam ID a player page sent us here to show */
 async function selectBoard(name, focus){
-  if(name === PODIUM_KEY){ selectPodiums(); return; }
   boardKey = name;
+  tally = tallyFor(boardByName(name));
+  if(!tally) order = BY_SCORE;
   renderSelectors();
-  $("#cabinet").hidden = true;
-  $("#cabinet").innerHTML = "";
-  $("#board").hidden = false;
+  renderCard();
+  $("#board").classList.toggle("pods", !!tally);
   $("#leaders").hidden = true;
   $("#tiles").innerHTML = "";
   $("#bmetaD").textContent = $("#bmetaM").textContent = whereOf(boardMeta()) + " · loading";
@@ -2471,6 +2610,7 @@ async function selectBoard(name, focus){
        lets the next scroll event append the old board's rows under this message,
        counted against the new board's field size. */
     boardData = null; visible = []; shown = 0; filtering = false;
+    $("#bcard").hidden = true;       /* or its chart says Loading for good */
     $("#bmetaD").textContent = $("#bmetaM").textContent = whereOf(boardMeta()) + " · unavailable";
     $("#board").innerHTML = `<div class="empty"><b>That board didn't load.</b>
       The data file may still be refreshing. Try again in a moment.</div>`;
@@ -2478,10 +2618,16 @@ async function selectBoard(name, focus){
   }
   if(boardKey !== name) return;      /* the reader moved on while it was fetching */
   boardData = data;
-  renderTiles();
-  renderLeaders();
-  applyFilter();
+  if(tally) tally.points = new Map(data.rows.map(r => [r.steam_id, r]));   /* the podium order's sublines */
+  renderBoard();
   if(focus) focusPlayer(focus);
+}
+/* everything under the rail that the rows decide, redrawn when they arrive or the sort flips */
+function renderBoard(){
+  renderCard();
+  renderTiles();
+  order.leaders();
+  applyFilter();
 }
 
 /* Show one player's row on the board a tile pointed at. Their rank can be far
@@ -2492,7 +2638,7 @@ function focusPlayer(id){
   if(!isSteamId(id)) return;
   /* a hand-edited or stale link can name someone with no time here; without
      this the search below would render the whole board looking for them */
-  if(!boardData || !boardData.rows.some(r => r.steam_id === id)) return;
+  if(!boardData || !order.rows().some(r => r.steam_id === id)) return;
   document.querySelectorAll(".focus").forEach(n => n.classList.remove("focus"));
   const sel = `[data-id="${id}"]`;
   const found = () => $("#leaders " + sel) || $("#board " + sel);
@@ -2512,7 +2658,7 @@ function openSheet(){
   /* the scroller in this layout is the root element, not body, so lock both */
   document.documentElement.style.overflow = "hidden";
   document.body.style.overflow = "hidden";
-  const current = $("#sheetList .bbtn[aria-current='true']") || $("#sheetList .bbtn");
+  const current = $("#sheetList .tstrip[aria-current='true']") || $("#sheetList .tstrip");
   if(current) current.focus();
 }
 function closeSheet(){
@@ -2572,7 +2718,7 @@ document.addEventListener("click", e => {
 let searchTimer;
 $("#q").addEventListener("input", () => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { if(boardData || isPodiums()) applyFilter(); }, 120);
+  searchTimer = setTimeout(() => { if(boardData) applyFilter(); }, 120);
 });
 
 addEventListener("scroll", onScroll, {passive:true});
@@ -2582,8 +2728,9 @@ addEventListener("resize", () => { onScroll(); fillViewport(); });
 const defaultBoard = () =>
   (activeBoards().find(b => b.name === "OverallLeaderboard_EASeason2") || boardsIn(group)[0]).name;
 renderChrome();
-/* podiums.json is small and feeds the rail, so it loads with the index rather
-   than on demand. It is optional: without it the rail simply has no cabinet. */
+/* podiums.json is small and feeds the rail's records and the Overall board's podium
+   column, so it loads with the index rather than on demand. It is optional: without
+   it the rail has no record times and Overall no podiums. */
 const podiumsReq = fetch("data/podiums.json")
   .then(r => r.ok ? r.json() : null)
   .catch(() => null);
