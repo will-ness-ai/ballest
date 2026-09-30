@@ -1380,7 +1380,7 @@ function scoreLeaders(){
    lives there. Defence in depth: the ID becomes part of an href, so only a
    plain Steam64 is ever linked and anything else renders as flat text. */
 const playerLink = (id, text, tab) => isSteamId(id)
-  ? `<a href="#/player/${esc(id)}${tab ? "/" + tab : ""}">${esc(text)}</a>` : esc(text);
+  ? `<a href="#/player/${esc(id)}${esc(tab ? "/" + tab : "")}">${esc(text)}</a>` : esc(text);
 const nameHtml = r => playerLink(r.steam_id, personaOf(r));
 /* a Map's creator leads to the Maps they made */
 const creatorHtml = m => playerLink(m.cid, m.creator, "made");
