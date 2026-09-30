@@ -26,6 +26,14 @@ the rail would be; `boardHash` turns a `Workshop_<pfid>` board name into its `#/
 so a player page's back link lands there. Every player name links to a player page
 (`nameHtml`), and the link out to Steam lives on that page rather than on the name.
 
+## The header
+
+The wordmark links to `#/workshop`, the homepage. The refresh time under it is a button
+that opens a dialog on how the boards refresh (`openRefresh`): a static table of how long a
+change takes to show on Circuit and Workshop boards, and when every Map was last read in
+full, from `workshop.json`'s `full_sweep_at`. The table restates `collect_workshop`'s
+rules, so a change to when the collector reads a board changes that copy too.
+
 ## The player page
 
 `playerRecord` turns a shard plus a Steam ID into everything the page shows: Circuit tiles,
