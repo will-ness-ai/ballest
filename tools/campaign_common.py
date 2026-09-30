@@ -22,6 +22,18 @@ BOARDS_DIR = os.path.join(DATA_DIR, "boards")
 INDEX_PATH = os.path.join(DATA_DIR, "index.json")
 # Everything else under data/ is named by derive(), relative to DATA_DIR.
 
+
+def use_data_dir(path):
+    """Point every read and write in this module at path instead of data/: the
+    collector's --out and check_data's --data, so a branch can run and check the
+    whole write path against a scratch copy. Call it before anything reads."""
+    global DATA_DIR, BOARDS_DIR, INDEX_PATH, WORKSHOP_PATH, WORKSHOP_DIR
+    DATA_DIR = os.path.abspath(path)
+    BOARDS_DIR = os.path.join(DATA_DIR, "boards")
+    INDEX_PATH = os.path.join(DATA_DIR, "index.json")
+    WORKSHOP_PATH = os.path.join(DATA_DIR, "workshop.json")
+    WORKSHOP_DIR = os.path.join(DATA_DIR, "workshop")
+
 # Leaderboard names = level asset names, verbatim (discovered by probing the pak).
 # LIST ORDER IS THE IN-GAME NUMBERING: the game labels Circuit tracks only "01".."NN"
 # per season, and a track's 1-based position here is that number. Verified 2026-09-07
@@ -555,6 +567,12 @@ def build_players(boards_out, maps):
             for s in PLAYER_SHARDS}
 
 
+def build_names(shards):
+    """[[steam_id, persona], ...] for every player in the shards, in Steam ID order:
+    what the head to head's Compare dialog searches, without fetching ten shards."""
+    return sorted([sid, p["persona"]] for doc in shards.values() for sid, p in doc["players"].items())
+
+
 def derive(boards_out, maps):
     """Everything the collector works out from the board rows it just read.
 
@@ -584,11 +602,15 @@ def derive(boards_out, maps):
         "summary": "podiums  " + ", ".join(
             f"{s['group']} tracks={s['tracks']} players={len(s['players'])}" for s in seasons),
     }]
+    shards = build_players(boards_out, maps)
     artifacts += [{
         "path": "players/" + shard + ".json", "doc": doc,
         "empty": not doc["players"],
         "summary": f"players/{shard}  {len(doc['players'])} players",
-    } for shard, doc in build_players(boards_out, maps).items()]
+    } for shard, doc in shards.items()]
+    names = build_names(shards)
+    artifacts.append({"path": "names.json", "doc": names, "empty": not names,
+                      "summary": f"names  {len(names)} players"})
     return boards_out, artifacts
 
 
@@ -622,6 +644,34 @@ def name_rows(row_lists, all_ids):
             r["avatar"] = info.get("avatar") or r.get("avatar", "")
             r["profileurl"] = info.get("profileurl") or r.get("profileurl", "")
     return names
+
+
+def committed_boards():
+    """The committed Circuit boards, in BOARDS order, each with its group: what
+    derive() takes when this run read no Circuit board (--workshop-only). A board
+    with no file or no rows is left out, and the podiums it feeds come out short."""
+    out = []
+    for name, group in BOARDS:
+        b = load_existing_board(name)
+        if b and b.get("rows"):
+            b["group"] = group
+            out.append(b)
+    return out
+
+
+def write_derived(artifacts):
+    """Write derive()'s artifacts, or none of them if any came out empty."""
+    blank = [a["path"] for a in artifacts if a["empty"]]
+    if blank:
+        print(f"  [warn] derived empty: {blank}; keeping the committed copies of all "
+              f"{len(artifacts)} derived files")
+        return
+    for a in artifacts:
+        path = os.path.join(DATA_DIR, a["path"])
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(a["doc"], f, ensure_ascii=False, separators=(",", ":"))
+        print("  " + a["summary"])
 
 
 def write_site(boards_out, all_ids, workshop=None):
@@ -678,17 +728,7 @@ def write_site(boards_out, all_ids, workshop=None):
     # of them arriving blank says the rows were blank, and every committed copy
     # is the better copy. Like the board files they omit generated_at, so an
     # unchanged season produces no diff.
-    blank = [a["path"] for a in artifacts if a["empty"]]
-    if blank:
-        print(f"  [warn] derived empty: {blank}; keeping the committed copies of all "
-              f"{len(artifacts)} derived files")
-    else:
-        for a in artifacts:
-            path = os.path.join(DATA_DIR, a["path"])
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(a["doc"], f, ensure_ascii=False, separators=(",", ":"))
-            print("  " + a["summary"])
+    write_derived(artifacts)
 
     with open(INDEX_PATH, "w", encoding="utf-8") as f:
         json.dump({"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

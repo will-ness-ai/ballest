@@ -8,6 +8,7 @@ live run. Exit status is non-zero on any failure, so it can gate a commit.
 
   python tools/check_data.py            # check
   python tools/check_data.py --write    # rewrite the derived files, then check
+  python tools/check_data.py --data scratch/data   # check a copy (steampy_collect --out)
 
 --write is for the two times the committed derived files legitimately disagree
 with the boards: a new artifact whose first copy ships with the code that adds
@@ -20,8 +21,8 @@ Checks:
   - every board in BOARDS has a file, index.json lists it, and the two agree
   - no board is empty, and rows are index-aligned to rank (rows[i].rank == i+1)
   - every file derive() produces from the committed boards — podiums.json and
-    players/<shard>.json, the shards over the Workshop boards too — matches the
-    committed copy
+    players/<shard>.json, the shards over the Workshop boards too, and
+    names.json — matches the committed copy
   - the composite board file equals the one derive() appends, and index.json
     lists it
   - every Map workshop.json lists with a board has that file, rank-aligned and
@@ -165,4 +166,6 @@ def check_workshop():
 
 
 if __name__ == "__main__":
+    if "--data" in sys.argv[1:]:
+        cc.use_data_dir(sys.argv[sys.argv.index("--data") + 1])
     sys.exit(main(rewrite="--write" in sys.argv[1:]))

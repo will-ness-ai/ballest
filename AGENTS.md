@@ -13,7 +13,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 
 - `index.html` — the entire site. Vanilla JS and CSS in one file: no build step, no
   framework, no JS CDN. The only external requests are Google Fonts and the Plausible
-  analytics script, served from our own instance on Railway.
+  analytics script, served from our own instance on Railway. Its routes, the player
+  record, row order and the theme: `docs/site.md`. Read it before editing the page.
 - `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `og.png` — the lime-marble icon
   and the 1200×630 link-preview image. Rendered once and committed; `og.png` bakes in its
   text, so the collector never touches it.
@@ -70,17 +71,17 @@ given). A page you want to look at but not commit goes in `scratch/`, which is s
 like any other folder and is gitignored. Refreshing data locally needs a
 Steam refresh token; the mint-and-collect runbook is `tools/README-hosting.md`. The
 secrets (`.env`, `tools/refresh_token.txt`) live in the main checkout and are found from
-a worktree. From a feature branch, run the collector with `--workshop-only`, which writes
-only `data/workshop.json` and `data/workshop/`; a full run rewrites the Circuit data too,
-which does not belong on a branch. The player shards carry the Workshop times, so after a
-`--workshop-only` run they lag until `python tools/check_data.py --write` catches them up.
+a worktree. From a feature branch, run the collector with `--out scratch/data` and check
+the result with `python tools/check_data.py --data scratch/data`: the run reads and
+writes a fresh copy of `data/`, so the whole write path runs and the committed data stays
+as it is.
 
 The site and the collector have no tests, linters, or type checks. Verify front-end
 changes by loading the served page. After editing `index.html`, reload the page (a hash
 change keeps the old script), and test the board's infinite scroll with a real wheel
 scroll: a scripted `scrollTo` does not trigger it in the preview pane. Verify collector changes with
-`python tools/check_data.py` (no Steam needed), then a live run if the read path
-changed. CI runs that same check on every pull request and on `main`
+`python tools/check_data.py` (no Steam needed), then a live `--out` run if the read or
+write path changed. CI runs that same check on every pull request and on `main`
 (`.github/workflows/check.yml`), against the merge result rather than the branch,
 because a derived file and a board can each be current and still disagree once merged.
 
@@ -121,7 +122,7 @@ been switched over.
 **Never let a run publish an empty board.** `steampy_collect.py` falls back to the
 previously committed file when a read fails, and aborts the run without writing anything
 if a board has neither (the `except` branch and the `hard_failed` check in `on_ready`).
-The derived files carry the same rule, once, in `write_site`: each artifact `derive()`
+The derived files carry the same rule, once, in `write_derived`: each artifact `derive()`
 returns says whether it came out empty, and one empty artifact keeps the committed copy
 of every derived file, since they all come from the same rows.
 The Workshop step never blocks the campaign and never wipes a Map: a failed Map read
@@ -134,31 +135,9 @@ Preserve that in any change to the write path. The pagination stop condition in
 `fetch_board` is deliberately conservative for the same reason — don't simplify it.
 
 **`.gitignore` ignores `data/*`**, re-including only `!data/index.json`, `!data/boards/`,
-`!data/podiums.json`, `!data/players/`, `!data/workshop.json` and `!data/workshop/`. A new artifact written under `data/` is
+`!data/podiums.json`, `!data/players/`, `!data/workshop.json`, `!data/workshop/` and `!data/names.json`. A new artifact written under `data/` is
 invisible to git and 404s in production; the workflow's `git add` line also has to name
 it.
-
-**The page's hash routes** are read by `route()` on load and on `hashchange`:
-`#/player/<steam_id>` with an optional `/circuit`, `/workshop` or `/made` tab (without
-one, Workshop for anyone with a Workshop time, else Circuit), `#/board/<board name>`
-with an optional `/<steam_id>` that marks that player's row once the board is open (or,
-on an Overall board, `/podiums`, which sorts it by podiums: a Steam ID is all digits, so
-the two cannot collide), and the Workshop's three:
-`#/workshop` (the homepage, and what no hash at all opens), `#/maps` or
-`#/maps/<view>` (All maps, opened on one of `VIEWS` or `PRESETS`), and
-`#/map/<pfid>` with the same optional `/<steam_id>`. A Map's page is the board view
-with the Map's panel where the rail would be; `boardHash` turns a `Workshop_<pfid>`
-board name into its `#/map/` link, so a player page's back link lands there. Every player name links to a player page
-(`nameHtml`), and the link out to Steam lives on that page rather than on the name.
-Selecting a board goes through the route too (`go(boardHash(...))`), so nothing calls
-`selectBoard` to navigate — that is what makes a board, and a player's row on it,
-something you can link to. Anything else in the hash means the board already on screen,
-or the default one. `playerRecord` turns a shard plus a Steam ID into everything the
-player page shows, and the rendering below it is markup over that record.
-
-**Rows are index-aligned to rank.** `rowHtml` reaches for `rows[r.rank - 2]` to compute
-the interval to the next rung up, so sorting, filtering, or de-duping the array in place
-breaks it.
 
 **Track list order is the in-game numbering.** The game labels Circuit tracks only
 `01`..`NN` per season and never shows a name, so `display_name()` derives that number
@@ -168,9 +147,6 @@ Inserting or reordering a track renumbers everything after it on the site. Appen
 tracks in the game's own order and verify in-game: the pre-race screen shows each track's
 top five, which is enough to match against `data/boards/`.
 
-**The theme lives in CSS custom properties** on `:root` in `index.html`, and it is
-dark-only.
-
 ## Data and git
 
 `data/` is CI-owned. The refresh workflow commits straight to `main` every three hours,
@@ -179,7 +155,7 @@ will conflict. A brand-new data artifact is the exception: its first copy ships 
 code that introduces it, so the feature works on merge rather than after the next
 refresh. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch only
 `data/index.json`, `data/boards/`, `data/podiums.json`, `data/players/`,
-`data/workshop.json` and `data/workshop/`; keep code changes out of them.
+`data/workshop.json`, `data/workshop/` and `data/names.json`; keep code changes out of them.
 
 `CODING_STANDARDS.md` is the review checklist; it also holds the branch and commit
 conventions.

@@ -20,6 +20,9 @@ here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
   score on every board, Circuit and Workshop, keyed by Steam ID (`build_players`). Split
   ten ways by the ID's last digit so a player page fetches one ~580KB shard rather than
   every board. Loaded only on a player page.
+- `data/names.json`: `[[steam_id, persona], ...]` for every player in the shards, in Steam
+  ID order (`build_names`), ~450KB. Loaded the first time someone opens the Compare
+  dialog, which searches it by name.
 
 `derive()` in `tools/campaign_common.py` is the one list of what the collector works out
 from the board rows and where each file lands. `write_site` publishes that list,
