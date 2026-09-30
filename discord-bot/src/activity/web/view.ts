@@ -5,7 +5,7 @@
 // server. Buttons carry `data-act="<verb>[:<arg>]"`, which app.ts acts on; countdowns are
 // `data-until` spans it fills.
 import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type MedalKind, medalFor, type Minutes, progress, SCORE_TICKS_PER_SECOND } from "../../domain.js"
-import { boardRows, formatGap, mapTitle, matchDetails, matchName } from "../../present.js"
+import { boardRows, formatGap, mapTitle, matchDetails, matchName, STEAM_LINK_HOWTO } from "../../present.js"
 import { hueFor, marbleSvg, medalSvg } from "../../render/art.js"
 import type { Challengeable, MatchView } from "../api.js"
 
@@ -492,7 +492,10 @@ export const linkDialog = (s: LinkState, viewer: Viewer) => {
       s.changing && viewer.link !== null
         ? `<div class="note" style="font-size:13px;color:var(--dim)">Linked to <b style="color:var(--text)">${esc(viewer.link.personaName)}</b> (${esc(viewer.link.steamId)}).</div>`
         : ""
-    body = `${current}<label class="label" for="profile">Steam profile link, custom URL or SteamID64</label>
+    const howto = STEAM_LINK_HOWTO
+    body = `${current}<ol class="note" style="font-size:13px;color:var(--dim);margin:0;padding-left:20px;display:grid;gap:4px">${howto.steps.map((step) => `<li>${esc(step).replace(/\*\*(.+?)\*\*/g, '<b style="color:var(--text)">$1</b>')}</li>`).join("")}</ol>
+      <div class="note" style="font-size:13px;color:var(--dim)">It looks like <code style="color:var(--text);overflow-wrap:anywhere">${esc(howto.example)}</code><br>${esc(howto.notThis)}</div>
+      <label class="label" for="profile">Steam profile link</label>
       <div class="field"><input id="profile" value="${esc(s.input)}" autocomplete="off" spellcheck="false">${btn("check", "Check", "go", s.busy)}</div>
       ${s.error === "" ? "" : `<div class="err">${esc(s.error)}</div>`}`
   }

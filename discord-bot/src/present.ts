@@ -99,3 +99,17 @@ export const matchName = (view: CardView, nameOf: NameOf) =>
   view.type === "challenge" && view.target !== null
     ? `${nameOf(view.creator.discordId)} v ${nameOf(view.target.discordId)}`
     : `${nameOf(view.creator.discordId)}'s ${MATCH_TYPE_NAME[view.type]}`
+
+/**
+ * Where to find the link Link Steam asks for; Steam hides it behind a right-click. Steps mark
+ * Steam's own menu words with **bold**, Discord's markdown, which the Activity turns into <b>.
+ */
+export const STEAM_LINK_HOWTO = {
+  steps: [
+    "In Steam, hover your name at the top and pick **Profile**.",
+    "Right-click the page and choose **Copy Page URL**.",
+    "Paste it below."
+  ],
+  example: "https://steamcommunity.com/profiles/76561198…",
+  notThis: "Not your display name or friend code."
+} as const
