@@ -63,10 +63,15 @@ async def collect_workshop(catalogue, all_ids):
 
     Reading every Map's board is one request per Map, one at a time, and Maps arrive
     at ~225 a week. So a board is read only when its Map's Workshop counters moved
-    since the last read: a first finish subscribes to the Map, and the session count
-    catches most players improving their own time, a few hours late. Nothing moves
-    for the rest, so every board is read once every FULL_SWEEP_SECONDS as well.
-    Measured 2026-09-28: 96% of board changes came with a counter move.
+    since the last read, and every board once every FULL_SWEEP_SECONDS as well.
+    Measured 2026-09-28: 96% of board changes came with a counter move, but on a busy
+    Map other players keep the counters moving. A single finish often moves neither:
+    a subscription counts when the Map is downloaded, before any finish (all five
+    Maps with no runs had 13-28 subscribers on 2026-09-30, and no Map had fewer
+    subscribers than runners), and the session count misses plays (353 of 975 Maps
+    with runs had fewer sessions than runners, 17 had none). So a first time or a
+    better one on a quiet Map can wait for the full read. The refresh dialog in
+    index.html (#rfx) tells players this; keep the two in step.
 
     A Map's stored counters are the ones seen at its last successful read. A read
     that fails leaves them behind, so the next run tries that Map again, and the
