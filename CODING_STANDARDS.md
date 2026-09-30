@@ -8,11 +8,13 @@ it breaks. Those files carry the reasons; this file carries the checks.
 ## Page (`index.html`)
 
 - Every interpolated value that can carry text from Steam — a persona, a board name, an
-  avatar or profile URL — goes through `esc()`, and so does anything that lands inside an
-  `href` or another attribute. A number this file formatted itself (`fmtN`, `fmtTime`,
-  `ord`, a rank) is already digits and is left alone, as the page does throughout.
-- Colors come from the custom properties on `:root`. The translucent black and white
-  used for shadows and hairlines are the one literal allowed.
+  avatar or profile URL — goes through `esc()`, in element text as much as in an
+  attribute. A number this file formatted itself (`fmtN`, `fmtTime`, `ord`, a rank) is
+  already digits and is left alone, as the page does throughout. An `href` or `src`
+  without `esc()` fails `tools/page-check` already; this rule is for everywhere else.
+- Colors come from the custom properties on `:root`. Two literals are allowed: the
+  translucent black and white used for shadows and hairlines, and a player's own hue,
+  `hsl(var(--h) …)`, as on the marble, the pill and the standings bars.
 - Base rules serve phones; the single `min-width:820px` block carries every desktop
   override.
 - `isPoints` is the one place that reads a board's kind from its name.

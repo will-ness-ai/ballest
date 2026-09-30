@@ -18,12 +18,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `og.png` — the lime-marble icon
   and the 1200×630 link-preview image. Rendered once and committed; `og.png` bakes in its
   text, so the collector never touches it.
-- `circuit/<board name>.webp` — each Circuit track's own screenshot, ~640px wide, for the
-  rail and the board's header card. Taken from the game files by hand (the private
-  `ballest-map-making` repo's `extract/`, `dump_level.py`'s `screenshot()`) and rerun
-  after a game update. The Season 2 textures are not named in track order: map each
-  from its level's data asset. The collector never touches them; the page's `TRACKS`
-  table pairs each with that track's Medal times.
+- `circuit/<board name>.webp` — each Circuit track's screenshot from the game files; how
+  they are made and what pairs with them: `docs/site.md`.
 - `data/` — what the collector writes and the site loads, file by file, and how derived
   files are assembled (`derive()`): `docs/data.md`. Read it before adding or changing a
   data file.
@@ -76,8 +72,9 @@ the result with `python tools/check_data.py --data scratch/data`: the run reads 
 writes a fresh copy of `data/`, so the whole write path runs and the committed data stays
 as it is.
 
-The site and the collector have no tests, linters, or type checks. Verify front-end
-changes by loading the served page. After editing `index.html`, reload the page (a hash
+The site and the collector have no tests or type checks. `node tools/page-check/check.mjs`
+(after `npm ci` in that folder once) lints the page's script and its escaping, and CI runs
+it too. Verify front-end changes by loading the served page. After editing `index.html`, reload the page (a hash
 change keeps the old script), and test the board's infinite scroll with a real wheel
 scroll: a scripted `scrollTo` does not trigger it in the preview pane. Verify collector changes with
 `python tools/check_data.py` (no Steam needed), then a live `--out` run if the read or

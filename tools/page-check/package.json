@@ -1,0 +1,13 @@
+{
+  "name": "ballest-page-check",
+  "private": true,
+  "type": "module",
+  "description": "Lints index.html's inline script; see check.mjs",
+  "scripts": {
+    "check": "node check.mjs"
+  },
+  "devDependencies": {
+    "eslint": "9.39.5",
+    "globals": "16.5.0"
+  }
+}

@@ -24,6 +24,7 @@ tools/stop-capture.ps1
 # a prototype page can be opened at /scratch/<name>.html without landing in a commit.
 scratch/
 __pycache__/
+node_modules/
 *.pyc
 
 # data: the site serves index.json + boards/*.json + podiums.json + players/*.json
