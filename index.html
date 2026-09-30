@@ -662,8 +662,8 @@ footer a{color:var(--dim)}
 .car-in .why{color:var(--faint);letter-spacing:.04em;text-transform:none;font-weight:500}
 .car-t{margin:0;font-family:var(--f-marquee);font-weight:400;font-size:24px;line-height:1.08;overflow-wrap:anywhere}
 .car-by{font-size:13px;color:var(--dim);margin-top:-6px}
-.car-by a,.mp-by a{color:inherit;text-decoration:none}
-.car-by a:hover,.mp-by a:hover{color:var(--accent)}
+.car-by a{color:inherit;text-decoration:none}
+.car-by a:hover{color:var(--accent)}
 .car-stats{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--dim)}
 .car-stats b{display:block;color:var(--text);font-family:var(--f-hud);font-size:17px;font-variant-numeric:tabular-nums}
 .car-pod{display:grid;gap:3px;border-top:1px solid var(--line2);padding-top:9px}
@@ -748,6 +748,8 @@ footer a{color:var(--dim)}
 .mp-img{width:100%;aspect-ratio:400/270;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
 .mp-t{margin:0;font-family:var(--f-hud);font-size:22px;font-weight:700;line-height:1.15;overflow-wrap:anywhere}
 .mp-by{font-size:13px;color:var(--dim)}
+.mp-by a{color:inherit;text-decoration:none}
+.mp-by a:hover{color:var(--accent)}
 .mp-facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin:0;background:var(--line2);border-radius:10px;
   overflow:hidden;border:1px solid var(--line2)}
 .mp-facts div{background:var(--solid);padding:8px 11px}
@@ -1257,18 +1259,14 @@ function renderLeaders(){
     return [value(boardData, r.score_ms), gapTxt];
   });
 }
-function nameHtml(r){
-  const n = esc(personaOf(r));
-  /* a name leads to that player's page on this site; the link out to Steam
-     lives there. Defence in depth: the ID becomes part of an href, so only a
-     plain Steam64 is ever linked and anything else renders as flat text. */
-  return isSteamId(r.steam_id) ? `<a href="#/player/${esc(r.steam_id)}">${n}</a>` : n;
-}
-/* a Map's creator leads to the Maps they made on their player page, by the same rule */
-function creatorHtml(m){
-  const n = esc(m.creator);
-  return isSteamId(m.cid) ? `<a href="#/player/${esc(m.cid)}/made">${n}</a>` : n;
-}
+/* a name leads to that player's page on this site; the link out to Steam
+   lives there. Defence in depth: the ID becomes part of an href, so only a
+   plain Steam64 is ever linked and anything else renders as flat text. */
+const playerLink = (id, text, tab) => isSteamId(id)
+  ? `<a href="#/player/${esc(id)}${tab ? "/" + tab : ""}">${esc(text)}</a>` : esc(text);
+const nameHtml = r => playerLink(r.steam_id, personaOf(r));
+/* a Map's creator leads to the Maps they made */
+const creatorHtml = m => playerLink(m.cid, m.creator, "made");
 
 /* ---------- the row ---------- */
 function rowHtml(r, lead, prev){
