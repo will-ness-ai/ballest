@@ -993,12 +993,12 @@ footer a{color:var(--dim)}
     <thead><tr><td></td><th scope="col">Circuit</th><th scope="col">Workshop</th></tr></thead>
     <tbody>
       <tr><th scope="row">A first time on a board</th><td>next refresh</td><td>next refresh</td></tr>
-      <tr><th scope="row">Beating your own time</th><td>next refresh</td><td>usually a refresh or two later<small>at most about a day</small></td></tr>
+      <tr><th scope="row">Beating your own time</th><td>next refresh</td><td>usually a refresh or two later<small>at most a day or so</small></td></tr>
       <tr><th scope="row">A new map</th><td>&ndash;</td><td>next refresh</td></tr>
     </tbody>
   </table>
-  <p>A refresh is due every three hours, but GitHub, which runs it, is often late, so refreshes
-  usually land four to six hours apart.</p>
+  <p>A refresh is due every three hours, but GitHub, which runs it, often starts one late or
+  skips it, so refreshes usually land four to six hours apart, sometimes longer.</p>
   <p>Workshop boards are only read when Steam shows the map was played, which it can take a few
   hours to notice, plus a full read of every map once a day.</p>
   <p id="rfxSweep" hidden></p>
@@ -2597,6 +2597,7 @@ Promise.all([fetch("data/index.json").then(r => r.json()), podiumsReq, workshopR
     $("#freshness").innerHTML =
       `Refreshed <b>${relTime(dt)}</b><span class="i" aria-hidden="true">i</span>`;
     $("#freshness").title = dt.toLocaleString();
+    $("#freshness").setAttribute("aria-label", `Refreshed ${relTime(dt)}. How the boards refresh`);
     $("#freshness").disabled = false;
     /* full_sweep_at is Unix seconds, and absent until the first full read */
     if(ws && ws.full_sweep_at){
