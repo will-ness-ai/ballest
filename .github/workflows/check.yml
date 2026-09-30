@@ -1,4 +1,4 @@
-name: Check data
+name: Check data and page
 
 # The committed data has to agree with itself: every board listed, rows aligned
 # to rank, and every derived file equal to what derive() makes from those boards.
@@ -33,3 +33,21 @@ jobs:
       # Pure stdlib, like the collector's shared helpers it imports.
       - name: Check the committed data
         run: python tools/check_data.py
+
+  # index.html has no build step, so this is the only thing that parses its script:
+  # an undefined or twice-declared name, and an href/src interpolated without esc().
+  check-page:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check the page
+        run: |
+          npm ci --prefix tools/page-check
+          node tools/page-check/check.mjs

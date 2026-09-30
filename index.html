@@ -1734,7 +1734,7 @@ function playerHtml(rec, tab, me, mine){
     ${url ? `<a class="steam" href="${esc(url)}" target="_blank" rel="noopener">${STEAM_MARK}Steam profile</a>` : ""}
   </div>
   ${mine && mine.id !== rec.id ? scoreCardHtml(mine, rec) : ""}
-  <nav class="ptabs">${playerTabs(rec).map(t => `<a href="#/player/${esc(rec.id)}/${t.key}"
+  <nav class="ptabs">${playerTabs(rec).map(t => `<a href="#/player/${esc(rec.id)}/${esc(t.key)}"
     ${t === tab ? `aria-current="page"` : ""}>${t.label}<small>${fmtN(t.count(rec))}</small></a>`).join("")}</nav>
   ${tab.html(rec)}`;
 }
@@ -2357,7 +2357,7 @@ function shelfHtml(d){
   const list = sorted(d.keep, d.sort).slice(0, SHELF_SIZE);
   if(!list.length) return "";
   return `<section class="shelf"><div class="shelf-h"><h2>${d.title}</h2>
-    <span class="shelf-n">${d.note} &middot; <a href="#/maps/${d.all}">See all</a></span></div>
+    <span class="shelf-n">${d.note} &middot; <a href="#/maps/${esc(d.all)}">See all</a></span></div>
     <div class="strip">${list.map(m => cardHtml(m, SORTS[d.sort].stat)).join("")}</div></section>`;
 }
 function searchHtml(){
@@ -2400,7 +2400,7 @@ function renderMaps(){
   const isView = f => { const want = {...NO_FILTER(), ...f}; return Object.keys(want).every(k => F[k] === want[k]); };
   $("#ws").innerHTML = `<a class="back" href="#/workshop">&larr; Workshop</a>
     <div class="ws-head"><h1 class="ws-h1">All maps</h1><span class="ws-count">${plural(WORKSHOP.length, "map", "maps")} with a time</span></div>
-    <div class="views">${VIEWS.map(([k, label, f]) => `<a href="#/maps/${k}" class="${isView(f) ? "on" : ""}">${label}</a>`).join("")}
+    <div class="views">${VIEWS.map(([k, label, f]) => `<a href="#/maps/${esc(k)}" class="${isView(f) ? "on" : ""}">${label}</a>`).join("")}
       <span class="sp"></span><button type="button" class="refine${n ? " on" : ""}" data-drawer>Refine${n ? " &middot; " + n : ""}</button></div>
     <p class="ws-note">${plural(list.length, "map", "maps")} &middot; ${SORTS[F.sort].label.toLowerCase()} first</p>
     ${list.length ? gridHtml(list.slice(0, mapsShown), SORTS[F.sort].stat) +

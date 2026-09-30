@@ -3,6 +3,19 @@
 How `index.html` is put together, for anyone editing it. What it loads is in
 `docs/data.md`.
 
+## Track screenshots
+
+`circuit/<board name>.webp` is each Circuit track's own screenshot, ~640px wide (Track22's
+texture is 527, and stays that size), for the rail and the board's header card. The
+page's `TRACKS` table pairs each with that track's Medal times, read off the in-game HUD.
+Neither is Steam data, so the collector never touches them.
+
+They come from the game files, by hand, after a game update: the private
+`ballest-map-making` repo's `python extract/circuit_screenshots.py <this repo>/circuit`.
+Each level's data asset names its screenshot texture; the Season 2 names do not follow
+track order, and two asset folders differ in case from the board names (`LongHaul`,
+`Nightway`), so the script maps them through the data asset rather than by name.
+
 ## Routes
 
 `route()` reads the hash on load and on `hashchange`:
