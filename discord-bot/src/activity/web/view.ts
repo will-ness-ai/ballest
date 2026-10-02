@@ -5,7 +5,7 @@
 // server. Buttons carry `data-act="<verb>[:<arg>]"`, which app.ts acts on; countdowns are
 // `data-until` spans it fills.
 import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type MedalKind, medalFor, type Minutes, progress, SCORE_TICKS_PER_SECOND } from "../../domain.js"
-import { boardRows, formatGap, mapTitle, matchDetails, matchName } from "../../present.js"
+import { boardRows, formatGap, mapTitle, type HowtoPart, matchDetails, matchName, STEAM_LINK_HOWTO } from "../../present.js"
 import { hueFor, marbleSvg, medalSvg } from "../../render/art.js"
 import type { Challengeable, MatchView } from "../api.js"
 
@@ -477,6 +477,17 @@ export interface LinkState {
   readonly busy: boolean
 }
 
+const howtoHtml = (parts: ReadonlyArray<HowtoPart>) =>
+  parts
+    .map((p) =>
+      typeof p === "string"
+        ? esc(p)
+        : "menu" in p
+          ? `<b style="color:var(--text)">${esc(p.menu)}</b>`
+          : `<code style="color:var(--text);overflow-wrap:anywhere">${esc(p.example)}</code>`
+    )
+    .join("")
+
 export const linkDialog = (s: LinkState, viewer: Viewer) => {
   const title = s.changing ? "Change your Steam account" : "Link your Steam account"
   const ctx = s.joining === null ? "" : `<div class="ctx">${stackOf(s.joining, 20)}<span>Joining ${titleOf(s.joining)}</span></div>`
@@ -492,7 +503,9 @@ export const linkDialog = (s: LinkState, viewer: Viewer) => {
       s.changing && viewer.link !== null
         ? `<div class="note" style="font-size:13px;color:var(--dim)">Linked to <b style="color:var(--text)">${esc(viewer.link.personaName)}</b> (${esc(viewer.link.steamId)}).</div>`
         : ""
-    body = `${current}<label class="label" for="profile">Steam profile link, custom URL or SteamID64</label>
+    body = `${current}<ol class="note" style="font-size:13px;color:var(--dim);margin:0;padding-left:20px;display:grid;gap:4px">${STEAM_LINK_HOWTO.steps.map((step) => `<li>${howtoHtml(step)}</li>`).join("")}</ol>
+      <div class="note" style="font-size:13px;color:var(--dim)">${howtoHtml(STEAM_LINK_HOWTO.looksLike)}<br>${esc(STEAM_LINK_HOWTO.notThis)}</div>
+      <label class="label" for="profile">Steam profile link</label>
       <div class="field"><input id="profile" value="${esc(s.input)}" autocomplete="off" spellcheck="false">${btn("check", "Check", "go", s.busy)}</div>
       ${s.error === "" ? "" : `<div class="err">${esc(s.error)}</div>`}`
   }

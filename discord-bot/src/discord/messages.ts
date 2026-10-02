@@ -6,13 +6,16 @@ import {
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
+  LabelBuilder,
   ModalBuilder,
+  TextDisplayBuilder,
   TextInputBuilder,
   TextInputStyle,
   UserSelectMenuBuilder,
   type BaseMessageOptions
 } from "discord.js"
 import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js"
+import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js"
 import { RESULT_HUE, START_HUE } from "../render/art.js"
 import type { CardView, KeptReason, ThreadPost } from "../ports.js"
 import { type Action, type Control, controlId } from "./controls.js"
@@ -268,19 +271,33 @@ export const confirmLeaveMessage = (matchId: string): Payload => ({
 
 // ---------------------------------------------------------------- Link Steam
 
+const howtoMarkdown = (parts: ReadonlyArray<HowtoPart>) =>
+  parts.map((p) => (typeof p === "string" ? p : "menu" in p ? `**${p.menu}**` : `\`${p.example}\``)).join("")
+
 export const linkForm = () =>
   new ModalBuilder()
     .setCustomId(controlId({ _tag: "LinkForm" }))
     .setTitle("Link your Steam account")
-    .addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId(PROFILE_FIELD)
-          .setLabel("Steam profile link, custom URL or SteamID64")
-          .setPlaceholder("steamcommunity.com/id/yourname")
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        [
+          ...STEAM_LINK_HOWTO.steps.map((step, n) => `${n + 1}. ${howtoMarkdown(step)}`),
+          "",
+          howtoMarkdown(STEAM_LINK_HOWTO.looksLike),
+          `-# ${STEAM_LINK_HOWTO.notThis}`
+        ].join("\n")
       )
+    )
+    .addLabelComponents(
+      new LabelBuilder()
+        .setLabel("Steam profile link")
+        .setTextInputComponent(
+          new TextInputBuilder()
+            .setCustomId(PROFILE_FIELD)
+            .setPlaceholder("https://steamcommunity.com/profiles/…")
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+        )
     )
 
 export const linkPreviewMessage = (png: Buffer): Payload => ({
