@@ -798,6 +798,8 @@ footer a{color:var(--dim)}
 .sp-lbl{fill:var(--dim);font-size:10px}
 .sp-cap{margin:0;font-size:11.5px;color:var(--faint)}
 .mp-ws{width:100%}
+.mp-flag{margin:0;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;color:var(--dim)}
+.mp-report{justify-self:center;font-size:12.5px;color:var(--faint)}
 
 /* ==========================================================================
    820px AND UP: GLASS CABINET
@@ -2291,6 +2293,18 @@ const SHELVES = [
   {title: "Barely played", note: "fewest runs so far", sort: "fewest", all: "quiet"},
 ];
 const SHELF_SIZE = 12, MAPS_CHUNK = 60;
+/* Maps kept off the homepage's carousel and shelves, by pfid, with the reason their page
+   shows. Players report one through the link on its page; it goes in here by hand. The
+   Map stays in All maps, search, and everyone's player page. */
+const HIDDEN = {
+  "3623648768": "Can't be finished on the current version of the game.",
+};
+/* the homepage's Maps: the carousel and every shelf draw from this, never from sorted() */
+const homeSorted = (keep, sort) => sorted(m => !HIDDEN[m.pfid] && (!keep || keep(m)), sort);
+const REPORT_URL = "https://github.com/will-ness-ai/ballest/issues/new";
+const reportHref = m => REPORT_URL + "?" + new URLSearchParams({
+  title: `Hide map: ${m.display} (${m.pfid})`,
+  body: `Map: https://ballest.willness.dev/#/map/${m.pfid}\n\nWhat's wrong with it:\n`}).toString();
 
 /* ---------- the pieces every Workshop view shares ---------- */
 const imgTag = (m, cls) => safeImg(m.preview)
@@ -2315,7 +2329,7 @@ let PICKS = [], slide = 0, wsQuery = "";
 function picks(){
   const used = new Set();
   const pick = (label, sort, keep) => {
-    const m = sorted(x => !used.has(x) && (!keep || keep(x)), sort)[0];
+    const m = homeSorted(x => !used.has(x) && (!keep || keep(x)), sort)[0];
     if(!m) return null;
     used.add(m);
     return {label, m, why: sort === "new" ? "published " + ageText(m) : SORTS[sort].stat(m)};
@@ -2352,7 +2366,7 @@ function setSlide(i){
 document.addEventListener("animationend", e => { if(e.animationName === "carfill") setSlide(slide + 1); });
 
 function shelfHtml(d){
-  const list = sorted(d.keep, d.sort).slice(0, SHELF_SIZE);
+  const list = homeSorted(d.keep, d.sort).slice(0, SHELF_SIZE);
   if(!list.length) return "";
   return `<section class="shelf"><div class="shelf-h"><h2>${d.title}</h2>
     <span class="shelf-n">${d.note} &middot; <a href="#/maps/${esc(d.all)}">See all</a></span></div>
@@ -2446,15 +2460,18 @@ $("#ws").addEventListener("input", e => {
 
 /* ---------- a Map's page ---------- */
 function renderMapPanel(m){
+  const reason = HIDDEN[m.pfid];
   $("#mpanel").innerHTML = `<a class="back" href="${esc(listHash)}">&larr; ${listHash.startsWith("#/maps") ? "All maps" : "Workshop"}</a>
     ${imgTag(m, "mp-img")}
     <div><h1 class="mp-t">${esc(m.display)}</h1><span class="mp-by">by ${creatorHtml(m)}</span></div>
+    ${reason ? `<p class="mp-flag">Reported broken: ${esc(reason)}</p>` : ""}
     <dl class="mp-facts"><div><dt>Runs</dt><dd>${fmtN(m.entry_count)}</dd></div><div><dt>Plays</dt><dd>${fmtN(m.sessions)}</dd></div>
       <div><dt>Published</dt><dd>${ageText(m)}</dd></div><div><dt>Record</dt><dd>${fmtTime(recordOf(m))}</dd></div></dl>
     <div class="mp-medals">${MEDALS.map(([name, c, i]) =>
       `<div><span><i style="background:${c}"></i>${name}</span><b>${fmtSec(m.medals[i])}</b></div>`).join("")}</div>
     <div class="mp-chart"><span class="eyebrow">Every run</span><div id="spread"><p class="sp-cap">Loading</p></div></div>
-    <a class="go mp-ws" href="https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(m.pfid)}" target="_blank" rel="noopener">Open in Steam Workshop</a>`;
+    <a class="go mp-ws" href="https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(m.pfid)}" target="_blank" rel="noopener">Open in Steam Workshop</a>
+    ${reason ? "" : `<a class="mp-report" href="${esc(reportHref(m))}" target="_blank" rel="noopener">Report a broken map</a>`}`;
 }
 /* How every run on a board spreads out, with each Medal's cut-off drawn in. `ts` is
    the run times in rank order, `medals` [bronze, silver, gold, author] in seconds.
