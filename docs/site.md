@@ -57,6 +57,15 @@ Workshop finishes with their medal (`tierOf`), and the Maps the player made. The
 below it is markup over that record. A tab is one entry in `PLAYER_TABS`, which the tab bar,
 each tab's body and the route are all built from.
 
+## Maps kept off the homepage
+
+`HIDDEN` lists, by pfid, the Maps the Workshop homepage's carousel and shelves leave out:
+ones the game can no longer finish, which otherwise top Barely played and look like an easy
+place. Players report one through the link on a Map's page, which opens a pre-filled GitHub
+issue; a Map goes in the list by hand. The homepage draws only from `homeSorted`, which
+applies it. A listed Map stays in All maps, search and player pages, and its page shows the
+reason.
+
 ## Head to head
 
 `matchup` pairs two player records up: the rows both have a time on, each with its winner
