@@ -1,0 +1,64 @@
+# Building a feature
+
+The default path for a new feature or a change players will notice, from idea to a PR
+ready for review. Small fixes and data chores skip the planning steps and start at a
+branch. Each step names the skill in `.claude/skills/` that runs it.
+
+Some of these skills set `disable-model-invocation`, so the Skill tool refuses them unless
+the user typed the slash command. When the workflow reaches one, read its `SKILL.md` and
+follow it directly.
+
+## 1. Plan: `/grill-with-docs`
+
+Interview the user about the feature until the design tree is empty (`grilling`), while
+`domain-modeling` keeps the vocabulary straight. This repo's glossary is `CONTEXT.md`, so
+where that skill says `GLOSSARY.md`, read and write `CONTEXT.md`; ADRs go in `docs/adr/`,
+only for decisions that are hard to reverse, surprising, and a real trade-off. Facts are
+looked up, never asked: the board table, `docs/site.md`, `docs/data.md` and the committed
+data answer most of them.
+
+## 2. Design: `/grill-design`
+
+When the feature has something players will see, settle its look in the running app: a
+throwaway worktree on `claude/prototype-<slug>`, served locally, with the variants and a
+picker built into the real page. Five variants a round, walking from the overall layout
+down to single components. Skip this step for collector, data and bot-engine work with no
+visible surface.
+
+## 3. Spec: `/to-spec`, then `/to-tickets`
+
+Write the verdicts from steps 1 and 2 into a spec issue (labelled `ready-for-agent`) that
+names the prototype branch, then split it into tickets with their blocking edges. A
+feature small enough for one ticket still gets one, so `/implement-spec` has its frontier.
+
+## 4. Build and open the PR: `/implement-spec`
+
+Implement the tickets test-first (`tdd`, where tests exist: `discord-bot/` has them, the
+site and the collector are checked with `tools/page-check`, `tools/check_data.py` and the
+served page, per `CLAUDE.md`). Work on a `claude/<slug>` branch and open a **draft** PR
+that closes the spec and its tickets as soon as the branch has a commit.
+It stays a draft through steps 5 and 6: step 7 marks it ready, in place of
+`/implement-spec`'s own step 8.
+
+## 5. Review: `/code-review`
+
+Review the branch against `main` on both axes: `CODING_STANDARDS.md` (with every invariant
+in `CLAUDE.md`) and the spec. `/implement-spec` runs this as its own step 7; that run is the
+final review, so it isn't repeated. Fix every finding before moving on.
+
+## 6. Deepen: `/codebase-design`
+
+With the feature working and reviewed, read the code it touched for deepening
+opportunities: shallow modules, logic spread across callers, a seam in the wrong place.
+Make the ones inside the PR's own code, and keep each one checked the same way the feature
+was (tests, `page-check`, `check_data.py`, the served page). Anything wider becomes a note
+in the PR, not part of it.
+
+## 7. Update the PR
+
+Push, then rewrite the PR description to match what landed (Before / After, and How,
+including the design verdicts and the prototype branch), and mark it ready for review once
+CI is green. Remove the prototype worktree if `/grill-design` left one.
+
+In cloud sessions without the `gh` CLI, the GitHub tools do what `docs/agents/issue-tracker.md`
+lists.

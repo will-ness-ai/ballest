@@ -38,6 +38,12 @@ Multi-context repo (presence of `CONTEXT-MAP.md` at the root):
         └── docs/adr/
 ```
 
+## `CONTEXT.md` is the glossary
+
+The vendored `/domain-modeling` calls the glossary `GLOSSARY.md` (and a
+multi-context map `GLOSSARY-MAP.md`). In this repo it is `CONTEXT.md`: read and update that
+file, and never create a `GLOSSARY.md`.
+
 ## Use the glossary's vocabulary
 
 When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
