@@ -76,9 +76,10 @@ the result with `python tools/check_data.py --data scratch/data`: the run reads 
 writes a fresh copy of `data/`, so the whole write path runs and the committed data stays
 as it is.
 
-The site and the collector have no tests or type checks. `node tools/page-check/check.mjs`
-(after `npm ci` in that folder once) lints the page's script and its escaping, and CI runs
-it too. Verify front-end changes by loading the served page. After editing `index.html`, reload the page (a hash
+Every file is formatted by Prettier or Ruff and linted by ESLint or Ruff; run `pnpm check`
+at the root before pushing, and read `docs/linting.md` for setup, a disabled rule, or a
+branch from before the reformat. The site and the collector have no tests or type checks;
+`tools/page-check` (part of `pnpm lint`) lints the page's script and its escaping. Verify front-end changes by loading the served page. After editing `index.html`, reload the page (a hash
 change keeps the old script), and test the board's infinite scroll with a real wheel
 scroll: a scripted `scrollTo` does not trigger it in the preview pane. Verify collector changes with
 `python tools/check_data.py` (no Steam needed), then a live `--out` run if the read or
