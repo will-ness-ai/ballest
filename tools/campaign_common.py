@@ -547,8 +547,8 @@ def build_current(boards_out, group, name):
 
 def build_composite(boards_out):
     """The all-seasons board: each player's Overall points summed across every
-    season, ranked highest first. Each season counts once, through the first
-    Overall board boards_out lists for it. A player missing from a season simply adds
+    season, ranked highest first. Season 1 counts through S1_CURRENT_BOARD
+    when boards_out has it, not Steam's frozen board. A player missing from a season simply adds
     nothing for it, so a Season-2-only player ranks on Season 2 points alone.
 
     Ranks are sequential (1, 2, 3 ...) like every Steam board, because the
@@ -557,13 +557,12 @@ def build_composite(boards_out):
     row keeps the per-season parts under "seasons" so the site can show where
     a total came from. Rows carry persona/avatar copied from the source rows,
     which write_site then refreshes along with every other board."""
-    # A season's first Overall board is the one it shows: Season 1's current board,
-    # which derive() puts ahead of Steam's, and Season 2's live one.
-    overall, seen = [], set()
-    for b in boards_out:
-        if b["name"].startswith("Overall") and b["group"] not in seen:
-            seen.add(b["group"])
-            overall.append(b)
+    # Steam's Overall boards, except that Season 1 counts through its current board
+    steam = {n for n, _ in BOARDS}
+    overall = [b for b in boards_out if b["name"].startswith("Overall") and b["name"] in steam]
+    current = next((b for b in boards_out if b["name"] == S1_CURRENT_BOARD), None)
+    if current:
+        overall = [current if b["group"] == current["group"] else b for b in overall]
     players = {}
     for b in overall:
         for r in b["rows"]:
