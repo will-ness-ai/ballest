@@ -578,11 +578,11 @@ a.mkcard:hover b{color:var(--accent)}
   font-family:var(--f-hud);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 
 /* the centred dialogs: Compare, which picks the other player by name, and how the boards refresh */
-.cmp,.rfx{position:fixed;left:50%;top:12vh;z-index:41;transform:translateX(-50%);width:min(460px,calc(100% - 32px));
+.cmp,.rfx,.ptsx{position:fixed;left:50%;top:12vh;z-index:41;transform:translateX(-50%);width:min(460px,calc(100% - 32px));
   display:grid;gap:12px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--solid);
   box-shadow:0 20px 60px rgba(0,0,0,.6)}
-.cmp[hidden],.rfx[hidden],.dscrim[hidden]{display:none}
-.cmp h2,.rfx h2{margin:0;font-family:var(--f-hud);font-size:16px;overflow-wrap:anywhere}
+.cmp[hidden],.rfx[hidden],.ptsx[hidden],.dscrim[hidden]{display:none}
+.cmp h2,.rfx h2,.ptsx h2{margin:0;font-family:var(--f-hud);font-size:16px;overflow-wrap:anywhere}
 .rfx{max-height:76vh;overflow-y:auto}
 .rfx table{width:100%;border-collapse:collapse;font-size:13px}
 .rfx th,.rfx td{padding:8px;border-top:1px solid var(--line2);text-align:left;vertical-align:top;font-weight:400}
@@ -594,6 +594,17 @@ a.mkcard:hover b{color:var(--accent)}
 .rfx small{display:block;font-weight:500;color:var(--faint)}
 .rfx p{margin:0;font-size:12.5px;color:var(--dim)}
 .rfx p b{font-family:var(--f-hud);font-weight:600;color:var(--text)}
+/* how points work: the rule, then what a few places pay */
+.ptsx p{margin:0;font-size:13px;color:var(--dim)}
+.ptsx table{border-collapse:collapse;font-family:var(--f-hud);font-size:13px;font-variant-numeric:tabular-nums}
+.ptsx th,.ptsx td{padding:3px 0;text-align:left;font-weight:500;color:var(--dim)}
+.ptsx td{padding-left:28px;text-align:right;font-weight:600;color:var(--text)}
+/* the "?" that opens it: in the Points column head, and on a phone, where that head
+   is hidden, after the Overall card's line */
+.qmark{display:inline-grid;place-items:center;width:17px;height:17px;margin-left:6px;border:1px solid var(--line);
+  border-radius:50%;font-family:var(--f-hud);font-size:10.5px;font-weight:700;letter-spacing:0;color:var(--dim);
+  vertical-align:1px}
+.qmark:hover,.qmark:focus-visible{color:var(--accent);border-color:var(--accent)}
 .cmp .ws-q{max-width:none;width:100%}
 .hits{display:grid;gap:2px;max-height:50vh;overflow-y:auto}
 .hits p{margin:4px;font-size:13px;color:var(--faint)}
@@ -930,6 +941,7 @@ footer a{color:var(--dim)}
 
   /* the list */
   .board{margin:0;border-radius:var(--radius)}
+  .bc-by .qmark:not(.always){display:none}
   .head{display:grid;grid-template-columns:48px 26px minmax(160px,1fr) 176px;align-items:center;
     gap:12px;padding:9px 12px;font-family:var(--f-hud);font-size:10px;letter-spacing:.16em;
     text-transform:uppercase;color:var(--dim);font-weight:600;background:rgba(255,255,255,.035);
@@ -1115,6 +1127,11 @@ footer a{color:var(--dim)}
   hours to notice, plus a full read of every map once a day.</p>
   <p id="rfxSweep" hidden></p>
 </div>
+<div class="dscrim" id="ptsxScrim" hidden></div>
+<div class="ptsx" id="ptsx" role="dialog" aria-modal="true" aria-labelledby="ptsxHead" hidden>
+  <div class="dh"><h2 id="ptsxHead">How points work</h2><button type="button" data-ptsxclose aria-label="Close">&times;</button></div>
+  <div id="ptsxBody"></div>
+</div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Choose a leaderboard">
   <span class="grab" aria-hidden="true"></span>
   <h2 id="sheetHead">&nbsp;</h2>
@@ -1232,6 +1249,16 @@ function shortName(display){
 /* aggregate season boards are points, higher is better; a track board is a run time */
 const isPoints = board => board.name.startsWith("Overall");
 const value = (board, n) => isPoints(board) ? fmtN(n) : fmtTime(n);
+/* What one track pays toward Overall for a place: 1st pays POINTS_FIRST, 10th a tenth
+   of it, then it halves at every 10x in place. The game's own rule, as the collector
+   rebuilds Season 1's current board with it (track_points in tools/campaign_common.py);
+   if the game rescales, both change. */
+const POINTS_FIRST = 40000;
+function trackPoints(place){
+  if(place <= 10) return Math.floor(POINTS_FIRST / place);
+  const k = String(place - 1).length - 1;          /* place is in (10^k, 10^(k+1)] */
+  return Math.floor(POINTS_FIRST * 9 / 100 / 2 ** k + POINTS_FIRST * 5 ** k / 10 / place);
+}
 
 /* The collector no longer emits Trials at all. This stays as a guard so a
    stale or cached index.json cannot put The Tower back in the season tabs. */
@@ -1248,6 +1275,10 @@ function groupsOf(){
   });
 }
 const boardsIn = g => activeBoards().filter(b => b.group === g);
+/* Season 1 has two Overall boards: the one rebuilt from today's places, which the
+   season opens on and a player's page shows, and Steam's from when the season ended */
+const S1_CURRENT_BOARD = "OverallLeaderboard_S1Current";
+const overallOf = g => boardsIn(g).find(b => b.name === S1_CURRENT_BOARD) || boardsIn(g).find(isPoints);
 /* Workshop Maps are never a season: the rail, the podiums, the composite and the player
    page's Circuit tab all read activeBoards() and groupsOf(), which stay campaign-only.
    Loading a board, the board view's meta line and playerRecord also know about Maps. */
@@ -1385,18 +1416,22 @@ function trackCard(b, t, rows){
       ${!rows ? `<p class="sp-cap">Loading</p>` : t ? spreadHtml(rows.map(r => r.score_ms), t.medals, true) : ""}
       ${t ? `<p class="bc-cap">Track screenshot from the game.</p>` : ""}</div>`;
 }
+/* how many tracks an Overall board adds up: its season's, or for the all-seasons
+   board, which has none of its own, every track */
+function trackCount(b){
+  const count = list => list.filter(x => !isPoints(x)).length;
+  return count(boardsIn(b.group)) || count(activeBoards());
+}
 /* where a track has its screenshot, the Overall board has its top six as bars, drawn
    by the order in use */
 function overallCard(b, rows){
-  /* a season's tracks; the all-seasons board has none of its own, so every track */
-  const count = list => list.filter(x => !isPoints(x)).length;
-  const tracks = tally ? tally.tracks : count(boardsIn(b.group)) || count(activeBoards());
+  const tracks = tally ? tally.tracks : trackCount(b);
   /* the tally ranks golds first, so the most podiums need not be the top one */
   const most = tally && tally.players.length
     ? tally.players.reduce((a, p) => podiumTotal(p) > podiumTotal(a) ? p : a) : null;
   return `<div class="stand">${order.stand(rows)}</div>
     <div class="bc-body"><div class="bc-top"><div><h1>${esc(shortName(b.display))}</h1>
-      <span class="bc-by">${esc(b.group)} &middot; points${tally ? " and podiums" : ""} across all ${fmtN(tracks)} tracks</span></div>
+      <span class="bc-by">${esc(b.group)} &middot; points${tally ? " and podiums" : ""} across all ${fmtN(tracks)} tracks${order === BY_SCORE ? QMARK : QMARK_ALWAYS}</span></div>
       ${factsHtml([["Players", fmtN(b.entry_count)], ["Leader", rows[0] ? nameHtml(rows[0]) : "&mdash;"]]
         .concat(most ? [["Most podiums", nameHtml(most) + " &middot; " + podiumTotal(most)]] : []))}</div></div>`;
 }
@@ -1497,11 +1532,17 @@ function podRowHtml(p){
   </div>`;
 }
 
+/* the "?" that opens how points work. On a desktop the Points column head carries it,
+   so the card's copy shows only on a phone, or when the board is sorted by podiums
+   and there is no Points column */
+const QMARK = `<button type="button" class="qmark" data-ptsx aria-label="How points work">?</button>`;
+const QMARK_ALWAYS = QMARK.replace(`class="qmark"`, `class="qmark always"`);
+
 /* ---------- the list, chunked ---------- */
 function headHtml(){
   return `<div class="head"><span>#</span><span></span><span>Player</span>
     ${tally ? `<span class="c-pods">Podiums</span>` : ""}
-    <span class="c-score">${order.scoreHead()}</span></div>`;
+    <span class="c-score">${order.scoreHead()}${order === BY_SCORE && isPoints(boardData) ? QMARK : ""}</span></div>`;
 }
 function renderMore(){
   if(!boardData || shown >= visible.length) return;
@@ -1706,7 +1747,7 @@ function playerRecord(doc, id){
       if(!tiers.length || tiers[tiers.length-1].tier !== tier) tiers.push({tier, tracks: []});
       tiers[tiers.length-1].tracks.push(byName.get(b.name));
     }
-    const overall = boardsIn(group).find(isPoints);
+    const overall = overallOf(group);
     return {group, overall: (overall && by[overall.name]) || null, tiers};
   }).filter(s => s.tiers.length);
   const comp = compositeBoard();
@@ -2272,6 +2313,34 @@ function closeRefresh(){
 $("#freshness").onclick = openRefresh;
 $("#rfxScrim").onclick = closeRefresh;
 $("#rfx [data-rfxclose]").onclick = closeRefresh;
+/* how points work: opened from the "?" on an Overall board. Season 1 has two
+   Overall boards, so there it also says which one this is */
+let ptsxFrom = null;
+function openPoints(from){
+  /* a season's tracks; the all-seasons board has none of its own, so every track */
+  const b = boardMeta(), tracks = b ? trackCount(b) : 0;
+  const which = !b ? "" : b.name === S1_CURRENT_BOARD
+      ? `<p>These are worked out from today's places on the Season 1 tracks. Final has the standings when the season ended.</p>`
+    : b.name === "OverallLeaderboard"
+      ? `<p>These are the standings when Season 1 ended. Places have moved since; Current has them as they are now.</p>`
+    : "";
+  $("#ptsxBody").innerHTML = `<p>Every track pays points for your place on it, and past 10th the payout halves at
+    every 10&times; in place. Your points are what all
+    ${fmtN(tracks)} tracks pay you, added up.</p>
+    <table><tbody>${[1, 2, 3, 10, 100, 1000, 10000].map(r =>
+      `<tr><th scope="row">${fmtN(r) + ord(r).replace(/^\d+/, "")}</th><td>${fmtN(trackPoints(r))}</td></tr>`).join("")}</tbody></table>${which}`;
+  ptsxFrom = from;
+  $("#ptsxScrim").hidden = $("#ptsx").hidden = false;
+  $("#ptsx [data-ptsxclose]").focus();
+}
+function closePoints(){
+  if($("#ptsx").hidden) return;
+  $("#ptsxScrim").hidden = $("#ptsx").hidden = true;
+  if(ptsxFrom && ptsxFrom.isConnected) ptsxFrom.focus();
+}
+document.addEventListener("click", e => { const q = e.target.closest("[data-ptsx]"); if(q) openPoints(q); });
+$("#ptsxScrim").onclick = closePoints;
+$("#ptsx [data-ptsxclose]").onclick = closePoints;
 /* aria-modal: keep Tab inside the dialog, as the sheet does */
 function trapTab(e, box){
   const items = [...box.querySelectorAll("button,input")];
@@ -2960,9 +3029,10 @@ function closeSheet(){
 $("#boardBtn").onclick = openSheet;
 $("#scrim").onclick = closeSheet;
 addEventListener("keydown", e => {
-  if(e.key === "Escape"){ closeSheet(); closeCompare(); closeRefresh(); if(drawerOpen){ drawerOpen = false; renderMaps(); } return; }
+  if(e.key === "Escape"){ closeSheet(); closeCompare(); closeRefresh(); closePoints(); if(drawerOpen){ drawerOpen = false; renderMaps(); } return; }
   if(e.key === "Tab" && cmp){ trapTab(e, $("#cmp")); return; }
   if(e.key === "Tab" && !$("#rfx").hidden){ trapTab(e, $("#rfx")); return; }
+  if(e.key === "Tab" && !$("#ptsx").hidden){ trapTab(e, $("#ptsx")); return; }
   if(e.key !== "Tab" || !sheetOpen) return;
   /* aria-modal hides the rest of the page from assistive tech, so keyboard
      focus has to be kept inside the sheet to match */
@@ -2980,7 +3050,7 @@ $("#groups").addEventListener("click", e => {
   $("#q").value = ""; filtering = false;
   /* the route carries the board, and showBoard reads the season off it */
   go(t.dataset.g === WORKSHOP_GROUP ? "#/workshop" : t.dataset.g === PLAYERS_TAB ? plHash("all", "wr")
-    : boardHash(boardsIn(t.dataset.g)[0].name));
+    : boardHash((overallOf(t.dataset.g) || boardsIn(t.dataset.g)[0]).name));
 });
 function pickBoard(e){
   const t = e.target.closest("[data-b]"); if(!t) return;

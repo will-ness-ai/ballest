@@ -7,7 +7,8 @@ Used by:
 
 Pure stdlib so it imports under any Python the collectors run on.
 """
-import os, re, time, json, urllib.request, urllib.parse
+import os, re, math, time, json, urllib.request, urllib.parse
+from fractions import Fraction
 
 APP_ID = 3339810
 # Steam returns an entire board in one LBSGetLBEntries call at these sizes
@@ -98,6 +99,23 @@ BOARDS = (
 COMPOSITE_BOARD = "OverallLeaderboard_AllSeasons"
 COMPOSITE_GROUP = "All Seasons"
 
+# Steam's Season 1 Overall board stopped moving when the season ended: it holds the
+# standings as they were then, and only a fraction of the players on the Season 1
+# tracks. The site rebuilds a current one from today's track places with the game's
+# own points rule (track_points), derived like the composite, and lists it ahead of
+# Steam's so a season tab opens on it. Season 2's Overall board is live and is
+# shown as Steam has it.
+S1_CURRENT_BOARD = "OverallLeaderboard_S1Current"
+
+# What a place on one track pays toward Overall: 1st pays POINTS_FIRST, 2nd half
+# that, down to a tenth of it at 10th; past 10th the payout halves at every 10x in
+# place (100th, 1000th, ...) and falls smoothly in between. Each track's payout is
+# rounded down, then summed. Fitted on Season 2's live Overall board (70% of
+# players exact, the rest stale totals Steam has not recomputed) and confirmed by
+# the developers. The site states the same table (POINTS_FIRST in index.html); if
+# the game rescales, both change.
+POINTS_FIRST = 40000
+
 # Workshop Maps live apart from the campaign boards: their own list, data/workshop.json
 # (what the site's Workshop tab lists, and the collector's memory of what it last read),
 # and one board file per Map, data/workshop/<pfid>.json. They are not in BOARDS or
@@ -148,8 +166,12 @@ def display_name(name):
     *other* numbers (Map_Track13 is in-game 01) and only confuse, so those are
     the number alone. The season is carried by the "group" field, not repeated.
     """
-    if name in ("OverallLeaderboard", "OverallLeaderboard_EASeason2", COMPOSITE_BOARD):
+    if name in ("OverallLeaderboard_EASeason2", COMPOSITE_BOARD):
         return "Overall"
+    if name == S1_CURRENT_BOARD:
+        return "Current"
+    if name == "OverallLeaderboard":
+        return "Final"
     if name == "Map_TheTower":
         return "The Tower"
     n = track_number(name)
@@ -493,9 +515,40 @@ def tally_podiums(group, tracks, label):
     return {"group": group, "tracks": len(tracks), "players": ordered}
 
 
+def track_points(rank):
+    """What one track pays toward Overall for this place (see POINTS_FIRST)."""
+    if rank <= 10:
+        return POINTS_FIRST // rank
+    k = len(str(rank - 1)) - 1          # rank is in (10^k, 10^(k+1)]
+    return math.floor(Fraction(POINTS_FIRST * 9, 100 * 2 ** k) + Fraction(POINTS_FIRST * 5 ** k, 10 * rank))
+
+
+def build_current(boards_out, group, name):
+    """A season's Overall board rebuilt from its track boards as they stand: each
+    player's track_points summed over the season's tracks, ranked highest first.
+    Ranks are sequential and equal totals keep their order of first appearance,
+    as in build_composite. Rows carry persona/avatar copied from the track rows."""
+    players = {}
+    for b in boards_out:
+        if b["group"] != group or not b["name"].startswith("Map_"):
+            continue
+        for r in b["rows"]:
+            p = players.setdefault(r["steam_id"], {
+                "steam_id": r["steam_id"], "persona": r.get("persona", ""),
+                "avatar": r.get("avatar", ""), "profileurl": r.get("profileurl", ""),
+                "score_ms": 0})
+            p["score_ms"] += track_points(r["rank"])
+    rows = sorted(players.values(), key=lambda p: -p["score_ms"])
+    for i, p in enumerate(rows):
+        p["rank"] = i + 1
+    return {"name": name, "display": display_name(name), "group": group,
+            "tier": None, "handle": None, "entry_count": len(rows), "rows": rows}
+
+
 def build_composite(boards_out):
     """The all-seasons board: each player's Overall points summed across every
-    season, ranked highest first. A player missing from a season simply adds
+    season, ranked highest first. Season 1 counts through S1_CURRENT_BOARD
+    when boards_out has it, not Steam's frozen board. A player missing from a season simply adds
     nothing for it, so a Season-2-only player ranks on Season 2 points alone.
 
     Ranks are sequential (1, 2, 3 ...) like every Steam board, because the
@@ -504,7 +557,12 @@ def build_composite(boards_out):
     row keeps the per-season parts under "seasons" so the site can show where
     a total came from. Rows carry persona/avatar copied from the source rows,
     which write_site then refreshes along with every other board."""
-    overall = [b for b in boards_out if b["name"].startswith("Overall")]
+    # Steam's Overall boards, except that Season 1 counts through its current board
+    steam = {n for n, _ in BOARDS}
+    overall = [b for b in boards_out if b["name"].startswith("Overall") and b["name"] in steam]
+    current = next((b for b in boards_out if b["name"] == S1_CURRENT_BOARD), None)
+    if current:
+        overall = [current if b["group"] == current["group"] else b for b in overall]
     players = {}
     for b in overall:
         for r in b["rows"]:
@@ -622,6 +680,11 @@ def derive(boards_out, maps):
     Each artifact carries its own idea of empty, because only its builder knows
     what nothing looks like: no seasons, or a season with nobody on a podium, or
     a shard with no players."""
+    current = build_current(boards_out, "Season 1", S1_CURRENT_BOARD)
+    if current["rows"]:
+        # ahead of Steam's board, so it is the one the season opens on
+        at = next((i for i, b in enumerate(boards_out) if b["name"] == "OverallLeaderboard"), 0)
+        boards_out = boards_out[:at] + [current] + boards_out[at:]
     composite = build_composite(boards_out)
     if composite["rows"]:
         boards_out = boards_out + [composite]

@@ -4,8 +4,18 @@
   "player_count": 14059,
   "boards": [
     {
+      "name": "OverallLeaderboard_S1Current",
+      "display": "Current",
+      "group": "Season 1",
+      "tier": null,
+      "handle": null,
+      "entry_count": 5702,
+      "rows": 5702,
+      "file": "boards/OverallLeaderboard_S1Current.json"
+    },
+    {
       "name": "OverallLeaderboard",
-      "display": "Overall",
+      "display": "Final",
       "group": "Season 1",
       "tier": null,
       "handle": "17800972",
@@ -229,8 +239,8 @@
       "group": "All Seasons",
       "tier": null,
       "handle": null,
-      "entry_count": 13197,
-      "rows": 13197,
+      "entry_count": 13975,
+      "rows": 13975,
       "file": "boards/OverallLeaderboard_AllSeasons.json"
     }
   ]

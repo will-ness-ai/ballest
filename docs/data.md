@@ -9,8 +9,13 @@ here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
 - `data/boards/<board>.json`: one file per board, lazy-loaded on selection.
 - `data/boards/OverallLeaderboard_AllSeasons.json`: the one board Steam does not have,
   every season's Overall points summed per player (`build_composite` in
-  `tools/campaign_common.py`). Derived by the collector from the `Overall*` rows it just
-  read, so it is written and indexed like any other board and needs no leaderboard ID.
+  `tools/campaign_common.py`): Season 1 through its current board below, Season 2
+  through Steam's. Derived by the collector, so it is written and indexed like any other
+  board and needs no leaderboard ID.
+- `data/boards/OverallLeaderboard_S1Current.json`: Season 1's Overall points worked out
+  from today's track places (`build_current`, with the game's rule in `track_points`).
+  Steam's Season 1 board stopped when the season ended; the site lists this one ahead of
+  it as "Current" and Steam's as "Final". Derived and indexed like the composite.
 - `data/podiums.json`: per-season podium tally (who holds each track's top three),
   then one more entry, `All Seasons`, tallied over every season's tracks at once, for the
   all-seasons board (`build_podiums`). Derived by the collector from the board rows, and
@@ -34,7 +39,8 @@ here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
 from the board rows and where each file lands. `write_site` publishes that list,
 `check_data` compares the committed files against it, and neither restates the assembly.
 That matters because a shard's board indices are positions in exactly the board list
-`derive` builds: Circuit boards, composite, then every Map. A new derived artifact is one entry there, and is then
+`derive` builds: Circuit boards in `BOARDS` order with Season 1's current board just
+ahead of Steam's Season 1 Overall, the composite, then every Map. A new derived artifact is one entry there, and is then
 written, guarded and checked for free.
 
 ## Workshop Maps

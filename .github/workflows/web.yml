@@ -1,0 +1,33 @@
+name: Build web
+
+# Builds the Next.js app in web/ (docs/nextjs-migration.md), which today only
+# serves the root site files from public/. Once the repo is linked to Vercel its
+# preview deploys build every branch too; this stays as the check that needs no
+# Vercel account.
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["web/**", ".github/workflows/web.yml"]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
