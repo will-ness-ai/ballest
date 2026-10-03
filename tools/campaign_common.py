@@ -547,7 +547,8 @@ def build_current(boards_out, group, name):
 
 def build_composite(boards_out):
     """The all-seasons board: each player's Overall points summed across every
-    season, ranked highest first. A player missing from a season simply adds
+    season, ranked highest first. Each season counts once, through the first
+    Overall board boards_out lists for it. A player missing from a season simply adds
     nothing for it, so a Season-2-only player ranks on Season 2 points alone.
 
     Ranks are sequential (1, 2, 3 ...) like every Steam board, because the
@@ -556,8 +557,13 @@ def build_composite(boards_out):
     row keeps the per-season parts under "seasons" so the site can show where
     a total came from. Rows carry persona/avatar copied from the source rows,
     which write_site then refreshes along with every other board."""
-    steam = {n for n, _ in BOARDS}
-    overall = [b for b in boards_out if b["name"].startswith("Overall") and b["name"] in steam]
+    # A season's first Overall board is the one it shows: Season 1's current board,
+    # which derive() puts ahead of Steam's, and Season 2's live one.
+    overall, seen = [], set()
+    for b in boards_out:
+        if b["name"].startswith("Overall") and b["group"] not in seen:
+            seen.add(b["group"])
+            overall.append(b)
     players = {}
     for b in overall:
         for r in b["rows"]:
@@ -644,12 +650,12 @@ def derive(boards_out, maps):
     Each artifact carries its own idea of empty, because only its builder knows
     what nothing looks like: no seasons, or a season with nobody on a podium, or
     a shard with no players."""
-    composite = build_composite(boards_out)
     current = build_current(boards_out, "Season 1", S1_CURRENT_BOARD)
     if current["rows"]:
         # ahead of Steam's board, so it is the one the season opens on
         at = next((i for i, b in enumerate(boards_out) if b["name"] == "OverallLeaderboard"), 0)
         boards_out = boards_out[:at] + [current] + boards_out[at:]
+    composite = build_composite(boards_out)
     if composite["rows"]:
         boards_out = boards_out + [composite]
     seasons = build_podiums(boards_out)
