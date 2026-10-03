@@ -172,12 +172,20 @@ at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. 
 maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
 
+Most of these are `disable-model-invocation`, so the Skill tool refuses them, and Will usually
+writes through a project thread, so his `/to-spec`, `/implement-spec` or `/retro` reaches you as
+text. When his message names one, read `.claude/skills/<name>/SKILL.md` and follow it.
+
 ### Building a feature
 
 Plan with `/grill-with-docs`, settle anything players will see with `/grill-design`, write
 it up with `/to-spec` and `/to-tickets`, build it with `/implement-spec`, which opens the
 draft PR, then a final `/code-review`, a `/codebase-design` pass over the code it touched,
 and an updated PR. Once it is merged, run `/retro` on the sessions that built it. Each step and how it fits this repo: `docs/agents/feature-workflow.md`.
+
+A cloud session and a session on Will's PC often work one feature at once. Push to a branch you
+made or were handed; before pushing to anyone else's, `git fetch` it and look for an open PR from
+the other side, then push a merge on top of theirs, never a force.
 
 ### Issue tracker
 
