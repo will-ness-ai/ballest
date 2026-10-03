@@ -533,7 +533,7 @@ export interface ToastButton {
   readonly act: string
   readonly label: string
   /** "go" for the green button, "" for the plain one. */
-  readonly look: string
+  readonly look: "go" | ""
 }
 
 /** A message at the top: a refusal (red), or news (calm), with optional buttons. */

@@ -16,8 +16,11 @@ export const pingsState = (on: boolean) => `Lobby pings: ${on ? "on" : "off"}`
 /** Under the heading: "You have <role>." / "You don't have <role>." */
 export const pingsHave = (on: boolean, role: string) => (on ? `You have ${role}.` : `You don't have ${role}.`)
 
-/** The Activity's toast after the bell, with Undo. */
-export const pingsToast = (on: boolean) => (on ? `You have ${PING_ROLE_NAME}` : `You don't have ${PING_ROLE_NAME}`)
+/** The Activity's toast after the bell, with Undo: what the Pings reply says under its heading. */
+export const pingsToast = (on: boolean) => pingsHave(on, PING_ROLE_NAME)
+
+/** The toast's button that takes the bell's change back. */
+export const UNDO_PING = "Undo"
 
 /** The button that turns it on: on the Pings reply when off, and on the offer. */
 export const GET_PING = `Get ${PING_ROLE_NAME}`
@@ -33,5 +36,8 @@ export const pingOffer = (role: string, pings: string = PINGS_LABEL) =>
 /** What the offer becomes after No. */
 export const pingDeclined = (pings: string = PINGS_LABEL) => `${pingsState(false)}. Change it later from ${pings}.`
 
-/** Discord refused to read or change the role. */
+/** Discord refused to change the role. */
 export const PING_FAILED = `Discord didn't change ${PING_ROLE_NAME}. Try again in a moment.`
+
+/** Discord didn't say whether the member has the role: only a read failed, nothing was changed. */
+export const PING_UNREAD = `Discord didn't say whether you have ${PING_ROLE_NAME}. Try again in a moment.`

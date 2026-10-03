@@ -598,6 +598,28 @@ describe("Lobby pings", () => {
     })
   )
 
+  it.scoped("offers it only after a Join or an Accept", () =>
+    Effect.gen(function* () {
+      const { call, open } = yield* setup({ maps: [MAP] })
+      const matchId = yield* open(ALICE.discordId, lobby)
+      yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId })
+      const left = yield* call("POST", `/api/matches/${matchId}/leave`, { as: BOB.discordId })
+      expect(left.status).toBe(200)
+      expect(left.body.pingOffer ?? false).toBe(false)
+    })
+  )
+
+  it.scoped("lets a Join through without the offer while Discord can't say about the role", () =>
+    Effect.gen(function* () {
+      const { call, h, open } = yield* setup({ maps: [MAP] })
+      const matchId = yield* open(ALICE.discordId, lobby)
+      yield* h.role.setFailing(true)
+      const joined = yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId })
+      expect(joined.status).toBe(200)
+      expect(joined.body.pingOffer).toBe(false)
+    })
+  )
+
   it.scoped("doesn't offer it on a Join that was turned down", () =>
     Effect.gen(function* () {
       const { call, open } = yield* setup({ maps: [MAP] })

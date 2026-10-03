@@ -8,7 +8,7 @@
 // until Back to Matches.
 import { Common, DiscordSDK } from "@discord/embedded-app-sdk"
 import type { MatchType, Minutes } from "../../domain.js"
-import { DECLINE_PING, GET_PING, PING_ROLE_NAME, pingOffer, pingsToast } from "../../pingWords.js"
+import { DECLINE_PING, GET_PING, PING_ROLE_NAME, pingOffer, pingsToast, UNDO_PING } from "../../pingWords.js"
 import type { Challengeable, MatchView } from "../api.js"
 import type { PageConfig } from "../server.js"
 import * as V from "./view.js"
@@ -262,7 +262,7 @@ const setPings = (on: boolean, undo: boolean) =>
   act(async () => {
     const r = await api<{ pings: boolean }>("POST", "/api/pings", { on })
     if (ui.me !== null) ui.me = { ...ui.me, pings: r.pings }
-    showToast(pingsToast(r.pings), "info", undo ? [{ act: `pings-undo:${!r.pings}`, label: "Undo", look: "" }] : [])
+    showToast(pingsToast(r.pings), "info", undo ? [{ act: `pings-undo:${!r.pings}`, label: UNDO_PING, look: "" }] : [])
   })
 
 const failed = (e: unknown) => {

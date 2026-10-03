@@ -15,7 +15,7 @@ import {
   type BaseMessageOptions
 } from "discord.js"
 import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js"
-import { DECLINE_PING, GET_PING, pingDeclined, pingOffer, PINGS_LABEL, pingsHave, pingsState, REMOVE_PING } from "../pingWords.js"
+import { DECLINE_PING, GET_PING, PING_FAILED, pingDeclined, pingOffer, PINGS_LABEL, pingsHave, pingsState, REMOVE_PING } from "../pingWords.js"
 import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js"
 import { RESULT_HUE, START_HUE } from "../render/art.js"
 import type { CardView, KeptReason, ThreadPost } from "../ports.js"
@@ -363,3 +363,10 @@ export const pingOfferMessage = (roleId: string): Payload => ({
 
 /** What the offer becomes after No. */
 export const pingDeclinedMessage = (): Payload => ({ content: pingDeclined(PINGS_BOLD), components: [], ...quiet })
+
+/**
+ * A Get or Remove that Discord refused: the same reply's text with the failure line below it
+ * (once, however often it fails), so its buttons stay to try again and nothing new piles up.
+ */
+export const withPingFailure = (content: string) =>
+  `${content.split("\n").filter((line) => line !== PING_FAILED).join("\n")}\n${PING_FAILED}`

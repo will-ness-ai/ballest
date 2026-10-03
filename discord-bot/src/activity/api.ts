@@ -7,7 +7,7 @@ import { type Action, ACTIONS, actionsFor, DURATIONS, involves, type Match, type
 import { Engine, type Rejection } from "../engine.js"
 import { explain } from "../explain.js"
 import { PING_FAILED } from "../pingWords.js"
-import { Pings } from "../pings.js"
+import { Pings, warnPingRole } from "../pings.js"
 import { type CardView, cardView, MatchLinks, type ProfilePreview, type RemovalReason, Store } from "../ports.js"
 import { DiscordAuth, DiscordMembers } from "./auth.js"
 
@@ -142,12 +142,15 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: { 
     return view
   })
 
-  /** A Match as it stands (null once it's gone), with the server's clock for the countdowns, and anything `extra`. */
-  const reply = Effect.fn("reply")(function* (m: Option.Option<Match>, discordId: string, extra: Readonly<Record<string, unknown>> = {}) {
+  /**
+   * A Match as it stands (null once it's gone), with the server's clock for the countdowns, and,
+   * after a member's own action on it, whether to offer them the ping role.
+   */
+  const reply = Effect.fn("reply")(function* (m: Option.Option<Match>, discordId: string, pingOffer?: boolean) {
     return json({
       now: yield* Clock.currentTimeMillis,
       match: Option.isSome(m) ? yield* viewOf(m.value, discordId) : null,
-      ...extra
+      ...(pingOffer === undefined ? {} : { pingOffer })
     })
   })
 
@@ -185,7 +188,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: { 
             link: Option.match(link, { onNone: () => null, onSome: (l) => ({ steamId: l.steamId, personaName: l.personaName }) }),
             matchId: active?.id ?? null,
             // Null when Discord can't say just now: the rest of the page still works.
-            pings: Option.getOrNull(yield* Effect.option(pings.status(discordId)))
+            pings: yield* pings.status(discordId).pipe(Effect.catchTag("PingRoleUnavailable", () => Effect.succeed(null)))
           })
         })
       )
@@ -312,11 +315,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: { 
           const known = ACTIONS.find((a) => a === action)
           if (known === undefined) return yield* new NotFound({ closed: null })
           yield* engine[known](discordId, id)
-          const match = yield* store.getMatch(id)
-          if (known !== "join" && known !== "accept") return yield* reply(match, discordId)
-          // The Join or Accept went through either way: if Discord can't say about the role, no offer this time.
-          const pingOffer = yield* pings.offerFor(discordId).pipe(Effect.orElseSucceed(() => false))
-          return yield* reply(match, discordId, { pingOffer })
+          return yield* reply(yield* store.getMatch(id), discordId, yield* pings.offerAfter(known, discordId))
         })
       )
     )
@@ -330,7 +329,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: { 
           json({ error: "NotMember", message: "Multiballs only runs in the Ballest server. Open it from a channel there." }, 403)
         ),
       PingRoleUnavailable: (e) =>
-        Effect.logWarning(`ping role: ${e.reason}`).pipe(Effect.as(json({ error: "PingRoleUnavailable", message: PING_FAILED }, 503))),
+        warnPingRole(e).pipe(Effect.as(json({ error: "PingRoleUnavailable", message: PING_FAILED }, 503))),
       DiscordUnavailable: () => Effect.succeed(json({ error: "DiscordUnavailable", message: "Discord didn't answer. Try again in a moment." }, 503)),
       NotFound: (e) => Effect.succeed(json({ error: "NotFound", closed: e.closed }, 404)),
       RouteNotFound: () => Effect.succeed(json({ error: "NotFound", closed: null }, 404)),

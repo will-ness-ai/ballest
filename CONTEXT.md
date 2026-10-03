@@ -89,8 +89,10 @@ Each one is announced in the Match Thread as it happens.
 _Avoid_: PB, split, update
 
 **Footer**:
-The bot's message at the bottom of its channel, offering New Match and Link Steam. The
-next Match Card is made by editing it, and a fresh Footer is posted below.
+The bot's message at the bottom of its channel, offering New Match, Link Steam and Pings
+(the @Multiplayer ping role). The next Match Card is made by editing it, and a fresh Footer
+is posted below; a Lobby's Card is posted as a new message instead, so its mention of
+@Multiplayer ping notifies, and the old Footer is deleted.
 _Avoid_: sticky, pinned message
 
 **Result**:

@@ -14,7 +14,8 @@ import {
   pingDeclinedMessage,
   pingOfferMessage,
   pingsMessage,
-  threadMessage
+  threadMessage,
+  withPingFailure
 } from "../src/discord/messages.js"
 import { ThreadPost } from "../src/ports.js"
 import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js"
@@ -97,6 +98,18 @@ describe("Lobby pings, privately", () => {
     ])
     expect(styles(offer)).toEqual([ButtonStyle.Success, ButtonStyle.Secondary])
     pingsNobody(offer)
+  })
+
+  it("a failed Get or Remove adds the failure line to the same reply, once", () => {
+    const failed = withPingFailure(pingOfferMessage(ROLE).content ?? "")
+    expect(failed).toBe(
+      "Get <@&555> to hear when someone opens a Lobby. Change it later from **Pings**.\nDiscord didn't change @Multiplayer ping. Try again in a moment."
+    )
+    // Failing again doesn't stack the line.
+    expect(withPingFailure(failed)).toBe(failed)
+    expect(withPingFailure(pingsMessage(false, ROLE).content ?? "")).toBe(
+      "**Lobby pings: off**\nYou don't have <@&555>.\nDiscord didn't change @Multiplayer ping. Try again in a moment."
+    )
   })
 
   it("No turns the offer into a line with no buttons", () => {

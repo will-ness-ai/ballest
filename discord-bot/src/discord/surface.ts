@@ -74,6 +74,10 @@ const logFailure = (e: ChannelError) =>
       ? Effect.logError("drawing an image failed", e.cause)
       : Effect.logError(`discord ${describeDiscordError(e)}`)
 
+/** Try a Channel call up to twice more, unless what it acts on is gone. */
+const retryUnlessGone = <A, E extends ChannelError>(effect: Effect.Effect<A, E>) =>
+  effect.pipe(Effect.retry({ times: 2, while: (e: E) => e._tag !== "Gone" }))
+
 /** Deleting or closing something already gone counts as done. */
 const unlessGone = <E extends ChannelError>(effect: Effect.Effect<void, E>) =>
   effect.pipe(Effect.catchAll((e) => (e._tag === "Gone" ? Effect.void : logFailure(e))))
@@ -134,8 +138,7 @@ const make = Effect.gen(function* () {
 
   /** Start a Card's Match Thread, retrying twice, and open it with the clock. None if it won't start. */
   const startThread = Effect.fn("startThread")(function* (matchId: string, messageId: string, view: CardView) {
-    const threadId = yield* channel.startThread(messageId, view).pipe(
-      Effect.retry({ times: 2, while: (e) => e._tag !== "Gone" }),
+    const threadId = yield* retryUnlessGone(channel.startThread(messageId, view)).pipe(
       Effect.tapError((e) => logFailure(e)),
       Effect.option
     )
@@ -182,7 +185,7 @@ const make = Effect.gen(function* () {
             Effect.catchTag("Gone", () => channel.post(card))
           )
     if (footerId !== null && footerId !== messageId)
-      yield* unlessGone(channel.deleteMessage(footerId).pipe(Effect.retry({ times: 2, while: (e) => e._tag !== "Gone" })))
+      yield* unlessGone(retryUnlessGone(channel.deleteMessage(footerId)))
     yield* setFooter(null)
     yield* setCard(view.matchId, { messageId, threadId: null, clockId: null })
     yield* startThread(view.matchId, messageId, view)
