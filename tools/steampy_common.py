@@ -7,6 +7,7 @@ the logged-in client's websocket directly: steam.py's own leaderboard calls fail
 app (see find_board_id). Send these one at a time. With several in flight, the CM
 silently drops replies.
 """
+
 import campaign_common as cc
 
 import steam
@@ -56,13 +57,16 @@ def _ugc(val):
 
 def board_rows(entries):
     """The site's row shape for a board's entries, names left for write_site to fill."""
-    return [{
-        "rank": e.global_rank,
-        "steam_id": str(e.steam_id_user),
-        "score_ms": int(e.score),
-        "time": cc.fmt_time(e.score),
-        "ugc_id": _ugc(e.ugc_id),
-    } for e in entries]
+    return [
+        {
+            "rank": e.global_rank,
+            "steam_id": str(e.steam_id_user),
+            "score_ms": int(e.score),
+            "time": cc.fmt_time(e.score),
+            "ugc_id": _ugc(e.ugc_id),
+        }
+        for e in entries
+    ]
 
 
 async def find_board_id(client, name):
@@ -72,7 +76,8 @@ async def find_board_id(client, name):
     it leaves the message header's routing_app_id unset; the CM only resolves a name
     when the request is routed under the app, as the game's SDK session does."""
     msg = leaderboards.CMsgClientLbsFindOrCreateLb(
-        app_id=cc.APP_ID, leaderboard_name=name, create_if_not_found=False)
+        app_id=cc.APP_ID, leaderboard_name=name, create_if_not_found=False
+    )
     msg.header.routing_app_id = cc.APP_ID
     resp = await client._state.ws.send_proto_and_wait(msg)
     if resp.result != steam.Result.OK:

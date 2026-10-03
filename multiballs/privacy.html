@@ -1,44 +1,127 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Multiballs Privacy Policy</title>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Bungee&display=swap">
-<style>
-/* The site's tokens (index.html :root). Dark-only, like the site. */
-:root{--bg:#0a1020;--line:rgba(150,175,245,.18);--text:#eaf0ff;--dim:#93a2c8;--accent:#8be03c;
-  --f-marquee:'Bungee',system-ui,sans-serif;--f-body:'Archivo',system-ui,sans-serif}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.6 var(--f-body)}
-main{max-width:720px;margin:0 auto;padding:40px 16px 80px}
-h1{font:400 28px/1.2 var(--f-marquee);margin:0 0 6px}
-h2{font-size:18px;margin:32px 0 8px}
-.date{color:var(--dim);margin:0 0 24px}
-a{color:var(--accent)}
-ul{padding-left:22px}li{margin:6px 0}
-footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--dim)}
-</style>
-</head>
-<body>
-<main>
-<h1>Multiballs Privacy Policy</h1>
-<p class="date">Last updated 27 September 2026.</p>
-<p>Multiballs is an unofficial community app for Ballest of Them All. It runs timed Matches in the Ballest Discord server, as a bot in its channel and as a Discord Activity. This page says what it keeps about you and why.</p>
-<h2>What it keeps</h2>
-<ul><li><b>Your Link:</b> your Discord user ID, the SteamID64 you linked, and your Steam name at the time. It needs these to know whose times to read.</li><li><b>Matches:</b> who played, when, on which Map, and each time you set during the Match. Finished Matches are kept.</li><li><b>Logs:</b> short technical logs of what the bot did, which can include Discord and Steam IDs. They stay only as long as the host keeps logs, and are never used for anything but fixing the bot.</li></ul>
-<h2>What it reads but doesn't keep</h2>
-<ul><li><b>From Discord:</b> your name in the server, to show on the board. When you open the Activity, Discord gives it a sign-in token that says who you are. The token is held in memory for up to ten minutes and never saved. The Activity can also set your Discord status (for example "In a Match") while it's open.</li><li><b>From Steam:</b> your public profile when you link, and your times on Workshop Maps' public leaderboards.</li></ul>
-<p>It doesn't read your messages, and it doesn't use analytics or advertising.</p>
-<h2>Who can see it</h2>
-<p>Matches are public in the server: their Cards, Match Threads and the Activity show each Player's name, marble, times and Medals to everyone there. Nothing is sold or shared with anyone else.</p>
-<p>The bot runs on Fly.io (in the United States), which stores its database and logs.</p>
-<h2>Your choices</h2>
-<p>You can link a different Steam account at any time, except during a Match. To have your Link and your Matches deleted, ask in the Ballest Discord server or open an issue at <a href="https://github.com/will-ness-ai/ballest/issues">https://github.com/will-ness-ai/ballest/issues</a>. We'll delete them within 30 days.</p>
-<h2>Changes</h2>
-<p>If this policy changes, this page changes too, with a new date at the top.</p>
-<footer><a href="terms.html">Terms of Service</a> · <a href="/">Ballest leaderboards</a></footer>
-</main>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Multiballs Privacy Policy</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Bungee&display=swap"
+    />
+    <style>
+      /* The site's tokens (index.html :root). Dark-only, like the site. */
+      :root {
+        --bg: #0a1020;
+        --line: rgba(150, 175, 245, 0.18);
+        --text: #eaf0ff;
+        --dim: #93a2c8;
+        --accent: #8be03c;
+        --f-marquee: "Bungee", system-ui, sans-serif;
+        --f-body: "Archivo", system-ui, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 400 16px/1.6 var(--f-body);
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 40px 16px 80px;
+      }
+      h1 {
+        font: 400 28px/1.2 var(--f-marquee);
+        margin: 0 0 6px;
+      }
+      h2 {
+        font-size: 18px;
+        margin: 32px 0 8px;
+      }
+      .date {
+        color: var(--dim);
+        margin: 0 0 24px;
+      }
+      a {
+        color: var(--accent);
+      }
+      ul {
+        padding-left: 22px;
+      }
+      li {
+        margin: 6px 0;
+      }
+      footer {
+        margin-top: 40px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+        color: var(--dim);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Multiballs Privacy Policy</h1>
+      <p class="date">Last updated 27 September 2026.</p>
+      <p>
+        Multiballs is an unofficial community app for Ballest of Them All. It runs timed Matches in
+        the Ballest Discord server, as a bot in its channel and as a Discord Activity. This page
+        says what it keeps about you and why.
+      </p>
+      <h2>What it keeps</h2>
+      <ul>
+        <li>
+          <b>Your Link:</b> your Discord user ID, the SteamID64 you linked, and your Steam name at
+          the time. It needs these to know whose times to read.
+        </li>
+        <li>
+          <b>Matches:</b> who played, when, on which Map, and each time you set during the Match.
+          Finished Matches are kept.
+        </li>
+        <li>
+          <b>Logs:</b> short technical logs of what the bot did, which can include Discord and Steam
+          IDs. They stay only as long as the host keeps logs, and are never used for anything but
+          fixing the bot.
+        </li>
+      </ul>
+      <h2>What it reads but doesn't keep</h2>
+      <ul>
+        <li>
+          <b>From Discord:</b> your name in the server, to show on the board. When you open the
+          Activity, Discord gives it a sign-in token that says who you are. The token is held in
+          memory for up to ten minutes and never saved. The Activity can also set your Discord
+          status (for example "In a Match") while it's open.
+        </li>
+        <li>
+          <b>From Steam:</b> your public profile when you link, and your times on Workshop Maps'
+          public leaderboards.
+        </li>
+      </ul>
+      <p>It doesn't read your messages, and it doesn't use analytics or advertising.</p>
+      <h2>Who can see it</h2>
+      <p>
+        Matches are public in the server: their Cards, Match Threads and the Activity show each
+        Player's name, marble, times and Medals to everyone there. Nothing is sold or shared with
+        anyone else.
+      </p>
+      <p>The bot runs on Fly.io (in the United States), which stores its database and logs.</p>
+      <h2>Your choices</h2>
+      <p>
+        You can link a different Steam account at any time, except during a Match. To have your Link
+        and your Matches deleted, ask in the Ballest Discord server or open an issue at
+        <a href="https://github.com/will-ness-ai/ballest/issues"
+          >https://github.com/will-ness-ai/ballest/issues</a
+        >. We'll delete them within 30 days.
+      </p>
+      <h2>Changes</h2>
+      <p>If this policy changes, this page changes too, with a new date at the top.</p>
+      <footer>
+        <a href="terms.html">Terms of Service</a> · <a href="/">Ballest leaderboards</a>
+      </footer>
+    </main>
+  </body>
 </html>

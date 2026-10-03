@@ -96,7 +96,7 @@ running the bot.
 ## Invariants worth knowing before you edit
 
 **`score_ms` is two different things, and its name lies in both.** On `Map_*` boards it
-is a run time in *hundred-thousandths of a second* — seconds = `score_ms / 100000`, lower
+is a run time in _hundred-thousandths of a second_ — seconds = `score_ms / 100000`, lower
 is better — **not** milliseconds. On `Overall*` boards it is points and higher is better,
 and the collector's sibling `time` field is meaningless for those rows. The site
 discriminates on the name prefix alone (`isPoints` in `index.html`); gap arithmetic, column
@@ -105,7 +105,7 @@ board not named `Overall*`, silently renders a point total as a duration.
 
 The unit is pinned by two independent checks, so don't "correct" it back: every Workshop
 map publishes its own medal times in seconds, and under `/100000` each world record lands
-10-56% faster than that map's author medal (under `/1000` each would be 27-90x *slower*
+10-56% faster than that map's author medal (under `/1000` each would be 27-90x _slower_
 than author, which no finished run can be); and the board shapes come out right, with
 `Map_Track13` reading 0:10.267 / 0:12.541 / 1:46 for best / median / worst. Do the
 conversion through `SCORE_TICKS_PER_SECOND` (`tools/campaign_common.py`, `index.html`)

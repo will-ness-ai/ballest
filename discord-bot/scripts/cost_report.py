@@ -48,8 +48,12 @@ def payment_line(app: str) -> str:
         return f"• Payment status unavailable ({type(e).__name__})"
     if status == "CURRENT" and card:
         return "• Payment: billing current, card on file"
-    problems = ([f"billing status {status}"] if status != "CURRENT" else []) + ([] if card else ["no card on file"])
-    return f"• ⚠ Payment: {', '.join(problems)} (without a card Fly stops the machine after 5 minutes)"
+    problems = ([f"billing status {status}"] if status != "CURRENT" else []) + (
+        [] if card else ["no card on file"]
+    )
+    return (
+        f"• ⚠ Payment: {', '.join(problems)} (without a card Fly stops the machine after 5 minutes)"
+    )
 
 
 def auth_header(token: str) -> str:
@@ -61,7 +65,9 @@ def fly_token() -> str:
     token = os.environ.get("FLY_API_TOKEN")
     if token:
         return token
-    return subprocess.run([FLY, "auth", "token"], check=True, capture_output=True, text=True).stdout.strip()
+    return subprocess.run(
+        [FLY, "auth", "token"], check=True, capture_output=True, text=True
+    ).stdout.strip()
 
 
 def machine_month(m: dict) -> float:
@@ -90,10 +96,15 @@ def report(app: str) -> str:
         cost = v["size_gb"] * VOLUME_GB_MONTH
         total += cost
         lines.append(f"• Volume `{v['name']}` · {v['size_gb']} GB · ~${cost:.2f}/mo")
-        snapshot_gb += sum(s.get("size", 0) for s in fly("volumes", "snapshots", "list", v["id"], "-a", app)) / 1e9
+        snapshot_gb += (
+            sum(s.get("size", 0) for s in fly("volumes", "snapshots", "list", v["id"], "-a", app))
+            / 1e9
+        )
     snap_cost = max(0.0, snapshot_gb - SNAPSHOT_FREE_GB) * SNAPSHOT_GB_MONTH
     total += snap_cost
-    lines.append(f"• Snapshots · {snapshot_gb:.2f} GB · ~${snap_cost:.2f}/mo (first {SNAPSHOT_FREE_GB} GB free)")
+    lines.append(
+        f"• Snapshots · {snapshot_gb:.2f} GB · ~${snap_cost:.2f}/mo (first {SNAPSHOT_FREE_GB} GB free)"
+    )
     lines.append(payment_line(app))
     flag = "" if total <= BUDGET else f" ⚠ over the ${BUDGET:.2f} budget"
     return "\n".join(
@@ -112,7 +123,9 @@ def main() -> None:
         print(text)
         return
     body = json.dumps({"content": text}).encode()
-    req = urllib.request.Request(url, body, {"Content-Type": "application/json", "User-Agent": "multiballs-cost-report"})
+    req = urllib.request.Request(
+        url, body, {"Content-Type": "application/json", "User-Agent": "multiballs-cost-report"}
+    )
     urllib.request.urlopen(req).close()
 
 

@@ -12,12 +12,14 @@ The token is long-lived; re-run this only if CI later reports the token expired.
 Run:  (from repo root, in the steam.py venv — see tools/README-hosting.md)
       python tools/steampy_mint.py
 """
+
 import os, sys, getpass, logging
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import campaign_common as cc
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
 import steam
@@ -57,8 +59,12 @@ async def on_ready():
         lid = cc.LEADERBOARD_IDS["OverallLeaderboard_EASeason2"]
         msg = await client._state.ws.send_proto_and_wait(
             leaderboards.CMsgClientLbsGetLbEntries(
-                leaderboard_id=lid, app_id=cc.APP_ID,
-                range_start=1, range_end=5, leaderboard_data_request=0, steamids=[],
+                leaderboard_id=lid,
+                app_id=cc.APP_ID,
+                range_start=1,
+                range_end=5,
+                leaderboard_data_request=0,
+                steamids=[],
             )
         )
         print(f"  board id={lid} entry_count={msg.leaderboard_entry_count}")
@@ -72,6 +78,7 @@ async def on_ready():
             print("\n⚠ Logged in but read 0 entries — tell Claude; may need a fallback.")
     except Exception:
         import traceback
+
         traceback.print_exc()
         print("\n⚠ Login succeeded but the validation read failed — share this output.")
     finally:
