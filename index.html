@@ -3128,6 +3128,131 @@ Promise.all([fetch("data/index.json").then(r => r.json()), podiumsReq, workshopR
       <code>data/index.json</code> is missing or unreadable. If you are running this locally,
       the collector needs to run first.</div>`;
   });
+
+/* ======================= PROTOTYPE: per-track points (grill-design) =======================
+   Throwaway. Redefines tileHtml and seasonHtml (later declarations win) with five
+   placements of a track's points, picked by ?variant=A..E; ?state=lag fakes Steam's
+   season total running ahead so the sync warning shows. Never merged. */
+const PROTO_VARIANTS = [
+  {key:"A", name:"Name-row corner", desc:"Points top right on the track-name row, plain white. Nothing else moves."},
+  {key:"B", name:"Swap the top-%", desc:"Points take the bottom-right corner in accent green; top-% is dropped."},
+  {key:"C", name:"Second hero number", desc:"Points get the big slot on the rank line; the gap moves down beside the time."},
+  {key:"D", name:"Payout band", desc:"A footer band replaces the bar, filled by share of 40,000, reading the points."},
+  {key:"E", name:"Quiet line + tier sums", desc:"Points small on the time line; each tier label carries its subtotal."},
+];
+const PROTO_STATES = [{key:"live", name:"Real data"}, {key:"lag", name:"Steam lagging"}];
+const protoParam = (k, list) => { const v = new URLSearchParams(location.search).get(k);
+  return list.find(x => x.key === v) || list[0]; };
+const protoSet = (k, v) => { const u = new URL(location.href); u.searchParams.set(k, v);
+  history.replaceState(null, "", u); protoPaint(); route(); };
+
+function tileHtml(t, id){
+  const V = protoParam("variant", PROTO_VARIANTS).key;
+  if(!t.finish) return `<span class="ptile untimed"><span class="pt-top"><span class="pt-name">${esc(t.display)}</span></span>
+    <span class="pt-rank">&mdash;</span><span class="pt-time">no time</span></span>`;
+  const f = t.finish, pts = trackPoints(f.rank), P = fmtN(pts);
+  const gap = f.rank === 1 ? "record" : shortGap(f.score - f.lead);
+  const rank = `<span class="pt-rank">${f.rank}<sup>${ord(f.rank).slice(-2)}</sup><span class="pt-of">/${fmtN(t.field)}</span></span>`;
+  const bar = `<span class="pt-bar"><i style="--w:${Math.max(0, Math.round((1 - (f.rank-1)/t.field) * 100))}%"></i></span>`;
+  const open = `<a class="ptile${V === "D" ? " vd" : ""}" data-m="${f.rank<=3 ? f.rank : 0}" href="${esc(boardHash(t.name, id))}">`;
+  const name = extra => `<span class="pt-top"><span class="pt-name">${esc(t.display)}</span>${extra || ""}</span>`;
+  if(V === "A") return `${open}${name(`<span class="pts-a">${P}<small>pts</small></span>`)}
+    <span class="pt-line">${rank}<span class="pt-gap">${gap}</span></span>
+    <span class="pt-time">${fmtTime(f.score)}</span><span class="pt-pct">${pctOf(t)}</span>${bar}</a>`;
+  if(V === "B") return `${open}${name()}
+    <span class="pt-line">${rank}<span class="pt-gap">${gap}</span></span>
+    <span class="pt-time">${fmtTime(f.score)}</span><span class="pts-b">${P}<small>pts</small></span>${bar}</a>`;
+  if(V === "C") return `${open}${name()}
+    <span class="pt-line">${rank}<span class="pts-c">${P}<small>pts</small></span></span>
+    <span class="pt-time pt-split"><span>${fmtTime(f.score)}</span><span>${gap}</span></span>
+    <span class="pt-pct">${pctOf(t)}</span>${bar}</a>`;
+  if(V === "D") return `${open}${name(`<span class="pts-dpct">${pctOf(t)}</span>`)}
+    <span class="pt-line">${rank}<span class="pt-gap">${gap}</span></span>
+    <span class="pt-time">${fmtTime(f.score)}</span>
+    <span class="pts-d"><i style="--w:${Math.round(pts / POINTS_FIRST * 100)}%"></i><span>payout</span><span><b>${P}</b> pts</span></span></a>`;
+  return `${open}${name()}
+    <span class="pt-line">${rank}<span class="pt-gap">${gap}</span></span>
+    <span class="pt-time pt-split"><span>${fmtTime(f.score)}</span><span class="pts-e">${P} pts</span></span>${bar}</a>`;
+}
+function seasonHtml(s, id){
+  const V = protoParam("variant", PROTO_VARIANTS).key, lag = protoParam("state", PROTO_STATES).key === "lag";
+  const tierSum = t => t.tracks.reduce((a, x) => a + (x.finish ? trackPoints(x.finish.rank) : 0), 0);
+  const sum = s.tiers.reduce((a, t) => a + tierSum(t), 0);
+  const steam = s.overall ? s.overall.score + (lag ? 7 : 0) : null;
+  return `<section class="pseason"><div class="pslab"><h2>${esc(s.group)}</h2>
+      ${s.overall
+        ? `<span class="pov" data-m="${s.overall.rank<=3 ? s.overall.rank : 0}"><b>${ord(s.overall.rank)}</b>
+            overall &middot; ${fmtN(steam)} pts</span>`
+        : `<span class="pov">not ranked overall</span>`}</div>
+    ${steam !== null && steam !== sum ? `<p class="pts-lag">Steam's leaderboard takes a while to sync. These tracks add up to
+      <b>${fmtN(sum)}</b> pts.</p>` : ""}
+    ${s.tiers.map(t => `<div class="ptier"><span class="ptlab">${esc(t.tier)}${V === "E"
+        ? `<span class="pts-sub"><b>${fmtN(tierSum(t))}</b> pts</span>` : ""}</span>
+      <div class="pgrid">${t.tracks.map(x => tileHtml(x, id)).join("")}</div></div>`).join("")}
+  </section>`;
+}
+
+document.head.insertAdjacentHTML("beforeend", `<style>
+:root{--warn:#ffb347;--warn-soft:rgba(255,179,71,.10)}
+.pt-top{display:flex;align-items:baseline;justify-content:space-between;gap:6px;margin-bottom:auto;min-width:0}
+.pt-top .pt-name{margin-bottom:0;min-width:0}
+.pt-split{display:flex;justify-content:space-between;gap:6px}
+.pts-a{flex:none;font-family:var(--f-hud);font-size:11px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pts-a small,.pts-b small,.pts-c small{font-size:9px;font-weight:600;color:var(--faint);margin-left:2px}
+.pts-b{position:absolute;right:9px;bottom:7px;font-family:var(--f-hud);font-size:11px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.pts-c{font-family:var(--f-hud);font-size:17px;font-weight:700;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ptile.vd{padding-bottom:9px}
+.pts-dpct{flex:none;font-family:var(--f-hud);font-size:9.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+.pts-d{position:relative;margin:2px -10px -9px;padding:5px 10px;display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid var(--line2);background:rgba(255,255,255,.035);font-family:var(--f-hud);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.pts-d b{color:var(--text);font-size:12px}
+.pts-d i{position:absolute;left:0;top:0;bottom:0;width:var(--w);background:var(--accent-soft)}
+.pts-d span{position:relative}
+.pts-e{color:var(--dim);font-weight:600}
+.pts-sub{display:block;margin-top:3px;letter-spacing:.04em;text-transform:none;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.pts-sub b{color:var(--text)}
+.pts-lag{margin:0;padding:8px 13px;border-bottom:1px solid var(--line2);background:var(--warn-soft);color:var(--warn);font-size:12px;line-height:1.4}
+.pts-lag b{font-family:var(--f-hud);font-variant-numeric:tabular-nums}
+#proto{position:fixed;right:16px;bottom:16px;z-index:9999;width:300px;max-width:calc(100vw - 32px);background:#fff;color:#111;
+  border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.6);font:13px system-ui,sans-serif;user-select:none}
+#proto .grip{cursor:move;padding:6px 12px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#666;border-bottom:1px solid #ddd}
+#proto .row{display:flex;align-items:center;gap:6px;padding:8px 10px}
+#proto .nm{flex:1;text-align:center;font-weight:700}
+#proto button{border:1px solid #bbb;background:#f3f3f3;color:#111;border-radius:8px;padding:4px 10px;font:600 13px system-ui;cursor:pointer}
+#proto button[aria-pressed="true"]{background:#111;color:#fff;border-color:#111}
+#proto .ds{padding:0 12px 8px;color:#444;font-size:12px;line-height:1.35}
+#proto .st{display:flex;gap:5px;padding:0 10px 10px}
+@media (max-width:600px){#proto{width:250px}#proto .ds{display:none}}
+</style>`);
+document.body.insertAdjacentHTML("beforeend", `<div id="proto"><div class="grip">Prototype &middot; track points &middot; drag</div>
+  <div class="row"><button data-step="-1" aria-label="Previous variant">&larr;</button><span class="nm"></span>
+    <button data-step="1" aria-label="Next variant">&rarr;</button></div>
+  <div class="ds"></div>
+  <div class="st">${PROTO_STATES.map(s => `<button data-state="${s.key}">${s.name}</button>`).join("")}</div></div>`);
+function protoPaint(){
+  const v = protoParam("variant", PROTO_VARIANTS), s = protoParam("state", PROTO_STATES);
+  $("#proto .nm").textContent = `${v.key} · ${v.name}`;
+  $("#proto .ds").textContent = v.desc;
+  document.querySelectorAll("#proto [data-state]").forEach(b => b.setAttribute("aria-pressed", b.dataset.state === s.key));
+}
+function protoStep(d){
+  const i = PROTO_VARIANTS.indexOf(protoParam("variant", PROTO_VARIANTS));
+  protoSet("variant", PROTO_VARIANTS[(i + d + PROTO_VARIANTS.length) % PROTO_VARIANTS.length].key);
+}
+document.querySelectorAll("#proto [data-step]").forEach(b => b.onclick = () => protoStep(+b.dataset.step));
+document.querySelectorAll("#proto [data-state]").forEach(b => b.onclick = () => protoSet("state", b.dataset.state));
+addEventListener("keydown", e => {
+  if(e.target.closest && e.target.closest("input,textarea,select,[contenteditable]")) return;
+  if(e.key === "ArrowLeft") protoStep(-1);
+  if(e.key === "ArrowRight") protoStep(1);
+});
+(() => { const p = $("#proto"), g = p.querySelector(".grip"); let sx = null, sy, ox, oy;
+  g.addEventListener("pointerdown", e => { const r = p.getBoundingClientRect(); sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top; g.setPointerCapture(e.pointerId); });
+  g.addEventListener("pointermove", e => { if(sx === null) return; Object.assign(p.style, {left:(ox+e.clientX-sx)+"px", top:(oy+e.clientY-sy)+"px", right:"auto", bottom:"auto"}); });
+  g.addEventListener("pointerup", () => sx = null);
+})();
+protoPaint();
+/* ===================================== end PROTOTYPE ===================================== */
 </script>
 </body>
 </html>
