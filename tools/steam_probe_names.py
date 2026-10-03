@@ -6,7 +6,10 @@ Prints which candidate names exist and their entry_count.
 Run via run-probe-names.ps1 (Steam running+logged in, Ballest closed).
 """
 
-import os, sys, time, ctypes as C
+import ctypes as C
+import os
+import sys
+import time
 
 APP_ID = 3339810
 HERE = os.path.dirname(os.path.abspath(__file__))

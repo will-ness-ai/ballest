@@ -152,6 +152,7 @@ export type ThreadPost = Data.TaggedEnum<{
   /** No Map is eligible, so the Invite is cancelled; everyone in it is told. */
   NoMap: { readonly players: ReadonlyArray<Player> };
   /** Every Player left the live Match before anyone set a time, so it is cancelled. */
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- a variant with no fields, as Data.TaggedEnum spells it
   Abandoned: {};
 }>;
 export const ThreadPost = Data.taggedEnum<ThreadPost>();

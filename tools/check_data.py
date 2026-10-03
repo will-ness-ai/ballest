@@ -30,7 +30,9 @@ Checks:
     gives, and no board file is left for a Map it doesn't list
 """
 
-import os, sys, json
+import json
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import campaign_common as cc
@@ -51,7 +53,7 @@ def write(artifacts):
         print("  wrote " + a["path"])
 
 
-def main(rewrite=False):
+def main(*, rewrite=False):
     problems = []
     index = load(cc.INDEX_PATH)
     listed = {b["name"]: b for b in index["boards"]}
@@ -127,8 +129,8 @@ def main(rewrite=False):
             print("  - " + p)
         return 1
     print(
-        f"\nOK: {len(boards_out)} boards (derived included), index and every derived file consistent; "
-        f"{ws_checked} Workshop boards checked"
+        f"\nOK: {len(boards_out)} boards (derived included), index and every derived file "
+        f"consistent; {ws_checked} Workshop boards checked"
     )
     return 0
 
@@ -162,25 +164,32 @@ def check_workshop():
             problems.append(f"Workshop Map {m['pfid']}: rows are not rank-aligned")
         # names aside: the list's top three carry this run's names, which can be newer
         # than a board file that was not re-read
-        if rows:
-            want = cc.workshop_stats(m, rows)
-            same = lambda k, v: (
-                [[t[0], t[2]] for t in v] == [[t[0], t[2]] for t in m.get(k) or []]
-                if k == "top3"
-                else m.get(k) == v
+        if rows and not _stats_match(m, cc.workshop_stats(m, rows)):
+            problems.append(
+                f"Workshop Map {m['pfid']}: top three or shelf stats do not match its board file"
             )
-            if not all(same(k, v) for k, v in want.items()):
-                problems.append(
-                    f"Workshop Map {m['pfid']}: top three or shelf stats do not match its board file"
-                )
     if os.path.isdir(cc.WORKSHOP_DIR):
-        for fname in os.listdir(cc.WORKSHOP_DIR):
-            if fname.endswith(".json") and fname not in files:
-                problems.append(f"workshop/{fname} belongs to no Map in workshop.json")
+        problems.extend(
+            f"workshop/{fname} belongs to no Map in workshop.json"
+            for fname in os.listdir(cc.WORKSHOP_DIR)
+            if fname.endswith(".json") and fname not in files
+        )
     print(f"  workshop.json  {len(ws.get('maps', []))} Maps, {len(files)} board files")
     if not files:
         problems.append("workshop.json lists no Map with a board file: nothing was checked")
     return problems, len(files)
+
+
+def _stats_match(m, want):
+    """A Map's listed stats against the ones its board file makes, names aside."""
+
+    def unnamed(top3):
+        return [[t[0], t[2]] for t in top3]
+
+    return all(
+        unnamed(v) == unnamed(m.get(k) or []) if k == "top3" else m.get(k) == v
+        for k, v in want.items()
+    )
 
 
 if __name__ == "__main__":

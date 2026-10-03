@@ -11,11 +11,11 @@ Usage:  python steam_sdk_reader.py "<leaderboard_name>"
 Default name is the 2026-09-05 daily captured earlier.
 """
 
+import ctypes as C
+import json
 import os
 import sys
 import time
-import json
-import ctypes as C
 
 APP_ID = 3339810
 DEFAULT_NAME = "ballest_v0_3607858889_Daily_20260905_cec1096c"

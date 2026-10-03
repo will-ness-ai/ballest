@@ -2,6 +2,7 @@
 // the gitignored `.logs/samples` by default) to check by eye against the prototype (branch claude/prototype-discord-bot-surfaces).
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { NodeRuntime } from "@effect/platform-node";
 import { Effect } from "effect";
 import { type Player, SCORE_TICKS_PER_SECOND, type Standing } from "../src/domain.js";
 import type { CardView } from "../src/ports.js";
@@ -202,4 +203,4 @@ const program = Effect.gen(function* () {
   yield* Effect.log(`wrote samples to ${out}`);
 });
 
-Effect.runPromise(program.pipe(Effect.provide(Renderer.Default)));
+program.pipe(Effect.provide(Renderer.Default), NodeRuntime.runMain);

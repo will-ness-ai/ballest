@@ -35,19 +35,28 @@ Auth: STEAM_REFRESH_TOKEN env var, else tools/refresh_token.txt (from steampy_mi
       STEAM_API_KEY env var, else .env (Workshop catalogue + player names).
 """
 
-import os, sys, json, time, asyncio, argparse, logging, urllib.request, urllib.parse
+import argparse
+import asyncio
+import json
+import logging
+import os
+import sys
+import time
+import traceback
+import urllib.parse
+import urllib.request
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import campaign_common as cc
-
 import warnings
+
+import campaign_common as cc
 
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
 
-import steam
-from steam.protobufs import leaderboards
-from steampy_common import fetch_board, find_map_board_id
+import steam  # noqa: E402 (after the warnings filter)
+from steam.protobufs import leaderboards  # noqa: E402
+from steampy_common import fetch_board, find_map_board_id  # noqa: E402
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
@@ -195,7 +204,8 @@ async def collect(client, maps):
             }
         )
         log(
-            f"  {i:3d}/{len(maps)} {m['title'][:36]:36s} entries={len(entries):4d} author={medalists}"
+            f"  {i:3d}/{len(maps)} {m['title'][:36]:36s} "
+            f"entries={len(entries):4d} author={medalists}"
         )
         await asyncio.sleep(0.05)
     return players, per_map, failed
@@ -218,7 +228,7 @@ async def campaign_records(client):
     records = []
     for name in cc.S1_TRACKS + cc.S2_TRACKS:
         try:
-            msg = await client._state.ws.send_proto_and_wait(
+            msg = await client._state.ws.send_proto_and_wait(  # noqa: SLF001 (steam.py has no public raw-protobuf call)
                 leaderboards.CMsgClientLbsGetLbEntries(
                     leaderboard_id=cc.LEADERBOARD_IDS[name],
                     app_id=cc.APP_ID,
@@ -229,7 +239,7 @@ async def campaign_records(client):
                 )
             )
             if msg.result != steam.Result.OK or not msg.entries:
-                raise RuntimeError(f"LBSGetLBEntries result={msg.result!r}")
+                raise RuntimeError(f"LBSGetLBEntries result={msg.result!r}")  # noqa: TRY301
         except Exception as e:
             log(f"  [warn] {name}: record read failed: {e!r}")
             continue
@@ -256,7 +266,9 @@ def ghost_set_at(key, ugc_id):
         "https://api.steampowered.com/ISteamRemoteStorage/GetUGCFileDetails/v1/?" + q, timeout=60
     ) as r:
         url = json.load(r)["data"]["url"]
-    with urllib.request.urlopen(url, timeout=60) as r:
+    if urllib.parse.urlsplit(url).scheme not in {"http", "https"}:
+        raise ValueError(f"ghost url is not a web URL: {url!r}")
+    with urllib.request.urlopen(url, timeout=60) as r:  # noqa: S310 (scheme checked above)
         stamp = json.load(r)["timestamp"]
     set_at = time.strptime(stamp, GHOST_STAMP_FORMAT)
     return set_at if set_at.tm_year >= GHOST_STAMP_MIN_YEAR else None
@@ -330,7 +342,7 @@ POSITION_COLUMNS = [("World records", "wr", "top5"), ("Top 5s", "top5", "wr")]
 def md_escape(s):
     """Neutralise Discord markdown and mentions in player names and map titles."""
     s = "".join("\\" + c if c in "\\*_~`|>[]" else c for c in s)
-    return s.replace("@", "@​").replace("<", "<​")  # no @everyone / <@id> pings
+    return s.replace("@", "@\u200b").replace("<", "<\u200b")  # no @everyone / <@id> pings
 
 
 def map_link(m):
@@ -394,7 +406,7 @@ def build_sections(players, per_map, names, top, failed, oldest=(), oldest_ugc=(
             return f"{pos:>2}  {who:<{TABLE_NAME_WIDTH}} {n:>4}"
 
         body = ["  ".join(cell(h, r, i) for h, r in cols).rstrip() for i in range(-1, height)]
-        lines = [f"### {title}", "```"] + body + ["```"]
+        lines = [f"### {title}", "```", *body, "```"]
         return "\n".join(lines) if height else f"### {title}\n_nobody yet_"
 
     when = time.strftime("%-d %b %Y" if os.name != "nt" else "%#d %b %Y", time.gmtime())
@@ -442,7 +454,10 @@ def build_sections(players, per_map, names, top, failed, oldest=(), oldest_ugc=(
         who = md_escape(names.get(r["steam_id"], {}).get("persona") or r["steam_id"])
         when = time.strftime("%-d %b %Y" if os.name != "nt" else "%#d %b %Y", r["set_at"])
         days = (time.mktime(today) - time.mktime(r["set_at"])) // 86400
-        return f"> {pos}. **{who}** — {where} in {cc.fmt_time(r['score'])} — set {when} ({int(days)} days ago)"
+        return (
+            f"> {pos}. **{who}** — {where} in {cc.fmt_time(r['score'])} — "
+            f"set {when} ({int(days)} days ago)"
+        )
 
     lines = ["> ### 🕰️ Longest-standing campaign records"]
     lines += [record_line(pos, r, track(r["board"])) for pos, r in enumerate(oldest, 1)]
@@ -483,7 +498,7 @@ def split_lines(text, limit):
             pieces.append(cur)
             cand = line
         cur = cand
-    return pieces + [cur]
+    return [*pieces, cur]
 
 
 def pack_messages(sections, limit=DISCORD_MESSAGE_LIMIT):
@@ -525,7 +540,8 @@ def main():
     token = load_token()
     if not token:
         log(
-            "ERROR: no refresh token (STEAM_REFRESH_TOKEN or tools/refresh_token.txt). Mint one with tools/steampy_mint.py."
+            "ERROR: no refresh token (STEAM_REFRESH_TOKEN or tools/refresh_token.txt). "
+            "Mint one with tools/steampy_mint.py."
         )
         return 2
     key = cc.load_key()
@@ -554,8 +570,6 @@ def main():
             log("Reading campaign records...")
             state["records"] = await campaign_records(client)
         except Exception:
-            import traceback
-
             traceback.print_exc()
         finally:
             await client.close()
@@ -594,7 +608,8 @@ def main():
     for i, msg in enumerate(messages, 1):
         if len(msg) > args.limit:
             log(
-                f"NOTE: message {i} is {len(msg)} chars, over the {args.limit}-char limit; lower --top."
+                f"NOTE: message {i} is {len(msg)} chars, over the {args.limit}-char limit; "
+                "lower --top."
             )
     if args.out:
         root, ext = os.path.splitext(args.out)
@@ -611,7 +626,9 @@ def main():
             json.dump(
                 {
                     "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    "rule": "creators count on their own maps only by beating their own author time",
+                    "rule": (
+                        "creators count on their own maps only by beating their own author time"
+                    ),
                     "failed": failed,
                     "players": {
                         sid: {**p, "persona": names.get(sid, {}).get("persona", "")}

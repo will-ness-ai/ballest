@@ -7,7 +7,13 @@ Steam Web API, and writes data/campaign.json for the website.
 Run via run-collect.ps1 (Steam running + logged in, Ballest closed).
 """
 
-import os, sys, time, json, urllib.request, urllib.parse, ctypes as C
+import ctypes as C
+import json
+import os
+import sys
+import time
+import urllib.parse
+import urllib.request
 
 APP_ID = 3339810
 TOP_N = 100

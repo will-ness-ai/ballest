@@ -22,3 +22,20 @@ ignore = [
   "PLR0913", # (same)
   "PLR0915", # (same)
 ]
+
+[lint.per-file-ignores]
+# The legacy Steamworks-SDK path and one-off spikes (tools/README-hosting.md): they run only on
+# Windows against the SDK's DLL, so they are formatted and checked for bugs but not restyled.
+# The ctypes structs keep the SDK's own names (LeaderboardEntry_t).
+"tools/{steam_collect,steam_probe_names,steam_prover,steam_sdk_reader,find_strings}.py" = [
+  "E501",
+  "FBT003",
+  "N801",
+  "N812",
+  "PLC0415",
+  "PLW2901",
+  "S110",
+  "S310",
+  "SIM105",
+  "SIM115",
+]

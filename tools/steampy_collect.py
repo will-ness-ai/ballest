@@ -26,17 +26,22 @@ To try the whole write path without touching data/:
 Requires: steamio, aiohttp<3.13  (see tools/requirements-steampy.txt)
 """
 
-import os, sys, time, asyncio, logging
+import logging
+import os
+import shutil
+import sys
+import time
+import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import campaign_common as cc
-
 import warnings
+
+import campaign_common as cc
 
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
 
-import steam
-from steampy_common import fetch_board, board_rows, find_map_board_id
+import steam  # noqa: E402 (after the warnings filter)
+from steampy_common import board_rows, fetch_board, find_map_board_id  # noqa: E402
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
@@ -44,8 +49,6 @@ logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown 
 TOKEN = cc.load_refresh_token()
 WORKSHOP_ONLY = "--workshop-only" in sys.argv[1:]
 if "--out" in sys.argv[1:]:
-    import shutil
-
     OUT = sys.argv[sys.argv.index("--out") + 1]
     # a fresh copy each run, so it starts from exactly what is committed
     shutil.rmtree(OUT, ignore_errors=True)
@@ -125,7 +128,7 @@ async def collect_workshop(catalogue, all_ids):
                 total, entries = await fetch_board(client, int(m["handle"]))
                 rows = board_rows(entries)
                 if not rows and m["rows"]:
-                    raise RuntimeError("board came back empty")
+                    raise RuntimeError("board came back empty")  # noqa: TRY301 (to the fallback below)
                 if rows:
                     boards[c["pfid"]] = rows
                     all_ids.update(r["steam_id"] for r in rows)
@@ -232,7 +235,8 @@ async def on_ready():
                     )
                     reused.append(name)
                     print(
-                        f"  [warn] read failed: {name}: {e!r} — reusing {len(prev['rows'])} prior rows"
+                        f"  [warn] read failed: {name}: {e!r} — "
+                        f"reusing {len(prev['rows'])} prior rows"
                     )
                 else:
                     hard_failed.append(name)
@@ -262,8 +266,6 @@ async def on_ready():
             print(f"NOTE: reused previous data for {len(reused)} board(s): {reused}")
     except Exception as e:
         _state["error"] = e
-        import traceback
-
         traceback.print_exc()
     finally:
         await client.close()

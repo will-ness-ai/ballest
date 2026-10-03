@@ -589,7 +589,7 @@ const textAt = (
   style: Style,
   anchor: "start" | "end" | "middle" = "start",
 ): El => {
-  const size = typeof style["fontSize"] === "number" ? style["fontSize"] : 10;
+  const size = typeof style.fontSize === "number" ? style.fontSize : 10;
   const place: Style =
     anchor === "start"
       ? { left: x }
@@ -733,7 +733,7 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
   }
   for (const l of placed) {
     if (Math.abs(l.at - l.y) > 2)
-      lines += `<path d="M${L - 6} ${l.at}L${L} ${l.y}" stroke="${String(l.style["color"])}" stroke-opacity="0.6"/>`;
+      lines += `<path d="M${L - 6} ${l.at}L${L} ${l.y}" stroke="${String(l.style.color)}" stroke-opacity="0.6"/>`;
     if (l.medal !== null)
       overlays.push(
         img(svgUri(medalSvg(l.medal, 11)), 11, medalHeight(11), {

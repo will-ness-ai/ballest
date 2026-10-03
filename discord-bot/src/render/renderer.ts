@@ -137,7 +137,9 @@ const makeRasteriser = Effect.gen(function* () {
     started.on("exit", () => retire("the rasteriser stopped"));
     return started;
   };
-  const stop = Effect.promise(async () => void (await worker?.terminate()));
+  const stop = Effect.promise(async () => {
+    await worker?.terminate();
+  });
   yield* Effect.addFinalizer(() => stop);
   return Effect.fn("rasterise")(function* (svg: string) {
     return yield* Effect.async<Buffer, RenderError>((resume) => {

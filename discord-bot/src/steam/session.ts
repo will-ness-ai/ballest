@@ -43,7 +43,7 @@ export interface BoardEntry {
   readonly score: number;
 }
 
-class NoReply extends Data.TaggedError("NoReply")<{}> {}
+class NoReply extends Data.TaggedError("NoReply") {}
 
 /**
  * steam-user's internal send. With `proto` set it writes a protobuf header (routing_appid
@@ -76,10 +76,10 @@ export class SteamSession extends Effect.Service<SteamSession>()("multiballs/Ste
       }),
       (c) => Effect.sync(() => c.logOff()),
     );
-    yield* Effect.async<void, SteamUnavailable>((resume) => {
+    yield* Effect.async<undefined, SteamUnavailable>((resume) => {
       const ok = () => {
         client.off("error", bad);
-        resume(Effect.void);
+        resume(Effect.succeed(undefined));
       };
       const bad = (err: Error) => {
         client.off("loggedOn", ok);

@@ -137,14 +137,7 @@ const slab = (m: MatchView, viewer: Viewer) => {
 const yourLine = (m: MatchView, viewer: Viewer) => {
   const me = m.standings.find((s) => s.player.discordId === viewer.discordId);
   const leader = m.standings[0];
-  if (
-    m.map === null ||
-    me === undefined ||
-    me.ticks === null ||
-    me.rank === null ||
-    leader === undefined
-  )
-    return "";
+  if (m.map === null || me?.ticks == null || me.rank === null || leader === undefined) return "";
   const medals = m.map.medals;
   const t = me.ticks;
   const next = MEDALS.find((k) => secs(t) > medals[k]);

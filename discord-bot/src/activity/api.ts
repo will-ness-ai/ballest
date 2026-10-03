@@ -24,14 +24,14 @@ import {
 } from "../ports.js";
 import { DiscordAuth, DiscordMembers } from "./auth.js";
 
-class Unauthorized extends Data.TaggedError("Unauthorized")<{}> {}
-class NotMember extends Data.TaggedError("NotMember")<{}> {}
+class Unauthorized extends Data.TaggedError("Unauthorized") {}
+class NotMember extends Data.TaggedError("NotMember") {}
 /** Confirm with no profile previewed by this member first. */
-class NoPreview extends Data.TaggedError("NoPreview")<{}> {}
+class NoPreview extends Data.TaggedError("NoPreview") {}
 /** No such Match, or it's gone; `closed` says why, when it ended without a Result lately. */
 class NotFound extends Data.TaggedError("NotFound")<{ readonly closed: RemovalReason | null }> {}
 /** Discord couldn't say who is in the server, so nobody is let in for now. */
-class DiscordUnavailable extends Data.TaggedError("DiscordUnavailable")<{}> {}
+class DiscordUnavailable extends Data.TaggedError("DiscordUnavailable") {}
 
 const STATUS: Record<Rejection["_tag"], number> = {
   NotLinked: 403,
@@ -116,7 +116,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
 
   /** The Discord id behind the request's access token. */
   const self = Effect.gen(function* () {
-    const header = (yield* HttpServerRequest.HttpServerRequest).headers["authorization"] ?? "";
+    const header = (yield* HttpServerRequest.HttpServerRequest).headers.authorization ?? "";
     const token = header.startsWith("Bearer ") ? header.slice(7) : "";
     if (token === "") return yield* new Unauthorized();
     return yield* signIns.get(token);

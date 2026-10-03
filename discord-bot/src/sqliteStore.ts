@@ -61,6 +61,7 @@ type MatchRoundTrips = [Schema.Schema.Type<typeof MatchSchema>] extends [Match]
     : false
   : false;
 const matchRoundTrips: MatchRoundTrips = true;
+// eslint-disable-next-line @typescript-eslint/no-meaningless-void-operator -- marks the check used
 void matchRoundTrips;
 
 /** A Match is one JSON document per row; only `state` is a column, for the active-Match query. */

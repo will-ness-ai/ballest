@@ -21,6 +21,7 @@ import {
 
 /** What a channel message shows. */
 export type Drawing = Data.TaggedEnum<{
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- a variant with no fields, as Data.TaggedEnum spells it
   Footer: {};
   Card: { readonly view: CardView };
   /** A Match cancelled but kept in view: no Map was eligible, or everyone left before setting a time. */
@@ -184,7 +185,11 @@ export const DiscordChannelLive = Layer.scoped(
       }),
       deleteThread: (threadId) =>
         fetchThread(threadId).pipe(
-          Effect.flatMap((t) => tryDiscord("delete thread", async () => void (await t.delete()))),
+          Effect.flatMap((t) =>
+            tryDiscord("delete thread", async () => {
+              await t.delete();
+            }),
+          ),
         ),
       postClock: (threadId, view) =>
         fetchThread(threadId).pipe(

@@ -68,12 +68,12 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       Effect.sync(() => new Client({ intents: [GatewayIntentBits.Guilds] })),
       (c) => Effect.promise(() => c.destroy()),
     );
-    yield* Effect.async<void, DiscordError>((resume) => {
-      const onReady = () => resume(Effect.void);
+    yield* Effect.async<undefined, DiscordError>((resume) => {
+      const onReady = () => resume(Effect.succeed(undefined));
       client.once(Events.ClientReady, onReady);
       client
         .login(Redacted.value(token))
-        .catch((cause) => resume(Effect.fail(new DiscordError({ op: "login", cause }))));
+        .catch((cause: unknown) => resume(Effect.fail(new DiscordError({ op: "login", cause }))));
       return Effect.sync(() => client.off(Events.ClientReady, onReady));
     }).pipe(
       Effect.timeoutFail({
@@ -83,7 +83,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     );
 
     const fetched = yield* tryDiscord("fetch channel", () => client.channels.fetch(channelId));
-    if (fetched === null || fetched.type !== ChannelType.GuildText)
+    if (fetched?.type !== ChannelType.GuildText)
       return yield* Effect.dieMessage(
         `DISCORD_CHANNEL_ID ${channelId} is not a server text channel the bot can see`,
       );
@@ -117,7 +117,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
             else if (i.isRepliable())
               void i
                 .reply({ content: "Multiballs only works in its own channel.", ephemeral: true })
-                .catch(() => {});
+                .catch(() => undefined);
           };
           client.on(Events.InteractionCreate, onInteraction);
           return onInteraction;
@@ -134,7 +134,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       interactions,
       /** The application's own emojis (usable anywhere the bot posts), name to id. */
       appEmojis: tryDiscord("fetch app emojis", () => application.emojis.fetch()).pipe(
-        Effect.map((all) => new Map(all.map((emoji) => [emoji.name ?? "", emoji.id]))),
+        Effect.map((all) => new Map(all.map((emoji) => [emoji.name, emoji.id]))),
       ),
       /** Upload an application emoji; its id. */
       createAppEmoji: (name: string, png: Buffer) =>

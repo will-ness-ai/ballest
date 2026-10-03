@@ -4815,16 +4815,16 @@
      in-game track-selection screen groups a season's tracks under difficulty
      headings, and a season with none is one unheaded run. */
         const seasons = groupsOf()
-          .map((group) => {
-            const tiers = [];
-            for (const b of boardsIn(group).filter((x) => !isPoints(x))) {
+          .map((season) => {
+            const headed = [];
+            for (const b of boardsIn(season).filter((x) => !isPoints(x))) {
               const tier = b.tier || "Circuit";
-              if (!tiers.length || tiers[tiers.length - 1].tier !== tier)
-                tiers.push({ tier, tracks: [] });
-              tiers[tiers.length - 1].tracks.push(byName.get(b.name));
+              if (!headed.length || headed[headed.length - 1].tier !== tier)
+                headed.push({ tier, tracks: [] });
+              headed[headed.length - 1].tracks.push(byName.get(b.name));
             }
-            const overall = overallOf(group);
-            return { group, overall: (overall && by[overall.name]) || null, tiers };
+            const overall = overallOf(season);
+            return { group: season, overall: (overall && by[overall.name]) || null, tiers: headed };
           })
           .filter((s) => s.tiers.length);
         const comp = compositeBoard();
@@ -5160,7 +5160,7 @@
         let doc;
         try {
           doc = await loadShard(me);
-        } catch (err) {
+        } catch {
           return;
         } /* no card, the page is still whole */
         if (getMe() !== me || !doc.players[me]) return;
@@ -5275,7 +5275,7 @@
         let doc;
         try {
           doc = await loadShard(id);
-        } catch (err) {
+        } catch {
           if (playerId !== id) return;
           el.innerHTML = `<div class="empty"><b>That player's page didn't load.</b>
       The data file may still be refreshing. Try again in a moment.</div>`;
@@ -5304,7 +5304,7 @@
         try {
           const id = localStorage.getItem(ME_KEY);
           return isSteamId(id) ? id : null;
-        } catch (err) {
+        } catch {
           return null;
         }
       }
@@ -5312,7 +5312,9 @@
         try {
           if (isSteamId(id)) localStorage.setItem(ME_KEY, id);
           else localStorage.removeItem(ME_KEY);
-        } catch (err) {}
+        } catch {
+          /* storage blocked: the choice just isn't remembered */
+        }
       }
 
       /* "Season 2" -> "S2", so a track reads "S2 07" beside a Map's title */
@@ -5363,7 +5365,7 @@
           r.win = r.d < 0 ? "a" : r.d > 0 ? "b" : "tie";
           r.rel = Math.abs(r.d) / Math.min(r.a.score, r.b.score);
         }
-        const tally = (keep) => {
+        const wins = (keep) => {
           const xs = rows.filter(keep);
           return {
             n: xs.length,
@@ -5380,17 +5382,17 @@
           rank: low,
           win: a == null || b == null || a === b ? null : (low ? a < b : a > b) ? "a" : "b",
         });
-        const rankIn = (rec, group) => {
-          const s = rec.seasons.find((x) => x.group === group);
+        const rankIn = (rec, season) => {
+          const s = rec.seasons.find((x) => x.group === season);
           return s && s.overall ? s.overall.rank : null;
         };
         const wrs = (rec) => rec.medals.gold + rec.workshop.tiers.wr;
         return {
           rows,
           tally: {
-            all: tally(() => true),
-            circuit: tally((r) => r.scope === "circuit"),
-            workshop: tally((r) => r.scope === "workshop"),
+            all: wins(() => true),
+            circuit: wins((r) => r.scope === "circuit"),
+            workshop: wins((r) => r.scope === "workshop"),
           },
           band: [
             stat(
@@ -5539,7 +5541,7 @@
         /* two players with the same last digit share a shard, and loadShard fetches it once */
         try {
           docs = await Promise.all([loadShard(a), loadShard(b)]);
-        } catch (err) {
+        } catch {
           if (!vs || vs.key !== key) return;
           el.innerHTML = `<div class="empty"><b>That head to head didn't load.</b>
       The data file may still be refreshing. Try again in a moment.</div>`;
@@ -6347,7 +6349,7 @@
               ? p.w[k]
               : p.c[k] + p.w[k];
 
-      let pl = { scope: "all", sort: "wr", q: "", shown: PL_CHUNK, me: null, rows: [] };
+      const pl = { scope: "all", sort: "wr", q: "", shown: PL_CHUNK, me: null, rows: [] };
       const PL_RANKED = new Map(); /* "<scope>/<sort>" -> ranked rows, worked out once each */
       function plRanked() {
         const { scope, sort } = pl,
@@ -6549,7 +6551,7 @@
           ).join("");
           try {
             await loadStandings();
-          } catch (err) {
+          } catch {
             if ($("#app").dataset.view !== "players") return;
             el.innerHTML = `<div class="empty"><b>The players didn't load.</b>
         The data file may still be refreshing. Try again in a moment.</div>`;
@@ -6746,7 +6748,7 @@
         let data;
         try {
           data = await loadBoard(name);
-        } catch (err) {
+        } catch {
           if (boardKey !== name) return;
           /* drop the previous board entirely. Leaving visible/shown/boardData in place
        lets the next scroll event append the old board's rows under this message,

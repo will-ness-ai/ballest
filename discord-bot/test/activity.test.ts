@@ -83,7 +83,7 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
       Effect.gen(function* () {
         const headers: Record<string, string> = { "content-type": "application/json" };
         const token = opts.token ?? (opts.as === undefined ? undefined : `token-${opts.as}`);
-        if (token !== undefined) headers["authorization"] = `Bearer ${token}`;
+        if (token !== undefined) headers.authorization = `Bearer ${token}`;
         const init: RequestInit = { method, headers };
         if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
         const request = new Request(`http://activity.test${path}`, init);
@@ -95,7 +95,7 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
         );
         const web = HttpServerResponse.toWeb(response);
         const text = yield* Effect.promise(() => web.text());
-        return { status: web.status, body: text === "" ? null : (JSON.parse(text) as any) };
+        return { status: web.status, body: text === "" ? null : JSON.parse(text) };
       });
     /** Open an Invite as `by`; its id. */
     const open = (by: string, body: unknown) =>

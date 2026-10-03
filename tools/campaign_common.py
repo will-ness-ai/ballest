@@ -8,7 +8,15 @@ Used by:
 Pure stdlib so it imports under any Python the collectors run on.
 """
 
-import os, re, math, time, json, urllib.request, urllib.parse
+import contextlib
+import json
+import math
+import os
+import re
+import subprocess
+import time
+import urllib.parse
+import urllib.request
 from fractions import Fraction
 
 APP_ID = 3339810
@@ -29,7 +37,7 @@ def use_data_dir(path):
     """Point every read and write in this module at path instead of data/: the
     collector's --out and check_data's --data, so a branch can run and check the
     whole write path against a scratch copy. Call it before anything reads."""
-    global DATA_DIR, BOARDS_DIR, INDEX_PATH, WORKSHOP_PATH, WORKSHOP_DIR
+    global DATA_DIR, BOARDS_DIR, INDEX_PATH, WORKSHOP_PATH, WORKSHOP_DIR  # noqa: PLW0603
     DATA_DIR = os.path.abspath(path)
     BOARDS_DIR = os.path.join(DATA_DIR, "boards")
     INDEX_PATH = os.path.join(DATA_DIR, "index.json")
@@ -227,22 +235,20 @@ def secret_roots():
     are minted once into the main checkout and worktrees never see them, so a
     collector run from a worktree used to come back with every name blank."""
     roots = [PROJ]
-    try:
-        import subprocess
-
+    # no git, or not a checkout: this checkout is the only root
+    with contextlib.suppress(OSError, subprocess.SubprocessError):
         common = subprocess.run(
-            ["git", "rev-parse", "--git-common-dir"],
+            ["git", "rev-parse", "--git-common-dir"],  # noqa: S607 (git from PATH)
             cwd=PROJ,
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         ).stdout.strip()
         if common:
             main = os.path.dirname(os.path.abspath(os.path.join(PROJ, common)))
             if main != PROJ:
                 roots.append(main)
-    except Exception:
-        pass
     return roots
 
 
@@ -254,10 +260,11 @@ def load_key():
     for root in secret_roots():
         env_path = os.path.join(root, ".env")
         if os.path.exists(env_path):
-            for line in open(env_path, encoding="utf-8"):
-                line = line.strip()
-                if line.startswith("STEAM_API_KEY=") and not line.startswith("#"):
-                    return line.split("=", 1)[1].strip()
+            with open(env_path, encoding="utf-8") as f:
+                for raw in f:
+                    line = raw.strip()
+                    if line.startswith("STEAM_API_KEY=") and not line.startswith("#"):
+                        return line.split("=", 1)[1].strip()
     return ""
 
 
@@ -270,7 +277,8 @@ def load_refresh_token():
     for root in secret_roots():
         path = os.path.join(root, "tools", "refresh_token.txt")
         if os.path.exists(path):
-            return open(path, encoding="utf-8").read().strip()
+            with open(path, encoding="utf-8") as f:
+                return f.read().strip()
     return ""
 
 
@@ -289,7 +297,7 @@ def resolve_names(key, ids):
             + ",".join(chunk)
         )
         try:
-            with urllib.request.urlopen(url, timeout=30) as r:
+            with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310 (a fixed https URL)
                 data = json.load(r)
             for p in data.get("response", {}).get("players", []):
                 out[p["steamid"]] = {
@@ -496,7 +504,8 @@ def write_workshop(ws, names):
         rows = boards.get("Workshop_" + m["pfid"])
         if rows is None:
             print(
-                f"  [warn] Workshop Map {m['pfid']}: {m['file']} is missing or empty; listed without a board"
+                f"  [warn] Workshop Map {m['pfid']}: {m['file']} is missing or empty;"
+                " listed without a board"
             )
             m.update(file=None, rows=0)
             continue
@@ -805,8 +814,9 @@ def derive(boards_out, maps):
     and how it reads in a log: write_site publishes the list, check_data compares
     the committed files against it, and neither has to restate the assembly —
     which matters, because the shards' board indices are positions in exactly
-    this list of boards: campaign boards, composite, then every Map. Nor does either caller have to know one
-    artifact from another; both just write or compare, and print the summary.
+    this list of boards: campaign boards, composite, then every Map. Nor does either
+    caller have to know one artifact from another; both just write or compare, and
+    print the summary.
 
     Each artifact carries its own idea of empty, because only its builder knows
     what nothing looks like: no seasons, or a season with nobody on a podium, or
@@ -815,10 +825,10 @@ def derive(boards_out, maps):
     if current["rows"]:
         # ahead of Steam's board, so it is the one the season opens on
         at = next((i for i, b in enumerate(boards_out) if b["name"] == "OverallLeaderboard"), 0)
-        boards_out = boards_out[:at] + [current] + boards_out[at:]
+        boards_out = [*boards_out[:at], current, *boards_out[at:]]
     composite = build_composite(boards_out)
     if composite["rows"]:
-        boards_out = boards_out + [composite]
+        boards_out = [*boards_out, composite]
     seasons = build_podiums(boards_out)
     artifacts = [
         {

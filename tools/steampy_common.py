@@ -9,7 +9,6 @@ silently drops replies.
 """
 
 import campaign_common as cc
-
 import steam
 from steam.protobufs import leaderboards
 
@@ -22,7 +21,7 @@ async def fetch_board(client, lid):
     entries = []
     start = 1
     while True:
-        msg = await client._state.ws.send_proto_and_wait(
+        msg = await client._state.ws.send_proto_and_wait(  # noqa: SLF001 (steam.py has no public raw-protobuf call)
             leaderboards.CMsgClientLbsGetLbEntries(
                 leaderboard_id=lid,
                 app_id=cc.APP_ID,
@@ -79,7 +78,7 @@ async def find_board_id(client, name):
         app_id=cc.APP_ID, leaderboard_name=name, create_if_not_found=False
     )
     msg.header.routing_app_id = cc.APP_ID
-    resp = await client._state.ws.send_proto_and_wait(msg)
+    resp = await client._state.ws.send_proto_and_wait(msg)  # noqa: SLF001 (steam.py has no public raw-protobuf call)
     if resp.result != steam.Result.OK:
         raise RuntimeError(f"LBSFindOrCreateLB result={resp.result!r}")
     return int(resp.leaderboard_id)

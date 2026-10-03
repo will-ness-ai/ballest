@@ -38,7 +38,8 @@ const TOAST_MS = 6_000;
  */
 const PIP_MAX_HEIGHT = 240;
 
-const root = document.getElementById("app")!;
+const root = document.getElementById("app");
+if (root === null) throw new Error("the page has no #app element");
 
 let sdk: DiscordSDK | null = null;
 let token = "";
@@ -107,13 +108,15 @@ const api = async <A>(method: string, path: string, body?: unknown): Promise<A> 
   };
   if (body !== undefined) init.body = JSON.stringify(body);
   const res = await fetch(path, init);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok)
+  const data: unknown = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const failure = data as { message?: string; error?: string; closed?: string | null };
     throw new ApiError(
-      data.message ?? "Something went wrong. Try again in a moment.",
-      data.error ?? "",
-      data.closed ?? null,
+      failure.message ?? "Something went wrong. Try again in a moment.",
+      failure.error ?? "",
+      failure.closed ?? null,
     );
+  }
   return data as A;
 };
 
@@ -127,7 +130,7 @@ const describe = (e: unknown): string => {
 let pickDemoUser: ((id: string) => void) | null = null;
 
 const signIn = async (): Promise<boolean> => {
-  const config: PageConfig = await (await fetch("/api/config")).json();
+  const config = (await (await fetch("/api/config")).json()) as PageConfig;
   const params = new URLSearchParams(location.search);
   if (params.has("frame_id")) {
     sdk = new DiscordSDK(config.clientId);
@@ -149,7 +152,7 @@ const signIn = async (): Promise<boolean> => {
       body: JSON.stringify({ code }),
     });
     if (!res.ok) throw new Error(`the bot answered ${res.status}`);
-    const { access_token } = await res.json();
+    const { access_token } = (await res.json()) as { access_token: string };
     await sdk.commands.authenticate({ access_token });
     token = access_token;
     void sdk
@@ -207,16 +210,19 @@ const refresh = async () => {
     ui.composing = false;
   }
   const id = ui.mine ?? ui.watching;
-  let closed: string | null = null;
+  // `as` keeps the declared type: the catch below assigns it, which narrowing cannot see
+  let closed = null as string | null;
   let focus =
     id === null
       ? null
       : (list.matches.find((m) => m.matchId === id) ??
         (
-          await api<{ match: MatchView | null }>("GET", `/api/matches/${id}`).catch((e) => {
-            closed = e instanceof ApiError ? e.closed : null;
-            return { match: null };
-          })
+          await api<{ match: MatchView | null }>("GET", `/api/matches/${id}`).catch(
+            (e: unknown) => {
+              closed = e instanceof ApiError ? e.closed : null;
+              return { match: null };
+            },
+          )
         ).match);
   // Your Invite went because no Map fitted: say so, whoever pressed Start.
   if (
@@ -250,8 +256,7 @@ const refresh = async () => {
 /** A live Lobby the viewer might join late: read their PB on its Map, once. */
 const askPb = (m: MatchView | null, me: Me) => {
   if (
-    m === null ||
-    m.state !== "live" ||
+    m?.state !== "live" ||
     !m.actions.includes("join") ||
     me.link === null ||
     ui.pbs.has(m.matchId)
@@ -364,7 +369,7 @@ const loadPlayers = () => {
       ui.players = r.players;
       render();
     },
-    (e) => {
+    (e: unknown) => {
       failed(e);
       render();
     },
@@ -530,8 +535,8 @@ const onAct = (action: string) => {
 
 root.addEventListener("click", (e) => {
   const el = (e.target as HTMLElement).closest<HTMLElement>("[data-act],[data-stop]");
-  const action = el?.dataset["act"];
-  if (action !== undefined && action !== "") onAct(action);
+  const action = el?.dataset.act;
+  if (action !== undefined && action !== "") void onAct(action);
 });
 root.addEventListener("input", (e) => {
   const input = e.target as HTMLInputElement;
@@ -554,7 +559,7 @@ root.addEventListener(
   "error",
   (e) => {
     if (!(e.target instanceof HTMLImageElement)) return;
-    V.noPreview.add(e.target.dataset["preview"] ?? "");
+    V.noPreview.add(e.target.dataset.preview ?? "");
     e.target.remove();
     drawn = "";
   },
@@ -668,7 +673,7 @@ const clock = (ms: number) => {
 /** Countdowns move without a redraw; the Go! bar, the reveal and toasts end on time. */
 const tick = () => {
   for (const el of root.querySelectorAll<HTMLElement>("[data-until]"))
-    el.textContent = clock(Number(el.dataset["until"]) - serverNow());
+    el.textContent = clock(Number(el.dataset.until) - serverNow());
   const now = Date.now();
   let changed = false;
   if (ui.toast !== "" && now > ui.toastUntil) {
@@ -722,7 +727,7 @@ const main = async () => {
   setInterval(tick, 250);
   setInterval(() => {
     if (!ui.busy)
-      refresh().then(render, (e) => {
+      refresh().then(render, (e: unknown) => {
         if (e instanceof ApiError && e.error === "NotMember") {
           ui.phase = "wrong";
           render();

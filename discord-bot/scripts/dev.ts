@@ -7,16 +7,16 @@ import { dirname, join } from "node:path";
 
 const LOGS = ".logs";
 mkdirSync(LOGS, { recursive: true });
-process.env["LOG_FILE"] ??= join(LOGS, "bot.log");
-process.env["DB_PATH"] ??= join(LOGS, "dev.sqlite");
-writeFileSync(process.env["LOG_FILE"], "");
+process.env.LOG_FILE ??= join(LOGS, "bot.log");
+process.env.DB_PATH ??= join(LOGS, "dev.sqlite");
+writeFileSync(process.env.LOG_FILE, "");
 
-if (process.env["MULTIBALLS_ENV"] === undefined && !existsSync(".env")) {
+if (process.env.MULTIBALLS_ENV === undefined && !existsSync(".env")) {
   // A worktree: the secrets live in the main checkout, next to the shared .git directory.
   const gitDir = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
     encoding: "utf8",
   }).trim();
-  process.env["MULTIBALLS_ENV"] = join(dirname(gitDir), "discord-bot", ".env");
+  process.env.MULTIBALLS_ENV = join(dirname(gitDir), "discord-bot", ".env");
 }
 
 await import("../src/main.js");

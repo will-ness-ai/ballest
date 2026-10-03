@@ -13,7 +13,7 @@ import { SteamLive } from "../src/steam/steamLive.js";
 const mainCheckout = dirname(
   execSync("git rev-parse --path-format=absolute --git-common-dir").toString().trim(),
 );
-const envFile = process.env["MULTIBALLS_ENV"] ?? join(mainCheckout, "discord-bot", ".env");
+const envFile = process.env.MULTIBALLS_ENV ?? join(mainCheckout, "discord-bot", ".env");
 const env = new Map(
   readFileSync(envFile, "utf8")
     .split(/\r?\n/)
@@ -43,7 +43,7 @@ const program = Effect.gen(function* () {
   if (candidate === undefined) return yield* Effect.die("no Map fits 15 minutes");
   const c1 = yield* timed(`check "${candidate.title}"`, steam.check(candidate, [MAIN, BOT]));
   console.log(
-    `  board ${c1.boardId}, WR ${c1.worldRecordTicks === null ? "-" : seconds(c1.worldRecordTicks) + " s"}, played by [${c1.played.map((e) => e.steamId)}]`,
+    `  board ${c1.boardId}, WR ${c1.worldRecordTicks === null ? "-" : `${seconds(c1.worldRecordTicks)} s`}, played by [${c1.played.map((e) => e.steamId).join(",")}]`,
   );
   yield* timed("check again (board id cached)", steam.check(candidate, [MAIN, BOT]));
 
@@ -67,7 +67,7 @@ Effect.runPromise(
   program.pipe(Effect.provide(layer), Effect.withConfigProvider(ConfigProvider.fromMap(env))),
 ).then(
   () => process.exit(0),
-  (err) => {
+  (err: unknown) => {
     console.error(err);
     process.exit(1);
   },

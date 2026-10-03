@@ -1,4 +1,4 @@
-"""
+r"""
 Ballest leaderboard prover.
 Proves we can read Steam leaderboard entries for appid 3339810 via the Steam
 client protocol (ValvePython/steam), decode the times, and resolve names.
@@ -12,9 +12,9 @@ Run it yourself:  python tools\steam_prover.py
 Writes a summary to capture\leaderboard_sample.txt (safe to share) so it can be reviewed.
 """
 
+import json
 import os
 import sys
-import json
 import traceback
 
 APP_ID = 3339810
