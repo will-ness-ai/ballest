@@ -2,7 +2,7 @@
 
 The public monorepo for **Ballest of Them All** (appid `3339810`) community tools. Its
 main tool is a static, read-only mirror of the game's Steam leaderboards, live at
-https://ballest.willness.dev on GitHub Pages. The game's leaderboards are not exposed
+https://ballest.willness.dev on Vercel. The game's leaderboards are not exposed
 through any public web API, so a collector reads them from Steam directly and commits the
 results as JSON that the page fetches.
 
@@ -33,16 +33,14 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   world records and top 5s, and the longest-standing campaign and Workshop records).
   Not part of CI and writes nothing into the repo.
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
-  then calls `deploy.yml`.
-- `.github/workflows/deploy.yml` — the Pages deploy (Source: GitHub Actions). Publishes
-  only `index.html`, the icons and `og.png`, `data/`, `circuit/`, `leth/`, `multiballs/` and `CNAME`,
-  so a new site file must be added to its `cp` line or it 404s in production. Runs on
-  push to `main`, by hand, and from
-  `refresh.yml`, whose `GITHUB_TOKEN` push triggers no other workflow.
-- `web/` — the site's move to Next.js on Vercel (ADR 0004, plan in
-  `docs/nextjs-migration.md`). For now it only serves the root site files, copied into
-  `web/public/` at build time, so the files to edit stay the ones at the root. Pages is
-  still production.
+  which Vercel deploys like any other push.
+- `web/` — the Next.js app Vercel builds and serves (ADR 0004, plan in
+  `docs/nextjs-migration.md`; Vercel project `ballest`, Root Directory `web`). It serves
+  the root site files, copied into `web/public/` at build time by
+  `web/scripts/sync-site.mjs`, so the files to edit stay the ones at the root. That
+  script's `SITE` list is what gets published: a new site file must be added to it or it
+  404s in production. Every push to `main` deploys, and every other branch gets a preview;
+  `web/vercel.json`'s `ignoreCommand` skips commits that touch no site file.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
   covers install and how it hooks the game.
@@ -164,9 +162,20 @@ conventions.
 
 ## Agent skills
 
-Matt Pocock's `to-spec`, `to-tickets`, `implement-spec`, `tdd`, `codebase-design`, `code-review`, `wizard` and
-`setup-matt-pocock-skills` are vendored in `.claude/skills/` (MIT, from `mattpocock/skills`
-at `d81f3a1`), so cloud sessions have them too. The sections below are their setup.
+Matt Pocock's `grill-with-docs` (with the `grilling` and `domain-modeling` it calls), `to-spec`,
+`to-tickets`, `implement-spec`, `tdd`, `codebase-design`, `code-review`, `wizard`, `retro` (with
+`writing-for-agents`) and `setup-matt-pocock-skills` are vendored in `.claude/skills/` (MIT, from `mattpocock/skills`
+at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. Their
+`code-review` replaces the built-in `/code-review` here. `grill-design` comes from
+`will-ness-ai/skills`, adapted to prototype in the running app on a worktree, and is
+maintained here rather than reinstalled.
+
+### Building a feature
+
+Plan with `/grill-with-docs`, settle anything players will see with `/grill-design`, write
+it up with `/to-spec` and `/to-tickets`, build it with `/implement-spec`, which opens the
+draft PR, then a final `/code-review`, a `/codebase-design` pass over the code it touched,
+and an updated PR. Once it is merged, run `/retro` on the sessions that built it. Each step and how it fits this repo: `docs/agents/feature-workflow.md`.
 
 ### Issue tracker
 

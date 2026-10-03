@@ -2,9 +2,8 @@ name: Refresh leaderboards
 
 # Regenerates data/index.json + data/boards/*.json + data/podiums.json +
 # data/players/*.json + data/workshop.json + data/workshop/*.json from Steam
-# and commits them.
-# Its push uses GITHUB_TOKEN, which does not trigger deploy.yml's `push`
-# trigger, so the deploy job below calls deploy.yml once the data is on main.
+# and commits them. Vercel deploys the commit itself: its Git integration sees
+# a GITHUB_TOKEN push, which no GitHub workflow does (docs/adr/0004).
 
 on:
   schedule:
@@ -24,8 +23,6 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    outputs:
-      pushed: ${{ steps.commit.outputs.pushed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,7 +42,6 @@ jobs:
         run: python tools/steampy_collect.py
 
       - name: Commit updated data if changed
-        id: commit
         run: |
           git config user.name  "will-ness-ai"
           git config user.email "n3s.online@gmail.com"
@@ -69,14 +65,4 @@ jobs:
             if [ "$pushed" != 1 ]; then
               echo "ERROR: could not push refreshed data after 3 attempts"; exit 1
             fi
-            echo "pushed=true" >> "$GITHUB_OUTPUT"
           fi
-
-  deploy:
-    needs: refresh
-    if: needs.refresh.outputs.pushed == 'true'
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/deploy.yml

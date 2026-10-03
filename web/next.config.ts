@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
 
 // Phase 0 of docs/nextjs-migration.md: Next serves the existing static page from
-// public/ (scripts/sync-site.mjs), so every URL answers as it does on GitHub Pages.
+// public/ (scripts/sync-site.mjs), so every URL answers as it did on GitHub Pages.
 // Files in public/ are served as they are; these rewrites cover the directory URLs
-// Pages answers with an index.html, and the extensionless .html it also serves.
-// Next's own trailing-slash redirect is off because Pages has none: /leth gains
+// Pages answered with an index.html, and the extensionless .html it also served.
+// Next's own trailing-slash redirect is off because Pages had none: /leth gains
 // its slash in proxy.ts, and nothing else changes shape.
 const config: NextConfig = {
   skipTrailingSlashRedirect: true,
