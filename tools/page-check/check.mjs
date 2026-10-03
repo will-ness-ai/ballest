@@ -1,13 +1,14 @@
 // The page's guardrail: index.html has no build step, so nothing else ever parses its
 // script. Two checks, each reporting index.html line numbers:
-//   - ESLint over the inline <script>: a name used but never defined (a function removed
-//     in one place and still called in another), and a name declared twice (the later
-//     `function` silently replaces the earlier one).
+//   - ESLint over the inline <script>: eslint's recommended rules (a name used but never
+//     defined, a name declared twice, an unused one) plus the repo's best-practice set
+//     (docs/linting.md). The root eslint.config.js cannot reach it: ESLint reads files.
 //   - Every ${...} that lands in an href or src attribute goes through esc()
 //     (CODING_STANDARDS.md, Page).
-// Run: (cd tools/page-check && npm ci) && node tools/page-check/check.mjs
+// Run: pnpm install (at the repo root, once), then node tools/page-check/check.mjs
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import js from "@eslint/js";
 import { ESLint } from "eslint";
 import globals from "globals";
 
@@ -24,10 +25,19 @@ const start = open.index + open[0].length, end = html.indexOf("</script>", start
 const offset = lineAt(start) - 1;
 const eslint = new ESLint({
   overrideConfigFile: true,
-  overrideConfig: {
-    languageOptions: { ecmaVersion: "latest", sourceType: "script", globals: globals.browser },
-    rules: { "no-undef": "error", "no-redeclare": "error", "no-dupe-keys": "error" },
-  },
+  overrideConfig: [
+    js.configs.recommended,
+    {
+      languageOptions: { ecmaVersion: "latest", sourceType: "script", globals: globals.browser },
+      rules: {
+        eqeqeq: ["error", "always", { null: "ignore" }],
+        "no-shadow": "error",
+        "no-var": "error",
+        "object-shorthand": "error",
+        "prefer-const": "error",
+      },
+    },
+  ],
 });
 const [result] = await eslint.lintText(html.slice(start, end));
 for (const m of result.messages) problems.push(`index.html:${m.line + offset}: ${m.message}`);

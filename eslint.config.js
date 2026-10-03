@@ -1,0 +1,51 @@
+// One config for every JS and TS file in the repo (docs/linting.md). TypeScript gets
+// typescript-eslint's strict and stylistic type-checked sets, each file typed by the
+// tsconfig nearest to it (discord-bot/, web/); plain JS gets the same rules minus the
+// ones that need types. Formatting is Prettier's, so eslint-config-prettier goes last.
+// index.html's inline script is linted by tools/page-check instead: ESLint reads files.
+import js from "@eslint/js";
+import nextPlugin from "@next/eslint-plugin-next";
+import prettier from "eslint-config-prettier/flat";
+import reactHooks from "eslint-plugin-react-hooks";
+import { defineConfig, globalIgnores } from "eslint/config";
+import globals from "globals";
+import tseslint from "typescript-eslint";
+
+export default defineConfig(
+  globalIgnores([
+    "**/node_modules/",
+    "data/",
+    "leth/",
+    ".claude/skills/",
+    "discord-bot/.logs/",
+    "web/.next/",
+    "web/public/",
+    "web/next-env.d.ts",
+  ]),
+  js.configs.recommended,
+  tseslint.configs.strictTypeChecked,
+  tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+  },
+  {
+    rules: {
+      // the bot is Effect code, which spells arrays ReadonlyArray<T> / Array<T> throughout
+      "@typescript-eslint/array-type": ["error", { default: "generic" }],
+      // a number in a template literal prints as itself; only objects and nullish are bugs
+      "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
+    },
+  },
+  {
+    files: ["**/*.{js,mjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    files: ["web/**/*.{ts,tsx}"],
+    extends: [nextPlugin.configs["core-web-vitals"], reactHooks.configs.flat.recommended],
+  },
+  prettier,
+);
