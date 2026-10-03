@@ -6,13 +6,16 @@
 // `data-until` spans it fills.
 import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type MedalKind, medalFor, type Minutes, progress, SCORE_TICKS_PER_SECOND } from "../../domain.js"
 import { boardRows, formatGap, mapTitle, type HowtoPart, matchDetails, matchName, STEAM_LINK_HOWTO } from "../../present.js"
+import { pingsState } from "../../pingWords.js"
 import { hueFor, marbleSvg, medalSvg } from "../../render/art.js"
 import type { Challengeable, MatchView } from "../api.js"
 
-/** Who is looking: their Discord id, and their Link if they have one. */
+/** Who is looking: their Discord id, their Link if they have one, and their Lobby pings. */
 export interface Viewer {
   readonly discordId: string
   readonly link: { readonly steamId: string; readonly personaName: string } | null
+  /** Whether they have @Multiplayer ping; null when Discord couldn't say. */
+  readonly pings: boolean | null
 }
 
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
@@ -252,10 +255,20 @@ const resultButtons = (m: MatchView) => (m.links === null ? "" : btn("channel", 
 
 // ---------------------------------------------------------------- the header
 
+const BELL_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 2.5a6 6 0 0 0-6 6v3.6l-1.7 3.1a1 1 0 0 0 .9 1.5h13.6a1 1 0 0 0 .9-1.5L18 12.1V8.5a6 6 0 0 0-6-6Z" fill="currentColor"/><path d="M9.5 18.8a2.5 2.5 0 0 0 5 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`
+
+/** Lobby pings: lit green with the role, unlit without, dimmed and inert when Discord couldn't say. */
+const bell = (pings: boolean | null) => {
+  if (pings === null)
+    return `<button class="bell unknown" disabled title="Lobby pings: Discord didn't say" aria-label="Lobby pings">${BELL_SVG}</button>`
+  const label = pingsState(pings)
+  return `<button class="bell${pings ? " on" : ""}" data-act="pings" title="${label}" aria-label="${label}" aria-pressed="${pings}">${BELL_SVG}</button>`
+}
+
 const meLink = (viewer: Viewer) =>
   viewer.link === null
     ? `<span class="me-link">Not linked · <button data-act="link"><u>Link Steam</u></button></span>`
-    : `<span class="me-link">${marble(viewer.link.steamId, 18)}Linked as <u>${esc(viewer.link.personaName)}</u> · <button data-act="link"><u>Change</u></button></span>`
+    : `<span class="me-link">${marble(viewer.link.steamId, 18)}Linked as <u>${esc(viewer.link.personaName)}</u> · <button data-act="link"><u>Change</u></button>${bell(viewer.pings)}</span>`
 
 const topBar = (viewer: Viewer) => `<div class="top">${logo()}${meLink(viewer)}</div>`
 
@@ -515,4 +528,25 @@ export const linkDialog = (s: LinkState, viewer: Viewer) => {
 export const leaveDialog = (m: MatchView, busy: boolean) =>
   `<div class="overlay" data-act="stay"><div class="dialog" role="dialog" aria-modal="true" aria-label="Leave this Match?" data-stop><div class="form"><span class="mt" style="font-size:20px">Leave this Match?</span><div class="note" style="font-size:13px;color:var(--dim)">Your best time so far stands, but nothing after this counts.</div><div class="row-btns">${btn(`leave-confirm:${m.matchId}`, "Leave", "warn", busy)}${btn("stay", "Stay", "go", busy)}</div></div></div></div>`
 
-export const toast = (text: string) => `<div class="toast" role="alert">${esc(text)}</div>`
+export interface ToastButton {
+  /** The `data-act` it carries. */
+  readonly act: string
+  readonly label: string
+  /** "go" for the green button, "" for the plain one. */
+  readonly look: string
+}
+
+/** A message at the top: a refusal (red), or news (calm), with optional buttons. */
+export interface Toast {
+  readonly text: string
+  readonly kind: "error" | "info"
+  readonly buttons: ReadonlyArray<ToastButton>
+  /** A Close button, for a toast that stays up until it's answered. */
+  readonly closable: boolean
+}
+
+export const toast = (t: Toast) => {
+  const buttons = t.buttons.map((b) => btn(b.act, esc(b.label), `sm ${b.look}`.trim())).join("")
+  const close = t.closable ? `<button class="x" data-act="close-toast" aria-label="Close" title="Close">×</button>` : ""
+  return `<div class="toast ${t.kind}" role="${t.kind === "error" ? "alert" : "status"}"><span class="tt">${esc(t.text)}</span>${buttons === "" ? "" : `<span class="row-btns">${buttons}</span>`}${close}</div>`
+}
