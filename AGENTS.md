@@ -39,6 +39,10 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   so a new site file must be added to its `cp` line or it 404s in production. Runs on
   push to `main`, by hand, and from
   `refresh.yml`, whose `GITHUB_TOKEN` push triggers no other workflow.
+- `web/` — the site's move to Next.js on Vercel (ADR 0004, plan in
+  `docs/nextjs-migration.md`). For now it only serves the root site files, copied into
+  `web/public/` at build time, so the files to edit stay the ones at the root. Pages is
+  still production.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
   covers install and how it hooks the game.
