@@ -1,6 +1,9 @@
 # secrets
 .env
 tools/refresh_token.txt
+# dated backups of the two above (.env.<stamp>.bak, refresh_token.txt.<account>.unusable)
+*.bak
+*.unusable
 
 # local editor / Claude Code settings
 .claude/settings.local.json
