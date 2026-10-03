@@ -1,6 +1,6 @@
 # The site moves to Next.js on Vercel, in web/, one view at a time
 
-Status: proposed. It supersedes 0002 when the domain moves to Vercel.
+Status: accepted. ballest.willness.dev moved to Vercel on 2026-10-03; it supersedes 0002.
 
 The site moves off GitHub Pages to a Next.js app on Vercel. The reasons are what a
 static single file cannot do: real URLs for a player, a board or a Map, with their own
