@@ -164,9 +164,20 @@ conventions.
 
 ## Agent skills
 
-Matt Pocock's `to-spec`, `to-tickets`, `implement-spec`, `tdd`, `codebase-design`, `code-review` and
-`setup-matt-pocock-skills` are vendored in `.claude/skills/` (MIT, from `mattpocock/skills`
-at `d81f3a1`), so cloud sessions have them too. The sections below are their setup.
+Matt Pocock's `grill-with-docs` (with the `grilling` and `domain-modeling` it calls), `to-spec`,
+`to-tickets`, `implement-spec`, `tdd`, `codebase-design`, `code-review`, `retro` (with
+`writing-for-agents`) and `setup-matt-pocock-skills` are vendored in `.claude/skills/` (MIT, from `mattpocock/skills`
+at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. Their
+`code-review` replaces the built-in `/code-review` here. `grill-design` comes from
+`will-ness-ai/skills`, adapted to prototype in the running app on a worktree, and is
+maintained here rather than reinstalled.
+
+### Building a feature
+
+Plan with `/grill-with-docs`, settle anything players will see with `/grill-design`, write
+it up with `/to-spec` and `/to-tickets`, build it with `/implement-spec`, which opens the
+draft PR, then a final `/code-review`, a `/codebase-design` pass over the code it touched,
+and an updated PR. Once it is merged, run `/retro` on the sessions that built it. Each step and how it fits this repo: `docs/agents/feature-workflow.md`.
 
 ### Issue tracker
 
