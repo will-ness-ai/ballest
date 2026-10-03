@@ -6,7 +6,9 @@
 // else can see an ephemeral reply. What it changes in the channel goes to Discord for real.
 import { mkdirSync, writeFileSync } from "node:fs"
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
-import { join } from "node:path"
+// Forward slashes on Windows too: the paths are printed for agents, and Node takes them as they are.
+import { posix } from "node:path"
+const { join } = posix
 import type { Interaction } from "discord.js"
 import { Effect, Layer, Option, Queue, Runtime, Stream } from "effect"
 import { DriverInteractions } from "../../src/discord/interactions.js"

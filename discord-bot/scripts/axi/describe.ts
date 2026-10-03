@@ -35,7 +35,33 @@ export interface ApiMessage {
   /** Who the message actually pings (the payload's allowedMentions), when known. */
   readonly pings?: ReadonlyArray<string>
   readonly thread?: { readonly id: string; readonly name: string; readonly message_count?: number }
+  /** Discord's message type: 0 and 19 (a reply) are ordinary, the rest are system messages. */
+  readonly type?: number
 }
+
+const SYSTEM: Record<number, string> = { 6: "pinned a message", 18: "thread created", 21: "thread starter" }
+
+/**
+ * Discord markup as a person sees it: `<@id>` as @name (from the message's mentions), custom
+ * emojis as :name:, and timestamps as UTC times. The raw ids stay in `detail`'s mentions line.
+ */
+export const readable = (text: string, mentions: ApiMessage["mentions"] = []) =>
+  text
+    .replace(/<@!?(\d+)>/g, (raw, id: string) => {
+      const user = mentions.find((u) => u.id === id)
+      return user === undefined ? raw : `@${user.username}`
+    })
+    .replace(/<a?:(\w+):\d+>/g, ":$1:")
+    .replace(/<t:(\d+)(?::([tTdDfFR]))?>/g, (_, unix: string, style?: string) => {
+      const at = new Date(Number(unix) * 1000).toISOString().slice(0, 16).replace("T", " ")
+      return style === "R" ? `(${at}Z, relative)` : `${at}Z`
+    })
+
+/** Why a message shows nothing: a system message, or text the reading app isn't allowed to see. */
+const emptyReason = (m: ApiMessage) =>
+  m.type !== undefined && m.type !== 0 && m.type !== 19
+    ? `(system: ${SYSTEM[m.type] ?? `type ${m.type}`})`
+    : "(nothing visible: another app's message needs the reader's Message Content intent)"
 
 const BUTTON = 2
 const TEXT_INPUT = 4
@@ -95,7 +121,7 @@ export const cut = (text: string, limit: number) =>
 /** One message in one line: for lists. */
 export const summary = (m: ApiMessage, limit = 80): string => {
   const parts: Array<string> = []
-  const text = [m.content ?? "", ...(m.embeds ?? []).map((e) => [e.title, e.description].filter(Boolean).join(": ")), ...textsOf(m.components)]
+  const text = [readable(m.content ?? "", m.mentions), ...(m.embeds ?? []).map((e) => [e.title, e.description].filter(Boolean).join(": ")), ...textsOf(m.components)]
     .filter((t) => t !== "")
     .join(" | ")
     .replace(/\s+/g, " ")
@@ -105,7 +131,7 @@ export const summary = (m: ApiMessage, limit = 80): string => {
   const controls = controlsOf(m.components).filter((c) => c.kind !== "input")
   if (controls.length > 0) parts.push(`[${controls.map((c) => c.label + (c.disabled ? " (off)" : "")).join(" | ")}]`)
   if (m.thread !== undefined) parts.push(`[thread ${m.thread.id}]`)
-  return parts.length === 0 ? "(empty)" : parts.join(" ")
+  return parts.length === 0 ? emptyReason(m) : parts.join(" ")
 }
 
 /** A table in TOON: `name[n]{a,b}:` then one indented row per item, or a definitive empty line. */
@@ -118,7 +144,7 @@ export const table = (name: string, fields: ReadonlyArray<string>, rows: Readonl
 export const detail = (m: ApiMessage, opts: { readonly full?: boolean; readonly files?: ReadonlyMap<string, string> } = {}): Array<string> => {
   const limit = opts.full === true ? Number.POSITIVE_INFINITY : 600
   const lines: Array<string> = [`message: ${m.id}${m.author === undefined ? "" : ` by ${m.author.username}`}${m.timestamp === undefined ? "" : ` at ${m.timestamp}`}`]
-  if ((m.content ?? "") !== "") lines.push(`content: ${cut(m.content ?? "", limit)}`)
+  if ((m.content ?? "") !== "") lines.push(`content: ${cut(readable(m.content ?? "", m.mentions), limit)}`)
   for (const t of textsOf(m.components)) lines.push(`text: ${cut(t, limit)}`)
   for (const e of m.embeds ?? []) {
     const body = [e.title === undefined ? null : `**${e.title}**`, e.description ?? null].filter((x) => x !== null).join(" ")
@@ -131,6 +157,8 @@ export const detail = (m: ApiMessage, opts: { readonly full?: boolean; readonly 
   if (m.pings !== undefined) lines.push(`pings: ${m.pings.length === 0 ? "nobody" : m.pings.join(" ")}`)
   else if ((m.mentions ?? []).length > 0) lines.push(`mentions: ${(m.mentions ?? []).map((u) => `${u.username} (${u.id})`).join(", ")}`)
   if (m.thread !== undefined) lines.push(`thread: ${m.thread.id} ${cell(m.thread.name)}${m.thread.message_count === undefined ? "" : ` (${m.thread.message_count} messages)`}`)
+  const shows = (m.content ?? "") !== "" || textsOf(m.components).length > 0 || (m.embeds ?? []).length > 0
+  if (!shows && files.length === 0 && controls.length === 0) lines.push(`shows: ${emptyReason(m)}`)
   return lines
 }
 

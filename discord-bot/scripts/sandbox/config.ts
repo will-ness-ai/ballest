@@ -1,7 +1,9 @@
 // The sandbox's settings, shared by the bot copy (scripts/sandbox.ts) and the CLI (scripts/axi.ts):
 // its channel, made by `pnpm axi sandbox create`, and the driver's port.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+// Forward slashes on Windows too: the paths are printed for agents, and Node takes them as they are.
+import { posix } from "node:path"
+const { join } = posix
 
 export const LOGS = ".logs"
 export const SANDBOX_FILE = join(LOGS, "sandbox.json")

@@ -51,3 +51,19 @@ describe("axi's message reader", () => {
     expect(table("threads", ["id"], [])).toEqual(["threads: none"])
   })
 })
+
+describe("axi's markup reader", () => {
+  it("shows mentions, emojis and timestamps as a person reads them", () => {
+    const m = {
+      id: "1",
+      content: "<:marble_165:155> **<@333>** opened a match <t:1700000000:R>",
+      mentions: [{ id: "333", username: "will" }]
+    }
+    expect(summary(m, 200)).toBe(":marble_165: **@will** opened a match (2023-11-14 22:13Z, relative)")
+  })
+
+  it("says why a message shows nothing", () => {
+    expect(summary({ id: "1", type: 21 })).toBe("(system: thread starter)")
+    expect(summary({ id: "1", type: 0, content: "" })).toMatch(/Message Content intent/)
+  })
+})

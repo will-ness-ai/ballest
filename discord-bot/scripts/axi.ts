@@ -1,17 +1,18 @@
-// `pnpm axi`: the test server, for agents (AXI style: live data first, compact rows, a next
+// `pnpm -s axi`: the test server, for agents (AXI style: live data first, compact rows, a next
 // step after every answer, errors on stdout with exit code 1). It reads the channel and Match
 // Threads as the Admin app (ADMIN_DISCORD_TOKEN in the dev .env), makes and removes the sandbox
 // channel, and drives the sandbox bot (`pnpm sandbox`) through its local driver: pressing
 // buttons, picking, submitting forms as any member, and setting fake Steam times.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { posix } from "node:path"
+const { join } = posix
 import { ChannelType, OverwriteType, PermissionFlagsBits, REST, Routes } from "discord.js"
 import { type ApiMessage, cell, controlsOf, detail, summary, table } from "./axi/describe.js"
 import { devEnvFile } from "./devEnv.js"
 import type { Answer } from "./sandbox/driver.js"
 import { DRIVER_PORT, LOGS, readSandbox, writeSandbox } from "./sandbox/config.js"
 
-const HELP = `usage: pnpm axi [command] [args]
+const HELP = `usage: pnpm -s axi [command] [args]
   (none)                         the sandbox at a glance
   read [channel|thread] [--limit n] [--full]
                                  newest messages, oldest first (default: the sandbox channel)
@@ -86,7 +87,7 @@ const call = async <T>(what: string, run: () => Promise<unknown>): Promise<T> =>
 }
 
 const sandbox = readSandbox()
-const sandboxChannel = () => sandbox?.channelId ?? fail("no sandbox channel yet", ["pnpm axi sandbox create"])
+const sandboxChannel = () => sandbox?.channelId ?? fail("no sandbox channel yet", ["pnpm -s axi sandbox create"])
 
 interface ApiChannel {
   readonly id: string
@@ -105,7 +106,7 @@ const me = () => call<{ id: string; username: string }>("who am I", () => rest.g
 
 /** A member by id, "admin", or name. */
 const resolveMember = async (who: string | undefined): Promise<string> => {
-  if (who === undefined) return fail("--as <member> is required", ["pnpm axi members"])
+  if (who === undefined) return fail("--as <member> is required", ["pnpm -s axi members"])
   if (/^\d+$/.test(who)) return who
   if (who === "admin") return (await me()).id
   const found = await call<ReadonlyArray<ApiMember>>("search members", () =>
@@ -114,7 +115,7 @@ const resolveMember = async (who: string | undefined): Promise<string> => {
   const exact = found.filter((m) => [m.user.username, m.nick].some((n) => n?.toLowerCase() === who.toLowerCase()))
   const pick = exact[0] ?? (found.length === 1 ? found[0] : undefined)
   if (pick === undefined)
-    return fail(`no single member matches "${who}" (${found.length} found)`, ["pnpm axi members " + who])
+    return fail(`no single member matches "${who}" (${found.length} found)`, ["pnpm -s axi members " + who])
   return pick.user.id
 }
 
@@ -174,11 +175,11 @@ const rows = (ms: ReadonlyArray<ApiMessage>, full: boolean) =>
 const home = async () => {
   const self = await me()
   const lines = [
-    "pnpm axi: the Multiballs test server, for agents",
+    "pnpm -s axi: the Multiballs test server, for agents",
     `as: ${self.username}${asAdmin ? " (Admin app)" : " (dev bot's token: read-only, no ADMIN_DISCORD_TOKEN)"}`
   ]
   if (sandbox === null) {
-    say([...lines, "sandbox: none", ...helpLines(["pnpm axi sandbox create"])])
+    say([...lines, "sandbox: none", ...helpLines(["pnpm -s axi sandbox create"])])
     return
   }
   lines.push(`sandbox: #${sandbox.channelName} (${sandbox.channelId})`)
@@ -190,8 +191,8 @@ const home = async () => {
     ...lines,
     ...helpLines([
       ...(h === null ? ["pnpm sandbox   (start the sandbox bot in another shell)"] : []),
-      "pnpm axi show <message>",
-      "pnpm axi press <label|custom id> --as <member>"
+      "pnpm -s axi show <message>",
+      "pnpm -s axi press <label|custom id> --as <member>"
     ])
   ])
 }
@@ -201,11 +202,11 @@ const read = async () => {
   const limit = Number(flag("limit") ?? 10)
   const full = has("full")
   const ms = await messages(where, limit)
-  say([`channel: ${where}`, ...rows(ms, full), ...helpLines(["pnpm axi show <id>" + (where === sandbox?.channelId ? "" : ` --in ${where}`)])])
+  say([`channel: ${where}`, ...rows(ms, full), ...helpLines(["pnpm -s axi show <id>" + (where === sandbox?.channelId ? "" : ` --in ${where}`)])])
 }
 
 const show = async () => {
-  const id = args[0] ?? fail("show needs a message id", ["pnpm axi read"])
+  const id = args[0] ?? fail("show needs a message id", ["pnpm -s axi read"])
   const where = flag("in") ?? sandboxChannel()
   const full = has("full")
   const m = await call<ApiMessage>("fetch message", () => rest.get(Routes.channelMessage(where, id)))
@@ -215,8 +216,8 @@ const show = async () => {
     ...detail(m, { full, files }),
     ...helpLines([
       ...(files.size > 0 ? ["Read the saved image to see it"] : []),
-      ...(buttons.length > 0 ? [`pnpm axi press ${cell(buttons[0]?.target ?? "")} --as <member>`] : []),
-      ...(m.thread === undefined ? [] : [`pnpm axi read ${m.thread.id}`])
+      ...(buttons.length > 0 ? [`pnpm -s axi press ${cell(buttons[0]?.target ?? "")} --as <member>`] : []),
+      ...(m.thread === undefined ? [] : [`pnpm -s axi read ${m.thread.id}`])
     ])
   ])
 }
@@ -228,7 +229,7 @@ const threads = async () => {
   const all = [...active.threads.filter((t) => t.parent_id === parent), ...archived.threads]
   say([
     ...table("threads", ["id", "name", "messages", "archived"], all.map((t) => [t.id, t.name, t.message_count ?? 0, t.thread_metadata?.archived ?? false])),
-    ...helpLines(["pnpm axi read <thread id>"])
+    ...helpLines(["pnpm -s axi read <thread id>"])
   ])
 }
 
@@ -269,10 +270,10 @@ const resolveControl = async (target: string, messageId: string | undefined) => 
       const hit = controlsOf(m.components).find((c) => c.kind !== "link" && norm(c.label) === norm(target))
       if (hit !== undefined) return hit.target
     }
-  return fail(`no button labelled "${target}" in the last private reply or the newest messages`, ["pnpm axi read", "pnpm axi show <message>"])
+  return fail(`no button labelled "${target}" in the last private reply or the newest messages`, ["pnpm -s axi read", "pnpm -s axi show <message>"])
 }
 
-const FOLLOW = ["pnpm axi read", "pnpm axi press <label|custom id> --as <member>"]
+const FOLLOW = ["pnpm -s axi read", "pnpm -s axi press <label|custom id> --as <member>"]
 
 const press = async () => {
   const messageId = flag("message")
@@ -305,8 +306,8 @@ const time = async () => {
   const [matchId, seconds] = args
   if (matchId === undefined || seconds === undefined) return fail("time needs a Match id and seconds")
   const out = await driver<{ ok?: string; error?: string }>("/time", { matchId, as, seconds: Number(seconds) })
-  if (out.error !== undefined) return fail(out.error, ["pnpm axi"])
-  say([out.ok ?? "", ...helpLines(["pnpm axi wait <text> --in <thread>"])])
+  if (out.error !== undefined) return fail(out.error, ["pnpm -s axi"])
+  say([out.ok ?? "", ...helpLines(["pnpm -s axi wait <text> --in <thread>"])])
 }
 
 const wait = async () => {
@@ -318,16 +319,16 @@ const wait = async () => {
   while (Date.now() < until) {
     await new Promise((r) => setTimeout(r, 2000))
     const hit = (await messages(where, 20)).find((m) => !seen.has(m.id) && summary(m, 2000).toLowerCase().includes(text.toLowerCase()))
-    if (hit !== undefined) return say([...detail(hit), ...helpLines([`pnpm axi show ${hit.id}${where === sandbox?.channelId ? "" : ` --in ${where}`}`])])
+    if (hit !== undefined) return say([...detail(hit), ...helpLines([`pnpm -s axi show ${hit.id}${where === sandbox?.channelId ? "" : ` --in ${where}`}`])])
   }
-  return fail(`no new message containing "${text}" in ${timeout / 1000} s`, [`pnpm axi read ${where}`])
+  return fail(`no new message containing "${text}" in ${timeout / 1000} s`, [`pnpm -s axi read ${where}`])
 }
 
 const sandboxCmd = async () => {
   const sub = args[0]
   if (!asAdmin) return fail("making channels needs the Admin app: set ADMIN_DISCORD_TOKEN in the dev .env")
   if (sub === "create") {
-    if (sandbox !== null) return fail(`a sandbox already exists: #${sandbox.channelName}`, ["pnpm axi sandbox delete"])
+    if (sandbox !== null) return fail(`a sandbox already exists: #${sandbox.channelName}`, ["pnpm -s axi sandbox delete"])
     const botId = env["DISCORD_APPLICATION_ID"] ?? fail("DISCORD_APPLICATION_ID (the dev bot's id) is not set in the dev .env")
     const name = args[1] ?? `sandbox-${new Date().toISOString().slice(5, 16).replace(/[-:T]/g, "")}`
     const everyone = guildId
@@ -336,7 +337,7 @@ const sandboxCmd = async () => {
         body: {
           name,
           type: ChannelType.GuildText,
-          topic: "Multiballs sandbox for agents (pnpm axi). Safe to delete.",
+          topic: "Multiballs sandbox for agents (pnpm -s axi). Safe to delete.",
           permission_overwrites: [
             { id: everyone, type: OverwriteType.Role, deny: String(PermissionFlagsBits.SendMessages) },
             {
@@ -358,15 +359,15 @@ const sandboxCmd = async () => {
       })
     )
     writeSandbox({ guildId, channelId: created.id, channelName: created.name })
-    return say([`created: #${created.name} (${created.id})`, ...helpLines(["pnpm sandbox   (start the sandbox bot in another shell)", "pnpm axi"])])
+    return say([`created: #${created.name} (${created.id})`, ...helpLines(["pnpm sandbox   (start the sandbox bot in another shell)", "pnpm -s axi"])])
   }
   if (sub === "delete") {
     const channelId = sandboxChannel()
     await call("delete channel", () => rest.delete(Routes.channel(channelId)))
     writeSandbox(null)
-    return say([`deleted: #${sandbox?.channelName}`, ...helpLines(["pnpm axi sandbox create"])])
+    return say([`deleted: #${sandbox?.channelName}`, ...helpLines(["pnpm -s axi sandbox create"])])
   }
-  return fail(`unknown sandbox command "${sub ?? ""}"`, ["pnpm axi sandbox create", "pnpm axi sandbox delete"])
+  return fail(`unknown sandbox command "${sub ?? ""}"`, ["pnpm -s axi sandbox create", "pnpm -s axi sandbox delete"])
 }
 
 const COMMANDS: Record<string, () => Promise<void>> = { read, show, threads, members, press, pick, submit, time, wait, sandbox: sandboxCmd }
