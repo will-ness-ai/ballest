@@ -11,7 +11,7 @@ Discord ports, SQLite in memory and Effect's TestClock, and the Discord Surface 
 Match Threads and the Footer go) over an in-memory channel. Every message the bot sends is built
 in `messages.ts` from plain data; `test/messages.test.ts` checks each one's buttons and pings, so
 a new button or post gets a case there. The discord.js calls (`client.ts`, `channel.ts`,
-`interactions.ts`) are checked by running the bot against the test server.
+`interactions.ts`) are checked by running the bot against the test server, in the sandbox below.
 
 Every image the bot posts is drawn by `src/render/` (Satori and resvg, fonts from
 `@fontsource`); `pnpm render:samples` writes each one as a PNG to `.logs/samples/` to check by
@@ -42,6 +42,38 @@ shell leaves its Node process running.
 At startup the bot refuses to run without its channel permissions. The channel denies Send
 Messages to `@everyone` to stay read-only, so the bot's role needs an explicit Send Messages
 allow on that channel.
+
+## The sandbox: driving the bot on the test server
+
+`pnpm sandbox` runs the real bot on the dev app in a channel of its own, with two swaps: the
+tests' fake Steam (any profile links, as `fake-<name>`, and times are set on demand), and a
+driver on `127.0.0.1:8741` that clicks buttons, picks and submits forms as any member. Discord
+lets only people press an app's buttons, so the driver hands `interactions.ts` a stand-in
+Interaction (`scripts/sandbox/driver.ts`): everything from there inwards runs as for a real click,
+and what the bot answers privately comes back to the caller. A fresh database each start; log
+in `.logs/sandbox.log`. It leaves clicks in other channels alone, so it runs beside `pnpm dev`.
+
+`pnpm axi` is how an agent uses it (AXI style: run it bare for the state of things, every answer
+ends with next steps). It reads as the "Multiballs Admin (dev)" app, `ADMIN_DISCORD_TOKEN` in the
+dev `.env`, which sees the channel and Match Threads as a member does:
+
+```
+pnpm axi sandbox create                     # once: a channel the bot can post in
+pnpm sandbox                                # in another shell
+pnpm axi press "New Match" --as admin       # labels are looked up in the last private answer
+pnpm axi press "Lobby" --as admin           #   or the channel's newest messages
+pnpm axi read                               # the channel; `show <id>` saves its images to read
+pnpm axi time <match> 18.2 --as admin       # a finished run, read on the engine's next poll
+pnpm axi wait "Go!" --in <thread>
+```
+
+Without `ADMIN_DISCORD_TOKEN` it reads with the dev bot's token: its own messages only, and no
+sandbox setup. `--as` takes a member id, `admin`, or a name; pinging a member pings them for
+real, so play as `admin` and members who expect it.
+
+What to check where: Match rules in `test/engine.test.ts`, what lands in the channel in
+`test/surface.test.ts`, each message's buttons and pings in `test/messages.test.ts`, and the
+discord.js calls (what Discord actually renders, threads, pings, edits) in the sandbox.
 
 ## The Activity
 
