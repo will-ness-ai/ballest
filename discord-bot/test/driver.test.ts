@@ -6,6 +6,7 @@ import { Effect, Layer, Option, Stream } from "effect";
 import { Discord } from "../src/discord/client.js";
 import { DriverInteractions, InteractionsLive } from "../src/discord/interactions.js";
 import { Engine } from "../src/engine.js";
+import { Pings } from "../src/pings.js";
 import { Store } from "../src/ports.js";
 import { Renderer } from "../src/render/renderer.js";
 import { controlsOf, fromPayload } from "../scripts/axi/describe.js";
@@ -34,6 +35,7 @@ describe("the sandbox driver", () => {
                 discord,
                 Layer.succeed(Engine, h.engine),
                 Layer.succeed(Store, h.store),
+                Layer.succeed(Pings, h.pings),
                 Renderer.Default,
               ),
             ),

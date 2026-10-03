@@ -9,10 +9,19 @@ import { AuthFailed, DiscordAuth, DiscordMembers } from "../src/activity/auth.js
 import { activityServer } from "../src/activity/server.js";
 import { seconds as tickSeconds } from "../src/domain.js";
 import { Engine } from "../src/engine.js";
-import { MatchLinks, Store, Steam, Surface } from "../src/ports.js";
+import { Pings } from "../src/pings.js";
+import { MatchLinks, PingRole, Store, Steam, Surface } from "../src/ports.js";
 import { MapPreviews, PreviewSource, PreviewUnavailable } from "../src/previews.js";
 import { SqliteStoreInMemory } from "../src/sqliteStore.js";
-import { BOB, CARA, DAN, makeFakeSteam, makeMap, PROFILES } from "../test/harness.js";
+import {
+  BOB,
+  CARA,
+  DAN,
+  makeFakePingRole,
+  makeFakeSteam,
+  makeMap,
+  PROFILES,
+} from "../test/harness.js";
 
 const MAPS = [
   makeMap(1, { title: "Pebble Ramp", creator: "pebblewright" }),
@@ -85,12 +94,19 @@ const Demo = Layer.unwrapScoped(
       yield* store.putLink({ ...p, personaName: p.discordId.slice(2) });
     const steam = yield* makeFakeSteam(PROFILES);
     yield* steam.control.setCatalogue(MAPS);
+    // The @Multiplayer ping role, held in memory: the bell and the offer work as in Discord.
+    const role = yield* makeFakePingRole;
+    const pings = Pings.Default.pipe(
+      Layer.provide(Layer.succeed(PingRole, role.port)),
+      Layer.provide(Layer.succeed(Store, store)),
+    );
     const ports = Layer.mergeAll(
       Layer.succeed(Store, store),
       Layer.succeed(Steam, steam.port),
       LogSurface,
       NoLinks,
       NoPreviews,
+      pings,
     );
 
     // The racers: each live Player sometimes finishes a run, usually a little faster than before.

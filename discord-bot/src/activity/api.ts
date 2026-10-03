@@ -14,6 +14,8 @@ import {
 } from "../domain.js";
 import { Engine, type Rejection } from "../engine.js";
 import { explain } from "../explain.js";
+import { PING_FAILED } from "../pingWords.js";
+import { Pings, warnPingRole } from "../pings.js";
 import {
   type CardView,
   cardView,
@@ -78,6 +80,7 @@ const json = (body: unknown, status = 200) => HttpServerResponse.unsafeJson(body
 
 const TokenBody = Schema.Struct({ code: Schema.String });
 const PreviewBody = Schema.Struct({ profile: Schema.String });
+const PingsBody = Schema.Struct({ on: Schema.Boolean });
 const OpenBody = Schema.Struct({
   type: Schema.Literal("public", "challenge", "lobby"),
   minutes: Schema.Literal(...DURATIONS),
@@ -96,6 +99,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
   const places = yield* MatchLinks;
   const store = yield* Store;
   const engine = yield* Engine;
+  const pings = yield* Pings;
   /** Each member's last previewed profile, waiting for them to confirm it. */
   const previews = yield* Ref.make(new Map<string, ProfilePreview>());
 
@@ -165,11 +169,19 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
     return view;
   });
 
-  /** A Match as it stands (null once it's gone), with the server's clock for the countdowns. */
-  const reply = Effect.fn("reply")(function* (m: Option.Option<Match>, discordId: string) {
+  /**
+   * A Match as it stands (null once it's gone), with the server's clock for the countdowns, and,
+   * after a member's own action on it, whether to offer them the ping role.
+   */
+  const reply = Effect.fn("reply")(function* (
+    m: Option.Option<Match>,
+    discordId: string,
+    pingOffer?: boolean,
+  ) {
     return json({
       now: yield* Clock.currentTimeMillis,
       match: Option.isSome(m) ? yield* viewOf(m.value, discordId) : null,
+      ...(pingOffer === undefined ? {} : { pingOffer }),
     });
   });
 
@@ -211,7 +223,30 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
               onSome: (l) => ({ steamId: l.steamId, personaName: l.personaName }),
             }),
             matchId: active?.id ?? null,
+            // Null when Discord can't say just now: the rest of the page still works.
+            pings: yield* pings
+              .status(discordId)
+              .pipe(Effect.catchTag("PingRoleUnavailable", () => Effect.succeed(null))),
           });
+        }),
+      ),
+    ),
+    HttpRouter.post(
+      "/api/pings",
+      asMember((discordId) =>
+        Effect.gen(function* () {
+          const { on } = yield* HttpServerRequest.schemaBodyJson(PingsBody);
+          yield* pings.set(discordId, on);
+          return json({ pings: on });
+        }),
+      ),
+    ),
+    HttpRouter.post(
+      "/api/pings/decline",
+      asMember((discordId) =>
+        Effect.gen(function* () {
+          yield* pings.decline(discordId);
+          return HttpServerResponse.empty({ status: 204 });
         }),
       ),
     ),
@@ -317,7 +352,11 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
           const known = ACTIONS.find((a) => a === action);
           if (known === undefined) return yield* new NotFound({ closed: null });
           yield* engine[known](discordId, id);
-          return yield* reply(yield* store.getMatch(id), discordId);
+          return yield* reply(
+            yield* store.getMatch(id),
+            discordId,
+            yield* pings.offerAfter(known, discordId),
+          );
         }),
       ),
     ),
@@ -336,6 +375,10 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
             },
             403,
           ),
+        ),
+      PingRoleUnavailable: (e) =>
+        warnPingRole(e).pipe(
+          Effect.as(json({ error: "PingRoleUnavailable", message: PING_FAILED }, 503)),
         ),
       DiscordUnavailable: () =>
         Effect.succeed(

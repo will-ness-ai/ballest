@@ -44,6 +44,15 @@ At startup the bot refuses to run without its channel permissions. The channel d
 Messages to `@everyone` to stay read-only, so the bot's role needs an explicit Send Messages
 allow on that channel.
 
+It also refuses to run unless it can use the @Multiplayer ping role (Lobby pings, spec #87),
+whose id is `DISCORD_PING_ROLE_ID` (a different role for the dev app's test server and for
+production; set it in the main checkout's `.env` and in `fly secrets`). The role must exist, the
+bot needs Manage Roles with its own role above @Multiplayer ping, and the role must be
+mentionable or the bot allowed to Mention @everyone, @here and All Roles. That is the only
+role the bot ever adds or removes (`src/discord/pingRole.ts`, behind the `PingRole` port), and
+`src/pings.ts` is the one place both surfaces go through for it; its words are in
+`src/pingWords.ts`.
+
 ## The sandbox: driving the bot on the test server
 
 `pnpm sandbox` runs the real bot on the dev app in a channel of its own, with two swaps: the
@@ -114,8 +123,14 @@ times once a Match is live. The page is bundled at startup, so restart the demo 
 
 The bot serves it on `PORT` (default 8080) only when `DISCORD_CLIENT_SECRET` and
 `DISCORD_APPLICATION_ID` are set; otherwise nothing listens. Trying it in Discord needs, in the
-Developer Portal: Activities enabled, a URL Mapping from `/` to the server's public host (a
-`cloudflared tunnel --url http://localhost:8080` works locally), and the OAuth2 client secret.
+Developer Portal: Activities enabled, a URL Mapping from `/` to the server's public host, and the
+OAuth2 client secret. Locally that host is a Cloudflare quick tunnel (`cloudflared`, installed
+on the PC): `pnpm dev` opens one, prints its `*.trycloudflare.com` address, and closes it on
+exit. The address is new every start, so the human pastes it into the dev app's URL Mapping for
+`/` each time; tell them the address when you start the bot. Fixed addresses were tried and
+dropped: ngrok's free plan shows browsers a warning page that renders as a blank Activity, and
+the others needed a domain move or more setup than it was worth. A blank Activity means Discord
+can't reach the page: no tunnel running, or the mapping still holding an old address.
 Production serves it at `https://multiballs.fly.dev` (`fly.toml`'s `http_service`), with
 `DISCORD_APPLICATION_ID` and `DISCORD_CLIENT_SECRET` in `fly secrets` and the production app's
 URL Mapping pointing there.

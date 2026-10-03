@@ -10,6 +10,7 @@ import {
 import { Context, Effect, Layer, Match, Option, Ref, Stream } from "effect";
 import { Engine } from "../engine.js";
 import { explain } from "../explain.js";
+import { Pings, warnPingRole } from "../pings.js";
 import { Store, type ProfilePreview } from "../ports.js";
 import { Renderer, type RenderError } from "../render/renderer.js";
 import { describeDiscordError, Discord, type DiscordError, oneLine, tryDiscord } from "./client.js";
@@ -22,9 +23,14 @@ import {
   pickDurationMessage,
   pickTargetMessage,
   pickTypeMessage,
+  pingDeclinedMessage,
+  pingOfferMessage,
+  pingsMessage,
+  pingUnreadMessage,
   PROFILE_FIELD,
   quiet,
   tryAgainMessage,
+  withPingFailure,
 } from "./messages.js";
 
 /** What a member was doing when they had to link Steam first; it runs once they've linked. */
@@ -52,6 +58,7 @@ export const InteractionsLive = Layer.scopedDiscard(
     const engine = yield* Engine;
     const store = yield* Store;
     const renderer = yield* Renderer;
+    const pings = yield* Pings;
     const previews = yield* Ref.make(new Map<string, ProfilePreview>());
     const pending = yield* Ref.make(new Map<string, Pending>());
 
@@ -86,16 +93,35 @@ export const InteractionsLive = Layer.scopedDiscard(
         Match.exhaustive,
       );
 
+    /**
+     * Discord refused a Get or Remove: say so on the same private reply, keeping its buttons to
+     * try again, rather than in a new message.
+     */
+    const pingFailed = Effect.fn("pingFailed")(function* (i: ButtonInteraction) {
+      yield* tryDiscord("edit reply", () =>
+        i.editReply({ content: withPingFailure(i.message.content), ...quiet }),
+      );
+    });
+
+    /** After an action went through: offer the ping role, if this action and member are due it. */
+    const offerPings = Effect.fn("offerPings")(function* (i: Answerable, action: Action) {
+      if (yield* pings.offerAfter(action, i.user.id))
+        yield* tryDiscord("follow up", () =>
+          i.followUp({ ...pingOfferMessage(discord.pingRoleId), ...ephemeral }),
+        );
+    });
+
     /** Run a Card action; a rejection is explained privately to whoever clicked. */
     const act = Effect.fn("act")(function* (i: Answerable, action: Action, matchId: string) {
-      yield* runAction(action, i.user.id, matchId).pipe(
-        Effect.asVoid,
+      const done = yield* runAction(action, i.user.id, matchId).pipe(
+        Effect.as(true),
         Effect.catchAll((e) =>
           tryDiscord("follow up", () =>
             i.followUp({ content: explain(e, i.user.id), ...ephemeral, ...quiet }),
-          ),
+          ).pipe(Effect.as(false)),
         ),
       );
+      if (done) yield* offerPings(i, action);
     });
 
     const confirmLink = Effect.fn("confirmLink")(function* (i: ButtonInteraction) {
@@ -203,6 +229,34 @@ export const InteractionsLive = Layer.scopedDiscard(
           return yield* tryDiscord("update", () =>
             i.update({ content: "Still racing.", components: [] }),
           );
+        case "Pings": {
+          // Read from Discord on every click, so a moderator's change shows.
+          yield* tryDiscord("defer", () => i.deferReply(ephemeral));
+          const answer = yield* pings.status(self).pipe(
+            Effect.map((on) => pingsMessage(on, discord.pingRoleId)),
+            Effect.catchTag("PingRoleUnavailable", (e) =>
+              warnPingRole(e).pipe(Effect.as(pingUnreadMessage())),
+            ),
+          );
+          return yield* tryDiscord("edit reply", () => i.editReply(answer));
+        }
+        case "SetPing": {
+          // The Pings reply or the offer it's on becomes the Pings reply for the new state.
+          yield* tryDiscord("defer", () => i.deferUpdate());
+          return yield* pings.set(self, control.on).pipe(
+            Effect.zipRight(
+              tryDiscord("edit reply", () =>
+                i.editReply(pingsMessage(control.on, discord.pingRoleId)),
+              ),
+            ),
+            Effect.catchTag("PingRoleUnavailable", (e) =>
+              warnPingRole(e).pipe(Effect.zipRight(pingFailed(i))),
+            ),
+          );
+        }
+        case "DeclinePing":
+          yield* pings.decline(self);
+          return yield* tryDiscord("update", () => i.update(pingDeclinedMessage()));
         default:
           return;
       }

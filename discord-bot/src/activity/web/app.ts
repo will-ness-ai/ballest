@@ -8,6 +8,14 @@
 // until Back to Matches.
 import { Common, DiscordSDK } from "@discord/embedded-app-sdk";
 import type { MatchType, Minutes } from "../../domain.js";
+import {
+  DECLINE_PING,
+  GET_PING,
+  PING_ROLE_NAME,
+  pingOffer,
+  pingsToast,
+  UNDO_PING,
+} from "../../pingWords.js";
 import type { Challengeable, MatchView } from "../api.js";
 import type { PageConfig } from "../server.js";
 import * as V from "./view.js";
@@ -76,7 +84,8 @@ const ui = {
     changing: boolean;
   } | null,
   leaving: null as MatchView | null,
-  toast: "",
+  toast: null as V.Toast | null,
+  /** When the toast goes by itself; Infinity for one that waits for an answer. */
   toastUntil: 0,
   goFor: null as string | null,
   goUntil: 0,
@@ -272,10 +281,44 @@ const askPb = (m: MatchView | null, me: Me) => {
   );
 };
 
-const showToast = (text: string) => {
-  ui.toast = text;
+const showToast = (
+  text: string,
+  kind: V.Toast["kind"] = "error",
+  buttons: ReadonlyArray<V.ToastButton> = [],
+) => {
+  ui.toast = { text, kind, buttons, closable: false };
   ui.toastUntil = Date.now() + TOAST_MS;
 };
+
+/** The offer of the ping role after a Join or Accept: it stays until it's answered or closed. */
+const showOffer = () => {
+  ui.toast = {
+    text: pingOffer(PING_ROLE_NAME),
+    kind: "info",
+    buttons: [
+      { act: "offer-get", label: GET_PING, look: "go" },
+      { act: "offer-no", label: DECLINE_PING, look: "" },
+    ],
+    closable: true,
+  };
+  ui.toastUntil = Infinity;
+};
+
+const closeToast = () => {
+  ui.toast = null;
+};
+
+/** Give or take the ping role and keep the bell in step; `undo` offers the way back. */
+const setPings = (on: boolean, undo: boolean) =>
+  act(async () => {
+    const r = await api<{ pings: boolean }>("POST", "/api/pings", { on });
+    if (ui.me !== null) ui.me = { ...ui.me, pings: r.pings };
+    showToast(
+      pingsToast(r.pings),
+      "info",
+      undo ? [{ act: `pings-undo:${!r.pings}`, label: UNDO_PING, look: "" }] : [],
+    );
+  });
 
 const failed = (e: unknown) => {
   if (e instanceof ApiError && e.error === "NotMember") ui.phase = "wrong";
@@ -310,7 +353,11 @@ const startMatch = (verb: "start" | "accept", id: string) =>
     ui.starting = m;
     render();
     try {
-      const r = await api<{ match: MatchView | null }>("POST", `/api/matches/${id}/${verb}`);
+      const r = await api<{ match: MatchView | null; pingOffer?: boolean }>(
+        "POST",
+        `/api/matches/${id}/${verb}`,
+      );
+      if (r.pingOffer === true) showOffer();
       ui.mine = id;
       ui.watching = null;
       if (r.match !== null) {
@@ -328,7 +375,11 @@ const startMatch = (verb: "start" | "accept", id: string) =>
 
 const join = (id: string) =>
   act(async () => {
-    const r = await api<{ match: MatchView | null }>("POST", `/api/matches/${id}/join`);
+    const r = await api<{ match: MatchView | null; pingOffer?: boolean }>(
+      "POST",
+      `/api/matches/${id}/join`,
+    );
+    if (r.pingOffer === true) showOffer();
     ui.mine = id;
     ui.watching = null;
     if (r.match?.state === "live") {
@@ -530,6 +581,20 @@ const onAct = (action: string) => {
       if (ui.busy) return;
       ui.link = null;
       return render();
+    case "pings":
+      return ui.me?.pings == null ? undefined : setPings(!ui.me.pings, true);
+    case "pings-undo":
+      return setPings(arg === "true", false);
+    case "offer-get":
+      return setPings(true, false);
+    case "offer-no":
+      return act(async () => {
+        await api("POST", "/api/pings/decline");
+        closeToast();
+      });
+    case "close-toast":
+      closeToast();
+      return render();
   }
 };
 
@@ -616,7 +681,7 @@ const screen = (): string => {
     page += V.linkDialog({ ...ui.link, joining, busy: ui.busy }, viewer);
   }
   if (ui.leaving !== null) page += V.leaveDialog(ui.leaving, ui.busy);
-  if (ui.toast !== "") page += V.toast(ui.toast);
+  if (ui.toast !== null) page += V.toast(ui.toast);
   return page;
 };
 
@@ -676,8 +741,8 @@ const tick = () => {
     el.textContent = clock(Number(el.dataset.until) - serverNow());
   const now = Date.now();
   let changed = false;
-  if (ui.toast !== "" && now > ui.toastUntil) {
-    ui.toast = "";
+  if (ui.toast !== null && now > ui.toastUntil) {
+    ui.toast = null;
     changed = true;
   }
   if (ui.goFor !== null && now > ui.goUntil) {

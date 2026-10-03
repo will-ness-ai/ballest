@@ -1,5 +1,6 @@
 // One copy of the bot per channel on this machine. Two copies answer every click twice, post a
 // second Footer and log the Steam account in twice, so a second start refuses to run.
+import { execFileSync } from "node:child_process";
 import { closeSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -20,6 +21,33 @@ const isRunning = (pid: number) => {
   } catch (e) {
     return hasCode(e, "EPERM");
   }
+};
+
+/**
+ * The program running as this pid, or null if it can't be told. Windows hands a dead copy's pid
+ * to other programs, so a live pid alone doesn't mean the bot is still running.
+ */
+const programOf = (pid: number): string | null => {
+  try {
+    if (process.platform === "win32") {
+      const row = execFileSync("tasklist", ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"], {
+        encoding: "utf8",
+      });
+      return /^"([^"]+)"/.exec(row.trim())?.[1] ?? null;
+    }
+    return (
+      execFileSync("ps", ["-p", String(pid), "-o", "comm="], { encoding: "utf8" }).trim() || null
+    );
+  } catch {
+    return null;
+  }
+};
+
+/** Whether the lock's holder is still a running copy of the bot (a Node process). Unsure counts as yes. */
+const holdsLock = (pid: number) => {
+  if (!isRunning(pid)) return false;
+  const program = programOf(pid);
+  return program === null || /node/i.test(program);
 };
 
 /** Create the lock file holding our pid; false if it already exists. */
@@ -50,11 +78,11 @@ const alreadyRunning = (pid: number, path: string) =>
     message: `Multiballs is already running for this channel (pid ${pid}); stop it first. Lock: ${path}`,
   });
 
-const acquire = Effect.fn("acquireInstanceLock")(function* (path: string) {
+export const acquire = Effect.fn("acquireInstanceLock")(function* (path: string) {
   if (yield* create(path)) return;
   const holder = yield* holderOf(path);
-  if (Number.isInteger(holder) && isRunning(holder)) return yield* alreadyRunning(holder, path);
-  // Left behind by a copy that didn't shut down cleanly.
+  if (Number.isInteger(holder) && holdsLock(holder)) return yield* alreadyRunning(holder, path);
+  // Left behind by a copy that didn't shut down cleanly, its pid now gone or another program's.
   yield* Effect.try({
     try: () => unlinkSync(path),
     catch: (cause) => new LockFileError({ cause }),

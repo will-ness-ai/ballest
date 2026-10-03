@@ -31,12 +31,16 @@ const makeFakeChannel = () => {
   const broken = (op: string) => new DiscordError({ op, cause: "flaky" });
   const find = (id: string) => messages.find((m) => m.id === id);
 
+  /** Every drawing posted as a new message, in order: only these can notify a mention. */
+  const posted: Array<Drawing> = [];
+
   const port = Channel.of({
     post: (drawing) =>
       Effect.suspend(() => {
         if (fail("post")) return Effect.fail(broken("post"));
         const id = `msg${next++}`;
         messages.push({ id, drawing });
+        posted.push(drawing);
         return Effect.succeed(id);
       }),
     redraw: (messageId, drawing) =>
@@ -106,6 +110,8 @@ const makeFakeChannel = () => {
     port,
     /** What the channel shows, top to bottom. */
     order: () => messages.map((m) => label(m.drawing)),
+    /** What was posted as a new message rather than drawn over an old one, in order. */
+    posted: () => posted.map((d) => label(d)),
     /** The thread started on a Match's Card, if any, and what was posted in it. */
     threadPosts: (matchId: string) => {
       const card = messages.find(
@@ -172,6 +178,66 @@ describe("the channel", () => {
         yield* surface.showCard(view("m1", { players: [ALICE, ALICE] }));
         expect(channel.order()).toEqual(["card m1", "card m2", "footer"]);
         expect(channel.threadCount()).toBe(2);
+      }),
+  );
+
+  it.scoped(
+    "posts a Lobby's Card fresh, so its ping notifies, then deletes the old Footer and posts a new one last",
+    () =>
+      Effect.gen(function* () {
+        const { channel, start } = yield* setup;
+        const surface = yield* start;
+        yield* surface.showCard(view("m1"));
+        yield* surface.showCard(view("m2", { type: "lobby" }));
+        expect(channel.order()).toEqual(["card m1", "card m2", "footer"]);
+        expect(channel.posted()).toEqual(["footer", "footer", "card m2", "footer"]);
+        expect(channel.threadCount()).toBe(2);
+      }),
+  );
+
+  it.scoped("still turns the Footer into a Public 1v1's Card", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup;
+      const surface = yield* start;
+      yield* surface.showCard(view("m1", { type: "public" }));
+      expect(channel.order()).toEqual(["card m1", "footer"]);
+      expect(channel.posted()).toEqual(["footer", "footer"]);
+    }),
+  );
+
+  it.scoped("posts a Lobby's Card only once: later draws are redraws, which notify nobody", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup;
+      const surface = yield* start;
+      yield* surface.showCard(view("m1", { type: "lobby" }));
+      yield* surface.showCard(view("m1", { type: "lobby", players: [ALICE, ALICE] }));
+      yield* surface.showCard(view("m1", { type: "lobby", state: "live" }));
+      expect(channel.order()).toEqual(["card m1", "footer"]);
+      expect(channel.posted()).toEqual(["footer", "card m1", "footer"]);
+    }),
+  );
+
+  it.scoped("posts a Lobby's Card and a Footer when the Footer was deleted by hand", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup;
+      const surface = yield* start;
+      channel.deleteFooter();
+      yield* surface.showCard(view("m1", { type: "lobby" }));
+      expect(channel.order()).toEqual(["card m1", "footer"]);
+    }),
+  );
+
+  it.scoped(
+    "leaves the Footer in place when a Lobby's Card can't be posted, and posts it next time",
+    () =>
+      Effect.gen(function* () {
+        const { channel, start } = yield* setup;
+        const surface = yield* start;
+        channel.failNext("post", 1);
+        yield* surface.showCard(view("m1", { type: "lobby" }));
+        expect(channel.order()).toEqual(["footer"]);
+        yield* surface.showCard(view("m1", { type: "lobby" }));
+        expect(channel.order()).toEqual(["card m1", "footer"]);
       }),
   );
 

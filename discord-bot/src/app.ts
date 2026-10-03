@@ -11,11 +11,13 @@ import { describeDiscordError, Discord } from "./discord/client.js";
 import { DriverInteractions, InteractionsLive } from "./discord/interactions.js";
 import { DiscordChannelLive } from "./discord/channel.js";
 import { Marbles } from "./discord/marbles.js";
+import { PingRoleLive } from "./discord/pingRole.js";
 import { ChannelSurfaceLive } from "./discord/surface.js";
 import { Engine } from "./engine.js";
 import type { Steam, Store } from "./ports.js";
 import { InstanceLockLive } from "./instanceLock.js";
 import { OpsLive } from "./ops.js";
+import { Pings } from "./pings.js";
 import { MapPreviews, PreviewSourceLive } from "./previews.js";
 import { Renderer } from "./render/renderer.js";
 import { SqliteStoreLive } from "./sqliteStore.js";
@@ -94,7 +96,7 @@ const SurfaceLive = ChannelSurfaceLive.pipe(
 const PreviewsLive = MapPreviews.Default.pipe(Layer.provide(PreviewSourceLive));
 
 const portsLive = <E, R>(steam: Layer.Layer<Steam, E, R>) =>
-  Layer.mergeAll(steam, SurfaceLive, SqliteStoreLive).pipe(
+  Layer.mergeAll(steam, SurfaceLive, SqliteStoreLive, PingRoleLive).pipe(
     Layer.provideMerge(PreviewsLive),
     Layer.provideMerge(Renderer.Default),
     Layer.provideMerge(Discord.Default),
@@ -122,6 +124,7 @@ export const app = <E, R, E2 = never>(
     sandbox?.server ?? Layer.empty,
   ).pipe(
     Layer.provide(Engine.Default),
+    Layer.provide(Pings.Default),
     Layer.provideMerge(portsLive(steam)),
     Layer.provide(InstanceLockLive),
     Layer.provide(FileLogLive),

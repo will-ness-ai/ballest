@@ -63,6 +63,8 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     const token = yield* Config.redacted("DISCORD_TOKEN");
     const guildId = yield* Config.string("DISCORD_GUILD_ID");
     const channelId = yield* Config.string("DISCORD_CHANNEL_ID");
+    /** The @Multiplayer ping role: the one role the bot adds, removes and mentions. */
+    const pingRoleId = yield* Config.string("DISCORD_PING_ROLE_ID");
     // The sandbox shares the dev app with `pnpm dev`, so clicks in the other copy's channel reach
     // it too: it leaves them to that copy rather than answering first.
     const sandbox = yield* Config.boolean("MULTIBALLS_SANDBOX").pipe(Config.withDefault(false));
@@ -104,8 +106,36 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       return yield* Effect.dieMessage(
         `the bot is missing permissions in #${channel.name}: ${missing.join(", ")}`,
       );
+
+    // Lobby pings: the bot must be able to give, take and mention the role, or a Lobby's ping
+    // would go silently missing. Roles are read over REST: the Gateway intents stay at Guilds.
+    const pingRole = yield* tryDiscord("fetch ping role", () =>
+      channel.guild.roles.fetch(pingRoleId),
+    );
+    if (pingRole === null)
+      return yield* Effect.dieMessage(
+        `DISCORD_PING_ROLE_ID ${pingRoleId} is not a role in ${channel.guild.name}`,
+      );
+    const self = yield* tryDiscord("fetch the bot's member", () => channel.guild.members.fetchMe());
+    const roleProblems = [
+      ...(self.permissions.has(PermissionFlagsBits.ManageRoles)
+        ? []
+        : ["the Manage Roles permission"]),
+      ...(self.roles.highest.comparePositionTo(pingRole) > 0
+        ? []
+        : [`a role above @${pingRole.name} (move the bot's role higher)`]),
+      ...(pingRole.mentionable || perms?.has(PermissionFlagsBits.MentionEveryone)
+        ? []
+        : [
+            `a way to mention @${pingRole.name} (make the role mentionable, or allow Mention @everyone, @here and All Roles in #${channel.name})`,
+          ]),
+    ];
+    if (roleProblems.length > 0)
+      return yield* Effect.dieMessage(
+        `the bot can't use the ping role @${pingRole.name}: it needs ${roleProblems.join("; ")}`,
+      );
     yield* Effect.log(
-      `logged in as ${me?.tag}; posting in #${channel.name} (${channel.guild.name})`,
+      `logged in as ${me?.tag}; posting in #${channel.name} (${channel.guild.name}); pinging @${pingRole.name}`,
     );
 
     const interactions = Stream.asyncPush<Interaction>((emit) =>
@@ -134,6 +164,8 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
 
     return {
       channel,
+      /** The @Multiplayer ping role's id, checked at startup: the bot can give, take and mention it. */
+      pingRoleId,
       interactions,
       /** The application's own emojis (usable anywhere the bot posts), name to id. */
       appEmojis: tryDiscord("fetch app emojis", () => application.emojis.fetch()).pipe(

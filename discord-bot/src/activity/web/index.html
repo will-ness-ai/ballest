@@ -1098,6 +1098,10 @@
         z-index: 30;
         width: max-content;
         max-width: calc(100% - 32px);
+        display: flex;
+        align-items: center;
+        gap: 10px 12px;
+        flex-wrap: wrap;
         padding: 10px 14px;
         border-radius: 10px;
         background: #3a1418;
@@ -1105,6 +1109,48 @@
         color: #ffb3a8;
         font: 600 13px var(--f-body);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+      .toast.info {
+        background: var(--raised);
+        border-color: var(--line);
+        color: var(--text);
+      }
+      .toast .tt {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .toast .x {
+        color: var(--dim);
+        font-size: 18px;
+        line-height: 1;
+        padding: 0 2px;
+      }
+      .toast .x:hover {
+        color: var(--text);
+      }
+      /* Lobby pings, in the Steam chip: unlit off, lit green on. */
+      .bell {
+        display: inline-grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        margin-left: 2px;
+        border: 1px solid var(--line);
+        border-radius: 99px;
+        color: var(--dim);
+      }
+      .bell:hover {
+        color: var(--text);
+        border-color: var(--dim);
+      }
+      .bell.on {
+        color: var(--accent);
+        border-color: rgba(139, 224, 60, 0.55);
+        background: var(--accent-soft);
+      }
+      .bell.unknown {
+        opacity: 0.4;
+        cursor: default;
       }
       .demo {
         display: grid;

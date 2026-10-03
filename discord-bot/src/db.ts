@@ -33,5 +33,11 @@ export const MigratorLive = SqliteMigrator.layer({
       const sql = yield* SqlClient.SqlClient;
       yield* sql`CREATE TABLE discord_layout (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)`;
     }),
+    // Members who answered the @Multiplayer ping offer (Get or No), so it is never made again.
+    // Keyed by Discord id, not by Link: a member without a Link can answer it too.
+    "0004_ping_offer_answers": Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE ping_offer_answers (discord_id TEXT PRIMARY KEY)`;
+    }),
   }),
 }).pipe(Layer.provide(NodeContext.layer));

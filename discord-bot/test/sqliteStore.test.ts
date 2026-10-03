@@ -69,3 +69,29 @@ it.scoped("keeps Links and Matches across a reopen of the database file", () =>
     expect(Option.getOrThrow(yield* reopened.getMatch("m1")).state).toBe("finished");
   }),
 );
+
+it.scoped("remembers who has answered the ping offer, by Discord id, across a reopen", () =>
+  Effect.gen(function* () {
+    const dir = mkdtempSync(join(tmpdir(), "multiballs-"));
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
+    );
+    const open = Layer.build(
+      SqliteStoreLive.pipe(
+        Layer.provide(SqliteClient.layer({ filename: join(dir, "bot.sqlite") })),
+      ),
+    ).pipe(Effect.map((ctx) => Context.get(ctx, Store)));
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        const store = yield* open;
+        expect(yield* store.hasAnsweredPingOffer("d-unlinked")).toBe(false);
+        // A member without a Link can answer it too, and answering twice is harmless.
+        yield* store.answerPingOffer("d-unlinked");
+        yield* store.answerPingOffer("d-unlinked");
+      }),
+    );
+    const reopened = yield* open;
+    expect(yield* reopened.hasAnsweredPingOffer("d-unlinked")).toBe(true);
+    expect(yield* reopened.hasAnsweredPingOffer("d-someone-else")).toBe(false);
+  }),
+);

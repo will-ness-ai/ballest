@@ -1,15 +1,22 @@
 // The Discord messages the bot sends, built from plain data: which buttons each one offers,
 // what they do, and who each one pings. No Discord needed; the payloads are checked as built.
-import type { ActionRowBuilder, ButtonBuilder } from "discord.js";
+import { type ActionRowBuilder, type ButtonBuilder, ButtonStyle } from "discord.js";
 import { describe, expect, it } from "vitest";
 import type { MatchState, MatchType } from "../src/domain.js";
 import { parseControl } from "../src/discord/controls.js";
 import type { MarbleEmojis } from "../src/discord/marbles.js";
 import {
   cardMessage,
+  closedCardMessage,
   confirmLeaveMessage,
+  footerMessage,
   type Payload,
+  pingDeclinedMessage,
+  pingOfferMessage,
+  pingsMessage,
+  pingUnreadMessage,
   threadMessage,
+  withPingFailure,
 } from "../src/discord/messages.js";
 import { ThreadPost } from "../src/ports.js";
 import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js";
@@ -17,6 +24,11 @@ import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js";
 const marbles: MarbleEmojis = { forHue: () => "", forPlayer: () => "" };
 const art = { marbles, png: null };
 const PNG = Buffer.from([]);
+const ROLE = "555";
+/** A Card redrawn: the ping line, if any, mentions nobody. */
+const redrawn = { roleId: ROLE, announce: false };
+/** A Card's first post: a Lobby's ping line mentions the role. */
+const announced = { roleId: ROLE, announce: true };
 const MAP = drawnMap();
 const WORKSHOP = "Open Map in Workshop";
 
@@ -44,6 +56,91 @@ const card = (state: MatchState, type: MatchType) =>
     endsAt: state === "live" ? 1 : null,
   });
 
+/** A message that can't notify anyone: no users, no roles, nothing parsed from its text. */
+const pingsNobody = (p: Payload) => expect(p.allowedMentions).toEqual({ parse: [] });
+
+describe("the Footer", () => {
+  it("offers New Match, Link Steam and Pings, and pings nobody", () => {
+    const footer = footerMessage(PNG);
+    expect(buttons(footer)).toEqual([
+      { label: "New Match", does: { _tag: "NewMatch" } },
+      { label: "Link Steam", does: { _tag: "LinkSteam" } },
+      { label: "Pings", does: { _tag: "Pings" } },
+    ]);
+    pingsNobody(footer);
+  });
+});
+
+describe("Lobby pings, privately", () => {
+  const ROLE = "555";
+  /** Each button's colour, beside its label. */
+  const styles = (p: Payload) =>
+    (p.components ?? [])
+      .flatMap((row) => (row as ActionRowBuilder<ButtonBuilder>).toJSON().components)
+      .map((b) => b.style);
+
+  it("the Pings reply, off: says so, names the role, and offers Get", () => {
+    const off = pingsMessage(false, ROLE);
+    expect(off.content).toBe("**Lobby pings: off**\nYou don't have <@&555>.");
+    expect(buttons(off)).toEqual([
+      { label: "Get @Multiplayer ping", does: { _tag: "SetPing", on: true } },
+    ]);
+    expect(styles(off)).toEqual([ButtonStyle.Success]);
+    pingsNobody(off);
+  });
+
+  it("the Pings reply, on: says so, names the role, and offers Remove", () => {
+    const on = pingsMessage(true, ROLE);
+    expect(on.content).toBe("**Lobby pings: on**\nYou have <@&555>.");
+    expect(buttons(on)).toEqual([
+      { label: "Remove @Multiplayer ping", does: { _tag: "SetPing", on: false } },
+    ]);
+    expect(styles(on)).toEqual([ButtonStyle.Secondary]);
+    pingsNobody(on);
+  });
+
+  it("the offer: names the role, points at Pings, and offers Get or No", () => {
+    const offer = pingOfferMessage(ROLE);
+    expect(offer.content).toBe(
+      "Get <@&555> to hear when someone opens a Lobby. Change it later from **Pings**.",
+    );
+    expect(buttons(offer)).toEqual([
+      { label: "Get @Multiplayer ping", does: { _tag: "SetPing", on: true } },
+      { label: "No", does: { _tag: "DeclinePing" } },
+    ]);
+    expect(styles(offer)).toEqual([ButtonStyle.Success, ButtonStyle.Secondary]);
+    pingsNobody(offer);
+  });
+
+  it("a failed Get or Remove adds the failure line to the same reply, once", () => {
+    const failed = withPingFailure(pingOfferMessage(ROLE).content ?? "");
+    expect(failed).toBe(
+      "Get <@&555> to hear when someone opens a Lobby. Change it later from **Pings**.\nDiscord didn't change @Multiplayer ping. Try again in a moment.",
+    );
+    // Failing again doesn't stack the line.
+    expect(withPingFailure(failed)).toBe(failed);
+    expect(withPingFailure(pingsMessage(false, ROLE).content ?? "")).toBe(
+      "**Lobby pings: off**\nYou don't have <@&555>.\nDiscord didn't change @Multiplayer ping. Try again in a moment.",
+    );
+  });
+
+  it("No turns the offer into a line with no buttons", () => {
+    const declined = pingDeclinedMessage();
+    expect(declined.content).toBe("Lobby pings: off. Change it later from **Pings**.");
+    expect(declined.components).toEqual([]);
+    pingsNobody(declined);
+  });
+
+  it("says plainly when Discord wouldn't say whether you have the role", () => {
+    const unread = pingUnreadMessage();
+    expect(unread.content).toBe(
+      "Discord didn't say whether you have @Multiplayer ping. Try again in a moment.",
+    );
+    expect(unread.components).toEqual([]);
+    pingsNobody(unread);
+  });
+});
+
 describe("the Card", () => {
   it.each([
     ["invite", "public", ["Accept", "Cancel"]],
@@ -55,11 +152,11 @@ describe("the Card", () => {
     ["finished", "public", []],
     ["finished", "lobby", []],
   ] as const)("a %s %s offers %j", (state, type, expected) => {
-    expect(labels(cardMessage(card(state, type), PNG))).toEqual(expected);
+    expect(labels(cardMessage(card(state, type), PNG, redrawn))).toEqual(expected);
   });
 
   it("wires every button to its action on this Match", () => {
-    const lobby = buttons(cardMessage(card("invite", "lobby"), PNG));
+    const lobby = buttons(cardMessage(card("invite", "lobby"), PNG, redrawn));
     expect(lobby.map((b) => b.does)).toEqual(
       (["join", "leave", "start", "cancel"] as const).map((action) => ({
         _tag: "Act",
@@ -67,7 +164,7 @@ describe("the Card", () => {
         matchId: "7",
       })),
     );
-    const live = buttons(cardMessage(card("live", "lobby"), PNG));
+    const live = buttons(cardMessage(card("live", "lobby"), PNG, redrawn));
     expect(live[0]?.does).toEqual({ _tag: "Act", action: "join", matchId: "7" });
     expect(live[1]?.does).toContain(MAP.pfid);
     // Leave on a live Match asks first
@@ -81,13 +178,51 @@ describe("the Card", () => {
 
   it("never pings", () => {
     for (const state of ["invite", "live", "finished"] as const)
-      expect(pinged(cardMessage(card(state, "lobby"), PNG))).toEqual([]);
+      expect(pinged(cardMessage(card(state, "lobby"), PNG, redrawn))).toEqual([]);
+  });
+
+  it("a Lobby's first post pings only the role, with who opened it and for how long", () => {
+    const first = cardMessage(
+      cardView("7", { type: "lobby", creator: ALICE, players: [ALICE], minutes: 15 }),
+      PNG,
+      announced,
+    );
+    expect(first.content).toBe(`<@&555> **<@${ALICE.discordId}>** opened a 15-minute Lobby`);
+    expect(first.allowedMentions).toEqual({ parse: [], roles: [ROLE] });
+  });
+
+  it("a Lobby keeps its line on every redraw, live and finished, and pings nobody", () => {
+    for (const state of ["invite", "live", "finished"] as const) {
+      const again = cardMessage(
+        cardView("7", { state, type: "lobby", creator: ALICE, minutes: 15 }),
+        PNG,
+        redrawn,
+      );
+      expect(again.content).toBe(`<@&555> **<@${ALICE.discordId}>** opened a 15-minute Lobby`);
+      expect(again.allowedMentions).toEqual({ parse: [] });
+    }
+  });
+
+  it("a Public 1v1 or Challenge has no line and pings nobody, even on its first post", () => {
+    for (const type of ["public", "challenge"] as const) {
+      const first = cardMessage(card("invite", type), PNG, announced);
+      expect(first.content).toBe("");
+      expect(first.allowedMentions).toEqual({ parse: [] });
+    }
+  });
+
+  it("a kept-cancelled Card says why, with no line, and pings nobody", () => {
+    for (const reason of ["noEligibleMap", "abandoned"] as const) {
+      const closed = closedCardMessage(reason);
+      expect(closed.content).toBe("");
+      expect(closed.allowedMentions).toEqual({ parse: [] });
+    }
   });
 
   it("keeps each row within Discord's five buttons", () => {
     for (const state of ["invite", "live", "finished"] as const)
       for (const type of ["public", "challenge", "lobby"] as const)
-        for (const row of cardMessage(card(state, type), PNG).components ?? [])
+        for (const row of cardMessage(card(state, type), PNG, redrawn).components ?? [])
           expect(
             (row as ActionRowBuilder<ButtonBuilder>).toJSON().components.length,
           ).toBeLessThanOrEqual(5);

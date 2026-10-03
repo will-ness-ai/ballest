@@ -12,6 +12,7 @@ import {
   MembersUnavailable,
 } from "../src/activity/auth.js";
 import { Engine } from "../src/engine.js";
+import { Pings } from "../src/pings.js";
 import { MatchLinks, Store } from "../src/ports.js";
 import {
   ALICE,
@@ -70,6 +71,7 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
     const app = yield* makeActivityApi(WHERE).pipe(
       Effect.provideService(Engine, h.engine),
       Effect.provideService(Store, h.store),
+      Effect.provideService(Pings, h.pings),
       Effect.provideService(DiscordAuth, auth),
       Effect.provideService(DiscordMembers, members),
       Effect.provideService(MatchLinks, links),
@@ -177,11 +179,13 @@ describe("signing in", () => {
         discordId: ALICE.discordId,
         link: { steamId: ALICE.steamId, personaName: "alice" },
         matchId: null,
+        pings: false,
       });
       expect((yield* call("GET", "/api/me", { as: UNLINKED })).body).toEqual({
         discordId: UNLINKED,
         link: null,
         matchId: null,
+        pings: false,
       });
     }),
   );
@@ -673,5 +677,156 @@ describe("standings", () => {
           [],
         );
       }),
+  );
+});
+
+describe("Lobby pings", () => {
+  it.scoped("me says whether the member has @Multiplayer ping, as Discord has it", () =>
+    Effect.gen(function* () {
+      const { call, h } = yield* setup({ maps: [MAP] });
+      expect((yield* call("GET", "/api/me", { as: ALICE.discordId })).body.pings).toBe(false);
+      // A moderator gives it to her in Discord: the next read shows it.
+      yield* h.role.give(ALICE.discordId);
+      expect((yield* call("GET", "/api/me", { as: ALICE.discordId })).body.pings).toBe(true);
+    }),
+  );
+
+  it.scoped("turns @Multiplayer ping on and off, for a member without a Link too", () =>
+    Effect.gen(function* () {
+      const { call, h } = yield* setup({ maps: [MAP] });
+      expect(yield* call("POST", "/api/pings", { as: UNLINKED, body: { on: true } })).toEqual({
+        status: 200,
+        body: { pings: true },
+      });
+      expect(yield* h.role.has(UNLINKED)).toBe(true);
+      expect((yield* call("GET", "/api/me", { as: UNLINKED })).body.pings).toBe(true);
+      expect(yield* call("POST", "/api/pings", { as: UNLINKED, body: { on: false } })).toEqual({
+        status: 200,
+        body: { pings: false },
+      });
+      expect(yield* h.role.has(UNLINKED)).toBe(false);
+    }),
+  );
+
+  it.scoped(
+    "offers @Multiplayer ping after a member's first Join, and again until they answer",
+    () =>
+      Effect.gen(function* () {
+        const { call, open } = yield* setup({ maps: [MAP] });
+        const matchId = yield* open(ALICE.discordId, lobby);
+        const joined = yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId });
+        expect(joined.status).toBe(200);
+        expect(joined.body.pingOffer).toBe(true);
+        expect(joined.body.match.players.map((p: any) => p.discordId)).toEqual([
+          ALICE.discordId,
+          BOB.discordId,
+        ]);
+        // Dismissing the offer isn't an answer: the next Join offers it again.
+        yield* call("POST", `/api/matches/${matchId}/leave`, { as: BOB.discordId });
+        expect(
+          (yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId })).body
+            .pingOffer,
+        ).toBe(true);
+        // No is remembered.
+        expect(yield* call("POST", "/api/pings/decline", { as: BOB.discordId })).toEqual({
+          status: 204,
+          body: null,
+        });
+        yield* call("POST", `/api/matches/${matchId}/leave`, { as: BOB.discordId });
+        expect(
+          (yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId })).body
+            .pingOffer,
+        ).toBe(false);
+      }),
+  );
+
+  it.scoped("says so when Discord won't change the role, and leaves it as it was", () =>
+    Effect.gen(function* () {
+      const { call, h, open } = yield* setup({ maps: [MAP] });
+      yield* h.role.setFailing(true);
+      expect(
+        yield* call("POST", "/api/pings", { as: ALICE.discordId, body: { on: true } }),
+      ).toEqual({
+        status: 503,
+        body: {
+          error: "PingRoleUnavailable",
+          message: "Discord didn't change @Multiplayer ping. Try again in a moment.",
+        },
+      });
+      // Me still answers, without saying what Discord couldn't.
+      expect(yield* call("GET", "/api/me", { as: ALICE.discordId })).toMatchObject({
+        status: 200,
+        body: { pings: null },
+      });
+      yield* h.role.setFailing(false);
+      expect(yield* h.role.has(ALICE.discordId)).toBe(false);
+      // A failed change wasn't an answer: the offer still comes.
+      const matchId = yield* open(BOB.discordId, lobby);
+      expect(
+        (yield* call("POST", `/api/matches/${matchId}/join`, { as: ALICE.discordId })).body
+          .pingOffer,
+      ).toBe(true);
+    }),
+  );
+
+  it.scoped("offers it after an Accept too", () =>
+    Effect.gen(function* () {
+      const { call, open } = yield* setup({ maps: [MAP] });
+      const matchId = yield* open(ALICE.discordId, { type: "public", minutes: 5 });
+      const accepted = yield* call("POST", `/api/matches/${matchId}/accept`, { as: BOB.discordId });
+      expect(accepted.status).toBe(200);
+      expect(accepted.body.pingOffer).toBe(true);
+    }),
+  );
+
+  it.scoped("never offers it to a member who has the role, or who chose either way already", () =>
+    Effect.gen(function* () {
+      const { call, h, open } = yield* setup({ maps: [MAP] });
+      const matchId = yield* open(ALICE.discordId, lobby);
+      yield* h.role.give(CARA.discordId);
+      expect(
+        (yield* call("POST", `/api/matches/${matchId}/join`, { as: CARA.discordId })).body
+          .pingOffer,
+      ).toBe(false);
+      // Dan turned it on and then off again: that was his answer.
+      yield* call("POST", "/api/pings", { as: DAN.discordId, body: { on: true } });
+      yield* call("POST", "/api/pings", { as: DAN.discordId, body: { on: false } });
+      expect(
+        (yield* call("POST", `/api/matches/${matchId}/join`, { as: DAN.discordId })).body.pingOffer,
+      ).toBe(false);
+    }),
+  );
+
+  it.scoped("offers it only after a Join or an Accept", () =>
+    Effect.gen(function* () {
+      const { call, open } = yield* setup({ maps: [MAP] });
+      const matchId = yield* open(ALICE.discordId, lobby);
+      yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId });
+      const left = yield* call("POST", `/api/matches/${matchId}/leave`, { as: BOB.discordId });
+      expect(left.status).toBe(200);
+      expect(left.body.pingOffer ?? false).toBe(false);
+    }),
+  );
+
+  it.scoped("lets a Join through without the offer while Discord can't say about the role", () =>
+    Effect.gen(function* () {
+      const { call, h, open } = yield* setup({ maps: [MAP] });
+      const matchId = yield* open(ALICE.discordId, lobby);
+      yield* h.role.setFailing(true);
+      const joined = yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId });
+      expect(joined.status).toBe(200);
+      expect(joined.body.pingOffer).toBe(false);
+    }),
+  );
+
+  it.scoped("doesn't offer it on a Join that was turned down", () =>
+    Effect.gen(function* () {
+      const { call, open } = yield* setup({ maps: [MAP] });
+      const matchId = yield* open(ALICE.discordId, lobby);
+      yield* open(BOB.discordId, lobby);
+      const refused = yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId });
+      expect(refused.status).toBe(409);
+      expect(refused.body.pingOffer ?? false).toBe(false);
+    }),
   );
 });
