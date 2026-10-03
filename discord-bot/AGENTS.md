@@ -86,12 +86,13 @@ times once a Match is live. The page is bundled at startup, so restart the demo 
 The bot serves it on `PORT` (default 8080) only when `DISCORD_CLIENT_SECRET` and
 `DISCORD_APPLICATION_ID` are set; otherwise nothing listens. Trying it in Discord needs, in the
 Developer Portal: Activities enabled, a URL Mapping from `/` to the server's public host, and the
-OAuth2 client secret. Locally that host is this PC's fixed Tailscale Funnel address
-(`<machine>.<tailnet>.ts.net`): `pnpm dev` opens the Funnel and closes it on exit, and the dev
-app's URL Mapping points there for good. `scripts/tailscale-wizard.sh` sets it up (the human runs
-it, not an agent). Not ngrok: its free plan shows browsers a warning page first, which renders as
-a blank Activity. A blank Activity means Discord can't reach the page: no tunnel running, or the
-mapping pointing somewhere else.
+OAuth2 client secret. Locally that host is a Cloudflare quick tunnel (`cloudflared`, installed
+on the PC): `pnpm dev` opens one, prints its `*.trycloudflare.com` address, and closes it on
+exit. The address is new every start, so the human pastes it into the dev app's URL Mapping for
+`/` each time; tell them the address when you start the bot. Fixed addresses were tried and
+dropped: ngrok's free plan shows browsers a warning page that renders as a blank Activity, and
+the others needed a domain move or more setup than it was worth. A blank Activity means Discord
+can't reach the page: no tunnel running, or the mapping still holding an old address.
 Production serves it at `https://multiballs.fly.dev` (`fly.toml`'s `http_service`), with
 `DISCORD_APPLICATION_ID` and `DISCORD_CLIENT_SECRET` in `fly secrets` and the production app's
 URL Mapping pointing there.
