@@ -9,6 +9,11 @@
 // - A new Card is made by editing the Footer into it, then posting a fresh Footer, so Cards read
 //   top to bottom in the order their Invites opened. If the Footer was deleted by hand, the Card
 //   is posted fresh. If the Card can't be drawn at all, no Footer is posted above the gap.
+// - Except a Lobby's (spec #87, changing the rule above for Lobbies): its Card pings
+//   @Multiplayer ping, and Discord only notifies a mention on the post that creates a message,
+//   never on an edit. So a Lobby's Card is posted fresh, the old Footer deleted and a new Footer
+//   posted, which keeps the same order with the Footer last. The Channel lets a posted Card
+//   mention the role; a redraw never does.
 // - An expired, cancelled or declined Invite loses its Card and its Match Thread. One cancelled
 //   because no Map is eligible, or a live Match everyone left before setting a time, keeps both,
 //   its Card saying why, so every Player can see it.
@@ -161,17 +166,23 @@ const make = Effect.gen(function* () {
     yield* Ref.update(clocks, (m) => new Map(m).set(matchId, key))
   })
 
-  /** A new Card in the Footer's place (or fresh if the Footer is gone), then a new Footer below it. */
+  /**
+   * A new Card, then a new Footer below it. A Lobby's Card is posted fresh, so its ping notifies,
+   * and the old Footer is deleted; any other Card takes the Footer's place (or is posted fresh if
+   * the Footer is gone).
+   */
   const createCard = Effect.fn("createCard")(function* (view: CardView) {
     const { footerId } = yield* Ref.get(layout)
     const card = Drawing.Card({ view })
     const messageId =
-      footerId === null
+      footerId === null || view.type === "lobby"
         ? yield* channel.post(card)
         : yield* channel.redraw(footerId, card).pipe(
             Effect.as(footerId),
             Effect.catchTag("Gone", () => channel.post(card))
           )
+    if (footerId !== null && footerId !== messageId)
+      yield* unlessGone(channel.deleteMessage(footerId).pipe(Effect.retry({ times: 2, while: (e) => e._tag !== "Gone" })))
     yield* setFooter(null)
     yield* setCard(view.matchId, { messageId, threadId: null, clockId: null })
     yield* startThread(view.matchId, messageId, view)

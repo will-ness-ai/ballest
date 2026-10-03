@@ -29,8 +29,12 @@ export type ChannelError = Gone | DiscordError | RenderError
 export class Channel extends Context.Tag("multiballs/Channel")<
   Channel,
   {
-    /** Post a message; its id. */
+    /**
+     * Post a message; its id. A posted Lobby Card is the one draw that pings @Multiplayer ping,
+     * since Discord only notifies a mention on the post that creates a message.
+     */
     readonly post: (drawing: Drawing) => Effect.Effect<string, DiscordError | RenderError>
+    /** Draw over a message. Never pings: a redrawn Lobby Card keeps its line but mentions nobody. */
     readonly redraw: (messageId: string, drawing: Drawing) => Effect.Effect<void, ChannelError>
     readonly deleteMessage: (messageId: string) => Effect.Effect<void, Gone | DiscordError>
     /** Start a Card's Match Thread on its message; the thread's id. */
@@ -97,10 +101,11 @@ export const DiscordChannelLive = Layer.scoped(
       return yield* renderer.card({ view, names: yield* namesOf(view), preview: yield* previewOf(view.map) })
     })
 
-    const render = (drawing: Drawing) =>
+    /** `announce`: this is the post that creates the message, so a Lobby's Card may ping the role. */
+    const render = (drawing: Drawing, announce: boolean) =>
       Drawing.$match(drawing, {
         Footer: () => renderer.footer.pipe(Effect.map((png) => footerMessage(png))),
-        Card: ({ view }) => drawCard(view).pipe(Effect.map((png) => cardMessage(view, png))),
+        Card: ({ view }) => drawCard(view).pipe(Effect.map((png) => cardMessage(view, png, { roleId: discord.pingRoleId, announce }))),
         Closed: ({ reason }) => Effect.succeed(closedCardMessage(reason))
       })
 
@@ -116,13 +121,13 @@ export const DiscordChannelLive = Layer.scoped(
 
     return Channel.of({
       post: (drawing) =>
-        render(drawing).pipe(
+        render(drawing, true).pipe(
           Effect.flatMap((message) => tryDiscord("post", () => channel.send(message))),
           Effect.map((m) => m.id)
         ),
       redraw: (messageId, drawing) =>
         fetchMessage(messageId).pipe(
-          Effect.flatMap((m) => render(drawing).pipe(Effect.flatMap((message) => tryDiscord("redraw", () => m.edit(message))))),
+          Effect.flatMap((m) => render(drawing, false).pipe(Effect.flatMap((message) => tryDiscord("redraw", () => m.edit(message))))),
           Effect.asVoid
         ),
       deleteMessage: (messageId) =>
