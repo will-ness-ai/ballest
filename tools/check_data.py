@@ -23,8 +23,8 @@ Checks:
   - every file derive() produces from the committed boards — podiums.json and
     players/<shard>.json, the shards over the Workshop boards too, and
     names.json — matches the committed copy
-  - the composite board file equals the one derive() appends, and index.json
-    lists it
+  - every derived board file (the composite, Season 1's current Overall) equals
+    the one derive() adds, and index.json lists it
   - every Map workshop.json lists with a board has that file, rank-aligned and
     the size the list says, with the top three and shelf stats workshop_stats()
     gives, and no board file is left for a Map it doesn't list
@@ -93,21 +93,23 @@ def main(rewrite=False):
             problems.append(f"{a['path']} came out empty over the committed boards")
         print("  " + a["summary"])
 
-    comp = next((b for b in boards_out if b["name"] == cc.COMPOSITE_BOARD), {"rows": []})
-    comp_path = os.path.join(cc.BOARDS_DIR, cc.COMPOSITE_BOARD + ".json")
-    if os.path.exists(comp_path):
-        actual = load(comp_path)
-        if actual.get("rows") != comp["rows"]:
-            problems.append(f"{cc.COMPOSITE_BOARD}.json does not match build_composite() over the committed boards")
-        entry = listed.get(cc.COMPOSITE_BOARD)
-        if not entry:
-            problems.append(f"{cc.COMPOSITE_BOARD}: missing from index.json")
-        elif entry["rows"] != len(comp["rows"]) or entry["group"] != cc.COMPOSITE_GROUP:
-            problems.append(f"{cc.COMPOSITE_BOARD}: index.json says {entry['rows']} rows in "
-                            f"{entry['group']!r}, file has {len(comp['rows'])} in {cc.COMPOSITE_GROUP!r}")
-    else:
-        problems.append(f"{cc.COMPOSITE_BOARD}.json is missing")
-    print(f"  {cc.COMPOSITE_BOARD:34s} rows={len(comp['rows']):5d} (derived)")
+    steam = {name for name, _ in cc.BOARDS}
+    for b in boards_out:
+        if b["name"] in steam:
+            continue
+        name, path = b["name"], os.path.join(cc.BOARDS_DIR, b["name"] + ".json")
+        if os.path.exists(path):
+            if load(path).get("rows") != b["rows"]:
+                problems.append(f"{name}.json does not match derive() over the committed boards")
+            entry = listed.get(name)
+            if not entry:
+                problems.append(f"{name}: missing from index.json")
+            elif entry["rows"] != len(b["rows"]) or entry["group"] != b["group"]:
+                problems.append(f"{name}: index.json says {entry['rows']} rows in "
+                                f"{entry['group']!r}, file has {len(b['rows'])} in {b['group']!r}")
+        else:
+            problems.append(f"{name}.json is missing")
+        print(f"  {name:34s} rows={len(b['rows']):5d} (derived)")
 
     ws_problems, ws_checked = check_workshop()
     problems += ws_problems
@@ -117,7 +119,7 @@ def main(rewrite=False):
         for p in problems:
             print("  - " + p)
         return 1
-    print(f"\nOK: {len(boards_out)} boards (composite included), index and every derived file consistent; "
+    print(f"\nOK: {len(boards_out)} boards (derived included), index and every derived file consistent; "
           f"{ws_checked} Workshop boards checked")
     return 0
 
