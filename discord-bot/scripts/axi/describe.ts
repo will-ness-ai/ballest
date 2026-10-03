@@ -35,6 +35,8 @@ export interface ApiMessage {
   /** Who the message actually pings (the payload's allowedMentions), when known. */
   readonly pings?: ReadonlyArray<string>;
   readonly thread?: { readonly id: string; readonly name: string; readonly message_count?: number };
+  /** A reply the bot made privately, read back by the sandbox driver rather than from Discord. */
+  readonly private?: boolean;
   /** Discord's message type: 0 and 19 (a reply) are ordinary, the rest are system messages. */
   readonly type?: number;
 }
@@ -63,9 +65,11 @@ export const readable = (text: string, mentions: ApiMessage["mentions"] = []) =>
 
 /** Why a message shows nothing: a system message, or text the reading app isn't allowed to see. */
 const emptyReason = (m: ApiMessage) =>
-  m.type !== undefined && m.type !== 0 && m.type !== 19
-    ? `(system: ${SYSTEM[m.type] ?? `type ${m.type}`})`
-    : "(nothing visible: another app's message needs the reader's Message Content intent)";
+  m.private === true
+    ? "(nothing: an acknowledgement, the answer follows)"
+    : m.type !== undefined && m.type !== 0 && m.type !== 19
+      ? `(system: ${SYSTEM[m.type] ?? `type ${m.type}`})`
+      : "(nothing visible: another app's message needs the reader's Message Content intent)";
 
 const BUTTON = 2;
 const TEXT_INPUT = 4;
@@ -192,6 +196,9 @@ export const table = (
       ];
 
 /** Everything a message shows. `files` maps an attachment's name to where it was saved locally. */
+/** Continuation lines of a multi-line value, indented under their label. */
+const indent = (text: string) => text.replace(/\n/g, "\n  ");
+
 export const detail = (
   m: ApiMessage,
   opts: { readonly full?: boolean; readonly files?: ReadonlyMap<string, string> } = {},
@@ -201,13 +208,13 @@ export const detail = (
     `message: ${m.id}${m.author === undefined ? "" : ` by ${m.author.username}`}${m.timestamp === undefined ? "" : ` at ${m.timestamp}`}`,
   ];
   if ((m.content ?? "") !== "")
-    lines.push(`content: ${cut(readable(m.content ?? "", m.mentions), limit)}`);
-  for (const t of textsOf(m.components)) lines.push(`text: ${cut(t, limit)}`);
+    lines.push(`content: ${indent(cut(readable(m.content ?? "", m.mentions), limit))}`);
+  for (const t of textsOf(m.components)) lines.push(`text: ${indent(cut(t, limit))}`);
   for (const e of m.embeds ?? []) {
     const body = [e.title === undefined ? null : `**${e.title}**`, e.description ?? null]
       .filter((x) => x !== null)
       .join(" ");
-    lines.push(`embed: ${cut(body, limit)}`);
+    lines.push(`embed: ${indent(cut(body, limit))}`);
   }
   const files = (m.attachments ?? []).map(
     (a) => [a.filename, opts.files?.get(a.filename) ?? a.url ?? "(not saved)"] as const,
@@ -274,18 +281,20 @@ const pingsOf = (payload: Record<string, unknown>): ReadonlyArray<string> | unde
 
 /** A discord.js payload (reply, update, followUp) in Discord's own message shape, so `detail` reads it. */
 export const fromPayload = (id: string, payload: unknown): ApiMessage => {
-  if (typeof payload === "string") return { id, content: payload };
+  if (typeof payload === "string") return { id, private: true, content: payload };
   const p = (json(payload) ?? {}) as Record<string, unknown>;
   // A modal: its title, then its inputs as controls.
   if (typeof p.custom_id === "string" && typeof p.title === "string")
     return {
       id,
+      private: true,
       content: `modal ${p.custom_id}: ${p.title}`,
       components: (p.components as ReadonlyArray<ApiComponent> | undefined) ?? [],
     };
   const pings = pingsOf(p);
   return {
     id,
+    private: true,
     content: typeof p.content === "string" ? p.content : "",
     embeds: ((p.embeds as ReadonlyArray<unknown> | undefined) ?? []).map(
       (e) => json(e) as ApiEmbed,

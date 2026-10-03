@@ -54,18 +54,18 @@ Interaction (`scripts/sandbox/driver.ts`): everything from there inwards runs as
 and what the bot answers privately comes back to the caller. A fresh database each start; log
 in `.logs/sandbox.log`. It leaves clicks in other channels alone, so it runs beside `pnpm dev`.
 
-`pnpm -s axi` is how an agent uses it (`-s` keeps pnpm's echo out; AXI style: run it bare for the state of things, every answer
+`pnpm --silent axi` is how an agent uses it (`--silent` keeps pnpm's echo out; AXI style: run it bare for the state of things, every answer
 ends with next steps). It reads as the "Multiballs Admin (dev)" app, `ADMIN_DISCORD_TOKEN` in the
 dev `.env`, which sees the channel and Match Threads as a member does:
 
 ```
-pnpm -s axi sandbox create                     # once: a channel the bot can post in
+pnpm --silent axi sandbox create                     # once: a channel the bot can post in
 pnpm sandbox                                # in another shell
-pnpm -s axi press "New Match" --as admin       # labels are looked up in the last private answer
-pnpm -s axi press "Lobby" --as admin           #   or the channel's newest messages
-pnpm -s axi read                               # the channel; `show <id>` saves its images to read
-pnpm -s axi time <match> 18.2 --as admin       # a finished run, read on the engine's next poll
-pnpm -s axi wait "Go!" --in <thread>
+pnpm --silent axi press "New Match" --as admin       # labels are looked up in the last private answer
+pnpm --silent axi press "Lobby" --as admin           #   or the channel's newest messages
+pnpm --silent axi read                               # the channel; `show <id>` saves its images to read
+pnpm --silent axi time <match> 18.2 --as admin       # a finished run, read on the engine's next poll
+pnpm --silent axi wait "Go!" --in <thread>
 ```
 
 Without `ADMIN_DISCORD_TOKEN` it reads with the dev bot's token: its own messages only, and no

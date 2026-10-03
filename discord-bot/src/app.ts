@@ -20,9 +20,14 @@ import { MapPreviews, PreviewSourceLive } from "./previews.js";
 import { Renderer } from "./render/renderer.js";
 import { SqliteStoreLive } from "./sqliteStore.js";
 
-/** The real environment first, then .env for anything it leaves out. */
-const ConfigLive = PlatformConfigProvider.layerDotEnvAdd(process.env.MULTIBALLS_ENV ?? ".env").pipe(
-  Layer.provide(NodeContext.layer),
+/**
+ * The real environment first, then .env for anything it leaves out. Read when the bot starts,
+ * not when this module loads: the sandbox sets MULTIBALLS_ENV after importing it.
+ */
+const ConfigLive = Layer.suspend(() =>
+  PlatformConfigProvider.layerDotEnvAdd(process.env.MULTIBALLS_ENV ?? ".env").pipe(
+    Layer.provide(NodeContext.layer),
+  ),
 );
 
 /** With LOG_FILE set, every log line is also appended there as logfmt, for grepping. */

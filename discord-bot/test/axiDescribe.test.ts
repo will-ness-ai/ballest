@@ -83,3 +83,15 @@ describe("axi's markup reader", () => {
     expect(summary({ id: "1", type: 0, content: "" })).toMatch(/Message Content intent/);
   });
 });
+
+describe("axi's private answers", () => {
+  it("reads an acknowledgement with nothing in it as such, not as hidden text", () => {
+    expect(summary(fromPayload("deferReply", { flags: 64 }))).toBe(
+      "(nothing: an acknowledgement, the answer follows)",
+    );
+  });
+
+  it("indents the second line of a multi-line text under its label", () => {
+    expect(detail({ id: "1", content: "one\ntwo" })).toContain("content: one\n  two");
+  });
+});
