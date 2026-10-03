@@ -2800,7 +2800,7 @@ function setView(v){
   $("#ws").hidden = v !== "workshop" && v !== "maps";
   $("#mpanel").hidden = v !== "map";
   $("#pls").hidden = v !== "players";
-  if(v !== "players"){ $("#pls").innerHTML = ""; }
+  if(v !== "players"){ clearTimeout(plTimer); $("#pls").innerHTML = ""; }   /* a search still pending would draw into nothing */
   if((was === "players") !== (v === "players")) renderGroups();   /* the Players tab lights up */
   if(v !== "maps") drawerOpen = false;
   if(/^(workshop|maps|map)$/.test(v) && group !== WORKSHOP_GROUP){ group = WORKSHOP_GROUP; renderGroups(); }
