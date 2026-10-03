@@ -2,13 +2,13 @@
 
 The plan behind ADR 0004. Each phase ships on its own and leaves the site working.
 
-## Phase 0: a Next.js shell that serves today's site (done in this branch)
+## Phase 0: a Next.js shell that serves today's site (done, #85)
 
 `web/` is a Next.js app with no pages of its own. `pnpm build` copies the root site files
 into `web/public/` (`scripts/sync-site.mjs`, the same list as `deploy.yml`'s `cp` line)
 and serves them unchanged: `/` is `index.html` byte for byte, `data/` is served as is,
 `/leth` redirects to `/leth/` as Pages does, and `/multiballs/terms` answers as well as
-`terms.html`. GitHub Pages is still production; nothing about it changes.
+`terms.html`.
 
 Run it locally:
 
@@ -18,23 +18,20 @@ pnpm install
 pnpm dev          # or: pnpm build && pnpm start
 ```
 
-## Phase 1: link Vercel and move the domain (needs Will)
+## Phase 1: link Vercel and move the domain (done 2026-10-03)
 
-1. In Vercel, import `will-ness-ai/ballest` and set the project's Root Directory to
-   `web`. Keep "Include files outside the Root Directory" on (the default): the build
-   copies them. Everything else comes from `web/vercel.json`.
-2. Compare the preview deploy with https://ballest.willness.dev.
-3. Add `ballest.willness.dev` to the project and point its DNS record at Vercel.
-4. Then one PR retires Pages: delete `deploy.yml`, the `deploy` job in `refresh.yml` and
-   `CNAME`, switch Pages off, and mark ADR 0002 superseded. Vercel deploys each refresh
-   commit itself, and `vercel.json`'s `ignoreCommand` skips commits that touch only the
-   collector or the bot.
+The Vercel project is `ballest` (Root Directory `web`, files outside it included,
+Node 22.x), connected to this repo with `main` as production. `ballest.willness.dev` is a
+CNAME at Porkbun to the target Vercel gave the project; ballest.vercel.app serves the same
+deploy. Vercel deploys each refresh commit itself, and `vercel.json`'s `ignoreCommand`
+skips commits that touch only the collector or the bot. `deploy.yml`, the `deploy` job in
+`refresh.yml` and `CNAME` are gone, and ADR 0002 is superseded.
 
-Rollback is pointing the DNS record back at Pages, which keeps deploying until step 4.
+Rollback would be pointing the DNS record back at `will-ness-ai.github.io` and restoring
+`deploy.yml` from history.
 
-Limits worth checking first: Vercel's Hobby plan is for non-commercial use, and allows
-100 deploys a day (the refresh makes about eight) and 100 GB of transfer a month, the
-same soft cap Pages has. Plausible shows whether traffic is anywhere near it.
+Limits: Vercel's Hobby plan is for non-commercial use, and allows 100 deploys a day (the
+refresh makes about eight) and 100 GB of transfer a month, the same soft cap Pages had.
 
 ## Phase 2: real URLs with link previews
 

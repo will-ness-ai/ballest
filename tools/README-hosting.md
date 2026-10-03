@@ -1,12 +1,12 @@
 # Hosting Ballest leaderboards on `ballest.willness.dev`
 
 The site is **static** (`index.html` + `data/index.json` + `data/boards/*.json`),
-served by **GitHub Pages**. The page loads the small `index.json` first, then lazy-
+served by **Vercel** (the Next.js app in `web/`, ADR 0004). The page loads the small `index.json` first, then lazy-
 loads each board's full entry list on demand (infinite scroll). The data is refreshed
 by a **GitHub Actions** job that logs into Steam with a **refresh token** (via
-`steam.py`), reads the full leaderboards, commits the updated data, and then runs
-the Pages deploy (`.github/workflows/deploy.yml`), which publishes only the site
-files.
+`steam.py`), reads the full leaderboards, and commits the updated data. Vercel
+deploys that commit, publishing only the site files (`SITE` in
+`web/scripts/sync-site.mjs`).
 
 No machine of yours has to be running — the refresh happens entirely in CI.
 
@@ -15,7 +15,7 @@ GitHub Actions (every 3 hours)
   └─ steam.py logs in with STEAM_REFRESH_TOKEN (secret)
       └─ reads every campaign leaderboard (full) for appid 3339810
           └─ resolves names via STEAM_API_KEY (secret)
-              └─ commits data/index.json + data/boards/*.json  ──►  Pages redeploys
+              └─ commits data/index.json + data/boards/*.json  ──►  Vercel redeploys
                                                                      (ballest.willness.dev)
 ```
 
@@ -44,7 +44,7 @@ tools\.venv-steampy\Scripts\python.exe tools\steampy_mint.py
 
 ### 2. Create the GitHub repo and push
 
-Pages is free for **public** repos.
+The repo is public (ADR 0001).
 
 ```powershell
 # from the project root (git is already initialized with a first commit)
@@ -62,29 +62,29 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 | `STEAM_REFRESH_TOKEN` | the token from step 1 |
 | `STEAM_API_KEY` | your Steam Web API key (same one in `.env`) |
 
-### 4. Enable GitHub Pages
+### 4. Create the Vercel project
 
-Repo → **Settings → Pages**:
-- **Source:** GitHub Actions (`.github/workflows/deploy.yml` does the deploy)
-- **Custom domain:** `ballest.willness.dev` → Save (the committed `CNAME` file matches this)
-- Tick **Enforce HTTPS** once the cert is issued.
+Import the repo in Vercel (or `vercel link` with the CLI) as project `ballest`, with
+**Root Directory** `web`, "Include files outside the Root Directory" on, and Node 22.x.
+Everything else comes from `web/vercel.json`. Production is `main`.
 
 ### 5. Point DNS
 
-At whoever manages `willness.dev` DNS, add:
+Add `ballest.willness.dev` to the project (`vercel domains add ballest.willness.dev
+ballest`), then at whoever manages `willness.dev` DNS (Porkbun) set the CNAME it asks for:
 
 ```
 Type: CNAME
 Name: ballest
-Value: <you>.github.io
+Value: <the project's target, e.g. ….vercel-dns-017.com>
 ```
 
-(Proxy/`CNAME` flattening is fine. Allow a few minutes for propagation + cert.)
+Vercel issues the certificate once the record resolves.
 
 ### 6. Populate the data
 
 Repo → **Actions → "Refresh leaderboards" → Run workflow**. It logs in, writes
-`data/index.json` + `data/boards/*.json`, commits them, and deploys. The site goes live at
+`data/index.json` + `data/boards/*.json` and commits them, and Vercel deploys the commit. The site goes live at
 `https://ballest.willness.dev` shortly after.
 
 ---
