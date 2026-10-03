@@ -14,11 +14,7 @@
     {
       "name": "activity-demo",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--dir",
-        "discord-bot",
-        "activity:demo"
-      ],
+      "runtimeArgs": ["--dir", "discord-bot", "activity:demo"],
       "port": 8740
     }
   ]

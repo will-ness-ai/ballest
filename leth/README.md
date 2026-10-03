@@ -3,7 +3,7 @@
 A static 3D replay of the Steam leaderboard for **Leth Trial #1**, the Collabs event map,
 served at https://ballest.willness.dev/leth/ by the same Vercel deploy as the main
 site. Pick players from the list and their ghosts replay together over the map; the event let
-you take the nine checkpoints in any order, so the point of the page is comparing *routes*.
+you take the nine checkpoints in any order, so the point of the page is comparing _routes_.
 
 Self-contained: nothing here is loaded by the main site, and the main site's collector never
 writes here.
@@ -25,7 +25,7 @@ there is no collector here — regenerate and commit if a snapshot has to change
 ## Things worth knowing before you edit
 
 **Checkpoint numbering is this page's invention.** The game gives the nine checkpoints no
-numbers, so `1..9` here is the *world record's* pickup order, and the colour names (Orange,
+numbers, so `1..9` here is the _world record's_ pickup order, and the colour names (Orange,
 Red, Yellow, Dark, Sky blue, Pink, Grey, Blue, Lime) come from the emissive material on the
 bumper blocks beside each one. Renumbering breaks every route string people have shared.
 

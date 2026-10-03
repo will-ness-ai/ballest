@@ -1,0 +1,41 @@
+# Python formatting and linting for tools/ and discord-bot/scripts/ (docs/linting.md).
+# Every rule is on; each one ignored below says why it does not fit these scripts.
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["ALL"]
+ignore = [
+  "COM812", # trailing commas are the formatter's call, and this rule fights it
+  "D",      # the docs are the module and function comments plus docs/*.md, not PEP 257
+  "ANN",    # no type checker runs on the tools, so annotations would go unchecked
+  "T201",   # these are command-line scripts: print is how they report
+  "INP001", # tools/ is a folder of scripts, not a package
+  "BLE001", # a failed Steam read falls back to the committed file whatever the error was
+  "PTH",    # os.path is used throughout the collector's write path; pathlib changes nothing
+  "EM",     # an exception message built inline reads better than a variable named msg
+  "TRY003", # same: the message is the useful part of these exceptions
+  "PLR2004", # thresholds such as Steam's page size read clearer inline than as constants
+  "C901",    # the collector's on_ready is long and linear; length limits would split it
+  "PLR0911", # (same)
+  "PLR0912", # (same)
+  "PLR0913", # (same)
+  "PLR0915", # (same)
+]
+
+[lint.per-file-ignores]
+# The legacy Steamworks-SDK path and one-off spikes (tools/README-hosting.md): they run only on
+# Windows against the SDK's DLL, so they are formatted and checked for bugs but not restyled.
+# The ctypes structs keep the SDK's own names (LeaderboardEntry_t).
+"tools/{steam_collect,steam_probe_names,steam_prover,steam_sdk_reader,find_strings}.py" = [
+  "E501",
+  "FBT003",
+  "N801",
+  "N812",
+  "PLC0415",
+  "PLW2901",
+  "S110",
+  "S310",
+  "SIM105",
+  "SIM115",
+]

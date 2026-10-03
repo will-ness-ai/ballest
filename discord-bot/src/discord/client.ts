@@ -2,10 +2,21 @@
 //
 // The bot never creates or edits channels (spec #21, story 16): it is given the channel's id,
 // and at startup it checks it can do everything it needs there, or refuses to start.
-import { ChannelType, Client, Events, GatewayIntentBits, PermissionFlagsBits, type Interaction, type TextChannel } from "discord.js"
-import { Config, Data, Effect, Option, Redacted, Stream } from "effect"
+import {
+  ChannelType,
+  Client,
+  Events,
+  GatewayIntentBits,
+  PermissionFlagsBits,
+  type Interaction,
+  type TextChannel,
+} from "discord.js";
+import { Config, Data, Effect, Option, Redacted, Stream } from "effect";
 
-export class DiscordError extends Data.TaggedError("DiscordError")<{ readonly op: string; readonly cause: unknown }> {}
+export class DiscordError extends Data.TaggedError("DiscordError")<{
+  readonly op: string;
+  readonly cause: unknown;
+}> {}
 
 const REQUIRED_PERMISSIONS: ReadonlyArray<[string, bigint]> = [
   ["View Channel", PermissionFlagsBits.ViewChannel],
@@ -15,92 +26,138 @@ const REQUIRED_PERMISSIONS: ReadonlyArray<[string, bigint]> = [
   ["Read Message History", PermissionFlagsBits.ReadMessageHistory],
   ["Create Public Threads", PermissionFlagsBits.CreatePublicThreads],
   ["Send Messages in Threads", PermissionFlagsBits.SendMessagesInThreads],
-  ["Manage Threads", PermissionFlagsBits.ManageThreads]
-]
+  ["Manage Threads", PermissionFlagsBits.ManageThreads],
+];
 
 /** A cause in one line: Discord's error code, if any, and its message. Stack traces stay out of the log. */
 export const oneLine = (cause: unknown): string => {
-  const code = typeof cause === "object" && cause !== null && "code" in cause ? `[${String(cause.code)}] ` : ""
-  return `${code}${cause instanceof Error ? cause.message : String(cause)}`
-}
+  const code =
+    typeof cause === "object" && cause !== null && "code" in cause
+      ? `[${String(cause.code)}] `
+      : "";
+  return `${code}${cause instanceof Error ? cause.message : String(cause)}`;
+};
 
 /** A Discord failure in one line: what the bot was doing, and what Discord said. */
-export const describeDiscordError = (e: DiscordError) => `${e.op}: ${oneLine(e.cause)}`
+export const describeDiscordError = (e: DiscordError) => `${e.op}: ${oneLine(e.cause)}`;
 
 /** Discord's "Unknown Member" and "Unknown User" errors: nobody by that id is in the server. */
 const isNotMember = (e: DiscordError) =>
-  typeof e.cause === "object" && e.cause !== null && "code" in e.cause && (e.cause.code === 10007 || e.cause.code === 10013)
+  typeof e.cause === "object" &&
+  e.cause !== null &&
+  "code" in e.cause &&
+  (e.cause.code === 10007 || e.cause.code === 10013);
 
 /** Discord's "Unknown Message" and "Unknown Channel" errors: the thing was already deleted. */
 export const isUnknown = (e: DiscordError) =>
-  typeof e.cause === "object" && e.cause !== null && "code" in e.cause && (e.cause.code === 10008 || e.cause.code === 10003)
+  typeof e.cause === "object" &&
+  e.cause !== null &&
+  "code" in e.cause &&
+  (e.cause.code === 10008 || e.cause.code === 10003);
 
 export const tryDiscord = <A>(op: string, run: () => Promise<A>) =>
-  Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) })
+  Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
 
 export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
   scoped: Effect.gen(function* () {
-    const token = yield* Config.redacted("DISCORD_TOKEN")
-    const guildId = yield* Config.string("DISCORD_GUILD_ID")
-    const channelId = yield* Config.string("DISCORD_CHANNEL_ID")
+    const token = yield* Config.redacted("DISCORD_TOKEN");
+    const guildId = yield* Config.string("DISCORD_GUILD_ID");
+    const channelId = yield* Config.string("DISCORD_CHANNEL_ID");
     /** The @Multiplayer ping role: the one role the bot adds, removes and mentions. */
-    const pingRoleId = yield* Config.string("DISCORD_PING_ROLE_ID")
+    const pingRoleId = yield* Config.string("DISCORD_PING_ROLE_ID");
 
     const client = yield* Effect.acquireRelease(
       Effect.sync(() => new Client({ intents: [GatewayIntentBits.Guilds] })),
-      (c) => Effect.promise(() => c.destroy())
-    )
-    yield* Effect.async<void, DiscordError>((resume) => {
-      const onReady = () => resume(Effect.void)
-      client.once(Events.ClientReady, onReady)
-      client.login(Redacted.value(token)).catch((cause) => resume(Effect.fail(new DiscordError({ op: "login", cause }))))
-      return Effect.sync(() => client.off(Events.ClientReady, onReady))
-    }).pipe(Effect.timeoutFail({ duration: "30 seconds", onTimeout: () => new DiscordError({ op: "login", cause: "timed out" }) }))
+      (c) => Effect.promise(() => c.destroy()),
+    );
+    yield* Effect.async<undefined, DiscordError>((resume) => {
+      const onReady = () => resume(Effect.succeed(undefined));
+      client.once(Events.ClientReady, onReady);
+      client
+        .login(Redacted.value(token))
+        .catch((cause: unknown) => resume(Effect.fail(new DiscordError({ op: "login", cause }))));
+      return Effect.sync(() => client.off(Events.ClientReady, onReady));
+    }).pipe(
+      Effect.timeoutFail({
+        duration: "30 seconds",
+        onTimeout: () => new DiscordError({ op: "login", cause: "timed out" }),
+      }),
+    );
 
-    const fetched = yield* tryDiscord("fetch channel", () => client.channels.fetch(channelId))
-    if (fetched === null || fetched.type !== ChannelType.GuildText)
-      return yield* Effect.dieMessage(`DISCORD_CHANNEL_ID ${channelId} is not a server text channel the bot can see`)
-    const channel: TextChannel = fetched
+    const fetched = yield* tryDiscord("fetch channel", () => client.channels.fetch(channelId));
+    if (fetched?.type !== ChannelType.GuildText)
+      return yield* Effect.dieMessage(
+        `DISCORD_CHANNEL_ID ${channelId} is not a server text channel the bot can see`,
+      );
+    const channel: TextChannel = fetched;
     if (channel.guildId !== guildId)
-      return yield* Effect.dieMessage(`channel ${channelId} is in server ${channel.guildId}, not DISCORD_GUILD_ID ${guildId}`)
-    const me = client.user
-    const perms = me === null ? null : channel.permissionsFor(me)
-    const missing = REQUIRED_PERMISSIONS.filter(([, flag]) => !perms?.has(flag)).map(([name]) => name)
+      return yield* Effect.dieMessage(
+        `channel ${channelId} is in server ${channel.guildId}, not DISCORD_GUILD_ID ${guildId}`,
+      );
+    const me = client.user;
+    const perms = me === null ? null : channel.permissionsFor(me);
+    const missing = REQUIRED_PERMISSIONS.filter(([, flag]) => !perms?.has(flag)).map(
+      ([name]) => name,
+    );
     if (missing.length > 0)
-      return yield* Effect.dieMessage(`the bot is missing permissions in #${channel.name}: ${missing.join(", ")}`)
+      return yield* Effect.dieMessage(
+        `the bot is missing permissions in #${channel.name}: ${missing.join(", ")}`,
+      );
 
     // Lobby pings: the bot must be able to give, take and mention the role, or a Lobby's ping
     // would go silently missing. Roles are read over REST: the Gateway intents stay at Guilds.
-    const pingRole = yield* tryDiscord("fetch ping role", () => channel.guild.roles.fetch(pingRoleId))
-    if (pingRole === null) return yield* Effect.dieMessage(`DISCORD_PING_ROLE_ID ${pingRoleId} is not a role in ${channel.guild.name}`)
-    const self = yield* tryDiscord("fetch the bot's member", () => channel.guild.members.fetchMe())
+    const pingRole = yield* tryDiscord("fetch ping role", () =>
+      channel.guild.roles.fetch(pingRoleId),
+    );
+    if (pingRole === null)
+      return yield* Effect.dieMessage(
+        `DISCORD_PING_ROLE_ID ${pingRoleId} is not a role in ${channel.guild.name}`,
+      );
+    const self = yield* tryDiscord("fetch the bot's member", () => channel.guild.members.fetchMe());
     const roleProblems = [
-      ...(self.permissions.has(PermissionFlagsBits.ManageRoles) ? [] : ["the Manage Roles permission"]),
-      ...(self.roles.highest.comparePositionTo(pingRole) > 0 ? [] : [`a role above @${pingRole.name} (move the bot's role higher)`]),
+      ...(self.permissions.has(PermissionFlagsBits.ManageRoles)
+        ? []
+        : ["the Manage Roles permission"]),
+      ...(self.roles.highest.comparePositionTo(pingRole) > 0
+        ? []
+        : [`a role above @${pingRole.name} (move the bot's role higher)`]),
       ...(pingRole.mentionable || perms?.has(PermissionFlagsBits.MentionEveryone)
         ? []
-        : [`a way to mention @${pingRole.name} (make the role mentionable, or allow Mention @everyone, @here and All Roles in #${channel.name})`])
-    ]
+        : [
+            `a way to mention @${pingRole.name} (make the role mentionable, or allow Mention @everyone, @here and All Roles in #${channel.name})`,
+          ]),
+    ];
     if (roleProblems.length > 0)
-      return yield* Effect.dieMessage(`the bot can't use the ping role @${pingRole.name}: it needs ${roleProblems.join("; ")}`)
-    yield* Effect.log(`logged in as ${me?.tag}; posting in #${channel.name} (${channel.guild.name}); pinging @${pingRole.name}`)
+      return yield* Effect.dieMessage(
+        `the bot can't use the ping role @${pingRole.name}: it needs ${roleProblems.join("; ")}`,
+      );
+    yield* Effect.log(
+      `logged in as ${me?.tag}; posting in #${channel.name} (${channel.guild.name}); pinging @${pingRole.name}`,
+    );
 
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
         Effect.sync(() => {
           const onInteraction = (i: Interaction) => {
-            if (i.channelId === channelId || (i.channel?.isThread() && i.channel.parentId === channelId)) emit.single(i)
-            else if (i.isRepliable()) void i.reply({ content: "Multiballs only works in its own channel.", ephemeral: true }).catch(() => {})
-          }
-          client.on(Events.InteractionCreate, onInteraction)
-          return onInteraction
+            if (
+              i.channelId === channelId ||
+              (i.channel?.isThread() && i.channel.parentId === channelId)
+            )
+              emit.single(i);
+            else if (i.isRepliable())
+              void i
+                .reply({ content: "Multiballs only works in its own channel.", ephemeral: true })
+                .catch(() => undefined);
+          };
+          client.on(Events.InteractionCreate, onInteraction);
+          return onInteraction;
         }),
-        (onInteraction) => Effect.sync(() => client.off(Events.InteractionCreate, onInteraction))
-      )
-    )
+        (onInteraction) => Effect.sync(() => client.off(Events.InteractionCreate, onInteraction)),
+      ),
+    );
 
-    const application = client.application
-    if (application === null) return yield* Effect.dieMessage("logged in without an application")
+    const application = client.application;
+    if (application === null) return yield* Effect.dieMessage("logged in without an application");
 
     return {
       channel,
@@ -109,18 +166,20 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       interactions,
       /** The application's own emojis (usable anywhere the bot posts), name to id. */
       appEmojis: tryDiscord("fetch app emojis", () => application.emojis.fetch()).pipe(
-        Effect.map((all) => new Map(all.map((emoji) => [emoji.name ?? "", emoji.id])))
+        Effect.map((all) => new Map(all.map((emoji) => [emoji.name, emoji.id]))),
       ),
       /** Upload an application emoji; its id. */
       createAppEmoji: (name: string, png: Buffer) =>
-        tryDiscord("create app emoji", () => application.emojis.create({ name, attachment: png })).pipe(Effect.map((emoji) => emoji.id)),
+        tryDiscord("create app emoji", () =>
+          application.emojis.create({ name, attachment: png }),
+        ).pipe(Effect.map((emoji) => emoji.id)),
       /** The member's name in this server, for thread titles. */
       displayName: Effect.fn("displayName")(function* (discordId: string) {
         return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(
           // NFKC turns "fancy text" (𝐁𝐨𝐥𝐝, Ｗｉｄｅ, ⓒⓘⓡⓒⓛⓔⓓ letters) into the plain letters the image fonts have.
           Effect.map((member) => member.displayName.normalize("NFKC")),
-          Effect.orElseSucceed(() => "Someone")
-        )
+          Effect.orElseSucceed(() => "Someone"),
+        );
       }),
       /** The member's name in this server, or None if they aren't in it; any other failure is Discord's. */
       member: Effect.fn("member")(function* (discordId: string) {
@@ -128,10 +187,10 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
           Effect.map((member) => Option.some(member.displayName.normalize("NFKC"))),
           Effect.catchIf(
             (e) => isNotMember(e),
-            () => Effect.succeed(Option.none<string>())
-          )
-        )
-      })
-    } as const
-  })
+            () => Effect.succeed(Option.none<string>()),
+          ),
+        );
+      }),
+    } as const;
+  }),
 }) {}

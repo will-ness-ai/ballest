@@ -1,4 +1,4 @@
-name: Check data and page
+name: Check data and lint
 
 # The committed data has to agree with itself: every board listed, rows aligned
 # to rank, and every derived file equal to what derive() makes from those boards.
@@ -34,20 +34,45 @@ jobs:
       - name: Check the committed data
         run: python tools/check_data.py
 
-  # index.html has no build step, so this is the only thing that parses its script:
-  # an undefined or twice-declared name, and an href/src interpolated without esc().
-  check-page:
+  # Formatting and lint for every file (docs/linting.md), index.html's script included:
+  # it has no build step, so tools/page-check is the only thing that parses it.
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
       - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            discord-bot/pnpm-lock.yaml
+            web/pnpm-lock.yaml
 
-      - name: Check the page
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ruff
+        run: pip install ruff==0.15.20
+
+      # ESLint types each TS file through its own package, so those need their dependencies too
+      - name: Install
         run: |
-          npm ci --prefix tools/page-check
-          node tools/page-check/check.mjs
+          pnpm install --frozen-lockfile
+          pnpm --dir discord-bot install --frozen-lockfile
+          pnpm --dir web install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint

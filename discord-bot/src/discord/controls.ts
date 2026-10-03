@@ -1,10 +1,10 @@
 // What a clicked button or submitted form asks for, and the custom id that carries it. Discord
 // hands the id back on every click, so choices made so far ride along in it: one table below
 // says how each kind of Control is written and read, so the two can't drift apart.
-import { type Action, ACTIONS, DURATIONS, type MatchType, type Minutes } from "../domain.js"
-import type { InviteRequest } from "../engine.js"
+import { type Action, ACTIONS, DURATIONS, type MatchType, type Minutes } from "../domain.js";
+import type { InviteRequest } from "../engine.js";
 
-export type { Action }
+export type { Action };
 
 export type Control =
   | { readonly _tag: "NewMatch" }
@@ -26,45 +26,55 @@ export type Control =
   /** Get (on) or Remove (off) the ping role, on the Pings reply or the offer. */
   | { readonly _tag: "SetPing"; readonly on: boolean }
   /** No, on the offer of the ping role. */
-  | { readonly _tag: "DeclinePing" }
+  | { readonly _tag: "DeclinePing" };
 
-type Tag = Control["_tag"]
-type Of<K extends Tag> = Extract<Control, { readonly _tag: K }>
+type Tag = Control["_tag"];
+type Of<K extends Tag> = Extract<Control, { readonly _tag: K }>;
 
 interface Codec<K extends Tag> {
-  readonly prefix: string
-  write(c: Of<K>): ReadonlyArray<string>
+  readonly prefix: string;
+  write(c: Of<K>): ReadonlyArray<string>;
   /** Null when the fields don't make a valid Control (an id from an older build, say). */
-  read(fields: ReadonlyArray<string | undefined>): Of<K> | null
+  read(fields: ReadonlyArray<string | undefined>): Of<K> | null;
 }
 
-const TYPES: ReadonlyArray<MatchType> = ["public", "challenge", "lobby"]
-const NO_TARGET = "-"
+const TYPES: ReadonlyArray<MatchType> = ["public", "challenge", "lobby"];
+const NO_TARGET = "-";
 
-const typeOf = (s: string | undefined) => TYPES.find((t) => t === s)
-const minutesOf = (s: string | undefined): Minutes | undefined => DURATIONS.find((d) => String(d) === s)
+const typeOf = (s: string | undefined) => TYPES.find((t) => t === s);
+const minutesOf = (s: string | undefined): Minutes | undefined =>
+  DURATIONS.find((d) => String(d) === s);
 
-const writeRequest = (r: InviteRequest) => [r.type, r.target ?? NO_TARGET, String(r.minutes)]
-const readRequest = ([type, target, minutes]: ReadonlyArray<string | undefined>): InviteRequest | null => {
-  const t = typeOf(type)
-  const m = minutesOf(minutes)
-  if (t === undefined || m === undefined || target === undefined) return null
-  return { type: t, target: target === NO_TARGET ? null : target, minutes: m }
-}
+const writeRequest = (r: InviteRequest) => [r.type, r.target ?? NO_TARGET, String(r.minutes)];
+const readRequest = ([type, target, minutes]: ReadonlyArray<
+  string | undefined
+>): InviteRequest | null => {
+  const t = typeOf(type);
+  const m = minutesOf(minutes);
+  if (t === undefined || m === undefined || target === undefined) return null;
+  return { type: t, target: target === NO_TARGET ? null : target, minutes: m };
+};
 
-const bare = <K extends Tag>(prefix: string, control: Of<K>): Codec<K> => ({ prefix, write: () => [], read: () => control })
+const bare = <K extends Tag>(prefix: string, control: Of<K>): Codec<K> => ({
+  prefix,
+  write: () => [],
+  read: () => control,
+});
 
-const matchIdOf = (s: string | undefined) => (s === undefined || s === "" ? null : s)
+const matchIdOf = (s: string | undefined) => (s === undefined || s === "" ? null : s);
 
 /** A Control that carries only a Match id. */
-const forMatch = <K extends "AskLeave" | "ConfirmLeave">(prefix: string, make: (matchId: string) => Of<K>): Codec<K> => ({
+const forMatch = <K extends "AskLeave" | "ConfirmLeave">(
+  prefix: string,
+  make: (matchId: string) => Of<K>,
+): Codec<K> => ({
   prefix,
   write: (c: { readonly matchId: string }) => [c.matchId],
   read: ([id]) => {
-    const matchId = matchIdOf(id)
-    return matchId === null ? null : make(matchId)
-  }
-})
+    const matchId = matchIdOf(id);
+    return matchId === null ? null : make(matchId);
+  },
+});
 
 const CODECS: { readonly [K in Tag]: Codec<K> } = {
   NewMatch: bare("new", { _tag: "NewMatch" }),
@@ -78,7 +88,12 @@ const CODECS: { readonly [K in Tag]: Codec<K> } = {
   SetPing: {
     prefix: "setping",
     write: (c) => [c.on ? "on" : "off"],
-    read: ([on]) => (on === "on" ? { _tag: "SetPing", on: true } : on === "off" ? { _tag: "SetPing", on: false } : null)
+    read: ([on]) =>
+      on === "on"
+        ? { _tag: "SetPing", on: true }
+        : on === "off"
+          ? { _tag: "SetPing", on: false }
+          : null,
   },
   AskLeave: forMatch("quit", (matchId) => ({ _tag: "AskLeave", matchId })),
   ConfirmLeave: forMatch("quityes", (matchId) => ({ _tag: "ConfirmLeave", matchId })),
@@ -86,51 +101,51 @@ const CODECS: { readonly [K in Tag]: Codec<K> } = {
     prefix: "type",
     write: (c) => [c.type],
     read: ([type]) => {
-      const t = typeOf(type)
-      return t === undefined ? null : { _tag: "PickType", type: t }
-    }
+      const t = typeOf(type);
+      return t === undefined ? null : { _tag: "PickType", type: t };
+    },
   },
   PickDuration: {
     prefix: "dur",
     write: (c) => writeRequest(c.request),
     read: (fields) => {
-      const request = readRequest(fields)
-      return request === null ? null : { _tag: "PickDuration", request }
-    }
+      const request = readRequest(fields);
+      return request === null ? null : { _tag: "PickDuration", request };
+    },
   },
   OpenInvite: {
     prefix: "open",
     write: (c) => writeRequest(c.request),
     read: (fields) => {
-      const request = readRequest(fields)
-      return request === null ? null : { _tag: "OpenInvite", request }
-    }
+      const request = readRequest(fields);
+      return request === null ? null : { _tag: "OpenInvite", request };
+    },
   },
   Act: {
     prefix: "act",
     write: (c) => [c.action, c.matchId],
     read: ([action, id]) => {
-      const a = ACTIONS.find((x) => x === action)
-      const matchId = matchIdOf(id)
-      return a === undefined || matchId === null ? null : { _tag: "Act", action: a, matchId }
-    }
-  }
-}
+      const a = ACTIONS.find((x) => x === action);
+      const matchId = matchIdOf(id);
+      return a === undefined || matchId === null ? null : { _tag: "Act", action: a, matchId };
+    },
+  },
+};
 
-const NAMESPACE = "mb"
+const NAMESPACE = "mb";
 
-const codecOf = <K extends Tag>(tag: K): Codec<K> => CODECS[tag]
+const codecOf = <K extends Tag>(tag: K): Codec<K> => CODECS[tag];
 
 export const controlId = (c: Control): string => {
-  const codec: Codec<Tag> = codecOf(c._tag)
-  return [NAMESPACE, codec.prefix, ...codec.write(c)].join(":")
-}
+  const codec: Codec<Tag> = codecOf(c._tag);
+  return [NAMESPACE, codec.prefix, ...codec.write(c)].join(":");
+};
 
 /** The Control a custom id carries, or null for an id that isn't one of ours. */
 export const parseControl = (id: string): Control | null => {
-  const [namespace, prefix, ...fields] = id.split(":")
-  if (namespace !== NAMESPACE) return null
-  const readers: ReadonlyArray<Pick<Codec<Tag>, "prefix" | "read">> = Object.values(CODECS)
-  const codec = readers.find((c) => c.prefix === prefix)
-  return codec === undefined ? null : codec.read(fields)
-}
+  const [namespace, prefix, ...fields] = id.split(":");
+  if (namespace !== NAMESPACE) return null;
+  const readers: ReadonlyArray<Pick<Codec<Tag>, "prefix" | "read">> = Object.values(CODECS);
+  const codec = readers.find((c) => c.prefix === prefix);
+  return codec === undefined ? null : codec.read(fields);
+};
