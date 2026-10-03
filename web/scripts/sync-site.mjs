@@ -1,7 +1,8 @@
 // Copies the static site from the repo root into public/, so Next serves the page
-// and its data exactly as GitHub Pages does today. The list is deploy.yml's `cp`
-// line: a new site file goes in both until Pages is retired. public/ is generated,
-// so none of it is committed; the root files stay the ones to edit.
+// and its data exactly as GitHub Pages did. SITE is everything that gets published:
+// a new site file goes here or it 404s in production, and web/vercel.json's
+// ignoreCommand lists the same paths. public/ is generated, so none of it is
+// committed; the root files stay the ones to edit.
 import { cpSync, rmSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";

@@ -1,5 +1,8 @@
 # GitHub Pages deploys only the site files
 
+Status: superseded by 0004. The site moved to Vercel on 2026-10-03, and `deploy.yml`
+was removed; its file list lives on as `SITE` in `web/scripts/sync-site.mjs`.
+
 Pages "deploy from branch" can publish only the repo root or `/docs`, and publishing the
 root of a monorepo serves every tool's source as part of the website. Instead, a GitHub
 Actions deploy uploads just the site (`index.html`, `data/`, `leth/`, `CNAME`); Leth is served only at `/leth/`, and its old subdomain is retired. The site
