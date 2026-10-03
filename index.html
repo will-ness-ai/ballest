@@ -52,6 +52,7 @@
   --gold-soft:rgba(255,212,71,.10); --silver-soft:rgba(211,220,234,.08);
   --bronze-soft:rgba(239,154,82,.10); --author-soft:rgba(95,212,255,.13);
   --none:#3a4566; --ribbon:#c9485a; --ribbon2:#4a6fd0;
+  --warn:#ffb347; --warn-soft:rgba(255,179,71,.10);
   --a:#ff7a8a; --a-soft:rgba(255,122,138,.13); --b:#5fd4ff; --b-soft:rgba(95,212,255,.12);
   --radius:11px; --pad:16px;
   --f-marquee:'Bungee',system-ui,sans-serif;
@@ -353,6 +354,14 @@ input{font:inherit}
 .ptier:last-child{border-bottom:0}
 .ptlab{font-family:var(--f-hud);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
   color:var(--faint)}
+/* what a heading's tracks add up to, shown when a season has more than one heading */
+.ptsum{display:block;margin-top:3px;font-size:12px;letter-spacing:.04em;text-transform:none;
+  color:var(--dim);font-variant-numeric:tabular-nums}
+.ptsum b{color:var(--text)}
+/* Steam's live Overall board can lag behind the track boards it is summed from */
+.psync{margin:0;padding:8px 13px;border-bottom:1px solid var(--line2);background:var(--warn-soft);
+  color:var(--warn);font-size:12px;line-height:1.4}
+.psync b{font-family:var(--f-hud);font-variant-numeric:tabular-nums}
 .pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 
 .ptile{display:flex;flex-direction:column;gap:5px;min-height:84px;padding:9px 10px 20px;
@@ -368,7 +377,9 @@ input{font:inherit}
 .pt-of{font-size:11px;font-weight:600;color:var(--faint)}
 .pt-gap{font-family:var(--f-hud);font-size:12px;font-weight:600;color:var(--dim);
   font-variant-numeric:tabular-nums;white-space:nowrap}
-.pt-time{font-family:var(--f-hud);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.pt-time{display:flex;justify-content:space-between;gap:6px;font-family:var(--f-hud);font-size:11px;
+  color:var(--faint);font-variant-numeric:tabular-nums}
+.pt-pts{color:var(--dim);font-weight:600;white-space:nowrap}
 .pt-pct{position:absolute;right:9px;bottom:7px;font-family:var(--f-hud);font-size:9.5px;
   letter-spacing:.06em;color:var(--faint);font-variant-numeric:tabular-nums}
 /* how far up the field this run sits: linear in rank, so 1st fills the bar and
@@ -1729,8 +1740,9 @@ function playerRecord(doc, id){
       runs: timed ? m.entry_count : 0, subs: m.subs || 0, beaten: timed ? m.author_beaten : 0,
       record: timed ? {score: m.top3[0][2], who: {steam_id: m.top3[0][0], persona: m.top3[0][1]}} : null};
   }).sort((a, b) => b.runs - a.runs || b.subs - a.subs);
-  const track = b => ({name: b.name, display: shortName(b.display),
-                       field: b.entry_count, finish: by[b.name] || null});
+  /* points: what the place pays toward the season's Overall, so a season's tracks add up */
+  const track = b => ({name: b.name, display: shortName(b.display), field: b.entry_count,
+                       finish: by[b.name] || null, points: by[b.name] ? trackPoints(by[b.name].rank) : 0});
   const tracks = activeBoards().filter(b => !isPoints(b)).map(track);
   const run = tracks.filter(t => t.finish);
   const medals = {gold: 0, silver: 0, bronze: 0};
@@ -1744,11 +1756,15 @@ function playerRecord(doc, id){
     const tiers = [];
     for(const b of boardsIn(group).filter(x => !isPoints(x))){
       const tier = b.tier || "Circuit";
-      if(!tiers.length || tiers[tiers.length-1].tier !== tier) tiers.push({tier, tracks: []});
-      tiers[tiers.length-1].tracks.push(byName.get(b.name));
+      if(!tiers.length || tiers[tiers.length-1].tier !== tier) tiers.push({tier, tracks: [], points: 0});
+      const t = byName.get(b.name);
+      tiers[tiers.length-1].tracks.push(t);
+      tiers[tiers.length-1].points += t.points;
     }
     const overall = overallOf(group);
-    return {group, overall: (overall && by[overall.name]) || null, tiers};
+    /* points is what the tracks add up to; overall.score is Steam's, which can lag behind it */
+    return {group, overall: (overall && by[overall.name]) || null, tiers,
+            points: tiers.reduce((n, t) => n + t.points, 0)};
   }).filter(s => s.tiers.length);
   const comp = compositeBoard();
   /* the board behind this page, when the reader came from one */
@@ -1800,7 +1816,7 @@ function tileHtml(t, id){
     <span class="pt-line"><span class="pt-rank">${f.rank}<sup>${ord(f.rank).slice(-2)}</sup><span
       class="pt-of">/${fmtN(t.field)}</span></span>
       <span class="pt-gap">${f.rank === 1 ? "record" : shortGap(f.score - f.lead)}</span></span>
-    <span class="pt-time">${fmtTime(f.score)}</span>
+    <span class="pt-time">${fmtTime(f.score)}<span class="pt-pts">${fmtN(t.points)} pts</span></span>
     <span class="pt-pct">${pctOf(t)}</span>
     <span class="pt-bar"><i style="--w:${Math.max(0, Math.round((1 - (f.rank-1)/t.field) * 100))}%"></i></span>
   </a>`;
@@ -1811,7 +1827,10 @@ function seasonHtml(s, id){
         ? `<span class="pov" data-m="${s.overall.rank<=3 ? s.overall.rank : 0}"><b>${ord(s.overall.rank)}</b>
             overall &middot; ${fmtN(s.overall.score)} pts</span>`
         : `<span class="pov">not ranked overall</span>`}</div>
-    ${s.tiers.map(t => `<div class="ptier"><span class="ptlab">${esc(t.tier)}</span>
+    ${s.overall && s.overall.score !== s.points ? `<p class="psync">Steam's leaderboard takes a while to sync.
+      These tracks add up to <b>${fmtN(s.points)}</b> pts.</p>` : ""}
+    ${s.tiers.map(t => `<div class="ptier"><span class="ptlab">${esc(t.tier)}${s.tiers.length > 1
+        ? `<span class="ptsum"><b>${fmtN(t.points)}</b> pts</span>` : ""}</span>
       <div class="pgrid">${t.tracks.map(x => tileHtml(x, id)).join("")}</div></div>`).join("")}
   </section>`;
 }
