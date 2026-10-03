@@ -5,13 +5,18 @@ import { describe, expect, it } from "vitest"
 import type { MatchState, MatchType } from "../src/domain.js"
 import { parseControl } from "../src/discord/controls.js"
 import type { MarbleEmojis } from "../src/discord/marbles.js"
-import { cardMessage, confirmLeaveMessage, type Payload, threadMessage } from "../src/discord/messages.js"
+import { cardMessage, closedCardMessage, confirmLeaveMessage, type Payload, threadMessage } from "../src/discord/messages.js"
 import { ThreadPost } from "../src/ports.js"
 import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js"
 
 const marbles: MarbleEmojis = { forHue: () => "", forPlayer: () => "" }
 const art = { marbles, png: null }
 const PNG = Buffer.from([])
+const ROLE = "555"
+/** A Card redrawn: the ping line, if any, mentions nobody. */
+const redrawn = { roleId: ROLE, announce: false }
+/** A Card's first post: a Lobby's ping line mentions the role. */
+const announced = { roleId: ROLE, announce: true }
 const MAP = drawnMap()
 const WORKSHOP = "Open Map in Workshop"
 
@@ -47,15 +52,15 @@ describe("the Card", () => {
     ["finished", "public", []],
     ["finished", "lobby", []]
   ] as const)("a %s %s offers %j", (state, type, expected) => {
-    expect(labels(cardMessage(card(state, type), PNG))).toEqual(expected)
+    expect(labels(cardMessage(card(state, type), PNG, redrawn))).toEqual(expected)
   })
 
   it("wires every button to its action on this Match", () => {
-    const lobby = buttons(cardMessage(card("invite", "lobby"), PNG))
+    const lobby = buttons(cardMessage(card("invite", "lobby"), PNG, redrawn))
     expect(lobby.map((b) => b.does)).toEqual(
       (["join", "leave", "start", "cancel"] as const).map((action) => ({ _tag: "Act", action, matchId: "7" }))
     )
-    const live = buttons(cardMessage(card("live", "lobby"), PNG))
+    const live = buttons(cardMessage(card("live", "lobby"), PNG, redrawn))
     expect(live[0]?.does).toEqual({ _tag: "Act", action: "join", matchId: "7" })
     expect(live[1]?.does).toContain(MAP.pfid)
     // Leave on a live Match asks first
@@ -66,13 +71,43 @@ describe("the Card", () => {
 
   it("never pings", () => {
     for (const state of ["invite", "live", "finished"] as const)
-      expect(pinged(cardMessage(card(state, "lobby"), PNG))).toEqual([])
+      expect(pinged(cardMessage(card(state, "lobby"), PNG, redrawn))).toEqual([])
+  })
+
+  it("a Lobby's first post pings only the role, with who opened it and for how long", () => {
+    const first = cardMessage(cardView("7", { type: "lobby", creator: ALICE, players: [ALICE], minutes: 15 }), PNG, announced)
+    expect(first.content).toBe(`<@&555> **<@${ALICE.discordId}>** opened a 15-minute Lobby`)
+    expect(first.allowedMentions).toEqual({ parse: [], roles: [ROLE] })
+  })
+
+  it("a Lobby keeps its line on every redraw, live and finished, and pings nobody", () => {
+    for (const state of ["invite", "live", "finished"] as const) {
+      const again = cardMessage(cardView("7", { state, type: "lobby", creator: ALICE, minutes: 15 }), PNG, redrawn)
+      expect(again.content).toBe(`<@&555> **<@${ALICE.discordId}>** opened a 15-minute Lobby`)
+      expect(again.allowedMentions).toEqual({ parse: [] })
+    }
+  })
+
+  it("a Public 1v1 or Challenge has no line and pings nobody, even on its first post", () => {
+    for (const type of ["public", "challenge"] as const) {
+      const first = cardMessage(card("invite", type), PNG, announced)
+      expect(first.content).toBe("")
+      expect(first.allowedMentions).toEqual({ parse: [] })
+    }
+  })
+
+  it("a kept-cancelled Card says why, with no line, and pings nobody", () => {
+    for (const reason of ["noEligibleMap", "abandoned"] as const) {
+      const closed = closedCardMessage(reason)
+      expect(closed.content).toBe("")
+      expect(closed.allowedMentions).toEqual({ parse: [] })
+    }
   })
 
   it("keeps each row within Discord's five buttons", () => {
     for (const state of ["invite", "live", "finished"] as const)
       for (const type of ["public", "challenge", "lobby"] as const)
-        for (const row of cardMessage(card(state, type), PNG).components ?? [])
+        for (const row of cardMessage(card(state, type), PNG, redrawn).components ?? [])
           expect((row as ActionRowBuilder<ButtonBuilder>).toJSON().components.length).toBeLessThanOrEqual(5)
   })
 })

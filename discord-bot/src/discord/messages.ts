@@ -101,16 +101,34 @@ const clockText = (v: CardView): string | null =>
 const INVITE_GREY = 0x4e5058
 const LIVE_LIME = 0x8be03c
 
-/** The Card image, with the clock in an embed below it: the image never shows one. */
-export const cardMessage = (v: CardView, png: Buffer): Payload => {
+/**
+ * How a Card treats the @Multiplayer ping role. `announce` is true only on the post that
+ * creates the Card: Discord notifies a mention when a message is first posted, never on an edit.
+ */
+export interface CardPing {
+  readonly roleId: string
+  readonly announce: boolean
+}
+
+/** A Lobby's line above its Card: "@Multiplayer ping **@creator** opened a N-minute Lobby". */
+const lobbyLine = (v: CardView, roleId: string) =>
+  `<@&${roleId}> **${who(v.creator.discordId)}** opened a ${v.minutes}-minute Lobby`
+
+/**
+ * The Card image, with the clock in an embed below it: the image never shows one. A Lobby's Card
+ * keeps its ping line through live and finished, but only its first post lets the role be
+ * mentioned. Public 1v1 and Challenge Cards have no line.
+ */
+export const cardMessage = (v: CardView, png: Buffer, ping: CardPing): Payload => {
   const text = clockText(v)
   const clock = text === null ? null : new EmbedBuilder().setColor(v.state === "live" ? LIVE_LIME : INVITE_GREY).setDescription(text)
+  const lobby = v.type === "lobby"
   return {
-    content: "",
+    content: lobby ? lobbyLine(v, ping.roleId) : "",
     embeds: clock === null ? [] : [clock],
     ...image(png, `match-${v.matchId}.png`),
     components: cardButtons(v),
-    ...quiet
+    ...(lobby && ping.announce ? { allowedMentions: { parse: [], roles: [ping.roleId] } } : quiet)
   }
 }
 
