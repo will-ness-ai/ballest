@@ -1,7 +1,7 @@
 # Building a feature
 
 The default path for a new feature or a change players will notice, from idea to a PR
-ready for review. Small fixes and data chores skip the planning steps and start at a
+ready for review, and from the merge to a retrospective. Small fixes and data chores skip the planning steps and start at a
 branch. Each step names the skill in `.claude/skills/` that runs it.
 
 Some of these skills set `disable-model-invocation`, so the Skill tool refuses them unless
@@ -59,6 +59,15 @@ in the PR, not part of it.
 Push, then rewrite the PR description to match what landed (Before / After, and How,
 including the design verdicts and the prototype branch), and mark it ready for review once
 CI is green. Remove the prototype worktree if `/grill-design` left one.
+
+## 8. After the merge: `/retro`
+
+When the PR is merged (the merge wakes any session watching it), run `/retro` on the
+session or sessions that built the feature, using `writing-for-agents` for anything it
+proposes to write. Present the candidates to the user, most severe first. The ones they
+pick land as their own small PR: a check in CI or `tools/page-check` for a mechanical
+mistake, a rule in `CODING_STANDARDS.md` for a judgement call, a pointer in `AGENTS.md` or
+a doc for something that was hard to find.
 
 In cloud sessions without the `gh` CLI, the GitHub tools do what `docs/agents/issue-tracker.md`
 lists.
