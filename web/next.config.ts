@@ -8,14 +8,14 @@ import type { NextConfig } from "next";
 // its slash in proxy.ts, and nothing else changes shape.
 const config: NextConfig = {
   skipTrailingSlashRedirect: true,
-  async rewrites() {
-    return {
+  rewrites() {
+    return Promise.resolve({
       beforeFiles: [
         { source: "/", destination: "/index.html" },
         { source: "/leth/", destination: "/leth/index.html" },
         { source: "/multiballs/:page(terms|privacy)", destination: "/multiballs/:page.html" },
       ],
-    };
+    });
   },
 };
 

@@ -10,11 +10,12 @@ reads leaderboards exactly the way the game does. Requirements:
 Usage:  python steam_sdk_reader.py "<leaderboard_name>"
 Default name is the 2026-09-05 daily captured earlier.
 """
+
+import ctypes as C
+import json
 import os
 import sys
 import time
-import json
-import ctypes as C
 
 APP_ID = 3339810
 DEFAULT_NAME = "ballest_v0_3607858889_Daily_20260905_cec1096c"
@@ -29,8 +30,13 @@ K_LeaderboardScoresDownloaded = 1105
 K_Global = 0
 
 lines = []
+
+
 def log(s=""):
-    print(s); lines.append(str(s))
+    print(s)
+    lines.append(str(s))
+
+
 def flush():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     open(OUT, "w", encoding="utf-8").write("\n".join(lines) + "\n")
@@ -38,27 +44,35 @@ def flush():
 
 class LeaderboardFindResult_t(C.Structure):
     _pack_ = 8
-    _fields_ = [("m_hSteamLeaderboard", C.c_uint64),
-                ("m_bLeaderboardFound", C.c_uint8)]
+    _fields_ = [("m_hSteamLeaderboard", C.c_uint64), ("m_bLeaderboardFound", C.c_uint8)]
+
 
 class LeaderboardScoresDownloaded_t(C.Structure):
     _pack_ = 8
-    _fields_ = [("m_hSteamLeaderboard", C.c_uint64),
-                ("m_hSteamLeaderboardEntries", C.c_uint64),
-                ("m_cEntryCount", C.c_int32)]
+    _fields_ = [
+        ("m_hSteamLeaderboard", C.c_uint64),
+        ("m_hSteamLeaderboardEntries", C.c_uint64),
+        ("m_cEntryCount", C.c_int32),
+    ]
+
 
 class LeaderboardEntry_t(C.Structure):
     _pack_ = 8
-    _fields_ = [("m_steamIDUser", C.c_uint64),
-                ("m_nGlobalRank", C.c_int32),
-                ("m_nScore", C.c_int32),
-                ("m_cDetails", C.c_int32),
-                ("m_hUGC", C.c_uint64)]
+    _fields_ = [
+        ("m_steamIDUser", C.c_uint64),
+        ("m_nGlobalRank", C.c_int32),
+        ("m_nScore", C.c_int32),
+        ("m_cDetails", C.c_int32),
+        ("m_hUGC", C.c_uint64),
+    ]
 
 
 def fmt_time(ms):
-    ms = int(ms); neg = ms < 0; ms = abs(ms)
-    m, rem = divmod(ms, 60000); s, msec = divmod(rem, 1000)
+    ms = int(ms)
+    neg = ms < 0
+    ms = abs(ms)
+    m, rem = divmod(ms, 60000)
+    s, msec = divmod(rem, 1000)
     return ("-" if neg else "") + f"{m}:{s:02d}.{msec:03d}"
 
 
@@ -66,7 +80,9 @@ def main():
     name = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_NAME
 
     if not os.path.exists(DLL_PATH):
-        log(f"ERROR: steam_api64.dll not found at {DLL_PATH}"); flush(); return 2
+        log(f"ERROR: steam_api64.dll not found at {DLL_PATH}")
+        flush()
+        return 2
     # steam_appid.txt must be in CWD for SteamAPI_Init
     try:
         open(os.path.join(os.getcwd(), "steam_appid.txt"), "w").write(str(APP_ID))
@@ -79,31 +95,57 @@ def main():
 
     # --- signatures ---
     # Modern SDK: SteamAPI_Init is an inline; the real export is SteamAPI_InitFlat.
-    lib.SteamAPI_InitFlat.restype = C.c_int          # ESteamAPIInitResult (0 = OK)
-    lib.SteamAPI_InitFlat.argtypes = [C.c_char_p]    # char errMsg[1024]
+    lib.SteamAPI_InitFlat.restype = C.c_int  # ESteamAPIInitResult (0 = OK)
+    lib.SteamAPI_InitFlat.argtypes = [C.c_char_p]  # char errMsg[1024]
     lib.SteamAPI_Shutdown.restype = None
     lib.SteamAPI_RunCallbacks.restype = None
     lib.SteamAPI_SteamUserStats_v013.restype = C.c_void_p
     lib.SteamAPI_SteamUtils_v010.restype = C.c_void_p
 
     lib.SteamAPI_ISteamUtils_IsAPICallCompleted.restype = C.c_bool
-    lib.SteamAPI_ISteamUtils_IsAPICallCompleted.argtypes = [C.c_void_p, C.c_uint64, C.POINTER(C.c_bool)]
+    lib.SteamAPI_ISteamUtils_IsAPICallCompleted.argtypes = [
+        C.c_void_p,
+        C.c_uint64,
+        C.POINTER(C.c_bool),
+    ]
     lib.SteamAPI_ISteamUtils_GetAPICallResult.restype = C.c_bool
-    lib.SteamAPI_ISteamUtils_GetAPICallResult.argtypes = [C.c_void_p, C.c_uint64, C.c_void_p, C.c_int, C.c_int, C.POINTER(C.c_bool)]
+    lib.SteamAPI_ISteamUtils_GetAPICallResult.argtypes = [
+        C.c_void_p,
+        C.c_uint64,
+        C.c_void_p,
+        C.c_int,
+        C.c_int,
+        C.POINTER(C.c_bool),
+    ]
 
     lib.SteamAPI_ISteamUserStats_FindLeaderboard.restype = C.c_uint64
     lib.SteamAPI_ISteamUserStats_FindLeaderboard.argtypes = [C.c_void_p, C.c_char_p]
     lib.SteamAPI_ISteamUserStats_DownloadLeaderboardEntries.restype = C.c_uint64
-    lib.SteamAPI_ISteamUserStats_DownloadLeaderboardEntries.argtypes = [C.c_void_p, C.c_uint64, C.c_int, C.c_int, C.c_int]
+    lib.SteamAPI_ISteamUserStats_DownloadLeaderboardEntries.argtypes = [
+        C.c_void_p,
+        C.c_uint64,
+        C.c_int,
+        C.c_int,
+        C.c_int,
+    ]
     lib.SteamAPI_ISteamUserStats_GetDownloadedLeaderboardEntry.restype = C.c_bool
-    lib.SteamAPI_ISteamUserStats_GetDownloadedLeaderboardEntry.argtypes = [C.c_void_p, C.c_uint64, C.c_int, C.POINTER(LeaderboardEntry_t), C.POINTER(C.c_int32), C.c_int]
+    lib.SteamAPI_ISteamUserStats_GetDownloadedLeaderboardEntry.argtypes = [
+        C.c_void_p,
+        C.c_uint64,
+        C.c_int,
+        C.POINTER(LeaderboardEntry_t),
+        C.POINTER(C.c_int32),
+        C.c_int,
+    ]
     lib.SteamAPI_ISteamUserStats_GetLeaderboardEntryCount.restype = C.c_int
     lib.SteamAPI_ISteamUserStats_GetLeaderboardEntryCount.argtypes = [C.c_void_p, C.c_uint64]
     lib.SteamAPI_ISteamUserStats_GetLeaderboardName.restype = C.c_char_p
     lib.SteamAPI_ISteamUserStats_GetLeaderboardName.argtypes = [C.c_void_p, C.c_uint64]
     for opt in ("GetLeaderboardDisplayType", "GetLeaderboardSortMethod"):
         fn = getattr(lib, "SteamAPI_ISteamUserStats_" + opt, None)
-        if fn: fn.restype = C.c_int; fn.argtypes = [C.c_void_p, C.c_uint64]
+        if fn:
+            fn.restype = C.c_int
+            fn.argtypes = [C.c_void_p, C.c_uint64]
 
     log(f"App: {APP_ID}")
     log(f"Leaderboard name: {name}")
@@ -113,9 +155,12 @@ def main():
     init_rc = lib.SteamAPI_InitFlat(errbuf)
     if init_rc != 0:
         rc_map = {1: "FailedGeneric", 2: "NoSteamClient", 3: "VersionMismatch"}
-        log(f"ERROR: SteamAPI_InitFlat returned {init_rc} ({rc_map.get(init_rc,'?')}): {errbuf.value.decode('utf-8','replace')}")
+        log(
+            f"ERROR: SteamAPI_InitFlat returned {init_rc} ({rc_map.get(init_rc, '?')}): {errbuf.value.decode('utf-8', 'replace')}"
+        )
         log("Check: Steam client running + logged in, Ballest fully closed, account owns the game.")
-        flush(); return 1
+        flush()
+        return 1
     log("  Steam initialized OK.")
 
     stats = lib.SteamAPI_SteamUserStats_v013()
@@ -129,7 +174,8 @@ def main():
             if lib.SteamAPI_ISteamUtils_IsAPICallCompleted(utils, handle, C.byref(failed)):
                 out = cb_struct()
                 ok = lib.SteamAPI_ISteamUtils_GetAPICallResult(
-                    utils, handle, C.byref(out), C.sizeof(out), cb_id, C.byref(failed))
+                    utils, handle, C.byref(out), C.sizeof(out), cb_id, C.byref(failed)
+                )
                 if ok and not failed.value:
                     return out
                 return None
@@ -141,7 +187,9 @@ def main():
     res = wait_call(fh, LeaderboardFindResult_t, K_LeaderboardFindResult)
     if not res or not res.m_bLeaderboardFound:
         log("ERROR: leaderboard not found (name wrong, or not created yet).")
-        lib.SteamAPI_Shutdown(); flush(); return 1
+        lib.SteamAPI_Shutdown()
+        flush()
+        return 1
     lb = res.m_hSteamLeaderboard
     count = lib.SteamAPI_ISteamUserStats_GetLeaderboardEntryCount(stats, lb)
     real_name = lib.SteamAPI_ISteamUserStats_GetLeaderboardName(stats, lb)
@@ -151,15 +199,20 @@ def main():
     log(f"FOUND leaderboard handle={lb}")
     log(f"  name        : {real_name.decode() if real_name else '?'}")
     log(f"  entry_count : {count}")
-    if disp: log(f"  display_type: {disp(stats, lb)}  (2=TimeSeconds, 3=TimeMilliSeconds, 1=Numeric)")
-    if sort: log(f"  sort_method : {sort(stats, lb)}  (1=Ascending, 2=Descending)")
+    if disp:
+        log(f"  display_type: {disp(stats, lb)}  (2=TimeSeconds, 3=TimeMilliSeconds, 1=Numeric)")
+    if sort:
+        log(f"  sort_method : {sort(stats, lb)}  (1=Ascending, 2=Descending)")
 
     # --- download top N ---
     topn = min(count, 25) if count > 0 else 25
     dh = lib.SteamAPI_ISteamUserStats_DownloadLeaderboardEntries(stats, lb, K_Global, 1, topn)
     dl = wait_call(dh, LeaderboardScoresDownloaded_t, K_LeaderboardScoresDownloaded)
     if not dl:
-        log("ERROR: DownloadLeaderboardEntries timed out."); lib.SteamAPI_Shutdown(); flush(); return 1
+        log("ERROR: DownloadLeaderboardEntries timed out.")
+        lib.SteamAPI_Shutdown()
+        flush()
+        return 1
 
     entries_handle = dl.m_hSteamLeaderboardEntries
     n = dl.m_cEntryCount
@@ -171,18 +224,31 @@ def main():
     for i in range(n):
         entry = LeaderboardEntry_t()
         ok = lib.SteamAPI_ISteamUserStats_GetDownloadedLeaderboardEntry(
-            stats, entries_handle, i, C.byref(entry), details_buf, details_max)
+            stats, entries_handle, i, C.byref(entry), details_buf, details_max
+        )
         if not ok:
             continue
         sid = entry.m_steamIDUser
         det = [details_buf[j] for j in range(entry.m_cDetails)] if entry.m_cDetails else []
-        log(f"  {entry.m_nGlobalRank:>4} | {sid} | {entry.m_nScore} | {fmt_time(entry.m_nScore)} | {det}")
-        rows.append({"rank": entry.m_nGlobalRank, "steam_id": str(sid),
-                     "score": entry.m_nScore, "ugc_id": str(entry.m_hUGC), "details": det})
+        log(
+            f"  {entry.m_nGlobalRank:>4} | {sid} | {entry.m_nScore} | {fmt_time(entry.m_nScore)} | {det}"
+        )
+        rows.append(
+            {
+                "rank": entry.m_nGlobalRank,
+                "steam_id": str(sid),
+                "score": entry.m_nScore,
+                "ugc_id": str(entry.m_hUGC),
+                "details": det,
+            }
+        )
 
     try:
-        json.dump({"name": name, "handle": str(lb), "entry_count": count, "rows": rows},
-                  open(OUT.replace(".txt", ".json"), "w", encoding="utf-8"), indent=2)
+        json.dump(
+            {"name": name, "handle": str(lb), "entry_count": count, "rows": rows},
+            open(OUT.replace(".txt", ".json"), "w", encoding="utf-8"),
+            indent=2,
+        )
     except Exception:
         pass
 
@@ -194,6 +260,8 @@ def main():
 
 if __name__ == "__main__":
     rc = main()
-    try: flush()
-    except Exception: pass
+    try:
+        flush()
+    except Exception:
+        pass
     sys.exit(rc)

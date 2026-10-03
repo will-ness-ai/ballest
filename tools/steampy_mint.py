@@ -12,16 +12,22 @@ The token is long-lived; re-run this only if CI later reports the token expired.
 Run:  (from repo root, in the steam.py venv — see tools/README-hosting.md)
       python tools/steampy_mint.py
 """
-import os, sys, getpass, logging
+
+import getpass
+import logging
+import os
+import sys
+import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import warnings
+
 import campaign_common as cc
 
-import warnings
 warnings.filterwarnings("ignore")
 
-import steam
-from steam.protobufs import leaderboards
+import steam  # noqa: E402 (after the warnings filter)
+from steam.protobufs import leaderboards  # noqa: E402
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -42,7 +48,7 @@ async def on_ready():
     _done["v"] = True
     try:
         token = client.refresh_token
-        with open(TOKEN_OUT, "w", encoding="utf-8") as f:
+        with open(TOKEN_OUT, "w", encoding="utf-8") as f:  # noqa: ASYNC230 (one line, once)
             f.write(str(token) + "\n")
         print("\n" + "=" * 70)
         print("REFRESH TOKEN (store as GitHub secret STEAM_REFRESH_TOKEN):\n")
@@ -55,10 +61,14 @@ async def on_ready():
         # is set — see ugc_discord_leaderboard.find_board_id).
         print("Validating: reading top 5 of Season 2 Overall...")
         lid = cc.LEADERBOARD_IDS["OverallLeaderboard_EASeason2"]
-        msg = await client._state.ws.send_proto_and_wait(
+        msg = await client._state.ws.send_proto_and_wait(  # noqa: SLF001 (steam.py has no public raw-protobuf call)
             leaderboards.CMsgClientLbsGetLbEntries(
-                leaderboard_id=lid, app_id=cc.APP_ID,
-                range_start=1, range_end=5, leaderboard_data_request=0, steamids=[],
+                leaderboard_id=lid,
+                app_id=cc.APP_ID,
+                range_start=1,
+                range_end=5,
+                leaderboard_data_request=0,
+                steamids=[],
             )
         )
         print(f"  board id={lid} entry_count={msg.leaderboard_entry_count}")
@@ -71,7 +81,6 @@ async def on_ready():
         else:
             print("\n⚠ Logged in but read 0 entries — tell Claude; may need a fallback.")
     except Exception:
-        import traceback
         traceback.print_exc()
         print("\n⚠ Login succeeded but the validation read failed — share this output.")
     finally:

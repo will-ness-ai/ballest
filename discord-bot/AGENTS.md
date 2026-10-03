@@ -6,7 +6,8 @@ The unofficial Discord Match bot: TypeScript on Effect 3 with discord.js and ste
 
 ## Checking a change
 
-`pnpm test` and `pnpm typecheck`. The tests drive the whole Match engine through fake Steam and
+`pnpm test` and `pnpm typecheck` here, and `pnpm check` at the repo root for formatting and lint
+(`docs/linting.md`). The tests drive the whole Match engine through fake Steam and
 Discord ports, SQLite in memory and Effect's TestClock, and the Discord Surface (where Cards,
 Match Threads and the Footer go) over an in-memory channel. Every message the bot sends is built
 in `messages.ts` from plain data; `test/messages.test.ts` checks each one's buttons and pings, so

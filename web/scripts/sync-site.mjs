@@ -11,8 +11,15 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const pub = fileURLToPath(new URL("../public/", import.meta.url));
 
 const SITE = [
-  "index.html", "favicon.ico", "favicon.svg", "apple-touch-icon.png", "og.png",
-  "data", "circuit", "leth", "multiballs",
+  "index.html",
+  "favicon.ico",
+  "favicon.svg",
+  "apple-touch-icon.png",
+  "og.png",
+  "data",
+  "circuit",
+  "leth",
+  "multiballs",
 ];
 
 rmSync(pub, { recursive: true, force: true });

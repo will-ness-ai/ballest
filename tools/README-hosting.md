@@ -57,10 +57,10 @@ git push -u origin main
 
 Repo → **Settings → Secrets and variables → Actions → New repository secret**:
 
-| Name | Value |
-|---|---|
-| `STEAM_REFRESH_TOKEN` | the token from step 1 |
-| `STEAM_API_KEY` | your Steam Web API key (same one in `.env`) |
+| Name                  | Value                                       |
+| --------------------- | ------------------------------------------- |
+| `STEAM_REFRESH_TOKEN` | the token from step 1                       |
+| `STEAM_API_KEY`       | your Steam Web API key (same one in `.env`) |
 
 ### 4. Create the Vercel project
 
