@@ -11,9 +11,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 
 ## Layout
 
-- `index.html` — the entire site. Vanilla JS and CSS in one file: no build step, no
-  framework, no JS CDN. The only external requests are Google Fonts and the Plausible
-  analytics script, served from our own instance on Railway. Its routes, the player
+- `index.html` — the entire site. Vanilla JS and CSS in one file, served as is by
+  `web/`: no framework in the page, no JS CDN. The only external requests are Google
+  Fonts and the Plausible analytics script, served from our own instance on Railway. Its routes, the player
   record, row order and the theme: `docs/site.md`. Read it before editing the page.
 - `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `og.png` — the lime-marble icon
   and the 1200×630 link-preview image. Rendered once and committed; `og.png` bakes in its
@@ -38,9 +38,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   `docs/nextjs-migration.md`; Vercel project `ballest`, Root Directory `web`). It serves
   the root site files, copied into `web/public/` at build time by
   `web/scripts/sync-site.mjs`, so the files to edit stay the ones at the root. That
-  script's `SITE` list is what gets published: a new site file must be added to it or it
-  404s in production. Every push to `main` deploys, and every other branch gets a preview;
-  `web/vercel.json`'s `ignoreCommand` skips commits that touch no site file.
+  script's `SITE` list is what gets published, and `pnpm smoke` (run by `web.yml` in CI)
+  fails when a page loads a file it leaves out. Every push to `main` deploys, and every
+  other branch gets a preview; `web/vercel.json`'s `ignoreCommand` skips commits that touch no site file.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
   covers install and how it hooks the game.
@@ -179,8 +179,8 @@ and an updated PR. Once it is merged, run `/retro` on the sessions that built it
 
 ### Issue tracker
 
-GitHub issues and pull requests on `will-ness-ai/ballest`, through the `gh` CLI. See
-`docs/agents/issue-tracker.md`.
+GitHub issues and pull requests on `will-ness-ai/ballest`, through the `gh` CLI rather than
+GitHub MCP tools, cloud sessions included. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

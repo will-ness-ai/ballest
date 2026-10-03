@@ -11,6 +11,25 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
 
+## Cloud sessions
+
+Cloud sessions use `gh` too, in preference to the GitHub MCP tools. There `gh` reaches
+only GitHub's REST API: GraphQL is blocked, so `gh issue list`, `gh pr view` and the other
+porcelain commands fail. Use `gh api` with the REST equivalent:
+
+- **List / read**: `gh api repos/will-ness-ai/ballest/issues?state=open` (PRs appear here too;
+  `pulls` lists only PRs), `gh api repos/will-ness-ai/ballest/issues/<n>` and
+  `.../issues/<n>/comments`.
+- **Create / comment / label / close**: `gh api -X POST .../issues -f title=... -f body=...`,
+  `gh api -X POST .../issues/<n>/comments -f body=...`,
+  `gh api -X POST .../issues/<n>/labels -f "labels[]=..."`,
+  `gh api -X PATCH .../issues/<n> -f state=closed`.
+- **PRs**: `gh api -X POST .../pulls -f title=... -f head=... -f base=main -f body=...`,
+  `gh api .../pulls/<n>/files`, `gh api -X PUT .../pulls/<n>/merge -f merge_method=squash`.
+- **Review threads, ready for review, auto-merge**: the session's own routes on the REST
+  API, `.../pulls/<n>/ccr/review_threads`, `.../pulls/<n>/ccr/ready_for_review` and
+  `.../pulls/<n>/ccr/auto_merge`, as the GraphQL error message lists.
+
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 The remote is `will-ness-ai/ballest`. Issues and pull requests share one number space here,
 and most history so far is PRs (`#42`, `#43`, `#44`), so a bare `#n` in a commit message is
