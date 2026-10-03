@@ -1741,8 +1741,9 @@ function playerRecord(doc, id){
       record: timed ? {score: m.top3[0][2], who: {steam_id: m.top3[0][0], persona: m.top3[0][1]}} : null};
   }).sort((a, b) => b.runs - a.runs || b.subs - a.subs);
   /* points: what the place pays toward the season's Overall, so a season's tracks add up */
-  const track = b => ({name: b.name, display: shortName(b.display), field: b.entry_count,
-                       finish: by[b.name] || null, points: by[b.name] ? trackPoints(by[b.name].rank) : 0});
+  const track = b => { const f = by[b.name] || null;
+    return {name: b.name, display: shortName(b.display), field: b.entry_count,
+            finish: f, points: f ? trackPoints(f.rank) : 0}; };
   const tracks = activeBoards().filter(b => !isPoints(b)).map(track);
   const run = tracks.filter(t => t.finish);
   const medals = {gold: 0, silver: 0, bronze: 0};
@@ -1757,14 +1758,14 @@ function playerRecord(doc, id){
     for(const b of boardsIn(group).filter(x => !isPoints(x))){
       const tier = b.tier || "Circuit";
       if(!tiers.length || tiers[tiers.length-1].tier !== tier) tiers.push({tier, tracks: [], points: 0});
-      const t = byName.get(b.name);
-      tiers[tiers.length-1].tracks.push(t);
-      tiers[tiers.length-1].points += t.points;
+      const cur = tiers[tiers.length-1], t = byName.get(b.name);
+      cur.tracks.push(t);
+      cur.points += t.points;
     }
-    const overall = overallOf(group);
+    const overallMeta = overallOf(group), overall = (overallMeta && by[overallMeta.name]) || null;
     /* points is what the tracks add up to; overall.score is Steam's, which can lag behind it */
-    return {group, overall: (overall && by[overall.name]) || null, tiers,
-            points: tiers.reduce((n, t) => n + t.points, 0)};
+    const points = tiers.reduce((n, t) => n + t.points, 0);
+    return {group, overall, tiers, points, lagging: !!overall && overall.score !== points};
   }).filter(s => s.tiers.length);
   const comp = compositeBoard();
   /* the board behind this page, when the reader came from one */
@@ -1827,7 +1828,7 @@ function seasonHtml(s, id){
         ? `<span class="pov" data-m="${s.overall.rank<=3 ? s.overall.rank : 0}"><b>${ord(s.overall.rank)}</b>
             overall &middot; ${fmtN(s.overall.score)} pts</span>`
         : `<span class="pov">not ranked overall</span>`}</div>
-    ${s.overall && s.overall.score !== s.points ? `<p class="psync">Steam's leaderboard takes a while to sync.
+    ${s.lagging ? `<p class="psync">Steam's leaderboard takes a while to sync.
       These tracks add up to <b>${fmtN(s.points)}</b> pts.</p>` : ""}
     ${s.tiers.map(t => `<div class="ptier"><span class="ptlab">${esc(t.tier)}${s.tiers.length > 1
         ? `<span class="ptsum"><b>${fmtN(t.points)}</b> pts</span>` : ""}</span>
