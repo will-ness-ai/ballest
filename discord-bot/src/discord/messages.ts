@@ -15,7 +15,7 @@ import {
   type BaseMessageOptions
 } from "discord.js"
 import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js"
-import { DECLINE_PING, GET_PING, PING_FAILED, pingDeclined, pingOffer, PINGS_LABEL, pingsHave, pingsState, REMOVE_PING } from "../pingWords.js"
+import { DECLINE_PING, GET_PING, PING_FAILED, PING_UNREAD, pingDeclined, pingOffer, PINGS_LABEL, pingsHave, pingsState, REMOVE_PING } from "../pingWords.js"
 import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js"
 import { RESULT_HUE, START_HUE } from "../render/art.js"
 import type { CardView, KeptReason, ThreadPost } from "../ports.js"
@@ -363,6 +363,9 @@ export const pingOfferMessage = (roleId: string): Payload => ({
 
 /** What the offer becomes after No. */
 export const pingDeclinedMessage = (): Payload => ({ content: pingDeclined(PINGS_BOLD), components: [], ...quiet })
+
+/** The Pings reply when Discord wouldn't say whether the member has the role. */
+export const pingUnreadMessage = (): Payload => ({ content: PING_UNREAD, components: [], ...quiet })
 
 /**
  * A Get or Remove that Discord refused: the same reply's text with the failure line below it

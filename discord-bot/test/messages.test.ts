@@ -14,6 +14,7 @@ import {
   pingDeclinedMessage,
   pingOfferMessage,
   pingsMessage,
+  pingUnreadMessage,
   threadMessage,
   withPingFailure
 } from "../src/discord/messages.js"
@@ -117,6 +118,13 @@ describe("Lobby pings, privately", () => {
     expect(declined.content).toBe("Lobby pings: off. Change it later from **Pings**.")
     expect(declined.components).toEqual([])
     pingsNobody(declined)
+  })
+
+  it("says plainly when Discord wouldn't say whether you have the role", () => {
+    const unread = pingUnreadMessage()
+    expect(unread.content).toBe("Discord didn't say whether you have @Multiplayer ping. Try again in a moment.")
+    expect(unread.components).toEqual([])
+    pingsNobody(unread)
   })
 })
 

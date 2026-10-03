@@ -10,7 +10,6 @@ import {
 import { Effect, Layer, Match, Option, Ref, Stream } from "effect"
 import { Engine } from "../engine.js"
 import { explain } from "../explain.js"
-import { PING_UNREAD } from "../pingWords.js"
 import { Pings, warnPingRole } from "../pings.js"
 import { Store, type ProfilePreview } from "../ports.js"
 import { Renderer, type RenderError } from "../render/renderer.js"
@@ -27,6 +26,7 @@ import {
   pingDeclinedMessage,
   pingOfferMessage,
   pingsMessage,
+  pingUnreadMessage,
   PROFILE_FIELD,
   quiet,
   tryAgainMessage,
@@ -185,7 +185,7 @@ export const InteractionsLive = Layer.scopedDiscard(
           yield* tryDiscord("defer", () => i.deferReply(ephemeral))
           const answer = yield* pings.status(self).pipe(
             Effect.map((on) => pingsMessage(on, discord.pingRoleId)),
-            Effect.catchTag("PingRoleUnavailable", (e) => warnPingRole(e).pipe(Effect.as({ content: PING_UNREAD, components: [], ...quiet })))
+            Effect.catchTag("PingRoleUnavailable", (e) => warnPingRole(e).pipe(Effect.as(pingUnreadMessage())))
           )
           return yield* tryDiscord("edit reply", () => i.editReply(answer))
         }
