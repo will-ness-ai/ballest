@@ -11,6 +11,11 @@ here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
   every season's Overall points summed per player (`build_composite` in
   `tools/campaign_common.py`). Derived by the collector from the `Overall*` rows it just
   read, so it is written and indexed like any other board and needs no leaderboard ID.
+- `data/boards/OverallLeaderboard_S1Current.json`: Season 1's Overall points worked out
+  from today's track places (`build_current`, with the game's rule in `track_points`).
+  Steam's Season 1 board stopped when the season ended; the site lists this one ahead of
+  it as "Current" and Steam's as "Final". Derived and indexed like the composite, which
+  still sums Steam's boards.
 - `data/podiums.json`: per-season podium tally (who holds each track's top three),
   then one more entry, `All Seasons`, tallied over every season's tracks at once, for the
   all-seasons board (`build_podiums`). Derived by the collector from the board rows, and
