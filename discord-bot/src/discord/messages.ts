@@ -15,6 +15,7 @@ import {
   type BaseMessageOptions
 } from "discord.js"
 import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js"
+import { DECLINE_PING, GET_PING, pingDeclined, pingOffer, PINGS_LABEL, pingsHave, pingsState, REMOVE_PING } from "../pingWords.js"
 import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js"
 import { RESULT_HUE, START_HUE } from "../render/art.js"
 import type { CardView, KeptReason, ThreadPost } from "../ports.js"
@@ -58,7 +59,13 @@ export const footerMessage = (png: Buffer): Payload => ({
   content: "",
   embeds: [],
   ...image(png, "multiballs.png"),
-  components: [row(button("New Match", { _tag: "NewMatch" }, ButtonStyle.Primary), button("Link Steam", { _tag: "LinkSteam" }))],
+  components: [
+    row(
+      button("New Match", { _tag: "NewMatch" }, ButtonStyle.Primary),
+      button("Link Steam", { _tag: "LinkSteam" }),
+      button(PINGS_LABEL, { _tag: "Pings" })
+    )
+  ],
   ...quiet
 })
 
@@ -332,3 +339,27 @@ export const tryAgainMessage = (text: string): Payload => ({
   attachments: [],
   components: [row(button("Try again", { _tag: "LinkSteam" }))]
 })
+
+// ---------------------------------------------------------------- Lobby pings, privately (spec #87)
+// The role shows as a real mention, which pings nobody here: none of these allow mentions.
+
+const roleMention = (roleId: string) => `<@&${roleId}>`
+const PINGS_BOLD = `**${PINGS_LABEL}**`
+const getPingButton = () => button(GET_PING, { _tag: "SetPing", on: true }, ButtonStyle.Success)
+
+/** The Footer's Pings reply: where the member stands, and the one button that changes it. */
+export const pingsMessage = (on: boolean, roleId: string): Payload => ({
+  content: `**${pingsState(on)}**\n${pingsHave(on, roleMention(roleId))}`,
+  components: [row(on ? button(REMOVE_PING, { _tag: "SetPing", on: false }) : getPingButton())],
+  ...quiet
+})
+
+/** Offered once, after a member's first Join or Accept from a Card. Get turns it into the Pings reply. */
+export const pingOfferMessage = (roleId: string): Payload => ({
+  content: pingOffer(roleMention(roleId), PINGS_BOLD),
+  components: [row(getPingButton(), button(DECLINE_PING, { _tag: "DeclinePing" }))],
+  ...quiet
+})
+
+/** What the offer becomes after No. */
+export const pingDeclinedMessage = (): Payload => ({ content: pingDeclined(PINGS_BOLD), components: [], ...quiet })

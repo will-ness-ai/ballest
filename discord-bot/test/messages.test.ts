@@ -1,11 +1,21 @@
 // The Discord messages the bot sends, built from plain data: which buttons each one offers,
 // what they do, and who each one pings. No Discord needed; the payloads are checked as built.
-import type { ActionRowBuilder, ButtonBuilder } from "discord.js"
+import { type ActionRowBuilder, type ButtonBuilder, ButtonStyle } from "discord.js"
 import { describe, expect, it } from "vitest"
 import type { MatchState, MatchType } from "../src/domain.js"
 import { parseControl } from "../src/discord/controls.js"
 import type { MarbleEmojis } from "../src/discord/marbles.js"
-import { cardMessage, closedCardMessage, confirmLeaveMessage, type Payload, threadMessage } from "../src/discord/messages.js"
+import {
+  cardMessage,
+  closedCardMessage,
+  confirmLeaveMessage,
+  footerMessage,
+  type Payload,
+  pingDeclinedMessage,
+  pingOfferMessage,
+  pingsMessage,
+  threadMessage
+} from "../src/discord/messages.js"
 import { ThreadPost } from "../src/ports.js"
 import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js"
 
@@ -40,6 +50,62 @@ const card = (state: MatchState, type: MatchType) =>
     expiresAt: state === "invite" ? 1 : null,
     endsAt: state === "live" ? 1 : null
   })
+
+/** A message that can't notify anyone: no users, no roles, nothing parsed from its text. */
+const pingsNobody = (p: Payload) => expect(p.allowedMentions).toEqual({ parse: [] })
+
+describe("the Footer", () => {
+  it("offers New Match, Link Steam and Pings, and pings nobody", () => {
+    const footer = footerMessage(PNG)
+    expect(buttons(footer)).toEqual([
+      { label: "New Match", does: { _tag: "NewMatch" } },
+      { label: "Link Steam", does: { _tag: "LinkSteam" } },
+      { label: "Pings", does: { _tag: "Pings" } }
+    ])
+    pingsNobody(footer)
+  })
+})
+
+describe("Lobby pings, privately", () => {
+  const ROLE = "555"
+  /** Each button's colour, beside its label. */
+  const styles = (p: Payload) =>
+    (p.components ?? []).flatMap((row) => (row as ActionRowBuilder<ButtonBuilder>).toJSON().components).map((b) => b.style)
+
+  it("the Pings reply, off: says so, names the role, and offers Get", () => {
+    const off = pingsMessage(false, ROLE)
+    expect(off.content).toBe("**Lobby pings: off**\nYou don't have <@&555>.")
+    expect(buttons(off)).toEqual([{ label: "Get @Multiplayer ping", does: { _tag: "SetPing", on: true } }])
+    expect(styles(off)).toEqual([ButtonStyle.Success])
+    pingsNobody(off)
+  })
+
+  it("the Pings reply, on: says so, names the role, and offers Remove", () => {
+    const on = pingsMessage(true, ROLE)
+    expect(on.content).toBe("**Lobby pings: on**\nYou have <@&555>.")
+    expect(buttons(on)).toEqual([{ label: "Remove @Multiplayer ping", does: { _tag: "SetPing", on: false } }])
+    expect(styles(on)).toEqual([ButtonStyle.Secondary])
+    pingsNobody(on)
+  })
+
+  it("the offer: names the role, points at Pings, and offers Get or No", () => {
+    const offer = pingOfferMessage(ROLE)
+    expect(offer.content).toBe("Get <@&555> to hear when someone opens a Lobby. Change it later from **Pings**.")
+    expect(buttons(offer)).toEqual([
+      { label: "Get @Multiplayer ping", does: { _tag: "SetPing", on: true } },
+      { label: "No", does: { _tag: "DeclinePing" } }
+    ])
+    expect(styles(offer)).toEqual([ButtonStyle.Success, ButtonStyle.Secondary])
+    pingsNobody(offer)
+  })
+
+  it("No turns the offer into a line with no buttons", () => {
+    const declined = pingDeclinedMessage()
+    expect(declined.content).toBe("Lobby pings: off. Change it later from **Pings**.")
+    expect(declined.components).toEqual([])
+    pingsNobody(declined)
+  })
+})
 
 describe("the Card", () => {
   it.each([
