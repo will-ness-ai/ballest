@@ -29,7 +29,7 @@ const HELP = `usage: pnpm --silent axi [command] [args]
                                  a finished run on the Match's Map (fake Steam)
   wait <text> [--in <channel|thread>] [--timeout s]
                                  until a new message whose text or image name has it ("" for any)
-  sandbox create [name] | sandbox delete
+  sandbox create [name] | sandbox delete [channel id]
                                  make or remove the sandbox channel
 members: a numeric id, "admin" (this tool's app), or a name to look up.`;
 
@@ -521,13 +521,13 @@ const sandboxCmd = async () => {
     ]);
   }
   if (sub === "delete") {
-    const channelId = sandboxChannel();
-    await call("delete channel", () => rest.delete(Routes.channel(channelId)));
-    writeSandbox(null);
-    return say([
-      `deleted: #${sandbox?.channelName}`,
-      ...helpLines(["pnpm --silent axi sandbox create"]),
-    ]);
+    // An id deletes a sandbox this checkout didn't make (another worktree's, say).
+    const channelId = args[1] ?? sandboxChannel();
+    const gone = await call<ApiChannel>("delete channel", () =>
+      rest.delete(Routes.channel(channelId)),
+    );
+    if (channelId === sandbox?.channelId) writeSandbox(null);
+    return say([`deleted: #${gone.name}`, ...helpLines(["pnpm --silent axi sandbox create"])]);
   }
   return fail(`unknown sandbox command "${sub ?? ""}"`, [
     "pnpm --silent axi sandbox create",

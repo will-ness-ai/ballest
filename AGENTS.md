@@ -169,7 +169,7 @@ Matt Pocock's `grill-with-docs` (with the `grilling` and `domain-modeling` it ca
 at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. Their
 `code-review` replaces the built-in `/code-review` here. `grill-design` comes from
 `will-ness-ai/skills`, adapted to prototype in the running app on a worktree, and is
-maintained here rather than reinstalled. `wizard` (also `mattpocock/skills`) is adapted the
+maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
 
 ### Building a feature

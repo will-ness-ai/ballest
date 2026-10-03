@@ -55,22 +55,28 @@ and what the bot answers privately comes back to the caller. A fresh database ea
 in `.logs/sandbox.log`. It leaves clicks in other channels alone, so it runs beside `pnpm dev`.
 
 `pnpm --silent axi` is how an agent uses it (`--silent` keeps pnpm's echo out; AXI style: run it bare for the state of things, every answer
-ends with next steps). It reads as the "Multiballs Admin (dev)" app, `ADMIN_DISCORD_TOKEN` in the
+ends with next steps). It reads as the Admin app ("Multiballs Dev Server Admin"), `ADMIN_DISCORD_TOKEN` in the
 dev `.env`, which sees the channel and Match Threads as a member does:
 
 ```
-pnpm --silent axi sandbox create                     # once: a channel the bot can post in
-pnpm sandbox                                # in another shell
-pnpm --silent axi press "New Match" --as admin       # labels are looked up in the last private answer
-pnpm --silent axi press "Lobby" --as admin           #   or the channel's newest messages
-pnpm --silent axi read                               # the channel; `show <id>` saves its images to read
-pnpm --silent axi time <match> 18.2 --as admin       # a finished run, read on the engine's next poll
+pnpm --silent axi sandbox create                # once: a channel the bot can post in
+pnpm sandbox                                    # in another shell
+pnpm --silent axi press "New Match" --as admin  # labels: the last private answer, then the channel
+pnpm --silent axi read                          # the channel; `show <id>` saves its images to read
+pnpm --silent axi time <match> 18.2 --as admin  # a finished run, read on the engine's next poll
 pnpm --silent axi wait "Go!" --in <thread>
 ```
 
 Without `ADMIN_DISCORD_TOKEN` it reads with the dev bot's token: its own messages only, and no
 sandbox setup. `--as` takes a member id, `admin`, or a name; pinging a member pings them for
 real, so play as `admin` and members who expect it.
+
+It needs a machine that reaches Discord, which cloud containers don't: Will's PC, through Remote
+Control. The Admin app is set up there once. In the Developer Portal it has the Message Content
+intent (to read other bots' posts) and the Server Members intent (for `axi members`), and it was
+invited to the test server with Administrator, so it can make and delete channels. To make it
+private, set Installation → Install Link to None before turning off Public Bot; Discord refuses
+the other order. The `discord-sandbox` skill is the run, step by step.
 
 What to check where: Match rules in `test/engine.test.ts`, what lands in the channel in
 `test/surface.test.ts`, each message's buttons and pings in `test/messages.test.ts`, and the
