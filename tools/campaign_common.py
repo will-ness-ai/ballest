@@ -631,6 +631,37 @@ def build_names(shards):
     return sorted([sid, p["persona"]] for doc in shards.values() for sid, p in doc["players"].items())
 
 
+def build_standings(boards_out, maps):
+    """The Players page's table: for every player, their world records, podiums
+    and top 5s on the Circuit and on the Workshop, and how many Maps they have a
+    time on. A world record is rank 1, as on a player's page (CONTEXT.md, Medal).
+    The Circuit counts come from the Map_* boards only, since an Overall board is
+    points, not a race; the Workshop's from maps, {"Workshop_<pfid>": rows}.
+
+    Rows are [steam_id, persona, circuit WRs, Workshop WRs, circuit podiums,
+    Workshop podiums, circuit top 5s, Workshop top 5s, Maps], in Steam ID order so
+    a refresh diffs by player. A player with nothing to count (a Circuit time
+    outside every top 5 and no Workshop time) is left out. The page ranks them:
+    which column leads is the reader's choice, so no order is baked in here."""
+    tracks = [b["rows"] for b in boards_out if b["name"].startswith("Map_")]
+    players = {}
+
+    def tally(rows, side):    # side 0 is the Circuit, 1 the Workshop
+        for r in rows:
+            p = players.setdefault(r["steam_id"], [r["steam_id"], r.get("persona", "")] + [0] * 7)
+            p[2 + side] += r["rank"] == 1
+            p[4 + side] += r["rank"] <= 3
+            p[6 + side] += r["rank"] <= 5
+            p[8] += side
+
+    for rows in tracks:
+        tally(rows[:5], 0)    # rows are rank-ordered; nothing past 5th counts
+    for rows in maps.values():
+        tally(rows, 1)
+    return {"tracks": len(tracks), "maps": len(maps),
+            "players": sorted(p for p in players.values() if any(p[2:]))}
+
+
 def derive(boards_out, maps):
     """Everything the collector works out from the board rows it just read.
 
@@ -674,6 +705,9 @@ def derive(boards_out, maps):
     names = build_names(shards)
     artifacts.append({"path": "names.json", "doc": names, "empty": not names,
                       "summary": f"names  {len(names)} players"})
+    standings = build_standings(boards_out, maps)
+    artifacts.append({"path": "standings.json", "doc": standings, "empty": not standings["players"],
+                      "summary": f"standings  {len(standings['players'])} players"})
     return boards_out, artifacts
 
 

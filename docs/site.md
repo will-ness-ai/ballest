@@ -27,6 +27,9 @@ track order, and two asset folders differ in case from the board names (`LongHau
   the board is open, or on an Overall board `/podiums`, which lists it in its podium order
   (`BY_PODIUMS`). A Steam ID is all digits, so the two cannot collide.
 - `#/vs/<steam_id>/<steam_id>`, a head to head of two players.
+- `#/players`, or `#/players/<scope>/<sort>`: the Players table, counted over `all`,
+  `circuit` or `workshop` and sorted on `wr`, `pod`, `t5` or `maps` (`PL_ROUTE`). Its
+  scope tabs and column headers are links to these, so every view can be shared.
 - The Workshop's three: `#/workshop` (the homepage, and what no hash at all opens),
   `#/maps` or `#/maps/<view>` (All maps, opened on one of `VIEWS` or `PRESETS`), and
   `#/map/<pfid>` with the same optional `/<steam_id>`.
@@ -79,6 +82,24 @@ me" has put a Steam ID in `localStorage` (`getMe` / `setMe`). The Compare dialog
 `rowHtml` reaches for `rows[r.rank - 2]` to compute the interval to the next rung up, so
 sorting, filtering or de-duping a board's `rows` in place breaks it. Walk them into a new
 array.
+
+## Players
+
+`#/players` ranks everyone in `data/standings.json` by one column: world records,
+podiums, top 5s, or Maps finished, counted on the Circuit, the Workshop or both. The file
+holds only counts; `plRanked` does the ranking, once per scope and sort. Only players with
+at least one of the sorted count are listed. Equal counts share a rank (1, 2, 2, 4), and
+inside a tie the other columns in their header order, then the name, set the order. A
+search filters that list and keeps each player's real rank.
+
+The table scrolls inside its own box on a phone, so the rank and name columns stay put
+going sideways; from 820px it fits, and the page scrolls. `plInBox` tells the two apart,
+and the chunked loading (`plFill`) and the pinned card (`plPin`) work either way. The card
+is your own row, once "This is me" is set, shown at the foot while the row is out of view:
+how far the next rank up and the top 10 are, and a click scrolls to the row.
+
+The Players tab sits last in the tab bar (`PLAYERS_TAB`), but it is not a season: `group`
+stays whatever it was, and the tab is lit from the view instead.
 
 ## The theme
 
