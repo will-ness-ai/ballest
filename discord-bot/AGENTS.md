@@ -84,8 +84,12 @@ times once a Match is live. The page is bundled at startup, so restart the demo 
 
 The bot serves it on `PORT` (default 8080) only when `DISCORD_CLIENT_SECRET` and
 `DISCORD_APPLICATION_ID` are set; otherwise nothing listens. Trying it in Discord needs, in the
-Developer Portal: Activities enabled, a URL Mapping from `/` to the server's public host (a
-`cloudflared tunnel --url http://localhost:8080` works locally), and the OAuth2 client secret.
+Developer Portal: Activities enabled, a URL Mapping from `/` to the server's public host, and the
+OAuth2 client secret. Locally that host is a fixed ngrok domain, `NGROK_DOMAIN` in the main
+checkout's `.env`: `pnpm dev` opens the tunnel to it and closes it on exit, and the dev app's URL
+Mapping points there for good. `scripts/ngrok-wizard.sh` sets it up (the human runs it, not an
+agent). A blank Activity means Discord can't reach the page: no tunnel running, or the mapping
+pointing somewhere else.
 Production serves it at `https://multiballs.fly.dev` (`fly.toml`'s `http_service`), with
 `DISCORD_APPLICATION_ID` and `DISCORD_CLIENT_SECRET` in `fly secrets` and the production app's
 URL Mapping pointing there.
