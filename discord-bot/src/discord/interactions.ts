@@ -7,7 +7,7 @@ import {
   type ModalSubmitInteraction,
   type UserSelectMenuInteraction
 } from "discord.js"
-import { Effect, Layer, Match, Option, Ref, Stream } from "effect"
+import { Context, Effect, Layer, Match, Option, Ref, Stream } from "effect"
 import { Engine } from "../engine.js"
 import { explain } from "../explain.js"
 import { Store, type ProfilePreview } from "../ports.js"
@@ -33,6 +33,13 @@ type Pending = { readonly _tag: "NewMatch" } | { readonly _tag: "Act"; readonly 
 const ephemeral = { flags: MessageFlags.Ephemeral } as const
 
 type Answerable = ButtonInteraction | ModalSubmitInteraction
+
+/**
+ * Clicks and forms that come from somewhere other than Discord, handled exactly like Discord's:
+ * the sandbox's driver (scripts/sandbox.ts), which presses buttons as any member. Absent in
+ * production and `pnpm dev`.
+ */
+export class DriverInteractions extends Context.Tag("multiballs/DriverInteractions")<DriverInteractions, Stream.Stream<Interaction>>() {}
 
 export const InteractionsLive = Layer.scopedDiscard(
   Effect.gen(function* () {
@@ -197,7 +204,9 @@ export const InteractionsLive = Layer.scopedDiscard(
         Effect.catchAllDefect((defect) => Effect.logError(`interaction ${label(i)} failed`, defect))
       )
 
-    yield* discord.interactions.pipe(
+    const driver = yield* Effect.serviceOption(DriverInteractions)
+    const all = Option.match(driver, { onNone: () => discord.interactions, onSome: (d) => Stream.merge(discord.interactions, d) })
+    yield* all.pipe(
       Stream.mapEffect((i) => handle(i), { concurrency: "unbounded" }),
       Stream.runDrain,
       Effect.forkScoped

@@ -14,7 +14,9 @@
     "smoke:steam": "tsx scripts/smoke-steam.ts",
     "start": "tsx src/main.ts",
     "dev": "node --import tsx scripts/dev.ts",
-    "activity:demo": "node --import tsx scripts/activity-demo.ts"
+    "activity:demo": "node --import tsx scripts/activity-demo.ts",
+    "sandbox": "node --import tsx scripts/sandbox.ts",
+    "axi": "node --no-warnings --import tsx scripts/axi.ts"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "2.5.0",

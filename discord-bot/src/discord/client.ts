@@ -43,6 +43,9 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     const token = yield* Config.redacted("DISCORD_TOKEN")
     const guildId = yield* Config.string("DISCORD_GUILD_ID")
     const channelId = yield* Config.string("DISCORD_CHANNEL_ID")
+    // The sandbox shares the dev app with `pnpm dev`, so clicks in the other copy's channel reach
+    // it too: it leaves them to that copy rather than answering first.
+    const sandbox = yield* Config.boolean("MULTIBALLS_SANDBOX").pipe(Config.withDefault(false))
 
     const client = yield* Effect.acquireRelease(
       Effect.sync(() => new Client({ intents: [GatewayIntentBits.Guilds] })),
@@ -73,7 +76,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
         Effect.sync(() => {
           const onInteraction = (i: Interaction) => {
             if (i.channelId === channelId || (i.channel?.isThread() && i.channel.parentId === channelId)) emit.single(i)
-            else if (i.isRepliable()) void i.reply({ content: "Multiballs only works in its own channel.", ephemeral: true }).catch(() => {})
+            else if (!sandbox && i.isRepliable()) void i.reply({ content: "Multiballs only works in its own channel.", ephemeral: true }).catch(() => {})
           }
           client.on(Events.InteractionCreate, onInteraction)
           return onInteraction
