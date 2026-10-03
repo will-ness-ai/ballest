@@ -1,8 +1,8 @@
 // `pnpm dev`: one copy of the bot for iterating, from any checkout. It uses the main checkout's
 // .env (the test server), a database of its own, and writes its log to .logs/bot.log, emptied
-// at each start so the file holds only this run. With NGROK_DOMAIN in that .env (set by
-// scripts/ngrok-wizard.sh), it also opens the dev Activity's tunnel on that fixed address, which
-// the dev app's URL Mapping points at, and closes it when the bot stops.
+// at each start so the file holds only this run. When this PC is on Tailscale (set up by
+// scripts/tailscale-wizard.sh), it also opens the dev Activity's Funnel on this PC's fixed
+// address, which the dev app's URL Mapping points at, and closes it when the bot stops.
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -21,26 +21,32 @@ if (process.env.MULTIBALLS_ENV === undefined && !existsSync(".env")) {
   process.env.MULTIBALLS_ENV = join(dirname(gitDir), "discord-bot", ".env");
 }
 
-/** The dev Activity's tunnel, when the .env names a fixed ngrok domain. */
+/** The dev Activity's tunnel: this PC's fixed Tailscale Funnel address, when it has one. */
 const openTunnel = () => {
-  const envFile = process.env.MULTIBALLS_ENV ?? ".env";
-  const env = existsSync(envFile) ? readFileSync(envFile, "utf8") : "";
-  const domain = process.env.NGROK_DOMAIN ?? /^NGROK_DOMAIN=(.+)$/m.exec(env)?.[1]?.trim();
-  if (!domain) {
+  let host: string | undefined;
+  try {
+    const status = JSON.parse(
+      execFileSync("tailscale", ["status", "--json"], { encoding: "utf8" }),
+    ) as {
+      Self?: { DNSName?: string };
+    };
+    host = status.Self?.DNSName?.replace(/\.$/, "");
+  } catch {
+    // Not installed or not signed in: the hint below covers both.
+  }
+  if (!host) {
     console.log(
-      "No NGROK_DOMAIN: the Activity has no tunnel. Run scripts/ngrok-wizard.sh to give it one.",
+      "No Tailscale: the Activity has no tunnel. Run scripts/tailscale-wizard.sh to give it one.",
     );
     return;
   }
+  const envFile = process.env.MULTIBALLS_ENV ?? ".env";
+  const env = existsSync(envFile) ? readFileSync(envFile, "utf8") : "";
   const port = process.env.PORT ?? /^PORT=(.+)$/m.exec(env)?.[1]?.trim() ?? "8080";
-  const tunnel = spawn("ngrok", ["http", `--url=${domain}`, port, "--log=false"], {
-    stdio: "ignore",
-  });
-  tunnel.on("error", (e) =>
-    console.log(`The Activity's tunnel didn't start (${e.message}). Is ngrok installed?`),
-  );
+  const tunnel = spawn("tailscale", ["funnel", port], { stdio: "ignore" });
+  tunnel.on("error", (e) => console.log(`The Activity's tunnel didn't start (${e.message}).`));
   tunnel.on("spawn", () =>
-    console.log(`The Activity is at https://${domain} (ngrok to port ${port}).`),
+    console.log(`The Activity is at https://${host} (Tailscale Funnel to port ${port}).`),
   );
   process.on("exit", () => tunnel.kill());
 };
