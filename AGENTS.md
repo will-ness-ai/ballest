@@ -164,7 +164,7 @@ conventions.
 
 ## Agent skills
 
-Matt Pocock's `to-spec`, `to-tickets`, `implement-spec`, `tdd`, `code-review` and
+Matt Pocock's `to-spec`, `to-tickets`, `implement-spec`, `tdd`, `codebase-design`, `code-review` and
 `setup-matt-pocock-skills` are vendored in `.claude/skills/` (MIT, from `mattpocock/skills`
 at `d81f3a1`), so cloud sessions have them too. The sections below are their setup.
 
