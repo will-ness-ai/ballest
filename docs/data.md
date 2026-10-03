@@ -15,7 +15,7 @@ here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
   from today's track places (`build_current`, with the game's rule in `track_points`).
   Steam's Season 1 board stopped when the season ended; the site lists this one ahead of
   it as "Current" and Steam's as "Final". Derived and indexed like the composite, which
-  still sums Steam's boards.
+  counts each season through its first Overall board, so Season 1 through this one.
 - `data/podiums.json`: per-season podium tally (who holds each track's top three),
   then one more entry, `All Seasons`, tallied over every season's tracks at once, for the
   all-seasons board (`build_podiums`). Derived by the collector from the board rows, and
