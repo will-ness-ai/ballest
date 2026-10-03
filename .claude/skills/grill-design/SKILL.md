@@ -42,6 +42,9 @@ Run a `/grilling` session in which each question is asked with prototypes, not w
   Only the feature's own subtree changes per variant; routing, data loading and the rest
   of the page stay as they are. Variants disagree about structure (layout, hierarchy,
   primary affordance), not just colour or copy.
+- A variant changes only what the round asks. Anything else it moves or removes (a stat,
+  a label, a corner) is named in its picker description, so a verdict never adopts a
+  change the user didn't see.
 - The active variant comes from a `?variant=<key>` search parameter, which sits next to
   the hash route without disturbing it, so every variant is a link the user can share or
   reload.

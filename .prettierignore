@@ -1,0 +1,13 @@
+# Generated or written by CI
+data/
+leth/data/
+web/public/
+web/.next/
+web/next-env.d.ts
+pnpm-lock.yaml
+discord-bot/.logs/
+discord-bot/assets/
+
+# Vendored from mattpocock/skills (skills-lock.json): kept byte-for-byte so updates diff cleanly
+.claude/skills/
+skills-lock.json

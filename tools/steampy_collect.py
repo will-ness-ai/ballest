@@ -25,16 +25,23 @@ To try the whole write path without touching data/:
   (--out copies the committed data/ into that folder, then reads and writes there)
 Requires: steamio, aiohttp<3.13  (see tools/requirements-steampy.txt)
 """
-import os, sys, time, asyncio, logging
+
+import logging
+import os
+import shutil
+import sys
+import time
+import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import warnings
+
 import campaign_common as cc
 
-import warnings
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
 
-import steam
-from steampy_common import fetch_board, board_rows, find_map_board_id
+import steam  # noqa: E402 (after the warnings filter)
+from steampy_common import board_rows, fetch_board, find_map_board_id  # noqa: E402
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
@@ -42,7 +49,6 @@ logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown 
 TOKEN = cc.load_refresh_token()
 WORKSHOP_ONLY = "--workshop-only" in sys.argv[1:]
 if "--out" in sys.argv[1:]:
-    import shutil
     OUT = sys.argv[sys.argv.index("--out") + 1]
     # a fresh copy each run, so it starts from exactly what is committed
     shutil.rmtree(OUT, ignore_errors=True)
@@ -81,20 +87,32 @@ async def collect_workshop(catalogue, all_ids):
     prev_doc = cc.load_workshop() or {}
     prev = {m["pfid"]: m for m in prev_doc.get("maps", [])}
     if prev and len(catalogue) < cc.WORKSHOP_SHRINK_LIMIT * len(prev):
-        print(f"  [warn] Workshop catalogue shrank from {len(prev)} to {len(catalogue)} Maps; "
-              f"keeping the committed Workshop files")
+        print(
+            f"  [warn] Workshop catalogue shrank from {len(prev)} to {len(catalogue)} Maps; "
+            f"keeping the committed Workshop files"
+        )
         return None
     now = int(time.time())
     full = now - int(prev_doc.get("full_sweep_at") or 0) >= cc.FULL_SWEEP_SECONDS
     maps, boards, finds, reads, failed, streak = [], {}, 0, 0, [], 0
     for c in catalogue:
         p = prev.get(c["pfid"], {})
-        m = {"name": "Workshop_" + c["pfid"], "pfid": c["pfid"], "display": c["title"],
-             "creator": c["creator"], "cid": c["cid"], "preview": c["preview"],
-             "created": c["created"], "medals": c["medals"],
-             "handle": p.get("handle"), "entry_count": p.get("entry_count", 0),
-             "rows": p.get("rows", 0), "file": p.get("file"),
-             "sessions": p.get("sessions"), "subs": p.get("subs")}
+        m = {
+            "name": "Workshop_" + c["pfid"],
+            "pfid": c["pfid"],
+            "display": c["title"],
+            "creator": c["creator"],
+            "cid": c["cid"],
+            "preview": c["preview"],
+            "created": c["created"],
+            "medals": c["medals"],
+            "handle": p.get("handle"),
+            "entry_count": p.get("entry_count", 0),
+            "rows": p.get("rows", 0),
+            "file": p.get("file"),
+            "sessions": p.get("sessions"),
+            "subs": p.get("subs"),
+        }
         maps.append(m)
         moved = (m["sessions"], m["subs"]) != (c["sessions"], c["subs"])
         if not (moved or full) or streak >= WORKSHOP_GIVE_UP:
@@ -110,26 +128,38 @@ async def collect_workshop(catalogue, all_ids):
                 total, entries = await fetch_board(client, int(m["handle"]))
                 rows = board_rows(entries)
                 if not rows and m["rows"]:
-                    raise RuntimeError("board came back empty")
+                    raise RuntimeError("board came back empty")  # noqa: TRY301 (to the fallback below)
                 if rows:
                     boards[c["pfid"]] = rows
                     all_ids.update(r["steam_id"] for r in rows)
-                    m.update(entry_count=int(total or len(rows)), rows=len(rows),
-                             file="workshop/" + c["pfid"] + ".json")
+                    m.update(
+                        entry_count=int(total or len(rows)),
+                        rows=len(rows),
+                        file="workshop/" + c["pfid"] + ".json",
+                    )
         except Exception as e:
             failed.append(c["pfid"])
             print(f"  [warn] Workshop Map {c['pfid']} {c['title']!r}: {e!r}")
             streak += 1
             if streak == WORKSHOP_GIVE_UP:
-                print(f"  [warn] {streak} Workshop failures in a row; leaving the rest for next run")
+                print(
+                    f"  [warn] {streak} Workshop failures in a row; leaving the rest for next run"
+                )
             continue
         streak = 0
         m["sessions"], m["subs"] = c["sessions"], c["subs"]
-    print(f"  Workshop: {len(maps)} Maps, {'full sweep' if full else 'played since last run'}: "
-          f"{reads} boards read, {finds} looked up, {len(failed)} failed")
-    return {"maps": maps, "boards": boards,
-            # a sweep cut short is not a sweep: the next run starts another
-            "full_sweep_at": now if full and streak < WORKSHOP_GIVE_UP else prev_doc.get("full_sweep_at")}
+    print(
+        f"  Workshop: {len(maps)} Maps, {'full sweep' if full else 'played since last run'}: "
+        f"{reads} boards read, {finds} looked up, {len(failed)} failed"
+    )
+    return {
+        "maps": maps,
+        "boards": boards,
+        # a sweep cut short is not a sweep: the next run starts another
+        "full_sweep_at": now
+        if full and streak < WORKSHOP_GIVE_UP
+        else prev_doc.get("full_sweep_at"),
+    }
 
 
 async def workshop_only():
@@ -162,7 +192,7 @@ async def on_ready():
             return
         boards_out = []
         all_ids = set()
-        reused = []       # boards whose live read failed but kept last-good data
+        reused = []  # boards whose live read failed but kept last-good data
         hard_failed = []  # boards that failed AND had no previous data to fall back on
         for name, group in cc.BOARDS:
             lid = cc.LEADERBOARD_IDS.get(name)
@@ -173,11 +203,17 @@ async def on_ready():
                 total, entries = await fetch_board(client, lid)
                 rows = board_rows(entries)
                 all_ids.update(r["steam_id"] for r in rows)
-                boards_out.append({
-                    "name": name, "display": cc.display_name(name), "group": group,
-                    "tier": cc.track_tier(name),
-                    "handle": str(lid), "entry_count": int(total or len(rows)), "rows": rows,
-                })
+                boards_out.append(
+                    {
+                        "name": name,
+                        "display": cc.display_name(name),
+                        "group": group,
+                        "tier": cc.track_tier(name),
+                        "handle": str(lid),
+                        "entry_count": int(total or len(rows)),
+                        "rows": rows,
+                    }
+                )
                 print(f"  {name:34s} total={int(total):6d} pulled={len(rows)}")
             except Exception as e:
                 # Don't overwrite good committed data with an empty board. Reuse the
@@ -186,15 +222,22 @@ async def on_ready():
                 if prev and prev.get("rows"):
                     for r in prev["rows"]:
                         all_ids.add(r["steam_id"])
-                    boards_out.append({
-                        "name": name, "display": cc.display_name(name), "group": group,
-                    "tier": cc.track_tier(name),
-                        "handle": str(lid),
-                        "entry_count": int(prev.get("entry_count") or len(prev["rows"])),
-                        "rows": prev["rows"],
-                    })
+                    boards_out.append(
+                        {
+                            "name": name,
+                            "display": cc.display_name(name),
+                            "group": group,
+                            "tier": cc.track_tier(name),
+                            "handle": str(lid),
+                            "entry_count": int(prev.get("entry_count") or len(prev["rows"])),
+                            "rows": prev["rows"],
+                        }
+                    )
                     reused.append(name)
-                    print(f"  [warn] read failed: {name}: {e!r} — reusing {len(prev['rows'])} prior rows")
+                    print(
+                        f"  [warn] read failed: {name}: {e!r} — "
+                        f"reusing {len(prev['rows'])} prior rows"
+                    )
                 else:
                     hard_failed.append(name)
                     print(f"  [error] read failed and no prior data: {name}: {e!r}")
@@ -223,7 +266,6 @@ async def on_ready():
             print(f"NOTE: reused previous data for {len(reused)} board(s): {reused}")
     except Exception as e:
         _state["error"] = e
-        import traceback
         traceback.print_exc()
     finally:
         await client.close()
@@ -239,7 +281,9 @@ def main():
         try:
             _state["catalogue"] = cc.workshop_catalogue(key)
         except Exception as e:
-            print(f"  [warn] Workshop catalogue unavailable: {e!r}; Workshop files stay as committed")
+            print(
+                f"  [warn] Workshop catalogue unavailable: {e!r}; Workshop files stay as committed"
+            )
     try:
         client.run(refresh_token=TOKEN)
     except Exception as e:

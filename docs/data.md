@@ -30,10 +30,10 @@ here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
   dialog, which searches it by name.
 - `data/standings.json`: the Players page's table (`build_standings`). For every player,
   world records, podiums and top 5s, each counted on the Circuit's tracks and on the
-  Workshop's Maps, then how many Maps they have a time on: `[steam_id, persona, circuit
-  WRs, Workshop WRs, circuit podiums, Workshop podiums, circuit top 5s, Workshop top 5s,
-  Maps]`, in Steam ID order. A player with all zeros is left out. ~200KB, loaded only on
-  the Players page, which ranks it by whichever column the reader sorts on.
+  Workshop's Maps, then how many Maps they have a time on:
+  `[steam_id, persona, circuit WRs, Workshop WRs, circuit podiums, Workshop podiums, circuit top 5s, Workshop top 5s, Maps]`,
+  in Steam ID order. A player with all zeros is left out. ~200KB, loaded only on the
+  Players page, which ranks it by whichever column the reader sorts on.
 
 `derive()` in `tools/campaign_common.py` is the one list of what the collector works out
 from the board rows and where each file lands. `write_site` publishes that list,

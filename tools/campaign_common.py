@@ -7,7 +7,16 @@ Used by:
 
 Pure stdlib so it imports under any Python the collectors run on.
 """
-import os, re, math, time, json, urllib.request, urllib.parse
+
+import contextlib
+import json
+import math
+import os
+import re
+import subprocess
+import time
+import urllib.parse
+import urllib.request
 from fractions import Fraction
 
 APP_ID = 3339810
@@ -28,23 +37,42 @@ def use_data_dir(path):
     """Point every read and write in this module at path instead of data/: the
     collector's --out and check_data's --data, so a branch can run and check the
     whole write path against a scratch copy. Call it before anything reads."""
-    global DATA_DIR, BOARDS_DIR, INDEX_PATH, WORKSHOP_PATH, WORKSHOP_DIR
+    global DATA_DIR, BOARDS_DIR, INDEX_PATH, WORKSHOP_PATH, WORKSHOP_DIR  # noqa: PLW0603
     DATA_DIR = os.path.abspath(path)
     BOARDS_DIR = os.path.join(DATA_DIR, "boards")
     INDEX_PATH = os.path.join(DATA_DIR, "index.json")
     WORKSHOP_PATH = os.path.join(DATA_DIR, "workshop.json")
     WORKSHOP_DIR = os.path.join(DATA_DIR, "workshop")
 
+
 # Leaderboard names = level asset names, verbatim (discovered by probing the pak).
 # LIST ORDER IS THE IN-GAME NUMBERING: the game labels Circuit tracks only "01".."NN"
 # per season, and a track's 1-based position here is that number. Verified 2026-09-07
 # against every track's in-game leaderboard. Reordering a list renumbers the site.
-S1_TRACKS = ["Map_Track13", "Map_Track15", "Map_Track16", "Map_Track05",
-             "Map_Track18", "Map_Track21", "Map_Track22", "Map_Track19"]
-S2_TRACKS = ["Map_Track_S2_Sampler", "Map_Track_S2_Longhaul", "Map_Track_S2_Pyramids",
-             "Map_Track_S2_BigStairs", "Map_Track_S2_Checkerboard", "Map_Track_S2_Loopworks",
-             "Map_Track_S2_TinyTower", "Map_Track_S2_Downhill", "Map_Track_S2_NightCondo",
-             "Map_Track_S2_NightVents", "Map_Track_S2_NightWay", "Map_Track_S2_NightClimb"]
+S1_TRACKS = [
+    "Map_Track13",
+    "Map_Track15",
+    "Map_Track16",
+    "Map_Track05",
+    "Map_Track18",
+    "Map_Track21",
+    "Map_Track22",
+    "Map_Track19",
+]
+S2_TRACKS = [
+    "Map_Track_S2_Sampler",
+    "Map_Track_S2_Longhaul",
+    "Map_Track_S2_Pyramids",
+    "Map_Track_S2_BigStairs",
+    "Map_Track_S2_Checkerboard",
+    "Map_Track_S2_Loopworks",
+    "Map_Track_S2_TinyTower",
+    "Map_Track_S2_Downhill",
+    "Map_Track_S2_NightCondo",
+    "Map_Track_S2_NightVents",
+    "Map_Track_S2_NightWay",
+    "Map_Track_S2_NightClimb",
+]
 
 # Steam leaderboard IDs, keyed by name. steam.py's find-by-name (LBSFindOrCreateLB)
 # returns InvalidParameter for this app unless the message header's routing_app_id
@@ -81,11 +109,11 @@ LEADERBOARD_IDS = {
 
 # (leaderboard_name, group) — order here is the order shown in the site's dropdown.
 BOARDS = (
-    [("OverallLeaderboard", "Season 1")] +
-    [(t, "Season 1") for t in S1_TRACKS] +
-    [("OverallLeaderboard_EASeason2", "Season 2")] +
-    [(t, "Season 2") for t in S2_TRACKS] +
-    []
+    [("OverallLeaderboard", "Season 1")]
+    + [(t, "Season 1") for t in S1_TRACKS]
+    + [("OverallLeaderboard_EASeason2", "Season 2")]
+    + [(t, "Season 2") for t in S2_TRACKS]
+    + []
 )
 # Map_TheTower is parked, not deleted: it reports an internal metric rather than
 # run times, so the site never had anything trustworthy to show. Its ID is kept
@@ -136,7 +164,6 @@ WORKSHOP_SHRINK_LIMIT = 0.9
 CREATOR_BEAT_MARGIN_TICKS = 100  # 1 ms
 
 
-
 def track_number(name):
     """1-based in-game number of a Circuit track, or None for any other board."""
     for tracks in (S1_TRACKS, S2_TRACKS):
@@ -176,7 +203,7 @@ def display_name(name):
         return "The Tower"
     n = track_number(name)
     if name.startswith("Map_Track_S2_"):
-        nick = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name[len("Map_Track_S2_"):])
+        nick = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name[len("Map_Track_S2_") :])
         return f"{n:02d} {nick}"
     if n is not None:
         return f"{n:02d}"
@@ -208,16 +235,20 @@ def secret_roots():
     are minted once into the main checkout and worktrees never see them, so a
     collector run from a worktree used to come back with every name blank."""
     roots = [PROJ]
-    try:
-        import subprocess
-        common = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=PROJ,
-                                capture_output=True, text=True, timeout=10).stdout.strip()
+    # no git, or not a checkout: this checkout is the only root
+    with contextlib.suppress(OSError, subprocess.SubprocessError):
+        common = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],  # noqa: S607 (git from PATH)
+            cwd=PROJ,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        ).stdout.strip()
         if common:
             main = os.path.dirname(os.path.abspath(os.path.join(PROJ, common)))
             if main != PROJ:
                 roots.append(main)
-    except Exception:
-        pass
     return roots
 
 
@@ -229,10 +260,11 @@ def load_key():
     for root in secret_roots():
         env_path = os.path.join(root, ".env")
         if os.path.exists(env_path):
-            for line in open(env_path, encoding="utf-8"):
-                line = line.strip()
-                if line.startswith("STEAM_API_KEY=") and not line.startswith("#"):
-                    return line.split("=", 1)[1].strip()
+            with open(env_path, encoding="utf-8") as f:
+                for raw in f:
+                    line = raw.strip()
+                    if line.startswith("STEAM_API_KEY=") and not line.startswith("#"):
+                        return line.split("=", 1)[1].strip()
     return ""
 
 
@@ -245,7 +277,8 @@ def load_refresh_token():
     for root in secret_roots():
         path = os.path.join(root, "tools", "refresh_token.txt")
         if os.path.exists(path):
-            return open(path, encoding="utf-8").read().strip()
+            with open(path, encoding="utf-8") as f:
+                return f.read().strip()
     return ""
 
 
@@ -256,16 +289,22 @@ def resolve_names(key, ids):
     if not key:
         return out
     for i in range(0, len(ids), 100):
-        chunk = ids[i:i + 100]
-        url = ("https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key="
-               + urllib.parse.quote(key) + "&steamids=" + ",".join(chunk))
+        chunk = ids[i : i + 100]
+        url = (
+            "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key="
+            + urllib.parse.quote(key)
+            + "&steamids="
+            + ",".join(chunk)
+        )
         try:
-            with urllib.request.urlopen(url, timeout=30) as r:
+            with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310 (a fixed https URL)
                 data = json.load(r)
             for p in data.get("response", {}).get("players", []):
-                out[p["steamid"]] = {"persona": p.get("personaname", ""),
-                                     "avatar": p.get("avatarmedium", ""),
-                                     "profileurl": p.get("profileurl", "")}
+                out[p["steamid"]] = {
+                    "persona": p.get("personaname", ""),
+                    "avatar": p.get("avatarmedium", ""),
+                    "profileurl": p.get("profileurl", ""),
+                }
         except Exception as e:
             print(f"  name-resolve chunk failed: {e!r}")
         time.sleep(0.3)
@@ -296,16 +335,22 @@ def known_names():
                 continue
             for r in rows:
                 if r.get("persona"):
-                    out[r["steam_id"]] = {"persona": r["persona"], "avatar": r.get("avatar", ""),
-                                          "profileurl": r.get("profileurl", "")}
+                    out[r["steam_id"]] = {
+                        "persona": r["persona"],
+                        "avatar": r.get("avatar", ""),
+                        "profileurl": r.get("profileurl", ""),
+                    }
     return out
 
 
 def names_due(ids, known, now=None):
     """The IDs this run looks up: every one without a name, plus this run's slice."""
     slot = int(now if now is not None else time.time()) // (3 * 3600) % NAME_REFRESH_SLICES
-    return [sid for sid in ids
-            if sid not in known or (sid.isdigit() and int(sid) % NAME_REFRESH_SLICES == slot)]
+    return [
+        sid
+        for sid in ids
+        if sid not in known or (sid.isdigit() and int(sid) % NAME_REFRESH_SLICES == slot)
+    ]
 
 
 def workshop_catalogue(key):
@@ -319,13 +364,20 @@ def workshop_catalogue(key):
     read can never look like deleted Maps."""
     maps, cursor, seen, fetched, total = [], "*", set(), 0, None
     while True:
-        q = urllib.parse.urlencode({
-            "key": key, "appid": APP_ID, "query_type": 1, "numperpage": 100,
-            "cursor": cursor, "return_metadata": 1, "return_playtime_stats": 1,
-        })
+        q = urllib.parse.urlencode(
+            {
+                "key": key,
+                "appid": APP_ID,
+                "query_type": 1,
+                "numperpage": 100,
+                "cursor": cursor,
+                "return_metadata": 1,
+                "return_playtime_stats": 1,
+            }
+        )
         with urllib.request.urlopen(
-                "https://api.steampowered.com/IPublishedFileService/QueryFiles/v1/?" + q,
-                timeout=60) as r:
+            "https://api.steampowered.com/IPublishedFileService/QueryFiles/v1/?" + q, timeout=60
+        ) as r:
             resp = json.load(r)["response"]
         total = int(resp.get("total", 0))
         batch = resp.get("publishedfiledetails") or []
@@ -342,14 +394,20 @@ def workshop_catalogue(key):
             except (KeyError, TypeError, ValueError, json.JSONDecodeError):
                 print(f"  [skip] Map {pfid} {it.get('title')!r}: no usable ballest metadata")
                 continue
-            maps.append({
-                "pfid": pfid, "title": it.get("title") or b.get("level_display_name") or pfid,
-                "creator": b.get("creator_name", ""), "created": int(it.get("time_created") or 0),
-                "medals": medals, "board": board,
-                "cid": str(it.get("creator") or ""), "preview": it.get("preview_url") or "",
-                "sessions": int(it.get("lifetime_playtime_sessions") or 0),
-                "subs": int(it.get("lifetime_subscriptions") or 0),
-            })
+            maps.append(
+                {
+                    "pfid": pfid,
+                    "title": it.get("title") or b.get("level_display_name") or pfid,
+                    "creator": b.get("creator_name", ""),
+                    "created": int(it.get("time_created") or 0),
+                    "medals": medals,
+                    "board": board,
+                    "cid": str(it.get("creator") or ""),
+                    "preview": it.get("preview_url") or "",
+                    "sessions": int(it.get("lifetime_playtime_sessions") or 0),
+                    "subs": int(it.get("lifetime_subscriptions") or 0),
+                }
+            )
         nxt = resp.get("next_cursor")
         if not batch or not nxt or nxt == cursor:
             break
@@ -373,8 +431,14 @@ def load_workshop():
 
 def workshop_board_doc(m, rows):
     """A Map's board file: the same shape as a campaign board file."""
-    return {"name": m["name"], "display": m["display"], "group": WORKSHOP_GROUP,
-            "handle": m["handle"], "entry_count": m["entry_count"], "rows": rows}
+    return {
+        "name": m["name"],
+        "display": m["display"],
+        "group": WORKSHOP_GROUP,
+        "handle": m["handle"],
+        "entry_count": m["entry_count"],
+        "rows": rows,
+    }
 
 
 AUTHOR_MEDAL_INDEX = 3  # medal_times_by_index = [bronze, silver, gold, author], seconds
@@ -392,8 +456,12 @@ def workshop_stats(m, rows):
         "top3": [[r["steam_id"], r.get("persona", ""), r["score_ms"]] for r in rows[:3]],
         "gap13": rows[2]["score_ms"] - lead if len(rows) >= 3 else None,
         "crowd": sum(1 for r in rows if r["score_ms"] - lead <= SCORE_TICKS_PER_SECOND),
-        "author_beaten": sum(1 for r in rows if r["score_ms"] <= (
-            author - CREATOR_BEAT_MARGIN_TICKS if r["steam_id"] == m.get("cid") else author)),
+        "author_beaten": sum(
+            1
+            for r in rows
+            if r["score_ms"]
+            <= (author - CREATOR_BEAT_MARGIN_TICKS if r["steam_id"] == m.get("cid") else author)
+        ),
     }
 
 
@@ -435,7 +503,10 @@ def write_workshop(ws, names):
             continue
         rows = boards.get("Workshop_" + m["pfid"])
         if rows is None:
-            print(f"  [warn] Workshop Map {m['pfid']}: {m['file']} is missing or empty; listed without a board")
+            print(
+                f"  [warn] Workshop Map {m['pfid']}: {m['file']} is missing or empty;"
+                " listed without a board"
+            )
             m.update(file=None, rows=0)
             continue
         m.update(workshop_stats(m, rows))
@@ -443,17 +514,30 @@ def write_workshop(ws, names):
             t[1] = names.get(t[0], {}).get("persona") or t[1]
     for pfid, rows in ws["boards"].items():
         with open(os.path.join(WORKSHOP_DIR, pfid + ".json"), "w", encoding="utf-8") as f:
-            json.dump(workshop_board_doc(by_pfid[pfid], rows), f, ensure_ascii=False,
-                      separators=(",", ":"))
+            json.dump(
+                workshop_board_doc(by_pfid[pfid], rows),
+                f,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
     keep = {m["file"].split("/", 1)[1] for m in ws["maps"] if m.get("file")}
     for fname in os.listdir(WORKSHOP_DIR):
         if fname.endswith(".json") and fname not in keep:
             os.remove(os.path.join(WORKSHOP_DIR, fname))
     with open(WORKSHOP_PATH, "w", encoding="utf-8") as f:
-        json.dump({"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                   "full_sweep_at": ws["full_sweep_at"], "maps": ws["maps"]},
-                  f, ensure_ascii=False, separators=(",", ":"))
-    print(f"Wrote {WORKSHOP_PATH}: {len(ws['maps'])} Maps, {len(ws['boards'])} boards read this run")
+        json.dump(
+            {
+                "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "full_sweep_at": ws["full_sweep_at"],
+                "maps": ws["maps"],
+            },
+            f,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+    print(
+        f"Wrote {WORKSHOP_PATH}: {len(ws['maps'])} Maps, {len(ws['boards'])} boards read this run"
+    )
 
 
 def load_existing_board(name):
@@ -482,11 +566,15 @@ def build_podiums(boards_out):
     reader can't see. Rows come from boards_out AFTER name resolution, so each
     player carries the same persona/avatar the board files do."""
     tracks = [b for b in boards_out if b["name"].startswith("Map_")]
-    seasons = [tally_podiums(group, [b for b in tracks if b["group"] == group], lambda b: b["display"])
-               for group in dict.fromkeys(g for _, g in BOARDS)]
+    seasons = [
+        tally_podiums(group, [b for b in tracks if b["group"] == group], lambda b: b["display"])
+        for group in dict.fromkeys(g for _, g in BOARDS)
+    ]
     seasons = [s for s in seasons if s["tracks"]]
     if len(seasons) > 1:
-        seasons.append(tally_podiums(COMPOSITE_GROUP, tracks, lambda b: b["group"] + " " + b["display"]))
+        seasons.append(
+            tally_podiums(COMPOSITE_GROUP, tracks, lambda b: b["group"] + " " + b["display"])
+        )
     return seasons
 
 
@@ -495,17 +583,30 @@ def tally_podiums(group, tracks, label):
     ranked. label(board) is what a finish calls its track."""
     players = {}
     for b in tracks:
-        for r in b["rows"][:3]:    # rows are rank-ordered; the podium is the first three
-            p = players.setdefault(r["steam_id"], {
-                "steam_id": r["steam_id"], "persona": r.get("persona", ""),
-                "avatar": r.get("avatar", ""), "profileurl": r.get("profileurl", ""),
-                "gold": 0, "silver": 0, "bronze": 0, "finishes": []})
+        for r in b["rows"][:3]:  # rows are rank-ordered; the podium is the first three
+            p = players.setdefault(
+                r["steam_id"],
+                {
+                    "steam_id": r["steam_id"],
+                    "persona": r.get("persona", ""),
+                    "avatar": r.get("avatar", ""),
+                    "profileurl": r.get("profileurl", ""),
+                    "gold": 0,
+                    "silver": 0,
+                    "bronze": 0,
+                    "finishes": [],
+                },
+            )
             p[("gold", "silver", "bronze")[r["rank"] - 1]] += 1
-            p["finishes"].append({"track": label(b), "rank": r["rank"],
-                                  "score_ms": r["score_ms"],
-                                  "time": fmt_time(r["score_ms"])})
-    ordered = sorted(players.values(),
-                     key=lambda p: (-p["gold"], -p["silver"], -p["bronze"]))
+            p["finishes"].append(
+                {
+                    "track": label(b),
+                    "rank": r["rank"],
+                    "score_ms": r["score_ms"],
+                    "time": fmt_time(r["score_ms"]),
+                }
+            )
+    ordered = sorted(players.values(), key=lambda p: (-p["gold"], -p["silver"], -p["bronze"]))
     prev = None
     for i, p in enumerate(ordered):
         counts = (p["gold"], p["silver"], p["bronze"])
@@ -519,8 +620,10 @@ def track_points(rank):
     """What one track pays toward Overall for this place (see POINTS_FIRST)."""
     if rank <= 10:
         return POINTS_FIRST // rank
-    k = len(str(rank - 1)) - 1          # rank is in (10^k, 10^(k+1)]
-    return math.floor(Fraction(POINTS_FIRST * 9, 100 * 2 ** k) + Fraction(POINTS_FIRST * 5 ** k, 10 * rank))
+    k = len(str(rank - 1)) - 1  # rank is in (10^k, 10^(k+1)]
+    return math.floor(
+        Fraction(POINTS_FIRST * 9, 100 * 2**k) + Fraction(POINTS_FIRST * 5**k, 10 * rank)
+    )
 
 
 def build_current(boards_out, group, name):
@@ -533,16 +636,29 @@ def build_current(boards_out, group, name):
         if b["group"] != group or not b["name"].startswith("Map_"):
             continue
         for r in b["rows"]:
-            p = players.setdefault(r["steam_id"], {
-                "steam_id": r["steam_id"], "persona": r.get("persona", ""),
-                "avatar": r.get("avatar", ""), "profileurl": r.get("profileurl", ""),
-                "score_ms": 0})
+            p = players.setdefault(
+                r["steam_id"],
+                {
+                    "steam_id": r["steam_id"],
+                    "persona": r.get("persona", ""),
+                    "avatar": r.get("avatar", ""),
+                    "profileurl": r.get("profileurl", ""),
+                    "score_ms": 0,
+                },
+            )
             p["score_ms"] += track_points(r["rank"])
     rows = sorted(players.values(), key=lambda p: -p["score_ms"])
     for i, p in enumerate(rows):
         p["rank"] = i + 1
-    return {"name": name, "display": display_name(name), "group": group,
-            "tier": None, "handle": None, "entry_count": len(rows), "rows": rows}
+    return {
+        "name": name,
+        "display": display_name(name),
+        "group": group,
+        "tier": None,
+        "handle": None,
+        "entry_count": len(rows),
+        "rows": rows,
+    }
 
 
 def build_composite(boards_out):
@@ -566,18 +682,31 @@ def build_composite(boards_out):
     players = {}
     for b in overall:
         for r in b["rows"]:
-            p = players.setdefault(r["steam_id"], {
-                "steam_id": r["steam_id"], "persona": r.get("persona", ""),
-                "avatar": r.get("avatar", ""), "profileurl": r.get("profileurl", ""),
-                "score_ms": 0, "seasons": {}})
+            p = players.setdefault(
+                r["steam_id"],
+                {
+                    "steam_id": r["steam_id"],
+                    "persona": r.get("persona", ""),
+                    "avatar": r.get("avatar", ""),
+                    "profileurl": r.get("profileurl", ""),
+                    "score_ms": 0,
+                    "seasons": {},
+                },
+            )
             p["score_ms"] += r["score_ms"]
             p["seasons"][b["group"]] = r["score_ms"]
     rows = sorted(players.values(), key=lambda p: -p["score_ms"])
     for i, p in enumerate(rows):
         p["rank"] = i + 1
-    return {"name": COMPOSITE_BOARD, "display": display_name(COMPOSITE_BOARD),
-            "group": COMPOSITE_GROUP, "tier": None, "handle": None,
-            "entry_count": len(rows), "rows": rows}
+    return {
+        "name": COMPOSITE_BOARD,
+        "display": display_name(COMPOSITE_BOARD),
+        "group": COMPOSITE_GROUP,
+        "tier": None,
+        "handle": None,
+        "entry_count": len(rows),
+        "rows": rows,
+    }
 
 
 def player_shard(steam_id):
@@ -611,24 +740,32 @@ def build_players(boards_out, maps):
     after write_site's name refresh. profileurl is carried rather than derived:
     a third of players have a vanity /id/ URL that a Steam ID cannot produce."""
     sources = [(b["name"], b["rows"]) for b in boards_out] + list(maps.items())
-    boards = [{"name": name, "lead": rows[0]["score_ms"] if rows else None}
-              for name, rows in sources]
+    boards = [
+        {"name": name, "lead": rows[0]["score_ms"] if rows else None} for name, rows in sources
+    ]
     players = {s: {} for s in PLAYER_SHARDS}
     for i, (_, rows) in enumerate(sources):
         for r in rows:
             sid = r["steam_id"]
-            p = players[player_shard(sid)].setdefault(sid, {
-                "persona": r.get("persona", ""), "avatar": r.get("avatar", ""),
-                "profileurl": r.get("profileurl", ""), "rows": []})
+            p = players[player_shard(sid)].setdefault(
+                sid,
+                {
+                    "persona": r.get("persona", ""),
+                    "avatar": r.get("avatar", ""),
+                    "profileurl": r.get("profileurl", ""),
+                    "rows": [],
+                },
+            )
             p["rows"].append([i, r["rank"], r["score_ms"]])
-    return {s: {"shard": s, "boards": boards, "players": players[s]}
-            for s in PLAYER_SHARDS}
+    return {s: {"shard": s, "boards": boards, "players": players[s]} for s in PLAYER_SHARDS}
 
 
 def build_names(shards):
     """[[steam_id, persona], ...] for every player in the shards, in Steam ID order:
     what the head to head's Compare dialog searches, without fetching ten shards."""
-    return sorted([sid, p["persona"]] for doc in shards.values() for sid, p in doc["players"].items())
+    return sorted(
+        [sid, p["persona"]] for doc in shards.values() for sid, p in doc["players"].items()
+    )
 
 
 def build_standings(boards_out, maps):
@@ -646,7 +783,7 @@ def build_standings(boards_out, maps):
     tracks = [b["rows"] for b in boards_out if b["name"].startswith("Map_")]
     players = {}
 
-    def tally(rows, side):    # side 0 is the Circuit, 1 the Workshop
+    def tally(rows, side):  # side 0 is the Circuit, 1 the Workshop
         for r in rows:
             p = players.setdefault(r["steam_id"], [r["steam_id"], r.get("persona", "")] + [0] * 7)
             p[2 + side] += r["rank"] == 1
@@ -655,11 +792,14 @@ def build_standings(boards_out, maps):
             p[8] += side
 
     for rows in tracks:
-        tally(rows[:5], 0)    # rows are rank-ordered; nothing past 5th counts
+        tally(rows[:5], 0)  # rows are rank-ordered; nothing past 5th counts
     for rows in maps.values():
         tally(rows, 1)
-    return {"tracks": len(tracks), "maps": len(maps),
-            "players": sorted(p for p in players.values() if any(p[2:]))}
+    return {
+        "tracks": len(tracks),
+        "maps": len(maps),
+        "players": sorted(p for p in players.values() if any(p[2:])),
+    }
 
 
 def derive(boards_out, maps):
@@ -674,8 +814,9 @@ def derive(boards_out, maps):
     and how it reads in a log: write_site publishes the list, check_data compares
     the committed files against it, and neither has to restate the assembly —
     which matters, because the shards' board indices are positions in exactly
-    this list of boards: campaign boards, composite, then every Map. Nor does either caller have to know one
-    artifact from another; both just write or compare, and print the summary.
+    this list of boards: campaign boards, composite, then every Map. Nor does either
+    caller have to know one artifact from another; both just write or compare, and
+    print the summary.
 
     Each artifact carries its own idea of empty, because only its builder knows
     what nothing looks like: no seasons, or a season with nobody on a podium, or
@@ -684,30 +825,51 @@ def derive(boards_out, maps):
     if current["rows"]:
         # ahead of Steam's board, so it is the one the season opens on
         at = next((i for i, b in enumerate(boards_out) if b["name"] == "OverallLeaderboard"), 0)
-        boards_out = boards_out[:at] + [current] + boards_out[at:]
+        boards_out = [*boards_out[:at], current, *boards_out[at:]]
     composite = build_composite(boards_out)
     if composite["rows"]:
-        boards_out = boards_out + [composite]
+        boards_out = [*boards_out, composite]
     seasons = build_podiums(boards_out)
-    artifacts = [{
-        "path": "podiums.json", "doc": {"seasons": seasons},
-        "empty": not seasons or any(not s["players"] for s in seasons),
-        # ASCII only: this prints to a Windows console in the local runbook
-        "summary": "podiums  " + ", ".join(
-            f"{s['group']} tracks={s['tracks']} players={len(s['players'])}" for s in seasons),
-    }]
+    artifacts = [
+        {
+            "path": "podiums.json",
+            "doc": {"seasons": seasons},
+            "empty": not seasons or any(not s["players"] for s in seasons),
+            # ASCII only: this prints to a Windows console in the local runbook
+            "summary": "podiums  "
+            + ", ".join(
+                f"{s['group']} tracks={s['tracks']} players={len(s['players'])}" for s in seasons
+            ),
+        }
+    ]
     shards = build_players(boards_out, maps)
-    artifacts += [{
-        "path": "players/" + shard + ".json", "doc": doc,
-        "empty": not doc["players"],
-        "summary": f"players/{shard}  {len(doc['players'])} players",
-    } for shard, doc in shards.items()]
+    artifacts += [
+        {
+            "path": "players/" + shard + ".json",
+            "doc": doc,
+            "empty": not doc["players"],
+            "summary": f"players/{shard}  {len(doc['players'])} players",
+        }
+        for shard, doc in shards.items()
+    ]
     names = build_names(shards)
-    artifacts.append({"path": "names.json", "doc": names, "empty": not names,
-                      "summary": f"names  {len(names)} players"})
+    artifacts.append(
+        {
+            "path": "names.json",
+            "doc": names,
+            "empty": not names,
+            "summary": f"names  {len(names)} players",
+        }
+    )
     standings = build_standings(boards_out, maps)
-    artifacts.append({"path": "standings.json", "doc": standings, "empty": not standings["players"],
-                      "summary": f"standings  {len(standings['players'])} players"})
+    artifacts.append(
+        {
+            "path": "standings.json",
+            "doc": standings,
+            "empty": not standings["players"],
+            "summary": f"standings  {len(standings['players'])} players",
+        }
+    )
     return boards_out, artifacts
 
 
@@ -718,7 +880,9 @@ def name_rows(row_lists, all_ids):
     (names_due), are looked up."""
     key = load_key()
     if not key:
-        print("WARNING: no STEAM_API_KEY (env or .env) — names will be blank (ids still collected).")
+        print(
+            "WARNING: no STEAM_API_KEY (env or .env) — names will be blank (ids still collected)."
+        )
     known = known_names()
     # The slice covers every player we know, not only this run's rows: a Workshop board
     # is re-read only when played, so its players would otherwise rarely come up.
@@ -760,8 +924,10 @@ def write_derived(artifacts):
     """Write derive()'s artifacts, or none of them if any came out empty."""
     blank = [a["path"] for a in artifacts if a["empty"]]
     if blank:
-        print(f"  [warn] derived empty: {blank}; keeping the committed copies of all "
-              f"{len(artifacts)} derived files")
+        print(
+            f"  [warn] derived empty: {blank}; keeping the committed copies of all "
+            f"{len(artifacts)} derived files"
+        )
         return
     for a in artifacts:
         path = os.path.join(DATA_DIR, a["path"])
@@ -811,14 +977,28 @@ def write_site(boards_out, all_ids, workshop=None):
         for r in b["rows"]:
             unique.add(r["steam_id"])
         fname = b["name"] + ".json"
-        board_doc = {"name": b["name"], "display": b["display"], "group": b["group"],
-                     "handle": b["handle"], "entry_count": b["entry_count"], "rows": b["rows"]}
+        board_doc = {
+            "name": b["name"],
+            "display": b["display"],
+            "group": b["group"],
+            "handle": b["handle"],
+            "entry_count": b["entry_count"],
+            "rows": b["rows"],
+        }
         with open(os.path.join(BOARDS_DIR, fname), "w", encoding="utf-8") as f:
             json.dump(board_doc, f, ensure_ascii=False, separators=(",", ":"))
-        index_boards.append({"name": b["name"], "display": b["display"], "group": b["group"],
-                             "tier": b.get("tier"),
-                             "handle": b["handle"], "entry_count": b["entry_count"],
-                             "rows": len(b["rows"]), "file": "boards/" + fname})
+        index_boards.append(
+            {
+                "name": b["name"],
+                "display": b["display"],
+                "group": b["group"],
+                "tier": b.get("tier"),
+                "handle": b["handle"],
+                "entry_count": b["entry_count"],
+                "rows": len(b["rows"]),
+                "file": "boards/" + fname,
+            }
+        )
 
     # The derived files carry the same never-publish-empty rule as the boards,
     # and they carry it together: they all come from the one set of rows, so one
@@ -828,8 +1008,16 @@ def write_site(boards_out, all_ids, workshop=None):
     write_derived(artifacts)
 
     with open(INDEX_PATH, "w", encoding="utf-8") as f:
-        json.dump({"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                   "app_id": APP_ID, "player_count": len(unique),
-                   "boards": index_boards}, f, ensure_ascii=False, indent=2)
+        json.dump(
+            {
+                "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "app_id": APP_ID,
+                "player_count": len(unique),
+                "boards": index_boards,
+            },
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
     print(f"\nWrote {INDEX_PATH} + {len(boards_out)} board files ({len(unique)} unique players)")
     return INDEX_PATH

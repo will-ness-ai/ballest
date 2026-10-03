@@ -12,45 +12,56 @@ import {
   TextInputBuilder,
   TextInputStyle,
   UserSelectMenuBuilder,
-  type BaseMessageOptions
-} from "discord.js"
-import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js"
-import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js"
-import { RESULT_HUE, START_HUE } from "../render/art.js"
-import type { CardView, KeptReason, ThreadPost } from "../ports.js"
-import { type Action, type Control, controlId } from "./controls.js"
-import type { MarbleEmojis } from "./marbles.js"
+  type BaseMessageOptions,
+} from "discord.js";
+import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js";
+import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js";
+import { RESULT_HUE, START_HUE } from "../render/art.js";
+import type { CardView, KeptReason, ThreadPost } from "../ports.js";
+import { type Action, type Control, controlId } from "./controls.js";
+import type { MarbleEmojis } from "./marbles.js";
 
 /**
  * A message to post or edit. `attachments: []` on an edit drops the old image; discord.js adds
  * the new files to it, so the same payload posts and redraws.
  */
-export type Payload = BaseMessageOptions & { readonly attachments?: Array<never> }
+export type Payload = BaseMessageOptions & { readonly attachments?: Array<never> };
 
-export const PROFILE_FIELD = "profile"
+export const PROFILE_FIELD = "profile";
 
 // ---------------------------------------------------------------- formatting
 
-
-const unix = (ms: number) => Math.floor(ms / 1000)
-const who = (discordId: string) => `<@${discordId}>`
-const workshopUrl = (pfid: string) => `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`
+const unix = (ms: number) => Math.floor(ms / 1000);
+const who = (discordId: string) => `<@${discordId}>`;
+const workshopUrl = (pfid: string) =>
+  `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
 
 /** Mentions shown as names without pinging anyone. */
-export const quiet = { allowedMentions: { parse: [] } } as const
+export const quiet = { allowedMentions: { parse: [] } } as const;
 
 const button = (label: string, control: Control, style = ButtonStyle.Secondary, disabled = false) =>
-  new ButtonBuilder().setCustomId(controlId(control)).setLabel(label).setStyle(style).setDisabled(disabled)
+  new ButtonBuilder()
+    .setCustomId(controlId(control))
+    .setLabel(label)
+    .setStyle(style)
+    .setDisabled(disabled);
 
-const row = (...buttons: Array<ButtonBuilder>) => new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons)
+const row = (...buttons: Array<ButtonBuilder>) =>
+  new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons);
 
 const workshopLink = (pfid: string) =>
-  new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Open Map in Workshop").setURL(workshopUrl(pfid))
+  new ButtonBuilder()
+    .setStyle(ButtonStyle.Link)
+    .setLabel("Open Map in Workshop")
+    .setURL(workshopUrl(pfid));
 
-const workshopButton = (pfid: string) => row(workshopLink(pfid))
+const workshopButton = (pfid: string) => row(workshopLink(pfid));
 
 /** A rendered image, attached; editing a message with one replaces the old. */
-const image = (png: Buffer, name: string) => ({ files: [new AttachmentBuilder(png, { name })], attachments: [] })
+const image = (png: Buffer, name: string) => ({
+  files: [new AttachmentBuilder(png, { name })],
+  attachments: [],
+});
 
 // ---------------------------------------------------------------- the Footer
 
@@ -58,37 +69,51 @@ export const footerMessage = (png: Buffer): Payload => ({
   content: "",
   embeds: [],
   ...image(png, "multiballs.png"),
-  components: [row(button("New Match", { _tag: "NewMatch" }, ButtonStyle.Primary), button("Link Steam", { _tag: "LinkSteam" }))],
-  ...quiet
-})
+  components: [
+    row(
+      button("New Match", { _tag: "NewMatch" }, ButtonStyle.Primary),
+      button("Link Steam", { _tag: "LinkSteam" }),
+    ),
+  ],
+  ...quiet,
+});
 
 // ---------------------------------------------------------------- the Match Card
 
-export const threadName = (v: CardView, creatorName: string) => `${creatorName}'s ${MATCH_TYPE_NAME[v.type]} · ${v.minutes} min`
+export const threadName = (v: CardView, creatorName: string) =>
+  `${creatorName}'s ${MATCH_TYPE_NAME[v.type]} · ${v.minutes} min`;
 
-const act = (action: Action, matchId: string): Control => ({ _tag: "Act", action, matchId })
-const acceptButton = (matchId: string) => button("Accept", act("accept", matchId), ButtonStyle.Success)
-const declineButton = (matchId: string) => button("Decline", act("decline", matchId), ButtonStyle.Danger)
+const act = (action: Action, matchId: string): Control => ({ _tag: "Act", action, matchId });
+const acceptButton = (matchId: string) =>
+  button("Accept", act("accept", matchId), ButtonStyle.Success);
+const declineButton = (matchId: string) =>
+  button("Decline", act("decline", matchId), ButtonStyle.Danger);
 
 const cardButtons = (v: CardView) => {
-  const join = () => button(`Join (${v.players.length})`, act("join", v.matchId), ButtonStyle.Success)
+  const join = () =>
+    button(`Join (${v.players.length})`, act("join", v.matchId), ButtonStyle.Success);
   if (v.state === "live" && v.map !== null) {
-    const leave = button("Leave", { _tag: "AskLeave", matchId: v.matchId })
-    return [v.type === "lobby" ? row(join(), workshopLink(v.map.pfid), leave) : row(workshopLink(v.map.pfid), leave)]
+    const leave = button("Leave", { _tag: "AskLeave", matchId: v.matchId });
+    return [
+      v.type === "lobby"
+        ? row(join(), workshopLink(v.map.pfid), leave)
+        : row(workshopLink(v.map.pfid), leave),
+    ];
   }
-  if (v.state !== "invite") return []
-  const cancel = button("Cancel", act("cancel", v.matchId))
-  if (v.type === "public") return [row(acceptButton(v.matchId), cancel)]
-  if (v.type === "challenge") return [row(acceptButton(v.matchId), declineButton(v.matchId), cancel)]
+  if (v.state !== "invite") return [];
+  const cancel = button("Cancel", act("cancel", v.matchId));
+  if (v.type === "public") return [row(acceptButton(v.matchId), cancel)];
+  if (v.type === "challenge")
+    return [row(acceptButton(v.matchId), declineButton(v.matchId), cancel)];
   return [
     row(
       join(),
       button("Leave", act("leave", v.matchId)),
       button("Start", act("start", v.matchId), ButtonStyle.Primary),
-      cancel
-    )
-  ]
-}
+      cancel,
+    ),
+  ];
+};
 
 /** The Match's clock as Discord timestamps (each reader sees their own time); none once it's over. */
 const clockText = (v: CardView): string | null =>
@@ -96,29 +121,34 @@ const clockText = (v: CardView): string | null =>
     ? `Invite expires <t:${unix(v.expiresAt)}:R>`
     : v.state === "live" && v.endsAt !== null
       ? `**Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
-      : null
+      : null;
 
-const INVITE_GREY = 0x4e5058
-const LIVE_LIME = 0x8be03c
+const INVITE_GREY = 0x4e5058;
+const LIVE_LIME = 0x8be03c;
 
 /** The Card image, with the clock in an embed below it: the image never shows one. */
 export const cardMessage = (v: CardView, png: Buffer): Payload => {
-  const text = clockText(v)
-  const clock = text === null ? null : new EmbedBuilder().setColor(v.state === "live" ? LIVE_LIME : INVITE_GREY).setDescription(text)
+  const text = clockText(v);
+  const clock =
+    text === null
+      ? null
+      : new EmbedBuilder()
+          .setColor(v.state === "live" ? LIVE_LIME : INVITE_GREY)
+          .setDescription(text);
   return {
     content: "",
     embeds: clock === null ? [] : [clock],
     ...image(png, `match-${v.matchId}.png`),
     components: cardButtons(v),
-    ...quiet
-  }
-}
+    ...quiet,
+  };
+};
 
 /** Why a kept Match was cancelled, on its Card and in its thread. */
 const WHY_CANCELLED: Record<KeptReason, string> = {
   noEligibleMap: "No Map fits this Match: none suits the length. A longer Match allows more Maps.",
-  abandoned: "Everyone left before anyone set a time."
-}
+  abandoned: "Everyone left before anyone set a time.",
+};
 
 /** A cancelled Card that stays, saying why. */
 export const closedCardMessage = (reason: KeptReason): Payload => ({
@@ -127,90 +157,121 @@ export const closedCardMessage = (reason: KeptReason): Payload => ({
   files: [],
   attachments: [],
   components: [],
-  ...quiet
-})
+  ...quiet,
+});
 
 // ---------------------------------------------------------------- Match Thread posts ("Marble Icons")
 
 /** The Match Thread's first message: the same clock as under the Card, kept at the thread's top. */
 export const clockMessage = (v: CardView | "cancelled"): Payload => ({
   content: v === "cancelled" ? "**Cancelled**" : (clockText(v) ?? "**Finished**"),
-  ...quiet
-})
+  ...quiet,
+});
 
 /** What a thread post is drawn with, beyond the post itself. */
 export interface ThreadArt {
-  readonly marbles: MarbleEmojis
+  readonly marbles: MarbleEmojis;
   /** The post's image: the Card for Go! and the Result, the row for an Improvement, the graph after the Result. */
-  readonly png: Buffer | null
+  readonly png: Buffer | null;
 }
 
-const line = (marble: string, text: string) => (marble === "" ? text : `${marble} ${text}`)
+const line = (marble: string, text: string) => (marble === "" ? text : `${marble} ${text}`);
 
 export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt): Payload => {
-  const pic = art.png === null ? {} : image(art.png, `${post._tag.toLowerCase()}.png`)
+  const pic = art.png === null ? {} : image(art.png, `${post._tag.toLowerCase()}.png`);
   switch (post._tag) {
     case "Opened":
       return {
-        content: line(art.marbles.forPlayer(post.by.steamId), `**${who(post.by.discordId)}** opened a ${post.minutes}-minute ${MATCH_TYPE_NAME[post.type]}`),
-        ...quiet
-      }
+        content: line(
+          art.marbles.forPlayer(post.by.steamId),
+          `**${who(post.by.discordId)}** opened a ${post.minutes}-minute ${MATCH_TYPE_NAME[post.type]}`,
+        ),
+        ...quiet,
+      };
     case "Challenged": {
       return {
         content: line(
           art.marbles.forPlayer(post.by.steamId),
-          `${who(post.target.discordId)} **${who(post.by.discordId)}** challenges you · ${post.minutes} min · answer <t:${unix(post.expiresAt)}:R>`
+          `${who(post.target.discordId)} **${who(post.by.discordId)}** challenges you · ${post.minutes} min · answer <t:${unix(post.expiresAt)}:R>`,
         ),
         components: [row(acceptButton(matchId), declineButton(matchId))],
-        allowedMentions: { users: [post.target.discordId] }
-      }
+        allowedMentions: { users: [post.target.discordId] },
+      };
     }
     case "Accepted":
-      return { content: line(art.marbles.forPlayer(post.player.steamId), `**${who(post.player.discordId)}** accepted`), ...quiet }
+      return {
+        content: line(
+          art.marbles.forPlayer(post.player.steamId),
+          `**${who(post.player.discordId)}** accepted`,
+        ),
+        ...quiet,
+      };
     case "Joined":
-      return { content: line(art.marbles.forPlayer(post.player.steamId), `**${who(post.player.discordId)}** joined`), ...quiet }
+      return {
+        content: line(
+          art.marbles.forPlayer(post.player.steamId),
+          `**${who(post.player.discordId)}** joined`,
+        ),
+        ...quiet,
+      };
     case "Left":
-      return { content: `-# ${line(art.marbles.forPlayer(post.player.steamId), `**${who(post.player.discordId)}** left`)}`, ...quiet }
+      return {
+        content: `-# ${line(art.marbles.forPlayer(post.player.steamId), `**${who(post.player.discordId)}** left`)}`,
+        ...quiet,
+      };
     case "Started":
       return {
-        content: line(art.marbles.forHue(START_HUE), `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** Ends <t:${unix(post.endsAt)}:R>`),
+        content: line(
+          art.marbles.forHue(START_HUE),
+          `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** Ends <t:${unix(post.endsAt)}:R>`,
+        ),
         ...pic,
         components: [workshopButton(post.map.pfid)],
-        allowedMentions: { users: post.players.map((p) => p.discordId) }
-      }
+        allowedMentions: { users: post.players.map((p) => p.discordId) },
+      };
     case "Improved":
       // A world record gets its line; no pings.
       return {
-        content: post.improvement.beatWorldRecord === null ? "" : `🏆 **NEW WORLD RECORD** · ${who(post.improvement.player.discordId)}`,
+        content:
+          post.improvement.beatWorldRecord === null
+            ? ""
+            : `🏆 **NEW WORLD RECORD** · ${who(post.improvement.player.discordId)}`,
         ...pic,
-        ...quiet
-      }
+        ...quiet,
+      };
     case "Progression":
-      return { content: "", ...pic, ...quiet }
+      return { content: "", ...pic, ...quiet };
     case "Result":
       return {
-        content: line(art.marbles.forHue(RESULT_HUE), post.standings.every((s) => s.rank === null) ? "**Final result** · no finishers" : "**Final result**"),
+        content: line(
+          art.marbles.forHue(RESULT_HUE),
+          post.standings.every((s) => s.rank === null)
+            ? "**Final result** · no finishers"
+            : "**Final result**",
+        ),
         ...pic,
-        ...quiet
-      }
+        ...quiet,
+      };
     case "PlayedBefore": {
-      const pings = post.bars.map((b) => who(b.player.discordId)).join(" ")
-      const pbs = post.bars.map((b) => `${who(b.player.discordId)} \`${formatTime(b.ticks)}\``).join(" · ")
+      const pings = post.bars.map((b) => who(b.player.discordId)).join(" ");
+      const pbs = post.bars
+        .map((b) => `${who(b.player.discordId)} \`${formatTime(b.ticks)}\``)
+        .join(" · ");
       return {
         content: `${pings} you've finished this Map before, so only a run **faster than your PB** counts; otherwise you're DNF.
 -# PB to beat: ${pbs}`,
-        allowedMentions: { users: post.bars.map((b) => b.player.discordId) }
-      }
+        allowedMentions: { users: post.bars.map((b) => b.player.discordId) },
+      };
     }
     case "NoMap":
       return {
         content: `${post.players.map((p) => who(p.discordId)).join(" ")} **Match cancelled.** ${WHY_CANCELLED.noEligibleMap}`,
-        allowedMentions: { users: post.players.map((p) => p.discordId) }
-      }
+        allowedMentions: { users: post.players.map((p) => p.discordId) },
+      };
     case "Abandoned":
-      return { content: `**Match cancelled.** ${WHY_CANCELLED.abandoned}`, ...quiet }
+      return { content: `**Match cancelled.** ${WHY_CANCELLED.abandoned}`, ...quiet };
   }
-}
+};
 
 // ---------------------------------------------------------------- New Match (Type First), privately
 
@@ -220,28 +281,35 @@ export const pickTypeMessage = (): Payload => ({
     row(
       button("Public 1v1", { _tag: "PickType", type: "public" }, ButtonStyle.Primary),
       button("Challenge", { _tag: "PickType", type: "challenge" }, ButtonStyle.Primary),
-      button("Lobby", { _tag: "PickType", type: "lobby" }, ButtonStyle.Primary)
-    )
-  ]
-})
+      button("Lobby", { _tag: "PickType", type: "lobby" }, ButtonStyle.Primary),
+    ),
+  ],
+});
 
 export const pickTargetMessage = (): Payload => ({
   content: "**Challenge · who?**",
   components: [
     new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(
-      new UserSelectMenuBuilder().setCustomId(controlId({ _tag: "PickTarget" })).setPlaceholder("Pick a Player").setMaxValues(1)
-    )
-  ]
-})
+      new UserSelectMenuBuilder()
+        .setCustomId(controlId({ _tag: "PickTarget" }))
+        .setPlaceholder("Pick a Player")
+        .setMaxValues(1),
+    ),
+  ],
+});
 
-export const pickDurationMessage = (type: MatchType, target: string | null, chosen: Minutes | null): Payload => {
+export const pickDurationMessage = (
+  type: MatchType,
+  target: string | null,
+  chosen: Minutes | null,
+): Payload => {
   const durations = DURATIONS.map((minutes) =>
     button(
       `${minutes}m`,
       { _tag: "PickDuration", request: { type, target, minutes } },
-      minutes === chosen ? ButtonStyle.Primary : ButtonStyle.Secondary
-    )
-  )
+      minutes === chosen ? ButtonStyle.Primary : ButtonStyle.Secondary,
+    ),
+  );
   return {
     content: `**${MATCH_TYPE_NAME[type]}${target ? ` vs ${who(target)}` : ""} · how long?**`,
     components: [
@@ -252,27 +320,34 @@ export const pickDurationMessage = (type: MatchType, target: string | null, chos
           "Open Invite",
           { _tag: "OpenInvite", request: { type, target, minutes: chosen ?? DURATIONS[0] } },
           ButtonStyle.Success,
-          chosen === null
-        )
-      )
+          chosen === null,
+        ),
+      ),
     ],
-    ...quiet
-  }
-}
+    ...quiet,
+  };
+};
 
 // ---------------------------------------------------------------- Leave a live Match, privately
 
-export const LEFT_TEXT = "You left the Match. Your best time so far stands."
+export const LEFT_TEXT = "You left the Match. Your best time so far stands.";
 
 export const confirmLeaveMessage = (matchId: string): Payload => ({
   content: "**Leave this Match?** Your best time so far stands, but nothing after this counts.",
-  components: [row(button("Leave", { _tag: "ConfirmLeave", matchId }, ButtonStyle.Danger), button("Stay", { _tag: "Stay" }))]
-})
+  components: [
+    row(
+      button("Leave", { _tag: "ConfirmLeave", matchId }, ButtonStyle.Danger),
+      button("Stay", { _tag: "Stay" }),
+    ),
+  ],
+});
 
 // ---------------------------------------------------------------- Link Steam
 
 const howtoMarkdown = (parts: ReadonlyArray<HowtoPart>) =>
-  parts.map((p) => (typeof p === "string" ? p : "menu" in p ? `**${p.menu}**` : `\`${p.example}\``)).join("")
+  parts
+    .map((p) => (typeof p === "string" ? p : "menu" in p ? `**${p.menu}**` : `\`${p.example}\``))
+    .join("");
 
 export const linkForm = () =>
   new ModalBuilder()
@@ -284,9 +359,9 @@ export const linkForm = () =>
           ...STEAM_LINK_HOWTO.steps.map((step, n) => `${n + 1}. ${howtoMarkdown(step)}`),
           "",
           howtoMarkdown(STEAM_LINK_HOWTO.looksLike),
-          `-# ${STEAM_LINK_HOWTO.notThis}`
-        ].join("\n")
-      )
+          `-# ${STEAM_LINK_HOWTO.notThis}`,
+        ].join("\n"),
+      ),
     )
     .addLabelComponents(
       new LabelBuilder()
@@ -296,21 +371,26 @@ export const linkForm = () =>
             .setCustomId(PROFILE_FIELD)
             .setPlaceholder("https://steamcommunity.com/profiles/…")
             .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-        )
-    )
+            .setRequired(true),
+        ),
+    );
 
 export const linkPreviewMessage = (png: Buffer): Payload => ({
   content: "**Is this your Steam account?**",
   embeds: [],
   ...image(png, "steam-account.png"),
-  components: [row(button("Yes, link it", { _tag: "ConfirmLink" }, ButtonStyle.Success), button("Try again", { _tag: "LinkSteam" }))]
-})
+  components: [
+    row(
+      button("Yes, link it", { _tag: "ConfirmLink" }, ButtonStyle.Success),
+      button("Try again", { _tag: "LinkSteam" }),
+    ),
+  ],
+});
 
 export const tryAgainMessage = (text: string): Payload => ({
   content: text,
   embeds: [],
   files: [],
   attachments: [],
-  components: [row(button("Try again", { _tag: "LinkSteam" }))]
-})
+  components: [row(button("Try again", { _tag: "LinkSteam" }))],
+});

@@ -74,9 +74,10 @@ the result with `python tools/check_data.py --data scratch/data`: the run reads 
 writes a fresh copy of `data/`, so the whole write path runs and the committed data stays
 as it is.
 
-The site and the collector have no tests or type checks. `node tools/page-check/check.mjs`
-(after `npm ci` in that folder once) lints the page's script and its escaping, and CI runs
-it too. Verify front-end changes by loading the served page. After editing `index.html`, reload the page (a hash
+Every file is formatted by Prettier or Ruff and linted by ESLint or Ruff; run `pnpm check`
+at the root before pushing, and read `docs/linting.md` for setup, a disabled rule, or a
+branch from before the reformat. The site and the collector have no tests or type checks;
+`tools/page-check` (part of `pnpm lint`) lints the page's script and its escaping. Verify front-end changes by loading the served page. After editing `index.html`, reload the page (a hash
 change keeps the old script), and test the board's infinite scroll with a real wheel
 scroll: a scripted `scrollTo` does not trigger it in the preview pane. Verify collector changes with
 `python tools/check_data.py` (no Steam needed), then a live `--out` run if the read or
@@ -94,7 +95,7 @@ running the bot.
 ## Invariants worth knowing before you edit
 
 **`score_ms` is two different things, and its name lies in both.** On `Map_*` boards it
-is a run time in *hundred-thousandths of a second* — seconds = `score_ms / 100000`, lower
+is a run time in _hundred-thousandths of a second_ — seconds = `score_ms / 100000`, lower
 is better — **not** milliseconds. On `Overall*` boards it is points and higher is better,
 and the collector's sibling `time` field is meaningless for those rows. The site
 discriminates on the name prefix alone (`isPoints` in `index.html`); gap arithmetic, column
@@ -103,7 +104,7 @@ board not named `Overall*`, silently renders a point total as a duration.
 
 The unit is pinned by two independent checks, so don't "correct" it back: every Workshop
 map publishes its own medal times in seconds, and under `/100000` each world record lands
-10-56% faster than that map's author medal (under `/1000` each would be 27-90x *slower*
+10-56% faster than that map's author medal (under `/1000` each would be 27-90x _slower_
 than author, which no finished run can be); and the board shapes come out right, with
 `Map_Track13` reading 0:10.267 / 0:12.541 / 1:46 for best / median / worst. Do the
 conversion through `SCORE_TICKS_PER_SECOND` (`tools/campaign_common.py`, `index.html`)
