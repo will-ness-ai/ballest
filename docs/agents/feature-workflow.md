@@ -35,7 +35,8 @@ feature small enough for one ticket still gets one, so `/implement-spec` has its
 
 Implement the tickets test-first (`tdd`, where tests exist: `discord-bot/` has them, the
 site and the collector are checked with `tools/page-check`, `tools/check_data.py` and the
-served page, per `CLAUDE.md`). Work on a `claude/<slug>` branch and open a **draft** PR
+served page, per `CLAUDE.md`). A change to what the bot posts in Discord is also played through
+in the sandbox (`discord-sandbox`). Work on a `claude/<slug>` branch and open a **draft** PR
 that closes the spec and its tickets as soon as the branch has a commit.
 It stays a draft through steps 5 and 6: step 7 marks it ready, in place of
 `/implement-spec`'s own step 8.
