@@ -215,7 +215,16 @@ input{font:inherit;color:inherit}
 .gobar .btn{background:var(--accent-ink);color:var(--accent);border-color:var(--accent-ink)}
 .overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(5,9,20,.62);backdrop-filter:blur(2px)}
 .dialog{max-width:520px;width:100%;max-height:calc(100vh - 32px);overflow:auto;background:var(--raised);border:1px solid var(--line);border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.65)}
-.toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:30;width:max-content;max-width:calc(100% - 32px);padding:10px 14px;border-radius:10px;background:#3a1418;border:1px solid rgba(255,122,122,.5);color:#ffb3a8;font:600 13px var(--f-body);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:30;width:max-content;max-width:calc(100% - 32px);display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;padding:10px 14px;border-radius:10px;background:#3a1418;border:1px solid rgba(255,122,122,.5);color:#ffb3a8;font:600 13px var(--f-body);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.toast.info{background:var(--raised);border-color:var(--line);color:var(--text)}
+.toast .tt{flex:1 1 auto;min-width:0}
+.toast .x{color:var(--dim);font-size:18px;line-height:1;padding:0 2px}
+.toast .x:hover{color:var(--text)}
+/* Lobby pings, in the Steam chip: unlit off, lit green on. */
+.bell{display:inline-grid;place-items:center;width:24px;height:24px;margin-left:2px;border:1px solid var(--line);border-radius:99px;color:var(--dim)}
+.bell:hover{color:var(--text);border-color:var(--dim)}
+.bell.on{color:var(--accent);border-color:rgba(139,224,60,.55);background:var(--accent-soft)}
+.bell.unknown{opacity:.4;cursor:default}
 .demo{display:grid;gap:10px;justify-items:center}
 </style>
 </head>
