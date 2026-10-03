@@ -12,10 +12,12 @@ import { describeDiscordError, Discord } from "./discord/client.js"
 import { InteractionsLive } from "./discord/interactions.js"
 import { DiscordChannelLive } from "./discord/channel.js"
 import { Marbles } from "./discord/marbles.js"
+import { PingRoleLive } from "./discord/pingRole.js"
 import { ChannelSurfaceLive } from "./discord/surface.js"
 import { Engine } from "./engine.js"
 import { InstanceLockLive } from "./instanceLock.js"
 import { OpsLive } from "./ops.js"
+import { Pings } from "./pings.js"
 import { MapPreviews, PreviewSourceLive } from "./previews.js"
 import { Renderer } from "./render/renderer.js"
 import { SqliteStoreLive } from "./sqliteStore.js"
@@ -72,7 +74,7 @@ const SurfaceLive = ChannelSurfaceLive.pipe(Layer.provide(DiscordChannelLive), L
 // One preview cache for both surfaces: the Card and the Activity show the same Workshop art.
 const PreviewsLive = MapPreviews.Default.pipe(Layer.provide(PreviewSourceLive))
 
-const PortsLive = Layer.mergeAll(SteamLive, SurfaceLive, SqliteStoreLive).pipe(
+const PortsLive = Layer.mergeAll(SteamLive, SurfaceLive, SqliteStoreLive, PingRoleLive).pipe(
   Layer.provideMerge(PreviewsLive),
   Layer.provideMerge(Renderer.Default),
   Layer.provideMerge(Discord.Default),
@@ -81,6 +83,7 @@ const PortsLive = Layer.mergeAll(SteamLive, SurfaceLive, SqliteStoreLive).pipe(
 
 const MainLive = Layer.mergeAll(InteractionsLive, OpsLive, ActivityLive).pipe(
   Layer.provide(Engine.Default),
+  Layer.provide(Pings.Default),
   Layer.provide(PortsLive),
   Layer.provide(InstanceLockLive),
   Layer.provide(FileLogLive),

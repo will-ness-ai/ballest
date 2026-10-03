@@ -116,7 +116,17 @@ const make = Effect.gen(function* () {
     activeMatches: findActive(undefined).pipe(
       Effect.map((rows) => rows.map((r) => r.data)),
       Effect.orDie
-    )
+    ),
+    hasAnsweredPingOffer: (discordId) =>
+      sql`SELECT 1 FROM ping_offer_answers WHERE discord_id = ${discordId}`.pipe(
+        Effect.map((rows) => rows.length > 0),
+        Effect.orDie
+      ),
+    answerPingOffer: (discordId) =>
+      sql`INSERT INTO ping_offer_answers ${sql.insert({ discord_id: discordId })} ON CONFLICT (discord_id) DO NOTHING`.pipe(
+        Effect.asVoid,
+        Effect.orDie
+      )
   })
 })
 

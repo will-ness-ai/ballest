@@ -5,7 +5,10 @@ import type { DrawnMap, Link, MapInfo, Medals } from "../src/domain.js"
 import { SCORE_TICKS_PER_SECOND } from "../src/domain.js"
 import { Engine } from "../src/engine.js"
 import { SqliteStoreInMemory } from "../src/sqliteStore.js"
+import { Pings } from "../src/pings.js"
 import {
+  PingRole,
+  PingRoleUnavailable,
   ProfileNotFound,
   Steam,
   SteamUnavailable,
@@ -141,6 +144,42 @@ export const makeFakeSurface = Effect.gen(function* () {
   }
 })
 
+// ---------------------------------------------------------------- the ping role
+
+export interface FakePingRoleControl {
+  /** Give a member the role from outside the bot, as a moderator would in Discord. */
+  readonly give: (discordId: string) => Effect.Effect<void>
+  /** Whether the member has the role right now. */
+  readonly has: (discordId: string) => Effect.Effect<boolean>
+  /** While true, every read and change fails as if Discord refused it. */
+  readonly setFailing: (failing: boolean) => Effect.Effect<void>
+}
+
+export const makeFakePingRole = Effect.gen(function* () {
+  const holders = yield* Ref.make(new Set<string>())
+  const failing = yield* Ref.make(false)
+  const discord = <A>(run: Effect.Effect<A>) =>
+    Effect.flatMap(Ref.get(failing), (f) => (f ? Effect.fail(new PingRoleUnavailable({ reason: "Discord said no" })) : run))
+  const update = (discordId: string, on: boolean) =>
+    Ref.update(holders, (all) => {
+      const next = new Set(all)
+      if (on) next.add(discordId)
+      else next.delete(discordId)
+      return next
+    })
+  const port = PingRole.of({
+    has: (discordId) => discord(Ref.get(holders).pipe(Effect.map((all) => all.has(discordId)))),
+    add: (discordId) => discord(update(discordId, true)),
+    remove: (discordId) => discord(update(discordId, false))
+  })
+  const control: FakePingRoleControl = {
+    give: (discordId) => update(discordId, true),
+    has: (discordId) => Ref.get(holders).pipe(Effect.map((all) => all.has(discordId))),
+    setFailing: (f) => Ref.set(failing, f)
+  }
+  return { port, control }
+})
+
 // ---------------------------------------------------------------- the harness
 
 export const ALICE = { discordId: "d-alice", steamId: "s-alice" }
@@ -191,6 +230,11 @@ export const makeHarness = (opts: { readonly maps: ReadonlyArray<FakeMap>; reado
     const steam = yield* makeFakeSteam(PROFILES)
     yield* steam.control.setCatalogue(opts.maps)
     const surface = yield* makeFakeSurface
+    const role = yield* makeFakePingRole
+    const pings = Context.get(
+      yield* Layer.build(Pings.Default.pipe(Layer.provide(Layer.succeed(PingRole, role.port)), Layer.provide(Layer.succeed(Store, store)))),
+      Pings
+    )
     const ports = Layer.mergeAll(
       Layer.succeed(Steam, steam.port),
       Layer.succeed(Surface, surface.port),
@@ -209,6 +253,9 @@ export const makeHarness = (opts: { readonly maps: ReadonlyArray<FakeMap>; reado
       steam: steam.control,
       surface,
       store,
+      /** The @Multiplayer ping role, as Discord has it. */
+      role: role.control,
+      pings,
       /** Stop the engine, let `downtime` pass with nothing running, then boot a new one. */
       restart: (downtime: Duration.DurationInput) =>
         Effect.gen(function* () {

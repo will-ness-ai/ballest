@@ -157,6 +157,24 @@ export class MatchLinks extends Context.Tag("multiballs/MatchLinks")<
   }
 >() {}
 
+// ---------------------------------------------------------------- the ping role
+
+/** Discord wouldn't read or change a member's @Multiplayer ping role just now. */
+export class PingRoleUnavailable extends Data.TaggedError("PingRoleUnavailable")<{ readonly reason: string }> {}
+
+/**
+ * The @Multiplayer ping role on the server: the one role the bot ever adds or removes. Every
+ * read asks Discord, so a moderator's change shows at once.
+ */
+export class PingRole extends Context.Tag("multiballs/PingRole")<
+  PingRole,
+  {
+    readonly has: (discordId: string) => Effect.Effect<boolean, PingRoleUnavailable>
+    readonly add: (discordId: string) => Effect.Effect<void, PingRoleUnavailable>
+    readonly remove: (discordId: string) => Effect.Effect<void, PingRoleUnavailable>
+  }
+>() {}
+
 // ---------------------------------------------------------------- Store
 
 export class Store extends Context.Tag("multiballs/Store")<
@@ -172,5 +190,9 @@ export class Store extends Context.Tag("multiballs/Store")<
     readonly deleteMatch: (id: string) => Effect.Effect<void>
     /** Matches still open as an Invite or live. */
     readonly activeMatches: Effect.Effect<ReadonlyArray<Match>>
+    /** Whether this member has answered the @Multiplayer ping offer, either way. */
+    readonly hasAnsweredPingOffer: (discordId: string) => Effect.Effect<boolean>
+    /** Remember that this member has answered the offer; answering again changes nothing. */
+    readonly answerPingOffer: (discordId: string) => Effect.Effect<void>
   }
 >() {}

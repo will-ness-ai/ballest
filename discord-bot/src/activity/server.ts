@@ -120,7 +120,7 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (config: P
   return pages.pipe(Effect.catchTag("RouteNotFound", () => api))
 })
 
-/** Serve the Activity on PORT. Needs the Engine, the Store, where Cards are, and Discord's sign-in and members. */
+/** Serve the Activity on PORT. Needs the Engine, the Store, Lobby pings, where Cards are, and Discord's sign-in and members. */
 export const activityServer = (config: PageConfig & { readonly channelId: string }) =>
   Layer.unwrapEffect(
     Effect.gen(function* () {

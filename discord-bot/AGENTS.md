@@ -43,6 +43,15 @@ At startup the bot refuses to run without its channel permissions. The channel d
 Messages to `@everyone` to stay read-only, so the bot's role needs an explicit Send Messages
 allow on that channel.
 
+It also refuses to run unless it can use the @Multiplayer ping role (Lobby pings, spec #87),
+whose id is `DISCORD_PING_ROLE_ID` (a different role for the dev app's test server and for
+production; set it in the main checkout's `.env` and in `fly secrets`). The role must exist, the
+bot needs Manage Roles with its own role above @Multiplayer ping, and the role must be
+mentionable or the bot allowed to Mention @everyone, @here and All Roles. That is the only
+role the bot ever adds or removes (`src/discord/pingRole.ts`, behind the `PingRole` port), and
+`src/pings.ts` is the one place both surfaces go through for it; its words are in
+`src/pingWords.ts`.
+
 ## The Activity
 
 `src/activity/` is a Discord Activity (spec #46): the same Matches in a page Discord shows in an
