@@ -57,6 +57,8 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
+Both prompts also carry what has already been verified: the PR description's "Checked" section, or the implementer's verification notes when there is no PR. Both briefs end with: "Don't report as unverified anything listed as checked; do report a spec requirement with no check."
+
 **Standards sub-agent prompt** should include:
 
 - The full diff command and commit list.
