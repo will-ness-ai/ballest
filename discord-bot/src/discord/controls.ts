@@ -21,6 +21,12 @@ export type Control =
   | { readonly _tag: "Stay" }
   | { readonly _tag: "ConfirmLink" }
   | { readonly _tag: "LinkForm" }
+  /** The Footer's Pings button: shows the member, privately, whether they have the ping role. */
+  | { readonly _tag: "Pings" }
+  /** Get (on) or Remove (off) the ping role, on the Pings reply or the offer. */
+  | { readonly _tag: "SetPing"; readonly on: boolean }
+  /** No, on the offer of the ping role. */
+  | { readonly _tag: "DeclinePing" }
 
 type Tag = Control["_tag"]
 type Of<K extends Tag> = Extract<Control, { readonly _tag: K }>
@@ -67,6 +73,13 @@ const CODECS: { readonly [K in Tag]: Codec<K> } = {
   ConfirmLink: bare("linkyes", { _tag: "ConfirmLink" }),
   LinkForm: bare("linkform", { _tag: "LinkForm" }),
   Stay: bare("stay", { _tag: "Stay" }),
+  Pings: bare("pings", { _tag: "Pings" }),
+  DeclinePing: bare("pingno", { _tag: "DeclinePing" }),
+  SetPing: {
+    prefix: "setping",
+    write: (c) => [c.on ? "on" : "off"],
+    read: ([on]) => (on === "on" ? { _tag: "SetPing", on: true } : on === "off" ? { _tag: "SetPing", on: false } : null)
+  },
   AskLeave: forMatch("quit", (matchId) => ({ _tag: "AskLeave", matchId })),
   ConfirmLeave: forMatch("quityes", (matchId) => ({ _tag: "ConfirmLeave", matchId })),
   PickType: {

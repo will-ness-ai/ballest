@@ -13,7 +13,11 @@ const EVERY_KIND: ReadonlyArray<Control> = [
   { _tag: "LinkForm" },
   { _tag: "AskLeave", matchId: "42" },
   { _tag: "ConfirmLeave", matchId: "42" },
-  { _tag: "Stay" }
+  { _tag: "Stay" },
+  { _tag: "Pings" },
+  { _tag: "SetPing", on: true },
+  { _tag: "SetPing", on: false },
+  { _tag: "DeclinePing" }
 ]
 
 describe("button and form ids", () => {
@@ -30,7 +34,7 @@ describe("button and form ids", () => {
   })
 
   it("ignore ids that aren't ours or no longer make sense", () => {
-    for (const id of ["", "other:new", "mb", "mb:nope", "mb:type:solo", "mb:dur:lobby:-:7", "mb:act:explode:1", "mb:act:join", "mb:quit", "mb:quityes"])
+    for (const id of ["", "other:new", "mb", "mb:nope", "mb:type:solo", "mb:dur:lobby:-:7", "mb:act:explode:1", "mb:act:join", "mb:quit", "mb:quityes", "mb:setping", "mb:setping:maybe"])
       expect(parseControl(id)).toBeNull()
   })
 })
