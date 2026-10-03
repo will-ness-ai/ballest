@@ -132,7 +132,9 @@ dropped: ngrok's free plan shows browsers a warning page that renders as a blank
 the others needed a domain move or more setup than it was worth. A blank Activity means Discord
 can't reach the page: no tunnel running, or the mapping still holding an old address. To see
 exactly what Discord gets, fetch `https://<DISCORD_APPLICATION_ID>.discordsays.com/` with a
-browser User-Agent: that is Discord's own proxy to the mapping. Fetching the tunnel's address
+browser User-Agent: that is Discord's own proxy to the mapping. `pnpm dev` does this itself
+after opening the tunnel and says when Discord serves the page, so the human relaunches the
+Activity once it does. Fetching the tunnel's address
 from Will's PC proves nothing either way: his home network (Xfinity Advanced Security) blocks
 new hosts, and https to them fails with a TLS "wrong version number".
 Production serves it at `https://multiballs.fly.dev` (`fly.toml`'s `http_service`), with

@@ -33,6 +33,8 @@ export class Pings extends Effect.Service<Pings>()("multiballs/Pings", {
     });
 
     return {
+      /** The role as members see it, "@Multiplayer ping": what the words call it where a mention can't go. */
+      role: `@${role.name}`,
       status,
       /** Add or remove the role. Choosing either way answers the offer too. */
       set: Effect.fn("Pings.set")(function* (discordId: string, on: boolean) {

@@ -166,6 +166,8 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       channel,
       /** The @Multiplayer ping role's id, checked at startup: the bot can give, take and mention it. */
       pingRoleId,
+      /** That role's name on the server, as it was at startup: the words name the role by it. */
+      pingRoleName: pingRole.name,
       interactions,
       /** The application's own emojis (usable anywhere the bot posts), name to id. */
       appEmojis: tryDiscord("fetch app emojis", () => application.emojis.fetch()).pipe(

@@ -207,6 +207,8 @@ export class PingRoleUnavailable extends Data.TaggedError("PingRoleUnavailable")
 export class PingRole extends Context.Tag("multiballs/PingRole")<
   PingRole,
   {
+    /** The role's name on the server ("Multiplayer ping"), read when the bot starts. */
+    readonly name: string;
     readonly has: (discordId: string) => Effect.Effect<boolean, PingRoleUnavailable>;
     readonly add: (discordId: string) => Effect.Effect<void, PingRoleUnavailable>;
     readonly remove: (discordId: string) => Effect.Effect<void, PingRoleUnavailable>;

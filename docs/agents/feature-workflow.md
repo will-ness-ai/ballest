@@ -45,7 +45,9 @@ It stays a draft through steps 5 and 6: step 7 marks it ready, in place of
 
 Review the branch against `main` on both axes: `CODING_STANDARDS.md` (with every invariant
 in `CLAUDE.md`) and the spec. `/implement-spec` runs this as its own step 7; that run is the
-final review, so it isn't repeated. Fix every finding before moving on.
+final review, so it isn't repeated. Fix every finding before moving on. Commits that land
+after it (a fix found while testing, dev tooling) get `/code-review` since the last reviewed
+commit before the merge.
 
 ## 6. Deepen: `/codebase-design`
 

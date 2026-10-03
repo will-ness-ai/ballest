@@ -180,12 +180,14 @@ describe("signing in", () => {
         link: { steamId: ALICE.steamId, personaName: "alice" },
         matchId: null,
         pings: false,
+        pingRole: "@Multiplayer ping",
       });
       expect((yield* call("GET", "/api/me", { as: UNLINKED })).body).toEqual({
         discordId: UNLINKED,
         link: null,
         matchId: null,
         pings: false,
+        pingRole: "@Multiplayer ping",
       });
     }),
   );
