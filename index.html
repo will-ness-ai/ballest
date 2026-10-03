@@ -121,10 +121,12 @@ input{font:inherit}
 .freshness .i{display:inline-grid;place-items:center;width:14px;height:14px;margin-left:6px;border-radius:50%;
   border:1px solid currentColor;font:700 9px/1 var(--f-hud);vertical-align:1px}
 
-.groups{display:flex;gap:4px;margin:0 var(--pad) 12px;padding:3px;border-radius:11px;
-  background:var(--surface);border:1px solid var(--line)}
-.gtab{flex:1;padding:8px 0;border-radius:8px;font-family:var(--f-hud);font-size:12.5px;
-  font-weight:600;color:var(--dim);letter-spacing:.03em}
+/* five tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a
+   label wraps onto two lines */
+.groups{display:flex;gap:2px;margin:0 var(--pad) 12px;padding:3px;border-radius:11px;
+  background:var(--surface);border:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.gtab{flex:1 0 auto;padding:8px 5px;border-radius:8px;font-family:var(--f-hud);font-size:12.5px;
+  font-weight:600;color:var(--dim);letter-spacing:.01em;white-space:nowrap}
 .gtab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
 
 /* the rail is a sheet down here */
@@ -654,7 +656,7 @@ footer a{color:var(--dim)}
    page, which is the board view above with a panel of the Map's facts where the rail
    would be. The homepage and All maps take the whole width, so the board view hides. */
 .ws{margin:0 var(--pad)}
-.ws[hidden],.mpanel[hidden]{display:none !important}
+.ws[hidden],.mpanel[hidden],.pls[hidden]{display:none !important}
 .app[data-view="workshop"] .main,
 .app[data-view="maps"] .main,
 .app[data-view="map"] .rail,
@@ -662,6 +664,60 @@ footer a{color:var(--dim)}
 .app[data-view="map"] .tiles,
 .app[data-view="map"] .bcard,
 .app[data-view="map"] .sortsw{display:none}
+/* ---------- Players ----------
+   One table over data/standings.json: every player ranked by the column the reader
+   sorts on. The header row stays put going down; your own row, when it is out of view,
+   is pinned to the foot as a card that says how far the next rank and the top 10 are.
+   On a phone the table is wider than the screen, so it scrolls inside a box one screen
+   tall, which keeps the rank and name columns put going sideways; from 820px it fits,
+   and the page itself scrolls. */
+.app[data-view="players"] .main{display:none}
+.pls{margin:0 var(--pad);--prw:38px}
+.pls .ptabs{margin:0 0 10px}
+.plwrap{position:relative;max-height:calc(100vh - 24px);overflow:auto;border:1px solid var(--line);
+  border-radius:var(--radius);background:var(--solid)}
+.plt{width:100%;border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
+.plt th,.plt td{padding:8px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line2);
+  background:linear-gradient(var(--tint,transparent),var(--tint,transparent)) var(--solid)}
+.plt th{position:sticky;top:0;z-index:2;font-family:var(--f-hud);font-size:10.5px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--faint);border-bottom-color:var(--line)}
+.plt th a{color:inherit;text-decoration:none}
+.plt th a:hover{color:var(--text)}
+.plt th.on{color:var(--accent)}
+.plt th.on a::after{content:" \25BE"}
+.plt .pr,.plt .pn{position:sticky;left:0;z-index:1;text-align:left}
+.plt .pn{left:var(--prw)}
+.plt th.pr,.plt th.pn{z-index:3}
+.plt .pr{width:var(--prw);min-width:var(--prw);padding-right:2px;text-align:right;
+  font-family:var(--f-marquee);font-size:12.5px;color:var(--dim)}
+.plt td{font-family:var(--f-hud);font-size:14px;font-weight:600;color:var(--dim)}
+.plt td.on{color:var(--text);font-size:16px;font-weight:700}
+.plt .z{opacity:.35}
+.plt .split{border-left:1px solid var(--line2)}
+.plt tr[data-m="1"]{--tint:var(--gold-soft)}
+.plt tr[data-m="2"]{--tint:var(--silver-soft)}
+.plt tr[data-m="3"]{--tint:var(--bronze-soft)}
+.plt tr[data-m="1"] .pr{color:var(--gold)}
+.plt tr[data-m="2"] .pr{color:var(--silver)}
+.plt tr[data-m="3"] .pr{color:var(--bronze)}
+.plt tr.me{--tint:var(--author-soft)}
+.plt tr.me .pr{box-shadow:inset 3px 0 var(--author)}
+.plt tr.focus{--tint:var(--accent-soft)}
+.who{display:flex;align-items:center;gap:9px;max-width:42vw}
+.who .marble{width:28px;height:28px}
+.who .nm{min-width:0;font-family:var(--f-body)}
+.you{flex:none;font:700 9px/1.5 var(--f-hud);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--bg);background:var(--author);border-radius:4px;padding:1px 5px}
+.plpin{position:sticky;bottom:0;left:0;z-index:4;display:flex;align-items:center;gap:8px 12px;
+  flex-wrap:wrap;width:100%;padding:10px 14px;text-align:left;border-top:1px solid var(--author);
+  background:linear-gradient(var(--author-soft),var(--author-soft)) var(--solid)}
+.plpin[hidden]{display:none}
+.plpin .marble{width:34px;height:34px}
+.plpin .me-t{display:grid;min-width:0}
+.plpin .me-t b{display:flex;gap:8px;align-items:center;font-weight:600;white-space:nowrap}
+.plpin .me-t small{color:var(--dim);font-size:12.5px;font-variant-numeric:tabular-nums}
+.plpin .gaps{margin-left:auto;display:flex;gap:16px;font-size:12.5px;color:var(--dim)}
+.plpin .gaps b{font:700 15px var(--f-hud);color:var(--text);font-variant-numeric:tabular-nums}
 .ws-head{display:flex;align-items:center;justify-content:space-between;gap:10px 14px;flex-wrap:wrap;margin-bottom:14px}
 .ws-h1{margin:0;font-family:var(--f-marquee);font-weight:400;font-size:21px;letter-spacing:.01em}
 .ws-tools{display:flex;align-items:center;gap:14px;flex:1 1 240px;justify-content:flex-end}
@@ -817,7 +873,7 @@ footer a{color:var(--dim)}
   .freshness{text-align:left;font-size:12.5px}
 
   .groups{gap:2px;margin:0 0 20px;padding:0;background:none;border:0;
-    border-bottom:1px solid var(--line)}
+    border-bottom:1px solid var(--line);overflow:visible}
   .gtab{flex:0 0 auto;padding:10px 15px;border-radius:0;border-bottom:2px solid transparent;
     margin-bottom:-1px}
   .gtab[aria-selected="true"]{background:none;color:var(--accent);border-bottom-color:var(--accent);
@@ -936,6 +992,12 @@ footer a{color:var(--dim)}
 
   /* the Workshop, full size */
   .ws{margin:0}
+  .pls{margin:0;--prw:52px}
+  .plwrap{max-height:none;overflow:visible}
+  .plt th,.plt td{padding:9px 14px}
+  .plt .pr{font-size:15px}
+  .who{max-width:340px;gap:12px}
+  .who .marble,.plpin .marble{width:34px;height:34px}
   .ws-h1{font-size:26px}
   .car{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
   .car-pic{aspect-ratio:auto;max-height:none;min-height:360px}
@@ -983,6 +1045,7 @@ footer a{color:var(--dim)}
   <nav class="groups" id="groups" role="tablist" aria-label="Season"></nav>
 
   <section class="ws" id="ws" hidden></section>
+  <section class="pls" id="pls" hidden></section>
 
   <div class="main">
     <aside class="mpanel" id="mpanel" hidden></aside>
@@ -1249,10 +1312,14 @@ function renderChrome(){
     .map(h => `<span><span class="marble">${ballSvg(h)}</span></span>`).join("");
 }
 function renderGroups(){
-  /* the Workshop is the homepage, so its tab leads */
-  $("#groups").innerHTML = (WORKSHOP.length ? [WORKSHOP_GROUP] : []).concat(groupsOf()).map(g =>
-    `<button class="gtab" role="tab" aria-selected="${g===group}" data-g="${esc(g)}">${esc(g)}</button>`
+  /* the Workshop is the homepage, so its tab leads; Players, over every board, comes last */
+  const on = $("#app").dataset.view === "players" ? PLAYERS_TAB : group;
+  $("#groups").innerHTML = (WORKSHOP.length ? [WORKSHOP_GROUP] : []).concat(groupsOf(), [PLAYERS_TAB]).map(g =>
+    `<button class="gtab" role="tab" aria-selected="${g===on}" data-g="${esc(g)}">${esc(g)}</button>`
   ).join("");
+  /* where the bar scrolls sideways, keep the selected tab in it */
+  const bar = $("#groups"), sel = bar.querySelector('[aria-selected="true"]');
+  if(sel) bar.scrollLeft = Math.max(0, sel.offsetLeft + sel.offsetWidth - bar.clientWidth);
 }
 function renderSelectors(){
   /* a Map's page has its own panel where the rail would be */
@@ -1461,6 +1528,7 @@ function fillViewport(){
   ensureRendered(() => document.documentElement.scrollHeight > window.innerHeight + 800);
 }
 function onScroll(){
+  if($("#app").dataset.view === "players"){ plScroll(); return; }
   if(playerId) return;            /* the board is behind a player page, not on screen */
   if(!/^(board|map)$/.test($("#app").dataset.view)) return;   /* or behind the Workshop */
   if(!boardData || shown >= visible.length) return;
@@ -2523,15 +2591,217 @@ function showMap(pfid, focus){
   selectBoard(m.name, focus).then(() => drawSpread(m));
 }
 
+/* ---------- Players ----------
+   #/players, or #/players/<scope>/<sort>: every player ranked by one count, world
+   records, podiums, top 5s or Maps finished, on the Circuit, the Workshop or both.
+   data/standings.json (build_standings) carries the counts and is fetched the first
+   time the page opens; which column leads is the reader's choice, so the ranking is
+   done here. Equal counts share a rank (1, 2, 2, 4), as on the podium sort, and inside
+   a tie the other columns, then the name, decide the order. A search filters the list
+   and keeps each player's real rank. */
+const PLAYERS_TAB = "Players";
+const PL_CHUNK = 50;
+const PL_SCOPES = [["all", "All"], ["circuit", "Circuit"], ["workshop", "Workshop"]];
+/* key, header, what one of it is called, and how a player with one is described */
+const PL_COLS = [["wr", "WRs", ["world record", "world records"], "a world record"],
+  ["pod", "Podiums", ["podium", "podiums"], "a podium"],
+  ["t5", "Top 5s", ["top 5", "top 5s"], "a top 5"],
+  ["maps", "Maps", ["map finished", "maps finished"], "a Workshop time"]];
+const PL_COL = Object.fromEntries(PL_COLS.map(c => [c[0], c]));
+const PL_ROUTE = /^#\/players(?:\/(all|circuit|workshop)(?:\/(wr|pod|t5|maps))?)?$/;
+const plHash = (scope, sort) => "#/players" + (scope === "all" && sort === "wr" ? "" : "/" + scope + "/" + sort);
+/* the Circuit has no Maps column: nobody finishes a Map there */
+const plCols = scope => PL_COLS.filter(c => scope !== "circuit" || c[0] !== "maps");
+
+let STANDINGS = null, standingsReq = null;
+function loadStandings(){
+  if(!standingsReq) standingsReq = fetch("data/standings.json")
+    .then(r => { if(!r.ok) throw new Error("fetch standings.json -> " + r.status); return r.json(); })
+    .then(d => { STANDINGS = {tracks: d.tracks, maps: d.maps,
+      players: d.players.map(([steam_id, persona, cwr, wwr, cpod, wpod, ct5, wt5, maps]) =>
+        ({steam_id, persona, c: {wr: cwr, pod: cpod, t5: ct5}, w: {wr: wwr, pod: wpod, t5: wt5}, maps}))}; })
+    .catch(err => { standingsReq = null; throw err; });   /* the next visit tries again */
+  return standingsReq;
+}
+const plVal = (p, k, scope) => k === "maps" ? (scope === "circuit" ? 0 : p.maps)
+  : scope === "circuit" ? p.c[k] : scope === "workshop" ? p.w[k] : p.c[k] + p.w[k];
+
+let pl = {scope: "all", sort: "wr", q: "", shown: PL_CHUNK, me: null, rows: []};
+const PL_RANKED = new Map();       /* "<scope>/<sort>" -> ranked rows, worked out once each */
+function plRanked(){
+  const {scope, sort} = pl, key = scope + "/" + sort;
+  if(PL_RANKED.has(key)) return PL_RANKED.get(key);
+  const others = PL_COLS.map(c => c[0]).filter(k => k !== sort);
+  const rows = STANDINGS.players.map(p => ({p, v: plVal(p, sort, scope), o: others.map(k => plVal(p, k, scope))}))
+    .filter(r => r.v > 0)
+    .sort((a, b) => b.v - a.v || a.o.reduce((d, x, i) => d || b.o[i] - x, 0)
+      || personaOf(a.p).localeCompare(personaOf(b.p)) || (a.p.steam_id < b.p.steam_id ? -1 : 1));
+  rows.forEach((r, i) => { r.rank = i && r.v === rows[i - 1].v ? rows[i - 1].rank : i + 1; });
+  PL_RANKED.set(key, rows);
+  return rows;
+}
+
+const plCell = n => n ? fmtN(n) : `<span class="z">&ndash;</span>`;
+function plHeadHtml(cols){
+  return `<tr><th class="pr" scope="col">#</th><th class="pn" scope="col">Player</th>
+    ${cols.map(([k, label, noun]) => `<th scope="col"${k === pl.sort ? ` class="on" aria-sort="descending"` : ""}><a
+      href="${esc(plHash(pl.scope, k))}" title="Sort by ${noun[1]}">${label}</a></th>`).join("")}
+    ${pl.scope === "all" ? `<th class="split" scope="col">Circuit WRs</th><th scope="col">Workshop WRs</th>` : ""}</tr>`;
+}
+function plRowHtml(r, cols){
+  const p = r.p, me = p.steam_id === pl.me;
+  return `<tr data-m="${r.rank <= 3 ? r.rank : 0}" data-id="${esc(p.steam_id)}"${me ? ` class="me"` : ""}>
+    <td class="pr">${r.rank}</td>
+    <td class="pn"><span class="who">${marble(p)}<span class="nm">${playerLink(p.steam_id, personaOf(p),
+      pl.scope === "all" ? null : pl.scope)}</span>${me ? `<span class="you">You</span>` : ""}</span></td>
+    ${cols.map(([k]) => `<td${k === pl.sort ? ` class="on"` : ""}>${plCell(plVal(p, k, pl.scope))}</td>`).join("")}
+    ${pl.scope === "all" ? `<td class="split">${plCell(p.c.wr)}</td><td>${plCell(p.w.wr)}</td>` : ""}</tr>`;
+}
+/* your own row as a card: where you stand, and what the next rank and the top 10 take */
+function plPinHtml(all){
+  const i = pl.q.trim() || !pl.me ? -1 : all.findIndex(r => r.p.steam_id === pl.me);
+  if(i < 0) return "";
+  const r = all[i], noun = PL_COL[pl.sort][2];
+  let up = null;
+  for(let j = i - 1; j >= 0 && !up; j--) if(all[j].v > r.v) up = all[j];
+  const next = up ? `<span><b>+${fmtN(up.v - r.v)}</b> to ${ord(up.rank)}</span>`
+    : `<span><b>${all[i + 1] && all[i + 1].v === r.v ? "Shares" : "Holds"}</b> the lead</span>`;
+  const ten = r.rank <= 10 ? `<span><b>In</b> the top 10</span>`
+    : `<span><b>+${fmtN(all[9].v - r.v)}</b> to the top 10</span>`;
+  return `<button type="button" class="plpin" id="plpin" hidden aria-label="Go to your row">${marble({steam_id: r.p.steam_id})}
+    <span class="me-t"><b>${esc(personaOf(r.p))}<span class="you">You</span></b>
+      <small>${ord(r.rank)} &middot; ${fmtN(r.v)} ${r.v === 1 ? noun[0] : noun[1]}</small></span>
+    <span class="gaps">${next}${ten}</span></button>`;
+}
+function plNote(all){
+  const {tracks, maps} = STANDINGS;
+  const where = {circuit: plural(tracks, "Circuit track", "Circuit tracks"),
+    workshop: plural(maps, "Workshop map", "Workshop maps")};
+  where.all = where.circuit + " and " + where.workshop;
+  return pl.q.trim() ? `${fmtN(pl.rows.length)} of ${plural(all.length, "player", "players")} match, ranks kept`
+    : `${plural(all.length, "player", "players")} with ${PL_COL[pl.sort][3]} · ${where[pl.scope]}`;
+}
+function plList(){
+  const all = plRanked(), q = pl.q.trim().toLowerCase(), cols = plCols(pl.scope);
+  pl.rows = q ? all.filter(r => matchesQuery(r.p, q)) : all;
+  pl.shown = PL_CHUNK;
+  $("#plnote").textContent = plNote(all);
+  const wrap = $("#plwrap");
+  wrap.scrollTop = 0;
+  if(!plInBox(wrap) && wrap.getBoundingClientRect().top < 0) scrollTo({top: wrap.getBoundingClientRect().top + scrollY - 12});
+  wrap.innerHTML = !pl.rows.length ? (q ? NOBODY : `<div class="empty"><b>Nobody here yet.</b></div>`)
+    : `<table class="plt"><thead>${plHeadHtml(cols)}</thead><tbody>${
+        pl.rows.slice(0, pl.shown).map(r => plRowHtml(r, cols)).join("")}</tbody></table>${plPinHtml(all)}`;
+  plScroll();
+}
+function plMore(){
+  if(pl.shown >= pl.rows.length) return false;
+  const cols = plCols(pl.scope), end = Math.min(pl.shown + PL_CHUNK, pl.rows.length);
+  $("#plwrap tbody").insertAdjacentHTML("beforeend", pl.rows.slice(pl.shown, end).map(r => plRowHtml(r, cols)).join(""));
+  pl.shown = end;
+  return true;
+}
+/* What of the table is on screen: the box's own view on a phone, where it scrolls
+   inside itself, or the window's from 820px, where the page scrolls. */
+const plInBox = wrap => getComputedStyle(wrap).overflowY !== "visible";
+function plView(wrap){
+  const b = wrap.getBoundingClientRect();
+  return {top: Math.max(b.top, 0), bottom: Math.min(b.bottom, innerHeight)};
+}
+/* how far below the view the drawn rows run on */
+function plAhead(wrap){
+  return plInBox(wrap) ? wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight
+    : wrap.getBoundingClientRect().bottom - innerHeight;
+}
+/* keep rows drawn a little past the view, so there is always something to scroll towards */
+function plFill(){
+  const wrap = $("#plwrap");
+  for(let guard = 0; wrap && plAhead(wrap) < 600 && guard < 40 && plMore(); guard++);
+}
+function plScroll(){
+  const wrap = $("#plwrap");
+  if(!wrap) return;
+  plFill();
+  plPin();
+}
+/* the card shows while your row is out of view, or not drawn yet */
+function plPin(){
+  const pin = $("#plpin");
+  if(!pin) return;
+  const tr = $("#plwrap tr.me"), wrap = $("#plwrap");
+  let away = true;
+  if(tr){
+    const a = tr.getBoundingClientRect(), v = plView(wrap), head = $("#plwrap thead").offsetHeight;
+    away = a.top >= v.bottom - (pin.hidden ? 0 : pin.offsetHeight) || a.bottom <= v.top + head;
+  }
+  pin.hidden = !away;
+}
+function plJump(){
+  for(let guard = 0; !$("#plwrap tr.me") && guard < 400 && plMore(); guard++);
+  const tr = $("#plwrap tr.me"), wrap = $("#plwrap");
+  if(!tr) return;
+  document.querySelectorAll("#plwrap tr.focus").forEach(n => n.classList.remove("focus"));
+  tr.classList.add("focus");
+  if(plInBox(wrap)) wrap.scrollTop = tr.offsetTop - wrap.clientHeight / 2;
+  else scrollTo({top: tr.getBoundingClientRect().top + scrollY - innerHeight / 2});
+  plPin();
+}
+function plHtml(){
+  return `<div class="ws-head"><h1 class="ws-h1">Players</h1><span class="ws-tools">
+      <input class="ws-q" id="plq" type="search" placeholder="Find a player" aria-label="Find a player"
+        autocomplete="off" value="${esc(pl.q)}"></span></div>
+    <nav class="ptabs" aria-label="Where to count">${PL_SCOPES.map(([k, label]) =>
+      `<a href="${esc(plHash(k, k === "circuit" && pl.sort === "maps" ? "wr" : pl.sort))}"${
+        k === pl.scope ? ` aria-current="page"` : ""}>${label}</a>`).join("")}</nav>
+    <p class="ws-note" id="plnote"></p>
+    <div class="plwrap" id="plwrap"></div>`;
+}
+async function showPlayers(scope, sort){
+  if(scope === "circuit" && sort === "maps"){ location.replace(plHash(scope, "wr")); return; }
+  setView("players");
+  document.title = "Players · " + SITE_TITLE;
+  closeSheet();
+  pl.scope = scope; pl.sort = sort; pl.me = getMe();
+  const el = $("#pls");
+  el.hidden = false;
+  if(!STANDINGS){
+    el.innerHTML = Array.from({length:8}, () => `<div class="skel"><span></span><span></span><span></span></div>`).join("");
+    try { await loadStandings(); }
+    catch(err){
+      if($("#app").dataset.view !== "players") return;
+      el.innerHTML = `<div class="empty"><b>The players didn't load.</b>
+        The data file may still be refreshing. Try again in a moment.</div>`;
+      return;
+    }
+    if($("#app").dataset.view !== "players") return;   /* the reader moved on while it was fetching */
+  }
+  el.innerHTML = plHtml();
+  plList();
+}
+let plTimer;
+$("#pls").addEventListener("input", e => {
+  if(e.target.id !== "plq") return;
+  clearTimeout(plTimer);
+  plTimer = setTimeout(() => { pl.q = e.target.value; plList(); }, 120);
+});
+$("#pls").addEventListener("click", e => { if(e.target.closest("#plpin")) plJump(); });
+/* scroll does not bubble, so the box's own scroll is caught on the way down;
+   the page's comes in through onScroll */
+$("#pls").addEventListener("scroll", e => { if(e.target.id === "plwrap") plScroll(); }, {capture: true, passive: true});
+
 /* which of the page's views is on screen: a Circuit board, a player, a head to head,
    or one of the Workshop's three. Each show* function calls this first. */
 function setView(v){
+  const was = $("#app").dataset.view;
   $("#app").dataset.view = v;
   if(v !== "player"){ playerId = null; $("#player").hidden = true; $("#player").innerHTML = ""; }
   if(v !== "vs"){ vs = null; $("#vs").hidden = true; $("#vs").innerHTML = ""; }
   closeCompare();
   $("#ws").hidden = v !== "workshop" && v !== "maps";
   $("#mpanel").hidden = v !== "map";
+  $("#pls").hidden = v !== "players";
+  if(v !== "players"){ $("#pls").innerHTML = ""; }
+  if((was === "players") !== (v === "players")) renderGroups();   /* the Players tab lights up */
   if(v !== "maps") drawerOpen = false;
   if(/^(workshop|maps|map)$/.test(v) && group !== WORKSHOP_GROUP){ group = WORKSHOP_GROUP; renderGroups(); }
 }
@@ -2556,6 +2826,8 @@ function route(){
   if(p){ showPlayer(p[1], p[2]); return; }
   const v = VS_ROUTE.exec(location.hash);
   if(v){ showVs(v[1], v[2]); return; }
+  const pls = PL_ROUTE.exec(location.hash);
+  if(pls){ showPlayers(pls[1] || "all", pls[2] || "wr"); return; }
   if(WORKSHOP.length){
     const m = MAP_ROUTE.exec(location.hash);
     if(m){ showMap(m[1], m[2]); return; }
@@ -2707,7 +2979,8 @@ $("#groups").addEventListener("click", e => {
   const t = e.target.closest("[data-g]"); if(!t) return;
   $("#q").value = ""; filtering = false;
   /* the route carries the board, and showBoard reads the season off it */
-  go(t.dataset.g === WORKSHOP_GROUP ? "#/workshop" : boardHash(boardsIn(t.dataset.g)[0].name));
+  go(t.dataset.g === WORKSHOP_GROUP ? "#/workshop" : t.dataset.g === PLAYERS_TAB ? plHash("all", "wr")
+    : boardHash(boardsIn(t.dataset.g)[0].name));
 });
 function pickBoard(e){
   const t = e.target.closest("[data-b]"); if(!t) return;

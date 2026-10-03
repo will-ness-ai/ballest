@@ -22,7 +22,7 @@ Checks:
   - no board is empty, and rows are index-aligned to rank (rows[i].rank == i+1)
   - every file derive() produces from the committed boards — podiums.json and
     players/<shard>.json, the shards over the Workshop boards too, and
-    names.json — matches the committed copy
+    names.json and standings.json — matches the committed copy
   - the composite board file equals the one derive() appends, and index.json
     lists it
   - every Map workshop.json lists with a board has that file, rank-aligned and

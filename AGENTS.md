@@ -132,7 +132,7 @@ Preserve that in any change to the write path. The pagination stop condition in
 `fetch_board` is deliberately conservative for the same reason — don't simplify it.
 
 **`.gitignore` ignores `data/*`**, re-including only `!data/index.json`, `!data/boards/`,
-`!data/podiums.json`, `!data/players/`, `!data/workshop.json`, `!data/workshop/` and `!data/names.json`. A new artifact written under `data/` is
+`!data/podiums.json`, `!data/players/`, `!data/workshop.json`, `!data/workshop/`, `!data/names.json` and `!data/standings.json`. A new artifact written under `data/` is
 invisible to git and 404s in production; the workflow's `git add` line also has to name
 it.
 
@@ -153,7 +153,7 @@ regenerated data on a feature branch — it will conflict. A brand-new data arti
 code that introduces it, so the feature works on merge rather than after the next
 refresh. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch only
 `data/index.json`, `data/boards/`, `data/podiums.json`, `data/players/`,
-`data/workshop.json`, `data/workshop/` and `data/names.json`; keep code changes out of them.
+`data/workshop.json`, `data/workshop/`, `data/names.json` and `data/standings.json`; keep code changes out of them.
 
 `CODING_STANDARDS.md` is the review checklist; it also holds the branch and commit
 conventions.
