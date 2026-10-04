@@ -611,24 +611,26 @@ const textAt = (
 
 /**
  * Labels for points down the chart, kept at least `gap` apart: pushed down in order from no higher
- * than `top`, then back up from `bottom`. Each comes back with `at`, where it goes.
+ * than `top`, then back up from `bottom`. Each comes back with `labelY`, where it goes.
  */
 const spread = <A extends { readonly y: number }>(
   labels: ReadonlyArray<A>,
   gap: number,
   top: number,
   bottom: number,
-): Array<A & { at: number }> => {
-  const placed = [...labels].sort((a, b) => a.y - b.y).map((l) => ({ ...l, at: l.y }));
+): Array<A & { labelY: number }> => {
+  const placed = [...labels].sort((a, b) => a.y - b.y).map((l) => ({ ...l, labelY: l.y }));
   for (let i = 0; i < placed.length; i++) {
     const prev = placed[i - 1],
       cur = placed[i];
-    if (cur !== undefined) cur.at = Math.max(cur.at, prev === undefined ? top : prev.at + gap);
+    if (cur !== undefined)
+      cur.labelY = Math.max(cur.labelY, prev === undefined ? top : prev.labelY + gap);
   }
   for (let i = placed.length - 1; i >= 0; i--) {
     const cur = placed[i],
       next = placed[i + 1];
-    if (cur !== undefined) cur.at = Math.min(cur.at, next === undefined ? bottom : next.at - gap);
+    if (cur !== undefined)
+      cur.labelY = Math.min(cur.labelY, next === undefined ? bottom : next.labelY - gap);
   }
   return placed;
 };
@@ -724,11 +726,15 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
     });
   }
 
+  // Where each Player's line meets the right edge, for their name in the legend.
+  const lineEnds = new Map<string, number>();
   for (const player of view.players) {
     const pts = history.filter((e) => e.steamId === player.steamId);
     const colour = colourOf(player.steamId);
     const pb = personalBests[player.steamId];
     const first = pts[0];
+    const last = pts.at(-1)?.ticks ?? pb;
+    if (last !== undefined) lineEnds.set(player.steamId, y(secs(last)));
     if (pb !== undefined)
       lines += `<line x1="${x(0)}" y1="${y(secs(pb))}" x2="${x(first === undefined ? duration : first.at / 1000)}" y2="${y(secs(pb))}" stroke="${colour}" stroke-width="1.6" stroke-dasharray="2 3"/>`;
     if (first === undefined) continue;
@@ -743,32 +749,36 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
 
   // At least a line apart.
   for (const l of spread(leftLabels, 13, -Infinity, H - B + 4)) {
-    if (Math.abs(l.at - l.y) > 2)
-      lines += `<path d="M${L - 6} ${l.at}L${L} ${l.y}" stroke="${String(l.style.color)}" stroke-opacity="0.6"/>`;
+    if (Math.abs(l.labelY - l.y) > 2)
+      lines += `<path d="M${L - 6} ${l.labelY}L${L} ${l.y}" stroke="${String(l.style.color)}" stroke-opacity="0.6"/>`;
     if (l.medal !== null)
       overlays.push(
         img(svgUri(medalSvg(l.medal, 11)), 11, medalHeight(11), {
           position: "absolute",
           left: L - 19,
-          top: l.at - 8,
+          top: l.labelY - 8,
         }),
       );
-    overlays.push(textAt(L - 24, l.at + 3.5, l.text, l.style, "end"));
+    overlays.push(textAt(L - 24, l.labelY + 3.5, l.text, l.style, "end"));
   }
 
-  const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`;
-  const holder = breaks.at(-1)?.steamId;
   // Each timed Player's name beside where their line ends: slower times sit higher.
   const legend = spread(
-    view.standings.flatMap((s) => {
-      const last = history.filter((e) => e.steamId === s.player.steamId).at(-1);
-      const end = last?.ticks ?? s.ticks;
-      return end === null ? [] : [{ y: y(secs(end)), standing: s }];
-    }),
+    view.standings.flatMap((s) =>
+      s.ticks === null
+        ? []
+        : [{ y: lineEnds.get(s.player.steamId) ?? y(secs(s.ticks)), standing: s }],
+    ),
     36,
     T,
     H - B - 8,
   );
+  for (const { y: end, labelY, standing } of legend)
+    if (Math.abs(labelY - end) > 2)
+      lines += `<path d="M${W - R} ${end}L${W - R + 10} ${labelY + 1}" stroke="${colourOf(standing.player.steamId)}" stroke-opacity="0.6"/>`;
+
+  const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`;
+  const holder = breaks.at(-1)?.steamId;
   const untimed = view.standings.filter((s) => s.ticks === null);
 
   return backdrop(
@@ -787,12 +797,12 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
         `${view.minutes}-minute ${MATCH_TYPE_NAME[view.type]} · WR at the start ${map === null ? "none" : label10(map.worldRecordTicks)} · every PB as it happened`,
       ),
     ),
-    ...legend.map(({ at, standing: s }) =>
+    ...legend.map(({ labelY, standing: s }) =>
       box(
         {
           position: "absolute",
           left: W - R + 12,
-          top: at - 8,
+          top: labelY - 8,
           width: R - 24,
           gap: 8,
           alignItems: "flex-start",
