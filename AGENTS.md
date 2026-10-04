@@ -28,12 +28,20 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   the Circuit boards and keeps the Workshop boards current (`collect_workshop`).
 - `tools/steampy_common.py` — the steam.py leaderboard requests the collector and the
   Discord script share: read a board by ID, find a board by name.
+- `tools/db_writer.py` — the collector's database write (ADR 0005): `write_refresh` puts
+  one Refresh into Postgres in one transaction as change-only Score history, and
+  `record_refresh` is the step `on_ready` calls after `write_site`. `tools/check_db.py`
+  compares the database's open Entries with the board files (the parity check), and
+  `tools/db_backfill.py` replays the git history of `data/` through the same writer. Their
+  tests are `tools/tests/`. The tables: `docs/data.md`.
 - `tools/ugc_discord_leaderboard.py` — local, on demand: reads every Workshop map's
   board and prints a Discord post (most custom maps beaten, most author medals, most
   world records and top 5s, and the longest-standing campaign and Workshop records).
   Not part of CI and writes nothing into the repo.
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
-  which Vercel deploys like any other push.
+  which Vercel deploys like any other push, then runs the parity check when the
+  `DATABASE_URL` secret is set. `backfill.yml`, by hand only, runs the backfill against
+  production (cloud sessions can't reach Neon) in the same concurrency group.
 - `web/` — the Next.js app Vercel builds and serves (ADR 0004, plan in
   `docs/nextjs-migration.md`; Vercel project `ballest`, Root Directory `web`). It serves
   the root site files, copied into `web/public/` at build time by
@@ -74,9 +82,23 @@ the result with `python tools/check_data.py --data scratch/data`: the run reads 
 writes a fresh copy of `data/`, so the whole write path runs and the committed data stays
 as it is.
 
+The database step follows the same split. A run writes `DATABASE_URL` (production, set
+only in CI) and skips the step with a log line when it is unset. A run with `--out` ignores
+`DATABASE_URL` and writes only `DEV_DATABASE_URL`, which for now is a local Postgres, not a
+Neon branch. Create a database and migrate it with
+`DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev node web/scripts/migrate.mjs`,
+run `DEV_DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev python tools/steampy_collect.py --out scratch/data`,
+and check it with `DATABASE_URL=<that URL> python tools/check_db.py --data scratch/data`.
+`--workshop-only` writes no Refresh.
+
 Every file is formatted by Prettier or Ruff and linted by ESLint or Ruff; run `pnpm check`
 at the root before pushing, and read `docs/linting.md` for setup, a disabled rule, or a
-branch from before the reformat. The site and the collector have no tests or type checks;
+branch from before the reformat. The site and the collector have no type checks, and the
+collector's only tests are the database writer's: `python -m pytest tools/tests` (deps in
+`tools/requirements-test.txt`), against the Postgres at `TEST_DATABASE_URL` (default
+`postgres://postgres:postgres@localhost:5432/postgres`), after `pnpm install` in `web/`,
+since each test's database is built by `web/scripts/migrate.mjs`. `collector-tests` in
+`check.yml` runs them in CI.
 `tools/page-check` (part of `pnpm lint`) lints the page's script and its escaping. Verify front-end changes by loading the served page. After editing `index.html`, reload the page (a hash
 change keeps the old script), and test the board's infinite scroll with a real wheel
 scroll: a scripted `scrollTo` does not trigger it in the preview pane. Verify collector changes with
@@ -133,6 +155,20 @@ the Maps from `workshop_boards`, so when the Workshop step fails they are built 
 committed Map files and nobody's Workshop times drop off their page.
 Preserve that in any change to the write path. The pagination stop condition in
 `fetch_board` is deliberately conservative for the same reason — don't simplify it.
+
+**The database write takes what the JSON guards decided, never more.** `record_refresh`
+runs after `write_site` and is handed exactly what it published. A board in `reused` (kept
+from the committed copy) is a failed read in `board_reads` and its Entries are untouched,
+and so is a board that came back empty, so no read can close a whole board. Only the Maps
+in the Workshop result `write_site` returns count as read: when the Workshop step fails,
+its guards keep the committed files, or its write fails, no Map is read, and a Map the step
+skipped gets no `board_reads` row at all. Only a successful read moves
+`last_seen_refresh`. The whole Refresh is one transaction, so any error leaves the database
+as it was. A database failure never stops the JSON, which is still the source: it is an
+`::error::` line, and the parity check (`tools/check_db.py`, after the commit step) turns
+the run red. The score stored is the raw `score_ms`, the derived boards are not stored, and
+`board_kind` reads Overall from the name prefix, as `isPoints` does. A backfilled Entry's
+first seen is its commit's time, so it reads as "no later than".
 
 **`.gitignore` ignores `data/*`**, re-including only `!data/index.json`, `!data/boards/`,
 `!data/podiums.json`, `!data/players/`, `!data/workshop.json`, `!data/workshop/`, `!data/names.json` and `!data/standings.json`. A new artifact written under `data/` is

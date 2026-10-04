@@ -39,3 +39,5 @@ ignore = [
   "SIM105",
   "SIM115",
 ]
+# The collector's tests (pytest): assert is how pytest checks, and node is whatever the PATH has.
+"tools/tests/*.py" = ["S101", "S607"]

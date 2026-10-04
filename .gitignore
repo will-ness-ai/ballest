@@ -27,6 +27,7 @@ tools/stop-capture.ps1
 # a prototype page can be opened at /scratch/<name>.html without landing in a commit.
 scratch/
 __pycache__/
+.pytest_cache/
 node_modules/
 *.pyc
 
