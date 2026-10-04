@@ -762,24 +762,22 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
     overlays.push(textAt(L - 24, l.labelY + 3.5, l.text, l.style, "end"));
   }
 
-  // Each timed Player's name beside where their line ends: slower times sit higher.
-  const legend = spread(
-    view.standings.flatMap((s) =>
-      s.ticks === null
-        ? []
-        : [{ y: lineEnds.get(s.player.steamId) ?? y(secs(s.ticks)), standing: s }],
-    ),
-    36,
-    T,
-    H - B - 8,
-  );
+  // Each line's Player named beside where it ends: slower times sit higher. Names with their
+  // time a row below while they fit, else the name alone, packed as tight as it takes.
+  const ends = view.standings.flatMap((s) => {
+    const end = lineEnds.get(s.player.steamId) ?? (s.ticks === null ? undefined : y(secs(s.ticks)));
+    return end === undefined ? [] : [{ y: end, standing: s }];
+  });
+  const room = H - B - 8 - T;
+  const roomy = (ends.length - 1) * 36 <= room;
+  const legend = spread(ends, roomy ? 36 : Math.min(18, room / (ends.length - 1)), T, H - B - 8);
   for (const { y: end, labelY, standing } of legend)
     if (Math.abs(labelY - end) > 2)
       lines += `<path d="M${W - R} ${end}L${W - R + 10} ${labelY + 1}" stroke="${colourOf(standing.player.steamId)}" stroke-opacity="0.6"/>`;
 
   const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`;
   const holder = breaks.at(-1)?.steamId;
-  const untimed = view.standings.filter((s) => s.ticks === null);
+  const untimed = view.standings.filter((s) => s.ticks === null && !lineEnds.has(s.player.steamId));
 
   return backdrop(
     { width: W, height: H, position: "relative" },
@@ -798,30 +796,53 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
       ),
     ),
     ...legend.map(({ labelY, standing: s }) =>
-      box(
-        {
-          position: "absolute",
-          left: W - R + 12,
-          top: labelY - 8,
-          width: R - 24,
-          gap: 8,
-          alignItems: "flex-start",
-        },
-        marble(hueFor(s.player.steamId), 16, { marginTop: 1 }),
-        box(
-          { flexDirection: "column", flexShrink: 1, minWidth: 0 },
-          box({ fontWeight: 600, fontSize: 11 }, nameOf(s.player.steamId)),
-          box(
+      roomy
+        ? box(
             {
-              fontFamily: F.hud,
-              fontWeight: 600,
-              fontSize: 10,
-              color: s.player.steamId === holder ? C.gold : C.dim,
+              position: "absolute",
+              left: W - R + 12,
+              top: labelY - 8,
+              width: R - 24,
+              gap: 8,
+              alignItems: "flex-start",
             },
-            `${s.ticks === null ? "" : formatTime(s.ticks)}${s.player.steamId === holder ? "  ★ new WR" : ""}`,
+            marble(hueFor(s.player.steamId), 16, { marginTop: 1 }),
+            box(
+              { flexDirection: "column", flexShrink: 1, minWidth: 0 },
+              box({ fontWeight: 600, fontSize: 11 }, nameOf(s.player.steamId)),
+              box(
+                {
+                  fontFamily: F.hud,
+                  fontWeight: 600,
+                  fontSize: 10,
+                  color: s.player.steamId === holder ? C.gold : C.dim,
+                },
+                `${s.ticks === null ? "no time" : formatTime(s.ticks)}${s.player.steamId === holder ? "  ★ new WR" : ""}`,
+              ),
+            ),
+          )
+        : box(
+            {
+              position: "absolute",
+              left: W - R + 12,
+              top: labelY - 5,
+              width: R - 24,
+              gap: 6,
+              alignItems: "center",
+            },
+            marble(hueFor(s.player.steamId), 11),
+            box(
+              {
+                fontWeight: 600,
+                fontSize: 10,
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                color: s.player.steamId === holder ? C.gold : C.text,
+              },
+              nameOf(s.player.steamId),
+            ),
           ),
-        ),
-      ),
     ),
     untimed.length === 0
       ? null
