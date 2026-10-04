@@ -81,9 +81,9 @@ Vercel issues the certificate once the record resolves.
 
 ### 6. Populate the data
 
-Repo → **Actions → "Refresh leaderboards" → Run workflow**. It logs in, writes
-`data/index.json` + `data/boards/*.json` and commits them, and Vercel deploys the commit. The site goes live at
-`https://ballest.willness.dev` shortly after.
+Repo → **Actions → "Refresh leaderboards" → Run workflow**. It logs in, writes the Refresh
+to the database, commits `data/`, and revalidates the site, which shows it at
+`https://ballest.willness.dev` on the next request.
 
 ---
 
