@@ -442,8 +442,29 @@ const round2: Record<string, { label: string; post: () => Promise<void> }> = {
   },
 };
 
+// ---------------------------------------------------------------- round 3: A's date header
+
+const unix = Math.floor(now.getTime() / 1000);
+const refreshed = Math.floor(new Date("2026-10-04T03:38:34Z").getTime() / 1000);
+const weekday = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const counts = `${post.maps.length.toLocaleString("en")} Workshop maps · ${players.toLocaleString("en")} players`;
+const body = () => `## 📅 Since yesterday\n${sinceLines().join("\n")}\n${pointer}`;
+const withHeader = (header: string) => async () => {
+  const head = await send(channel, { content: `${header}\n${body()}`, files: await standingsPng() });
+  const t = await threadOn(head.id);
+  for (const content of pack(rest_())) await send(t, { content });
+};
+
+const round3: Record<string, { label: string; post: () => Promise<void> }> = {
+  A: { label: "A · Title, date under it", post: withHeader(`# Custom Map Standings\n-# ${day(post.generated_at)} · ${counts}`) },
+  B: { label: "B · The day is the title", post: withHeader(`# ${weekday}\n-# Custom map standings · ${counts}`) },
+  C: { label: "C · Title and date on one line", post: withHeader(`# Custom Map Standings · ${day(post.generated_at)}\n-# ${counts}`) },
+  D: { label: "D · Discord dates (each reader's own format), as-of time", post: withHeader(`# Custom Map Standings\n-# <t:${unix}:D> · ${counts} · data as of <t:${refreshed}:R>`) },
+  E: { label: "E · Daily report numbered by day", post: withHeader(`# Daily Report #1 · ${day(post.generated_at)}\n-# Custom map standings · ${counts}`) },
+};
+
 const [round = "1", ...picked] = process.argv.slice(2);
-const variants = round === "1" ? round1 : round2;
+const variants = round === "1" ? round1 : round === "2" ? round2 : round3;
 for (const key of picked.length ? picked : Object.keys(variants)) {
   const v = variants[key]!;
   await divider(v.label);
