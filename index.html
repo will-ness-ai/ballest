@@ -7550,6 +7550,60 @@
       .pt-tl li.now b {
         color: var(--gold);
       }
+      .pt-seg {
+        display: inline-flex;
+        margin: 10px 0 4px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .pt-seg button {
+        background: none;
+        border: 0;
+        color: var(--dim);
+        padding: 6px 12px;
+        font: 600 12px var(--f-hud);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .pt-seg button[aria-pressed="true"] {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .pt-pickname {
+        background: none;
+        border: 0;
+        padding: 0;
+        font: inherit;
+        font-weight: 600;
+        text-decoration: underline dotted;
+        cursor: pointer;
+      }
+      .pt-pickhead {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+      .pt-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 10px 0 4px;
+      }
+      .pt-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font-size: 13px;
+      }
+      .pt-chip i {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+      }
       #ptPick {
         position: fixed;
         right: 16px;
@@ -7617,32 +7671,34 @@
            round 2 verdict: B's place above the rows, a summary that opens the tabs.
            round 3 verdict: a mix of B (record sparkline) and C (last holders).
            round 4 verdict: D, the sparkline over reign bars for the last three holders.
-           Round 5: the Records tab once the summary is open (opens open this round). */
+           round 5 verdict: E (big step chart over every reign's bar), plus something of C's
+           per-holder lanes, maybe a colour per holder.
+           Round 6: how E shows who held it. */
         const VARIANTS = [
           {
             key: "A",
-            name: "Every reign",
-            note: "The summary's reign bars for every record since 6 Sep, newest first. No separate chart.",
+            name: "Holder colours",
+            note: "Every holder gets their marble's colour, on their steps in the chart and on their bars. The same colour means the same player.",
           },
           {
             key: "B",
-            name: "Chart and table",
-            note: "Round 1's winner as it was: a big step chart and a table of time, holder, set, cut and held.",
+            name: "By holder switch",
+            note: "Round 5's E, plus a switch that regroups the bars into one lane per holder on the same dates.",
           },
           {
             key: "C",
-            name: "Lane per holder",
-            note: "One lane per player who held the record, with all their reigns as segments on a shared timeline.",
+            name: "Pick a holder",
+            note: "Click any name (the current holder to start) to light up all their reigns in the chart and bars; everyone else dims.",
           },
           {
             key: "D",
-            name: "Timeline cards",
-            note: "A vertical timeline, newest at the top: each record a card with its cut and how long it stood.",
+            name: "Holder chips",
+            note: "Holder colours, plus a row of chips above the bars: each holder, how many records, how long held in total.",
           },
           {
             key: "E",
-            name: "Chart over bars",
-            note: "A big step chart with every reign as a bar beneath it, on the same dates.",
+            name: "Rivals only",
+            note: "Only players who held it more than once get a colour; one-off holders stay grey, so the repeat rivals stand out.",
           },
         ];
         const STATES = [
@@ -7749,6 +7805,8 @@
             if (!e) return;
             const last = records.at(-1);
             if (last && last.e === e) return;
+            /* the same time again (a reopened Entry, or a tie) is not a new record */
+            if (last && e.score === last.e.score) return;
             if (last) last.to = t;
             records.push({ e, from: t, to: null, prev: last ? last.e : null });
           });
@@ -7969,7 +8027,7 @@
             <div class="pt-tabs" role="tablist">
               <button type="button" role="tab" data-tab="rec" aria-selected="${tab === "rec"}">Records</button>
               <button type="button" role="tab" data-tab="feed" aria-selected="${tab === "feed"}">What changed</button>
-            </div>${tab === "rec" ? recTab(VARIANTS[vi].key, d) : vC(d)}</div>`;
+            </div>${tab === "rec" ? recTab6(VARIANTS[vi].key, d) : vC(d)}</div>`;
         const stripHtml = (d) => {
           const r = d.records.at(-1);
           return `<button type="button" class="pt-strip" id="ptStrip" aria-expanded="${open}">
@@ -8119,6 +8177,108 @@
           return bigChart(d, 180) + axisRow(d) + reignList(d, newest, x);
         }
 
+        /* ---------- round 6: E, and who held it ---------- */
+        let lanesOn = false,
+          picked = null;
+        function holders(d) {
+          const m = new Map();
+          for (const q of d.records) {
+            if (!m.has(q.e.steamId)) m.set(q.e.steamId, { e: q.e, qs: [], ms: 0 });
+            const h = m.get(q.e.steamId);
+            h.qs.push(q);
+            h.ms += (q.to || d.tN) - q.from;
+            h.e = q.e;
+          }
+          return m;
+        }
+        /* colourOf(q) -> stroke colour; dim(q) -> true to fade it */
+        function chartBy(d, H, colourOf, dim) {
+          const W = 800,
+            { x, y } = stepPath(d, 0, W, 10, H - 10);
+          let segs = "";
+          d.records.forEach((q, i) => {
+            const c = colourOf(q),
+              o = dim(q) ? 0.18 : 1;
+            const x1 = x(q.from),
+              x2 = x(q.to || d.tN),
+              yy = y(q.e.score);
+            if (i) segs += `<path d="M${x1},${y(d.records[i - 1].e.score)}L${x1},${yy}" stroke="${c}" stroke-width="2" opacity="${o}"/>`;
+            segs += `<path d="M${x1},${yy}L${x2},${yy}" stroke="${c}" stroke-width="3" opacity="${o}"/>
+              <circle cx="${x1}" cy="${yy}" r="4" fill="${c}" opacity="${o}"><title>${esc(q.e.persona)} ${fmtTime(q.e.score)}</title></circle>`;
+          });
+          return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${segs}</svg>`;
+        }
+        function barsBy(d, list, colourOf, dim, pickable) {
+          const { x } = stepPath(d, 0, 800, 0, 1);
+          const pct = (t) => ((x(t) / 800) * 100).toFixed(2) + "%";
+          return `<ul class="pt-reign">${list
+            .map((q) => {
+              const c = colourOf(q),
+                o = dim(q) ? 0.35 : 1;
+              const name = pickable
+                ? `<button type="button" class="pt-pickname" data-pick="${esc(q.e.steamId)}" style="color:${c}">${esc(q.e.persona)}</button>`
+                : `<span style="color:${c}">${who(q.e)}</span>`;
+              return `<li style="opacity:${o}"><b style="color:${q.to ? "var(--text)" : "var(--gold)"}">${fmtTime(q.e.score)}</b><span>${name} <span class="pt-up">${cutTxt(q)}</span> <span class="pt-dim">${setTxt(q, d)} · ${heldTxt(q, d)}</span></span>
+                <span class="pt-track"><span style="left:${pct(q.from)};width:calc(${pct(q.to || d.tN)} - ${pct(q.from)} + 3px);background:${c}"></span></span></li>`;
+            })
+            .join("")}</ul>`;
+        }
+        function lanesBy(d, hs, colourOf) {
+          const { x } = stepPath(d, 0, 800, 0, 1);
+          const pct = (t) => ((x(t) / 800) * 100).toFixed(2) + "%";
+          return `<div class="pt-lanes">${[...hs.values()]
+            .sort((a, b) => (b.qs.at(-1).to ? b.qs.at(-1).from : Infinity) - (a.qs.at(-1).to ? a.qs.at(-1).from : Infinity))
+            .map((h) => {
+              const dd = Math.round(h.ms / 86400000);
+              return `<div class="pt-lane"><span class="nm">${who(h.e)}<small>${h.qs.length} record${h.qs.length === 1 ? "" : "s"} · ${dd ? dd + "d" : "&lt;1d"} held</small></span>
+                <span class="pt-track tall">${h.qs
+                  .map((q) => `<span style="left:${pct(q.from)};width:calc(${pct(q.to || d.tN)} - ${pct(q.from)} + 4px);background:${colourOf(q)}"></span>`)
+                  .join("")}</span></div>`;
+            })
+            .join("")}</div>`;
+        }
+        function recTab6(k, d) {
+          const newest = [...d.records].reverse();
+          const hs = holders(d);
+          const holderHue = (q) => hue(q.e.steamId);
+          const none = () => false;
+          if (k === "A") return chartBy(d, 180, holderHue, none) + axisRow(d) + barsBy(d, newest, holderHue, none);
+          if (k === "B") {
+            const sw = `<div class="pt-seg" role="group" aria-label="Group bars">
+              <button type="button" data-lanes="0" aria-pressed="${!lanesOn}">Newest first</button>
+              <button type="button" data-lanes="1" aria-pressed="${lanesOn}">By holder</button></div>`;
+            const gold = (q) => (q.to ? "var(--faint)" : "var(--gold)");
+            return bigChart(d, 180) + axisRow(d) + sw + (lanesOn ? lanesBy(d, hs, gold) + axisRow(d) : barsBy(d, newest, gold, none));
+          }
+          if (k === "C") {
+            const cur = d.records.at(-1).e.steamId;
+            const sel = picked && hs.has(picked) ? picked : cur;
+            const h = hs.get(sel);
+            const dd = Math.round(h.ms / 86400000);
+            const col = (q) => (q.e.steamId === sel ? hue(sel) : "var(--faint)");
+            const dim = (q) => q.e.steamId !== sel;
+            return `<p class="pt-pickhead"><span style="color:${hue(sel)}">${who(h.e)}</span> held it ${h.qs.length} time${h.qs.length === 1 ? "" : "s"}, ${dd ? dd + (dd === 1 ? " day" : " days") : "under a day"} in all. <span class="pt-dim">Pick any name to see theirs.</span></p>` +
+              chartBy(d, 180, col, dim) + axisRow(d) + barsBy(d, newest, col, dim, true);
+          }
+          if (k === "D") {
+            const chips = [...hs.values()]
+              .sort((a, b) => b.qs.length - a.qs.length || b.ms - a.ms)
+              .map((h) => {
+                const dd = Math.round(h.ms / 86400000);
+                return `<span class="pt-chip"><i style="background:${hue(h.e.steamId)}"></i>${playerLink(h.e.steamId, h.e.persona)} <span class="pt-dim">${h.qs.length}× · ${dd ? dd + "d" : "&lt;1d"}</span></span>`;
+              })
+              .join("");
+            return chartBy(d, 180, holderHue, none) + axisRow(d) + `<div class="pt-chips">${chips}</div>` + barsBy(d, newest, holderHue, none);
+          }
+          const rival = (q) => hs.get(q.e.steamId).qs.length > 1;
+          const col = (q) => (rival(q) ? hue(q.e.steamId) : "var(--none)");
+          const rivals = [...hs.values()].filter((h) => h.qs.length > 1);
+          const legend = rivals.length
+            ? `<div class="pt-chips">${rivals.map((h) => `<span class="pt-chip"><i style="background:${hue(h.e.steamId)}"></i>${playerLink(h.e.steamId, h.e.persona)} <span class="pt-dim">${h.qs.length}×</span></span>`).join("")}<span class="pt-chip pt-dim"><i style="background:var(--none)"></i>held it once</span></div>`
+            : "";
+          return chartBy(d, 180, col, none) + axisRow(d) + legend + barsBy(d, newest, col, none);
+        }
+
         const host = document.createElement("section");
         host.id = "ptHist";
         const app = document.getElementById("app");
@@ -8186,6 +8346,20 @@
             (b) =>
               (b.onclick = () => {
                 app.classList.toggle("pt-hist-on", b.dataset.btab === "hist");
+                draw();
+              }),
+          );
+          document.querySelectorAll("[data-lanes]").forEach(
+            (b) =>
+              (b.onclick = () => {
+                lanesOn = b.dataset.lanes === "1";
+                draw();
+              }),
+          );
+          document.querySelectorAll("[data-pick]").forEach(
+            (b) =>
+              (b.onclick = () => {
+                picked = b.dataset.pick;
                 draw();
               }),
           );
