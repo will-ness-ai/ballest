@@ -28,8 +28,15 @@ type Data = Record<string, { top: number; entries: Record<string, Ghost> }>;
 
 /* round 2 asks what picture of a run C's drawer shows; round 1's variants are kept below,
    switched off by ROUND */
-const ROUND: number = 2;
+const ROUND: number = 3;
 export const VARIANTS = [
+  { key: "A", name: "Stacked", note: "the race on top, playing on open; the gap chart under it, still" },
+  { key: "B", name: "Linked", note: "the gap chart's playhead follows the race; drag the chart to scrub" },
+  { key: "C", name: "Tabs", note: "a Gap / Race switch; the race plays when picked" },
+  { key: "D", name: "Ride", note: "no lanes: the marbles race on the gap chart itself, the leader along the line" },
+  { key: "E", name: "Side by side", note: "race and gap next to each other (stacked on a phone), both playing" },
+] as const;
+export const ROUND2 = [
   { key: "A", name: "Gap", note: "time behind the leader along the course, where it was lost named" },
   { key: "B", name: "Speed", note: "this run's speed along the course over the leader's, green where faster" },
   { key: "C", name: "Side view", note: "the course's climbs and drops from the side, coloured by this run's speed" },
@@ -155,6 +162,7 @@ function Stats({ g }: { g: Ghost }) {
 function Detail({ g, c }: { g: Ghost; c: Ctx }) {
   const lead = leaderOf(c);
   const last = g.gap[g.gap.length - 1];
+  if (ROUND === 3) return <Picture3 g={g} lead={lead} c={c} />;
   if (ROUND === 2) return <Picture g={g} lead={lead} c={c} />;
   return (
     <div className="p-detail">
@@ -330,6 +338,184 @@ function RacePic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
       </div>
       <button className="p-btn" onClick={() => { setT(0); setRun(true); }}>{run ? "Racing…" : "Replay"}</button>
     </>
+  );
+}
+
+/* ---------- round 3: the gap and the race together ---------- */
+/* the race clock: t runs 0 → the slower run's end, then stops; play() restarts it */
+function useRace(end: number, auto: boolean) {
+  const [t, setT] = useState(0);
+  const [run, setRun] = useState(auto);
+  useEffect(() => {
+    if (!run) return;
+    let raf = 0;
+    const t0 = performance.now() - t * 1000;
+    const tick = (now: number) => {
+      const s = (now - t0) / 1000;
+      if (s >= end + 0.6) { setT(end); setRun(false); return; }
+      setT(Math.min(s, end));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run]);
+  return {
+    t,
+    run,
+    play: () => { setT(0); setRun(true); },
+    seek: (s: number) => { setRun(false); setT(Math.max(0, Math.min(end, s))); },
+  };
+}
+type Race = ReturnType<typeof useRace>;
+
+const gapOf = (g: Ghost, lead: Ghost) => g.at.map((t, i) => t - lead.at[i]);
+
+function GapChart({ g, lead, race, ride, scrub }: { g: Ghost; lead: Ghost; race?: Race; ride?: boolean; scrub?: boolean }) {
+  const gap = gapOf(g, lead);
+  const h = 100;
+  const max = Math.max(0.02, ...gap.map(Math.abs));
+  const y = (d: number) => h / 2 + (d / max) * (h / 2 - 8);
+  const me = race ? fracAt(g.at, race.t) : null;
+  const ld = race ? fracAt(lead.at, race.t) : null;
+  /* the gap where this run is now, interpolated */
+  const gapAt = (f: number) => {
+    const x = f * gap.length - 1;
+    if (x <= 0) return gap[0] * Math.max(0, x + 1);
+    const i = Math.min(gap.length - 2, Math.floor(x));
+    return gap[i] + (gap[i + 1] - gap[i]) * (x - i);
+  };
+  const onScrub = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!race || !scrub || (e.type === "pointermove" && e.buttons !== 1)) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const f = (e.clientX - r.left) / r.width;
+    race.seek(g.at[Math.max(0, Math.min(g.at.length - 1, Math.round(f * g.at.length) - 1))]);
+  };
+  return (
+    <div className={"p-gapbox" + (scrub ? " p-scrub" : "")} onPointerDown={onScrub} onPointerMove={onScrub}>
+      <svg className="p-chart" viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none">
+        <line x1="0" x2={W} y1={h / 2} y2={h / 2} className="p-zero" />
+        <polyline points={`0,${h / 2} ` + gap.map((d, i) => `${pct(i, gap.length)},${y(d)}`).join(" ")} className="p-ln-me" />
+        {race && !ride && me != null && <line x1={me * W} x2={me * W} y1="0" y2={h} className="p-head" />}
+      </svg>
+      <span className="p-on p-on-up">ahead</span>
+      <span className="p-on p-on-dn">behind</span>
+      {race && ride && me != null && ld != null && (
+        <>
+          <i className="p-mb p-mb-lead p-ride" style={{ left: `${ld * 100}%`, top: "50%" }} />
+          <i className="p-mb p-ride" style={{ left: `${me * 100}%`, top: `${(y(gapAt(me)) / h) * 100}%` }} />
+        </>
+      )}
+    </div>
+  );
+}
+
+function Lanes({ g, lead, race }: { g: Ghost; lead: Ghost; race: Race }) {
+  const me = fracAt(g.at, race.t);
+  const ld = fracAt(lead.at, race.t);
+  return (
+    <div className="p-race">
+      <div className="p-lane">
+        <span className="p-lane-name">Leader</span>
+        <i className="p-mb p-mb-lead" style={{ left: `${ld * 100}%` }} />
+      </div>
+      <div className="p-lane">
+        <span className="p-lane-name">This run</span>
+        <i className="p-mb" style={{ left: `${me * 100}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function RaceCap({ g, lead, race }: { g: Ghost; lead: Ghost; race: Race }) {
+  const ahead = (fracAt(g.at, race.t) - fracAt(lead.at, race.t)) * g.dist;
+  return (
+    <span className="p-racecap">
+      <b>{fmtTime(Math.round(race.t * 1e5))}</b>
+      {race.t > 0.3 && <> · {Math.abs(ahead).toFixed(1)} m {ahead >= 0 ? "ahead" : "behind"}</>}
+      <button className="p-btn" onClick={race.play}>{race.run ? "Racing…" : race.t ? "Replay" : "Race"}</button>
+    </span>
+  );
+}
+
+function Picture3({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
+  const L = lead && lead !== g ? lead : null;
+  const end = Math.max(g.at[g.at.length - 1], L ? L.at[L.at.length - 1] : 0);
+  const v = c.variant;
+  const race = useRace(end, v === "A" || v === "E");
+  const [tab, setTab] = useState<"gap" | "race">("gap");
+  if (!L)
+    return (
+      <div className="p-pic">
+        {leaderNote(L)}
+        <Stats g={g} />
+      </div>
+    );
+  const cap = (
+    <p className="p-cap">
+      Behind the leader along the course · <b>{signed(gapOf(g, L).at(-1)!)}</b> at the line
+    </p>
+  );
+  return (
+    <div className="p-pic">
+      {v === "A" && (
+        <>
+          <RaceCap g={g} lead={L} race={race} />
+          <Lanes g={g} lead={L} race={race} />
+          {cap}
+          <GapChart g={g} lead={L} />
+        </>
+      )}
+      {v === "B" && (
+        <>
+          {cap}
+          <RaceCap g={g} lead={L} race={race} />
+          <Lanes g={g} lead={L} race={race} />
+          <GapChart g={g} lead={L} race={race} scrub />
+          <div className="p-axis"><span>start</span><span>drag the chart to scrub</span><span>finish</span></div>
+        </>
+      )}
+      {v === "C" && (
+        <>
+          <div className="p-lens" role="tablist">
+            <button role="tab" aria-selected={tab === "gap"} onClick={() => setTab("gap")}>Gap</button>
+            <button role="tab" aria-selected={tab === "race"} onClick={() => { setTab("race"); race.play(); }}>Race</button>
+          </div>
+          {tab === "gap" ? (
+            <>
+              {cap}
+              <GapChart g={g} lead={L} />
+            </>
+          ) : (
+            <>
+              <RaceCap g={g} lead={L} race={race} />
+              <Lanes g={g} lead={L} race={race} />
+            </>
+          )}
+        </>
+      )}
+      {v === "D" && (
+        <>
+          {cap}
+          <RaceCap g={g} lead={L} race={race} />
+          <GapChart g={g} lead={L} race={race} ride />
+          <div className="p-axis"><span>start</span><span>gold: the leader, on the line</span><span>finish</span></div>
+        </>
+      )}
+      {v === "E" && (
+        <div className="p-duo">
+          <div>
+            <RaceCap g={g} lead={L} race={race} />
+            <Lanes g={g} lead={L} race={race} />
+          </div>
+          <div>
+            {cap}
+            <GapChart g={g} lead={L} race={race} />
+          </div>
+        </div>
+      )}
+      <Stats g={g} />
+    </div>
   );
 }
 
@@ -627,5 +813,18 @@ const CSS = `
 .p-best-s{background:rgba(180,120,255,.18);border-color:rgba(180,120,255,.5)}
 .p-sw{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px}
 .p-sw-best{background:rgba(180,120,255,.6)}
+
+.p-gapbox{position:relative}
+.p-gapbox.p-scrub{cursor:ew-resize;touch-action:none}
+.p-on{position:absolute;left:8px;font:600 10px var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--faint);pointer-events:none}
+.p-on-up{bottom:calc(50% + 3px)}
+.p-on-dn{top:calc(50% + 3px)}
+.p-head{stroke:var(--text);stroke-width:1.5;opacity:.7;vector-effect:non-scaling-stroke}
+.p-ride{transform:translate(-50%,-50%);bottom:auto}
+.p-racecap{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--dim)}
+.p-racecap b{color:var(--text)}
+.p-racecap .p-btn{margin-left:auto}
+.p-duo{display:grid;gap:12px}
+@media (min-width:900px){.p-duo{grid-template-columns:2fr 3fr;align-items:end}}
 `;
 // ===================== end PROTOTYPE =====================
