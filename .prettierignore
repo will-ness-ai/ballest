@@ -4,6 +4,7 @@ leth/data/
 web/public/
 web/.next/
 web/next-env.d.ts
+web/db/migrations/
 pnpm-lock.yaml
 discord-bot/.logs/
 discord-bot/assets/

@@ -64,3 +64,32 @@ session or subscription count moved since the last read, plus every board once e
 `FULL_SWEEP_SECONDS`. Player names are carried forward from the committed board files; a
 run looks up only players with no name, plus one rotating slice of the rest (`names_due`),
 so every name refreshes about weekly.
+
+## The database (ADR 0005)
+
+Postgres on Neon, alongside the JSON while the page still reads the files. It holds only
+what Steam reports, as Score history: no ranks and no derived boards. The schema is
+`web/db/schema.ts` (Drizzle), and its migrations in `web/db/migrations/` are generated from
+it with `pnpm db:generate` and applied by `pnpm db:migrate`, which `pnpm build` runs first,
+so each Vercel deploy migrates the branch it reads. Never edit a migration by hand.
+
+- `refreshes`: one per collector Refresh, or per git snapshot replayed by the backfill
+  (`source`, and `commit_sha` for a backfill).
+- `boards`: every Steam board, Tracks, Overall boards and each Map's, with its kind,
+  Season, display name, leaderboard ID and whether it scores points.
+- `board_reads`: which boards each Refresh read and whether the read succeeded. A Map not
+  read in a Refresh has no row, and that says nothing about play.
+- `players` and `persona_history`: the current profile, and every persona with the first
+  and last Refresh that saw it.
+- `entries`: Score history. A row per score a player has held on a board, with the first
+  and last Refresh that saw it and the Refresh that closed it. At most one open row per
+  board and player (`entries_one_open`). An unchanged score moves only
+  `last_seen_refresh`, and a player gone from a board that was read successfully is
+  closed, never deleted.
+- `maps` and `map_history`: what a Map never changes (its board, creator, created time),
+  and a row per change of its title, creator name, preview, Medals, sessions,
+  subscriptions or entry count.
+
+Tests in `web/test/` each get a throwaway database on the Postgres at `TEST_DATABASE_URL`
+(`postgres://postgres:postgres@localhost:5432/postgres` by default), which `web.yml`
+provides in CI.

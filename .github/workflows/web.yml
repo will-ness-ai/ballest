@@ -25,6 +25,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # The tests and the build's migrate step each get a throwaway Postgres (docs/adr/0005).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 2s --health-timeout 5s --health-retries 15
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
     defaults:
       run:
         working-directory: web
@@ -39,9 +50,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - run: pnpm test
       - run: pnpm build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       - name: Smoke-test the build
         run: |
           pnpm start -p 3000 &
