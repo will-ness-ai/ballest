@@ -37,10 +37,9 @@ const program = Effect.gen(function* () {
   const data = yield* (yield* ReportSource).read(at);
   const report = buildReport(data, at);
   yield* Effect.logInfo(
-    `report: ${report.maps} Maps, ${report.players} players, ${report.changes.length} changes; last Refresh ${report.refreshedAt === null ? "never" : new Date(report.refreshedAt).toISOString()}`,
+    `report: ${report.maps} Maps, ${report.players} players, ${report.circuitChanges.length + report.workshopChanges.length} changes; last Refresh ${report.refreshedAt === null ? "never" : new Date(report.refreshedAt).toISOString()}`,
   );
-  const { messageId, thread } = yield* postReport(report);
-  yield* thread;
+  const messageId = yield* postReport(report);
   yield* Effect.logInfo(`report: posted ${messageId} in ${channel}`);
 });
 
