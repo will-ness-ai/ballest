@@ -103,19 +103,34 @@ const headline = `${post.maps.length.toLocaleString("en")} Workshop maps · ${pl
 
 // ---------------------------------------------------------------- sections as markdown lines
 
-const SINCE_MAX = 5;
-const sinceLines = (): Array<string> => {
+const SINCE_MAX = 6;
+const playersOn = (pfid: string) => (mapsById.get(pfid) as (MapRow & { entries?: number }) | undefined)?.entries ?? 0;
+const ppl = (pfid: string) => `-# ${playersOn(pfid)} players`;
+/** Circuit records first, then every Workshop change, the busiest map (most players) first. */
+const sinceLines = (max = SINCE_MAX): Array<string> => {
   const out: Array<string> = [];
   for (const c of since.campaign_records)
     out.push(`- 🏆 **${esc(c.new)}** took ${c.track} from ${esc(c.old)} — ${time(c.score)} (${gain(c.score, c.old_score)})`);
-  const ws = since.workshop_records;
-  for (const c of ws.slice(0, SINCE_MAX))
-    out.push(`- 🥇 **${esc(c.new)}** took ${link(c.map.title, c.map.pfid)} from ${esc(c.old)} — ${time(c.score)}`);
-  if (ws.length > SINCE_MAX) out.push(`- …and ${ws.length - SINCE_MAX} more Workshop records changed hands`);
-  for (const b of since.newly_beaten) out.push(`- 🎉 ${link(b.map.title, b.map.pfid)} beaten for the first time by **${esc(b.by)}**`);
-  for (const c of since.medals_claimed) out.push(`- 🎯 **${esc(c.by)}** claimed the first author medal on ${link(c.map.title, c.map.pfid)}`);
+  const ws: Array<{ pfid: string; line: string }> = [
+    ...since.workshop_records.map((c) => ({ pfid: c.map.pfid, line: `- 🥇 **${esc(c.new)}** took ${link(c.map.title, c.map.pfid)} from ${esc(c.old)} — ${time(c.score)} ${ppl(c.map.pfid)}` })),
+    ...since.newly_beaten.map((b) => ({ pfid: b.map.pfid, line: `- 🎉 ${link(b.map.title, b.map.pfid)} beaten for the first time by **${esc(b.by)}** ${ppl(b.map.pfid)}` })),
+    ...since.medals_claimed.map((c) => ({ pfid: c.map.pfid, line: `- 🎯 **${esc(c.by)}** claimed the first author medal on ${link(c.map.title, c.map.pfid)} ${ppl(c.map.pfid)}` })),
+  ].sort((x, y) => playersOn(y.pfid) - playersOn(x.pfid));
+  out.push(...ws.slice(0, max).map((w) => w.line));
+  if (ws.length > max) out.push(`- …and ${ws.length - max} more on smaller Workshop maps`);
   out.push(`- 🆕 ${since.new_maps} new maps on the Workshop`);
   return out;
+};
+/** One line of counts, for a headline that leaves the list to the thread. */
+const sinceSummary = () => {
+  const n = since.workshop_records.length;
+  return [
+    since.campaign_records.length ? `**${since.campaign_records.length}** Circuit records fell` : null,
+    n ? `**${n}** Workshop records changed hands` : null,
+    since.newly_beaten.length ? `**${since.newly_beaten.length}** maps beaten for the first time` : null,
+    since.medals_claimed.length ? `**${since.medals_claimed.length}** first author medal${since.medals_claimed.length === 1 ? "" : "s"}` : null,
+    `**${since.new_maps}** new maps`,
+  ].filter(Boolean).join(" · ");
 };
 const boardLines = (b: (typeof BOARDS)[number]) =>
   ranked(b.key, b.then).map((r, i) => `${i + 1}. **${esc(r.who)}** — ${r.n} ${b.noun}`);
@@ -139,7 +154,19 @@ const quote = (lines: Array<string>) => lines.map((l) => `> ${l}`).join("\n");
 const pack = (sections: Array<string>, limit = 2000) => {
   const out: Array<string> = [];
   let cur = "";
-  for (const s of sections) {
+  const pieces = sections.flatMap((s) => {
+    if (s.length <= limit) return [s];
+    const parts: Array<string> = [];
+    let p = "";
+    for (const line of s.split("\n")) {
+      if (p && p.length + 1 + line.length > limit) {
+        parts.push(p);
+        p = line;
+      } else p = p ? `${p}\n${line}` : line;
+    }
+    return [...parts, p];
+  });
+  for (const s of pieces) {
     const cand = cur ? `${cur}\n\n${s}` : s;
     if (cur && cand.length > limit) {
       out.push(cur);
@@ -334,8 +361,89 @@ const round1: Record<string, { label: string; post: () => Promise<void> }> = {
   },
 };
 
+// ---------------------------------------------------------------- round 2: D's image + E's thread
+
+const box = (style: Record<string, string | number>, ...children: Array<El | string>): El => ({
+  type: "div",
+  props: { style: { display: "flex", ...style }, children },
+});
+const standingsPng = async () => {
+  const col = (b: (typeof BOARDS)[number]) =>
+    box(
+      { flexDirection: "column", width: 270, gap: 4 },
+      box({ fontFamily: "Chakra Petch", fontWeight: 600, fontSize: 13, letterSpacing: 1.4, textTransform: "uppercase", color: "#93a2c8", marginBottom: 6 }, b.title),
+      ...ranked(b.key, b.then).map((r, i) =>
+        box(
+          { alignItems: "center", gap: 8, fontSize: 15, padding: "3px 8px", borderRadius: 6, backgroundColor: i === 0 ? "rgba(139,224,60,0.16)" : "rgba(255,255,255,0.04)" },
+          box({ width: 22, color: i < 3 ? "#ffd447" : "#63719a", fontFamily: "Chakra Petch", fontWeight: 700 }, String(i + 1)),
+          box({ flexGrow: 1, overflow: "hidden" }, r.who.length > 20 ? r.who.slice(0, 19) + "…" : r.who),
+          box({ fontFamily: "Chakra Petch", fontWeight: 700, color: "#eaf0ff" }, String(r.n)),
+        ),
+      ),
+    );
+  const scene = box(
+    { flexDirection: "column", padding: 28, gap: 20, backgroundColor: "#0a1020", color: "#eaf0ff", fontFamily: "Archivo", borderRadius: 8 },
+    box({ flexDirection: "column", gap: 4 }, box({ fontFamily: "Bungee", fontSize: 28 }, "Custom Map Standings"), box({ color: "#93a2c8", fontSize: 14 }, headline)),
+    box({ gap: 24 }, col(BOARDS[0]!), col(BOARDS[1]!)),
+    box({ gap: 24 }, col(BOARDS[2]!), col(BOARDS[3]!)),
+  );
+  return [{ name: "standings.png", data: Buffer.from(await draw(scene, 620)) }];
+};
+const threadOn = async (messageId: string) =>
+  ((await rest.post(Routes.threads(channel, messageId), {
+    body: { name: `Maps and records · ${day(post.generated_at)}`, auto_archive_duration: 1440 },
+  })) as { id: string }).id;
+// sections(): 0 head, 1 since, 2-5 boards, 6 unbeaten, 7 unclaimed, 8-9 oldest, 10 foot
+const rest_ = () => sections().slice(6);
+const pointer = "-# Unbeaten maps, unclaimed author medals and the longest-standing records are in the thread ↓";
+
+const round2: Record<string, { label: string; post: () => Promise<void> }> = {
+  A: {
+    label: "A · Since + image, lists in thread",
+    post: async () => {
+      const head = await send(channel, { content: `## 📅 Since yesterday\n${sinceLines().join("\n")}\n${pointer}`, files: await standingsPng() });
+      const t = await threadOn(head.id);
+      for (const content of pack(rest_())) await send(t, { content });
+    },
+  },
+  B: {
+    label: "B · Image + one-line summary, everything else in thread",
+    post: async () => {
+      const head = await send(channel, { content: `${sinceSummary()}\n-# What changed, the map lists and the oldest records are in the thread ↓`, files: await standingsPng() });
+      const t = await threadOn(head.id);
+      for (const content of pack([`> ### 📅 Since yesterday\n${quote(sinceLines(50))}`, ...rest_()])) await send(t, { content });
+    },
+  },
+  C: {
+    label: "C · Since only, image + lists in thread",
+    post: async () => {
+      const head = await send(channel, { content: `# Custom Map Standings\n-# ${headline}\n### 📅 Since yesterday\n${sinceLines().join("\n")}\n-# Standings, map lists and records in the thread ↓` });
+      const t = await threadOn(head.id);
+      await send(t, { files: await standingsPng() });
+      for (const content of pack(rest_())) await send(t, { content });
+    },
+  },
+  D: {
+    label: "D · Since + image, a thread message per list",
+    post: async () => {
+      const head = await send(channel, { content: `## 📅 Since yesterday\n${sinceLines().join("\n")}\n${pointer}`, files: await standingsPng() });
+      const t = await threadOn(head.id);
+      for (const s of rest_()) for (const content of pack([s])) await send(t, { content });
+    },
+  },
+  E: {
+    label: "E · Image first, since below it, thread on the since",
+    post: async () => {
+      await send(channel, { files: await standingsPng() });
+      const head = await send(channel, { content: `## 📅 Since yesterday\n${sinceLines().join("\n")}\n${pointer}` });
+      const t = await threadOn(head.id);
+      for (const content of pack(rest_())) await send(t, { content });
+    },
+  },
+};
+
 const [round = "1", ...picked] = process.argv.slice(2);
-const variants = round === "1" ? round1 : {};
+const variants = round === "1" ? round1 : round2;
 for (const key of picked.length ? picked : Object.keys(variants)) {
   const v = variants[key]!;
   await divider(v.label);
