@@ -195,6 +195,8 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
         draw(activityArtScene(art, dev), ACTIVITY_ART_SIZE[art][0]),
       /** A bare marble, for the lifecycle-line emojis. */
       marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
+      /** PROTOTYPE (daily report): any scene. */
+      scene: (scene: El, width: number) => draw(scene, width),
     };
   }),
 }) {}
