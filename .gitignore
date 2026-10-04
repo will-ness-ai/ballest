@@ -7,6 +7,7 @@ tools/refresh_token.txt
 
 # local editor / Claude Code settings
 .claude/settings.local.json
+.claude/worktrees/
 
 # steamworks runtime files (copied in / generated)
 tools/steam_api64.dll
