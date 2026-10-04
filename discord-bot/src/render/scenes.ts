@@ -768,9 +768,16 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
     const end = lineEnds.get(s.player.steamId) ?? (s.ticks === null ? undefined : y(secs(s.ticks)));
     return end === undefined ? [] : [{ y: end, standing: s }];
   });
-  const room = H - B - 8 - T;
-  const roomy = (ends.length - 1) * 36 <= room;
-  const legend = spread(ends, roomy ? 36 : Math.min(18, room / (ends.length - 1)), T, H - B - 8);
+  const ROW = 36,
+    TIGHT_ROW = 18,
+    legendBottom = H - B - 8;
+  const roomy = (ends.length - 1) * ROW <= legendBottom - T;
+  const legend = spread(
+    ends,
+    roomy ? ROW : Math.min(TIGHT_ROW, (legendBottom - T) / (ends.length - 1)),
+    T,
+    legendBottom,
+  );
   for (const { y: end, labelY, standing } of legend)
     if (Math.abs(labelY - end) > 2)
       lines += `<path d="M${W - R} ${end}L${W - R + 10} ${labelY + 1}" stroke="${colourOf(standing.player.steamId)}" stroke-opacity="0.6"/>`;
@@ -795,55 +802,44 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
         `${view.minutes}-minute ${MATCH_TYPE_NAME[view.type]} · WR at the start ${map === null ? "none" : label10(map.worldRecordTicks)} · every PB as it happened`,
       ),
     ),
-    ...legend.map(({ labelY, standing: s }) =>
-      roomy
-        ? box(
+    ...legend.map(({ labelY, standing: s }) => {
+      const id = s.player.steamId;
+      const time = `${s.ticks === null ? "no time" : formatTime(s.ticks)}${id === holder ? "  ★ new WR" : ""}`;
+      return box(
+        {
+          position: "absolute",
+          left: W - R + 12,
+          top: labelY - (roomy ? 8 : 5),
+          width: R - 24,
+          gap: roomy ? 8 : 6,
+          alignItems: roomy ? "flex-start" : "center",
+        },
+        marble(hueFor(id), roomy ? 16 : 11, roomy ? { marginTop: 1 } : {}),
+        box(
+          { flexDirection: "column", flexShrink: 1, minWidth: 0 },
+          box(
             {
-              position: "absolute",
-              left: W - R + 12,
-              top: labelY - 8,
-              width: R - 24,
-              gap: 8,
-              alignItems: "flex-start",
+              fontWeight: 600,
+              fontSize: roomy ? 11 : 10,
+              ...(roomy ? {} : { lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }),
+              color: !roomy && id === holder ? C.gold : C.text,
             },
-            marble(hueFor(s.player.steamId), 16, { marginTop: 1 }),
-            box(
-              { flexDirection: "column", flexShrink: 1, minWidth: 0 },
-              box({ fontWeight: 600, fontSize: 11 }, nameOf(s.player.steamId)),
-              box(
+            nameOf(id),
+          ),
+          roomy
+            ? box(
                 {
                   fontFamily: F.hud,
                   fontWeight: 600,
                   fontSize: 10,
-                  color: s.player.steamId === holder ? C.gold : C.dim,
+                  color: id === holder ? C.gold : C.dim,
                 },
-                `${s.ticks === null ? "no time" : formatTime(s.ticks)}${s.player.steamId === holder ? "  ★ new WR" : ""}`,
-              ),
-            ),
-          )
-        : box(
-            {
-              position: "absolute",
-              left: W - R + 12,
-              top: labelY - 5,
-              width: R - 24,
-              gap: 6,
-              alignItems: "center",
-            },
-            marble(hueFor(s.player.steamId), 11),
-            box(
-              {
-                fontWeight: 600,
-                fontSize: 10,
-                lineHeight: 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                color: s.player.steamId === holder ? C.gold : C.text,
-              },
-              nameOf(s.player.steamId),
-            ),
-          ),
-    ),
+                time,
+              )
+            : null,
+        ),
+      );
+    }),
     untimed.length === 0
       ? null
       : textAt(L, H - 12, `No time: ${untimed.map((s) => nameOf(s.player.steamId)).join(", ")}`, {
