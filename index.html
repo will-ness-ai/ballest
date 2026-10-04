@@ -7431,6 +7431,72 @@
         font: 400 12px var(--f-body);
         color: var(--dim);
       }
+      .pt-ab {
+        display: grid;
+        gap: 12px;
+        margin-top: 8px;
+      }
+      .pt-ab svg {
+        width: 100%;
+        height: auto;
+      }
+      @media (min-width: 820px) {
+        .pt-ab {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+          align-items: center;
+        }
+      }
+      .pt-axis {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--faint);
+      }
+      .pt-reign {
+        list-style: none;
+        margin: 6px 0 4px;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+        font-size: 14px;
+      }
+      .pt-reign li {
+        display: grid;
+        grid-template-columns: 74px minmax(0, 1fr);
+        gap: 2px 8px;
+        align-items: baseline;
+      }
+      .pt-reign b {
+        font: 600 14px var(--f-hud);
+      }
+      .pt-track {
+        grid-column: 1 / -1;
+        position: relative;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--line2);
+      }
+      .pt-track span {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        border-radius: 3px;
+      }
+      .pt-behind {
+        position: relative;
+        display: block;
+      }
+      .pt-behind svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0.22;
+      }
+      .pt-behind .pt-chain {
+        position: relative;
+        padding: 6px 0;
+      }
       #ptPick {
         position: fixed;
         right: 16px;
@@ -7496,32 +7562,33 @@
       (() => {
         /* round 1 verdict: A (record line) leads, C (what changed) as a second tab.
            round 2 verdict: B's place above the rows, a summary that opens the tabs.
-           Round 3: what the closed summary says. */
+           round 3 verdict: a mix of B (record sparkline) and C (last holders).
+           Round 4: how the sparkline and the holders combine. */
         const VARIANTS = [
           {
             key: "A",
-            name: "One line",
-            note: "Round 2's strip: the record, its holder and since when, and how many record changes.",
+            name: "Side by side",
+            note: "The sparkline on the left, the last three holders on the right. Stacks on a phone.",
           },
           {
             key: "B",
-            name: "Record sparkline",
-            note: "The record and holder over a small step chart of the record since 6 Sep.",
+            name: "Chart over list",
+            note: "A wide, short sparkline across the top, the three holders under it.",
           },
           {
             key: "C",
-            name: "Last holders",
-            note: "The last three records as a chain, newest first, each with its cut.",
+            name: "Labelled chart",
+            note: "One chart: the last three records are named right on their steps. No separate list.",
           },
           {
             key: "D",
-            name: "Record stats",
-            note: "Four numbers: how old the record is, how many changes, the biggest single cut, and who has set it most.",
+            name: "Reign bars",
+            note: "The sparkline, and under it each of the last three holders as a bar spanning how long their record stood.",
           },
           {
             key: "E",
-            name: "Latest day",
-            note: "Leads with the board's latest day instead of the record: new records, top 10 times, improvements and first times.",
+            name: "Chart behind",
+            note: "The holders list in front, the record's step chart drawn faintly behind it.",
           },
         ];
         const STATES = [
@@ -7857,83 +7924,85 @@
             <span class="pt-go">${open ? "Hide" : "History"}</span></button>`;
         };
         const go = () => `<span class="pt-go">${open ? "Hide" : "History"}</span>`;
+        /* the record's step path over [x0, x1] x [y0, y1] */
+        function stepPath(d, x0, x1, y0, y1) {
+          const ys = d.records.map((q) => q.e.score);
+          const lo = Math.min(...ys),
+            hi = Math.max(...ys);
+          const x = (t) => x0 + ((t - d.t0) / (d.tN - d.t0 || 1)) * (x1 - x0);
+          const y = (v) => (hi === lo ? (y0 + y1) / 2 : y0 + ((v - lo) / (hi - lo)) * (y1 - y0));
+          let p = "";
+          d.records.forEach((q, i) => {
+            p += (i ? `L${x(q.from)},${y(q.e.score)}` : `M${x(q.from)},${y(q.e.score)}`) + `L${x(q.to || d.tN)},${y(q.e.score)}`;
+          });
+          return { p, x, y };
+        }
+        const chainHtml = (last) =>
+          `<ul class="pt-chain">${last
+            .map(
+              (q) =>
+                `<li><b>${fmtTime(q.e.score)}</b><span>${esc(q.e.persona)} <span class="pt-dim">${day(q.from)}</span></span><span class="pt-up">${q.prev ? "−" + secs(q.prev.score - q.e.score) : ""}</span></li>`,
+            )
+            .join("")}</ul>`;
         function summary(k, d) {
-          const r = d.records.at(-1);
           const n = d.records.length - 1;
-          if (k === "A") return stripHtml(d);
-          if (k === "B") {
+          const last = [...d.records].reverse().slice(0, 3);
+          const head = `<span class="top"><span class="lbl">World record · ${n} change${n === 1 ? "" : "s"} since ${day(d.t0)}</span>${go()}</span>`;
+          const wrap = (inner, style = "") =>
+            `<button type="button" class="pt-sum" id="ptStrip" aria-expanded="${open}" style="${style}">${head}${inner}</button>`;
+          if (k === "A") {
             const W = 300,
-              H = 54;
-            const ys = d.records.map((x) => x.e.score);
-            const lo = Math.min(...ys),
-              hi = Math.max(...ys);
-            const x = (t) => 2 + ((t - d.t0) / (d.tN - d.t0 || 1)) * (W - 8);
-            const y = (v) => (hi === lo ? H / 2 : 4 + ((v - lo) / (hi - lo)) * (H - 8));
-            let p = "";
-            d.records.forEach((q, i) => {
-              p += (i ? `L${x(q.from)},${y(q.e.score)}` : `M${x(q.from)},${y(q.e.score)}`) + `L${x(q.to || d.tN)},${y(q.e.score)}`;
-            });
-            return `<button type="button" class="pt-sum" id="ptStrip" aria-expanded="${open}">
-              <span class="top"><span class="lbl">World record</span>${go()}</span>
-              <span class="big">${fmtTime(r.e.score)}</span> <span class="pt-sub">${esc(r.e.persona)} · ${day(r.from)}</span>
-              <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;margin-top:8px"><path d="${p}" fill="none" stroke="var(--gold)" stroke-width="2"/><circle cx="${x(d.tN)}" cy="${y(r.e.score)}" r="3.5" fill="var(--gold)"/></svg>
-              <span class="pt-sub" style="display:flex;justify-content:space-between;font-size:12px"><span>${day(d.t0)}</span><span>${n} change${n === 1 ? "" : "s"}</span><span>now</span></span></button>`;
+              H = 90,
+              { p, x, y } = stepPath(d, 4, W - 6, 6, H - 6);
+            return wrap(`<span class="pt-ab">
+              <svg viewBox="0 0 ${W} ${H}"><path d="${p}" fill="none" stroke="var(--gold)" stroke-width="2"/><circle cx="${x(d.tN)}" cy="${y(last[0].e.score)}" r="3.5" fill="var(--gold)"/></svg>
+              ${chainHtml(last)}</span>`);
+          }
+          if (k === "B") {
+            const W = 800,
+              H = 50,
+              { p, x, y } = stepPath(d, 4, W - 6, 5, H - 5);
+            return wrap(`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:50px;display:block;margin-top:8px"><path d="${p}" fill="none" stroke="var(--gold)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+              <span class="pt-sub pt-axis"><span>${day(d.t0)}</span><span>now</span></span>${chainHtml(last)}`);
           }
           if (k === "C") {
-            const last = [...d.records].reverse().slice(0, 3);
-            return `<button type="button" class="pt-sum" id="ptStrip" aria-expanded="${open}">
-              <span class="top"><span class="lbl">Record holders</span>${go()}</span>
-              <ul class="pt-chain">${last
-                .map(
-                  (q) =>
-                    `<li><b>${fmtTime(q.e.score)}</b><span>${esc(q.e.persona)} <span class="pt-dim">${day(q.from)}</span></span><span class="pt-up">${q.prev ? "−" + secs(q.prev.score - q.e.score) : ""}</span></li>`,
-                )
-                .join("")}</ul>
-              ${n > 2 ? `<span class="pt-sub" style="display:block;margin-top:6px;font-size:12px">and ${n - 2} earlier since ${day(d.t0)}</span>` : ""}</button>`;
+            const W = 800,
+              H = 150,
+              { p, x, y } = stepPath(d, 10, W - 200, 26, H - 14);
+            const labels = last
+              .map((q, i) => {
+                const cx = x(q.from),
+                  cy = y(q.e.score);
+                const ly = 30 + i * 34;
+                const col = i ? "var(--dim)" : "var(--gold)";
+                return `<circle cx="${cx}" cy="${cy}" r="4" fill="${col}"/>
+                  <path d="M${cx},${cy}L${W - 156},${ly - 4}" stroke="${col}" stroke-width="1" opacity=".5" fill="none"/>
+                  <text x="${W - 150}" y="${ly}" style="font:600 13px var(--f-hud);fill:${col}">${fmtTime(q.e.score)} ${esc(q.e.persona)}</text>
+                  <text x="${W - 150}" y="${ly + 14}" style="font:12px var(--f-body);fill:var(--faint)">${day(q.from)}${q.prev ? " · −" + secs(q.prev.score - q.e.score) : ""}</text>`;
+              })
+              .join("");
+            return wrap(`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;margin-top:6px;overflow:visible">
+              <path d="${p}" fill="none" stroke="var(--gold)" stroke-width="2" opacity=".8"/>${labels}
+              <text x="10" y="${H}" style="font:11px var(--f-body);fill:var(--faint)">${day(d.t0)}</text></svg>`);
           }
           if (k === "D") {
-            let big = null;
-            for (const q of d.records) if (q.prev && (!big || q.prev.score - q.e.score > big.prev.score - big.e.score)) big = q;
-            const cnt = new Map();
-            for (const q of d.records) cnt.set(q.e.steamId, (cnt.get(q.e.steamId) || 0) + 1);
-            const [topId, topN] = [...cnt].sort((a, b) => b[1] - a[1])[0];
-            const topName = d.records.find((q) => q.e.steamId === topId).e.persona;
-            const age = days(r.from, d.tN);
-            return `<button type="button" class="pt-sum" id="ptStrip" aria-expanded="${open}">
-              <span class="top"><span class="lbl">World record ${fmtTime(r.e.score)} · ${esc(r.e.persona)}</span>${go()}</span>
-              <dl class="pt-stats">
-                <div><dt>Standing</dt><dd>${age ? age + (age === 1 ? " day" : " days") : "under a day"}<small>since ${day(r.from)}</small></dd></div>
-                <div><dt>Changes</dt><dd>${n}<small>since ${day(d.t0)}</small></dd></div>
-                <div><dt>Biggest cut</dt><dd>${big ? secs(big.prev.score - big.e.score) : "none"}<small>${big ? esc(big.e.persona) + ", " + day(big.from) : "&nbsp;"}</small></dd></div>
-                <div><dt>Most records</dt><dd>${esc(topName)}<small>${topN} time${topN === 1 ? "" : "s"}</small></dd></div>
-              </dl></button>`;
+            const W = 800,
+              H = 46,
+              { p, x } = stepPath(d, 0, W, 4, H - 4);
+            const pct = (t) => ((x(t) / W) * 100).toFixed(2) + "%";
+            const bars = last
+              .map(
+                (q, i) => `<li><b style="color:${i ? "var(--text)" : "var(--gold)"}">${fmtTime(q.e.score)}</b><span>${esc(q.e.persona)}${q.prev ? ` <span class="pt-up">−${secs(q.prev.score - q.e.score)}</span>` : ""}</span>
+                  <span class="pt-track"><span style="left:${pct(q.from)};width:calc(${pct(q.to || d.tN)} - ${pct(q.from)} + 3px);background:${i ? "var(--faint)" : "var(--gold)"}"></span></span></li>`,
+              )
+              .join("");
+            return wrap(`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:46px;display:block;margin-top:8px"><path d="${p}" fill="none" stroke="var(--gold)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+              <ul class="pt-reign">${bars}</ul><span class="pt-sub pt-axis"><span>${day(d.t0)}</span><span>now</span></span>`);
           }
-          /* E: the latest day with anything new */
-          const lastDay = new Date(Math.max(...d.es.filter((e) => e.f !== d.t0).map((e) => e.f), d.t0)).toDateString();
-          let pb = 0,
-            first = 0,
-            wr = 0,
-            t10 = 0;
-          const recSet = new Set(d.records.map((q) => q.e));
-          const ti = new Map(d.times.map((t, i) => [t, i]));
-          for (const e of d.es) {
-            if (e.f === d.t0 || e.flash || new Date(e.f).toDateString() !== lastDay) continue;
-            const mine = d.byPlayer.get(e.steamId);
-            if (mine.indexOf(e) > 0) pb++;
-            else first++;
-            if (recSet.has(e)) wr++;
-            else if (d.top10[ti.get(e.f)]?.includes(e)) t10++;
-          }
-          const when = new Date(lastDay).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
-          return `<button type="button" class="pt-sum" id="ptStrip" aria-expanded="${open}">
-              <span class="top"><span class="lbl">Latest · ${when}</span>${go()}</span>
-              <dl class="pt-stats">
-                <div><dt>New records</dt><dd style="color:${wr ? "var(--gold)" : "inherit"}">${wr}</dd></div>
-                <div><dt>New top 10 times</dt><dd>${t10}</dd></div>
-                <div><dt>Improved</dt><dd>${fmtN(pb)}</dd></div>
-                <div><dt>First times</dt><dd>${fmtN(first)}</dd></div>
-              </dl>
-              <span class="pt-sub" style="display:block;margin-top:8px;font-size:12px">Record ${fmtTime(r.e.score)} by ${esc(r.e.persona)}</span></button>`;
+          const W = 800,
+            H = 120,
+            { p } = stepPath(d, 0, W, 8, H - 8);
+          return wrap(`<span class="pt-behind"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${p}" fill="none" stroke="var(--gold)" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>${chainHtml(last)}</span>`);
         }
 
         const host = document.createElement("section");
