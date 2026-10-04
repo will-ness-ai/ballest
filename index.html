@@ -7207,6 +7207,141 @@
         font-size: 14px;
         margin: 0;
       }
+      .pt-card .pt-card {
+        border: 0;
+        padding: 0;
+        background: none;
+      }
+      .pt-tabs {
+        display: flex;
+        gap: 4px;
+        margin: 0 0 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .pt-tabs button {
+        background: none;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        color: var(--dim);
+        font: 600 13px var(--f-hud);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 8px 10px;
+        margin-bottom: -1px;
+        cursor: pointer;
+      }
+      .pt-tabs button[aria-selected="true"] {
+        color: var(--text);
+        border-bottom-color: var(--accent);
+      }
+      .pt-strip {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 12px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 11px var(--pad);
+        color: var(--text);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .pt-strip .wr {
+        font: 600 15px var(--f-hud);
+        color: var(--gold);
+      }
+      .pt-strip .rest {
+        flex: 1;
+        color: var(--dim);
+        font-size: 14px;
+      }
+      .pt-strip .go {
+        color: var(--accent);
+        font: 600 13px var(--f-hud);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .pt-btab {
+        margin: 12px 0 0;
+      }
+      #app.pt-hist-on #leaders,
+      #app.pt-hist-on #board,
+      #app.pt-hist-on #tiles,
+      #app.pt-hist-on #bmetaM {
+        display: none !important;
+      }
+      .pt-hbtn {
+        background: var(--surface2);
+        border: 1px solid var(--line);
+        color: var(--text);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font: 600 13px var(--f-hud);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      #ptDlg {
+        position: fixed;
+        inset: 0;
+        z-index: 900;
+        background: rgba(4, 8, 18, 0.7);
+        display: grid;
+        place-items: center;
+        padding: 16px;
+      }
+      #ptDlg[hidden] {
+        display: none;
+      }
+      #ptDlg > div {
+        width: min(720px, 100%);
+        max-height: calc(100vh - 32px);
+        overflow: auto;
+        background: var(--solid);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px var(--pad);
+      }
+      #ptDlg .dh {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+      #ptDlg h2 {
+        margin: 0;
+        font: 400 18px var(--f-marquee);
+      }
+      #ptDlg .dh button {
+        background: none;
+        border: 0;
+        color: var(--dim);
+        font-size: 26px;
+        cursor: pointer;
+      }
+      @media (min-width: 1100px) {
+        .content.pt-side {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 400px;
+          column-gap: 20px;
+          align-items: start;
+        }
+        .content.pt-side > * {
+          grid-column: 1;
+        }
+        .content.pt-side > #ptHist {
+          grid-column: 2;
+          grid-row: 1 / span 30;
+          position: sticky;
+          top: 12px;
+          margin: 0;
+          max-height: calc(100vh - 24px);
+          overflow: auto;
+        }
+      }
       #ptPick {
         position: fixed;
         right: 16px;
@@ -7270,31 +7405,33 @@
     </div>
     <script>
       (() => {
+        /* round 1 verdict: A (record line) leads, C (what changed) as a second tab.
+           Round 2: where that history lives on the board page. */
         const VARIANTS = [
           {
             key: "A",
-            name: "Record line",
-            note: "A chart of the world record over time, and the list of everyone who held it.",
+            name: "Above the board",
+            note: "Always open between the board's header and its rows, with Records and What changed tabs.",
           },
           {
             key: "B",
-            name: "Time machine",
-            note: "A date slider that shows the top 15 as it stood that day, with each player's rank now. In production the slider would drive the board itself.",
+            name: "Summary strip",
+            note: "One line above the board (current record, how many changes). Tap it to open the tabs in place.",
           },
           {
             key: "C",
-            name: "What changed",
-            note: "A day-by-day feed of this board: new records, new top 10 times, and how many players improved or posted a first time.",
+            name: "Board tab",
+            note: "Leaderboard and History are tabs. History replaces the rows (and hides the tiles) until you switch back.",
           },
           {
             key: "D",
-            name: "Rows with history",
-            note: "The top 25 rows each carry their own progress: a sparkline of the player's times and how much they've cut. Stands in for the board's own rows.",
+            name: "History button",
+            note: "A History button beside the player search opens the tabs in a dialog over the board.",
           },
           {
             key: "E",
-            name: "Race for the top",
-            note: "Rank over time for everyone who reached the top 5, one line per player.",
+            name: "Side column",
+            note: "On a wide screen the tabs sit in a column beside the rows, staying in view as you scroll. On a phone they stack above the board.",
           },
         ];
         const STATES = [
@@ -7614,34 +7751,111 @@
             <svg class="pt-chart" viewBox="0 0 ${W} ${H}">${ax.svg}${yl}${lines.join("")}</svg><div class="pt-legend">${legend}</div></div>`;
         }
 
-        /* ---------- mounting ---------- */
+        /* ---------- round 2: the tabbed history, and where it sits ---------- */
+        let tab = "rec",
+          open = false;
+        const tabs = (d) => `<div class="pt-card">
+            <div class="pt-tabs" role="tablist">
+              <button type="button" role="tab" data-tab="rec" aria-selected="${tab === "rec"}">Records</button>
+              <button type="button" role="tab" data-tab="feed" aria-selected="${tab === "feed"}">What changed</button>
+            </div>${tab === "rec" ? vA(d) : vC(d)}</div>`;
+        const stripHtml = (d) => {
+          const r = d.records.at(-1);
+          return `<button type="button" class="pt-strip" id="ptStrip" aria-expanded="${open}">
+            <span class="wr">${fmtTime(r.e.score)}</span>
+            <span class="rest">Record by ${esc(r.e.persona)} since ${day(r.from)} · ${d.records.length - 1} record change${d.records.length === 2 ? "" : "s"} since ${day(d.t0)}</span>
+            <span class="go">${open ? "Hide" : "History"}</span></button>`;
+        };
+
         const host = document.createElement("section");
         host.id = "ptHist";
-        document.getElementById("leaders").before(host);
+        const app = document.getElementById("app");
+        const content = document.querySelector(".content");
+        const dlg = document.createElement("div");
+        dlg.id = "ptDlg";
+        dlg.hidden = true;
+        dlg.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="ptDlgH"><div class="dh"><h2 id="ptDlgH">History</h2><button type="button" data-close aria-label="Close">&times;</button></div><div id="ptDlgBody"></div></div>`;
+        document.body.append(dlg);
+        const hbtn = document.createElement("button");
+        hbtn.type = "button";
+        hbtn.className = "pt-hbtn";
+        hbtn.textContent = "History";
+        document.querySelector(".boardbar").insertBefore(hbtn, document.querySelector(".boardbar .search"));
+        hbtn.onclick = () => {
+          dlg.hidden = false;
+          draw();
+        };
+        dlg.onclick = (e) => {
+          if (e.target === dlg || e.target.closest("[data-close]")) {
+            dlg.hidden = true;
+            hbtn.focus();
+          }
+        };
+        addEventListener("keydown", (e) => {
+          if (e.key === "Escape") dlg.hidden = true;
+        });
+
+        function place() {
+          const k = VARIANTS[vi].key;
+          hbtn.hidden = k !== "D";
+          content.classList.toggle("pt-side", k === "E");
+          if (k === "E") content.prepend(host);
+          else document.getElementById("leaders").before(host);
+          if (k !== "C") app.classList.remove("pt-hist-on");
+          if (k !== "D") dlg.hidden = true;
+        }
+
         let seq = 0;
         async function draw() {
+          place();
           const name = typeof boardKey === "string" ? boardKey : null;
           const my = ++seq;
           if (!name) return;
-          const meta = boardByName(name);
-          if (name.startsWith("Overall")) {
-            host.innerHTML = `<div class="pt-card"><p class="pt-empty">Overall boards keep today's points only, so they have no history yet.</p></div>`;
-            return;
+          const k = VARIANTS[vi].key;
+          const msg = (t) => `<div class="pt-card"><p class="pt-empty">${t}</p></div>`;
+          let d = null,
+            why = null;
+          if (name.startsWith("Overall")) why = "Overall boards keep today's points only, so they have no history yet.";
+          else {
+            if (k !== "D" || !dlg.hidden) host.innerHTML = k === "D" ? "" : msg("Loading history");
+            d = await loadHist(name);
+            if (my !== seq) return;
+            if (!d) why = "No history for this board.";
           }
-          host.innerHTML = `<div class="pt-card"><p class="pt-empty">Loading history</p></div>`;
-          const d = await loadHist(name);
-          if (my !== seq) return;
-          if (!d) {
-            host.innerHTML = `<div class="pt-card"><p class="pt-empty">No history for ${esc(meta ? meta.display : name)}.</p></div>`;
-            return;
+          const body = why ? msg(why) : tabs(d);
+          host.innerHTML = "";
+          document.getElementById("ptDlgBody").innerHTML = "";
+          if (k === "A" || k === "E") host.innerHTML = body;
+          if (k === "B") host.innerHTML = why ? "" : stripHtml(d) + (open ? `<div style="margin-top:8px">${body}</div>` : "");
+          if (k === "C") {
+            const on = app.classList.contains("pt-hist-on");
+            host.innerHTML = `<div class="pt-tabs pt-btab" role="tablist">
+              <button type="button" role="tab" data-btab="board" aria-selected="${!on}">Leaderboard</button>
+              <button type="button" role="tab" data-btab="hist" aria-selected="${on}">History</button></div>${on ? body : ""}`;
           }
-          host.innerHTML = [vA, vB, vC, vD, vE][vi](d);
-          const s = document.getElementById("ptSlide");
-          if (s)
-            s.oninput = () => {
-              bIdx = +s.value;
+          if (k === "D") document.getElementById("ptDlgBody").innerHTML = body;
+          wire();
+        }
+        function wire() {
+          document.querySelectorAll("[data-tab]").forEach(
+            (b) =>
+              (b.onclick = () => {
+                tab = b.dataset.tab;
+                draw();
+              }),
+          );
+          document.querySelectorAll("[data-btab]").forEach(
+            (b) =>
+              (b.onclick = () => {
+                app.classList.toggle("pt-hist-on", b.dataset.btab === "hist");
+                draw();
+              }),
+          );
+          const st = document.getElementById("ptStrip");
+          if (st)
+            st.onclick = () => {
+              open = !open;
               draw();
-              requestAnimationFrame(() => document.getElementById("ptSlide")?.focus());
             };
           const m = document.getElementById("ptMore");
           if (m)
