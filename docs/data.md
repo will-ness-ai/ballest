@@ -93,3 +93,33 @@ so each Vercel deploy migrates the branch it reads. Never edit a migration by ha
 Tests in `web/test/` each get a throwaway database on the Postgres at `TEST_DATABASE_URL`
 (`postgres://postgres:postgres@localhost:5432/postgres` by default), which `web.yml`
 provides in CI.
+
+### Seeding a branch
+
+`pnpm db:seed <dataset>` in `web/` empties every table of the database at `DATABASE_URL`
+and writes a named dataset, in one transaction. The database must already be migrated: a
+preview's deploy migrates its branch, and locally `pnpm db:migrate` does. Run it with no
+name, or a wrong one, to list the datasets. `empty` has no rows; `tiny` has a Track, an
+Overall board, two Maps, ten players and three Refreshes of Score history, and is also the
+fixture the read layer's tests run against.
+
+It refuses production three ways: when `VERCEL_ENV` is `production`; when the URL's Neon
+endpoint ID (the host's first label, without `-pooler`) is `PRODUCTION_DB_ENDPOINT`, which
+Vercel sets to production's endpoint for every environment; and, when that variable is
+unset, for any host but localhost unless `--i-know-this-is-not-production` is passed.
+
+- **Locally**, use a local Postgres: `DATABASE_URL=postgres://postgres:postgres@localhost:5432/<db>`.
+  Never `vercel env pull`: Vercel's Development variables point at production.
+- **A preview branch**: Neon gives a git branch's preview deploys their own database
+  branch, `preview/<git-branch>`, copied from production on the first deploy and reused by
+  later ones, so a seed stays until that branch is deleted. Copy its connection string
+  from the Neon console, then from `web/`:
+  `PRODUCTION_DB_ENDPOINT=<production endpoint ID> DATABASE_URL='<preview branch URL>' pnpm db:seed tiny`.
+  The preview reads the seeded rows once its cached reads are revalidated (the next deploy,
+  or a `POST /api/revalidate`).
+
+**Adding a dataset** is a module in `web/db/seed/datasets/` exporting a `Dataset` (a
+one-line `description` and a `seed(tx)` that inserts through the schema in `db/schema.ts`)
+and one line in that folder's `index.ts` registry. The harness has already emptied every
+table and restarted their IDs, so a dataset writes from nothing, and Refresh IDs come back
+from the insert rather than being assumed.
