@@ -1,0 +1,3 @@
+# The collector's tests (tools/tests/): the collector's own deps, plus pytest
+-r requirements-steampy.txt
+pytest==9.1.1

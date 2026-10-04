@@ -90,6 +90,58 @@ so each Vercel deploy migrates the branch it reads. Never edit a migration by ha
   and a row per change of its title, creator name, preview, Medals, sessions,
   subscriptions or entry count.
 
+### How a Refresh gets there
+
+`record_refresh` in `tools/db_writer.py` is the collector's database step, called from
+`on_ready` once `write_site` has written the JSON, with what that run published: the
+Circuit boards, the names of those kept from the committed copy (`reused`), and the
+Workshop result `write_site` returns (None when the Workshop step failed, its guards kept
+the committed files, or its write failed). `write_refresh` writes it in one transaction,
+rows loaded by COPY into temp tables and each step one statement, since a Refresh carries
+~155k rows across ~1,100 boards (about 5s against a local Postgres):
+
+1. the Refresh, and every board it carries upserted: Tracks and Overall boards from
+   `BOARDS`, with `scores_points` from the `Overall` name prefix, and every Map's board.
+   The derived boards are skipped.
+2. `board_reads`: a Circuit board is ok unless it is in `reused` or came back empty. A Map
+   is read only if the Workshop result has its rows (ok) or lists it in `failed` (not ok,
+   a read `collect_workshop` tried and lost). A Map not read gets no row.
+3. `players` upserted from the rows (a blank persona or picture never overwrites a known
+   one), and `persona_history` appended when a persona differs from the player's latest,
+   else that row's `last_seen_refresh` moves.
+4. `entries`, for boards read ok only: an open Entry whose (player, score) is still on the
+   board moves `last_seen_refresh`; one whose score changed, or whose player is gone, is
+   closed by this Refresh; a score with no open Entry opens one. The UGC ID is the one first
+   seen with that score.
+5. `maps` upserted, and `map_history` appended when the title, creator name, preview,
+   Medals, sessions, subscriptions or entry count differ from the latest row. Sessions and
+   subscriptions are the ones `workshop.json` stores, as of each Map's last board read.
+
+Which database: `DATABASE_URL`, and the step is skipped with a log line without it. With
+`--out`, only `DEV_DATABASE_URL` (a local Postgres for now). A failure is logged as a
+GitHub `::error::` and the run goes on, since the JSON is still the source. After a
+commit, if `SITE_URL` and `REVALIDATE_SECRET` are set, it POSTs `${SITE_URL}/api/revalidate`
+with `Authorization: Bearer <secret>`, which revalidates the `data` tag; a failed call is a
+warning.
+
+`tools/check_db.py` is the dual-write parity check, run by `refresh.yml` after the commit
+step when the `DATABASE_URL` secret is set. Every Circuit board file in `BOARDS` and every
+Map file `workshop.json` lists must equal the database's open Entries on that board, as
+(steam_id, score) pairs, and a stored board with open Entries must have a file. A Map gone
+from the Workshop loses its file while its Entries stay open, since nothing reads it again,
+so it is reported but is not drift.
+
+`tools/db_backfill.py` replays every commit on the first-parent line that touched
+`data/boards`, `data/workshop` or `data/workshop.json`, oldest first, through
+`write_refresh` as `source = 'backfill'` Refreshes dated at the commit, with its SHA. A
+snapshot's Circuit boards (in `BOARDS`) count as read ok; a Map counts as read only if its
+file changed in that commit or first appears in it. It refuses a database holding any
+Refresh unless given `--rebuild`, which truncates every table first. `backfill.yml` runs it
+against production by hand. On 2026-10-04 it replayed 150 snapshots in ~7.5 minutes
+locally to 1.24M Entries and 470 MB, 1.05M of those Entries on the Season 2 Overall board,
+whose points move for most players on every Refresh.
+
 Tests in `web/test/` each get a throwaway database on the Postgres at `TEST_DATABASE_URL`
 (`postgres://postgres:postgres@localhost:5432/postgres` by default), which `web.yml`
-provides in CI.
+provides in CI. The collector's tests in `tools/tests/` use the same Postgres, each on a
+copy of a template database `web/scripts/migrate.mjs` builds, and run in `check.yml`.

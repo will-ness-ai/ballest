@@ -23,6 +23,10 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    # The database (docs/adr/0005). Without the secret, the collector skips its database
+    # write and the parity check below is skipped, so this works before it exists.
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +43,9 @@ jobs:
         env:
           STEAM_REFRESH_TOKEN: ${{ secrets.STEAM_REFRESH_TOKEN }}
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+          # after the database commit, the collector asks the site to refetch its cached reads
+          SITE_URL: https://ballest.willness.dev
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
         run: python tools/steampy_collect.py
 
       - name: Commit updated data if changed
@@ -66,3 +73,10 @@ jobs:
               echo "ERROR: could not push refreshed data after 3 attempts"; exit 1
             fi
           fi
+
+      # The collector writes the JSON and the database from the same Refresh, and a
+      # database failure is only an ::error:: line there, so the JSON still ships. This
+      # is where that failure, or any drift between the two, turns the run red.
+      - name: Check the database against the JSON
+        if: env.DATABASE_URL != ''
+        run: python tools/check_db.py

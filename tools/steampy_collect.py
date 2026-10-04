@@ -6,7 +6,9 @@ reads every campaign leaderboard over the Steam CM via steam.py, resolves player
 names via the Steam Web API, and writes data/index.json + data/boards/*.json.
 It also keeps the Workshop Maps' boards current (data/workshop.json +
 data/workshop/*.json), reading only the ones played since the last run
-(collect_workshop).
+(collect_workshop). Then the same Refresh goes into the database
+(db_writer.record_refresh): DATABASE_URL, or with --out only DEV_DATABASE_URL;
+skipped when unset.
 
 Auth (secrets, provided as env vars in CI; locally they fall back to the files
 steampy_mint.py and .env hold, in this checkout or the main one if this is a
@@ -23,20 +25,23 @@ To try the whole write path without touching data/:
   python tools/steampy_collect.py --out scratch/data
   python tools/check_data.py --data scratch/data
   (--out copies the committed data/ into that folder, then reads and writes there)
-Requires: steamio, aiohttp<3.13  (see tools/requirements-steampy.txt)
+Requires: steamio, aiohttp<3.13, psycopg  (see tools/requirements-steampy.txt)
 """
 
+import asyncio
 import logging
 import os
 import shutil
 import sys
 import time
 import traceback
+from datetime import UTC, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import warnings
 
 import campaign_common as cc
+import db_writer
 
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
 
@@ -48,6 +53,8 @@ logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown 
 
 TOKEN = cc.load_refresh_token()
 WORKSHOP_ONLY = "--workshop-only" in sys.argv[1:]
+STARTED_AT = datetime.now(UTC)
+OUT = None
 if "--out" in sys.argv[1:]:
     OUT = sys.argv[sys.argv.index("--out") + 1]
     # a fresh copy each run, so it starts from exactly what is committed
@@ -155,6 +162,8 @@ async def collect_workshop(catalogue, all_ids):
     return {
         "maps": maps,
         "boards": boards,
+        # what the database records as failed reads (db_writer); not written to the JSON
+        "failed": failed,
         # a sweep cut short is not a sweep: the next run starts another
         "full_sweep_at": now
         if full and streak < WORKSHOP_GIVE_UP
@@ -179,6 +188,7 @@ async def workshop_only():
     _, artifacts = cc.derive(cc.committed_boards(), cc.workshop_boards())
     cc.write_derived(artifacts)
     _state["wrote"] = True
+    print("Database: --workshop-only writes no Refresh; skipping the database write")
 
 
 @client.event
@@ -260,10 +270,23 @@ async def on_ready():
             except Exception as e:
                 # The campaign still publishes; the Workshop files stay as committed.
                 print(f"  [warn] Workshop step failed: {e!r}")
-        cc.write_site(boards_out, all_ids, workshop)
+        published = cc.write_site(boards_out, all_ids, workshop)
         _state["wrote"] = True
         if reused:
             print(f"NOTE: reused previous data for {len(reused)} board(s): {reused}")
+        # The same Refresh into the database, after the JSON and never instead of it:
+        # record_refresh logs its own failure and does not raise. Only the Workshop the
+        # JSON published counts as read, so the two agree (tools/check_db.py).
+        await asyncio.to_thread(
+            db_writer.record_refresh,
+            db_writer.Refresh(
+                started_at=STARTED_AT,
+                boards=boards_out,
+                reused=tuple(reused),
+                workshop=published,
+            ),
+            scratch=OUT is not None,
+        )
     except Exception as e:
         _state["error"] = e
         traceback.print_exc()
