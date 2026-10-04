@@ -25,7 +25,6 @@ on:
     paths:
       - "web/**"
       - ".github/workflows/web.yml"
-      - "index.html"
       - "favicon.ico"
       - "favicon.svg"
       - "apple-touch-icon.png"

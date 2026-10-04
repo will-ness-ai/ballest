@@ -38,7 +38,7 @@ Run a `/grilling` session in which each question is asked with prototypes, not w
 ## Each round
 
 - Build **5 radically different** variants of the current design question inside the
-  real page (`index.html`, or the Activity's page), on the route the feature belongs on.
+  real page (the app in `web/`, or the Activity's page), on the route the feature belongs on.
   Only the feature's own subtree changes per variant; routing, data loading and the rest
   of the page stay as they are. Variants disagree about structure (layout, hierarchy,
   primary affordance), not just colour or copy.

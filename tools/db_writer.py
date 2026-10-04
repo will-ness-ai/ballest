@@ -116,7 +116,7 @@ def revalidate(env):
 
 
 def board_kind(name):
-    """The board's kind from its name, as isPoints in index.html reads it."""
+    """The board's kind from its name, as isPoints in web/lib/rules.ts reads it."""
     return "overall" if name.startswith("Overall") else "track"
 
 

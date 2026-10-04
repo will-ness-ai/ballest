@@ -140,7 +140,7 @@ S1_CURRENT_BOARD = "OverallLeaderboard_S1Current"
 # place (100th, 1000th, ...) and falls smoothly in between. Each track's payout is
 # rounded down, then summed. Fitted on Season 2's live Overall board (70% of
 # players exact, the rest stale totals Steam has not recomputed) and confirmed by
-# the developers. The site states the same table (POINTS_FIRST in index.html); if
+# the developers. The site states the same table (POINTS_FIRST in web/lib/rules.ts); if
 # the game rescales, both change.
 POINTS_FIRST = 40000
 

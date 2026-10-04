@@ -83,8 +83,8 @@ async def collect_workshop(catalogue, all_ids):
     Maps with no runs had 13-28 subscribers on 2026-09-30, and no Map had fewer
     subscribers than runners), and the session count misses plays (353 of 975 Maps
     with runs had fewer sessions than runners, 17 had none). So a first time or a
-    better one on a quiet Map can wait for the full read. The refresh dialog in
-    index.html (#rfx) tells players this; keep the two in step.
+    better one on a quiet Map can wait for the full read. The refresh dialog
+    (web/components/Freshness.tsx) tells players this; keep the two in step.
 
     A Map's stored counters are the ones seen at its last successful read. A read
     that fails leaves them behind, so the next run tries that Map again, and the
