@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { CreatorLink } from "./Card";
 import { Age } from "./Age";
-import { BackLink } from "../BackLink";
+import { BackLink, Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardBody } from "../board/BoardBody";
 import { MapImage } from "../MapImage";
@@ -13,7 +13,7 @@ import { ScorePlates } from "../board/BoardTop";
 import { Spread } from "../board/Spread";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import type { WorkshopMap } from "../../lib/rows";
-import { homeHref } from "../../lib/routes";
+import { homeHref, mapHref } from "../../lib/routes";
 import { BOARD_CHUNK, MEDALS, fmtN, fmtSec, fmtTime, isSteamId } from "../../lib/rules";
 import { HIDDEN, reportHref } from "../../lib/workshop";
 
@@ -116,6 +116,7 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
           focus={focus && at ? { id: focus, rank: at.rank } : null}
         />
       </section>
+      <Remember trail="board" href={mapHref(m.pfid)} label={m.title} />
     </div>
   );
 }
