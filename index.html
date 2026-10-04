@@ -7711,34 +7711,15 @@
            round 3 verdict: a mix of B (record sparkline) and C (last holders).
            round 4 verdict: D, the sparkline over reign bars for the last three holders.
            round 5 verdict: E, a big step chart over every reign's bar.
-           round 6 verdict: none of the five. Every reign bar is one colour, and the same
-           row shows that player's earlier records in a very muted colour (recTabFinal).
-           Round 7: the What changed tab (opens on it this round). */
+           round 6 verdict: every reign bar one colour, the player's earlier records on the
+           same row in a very muted colour (recTabFinal).
+           round 7 verdict: A + E, climbers over the day list (feedFinal).
+           The design, all verdicts applied. */
         const VARIANTS = [
           {
-            key: "A",
-            name: "Day list",
-            note: "Round 1's feed as it was: each day's new records, new top 10 times, and how many improved or posted a first time.",
-          },
-          {
-            key: "B",
-            name: "Day strip",
-            note: "A strip of every day since 6 Sep, shaded by how busy it was, with records marked. Pick a day to see what happened.",
-          },
-          {
-            key: "C",
-            name: "Notable only",
-            note: "Just the records and new top 10 times, one line each with its date. No counts of everyone else.",
-          },
-          {
-            key: "D",
-            name: "Activity chart",
-            note: "Bars of improvements and first times per day, with records marked above them, and the notable times listed below.",
-          },
-          {
-            key: "E",
-            name: "Climbers",
-            note: "Who moved most in the last 7 days: places gained and time cut, for anyone now in the top 100.",
+            key: "F",
+            name: "Final",
+            note: "Every verdict applied: the summary above the rows, Records (chart over reign bars, earlier reigns muted) and What changed (climbers over the day list).",
           },
         ];
         const STATES = [
@@ -8069,7 +8050,7 @@
             <div class="pt-tabs" role="tablist">
               <button type="button" role="tab" data-tab="rec" aria-selected="${tab === "rec"}">Records</button>
               <button type="button" role="tab" data-tab="feed" aria-selected="${tab === "feed"}">What changed</button>
-            </div>${tab === "rec" ? recTabFinal(d) : feedTab(VARIANTS[vi].key, d)}</div>`;
+            </div>${tab === "rec" ? recTabFinal(d) : feedFinal(d)}</div>`;
         const stripHtml = (d) => {
           const r = d.records.at(-1);
           return `<button type="button" class="pt-strip" id="ptStrip" aria-expanded="${open}">
@@ -8457,6 +8438,48 @@
             <div class="pt-wrap"><table class="pt-tbl"><tr><th class="n">Now</th><th>Player</th><th class="n">Time</th><th class="n">Places</th><th class="n">Cut</th></tr>${rows || '<tr><td class="pt-dim" colspan="5">Nobody in the top 100 moved this week.</td></tr>'}</table></div>`;
         }
 
+        /* ---------- round 7 verdict: the What changed tab ---------- */
+        let feedDays = 7;
+        function feedFinal(d) {
+          const groups = [...dayGroups(d).values()].sort((a, b) => b.t - a.t);
+          if (!groups.length) return `<p class="pt-empty">Nothing has changed on this board since ${day(d.t0)}.</p>`;
+          const cut = Math.max(d.t0, d.tN - 7 * 86400000);
+          const rankAt = (t) => {
+            const m = new Map();
+            let r = 0;
+            for (const e of d.valid) if (e.f <= t && (e.c === null || e.c > t)) m.set(e.steamId, { r: ++r, e });
+            return m;
+          };
+          const then = rankAt(cut),
+            now = rankAt(d.tN);
+          const moved = [...now.entries()]
+            .filter(([, v]) => v.r <= 100)
+            .map(([id, v]) => ({ v, was: then.get(id) }))
+            .filter((x) => x.was && x.was.r > x.v.r)
+            .sort((a, b) => b.was.r - b.v.r - (a.was.r - a.v.r) || a.v.r - b.v.r)
+            .slice(0, 10);
+          const fresh = [...now.values()].filter((v) => v.r <= 100 && !then.has(v.e.steamId));
+          const climbers = `<p class="pt-h">Climbers <small>since ${day(cut)}, everyone now in the top 100</small></p>
+            <div class="pt-wrap"><table class="pt-tbl"><tr><th class="n">Now</th><th>Player</th><th class="n">Time</th><th class="n">Places</th><th class="n">Cut</th></tr>${
+              moved
+                .map(
+                  (x) => `<tr><td class="n">${x.v.r}</td><td class="who">${who(x.v.e)}</td><td class="n">${fmtTime(x.v.e.score)}</td>
+                  <td class="n pt-up">▲ ${fmtN(x.was.r - x.v.r)}</td><td class="n pt-dim">−${secs(x.was.e.score - x.v.e.score)}</td></tr>`,
+                )
+                .join("") || '<tr><td class="pt-dim" colspan="5">Nobody in the top 100 moved this week.</td></tr>'
+            }</table></div>
+            ${fresh.length ? `<p class="pt-sub" style="margin:8px 0 0;font-size:13px">New to the board and straight into the top 100: ${fresh.map((v) => `${who(v.e)} <span class="pt-dim">${ord(v.r)}</span>`).join(", ")}</p>` : ""}`;
+          const daysHtml = groups
+            .slice(0, feedDays)
+            .map(
+              (g) => `<div class="pt-day"><h3>${longDay(g.t)}</h3><ul>${notable(g)}
+                <li><span class="pt-tag pb">Board</span><span class="pt-dim">${fmtN(g.pb)} improved · ${fmtN(g.first)} first times</span></li></ul></div>`,
+            )
+            .join("");
+          return `${climbers}<p class="pt-h" style="margin-top:18px">By day</p>${daysHtml}
+            ${groups.length > feedDays ? `<button type="button" class="pt-more" id="ptMoreDays">Earlier days</button>` : ""}`;
+        }
+
         const host = document.createElement("section");
         host.id = "ptHist";
         const app = document.getElementById("app");
@@ -8548,6 +8571,12 @@
                 draw();
               }),
           );
+          const md = document.getElementById("ptMoreDays");
+          if (md)
+            md.onclick = () => {
+              feedDays += 7;
+              draw();
+            };
           const st = document.getElementById("ptStrip");
           if (st)
             st.onclick = () => {
