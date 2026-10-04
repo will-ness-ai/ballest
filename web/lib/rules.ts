@@ -117,7 +117,15 @@ export const TIERS = [
 export type Tier = (typeof TIERS)[number][0];
 export const TIER_LABEL = Object.fromEntries(TIERS) as Record<Tier, string>;
 
-/* the one place that rule lives. A Map's Medals are [bronze, silver, gold, author], seconds */
+/* A creator's own run counts toward a Map's authorBeaten (workshopMaps in db/site.ts) only
+   when it is this much faster than the author time: the author time is their publishing
+   run, and the two disagree by up to ~0.75 ms. CREATOR_BEAT_MARGIN_TICKS in
+   tools/campaign_common.py, which author_beaten uses. */
+export const CREATOR_BEAT_MARGIN_TICKS = 100;
+
+/* the one place that rule lives. A Map's Medals are [bronze, silver, gold, author], seconds.
+   No creator margin here: the old page's tierOf showed a creator's own run its Medal as
+   is, and only the collector's author_beaten count applied CREATOR_BEAT_MARGIN_TICKS. */
 export function tierOf(medals: ReadonlyArray<number>, rank: number, score: number): Tier {
   if (rank === 1) return "wr";
   const at = (i: number) => score <= (medals[i] ?? 0) * SCORE_TICKS_PER_SECOND;

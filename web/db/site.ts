@@ -4,16 +4,11 @@
 import { sql, type SQL } from "drizzle-orm";
 
 import { CIRCUIT, S1_TRACKS, S2_TRACKS } from "../lib/circuit";
-import { SCORE_TICKS_PER_SECOND } from "../lib/rules";
+import { CREATOR_BEAT_MARGIN_TICKS, SCORE_TICKS_PER_SECOND } from "../lib/rules";
 import type { Db } from "./client";
 import { DERIVED, boardSql, rankedSql } from "./boards";
 
 const TRACKS = [...S1_TRACKS, ...S2_TRACKS];
-
-/* A creator's own run counts as beating their author time only when it is this much
-   faster: the author time is their publishing run, and the two disagree by up to ~0.75 ms
-   (CREATOR_BEAT_MARGIN_TICKS in tools/campaign_common.py). */
-const CREATOR_BEAT_MARGIN_TICKS = 100;
 
 async function rows<T>(db: Db, query: SQL): Promise<Array<T>> {
   return (await db.execute(query)).rows as Array<T>;

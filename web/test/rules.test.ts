@@ -6,6 +6,7 @@ import { describe, expect, test } from "vitest";
 
 import { CIRCUIT, TRACKS } from "../lib/circuit";
 import {
+  CREATOR_BEAT_MARGIN_TICKS,
   SCORE_TICKS_PER_SECOND,
   ageText,
   fmtSec,
@@ -109,6 +110,17 @@ describe("the game's rules", () => {
     expect(tierOf(medals, 2, 1500000)).toBe("gold");
     expect(tierOf(medals, 2, 2500000)).toBe("bronze");
     expect(tierOf(medals, 2, 3000001)).toBe("none");
+  });
+
+  test("a creator's own margin applies to authorBeaten alone, as the collector's does", () => {
+    // the collector's author_beaten and workshopMaps' SQL share the margin
+    const py = readFileSync(new URL("../../tools/campaign_common.py", import.meta.url), "utf8");
+    expect(Number(/^CREATOR_BEAT_MARGIN_TICKS = (\d+)/m.exec(py)?.[1])).toBe(
+      CREATOR_BEAT_MARGIN_TICKS,
+    );
+    // a Medal does not: a run at the author time is an author Medal, whoever set it,
+    // as on the old page
+    expect(tierOf([30, 20, 15, 12], 2, 12 * SCORE_TICKS_PER_SECOND)).toBe("author");
   });
 });
 
