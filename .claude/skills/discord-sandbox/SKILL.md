@@ -32,7 +32,8 @@ touches, from the first click to the Result if the change reaches it:
 
 - `press` by label, then `submit` the Link form (`profile=<any name>`) and confirm.
 - `time <match> <seconds> --as <player>` sets a run; the engine reads it on its next poll.
-- `wait improved --in <thread>` (an improvement post is an image alone) or `wait "Final result"`.
+- `wait improved --in <thread>` (an improvement post is an image alone) or `wait "Final result" --in <thread>`:
+  both post in the Match Thread, and `wait` without `--in` reads only the channel.
 - `show <id>` saves a post's images; open each one and compare it with what the change meant.
 
 Done when every post the change affects has been read and its image opened.
