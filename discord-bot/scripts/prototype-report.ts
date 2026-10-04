@@ -105,7 +105,7 @@ const headline = `${post.maps.length.toLocaleString("en")} Workshop maps · ${pl
 
 const SINCE_MAX = 6;
 const playersOn = (pfid: string) => (mapsById.get(pfid) as (MapRow & { entries?: number }) | undefined)?.entries ?? 0;
-const ppl = (pfid: string) => `-# ${playersOn(pfid)} players`;
+const ppl = (pfid: string) => `· *${playersOn(pfid)} players*`;
 /** Circuit records first, then every Workshop change, the busiest map (most players) first. */
 const sinceLines = (max = SINCE_MAX): Array<string> => {
   const out: Array<string> = [];
