@@ -85,7 +85,9 @@ so each Vercel deploy migrates the branch it reads. Never edit a migration by ha
   and last Refresh that saw it and the Refresh that closed it. At most one open row per
   board and player (`entries_one_open`). An unchanged score moves only
   `last_seen_refresh`, and a player gone from a board that was read successfully is
-  closed, never deleted.
+  closed, never deleted. An Overall board (`scores_points`) keeps current points only: a
+  changed score updates its open row in place, so its first-seen is when the player first
+  appeared there (ADR 0005).
 - `maps` and `map_history`: what a Map never changes (its board, creator, created time),
   and a row per change of its title, creator name, preview, Medals, sessions,
   subscriptions or entry count.

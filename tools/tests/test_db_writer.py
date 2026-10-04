@@ -81,6 +81,17 @@ def test_an_improvement_closes_the_old_entry_and_opens_a_new_one(conn):
     assert open_entries(conn, TRACK) == {"1001": 1009000}
 
 
+def test_an_overall_board_keeps_only_current_points_in_one_entry(conn):
+    # Overall points move for most players every Refresh (docs/adr/0005), so a points
+    # board keeps one Entry per player, updated in place; its history is rebuilt from
+    # the tracks'.
+    overall = "OverallLeaderboard_EASeason2"
+    r1 = db_writer.write_refresh(conn, refresh(0, [board(overall, ("1001", 500), ("1002", 400))]))
+    r2 = db_writer.write_refresh(conn, refresh(1, [board(overall, ("1001", 520))]))
+    assert history(conn, overall, "1001") == [(520, r1, r2, None)]
+    assert history(conn, overall, "1002") == [(400, r1, r1, r2)]
+
+
 def test_a_new_player_opens_an_entry_beside_the_others(conn):
     r1 = db_writer.write_refresh(conn, refresh(0, [board(TRACK, ("1001", 1013307))]))
     r2 = db_writer.write_refresh(

@@ -13,6 +13,8 @@ collector holds it after its guards have run, and writes it in one transaction:
   - for each board read ok: an open Entry whose score is unchanged only moves
     last_seen_refresh; a changed score closes the old Entry and opens a new one; a new
     player opens one; a player no longer on the board has theirs closed, never deleted.
+    A points (Overall) board is the exception: a changed score updates its open Entry in
+    place, so it holds current points only.
   - players and persona_history, maps and map_history: upserted, with a history row
     appended only when something in it changed (otherwise its last_seen_refresh moves).
 
@@ -289,6 +291,18 @@ def _write_entries(cur, rid, entries):
     cur.execute("analyze in_entries")
     # Only boards read ok this Refresh are touched: a failed, kept or empty read moves
     # nothing, and a Map not read has no row in in_reads at all.
+    # A points board keeps current points only: its open Entry takes the new score in
+    # place, since Overall points move for most players every Refresh and would outgrow
+    # the database (docs/adr/0005). Its history comes from the tracks'.
+    cur.execute(
+        """
+        update entries e set score = i.score, ugc_id = i.ugc_id
+        from in_entries i, boards b
+        where e.closed_refresh is null and e.board = i.board and e.steam_id = i.steam_id
+          and b.name = i.board and b.scores_points and e.score <> i.score
+          and e.board in (select board from in_reads where ok)
+        """
+    )
     cur.execute(
         """
         update entries e set closed_refresh = %s

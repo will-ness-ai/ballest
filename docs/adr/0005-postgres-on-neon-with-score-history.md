@@ -14,7 +14,12 @@ and score, with when it was first and last seen, written only when a score chang
 closed off, never deleted, when a player drops off a board. Ranks are not stored (they
 come from the scores at any moment, and storing them would rewrite thousands of rows
 whenever someone near the top moves), and neither are the derived boards, podiums or
-standings, which the app computes and caches. Every collector Refresh is logged with the
+standings, which the app computes and caches. Overall boards are the one exception to
+keeping every score: their points move for most players on every Refresh as others pass
+them, which in the backfill was 85% of all rows and about 70,000 more a day, past Neon's
+free tier within weeks. So an Overall board holds current points only, one Entry per
+player updated in place, and its history is rebuilt from the tracks' (close to Steam's
+own totals, not exact). Every collector Refresh is logged with the
 boards it read, because Workshop Maps are not read on every Refresh and a gap in reading
 must not look like a gap in play. The git history of `data/` is replayed into the database
 once, so history starts at 2026-09-05 rather than on the day this ships.
