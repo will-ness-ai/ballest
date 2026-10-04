@@ -7822,7 +7822,8 @@
         /* ---------- helpers ---------- */
         const MON = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
         const day = (t) => new Date(t).getDate() + " " + MON[new Date(t).getMonth()];
-        const secs = (d) => (d / SCORE_TICKS_PER_SECOND).toFixed(3) + "s";
+        /* a cut under a millisecond still shows: the board counts in 1/100000 s */
+        const secs = (d) => (d / SCORE_TICKS_PER_SECOND).toFixed(Math.abs(d) < 100 ? 5 : 3) + "s";
         const days = (a, b) => Math.max(0, Math.round((b - a) / 86400000));
         const who = (e) => playerLink(e.steamId, e.persona || "Player " + e.steamId.slice(-6));
         const hue = (id) => `hsl(${hueFor(id)} 80% 62%)`;
