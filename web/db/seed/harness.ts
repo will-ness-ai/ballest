@@ -54,7 +54,7 @@ export function isDataset(name: string): name is DatasetName {
   return Object.hasOwn(datasets, name);
 }
 
-const tables = Object.values(schema).filter((t): t is PgTable => is(t, PgTable));
+const tables = Object.values<unknown>(schema).filter((t): t is PgTable => is(t, PgTable));
 
 // Empties every table and writes the dataset, in one transaction, so a dataset that
 // fails part way leaves the database as it was.
