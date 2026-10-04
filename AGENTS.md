@@ -42,24 +42,23 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   compares the database's open Entries with the board files (the parity check), and
   `tools/db_backfill.py` replays the git history of `data/` through the same writer. Their
   tests are `tools/tests/`. The tables: `docs/data.md`.
-- `tools/ugc_discord_leaderboard.py` — local, on demand: reads every Workshop map's
-  board and prints a Discord post (most custom maps beaten, most author medals, most
-  world records and top 5s, and the longest-standing campaign and Workshop records).
-  Not part of CI and writes nothing into the repo.
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
   writes the Refresh to the database and revalidates the site's cached reads, then runs
   the parity check when the `DATABASE_URL` secret is set. `backfill.yml`, by hand only, runs the backfill against
   production (cloud sessions can't reach Neon) in the same concurrency group.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
-  covers install and how it hooks the game.
+  covers install and how it hooks the game. Its card now ships in AnythingGoes's Grind Stats
+  plugin, and the mod is switched off in Will's game.
+- `tools/sync_plugin_forks.py` — fast-forwards Will's plugin forks to upstream (see Plugins below).
 - `leth/` — a second, self-contained page at `/leth/`: a 3D ghost-route viewer for the
   Leth Trial #1 event board. Frozen snapshots, its own `data/`, not touched by the
   collector; `leth/README.md` covers it.
 - `discord-bot/` — Multiballs, the unofficial Discord Match bot (TypeScript, Effect 3,
   Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site: it runs on
   Fly.io, deployed by `.github/workflows/bot.yml`; its own `AGENTS.md` covers running it
-  locally (dev app only) and production.
+  locally (dev app only) and production. It also posts the Daily Report in #stats-by-will
+  every day, read from the database (ADR 0006, spec #126).
 - `multiballs/` — the bot's Terms of Service and Privacy Policy, published with the site at
   `/multiballs/` because the Discord Developer Portal links to them.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
@@ -223,12 +222,13 @@ Most of these are `disable-model-invocation`, so the Skill tool refuses them, an
 writes through a project thread, so his `/to-spec`, `/implement-spec` or `/retro` reaches you as
 text. When his message names one, read `.claude/skills/<name>/SKILL.md` and follow it.
 
-### Building a feature
+### Building a feature or fixing a bug
 
 Plan with `/grill-with-docs`, settle anything players will see with `/grill-design`, write
 it up with `/to-spec` and `/to-tickets`, build it with `/implement-spec`, which opens the
 draft PR, then a final `/code-review`, a `/codebase-design` pass over the code it touched,
-and an updated PR. Once it is merged, run `/retro` on the sessions that built it. Each step and how it fits this repo: `docs/agents/feature-workflow.md`.
+and an updated PR. Once it is merged, run `/retro` on the sessions that built it. Each step, how it fits this repo, and which steps
+a bug fix takes: `docs/agents/feature-workflow.md`.
 
 A cloud session and a session on Will's PC often work one feature at once. Push to a branch you
 made or were handed; before pushing to anyone else's, `git fetch` it and look for an open PR from
@@ -247,6 +247,12 @@ The five canonical roles, each label string equal to its name. See
 ### Domain docs
 
 Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Plugins
+
+Changes to AnythingGoes's plugin manager or its plugins (Grind Stats) happen in Will's forks
+beside this repo and go upstream as pull requests. Checkouts, fork rules, building the host and
+testing in a sandboxed game copy: `docs/agents/plugins.md`.
 
 ## Do not publish the reverse-engineering material
 

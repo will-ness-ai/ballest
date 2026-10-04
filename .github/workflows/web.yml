@@ -20,6 +20,20 @@ on:
       - "circuit/**"
       - "leth/**"
       - "multiballs/**"
+  push:
+    branches: ["claude/**"]
+    paths:
+      - "web/**"
+      - ".github/workflows/web.yml"
+      - "index.html"
+      - "favicon.ico"
+      - "favicon.svg"
+      - "apple-touch-icon.png"
+      - "og.png"
+      - "data/**"
+      - "circuit/**"
+      - "leth/**"
+      - "multiballs/**"
   workflow_dispatch: {}
 
 jobs:

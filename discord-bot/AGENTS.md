@@ -141,6 +141,37 @@ Production serves it at `https://multiballs.fly.dev` (`fly.toml`'s `http_service
 `DISCORD_APPLICATION_ID` and `DISCORD_CLIENT_SECRET` in `fly secrets` and the production app's
 URL Mapping pointing there.
 
+## The Daily Report
+
+`src/report/` posts the Daily Report (spec #126, design on branch
+`claude/prototype-daily-report`) in `STATS_CHANNEL_ID` at 16:00 UTC: the day, the counts and
+Since yesterday in the channel with the four boards as an image, and the map lists and
+longest-standing records in a thread on it. It reads the leaderboard database at `DATABASE_URL`
+(ADR 0006: plain SQL over the schema `web/` owns, in `source.ts`) and dates records from their
+ghost replays through the Steam Web API. It is off unless both settings are set, so `pnpm dev` and
+the sandbox never post it. Each posted day is recorded in SQLite (`daily_reports`); a bot that
+was down at 16:00 posts once when it starts, and a day whose last Refresh is over 48 hours old
+is skipped with a note to the ops channel, as is a post that fails.
+
+What it says is pure and tested: the standings, lists and Since yesterday in `report.ts`
+(`test/report.test.ts`), the words in `messages.ts`, the schedule in `daily.ts` over fakes on the
+TestClock (`test/daily.test.ts`). The SQL and the Discord REST calls are checked by posting one:
+
+```
+pnpm --silent axi sandbox create
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev pnpm report
+pnpm --silent axi read --full
+```
+
+`pnpm report` posts the report now into the sandbox channel (or `--channel <id>`), skipping the
+schedule's checks, and refuses any database but a local one. Fill a local Postgres with real
+history by migrating it (`web/scripts/migrate.mjs`) and replaying `tools/db_backfill.py` into it
+(`docs/data.md`); the database must be UTF-8.
+
+In production the bot's role needs View Channel, Send Messages, Attach Files, Create Public
+Threads and Send Messages in Threads in #stats-by-will, and `fly secrets` needs `STATS_CHANNEL_ID`
+and `DATABASE_URL` (the collector's Neon URL).
+
 ## Production
 
 Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,

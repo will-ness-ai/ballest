@@ -16,6 +16,7 @@ export default defineConfig(
     "data/",
     "leth/",
     ".claude/skills/",
+    ".claude/worktrees/",
     "discord-bot/.logs/",
     "web/.next/",
     "web/public/",

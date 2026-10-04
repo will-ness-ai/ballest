@@ -66,7 +66,9 @@ it breaks. Those files carry the reasons; this file carries the checks.
 - A thread post or Card view carries everything its message shows; the Channel draws from the
   post, never from state the post didn't bring.
 - Behaviour a Player could see is tested through the engine or the Surface port
-  (`test/engine.test.ts`, `test/surface.test.ts`).
+  (`test/engine.test.ts`, `test/surface.test.ts`). Where an image places something (which
+  name sits by which line) is the exception: the ports carry views, not layout, so it is
+  tested on the scene `src/render/scenes.ts` returns (`test/progression.test.ts`).
 
 ## Docs
 

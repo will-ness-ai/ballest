@@ -58,7 +58,7 @@ async def on_ready():
 
         # Validate the full read path against one real board (read by ID, as the
         # collector does; find-by-name also works once the header's routing_app_id
-        # is set — see ugc_discord_leaderboard.find_board_id).
+        # is set — see steampy_common.find_board_id).
         print("Validating: reading top 5 of Season 2 Overall...")
         lid = cc.LEADERBOARD_IDS["OverallLeaderboard_EASeason2"]
         msg = await client._state.ws.send_proto_and_wait(  # noqa: SLF001 (steam.py has no public raw-protobuf call)

@@ -609,6 +609,32 @@ const textAt = (
   );
 };
 
+/**
+ * Labels for points down the chart, kept at least `gap` apart: pushed down in order from no higher
+ * than `top`, then back up from `bottom`. Each comes back with `labelY`, where it goes.
+ */
+const spread = <A extends { readonly y: number }>(
+  labels: ReadonlyArray<A>,
+  gap: number,
+  top: number,
+  bottom: number,
+): Array<A & { labelY: number }> => {
+  const placed = [...labels].sort((a, b) => a.y - b.y).map((l) => ({ ...l, labelY: l.y }));
+  for (let i = 0; i < placed.length; i++) {
+    const prev = placed[i - 1],
+      cur = placed[i];
+    if (cur !== undefined)
+      cur.labelY = Math.max(cur.labelY, prev === undefined ? top : prev.labelY + gap);
+  }
+  for (let i = placed.length - 1; i >= 0; i--) {
+    const cur = placed[i],
+      next = placed[i + 1];
+    if (cur !== undefined)
+      cur.labelY = Math.min(cur.labelY, next === undefined ? bottom : next.labelY - gap);
+  }
+  return placed;
+};
+
 const clockLabel = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
 
 /**
@@ -700,11 +726,15 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
     });
   }
 
+  // Where each Player's line meets the right edge, for their name in the legend.
+  const lineEnds = new Map<string, number>();
   for (const player of view.players) {
     const pts = history.filter((e) => e.steamId === player.steamId);
     const colour = colourOf(player.steamId);
     const pb = personalBests[player.steamId];
     const first = pts[0];
+    const last = pts.at(-1)?.ticks ?? pb;
+    if (last !== undefined) lineEnds.set(player.steamId, y(secs(last)));
     if (pb !== undefined)
       lines += `<line x1="${x(0)}" y1="${y(secs(pb))}" x2="${x(first === undefined ? duration : first.at / 1000)}" y2="${y(secs(pb))}" stroke="${colour}" stroke-width="1.6" stroke-dasharray="2 3"/>`;
     if (first === undefined) continue;
@@ -717,38 +747,44 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
   for (const e of breaks)
     lines += `<circle cx="${x(e.at / 1000)}" cy="${y(secs(e.ticks))}" r="15" fill="${C.gold}" fill-opacity="0.18"/>${starPath(x(e.at / 1000), y(secs(e.ticks)), 10)}`;
 
-  // At least a line apart: pushed down in order, then back up from the bottom edge.
-  const gap = 13;
-  const placed = [...leftLabels].sort((a, b) => a.y - b.y).map((l) => ({ ...l, at: l.y }));
-  for (let i = 1; i < placed.length; i++) {
-    const prev = placed[i - 1],
-      cur = placed[i];
-    if (prev !== undefined && cur !== undefined) cur.at = Math.max(cur.at, prev.at + gap);
-  }
-  for (let i = placed.length - 1; i >= 0; i--) {
-    const cur = placed[i],
-      next = placed[i + 1];
-    if (cur !== undefined)
-      cur.at = Math.min(cur.at, next === undefined ? H - B + 4 : next.at - gap);
-  }
-  for (const l of placed) {
-    if (Math.abs(l.at - l.y) > 2)
-      lines += `<path d="M${L - 6} ${l.at}L${L} ${l.y}" stroke="${String(l.style.color)}" stroke-opacity="0.6"/>`;
+  // At least a line apart.
+  for (const l of spread(leftLabels, 13, -Infinity, H - B + 4)) {
+    if (Math.abs(l.labelY - l.y) > 2)
+      lines += `<path d="M${L - 6} ${l.labelY}L${L} ${l.y}" stroke="${String(l.style.color)}" stroke-opacity="0.6"/>`;
     if (l.medal !== null)
       overlays.push(
         img(svgUri(medalSvg(l.medal, 11)), 11, medalHeight(11), {
           position: "absolute",
           left: L - 19,
-          top: l.at - 8,
+          top: l.labelY - 8,
         }),
       );
-    overlays.push(textAt(L - 24, l.at + 3.5, l.text, l.style, "end"));
+    overlays.push(textAt(L - 24, l.labelY + 3.5, l.text, l.style, "end"));
   }
+
+  // Each line's Player named beside where it ends: slower times sit higher. Names with their
+  // time a row below while they fit, else the name alone, packed as tight as it takes.
+  const ends = view.standings.flatMap((s) => {
+    const end = lineEnds.get(s.player.steamId) ?? (s.ticks === null ? undefined : y(secs(s.ticks)));
+    return end === undefined ? [] : [{ y: end, standing: s }];
+  });
+  const ROW = 36,
+    TIGHT_ROW = 18,
+    legendBottom = H - B - 8;
+  const roomy = (ends.length - 1) * ROW <= legendBottom - T;
+  const legend = spread(
+    ends,
+    roomy ? ROW : Math.min(TIGHT_ROW, (legendBottom - T) / (ends.length - 1)),
+    T,
+    legendBottom,
+  );
+  for (const { y: end, labelY, standing } of legend)
+    if (Math.abs(labelY - end) > 2)
+      lines += `<path d="M${W - R} ${end}L${W - R + 10} ${labelY + 1}" stroke="${colourOf(standing.player.steamId)}" stroke-opacity="0.6"/>`;
 
   const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`;
   const holder = breaks.at(-1)?.steamId;
-  const timed = view.standings.filter((s) => s.ticks !== null);
-  const untimed = view.standings.filter((s) => s.ticks === null);
+  const untimed = view.standings.filter((s) => s.ticks === null && !lineEnds.has(s.player.steamId));
 
   return backdrop(
     { width: W, height: H, position: "relative" },
@@ -766,35 +802,44 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
         `${view.minutes}-minute ${MATCH_TYPE_NAME[view.type]} · WR at the start ${map === null ? "none" : label10(map.worldRecordTicks)} · every PB as it happened`,
       ),
     ),
-    box(
-      {
-        position: "absolute",
-        left: W - R + 12,
-        top: T - 4,
-        width: R - 24,
-        flexDirection: "column",
-        gap: 10,
-      },
-      ...timed.map((s) =>
+    ...legend.map(({ labelY, standing: s }) => {
+      const id = s.player.steamId;
+      const time = `${s.ticks === null ? "no time" : formatTime(s.ticks)}${id === holder ? "  ★ new WR" : ""}`;
+      return box(
+        {
+          position: "absolute",
+          left: W - R + 12,
+          top: labelY - (roomy ? 8 : 5),
+          width: R - 24,
+          gap: roomy ? 8 : 6,
+          alignItems: roomy ? "flex-start" : "center",
+        },
+        marble(hueFor(id), roomy ? 16 : 11, roomy ? { marginTop: 1 } : {}),
         box(
-          { gap: 8, alignItems: "flex-start" },
-          marble(hueFor(s.player.steamId), 16, { marginTop: 1 }),
+          { flexDirection: "column", flexShrink: 1, minWidth: 0 },
           box(
-            { flexDirection: "column", flexShrink: 1, minWidth: 0 },
-            box({ fontWeight: 600, fontSize: 11 }, nameOf(s.player.steamId)),
-            box(
-              {
-                fontFamily: F.hud,
-                fontWeight: 600,
-                fontSize: 10,
-                color: s.player.steamId === holder ? C.gold : C.dim,
-              },
-              `${s.ticks === null ? "" : formatTime(s.ticks)}${s.player.steamId === holder ? "  ★ new WR" : ""}`,
-            ),
+            {
+              fontWeight: 600,
+              fontSize: roomy ? 11 : 10,
+              ...(roomy ? {} : { lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden" }),
+              color: !roomy && id === holder ? C.gold : C.text,
+            },
+            nameOf(id),
           ),
+          roomy
+            ? box(
+                {
+                  fontFamily: F.hud,
+                  fontWeight: 600,
+                  fontSize: 10,
+                  color: id === holder ? C.gold : C.dim,
+                },
+                time,
+              )
+            : null,
         ),
-      ),
-    ),
+      );
+    }),
     untimed.length === 0
       ? null
       : textAt(L, H - 12, `No time: ${untimed.map((s) => nameOf(s.player.steamId)).join(", ")}`, {
@@ -930,5 +975,63 @@ export const activityArtScene = (art: ActivityArt, dev: boolean): El => {
     dev && art === "cover"
       ? box({ position: "absolute", right: 180, bottom: 22 }, devTag(26))
       : null,
+  );
+};
+
+// ---------------------------------------------------------------- the Daily Report's standings
+
+export const STANDINGS_WIDTH = 620;
+/** Widest a name gets before it is clipped, so a row stays on one line. */
+const STANDINGS_NAME = 20;
+
+/** The four boards of the Daily Report (src/report/), two by two, ten rows each. */
+export interface StandingsImage {
+  readonly title: string;
+  readonly subtitle: string;
+  readonly boards: ReadonlyArray<{
+    readonly title: string;
+    readonly rows: ReadonlyArray<{ readonly name: string; readonly n: number }>;
+  }>;
+}
+
+export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El => {
+  const column = (board: StandingsImage["boards"][number]) =>
+    box(
+      { flexDirection: "column", width: 270, gap: 4 },
+      label(board.title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 }),
+      ...board.rows.map((row, i) =>
+        box(
+          {
+            alignItems: "center",
+            gap: 8,
+            fontSize: 15,
+            padding: "3px 8px",
+            borderRadius: 6,
+            backgroundColor: i === 0 ? "rgba(139,224,60,0.16)" : C.surface,
+          },
+          box(
+            { width: 22, color: i < 3 ? C.gold : C.faint, fontFamily: F.hud, fontWeight: 700 },
+            String(i + 1),
+          ),
+          box(
+            { flexGrow: 1, overflow: "hidden" },
+            row.name.length > STANDINGS_NAME
+              ? `${row.name.slice(0, STANDINGS_NAME - 1)}…`
+              : row.name,
+          ),
+          box({ fontFamily: F.hud, fontWeight: 700, color: C.text }, String(row.n)),
+        ),
+      ),
+      board.rows.length === 0 ? box({ color: C.faint, fontSize: 14 }, "Nobody yet") : null,
+    );
+  const pairs = [boards.slice(0, 2), boards.slice(2, 4)].filter((p) => p.length > 0);
+  return backdrop(
+    { padding: 28, gap: 20 },
+    box(
+      { flexDirection: "column", gap: 4 },
+      box({ fontFamily: F.marquee, fontSize: 28 }, title),
+      box({ color: C.dim, fontSize: 14 }, subtitle),
+    ),
+    ...pairs.map((pair) => box({ gap: 24 }, ...pair.map(column))),
   );
 };

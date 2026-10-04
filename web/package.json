@@ -3,6 +3,7 @@
   "private": true,
   "description": "The site on Next.js for Vercel; see docs/adr/0004 and docs/nextjs-migration.md",
   "type": "module",
+  "packageManager": "pnpm@12.6.0",
   "engines": {
     "node": ">=22"
   },

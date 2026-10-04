@@ -65,6 +65,11 @@ const Vanity = Schema.Struct({
   response: Schema.Struct({ success: Schema.Number, steamid: Schema.optional(Schema.String) }),
 });
 
+/** Where a UGC file (a ghost replay) can be downloaded. */
+const UgcDetails = Schema.Struct({ data: Schema.Struct({ url: Schema.String }) });
+/** A ghost replay is plain JSON; only its stamp is read. */
+const Ghost = Schema.Struct({ timestamp: Schema.String });
+
 const SiteIndex = Schema.Struct({
   // handle is null for the one board Steam doesn't have (the derived all-seasons Overall)
   boards: Schema.Array(
@@ -187,6 +192,16 @@ export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
       }),
 
       summaries,
+
+      /** The `timestamp` inside a record's ghost replay, as written (see parseGhostStamp). */
+      ghostStamp: Effect.fn("WebApi.ghostStamp")(function* (ugcId: string) {
+        const file = yield* steamApi(
+          "/ISteamRemoteStorage/GetUGCFileDetails/v1/",
+          { appid: String(APP_ID), ugcid: ugcId },
+          UgcDetails,
+        );
+        return (yield* getJson(file.data.url, {}, Ghost)).timestamp;
+      }),
 
       /** The campaign Track boards' ids, as the leaderboard site currently lists them. */
       campaignBoardIds: Effect.fn("WebApi.campaignBoardIds")(function* () {
