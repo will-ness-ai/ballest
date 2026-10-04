@@ -175,7 +175,8 @@
   display: none;
 }
 
-/* podium */
+/* podium. The plates stay 1st, 2nd, 3rd in the markup, for screen readers and keyboard
+   order, and stand 2nd, 1st, 3rd on screen, as the link-preview image does */
 .leaders {
   display: flex;
   align-items: flex-end;
@@ -194,6 +195,16 @@
   min-width: 0;
   flex: 1 1 0;
   max-width: 118px;
+}
+.plate[data-p="1"] {
+  order: 2;
+  padding-bottom: 10px;
+}
+.plate[data-p="2"] {
+  order: 1;
+}
+.plate[data-p="3"] {
+  order: 3;
 }
 .plate .marble {
   width: 66px;
