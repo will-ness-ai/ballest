@@ -250,6 +250,7 @@ function Frame({
       </div>
       {props.tiles ?? <dl className="tiles" id="tiles"></dl>}
       {props.leaders ?? <div className="leaders" id="leaders" hidden></div>}
+      <P.PodiumDrawer />
       <p className="bmeta" id="bmetaM">
         {meta}
       </p>

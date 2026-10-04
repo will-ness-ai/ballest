@@ -94,10 +94,25 @@ export function ProtoProvider({ board, children }: { board: string; children: Re
     };
     addEventListener("proto-variant", on);
     void load().then(setData);
+    /* the top three are plates, not rows: a tap on one opens its drawer under the podium */
+    const plate = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement).closest?.(".leaders [data-id]");
+      if (!el || (e.target as HTMLElement).closest("a")) return;
+      const id = el.getAttribute("data-id");
+      setOpen((o) => (o === id ? null : id));
+    };
+    document.addEventListener("click", plate);
     return () => {
       removeEventListener("proto-variant", on);
+      document.removeEventListener("click", plate);
     };
   }, []);
+  useEffect(() => {
+    document.querySelectorAll(".leaders [data-id]").forEach((el) => {
+      el.classList.toggle("p-plate-open", el.getAttribute("data-id") === open);
+      el.classList.add("p-tap");
+    });
+  }, [open]);
   return (
     <ProtoCtx.Provider value={{ variant, board, data, open, setOpen, lens, setLens }}>
       <style>{CSS}</style>
@@ -424,7 +439,7 @@ function Lanes({ g, lead, race }: { g: Ghost; lead: Ghost; race: Race }) {
   return (
     <div className="p-race">
       <div className="p-lane">
-        <span className="p-lane-name">Leader</span>
+        <span className="p-lane-name">{lead.rank === 1 ? "Leader" : ordinal(lead.rank)}</span>
         <i className="p-mb p-mb-lead" style={{ left: `${ld * 100}%` }} />
       </div>
       <div className="p-lane">
@@ -528,11 +543,11 @@ function Picture3({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
 }
 
 /* ---------- round 4: the stats under the linked race ---------- */
-function Linked({ g, L, race }: { g: Ghost; L: Ghost; race: Race }) {
+function Linked({ g, L, race, vs }: { g: Ghost; L: Ghost; race: Race; vs: string }) {
   return (
     <>
       <p className="p-cap">
-        Behind the leader along the course · <b>{signed(gapOf(g, L).at(-1)!)}</b> at the line
+        Against {vs} along the course · <b>{signed(gapOf(g, L).at(-1)!)}</b> at the line
       </p>
       <RaceCap g={g} lead={L} race={race} />
       <Lanes g={g} lead={L} race={race} />
@@ -578,7 +593,10 @@ function StatsRanked({ g, c }: { g: Ghost; c: Ctx }) {
 }
 
 function Picture4({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
-  const L = lead && lead !== g ? lead : null;
+  /* the leader races the next fastest replay read */
+  const second = Object.values(c.data?.[c.board]?.entries ?? {}).sort((a, b) => a.rank - b.rank)[1] ?? null;
+  const L = lead && lead !== g ? lead : second;
+  const vs = lead && lead !== g ? "the leader" : `${ordinal(second?.rank ?? 2)} place`;
   const end = Math.max(g.at[g.at.length - 1], L ? L.at[L.at.length - 1] : 0);
   const race = useRace(end, false);
   const v = c.variant;
@@ -599,7 +617,7 @@ function Picture4({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
           </p>
         </div>
       )}
-      {L ? <Linked g={g} L={L} race={race} /> : leaderNote(L)}
+      {L ? <Linked g={g} L={L} race={race} vs={vs} /> : leaderNote(L)}
       {v === "A" && <Stats g={g} />}
       {v === "B" && <StatsVs g={g} L={L} />}
       {v === "E" && <StatsRanked g={g} c={c} />}
@@ -724,6 +742,19 @@ export function Drawer({ id }: { id: string }) {
   if ((ROUND === 1 && c?.variant !== "C") || !c || c.open !== id || !c.data) return null;
   const g = ghostOf(c, id);
   return <div className="p-drawer">{g ? <Detail g={g} c={c} /> : <p className="p-cap">No replay read for this run. Only the top {c.data[c.board]?.top ?? 50} are read.</p>}</div>;
+}
+
+/* the drawer for a podium plate, under the podium */
+export function PodiumDrawer() {
+  const c = useProto();
+  if (!c?.open || !c.data) return null;
+  if (!document.querySelector(`.leaders [data-id="${c.open}"]`)) return null;
+  const g = ghostOf(c, c.open);
+  return (
+    <div className="p-drawer p-podium-drawer">
+      {g ? <Detail g={g} c={c} /> : <p className="p-cap">No replay read for this run.</p>}
+    </div>
+  );
 }
 
 /* C and E open on a row tap */
@@ -924,5 +955,8 @@ const CSS = `
 .p-ballcard p{margin:0;font-size:13px;color:var(--dim)}
 .p-ballcard b{color:var(--text)}
 .p-mb-big{position:static;flex:none;width:36px;height:36px}
+.leaders .p-tap{cursor:pointer}
+.p-plate-open .ball,.p-plate-open svg{filter:drop-shadow(0 0 10px var(--accent))}
+.p-podium-drawer{margin:4px 0 14px;padding:14px;background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius)}
 `;
 // ===================== end PROTOTYPE =====================
