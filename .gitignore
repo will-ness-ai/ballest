@@ -5,6 +5,9 @@ tools/refresh_token.txt
 *.bak
 *.unusable
 
+# crash dumps Git Bash's tools leave in the working directory
+*.stackdump
+
 # local editor / Claude Code settings
 .claude/settings.local.json
 .claude/worktrees/

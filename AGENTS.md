@@ -211,12 +211,13 @@ Most of these are `disable-model-invocation`, so the Skill tool refuses them, an
 writes through a project thread, so his `/to-spec`, `/implement-spec` or `/retro` reaches you as
 text. When his message names one, read `.claude/skills/<name>/SKILL.md` and follow it.
 
-### Building a feature
+### Building a feature or fixing a bug
 
 Plan with `/grill-with-docs`, settle anything players will see with `/grill-design`, write
 it up with `/to-spec` and `/to-tickets`, build it with `/implement-spec`, which opens the
 draft PR, then a final `/code-review`, a `/codebase-design` pass over the code it touched,
-and an updated PR. Once it is merged, run `/retro` on the sessions that built it. Each step and how it fits this repo: `docs/agents/feature-workflow.md`.
+and an updated PR. Once it is merged, run `/retro` on the sessions that built it. Each step, how it fits this repo, and which steps
+a bug fix takes: `docs/agents/feature-workflow.md`.
 
 A cloud session and a session on Will's PC often work one feature at once. Push to a branch you
 made or were handed; before pushing to anyone else's, `git fetch` it and look for an open PR from

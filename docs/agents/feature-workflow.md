@@ -1,8 +1,10 @@
-# Building a feature
+# Building a feature or fixing a bug
 
 The default path for a new feature or a change players will notice, from idea to a PR
-ready for review, and from the merge to a retrospective. Small fixes and data chores skip the planning steps and start at a
-branch. Each step names the skill in `.claude/skills/` that runs it.
+ready for review, and from the merge to a retrospective. Bug fixes and small changes skip
+steps 1 to 3 and start at step 4, test-first, then take steps 5 to 8 like a feature: a fix is
+ready for review only after its `/code-review` and `/codebase-design`, and gets its `/retro`
+once merged. Data chores skip the planning steps too. Each step names the skill in `.claude/skills/` that runs it.
 
 Some of these skills set `disable-model-invocation`, so the Skill tool refuses them unless
 the user typed the slash command. When the workflow reaches one, read its `SKILL.md` and
