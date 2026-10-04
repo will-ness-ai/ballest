@@ -1,0 +1,22 @@
+/* ---------- the Workshop ----------
+   Three views over data/workshop.json: the homepage (a carousel of five picks, then
+   shelves of Map cards), All maps (ready-made views plus a Refine panel), and a Map's
+   page, which is the board view above with a panel of the Map's facts where the rail
+   would be. The homepage and All maps take the whole width, so the board view hides. */
+.ws {
+  margin: 0 var(--pad);
+}
+.ws[hidden],
+.mpanel[hidden],
+.pls[hidden] {
+  display: none !important;
+}
+.app[data-view="workshop"] .main,
+.app[data-view="maps"] .main,
+.app[data-view="map"] .rail,
+.app[data-view="map"] .boardbtn,
+.app[data-view="map"] .tiles,
+.app[data-view="map"] .bcard,
+.app[data-view="map"] .sortsw {
+  display: none;
+}

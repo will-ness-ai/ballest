@@ -1,0 +1,862 @@
+/* ---------- a player's page ----------
+   A player is not inside any one board, so their page takes the whole content
+   column: no season tabs, no rail, none of the board furniture. */
+.app[data-view="player"] .groups,
+.app[data-view="player"] .rail,
+.app[data-view="player"] .boardbtn,
+.app[data-view="player"] .boardbar,
+.app[data-view="player"] .bcard,
+.app[data-view="player"] .tiles,
+.app[data-view="player"] .leaders,
+.app[data-view="player"] .board,
+.app[data-view="player"] #bmetaM,
+.app[data-view="vs"] .groups,
+.app[data-view="vs"] .rail,
+.app[data-view="vs"] .boardbtn,
+.app[data-view="vs"] .boardbar,
+.app[data-view="vs"] .bcard,
+.app[data-view="vs"] .tiles,
+.app[data-view="vs"] .leaders,
+.app[data-view="vs"] .board,
+.app[data-view="vs"] #bmetaM {
+  display: none;
+}
+.pp[hidden] {
+  display: none;
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 var(--pad) 12px;
+  font-family: var(--f-hud);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-decoration: none;
+}
+.back:hover {
+  color: var(--accent);
+}
+
+.pid {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 var(--pad) 16px;
+  flex-wrap: wrap;
+}
+.pid .marble {
+  width: 56px;
+  height: 56px;
+}
+.pid h1 {
+  margin: 0;
+  font-family: var(--f-hud);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.pwho {
+  min-width: 0;
+  flex: 1;
+}
+.pline {
+  font-size: 12.5px;
+  color: var(--dim);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.pline b {
+  font-family: var(--f-hud);
+  color: var(--text);
+}
+/* the one link off this site, so it wears Steam's own mark */
+.steam {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--dim);
+  font-family: var(--f-hud);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.steam:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+.steam svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+  flex: none;
+}
+
+.pstats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 var(--pad) 16px;
+}
+/* the same box and label as the board's own stat tile, which only exists from
+   820px up; a player's summary shows at every width, so the shared part lives
+   here and each keeps its own padding and figure size */
+.tile,
+.pstat {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  backdrop-filter: blur(10px);
+}
+.tile dt,
+.pstat dt {
+  font-family: var(--f-hud);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+  font-weight: 600;
+}
+.pstat {
+  padding: 11px 13px;
+}
+.pstat dd {
+  margin: 5px 0 0;
+  font-family: var(--f-hud);
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pstat dd .mc {
+  font-size: 17px;
+  gap: 12px;
+}
+.pstat small {
+  display: block;
+  font-family: var(--f-body);
+  font-size: 11.5px;
+  color: var(--dim);
+  font-weight: 400;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* one panel per season, and inside it one row of tiles per in-game tier */
+.pseason {
+  margin: 0 var(--pad) 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+  overflow: hidden;
+}
+.pslab {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  background: rgba(255, 255, 255, 0.035);
+  border-bottom: 1px solid var(--line2);
+}
+.pslab h2 {
+  margin: 0;
+  font-family: var(--f-hud);
+  font-size: 14px;
+  font-weight: 700;
+}
+.pov {
+  font-family: var(--f-hud);
+  font-size: 12px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pov b {
+  font-size: 14px;
+  color: var(--text);
+}
+.pov[data-m="1"] b {
+  color: var(--gold);
+}
+.pov[data-m="2"] b {
+  color: var(--silver);
+}
+.pov[data-m="3"] b {
+  color: var(--bronze);
+}
+.ptier {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line2);
+}
+.ptier:last-child {
+  border-bottom: 0;
+}
+.ptlab {
+  font-family: var(--f-hud);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+/* what a heading's tracks add up to, shown when a season has more than one heading */
+.ptsum {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.ptsum b {
+  color: var(--text);
+}
+/* Steam's live Overall board can lag behind the track boards it is summed from */
+.psync {
+  margin: 0;
+  padding: 8px 13px;
+  border-bottom: 1px solid var(--line2);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.psync b {
+  font-family: var(--f-hud);
+  font-variant-numeric: tabular-nums;
+}
+.pgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ptile {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 84px;
+  padding: 9px 10px 20px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+.ptile:hover {
+  background: var(--surface2);
+}
+.pt-name {
+  font-family: var(--f-hud);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  margin-bottom: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pt-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pt-rank {
+  font-family: var(--f-hud);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pt-rank sup {
+  font-size: 10px;
+  vertical-align: top;
+}
+.pt-of {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--faint);
+}
+.pt-gap {
+  font-family: var(--f-hud);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pt-time {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-family: var(--f-hud);
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.pt-pts {
+  color: var(--dim);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pt-pct {
+  position: absolute;
+  right: 9px;
+  bottom: 7px;
+  font-family: var(--f-hud);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+/* how far up the field this run sits: linear in rank, so 1st fills the bar and
+   last empties it. Medal tiles do not tint it — a gauge is only readable when
+   every tile draws it the same way, and the border already says which medal. */
+.pt-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.055);
+}
+.pt-bar i {
+  display: block;
+  height: 100%;
+  width: var(--w);
+  background: var(--dim);
+  opacity: 0.55;
+}
+.ptile[data-m="1"] {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+.ptile[data-m="1"] .pt-rank {
+  color: var(--gold);
+}
+.ptile[data-m="1"] .pt-gap {
+  color: var(--gold);
+  opacity: 0.9;
+}
+.ptile[data-m="2"] {
+  border-color: var(--silver);
+  background: var(--silver-soft);
+}
+.ptile[data-m="2"] .pt-rank {
+  color: var(--silver);
+}
+.ptile[data-m="3"] {
+  border-color: var(--bronze);
+  background: var(--bronze-soft);
+}
+.ptile[data-m="3"] .pt-rank {
+  color: var(--bronze);
+}
+/* a track they have never posted a time on keeps its place in the row: for a
+   player with one time, the empty tiles are the whole story */
+.ptile.untimed {
+  opacity: 0.38;
+  border-style: dashed;
+  padding-bottom: 9px;
+}
+.ptile.untimed .pt-rank {
+  font-size: 16px;
+  color: var(--faint);
+}
+
+/* a map maker says so under their name */
+.maker {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  background: var(--author-soft);
+  color: var(--author);
+  font-family: var(--f-hud);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* the page's tabs: Circuit, Workshop, and Made for a map maker. Each is a link */
+.ptabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 var(--pad) 16px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.ptabs a {
+  padding: 9px 13px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  font-family: var(--f-hud);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--dim);
+  text-decoration: none;
+}
+.ptabs a:hover {
+  color: var(--text);
+}
+.ptabs a[aria-current="page"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.ptabs small {
+  margin-left: 6px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.pws {
+  margin: 0 var(--pad);
+}
+.pws .empty {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+}
+
+/* a medal, drawn: a disc on a ribbon. A world record is a lime "1" */
+.medal {
+  --s: 40px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--s);
+  height: var(--s);
+  margin-top: 12px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow:
+    inset -3px -4px 6px rgba(0, 0, 0, 0.3),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.35);
+}
+.medal::before {
+  content: "";
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  z-index: -1;
+  width: 20px;
+  height: 18px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, var(--ribbon) 50%, var(--ribbon2) 50%);
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
+}
+.medal[data-t="wr"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--f-marquee);
+  font-size: calc(var(--s) * 0.45);
+}
+.medal[data-t="wr"]::before {
+  background: var(--gold);
+}
+.medal[data-t="author"] {
+  background: var(--author);
+}
+.medal[data-t="gold"] {
+  background: var(--gold);
+}
+.medal[data-t="silver"] {
+  background: var(--silver);
+}
+.medal[data-t="bronze"] {
+  background: var(--bronze);
+}
+.medal[data-t="none"] {
+  border: 2px dashed var(--none);
+  box-shadow: none;
+}
+.medal[data-t="none"]::before {
+  background: var(--none);
+}
+.medal.mini {
+  margin: 0;
+  box-shadow: inset -1px -2px 3px rgba(0, 0, 0, 0.3);
+}
+.medal.mini::before {
+  display: none;
+}
+.medal.mini[data-t="none"] {
+  border-width: 1.5px;
+}
+[data-tc="wr"] {
+  color: var(--accent);
+}
+[data-tc="author"] {
+  color: var(--author);
+}
+[data-tc="gold"] {
+  color: var(--gold);
+}
+[data-tc="silver"] {
+  color: var(--silver);
+}
+[data-tc="bronze"] {
+  color: var(--bronze);
+}
+[data-tc="none"] {
+  color: var(--faint);
+}
+
+/* the trophy shelf: a count per medal. Tapping one filters the list below to it */
+.trophies {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 10px 6px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  isolation: isolate;
+}
+.trophies button {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+}
+.trophies button:hover {
+  background: var(--surface2);
+}
+.trophies button[aria-pressed="true"] {
+  border-color: var(--text);
+  background: var(--surface2);
+}
+.trophies button[data-zero] {
+  opacity: 0.4;
+}
+.trophies b {
+  font-family: var(--f-hud);
+  font-size: 22px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.wsline {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the two shelves: a player's world records, and their runs closest to one */
+.pws .shelf {
+  margin: 18px 0 0;
+}
+/* the shelves move with the arrows in their heading, or a swipe; no scrollbar */
+.pws .shelf-h {
+  align-items: center;
+}
+.pws .strip {
+  scrollbar-width: none;
+  padding-bottom: 0;
+}
+.pws .strip::-webkit-scrollbar {
+  display: none;
+}
+.snav {
+  display: flex;
+  gap: 6px;
+}
+.snav[hidden] {
+  display: none;
+}
+.snav button {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  color: var(--dim);
+}
+.snav button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.snav button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.scard {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  font-size: 12.5px;
+  scroll-snap-align: start;
+  min-width: 0;
+}
+.scard:hover {
+  background: var(--surface2);
+}
+.scard .top {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+.scard .top span {
+  display: grid;
+  min-width: 0;
+}
+.scard .top b {
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scard .by {
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scard .big {
+  font-family: var(--f-hud);
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.scard .fig {
+  font-family: var(--f-hud);
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.thumb {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 52px;
+  aspect-ratio: 400/270;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface2);
+  border: 1px solid var(--line2);
+}
+.thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* All maps: search, sort, the medal filter as a chip, then a row per Map */
+.pwall {
+  margin: 24px 0 10px;
+  font-family: var(--f-hud);
+  font-size: 15px;
+  font-weight: 700;
+  scroll-margin-top: 12px;
+}
+.pwtools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.pwtools .ws-q {
+  flex: 1 1 180px;
+}
+.pwsort {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--solid);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+}
+.pwbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 99px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  font-size: 12.5px;
+}
+.wlist {
+  display: grid;
+  gap: 2px;
+}
+.wrow {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  color: inherit;
+  text-decoration: none;
+}
+.wrow:hover {
+  background: var(--surface);
+  border-color: var(--line2);
+}
+.wrow .thumb {
+  width: 44px;
+}
+.wt {
+  min-width: 0;
+}
+.wt b {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wt small {
+  display: block;
+  color: var(--faint);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* the whole field as a line, with a tick where this run finished */
+.fbar {
+  display: block;
+  position: relative;
+  max-width: 260px;
+  height: 3px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.fbar i {
+  position: absolute;
+  top: -3px;
+  width: 3px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--text);
+  transform: translateX(-50%);
+}
+.wrk {
+  font-family: var(--f-hud);
+  font-size: 17px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.wrk sup {
+  font-size: 10px;
+}
+.wrk small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--faint);
+}
+.wrk[data-m="1"] {
+  color: var(--gold);
+}
+.wrk[data-m="2"] {
+  color: var(--silver);
+}
+.wrk[data-m="3"] {
+  color: var(--bronze);
+}
+.wtm {
+  display: none;
+  text-align: right;
+  font-family: var(--f-hud);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+.wtm small {
+  display: block;
+  color: var(--faint);
+  font-size: 11.5px;
+}
+
+/* Made: a card per Map this player published */
+.mkcard {
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  font-size: 12.5px;
+}
+.mkcard .im {
+  position: relative;
+  display: block;
+  margin-bottom: 3px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  aspect-ratio: 400/270;
+  background: var(--surface2);
+}
+.mkcard img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mkcard b {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+a.mkcard:hover b {
+  color: var(--accent);
+}
+.mkcard span {
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.mkcard .f {
+  color: var(--faint);
+}
+.mkgrid {
+  margin-top: 12px;
+}

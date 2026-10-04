@@ -1,0 +1,323 @@
+/* ---------- head to head ----------
+   Two players, A on the left in --a and B on the right in --b. The same two colours
+   mark "you" and "them" on the score card a player page shows once "This is me" is set. */
+.ca {
+  color: var(--a);
+}
+.cb {
+  color: var(--b);
+}
+.pme {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.mebtn {
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  font-family: var(--f-hud);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.mebtn:hover {
+  border-color: var(--a);
+  color: var(--text);
+}
+.you {
+  padding: 3px 9px;
+  border-radius: 99px;
+  background: var(--a-soft);
+  color: var(--a);
+  font-family: var(--f-hud);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font: 400 40px/1 var(--f-marquee);
+  font-variant-numeric: tabular-nums;
+}
+.score .d {
+  color: var(--faint);
+  font-size: 0.45em;
+}
+
+.mecard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px 14px;
+  align-items: center;
+  margin: 0 var(--pad) 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.mecard .side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.mecard .side.r {
+  justify-content: flex-end;
+  text-align: right;
+}
+.mecard .side span {
+  display: grid;
+  min-width: 0;
+}
+.mecard .side b {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mecard .side small {
+  font-size: 12px;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mecard .marble {
+  width: 34px;
+  height: 34px;
+}
+.mecard .mid {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+.mecard .score {
+  font-size: 30px;
+}
+.mecard .go {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.vsp {
+  margin: 0 var(--pad);
+}
+.vsp .back {
+  margin: 0 0 12px;
+}
+.vsp .empty {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+}
+.vshead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.vsside {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: center;
+}
+.vsside .marble {
+  width: 44px;
+  height: 44px;
+}
+.vsside > span {
+  display: grid;
+  justify-items: inherit;
+  min-width: 0;
+  max-width: 100%;
+}
+.vsside a {
+  font-family: var(--f-hud);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.vsside a:hover {
+  text-decoration: underline;
+}
+.vsside .linkbtn {
+  color: var(--faint);
+  font-size: 12px;
+}
+.vsmid {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+.tape {
+  margin-bottom: 16px;
+  padding: 2px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.trow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 170px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line2);
+}
+.trow:last-child {
+  border-bottom: 0;
+}
+.trow .eyebrow {
+  text-align: center;
+}
+.tv {
+  font-family: var(--f-hud);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.tv.l {
+  text-align: right;
+}
+.tv.lose {
+  color: var(--faint);
+}
+.vstools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.seg button {
+  padding: 7px 12px;
+  font-family: var(--f-hud);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--dim);
+}
+.seg button[aria-pressed="true"] {
+  background: var(--surface2);
+  color: var(--text);
+}
+.vstools .opts {
+  flex: 1 1 auto;
+}
+.vlist {
+  display: grid;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+}
+.vrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 4px;
+  align-items: stretch;
+}
+/* a side is that player's time and rank; the winner's side is tinted in their colour */
+.vside {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 7px 10px;
+  border-radius: 9px;
+  color: var(--dim);
+  font-family: var(--f-hud);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+.vside.r {
+  align-items: flex-start;
+}
+.vside b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.vside small {
+  font-size: 11px;
+  color: var(--faint);
+}
+.vside.wa {
+  background: var(--a-soft);
+  color: var(--text);
+}
+.vside.wb {
+  background: var(--b-soft);
+  color: var(--text);
+}
+.vmid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px;
+  text-align: center;
+  color: inherit;
+  text-decoration: none;
+}
+.vmid .thumb,
+.vmid .ctag {
+  display: none;
+}
+.vmid > span {
+  min-width: 0;
+}
+.vmid b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vmid:hover b {
+  color: var(--accent);
+}
+.vmid small {
+  display: block;
+  font-family: var(--f-hud);
+  font-size: 11.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.ctag {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--surface2);
+  color: var(--accent);
+  font-family: var(--f-hud);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

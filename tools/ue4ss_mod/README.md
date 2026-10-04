@@ -6,7 +6,7 @@ attempts and finishes, all-time and this session. It draws a small card top-left
 you are in a track.
 
 This is local-only and separate from the leaderboard site: nothing here is read by
-`index.html` or the collector.
+the site or the collector.
 
 ## Install
 

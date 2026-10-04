@@ -1,8 +1,9 @@
 // A handful of boards with three Refreshes of Score history behind them: an improvement
-// on each kind of board, an Entry closed when its player left a board, ties broken by
-// first seen and by Steam ID, a Map not read in a Refresh and one whose read failed, and
-// a persona change. The read layer's tests (test/reads.test.ts) take their expected
-// values from the comments here. Every player and Map is made up.
+// on each kind of board, an Entry closed when its player left a board, equal scores on a
+// time board and on a points board, a Map not read in a Refresh, one whose read failed and
+// one gone from the Workshop, two Season 1 Tracks to add up, and a persona change. The read
+// layer's tests (test/site.test.ts, test/reads.test.ts) take their expected values from
+// the comments here. Every player and Map is made up.
 import {
   boardReads,
   boards,
@@ -16,15 +17,17 @@ import {
 import type { Dataset } from "./types";
 
 const TRACK = "Map_Track13";
+const TRACK2 = "Map_Track15";
 const OVERALL = "OverallLeaderboard_EASeason2";
 const MAP_A = "Workshop_9000000001";
 const MAP_B = "Workshop_9000000002";
+const MAP_C = "Workshop_9000000003";
 
 // p(1) .. p(10)
 const p = (n: number) => `765611990000000${String(n).padStart(2, "0")}`;
 
 export const tiny: Dataset = {
-  description: "4 boards (a Track, an Overall board, 2 Maps), 10 players, 3 Refreshes",
+  description: "6 boards (2 Tracks, an Overall board, 3 Maps), 10 players, 3 Refreshes",
   seed: async (tx) => {
     const [r1, r2, r3] = (
       await tx
@@ -49,6 +52,14 @@ export const tiny: Dataset = {
         scoresPoints: false,
       },
       {
+        name: TRACK2,
+        kind: "track",
+        season: "Season 1",
+        display: "02",
+        leaderboardId: 17800873,
+        scoresPoints: false,
+      },
+      {
         name: OVERALL,
         kind: "overall",
         season: "Season 2",
@@ -70,14 +81,24 @@ export const tiny: Dataset = {
         leaderboardId: 90000002,
         scoresPoints: false,
       },
+      {
+        name: MAP_C,
+        kind: "map",
+        display: "Gone Gully",
+        leaderboardId: 90000003,
+        scoresPoints: false,
+      },
     ]);
 
-    // R2 does not read the Maps; R3 reads Map A and fails to read Map B.
+    // R2 does not read the Maps; R3 reads Map A and fails to read Map B. Map C was read in
+    // R1, then left the Workshop: R2's catalogue no longer lists it.
     await tx.insert(boardReads).values([
       { refreshId: r1, board: TRACK, ok: true, entryCount: 5 },
       { refreshId: r1, board: OVERALL, ok: true, entryCount: 3 },
       { refreshId: r1, board: MAP_A, ok: true, entryCount: 2 },
       { refreshId: r1, board: MAP_B, ok: true, entryCount: 2 },
+      { refreshId: r1, board: MAP_C, ok: true, entryCount: 1 },
+      { refreshId: r3, board: TRACK2, ok: true, entryCount: 3 },
       { refreshId: r2, board: TRACK, ok: true, entryCount: 6 },
       { refreshId: r2, board: OVERALL, ok: true, entryCount: 3 },
       { refreshId: r3, board: TRACK, ok: true, entryCount: 6 },
@@ -145,8 +166,13 @@ export const tiny: Dataset = {
       e(TRACK, 5, 1_019_884, r2, r3),
       e(TRACK, 6, 1_200_000, r3, r3),
       e(TRACK, 7, 1_100_000, r1, r3),
-      // Overall, points, higher first: p1 1450, p3 1450 (tie, first seen later), p2 1200,
-      // p8 300.
+      // Track 2, read only in R3: p2 1800000, p1 1900000 and p8 1900000 (a tie on a time
+      // board: the lower Steam ID first).
+      e(TRACK2, 2, 1_800_000, r3, r3),
+      e(TRACK2, 8, 1_900_000, r3, r3),
+      e(TRACK2, 1, 1_900_000, r3, r3),
+      // Overall, points, higher first: p3 1450 and p1 1450 (a tie on a points board: the
+      // higher Steam ID first), p2 1200, p8 300.
       e(OVERALL, 1, 900, r1, r1, r2),
       e(OVERALL, 1, 1450, r2, r3),
       e(OVERALL, 2, 1200, r1, r3),
@@ -160,6 +186,8 @@ export const tiny: Dataset = {
       // Map B, last read successfully in R1: p10 6100000, p2 6900000.
       e(MAP_B, 10, 6_100_000, r1, r1),
       e(MAP_B, 2, 6_900_000, r1, r1),
+      // Map C, gone from the Workshop after R1: its Entry stays open.
+      e(MAP_C, 3, 3_000_000, r1, r1),
     ]);
 
     await tx.insert(maps).values([
@@ -174,6 +202,12 @@ export const tiny: Dataset = {
         board: MAP_B,
         creatorSteamId: p(9),
         createdAt: new Date("2026-08-31T12:00:00Z"),
+      },
+      {
+        pfid: "9000000003",
+        board: MAP_C,
+        creatorSteamId: p(3),
+        createdAt: new Date("2026-08-29T12:00:00Z"),
       },
     ]);
     const marbleRun = {
@@ -210,6 +244,19 @@ export const tiny: Dataset = {
         sessions: 2,
         subs: 4,
         entryCount: 2,
+        firstSeenRefresh: r1,
+        // every Refresh's catalogue lists it, though R2 and R3 read no runs from it
+        lastSeenRefresh: r3,
+      },
+      {
+        pfid: "9000000003",
+        title: "Gone Gully",
+        creator: "Quickmarble",
+        preview: null,
+        medals: [40, 30, 25, 22],
+        sessions: 1,
+        subs: 1,
+        entryCount: 1,
         firstSeenRefresh: r1,
         lastSeenRefresh: r1,
       },

@@ -3,25 +3,33 @@
 The public monorepo for **Ballest of Them All** (appid `3339810`) community tools. Its
 main tool is a static, read-only mirror of the game's Steam leaderboards, live at
 https://ballest.willness.dev on Vercel. The game's leaderboards are not exposed
-through any public web API, so a collector reads them from Steam directly and commits the
-results as JSON that the page fetches.
+through any public web API, so a collector reads them from Steam directly and writes the
+results to a Postgres database the site reads (and, until phase 5 of
+`docs/nextjs-migration.md`, commits them as JSON too).
 
 `CONTEXT.md` is the domain glossary (Map, Track, Match, ...); use its terms. Decisions
 that shape the repo are recorded in `docs/adr/`; read them before restructuring anything.
 
 ## Layout
 
-- `index.html` — the entire site. Vanilla JS and CSS in one file, served as is by
-  `web/`: no framework in the page, no JS CDN. The only external requests are Google
-  Fonts and the Plausible analytics script, served from our own instance on Railway. Its routes, the player
-  record, row order and the theme: `docs/site.md`. Read it before editing the page.
+- `web/` — the site: a Next.js app (App Router, server components, `"use cache: remote"`)
+  reading the Postgres database the collector writes (ADR 0004, ADR 0005), which Vercel builds and
+  serves (project `ballest`, Root Directory `web`). No JS CDN: the only external requests
+  are Google Fonts and the Plausible analytics script, served from our own instance on
+  Railway. Its layout, caching, routes and the theme: `docs/site.md`. Read it before
+  editing the site. It also serves the root site files below, copied into `web/public/`
+  at build time by `web/scripts/sync-site.mjs`, so the files to edit stay the ones at the
+  root. That script's `SITE` list is what gets published, and `pnpm smoke` (run by
+  `web.yml` in CI) fails when a page loads a file it leaves out. Every push to `main`
+  deploys, and every other branch gets a preview; `web/vercel.json`'s `ignoreCommand`
+  skips commits that touch no site file, which includes the refresh's data commits.
 - `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `og.png` — the lime-marble icon
   and the 1200×630 link-preview image. Rendered once and committed; `og.png` bakes in its
   text, so the collector never touches it.
 - `circuit/<board name>.webp` — each Circuit track's screenshot from the game files; how
   they are made and what pairs with them: `docs/site.md`.
-- `data/` — what the collector writes and the site loads, file by file, and how derived
-  files are assembled (`derive()`): `docs/data.md`. Read it before adding or changing a
+- `data/` — what the collector writes, file by file, and how derived files are assembled
+  (`derive()`); the database tables the site reads: `docs/data.md`. Read it before adding or changing a
   data file.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
 - `tools/steampy_collect.py` — the collector CI runs. **This is the live path.** It reads
@@ -35,16 +43,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   `tools/db_backfill.py` replays the git history of `data/` through the same writer. Their
   tests are `tools/tests/`. The tables: `docs/data.md`.
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
-  which Vercel deploys like any other push, then runs the parity check when the
-  `DATABASE_URL` secret is set. `backfill.yml`, by hand only, runs the backfill against
+  writes the Refresh to the database and revalidates the site's cached reads, then runs
+  the parity check when the `DATABASE_URL` secret is set. `backfill.yml`, by hand only, runs the backfill against
   production (cloud sessions can't reach Neon) in the same concurrency group.
-- `web/` — the Next.js app Vercel builds and serves (ADR 0004, plan in
-  `docs/nextjs-migration.md`; Vercel project `ballest`, Root Directory `web`). It serves
-  the root site files, copied into `web/public/` at build time by
-  `web/scripts/sync-site.mjs`, so the files to edit stay the ones at the root. That
-  script's `SITE` list is what gets published, and `pnpm smoke` (run by `web.yml` in CI)
-  fails when a page loads a file it leaves out. Every push to `main` deploys, and every
-  other branch gets a preview; `web/vercel.json`'s `ignoreCommand` skips commits that touch no site file.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
   covers install and how it hooks the game. Its card now ships in AnythingGoes's Grind Stats
@@ -65,15 +66,22 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 
 ## Running it
 
-The page fetches with relative paths, so `file://` will not work. Serve it:
+The site runs from `web/` against a local Postgres (never `vercel env pull`: its
+development variables point at production):
 
 ```bash
-python -m http.server 8731
+cd web
+pnpm install
+echo DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev > .env.local
+pnpm dev
 ```
 
-(or use the `ballest` config in `.claude/launch.json`, which takes whatever port it is
-given). A page you want to look at but not commit goes in `scratch/`, which is served
-like any other folder and is gitignored. Refreshing data locally needs a
+(or use the `ballest` config in `.claude/launch.json`, which runs `pnpm dev` on whatever
+port it is given).
+
+A database with real boards comes from backfilling `data/` into it, a tiny one from
+`pnpm db:seed tiny` (`docs/data.md`). A page you want to look at but not commit goes in
+`scratch/`, which is gitignored. Refreshing data locally needs a
 Steam refresh token; the mint-and-collect runbook is `tools/README-hosting.md`. The
 secrets (`.env`, `tools/refresh_token.txt`) live in the main checkout and are found from
 a worktree. From a feature branch, run the collector with `--out scratch/data` and check
@@ -92,15 +100,16 @@ and check it with `DATABASE_URL=<that URL> python tools/check_db.py --data scrat
 
 Every file is formatted by Prettier or Ruff and linted by ESLint or Ruff; run `pnpm check`
 at the root before pushing, and read `docs/linting.md` for setup, a disabled rule, or a
-branch from before the reformat. The site and the collector have no type checks, and the
-collector's only tests are the database writer's: `python -m pytest tools/tests` (deps in
+branch from before the reformat. The collector has no type checks, and its only tests are the database writer's: `python -m pytest tools/tests` (deps in
 `tools/requirements-test.txt`), against the Postgres at `TEST_DATABASE_URL` (default
 `postgres://postgres:postgres@localhost:5432/postgres`), after `pnpm install` in `web/`,
 since each test's database is built by `web/scripts/migrate.mjs`. `collector-tests` in
 `check.yml` runs them in CI.
-`tools/page-check` (part of `pnpm lint`) lints the page's script and its escaping. Verify front-end changes by loading the served page. After editing `index.html`, reload the page (a hash
-change keeps the old script), and test the board's infinite scroll with a real wheel
-scroll: a scripted `scrollTo` does not trigger it in the preview pane. Verify collector changes with
+The site's checks are in `web/`: `npx tsc --noEmit`, `pnpm test` (vitest, against the same
+local Postgres; each test file builds its own database), and `pnpm smoke <url>` against a
+build seeded with `tiny`. Verify front-end changes by loading the page, and test a board's
+infinite scroll with a real wheel scroll: a scripted `scrollTo` does not trigger it in
+the preview pane. Verify collector changes with
 `python tools/check_data.py` (no Steam needed), then a live `--out` run if the read or
 write path changed. CI runs that same check on every pull request and on `main`
 (`.github/workflows/check.yml`), against the merge result rather than the branch,
@@ -119,7 +128,7 @@ running the bot.
 is a run time in _hundred-thousandths of a second_ — seconds = `score_ms / 100000`, lower
 is better — **not** milliseconds. On `Overall*` boards it is points and higher is better,
 and the collector's sibling `time` field is meaningless for those rows. The site
-discriminates on the name prefix alone (`isPoints` in `index.html`); gap arithmetic, column
+discriminates on the name prefix alone (`isPoints` in `web/lib/rules.ts`); gap arithmetic, column
 headers, and row nouns all flip off it. Renaming an Overall board, or adding an aggregate
 board not named `Overall*`, silently renders a point total as a duration.
 
@@ -128,7 +137,7 @@ map publishes its own medal times in seconds, and under `/100000` each world rec
 10-56% faster than that map's author medal (under `/1000` each would be 27-90x _slower_
 than author, which no finished run can be); and the board shapes come out right, with
 `Map_Track13` reading 0:10.267 / 0:12.541 / 1:46 for best / median / worst. Do the
-conversion through `SCORE_TICKS_PER_SECOND` (`tools/campaign_common.py`, `index.html`)
+conversion through `SCORE_TICKS_PER_SECOND` (`tools/campaign_common.py`, `web/lib/rules.ts`)
 rather than a bare literal — reading the field name as milliseconds is exactly the bug
 that shipped 100x-too-long times to production once already.
 
@@ -178,7 +187,9 @@ it.
 `01`..`NN` per season and never shows a name, so `display_name()` derives that number
 from a track's position in `S1_TRACKS` / `S2_TRACKS`, and `track_tier()` derives Season
 2's Beginner / Intermediate / Advanced heading from the same index in rows of four.
-Inserting or reordering a track renumbers everything after it on the site. Append new
+The site keeps the same order in `web/lib/circuit.ts`, and a test reads `BOARDS` to keep
+the two together. Inserting or reordering a track renumbers everything after it on the
+site. Append new
 tracks in the game's own order and verify in-game: the pre-race screen shows each track's
 top five, which is enough to match against `data/boards/`.
 

@@ -36,8 +36,8 @@ feature small enough for one ticket still gets one, so `/implement-spec` has its
 ## 4. Build and open the PR: `/implement-spec`
 
 Implement the tickets test-first (`tdd`, where tests exist: `discord-bot/` has them, the
-site and the collector are checked with `tools/page-check`, `tools/check_data.py` and the
-served page, per `CLAUDE.md`). A change to what the bot posts in Discord is also played through
+site with its vitest tests, the smoke test and the served page, and the collector with
+`tools/check_data.py`, per `CLAUDE.md`). A change to what the bot posts in Discord is also played through
 in the sandbox (`discord-sandbox`). Work on a `claude/<slug>` branch and open a **draft** PR
 that closes the spec and its tickets as soon as the branch has a commit.
 It stays a draft through steps 5 and 6: step 7 marks it ready, in place of
@@ -56,7 +56,7 @@ commit before the merge.
 With the feature working and reviewed, read the code it touched for deepening
 opportunities: shallow modules, logic spread across callers, a seam in the wrong place.
 Make the ones inside the PR's own code, and keep each one checked the same way the feature
-was (tests, `page-check`, `check_data.py`, the served page). Anything wider becomes a note
+was (tests, the smoke test, `check_data.py`, the served page). Anything wider becomes a note
 in the PR, not part of it.
 
 ## 7. Update the PR
@@ -70,7 +70,7 @@ CI is green. Remove the prototype worktree if `/grill-design` left one.
 When the PR is merged (the merge wakes any session watching it), run `/retro` on the
 session or sessions that built the feature, using `writing-for-agents` for anything it
 proposes to write. Present the candidates to the user, most severe first. The ones they
-pick land as their own small PR: a check in CI or `tools/page-check` for a mechanical
+pick land as their own small PR: a check in CI or a lint rule for a mechanical
 mistake, a rule in `CODING_STANDARDS.md` for a judgement call, a pointer in `AGENTS.md` or
 a doc for something that was hard to find.
 

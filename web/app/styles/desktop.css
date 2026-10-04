@@ -1,0 +1,551 @@
+/* ==========================================================================
+   820px AND UP: GLASS CABINET
+   ========================================================================== */
+@media (min-width: 820px) {
+  :root {
+    --pad: 24px;
+  }
+  .app {
+    padding: 30px 24px 90px;
+  }
+
+  .hdr {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+    padding: 0 0 22px;
+  }
+  .rack .marble {
+    width: 24px;
+    height: 24px;
+  }
+  .rack .marble + .marble {
+    margin-left: -9px;
+  }
+  .wordmark {
+    font-size: 20px;
+    line-height: 1.25;
+  }
+  .tagline {
+    display: block;
+    margin: 0;
+    font-family: var(--f-hud);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-weight: 600;
+  }
+  .freshness {
+    text-align: left;
+    font-size: 12.5px;
+  }
+
+  .groups {
+    gap: 2px;
+    margin: 0 0 20px;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    overflow: visible;
+  }
+  .gtab {
+    flex: 0 0 auto;
+    padding: 10px 15px;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .gtab[aria-selected="true"] {
+    background: none;
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 242px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  .rail {
+    display: block;
+    position: sticky;
+    top: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 13px;
+    backdrop-filter: blur(10px);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+  .rail h2 {
+    margin: 0 0 9px;
+    font-family: var(--f-hud);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-weight: 600;
+  }
+  .boards {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .boardbtn,
+  .sheet,
+  .scrim {
+    display: none;
+  }
+
+  .bcard {
+    margin: 0 0 14px;
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+  .bcard.nopic {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bc-pic {
+    aspect-ratio: auto;
+    height: 100%;
+    min-height: 200px;
+  }
+  .bc-body {
+    padding: 14px 18px;
+  }
+  .bc-top h1 {
+    font-size: 30px;
+  }
+  .bc-facts {
+    gap: 22px;
+  }
+  .bc-facts dd {
+    font-size: 17px;
+  }
+
+  .boardbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .boardtitle {
+    display: block;
+  }
+  .boardtitle .bmeta {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--dim);
+  }
+  .sortsw {
+    margin: 0 0 0 auto;
+  }
+  #bmetaM {
+    display: none;
+  } /* the standalone meta line is a phone affordance */
+  .search {
+    padding: 0;
+    flex: 0 0 auto;
+  }
+  .search input {
+    width: 230px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    padding: 8px 12px;
+  }
+
+  .tiles {
+    display: flex;
+    gap: 10px;
+    margin: 0 0 16px;
+  }
+  .tile {
+    flex: 1 1 0;
+    padding: 12px 15px;
+  }
+  .tile dd {
+    margin: 5px 0 0;
+    font-family: var(--f-hud);
+    font-size: 20px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .tile .tsub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--f-body);
+    font-size: 12px;
+    color: var(--dim);
+    margin-top: 3px;
+    font-weight: 400;
+    min-width: 0;
+  }
+  .tile .tsub .marble {
+    width: 13px;
+    height: 13px;
+  }
+  .tile .tsub span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* podium, full size */
+  .leaders {
+    gap: 34px;
+    padding: 14px 0 22px;
+  }
+  .plate {
+    flex: 0 0 auto;
+    max-width: 190px;
+    gap: 11px;
+  }
+  .plate .marble {
+    width: 96px;
+    height: 96px;
+    box-shadow:
+      0 0 0 3px var(--gold),
+      0 12px 30px rgba(0, 0, 0, 0.4);
+  }
+  .plate[data-p="2"] .marble {
+    width: 76px;
+    height: 76px;
+    box-shadow:
+      0 0 0 3px var(--silver),
+      0 12px 30px rgba(0, 0, 0, 0.4);
+  }
+  .plate[data-p="3"] .marble {
+    width: 70px;
+    height: 70px;
+    box-shadow:
+      0 0 0 3px var(--bronze),
+      0 12px 30px rgba(0, 0, 0, 0.4);
+  }
+  .pl-name {
+    font-size: 16px;
+  }
+  .pl-score {
+    font-size: 19px;
+  }
+  .pl-rank {
+    font-size: 10px;
+  }
+  .pl-gap {
+    display: block;
+    font-family: var(--f-hud);
+    font-size: 11.5px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* the list */
+  .board {
+    margin: 0;
+    border-radius: var(--radius);
+  }
+  .bc-by .qmark:not(.always) {
+    display: none;
+  }
+  .head {
+    display: grid;
+    grid-template-columns: 48px 26px minmax(160px, 1fr) 176px;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    font-family: var(--f-hud);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.035);
+    border-radius: 10px 10px 0 0;
+  }
+  .row {
+    grid-template-columns: 48px 26px minmax(160px, 1fr) 176px;
+    gap: 12px;
+    padding: 0 12px;
+    min-height: 56px;
+  }
+  .row:nth-child(2) {
+    border-radius: 0;
+  }
+  .row:last-child {
+    border-radius: 0 0 10px 10px;
+  }
+  .board.pods .head,
+  .board.pods .row {
+    grid-template-columns: 48px 26px minmax(160px, 1fr) 150px 176px;
+  }
+  .board.pods .row {
+    grid-template-rows: auto;
+  }
+  .board.pods .row > .c-rank,
+  .board.pods .row > .marble,
+  .board.pods .row > .c-text,
+  .board.pods .row > .c-pods,
+  .board.pods .row > .c-score {
+    grid-area: auto;
+  }
+  .c-pods .mc {
+    font-size: 13.5px;
+    gap: 12px;
+  }
+  .c-rank {
+    font-size: 14px;
+    text-align: left;
+  }
+  .nm {
+    font-size: 15px;
+  }
+  .sub {
+    font-size: 11.5px;
+  }
+  .sub-m {
+    display: none;
+  }
+  .sub-d {
+    display: block;
+  }
+  .c-score {
+    font-size: 17px;
+    justify-content: flex-end;
+    gap: 11px;
+  }
+  .pill {
+    width: 17px;
+    height: 7px;
+  }
+
+  .empty {
+    padding: 46px 12px;
+    font-size: 14px;
+  }
+  .empty b {
+    font-size: 16px;
+  }
+  .skel {
+    padding: 0 12px;
+    min-height: 56px;
+  }
+
+  .mc {
+    gap: 14px;
+  }
+  .pl-score .mc {
+    gap: 10px;
+  }
+
+  /* a player's page: the rail is gone, so the content column is the whole width,
+     and a tier's tracks sit in one row of four beside their heading */
+  .app[data-view="player"] .main,
+  .app[data-view="vs"] .main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .back,
+  .pid,
+  .pstats,
+  .pseason {
+    margin-left: 0;
+    margin-right: 0;
+  }
+  .pid {
+    gap: 14px;
+  }
+  .pid .marble {
+    width: 64px;
+    height: 64px;
+  }
+  .pid h1 {
+    font-size: 24px;
+  }
+  .pstats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .pstat {
+    padding: 12px 15px;
+  }
+  .pstat dd {
+    font-size: 20px;
+  }
+  .pseason {
+    margin-bottom: 16px;
+  }
+  .ptier {
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 14px;
+    padding: 12px 14px;
+    align-items: center;
+  }
+  .pgrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .ptile {
+    min-height: 92px;
+  }
+  .ptabs,
+  .pws {
+    margin-left: 0;
+    margin-right: 0;
+  }
+  .trophies {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .wrow {
+    grid-template-columns: 56px minmax(0, 1fr) 92px 112px 20px;
+    gap: 12px;
+  }
+  .wrow .thumb {
+    width: 56px;
+  }
+  .wtm {
+    display: block;
+  }
+  .mecard {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  .mecard .go {
+    grid-column: auto;
+  }
+  .vsp {
+    margin: 0;
+  }
+  .vsside {
+    flex-direction: row;
+    text-align: left;
+  }
+  .vsside.r {
+    flex-direction: row-reverse;
+    text-align: right;
+  }
+  .vsside .marble {
+    width: 56px;
+    height: 56px;
+  }
+  .vsside a {
+    font-size: 20px;
+  }
+  .vshead .score {
+    font-size: 60px;
+  }
+  .vside {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .vside.r {
+    flex-direction: row-reverse;
+  }
+  .vmid .thumb,
+  .vmid .ctag {
+    display: block;
+  }
+  .vmid .thumb {
+    width: 40px;
+  }
+
+  /* the Workshop, full size */
+  .ws {
+    margin: 0;
+  }
+  .pls {
+    margin: 0;
+    --prw: 52px;
+  }
+  .plwrap {
+    max-height: none;
+    overflow: visible;
+  }
+  .plt th,
+  .plt td {
+    padding: 9px 14px;
+  }
+  .plt .pr {
+    font-size: 15px;
+  }
+  .who {
+    max-width: 340px;
+    gap: 12px;
+  }
+  .who .marble,
+  .plpin .marble {
+    width: 34px;
+    height: 34px;
+  }
+  .ws-h1 {
+    font-size: 26px;
+  }
+  .car {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  }
+  .car-pic {
+    aspect-ratio: auto;
+    max-height: none;
+    min-height: 360px;
+  }
+  .car-in {
+    padding: 22px;
+  }
+  .car-t {
+    font-size: 30px;
+  }
+  .strip {
+    grid-auto-columns: minmax(200px, 220px);
+  }
+  .mgrid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+  .app[data-view="map"] .main {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+  /* the panel stays put while the board scrolls past it, like the rail; if it is taller
+     than the window it scrolls on its own */
+  .mpanel {
+    margin: 0;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  /* with a pointer, a card's top three appear over its picture instead of the leader under it */
+  @media (hover: hover) {
+    .mcard .lead {
+      display: none;
+    }
+    .mcard .pod3 {
+      display: grid;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .mcard:hover .pod3,
+    .mcard:focus-visible .pod3 {
+      opacity: 1;
+    }
+    .mcard:hover img,
+    .mcard:focus-visible img {
+      filter: brightness(0.28) blur(1px);
+    }
+  }
+
+  footer {
+    margin: 30px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--line2);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+}

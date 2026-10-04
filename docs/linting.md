@@ -7,7 +7,6 @@ anything either would change or report (`lint` in `.github/workflows/check.yml`)
 | ------------------------------------------ | ------------- | ---------------------------------------------------------------------- |
 | TS in `discord-bot/`, `web/`               | Prettier      | ESLint, typescript-eslint `strictTypeChecked` + `stylisticTypeChecked` |
 | JS (`*.mjs`, configs)                      | Prettier      | ESLint, the same rules minus the type-aware ones                       |
-| `index.html`'s inline script               | Prettier      | `tools/page-check` (ESLint recommended + best-practice rules)          |
 | HTML, CSS, JSON, YAML, Markdown            | Prettier      |                                                                        |
 | Python in `tools/`, `discord-bot/scripts/` | `ruff format` | `ruff check`, every rule on except those `ruff.toml` lists             |
 

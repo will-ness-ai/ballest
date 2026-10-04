@@ -2,7 +2,6 @@
 // typescript-eslint's strict and stylistic type-checked sets, each file typed by the
 // tsconfig nearest to it (discord-bot/, web/); plain JS gets the same rules minus the
 // ones that need types. Formatting is Prettier's, so eslint-config-prettier goes last.
-// index.html's inline script is linted by tools/page-check instead: ESLint reads files.
 import js from "@eslint/js";
 import nextPlugin from "@next/eslint-plugin-next";
 import prettier from "eslint-config-prettier/flat";
@@ -68,6 +67,11 @@ export default defineConfig(
     files: ["web/**/*.{ts,tsx}"],
     extends: [nextPlugin.configs["core-web-vitals"], reactHooks.configs.flat.recommended],
     settings: { next: { rootDir: "web/" } },
+    rules: {
+      // the pictures are Steam's (avatars, Workshop previews) and the Circuit screenshots,
+      // sized by the stylesheet the single-page site had; next/image would change the markup
+      "@next/next/no-img-element": "off",
+    },
   },
   prettier,
 );

@@ -3,12 +3,9 @@
   "configurations": [
     {
       "name": "ballest",
-      "runtimeExecutable": "python",
-      "runtimeArgs": [
-        "-c",
-        "import os;from http.server import test,SimpleHTTPRequestHandler as H;N=type('N',(H,),{'end_headers':lambda s:(s.send_header('Cache-Control','no-store'),H.end_headers(s))[1]});test(N,port=int(os.environ.get('PORT',8731)))"
-      ],
-      "port": 8731,
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "web", "dev"],
+      "port": 3000,
       "autoPort": true
     },
     {

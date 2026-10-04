@@ -1,12 +1,14 @@
 # The data files
 
-What the collector writes under `data/` and what the site loads, file by file. Every file
+What the collector writes under `data/`, file by file. The site reads the database (below);
+the files are still published, for anyone who reads them, until phase 5 of
+`docs/nextjs-migration.md`. Every file
 here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
 
 ## Circuit boards
 
-- `data/index.json`: board list, counts, `generated_at`. Loaded first.
-- `data/boards/<board>.json`: one file per board, lazy-loaded on selection.
+- `data/index.json`: board list, counts, `generated_at`. The Discord bot reads its board IDs.
+- `data/boards/<board>.json`: one file per board.
 - `data/boards/OverallLeaderboard_AllSeasons.json`: the one board Steam does not have,
   every season's Overall points summed per player (`build_composite` in
   `tools/campaign_common.py`): Season 1 through its current board below, Season 2
@@ -67,7 +69,7 @@ so every name refreshes about weekly.
 
 ## The database (ADR 0005)
 
-Postgres on Neon, alongside the JSON while the page still reads the files. It holds only
+Postgres on Neon, written alongside the JSON, and what the site reads. It holds only
 what Steam reports, as Score history: no ranks and no derived boards. The schema is
 `web/db/schema.ts` (Drizzle), and its migrations in `web/db/migrations/` are generated from
 it with `pnpm db:generate` and applied by `pnpm db:migrate`, which `pnpm build` runs first,
@@ -151,19 +153,28 @@ copy of a template database `web/scripts/migrate.mjs` builds, and run in `check.
 
 ### The read layer
 
-The app reads the database only through `web/db/data.ts`: a board's open Entries ranked
-(`getBoard`), a player's open Entries with their rank on each board (`getPlayer`), the Map
-list with each Map's latest `map_history` row (`getMaps`), and a board's Score history
-(`getScoreHistory`). Rank is computed, never stored: fastest first on a time board, most
-points first on one that `scores_points`, a tie going to the Entry first seen earlier and
-then to the lower Steam ID. The queries are in `web/db/reads.ts`, tested against `tiny`;
-`data.ts` wraps each in `unstable_cache` under the tag `data` (not `"use cache"`, which
-would need `cacheComponents`). Cached values are JSON, so times come back as ISO strings.
+The app reads the database only through `web/db/data.ts`, whose functions are
+`"use cache: remote"` (shared by every server instance), tagged `data`, with the `max` lifetime: what every page's frame needs
+(`getSite`: when the boards were read, every Circuit board's count, the podium tallies), the
+Workshop's Maps with their figures (`getWorkshop`), a slice of a board (`getBoardPage`), a
+player's record (`getPlayer`) and the Players counts (`getStandings`). Searches
+(`searchBoard`, `searchPlayers`) are read fresh. The queries are in `web/db/site.ts`, built on
+the ranked boards in `web/db/boards.ts`, and tested against `tiny` (`web/test/site.test.ts`).
+Cached values are JSON, so times come back as ISO strings.
+
+Rank is computed, never stored: fastest first on a time board, most points first on one that
+`scores_points`, and equal scores by Steam ID in the board's own direction, the lower first
+on a time board and the higher first on a points board. That is Steam's order: every tie on
+the committed boards (7,288 of them, 2026-10-04) reads that way. Season 1 Current and All
+Seasons are computed the same way, from the Track and Overall ranks, as `build_current` and
+`build_composite` did, and so are the podiums, the standings and each Map's Workshop figures.
+A Map is in the Workshop while its latest `map_history` row was seen by the latest catalogue;
+a Map gone from it keeps its Entries but leaves the Workshop pages and the counts. A board's
+Score history (`scoreHistory` in `web/db/reads.ts`) is there for the history features.
 
 `POST /api/revalidate` with `Authorization: Bearer $REVALIDATE_SECRET` expires the `data`
 tag; anything else, including a deploy with no secret set, gets a 401. The collector calls
-it once a Refresh has committed. `GET /api/db/board/<name>` returns `getBoard` as JSON, so
-a preview shows the database working; the page doesn't use it.
+it once a Refresh has committed.
 
 ### Seeding a branch
 

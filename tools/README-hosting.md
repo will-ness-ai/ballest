@@ -1,12 +1,10 @@
 # Hosting Ballest leaderboards on `ballest.willness.dev`
 
-The site is **static** (`index.html` + `data/index.json` + `data/boards/*.json`),
-served by **Vercel** (the Next.js app in `web/`, ADR 0004). The page loads the small `index.json` first, then lazy-
-loads each board's full entry list on demand (infinite scroll). The data is refreshed
-by a **GitHub Actions** job that logs into Steam with a **refresh token** (via
-`steam.py`), reads the full leaderboards, and commits the updated data. Vercel
-deploys that commit, publishing only the site files (`SITE` in
-`web/scripts/sync-site.mjs`).
+The site is the Next.js app in `web/`, served by **Vercel** (ADR 0004) and reading a
+Postgres database on Neon (ADR 0005). The data is refreshed by a **GitHub Actions** job
+that logs into Steam with a **refresh token** (via `steam.py`), reads the full
+leaderboards, writes them to the database, commits the JSON under `data/`, and tells the
+site to read fresh (`POST /api/revalidate`). The site's pages are cached until then.
 
 No machine of yours has to be running — the refresh happens entirely in CI.
 
@@ -15,8 +13,8 @@ GitHub Actions (every 3 hours)
   └─ steam.py logs in with STEAM_REFRESH_TOKEN (secret)
       └─ reads every campaign leaderboard (full) for appid 3339810
           └─ resolves names via STEAM_API_KEY (secret)
-              └─ commits data/index.json + data/boards/*.json  ──►  Vercel redeploys
-                                                                     (ballest.willness.dev)
+              └─ writes the Refresh to Postgres, commits data/
+                  └─ POST /api/revalidate  ──►  ballest.willness.dev reads fresh
 ```
 
 ---
@@ -83,9 +81,9 @@ Vercel issues the certificate once the record resolves.
 
 ### 6. Populate the data
 
-Repo → **Actions → "Refresh leaderboards" → Run workflow**. It logs in, writes
-`data/index.json` + `data/boards/*.json` and commits them, and Vercel deploys the commit. The site goes live at
-`https://ballest.willness.dev` shortly after.
+Repo → **Actions → "Refresh leaderboards" → Run workflow**. It logs in, writes the Refresh
+to the database, commits `data/`, and revalidates the site, which shows it at
+`https://ballest.willness.dev` on the next request.
 
 ---
 
