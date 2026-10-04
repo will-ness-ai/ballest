@@ -7,8 +7,8 @@ import { Suspense } from "react";
 
 import { DocTitle } from "../../../../components/Behaviours";
 import { Shell } from "../../../../components/Shell";
+import { PlayerSkeleton } from "../../../../components/Skeleton";
 import { PlayerView, tabFor } from "../../../../components/player/PlayerView";
-import { PageFallback } from "../../../../components/player/pieces";
 import { getBoardPage, getPlayer } from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
 import { PLAYER_TABS } from "../../../../lib/routes";
@@ -56,7 +56,7 @@ async function Player({ params }: Pick<Props, "params">) {
 export default function Page({ params }: Props) {
   return (
     <Shell view="player">
-      <Suspense fallback={<PageFallback id="player" className="pp" />}>
+      <Suspense fallback={<PlayerSkeleton id="player" className="pp" />}>
         <Player params={params} />
       </Suspense>
     </Shell>

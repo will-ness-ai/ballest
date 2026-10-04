@@ -1,20 +1,14 @@
-// The pieces every Workshop view shares: a Map's preview picture, a line of its top three,
+// The pieces every Workshop view shares: a line of a Map's top three, its creator as a link,
 // and the card the shelves, All maps and the search lay out. No state, so the server and
 // the client views both draw them.
 import Link from "next/link";
 
+import { MapImage } from "../MapImage";
 import { Marble } from "../Marble";
-import { PlayerLink } from "../board/parts";
+import { PlayerLink } from "../PlayerLink";
 import { mapHref } from "../../lib/routes";
-import { fmtTime, personaOf, safeImg } from "../../lib/rules";
+import { fmtTime, personaOf } from "../../lib/rules";
 import { recordOf, type MapCard } from "../../lib/workshop";
-
-export function MapImg({ m, className }: { m: { preview: string | null }; className?: string }) {
-  const src = safeImg(m.preview);
-  return src ? (
-    <img className={className} src={src} alt="" loading="lazy" decoding="async" />
-  ) : null;
-}
 
 /* one place of a Map's top three: [steam ID, persona, time] */
 export function PodLine({ p, i }: { p: [string, string, number]; i: number }) {
@@ -40,7 +34,7 @@ export function MapCardLink({ m, stat }: { m: MapCard; stat: string }) {
   return (
     <Link className="mcard" href={mapHref(m.pfid)}>
       <span className="im">
-        <MapImg m={m} />
+        <MapImage preview={m.preview} />
         <span className="pod3">
           {m.top3.map((p, i) => (
             <PodLine key={i} p={p} i={i} />

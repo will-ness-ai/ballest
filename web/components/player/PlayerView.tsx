@@ -3,17 +3,25 @@
 // drawn here, the Workshop and Made tabs are client components over the record.
 import Link from "next/link";
 
-import { BackLink } from "./BackLink";
 import { CompareButton } from "./Compare";
 import { MadeTab } from "./MadeTab";
 import { MeMark, ScoreCard } from "./Me";
-import { SteamMark } from "./pieces";
 import { WorkshopTab } from "./WorkshopTab";
+import { BackLink } from "../BackLink";
 import { Marble } from "../Marble";
-import { MedalCounts } from "../board/parts";
+import { MedalCounts } from "../MedalCounts";
 import type { PlayerRecord, SeasonRecord, TrackTile } from "../../lib/player";
 import { boardHref, playerHref, type PlayerTab } from "../../lib/routes";
 import { fmtN, fmtTime, ord, pctOf, personaOf, plural, safeUrl, shortGap } from "../../lib/rules";
+
+/* Steam's own mark, so the one link that leaves this site looks like it does */
+function SteamMark() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2a10 10 0 0 0-9.96 9.1l5.36 2.22a2.83 2.83 0 0 1 1.6-.5l2.38-3.46v-.05a3.77 3.77 0 1 1 3.77 3.77h-.09l-3.4 2.43v.1a2.83 2.83 0 0 1-5.6.56L2.23 14.6A10 10 0 1 0 12 2Zm-5.7 15.2a2.12 2.12 0 0 0 3.9-1.5l-1.72-.7a1.53 1.53 0 1 1 1.14-2.83l1.7.7a2.12 2.12 0 0 0-3.9 1.5l-1.12-.47Zm8.85-7.9a2.51 2.51 0 1 0 .01.01Zm-1.88 0a1.89 1.89 0 1 1 3.77 0 1.89 1.89 0 0 1-3.77 0Z" />
+    </svg>
+  );
+}
 
 /* a player's page's tabs, in order; Made only for someone who published a Map */
 const TABS: ReadonlyArray<{
@@ -158,7 +166,7 @@ export function PlayerView({ rec, tab }: { rec: PlayerRecord; tab: PlayerTab }) 
     <div className="main">
       <section className="content">
         <div className="pp" id="player">
-          <BackLink />{" "}
+          <BackLink trail="board" />{" "}
           <div className="pid">
             <Marble who={rec.who} />{" "}
             <span className="pwho">

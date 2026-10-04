@@ -1,8 +1,19 @@
 // Who holds the podium places across a season's Tracks, as build_podiums in
 // tools/campaign_common.py tallied them: a tally per season, then one over every season's
 // Tracks at once, which the All Seasons board shows beside its points. Only Tracks count:
-// an Overall board is points, not a race.
+// an Overall board is points, not a race. An Overall board's podium order lists a tally's
+// players with where each stands on points (podiumRows).
 import { CIRCUIT, COMPOSITE_GROUP, circuitBoard } from "./circuit";
+import type { Placing } from "./rows";
+import { isPoints } from "./rules";
+
+/* gold, silver and bronze: a player's podium places */
+export interface Medals {
+  gold: number;
+  silver: number;
+  bronze: number;
+}
+export const podiumTotal = (p: Medals) => p.gold + p.silver + p.bronze;
 
 export interface PodiumFinish {
   /* the Track's display name; in the All Seasons tally prefixed with its season */
@@ -11,13 +22,10 @@ export interface PodiumFinish {
   score: number;
 }
 
-export interface PodiumPlayer {
+export interface PodiumPlayer extends Medals {
   steamId: string;
   persona: string;
   avatar: string | null;
-  gold: number;
-  silver: number;
-  bronze: number;
   finishes: Array<PodiumFinish>;
   /* equal counts share a rank (1, 2, 2, 4) */
   rank: number;
@@ -27,15 +35,6 @@ export interface PodiumTally {
   group: string;
   tracks: number;
   players: Array<PodiumPlayer>;
-}
-
-export interface Placing {
-  board: string;
-  steamId: string;
-  persona: string;
-  avatar: string | null;
-  rank: number;
-  score: number;
 }
 
 /* one tally: the top three of each of `tracks`, counted and ranked golds first, then
@@ -88,7 +87,7 @@ function tally(
    Track counts once it has a placing, as build_podiums counted only the boards present. */
 export function podiumTallies(placings: ReadonlyArray<Placing>): Array<PodiumTally> {
   const present = new Set(placings.map((p) => p.board));
-  const tracks = CIRCUIT.filter((b) => b.name.startsWith("Map_") && present.has(b.name));
+  const tracks = CIRCUIT.filter((b) => !isPoints(b.name) && present.has(b.name));
   const groups = [...new Set(tracks.map((b) => b.group))];
   const display = (name: string) => circuitBoard(name)?.display ?? name;
   const seasons = groups
@@ -111,4 +110,30 @@ export function podiumTallies(placings: ReadonlyArray<Placing>): Array<PodiumTal
       ),
     );
   return seasons;
+}
+
+/* a player on an Overall board's podium order, with where they stand on points */
+export interface PodiumRow extends Medals {
+  steamId: string;
+  persona: string;
+  avatar: string | null;
+  rank: number;
+  points: { rank: number; score: number } | null;
+}
+
+/* an Overall board's podium order: its tally's players with where each stands on points */
+export function podiumRows(
+  tally: PodiumTally,
+  places: Record<string, { rank: number; score: number }>,
+): Array<PodiumRow> {
+  return tally.players.map((p) => ({
+    steamId: p.steamId,
+    persona: p.persona,
+    avatar: p.avatar,
+    gold: p.gold,
+    silver: p.silver,
+    bronze: p.bronze,
+    rank: p.rank,
+    points: places[p.steamId] ?? null,
+  }));
 }

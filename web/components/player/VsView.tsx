@@ -7,7 +7,8 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
 import { CompareDialog, type CompareAsk } from "./Compare";
-import { Score, Thumb } from "./pieces";
+import { Score } from "./Score";
+import { MapImage } from "../MapImage";
 import { Marble } from "../Marble";
 import { matchup, type BandStat, type MatchRow, type PlayerRecord } from "../../lib/player";
 import { boardHref, playerHref } from "../../lib/routes";
@@ -64,7 +65,7 @@ function Row({ r }: { r: MatchRow }) {
       {side(r.a, "a")}{" "}
       <Link className="vmid" href={boardHref(r.name)}>
         {r.scope === "workshop" ? (
-          <Thumb preview={r.preview} />
+          <MapImage preview={r.preview} frame />
         ) : (
           <span className="ctag">Circuit</span>
         )}

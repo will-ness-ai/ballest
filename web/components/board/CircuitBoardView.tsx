@@ -5,26 +5,17 @@
 import { notFound } from "next/navigation";
 
 import { BoardBody } from "./BoardBody";
+import { Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardSheet } from "./BoardSheet";
-import {
-  OverallCard,
-  PodiumPlates,
-  ScorePlates,
-  SortSwitch,
-  Tiles,
-  TrackCard,
-  countText,
-  podiumRows,
-} from "./furniture";
-import { CHUNK } from "./parts";
+import { OverallCard, PodiumPlates, ScorePlates, SortSwitch, Tiles, TrackCard } from "./BoardTop";
 import { PointsDialog } from "./PointsDialog";
 import { RailItems } from "./Rail";
-import { RememberBoard } from "./RememberBoard";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import { TRACKS, circuitBoard, trackNo } from "../../lib/circuit";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
-import { isPoints, isSteamId } from "../../lib/rules";
+import { podiumRows } from "../../lib/podiums";
+import { BOARD_CHUNK, countText, isPoints, isSteamId } from "../../lib/rules";
 
 export async function CircuitBoardView({ name, slot }: { name: string; slot: string | null }) {
   if (!circuitBoard(name) || (slot && slot !== PODIUM_SORT && !isSteamId(slot))) notFound();
@@ -46,7 +37,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
   const [page, scores, places, focus] = await Promise.all([
-    getBoardPage(name, 0, CHUNK + 3),
+    getBoardPage(name, 0, BOARD_CHUNK + 3),
     points ? Promise.resolve([]) : getBoardScores(name),
     podiums
       ? getBoardPlaces(
@@ -127,7 +118,11 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
         )}
       </section>
       {points && <PointsDialog board={name} tracks={tracks} />}
-      <RememberBoard href={boardHref(name, podiums ? PODIUM_SORT : null)} label={b.display} />
+      <Remember
+        trail="board"
+        href={boardHref(name, podiums ? PODIUM_SORT : null)}
+        label={b.display}
+      />
     </div>
   );
 }

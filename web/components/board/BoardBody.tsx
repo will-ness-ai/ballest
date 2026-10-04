@@ -10,19 +10,14 @@
 // two.
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
-import { CHUNK, MedalCounts, PlayerLink, QMark, podiumTotal, type Medals } from "./parts";
+import { QMark } from "./PointsDialog";
 import { Marble } from "../Marble";
-import type { BoardPage, BoardRow } from "../../db/site";
-import { fmtN, fmtTime, hueFor, ord, personaOf, plural } from "../../lib/rules";
-
-/* a player on an Overall board's podium order, with where they stand on points */
-export interface PodiumRow extends Medals {
-  steamId: string;
-  persona: string;
-  avatar: string | null;
-  rank: number;
-  points: { rank: number; score: number } | null;
-}
+import { MedalCounts } from "../MedalCounts";
+import { PlayerLink } from "../PlayerLink";
+import type { BoardPage, BoardRow } from "../../lib/rows";
+import { useDebouncedFetch } from "../../lib/client";
+import { podiumTotal, type Medals, type PodiumRow } from "../../lib/podiums";
+import { BOARD_CHUNK, fmtN, fmtTime, hueFor, ord, personaOf, plural } from "../../lib/rules";
 
 interface Common {
   name: string;
@@ -287,11 +282,6 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
     total: count - base,
   });
   const reading = useRef(false);
-  /* the search the reader wants now, so a slow answer to an older one is dropped */
-  const want = useRef(q);
-  useEffect(() => {
-    want.current = q;
-  }, [q]);
 
   const read = useCallback(
     async (forQ: string, from: number, n: number) => {
@@ -304,30 +294,30 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
     [name],
   );
 
-  /* a new search starts its list over; clearing it goes back to the board */
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (!q) {
-        setFound((f) => (f.q ? { q: "", rows: initial, ahead: [], total: count - base } : f));
-        return;
-      }
-      void read(q, 0, CHUNK).then((page) => {
-        if (want.current === q) setFound({ q, rows: page.rows, ahead: [], total: page.total });
-      });
-    }, 120);
-    return () => {
-      clearTimeout(t);
-    };
-  }, [q, read, initial, count, base]);
+  /* a new search starts its list over with its first page; clearing it goes back to the
+     board */
+  const firstPage = useCallback((forQ: string) => read(forQ, 0, BOARD_CHUNK), [read]);
+  const search = useDebouncedFetch(q, firstPage).last;
+  const [took, setTook] = useState(search);
+  if (search !== took) {
+    setTook(search);
+    setFound((f) =>
+      search
+        ? { q: search.key, rows: search.data.rows, ahead: [], total: search.data.total }
+        : f.q
+          ? { q: "", rows: initial, ahead: [], total: count - base }
+          : f,
+    );
+  }
 
   const showing = found.q === q ? found : null;
   /* read the next pages into `ahead`, once it runs low */
   const refill = useCallback(
     (l: List) => {
       const have = l.rows.length + l.ahead.length;
-      if (reading.current || l.ahead.length >= CHUNK * 2 || have >= l.total) return;
+      if (reading.current || l.ahead.length >= BOARD_CHUNK * 2 || have >= l.total) return;
       reading.current = true;
-      void read(l.q, (l.q ? 0 : base) + have, CHUNK * 4)
+      void read(l.q, (l.q ? 0 : base) + have, BOARD_CHUNK * 4)
         .then((page) => {
           setFound((f) =>
             f.q === l.q && f.rows.length + f.ahead.length === have
@@ -346,7 +336,11 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
     if (showing.ahead.length)
       setFound((f) =>
         f === showing
-          ? { ...f, rows: [...f.rows, ...f.ahead.slice(0, CHUNK)], ahead: f.ahead.slice(CHUNK) }
+          ? {
+              ...f,
+              rows: [...f.rows, ...f.ahead.slice(0, BOARD_CHUNK)],
+              ahead: f.ahead.slice(BOARD_CHUNK),
+            }
           : f,
       );
     refill(showing);
@@ -363,7 +357,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
     if (focus.rank > loaded && !found.q) {
       if (reading.current) return;
       reading.current = true;
-      const n = Math.ceil((focus.rank - loaded) / CHUNK) * CHUNK - found.ahead.length;
+      const n = Math.ceil((focus.rank - loaded) / BOARD_CHUNK) * BOARD_CHUNK - found.ahead.length;
       void read("", loaded + found.ahead.length, Math.max(n, 1))
         .then((page) => {
           setFound((f) =>
@@ -418,14 +412,14 @@ function PodiumList(props: Common & Extract<BoardBodyProps, { order: "podiums" }
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const filtering = q.length > 0;
-  const [limit, setLimit] = useState(CHUNK);
+  const [limit, setLimit] = useState(BOARD_CHUNK);
   const podium = players.length >= 3;
   const visible = filtering
     ? players.filter((p) => matches(p, q))
     : players.filter((_, i) => !podium || i >= 3);
   const shown = visible.slice(0, limit);
   const more = useCallback(() => {
-    setLimit((n) => n + CHUNK);
+    setLimit((n) => n + BOARD_CHUNK);
   }, []);
   useScrollMore(more, shown.length >= visible.length, shown.length);
   const n = players.length;

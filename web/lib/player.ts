@@ -3,6 +3,7 @@
 // head to head and the score card are only markup over a PlayerRecord. matchup() is the
 // one place two records are paired up. Pure, so the server and the browser share it.
 import { COMPOSITE_BOARD, S1_CURRENT_BOARD } from "./circuit";
+import type { PlayerData, WorkshopMap } from "./rows";
 import {
   SCORE_TICKS_PER_SECOND,
   TIERS,
@@ -19,35 +20,6 @@ export interface IndexBoard {
   tier: string | null;
   display: string;
   entryCount: number;
-}
-
-/* what a player page needs of a Workshop Map; WorkshopMap in db/site.ts has it all */
-export interface MapFacts {
-  pfid: string;
-  name: string;
-  title: string;
-  creator: string;
-  cid: string | null;
-  preview: string | null;
-  created: number;
-  medals: Array<number>;
-  entryCount: number;
-  subs: number;
-  top3: Array<[string, string, number]>;
-  authorBeaten: number;
-}
-
-export interface Finish {
-  board: string;
-  rank: number;
-  score: number;
-  lead: number;
-  field: number;
-}
-
-export interface PlayerInput {
-  profile: { steamId: string; persona: string; avatar: string | null; profileUrl: string | null };
-  finishes: ReadonlyArray<Finish>;
 }
 
 export interface Who {
@@ -142,9 +114,9 @@ export function overallOf(boards: ReadonlyArray<IndexBoard>, group: string) {
 }
 
 export function playerRecord(
-  data: PlayerInput,
+  data: PlayerData,
   boards: ReadonlyArray<IndexBoard>,
-  maps: ReadonlyArray<MapFacts>,
+  maps: ReadonlyArray<WorkshopMap>,
 ): PlayerRecord {
   const id = data.profile.steamId;
   const by = new Map(data.finishes.map((f) => [f.board, f]));

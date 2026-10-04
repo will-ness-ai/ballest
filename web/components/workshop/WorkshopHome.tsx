@@ -4,10 +4,11 @@
 // from /api/maps. The server picked the carousel's Maps and each shelf's; what reads the
 // clock (the ages, New this week) is counted here, so a cached page never freezes it.
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
-import { CreatorLink, MapCardLink, MapGrid, MapImg, PodLine } from "./Card";
-import { useClock } from "./session";
+import { CreatorLink, MapCardLink, MapGrid, PodLine } from "./Card";
+import { MapImage } from "../MapImage";
+import { useClock, useDebouncedFetch } from "../../lib/client";
 import { mapHref, mapsHref } from "../../lib/routes";
 import { fmtN, fmtTime, plural } from "../../lib/rules";
 import {
@@ -46,7 +47,11 @@ function Carousel({ picks, now }: { picks: ReadonlyArray<Pick>; now: number }) {
     >
       <div className="car-pic">
         {picks.map((x, i) => (
-          <MapImg key={x.m.pfid} m={x.m} className={"sl" + (i === slide ? " on" : "")} />
+          <MapImage
+            key={x.m.pfid}
+            preview={x.m.preview}
+            className={"sl" + (i === slide ? " on" : "")}
+          />
         ))}
       </div>
       <div id="carInfo">
@@ -142,6 +147,12 @@ function Shelves({
 
 const runsStat = (m: MapCard) => SORTS.runs.stat(m, 0);
 
+const searchMaps = async (q: string) => {
+  const r = await fetch("/api/maps?" + new URLSearchParams({ q }).toString());
+  if (!r.ok) throw new Error("maps -> " + String(r.status));
+  return (await r.json()) as MapSearch;
+};
+
 function Results({ q, found, clear }: { q: string; found: MapSearch; clear: () => void }) {
   return (
     <>
@@ -179,25 +190,10 @@ export function WorkshopHome({
 }) {
   const now = useClock(asOf);
   const [query, setQuery] = useState("");
-  const [found, setFound] = useState<{ q: string; res: MapSearch } | null>(null);
   const q = query.trim();
-  const want = useRef(q);
-  useEffect(() => {
-    want.current = q;
-    if (!q) return;
-    const t = setTimeout(() => {
-      void fetch("/api/maps?" + new URLSearchParams({ q }).toString())
-        .then((r) => (r.ok ? (r.json() as Promise<MapSearch>) : null))
-        .then((res) => {
-          if (res && want.current === q) setFound({ q, res });
-        });
-    }, 120);
-    return () => {
-      clearTimeout(t);
-    };
-  }, [q]);
   /* as the single-page site did, the body changes once a search has its answer: until
      then the last answer, or the carousel and shelves */
+  const found = useDebouncedFetch(q, searchMaps).last;
   const shown = q ? found : null;
   return (
     <>
@@ -224,11 +220,10 @@ export function WorkshopHome({
       <div id="wsbody">
         {shown ? (
           <Results
-            q={shown.q}
-            found={shown.res}
+            q={shown.key}
+            found={shown.data}
             clear={() => {
               setQuery("");
-              setFound(null);
             }}
           />
         ) : (

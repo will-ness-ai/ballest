@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { Shell } from "../../../../components/Shell";
-import { BoardFallback } from "../../../../components/board/BoardFallback";
+import { BoardSkeleton } from "../../../../components/Skeleton";
 import { MapView } from "../../../../components/workshop/MapView";
 import { getWorkshop } from "../../../../db/data";
 import { timed } from "../../../../lib/workshop";
@@ -40,7 +40,7 @@ async function MapPage({ params }: Props) {
 export default function Page({ params }: Props) {
   return (
     <Shell view="map">
-      <Suspense fallback={<BoardFallback />}>
+      <Suspense fallback={<BoardSkeleton />}>
         <MapPage params={params} />
       </Suspense>
     </Shell>

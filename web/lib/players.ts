@@ -4,7 +4,7 @@
 // the order. Pure, so the server render and the browser rank alike.
 import { personaOf } from "./rules";
 import type { PlScope, PlSort } from "./routes";
-import type { StandingsRow } from "../db/site";
+import type { StandingsRow } from "./rows";
 
 export const PL_SCOPE_LABELS: ReadonlyArray<[PlScope, string]> = [
   ["all", "All"],
