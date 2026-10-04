@@ -76,8 +76,7 @@ jobs:
       - name: Test the database writer
         run: python -m pytest tools/tests
 
-  # Formatting and lint for every file (docs/linting.md), index.html's script included:
-  # it has no build step, so tools/page-check is the only thing that parses it.
+  # Formatting and lint for every file (docs/linting.md).
   lint:
     runs-on: ubuntu-latest
     steps:
