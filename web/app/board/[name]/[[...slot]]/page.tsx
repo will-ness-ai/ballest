@@ -11,7 +11,10 @@ import { CIRCUIT, circuitBoard } from "../../../../lib/circuit";
 import { PODIUM_SORT } from "../../../../lib/routes";
 import { isPoints } from "../../../../lib/rules";
 
-type Props = PageProps<"/board/[name]/[[...slot]]">;
+/* spelled out rather than Next's generated PageProps, which only exists after a build */
+interface Props {
+  params: Promise<{ name: string; slot?: Array<string> }>;
+}
 
 export function generateStaticParams() {
   return CIRCUIT.flatMap((b) => [

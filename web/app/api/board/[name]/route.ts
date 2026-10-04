@@ -12,7 +12,7 @@ const MAX_SEARCH = 200,
 
 const known = (name: string) => !!circuitBoard(name) || /^Workshop_\d{1,20}$/.test(name);
 
-export async function GET(request: Request, { params }: RouteContext<"/api/board/[name]">) {
+export async function GET(request: Request, { params }: { params: Promise<{ name: string }> }) {
   const { name } = await params;
   if (!known(name)) return Response.json({ error: "no such board" }, { status: 404 });
   const url = new URL(request.url);
