@@ -7248,16 +7248,20 @@
         text-align: left;
         cursor: pointer;
       }
-      .pt-strip .wr {
+      .pt-strip .pt-wr {
         font: 600 15px var(--f-hud);
         color: var(--gold);
       }
-      .pt-strip .rest {
+      .pt-strip .pt-rest {
         flex: 1;
         color: var(--dim);
         font-size: 14px;
       }
-      .pt-strip .go {
+      .pt-strip .pt-go {
+        flex: none;
+        background: var(--accent-soft);
+        border-radius: 999px;
+        padding: 4px 10px;
         color: var(--accent);
         font: 600 13px var(--f-hud);
         text-transform: uppercase;
@@ -7342,6 +7346,91 @@
           overflow: auto;
         }
       }
+      .pt-sum {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 12px 14px;
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+      }
+      .pt-sum:hover {
+        border-color: var(--faint);
+      }
+      .pt-sum .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .pt-sum .lbl {
+        font: 600 11px var(--f-hud);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+      .pt-sum .big {
+        font: 600 22px var(--f-hud);
+        color: var(--gold);
+      }
+      .pt-sum .pt-sub {
+        color: var(--dim);
+        font-size: 14px;
+      }
+      .pt-sum .pt-go {
+        background: var(--accent-soft);
+        border-radius: 999px;
+        padding: 4px 10px;
+        color: var(--accent);
+        font: 600 12px var(--f-hud);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .pt-chain {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+        font-size: 14px;
+      }
+      .pt-chain li {
+        display: grid;
+        grid-template-columns: 74px 1fr auto;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .pt-chain li:first-child b {
+        color: var(--gold);
+      }
+      .pt-chain b {
+        font: 600 14px var(--f-hud);
+      }
+      .pt-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 14px;
+        margin: 10px 0 0;
+      }
+      .pt-stats dt {
+        font: 600 11px var(--f-hud);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+      .pt-stats dd {
+        margin: 2px 0 0;
+        font: 600 17px var(--f-hud);
+      }
+      .pt-stats dd small {
+        display: block;
+        font: 400 12px var(--f-body);
+        color: var(--dim);
+      }
       #ptPick {
         position: fixed;
         right: 16px;
@@ -7406,32 +7495,33 @@
     <script>
       (() => {
         /* round 1 verdict: A (record line) leads, C (what changed) as a second tab.
-           Round 2: where that history lives on the board page. */
+           round 2 verdict: the side column's place, with B's shape (a summary you open).
+           Round 3: what the closed summary says. */
         const VARIANTS = [
           {
             key: "A",
-            name: "Above the board",
-            note: "Always open between the board's header and its rows, with Records and What changed tabs.",
+            name: "One line",
+            note: "Round 2's strip: the record, its holder and since when, and how many record changes.",
           },
           {
             key: "B",
-            name: "Summary strip",
-            note: "One line above the board (current record, how many changes). Tap it to open the tabs in place.",
+            name: "Record sparkline",
+            note: "The record and holder over a small step chart of the record since 6 Sep.",
           },
           {
             key: "C",
-            name: "Board tab",
-            note: "Leaderboard and History are tabs. History replaces the rows (and hides the tiles) until you switch back.",
+            name: "Last holders",
+            note: "The last three records as a chain, newest first, each with its cut.",
           },
           {
             key: "D",
-            name: "History button",
-            note: "A History button beside the player search opens the tabs in a dialog over the board.",
+            name: "Record stats",
+            note: "Four numbers: how old the record is, how many changes, the biggest single cut, and who has set it most.",
           },
           {
             key: "E",
-            name: "Side column",
-            note: "On a wide screen the tabs sit in a column beside the rows, staying in view as you scroll. On a phone they stack above the board.",
+            name: "Latest day",
+            note: "Leads with the board's latest day instead of the record: new records, top 10 times, improvements and first times.",
           },
         ];
         const STATES = [
@@ -7762,10 +7852,89 @@
         const stripHtml = (d) => {
           const r = d.records.at(-1);
           return `<button type="button" class="pt-strip" id="ptStrip" aria-expanded="${open}">
-            <span class="wr">${fmtTime(r.e.score)}</span>
-            <span class="rest">Record by ${esc(r.e.persona)} since ${day(r.from)} · ${d.records.length - 1} record change${d.records.length === 2 ? "" : "s"} since ${day(d.t0)}</span>
-            <span class="go">${open ? "Hide" : "History"}</span></button>`;
+            <span class="pt-wr">${fmtTime(r.e.score)}</span>
+            <span class="pt-rest">Record by ${esc(r.e.persona)} since ${day(r.from)} · ${d.records.length - 1} record change${d.records.length === 2 ? "" : "s"} since ${day(d.t0)}</span>
+            <span class="pt-go">${open ? "Hide" : "History"}</span></button>`;
         };
+        const go = () => `<span class="pt-go">${open ? "Hide" : "History"}</span>`;
+        function summary(k, d) {
+          const r = d.records.at(-1);
+          const n = d.records.length - 1;
+          if (k === "A") return stripHtml(d);
+          if (k === "B") {
+            const W = 300,
+              H = 54;
+            const ys = d.records.map((x) => x.e.score);
+            const lo = Math.min(...ys),
+              hi = Math.max(...ys);
+            const x = (t) => 2 + ((t - d.t0) / (d.tN - d.t0 || 1)) * (W - 8);
+            const y = (v) => (hi === lo ? H / 2 : 4 + ((v - lo) / (hi - lo)) * (H - 8));
+            let p = "";
+            d.records.forEach((q, i) => {
+              p += (i ? `L${x(q.from)},${y(q.e.score)}` : `M${x(q.from)},${y(q.e.score)}`) + `L${x(q.to || d.tN)},${y(q.e.score)}`;
+            });
+            return `<button type="button" class="pt-sum" id="ptStrip" aria-expanded="${open}">
+              <span class="top"><span class="lbl">World record</span>${go()}</span>
+              <span class="big">${fmtTime(r.e.score)}</span> <span class="pt-sub">${esc(r.e.persona)} · ${day(r.from)}</span>
+              <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;margin-top:8px"><path d="${p}" fill="none" stroke="var(--gold)" stroke-width="2"/><circle cx="${x(d.tN)}" cy="${y(r.e.score)}" r="3.5" fill="var(--gold)"/></svg>
+              <span class="pt-sub" style="display:flex;justify-content:space-between;font-size:12px"><span>${day(d.t0)}</span><span>${n} change${n === 1 ? "" : "s"}</span><span>now</span></span></button>`;
+          }
+          if (k === "C") {
+            const last = [...d.records].reverse().slice(0, 3);
+            return `<button type="button" class="pt-sum" id="ptStrip" aria-expanded="${open}">
+              <span class="top"><span class="lbl">Record holders</span>${go()}</span>
+              <ul class="pt-chain">${last
+                .map(
+                  (q) =>
+                    `<li><b>${fmtTime(q.e.score)}</b><span>${esc(q.e.persona)} <span class="pt-dim">${day(q.from)}</span></span><span class="pt-up">${q.prev ? "−" + secs(q.prev.score - q.e.score) : ""}</span></li>`,
+                )
+                .join("")}</ul>
+              ${n > 2 ? `<span class="pt-sub" style="display:block;margin-top:6px;font-size:12px">and ${n - 2} earlier since ${day(d.t0)}</span>` : ""}</button>`;
+          }
+          if (k === "D") {
+            let big = null;
+            for (const q of d.records) if (q.prev && (!big || q.prev.score - q.e.score > big.prev.score - big.e.score)) big = q;
+            const cnt = new Map();
+            for (const q of d.records) cnt.set(q.e.steamId, (cnt.get(q.e.steamId) || 0) + 1);
+            const [topId, topN] = [...cnt].sort((a, b) => b[1] - a[1])[0];
+            const topName = d.records.find((q) => q.e.steamId === topId).e.persona;
+            const age = days(r.from, d.tN);
+            return `<button type="button" class="pt-sum" id="ptStrip" aria-expanded="${open}">
+              <span class="top"><span class="lbl">World record ${fmtTime(r.e.score)} · ${esc(r.e.persona)}</span>${go()}</span>
+              <dl class="pt-stats">
+                <div><dt>Standing</dt><dd>${age ? age + (age === 1 ? " day" : " days") : "under a day"}<small>since ${day(r.from)}</small></dd></div>
+                <div><dt>Changes</dt><dd>${n}<small>since ${day(d.t0)}</small></dd></div>
+                <div><dt>Biggest cut</dt><dd>${big ? secs(big.prev.score - big.e.score) : "none"}<small>${big ? esc(big.e.persona) + ", " + day(big.from) : "&nbsp;"}</small></dd></div>
+                <div><dt>Most records</dt><dd>${esc(topName)}<small>${topN} time${topN === 1 ? "" : "s"}</small></dd></div>
+              </dl></button>`;
+          }
+          /* E: the latest day with anything new */
+          const lastDay = new Date(Math.max(...d.es.filter((e) => e.f !== d.t0).map((e) => e.f), d.t0)).toDateString();
+          let pb = 0,
+            first = 0,
+            wr = 0,
+            t10 = 0;
+          const recSet = new Set(d.records.map((q) => q.e));
+          const ti = new Map(d.times.map((t, i) => [t, i]));
+          for (const e of d.es) {
+            if (e.f === d.t0 || e.flash || new Date(e.f).toDateString() !== lastDay) continue;
+            const mine = d.byPlayer.get(e.steamId);
+            if (mine.indexOf(e) > 0) pb++;
+            else first++;
+            if (recSet.has(e)) wr++;
+            else if (d.top10[ti.get(e.f)]?.includes(e)) t10++;
+          }
+          const when = new Date(lastDay).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+          return `<button type="button" class="pt-sum" id="ptStrip" aria-expanded="${open}">
+              <span class="top"><span class="lbl">Latest · ${when}</span>${go()}</span>
+              <dl class="pt-stats">
+                <div><dt>New records</dt><dd style="color:${wr ? "var(--gold)" : "inherit"}">${wr}</dd></div>
+                <div><dt>New top 10 times</dt><dd>${t10}</dd></div>
+                <div><dt>Improved</dt><dd>${fmtN(pb)}</dd></div>
+                <div><dt>First times</dt><dd>${fmtN(first)}</dd></div>
+              </dl>
+              <span class="pt-sub" style="display:block;margin-top:8px;font-size:12px">Record ${fmtTime(r.e.score)} by ${esc(r.e.persona)}</span></button>`;
+        }
 
         const host = document.createElement("section");
         host.id = "ptHist";
@@ -7797,12 +7966,9 @@
 
         function place() {
           const k = VARIANTS[vi].key;
-          hbtn.hidden = k !== "D";
-          content.classList.toggle("pt-side", k === "E");
-          if (k === "E") content.prepend(host);
-          else document.getElementById("leaders").before(host);
-          if (k !== "C") app.classList.remove("pt-hist-on");
-          if (k !== "D") dlg.hidden = true;
+          hbtn.hidden = true;
+          content.classList.add("pt-side");
+          content.prepend(host);
         }
 
         let seq = 0;
@@ -7817,23 +7983,12 @@
             why = null;
           if (name.startsWith("Overall")) why = "Overall boards keep today's points only, so they have no history yet.";
           else {
-            if (k !== "D" || !dlg.hidden) host.innerHTML = k === "D" ? "" : msg("Loading history");
+            if (!CACHEH[name]) host.innerHTML = msg("Loading history");
             d = await loadHist(name);
             if (my !== seq) return;
             if (!d) why = "No history for this board.";
           }
-          const body = why ? msg(why) : tabs(d);
-          host.innerHTML = "";
-          document.getElementById("ptDlgBody").innerHTML = "";
-          if (k === "A" || k === "E") host.innerHTML = body;
-          if (k === "B") host.innerHTML = why ? "" : stripHtml(d) + (open ? `<div style="margin-top:8px">${body}</div>` : "");
-          if (k === "C") {
-            const on = app.classList.contains("pt-hist-on");
-            host.innerHTML = `<div class="pt-tabs pt-btab" role="tablist">
-              <button type="button" role="tab" data-btab="board" aria-selected="${!on}">Leaderboard</button>
-              <button type="button" role="tab" data-btab="hist" aria-selected="${on}">History</button></div>${on ? body : ""}`;
-          }
-          if (k === "D") document.getElementById("ptDlgBody").innerHTML = body;
+          host.innerHTML = why ? msg(why) : summary(k, d) + (open ? `<div style="margin-top:8px">${tabs(d)}</div>` : "");
           wire();
         }
         function wire() {
