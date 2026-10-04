@@ -13,9 +13,6 @@ export const OLDEST_RECORDS = 3;
  * than the oldest records found so far.
  */
 export const RECORD_BEFORE_PUBLISH_SLACK = 7 * DAY_MS;
-/** k_UGCHandleInvalid: an Entry with no ghost attached. */
-export const NO_GHOST = "18446744073709551615";
-
 export class GhostUnavailable extends Data.TaggedError("GhostUnavailable")<{
   readonly reason: string;
 }> {}
@@ -30,9 +27,8 @@ export interface DatedRecord extends RecordCandidate {
   readonly setAt: number;
 }
 
-/** A record's date, or None when it has no ghost, an unset stamp, or the fetch failed (logged). */
+/** A record's date, or None when its ghost's stamp is unset or the fetch failed (logged). */
 const date = Effect.fn("date")(function* (record: RecordCandidate) {
-  if (record.ugcId === NO_GHOST) return Option.none<DatedRecord>();
   const ghosts = yield* GhostDates;
   const setAt = yield* ghosts
     .setAt(record.ugcId)
@@ -92,15 +88,9 @@ export const oldestMapRecords = Effect.fn("oldestMapRecords")(function* (
 export const parseGhostStamp = (stamp: string): Option.Option<number> => {
   const m = /^(\d{4})\.(\d{2})\.(\d{2})-(\d{2})\.(\d{2})\.(\d{2})$/.exec(stamp);
   if (m === null) return Option.none();
-  const [y, mo, d, h, mi, s] = m.slice(1).map(Number) as [
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-  ];
-  return y < 1970 ? Option.none() : Option.some(Date.UTC(y, mo - 1, d, h, mi, s));
+  const [y, mo, d, h, mi, s] = m.slice(1).map(Number);
+  if (y === undefined || mo === undefined || d === undefined) return Option.none();
+  return y < 1970 ? Option.none() : Option.some(Date.UTC(y, mo - 1, d, h ?? 0, mi ?? 0, s ?? 0));
 };
 
 /** Ghost dates through the Steam Web API: the file's CDN address, then the replay itself. */
@@ -109,11 +99,13 @@ export const GhostDatesLive = Layer.effect(
   Effect.gen(function* () {
     const api = yield* WebApi;
     return GhostDates.of({
-      setAt: (ugcId) =>
-        api.ghostStamp(ugcId).pipe(
-          Effect.map(parseGhostStamp),
-          Effect.mapError((e) => new GhostUnavailable({ reason: e.reason })),
-        ),
+      setAt: Effect.fn("GhostDates.setAt")(function* (ugcId: string) {
+        return parseGhostStamp(
+          yield* api
+            .ghostStamp(ugcId)
+            .pipe(Effect.mapError((e) => new GhostUnavailable({ reason: e.reason }))),
+        );
+      }),
     });
   }),
 ).pipe(Layer.provide(WebApi.Default));

@@ -2,6 +2,7 @@
 // yesterday) and the thread's messages (the map lists and the longest-standing records). The
 // settled design is round 3 of the prototype on branch claude/prototype-daily-report.
 import { formatTime, SCORE_TICKS_PER_SECOND } from "../domain.js";
+import type { StandingsImage } from "../render/scenes.js";
 import type { DatedRecord } from "./records.js";
 import {
   CHANGES_SHOWN,
@@ -72,9 +73,13 @@ const POINTER =
  * CHANGES_SHOWN Workshop changes, fewer if the message would pass Discord's limit).
  */
 export const headMessage = (r: Report): string => {
+  // The day as the title (round 3's B), the data's age as a Discord timestamp, which each
+  // reader sees in their own words (round 3's D).
+  const asOf =
+    r.refreshedAt === null ? "" : ` · data as of <t:${Math.floor(r.refreshedAt / 1000)}:R>`;
   const head = [
     `# ${dayTitle(r.at)}`,
-    `-# Workshop standings · ${counts(r)}`,
+    `-# Workshop standings · ${counts(r)}${asOf}`,
     "## 📅 Since yesterday",
   ];
   const circuit = r.changes.filter((c) => c.kind === "trackRecord").map(changeLine);
@@ -85,7 +90,7 @@ export const headMessage = (r: Report): string => {
     const lines = [
       ...circuit,
       ...workshop.slice(0, shown),
-      ...(rest > 0 ? [`- …and ${rest} more on smaller Maps`] : []),
+      ...(rest > 0 ? [`- …and ${rest} more on smaller Workshop Maps`] : []),
       ...newMaps,
     ];
     const text = [...head, ...(lines.length > 0 ? lines : ["- Nothing changed."]), POINTER].join(
@@ -94,6 +99,16 @@ export const headMessage = (r: Report): string => {
     if (text.length <= MESSAGE_LIMIT || shown === 0) return text;
   }
 };
+
+/** What the standings image shows: the day, the counts and the four boards. */
+export const standingsImage = (r: Report): StandingsImage => ({
+  title: dayTitle(r.at),
+  subtitle: `Workshop standings · ${counts(r)}`,
+  boards: r.boards.map((b) => ({
+    title: BOARD_TITLE[b.stat],
+    rows: b.rows.map((row) => ({ name: row.persona, n: row.n })),
+  })),
+});
 
 export const threadName = (r: Report) => `Maps and records · ${shortDate(r.at)}`;
 

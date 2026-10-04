@@ -20,7 +20,7 @@ export const tokenDaysLeft = (token: string, nowMs: number): Option.Option<numbe
   );
 
 /**
- * A message to the private ops channel through its webhook (OPS_WEBHOOK_URL); without one, a
+ * A message to the private ops channel through its webhook (OPS_WEBHOOK_URL), and always a
  * warning in the log. A failed post is only logged: nothing waits on ops hearing.
  */
 export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts", {
@@ -29,22 +29,20 @@ export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts
     const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
     return {
       configured: Option.isSome(webhookUrl),
-      post: (content: string): Effect.Effect<void> =>
-        Option.match(webhookUrl, {
-          onNone: () => Effect.logWarning(`ops: ${content}`),
-          onSome: (url) =>
-            http
-              .execute(
-                HttpClientRequest.post(Redacted.value(url)).pipe(
-                  HttpClientRequest.bodyUnsafeJson({ content }),
-                ),
-              )
-              .pipe(
-                Effect.scoped,
-                Effect.asVoid,
-                Effect.catchAll((e) => Effect.logWarning(`ops webhook failed: ${e._tag}`)),
-              ),
-        }),
+      post: Effect.fn("OpsAlerts.post")(function* (content: string) {
+        yield* Effect.logWarning(`ops: ${content}`);
+        if (Option.isNone(webhookUrl)) return;
+        yield* http
+          .execute(
+            HttpClientRequest.post(Redacted.value(webhookUrl.value)).pipe(
+              HttpClientRequest.bodyUnsafeJson({ content }),
+            ),
+          )
+          .pipe(
+            Effect.scoped,
+            Effect.catchAll((e) => Effect.logWarning(`ops webhook failed: ${e._tag}`)),
+          );
+      }),
     };
   }),
   dependencies: [FetchHttpClient.layer],

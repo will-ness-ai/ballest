@@ -34,10 +34,10 @@ process.env.STATS_CHANNEL_ID = channel;
 
 const program = Effect.gen(function* () {
   const at = yield* Clock.currentTimeMillis;
-  const { data, refreshedAt } = yield* (yield* ReportSource).read(at);
+  const data = yield* (yield* ReportSource).read(at);
   const report = buildReport(data, at);
   yield* Effect.logInfo(
-    `report: ${report.maps} Maps, ${report.players} players, ${report.changes.length} changes; last Refresh ${refreshedAt === null ? "never" : new Date(refreshedAt).toISOString()}`,
+    `report: ${report.maps} Maps, ${report.players} players, ${report.changes.length} changes; last Refresh ${report.refreshedAt === null ? "never" : new Date(report.refreshedAt).toISOString()}`,
   );
   const { messageId, thread } = yield* postReport(report);
   yield* thread;

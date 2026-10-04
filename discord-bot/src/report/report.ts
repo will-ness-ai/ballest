@@ -61,6 +61,8 @@ export interface ReportData {
   readonly entries: ReadonlyArray<ReportEntry>;
   /** The Tracks in their order on the site. */
   readonly tracks: ReadonlyArray<ReportTrack>;
+  /** When the last Refresh that wrote the database finished (ms), or null with none yet. */
+  readonly refreshedAt: number | null;
 }
 
 // ---------------------------------------------------------------- the report
@@ -128,6 +130,8 @@ export interface RecordCandidate {
 
 export interface Report {
   readonly at: number;
+  /** The data's age: when the last Refresh finished (ms), or null with none yet. */
+  readonly refreshedAt: number | null;
   readonly maps: number;
   readonly players: number;
   readonly boards: ReadonlyArray<Board>;
@@ -142,11 +146,11 @@ export interface Report {
 const openAt = (e: ReportEntry, t: number) =>
   e.firstSeenAt <= t && (e.closedAt === null || e.closedAt > t);
 
+const bySteamId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
 /** Rank order on a time board: fastest, then first seen, then Steam ID (as web/db/reads.ts). */
 const byRank = (a: ReportEntry, b: ReportEntry) =>
-  a.score - b.score ||
-  a.firstSeenAt - b.firstSeenAt ||
-  (a.steamId < b.steamId ? -1 : a.steamId > b.steamId ? 1 : 0);
+  a.score - b.score || a.firstSeenAt - b.firstSeenAt || bySteamId(a.steamId, b.steamId);
 
 /**
  * The Entries on a Map that count, in rank order. A creator's own Entry counts only if it beats
@@ -194,10 +198,8 @@ export const buildReport = (data: ReportData, at: number): Report => {
 
   for (const map of data.maps) {
     const all = byBoard.get(map.board) ?? [];
-    const now = counted(
-      map,
-      all.filter((e) => e.closedAt === null),
-    );
+    const open = all.filter((e) => e.closedAt === null);
+    const now = counted(map, open);
     const before = counted(
       map,
       all.filter((e) => openAt(e, yesterday)),
@@ -220,9 +222,8 @@ export const buildReport = (data: ReportData, at: number): Report => {
     });
 
     // Maps up less than a day aren't listed or reported on: they haven't been played yet.
-    const isNew = map.createdAt !== null && map.createdAt > yesterday;
-    if (isNew) newMaps += 1;
     const dayOld = map.createdAt === null || map.createdAt <= yesterday;
+    if (!dayOld) newMaps += 1;
     const medals = now.filter((e) => medalled(map, e));
     if (dayOld && now.length === 0) unfinished.push(listed);
     if (dayOld && now.length > 0 && map.authorTicks !== null && medals.length === 0)
@@ -241,7 +242,7 @@ export const buildReport = (data: ReportData, at: number): Report => {
 
     const readYesterday = map.firstReadAt !== null && map.firstReadAt <= yesterday;
     if (!dayOld || !readYesterday || record === undefined) continue;
-    const players = all.filter((e) => e.closedAt === null).length;
+    const players = open.length;
     const held = before[0];
     if (held === undefined) {
       mapChanges.push({ kind: "firstFinish", map: listed, players, by: record.persona });
@@ -268,8 +269,7 @@ export const buildReport = (data: ReportData, at: number): Report => {
     [...tally.entries()]
       .filter(([, t]) => t[stat] > 0)
       .sort(
-        ([a, t], [b, u]) =>
-          u[stat] - t[stat] || (then ? u[then] - t[then] : 0) || (a < b ? -1 : a > b ? 1 : 0),
+        ([a, t], [b, u]) => u[stat] - t[stat] || (then ? u[then] - t[then] : 0) || bySteamId(a, b),
       )
       .slice(0, TOP)
       .map(([steamId, t]) => ({ steamId, persona: t.persona, n: t[stat] }));
@@ -288,7 +288,7 @@ export const buildReport = (data: ReportData, at: number): Report => {
         score: now.score,
         gain: then.score - now.score,
       });
-    if (now?.ugcId != null)
+    if (now !== null && now.ugcId !== null)
       trackRecords.push({
         steamId: now.steamId,
         persona: now.persona,
@@ -302,6 +302,7 @@ export const buildReport = (data: ReportData, at: number): Report => {
   const title = (m: ListedMap) => m.title.toLowerCase();
   return {
     at,
+    refreshedAt: data.refreshedAt,
     maps: data.maps.length,
     players: tally.size,
     boards: STATS.map(({ stat, then }) => ({ stat, rows: ranked(stat, then) })),

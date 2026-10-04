@@ -4,7 +4,6 @@ import { headMessage, MESSAGE_LIMIT, pack, threadSections } from "../src/report/
 import {
   GhostDates,
   GhostUnavailable,
-  NO_GHOST,
   oldestMapRecords,
   parseGhostStamp,
 } from "../src/report/records.js";
@@ -52,6 +51,7 @@ const data = (over: Partial<ReportData>): ReportData => ({
   maps: [],
   entries: [],
   tracks: [],
+  refreshedAt: null,
   ...over,
 });
 
@@ -211,9 +211,16 @@ describe("the Daily Report's messages", () => {
       true,
     );
     expect(text.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
-    expect(text).toMatch(/…and \d+ more on smaller Maps/);
+    expect(text).toMatch(/…and \d+ more on smaller Workshop Maps/);
     expect(text).toContain("NEW\\_HOLDER @​EVERYONE");
     expect(text).toContain("A very long Map title number 0 \\*with\\* markdown\\_");
+  });
+
+  it("dates the data with a Discord timestamp", () => {
+    const r = buildReport(data({ refreshedAt: Date.UTC(2026, 9, 4, 14) }), AT);
+    expect(headMessage(r).split("\n")[1]).toBe(
+      "-# Workshop standings · 0 Workshop Maps · 0 players · data as of <t:1791122400:R>",
+    );
   });
 
   it("says when nothing changed", () => {
@@ -274,7 +281,6 @@ describe("the longest-standing records", () => {
         candidate(3, day(28)),
         candidate(1, day(26)),
         candidate(2, day(27)),
-        candidate(6, day(26), NO_GHOST),
         candidate(4, day(28)),
       ]).pipe(Effect.provide(ghosts));
       expect(oldest.map((r) => r.steamId)).toEqual(["s1", "s4", "s3"]);

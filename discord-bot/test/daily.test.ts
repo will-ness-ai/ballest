@@ -26,10 +26,7 @@ const setup = Effect.gen(function* () {
       ReportSource.of({
         read: (at) =>
           Ref.get(refreshedAgo).pipe(
-            Effect.map((ago) => ({
-              data: { maps: [], entries: [], tracks: [] },
-              refreshedAt: at - ago,
-            })),
+            Effect.map((ago) => ({ maps: [], entries: [], tracks: [], refreshedAt: at - ago })),
           ),
       }),
     ),
