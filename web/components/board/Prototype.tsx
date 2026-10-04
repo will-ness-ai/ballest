@@ -28,8 +28,15 @@ type Data = Record<string, { top: number; entries: Record<string, Ghost> }>;
 
 /* round 2 asks what picture of a run C's drawer shows; round 1's variants are kept below,
    switched off by ROUND */
-const ROUND: number = 3;
+const ROUND: number = 4;
 export const VARIANTS = [
+  { key: "A", name: "As is", note: "round 3's stats line: avg, top, distance, set, ball" },
+  { key: "B", name: "Against the leader", note: "each stat with its difference from the leader's run; ball dropped" },
+  { key: "C", name: "Headline", note: "no stats grid: one line on top, the date and top speed; ball, avg and distance dropped" },
+  { key: "D", name: "Ball card", note: "the run told as a sentence over the race: when, which ball and hat; no stats grid" },
+  { key: "E", name: "Ranked", note: "each stat with where it ranks among the top 50 read; ball dropped" },
+] as const;
+export const ROUND3 = [
   { key: "A", name: "Stacked", note: "the race on top, playing on open; the gap chart under it, still" },
   { key: "B", name: "Linked", note: "the gap chart's playhead follows the race; drag the chart to scrub" },
   { key: "C", name: "Tabs", note: "a Gap / Race switch; the race plays when picked" },
@@ -162,6 +169,7 @@ function Stats({ g }: { g: Ghost }) {
 function Detail({ g, c }: { g: Ghost; c: Ctx }) {
   const lead = leaderOf(c);
   const last = g.gap[g.gap.length - 1];
+  if (ROUND === 4) return <Picture4 g={g} lead={lead} c={c} />;
   if (ROUND === 3) return <Picture3 g={g} lead={lead} c={c} />;
   if (ROUND === 2) return <Picture g={g} lead={lead} c={c} />;
   return (
@@ -519,6 +527,86 @@ function Picture3({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
   );
 }
 
+/* ---------- round 4: the stats under the linked race ---------- */
+function Linked({ g, L, race }: { g: Ghost; L: Ghost; race: Race }) {
+  return (
+    <>
+      <p className="p-cap">
+        Behind the leader along the course · <b>{signed(gapOf(g, L).at(-1)!)}</b> at the line
+      </p>
+      <RaceCap g={g} lead={L} race={race} />
+      <Lanes g={g} lead={L} race={race} />
+      <GapChart g={g} lead={L} race={race} scrub />
+      <div className="p-axis"><span>start</span><span>drag the chart to scrub</span><span>finish</span></div>
+    </>
+  );
+}
+
+const ordinal = (n: number) => n + (["th", "st", "nd", "rd"][(n % 100 >> 3) ^ 1 && n % 10] || "th");
+const fullDay = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : null;
+
+function StatsVs({ g, L }: { g: Ghost; L: Ghost | null }) {
+  const d = (a: number, b: number, unit: string, better: number) => {
+    const x = a - b;
+    if (!L || Math.abs(x) < 0.05) return null;
+    return <span className={x * better > 0 ? "p-plus" : "p-minus"}>{x > 0 ? "+" : "−"}{Math.abs(x).toFixed(1)}{unit}</span>;
+  };
+  return (
+    <dl className="p-stats">
+      <div><dt>Top speed</dt><dd>{kmh(g.top)} {L && d(g.top, L.top, "", 1)}</dd></div>
+      <div><dt>Avg speed</dt><dd>{kmh(g.avg)} {L && d(g.avg, L.avg, "", 1)}</dd></div>
+      <div><dt>Distance</dt><dd>{g.dist.toFixed(0)} m {L && d(g.dist, L.dist, " m", -1)}</dd></div>
+      <div><dt>Set</dt><dd>{ago(g.set)}</dd></div>
+    </dl>
+  );
+}
+
+function StatsRanked({ g, c }: { g: Ghost; c: Ctx }) {
+  const all = Object.values(c.data?.[c.board]?.entries ?? {});
+  const rank = (k: "top" | "avg" | "dist", hi: boolean) =>
+    1 + all.filter((x) => (hi ? x[k] > g[k] : x[k] < g[k])).length;
+  const n = all.length;
+  return (
+    <dl className="p-stats">
+      <div><dt>Top speed</dt><dd>{kmh(g.top)}<small>{ordinal(rank("top", true))} of {n}</small></dd></div>
+      <div><dt>Avg speed</dt><dd>{kmh(g.avg)}<small>{ordinal(rank("avg", true))} of {n}</small></dd></div>
+      <div><dt>Shortest line</dt><dd>{g.dist.toFixed(1)} m<small>{ordinal(rank("dist", false))} of {n}</small></dd></div>
+      <div><dt>Set</dt><dd>{ago(g.set)}</dd></div>
+    </dl>
+  );
+}
+
+function Picture4({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
+  const L = lead && lead !== g ? lead : null;
+  const end = Math.max(g.at[g.at.length - 1], L ? L.at[L.at.length - 1] : 0);
+  const race = useRace(end, false);
+  const v = c.variant;
+  const when = fullDay(g.set);
+  return (
+    <div className="p-pic">
+      {v === "C" && (
+        <p className="p-head-line">
+          {when ? <>Set on <b>{when}</b></> : "Date not recorded"} · top speed <b>{kmh(g.top)}</b>
+        </p>
+      )}
+      {v === "D" && (
+        <div className="p-ballcard">
+          <i className="p-mb p-mb-big" />
+          <p>
+            {when ? <>Set <b>{ago(g.set)}</b> ({when})</> : "Date not recorded"}, rolling a{" "}
+            <b>{g.skin ?? "default"}</b> ball{g.hat ? <> in a <b>{g.hat}</b></> : null}.
+          </p>
+        </div>
+      )}
+      {L ? <Linked g={g} L={L} race={race} /> : leaderNote(L)}
+      {v === "A" && <Stats g={g} />}
+      {v === "B" && <StatsVs g={g} L={L} />}
+      {v === "E" && <StatsRanked g={g} c={c} />}
+    </div>
+  );
+}
+
 const NSEC = 8;
 function sectors(a: Ghost) {
   const per = a.at.length / NSEC;
@@ -826,5 +914,15 @@ const CSS = `
 .p-racecap .p-btn{margin-left:auto}
 .p-duo{display:grid;gap:12px}
 @media (min-width:900px){.p-duo{grid-template-columns:2fr 3fr;align-items:end}}
+
+.p-plus{color:var(--accent);font-size:11px;margin-left:4px}
+.p-minus{color:var(--a);font-size:11px;margin-left:4px}
+.p-stats dd small{display:block;font:500 10.5px var(--f-hud);color:var(--faint);margin-top:1px}
+.p-head-line{margin:0 0 4px;font:500 13px var(--f-hud);color:var(--dim)}
+.p-head-line b{color:var(--text)}
+.p-ballcard{display:flex;gap:12px;align-items:center;margin-bottom:6px}
+.p-ballcard p{margin:0;font-size:13px;color:var(--dim)}
+.p-ballcard b{color:var(--text)}
+.p-mb-big{position:static;flex:none;width:36px;height:36px}
 `;
 // ===================== end PROTOTYPE =====================
