@@ -4,10 +4,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { Remember } from "../../../components/BackLink";
 import { Shell } from "../../../components/Shell";
 import { AllMaps } from "../../../components/workshop/AllMaps";
 import { workshopCards } from "../../../components/workshop/data";
-import { RememberList } from "../../../components/workshop/session";
 import { mapsHref } from "../../../lib/routes";
 import { PRESETS } from "../../../lib/workshop";
 
@@ -34,7 +34,7 @@ async function Maps({ params }: Props) {
   return (
     <>
       <AllMaps key={v} maps={maps} view={v} asOf={asOf} />
-      <RememberList path={mapsHref(v)} />
+      <Remember trail="maps" href={mapsHref(v)} />
     </>
   );
 }

@@ -1,5 +1,5 @@
 // What the Workshop pages read: the Maps with a time as cards, and the time the data was
-// read, which the ages count to until the browser's clock takes over (session.tsx).
+// read, which the ages count to until the browser's clock takes over (useClock in lib/client.ts).
 import { getSite, getWorkshop } from "../../db/data";
 import { mapCard, timed } from "../../lib/workshop";
 

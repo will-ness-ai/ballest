@@ -3,12 +3,12 @@
 // drawn here, the Workshop and Made tabs are client components over the record.
 import Link from "next/link";
 
-import { BackLink } from "./BackLink";
 import { CompareButton } from "./Compare";
 import { MadeTab } from "./MadeTab";
 import { MeMark, ScoreCard } from "./Me";
 import { SteamMark } from "./pieces";
 import { WorkshopTab } from "./WorkshopTab";
+import { BackLink } from "../BackLink";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../board/parts";
 import type { PlayerRecord, SeasonRecord, TrackTile } from "../../lib/player";
@@ -158,7 +158,7 @@ export function PlayerView({ rec, tab }: { rec: PlayerRecord; tab: PlayerTab }) 
     <div className="main">
       <section className="content">
         <div className="pp" id="player">
-          <BackLink />{" "}
+          <BackLink trail="board" />{" "}
           <div className="pid">
             <Marble who={rec.who} />{" "}
             <span className="pwho">

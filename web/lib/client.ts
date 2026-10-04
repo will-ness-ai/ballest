@@ -2,7 +2,9 @@
 // Small hooks the client components share.
 import { useSyncExternalStore } from "react";
 
-const never = () => () => undefined;
+/* a useSyncExternalStore subscription for a value that never changes once the page runs:
+   its server snapshot shows until hydration is done, then the browser's */
+export const never = () => () => undefined;
 
 /* true once the page is running in a browser, false in the server render and hydration */
 export const useMounted = () =>
@@ -31,3 +33,7 @@ export const useNow = () =>
     () => now || (now = Date.now()),
     () => null,
   );
+
+/* The time an age is counted to: the browser's clock once the page runs, and until then
+   `asOf` (when the data was read), so the server render and hydration agree. */
+export const useClock = (asOf: number) => useNow() ?? asOf;

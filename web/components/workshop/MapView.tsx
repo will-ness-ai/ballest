@@ -4,7 +4,8 @@
 import { notFound, redirect } from "next/navigation";
 
 import { CreatorLink, MapImg } from "./Card";
-import { Age, BackLink } from "./session";
+import { Age } from "./Age";
+import { BackLink } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardBody } from "../board/BoardBody";
 import { ScorePlates } from "../board/furniture";
@@ -19,7 +20,7 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
   const reason = HIDDEN[m.pfid];
   return (
     <aside className="mpanel" id="mpanel">
-      <BackLink />
+      <BackLink trail="maps" />
       <MapImg m={m} className="mp-img" />
       <div>
         <h1 className="mp-t">{m.title}</h1>

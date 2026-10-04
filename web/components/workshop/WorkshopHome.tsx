@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { CreatorLink, MapCardLink, MapGrid, MapImg, PodLine } from "./Card";
-import { useClock } from "./session";
+import { useClock } from "../../lib/client";
 import { mapHref, mapsHref } from "../../lib/routes";
 import { fmtN, fmtTime, plural } from "../../lib/rules";
 import {

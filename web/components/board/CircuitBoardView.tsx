@@ -5,6 +5,7 @@
 import { notFound } from "next/navigation";
 
 import { BoardBody } from "./BoardBody";
+import { Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardSheet } from "./BoardSheet";
 import {
@@ -20,7 +21,6 @@ import {
 import { CHUNK } from "./parts";
 import { PointsDialog } from "./PointsDialog";
 import { RailItems } from "./Rail";
-import { RememberBoard } from "./RememberBoard";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import { TRACKS, circuitBoard, trackNo } from "../../lib/circuit";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
@@ -127,7 +127,11 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
         )}
       </section>
       {points && <PointsDialog board={name} tracks={tracks} />}
-      <RememberBoard href={boardHref(name, podiums ? PODIUM_SORT : null)} label={b.display} />
+      <Remember
+        trail="board"
+        href={boardHref(name, podiums ? PODIUM_SORT : null)}
+        label={b.display}
+      />
     </div>
   );
 }

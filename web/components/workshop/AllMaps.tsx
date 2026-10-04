@@ -6,8 +6,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { MapGrid } from "./Card";
-import { useClock } from "./session";
+import { BackLink } from "../BackLink";
 import { useModalKeys } from "../Behaviours";
+import { useClock } from "../../lib/client";
 import { homeHref, mapsHref } from "../../lib/routes";
 import { plural } from "../../lib/rules";
 import {
@@ -129,9 +130,7 @@ export function AllMaps({
   const stat = (m: MapCard) => SORTS[f.sort].stat(m, now);
   return (
     <>
-      <Link className="back" href={homeHref()}>
-        &larr; Workshop
-      </Link>
+      <BackLink href={homeHref()} label="Workshop" />
       <div className="ws-head">
         <h1 className="ws-h1">All maps</h1>
         <span className="ws-count">{plural(maps.length, "map", "maps")} with a time</span>
