@@ -151,19 +151,28 @@ copy of a template database `web/scripts/migrate.mjs` builds, and run in `check.
 
 ### The read layer
 
-The app reads the database only through `web/db/data.ts`: a board's open Entries ranked
-(`getBoard`), a player's open Entries with their rank on each board (`getPlayer`), the Map
-list with each Map's latest `map_history` row (`getMaps`), and a board's Score history
-(`getScoreHistory`). Rank is computed, never stored: fastest first on a time board, most
-points first on one that `scores_points`, a tie going to the Entry first seen earlier and
-then to the lower Steam ID. The queries are in `web/db/reads.ts`, tested against `tiny`;
-`data.ts` wraps each in `unstable_cache` under the tag `data` (not `"use cache"`, which
-would need `cacheComponents`). Cached values are JSON, so times come back as ISO strings.
+The app reads the database only through `web/db/data.ts`, whose functions are
+`"use cache"`, tagged `data`, with the `max` lifetime: what every page's frame needs
+(`getSite`: when the boards were read, every Circuit board's count, the podium tallies), the
+Workshop's Maps with their figures (`getWorkshop`), a slice of a board (`getBoardPage`), a
+player's record (`getPlayer`) and the Players counts (`getStandings`). Searches
+(`searchBoard`, `searchPlayers`) are read fresh. The queries are in `web/db/site.ts`, built on
+the ranked boards in `web/db/boards.ts`, and tested against `tiny` (`web/test/site.test.ts`).
+Cached values are JSON, so times come back as ISO strings.
+
+Rank is computed, never stored: fastest first on a time board, most points first on one that
+`scores_points`, and equal scores by Steam ID in the board's own direction, the lower first
+on a time board and the higher first on a points board. That is Steam's order: every tie on
+the committed boards (7,288 of them, 2026-10-04) reads that way. Season 1 Current and All
+Seasons are computed the same way, from the Track and Overall ranks, as `build_current` and
+`build_composite` did, and so are the podiums, the standings and each Map's Workshop figures.
+A Map is in the Workshop while its latest `map_history` row was seen by the latest catalogue;
+a Map gone from it keeps its Entries but leaves the Workshop pages and the counts. A board's
+Score history (`scoreHistory` in `web/db/reads.ts`) is there for the history features.
 
 `POST /api/revalidate` with `Authorization: Bearer $REVALIDATE_SECRET` expires the `data`
 tag; anything else, including a deploy with no secret set, gets a 401. The collector calls
-it once a Refresh has committed. `GET /api/db/board/<name>` returns `getBoard` as JSON, so
-a preview shows the database working; the page doesn't use it.
+it once a Refresh has committed.
 
 ### Seeding a branch
 

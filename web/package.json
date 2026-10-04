@@ -15,6 +15,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed": "tsx scripts/seed.ts",
+    "db:parity": "tsx scripts/parity.ts",
     "test": "vitest run"
   },
   "dependencies": {

@@ -72,13 +72,13 @@ describe("seeding", () => {
 
   const tinyCounts = {
     refreshes: 3,
-    boards: 4,
-    boardReads: 10,
+    boards: 6,
+    boardReads: 12,
     players: 10,
     personaHistory: 11,
-    entries: 19,
-    maps: 2,
-    mapHistory: 3,
+    entries: 23,
+    maps: 3,
+    mapHistory: 4,
   };
 
   test("tiny fills every table, and seeding it again replaces rather than adds", async () => {
