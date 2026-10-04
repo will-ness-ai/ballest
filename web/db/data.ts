@@ -11,6 +11,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { CIRCUIT } from "../lib/circuit";
 import { playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
 import { podiumTallies, type PodiumTally } from "../lib/podiums";
+import { mapCard, timed, type MapCard } from "../lib/workshop";
 import { connect, type Db } from "./client";
 import * as q from "./site";
 
@@ -33,6 +34,9 @@ function db(): Db {
 export interface Site {
   refreshedAt: string | null;
   mapsReadBy: string | null;
+  /* refreshedAt in Unix ms, or 0 before the first Refresh: what an age counts to until the
+     browser's clock takes over (useClock in lib/client.ts) */
+  asOf: number;
   /* every Circuit board in the site's order, with how many it ranks */
   boards: Array<IndexBoard>;
   podiums: Array<PodiumTally>;
@@ -50,6 +54,7 @@ export async function getSite(): Promise<Site> {
   ]);
   return {
     ...fresh,
+    asOf: fresh.refreshedAt ? Date.parse(fresh.refreshedAt) : 0,
     boards: CIRCUIT.map((b) => ({
       name: b.name,
       group: b.group,
@@ -66,6 +71,14 @@ export async function getWorkshop(): Promise<Array<q.WorkshopMap>> {
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.workshopMaps(db());
+}
+
+/* the Maps with a time, as the cards the Workshop views and their search draw */
+export async function getMapCards(): Promise<Array<MapCard>> {
+  "use cache";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return timed(await getWorkshop()).map(mapCard);
 }
 
 /* a slice of a board in rank order, unfiltered */

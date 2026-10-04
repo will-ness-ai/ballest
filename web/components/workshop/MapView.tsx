@@ -100,7 +100,7 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
   return (
     <div className="main">
       <DocTitle title={m.title} />
-      <MapPanel m={m} scores={scores} asOf={site.refreshedAt ? Date.parse(site.refreshedAt) : 0} />
+      <MapPanel m={m} scores={scores} asOf={site.asOf} />
       <section className="content">
         <BoardBody
           order="score"

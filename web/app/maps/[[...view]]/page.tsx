@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { Remember } from "../../../components/BackLink";
 import { Shell } from "../../../components/Shell";
 import { AllMaps } from "../../../components/workshop/AllMaps";
-import { workshopCards } from "../../../components/workshop/data";
+import { getMapCards, getSite } from "../../../db/data";
 import { mapsHref } from "../../../lib/routes";
 import { PRESETS } from "../../../lib/workshop";
 
@@ -30,7 +30,7 @@ async function Maps({ params }: Props) {
   const { view = [] } = await params;
   const v = view.length ? view[0] : null;
   if (view.length > 1 || (v !== null && !Object.hasOwn(PRESETS, v))) notFound();
-  const { maps, asOf } = await workshopCards();
+  const [{ asOf }, maps] = await Promise.all([getSite(), getMapCards()]);
   return (
     <>
       <AllMaps key={v} maps={maps} view={v} asOf={asOf} />
