@@ -7604,6 +7604,45 @@
         height: 9px;
         border-radius: 50%;
       }
+      .pt-reignbar {
+        background: var(--gold);
+      }
+      .pt-track .pt-prev {
+        background: var(--gold);
+        opacity: 0.16;
+      }
+      .pt-cells {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 3px;
+      }
+      .pt-cell {
+        position: relative;
+        height: 34px;
+        border: 0;
+        border-radius: 4px;
+        padding: 0;
+        background: rgba(139, 224, 60, var(--a));
+        box-shadow: inset 0 0 0 1px var(--line2);
+        cursor: pointer;
+      }
+      .pt-cell:disabled {
+        cursor: default;
+      }
+      .pt-cell.on {
+        box-shadow: 0 0 0 2px var(--text);
+      }
+      .pt-wrdot {
+        position: absolute;
+        top: 4px;
+        left: 50%;
+        width: 7px;
+        height: 7px;
+        margin-left: -3.5px;
+        border-radius: 50%;
+        background: var(--gold);
+      }
       #ptPick {
         position: fixed;
         right: 16px;
@@ -7671,34 +7710,35 @@
            round 2 verdict: B's place above the rows, a summary that opens the tabs.
            round 3 verdict: a mix of B (record sparkline) and C (last holders).
            round 4 verdict: D, the sparkline over reign bars for the last three holders.
-           round 5 verdict: E (big step chart over every reign's bar), plus something of C's
-           per-holder lanes, maybe a colour per holder.
-           Round 6: how E shows who held it. */
+           round 5 verdict: E, a big step chart over every reign's bar.
+           round 6 verdict: none of the five. Every reign bar is one colour, and the same
+           row shows that player's earlier records in a very muted colour (recTabFinal).
+           Round 7: the What changed tab (opens on it this round). */
         const VARIANTS = [
           {
             key: "A",
-            name: "Holder colours",
-            note: "Every holder gets their marble's colour, on their steps in the chart and on their bars. The same colour means the same player.",
+            name: "Day list",
+            note: "Round 1's feed as it was: each day's new records, new top 10 times, and how many improved or posted a first time.",
           },
           {
             key: "B",
-            name: "By holder switch",
-            note: "Round 5's E, plus a switch that regroups the bars into one lane per holder on the same dates.",
+            name: "Day strip",
+            note: "A strip of every day since 6 Sep, shaded by how busy it was, with records marked. Pick a day to see what happened.",
           },
           {
             key: "C",
-            name: "Pick a holder",
-            note: "Click any name (the current holder to start) to light up all their reigns in the chart and bars; everyone else dims.",
+            name: "Notable only",
+            note: "Just the records and new top 10 times, one line each with its date. No counts of everyone else.",
           },
           {
             key: "D",
-            name: "Holder chips",
-            note: "Holder colours, plus a row of chips above the bars: each holder, how many records, how long held in total.",
+            name: "Activity chart",
+            note: "Bars of improvements and first times per day, with records marked above them, and the notable times listed below.",
           },
           {
             key: "E",
-            name: "Rivals only",
-            note: "Only players who held it more than once get a colour; one-off holders stay grey, so the repeat rivals stand out.",
+            name: "Climbers",
+            note: "Who moved most in the last 7 days: places gained and time cut, for anyone now in the top 100.",
           },
         ];
         const STATES = [
@@ -8024,11 +8064,12 @@
         /* ---------- round 2: the tabbed history, and where it sits ---------- */
         let tab = "rec",
           open = true;
+        tab = "feed";
         const tabs = (d) => `<div class="pt-card">
             <div class="pt-tabs" role="tablist">
               <button type="button" role="tab" data-tab="rec" aria-selected="${tab === "rec"}">Records</button>
               <button type="button" role="tab" data-tab="feed" aria-selected="${tab === "feed"}">What changed</button>
-            </div>${tab === "rec" ? recTab6(VARIANTS[vi].key, d) : vC(d)}</div>`;
+            </div>${tab === "rec" ? recTabFinal(d) : feedTab(VARIANTS[vi].key, d)}</div>`;
         const stripHtml = (d) => {
           const r = d.records.at(-1);
           return `<button type="button" class="pt-strip" id="ptStrip" aria-expanded="${open}">
@@ -8280,6 +8321,142 @@
           return chartBy(d, 180, col, none) + axisRow(d) + legend + barsBy(d, newest, col, none);
         }
 
+        /* ---------- round 6 verdict: the Records tab ---------- */
+        function recTabFinal(d) {
+          const newest = [...d.records].reverse();
+          const { x } = stepPath(d, 0, 800, 0, 1);
+          const pct = (t) => ((x(t) / 800) * 100).toFixed(2) + "%";
+          const bar = (q, cls) =>
+            `<span class="${cls}" style="left:${pct(q.from)};width:calc(${pct(q.to || d.tN)} - ${pct(q.from)} + 3px)"></span>`;
+          const rows = newest
+            .map((q) => {
+              const before = d.records.filter((r) => r.e.steamId === q.e.steamId && r.from < q.from);
+              return `<li><b style="color:${q.to ? "var(--text)" : "var(--gold)"}">${fmtTime(q.e.score)}</b><span>${who(q.e)} <span class="pt-up">${cutTxt(q)}</span> <span class="pt-dim">${setTxt(q, d)} · ${heldTxt(q, d)}</span></span>
+                <span class="pt-track">${before.map((r) => bar(r, "pt-prev")).join("")}${bar(q, "pt-reignbar")}</span></li>`;
+            })
+            .join("");
+          return bigChart(d, 180) + axisRow(d) + `<ul class="pt-reign">${rows}</ul>`;
+        }
+
+        /* ---------- round 7: the What changed tab ---------- */
+        function dayGroups(d) {
+          const recordAt = new Map(d.records.map((r) => [r.e, r]));
+          const t10 = new Set();
+          d.times.forEach((t, i) => {
+            for (const e of d.top10[i]) if (e.f === t && t !== d.t0) t10.add(e);
+          });
+          const groups = new Map();
+          for (const e of d.es) {
+            if (e.f === d.t0 || e.flash) continue;
+            const k = new Date(e.f).toDateString();
+            if (!groups.has(k)) groups.set(k, { k, t: e.f, wr: [], t10: [], pb: 0, first: 0 });
+            const g = groups.get(k);
+            const mine = d.byPlayer.get(e.steamId);
+            const prev = mine.filter((x) => !x.flash)[mine.filter((x) => !x.flash).indexOf(e) - 1];
+            if (recordAt.has(e)) g.wr.push({ e, prev: recordAt.get(e).prev });
+            else if (t10.has(e)) g.t10.push({ e, prev });
+            if (prev) g.pb++;
+            else g.first++;
+          }
+          return groups;
+        }
+        const longDay = (t) => new Date(t).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+        const notable = (g) =>
+          g.wr
+            .map(({ e, prev }) => `<li><span class="pt-tag wr">Record</span>${who(e)} ${fmtTime(e.score)}${prev ? ` <span class="pt-dim">beat ${esc(prev.persona)} by ${secs(prev.score - e.score)}</span>` : ""}</li>`)
+            .join("") +
+          g.t10
+            .map(({ e, prev }) => `<li><span class="pt-tag t10">Top 10</span>${who(e)} ${fmtTime(e.score)}${prev ? ` <span class="pt-dim">−${secs(prev.score - e.score)}</span>` : ' <span class="pt-dim">first time</span>'}</li>`)
+            .join("");
+        let pickedDay = null;
+        function feedTab(k, d) {
+          const groups = dayGroups(d);
+          const list = [...groups.values()].sort((a, b) => b.t - a.t);
+          if (!list.length) return `<p class="pt-empty">Nothing has changed on this board since ${day(d.t0)}.</p>`;
+          if (k === "A") return vC(d);
+          if (k === "B") {
+            const daysAll = [];
+            for (let t = new Date(new Date(d.t0).toDateString()).getTime() + 86400000; t <= d.tN; t += 86400000) daysAll.push(new Date(t).toDateString());
+            const max = Math.max(...list.map((g) => g.pb + g.first));
+            const sel = pickedDay && groups.has(pickedDay) ? pickedDay : list[0].k;
+            const cells = daysAll
+              .map((key) => {
+                const g = groups.get(key);
+                const n = g ? g.pb + g.first : 0;
+                const a = n ? 0.15 + 0.85 * Math.sqrt(n / max) : 0;
+                return `<button type="button" class="pt-cell${key === sel ? " on" : ""}" data-day="${key}" ${g ? "" : "disabled"} title="${esc(key)}: ${n}" style="--a:${a}">${g && g.wr.length ? '<i class="pt-wrdot"></i>' : ""}</button>`;
+              })
+              .join("");
+            const g = groups.get(sel);
+            return `<div class="pt-cells">${cells}</div><div class="pt-sub pt-axis"><span>${day(d.t0)}</span><span>now</span></div>
+              <div class="pt-day"><h3>${longDay(g.t)}</h3><ul>${notable(g)}<li><span class="pt-tag pb">Board</span><span class="pt-dim">${fmtN(g.pb)} improved · ${fmtN(g.first)} first times</span></li></ul></div>`;
+          }
+          if (k === "C") {
+            const rows = list
+              .flatMap((g) => [
+                ...g.wr.map((x) => ({ ...x, t: g.t, kind: "wr" })),
+                ...g.t10.map((x) => ({ ...x, t: g.t, kind: "t10" })),
+              ])
+              .slice(0, 40)
+              .map(
+                ({ e, prev, t, kind }) => `<tr><td class="pt-dim">${day(t)}</td><td><span class="pt-tag ${kind}">${kind === "wr" ? "Record" : "Top 10"}</span></td>
+                <td class="n">${fmtTime(e.score)}</td><td class="who">${who(e)}</td><td class="n pt-up">${prev ? "−" + secs(prev.score - e.score) : ""}</td></tr>`,
+              )
+              .join("");
+            return `<div class="pt-wrap"><table class="pt-tbl">${rows}</table></div>`;
+          }
+          if (k === "D") {
+            const days2 = [...list].reverse();
+            const W = 800,
+              H = 150,
+              bw = W / days2.length;
+            const max = Math.max(...days2.map((g) => g.pb + g.first));
+            const y = (n) => (n / max) * (H - 30);
+            const bars = days2
+              .map((g, i) => {
+                const x0 = i * bw + 1;
+                const hf = y(g.first),
+                  hp = y(g.pb);
+                return `<rect x="${x0}" y="${H - hf}" width="${bw - 2}" height="${hf}" fill="var(--faint)"><title>${day(g.t)}: ${g.first} first times</title></rect>
+                  <rect x="${x0}" y="${H - hf - hp}" width="${bw - 2}" height="${hp}" fill="var(--accent)"><title>${day(g.t)}: ${g.pb} improved</title></rect>
+                  ${g.wr.length ? `<circle cx="${x0 + bw / 2 - 1}" cy="${H - hf - hp - 9}" r="4" fill="var(--gold)"><title>${g.wr.length} record${g.wr.length === 1 ? "" : "s"}</title></circle>` : ""}`;
+              })
+              .join("");
+            const recent = list
+              .slice(0, 7)
+              .filter((g) => g.wr.length || g.t10.length)
+              .map((g) => `<div class="pt-day"><h3>${longDay(g.t)}</h3><ul>${notable(g)}</ul></div>`)
+              .join("");
+            return `<svg class="pt-chart" viewBox="0 0 ${W} ${H}">${bars}</svg>
+              <div class="pt-legend"><span><i style="background:var(--accent)"></i>improved</span><span><i style="background:var(--faint)"></i>first time</span><span><i style="background:var(--gold)"></i>new record</span></div>
+              <div style="margin-top:12px">${recent || '<p class="pt-empty">No records or top 10 times in the last week.</p>'}</div>`;
+          }
+          /* E: climbers over the last 7 days */
+          const cut = d.tN - 7 * 86400000;
+          const rankAt = (t) => {
+            const m = new Map();
+            let r = 0;
+            for (const e of d.valid) if (e.f <= t && (e.c === null || e.c > t)) m.set(e.steamId, { r: ++r, e });
+            return m;
+          };
+          const then = rankAt(cut),
+            now = rankAt(d.tN);
+          const rows = [...now.entries()]
+            .filter(([, v]) => v.r <= 100)
+            .map(([id, v]) => ({ id, v, was: then.get(id) }))
+            .filter((x) => !x.was || x.was.r > x.v.r)
+            .map((x) => ({ ...x, gain: x.was ? x.was.r - x.v.r : null }))
+            .sort((a, b) => (b.gain ?? 1e9) - (a.gain ?? 1e9) || a.v.r - b.v.r)
+            .slice(0, 15)
+            .map(
+              (x) => `<tr><td class="n">${x.v.r}</td><td class="who">${who(x.v.e)}</td><td class="n">${fmtTime(x.v.e.score)}</td>
+                <td class="n pt-up">${x.gain === null ? "new" : "▲ " + x.gain}</td><td class="n pt-dim">${x.was ? "−" + secs(x.was.e.score - x.v.e.score) : ""}</td></tr>`,
+            )
+            .join("");
+          return `<p class="pt-h" style="margin-top:0">Climbers <small>since ${day(cut)}, everyone now in the top 100</small></p>
+            <div class="pt-wrap"><table class="pt-tbl"><tr><th class="n">Now</th><th>Player</th><th class="n">Time</th><th class="n">Places</th><th class="n">Cut</th></tr>${rows || '<tr><td class="pt-dim" colspan="5">Nobody in the top 100 moved this week.</td></tr>'}</table></div>`;
+        }
+
         const host = document.createElement("section");
         host.id = "ptHist";
         const app = document.getElementById("app");
@@ -8354,6 +8531,13 @@
             (b) =>
               (b.onclick = () => {
                 lanesOn = b.dataset.lanes === "1";
+                draw();
+              }),
+          );
+          document.querySelectorAll("[data-day]").forEach(
+            (b) =>
+              (b.onclick = () => {
+                pickedDay = b.dataset.day;
                 draw();
               }),
           );
