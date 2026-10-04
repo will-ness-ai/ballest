@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Facts, MedalCounts, PlayerLink, QMark, Spread, podiumTotal } from "./parts";
 import type { PodiumRow } from "./BoardBody";
 import { Marble } from "../Marble";
-import type { BoardRow } from "../../db/site";
+import type { BoardRow } from "../../lib/rows";
 import { TRACKS, trackNo } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import type { PodiumPlayer, PodiumTally } from "../../lib/podiums";

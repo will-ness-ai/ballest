@@ -3,6 +3,7 @@
 // Tracks at once, which the All Seasons board shows beside its points. Only Tracks count:
 // an Overall board is points, not a race.
 import { CIRCUIT, COMPOSITE_GROUP, circuitBoard } from "./circuit";
+import type { Placing } from "./rows";
 import { isPoints } from "./rules";
 
 export interface PodiumFinish {
@@ -28,15 +29,6 @@ export interface PodiumTally {
   group: string;
   tracks: number;
   players: Array<PodiumPlayer>;
-}
-
-export interface Placing {
-  board: string;
-  steamId: string;
-  persona: string;
-  avatar: string | null;
-  rank: number;
-  score: number;
 }
 
 /* one tally: the top three of each of `tracks`, counted and ranked golds first, then

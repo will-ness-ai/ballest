@@ -3,7 +3,7 @@
 import { describe, expect, test } from "vitest";
 
 import { plCols, plPlayer, plRank, plValid } from "../lib/players";
-import type { StandingsRow } from "../db/site";
+import type { StandingsRow } from "../lib/rows";
 
 /* [steam ID, persona, cwr, wwr, cpod, wpod, ct5, wt5, maps] */
 const ROWS: Array<StandingsRow> = [

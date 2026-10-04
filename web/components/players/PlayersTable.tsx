@@ -9,7 +9,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 
 import { Marble } from "../Marble";
 import { PlayerLink } from "../board/parts";
-import type { Standings } from "../../db/site";
+import type { Standings } from "../../lib/rows";
 import { useDebounced } from "../../lib/client";
 import { useMe } from "../../lib/me";
 import {

@@ -11,11 +11,10 @@ import { cacheLife, cacheTag } from "next/cache";
 import { CIRCUIT } from "../lib/circuit";
 import { playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
 import { podiumTallies, type PodiumTally } from "../lib/podiums";
+import type { WorkshopMap } from "../lib/rows";
 import { mapCard, timed, type MapCard } from "../lib/workshop";
 import { connect, type Db } from "./client";
 import * as q from "./site";
-
-export type { BoardPage, BoardRow, NameHit, Standings, WorkshopMap } from "./site";
 
 export const DATA_TAG = "data";
 
@@ -66,7 +65,7 @@ export async function getSite(): Promise<Site> {
   };
 }
 
-export async function getWorkshop(): Promise<Array<q.WorkshopMap>> {
+export async function getWorkshop(): Promise<Array<WorkshopMap>> {
   "use cache";
   cacheTag(DATA_TAG);
   cacheLife("max");

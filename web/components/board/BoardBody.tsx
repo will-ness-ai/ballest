@@ -12,7 +12,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { CHUNK, MedalCounts, PlayerLink, QMark, podiumTotal, type Medals } from "./parts";
 import { Marble } from "../Marble";
-import type { BoardPage, BoardRow } from "../../db/site";
+import type { BoardPage, BoardRow } from "../../lib/rows";
 import { useDebouncedFetch } from "../../lib/client";
 import { fmtN, fmtTime, hueFor, ord, personaOf, plural } from "../../lib/rules";
 

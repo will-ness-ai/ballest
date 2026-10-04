@@ -1,12 +1,26 @@
 // The queries behind the site's pages, each taking the database it reads so the tests can
 // run them against a throwaway one. Results are plain JSON (times as ISO strings or Unix
-// seconds), because db/data.ts caches them. Ranks come from db/boards.ts.
+// seconds), because db/data.ts caches them; their row types are lib/rows.ts. Ranks come
+// from db/boards.ts.
 import { sql, type SQL } from "drizzle-orm";
 
 import { CIRCUIT, S1_TRACKS, S2_TRACKS } from "../lib/circuit";
 import { CREATOR_BEAT_MARGIN_TICKS, SCORE_TICKS_PER_SECOND } from "../lib/rules";
 import type { Db } from "./client";
 import { DERIVED, boardSql, rankedSql } from "./boards";
+import type {
+  BoardPage,
+  BoardRow,
+  Freshness,
+  NameHit,
+  Placing,
+  PlayerData,
+  PlayerFinish,
+  PlayerProfile,
+  Standings,
+  StandingsRow,
+  WorkshopMap,
+} from "../lib/rows";
 
 const TRACKS = [...S1_TRACKS, ...S2_TRACKS];
 
@@ -32,13 +46,6 @@ const personaSql = sql`coalesce(nullif(p.persona, ''), 'Player ' || right(p.stea
 
 /* a search box's text as a LIKE pattern that matches it anywhere, taken literally */
 const contains = (q: string) => "%" + q.replace(/[\\%_]/g, (c) => "\\" + c) + "%";
-
-export interface Freshness {
-  /* when the latest Refresh finished */
-  refreshedAt: string | null;
-  /* the oldest of every Map's latest successful read: by then every Map had been read */
-  mapsReadBy: string | null;
-}
 
 export async function freshness(db: Db): Promise<Freshness> {
   const [r] = await rows<{ refreshed: Date | null; maps: Date | null }>(
@@ -71,24 +78,6 @@ export async function circuitCounts(db: Db): Promise<Record<string, number>> {
       )}`,
   );
   return Object.fromEntries(counts.map((c) => [c.board, c.n]));
-}
-
-export interface BoardRow {
-  rank: number;
-  steamId: string;
-  persona: string;
-  avatar: string | null;
-  score: number;
-  /* the score one place up, which the row's interval is to; null at rank 1 */
-  ahead: number | null;
-  /* All Seasons only: each season's part of the total */
-  seasons: Record<string, number> | null;
-}
-
-export interface BoardPage {
-  /* the rows the query matches, of which `rows` is the slice asked for */
-  total: number;
-  rows: Array<BoardRow>;
 }
 
 /* A slice of a board's rows in rank order, from `from` (0-based), optionally only those
@@ -142,16 +131,6 @@ export async function boardPlaces(
   return Object.fromEntries(found.map((r) => [r.steamId, { rank: r.rank, score: r.score }]));
 }
 
-export interface Placing {
-  board: string;
-  steamId: string;
-  persona: string;
-  avatar: string | null;
-  profileUrl: string | null;
-  rank: number;
-  score: number;
-}
-
 /* The top three of every Circuit Track, which the podium tallies count */
 export async function trackPodiums(db: Db): Promise<Array<Placing>> {
   return rows<Placing>(
@@ -163,33 +142,6 @@ export async function trackPodiums(db: Db): Promise<Array<Placing>> {
       where r.rank <= 3
       order by array_position(${array(TRACKS)}, r.board), r.rank`,
   );
-}
-
-export interface WorkshopMap {
-  pfid: string;
-  /* the Map's board, Workshop_<pfid> */
-  name: string;
-  title: string;
-  creator: string;
-  /* the creator's Steam ID */
-  cid: string | null;
-  preview: string | null;
-  /* published, Unix seconds */
-  created: number;
-  /* [bronze, silver, gold, author], seconds */
-  medals: Array<number>;
-  /* Steam's count of the Map's runs */
-  entryCount: number;
-  sessions: number;
-  subs: number;
-  /* the top three as [steam ID, persona, score]; empty for a Map nobody has a time on */
-  top3: Array<[string, string, number]>;
-  /* 1st to 3rd, in ticks; null under three runs */
-  gap13: number | null;
-  /* runs within a second of the record */
-  crowd: number;
-  /* runs at or under the author time */
-  authorBeaten: number;
 }
 
 /* Every Workshop Map with its latest details and what the Workshop pages show of its board
@@ -233,28 +185,6 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
   return found;
 }
 
-export interface PlayerProfile {
-  steamId: string;
-  persona: string;
-  avatar: string | null;
-  profileUrl: string | null;
-}
-
-export interface PlayerFinish {
-  board: string;
-  rank: number;
-  score: number;
-  /* the board's rank-1 score and how many it ranks */
-  lead: number;
-  field: number;
-}
-
-export interface PlayerData {
-  profile: PlayerProfile;
-  /* their place on every board they are on, Circuit (Steam's and derived) and Workshop */
-  finishes: Array<PlayerFinish>;
-}
-
 /* A player and their place on every board, or null for a Steam ID on no board */
 export async function playerData(db: Db, steamId: string): Promise<PlayerData | null> {
   const profile = (
@@ -291,17 +221,8 @@ export async function playerData(db: Db, steamId: string): Promise<PlayerData | 
   return { profile, finishes };
 }
 
-/* The Players page's counts for everyone with a world record, podium or top 5 on the
-   Circuit, or a time on a Map: [steam ID, persona, Circuit WRs, Workshop WRs, Circuit
-   podiums, Workshop podiums, Circuit top 5s, Workshop top 5s, Maps], in Steam ID order
-   (build_standings in tools/campaign_common.py). */
-export type StandingsRow = [string, string, number, number, number, number, number, number, number];
-export interface Standings {
-  tracks: number;
-  maps: number;
-  players: Array<StandingsRow>;
-}
-
+/* The Players page's counts, a StandingsRow (lib/rows.ts) for everyone with a world
+   record, podium or top 5 on the Circuit, or a time on a Map */
 export async function standings(db: Db): Promise<Standings> {
   const found = await rows<{ row: StandingsRow }>(
     db,
@@ -332,12 +253,6 @@ export async function standings(db: Db): Promise<Standings> {
       where closed_refresh is null and board in (${listedMapsSql})`,
   );
   return { tracks: TRACKS.length, maps: n.maps, players: found.map((r) => r.row) };
-}
-
-export interface NameHit {
-  steamId: string;
-  persona: string;
-  avatar: string | null;
 }
 
 /* Up to `limit` players on any board whose persona or Steam ID contains q, the names that

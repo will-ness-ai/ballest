@@ -11,7 +11,7 @@ import { BoardBody } from "../board/BoardBody";
 import { ScorePlates } from "../board/furniture";
 import { CHUNK, Spread } from "../board/parts";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
-import type { WorkshopMap } from "../../db/site";
+import type { WorkshopMap } from "../../lib/rows";
 import { homeHref } from "../../lib/routes";
 import { MEDALS, fmtN, fmtSec, fmtTime, isSteamId } from "../../lib/rules";
 import { HIDDEN, reportHref } from "../../lib/workshop";
