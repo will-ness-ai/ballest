@@ -22,6 +22,7 @@ const SITE = [
   "circuit",
   "leth",
   "multiballs",
+  "prototype", // PROTOTYPE: the ghost data for grill-design
 ];
 
 rmSync(pub, { recursive: true, force: true });

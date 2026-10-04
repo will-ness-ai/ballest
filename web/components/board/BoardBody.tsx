@@ -11,6 +11,8 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { QMark } from "./PointsDialog";
+// PROTOTYPE
+import * as P from "./Prototype";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
@@ -96,9 +98,15 @@ const ScoreRow = memo(function ScoreRow({
         .join(" · ")
     : "";
   const p = pods ? pods[r.steamId] : undefined;
+  /* PROTOTYPE */
+  const proto = P.useProto();
+  const click = P.rowClick(proto, r.steamId);
+  const lens = <P.LensScore id={r.steamId} />;
   return (
+    <>
     <div
-      className={focus ? "row focus" : "row"}
+      onClick={click}
+      className={(focus ? "row focus" : "row") + (click ? " p-tap" : "") + (proto?.open === r.steamId ? " p-open" : "")}
       style={{ "--h": hueFor(r.steamId) } as React.CSSProperties}
       data-m={r.rank <= 3 ? r.rank : 0}
       data-id={r.steamId}
@@ -126,13 +134,18 @@ const ScoreRow = memo(function ScoreRow({
             </span>
           </>
         )}
+        <P.RowLine id={r.steamId} />
       </span>
+      <P.RowCols id={r.steamId} />
       {pods && <span className="c-pods">{p ? <MedalCounts p={p} /> : null}</span>}
       <span className="c-score">
-        <span>{points ? fmtN(r.score) : fmtTime(r.score)}</span>
+        {proto?.variant === "D" && proto.lens !== "time" ? lens : <span>{points ? fmtN(r.score) : fmtTime(r.score)}</span>}
         <i className="pill"></i>
       </span>
+      <P.SpeedBar id={r.steamId} />
     </div>
+    <P.Drawer id={r.steamId} />
+    </>
   );
 });
 
@@ -240,6 +253,7 @@ function Frame({
       <p className="bmeta" id="bmetaM">
         {meta}
       </p>
+      <P.LensBar />
       {children}
     </>
   );
@@ -252,6 +266,7 @@ function Head({ pods, score, qmark }: { pods: boolean; score: string; qmark: boo
       <span></span>
       <span>Player</span>
       {pods && <span className="c-pods">Podiums</span>}
+      <P.HeadCols />
       <span className="c-score">
         {score}
         {qmark && <QMark />}
@@ -378,6 +393,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
     ? `${where} · ${fmtN(total)} of ${fmtN(count)} ${noun} match`
     : `${where} · ${fmtN(count)} ${noun} · showing ${fmtN(rows.length)}`;
   return (
+    <P.ProtoProvider board={name}>
     <Frame props={props} meta={meta} query={query} setQuery={setQuery}>
       {rows.length ? (
         <div className={pods ? "board pods" : "board"} id="board">
@@ -404,6 +420,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
         </div>
       )}
     </Frame>
+    </P.ProtoProvider>
   );
 }
 
