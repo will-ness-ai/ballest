@@ -72,7 +72,8 @@ describe("the Footer", () => {
 });
 
 describe("Lobby pings, privately", () => {
-  const ROLE = "555";
+  // A server that named the role differently: the buttons follow its name.
+  const ROLE = { id: "555", name: "@Multiplayer Pings" };
   /** Each button's colour, beside its label. */
   const styles = (p: Payload) =>
     (p.components ?? [])
@@ -83,7 +84,7 @@ describe("Lobby pings, privately", () => {
     const off = pingsMessage(false, ROLE);
     expect(off.content).toBe("**Lobby pings: off**\nYou don't have <@&555>.");
     expect(buttons(off)).toEqual([
-      { label: "Get @Multiplayer ping", does: { _tag: "SetPing", on: true } },
+      { label: "Get @Multiplayer Pings", does: { _tag: "SetPing", on: true } },
     ]);
     expect(styles(off)).toEqual([ButtonStyle.Success]);
     pingsNobody(off);
@@ -93,7 +94,7 @@ describe("Lobby pings, privately", () => {
     const on = pingsMessage(true, ROLE);
     expect(on.content).toBe("**Lobby pings: on**\nYou have <@&555>.");
     expect(buttons(on)).toEqual([
-      { label: "Remove @Multiplayer ping", does: { _tag: "SetPing", on: false } },
+      { label: "Remove @Multiplayer Pings", does: { _tag: "SetPing", on: false } },
     ]);
     expect(styles(on)).toEqual([ButtonStyle.Secondary]);
     pingsNobody(on);
@@ -105,7 +106,7 @@ describe("Lobby pings, privately", () => {
       "Get <@&555> to hear when someone opens a Lobby. Change it later from **Pings**.",
     );
     expect(buttons(offer)).toEqual([
-      { label: "Get @Multiplayer ping", does: { _tag: "SetPing", on: true } },
+      { label: "Get @Multiplayer Pings", does: { _tag: "SetPing", on: true } },
       { label: "No", does: { _tag: "DeclinePing" } },
     ]);
     expect(styles(offer)).toEqual([ButtonStyle.Success, ButtonStyle.Secondary]);
@@ -113,14 +114,14 @@ describe("Lobby pings, privately", () => {
   });
 
   it("a failed Get or Remove adds the failure line to the same reply, once", () => {
-    const failed = withPingFailure(pingOfferMessage(ROLE).content ?? "");
+    const failed = withPingFailure(pingOfferMessage(ROLE).content ?? "", ROLE);
     expect(failed).toBe(
-      "Get <@&555> to hear when someone opens a Lobby. Change it later from **Pings**.\nDiscord didn't change @Multiplayer ping. Try again in a moment.",
+      "Get <@&555> to hear when someone opens a Lobby. Change it later from **Pings**.\nDiscord didn't change <@&555>. Try again in a moment.",
     );
     // Failing again doesn't stack the line.
-    expect(withPingFailure(failed)).toBe(failed);
-    expect(withPingFailure(pingsMessage(false, ROLE).content ?? "")).toBe(
-      "**Lobby pings: off**\nYou don't have <@&555>.\nDiscord didn't change @Multiplayer ping. Try again in a moment.",
+    expect(withPingFailure(failed, ROLE)).toBe(failed);
+    expect(withPingFailure(pingsMessage(false, ROLE).content ?? "", ROLE)).toBe(
+      "**Lobby pings: off**\nYou don't have <@&555>.\nDiscord didn't change <@&555>. Try again in a moment.",
     );
   });
 
@@ -132,9 +133,9 @@ describe("Lobby pings, privately", () => {
   });
 
   it("says plainly when Discord wouldn't say whether you have the role", () => {
-    const unread = pingUnreadMessage();
+    const unread = pingUnreadMessage(ROLE);
     expect(unread.content).toBe(
-      "Discord didn't say whether you have @Multiplayer ping. Try again in a moment.",
+      "Discord didn't say whether you have <@&555>. Try again in a moment.",
     );
     expect(unread.components).toEqual([]);
     pingsNobody(unread);

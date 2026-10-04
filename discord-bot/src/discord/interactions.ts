@@ -59,6 +59,7 @@ export const InteractionsLive = Layer.scopedDiscard(
     const store = yield* Store;
     const renderer = yield* Renderer;
     const pings = yield* Pings;
+    const pingRole = { id: discord.pingRoleId, name: pings.role };
     const previews = yield* Ref.make(new Map<string, ProfilePreview>());
     const pending = yield* Ref.make(new Map<string, Pending>());
 
@@ -99,7 +100,7 @@ export const InteractionsLive = Layer.scopedDiscard(
      */
     const pingFailed = Effect.fn("pingFailed")(function* (i: ButtonInteraction) {
       yield* tryDiscord("edit reply", () =>
-        i.editReply({ content: withPingFailure(i.message.content), ...quiet }),
+        i.editReply({ content: withPingFailure(i.message.content, pingRole), ...quiet }),
       );
     });
 
@@ -107,7 +108,7 @@ export const InteractionsLive = Layer.scopedDiscard(
     const offerPings = Effect.fn("offerPings")(function* (i: Answerable, action: Action) {
       if (yield* pings.offerAfter(action, i.user.id))
         yield* tryDiscord("follow up", () =>
-          i.followUp({ ...pingOfferMessage(discord.pingRoleId), ...ephemeral }),
+          i.followUp({ ...pingOfferMessage(pingRole), ...ephemeral }),
         );
     });
 
@@ -233,9 +234,9 @@ export const InteractionsLive = Layer.scopedDiscard(
           // Read from Discord on every click, so a moderator's change shows.
           yield* tryDiscord("defer", () => i.deferReply(ephemeral));
           const answer = yield* pings.status(self).pipe(
-            Effect.map((on) => pingsMessage(on, discord.pingRoleId)),
+            Effect.map((on) => pingsMessage(on, pingRole)),
             Effect.catchTag("PingRoleUnavailable", (e) =>
-              warnPingRole(e).pipe(Effect.as(pingUnreadMessage())),
+              warnPingRole(e).pipe(Effect.as(pingUnreadMessage(pingRole))),
             ),
           );
           return yield* tryDiscord("edit reply", () => i.editReply(answer));
@@ -245,9 +246,7 @@ export const InteractionsLive = Layer.scopedDiscard(
           yield* tryDiscord("defer", () => i.deferUpdate());
           return yield* pings.set(self, control.on).pipe(
             Effect.zipRight(
-              tryDiscord("edit reply", () =>
-                i.editReply(pingsMessage(control.on, discord.pingRoleId)),
-              ),
+              tryDiscord("edit reply", () => i.editReply(pingsMessage(control.on, pingRole))),
             ),
             Effect.catchTag("PingRoleUnavailable", (e) =>
               warnPingRole(e).pipe(Effect.zipRight(pingFailed(i))),

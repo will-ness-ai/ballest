@@ -17,15 +17,15 @@ import {
 import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js";
 import {
   DECLINE_PING,
-  GET_PING,
-  PING_FAILED,
-  PING_UNREAD,
+  getPing,
+  pingFailed,
+  pingUnread,
   pingDeclined,
   pingOffer,
   PINGS_LABEL,
   pingsHave,
   pingsState,
-  REMOVE_PING,
+  removePing,
 } from "../pingWords.js";
 import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js";
 import { RESULT_HUE, START_HUE } from "../render/art.js";
@@ -431,19 +431,29 @@ export const tryAgainMessage = (text: string): Payload => ({
 
 const roleMention = (roleId: string) => `<@&${roleId}>`;
 const PINGS_BOLD = `**${PINGS_LABEL}**`;
-const getPingButton = () => button(GET_PING, { _tag: "SetPing", on: true }, ButtonStyle.Success);
+
+/** The role, by id for its mention and by name ("@Multiplayer ping") for buttons, which can't hold one. */
+export interface PingRoleRef {
+  readonly id: string;
+  readonly name: string;
+}
+
+const getPingButton = (role: PingRoleRef) =>
+  button(getPing(role.name), { _tag: "SetPing", on: true }, ButtonStyle.Success);
 
 /** The Footer's Pings reply: where the member stands, and the one button that changes it. */
-export const pingsMessage = (on: boolean, roleId: string): Payload => ({
-  content: `**${pingsState(on)}**\n${pingsHave(on, roleMention(roleId))}`,
-  components: [row(on ? button(REMOVE_PING, { _tag: "SetPing", on: false }) : getPingButton())],
+export const pingsMessage = (on: boolean, role: PingRoleRef): Payload => ({
+  content: `**${pingsState(on)}**\n${pingsHave(on, roleMention(role.id))}`,
+  components: [
+    row(on ? button(removePing(role.name), { _tag: "SetPing", on: false }) : getPingButton(role)),
+  ],
   ...quiet,
 });
 
 /** Offered once, after a member's first Join or Accept from a Card. Get turns it into the Pings reply. */
-export const pingOfferMessage = (roleId: string): Payload => ({
-  content: pingOffer(roleMention(roleId), PINGS_BOLD),
-  components: [row(getPingButton(), button(DECLINE_PING, { _tag: "DeclinePing" }))],
+export const pingOfferMessage = (role: PingRoleRef): Payload => ({
+  content: pingOffer(roleMention(role.id), PINGS_BOLD),
+  components: [row(getPingButton(role), button(DECLINE_PING, { _tag: "DeclinePing" }))],
   ...quiet,
 });
 
@@ -455,8 +465,8 @@ export const pingDeclinedMessage = (): Payload => ({
 });
 
 /** The Pings reply when Discord wouldn't say whether the member has the role. */
-export const pingUnreadMessage = (): Payload => ({
-  content: PING_UNREAD,
+export const pingUnreadMessage = (role: PingRoleRef): Payload => ({
+  content: pingUnread(roleMention(role.id)),
   components: [],
   ...quiet,
 });
@@ -465,8 +475,10 @@ export const pingUnreadMessage = (): Payload => ({
  * A Get or Remove that Discord refused: the same reply's text with the failure line below it
  * (once, however often it fails), so its buttons stay to try again and nothing new piles up.
  */
-export const withPingFailure = (content: string) =>
-  `${content
+export const withPingFailure = (content: string, role: PingRoleRef) => {
+  const failed = pingFailed(roleMention(role.id));
+  return `${content
     .split("\n")
-    .filter((line) => line !== PING_FAILED)
-    .join("\n")}\n${PING_FAILED}`;
+    .filter((line) => line !== failed)
+    .join("\n")}\n${failed}`;
+};

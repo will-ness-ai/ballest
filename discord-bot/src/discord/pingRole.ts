@@ -15,6 +15,7 @@ export const PingRoleLive = Layer.effect(
       (e: DiscordError) => new PingRoleUnavailable({ reason: describeDiscordError(e) }),
     );
     return PingRole.of({
+      name: discord.pingRoleName,
       has: (discordId) =>
         tryDiscord("fetch member's roles", () =>
           guild.members.fetch({ user: discordId, force: true }),

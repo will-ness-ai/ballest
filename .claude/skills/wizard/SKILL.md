@@ -20,6 +20,7 @@ Work out every manual step the human must take and every value that gets capture
 - For setup: `.env`, `.env.example`, `.env.*`, `README`, `docker-compose*`, framework config, and `.github/workflows/*` (every `secrets.*` / `vars.*` reference is a value the wizard must produce).
 - For a migration or transition: the current state, the target state, and the irreversible actions between them.
 - For a value that lands in a settings page with no CLI or API (the Claude cloud environment's variables and Allowed domains are one), the wizard's job ends at the clipboard: it copies the `KEY=value` block and walks the dialog.
+- For a service the human signs up for so it serves something (a tunnel, a host): prove it serves this use before writing a stage for it, with a run you can make yourself. ngrok's free plan once got a whole wizard before anyone saw that its warning page blanks a Discord Activity.
 
 Then show the user the ordered list of stages and the values each produces, and confirm: they may add, drop, or reorder.
 

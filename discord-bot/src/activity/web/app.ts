@@ -8,14 +8,7 @@
 // until Back to Matches.
 import { Common, DiscordSDK } from "@discord/embedded-app-sdk";
 import type { MatchType, Minutes } from "../../domain.js";
-import {
-  DECLINE_PING,
-  GET_PING,
-  PING_ROLE_NAME,
-  pingOffer,
-  pingsToast,
-  UNDO_PING,
-} from "../../pingWords.js";
+import { DECLINE_PING, getPing, pingOffer, pingsHave, UNDO_PING } from "../../pingWords.js";
 import type { Challengeable, MatchView } from "../api.js";
 import type { PageConfig } from "../server.js";
 import * as V from "./view.js";
@@ -23,6 +16,8 @@ import * as V from "./view.js";
 interface Me extends V.Viewer {
   /** The open Invite or live Match they're in, or the Challenge that names them. */
   readonly matchId: string | null;
+  /** The ping role as the server names it: "@Multiplayer ping". */
+  readonly pingRole: string;
 }
 interface Preview {
   readonly steamId: string;
@@ -292,11 +287,12 @@ const showToast = (
 
 /** The offer of the ping role after a Join or Accept: it stays until it's answered or closed. */
 const showOffer = () => {
+  const role = ui.me?.pingRole ?? "";
   ui.toast = {
-    text: pingOffer(PING_ROLE_NAME),
+    text: pingOffer(role),
     kind: "info",
     buttons: [
-      { act: "offer-get", label: GET_PING, look: "go" },
+      { act: "offer-get", label: getPing(role), look: "go" },
       { act: "offer-no", label: DECLINE_PING, look: "" },
     ],
     closable: true,
@@ -314,7 +310,7 @@ const setPings = (on: boolean, undo: boolean) =>
     const r = await api<{ pings: boolean }>("POST", "/api/pings", { on });
     if (ui.me !== null) ui.me = { ...ui.me, pings: r.pings };
     showToast(
-      pingsToast(r.pings),
+      pingsHave(r.pings, ui.me?.pingRole ?? ""),
       "info",
       undo ? [{ act: `pings-undo:${!r.pings}`, label: UNDO_PING, look: "" }] : [],
     );

@@ -14,7 +14,7 @@ import {
 } from "../domain.js";
 import { Engine, type Rejection } from "../engine.js";
 import { explain } from "../explain.js";
-import { PING_FAILED } from "../pingWords.js";
+import { pingFailed } from "../pingWords.js";
 import { Pings, warnPingRole } from "../pings.js";
 import {
   type CardView,
@@ -227,6 +227,8 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
             pings: yield* pings
               .status(discordId)
               .pipe(Effect.catchTag("PingRoleUnavailable", () => Effect.succeed(null))),
+            // The role as the server names it, for the bell's toasts and the offer.
+            pingRole: pings.role,
           });
         }),
       ),
@@ -378,7 +380,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
         ),
       PingRoleUnavailable: (e) =>
         warnPingRole(e).pipe(
-          Effect.as(json({ error: "PingRoleUnavailable", message: PING_FAILED }, 503)),
+          Effect.as(json({ error: "PingRoleUnavailable", message: pingFailed(pings.role) }, 503)),
         ),
       DiscordUnavailable: () =>
         Effect.succeed(
