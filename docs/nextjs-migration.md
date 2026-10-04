@@ -33,7 +33,7 @@ Rollback would be pointing the DNS record back at `will-ness-ai.github.io` and r
 Limits: Vercel's Hobby plan is for non-commercial use, and allows 100 deploys a day (the
 refresh makes about eight) and 100 GB of transfer a month, the same soft cap Pages had.
 
-## Phase 2: real URLs with link previews
+## Phase 2: real URLs with link previews (URLs and titles done in phase 4)
 
 `/player/<steam_id>`, `/board/<board>`, `/map/<pfid>` and `/vs/<a>/<b>` become Next
 routes that serve the same page with that page's own title, description and preview
@@ -42,19 +42,24 @@ image (`next/og`), read from `data/` at request time and cached until the next d
 paths, so every old `#/` link keeps working. This is the first change players see: a
 player or Map shared in Discord previews as itself rather than the site's one `og.png`.
 
-## Phase 3: a database with score history (ADR 0005)
+## Phase 3: a database with score history (ADR 0005; done, #115)
 
 The collector writes every Refresh into Postgres on Neon as well as the JSON, the git
 history of `data/` is backfilled into it, and the app gets a typed, tag-cached read layer
 that the collector revalidates. Preview deploys each get a database branch of production,
 which `db:seed` can replace with a named dataset. The page still reads the JSON.
 
-## Phase 4: port the page to React in one go
+## Phase 4: port the page to React in one go (done, #125)
 
-Every view becomes server components reading the database, in one branch rather than a
-view at a time. The page's invariants (`isPoints`, `SCORE_TICKS_PER_SECOND`, rank-aligned
-rows, `isSteamId`) move into one shared module with tests first. Phase 2's real URLs land
-here too if they have not already.
+Every view became server components reading the database, in one branch rather than a
+view at a time. The page's invariants (`isPoints`, `SCORE_TICKS_PER_SECOND`, `isSteamId`)
+moved into `web/lib/rules.ts` with tests, the derived boards (Season 1 Current, All
+Seasons, podiums, standings) are computed from the database, and phase 2's real URLs
+landed here: every view has a path and its own title, and an old `#/` link redirects to
+it. `index.html` is gone. A refresh commit no longer deploys (`vercel.json`'s
+`ignoreCommand` skips `data/`): the collector revalidates the site's cached reads instead,
+so the published `data/` files are as of the last deploy. How the app is built:
+`docs/site.md`.
 
 ## Phase 5: stop the JSON
 

@@ -2,26 +2,33 @@
 
 The review checklist. A review is complete when every hunk has been read against every
 rule here and every invariant in `CLAUDE.md`, plus `docs/site.md` for a hunk in
-`index.html` and `docs/data.md` for one on the write path, and each finding names the rule
+`web/` and `docs/data.md` for one on the write path, and each finding names the rule
 it breaks. Those files carry the reasons; this file carries the checks.
 
-## Page (`index.html`)
+## Site (`web/`)
 
-- Every interpolated value that can carry text from Steam — a persona, a board name, an
-  avatar or profile URL — goes through `esc()`, in element text as much as in an
-  attribute. A number this file formatted itself (`fmtN`, `fmtTime`, `ord`, a rank) is
-  already digits and is left alone, as the page does throughout. An `href` or `src`
-  without `esc()` fails `tools/page-check` already; this rule is for everywhere else.
+- Text that can come from Steam (a persona, a Map's title or description) is rendered as
+  React text, never through `dangerouslySetInnerHTML`. An image URL from Steam goes
+  through `safeImg`, and every link inside the site is built by `lib/routes.ts`.
+- A page reads the database only through `db/data.ts`'s cached reads (a search through its
+  fresh ones), never `db/site.ts` directly, so every read is tagged and revalidated.
+- `lib/` is pure: nothing in it imports React, Next or `db/`, and its rules are tested in
+  `web/test/`. A component is a client component only where it needs state, an effect, a
+  browser API or an event handler; a server component imports no value from a client
+  module.
+- Anything that can be told from the path alone (a board name, a tab, a Steam ID's shape)
+  answers 404 or redirects in `proxy.ts`: a `notFound()` inside a streamed page is a 200.
+- A page whose params can come from the URL types them explicitly, not with Next's
+  generated `PageProps`, which only exists after a build (CI lints without one).
 - Colors come from the custom properties on `:root`. Two literals are allowed: the
   translucent black and white used for shadows and hairlines, and a player's own hue,
   `hsl(var(--h) …)`, as on the marble, the pill and the standings bars.
-- Base rules serve phones; the single `min-width:820px` block carries every desktop
-  override.
+- Base rules serve phones; `app/styles/desktop.css`'s `min-width: 820px` block carries
+  every desktop override.
 - `isPoints` is the one place that reads a board's kind from its name.
 - The player page reads the board table in `playerRecord` and nowhere below it: the
   rendering takes that record and nothing else.
-- A player's finish is matched to a board **by name**, through the shard's own `boards`
-  list. A cached shard can disagree with a newer `index.json` about position.
+- A player's finish is matched to a board **by name**, never by its position in a list.
 - A Steam ID that becomes an href, a fetch path or a query selector passes
   `isSteamId` first: one of them arrives from the URL bar.
 - Code that walks a board's rows filters into a new array; `rows` itself stays in rank
@@ -41,7 +48,7 @@ it breaks. Those files carry the reasons; this file carries the checks.
   those inputs, so a write that fails leaves the two agreeing.
 - `python tools/check_data.py` passes on the committed data after any collector change.
 - A change to when a board is read (`collect_workshop`'s trigger, `FULL_SWEEP_SECONDS`, the
-  `refresh.yml` cron) updates the refresh dialog's copy (`#rfx` in `index.html`), which
+  `refresh.yml` cron) updates the refresh dialog's copy (`components/Freshness.tsx`), which
   restates those rules for players.
 
 ## Discord bot (`discord-bot/`)

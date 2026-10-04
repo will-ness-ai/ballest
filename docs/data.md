@@ -1,12 +1,14 @@
 # The data files
 
-What the collector writes under `data/` and what the site loads, file by file. Every file
+What the collector writes under `data/`, file by file. The site reads the database (below);
+the files are still published, for anyone who reads them, until phase 5 of
+`docs/nextjs-migration.md`. Every file
 here is CI-owned: see "Data and git" in `AGENTS.md` before committing any of it.
 
 ## Circuit boards
 
-- `data/index.json`: board list, counts, `generated_at`. Loaded first.
-- `data/boards/<board>.json`: one file per board, lazy-loaded on selection.
+- `data/index.json`: board list, counts, `generated_at`. The Discord bot reads its board IDs.
+- `data/boards/<board>.json`: one file per board.
 - `data/boards/OverallLeaderboard_AllSeasons.json`: the one board Steam does not have,
   every season's Overall points summed per player (`build_composite` in
   `tools/campaign_common.py`): Season 1 through its current board below, Season 2
@@ -67,7 +69,7 @@ so every name refreshes about weekly.
 
 ## The database (ADR 0005)
 
-Postgres on Neon, alongside the JSON while the page still reads the files. It holds only
+Postgres on Neon, written alongside the JSON, and what the site reads. It holds only
 what Steam reports, as Score history: no ranks and no derived boards. The schema is
 `web/db/schema.ts` (Drizzle), and its migrations in `web/db/migrations/` are generated from
 it with `pnpm db:generate` and applied by `pnpm db:migrate`, which `pnpm build` runs first,
