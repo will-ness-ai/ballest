@@ -20,8 +20,11 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `routes.ts`, every URL the site links to, and how an old `#/` link maps onto one.
   - `circuit.ts`, the Circuit's fixed facts: the board order (the in-game numbering), the
     Season 2 tiers, each Track's screenshot and Medal times.
+  - `rows.ts`, the row types the read layer returns.
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
     the rows it is given.
+  - `client.ts` and `me.ts`, the client-only hooks: the clock, debounced searches, and
+    "This is me".
 - `web/db/` — the read layer. `site.ts` is the SQL, `data.ts` the cached reads pages call
   (below), `schema.ts` the Drizzle schema the collector writes to.
 - `web/proxy.ts` — the checks that must answer before a page starts streaming: a real 404
