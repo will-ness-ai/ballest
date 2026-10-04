@@ -609,6 +609,30 @@ const textAt = (
   );
 };
 
+/**
+ * Labels for points down the chart, kept at least `gap` apart: pushed down in order from no higher
+ * than `top`, then back up from `bottom`. Each comes back with `at`, where it goes.
+ */
+const spread = <A extends { readonly y: number }>(
+  labels: ReadonlyArray<A>,
+  gap: number,
+  top: number,
+  bottom: number,
+): Array<A & { at: number }> => {
+  const placed = [...labels].sort((a, b) => a.y - b.y).map((l) => ({ ...l, at: l.y }));
+  for (let i = 0; i < placed.length; i++) {
+    const prev = placed[i - 1],
+      cur = placed[i];
+    if (cur !== undefined) cur.at = Math.max(cur.at, prev === undefined ? top : prev.at + gap);
+  }
+  for (let i = placed.length - 1; i >= 0; i--) {
+    const cur = placed[i],
+      next = placed[i + 1];
+    if (cur !== undefined) cur.at = Math.min(cur.at, next === undefined ? bottom : next.at - gap);
+  }
+  return placed;
+};
+
 const clockLabel = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
 
 /**
@@ -717,21 +741,8 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
   for (const e of breaks)
     lines += `<circle cx="${x(e.at / 1000)}" cy="${y(secs(e.ticks))}" r="15" fill="${C.gold}" fill-opacity="0.18"/>${starPath(x(e.at / 1000), y(secs(e.ticks)), 10)}`;
 
-  // At least a line apart: pushed down in order, then back up from the bottom edge.
-  const gap = 13;
-  const placed = [...leftLabels].sort((a, b) => a.y - b.y).map((l) => ({ ...l, at: l.y }));
-  for (let i = 1; i < placed.length; i++) {
-    const prev = placed[i - 1],
-      cur = placed[i];
-    if (prev !== undefined && cur !== undefined) cur.at = Math.max(cur.at, prev.at + gap);
-  }
-  for (let i = placed.length - 1; i >= 0; i--) {
-    const cur = placed[i],
-      next = placed[i + 1];
-    if (cur !== undefined)
-      cur.at = Math.min(cur.at, next === undefined ? H - B + 4 : next.at - gap);
-  }
-  for (const l of placed) {
+  // At least a line apart.
+  for (const l of spread(leftLabels, 13, -Infinity, H - B + 4)) {
     if (Math.abs(l.at - l.y) > 2)
       lines += `<path d="M${L - 6} ${l.at}L${L} ${l.y}" stroke="${String(l.style.color)}" stroke-opacity="0.6"/>`;
     if (l.medal !== null)
@@ -747,7 +758,17 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
 
   const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`;
   const holder = breaks.at(-1)?.steamId;
-  const timed = view.standings.filter((s) => s.ticks !== null);
+  // Each timed Player's name beside where their line ends: slower times sit higher.
+  const legend = spread(
+    view.standings.flatMap((s) => {
+      const last = history.filter((e) => e.steamId === s.player.steamId).at(-1);
+      const end = last?.ticks ?? s.ticks;
+      return end === null ? [] : [{ y: y(secs(end)), standing: s }];
+    }),
+    36,
+    T,
+    H - B - 8,
+  );
   const untimed = view.standings.filter((s) => s.ticks === null);
 
   return backdrop(
@@ -766,31 +787,28 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
         `${view.minutes}-minute ${MATCH_TYPE_NAME[view.type]} · WR at the start ${map === null ? "none" : label10(map.worldRecordTicks)} · every PB as it happened`,
       ),
     ),
-    box(
-      {
-        position: "absolute",
-        left: W - R + 12,
-        top: T - 4,
-        width: R - 24,
-        flexDirection: "column",
-        gap: 10,
-      },
-      ...timed.map((s) =>
+    ...legend.map(({ at, standing: s }) =>
+      box(
+        {
+          position: "absolute",
+          left: W - R + 12,
+          top: at - 8,
+          width: R - 24,
+          gap: 8,
+          alignItems: "flex-start",
+        },
+        marble(hueFor(s.player.steamId), 16, { marginTop: 1 }),
         box(
-          { gap: 8, alignItems: "flex-start" },
-          marble(hueFor(s.player.steamId), 16, { marginTop: 1 }),
+          { flexDirection: "column", flexShrink: 1, minWidth: 0 },
+          box({ fontWeight: 600, fontSize: 11 }, nameOf(s.player.steamId)),
           box(
-            { flexDirection: "column", flexShrink: 1, minWidth: 0 },
-            box({ fontWeight: 600, fontSize: 11 }, nameOf(s.player.steamId)),
-            box(
-              {
-                fontFamily: F.hud,
-                fontWeight: 600,
-                fontSize: 10,
-                color: s.player.steamId === holder ? C.gold : C.dim,
-              },
-              `${s.ticks === null ? "" : formatTime(s.ticks)}${s.player.steamId === holder ? "  ★ new WR" : ""}`,
-            ),
+            {
+              fontFamily: F.hud,
+              fontWeight: 600,
+              fontSize: 10,
+              color: s.player.steamId === holder ? C.gold : C.dim,
+            },
+            `${s.ticks === null ? "" : formatTime(s.ticks)}${s.player.steamId === holder ? "  ★ new WR" : ""}`,
           ),
         ),
       ),
