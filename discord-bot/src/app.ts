@@ -13,6 +13,7 @@ import { DiscordChannelLive } from "./discord/channel.js";
 import { Marbles } from "./discord/marbles.js";
 import { PingRoleLive } from "./discord/pingRole.js";
 import { DailyReportLive } from "./report/daily.js";
+import { RefreshTriggerLive } from "./refreshTrigger.js";
 import { ChannelSurfaceLive } from "./discord/surface.js";
 import { Engine } from "./engine.js";
 import type { Steam, Store } from "./ports.js";
@@ -122,6 +123,7 @@ export const app = <E, R, E2 = never>(
     sandbox === undefined ? InteractionsLive : InteractionsLive.pipe(Layer.provide(sandbox.feed)),
     OpsLive,
     DailyReportLive,
+    RefreshTriggerLive,
     ActivityLive,
     sandbox?.server ?? Layer.empty,
   ).pipe(

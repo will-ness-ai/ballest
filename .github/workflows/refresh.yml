@@ -6,11 +6,12 @@ name: Refresh leaderboards
 # a GITHUB_TOKEN push, which no GitHub workflow does (docs/adr/0004).
 
 on:
+  # Multiballs starts this every 3 hours and at 15:30 UTC, ahead of its 16:00 Daily Report
+  # (discord-bot/src/refreshTrigger.ts), because GitHub delays and skips scheduled runs by hours.
+  # The schedule below is only the fallback for when the bot is down.
   schedule:
-    # Every 3 hours (00:00, 03:00, ... UTC). GitHub may delay scheduled runs by
-    # a few minutes under load.
-    - cron: "0 */3 * * *"
-  workflow_dispatch: {} # allow manual "Run workflow" from the Actions tab
+    - cron: "45 */6 * * *"
+  workflow_dispatch: {} # the bot, or "Run workflow" from the Actions tab
 
 # Don't let two refreshes overlap.
 concurrency:

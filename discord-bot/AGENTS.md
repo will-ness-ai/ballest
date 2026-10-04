@@ -172,6 +172,15 @@ In production the bot's role needs View Channel, Send Messages, Attach Files, Cr
 Threads and Send Messages in Threads in #stats-by-will, and `fly secrets` needs `STATS_CHANNEL_ID`
 and `DATABASE_URL` (the collector's Neon URL).
 
+## Starting the leaderboard Refresh
+
+`src/refreshTrigger.ts` starts `.github/workflows/refresh.yml` through GitHub's
+`workflow_dispatch` every three hours and at 15:30 UTC, half an hour before the Daily Report:
+GitHub delays and skips scheduled runs by hours, but runs a dispatch straight away. The
+workflow's own cron (every six hours) is only the fallback for when the bot is down. It is off
+unless `GITHUB_DISPATCH_TOKEN` is set, a fine-grained token for `will-ness-ai/ballest` with
+Actions read and write and nothing else; a failed start goes to the ops channel.
+
 ## Production
 
 Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,

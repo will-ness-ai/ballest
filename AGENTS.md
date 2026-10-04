@@ -34,7 +34,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   compares the database's open Entries with the board files (the parity check), and
   `tools/db_backfill.py` replays the git history of `data/` through the same writer. Their
   tests are `tools/tests/`. The tables: `docs/data.md`.
-- `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
+- `.github/workflows/refresh.yml` — started by Multiballs every 3 hours and at 15:30 UTC
+  (`discord-bot/src/refreshTrigger.ts`), with a 6-hourly cron as the fallback; commits refreshed data to `main`,
   which Vercel deploys like any other push, then runs the parity check when the
   `DATABASE_URL` secret is set. `backfill.yml`, by hand only, runs the backfill against
   production (cloud sessions can't reach Neon) in the same concurrency group.
@@ -184,9 +185,9 @@ top five, which is enough to match against `data/boards/`.
 
 ## Data and git
 
-`data/` is CI-owned. The refresh workflow commits straight to `main`: scheduled every
-three hours, but GitHub starts scheduled runs late or skips them, so commits land 3-10 hours
-apart (`gh run list -w refresh.yml`). So don't hand-edit data files and don't carry
+`data/` is CI-owned. The refresh workflow commits straight to `main`, every three hours:
+Multiballs starts it, because GitHub starts scheduled runs late or skips them, and its own
+cron only covers the bot being down (`gh run list -w refresh.yml`). So don't hand-edit data files and don't carry
 regenerated data on a feature branch — it will conflict. A brand-new data artifact is the exception: its first copy ships with the
 code that introduces it, so the feature works on merge rather than after the next
 refresh. Data commits read `data: refresh campaign leaderboards (<UTC>)` and touch only
