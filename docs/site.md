@@ -35,8 +35,10 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
 
 ## Caching
 
-Every read a page makes unasked goes through `db/data.ts`, where each is a `"use cache"`
-function tagged `data` with `cacheLife("max")`. Pages are static between Refreshes: the
+Every read a page makes unasked goes through `db/data.ts`, where each is a
+`"use cache: remote"` function tagged `data` with `cacheLife("max")`. Remote, because a
+page rendered at request time runs on whichever serverless instance takes it, and plain
+`"use cache"` lives in that instance's memory only. Pages are static between Refreshes: the
 collector POSTs `/api/revalidate` (Bearer `REVALIDATE_SECRET`) once a Refresh has committed,
 which expires the tag, and the next request reads fresh. Searches are read fresh every
 time, since their keys would never repeat.

@@ -1,5 +1,8 @@
 // The read layer the pages call: the queries in site.ts over this server's database, each
-// cached with "use cache" under DATA_TAG for as long as nothing revalidates it. Pages stay
+// cached with "use cache: remote" under DATA_TAG for as long as nothing revalidates it.
+// Remote, because a page or API call rendered at request time runs on whichever serverless
+// instance takes it, and plain "use cache" keeps entries in that instance's memory only:
+// every new instance would read the Workshop, the derived boards and the rest again. Pages stay
 // static between Refreshes, and POST /api/revalidate (which the collector calls once a
 // Refresh lands) expires them all at once. A cache entry's key includes the build, so a
 // preview's entries never mix with another deploy's.
@@ -45,7 +48,7 @@ export interface Site {
 
 /* What every page's frame needs: the Circuit's boards and podiums, and when they were read */
 export async function getSite(): Promise<Site> {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   const [fresh, counts, placings] = await Promise.all([
@@ -68,7 +71,7 @@ export async function getSite(): Promise<Site> {
 }
 
 export async function getWorkshop(): Promise<Array<WorkshopMap>> {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.workshopMaps(db());
@@ -76,7 +79,7 @@ export async function getWorkshop(): Promise<Array<WorkshopMap>> {
 
 /* the Maps with a time, as the cards the Workshop views and their search draw */
 export async function getMapCards(): Promise<Array<MapCard>> {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return timed(await getWorkshop()).map(mapCard);
@@ -84,7 +87,7 @@ export async function getMapCards(): Promise<Array<MapCard>> {
 
 /* a slice of a board in rank order, unfiltered; for the fixed slices a page shows */
 export async function getBoardPage(name: string, from: number, count: number) {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.boardPage(db(), name, { from, count });
@@ -95,7 +98,7 @@ export async function getBoardPage(name: string, from: number, count: number) {
 const BLOCK = 1000;
 
 async function getBoardBlock(name: string, k: number) {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.boardPage(db(), name, { from: k * BLOCK, count: BLOCK });
@@ -128,7 +131,7 @@ export function searchBoard(name: string, query: string, from: number, count: nu
 }
 
 export async function getBoardScores(name: string) {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.boardScores(db(), name);
@@ -145,7 +148,7 @@ export async function getBoardPlaces(name: string, ids: ReadonlyArray<string>) {
 }
 
 async function boardPlaces(name: string, ids: ReadonlyArray<string>) {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.boardPlaces(db(), name, ids);
@@ -153,7 +156,7 @@ async function boardPlaces(name: string, ids: ReadonlyArray<string>) {
 
 /* Season 1 Current and All Seasons ranked whole, once per Refresh, for every player page */
 async function getDerivedStandings() {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.derivedStandings(db());
@@ -161,7 +164,7 @@ async function getDerivedStandings() {
 
 /* every Steam ID the database has seen */
 async function getPlayerIds(): Promise<Array<string>> {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.playerIds(db());
@@ -173,7 +176,7 @@ export async function getPlayer(steamId: string): Promise<PlayerRecord | null> {
 }
 
 async function playerOf(steamId: string): Promise<PlayerRecord | null> {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   const [data, site, maps] = await Promise.all([
@@ -185,7 +188,7 @@ async function playerOf(steamId: string): Promise<PlayerRecord | null> {
 }
 
 export async function getStandings() {
-  "use cache";
+  "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.standings(db());

@@ -154,7 +154,7 @@ copy of a template database `web/scripts/migrate.mjs` builds, and run in `check.
 ### The read layer
 
 The app reads the database only through `web/db/data.ts`, whose functions are
-`"use cache"`, tagged `data`, with the `max` lifetime: what every page's frame needs
+`"use cache: remote"` (shared by every server instance), tagged `data`, with the `max` lifetime: what every page's frame needs
 (`getSite`: when the boards were read, every Circuit board's count, the podium tallies), the
 Workshop's Maps with their figures (`getWorkshop`), a slice of a board (`getBoardPage`), a
 player's record (`getPlayer`) and the Players counts (`getStandings`). Searches
