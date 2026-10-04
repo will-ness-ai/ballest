@@ -9,6 +9,7 @@ import {
   boardScores,
   circuitCounts,
   freshness,
+  derivedStandings,
   playerData,
   searchPlayers,
   standings,
@@ -214,7 +215,7 @@ describe("the Workshop", () => {
 
 describe("a player", () => {
   test("their place on every board, derived ones included", async () => {
-    const data = await playerData(t.db, p(1));
+    const data = await playerData(t.db, p(1), await derivedStandings(t.db));
     expect(data?.profile).toEqual({
       steamId: p(1),
       persona: "Rolling Rae",
@@ -232,7 +233,7 @@ describe("a player", () => {
   });
 
   test("a Steam ID on no board is null", async () => {
-    expect(await playerData(t.db, p(99))).toBeNull();
+    expect(await playerData(t.db, p(99), {})).toBeNull();
   });
 });
 

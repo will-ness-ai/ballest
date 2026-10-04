@@ -84,6 +84,15 @@ export interface PlayerFinish {
   field: number;
 }
 
+/* A derived board's ranks, kept whole: every player page reads its row from here rather
+   than working the board out again. `places` is [rank, score] by Steam ID. */
+export interface DerivedStanding {
+  lead: number;
+  field: number;
+  places: Record<string, [number, number] | undefined>;
+}
+export type DerivedStandings = Record<string, DerivedStanding>;
+
 export interface PlayerData {
   profile: PlayerProfile;
   /* their place on every board they are on, Circuit (Steam's and derived) and Workshop */

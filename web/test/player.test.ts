@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { seed } from "../db/seed/harness";
-import { circuitCounts, playerData, workshopMaps } from "../db/site";
+import { circuitCounts, derivedStandings, playerData, workshopMaps } from "../db/site";
 import { CIRCUIT } from "../lib/circuit";
 import { matchup, playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
 import type { WorkshopMap } from "../lib/rows";
@@ -33,7 +33,7 @@ afterAll(() => t.drop());
 
 /* player n's record, over the Workshop's Maps or a changed copy of them */
 async function record(n: number, over: ReadonlyArray<WorkshopMap> = maps): Promise<PlayerRecord> {
-  const data = await playerData(t.db, p(n));
+  const data = await playerData(t.db, p(n), await derivedStandings(t.db));
   if (!data) throw new Error(`no player ${String(n)}`);
   return playerRecord(data, boards, over);
 }

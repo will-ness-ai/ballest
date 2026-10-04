@@ -151,6 +151,14 @@ async function boardPlaces(name: string, ids: ReadonlyArray<string>) {
   return q.boardPlaces(db(), name, ids);
 }
 
+/* Season 1 Current and All Seasons ranked whole, once per Refresh, for every player page */
+async function getDerivedStandings() {
+  "use cache";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.derivedStandings(db());
+}
+
 /* every Steam ID the database has seen */
 async function getPlayerIds(): Promise<Array<string>> {
   "use cache";
@@ -169,7 +177,7 @@ async function playerOf(steamId: string): Promise<PlayerRecord | null> {
   cacheTag(DATA_TAG);
   cacheLife("max");
   const [data, site, maps] = await Promise.all([
-    q.playerData(db(), steamId),
+    q.playerData(db(), steamId, await getDerivedStandings()),
     getSite(),
     getWorkshop(),
   ]);

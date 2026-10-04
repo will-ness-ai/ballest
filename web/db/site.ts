@@ -11,6 +11,8 @@ import { DERIVED, array, boardSql, rankedSql } from "./boards";
 import type {
   BoardPage,
   BoardRow,
+  DerivedStanding,
+  DerivedStandings,
   Freshness,
   NameHit,
   Placing,
@@ -188,7 +190,32 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
 }
 
 /* A player and their place on every board, or null for a Steam ID on no board */
-export async function playerData(db: Db, steamId: string): Promise<PlayerData | null> {
+/* Season 1 Current and All Seasons, each ranked whole, which a player's page reads its
+   rows from (playerData) */
+export async function derivedStandings(db: Db): Promise<DerivedStandings> {
+  const out: DerivedStandings = {};
+  for (const name of DERIVED) {
+    const found = await rows<{ steamId: string; rank: number; score: number }>(
+      db,
+      sql`select steam_id as "steamId", rank, score::float8 as score
+        from (${boardSql(name)}) d order by rank`,
+    );
+    out[name] = {
+      lead: found.at(0)?.score ?? 0,
+      field: found.length,
+      places: Object.fromEntries(found.map((r) => [r.steamId, [r.rank, r.score]])),
+    };
+  }
+  return out;
+}
+
+/* A player's profile and every board they're on with where they stand: the Steam boards
+   ranked here, the derived ones read from `derived` (derivedStandings) */
+export async function playerData(
+  db: Db,
+  steamId: string,
+  derived: DerivedStandings,
+): Promise<PlayerData | null> {
   const profile = (
     await rows<PlayerProfile>(
       db,
@@ -208,18 +235,16 @@ export async function playerData(db: Db, steamId: string): Promise<PlayerData | 
           first_value(score) over (partition by board order by rank) as lead,
           count(*) over (partition by board) as field
         from (${rankedSql(theirs)}) r
-        ${sql.join(
-          DERIVED.map(
-            (name) => sql` union all select board, steam_id, rank, score,
-              first_value(score) over (order by rank), count(*) over ()
-              from (${boardSql(name)}) d`,
-          ),
-          sql``,
-        )}
       ) all_boards
-      where steam_id = ${steamId}
-      order by board`,
+      where steam_id = ${steamId}`,
   );
+  for (const name of DERIVED) {
+    const d = derived[name] as DerivedStanding | undefined;
+    const at = d?.places[steamId];
+    if (d && at)
+      finishes.push({ board: name, rank: at[0], score: at[1], lead: d.lead, field: d.field });
+  }
+  finishes.sort((a, b) => (a.board < b.board ? -1 : a.board > b.board ? 1 : 0));
   return { profile, finishes };
 }
 
