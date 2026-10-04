@@ -47,7 +47,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   other branch gets a preview; `web/vercel.json`'s `ignoreCommand` skips commits that touch no site file.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
-  covers install and how it hooks the game.
+  covers install and how it hooks the game. Its card now ships in AnythingGoes's Grind Stats
+  plugin, and the mod is switched off in Will's game.
+- `tools/sync_plugin_forks.py` — fast-forwards Will's plugin forks to upstream (see Plugins below).
 - `leth/` — a second, self-contained page at `/leth/`: a 3D ghost-route viewer for the
   Leth Trial #1 event board. Frozen snapshots, its own `data/`, not touched by the
   collector; `leth/README.md` covers it.
@@ -233,6 +235,12 @@ The five canonical roles, each label string equal to its name. See
 ### Domain docs
 
 Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Plugins
+
+Changes to AnythingGoes's plugin manager or its plugins (Grind Stats) happen in Will's forks
+beside this repo and go upstream as pull requests. Checkouts, fork rules, building the host and
+testing in a sandboxed game copy: `docs/agents/plugins.md`.
 
 ## Do not publish the reverse-engineering material
 
