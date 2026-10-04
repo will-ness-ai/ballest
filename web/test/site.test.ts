@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { seed } from "../db/seed/harness";
 import {
   boardPage,
+  boardPlaces,
   boardScores,
   circuitCounts,
   freshness,
@@ -87,6 +88,17 @@ describe("Steam's boards", () => {
     expect(byId.rows.map((r) => r.rank)).toEqual([6]);
     const none = await boardPage(t.db, "Map_Track13", { q: "%" });
     expect(none).toEqual({ total: 0, rows: [] });
+  });
+
+  test("where given players stand on a board, leaving out who isn't on it", async () => {
+    expect(await boardPlaces(t.db, "Map_Track13", [p(5), p(3), p(6)])).toEqual({
+      [p(5)]: { rank: 3, score: 1_019_884 },
+      [p(6)]: { rank: 6, score: 1_200_000 },
+    });
+    expect(await boardPlaces(t.db, "OverallLeaderboard_S1Current", [p(8)])).toEqual({
+      [p(8)]: { rank: 4, score: 13333 },
+    });
+    expect(await boardPlaces(t.db, "Map_Track13", [])).toEqual({});
   });
 
   test("a board's scores in rank order", async () => {

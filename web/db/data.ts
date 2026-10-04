@@ -88,6 +88,15 @@ export async function getBoardScores(name: string) {
   return q.boardScores(db(), name);
 }
 
+/* where `ids` stand on a board: an Overall board's podium order says where each player on
+   a podium stands on points, and a link to a player's row on a board needs their rank */
+export async function getBoardPlaces(name: string, ids: ReadonlyArray<string>) {
+  "use cache";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.boardPlaces(db(), name, ids);
+}
+
 export async function getPlayer(steamId: string): Promise<PlayerRecord | null> {
   "use cache";
   cacheTag(DATA_TAG);

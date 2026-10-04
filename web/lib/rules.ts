@@ -153,3 +153,11 @@ export function ageText(created: number, now = Date.now()) {
 export const safeImg = (u: string | null | undefined) => (u?.startsWith("https://") ? u : "");
 /* the link out to a Steam profile, likewise only plain http(s) */
 export const safeUrl = (u: string | null | undefined) => (u && /^https?:\/\//i.test(u) ? u : "");
+
+/* each Medal's name, colour and index into a [bronze, silver, gold, author] list, best first */
+export const MEDALS = [
+  ["Author", "var(--author)", 3],
+  ["Gold", "var(--gold)", 2],
+  ["Silver", "var(--silver)", 1],
+  ["Bronze", "var(--bronze)", 0],
+] as const;

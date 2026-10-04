@@ -132,6 +132,21 @@ export async function boardScores(db: Db, name: string): Promise<Array<number>> 
   return found.map((r) => r.score);
 }
 
+/* Where each of `ids` stands on a board, by Steam ID; a player not on it is left out */
+export async function boardPlaces(
+  db: Db,
+  name: string,
+  ids: ReadonlyArray<string>,
+): Promise<Record<string, { rank: number; score: number }>> {
+  if (!ids.length) return {};
+  const found = await rows<{ steamId: string; rank: number; score: number }>(
+    db,
+    sql`select steam_id as "steamId", rank, score::float8 as score
+      from (${boardSql(name)}) r where steam_id = any(${array(ids)})`,
+  );
+  return Object.fromEntries(found.map((r) => [r.steamId, { rank: r.rank, score: r.score }]));
+}
+
 export interface Placing {
   board: string;
   steamId: string;

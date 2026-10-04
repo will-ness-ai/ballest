@@ -1,0 +1,297 @@
+/* ---------- Players ----------
+   One table over data/standings.json: every player ranked by the column the reader
+   sorts on. The header row stays put going down; your own row, when it is out of view,
+   is pinned to the foot as a card that says how far the next rank and the top 10 are.
+   On a phone the table is wider than the screen, so it scrolls inside a box one screen
+   tall, which keeps the rank and name columns put going sideways; from 820px it fits,
+   and the page itself scrolls. */
+.app[data-view="players"] .main {
+  display: none;
+}
+.pls {
+  margin: 0 var(--pad);
+  --prw: 38px;
+}
+.pls .ptabs {
+  margin: 0 0 10px;
+}
+.plwrap {
+  position: relative;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+}
+.plt {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.plt th,
+.plt td {
+  padding: 8px 10px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line2);
+  background: linear-gradient(var(--tint, transparent), var(--tint, transparent)) var(--solid);
+}
+.plt th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  font-family: var(--f-hud);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  border-bottom-color: var(--line);
+}
+.plt th a {
+  color: inherit;
+  text-decoration: none;
+}
+.plt th a:hover {
+  color: var(--text);
+}
+.plt th.on {
+  color: var(--accent);
+}
+.plt th.on a::after {
+  content: " \25BE";
+}
+.plt .pr,
+.plt .pn {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+}
+.plt .pn {
+  left: var(--prw);
+}
+.plt th.pr,
+.plt th.pn {
+  z-index: 3;
+}
+.plt .pr {
+  width: var(--prw);
+  min-width: var(--prw);
+  padding-right: 2px;
+  text-align: right;
+  font-family: var(--f-marquee);
+  font-size: 12.5px;
+  color: var(--dim);
+}
+.plt td {
+  font-family: var(--f-hud);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dim);
+}
+.plt td.on {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+}
+.plt .z {
+  opacity: 0.35;
+}
+.plt .split {
+  border-left: 1px solid var(--line2);
+}
+.plt tr[data-m="1"] {
+  --tint: var(--gold-soft);
+}
+.plt tr[data-m="2"] {
+  --tint: var(--silver-soft);
+}
+.plt tr[data-m="3"] {
+  --tint: var(--bronze-soft);
+}
+.plt tr[data-m="1"] .pr {
+  color: var(--gold);
+}
+.plt tr[data-m="2"] .pr {
+  color: var(--silver);
+}
+.plt tr[data-m="3"] .pr {
+  color: var(--bronze);
+}
+.plt tr.me {
+  --tint: var(--author-soft);
+}
+.plt tr.me .pr {
+  box-shadow: inset 3px 0 var(--author);
+}
+.plt tr.focus {
+  --tint: var(--accent-soft);
+}
+.who {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 42vw;
+}
+.who .marble {
+  width: 28px;
+  height: 28px;
+}
+.who .nm {
+  min-width: 0;
+  font-family: var(--f-body);
+}
+.you {
+  flex: none;
+  font: 700 9px/1.5 var(--f-hud);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--author);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.plpin {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  border-top: 1px solid var(--author);
+  background: linear-gradient(var(--author-soft), var(--author-soft)) var(--solid);
+}
+.plpin[hidden] {
+  display: none;
+}
+.plpin .marble {
+  width: 34px;
+  height: 34px;
+}
+.plpin .me-t {
+  display: grid;
+  min-width: 0;
+}
+.plpin .me-t b {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.plpin .me-t small {
+  color: var(--dim);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.plpin .gaps {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+  font-size: 12.5px;
+  color: var(--dim);
+}
+.plpin .gaps b {
+  font: 700 15px var(--f-hud);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ws-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.ws-h1 {
+  margin: 0;
+  font-family: var(--f-marquee);
+  font-weight: 400;
+  font-size: 21px;
+  letter-spacing: 0.01em;
+}
+.ws-tools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 240px;
+  justify-content: flex-end;
+}
+.alllink {
+  font-family: var(--f-hud);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.alllink:hover {
+  text-decoration: underline;
+}
+.ws-q {
+  flex: 1;
+  max-width: 280px;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 14px;
+}
+.ws-q::placeholder {
+  color: var(--faint);
+}
+.ws-count,
+.ws-note {
+  font-size: 12.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.ws-note {
+  margin: 0 0 12px;
+}
+.res-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--dim);
+}
+.linkbtn {
+  color: var(--accent);
+  font-size: 12.5px;
+}
+.go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+}
+.go:hover {
+  filter: brightness(1.08);
+}
+.eyebrow {
+  font-family: var(--f-hud);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+  font-weight: 600;
+}

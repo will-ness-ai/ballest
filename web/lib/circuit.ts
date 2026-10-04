@@ -143,3 +143,6 @@ export const TRACKS: Readonly<Record<string, { img: string; medals: Array<number
     medals: [61, 46, 41, 38.053],
   },
 };
+
+/* the in-game number a Track's display name leads with, "08" of "08 Downhill" */
+export const trackNo = (display: string) => /^\d+/.exec(display)?.[0] ?? display;

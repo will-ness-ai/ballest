@@ -67,6 +67,11 @@ export default defineConfig(
     files: ["web/**/*.{ts,tsx}"],
     extends: [nextPlugin.configs["core-web-vitals"], reactHooks.configs.flat.recommended],
     settings: { next: { rootDir: "web/" } },
+    rules: {
+      // the pictures are Steam's (avatars, Workshop previews) and the Circuit screenshots,
+      // sized by the stylesheet the single-page site had; next/image would change the markup
+      "@next/next/no-img-element": "off",
+    },
   },
   prettier,
 );
