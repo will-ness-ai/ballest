@@ -1,6 +1,6 @@
 # Moving the site to Next.js on Vercel
 
-The plan behind ADR 0004. Each phase ships on its own and leaves the site working.
+The plan behind ADR 0004 and ADR 0005. Each phase ships on its own and leaves the site working.
 
 ## Phase 0: a Next.js shell that serves today's site (done, #85)
 
@@ -42,21 +42,22 @@ image (`next/og`), read from `data/` at request time and cached until the next d
 paths, so every old `#/` link keeps working. This is the first change players see: a
 player or Map shared in Discord previews as itself rather than the site's one `og.png`.
 
-## Phase 3: port the page a view at a time
+## Phase 3: a database with score history (ADR 0005)
 
-Each view becomes React in its own PR, in this order: head to head, the player page, a
-board, the Workshop homepage, All maps. A PR takes that view's code out of `index.html`.
-While a view is being ported, other changes to it wait or land in the port, so the order
-can follow whatever the page's other work is not touching.
+The collector writes every Refresh into Postgres on Neon as well as the JSON, the git
+history of `data/` is backfilled into it, and the app gets a typed, tag-cached read layer
+that the collector revalidates. Preview deploys each get a database branch of production,
+which `db:seed` can replace with a named dataset. The page still reads the JSON.
 
-The page's invariants move into one shared module first, with tests, since the page has
-none today: `isPoints`, `SCORE_TICKS_PER_SECOND`, rank-aligned `rows`, `isSteamId`.
-`esc()` goes away with the markup strings, because React escapes text and attributes.
-`tools/page-check` is retired with the last view.
+## Phase 4: port the page to React in one go
 
-## Phase 4, optional: data out of git
+Every view becomes server components reading the database, in one branch rather than a
+view at a time. The page's invariants (`isPoints`, `SCORE_TICKS_PER_SECOND`, rank-aligned
+rows, `isSteamId`) move into one shared module with tests first. Phase 2's real URLs land
+here too if they have not already.
 
-The collector would upload to Vercel Blob instead of committing, and the app would read
-it at request time, so a refresh stops being a commit and a deploy. It changes "Data and
-git" in `AGENTS.md` and the collector's write path, so it is its own decision once the
-site is on Vercel.
+## Phase 5: stop the JSON
+
+Once nothing reads `data/`, the collector stops writing it, the refresh stops committing,
+and the JSON-only code goes: `derive()`'s file assembly, `check_data.py`'s file checks,
+`sync-site.mjs`'s `data/` entry, and "Data and git" in `AGENTS.md`.

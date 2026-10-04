@@ -3,3 +3,5 @@
 # aiohttp >=3.13 removed. 3.12.x still has it.
 steamio==1.1.3
 aiohttp>=3.10,<3.13
+# Postgres driver for the database writer (db_writer.py, check_db.py, db_backfill.py)
+psycopg[binary]==3.3.6

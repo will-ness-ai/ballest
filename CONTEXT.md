@@ -29,6 +29,24 @@ never finished are invisible and do not count. A time can still beat the author 
 that is a Medal, not Played.
 _Avoid_: attempted, beaten (for Played)
 
+**Entry**:
+A player's score on one board as Steam holds it: a time on a Map or Track, points on an
+Overall board. A board holds at most one Entry per player; a better run replaces it.
+_Avoid_: row, record (a record is rank 1), run (for the stored score)
+
+**Refresh**:
+One pass of the collector over Steam, at a moment in time. It reads every Track and
+Overall board, and only the Maps whose activity moved, so a Map not read in a Refresh
+says nothing about that moment.
+_Avoid_: run (a player's attempt), sync, scrape
+
+**Score history**:
+Every Entry a player has held on a board, each with the first and last Refresh that saw
+it. A player's personal-best progression and a board's world-record history are both read
+from it. Backfilled from the git history of the old JSON, so its earliest Entries were
+first seen no later than their first Refresh, not exactly then.
+_Avoid_: snapshots, audit log
+
 ### Matches
 
 **Player**:

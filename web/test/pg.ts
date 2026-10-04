@@ -1,0 +1,32 @@
+// A throwaway database per test file, created on the Postgres at TEST_DATABASE_URL and
+// migrated with the same migrations a deploy applies.
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import pg from "pg";
+
+import { connect, type Db } from "../db/client";
+
+const base =
+  process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/postgres";
+
+export async function freshDb(): Promise<{ db: Db; url: string; drop: () => Promise<void> }> {
+  const name = `test_${String(process.pid)}_${Math.random().toString(36).slice(2, 8)}`;
+  const admin = new pg.Client({ connectionString: base });
+  await admin.connect();
+  await admin.query(`create database ${name}`);
+  await admin.end();
+  const url = new URL(base);
+  url.pathname = `/${name}`;
+  const db = connect(url.toString());
+  await migrate(db, { migrationsFolder: new URL("../db/migrations", import.meta.url).pathname });
+  return {
+    db,
+    url: url.toString(),
+    drop: async () => {
+      await db.$client.end();
+      const c = new pg.Client({ connectionString: base });
+      await c.connect();
+      await c.query(`drop database ${name}`);
+      await c.end();
+    },
+  };
+}

@@ -943,7 +943,11 @@ def write_site(boards_out, all_ids, workshop=None):
     an unchanged board produces no diff (only index.json changes every run).
 
     workshop, when given, is {"maps", "boards": {pfid: rows}, "full_sweep_at"}:
-    its rows get names from the same lookup, then write_workshop publishes it."""
+    its rows get names from the same lookup, then write_workshop publishes it.
+
+    Returns workshop if its files were written, else None: what the database step
+    (db_writer) may count as read, so a Workshop write that failed here reads as no
+    Map read there either."""
     # Names first: derive() copies persona/avatar/profileurl from the rows, so
     # rows it reads without names publish derived files with blank ones while
     # the boards get theirs (the 2026-09-27T23:32Z refresh did exactly that).
@@ -955,6 +959,7 @@ def write_site(boards_out, all_ids, workshop=None):
             write_workshop(workshop, names)
         except Exception as e:
             print(f"  [warn] Workshop files not written: {e!r}")
+            workshop = None
 
     # Everything below the boards is derived from the named rows above, fallback
     # data included, so it can never disagree with the boards the page shows.
@@ -1020,4 +1025,4 @@ def write_site(boards_out, all_ids, workshop=None):
             indent=2,
         )
     print(f"\nWrote {INDEX_PATH} + {len(boards_out)} board files ({len(unique)} unique players)")
-    return INDEX_PATH
+    return workshop
