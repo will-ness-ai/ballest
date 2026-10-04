@@ -7038,5 +7038,625 @@
       the collector needs to run first.</div>`;
         });
     </script>
+    <!-- ===================== PROTOTYPE: score history (grill-design) =====================
+         Not production code. Variants of the history panel on a board page, swapped by the
+         picker (?variant=). Reads scratch/history/<board>.json, made by
+         prototype/export_history.py from data/'s git history. -->
+    <style>
+      #ptHist {
+        margin: 14px 0 18px;
+      }
+      #app:not([data-view="board"]):not([data-view="map"]) #ptHist {
+        display: none;
+      }
+      .pt-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px var(--pad);
+      }
+      .pt-h {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0 0 10px;
+        font: 600 13px/1.2 var(--f-hud);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
+      .pt-h small {
+        font: 400 12px var(--f-body);
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--faint);
+      }
+      .pt-chart {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .pt-chart text {
+        font: 11px var(--f-body);
+        fill: var(--faint);
+      }
+      .pt-tbl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      .pt-tbl td,
+      .pt-tbl th {
+        padding: 7px 6px;
+        border-top: 1px solid var(--line2);
+        text-align: left;
+        white-space: nowrap;
+      }
+      .pt-tbl th {
+        font: 600 11px var(--f-hud);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+        border-top: 0;
+      }
+      .pt-tbl .n {
+        text-align: right;
+        font-family: var(--f-hud);
+        font-variant-numeric: tabular-nums;
+      }
+      .pt-tbl .who {
+        white-space: normal;
+      }
+      .pt-tbl tr.now td {
+        color: var(--gold);
+      }
+      .pt-tbl tr.now td a {
+        color: var(--gold);
+      }
+      .pt-dim {
+        color: var(--faint);
+      }
+      .pt-up {
+        color: var(--accent);
+      }
+      .pt-down {
+        color: var(--a);
+      }
+      .pt-wrap {
+        overflow-x: auto;
+      }
+      .pt-slider {
+        width: 100%;
+        accent-color: var(--accent);
+        margin: 4px 0 2px;
+      }
+      .pt-then {
+        font: 600 22px var(--f-hud);
+        color: var(--text);
+      }
+      .pt-day {
+        border-top: 1px solid var(--line2);
+        padding: 12px 0;
+      }
+      .pt-day:first-of-type {
+        border-top: 0;
+        padding-top: 0;
+      }
+      .pt-day h3 {
+        margin: 0 0 6px;
+        font: 600 14px var(--f-hud);
+        color: var(--text);
+      }
+      .pt-day ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 4px;
+        font-size: 14px;
+      }
+      .pt-tag {
+        display: inline-block;
+        min-width: 66px;
+        font: 600 11px var(--f-hud);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .pt-tag.wr {
+        color: var(--gold);
+      }
+      .pt-tag.t10 {
+        color: var(--author);
+      }
+      .pt-tag.pb {
+        color: var(--dim);
+      }
+      .pt-more {
+        margin-top: 8px;
+        background: none;
+        border: 1px solid var(--line);
+        color: var(--dim);
+        border-radius: 999px;
+        padding: 6px 14px;
+        font: inherit;
+        cursor: pointer;
+      }
+      .pt-spark {
+        width: 120px;
+        height: 26px;
+        display: block;
+      }
+      .pt-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+      .pt-legend i {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 5px;
+        vertical-align: -1px;
+      }
+      .pt-empty {
+        color: var(--dim);
+        font-size: 14px;
+        margin: 0;
+      }
+      #ptPick {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 9999;
+        max-width: min(360px, calc(100vw - 32px));
+        background: #fff;
+        color: #111;
+        border-radius: 14px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+        font: 13px/1.35 system-ui, sans-serif;
+        padding: 8px 10px 10px;
+        user-select: none;
+      }
+      #ptPick .bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: grab;
+      }
+      #ptPick b {
+        flex: 1;
+        font-size: 14px;
+      }
+      #ptPick button {
+        border: 0;
+        background: #111;
+        color: #fff;
+        border-radius: 8px;
+        padding: 4px 9px;
+        font: 600 13px system-ui, sans-serif;
+        cursor: pointer;
+      }
+      #ptPick .states {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 6px;
+      }
+      #ptPick .states button {
+        background: #e4e4e4;
+        color: #111;
+        font-weight: 500;
+      }
+      #ptPick .states button[aria-pressed="true"] {
+        background: #ffd447;
+      }
+      #ptPick p {
+        margin: 6px 0 0;
+        color: #444;
+      }
+    </style>
+    <div id="ptPick" role="region" aria-label="Prototype picker">
+      <div class="bar">
+        <button type="button" id="ptPrev" aria-label="Previous variant">&larr;</button>
+        <b id="ptName"></b>
+        <button type="button" id="ptNext" aria-label="Next variant">&rarr;</button>
+      </div>
+      <p id="ptNote"></p>
+      <div class="states" id="ptStates"></div>
+    </div>
+    <script>
+      (() => {
+        const VARIANTS = [
+          {
+            key: "A",
+            name: "Record line",
+            note: "A chart of the world record over time, and the list of everyone who held it.",
+          },
+          {
+            key: "B",
+            name: "Time machine",
+            note: "A date slider that shows the top 15 as it stood that day, with each player's rank now. In production the slider would drive the board itself.",
+          },
+          {
+            key: "C",
+            name: "What changed",
+            note: "A day-by-day feed of this board: new records, new top 10 times, and how many players improved or posted a first time.",
+          },
+          {
+            key: "D",
+            name: "Rows with history",
+            note: "The top 25 rows each carry their own progress: a sparkline of the player's times and how much they've cut. Stands in for the board's own rows.",
+          },
+          {
+            key: "E",
+            name: "Race for the top",
+            note: "Rank over time for everyone who reached the top 5, one line per player.",
+          },
+        ];
+        const STATES = [
+          ["Busy track", "#/board/Map_Track_S2_BigStairs"],
+          ["Quiet track", "#/board/Map_Track18"],
+          ["Workshop map", "#/map/3796933002"],
+          ["Overall", "#/board/OverallLeaderboard_EASeason2"],
+        ];
+        const params = new URLSearchParams(location.search);
+        let vi = Math.max(
+          0,
+          VARIANTS.findIndex((v) => v.key === params.get("variant")),
+        );
+
+        /* ---------- picker ---------- */
+        const pick = document.getElementById("ptPick");
+        function drawPicker() {
+          const v = VARIANTS[vi];
+          document.getElementById("ptName").textContent = v.key + " · " + v.name;
+          document.getElementById("ptNote").textContent = v.note;
+          document.getElementById("ptStates").innerHTML = STATES.map(
+            ([label, hash]) =>
+              `<button type="button" data-h="${hash}" aria-pressed="${location.hash.startsWith(hash)}">${label}</button>`,
+          ).join("");
+        }
+        function step(d) {
+          vi = (vi + d + VARIANTS.length) % VARIANTS.length;
+          const u = new URL(location.href);
+          u.searchParams.set("variant", VARIANTS[vi].key);
+          history.replaceState(null, "", u);
+          drawPicker();
+          draw();
+        }
+        document.getElementById("ptPrev").onclick = () => step(-1);
+        document.getElementById("ptNext").onclick = () => step(1);
+        document.getElementById("ptStates").onclick = (e) => {
+          const b = e.target.closest("[data-h]");
+          if (b) location.hash = b.dataset.h;
+        };
+        addEventListener("keydown", (e) => {
+          if (e.target.closest("input, textarea, select")) return;
+          if (e.key === "ArrowLeft") step(-1);
+          if (e.key === "ArrowRight") step(1);
+        });
+        addEventListener("hashchange", drawPicker);
+        let drag = null;
+        pick.querySelector(".bar").addEventListener("pointerdown", (e) => {
+          if (e.target.closest("button")) return;
+          const r = pick.getBoundingClientRect();
+          drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+          pick.setPointerCapture(e.pointerId);
+        });
+        pick.addEventListener("pointermove", (e) => {
+          if (!drag) return;
+          pick.style.left = e.clientX - drag.dx + "px";
+          pick.style.top = e.clientY - drag.dy + "px";
+          pick.style.right = pick.style.bottom = "auto";
+        });
+        pick.addEventListener("pointerup", () => (drag = null));
+        drawPicker();
+
+        /* ---------- data ---------- */
+        const CACHEH = {};
+        let REFRESHES = null;
+        async function loadHist(name) {
+          if (!REFRESHES)
+            REFRESHES = (await (await fetch("scratch/history/_index.json")).json()).refreshes.map(
+              (r) => Date.parse(r.at),
+            );
+          if (!CACHEH[name]) {
+            const res = await fetch("scratch/history/" + name + ".json");
+            CACHEH[name] = res.ok ? derive(await res.json()) : null;
+          }
+          return CACHEH[name];
+        }
+        /* everything the variants read, from a board's Entries */
+        function derive(h) {
+          const ts = REFRESHES;
+          const es = h.entries.map((e) => ({
+            ...e,
+            steam_id: e.steamId,
+            f: Date.parse(e.firstSeenAt),
+            l: Date.parse(e.lastSeenAt),
+            c: e.closedAt ? Date.parse(e.closedAt) : null,
+          }));
+          /* a time seen in one Refresh and then gone: left out of record lines */
+          for (const e of es) e.flash = e.c !== null && e.f === e.l;
+          const valid = es.filter((e) => !e.flash).sort((a, b) => a.score - b.score || a.f - b.f);
+          const t0 = Math.min(...es.map((e) => e.f));
+          const times = ts.filter((t) => t >= t0);
+          const openAt = (e, t) => e.f <= t && (e.c === null || e.c > t);
+          const topAt = (t, n) => {
+            const out = [];
+            for (const e of valid) {
+              if (openAt(e, t)) out.push(e);
+              if (out.length === n) break;
+            }
+            return out;
+          };
+          const top10 = times.map((t) => topAt(t, 10));
+          const records = [];
+          times.forEach((t, i) => {
+            const e = top10[i][0];
+            if (!e) return;
+            const last = records.at(-1);
+            if (last && last.e === e) return;
+            if (last) last.to = t;
+            records.push({ e, from: t, to: null, prev: last ? last.e : null });
+          });
+          const byPlayer = new Map();
+          for (const e of [...es].sort((a, b) => a.f - b.f)) {
+            if (!byPlayer.has(e.steamId)) byPlayer.set(e.steamId, []);
+            byPlayer.get(e.steamId).push(e);
+          }
+          const current = valid.filter((e) => e.c === null);
+          return { h, es, valid, times, top10, records, byPlayer, current, t0, tN: times.at(-1) };
+        }
+
+        /* ---------- helpers ---------- */
+        const MON = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+        const day = (t) => new Date(t).getDate() + " " + MON[new Date(t).getMonth()];
+        const secs = (d) => (d / SCORE_TICKS_PER_SECOND).toFixed(3) + "s";
+        const days = (a, b) => Math.max(0, Math.round((b - a) / 86400000));
+        const who = (e) => playerLink(e.steamId, e.persona || "Player " + e.steamId.slice(-6));
+        const hue = (id) => `hsl(${hueFor(id)} 80% 62%)`;
+        function axis(d, W, H, P, yLabel) {
+          const ticks = [];
+          for (let t = d.t0; t <= d.tN; t += 7 * 86400000) ticks.push(t);
+          const x = (t) => P.l + ((t - d.t0) / (d.tN - d.t0 || 1)) * (W - P.l - P.r);
+          return {
+            x,
+            svg: ticks
+              .map(
+                (t) =>
+                  `<line x1="${x(t)}" x2="${x(t)}" y1="${P.t}" y2="${H - P.b}" stroke="var(--line2)"/>
+                   <text x="${x(t)}" y="${H - 6}" text-anchor="middle">${day(t)}</text>`,
+              )
+              .join("") +
+              (yLabel ? `<text x="4" y="${P.t - 6}">${yLabel}</text>` : ""),
+          };
+        }
+
+        /* ---------- variants ---------- */
+        function vA(d) {
+          const W = 640,
+            H = 220,
+            P = { l: 58, r: 14, t: 22, b: 24 };
+          const ax = axis(d, W, H, P);
+          const ys = d.records.map((r) => r.e.score);
+          const lo = Math.min(...ys),
+            hi = Math.max(...ys),
+            pad = (hi - lo || SCORE_TICKS_PER_SECOND) * 0.15;
+          const y = (s) => P.t + ((s - (lo - pad)) / (hi + pad - (lo - pad))) * (H - P.t - P.b);
+          let path = "";
+          d.records.forEach((r, i) => {
+            const x1 = ax.x(r.from),
+              x2 = ax.x(r.to || d.tN);
+            path += (i ? `L${x1},${y(r.e.score)}` : `M${x1},${y(r.e.score)}`) + `L${x2},${y(r.e.score)}`;
+          });
+          const dots = d.records
+            .map(
+              (r) =>
+                `<circle cx="${ax.x(r.from)}" cy="${y(r.e.score)}" r="4" fill="${hue(r.e.steamId)}"><title>${esc(r.e.persona)} ${fmtTime(r.e.score)}</title></circle>`,
+            )
+            .join("");
+          const yl = [hi, lo]
+            .map((s) => `<text x="${P.l - 6}" y="${y(s) + 4}" text-anchor="end">${fmtTime(s)}</text>`)
+            .join("");
+          const rows = [...d.records]
+            .reverse()
+            .map(
+              (r) => `<tr class="${r.to ? "" : "now"}">
+                <td class="n">${fmtTime(r.e.score)}</td>
+                <td class="who">${who(r.e)}</td>
+                <td>${day(r.from)}${r.from === d.t0 ? '<span class="pt-dim"> or earlier</span>' : ""}</td>
+                <td class="n">${r.prev ? "−" + secs(r.prev.score - r.e.score) : ""}</td>
+                <td class="n pt-dim">${r.to ? (days(r.from, r.to) || "&lt;1") + "d" : "holds it"}</td></tr>`,
+            )
+            .join("");
+          return `<div class="pt-card"><p class="pt-h">World record history <small>${d.records.length - 1} change${d.records.length === 2 ? "" : "s"} since ${day(d.t0)}</small></p>
+            <svg class="pt-chart" viewBox="0 0 ${W} ${H}">${ax.svg}${yl}<path d="${path}" fill="none" stroke="var(--gold)" stroke-width="2"/>${dots}</svg>
+            <div class="pt-wrap"><table class="pt-tbl"><tr><th class="n">Time</th><th>Holder</th><th>Set</th><th class="n">Cut</th><th class="n">Held</th></tr>${rows}</table></div></div>`;
+        }
+
+        let bIdx = null;
+        function vB(d) {
+          if (bIdx === null || bIdx >= d.times.length) bIdx = Math.max(0, d.times.length - 8);
+          const t = d.times[bIdx];
+          const then = (() => {
+            const out = [];
+            for (const e of d.valid) {
+              if (e.f <= t && (e.c === null || e.c > t)) out.push(e);
+              if (out.length === 15) break;
+            }
+            return out;
+          })();
+          const nowRank = new Map(d.current.map((e, i) => [e.steamId, i + 1]));
+          const rows = then
+            .map((e, i) => {
+              const nr = nowRank.get(e.steamId);
+              const mv = nr ? nr - (i + 1) : null;
+              return `<tr><td class="n">${i + 1}</td><td class="who">${who(e)}</td><td class="n">${fmtTime(e.score)}</td>
+                <td class="n ${mv === null ? "pt-dim" : mv > 0 ? "pt-down" : mv < 0 ? "pt-up" : "pt-dim"}">${mv === null ? "gone" : nr === i + 1 ? "same" : ord(nr) + " now"}</td></tr>`;
+            })
+            .join("");
+          return `<div class="pt-card"><p class="pt-h">The board on <small>${d.times.length} snapshots since ${day(d.t0)}</small></p>
+            <div class="pt-then" id="ptThen">${new Date(t).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</div>
+            <input class="pt-slider" id="ptSlide" type="range" min="0" max="${d.times.length - 1}" value="${bIdx}" aria-label="Date">
+            <div class="pt-wrap"><table class="pt-tbl"><tr><th class="n">#</th><th>Player</th><th class="n">Time then</th><th class="n">Now</th></tr>${rows}</table></div></div>`;
+        }
+
+        let cDays = 7;
+        function vC(d) {
+          const recordAt = new Map(d.records.map((r) => [r.e, r]));
+          const t10 = new Set();
+          d.times.forEach((t, i) => {
+            for (const e of d.top10[i]) if (e.f === t && t !== d.t0) t10.add(e);
+          });
+          const groups = new Map();
+          for (const e of d.es) {
+            if (e.f === d.t0 || e.flash) continue;
+            const k = new Date(e.f).toDateString();
+            if (!groups.has(k)) groups.set(k, { t: e.f, wr: [], t10: [], pb: 0, first: 0 });
+            const g = groups.get(k);
+            const mine = d.byPlayer.get(e.steamId);
+            const prev = mine[mine.indexOf(e) - 1];
+            if (recordAt.has(e)) g.wr.push({ e, prev: recordAt.get(e).prev });
+            else if (t10.has(e)) g.t10.push({ e, prev });
+            if (prev) g.pb++;
+            else g.first++;
+          }
+          const list = [...groups.values()].sort((a, b) => b.t - a.t);
+          if (!list.length) return `<div class="pt-card"><p class="pt-empty">Nothing has changed on this board since ${day(d.t0)}.</p></div>`;
+          const html = list
+            .slice(0, cDays)
+            .map(
+              (g) => `<div class="pt-day"><h3>${new Date(g.t).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })}</h3><ul>
+              ${g.wr.map(({ e, prev }) => `<li><span class="pt-tag wr">Record</span>${who(e)} ${fmtTime(e.score)}${prev ? ` <span class="pt-dim">beat ${esc(prev.persona)} by ${secs(prev.score - e.score)}</span>` : ""}</li>`).join("")}
+              ${g.t10
+                .slice(0, 5)
+                .map(({ e, prev }) => `<li><span class="pt-tag t10">Top 10</span>${who(e)} ${fmtTime(e.score)}${prev ? ` <span class="pt-dim">−${secs(prev.score - e.score)}</span>` : ' <span class="pt-dim">first time</span>'}</li>`)
+                .join("")}${g.t10.length > 5 ? `<li class="pt-dim">and ${g.t10.length - 5} more top 10 times</li>` : ""}
+              <li><span class="pt-tag pb">Board</span><span class="pt-dim">${fmtN(g.pb)} improved · ${fmtN(g.first)} first times</span></li></ul></div>`,
+            )
+            .join("");
+          return `<div class="pt-card"><p class="pt-h">What changed <small>since ${day(d.t0)}</small></p>${html}
+            ${list.length > cDays ? `<button type="button" class="pt-more" id="ptMore">Earlier days</button>` : ""}</div>`;
+        }
+
+        function spark(chain, d) {
+          const W = 120,
+            H = 26;
+          const ss = chain.map((e) => e.score);
+          const lo = Math.min(...ss),
+            hi = Math.max(...ss);
+          const x = (t) => 2 + ((t - d.t0) / (d.tN - d.t0 || 1)) * (W - 4);
+          const y = (s) => (hi === lo ? H / 2 : 3 + ((s - lo) / (hi - lo)) * (H - 6));
+          let p = "";
+          chain.forEach((e, i) => {
+            p += (i ? `L${x(e.f)},${y(chain[i - 1].score)}L${x(e.f)},${y(e.score)}` : `M${x(e.f)},${y(e.score)}`);
+          });
+          p += `L${W - 2},${y(chain.at(-1).score)}`;
+          return `<svg class="pt-spark" viewBox="0 0 ${W} ${H}"><path d="${p}" fill="none" stroke="var(--accent)" stroke-width="1.6"/><circle cx="${W - 2}" cy="${y(chain.at(-1).score)}" r="2.5" fill="var(--accent)"/></svg>`;
+        }
+        function vD(d) {
+          const rows = d.current
+            .slice(0, 25)
+            .map((e, i) => {
+              const chain = d.byPlayer.get(e.steamId).filter((x) => !x.flash);
+              const first = chain[0];
+              const cut = first.score - e.score;
+              return `<tr><td class="n">${i + 1}</td><td class="who">${who(e)}</td><td class="n">${fmtTime(e.score)}</td>
+                <td>${chain.length > 1 ? spark(chain, d) : '<span class="pt-dim">one time</span>'}</td>
+                <td class="n ${cut ? "pt-up" : "pt-dim"}">${cut ? "−" + secs(cut) : ""}</td>
+                <td class="n pt-dim">${chain.length > 1 ? chain.length - 1 + "×" : ""}</td></tr>`;
+            })
+            .join("");
+          return `<div class="pt-card"><p class="pt-h">Top 25 with their progress <small>since ${day(d.t0)}</small></p>
+            <div class="pt-wrap"><table class="pt-tbl"><tr><th class="n">#</th><th>Player</th><th class="n">Time</th><th>Progress</th><th class="n">Cut</th><th class="n">PBs</th></tr>${rows}</table></div></div>`;
+        }
+
+        function vE(d) {
+          const W = 640,
+            H = 260,
+            P = { l: 28, r: 14, t: 18, b: 24 },
+            N = 10;
+          const ax = axis(d, W, H, P);
+          const y = (r) => P.t + ((r - 1) / (N - 1)) * (H - P.t - P.b);
+          const ever = new Map();
+          d.times.forEach((t, i) =>
+            d.top10[i].forEach((e, r) => {
+              if (r < 5 && !ever.has(e.steamId)) ever.set(e.steamId, e);
+            }),
+          );
+          const ids = [...ever.keys()];
+          const lines = ids.map((id) => {
+            let p = "",
+              on = false;
+            d.times.forEach((t, i) => {
+              const r = d.top10[i].findIndex((e) => e.steamId === id) + 1;
+              if (!r) {
+                on = false;
+                return;
+              }
+              p += (on ? "L" : "M") + ax.x(t) + "," + y(r);
+              on = true;
+            });
+            return `<path d="${p}" fill="none" stroke="${hue(id)}" stroke-width="2.2" stroke-linejoin="round" opacity=".9"><title>${esc(ever.get(id).persona)}</title></path>`;
+          });
+          const yl = [1, 5, 10]
+            .map((r) => `<text x="${P.l - 6}" y="${y(r) + 4}" text-anchor="end">${r}</text>`)
+            .join("");
+          const legend = ids
+            .map((id) => `<span><i style="background:${hue(id)}"></i>${playerLink(id, ever.get(id).persona)}</span>`)
+            .join("");
+          return `<div class="pt-card"><p class="pt-h">Race for the top <small>rank at each refresh, everyone who reached the top 5</small></p>
+            <svg class="pt-chart" viewBox="0 0 ${W} ${H}">${ax.svg}${yl}${lines.join("")}</svg><div class="pt-legend">${legend}</div></div>`;
+        }
+
+        /* ---------- mounting ---------- */
+        const host = document.createElement("section");
+        host.id = "ptHist";
+        document.getElementById("leaders").before(host);
+        let seq = 0;
+        async function draw() {
+          const name = typeof boardKey === "string" ? boardKey : null;
+          const my = ++seq;
+          if (!name) return;
+          const meta = boardByName(name);
+          if (name.startsWith("Overall")) {
+            host.innerHTML = `<div class="pt-card"><p class="pt-empty">Overall boards keep today's points only, so they have no history yet.</p></div>`;
+            return;
+          }
+          host.innerHTML = `<div class="pt-card"><p class="pt-empty">Loading history</p></div>`;
+          const d = await loadHist(name);
+          if (my !== seq) return;
+          if (!d) {
+            host.innerHTML = `<div class="pt-card"><p class="pt-empty">No history for ${esc(meta ? meta.display : name)}.</p></div>`;
+            return;
+          }
+          host.innerHTML = [vA, vB, vC, vD, vE][vi](d);
+          const s = document.getElementById("ptSlide");
+          if (s)
+            s.oninput = () => {
+              bIdx = +s.value;
+              draw();
+              requestAnimationFrame(() => document.getElementById("ptSlide")?.focus());
+            };
+          const m = document.getElementById("ptMore");
+          if (m)
+            m.onclick = () => {
+              cDays += 7;
+              draw();
+            };
+        }
+        const orig = renderBoard;
+        renderBoard = function () {
+          orig();
+          draw();
+        };
+      })();
+    </script>
+    <!-- ===================== /PROTOTYPE ===================== -->
   </body>
 </html>
