@@ -131,8 +131,9 @@ unset, for any host but localhost unless `--i-know-this-is-not-production` is pa
   later ones, so a seed stays until that branch is deleted. Copy its connection string
   from the Neon console, then from `web/`:
   `PRODUCTION_DB_ENDPOINT=<production endpoint ID> DATABASE_URL='<preview branch URL>' pnpm db:seed tiny`.
-  The preview reads the seeded rows once its cached reads are revalidated (the next deploy,
-  or a `POST /api/revalidate`).
+  The preview shows the seeded rows once its cached reads are revalidated, by a
+  `POST /api/revalidate` to it with the secret. A new deploy may not be: the Data Cache
+  can outlive a build.
 
 **Adding a dataset** is a module in `web/db/seed/datasets/` exporting a `Dataset` (a
 one-line `description` and a `seed(tx)` that inserts through the schema in `db/schema.ts`)

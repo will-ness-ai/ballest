@@ -26,24 +26,34 @@ function db(): Db {
   return client;
 }
 
+// The Data Cache outlives a build (locally it sits in .next/cache), and nothing ties it
+// to one Neon branch while each preview reads its own, so every key names the database
+// it was read from (host and database name, never the password).
+function databaseKey(url: string | undefined) {
+  if (!url) return "none";
+  const { host, pathname } = new URL(url);
+  return host + pathname;
+}
+const database = databaseKey(process.env.DATABASE_URL);
+
 const options = { tags: [DATA_TAG] };
 
 export const getBoard = unstable_cache(
   (name: string) => boardStandings(db(), name),
-  ["boardStandings"],
+  ["boardStandings", database],
   options,
 );
 
 export const getPlayer = unstable_cache(
   (steamId: string) => playerEntries(db(), steamId),
-  ["playerEntries"],
+  ["playerEntries", database],
   options,
 );
 
-export const getMaps = unstable_cache(() => mapList(db()), ["mapList"], options);
+export const getMaps = unstable_cache(() => mapList(db()), ["mapList", database], options);
 
 export const getScoreHistory = unstable_cache(
   (board: string) => scoreHistory(db(), board),
-  ["scoreHistory"],
+  ["scoreHistory", database],
   options,
 );
