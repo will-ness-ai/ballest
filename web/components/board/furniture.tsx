@@ -12,7 +12,7 @@ import { TRACKS, trackNo } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import type { PodiumPlayer, PodiumTally } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
-import { fmtN, fmtTime, hueFor, personaOf, plural, value } from "../../lib/rules";
+import { fmtN, fmtTime, hueFor, isPoints, personaOf, plural, value } from "../../lib/rules";
 
 const PLACE = ["1st", "2nd", "3rd"];
 
@@ -26,7 +26,7 @@ export function Tiles({
   count: number;
 }) {
   if (!rows.length) return <dl className="tiles" id="tiles"></dl>;
-  const points = name.startsWith("Overall");
+  const points = isPoints(name);
   const lead = rows[0],
     tenth = rows[Math.min(9, rows.length - 1)];
   const spread = points
@@ -112,7 +112,7 @@ export function ScorePlates({
   rows: Array<BoardRow>;
   focus: string | null;
 }) {
-  const points = name.startsWith("Overall"),
+  const points = isPoints(name),
     lead = rows[0] as BoardRow | undefined;
   return (
     <Plates
@@ -324,6 +324,6 @@ export function podiumRows(
 }
 
 export const countText = (b: IndexBoard) =>
-  b.name.startsWith("Overall")
+  isPoints(b.name)
     ? plural(b.entryCount, "player", "players")
     : plural(b.entryCount, "run", "runs");

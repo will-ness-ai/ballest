@@ -3,6 +3,7 @@
 // Tracks at once, which the All Seasons board shows beside its points. Only Tracks count:
 // an Overall board is points, not a race.
 import { CIRCUIT, COMPOSITE_GROUP, circuitBoard } from "./circuit";
+import { isPoints } from "./rules";
 
 export interface PodiumFinish {
   /* the Track's display name; in the All Seasons tally prefixed with its season */
@@ -88,7 +89,7 @@ function tally(
    Track counts once it has a placing, as build_podiums counted only the boards present. */
 export function podiumTallies(placings: ReadonlyArray<Placing>): Array<PodiumTally> {
   const present = new Set(placings.map((p) => p.board));
-  const tracks = CIRCUIT.filter((b) => b.name.startsWith("Map_") && present.has(b.name));
+  const tracks = CIRCUIT.filter((b) => !isPoints(b.name) && present.has(b.name));
   const groups = [...new Set(tracks.map((b) => b.group))];
   const display = (name: string) => circuitBoard(name)?.display ?? name;
   const seasons = groups
