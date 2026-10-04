@@ -94,6 +94,22 @@ Tests in `web/test/` each get a throwaway database on the Postgres at `TEST_DATA
 (`postgres://postgres:postgres@localhost:5432/postgres` by default), which `web.yml`
 provides in CI.
 
+### The read layer
+
+The app reads the database only through `web/db/data.ts`: a board's open Entries ranked
+(`getBoard`), a player's open Entries with their rank on each board (`getPlayer`), the Map
+list with each Map's latest `map_history` row (`getMaps`), and a board's Score history
+(`getScoreHistory`). Rank is computed, never stored: fastest first on a time board, most
+points first on one that `scores_points`, a tie going to the Entry first seen earlier and
+then to the lower Steam ID. The queries are in `web/db/reads.ts`, tested against `tiny`;
+`data.ts` wraps each in `unstable_cache` under the tag `data` (not `"use cache"`, which
+would need `cacheComponents`). Cached values are JSON, so times come back as ISO strings.
+
+`POST /api/revalidate` with `Authorization: Bearer $REVALIDATE_SECRET` expires the `data`
+tag; anything else, including a deploy with no secret set, gets a 401. The collector calls
+it once a Refresh has committed. `GET /api/db/board/<name>` returns `getBoard` as JSON, so
+a preview shows the database working; the page doesn't use it.
+
 ### Seeding a branch
 
 `pnpm db:seed <dataset>` in `web/` empties every table of the database at `DATABASE_URL`
