@@ -6,7 +6,7 @@ import { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useModalKeys } from "./Behaviours";
-import { useMounted, useNow } from "../lib/client";
+import { useMounted, useNow } from "../hooks/client";
 import { relTime } from "../lib/rules";
 
 export function Freshness({

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { PW_CHUNK, usePlayerView, type PwSort } from "./usePlayerView";
 import { MapImage } from "../MapImage";
-import { useDebounced } from "../../lib/client";
+import { useDebounced } from "../../hooks/client";
 import type { PlayerRecord, WorkshopFinish } from "../../lib/player";
 import { boardHref } from "../../lib/routes";
 import {

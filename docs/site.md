@@ -23,8 +23,8 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `rows.ts`, the row types the read layer returns.
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
     the rows it is given.
-  - `client.ts` and `me.ts`, the client-only hooks: the clock, debounced searches, and
-    "This is me".
+- `web/hooks/` — the client-only hooks: the clock and debounced searches (`client.ts`), and
+  "This is me" (`me.ts`).
 - `web/db/` — the read layer. `site.ts` is the SQL, `data.ts` the cached reads pages call
   (below), `schema.ts` the Drizzle schema the collector writes to.
 - `web/proxy.ts` — the checks that must answer before a page starts streaming: a real 404
@@ -128,7 +128,7 @@ maps, search and player pages, and its page shows the reason.
 `matchup` pairs two player records up: the rows both have a time on, each with its winner
 and margin, the tally for All, Circuit and Workshop, and the comparison band. The head to
 head page and a player page's score card both read it. The score card appears once "This
-is me" has put a Steam ID in `localStorage` (`lib/me.ts`). The Compare dialog searches
+is me" has put a Steam ID in `localStorage` (`hooks/me.ts`). The Compare dialog searches
 players through `/api/players`.
 
 ## Players

@@ -10,8 +10,8 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
 import type { Standings } from "../../lib/rows";
-import { useDebounced } from "../../lib/client";
-import { useMe } from "../../lib/me";
+import { useDebounced } from "../../hooks/client";
+import { useMe } from "../../hooks/me";
 import {
   PL_SCOPE_LABELS,
   plCol,

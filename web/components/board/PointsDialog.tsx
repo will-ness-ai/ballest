@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 
 import { useModalKeys } from "../Behaviours";
 import { S1_CURRENT_BOARD, S1_FINAL_BOARD } from "../../lib/circuit";
-import { useMounted } from "../../lib/client";
+import { useMounted } from "../../hooks/client";
 import { fmtN, ord, trackPoints } from "../../lib/rules";
 
 /* the "?" that opens how points work. On a desktop the Points column head carries it, so

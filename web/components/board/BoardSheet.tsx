@@ -5,7 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useModalKeys } from "../Behaviours";
-import { useMounted } from "../../lib/client";
+import { useMounted } from "../../hooks/client";
 
 export function BoardSheet({
   img,

@@ -15,7 +15,7 @@ import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
 import type { BoardPage, BoardRow } from "../../lib/rows";
-import { useDebouncedFetch } from "../../lib/client";
+import { useDebouncedFetch } from "../../hooks/client";
 import { podiumTotal, type Medals, type PodiumRow } from "../../lib/podiums";
 import { BOARD_CHUNK, fmtN, fmtTime, hueFor, ord, personaOf, plural } from "../../lib/rules";
 

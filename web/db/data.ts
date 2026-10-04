@@ -5,13 +5,15 @@
 // preview's entries never mix with another deploy's.
 //
 // Only what a page shows unasked is cached; a search is read fresh, since its keys would
-// never repeat.
+// never repeat. What a reader can name in a URL (a player, a slice of a board) is checked
+// against what exists, or read in fixed blocks, before it reaches the cache, so a script
+// walking made-up IDs or offsets can't fill it.
 import { cacheLife, cacheTag } from "next/cache";
 
-import { CIRCUIT } from "../lib/circuit";
+import { CIRCUIT, circuitBoard } from "../lib/circuit";
 import { playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
 import { podiumTallies, type PodiumTally } from "../lib/podiums";
-import type { WorkshopMap } from "../lib/rows";
+import type { BoardPage, WorkshopMap } from "../lib/rows";
 import { mapCard, timed, type MapCard } from "../lib/workshop";
 import { connect, type Db } from "./client";
 import * as q from "./site";
@@ -34,7 +36,7 @@ export interface Site {
   refreshedAt: string | null;
   mapsReadBy: string | null;
   /* refreshedAt in Unix ms, or 0 before the first Refresh: what an age counts to until the
-     browser's clock takes over (useClock in lib/client.ts) */
+     browser's clock takes over (useClock in hooks/client.ts) */
   asOf: number;
   /* every Circuit board in the site's order, with how many it ranks */
   boards: Array<IndexBoard>;
@@ -80,12 +82,44 @@ export async function getMapCards(): Promise<Array<MapCard>> {
   return timed(await getWorkshop()).map(mapCard);
 }
 
-/* a slice of a board in rank order, unfiltered */
+/* a slice of a board in rank order, unfiltered; for the fixed slices a page shows */
 export async function getBoardPage(name: string, from: number, count: number) {
   "use cache";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.boardPage(db(), name, { from, count });
+}
+
+/* rows a board is cached in for reads from the URL: a list growing as the reader scrolls,
+   or reading down to a player's row, asks for any slice, and gets it cut from these */
+const BLOCK = 1000;
+
+async function getBoardBlock(name: string, k: number) {
+  "use cache";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.boardPage(db(), name, { from: k * BLOCK, count: BLOCK });
+}
+
+/* any slice of a board in rank order, unfiltered, read through whole blocks; only a block
+   inside the board is ever read */
+export async function readBoard(name: string, from: number, count: number): Promise<BoardPage> {
+  const head = await getBoardBlock(name, 0);
+  const end = Math.min(from + count, head.total);
+  if (end <= from) return { total: head.total, rows: [] };
+  const first = Math.floor(from / BLOCK);
+  const blocks = await Promise.all(
+    Array.from({ length: Math.floor((end - 1) / BLOCK) - first + 1 }, (_, i) =>
+      first + i ? getBoardBlock(name, first + i) : Promise.resolve(head),
+    ),
+  );
+  const at = from - first * BLOCK;
+  return { total: head.total, rows: blocks.flatMap((b) => b.rows).slice(at, at + end - from) };
+}
+
+/* whether a board can be read: a Circuit board, or a Map the Workshop lists */
+export async function isBoard(name: string): Promise<boolean> {
+  return !!circuitBoard(name) || (await getWorkshop()).some((m) => m.name === name);
 }
 
 /* the rows of a board whose persona or Steam ID contains `query`, read fresh */
@@ -103,13 +137,34 @@ export async function getBoardScores(name: string) {
 /* where `ids` stand on a board: an Overall board's podium order says where each player on
    a podium stands on points, and a link to a player's row on a board needs their rank */
 export async function getBoardPlaces(name: string, ids: ReadonlyArray<string>) {
+  const known = await getPlayerIds();
+  return boardPlaces(
+    name,
+    ids.filter((id) => known.includes(id)),
+  );
+}
+
+async function boardPlaces(name: string, ids: ReadonlyArray<string>) {
   "use cache";
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.boardPlaces(db(), name, ids);
 }
 
+/* every Steam ID the database has seen */
+async function getPlayerIds(): Promise<Array<string>> {
+  "use cache";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.playerIds(db());
+}
+
+/* a player's record, or null for a Steam ID nobody raced under */
 export async function getPlayer(steamId: string): Promise<PlayerRecord | null> {
+  return (await getPlayerIds()).includes(steamId) ? playerOf(steamId) : null;
+}
+
+async function playerOf(steamId: string): Promise<PlayerRecord | null> {
   "use cache";
   cacheTag(DATA_TAG);
   cacheLife("max");

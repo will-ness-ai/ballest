@@ -38,8 +38,10 @@ const listedMapsSql = sql`select m.board from maps m join (
 /* A persona, or the stand-in the page shows for a player Steam gave no name */
 const personaSql = sql`coalesce(nullif(p.persona, ''), 'Player ' || right(p.steam_id, 6))`;
 
-/* a search box's text as a LIKE pattern that matches it anywhere, taken literally */
-const contains = (q: string) => "%" + q.replace(/[\\%_]/g, (c) => "\\" + c) + "%";
+/* a search box's text taken literally in a LIKE pattern, and the patterns that match it
+   anywhere or at the start */
+const literal = (q: string) => q.replace(/[\\%_]/g, (c) => "\\" + c);
+const contains = (q: string) => "%" + literal(q) + "%";
 
 export async function freshness(db: Db): Promise<Freshness> {
   const [r] = await rows<{ refreshed: Date | null; maps: Date | null }>(
@@ -99,6 +101,12 @@ export async function boardPage(
     (await rows<{ n: number }>(db, sql`select count(*)::int as n from (${matched}) m`))[0].n;
   for (const r of found) delete (r as Partial<typeof r>).total;
   return { total, rows: found };
+}
+
+/* Every Steam ID the database has seen, in no order */
+export async function playerIds(db: Db): Promise<Array<string>> {
+  const found = await rows<{ id: string }>(db, sql`select steam_id as id from players`);
+  return found.map((r) => r.id);
 }
 
 /* Every score on a board in rank order: how its runs spread out, for a chart */
@@ -258,7 +266,7 @@ export async function searchPlayers(
 ): Promise<Array<NameHit>> {
   const term = q.trim().toLowerCase();
   if (!term) return [];
-  const starts = term.replace(/[\\%_]/g, (c) => "\\" + c) + "%";
+  const starts = literal(term) + "%";
   return rows<NameHit>(
     db,
     sql`select p.steam_id as "steamId", p.persona, nullif(p.avatar, '') as avatar

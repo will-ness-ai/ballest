@@ -4,7 +4,7 @@
 // reads it updates when any of them sets it.
 import { useSyncExternalStore } from "react";
 
-import { isSteamId } from "./rules";
+import { isSteamId } from "../lib/rules";
 
 const ME_KEY = "ballest-me";
 const listeners = new Set<() => void>();

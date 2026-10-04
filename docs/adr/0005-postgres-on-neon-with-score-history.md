@@ -12,8 +12,8 @@ database branch, so a preview can be seeded with whatever dataset it needs.
 What gets stored is only what Steam says, as **score history**: one row per board, player
 and score, with when it was first and last seen, written only when a score changes and
 closed off, never deleted, when a player drops off a board. Ranks are not stored (they
-come from the scores at any moment, and storing them would rewrite thousands of rows
-whenever someone near the top moves), and neither are the derived boards, podiums or
+come from the scores at any moment, equal scores in Steam's own order by Steam ID, and
+storing them would rewrite thousands of rows whenever someone near the top moves), and neither are the derived boards, podiums or
 standings, which the app computes and caches. Overall boards are the one exception to
 keeping every score: their points move for most players on every Refresh as others pass
 them, which in the backfill was 85% of all rows and about 70,000 more a day, past Neon's

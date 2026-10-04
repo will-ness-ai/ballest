@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { useEffect, useSyncExternalStore } from "react";
 
-import { never } from "../lib/client";
+import { never } from "../hooks/client";
 import { homeHref } from "../lib/routes";
 
 interface Back {

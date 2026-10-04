@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MapGrid } from "./Card";
 import { BackLink } from "../BackLink";
 import { useModalKeys } from "../Behaviours";
-import { useClock } from "../../lib/client";
+import { useClock } from "../../hooks/client";
 import { homeHref, mapsHref } from "../../lib/routes";
 import { plural } from "../../lib/rules";
 import {

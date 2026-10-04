@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 
 import { Score } from "./Score";
 import { Marble } from "../Marble";
-import { setMe, useMe } from "../../lib/me";
+import { setMe, useMe } from "../../hooks/me";
 import { matchup, type PlayerRecord } from "../../lib/player";
 import { vsHref } from "../../lib/routes";
 import { personaOf, plural } from "../../lib/rules";

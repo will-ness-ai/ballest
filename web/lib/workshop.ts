@@ -2,7 +2,7 @@
 // figure each shows, the Refine panel's filters, All maps' ready-made views, the
 // homepage's shelves and carousel picks, and the Maps kept off the homepage. Pure, so the
 // server pages, the client views and the /api/maps search all use one copy. Anything that
-// reads the clock takes `now`, so a cached page never freezes it (lib/client.ts useNow).
+// reads the clock takes `now`, so a cached page never freezes it (hooks/client.ts useNow).
 import type { WorkshopMap } from "./rows";
 import { SCORE_TICKS_PER_SECOND, ageDays, ageText, fmtN, fmtSec, plural, secs } from "./rules";
 

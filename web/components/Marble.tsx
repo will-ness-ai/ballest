@@ -3,7 +3,7 @@
 // Server and client components both draw them; each ball's gradient gets its own id.
 import { useId } from "react";
 
-import { hueFor, personaOf } from "../lib/rules";
+import { hueFor, personaOf, safeImg } from "../lib/rules";
 
 export function Ball({ h }: { h: number }) {
   const id = useId();
@@ -61,7 +61,8 @@ export interface MarbleWho {
 export function Marble({ who }: { who: MarbleWho }) {
   const h = hueFor(who.steamId);
   const style = { "--h": h } as React.CSSProperties;
-  if (!who.avatar)
+  const avatar = safeImg(who.avatar);
+  if (!avatar)
     return (
       <span className="marble" style={style}>
         <Ball h={h} />
@@ -75,7 +76,7 @@ export function Marble({ who }: { who: MarbleWho }) {
       aria-label={`Show ${personaOf(who)}'s Steam avatar`}
     >
       <Ball h={h} />
-      <img className="face" src={who.avatar} alt="" loading="lazy" decoding="async" />
+      <img className="face" src={avatar} alt="" loading="lazy" decoding="async" />
     </button>
   );
 }

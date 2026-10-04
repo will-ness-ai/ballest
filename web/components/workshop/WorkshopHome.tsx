@@ -8,7 +8,7 @@ import { useState } from "react";
 
 import { CreatorLink, MapCardLink, MapGrid, PodLine } from "./Card";
 import { MapImage } from "../MapImage";
-import { useClock, useDebouncedFetch } from "../../lib/client";
+import { useClock, useDebouncedFetch } from "../../hooks/client";
 import { mapHref, mapsHref } from "../../lib/routes";
 import { fmtN, fmtTime, plural } from "../../lib/rules";
 import {

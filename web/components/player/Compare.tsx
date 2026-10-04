@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
 import { useModalKeys } from "../Behaviours";
 import { Marble } from "../Marble";
 import type { NameHit } from "../../lib/rows";
-import { useDebouncedFetch } from "../../lib/client";
+import { useDebouncedFetch } from "../../hooks/client";
 import type { Who } from "../../lib/player";
 import { vsHref } from "../../lib/routes";
 import { personaOf } from "../../lib/rules";
