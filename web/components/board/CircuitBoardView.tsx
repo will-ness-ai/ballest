@@ -19,9 +19,10 @@ import {
 import { CHUNK } from "./parts";
 import { PointsDialog } from "./PointsDialog";
 import { RailItems } from "./Rail";
+import { RememberBoard } from "./RememberBoard";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import { TRACKS, circuitBoard, trackNo } from "../../lib/circuit";
-import { PODIUM_SORT } from "../../lib/routes";
+import { PODIUM_SORT, boardHref } from "../../lib/routes";
 import { isPoints, isSteamId } from "../../lib/rules";
 
 export async function CircuitBoardView({ name, slot }: { name: string; slot: string | null }) {
@@ -124,6 +125,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
         )}
       </section>
       {points && <PointsDialog board={name} tracks={tracks} />}
+      <RememberBoard href={boardHref(name, podiums ? PODIUM_SORT : null)} label={b.display} />
     </div>
   );
 }
