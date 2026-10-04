@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { Shell } from "../../../components/Shell";
+import { PlayersSkeleton } from "../../../components/Skeleton";
 import { PlayersTable } from "../../../components/players/PlayersTable";
 import { getStandings } from "../../../db/data";
 import { plValid } from "../../../lib/players";
@@ -49,22 +50,11 @@ async function Table({ params }: Pick<Props, "params">) {
   );
 }
 
-/* the table's rows as grey bars, as the single-page site showed while standings.json loaded */
-function Skeleton() {
-  return Array.from({ length: 8 }, (_, i) => (
-    <div className="skel" key={i}>
-      <span></span>
-      <span></span>
-      <span></span>
-    </div>
-  ));
-}
-
 export default function Page({ params }: Props) {
   return (
     <Shell view="players">
       <section className="pls" id="pls">
-        <Suspense fallback={<Skeleton />}>
+        <Suspense fallback={<PlayersSkeleton />}>
           <Table params={params} />
         </Suspense>
       </section>

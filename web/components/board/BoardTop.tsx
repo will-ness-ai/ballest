@@ -4,17 +4,33 @@
 // A Map's page uses the tiles-free parts: the plates and the list.
 import Link from "next/link";
 
-import { Facts, MedalCounts, PlayerLink, QMark, Spread, podiumTotal } from "./parts";
-import type { PodiumRow } from "./BoardBody";
+import { QMark } from "./PointsDialog";
+import { Spread } from "./Spread";
 import { Marble } from "../Marble";
-import type { BoardRow } from "../../lib/rows";
+import { MedalCounts } from "../MedalCounts";
+import { PlayerLink } from "../PlayerLink";
 import { TRACKS, trackNo } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
-import type { PodiumPlayer, PodiumTally } from "../../lib/podiums";
+import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
-import { fmtN, fmtTime, hueFor, isPoints, personaOf, plural, value } from "../../lib/rules";
+import { fmtN, fmtTime, hueFor, isPoints, personaOf, value } from "../../lib/rules";
+import type { BoardRow } from "../../lib/rows";
 
 const PLACE = ["1st", "2nd", "3rd"];
+
+/* a card's facts, each a label over its value */
+function Facts({ facts }: { facts: ReadonlyArray<[string, React.ReactNode]> }) {
+  return (
+    <dl className="bc-facts">
+      {facts.map(([k, v]) => (
+        <div key={k}>
+          <dt>{k}</dt>
+          <dd>{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 export function Tiles({
   name,
@@ -305,25 +321,3 @@ export function OverallCard({
     </div>
   );
 }
-
-/* an Overall board's podium order: its tally's players with where each stands on points */
-export function podiumRows(
-  tally: PodiumTally,
-  places: Record<string, { rank: number; score: number }>,
-): Array<PodiumRow> {
-  return tally.players.map((p) => ({
-    steamId: p.steamId,
-    persona: p.persona,
-    avatar: p.avatar,
-    gold: p.gold,
-    silver: p.silver,
-    bronze: p.bronze,
-    rank: p.rank,
-    points: places[p.steamId] ?? null,
-  }));
-}
-
-export const countText = (b: IndexBoard) =>
-  isPoints(b.name)
-    ? plural(b.entryCount, "player", "players")
-    : plural(b.entryCount, "run", "runs");

@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Score } from "./pieces";
+import { Score } from "./Score";
 import { Marble } from "../Marble";
 import { setMe, useMe } from "../../lib/me";
 import { matchup, type PlayerRecord } from "../../lib/player";

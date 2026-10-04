@@ -34,7 +34,8 @@ const trackPointsSql = (rank: SQL) => sql`(case when ${rank} <= 10 then 40000 / 
          / (1000::bigint * (2::bigint ^ (length((${rank} - 1)::text) - 1))::bigint * ${rank})
     end)::bigint`;
 
-const array = (names: ReadonlyArray<string>) =>
+/* a list of names as a Postgres text[] */
+export const array = (names: ReadonlyArray<string>) =>
   sql`array[${sql.join(
     names.map((n) => sql`${n}`),
     sql`, `,

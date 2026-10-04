@@ -6,7 +6,8 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { CreatorLink, MapCardLink, MapGrid, MapImg, PodLine } from "./Card";
+import { CreatorLink, MapCardLink, MapGrid, PodLine } from "./Card";
+import { MapImage } from "../MapImage";
 import { useClock, useDebouncedFetch } from "../../lib/client";
 import { mapHref, mapsHref } from "../../lib/routes";
 import { fmtN, fmtTime, plural } from "../../lib/rules";
@@ -46,7 +47,11 @@ function Carousel({ picks, now }: { picks: ReadonlyArray<Pick>; now: number }) {
     >
       <div className="car-pic">
         {picks.map((x, i) => (
-          <MapImg key={x.m.pfid} m={x.m} className={"sl" + (i === slide ? " on" : "")} />
+          <MapImage
+            key={x.m.pfid}
+            preview={x.m.preview}
+            className={"sl" + (i === slide ? " on" : "")}
+          />
         ))}
       </div>
       <div id="carInfo">

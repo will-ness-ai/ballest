@@ -7,8 +7,8 @@ import { Suspense } from "react";
 
 import { DocTitle } from "../../../../components/Behaviours";
 import { Shell } from "../../../../components/Shell";
+import { PlayerSkeleton } from "../../../../components/Skeleton";
 import { VsView } from "../../../../components/player/VsView";
-import { PageFallback } from "../../../../components/player/pieces";
 import { getBoardPage, getPlayer } from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
 import type { PlayerRecord } from "../../../../lib/player";
@@ -61,7 +61,7 @@ async function Vs({ params }: Pick<Props, "params">) {
 export default function Page({ params }: Props) {
   return (
     <Shell view="vs">
-      <Suspense fallback={<PageFallback id="vs" className="pp vsp" />}>
+      <Suspense fallback={<PlayerSkeleton id="vs" className="pp vsp" />}>
         <Vs params={params} />
       </Suspense>
     </Shell>

@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { Shell } from "../../../../components/Shell";
-import { BoardFallback } from "../../../../components/board/BoardFallback";
+import { BoardSkeleton } from "../../../../components/Skeleton";
 import { CircuitBoardView } from "../../../../components/board/CircuitBoardView";
 import { CIRCUIT, circuitBoard } from "../../../../lib/circuit";
 import { PODIUM_SORT } from "../../../../lib/routes";
@@ -42,7 +42,7 @@ async function Board({ params }: Pick<Props, "params">) {
 export default function Page({ params }: Props) {
   return (
     <Shell view="board">
-      <Suspense fallback={<BoardFallback />}>
+      <Suspense fallback={<BoardSkeleton />}>
         <Board params={params} />
       </Suspense>
     </Shell>

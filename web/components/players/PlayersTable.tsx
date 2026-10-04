@@ -8,7 +8,7 @@ import Link from "next/link";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Marble } from "../Marble";
-import { PlayerLink } from "../board/parts";
+import { PlayerLink } from "../PlayerLink";
 import type { Standings } from "../../lib/rows";
 import { useDebounced } from "../../lib/client";
 import { useMe } from "../../lib/me";

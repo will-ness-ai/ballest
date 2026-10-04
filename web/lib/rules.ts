@@ -59,6 +59,15 @@ export function fmtTime(score: number) {
   );
 }
 
+/* how many a board ranks, in its own noun: players on an Overall board, else runs */
+export const countText = (b: { name: string; entryCount: number }) =>
+  isPoints(b.name)
+    ? plural(b.entryCount, "player", "players")
+    : plural(b.entryCount, "run", "runs");
+
+/* rows a board's list adds per scroll step; a page draws the first step under its plates */
+export const BOARD_CHUNK = 50;
+
 /* a score in the board's own unit: points on an Overall board, else a time */
 export const value = (boardName: string, n: number) => (isPoints(boardName) ? fmtN(n) : fmtTime(n));
 

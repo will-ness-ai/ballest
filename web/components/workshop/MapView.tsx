@@ -3,17 +3,18 @@
 // no tiles or card. `focus` is a Steam ID whose row to find and mark.
 import { notFound, redirect } from "next/navigation";
 
-import { CreatorLink, MapImg } from "./Card";
+import { CreatorLink } from "./Card";
 import { Age } from "./Age";
 import { BackLink } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardBody } from "../board/BoardBody";
-import { ScorePlates } from "../board/furniture";
-import { CHUNK, Spread } from "../board/parts";
+import { MapImage } from "../MapImage";
+import { ScorePlates } from "../board/BoardTop";
+import { Spread } from "../board/Spread";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import type { WorkshopMap } from "../../lib/rows";
 import { homeHref } from "../../lib/routes";
-import { MEDALS, fmtN, fmtSec, fmtTime, isSteamId } from "../../lib/rules";
+import { BOARD_CHUNK, MEDALS, fmtN, fmtSec, fmtTime, isSteamId } from "../../lib/rules";
 import { HIDDEN, reportHref } from "../../lib/workshop";
 
 function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; asOf: number }) {
@@ -21,7 +22,7 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
   return (
     <aside className="mpanel" id="mpanel">
       <BackLink trail="maps" />
-      <MapImg m={m} className="mp-img" />
+      <MapImage preview={m.preview} className="mp-img" />
       <div>
         <h1 className="mp-t">{m.title}</h1>
         <span className="mp-by">
@@ -91,7 +92,7 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
   const name = m.name;
   const [site, page, scores, places] = await Promise.all([
     getSite(),
-    getBoardPage(name, 0, CHUNK + 3),
+    getBoardPage(name, 0, BOARD_CHUNK + 3),
     getBoardScores(name),
     focus ? getBoardPlaces(name, [focus]) : Promise.resolve(null),
   ]);

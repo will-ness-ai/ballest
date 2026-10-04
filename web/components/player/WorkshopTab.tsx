@@ -5,8 +5,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { Medal, Thumb } from "./pieces";
 import { PW_CHUNK, usePlayerView, type PwSort } from "./usePlayerView";
+import { MapImage } from "../MapImage";
 import { useDebounced } from "../../lib/client";
 import type { PlayerRecord, WorkshopFinish } from "../../lib/player";
 import { boardHref } from "../../lib/routes";
@@ -23,6 +23,20 @@ import {
 } from "../../lib/rules";
 
 const PW_SHELF = 14;
+
+/* a Medal as the trophy shelf and each row draw it */
+function Medal({ t, size, mini }: { t: Tier; size: number; mini?: boolean }) {
+  return (
+    <span
+      className={mini ? "medal mini" : "medal"}
+      data-t={t}
+      style={{ "--s": String(size) + "px" } as React.CSSProperties}
+      title={TIER_LABEL[t]}
+    >
+      {t === "wr" ? "1" : ""}
+    </span>
+  );
+}
 
 type Cmp = (a: WorkshopFinish, b: WorkshopFinish) => number;
 const SORTS: Record<PwSort, [string, Cmp]> = {
@@ -115,7 +129,7 @@ function ShelfCard({
   return (
     <Link className="scard" href={boardHref(f.name, id)}>
       <span className="top">
-        <Thumb preview={f.preview} />
+        <MapImage preview={f.preview} frame />
         <span>
           <b>{f.display}</b>
           <span className="by">{"by " + f.creator}</span>
@@ -129,7 +143,7 @@ function ShelfCard({
 function Row({ f, id }: { f: WorkshopFinish; id: string }) {
   return (
     <Link className="wrow" href={boardHref(f.name, id)}>
-      <Thumb preview={f.preview} />{" "}
+      <MapImage preview={f.preview} frame />{" "}
       <span className="wt">
         <b>{f.display}</b>
         <small>{"by " + f.creator}</small>{" "}

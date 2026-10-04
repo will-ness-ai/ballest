@@ -7,7 +7,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { CIRCUIT, S1_TRACKS, S2_TRACKS } from "../lib/circuit";
 import { CREATOR_BEAT_MARGIN_TICKS, SCORE_TICKS_PER_SECOND } from "../lib/rules";
 import type { Db } from "./client";
-import { DERIVED, boardSql, rankedSql } from "./boards";
+import { DERIVED, array, boardSql, rankedSql } from "./boards";
 import type {
   BoardPage,
   BoardRow,
@@ -27,12 +27,6 @@ const TRACKS = [...S1_TRACKS, ...S2_TRACKS];
 async function rows<T>(db: Db, query: SQL): Promise<Array<T>> {
   return (await db.execute(query)).rows as Array<T>;
 }
-
-const array = (names: ReadonlyArray<string>) =>
-  sql`array[${sql.join(
-    names.map((n) => sql`${n}`),
-    sql`, `,
-  )}]::text[]`;
 
 /* The boards of the Maps the Workshop lists now: those the latest catalogue carried. A
    Map gone from the Workshop keeps its rows, but nothing reads it again (docs/data.md). */

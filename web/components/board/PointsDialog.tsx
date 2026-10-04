@@ -1,6 +1,6 @@
 "use client";
-// How points work: opened from any "?" on an Overall board. Season 1 has two Overall
-// boards, so there it also says which one this is.
+// How points work: the dialog, and the "?" on an Overall board that opens it. Season 1 has
+// two Overall boards, so there it also says which one this is.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -8,6 +8,22 @@ import { useModalKeys } from "../Behaviours";
 import { S1_CURRENT_BOARD, S1_FINAL_BOARD } from "../../lib/circuit";
 import { useMounted } from "../../lib/client";
 import { fmtN, ord, trackPoints } from "../../lib/rules";
+
+/* the "?" that opens how points work. On a desktop the Points column head carries it, so
+   the card's copy shows only on a phone, or with `always` when the board is sorted by
+   podiums and there is no Points column */
+export function QMark({ always }: { always?: boolean }) {
+  return (
+    <button
+      type="button"
+      className={always ? "qmark always" : "qmark"}
+      data-ptsx=""
+      aria-label="How points work"
+    >
+      ?
+    </button>
+  );
+}
 
 export function PointsDialog({ board, tracks }: { board: string; tracks: number }) {
   const mounted = useMounted();

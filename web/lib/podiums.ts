@@ -1,10 +1,19 @@
 // Who holds the podium places across a season's Tracks, as build_podiums in
 // tools/campaign_common.py tallied them: a tally per season, then one over every season's
 // Tracks at once, which the All Seasons board shows beside its points. Only Tracks count:
-// an Overall board is points, not a race.
+// an Overall board is points, not a race. An Overall board's podium order lists a tally's
+// players with where each stands on points (podiumRows).
 import { CIRCUIT, COMPOSITE_GROUP, circuitBoard } from "./circuit";
 import type { Placing } from "./rows";
 import { isPoints } from "./rules";
+
+/* gold, silver and bronze: a player's podium places */
+export interface Medals {
+  gold: number;
+  silver: number;
+  bronze: number;
+}
+export const podiumTotal = (p: Medals) => p.gold + p.silver + p.bronze;
 
 export interface PodiumFinish {
   /* the Track's display name; in the All Seasons tally prefixed with its season */
@@ -13,13 +22,10 @@ export interface PodiumFinish {
   score: number;
 }
 
-export interface PodiumPlayer {
+export interface PodiumPlayer extends Medals {
   steamId: string;
   persona: string;
   avatar: string | null;
-  gold: number;
-  silver: number;
-  bronze: number;
   finishes: Array<PodiumFinish>;
   /* equal counts share a rank (1, 2, 2, 4) */
   rank: number;
@@ -104,4 +110,30 @@ export function podiumTallies(placings: ReadonlyArray<Placing>): Array<PodiumTal
       ),
     );
   return seasons;
+}
+
+/* a player on an Overall board's podium order, with where they stand on points */
+export interface PodiumRow extends Medals {
+  steamId: string;
+  persona: string;
+  avatar: string | null;
+  rank: number;
+  points: { rank: number; score: number } | null;
+}
+
+/* an Overall board's podium order: its tally's players with where each stands on points */
+export function podiumRows(
+  tally: PodiumTally,
+  places: Record<string, { rank: number; score: number }>,
+): Array<PodiumRow> {
+  return tally.players.map((p) => ({
+    steamId: p.steamId,
+    persona: p.persona,
+    avatar: p.avatar,
+    gold: p.gold,
+    silver: p.silver,
+    bronze: p.bronze,
+    rank: p.rank,
+    points: places[p.steamId] ?? null,
+  }));
 }
