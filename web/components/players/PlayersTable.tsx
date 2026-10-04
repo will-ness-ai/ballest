@@ -10,6 +10,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { Marble } from "../Marble";
 import { PlayerLink } from "../board/parts";
 import type { Standings } from "../../db/site";
+import { useDebounced } from "../../lib/client";
 import { useMe } from "../../lib/me";
 import {
   PL_SCOPE_LABELS,
@@ -212,16 +213,10 @@ export function PlayersTable({
 }) {
   const me = useMe();
   const [text, setText] = useState(keptQuery);
-  const [query, setQuery] = useState(keptQuery);
+  const query = useDebounced(text);
   useEffect(() => {
-    const t = setTimeout(() => {
-      keptQuery = text;
-      setQuery(text);
-    }, 120);
-    return () => {
-      clearTimeout(t);
-    };
-  }, [text]);
+    keptQuery = query;
+  }, [query]);
 
   const players = useMemo(() => standings.players.map(plPlayer), [standings]);
   const all = useMemo(() => plRank(players, scope, sort), [players, scope, sort]);

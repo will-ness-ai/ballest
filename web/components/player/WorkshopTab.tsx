@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Medal, Thumb } from "./pieces";
 import { PW_CHUNK, usePlayerView, type PwSort } from "./usePlayerView";
+import { useDebounced } from "../../lib/client";
 import type { PlayerRecord, WorkshopFinish } from "../../lib/player";
 import { boardHref } from "../../lib/routes";
 import {
@@ -152,13 +153,10 @@ function Row({ f, id }: { f: WorkshopFinish; id: string }) {
 
 export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"] }) {
   const [pw, setPw] = usePlayerView(id);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  useEffect(
-    () => () => {
-      clearTimeout(timer.current);
-    },
-    [],
-  );
+  /* the search box's text, which reaches the view (and starts the list over) once it settles */
+  const [text, setText] = useState(pw.q);
+  const settled = useDebounced(text);
+  if (settled !== pw.q) setPw((p) => ({ ...p, q: settled, shown: PW_CHUNK }));
   if (!w.finishes.length)
     return (
       <div className="pws">
@@ -248,11 +246,7 @@ export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"]
           autoComplete="off"
           defaultValue={pw.q}
           onInput={(e) => {
-            const v = e.currentTarget.value;
-            clearTimeout(timer.current);
-            timer.current = setTimeout(() => {
-              setPw((p) => ({ ...p, q: v, shown: PW_CHUNK }));
-            }, 120);
+            setText(e.currentTarget.value);
           }}
         />{" "}
         <select

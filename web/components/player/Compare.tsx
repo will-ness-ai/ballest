@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { useModalKeys } from "../Behaviours";
 import { Marble } from "../Marble";
 import type { NameHit } from "../../db/site";
+import { useDebouncedFetch } from "../../lib/client";
 import type { Who } from "../../lib/player";
 import { vsHref } from "../../lib/routes";
 import { personaOf } from "../../lib/rules";
@@ -19,73 +20,43 @@ export interface CompareAsk {
   side: "a" | "b";
 }
 
-type Hits = Array<NameHit> | "failed" | null;
-
+/* only an open dialog is drawn: a page the router keeps hidden for going back to must
+   not leave a second one in the document. Each opening is drawn afresh, so it starts
+   empty, and an answer to the last one's search never reaches it. */
 export function CompareDialog({ ask, close }: { ask: CompareAsk | null; close: () => void }) {
+  return ask ? <Open key={ask.side + ask.keep.steamId} ask={ask} close={close} /> : null;
+}
+
+function Open({ ask, close }: { ask: CompareAsk; close: () => void }) {
   const router = useRouter();
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  /* the hits belong to the opening they were found in, so a new one starts empty */
-  const [found, setFound] = useState<{ ask: CompareAsk; hits: Hits } | null>(null);
-  const hits = found?.ask === ask ? found.hits : null;
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const asked = useRef(0);
-  useModalKeys(!!ask, box, close);
-
-  /* each opening starts empty, with the box focused */
-  useEffect(() => {
-    if (!ask) return;
-    if (input.current) {
-      input.current.value = "";
-      input.current.focus();
-    }
-    const n = asked;
-    return () => {
-      clearTimeout(timer.current);
-      n.current++;
-    };
-  }, [ask]);
-
-  const search = useCallback(
-    (q: string) => {
-      if (!ask) return;
-      const n = ++asked.current;
-      if (!q.trim()) {
-        setFound(null);
-        return;
-      }
-      const url =
-        "/api/players?q=" +
-        encodeURIComponent(q.trim()) +
-        "&except=" +
-        encodeURIComponent(ask.keep.steamId);
-      fetch(url)
-        .then((r) => {
-          if (!r.ok) throw new Error("players -> " + String(r.status));
-          return r.json() as Promise<Array<NameHit>>;
-        })
-        .then(
-          (list) => {
-            if (n === asked.current) setFound({ ask, hits: list });
-          },
-          () => {
-            if (n === asked.current) setFound({ ask, hits: "failed" });
-          },
-        );
+  const [text, setText] = useState("");
+  const keep = ask.keep.steamId;
+  const read = useCallback(
+    async (q: string) => {
+      const r = await fetch(
+        "/api/players?q=" + encodeURIComponent(q) + "&except=" + encodeURIComponent(keep),
+      );
+      if (!r.ok) throw new Error("players -> " + String(r.status));
+      return (await r.json()) as Array<NameHit>;
     },
-    [ask],
+    [keep],
   );
+  const found = useDebouncedFetch(text.trim(), read);
+  const hits = found.failed ? "failed" : (found.last?.data ?? null);
+  useModalKeys(true, box, close);
+
+  /* the box opens focused */
+  useEffect(() => {
+    input.current?.focus();
+  }, []);
 
   const pick = (id: string) => {
-    if (!ask) return;
-    const keep = ask.keep.steamId;
     close();
     router.push(ask.side === "a" ? vsHref(id, keep) : vsHref(keep, id));
   };
 
-  /* only an open dialog is drawn: a page the router keeps hidden for going back to must
-     not leave a second one in the document */
-  if (!ask) return null;
   return createPortal(
     <>
       <div className="dscrim" id="cmpScrim" onClick={close} />
@@ -112,11 +83,7 @@ export function CompareDialog({ ask, close }: { ask: CompareAsk | null; close: (
           aria-label="Find a player"
           autoComplete="off"
           onInput={(e) => {
-            const v = e.currentTarget.value;
-            clearTimeout(timer.current);
-            timer.current = setTimeout(() => {
-              search(v);
-            }, 120);
+            setText(e.currentTarget.value);
           }}
           onKeyDown={(e) => {
             if (e.key !== "Enter") return;

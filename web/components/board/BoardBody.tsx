@@ -13,6 +13,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { CHUNK, MedalCounts, PlayerLink, QMark, podiumTotal, type Medals } from "./parts";
 import { Marble } from "../Marble";
 import type { BoardPage, BoardRow } from "../../db/site";
+import { useDebouncedFetch } from "../../lib/client";
 import { fmtN, fmtTime, hueFor, ord, personaOf, plural } from "../../lib/rules";
 
 /* a player on an Overall board's podium order, with where they stand on points */
@@ -287,11 +288,6 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
     total: count - base,
   });
   const reading = useRef(false);
-  /* the search the reader wants now, so a slow answer to an older one is dropped */
-  const want = useRef(q);
-  useEffect(() => {
-    want.current = q;
-  }, [q]);
 
   const read = useCallback(
     async (forQ: string, from: number, n: number) => {
@@ -304,21 +300,21 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
     [name],
   );
 
-  /* a new search starts its list over; clearing it goes back to the board */
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (!q) {
-        setFound((f) => (f.q ? { q: "", rows: initial, ahead: [], total: count - base } : f));
-        return;
-      }
-      void read(q, 0, CHUNK).then((page) => {
-        if (want.current === q) setFound({ q, rows: page.rows, ahead: [], total: page.total });
-      });
-    }, 120);
-    return () => {
-      clearTimeout(t);
-    };
-  }, [q, read, initial, count, base]);
+  /* a new search starts its list over with its first page; clearing it goes back to the
+     board */
+  const firstPage = useCallback((forQ: string) => read(forQ, 0, CHUNK), [read]);
+  const search = useDebouncedFetch(q, firstPage).last;
+  const [took, setTook] = useState(search);
+  if (search !== took) {
+    setTook(search);
+    setFound((f) =>
+      search
+        ? { q: search.key, rows: search.data.rows, ahead: [], total: search.data.total }
+        : f.q
+          ? { q: "", rows: initial, ahead: [], total: count - base }
+          : f,
+    );
+  }
 
   const showing = found.q === q ? found : null;
   /* read the next pages into `ahead`, once it runs low */
