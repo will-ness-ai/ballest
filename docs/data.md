@@ -114,7 +114,8 @@ rows loaded by COPY into temp tables and each step one statement, since a Refres
 4. `entries`, for boards read ok only: an open Entry whose (player, score) is still on the
    board moves `last_seen_refresh`; one whose score changed, or whose player is gone, is
    closed by this Refresh; a score with no open Entry opens one. The UGC ID is the one first
-   seen with that score.
+   seen with that score. On an Overall board a changed score is written into the open
+   Entry instead, so only a player who left closes one.
 5. `maps` upserted, and `map_history` appended when the title, creator name, preview,
    Medals, sessions, subscriptions or entry count differ from the latest row. Sessions and
    subscriptions are the ones `workshop.json` stores, as of each Map's last board read.

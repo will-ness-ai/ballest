@@ -178,6 +178,10 @@ def main(url, *, rebuild=False):
                         commit_sha=sha,
                     ),
                 )
+                # Each Refresh rewrites last_seen on every open Entry; vacuuming between
+                # snapshots lets the next one reuse that space instead of growing the
+                # database several times past its real size (autovacuum lags a replay).
+                conn.execute("vacuum entries")
                 maps_read = len(workshop["boards"]) if workshop else 0
                 print(
                     f"  [{i}/{len(snaps)}] {sha[:9]} {when:%Y-%m-%d %H:%M%z} Refresh {rid}: "

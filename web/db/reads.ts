@@ -96,7 +96,9 @@ export interface HistoryEntry {
 }
 
 // Every Entry a board has held, open and closed, in the order they were first seen (then
-// by Steam ID), or null for a board that does not exist.
+// by Steam ID), or null for a board that does not exist. An Overall board (scores_points)
+// keeps current points only, updated in place (docs/adr/0005): its Entries carry today's
+// points with the date the player first appeared, so its history comes from the tracks'.
 export async function scoreHistory(db: Db, board: string): Promise<Array<HistoryEntry> | null> {
   const found = await db.select({ name: boards.name }).from(boards).where(eq(boards.name, board));
   if (found.length === 0) return null;

@@ -22,7 +22,7 @@ The derived boards (Season 1 Current, All Seasons) are never stored: they come f
 rows. A score is the raw score_ms, ticks (SCORE_TICKS_PER_SECOND) on a time board and
 points on an Overall one; nothing here converts it.
 
-Set-based throughout, because a Refresh carries ~175k rows across ~1,100 boards: rows go
+Set-based throughout, because a Refresh carries ~155k rows across ~1,100 boards: rows go
 into temp tables by COPY and each step is one statement over them.
 
 record_refresh wraps write_refresh for the collector: picks the database, never lets a
