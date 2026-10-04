@@ -19,10 +19,24 @@ export interface Ghost {
   path: Array<[number, number]>;
   gap: Array<number>;
   splits: Array<number> | null;
+  /* by distance fraction i/80, i=1..80: time reached (s), speed (km/h), height above the start (m) */
+  at: Array<number>;
+  spd: Array<number>;
+  elev: Array<number>;
 }
 type Data = Record<string, { top: number; entries: Record<string, Ghost> }>;
 
+/* round 2 asks what picture of a run C's drawer shows; round 1's variants are kept below,
+   switched off by ROUND */
+const ROUND: number = 2;
 export const VARIANTS = [
+  { key: "A", name: "Gap", note: "time behind the leader along the course, where it was lost named" },
+  { key: "B", name: "Speed", note: "this run's speed along the course over the leader's, green where faster" },
+  { key: "C", name: "Side view", note: "the course's climbs and drops from the side, coloured by this run's speed" },
+  { key: "D", name: "Race", note: "this run and the leader's as two marbles racing in real time, with replay" },
+  { key: "E", name: "Sectors", note: "the course cut into 8 equal sectors, each one's time against the leader's" },
+] as const;
+export const ROUND1 = [
   { key: "A", name: "Chips", note: "a line of stat chips under the gap line: avg, top speed, distance, when, hat" },
   { key: "B", name: "Columns", note: "Avg, Top and Set columns before Time (phone: one line under the name)" },
   { key: "C", name: "Expand", note: "tap a row to open a drawer: route over the leader's, the gap along the course, the stats" },
@@ -77,7 +91,7 @@ export function ProtoProvider({ board, children }: { board: string; children: Re
         {children}
       </div>
       <Picker variant={variant} />
-      {variant === "E" && <RunCard />}
+      {ROUND === 1 && variant === "E" && <RunCard />}
     </ProtoCtx.Provider>
   );
 }
@@ -141,6 +155,7 @@ function Stats({ g }: { g: Ghost }) {
 function Detail({ g, c }: { g: Ghost; c: Ctx }) {
   const lead = leaderOf(c);
   const last = g.gap[g.gap.length - 1];
+  if (ROUND === 2) return <Picture g={g} lead={lead} c={c} />;
   return (
     <div className="p-detail">
       <Route g={g} lead={lead} />
@@ -157,6 +172,197 @@ function Detail({ g, c }: { g: Ghost; c: Ctx }) {
   );
 }
 
+/* ---------- round 2: the picture in the drawer ---------- */
+const W = 600;
+const pct = (i: number, n: number) => ((i + 1) / n) * W;
+const secs = (s: number) => fmtTime(Math.round(Math.abs(s) * 1e5));
+const signed = (s: number) => (s >= 0 ? "+" : "−") + secs(s);
+
+function Picture({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
+  const L = lead && lead !== g ? lead : null;
+  const v = c.variant;
+  return (
+    <div className="p-pic">
+      {v === "A" && <GapPic g={g} lead={L} />}
+      {v === "B" && <SpeedPic g={g} lead={L} />}
+      {v === "C" && <SidePic g={g} />}
+      {v === "D" && <RacePic g={g} lead={L} />}
+      {v === "E" && <SectorPic g={g} lead={L} c={c} />}
+      <Stats g={g} />
+    </div>
+  );
+}
+
+const leaderNote = (lead: Ghost | null) =>
+  lead ? null : <p className="p-cap">This is the fastest replay read here, so there is nothing to compare it with.</p>;
+
+function GapPic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
+  if (!lead) return leaderNote(lead);
+  const gap = g.at.map((t, i) => t - lead.at[i]);
+  const h = 90;
+  const max = Math.max(0.02, ...gap.map(Math.abs));
+  const y = (d: number) => h / 2 + (d / max) * (h / 2 - 4);
+  /* the stretch where the most time went: the steepest tenth */
+  let worst = 0, wi = 0;
+  for (let i = 8; i < gap.length; i++) {
+    const d = gap[i] - gap[i - 8];
+    if (d > worst) { worst = d; wi = i - 8; }
+  }
+  const from = Math.round((wi / gap.length) * 100);
+  return (
+    <>
+      <p className="p-cap">
+        Behind the leader along the course · <b>{signed(gap[gap.length - 1])}</b> at the line. Most lost between {from}% and {from + 10}% of the way: {secs(worst)}.
+      </p>
+      <svg className="p-chart" viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none">
+        <rect x={(wi / gap.length) * W} width={(8 / gap.length) * W} y="0" height={h} className="p-hot" />
+        <line x1="0" x2={W} y1={h / 2} y2={h / 2} className="p-zero" />
+        <polyline points={`0,${h / 2} ` + gap.map((d, i) => `${pct(i, gap.length)},${y(d)}`).join(" ")} className="p-ln-me" />
+      </svg>
+      <div className="p-axis"><span>start</span><span>ahead ↑ · behind ↓</span><span>finish</span></div>
+    </>
+  );
+}
+
+function SpeedPic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
+  const h = 110;
+  const all = [...g.spd, ...(lead?.spd ?? [])];
+  const lo = Math.min(...all) * 0.9, hi = Math.max(...all);
+  const y = (s: number) => h - 4 - ((s - lo) / (hi - lo)) * (h - 8);
+  const line = (a: Array<number>) => `0,${y(a[0])} ` + a.map((s, i) => `${pct(i, a.length)},${y(s)}`).join(" ");
+  return (
+    <>
+      <p className="p-cap">
+        Speed along the course · top <b>{g.top.toFixed(0)} km/h</b>
+        {lead && <>, the leader’s dashed</>}
+      </p>
+      <svg className="p-chart" viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none">
+        {lead &&
+          g.spd.map((s, i) => (
+            <rect key={i} x={pct(i - 1, g.spd.length)} width={W / g.spd.length} y="0" height={h} className={s >= lead.spd[i] ? "p-fast" : "p-slow"} />
+          ))}
+        {lead && <polyline points={line(lead.spd)} className="p-ln-lead" />}
+        <polyline points={line(g.spd)} className="p-ln-me" />
+      </svg>
+      <div className="p-axis"><span>start</span><span>{lead ? "green: faster than the leader there" : ""}</span><span>finish</span></div>
+    </>
+  );
+}
+
+function SidePic({ g }: { g: Ghost }) {
+  const h = 120;
+  const lo = Math.min(0, ...g.elev), hi = Math.max(0.5, ...g.elev);
+  const y = (e: number) => h - 6 - ((e - lo) / (hi - lo)) * (h - 20);
+  const sLo = Math.min(...g.spd), sHi = Math.max(...g.spd);
+  const pts = [0, ...g.elev];
+  const ti = g.spd.indexOf(Math.max(...g.spd));
+  return (
+    <>
+      <p className="p-cap">
+        The course from the side, coloured by this run’s speed · {(hi - lo).toFixed(0)} m from lowest to highest
+      </p>
+      <svg className="p-chart" viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none">
+        <polygon points={`0,${h} ` + pts.map((e, i) => `${(i / g.elev.length) * W},${y(e)}`).join(" ") + ` ${W},${h}`} className="p-ground" />
+        {g.elev.map((e, i) => (
+          <line
+            key={i}
+            x1={(i / g.elev.length) * W}
+            y1={y(pts[i])}
+            x2={((i + 1) / g.elev.length) * W}
+            y2={y(e)}
+            stroke={`hsl(${200 - ((g.spd[i] - sLo) / (sHi - sLo || 1)) * 200} 90% 60%)`}
+            strokeWidth="4"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        <circle cx={pct(ti, g.spd.length)} cy={y(g.elev[ti])} r="5" className="p-dot" />
+      </svg>
+      <div className="p-axis"><span>start</span><span><i className="p-key" /> slow → fast · ● top speed</span><span>finish</span></div>
+    </>
+  );
+}
+
+/* the fraction of the course a run has covered at time t */
+function fracAt(at: Array<number>, t: number) {
+  if (t <= at[0]) return (t / at[0]) / at.length;
+  for (let i = 1; i < at.length; i++) if (at[i] >= t) return (i + (t - at[i - 1]) / (at[i] - at[i - 1])) / at.length;
+  return 1;
+}
+
+function RacePic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
+  const end = g.at[g.at.length - 1];
+  const [t, setT] = useState(0);
+  const [run, setRun] = useState(true);
+  useEffect(() => {
+    if (!run) return;
+    let raf = 0;
+    const t0 = performance.now() - t * 1000;
+    const tick = (now: number) => {
+      const s = (now - t0) / 1000;
+      if (s >= end + 0.6) { setT(end); setRun(false); return; }
+      setT(Math.min(s, end));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run]);
+  const me = fracAt(g.at, t);
+  const ld = lead ? fracAt(lead.at, t) : null;
+  const ahead = lead ? (me - (ld ?? 0)) * g.dist : 0;
+  return (
+    <>
+      <p className="p-cap">
+        {lead ? "Racing the leader’s replay" : "The run in real time"} · <b>{fmtTime(Math.round(t * 1e5))}</b>
+        {lead && t > 0.3 && <> · {Math.abs(ahead).toFixed(1)} m {ahead >= 0 ? "ahead" : "behind"}</>}
+      </p>
+      <div className="p-race">
+        {lead && (
+          <div className="p-lane">
+            <span className="p-lane-name">Leader</span>
+            <i className="p-mb p-mb-lead" style={{ left: `${(ld ?? 0) * 100}%` }} />
+          </div>
+        )}
+        <div className="p-lane">
+          <span className="p-lane-name">This run</span>
+          <i className="p-mb" style={{ left: `${me * 100}%` }} />
+        </div>
+      </div>
+      <button className="p-btn" onClick={() => { setT(0); setRun(true); }}>{run ? "Racing…" : "Replay"}</button>
+    </>
+  );
+}
+
+const NSEC = 8;
+function sectors(a: Ghost) {
+  const per = a.at.length / NSEC;
+  return Array.from({ length: NSEC }, (_, k) => a.at[(k + 1) * per - 1] - (k ? a.at[k * per - 1] : 0));
+}
+function SectorPic({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
+  const mine = sectors(g);
+  const theirs = lead ? sectors(lead) : null;
+  const field = Object.values(c.data?.[c.board]?.entries ?? {}).map(sectors);
+  const best = mine.map((_, k) => Math.min(...field.map((f) => f[k])));
+  return (
+    <>
+      <p className="p-cap">Eight equal stretches of the course, against the leader · <i className="p-sw p-sw-best" /> fastest of the top 50</p>
+      <div className="p-sectors">
+        {mine.map((s, k) => {
+          const d = theirs ? s - theirs[k] : 0;
+          const cls = Math.abs(s - best[k]) < 0.0005 ? "p-best-s" : !theirs ? "" : d <= 0 ? "p-up" : "p-down";
+          return (
+            <div key={k} className={"p-sec " + cls}>
+              <small>S{k + 1}</small>
+              <b>{s.toFixed(2)}</b>
+              {theirs && <span>{signed(d)}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 const NONE = <span className="p-none">no replay read</span>;
 
 /* ---------- what each variant adds to a row ---------- */
@@ -164,7 +370,7 @@ const NONE = <span className="p-none">no replay read</span>;
 /* A and B: a line under the name. Returns null when the variant draws nothing there. */
 export function RowLine({ id }: { id: string }) {
   const c = useProto();
-  if (!c || !c.data) return null;
+  if (ROUND !== 1 || !c || !c.data) return null;
   const g = ghostOf(c, id);
   if (c.variant === "A")
     return (
@@ -190,7 +396,7 @@ export function RowLine({ id }: { id: string }) {
 /* B: the extra desktop columns */
 export function RowCols({ id }: { id: string }) {
   const c = useProto();
-  if (c?.variant !== "B" || !c.data) return null;
+  if (ROUND !== 1 || c?.variant !== "B" || !c.data) return null;
   const g = ghostOf(c, id);
   return (
     <>
@@ -202,7 +408,7 @@ export function RowCols({ id }: { id: string }) {
 }
 export function HeadCols() {
   const c = useProto();
-  if (c?.variant !== "B") return null;
+  if (ROUND !== 1 || c?.variant !== "B") return null;
   return (
     <>
       <span className="p-col">Avg km/h</span>
@@ -215,7 +421,7 @@ export function HeadCols() {
 /* D: what the score column shows under the lens; null keeps the time */
 export function LensScore({ id }: { id: string }) {
   const c = useProto();
-  if (c?.variant !== "D" || c.lens === "time" || !c.data) return null;
+  if (ROUND !== 1 || c?.variant !== "D" || c.lens === "time" || !c.data) return null;
   const g = ghostOf(c, id);
   if (!g) return <span className="p-none">–</span>;
   const all = Object.values(c.data[c.board]?.entries ?? {});
@@ -229,7 +435,7 @@ export function LensScore({ id }: { id: string }) {
 /* E: a thin speed bar under the row */
 export function SpeedBar({ id }: { id: string }) {
   const c = useProto();
-  if (c?.variant !== "E" || !c.data) return null;
+  if (ROUND !== 1 || c?.variant !== "E" || !c.data) return null;
   const g = ghostOf(c, id);
   if (!g) return null;
   const all = Object.values(c.data[c.board]?.entries ?? {});
@@ -241,14 +447,14 @@ export function SpeedBar({ id }: { id: string }) {
 /* C: the drawer under an open row */
 export function Drawer({ id }: { id: string }) {
   const c = useProto();
-  if (c?.variant !== "C" || c.open !== id || !c.data) return null;
+  if ((ROUND === 1 && c?.variant !== "C") || !c || c.open !== id || !c.data) return null;
   const g = ghostOf(c, id);
   return <div className="p-drawer">{g ? <Detail g={g} c={c} /> : <p className="p-cap">No replay read for this run. Only the top {c.data[c.board]?.top ?? 50} are read.</p>}</div>;
 }
 
 /* C and E open on a row tap */
 export function rowClick(c: Ctx | null, id: string) {
-  if (!c || (c.variant !== "C" && c.variant !== "E")) return undefined;
+  if (!c || (ROUND === 1 && c.variant !== "C" && c.variant !== "E")) return undefined;
   return (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("a")) return;
     c.setOpen(c.open === id ? null : id);
@@ -258,7 +464,7 @@ export function rowClick(c: Ctx | null, id: string) {
 /* D: the switch over the board */
 export function LensBar() {
   const c = useProto();
-  if (c?.variant !== "D") return null;
+  if (ROUND !== 1 || c?.variant !== "D") return null;
   const opts: Array<[Lens, string]> = [
     ["time", "Time"],
     ["avg", "Avg speed"],
@@ -305,7 +511,7 @@ function Picker({ variant }: { variant: Variant }) {
   };
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input,textarea")) return;
+      if ((e.target as HTMLElement).closest?.("input,textarea")) return;
       if (e.key === "ArrowLeft") go(-1);
       if (e.key === "ArrowRight") go(1);
     };
@@ -388,5 +594,38 @@ const CSS = `
  .p-v-B .p-bline{display:none}
  .p-card{left:auto;top:90px;bottom:auto;right:24px;width:340px;max-height:calc(100vh - 120px);border:1px solid var(--line);border-radius:var(--radius)}
 }
+.p-pic{display:flex;flex-direction:column;gap:6px}
+.p-pic .p-stats{margin-top:10px}
+.p-pic .p-cap{margin:0 0 4px}
+.p-pic .p-cap b{color:var(--text)}
+.p-chart{width:100%;height:auto;aspect-ratio:600/100;max-height:140px;background:var(--solid);border:1px solid var(--line2);border-radius:var(--radius)}
+.p-chart polyline{fill:none;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.p-ln-me{stroke:hsl(var(--h,100) 80% 64%);stroke-width:2.5}
+.p-ln-lead{stroke:var(--gold);stroke-width:1.5;stroke-dasharray:5 4;opacity:.85}
+.p-zero{stroke:var(--gold);stroke-dasharray:4 4;opacity:.6;vector-effect:non-scaling-stroke}
+.p-hot{fill:var(--a-soft)}
+.p-fast{fill:var(--accent-soft)}
+.p-slow{fill:var(--a-soft)}
+.p-ground{fill:var(--surface2)}
+.p-dot{fill:var(--text)}
+.p-axis{display:flex;justify-content:space-between;font:500 10.5px var(--f-hud);color:var(--faint)}
+.p-key{display:inline-block;width:40px;height:6px;border-radius:3px;vertical-align:middle;background:linear-gradient(90deg,hsl(200 90% 60%),hsl(100 90% 60%),hsl(0 90% 60%))}
+.p-race{display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--solid);border:1px solid var(--line2);border-radius:var(--radius)}
+.p-lane{position:relative;height:26px;margin-right:22px;border-bottom:2px dashed var(--line)}
+.p-lane-name{position:absolute;left:0;top:-2px;font:600 10px var(--f-hud);text-transform:uppercase;letter-spacing:.06em;color:var(--faint)}
+.p-mb{position:absolute;bottom:-11px;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 34% 27%,hsl(var(--h,100) 94% 90%),hsl(var(--h,100) 80% 64%) 34%,hsl(var(--h,100) 62% 25%))}
+.p-mb-lead{background:radial-gradient(circle at 34% 27%,#fff6c8,var(--gold) 34%,#7a5a00)}
+.p-btn{all:unset;cursor:pointer;align-self:flex-start;padding:6px 14px;border-radius:999px;background:var(--surface2);font:600 12px var(--f-hud);color:var(--text)}
+.p-sectors{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+@media (min-width:900px){.p-sectors{grid-template-columns:repeat(8,1fr)}}
+.p-sec{display:flex;flex-direction:column;gap:2px;padding:8px;border-radius:8px;background:var(--surface);border:1px solid var(--line2);font-family:var(--f-hud)}
+.p-sec small{font-size:10px;color:var(--faint)}
+.p-sec b{font-size:14px;color:var(--text)}
+.p-sec span{font-size:11px;color:var(--dim)}
+.p-up{background:var(--accent-soft)}.p-up span{color:var(--accent)}
+.p-down{background:var(--a-soft)}.p-down span{color:var(--a)}
+.p-best-s{background:rgba(180,120,255,.18);border-color:rgba(180,120,255,.5)}
+.p-sw{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px}
+.p-sw-best{background:rgba(180,120,255,.6)}
 `;
 // ===================== end PROTOTYPE =====================
