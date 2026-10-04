@@ -7497,6 +7497,59 @@
         position: relative;
         padding: 6px 0;
       }
+      .pt-lanes {
+        display: grid;
+        gap: 8px;
+      }
+      .pt-lane {
+        display: grid;
+        grid-template-columns: 130px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        font-size: 14px;
+      }
+      .pt-lane .nm small {
+        display: block;
+        color: var(--faint);
+        font-size: 12px;
+      }
+      .pt-track.tall {
+        height: 12px;
+      }
+      .pt-lane .pt-track {
+        grid-column: auto;
+      }
+      .pt-tl {
+        list-style: none;
+        margin: 0;
+        padding: 0 0 0 18px;
+        border-left: 2px solid var(--line);
+        display: grid;
+        gap: 12px;
+        font-size: 14px;
+      }
+      .pt-tl li {
+        position: relative;
+      }
+      .pt-tl li::before {
+        content: "";
+        position: absolute;
+        left: -24px;
+        top: 5px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--faint);
+      }
+      .pt-tl li.now::before {
+        background: var(--gold);
+      }
+      .pt-tl b {
+        font: 600 15px var(--f-hud);
+      }
+      .pt-tl li.now b {
+        color: var(--gold);
+      }
       #ptPick {
         position: fixed;
         right: 16px;
@@ -7563,32 +7616,33 @@
         /* round 1 verdict: A (record line) leads, C (what changed) as a second tab.
            round 2 verdict: B's place above the rows, a summary that opens the tabs.
            round 3 verdict: a mix of B (record sparkline) and C (last holders).
-           Round 4: how the sparkline and the holders combine. */
+           round 4 verdict: D, the sparkline over reign bars for the last three holders.
+           Round 5: the Records tab once the summary is open (opens open this round). */
         const VARIANTS = [
           {
             key: "A",
-            name: "Side by side",
-            note: "The sparkline on the left, the last three holders on the right. Stacks on a phone.",
+            name: "Every reign",
+            note: "The summary's reign bars for every record since 6 Sep, newest first. No separate chart.",
           },
           {
             key: "B",
-            name: "Chart over list",
-            note: "A wide, short sparkline across the top, the three holders under it.",
+            name: "Chart and table",
+            note: "Round 1's winner as it was: a big step chart and a table of time, holder, set, cut and held.",
           },
           {
             key: "C",
-            name: "Labelled chart",
-            note: "One chart: the last three records are named right on their steps. No separate list.",
+            name: "Lane per holder",
+            note: "One lane per player who held the record, with all their reigns as segments on a shared timeline.",
           },
           {
             key: "D",
-            name: "Reign bars",
-            note: "The sparkline, and under it each of the last three holders as a bar spanning how long their record stood.",
+            name: "Timeline cards",
+            note: "A vertical timeline, newest at the top: each record a card with its cut and how long it stood.",
           },
           {
             key: "E",
-            name: "Chart behind",
-            note: "The holders list in front, the record's step chart drawn faintly behind it.",
+            name: "Chart over bars",
+            note: "A big step chart with every reign as a bar beneath it, on the same dates.",
           },
         ];
         const STATES = [
@@ -7910,12 +7964,12 @@
 
         /* ---------- round 2: the tabbed history, and where it sits ---------- */
         let tab = "rec",
-          open = false;
+          open = true;
         const tabs = (d) => `<div class="pt-card">
             <div class="pt-tabs" role="tablist">
               <button type="button" role="tab" data-tab="rec" aria-selected="${tab === "rec"}">Records</button>
               <button type="button" role="tab" data-tab="feed" aria-selected="${tab === "feed"}">What changed</button>
-            </div>${tab === "rec" ? vA(d) : vC(d)}</div>`;
+            </div>${tab === "rec" ? recTab(VARIANTS[vi].key, d) : vC(d)}</div>`;
         const stripHtml = (d) => {
           const r = d.records.at(-1);
           return `<button type="button" class="pt-strip" id="ptStrip" aria-expanded="${open}">
@@ -8005,6 +8059,66 @@
           return wrap(`<span class="pt-behind"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${p}" fill="none" stroke="var(--gold)" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>${chainHtml(last)}</span>`);
         }
 
+        /* ---------- round 5: the Records tab ---------- */
+        const heldTxt = (q, d) => {
+          const n = days(q.from, q.to || d.tN);
+          return q.to ? (n ? n + (n === 1 ? " day" : " days") : "under a day") : "holds it";
+        };
+        const setTxt = (q, d) => day(q.from) + (q.from === d.t0 ? " or earlier" : "");
+        const cutTxt = (q) => (q.prev ? "−" + secs(q.prev.score - q.e.score) : "");
+        function reignList(d, list, x) {
+          const pct = (t) => ((x(t) / 800) * 100).toFixed(2) + "%";
+          return `<ul class="pt-reign">${list
+            .map(
+              (q) => `<li><b style="color:${q.to ? "var(--text)" : "var(--gold)"}">${fmtTime(q.e.score)}</b><span>${who(q.e)} <span class="pt-up">${cutTxt(q)}</span> <span class="pt-dim">${setTxt(q, d)} · ${heldTxt(q, d)}</span></span>
+                <span class="pt-track"><span style="left:${pct(q.from)};width:calc(${pct(q.to || d.tN)} - ${pct(q.from)} + 3px);background:${q.to ? "var(--faint)" : "var(--gold)"}"></span></span></li>`,
+            )
+            .join("")}</ul>`;
+        }
+        function bigChart(d, H) {
+          const W = 800,
+            { p, x, y } = stepPath(d, 0, W, 10, H - 10);
+          const dots = d.records
+            .map((q) => `<circle cx="${x(q.from)}" cy="${y(q.e.score)}" r="3.5" fill="${q.to ? "var(--text)" : "var(--gold)"}" vector-effect="non-scaling-stroke"><title>${esc(q.e.persona)} ${fmtTime(q.e.score)}</title></circle>`)
+            .join("");
+          return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block"><path d="${p}" fill="none" stroke="var(--gold)" stroke-width="2"/>${dots}</svg>`;
+        }
+        const axisRow = (d) => `<span class="pt-sub pt-axis"><span>${day(d.t0)}</span><span>${day(d.t0 + (d.tN - d.t0) / 2)}</span><span>now</span></span>`;
+        function recTab(k, d) {
+          const newest = [...d.records].reverse();
+          const { x } = stepPath(d, 0, 800, 0, 1);
+          if (k === "A") return reignList(d, newest, x) + axisRow(d);
+          if (k === "B") return vA(d);
+          if (k === "C") {
+            const lanes = new Map();
+            for (const q of d.records) {
+              if (!lanes.has(q.e.steamId)) lanes.set(q.e.steamId, []);
+              lanes.get(q.e.steamId).push(q);
+            }
+            const pct = (t) => ((x(t) / 800) * 100).toFixed(2) + "%";
+            const rows = [...lanes.values()]
+              .sort((a, b) => (b.at(-1).to ? b.at(-1).from : Infinity) - (a.at(-1).to ? a.at(-1).from : Infinity))
+              .map((qs) => {
+                const total = qs.reduce((n, q) => n + ((q.to || d.tN) - q.from), 0);
+                const dd = Math.round(total / 86400000);
+                return `<div class="pt-lane"><span class="nm">${who(qs[0].e)}<small>${qs.length} record${qs.length === 1 ? "" : "s"} · ${dd ? dd + "d" : "&lt;1d"} held</small></span>
+                  <span class="pt-track tall">${qs
+                    .map((q) => `<span title="${esc(fmtTime(q.e.score))} ${esc(day(q.from))}" style="left:${pct(q.from)};width:calc(${pct(q.to || d.tN)} - ${pct(q.from)} + 4px);background:${q.to ? "var(--dim)" : "var(--gold)"}"></span>`)
+                    .join("")}</span></div>`;
+              })
+              .join("");
+            return `<div class="pt-lanes">${rows}</div><div class="pt-lane"><span></span>${axisRow(d)}</div>`;
+          }
+          if (k === "D")
+            return `<ol class="pt-tl">${newest
+              .map(
+                (q) => `<li class="${q.to ? "" : "now"}"><b>${fmtTime(q.e.score)}</b> ${who(q.e)}
+                  <div class="pt-dim">${setTxt(q, d)}${q.prev ? ` · beat ${esc(q.prev.persona)} by <span class="pt-up">${secs(q.prev.score - q.e.score)}</span>` : ""} · ${q.to ? "stood " + heldTxt(q, d) : "still the record"}</div></li>`,
+              )
+              .join("")}</ol>`;
+          return bigChart(d, 180) + axisRow(d) + reignList(d, newest, x);
+        }
+
         const host = document.createElement("section");
         host.id = "ptHist";
         const app = document.getElementById("app");
@@ -8057,7 +8171,7 @@
             if (my !== seq) return;
             if (!d) why = "No history for this board.";
           }
-          host.innerHTML = why ? msg(why) : summary(k, d) + (open ? `<div style="margin-top:8px">${tabs(d)}</div>` : "");
+          host.innerHTML = why ? msg(why) : summary("D", d) + (open ? `<div style="margin-top:8px">${tabs(d)}</div>` : "");
           wire();
         }
         function wire() {
