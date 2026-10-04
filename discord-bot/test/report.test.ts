@@ -11,6 +11,7 @@ import {
   buildReport,
   DAY_MS,
   type RecordCandidate,
+  type Report,
   type ReportData,
   type ReportEntry,
   type ReportMap,
@@ -47,6 +48,9 @@ const entry = (
   closedAt: null,
   ...over,
 });
+/** Since yesterday in the order it is posted: the Circuit, then the Workshop. */
+const changes = (r: Report) => [...r.circuitChanges, ...r.workshopChanges];
+
 const data = (over: Partial<ReportData>): ReportData => ({
   maps: [],
   entries: [],
@@ -146,9 +150,9 @@ describe("since yesterday", () => {
       }),
       AT,
     );
-    expect(r.changes.map((c) => c.kind)).toEqual(["trackRecord", "mapRecord", "firstFinish"]);
-    expect(r.changes[1]).toMatchObject({ by: "BOB", from: "ANN", players: 3 });
-    expect(r.changes[0]).toMatchObject({ track: "S1 01", gain: ticks(0.5) });
+    expect(changes(r).map((c) => c.kind)).toEqual(["trackRecord", "mapRecord", "firstFinish"]);
+    expect(changes(r)[1]).toMatchObject({ by: "BOB", from: "ANN", players: 3 });
+    expect(changes(r)[0]).toMatchObject({ track: "S1 01", gain: ticks(0.5) });
   });
 
   it("doesn't list a holder improving their own record, or a Map published today", () => {
@@ -165,7 +169,7 @@ describe("since yesterday", () => {
       }),
       AT,
     );
-    expect(r.changes).toEqual([]);
+    expect(changes(r)).toEqual([]);
   });
 
   it("lists nothing for a Map whose board was first read in the last day", () => {
@@ -174,7 +178,7 @@ describe("since yesterday", () => {
       data({ maps: [a], entries: [entry(a, "ann", 10, { firstSeenAt: TODAY })] }),
       AT,
     );
-    expect(r.changes).toEqual([]);
+    expect(changes(r)).toEqual([]);
   });
 
   it("notes the first Author Medal on a Map", () => {
@@ -186,7 +190,7 @@ describe("since yesterday", () => {
       }),
       AT,
     );
-    expect(r.changes.map((c) => [c.kind, "by" in c ? c.by : null])).toEqual([
+    expect(changes(r).map((c) => [c.kind, "by" in c ? c.by : null])).toEqual([
       ["mapRecord", "BOB"],
       ["firstAuthor", "BOB"],
     ]);

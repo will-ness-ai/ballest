@@ -7,24 +7,34 @@ import { REST, type RequestData, Routes } from "discord.js";
 import { Config, Context, Data, Effect, Layer, Redacted, Schema } from "effect";
 import { oneLine } from "../discord/client.js";
 
+/** Nothing was posted. */
 export class ReportPostFailed extends Data.TaggedError("ReportPostFailed")<{
   readonly reason: string;
 }> {}
 
+/** The channel message is up, but its thread isn't (or is only partly). */
+export class ThreadPostFailed extends Data.TaggedError("ThreadPostFailed")<{
+  readonly messageId: string;
+  readonly reason: string;
+}> {}
+
+/** One Daily Report as Discord gets it. */
+export interface ReportPost {
+  /** The channel message, with the standings image attached. */
+  readonly content: string;
+  readonly image: Uint8Array;
+  /** A thread on that message, holding these messages in order. */
+  readonly threadName: string;
+  readonly thread: ReadonlyArray<string>;
+}
+
 export class ReportChannel extends Context.Tag("multiballs/ReportChannel")<
   ReportChannel,
   {
-    /** The channel message with its image; its message id. */
-    readonly postHead: (
-      content: string,
-      image: Uint8Array,
-    ) => Effect.Effect<string, ReportPostFailed>;
-    /** A thread on that message, holding these messages in order. */
-    readonly postThread: (
-      messageId: string,
-      name: string,
-      messages: ReadonlyArray<string>,
-    ) => Effect.Effect<void, ReportPostFailed>;
+    /** Post the report; the channel message's id. */
+    readonly post: (
+      report: ReportPost,
+    ) => Effect.Effect<string, ReportPostFailed | ThreadPostFailed>;
   }
 >() {}
 
@@ -59,21 +69,31 @@ export const ReportChannelLive = Layer.effect(
     });
     const message = (content: string) => ({ content, allowed_mentions: NO_PINGS });
 
-    return ReportChannel.of({
-      postHead: Effect.fn("ReportChannel.postHead")(function* (content, image) {
-        return yield* create("post the report", Routes.channelMessages(channelId), {
+    const postThread = Effect.fn("ReportChannel.postThread")(function* (
+      messageId: string,
+      report: ReportPost,
+    ) {
+      const thread = yield* create("start the thread", Routes.threads(channelId, messageId), {
+        body: { name: report.threadName, auto_archive_duration: 1440 },
+      });
+      for (const content of report.thread)
+        yield* create("post in the thread", Routes.channelMessages(thread), {
           body: message(content),
-          files: [{ name: "standings.png", data: Buffer.from(image) }],
         });
-      }),
-      postThread: Effect.fn("ReportChannel.postThread")(function* (messageId, name, messages) {
-        const thread = yield* create("start the thread", Routes.threads(channelId, messageId), {
-          body: { name, auto_archive_duration: 1440 },
+    });
+
+    return ReportChannel.of({
+      post: Effect.fn("ReportChannel.post")(function* (report) {
+        const messageId = yield* create("post the report", Routes.channelMessages(channelId), {
+          body: message(report.content),
+          files: [{ name: "standings.png", data: Buffer.from(report.image) }],
         });
-        for (const content of messages)
-          yield* create("post in the thread", Routes.channelMessages(thread), {
-            body: message(content),
-          });
+        yield* postThread(messageId, report).pipe(
+          Effect.catchTag("ReportPostFailed", (e) =>
+            Effect.fail(new ThreadPostFailed({ messageId, reason: e.reason })),
+          ),
+        );
+        return messageId;
       }),
     });
   }),

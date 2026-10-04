@@ -82,8 +82,8 @@ export const headMessage = (r: Report): string => {
     `-# Workshop standings · ${counts(r)}${asOf}`,
     "## 📅 Since yesterday",
   ];
-  const circuit = r.changes.filter((c) => c.kind === "trackRecord").map(changeLine);
-  const workshop = r.changes.filter((c) => c.kind !== "trackRecord").map(changeLine);
+  const circuit = r.circuitChanges.map(changeLine);
+  const workshop = r.workshopChanges.map(changeLine);
   const newMaps = r.newMaps > 0 ? [`- 🆕 ${plural(r.newMaps, "new Map")} on the Workshop`] : [];
   for (let shown = Math.min(CHANGES_SHOWN, workshop.length); ; shown--) {
     const rest = workshop.length - shown;

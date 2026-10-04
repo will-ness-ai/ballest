@@ -3,7 +3,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Layer, Option, Ref, TestClock } from "effect";
 import { OpsAlerts } from "../src/ops.js";
 import { Renderer } from "../src/render/renderer.js";
-import { ReportChannel, ReportPostFailed } from "../src/report/channel.js";
+import { ReportChannel, ReportPostFailed, ThreadPostFailed } from "../src/report/channel.js";
 import { dailyLoop, ReportLogLive } from "../src/report/daily.js";
 import { GhostDates } from "../src/report/records.js";
 import { DAY_MS } from "../src/report/report.js";
@@ -19,6 +19,7 @@ const setup = Effect.gen(function* () {
   const threads = yield* Ref.make(0);
   const alerts = yield* Ref.make<Array<string>>([]);
   const failing = yield* Ref.make(false);
+  const threadFailing = yield* Ref.make(false);
   const refreshedAgo = yield* Ref.make(HOUR);
   const fakes = Layer.mergeAll(
     Layer.succeed(
@@ -34,14 +35,19 @@ const setup = Effect.gen(function* () {
     Layer.succeed(
       ReportChannel,
       ReportChannel.of({
-        postHead: (content) =>
+        post: ({ content }) =>
           Effect.gen(function* () {
             if (yield* Ref.get(failing))
               return yield* Effect.fail(new ReportPostFailed({ reason: "Missing Permissions" }));
             yield* Ref.update(heads, (h) => [...h, content.split("\n")[0] ?? ""]);
-            return `m${(yield* Ref.get(heads)).length}`;
+            const messageId = `m${(yield* Ref.get(heads)).length}`;
+            if (yield* Ref.get(threadFailing))
+              return yield* Effect.fail(
+                new ThreadPostFailed({ messageId, reason: "Missing Create Public Threads" }),
+              );
+            yield* Ref.update(threads, (n) => n + 1);
+            return messageId;
           }),
-        postThread: () => Ref.update(threads, (n) => n + 1),
       }),
     ),
     Layer.succeed(
@@ -57,7 +63,7 @@ const setup = Effect.gen(function* () {
       standings: () => Effect.succeed(new Uint8Array()),
     } as unknown as Renderer),
   );
-  return { heads, threads, alerts, failing, refreshedAgo, fakes };
+  return { heads, threads, alerts, failing, threadFailing, refreshedAgo, fakes };
 });
 
 /** Run the schedule from the TestClock's current time until `ms` later, then stop it. */
@@ -125,6 +131,22 @@ describe("the Daily Report's schedule", () => {
         yield* Ref.set(t.failing, false);
         yield* runFor(HOUR);
         expect(yield* Ref.get(t.heads)).toEqual(["# Sunday 4 October"]);
+      }).pipe(Effect.provide(t.fakes));
+    }),
+  );
+
+  it.scoped("keeps a report whose thread failed, and tells ops", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* Ref.set(t.threadFailing, true);
+      yield* Effect.gen(function* () {
+        yield* TestClock.setTime(DAY0 + 18 * HOUR);
+        yield* runFor(HOUR);
+        yield* runFor(HOUR); // a restart: the day is posted, thread or not
+        expect(yield* Ref.get(t.heads)).toEqual(["# Sunday 4 October"]);
+        expect(yield* Ref.get(t.alerts)).toEqual([
+          expect.stringContaining("posted the Daily Report for 2026-10-04, but not its thread"),
+        ]);
       }).pipe(Effect.provide(t.fakes));
     }),
   );

@@ -73,13 +73,12 @@ export const postReport = Effect.fn("postReport")(function* (report: Report) {
   const tracks = yield* oldestTrackRecords(report.trackRecords);
   const maps = yield* oldestMapRecords(report.mapRecords);
   const image = yield* renderer.standings(standingsImage(report));
-  const messageId = yield* channel.postHead(headMessage(report), image);
-  const thread = channel.postThread(
-    messageId,
-    threadName(report),
-    pack(threadSections(report, { tracks, maps })),
-  );
-  return { messageId, thread };
+  return yield* channel.post({
+    content: headMessage(report),
+    image,
+    threadName: threadName(report),
+    thread: pack(threadSections(report, { tracks, maps })),
+  });
 });
 
 /** The day's report, unless it was already posted or the data is too old (then ops hears). */
@@ -99,16 +98,16 @@ export const runDay = Effect.fn("runDay")(function* (at: number) {
         `Multiballs skipped the Daily Report for ${day}: no Refresh ${since}.`,
       );
     }
-    const { messageId, thread } = yield* postReport(buildReport(data, at));
-    yield* log.record(day, messageId);
-    yield* Effect.logInfo(`report: posted ${day}`);
-    yield* thread.pipe(
-      Effect.catchTag("ReportPostFailed", (e) =>
-        alerts.post(
-          `Multiballs posted the Daily Report for ${day}, but not its thread: ${e.reason}`,
-        ),
+    // A report whose thread failed is still that day's report: recorded, so it isn't posted again.
+    const messageId = yield* postReport(buildReport(data, at)).pipe(
+      Effect.catchTag("ThreadPostFailed", (e) =>
+        alerts
+          .post(`Multiballs posted the Daily Report for ${day}, but not its thread: ${e.reason}`)
+          .pipe(Effect.as(e.messageId)),
       ),
     );
+    yield* log.record(day, messageId);
+    yield* Effect.logInfo(`report: posted ${day}`);
   }).pipe(
     Effect.catchTags({
       ReportDataUnavailable: (e) => failed(e.reason),

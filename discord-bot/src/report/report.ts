@@ -137,7 +137,10 @@ export interface Report {
   readonly boards: ReadonlyArray<Board>;
   readonly unfinished: ReadonlyArray<ListedMap>;
   readonly unclaimed: ReadonlyArray<ListedMap>;
-  readonly changes: ReadonlyArray<Change>;
+  /** Circuit world records that changed hands, in Track order. */
+  readonly circuitChanges: ReadonlyArray<Extract<Change, { kind: "trackRecord" }>>;
+  /** Every Workshop change, the busiest Map (most players) first. */
+  readonly workshopChanges: ReadonlyArray<Exclude<Change, { kind: "trackRecord" }>>;
   readonly newMaps: number;
   readonly trackRecords: ReadonlyArray<RecordCandidate>;
   readonly mapRecords: ReadonlyArray<RecordCandidate>;
@@ -274,7 +277,7 @@ export const buildReport = (data: ReportData, at: number): Report => {
       .slice(0, TOP)
       .map(([steamId, t]) => ({ steamId, persona: t.persona, n: t[stat] }));
 
-  const trackChanges: Array<Change> = [];
+  const trackChanges: Array<Extract<Change, { kind: "trackRecord" }>> = [];
   const trackRecords: Array<RecordCandidate> = [];
   for (const track of data.tracks) {
     const now = track.record;
@@ -310,9 +313,9 @@ export const buildReport = (data: ReportData, at: number): Report => {
     unclaimed: unclaimed.sort(
       (a, b) => b.finishers - a.finishers || title(a).localeCompare(title(b)),
     ),
-    // The Circuit first, then the Workshop's busiest Maps; a stable sort keeps a Map's own
-    // changes in the order they were found.
-    changes: [...trackChanges, ...mapChanges.sort((a, b) => b.players - a.players)],
+    circuitChanges: trackChanges,
+    // a stable sort keeps a Map's own changes in the order they were found
+    workshopChanges: mapChanges.sort((a, b) => b.players - a.players),
     newMaps,
     trackRecords,
     mapRecords,
