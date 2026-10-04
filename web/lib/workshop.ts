@@ -171,6 +171,8 @@ export const PRESETS: Record<string, Partial<Refine>> = {
   under: { sort: "under" },
   quiet: { sort: "fewest" },
 };
+/* whether a path segment names one of All maps' views (the proxy and the page both ask) */
+export const isPreset = (view: string) => Object.hasOwn(PRESETS, view);
 export const refineFor = (view: string | null): Refine => ({
   ...NO_FILTER(),
   ...(view ? PRESETS[view] : {}),

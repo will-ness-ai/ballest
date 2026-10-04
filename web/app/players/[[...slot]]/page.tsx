@@ -9,7 +9,7 @@ import { PlayersSkeleton } from "../../../components/Skeleton";
 import { PlayersTable } from "../../../components/players/PlayersTable";
 import { getStandings } from "../../../db/data";
 import { plValid } from "../../../lib/players";
-import { PL_SCOPES, PL_SORTS, playersHref, type PlScope, type PlSort } from "../../../lib/routes";
+import { PL_SCOPES, PL_SORTS, isPlScope, isPlSort, playersHref } from "../../../lib/routes";
 
 interface Props {
   params: Promise<{ slot?: Array<string> }>;
@@ -30,13 +30,10 @@ export const metadata: Metadata = {
     "Every Ballest of Them All player ranked by world records, podiums, top 5s or Maps finished, on the Circuit, the Workshop or both.",
 };
 
-const isScope = (s: string): s is PlScope => (PL_SCOPES as ReadonlyArray<string>).includes(s);
-const isSort = (s: string): s is PlSort => (PL_SORTS as ReadonlyArray<string>).includes(s);
-
 async function Table({ params }: Pick<Props, "params">) {
   const { slot = [] } = await params;
   const [scope = "all", sort = "wr"] = slot;
-  if (slot.length > 2 || !isScope(scope) || !isSort(sort)) notFound();
+  if (slot.length > 2 || !isPlScope(scope) || !isPlSort(sort)) notFound();
   /* the Circuit has no Maps column, and a scope alone means its world records */
   if (!plValid(scope, sort) || slot.length === 1)
     redirect(playersHref(scope, plValid(scope, sort) ? sort : "wr"));

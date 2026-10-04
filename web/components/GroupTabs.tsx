@@ -5,22 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-import { circuitBoard } from "../lib/circuit";
-
-export const WORKSHOP_GROUP = "Workshop";
-export const PLAYERS_TAB = "Players";
+import { groupOfPath } from "../lib/routes";
 
 export interface GroupTab {
   group: string;
   href: string;
-}
-
-/* the tab a path belongs to; a player's page and a head to head belong to none */
-export function groupOfPath(path: string): string | null {
-  if (path === "/" || /^\/maps?(\/|$)/.test(path)) return WORKSHOP_GROUP;
-  if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
-  const board = /^\/board\/([^/]+)/.exec(path);
-  return board ? (circuitBoard(decodeURIComponent(board[1]))?.group ?? null) : null;
 }
 
 export function GroupTabs({ tabs }: { tabs: ReadonlyArray<GroupTab> }) {

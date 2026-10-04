@@ -5,15 +5,13 @@ import { plValid } from "./lib/players";
 import {
   PLAYER_TABS,
   PODIUM_SORT,
-  PL_SCOPES,
-  PL_SORTS,
+  isPlScope,
+  isPlSort,
   playerHref,
   playersHref,
-  type PlScope,
-  type PlSort,
 } from "./lib/routes";
 import { STEAM_ID } from "./lib/rules";
-import { PRESETS } from "./lib/workshop";
+import { isPreset } from "./lib/workshop";
 
 // The checks that have to happen before a response starts:
 // - /leth has to become /leth/, as Pages redirected a folder, because its page loads
@@ -52,22 +50,15 @@ export function proxy(request: NextRequest) {
   const pl = /^\/players\/(.+?)\/?$/.exec(path);
   if (pl) {
     const slot = pl[1].split("/"),
-      scope = slot[0] as PlScope,
-      sort = slot[1] as PlSort | undefined;
-    if (
-      slot.length > 2 ||
-      !PL_SCOPES.includes(scope) ||
-      (sort !== undefined && !PL_SORTS.includes(sort))
-    )
+      [scope] = slot,
+      sort = slot.at(1);
+    if (slot.length > 2 || !isPlScope(scope) || (sort !== undefined && !isPlSort(sort)))
       return notFound(request);
     if (!sort || !plValid(scope, sort))
       return NextResponse.redirect(new URL(playersHref(scope, "wr"), request.url));
   }
   const maps = /^\/maps\/(.*)$/.exec(path);
-  if (
-    (maps?.[1] && !Object.hasOwn(PRESETS, maps[1])) ||
-    (path.startsWith("/map/") && !MAP_PATH.test(path))
-  )
+  if ((maps?.[1] && !isPreset(maps[1])) || (path.startsWith("/map/") && !MAP_PATH.test(path)))
     return notFound(request);
   const vs = VS_PATH.exec(path);
   if (vs && vs[1] === vs[2]) return NextResponse.redirect(new URL(playerHref(vs[1]), request.url));

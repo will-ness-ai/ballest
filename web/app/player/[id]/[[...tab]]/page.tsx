@@ -11,7 +11,7 @@ import { PlayerSkeleton } from "../../../../components/Skeleton";
 import { PlayerView, tabFor } from "../../../../components/player/PlayerView";
 import { getBoardPage, getPlayer } from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
-import { PLAYER_TABS } from "../../../../lib/routes";
+import { isPlayerTab } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
 
 /* spelled out rather than Next's generated PageProps, which only exists after a build */
@@ -27,7 +27,7 @@ export async function generateStaticParams() {
 /* the record a path names, or null for a path that names no page */
 async function recordOf({ id, tab = [] }: Awaited<Props["params"]>) {
   if (!isSteamId(id) || tab.length > 1) return null;
-  if (tab.length && !(PLAYER_TABS as ReadonlyArray<string>).includes(tab[0])) return null;
+  if (tab.length && !isPlayerTab(tab[0])) return null;
   return getPlayer(id);
 }
 

@@ -17,7 +17,9 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
 - `web/lib/` — pure TypeScript, no React and no database, with tests in `web/test/`:
   - `rules.ts`, the page's invariants and formatting: score units (`SCORE_TICKS_PER_SECOND`),
     `isPoints`, `isSteamId`, Medal tiers, times and ages.
-  - `routes.ts`, every URL the site links to, and how an old `#/` link maps onto one.
+  - `routes.ts`, every URL the site links to, what each path segment may be (the proxy and
+    the pages check a path with the same predicates), which tab a path lights, and how an
+    old `#/` link maps onto one.
   - `circuit.ts`, the Circuit's fixed facts: the board order (the in-game numbering), the
     Season 2 tiers, each Track's screenshot and Medal times.
   - `rows.ts`, the row types the read layer returns.

@@ -361,7 +361,7 @@
 .dscrim {
   position: fixed;
   inset: 0;
-  background: rgba(4, 7, 14, 0.66);
+  background: var(--scrim);
   z-index: 40;
 }
 .drawer {

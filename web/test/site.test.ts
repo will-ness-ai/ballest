@@ -1,7 +1,9 @@
 // The site's queries (db/site.ts) against the tiny dataset; every expected value is worked
 // out by hand from the comments in db/seed/datasets/tiny.ts.
+import { desc } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
+import { entries, refreshes } from "../db/schema";
 import { seed } from "../db/seed/harness";
 import {
   boardPage,
@@ -138,6 +140,36 @@ describe("the derived boards", () => {
     ]);
     expect(page.rows[0].seasons).toEqual({ "Season 1": 60000, "Season 2": 1450 });
     expect(page.rows[7].seasons).toEqual({ "Season 2": 1450 });
+  });
+
+  test("All Seasons puts equal totals in Season 1's order, then Season 2's", async () => {
+    // p(9) joins Season 2 on 13633, p(8)'s total (13333 + 300): p(8) is on Season 1
+    // Current, so goes first, as the collector met them.
+    const own = await freshDb();
+    try {
+      await seed(own.db, "tiny");
+      const [{ id }] = await own.db
+        .select({ id: refreshes.id })
+        .from(refreshes)
+        .orderBy(desc(refreshes.id))
+        .limit(1);
+      await own.db.insert(entries).values({
+        board: "OverallLeaderboard_EASeason2",
+        steamId: p(9),
+        score: 13633,
+        ugcId: "9000000009013633",
+        firstSeenRefresh: id,
+        lastSeenRefresh: id,
+      });
+      const page = await boardPage(own.db, "OverallLeaderboard_AllSeasons", { count: 100 });
+      expect(page.rows.slice(2, 5).map((r) => [r.steamId, r.score])).toEqual([
+        [p(8), 13633],
+        [p(9), 13633],
+        [p(5), 13333],
+      ]);
+    } finally {
+      await own.drop();
+    }
   });
 
   test("every Circuit board counts its players", async () => {

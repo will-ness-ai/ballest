@@ -20,7 +20,7 @@ import {
   plural,
   relTime,
   shortGap,
-  tierOf,
+  medalOf,
   trackPoints,
   value,
 } from "../lib/rules";
@@ -105,11 +105,11 @@ describe("the game's rules", () => {
 
   test("a Medal is the best target the time meets; rank 1 is a world record instead", () => {
     const medals = [30, 20, 15, 12];
-    expect(tierOf(medals, 1, 2000000)).toBe("wr");
-    expect(tierOf(medals, 2, 1200000)).toBe("author");
-    expect(tierOf(medals, 2, 1500000)).toBe("gold");
-    expect(tierOf(medals, 2, 2500000)).toBe("bronze");
-    expect(tierOf(medals, 2, 3000001)).toBe("none");
+    expect(medalOf(medals, 1, 2000000)).toBe("wr");
+    expect(medalOf(medals, 2, 1200000)).toBe("author");
+    expect(medalOf(medals, 2, 1500000)).toBe("gold");
+    expect(medalOf(medals, 2, 2500000)).toBe("bronze");
+    expect(medalOf(medals, 2, 3000001)).toBe("none");
   });
 
   test("a creator's own margin applies to authorBeaten alone, as the collector's does", () => {
@@ -120,7 +120,7 @@ describe("the game's rules", () => {
     );
     // a Medal does not: a run at the author time is an author Medal, whoever set it,
     // as on the old page
-    expect(tierOf([30, 20, 15, 12], 2, 12 * SCORE_TICKS_PER_SECOND)).toBe("author");
+    expect(medalOf([30, 20, 15, 12], 2, 12 * SCORE_TICKS_PER_SECOND)).toBe("author");
   });
 });
 

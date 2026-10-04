@@ -45,6 +45,9 @@
   --a-soft: rgba(255, 122, 138, 0.13);
   --b: #5fd4ff;
   --b-soft: rgba(95, 212, 255, 0.12);
+  --glow-blue: rgba(88, 168, 255, 0.16);
+  --glow-lime: rgba(139, 224, 60, 0.1);
+  --scrim: rgba(4, 7, 14, 0.66);
   --radius: 11px;
   --pad: 16px;
   --f-marquee: "Bungee", system-ui, sans-serif;
@@ -61,8 +64,8 @@ body {
   font: 400 15px/1.5 var(--f-body);
   -webkit-font-smoothing: antialiased;
   background:
-    radial-gradient(900px 520px at 80% -10%, rgba(88, 168, 255, 0.16), transparent 62%),
-    radial-gradient(680px 460px at 4% 2%, rgba(139, 224, 60, 0.1), transparent 64%), var(--bg);
+    radial-gradient(900px 520px at 80% -10%, var(--glow-blue), transparent 62%),
+    radial-gradient(680px 460px at 4% 2%, var(--glow-lime), transparent 64%), var(--bg);
   background-attachment: fixed;
 }
 img {

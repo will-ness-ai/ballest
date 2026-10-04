@@ -101,11 +101,11 @@ describe("a player's record", () => {
         score: 5_000_000,
         gap: 800_000,
         // 50s is over the gold (40s) and silver (45s) times, under bronze (60s)
-        tier: "bronze",
+        medal: "bronze",
         holder: { steamId: p(9), persona: "Ninth" },
       },
     ]);
-    expect(w.tiers).toEqual({ wr: 0, author: 0, gold: 0, silver: 0, bronze: 1, none: 0 });
+    expect(w.medals).toEqual({ wr: 0, author: 0, gold: 0, silver: 0, bronze: 1, none: 0 });
     expect([w.maps, w.podiums, w.near]).toEqual([2, 1, 0]);
   });
 
@@ -125,7 +125,7 @@ describe("a player's record", () => {
     ]);
     // Ninth holds it, not Tenpin; Tenpin's world record is on Ninth's Map
     expect(r.holds).toBe(0);
-    expect(r.workshop.finishes.map((f) => [f.name, f.rank, f.tier])).toEqual([
+    expect(r.workshop.finishes.map((f) => [f.name, f.rank, f.medal])).toEqual([
       ["Workshop_9000000002", 1, "wr"],
       ["Workshop_9000000001", 2, "bronze"],
     ]);
@@ -138,7 +138,7 @@ describe("a player's record", () => {
       m.pfid === "9000000001" ? { ...m, medals: [60, 50, 49, 48] } : m,
     );
     const r = await record(10, moved);
-    expect(r.workshop.finishes.find((f) => f.pfid === "9000000001")?.tier).toBe("author");
+    expect(r.workshop.finishes.find((f) => f.pfid === "9000000001")?.medal).toBe("author");
     expect(r.made[0].author).toBe(48);
   });
 

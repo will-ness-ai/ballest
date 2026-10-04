@@ -24,7 +24,7 @@ footer a {
 .scrim {
   position: fixed;
   inset: 0;
-  background: rgba(4, 7, 14, 0.66);
+  background: var(--scrim);
   z-index: 40;
   opacity: 0;
   pointer-events: none;

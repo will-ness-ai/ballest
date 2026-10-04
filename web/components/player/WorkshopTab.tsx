@@ -11,27 +11,27 @@ import { useDebounced } from "../../hooks/client";
 import type { PlayerRecord, WorkshopFinish } from "../../lib/player";
 import { boardHref } from "../../lib/routes";
 import {
-  TIERS,
-  TIER_LABEL,
+  MEDAL_KEYS,
+  MEDAL_LABEL,
   fmtN,
   fmtTime,
   ord,
   personaOf,
   plural,
   shortGap,
-  type Tier,
+  type MedalKey,
 } from "../../lib/rules";
 
 const PW_SHELF = 14;
 
 /* a Medal as the trophy shelf and each row draw it */
-function Medal({ t, size, mini }: { t: Tier; size: number; mini?: boolean }) {
+function Medal({ t, size, mini }: { t: MedalKey; size: number; mini?: boolean }) {
   return (
     <span
       className={mini ? "medal mini" : "medal"}
       data-t={t}
       style={{ "--s": String(size) + "px" } as React.CSSProperties}
-      title={TIER_LABEL[t]}
+      title={MEDAL_LABEL[t]}
     >
       {t === "wr" ? "1" : ""}
     </span>
@@ -160,7 +160,7 @@ function Row({ f, id }: { f: WorkshopFinish; id: string }) {
         {fmtTime(f.score)}
         <small>{f.rank === 1 ? "record" : shortGap(f.gap)}</small>
       </span>{" "}
-      <Medal t={f.tier} size={18} mini />
+      <Medal t={f.medal} size={18} mini />
     </Link>
   );
 }
@@ -185,32 +185,32 @@ export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"]
   const rows = w.finishes
     .filter(
       (f) =>
-        (!pw.tier || f.tier === pw.tier) &&
+        (!pw.medal || f.medal === pw.medal) &&
         (!q || (f.display + " " + f.creator).toLowerCase().includes(q)),
     )
     .sort(SORTS[pw.sort][1]);
-  const pickTier = (k: Tier) => {
-    const tier = pw.tier === k ? null : k;
-    setPw({ ...pw, tier, shown: PW_CHUNK });
-    if (tier)
+  const pickMedal = (k: MedalKey) => {
+    const medal = pw.medal === k ? null : k;
+    setPw({ ...pw, medal, shown: PW_CHUNK });
+    if (medal)
       document.getElementById("pwall")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   return (
     <div className="pws">
       <div className="trophies" id="pwtro">
-        {TIERS.map(([k, label]) => (
+        {MEDAL_KEYS.map(([k, label]) => (
           <button
             key={k}
             type="button"
-            data-tier={k}
-            aria-pressed={pw.tier === k}
-            data-zero={w.tiers[k] ? undefined : ""}
+            data-medal={k}
+            aria-pressed={pw.medal === k}
+            data-zero={w.medals[k] ? undefined : ""}
             onClick={() => {
-              pickTier(k);
+              pickMedal(k);
             }}
           >
             <Medal t={k} size={40} />
-            <b data-tc={k}>{fmtN(w.tiers[k])}</b> <span className="eyebrow">{label}</span>
+            <b data-tc={k}>{fmtN(w.medals[k])}</b> <span className="eyebrow">{label}</span>
           </button>
         ))}
       </div>{" "}
@@ -279,16 +279,16 @@ export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"]
           ))}
         </select>{" "}
         <span className="pwbar" id="pwbar">
-          {pw.tier ? (
+          {pw.medal ? (
             <button
               type="button"
               className="chip"
               data-pwclear=""
               onClick={() => {
-                setPw({ ...pw, tier: null, shown: PW_CHUNK });
+                setPw({ ...pw, medal: null, shown: PW_CHUNK });
               }}
             >
-              {TIER_LABEL[pw.tier as Tier]} only &times;
+              {MEDAL_LABEL[pw.medal]} only &times;
             </button>
           ) : null}{" "}
           <span className="ws-count">{plural(rows.length, "map", "maps")}</span>

@@ -115,7 +115,7 @@ export function hueFor(seed: string) {
 
 /* The six Medals a Workshop finish can show, best first. A world record is rank 1 on the
    Map's board, and counts there alone, not again under the Medal its time earns. */
-export const TIERS = [
+export const MEDAL_KEYS = [
   ["wr", "World record"],
   ["author", "Author"],
   ["gold", "Gold"],
@@ -123,8 +123,8 @@ export const TIERS = [
   ["bronze", "Bronze"],
   ["none", "No medal"],
 ] as const;
-export type Tier = (typeof TIERS)[number][0];
-export const TIER_LABEL = Object.fromEntries(TIERS) as Record<Tier, string>;
+export type MedalKey = (typeof MEDAL_KEYS)[number][0];
+export const MEDAL_LABEL = Object.fromEntries(MEDAL_KEYS) as Record<MedalKey, string>;
 
 /* A creator's own run counts toward a Map's authorBeaten (workshopMaps in db/site.ts) only
    when it is this much faster than the author time: the author time is their publishing
@@ -135,7 +135,7 @@ export const CREATOR_BEAT_MARGIN_TICKS = 100;
 /* the one place that rule lives. A Map's Medals are [bronze, silver, gold, author], seconds.
    No creator margin here: the old page's tierOf showed a creator's own run its Medal as
    is, and only the collector's author_beaten count applied CREATOR_BEAT_MARGIN_TICKS. */
-export function tierOf(medals: ReadonlyArray<number>, rank: number, score: number): Tier {
+export function medalOf(medals: ReadonlyArray<number>, rank: number, score: number): MedalKey {
   if (rank === 1) return "wr";
   const at = (i: number) => score <= (medals[i] ?? 0) * SCORE_TICKS_PER_SECOND;
   return at(3) ? "author" : at(2) ? "gold" : at(1) ? "silver" : at(0) ? "bronze" : "none";

@@ -9,7 +9,7 @@ import { Shell } from "../../../components/Shell";
 import { AllMaps } from "../../../components/workshop/AllMaps";
 import { getMapCards, getSite } from "../../../db/data";
 import { mapsHref } from "../../../lib/routes";
-import { PRESETS } from "../../../lib/workshop";
+import { PRESETS, isPreset } from "../../../lib/workshop";
 
 /* spelled out rather than Next's generated PageProps, which only exists after a build */
 interface Props {
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 async function Maps({ params }: Props) {
   const { view = [] } = await params;
   const v = view.length ? view[0] : null;
-  if (view.length > 1 || (v !== null && !Object.hasOwn(PRESETS, v))) notFound();
+  if (view.length > 1 || (v !== null && !isPreset(v))) notFound();
   const [{ asOf }, maps] = await Promise.all([getSite(), getMapCards()]);
   return (
     <>

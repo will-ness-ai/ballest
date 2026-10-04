@@ -5,11 +5,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { Freshness } from "./Freshness";
-import { GroupTabs, PLAYERS_TAB, Tabs, WORKSHOP_GROUP, type GroupTab } from "./GroupTabs";
+import { GroupTabs, Tabs, type GroupTab } from "./GroupTabs";
 import { Rack } from "./Marble";
 import { getSite, getWorkshop } from "../db/data";
 import { groupsOf, overallOf } from "../lib/player";
-import { boardHref, homeHref, playersHref } from "../lib/routes";
+import { PLAYERS_TAB, WORKSHOP_GROUP, boardHref, homeHref, playersHref } from "../lib/routes";
 import { SITE_TITLE } from "../lib/rules";
 
 export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "players";

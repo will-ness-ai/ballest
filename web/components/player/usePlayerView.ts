@@ -5,13 +5,15 @@
 // player, as on the single-page site.
 import { useEffect, useState } from "react";
 
+import type { MedalKey } from "../../lib/rules";
+
 export const PW_CHUNK = 40;
 
 export const PW_SORTS = ["best", "rank", "close", "runs", "newest", "az"] as const;
 export type PwSort = (typeof PW_SORTS)[number];
 
 export interface PlayerView {
-  tier: string | null;
+  medal: MedalKey | null;
   q: string;
   sort: PwSort;
   shown: number;
@@ -19,7 +21,7 @@ export interface PlayerView {
 }
 
 const fresh = (): PlayerView => ({
-  tier: null,
+  medal: null,
   q: "",
   sort: "best",
   shown: PW_CHUNK,

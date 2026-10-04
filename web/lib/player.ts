@@ -6,12 +6,12 @@ import { COMPOSITE_BOARD, S1_CURRENT_BOARD } from "./circuit";
 import type { PlayerData, WorkshopMap } from "./rows";
 import {
   SCORE_TICKS_PER_SECOND,
-  TIERS,
+  MEDAL_KEYS,
   isPoints,
   seasonTag,
-  tierOf,
+  medalOf,
   trackPoints,
-  type Tier,
+  type MedalKey,
 } from "./rules";
 
 export interface IndexBoard {
@@ -57,7 +57,7 @@ export interface WorkshopFinish {
   rank: number;
   score: number;
   gap: number;
-  tier: Tier;
+  medal: MedalKey;
   holder: Who;
 }
 
@@ -84,7 +84,7 @@ export interface PlayerRecord {
   seasons: Array<SeasonRecord>;
   workshop: {
     finishes: Array<WorkshopFinish>;
-    tiers: Record<Tier, number>;
+    medals: Record<MedalKey, number>;
     maps: number;
     podiums: number;
     near: number;
@@ -136,12 +136,12 @@ export function playerRecord(
       rank: f.rank,
       score: f.score,
       gap: f.score - f.lead,
-      tier: tierOf(m.medals, f.rank, f.score),
+      medal: medalOf(m.medals, f.rank, f.score),
       holder: { steamId: m.top3[0][0], persona: m.top3[0][1] },
     });
   }
-  const tiers = Object.fromEntries(TIERS.map(([k]) => [k, 0])) as Record<Tier, number>;
-  for (const f of finishes) tiers[f.tier]++;
+  const byMedal = Object.fromEntries(MEDAL_KEYS.map(([k]) => [k, 0])) as Record<MedalKey, number>;
+  for (const f of finishes) byMedal[f.medal]++;
   /* every Map they published, timed or not; one with no time has no board to link to */
   const timedNames = new Set(timed.map((m) => m.name));
   const made = maps
@@ -225,7 +225,7 @@ export function playerRecord(
     seasons,
     workshop: {
       finishes,
-      tiers,
+      medals: byMedal,
       maps: maps.length,
       podiums: finishes.filter((f) => f.rank <= 3).length,
       near: finishes.filter((f) => f.rank > 1 && f.gap <= SCORE_TICKS_PER_SECOND).length,
@@ -341,7 +341,7 @@ export function matchup(A: PlayerRecord, B: PlayerRecord): Matchup {
   });
   const rankIn = (rec: PlayerRecord, season: string) =>
     rec.seasons.find((x) => x.group === season)?.overall?.rank ?? null;
-  const wrs = (rec: PlayerRecord) => rec.medals.gold + rec.workshop.tiers.wr;
+  const wrs = (rec: PlayerRecord) => rec.medals.gold + rec.workshop.medals.wr;
   return {
     rows,
     tally: {

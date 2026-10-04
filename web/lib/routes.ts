@@ -1,5 +1,6 @@
 // Every URL the site links to, and how an old #/ link from the single-page site maps onto
 // one. A Steam ID only ever reaches a path through isSteamId: one can arrive from the URL.
+import { circuitBoard } from "./circuit";
 import { STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 
 export const PLAYER_TABS = ["circuit", "workshop", "made"] as const;
@@ -12,6 +13,27 @@ export const PL_SCOPES = ["all", "circuit", "workshop"] as const;
 export type PlScope = (typeof PL_SCOPES)[number];
 export const PL_SORTS = ["wr", "pod", "t5", "maps"] as const;
 export type PlSort = (typeof PL_SORTS)[number];
+
+/* what a path segment may be; the proxy and the pages check a path with the same ones */
+const oneOf =
+  <T extends string>(list: ReadonlyArray<T>) =>
+  (s: string | undefined): s is T =>
+    (list as ReadonlyArray<string | undefined>).includes(s);
+export const isPlayerTab = oneOf(PLAYER_TABS);
+export const isPlScope = oneOf(PL_SCOPES);
+export const isPlSort = oneOf(PL_SORTS);
+
+/* the tabs across the top that aren't a season: the Workshop leads, Players comes last */
+export const WORKSHOP_GROUP = "Workshop";
+export const PLAYERS_TAB = "Players";
+
+/* the tab a path belongs to; a player's page and a head to head belong to none */
+export function groupOfPath(path: string): string | null {
+  if (path === "/" || /^\/maps?(\/|$)/.test(path)) return WORKSHOP_GROUP;
+  if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
+  const board = /^\/board\/([^/]+)/.exec(path);
+  return board ? (circuitBoard(decodeURIComponent(board[1]))?.group ?? null) : null;
+}
 
 export const homeHref = () => "/";
 
@@ -44,7 +66,7 @@ const LEGACY: Array<[RegExp, (m: RegExpExecArray) => string]> = [
   [new RegExp(`^#/player/(${ID})(?:/(${PLAYER_TABS.join("|")}))?$`), (m) => playerHref(m[1], m[2])],
   [new RegExp(`^#/vs/(${ID})/(${ID})$`), (m) => vsHref(m[1], m[2])],
   [
-    /^#\/players(?:\/(all|circuit|workshop)(?:\/(wr|pod|t5|maps))?)?$/,
+    new RegExp(`^#/players(?:/(${PL_SCOPES.join("|")})(?:/(${PL_SORTS.join("|")}))?)?$`),
     (m) =>
       playersHref(
         ((m[1] as string | undefined) ?? "all") as PlScope,

@@ -1,4 +1,4 @@
-# The site moves to Next.js on Vercel, in web/, one view at a time
+# The site moves to Next.js on Vercel, in web/
 
 Status: accepted. ballest.willness.dev moved to Vercel on 2026-10-03; it supersedes 0002.
 Its view-at-a-time port was reversed on 2026-10-04: the page was ported in one go (below).
@@ -22,10 +22,12 @@ never waits on the migration as a whole.
 
 **Revised 2026-10-04.** Once the database landed (ADR 0005), every view had to move from
 the JSON to the database anyway, so the page was ported in one branch instead: server
-components reading the database through one cached read layer, real URLs for every view,
-and the old `#/` links redirected. Running two pages side by side for a while would have
+components reading the database through one cached read layer (`"use cache: remote"`, so
+every serverless instance shares one cache), real URLs for every view, and the old `#/`
+links redirected. Running two pages side by side for a while would have
 meant keeping the JSON and the database reads in step in both. `index.html` is gone; the
-site is `web/app/` (`docs/site.md`).
+site is `web/app/` (`docs/site.md`). A data commit no longer deploys: the collector expires
+the read layer's cache once a Refresh is written instead.
 
 ## Considered Options
 

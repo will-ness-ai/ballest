@@ -12,8 +12,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 
 ## Layout
 
-- `web/` — the site: a Next.js app (App Router, server components, `"use cache"`) reading
-  the Postgres database the collector writes (ADR 0004, ADR 0005), which Vercel builds and
+- `web/` — the site: a Next.js app (App Router, server components, `"use cache: remote"`)
+  reading the Postgres database the collector writes (ADR 0004, ADR 0005), which Vercel builds and
   serves (project `ballest`, Root Directory `web`). No JS CDN: the only external requests
   are Google Fonts and the Plausible analytics script, served from our own instance on
   Railway. Its layout, caching, routes and the theme: `docs/site.md`. Read it before
