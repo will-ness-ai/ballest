@@ -3,6 +3,7 @@
   "private": true,
   "description": "Formatting and linting for the whole repo; see docs/linting.md",
   "type": "module",
+  "packageManager": "pnpm@12.6.0",
   "engines": {
     "node": ">=22"
   },

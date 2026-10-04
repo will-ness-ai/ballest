@@ -42,6 +42,8 @@ Hold the bar the template sets: open the URL before asking for its value, use `a
 
 - The library assigns `ENV_FILE="${ENV_FILE:-.env}"` before your stages run, so a `${ENV_FILE:-…}` default in the stages never fires. Assign the hand-off file plainly: `ENV_FILE="$HOME/.something-env"`.
 - `set -euo pipefail` is on: a `grep` that can match nothing inside `$(…)` needs `|| true`, and a value the later stages require is read in an `until [[ -n "$X" ]]` loop.
+- A third-party CLI may be missing from Git Bash's `PATH` even when the human uses it elsewhere (Will's PC has no global `vercel`). Resolve it once at the top of the stages into a variable, falling back to npx: `VC=$(command -v vercel || true); [[ -n "$VC" ]] || VC="npx --yes vercel@latest"`, then call `$VC` throughout.
+- Print a `working...` line before any step that runs silently (a CLI call with its output sent to `/dev/null`, an npx download), so a quiet screen reads as busy rather than stuck.
 
 A value bound for the clipboard goes through `clip.exe`, then `pbcopy`, then `xclip`, printing the block when none exists.
 
@@ -54,7 +56,7 @@ A value bound for the clipboard goes through `clip.exe`, then `pbcopy`, then `xc
 
 ### 5. Deliver it to the human's machine
 
-The wizard runs where the human's browser is: Will's Windows PC. Will expects it already running in a window on his desktop; his only job is typing into it. A cloud session reaches his PC through a Remote Control session in his Ballest folder:
+The wizard runs where the human's browser is: Will's Windows PC. Will expects it already running in a window on his desktop; his only job is typing into it. A cloud session reaches his PC through a Remote Control session in his Ballest folder. That session acts only on Will's own words, so ask him to say "launch the wizard" in the thread and start the session on that message; started on anything else, its permission check blocks writing secrets.
 
 1. Hand that session the whole script inline in its instructions. It writes it to `scratch/<name>.sh` with LF endings and repeats the boot check from step 4 there.
 2. It launches a new visible window running the script by absolute path: `Start-Process "C:\Program Files\Git\git-bash.exe" -ArgumentList "-c","bash /c/Users/Will/Documents/Projects/Ballest/scratch/<name>.sh; exec bash"`. Have the script append a line to `scratch/<name>.log` at its first screen, and the session confirms that line appeared before you tell Will the window is up.
