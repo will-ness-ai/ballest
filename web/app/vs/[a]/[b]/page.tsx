@@ -5,11 +5,13 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { DocTitle } from "../../../../components/Behaviours";
 import { Shell } from "../../../../components/Shell";
 import { VsView } from "../../../../components/player/VsView";
 import { PageFallback } from "../../../../components/player/pieces";
 import { getBoardPage, getPlayer } from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
+import type { PlayerRecord } from "../../../../lib/player";
 import { playerHref } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
 
@@ -24,6 +26,9 @@ export async function generateStaticParams() {
   return [{ a, b }];
 }
 
+const titleOf = (pair: { A: PlayerRecord; B: PlayerRecord }) =>
+  personaOf(pair.A.who) + " vs " + personaOf(pair.B.who);
+
 async function pairOf({ a, b }: Awaited<Props["params"]>) {
   if (!isSteamId(a) || !isSteamId(b) || a === b) return null;
   const [A, B] = await Promise.all([getPlayer(a), getPlayer(b)]);
@@ -33,7 +38,7 @@ async function pairOf({ a, b }: Awaited<Props["params"]>) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const pair = await pairOf(await params);
   if (!pair) return {};
-  const title = personaOf(pair.A.who) + " vs " + personaOf(pair.B.who);
+  const title = titleOf(pair);
   return {
     title,
     description: `${title}: every Circuit track and Workshop map they both have a time on, in Ballest of Them All.`,
@@ -45,7 +50,12 @@ async function Vs({ params }: Pick<Props, "params">) {
   if (p.a === p.b && isSteamId(p.a)) redirect(playerHref(p.a));
   const pair = await pairOf(p);
   if (!pair) notFound();
-  return <VsView key={p.a + "/" + p.b} A={pair.A} B={pair.B} />;
+  return (
+    <>
+      <DocTitle title={titleOf(pair)} />
+      <VsView key={p.a + "/" + p.b} A={pair.A} B={pair.B} />
+    </>
+  );
 }
 
 export default function Page({ params }: Props) {

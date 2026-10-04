@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { DocTitle } from "../../../../components/Behaviours";
 import { Shell } from "../../../../components/Shell";
 import { PlayerView, tabFor } from "../../../../components/player/PlayerView";
 import { PageFallback } from "../../../../components/player/pieces";
@@ -44,7 +45,12 @@ async function Player({ params }: Pick<Props, "params">) {
   const p = await params;
   const rec = await recordOf(p);
   if (!rec) notFound();
-  return <PlayerView rec={rec} tab={tabFor(rec, p.tab?.[0] ?? null)} />;
+  return (
+    <>
+      <DocTitle title={personaOf(rec.who)} />
+      <PlayerView rec={rec} tab={tabFor(rec, p.tab?.[0] ?? null)} />
+    </>
+  );
 }
 
 export default function Page({ params }: Props) {

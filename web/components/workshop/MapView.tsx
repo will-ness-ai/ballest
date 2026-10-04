@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { CreatorLink, MapImg } from "./Card";
 import { Age, BackLink } from "./session";
+import { DocTitle } from "../Behaviours";
 import { BoardBody } from "../board/BoardBody";
 import { ScorePlates } from "../board/furniture";
 import { CHUNK, Spread } from "../board/parts";
@@ -97,6 +98,7 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
   const at = focus ? places?.[focus] : undefined;
   return (
     <div className="main">
+      <DocTitle title={m.title} />
       <MapPanel m={m} scores={scores} asOf={site.refreshedAt ? Date.parse(site.refreshedAt) : 0} />
       <section className="content">
         <BoardBody

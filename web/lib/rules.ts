@@ -1,5 +1,10 @@
 // The page's invariants and formatting, in one place every view and the read layer share.
-// Each rule here used to live in index.html's script; the reasons stay with them.
+// Each rule here used to live in the old single-file page's script; the reasons stay with
+// them.
+
+export const SITE_TITLE = "Ballest of Them All";
+/* a page's title in the tab: its own name, then the site's (the layout's title template) */
+export const pageTitle = (title: string) => title + " · " + SITE_TITLE;
 
 /* Track and Map boards store a run time as hundred-thousandths of a second, NOT
    milliseconds: seconds = score / 100000. Verified against the Medal times each Workshop

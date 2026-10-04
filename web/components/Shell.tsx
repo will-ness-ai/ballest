@@ -10,8 +10,7 @@ import { Rack } from "./Marble";
 import { getSite, getWorkshop } from "../db/data";
 import { groupsOf, overallOf } from "../lib/player";
 import { boardHref, homeHref, playersHref } from "../lib/routes";
-
-export const SITE_TITLE = "Ballest of Them All";
+import { SITE_TITLE } from "../lib/rules";
 
 export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "players";
 

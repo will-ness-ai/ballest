@@ -5,7 +5,7 @@ import type { Metadata, Viewport } from "next";
 
 import { Ambient } from "../components/Marble";
 import { LegacyHash, MarbleFlip } from "../components/Behaviours";
-import { SITE_TITLE } from "../components/Shell";
+import { SITE_TITLE, pageTitle } from "../lib/rules";
 
 import "./styles/base.css";
 import "./styles/board.css";
@@ -24,7 +24,7 @@ const DESCRIPTION =
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://ballest.willness.dev"),
-  title: { default: SITE_TITLE, template: "%s · " + SITE_TITLE },
+  title: { default: SITE_TITLE, template: pageTitle("%s") },
   description: DESCRIPTION,
   icons: {
     icon: [

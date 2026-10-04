@@ -1,10 +1,12 @@
 "use client";
 // What the whole page does whatever is on it: an old #/ link opens the page it always
-// opened, a tap turns a marble over, and a modal dialog keeps the keyboard inside it.
+// opened, a tap turns a marble over, a modal dialog keeps the keyboard inside it, and a
+// page whose title comes from the database keeps the tab's title right.
 import { useRouter } from "next/navigation";
 import { useEffect, type RefObject } from "react";
 
 import { legacyPath } from "../lib/routes";
+import { pageTitle } from "../lib/rules";
 
 /* the single-page site's links (#/player/<id>, #/board/<name>, ...) live on in Discord
    and bookmarks; each lands on its path */
@@ -80,4 +82,15 @@ export function useModalKeys(
       removeEventListener("keydown", onKey);
     };
   }, [open, box, close, focusable]);
+}
+
+/* A page whose title is read from the database (a player, a Map) streams its metadata
+   when it is served from the App Shell, and Next then leaves that first title in place
+   on every later visit to the same route (Next 16.3: /player/A, then /player/B, still
+   reads A). The page sets the title itself as well, so the tab always names it. */
+export function DocTitle({ title }: { title: string }) {
+  useEffect(() => {
+    document.title = pageTitle(title);
+  }, [title]);
+  return null;
 }

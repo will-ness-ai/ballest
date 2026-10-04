@@ -5,6 +5,7 @@
 import { notFound } from "next/navigation";
 
 import { BoardBody } from "./BoardBody";
+import { DocTitle } from "../Behaviours";
 import { BoardSheet } from "./BoardSheet";
 import {
   OverallCard,
@@ -62,6 +63,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
 
   return (
     <div className="main">
+      <DocTitle title={`${b.group} ${b.display}`} />
       <aside className="rail">
         <h2 id="railhead">{b.group}</h2>
         <nav className="boards" id="boards" aria-label="Leaderboard">
