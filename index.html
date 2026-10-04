@@ -7412,7 +7412,7 @@
       }
       .pt-stats {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 10px 14px;
         margin: 10px 0 0;
       }
@@ -7495,7 +7495,7 @@
     <script>
       (() => {
         /* round 1 verdict: A (record line) leads, C (what changed) as a second tab.
-           round 2 verdict: the side column's place, with B's shape (a summary you open).
+           round 2 verdict: B's place above the rows, a summary that opens the tabs.
            Round 3: what the closed summary says. */
         const VARIANTS = [
           {
@@ -7967,8 +7967,8 @@
         function place() {
           const k = VARIANTS[vi].key;
           hbtn.hidden = true;
-          content.classList.add("pt-side");
-          content.prepend(host);
+          content.classList.remove("pt-side");
+          document.getElementById("leaders").before(host);
         }
 
         let seq = 0;
