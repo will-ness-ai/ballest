@@ -1,0 +1,73 @@
+name: Backfill the database
+
+# One-off, by hand: replays the git history of data/ into the production database as
+# backfill Refreshes (tools/db_backfill.py, docs/adr/0005), then checks the result against
+# the committed JSON and reports its size against Neon's 0.5 GB free tier. It runs here
+# because the database is not reachable from cloud agent sessions. Run it from main: it
+# replays the history of the branch it runs on.
+#
+# It refuses a database that already holds Refreshes; tick "rebuild" to truncate every
+# table and replay the whole history (the collector's own Refreshes are in git as data
+# commits, so only their exact times are lost).
+
+on:
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: Truncate every table first (needed once the collector has written)
+        type: boolean
+        default: false
+
+# Never alongside a refresh: both write the same tables, and the refresh's commit is a
+# snapshot this replay should see.
+concurrency:
+  group: refresh-leaderboards
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout, with the full history to replay
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          pnpm --dir web install --frozen-lockfile
+          python -m pip install -r tools/requirements-steampy.txt
+
+      - name: Apply the migrations
+        run: node web/scripts/migrate.mjs
+
+      - name: Replay data/ into the database
+        run: python tools/db_backfill.py ${{ inputs.rebuild && '--rebuild' || '' }}
+
+      - name: Check the database against the JSON
+        run: python tools/check_db.py
+
+      - name: Rows per table and database size
+        if: always()
+        run: python tools/db_backfill.py --stats
