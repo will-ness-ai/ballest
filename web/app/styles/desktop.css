@@ -207,6 +207,9 @@
     max-width: 190px;
     gap: 11px;
   }
+  .plate[data-p="1"] {
+    padding-bottom: 16px;
+  }
   .plate .marble {
     width: 96px;
     height: 96px;
