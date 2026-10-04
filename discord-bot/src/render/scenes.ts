@@ -932,3 +932,61 @@ export const activityArtScene = (art: ActivityArt, dev: boolean): El => {
       : null,
   );
 };
+
+// ---------------------------------------------------------------- the Daily Report's standings
+
+export const STANDINGS_WIDTH = 620;
+/** Widest a name gets before it is clipped, so a row stays on one line. */
+const STANDINGS_NAME = 20;
+
+/** The four boards of the Daily Report (src/report/), two by two, ten rows each. */
+export interface StandingsImage {
+  readonly title: string;
+  readonly subtitle: string;
+  readonly boards: ReadonlyArray<{
+    readonly title: string;
+    readonly rows: ReadonlyArray<{ readonly name: string; readonly n: number }>;
+  }>;
+}
+
+export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El => {
+  const column = (board: StandingsImage["boards"][number]) =>
+    box(
+      { flexDirection: "column", width: 270, gap: 4 },
+      label(board.title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 }),
+      ...board.rows.map((row, i) =>
+        box(
+          {
+            alignItems: "center",
+            gap: 8,
+            fontSize: 15,
+            padding: "3px 8px",
+            borderRadius: 6,
+            backgroundColor: i === 0 ? "rgba(139,224,60,0.16)" : C.surface,
+          },
+          box(
+            { width: 22, color: i < 3 ? C.gold : C.faint, fontFamily: F.hud, fontWeight: 700 },
+            String(i + 1),
+          ),
+          box(
+            { flexGrow: 1, overflow: "hidden" },
+            row.name.length > STANDINGS_NAME
+              ? `${row.name.slice(0, STANDINGS_NAME - 1)}…`
+              : row.name,
+          ),
+          box({ fontFamily: F.hud, fontWeight: 700, color: C.text }, String(row.n)),
+        ),
+      ),
+      board.rows.length === 0 ? box({ color: C.faint, fontSize: 14 }, "Nobody yet") : null,
+    );
+  const pairs = [boards.slice(0, 2), boards.slice(2, 4)].filter((p) => p.length > 0);
+  return backdrop(
+    { padding: 28, gap: 20 },
+    box(
+      { flexDirection: "column", gap: 4 },
+      box({ fontFamily: F.marquee, fontSize: 28 }, title),
+      box({ color: C.dim, fontSize: 14 }, subtitle),
+    ),
+    ...pairs.map((pair) => box({ gap: 24 }, ...pair.map(column))),
+  );
+};

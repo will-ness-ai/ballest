@@ -2,7 +2,7 @@
 The steam.py leaderboard requests the headless tools share: reading a board by ID, and
 finding a board's ID from its name.
 
-Used by steampy_collect.py (CI) and ugc_discord_leaderboard.py (local). Both go through
+Used by steampy_collect.py (CI). It goes through
 the logged-in client's websocket directly: steam.py's own leaderboard calls fail for this
 app (see find_board_id). Send these one at a time. With several in flight, the CM
 silently drops replies.

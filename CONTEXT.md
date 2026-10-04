@@ -47,6 +47,13 @@ from it. Backfilled from the git history of the old JSON, so its earliest Entrie
 first seen no later than their first Refresh, not exactly then.
 _Avoid_: snapshots, audit log
 
+**Daily Report**:
+Multiballs' once-a-day post of the Workshop standings (Maps played, Author Medals, world
+records, top 5s), what changed since the day before, Maps nobody has finished, unclaimed
+Author Medals and the longest-standing records. A creator counts on their own Map only by
+beating its Author Medal, since the Author time is their publishing run.
+_Avoid_: daily stats, stat report
+
 ### Matches
 
 **Player**:

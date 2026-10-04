@@ -34,10 +34,6 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   compares the database's open Entries with the board files (the parity check), and
   `tools/db_backfill.py` replays the git history of `data/` through the same writer. Their
   tests are `tools/tests/`. The tables: `docs/data.md`.
-- `tools/ugc_discord_leaderboard.py` — local, on demand: reads every Workshop map's
-  board and prints a Discord post (most custom maps beaten, most author medals, most
-  world records and top 5s, and the longest-standing campaign and Workshop records).
-  Not part of CI and writes nothing into the repo.
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
   which Vercel deploys like any other push, then runs the parity check when the
   `DATABASE_URL` secret is set. `backfill.yml`, by hand only, runs the backfill against
@@ -60,7 +56,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `discord-bot/` — Multiballs, the unofficial Discord Match bot (TypeScript, Effect 3,
   Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site: it runs on
   Fly.io, deployed by `.github/workflows/bot.yml`; its own `AGENTS.md` covers running it
-  locally (dev app only) and production.
+  locally (dev app only) and production. It also posts the Daily Report in #stats-by-will
+  every day, read from the database (ADR 0006, spec #126).
 - `multiballs/` — the bot's Terms of Service and Privacy Policy, published with the site at
   `/multiballs/` because the Discord Developer Portal links to them.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
