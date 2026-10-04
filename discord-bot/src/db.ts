@@ -39,5 +39,10 @@ export const MigratorLive = SqliteMigrator.layer({
       const sql = yield* SqlClient.SqlClient;
       yield* sql`CREATE TABLE ping_offer_answers (discord_id TEXT PRIMARY KEY)`;
     }),
+    // Each day the Daily Report was posted (UTC, "2026-10-04"), so it is never posted twice.
+    "0005_daily_reports": Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE daily_reports (day TEXT PRIMARY KEY, message_id TEXT NOT NULL)`;
+    }),
   }),
 }).pipe(Layer.provide(NodeContext.layer));

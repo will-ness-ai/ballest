@@ -4,6 +4,7 @@
 // local build without a database) there is nothing to migrate and the build goes on.
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 // Neon's pooled URL can't hold the session a migration's lock needs, so prefer the direct one.
@@ -14,7 +15,8 @@ if (!url) {
   const pool = new pg.Pool({ connectionString: url, max: 1 });
   try {
     await migrate(drizzle(pool), {
-      migrationsFolder: new URL("../db/migrations", import.meta.url).pathname,
+      // fileURLToPath, not .pathname: on Windows that is "/C:/...", which no folder matches.
+      migrationsFolder: fileURLToPath(new URL("../db/migrations", import.meta.url)),
     });
     console.log("migrate: up to date");
   } finally {

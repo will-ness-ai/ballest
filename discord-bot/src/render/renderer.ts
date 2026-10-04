@@ -31,6 +31,9 @@ import {
   type ProgressionImage,
   progressionScene,
   ROW_WIDTH,
+  STANDINGS_WIDTH,
+  type StandingsImage,
+  standingsScene,
 } from "./scenes.js";
 
 /** An image that couldn't be drawn: a font, layout or rasterising failure. */
@@ -195,6 +198,8 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
         draw(activityArtScene(art, dev), ACTIVITY_ART_SIZE[art][0]),
       /** A bare marble, for the lifecycle-line emojis. */
       marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
+      /** The Daily Report's four boards. */
+      standings: (image: StandingsImage) => draw(standingsScene(image), STANDINGS_WIDTH),
     };
   }),
 }) {}

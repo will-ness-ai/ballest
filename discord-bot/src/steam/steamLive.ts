@@ -29,7 +29,7 @@ export const parseProfileInput = (input: string): Option.Option<ProfileInput> =>
  * The name the Workshop metadata gives is trimmed, but the game names the board from the
  * untrimmed map title, so a title typed with a leading or trailing space only resolves with
  * the space put back (seen once: " dfgzdfgg"). Same rule as find_map_board_id in
- * tools/ugc_discord_leaderboard.py.
+ * tools/steampy_common.py.
  */
 const boardNameVariants = (name: string): ReadonlyArray<string> => {
   const at = name.indexOf("_Climb_");

@@ -227,9 +227,10 @@ const home = async () => {
 };
 
 const read = async () => {
-  const where = args[0] ?? sandboxChannel();
+  // Flags first: they come out of args, so the channel is whatever positional is left.
   const limit = Number(flag("limit") ?? 10);
   const full = has("full");
+  const where = args[0] ?? sandboxChannel();
   const ms = await messages(where, limit);
   say([
     `channel: ${where}`,
