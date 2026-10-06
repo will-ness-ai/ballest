@@ -23,7 +23,8 @@ data answer most of them.
 
 When the feature has something players will see, settle its look in the running app: a
 throwaway worktree on `claude/prototype-<slug>`, served locally, with the variants and a
-picker built into the real page. Five variants a round, walking from the overall layout
+picker built into the real page (give the worktree its own `pnpm install --prefer-offline`:
+Turbopack rejects a symlinked `node_modules`). Five variants a round, walking from the overall layout
 down to single components. Skip this step for collector, data and bot-engine work with no
 visible surface.
 
@@ -63,7 +64,10 @@ in the PR, not part of it.
 
 Push, then rewrite the PR description to match what landed (Before / After, and How,
 including the design verdicts and the prototype branch), and mark it ready for review once
-CI is green. Remove the prototype worktree if `/grill-design` left one.
+CI is green and the final commit itself has been checked: the smoke test, its preview
+deploy, and, for a site change, a Refresh's revalidate end to end and the changed pages
+against production (`docs/site.md`, "Checking a change"). A gap left unchecked goes in the
+PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` left one.
 
 ## 8. After the merge: `/retro`
 

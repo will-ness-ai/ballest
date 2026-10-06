@@ -26,6 +26,10 @@ porcelain commands fail. Use `gh api` with the REST equivalent:
   `gh api -X PATCH .../issues/<n> -f state=closed`.
 - **PRs**: `gh api -X POST .../pulls -f title=... -f head=... -f base=main -f body=...`,
   `gh api .../pulls/<n>/files`, `gh api -X PUT .../pulls/<n>/merge -f merge_method=squash`.
+- **A failed CI job**: the job's log is out of reach (its download host is outside the
+  session's network policy), so read its annotations,
+  `gh api .../check-runs/<job id>/annotations` (the job ids are in
+  `.../actions/runs/<run id>/jobs`), and reproduce the failing step locally.
 - **Review threads, ready for review, auto-merge**: the session's own routes on the REST
   API, `.../pulls/<n>/ccr/review_threads`, `.../pulls/<n>/ccr/ready_for_review` and
   `.../pulls/<n>/ccr/auto_merge`, as the GraphQL error message lists.
