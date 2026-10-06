@@ -11,7 +11,6 @@ import { getMapCards, getSite } from "../../../db/data";
 import { mapsHref } from "../../../lib/routes";
 import { PRESETS, isPreset } from "../../../lib/workshop";
 
-/* spelled out rather than Next's generated PageProps, which only exists after a build */
 interface Props {
   params: Promise<{ view?: Array<string> }>;
 }

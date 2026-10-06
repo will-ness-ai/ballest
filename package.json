@@ -10,7 +10,7 @@
   "scripts": {
     "format": "prettier --write . && ruff format",
     "format:check": "prettier --check . && ruff format --check",
-    "lint": "eslint --max-warnings=0 . && ruff check",
+    "lint": "eslint --max-warnings=0 . && ruff check && node web/scripts/check-styles.mjs",
     "lint:fix": "eslint --fix . && ruff check --fix",
     "check": "pnpm format:check && pnpm lint"
   },

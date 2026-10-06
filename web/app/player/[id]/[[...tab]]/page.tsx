@@ -14,7 +14,6 @@ import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
 import { isPlayerTab } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
 
-/* spelled out rather than Next's generated PageProps, which only exists after a build */
 interface Props {
   params: Promise<{ id: string; tab?: Array<string> }>;
 }

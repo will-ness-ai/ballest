@@ -10,7 +10,6 @@ import { MapView } from "../../../../components/workshop/MapView";
 import { getWorkshop } from "../../../../db/data";
 import { timed } from "../../../../lib/workshop";
 
-/* spelled out rather than Next's generated PageProps, which only exists after a build */
 interface Props {
   params: Promise<{ pfid: string; focus?: Array<string> }>;
 }

@@ -26,4 +26,6 @@ for dir in . web discord-bot; do
   (cd "$dir" && pnpm install --prefer-offline >/dev/null)
 done
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev node web/scripts/migrate.mjs >/dev/null
+# the route types lint reads (docs/linting.md)
+(cd web && pnpm exec next typegen >/dev/null)
 python3 -m pip install -q --root-user-action=ignore -r tools/requirements-test.txt

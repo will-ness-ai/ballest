@@ -18,8 +18,6 @@ it breaks. Those files carry the reasons; this file carries the checks.
   module.
 - Anything that can be told from the path alone (a board name, a tab, a Steam ID's shape)
   answers 404 or redirects in `proxy.ts`: a `notFound()` inside a streamed page is a 200.
-- A page whose params can come from the URL types them explicitly, not with Next's
-  generated `PageProps`, which only exists after a build (CI lints without one).
 - Colors come from the custom properties on `:root`. Two literals are allowed: the
   translucent black and white used for shadows and hairlines, and a player's own hue,
   `hsl(var(--h) …)`, as on the marble, the pill and the standings bars.
