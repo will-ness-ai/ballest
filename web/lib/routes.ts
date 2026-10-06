@@ -31,6 +31,7 @@ export const PLAYERS_TAB = "Players";
 export function groupOfPath(path: string): string | null {
   if (path === "/" || /^\/maps?(\/|$)/.test(path)) return WORKSHOP_GROUP;
   if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
+  if (path === "/daily") return "Daily"; /* PROTOTYPE (grill-design, Daily challenge) */
   const board = /^\/board\/([^/]+)/.exec(path);
   return board ? (circuitBoard(decodeURIComponent(board[1]))?.group ?? null) : null;
 }

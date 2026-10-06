@@ -18,6 +18,7 @@ import "./styles/players.css";
 import "./styles/maps.css";
 import "./styles/desktop.css";
 import "./styles/motion.css";
+import "./styles/prototype.css"; /* PROTOTYPE (grill-design, Daily challenge) */
 
 const DESCRIPTION =
   "Circuit and Workshop leaderboards for Ballest of Them All, read straight from Steam.";

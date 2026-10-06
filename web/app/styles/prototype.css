@@ -1,0 +1,555 @@
+/* PROTOTYPE (grill-design, Daily challenge). Not production code: never merged. */
+
+.dp {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 140px;
+}
+.dp .board {
+  margin: 0;
+}
+.dp > * {
+  margin-left: var(--pad);
+  margin-right: var(--pad);
+}
+.dp-h {
+  font-family: var(--f-hud);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+.dp-dim {
+  color: var(--faint);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+.dp .sub {
+  display: block;
+  font-size: 12px;
+  color: var(--faint);
+}
+.dp .sub em {
+  font-style: normal;
+  color: var(--dim);
+}
+.dp-more {
+  justify-self: start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: 600 13px var(--f-body);
+  cursor: pointer;
+}
+.empty {
+  padding: 18px;
+  color: var(--faint);
+}
+
+/* the hero card */
+.dp-hero {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+  overflow: hidden;
+}
+.dp-pic {
+  position: relative;
+  display: block;
+  aspect-ratio: 16/8;
+  background: var(--surface2);
+}
+.dp-pic img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dp-hero-t {
+  display: grid;
+  gap: 6px;
+  padding: 0 14px 14px;
+}
+.dp-hero h1 {
+  font-family: var(--f-marquee);
+  font-size: 26px;
+  margin: 0;
+}
+.dp-hero-s h1 {
+  font-size: 20px;
+}
+.dp-clock {
+  font-family: var(--f-hud);
+  color: var(--dim);
+  font-size: 14px;
+}
+.dp-clock b {
+  color: var(--accent);
+}
+.dp-live {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 7px;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.dp-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 13.5px;
+  color: var(--dim);
+}
+.dp-facts b {
+  color: var(--text);
+}
+.dp-links a,
+.dp-note a {
+  color: var(--accent);
+  font-size: 13.5px;
+}
+.dp-note {
+  color: var(--faint);
+  font-size: 13px;
+  margin-top: 4px;
+  margin-bottom: -6px;
+}
+
+/* A: the past list */
+.dp-list {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--solid);
+}
+.dp-item + .dp-item {
+  border-top: 1px solid var(--line2);
+}
+.dp-li {
+  display: grid;
+  grid-template-columns: 48px 52px minmax(0, 1fr);
+  grid-template-areas: "date thumb title" "date thumb win";
+  gap: 2px 10px;
+  align-items: center;
+  width: 100%;
+  padding: 9px 12px;
+  background: none;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.dp-li .dp-date {
+  grid-area: date;
+  font-family: var(--f-hud);
+  color: var(--dim);
+  font-size: 13px;
+}
+.dp-li .thumb {
+  grid-area: thumb;
+}
+.dp-li .dp-t {
+  grid-area: title;
+}
+.dp-li .dp-win {
+  grid-area: win;
+}
+.dp-t {
+  display: grid;
+  font-weight: 600;
+  min-width: 0;
+}
+.dp-open {
+  padding: 0 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+.dp-win {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--dim);
+}
+.dp-win .marble,
+.dp-pod .marble {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.dp-wn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.num {
+  font-family: var(--f-hud);
+  font-variant-numeric: tabular-nums;
+}
+
+/* B: the calendar */
+.dp-cal-wrap {
+  display: grid;
+  gap: 14px;
+}
+.dp-cal-side,
+.dp-cal-main {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 8px;
+}
+.dp-wd {
+  text-align: center;
+  font-size: 11px;
+  color: var(--faint);
+}
+.dp-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  overflow: hidden;
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+.dp-cell img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.45;
+}
+.dp-cell .dp-n {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font: 600 12px var(--f-hud);
+}
+.dp-cell .marble {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 16px;
+  height: 16px;
+}
+.dp-cell[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.dp-cell[data-today="true"] img {
+  opacity: 0.85;
+}
+.dp-none {
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  cursor: default;
+  font-size: 12px;
+  background: none;
+  border-style: dashed;
+}
+
+/* C: the banner and the Map page mock */
+.dp-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  text-decoration: none;
+}
+.dp-go {
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+}
+.dp-mapmock {
+  display: grid;
+  gap: 14px;
+}
+.dp-mapmock .mpanel {
+  margin: 0;
+}
+.dp-was {
+  display: grid;
+  gap: 2px;
+  font-size: 13.5px;
+}
+.dp-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.dp-tabs button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--dim);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: 600 13px var(--f-body);
+  cursor: pointer;
+}
+.dp-tabs button[aria-selected="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.dp-sub {
+  margin: 0 0 10px;
+}
+
+/* D: the strip and the standings */
+.dp-strip {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 4px 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+  color: inherit;
+  text-decoration: none;
+}
+.dp-strip .thumb {
+  grid-row: span 3;
+}
+.dp-table {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--solid);
+  overflow-x: auto;
+}
+.dp-tr {
+  display: grid;
+  grid-template-columns: 26px 22px minmax(110px, 1fr) repeat(4, 48px);
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line2);
+  min-width: 380px;
+}
+.dp-tr .marble {
+  width: 22px;
+  height: 22px;
+}
+.dp-tr .num {
+  text-align: right;
+  color: var(--dim);
+}
+.dp-tr .num b {
+  color: var(--text);
+}
+.dp-th {
+  font-size: 11.5px;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.dp-th span:nth-child(n + 4) {
+  text-align: right;
+}
+.dp-tr[data-m="1"] .c-rank {
+  color: var(--gold);
+}
+.dp-tr[data-m="2"] .c-rank {
+  color: var(--silver);
+}
+.dp-tr[data-m="3"] .c-rank {
+  color: var(--bronze);
+}
+
+/* E: the feed */
+.dp-feed-today {
+  display: grid;
+  gap: 10px;
+}
+.dp-feed {
+  display: grid;
+  gap: 12px;
+}
+.dp-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.dp-card-h {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.dp-card .im {
+  position: relative;
+  aspect-ratio: 400/270;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface2);
+}
+.dp-card .im img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dp-card-t {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+}
+.dp-pod {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.dp-pod li {
+  display: grid;
+  grid-template-columns: 14px 18px minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+}
+.dp-pod li[data-m="1"] b {
+  color: var(--gold);
+}
+.dp-pod li[data-m="2"] b {
+  color: var(--silver);
+}
+.dp-pod li[data-m="3"] b {
+  color: var(--bronze);
+}
+.dp-card[data-open="true"] {
+  grid-column: 1 / -1;
+}
+
+/* the picker: plainly not part of the design */
+.proto-picker {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  width: min(340px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: #fff;
+  color: #000;
+  font:
+    13px/1.35 system-ui,
+    sans-serif;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.proto-picker p {
+  margin: 6px 0;
+  color: #333;
+}
+.pp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pp-row b {
+  flex: 1;
+  text-align: center;
+}
+.proto-picker button {
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font:
+    600 12px system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+.proto-picker button[aria-pressed="true"] {
+  background: #000;
+  color: #fff;
+}
+
+@media (min-width: 820px) {
+  .dp-hero {
+    grid-template-columns: 420px minmax(0, 1fr);
+    align-items: center;
+  }
+  .dp-hero-s {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  .dp-hero-t {
+    padding: 16px;
+  }
+  .dp-hero h1 {
+    font-size: 36px;
+  }
+  .dp-li {
+    grid-template-columns: 56px 64px minmax(0, 1fr) minmax(0, 260px);
+    grid-template-areas: "date thumb title win";
+  }
+  .dp-cal-wrap {
+    grid-template-columns: 380px minmax(0, 1fr);
+    align-items: start;
+  }
+  .dp-cal-main {
+    position: sticky;
+    top: 16px;
+  }
+  .dp-mapmock {
+    grid-template-columns: 320px minmax(0, 1fr);
+    align-items: start;
+  }
+  .dp-strip {
+    grid-template-columns: 64px minmax(0, 1fr) auto auto;
+  }
+  .dp-strip .thumb {
+    grid-row: auto;
+  }
+  .dp-feed-today {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .dp-feed {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}

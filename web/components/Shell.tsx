@@ -23,6 +23,8 @@ async function tabs(): Promise<Array<GroupTab>> {
   });
   return [
     ...(maps.length ? [{ group: WORKSHOP_GROUP, href: homeHref() }] : []),
+    /* PROTOTYPE (grill-design, Daily challenge) */
+    { group: "Daily", href: "/daily" },
     ...seasons,
     { group: PLAYERS_TAB, href: playersHref("all", "wr") },
   ];
