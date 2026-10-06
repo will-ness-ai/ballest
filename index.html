@@ -7643,6 +7643,30 @@
         border-radius: 50%;
         background: var(--gold);
       }
+      .pt-openhead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 6px;
+      }
+      .pt-openhead .lbl {
+        font: 600 11px var(--f-hud);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+      .pt-openhead .pt-go {
+        border: 0;
+        background: var(--accent-soft);
+        border-radius: 999px;
+        padding: 4px 10px;
+        color: var(--accent);
+        font: 600 12px var(--f-hud);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
       #ptPick {
         position: fixed;
         right: 16px;
@@ -8044,9 +8068,10 @@
 
         /* ---------- round 2: the tabbed history, and where it sits ---------- */
         let tab = "rec",
-          open = true;
-        tab = "feed";
+          open = false;
         const tabs = (d) => `<div class="pt-card">
+            <div class="pt-openhead"><span class="lbl">World record · ${d.records.length - 1} change${d.records.length === 2 ? "" : "s"} since ${day(d.t0)}</span>
+              <button type="button" class="pt-go" id="ptStrip" aria-expanded="true">Hide</button></div>
             <div class="pt-tabs" role="tablist">
               <button type="button" role="tab" data-tab="rec" aria-selected="${tab === "rec"}">Records</button>
               <button type="button" role="tab" data-tab="feed" aria-selected="${tab === "feed"}">What changed</button>
@@ -8128,7 +8153,10 @@
             const bars = last
               .map(
                 (q, i) => `<li><b style="color:${i ? "var(--text)" : "var(--gold)"}">${fmtTime(q.e.score)}</b><span>${esc(q.e.persona)}${q.prev ? ` <span class="pt-up">−${secs(q.prev.score - q.e.score)}</span>` : ""}</span>
-                  <span class="pt-track"><span style="left:${pct(q.from)};width:calc(${pct(q.to || d.tN)} - ${pct(q.from)} + 3px);background:${i ? "var(--faint)" : "var(--gold)"}"></span></span></li>`,
+                  <span class="pt-track">${d.records
+                    .filter((r) => r.e.steamId === q.e.steamId && r.from < q.from)
+                    .map((r) => `<span class="pt-prev" style="left:${pct(r.from)};width:calc(${pct(r.to || d.tN)} - ${pct(r.from)} + 3px)"></span>`)
+                    .join("")}<span class="pt-reignbar" style="left:${pct(q.from)};width:calc(${pct(q.to || d.tN)} - ${pct(q.from)} + 3px)"></span></span></li>`,
               )
               .join("");
             return wrap(`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:46px;display:block;margin-top:8px"><path d="${p}" fill="none" stroke="var(--gold)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
@@ -8532,7 +8560,7 @@
             if (my !== seq) return;
             if (!d) why = "No history for this board.";
           }
-          host.innerHTML = why ? msg(why) : summary("D", d) + (open ? `<div style="margin-top:8px">${tabs(d)}</div>` : "");
+          host.innerHTML = why ? msg(why) : open ? tabs(d) : summary("D", d);
           wire();
         }
         function wire() {
