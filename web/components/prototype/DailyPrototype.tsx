@@ -54,7 +54,17 @@ type VKey = (typeof VARIANTS)[number][0];
 
 /* ---------- shared pieces ---------- */
 
-function DRow({ e, lead, prev }: { e: DEntry; lead: number; prev: number | null }) {
+function DRow({
+  e,
+  lead,
+  prev,
+  live,
+}: {
+  e: DEntry;
+  lead: number;
+  prev: number | null;
+  live?: boolean;
+}) {
   const [rank, steamId, persona, score] = e;
   return (
     <div
@@ -70,7 +80,11 @@ function DRow({ e, lead, prev }: { e: DEntry; lead: number; prev: number | null 
         </span>
         <span className="sub">
           {rank === 1 ? (
-            "Won the day"
+            live ? (
+              "Leading"
+            ) : (
+              "Won the day"
+            )
           ) : (
             <>
               <em>{shortGap(score - lead)}</em> behind
@@ -92,7 +106,7 @@ function DRow({ e, lead, prev }: { e: DEntry; lead: number; prev: number | null 
   );
 }
 
-function DBoard({ d, limit = 10 }: { d: Daily; limit?: number; live?: boolean }) {
+function DBoard({ d, limit = 10, live }: { d: Daily; limit?: number; live?: boolean }) {
   const [all, setAll] = useState(false);
   const rows = all ? d.entries : d.entries.slice(0, limit);
   if (!d.entries.length)
@@ -112,7 +126,7 @@ function DBoard({ d, limit = 10 }: { d: Daily; limit?: number; live?: boolean })
           <span className="c-score">Time</span>
         </div>
         {rows.map((e, i) => (
-          <DRow key={e[1]} e={e} lead={lead} prev={i ? rows[i - 1][3] : null} />
+          <DRow key={e[1]} e={e} lead={lead} prev={i ? rows[i - 1][3] : null} live={live} />
         ))}
       </div>
       {d.entries.length > limit && (
