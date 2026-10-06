@@ -7,7 +7,8 @@ import { join } from "node:path";
 
 const DIR = join(import.meta.dirname, "..", "app", "styles");
 const COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?)\([^)]*\)/gi;
-const ALLOWED = /^rgba\((?:0, 0, 0|255, 255, 255), [\d.]+\)$|^hsla?\(var\(--h\)/;
+const ALLOWED =
+  /^rgba\(\s*(?:0\s*,\s*0\s*,\s*0|255\s*,\s*255\s*,\s*255)\s*,\s*[\d.]+\s*\)$|^hsla?\(var\(--h\)/;
 
 let bad = 0;
 for (const file of readdirSync(DIR).filter((f) => f.endsWith(".css"))) {
@@ -32,8 +33,10 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith(".css"))) {
       inRoot = true;
       depth = 0;
     }
+    /* a value: what follows a property's colon, never a selector (`#add {` is an id) */
+    const value = /^[^{]*?:(?!:)([^{]*)$/.exec(code)?.[1] ?? "";
     if (!inRoot)
-      for (const m of code.matchAll(COLOR))
+      for (const m of value.matchAll(COLOR))
         if (!ALLOWED.test(m[0])) {
           console.error(`web/app/styles/${file}:${String(i + 1)}: ${m[0]} (use a token on :root)`);
           bad++;

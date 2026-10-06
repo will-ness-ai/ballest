@@ -112,8 +112,8 @@ jobs:
           pnpm --dir discord-bot install --frozen-lockfile
           pnpm --dir web install --frozen-lockfile
 
-      # the route types (PageProps, RouteContext) a local build leaves in web/.next, so lint
-      # types the site the same here as on a machine that has built it
+      # web/.next/types and next-env.d.ts, which a local build leaves behind and the site's
+      # tsconfig includes, so lint types the site here as on a machine that has built it
       - name: Generate Next's route types
         run: pnpm --dir web exec next typegen
 

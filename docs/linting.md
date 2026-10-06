@@ -10,8 +10,8 @@ anything either would change or report (`lint` in `.github/workflows/check.yml`)
 | HTML, CSS, JSON, YAML, Markdown            | Prettier      |                                                                        |
 | Python in `tools/`, `discord-bot/scripts/` | `ruff format` | `ruff check`, every rule on except those `ruff.toml` lists             |
 
-The site adds three checks of its own to `pnpm lint`, each one a `CODING_STANDARDS.md` rule
-that a review once caught by hand: `site/no-client-values` (`web/eslint/`) stops a server
+The site adds three checks of its own to `pnpm lint`, each one a `CODING_STANDARDS.md` rule:
+`site/no-client-values` (`web/eslint/`) stops a server
 component importing a value from a `"use client"` module; `no-restricted-imports` keeps
 React, Next and `db/` out of `web/lib/`; and `web/scripts/check-styles.mjs` fails on a color
 literal outside `:root`.

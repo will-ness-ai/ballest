@@ -23,7 +23,7 @@ done
 want=$(node -p 'require("./package.json").packageManager.split("@")[1]')
 [ "$(pnpm --version 2>/dev/null)" = "$want" ] || npm install -g -q "pnpm@$want" >/dev/null
 for dir in . web discord-bot; do
-  (cd "$dir" && pnpm install --prefer-offline >/dev/null)
+  (cd "$dir" && pnpm install --frozen-lockfile --prefer-offline >/dev/null)
 done
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev node web/scripts/migrate.mjs >/dev/null
 # the route types lint reads (docs/linting.md)

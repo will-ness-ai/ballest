@@ -26,8 +26,9 @@ const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is not set");
 const db = connect(url);
 
-/* a backfill is only comparable with the data/ it was replayed from: stop when its last
-   Refresh isn't the last commit that touched what it reads (tools/db_backfill.py PATHS) */
+/* only a backfill is comparable with data/, and only one replayed up to it: stop unless the
+   last Refresh is a backfill of the last commit that touched what tools/db_backfill.py
+   reads (its PATHS, on the same first-parent line) */
 const last = (
   await db
     .select({ source: refreshes.source, sha: refreshes.commitSha })
@@ -49,9 +50,9 @@ const head = execFileSync(
   ],
   { cwd: join(import.meta.dirname, "..", ".."), encoding: "utf8" },
 ).trim();
-if (last?.source === "backfill" && last.sha !== head) {
+if (last?.source !== "backfill" || last.sha !== head) {
   console.error(
-    `the database is behind data/ (last Refresh ${String(last.sha).slice(0, 9)}, data/ ${head.slice(0, 9)}): rerun tools/db_backfill.py --rebuild`,
+    `the database isn't a backfill of data/ as it is (last Refresh: ${last ? `${last.source} ${String(last.sha).slice(0, 9)}` : "none"}, data/ ${head.slice(0, 9)}): rerun tools/db_backfill.py --rebuild`,
   );
   process.exit(2);
 }

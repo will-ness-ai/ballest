@@ -173,4 +173,4 @@ only visible ones.
   (it reads `$VERCEL_TOKEN`; curl's own flags go after `--`). Previews count against the
   Hobby plan's 100 deploys a day, so push a branch in batches.
 - **Parity**: `pnpm db:parity` compares the read layer with `data/` figure by figure, on a
-  database backfilled from the same commit; it stops first when the database is behind.
+  database backfilled from the same commit; it stops first when the database is anything else.
