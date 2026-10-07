@@ -18,7 +18,9 @@ Every image the bot posts is drawn by `src/render/` (Satori and resvg, fonts fro
 `@fontsource`); `pnpm render:samples` writes each one as a PNG to `.logs/samples/` to check by
 eye against the design prototype on branch `claude/prototype-discord-bot-surfaces`.
 
-The real Steam adapter has no unit tests; `pnpm smoke:steam` runs it against live Steam with the
+The real Steam adapter is tested only where it recovers: `test/steamSession.test.ts` drives
+`src/steam/session.ts` over a fake steam-user client to check it logs on afresh once Steam stops
+answering. `pnpm smoke:steam` runs it against live Steam with the
 bot account's secrets, and is the check to run after changing `src/steam/`. Steam drops
 leaderboard replies when requests overlap, so `src/steam/session.ts` sends them strictly one at
 a time; keep it that way.
