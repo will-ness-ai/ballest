@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { DailySwitch } from "./DailyStandings";
 import { MapImage } from "../MapImage";
 import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
@@ -655,6 +656,7 @@ export function DailyPrototype({
   const View = VIEWS[v];
   return (
     <>
+      <DailySwitch on="days" />
       <View {...dailiesFor(state)} previews={previews} medals={medals} />
       <Picker v={v} setV={setV} state={state} setState={setState} />
     </>
