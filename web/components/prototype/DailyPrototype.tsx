@@ -1,6 +1,7 @@
 "use client";
 // PROTOTYPE (grill-design, Daily challenge). Not production code: never merged.
-// Round 1: where Dailies live and what leads. Five variants on /daily, picked by
+// Round 1 (won by the calendar) settled where Dailies live. Round 2: what a calendar day
+// shows. Five variants on /daily, picked by
 // ?variant=, with ?state= switching between a quiet and a busy today.
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -24,30 +25,22 @@ import {
 type Previews = Record<string, string | null>;
 
 const VARIANTS = [
-  [
-    "A",
-    "Today first",
-    "A Daily page: today's map, countdown and live board, then every past Daily as a list.",
-  ],
+  ["A", "Picture + winner", "Round 1's cell: the map's picture, the day, and the winner's marble."],
   [
     "B",
-    "Calendar",
-    "A Daily page laid out as a month calendar; pick a day to open its board beside it.",
+    "Winner's name",
+    "No pictures in the calendar: each day names its winner and their time. The picture moves to the day panel only.",
   ],
   [
     "C",
-    "On the Map's page",
-    "No Daily page: a banner for today's Daily on the homepage, and a Daily tab on the Map's own page. (The Daily tab in the header stays for this round.)",
+    "Turnout",
+    "Each day is tinted by how many players it had, with the count on it and the winner's marble; no pictures.",
   ],
-  [
-    "D",
-    "Standings first",
-    "A Daily page led by who wins Dailies most: a compact today strip, then the all-time Daily standings.",
-  ],
+  ["D", "Podium", "The picture, dimmed, with the day's top three marbles stacked on it."],
   [
     "E",
-    "Feed",
-    "A Daily page as a feed of day cards, each with its podium; today's card is the big one.",
+    "Map name",
+    "The picture with the map's name across it; the winner shows only on the day panel.",
   ],
 ] as const;
 type VKey = (typeof VARIANTS)[number][0];
@@ -201,49 +194,13 @@ function Winner({ d }: { d: Daily }) {
   );
 }
 
-/* ---------- A · Today first ---------- */
-function VA({ today, past, now, previews }: VProps) {
-  const [open, setOpen] = useState<string | null>(null);
-  return (
-    <div className="dp">
-      <Hero d={today} now={now} previews={previews} />
-      <h2 className="dp-h">Today's board</h2>
-      <DBoard d={today} live />
-      <h2 className="dp-h">Past Dailies</h2>
-      <div className="dp-list">
-        {past.map((d) => (
-          <div key={d.date} className="dp-item">
-            <button
-              className="dp-li"
-              onClick={() => setOpen(open === d.date ? null : d.date)}
-              aria-expanded={open === d.date}
-            >
-              <span className="dp-date">{dayLabel(d)}</span>
-              <MapImage preview={previews[d.pfid]} frame />
-              <span className="dp-t">
-                {d.title}
-                <span className="dp-dim">{fmtN(d.entries.length)} players</span>
-              </span>
-              <Winner d={d} />
-            </button>
-            {open === d.date && (
-              <div className="dp-open">
-                <DBoard d={d} />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /* ---------- B · Calendar ---------- */
-function VB({ today, past, now, previews }: VProps) {
+function VB({ today, past, now, previews, cell }: VProps & { cell: VKey }) {
   const all = [today, ...past];
   const [sel, setSel] = useState(today.date);
   const d = all.find((x) => x.date === sel) ?? today;
   const months = [...new Set(all.map((x) => x.date.slice(0, 7)))].sort().reverse();
+  const most = Math.max(...all.map((x) => x.entries.length));
   return (
     <div className="dp dp-cal-wrap">
       <div className="dp-cal-side">
@@ -283,13 +240,19 @@ function VB({ today, past, now, previews }: VProps) {
                     <button
                       key={date}
                       className="dp-cell"
+                      data-cell={cell}
                       aria-pressed={sel === date}
                       data-today={x === today}
                       onClick={() => setSel(date)}
+                      style={
+                        cell === "C"
+                          ? ({
+                              "--heat": Math.sqrt(x.entries.length / most),
+                            } as React.CSSProperties)
+                          : undefined
+                      }
                     >
-                      <MapImage preview={previews[x.pfid]} />
-                      <span className="dp-n">{i + 1}</span>
-                      {w && <Marble who={{ steamId: w[1], persona: w[2] }} />}
+                      <Cell x={x} n={i + 1} cell={cell} previews={previews} />
                     </button>
                   );
                 })}
@@ -328,163 +291,74 @@ function VB({ today, past, now, previews }: VProps) {
   );
 }
 
-/* ---------- C · On the Map's page ---------- */
-function VC({ today, past, now, previews }: VProps) {
-  const [tab, setTab] = useState<"daily" | "all">("daily");
-  return (
-    <div className="dp">
-      <p className="dp-note">How the homepage's top would look:</p>
-      <Link className="dp-banner" href="#">
-        <i className="dp-live"></i>
-        <span>
-          Today's Daily: <b>{today.title}</b>
-        </span>
-        <span className="dp-dim">
-          {fmtN(today.entries.length)} players · ends in {left(today.endsAt - now)}
-        </span>
-        <span className="dp-go">Play the board →</span>
-      </Link>
-      <p className="dp-note">And the Map's page it opens:</p>
-      <div className="dp-mapmock">
-        <aside className="mpanel">
-          <MapImage preview={previews[today.pfid]} className="mp-img" />
-          <h1 className="mp-t">{today.title}</h1>
-          <div className="dp-was">
-            <span className="eyebrow">Daily on</span>
-            <span>{dayLabel(today, { weekday: "short" })} (today)</span>
-          </div>
-        </aside>
-        <div>
-          <div className="dp-tabs" role="tablist">
-            <button role="tab" aria-selected={tab === "daily"} onClick={() => setTab("daily")}>
-              Daily · {dayLabel(today)}
-            </button>
-            <button role="tab" aria-selected={tab === "all"} onClick={() => setTab("all")}>
-              All time
-            </button>
-          </div>
-          {tab === "daily" ? (
-            <>
-              <p className="dp-sub">
-                <Countdown d={today} now={now} />
-              </p>
-              <DBoard d={today} limit={15} live />
-            </>
-          ) : (
-            <p className="dp-note">
-              The Map's own board, exactly as its page shows it now.{" "}
-              <Link href={mapHref(today.pfid)}>Open it</Link>
-            </p>
-          )}
-        </div>
-      </div>
-      <p className="dp-note">
-        Past Dailies would only be reachable from each Map's page ({past.length} so far), or a
-        player's page.
-      </p>
-    </div>
-  );
-}
-
-/* ---------- D · Standings first ---------- */
-function VD({ today, past, now, previews }: VProps) {
-  const st = standings(past).slice(0, 50);
-  return (
-    <div className="dp">
-      <Link className="dp-strip" href="#today">
-        <MapImage preview={previews[today.pfid]} frame />
-        <span className="dp-t">
-          <span className="eyebrow">Today's Daily</span>
-          {today.title}
-        </span>
-        <Countdown d={today} now={now} />
-        <Winner d={today} />
-      </Link>
-      <h2 className="dp-h">
-        Daily standings <span className="dp-dim">over {past.length} closed Dailies</span>
-      </h2>
-      <div className="dp-table">
-        <div className="dp-tr dp-th">
-          <span>#</span>
-          <span></span>
-          <span>Player</span>
-          <span>Wins</span>
-          <span>Podiums</span>
-          <span>Top 10</span>
-          <span>Played</span>
-        </div>
-        {st.map((s, i) => (
-          <div key={s.steamId} className="dp-tr" data-m={i < 3 ? i + 1 : 0}>
-            <span className="c-rank">{i + 1}</span>
-            <Marble who={s} />
-            <span className="nm">
-              <PlayerLink id={s.steamId} text={s.persona} />
-            </span>
-            <span className="num">
-              <b>{s.wins}</b>
-            </span>
-            <span className="num">{s.podiums}</span>
-            <span className="num">{s.top10}</span>
-            <span className="num">{s.played}</span>
-          </div>
-        ))}
-      </div>
-      <h2 className="dp-h" id="today">
-        Today's board
-      </h2>
-      <DBoard d={today} live />
-    </div>
-  );
-}
-
-/* ---------- E · Feed ---------- */
-function VE({ today, past, now, previews }: VProps) {
-  const [open, setOpen] = useState<string | null>(null);
-  return (
-    <div className="dp">
-      <section className="dp-feed-today">
-        <Hero d={today} now={now} previews={previews} />
-        <DBoard d={today} limit={5} live />
-      </section>
-      <div className="dp-feed">
-        {past.map((d) => (
-          <article key={d.date} className="dp-card" data-open={open === d.date}>
-            <button className="dp-card-h" onClick={() => setOpen(open === d.date ? null : d.date)}>
-              <span className="im">
-                <MapImage preview={previews[d.pfid]} />
-              </span>
-              <span className="dp-card-t">
-                <span className="eyebrow">{dayLabel(d, { weekday: "short" })}</span>
-                <b>{d.title}</b>
-                <span className="dp-dim">{fmtN(d.entries.length)} players</span>
-              </span>
-            </button>
-            <ol className="dp-pod">
-              {d.entries.slice(0, 3).map((e) => (
-                <li key={e[1]} data-m={e[0]}>
-                  <b>{e[0]}</b>
-                  <Marble who={{ steamId: e[1], persona: e[2] }} />
-                  <span className="dp-wn">{e[2]}</span>
-                  <span className="num">{fmtTime(e[3])}</span>
-                </li>
-              ))}
-              {!d.entries.length && <li className="dp-dim">Nobody finished</li>}
-            </ol>
-            {open === d.date && <DBoard d={d} limit={20} />}
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 interface VProps {
   today: Daily;
   past: Array<Daily>;
   now: number;
   previews: Previews;
 }
-const VIEWS: Record<VKey, (p: VProps) => React.ReactNode> = { A: VA, B: VB, C: VC, D: VD, E: VE };
+const VIEWS = Object.fromEntries(
+  VARIANTS.map(([k]) => [k, (p: VProps) => <VB {...p} cell={k} />]),
+) as Record<VKey, (p: VProps) => React.ReactNode>;
+
+/* one day of the calendar, drawn the way this round's variant says */
+function Cell({ x, n, cell, previews }: { x: Daily; n: number; cell: VKey; previews: Previews }) {
+  const w = x.entries[0];
+  const pic = <MapImage preview={previews[x.pfid]} />;
+  const num = <span className="dp-n">{n}</span>;
+  if (cell === "B")
+    return (
+      <>
+        {num}
+        {w ? (
+          <span className="dp-cw">
+            <Marble who={{ steamId: w[1], persona: w[2] }} />
+            <span className="dp-wn">{w[2]}</span>
+            <span className="num">{fmtTime(w[3])}</span>
+          </span>
+        ) : (
+          <span className="dp-cw dp-dim">none</span>
+        )}
+      </>
+    );
+  if (cell === "C")
+    return (
+      <>
+        {num}
+        <span className="dp-count">{fmtN(x.entries.length)}</span>
+        {w && <Marble who={{ steamId: w[1], persona: w[2] }} />}
+      </>
+    );
+  if (cell === "D")
+    return (
+      <>
+        {pic}
+        {num}
+        <span className="dp-stack">
+          {x.entries.slice(0, 3).map((e) => (
+            <span key={e[1]} data-m={e[0]}>
+              <Marble who={{ steamId: e[1], persona: e[2] }} />
+            </span>
+          ))}
+        </span>
+      </>
+    );
+  if (cell === "E")
+    return (
+      <>
+        {pic}
+        {num}
+        <span className="dp-title">{x.title}</span>
+      </>
+    );
+  return (
+    <>
+      {pic}
+      {num}
+      {w && <Marble who={{ steamId: w[1], persona: w[2] }} />}
+    </>
+  );
+}
 
 /* ---------- the picker ---------- */
 function Picker({
