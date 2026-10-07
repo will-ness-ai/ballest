@@ -7,6 +7,8 @@ import { CompareButton } from "./Compare";
 import { MadeTab } from "./MadeTab";
 import { MeMark, ScoreCard } from "./Me";
 import { WorkshopTab } from "./WorkshopTab";
+import { dailyCount } from "../prototype/daily-data";
+import { DailyTabServer } from "../prototype/DailyTabServer";
 import { BackLink } from "../BackLink";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
@@ -38,6 +40,8 @@ const TABS: ReadonlyArray<{
     count: (rec) => rec.made.length,
     shown: (rec) => rec.made.length > 0,
   },
+  /* PROTOTYPE (grill-design, Daily challenge) */
+  { key: "daily", label: "Daily", count: (rec) => dailyCount(rec.id) },
 ];
 
 const tabsOf = (rec: PlayerRecord) => TABS.filter((t) => !t.shown || t.shown(rec));
@@ -217,6 +221,8 @@ export function PlayerView({ rec, tab }: { rec: PlayerRecord; tab: PlayerTab }) 
             <CircuitTab rec={rec} />
           ) : tab === "workshop" ? (
             <WorkshopTab id={rec.id} w={rec.workshop} />
+          ) : tab === "daily" ? (
+            <DailyTabServer id={rec.id} />
           ) : (
             <MadeTab id={rec.id} made={rec.made} holds={rec.holds} />
           )}

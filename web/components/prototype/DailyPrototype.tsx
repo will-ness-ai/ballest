@@ -314,7 +314,8 @@ const phone = () =>
 
 function VB({ today, past, now, previews, medals, cell }: VProps & { cell: VKey }) {
   const all = [today, ...past];
-  const [sel, setSel] = useState(today.date);
+  const want = useSearchParams().get("date");
+  const [sel, setSel] = useState(all.some((x) => x.date === want) ? want! : today.date);
   const [mi, setMi] = useState(0);
   const [sheet, setSheet] = useState(false);
   const [cal, setCal] = useState(false);

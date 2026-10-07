@@ -90,3 +90,7 @@ export function left(ms: number) {
   const m = Math.max(0, Math.round(ms / 60_000));
   return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
 }
+
+/* how many Dailies a player has a time on */
+export const dailyCount = (id: string) =>
+  ALL.filter((d) => d.entries.some((e) => e[1] === id)).length;

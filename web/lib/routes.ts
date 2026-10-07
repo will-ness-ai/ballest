@@ -3,7 +3,7 @@
 import { circuitBoard } from "./circuit";
 import { STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 
-export const PLAYER_TABS = ["circuit", "workshop", "made"] as const;
+export const PLAYER_TABS = ["circuit", "workshop", "made", "daily"] as const; /* PROTOTYPE: daily */
 export type PlayerTab = (typeof PLAYER_TABS)[number];
 
 /* an Overall board's slot for its podium order; a Steam ID is all digits, so the two can't collide */
