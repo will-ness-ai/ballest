@@ -1,7 +1,7 @@
 "use client";
 // PROTOTYPE (grill-design, Daily challenge). Not production code: never merged.
-// Round 1 (won by the calendar) settled where Dailies live. Round 2: what a calendar day
-// shows. Five variants on /daily, picked by
+// Round 1 (calendar) settled where Dailies live, round 2 (picture + winner) what a calendar
+// day shows. Round 3: the selected day's panel. Five variants on /daily, picked by
 // ?variant=, with ?state= switching between a quiet and a busy today.
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -11,7 +11,16 @@ import { MapImage } from "../MapImage";
 import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
 import { mapHref } from "../../lib/routes";
-import { fmtN, fmtTime, hueFor, shortGap } from "../../lib/rules";
+import {
+  MEDALS,
+  SCORE_TICKS_PER_SECOND,
+  fmtN,
+  fmtSec,
+  fmtTime,
+  hueFor,
+  medalOf,
+  shortGap,
+} from "../../lib/rules";
 import {
   type DEntry,
   type DState,
@@ -25,22 +34,26 @@ import {
 type Previews = Record<string, string | null>;
 
 const VARIANTS = [
-  ["A", "Picture + winner", "Round 1's cell: the map's picture, the day, and the winner's marble."],
+  [
+    "A",
+    "Picture card",
+    "Round 2's panel: the map's picture beside the day's facts, then the board.",
+  ],
   [
     "B",
-    "Winner's name",
-    "No pictures in the calendar: each day names its winner and their time. The picture moves to the day panel only.",
+    "Board first",
+    "No picture: one header line (date, map, players, when it ends or closed), then a longer board.",
   ],
+  ["C", "Podium", "The top three on a podium over the map's picture, then the board from 4th."],
   [
-    "C",
-    "Turnout",
-    "Each day is tinted by how many players it had, with the count on it and the winner's marble; no pictures.",
+    "D",
+    "Medals",
+    "The picture card with the Map's four Medal times and how many earned each; every row shows its Medal.",
   ],
-  ["D", "Podium", "The picture, dimmed, with the day's top three marbles stacked on it."],
   [
     "E",
-    "Map name",
-    "The picture with the map's name across it; the winner shows only on the day panel.",
+    "Day in numbers",
+    "No picture: tiles for players, winning margin, median time and Author Medals beaten, then the board.",
   ],
 ] as const;
 type VKey = (typeof VARIANTS)[number][0];
@@ -52,11 +65,13 @@ function DRow({
   lead,
   prev,
   live,
+  medal,
 }: {
   e: DEntry;
   lead: number;
   prev: number | null;
   live?: boolean;
+  medal?: string;
 }) {
   const [rank, steamId, persona, score] = e;
   return (
@@ -93,15 +108,42 @@ function DRow({
       </span>
       <span className="c-score">
         <span>{fmtTime(score)}</span>
-        <i className="pill"></i>
+        {medal ? (
+          <i className="dp-medal" data-medal={medal}>
+            {MEDAL_WORD[medal]}
+          </i>
+        ) : (
+          <i className="pill"></i>
+        )}
       </span>
     </div>
   );
 }
 
-function DBoard({ d, limit = 10, live }: { d: Daily; limit?: number; live?: boolean }) {
+const MEDAL_WORD: Record<string, string> = {
+  wr: "1st",
+  author: "Author",
+  gold: "Gold",
+  silver: "Silver",
+  bronze: "Bronze",
+  none: "",
+};
+
+function DBoard({
+  d,
+  limit = 10,
+  live,
+  medals,
+  from = 0,
+}: {
+  from?: number;
+  d: Daily;
+  limit?: number;
+  live?: boolean;
+  medals?: Array<number>;
+}) {
   const [all, setAll] = useState(false);
-  const rows = all ? d.entries : d.entries.slice(0, limit);
+  const rows = all ? d.entries.slice(from) : d.entries.slice(from, from + limit);
   if (!d.entries.length)
     return (
       <div className="board">
@@ -119,10 +161,17 @@ function DBoard({ d, limit = 10, live }: { d: Daily; limit?: number; live?: bool
           <span className="c-score">Time</span>
         </div>
         {rows.map((e, i) => (
-          <DRow key={e[1]} e={e} lead={lead} prev={i ? rows[i - 1][3] : null} live={live} />
+          <DRow
+            key={e[1]}
+            e={e}
+            lead={lead}
+            prev={i + from ? d.entries[i + from - 1][3] : null}
+            live={live}
+            medal={medals ? medalOf(medals, e[0], e[3]) : undefined}
+          />
         ))}
       </div>
-      {d.entries.length > limit && (
+      {d.entries.length - from > limit && (
         <button className="dp-more" onClick={() => setAll(!all)}>
           {all ? "Show the top " + limit : `Show all ${fmtN(d.entries.length)} times`}
         </button>
@@ -195,12 +244,11 @@ function Winner({ d }: { d: Daily }) {
 }
 
 /* ---------- B · Calendar ---------- */
-function VB({ today, past, now, previews, cell }: VProps & { cell: VKey }) {
+function VB({ today, past, now, previews, medals, cell }: VProps & { cell: VKey }) {
   const all = [today, ...past];
   const [sel, setSel] = useState(today.date);
   const d = all.find((x) => x.date === sel) ?? today;
   const months = [...new Set(all.map((x) => x.date.slice(0, 7)))].sort().reverse();
-  const most = Math.max(...all.map((x) => x.entries.length));
   return (
     <div className="dp dp-cal-wrap">
       <div className="dp-cal-side">
@@ -240,19 +288,12 @@ function VB({ today, past, now, previews, cell }: VProps & { cell: VKey }) {
                     <button
                       key={date}
                       className="dp-cell"
-                      data-cell={cell}
+                      data-cell="A"
                       aria-pressed={sel === date}
                       data-today={x === today}
                       onClick={() => setSel(date)}
-                      style={
-                        cell === "C"
-                          ? ({
-                              "--heat": Math.sqrt(x.entries.length / most),
-                            } as React.CSSProperties)
-                          : undefined
-                      }
                     >
-                      <Cell x={x} n={i + 1} cell={cell} previews={previews} />
+                      <Cell x={x} n={i + 1} cell="A" previews={previews} />
                     </button>
                   );
                 })}
@@ -262,32 +303,211 @@ function VB({ today, past, now, previews, cell }: VProps & { cell: VKey }) {
         })}
       </div>
       <div className="dp-cal-main">
-        {d === today ? (
-          <Hero d={d} now={now} previews={previews} big={false} />
-        ) : (
-          <section className="dp-hero dp-hero-s">
-            <span className="dp-pic">
-              <MapImage preview={previews[d.pfid]} />
-            </span>
-            <div className="dp-hero-t">
-              <span className="eyebrow">
-                Daily · {dayLabel(d, { weekday: "short", year: "numeric" })}
-              </span>
-              <h1>{d.title}</h1>
-              <span className="dp-facts">
-                <span>
-                  <b>{fmtN(d.entries.length)}</b> players
-                </span>
-              </span>
-              <span className="dp-links">
-                <Link href={mapHref(d.pfid)}>The Map's all-time board</Link>
-              </span>
-            </div>
-          </section>
-        )}
-        <DBoard key={d.date} d={d} limit={15} />
+        <DayPanel
+          key={d.date}
+          d={d}
+          live={d === today}
+          now={now}
+          previews={previews}
+          medals={medals[d.pfid]}
+          panel={cell}
+        />
       </div>
     </div>
+  );
+}
+
+/* the selected day, drawn the way this round's variant says */
+function DayPanel({
+  d,
+  live,
+  now,
+  previews,
+  medals,
+  panel,
+}: {
+  d: Daily;
+  live: boolean;
+  now: number;
+  previews: Previews;
+  medals: Array<number> | undefined;
+  panel: VKey;
+}) {
+  const when = live ? (
+    <Countdown d={d} now={now} />
+  ) : (
+    <span className="dp-clock">
+      Final · closed{" "}
+      {new Date(d.endsAt).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })}{" "}
+      your time
+    </span>
+  );
+  const eyebrow =
+    (live ? "Today's Daily · " : "Daily · ") + dayLabel(d, { weekday: "short", year: "numeric" });
+  const n = d.entries.length;
+  if (panel === "B")
+    return (
+      <>
+        <div className="dp-line">
+          <span className="eyebrow">{eyebrow}</span>
+          <h1>{d.title}</h1>
+          <span className="dp-facts">
+            <span>
+              <b>{fmtN(n)}</b> players
+            </span>
+            {when}
+            <Link href={mapHref(d.pfid)}>All-time board</Link>
+          </span>
+        </div>
+        <DBoard d={d} limit={20} live={live} />
+      </>
+    );
+  if (panel === "C") {
+    const top = d.entries.slice(0, 3);
+    return (
+      <>
+        <section className="dp-podium">
+          <span className="dp-podbg">
+            <MapImage preview={previews[d.pfid]} />
+          </span>
+          <div className="dp-podhead">
+            <span className="eyebrow">{eyebrow}</span>
+            <h1>{d.title}</h1>
+            <span className="dp-facts">
+              <span>
+                <b>{fmtN(n)}</b> players
+              </span>
+              {when}
+            </span>
+          </div>
+          <ol className="dp-steps">
+            {[top[1], top[0], top[2]].map((e, i) =>
+              e ? (
+                <li key={e[1]} data-m={e[0]} style={{ "--h": hueFor(e[1]) } as React.CSSProperties}>
+                  <Marble who={{ steamId: e[1], persona: e[2] }} />
+                  <span className="dp-wn">{e[2]}</span>
+                  <span className="num">{fmtTime(e[3])}</span>
+                  <b>{e[0]}</b>
+                </li>
+              ) : (
+                <li key={i}></li>
+              ),
+            )}
+          </ol>
+        </section>
+        <DBoard d={d} from={3} limit={17} live={live} />
+      </>
+    );
+  }
+  if (panel === "D") {
+    const tiers = medals
+      ? MEDALS.map(([name, c, i]) => ({
+          name,
+          c,
+          t: medals[i],
+          k: d.entries.filter((e) => e[3] <= medals[i] * SCORE_TICKS_PER_SECOND).length,
+        }))
+      : [];
+    return (
+      <>
+        <section className="dp-hero dp-hero-s">
+          <span className="dp-pic">
+            <MapImage preview={previews[d.pfid]} />
+          </span>
+          <div className="dp-hero-t">
+            <span className="eyebrow">{eyebrow}</span>
+            <h1>{d.title}</h1>
+            {when}
+            <div className="dp-medals">
+              {tiers.map((m) => (
+                <span key={m.name}>
+                  <i style={{ background: m.c }}></i>
+                  {m.name} <b className="num">{fmtSec(m.t)}</b>
+                  <em>
+                    {fmtN(m.k)} of {fmtN(n)}
+                  </em>
+                </span>
+              ))}
+              {!medals && (
+                <span className="dp-dim">
+                  This Map is gone from the Workshop, so its Medals are unknown.
+                </span>
+              )}
+            </div>
+          </div>
+        </section>
+        <DBoard d={d} limit={15} live={live} medals={medals} />
+      </>
+    );
+  }
+  if (panel === "E") {
+    const sc = d.entries.map((e) => e[3]);
+    const margin = sc.length > 1 ? sc[1] - sc[0] : null;
+    const median = sc.length ? sc[Math.floor(sc.length / 2)] : null;
+    const authors = medals
+      ? sc.filter((x) => x <= medals[3] * SCORE_TICKS_PER_SECOND).length
+      : null;
+    return (
+      <>
+        <div className="dp-line">
+          <span className="eyebrow">{eyebrow}</span>
+          <h1>{d.title}</h1>
+          {when}
+        </div>
+        <dl className="dp-tiles">
+          <div>
+            <dt>Players</dt>
+            <dd>{fmtN(n)}</dd>
+          </div>
+          <div>
+            <dt>{live ? "Leading by" : "Won by"}</dt>
+            <dd>{margin === null ? "-" : shortGap(margin)}</dd>
+          </div>
+          <div>
+            <dt>Median time</dt>
+            <dd>{median === null ? "-" : fmtTime(median)}</dd>
+          </div>
+          <div>
+            <dt>Beat the Author</dt>
+            <dd>{authors === null ? "-" : fmtN(authors)}</dd>
+          </div>
+        </dl>
+        <DBoard d={d} limit={15} live={live} />
+      </>
+    );
+  }
+  return (
+    <>
+      <section className="dp-hero dp-hero-s">
+        <span className="dp-pic">
+          <MapImage preview={previews[d.pfid]} />
+        </span>
+        <div className="dp-hero-t">
+          <span className="eyebrow">{eyebrow}</span>
+          <h1>{d.title}</h1>
+          {when}
+          <span className="dp-facts">
+            <span>
+              <b>{fmtN(n)}</b> players{live ? " so far" : ""}
+            </span>
+            {d.entries[0] && (
+              <span>
+                {live ? "Leader" : "Winner"} <b>{d.entries[0][2]}</b> {fmtTime(d.entries[0][3])}
+              </span>
+            )}
+          </span>
+          <span className="dp-links">
+            <Link href={mapHref(d.pfid)}>The Map's all-time board</Link>
+          </span>
+        </div>
+      </section>
+      <DBoard d={d} limit={15} live={live} />
+    </>
   );
 }
 
@@ -296,6 +516,7 @@ interface VProps {
   past: Array<Daily>;
   now: number;
   previews: Previews;
+  medals: Record<string, Array<number>>;
 }
 const VIEWS = Object.fromEntries(
   VARIANTS.map(([k]) => [k, (p: VProps) => <VB {...p} cell={k} />]),
@@ -431,7 +652,13 @@ function Picker({
   );
 }
 
-export function DailyPrototype({ previews }: { previews: Previews }) {
+export function DailyPrototype({
+  previews,
+  medals,
+}: {
+  previews: Previews;
+  medals: Record<string, Array<number>>;
+}) {
   const sp = useSearchParams();
   const init = (sp.get("variant") ?? "A").toUpperCase();
   const [v, setV] = useState<VKey>(VARIANTS.some((x) => x[0] === init) ? (init as VKey) : "A");
@@ -445,7 +672,7 @@ export function DailyPrototype({ previews }: { previews: Previews }) {
   const View = VIEWS[v];
   return (
     <>
-      <View {...dailiesFor(state)} previews={previews} />
+      <View {...dailiesFor(state)} previews={previews} medals={medals} />
       <Picker v={v} setV={setV} state={state} setState={setState} />
     </>
   );

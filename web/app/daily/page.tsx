@@ -8,7 +8,12 @@ import { getWorkshop } from "../../db/data";
 
 async function Previews() {
   const maps = await getWorkshop();
-  return <DailyPrototype previews={Object.fromEntries(maps.map((m) => [m.pfid, m.preview]))} />;
+  return (
+    <DailyPrototype
+      previews={Object.fromEntries(maps.map((m) => [m.pfid, m.preview]))}
+      medals={Object.fromEntries(maps.map((m) => [m.pfid, m.medals]))}
+    />
+  );
 }
 
 export default function Page() {

@@ -639,3 +639,164 @@
     font-size: 11px;
   }
 }
+
+/* round 3: the day panel */
+.dp-line {
+  display: grid;
+  gap: 4px;
+}
+.dp-line h1 {
+  font-family: var(--f-marquee);
+  font-size: 24px;
+  margin: 0;
+}
+.dp-line .dp-facts a {
+  color: var(--accent);
+}
+.dp-podium {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--solid);
+  padding: 14px;
+  display: grid;
+  gap: 14px;
+}
+.dp-podbg img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.22;
+}
+.dp-podhead,
+.dp-steps {
+  position: relative;
+}
+.dp-podhead h1 {
+  font-family: var(--f-marquee);
+  font-size: 24px;
+  margin: 2px 0;
+}
+.dp-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  text-align: center;
+}
+.dp-steps li {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  font-size: 12.5px;
+  min-width: 0;
+}
+.dp-steps .marble {
+  width: 34px;
+  height: 34px;
+}
+.dp-steps li[data-m="1"] .marble {
+  width: 50px;
+  height: 50px;
+}
+.dp-steps li b {
+  display: block;
+  width: 100%;
+  border-radius: 8px 8px 0 0;
+  background: var(--surface2);
+  font: 600 18px var(--f-hud);
+  padding: 6px 0;
+}
+.dp-steps li[data-m="1"] b {
+  padding: 18px 0;
+  color: var(--gold);
+}
+.dp-steps li[data-m="2"] b {
+  padding: 11px 0;
+  color: var(--silver);
+}
+.dp-steps li[data-m="3"] b {
+  color: var(--bronze);
+}
+.dp-steps .dp-wn {
+  max-width: 100%;
+  font-weight: 600;
+}
+.dp-medals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+  font-size: 12.5px;
+  margin-top: 4px;
+}
+.dp-medals i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+.dp-medals em {
+  display: block;
+  font-style: normal;
+  color: var(--faint);
+}
+.dp-medal {
+  font: 600 10.5px var(--f-hud);
+  font-style: normal;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 5px;
+  min-width: 46px;
+  text-align: center;
+}
+.dp-medal[data-medal="wr"],
+.dp-medal[data-medal="gold"] {
+  color: var(--gold);
+  background: var(--gold-soft);
+}
+.dp-medal[data-medal="author"] {
+  color: var(--author);
+  background: var(--author-soft);
+}
+.dp-medal[data-medal="silver"] {
+  color: var(--silver);
+  background: var(--silver-soft);
+}
+.dp-medal[data-medal="bronze"] {
+  color: var(--bronze);
+  background: var(--bronze-soft);
+}
+.dp-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.dp-tiles div {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 9px 12px;
+}
+.dp-tiles dt {
+  font-size: 11.5px;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.dp-tiles dd {
+  margin: 2px 0 0;
+  font: 600 20px var(--f-hud);
+}
+@media (min-width: 820px) {
+  .dp-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
