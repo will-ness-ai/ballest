@@ -7,9 +7,9 @@
 // - Find-by-name only works with the message header's routing_appid set to the app. (Same.)
 // - steam-user's own reconnect after a dropped connection can fail silently and for good: on
 //   2026-10-06 the bot lost Steam at 22:09 UTC and every read of a live Lobby failed until it
-//   ended. So once requests have gone unanswered for FRESH_LOGON_AFTER_MS, the session logs
-//   on again with a new client.
-import { Clock, Config, Data, Effect, Option, Redacted, Ref, Schema } from "effect";
+//   ended. So once requests have gone unanswered, or the client has been logged off, for
+//   FRESH_LOGON_AFTER_MS, the session logs on again with a new client.
+import { Clock, Config, Data, Effect, Exit, Option, Redacted, Ref, Schedule, Schema } from "effect";
 import SteamUser from "steam-user";
 import Protos from "steam-user/protobufs/generated/_load.js";
 import { SteamUnavailable } from "../ports.js";
@@ -17,7 +17,7 @@ import { SteamUnavailable } from "../ports.js";
 export const APP_ID = 3339810;
 
 /** Steam message numbers (steam-user's EMsg table). */
-export const EMSG_FIND_OR_CREATE_LB = 5416;
+const EMSG_FIND_OR_CREATE_LB = 5416;
 export const EMSG_GET_LB_ENTRIES = 5418;
 const EResultOK = 1;
 /** leaderboard_data_request values. */
@@ -27,6 +27,8 @@ const REQUEST_USERS = 3;
 const REQUEST_TIMEOUT = "5 seconds";
 const REQUEST_RETRIES = 2;
 const LOGON_TIMEOUT = "30 seconds";
+/** How often the session checks whether its client is logged off. */
+const LOGGED_OFF_CHECK = "30 seconds";
 
 /** How long requests may go unanswered before the session logs on again with a new client. */
 export const FRESH_LOGON_AFTER_MS = 2 * 60_000;
@@ -58,7 +60,7 @@ class NoReply extends Data.TaggedError("NoReply") {}
  * included); the reply reaches the callback as a ByteBuffer or a Buffer, and a reply Steam
  * drops never calls back. Internal, hence steam-user pinned to an exact version (ADR 0003)
  * and checked for at startup rather than assumed. While logged off (`steamID` null) it drops
- * every message without a word, so a request then fails straight away instead.
+ * every message without a word.
  */
 export interface SteamClient {
   readonly steamID: object | null;
@@ -76,6 +78,7 @@ export interface SteamClient {
   once(event: "error", listener: (err: Error) => void): unknown;
   off(event: "loggedOn", listener: () => void): unknown;
   off(event: "error", listener: (err: Error) => void): unknown;
+  off(event: "disconnected", listener: (eresult: number) => void): unknown;
 }
 
 const hasInternalSend = (client: object): client is Pick<SteamClient, "_send"> =>
@@ -94,14 +97,17 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
 ) {
   const token = yield* Config.redacted("STEAM_REFRESH_TOKEN");
 
-  /** A new client, logged on. A client that fails to log on is logged off. */
+  /** What a client's own reconnects log. Taken off a client once it is replaced. */
+  const disconnectedNote = (eresult: number) =>
+    console.warn(`[steam] disconnected (${eresult}); steam-user reconnects`);
+  const loggedOnAgainNote = () => console.warn("[steam] logged on again");
+
+  /** A new client, logged on. A client whose log on fails or is interrupted is logged off. */
   const connect = Effect.gen(function* () {
     const client = newClient();
     // Without an `error` listener steam-user throws and takes the process down.
     client.on("error", (err) => console.error(`[steam] ${err.message}`));
-    client.on("disconnected", (eresult) =>
-      console.warn(`[steam] disconnected (${eresult}); steam-user reconnects`),
-    );
+    client.on("disconnected", disconnectedNote);
     yield* Effect.async<undefined, SteamUnavailable>((resume) => {
       const ok = () => {
         client.off("error", bad);
@@ -123,47 +129,74 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
         duration: LOGON_TIMEOUT,
         onTimeout: () => new SteamUnavailable({ reason: "log on timed out" }),
       }),
-      Effect.tapError(() => Effect.sync(() => client.logOff())),
+      Effect.onExit((exit) =>
+        Exit.isSuccess(exit) ? Effect.void : Effect.sync(() => client.logOff()),
+      ),
     );
     // Any later log on is steam-user reconnecting, which otherwise leaves no trace in the log.
-    client.on("loggedOn", () => console.warn("[steam] logged on again"));
+    client.on("loggedOn", loggedOnAgainNote);
     return client;
   });
 
   /** The client in use. Each one replaced is logged off then, and the last at shutdown. */
-  const current = yield* Effect.acquireRelease(connect.pipe(Effect.flatMap(Ref.make)), (ref) =>
-    Ref.get(ref).pipe(Effect.map((client) => client.logOff())),
+  const current = yield* Effect.acquireRelease(
+    connect.pipe(Effect.flatMap((client) => Ref.make(client))),
+    (ref) => Ref.get(ref).pipe(Effect.flatMap((client) => Effect.sync(() => client.logOff()))),
   );
   const oneAtATime = yield* Effect.makeSemaphore(1);
-  /** When the current run of unanswered requests began; null while Steam answers. */
+  /** When the current run of failures began; null while Steam answers. */
   const failingSince = yield* Ref.make<number | null>(null);
 
-  /** The client is swapped for a new one only once that one has logged on. */
+  /**
+   * The old client is logged off first: one account can hold only one session, and a second
+   * log on would knock the first off. Its listeners go with it, so its log off isn't logged as
+   * a reconnect. If the fresh log on fails, the next failure past FRESH_LOGON_AFTER_MS tries
+   * again.
+   */
   const logOnAfresh = Effect.fn("logOnAfresh")(function* () {
-    yield* Effect.logWarning("[steam] no replies; logging on again with a fresh client");
+    yield* Effect.logWarning("[steam] not answering; logging on again with a fresh client");
     const old = yield* Ref.get(current);
-    old.logOff();
-    const fresh = yield* connect.pipe(
-      Effect.tapError((e) => Effect.logError(`[steam] fresh log on failed: ${e.reason}`)),
-      Effect.option,
+    yield* Effect.sync(() => {
+      old.off("disconnected", disconnectedNote);
+      old.off("loggedOn", loggedOnAgainNote);
+      old.logOff();
+    });
+    // Once logged on, the fresh client is stored even if the caller is interrupted meanwhile.
+    const fresh = yield* Effect.uninterruptibleMask((restore) =>
+      restore(connect).pipe(
+        Effect.tap((client) => Ref.set(current, client)),
+        Effect.tapError((e) => Effect.logError(`[steam] fresh log on failed: ${e.reason}`)),
+        Effect.option,
+      ),
     );
-    if (Option.isSome(fresh)) {
-      yield* Ref.set(current, fresh.value);
-      yield* Effect.logInfo("[steam] logged on with a fresh client");
-    }
+    if (Option.isSome(fresh)) yield* Effect.logInfo("[steam] logged on with a fresh client");
   }, oneAtATime.withPermits(1));
 
   /**
-   * A request went unanswered: the first starts the clock, and one after it has run out logs
-   * on afresh and starts it again, so a fresh log on that fails is retried no sooner.
+   * A request went unanswered, or the client is logged off. The first failure starts the
+   * clock; one at least FRESH_LOGON_AFTER_MS later logs on afresh and starts it again, so a
+   * fresh log on that fails is retried no sooner. A clock left from a failure long ago, with
+   * nothing between, starts over rather than counting as an outage.
    */
   const noteFailure = Effect.gen(function* () {
     const now = yield* Clock.currentTimeMillis;
-    const since = yield* Ref.get(failingSince);
-    if (since !== null && now - since < FRESH_LOGON_AFTER_MS) return;
-    yield* Ref.set(failingSince, now);
-    if (since !== null) yield* logOnAfresh();
+    const due = yield* Ref.modify(failingSince, (since): [boolean, number | null] => {
+      if (since === null || now - since > 2 * FRESH_LOGON_AFTER_MS) return [false, now];
+      if (now - since < FRESH_LOGON_AFTER_MS) return [false, since];
+      return [true, now];
+    });
+    if (due) yield* logOnAfresh();
   });
+
+  /**
+   * A client that stays logged off fails no request while no Match is live, so it is checked
+   * on its own: steam-user drops every message while logged off.
+   */
+  yield* Ref.get(current).pipe(
+    Effect.flatMap((client) => (client.steamID === null ? noteFailure : Effect.void)),
+    Effect.repeat(Schedule.spaced(LOGGED_OFF_CHECK)),
+    Effect.forkScoped,
+  );
 
   /** One leaderboard request: encoded, sent, decoded — alone in flight, with a timeout and retries. */
   const call = <A, I>(
@@ -181,7 +214,6 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
     const send = Ref.get(current).pipe(
       Effect.flatMap((client) =>
         Effect.async<Buffer, NoReply>((resume) => {
-          if (client.steamID === null) return resume(Effect.fail(new NoReply()));
           const bytes = Buffer.from(req.encode(req.fromObject(body)).finish());
           client._send(
             { msg: emsg, proto: routed ? { routing_appid: APP_ID } : {} },
