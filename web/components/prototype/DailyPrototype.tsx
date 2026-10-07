@@ -1,7 +1,8 @@
 "use client";
 // PROTOTYPE (grill-design, Daily challenge). Not production code: never merged.
 // Round 1 (calendar) settled where Dailies live, round 2 (picture + winner) what a calendar
-// day shows. Round 3: the selected day's panel. Five variants on /daily, picked by
+// day shows, round 3 (podium, with the all-time board link) the day panel. Round 4: the
+// phone layout. Five variants on /daily, picked by
 // ?variant=, with ?state= switching between a quiet and a busy today.
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -36,24 +37,28 @@ type Previews = Record<string, string | null>;
 const VARIANTS = [
   [
     "A",
-    "Picture card",
-    "Round 2's panel: the map's picture beside the day's facts, then the board.",
+    "Stacked",
+    "On a phone: every month, then the day panel under them; tapping a day scrolls down to it. Desktop is unchanged in every variant.",
   ],
   [
     "B",
-    "Board first",
-    "No picture: one header line (date, map, players, when it ends or closed), then a longer board.",
+    "Panel first",
+    "On a phone: the day panel on top, the months under it; tapping a day scrolls back up to the panel.",
   ],
-  ["C", "Podium", "The top three on a podium over the map's picture, then the board from 4th."],
+  [
+    "C",
+    "One month",
+    "One month at a time with ‹ › to change it (on desktop too), the panel under it on a phone.",
+  ],
   [
     "D",
-    "Medals",
-    "The picture card with the Map's four Medal times and how many earned each; every row shows its Medal.",
+    "Day strip",
+    "On a phone: a sideways strip of days at the top, newest at the right, with a Calendar button for the full months; the panel under the strip.",
   ],
   [
     "E",
-    "Day in numbers",
-    "No picture: tiles for players, winning margin, median time and Author Medals beaten, then the board.",
+    "Bottom sheet",
+    "On a phone: the months fill the page under a Today bar, and tapping a day slides its panel up as a sheet over them.",
   ],
 ] as const;
 type VKey = (typeof VARIANTS)[number][0];
@@ -244,74 +249,176 @@ function Winner({ d }: { d: Daily }) {
 }
 
 /* ---------- B · Calendar ---------- */
+function Month({
+  mo,
+  all,
+  today,
+  sel,
+  pick,
+  previews,
+}: {
+  mo: string;
+  all: Array<Daily>;
+  today: Daily;
+  sel: string;
+  pick: (date: string) => void;
+  previews: Previews;
+}) {
+  const [y, m] = mo.split("-").map(Number);
+  const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return (
+    <div className="dp-grid">
+      {["S", "M", "T", "W", "T", "F", "S"].map((w, i) => (
+        <span key={i} className="dp-wd">
+          {w}
+        </span>
+      ))}
+      {Array.from({ length: first }, (_, i) => (
+        <span key={"b" + i}></span>
+      ))}
+      {Array.from({ length: days }, (_, i) => {
+        const date = `${mo}-${String(i + 1).padStart(2, "0")}`;
+        const x = all.find((y2) => y2.date === date);
+        if (!x)
+          return (
+            <span key={date} className="dp-cell dp-none">
+              {i + 1}
+            </span>
+          );
+        return (
+          <button
+            key={date}
+            className="dp-cell"
+            aria-pressed={sel === date}
+            data-today={x === today}
+            onClick={() => pick(date)}
+          >
+            <Cell x={x} n={i + 1} cell="A" previews={previews} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const monthName = (mo: string) =>
+  new Date(mo + "-15T12:00:00Z").toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
+const phone = () =>
+  typeof window !== "undefined" && !window.matchMedia("(min-width: 820px)").matches;
+
 function VB({ today, past, now, previews, medals, cell }: VProps & { cell: VKey }) {
   const all = [today, ...past];
   const [sel, setSel] = useState(today.date);
+  const [mi, setMi] = useState(0);
+  const [sheet, setSheet] = useState(false);
+  const [cal, setCal] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
   const d = all.find((x) => x.date === sel) ?? today;
   const months = [...new Set(all.map((x) => x.date.slice(0, 7)))].sort().reverse();
+  useEffect(() => {
+    const el = stripRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, []);
+  const pick = (date: string) => {
+    setSel(date);
+    setCal(false);
+    if (cell === "E" && phone()) setSheet(true);
+    if ((cell === "B" || cell === "A" || cell === "C") && phone())
+      requestAnimationFrame(() =>
+        panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
+  };
+  const monthsBlock = (cell === "C" ? [months[mi]] : months).map((mo) => (
+    <section key={mo} className="dp-month">
+      <h2 className="dp-h dp-mh">
+        {cell === "C" && (
+          <button
+            onClick={() => setMi(Math.min(months.length - 1, mi + 1))}
+            disabled={mi === months.length - 1}
+            aria-label="Earlier month"
+          >
+            ‹
+          </button>
+        )}
+        <span>{monthName(mo)}</span>
+        {cell === "C" && (
+          <button
+            onClick={() => setMi(Math.max(0, mi - 1))}
+            disabled={mi === 0}
+            aria-label="Later month"
+          >
+            ›
+          </button>
+        )}
+      </h2>
+      <Month mo={mo} all={all} today={today} sel={sel} pick={pick} previews={previews} />
+    </section>
+  ));
+  const panel = (
+    <DayPanel
+      key={d.date}
+      d={d}
+      live={d === today}
+      now={now}
+      previews={previews}
+      medals={medals[d.pfid]}
+    />
+  );
   return (
-    <div className="dp dp-cal-wrap">
-      <div className="dp-cal-side">
-        {months.map((mo) => {
-          const [y, m] = mo.split("-").map(Number);
-          const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
-          const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
-          return (
-            <section key={mo} className="dp-month">
-              <h2 className="dp-h">
-                {new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                  timeZone: "UTC",
-                })}
-              </h2>
-              <div className="dp-grid">
-                {["S", "M", "T", "W", "T", "F", "S"].map((w, i) => (
-                  <span key={i} className="dp-wd">
-                    {w}
-                  </span>
-                ))}
-                {Array.from({ length: first }, (_, i) => (
-                  <span key={"b" + i}></span>
-                ))}
-                {Array.from({ length: days }, (_, i) => {
-                  const date = `${mo}-${String(i + 1).padStart(2, "0")}`;
-                  const x = all.find((y2) => y2.date === date);
-                  if (!x)
-                    return (
-                      <span key={date} className="dp-cell dp-none">
-                        {i + 1}
-                      </span>
-                    );
-                  const w = x.entries[0];
-                  return (
-                    <button
-                      key={date}
-                      className="dp-cell"
-                      data-cell="A"
-                      aria-pressed={sel === date}
-                      data-today={x === today}
-                      onClick={() => setSel(date)}
-                    >
-                      <Cell x={x} n={i + 1} cell="A" previews={previews} />
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
+    <div className="dp dp-cal-wrap" data-l={cell}>
+      {cell === "D" && (
+        <div className="dp-strip-wrap">
+          <div className="dp-daystrip" ref={stripRef}>
+            {[...all].reverse().map((x) => (
+              <button
+                key={x.date}
+                className="dp-cell"
+                aria-pressed={sel === x.date}
+                data-today={x === today}
+                onClick={() => pick(x.date)}
+              >
+                <Cell x={x} n={Number(x.date.slice(8))} cell="A" previews={previews} />
+                <span className="dp-sm">{dayLabel(x, { month: "short" }).split(" ")[0]}</span>
+              </button>
+            ))}
+          </div>
+          <button className="dp-more" onClick={() => setCal(true)}>
+            Calendar
+          </button>
+        </div>
+      )}
+      {cell === "E" && (
+        <button className="dp-todaybar" onClick={() => pick(today.date)}>
+          <i className="dp-live"></i>
+          <span>
+            Today: <b>{today.title}</b>
+          </span>
+          <span className="dp-dim">ends in {left(today.endsAt - now)}</span>
+          <span className="dp-go">Open ›</span>
+        </button>
+      )}
+      <div className="dp-cal-side" data-open={cal}>
+        {cell === "D" && (
+          <button className="dp-close" onClick={() => setCal(false)}>
+            Close
+          </button>
+        )}
+        {monthsBlock}
       </div>
-      <div className="dp-cal-main">
-        <DayPanel
-          key={d.date}
-          d={d}
-          live={d === today}
-          now={now}
-          previews={previews}
-          medals={medals[d.pfid]}
-          panel={cell}
-        />
+      <div className="dp-cal-main" ref={panelRef} data-sheet={sheet}>
+        {cell === "E" && (
+          <button className="dp-close" onClick={() => setSheet(false)}>
+            Close
+          </button>
+        )}
+        {panel}
       </div>
     </div>
   );
@@ -323,15 +430,12 @@ function DayPanel({
   live,
   now,
   previews,
-  medals,
-  panel,
 }: {
   d: Daily;
   live: boolean;
   now: number;
   previews: Previews;
   medals: Array<number> | undefined;
-  panel: VKey;
 }) {
   const when = live ? (
     <Countdown d={d} now={now} />
@@ -349,164 +453,42 @@ function DayPanel({
   );
   const eyebrow =
     (live ? "Today's Daily · " : "Daily · ") + dayLabel(d, { weekday: "short", year: "numeric" });
-  const n = d.entries.length;
-  if (panel === "B")
-    return (
-      <>
-        <div className="dp-line">
-          <span className="eyebrow">{eyebrow}</span>
-          <h1>{d.title}</h1>
-          <span className="dp-facts">
-            <span>
-              <b>{fmtN(n)}</b> players
-            </span>
-            {when}
-            <Link href={mapHref(d.pfid)}>All-time board</Link>
-          </span>
-        </div>
-        <DBoard d={d} limit={20} live={live} />
-      </>
-    );
-  if (panel === "C") {
-    const top = d.entries.slice(0, 3);
-    return (
-      <>
-        <section className="dp-podium">
-          <span className="dp-podbg">
-            <MapImage preview={previews[d.pfid]} />
-          </span>
-          <div className="dp-podhead">
-            <span className="eyebrow">{eyebrow}</span>
-            <h1>{d.title}</h1>
-            <span className="dp-facts">
-              <span>
-                <b>{fmtN(n)}</b> players
-              </span>
-              {when}
-            </span>
-          </div>
-          <ol className="dp-steps">
-            {[top[1], top[0], top[2]].map((e, i) =>
-              e ? (
-                <li key={e[1]} data-m={e[0]} style={{ "--h": hueFor(e[1]) } as React.CSSProperties}>
-                  <Marble who={{ steamId: e[1], persona: e[2] }} />
-                  <span className="dp-wn">{e[2]}</span>
-                  <span className="num">{fmtTime(e[3])}</span>
-                  <b>{e[0]}</b>
-                </li>
-              ) : (
-                <li key={i}></li>
-              ),
-            )}
-          </ol>
-        </section>
-        <DBoard d={d} from={3} limit={17} live={live} />
-      </>
-    );
-  }
-  if (panel === "D") {
-    const tiers = medals
-      ? MEDALS.map(([name, c, i]) => ({
-          name,
-          c,
-          t: medals[i],
-          k: d.entries.filter((e) => e[3] <= medals[i] * SCORE_TICKS_PER_SECOND).length,
-        }))
-      : [];
-    return (
-      <>
-        <section className="dp-hero dp-hero-s">
-          <span className="dp-pic">
-            <MapImage preview={previews[d.pfid]} />
-          </span>
-          <div className="dp-hero-t">
-            <span className="eyebrow">{eyebrow}</span>
-            <h1>{d.title}</h1>
-            {when}
-            <div className="dp-medals">
-              {tiers.map((m) => (
-                <span key={m.name}>
-                  <i style={{ background: m.c }}></i>
-                  {m.name} <b className="num">{fmtSec(m.t)}</b>
-                  <em>
-                    {fmtN(m.k)} of {fmtN(n)}
-                  </em>
-                </span>
-              ))}
-              {!medals && (
-                <span className="dp-dim">
-                  This Map is gone from the Workshop, so its Medals are unknown.
-                </span>
-              )}
-            </div>
-          </div>
-        </section>
-        <DBoard d={d} limit={15} live={live} medals={medals} />
-      </>
-    );
-  }
-  if (panel === "E") {
-    const sc = d.entries.map((e) => e[3]);
-    const margin = sc.length > 1 ? sc[1] - sc[0] : null;
-    const median = sc.length ? sc[Math.floor(sc.length / 2)] : null;
-    const authors = medals
-      ? sc.filter((x) => x <= medals[3] * SCORE_TICKS_PER_SECOND).length
-      : null;
-    return (
-      <>
-        <div className="dp-line">
-          <span className="eyebrow">{eyebrow}</span>
-          <h1>{d.title}</h1>
-          {when}
-        </div>
-        <dl className="dp-tiles">
-          <div>
-            <dt>Players</dt>
-            <dd>{fmtN(n)}</dd>
-          </div>
-          <div>
-            <dt>{live ? "Leading by" : "Won by"}</dt>
-            <dd>{margin === null ? "-" : shortGap(margin)}</dd>
-          </div>
-          <div>
-            <dt>Median time</dt>
-            <dd>{median === null ? "-" : fmtTime(median)}</dd>
-          </div>
-          <div>
-            <dt>Beat the Author</dt>
-            <dd>{authors === null ? "-" : fmtN(authors)}</dd>
-          </div>
-        </dl>
-        <DBoard d={d} limit={15} live={live} />
-      </>
-    );
-  }
+  const top = d.entries.slice(0, 3);
   return (
     <>
-      <section className="dp-hero dp-hero-s">
-        <span className="dp-pic">
+      <section className="dp-podium">
+        <span className="dp-podbg">
           <MapImage preview={previews[d.pfid]} />
         </span>
-        <div className="dp-hero-t">
+        <div className="dp-podhead">
           <span className="eyebrow">{eyebrow}</span>
           <h1>{d.title}</h1>
-          {when}
           <span className="dp-facts">
             <span>
-              <b>{fmtN(n)}</b> players{live ? " so far" : ""}
+              <b>{fmtN(d.entries.length)}</b> players{live ? " so far" : ""}
             </span>
-            {d.entries[0] && (
-              <span>
-                {live ? "Leader" : "Winner"} <b>{d.entries[0][2]}</b> {fmtTime(d.entries[0][3])}
-              </span>
-            )}
+            {when}
           </span>
-          <span className="dp-links">
-            <Link href={mapHref(d.pfid)}>The Map's all-time board</Link>
-          </span>
+          <Link className="dp-alltime" href={mapHref(d.pfid)}>
+            The Map&apos;s all-time board ›
+          </Link>
         </div>
+        <ol className="dp-steps">
+          {[top[1], top[0], top[2]].map((e, i) =>
+            e ? (
+              <li key={e[1]} data-m={e[0]} style={{ "--h": hueFor(e[1]) } as React.CSSProperties}>
+                <Marble who={{ steamId: e[1], persona: e[2] }} />
+                <span className="dp-wn">{e[2]}</span>
+                <span className="num">{fmtTime(e[3])}</span>
+                <b>{e[0]}</b>
+              </li>
+            ) : (
+              <li key={i}></li>
+            ),
+          )}
+        </ol>
       </section>
-      <DBoard d={d} limit={15} live={live} />
+      <DBoard d={d} from={3} limit={17} live={live} />
     </>
   );
 }
