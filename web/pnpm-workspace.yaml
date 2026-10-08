@@ -1,3 +1,5 @@
 # esbuild (drizzle-kit, vitest) ships its binary as a platform package; its postinstall only checks it.
 allowBuilds:
   esbuild: false
+minimumReleaseAgeExclude:
+  - playwright-core@1.64.0

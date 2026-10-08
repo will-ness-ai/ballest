@@ -52,6 +52,11 @@ final review, so it isn't repeated. Fix every finding before moving on. Commits 
 after it (a fix found while testing, dev tooling) get `/code-review` since the last reviewed
 commit before the merge.
 
+A one-line fix gets the same review: call the Skill tool for 'code-review', which runs its
+two reviewers as subagents on the diff. Your own read of the diff is implementation, not
+review, and a brief asking for a light workflow trims the planning steps, never this one.
+Step 6 is the same: call the Skill tool for 'codebase-design'.
+
 ## 6. Deepen: `/codebase-design`
 
 With the feature working and reviewed, read the code it touched for deepening

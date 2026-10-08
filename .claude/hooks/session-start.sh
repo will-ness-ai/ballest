@@ -29,3 +29,13 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev node web/sc
 # the route types lint reads (docs/linting.md)
 (cd web && pnpm exec next typegen >/dev/null)
 python3 -m pip install -q --root-user-action=ignore -r tools/requirements-test.txt
+# the Ruff CI pins (check.yml): a newer one fails `pnpm check` on rules main doesn't follow
+# (docs/linting.md). The image's uv tool ruff comes first on PATH, so replace that one.
+v=$(grep -o 'ruff==[0-9.]*' .github/workflows/check.yml | cut -d= -f3)
+if [ "$(ruff --version 2>/dev/null)" != "ruff $v" ]; then
+  if command -v uv >/dev/null; then
+    uv tool install -q --force "ruff@$v"
+  else
+    python3 -m pip install -q --root-user-action=ignore "ruff==$v"
+  fi
+fi

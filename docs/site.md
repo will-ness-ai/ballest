@@ -139,7 +139,7 @@ board and descending on a points board (`docs/data.md`).
 ## The player page
 
 `playerRecord` (`lib/player.ts`) turns a player's rows into everything the page shows:
-Circuit tiles, Workshop finishes with their Medal (`tierOf`), and the Maps the player made.
+Circuit tiles, Workshop finishes with their Medal (`medalOf`, and `timeMedal` for the tile counts), and the Maps the player made.
 The rendering is markup over that record. A tab is one entry in `PLAYER_TABS`, which the
 tab bar, each tab's body and the route are all built from.
 
@@ -192,9 +192,13 @@ only visible ones.
 - **Revalidate**: serve with `REVALIDATE_SECRET` set, add a Refresh to the database (the
   collector's `--out` run, or rows by hand), then `revalidate()` in `tools/db_writer.py`
   with `SITE_URL` pointing at the build. The changed boards should show at once.
-- **The preview**: Vercel's previews are private, so read one with
-  `npx -y vercel@latest curl <path> --deployment <preview url> --scope n3sonlines-projects`
-  (it reads `$VERCEL_TOKEN`; curl's own flags go after `--`). Previews count against the
-  Hobby plan's 100 deploys a day, so push a branch in batches.
+- **The preview**: every pushed branch gets a public preview at
+  `https://ballest-git-<branch>-n3sonlines-projects.vercel.app`, the branch name lowercased
+  with each `/` as `-` (`claude/x-1` serves `ballest-git-claude-x-1-...`). It is up once the
+  commit's `Vercel` status is `success` (`gh api repos/will-ness-ai/ballest/commits/<branch>/statuses`).
+  Previews count against the Hobby plan's 100 deploys a day, so push a branch in batches.
+- **A screenshot**: `pnpm shot <url> <out.png> [selector] [width]` from `web/`, against
+  `pnpm dev`, a build or a preview. It finds Chromium at `$CHROMIUM` or the cloud image's
+  `/opt/pw-browsers/chromium`; on another machine run `npx playwright-core install chromium` once.
 - **Parity**: `pnpm db:parity` compares the read layer with `data/` figure by figure, on a
   database backfilled from the same commit; it stops first when the database is anything else.
