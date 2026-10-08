@@ -81,7 +81,7 @@ export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
   effect: Effect.gen(function* () {
     const key = yield* Config.redacted("STEAM_API_KEY");
     const site = yield* Config.string("SITE_URL").pipe(
-      Config.withDefault("https://ballest.willness.dev"),
+      Config.withDefault("https://ballestrecords.com"),
     );
     const http = (yield* HttpClient.HttpClient).pipe(
       HttpClient.filterStatusOk,

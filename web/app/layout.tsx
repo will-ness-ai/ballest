@@ -5,6 +5,7 @@ import type { Metadata, Viewport } from "next";
 
 import { Ambient } from "../components/Marble";
 import { LegacyHash, MarbleFlip } from "../components/Behaviours";
+import { SITE_ORIGIN } from "../lib/routes";
 import { SITE_TITLE, pageTitle } from "../lib/rules";
 
 import "./styles/base.css";
@@ -23,7 +24,7 @@ const DESCRIPTION =
   "Circuit and Workshop leaderboards for Ballest of Them All, read straight from Steam.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ballest.willness.dev"),
+  metadataBase: new URL(SITE_ORIGIN),
   title: { default: SITE_TITLE, template: pageTitle("%s") },
   description: DESCRIPTION,
   icons: {
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    siteName: "ballest.willness.dev",
+    siteName: "ballestrecords.com",
     title: SITE_TITLE,
     description: DESCRIPTION,
     images: [
@@ -67,6 +68,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bungee&family=Chakra+Petch:wght@400;500;600;700&display=swap"
         />
+        {/* data-domain names the site in Plausible, not where it is served: it keeps the
+            old name so the analytics history stays in one place. */}
         <script
           defer
           data-domain="ballest.willness.dev"

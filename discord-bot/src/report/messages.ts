@@ -17,7 +17,7 @@ import {
 /** Discord's cap on a bot message's text. */
 export const MESSAGE_LIMIT = 2000;
 /** Where the links go: each Map's and Track's page on the site. */
-const SITE_URL = "https://ballest.willness.dev";
+const SITE_URL = "https://ballestrecords.com";
 
 /** The four boards' headings, in the image. */
 export const BOARD_TITLE: Record<Stat, string> = {

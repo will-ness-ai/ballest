@@ -248,8 +248,8 @@ describe("the Daily Report's messages", () => {
       AT,
     );
     const text = headMessage(r);
-    expect(text).toContain("took [S1 01](<https://ballest.willness.dev/board/Map_Track13>) from");
-    expect(text).toContain("[Map 1](<https://ballest.willness.dev/map/3623648768>)");
+    expect(text).toContain("took [S1 01](<https://ballestrecords.com/board/Map_Track13>) from");
+    expect(text).toContain("[Map 1](<https://ballestrecords.com/map/3623648768>)");
     expect(text).not.toContain("steamcommunity");
     const thread = threadSections(r, {
       tracks: [
@@ -265,7 +265,7 @@ describe("the Daily Report's messages", () => {
       ],
       maps: [],
     }).join("\n");
-    expect(thread).toContain("[S1 01](<https://ballest.willness.dev/board/Map_Track13>) in");
+    expect(thread).toContain("[S1 01](<https://ballestrecords.com/board/Map_Track13>) in");
   });
 
   it("says when nothing changed", () => {

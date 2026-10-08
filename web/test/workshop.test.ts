@@ -124,5 +124,5 @@ describe("All maps", () => {
 test("the report link names the Map and links its page", () => {
   const u = new URL(reportHref({ title: "Loop & Drop", pfid: "123" }));
   expect(u.searchParams.get("title")).toBe("Hide map: Loop & Drop (123)");
-  expect(u.searchParams.get("body")).toContain("https://ballest.willness.dev/map/123");
+  expect(u.searchParams.get("body")).toContain("https://ballestrecords.com/map/123");
 });

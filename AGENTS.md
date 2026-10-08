@@ -2,10 +2,10 @@
 
 The public monorepo for **Ballest of Them All** (appid `3339810`) community tools. Its
 main tool is a static, read-only mirror of the game's Steam leaderboards, live at
-https://ballest.willness.dev on Vercel. The game's leaderboards are not exposed
-through any public web API, so a collector reads them from Steam directly and writes the
-results to a Postgres database the site reads (and, until phase 5 of
-`docs/nextjs-migration.md`, commits them as JSON too).
+https://ballestrecords.com on Vercel (the old ballest.willness.dev redirects there). The
+game's leaderboards are not exposed through any public web API, so a collector reads them
+from Steam directly and writes the results to a Postgres database the site reads (and,
+until phase 5 of `docs/nextjs-migration.md`, commits them as JSON too).
 
 `CONTEXT.md` is the domain glossary (Map, Track, Match, ...); use its terms. Decisions
 that shape the repo are recorded in `docs/adr/`; read them before restructuring anything.
