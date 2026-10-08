@@ -34,10 +34,12 @@ const program = Effect.gen(function* () {
     const client = steamUserClient();
     if (clients.length === 0) {
       // The first client: once deaf, every request goes out and no reply ever comes back.
+      // steam-user's own callbacks take more than the reply (its auth code reads the header),
+      // so every argument is passed on.
       const send = client._send.bind(client);
       client._send = (header, body, callback) =>
-        send(header, body, (reply) => {
-          if (!deaf) callback(reply);
+        send(header, body, (...args: Parameters<typeof callback>) => {
+          if (!deaf) callback(...args);
         });
     }
     clients.push(client);
