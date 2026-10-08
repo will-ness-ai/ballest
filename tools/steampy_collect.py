@@ -6,7 +6,8 @@ reads every campaign leaderboard over the Steam CM via steam.py, resolves player
 names via the Steam Web API, and writes data/index.json + data/boards/*.json.
 It also keeps the Workshop Maps' boards current (data/workshop.json +
 data/workshop/*.json), reading only the ones played since the last run
-(collect_workshop). Then the same Refresh goes into the database
+(collect_workshop), and reads the Dailies the developers' API names (collect_dailies),
+which are database-only. Then the same Refresh goes into the database
 (db_writer.record_refresh): DATABASE_URL, or with --out only DEV_DATABASE_URL;
 skipped when unset.
 
@@ -15,6 +16,9 @@ steampy_mint.py and .env hold, in this checkout or the main one if this is a
 worktree):
   STEAM_REFRESH_TOKEN  — minted once locally with steampy_mint.py
   STEAM_API_KEY        — Steam Web API key (name resolution)
+  BALLEST_API_KEY, BALLEST_DAILY_URL — the developers' API, which names each Daily's
+                         board (the URL is a prefix the date is appended to); the Daily
+                         step is skipped without them. Never printed.
 
 Run locally to test:  python tools/steampy_collect.py
 From a feature branch: python tools/steampy_collect.py --workshop-only
@@ -41,6 +45,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import warnings
 
 import campaign_common as cc
+import daily
 import db_writer
 
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
@@ -171,6 +176,65 @@ async def collect_workshop(catalogue, all_ids):
     }
 
 
+# Seconds between two calls to the developers' API: 60 a minute at most, well under the
+# API's limit. Only the first run's catch-up (one call per Daily since
+# FIRST_DAILY) makes more than a couple.
+DAILY_API_PACE = 1.0
+
+
+async def collect_dailies(all_ids):
+    """Read the Dailies that are due (daily.plan): a list of daily.DailyRead for
+    db_writer, each with its rows or None for a read that failed. Returns [] when the step
+    is skipped: no API secrets, or no database to learn the known Dailies from and write
+    them to (they are database-only).
+
+    The due Dailies the database holds are read first, then each Daily it doesn't hold is
+    looked up, paced by DAILY_API_PACE, and read; a lookup that fails, or a date with no
+    Daily, is tried again next run. The whole step stops at daily.BUDGET with what it has
+    read (daily.collect), so it never holds up the Circuit and Workshop write. It never
+    prints the key or the URL."""
+    url, key = cc.load_secret("BALLEST_DAILY_URL"), cc.load_secret("BALLEST_API_KEY")
+    if not (url and key):
+        print("Daily: no BALLEST_API_KEY/BALLEST_DAILY_URL; skipping the Daily step")
+        return []
+    known = await asyncio.to_thread(db_writer.load_dailies, scratch=OUT is not None)
+    if known is None:
+        print("Daily: no database to write Dailies to; skipping the Daily step")
+        return []
+    now = datetime.now(UTC)
+    lookups, reads = daily.plan(known, now)
+
+    async def look_up(d):
+        return await asyncio.to_thread(daily.look_up, url, key, d)
+
+    async def read(d):
+        total, rows = None, None
+        try:
+            total, entries = await fetch_board(client, int(d.leaderboard_id))
+            rows = board_rows(entries)
+        except Exception as e:
+            print(f"  [warn] Daily {d.date} {d.title!r}: read failed: {e!r}")
+        return daily.DailyRead(
+            daily=d,
+            rows=rows,
+            read_at=datetime.now(UTC),
+            entry_count=int(total) if total else None,
+        )
+
+    out, missing, _ = await daily.collect(
+        lookups, reads, now, look_up=look_up, read=read, pace=DAILY_API_PACE
+    )
+    # only the reads handed on: one abandoned at the budget adds no player
+    for r in out:
+        all_ids.update(x["steam_id"] for x in r.rows or [])
+    ok = sum(1 for r in out if r.rows)
+    print(
+        f"  Daily: {len(lookups)} looked up ({len(missing)} with no Daily), "
+        f"{len(out)} read, {len(out) - ok} failed or empty"
+    )
+    return out
+
+
 async def workshop_only():
     """--workshop-only: the Workshop step alone, with its own name lookup. The player
     shards carry Workshop times, so they are rebuilt too, from the committed Circuit
@@ -270,8 +334,16 @@ async def on_ready():
             except Exception as e:
                 # The campaign still publishes; the Workshop files stay as committed.
                 print(f"  [warn] Workshop step failed: {e!r}")
-        published = cc.write_site(boards_out, all_ids, workshop)
+        dailies = []
+        try:
+            dailies = await collect_dailies(all_ids)
+        except Exception as e:
+            # Never blocks the Circuit or the Workshop: no Daily counts as read.
+            print(f"  [warn] Daily step failed: {type(e).__name__}")
+        published, names = cc.write_site(boards_out, all_ids, workshop)
         _state["wrote"] = True
+        # The Dailies' players are in all_ids, so the one lookup above named them too.
+        cc.fill_names([r.rows for r in dailies if r.rows], names)
         if reused:
             print(f"NOTE: reused previous data for {len(reused)} board(s): {reused}")
         # The same Refresh into the database, after the JSON and never instead of it:
@@ -284,6 +356,7 @@ async def on_ready():
                 boards=boards_out,
                 reused=tuple(reused),
                 workshop=published,
+                dailies=tuple(dailies),
             ),
             scratch=OUT is not None,
         )

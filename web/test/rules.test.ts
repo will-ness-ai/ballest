@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
 import { CIRCUIT, TRACKS } from "../lib/circuit";
+import { calendarOf, dayLabel, isLive, timeLeft, todayOf } from "../lib/daily";
 import {
   CREATOR_BEAT_MARGIN_TICKS,
   SCORE_TICKS_PER_SECOND,
@@ -21,10 +22,22 @@ import {
   relTime,
   shortGap,
   medalOf,
+  timeMedal,
   trackPoints,
   value,
 } from "../lib/rules";
-import { boardHref, legacyPath, mapHref, playerHref, playersHref, vsHref } from "../lib/routes";
+import {
+  boardHref,
+  dailyHref,
+  dailyStandingsHref,
+  groupOfPath,
+  isDailyDate,
+  legacyPath,
+  mapHref,
+  playerHref,
+  playersHref,
+  vsHref,
+} from "../lib/routes";
 
 const ID = "76561198259485267";
 
@@ -112,6 +125,15 @@ describe("the game's rules", () => {
     expect(medalOf(medals, 2, 3000001)).toBe("none");
   });
 
+  test("a time's own Medal, as a Daily shows it, has no world record", () => {
+    const medals = [30, 20, 15, 12];
+    expect(timeMedal(medals, 1200000)).toBe("author");
+    expect(timeMedal(medals, 2000000)).toBe("silver");
+    expect(timeMedal(medals, 3000001)).toBe("none");
+    // a Map no catalogue has listed has no Medals to meet
+    expect(timeMedal([], 1)).toBe("none");
+  });
+
   test("a creator's own margin applies to authorBeaten alone, as the collector's does", () => {
     // the collector's author_beaten and workshopMaps' SQL share the margin
     const py = readFileSync(new URL("../../tools/campaign_common.py", import.meta.url), "utf8");
@@ -121,6 +143,58 @@ describe("the game's rules", () => {
     // a Medal does not: a run at the author time is an author Medal, whoever set it,
     // as on the old page
     expect(medalOf([30, 20, 15, 12], 2, 12 * SCORE_TICKS_PER_SECOND)).toBe("author");
+  });
+});
+
+describe("a Daily", () => {
+  const d = { endsAt: "2026-10-08T01:00:00.000Z", final: false };
+  const at = (s: string) => Date.parse(s);
+
+  test("is live until its close by the reader's clock, or until a read after it made it final", () => {
+    expect(isLive(d, at("2026-10-08T00:59:00Z"))).toBe(true);
+    expect(isLive(d, at("2026-10-08T01:00:00Z"))).toBe(false);
+    // a reader's clock running slow never reopens a final Daily
+    expect(isLive({ ...d, final: true }, at("2026-10-08T00:59:00Z"))).toBe(false);
+    // before the page runs there is no reader's clock: the database alone decides
+    expect(isLive(d, null)).toBe(true);
+    expect(isLive({ ...d, final: true }, null)).toBe(false);
+  });
+
+  test("counts down in hours and minutes", () => {
+    expect(timeLeft(5 * 3600_000 + 3 * 60_000)).toBe("5h 03m");
+    expect(timeLeft(59_000)).toBe("0h 01m");
+    expect(timeLeft(-5)).toBe("0h 00m");
+  });
+
+  test("the calendar: every month with a Daily, newest first, each laid out from Sunday", () => {
+    const days = [{ date: "2026-08-30" }, { date: "2026-08-31" }, { date: "2026-09-02" }];
+    const months = calendarOf(days);
+    expect(months.map((m) => [m.month, m.name, m.lead, m.days.length])).toEqual([
+      // Sep 1 2026 is a Tuesday, Aug 1 a Saturday
+      ["2026-09", "September 2026", 2, 30],
+      ["2026-08", "August 2026", 6, 31],
+    ]);
+    expect(months[0].days.slice(0, 3)).toEqual([
+      { n: 1, date: "2026-09-01", daily: null },
+      { n: 2, date: "2026-09-02", daily: days[2] },
+      { n: 3, date: "2026-09-03", daily: null },
+    ]);
+    expect(months[1].days.at(-1)).toEqual({ n: 31, date: "2026-08-31", daily: days[1] });
+    expect(calendarOf([])).toEqual([]);
+  });
+
+  test("today is the newest Daily, while it is live", () => {
+    const old = { date: "2026-10-06", endsAt: "2026-10-07T01:00:00.000Z", final: true };
+    const newest = { ...old, date: "2026-10-07", endsAt: "2026-10-08T01:00:00.000Z", final: false };
+    expect(todayOf([old, newest], at("2026-10-08T00:00:00Z"))).toBe("2026-10-07");
+    expect(todayOf([old, newest], at("2026-10-08T01:00:00Z"))).toBeNull();
+    expect(todayOf([old], null)).toBeNull();
+    expect(todayOf([], null)).toBeNull();
+  });
+
+  test("is named by its own date, in no time zone", () => {
+    expect(dayLabel("2026-09-05")).toBe("Sat, Sep 5");
+    expect(dayLabel("2026-09-05", true)).toBe("Sat, Sep 5, 2026");
   });
 });
 
@@ -146,6 +220,29 @@ describe("Steam IDs and URLs", () => {
     expect(vsHref(ID, "76561198000000001")).toBe(`/vs/${ID}/76561198000000001`);
     expect(playersHref("all", "wr")).toBe("/players");
     expect(playersHref("workshop", "maps")).toBe("/players/workshop/maps");
+    expect(dailyHref()).toBe("/daily");
+    expect(dailyHref("2026-09-05")).toBe("/daily/2026-09-05");
+    expect(dailyHref("../x")).toBe("/daily");
+    expect(dailyStandingsHref()).toBe("/daily/standings");
+  });
+
+  test("a Daily's date is a real day, written YYYY-MM-DD", () => {
+    expect(isDailyDate("2026-09-05")).toBe(true);
+    expect(isDailyDate("2026-02-30")).toBe(false);
+    expect(isDailyDate("2026-9-5")).toBe(false);
+    expect(isDailyDate("standings")).toBe(false);
+    expect(isDailyDate(undefined)).toBe(false);
+  });
+
+  test("which tab a path lights", () => {
+    expect(groupOfPath("/")).toBe("Workshop");
+    expect(groupOfPath("/map/42")).toBe("Workshop");
+    expect(groupOfPath("/players/circuit/pod")).toBe("Players");
+    expect(groupOfPath("/daily")).toBe("Daily");
+    expect(groupOfPath("/daily/2026-09-05")).toBe("Daily");
+    expect(groupOfPath("/daily/standings")).toBe("Daily");
+    expect(groupOfPath("/dailyish")).toBeNull();
+    expect(groupOfPath(`/player/${ID}`)).toBeNull();
   });
 
   test("every old #/ link lands on its path", () => {

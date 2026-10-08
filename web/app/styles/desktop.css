@@ -396,9 +396,17 @@
     min-height: 92px;
   }
   .ptabs,
-  .pws {
+  .pws,
+  .dt-legend,
+  .dt-months,
+  .dt-none {
     margin-left: 0;
     margin-right: 0;
+  }
+  /* a player's Daily months side by side */
+  .dt-months {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 22px;
   }
   .trophies {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -512,6 +520,83 @@
   }
   .app[data-view="map"] .main {
     grid-template-columns: 320px minmax(0, 1fr);
+  }
+  /* the Daily: the calendar of months beside the day's panel, which stays put while the
+     page scrolls, like the rail; the strip is the phone's */
+  .app[data-view="daily"] .main {
+    grid-template-columns: 400px minmax(0, 1fr);
+  }
+  .app[data-view="daily"] .content {
+    grid-column: 2;
+  }
+  .app[data-view="daily"] .ds-switch {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  /* the standings are one column: the record cards three across over the medal table */
+  .app[data-view="daily"] .main.ds {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app[data-view="daily"] .main.ds .content {
+    grid-column: 1;
+  }
+  .ds-top,
+  .ds-cards,
+  .ds-table > .ds-h,
+  .ds-table > .dp-more {
+    padding: 0;
+    margin: 0;
+  }
+  .ds-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ds-medals {
+    margin: 0;
+  }
+  .ds-medals th button {
+    min-width: 64px;
+  }
+  .ds-medals .ds-r {
+    width: 44px;
+    padding-left: 14px;
+  }
+  .ds-medals [data-medal="podiums"],
+  .ds-medals [data-medal="top10"] {
+    display: table-cell;
+  }
+  .dc-strip,
+  .dc-sheet {
+    display: none;
+  }
+  .dc-side {
+    display: grid;
+    gap: 18px;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    /* room for the picked day's outline */
+    padding: 3px;
+  }
+  .dc-n {
+    font-size: 13px;
+  }
+  .dp-podium {
+    margin: 0;
+    padding: 18px 22px;
+  }
+  .dp-more {
+    margin: 0;
+  }
+  .dp-podhead h1 {
+    font-size: 30px;
+  }
+  .dp-steps {
+    max-width: 520px;
+    justify-self: center;
+    width: 100%;
   }
   /* the panel stays put while the board scrolls past it, like the rail; if it is taller
      than the window it scrolls on its own */

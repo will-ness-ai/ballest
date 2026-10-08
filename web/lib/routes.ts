@@ -3,7 +3,7 @@
 import { circuitBoard } from "./circuit";
 import { STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 
-export const PLAYER_TABS = ["circuit", "workshop", "made"] as const;
+export const PLAYER_TABS = ["circuit", "workshop", "made", "daily"] as const;
 export type PlayerTab = (typeof PLAYER_TABS)[number];
 
 /* an Overall board's slot for its podium order; a Steam ID is all digits, so the two can't collide */
@@ -23,13 +23,16 @@ export const isPlayerTab = oneOf(PLAYER_TABS);
 export const isPlScope = oneOf(PL_SCOPES);
 export const isPlSort = oneOf(PL_SORTS);
 
-/* the tabs across the top that aren't a season: the Workshop leads, Players comes last */
+/* the tabs across the top that aren't a season: the Workshop leads, the Daily follows it,
+   Players comes last */
 export const WORKSHOP_GROUP = "Workshop";
+export const DAILY_TAB = "Daily";
 export const PLAYERS_TAB = "Players";
 
 /* the tab a path belongs to; a player's page and a head to head belong to none */
 export function groupOfPath(path: string): string | null {
   if (path === "/" || /^\/maps?(\/|$)/.test(path)) return WORKSHOP_GROUP;
+  if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
   if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
   const board = /^\/board\/([^/]+)/.exec(path);
   return board ? (circuitBoard(decodeURIComponent(board[1]))?.group ?? null) : null;
@@ -55,6 +58,23 @@ export const vsHref = (a: string, b: string) =>
   isSteamId(a) && isSteamId(b) ? "/vs/" + a + "/" + b : "/";
 
 export const mapsHref = (view?: string | null) => "/maps" + (view ? "/" + view : "");
+
+/* a Daily's date as its path names it: a real day, YYYY-MM-DD */
+export const DAILY_DATE = /\d{4}-\d{2}-\d{2}/;
+const WHOLE_DAILY_DATE = new RegExp(`^${DAILY_DATE.source}$`);
+export function isDailyDate(s: string | undefined): s is string {
+  if (!s || !WHOLE_DAILY_DATE.test(s)) return false;
+  const t = new Date(s + "T00:00:00Z");
+  return !Number.isNaN(t.getTime()) && t.toISOString().startsWith(s);
+}
+
+/* the Daily page on one day, or on the newest Daily */
+export const dailyHref = (date?: string | null) =>
+  "/daily" + (date && isDailyDate(date) ? "/" + date : "");
+
+/* the all-time Daily standings; a date is never this, so the two can't collide */
+export const DAILY_STANDINGS = "standings";
+export const dailyStandingsHref = () => "/daily/" + DAILY_STANDINGS;
 
 export const playersHref = (scope: PlScope, sort: PlSort) =>
   "/players" + (scope === "all" && sort === "wr" ? "" : "/" + scope + "/" + sort);

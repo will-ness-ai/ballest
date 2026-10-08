@@ -117,3 +117,109 @@ export interface NameHit {
   persona: string;
   avatar: string | null;
 }
+
+/* one Daily: the game's one-day challenge on a Workshop Map, with its own board */
+export interface DailyDay {
+  /* YYYY-MM-DD, the API's name for it */
+  date: string;
+  /* its own board, as the API names it */
+  board: string;
+  pfid: string;
+  title: string;
+  /* the Map's picture and Medals ([bronze, silver, gold, author], seconds), from its
+     latest catalogue row; null and empty for a Map no catalogue has listed */
+  preview: string | null;
+  medals: Array<number>;
+  /* whether the Workshop lists the Map now, so its own page and all-time board exist */
+  listed: boolean;
+  startsAt: string;
+  endsAt: string;
+  /* a read after its close made it final; live or not is the reader's clock against endsAt */
+  final: boolean;
+  /* the times on its board */
+  entryCount: number;
+}
+
+/* a player's place on one Daily, of the field its board ranks */
+export interface PlayerDaily {
+  date: string;
+  rank: number;
+  field: number;
+  /* a read after its close made it final; until then its place can still change */
+  final: boolean;
+}
+
+/* a player's Daily record: every Daily they have a time on, oldest first, their wins and
+   podiums on final Dailies, and their runs of Dailies played one after another (runsOf in
+   lib/daily.ts) */
+export interface PlayerDailies {
+  played: Array<PlayerDaily>;
+  won: number;
+  podiums: number;
+  longest: number;
+  current: number;
+}
+
+/* one day of the Daily page's calendar: a Daily as its cell and its day strip draw it */
+export interface DailyCell {
+  date: string;
+  pfid: string;
+  title: string;
+  preview: string | null;
+  startsAt: string;
+  endsAt: string;
+  final: boolean;
+  entryCount: number;
+  /* its 1st, leading or the day's winner; null while nobody has set a time */
+  winner: { steamId: string; persona: string } | null;
+}
+
+/* one player's place on one final Daily, which the Daily standings count */
+export interface DailyFinish {
+  date: string;
+  steamId: string;
+  persona: string;
+  avatar: string | null;
+  rank: number;
+}
+
+/* one player's all-time Daily record, over final Dailies only */
+export interface DailyStanding {
+  steamId: string;
+  persona: string;
+  avatar: string | null;
+  gold: number;
+  silver: number;
+  bronze: number;
+  podiums: number;
+  top10: number;
+  played: number;
+  /* the longest run of consecutive Dailies played, and of consecutive Dailies won */
+  playedRun: number;
+  winRun: number;
+}
+
+export type DailyRecordKey = "wins" | "podiums" | "played" | "playedRun" | "winRun";
+
+/* a record card: its top three, equal values sharing a place (1, 2, 2), and how many more
+   players share the last value shown */
+export interface DailyRecord {
+  key: DailyRecordKey;
+  holders: Array<{
+    steamId: string;
+    persona: string;
+    avatar: string | null;
+    value: number;
+    place: number;
+  }>;
+  more: number;
+}
+
+export interface DailyStandings {
+  /* how many final Dailies are counted, and the first one's date */
+  dailies: number;
+  since: string | null;
+  /* everyone with a time on a final Daily, in medal order */
+  players: Array<DailyStanding>;
+  records: Array<DailyRecord>;
+}

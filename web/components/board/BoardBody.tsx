@@ -11,13 +11,14 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { QMark } from "./PointsDialog";
+import { ScoreRow } from "./ScoreRow";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
 import type { BoardPage, BoardRow } from "../../lib/rows";
 import { useDebouncedFetch } from "../../hooks/client";
 import { podiumTotal, type Medals, type PodiumRow } from "../../lib/podiums";
-import { BOARD_CHUNK, fmtN, fmtTime, hueFor, ord, personaOf, plural } from "../../lib/rules";
+import { BOARD_CHUNK, fmtN, hueFor, ord, personaOf, plural } from "../../lib/rules";
 
 interface Common {
   name: string;
@@ -65,76 +66,6 @@ const NO_RUNS = (
 /* the search box matches a persona fragment or a Steam ID, on a board and its podium sort alike */
 const matches = (r: { steamId: string; persona?: string | null }, q: string) =>
   personaOf(r).toLowerCase().includes(q) || r.steamId.includes(q);
-
-/* memoised: the list only ever grows, so a new step draws only its own rows */
-const ScoreRow = memo(function ScoreRow({
-  r,
-  lead,
-  points,
-  pods,
-  focus,
-}: {
-  r: BoardRow;
-  lead: number;
-  points: boolean;
-  pods: Record<string, Medals> | null;
-  focus: boolean;
-}) {
-  const gap = points ? lead - r.score : r.score - lead;
-  const prev = r.ahead;
-  const step = prev == null ? 0 : points ? prev - r.score : r.score - prev;
-  const g = points ? fmtN(gap) + " pts" : "+" + fmtTime(gap);
-  const st = points ? fmtN(step) + " pts" : "+" + fmtTime(step);
-  const up = ord(r.rank - 1);
-  /* a composite row says where its total came from: "S1 260,000 · S2 188,560". The
-     narrow line has no room for that and both gaps, so there the breakdown takes the
-     place of the gap to the leader. */
-  const parts = r.seasons
-    ? " · " +
-      Object.entries(r.seasons)
-        .map(([season, n]) => season.replace(/^Season\s*/i, "S") + " " + fmtN(n))
-        .join(" · ")
-    : "";
-  const p = pods ? pods[r.steamId] : undefined;
-  return (
-    <div
-      className={focus ? "row focus" : "row"}
-      style={{ "--h": hueFor(r.steamId) } as React.CSSProperties}
-      data-m={r.rank <= 3 ? r.rank : 0}
-      data-id={r.steamId}
-    >
-      <span className="c-rank">{r.rank}</span>
-      <Marble who={r} />
-      <span className="c-text">
-        <span className="nm">
-          <PlayerLink id={r.steamId} text={personaOf(r)} />
-        </span>
-        {r.rank === 1 ? (
-          <>
-            <span className="sub sub-d">Leads the board{parts}</span>
-            <span className="sub sub-m">Leads the board{parts}</span>
-          </>
-        ) : (
-          <>
-            <span className="sub sub-d">
-              <em>{g}</em> behind · {st} to {up}
-              {parts}
-            </span>{" "}
-            <span className="sub sub-m">
-              <em>{st}</em> to {up}
-              {parts || " · " + g + " back"}
-            </span>
-          </>
-        )}
-      </span>
-      {pods && <span className="c-pods">{p ? <MedalCounts p={p} /> : null}</span>}
-      <span className="c-score">
-        <span>{points ? fmtN(r.score) : fmtTime(r.score)}</span>
-        <i className="pill"></i>
-      </span>
-    </div>
-  );
-});
 
 /* a row of the podium order: ranked by the tally, the total in the score column, and where
    they stand on points underneath */

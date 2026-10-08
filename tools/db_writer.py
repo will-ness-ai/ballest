@@ -31,11 +31,13 @@ database failure stop the JSON write, and revalidates the site after a commit.
 
 import os
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 import campaign_common as cc
+import daily
 import psycopg
+from psycopg.rows import dict_row
 
 # Built by the collector from Steam's boards, so stored only as the rows they come from.
 DERIVED_BOARDS = frozenset({cc.S1_CURRENT_BOARD, cc.COMPOSITE_BOARD})
@@ -52,12 +54,15 @@ class Refresh:
       Refresh: {"maps": [...], "boards": {pfid: rows read}, "failed": [pfid, ...]}. None
       when the Workshop step failed or its guards kept the committed files, and then no
       Map counts as read.
+    dailies: a daily.DailyRead per Daily the Daily step read, ok or not. A Daily not read
+      (final already, or not yet open) is left out, and its rows stay as they are.
     """
 
     started_at: datetime
     boards: list = field(default_factory=list)
     reused: tuple = ()
     workshop: dict | None = None
+    dailies: tuple = ()
     source: str = "collector"
     commit_sha: str | None = None
     finished_at: datetime | None = None
@@ -94,6 +99,36 @@ def record_refresh(refresh, *, scratch=False, env=None):
     print(f"Database: wrote Refresh {rid}")
     revalidate(env)
     return rid
+
+
+def known_dailies(conn):
+    """{date: daily.Daily} for every Daily the database holds, final or not: what the Daily
+    step plans from (daily.plan)."""
+    with conn.cursor(row_factory=dict_row) as cur:
+        found = cur.execute(
+            """
+            select d.date::text as date, d.board, b.leaderboard_id::text as leaderboard_id,
+              d.pfid, d.title, d.starts_at, d.ends_at, d.final_refresh is not null as final
+            from dailies d join boards b on b.name = d.board
+            """
+        ).fetchall()
+    return {r["date"]: daily.Daily(**r) for r in found}
+
+
+def load_dailies(*, scratch=False, env=None):
+    """The Dailies the database this run writes holds, or None when there is no such
+    database or it can't be read. Dailies are database-only, so with None the Daily step
+    has nowhere to write and is skipped."""
+    env = os.environ if env is None else env
+    url = database_url(env, scratch=scratch)
+    if not url:
+        return None
+    try:
+        with psycopg.connect(url, connect_timeout=30) as conn:
+            return known_dailies(conn)
+    except Exception as e:
+        print(f"::warning::Reading the known Dailies failed: {type(e).__name__}")
+        return None
 
 
 def revalidate(env):
@@ -134,7 +169,8 @@ def _copy(cur, table, cols, rows):
 
 
 def _gather(refresh):
-    """(boards, reads, entries, players, maps) as plain tuples, from the Refresh."""
+    """(boards, reads, entries, players, maps, days) from the Refresh: plain tuples, but the
+    Maps as the Workshop result holds them and the days as daily.Daily."""
     reused = set(refresh.reused)
     boards, reads, read_rows = [], [], []
     for b in refresh.boards:
@@ -169,6 +205,16 @@ def _gather(refresh):
             if pfid in listed and pfid not in ws.get("boards", {})
         )
 
+    days = []
+    for dr in refresh.dailies:
+        d = dr.daily
+        boards.append((d.board, "daily", None, d.title, int(d.leaderboard_id), False))
+        # As on any board, a failed or empty read moves none of the Daily's Entries.
+        ok = bool(dr.rows)
+        reads.append((d.board, ok, (dr.entry_count or len(dr.rows)) if ok else None))
+        read_rows.append((d.board, dr.rows or [], ok))
+        days.append(replace(d, final=ok and dr.read_at >= d.ends_at))
+
     players, entries = {}, {}
     for name, rows, ok in read_rows:
         for r in rows:
@@ -191,7 +237,8 @@ def _gather(refresh):
     boards = list({b[0]: b for b in boards}.values())
     maps = list({m["pfid"]: m for m in maps}.values())
     reads = list({r[0]: r for r in reversed(reads)}.values())
-    return boards, reads, list(entries.values()), list(players.values()), maps
+    days = list({d.date: d for d in days}.values())
+    return boards, reads, list(entries.values()), list(players.values()), maps, days
 
 
 def write_refresh(conn, refresh):
@@ -202,7 +249,7 @@ def write_refresh(conn, refresh):
     make this a savepoint, and nothing would be committed until the caller did."""
     if conn.info.transaction_status != psycopg.pq.TransactionStatus.IDLE:
         raise RuntimeError("write_refresh needs a connection outside a transaction")
-    boards, reads, entries, players, maps = _gather(refresh)
+    boards, reads, entries, players, maps, days = _gather(refresh)
     with conn.transaction(), conn.cursor() as cur:
         (rid,) = cur.execute(
             "insert into refreshes (started_at, source, commit_sha) values (%s, %s, %s)"
@@ -227,6 +274,8 @@ def write_refresh(conn, refresh):
               scores_points = excluded.scores_points
             """
         )
+        if days:
+            _write_dailies(cur, rid, days)
         _copy(cur, "in_reads", "board text, ok boolean, entry_count integer", reads)
         cur.execute(
             "insert into board_reads (refresh_id, board, ok, entry_count)"
@@ -244,6 +293,42 @@ def write_refresh(conn, refresh):
             (refresh.finished_at, rid),
         )
     return rid
+
+
+# in_dailies's columns, each a daily.Daily field of the same name
+DAILY_COLUMNS = (
+    ("date", "date"),
+    ("board", "text"),
+    ("pfid", "text"),
+    ("title", "text"),
+    ("starts_at", "timestamptz"),
+    ("ends_at", "timestamptz"),
+    ("final", "boolean"),
+)
+
+
+def _write_dailies(cur, rid, days):
+    """Each Daily read (a daily.Daily whose `final` says this read made it final),
+    upserted. final_refresh is set once, by the first Refresh whose read of the board was
+    ok at or after the window's close, and never moves after."""
+    _copy(
+        cur,
+        "in_dailies",
+        ", ".join(f"{c} {t}" for c, t in DAILY_COLUMNS),
+        [tuple(getattr(d, c) for c, _ in DAILY_COLUMNS) for d in days],
+    )
+    cur.execute(
+        """
+        insert into dailies (date, board, pfid, title, starts_at, ends_at, final_refresh)
+        select date, board, pfid, title, starts_at, ends_at, case when final then %s end
+        from in_dailies
+        on conflict (date) do update set
+          board = excluded.board, pfid = excluded.pfid, title = excluded.title,
+          starts_at = excluded.starts_at, ends_at = excluded.ends_at,
+          final_refresh = coalesce(dailies.final_refresh, excluded.final_refresh)
+        """,
+        (rid,),
+    )
 
 
 def _write_players(cur, rid, players):

@@ -8,6 +8,13 @@
       "when": 1791072312287,
       "tag": "0000_score_history",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791420122054,
+      "tag": "0001_daily",
+      "breakpoints": true
     }
   ]
 }

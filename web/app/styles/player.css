@@ -398,7 +398,7 @@
   white-space: nowrap;
 }
 
-/* the page's tabs: Circuit, Workshop, and Made for a map maker. Each is a link */
+/* the page's tabs: Circuit, Workshop, Made for a map maker, and Daily. Each is a link */
 .ptabs {
   display: flex;
   gap: 2px;
@@ -859,4 +859,34 @@ a.mkcard:hover b {
 }
 .mkgrid {
   margin-top: 12px;
+}
+
+/* the Daily tab: the bands' legend over the months of every Daily, a day the player
+   played bordered in the band of their place (daily.css) */
+.dt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0 var(--pad) 12px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.dt-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 6px;
+  background: var(--band);
+}
+.dt-months {
+  display: grid;
+  align-items: start;
+  gap: 18px;
+  margin: 0 var(--pad);
+}
+.dt-none {
+  margin: 0 var(--pad);
+  color: var(--dim);
 }

@@ -47,6 +47,13 @@ from it. Backfilled from the git history of the old JSON, so its earliest Entrie
 first seen no later than their first Refresh, not exactly then.
 _Avoid_: snapshots, audit log
 
+**Daily**:
+The game's one-day challenge: one Map, played in a window (`starts_at` to `ends_at`, as
+the developers' API gives them) on its own Steam board, apart from the Map's all-time
+board. Named by its date. It is live while its window is open, and final once a Refresh
+has read its board after the window closed; a Daily's standings count final Dailies only.
+_Avoid_: daily challenge board, Daily Report (that is Multiballs' post)
+
 **Daily Report**:
 Multiballs' once-a-day post of the Workshop standings (Maps played, Author Medals, world
 records, top 5s), what changed since the day before, Maps nobody has finished, unclaimed

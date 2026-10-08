@@ -14,6 +14,25 @@ function Bars({ n }: { n: number }) {
 }
 
 /* a board's page: the rail and the bar over the list */
+/* the Daily page: the day's panel, then its board */
+export function DailySkeleton() {
+  return (
+    <div className="main">
+      <section className="content daily">
+        <section className="dp-podium">
+          <div className="dp-podhead">
+            <span className="eyebrow">&nbsp;</span>
+            <h1>&nbsp;</h1>
+          </div>
+        </section>
+        <div className="board">
+          <Bars n={8} />
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function BoardSkeleton() {
   return (
     <div className="main">

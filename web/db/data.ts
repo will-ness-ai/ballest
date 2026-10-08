@@ -16,7 +16,14 @@ import { cacheLife, cacheTag } from "next/cache";
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
 import { playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
 import { podiumTallies, type PodiumTally } from "../lib/podiums";
-import type { BoardPage, WorkshopMap } from "../lib/rows";
+import type {
+  BoardPage,
+  DailyCell,
+  DailyDay,
+  DailyStandings,
+  PlayerDailies,
+  WorkshopMap,
+} from "../lib/rows";
 import { mapCard, timed, type MapCard } from "../lib/workshop";
 import { connect, type Db } from "./client";
 import * as q from "./site";
@@ -192,6 +199,55 @@ export async function getStandings() {
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.standings(db());
+}
+
+/* every Daily's date, oldest first */
+export async function getDailyDates(): Promise<Array<string>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.dailyDates(db());
+}
+
+/* every Daily as the calendar draws it, oldest first */
+export async function getDailies(): Promise<Array<DailyCell>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.dailies(db());
+}
+
+/* one Daily by its date, or null for a date with none; only a date that has one is read */
+export async function getDaily(date: string): Promise<DailyDay | null> {
+  return (await getDailyDates()).includes(date) ? dailyOf(date) : null;
+}
+
+async function dailyOf(date: string) {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.dailyDay(db(), date);
+}
+
+/* the all-time Daily standings, over final Dailies only */
+export async function getDailyStandings(): Promise<DailyStandings> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.dailyStandings(db());
+}
+
+/* a player's Daily record (their place on each Daily, their runs); only a Steam ID the
+   database has seen is read */
+export async function getPlayerDailies(steamId: string): Promise<PlayerDailies | null> {
+  return (await getPlayerIds()).includes(steamId) ? playerDailiesOf(steamId) : null;
+}
+
+async function playerDailiesOf(steamId: string) {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.playerDailies(db(), steamId);
 }
 
 /* the Compare dialog's search, read fresh */

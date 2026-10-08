@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { PW_CHUNK, usePlayerView, type PwSort } from "./usePlayerView";
 import { MapImage } from "../MapImage";
+import { Medal } from "../Medal";
 import { useDebounced } from "../../hooks/client";
 import type { PlayerRecord, WorkshopFinish } from "../../lib/player";
 import { boardHref } from "../../lib/routes";
@@ -23,20 +24,6 @@ import {
 } from "../../lib/rules";
 
 const PW_SHELF = 14;
-
-/* a Medal as the trophy shelf and each row draw it */
-function Medal({ t, size, mini }: { t: MedalKey; size: number; mini?: boolean }) {
-  return (
-    <span
-      className={mini ? "medal mini" : "medal"}
-      data-t={t}
-      style={{ "--s": String(size) + "px" } as React.CSSProperties}
-      title={MEDAL_LABEL[t]}
-    >
-      {t === "wr" ? "1" : ""}
-    </span>
-  );
-}
 
 type Cmp = (a: WorkshopFinish, b: WorkshopFinish) => number;
 const SORTS: Record<PwSort, [string, Cmp]> = {

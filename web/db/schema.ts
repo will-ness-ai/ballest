@@ -11,6 +11,7 @@ import {
   bigint,
   bigserial,
   boolean,
+  date,
   doublePrecision,
   foreignKey,
   index,
@@ -36,13 +37,14 @@ export const refreshes = pgTable("refreshes", {
   commitSha: text("commit_sha"),
 });
 
-export const boardKind = pgEnum("board_kind", ["track", "overall", "map"]);
+export const boardKind = pgEnum("board_kind", ["track", "overall", "map", "daily"]);
 
-// Every board Steam holds: the Circuit's Tracks and Overall boards, and each Map's.
+// Every board Steam holds: the Circuit's Tracks and Overall boards, each Map's, and each
+// Daily's.
 export const boards = pgTable("boards", {
   name: text("name").primaryKey(),
   kind: boardKind("kind").notNull(),
-  // the Circuit board's group ("Season 1", ...); null for a Map
+  // the Circuit board's group ("Season 1", ...); null for a Map or a Daily
   season: text("season"),
   display: text("display").notNull(),
   leaderboardId: bigint("leaderboard_id", { mode: "number" }).unique(),
@@ -159,3 +161,22 @@ export const mapHistory = pgTable(
     index("map_history_map").on(t.pfid),
   ],
 );
+
+// A Daily: the game's one-day challenge on one Workshop Map, with its own Steam board
+// (named as the developers' API returns it, never built). Its window is the API's, which
+// has not always been midnight to midnight UTC. Database-only: no file under data/.
+export const dailies = pgTable("dailies", {
+  date: date("date", { mode: "string" }).primaryKey(),
+  board: text("board")
+    .notNull()
+    .unique()
+    .references(() => boards.name),
+  // no foreign key: a Map can leave the Workshop, or never have been read
+  pfid: text("pfid").notNull(),
+  title: text("title").notNull(),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  // the first Refresh that read the board ok at or after ends_at; once set, it is final
+  // and the collector stops reading it
+  finalRefresh: integer("final_refresh").references(() => refreshes.id),
+});

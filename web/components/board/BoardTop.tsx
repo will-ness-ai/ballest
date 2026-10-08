@@ -5,6 +5,7 @@
 import Link from "next/link";
 
 import { QMark } from "./PointsDialog";
+import { Plates } from "./Plates";
 import { Spread } from "./Spread";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
@@ -15,8 +16,6 @@ import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podi
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
 import { fmtN, fmtTime, hueFor, isPoints, personaOf, value } from "../../lib/rules";
 import type { BoardRow } from "../../lib/rows";
-
-const PLACE = ["1st", "2nd", "3rd"];
 
 /* a card's facts, each a label over its value */
 function Facts({ facts }: { facts: ReadonlyArray<[string, React.ReactNode]> }) {
@@ -79,43 +78,6 @@ export function Tiles({
         </dd>
       </div>
     </dl>
-  );
-}
-
-/* the marble row: three plates, each a player, what they scored, and a line under it */
-function Plates({
-  top,
-  focus,
-}: {
-  top: Array<{
-    who: { steamId: string; persona: string; avatar: string | null };
-    score: React.ReactNode;
-    line: string;
-  }>;
-  focus: string | null;
-}) {
-  if (top.length < 3) return <div className="leaders" id="leaders" hidden></div>;
-  return (
-    <div className="leaders" id="leaders">
-      {top.map(({ who, score, line }, i) => (
-        <div
-          key={who.steamId}
-          className={focus === who.steamId ? "plate focus" : "plate"}
-          data-p={i + 1}
-          data-id={who.steamId}
-        >
-          <Marble who={who} />
-          <span className="pl-text">
-            <span className="pl-name">
-              <PlayerLink id={who.steamId} text={personaOf(who)} />
-            </span>
-            <span className="pl-score">{score}</span>
-            <span className="pl-gap">{line}</span>
-          </span>
-          <span className="pl-rank">{PLACE[i]}</span>
-        </div>
-      ))}
-    </div>
   );
 }
 

@@ -5,17 +5,24 @@
 import { sql, type SQL } from "drizzle-orm";
 
 import { CIRCUIT, S1_TRACKS, S2_TRACKS } from "../lib/circuit";
+import { runsOf, standingsOf } from "../lib/daily";
 import { CREATOR_BEAT_MARGIN_TICKS, SCORE_TICKS_PER_SECOND } from "../lib/rules";
 import type { Db } from "./client";
 import { DERIVED, array, boardSql, rankedSql } from "./boards";
 import type {
   BoardPage,
   BoardRow,
+  DailyCell,
+  DailyDay,
+  DailyFinish,
+  DailyStandings,
   DerivedStanding,
   DerivedStandings,
   Freshness,
   NameHit,
   Placing,
+  PlayerDailies,
+  PlayerDaily,
   PlayerData,
   PlayerFinish,
   PlayerProfile,
@@ -226,8 +233,10 @@ export async function playerData(
     )
   ).at(0);
   if (!profile) return null;
+  /* a Daily's board is the player's Daily record, read on its own */
   const theirs = sql`e.board in (select board from entries
-    where steam_id = ${steamId} and closed_refresh is null)`;
+    where steam_id = ${steamId} and closed_refresh is null)
+    and b.kind <> 'daily'`;
   const finishes = await rows<PlayerFinish>(
     db,
     sql`select board, rank, score::float8 as score, lead::float8 as lead, field::int as field from (
@@ -302,4 +311,113 @@ export async function searchPlayers(
       order by (lower(${personaSql}) like ${starts}) desc, p.steam_id
       limit ${limit}`,
   );
+}
+
+/* One Daily by its date, or null for a date with none. Its board ranks like a Map's
+   (boardPage on `board`). */
+export async function dailyDay(db: Db, date: string): Promise<DailyDay | null> {
+  const found = await rows<DailyDay>(
+    db,
+    sql`select d.date::text as date, d.board, d.pfid, d.title, l.preview,
+        coalesce(l.medals, '{}') as medals,
+        exists (select 1 from (${listedMapsSql}) w where w.board = m.board) as listed,
+        to_char(d.starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "startsAt",
+        to_char(d.ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "endsAt",
+        d.final_refresh is not null as final,
+        (select count(*) from entries e
+          where e.board = d.board and e.closed_refresh is null)::int as "entryCount"
+      from dailies d
+      left join maps m on m.pfid = d.pfid
+      left join lateral (select preview, medals from map_history h where h.pfid = d.pfid
+        order by last_seen_refresh desc, id desc limit 1) l on true
+      where d.date = ${date}::date`,
+  );
+  return found.at(0) ?? null;
+}
+
+/* Every Daily, oldest first, with its 1st as its board ranks it */
+export async function dailies(db: Db): Promise<Array<DailyCell>> {
+  const found = await rows<
+    Omit<DailyCell, "winner"> & { winnerId: string | null; winnerName: string }
+  >(
+    db,
+    sql`select d.date::text as date, d.pfid, d.title, l.preview,
+        to_char(d.starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "startsAt",
+        to_char(d.ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "endsAt",
+        d.final_refresh is not null as final,
+        coalesce(n.count, 0)::int as "entryCount",
+        w.steam_id as "winnerId", ${personaSql} as "winnerName"
+      from dailies d
+      left join lateral (select preview from map_history h where h.pfid = d.pfid
+        order by last_seen_refresh desc, id desc limit 1) l on true
+      left join (select board, count(*) from entries
+        where closed_refresh is null group by board) n on n.board = d.board
+      left join (${rankedSql(sql`e.board in (select board from dailies)`)}) w
+        on w.board = d.board and w.rank = 1
+      left join players p on p.steam_id = w.steam_id
+      order by d.date`,
+  );
+  return found.map(({ winnerId, winnerName, ...d }) => ({
+    ...d,
+    winner: winnerId ? { steamId: winnerId, persona: winnerName } : null,
+  }));
+}
+
+/* Every Daily's date, oldest first: what a URL's date is checked against, and the newest
+   is what /daily opens on */
+export async function dailyDates(db: Db): Promise<Array<string>> {
+  const found = await rows<{ date: string }>(
+    db,
+    sql`select date::text as date from dailies order by date`,
+  );
+  return found.map((r) => r.date);
+}
+
+/* The all-time Daily standings (standingsOf in lib/daily.ts), over final Dailies only:
+   a live Daily's board would move them while it is open */
+export async function dailyStandings(db: Db): Promise<DailyStandings> {
+  const final = await rows<{ date: string }>(
+    db,
+    sql`select date::text as date from dailies where final_refresh is not null order by date`,
+  );
+  const finishes = await rows<DailyFinish>(
+    db,
+    sql`select d.date::text as date, r.steam_id as "steamId", ${personaSql} as persona,
+        nullif(p.avatar, '') as avatar, r.rank
+      from (${rankedSql(sql`e.board in (select board from dailies where final_refresh is not null)`)}) r
+      join dailies d on d.board = r.board
+      join players p on p.steam_id = r.steam_id`,
+  );
+  return standingsOf(
+    final.map((r) => r.date),
+    finishes,
+  );
+}
+
+/* A player's place on every Daily they have a time on, oldest first, each ranked as its
+   board ranks it; their wins and podiums over final Dailies only, as the standings count
+   them; and their runs of Dailies played */
+export async function playerDailies(db: Db, steamId: string): Promise<PlayerDailies> {
+  const played = await rows<PlayerDaily>(
+    db,
+    sql`select d.date::text as date, r.rank, r.field::int as field,
+        d.final_refresh is not null as final
+      from dailies d join (
+        select board, steam_id, rank, count(*) over (partition by board) as field
+        from (${rankedSql(sql`e.board in (select board from dailies)`)}) x
+      ) r on r.board = d.board
+      where r.steam_id = ${steamId}
+      order by d.date`,
+  );
+  const days = await rows<{ date: string; final: boolean }>(
+    db,
+    sql`select date::text as date, final_refresh is not null as final from dailies order by date`,
+  );
+  const final = played.filter((p) => p.final);
+  return {
+    played,
+    won: final.filter((p) => p.rank === 1).length,
+    podiums: final.filter((p) => p.rank <= 3).length,
+    ...runsOf(days, new Set(played.map((p) => p.date))),
+  };
 }

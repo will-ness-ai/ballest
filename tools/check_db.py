@@ -59,9 +59,12 @@ def json_boards():
 
 
 def db_boards(conn):
-    out = {name: {} for (name,) in conn.execute("select name from boards")}
+    """Every stored board's open Entries, but a Daily's: Dailies are database-only, so
+    there is no file to compare them with (docs/data.md)."""
+    out = {name: {} for (name,) in conn.execute("select name from boards where kind <> 'daily'")}
     for board, sid, score in conn.execute(
-        "select board, steam_id, score from entries where closed_refresh is null"
+        "select e.board, e.steam_id, e.score from entries e join boards b on b.name = e.board"
+        " where e.closed_refresh is null and b.kind <> 'daily'"
     ):
         out[board][sid] = score
     return out
