@@ -172,6 +172,13 @@
   gap: 6px;
 }
 .tape {
+  /* a table of rows that share its columns: the widest number on either side sets
+     its column for every row, and never shrinks under its own width (a five-digit
+     rank, bigger text); the label between wraps instead */
+  --side: minmax(min-content, 1fr);
+  display: grid;
+  grid-template-columns: var(--side) minmax(min-content, 170px) var(--side);
+  column-gap: 10px;
   margin-block-end: 16px;
   padding: 2px 14px;
   border: 1px solid var(--line);
@@ -180,8 +187,8 @@
 }
 .trow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(96px, 170px) minmax(0, 1fr);
-  gap: 10px;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
   padding: 8px 0;
   border-block-end: 1px solid var(--line2);

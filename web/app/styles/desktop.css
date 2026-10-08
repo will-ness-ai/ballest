@@ -50,6 +50,9 @@
     border: 0;
     border-block-end: 1px solid var(--line);
     overflow: visible;
+    /* every tab fits here, and the fade's mask would cut off the lit tab's underline */
+    animation: none;
+    mask-image: none;
   }
   .gtab {
     flex: 0 0 auto;

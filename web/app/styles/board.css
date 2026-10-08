@@ -82,8 +82,35 @@
   vertical-align: 1px;
 }
 
-/* five tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a
-   label wraps onto two lines */
+/* six tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a label
+   wraps onto two lines. The side with more tabs fades out over --edge, so the bar reads
+   as one that scrolls (good-css, "Styles that apply only when a scroller overflows"),
+   and the lit tab is scrolled clear of the fade (scroll-padding, GroupTabs.tsx) */
+@property --fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@keyframes groups-edges {
+  from {
+    --fade-start: 0px;
+    --fade-end: var(--edge);
+  }
+  10%,
+  90% {
+    --fade-start: var(--edge);
+    --fade-end: var(--edge);
+  }
+  to {
+    --fade-start: var(--edge);
+    --fade-end: 0px;
+  }
+}
 .groups {
   display: flex;
   gap: 2px;
@@ -94,6 +121,17 @@
   border: 1px solid var(--line);
   overflow-x: auto;
   scrollbar-width: none;
+  --edge: 2rem;
+  scroll-padding-inline: var(--edge);
+  animation: groups-edges linear;
+  animation-timeline: scroll(self inline);
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--fade-start),
+    black calc(100% - var(--fade-end)),
+    transparent
+  );
 }
 .gtab {
   flex: 1 0 auto;
