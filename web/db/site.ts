@@ -8,6 +8,7 @@ import { CIRCUIT, S1_TRACKS, S2_TRACKS } from "../lib/circuit";
 import { CREATOR_BEAT_MARGIN_TICKS, SCORE_TICKS_PER_SECOND } from "../lib/rules";
 import type { Db } from "./client";
 import { DERIVED, array, boardSql, rankedSql } from "./boards";
+import type { HistoryInput } from "../lib/history";
 import type {
   BoardPage,
   BoardRow,
@@ -302,4 +303,52 @@ export async function searchPlayers(
       order by (lower(${personaSql}) like ${starts}) desc, p.steam_id
       limit ${limit}`,
   );
+}
+
+/* A Track's or a Map's Score history, every Entry it has held with the Refreshes that saw
+   it, for lib/history.ts to work its record history out from; null for a board that does
+   not exist or is scored in points, whose Entries keep current points only (docs/adr/0005) */
+export async function historyInput(db: Db, name: string): Promise<HistoryInput | null> {
+  const board = (
+    await rows<{ points: boolean }>(
+      db,
+      sql`select scores_points as points from boards where name = ${name}`,
+    )
+  ).at(0);
+  if (!board || board.points) return null;
+  const [span] = await rows<{ first: Date; now: Date }>(
+    db,
+    sql`select min(started_at) as first, max(started_at) as now from refreshes`,
+  );
+  const found = await rows<{
+    steamId: string;
+    persona: string;
+    score: number;
+    f: Date;
+    l: Date;
+    c: Date | null;
+  }>(
+    db,
+    sql`select e.steam_id as "steamId", ${personaSql} as persona, e.score::float8 as score,
+        f.started_at as f, l.started_at as l, c.started_at as c
+      from entries e
+      join players p on p.steam_id = e.steam_id
+      join refreshes f on f.id = e.first_seen_refresh
+      join refreshes l on l.id = e.last_seen_refresh
+      left join refreshes c on c.id = e.closed_refresh
+      where e.board = ${name}`,
+  );
+  const at = (d: Date) => new Date(d).toISOString();
+  return {
+    firstRefreshAt: at(span.first),
+    now: at(span.now),
+    entries: found.map((e) => ({
+      steamId: e.steamId,
+      persona: e.persona,
+      score: e.score,
+      firstSeenAt: at(e.f),
+      lastSeenAt: at(e.l),
+      closedAt: e.c ? at(e.c) : null,
+    })),
+  };
 }

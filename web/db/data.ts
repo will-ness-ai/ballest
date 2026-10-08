@@ -14,6 +14,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
+import { boardHistory, type BoardHistory } from "../lib/history";
 import { playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
 import { podiumTallies, type PodiumTally } from "../lib/podiums";
 import type { BoardPage, WorkshopMap } from "../lib/rows";
@@ -128,6 +129,16 @@ export async function isBoard(name: string): Promise<boolean> {
 /* the rows of a board whose persona or Steam ID contains `query`, read fresh */
 export function searchBoard(name: string, query: string, from: number, count: number) {
   return q.boardPage(db(), name, { from, count, q: query });
+}
+
+/* a Track's or a Map's record history (lib/history.ts), or null for an Overall board; for a
+   board the page has already checked */
+export async function getBoardHistory(name: string): Promise<BoardHistory | null> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const input = await q.historyInput(db(), name);
+  return input && boardHistory(input);
 }
 
 export async function getBoardScores(name: string) {

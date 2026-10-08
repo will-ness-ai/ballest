@@ -30,6 +30,8 @@ interface Common {
   /* the sort switch, the tiles and the plates, drawn on the server */
   sortsw?: React.ReactNode;
   tiles?: React.ReactNode;
+  /* a Track's or a Map's record history (HistoryCard), between the tiles and the plates */
+  history?: React.ReactNode;
   leaders?: React.ReactNode;
 }
 
@@ -236,6 +238,7 @@ function Frame({
         </div>
       </div>
       {props.tiles ?? <dl className="tiles" id="tiles"></dl>}
+      {props.history}
       {props.leaders ?? <div className="leaders" id="leaders" hidden></div>}
       <p className="bmeta" id="bmetaM">
         {meta}

@@ -1,0 +1,247 @@
+/* A board's record history (components/board/HistoryCard.tsx): closed, a summary button;
+   open, the card with its Records and What changed tabs. Records are gold throughout. */
+.hist {
+  display: block;
+  width: 100%;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.hi-sum {
+  cursor: pointer;
+}
+.hi-sum:hover {
+  border-color: var(--faint);
+}
+.hi-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.hi-label {
+  font: 600 11px var(--f-hud);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.hi-toggle {
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: 600 12px var(--f-hud);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* the record as steps: a short strip on the summary, a chart when open */
+.hi-spark {
+  display: block;
+  width: 100%;
+  height: 46px;
+  margin-top: 8px;
+}
+.hi-spark path,
+.hi-chart path {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.hi-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 4px;
+  overflow: visible;
+}
+.hi-chart circle {
+  fill: var(--text);
+}
+.hi-chart circle.now {
+  fill: var(--gold);
+}
+.hi-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* a Reign: its time and holder, then its bar on the span, earlier Reigns faint behind */
+.hi-reigns {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 4px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+.hi-reigns li {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: baseline;
+}
+.hi-reigns b {
+  font: 600 14px var(--f-hud);
+  font-variant-numeric: tabular-nums;
+}
+.hi-reigns li.now b {
+  color: var(--gold);
+}
+.hi-who {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.hi-cut,
+.hi-up {
+  color: var(--accent);
+}
+.hi-when {
+  color: var(--faint);
+}
+.hi-track {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line2);
+}
+.hi-track span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--gold);
+}
+.hi-track .hi-earlier {
+  opacity: 0.16;
+}
+
+.hi-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.hi-tabs button {
+  margin-bottom: -1px;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--dim);
+  font: 600 13px var(--f-hud);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.hi-tabs button[aria-selected="true"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* What changed */
+.hi-sub {
+  margin: 4px 0 8px;
+  font: 600 13px var(--f-hud);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.hi-sub small {
+  font: 400 12px var(--f-body);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--faint);
+}
+.hi-climb {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.hi-climb th,
+.hi-climb td {
+  padding: 6px 4px;
+  border-top: 1px solid var(--line2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.hi-climb th {
+  border-top: 0;
+  font: 600 11px var(--f-hud);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.hi-climb th:nth-child(2),
+.hi-climb td:nth-child(2) {
+  width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+/* on a phone the cut goes; the places gained tell the story */
+.hi-climb th:nth-child(5),
+.hi-climb td:nth-child(5) {
+  display: none;
+}
+.hi-new,
+.hi-none {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--dim);
+}
+.hi-sub:not(:first-child) {
+  margin-top: 18px;
+}
+.hi-day {
+  padding: 10px 0;
+  border-top: 1px solid var(--line2);
+}
+.hi-day h4 {
+  margin: 0 0 6px;
+  font: 600 14px var(--f-hud);
+}
+.hi-day ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+.hi-tag {
+  display: inline-block;
+  min-width: 62px;
+  font: 600 11px var(--f-hud);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.hi-tag.rec {
+  color: var(--gold);
+}
+.hi-tag.top {
+  color: var(--author);
+}
+.hi-more {
+  margin-top: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  cursor: pointer;
+}

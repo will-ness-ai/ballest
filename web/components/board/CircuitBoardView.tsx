@@ -9,9 +9,16 @@ import { Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardSheet } from "./BoardSheet";
 import { OverallCard, PodiumPlates, ScorePlates, SortSwitch, Tiles, TrackCard } from "./BoardTop";
+import { HistoryCard } from "./HistoryCard";
 import { PointsDialog } from "./PointsDialog";
 import { RailItems } from "./Rail";
-import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
+import {
+  getBoardHistory,
+  getBoardPage,
+  getBoardPlaces,
+  getBoardScores,
+  getSite,
+} from "../../db/data";
 import { TRACKS, circuitBoard, trackNo } from "../../lib/circuit";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
 import { podiumRows } from "../../lib/podiums";
@@ -36,7 +43,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
       site.boards.filter((x) => !isPoints(x.name)).length);
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
-  const [page, scores, places, focus] = await Promise.all([
+  const [page, scores, places, focus, history] = await Promise.all([
     getBoardPage(name, 0, BOARD_CHUNK + 3),
     points ? Promise.resolve([]) : getBoardScores(name),
     podiums
@@ -46,6 +53,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
         )
       : none,
     focusId ? getBoardPlaces(name, [focusId]) : none,
+    points ? Promise.resolve(null) : getBoardHistory(name),
   ]);
   const rows = page.rows;
   const focusAt = focusId ? focus[focusId] : undefined;
@@ -100,6 +108,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
             count={page.total}
             sortsw={tally ? <SortSwitch name={name} podiums={false} /> : undefined}
             tiles={<Tiles name={name} rows={rows} count={page.total} />}
+            history={history && <HistoryCard h={history} />}
             leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
             initial={page.total >= 3 ? rows.slice(3) : rows}
             lead={rows[0]?.score ?? null}

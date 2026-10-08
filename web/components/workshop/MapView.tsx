@@ -8,10 +8,17 @@ import { Age } from "./Age";
 import { BackLink, Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardBody } from "../board/BoardBody";
+import { HistoryCard } from "../board/HistoryCard";
 import { MapImage } from "../MapImage";
 import { ScorePlates } from "../board/BoardTop";
 import { Spread } from "../board/Spread";
-import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
+import {
+  getBoardHistory,
+  getBoardPage,
+  getBoardPlaces,
+  getBoardScores,
+  getSite,
+} from "../../db/data";
 import type { WorkshopMap } from "../../lib/rows";
 import { homeHref, mapHref } from "../../lib/routes";
 import { BOARD_CHUNK, MEDALS, fmtN, fmtSec, fmtTime, isSteamId } from "../../lib/rules";
@@ -90,11 +97,12 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
   if (focus && !isSteamId(focus)) notFound();
   if (!m?.top3.length) redirect(homeHref());
   const name = m.name;
-  const [site, page, scores, places] = await Promise.all([
+  const [site, page, scores, places, history] = await Promise.all([
     getSite(),
     getBoardPage(name, 0, BOARD_CHUNK + 3),
     getBoardScores(name),
     focus ? getBoardPlaces(name, [focus]) : Promise.resolve(null),
+    getBoardHistory(name),
   ]);
   const rows = page.rows;
   const at = focus ? places?.[focus] : undefined;
@@ -109,6 +117,7 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
           points={false}
           where={"by " + m.creator}
           count={page.total}
+          history={history && <HistoryCard h={history} />}
           leaders={<ScorePlates name={name} rows={rows} focus={focus} />}
           initial={page.total >= 3 ? rows.slice(3) : rows}
           lead={rows[0]?.score ?? null}
