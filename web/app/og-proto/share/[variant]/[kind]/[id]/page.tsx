@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { KINDS, VARIANTS, cardFor, type Kind } from "../../../../cards";
+import { KINDS, VARIANTS, type Kind } from "../../../../cards";
 
 interface Props {
   params: Promise<{ variant: string; kind: string; id: string }>;
@@ -16,15 +16,14 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { variant, kind, id } = await params;
   if (!(variant in VARIANTS) || !KINDS.includes(kind as Kind)) return {};
-  const d = await cardFor(kind as Kind, id);
-  if (!d) return {};
+  const title = `Prototype card ${variant}: ${kind} ${id}`;
   /* metadataBase is the production address, which has no prototype: point at this deploy */
   const host = process.env.VERCEL_BRANCH_URL ?? process.env.VERCEL_URL;
   const img = (host ? "https://" + host : "") + `/og-proto/img/${variant}/${kind}/${id}`;
   return {
-    title: d.title,
+    title: title,
     description: `Prototype share card, variant ${variant}.`,
-    openGraph: { title: d.title, images: [{ url: img, width: 1200, height: 630 }] },
+    openGraph: { title: title, images: [{ url: img, width: 1200, height: 630 }] },
     twitter: { card: "summary_large_image", images: [img] },
   };
 }
