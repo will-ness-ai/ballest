@@ -21,7 +21,7 @@
     height: 24px;
   }
   .rack .marble + .marble {
-    margin-left: -9px;
+    margin-inline-start: -9px;
   }
   .wordmark {
     font-size: calc(20rem / 16);
@@ -38,7 +38,7 @@
     font-weight: 600;
   }
   .freshness {
-    text-align: left;
+    text-align: start;
     font-size: calc(12.5rem / 16);
   }
 
@@ -48,20 +48,20 @@
     padding: 0;
     background: none;
     border: 0;
-    border-bottom: 1px solid var(--line);
+    border-block-end: 1px solid var(--line);
     overflow: visible;
   }
   .gtab {
     flex: 0 0 auto;
     padding: 10px 15px;
     border-radius: 0;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
+    border-block-end: 2px solid transparent;
+    margin-block-end: -1px;
   }
   .gtab[aria-selected="true"] {
     background: none;
     color: var(--accent);
-    border-bottom-color: var(--accent);
+    border-block-end-color: var(--accent);
     font-weight: 600;
   }
 
@@ -74,7 +74,7 @@
   .rail {
     display: block;
     position: sticky;
-    top: 16px;
+    inset-block-start: 16px;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
@@ -130,7 +130,7 @@
     justify-content: space-between;
     gap: 18px;
     flex-wrap: wrap;
-    margin-bottom: 14px;
+    margin-block-end: 14px;
   }
   .boardtitle {
     display: block;
@@ -179,7 +179,7 @@
     font-family: var(--f-body);
     font-size: calc(12rem / 16);
     color: var(--dim);
-    margin-top: 3px;
+    margin-block-start: 3px;
     font-weight: 400;
     min-width: 0;
   }
@@ -204,28 +204,28 @@
     gap: 11px;
   }
   .plate[data-p="1"] {
-    padding-bottom: 16px;
+    padding-block-end: 16px;
   }
   .plate .marble {
     width: 96px;
     height: 96px;
     box-shadow:
       0 0 0 3px var(--gold),
-      0 12px 30px rgba(0, 0, 0, 0.4);
+      0 12px 30px oklch(0% 0 none / 0.4);
   }
   .plate[data-p="2"] .marble {
     width: 76px;
     height: 76px;
     box-shadow:
       0 0 0 3px var(--silver),
-      0 12px 30px rgba(0, 0, 0, 0.4);
+      0 12px 30px oklch(0% 0 none / 0.4);
   }
   .plate[data-p="3"] .marble {
     width: 70px;
     height: 70px;
     box-shadow:
       0 0 0 3px var(--bronze),
-      0 12px 30px rgba(0, 0, 0, 0.4);
+      0 12px 30px oklch(0% 0 none / 0.4);
   }
   .pl-name {
     font-size: 1rem;
@@ -266,7 +266,7 @@
     text-transform: uppercase;
     color: var(--dim);
     font-weight: 600;
-    background: rgba(255, 255, 255, 0.035);
+    background: oklch(100% 0 none / 0.035);
     border-radius: 10px 10px 0 0;
   }
   .row {
@@ -314,7 +314,7 @@
   }
   .c-rank {
     font-size: calc(14rem / 16);
-    text-align: left;
+    text-align: start;
   }
   .nm {
     font-size: calc(15rem / 16);
@@ -363,8 +363,8 @@
   .pid,
   .pstats,
   .pseason {
-    margin-left: 0;
-    margin-right: 0;
+    margin-inline-start: 0;
+    margin-inline-end: 0;
   }
   .pid {
     gap: 14px;
@@ -384,7 +384,7 @@
     font-size: calc(20rem / 16);
   }
   .pseason {
-    margin-bottom: 16px;
+    margin-block-end: 16px;
   }
   .ptier {
     grid-template-columns: 120px minmax(0, 1fr);
@@ -401,8 +401,8 @@
   }
   .ptabs,
   .pws {
-    margin-left: 0;
-    margin-right: 0;
+    margin-inline-start: 0;
+    margin-inline-end: 0;
   }
   .trophies {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -419,8 +419,8 @@
   }
   .mecard {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
-    margin-left: 0;
-    margin-right: 0;
+    margin-inline-start: 0;
+    margin-inline-end: 0;
   }
   .mecard .go {
     grid-column: auto;
@@ -430,11 +430,11 @@
   }
   .vsside {
     flex-direction: row;
-    text-align: left;
+    text-align: start;
   }
   .vsside.r {
     flex-direction: row-reverse;
-    text-align: right;
+    text-align: end;
   }
   .vsside .marble {
     width: 56px;
@@ -516,7 +516,7 @@
   .mpanel {
     margin: 0;
     position: sticky;
-    top: 16px;
+    inset-block-start: 16px;
     max-height: calc(100dvh - 32px);
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -544,8 +544,8 @@
 
   footer {
     margin: 30px 0 0;
-    padding-top: 16px;
-    border-top: 1px solid var(--line2);
+    padding-block-start: 16px;
+    border-block-start: 1px solid var(--line2);
     line-height: 1.6;
   }
 }

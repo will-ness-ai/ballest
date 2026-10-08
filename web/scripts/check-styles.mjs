@@ -1,17 +1,16 @@
 // pnpm lint (root): fails on a color literal in app/styles/ outside :root, where every
 // color is a custom property (CODING_STANDARDS.md, "Site"). Two literals are allowed:
-// translucent black or white, for shadows and hairlines, and a player's own hue,
-// hsl(var(--h) ...). It also fails on a font size in px, which ignores the reader's text
+// translucent black or white, oklch(0% 0 none / a) or oklch(100% 0 none / a), for shadows
+// and hairlines, and a player's own hue, hsl(var(--h) ...). It also fails on a font size in px, which ignores the reader's text
 // size setting; the inputs' max(16px, 1rem) is the one allowed.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const DIR = join(import.meta.dirname, "..", "app", "styles");
-const COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?)\([^)]*\)/gi;
+const COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lch|lab)\([^)]*\)/gi;
 /* a font-size, or the size in a font shorthand, written in px */
 const PX_FONT = /\bfont(?:-size)?\s*:(?!\s*max\(16px,\s*1rem\))[^;]*?\d+(?:\.\d+)?px/;
-const ALLOWED =
-  /^rgba\(\s*(?:0\s*,\s*0\s*,\s*0|255\s*,\s*255\s*,\s*255)\s*,\s*[\d.]+\s*\)$|^hsla?\(var\(--h\)/;
+const ALLOWED = /^oklch\((?:0|100)% 0 none \/ [\d.]+\)$|^hsla?\(var\(--h\)/;
 
 let bad = 0;
 for (const file of readdirSync(DIR).filter((f) => f.endsWith(".css"))) {

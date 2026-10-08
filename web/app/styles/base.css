@@ -21,38 +21,38 @@
      no-preference; a one-off fade is for everyone */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-pop: cubic-bezier(0.2, 0.85, 0.3, 1.35);
-  --bg: #0a1020;
-  --surface: rgba(255, 255, 255, 0.05);
-  --surface2: rgba(255, 255, 255, 0.09);
-  --solid: #111a2c;
-  --line: rgba(150, 175, 245, 0.18);
-  --line2: rgba(255, 255, 255, 0.055);
-  --text: #eaf0ff;
-  --dim: #93a2c8;
-  --faint: #63719a;
-  --accent: #8be03c;
-  --accent-ink: #0d2000;
-  --accent-soft: rgba(139, 224, 60, 0.14);
-  --gold: #ffd447;
-  --silver: #d3dcea;
-  --bronze: #ef9a52;
-  --author: #5fd4ff;
-  --gold-soft: rgba(255, 212, 71, 0.1);
-  --silver-soft: rgba(211, 220, 234, 0.08);
-  --bronze-soft: rgba(239, 154, 82, 0.1);
-  --author-soft: rgba(95, 212, 255, 0.13);
-  --none: #3a4566;
-  --ribbon: #c9485a;
-  --ribbon2: #4a6fd0;
-  --warn: #ffb347;
-  --warn-soft: rgba(255, 179, 71, 0.1);
-  --a: #ff7a8a;
-  --a-soft: rgba(255, 122, 138, 0.13);
-  --b: #5fd4ff;
-  --b-soft: rgba(95, 212, 255, 0.12);
-  --glow-blue: rgba(88, 168, 255, 0.16);
-  --glow-lime: rgba(139, 224, 60, 0.1);
-  --scrim: rgba(4, 7, 14, 0.66);
+  --bg: oklch(17.65% 0.0346 267.28);
+  --surface: oklch(100% 0 none / 0.05);
+  --surface2: oklch(100% 0 none / 0.09);
+  --solid: oklch(21.9% 0.038 263.34);
+  --line: oklch(76.19% 0.1048 268.77 / 0.18);
+  --line2: oklch(100% 0 none / 0.055);
+  --text: oklch(95.5% 0.0212 268.43);
+  --dim: oklch(71.39% 0.0582 268.06);
+  --faint: oklch(55.35% 0.0663 269.62);
+  --accent: oklch(82.22% 0.2085 133.37);
+  --accent-ink: oklch(21.86% 0.0626 133.89);
+  --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+  --gold: oklch(88.34% 0.1583 91.38);
+  --silver: oklch(89.18% 0.0215 259.19);
+  --bronze: oklch(75.87% 0.1343 58.89);
+  --author: oklch(81.94% 0.1207 225.44);
+  --gold-soft: color-mix(in oklch, var(--gold) 10%, transparent);
+  --silver-soft: color-mix(in oklch, var(--silver) 8%, transparent);
+  --bronze-soft: color-mix(in oklch, var(--bronze) 10%, transparent);
+  --author-soft: color-mix(in oklch, var(--author) 13%, transparent);
+  --none: oklch(39.57% 0.0579 269.53);
+  --ribbon: oklch(58.29% 0.1636 15.57);
+  --ribbon2: oklch(56.43% 0.1553 265.91);
+  --warn: oklch(82.08% 0.1486 72.1);
+  --warn-soft: color-mix(in oklch, var(--warn) 10%, transparent);
+  --a: oklch(73.81% 0.1621 14.45);
+  --a-soft: color-mix(in oklch, var(--a) 13%, transparent);
+  --b: oklch(81.94% 0.1207 225.44);
+  --b-soft: color-mix(in oklch, var(--b) 12%, transparent);
+  --glow-blue: oklch(71.96% 0.1499 252.32 / 0.16);
+  --glow-lime: color-mix(in oklch, var(--accent) 10%, transparent);
+  --scrim: oklch(12.81% 0.0181 260.7 / 0.66);
   --radius: 11px;
   /* 0 on a 390px phone, rising to 1rem at desktop.css's breakpoint (820px at the default
      text size) and staying there: a size that grows from phone to desktop is written
@@ -254,7 +254,7 @@ textarea {
 .ambient {
   position: fixed;
   inset: 0;
-  overflow: hidden;
+  overflow: clip;
   pointer-events: none;
   z-index: 0;
 }
@@ -266,21 +266,21 @@ textarea {
   opacity: 0.13;
 }
 .ambient > span:nth-child(1) {
-  top: -80px;
-  right: -50px;
+  inset-block-start: -80px;
+  inset-inline-end: -50px;
   width: 320px;
   height: 320px;
 }
 .ambient > span:nth-child(2) {
-  top: 46%;
-  left: -100px;
+  inset-block-start: 46%;
+  inset-inline-start: -100px;
   width: 230px;
   height: 230px;
   opacity: 0.08;
 }
 .ambient > span:nth-child(3) {
-  bottom: -100px;
-  right: 24%;
+  inset-block-end: -100px;
+  inset-inline-end: 24%;
   width: 270px;
   height: 270px;
   opacity: 0.07;

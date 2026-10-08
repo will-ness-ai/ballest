@@ -69,7 +69,7 @@
 .pline {
   font-size: calc(12.5rem / 16);
   color: var(--dim);
-  margin-top: 2px;
+  margin-block-start: 2px;
   font-variant-numeric: tabular-nums;
 }
 .pline b {
@@ -98,9 +98,10 @@
     color: var(--text);
   }
 }
+/* 15px beside its 12.5px label, and grows with it */
 .steam svg {
-  width: 15px;
-  height: 15px;
+  width: 1.2em;
+  height: 1.2em;
   fill: currentColor;
   flex: none;
 }
@@ -151,7 +152,7 @@
   font-size: calc(11.5rem / 16);
   color: var(--dim);
   font-weight: 400;
-  margin-top: 3px;
+  margin-block-start: 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -163,7 +164,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--solid);
-  overflow: hidden;
+  overflow: clip;
 }
 .pslab {
   display: flex;
@@ -171,8 +172,8 @@
   justify-content: space-between;
   gap: 12px;
   padding: 11px 13px;
-  background: rgba(255, 255, 255, 0.035);
-  border-bottom: 1px solid var(--line2);
+  background: oklch(100% 0 none / 0.035);
+  border-block-end: 1px solid var(--line2);
 }
 .pslab h2 {
   margin: 0;
@@ -204,10 +205,10 @@
   display: grid;
   gap: 6px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--line2);
+  border-block-end: 1px solid var(--line2);
 }
 .ptier:last-child {
-  border-bottom: 0;
+  border-block-end: 0;
 }
 .ptlab {
   font-family: var(--f-hud);
@@ -219,7 +220,7 @@
 /* what a heading's tracks add up to, shown when a season has more than one heading */
 .ptsum {
   display: block;
-  margin-top: 3px;
+  margin-block-start: 3px;
   font-size: calc(12rem / 16);
   letter-spacing: 0.04em;
   text-transform: none;
@@ -233,7 +234,7 @@
 .psync {
   margin: 0;
   padding: 8px 13px;
-  border-bottom: 1px solid var(--line2);
+  border-block-end: 1px solid var(--line2);
   background: var(--warn-soft);
   color: var(--warn);
   font-size: calc(12rem / 16);
@@ -260,7 +261,7 @@
   background: var(--surface);
   text-decoration: none;
   position: relative;
-  overflow: hidden;
+  overflow: clip;
   min-width: 0;
 }
 @media (hover: hover) and (pointer: fine) {
@@ -274,7 +275,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--dim);
-  margin-bottom: auto;
+  margin-block-end: auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -325,8 +326,8 @@
 }
 .pt-pct {
   position: absolute;
-  right: 9px;
-  bottom: 7px;
+  inset-inline-end: 9px;
+  inset-block-end: 7px;
   font-family: var(--f-hud);
   font-size: calc(9.5rem / 16);
   letter-spacing: 0.06em;
@@ -338,11 +339,11 @@
    every tile draws it the same way, and the border already says which medal. */
 .pt-bar {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  inset-block-end: 0;
   height: 4px;
-  background: rgba(255, 255, 255, 0.055);
+  background: oklch(100% 0 none / 0.055);
 }
 .pt-bar i {
   display: block;
@@ -381,7 +382,7 @@
 .ptile.untimed {
   opacity: 0.38;
   border-style: dashed;
-  padding-bottom: 9px;
+  padding-block-end: 9px;
 }
 .ptile.untimed .pt-rank {
   font-size: 1rem;
@@ -391,7 +392,7 @@
 /* a map maker says so under their name */
 .maker {
   display: inline-block;
-  margin-top: 6px;
+  margin-block-start: 6px;
   padding: 3px 9px;
   border-radius: 99px;
   background: var(--author-soft);
@@ -409,14 +410,14 @@
   display: flex;
   gap: 2px;
   margin: 0 var(--pad) 16px;
-  border-bottom: 1px solid var(--line);
+  border-block-end: 1px solid var(--line);
   overflow-x: auto;
   overflow-y: hidden;
 }
 .ptabs a {
   padding: 9px 13px;
-  margin-bottom: -1px;
-  border-bottom: 2px solid transparent;
+  margin-block-end: -1px;
+  border-block-end: 2px solid transparent;
   white-space: nowrap;
   font-family: var(--f-hud);
   font-size: calc(13.5rem / 16);
@@ -435,10 +436,10 @@
 }
 .ptabs a[aria-current="page"] {
   color: var(--text);
-  border-bottom-color: var(--accent);
+  border-block-end-color: var(--accent);
 }
 .ptabs small {
-  margin-left: 6px;
+  margin-inline-start: 6px;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
@@ -459,18 +460,18 @@
   place-items: center;
   width: var(--s);
   height: var(--s);
-  margin-top: 12px;
+  margin-block-start: 12px;
   border-radius: 50%;
   flex: none;
   box-shadow:
-    inset -3px -4px 6px rgba(0, 0, 0, 0.3),
-    inset 2px 2px 4px rgba(255, 255, 255, 0.35);
+    inset -3px -4px 6px oklch(0% 0 none / 0.3),
+    inset 2px 2px 4px oklch(100% 0 none / 0.35);
 }
 .medal::before {
   content: "";
   position: absolute;
-  top: -13px;
-  left: 50%;
+  inset-block-start: -13px;
+  inset-inline-start: 50%;
   z-index: -1;
   width: 20px;
   height: 18px;
@@ -508,7 +509,7 @@
 }
 .medal.mini {
   margin: 0;
-  box-shadow: inset -1px -2px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: inset -1px -2px 3px oklch(0% 0 none / 0.3);
 }
 .medal.mini::before {
   display: none;
@@ -541,7 +542,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 10px 6px;
-  margin-bottom: 12px;
+  margin-block-end: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -590,7 +591,7 @@
 }
 .pws .strip {
   scrollbar-width: none;
-  padding-bottom: 0;
+  padding-block-end: 0;
 }
 .pws .strip::-webkit-scrollbar {
   display: none;
@@ -678,7 +679,7 @@
   width: 52px;
   aspect-ratio: 400/270;
   border-radius: 6px;
-  overflow: hidden;
+  overflow: clip;
   background: var(--surface2);
   border: 1px solid var(--line2);
 }
@@ -703,7 +704,7 @@
   flex-wrap: wrap;
   gap: 8px 10px;
   align-items: center;
-  margin-bottom: 10px;
+  margin-block-end: 10px;
 }
 /* 140px leaves room for the 16px sort select beside it on a 390px phone */
 .pwtools .ws-q {
@@ -781,13 +782,13 @@
   position: relative;
   max-width: 260px;
   height: 3px;
-  margin-top: 6px;
+  margin-block-start: 6px;
   border-radius: 2px;
   background: var(--line);
 }
 .fbar i {
   position: absolute;
-  top: -3px;
+  inset-block-start: -3px;
   width: 3px;
   height: 9px;
   border-radius: 2px;
@@ -798,7 +799,7 @@
   font-family: var(--f-hud);
   font-size: calc(17rem / 16);
   font-weight: 700;
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
 }
 .wrk sup {
@@ -820,7 +821,7 @@
 }
 .wtm {
   display: none;
-  text-align: right;
+  text-align: end;
   font-family: var(--f-hud);
   font-size: calc(13.5rem / 16);
   font-variant-numeric: tabular-nums;
@@ -844,9 +845,9 @@
 .mkcard .im {
   position: relative;
   display: block;
-  margin-bottom: 3px;
+  margin-block-end: 3px;
   border-radius: 10px;
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--line);
   aspect-ratio: 400/270;
   background: var(--surface2);
@@ -880,5 +881,5 @@
   color: var(--faint);
 }
 .mkgrid {
-  margin-top: 12px;
+  margin-block-start: 12px;
 }

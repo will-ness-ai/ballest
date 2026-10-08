@@ -15,7 +15,7 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--solid);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 20px 60px oklch(0% 0 none / 0.6);
 }
 .cmp h2,
 .rfx h2,
@@ -33,15 +33,15 @@
 .rfx th,
 .rfx td {
   padding: 8px;
-  border-top: 1px solid var(--line2);
-  text-align: left;
+  border-block-start: 1px solid var(--line2);
+  text-align: start;
   vertical-align: top;
   font-weight: 400;
 }
 .rfx thead th,
 .rfx thead td {
-  padding-top: 0;
-  border-top: 0;
+  padding-block-start: 0;
+  border-block-start: 0;
 }
 .rfx thead th {
   font-family: var(--f-hud);
@@ -88,13 +88,13 @@
 .ptsx th,
 .ptsx td {
   padding: 3px 0;
-  text-align: left;
+  text-align: start;
   font-weight: 500;
   color: var(--dim);
 }
 .ptsx td {
-  padding-left: 28px;
-  text-align: right;
+  padding-inline-start: 28px;
+  text-align: end;
   font-weight: 600;
   color: var(--text);
 }
@@ -105,7 +105,7 @@
   place-items: center;
   width: 17px;
   height: 17px;
-  margin-left: 6px;
+  margin-inline-start: 6px;
   border: 1px solid var(--line);
   border-radius: 50%;
   font-family: var(--f-hud);
@@ -148,7 +148,7 @@
   width: 100%;
   padding: 7px 8px;
   border-radius: 9px;
-  text-align: left;
+  text-align: start;
 }
 .hit:focus-visible {
   background: var(--surface2);

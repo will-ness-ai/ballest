@@ -11,7 +11,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 6px;
+  margin-block-start: 6px;
 }
 .mebtn {
   padding: 3px 10px;
@@ -74,7 +74,7 @@
 }
 .mecard .side.r {
   justify-content: flex-end;
-  text-align: right;
+  text-align: end;
 }
 .mecard .side span {
   display: grid;
@@ -126,7 +126,7 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 10px;
   align-items: center;
-  margin-bottom: 16px;
+  margin-block-end: 16px;
 }
 .vsside {
   display: flex;
@@ -172,7 +172,7 @@
   gap: 6px;
 }
 .tape {
-  margin-bottom: 16px;
+  margin-block-end: 16px;
   padding: 2px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -184,10 +184,10 @@
   gap: 10px;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid var(--line2);
+  border-block-end: 1px solid var(--line2);
 }
 .trow:last-child {
-  border-bottom: 0;
+  border-block-end: 0;
 }
 .trow .eyebrow {
   text-align: center;
@@ -199,7 +199,7 @@
   font-variant-numeric: tabular-nums;
 }
 .tv.l {
-  text-align: right;
+  text-align: end;
 }
 .tv.lose {
   color: var(--faint);
@@ -209,7 +209,7 @@
   flex-wrap: wrap;
   gap: 8px 10px;
   align-items: center;
-  margin-bottom: 10px;
+  margin-block-end: 10px;
 }
 .seg {
   display: inline-flex;

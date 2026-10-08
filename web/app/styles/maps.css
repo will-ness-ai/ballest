@@ -4,9 +4,9 @@
   display: grid;
   border: 1px solid var(--line);
   border-radius: 16px;
-  overflow: hidden;
+  overflow: clip;
   background: var(--solid);
-  margin-bottom: 26px;
+  margin-block-end: 26px;
 }
 .car-pic {
   position: relative;
@@ -69,7 +69,7 @@
 .car-by {
   font-size: calc(13rem / 16);
   color: var(--dim);
-  margin-top: -6px;
+  margin-block-start: -6px;
 }
 .car-by a {
   color: inherit;
@@ -97,8 +97,8 @@
 .car-pod {
   display: grid;
   gap: 3px;
-  border-top: 1px solid var(--line2);
-  padding-top: 9px;
+  border-block-start: 1px solid var(--line2);
+  padding-block-start: 9px;
 }
 .car-acts {
   display: flex;
@@ -131,7 +131,7 @@
   height: 2px;
   background: var(--line2);
   border-radius: 2px;
-  overflow: hidden;
+  overflow: clip;
 }
 .car-line .prog {
   display: block;
@@ -174,7 +174,7 @@
 .p3 b {
   font-family: var(--f-hud);
   font-weight: 700;
-  text-align: right;
+  text-align: end;
 }
 .p3[data-m="1"] b {
   color: var(--gold);
@@ -203,7 +203,7 @@
 /* shelves, and the Map card they and every grid are made of. On a phone the card shows
    the record holder under it; with a pointer, the top three appear over the picture */
 .shelf {
-  margin-bottom: 26px;
+  margin-block-end: 26px;
 }
 .shelf-h {
   display: flex;
@@ -211,7 +211,7 @@
   align-items: baseline;
   gap: 4px 12px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-block-end: 10px;
 }
 .shelf-h h2 {
   margin: 0;
@@ -239,7 +239,8 @@
   grid-auto-columns: minmax(170px, 190px);
   gap: 12px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  overscroll-behavior-x: contain;
+  padding-block-end: 8px;
   scroll-snap-type: x proximity;
 }
 .mgrid {
@@ -260,7 +261,7 @@
   position: relative;
   display: block;
   border-radius: 10px;
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--line);
   aspect-ratio: 400/270;
   background: var(--surface2);
@@ -344,8 +345,8 @@
   gap: 6px;
   align-items: center;
   overflow-x: auto;
-  padding-bottom: 4px;
-  margin-bottom: 12px;
+  padding-block-end: 4px;
+  margin-block-end: 12px;
 }
 .views a,
 .views button {
@@ -398,7 +399,7 @@
   inset-inline: auto 0;
   inline-size: min(360px, 100%);
   background: var(--solid);
-  border-left: 1px solid var(--line);
+  border-inline-start: 1px solid var(--line);
   padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
@@ -460,7 +461,7 @@
   font-weight: 600;
 }
 .dfoot {
-  margin-top: auto;
+  margin-block-start: auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -513,7 +514,7 @@
   margin: 0;
   background: var(--line2);
   border-radius: 10px;
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--line2);
 }
 .mp-facts div {
@@ -546,8 +547,8 @@
   gap: 8px;
 }
 .mp-medals i {
-  width: 10px;
-  height: 10px;
+  width: calc(10rem / 16);
+  height: calc(10rem / 16);
   border-radius: 50%;
 }
 .mp-medals b {
