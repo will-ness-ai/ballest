@@ -49,7 +49,7 @@ export function Spread({
         className="spread"
         viewBox={`-8 -8 ${String(W + 16)} ${String(H + 8)}`}
         role="img"
-        aria-label={`How all ${String(chart.runs)} run times spread out, with the medal cut-offs${you ? " and your run" : ""}`}
+        aria-label={`How all ${String(chart.runs)} run times spread out, with the medal cut-offs${you ? " and your time" : ""}`}
       >
         <line className="sp-axis" x1="0" x2={W} y1={base} y2={base} />
         {bins.map((n, i) =>

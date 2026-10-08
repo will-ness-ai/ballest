@@ -14,6 +14,9 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  /* room for You's card (YouCard), which takes the Refreshed line's place once the browser
+     runs, so the page below doesn't drop when it lands */
+  min-block-size: calc(38px + 22px);
   padding: 10px var(--pad) 12px;
 }
 .brand {
@@ -137,6 +140,14 @@
   flex: none;
   border: 1px dashed var(--accent);
   border-radius: 50%;
+}
+/* the blank card that holds the place while a claim's record is read */
+.yc-wait {
+  inline-size: 8em;
+}
+.yc-wait .q {
+  border: 0;
+  background: var(--surface2);
 }
 
 /* six tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a label
@@ -872,6 +883,10 @@
   padding: 7px 12px;
   font-size: calc(13rem / 16);
   white-space: nowrap;
+}
+/* the banner's place, held while your row is read (Holder): its parts take their room unseen */
+.yb-wait > * {
+  visibility: hidden;
 }
 .yb-empty p {
   flex: 1 1 14em;

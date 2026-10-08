@@ -3,8 +3,10 @@
 // You (CONTEXT.md): the header's card links to their page, a player's page shows the score
 // card against them, and the Players table pins their row. Every component that reads it
 // updates when any of them sets it, in this tab or another.
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 
+import { useMounted } from "./client";
+import { readOnce, useRead } from "./read";
 import type { PlayerRecord } from "../lib/player";
 import { isSteamId } from "../lib/rules";
 
@@ -43,65 +45,29 @@ function subscribe(changed: () => void) {
 /* the remembered Steam ID; null on the server, during hydration, or when none is set */
 export const useMe = () => useSyncExternalStore(subscribe, read, () => null);
 
-/* false on the server and during hydration, while useMe can't yet tell "none set" from
-   "not read yet" */
-const never = () => () => {
-  /* nothing to unsubscribe: it never changes after hydration */
-};
-const useHydrated = () =>
-  useSyncExternalStore(
-    never,
-    () => true,
-    () => false,
-  );
+/* a player's record from GET /api/player/<id>, or "unknown" for a Steam ID on no board (the
+   API's 404); any other answer is a failed read */
+const readRecord = readOnce(async (id): Promise<PlayerRecord | "unknown"> => {
+  const r = await fetch("/api/player/" + id);
+  if (r.ok) return (await r.json()) as PlayerRecord;
+  if (r.status === 404) return "unknown";
+  throw new Error(String(r.status));
+});
 
-/* a record, "unknown" for a Steam ID on no board (the API's 404), or null for a read that
-   failed */
-type Read = PlayerRecord | "unknown" | null;
-
-/* records read once each, for as long as the page is open; a failed read is tried again
-   on the next page */
-const RECORDS = new Map<string, Promise<Read>>();
-function loadRecord(id: string) {
-  let p = RECORDS.get(id);
-  if (!p) {
-    p = fetch("/api/player/" + id)
-      .then((r): Read | Promise<Read> => {
-        if (r.ok) return r.json() as Promise<PlayerRecord>;
-        return r.status === 404 ? ("unknown" as const) : null;
-      })
-      .catch(() => null);
-    RECORDS.set(id, p);
-    void p.then((rec) => {
-      if (!rec) RECORDS.delete(id);
-    });
-  }
-  return p;
-}
-
-/* You, with your record from GET /api/player/<id>. "none" with no claim, or a claim on a
-   Steam ID the site doesn't know; "loading" on the server, during hydration, until the
-   record lands, and after a read that failed, so nothing is drawn from it */
+/* You, with your record. "none" with no claim, or a claim on a Steam ID the site doesn't
+   know; "loading" on the server, during hydration, until the record lands, and after a read
+   that failed, so nothing is drawn from it. `claimed` says a claim is known to exist, so a
+   view of You can hold its place rather than jump in when the record lands */
 export type You =
-  { state: "none" } | { state: "loading" } | { state: "ready"; id: string; rec: PlayerRecord };
+  | { state: "none" }
+  | { state: "loading"; claimed: boolean }
+  | { state: "ready"; id: string; rec: PlayerRecord };
 
 export function useYou(): You {
-  const hydrated = useHydrated();
+  const mounted = useMounted();
   const me = useMe();
-  const [read, setRead] = useState<{ id: string; rec: Read } | null>(null);
-  useEffect(() => {
-    if (!me) return;
-    let live = true;
-    void loadRecord(me).then((rec) => {
-      if (live) setRead({ id: me, rec });
-    });
-    return () => {
-      live = false;
-    };
-  }, [me]);
-  if (!hydrated) return { state: "loading" };
-  if (!me) return { state: "none" };
-  const rec = read?.id === me ? read.rec : null;
-  if (rec === "unknown") return { state: "none" };
-  return rec ? { state: "ready", id: me, rec } : { state: "loading" };
+  const got = useRead(readRecord, me);
+  if (!mounted) return { state: "loading", claimed: false };
+  if (!me || got?.value === "unknown") return { state: "none" };
+  return got ? { state: "ready", id: me, rec: got.value } : { state: "loading", claimed: true };
 }

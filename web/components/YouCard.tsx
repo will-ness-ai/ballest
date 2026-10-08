@@ -2,20 +2,31 @@
 // You's card in the header, on every page: your marble and name, with your All Seasons place
 // and Maps played on a desktop, linking to your page. With nobody claimed, or a claim the
 // site doesn't know, it leads to Players to find yourself. Drawn once the browser can tell
-// which, so a claimed visitor never sees "Find yourself" flash first.
+// which, so a claimed visitor never sees "Find yourself" flash first; while a claim's record
+// is read, a blank card holds its place, so on a phone the Refreshed line it replaces
+// doesn't flash back in.
 import Link from "next/link";
 
 import { Marble } from "./Marble";
 import { useYou } from "../hooks/me";
-import { playerHref, playersHref } from "../lib/routes";
+import { findYourselfHref, playerHref } from "../lib/routes";
 import { ord, personaOf, plural } from "../lib/rules";
 
 export function YouCard() {
   const you = useYou();
-  if (you.state === "loading") return null;
+  if (you.state === "loading")
+    return you.claimed ? (
+      <span className="youcard yc-wait" aria-hidden="true">
+        <span className="q" />
+        <span>
+          <b>&nbsp;</b>
+          <small>&nbsp;</small>
+        </span>
+      </span>
+    ) : null;
   if (you.state === "none")
     return (
-      <Link className="youcard find" href={playersHref("all", "wr")}>
+      <Link className="youcard find" href={findYourselfHref()}>
         <span className="q" aria-hidden="true">
           ?
         </span>

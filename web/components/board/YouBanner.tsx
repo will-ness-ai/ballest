@@ -1,19 +1,28 @@
 "use client";
 // You on this board, above its plates: your place, your score and the Medal it holds, a bar
 // toward the next Medal, and a link that opens the board at your row. It draws nothing
-// until your row has been read, so the server's page is the same for everyone.
+// until your row has been read, so the server's page is the same for everyone; once a
+// claim is known it holds the banner's place while the row is read, so the plates don't
+// jump down when it lands.
 import Link from "next/link";
 
 import { Marble } from "../Marble";
 import { useYouOnBoard } from "../../hooks/you";
-import { boardHref, playersHref } from "../../lib/routes";
-import { MEDALS, MEDAL_LABEL, fmtN, fmtTime, isPoints, ord, type MedalKey } from "../../lib/rules";
-import { standingOn, type BoardFacts, type MedalName } from "../../lib/standing";
+import { boardHref, findYourselfHref } from "../../lib/routes";
+import {
+  MEDAL_COLOR,
+  MEDAL_LABEL,
+  fmtN,
+  fmtTime,
+  isPoints,
+  ord,
+  type MedalKey,
+  type TargetMedal,
+} from "../../lib/rules";
+import { medalsOn, standingOn, type BoardFacts } from "../../lib/standing";
 
-const COLOR = Object.fromEntries(MEDALS.map(([name, c]) => [name, c])) as Record<MedalName, string>;
-
-function MedalWord({ medal }: { medal: MedalName }) {
-  return <b style={{ color: COLOR[medal] }}>{medal}</b>;
+function MedalWord({ medal }: { medal: TargetMedal }) {
+  return <b style={{ color: MEDAL_COLOR[medal] }}>{MEDAL_LABEL[medal]}</b>;
 }
 
 /* what follows your score: the Medal it holds, the record, or nothing */
@@ -23,21 +32,41 @@ function held(medal: MedalKey | null) {
   return (
     <>
       {" "}
-      for <MedalWord medal={MEDAL_LABEL[medal] as MedalName} />
+      for <MedalWord medal={medal} />
     </>
+  );
+}
+
+/* the banner's place while your row is read: a played banner's parts, unseen, so it takes
+   the same room at any width, with the bar on a board that has Medals */
+function Holder({ bar }: { bar: boolean }) {
+  return (
+    <div className="you-banner yb-wait" aria-hidden="true">
+      <span className="marble" />
+      <div className="yb-t">
+        <p>&nbsp;</p>
+        {bar && (
+          <p className="yb-next">
+            <span className="yb-bar" />
+            <small>&nbsp;</small>
+          </p>
+        )}
+      </div>
+      <span className="go">Jump to your row</span>
+    </div>
   );
 }
 
 export function YouBanner(board: BoardFacts) {
   const you = useYouOnBoard(board.name);
-  if (you.kind === "loading") return null;
+  if (you.kind === "loading") return you.claimed ? <Holder bar={medalsOn(board) != null} /> : null;
   if (you.kind === "unset")
     return (
       <div className="you-banner yb-empty">
         <p>
           Mark your player page with <b>This is me</b> to see where you stand here.
         </p>
-        <Link className="go" href={playersHref("all", "wr")}>
+        <Link className="go" href={findYourselfHref()}>
           Find yourself
         </Link>
       </div>
@@ -67,18 +96,22 @@ export function YouBanner(board: BoardFacts) {
             <span className="yb-bar" aria-hidden="true">
               <span
                 style={
-                  { "--p": s.next.progress, background: COLOR[s.next.medal] } as React.CSSProperties
+                  {
+                    "--p": s.next.progress,
+                    background: MEDAL_COLOR[s.next.medal],
+                  } as React.CSSProperties
                 }
               />
             </span>
             <small>
-              <b style={{ color: COLOR[s.next.medal] }}>{fmtTime(s.next.by)}</b> to {s.next.medal}
+              <b style={{ color: MEDAL_COLOR[s.next.medal] }}>{fmtTime(s.next.by)}</b> to{" "}
+              {MEDAL_LABEL[s.next.medal]}
             </small>
           </p>
         )}
       </div>
       <Link className="go" href={boardHref(board.name, you.who.steamId)}>
-        Jump to my row
+        Jump to your row
       </Link>
     </div>
   );

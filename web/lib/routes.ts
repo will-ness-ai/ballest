@@ -79,6 +79,9 @@ export const dailyStandingsHref = () => "/daily/" + DAILY_STANDINGS;
 export const playersHref = (scope: PlScope, sort: PlSort) =>
   "/players" + (scope === "all" && sort === "wr" ? "" : "/" + scope + "/" + sort);
 
+/* where a visitor with no You goes to find their page and mark it This is me */
+export const findYourselfHref = () => playersHref("all", "wr");
+
 /* The single-page site's #/ routes, each to the path that replaces it, or null for a hash
    that named nothing (the page then stays where it is). */
 const ID = STEAM_ID.source;

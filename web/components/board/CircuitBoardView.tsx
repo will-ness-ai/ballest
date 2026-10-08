@@ -82,14 +82,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
         )}
 
         {/* You on the points order only: the podium order ranks no one by score */}
-        {!podiums && (
-          <YouBanner
-            name={name}
-            field={page.total}
-            lead={rows[0]?.score ?? null}
-            medals={t?.medals ?? null}
-          />
-        )}
+        {!podiums && <YouBanner name={name} field={page.total} medals={t?.medals ?? null} />}
 
         {podiums ? (
           <BoardBody

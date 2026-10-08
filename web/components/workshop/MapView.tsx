@@ -112,7 +112,7 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
       <MapPanel m={m} scores={scores} asOf={site.asOf} />
       <section className="content">
         <YouMarks name={name} />
-        <YouBanner name={name} field={page.total} lead={rows[0]?.score ?? null} medals={m.medals} />
+        <YouBanner name={name} field={page.total} medals={m.medals} />
         <BoardBody
           order="score"
           name={name}
