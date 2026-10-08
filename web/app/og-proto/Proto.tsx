@@ -5,11 +5,11 @@ import { useEffect, useState } from "react";
 import { SAMPLES } from "./samples";
 
 const VARIANTS = [
-  ["A", "Headline", "Kicker, the name huge, one number, the address. No other stats."],
-  ["B", "Stat sheet", "Picture and name on top, four stat tiles below."],
-  ["C", "Podium", "The current og.png's podium, filled in: a page's top three, or a player's 1st/2nd/3rd counts."],
-  ["D", "Poster", "Full-bleed screenshot (a player gets their best finish's Map or Track) under the name and one number."],
-  ["E", "Board excerpt", "A slice of the leaderboard: top five, or a player's five best finishes."],
+  ["1", "Bottom row", "Round 1's picks as they were: player B; Maps, Tracks and Dailies D with four tiles along the bottom over the picture."],
+  ["2", "Split", "Picture as its own half on the left (a big avatar, or the screenshot full height), name and a 2x2 of tiles on the right."],
+  ["3", "Banner", "Picture band across the top with the name on it, a solid band of tiles below. A player's band is their best finish's Map or Track, dimmed."],
+  ["4", "Side column", "Tiles stacked in a column on the right; the name sits bottom-left (players: avatar top-left)."],
+  ["5", "Inline", "No tile boxes: the numbers set in one line under the name. Drops the 'unofficial' footer line on players."],
 ] as const;
 
 function param(k: string, fallback: string) {
@@ -17,10 +17,10 @@ function param(k: string, fallback: string) {
 }
 
 export function Proto() {
-  const [v, setV] = useState("A");
+  const [v, setV] = useState("1");
   const [st, setSt] = useState("top");
   useEffect(() => {
-    setV(param("variant", "A"));
+    setV(param("variant", "1"));
     setSt(param("state", "top"));
   }, []);
   useEffect(() => {
@@ -48,7 +48,7 @@ export function Proto() {
   };
   return (
     <main style={{ padding: "24px 16px 160px", maxWidth: 1240, margin: "0 auto", color: "#eaf0ff", fontFamily: "Chakra Petch, sans-serif" }}>
-      <h1 style={{ fontFamily: "Bungee", fontSize: 22, margin: "0 0 4px" }}>Share images · round 1</h1>
+      <h1 style={{ fontFamily: "Bungee", fontSize: 22, margin: "0 0 4px" }}>Share images · round 2</h1>
       <p style={{ color: "#93a2c8", margin: "0 0 20px" }}>
         What a link to <a style={{ color: "#8be03c" }} href={s.path}>{s.path}</a> would unfurl as.{" "}
         <a style={{ color: "#8be03c" }} href={`/og-proto/share/${v}/${s.kind}/${s.id}`}>Shareable test link</a>{" "}

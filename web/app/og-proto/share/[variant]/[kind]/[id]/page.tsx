@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function generateStaticParams() {
-  return [{ variant: "A", kind: "player", id: "76561198071746847" }];
+  return [{ variant: "1", kind: "player", id: "76561198071746847" }];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
