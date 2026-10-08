@@ -62,7 +62,7 @@
   margin: 0;
   font-family: var(--f-marquee);
   font-weight: 400;
-  font-size: clamp(calc(24rem / 16), 1.1599rem + 1.3953vw, calc(30rem / 16));
+  font-size: calc((24rem + 6 * var(--ramp)) / 16);
   line-height: 1.08;
   overflow-wrap: anywhere;
 }

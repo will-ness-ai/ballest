@@ -1,9 +1,9 @@
 /* ==========================================================================
-   820px AND UP: GLASS CABINET
+   DESKTOP, 820px AND UP (AT THE DEFAULT TEXT SIZE): GLASS CABINET
    In em, so it is 820px at the default text size and moves out with a bigger one:
    larger text keeps the phone layout until there is room for the table and the rail.
-   The headings and --pad that only grow here are fluid instead (clamp(), pinned to
-   their phone size at 390px and their desktop size at 820px).
+   The headings and --pad that only grow here are fluid instead, through --ramp
+   (base.css), which reaches its full size exactly where this query starts.
    ========================================================================== */
 @media (min-width: 51.25em) {
   .app {
@@ -252,8 +252,8 @@
   .bc-by .qmark:not(.always) {
     display: none;
   }
-  /* the name and the right-hand columns give way when the board is narrow (the rail or
-     a map's panel beside it at a small window), so a row never runs off the page */
+  /* the name gives way when the board is narrow (the rail or a map's panel beside it at
+     a small window), so a row never runs off the page */
   .head {
     display: grid;
     grid-template-columns: 48px 26px minmax(0, 1fr) minmax(120px, 176px);
@@ -281,19 +281,32 @@
   .row:last-child {
     border-radius: 0 0 10px 10px;
   }
-  .board.pods .head,
-  .board.pods .row {
-    grid-template-columns: 48px 26px minmax(0, 1fr) minmax(110px, 150px) minmax(120px, 176px);
+  /* the podium column only gets its own column when the board has room for it beside a
+     readable name; until then the counts stay under the name, as on a phone */
+  .board.pods {
+    container-type: inline-size;
   }
-  .board.pods .row {
-    grid-template-rows: auto;
+  .board.pods .head > .c-pods {
+    display: none;
   }
-  .board.pods .row > .c-rank,
-  .board.pods .row > .marble,
-  .board.pods .row > .c-text,
-  .board.pods .row > .c-pods,
-  .board.pods .row > .c-score {
-    grid-area: auto;
+  @container (min-width: 37.5rem) {
+    .board.pods .head,
+    .board.pods .row {
+      grid-template-columns: 48px 26px minmax(0, 1fr) 150px 176px;
+    }
+    .board.pods .head > .c-pods {
+      display: block;
+    }
+    .board.pods .row {
+      grid-template-rows: auto;
+    }
+    .board.pods .row > .c-rank,
+    .board.pods .row > .marble,
+    .board.pods .row > .c-text,
+    .board.pods .row > .c-pods,
+    .board.pods .row > .c-score {
+      grid-area: auto;
+    }
   }
   .c-pods .mc {
     font-size: calc(13.5rem / 16);
@@ -327,10 +340,6 @@
 
   .empty {
     padding: 46px 12px;
-    font-size: calc(14rem / 16);
-  }
-  .empty b {
-    font-size: 1rem;
   }
   .skel {
     padding: 0 12px;
@@ -537,7 +546,6 @@
     margin: 30px 0 0;
     padding-top: 16px;
     border-top: 1px solid var(--line2);
-    font-size: calc(12rem / 16);
     line-height: 1.6;
   }
 }

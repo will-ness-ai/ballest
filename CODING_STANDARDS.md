@@ -21,7 +21,7 @@ it breaks. Those files carry the reasons; this file carries the checks.
 - Colors come from the custom properties on `:root`. Two literals are allowed: the
   translucent black and white used for shadows and hairlines, and a player's own hue,
   `hsl(var(--h) …)`, as on the marble, the pill and the standings bars.
-- Base rules serve phones; `app/styles/desktop.css`'s `min-width: 820px` block carries
+- Base rules serve phones; `app/styles/desktop.css`'s `min-width: 51.25em` block (820px at the default text size) carries
   every desktop override.
 - `isPoints` is the one place that reads a board's kind from its name.
 - The player page reads the board table in `playerRecord` and nowhere below it: the

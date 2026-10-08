@@ -57,7 +57,7 @@
 .pid h1 {
   margin: 0;
   font-family: var(--f-hud);
-  font-size: clamp(calc(22rem / 16), 1.2616rem + 0.4651vw, calc(24rem / 16));
+  font-size: calc((22rem + 2 * var(--ramp)) / 16);
   font-weight: 700;
   line-height: 1.1;
   overflow-wrap: anywhere;
@@ -111,8 +111,8 @@
   gap: 8px;
   margin: 0 var(--pad) 16px;
 }
-/* the same box and label as the board's own stat tile, which only exists from
-   820px up; a player's summary shows at every width, so the shared part lives
+/* the same box and label as the board's own stat tile, which only exists on
+   the desktop layout; a player's summary shows at every width, so the shared part lives
    here and each keeps its own padding and figure size */
 .tile,
 .pstat {

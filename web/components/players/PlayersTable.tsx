@@ -1,7 +1,7 @@
 "use client";
 // The Players table: the search, the scope tabs, the note, then every player ranked by the
 // column the reader sorts on (lib/players.ts), drawn a step at a time as the table scrolls.
-// On a phone the table scrolls inside its own box, from 820px the page itself does. Your
+// On a phone the table scrolls inside its own box, on the desktop layout the page itself does. Your
 // own row ("This is me"), while it is out of view, is pinned to the foot as a card that
 // says how far the next rank and the top 10 are; tapping it brings the row into view.
 import Link from "next/link";
@@ -38,7 +38,7 @@ const NOBODY = (
 );
 
 /* what of the table is on screen: the box's own view on a phone, where it scrolls inside
-   itself, or the window's from 820px, where the page scrolls */
+   itself, or the window's on the desktop layout, where the page scrolls */
 const inBox = (wrap: HTMLElement) => getComputedStyle(wrap).overflowY !== "visible";
 function viewOf(wrap: HTMLElement) {
   const b = wrap.getBoundingClientRect();
