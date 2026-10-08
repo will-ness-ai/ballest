@@ -705,8 +705,9 @@
   align-items: center;
   margin-bottom: 10px;
 }
+/* 140px leaves room for the 16px sort select beside it on a 390px phone */
 .pwtools .ws-q {
-  flex: 1 1 180px;
+  flex: 1 1 140px;
 }
 .pwsort {
   padding: 8px 10px;
