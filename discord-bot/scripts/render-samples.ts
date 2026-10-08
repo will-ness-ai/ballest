@@ -101,7 +101,8 @@ const cards: Record<string, CardView> = {
   },
 };
 // Time is up and the Result is waiting for Steam: the live Card, marked as such.
-cards["card-waiting-lobby"] = { ...cards["card-live-lobby"]!, waitingForSteam: true };
+const liveLobby = cards["card-live-lobby"];
+if (liveLobby !== undefined) cards["card-waiting-lobby"] = { ...liveLobby, waitingForSteam: true };
 
 /** A 15-minute Lobby's PBs as they happened: seconds into the Match, Player, time. */
 const pbs = (events: ReadonlyArray<readonly [number, Player, number]>) =>
