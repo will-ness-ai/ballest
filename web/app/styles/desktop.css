@@ -97,8 +97,7 @@
     gap: 6px;
   }
   .boardbtn,
-  .sheet,
-  .scrim {
+  .sheet {
     display: none;
   }
 

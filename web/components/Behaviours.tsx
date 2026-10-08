@@ -1,9 +1,9 @@
 "use client";
 // What the whole page does whatever is on it: an old #/ link opens the page it always
-// opened, a tap turns a marble over, a modal dialog keeps the keyboard inside it, and a
+// opened, a tap turns a marble over, a modal opens as a native dialog, and a
 // page whose title comes from the database keeps the tab's title right.
 import { useRouter } from "next/navigation";
-import { useEffect, type RefObject } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { legacyPath } from "../lib/routes";
 import { pageTitle } from "../lib/rules";
@@ -46,42 +46,55 @@ export function MarbleFlip() {
   return null;
 }
 
-/* aria-modal hides the rest of the page from assistive tech, so while a dialog is open
-   Escape closes it and Tab is kept inside it */
-export function useModalKeys(
+/* a modal is a native <dialog>: showModal() keeps the keyboard inside it, hides the page
+   from assistive tech and hands focus back when it closes; Escape closes it. Everything
+   that closes it (Escape, the close button, a tap on the backdrop) goes through
+   dialog.close(), and its close event tells the owner. `focus` picks what opens focused
+   when the dialog's first button isn't it. */
+export function useDialog(
   open: boolean,
-  box: RefObject<HTMLElement | null>,
-  close: () => void,
-  focusable = "button,input,a[href]",
+  onClose: () => void,
+  focus?: (d: HTMLDialogElement) => HTMLElement | null | undefined,
 ) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        close();
-        return;
-      }
-      if (e.key !== "Tab" || !box.current) return;
-      const items = [...box.current.querySelectorAll<HTMLElement>(focusable)];
-      if (!items.length) return;
-      const first = items[0],
-        last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      } else if (!box.current.contains(document.activeElement)) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    addEventListener("keydown", onKey);
-    return () => {
-      removeEventListener("keydown", onKey);
-    };
-  }, [open, box, close, focusable]);
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) {
+      opener.current = document.activeElement as HTMLElement | null;
+      d.showModal();
+      focus?.(d)?.focus();
+    } else if (!open && d.open) d.close();
+  }, [open, focus]);
+  /* a tap on the backdrop lands on the dialog itself, outside its box; one that starts
+     inside (a drag out of the search box) is not a tap on the backdrop */
+  const down = useRef(false);
+  const props = {
+    ref,
+    /* the browser hands focus back only if it was still inside; a tap on the backdrop
+       has already dropped it on the page */
+    onClose: () => {
+      const at = document.activeElement;
+      if ((!at || at === document.body) && opener.current?.isConnected) opener.current.focus();
+      onClose();
+    },
+    onPointerDown: (e: React.PointerEvent<HTMLDialogElement>) => {
+      down.current = outside(e);
+    },
+    onClick: (e: React.MouseEvent<HTMLDialogElement>) => {
+      if (down.current && outside(e)) e.currentTarget.close();
+      down.current = false;
+    },
+  };
+  const close = useCallback(() => ref.current?.close(), []);
+  return { props, close };
+}
+
+function outside(e: React.MouseEvent<HTMLDialogElement>) {
+  if (e.target !== e.currentTarget) return false;
+  const r = e.currentTarget.getBoundingClientRect();
+  return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
 }
 
 /* A page whose title is read from the database (a player, a Map) streams its metadata

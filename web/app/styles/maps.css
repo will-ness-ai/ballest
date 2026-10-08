@@ -376,19 +376,9 @@
     border-color: var(--faint);
   }
 }
-.dscrim {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim);
-  z-index: 40;
-}
 .drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0 0 0 auto;
   width: min(360px, 100%);
-  z-index: 41;
   background: var(--solid);
   border-left: 1px solid var(--line);
   padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px));
