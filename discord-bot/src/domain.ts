@@ -82,7 +82,12 @@ export interface Match {
   readonly history: ReadonlyArray<PbEvent>;
   /** SteamIDs of Players who left the live Match: their best time so far stands, later runs don't count. */
   readonly left: ReadonlyArray<string>;
+  /** Time is up but Steam hasn't answered the end read, so the Result is waiting for it. */
+  readonly waitingForSteam: boolean;
 }
+
+/** Whether a live Match's time has run out: from then on only the end read counts. */
+export const timeIsUp = (m: Match, now: number): boolean => m.endsAt !== null && now >= m.endsAt;
 
 /** A PB set during a Match: who, the time, and when (ms after the Match started). */
 export interface PbEvent {
@@ -185,7 +190,7 @@ export const actionsFor = (m: Match, discordId: string): ReadonlyArray<Action> =
       return m.target?.discordId === discordId ? ["accept", "decline"] : [];
     return ["accept"];
   }
-  if (m.state === "live") {
+  if (m.state === "live" && !m.waitingForSteam) {
     if (player !== undefined) return m.left.includes(player.steamId) ? [] : ["leave"];
     return m.type === "lobby" ? ["join"] : [];
   }

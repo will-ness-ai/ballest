@@ -3,6 +3,9 @@
 import { circuitBoard } from "./circuit";
 import { STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 
+/* where the site is served: link previews and links posted outside it start here */
+export const SITE_ORIGIN = "https://ballestrecords.com";
+
 export const PLAYER_TABS = ["circuit", "workshop", "made", "daily"] as const;
 export type PlayerTab = (typeof PLAYER_TABS)[number];
 

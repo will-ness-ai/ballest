@@ -152,7 +152,10 @@ describe("since yesterday", () => {
     );
     expect(changes(r).map((c) => c.kind)).toEqual(["trackRecord", "mapRecord", "firstFinish"]);
     expect(changes(r)[1]).toMatchObject({ by: "BOB", from: "ANN", players: 3 });
-    expect(changes(r)[0]).toMatchObject({ track: "S1 01", gain: ticks(0.5) });
+    expect(changes(r)[0]).toMatchObject({
+      track: { board: "Map_Track13", label: "S1 01" },
+      gain: ticks(0.5),
+    });
   });
 
   it("doesn't list a holder improving their own record, or a Map published today", () => {
@@ -225,6 +228,44 @@ describe("the Daily Report's messages", () => {
     expect(headMessage(r).split("\n")[1]).toBe(
       "-# Workshop standings · 0 Workshop Maps · 0 players · data as of <t:1791122400:R>",
     );
+  });
+
+  it("links Maps and Tracks to their pages on the site", () => {
+    const a = map(1, { pfid: "3623648768" });
+    const r = buildReport(
+      data({
+        maps: [a],
+        entries: [entry(a, "ann", 30, { firstSeenAt: TODAY })],
+        tracks: [
+          {
+            board: "Map_Track13",
+            label: "S1 01",
+            record: { steamId: "eve", persona: "Eve", score: ticks(10), ugcId: "u" },
+            recordYesterday: { steamId: "fay", persona: "Fay", score: ticks(10.5), ugcId: "v" },
+          },
+        ],
+      }),
+      AT,
+    );
+    const text = headMessage(r);
+    expect(text).toContain("took [S1 01](<https://ballestrecords.com/board/Map_Track13>) from");
+    expect(text).toContain("[Map 1](<https://ballestrecords.com/map/3623648768>)");
+    expect(text).not.toContain("steamcommunity");
+    const thread = threadSections(r, {
+      tracks: [
+        {
+          steamId: "eve",
+          persona: "Eve",
+          score: ticks(10),
+          ugcId: "u",
+          where: { track: { board: "Map_Track13", label: "S1 01" } },
+          publishedAt: null,
+          setAt: LONG_AGO,
+        },
+      ],
+      maps: [],
+    }).join("\n");
+    expect(thread).toContain("[S1 01](<https://ballestrecords.com/board/Map_Track13>) in");
   });
 
   it("says when nothing changed", () => {

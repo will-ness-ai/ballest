@@ -228,6 +228,7 @@ export const cardView = (matchId: string, over: Partial<CardView> = {}): CardVie
   standings: [],
   expiresAt: null,
   endsAt: null,
+  waitingForSteam: false,
   ...over,
 });
 

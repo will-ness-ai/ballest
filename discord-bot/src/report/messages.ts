@@ -9,13 +9,15 @@ import {
   DAY_MS,
   type Change,
   type ListedMap,
+  type ListedTrack,
   type Report,
   type Stat,
 } from "./report.js";
 
 /** Discord's cap on a bot message's text. */
 export const MESSAGE_LIMIT = 2000;
-const WORKSHOP_URL = "https://steamcommunity.com/sharedfiles/filedetails/?id=";
+/** Where the links go: each Map's and Track's page on the site. */
+const SITE_URL = "https://ballestrecords.com";
 
 /** The four boards' headings, in the image. */
 export const BOARD_TITLE: Record<Stat, string> = {
@@ -32,8 +34,12 @@ export const escape = (s: string) =>
     .replaceAll("@", "@​")
     .replaceAll("<", "<​");
 
-/** A masked link to the Map's Workshop page; the <> stop Discord unfurling an embed. */
-const mapLink = (m: ListedMap) => `[${escape(m.title || m.pfid)}](<${WORKSHOP_URL}${m.pfid}>)`;
+/** A masked link; the <> stop Discord unfurling an embed. */
+const siteLink = (text: string, path: string) => `[${escape(text)}](<${SITE_URL}${path}>)`;
+/** The Map's page on the site. */
+const mapLink = (m: ListedMap) => siteLink(m.title || m.pfid, `/map/${m.pfid}`);
+/** The Track's board on the site. */
+const trackLink = (t: ListedTrack) => siteLink(t.label, `/board/${t.board}`);
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const bold = (name: string) => `**${escape(name)}**`;
 
@@ -55,7 +61,7 @@ export const counts = (r: Report) =>
 const changeLine = (c: Change): string => {
   switch (c.kind) {
     case "trackRecord":
-      return `- 🏆 ${bold(c.by)} took ${c.track} from ${escape(c.from)} — ${formatTime(c.score)} (-${(c.gain / SCORE_TICKS_PER_SECOND).toFixed(3)}s)`;
+      return `- 🏆 ${bold(c.by)} took ${trackLink(c.track)} from ${escape(c.from)} — ${formatTime(c.score)} (-${(c.gain / SCORE_TICKS_PER_SECOND).toFixed(3)}s)`;
     case "mapRecord":
       return `- 🥇 ${bold(c.by)} took ${mapLink(c.map)} from ${escape(c.from)} — ${formatTime(c.score)} · *${plural(c.players, "player")}*`;
     case "firstFinish":
@@ -113,7 +119,7 @@ export const standingsImage = (r: Report): StandingsImage => ({
 export const threadName = (r: Report) => `Maps and records · ${shortDate(r.at)}`;
 
 const recordLine = (pos: number, rec: DatedRecord, at: number) => {
-  const where = "track" in rec.where ? rec.where.track : mapLink(rec.where.map);
+  const where = "track" in rec.where ? trackLink(rec.where.track) : mapLink(rec.where.map);
   const days = Math.floor((at - rec.setAt) / DAY_MS);
   return `> ${pos}. ${bold(rec.persona)} — ${where} in ${formatTime(rec.score)} — set ${shortDate(rec.setAt)} (${plural(days, "day")} ago)`;
 };
