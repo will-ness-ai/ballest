@@ -4,11 +4,10 @@
 // board page draws this and nothing else (components/board/HistoryCard.tsx).
 //
 // Dates are Refresh starts, so a time is known only to the Refresh that first saw it, and
-// one first seen in the very first Refresh was set then or earlier (beforeHistory).
-
-/* one Entry as db/site.ts reads it: times are ISO strings */
+// one already there when the board was first read was set then or earlier (beforeHistory).
 import { SCORE_TICKS_PER_SECOND, plural } from "./rules";
 
+/* one Entry as db/site.ts reads it: times are ISO strings */
 export interface HistoryEntry {
   steamId: string;
   persona: string;
@@ -19,8 +18,6 @@ export interface HistoryEntry {
 }
 
 export interface HistoryInput {
-  /* the first Refresh there is: an Entry first seen then was set then or earlier */
-  firstRefreshAt: string;
   /* the latest Refresh */
   now: string;
   entries: ReadonlyArray<HistoryEntry>;
@@ -33,7 +30,8 @@ export interface Reign {
   /* the Refresh that first saw it lead, and the one that saw it beaten (null while it stands) */
   from: string;
   to: string | null;
-  /* the record before it minus this one, in ticks; null for the first */
+  /* the record before it minus this one, in ticks; null for the first, and for a record
+     handed back when its holder left the board, which is slower */
   cut: number | null;
   beforeHistory: boolean;
 }
@@ -81,7 +79,7 @@ export interface HistoryDay {
 }
 
 export interface BoardHistory {
-  /* the board's first Entry's first Refresh: where its history begins */
+  /* the Refresh that first read the board: where its history begins */
   since: string;
   now: string;
   /* oldest first */
@@ -116,7 +114,7 @@ const openAt = (e: E, t: number) => e.f <= t && (e.c === null || e.c > t);
 const iso = (t: number) => new Date(t).toISOString();
 const utcDay = (t: number) => iso(t).slice(0, 10);
 
-/* An Entry seen by one Refresh and then gone without its player improving on it: a run
+/* An Entry seen by one Refresh and then gone without its player improving on it: one
    Steam removed. It never counts as a record, a climb or a day's change. */
 function removed(e: E, mine: ReadonlyArray<E>) {
   if (e.c === null || e.f !== e.l) return false;
@@ -134,7 +132,6 @@ export function boardHistory(input: HistoryInput): BoardHistory | null {
   }));
   if (!all.length) return null;
   const now = Date.parse(input.now);
-  const first = Date.parse(input.firstRefreshAt);
 
   const byPlayer = new Map<string, Array<E>>();
   for (const e of [...all].sort((a, b) => a.f - b.f)) {
@@ -181,8 +178,9 @@ export function boardHistory(input: HistoryInput): BoardHistory | null {
     score: r.e.score,
     from: iso(r.from),
     to: r.to === null ? null : iso(r.to),
-    cut: r.prev ? r.prev.score - r.e.score : null,
-    beforeHistory: r.from === first,
+    /* a record handed back when its holder left the board is slower, and cut nothing */
+    cut: r.prev && r.prev.score > r.e.score ? r.prev.score - r.e.score : null,
+    beforeHistory: r.from === since,
   }));
 
   /* Climbers: places gained over the week among the top 100 now */
@@ -218,10 +216,12 @@ export function boardHistory(input: HistoryInput): BoardHistory | null {
     .map(({ rank, e }) => ({ steamId: e.steamId, persona: e.persona, score: e.score, rank }));
 
   /* what each day brought: everything first seen after the first Refresh */
-  const recordAt = new Map(held.map((r) => [r.e, r]));
+  /* an Entry's first Reign: a record handed back to it later is not set again */
+  const recordAt = new Map<E, (typeof held)[number]>();
+  for (const r of held) if (!recordAt.has(r.e)) recordAt.set(r.e, r);
   const days = new Map<string, HistoryDay>();
   for (const e of [...kept].sort((a, b) => a.f - b.f || byRank(a, b))) {
-    if (e.f === first) continue;
+    if (e.f === since) continue;
     const key = utcDay(e.f);
     let d = days.get(key);
     if (!d) {
@@ -230,13 +230,17 @@ export function boardHistory(input: HistoryInput): BoardHistory | null {
     }
     const mine = byPlayer.get(e.steamId) ?? [];
     const prev = mine[mine.indexOf(e) - 1] as E | undefined;
+    /* a record counts on the day it was set, not a day it was handed back */
     const rec = recordAt.get(e);
-    if (rec)
+    if (rec?.from === e.f)
       d.records.push({
         steamId: e.steamId,
         persona: e.persona,
         score: e.score,
-        beat: rec.prev ? { persona: rec.prev.persona, cut: rec.prev.score - e.score } : null,
+        beat:
+          rec.prev && rec.prev.score > e.score
+            ? { persona: rec.prev.persona, cut: rec.prev.score - e.score }
+            : null,
       });
     else if (top10.get(e.f)?.includes(e))
       d.topTen.push({
@@ -278,20 +282,22 @@ export function longDayText(day: string) {
   return WEEKDAYS[d.getUTCDay()] + " " + dayText(d.toISOString());
 }
 
-/* when a Reign began: a record already there at the first Refresh was set then or earlier */
+/* when a Reign began: a record already there when the board was first read was set then or
+   earlier */
 export const setText = (r: Reign) => dayText(r.from) + (r.beforeHistory ? " or earlier" : "");
 
 /* how long a Reign stood, in whole days */
 export function heldText(r: Reign) {
   if (r.to === null) return "holds it";
-  const days = Math.round((Date.parse(r.to) - Date.parse(r.from)) / DAY_MS);
+  const days = Math.floor((Date.parse(r.to) - Date.parse(r.from)) / DAY_MS);
   return days ? String(days) + (days === 1 ? " day" : " days") : "under a day";
 }
 
-/* a cut in seconds; one under a millisecond keeps the digits that make it non-zero, since
-   a board counts in hundred-thousandths */
-export const cutText = (ticks: number) =>
-  "−" + (ticks / SCORE_TICKS_PER_SECOND).toFixed(ticks < 100 ? 5 : 3) + "s";
+/* a gap in seconds, and a cut as a gap taken off; one under a millisecond keeps the digits
+   that make it non-zero, since a board counts in hundred-thousandths */
+export const gapText = (ticks: number) =>
+  (ticks / SCORE_TICKS_PER_SECOND).toFixed(ticks < SCORE_TICKS_PER_SECOND / 1000 ? 5 : 3) + "s";
+export const cutText = (ticks: number) => "−" + gapText(ticks);
 
 /* "World record · 20 changes since 6 Sep", or "No changes since 6 Sep" */
 export function changesText(h: BoardHistory) {

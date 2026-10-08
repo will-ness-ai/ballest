@@ -50,8 +50,9 @@ _Avoid_: snapshots, audit log
 **Reign**:
 The span one world record stood on a Track or Map board: from the Refresh that first saw it
 lead to the one that saw a faster time take it. An equal time does not start a new Reign,
-and neither does a run Steam removed after one Refresh. A record already there at the first
-Refresh was set then or earlier.
+and neither does an Entry Steam removed after one Refresh. A record already there when the
+board was first read was set then or earlier. When a holder leaves the board, the record
+passes back to the next fastest time, which starts a Reign with no cut.
 _Avoid_: streak, hold, tenure
 
 **Climber**:

@@ -10,6 +10,7 @@ import {
   changesText,
   cutText,
   dayText,
+  gapText,
   heldText,
   longDayText,
   setText,
@@ -90,14 +91,32 @@ function ReignRow({ h, r, link }: { h: BoardHistory; r: Reign; link: boolean }) 
   );
 }
 
+/* the card's label and the button that opens or closes it */
+function Head({ h, open, onToggle }: { h: BoardHistory; open: boolean; onToggle: () => void }) {
+  return (
+    <div className="hi-head">
+      <span className="hi-label">{changesText(h)}</span>
+      <button
+        type="button"
+        className="hi-toggle"
+        aria-expanded={open}
+        onClick={(ev) => {
+          ev.stopPropagation();
+          onToggle();
+        }}
+      >
+        {open ? "Hide" : "History"}
+      </button>
+    </div>
+  );
+}
+
+/* the closed card: the whole of it opens the history, the button for the keyboard */
 function Summary({ h, onOpen }: { h: BoardHistory; onOpen: () => void }) {
   const { d } = steps(h, 800, 46, 4);
   return (
-    <button type="button" className="hist hi-sum" aria-expanded="false" onClick={onOpen}>
-      <span className="hi-head">
-        <span className="hi-label">{changesText(h)}</span>
-        <span className="hi-toggle">History</span>
-      </span>
+    <section className="hist hi-sum" onClick={onOpen}>
+      <Head h={h} open={false} onToggle={onOpen} />
       <svg className="hi-spark" viewBox="0 0 800 46" preserveAspectRatio="none" aria-hidden="true">
         <path d={d} />
       </svg>
@@ -110,7 +129,7 @@ function Summary({ h, onOpen }: { h: BoardHistory; onOpen: () => void }) {
           ))}
       </ul>
       <Axis h={h} />
-    </button>
+    </section>
   );
 }
 
@@ -173,7 +192,7 @@ function Changed({ h }: { h: BoardHistory }) {
                 </td>
                 <td>{fmtTime(c.score)}</td>
                 <td className="hi-up">▲ {fmtN(c.was - c.rank)}</td>
-                <td>{cutText(c.cut)}</td>
+                <td>{c.cut > 0 ? cutText(c.cut) : ""}</td>
               </tr>
             ))}
           </tbody>
@@ -204,7 +223,7 @@ function Changed({ h }: { h: BoardHistory }) {
                 {x.beat && (
                   <span className="hi-when">
                     {" "}
-                    beat {x.beat.persona} by {cutText(x.beat.cut).slice(1)}
+                    beat {x.beat.persona} by {gapText(x.beat.cut)}
                   </span>
                 )}
               </li>
@@ -246,17 +265,7 @@ export function HistoryCard({ h }: { h: BoardHistory }) {
   if (!open) return <Summary h={h} onOpen={() => setOpen(true)} />;
   return (
     <section className="hist hi-open">
-      <div className="hi-head">
-        <span className="hi-label">{changesText(h)}</span>
-        <button
-          type="button"
-          className="hi-toggle"
-          aria-expanded="true"
-          onClick={() => setOpen(false)}
-        >
-          Hide
-        </button>
-      </div>
+      <Head h={h} open onToggle={() => setOpen(false)} />
       <div className="hi-tabs" role="tablist">
         {TABS.map(([key, label]) => (
           <button

@@ -193,11 +193,6 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
-/* on a phone the cut goes; the places gained tell the story */
-.hi-climb th:nth-child(5),
-.hi-climb td:nth-child(5) {
-  display: none;
-}
 .hi-new,
 .hi-none {
   margin: 8px 0 0;

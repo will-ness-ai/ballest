@@ -7,6 +7,7 @@ import {
   changesText,
   cutText,
   dayText,
+  gapText,
   heldText,
   longDayText,
   setText,
@@ -32,8 +33,7 @@ const e = (
   lastSeenAt: r(l),
   closedAt: c === null ? null : r(c),
 });
-const history = (entries: Array<HistoryEntry>, now = NOW) =>
-  boardHistory({ firstRefreshAt: r(0), now: r(now), entries });
+const history = (entries: Array<HistoryEntry>, now = NOW) => boardHistory({ now: r(now), entries });
 
 describe("Reigns", () => {
   test("the record changes hands on each faster time, with its cut and when it stood", () => {
@@ -74,12 +74,21 @@ describe("Reigns", () => {
     ]);
   });
 
-  test("a record holder who leaves the board hands it back", () => {
+  test("a record holder who leaves the board hands it back, with no cut", () => {
     const h = history([e(1, 1_000_000, 0), e(2, 900_000, 2, 6, 7)]);
-    expect(h?.reigns.map((x) => [x.persona, x.from, x.to])).toEqual([
-      ["P1", r(0), r(2)],
-      ["P2", r(2), r(7)],
-      ["P1", r(7), null],
+    expect(h?.reigns.map((x) => [x.persona, x.from, x.to, x.cut])).toEqual([
+      ["P1", r(0), r(2), null],
+      ["P2", r(2), r(7), 100_000],
+      ["P1", r(7), null, null],
+    ]);
+  });
+
+  test("a record handed back is counted on the day it was set, not again", () => {
+    const h = history([e(1, 1_000_000, 0), e(3, 950_000, 2, 30, 31), e(2, 900_000, 10, 20, 21)]);
+    // P3 set it on day 1, P2 took it on day 2 and left on day 3, handing it back to P3
+    expect(h?.days.map((d) => [d.day, d.records.map((x) => [x.persona, x.beat])])).toEqual([
+      ["2026-09-02", [["P2", { persona: "P3", cut: 50_000 }]]],
+      ["2026-09-01", [["P3", { persona: "P1", cut: 50_000 }]]],
     ]);
   });
 
@@ -90,10 +99,12 @@ describe("Reigns", () => {
     expect(h?.days).toEqual([]);
   });
 
-  test("a board first read after history began has no before-history record", () => {
-    const h = history([e(1, 1_000_000, 6)]);
+  test("a board first read after history began dates its first record then or earlier", () => {
+    const h = history([e(1, 1_000_000, 6), e(2, 1_100_000, 6), e(3, 1_050_000, 9)]);
     expect(h?.since).toBe(r(6));
-    expect(h?.reigns[0].beforeHistory).toBe(false);
+    expect(h?.reigns[0].beforeHistory).toBe(true);
+    // what was there at the first read is not news; P3's time three Refreshes later is
+    expect(h?.days.map((d) => [d.day, d.firstTimes])).toEqual([["2026-09-02", 1]]);
   });
 
   test("a board with no Entries has no history", () => {
@@ -171,11 +182,15 @@ describe("the card's words", () => {
 
   test("how long each stood", () => {
     expect(h?.reigns.map(heldText)).toEqual(["under a day", "1 day", "holds it"]);
+    // whole days: a day and a half stood one day
+    const long = history([e(1, 1_000_000, 0, 11, 12), e(2, 900_000, 12)], 20);
+    expect(long?.reigns.map(heldText)).toEqual(["1 day", "holds it"]);
   });
 
   test("a cut under a millisecond keeps its digits", () => {
     expect(cutText(21)).toBe("−0.00021s");
     expect(cutText(76_800)).toBe("−0.768s");
+    expect(gapText(76_800)).toBe("0.768s");
   });
 
   test("the card's label", () => {

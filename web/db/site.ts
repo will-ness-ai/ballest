@@ -316,10 +316,7 @@ export async function historyInput(db: Db, name: string): Promise<HistoryInput |
     )
   ).at(0);
   if (!board || board.points) return null;
-  const [span] = await rows<{ first: Date; now: Date }>(
-    db,
-    sql`select min(started_at) as first, max(started_at) as now from refreshes`,
-  );
+  const [latest] = await rows<{ now: Date }>(db, sql`select max(started_at) as now from refreshes`);
   const found = await rows<{
     steamId: string;
     persona: string;
@@ -340,8 +337,7 @@ export async function historyInput(db: Db, name: string): Promise<HistoryInput |
   );
   const at = (d: Date) => new Date(d).toISOString();
   return {
-    firstRefreshAt: at(span.first),
-    now: at(span.now),
+    now: at(latest.now),
     entries: found.map((e) => ({
       steamId: e.steamId,
       persona: e.persona,

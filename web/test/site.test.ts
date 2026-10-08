@@ -307,7 +307,6 @@ describe("a board's record history", () => {
 
   test("a Track's Reigns, from its Score history", async () => {
     const input = await historyInput(t.db, "Map_Track13");
-    expect(input?.firstRefreshAt).toBe(r1);
     expect(input?.now).toBe("2026-09-01T06:00:00.000Z");
     expect(input?.entries).toHaveLength(8);
     // p2 led from before history; p1's 1013307 in R2 took it by 6577

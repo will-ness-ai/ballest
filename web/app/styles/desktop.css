@@ -551,10 +551,4 @@
     font-size: 12px;
     line-height: 1.6;
   }
-
-  /* the record history's Climbers keep their cut */
-  .hi-climb th:nth-child(5),
-  .hi-climb td:nth-child(5) {
-    display: table-cell;
-  }
 }
