@@ -429,6 +429,10 @@
     color: var(--text);
   }
 }
+/* the strip scrolls, so it clips anything drawn outside it: keep the ring inside */
+.ptabs a:focus-visible {
+  outline-offset: -2px;
+}
 .ptabs a[aria-current="page"] {
   color: var(--text);
   border-bottom-color: var(--accent);

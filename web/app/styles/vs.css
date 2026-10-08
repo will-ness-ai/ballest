@@ -215,7 +215,15 @@
   display: inline-flex;
   border: 1px solid var(--line);
   border-radius: 10px;
-  overflow: hidden;
+}
+/* the end buttons carry the rounding, so no overflow clips their focus rings */
+.seg > :first-child {
+  border-start-start-radius: 9px;
+  border-end-start-radius: 9px;
+}
+.seg > :last-child {
+  border-start-end-radius: 9px;
+  border-end-end-radius: 9px;
 }
 .seg button {
   padding: 7px 12px;
