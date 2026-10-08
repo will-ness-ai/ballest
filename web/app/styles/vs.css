@@ -18,7 +18,7 @@
   border-radius: 99px;
   border: 1px solid var(--line);
   font-family: var(--f-hud);
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -36,7 +36,7 @@
   background: var(--a-soft);
   color: var(--a);
   font-family: var(--f-hud);
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -47,7 +47,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  font: 400 40px/1 var(--f-marquee);
+  font: 400 calc(40rem / 16)/1 var(--f-marquee);
   font-variant-numeric: tabular-nums;
 }
 .score .d {
@@ -81,13 +81,13 @@
   min-width: 0;
 }
 .mecard .side b {
-  font-size: 14px;
+  font-size: calc(14rem / 16);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .mecard .side small {
-  font-size: 12px;
+  font-size: calc(12rem / 16);
   color: var(--faint);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -103,7 +103,7 @@
   gap: 6px;
 }
 .mecard .score {
-  font-size: 30px;
+  font-size: calc(30rem / 16);
 }
 .mecard .go {
   grid-column: 1 / -1;
@@ -148,7 +148,7 @@
 }
 .vsside a {
   font-family: var(--f-hud);
-  font-size: 15px;
+  font-size: calc(15rem / 16);
   font-weight: 700;
   text-decoration: none;
   color: inherit;
@@ -164,7 +164,7 @@
 }
 .vsside .linkbtn {
   color: var(--faint);
-  font-size: 12px;
+  font-size: calc(12rem / 16);
 }
 .vsmid {
   display: grid;
@@ -194,7 +194,7 @@
 }
 .tv {
   font-family: var(--f-hud);
-  font-size: 18px;
+  font-size: calc(18rem / 16);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -228,7 +228,7 @@
 .seg button {
   padding: 7px 12px;
   font-family: var(--f-hud);
-  font-size: 12.5px;
+  font-size: calc(12.5rem / 16);
   font-weight: 600;
   color: var(--dim);
 }
@@ -270,11 +270,11 @@
   align-items: flex-start;
 }
 .vside b {
-  font-size: 14px;
+  font-size: calc(14rem / 16);
   font-weight: 600;
 }
 .vside small {
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   color: var(--faint);
 }
 .vside.wa {
@@ -305,7 +305,7 @@
 }
 .vmid b {
   display: block;
-  font-size: 13.5px;
+  font-size: calc(13.5rem / 16);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -319,7 +319,7 @@
 .vmid small {
   display: block;
   font-family: var(--f-hud);
-  font-size: 11.5px;
+  font-size: calc(11.5rem / 16);
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
@@ -330,7 +330,7 @@
   background: var(--surface2);
   color: var(--accent);
   font-family: var(--f-hud);
-  font-size: 10px;
+  font-size: calc(10rem / 16);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
