@@ -19,11 +19,12 @@ export function GroupTabs({ tabs }: { tabs: ReadonlyArray<GroupTab> }) {
 /* the same tabs with none lit, while the path is not known yet */
 export function Tabs({ tabs, on }: { tabs: ReadonlyArray<GroupTab>; on: string | null }) {
   const bar = useRef<HTMLElement>(null);
-  /* where the bar scrolls sideways, keep the selected tab in it */
+  /* where the bar scrolls sideways, keep the selected tab in it, clear of the faded edge
+     (the bar's scroll-padding) */
   useEffect(() => {
-    const el = bar.current,
-      sel = el?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (el && sel) el.scrollLeft = Math.max(0, sel.offsetLeft + sel.offsetWidth - el.clientWidth);
+    bar.current
+      ?.querySelector('[aria-selected="true"]')
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [on]);
   return (
     <nav className="groups" id="groups" role="tablist" aria-label="Season" ref={bar}>
