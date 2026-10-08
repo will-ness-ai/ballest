@@ -1327,3 +1327,53 @@
     display: none;
   }
 }
+/* the record cards' plates: the board's podium, drawn small */
+.ds-card .leaders {
+  gap: 8px;
+  padding: 4px var(--pad) 6px;
+}
+.ds-card .plate {
+  gap: 5px;
+  max-width: 96px;
+}
+.ds-card .plate .marble {
+  width: 40px;
+  height: 40px;
+}
+.ds-card .plate[data-p="2"] .marble {
+  width: 34px;
+  height: 34px;
+}
+.ds-card .plate[data-p="3"] .marble {
+  width: 32px;
+  height: 32px;
+}
+.ds-card .plate[data-p="1"] {
+  padding-bottom: 6px;
+}
+.ds-card .pl-text {
+  font-size: 12px;
+}
+.ds-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--solid);
+  padding-top: 10px;
+}
+.ds-cards {
+  padding: 0 var(--pad);
+}
+.ds-card .dp-h {
+  padding: 0 12px;
+}
+@media (min-width: 820px) {
+  .ds-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.ds-card .pl-name {
+  font-size: 12px;
+}
+.ds-card .pl-score {
+  font-size: 13px;
+}

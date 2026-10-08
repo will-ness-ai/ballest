@@ -1,7 +1,7 @@
 "use client";
 // PROTOTYPE (grill-design, Daily challenge). Not production code: never merged.
 // Round 6 settled the all-time Daily standings at /daily/standings: record cards, each
-// topped by the board's three plates (E), then a sortable medal table of every player (B).
+// only the board's three plates, drawn small (E), then a sortable medal table of every player (B).
 import Link from "next/link";
 import { useState } from "react";
 
@@ -166,7 +166,7 @@ function Records({ list, closed }: VP) {
           .map((s) => [s, f(s)] as const)
           .filter(([, v]) => v > 0)
           .sort((a, b) => b[1] - a[1])
-          .slice(0, 5);
+          .slice(0, 3);
         const lead = top[0]?.[1] ?? 0;
         return (
           <section key={title} className="ds-card">
@@ -186,11 +186,6 @@ function Records({ list, closed }: VP) {
                       : `${lead - v} behind`,
               }))}
             />
-            <div className="board dp-st">
-              {top.slice(3).map(([s, v], i) => (
-                <Row key={s.id} rank={i + 4} s={s} sub="" value={v} unit={unit} />
-              ))}
-            </div>
           </section>
         );
       })}
