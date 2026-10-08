@@ -36,10 +36,10 @@ feature small enough for one ticket still gets one, so `/implement-spec` has its
 
 ## 4. Build and open the PR: `/implement-spec`
 
-Implement the tickets test-first (`tdd`, where tests exist: `discord-bot/` has them, the
+Implement the tickets test-first where tests exist (`discord-bot/` has them, the
 site with its vitest tests, the smoke test and the served page, and the collector with
-`tools/check_data.py`, per `CLAUDE.md`). A change to what the bot posts in Discord is also played through
-in the sandbox (`discord-sandbox`). Work on a `claude/<slug>` branch and open a **draft** PR
+`tools/check_data.py`, per `CLAUDE.md`): call the Skill tool for 'tdd'. A change to what the bot posts in Discord is also played through
+in the sandbox: call the Skill tool for 'discord-sandbox'. Work on a `claude/<slug>` branch and open a **draft** PR
 that closes the spec and its tickets as soon as the branch has a commit.
 It stays a draft through steps 5 and 6: step 7 marks it ready, in place of
 `/implement-spec`'s own step 8.

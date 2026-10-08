@@ -7,7 +7,7 @@ Adapted for this repo from `grill-design` in `will-ness-ai/skills` (at `71d8909`
 prototypes live in the running app on a throwaway worktree, not in a standalone Artifact,
 so every variant is judged against real data, the real header and the real density.
 
-Run a `/grilling` session in which each question is asked with prototypes, not words.
+Call the Skill tool for 'grilling', and ask each of its questions with prototypes, not words.
 
 ## Set up the prototype worktree once
 
