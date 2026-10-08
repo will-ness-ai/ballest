@@ -7,7 +7,9 @@ can't answer anything about the past: when a world record fell, how a player's p
 best came down, what a board looked like last week. The collector will write every
 Refresh into Postgres on Neon, provisioned through the Vercel Marketplace, and the Next.js
 app will read it from server components. Neon gives each Vercel preview deploy its own
-database branch, so a preview can be seeded with whatever dataset it needs.
+database branch, so a preview can be seeded with whatever dataset it needs. (2026-10-08:
+not turned on in the integration yet, so previews read production and skip their
+migrations; docs/data.md.)
 
 What gets stored is only what Steam says, as **score history**: one row per board, player
 and score, with when it was first and last seen, written only when a score changes and

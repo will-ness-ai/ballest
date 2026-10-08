@@ -69,6 +69,12 @@ deploy, and, for a site change, a Refresh's revalidate end to end and the change
 against production (`docs/site.md`, "Checking a change"). A gap left unchecked goes in the
 PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` left one.
 
+Merge `main` into the branch before marking it ready and again just before it merges, even
+when GitHub shows no conflict. A long PR outlives conventions: while #152 was open, `main`
+dropped `useModalKeys` for native dialogs and moved the CSS to rem type, oklch colors and
+an em breakpoint, and each catch-up was a port that `check-styles` and `tsc` flagged, not a
+textual conflict.
+
 ## 8. After the merge: `/retro`
 
 When the PR is merged (the merge wakes any session watching it), run `/retro` on the

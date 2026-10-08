@@ -73,7 +73,14 @@ Postgres on Neon, written alongside the JSON, and what the site reads. It holds 
 what Steam reports, as Score history: no ranks and no derived boards. The schema is
 `web/db/schema.ts` (Drizzle), and its migrations in `web/db/migrations/` are generated from
 it with `pnpm db:generate` and applied by `pnpm db:migrate`, which `pnpm build` runs first,
-so each Vercel deploy migrates the branch it reads. Never edit a migration by hand.
+so each Vercel deploy migrates the database it reads. Never edit a migration by hand. A
+preview reads production for now (below), so its build skips the migration: a branch's
+schema reaches production only when it merges, and its preview fails on any page that
+needs the new tables.
+
+The database sits in a Neon organization that Vercel manages, not in anyone's own Neon
+account, so it opens from Vercel: the `ballest` project's Storage tab, the database, then
+Open in Neon.
 
 - `refreshes`: one per collector Refresh, or per git snapshot replayed by the backfill
   (`source`, and `commit_sha` for a backfill).
@@ -212,8 +219,8 @@ it once a Refresh has committed.
 ### Seeding a branch
 
 `pnpm db:seed <dataset>` in `web/` empties every table of the database at `DATABASE_URL`
-and writes a named dataset, in one transaction. The database must already be migrated: a
-preview's deploy migrates its branch, and locally `pnpm db:migrate` does. Run it with no
+and writes a named dataset, in one transaction. The database must already be migrated,
+locally by `pnpm db:migrate`. Run it with no
 name, or a wrong one, to list the datasets. `empty` has no rows; `tiny` has two Tracks, an
 Overall board, three Maps, four Dailies (three final, one live with a failed read), ten
 players and three Refreshes of Score history, and is also the fixture the read layer's
@@ -226,10 +233,12 @@ unset, for any host but localhost unless `--i-know-this-is-not-production` is pa
 
 - **Locally**, use a local Postgres: `DATABASE_URL=postgres://postgres:postgres@localhost:5432/<db>`.
   Never `vercel env pull`: Vercel's Development variables point at production.
-- **A preview branch**: Neon gives a git branch's preview deploys their own database
-  branch, `preview/<git-branch>`, copied from production on the first deploy and reused by
-  later ones, so a seed stays until that branch is deleted. Copy its connection string
-  from the Neon console, then from `web/`:
+- **A preview branch**: not yet. Previews read production (found on PR #152, 2026-10-08):
+  the Neon integration gives them no branch of their own, and the seed refuses production.
+  Once branching per preview is turned on in the integration, a git branch's preview deploys
+  get `preview/<git-branch>`, copied from production on the first deploy and reused by later
+  ones, so a seed stays until that branch is deleted. Copy its connection string from the
+  Neon console, then from `web/`:
   `PRODUCTION_DB_ENDPOINT=<production endpoint ID> DATABASE_URL='<preview branch URL>' pnpm db:seed tiny`.
   The preview shows the seeded rows once its cached reads are revalidated, by a
   `POST /api/revalidate` to it with the secret. A new deploy may not be: the Data Cache
