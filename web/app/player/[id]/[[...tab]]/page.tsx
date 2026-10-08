@@ -1,4 +1,4 @@
-// /player/<steam_id>[/circuit|workshop|made]: a player's page (components/player). With no
+// /player/<steam_id>[/circuit|workshop|made|daily]: a player's page (components/player). With no
 // tab in the path it opens on the player's home tab. The leaders of Season 2's Overall
 // board are prerendered; anyone else is served from the App Shell, then cached whole.
 import type { Metadata } from "next";
@@ -9,7 +9,7 @@ import { DocTitle } from "../../../../components/Behaviours";
 import { Shell } from "../../../../components/Shell";
 import { PlayerSkeleton } from "../../../../components/Skeleton";
 import { PlayerView, tabFor } from "../../../../components/player/PlayerView";
-import { getBoardPage, getPlayer } from "../../../../db/data";
+import { getBoardPage, getDailies, getPlayer, getPlayerDailies } from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
 import { isPlayerTab } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
@@ -36,18 +36,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const name = personaOf(rec.who);
   return {
     title: name,
-    description: `${name}'s Circuit and Workshop times on Ballest of Them All, read straight from Steam.`,
+    description: `${name}'s Circuit, Workshop and Daily times on Ballest of Them All, read straight from Steam.`,
   };
 }
 
 async function Player({ params }: Pick<Props, "params">) {
   const p = await params;
-  const rec = await recordOf(p);
-  if (!rec) notFound();
+  const [rec, mine, days] = await Promise.all([recordOf(p), getPlayerDailies(p.id), getDailies()]);
+  if (!rec || !mine) notFound();
   return (
     <>
       <DocTitle title={personaOf(rec.who)} />
-      <PlayerView rec={rec} tab={tabFor(rec, p.tab?.[0] ?? null)} />
+      <PlayerView rec={rec} tab={tabFor(rec, p.tab?.[0] ?? null)} daily={{ mine, days }} />
     </>
   );
 }

@@ -262,4 +262,6 @@ testing in a sandboxed game copy: `docs/agents/plugins.md`.
 they document the game developers' internal backend hosts and endpoints. Never copy their
 contents into a committed file, a commit message, or a PR description. The agreed stance
 for this project is read-only, sourced from Steam rather than the developers' servers, at
-a modest cadence.
+a modest cadence. The one exception is the public API the developers gave us for the
+Daily (ADR 0007): the collector asks it which Steam board is each day's Daily, with its
+endpoint and key in GitHub secrets only, and still reads the scores from Steam.

@@ -3,7 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { circuitBoard } from "./lib/circuit";
 import { plValid } from "./lib/players";
 import {
+  DAILY_DATE,
+  DAILY_STANDINGS,
   PLAYER_TABS,
+  isDailyDate,
   PODIUM_SORT,
   isPlScope,
   isPlSort,
@@ -25,6 +28,8 @@ import { isPreset } from "./lib/workshop";
 //   its own, or the Circuit by Maps (it has no Maps column), goes to the scope's table.
 // - So are All maps' views, and a Map's path has a fixed shape (a Map that has left the
 //   Workshop is only known to the page, which sends the reader home).
+// - A Daily's path is /daily, /daily/<a real day> or /daily/standings; a well-formed day
+//   with no Daily is only known to the page, which sends the reader to /daily.
 // - A player's or a head to head's path that isn't shaped like one (no Steam ID, an
 //   unknown tab) is the same; one with a Steam ID nobody raced under can only be a soft
 //   404. A head to head of a player against themselves is just their page.
@@ -33,6 +38,7 @@ const PLAYER_PATH = new RegExp(`^/player/${ID}(?:/(?:${PLAYER_TABS.join("|")}))?
 const VS_PATH = new RegExp(`^/vs/(${ID})/(${ID})$`);
 const MAP_PATH = new RegExp(`^/map/\\d{1,20}(/${ID})?$`);
 /* a board's name is letters, digits and _, so it never needs decoding */
+const DAILY_PATH = new RegExp(`^/daily(?:/(${DAILY_DATE.source}|${DAILY_STANDINGS}))?/?$`);
 const BOARD_PATH = new RegExp(`^/board/(\\w{1,64})(?:/(?:${ID}|${PODIUM_SORT}))?/?$`);
 
 const notFound = (request: NextRequest) =>
@@ -60,6 +66,11 @@ export function proxy(request: NextRequest) {
   const maps = /^\/maps\/(.*)$/.exec(path);
   if ((maps?.[1] && !isPreset(maps[1])) || (path.startsWith("/map/") && !MAP_PATH.test(path)))
     return notFound(request);
+  if (path.startsWith("/daily/")) {
+    const day = DAILY_PATH.exec(path);
+    if (!day || (day[1] && day[1] !== DAILY_STANDINGS && !isDailyDate(day[1])))
+      return notFound(request);
+  }
   const vs = VS_PATH.exec(path);
   if (vs && vs[1] === vs[2]) return NextResponse.redirect(new URL(playerHref(vs[1]), request.url));
   if ((path.startsWith("/player/") && !PLAYER_PATH.test(path)) || (path.startsWith("/vs/") && !vs))
@@ -76,5 +87,6 @@ export const config = {
     "/map/:path*",
     "/player/:path*",
     "/vs/:path*",
+    "/daily/:path*",
   ],
 };

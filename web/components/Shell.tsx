@@ -7,22 +7,32 @@ import { Suspense } from "react";
 import { Freshness } from "./Freshness";
 import { GroupTabs, Tabs, type GroupTab } from "./GroupTabs";
 import { Rack } from "./Marble";
-import { getSite, getWorkshop } from "../db/data";
+import { getDailyDates, getSite, getWorkshop } from "../db/data";
 import { groupsOf, overallOf } from "../lib/player";
-import { PLAYERS_TAB, WORKSHOP_GROUP, boardHref, homeHref, playersHref } from "../lib/routes";
+import {
+  DAILY_TAB,
+  PLAYERS_TAB,
+  WORKSHOP_GROUP,
+  boardHref,
+  dailyHref,
+  homeHref,
+  playersHref,
+} from "../lib/routes";
 import { SITE_TITLE } from "../lib/rules";
 
-export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "players";
+export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "players" | "daily";
 
-/* the Workshop is the homepage, so its tab leads; Players, over every board, comes last */
+/* the Workshop is the homepage, so its tab leads and the Daily, a Map a day, follows it;
+   Players, over every board, comes last */
 async function tabs(): Promise<Array<GroupTab>> {
-  const [site, maps] = await Promise.all([getSite(), getWorkshop()]);
+  const [site, maps, dailies] = await Promise.all([getSite(), getWorkshop(), getDailyDates()]);
   const seasons = groupsOf(site.boards).map((group) => {
     const open = overallOf(site.boards, group) ?? site.boards.find((b) => b.group === group);
     return { group, href: open ? boardHref(open.name) : homeHref() };
   });
   return [
     ...(maps.length ? [{ group: WORKSHOP_GROUP, href: homeHref() }] : []),
+    ...(dailies.length ? [{ group: DAILY_TAB, href: dailyHref() }] : []),
     ...seasons,
     { group: PLAYERS_TAB, href: playersHref("all", "wr") },
   ];

@@ -16,6 +16,7 @@ import "./styles/rail.css";
 import "./styles/workshop.css";
 import "./styles/players.css";
 import "./styles/maps.css";
+import "./styles/daily.css";
 import "./styles/desktop.css";
 
 const DESCRIPTION =

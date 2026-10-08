@@ -136,7 +136,12 @@ export const CREATOR_BEAT_MARGIN_TICKS = 100;
    No creator margin here: the old page's tierOf showed a creator's own run its Medal as
    is, and only the collector's author_beaten count applied CREATOR_BEAT_MARGIN_TICKS. */
 export function medalOf(medals: ReadonlyArray<number>, rank: number, score: number): MedalKey {
-  if (rank === 1) return "wr";
+  return rank === 1 ? "wr" : timeMedal(medals, score);
+}
+
+/* the Medal a time earns by itself, with no world record: a Daily's board is the Map's
+   played for one day, so its 1st is no record of the Map's */
+export function timeMedal(medals: ReadonlyArray<number>, score: number): MedalKey {
   const at = (i: number) => score <= (medals[i] ?? 0) * SCORE_TICKS_PER_SECOND;
   return at(3) ? "author" : at(2) ? "gold" : at(1) ? "silver" : at(0) ? "bronze" : "none";
 }

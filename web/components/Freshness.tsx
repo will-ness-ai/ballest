@@ -110,6 +110,10 @@ export function Freshness({
               Workshop boards are only read when Steam shows the map was played, which it can take a
               few hours to notice, plus a full read of every map once a day.
             </p>
+            <p>
+              Today&apos;s Daily is read every refresh, and each Daily once more after it closes;
+              from then on it is final.
+            </p>
             {mapsReadBy && now != null && (
               <p>
                 Every map was last read in full <b>{relTime(new Date(mapsReadBy), now)}</b>.

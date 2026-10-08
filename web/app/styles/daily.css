@@ -1,0 +1,541 @@
+/* ============================================================
+   THE DAILY (components/daily/): the days to pick from (the day strip on a phone, the
+   calendar of months beside the panel on a desktop), and one day's panel, its podium
+   steps over the dimmed picture of the Map, and the rest of its board; the Days |
+   Standings switch over both, and the all-time standings' record cards and medal table.
+   Desktop overrides: desktop.css.
+   ============================================================ */
+
+/* a day: its Map's picture, its number, its 1st's marble; today brighter, the picked day
+   outlined, a day with no Daily empty */
+.dc-day {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  overflow: hidden;
+  color: var(--text);
+}
+.dc-day img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.45;
+}
+.dc-day[data-today] img {
+  opacity: 0.9;
+}
+.dc-day[data-today] {
+  background: var(--surface2);
+}
+.dc-day[aria-current="page"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.dc-day[data-none] {
+  background: none;
+  border-color: transparent;
+  color: var(--faint);
+}
+.dc-n {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font: 600 calc(12rem / 16) var(--f-hud);
+  text-shadow: 0 1px 3px var(--bg);
+}
+.dc-day[data-none] .dc-n {
+  font-weight: 400;
+}
+.dc-mo {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: calc(9rem / 16);
+  color: var(--dim);
+  text-shadow: 0 1px 3px var(--bg);
+}
+.dc-day .marble {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 16px;
+  height: 16px;
+}
+@media (hover: hover) and (pointer: fine) {
+  a.dc-day:hover {
+    border-color: var(--accent);
+  }
+}
+
+/* a player's day (their Daily tab): bordered in the band of their place, which it shows; a
+   day they missed dimmed */
+[data-b="1"] {
+  --band: var(--gold);
+}
+[data-b="pod"] {
+  --band: var(--silver);
+}
+[data-b="t10"] {
+  --band: var(--author);
+}
+[data-b="in"] {
+  --band: var(--accent);
+}
+.dc-day[data-b] {
+  border: 2px solid var(--band);
+}
+.dc-day[data-b] img {
+  opacity: 0.6;
+}
+.dc-day[data-b="miss"] {
+  border: 1px solid var(--line);
+}
+.dc-day[data-b="miss"] img {
+  opacity: 0.12;
+}
+.dc-day[data-b="miss"] .dc-n {
+  color: var(--faint);
+}
+.dc-place {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font: 700 calc(14rem / 16) var(--f-hud);
+  color: var(--band);
+  text-shadow: 0 1px 3px var(--bg);
+}
+.dc-place small {
+  font-size: calc(9.5rem / 16);
+}
+
+/* the phone's day strip under the header, newest at the right */
+.dc-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 0 var(--pad);
+}
+.dc-days {
+  position: relative;
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  /* room for the picked day's outline */
+  padding: 3px;
+  margin: -3px;
+}
+.dc-days .dc-day {
+  flex: none;
+  width: 52px;
+}
+.dc-open {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: 600 calc(13rem / 16) var(--f-body);
+  cursor: pointer;
+}
+
+/* the months: beside the panel on a desktop, over the page from the strip's Calendar */
+.dc-side {
+  display: none;
+}
+.dc-month {
+  display: grid;
+  gap: 8px;
+}
+.dc-month h2 {
+  margin: 0;
+  font: 600 calc(15rem / 16) var(--f-hud);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.dc-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.dc-wd {
+  text-align: center;
+  font-size: calc(11rem / 16);
+  color: var(--faint);
+}
+.dc-sheet[open] {
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100dvh;
+  overflow-y: auto;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  padding: 14px var(--pad) 40px;
+  background: var(--bg);
+}
+.dc-sheet .dh h2 {
+  margin: 0;
+  font: 600 calc(16rem / 16) var(--f-hud);
+}
+.content.daily {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.dp-podium {
+  position: relative;
+  margin: 0 var(--pad);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--solid);
+  padding: 14px;
+  display: grid;
+  gap: 14px;
+}
+.dp-podbg img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.22;
+}
+.dp-podhead,
+.dp-steps {
+  position: relative;
+}
+.dp-podhead {
+  display: grid;
+  gap: 4px;
+}
+.dp-podhead h1 {
+  font-family: var(--f-marquee);
+  font-size: calc(24rem / 16);
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+.dp-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: calc(13.5rem / 16);
+  color: var(--dim);
+}
+.dp-facts b {
+  color: var(--text);
+}
+.dp-clock {
+  font-family: var(--f-hud);
+  color: var(--dim);
+}
+.dp-clock b {
+  color: var(--accent);
+}
+.dp-live {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 7px;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.dp-alltime {
+  color: var(--accent);
+  font-size: calc(13.5rem / 16);
+  font-weight: 600;
+  justify-self: start;
+}
+
+/* the podium steps: 2nd, 1st, 3rd, each step as tall as its place */
+.dp-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  text-align: center;
+}
+.dp-steps li {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  font-size: calc(12.5rem / 16);
+  min-width: 0;
+}
+.dp-steps .marble {
+  width: 34px;
+  height: 34px;
+}
+.dp-steps li[data-m="1"] .marble {
+  width: 50px;
+  height: 50px;
+}
+.dp-steps .num {
+  font-family: var(--f-hud);
+  font-variant-numeric: tabular-nums;
+}
+.dp-wn {
+  max-width: 100%;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dp-lead {
+  font-size: calc(11rem / 16);
+  color: var(--faint);
+}
+.dp-steps li b {
+  display: block;
+  width: 100%;
+  border-radius: 8px 8px 0 0;
+  background: var(--surface2);
+  font: 600 calc(18rem / 16) var(--f-hud);
+  padding: 6px 0;
+}
+.dp-steps li[data-m="1"] b {
+  padding: 18px 0;
+  color: var(--gold);
+}
+.dp-steps li[data-m="2"] b {
+  padding: 11px 0;
+  color: var(--silver);
+}
+.dp-steps li[data-m="3"] b {
+  color: var(--bronze);
+}
+.dp-steps li[data-empty] b {
+  opacity: 0.4;
+}
+.dp-none {
+  position: relative;
+  margin: 0;
+  color: var(--faint);
+}
+.content.daily > .dp-none {
+  padding: 18px var(--pad);
+}
+
+.dp-more {
+  justify-self: start;
+  margin: 0 var(--pad);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: 600 calc(13rem / 16) var(--f-body);
+  cursor: pointer;
+}
+
+/* the Days | Standings switch, at the top of both */
+.ds-switch {
+  justify-self: start;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  margin: 0 var(--pad) 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.ds-switch a {
+  padding: 6px 16px;
+  border-radius: 999px;
+  color: var(--dim);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: calc(14rem / 16);
+}
+.ds-switch a[aria-current="page"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* the standings: the record cards, then every player's medal table */
+.main.ds {
+  display: grid;
+}
+.ds-body {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  padding-bottom: 40px;
+}
+.ds-top {
+  padding: 0 var(--pad);
+}
+.ds-top h1 {
+  margin: 0 0 4px;
+  font: 600 calc(26rem / 16) var(--f-hud);
+}
+.ds-line {
+  margin: 0;
+  font-size: calc(13rem / 16);
+  color: var(--faint);
+}
+.ds-h {
+  margin: 0;
+  font: 600 calc(15rem / 16) var(--f-hud);
+}
+.ds-cards {
+  display: grid;
+  gap: 10px;
+  padding: 0 var(--pad);
+}
+.ds-card {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+}
+.ds-card .ds-h {
+  padding: 0 12px;
+}
+.ds-table {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.ds-table > .ds-h {
+  padding: 0 var(--pad);
+}
+.ds-table > .dp-more {
+  margin: 0 var(--pad);
+}
+.ds-medals {
+  margin: 0 var(--pad);
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+  font-variant-numeric: tabular-nums;
+}
+.ds-medals th,
+.ds-medals td {
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--line2);
+  text-align: center;
+}
+.ds-medals tbody tr:last-child td {
+  border-bottom: 0;
+}
+.ds-medals th {
+  font-size: calc(11rem / 16);
+  font-weight: 600;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ds-medals .ds-r {
+  width: 26px;
+  padding-left: 10px;
+  color: var(--faint);
+  font-family: var(--f-hud);
+  text-align: left;
+}
+.ds-medals .ds-who {
+  text-align: left;
+  width: 100%;
+  max-width: 0;
+}
+.ds-who > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 600;
+}
+.ds-who a {
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ds-who a:hover {
+    color: var(--accent);
+  }
+}
+.ds-who .marble {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.ds-medals th button {
+  width: 100%;
+  min-width: 34px;
+  padding: 5px 2px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ds-medals th button:hover {
+    color: var(--text);
+  }
+}
+.ds-medals th[aria-sort] button {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.ds-medals [data-medal="gold"] {
+  color: var(--gold);
+}
+.ds-medals [data-medal="silver"] {
+  color: var(--silver);
+}
+.ds-medals [data-medal="bronze"] {
+  color: var(--bronze);
+}
+.ds-medals td[data-medal] {
+  font: 600 calc(15rem / 16) var(--f-hud);
+}
+.ds-medals td[data-medal="podiums"],
+.ds-medals td[data-medal="top10"],
+.ds-medals td[data-medal="played"] {
+  color: var(--dim);
+  font-weight: 500;
+}
+.ds-medals td[data-on] {
+  color: var(--text);
+  font-weight: 700;
+}
+.ds-medals td[data-on][data-medal="gold"] {
+  color: var(--gold);
+}
+.ds-medals td[data-on][data-medal="silver"] {
+  color: var(--silver);
+}
+.ds-medals td[data-on][data-medal="bronze"] {
+  color: var(--bronze);
+}
+/* a phone keeps the medals and Played; Podiums and Top 10 are desktop columns */
+.ds-medals [data-medal="podiums"],
+.ds-medals [data-medal="top10"] {
+  display: none;
+}

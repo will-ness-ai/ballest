@@ -87,5 +87,10 @@ export default defineConfig(
       ],
     },
   },
+  {
+    // a test renders client code in the browser (happy-dom), never as a server component
+    files: ["web/test/**"],
+    rules: { "site/no-client-values": "off" },
+  },
   prettier,
 );

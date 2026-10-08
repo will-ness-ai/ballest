@@ -89,6 +89,24 @@ track order, and two asset folders differ in case from the board names (`LongHau
 - `/vs/<steam_id>/<steam_id>`, a head to head of two players.
 - `/players`, or `/players/<scope>/<sort>`: the Players table, counted over `all`,
   `circuit` or `workshop` and sorted on `wr`, `pod`, `t5` or `maps`.
+- `/daily`, or `/daily/<YYYY-MM-DD>`: the Daily page, on the newest Daily or on that day.
+  The proxy 404s any other `/daily/...` path but `/daily/standings`, and a real day with no Daily goes to
+  `/daily`. A Daily is live or final by the reader's clock against its close (`isLive` in
+  `lib/daily.ts`), so a page cached before the close flips to Final without a fresh read;
+  a timer at the close (`useNowPast`) flips it on time rather than at the next minute.
+  Every day links to its own page: on a desktop the calendar of months (`calendarOf`)
+  sits beside the day's panel and stays put while the board scrolls; on a phone a strip
+  of days under the tabs, newest at the right and opened on the picked day, stands over
+  the panel, and its Calendar button opens the same months over the page. The Daily tab
+  follows the Workshop's and is lit on every `/daily` path.
+- `/daily/standings`: the all-time Daily standings, behind the Days | Standings switch at
+  the top of the Daily page, over final Dailies only (`standingsOf` in `lib/daily.ts`), so
+  the live Daily joins once it closes. A card per record (most wins, podiums and Dailies
+  played, the longest runs of days played and of wins), each the record's top three as
+  small plates with equal values sharing a place, then "Every player": a medal table sorted
+  by any column's header button (`aria-sort`), medal order breaking ties, 25 rows before
+  "Show all". A phone drops its Podiums and Top 10 columns. Names link to the player's
+  Daily tab.
 
 The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash` replaces
 one with its path on load (`legacyPath` in `lib/routes.ts`). Every player name links to a

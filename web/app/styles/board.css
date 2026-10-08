@@ -276,6 +276,56 @@
 .plate[data-p="3"] .pl-rank {
   color: var(--bronze);
 }
+/* a plate sharing a place with the one before it (1, 2, 2) reads that place's colour */
+.plate[data-place="1"] .pl-rank {
+  color: var(--gold);
+}
+.plate[data-place="2"] .pl-rank {
+  color: var(--silver);
+}
+/* the plates drawn small, on a card (`<Plates size="small">`): one size on a phone and a
+   desktop alike, so these out-rank desktop.css's full-size podium */
+.leaders.small {
+  gap: 8px;
+  padding: 4px var(--pad) 6px;
+}
+.leaders.small .plate {
+  flex: 1 1 0;
+  gap: 5px;
+  max-width: 96px;
+}
+.leaders.small .plate[data-p="1"] {
+  padding-bottom: 6px;
+}
+.leaders.small .plate .marble {
+  width: 40px;
+  height: 40px;
+}
+.leaders.small .plate[data-p="2"] .marble {
+  width: 34px;
+  height: 34px;
+}
+.leaders.small .plate[data-p="3"] .marble {
+  width: 32px;
+  height: 32px;
+}
+/* a small plate sharing the place before it wears that place's ring as well */
+.leaders.small .plate[data-place="1"] .marble {
+  box-shadow:
+    0 0 0 3px var(--gold),
+    0 10px 24px oklch(0% 0 none / 0.42);
+}
+.leaders.small .plate[data-place="2"] .marble {
+  box-shadow:
+    0 0 0 3px var(--silver),
+    0 10px 24px oklch(0% 0 none / 0.42);
+}
+.leaders.small .pl-name {
+  font-size: calc(12rem / 16);
+}
+.leaders.small .pl-score {
+  font-size: calc(13rem / 16);
+}
 
 .bmeta {
   margin: 0 var(--pad) 9px;

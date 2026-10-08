@@ -1,9 +1,11 @@
 // A player's page: who they are, "This is me" and the score card, the tabs, and the tab
-// on screen. Everything comes from one PlayerRecord (lib/player.ts); the Circuit tab is
-// drawn here, the Workshop and Made tabs are client components over the record.
+// on screen. Everything comes from one PlayerRecord (lib/player.ts) but the Daily tab,
+// which is their Daily record over every Daily; the Circuit tab is drawn here, the
+// Workshop and Made tabs are client components over the record.
 import Link from "next/link";
 
 import { CompareButton } from "./Compare";
+import { DailyTab } from "./DailyTab";
 import { MadeTab } from "./MadeTab";
 import { MeMark, ScoreCard } from "./Me";
 import { WorkshopTab } from "./WorkshopTab";
@@ -11,6 +13,7 @@ import { BackLink } from "../BackLink";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import type { PlayerRecord, SeasonRecord, TrackTile } from "../../lib/player";
+import type { DailyCell, PlayerDailies } from "../../lib/rows";
 import { boardHref, playerHref, type PlayerTab } from "../../lib/routes";
 import { fmtN, fmtTime, ord, pctOf, personaOf, plural, safeUrl, shortGap } from "../../lib/rules";
 
@@ -27,7 +30,7 @@ function SteamMark() {
 const TABS: ReadonlyArray<{
   key: PlayerTab;
   label: string;
-  count: (rec: PlayerRecord) => number;
+  count: (rec: PlayerRecord, daily: PlayerDailies) => number;
   shown?: (rec: PlayerRecord) => boolean;
 }> = [
   { key: "circuit", label: "Circuit", count: (rec) => rec.run },
@@ -38,6 +41,7 @@ const TABS: ReadonlyArray<{
     count: (rec) => rec.made.length,
     shown: (rec) => rec.made.length > 0,
   },
+  { key: "daily", label: "Daily", count: (_, daily) => daily.played.length },
 ];
 
 const tabsOf = (rec: PlayerRecord) => TABS.filter((t) => !t.shown || t.shown(rec));
@@ -160,7 +164,16 @@ function CircuitTab({ rec }: { rec: PlayerRecord }) {
   );
 }
 
-export function PlayerView({ rec, tab }: { rec: PlayerRecord; tab: PlayerTab }) {
+export function PlayerView({
+  rec,
+  tab,
+  daily,
+}: {
+  rec: PlayerRecord;
+  tab: PlayerTab;
+  /* their Daily record, and every Daily for its calendar */
+  daily: { mine: PlayerDailies; days: ReadonlyArray<DailyCell> };
+}) {
   const url = safeUrl(rec.profileUrl);
   return (
     <div className="main">
@@ -209,7 +222,7 @@ export function PlayerView({ rec, tab }: { rec: PlayerRecord; tab: PlayerTab }) 
                 aria-current={t.key === tab ? "page" : undefined}
               >
                 {t.label}
-                <small>{fmtN(t.count(rec))}</small>
+                <small>{fmtN(t.count(rec, daily.mine))}</small>
               </Link>
             ))}
           </nav>{" "}
@@ -217,6 +230,8 @@ export function PlayerView({ rec, tab }: { rec: PlayerRecord; tab: PlayerTab }) 
             <CircuitTab rec={rec} />
           ) : tab === "workshop" ? (
             <WorkshopTab id={rec.id} w={rec.workshop} />
+          ) : tab === "daily" ? (
+            <DailyTab mine={daily.mine} days={daily.days} />
           ) : (
             <MadeTab id={rec.id} made={rec.made} holds={rec.holds} />
           )}

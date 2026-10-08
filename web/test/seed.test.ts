@@ -63,6 +63,7 @@ describe("seeding", () => {
       entries: schema.entries,
       maps: schema.maps,
       mapHistory: schema.mapHistory,
+      dailies: schema.dailies,
     })) {
       const [{ value }] = await db.select({ value: count() }).from(table);
       counts[key] = value;
@@ -72,13 +73,14 @@ describe("seeding", () => {
 
   const tinyCounts = {
     refreshes: 3,
-    boards: 6,
-    boardReads: 12,
+    boards: 10,
+    boardReads: 18,
     players: 10,
     personaHistory: 11,
-    entries: 23,
+    entries: 37,
     maps: 3,
     mapHistory: 4,
+    dailies: 4,
   };
 
   test("tiny fills every table, and seeding it again replaces rather than adds", async () => {
