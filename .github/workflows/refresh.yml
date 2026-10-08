@@ -48,7 +48,7 @@ jobs:
           BALLEST_API_KEY: ${{ secrets.BALLEST_API_KEY }}
           BALLEST_DAILY_URL: ${{ secrets.BALLEST_DAILY_URL }}
           # after the database commit, the collector asks the site to refetch its cached reads
-          SITE_URL: https://ballest.willness.dev
+          SITE_URL: https://ballestrecords.com
           REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
         run: python tools/steampy_collect.py
 
