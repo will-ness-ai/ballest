@@ -41,6 +41,31 @@
     text-align: start;
     font-size: calc(12.5rem / 16);
   }
+  /* You's card sits top right, beside the brand, and Refreshed stays where it is */
+  .hdr {
+    position: relative;
+  }
+  .hdr:has(.youcard) .freshness {
+    display: block;
+  }
+  .youcard {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    max-inline-size: 240px;
+    padding: 6px 14px 6px 6px;
+  }
+  .youcard .marble,
+  .youcard .q {
+    inline-size: 34px;
+    block-size: 34px;
+  }
+  .youcard small {
+    display: block;
+    overflow: clip;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   .groups {
     gap: 2px;

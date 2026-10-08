@@ -154,12 +154,26 @@ textarea {
   .mcard,
   .vmid,
   .go,
-  .alllink
+  .alllink,
+  .youcard
 ):active {
   scale: 0.97;
 }
 @media (prefers-reduced-motion: no-preference) {
-  :where(button, a.gtab, a.tstrip, .ptile, .scard, .wrow, .mkcard, .mcard, .vmid, .go, .alllink) {
+  :where(
+    button,
+    a.gtab,
+    a.tstrip,
+    .ptile,
+    .scard,
+    .wrow,
+    .mkcard,
+    .mcard,
+    .vmid,
+    .go,
+    .alllink,
+    .youcard
+  ) {
     transition: scale 160ms var(--ease-out);
   }
 }
