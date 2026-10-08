@@ -32,9 +32,9 @@ that is a Medal, not Played.
 _Avoid_: attempted, beaten (for Played)
 
 **You**:
-The player this browser has marked with This is me: one Steam ID kept in the browser, not
-an account. The header's card links to your page, and another player's page scores you
-against them. A claim on a Steam ID on no board counts as no You.
+The player signed in with Steam in this browser (ADR 0008). The header's card links to
+your page, boards show where you stand, and another player's page scores you against
+them. Signed in as a Steam ID on no board counts as no You.
 _Avoid_: me, current user, logged-in player
 
 **Entry**:

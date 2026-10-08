@@ -10,7 +10,8 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   footer) around a `<Suspense>` whose fallback is that view's skeleton, and reads its
   params inside the boundary, so a page whose params weren't prerendered is served from
   its static shell at once. `app/api/` holds the few reads a page makes after it has
-  loaded (a board's next rows, a search) and the revalidate hook.
+  loaded (a board's next rows, a search), the revalidate hook, and Sign in with Steam
+  (`auth/`, `me`; ADR 0008).
 - `web/components/` — the views, one folder each (`board/`, `workshop/`, `player/`,
   `players/`), and the pieces every view shares at the top level. A file is a client
   component only where it has to be: state, a browser API, or an event handler.
@@ -26,7 +27,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
     the rows it is given.
 - `web/hooks/` — the client-only hooks: the clock and debounced searches (`client.ts`), and
-  "This is me" (`me.ts`).
+  who is signed in (`me.ts`, reading `/api/me`).
 - `web/db/` — the read layer. `site.ts` is the SQL, `data.ts` the cached reads pages call
   (below), `schema.ts` the Drizzle schema the collector writes to.
 - `web/proxy.ts` — the checks that must answer before a page starts streaming: a real 404
@@ -50,6 +51,11 @@ page rendered at request time runs on whichever serverless instance takes it, an
 collector POSTs `/api/revalidate` (Bearer `REVALIDATE_SECRET`) once a Refresh has committed,
 which expires the tag, and the next request reads fresh. Searches are read fresh every
 time, since their keys would never repeat.
+
+Sign in with Steam (ADR 0008) never touches a page's cache: the session cookie is signed
+with `SESSION_SECRET` and only `/api/me` reads it, from the browser, which asks only when
+the readable `ballest-in` cookie says a session exists. Without `SESSION_SECRET` nobody can
+sign in and every page works as before.
 
 Every Circuit board and every Players view is prerendered at build. A player, a Map or a
 head to head is prerendered for a handful of the busiest, and anyone else is served from
@@ -142,7 +148,7 @@ player's row reads down to that row first. Each row carries the score of the row
 (`ahead`, from the query), which is what the interval column is worked out from, so rows
 are never re-sorted on the client.
 
-Once "This is me" is set, a banner above the plates gives You's standing on the board (a
+Once you are signed in, a banner above the plates gives You's standing on the board (a
 Map, a Track, or an Overall board on its points sort): place, score, the Medal it holds and
 a bar toward the next one (`standingOn` in `lib/standing.ts`), and a link to the board at
 your row. It reads your row from `/api/board/<name>?player=<steam id>` through
@@ -194,7 +200,7 @@ each player's real rank.
 
 The table scrolls inside its own box on a phone, so the rank and name columns stay put
 going sideways; on the desktop layout it fits, and the page scrolls. The pinned card is your own row,
-once "This is me" is set, shown at the foot while the row is out of view: how far the
+once you are signed in, shown at the foot while the row is out of view: how far the
 next rank up and the top 10 are, and a click scrolls to the row.
 
 The Players tab sits last in the tab bar, but it is not a season, so it is lit from the

@@ -2,13 +2,14 @@
 // You on this board, above its plates: your place, your score and the Medal it holds, a bar
 // toward the next Medal, and a link that opens the board at your row. It draws nothing
 // until your row has been read, so the server's page is the same for everyone; once a
-// claim is known it holds the banner's place while the row is read, so the plates don't
+// session is known it holds the banner's place while the row is read, so the plates don't
 // jump down when it lands.
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { Marble } from "../Marble";
 import { useYouOnBoard } from "../../hooks/you";
-import { boardHref, findYourselfHref } from "../../lib/routes";
+import { boardHref, signInHref } from "../../lib/routes";
 import {
   MEDAL_COLOR,
   MEDAL_LABEL,
@@ -59,16 +60,15 @@ function Holder({ bar }: { bar: boolean }) {
 
 export function YouBanner(board: BoardFacts) {
   const you = useYouOnBoard(board.name);
+  const path = usePathname();
   if (you.kind === "loading") return you.claimed ? <Holder bar={medalsOn(board) != null} /> : null;
   if (you.kind === "unset")
     return (
       <div className="you-banner yb-empty">
-        <p>
-          Mark your player page with <b>This is me</b> to see where you stand here.
-        </p>
-        <Link className="go" href={findYourselfHref()}>
-          Find yourself
-        </Link>
+        <p>Sign in to see where you stand here.</p>
+        <a className="go" href={signInHref(path)}>
+          Sign in with Steam
+        </a>
       </div>
     );
   if (you.kind === "unplayed")

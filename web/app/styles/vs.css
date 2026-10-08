@@ -1,6 +1,6 @@
 /* ---------- head to head ----------
    Two players, A on the left in --a and B on the right in --b. The same two colours
-   mark "you" and "them" on the score card a player page shows once "This is me" is set. */
+   mark "you" and "them" on the score card a player page shows once you are signed in. */
 .ca {
   color: var(--a);
 }
@@ -12,23 +12,6 @@
   align-items: center;
   gap: 10px;
   margin-block-start: 6px;
-}
-.mebtn {
-  padding: 3px 10px;
-  border-radius: 99px;
-  border: 1px solid var(--line);
-  font-family: var(--f-hud);
-  font-size: calc(11rem / 16);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-@media (hover: hover) and (pointer: fine) {
-  .mebtn:hover {
-    border-color: var(--a);
-    color: var(--text);
-  }
 }
 .you {
   padding: 3px 9px;

@@ -9,10 +9,10 @@ import type { PlayerRecord } from "../lib/player";
 import type { YourRow } from "../lib/standing";
 
 export type YouOnBoard =
-  /* nobody claimed in this browser, or a claim on a Steam ID the site doesn't know */
+  /* signed out, or signed in as a Steam ID the site doesn't know */
   | { kind: "unset" }
   /* not known yet: hydrating, or You's record or row still being read (or a read failed).
-     `claimed` as in useYou: a claim is known to exist */
+     `claimed` as in useYou: a session is known to exist */
   | { kind: "loading"; claimed: boolean }
   /* You, with no Entry on this board */
   | { kind: "unplayed"; who: PlayerRecord["who"] }

@@ -6,7 +6,7 @@
 // The rule reaches only into this element's parent (the page's content), so a page Next
 // keeps hidden after you navigate away leaves the others alone. That is `:has()` on this
 // style element rather than a bare `@scope`: Chromium 141 keeps a bare `@scope` rule's
-// styles after its element is removed, which left a cleared claim highlighted.
+// styles after its element is removed, which left a previous You highlighted.
 import { useId } from "react";
 
 import { useYouOnBoard } from "../../hooks/you";

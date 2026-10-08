@@ -1,19 +1,22 @@
 "use client";
 // You's card in the header, on every page: your marble and name, with your All Seasons place
-// and Maps played on a desktop, linking to your page. With nobody claimed, or a claim the
-// site doesn't know, it leads to Players to find yourself. Drawn once the browser can tell
-// which, so a claimed visitor never sees "Find yourself" flash first; while a claim's record
-// is read, a blank card holds its place, so on a phone the Refreshed line it replaces
+// and Maps played on a desktop, linking to your page. Signed out, or signed in as a Steam ID
+// the site doesn't know, it is Sign in with Steam, coming back to this page. Drawn once the
+// browser can tell which, so a signed-in visitor never sees Sign in flash first; while your
+// record is read, a blank card holds its place, so on a phone the Refreshed line it replaces
 // doesn't flash back in.
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { Marble } from "./Marble";
+import { SteamMark } from "./SteamMark";
 import { useYou } from "../hooks/me";
-import { findYourselfHref, playerHref } from "../lib/routes";
+import { playerHref, signInHref } from "../lib/routes";
 import { ord, personaOf, plural } from "../lib/rules";
 
 export function YouCard() {
   const you = useYou();
+  const path = usePathname();
   if (you.state === "loading")
     return you.claimed ? (
       <span className="youcard yc-wait" aria-hidden="true">
@@ -26,15 +29,17 @@ export function YouCard() {
     ) : null;
   if (you.state === "none")
     return (
-      <Link className="youcard find" href={findYourselfHref()}>
-        <span className="q" aria-hidden="true">
-          ?
+      <a className="youcard find" href={signInHref(path)}>
+        <span className="q">
+          <SteamMark />
         </span>
         <span>
-          <b>Find yourself</b>
-          <small>Mark your page with This is me</small>
+          <b>
+            Sign in<span className="yc-wide"> with Steam</span>
+          </b>
+          <small>See where you stand</small>
         </span>
-      </Link>
+      </a>
     );
   const { rec } = you;
   return (

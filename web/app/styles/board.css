@@ -138,10 +138,19 @@
   display: inline-grid;
   place-items: center;
   flex: none;
-  border: 1px dashed var(--accent);
   border-radius: 50%;
 }
-/* the blank card that holds the place while a claim's record is read */
+/* Sign in with Steam: "with Steam" only where there is room, the mark says it on a phone */
+.youcard .yc-wide {
+  display: none;
+}
+/* Steam's mark on Sign in with Steam */
+.youcard .q svg {
+  inline-size: 22px;
+  block-size: 22px;
+  fill: currentColor;
+}
+/* the blank card that holds the place while your record is read */
 .yc-wait {
   inline-size: 8em;
 }

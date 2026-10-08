@@ -60,6 +60,9 @@
     inline-size: 34px;
     block-size: 34px;
   }
+  .youcard .yc-wide {
+    display: inline;
+  }
   .youcard small {
     display: block;
     overflow: clip;

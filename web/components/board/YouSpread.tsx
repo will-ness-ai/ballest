@@ -1,6 +1,6 @@
 "use client";
 // The spread chart with You's time on it, once your row on the board has been read. Until
-// then, and with no claim or no time here, it is the same chart the server drew.
+// then, and signed out or with no time here, it is the same chart the server drew.
 import { Spread } from "./Spread";
 import { useYouOnBoard } from "../../hooks/you";
 import type { SpreadChart } from "../../lib/spread";

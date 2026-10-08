@@ -1,50 +1,29 @@
 "use client";
-// "This is me" on a player's page, and the score card it brings: with it set, anyone
-// else's page reads your record (useYou) and shows you against them. The page is drawn
-// first and the card lands when your record does.
+// You on a player's page: Sign out on your own, and on anyone else's, once you're signed in,
+// the score card against them (it reads your record with useYou). The page is drawn first
+// and the card lands when your record does.
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { Score } from "./Score";
 import { Marble } from "../Marble";
-import { setMe, useMe, useYou } from "../../hooks/me";
+import { useMe, useYou } from "../../hooks/me";
 import { matchup, type PlayerRecord } from "../../lib/player";
-import { vsHref } from "../../lib/routes";
+import { signOutHref, vsHref } from "../../lib/routes";
 import { personaOf, plural } from "../../lib/rules";
 
-/* "This is me" on a page nobody has claimed, "This is you" with undo on your own, and
-   nothing on anyone else's */
-export function MeMark({ id }: { id: string }) {
+/* "This is you" and Sign out on your own page, nothing on anyone else's */
+export function SignOut({ id }: { id: string }) {
   const me = useMe();
-  if (me === id)
-    return (
-      <span className="pme">
-        <span className="you">This is you</span>{" "}
-        <button
-          type="button"
-          className="linkbtn"
-          data-me=""
-          onClick={() => {
-            setMe(null);
-          }}
-        >
-          undo
-        </button>
-      </span>
-    );
-  if (me) return null;
+  const path = usePathname();
+  if (me !== id) return null;
   return (
-    <span className="pme">
-      <button
-        type="button"
-        className="mebtn"
-        data-me={id}
-        onClick={() => {
-          setMe(id);
-        }}
-      >
-        This is me
+    <form className="pme" method="post" action={signOutHref(path)}>
+      <span className="you">This is you</span>{" "}
+      <button type="submit" className="linkbtn">
+        Sign out
       </button>
-    </span>
+    </form>
   );
 }
 

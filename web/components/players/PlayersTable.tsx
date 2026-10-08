@@ -2,7 +2,7 @@
 // The Players table: the search, the scope tabs, the note, then every player ranked by the
 // column the reader sorts on (lib/players.ts), drawn a step at a time as the table scrolls.
 // On a phone the table scrolls inside its own box, on the desktop layout the page itself does. Your
-// own row ("This is me"), while it is out of view, is pinned to the foot as a card that
+// own row (signed in), while it is out of view, is pinned to the foot as a card that
 // says how far the next rank and the top 10 are; tapping it brings the row into view.
 import Link from "next/link";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
