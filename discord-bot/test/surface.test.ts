@@ -1,5 +1,6 @@
 // The Surface port, driven through its interface over an in-memory channel and SQLite in
 // memory: where Cards, Match Threads and the Footer end up, across failures and restarts.
+import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Context, Effect, Layer, Option } from "effect";
@@ -33,6 +34,10 @@ const makeFakeChannel = () => {
 
   /** Every drawing posted as a new message, in order: only these can notify a mention. */
   const posted: Array<Drawing> = [];
+  /** Every drawing drawn over an existing message, in order. */
+  const redrawn: Array<Drawing> = [];
+  /** Stands for the bot's build: a new one may draw the same Drawing differently. */
+  let build = 1;
 
   const port = Channel.of({
     post: (drawing) =>
@@ -43,12 +48,14 @@ const makeFakeChannel = () => {
         posted.push(drawing);
         return Effect.succeed(id);
       }),
+    fingerprint: (drawing) => Effect.sync(() => `build ${build}: ${label(drawing)}`),
     redraw: (messageId, drawing) =>
       Effect.suspend((): Effect.Effect<void, Gone | DiscordError> => {
         if (fail("redraw")) return Effect.fail(broken("redraw"));
         const m = find(messageId);
         if (m === undefined) return Effect.fail(new Gone({ id: messageId }));
         m.drawing = drawing;
+        redrawn.push(drawing);
         return Effect.void;
       }),
     deleteMessage: (messageId) =>
@@ -112,6 +119,12 @@ const makeFakeChannel = () => {
     order: () => messages.map((m) => label(m.drawing)),
     /** What was posted as a new message rather than drawn over an old one, in order. */
     posted: () => posted.map((d) => label(d)),
+    /** What was drawn over an existing message, in order. */
+    redrawn: () => redrawn.map((d) => label(d)),
+    /** Deploy a build that draws everything differently. */
+    newBuild: () => {
+      build++;
+    },
     /** The thread started on a Match's Card, if any, and what was posted in it. */
     threadPosts: (matchId: string) => {
       const card = messages.find(
@@ -155,7 +168,12 @@ const setup = Effect.gen(function* () {
   /** Where the latest start says a Match's Card and thread are. */
   const placeOf = (matchId: string) =>
     Effect.suspend(() => links.of(matchId)).pipe(Effect.map(Option.getOrNull));
-  return { channel, start, placeOf };
+  /** Make the saved layout one written before Footer fingerprints were kept. */
+  const forgetFingerprint = Effect.gen(function* () {
+    const db = yield* SqlClient.SqlClient;
+    yield* db`UPDATE discord_layout SET data = json_remove(data, '$.footerFingerprint')`;
+  }).pipe(Effect.provide(sql), Effect.orDie);
+  return { channel, start, placeOf, forgetFingerprint };
 });
 
 describe("the channel", () => {
@@ -400,5 +418,64 @@ describe("after a restart", () => {
       yield* start;
       expect(channel.order()).toEqual(["card m1", "someone else", "footer"]);
     }),
+  );
+
+  it.scoped(
+    "leaves an unchanged Footer unedited, so a deploy doesn't look like channel activity",
+    () =>
+      Effect.gen(function* () {
+        const { channel, start } = yield* setup;
+        yield* start;
+        yield* start;
+        expect(channel.redrawn()).toEqual([]);
+        expect(channel.order()).toEqual(["footer"]);
+      }),
+  );
+
+  it.scoped("leaves alone a Footer posted below a new Card, too", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup;
+      yield* (yield* start).showCard(view("m1"));
+      const before = channel.redrawn().length;
+      yield* start;
+      expect(channel.redrawn().length).toBe(before);
+    }),
+  );
+
+  it.scoped("redraws the Footer once when a new build draws it differently", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup;
+      yield* start;
+      channel.newBuild();
+      yield* start;
+      yield* start;
+      expect(channel.redrawn()).toEqual(["footer"]);
+      expect(channel.order()).toEqual(["footer"]);
+    }),
+  );
+
+  it.scoped("redraws the Footer once after a layout saved before fingerprints were kept", () =>
+    Effect.gen(function* () {
+      const { channel, start, forgetFingerprint } = yield* setup;
+      yield* start;
+      yield* forgetFingerprint;
+      yield* start;
+      yield* start;
+      expect(channel.redrawn()).toEqual(["footer"]);
+    }),
+  );
+
+  it.scoped(
+    "redraws the Footer after a Card that was being drawn over it didn't get recorded",
+    () =>
+      Effect.gen(function* () {
+        const { channel, start } = yield* setup;
+        const surface = yield* start;
+        channel.failNext("redraw", 1);
+        yield* surface.showCard(view("m1"));
+        yield* start;
+        expect(channel.redrawn()).toEqual(["footer"]);
+        expect(channel.order()).toEqual(["footer"]);
+      }),
   );
 });

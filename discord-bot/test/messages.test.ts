@@ -9,6 +9,7 @@ import {
   cardMessage,
   closedCardMessage,
   confirmLeaveMessage,
+  fingerprint,
   footerMessage,
   type Payload,
   pingDeclinedMessage,
@@ -294,5 +295,20 @@ describe("thread posts", () => {
       ALICE.discordId,
       BOB.discordId,
     ]);
+  });
+});
+
+describe("fingerprint", () => {
+  it("is the same for two payloads that draw the same message", () => {
+    expect(fingerprint(footerMessage(Buffer.from([1, 2])))).toBe(
+      fingerprint(footerMessage(Buffer.from([1, 2]))),
+    );
+  });
+
+  it("changes when the image, the text or the buttons do", () => {
+    const footer = footerMessage(Buffer.from([1, 2]));
+    expect(fingerprint(footerMessage(Buffer.from([1, 3])))).not.toBe(fingerprint(footer));
+    expect(fingerprint({ ...footer, content: "hi" })).not.toBe(fingerprint(footer));
+    expect(fingerprint({ ...footer, components: [] })).not.toBe(fingerprint(footer));
   });
 });
