@@ -52,3 +52,5 @@ Strategies, cheapest first:
    board. N=100 is ~1,400 a day.
 3. **Everything, only new**: ~5,000 a day after a two-day backfill; the only way a whole
    board can sort by a ghost stat.
+
+Round verdicts so far: 1 C Expand, 2 A Gap + D Race, 3 B Linked; round 4 (stats) open.
