@@ -1,5 +1,6 @@
 // The Surface port, driven through its interface over an in-memory channel and SQLite in
 // memory: where Cards, Match Threads and the Footer end up, across failures and restarts.
+import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Context, Effect, Layer, Option } from "effect";
@@ -167,7 +168,12 @@ const setup = Effect.gen(function* () {
   /** Where the latest start says a Match's Card and thread are. */
   const placeOf = (matchId: string) =>
     Effect.suspend(() => links.of(matchId)).pipe(Effect.map(Option.getOrNull));
-  return { channel, start, placeOf };
+  /** Make the saved layout one written before Footer fingerprints were kept. */
+  const forgetFingerprint = Effect.gen(function* () {
+    const db = yield* SqlClient.SqlClient;
+    yield* db`UPDATE discord_layout SET data = json_remove(data, '$.footerFingerprint')`;
+  }).pipe(Effect.provide(sql), Effect.orDie);
+  return { channel, start, placeOf, forgetFingerprint };
 });
 
 describe("the channel", () => {
@@ -446,5 +452,30 @@ describe("after a restart", () => {
       expect(channel.redrawn()).toEqual(["footer"]);
       expect(channel.order()).toEqual(["footer"]);
     }),
+  );
+
+  it.scoped("redraws the Footer once after a layout saved before fingerprints were kept", () =>
+    Effect.gen(function* () {
+      const { channel, start, forgetFingerprint } = yield* setup;
+      yield* start;
+      yield* forgetFingerprint;
+      yield* start;
+      yield* start;
+      expect(channel.redrawn()).toEqual(["footer"]);
+    }),
+  );
+
+  it.scoped(
+    "redraws the Footer after a Card that was being drawn over it didn't get recorded",
+    () =>
+      Effect.gen(function* () {
+        const { channel, start } = yield* setup;
+        const surface = yield* start;
+        channel.failNext("redraw", 1);
+        yield* surface.showCard(view("m1"));
+        yield* start;
+        expect(channel.redrawn()).toEqual(["footer"]);
+        expect(channel.order()).toEqual(["footer"]);
+      }),
   );
 });

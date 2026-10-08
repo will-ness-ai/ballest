@@ -50,7 +50,7 @@ interface CardRef {
 interface Layout {
   readonly footerId: string | null;
   /** The fingerprint of what the Footer shows; null when unknown, so the next start redraws it. */
-  readonly footerShows: string | null;
+  readonly footerFingerprint: string | null;
   readonly cards: ReadonlyMap<string, CardRef>;
   /** Where finished Matches' Cards and threads are, oldest first. */
   readonly finished: ReadonlyMap<string, MatchPlace>;
@@ -62,7 +62,7 @@ const FINISHED_KEPT = 100;
 const LayoutJson = Schema.parseJson(
   Schema.Struct({
     footerId: Schema.NullOr(Schema.String),
-    footerShows: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
+    footerFingerprint: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
     cards: Schema.Array(
       Schema.Tuple(
         Schema.String,
@@ -112,10 +112,15 @@ const make = Effect.gen(function* () {
   const saved = yield* loadLayout(undefined).pipe(Effect.orDie);
   const layout = yield* Ref.make<Layout>(
     Option.match(saved, {
-      onNone: () => ({ footerId: null, footerShows: null, cards: new Map(), finished: new Map() }),
+      onNone: () => ({
+        footerId: null,
+        footerFingerprint: null,
+        cards: new Map(),
+        finished: new Map(),
+      }),
       onSome: ({ data }) => ({
         footerId: data.footerId,
-        footerShows: data.footerShows,
+        footerFingerprint: data.footerFingerprint,
         cards: new Map(data.cards),
         finished: new Map(data.finished),
       }),
@@ -125,7 +130,7 @@ const make = Effect.gen(function* () {
     const next = yield* Ref.updateAndGet(layout, (current) => change(current));
     const data = yield* Schema.encode(LayoutJson)({
       footerId: next.footerId,
-      footerShows: next.footerShows,
+      footerFingerprint: next.footerFingerprint,
       cards: [...next.cards],
       finished: [...next.finished],
     });
@@ -133,17 +138,17 @@ const make = Effect.gen(function* () {
   }, Effect.orDie);
   const setCard = (matchId: string, card: CardRef) =>
     setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }));
-  const setFooter = (footerId: string | null, footerShows: string | null) =>
-    setLayout((l) => ({ ...l, footerId, footerShows }));
+  const setFooter = (footerId: string | null, footerFingerprint: string | null) =>
+    setLayout((l) => ({ ...l, footerId, footerFingerprint }));
 
   /** What this build's Footer looks like, or null if it can't be drawn (then it's redrawn next start). */
-  const footerFingerprint = channel.fingerprint(Drawing.Footer()).pipe(
+  const thisBuildsFooter = channel.fingerprint(Drawing.Footer()).pipe(
     Effect.tapError((e) => logFailure(e)),
     Effect.orElseSucceed(() => null),
   );
   const postFooter = Effect.fn("postFooter")(function* () {
-    const shows = yield* footerFingerprint;
-    yield* setFooter(yield* channel.post(Drawing.Footer()), shows);
+    const fingerprint = yield* thisBuildsFooter;
+    yield* setFooter(yield* channel.post(Drawing.Footer()), fingerprint);
   });
 
   /** The latest view of each Card, only to name a Match Thread started late. */
@@ -231,6 +236,9 @@ const make = Effect.gen(function* () {
    */
   const createCard = Effect.fn("createCard")(function* (view: CardView) {
     const { footerId } = yield* Ref.get(layout);
+    // Forget what the Footer shows before drawing over it: if the bot stops before this Card is
+    // recorded, the next start redraws the Footer rather than trusting a fingerprint it no longer has.
+    if (footerId !== null) yield* setFooter(footerId, null);
     const card = Drawing.Card({ view });
     const messageId =
       footerId === null || view.type === "lobby"
@@ -301,13 +309,19 @@ const make = Effect.gen(function* () {
 
   // Startup: the Footer must be the channel's last message, with today's wording, and is edited
   // only if this build draws it differently.
-  const { footerId, footerShows } = yield* Ref.get(layout);
-  const last = yield* channel.lastMessageId.pipe(Effect.orElseSucceed(() => null));
+  // If the newest message can't be read, the Footer is assumed still last rather than reposted.
+  const { footerId, footerFingerprint } = yield* Ref.get(layout);
+  const last = yield* channel.lastMessageId.pipe(
+    Effect.tapError((e) => logFailure(e)),
+    Effect.orElseSucceed(() => footerId),
+  );
   if (footerId !== null && footerId === last) {
-    const shows = yield* footerFingerprint;
-    if (shows === null || shows !== footerShows)
+    const fingerprint = yield* thisBuildsFooter;
+    if (fingerprint === null || fingerprint !== footerFingerprint)
       yield* unlessGone(
-        channel.redraw(footerId, Drawing.Footer()).pipe(Effect.andThen(setFooter(footerId, shows))),
+        channel
+          .redraw(footerId, Drawing.Footer())
+          .pipe(Effect.andThen(setFooter(footerId, fingerprint))),
       );
   } else {
     if (footerId !== null) yield* unlessGone(channel.deleteMessage(footerId));
