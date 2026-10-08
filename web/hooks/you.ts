@@ -1,21 +1,22 @@
 "use client";
 // You on one board: your row (rank and score) on the board a page shows, read once per page
-// load from /api/board/<name>?player=<you>. Who You are comes from useMe alone; every view
-// that shows You on a board (the banner, the graph line, the highlights) reads this hook,
-// so they share one request and agree.
+// load from /api/board/<name>?player=<you>. Who You are comes from useYou (hooks/me.ts)
+// alone; every view that shows You on a board (the banner, the graph line, the highlights)
+// reads this hook, so they share one request and agree.
 import { useEffect, useState } from "react";
 
-import { useMe } from "./me";
+import { useYou } from "./me";
+import type { PlayerRecord } from "../lib/player";
 import type { YourRow } from "../lib/standing";
 
 export type YouOnBoard =
-  /* nobody claimed in this browser */
+  /* nobody claimed in this browser, or a claim on a Steam ID the site doesn't know */
   | { kind: "unset" }
-  /* claimed, row still being read */
-  | { kind: "loading"; id: string }
-  /* claimed, and no Entry on this board (or a Steam ID nobody raced under) */
-  | { kind: "unplayed"; id: string }
-  | { kind: "played"; id: string; row: YourRow };
+  /* not known yet: hydrating, or You's record or row still being read (or a read failed) */
+  | { kind: "loading" }
+  /* You, with no Entry on this board */
+  | { kind: "unplayed"; who: PlayerRecord["who"] }
+  | { kind: "played"; who: PlayerRecord["who"]; row: YourRow };
 
 /* one read per board and player for the page's lifetime; a failed read is forgotten so a
    later mount tries again */
@@ -36,7 +37,8 @@ function readRow(name: string, id: string): Promise<YourRow | null> {
 }
 
 export function useYouOnBoard(name: string): YouOnBoard {
-  const id = useMe();
+  const you = useYou();
+  const id = you.state === "ready" ? you.id : null;
   const [got, setGot] = useState<{ key: string; row: YourRow | null } | null>(null);
   const key = name + "\n" + (id ?? "");
   useEffect(() => {
@@ -46,13 +48,14 @@ export function useYouOnBoard(name: string): YouOnBoard {
       (row) => {
         if (live) setGot({ key, row });
       },
-      () => undefined /* stays loading: the banner draws nothing rather than a wrong state */,
+      () => undefined /* stays loading: draw nothing rather than a wrong state */,
     );
     return () => {
       live = false;
     };
   }, [name, id, key]);
-  if (!id) return { kind: "unset" };
-  if (got?.key !== key) return { kind: "loading", id };
-  return got.row ? { kind: "played", id, row: got.row } : { kind: "unplayed", id };
+  if (you.state === "none") return { kind: "unset" };
+  if (you.state === "loading" || got?.key !== key) return { kind: "loading" };
+  const who = you.rec.who;
+  return got.row ? { kind: "played", who, row: got.row } : { kind: "unplayed", who };
 }

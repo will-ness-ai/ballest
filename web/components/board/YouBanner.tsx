@@ -56,7 +56,7 @@ export function YouBanner(board: BoardFacts) {
   const score = s.points ? fmtN(you.row.score) + " pts" : fmtTime(you.row.score);
   return (
     <div className="you-banner">
-      <Marble who={{ steamId: you.id }} />
+      <Marble who={you.who} />
       <div className="yb-t">
         <p>
           You&apos;re <b>{ord(s.place)}</b> of {fmtN(s.field)} with <b>{score}</b>
@@ -77,7 +77,7 @@ export function YouBanner(board: BoardFacts) {
           </p>
         )}
       </div>
-      <Link className="go" href={boardHref(board.name, you.id)}>
+      <Link className="go" href={boardHref(board.name, you.who.steamId)}>
         Jump to my row
       </Link>
     </div>
