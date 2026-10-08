@@ -82,6 +82,63 @@
   vertical-align: 1px;
 }
 
+/* You's card (YouCard.tsx). On a phone it folds to marble and name and takes the
+   Refreshed line's place; the desktop's card adds your place and Maps under the name */
+.hdr:has(.youcard) .freshness {
+  display: none;
+}
+.youcard {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  max-inline-size: 170px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: calc(13rem / 16);
+  font-weight: 700;
+  text-decoration: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .youcard:hover {
+    border-color: color-mix(in oklch, var(--accent) 45%, transparent);
+  }
+}
+.youcard .marble,
+.youcard .q {
+  inline-size: 28px;
+  block-size: 28px;
+}
+.youcard > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+.youcard b {
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.youcard small {
+  display: none;
+  color: var(--dim);
+  font-size: calc(11rem / 16);
+  font-weight: 400;
+}
+.youcard.find {
+  color: var(--accent);
+}
+.youcard .q {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border: 1px dashed var(--accent);
+  border-radius: 50%;
+}
+
 /* six tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a label
    wraps onto two lines. The side with more tabs fades out over --edge, so the bar reads
    as one that scrolls (good-css, "Styles that apply only when a scroller overflows"),
