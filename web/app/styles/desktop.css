@@ -1,10 +1,11 @@
 /* ==========================================================================
-   820px AND UP: GLASS CABINET
+   DESKTOP, 820px AND UP (AT THE DEFAULT TEXT SIZE): GLASS CABINET
+   In em, so it is 820px at the default text size and moves out with a bigger one:
+   larger text keeps the phone layout until there is room for the table and the rail.
+   The headings and --pad that only grow here are fluid instead, through --ramp
+   (base.css), which reaches its full size exactly where this query starts.
    ========================================================================== */
-@media (min-width: 820px) {
-  :root {
-    --pad: 24px;
-  }
+@media (min-width: 51.25em) {
   .app {
     padding: 30px 24px 90px;
   }
@@ -115,9 +116,6 @@
   }
   .bc-body {
     padding: 14px 18px;
-  }
-  .bc-top h1 {
-    font-size: calc(30rem / 16);
   }
   .bc-facts {
     gap: 22px;
@@ -254,9 +252,11 @@
   .bc-by .qmark:not(.always) {
     display: none;
   }
+  /* the name gives way when the board is narrow (the rail or a map's panel beside it at
+     a small window), so a row never runs off the page */
   .head {
     display: grid;
-    grid-template-columns: 48px 26px minmax(160px, 1fr) 176px;
+    grid-template-columns: 48px 26px minmax(0, 1fr) minmax(120px, 176px);
     align-items: center;
     gap: 12px;
     padding: 9px 12px;
@@ -270,7 +270,7 @@
     border-radius: 10px 10px 0 0;
   }
   .row {
-    grid-template-columns: 48px 26px minmax(160px, 1fr) 176px;
+    grid-template-columns: 48px 26px minmax(0, 1fr) minmax(120px, 176px);
     gap: 12px;
     padding: 0 12px;
     min-height: 56px;
@@ -281,19 +281,32 @@
   .row:last-child {
     border-radius: 0 0 10px 10px;
   }
-  .board.pods .head,
-  .board.pods .row {
-    grid-template-columns: 48px 26px minmax(160px, 1fr) 150px 176px;
+  /* the podium column only gets its own column when the board has room for it beside a
+     readable name; until then the counts stay under the name, as on a phone */
+  .board.pods {
+    container-type: inline-size;
   }
-  .board.pods .row {
-    grid-template-rows: auto;
+  .board.pods .head > .c-pods {
+    display: none;
   }
-  .board.pods .row > .c-rank,
-  .board.pods .row > .marble,
-  .board.pods .row > .c-text,
-  .board.pods .row > .c-pods,
-  .board.pods .row > .c-score {
-    grid-area: auto;
+  @container (min-width: 37.5rem) {
+    .board.pods .head,
+    .board.pods .row {
+      grid-template-columns: 48px 26px minmax(0, 1fr) 150px 176px;
+    }
+    .board.pods .head > .c-pods {
+      display: block;
+    }
+    .board.pods .row {
+      grid-template-rows: auto;
+    }
+    .board.pods .row > .c-rank,
+    .board.pods .row > .marble,
+    .board.pods .row > .c-text,
+    .board.pods .row > .c-pods,
+    .board.pods .row > .c-score {
+      grid-area: auto;
+    }
   }
   .c-pods .mc {
     font-size: calc(13.5rem / 16);
@@ -327,10 +340,6 @@
 
   .empty {
     padding: 46px 12px;
-    font-size: calc(14rem / 16);
-  }
-  .empty b {
-    font-size: 1rem;
   }
   .skel {
     padding: 0 12px;
@@ -363,9 +372,6 @@
   .pid .marble {
     width: 64px;
     height: 64px;
-  }
-  .pid h1 {
-    font-size: calc(24rem / 16);
   }
   .pstats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -485,9 +491,6 @@
     width: 34px;
     height: 34px;
   }
-  .ws-h1 {
-    font-size: calc(26rem / 16);
-  }
   .car {
     grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
   }
@@ -498,9 +501,6 @@
   }
   .car-in {
     padding: 22px;
-  }
-  .car-t {
-    font-size: calc(30rem / 16);
   }
   .strip {
     grid-auto-columns: minmax(200px, 220px);
@@ -546,7 +546,6 @@
     margin: 30px 0 0;
     padding-top: 16px;
     border-top: 1px solid var(--line2);
-    font-size: calc(12rem / 16);
     line-height: 1.6;
   }
 }

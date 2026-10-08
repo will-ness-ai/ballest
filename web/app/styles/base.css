@@ -54,7 +54,11 @@
   --glow-lime: rgba(139, 224, 60, 0.1);
   --scrim: rgba(4, 7, 14, 0.66);
   --radius: 11px;
-  --pad: 16px;
+  /* 0 on a 390px phone, rising to 1rem at desktop.css's breakpoint (820px at the default
+     text size) and staying there: a size that grows from phone to desktop is written
+     calc((Nrem + D * var(--ramp)) / 16), N its phone px and D how much it gains */
+  --ramp: clamp(0rem, (100vw - 24.375rem) / 26.875, 1rem);
+  --pad: calc((16rem + 8 * var(--ramp)) / 16);
   --f-marquee: "Bungee", system-ui, sans-serif;
   --f-hud: "Chakra Petch", system-ui, sans-serif;
   --f-body: "Archivo", system-ui, sans-serif;

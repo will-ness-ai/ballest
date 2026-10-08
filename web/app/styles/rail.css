@@ -8,7 +8,7 @@
 
 footer {
   margin: 20px var(--pad) 0;
-  font-size: calc(10.5rem / 16);
+  font-size: calc((10.5rem + 1.5 * var(--ramp)) / 16);
   color: var(--faint);
   line-height: 1.55;
   max-width: 64ch;
@@ -92,11 +92,13 @@ footer a {
   -webkit-overflow-scrolling: touch;
 }
 
-/* one definition serves the sheet and, above 820px, the rail: a strip of the
+/* one definition serves the sheet and, on the desktop layout, the rail: a strip of the
    track's screenshot behind a fade, its number, record and run count on top */
+/* a grid, so the words stretch to the strip's full height: at least its min-height, more
+   when bigger text needs it */
 .tstrip {
   position: relative;
-  display: block;
+  display: grid;
   flex: none;
   width: 100%;
   min-height: 62px;
@@ -128,7 +130,6 @@ footer a {
 .tstrip .lab {
   position: relative;
   z-index: 1;
-  height: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: 12px;

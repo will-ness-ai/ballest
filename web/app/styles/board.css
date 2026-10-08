@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MOBILE FIRST, up to 819px: SHEET RAIL
+   MOBILE FIRST, below 820px (at the default text size): SHEET RAIL
    ========================================================================== */
 .app {
   max-width: 1180px;
@@ -394,12 +394,12 @@
   padding: 38px 18px;
   text-align: center;
   color: var(--dim);
-  font-size: calc(13.5rem / 16);
+  font-size: calc((13.5rem + 0.5 * var(--ramp)) / 16);
 }
 .empty b {
   display: block;
   color: var(--text);
-  font-size: calc(15rem / 16);
+  font-size: calc((15rem + var(--ramp)) / 16);
   margin-bottom: 5px;
   font-weight: 600;
 }
@@ -558,7 +558,7 @@
 }
 
 /* the header card: a track's screenshot, or the Overall board's standings, on
-   top of (from 820px, beside) its facts */
+   top of (on the desktop layout, beside) its facts */
 .bcard {
   display: grid;
   margin: 0 var(--pad) 12px;
@@ -594,7 +594,7 @@
 .bc-top h1 {
   margin: 0;
   font-family: var(--f-hud);
-  font-size: calc(26rem / 16);
+  font-size: calc((26rem + 4 * var(--ramp)) / 16);
   font-weight: 700;
   line-height: 1;
 }

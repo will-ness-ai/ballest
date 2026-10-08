@@ -3,7 +3,7 @@
    sorts on. The header row stays put going down; your own row, when it is out of view,
    is pinned to the foot as a card that says how far the next rank and the top 10 are.
    On a phone the table is wider than the screen, so it scrolls inside a box one screen
-   tall, which keeps the rank and name columns put going sideways; from 820px it fits,
+   tall, which keeps the rank and name columns put going sideways; on the desktop layout it fits,
    and the page itself scrolls. */
 .app[data-view="players"] .main {
   display: none;
@@ -218,7 +218,7 @@
   margin: 0;
   font-family: var(--f-marquee);
   font-weight: 400;
-  font-size: calc(21rem / 16);
+  font-size: calc((21rem + 5 * var(--ramp)) / 16);
   letter-spacing: 0.01em;
 }
 .ws-tools {
