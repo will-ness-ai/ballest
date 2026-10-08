@@ -5,6 +5,7 @@
 // from ?variant=, the picker sits bottom-right. Everything for the prototype is in this
 // file plus three hooks in BoardBody.tsx marked PROTOTYPE.
 // Its preview deploy needs a change under web/ (vercel.json ignoreCommand skips prototype/).
+// Vercel keeps only the newest 10 deployments project-wide, so a quiet preview gets removed.
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { fmtTime } from "../../lib/rules";
