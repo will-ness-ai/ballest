@@ -17,7 +17,7 @@
 }
 .plwrap {
   position: relative;
-  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius);

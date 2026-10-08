@@ -1,13 +1,14 @@
-/* the centred dialogs: Compare, which picks the other player by name, and how the boards refresh */
+/* the centred dialogs: Compare, which picks the other player by name, how the boards
+   refresh and how points work. Each scrolls inside itself on a short screen. */
 .cmp,
 .rfx,
 .ptsx {
-  position: fixed;
-  left: 50%;
-  top: 12vh;
-  z-index: 41;
-  transform: translateX(-50%);
-  width: min(460px, calc(100% - 32px));
+  inset-block: 12dvh auto;
+  inset-inline: 0;
+  margin-inline: auto;
+  inline-size: min(460px, calc(100% - 32px));
+  max-block-size: calc(88dvh - 16px);
+  overflow-y: auto;
   display: grid;
   gap: 12px;
   padding: 16px;
@@ -16,12 +17,6 @@
   background: var(--solid);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
-.cmp[hidden],
-.rfx[hidden],
-.ptsx[hidden],
-.dscrim[hidden] {
-  display: none;
-}
 .cmp h2,
 .rfx h2,
 .ptsx h2 {
@@ -29,10 +24,6 @@
   font-family: var(--f-hud);
   font-size: 16px;
   overflow-wrap: anywhere;
-}
-.rfx {
-  max-height: 76vh;
-  overflow-y: auto;
 }
 .rfx table {
   width: 100%;
@@ -141,8 +132,9 @@
 .hits {
   display: grid;
   gap: 2px;
-  max-height: 50vh;
+  max-block-size: 50dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .hits p {
   margin: 4px;
