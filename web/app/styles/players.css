@@ -145,8 +145,8 @@
   min-width: 0;
   font-family: var(--f-body);
 }
-/* scoped: vs.css's .you is the pink pill on the player page */
-:is(.plt, .plpin) .you {
+/* the "You" tag in the table and its pin; .you is the player page's pink pill */
+.youtag {
   flex: none;
   font: 700 9px/1.5 var(--f-hud);
   letter-spacing: 0.14em;

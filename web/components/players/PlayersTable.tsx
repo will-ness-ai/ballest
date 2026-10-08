@@ -83,7 +83,7 @@ const Row = memo(function Row({
               tab={scope === "all" ? undefined : scope}
             />
           </span>
-          {me && <span className="you">You</span>}
+          {me && <span className="youtag">You</span>}
         </span>
       </td>
       {plCols(scope).map(([k]) => (
@@ -172,7 +172,7 @@ function Pin({
       <span className="me-t">
         <b>
           {personaOf(r.p)}
-          <span className="you">You</span>
+          <span className="youtag">You</span>
         </b>
         <small>
           {ord(r.rank)} &middot; {fmtN(r.v)} {r.v === 1 ? noun[0] : noun[1]}

@@ -144,8 +144,6 @@ footer a {
   .tstrip:hover {
     border-color: var(--line);
   }
-}
-@media (hover: hover) and (pointer: fine) {
   .tstrip:hover img {
     filter: none;
   }

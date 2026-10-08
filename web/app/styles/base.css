@@ -125,10 +125,19 @@ textarea {
 }
 
 /* buttons drawn smaller than a fingertip get an invisible 44px hit area */
-:where(.qmark, .dh button, .snav button, .mebtn, .linkbtn) {
+:where(.qmark, .dh button, .snav button, .car-nav button, .freshness button, .mebtn, .linkbtn) {
   position: relative;
 }
-:where(button.marble, .qmark, .dh button, .snav button, .mebtn, .linkbtn)::after {
+:where(
+  button.marble,
+  .qmark,
+  .dh button,
+  .snav button,
+  .car-nav button,
+  .freshness button,
+  .mebtn,
+  .linkbtn
+)::after {
   content: "";
   position: absolute;
   inset: min(0px, (100% - 44px) / 2);
