@@ -10,12 +10,14 @@ import { DocTitle } from "../Behaviours";
 import { BoardBody } from "../board/BoardBody";
 import { MapImage } from "../MapImage";
 import { ScorePlates } from "../board/BoardTop";
-import { Spread } from "../board/Spread";
 import { YouBanner } from "../board/YouBanner";
+import { YouMarks } from "../board/YouMarks";
+import { YouSpread } from "../board/YouSpread";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import type { WorkshopMap } from "../../lib/rows";
 import { homeHref, mapHref } from "../../lib/routes";
 import { BOARD_CHUNK, MEDALS, fmtN, fmtSec, fmtTime, isSteamId } from "../../lib/rules";
+import { spreadOf } from "../../lib/spread";
 import { HIDDEN, reportHref } from "../../lib/workshop";
 
 function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; asOf: number }) {
@@ -65,7 +67,12 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
       <div className="mp-chart">
         <span className="eyebrow">Every run</span>
         <div id="spread">
-          <Spread ts={scores} medals={m.medals} wide={false} />
+          <YouSpread
+            name={m.name}
+            chart={spreadOf(scores, m.medals, false)}
+            medals={m.medals}
+            wide={false}
+          />
         </div>
       </div>
       <a
@@ -104,6 +111,7 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
       <DocTitle title={m.title} />
       <MapPanel m={m} scores={scores} asOf={site.asOf} />
       <section className="content">
+        <YouMarks name={name} />
         <YouBanner name={name} field={page.total} lead={rows[0]?.score ?? null} medals={m.medals} />
         <BoardBody
           order="score"

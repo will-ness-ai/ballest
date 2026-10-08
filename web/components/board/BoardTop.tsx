@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { QMark } from "./PointsDialog";
 import { Plates } from "./Plates";
-import { Spread } from "./Spread";
+import { YouSpread } from "./YouSpread";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
@@ -16,6 +16,7 @@ import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podi
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
 import { fmtN, fmtTime, hueFor, isPoints, personaOf, value } from "../../lib/rules";
 import type { BoardRow } from "../../lib/rows";
+import { spreadOf } from "../../lib/spread";
 
 /* a card's facts, each a label over its value */
 function Facts({ facts }: { facts: ReadonlyArray<[string, React.ReactNode]> }) {
@@ -180,7 +181,14 @@ export function TrackCard({
             ]}
           />
         </div>
-        {t && <Spread ts={scores} medals={t.medals} wide />}
+        {t && (
+          <YouSpread
+            name={b.name}
+            chart={spreadOf(scores, t.medals, true)}
+            medals={t.medals}
+            wide
+          />
+        )}
         {t && <p className="bc-cap">Track screenshot from the game.</p>}
       </div>
     </div>

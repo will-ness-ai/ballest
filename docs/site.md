@@ -146,7 +146,14 @@ Map, a Track, or an Overall board on its points sort): place, score, the Medal i
 a bar toward the next one (`standingOn` in `lib/standing.ts`), and a link to the board at
 your row. It reads your row from `/api/board/<name>?player=<steam id>` through
 `useYouOnBoard` (`hooks/you.ts`), which every view of You on a board shares, and draws
-nothing until it has, so the server's page is the same for everyone.
+nothing until it has, so the server's page is the same for everyone. The same read draws
+your run on the spread chart (a Map's panel, a Track's card) as a line in your marble's hue,
+held at the right edge with an arrow when it is past it: the server works the chart out
+(`spreadOf` in `lib/spread.ts`) and `YouSpread` draws it again with the line, so only the
+chart's columns reach the browser, not every run. `YouMarks` picks out your row and plate
+with a style rule on their `data-id`, so rows added later by scrolling or search are marked
+too; the rule reaches only into its own page's content, so a page Next keeps hidden leaves
+the others alone.
 
 Ranks follow Steam's tie rule: equal scores are ordered by Steam ID, ascending on a time
 board and descending on a points board (`docs/data.md`).
