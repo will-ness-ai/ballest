@@ -13,6 +13,7 @@ import {
   cardMessage,
   clockMessage,
   closedCardMessage,
+  fingerprint,
   footerMessage,
   threadMessage,
   type ThreadArt,
@@ -43,6 +44,11 @@ export class Channel extends Context.Tag("multiballs/Channel")<
      * since Discord only notifies a mention on the post that creates a message.
      */
     readonly post: (drawing: Drawing) => Effect.Effect<string, DiscordError | RenderError>;
+    /**
+     * What a drawing looks like as a hash of the message it becomes, so a message already showing
+     * it is left alone: equal fingerprints draw the same message.
+     */
+    readonly fingerprint: (drawing: Drawing) => Effect.Effect<string, ChannelError>;
     /** Draw over a message. Never pings: a redrawn Lobby Card keeps its line but mentions nobody. */
     readonly redraw: (messageId: string, drawing: Drawing) => Effect.Effect<void, ChannelError>;
     readonly deleteMessage: (messageId: string) => Effect.Effect<void, Gone | DiscordError>;
@@ -170,6 +176,8 @@ export const DiscordChannelLive = Layer.scoped(
           Effect.flatMap((message) => tryDiscord("post", () => channel.send(message))),
           Effect.map((m) => m.id),
         ),
+      fingerprint: (drawing) =>
+        render(drawing, false).pipe(Effect.map((payload) => fingerprint(payload))),
       redraw: (messageId, drawing) =>
         fetchMessage(messageId).pipe(
           Effect.flatMap((m) =>

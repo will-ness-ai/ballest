@@ -33,6 +33,10 @@ const makeFakeChannel = () => {
 
   /** Every drawing posted as a new message, in order: only these can notify a mention. */
   const posted: Array<Drawing> = [];
+  /** Every drawing drawn over an existing message, in order. */
+  const redrawn: Array<Drawing> = [];
+  /** Stands for the bot's build: a new one may draw the same Drawing differently. */
+  let build = 1;
 
   const port = Channel.of({
     post: (drawing) =>
@@ -43,12 +47,14 @@ const makeFakeChannel = () => {
         posted.push(drawing);
         return Effect.succeed(id);
       }),
+    fingerprint: (drawing) => Effect.sync(() => `build ${build}: ${label(drawing)}`),
     redraw: (messageId, drawing) =>
       Effect.suspend((): Effect.Effect<void, Gone | DiscordError> => {
         if (fail("redraw")) return Effect.fail(broken("redraw"));
         const m = find(messageId);
         if (m === undefined) return Effect.fail(new Gone({ id: messageId }));
         m.drawing = drawing;
+        redrawn.push(drawing);
         return Effect.void;
       }),
     deleteMessage: (messageId) =>
@@ -112,6 +118,12 @@ const makeFakeChannel = () => {
     order: () => messages.map((m) => label(m.drawing)),
     /** What was posted as a new message rather than drawn over an old one, in order. */
     posted: () => posted.map((d) => label(d)),
+    /** What was drawn over an existing message, in order. */
+    redrawn: () => redrawn.map((d) => label(d)),
+    /** Deploy a build that draws everything differently. */
+    newBuild: () => {
+      build++;
+    },
     /** The thread started on a Match's Card, if any, and what was posted in it. */
     threadPosts: (matchId: string) => {
       const card = messages.find(
@@ -399,6 +411,40 @@ describe("after a restart", () => {
       channel.postByAnyone();
       yield* start;
       expect(channel.order()).toEqual(["card m1", "someone else", "footer"]);
+    }),
+  );
+
+  it.scoped(
+    "leaves an unchanged Footer unedited, so a deploy doesn't look like channel activity",
+    () =>
+      Effect.gen(function* () {
+        const { channel, start } = yield* setup;
+        yield* start;
+        yield* start;
+        expect(channel.redrawn()).toEqual([]);
+        expect(channel.order()).toEqual(["footer"]);
+      }),
+  );
+
+  it.scoped("leaves alone a Footer posted below a new Card, too", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup;
+      yield* (yield* start).showCard(view("m1"));
+      const before = channel.redrawn().length;
+      yield* start;
+      expect(channel.redrawn().length).toBe(before);
+    }),
+  );
+
+  it.scoped("redraws the Footer once when a new build draws it differently", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup;
+      yield* start;
+      channel.newBuild();
+      yield* start;
+      yield* start;
+      expect(channel.redrawn()).toEqual(["footer"]);
+      expect(channel.order()).toEqual(["footer"]);
     }),
   );
 });

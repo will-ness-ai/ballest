@@ -4,6 +4,8 @@
 //
 // The rules (spec #21, stories 19-22, 31, 38):
 // - The Footer is always the channel's last message.
+// - A restart edits the Footer only when this build draws it differently: Discord shows any edit
+//   to the channel's last message as new activity there.
 // - The channel holds only Cards and the Footer; the Channel deletes Discord's "started a
 //   thread" notices.
 // - A new Card is made by editing the Footer into it, then posting a fresh Footer, so Cards read
@@ -47,6 +49,8 @@ interface CardRef {
 
 interface Layout {
   readonly footerId: string | null;
+  /** The fingerprint of what the Footer shows; null when unknown, so the next start redraws it. */
+  readonly footerShows: string | null;
   readonly cards: ReadonlyMap<string, CardRef>;
   /** Where finished Matches' Cards and threads are, oldest first. */
   readonly finished: ReadonlyMap<string, MatchPlace>;
@@ -58,6 +62,7 @@ const FINISHED_KEPT = 100;
 const LayoutJson = Schema.parseJson(
   Schema.Struct({
     footerId: Schema.NullOr(Schema.String),
+    footerShows: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
     cards: Schema.Array(
       Schema.Tuple(
         Schema.String,
@@ -107,9 +112,10 @@ const make = Effect.gen(function* () {
   const saved = yield* loadLayout(undefined).pipe(Effect.orDie);
   const layout = yield* Ref.make<Layout>(
     Option.match(saved, {
-      onNone: () => ({ footerId: null, cards: new Map(), finished: new Map() }),
+      onNone: () => ({ footerId: null, footerShows: null, cards: new Map(), finished: new Map() }),
       onSome: ({ data }) => ({
         footerId: data.footerId,
+        footerShows: data.footerShows,
         cards: new Map(data.cards),
         finished: new Map(data.finished),
       }),
@@ -119,6 +125,7 @@ const make = Effect.gen(function* () {
     const next = yield* Ref.updateAndGet(layout, (current) => change(current));
     const data = yield* Schema.encode(LayoutJson)({
       footerId: next.footerId,
+      footerShows: next.footerShows,
       cards: [...next.cards],
       finished: [...next.finished],
     });
@@ -126,7 +133,18 @@ const make = Effect.gen(function* () {
   }, Effect.orDie);
   const setCard = (matchId: string, card: CardRef) =>
     setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }));
-  const setFooter = (footerId: string | null) => setLayout((l) => ({ ...l, footerId }));
+  const setFooter = (footerId: string | null, footerShows: string | null) =>
+    setLayout((l) => ({ ...l, footerId, footerShows }));
+
+  /** What this build's Footer looks like, or null if it can't be drawn (then it's redrawn next start). */
+  const footerFingerprint = channel.fingerprint(Drawing.Footer()).pipe(
+    Effect.tapError((e) => logFailure(e)),
+    Effect.orElseSucceed(() => null),
+  );
+  const postFooter = Effect.fn("postFooter")(function* () {
+    const shows = yield* footerFingerprint;
+    yield* setFooter(yield* channel.post(Drawing.Footer()), shows);
+  });
 
   /** The latest view of each Card, only to name a Match Thread started late. */
   const views = yield* Ref.make(new Map<string, CardView>());
@@ -223,10 +241,10 @@ const make = Effect.gen(function* () {
           );
     if (footerId !== null && footerId !== messageId)
       yield* unlessGone(retryUnlessGone(channel.deleteMessage(footerId)));
-    yield* setFooter(null);
+    yield* setFooter(null, null);
     yield* setCard(view.matchId, { messageId, threadId: null, clockId: null });
     yield* startThread(view.matchId, messageId, view);
-    yield* setFooter(yield* channel.post(Drawing.Footer()));
+    yield* postFooter();
   });
 
   const showCard = Effect.fn("showCard")(
@@ -281,17 +299,19 @@ const make = Effect.gen(function* () {
     Effect.catchAll((e) => logFailure(e)),
   );
 
-  // Startup: the Footer must be the channel's last message, with today's wording.
-  const { footerId } = yield* Ref.get(layout);
+  // Startup: the Footer must be the channel's last message, with today's wording, and is edited
+  // only if this build draws it differently.
+  const { footerId, footerShows } = yield* Ref.get(layout);
   const last = yield* channel.lastMessageId.pipe(Effect.orElseSucceed(() => null));
-  if (footerId !== null && footerId === last)
-    yield* unlessGone(channel.redraw(footerId, Drawing.Footer()));
-  else {
+  if (footerId !== null && footerId === last) {
+    const shows = yield* footerFingerprint;
+    if (shows === null || shows !== footerShows)
+      yield* unlessGone(
+        channel.redraw(footerId, Drawing.Footer()).pipe(Effect.andThen(setFooter(footerId, shows))),
+      );
+  } else {
     if (footerId !== null) yield* unlessGone(channel.deleteMessage(footerId));
-    yield* channel.post(Drawing.Footer()).pipe(
-      Effect.flatMap((id) => setFooter(id)),
-      Effect.catchAll((e) => logFailure(e)),
-    );
+    yield* postFooter().pipe(Effect.catchAll((e) => logFailure(e)));
   }
 
   const links = MatchLinks.of({
