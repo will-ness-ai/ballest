@@ -28,7 +28,7 @@ footer a {
   max-block-size: 76dvh;
   background: var(--solid);
   border-radius: 22px 22px 0 0;
-  border-top: 1px solid var(--line);
+  border-block-start: 1px solid var(--line);
   transform: translateY(102%);
   display: flex;
   flex-direction: column;
@@ -69,7 +69,7 @@ footer a {
   width: 38px;
   height: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.25);
+  background: oklch(100% 0 none / 0.25);
   margin: 10px auto 4px;
   flex: none;
 }
@@ -89,7 +89,6 @@ footer a {
   flex-direction: column;
   gap: 6px;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
 /* one definition serves the sheet and, on the desktop layout, the rail: a strip of the
@@ -103,10 +102,10 @@ footer a {
   width: 100%;
   min-height: 62px;
   border-radius: 9px;
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--line2);
   background: var(--solid);
-  text-align: left;
+  text-align: start;
 }
 .tstrip img {
   position: absolute;
@@ -122,8 +121,8 @@ footer a {
   inset: 0;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--bg) 94%, transparent),
-    color-mix(in srgb, var(--bg) 70%, transparent) 45%,
+    color-mix(in oklch, var(--bg) 94%, transparent),
+    color-mix(in oklch, var(--bg) 70%, transparent) 45%,
     transparent 85%
   );
 }

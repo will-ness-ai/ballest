@@ -32,14 +32,14 @@
 .plt th,
 .plt td {
   padding: 8px 10px;
-  text-align: right;
+  text-align: end;
   white-space: nowrap;
-  border-bottom: 1px solid var(--line2);
+  border-block-end: 1px solid var(--line2);
   background: linear-gradient(var(--tint, transparent), var(--tint, transparent)) var(--solid);
 }
 .plt th {
   position: sticky;
-  top: 0;
+  inset-block-start: 0;
   z-index: 2;
   font-family: var(--f-hud);
   font-size: calc(10.5rem / 16);
@@ -47,7 +47,7 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
-  border-bottom-color: var(--line);
+  border-block-end-color: var(--line);
 }
 .plt th a {
   color: inherit;
@@ -67,12 +67,12 @@
 .plt .pr,
 .plt .pn {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 1;
-  text-align: left;
+  text-align: start;
 }
 .plt .pn {
-  left: var(--prw);
+  inset-inline-start: var(--prw);
 }
 .plt th.pr,
 .plt th.pn {
@@ -81,8 +81,8 @@
 .plt .pr {
   width: var(--prw);
   min-width: var(--prw);
-  padding-right: 2px;
-  text-align: right;
+  padding-inline-end: 2px;
+  text-align: end;
   font-family: var(--f-marquee);
   font-size: calc(12.5rem / 16);
   color: var(--dim);
@@ -102,7 +102,7 @@
   opacity: 0.35;
 }
 .plt .split {
-  border-left: 1px solid var(--line2);
+  border-inline-start: 1px solid var(--line2);
 }
 .plt tr[data-m="1"] {
   --tint: var(--gold-soft);
@@ -158,8 +158,8 @@
 }
 .plpin {
   position: sticky;
-  bottom: 0;
-  left: 0;
+  inset-block-end: 0;
+  inset-inline-start: 0;
   z-index: 4;
   display: flex;
   align-items: center;
@@ -167,8 +167,8 @@
   flex-wrap: wrap;
   width: 100%;
   padding: 10px 14px;
-  text-align: left;
-  border-top: 1px solid var(--author);
+  text-align: start;
+  border-block-start: 1px solid var(--author);
   background: linear-gradient(var(--author-soft), var(--author-soft)) var(--solid);
 }
 .plpin[hidden] {
@@ -195,7 +195,7 @@
   font-variant-numeric: tabular-nums;
 }
 .plpin .gaps {
-  margin-left: auto;
+  margin-inline-start: auto;
   display: flex;
   gap: 16px;
   font-size: calc(12.5rem / 16);
@@ -212,7 +212,7 @@
   justify-content: space-between;
   gap: 10px 14px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  margin-block-end: 14px;
 }
 .ws-h1 {
   margin: 0;
@@ -290,7 +290,7 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .go:hover {
-    filter: brightness(1.08);
+    background: var(--accent-hover);
   }
 }
 .eyebrow {
