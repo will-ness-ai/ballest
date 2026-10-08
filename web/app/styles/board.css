@@ -415,7 +415,13 @@
   height: 9px;
   border-radius: 5px;
   background: var(--surface2);
-  animation: pulse 1.2s ease-in-out infinite;
+  opacity: 0.75;
+}
+/* a loop that never stops blinking is motion too, fade or not */
+@media (prefers-reduced-motion: no-preference) {
+  .skel span {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
 }
 .skel span:nth-child(1) {
   width: 18px;
