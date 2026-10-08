@@ -66,8 +66,10 @@
   width: 16px;
   height: 16px;
 }
-a.dc-day:hover {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  a.dc-day:hover {
+    border-color: var(--accent);
+  }
 }
 
 /* a player's day (their Daily tab): bordered in the band of their place, which it shows; a
@@ -472,8 +474,10 @@ a.dc-day:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ds-who a:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .ds-who a:hover {
+    color: var(--accent);
+  }
 }
 .ds-who .marble {
   width: 22px;
@@ -494,8 +498,10 @@ a.dc-day:hover {
   cursor: pointer;
   white-space: nowrap;
 }
-.ds-medals th button:hover {
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .ds-medals th button:hover {
+    color: var(--text);
+  }
 }
 .ds-medals th[aria-sort] button {
   background: var(--accent-soft);

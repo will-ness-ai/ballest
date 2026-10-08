@@ -20,37 +20,45 @@ footer a {
   color: var(--dim);
 }
 
-/* the track sheet */
-.scrim {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim);
-  z-index: 40;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.22s ease;
-}
-.scrim.open {
-  opacity: 1;
-  pointer-events: auto;
-}
+/* the track sheet: it slides up from the bottom and back down, and the backdrop fades,
+   from and to display: none */
 .sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 41;
-  max-height: 76vh;
+  inset-block: auto 0;
+  inset-inline: 0;
+  max-block-size: 76dvh;
   background: var(--solid);
   border-radius: 22px 22px 0 0;
   border-top: 1px solid var(--line);
   transform: translateY(102%);
-  transition: transform 0.26s cubic-bezier(0.2, 0.85, 0.3, 1);
+  transition:
+    transform 0.26s cubic-bezier(0.2, 0.85, 0.3, 1),
+    display 0.26s allow-discrete,
+    overlay 0.26s allow-discrete;
   display: flex;
   flex-direction: column;
 }
-.sheet.open {
-  transform: translateY(0);
+.sheet[open] {
+  transform: none;
+}
+@starting-style {
+  .sheet[open] {
+    transform: translateY(102%);
+  }
+}
+.sheet::backdrop {
+  opacity: 0;
+  transition:
+    opacity 0.22s ease,
+    display 0.26s allow-discrete,
+    overlay 0.26s allow-discrete;
+}
+.sheet[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  .sheet[open]::backdrop {
+    opacity: 0;
+  }
 }
 .sheet .grab {
   width: 38px;
@@ -75,6 +83,7 @@ footer a {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -140,11 +149,13 @@ footer a {
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
-.tstrip:hover {
-  border-color: var(--line);
-}
-.tstrip:hover img {
-  filter: none;
+@media (hover: hover) and (pointer: fine) {
+  .tstrip:hover {
+    border-color: var(--line);
+  }
+  .tstrip:hover img {
+    filter: none;
+  }
 }
 .tstrip[aria-current="true"] {
   border-color: var(--accent);

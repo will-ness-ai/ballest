@@ -1,9 +1,9 @@
 "use client";
 // What the whole page does whatever is on it: an old #/ link opens the page it always
-// opened, a tap turns a marble over, a modal dialog keeps the keyboard inside it, and a
+// opened, a tap turns a marble over, and a
 // page whose title comes from the database keeps the tab's title right.
 import { useRouter } from "next/navigation";
-import { useEffect, type RefObject } from "react";
+import { useEffect } from "react";
 
 import { legacyPath } from "../lib/routes";
 import { pageTitle } from "../lib/rules";
@@ -44,44 +44,6 @@ export function MarbleFlip() {
     };
   }, []);
   return null;
-}
-
-/* aria-modal hides the rest of the page from assistive tech, so while a dialog is open
-   Escape closes it and Tab is kept inside it */
-export function useModalKeys(
-  open: boolean,
-  box: RefObject<HTMLElement | null>,
-  close: () => void,
-  focusable = "button,input,a[href]",
-) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        close();
-        return;
-      }
-      if (e.key !== "Tab" || !box.current) return;
-      const items = [...box.current.querySelectorAll<HTMLElement>(focusable)];
-      if (!items.length) return;
-      const first = items[0],
-        last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      } else if (!box.current.contains(document.activeElement)) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    addEventListener("keydown", onKey);
-    return () => {
-      removeEventListener("keydown", onKey);
-    };
-  }, [open, box, close, focusable]);
 }
 
 /* A page whose title is read from the database (a player, a Map) streams its metadata

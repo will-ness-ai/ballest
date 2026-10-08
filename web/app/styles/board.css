@@ -24,8 +24,10 @@
   color: inherit;
   text-decoration: none;
 }
-.brand:hover .wordmark {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .brand:hover .wordmark {
+    color: var(--accent);
+  }
 }
 .rack {
   display: flex;
@@ -63,8 +65,10 @@
 .freshness button:disabled {
   cursor: default;
 }
-.freshness button:enabled:hover {
-  color: var(--dim);
+@media (hover: hover) and (pointer: fine) {
+  .freshness button:enabled:hover {
+    color: var(--dim);
+  }
 }
 .freshness .i {
   display: inline-grid;
@@ -165,7 +169,6 @@
   background: var(--surface2);
   border: 1px solid var(--line);
   color: var(--text);
-  font-size: 14px;
 }
 .search input::placeholder {
   color: var(--faint);
@@ -247,8 +250,10 @@
   color: inherit;
   text-decoration: none;
 }
-.pl-name a:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .pl-name a:hover {
+    color: var(--accent);
+  }
 }
 .pl-score {
   font-family: var(--f-hud);
@@ -394,8 +399,10 @@
   color: inherit;
   text-decoration: none;
 }
-.nm a:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .nm a:hover {
+    color: var(--accent);
+  }
 }
 .sub {
   display: none;
@@ -584,8 +591,10 @@
   text-align: center;
   text-decoration: none;
 }
-.sw a:hover {
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .sw a:hover {
+    color: var(--text);
+  }
 }
 .sw a[aria-current="page"] {
   background: var(--accent);
@@ -668,8 +677,10 @@
   color: inherit;
   text-decoration: none;
 }
-.bc-facts dd a:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .bc-facts dd a:hover {
+    color: var(--accent);
+  }
 }
 .bc-cap {
   margin: 0;

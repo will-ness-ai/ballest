@@ -58,6 +58,35 @@
 * {
   box-sizing: border-box;
 }
+/* the gutter stays when an open dialog locks the page's scroll, so nothing shifts */
+html {
+  scrollbar-gutter: stable;
+}
+html:has(dialog:modal) {
+  overflow: hidden;
+}
+/* every modal is a native <dialog> opened with showModal(), placed by its own class;
+   none of the browser's box. Fixed here too, not just while :modal, so a sheet sliding
+   out after close() stays where it was. */
+dialog {
+  position: fixed;
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: none;
+  max-block-size: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  overscroll-behavior: contain;
+}
+dialog:not([open]) {
+  display: none;
+}
+dialog::backdrop {
+  background: var(--scrim);
+}
 body {
   margin: 0;
   color: var(--text);
@@ -91,9 +120,56 @@ button {
 input {
   font: inherit;
 }
+/* under 16px, iOS Safari zooms the page when a field takes focus */
+input,
+select,
+textarea {
+  font-size: max(16px, 1rem);
+}
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* press feedback: on a touch screen a tap otherwise shows nothing */
+:where(
+  button:enabled,
+  a.gtab,
+  a.tstrip,
+  .ptile,
+  .scard,
+  .wrow,
+  .mkcard,
+  .mcard,
+  .vmid,
+  .go,
+  .alllink
+):active {
+  scale: 0.97;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :where(button, a.gtab, a.tstrip, .ptile, .scard, .wrow, .mkcard, .mcard, .vmid, .go, .alllink) {
+    transition: scale 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+
+/* buttons drawn smaller than a fingertip get an invisible 44px hit area */
+:where(.qmark, .dh button, .snav button, .car-nav button, .freshness button, .mebtn, .linkbtn) {
+  position: relative;
+}
+:where(
+  button.marble,
+  .qmark,
+  .dh button,
+  .snav button,
+  .car-nav button,
+  .freshness button,
+  .mebtn,
+  .linkbtn
+)::after {
+  content: "";
+  position: absolute;
+  inset: min(0px, (100% - 44px) / 2);
 }
 
 /* ---------- the marble ---------- */
@@ -127,20 +203,30 @@ input {
     transform 0.22s cubic-bezier(0.2, 0.85, 0.3, 1.35);
 }
 .marble.on .face,
-.marble:focus-visible .face,
-.row:hover .marble .face,
-.plate:hover .marble .face,
-.pid:hover .marble .face {
+.marble:focus-visible .face {
   opacity: 1;
   transform: scale(1) rotate(0);
 }
+@media (hover: hover) and (pointer: fine) {
+  .row:hover .marble .face,
+  .plate:hover .marble .face,
+  .pid:hover .marble .face {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
 .marble.on .ball,
-.marble:focus-visible .ball,
-.row:hover .marble .ball,
-.plate:hover .marble .ball,
-.pid:hover .marble .ball {
+.marble:focus-visible .ball {
   transform: scale(0.84) rotate(-18deg);
   opacity: 0.16;
+}
+@media (hover: hover) and (pointer: fine) {
+  .row:hover .marble .ball,
+  .plate:hover .marble .ball,
+  .pid:hover .marble .ball {
+    transform: scale(0.84) rotate(-18deg);
+    opacity: 0.16;
+  }
 }
 /* in the list the avatar keeps the marble's colour as a ring; on the podium the
    medal ring is already doing that job */

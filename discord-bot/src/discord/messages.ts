@@ -1,5 +1,6 @@
 // Every message the bot posts, as discord.js payloads. The images in them come from
 // src/render/; here they are only attached, with the buttons and text around them.
+import { createHash } from "node:crypto";
 import {
   ActionRowBuilder,
   AttachmentBuilder,
@@ -38,6 +39,22 @@ import type { MarbleEmojis } from "./marbles.js";
  * the new files to it, so the same payload posts and redraws.
  */
 export type Payload = BaseMessageOptions & { readonly attachments?: Array<never> };
+
+/**
+ * A hash of everything a payload shows: text, embeds, buttons, and each file's name and bytes.
+ * Two payloads with the same fingerprint draw the same message, so a message already showing
+ * one needs no edit.
+ */
+export const fingerprint = (payload: Payload): string => {
+  const { files = [], ...rest } = payload;
+  const hash = createHash("sha256").update(JSON.stringify(rest));
+  for (const file of files) {
+    if (!(file instanceof AttachmentBuilder) || !Buffer.isBuffer(file.attachment))
+      throw new Error("fingerprint: only in-memory attachments can be hashed");
+    hash.update(`\0${file.name ?? ""}\0`).update(file.attachment);
+  }
+  return hash.digest("hex");
+};
 
 export const PROFILE_FIELD = "profile";
 

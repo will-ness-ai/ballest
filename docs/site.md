@@ -34,6 +34,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   a player against themselves).
 - `web/app/styles/` — the stylesheet, split by view and imported in order by
   `app/layout.tsx`. Every color is a custom property on `:root`; the theme is dark-only.
+  The `good-css` skill covers how to write new styles; skip its light/dark token entry.
 
 ## Caching
 
