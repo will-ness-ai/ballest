@@ -1,15 +1,7 @@
 // How every run on a board spreads out, as a chart with the Medal cut-offs: a Circuit
 // Track's card and a Map's panel. No state, so the server draws it; YouSpread draws it
 // again in the browser with You's run on it.
-import {
-  MEDALS,
-  SCORE_TICKS_PER_SECOND,
-  fmtN,
-  fmtSec,
-  fmtTime,
-  hueFor,
-  plural,
-} from "../../lib/rules";
+import { MEDALS, fmtN, fmtSec, fmtTime, hueFor, medalTicks, plural } from "../../lib/rules";
 import { markOn, type SpreadChart } from "../../lib/spread";
 
 /* You's run on the chart: your score, and your Steam ID for your marble's hue */
@@ -18,21 +10,12 @@ export interface SpreadYou {
   id: string;
 }
 
-/* `chart` is every run's spread (spreadOf), `medals` [bronze, silver, gold, author] in
-   seconds. `wide` is a Circuit track's header card: each line carries its Medal's name and
-   time, staggered over two rows so neighbouring labels don't collide. `you` adds your run
-   as a line in your marble's hue, held at the right edge with an arrow when it is past it. */
-export function Spread({
-  chart,
-  medals,
-  wide,
-  you = null,
-}: {
-  chart: SpreadChart;
-  medals: ReadonlyArray<number>;
-  wide: boolean;
-  you?: SpreadYou | null;
-}) {
+/* `chart` is every run's spread (spreadOf). A wide chart is a Circuit track's header card:
+   each line carries its Medal's name and time, staggered over two rows so neighbouring
+   labels don't collide. `you` adds your time as a line in your marble's hue, held at the
+   right edge with an arrow when it is past it. */
+export function Spread({ chart, you = null }: { chart: SpreadChart; you?: SpreadYou | null }) {
+  const { medals, wide } = chart;
   const s = chart.scale;
   if (!s) return <p className="sp-cap">{chart.runs ? "One run so far." : "No runs yet."}</p>;
   const { lo, hi, bins, over } = s;
@@ -66,7 +49,7 @@ export function Spread({
           ) : null,
         )}
         {MEDALS.map(([name, c, i], k) => {
-          const t = medals[i] * SCORE_TICKS_PER_SECOND;
+          const t = medalTicks(medals, i);
           if (t < lo || t > hi) return null;
           const at = +x(t),
             anchor = !wide ? "middle" : at < 40 ? "start" : at > W - 40 ? "end" : "middle";

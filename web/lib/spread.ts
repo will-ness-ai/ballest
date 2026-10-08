@@ -1,7 +1,7 @@
 // How every run on a board spreads out, as the Spread chart draws it (components/board/
 // Spread.tsx), and where You's run lands on that chart. The page works the chart out on
 // the server, so only its columns, not every run, reach the browser.
-import { SCORE_TICKS_PER_SECOND } from "./rules";
+import { medalTicks } from "./rules";
 
 /* a chart's range in score ticks: the record at its left edge, `hi` at its right */
 export interface SpreadRange {
@@ -16,10 +16,14 @@ export interface SpreadScale extends SpreadRange {
   over: number;
 }
 
-/* every run on a board, charted; `scale` is null with fewer than two runs */
+/* every run on a board, charted: all the Spread chart draws from. `scale` is null with
+   fewer than two runs; `medals` and `wide` are what spreadOf was given, for the cut-off
+   lines and the chart's size */
 export interface SpreadChart {
   runs: number;
   scale: SpreadScale | null;
+  medals: ReadonlyArray<number>;
+  wide: boolean;
 }
 
 /* `ts` is the run times in rank order, `medals` [bronze, silver, gold, author] in seconds.
@@ -31,10 +35,10 @@ export function spreadOf(
   medals: ReadonlyArray<number>,
   wide: boolean,
 ): SpreadChart {
-  if (ts.length < 2) return { runs: ts.length, scale: null };
+  if (ts.length < 2) return { runs: ts.length, scale: null, medals, wide };
   const lo = ts[0];
   const cut = wide
-    ? medals[0] * 1.08 * SCORE_TICKS_PER_SECOND
+    ? medalTicks(medals, 0) * 1.08
     : ts[Math.min(ts.length - 1, Math.floor(ts.length * 0.95))];
   const hi = Math.max(cut, lo + 1);
   const bins = new Array<number>(wide ? 44 : 24).fill(0);
@@ -43,7 +47,7 @@ export function spreadOf(
     if (t > hi) over++;
     else bins[Math.min(bins.length - 1, Math.floor(((t - lo) / (hi - lo)) * bins.length))]++;
   }
-  return { runs: ts.length, scale: { lo, hi, bins, over } };
+  return { runs: ts.length, scale: { lo, hi, bins, over }, medals, wide };
 }
 
 /* where a run lands across the chart, 0 at the record and 1 at the right edge, and whether

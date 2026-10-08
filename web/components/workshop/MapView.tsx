@@ -67,12 +67,7 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
       <div className="mp-chart">
         <span className="eyebrow">Every run</span>
         <div id="spread">
-          <YouSpread
-            name={m.name}
-            chart={spreadOf(scores, m.medals, false)}
-            medals={m.medals}
-            wide={false}
-          />
+          <YouSpread name={m.name} chart={spreadOf(scores, m.medals, false)} />
         </div>
       </div>
       <a

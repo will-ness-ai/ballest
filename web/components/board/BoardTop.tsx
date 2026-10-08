@@ -181,14 +181,7 @@ export function TrackCard({
             ]}
           />
         </div>
-        {t && (
-          <YouSpread
-            name={b.name}
-            chart={spreadOf(scores, t.medals, true)}
-            medals={t.medals}
-            wide
-          />
-        )}
+        {t && <YouSpread name={b.name} chart={spreadOf(scores, t.medals, true)} />}
         {t && <p className="bc-cap">Track screenshot from the game.</p>}
       </div>
     </div>

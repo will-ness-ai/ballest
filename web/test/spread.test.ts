@@ -30,8 +30,8 @@ const MEDALS = [30, 20, 15, 10];
 
 describe("the chart of every run", () => {
   test("with fewer than two runs there is nothing to chart, only the count", () => {
-    expect(spreadOf([], MEDALS, false)).toEqual({ runs: 0, scale: null });
-    expect(spreadOf([1_000_000], MEDALS, true)).toEqual({ runs: 1, scale: null });
+    expect(spreadOf([], MEDALS, false)).toMatchObject({ runs: 0, scale: null });
+    expect(spreadOf([1_000_000], MEDALS, true)).toMatchObject({ runs: 1, scale: null });
   });
 
   test("a Map's panel runs to the 95th percentile run, in 24 columns", () => {
@@ -47,6 +47,8 @@ describe("the chart of every run", () => {
     expect(spreadOf(ts, MEDALS, false)).toEqual({
       runs: 21,
       scale: { lo: 1000, hi: 3400, bins, over: 1 },
+      medals: MEDALS,
+      wide: false,
     });
   });
 
@@ -59,6 +61,8 @@ describe("the chart of every run", () => {
     expect(spreadOf([1_000_000, 2_000_000, 4_000_000], MEDALS, true)).toEqual({
       runs: 3,
       scale: { lo: 1_000_000, hi: expect.closeTo(3_240_000) as number, bins, over: 1 },
+      medals: MEDALS,
+      wide: true,
     });
   });
 });
