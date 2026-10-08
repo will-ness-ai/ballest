@@ -156,7 +156,21 @@ path rather than a group.
 
 `pnpm dev` in `web/` against a local Postgres (never `vercel env pull`: its development
 variables point at production). For a database with real boards, backfill one from
-`data/` (`docs/data.md`); for a tiny one, `pnpm db:seed tiny`. `pnpm smoke <url>` requests
-every route of a running build seeded with `tiny` and checks each answer, as `web.yml`
-does in CI. Next keeps the page you navigated away from in the DOM, hidden, so a scripted
-check counting elements should count only visible ones.
+`data/` (`docs/data.md`); for a tiny one, `pnpm db:seed tiny`. Next keeps the page you
+navigated away from in the DOM, hidden, so a scripted check counting elements should count
+only visible ones.
+
+- **A production build**: `pnpm serve <port> [database]` builds against that local
+  database and serves it in the background; `fuser -k -n tcp <port>` stops it.
+  `pnpm smoke <url>` then requests every route of a build seeded with `tiny` and checks
+  each answer, as `web.yml` does in CI. Under `next start`, some prefetches (header
+  `next-router-prefetch: 3`) answer 404 in the console; Vercel answers them 200.
+- **Revalidate**: serve with `REVALIDATE_SECRET` set, add a Refresh to the database (the
+  collector's `--out` run, or rows by hand), then `revalidate()` in `tools/db_writer.py`
+  with `SITE_URL` pointing at the build. The changed boards should show at once.
+- **The preview**: Vercel's previews are private, so read one with
+  `npx -y vercel@latest curl <path> --deployment <preview url> --scope n3sonlines-projects`
+  (it reads `$VERCEL_TOKEN`; curl's own flags go after `--`). Previews count against the
+  Hobby plan's 100 deploys a day, so push a branch in batches.
+- **Parity**: `pnpm db:parity` compares the read layer with `data/` figure by figure, on a
+  database backfilled from the same commit; it stops first when the database is anything else.

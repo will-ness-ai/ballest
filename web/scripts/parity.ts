@@ -3,10 +3,14 @@
 // by figure, and exits 1 on any difference. Run it against a database backfilled from the
 // same commit (tools/db_backfill.py), never production from a laptop. It goes when the
 // JSON does (docs/nextjs-migration.md, phase 5).
+import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
+import { desc } from "drizzle-orm";
+
 import { connect } from "../db/client";
+import { refreshes } from "../db/schema";
 import * as site from "../db/site";
 import { CIRCUIT } from "../lib/circuit";
 import { podiumTallies } from "../lib/podiums";
@@ -21,6 +25,37 @@ const json = (path: string): any => JSON.parse(readFileSync(join(DATA, path), "u
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is not set");
 const db = connect(url);
+
+/* only a backfill is comparable with data/, and only one replayed up to it: stop unless the
+   last Refresh is a backfill of the last commit that touched what tools/db_backfill.py
+   reads (its PATHS, on the same first-parent line) */
+const last = (
+  await db
+    .select({ source: refreshes.source, sha: refreshes.commitSha })
+    .from(refreshes)
+    .orderBy(desc(refreshes.id))
+    .limit(1)
+).at(0);
+const head = execFileSync(
+  "git",
+  [
+    "log",
+    "-1",
+    "--first-parent",
+    "--format=%H",
+    "--",
+    "data/boards",
+    "data/workshop",
+    "data/workshop.json",
+  ],
+  { cwd: join(import.meta.dirname, "..", ".."), encoding: "utf8" },
+).trim();
+if (last?.source !== "backfill" || last.sha !== head) {
+  console.error(
+    `the database isn't a backfill of data/ as it is (last Refresh: ${last ? `${last.source} ${String(last.sha).slice(0, 9)}` : "none"}, data/ ${head.slice(0, 9)}): rerun tools/db_backfill.py --rebuild`,
+  );
+  process.exit(2);
+}
 
 let differences = 0;
 function compare(label: string, want: Array<unknown>, got: Array<unknown>) {

@@ -15,7 +15,6 @@ import type { PlayerRecord } from "../../../../lib/player";
 import { playerHref } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
 
-/* spelled out rather than Next's generated PageProps, which only exists after a build */
 interface Props {
   params: Promise<{ a: string; b: string }>;
 }

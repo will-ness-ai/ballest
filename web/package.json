@@ -12,6 +12,7 @@
     "dev": "node scripts/sync-site.mjs && next dev",
     "build": "node scripts/sync-site.mjs && node scripts/migrate.mjs && next build",
     "start": "next start",
+    "serve": "scripts/serve.sh",
     "smoke": "node scripts/smoke.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",

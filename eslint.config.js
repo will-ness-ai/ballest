@@ -10,6 +10,8 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import noClientValues from "./web/eslint/no-client-values.js";
+
 export default defineConfig(
   globalIgnores([
     "**/node_modules/",
@@ -67,10 +69,22 @@ export default defineConfig(
     files: ["web/**/*.{ts,tsx}"],
     extends: [nextPlugin.configs["core-web-vitals"], reactHooks.configs.flat.recommended],
     settings: { next: { rootDir: "web/" } },
+    plugins: { site: { rules: { "no-client-values": noClientValues } } },
     rules: {
+      "site/no-client-values": "error",
       // the pictures are Steam's (avatars, Workshop previews) and the Circuit screenshots,
       // sized by the stylesheet the single-page site had; next/image would change the markup
       "@next/next/no-img-element": "off",
+    },
+  },
+  {
+    // lib/ is pure: no React, no Next and no database (CODING_STANDARDS.md, "Site")
+    files: ["web/lib/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: ["react", "react-dom", "next", "next/*", "**/db/*", "**/db"] },
+      ],
     },
   },
   prettier,
