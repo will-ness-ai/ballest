@@ -95,7 +95,7 @@ dialog::backdrop {
 body {
   margin: 0;
   color: var(--text);
-  font: 400 15px/1.5 var(--f-body);
+  font: 400 calc(15rem / 16)/1.5 var(--f-body);
   -webkit-font-smoothing: antialiased;
   background:
     radial-gradient(900px 520px at 80% -10%, var(--glow-blue), transparent 62%),

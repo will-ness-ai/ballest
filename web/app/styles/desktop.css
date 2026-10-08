@@ -23,14 +23,14 @@
     margin-left: -9px;
   }
   .wordmark {
-    font-size: 20px;
+    font-size: calc(20rem / 16);
     line-height: 1.25;
   }
   .tagline {
     display: block;
     margin: 0;
     font-family: var(--f-hud);
-    font-size: 11px;
+    font-size: calc(11rem / 16);
     letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--dim);
@@ -38,7 +38,7 @@
   }
   .freshness {
     text-align: left;
-    font-size: 12.5px;
+    font-size: calc(12.5rem / 16);
   }
 
   .groups {
@@ -85,7 +85,7 @@
   .rail h2 {
     margin: 0 0 9px;
     font-family: var(--f-hud);
-    font-size: 10.5px;
+    font-size: calc(10.5rem / 16);
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--dim);
@@ -117,13 +117,13 @@
     padding: 14px 18px;
   }
   .bc-top h1 {
-    font-size: 30px;
+    font-size: calc(30rem / 16);
   }
   .bc-facts {
     gap: 22px;
   }
   .bc-facts dd {
-    font-size: 17px;
+    font-size: calc(17rem / 16);
   }
 
   .boardbar {
@@ -139,7 +139,7 @@
   }
   .boardtitle .bmeta {
     margin: 0;
-    font-size: 12.5px;
+    font-size: calc(12.5rem / 16);
     color: var(--dim);
   }
   .sortsw {
@@ -170,7 +170,7 @@
   .tile dd {
     margin: 5px 0 0;
     font-family: var(--f-hud);
-    font-size: 20px;
+    font-size: calc(20rem / 16);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
@@ -179,7 +179,7 @@
     align-items: center;
     gap: 6px;
     font-family: var(--f-body);
-    font-size: 12px;
+    font-size: calc(12rem / 16);
     color: var(--dim);
     margin-top: 3px;
     font-weight: 400;
@@ -230,18 +230,18 @@
       0 12px 30px rgba(0, 0, 0, 0.4);
   }
   .pl-name {
-    font-size: 16px;
+    font-size: 1rem;
   }
   .pl-score {
-    font-size: 19px;
+    font-size: calc(19rem / 16);
   }
   .pl-rank {
-    font-size: 10px;
+    font-size: calc(10rem / 16);
   }
   .pl-gap {
     display: block;
     font-family: var(--f-hud);
-    font-size: 11.5px;
+    font-size: calc(11.5rem / 16);
     color: var(--faint);
     font-variant-numeric: tabular-nums;
   }
@@ -261,7 +261,7 @@
     gap: 12px;
     padding: 9px 12px;
     font-family: var(--f-hud);
-    font-size: 10px;
+    font-size: calc(10rem / 16);
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--dim);
@@ -296,18 +296,18 @@
     grid-area: auto;
   }
   .c-pods .mc {
-    font-size: 13.5px;
+    font-size: calc(13.5rem / 16);
     gap: 12px;
   }
   .c-rank {
-    font-size: 14px;
+    font-size: calc(14rem / 16);
     text-align: left;
   }
   .nm {
-    font-size: 15px;
+    font-size: calc(15rem / 16);
   }
   .sub {
-    font-size: 11.5px;
+    font-size: calc(11.5rem / 16);
   }
   .sub-m {
     display: none;
@@ -316,7 +316,7 @@
     display: block;
   }
   .c-score {
-    font-size: 17px;
+    font-size: calc(17rem / 16);
     justify-content: flex-end;
     gap: 11px;
   }
@@ -327,10 +327,10 @@
 
   .empty {
     padding: 46px 12px;
-    font-size: 14px;
+    font-size: calc(14rem / 16);
   }
   .empty b {
-    font-size: 16px;
+    font-size: 1rem;
   }
   .skel {
     padding: 0 12px;
@@ -365,7 +365,7 @@
     height: 64px;
   }
   .pid h1 {
-    font-size: 24px;
+    font-size: calc(24rem / 16);
   }
   .pstats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -375,7 +375,7 @@
     padding: 12px 15px;
   }
   .pstat dd {
-    font-size: 20px;
+    font-size: calc(20rem / 16);
   }
   .pseason {
     margin-bottom: 16px;
@@ -435,10 +435,10 @@
     height: 56px;
   }
   .vsside a {
-    font-size: 20px;
+    font-size: calc(20rem / 16);
   }
   .vshead .score {
-    font-size: 60px;
+    font-size: calc(60rem / 16);
   }
   .vside {
     flex-direction: row;
@@ -474,7 +474,7 @@
     padding: 9px 14px;
   }
   .plt .pr {
-    font-size: 15px;
+    font-size: calc(15rem / 16);
   }
   .who {
     max-width: 340px;
@@ -486,7 +486,7 @@
     height: 34px;
   }
   .ws-h1 {
-    font-size: 26px;
+    font-size: calc(26rem / 16);
   }
   .car {
     grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
@@ -500,7 +500,7 @@
     padding: 22px;
   }
   .car-t {
-    font-size: 30px;
+    font-size: calc(30rem / 16);
   }
   .strip {
     grid-auto-columns: minmax(200px, 220px);
@@ -546,7 +546,7 @@
     margin: 30px 0 0;
     padding-top: 16px;
     border-top: 1px solid var(--line2);
-    font-size: 12px;
+    font-size: calc(12rem / 16);
     line-height: 1.6;
   }
 }
