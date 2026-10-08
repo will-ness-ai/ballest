@@ -11,6 +11,8 @@ const config: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   skipTrailingSlashRedirect: true,
+  // PROTOTYPE (share images): the cards read their fonts and Track pictures from disk
+  outputFileTracingIncludes: { "/og-proto/**": ["./og-assets/**"] },
   rewrites() {
     return Promise.resolve({
       beforeFiles: [
