@@ -1176,7 +1176,7 @@
 .ds-mhead,
 .ds-mrow {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) 38px 38px 38px 52px;
+  grid-template-columns: 22px minmax(0, 1fr) repeat(6, 34px);
   gap: 8px;
   align-items: center;
   padding: 8px 12px;
@@ -1252,5 +1252,78 @@
   .dt-months {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
+  }
+}
+
+.ds-mhead button {
+  padding: 4px 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--faint);
+  cursor: pointer;
+  text-align: center;
+}
+.ds-mhead button[data-medal="gold"] {
+  color: var(--gold);
+}
+.ds-mhead button[data-medal="silver"] {
+  color: var(--silver);
+}
+.ds-mhead button[data-medal="bronze"] {
+  color: var(--bronze);
+}
+.ds-mhead button[aria-sort] {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.ds-mrow b:not([data-medal="gold"], [data-medal="silver"], [data-medal="bronze"]) {
+  color: var(--dim);
+  font-weight: 500;
+}
+.ds-mrow b[data-on="true"] {
+  color: var(--text);
+}
+.ds-mrow b[data-medal="gold"][data-on="true"] {
+  color: var(--gold);
+}
+.ds-mrow b {
+  font-size: 15px;
+}
+.ds-card .leaders {
+  margin-bottom: 8px;
+}
+.ds-table {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ds-table .dp-h {
+  padding: 0 var(--pad);
+}
+@media (min-width: 820px) {
+  .ds-mhead,
+  .ds-mrow {
+    grid-template-columns: 30px minmax(0, 1fr) repeat(6, 64px);
+  }
+  .ds-mhead button {
+    font-size: 11.5px;
+  }
+}
+/* a phone keeps the medals and Played; Podiums and Top 10 are desktop columns */
+@media (max-width: 819px) {
+  .ds-mhead,
+  .ds-mrow {
+    grid-template-columns: 22px minmax(0, 1fr) repeat(4, 38px);
+  }
+  .ds-mhead [data-medal="podiums"],
+  .ds-mhead [data-medal="top10"],
+  .ds-mrow [data-medal="podiums"],
+  .ds-mrow [data-medal="top10"] {
+    display: none;
   }
 }

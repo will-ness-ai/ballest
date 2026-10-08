@@ -83,7 +83,8 @@ export function Tiles({
 }
 
 /* the marble row: three plates, each a player, what they scored, and a line under it */
-function Plates({
+/* PROTOTYPE (grill-design, Daily challenge): exported for the Daily standings */
+export function Plates({
   top,
   focus,
 }: {
