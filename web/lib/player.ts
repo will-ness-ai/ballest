@@ -10,6 +10,7 @@ import {
   isPoints,
   seasonTag,
   medalOf,
+  timeMedal,
   trackPoints,
   type MedalKey,
 } from "./rules";
@@ -57,8 +58,18 @@ export interface WorkshopFinish {
   rank: number;
   score: number;
   gap: number;
+  /* what the row shows: a world record, else the Medal its time earned */
   medal: MedalKey;
+  /* the Medal the time earned by itself, which a world record does not replace */
+  earned: MedalKey;
   holder: Who;
+}
+
+/* whether a finish counts under one of the Workshop tab's Medal tiles. A world record is
+   its rank and a Medal is its time, counted apart: a record at the author time counts
+   under both, and a slower one under the Medal its time earned (CONTEXT.md, Medal) */
+export function countsUnder(f: WorkshopFinish, k: MedalKey) {
+  return k === "wr" ? f.rank === 1 : f.earned === k;
 }
 
 export interface MadeMap {
@@ -137,11 +148,13 @@ export function playerRecord(
       score: f.score,
       gap: f.score - f.lead,
       medal: medalOf(m.medals, f.rank, f.score),
+      earned: timeMedal(m.medals, f.score),
       holder: { steamId: m.top3[0][0], persona: m.top3[0][1] },
     });
   }
-  const byMedal = Object.fromEntries(MEDAL_KEYS.map(([k]) => [k, 0])) as Record<MedalKey, number>;
-  for (const f of finishes) byMedal[f.medal]++;
+  const byMedal = Object.fromEntries(
+    MEDAL_KEYS.map(([k]) => [k, finishes.filter((f) => countsUnder(f, k)).length]),
+  ) as Record<MedalKey, number>;
   /* every Map they published, timed or not; one with no time has no board to link to */
   const timedNames = new Set(timed.map((m) => m.name));
   const made = maps

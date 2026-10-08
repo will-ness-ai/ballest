@@ -9,7 +9,7 @@ import { PW_CHUNK, usePlayerView, type PwSort } from "./usePlayerView";
 import { MapImage } from "../MapImage";
 import { Medal } from "../Medal";
 import { useDebounced } from "../../hooks/client";
-import type { PlayerRecord, WorkshopFinish } from "../../lib/player";
+import { countsUnder, type PlayerRecord, type WorkshopFinish } from "../../lib/player";
 import { boardHref } from "../../lib/routes";
 import {
   MEDAL_KEYS,
@@ -175,7 +175,7 @@ export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"]
   const rows = w.finishes
     .filter(
       (f) =>
-        (!pw.medal || f.medal === pw.medal) &&
+        (!pw.medal || countsUnder(f, pw.medal)) &&
         (!q || (f.display + " " + f.creator).toLowerCase().includes(q)),
     )
     .sort(SORTS[pw.sort][1]);
