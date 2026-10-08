@@ -99,7 +99,7 @@ def record_refresh(refresh, *, scratch=False, env=None):
 def revalidate(env):
     """POST ${SITE_URL}/api/revalidate so the site's reads tagged "data" refetch. Skipped
     without SITE_URL and REVALIDATE_SECRET; a failure is only a warning."""
-    site, secret = env.get("SITE_URL"), env.get("REVALIDATE_SECRET")
+    site, secret = env.get("SITE_URL"), (env.get("REVALIDATE_SECRET") or "").strip()
     if not (site and secret):
         print("Database: no SITE_URL/REVALIDATE_SECRET; not revalidating the site")
         return
