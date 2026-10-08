@@ -367,11 +367,15 @@
 }
 
 /* the standings: the record cards, then every player's medal table */
+/* one column each, down to the cards, so long names and big text shrink the podium plates
+   (their names ellipsize) rather than widen the page */
 .main.ds {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }
 .ds-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-content: start;
   padding-bottom: 40px;
@@ -394,11 +398,13 @@
 }
 .ds-cards {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   padding: 0 var(--pad);
 }
 .ds-card {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   padding: 10px 0 4px;
   border: 1px solid var(--line);

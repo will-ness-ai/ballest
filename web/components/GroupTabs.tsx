@@ -22,9 +22,13 @@ export function Tabs({ tabs, on }: { tabs: ReadonlyArray<GroupTab>; on: string |
   /* where the bar scrolls sideways, keep the selected tab in it, clear of the faded edge
      (the bar's scroll-padding) */
   useEffect(() => {
-    bar.current
-      ?.querySelector('[aria-selected="true"]')
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const show = () =>
+      bar.current
+        ?.querySelector('[aria-selected="true"]')
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    show();
+    /* the web fonts widen the tabs when they arrive, which can push the lit one back out */
+    void document.fonts.ready.then(show);
   }, [on]);
   return (
     <nav className="groups" id="groups" role="tablist" aria-label="Season" ref={bar}>
