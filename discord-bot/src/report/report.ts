@@ -288,10 +288,11 @@ export const buildReport = (data: ReportData, at: number): Report => {
   for (const track of data.tracks) {
     const now = track.record;
     const then = track.recordYesterday;
+    const listed: ListedTrack = { board: track.board, label: track.label };
     if (now !== null && then !== null && now.steamId !== then.steamId)
       trackChanges.push({
         kind: "trackRecord",
-        track: { board: track.board, label: track.label },
+        track: listed,
         by: now.persona,
         from: then.persona,
         score: now.score,
@@ -303,7 +304,7 @@ export const buildReport = (data: ReportData, at: number): Report => {
         persona: now.persona,
         score: now.score,
         ugcId: now.ugcId,
-        where: { track: { board: track.board, label: track.label } },
+        where: { track: listed },
         publishedAt: null,
       });
   }

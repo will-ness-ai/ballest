@@ -35,11 +35,11 @@ export const escape = (s: string) =>
     .replaceAll("<", "<​");
 
 /** A masked link; the <> stop Discord unfurling an embed. */
-const link = (text: string, path: string) => `[${escape(text)}](<${SITE_URL}${path}>)`;
+const siteLink = (text: string, path: string) => `[${escape(text)}](<${SITE_URL}${path}>)`;
 /** The Map's page on the site. */
-const mapLink = (m: ListedMap) => link(m.title || m.pfid, `/map/${m.pfid}`);
+const mapLink = (m: ListedMap) => siteLink(m.title || m.pfid, `/map/${m.pfid}`);
 /** The Track's board on the site. */
-const trackLink = (t: ListedTrack) => link(t.label, `/board/${encodeURIComponent(t.board)}`);
+const trackLink = (t: ListedTrack) => siteLink(t.label, `/board/${t.board}`);
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const bold = (name: string) => `**${escape(name)}**`;
 
