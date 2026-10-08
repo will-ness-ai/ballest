@@ -58,6 +58,11 @@ A value bound for the clipboard goes through `clip.exe`, then `pbcopy`, then `xc
 
 The wizard runs where the human's browser is: Will's Windows PC. Will expects it already running in a window on his desktop; his only job is typing into it. A cloud session reaches his PC through a Remote Control session in his Ballest folder. That session acts only on Will's own words, so ask him to say "launch the wizard" in the thread and start the session on that message; started on anything else, its permission check blocks writing secrets.
 
+Two exceptions, both seen on the Daily (2026-10-08):
+
+- **A Remote Control session already runs on the thread.** It hears Will's message as he sends it and writes the wizard itself, so the cloud session doesn't author a second one: it says the PC is on it and folds what the PC reports into its replies.
+- **The wizard sets GitHub secrets.** The PC session's permission check refuses to launch a script that runs `gh secret set`, so it can't open the window for him. It writes and checks the script, and Will runs the one `bash` command it prints in a Git Bash window. Say so up front rather than promising a window.
+
 1. Hand that session the whole script inline in its instructions. It writes it to `scratch/<name>.sh` with LF endings and repeats the boot check from step 4 there.
 2. It launches a new visible window running the script by absolute path: `Start-Process "C:\Program Files\Git\git-bash.exe" -ArgumentList "-c","bash /c/Users/Will/Documents/Projects/Ballest/scratch/<name>.sh; exec bash"`. Have the script append a line to `scratch/<name>.log` at its first screen, and the session confirms that line appeared before you tell Will the window is up.
 3. Your reply names the window and the first screen he should see. Keep a copy at `/mnt/project-files/wizards/<name>.sh` attached as the fallback.
