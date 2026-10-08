@@ -1,9 +1,0 @@
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-  }
-  .car-line .prog {
-    animation: none !important;
-  } /* no autoplay: the arrows still work */
-}

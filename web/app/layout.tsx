@@ -17,7 +17,6 @@ import "./styles/workshop.css";
 import "./styles/players.css";
 import "./styles/maps.css";
 import "./styles/desktop.css";
-import "./styles/motion.css";
 
 const DESCRIPTION =
   "Circuit and Workshop leaderboards for Ballest of Them All, read straight from Steam.";
