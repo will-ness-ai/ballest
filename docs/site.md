@@ -34,6 +34,8 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   a player against themselves).
 - `web/app/styles/` — the stylesheet, split by view and imported in order by
   `app/layout.tsx`. Every color is a custom property on `:root`; the theme is dark-only.
+  Font sizes are in rem, written `calc(Nrem / 16)` with N the design's px, so text follows
+  the reader's text-size setting; `node web/scripts/check-styles.mjs` rejects a px one.
   The `good-css` skill covers how to write new styles; skip its light/dark token entry.
 
 ## Caching
