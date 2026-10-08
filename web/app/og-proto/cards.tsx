@@ -71,6 +71,7 @@ const ASSETS = join(process.cwd(), "og-assets");
 async function remote(url: string | null | undefined) {
   const u = safeImg(url);
   if (!u) return null;
+  if (process.env.OG_FAKE_REMOTE) return trackShot("Map_Track13");
   try {
     const r = await fetch(u, { signal: AbortSignal.timeout(3000) });
     if (!r.ok) return null;
@@ -779,7 +780,7 @@ function Face({ d, size, ring = 0 }: { d: CardData; size: number; ring?: number 
       style={{
         borderRadius: size,
         objectFit: "cover",
-        border: ring ? `${ring}px solid hsl(${d.hue} 78% 58%)` : undefined,
+        ...(ring ? { border: `${ring}px solid hsl(${d.hue} 78% 58%)` } : {}),
       }}
     />
   );
@@ -805,7 +806,7 @@ function GlassBall({ d, size }: { d: CardData; size: number }) {
           height: size,
           borderRadius: size,
           display: "flex",
-          backgroundImage: `radial-gradient(circle at 34% 27%, hsla(${h},94%,90%,0.35) 0%, hsla(${h},80%,64%,0.18) 34%, hsla(${h},62%,25%,0.75) 100%)`,
+          backgroundImage: `radial-gradient(circle at 34% 27%, hsla(${h},94%,90%,0.12) 0%, hsla(${h},80%,64%,0.04) 45%, hsla(${h},62%,25%,0.7) 100%)`,
           border: `6px solid hsla(${h},60%,30%,0.9)`,
         }}
       />
@@ -818,7 +819,7 @@ function GlassBall({ d, size }: { d: CardData; size: number }) {
           height: size * 0.17,
           borderRadius: size,
           display: "flex",
-          backgroundColor: "rgba(255,255,255,0.55)",
+          backgroundColor: "rgba(255,255,255,0.4)",
           transform: "rotate(-28deg)",
         }}
       />
