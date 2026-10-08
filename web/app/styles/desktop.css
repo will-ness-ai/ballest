@@ -156,7 +156,6 @@
   .search input {
     width: 230px;
     border-radius: 9px;
-    font-size: 13.5px;
     padding: 8px 12px;
   }
 
@@ -525,7 +524,7 @@
     scrollbar-width: thin;
   }
   /* with a pointer, a card's top three appear over its picture instead of the leader under it */
-  @media (hover: hover) {
+  @media (hover: hover) and (pointer: fine) {
     .mcard .lead {
       display: none;
     }

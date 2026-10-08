@@ -64,8 +64,10 @@
   color: inherit;
   text-decoration: none;
 }
-.car-by a:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .car-by a:hover {
+    color: var(--accent);
+  }
 }
 .car-stats {
   display: flex;
@@ -109,8 +111,10 @@
   border-radius: 9px;
   border: 1px solid var(--line);
 }
-.car-nav button:hover {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .car-nav button:hover {
+    border-color: var(--accent);
+  }
 }
 .car-line {
   height: 2px;
@@ -131,9 +135,15 @@
     transform: scaleX(1);
   }
 }
-.car:hover .prog,
-.car:focus-within .prog {
+/* :focus-visible, not :focus-within: Chrome on Android focuses a tapped arrow,
+   and that would pause the carousel for good */
+.car:has(:focus-visible) .prog {
   animation-play-state: paused;
+}
+@media (hover: hover) and (pointer: fine) {
+  .car:hover .prog {
+    animation-play-state: paused;
+  }
 }
 
 /* one podium line: place, marble, name, time. The carousel and the cards share it */
@@ -201,8 +211,10 @@
   text-decoration: none;
   font-weight: 600;
 }
-.shelf-n a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .shelf-n a:hover {
+    text-decoration: underline;
+  }
 }
 .strip {
   display: grid;
@@ -268,8 +280,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.mcard:hover .t {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .mcard:hover .t {
+    color: var(--accent);
+  }
 }
 .mcard .s {
   display: flex;
@@ -326,8 +340,10 @@
   border: 1px solid transparent;
   text-decoration: none;
 }
-.views a:hover {
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .views a:hover {
+    color: var(--text);
+  }
 }
 .views a.on {
   background: var(--surface2);
@@ -354,9 +370,11 @@
   font-size: 13.5px;
   color: var(--dim);
 }
-.more-btn:hover {
-  color: var(--text);
-  border-color: var(--faint);
+@media (hover: hover) and (pointer: fine) {
+  .more-btn:hover {
+    color: var(--text);
+    border-color: var(--faint);
+  }
 }
 .dscrim {
   position: fixed;
@@ -417,8 +435,10 @@
   font-size: 12.5px;
   color: var(--dim);
 }
-.opt:hover {
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .opt:hover {
+    color: var(--text);
+  }
 }
 .opt.on {
   background: var(--accent-soft);
@@ -468,8 +488,10 @@
   color: inherit;
   text-decoration: none;
 }
-.mp-by a:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .mp-by a:hover {
+    color: var(--accent);
+  }
 }
 .mp-facts {
   display: grid;

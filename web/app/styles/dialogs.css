@@ -124,10 +124,15 @@
   color: var(--dim);
   vertical-align: 1px;
 }
-.qmark:hover,
 .qmark:focus-visible {
   color: var(--accent);
   border-color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .qmark:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
 }
 .cmp .ws-q {
   max-width: none;
@@ -153,9 +158,13 @@
   border-radius: 9px;
   text-align: left;
 }
-.hit:hover,
 .hit:focus-visible {
   background: var(--surface2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .hit:hover {
+    background: var(--surface2);
+  }
 }
 .hit .marble {
   width: 24px;

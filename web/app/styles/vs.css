@@ -24,9 +24,11 @@
   text-transform: uppercase;
   color: var(--dim);
 }
-.mebtn:hover {
-  border-color: var(--a);
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .mebtn:hover {
+    border-color: var(--a);
+    color: var(--text);
+  }
 }
 .you {
   padding: 3px 9px;
@@ -155,8 +157,10 @@
   white-space: nowrap;
   max-width: 100%;
 }
-.vsside a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .vsside a:hover {
+    text-decoration: underline;
+  }
 }
 .vsside .linkbtn {
   color: var(--faint);
@@ -299,8 +303,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.vmid:hover b {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .vmid:hover b {
+    color: var(--accent);
+  }
 }
 .vmid small {
   display: block;
