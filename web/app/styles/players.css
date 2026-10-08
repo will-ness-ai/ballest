@@ -290,7 +290,7 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .go:hover {
-    background: color-mix(in oklch, var(--accent), white 8%);
+    background: var(--accent-hover);
   }
 }
 .eyebrow {

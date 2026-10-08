@@ -363,8 +363,7 @@
   .pid,
   .pstats,
   .pseason {
-    margin-inline-start: 0;
-    margin-inline-end: 0;
+    margin-inline: 0;
   }
   .pid {
     gap: 14px;
@@ -401,8 +400,7 @@
   }
   .ptabs,
   .pws {
-    margin-inline-start: 0;
-    margin-inline-end: 0;
+    margin-inline: 0;
   }
   .trophies {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -419,8 +417,7 @@
   }
   .mecard {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
-    margin-inline-start: 0;
-    margin-inline-end: 0;
+    margin-inline: 0;
   }
   .mecard .go {
     grid-column: auto;

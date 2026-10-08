@@ -339,8 +339,7 @@
    every tile draws it the same way, and the border already says which medal. */
 .pt-bar {
   position: absolute;
-  inset-inline-start: 0;
-  inset-inline-end: 0;
+  inset-inline: 0;
   inset-block-end: 0;
   height: 4px;
   background: oklch(100% 0 none / 0.055);
@@ -471,11 +470,11 @@
   content: "";
   position: absolute;
   inset-block-start: -13px;
-  inset-inline-start: 50%;
+  inset-inline: 0;
   z-index: -1;
   width: 20px;
   height: 18px;
-  transform: translateX(-50%);
+  margin-inline: auto;
   background: linear-gradient(90deg, var(--ribbon) 50%, var(--ribbon2) 50%);
   clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
 }
@@ -697,7 +696,7 @@
   font-family: var(--f-hud);
   font-size: calc(15rem / 16);
   font-weight: 700;
-  scroll-margin-top: 12px;
+  scroll-margin-block-start: 12px;
 }
 .pwtools {
   display: flex;
