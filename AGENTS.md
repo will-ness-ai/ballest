@@ -217,6 +217,7 @@ at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. 
 `will-ness-ai/skills`, adapted to prototype in the running app on a worktree, and is
 maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
+`writing-for-agents` (also `mattpocock/skills`) is adapted too: its `SKILL-MECHANICS.md` says how to word a call to another skill, and the vendored skills' calls follow it.
 `good-css` (MIT, from `vojtaholik/good-css` at `6d16d2f`, also recorded in `skills-lock.json`) loads on its own whenever you write or
 review CSS. The site is dark-only (`docs/site.md`), so skip its light/dark token entry.
 

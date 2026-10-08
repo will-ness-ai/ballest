@@ -13,6 +13,10 @@ Pick model-invocation only when the agent must reach the skill on its own, or an
 
 Shared reference that two user-invoked skills both need can live in neither: with no descriptions, neither can fire the other. Push it to a plain file outside the skill system: external reference any skill can point at.
 
+## Reaching a skill
+
+When a document needs a model-invoked skill run, write the call as one sentence: Call the Skill tool for '<name>'. That wording fires the skill most reliably; name one skill per sentence, and say what to do with it after (consult it, run it on the branch). A user-invoked skill refuses the Skill tool, so for one of those, point at its `SKILL.md` to read and follow instead.
+
 ## Splitting by invocation
 
 The invocation cut of splitting (the sequence cut lives in `SKILL.md`): split off a model-invoked skill when you have a distinct leading word that should trigger it on its own (a trigger word you actually use in your prompts), or another skill must reach it. You pay context load for the new always-loaded description, so that independent reach has to be worth it.

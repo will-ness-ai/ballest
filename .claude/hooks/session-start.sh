@@ -1,8 +1,8 @@
 #!/bin/bash
 # Readies a cloud session for the repo's checks: the local Postgres the site's tests, the
 # collector's tests and `pnpm dev` run against (AGENTS.md, "Running it"), the pnpm that
-# package.json pins, and every package's dependencies, so a lint run never mixes a missing
-# install's errors into real ones. A container restart stops Postgres, so this runs on
+# package.json pins, every package's dependencies and the Ruff CI pins, so a lint run never
+# mixes a missing install's errors, or a newer Ruff's, into real ones. A container restart stops Postgres, so this runs on
 # every start; each step is a no-op when already done.
 set -euo pipefail
 
@@ -29,3 +29,13 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev node web/sc
 # the route types lint reads (docs/linting.md)
 (cd web && pnpm exec next typegen >/dev/null)
 python3 -m pip install -q --root-user-action=ignore -r tools/requirements-test.txt
+# the Ruff CI pins (check.yml): a newer one fails `pnpm check` on rules main doesn't follow
+# (docs/linting.md). The image's uv tool ruff comes first on PATH, so replace that one.
+v=$(grep -om1 'ruff==[0-9.]*' .github/workflows/check.yml | cut -d= -f3)
+if [ "$(ruff --version 2>/dev/null)" != "ruff $v" ]; then
+  if command -v uv >/dev/null; then
+    uv tool install -q --force "ruff@$v"
+  else
+    python3 -m pip install -q --root-user-action=ignore "ruff==$v"
+  fi
+fi
