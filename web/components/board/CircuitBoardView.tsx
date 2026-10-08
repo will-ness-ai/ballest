@@ -10,6 +10,7 @@ import { DocTitle } from "../Behaviours";
 import { BoardSheet } from "./BoardSheet";
 import { OverallCard, PodiumPlates, ScorePlates, SortSwitch, Tiles, TrackCard } from "./BoardTop";
 import { PointsDialog } from "./PointsDialog";
+import { YouSlot } from "../proto/You";
 import { RailItems } from "./Rail";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import { TRACKS, circuitBoard, trackNo } from "../../lib/circuit";
@@ -50,6 +51,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
   const rows = page.rows;
   const focusAt = focusId ? focus[focusId] : undefined;
   const t = TRACKS[name] as (typeof TRACKS)[string] | undefined;
+  const you = { name, total: page.total, lead: rows[0]?.score ?? null, medals: t?.medals ?? null };
   const items = <RailItems boards={own} current={name} podiums={site.podiums} />;
 
   return (
@@ -77,6 +79,9 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
         ) : (
           <TrackCard b={b} rows={rows} scores={scores} />
         )}
+        <YouSlot place="panel" {...you} />
+        <YouSlot place="top" {...you} />
+        <YouSlot place="sticky" {...you} />
 
         {podiums ? (
           <BoardBody
@@ -100,7 +105,14 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
             count={page.total}
             sortsw={tally ? <SortSwitch name={name} podiums={false} /> : undefined}
             tiles={<Tiles name={name} rows={rows} count={page.total} />}
-            leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
+            leaders={
+              <ScorePlates
+                name={name}
+                rows={rows}
+                focus={focusId}
+                extra={<YouSlot place="plates" {...you} />}
+              />
+            }
             initial={page.total >= 3 ? rows.slice(3) : rows}
             lead={rows[0]?.score ?? null}
             pods={

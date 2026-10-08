@@ -1,6 +1,14 @@
 // How every run on a board spreads out, as a chart with the Medal cut-offs: a Circuit
 // Track's card and a Map's panel. No state, so the server draws it.
-import { MEDALS, SCORE_TICKS_PER_SECOND, fmtN, fmtSec, fmtTime, plural } from "../../lib/rules";
+import {
+  MEDALS,
+  SCORE_TICKS_PER_SECOND,
+  fmtN,
+  fmtSec,
+  fmtTime,
+  hueFor,
+  plural,
+} from "../../lib/rules";
 
 /* How every run on a board spreads out, with each Medal's cut-off drawn in. `ts` is the
    run times in rank order, `medals` [bronze, silver, gold, author] in seconds. On a Map's
@@ -12,10 +20,13 @@ export function Spread({
   ts,
   medals,
   wide,
+  you = null,
 }: {
   ts: ReadonlyArray<number>;
   medals: ReadonlyArray<number>;
   wide: boolean;
+  /* PROTOTYPE: your run, drawn as a line in your marble's hue */
+  you?: { score: number; h: string; callout: string | null } | null;
 }) {
   if (ts.length < 2)
     return <p className="sp-cap">{ts.length ? "One run so far." : "No runs yet."}</p>;
@@ -91,6 +102,30 @@ export function Spread({
             </g>
           );
         })}
+        {you &&
+          (() => {
+            const t = Math.min(Math.max(you.score, lo), hi);
+            const ax = +x(t);
+            const c = `hsl(${String(hueFor(you.h))} 85% 66%)`;
+            const right = ax < W - 70;
+            return (
+              <g className="sp-you">
+                <line x1={ax} x2={ax} y1={top - 4} y2={base} stroke={c} strokeWidth="2.5" />
+                <circle cx={ax} cy={top - 4} r="3.5" fill={c} />
+                <text
+                  x={right ? ax + 5 : ax - 5}
+                  y={top + 4}
+                  style={{ fill: c }}
+                  fontSize="10.5"
+                  fontWeight="700"
+                  textAnchor={right ? "start" : "end"}
+                >
+                  {you.callout ? "You · " + you.callout : "You"}
+                  {you.score > hi ? " →" : ""}
+                </text>
+              </g>
+            );
+          })()}
         <text className="sp-lbl" x="0" y={H - 6}>
           {fmtTime(lo)} record
         </text>

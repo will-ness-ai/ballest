@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { Freshness } from "./Freshness";
 import { GroupTabs, Tabs, type GroupTab } from "./GroupTabs";
 import { Rack } from "./Marble";
+import { Picker, YouHeader } from "./proto/You";
 import { getSite, getWorkshop } from "../db/data";
 import { groupsOf, overallOf } from "../lib/player";
 import { PLAYERS_TAB, WORKSHOP_GROUP, boardHref, homeHref, playersHref } from "../lib/routes";
@@ -39,11 +40,16 @@ export async function Shell({ view, children }: { view: View; children: React.Re
         </Link>
         <p className="tagline">Circuit and Workshop leaderboards</p>
         <Freshness refreshedAt={site.refreshedAt} mapsReadBy={site.mapsReadBy} />
+        <YouHeader at="hdr" />
       </header>
 
-      <Suspense fallback={<Tabs tabs={list} on={null} />}>
-        <GroupTabs tabs={list} />
-      </Suspense>
+      <div className="proto-tabs">
+        <Suspense fallback={<Tabs tabs={list} on={null} />}>
+          <GroupTabs tabs={list} />
+        </Suspense>
+        <YouHeader at="tabs" />
+      </div>
+      <Picker />
 
       {children}
 

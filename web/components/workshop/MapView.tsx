@@ -10,7 +10,7 @@ import { DocTitle } from "../Behaviours";
 import { BoardBody } from "../board/BoardBody";
 import { MapImage } from "../MapImage";
 import { ScorePlates } from "../board/BoardTop";
-import { Spread } from "../board/Spread";
+import { YouSlot, YouSpread } from "../proto/You";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import type { WorkshopMap } from "../../lib/rows";
 import { homeHref, mapHref } from "../../lib/routes";
@@ -61,10 +61,17 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
           </div>
         ))}
       </div>
+      <YouSlot
+        place="panel"
+        name={m.name}
+        total={m.entryCount}
+        lead={m.top3[0][2]}
+        medals={m.medals}
+      />
       <div className="mp-chart">
         <span className="eyebrow">Every run</span>
         <div id="spread">
-          <Spread ts={scores} medals={m.medals} wide={false} />
+          <YouSpread name={m.name} ts={scores} medals={m.medals} wide={false} />
         </div>
       </div>
       <a
@@ -98,18 +105,28 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
   ]);
   const rows = page.rows;
   const at = focus ? places?.[focus] : undefined;
+  const you = { name, total: page.total, lead: rows[0]?.score ?? null, medals: m.medals };
   return (
     <div className="main">
       <DocTitle title={m.title} />
       <MapPanel m={m} scores={scores} asOf={site.asOf} />
       <section className="content">
+        <YouSlot place="top" {...you} />
+        <YouSlot place="sticky" {...you} />
         <BoardBody
           order="score"
           name={name}
           points={false}
           where={"by " + m.creator}
           count={page.total}
-          leaders={<ScorePlates name={name} rows={rows} focus={focus} />}
+          leaders={
+            <ScorePlates
+              name={name}
+              rows={rows}
+              focus={focus}
+              extra={<YouSlot place="plates" {...you} />}
+            />
+          }
           initial={page.total >= 3 ? rows.slice(3) : rows}
           lead={rows[0]?.score ?? null}
           pods={null}

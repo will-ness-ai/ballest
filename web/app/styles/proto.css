@@ -1,0 +1,451 @@
+/* PROTOTYPE (grill-design, "You" round 1): never merged */
+
+/* your row and plate, in every variant */
+.row.is-you {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.row.is-you .nm a::after,
+.plate.is-you .pl-name a::after {
+  content: " · you";
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* A: a fourth plate, set apart by a rule */
+.plate.you-plate {
+  order: 4;
+  padding-left: 14px;
+  border-left: 1px dashed var(--line);
+}
+.plate.you-plate .marble {
+  width: 46px;
+  height: 46px;
+  box-shadow:
+    0 0 0 3px var(--accent),
+    0 10px 24px rgba(0, 0, 0, 0.42);
+}
+.plate.you-plate .pl-name {
+  color: var(--accent);
+}
+.plate.you-plate .pl-gap {
+  display: block;
+  font-size: 11px;
+  color: var(--faint);
+}
+.you-rank {
+  color: var(--accent) !important;
+  text-decoration: none;
+}
+.you-A.you-empty {
+  order: 4;
+  max-width: 130px;
+  align-self: center;
+  font-size: 12px;
+  color: var(--faint);
+  text-align: center;
+}
+.you-A.you-empty .go {
+  display: none;
+}
+
+/* B: a bar pinned to the bottom of the screen */
+.you-B {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(560px, calc(100% - 24px));
+  padding: 9px 10px 9px 12px;
+  border-radius: 14px;
+  background: var(--solid);
+  border: 1px solid var(--accent);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+}
+.you-B .marble {
+  width: 34px;
+  height: 34px;
+  flex: none;
+}
+.you-B-t {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.you-B-t b {
+  color: var(--accent);
+}
+.you-B-t small {
+  color: var(--dim);
+  font-family: var(--f-hud);
+  font-variant-numeric: tabular-nums;
+}
+.you-B .go,
+.you-C .go,
+.you-E .go,
+.you-empty .go {
+  padding: 7px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.you-B.you-empty {
+  color: var(--dim);
+  font-size: 13px;
+}
+
+/* C: a card of its own, in the Map panel or under the Track card */
+.you-C {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 var(--pad) 16px;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: linear-gradient(var(--accent-soft), transparent);
+}
+.mpanel .you-C {
+  margin: 0;
+}
+.you-C-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.you-C-top .marble {
+  width: 32px;
+  height: 32px;
+}
+.you-C-time {
+  font-family: var(--f-hud);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.you-medal {
+  margin-left: auto;
+  font-family: var(--f-hud);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+}
+.you-C .mp-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+}
+.you-C .mp-facts dt {
+  font-size: 11px;
+  color: var(--faint);
+}
+.you-C .mp-facts dd {
+  margin: 0;
+  font-family: var(--f-hud);
+  font-weight: 700;
+}
+.you-C.you-empty {
+  font-size: 13px;
+  color: var(--dim);
+}
+
+/* D: only a jump link */
+.you-D {
+  margin: 0 var(--pad) 8px;
+  text-align: right;
+  font-size: 12.5px;
+}
+.you-D a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* E: one sentence across the top of the board */
+.you-E {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 var(--pad) 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.you-E .marble {
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+.you-E p {
+  margin: 0;
+  flex: 1;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.you-E.you-empty {
+  font-size: 13px;
+  color: var(--dim);
+}
+
+/* the header button */
+.you-h {
+  color: var(--text);
+  text-decoration: none;
+}
+.you-h .marble {
+  width: 26px;
+  height: 26px;
+}
+.hdr {
+  position: relative;
+}
+.you-h1,
+.you-h5,
+.you-h-empty.you-h1,
+.you-h-empty.you-h5 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 700;
+  max-width: 180px;
+}
+.you-h1 span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.you-h-empty {
+  padding: 6px 12px;
+  color: var(--accent);
+}
+.you-h5 {
+  border-radius: 12px;
+  padding: 6px 12px 6px 6px;
+  max-width: 220px;
+}
+.you-h5 .marble {
+  width: 34px;
+  height: 34px;
+}
+.you-h5 span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.you-h5 b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.you-h5 small {
+  font-weight: 400;
+  color: var(--dim);
+  font-size: 11px;
+}
+.you-h2 {
+  position: relative;
+  flex: none;
+}
+.you-h2-b {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.you-h2-b .marble {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+.you-h-empty.you-h2,
+.you-h-empty.you-h4 {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px dashed var(--accent);
+  font-weight: 700;
+}
+.you-menu {
+  position: absolute;
+  right: 0;
+  top: 40px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--solid);
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+}
+.you-menu b {
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.you-menu a {
+  padding: 7px 8px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13.5px;
+}
+.you-menu a:hover {
+  background: var(--surface2);
+}
+.proto-tabs {
+  display: flex;
+  align-items: center;
+}
+.proto-tabs .groups {
+  flex: 1;
+  min-width: 0;
+}
+.you-h3.gtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  margin: 0 var(--pad) 12px -8px;
+  color: var(--accent);
+  font-weight: 700;
+}
+.you-h3 .marble {
+  width: 20px;
+  height: 20px;
+}
+.you-h-empty.you-h3 {
+  margin: 0 var(--pad) 12px 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.you-h4 {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 45;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px var(--accent),
+    0 10px 30px rgba(0, 0, 0, 0.6);
+}
+.you-h4 .marble {
+  width: 48px;
+  height: 48px;
+  display: block;
+}
+.you-h-empty.you-h4 {
+  width: 48px;
+  height: 48px;
+  background: var(--solid);
+  box-shadow: none;
+}
+
+@media (max-width: 819px) {
+  .you-h5 small {
+    display: none;
+  }
+  .you-h5,
+  .you-h1 {
+    max-width: 130px;
+  }
+  .freshness {
+    display: none;
+  }
+}
+
+/* the graph's You line */
+.sp-you text {
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+}
+
+@media (min-width: 820px) {
+  .hdr > .you-h,
+  .hdr > .you-h2 {
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+  .proto-tabs .groups {
+    margin-bottom: 20px;
+  }
+  .you-h3.gtab {
+    margin: 0 0 20px 0;
+    border-bottom: 2px solid transparent;
+  }
+  .you-C {
+    margin: 0 0 18px;
+  }
+  .you-E,
+  .you-D {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+/* the picker: plainly not part of the design */
+.proto-picker {
+  position: fixed;
+  right: 14px;
+  bottom: 150px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: #fff;
+  color: #000;
+  font:
+    600 12.5px/1.2 system-ui,
+    sans-serif;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.proto-picker > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.proto-picker span {
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+.proto-picker button {
+  border: 0;
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: #e8e8e8;
+  color: #000;
+  font: inherit;
+  cursor: pointer;
+}
+.proto-picker button[aria-pressed="true"] {
+  background: #000;
+  color: #fff;
+}
+.proto-states button {
+  flex: 1;
+  font-size: 11px;
+}

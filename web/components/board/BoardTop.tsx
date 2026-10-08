@@ -5,7 +5,7 @@
 import Link from "next/link";
 
 import { QMark } from "./PointsDialog";
-import { Spread } from "./Spread";
+import { YouSpread } from "../proto/You";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
@@ -86,7 +86,10 @@ export function Tiles({
 function Plates({
   top,
   focus,
+  extra = null,
 }: {
+  /* PROTOTYPE: a You plate after the three */
+  extra?: React.ReactNode;
   top: Array<{
     who: { steamId: string; persona: string; avatar: string | null };
     score: React.ReactNode;
@@ -115,6 +118,7 @@ function Plates({
           <span className="pl-rank">{PLACE[i]}</span>
         </div>
       ))}
+      {extra}
     </div>
   );
 }
@@ -123,16 +127,19 @@ export function ScorePlates({
   name,
   rows,
   focus,
+  extra = null,
 }: {
   name: string;
   rows: Array<BoardRow>;
   focus: string | null;
+  extra?: React.ReactNode;
 }) {
   const points = isPoints(name),
     lead = rows[0] as BoardRow | undefined;
   return (
     <Plates
       focus={focus}
+      extra={extra}
       top={rows.slice(0, 3).map((r, i) => {
         const gap = points ? (lead?.score ?? 0) - r.score : r.score - (lead?.score ?? 0);
         return {
@@ -218,7 +225,7 @@ export function TrackCard({
             ]}
           />
         </div>
-        {t && <Spread ts={scores} medals={t.medals} wide />}
+        {t && <YouSpread name={b.name} ts={scores} medals={t.medals} wide />}
         {t && <p className="bc-cap">Track screenshot from the game.</p>}
       </div>
     </div>
