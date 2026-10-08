@@ -562,8 +562,7 @@
   .ds-medals [data-medal="top10"] {
     display: table-cell;
   }
-  .dc-strip,
-  .dc-sheet {
+  .dc-strip {
     display: none;
   }
   .dc-side {
@@ -571,7 +570,7 @@
     gap: 18px;
     position: sticky;
     top: 16px;
-    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;

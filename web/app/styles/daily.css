@@ -172,20 +172,16 @@
   font-size: 11px;
   color: var(--faint);
 }
-.dc-sheet {
-  position: fixed;
+.dc-sheet[open] {
   inset: 0;
-  z-index: 41;
+  inline-size: 100%;
+  block-size: 100dvh;
   overflow-y: auto;
-  overscroll-behavior: contain;
   display: grid;
   gap: 18px;
   align-content: start;
   padding: 14px var(--pad) 40px;
   background: var(--bg);
-}
-.dc-sheet[hidden] {
-  display: none;
 }
 .dc-sheet .dh h2 {
   margin: 0;

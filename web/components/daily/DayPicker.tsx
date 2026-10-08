@@ -7,12 +7,12 @@
 // against the newest Daily's close (todayOf), so a cached page dims it at the close. A
 // player's Daily tab draws the same months (Months) with their place on each day.
 import Link from "next/link";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { useModalKeys } from "../Behaviours";
 import { MapImage } from "../MapImage";
 import { Marble } from "../Marble";
+import { useDialog } from "../Modal";
 import { useMounted, useNowPast } from "../../hooks/client";
 import { bandOf, calendarOf, dayLabel, todayOf } from "../../lib/daily";
 import { dailyHref } from "../../lib/routes";
@@ -126,19 +126,40 @@ export function Months({
   ));
 }
 
+/* the sheet opens focused on the picked day, scrolled to it */
+const onThePickedDay = (d: HTMLDialogElement) => {
+  const at = d.querySelector<HTMLElement>('[aria-current="page"]');
+  at?.scrollIntoView({ block: "center" });
+  return at;
+};
+
 export function DayPicker({ days, picked }: { days: ReadonlyArray<DailyCell>; picked: string }) {
   const today = todayOf(days, useNowPast(days.at(-1)?.endsAt ?? ""));
   const mounted = useMounted();
   const head = useId();
   const strip = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
-  const box = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const close = useCallback(() => {
-    setOpen(false);
-    trigger.current?.focus();
-  }, []);
-  useModalKeys(open, box, close);
+  const { props, close } = useDialog({
+    open,
+    onClose: () => {
+      setOpen(false);
+    },
+    focus: onThePickedDay,
+    from: trigger,
+  });
+  /* a desktop has the calendar beside the panel instead (desktop.css's 820px), so the
+     sheet closes rather than stay modal and hidden when the window widens */
+  useEffect(() => {
+    const wide = matchMedia("(min-width: 820px)");
+    const shut = () => {
+      if (wide.matches) close();
+    };
+    wide.addEventListener("change", shut);
+    return () => {
+      wide.removeEventListener("change", shut);
+    };
+  }, [close]);
 
   /* the strip opens on the picked day (today's, on /daily), at the right if it is the newest */
   useEffect(() => {
@@ -162,11 +183,6 @@ export function DayPicker({ days, picked }: { days: ReadonlyArray<DailyCell>; pi
           aria-haspopup="dialog"
           onClick={() => {
             setOpen(true);
-            requestAnimationFrame(() => {
-              box.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView({
-                block: "center",
-              });
-            });
           }}
         >
           Calendar
@@ -177,31 +193,15 @@ export function DayPicker({ days, picked }: { days: ReadonlyArray<DailyCell>; pi
       </aside>
       {mounted &&
         createPortal(
-          <div
-            className="dc-sheet"
-            ref={box}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={head}
-            hidden={!open}
-          >
+          <dialog className="dc-sheet" aria-labelledby={head} {...props}>
             <div className="dh">
               <h2 id={head}>Every Daily</h2>
               <button type="button" aria-label="Close" onClick={close}>
                 &times;
               </button>
             </div>
-            {open && (
-              <Months
-                days={days}
-                picked={picked}
-                today={today}
-                onPick={() => {
-                  setOpen(false);
-                }}
-              />
-            )}
-          </div>,
+            <Months days={days} picked={picked} today={today} onPick={close} />
+          </dialog>,
           document.body,
         )}
     </>
