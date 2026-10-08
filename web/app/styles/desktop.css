@@ -130,6 +130,9 @@
     display: none;
   }
 
+  .you-banner {
+    margin-inline: 0;
+  }
   .bcard {
     margin: 0 0 14px;
     grid-template-columns: 260px minmax(0, 1fr);

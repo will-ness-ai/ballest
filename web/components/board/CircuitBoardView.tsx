@@ -11,6 +11,7 @@ import { BoardSheet } from "./BoardSheet";
 import { OverallCard, PodiumPlates, ScorePlates, SortSwitch, Tiles, TrackCard } from "./BoardTop";
 import { PointsDialog } from "./PointsDialog";
 import { RailItems } from "./Rail";
+import { YouBanner } from "./YouBanner";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import { TRACKS, circuitBoard, trackNo } from "../../lib/circuit";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
@@ -76,6 +77,16 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
           <OverallCard b={b} rows={rows} tally={tally} tracks={tracks} podiums={podiums} />
         ) : (
           <TrackCard b={b} rows={rows} scores={scores} />
+        )}
+
+        {/* You on the points order only: the podium order ranks no one by score */}
+        {!podiums && (
+          <YouBanner
+            name={name}
+            field={page.total}
+            lead={rows[0]?.score ?? null}
+            medals={t?.medals ?? null}
+          />
         )}
 
         {podiums ? (

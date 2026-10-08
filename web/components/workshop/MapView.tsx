@@ -11,6 +11,7 @@ import { BoardBody } from "../board/BoardBody";
 import { MapImage } from "../MapImage";
 import { ScorePlates } from "../board/BoardTop";
 import { Spread } from "../board/Spread";
+import { YouBanner } from "../board/YouBanner";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import type { WorkshopMap } from "../../lib/rows";
 import { homeHref, mapHref } from "../../lib/routes";
@@ -103,6 +104,7 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
       <DocTitle title={m.title} />
       <MapPanel m={m} scores={scores} asOf={site.asOf} />
       <section className="content">
+        <YouBanner name={name} field={page.total} lead={rows[0]?.score ?? null} medals={m.medals} />
         <BoardBody
           order="score"
           name={name}
