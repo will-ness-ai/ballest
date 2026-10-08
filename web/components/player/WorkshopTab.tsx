@@ -25,7 +25,7 @@ import {
 const PW_SHELF = 14;
 /* a scripted scroll glides only for those who haven't asked for less motion */
 const glide = (): ScrollBehavior =>
-  matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth";
+  matchMedia("(prefers-reduced-motion: no-preference)").matches ? "smooth" : "auto";
 
 /* a Medal as the trophy shelf and each row draw it */
 function Medal({ t, size, mini }: { t: MedalKey; size: number; mini?: boolean }) {

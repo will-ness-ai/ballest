@@ -415,7 +415,7 @@
   height: 9px;
   border-radius: 5px;
   background: var(--surface2);
-  animation: pulse 1.2s ease-in-out infinite;
+  animation: pulse 1.2s var(--ease-in-out) infinite;
 }
 .skel span:nth-child(1) {
   width: 18px;

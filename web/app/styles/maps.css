@@ -29,10 +29,17 @@
   padding: 16px;
   display: grid;
   gap: 10px;
+  animation: fadein 0.3s var(--ease-out);
 }
 @media (prefers-reduced-motion: no-preference) {
   .car-in {
     animation: carin 0.3s var(--ease-out);
+  }
+}
+/* the fade on its own, for those who asked for less motion */
+@keyframes fadein {
+  from {
+    opacity: 0;
   }
 }
 @keyframes carin {
@@ -397,6 +404,7 @@
   flex-direction: column;
   gap: 18px;
   overflow-y: auto;
+  animation: fadein 0.22s var(--ease-out);
 }
 @media (prefers-reduced-motion: no-preference) {
   .drawer {

@@ -20,8 +20,8 @@ footer a {
   color: var(--dim);
 }
 
-/* the track sheet: it slides up from the bottom and back down, and the backdrop fades,
-   from and to display: none */
+/* the track sheet: it slides up from the bottom and back down (with no reduced-motion
+   preference; otherwise it appears), and the backdrop fades, from and to display: none */
 .sheet {
   inset-block: auto 0;
   inset-inline: 0;
@@ -32,6 +32,10 @@ footer a {
   transform: translateY(102%);
   display: flex;
   flex-direction: column;
+  /* it stays in the top layer while it leaves, so its backdrop can fade out */
+  transition:
+    display 0.26s allow-discrete,
+    overlay 0.26s allow-discrete;
 }
 @media (prefers-reduced-motion: no-preference) {
   .sheet {
@@ -51,10 +55,7 @@ footer a {
 }
 .sheet::backdrop {
   opacity: 0;
-  transition:
-    opacity 0.22s var(--ease-out),
-    display 0.22s allow-discrete,
-    overlay 0.22s allow-discrete;
+  transition: opacity 0.22s var(--ease-out);
 }
 .sheet[open]::backdrop {
   opacity: 1;
