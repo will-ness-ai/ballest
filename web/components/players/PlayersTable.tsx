@@ -11,7 +11,7 @@ import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
 import type { Standings } from "../../lib/rows";
 import { useDebounced } from "../../hooks/client";
-import { useMe } from "../../hooks/me";
+import { useYou } from "../../hooks/me";
 import {
   PL_SCOPE_LABELS,
   plCol,
@@ -211,7 +211,8 @@ export function PlayersTable({
   scope: PlScope;
   sort: PlSort;
 }) {
-  const me = useMe();
+  const you = useYou();
+  const me = you.state === "ready" ? you.id : null;
   const [text, setText] = useState(keptQuery);
   const query = useDebounced(text);
   useEffect(() => {

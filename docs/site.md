@@ -132,12 +132,13 @@ hours ago still says how old the boards are now.
 
 You's card sits at the top right (`components/YouCard.tsx`): your marble and name, with your
 All Seasons place and Maps played on a desktop, linking to your page. On a phone it folds to
-marble and name and takes the refresh time's place, which is hidden there (a blank card holds that place while a
-claim's record is read). With nobody
-claimed, or a claim on a Steam ID the API answers 404 for, it is a "Find yourself" card to
-Players. It reads You from `useYou` (`hooks/me.ts`), which reads the record once per page
-load and shares it with the score card, and it draws nothing until the browser has read
-the claim, so a claimed visitor never sees "Find yourself" first.
+marble and name and takes the refresh time's place, which is hidden there (a blank card
+holds that place while your record is read). Signed out, it is Sign in with Steam, coming
+back to the page you were on; signed in as a Steam ID on no board yet, it is Sign out, since
+that player has no page to sign out from (everyone else signs out on their own page). It
+reads You from `useYou` (`hooks/me.ts`), which asks `/api/me` and reads your record once
+per page load and shares them with every view of You, and it draws nothing until the
+browser can tell, so a signed-in visitor never sees Sign in first.
 
 ## A board
 
@@ -154,7 +155,7 @@ a bar toward the next one (`standingOn` in `lib/standing.ts`), and a link to the
 your row. It reads your row from `/api/board/<name>?player=<steam id>` through
 `useYouOnBoard` (`hooks/you.ts`), which every view of You on a board shares, and draws
 nothing until it has, so the server's page is the same for everyone; once the browser
-knows there is a claim it holds the banner's height while the row is read, so the plates
+knows there is a session it holds the banner's height while the row is read, so the plates
 don't jump. The same read draws your time on the spread chart (a Map's panel, a Track's card) as a line in your marble's hue,
 held at the right edge with an arrow when it is past it: the server works the chart out
 (`spreadOf` in `lib/spread.ts`) and `YouSpread` draws it again with the line, so only the
@@ -185,8 +186,8 @@ maps, search and player pages, and its page shows the reason.
 
 `matchup` pairs two player records up: the rows both have a time on, each with its winner
 and margin, the tally for All, Circuit and Workshop, and the comparison band. The head to
-head page and a player page's score card both read it. The score card appears once "This
-is me" has put a Steam ID in `localStorage` (`hooks/me.ts`). The Compare dialog searches
+head page and a player page's score card both read it. The score card appears once you are
+signed in (`hooks/me.ts`). The Compare dialog searches
 players through `/api/players`.
 
 ## Players

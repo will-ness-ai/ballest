@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { cookieOf, sessionCookies, sign, verify } from "../lib/session";
+import { cookieOf, redirectTo, sessionCookies, sessionOf, sign, verify } from "../lib/session";
 
 const ID = "76561198008697957";
 const NOW = Date.UTC(2026, 9, 8);
@@ -38,10 +38,39 @@ test("with no secret nobody signs in", () => {
   expect(sign("not-an-id", "s3cret", NOW)).toBeNull();
 });
 
+const asking = (cookie: string) => new Request("https://x.test/api/me", { headers: { cookie } });
+
 test("cookies are read by exact name", () => {
-  expect(cookieOf("a=1; ballest-session=x.y.z; b=2", "ballest-session")).toBe("x.y.z");
-  expect(cookieOf("xballest-session=1", "ballest-session")).toBeNull();
-  expect(cookieOf(null, "ballest-session")).toBeNull();
+  expect(cookieOf(asking("a=1; ballest-session=x.y.z; b=2"), "ballest-session")).toBe("x.y.z");
+  expect(cookieOf(asking("xballest-session=1"), "ballest-session")).toBeNull();
+  expect(cookieOf(new Request("https://x.test/"), "ballest-session")).toBeNull();
+});
+
+test("a request is signed in as its session's Steam ID; a bad session is stale", () => {
+  const t = sign(ID, "s3cret", NOW) ?? "";
+  expect(sessionOf(asking("ballest-session=" + t), "s3cret", NOW)).toEqual({
+    id: ID,
+    stale: false,
+  });
+  expect(sessionOf(asking("ballest-session=" + t + "x"), "s3cret", NOW)).toEqual({
+    id: null,
+    stale: true,
+  });
+  expect(sessionOf(asking(""), "s3cret", NOW)).toEqual({ id: null, stale: false });
+});
+
+test("with no secret configured a session is unreadable but not stale, so it is kept", () => {
+  const t = sign(ID, "s3cret", NOW) ?? "";
+  expect(sessionOf(asking("ballest-session=" + t), undefined, NOW)).toEqual({
+    id: null,
+    stale: false,
+  });
+});
+
+test("a redirect goes only to a path on this site", () => {
+  expect(redirectTo("/maps", ["a=1"]).headers.get("location")).toBe("/maps");
+  expect(redirectTo("//evil.example").headers.get("location")).toBe("/");
+  expect(redirectTo(null).status).toBe(303);
 });
 
 test("signing in sets an httpOnly session and a readable hint; signing out clears both", () => {

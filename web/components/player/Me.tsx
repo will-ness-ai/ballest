@@ -7,16 +7,16 @@ import { usePathname } from "next/navigation";
 
 import { Score } from "./Score";
 import { Marble } from "../Marble";
-import { useMe, useYou } from "../../hooks/me";
+import { useYou } from "../../hooks/me";
 import { matchup, type PlayerRecord } from "../../lib/player";
 import { signOutHref, vsHref } from "../../lib/routes";
 import { personaOf, plural } from "../../lib/rules";
 
 /* "This is you" and Sign out on your own page, nothing on anyone else's */
 export function SignOut({ id }: { id: string }) {
-  const me = useMe();
+  const you = useYou();
   const path = usePathname();
-  if (me !== id) return null;
+  if (you.state !== "ready" || you.id !== id) return null;
   return (
     <form className="pme" method="post" action={signOutHref(path)}>
       <span className="you">This is you</span>{" "}

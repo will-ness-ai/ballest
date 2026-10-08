@@ -8,16 +8,21 @@ import { useSyncExternalStore } from "react";
 import { useMounted, never } from "./client";
 import { readOnce, useRead } from "./read";
 import type { PlayerRecord } from "../lib/player";
+import { HINT_COOKIE } from "../lib/cookies";
 import { isSteamId } from "../lib/rules";
 
-/* the hint cookie lib/session.ts sets beside the session */
-const hinted = () => /(?:^|;\s*)ballest-in=1(?:;|$)/.test(document.cookie);
+const hinted = () => document.cookie.split(";").some((c) => c.trim() === HINT_COOKIE + "=1");
 
+/* the signed-in Steam ID, or null. A failed read counts as signed out, so a page never
+   waits on it for good; the next page load asks again */
 const readMe = readOnce(async (): Promise<string | null> => {
-  const r = await fetch("/api/me", { cache: "no-store" });
-  if (!r.ok) throw new Error(String(r.status));
-  const { id } = (await r.json()) as { id: unknown };
-  return isSteamId(id) ? id : null;
+  try {
+    const r = await fetch("/api/me", { cache: "no-store" });
+    const { id } = (await r.json()) as { id: unknown };
+    return r.ok && isSteamId(id) ? id : null;
+  } catch {
+    return null;
+  }
 });
 
 /* null signed out; undefined until the browser can tell: on the server, during hydration,
@@ -30,10 +35,6 @@ function useSession(): string | null | undefined {
   return got ? got.value : undefined;
 }
 
-/* the signed-in Steam ID; null on the server, during hydration, while it is asked, or when
-   nobody is signed in */
-export const useMe = () => useSession() ?? null;
-
 /* a player's record from GET /api/player/<id>, or "unknown" for a Steam ID on no board (the
    API's 404); any other answer is a failed read */
 const readRecord = readOnce(async (id): Promise<PlayerRecord | "unknown"> => {
@@ -43,12 +44,13 @@ const readRecord = readOnce(async (id): Promise<PlayerRecord | "unknown"> => {
   throw new Error(String(r.status));
 });
 
-/* You, with your record. "none" signed out, or signed in as a Steam ID the site doesn't
-   know; "loading" on the server, during hydration, until the record lands, and after a read
+/* You, with your record. "none" signed out; "unknown" signed in as a Steam ID on no board
+   yet, so there is nothing to show but a way to sign out; "loading" on the server, during hydration, until the record lands, and after a read
    that failed, so nothing is drawn from it. `claimed` says a session is known to exist, so
    a view of You can hold its place rather than jump in when the record lands */
 export type You =
   | { state: "none" }
+  | { state: "unknown"; id: string }
   | { state: "loading"; claimed: boolean }
   | { state: "ready"; id: string; rec: PlayerRecord };
 
@@ -58,6 +60,7 @@ export function useYou(): You {
   const got = useRead(readRecord, me ?? null);
   if (!mounted) return { state: "loading", claimed: false };
   if (me === undefined) return { state: "loading", claimed: true };
-  if (!me || got?.value === "unknown") return { state: "none" };
+  if (!me) return { state: "none" };
+  if (got?.value === "unknown") return { state: "unknown", id: me };
   return got ? { state: "ready", id: me, rec: got.value } : { state: "loading", claimed: true };
 }

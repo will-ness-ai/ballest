@@ -3,13 +3,12 @@
 // cleared, so the browser stops asking.
 import { connection } from "next/server";
 
-import { SESSION_COOKIE, cookieOf, sessionCookies, verify } from "../../../lib/session";
+import { sessionCookies, sessionOf } from "../../../lib/session";
 
 export async function GET(request: Request) {
   await connection();
-  const token = cookieOf(request.headers.get("cookie"), SESSION_COOKIE);
-  const id = verify(token, process.env.SESSION_SECRET);
+  const { id, stale } = sessionOf(request);
   const headers = new Headers({ "cache-control": "private, no-store" });
-  if (!id) for (const c of sessionCookies(null)) headers.append("set-cookie", c);
+  if (stale) for (const c of sessionCookies(null)) headers.append("set-cookie", c);
   return Response.json({ id }, { headers });
 }

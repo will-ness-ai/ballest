@@ -71,6 +71,12 @@ export function YouBanner(board: BoardFacts) {
         </a>
       </div>
     );
+  if (you.kind === "unknown")
+    return (
+      <div className="you-banner yb-empty">
+        <p>Your Steam account has no times on the boards yet.</p>
+      </div>
+    );
   if (you.kind === "unplayed")
     return (
       <div className="you-banner yb-empty">

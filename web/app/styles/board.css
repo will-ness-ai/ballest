@@ -91,6 +91,7 @@
   display: none;
 }
 .youcard {
+  text-align: start;
   display: inline-flex;
   align-items: center;
   gap: 8px;
