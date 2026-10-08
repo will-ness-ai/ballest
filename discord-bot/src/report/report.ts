@@ -78,6 +78,12 @@ export interface Board {
   readonly rows: ReadonlyArray<Standing>;
 }
 
+/** A Track as the report names and links it. */
+export interface ListedTrack {
+  readonly board: string;
+  readonly label: string;
+}
+
 export interface ListedMap {
   readonly pfid: string;
   readonly title: string;
@@ -89,7 +95,7 @@ export interface ListedMap {
 export type Change =
   | {
       readonly kind: "trackRecord";
-      readonly track: string;
+      readonly track: ListedTrack;
       readonly by: string;
       readonly from: string;
       readonly score: number;
@@ -122,8 +128,8 @@ export interface RecordCandidate {
   readonly persona: string;
   readonly score: number;
   readonly ugcId: string;
-  /** A Track's label, or the Map. */
-  readonly where: { readonly track: string } | { readonly map: ListedMap };
+  /** The Track, or the Map. */
+  readonly where: { readonly track: ListedTrack } | { readonly map: ListedMap };
   /** For a Map, when it was published (ms): the walk in records.ts goes oldest Map first. */
   readonly publishedAt: number | null;
 }
@@ -285,7 +291,7 @@ export const buildReport = (data: ReportData, at: number): Report => {
     if (now !== null && then !== null && now.steamId !== then.steamId)
       trackChanges.push({
         kind: "trackRecord",
-        track: track.label,
+        track: { board: track.board, label: track.label },
         by: now.persona,
         from: then.persona,
         score: now.score,
@@ -297,7 +303,7 @@ export const buildReport = (data: ReportData, at: number): Report => {
         persona: now.persona,
         score: now.score,
         ugcId: now.ugcId,
-        where: { track: track.label },
+        where: { track: { board: track.board, label: track.label } },
         publishedAt: null,
       });
   }
