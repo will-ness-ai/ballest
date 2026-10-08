@@ -32,7 +32,8 @@
   --faint: oklch(55.35% 0.0663 269.62);
   --accent: oklch(82.22% 0.2085 133.37);
   --accent-ink: oklch(21.86% 0.0626 133.89);
-  --accent-hover: color-mix(in oklch, var(--accent), white 8%);
+  /* the old brightness(1.08) of --accent: brighter and more saturated than a mix with white */
+  --accent-hover: oklch(87.13% 0.2216 133.43);
   --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
   --gold: oklch(88.34% 0.1583 91.38);
   --silver: oklch(89.18% 0.0215 259.19);
