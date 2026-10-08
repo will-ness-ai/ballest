@@ -1,46 +1,62 @@
 // What `pnpm qa` looks at: the pages, the states a click opens on them, and the player and
 // Map IDs each target's data has. A new page or dialog is one row here.
 //
-// Two ID sets: `real` for production and previews (both read the production database),
-// `stress` for a local build seeded with the stress dataset (db/seed/datasets/stress.ts). The real ones
-// are picked, like the stress ones, to be hard on the layout: P1 holds a five-digit rank on one board, P2 has a
-// 30-character name, MAP has a 48-character title.
+// Two ID sets, each picked to be hard on the layout: `real` for production and previews
+// (both read the production database) and `stress` for a local build seeded with the stress
+// dataset (db/seed/datasets/stress.ts). RANKED holds a five-digit rank on an Overall board,
+// LONG has a long name, RIVAL is the head to head's other side, and MAP has a long title. In
+// stress one player is RANKED and LONG; on production RANKED is Hky. (12697th in Season 2)
+// and LONG is "Twizy #POPEM #LongLiveTheRuler".
 export const IDS = {
-  real: { P1: "76561198259485267", P2: "76561198078361919", MAP: "3800958793" },
-  stress: { P1: "76561199000000001", P2: "76561199000000011", MAP: "9000000005" },
+  real: {
+    RANKED: "76561198259485267",
+    LONG: "76561198078361919",
+    RIVAL: "76561198078361919",
+    MAP: "3800958793",
+  },
+  stress: {
+    RANKED: "76561199000000011",
+    LONG: "76561199000000011",
+    RIVAL: "76561199000000001",
+    MAP: "9000000005",
+  },
 };
 
-// [name, path, status when not 200]; {P1} {P2} {MAP} come from the target's ID set
+/** @type {ReadonlyArray<{ name: string, path: string, status?: number }>} */
 export const PAGES = [
-  ["home", "/"],
-  ["maps", "/maps"],
-  ["map", "/map/{MAP}"],
-  ["board", "/board/Map_Track13"],
-  ["entry", "/board/Map_Track13/{P1}"],
-  ["overall", "/board/OverallLeaderboard_S1Current"],
-  ["allseasons", "/board/OverallLeaderboard_AllSeasons"],
-  ["pods", "/board/OverallLeaderboard_EASeason2/podiums"],
-  ["player", "/player/{P1}"],
-  ["player-circuit", "/player/{P1}/circuit"],
-  ["player-workshop", "/player/{P1}/workshop"],
-  ["player-long", "/player/{P2}"],
-  ["vs", "/vs/{P1}/{P2}"],
-  ["players", "/players"],
-  ["players-maps", "/players/workshop/maps"],
-  ["daily", "/daily"],
-  ["daily-standings", "/daily/standings"],
-  ["notfound", "/no-such-page", 404],
+  { name: "home", path: "/" },
+  { name: "maps", path: "/maps" },
+  { name: "map", path: "/map/{MAP}" },
+  { name: "board", path: "/board/Map_Track13" },
+  { name: "entry", path: "/board/Map_Track13/{RANKED}" },
+  { name: "overall", path: "/board/OverallLeaderboard_S1Current" },
+  { name: "allseasons", path: "/board/OverallLeaderboard_AllSeasons" },
+  { name: "pods", path: "/board/OverallLeaderboard_EASeason2/podiums" },
+  { name: "player", path: "/player/{RANKED}" },
+  { name: "player-circuit", path: "/player/{RANKED}/circuit" },
+  { name: "player-workshop", path: "/player/{RANKED}/workshop" },
+  { name: "player-long", path: "/player/{LONG}" },
+  { name: "vs", path: "/vs/{RANKED}/{RIVAL}" },
+  { name: "players", path: "/players" },
+  { name: "players-maps", path: "/players/workshop/maps" },
+  { name: "daily", path: "/daily" },
+  { name: "daily-standings", path: "/daily/standings" },
+  { name: "notfound", path: "/no-such-page", status: 404 },
 ];
 
-// [name, page, the control to click]. A state whose control is hidden at a width (the
-// board sheet is phone-only) is skipped there, not reported.
+/**
+ * A state is what clicking `click` opens on `page`. One whose control is hidden at a width
+ * (the board sheet is phone-only) is skipped there; one whose control shows at no width
+ * checked is a fault, since the control has gone or moved.
+ * @type {ReadonlyArray<{ name: string, page: string, click: string }>}
+ */
 export const STATES = [
-  ["sheet", "overall", "#boardBtn"],
-  ["points", "overall", "button[aria-label='How points work']"],
-  ["fresh", "home", "#freshness"],
-  ["compare", "player", "button:has-text('Compare')"],
-  ["change", "vs", "[data-change=b]"],
-  ["refine", "maps", "button.refine"],
+  { name: "sheet", page: "overall", click: "#boardBtn" },
+  { name: "points", page: "overall", click: "button[aria-label='How points work']" },
+  { name: "fresh", page: "home", click: "#freshness" },
+  { name: "compare", page: "player", click: "button:has-text('Compare')" },
+  { name: "change", page: "vs", click: "[data-change=b]" },
+  { name: "refine", page: "maps", click: "button.refine" },
 ];
 
 // Hidden before every screenshot on both sides: the refresh time differs between two

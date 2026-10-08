@@ -97,7 +97,7 @@ describe("seeding", () => {
       boardReads: 1,
       players: 12_001,
       personaHistory: 12_001,
-      entries: 12_004,
+      entries: 12_005,
       maps: 1,
       mapHistory: 1,
     };

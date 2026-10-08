@@ -107,8 +107,8 @@ since each test's database is built by `web/scripts/migrate.mjs`. `collector-tes
 `check.yml` runs them in CI.
 The site's checks are in `web/`: `npx tsc --noEmit`, `pnpm test` (vitest, against the same
 local Postgres; each test file builds its own database), and `pnpm smoke <url>` against a
-build seeded with `tiny`. Verify front-end changes with `pnpm --silent qa check` (preview
-against production, every page at phone and desktop sizes; `docs/site.md`), and test a board's
+build seeded with `stress` (as CI does; it holds all of `tiny`). Verify front-end changes
+with `pnpm --silent qa check` (preview against production, every page at phone and desktop sizes; `docs/site.md`), and test a board's
 infinite scroll with a real wheel scroll: a scripted `scrollTo` does not trigger it in
 the preview pane. Verify collector changes with
 `python tools/check_data.py` (no Steam needed), then a live `--out` run if the read or

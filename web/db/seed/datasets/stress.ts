@@ -16,6 +16,7 @@ import type { Dataset } from "./types";
 
 const OVERALL = "OverallLeaderboard_EASeason2";
 const TRACK = "Map_Track13";
+const TRACK2 = "Map_Track15";
 const MAP = "Workshop_9000000005";
 // below tiny's 300 points, so each filler player and then p11 sit under tiny's four
 const FILLERS = 12_000;
@@ -54,7 +55,7 @@ export const stress: Dataset = {
         chunk.map((steamId, j) => ({
           board: OVERALL,
           steamId,
-          // 299 points down to 0 across the fillers; p11 last, on 0
+          // 299 points down to 1 across the fillers; p11 last, on 0
           score: steamId === p11 ? 0 : Math.max(1, 299 - Math.floor(((i + j) * 299) / FILLERS)),
           ugcId: `9100000000${String(i + j)}`,
           firstSeenRefresh: r3,
@@ -95,6 +96,15 @@ export const stress: Dataset = {
         steamId: p11,
         score: 1_234_567,
         ugcId: "9200000003",
+        firstSeenRefresh: r3,
+        lastSeenRefresh: r3,
+        closedRefresh: null,
+      },
+      {
+        board: TRACK2,
+        steamId: p11,
+        score: 2_345_678,
+        ugcId: "9200000004",
         firstSeenRefresh: r3,
         lastSeenRefresh: r3,
         closedRefresh: null,

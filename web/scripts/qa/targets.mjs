@@ -3,8 +3,9 @@
 // building come from GitHub's deployment records, so an agent never digs them out itself.
 import { execFileSync } from "node:child_process";
 
-// production's own Vercel address: the same deployment as ballestrecords.com, which a cloud
-// session's network policy may not allow
+// production's own Vercel address, which serves the same deployment as the site's domain
+// (ballestrecords.com, which ballest.willness.dev redirects to); a cloud session's network
+// policy may not allow the domain
 export const PROD = "https://ballest-n3sonlines-projects.vercel.app";
 const REPO = "will-ness-ai/ballest";
 
@@ -29,11 +30,15 @@ export function preview(branch = sh("git", ["rev-parse", "--abbrev-ref", "HEAD"]
   // Vercel's own rule, for when GitHub can't be asked: lowercased, "/" as "-"; a label over
   // 63 characters is shortened with a hash, which only the deployment record knows
   const guess = `https://ballest-git-${branch.toLowerCase().replaceAll("/", "-")}-n3sonlines-projects.vercel.app`;
-  const commits = (sh("git", ["rev-list", "-n", "30", "HEAD"]) ?? "").split("\n");
-  const deps = gh(`repos/${REPO}/deployments?per_page=100`) ?? [];
-  const dep = commits
-    .map((sha) => deps.find((d) => d.sha === sha && d.environment.startsWith("Preview")))
-    .find(Boolean);
+  // asked commit by commit, newest first, so a busy repo's other deployments never hide it
+  const commits = (sh("git", ["rev-list", "-n", "10", "HEAD"]) ?? "").split("\n").filter(Boolean);
+  let dep;
+  for (const sha of commits) {
+    dep = (gh(`repos/${REPO}/deployments?sha=${sha}`) ?? []).find((d) =>
+      d.environment.startsWith("Preview"),
+    );
+    if (dep) break;
+  }
   if (!dep) return { name: "preview", url: guess, ids: "real", branch, state: "not deployed" };
   const [status] = gh(`repos/${REPO}/deployments/${String(dep.id)}/statuses?per_page=1`) ?? [];
   return {

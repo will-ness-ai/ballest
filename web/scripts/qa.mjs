@@ -28,7 +28,10 @@ run \`pnpm --silent qa <command> --help\` for a command's flags`,
   --sizes     width[/text] list (default ${SIZES})
   --no-states skip the states a click opens (dialogs, sheets)
   --assert    exit 1 when any fault is found; the CI form, with --against none
-  --jobs      views drawn at once (default 4)`,
+  --jobs      views drawn at once (default 4)
+fault kinds: overflow (page scrolls sideways), offscreen, clipped (text or placeholder cut),
+  overlap (text over text), error (page, console or a failed load), scroll (lands elsewhere
+  on load than the reference), missing (a state's control at no size), failed, status`,
   shot: `usage: pnpm --silent qa shot <view> [--at preview] [--el <selector>] [--full] [--box <selector>] [--eval <js>]
   writes the view's screenshot to scratch/qa/ and prints its path, faults and errors
   --el    only this element
@@ -65,19 +68,28 @@ for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (!a.startsWith("--")) positional.push(a);
   else if (SWITCHES[command].includes(a.slice(2))) flags[a.slice(2)] = true;
-  else if (FLAGS[command].includes(a.slice(2)) && argv[i + 1] !== undefined)
-    flags[a.slice(2)] = argv[++i];
-  else fail(`unknown flag ${a}`, HELP[command]);
+  else if (!FLAGS[command].includes(a.slice(2))) fail(`unknown flag ${a}`, HELP[command]);
+  else if (argv[i + 1] === undefined || argv[i + 1].startsWith("--"))
+    fail(`${a} needs a value`, HELP[command]);
+  else flags[a.slice(2)] = argv[++i];
 }
+const jobs = Number(flags.jobs ?? 4);
+if (!Number.isInteger(jobs) || jobs < 1) fail(`--jobs takes a whole number from 1`, HELP.check);
 
 const target = (spec) => resolve(spec) ?? fail(`not a target: "${spec}"`, HELP[""]);
 /* a catalogue page, or a bare path; its path with the target's IDs, and the status it answers */
 const pageOf = (page, ids = "real") => {
-  const [, path = page.startsWith("/") ? page : null, status = 200] =
-    PAGES.find(([n]) => n === page) ?? [];
-  return { path: path?.replace(/\{(\w+)\}/g, (_, k) => IDS[ids][k]), status };
+  const p = PAGES.find((x) => x.name === page);
+  const path = p?.path ?? (page.startsWith("/") ? page : null);
+  return { path: path?.replace(/\{(\w+)\}/g, (_, k) => IDS[ids][k]), status: p?.status ?? 200 };
 };
-const stateOf = (name) => STATES.find(([n]) => n === name);
+const stateOf = (name) => STATES.find((x) => x.name === name);
+const pageNames = `pages: ${PAGES.map((p) => p.name).join(", ")}`;
+/* a list cut to its first three once it runs past four */
+const few = (list) =>
+  list.length > 4
+    ? `${list.slice(0, 3).join(" ")} +${String(list.length - 3)} more`
+    : list.join(" ");
 const rel = (p) => p.replace(fileURLToPath(new URL("../../", import.meta.url)), "");
 const describe = (t) =>
   t.name === "preview"
@@ -106,8 +118,8 @@ async function home() {
     `  prod     ${resolve("prod").url}`,
     `  preview  ${p.url} (${p.sha ?? "no deployment"}, ${p.state}${p.behind ? ", behind HEAD: push or wait" : ""})`,
     `  local    ${local.url} (${(await up(local.url)) ? "up" : "down: pnpm serve 3000, seeded with stress"})`,
-    `pages[${String(PAGES.length)}]: ${PAGES.map(([n]) => n).join(", ")}`,
-    `states[${String(STATES.length)}]: ${STATES.map(([n, pg]) => `${pg}+${n}`).join(", ")}`,
+    `pages[${String(PAGES.length)}]: ${PAGES.map((p) => p.name).join(", ")}`,
+    `states[${String(STATES.length)}]: ${STATES.map((x) => `${x.page}+${x.name}`).join(", ")}`,
     `sizes: ${SIZES} (width/text px)`,
     "next:",
     "  pnpm --silent qa check                      # preview against prod, every page and size",
@@ -121,11 +133,14 @@ async function shot() {
   if (!view) fail("name a view, like player@390", HELP.shot);
   const t = target(flags.at ?? "preview");
   const { path } = pageOf(view.page, t.ids);
-  if (!path) fail(`no page "${view.page}"`, `pages: ${PAGES.map(([n]) => n).join(", ")}`);
+  if (!path) fail(`no page "${view.page}"`, pageNames);
+  const state = view.state ? stateOf(view.state) : undefined;
+  if (view.state && !state)
+    fail(`no state "${view.state}"`, `states: ${STATES.map((x) => x.name).join(", ")}`);
   const browser = await launch();
   try {
     const r = await render(browser, t.url + path, view, {
-      control: view.state ? stateOf(view.state)?.[2] : undefined,
+      control: state?.click,
       now: Date.now(),
       full: !!flags.full,
       element: flags.el,
@@ -175,13 +190,14 @@ async function check() {
   });
   const keep = flags.pages?.split(",");
   const views = [];
-  for (const [page] of PAGES) for (const s of sizes) views.push({ page, ...s });
+  for (const { name } of PAGES) for (const s of sizes) views.push({ page: name, ...s });
   if (!flags["no-states"])
-    for (const [state, page] of STATES) for (const s of sizes) views.push({ page, state, ...s });
+    for (const { name, page } of STATES)
+      for (const s of sizes) views.push({ page, state: name, ...s });
   const chosen = views.filter(
     (v) => !keep || keep.includes(v.page) || keep.includes(`${v.page}+${v.state ?? ""}`),
   );
-  if (!chosen.length) fail("no view matches --pages", `pages: ${PAGES.map(([n]) => n).join(", ")}`);
+  if (!chosen.length) fail("no view matches --pages", pageNames);
 
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
@@ -197,7 +213,7 @@ async function check() {
     };
     const one = async (v) => {
       const name = viewName(v);
-      const control = v.state ? stateOf(v.state)[2] : undefined;
+      const control = v.state ? stateOf(v.state).click : undefined;
       const expect = pageOf(v.page).status;
       const draw = (t) =>
         render(browser, t.url + pageOf(v.page, t.ids).path, v, { control, now: started }).catch(
@@ -245,6 +261,17 @@ async function check() {
         });
       }
       if (!before) return;
+      // the page lands somewhere else on load, which the screenshot from the top can't show;
+      // a few rows either way is the content above it changing height
+      const [was, is] = [before.probes.scrolled, a.probes.scrolled];
+      if (Math.abs(was - is) > 40)
+        found.push({
+          view: name,
+          kind: "scroll",
+          where: "page",
+          detail: `lands at ${String(is)}px, was ${String(was)}px`,
+          ref: "new",
+        });
       const d = await compare(browser, before.shot, a.shot, [ref.name, at.name, "changed"]);
       if (!d.changed) return;
       const file = OUT + name.replaceAll("/", "-") + ".png";
@@ -260,10 +287,24 @@ async function check() {
         image: rel(file),
       });
     };
-    await Promise.all(Array.from({ length: Number(flags.jobs ?? 4) }, work));
+    await Promise.all(Array.from({ length: jobs }, work));
   } finally {
     await browser.close();
   }
+
+  // a state whose control no size showed: the selector no longer finds it. Every control
+  // shows on a phone (some only there), so a run with no phone width can't tell
+  if (sizes.some((s) => s.width < 600))
+    for (const st of STATES) {
+      const names = chosen.filter((v) => v.state === st.name).map(viewName);
+      if (names.length && names.every((n) => skipped.includes(n)))
+        found.push({
+          view: names[0],
+          kind: "missing",
+          where: `${st.page}+${st.name}`,
+          detail: `no ${st.click} at any size`,
+        });
+    }
 
   // one row per fault, with every view it shows in: a header fault is on every page
   const grouped = new Map();
@@ -271,13 +312,7 @@ async function check() {
     const key = [f.kind, f.where, f.detail, f.ref].join("|");
     grouped.set(key, { ...f, views: [...(grouped.get(key)?.views ?? []), f.view] });
   }
-  const faultRows = [...grouped.values()].map((f) => ({
-    ...f,
-    views:
-      f.views.length > 4
-        ? `${f.views.slice(0, 3).join(" ")} +${String(f.views.length - 3)} more`
-        : f.views.join(" "),
-  }));
+  const faultRows = [...grouped.values()].map((f) => ({ ...f, views: few(f.views) }));
   // one picture per change: views whose changes start the same way share the largest's
   const shared = new Map();
   for (const d of diffs.sort((x, y) => y.px - x.px)) {
@@ -285,13 +320,7 @@ async function check() {
     if (first) first.alike.push(d.view);
     else shared.set(d.sig, { ...d, alike: [] });
   }
-  const diffRows = [...shared.values()].map((d) => ({
-    ...d,
-    alike:
-      d.alike.length > 4
-        ? `${d.alike.slice(0, 3).join(" ")} +${String(d.alike.length - 3)} more`
-        : d.alike.join(" "),
-  }));
+  const diffRows = [...shared.values()].map((d) => ({ ...d, alike: few(d.alike) }));
   const secs = Math.round((Date.now() - started) / 1000);
   say([
     `checked ${String(chosen.length - skipped.length)} views of ${describe(at)}${ref ? ` against ${describe(ref)}` : ""} in ${String(secs)}s`,
