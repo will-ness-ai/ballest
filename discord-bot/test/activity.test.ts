@@ -319,6 +319,7 @@ describe("opening a Match", () => {
             players: [ALICE],
             expiresAt: 5 * 60_000,
             endsAt: null,
+            waitingForSteam: false,
             map: null,
             standings: [{ player: ALICE, ticks: null, rank: null, medal: null }],
             names: { [ALICE.discordId]: "Alice" },

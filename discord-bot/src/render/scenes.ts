@@ -299,18 +299,20 @@ const slab = (card: CardImage) => {
 const stateChip = (view: CardView) =>
   view.state === "invite"
     ? chip(`Invite · ${view.minutes}:00`)
-    : view.state === "live"
-      ? chip(
-          "Live",
-          {
-            backgroundColor: C.accent,
-            color: C.accentInk,
-            border: "1px solid transparent",
-            gap: 5,
-          },
-          box({ width: 6, height: 6, borderRadius: 3, backgroundColor: C.accentInk }),
-        )
-      : chip("Final", { color: C.gold, border: "1px solid rgba(255,212,71,0.4)" });
+    : view.state === "live" && view.waitingForSteam
+      ? chip("Time's up")
+      : view.state === "live"
+        ? chip(
+            "Live",
+            {
+              backgroundColor: C.accent,
+              color: C.accentInk,
+              border: "1px solid transparent",
+              gap: 5,
+            },
+            box({ width: 6, height: 6, borderRadius: 3, backgroundColor: C.accentInk }),
+          )
+        : chip("Final", { color: C.gold, border: "1px solid rgba(255,212,71,0.4)" });
 
 export const cardScene = (card: CardImage): El => {
   const { view } = card;

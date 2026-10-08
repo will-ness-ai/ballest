@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Option } from "effect";
-import type { Match } from "../src/domain.js";
+import { actionsFor, type Match } from "../src/domain.js";
 import { ThreadPost } from "../src/ports.js";
 import {
   ALICE,
@@ -808,7 +808,7 @@ describe("the Result", () => {
     }),
   );
 
-  it.scoped("keeps the last polled times if the final read keeps failing", () =>
+  it.scoped("keeps the last polled times if Steam stays down for the whole wait", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });
       const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
@@ -816,10 +816,95 @@ describe("the Result", () => {
       yield* h.steam.setTime(1, ALICE.steamId, 28);
       yield* advance("290 seconds");
       yield* h.steam.setTime(1, BOB.steamId, 21);
-      yield* h.steam.failNextReads(3);
+      yield* h.steam.failNextReads(1_000);
       yield* advance("10 seconds");
+      expect(tags(yield* h.surface.posts(id)).at(-1)).toBe("WaitingForSteam");
+      yield* advance("29 minutes");
+      expect(tags(yield* h.surface.posts(id))).not.toContain("Result");
+      yield* advance("1 minute");
       const result = (yield* h.surface.posts(id)).findLast((p) => p._tag === "Result");
       if (result?._tag !== "Result") return expect.unreachable();
+      expect(result.steamDown).toBe(true);
+      expect(result.standings.map((s) => [s.player.discordId, s.rank])).toEqual([
+        [ALICE.discordId, 1],
+        [BOB.discordId, null],
+      ]);
+    }),
+  );
+
+  it.scoped("waits for Steam at the end, then posts the Result with the end read", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* advance("295 seconds");
+      yield* h.steam.setTime(1, BOB.steamId, 21); // set just before the end
+      yield* h.steam.failNextReads(3 * 6); // down for a few minutes
+      yield* advance("5 seconds");
+      expect(tags(yield* h.surface.posts(id)).at(-1)).toBe("WaitingForSteam");
+      // Nobody joins or leaves once time is up; only the end read counts.
+      expect(yield* Effect.flip(h.engine.leave(BOB.discordId, id))).toMatchObject({
+        _tag: "NotAllowed",
+      });
+      yield* advance("3 minutes");
+      const posts = yield* h.surface.posts(id);
+      expect(tags(posts).filter((t) => t === "WaitingForSteam")).toHaveLength(1);
+      const result = posts.findLast((p) => p._tag === "Result");
+      if (result?._tag !== "Result") return expect.unreachable();
+      expect(result.steamDown).toBe(false);
+      expect(result.standings[0]?.player).toEqual(BOB);
+    }),
+  );
+
+  it.scoped("shows the Card as time's up, with no Join or Leave, while it waits", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.steam.failNextReads(1_000);
+      yield* advance("5 minutes");
+      const card = Option.getOrThrow(yield* h.surface.card(id));
+      expect(card).toMatchObject({ state: "live", waitingForSteam: true });
+      const stored = Option.getOrThrow(yield* h.store.getMatch(id));
+      expect(actionsFor(stored, BOB.discordId)).toEqual([]);
+    }),
+  );
+
+  it.scoped("picks the wait up after a restart, without telling the thread twice", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.steam.failNextReads(1_000);
+      yield* advance("5 minutes");
+      yield* h.restart("10 minutes");
+      yield* advance("0 seconds");
+      yield* h.steam.setTime(1, BOB.steamId, 21);
+      yield* h.steam.failNextReads(0);
+      yield* advance("30 seconds");
+      const posts = yield* h.surface.posts(id);
+      expect(tags(posts).filter((t) => t === "WaitingForSteam")).toHaveLength(1);
+      const result = posts.findLast((p) => p._tag === "Result");
+      if (result?._tag !== "Result") return expect.unreachable();
+      expect(result.steamDown).toBe(false);
+    }),
+  );
+
+  it.scoped("reads nothing late once the wait is over, even if the bot was down for it", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(ALICE.discordId, public1v1);
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.steam.setTime(1, ALICE.steamId, 28);
+      yield* advance("1 minute");
+      yield* h.restart("1 hour");
+      yield* h.steam.setTime(1, BOB.steamId, 21); // long after the end: doesn't count
+      yield* advance("0 seconds");
+      const posts = yield* h.surface.posts(id);
+      expect(tags(posts)).not.toContain("WaitingForSteam");
+      const result = posts.findLast((p) => p._tag === "Result");
+      if (result?._tag !== "Result") return expect.unreachable();
+      expect(result.steamDown).toBe(true);
       expect(result.standings.map((s) => [s.player.discordId, s.rank])).toEqual([
         [ALICE.discordId, 1],
         [BOB.discordId, null],

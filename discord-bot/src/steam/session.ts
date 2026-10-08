@@ -85,7 +85,7 @@ const hasInternalSend = (client: object): client is Pick<SteamClient, "_send"> =
   "_send" in client && typeof client._send === "function";
 
 /** A real steam-user client. It reconnects by itself after a dropped connection, mostly. */
-const steamUserClient = (): SteamClient => {
+export const steamUserClient = (): SteamClient => {
   const client = new SteamUser({ autoRelogin: true });
   if (!hasInternalSend(client)) throw new Error("this steam-user version has no internal _send");
   return client;

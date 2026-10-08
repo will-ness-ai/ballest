@@ -21,7 +21,9 @@ eye against the design prototype on branch `claude/prototype-discord-bot-surface
 The real Steam adapter is tested only where it recovers: `test/steamSession.test.ts` drives
 `src/steam/session.ts` over a fake steam-user client to check it logs on afresh once Steam stops
 answering. `pnpm smoke:steam` runs it against live Steam with the
-bot account's secrets, and is the check to run after changing `src/steam/`. Steam drops
+bot account's secrets, and is the check to run after changing `src/steam/`;
+`pnpm smoke:steam-outage` does the same with a client that stops hearing Steam's replies, and
+passes once the session has logged on afresh and read again (a few minutes). Steam drops
 leaderboard replies when requests overlap, so `src/steam/session.ts` sends them strictly one at
 a time; keep it that way.
 
@@ -76,6 +78,7 @@ pnpm --silent axi press "New Match" --as admin  # labels: the last private answe
 pnpm --silent axi read                          # the channel; `show <id>` saves its images to read
 pnpm --silent axi time <match> 18.2 --as admin  # a finished run, read on the engine's next poll
 pnpm --silent axi wait "Go!" --in <thread>
+pnpm --silent axi steam down                    # every fake Steam read fails until `steam up`
 ```
 
 Without `ADMIN_DISCORD_TOKEN` it reads with the dev bot's token: its own messages only, and no
