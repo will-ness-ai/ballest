@@ -55,6 +55,7 @@ const base: CardView = {
   standings: [],
   expiresAt: null,
   endsAt: null,
+  waitingForSteam: false,
 };
 const cards: Record<string, CardView> = {
   "card-invite-lobby": base,

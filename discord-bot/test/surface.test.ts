@@ -361,7 +361,7 @@ describe("the end of a Match", () => {
       yield* surface.showCard(view("m1"));
       yield* surface.post(
         "m1",
-        ThreadPost.Result({ standings: finished.standings, card: finished }),
+        ThreadPost.Result({ standings: finished.standings, card: finished, steamDown: false }),
       );
       yield* surface.post(
         "m1",
@@ -384,7 +384,10 @@ describe("the end of a Match", () => {
         yield* surface.showCard(view("m1"));
         yield* surface.showCard(view("m2"));
         expect(yield* placeOf("m1")).toEqual({ messageId: "msg1", threadId: "thr2" });
-        yield* surface.post("m1", ThreadPost.Result({ standings: [], card: finished }));
+        yield* surface.post(
+          "m1",
+          ThreadPost.Result({ standings: [], card: finished, steamDown: false }),
+        );
         yield* surface.remove("m2", "expired");
         yield* start;
         expect(yield* placeOf("m1")).toEqual({ messageId: "msg1", threadId: "thr2" });
@@ -403,7 +406,11 @@ describe("after a restart", () => {
       yield* surface.showCard(view("m1", { state: "live" }));
       yield* surface.post(
         "m1",
-        ThreadPost.Result({ standings: [], card: view("m1", { state: "finished" }) }),
+        ThreadPost.Result({
+          standings: [],
+          card: view("m1", { state: "finished" }),
+          steamDown: false,
+        }),
       );
       expect(channel.order()).toEqual(["card m1", "footer"]);
       expect(channel.threadPosts("m1")).toEqual(["Result"]);

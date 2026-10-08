@@ -129,4 +129,5 @@ _Avoid_: sticky, pinned message
 
 **Result**:
 Each Player's best time on the Match's Map, read the moment the Match ends, ranked. A
-Player with no time did not finish.
+Player with no time did not finish. If Steam is down then, the Result waits for it (up to 30
+minutes, the thread saying time's up), and failing that stands on the last times polled.

@@ -123,6 +123,7 @@ const cardButtons = (v: CardView) => {
   const join = () =>
     button(`Join (${v.players.length})`, act("join", v.matchId), ButtonStyle.Success);
   if (v.state === "live" && v.map !== null) {
+    if (v.waitingForSteam) return [row(workshopLink(v.map.pfid))];
     const leave = button("Leave", { _tag: "AskLeave", matchId: v.matchId });
     return [
       v.type === "lobby"
@@ -149,9 +150,11 @@ const cardButtons = (v: CardView) => {
 const clockText = (v: CardView): string | null =>
   v.state === "invite" && v.expiresAt !== null
     ? `Invite expires <t:${unix(v.expiresAt)}:R>`
-    : v.state === "live" && v.endsAt !== null
-      ? `**Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
-      : null;
+    : v.state === "live" && v.waitingForSteam
+      ? "**Time's up** · the Result posts once Steam answers"
+      : v.state === "live" && v.endsAt !== null
+        ? `**Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
+        : null;
 
 const INVITE_GREY = 0x4e5058;
 const LIVE_LIME = 0x8be03c;
@@ -293,11 +296,20 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
       return {
         content: line(
           art.marbles.forHue(RESULT_HUE),
-          post.standings.every((s) => s.rank === null)
+          (post.standings.every((s) => s.rank === null)
             ? "**Final result** · no finishers"
-            : "**Final result**",
+            : "**Final result**") +
+            (post.steamDown
+              ? "\n-# Steam never gave the end-of-Match read, so these are the last times read before the end."
+              : ""),
         ),
         ...pic,
+        ...quiet,
+      };
+    case "WaitingForSteam":
+      return {
+        content:
+          "⏱️ **Time's up**, stop playing. Steam isn't answering right now, so the Result will post once it does.",
         ...quiet,
       };
     case "PlayedBefore": {
