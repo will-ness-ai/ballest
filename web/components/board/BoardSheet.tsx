@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 
 import { useDialog } from "../Modal";
 import { useMounted } from "../../hooks/client";
+import { WIDE } from "../../lib/layout";
 
 /* the sheet opens on the board on screen */
 const current = (d: HTMLDialogElement) =>
@@ -36,10 +37,10 @@ export function BoardSheet({
     focus: current,
     from: trigger,
   });
-  /* a desktop has the rail instead (desktop.css's 820px), so a sheet left open while the
-     window widens closes rather than stay modal and hidden */
+  /* a desktop has the rail instead (WIDE), so a sheet left open while the window widens
+     closes rather than stay modal and hidden */
   useEffect(() => {
-    const wide = matchMedia("(min-width: 820px)");
+    const wide = matchMedia(WIDE);
     const shut = () => {
       if (wide.matches) close();
     };

@@ -8,7 +8,7 @@
 
 footer {
   margin: 20px var(--pad) 0;
-  font-size: 10.5px;
+  font-size: calc((10.5rem + 1.5 * var(--ramp)) / 16);
   color: var(--faint);
   line-height: 1.55;
   max-width: 64ch;
@@ -20,22 +20,30 @@ footer a {
   color: var(--dim);
 }
 
-/* the track sheet: it slides up from the bottom and back down, and the backdrop fades,
-   from and to display: none */
+/* the track sheet: it slides up from the bottom and back down (with no reduced-motion
+   preference; otherwise it appears), and the backdrop fades, from and to display: none */
 .sheet {
   inset-block: auto 0;
   inset-inline: 0;
   max-block-size: 76dvh;
   background: var(--solid);
   border-radius: 22px 22px 0 0;
-  border-top: 1px solid var(--line);
+  border-block-start: 1px solid var(--line);
   transform: translateY(102%);
-  transition:
-    transform 0.26s cubic-bezier(0.2, 0.85, 0.3, 1),
-    display 0.26s allow-discrete,
-    overlay 0.26s allow-discrete;
   display: flex;
   flex-direction: column;
+  /* it stays in the top layer while it leaves, so its backdrop can fade out */
+  transition:
+    display 0.26s allow-discrete,
+    overlay 0.26s allow-discrete;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sheet {
+    transition:
+      transform 0.26s var(--ease-out),
+      display 0.26s allow-discrete,
+      overlay 0.26s allow-discrete;
+  }
 }
 .sheet[open] {
   transform: none;
@@ -47,10 +55,7 @@ footer a {
 }
 .sheet::backdrop {
   opacity: 0;
-  transition:
-    opacity 0.22s ease,
-    display 0.26s allow-discrete,
-    overlay 0.26s allow-discrete;
+  transition: opacity 0.22s var(--ease-out);
 }
 .sheet[open]::backdrop {
   opacity: 1;
@@ -64,14 +69,14 @@ footer a {
   width: 38px;
   height: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.25);
+  background: oklch(100% 0 none / 0.25);
   margin: 10px auto 4px;
   flex: none;
 }
 .sheet h2 {
   margin: 6px 18px 10px;
   font-family: var(--f-hud);
-  font-size: 10.5px;
+  font-size: calc(10.5rem / 16);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--dim);
@@ -84,22 +89,23 @@ footer a {
   flex-direction: column;
   gap: 6px;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
-/* one definition serves the sheet and, above 820px, the rail: a strip of the
+/* one definition serves the sheet and, on the desktop layout, the rail: a strip of the
    track's screenshot behind a fade, its number, record and run count on top */
+/* a grid, so the words stretch to the strip's full height: at least its min-height, more
+   when bigger text needs it */
 .tstrip {
   position: relative;
-  display: block;
+  display: grid;
   flex: none;
   width: 100%;
-  height: 62px;
+  min-height: 62px;
   border-radius: 9px;
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--line2);
   background: var(--solid);
-  text-align: left;
+  text-align: start;
 }
 .tstrip img {
   position: absolute;
@@ -115,15 +121,14 @@ footer a {
   inset: 0;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--bg) 94%, transparent),
-    color-mix(in srgb, var(--bg) 70%, transparent) 45%,
+    color-mix(in oklch, var(--bg) 94%, transparent),
+    color-mix(in oklch, var(--bg) 70%, transparent) 45%,
     transparent 85%
   );
 }
 .tstrip .lab {
   position: relative;
   z-index: 1;
-  height: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: 12px;
@@ -134,18 +139,18 @@ footer a {
   grid-row: span 2;
   align-self: center;
   font-family: var(--f-hud);
-  font-size: 26px;
+  font-size: calc(26rem / 16);
   font-weight: 700;
   line-height: 1;
 }
 .tstrip .rt {
   font-family: var(--f-hud);
-  font-size: 12.5px;
+  font-size: calc(12.5rem / 16);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .tstrip small {
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
@@ -166,20 +171,20 @@ footer a {
 }
 /* Overall has no screenshot: a plain strip with words */
 .tstrip.plain {
-  height: 54px;
+  min-height: 54px;
   background: var(--surface);
 }
 .tstrip.plain::after {
   display: none;
 }
 .tstrip.plain b {
-  font-size: 20px;
+  font-size: calc(20rem / 16);
 }
 .tierhead {
   display: block;
   margin: 9px 2px 0;
   font-family: var(--f-hud);
-  font-size: 10px;
+  font-size: calc(10rem / 16);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--faint);

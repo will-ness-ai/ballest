@@ -34,6 +34,11 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   a player against themselves).
 - `web/app/styles/` — the stylesheet, split by view and imported in order by
   `app/layout.tsx`. Every color is a custom property on `:root`; the theme is dark-only.
+  Font sizes are in rem, written `calc(Nrem / 16)` with N the design's px, so text follows
+  the reader's text-size setting; `node web/scripts/check-styles.mjs` rejects a px one.
+  A size that grows from phone to desktop is fluid rather than a desktop override:
+  `calc((Nrem + D * var(--ramp)) / 16)`, where `--ramp` (base.css) runs from 0 on a 390px
+  phone to 1rem at the desktop breakpoint, `min-width: 51.25em` (820px at default text).
   The `good-css` skill covers how to write new styles; skip its light/dark token entry.
 
 ## Caching
@@ -164,7 +169,7 @@ their header order, then the name, set the order. A search filters that list and
 each player's real rank.
 
 The table scrolls inside its own box on a phone, so the rank and name columns stay put
-going sideways; from 820px it fits, and the page scrolls. The pinned card is your own row,
+going sideways; on the desktop layout it fits, and the page scrolls. The pinned card is your own row,
 once "This is me" is set, shown at the foot while the row is out of view: how far the
 next rank up and the top 10 are, and a click scrolls to the row.
 

@@ -24,6 +24,9 @@ import {
 } from "../../lib/rules";
 
 const PW_SHELF = 14;
+/* a scripted scroll glides only for those who haven't asked for less motion */
+const glide = (): ScrollBehavior =>
+  matchMedia("(prefers-reduced-motion: no-preference)").matches ? "smooth" : "auto";
 
 type Cmp = (a: WorkshopFinish, b: WorkshopFinish) => number;
 const SORTS: Record<PwSort, [string, Cmp]> = {
@@ -66,7 +69,7 @@ function Shelf({ title, children }: { title: React.ReactNode; children: React.Re
   }, []);
   const scroll = (dir: number) => {
     const el = strip.current;
-    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: "smooth" });
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: glide() });
   };
   return (
     <section className="shelf">
@@ -180,7 +183,7 @@ export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"]
     const medal = pw.medal === k ? null : k;
     setPw({ ...pw, medal, shown: PW_CHUNK });
     if (medal)
-      document.getElementById("pwall")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("pwall")?.scrollIntoView({ behavior: glide(), block: "start" });
   };
   return (
     <div className="pws">
