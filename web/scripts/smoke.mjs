@@ -1,5 +1,5 @@
 // Requests every route the app serves and every static file the pages load from a running
-// build seeded with the tiny dataset (pnpm db:seed tiny), so a broken page or a site file
+// build seeded with the tiny dataset or stress, which holds it (pnpm db:seed tiny), so a broken page or a site file
 // SITE in sync-site.mjs leaves out fails here rather than in production. Prints only
 // failures and a summary line.
 //
