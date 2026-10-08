@@ -54,7 +54,7 @@
   --glow-lime: rgba(139, 224, 60, 0.1);
   --scrim: rgba(4, 7, 14, 0.66);
   --radius: 11px;
-  --pad: 16px;
+  --pad: clamp(1rem, 0.5465rem + 1.8605vw, calc(24rem / 16));
   --f-marquee: "Bungee", system-ui, sans-serif;
   --f-hud: "Chakra Petch", system-ui, sans-serif;
   --f-body: "Archivo", system-ui, sans-serif;

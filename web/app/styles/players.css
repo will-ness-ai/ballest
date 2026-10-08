@@ -218,7 +218,7 @@
   margin: 0;
   font-family: var(--f-marquee);
   font-weight: 400;
-  font-size: calc(21rem / 16);
+  font-size: clamp(calc(21rem / 16), 1.0291rem + 1.1628vw, calc(26rem / 16));
   letter-spacing: 0.01em;
 }
 .ws-tools {

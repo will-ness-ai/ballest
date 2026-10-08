@@ -94,9 +94,11 @@ footer a {
 
 /* one definition serves the sheet and, above 820px, the rail: a strip of the
    track's screenshot behind a fade, its number, record and run count on top */
+/* a grid, so the words fill the strip's height (min-height, which grows with bigger text)
+   without needing a fixed height to take 100% of */
 .tstrip {
   position: relative;
-  display: block;
+  display: grid;
   flex: none;
   width: 100%;
   min-height: 62px;
