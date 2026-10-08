@@ -4,6 +4,7 @@
 // 50 ghost replays of each Track (scratch script, not the collector). The variant comes
 // from ?variant=, the picker sits bottom-right. Everything for the prototype is in this
 // file plus three hooks in BoardBody.tsx marked PROTOTYPE.
+// Its preview deploy needs a change under web/ (vercel.json ignoreCommand skips prototype/).
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { fmtTime } from "../../lib/rules";
