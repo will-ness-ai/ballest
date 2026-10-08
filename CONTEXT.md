@@ -31,6 +31,12 @@ never finished are invisible and do not count. A time can still beat the author 
 that is a Medal, not Played.
 _Avoid_: attempted, beaten (for Played)
 
+**You**:
+The player this browser has marked with This is me: one Steam ID kept in the browser, not
+an account. The header's card links to your page, and another player's page scores you
+against them. A claim on a Steam ID on no board counts as no You.
+_Avoid_: me, current user, logged-in player
+
 **Entry**:
 A player's score on one board as Steam holds it: a time on a Map or Track, points on an
 Overall board. A board holds at most one Entry per player; a better run replaces it.

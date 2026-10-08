@@ -124,6 +124,14 @@ Workshop boards, and when every Map was last read in full. The table restates
 copy too (`components/Freshness.tsx`). Ages are worked out in the browser, so a page cached
 hours ago still says how old the boards are now.
 
+You's card sits at the top right (`components/YouCard.tsx`): your marble and name, with your
+All Seasons place and Maps played on a desktop, linking to your page. On a phone it folds to
+marble and name and takes the refresh time's place, which is hidden there. With nobody
+claimed, or a claim on a Steam ID the API answers 404 for, it is a "Find yourself" card to
+Players. It reads You from `useYou` (`hooks/me.ts`), which reads the record once per page
+load and shares it with the score card, and it draws nothing until the browser has read
+the claim, so a claimed visitor never sees "Find yourself" first.
+
 ## A board
 
 A board's first rows are rendered on the server, with the tiles, the plates and the card
