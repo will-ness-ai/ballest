@@ -19,8 +19,10 @@ _Avoid_: campaign, campaign map
 **Medal**:
 One of a Map's four time targets, Bronze, Silver, Gold and Author (fastest), set by its
 creator. A Track has the same four, set by the game. A time earns the best Medal whose target it meets. A player's page sorts their
-finishes six ways, best first: World record (rank 1 on the Map's board, counted there and
-not again under its Medal), Author, Gold, Silver, Bronze, and No medal.
+finishes six ways, best first: World record (rank 1 on the Map's board), Author, Gold,
+Silver, Bronze, and No medal. A world record is a rank and a Medal is a time, so they are
+counted apart: a record at the author time counts under both, a slower one under its own
+Medal.
 _Avoid_: tier, grade
 
 **Played**:
