@@ -237,7 +237,7 @@
   width: 34px;
   height: 34px;
 }
-.you-h5 span {
+.you-h5 > span {
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -357,19 +357,6 @@
   box-shadow: none;
 }
 
-@media (max-width: 819px) {
-  .you-h5 small {
-    display: none;
-  }
-  .you-h5,
-  .you-h1 {
-    max-width: 130px;
-  }
-  .freshness {
-    display: none;
-  }
-}
-
 /* the graph's You line */
 .sp-you text {
   paint-order: stroke;
@@ -398,6 +385,202 @@
   .you-D {
     margin-left: 0;
     margin-right: 0;
+  }
+}
+
+/* ---- round 2 ---- */
+.you-E {
+  flex-wrap: wrap;
+}
+.you-E .go {
+  margin-left: auto;
+}
+.you-E2 .you-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.you-prog {
+  flex: 1;
+  max-width: 220px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+.you-prog span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+.you-next small {
+  color: var(--dim);
+  white-space: nowrap;
+}
+.you-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  flex: 1;
+  min-width: 0;
+}
+.you-chips > span {
+  display: flex;
+  flex-direction: column;
+}
+.you-chips small {
+  font-size: 10.5px;
+  color: var(--faint);
+}
+.you-chips b {
+  font-family: var(--f-hud);
+  font-variant-numeric: tabular-nums;
+}
+.you-E4 {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 0;
+  background: none;
+}
+.you-pin {
+  display: grid;
+  grid-template-columns: 26px 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  text-decoration: none;
+}
+.you-pin .marble {
+  width: 26px !important;
+  height: 26px !important;
+}
+.you-pin .c-rank {
+  font-family: var(--f-hud);
+  font-weight: 700;
+  color: var(--accent);
+}
+.you-pin-t {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.you-pin-t b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.you-pin-t small {
+  color: var(--dim);
+  font-size: 11.5px;
+}
+.you-pin-s {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--f-hud);
+  font-weight: 700;
+  font-size: 16px;
+}
+.you-pin-s i {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+}
+.you-E5 {
+  padding: 14px 16px;
+  border: 1px solid var(--accent);
+  background: linear-gradient(90deg, var(--accent-soft), transparent);
+}
+.you-E5 > .marble {
+  width: 52px !important;
+  height: 52px !important;
+}
+.you-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.you-hero-t {
+  font-family: var(--f-hud);
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.you-hero p {
+  font-size: 13px;
+  color: var(--dim);
+}
+
+/* the mini card, and how each P variant folds it on a phone */
+.you-q {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 50%;
+  border: 1px dashed var(--accent);
+  color: var(--accent);
+}
+.you-h-empty small {
+  color: var(--dim);
+}
+.you-r-short {
+  display: none;
+}
+@media (max-width: 819px) {
+  .hdr:has(.you-P1, .you-P2, .you-P3, .you-P5) .freshness {
+    display: none;
+  }
+  .you-h5 {
+    max-width: 170px;
+  }
+  .you-h5 small {
+    display: block;
+  }
+  .you-P2 small,
+  .you-P3 > span:not(.marble):not(.you-q) {
+    display: none !important;
+  }
+  .you-P3 {
+    padding: 0;
+    border: 0;
+    background: none;
+    border-radius: 50%;
+  }
+  .you-P3 .marble,
+  .you-P3 .you-q {
+    box-shadow: 0 0 0 2px var(--accent);
+    border-radius: 50%;
+  }
+  .hdr:has(.you-P4) {
+    flex-wrap: wrap;
+  }
+  .you-P4 {
+    order: 3;
+    flex: 1 0 100%;
+    max-width: none;
+  }
+  .you-P5 b {
+    display: none;
+  }
+  .you-P5 .you-r {
+    display: none;
+  }
+  .you-P5 .you-r-short {
+    display: inline;
+  }
+  .you-P5 small {
+    color: var(--text);
+    font-weight: 700;
   }
 }
 

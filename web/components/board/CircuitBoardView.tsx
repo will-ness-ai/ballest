@@ -74,6 +74,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
           {items}
         </BoardSheet>
 
+        <YouSlot place="head" {...you} />
         {points ? (
           <OverallCard b={b} rows={rows} tally={tally} tracks={tracks} podiums={podiums} />
         ) : (

@@ -35,18 +35,18 @@ import {
 const DEMO_ID = "76561198008697957";
 
 export const VARIANTS = [
-  ["A", "Fourth plate", "a You plate after the top 3, plus your line on the graph"],
-  ["B", "Sticky bar", "a bar pinned to the bottom of the screen while you're on the board"],
-  ["C", "Your run card", "a card in the Map panel / under the Track card: Medal, next Medal"],
-  ["D", "Graph only", "just your line on the graph with a callout, and a jump link"],
-  ["E", "Banner", "one sentence across the top of the board, with a jump button"],
+  ["E1", "Sentence", "round 1's banner: one sentence, then Jump to my row"],
+  ["E2", "Sentence + next Medal", "shorter sentence, with a bar toward the next Medal"],
+  ["E3", "Stat chips", "the same facts as labelled chips instead of a sentence"],
+  ["E4", "Pinned row", "your row from the list, pinned above the board; tap it to jump"],
+  ["E5", "Big, above the card", "a larger banner at the very top, above the Track card"],
 ] as const;
 export const HEADERS = [
-  ["1", "Chip", "marble and name in a pill, top right"],
-  ["2", "Marble + menu", "just your marble top right; tap for a small menu"],
-  ["3", "Tab", "a You tab at the end of the tabs row"],
-  ["4", "Floating", "a marble button pinned bottom-left on every page"],
-  ["5", "Mini card", "name plus two headline stats, top right"],
+  ["P1", "Card, stats shown", "phone: the whole mini card, stats included, where Refreshed was"],
+  ["P2", "Name chip", "phone: marble and name only; desktop keeps the card"],
+  ["P3", "Marble only", "phone: just your marble; desktop keeps the card"],
+  ["P4", "Own row", "phone: the card as a full-width row under the brand; Refreshed stays"],
+  ["P5", "Stats, no name", "phone: marble plus rank and Maps, no name"],
 ] as const;
 const STATES = ["mine", "demo", "unplayed", "unset"] as const;
 type State = (typeof STATES)[number];
@@ -74,8 +74,8 @@ function useParam(k: string, fallback: string) {
   );
   return v ?? fallback;
 }
-const useVariant = () => useParam("variant", "A");
-const useHeader = () => useParam("header", "1");
+const useVariant = () => useParam("variant", "E1");
+const useHeader = () => useParam("header", "P1");
 function useState_(): State {
   const me = useMe();
   const s = useParam("state", "") as State | "";
@@ -176,8 +176,7 @@ function useMarkRow(id: string | null) {
 }
 
 /* ---- the board: one slot per place a variant can put You ---- */
-export type Place = "plates" | "panel" | "top" | "sticky";
-const OWNER: Record<string, Place> = { A: "plates", B: "sticky", C: "panel", D: "top", E: "top" };
+export type Place = "plates" | "panel" | "top" | "sticky" | "head";
 
 interface BoardFacts {
   name: string;
@@ -229,15 +228,15 @@ export function YouSlot({ place, ...b }: BoardFacts & { place: Place }) {
   const you = useYouOnBoard(b.name);
   const keep = useKeep();
   useMarkRow(you.kind === "played" ? you.id : null);
-  if (OWNER[variant] !== place) return null;
-  if (variant === "D" && place === "top") return <JumpLink you={you} name={b.name} keep={keep} />;
+  if ((variant === "E5" ? "head" : "top") !== place) return null;
   if (you.kind === "loading") return null;
+  const cls = "you-E you-" + variant;
   if (you.kind === "unset")
-    return variant === "D" ? null : (
-      <div className={"you-" + variant + " you-empty"}>
-        <span>
-          Mark yourself with <b>This is me</b> on your player page to see your run here.
-        </span>{" "}
+    return (
+      <div className={cls + " you-empty"}>
+        <p>
+          Mark yourself with <b>This is me</b> on your player page and your run shows up here.
+        </p>
         <Link className="go" href={keep(playersHref("all", "wr"))}>
           Find yourself
         </Link>
@@ -245,101 +244,32 @@ export function YouSlot({ place, ...b }: BoardFacts & { place: Place }) {
     );
   if (you.kind === "unplayed")
     return (
-      <div className={"you-" + variant + " you-empty"}>
-        <span>You haven&apos;t set a time here yet.</span>
+      <div className={cls + " you-empty"}>
+        <p>You haven&apos;t set a time here yet.</p>
       </div>
     );
   const row = you.row;
   const f = facts(b, row);
   const jump = keep(boardHref(b.name, you.id));
   const score = f.points ? fmtN(row.score) + " pts" : fmtTime(row.score);
+  const medal =
+    f.medal && f.medal !== "none" && f.medal !== "wr" ? (
+      <b style={{ color: MEDAL_C[f.medal] }}>{MEDAL_N[f.medal]}</b>
+    ) : null;
+  const go = (
+    <Link className="go" href={jump}>
+      Jump to my row
+    </Link>
+  );
   switch (variant) {
-    case "A":
+    case "E1":
       return (
-        <div className="plate you-plate" data-id={you.id}>
-          <Marble who={row} />
-          <span className="pl-text">
-            <span className="pl-name">You</span>
-            <span className="pl-score">{score}</span>
-            <span className="pl-gap">
-              {row.rank === 1 ? "sets the pace" : "+" + gapText(f.points, f.gap) + " back"}
-            </span>
-          </span>
-          <Link className="pl-rank you-rank" href={jump}>
-            {ord(row.rank)}
-          </Link>
-        </div>
-      );
-    case "B":
-      return (
-        <div className="you-B">
-          <Marble who={row} />
-          <span className="you-B-t">
-            <b>You · {ord(row.rank)}</b>
-            <small>
-              {score}
-              {row.rank > 1 ? " · +" + gapText(f.points, f.gap) + " back" : " · record"}
-              {f.medal ? " · " + MEDAL_N[f.medal] : ""}
-            </small>
-          </span>
-          <Link className="go" href={jump}>
-            Jump to me
-          </Link>
-        </div>
-      );
-    case "C":
-      return (
-        <div className="you-C">
-          <span className="eyebrow">{f.points ? "Your standing" : "Your run"}</span>
-          <div className="you-C-top">
-            <Marble who={row} />
-            <b className="you-C-time">{score}</b>
-            {f.medal && (
-              <span className="you-medal" style={{ color: MEDAL_C[f.medal] }}>
-                {MEDAL_N[f.medal]}
-              </span>
-            )}
-          </div>
-          <dl className="mp-facts">
-            <div>
-              <dt>Place</dt>
-              <dd>
-                {ord(row.rank)} of {fmtN(b.total)}
-              </dd>
-            </div>
-            <div>
-              <dt>Field</dt>
-              <dd>{f.pct}</dd>
-            </div>
-            <div>
-              <dt>Off the record</dt>
-              <dd>{row.rank === 1 ? "—" : gapText(f.points, f.gap)}</dd>
-            </div>
-            {f.next && (
-              <div>
-                <dt>To {f.next.name}</dt>
-                <dd style={{ color: f.next.c }}>{fmtTime(f.next.by)}</dd>
-              </div>
-            )}
-          </dl>
-          <Link className="go" href={jump}>
-            Jump to my row
-          </Link>
-        </div>
-      );
-    case "E":
-      return (
-        <div className="you-E">
+        <div className={cls}>
           <Marble who={row} />
           <p>
             You&apos;re <b>{ord(row.rank)}</b> of {fmtN(b.total)} with <b>{score}</b>
-            {f.medal && f.medal !== "none" && (
-              <>
-                {" "}
-                for <b style={{ color: MEDAL_C[f.medal] }}>{MEDAL_N[f.medal]}</b>
-              </>
-            )}
-            {row.rank > 1 ? <>, {gapText(f.points, f.gap)} off the record</> : null}
+            {medal && <> for {medal}</>}
+            {row.rank > 1 ? <>, {gapText(f.points, f.gap)} off the record</> : <>: the record</>}
             {f.next ? (
               <>
                 {" "}
@@ -348,30 +278,129 @@ export function YouSlot({ place, ...b }: BoardFacts & { place: Place }) {
             ) : null}
             .
           </p>
-          <Link className="go" href={jump}>
-            Jump to my row
+          {go}
+        </div>
+      );
+    case "E2": {
+      /* how far through the Medal you're chasing: from the one you hold to the next */
+      let bar: React.ReactNode = null;
+      if (f.next && b.medals) {
+        const order = [0, 1, 2, 3].map(
+          (i) => (b.medals as ReadonlyArray<number>)[i] * SCORE_TICKS_PER_SECOND,
+        );
+        const held = order.filter((t) => row.score <= t);
+        const from = held.length ? Math.min(...held) : b.medals[0] * SCORE_TICKS_PER_SECOND * 1.5;
+        const to = row.score - f.next.by;
+        const done = Math.max(0.04, Math.min(1, (from - row.score) / (from - to)));
+        bar = (
+          <span className="you-prog">
+            <span style={{ width: (done * 100).toFixed(0) + "%", background: f.next.c }} />
+          </span>
+        );
+      }
+      return (
+        <div className={cls}>
+          <Marble who={row} />
+          <p>
+            You&apos;re <b>{ord(row.rank)}</b> of {fmtN(b.total)} with <b>{score}</b>
+            {medal && <> for {medal}</>}.
+            {f.next && (
+              <span className="you-next">
+                {bar}
+                <small>
+                  <b style={{ color: f.next.c }}>{fmtTime(f.next.by)}</b> to {f.next.name}
+                </small>
+              </span>
+            )}
+          </p>
+          {go}
+        </div>
+      );
+    }
+    case "E3":
+      return (
+        <div className={cls}>
+          <Marble who={row} />
+          <span className="you-chips">
+            <span>
+              <small>Place</small>
+              <b>{ord(row.rank)}</b>
+            </span>
+            <span>
+              <small>{f.points ? "Points" : "Time"}</small>
+              <b>{score}</b>
+            </span>
+            {f.medal && (
+              <span>
+                <small>Medal</small>
+                <b style={{ color: MEDAL_C[f.medal] }}>{MEDAL_N[f.medal]}</b>
+              </span>
+            )}
+            <span>
+              <small>Field</small>
+              <b>{f.pct}</b>
+            </span>
+            {row.rank > 1 && (
+              <span>
+                <small>Off the record</small>
+                <b>{gapText(f.points, f.gap)}</b>
+              </span>
+            )}
+            {f.next && (
+              <span>
+                <small>To {f.next.name}</small>
+                <b style={{ color: f.next.c }}>{fmtTime(f.next.by)}</b>
+              </span>
+            )}
+          </span>
+          {go}
+        </div>
+      );
+    case "E4":
+      return (
+        <div className={cls}>
+          <span className="eyebrow">You</span>
+          <Link className="you-pin" href={jump}>
+            <span className="c-rank">{row.rank}</span>
+            <Marble who={row} />
+            <span className="you-pin-t">
+              <b>{personaOf(row)}</b>
+              <small>
+                {row.rank > 1 ? "+" + gapText(f.points, f.gap) + " behind" : "Leads the board"}
+                {f.next ? " · " + fmtTime(f.next.by) + " to " + f.next.name : ""}
+              </small>
+            </span>
+            <span className="you-pin-s">
+              {score}
+              {medal && <i style={{ background: MEDAL_C[f.medal as string] }} />}
+            </span>
           </Link>
+        </div>
+      );
+    case "E5":
+      return (
+        <div className={cls}>
+          <Marble who={row} />
+          <div className="you-hero">
+            <span className="eyebrow">Your run</span>
+            <b className="you-hero-t">{score}</b>
+            <p>
+              {ord(row.rank)} of {fmtN(b.total)}
+              {medal && <> · {medal}</>}
+              {row.rank > 1 ? <> · {gapText(f.points, f.gap)} off the record</> : null}
+              {f.next ? (
+                <>
+                  {" "}
+                  · <b style={{ color: f.next.c }}>{fmtTime(f.next.by)}</b> to {f.next.name}
+                </>
+              ) : null}
+            </p>
+          </div>
+          {go}
         </div>
       );
   }
   return null;
-}
-
-function JumpLink({
-  you,
-  name,
-  keep,
-}: {
-  you: YouOnBoard;
-  name: string;
-  keep: (h: string) => string;
-}) {
-  if (you.kind !== "played") return null;
-  return (
-    <p className="you-D">
-      <Link href={keep(boardHref(name, you.id))}>Jump to you ({ord(you.row.rank)}) &darr;</Link>
-    </p>
-  );
 }
 
 /* the graph, with your run drawn in: every variant shows it */
@@ -387,7 +416,6 @@ export function YouSpread({
   wide: boolean;
 }) {
   const you = useYouOnBoard(name);
-  const variant = useVariant();
   const row = you.kind === "played" ? you.row : null;
   return (
     <Spread
@@ -399,7 +427,7 @@ export function YouSpread({
           ? {
               score: row.score,
               h: row.steamId,
-              callout: variant === "D" ? ord(row.rank) + " · " + fmtTime(row.score) : null,
+              callout: null,
             }
           : null
       }
@@ -423,72 +451,36 @@ export function YouHeader({ at }: { at: "hdr" | "tabs" }) {
   const id = useYouId();
   const rec = useRecord(id);
   const keep = useKeep();
-  const [open, setOpen] = useState(false);
-  if ((h === "3") !== (at === "tabs")) return null;
+  if (at !== "hdr") return null;
+  const cls = "you-h you-h5 you-" + h;
   if (!id)
     return (
-      <Link className={"you-h you-h" + h + " you-h-empty"} href={keep(playersHref("all", "wr"))}>
-        {h === "2" || h === "4" ? "?" : "Find yourself"}
+      <Link className={cls + " you-h-empty"} href={keep(playersHref("all", "wr"))}>
+        <span className="you-q">?</span>
+        <span>
+          <b>Find yourself</b>
+          <small>Mark your page with This is me</small>
+        </span>
       </Link>
     );
   if (!rec) return null;
-  const href = keep(playerHref(rec.id));
-  switch (h) {
-    case "1":
-      return (
-        <Link className="you-h you-h1" href={href}>
-          <Still id={rec.id} />
-          <span>{personaOf(rec.who)}</span>
-        </Link>
-      );
-    case "2":
-      return (
-        <span className="you-h you-h2">
-          <button
-            type="button"
-            className="you-h2-b"
-            onClick={() => setOpen(!open)}
-            aria-expanded={open}
-          >
-            <Still id={rec.id} />
-          </button>
-          {open && (
-            <span className="you-menu">
-              <b>{personaOf(rec.who)}</b>
-              <Link href={href}>Your page</Link>
-              <Link href={keep(playerHref(rec.id, "workshop"))}>Your Workshop times</Link>
-              <Link href={keep(playerHref(rec.id, "circuit"))}>Your Circuit times</Link>
-            </span>
-          )}
-        </span>
-      );
-    case "3":
-      return (
-        <Link className="you-h you-h3 gtab" href={href}>
-          <Still id={rec.id} /> You
-        </Link>
-      );
-    case "4":
-      return (
-        <Link className="you-h you-h4" href={href} aria-label="Your page">
-          <Still id={rec.id} />
-        </Link>
-      );
-    case "5":
-      return (
-        <Link className="you-h you-h5" href={href}>
-          <Still id={rec.id} />
-          <span>
-            <b>{personaOf(rec.who)}</b>
-            <small>
-              {rec.allSeasons ? ord(rec.allSeasons.rank) + " All Seasons" : "Unranked"} ·{" "}
-              {fmtN(rec.workshop.maps)} Maps
-            </small>
+  return (
+    <Link className={cls} href={keep(playerHref(rec.id))}>
+      <Still id={rec.id} />
+      <span>
+        <b>{personaOf(rec.who)}</b>
+        <small>
+          <span className="you-r">
+            {rec.allSeasons ? ord(rec.allSeasons.rank) + " All Seasons" : "Unranked"}
           </span>
-        </Link>
-      );
-  }
-  return null;
+          <span className="you-r-short">
+            {rec.allSeasons ? ord(rec.allSeasons.rank) : "Unranked"}
+          </span>{" "}
+          · {fmtN(rec.workshop.maps)} Maps
+        </small>
+      </span>
+    </Link>
+  );
 }
 
 /* ---- the picker: plainly not part of the design ---- */
