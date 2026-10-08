@@ -781,3 +781,69 @@
 .stand u.m3 {
   background: var(--bronze);
 }
+
+/* You on this board (components/board/YouBanner): one sentence, a bar toward the next
+   Medal, and the jump to your row, above the plates */
+.you-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin: 0 var(--pad) 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.you-banner > .marble {
+  inline-size: 30px;
+  block-size: 30px;
+}
+.yb-t {
+  flex: 1 1 14em;
+  min-inline-size: 0;
+}
+.you-banner p {
+  margin: 0;
+  font-size: calc(13.5rem / 16);
+  line-height: 1.45;
+}
+.you-banner p b {
+  font-variant-numeric: tabular-nums;
+}
+.you-banner .go {
+  margin-inline-start: auto;
+  padding: 7px 12px;
+  font-size: calc(13rem / 16);
+  white-space: nowrap;
+}
+.yb-empty p {
+  flex: 1 1 14em;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+}
+.yb-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block-start: 6px;
+}
+.yb-bar {
+  flex: 1;
+  max-inline-size: 220px;
+  block-size: 6px;
+  border-radius: 3px;
+  background: var(--surface2);
+  overflow: clip;
+}
+.yb-bar > span {
+  display: block;
+  block-size: 100%;
+  /* a sliver even at the start, so the bar reads as a bar */
+  inline-size: max(4%, calc(var(--p) * 100%));
+  border-radius: 3px;
+}
+.yb-next small {
+  color: var(--dim);
+  font-size: calc(12.5rem / 16);
+  white-space: nowrap;
+}

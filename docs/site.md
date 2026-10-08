@@ -133,6 +133,13 @@ player's row reads down to that row first. Each row carries the score of the row
 (`ahead`, from the query), which is what the interval column is worked out from, so rows
 are never re-sorted on the client.
 
+Once "This is me" is set, a banner above the plates gives You's standing on the board (a
+Map, a Track, or an Overall board on its points sort): place, score, the Medal it holds and
+a bar toward the next one (`standingOn` in `lib/standing.ts`), and a link to the board at
+your row. It reads your row from `/api/board/<name>?player=<steam id>` through
+`useYouOnBoard` (`hooks/you.ts`), which every view of You on a board shares, and draws
+nothing until it has, so the server's page is the same for everyone.
+
 Ranks follow Steam's tie rule: equal scores are ordered by Steam ID, ascending on a time
 board and descending on a points board (`docs/data.md`).
 

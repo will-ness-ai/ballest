@@ -2,7 +2,12 @@
 // that grows as the reader scrolls (components/board/BoardBody). With q, only the rows
 // whose persona or Steam ID contains it, each keeping its real rank and interval. A
 // Circuit board or a listed Map's; anything else is a 404.
-import { isBoard, readBoard, searchBoard } from "../../../../db/data";
+//
+// GET /api/board/<name>?player=<steam id>: that player's { rank, score } on the board, or
+// null when they hold no Entry on it (or nobody raced under the ID), for You's banner
+// (hooks/you.ts). Something that isn't a Steam ID is a 400.
+import { getBoardPlaces, isBoard, readBoard, searchBoard } from "../../../../db/data";
+import { isSteamId } from "../../../../lib/rules";
 
 /* a search pages its matches; a link to a player's row reads down to it in one go, as far
    as the largest board goes */
@@ -13,6 +18,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ name
   const { name } = await params;
   if (!(await isBoard(name))) return Response.json({ error: "no such board" }, { status: 404 });
   const url = new URL(request.url);
+  const player = url.searchParams.get("player");
+  if (player != null) {
+    if (!isSteamId(player)) return Response.json({ error: "not a Steam ID" }, { status: 400 });
+    return Response.json((await getBoardPlaces(name, [player]))[player] ?? null);
+  }
   const from = Math.max(0, Math.floor(Number(url.searchParams.get("from")) || 0));
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase().slice(0, 64);
   const count = Math.min(
