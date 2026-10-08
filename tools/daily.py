@@ -39,12 +39,23 @@ class Daily:
 @dataclass(frozen=True)
 class DailyRead:
     """What a Refresh read of one Daily's board: its rows (board_rows, names filled in), or
-    None when the read failed. An empty read counts as failed too (db_writer)."""
+    None when the read failed."""
 
     daily: Daily
     rows: list | None
-    read_at: datetime  # when the read was made: one at or after ends_at makes it final
+    read_at: datetime  # when the read was made
     entry_count: int | None = None  # Steam's count, when it gave one
+
+    @property
+    def ok(self):
+        """Whether the read counts: an empty one counts as failed, as on any board, so it
+        moves none of the Daily's Entries and never makes it final."""
+        return bool(self.rows)
+
+    @property
+    def made_final(self):
+        """Whether this read makes the Daily final: an ok read at or after its close."""
+        return self.ok and self.read_at >= self.daily.ends_at
 
 
 def plan(known, now, first=FIRST_DAILY):

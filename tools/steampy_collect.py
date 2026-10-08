@@ -227,7 +227,7 @@ async def collect_dailies(all_ids):
     # only the reads handed on: one abandoned at the budget adds no player
     for r in out:
         all_ids.update(x["steam_id"] for x in r.rows or [])
-    ok = sum(1 for r in out if r.rows)
+    ok = sum(1 for r in out if r.ok)
     print(
         f"  Daily: {len(lookups)} looked up ({len(missing)} with no Daily), "
         f"{len(out)} read, {len(out) - ok} failed or empty"
@@ -343,7 +343,7 @@ async def on_ready():
         published, names = cc.write_site(boards_out, all_ids, workshop)
         _state["wrote"] = True
         # The Dailies' players are in all_ids, so the one lookup above named them too.
-        cc.fill_names([r.rows for r in dailies if r.rows], names)
+        cc.fill_names([r.rows for r in dailies if r.ok], names)
         if reused:
             print(f"NOTE: reused previous data for {len(reused)} board(s): {reused}")
         # The same Refresh into the database, after the JSON and never instead of it:

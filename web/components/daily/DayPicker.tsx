@@ -59,9 +59,7 @@ function Day({
       href={dailyHref(d.date)}
       aria-current={picked ? "page" : undefined}
       data-today={today || undefined}
-      data-b={
-        mine === undefined ? undefined : mine ? (mine.final ? bandOf(mine.rank) : "in") : "miss"
-      }
+      data-b={mine === undefined ? undefined : mine ? bandOf(mine) : "miss"}
       aria-label={what}
       title={what}
       onClick={onPick}

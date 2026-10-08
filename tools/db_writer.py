@@ -209,11 +209,10 @@ def _gather(refresh):
     for dr in refresh.dailies:
         d = dr.daily
         boards.append((d.board, "daily", None, d.title, int(d.leaderboard_id), False))
-        # As on any board, a failed or empty read moves none of the Daily's Entries.
-        ok = bool(dr.rows)
+        ok = dr.ok
         reads.append((d.board, ok, (dr.entry_count or len(dr.rows)) if ok else None))
         read_rows.append((d.board, dr.rows or [], ok))
-        days.append(replace(d, final=ok and dr.read_at >= d.ends_at))
+        days.append(replace(d, final=dr.made_final))
 
     players, entries = {}, {}
     for name, rows, ok in read_rows:

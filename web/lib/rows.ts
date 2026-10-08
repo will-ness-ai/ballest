@@ -150,8 +150,8 @@ export interface PlayerDaily {
 }
 
 /* a player's Daily record: every Daily they have a time on, oldest first, their wins and
-   podiums on final Dailies, and their runs of Dailies played one after another (runsOf in
-   lib/daily.ts) */
+   podiums on final Dailies, and their runs of Dailies played one after another
+   (playerDailiesOf in lib/daily.ts) */
 export interface PlayerDailies {
   played: Array<PlayerDaily>;
   won: number;

@@ -7,6 +7,8 @@ import type {
   DailyRecordKey,
   DailyStanding,
   DailyStandings,
+  PlayerDailies,
+  PlayerDaily,
 } from "./rows";
 
 /* Live until its close by the reader's clock, so a page cached before the close still
@@ -208,10 +210,29 @@ export function medalTable(players: ReadonlyArray<DailyStanding>, by: MedalColum
   return rows;
 }
 
+/* A place on a Daily counts as a win or a podium only once the Daily is final: until a read
+   after its close, the place can still change. The player's tab, its calendar's bands and
+   the standings all count it this way. */
+const settled = (p: { rank: number; final: boolean }, top: number) => p.final && p.rank <= top;
+
+/* A player's Daily record from every Daily (oldest first) and the ones they have a time on:
+   their wins and podiums on final Dailies, and their runs of Dailies played (runsOf) */
+export function playerDailiesOf(
+  days: ReadonlyArray<{ date: string; final: boolean }>,
+  played: Array<PlayerDaily>,
+): PlayerDailies {
+  return {
+    played,
+    won: played.filter((p) => settled(p, 1)).length,
+    podiums: played.filter((p) => settled(p, 3)).length,
+    ...runsOf(days, new Set(played.map((p) => p.date))),
+  };
+}
+
 /* A player's runs of Dailies played one after another, in date order: the longest, and the
    one going now. The newest Daily, while no read after its close has made it final, ends no
    run: played, it counts; not played yet, the run going now is the one up to the day before. */
-export function runsOf(
+function runsOf(
   days: ReadonlyArray<{ date: string; final: boolean }>,
   played: ReadonlySet<string>,
 ) {
@@ -232,6 +253,7 @@ export function runsOf(
   return { longest, current: run };
 }
 
-/* how a place on a Daily reads on a player's calendar: 1st, the podium, the top 10, or played */
-export const bandOf = (rank: number) =>
-  rank === 1 ? "1" : rank <= 3 ? "pod" : rank <= 10 ? "t10" : "in";
+/* how a place on a Daily reads on a player's calendar: 1st, the podium, the top 10, or
+   played; a Daily not final yet shows only that they played it */
+export const bandOf = (p: { rank: number; final: boolean }) =>
+  settled(p, 1) ? "1" : settled(p, 3) ? "pod" : settled(p, 10) ? "t10" : "in";

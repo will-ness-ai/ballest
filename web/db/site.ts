@@ -5,7 +5,7 @@
 import { sql, type SQL } from "drizzle-orm";
 
 import { CIRCUIT, S1_TRACKS, S2_TRACKS } from "../lib/circuit";
-import { runsOf, standingsOf } from "../lib/daily";
+import { playerDailiesOf, standingsOf } from "../lib/daily";
 import { CREATOR_BEAT_MARGIN_TICKS, SCORE_TICKS_PER_SECOND } from "../lib/rules";
 import type { Db } from "./client";
 import { DERIVED, array, boardSql, rankedSql } from "./boards";
@@ -313,6 +313,19 @@ export async function searchPlayers(
   );
 }
 
+/* A Daily's window and whether a read after its close made it final, as lib/daily.ts reads
+   them: its open and close as ISO strings in UTC, which isLive compares with the reader's
+   clock */
+const dailyWindowSql = sql`
+  to_char(d.starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "startsAt",
+  to_char(d.ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "endsAt",
+  d.final_refresh is not null as final`;
+
+/* A Daily's Map as its latest catalogue row describes it (l.preview, l.medals): a Map no
+   catalogue has listed has no row */
+const dailyMapSql = sql`left join lateral (select preview, medals from map_history h
+    where h.pfid = d.pfid order by last_seen_refresh desc, id desc limit 1) l on true`;
+
 /* One Daily by its date, or null for a date with none. Its board ranks like a Map's
    (boardPage on `board`). */
 export async function dailyDay(db: Db, date: string): Promise<DailyDay | null> {
@@ -321,15 +334,12 @@ export async function dailyDay(db: Db, date: string): Promise<DailyDay | null> {
     sql`select d.date::text as date, d.board, d.pfid, d.title, l.preview,
         coalesce(l.medals, '{}') as medals,
         exists (select 1 from (${listedMapsSql}) w where w.board = m.board) as listed,
-        to_char(d.starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "startsAt",
-        to_char(d.ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "endsAt",
-        d.final_refresh is not null as final,
+        ${dailyWindowSql},
         (select count(*) from entries e
           where e.board = d.board and e.closed_refresh is null)::int as "entryCount"
       from dailies d
       left join maps m on m.pfid = d.pfid
-      left join lateral (select preview, medals from map_history h where h.pfid = d.pfid
-        order by last_seen_refresh desc, id desc limit 1) l on true
+      ${dailyMapSql}
       where d.date = ${date}::date`,
   );
   return found.at(0) ?? null;
@@ -342,14 +352,11 @@ export async function dailies(db: Db): Promise<Array<DailyCell>> {
   >(
     db,
     sql`select d.date::text as date, d.pfid, d.title, l.preview,
-        to_char(d.starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "startsAt",
-        to_char(d.ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "endsAt",
-        d.final_refresh is not null as final,
+        ${dailyWindowSql},
         coalesce(n.count, 0)::int as "entryCount",
         w.steam_id as "winnerId", ${personaSql} as "winnerName"
       from dailies d
-      left join lateral (select preview from map_history h where h.pfid = d.pfid
-        order by last_seen_refresh desc, id desc limit 1) l on true
+      ${dailyMapSql}
       left join (select board, count(*) from entries
         where closed_refresh is null group by board) n on n.board = d.board
       left join (${rankedSql(sql`e.board in (select board from dailies)`)}) w
@@ -395,8 +402,7 @@ export async function dailyStandings(db: Db): Promise<DailyStandings> {
 }
 
 /* A player's place on every Daily they have a time on, oldest first, each ranked as its
-   board ranks it; their wins and podiums over final Dailies only, as the standings count
-   them; and their runs of Dailies played */
+   board ranks it, as their Daily record (playerDailiesOf in lib/daily.ts) */
 export async function playerDailies(db: Db, steamId: string): Promise<PlayerDailies> {
   const played = await rows<PlayerDaily>(
     db,
@@ -413,11 +419,5 @@ export async function playerDailies(db: Db, steamId: string): Promise<PlayerDail
     db,
     sql`select date::text as date, final_refresh is not null as final from dailies order by date`,
   );
-  const final = played.filter((p) => p.final);
-  return {
-    played,
-    won: final.filter((p) => p.rank === 1).length,
-    podiums: final.filter((p) => p.rank <= 3).length,
-    ...runsOf(days, new Set(played.map((p) => p.date))),
-  };
+  return playerDailiesOf(days, played);
 }
