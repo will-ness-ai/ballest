@@ -27,11 +27,11 @@ import {
 } from "../../lib/rules";
 
 export const VARIANTS = {
-  "1": "Bottom row",
-  "2": "Split",
-  "3": "Banner",
-  "4": "Side column",
-  "5": "Inline",
+  "1": "Ringed",
+  "2": "Glass ball",
+  "3": "Turned over",
+  "4": "On a plate",
+  "5": "Rack",
 } as const;
 export type Variant = keyof typeof VARIANTS;
 export const KINDS = ["player", "map", "track", "daily"] as const;
@@ -45,7 +45,6 @@ const C = {
   faint: "#63719a",
   gold: "#ffd447",
   author: "#5fd4ff",
-  live: "#8be03c",
   line: "rgba(150,175,245,0.18)",
 };
 
@@ -194,7 +193,6 @@ export async function cardFor(kind: Kind, id: string): Promise<CardData | null> 
       year: "numeric",
       timeZone: "UTC",
     });
-    const live = !day.final && Date.parse(day.endsAt) > Date.now();
     return {
       kind,
       kicker: "Daily · " + when,
@@ -205,7 +203,7 @@ export async function cardFor(kind: Kind, id: string): Promise<CardData | null> 
       headline: wr
         ? {
             value: fmtTime(wr.score),
-            label: (live ? "Leading · " : "Winner · ") + personaOf(wr),
+            label: "Fastest · " + personaOf(wr),
             color: C.gold,
           }
         : { value: "—", label: "No times yet" },
@@ -217,9 +215,11 @@ export async function cardFor(kind: Kind, id: string): Promise<CardData | null> 
           color: C.author,
         },
         { value: fmtN(beat), label: "Beat the author", color: C.author },
-        live
-          ? { value: "Live", label: "Still open", color: C.live }
-          : { value: "Final", label: "Closed" },
+        {
+          value: day.medals[2] ? fmtSec(day.medals[2]) : "—",
+          label: "Gold time",
+          color: C.gold,
+        },
       ],
     };
   }
@@ -754,13 +754,167 @@ function Place5({ d }: { d: CardData }) {
   );
 }
 
+/* ---------- round 3: the player's picture as the site's marble ---------- */
+
+/* the site's Ball (components/Marble.tsx) as an SVG picture */
+function ballSrc(h: number) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><radialGradient id="g" cx="34%" cy="27%" r="80%"><stop offset="0%" stop-color="hsl(${h},94%,90%)"/><stop offset="34%" stop-color="hsl(${h},80%,64%)"/><stop offset="100%" stop-color="hsl(${h},62%,25%)"/></radialGradient><clipPath id="c"><circle cx="20" cy="20" r="19"/></clipPath></defs><circle cx="20" cy="20" r="19" fill="url(#g)"/><g clip-path="url(#c)"><path d="M-4 27C6 34 18 33 26 26s10-16 8-24" fill="none" stroke="hsl(${h},66%,20%)" stroke-opacity=".26" stroke-width="4.5"/><path d="M2 8c8 2 16 8 19 17" fill="none" stroke="hsl(${h},96%,92%)" stroke-opacity=".2" stroke-width="3"/></g><ellipse cx="13" cy="11.5" rx="5.4" ry="3.4" fill="#fff" fill-opacity=".62" transform="rotate(-28 13 11.5)"/><circle cx="20" cy="20" r="19" fill="none" stroke="hsl(${h},60%,16%)" stroke-opacity=".35"/></svg>`;
+  return "data:image/svg+xml;base64," + Buffer.from(svg).toString("base64");
+}
+
+function BallImg({ h, size }: { h: number; size: number }) {
+  // eslint-disable-next-line @next/next/no-img-element -- satori draws plain img only
+  return <img src={ballSrc(h)} width={size} height={size} />;
+}
+
+/* the avatar as a disc, or the plain marble where Steam gave none */
+function Face({ d, size, ring = 0 }: { d: CardData; size: number; ring?: number }) {
+  if (!d.image) return <BallImg h={d.hue} size={size} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- satori draws plain img only
+    <img
+      src={d.image}
+      width={size}
+      height={size}
+      style={{
+        borderRadius: size,
+        objectFit: "cover",
+        border: ring ? `${ring}px solid hsl(${d.hue} 78% 58%)` : undefined,
+      }}
+    />
+  );
+}
+
+/* 1: the avatar in a ring of the marble's colour, as a row shows it on hover */
+function Ringed({ d, size }: { d: CardData; size: number }) {
+  return <Face d={d} size={size} ring={14} />;
+}
+
+/* 2: the avatar inside the glass: the ball's tint, shading and highlight laid over it */
+function GlassBall({ d, size }: { d: CardData; size: number }) {
+  const h = d.hue;
+  return (
+    <div style={{ display: "flex", position: "relative", width: size, height: size }}>
+      <Face d={d} size={size} />
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          width: size,
+          height: size,
+          borderRadius: size,
+          display: "flex",
+          backgroundImage: `radial-gradient(circle at 34% 27%, hsla(${h},94%,90%,0.35) 0%, hsla(${h},80%,64%,0.18) 34%, hsla(${h},62%,25%,0.75) 100%)`,
+          border: `6px solid hsla(${h},60%,30%,0.9)`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: size * 0.2,
+          top: size * 0.17,
+          width: size * 0.27,
+          height: size * 0.17,
+          borderRadius: size,
+          display: "flex",
+          backgroundColor: "rgba(255,255,255,0.55)",
+          transform: "rotate(-28deg)",
+        }}
+      />
+    </div>
+  );
+}
+
+/* 3: the marble mid-flip: the ball behind, the avatar popping out over it */
+function TurnedOver({ d, size }: { d: CardData; size: number }) {
+  return (
+    <div style={{ display: "flex", position: "relative", width: size, height: size }}>
+      <div style={{ display: "flex", position: "absolute", left: 0, top: 0, opacity: 0.35 }}>
+        <BallImg h={d.hue} size={size * 0.92} />
+      </div>
+      <div style={{ display: "flex", position: "absolute", right: 0, bottom: 0 }}>
+        <Face d={d} size={size * 0.72} ring={10} />
+      </div>
+    </div>
+  );
+}
+
+/* 4: the ball on a podium plate in their place's colour */
+function OnPlate({ d, size }: { d: CardData; size: number }) {
+  const place = /^#([123])$/.exec(d.headline.value)?.[1];
+  const plate = place ? [C.gold, "#d3dcea", "#ef9a52"][Number(place) - 1] : "#2a3a66";
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: size }}>
+      <GlassBall d={d} size={size * 0.78} />
+      <div
+        style={{
+          marginTop: -18,
+          width: size,
+          height: size * 0.2,
+          borderRadius: "14px 14px 4px 4px",
+          backgroundColor: plate,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "Bungee",
+          fontSize: size * 0.11,
+          color: "rgba(10,16,32,0.6)",
+        }}
+      >
+        {place ? place : ""}
+      </div>
+    </div>
+  );
+}
+
+/* 5: the glass-ball avatar with the brand's other two marbles beside it */
+function Racked({ d, size }: { d: CardData; size: number }) {
+  return (
+    <div style={{ display: "flex", position: "relative", width: size, height: size }}>
+      <div style={{ display: "flex", position: "absolute", left: -10, bottom: 6 }}>
+        <BallImg h={212} size={size * 0.3} />
+      </div>
+      <div style={{ display: "flex", position: "absolute", right: -6, bottom: 0 }}>
+        <BallImg h={332} size={size * 0.24} />
+      </div>
+      <div style={{ display: "flex", position: "absolute", left: size * 0.12, top: 0 }}>
+        <GlassBall d={d} size={size * 0.8} />
+      </div>
+    </div>
+  );
+}
+
+/* round 2's Split, with the picture swapped for one of the marbles above */
+function SplitPlayer({ d, face, rack }: { d: CardData; face: React.ReactNode; rack?: boolean }) {
+  void rack;
+  return (
+    <div style={{ ...frame, padding: 48, gap: 44 }}>
+      <div style={{ display: "flex", flexDirection: "column", width: 400 }}>
+        {face}
+        <div style={{ display: "flex", marginTop: "auto" }}>
+          <Brand />
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+        <Kicker d={d} />
+        <Title d={d} size={64} />
+        <HeadlineLine d={d} size={30} />
+        <div style={{ display: "flex", flexDirection: "column", marginTop: "auto" }}>
+          <Grid d={d} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type Draw = (p: { d: CardData }) => React.ReactElement;
-const DRAW: Record<Variant, { player: Draw; place: Draw }> = {
-  "1": { player: Player1, place: Place1 },
-  "2": { player: Player2, place: Place2 },
-  "3": { player: Player3, place: Place3 },
-  "4": { player: Player4, place: Place4 },
-  "5": { player: Player5, place: Place5 },
+const DRAW: Record<Variant, Draw> = {
+  "1": ({ d }) => <SplitPlayer d={d} face={<Ringed d={d} size={400} />} />,
+  "2": ({ d }) => <SplitPlayer d={d} face={<GlassBall d={d} size={400} />} />,
+  "3": ({ d }) => <SplitPlayer d={d} face={<TurnedOver d={d} size={400} />} />,
+  "4": ({ d }) => <SplitPlayer d={d} face={<OnPlate d={d} size={400} />} />,
+  "5": ({ d }) => <SplitPlayer d={d} face={<Racked d={d} size={400} />} rack />,
 };
 
 let fonts: Promise<ConstructorParameters<typeof ImageResponse>[1]> | undefined;
@@ -782,8 +936,7 @@ function loadFonts() {
 }
 
 export async function drawCard(variant: Variant, d: CardData) {
-  const set = DRAW[variant];
-  const Draw = d.kind === "player" ? set.player : set.place;
+  const Draw = d.kind === "player" ? DRAW[variant] : Place3;
   return new ImageResponse(<Draw d={d} />, {
     width: W,
     height: H,

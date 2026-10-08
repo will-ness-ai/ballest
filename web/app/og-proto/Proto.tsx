@@ -5,11 +5,11 @@ import { useEffect, useState } from "react";
 import { SAMPLES } from "./samples";
 
 const VARIANTS = [
-  ["1", "Bottom row", "Round 1's picks as they were: player B; Maps, Tracks and Dailies D with four tiles along the bottom over the picture."],
-  ["2", "Split", "Picture as its own half on the left (a big avatar, or the screenshot full height), name and a 2x2 of tiles on the right."],
-  ["3", "Banner", "Picture band across the top with the name on it, a solid band of tiles below. A player's band is their best finish's Map or Track, dimmed."],
-  ["4", "Side column", "Tiles stacked in a column on the right; the name sits bottom-left (players: avatar top-left)."],
-  ["5", "Inline", "No tile boxes: the numbers set in one line under the name. Drops the 'unofficial' footer line on players."],
+  ["1", "Ringed", "Player: Split, avatar as a disc in a thick ring of their marble's colour (a row's hover look). Maps, Tracks, Dailies: Banner in every variant."],
+  ["2", "Glass ball", "Player: the avatar inside the marble: the ball's tint, edge shading and highlight laid over the photo."],
+  ["3", "Turned over", "Player: the marble mid-flip, the plain ball faint behind and the ringed avatar popping out over it."],
+  ["4", "On a plate", "Player: the glass-ball avatar standing on a podium plate, gold/silver/bronze for a Season 2 top 3, navy otherwise."],
+  ["5", "Rack", "Player: the glass-ball avatar with the brand's blue and pink marbles beside it."],
 ] as const;
 
 function param(k: string, fallback: string) {
@@ -48,7 +48,7 @@ export function Proto() {
   };
   return (
     <main style={{ padding: "24px 16px 160px", maxWidth: 1240, margin: "0 auto", color: "#eaf0ff", fontFamily: "Chakra Petch, sans-serif" }}>
-      <h1 style={{ fontFamily: "Bungee", fontSize: 22, margin: "0 0 4px" }}>Share images · round 2</h1>
+      <h1 style={{ fontFamily: "Bungee", fontSize: 22, margin: "0 0 4px" }}>Share images · round 3</h1>
       <p style={{ color: "#93a2c8", margin: "0 0 20px" }}>
         What a link to <a style={{ color: "#8be03c" }} href={s.path}>{s.path}</a> would unfurl as.{" "}
         <a style={{ color: "#8be03c" }} href={`/og-proto/share/${v}/${s.kind}/${s.id}`}>Shareable test link</a>{" "}
