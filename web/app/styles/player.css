@@ -64,7 +64,9 @@
 }
 .pwho {
   min-width: 0;
-  flex: 1;
+  /* the name and rank keep a readable width; on a phone the Compare and Steam buttons
+     wrap under them instead of squeezing them to a word a line */
+  flex: 1 1 12em;
 }
 .pline {
   font-size: calc(12.5rem / 16);
@@ -705,9 +707,10 @@
   align-items: center;
   margin-block-end: 10px;
 }
-/* 140px leaves room for the 16px sort select beside it on a 390px phone */
+/* wide enough for its whole placeholder: on a phone the sort select drops to the next
+   line rather than cut it short */
 .pwtools .ws-q {
-  flex: 1 1 140px;
+  flex: 1 1 12.5em;
 }
 .pwsort {
   padding: 8px 10px;

@@ -180,7 +180,10 @@
 }
 .trow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(96px, 170px) minmax(0, 1fr);
+  /* a number never shrinks under its own width (a five-digit rank, bigger text); the
+     label between them wraps instead */
+  --side: minmax(min-content, 1fr);
+  grid-template-columns: var(--side) minmax(min-content, 10.625rem) var(--side);
   gap: 10px;
   align-items: center;
   padding: 8px 0;
