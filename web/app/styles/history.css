@@ -177,6 +177,7 @@
   border-top: 1px solid var(--line2);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .hi-climb th {
   border-top: 0;
@@ -189,6 +190,7 @@
 .hi-climb td:nth-child(2) {
   width: 100%;
   text-align: left;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 /* on a phone the cut goes; the places gained tell the story */
