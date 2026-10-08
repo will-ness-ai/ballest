@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { useDialog } from "../Behaviours";
+import { useDialog } from "../Modal";
 import { Marble } from "../Marble";
 import type { NameHit } from "../../lib/rows";
 import { useDebouncedFetch } from "../../hooks/client";
@@ -23,11 +23,11 @@ export interface CompareAsk {
 /* only an open dialog is drawn: a page the router keeps hidden for going back to must
    not leave a second one in the document. Each opening is drawn afresh, so it starts
    empty, and an answer to the last one's search never reaches it. */
-export function CompareDialog({ ask, close }: { ask: CompareAsk | null; close: () => void }) {
-  return ask ? <Open key={ask.side + ask.keep.steamId} ask={ask} close={close} /> : null;
+export function CompareDialog({ ask, onClose }: { ask: CompareAsk | null; onClose: () => void }) {
+  return ask ? <Open key={ask.side + ask.keep.steamId} ask={ask} onClose={onClose} /> : null;
 }
 
-function Open({ ask, close }: { ask: CompareAsk; close: () => void }) {
+function Open({ ask, onClose }: { ask: CompareAsk; onClose: () => void }) {
   const router = useRouter();
   const [text, setText] = useState("");
   const keep = ask.keep.steamId;
@@ -44,10 +44,10 @@ function Open({ ask, close }: { ask: CompareAsk; close: () => void }) {
   const found = useDebouncedFetch(text.trim(), read);
   const hits = found.failed ? "failed" : (found.last?.data ?? null);
   /* it opens with the keyboard in the search box */
-  const { props, close: shut } = useDialog(true, close, cmpq);
+  const { props, close } = useDialog({ open: true, onClose, focus: cmpq });
 
   const pick = (id: string) => {
-    shut();
+    close();
     router.push(ask.side === "a" ? vsHref(id, keep) : vsHref(keep, id));
   };
 
@@ -55,7 +55,7 @@ function Open({ ask, close }: { ask: CompareAsk; close: () => void }) {
     <dialog className="cmp" id="cmp" aria-labelledby="cmpHead" {...props}>
       <div className="dh">
         <h2 id="cmpHead">{"Compare " + personaOf(ask.keep) + " with…"}</h2>
-        <button type="button" data-cmpclose="" aria-label="Close" onClick={shut}>
+        <button type="button" data-cmpclose="" aria-label="Close" onClick={close}>
           &times;
         </button>
       </div>
@@ -71,8 +71,9 @@ function Open({ ask, close }: { ask: CompareAsk; close: () => void }) {
         }}
         onKeyDown={(e) => {
           if (e.key !== "Enter") return;
-          const first =
-            e.currentTarget.parentElement?.querySelector<HTMLButtonElement>("#cmpHits [data-pick]");
+          const first = e.currentTarget
+            .closest("dialog")
+            ?.querySelector<HTMLButtonElement>("#cmpHits [data-pick]");
           first?.click();
         }}
       />
@@ -124,7 +125,7 @@ export function CompareButton({ keep }: { keep: Who }) {
       >
         &#9876; Compare
       </button>
-      <CompareDialog ask={ask} close={close} />
+      <CompareDialog ask={ask} onClose={close} />
     </>
   );
 }

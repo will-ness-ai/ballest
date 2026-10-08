@@ -1,10 +1,10 @@
 "use client";
 // How points work: the dialog, and the "?" on an Overall board that opens it. Season 1 has
 // two Overall boards, so there it also says which one this is.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { useDialog } from "../Behaviours";
+import { useDialog } from "../Modal";
 import { S1_CURRENT_BOARD, S1_FINAL_BOARD } from "../../lib/circuit";
 import { useMounted } from "../../hooks/client";
 import { fmtN, ord, trackPoints } from "../../lib/rules";
@@ -29,12 +29,13 @@ export function PointsDialog({ board, tracks }: { board: string; tracks: number 
   const mounted = useMounted();
   const [open, setOpen] = useState(false);
   const from = useRef<HTMLElement | null>(null);
-  /* Safari doesn't focus a button it clicks, so the "?" takes focus back itself */
-  const closed = useCallback(() => {
-    setOpen(false);
-    if (from.current?.isConnected) from.current.focus();
-  }, []);
-  const { props, close } = useDialog(open, closed);
+  const { props, close } = useDialog({
+    open,
+    onClose: () => {
+      setOpen(false);
+    },
+    from,
+  });
   useEffect(() => {
     const open = (e: MouseEvent) => {
       const q = (e.target as Element | null)?.closest<HTMLElement>("[data-ptsx]");

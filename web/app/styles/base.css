@@ -66,12 +66,14 @@ html:has(dialog:modal) {
   overflow: hidden;
 }
 /* every modal is a native <dialog> opened with showModal(), placed by its own class;
-   none of the browser's box */
+   none of the browser's box. Fixed here too, not just while :modal, so a sheet sliding
+   out after close() stays where it was. */
 dialog {
-  width: auto;
-  height: auto;
-  max-width: none;
-  max-height: none;
+  position: fixed;
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: none;
+  max-block-size: none;
   margin: 0;
   padding: 0;
   border: 0;

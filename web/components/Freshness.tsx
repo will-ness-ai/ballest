@@ -2,10 +2,10 @@
 // "Refreshed ... ago" in the header, and the dialog it opens on how the boards refresh.
 // The time is worked out in the browser, so a page cached hours ago still says how old
 // the boards are now.
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { useDialog } from "./Behaviours";
+import { useDialog } from "./Modal";
 import { useMounted, useNow } from "../hooks/client";
 import { relTime } from "../lib/rules";
 
@@ -20,12 +20,13 @@ export function Freshness({
   const mounted = useMounted();
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
-  /* Safari doesn't focus a button it clicks, so focus goes back to the trigger by hand */
-  const closed = useCallback(() => {
-    setOpen(false);
-    trigger.current?.focus();
-  }, []);
-  const { props, close } = useDialog(open, closed);
+  const { props, close } = useDialog({
+    open,
+    onClose: () => {
+      setOpen(false);
+    },
+    from: trigger,
+  });
 
   if (!refreshedAt)
     return (

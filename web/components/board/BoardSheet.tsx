@@ -1,10 +1,10 @@
 "use client";
 // On a phone the rail is a sheet: the button across the top names the board on screen, and
 // opens the season's boards from the bottom of the screen.
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { useDialog } from "../Behaviours";
+import { useDialog } from "../Modal";
 import { useMounted } from "../../hooks/client";
 
 /* the sheet opens on the board on screen */
@@ -27,11 +27,17 @@ export function BoardSheet({
 }) {
   const mounted = useMounted();
   const [open, setOpen] = useState(false);
-  const closed = useCallback(() => {
-    setOpen(false);
-  }, []);
-  const { props, close } = useDialog(open, closed, current);
-  /* a desktop has the rail instead, so a sheet left open while the window widens closes */
+  const trigger = useRef<HTMLButtonElement>(null);
+  const { props, close } = useDialog({
+    open,
+    onClose: () => {
+      setOpen(false);
+    },
+    focus: current,
+    from: trigger,
+  });
+  /* a desktop has the rail instead (desktop.css's 820px), so a sheet left open while the
+     window widens closes rather than stay modal and hidden */
   useEffect(() => {
     const wide = matchMedia("(min-width: 820px)");
     const shut = () => {
@@ -49,6 +55,7 @@ export function BoardSheet({
         className="boardbtn"
         id="boardBtn"
         aria-haspopup="dialog"
+        ref={trigger}
         onClick={() => {
           setOpen(true);
         }}

@@ -377,8 +377,9 @@
   }
 }
 .drawer {
-  inset: 0 0 0 auto;
-  width: min(360px, 100%);
+  inset-block: 0;
+  inset-inline: auto 0;
+  inline-size: min(360px, 100%);
   background: var(--solid);
   border-left: 1px solid var(--line);
   padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px));

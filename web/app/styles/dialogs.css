@@ -3,9 +3,10 @@
 .cmp,
 .rfx,
 .ptsx {
-  inset: 12dvh 0 auto;
+  inset-block: 12dvh auto;
+  inset-inline: 0;
   margin-inline: auto;
-  width: min(460px, calc(100% - 32px));
+  inline-size: min(460px, calc(100% - 32px));
   max-block-size: calc(88dvh - 16px);
   overflow-y: auto;
   display: grid;
@@ -131,7 +132,7 @@
 .hits {
   display: grid;
   gap: 2px;
-  max-height: 50dvh;
+  max-block-size: 50dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

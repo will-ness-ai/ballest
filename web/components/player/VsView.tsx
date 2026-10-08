@@ -249,7 +249,7 @@ export function VsView({ A, B }: { A: PlayerRecord; B: PlayerRecord }) {
           )}
         </div>
       </section>
-      <CompareDialog ask={ask} close={close} />
+      <CompareDialog ask={ask} onClose={close} />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { MapGrid } from "./Card";
 import { BackLink } from "../BackLink";
-import { useDialog } from "../Behaviours";
+import { useDialog } from "../Modal";
 import { useClock } from "../../hooks/client";
 import { homeHref, mapsHref } from "../../lib/routes";
 import { plural } from "../../lib/rules";
@@ -32,16 +32,16 @@ function Drawer({
   n,
   set,
   reset,
-  close,
+  onClose,
 }: {
   f: Refine;
   n: number;
   set: (k: keyof Refine, v: string) => void;
   reset: () => void;
-  close: () => void;
+  onClose: () => void;
 }) {
   /* the panel opens with the keyboard on its close button, the first thing in it */
-  const { props, close: shut } = useDialog(true, close);
+  const { props, close } = useDialog({ open: true, onClose });
   const opt = (k: keyof Refine, v: string, label: string) => (
     <button
       key={v}
@@ -58,7 +58,7 @@ function Drawer({
     <dialog className="drawer" aria-label="Refine maps" {...props}>
       <div className="dh">
         <b>Refine</b>
-        <button type="button" aria-label="Close" onClick={shut}>
+        <button type="button" aria-label="Close" onClick={close}>
           &times;
         </button>
       </div>
@@ -84,7 +84,7 @@ function Drawer({
         <button type="button" className="linkbtn" onClick={reset}>
           Clear all
         </button>
-        <button type="button" className="go" onClick={shut}>
+        <button type="button" className="go" onClick={close}>
           Show {plural(n, "map", "maps")}
         </button>
       </div>
@@ -184,7 +184,7 @@ export function AllMaps({
             setF(NO_FILTER());
             setShown(MAPS_CHUNK);
           }}
-          close={close}
+          onClose={close}
         />
       )}
     </>
