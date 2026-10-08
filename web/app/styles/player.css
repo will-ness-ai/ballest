@@ -37,8 +37,10 @@
   color: var(--dim);
   text-decoration: none;
 }
-.back:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .back:hover {
+    color: var(--accent);
+  }
 }
 
 .pid {
@@ -90,9 +92,11 @@
   text-decoration: none;
   white-space: nowrap;
 }
-.steam:hover {
-  background: var(--surface2);
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .steam:hover {
+    background: var(--surface2);
+    color: var(--text);
+  }
 }
 .steam svg {
   width: 15px;
@@ -259,8 +263,10 @@
   overflow: hidden;
   min-width: 0;
 }
-.ptile:hover {
-  background: var(--surface2);
+@media (hover: hover) and (pointer: fine) {
+  .ptile:hover {
+    background: var(--surface2);
+  }
 }
 .pt-name {
   font-family: var(--f-hud);
@@ -418,8 +424,14 @@
   color: var(--dim);
   text-decoration: none;
 }
-.ptabs a:hover {
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .ptabs a:hover {
+    color: var(--text);
+  }
+}
+/* the strip scrolls, so it clips anything drawn outside it: keep the ring inside */
+.ptabs a:focus-visible {
+  outline-offset: -2px;
 }
 .ptabs a[aria-current="page"] {
   color: var(--text);
@@ -543,8 +555,10 @@
   border-radius: 9px;
   border: 1px solid transparent;
 }
-.trophies button:hover {
-  background: var(--surface2);
+@media (hover: hover) and (pointer: fine) {
+  .trophies button:hover {
+    background: var(--surface2);
+  }
 }
 .trophies button[aria-pressed="true"] {
   border-color: var(--text);
@@ -595,9 +609,11 @@
   border: 1px solid var(--line);
   color: var(--dim);
 }
-.snav button:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .snav button:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--text);
+  }
 }
 .snav button:disabled {
   opacity: 0.3;
@@ -617,8 +633,10 @@
   scroll-snap-align: start;
   min-width: 0;
 }
-.scard:hover {
-  background: var(--surface2);
+@media (hover: hover) and (pointer: fine) {
+  .scard:hover {
+    background: var(--surface2);
+  }
 }
 .scard .top {
   display: flex;
@@ -687,8 +705,9 @@
   align-items: center;
   margin-bottom: 10px;
 }
+/* 140px leaves room for the 16px sort select beside it on a 390px phone */
 .pwtools .ws-q {
-  flex: 1 1 180px;
+  flex: 1 1 140px;
 }
 .pwsort {
   padding: 8px 10px;
@@ -696,7 +715,6 @@
   background: var(--solid);
   border: 1px solid var(--line);
   color: var(--text);
-  font-size: 13px;
 }
 .pwbar {
   display: flex;
@@ -729,9 +747,11 @@
   color: inherit;
   text-decoration: none;
 }
-.wrow:hover {
-  background: var(--surface);
-  border-color: var(--line2);
+@media (hover: hover) and (pointer: fine) {
+  .wrow:hover {
+    background: var(--surface);
+    border-color: var(--line2);
+  }
 }
 .wrow .thumb {
   width: 44px;
@@ -844,8 +864,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-a.mkcard:hover b {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  a.mkcard:hover b {
+    color: var(--accent);
+  }
 }
 .mkcard span {
   color: var(--dim);

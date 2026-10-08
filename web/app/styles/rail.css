@@ -140,11 +140,13 @@ footer a {
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
-.tstrip:hover {
-  border-color: var(--line);
-}
-.tstrip:hover img {
-  filter: none;
+@media (hover: hover) and (pointer: fine) {
+  .tstrip:hover {
+    border-color: var(--line);
+  }
+  .tstrip:hover img {
+    filter: none;
+  }
 }
 .tstrip[aria-current="true"] {
   border-color: var(--accent);
