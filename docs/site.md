@@ -194,9 +194,12 @@ only visible ones.
   with `SITE_URL` pointing at the build. The changed boards should show at once.
 - **The preview**: every pushed branch gets a public preview at
   `https://ballest-git-<branch>-n3sonlines-projects.vercel.app`, the branch name lowercased
-  with each `/` as `-` (`claude/x-1` serves `ballest-git-claude-x-1-...`). It is up once the
-  commit's `Vercel` status is `success` (`gh api repos/will-ness-ai/ballest/commits/<branch>/statuses`).
-  Previews count against the Hobby plan's 100 deploys a day, so push a branch in batches.
+  with each `/` as `-` (`claude/x-1` serves `ballest-git-claude-x-1-...`). Vercel shortens a
+  hostname over 63 characters and adds a hash, so for a long branch name take the URL from
+  the `environment_url` of the branch's deployment status
+  (`gh api 'repos/will-ness-ai/ballest/deployments?ref=<branch>'`, then that deployment's
+  `statuses`). It is up once that status is `success`. Previews count against the Hobby
+  plan's 100 deploys a day, so push a branch in batches.
 - **A screenshot**: `pnpm shot <url> <out.png> [selector] [width]` from `web/`, against
   `pnpm dev`, a build or a preview. It finds Chromium at `$CHROMIUM` or the cloud image's
   `/opt/pw-browsers/chromium`; on another machine run `npx playwright-core install chromium` once.

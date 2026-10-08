@@ -10,7 +10,7 @@ if (!url || !out) {
   console.error("usage: pnpm shot <url> <out.png> [selector] [width]");
   process.exit(2);
 }
-/* the cloud image's Chromium; elsewhere, the one `npx playwright-core install chromium` fetched */
+// the cloud image's Chromium; elsewhere, the one `npx playwright-core install chromium` fetched
 const cloud = "/opt/pw-browsers/chromium";
 const executablePath = process.env.CHROMIUM ?? (existsSync(cloud) ? cloud : undefined);
 

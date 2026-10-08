@@ -55,11 +55,10 @@ commit before the merge.
 A one-line fix gets the same review: call the Skill tool for 'code-review', which runs its
 two reviewers as subagents on the diff. Your own read of the diff is implementation, not
 review, and a brief asking for a light workflow trims the planning steps, never this one.
-Step 6 is the same: call the Skill tool for 'codebase-design'.
 
 ## 6. Deepen: `/codebase-design`
 
-With the feature working and reviewed, read the code it touched for deepening
+Call the Skill tool for 'codebase-design', a one-line fix included. With the feature working and reviewed, read the code it touched for deepening
 opportunities: shallow modules, logic spread across callers, a seam in the wrong place.
 Make the ones inside the PR's own code, and keep each one checked the same way the feature
 was (tests, the smoke test, `check_data.py`, the served page). Anything wider becomes a note
