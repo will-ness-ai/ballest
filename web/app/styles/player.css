@@ -890,7 +890,7 @@
   flex-wrap: wrap;
   gap: 6px 14px;
   margin: 0 var(--pad) 12px;
-  font-size: 12px;
+  font-size: calc(12rem / 16);
   color: var(--dim);
 }
 .dt-legend span::before {

@@ -313,18 +313,18 @@
 .leaders.small .plate[data-place="1"] .marble {
   box-shadow:
     0 0 0 3px var(--gold),
-    0 10px 24px rgba(0, 0, 0, 0.42);
+    0 10px 24px oklch(0% 0 none / 0.42);
 }
 .leaders.small .plate[data-place="2"] .marble {
   box-shadow:
     0 0 0 3px var(--silver),
-    0 10px 24px rgba(0, 0, 0, 0.42);
+    0 10px 24px oklch(0% 0 none / 0.42);
 }
 .leaders.small .pl-name {
-  font-size: 12px;
+  font-size: calc(12rem / 16);
 }
 .leaders.small .pl-score {
-  font-size: 13px;
+  font-size: calc(13rem / 16);
 }
 
 .bmeta {

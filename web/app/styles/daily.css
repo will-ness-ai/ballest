@@ -45,7 +45,7 @@
   position: absolute;
   top: 3px;
   left: 5px;
-  font: 600 12px var(--f-hud);
+  font: 600 calc(12rem / 16) var(--f-hud);
   text-shadow: 0 1px 3px var(--bg);
 }
 .dc-day[data-none] .dc-n {
@@ -55,7 +55,7 @@
   position: absolute;
   top: 4px;
   right: 4px;
-  font-size: 9px;
+  font-size: calc(9rem / 16);
   color: var(--dim);
   text-shadow: 0 1px 3px var(--bg);
 }
@@ -105,12 +105,12 @@
   position: absolute;
   right: 4px;
   bottom: 2px;
-  font: 700 14px var(--f-hud);
+  font: 700 calc(14rem / 16) var(--f-hud);
   color: var(--band);
   text-shadow: 0 1px 3px var(--bg);
 }
 .dc-place small {
-  font-size: 9.5px;
+  font-size: calc(9.5rem / 16);
 }
 
 /* the phone's day strip under the header, newest at the right */
@@ -143,7 +143,7 @@
   color: var(--text);
   border-radius: 999px;
   padding: 7px 14px;
-  font: 600 13px var(--f-body);
+  font: 600 calc(13rem / 16) var(--f-body);
   cursor: pointer;
 }
 
@@ -157,7 +157,7 @@
 }
 .dc-month h2 {
   margin: 0;
-  font: 600 15px var(--f-hud);
+  font: 600 calc(15rem / 16) var(--f-hud);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dim);
@@ -169,7 +169,7 @@
 }
 .dc-wd {
   text-align: center;
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   color: var(--faint);
 }
 .dc-sheet[open] {
@@ -185,7 +185,7 @@
 }
 .dc-sheet .dh h2 {
   margin: 0;
-  font: 600 16px var(--f-hud);
+  font: 600 calc(16rem / 16) var(--f-hud);
 }
 .content.daily {
   display: grid;
@@ -221,7 +221,7 @@
 }
 .dp-podhead h1 {
   font-family: var(--f-marquee);
-  font-size: 24px;
+  font-size: calc(24rem / 16);
   margin: 2px 0;
   overflow-wrap: anywhere;
 }
@@ -229,7 +229,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px 16px;
-  font-size: 13.5px;
+  font-size: calc(13.5rem / 16);
   color: var(--dim);
 }
 .dp-facts b {
@@ -253,7 +253,7 @@
 }
 .dp-alltime {
   color: var(--accent);
-  font-size: 13.5px;
+  font-size: calc(13.5rem / 16);
   font-weight: 600;
   justify-self: start;
 }
@@ -273,7 +273,7 @@
   display: grid;
   justify-items: center;
   gap: 3px;
-  font-size: 12.5px;
+  font-size: calc(12.5rem / 16);
   min-width: 0;
 }
 .dp-steps .marble {
@@ -296,7 +296,7 @@
   white-space: nowrap;
 }
 .dp-lead {
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   color: var(--faint);
 }
 .dp-steps li b {
@@ -304,7 +304,7 @@
   width: 100%;
   border-radius: 8px 8px 0 0;
   background: var(--surface2);
-  font: 600 18px var(--f-hud);
+  font: 600 calc(18rem / 16) var(--f-hud);
   padding: 6px 0;
 }
 .dp-steps li[data-m="1"] b {
@@ -338,7 +338,7 @@
   color: var(--text);
   border-radius: 999px;
   padding: 7px 14px;
-  font: 600 13px var(--f-body);
+  font: 600 calc(13rem / 16) var(--f-body);
   cursor: pointer;
 }
 
@@ -359,7 +359,7 @@
   color: var(--dim);
   text-decoration: none;
   font-weight: 600;
-  font-size: 14px;
+  font-size: calc(14rem / 16);
 }
 .ds-switch a[aria-current="page"] {
   background: var(--accent);
@@ -381,16 +381,16 @@
 }
 .ds-top h1 {
   margin: 0 0 4px;
-  font: 600 26px var(--f-hud);
+  font: 600 calc(26rem / 16) var(--f-hud);
 }
 .ds-line {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13rem / 16);
   color: var(--faint);
 }
 .ds-h {
   margin: 0;
-  font: 600 15px var(--f-hud);
+  font: 600 calc(15rem / 16) var(--f-hud);
 }
 .ds-cards {
   display: grid;
@@ -438,7 +438,7 @@
   border-bottom: 0;
 }
 .ds-medals th {
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   font-weight: 600;
   color: var(--faint);
   text-transform: uppercase;
@@ -513,7 +513,7 @@
   color: var(--bronze);
 }
 .ds-medals td[data-medal] {
-  font: 600 15px var(--f-hud);
+  font: 600 calc(15rem / 16) var(--f-hud);
 }
 .ds-medals td[data-medal="podiums"],
 .ds-medals td[data-medal="top10"],

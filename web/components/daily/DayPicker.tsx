@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { MapImage } from "../MapImage";
 import { Marble } from "../Marble";
 import { useDialog } from "../Modal";
+import { WIDE } from "../../lib/layout";
 import { useMounted, useNowPast } from "../../hooks/client";
 import { bandOf, calendarOf, dayLabel, todayOf } from "../../lib/daily";
 import { dailyHref } from "../../lib/routes";
@@ -148,10 +149,10 @@ export function DayPicker({ days, picked }: { days: ReadonlyArray<DailyCell>; pi
     focus: onThePickedDay,
     from: trigger,
   });
-  /* a desktop has the calendar beside the panel instead (desktop.css's 820px), so the
+  /* a desktop has the calendar beside the panel instead (WIDE), so the
      sheet closes rather than stay modal and hidden when the window widens */
   useEffect(() => {
-    const wide = matchMedia("(min-width: 820px)");
+    const wide = matchMedia(WIDE);
     const shut = () => {
       if (wide.matches) close();
     };
