@@ -109,6 +109,13 @@ player's row reads down to that row first. Each row carries the score of the row
 (`ahead`, from the query), which is what the interval column is worked out from, so rows
 are never re-sorted on the client.
 
+A Track's or a Map's page carries its record history between the tiles and the plates
+(`components/board/HistoryCard.tsx`). `lib/history.ts` works it out from the board's Score
+history (`historyInput` in `db/site.ts`): its Reigns, the week's Climbers and what each day
+brought, all dated by the Refresh that first saw a time, in UTC days. The card arrives closed,
+as a summary of the last three Reigns, and opening it replaces the summary with the Records
+and What changed tabs. An Overall board has none, since it keeps current points only.
+
 Ranks follow Steam's tie rule: equal scores are ordered by Steam ID, ascending on a time
 board and descending on a points board (`docs/data.md`).
 

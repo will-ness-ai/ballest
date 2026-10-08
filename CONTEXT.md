@@ -47,6 +47,18 @@ from it. Backfilled from the git history of the old JSON, so its earliest Entrie
 first seen no later than their first Refresh, not exactly then.
 _Avoid_: snapshots, audit log
 
+**Reign**:
+The span one world record stood on a Track or Map board: from the Refresh that first saw it
+lead to the one that saw a faster time take it. An equal time does not start a new Reign,
+and neither does a run Steam removed after one Refresh. A record already there at the first
+Refresh was set then or earlier.
+_Avoid_: streak, hold, tenure
+
+**Climber**:
+A player now in a board's top 100 who gained places over the last 7 days, ranked by places
+gained. A player with no time at the start of those 7 days is a new arrival, not a Climber.
+_Avoid_: mover, riser
+
 **Daily Report**:
 Multiballs' once-a-day post of the Workshop standings (Maps played, Author Medals, world
 records, top 5s), what changed since the day before, Maps nobody has finished, unclaimed
