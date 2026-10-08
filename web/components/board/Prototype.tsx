@@ -116,7 +116,7 @@ export function ProtoProvider({ board, children }: { board: string; children: Re
   return (
     <ProtoCtx.Provider value={{ variant, board, data, open, setOpen, lens, setLens }}>
       <style>{CSS}</style>
-      <div className={`p-v-${variant}`} style={{ display: "contents" }}>
+      <div className={`p-v-${variant}` + (ROUND === 1 ? " p-round1" : "")} style={{ display: "contents" }}>
         {children}
       </div>
       <Picker variant={variant} />
@@ -894,9 +894,9 @@ const CSS = `
 .p-x{all:unset;cursor:pointer;position:absolute;right:14px;top:10px;font-size:22px;color:var(--dim)}
 @media (max-width:899px){.p-detail{flex-direction:column}.p-route{width:100%;height:auto;max-width:260px}}
 @media (min-width:900px){
- .p-v-B .board .row,.p-v-B .board .head{grid-template-columns:48px 26px minmax(160px,1fr) 80px 56px 64px 176px}
- .p-v-B .p-col{display:block}
- .p-v-B .p-bline{display:none}
+ .p-round1.p-v-B .board .row,.p-round1.p-v-B .board .head{grid-template-columns:48px 26px minmax(160px,1fr) 80px 56px 64px 176px}
+ .p-round1.p-v-B .p-col{display:block}
+ .p-round1.p-v-B .p-bline{display:none}
  .p-card{left:auto;top:90px;bottom:auto;right:24px;width:340px;max-height:calc(100vh - 120px);border:1px solid var(--line);border-radius:var(--radius)}
 }
 .p-pic{display:flex;flex-direction:column;gap:6px}
