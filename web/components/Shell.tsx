@@ -1,5 +1,5 @@
-// Every page's frame: the header with the brand, when the boards were read and You's card, the tabs,
-// the page itself, and the footer. `view` is the .app's data-view, which the stylesheet
+// Every page's frame: the header with the brand, when the boards were read and You's card,
+// the tabs, the page itself, and the footer. `view` is the .app's data-view, which the stylesheet
 // keys each view's layout off.
 import Link from "next/link";
 import { Suspense } from "react";
@@ -69,8 +69,8 @@ export async function Shell({ view, children }: { view: View; children: React.Re
           doesn&apos;t expose the ball someone actually raced with.
         </p>
         <p>
-          Signing in with Steam keeps only your Steam ID, in a cookie on this browser, to show where
-          you stand. Sign out from your own page.
+          Signing in with Steam keeps only your Steam ID, in a signed cookie on this browser, to
+          show where you stand. Sign out from your own page.
         </p>
       </footer>
     </div>
