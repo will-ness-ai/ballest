@@ -12,10 +12,11 @@ On Will's PC, each repo is one clone next to this one in `Documents\Projects\`, 
 | ------------------------ | ------------------------------------- | --------------------------------------------- |
 | `ballest-plugin-manager` | `will-ness-ai/ballest-plugin-manager` | `AnythingGoes-ballest/ballest-plugin-manager` |
 | `ballest-grind-stats`    | `will-ness-ai/ballest-grind-stats`    | `AnythingGoes-ballest/ballest-grind-stats`    |
+| `ballest-plugins`        | `will-ness-ai/ballest-plugins`        | none: Will's own plugins (Checkpoint Finder)  |
 
 The folder name is load-bearing: the test copy installs a plugin folder as the id it is named for, minus
 `ballest-` (`ballest-grind-stats` runs as `grind-stats`). A new fork gets a row here and in `FORKS` in
-`tools/sync_plugin_forks.py`.
+`tools/sync_plugin_forks.py` (`ballest-plugins` isn't a fork, so it isn't there).
 
 Cloud sessions can't reach AnythingGoes's repos. They push branches to Will's forks; this PC opens the upstream pull
 request, rebases onto upstream, and runs anything in the game.
@@ -49,18 +50,23 @@ write records, and runs muted behind other windows, so Will can play his own gam
 install stays on official releases and keeps his settings; `build.sh install` and `install.sh` change it, and are run
 only when he asks.
 
-Drive the slots and Will's game with `python tools/sandbox.py` in `ballest-plugin-manager` (branch `sandbox-tools` on
-Will's fork until upstream takes it). Run bare, it shows the running slots and Will's game with their host versions,
-plugins and log errors; `<command> --help` gives each command's flags and examples. The usual loop:
+Drive the slots with `python tools/sandbox.py` in `ballest-plugin-manager` (AnythingGoes-ballest/ballest-plugin-manager#19,
+branch `sandbox-tools-2` on Will's fork, until upstream takes it). Run bare, it shows the running slots and Will's
+game with their host versions, plugins, log errors and log rate, and warns when a log floods; `<command> --help` gives
+each command's flags and examples. Race tests run only on the test map, Workshop "stasis" (`3805348161`), or on Will's
+own create-mode maps (`--map <file>.balledit`), never official tracks or other people's maps: a test copy once put a
+cheated time on a real leaderboard. Stasis has no checkpoints, so a checkpoint feature needs one of Will's create-mode
+maps with strips. The usual loop:
 
-- `start next --plugin ../ballest-grind-stats --map Map_Track_S2_Sampler` (add `--host build/version.dll` to run a host
-  build in that slot only), then `run <slot> -c "cmd; cmd"`, which prints only the commands' replies. Besides the host
-  test commands it takes `sleep`, `wait <regex>`, `waitstate <regex>` (until a window's text matches: check a `press`
+- `start next --plugin ../ballest-grind-stats --open 3805348161` (add `--host build/version.dll` to run a host build in
+  that slot only), then `run <slot> -c "cmd; cmd"`, which prints only the commands' replies. Besides the host test
+  commands it takes `sleep`, `wait <regex>`, `waitstate <regex>` (until a window's text matches: check a `press`
   landed before a `shot`) and `shot <name>`.
 - `reload <slot> <plugin folder>` after editing a plugin: re-copied and restarted in the running slot.
-- `install-player <plugin folder>` when Will wants a plugin in his own game: it copies only that folder, restarts his
-  game (do this yourself, even mid-run), waits for the plugin's "loaded" line and prints its errors.
-- `front <slot|player>` brings a window in front for Will; `log <slot|player> --errors`; `stop <slot>`.
+- `install-player <plugin folder>` when Will wants a plugin in his own game: it copies only that folder, for the game's
+  next start. The tool never closes his game (upstream's rule), but Will wants you to restart it yourself: close it with
+  its window's close button, then `sandbox.py play`, and check his host log for the plugin's "loaded" line.
+- `log <slot|player> --errors`; `stop <slot>`.
 
 The older `tools/test_instance.py` and `tools/dev_session.py` it wraps still work. How a map's checkpoints work (goals,
 the finish, strips, what a touch changes) is in the comment above `Checkpoints()` in the host's `src/host/ghosts.cpp`
