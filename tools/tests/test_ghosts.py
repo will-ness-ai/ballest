@@ -2,6 +2,9 @@
 Refresh reads, and that a failed read is tried again while a final one never is. Steam is
 faked; the database is real."""
 
+import io
+import urllib.error
+import urllib.request
 from datetime import UTC, datetime
 
 import db_writer
@@ -72,6 +75,21 @@ def test_a_file_steam_does_not_have_is_gone_and_anything_else_fails():
         ghosts.read("KEY", "1", get=lambda _: {"status": {"code": 9}})
     with pytest.raises(RuntimeError):
         ghosts.read("KEY", "1", get=lambda _: {"status": {"code": 2}})
+
+
+def test_steam_answers_a_missing_file_with_a_404_whose_body_says_so(monkeypatch):
+    def urlopen(url, **_):
+        body = b'{"status":{"code":9}}' if "missing" in url else b"{}"
+        raise urllib.error.HTTPError(
+            url, 404 if "missing" in url else 400, "", {}, io.BytesIO(body)
+        )
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    with pytest.raises(ghosts.GoneError):
+        ghosts.read("KEY", "missing")
+    # an error with a body that says nothing is a failed read, tried again next time
+    with pytest.raises(RuntimeError):
+        ghosts.read("KEY", "1")
 
 
 def rows(*runs):

@@ -16,6 +16,7 @@ and the Refresh it follows is already written.
 import json
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import Counter
@@ -70,8 +71,16 @@ def parse(ugc_id, ghost):
 
 
 def _get_json(url):
-    with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310 (Steam's https URLs)
-        return json.loads(r.read())
+    """A URL's JSON. Steam answers a missing file with HTTP 404 and its status in the
+    body ({"status":{"code":9}}), so an error's JSON body is the answer too."""
+    try:
+        with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310 (Steam's https URLs)
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read())
+        except ValueError:
+            raise e from None
 
 
 def read(key, ugc_id, get=_get_json):
