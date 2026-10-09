@@ -91,8 +91,9 @@ A board's rows and plates draw each run's ball skin in place of the made-up marb
 the collector has read the run's Ghost (`docs/data.md`, "Ghosts"): the board query carries
 the skin the Ghost names, and `skinPicture` in `lib/skins.ts` maps it to
 `skins/<asset>.webp`, the game's menu ball wearing that skin, shot in a sandboxed test copy
-and cut round, 192px for a 2x screen. A run with no Ghost read, a skin the list doesn't
-know (one a game update added) and every derived or Overall board keep the marble, and the
+and cut round, 192px for a 2x screen. A run with no Ghost read and a skin the list doesn't
+know (one a game update added) keep the marble, and so does every derived or Overall board,
+whose Entries the Ghost step never reads, and the
 marble still turns over to the Steam avatar either way.
 
 A new skin takes a picture and a line in `lib/skins.ts`. The list and pictures were made

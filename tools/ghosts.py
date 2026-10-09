@@ -18,6 +18,7 @@ import os
 import time
 import urllib.parse
 import urllib.request
+from collections import Counter
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -26,7 +27,6 @@ import campaign_common as cc
 import db_writer
 import psycopg
 
-APP_ID = 3339810
 # the top of each time board whose Ghosts are read: two of a board's first pages
 TOP = 100
 # reads at once, and the step's wall-clock limit; the backlog waits for the next Refresh
@@ -77,7 +77,7 @@ def _get_json(url):
 def read(key, ugc_id, get=_get_json):
     """One Ghost from Steam, as a row. Raises GoneError when Steam has no file for it, and any
     other error for a read to try again."""
-    q = urllib.parse.urlencode({"key": key, "appid": APP_ID, "ugcid": ugc_id})
+    q = urllib.parse.urlencode({"key": key, "appid": cc.APP_ID, "ugcid": ugc_id})
     details = get(DETAILS + q)
     url = (details.get("data") or {}).get("url")
     if not url:
@@ -112,25 +112,25 @@ def due(conn, limit=None):
 
 def collect(ugc_ids, read_one, *, budget=BUDGET, workers=WORKERS, clock=time.monotonic):
     """Read `ugc_ids` with read_one, `workers` at once, until done or `budget` seconds
-    pass. Returns (rows, failed): a row per Ghost read or gone, and how many reads failed.
-    No read starts after the budget; one still running then is abandoned, not waited for,
-    and one that has finished is kept."""
+    pass. Returns (rows, failed): a row per Ghost read or gone, and how many reads failed
+    of each error, by its type's name. No read starts after the budget; one still running
+    then is abandoned and one that has finished is kept, though the interpreter still lets
+    an abandoned read run out its timeouts before the collector exits."""
     end = clock() + budget
-    rows, failed = [], 0
+    rows, failed = [], Counter()
     todo = iter(ugc_ids)
     pool = ThreadPoolExecutor(max_workers=workers)
     running = {}
 
     def take(done):
-        nonlocal failed
         for f in done:
             u = running.pop(f)
             try:
                 rows.append(f.result())
             except GoneError:
                 rows.append(Ghost(u, "gone"))
-            except Exception:
-                failed += 1
+            except Exception as e:
+                failed[type(e).__name__] += 1
 
     try:
         while True:
@@ -183,9 +183,12 @@ def record_ghosts(*, scratch=False, env=None, key=None, read_one=None, budget=BU
     except Exception as e:
         print(f"::warning::Ghost step failed: {type(e).__name__}")
         return None
-    left = len(todo) - len(rows) - failed
+    n_failed = sum(failed.values())
+    left = len(todo) - len(rows) - n_failed
+    why = ", ".join(f"{k} {v}" for k, v in failed.most_common())
     print(
-        f"Ghosts: {len(todo)} due, {len(rows)} written, {failed} failed"
+        f"Ghosts: {len(todo)} due, {len(rows)} written, {n_failed} failed"
+        + (f" ({why})" if why else "")
         + (f", {left} left for the next Refresh" if left else "")
     )
     if rows:

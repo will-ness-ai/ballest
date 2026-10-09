@@ -5,7 +5,7 @@
 // comments are ours. A path not listed here (a skin a game update added) draws the marble.
 // How the list and the pictures were made: prototype/skins/ on branch
 // claude/prototype-skins.
-const SKINS = new Map<string, string>([
+export const SKINS = new Map<string, string>([
   // Pink
   ["/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink", "DA_Skin_Pink"],
   // Mid Red

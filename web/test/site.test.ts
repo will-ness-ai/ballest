@@ -3,7 +3,7 @@
 import { desc } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { entries, refreshes } from "../db/schema";
+import { entries, ghosts, refreshes } from "../db/schema";
 import { SKIN } from "../db/seed/datasets/tiny";
 import { seed } from "../db/seed/harness";
 import {
@@ -91,6 +91,15 @@ describe("Steam's boards", () => {
     expect(map.rows[0]).toMatchObject({ steamId: p(9), skin: SKIN.gold });
     const derived = await boardPage(t.db, "OverallLeaderboard_AllSeasons", { count: 3 });
     expect(derived.rows.map((r) => r.skin)).toEqual([null, null, null]);
+    // an Overall board has no Ghost, even where its UGC ID has a row
+    await t.db.insert(ghosts).values({
+      ugcId: `${String(9_000_000_000 + 2)}1200`,
+      state: "ok",
+      skin: SKIN.pink,
+      readAt: new Date(),
+    });
+    const overall = await boardPage(t.db, "OverallLeaderboard_EASeason2", { count: 4 });
+    expect(overall.rows.map((r) => r.skin)).toEqual([null, null, null, null]);
   });
 
   test("a page starts where it is asked to", async () => {

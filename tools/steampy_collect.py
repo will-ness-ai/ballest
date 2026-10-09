@@ -363,8 +363,11 @@ async def on_ready():
             scratch=OUT is not None,
         )
         # Each top run's Ghost, for its skin: after the Refresh, so it never holds it up,
-        # and it never raises.
-        await asyncio.to_thread(ghosts.record_ghosts, scratch=OUT is not None)
+        # and never fails the run.
+        try:
+            await asyncio.to_thread(ghosts.record_ghosts, scratch=OUT is not None)
+        except Exception as e:
+            print(f"::warning::Ghost step failed: {type(e).__name__}")
     except Exception as e:
         _state["error"] = e
         traceback.print_exc()

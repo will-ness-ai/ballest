@@ -24,8 +24,8 @@ COSMIC = {
 SNOW_GLOBE = {
     "elapsedTime": [0.1],
     "skinMaterial": "None",
-    "?SpecialSkinClass": "/Script/Engine.BlueprintGeneratedClass'/Game/Art/Meshes"
-    "/BP_SnowGlobeSkin.BP_SnowGlobeSkin_C'",
+    "?SpecialSkinClass": "/Script/Engine.BlueprintGeneratedClass'/Game/Art/VFX"
+    "/SkinChildActors/BP_SnowGlobeSkin.BP_SnowGlobeSkin_C'",
     "accessory": "None",
 }
 # from before ?SpecialSkinClass and ballerSkinPrefs were written
@@ -42,7 +42,7 @@ def test_a_ghost_names_its_skin_and_hat():
 
 def test_a_skin_with_no_material_is_its_actor_class():
     assert ghosts.parse("1", SNOW_GLOBE).skin == (
-        "/Game/Art/Meshes/BP_SnowGlobeSkin.BP_SnowGlobeSkin_C"
+        "/Game/Art/VFX/SkinChildActors/BP_SnowGlobeSkin.BP_SnowGlobeSkin_C"
     )
 
 
@@ -141,7 +141,7 @@ def test_collect_keeps_reads_and_gone_files_and_counts_failures():
         ghosts.Ghost("gone", "gone"),
         ghosts.Ghost("b", "ok", PINK),
     }
-    assert failed == 1
+    assert failed == {"OSError": 1}
 
 
 def test_collect_starts_nothing_once_the_budget_is_spent():
@@ -171,7 +171,7 @@ def test_the_step_writes_what_it_read_and_a_failed_read_stays_due(db_url, capsys
             ("u1", "ok", PINK)
         ]
         assert ghosts.due(conn) == ["u2"]
-    assert "1 failed" in capsys.readouterr().out
+    assert "1 failed (OSError 1)" in capsys.readouterr().out
 
 
 def test_the_step_is_skipped_without_a_key_or_a_database(capsys):

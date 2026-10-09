@@ -97,8 +97,9 @@ export async function boardPage(
   const matched = sql`select b.*, p.persona, nullif(p.avatar, '') as avatar, g.skin
     from (select *, lag(score) over (order by rank) as ahead from (${boardSql(name)}) r) b
     join players p on p.steam_id = b.steam_id
-    left join entries e
-      on e.board = b.board and e.steam_id = b.steam_id and e.closed_refresh is null
+    left join entries e on e.board = b.board and e.steam_id = b.steam_id
+      and e.closed_refresh is null
+      and e.board in (select name from boards where not scores_points)
     left join ghosts g on g.ugc_id = e.ugc_id
     ${match ? sql`where lower(${personaSql}) like ${match} or b.steam_id like ${match}` : sql``}`;
   const found = await rows<BoardRow & { total: number }>(

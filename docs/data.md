@@ -118,9 +118,11 @@ and never blocks or fails the run: an error is a warning. It reads the Ghost of 
 Entry in the top `TOP` (100) of each time board, Tracks, Maps and Dailies (Overall boards
 have none), whose UGC ID has no `ghosts` row, best rank first: `GetUGCFileDetails` with the
 Web API key, then the file at the CDN URL it returns, which costs no quota. A few run at
-once, and the step stops at `BUDGET` (four minutes) with what it has read, so a backlog,
+once, and the step starts no read after `BUDGET` (four minutes) and keeps what it has read
+(a read still going then can hold the run up by its own timeouts, not past them), so a backlog,
 such as the first run's, is read over several Refreshes. A read that fails writes nothing
-and is tried again next run; Steam saying the file is gone is final. When it wrote any
+and is tried again next run, and the log counts the failures by error; Steam saying the
+file is gone is final. When it wrote any
 Ghost it revalidates the site again, since the boards draw them. It is skipped without
 `STEAM_API_KEY` or a database, and with `--out` writes only `DEV_DATABASE_URL`, as the
 database step does.
