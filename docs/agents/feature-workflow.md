@@ -6,9 +6,9 @@ steps 1 to 3 and start at step 4, test-first, then take steps 5 to 8 like a feat
 ready for review only after its `/code-review` and `/codebase-design`, and gets its `/retro`
 once merged. Data chores skip the planning steps too. Each step names the skill in `.claude/skills/` that runs it.
 
-Some of these skills set `disable-model-invocation`, so the Skill tool refuses them unless
-the user typed the slash command. When the workflow reaches one, read its `SKILL.md` and
-follow it directly.
+The Skill tool refuses the ones `CLAUDE.md` names under "Agent skills"; when the workflow
+reaches one, read its `SKILL.md` and follow it directly. Call every other step's skill,
+`/code-review` and `/codebase-design` included, with the Skill tool.
 
 ## 1. Plan: `/grill-with-docs`
 

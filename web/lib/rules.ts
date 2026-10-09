@@ -104,7 +104,7 @@ export function trackPoints(place: number) {
   return Math.floor((POINTS_FIRST * 9) / 100 / 2 ** k + (POINTS_FIRST * 5 ** k) / 10 / place);
 }
 
-/* A marble's colour, from the Steam ID: the leaderboard API doesn't say which ball a player raced */
+/* A marble's colour, from the Steam ID: the leaderboard API doesn't say which ball was raced */
 export function hueFor(seed: string) {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {

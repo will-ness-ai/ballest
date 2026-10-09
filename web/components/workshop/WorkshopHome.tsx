@@ -55,7 +55,8 @@ function Carousel({ picks, now }: { picks: ReadonlyArray<Pick>; now: number }) {
         ))}
       </div>
       <div id="carInfo">
-        {/* keyed by the slide, so the copy slides in (fades, with less motion) and the progress line restarts */}
+        {/* keyed by the slide, so the copy slides in (fades, with less motion) and the
+            progress line restarts */}
         <div className="car-in" key={slide}>
           <span className="eyebrow">
             {p.label} <span className="why">&middot; {whyOf(p, now)}</span>

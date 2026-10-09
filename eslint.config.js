@@ -98,4 +98,11 @@ export default defineConfig(
     rules: { "site/no-client-values": "off" },
   },
   prettier,
+  {
+    // comments only: Prettier owns code width (docs/linting.md, "Line width 100")
+    files: ["web/**"],
+    rules: {
+      "max-len": ["error", { code: 1000, comments: 100, ignoreUrls: true, tabWidth: 2 }],
+    },
+  },
 );

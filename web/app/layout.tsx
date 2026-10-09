@@ -63,7 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font -- the root layout loads them for every page */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font -- root layout: every page */}
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bungee&family=Chakra+Petch:wght@400;500;600;700&display=swap"

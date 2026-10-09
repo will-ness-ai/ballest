@@ -1,10 +1,11 @@
 "use client";
 // "Where I came from", kept for this tab's session, and the back link that leads there.
 // Two trails: a player's page goes back to the board the reader last looked at (a Circuit
-// board or a Map's page renders <Remember trail="board">), and a Map's page to the Workshop list they came
-// from (the homepage and All maps render <Remember trail="maps">). With nothing kept, or
-// storage blocked, a link falls back to every leaderboard or the Workshop homepage. Only a
-// path on this site ever comes back out, so a stored value can't send the link elsewhere.
+// board or a Map's page renders <Remember trail="board">), and a Map's page to the Workshop
+// list they came from (the homepage and All maps render <Remember trail="maps">). With
+// nothing kept, or storage blocked, a link falls back to every leaderboard or the Workshop
+// homepage. Only a path on this site ever comes back out, so a stored value can't send the
+// link elsewhere.
 import Link from "next/link";
 import { useEffect, useSyncExternalStore } from "react";
 

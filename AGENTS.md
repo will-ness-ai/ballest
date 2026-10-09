@@ -222,9 +222,10 @@ same way: it delivers its scripts to Will's PC and keeps their values out of the
 `good-css` (MIT, from `vojtaholik/good-css` at `6d16d2f`, also recorded in `skills-lock.json`) loads on its own whenever you write or
 review CSS. The site is dark-only (`docs/site.md`), so skip its light/dark token entry.
 
-Most of these are `disable-model-invocation`, so the Skill tool refuses them, and Will usually
-writes through a project thread, so his `/to-spec`, `/implement-spec` or `/retro` reaches you as
-text. When his message names one, read `.claude/skills/<name>/SKILL.md` and follow it.
+The Skill tool refuses those whose `SKILL.md` sets `disable-model-invocation`: `grill-with-docs`,
+`implement-spec`, `retro`, `setup-matt-pocock-skills`, `to-spec` and `to-tickets`. When Will's
+message names one of those, read `.claude/skills/<name>/SKILL.md` and follow it. Call every
+other skill, `code-review` and `codebase-design` included, with the Skill tool.
 
 ### Building a feature or fixing a bug
 

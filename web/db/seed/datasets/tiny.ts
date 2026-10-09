@@ -3,8 +3,8 @@
 // time board and on a points board, a Map not read in a Refresh, one whose read failed and
 // one gone from the Workshop, two Season 1 Tracks to add up, a persona change, and four
 // Dailies (three final, one live, a tie on a podium, a player who missed a day mid-run and
-// a failed read). The read layer's tests (test/site.test.ts, test/reads.test.ts) take their expected values from
-// the comments here. Every player and Map is made up.
+// a failed read). The read layer's tests (test/site.test.ts, test/reads.test.ts) take their
+// expected values from the comments here. Every player and Map is made up.
 import {
   boardReads,
   boards,
