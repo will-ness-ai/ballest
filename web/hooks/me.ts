@@ -1,42 +1,66 @@
 "use client";
-// "This is me": one Steam ID, kept in this browser and nowhere else. A player's page shows
-// the score card against it, and the Players table pins its row. Every component that
-// reads it updates when any of them sets it.
+// Who is signed in (ADR 0008). The player it names is You (CONTEXT.md): the header's card
+// links to their page, a player's page shows the score card against them, and the Players
+// table pins their row. Pages are cached for everyone, so the browser asks /api/me once per
+// page load, and only when the readable hint cookie says a session exists.
 import { useSyncExternalStore } from "react";
 
+import { useMounted, never } from "./client";
+import { readOnce, useRead } from "./read";
+import type { PlayerRecord } from "../lib/player";
+import { HINT_COOKIE } from "../lib/cookies";
 import { isSteamId } from "../lib/rules";
 
-const ME_KEY = "ballest-me";
-const listeners = new Set<() => void>();
+const hinted = () => document.cookie.split(";").some((c) => c.trim() === HINT_COOKIE + "=1");
 
-function read(): string | null {
+/* the signed-in Steam ID, or null. A failed read counts as signed out, so a page never
+   waits on it for good; the next page load asks again */
+const readMe = readOnce(async (): Promise<string | null> => {
   try {
-    const id = localStorage.getItem(ME_KEY);
-    return isSteamId(id) ? id : null;
+    const r = await fetch("/api/me", { cache: "no-store" });
+    const { id } = (await r.json()) as { id: unknown };
+    return r.ok && isSteamId(id) ? id : null;
   } catch {
     return null;
   }
+});
+
+/* null signed out; undefined until the browser can tell: on the server, during hydration,
+   and while /api/me is asked */
+function useSession(): string | null | undefined {
+  const signedIn = useSyncExternalStore(never, hinted, () => null);
+  const got = useRead(readMe, signedIn ? "me" : null);
+  if (signedIn === null) return undefined;
+  if (!signedIn) return null;
+  return got ? got.value : undefined;
 }
 
-/* null clears it */
-export function setMe(id: string | null) {
-  try {
-    if (id && isSteamId(id)) localStorage.setItem(ME_KEY, id);
-    else localStorage.removeItem(ME_KEY);
-  } catch {
-    /* storage blocked: it lasts as long as nothing re-reads it */
-  }
-  for (const l of listeners) l();
-}
+/* a player's record from GET /api/player/<id>, or "unknown" for a Steam ID on no board (the
+   API's 404); any other answer is a failed read */
+const readRecord = readOnce(async (id): Promise<PlayerRecord | "unknown"> => {
+  const r = await fetch("/api/player/" + id);
+  if (r.ok) return (await r.json()) as PlayerRecord;
+  if (r.status === 404) return "unknown";
+  throw new Error(String(r.status));
+});
 
-function subscribe(changed: () => void) {
-  listeners.add(changed);
-  addEventListener("storage", changed);
-  return () => {
-    listeners.delete(changed);
-    removeEventListener("storage", changed);
-  };
-}
+/* You, with your record. "none" signed out; "unknown" signed in as a Steam ID on no board
+   yet, so there is nothing to show but a way to sign out; "loading" on the server, during hydration, until the record lands, and after a read
+   that failed, so nothing is drawn from it. `claimed` says a session is known to exist, so
+   a view of You can hold its place rather than jump in when the record lands */
+export type You =
+  | { state: "none" }
+  | { state: "unknown"; id: string }
+  | { state: "loading"; claimed: boolean }
+  | { state: "ready"; id: string; rec: PlayerRecord };
 
-/* the remembered Steam ID; null on the server, during hydration, or when none is set */
-export const useMe = () => useSyncExternalStore(subscribe, read, () => null);
+export function useYou(): You {
+  const mounted = useMounted();
+  const me = useSession();
+  const got = useRead(readRecord, me ?? null);
+  if (!mounted) return { state: "loading", claimed: false };
+  if (me === undefined) return { state: "loading", claimed: true };
+  if (!me) return { state: "none" };
+  if (got?.value === "unknown") return { state: "unknown", id: me };
+  return got ? { state: "ready", id: me, rec: got.value } : { state: "loading", claimed: true };
+}

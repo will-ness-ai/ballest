@@ -17,6 +17,9 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  /* room for You's card (YouCard), which takes the Refreshed line's place once the browser
+     runs, so the page below doesn't drop when it lands */
+  min-block-size: calc(38px + 22px);
   padding: 10px var(--pad) 12px;
 }
 .brand {
@@ -85,6 +88,81 @@
   border: 1px solid currentColor;
   font: 700 calc(9rem / 16)/1 var(--f-hud);
   vertical-align: 1px;
+}
+
+/* You's card (YouCard.tsx). On a phone it folds to marble and name and takes the
+   Refreshed line's place; the desktop's card adds your place and Maps under the name */
+.hdr:has(.youcard) .freshness {
+  display: none;
+}
+.youcard {
+  text-align: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  max-inline-size: 170px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: calc(13rem / 16);
+  font-weight: 700;
+  text-decoration: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .youcard:hover {
+    border-color: color-mix(in oklch, var(--accent) 45%, transparent);
+  }
+}
+.youcard .marble,
+.youcard .q {
+  inline-size: 28px;
+  block-size: 28px;
+}
+.youcard > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+.youcard b {
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.youcard small {
+  display: none;
+  color: var(--dim);
+  font-size: calc(11rem / 16);
+  font-weight: 400;
+}
+.youcard.find {
+  color: var(--accent);
+}
+.youcard .q {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+}
+/* Sign in with Steam: "with Steam" only where there is room, the mark says it on a phone */
+.youcard .yc-wide {
+  display: none;
+}
+/* Steam's mark on Sign in with Steam */
+.youcard .q svg {
+  inline-size: 22px;
+  block-size: 22px;
+  fill: currentColor;
+}
+/* the blank card that holds the place while your record is read */
+.yc-wait {
+  inline-size: 8em;
+}
+.yc-wait .q {
+  border: 0;
+  background: var(--surface2);
 }
 
 /* six tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a label
@@ -785,4 +863,74 @@
 }
 .stand u.m3 {
   background: var(--bronze);
+}
+
+/* You on this board (components/board/YouBanner): one sentence, a bar toward the next
+   Medal, and the jump to your row, above the plates */
+.you-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin: 0 var(--pad) 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.you-banner > .marble {
+  inline-size: 30px;
+  block-size: 30px;
+}
+.yb-t {
+  flex: 1 1 14em;
+  min-inline-size: 0;
+}
+.you-banner p {
+  margin: 0;
+  font-size: calc(13.5rem / 16);
+  line-height: 1.45;
+}
+.you-banner p b {
+  font-variant-numeric: tabular-nums;
+}
+.you-banner .go {
+  margin-inline-start: auto;
+  padding: 7px 12px;
+  font-size: calc(13rem / 16);
+  white-space: nowrap;
+}
+/* the banner's place, held while your row is read (Holder): its parts take their room unseen */
+.yb-wait > * {
+  visibility: hidden;
+}
+.yb-empty p {
+  flex: 1 1 14em;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+}
+.yb-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block-start: 6px;
+}
+.yb-bar {
+  flex: 1;
+  max-inline-size: 220px;
+  block-size: 6px;
+  border-radius: 3px;
+  background: var(--surface2);
+  overflow: clip;
+}
+.yb-bar > span {
+  display: block;
+  block-size: 100%;
+  /* a sliver even at the start, so the bar reads as a bar */
+  inline-size: max(4%, calc(var(--p) * 100%));
+  border-radius: 3px;
+}
+.yb-next small {
+  color: var(--dim);
+  font-size: calc(12.5rem / 16);
+  white-space: nowrap;
 }

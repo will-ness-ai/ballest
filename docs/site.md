@@ -10,7 +10,8 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   footer) around a `<Suspense>` whose fallback is that view's skeleton, and reads its
   params inside the boundary, so a page whose params weren't prerendered is served from
   its static shell at once. `app/api/` holds the few reads a page makes after it has
-  loaded (a board's next rows, a search) and the revalidate hook.
+  loaded (a board's next rows, a search), the revalidate hook, and Sign in with Steam
+  (`auth/`, `me`; ADR 0008).
 - `web/components/` — the views, one folder each (`board/`, `workshop/`, `player/`,
   `players/`), and the pieces every view shares at the top level. A file is a client
   component only where it has to be: state, a browser API, or an event handler.
@@ -26,7 +27,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
     the rows it is given.
 - `web/hooks/` — the client-only hooks: the clock and debounced searches (`client.ts`), and
-  "This is me" (`me.ts`).
+  who is signed in (`me.ts`, reading `/api/me`).
 - `web/db/` — the read layer. `site.ts` is the SQL, `data.ts` the cached reads pages call
   (below), `schema.ts` the Drizzle schema the collector writes to.
 - `web/proxy.ts` — the checks that must answer before a page starts streaming: a real 404
@@ -50,6 +51,11 @@ page rendered at request time runs on whichever serverless instance takes it, an
 collector POSTs `/api/revalidate` (Bearer `REVALIDATE_SECRET`) once a Refresh has committed,
 which expires the tag, and the next request reads fresh. Searches are read fresh every
 time, since their keys would never repeat.
+
+Sign in with Steam (ADR 0008) never touches a page's cache: the session cookie is signed
+with `SESSION_SECRET` and only `/api/me` reads it, from the browser, which asks only when
+the readable `ballest-in` cookie says a session exists. Without `SESSION_SECRET` nobody can
+sign in and every page works as before.
 
 Every Circuit board and every Players view is prerendered at build. A player, a Map or a
 head to head is prerendered for a handful of the busiest, and anyone else is served from
@@ -124,6 +130,16 @@ Workshop boards, and when every Map was last read in full. The table restates
 copy too (`components/Freshness.tsx`). Ages are worked out in the browser, so a page cached
 hours ago still says how old the boards are now.
 
+You's card sits at the top right (`components/YouCard.tsx`): your marble and name, with your
+All Seasons place and Maps played on a desktop, linking to your page. On a phone it folds to
+marble and name and takes the refresh time's place, which is hidden there (a blank card
+holds that place while your record is read). Signed out, it is Sign in with Steam, coming
+back to the page you were on; signed in as a Steam ID on no board yet, it is Sign out, since
+that player has no page to sign out from (everyone else signs out on their own page). It
+reads You from `useYou` (`hooks/me.ts`), which asks `/api/me` and reads your record once
+per page load and shares them with every view of You, and it draws nothing until the
+browser can tell, so a signed-in visitor never sees Sign in first.
+
 ## A board
 
 A board's first rows are rendered on the server, with the tiles, the plates and the card
@@ -132,6 +148,21 @@ chunks ahead of what is shown, and a search reads its matches the same way. A li
 player's row reads down to that row first. Each row carries the score of the row above it
 (`ahead`, from the query), which is what the interval column is worked out from, so rows
 are never re-sorted on the client.
+
+Once you are signed in, a banner above the plates gives You's standing on the board (a
+Map, a Track, or an Overall board on its points sort): place, score, the Medal it holds and
+a bar toward the next one (`standingOn` in `lib/standing.ts`), and a link to the board at
+your row. It reads your row from `/api/board/<name>?player=<steam id>` through
+`useYouOnBoard` (`hooks/you.ts`), which every view of You on a board shares, and draws
+nothing until it has, so the server's page is the same for everyone; once the browser
+knows there is a session it holds the banner's height while the row is read, so the plates
+don't jump. The same read draws your time on the spread chart (a Map's panel, a Track's card) as a line in your marble's hue,
+held at the right edge with an arrow when it is past it: the server works the chart out
+(`spreadOf` in `lib/spread.ts`) and `YouSpread` draws it again with the line, so only the
+chart's columns reach the browser, not every run. `YouMarks` picks out your row and plate
+with a style rule on their `data-id`, so rows added later by scrolling or search are marked
+too; the rule reaches only into its own page's content, so a page Next keeps hidden leaves
+the others alone.
 
 Ranks follow Steam's tie rule: equal scores are ordered by Steam ID, ascending on a time
 board and descending on a points board (`docs/data.md`).
@@ -155,8 +186,8 @@ maps, search and player pages, and its page shows the reason.
 
 `matchup` pairs two player records up: the rows both have a time on, each with its winner
 and margin, the tally for All, Circuit and Workshop, and the comparison band. The head to
-head page and a player page's score card both read it. The score card appears once "This
-is me" has put a Steam ID in `localStorage` (`hooks/me.ts`). The Compare dialog searches
+head page and a player page's score card both read it. The score card appears once you are
+signed in (`hooks/me.ts`). The Compare dialog searches
 players through `/api/players`.
 
 ## Players
@@ -170,7 +201,7 @@ each player's real rank.
 
 The table scrolls inside its own box on a phone, so the rank and name columns stay put
 going sideways; on the desktop layout it fits, and the page scrolls. The pinned card is your own row,
-once "This is me" is set, shown at the foot while the row is out of view: how far the
+once you are signed in, shown at the foot while the row is out of view: how far the
 next rank up and the top 10 are, and a click scrolls to the row.
 
 The Players tab sits last in the tab bar, but it is not a season, so it is lit from the

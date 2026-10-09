@@ -576,6 +576,17 @@
 .sp-axis {
   stroke: var(--line);
 }
+/* You's run, in your marble's hue */
+.sp-you {
+  --you: hsl(var(--h) 85% 66%);
+}
+.sp-you line {
+  stroke: var(--you);
+}
+.sp-you circle,
+.sp-you text {
+  fill: var(--you);
+}
 .sp-lbl {
   fill: var(--dim);
   font-size: calc(10rem / 16);
