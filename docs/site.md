@@ -149,6 +149,12 @@ fails to load, or that Satori can't read, draws without it.
   "Show all". A phone drops its Podiums and Top 10 columns. Names link to the player's
   Daily tab.
 
+`/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
+it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board or Map,
+head to heads and `/api/`. Every one of those multiplies by the number of players, and AI
+crawlers walking them all once outran the site's Hobby limits. A new route that adds a
+view of a page belongs on that list.
+
 The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash` replaces
 one with its path on load (`legacyPath` in `lib/routes.ts`). Every player name links to a
 player page (`PlayerLink`), and the link out to Steam lives on that page. A Map's creator
