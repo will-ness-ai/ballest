@@ -10,7 +10,7 @@ export const SITE_ORIGIN = "https://ballestrecords.com";
 export const PLAYER_TABS = ["circuit", "workshop", "made", "daily"] as const;
 export type PlayerTab = (typeof PLAYER_TABS)[number];
 
-/* an Overall board's slot for its podium order; a Steam ID is all digits, so the two can't collide */
+/* an Overall board's slot for its podium order; a Steam ID is all digits, so they can't collide */
 export const PODIUM_SORT = "podiums";
 
 export const PL_SCOPES = ["all", "circuit", "workshop"] as const;

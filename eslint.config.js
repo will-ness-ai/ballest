@@ -98,4 +98,13 @@ export default defineConfig(
     rules: { "site/no-client-values": "off" },
   },
   prettier,
+  {
+    // Prettier wraps code at 100 but leaves comments alone, so hold the site's comments to the
+    // same width; code gets a limit no line reaches, since Prettier already owns it. The bot
+    // keeps its one-line doc comments, many of them longer.
+    files: ["web/**"],
+    rules: {
+      "max-len": ["error", { code: 1000, comments: 100, ignoreUrls: true, tabWidth: 2 }],
+    },
+  },
 );
