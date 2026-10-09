@@ -22,7 +22,9 @@ it breaks. Those files carry the reasons; this file carries the checks.
   derived from its base by `color-mix(in oklch, …)`. Two literals are allowed: the
   translucent black and white used for shadows and hairlines, `oklch(0% 0 none / a)` and
   `oklch(100% 0 none / a)`, and a player's own hue, `hsl(var(--h) …)`, as on the marble,
-  the pill and the standings bars.
+  the pill and the standings bars. The one exception is a share image
+  (`components/share/Card.tsx`): Satori reads no `oklch()` or custom properties, so it
+  restates the tokens it uses in sRGB.
 - Base rules serve phones; `app/styles/desktop.css`'s `min-width: 51.25em` block (820px at the default text size) carries
   every desktop override.
 - `isPoints` is the one place that reads a board's kind from its name.

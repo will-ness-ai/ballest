@@ -3,6 +3,7 @@
 // them.
 
 export const SITE_TITLE = "Ballest of Them All";
+export const SITE_NAME = "ballestrecords.com";
 /* a page's title in the tab: its own name, then the site's (the layout's title template) */
 export const pageTitle = (title: string) => title + " · " + SITE_TITLE;
 
