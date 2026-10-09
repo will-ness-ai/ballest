@@ -5,11 +5,7 @@ import { useEffect, useState } from "react";
 import { SAMPLES } from "./samples";
 
 const VARIANTS = [
-  ["1", "Ringed", "Player: Split, avatar as a disc in a thick ring of their marble's colour (a row's hover look). Maps, Tracks, Dailies: Banner in every variant."],
-  ["2", "Glass ball", "Player: the avatar inside the marble: the ball's tint, edge shading and highlight laid over the photo."],
-  ["3", "Turned over", "Player: the marble mid-flip, the plain ball faint behind and the ringed avatar popping out over it."],
-  ["4", "On a plate", "Player: the glass-ball avatar standing on a podium plate, gold/silver/bronze for a Season 2 top 3, navy otherwise."],
-  ["5", "Rack", "Player: the glass-ball avatar with the brand's blue and pink marbles beside it."],
+  ["3", "Final", "The verdicts so far: player = Split with the marble turned over, zero counts hidden; Maps, Tracks and Dailies = Banner."],
 ] as const;
 
 function param(k: string, fallback: string) {
@@ -17,10 +13,10 @@ function param(k: string, fallback: string) {
 }
 
 export function Proto() {
-  const [v, setV] = useState("1");
+  const [v, setV] = useState("3");
   const [st, setSt] = useState("top");
   useEffect(() => {
-    setV(param("variant", "1"));
+    setV(param("variant", "3"));
     setSt(param("state", "top"));
   }, []);
   useEffect(() => {
@@ -48,7 +44,7 @@ export function Proto() {
   };
   return (
     <main style={{ padding: "24px 16px 160px", maxWidth: 1240, margin: "0 auto", color: "#eaf0ff", fontFamily: "Chakra Petch, sans-serif" }}>
-      <h1 style={{ fontFamily: "Bungee", fontSize: 22, margin: "0 0 4px" }}>Share images · round 3</h1>
+      <h1 style={{ fontFamily: "Bungee", fontSize: 22, margin: "0 0 4px" }}>Share images · final</h1>
       <p style={{ color: "#93a2c8", margin: "0 0 20px" }}>
         What a link to <a style={{ color: "#8be03c" }} href={s.path}>{s.path}</a> would unfurl as.{" "}
         <a style={{ color: "#8be03c" }} href={`/og-proto/share/${v}/${s.kind}/${s.id}`}>Shareable test link</a>{" "}

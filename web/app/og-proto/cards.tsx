@@ -27,11 +27,7 @@ import {
 } from "../../lib/rules";
 
 export const VARIANTS = {
-  "1": "Ringed",
-  "2": "Glass ball",
-  "3": "Turned over",
-  "4": "On a plate",
-  "5": "Rack",
+  "3": "Final",
 } as const;
 export type Variant = keyof typeof VARIANTS;
 export const KINDS = ["player", "map", "track", "daily"] as const;
@@ -149,12 +145,15 @@ export async function cardFor(kind: Kind, id: string): Promise<CardData | null> 
       headline: s2?.overall
         ? { value: "#" + fmtN(s2.overall.rank), label: "Season 2 Overall", color: C.gold }
         : { value: fmtN(finished), label: "maps finished" },
+      /* a count of zero is left out (Will, round 3) */
       stats: [
-        { value: fmtN(wrs), label: "World records", color: C.gold },
-        { value: fmtN(authors), label: "Author medals", color: C.author },
-        { value: fmtN(finished), label: "Maps finished" },
-        ...(rec.made.length ? [{ value: fmtN(rec.made.length), label: "Maps made" }] : []),
-      ],
+        { n: wrs, label: "World records", color: C.gold },
+        { n: authors, label: "Author medals", color: C.author },
+        { n: finished, label: "Maps finished" },
+        { n: rec.made.length, label: "Maps made" },
+      ]
+        .filter((x) => x.n > 0)
+        .map(({ n, ...x }) => ({ ...x, value: fmtN(n) })),
     };
   }
   if (kind === "map") {
@@ -911,11 +910,7 @@ function SplitPlayer({ d, face, rack }: { d: CardData; face: React.ReactNode; ra
 
 type Draw = (p: { d: CardData }) => React.ReactElement;
 const DRAW: Record<Variant, Draw> = {
-  "1": ({ d }) => <SplitPlayer d={d} face={<Ringed d={d} size={400} />} />,
-  "2": ({ d }) => <SplitPlayer d={d} face={<GlassBall d={d} size={400} />} />,
   "3": ({ d }) => <SplitPlayer d={d} face={<TurnedOver d={d} size={400} />} />,
-  "4": ({ d }) => <SplitPlayer d={d} face={<OnPlate d={d} size={400} />} />,
-  "5": ({ d }) => <SplitPlayer d={d} face={<Racked d={d} size={400} />} rack />,
 };
 
 let fonts: Promise<ConstructorParameters<typeof ImageResponse>[1]> | undefined;
