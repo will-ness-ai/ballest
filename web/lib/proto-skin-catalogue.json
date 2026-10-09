@@ -1,0 +1,182 @@
+{
+  "DA_Skin_Pink": {
+    "name": "Pink",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_RedMid": {
+    "name": "Mid Red",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_Red": {
+    "name": "Red",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_Gray": {
+    "name": "Gray",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_Purple": {
+    "name": "Purple",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_OrangeMid": {
+    "name": "Mid Orange",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_LimeGreen": {
+    "name": "Lime Green",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_GreenMid": {
+    "name": "Mid Green",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_RedDark": {
+    "name": "Dark Red",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_Yellow": {
+    "name": "Yellow",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_Turquiose": {
+    "name": "Turquoise",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_PurpleDark": {
+    "name": "Dark Purple",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_OrangeDark": {
+    "name": "Dark Orange",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_Orange": {
+    "name": "Orange",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_Green": {
+    "name": "Green",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_BlueMid": {
+    "name": "Mid Blue",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_Lavender": {
+    "name": "Lavender",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_Default_Black": {
+    "name": "Black",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_PinkLight": {
+    "name": "Light Pink",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_Default_Blue": {
+    "name": "Blue",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_BlueDark": {
+    "name": "Dark Blue",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_GreenDark": {
+    "name": "Dark Green",
+    "group": "Basic Skins",
+    "note": null
+  },
+  "DA_Skin_MedalGold": {
+    "name": "Gold",
+    "group": "Medal Skins",
+    "note": null
+  },
+  "DA_Skin_MedalSilver": {
+    "name": "Silver",
+    "group": "Medal Skins",
+    "note": null
+  },
+  "DA_Skin_MedalBronze": {
+    "name": "Bronze",
+    "group": "Medal Skins",
+    "note": null
+  },
+  "DA_Skin_Pearl": {
+    "name": "Pearl",
+    "group": "Medal Skins",
+    "note": "the fourth medal skin (author medal), shown blue"
+  },
+  "DA_Skin_Brick": {
+    "name": "Brick",
+    "group": "Collection",
+    "note": null
+  },
+  "DA_Skin_EyeBall": {
+    "name": "Eyeball",
+    "group": "Collection",
+    "note": null
+  },
+  "DA_Skin_Ice": {
+    "name": "Ice",
+    "group": "Collection",
+    "note": "refractive glass: the in-game look depends on the scene behind it; the icon is much darker"
+  },
+  "DA_Skin_Cosmic1": {
+    "name": "Cosmic",
+    "group": "Collection",
+    "note": "slow-moving galaxy; locked in the test save, so the in-game shot was forced by setting its material on the menu ball"
+  },
+  "DA_Skin_Magma": {
+    "name": "Magma",
+    "group": "Collection",
+    "note": "animated: the lava cracks pulse; the still reads fine"
+  },
+  "DA_LBall": {
+    "name": "Leth",
+    "group": "DevSkins",
+    "note": "special actor BP_LBall05 (the Leth camera ball) drawn over the sphere"
+  },
+  "DA_Skin_SnowGlobe": {
+    "name": "Snow Globe",
+    "group": "DevSkins",
+    "note": "special actor BP_SnowGlobeSkin (glass globe, base, ornament, snow), no skin material; no tile on the Customize page, so the in-game shot was forced with SetSpecialBall"
+  },
+  "DA_Skin_Disco": {
+    "name": "Disco",
+    "group": "DevSkins",
+    "note": "animated: the mirror facets shimmer"
+  },
+  "DA_Skin_DevSilver": {
+    "name": "Spirit",
+    "group": "DevSkins",
+    "note": "animated: cycles colour (cyan in the icon, yellow and magenta in game), so a still is one frame"
+  },
+  "DA_SpookyBall": {
+    "name": "Spooky",
+    "group": "DevSkins",
+    "note": "not a ball: a translucent ghost shape with a face that wobbles; its ghost material is the skin material"
+  }
+}

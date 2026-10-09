@@ -21,6 +21,7 @@ export const ScoreRow = memo(function ScoreRow({
   focus,
   leads = "Leads the board",
   mark,
+  skin,
 }: {
   r: BoardRow;
   /* the leader's score, which the first gap is to */
@@ -31,6 +32,8 @@ export const ScoreRow = memo(function ScoreRow({
   focus: boolean;
   leads?: string;
   mark?: React.ReactNode;
+  /* PROTOTYPE: the skin the run wore */
+  skin?: string;
 }) {
   const gap = points ? lead - r.score : r.score - lead;
   const prev = r.ahead;
@@ -56,7 +59,7 @@ export const ScoreRow = memo(function ScoreRow({
       data-id={r.steamId}
     >
       <span className="c-rank">{r.rank}</span>
-      <Marble who={r} />
+      <Marble who={r} skin={skin} />
       <span className="c-text">
         <span className="nm">
           <PlayerLink id={r.steamId} text={personaOf(r)} />

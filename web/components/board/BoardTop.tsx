@@ -2,6 +2,7 @@
 // tiles, the three plates, the card across the top (a Track's screenshot and spread, or an
 // Overall board's standings), and the switch between an Overall board's two orders.
 // A Map's page uses the tiles-free parts: the plates and the list.
+import { skinFor } from "../../lib/proto-skins";
 import Link from "next/link";
 
 import { QMark } from "./PointsDialog";
@@ -99,7 +100,7 @@ export function ScorePlates({
       top={rows.slice(0, 3).map((r, i) => {
         const gap = points ? (lead?.score ?? 0) - r.score : r.score - (lead?.score ?? 0);
         return {
-          who: r,
+          who: { ...r, skin: skinFor(name, r.steamId) },
           score: value(name, r.score),
           line:
             i === 0

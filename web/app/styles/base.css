@@ -210,6 +210,11 @@ textarea {
   height: 100%;
   transition: opacity 0.14s var(--ease-out);
 }
+/* PROTOTYPE: a skin is a picture of the game's ball, already round */
+.marble .skin {
+  border-radius: 50%;
+  object-fit: cover;
+}
 .marble .face {
   position: absolute;
   inset: 0;
@@ -303,4 +308,25 @@ textarea {
 .ambient .marble {
   width: 100%;
   height: 100%;
+}
+
+/* PROTOTYPE: /skins */
+.skins-proto {
+  padding: 16px;
+}
+.skins-proto ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
+.skins-proto li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.skins-proto small {
+  display: block;
+  color: var(--dim);
 }

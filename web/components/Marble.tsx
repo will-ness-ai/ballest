@@ -50,8 +50,23 @@ export function Ball({ h }: { h: number }) {
   );
 }
 
+/* PROTOTYPE: the game's own ball, shot on the Customize page */
+export function Skin({ asset }: { asset: string }) {
+  return (
+    <img
+      className="ball skin"
+      src={`/skins/${asset}.webp`}
+      alt=""
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
+
 export interface MarbleWho {
   steamId: string;
+  /* PROTOTYPE: the game's skin asset the run wore, from its ghost */
+  skin?: string;
   persona?: string | null;
   avatar?: string | null;
 }
@@ -59,14 +74,22 @@ export interface MarbleWho {
 /* the marble is the control that reveals the avatar, so where there is an avatar to reveal
    it is a real button; where Steam gave none it stays inert. `still` keeps it inert
    anyway, for a marble inside a link, where a button can't go */
-export function Marble({ who, still = false }: { who: MarbleWho; still?: boolean }) {
+export function Marble({
+  who,
+  still = false,
+  skin = who.skin,
+}: {
+  who: MarbleWho;
+  still?: boolean;
+  skin?: string;
+}) {
   const h = hueFor(who.steamId);
   const style = { "--h": h } as React.CSSProperties;
   const avatar = safeImg(who.avatar);
   if (!avatar || still)
     return (
       <span className="marble" style={style}>
-        <Ball h={h} />
+        {skin ? <Skin asset={skin} /> : <Ball h={h} />}
       </span>
     );
   return (
@@ -76,7 +99,7 @@ export function Marble({ who, still = false }: { who: MarbleWho; still?: boolean
       style={style}
       aria-label={`Show ${personaOf(who)}'s Steam avatar`}
     >
-      <Ball h={h} />
+      {skin ? <Skin asset={skin} /> : <Ball h={h} />}
       <img className="face" src={avatar} alt="" loading="lazy" decoding="async" />
     </button>
   );

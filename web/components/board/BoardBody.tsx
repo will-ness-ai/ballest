@@ -16,6 +16,7 @@ import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
 import type { BoardPage, BoardRow } from "../../lib/rows";
+import { skinFor } from "../../lib/proto-skins";
 import { useDebouncedFetch } from "../../hooks/client";
 import { podiumTotal, type Medals, type PodiumRow } from "../../lib/podiums";
 import { BOARD_CHUNK, fmtN, hueFor, ord, personaOf, plural } from "../../lib/rules";
@@ -321,6 +322,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
               points={points}
               pods={pods}
               focus={focus?.id === r.steamId}
+              skin={skinFor(name, r.steamId)}
             />
           ))}
           {rows.length < total && (
