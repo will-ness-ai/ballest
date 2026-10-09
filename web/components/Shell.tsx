@@ -8,6 +8,8 @@ import { Freshness } from "./Freshness";
 import { GroupTabs, Tabs, type GroupTab } from "./GroupTabs";
 import { Rack } from "./Marble";
 import { YouCard } from "./YouCard";
+import { CIRCUIT_TAB } from "./GroupTabs";
+import { Picker } from "./proto/Picker";
 import { getDailyDates, getSite, getWorkshop } from "../db/data";
 import { groupsOf, overallOf } from "../lib/player";
 import {
@@ -27,10 +29,10 @@ export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "pl
    Players, over every board, comes last */
 async function tabs(): Promise<Array<GroupTab>> {
   const [site, maps, dailies] = await Promise.all([getSite(), getWorkshop(), getDailyDates()]);
-  const seasons = groupsOf(site.boards).map((group) => {
-    const open = overallOf(site.boards, group) ?? site.boards.find((b) => b.group === group);
-    return { group, href: open ? boardHref(open.name) : homeHref() };
-  });
+  /* PROTOTYPE: the seasons fold into one Circuit tab, landing on the newest season's Overall */
+  const newest = groupsOf(site.boards)[0];
+  const open = overallOf(site.boards, newest);
+  const seasons = [{ group: CIRCUIT_TAB, href: open ? boardHref(open.name) : homeHref() }];
   return [
     ...(maps.length ? [{ group: WORKSHOP_GROUP, href: homeHref() }] : []),
     ...(dailies.length ? [{ group: DAILY_TAB, href: dailyHref() }] : []),
@@ -58,6 +60,11 @@ export async function Shell({ view, children }: { view: View; children: React.Re
       </Suspense>
 
       {children}
+
+      {/* PROTOTYPE */}
+      <Suspense fallback={null}>
+        <Picker />
+      </Suspense>
 
       <footer>
         <p>

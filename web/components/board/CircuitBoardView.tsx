@@ -13,6 +13,15 @@ import { PointsDialog } from "./PointsDialog";
 import { RailItems } from "./Rail";
 import { YouBanner } from "./YouBanner";
 import { YouMarks } from "./YouMarks";
+import {
+  SwitchAccordion,
+  SwitchChips,
+  SwitchDropdown,
+  SwitchSegmented,
+  SwitchSubtabs,
+  type Season,
+} from "../proto/CircuitSwitch";
+import { groupsOf, overallOf } from "../../lib/player";
 import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import { TRACKS, circuitBoard, trackNo } from "../../lib/circuit";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
@@ -53,27 +62,54 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
   const focusAt = focusId ? focus[focusId] : undefined;
   const t = TRACKS[name] as (typeof TRACKS)[string] | undefined;
   const items = <RailItems boards={own} current={name} podiums={site.podiums} />;
+  /* PROTOTYPE: the seasons the switch offers, each opening its Overall board */
+  const seasons: Array<Season> = groupsOf(site.boards).map((g) => {
+    const o = overallOf(site.boards, g);
+    return {
+      group: g,
+      label: g.replace("Season ", "S").replace("All Seasons", "All"),
+      href: o ? boardHref(o.name) : "/",
+    };
+  });
 
   return (
     <div className="main">
       <DocTitle title={`${b.group} ${b.display}`} />
+      <SwitchSubtabs seasons={seasons} on={b.group} />
       <aside className="rail">
-        <h2 id="railhead">{b.group}</h2>
-        <nav className="boards" id="boards" aria-label="Leaderboard">
+        <SwitchSegmented seasons={seasons} on={b.group} />
+        <SwitchDropdown seasons={seasons} on={b.group} where="rail" />
+        <h2 id="railhead" className="pv-plainhead">
+          {b.group}
+        </h2>
+        <nav className="boards pv-plainboards" id="boards" aria-label="Leaderboard">
           {items}
         </nav>
+        <SwitchAccordion seasons={seasons} on={b.group}>
+          {items}
+        </SwitchAccordion>
       </aside>
 
       <section className="content">
         <YouMarks name={name} />
-        <BoardSheet
-          img={t?.img ?? null}
-          name={points ? b.display : trackNo(b.display)}
-          count={countText(b)}
-          group={b.group}
-        >
-          {items}
-        </BoardSheet>
+        <SwitchChips seasons={seasons} on={b.group} />
+        <div className="pv pv-A pv-phone">
+          <SwitchSegmented seasons={seasons} on={b.group} />
+        </div>
+        <div className="pboardrow">
+          <SwitchDropdown seasons={seasons} on={b.group} where="phone" />
+          <BoardSheet
+            img={t?.img ?? null}
+            name={points ? b.display : trackNo(b.display)}
+            count={countText(b)}
+            group={b.group}
+          >
+            <div className="pv-plainboards">{items}</div>
+            <SwitchAccordion seasons={seasons} on={b.group}>
+              {items}
+            </SwitchAccordion>
+          </BoardSheet>
+        </div>
 
         {points ? (
           <OverallCard b={b} rows={rows} tally={tally} tracks={tracks} podiums={podiums} />

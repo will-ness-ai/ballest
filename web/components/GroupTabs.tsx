@@ -5,15 +5,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
+import { CIRCUIT } from "../lib/circuit";
 import { groupOfPath } from "../lib/routes";
+
+const circuitGroup = (g: string) => CIRCUIT.some((b) => b.group === g);
 
 export interface GroupTab {
   group: string;
   href: string;
 }
 
+/* PROTOTYPE: every season lights the one Circuit tab */
+export const CIRCUIT_TAB = "Circuit";
+
 export function GroupTabs({ tabs }: { tabs: ReadonlyArray<GroupTab> }) {
-  return <Tabs tabs={tabs} on={groupOfPath(usePathname())} />;
+  const g = groupOfPath(usePathname());
+  const circuit = g !== null && circuitGroup(g);
+  return <Tabs tabs={tabs} on={circuit ? CIRCUIT_TAB : g} />;
 }
 
 /* the same tabs with none lit, while the path is not known yet */

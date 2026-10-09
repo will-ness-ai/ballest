@@ -18,6 +18,7 @@ import "./styles/workshop.css";
 import "./styles/players.css";
 import "./styles/maps.css";
 import "./styles/daily.css";
+import "./styles/proto.css";
 import "./styles/desktop.css";
 
 const DESCRIPTION =
