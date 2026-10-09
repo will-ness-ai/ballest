@@ -3,6 +3,7 @@
 import { Chunk, Clock, Data, Effect, FiberMap, Option, Random, Ref } from "effect";
 import {
   authorTimeFits,
+  timeIsUp,
   expiresAt,
   inMatch,
   involves,
@@ -84,12 +85,18 @@ const withPersonalBest = (map: DrawnMap, pb: Entry): DrawnMap => ({
   personalBests: { ...map.personalBests, [pb.steamId]: pb.ticks },
 });
 
-/**
- * The read at the end is retried straight away, never after a wait: a retry that lands
- * seconds late could count a run finished after the Match ended. If every try fails, the
- * last polled times stand.
- */
+/** The read at the end is retried straight away this many times before it counts as failed. */
 const END_READ_RETRIES = 2;
+
+/**
+ * When Steam is down at the end, the Result waits for it rather than posting times that may
+ * miss the last runs: the thread is told time's up, and the end read is tried again every
+ * STEAM_WAIT_EVERY_MS, until STEAM_WAIT_MS after the end. Steam's entries carry no
+ * timestamp, so a late read can count a run set after time ran out; the time's-up post is
+ * what keeps that rare. After that, the last polled times stand and the Result says so.
+ */
+const STEAM_WAIT_EVERY_MS = 30_000;
+const STEAM_WAIT_MS = 30 * 60_000;
 
 export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
   scoped: Effect.gen(function* () {
@@ -329,13 +336,19 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         Effect.catchAll(effect, (e) => Effect.logWarning(`poll ${matchId} failed: ${e._tag}`)),
     );
 
-    /** Finished: the Result, then the graph if anyone set a time. Called under the lock. */
-    const conclude = Effect.fn("conclude")(function* (m: Match) {
-      const done: Match = { ...m, state: "finished" };
+    /**
+     * Finished: the Result, then the graph if anyone set a time. `steamDown` when the end read
+     * never came back, so the times are the last ones polled. Called under the lock.
+     */
+    const conclude = Effect.fn("conclude")(function* (
+      m: Match,
+      { steamDown }: { readonly steamDown: boolean },
+    ) {
+      const done: Match = { ...m, state: "finished", waitingForSteam: false };
       yield* save(done);
       yield* surface.post(
         done.id,
-        ThreadPost.Result({ standings: standings(done), card: cardView(done) }),
+        ThreadPost.Result({ standings: standings(done), card: cardView(done), steamDown }),
       );
       if (done.history.length > 0)
         yield* surface.post(
@@ -352,20 +365,41 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       yield* surface.remove(m.id, "abandoned");
     });
 
-    /** The end: one read, retried only immediately, then the Result. */
+    /** Time is up and Steam isn't answering: the thread and the Card say so, once. */
+    const startWaiting = Effect.fn("startWaiting")(function* (matchId: string) {
+      const current = yield* getMatch(matchId);
+      if (current.state !== "live" || current.waitingForSteam) return;
+      yield* Effect.logWarning(`finish ${matchId}: Steam didn't answer; waiting for it`);
+      yield* save({ ...current, waitingForSteam: true });
+      yield* surface.post(matchId, ThreadPost.WaitingForSteam());
+    }, locked);
+
+    /**
+     * The end: one read, retried straight away, then the Result. While Steam is down the
+     * Result waits for it, until STEAM_WAIT_MS after the end; a restart picks the wait up
+     * where it was, and one after that only posts the last polled times.
+     */
     const finish = Effect.fn("finish")(
       function* (matchId: string) {
-        const entries = yield* readMatch(yield* getMatch(matchId)).pipe(
-          Effect.retry({ times: END_READ_RETRIES }),
-          Effect.option,
-        );
+        const m = yield* getMatch(matchId);
+        const giveUpAt = (m.endsAt ?? 0) + STEAM_WAIT_MS;
+        const endRead = readMatch(m).pipe(Effect.retry({ times: END_READ_RETRIES }), Effect.option);
+        const timeLeft = Effect.map(Clock.currentTimeMillis, (now) => giveUpAt - now);
+        let entries = (yield* timeLeft) > 0 ? yield* endRead : Option.none();
+        if (Option.isNone(entries) && (yield* timeLeft) > 0) yield* startWaiting(matchId);
+        while (Option.isNone(entries)) {
+          const left = yield* timeLeft;
+          if (left <= 0) break;
+          yield* Effect.sleep(Math.min(STEAM_WAIT_EVERY_MS, left));
+          entries = yield* endRead;
+        }
         yield* locked(
           Effect.gen(function* () {
             const current = yield* getMatch(matchId);
             if (current.state !== "live") return;
-            yield* conclude(
-              Option.isSome(entries) ? yield* applyEntries(current, entries.value) : current,
-            );
+            yield* Option.isSome(entries)
+              ? conclude(yield* applyEntries(current, entries.value), { steamDown: false })
+              : conclude(current, { steamDown: true });
           }),
         );
       },
@@ -463,19 +497,20 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       yield* surface.post(matchId, ThreadPost.Joined({ player }));
     });
 
-    /** A live Match, with the Map and end it always has once live. */
+    /** A live Match, with the Map and end it always has once live. Closed once its time is up. */
     const getLive = Effect.fn("getLive")(function* (matchId: string) {
       const m = yield* getMatch(matchId);
       if (m.state !== "live" || m.map === null || m.endsAt === null)
         return yield* new NotOpen({ matchId });
+      if (timeIsUp(m, yield* Clock.currentTimeMillis))
+        return yield* new NotAllowed({ reason: "That Match is over." });
       return { m, map: m.map, endsAt: m.endsAt };
     });
 
     /**
      * A late join. The Player's PB on the Map is read first, outside the lock, and becomes the
      * PB they must beat, so a time they set before joining can't count as an Improvement. They
-     * get their own start ping with the Map. Joining after the final read has begun leaves
-     * them DNF.
+     * get their own start ping with the Map. Nobody joins once time is up.
      */
     const joinLive = Effect.fn("joinLive")(function* (discordId: string, matchId: string) {
       const { player, boardId } = yield* locked(
@@ -518,7 +553,9 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     /** Who may leave: a Player still racing in a live Match. */
     const liveRacer = Effect.fn("liveRacer")(function* (matchId: string, discordId: string) {
       const m = yield* getMatch(matchId);
-      if (m.state !== "live") return yield* new NotAllowed({ reason: "That Match is over." });
+      // Once time is up only the end read counts, however long Steam takes to give it.
+      if (m.state !== "live" || timeIsUp(m, yield* Clock.currentTimeMillis))
+        return yield* new NotAllowed({ reason: "That Match is over." });
       const player = racing(m).find((p) => p.discordId === discordId);
       if (player === undefined)
         return yield* new NotAllowed({ reason: "You're not racing in this Match." });
@@ -547,7 +584,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           yield* surface.post(after.id, ThreadPost.Left({ player }));
           if (racing(after).length > 0) return yield* save(after);
           yield* FiberMap.remove(timers, after.id);
-          yield* after.history.length > 0 ? conclude(after) : abandon(after);
+          yield* after.history.length > 0 ? conclude(after, { steamDown: false }) : abandon(after);
         }),
       );
     });
@@ -611,6 +648,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           bestTicks: {},
           history: [],
           left: [],
+          waitingForSteam: false,
         };
         yield* save(m);
         yield* surface.post(

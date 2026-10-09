@@ -28,15 +28,17 @@
   gap: 7px;
   margin: 0 var(--pad) 12px;
   font-family: var(--f-hud);
-  font-size: 11.5px;
+  font-size: calc(11.5rem / 16);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--dim);
   text-decoration: none;
 }
-.back:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .back:hover {
+    color: var(--accent);
+  }
 }
 
 .pid {
@@ -53,19 +55,22 @@
 .pid h1 {
   margin: 0;
   font-family: var(--f-hud);
-  font-size: 22px;
+  font-size: calc((22rem + 2 * var(--ramp)) / 16);
   font-weight: 700;
   line-height: 1.1;
   overflow-wrap: anywhere;
 }
 .pwho {
   min-width: 0;
-  flex: 1;
+  /* the name and rank keep a readable width; on a phone the Compare and Steam buttons
+     wrap under them instead of squeezing them to a word a line. Never wider than the room
+     beside the marble (56px and its 12px gap), so the name stays next to it */
+  flex: 1 1 min(12em, 100% - 68px);
 }
 .pline {
-  font-size: 12.5px;
+  font-size: calc(12.5rem / 16);
   color: var(--dim);
-  margin-top: 2px;
+  margin-block-start: 2px;
   font-variant-numeric: tabular-nums;
 }
 .pline b {
@@ -83,18 +88,21 @@
   background: var(--surface);
   color: var(--dim);
   font-family: var(--f-hud);
-  font-size: 12.5px;
+  font-size: calc(12.5rem / 16);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
 }
-.steam:hover {
-  background: var(--surface2);
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .steam:hover {
+    background: var(--surface2);
+    color: var(--text);
+  }
 }
+/* 15px beside its 12.5px label, and grows with it */
 .steam svg {
-  width: 15px;
-  height: 15px;
+  width: 1.2em;
+  height: 1.2em;
   fill: currentColor;
   flex: none;
 }
@@ -114,7 +122,7 @@
 }
 .pstat dt {
   font-family: var(--f-hud);
-  font-size: 10px;
+  font-size: calc(10rem / 16);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--dim);
@@ -126,21 +134,21 @@
 .pstat dd {
   margin: 5px 0 0;
   font-family: var(--f-hud);
-  font-size: 19px;
+  font-size: calc(19rem / 16);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .pstat dd .mc {
-  font-size: 17px;
+  font-size: calc(17rem / 16);
   gap: 12px;
 }
 .pstat small {
   display: block;
   font-family: var(--f-body);
-  font-size: 11.5px;
+  font-size: calc(11.5rem / 16);
   color: var(--dim);
   font-weight: 400;
-  margin-top: 3px;
+  margin-block-start: 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -152,7 +160,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--solid);
-  overflow: hidden;
+  overflow: clip;
 }
 .pslab {
   display: flex;
@@ -160,24 +168,24 @@
   justify-content: space-between;
   gap: 12px;
   padding: 11px 13px;
-  background: rgba(255, 255, 255, 0.035);
-  border-bottom: 1px solid var(--line2);
+  background: oklch(100% 0 none / 0.035);
+  border-block-end: 1px solid var(--line2);
 }
 .pslab h2 {
   margin: 0;
   font-family: var(--f-hud);
-  font-size: 14px;
+  font-size: calc(14rem / 16);
   font-weight: 700;
 }
 .pov {
   font-family: var(--f-hud);
-  font-size: 12px;
+  font-size: calc(12rem / 16);
   color: var(--dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .pov b {
-  font-size: 14px;
+  font-size: calc(14rem / 16);
   color: var(--text);
 }
 .pov[data-m="1"] b {
@@ -193,14 +201,14 @@
   display: grid;
   gap: 6px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--line2);
+  border-block-end: 1px solid var(--line2);
 }
 .ptier:last-child {
-  border-bottom: 0;
+  border-block-end: 0;
 }
 .ptlab {
   font-family: var(--f-hud);
-  font-size: 10px;
+  font-size: calc(10rem / 16);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--faint);
@@ -208,8 +216,8 @@
 /* what a heading's tracks add up to, shown when a season has more than one heading */
 .ptsum {
   display: block;
-  margin-top: 3px;
-  font-size: 12px;
+  margin-block-start: 3px;
+  font-size: calc(12rem / 16);
   letter-spacing: 0.04em;
   text-transform: none;
   color: var(--dim);
@@ -222,10 +230,10 @@
 .psync {
   margin: 0;
   padding: 8px 13px;
-  border-bottom: 1px solid var(--line2);
+  border-block-end: 1px solid var(--line2);
   background: var(--warn-soft);
   color: var(--warn);
-  font-size: 12px;
+  font-size: calc(12rem / 16);
   line-height: 1.4;
 }
 .psync b {
@@ -249,19 +257,21 @@
   background: var(--surface);
   text-decoration: none;
   position: relative;
-  overflow: hidden;
+  overflow: clip;
   min-width: 0;
 }
-.ptile:hover {
-  background: var(--surface2);
+@media (hover: hover) and (pointer: fine) {
+  .ptile:hover {
+    background: var(--surface2);
+  }
 }
 .pt-name {
   font-family: var(--f-hud);
-  font-size: 10.5px;
+  font-size: calc(10.5rem / 16);
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--dim);
-  margin-bottom: auto;
+  margin-block-end: auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -274,23 +284,23 @@
 }
 .pt-rank {
   font-family: var(--f-hud);
-  font-size: 22px;
+  font-size: calc(22rem / 16);
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .pt-rank sup {
-  font-size: 10px;
+  font-size: calc(10rem / 16);
   vertical-align: top;
 }
 .pt-of {
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   font-weight: 600;
   color: var(--faint);
 }
 .pt-gap {
   font-family: var(--f-hud);
-  font-size: 12px;
+  font-size: calc(12rem / 16);
   font-weight: 600;
   color: var(--dim);
   font-variant-numeric: tabular-nums;
@@ -301,7 +311,7 @@
   justify-content: space-between;
   gap: 6px;
   font-family: var(--f-hud);
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
@@ -312,10 +322,10 @@
 }
 .pt-pct {
   position: absolute;
-  right: 9px;
-  bottom: 7px;
+  inset-inline-end: 9px;
+  inset-block-end: 7px;
   font-family: var(--f-hud);
-  font-size: 9.5px;
+  font-size: calc(9.5rem / 16);
   letter-spacing: 0.06em;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
@@ -325,11 +335,10 @@
    every tile draws it the same way, and the border already says which medal. */
 .pt-bar {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset-inline: 0;
+  inset-block-end: 0;
   height: 4px;
-  background: rgba(255, 255, 255, 0.055);
+  background: oklch(100% 0 none / 0.055);
 }
 .pt-bar i {
   display: block;
@@ -368,58 +377,64 @@
 .ptile.untimed {
   opacity: 0.38;
   border-style: dashed;
-  padding-bottom: 9px;
+  padding-block-end: 9px;
 }
 .ptile.untimed .pt-rank {
-  font-size: 16px;
+  font-size: 1rem;
   color: var(--faint);
 }
 
 /* a map maker says so under their name */
 .maker {
   display: inline-block;
-  margin-top: 6px;
+  margin-block-start: 6px;
   padding: 3px 9px;
   border-radius: 99px;
   background: var(--author-soft);
   color: var(--author);
   font-family: var(--f-hud);
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-/* the page's tabs: Circuit, Workshop, and Made for a map maker. Each is a link */
+/* the page's tabs: Circuit, Workshop, Made for a map maker, and Daily. Each is a link */
 .ptabs {
   display: flex;
   gap: 2px;
   margin: 0 var(--pad) 16px;
-  border-bottom: 1px solid var(--line);
+  border-block-end: 1px solid var(--line);
   overflow-x: auto;
   overflow-y: hidden;
 }
 .ptabs a {
   padding: 9px 13px;
-  margin-bottom: -1px;
-  border-bottom: 2px solid transparent;
+  margin-block-end: -1px;
+  border-block-end: 2px solid transparent;
   white-space: nowrap;
   font-family: var(--f-hud);
-  font-size: 13.5px;
+  font-size: calc(13.5rem / 16);
   font-weight: 600;
   color: var(--dim);
   text-decoration: none;
 }
-.ptabs a:hover {
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .ptabs a:hover {
+    color: var(--text);
+  }
+}
+/* the strip scrolls, so it clips anything drawn outside it: keep the ring inside */
+.ptabs a:focus-visible {
+  outline-offset: -2px;
 }
 .ptabs a[aria-current="page"] {
   color: var(--text);
-  border-bottom-color: var(--accent);
+  border-block-end-color: var(--accent);
 }
 .ptabs small {
-  margin-left: 6px;
+  margin-inline-start: 6px;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
@@ -440,22 +455,22 @@
   place-items: center;
   width: var(--s);
   height: var(--s);
-  margin-top: 12px;
+  margin-block-start: 12px;
   border-radius: 50%;
   flex: none;
   box-shadow:
-    inset -3px -4px 6px rgba(0, 0, 0, 0.3),
-    inset 2px 2px 4px rgba(255, 255, 255, 0.35);
+    inset -3px -4px 6px oklch(0% 0 none / 0.3),
+    inset 2px 2px 4px oklch(100% 0 none / 0.35);
 }
 .medal::before {
   content: "";
   position: absolute;
-  top: -13px;
-  left: 50%;
+  inset-block-start: -13px;
+  inset-inline: 0;
   z-index: -1;
   width: 20px;
   height: 18px;
-  transform: translateX(-50%);
+  margin-inline: auto;
   background: linear-gradient(90deg, var(--ribbon) 50%, var(--ribbon2) 50%);
   clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
 }
@@ -489,7 +504,7 @@
 }
 .medal.mini {
   margin: 0;
-  box-shadow: inset -1px -2px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: inset -1px -2px 3px oklch(0% 0 none / 0.3);
 }
 .medal.mini::before {
   display: none;
@@ -522,7 +537,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 10px 6px;
-  margin-bottom: 12px;
+  margin-block-end: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -536,8 +551,10 @@
   border-radius: 9px;
   border: 1px solid transparent;
 }
-.trophies button:hover {
-  background: var(--surface2);
+@media (hover: hover) and (pointer: fine) {
+  .trophies button:hover {
+    background: var(--surface2);
+  }
 }
 .trophies button[aria-pressed="true"] {
   border-color: var(--text);
@@ -548,13 +565,13 @@
 }
 .trophies b {
   font-family: var(--f-hud);
-  font-size: 22px;
+  font-size: calc(22rem / 16);
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
 .wsline {
   margin: 0 0 4px;
-  font-size: 13px;
+  font-size: calc(13rem / 16);
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
@@ -569,7 +586,7 @@
 }
 .pws .strip {
   scrollbar-width: none;
-  padding-bottom: 0;
+  padding-block-end: 0;
 }
 .pws .strip::-webkit-scrollbar {
   display: none;
@@ -588,9 +605,11 @@
   border: 1px solid var(--line);
   color: var(--dim);
 }
-.snav button:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .snav button:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--text);
+  }
 }
 .snav button:disabled {
   opacity: 0.3;
@@ -606,12 +625,14 @@
   background: var(--surface);
   color: inherit;
   text-decoration: none;
-  font-size: 12.5px;
+  font-size: calc(12.5rem / 16);
   scroll-snap-align: start;
   min-width: 0;
 }
-.scard:hover {
-  background: var(--surface2);
+@media (hover: hover) and (pointer: fine) {
+  .scard:hover {
+    background: var(--surface2);
+  }
 }
 .scard .top {
   display: flex;
@@ -624,7 +645,7 @@
   min-width: 0;
 }
 .scard .top b {
-  font-size: 13.5px;
+  font-size: calc(13.5rem / 16);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -637,7 +658,7 @@
 }
 .scard .big {
   font-family: var(--f-hud);
-  font-size: 19px;
+  font-size: calc(19rem / 16);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -653,7 +674,7 @@
   width: 52px;
   aspect-ratio: 400/270;
   border-radius: 6px;
-  overflow: hidden;
+  overflow: clip;
   background: var(--surface2);
   border: 1px solid var(--line2);
 }
@@ -669,19 +690,21 @@
 .pwall {
   margin: 24px 0 10px;
   font-family: var(--f-hud);
-  font-size: 15px;
+  font-size: calc(15rem / 16);
   font-weight: 700;
-  scroll-margin-top: 12px;
+  scroll-margin-block-start: 12px;
 }
 .pwtools {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 10px;
   align-items: center;
-  margin-bottom: 10px;
+  margin-block-end: 10px;
 }
+/* wide enough for its whole placeholder: on a phone the sort select drops to the next
+   line rather than cut it short */
 .pwtools .ws-q {
-  flex: 1 1 180px;
+  flex: 1 1 12.5em;
 }
 .pwsort {
   padding: 8px 10px;
@@ -689,7 +712,6 @@
   background: var(--solid);
   border: 1px solid var(--line);
   color: var(--text);
-  font-size: 13px;
 }
 .pwbar {
   display: flex;
@@ -705,7 +727,7 @@
   background: var(--accent-soft);
   border: 1px solid var(--accent);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: calc(12.5rem / 16);
 }
 .wlist {
   display: grid;
@@ -722,9 +744,11 @@
   color: inherit;
   text-decoration: none;
 }
-.wrow:hover {
-  background: var(--surface);
-  border-color: var(--line2);
+@media (hover: hover) and (pointer: fine) {
+  .wrow:hover {
+    background: var(--surface);
+    border-color: var(--line2);
+  }
 }
 .wrow .thumb {
   width: 44px;
@@ -735,7 +759,7 @@
 .wt b {
   display: block;
   font-weight: 600;
-  font-size: 14px;
+  font-size: calc(14rem / 16);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -743,7 +767,7 @@
 .wt small {
   display: block;
   color: var(--faint);
-  font-size: 12px;
+  font-size: calc(12rem / 16);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -754,13 +778,13 @@
   position: relative;
   max-width: 260px;
   height: 3px;
-  margin-top: 6px;
+  margin-block-start: 6px;
   border-radius: 2px;
   background: var(--line);
 }
 .fbar i {
   position: absolute;
-  top: -3px;
+  inset-block-start: -3px;
   width: 3px;
   height: 9px;
   border-radius: 2px;
@@ -769,16 +793,16 @@
 }
 .wrk {
   font-family: var(--f-hud);
-  font-size: 17px;
+  font-size: calc(17rem / 16);
   font-weight: 700;
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
 }
 .wrk sup {
-  font-size: 10px;
+  font-size: calc(10rem / 16);
 }
 .wrk small {
-  font-size: 11px;
+  font-size: calc(11rem / 16);
   font-weight: 500;
   color: var(--faint);
 }
@@ -793,15 +817,15 @@
 }
 .wtm {
   display: none;
-  text-align: right;
+  text-align: end;
   font-family: var(--f-hud);
-  font-size: 13.5px;
+  font-size: calc(13.5rem / 16);
   font-variant-numeric: tabular-nums;
 }
 .wtm small {
   display: block;
   color: var(--faint);
-  font-size: 11.5px;
+  font-size: calc(11.5rem / 16);
 }
 
 /* Made: a card per Map this player published */
@@ -812,14 +836,14 @@
   min-width: 0;
   color: inherit;
   text-decoration: none;
-  font-size: 12.5px;
+  font-size: calc(12.5rem / 16);
 }
 .mkcard .im {
   position: relative;
   display: block;
-  margin-bottom: 3px;
+  margin-block-end: 3px;
   border-radius: 10px;
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--line);
   aspect-ratio: 400/270;
   background: var(--surface2);
@@ -832,13 +856,15 @@
   object-fit: cover;
 }
 .mkcard b {
-  font-size: 14px;
+  font-size: calc(14rem / 16);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-a.mkcard:hover b {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  a.mkcard:hover b {
+    color: var(--accent);
+  }
 }
 .mkcard span {
   color: var(--dim);
@@ -851,5 +877,35 @@ a.mkcard:hover b {
   color: var(--faint);
 }
 .mkgrid {
-  margin-top: 12px;
+  margin-block-start: 12px;
+}
+
+/* the Daily tab: the bands' legend over the months of every Daily, a day the player
+   played bordered in the band of their place (daily.css) */
+.dt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0 var(--pad) 12px;
+  font-size: calc(12rem / 16);
+  color: var(--dim);
+}
+.dt-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 6px;
+  background: var(--band);
+}
+.dt-months {
+  display: grid;
+  align-items: start;
+  gap: 18px;
+  margin: 0 var(--pad);
+}
+.dt-none {
+  margin: 0 var(--pad);
+  color: var(--dim);
 }

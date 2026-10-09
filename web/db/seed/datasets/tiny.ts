@@ -1,12 +1,14 @@
 // A handful of boards with three Refreshes of Score history behind them: an improvement
 // on each kind of board, an Entry closed when its player left a board, equal scores on a
 // time board and on a points board, a Map not read in a Refresh, one whose read failed and
-// one gone from the Workshop, two Season 1 Tracks to add up, and a persona change. The read
-// layer's tests (test/site.test.ts, test/reads.test.ts) take their expected values from
-// the comments here. Every player and Map is made up.
+// one gone from the Workshop, two Season 1 Tracks to add up, a persona change, and four
+// Dailies (three final, one live, a tie on a podium, a player who missed a day mid-run and
+// a failed read). The read layer's tests (test/site.test.ts, test/reads.test.ts) take their
+// expected values from the comments here. Every player and Map is made up.
 import {
   boardReads,
   boards,
+  dailies,
   entries,
   mapHistory,
   maps,
@@ -23,11 +25,20 @@ const MAP_A = "Workshop_9000000001";
 const MAP_B = "Workshop_9000000002";
 const MAP_C = "Workshop_9000000003";
 
+// Dailies, each its own board named as the developers' API names it, on 01:00 to 01:00 UTC
+// windows. 08-29 and 08-30 are final in R1; 08-31 closes at 09-01 01:00, between R1
+// (00:00) and R2 (03:00), so R1 reads it live and R2 makes it final; 09-01 is live, read
+// ok in R2, and R3's read of it failed.
+const DAY1 = "ballest_v0_9000000001_Daily_20260829_aa000001";
+const DAY2 = "ballest_v0_9000000002_Daily_20260830_aa000002";
+const DAY3 = "ballest_v0_9000000003_Daily_20260831_aa000003";
+const DAY4 = "ballest_v0_9000000004_Daily_20260901_aa000004";
+
 // p(1) .. p(10)
 const p = (n: number) => `765611990000000${String(n).padStart(2, "0")}`;
 
 export const tiny: Dataset = {
-  description: "6 boards (2 Tracks, an Overall board, 3 Maps), 10 players, 3 Refreshes",
+  description: "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes",
   seed: async (tx) => {
     const [r1, r2, r3] = (
       await tx
@@ -88,6 +99,46 @@ export const tiny: Dataset = {
         leaderboardId: 90000003,
         scoresPoints: false,
       },
+      ...(
+        [
+          [DAY1, "Marble Run"],
+          [DAY2, "Loop de Loop"],
+          [DAY3, "Gone Gully"],
+          [DAY4, "Fresh Fields"],
+        ] as const
+      ).map(([name, display], i) => ({
+        name,
+        kind: "daily" as const,
+        display,
+        leaderboardId: 91000001 + i,
+        scoresPoints: false,
+      })),
+    ]);
+
+    const day = (
+      date: string,
+      board: string,
+      pfid: string,
+      title: string,
+      final: number | null,
+    ) => {
+      const start = new Date(`${date}T01:00:00Z`);
+      return {
+        date,
+        board,
+        pfid,
+        title,
+        startsAt: start,
+        endsAt: new Date(start.getTime() + 24 * 3600_000),
+        finalRefresh: final,
+      };
+    };
+    await tx.insert(dailies).values([
+      day("2026-08-29", DAY1, "9000000001", "Marble Run", r1),
+      day("2026-08-30", DAY2, "9000000002", "Loop de Loop", r1),
+      day("2026-08-31", DAY3, "9000000003", "Gone Gully", r2),
+      // a Map no Workshop catalogue has listed: no picture and no Medals
+      day("2026-09-01", DAY4, "9000000004", "Fresh Fields", null),
     ]);
 
     // R2 does not read the Maps; R3 reads Map A and fails to read Map B. Map C was read in
@@ -105,6 +156,12 @@ export const tiny: Dataset = {
       { refreshId: r3, board: OVERALL, ok: true, entryCount: 4 },
       { refreshId: r3, board: MAP_A, ok: true, entryCount: 3 },
       { refreshId: r3, board: MAP_B, ok: false, entryCount: null },
+      { refreshId: r1, board: DAY1, ok: true, entryCount: 4 },
+      { refreshId: r1, board: DAY2, ok: true, entryCount: 4 },
+      { refreshId: r1, board: DAY3, ok: true, entryCount: 2 },
+      { refreshId: r2, board: DAY3, ok: true, entryCount: 3 },
+      { refreshId: r2, board: DAY4, ok: true, entryCount: 2 },
+      { refreshId: r3, board: DAY4, ok: false, entryCount: null },
     ]);
 
     const personas = [
@@ -188,6 +245,26 @@ export const tiny: Dataset = {
       e(MAP_B, 2, 6_900_000, r1, r1),
       // Map C, gone from the Workshop after R1: its Entry stays open.
       e(MAP_C, 3, 3_000_000, r1, r1),
+      // Daily 08-29 (Marble Run), final: p1 4100000, p2 4300000, p3 4350000, p4 5000000.
+      e(DAY1, 1, 4_100_000, r1, r1),
+      e(DAY1, 2, 4_300_000, r1, r1),
+      e(DAY1, 3, 4_350_000, r1, r1),
+      e(DAY1, 4, 5_000_000, r1, r1),
+      // Daily 08-30 (Loop de Loop), final, which p1 missed: p2 6000000, then p3 and p5
+      // tied on 6200000 for the podium (the lower Steam ID first), p6 7000000.
+      e(DAY2, 2, 6_000_000, r1, r1),
+      e(DAY2, 5, 6_200_000, r1, r1),
+      e(DAY2, 3, 6_200_000, r1, r1),
+      e(DAY2, 6, 7_000_000, r1, r1),
+      // Daily 08-31 (Gone Gully): read live in R1, final in R2, where p1 had improved:
+      // p1 2900000, p2 3000000, p7 3500000.
+      e(DAY3, 1, 3_100_000, r1, r1, r2),
+      e(DAY3, 1, 2_900_000, r2, r2),
+      e(DAY3, 2, 3_000_000, r1, r2),
+      e(DAY3, 7, 3_500_000, r2, r2),
+      // Daily 09-01 (Fresh Fields), live, last read ok in R2: p8 5200000, p1 5500000.
+      e(DAY4, 1, 5_500_000, r2, r2),
+      e(DAY4, 8, 5_200_000, r2, r2),
     ]);
 
     await tx.insert(maps).values([

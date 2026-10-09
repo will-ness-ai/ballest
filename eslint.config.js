@@ -66,6 +66,11 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
+    // `pnpm qa`'s probes and image comparison are functions Playwright runs in the page
+    files: ["web/scripts/qa/**"],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
     files: ["web/**/*.{ts,tsx}"],
     extends: [nextPlugin.configs["core-web-vitals"], reactHooks.configs.flat.recommended],
     settings: { next: { rootDir: "web/" } },
@@ -87,5 +92,17 @@ export default defineConfig(
       ],
     },
   },
+  {
+    // a test renders client code in the browser (happy-dom), never as a server component
+    files: ["web/test/**"],
+    rules: { "site/no-client-values": "off" },
+  },
   prettier,
+  {
+    // comments only: Prettier owns code width (docs/linting.md, "Line width 100")
+    files: ["web/**"],
+    rules: {
+      "max-len": ["error", { code: 1000, comments: 100, ignoreUrls: true, tabWidth: 2 }],
+    },
+  },
 );

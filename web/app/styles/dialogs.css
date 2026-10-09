@@ -1,60 +1,51 @@
-/* the centred dialogs: Compare, which picks the other player by name, and how the boards refresh */
+/* the centred dialogs: Compare, which picks the other player by name, how the boards
+   refresh and how points work. Each scrolls inside itself on a short screen. */
 .cmp,
 .rfx,
 .ptsx {
-  position: fixed;
-  left: 50%;
-  top: 12vh;
-  z-index: 41;
-  transform: translateX(-50%);
-  width: min(460px, calc(100% - 32px));
+  inset-block: 12dvh auto;
+  inset-inline: 0;
+  margin-inline: auto;
+  inline-size: min(460px, calc(100% - 32px));
+  max-block-size: calc(88dvh - 16px);
+  overflow-y: auto;
   display: grid;
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--solid);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-}
-.cmp[hidden],
-.rfx[hidden],
-.ptsx[hidden],
-.dscrim[hidden] {
-  display: none;
+  box-shadow: 0 20px 60px oklch(0% 0 none / 0.6);
 }
 .cmp h2,
 .rfx h2,
 .ptsx h2 {
   margin: 0;
   font-family: var(--f-hud);
-  font-size: 16px;
+  font-size: 1rem;
   overflow-wrap: anywhere;
-}
-.rfx {
-  max-height: 76vh;
-  overflow-y: auto;
 }
 .rfx table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: calc(13rem / 16);
 }
 .rfx th,
 .rfx td {
   padding: 8px;
-  border-top: 1px solid var(--line2);
-  text-align: left;
+  border-block-start: 1px solid var(--line2);
+  text-align: start;
   vertical-align: top;
   font-weight: 400;
 }
 .rfx thead th,
 .rfx thead td {
-  padding-top: 0;
-  border-top: 0;
+  padding-block-start: 0;
+  border-block-start: 0;
 }
 .rfx thead th {
   font-family: var(--f-hud);
-  font-size: 10.5px;
+  font-size: calc(10.5rem / 16);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -74,7 +65,7 @@
 }
 .rfx p {
   margin: 0;
-  font-size: 12.5px;
+  font-size: calc(12.5rem / 16);
   color: var(--dim);
 }
 .rfx p b {
@@ -85,25 +76,25 @@
 /* how points work: the rule, then what a few places pay */
 .ptsx p {
   margin: 0;
-  font-size: 13px;
+  font-size: calc(13rem / 16);
   color: var(--dim);
 }
 .ptsx table {
   border-collapse: collapse;
   font-family: var(--f-hud);
-  font-size: 13px;
+  font-size: calc(13rem / 16);
   font-variant-numeric: tabular-nums;
 }
 .ptsx th,
 .ptsx td {
   padding: 3px 0;
-  text-align: left;
+  text-align: start;
   font-weight: 500;
   color: var(--dim);
 }
 .ptsx td {
-  padding-left: 28px;
-  text-align: right;
+  padding-inline-start: 28px;
+  text-align: end;
   font-weight: 600;
   color: var(--text);
 }
@@ -114,20 +105,25 @@
   place-items: center;
   width: 17px;
   height: 17px;
-  margin-left: 6px;
+  margin-inline-start: 6px;
   border: 1px solid var(--line);
   border-radius: 50%;
   font-family: var(--f-hud);
-  font-size: 10.5px;
+  font-size: calc(10.5rem / 16);
   font-weight: 700;
   letter-spacing: 0;
   color: var(--dim);
   vertical-align: 1px;
 }
-.qmark:hover,
 .qmark:focus-visible {
   color: var(--accent);
   border-color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .qmark:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
 }
 .cmp .ws-q {
   max-width: none;
@@ -136,12 +132,13 @@
 .hits {
   display: grid;
   gap: 2px;
-  max-height: 50vh;
+  max-block-size: 50dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .hits p {
   margin: 4px;
-  font-size: 13px;
+  font-size: calc(13rem / 16);
   color: var(--faint);
 }
 .hit {
@@ -151,11 +148,15 @@
   width: 100%;
   padding: 7px 8px;
   border-radius: 9px;
-  text-align: left;
+  text-align: start;
 }
-.hit:hover,
 .hit:focus-visible {
   background: var(--surface2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .hit:hover {
+    background: var(--surface2);
+  }
 }
 .hit .marble {
   width: 24px;

@@ -2,10 +2,10 @@
 
 The public monorepo for **Ballest of Them All** (appid `3339810`) community tools. Its
 main tool is a static, read-only mirror of the game's Steam leaderboards, live at
-https://ballest.willness.dev on Vercel. The game's leaderboards are not exposed
-through any public web API, so a collector reads them from Steam directly and writes the
-results to a Postgres database the site reads (and, until phase 5 of
-`docs/nextjs-migration.md`, commits them as JSON too).
+https://ballestrecords.com on Vercel (the old ballest.willness.dev redirects there). The
+game's leaderboards are not exposed through any public web API, so a collector reads them
+from Steam directly and writes the results to a Postgres database the site reads (and,
+until phase 5 of `docs/nextjs-migration.md`, commits them as JSON too).
 
 `CONTEXT.md` is the domain glossary (Map, Track, Match, ...); use its terms. Decisions
 that shape the repo are recorded in `docs/adr/`; read them before restructuring anything.
@@ -107,7 +107,8 @@ since each test's database is built by `web/scripts/migrate.mjs`. `collector-tes
 `check.yml` runs them in CI.
 The site's checks are in `web/`: `npx tsc --noEmit`, `pnpm test` (vitest, against the same
 local Postgres; each test file builds its own database), and `pnpm smoke <url>` against a
-build seeded with `tiny`. Verify front-end changes by loading the page, and test a board's
+build seeded with `stress` (as CI does; it holds all of `tiny`). Verify front-end changes
+with `pnpm --silent qa check` (preview against production, every page at phone and desktop sizes; `docs/site.md`), and test a board's
 infinite scroll with a real wheel scroll: a scripted `scrollTo` does not trigger it in
 the preview pane. Verify collector changes with
 `python tools/check_data.py` (no Steam needed), then a live `--out` run if the read or
@@ -217,10 +218,14 @@ at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. 
 `will-ness-ai/skills`, adapted to prototype in the running app on a worktree, and is
 maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
+`writing-for-agents` (also `mattpocock/skills`) is adapted too: its `SKILL-MECHANICS.md` says how to word a call to another skill, and the vendored skills' calls follow it.
+`good-css` (MIT, from `vojtaholik/good-css` at `6d16d2f`, also recorded in `skills-lock.json`) loads on its own whenever you write or
+review CSS. The site is dark-only (`docs/site.md`), so skip its light/dark token entry.
 
-Most of these are `disable-model-invocation`, so the Skill tool refuses them, and Will usually
-writes through a project thread, so his `/to-spec`, `/implement-spec` or `/retro` reaches you as
-text. When his message names one, read `.claude/skills/<name>/SKILL.md` and follow it.
+The Skill tool refuses those whose `SKILL.md` sets `disable-model-invocation`: `grill-with-docs`,
+`implement-spec`, `retro`, `setup-matt-pocock-skills`, `to-spec` and `to-tickets`. When Will's
+message names one of those, read `.claude/skills/<name>/SKILL.md` and follow it. Call every
+other skill, `code-review` and `codebase-design` included, with the Skill tool.
 
 ### Building a feature or fixing a bug
 
@@ -260,4 +265,6 @@ testing in a sandboxed game copy: `docs/agents/plugins.md`.
 they document the game developers' internal backend hosts and endpoints. Never copy their
 contents into a committed file, a commit message, or a PR description. The agreed stance
 for this project is read-only, sourced from Steam rather than the developers' servers, at
-a modest cadence.
+a modest cadence. The one exception is the public API the developers gave us for the
+Daily (ADR 0007): the collector asks it which Steam board is each day's Daily, with its
+endpoint and key in GitHub secrets only, and still reads the scores from Steam.

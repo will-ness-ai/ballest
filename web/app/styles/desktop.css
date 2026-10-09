@@ -1,10 +1,11 @@
 /* ==========================================================================
-   820px AND UP: GLASS CABINET
+   DESKTOP, 820px AND UP (AT THE DEFAULT TEXT SIZE): GLASS CABINET
+   In em, so it is 820px at the default text size and moves out with a bigger one:
+   larger text keeps the phone layout until there is room for the table and the rail.
+   The headings and --pad that only grow here are fluid instead, through --ramp
+   (base.css), which reaches its full size exactly where this query starts.
    ========================================================================== */
-@media (min-width: 820px) {
-  :root {
-    --pad: 24px;
-  }
+@media (min-width: 51.25em) {
   .app {
     padding: 30px 24px 90px;
   }
@@ -15,30 +16,63 @@
     gap: 7px;
     padding: 0 0 22px;
   }
+  /* the phone's row basis would be a height in this column */
+  .brand {
+    flex: none;
+  }
   .rack .marble {
     width: 24px;
     height: 24px;
   }
   .rack .marble + .marble {
-    margin-left: -9px;
+    margin-inline-start: -9px;
   }
   .wordmark {
-    font-size: 20px;
+    font-size: calc(20rem / 16);
     line-height: 1.25;
   }
   .tagline {
     display: block;
     margin: 0;
     font-family: var(--f-hud);
-    font-size: 11px;
+    font-size: calc(11rem / 16);
     letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--dim);
     font-weight: 600;
   }
   .freshness {
-    text-align: left;
-    font-size: 12.5px;
+    margin-inline-start: 0;
+    text-align: start;
+    font-size: calc(12.5rem / 16);
+  }
+  /* You's card sits top right, beside the brand, and Refreshed stays where it is */
+  .hdr {
+    position: relative;
+  }
+  .hdr:has(.youcard) .freshness {
+    display: block;
+  }
+  .youcard {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    max-inline-size: 290px;
+    padding: 6px 14px 6px 6px;
+  }
+  .youcard .marble,
+  .youcard .q {
+    inline-size: 34px;
+    block-size: 34px;
+  }
+  .youcard .yc-wide {
+    display: inline;
+  }
+  .youcard small {
+    display: block;
+    overflow: clip;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .groups {
@@ -47,20 +81,23 @@
     padding: 0;
     background: none;
     border: 0;
-    border-bottom: 1px solid var(--line);
+    border-block-end: 1px solid var(--line);
     overflow: visible;
+    /* every tab fits here, and the fade's mask would cut off the lit tab's underline */
+    animation: none;
+    mask-image: none;
   }
   .gtab {
     flex: 0 0 auto;
     padding: 10px 15px;
     border-radius: 0;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
+    border-block-end: 2px solid transparent;
+    margin-block-end: -1px;
   }
   .gtab[aria-selected="true"] {
     background: none;
     color: var(--accent);
-    border-bottom-color: var(--accent);
+    border-block-end-color: var(--accent);
     font-weight: 600;
   }
 
@@ -73,19 +110,19 @@
   .rail {
     display: block;
     position: sticky;
-    top: 16px;
+    inset-block-start: 16px;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 13px;
     backdrop-filter: blur(10px);
-    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
     overflow-y: auto;
   }
   .rail h2 {
     margin: 0 0 9px;
     font-family: var(--f-hud);
-    font-size: 10.5px;
+    font-size: calc(10.5rem / 16);
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--dim);
@@ -97,11 +134,13 @@
     gap: 6px;
   }
   .boardbtn,
-  .sheet,
-  .scrim {
+  .sheet {
     display: none;
   }
 
+  .you-banner {
+    margin-inline: 0;
+  }
   .bcard {
     margin: 0 0 14px;
     grid-template-columns: 260px minmax(0, 1fr);
@@ -120,14 +159,11 @@
   .bc-body {
     padding: 14px 18px;
   }
-  .bc-top h1 {
-    font-size: 30px;
-  }
   .bc-facts {
     gap: 22px;
   }
   .bc-facts dd {
-    font-size: 17px;
+    font-size: calc(17rem / 16);
   }
 
   .boardbar {
@@ -136,14 +172,14 @@
     justify-content: space-between;
     gap: 18px;
     flex-wrap: wrap;
-    margin-bottom: 14px;
+    margin-block-end: 14px;
   }
   .boardtitle {
     display: block;
   }
   .boardtitle .bmeta {
     margin: 0;
-    font-size: 12.5px;
+    font-size: calc(12.5rem / 16);
     color: var(--dim);
   }
   .sortsw {
@@ -159,7 +195,6 @@
   .search input {
     width: 230px;
     border-radius: 9px;
-    font-size: 13.5px;
     padding: 8px 12px;
   }
 
@@ -174,42 +209,42 @@
     gap: 11px;
   }
   .plate[data-p="1"] {
-    padding-bottom: 16px;
+    padding-block-end: 16px;
   }
   .plate .marble {
     width: 96px;
     height: 96px;
     box-shadow:
       0 0 0 3px var(--gold),
-      0 12px 30px rgba(0, 0, 0, 0.4);
+      0 12px 30px oklch(0% 0 none / 0.4);
   }
   .plate[data-p="2"] .marble {
     width: 76px;
     height: 76px;
     box-shadow:
       0 0 0 3px var(--silver),
-      0 12px 30px rgba(0, 0, 0, 0.4);
+      0 12px 30px oklch(0% 0 none / 0.4);
   }
   .plate[data-p="3"] .marble {
     width: 70px;
     height: 70px;
     box-shadow:
       0 0 0 3px var(--bronze),
-      0 12px 30px rgba(0, 0, 0, 0.4);
+      0 12px 30px oklch(0% 0 none / 0.4);
   }
   .pl-name {
-    font-size: 16px;
+    font-size: 1rem;
   }
   .pl-score {
-    font-size: 19px;
+    font-size: calc(19rem / 16);
   }
   .pl-rank {
-    font-size: 10px;
+    font-size: calc(10rem / 16);
   }
   .pl-gap {
     display: block;
     font-family: var(--f-hud);
-    font-size: 11.5px;
+    font-size: calc(11.5rem / 16);
     color: var(--faint);
     font-variant-numeric: tabular-nums;
   }
@@ -222,23 +257,25 @@
   .bc-by .qmark:not(.always) {
     display: none;
   }
+  /* the name gives way when the board is narrow (the rail or a map's panel beside it at
+     a small window), so a row never runs off the page */
   .head {
     display: grid;
-    grid-template-columns: 48px 26px minmax(160px, 1fr) 176px;
+    grid-template-columns: 48px 26px minmax(0, 1fr) minmax(120px, 176px);
     align-items: center;
     gap: 12px;
     padding: 9px 12px;
     font-family: var(--f-hud);
-    font-size: 10px;
+    font-size: calc(10rem / 16);
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--dim);
     font-weight: 600;
-    background: rgba(255, 255, 255, 0.035);
+    background: oklch(100% 0 none / 0.035);
     border-radius: 10px 10px 0 0;
   }
   .row {
-    grid-template-columns: 48px 26px minmax(160px, 1fr) 176px;
+    grid-template-columns: 48px 26px minmax(0, 1fr) minmax(120px, 176px);
     gap: 12px;
     padding: 0 12px;
     min-height: 56px;
@@ -249,33 +286,46 @@
   .row:last-child {
     border-radius: 0 0 10px 10px;
   }
-  .board.pods .head,
-  .board.pods .row {
-    grid-template-columns: 48px 26px minmax(160px, 1fr) 150px 176px;
+  /* the podium column only gets its own column when the board has room for it beside a
+     readable name; until then the counts stay under the name, as on a phone */
+  .board.pods {
+    container-type: inline-size;
   }
-  .board.pods .row {
-    grid-template-rows: auto;
+  .board.pods .head > .c-pods {
+    display: none;
   }
-  .board.pods .row > .c-rank,
-  .board.pods .row > .marble,
-  .board.pods .row > .c-text,
-  .board.pods .row > .c-pods,
-  .board.pods .row > .c-score {
-    grid-area: auto;
+  @container (min-width: 37.5rem) {
+    .board.pods .head,
+    .board.pods .row {
+      grid-template-columns: 48px 26px minmax(0, 1fr) 150px 176px;
+    }
+    .board.pods .head > .c-pods {
+      display: block;
+    }
+    .board.pods .row {
+      grid-template-rows: auto;
+    }
+    .board.pods .row > .c-rank,
+    .board.pods .row > .marble,
+    .board.pods .row > .c-text,
+    .board.pods .row > .c-pods,
+    .board.pods .row > .c-score {
+      grid-area: auto;
+    }
   }
   .c-pods .mc {
-    font-size: 13.5px;
+    font-size: calc(13.5rem / 16);
     gap: 12px;
   }
   .c-rank {
-    font-size: 14px;
-    text-align: left;
+    font-size: calc(14rem / 16);
+    text-align: start;
   }
   .nm {
-    font-size: 15px;
+    font-size: calc(15rem / 16);
   }
   .sub {
-    font-size: 11.5px;
+    font-size: calc(11.5rem / 16);
   }
   .sub-m {
     display: none;
@@ -284,7 +334,7 @@
     display: block;
   }
   .c-score {
-    font-size: 17px;
+    font-size: calc(17rem / 16);
     justify-content: flex-end;
     gap: 11px;
   }
@@ -295,10 +345,6 @@
 
   .empty {
     padding: 46px 12px;
-    font-size: 14px;
-  }
-  .empty b {
-    font-size: 16px;
   }
   .skel {
     padding: 0 12px;
@@ -322,8 +368,7 @@
   .pid,
   .pstats,
   .pseason {
-    margin-left: 0;
-    margin-right: 0;
+    margin-inline: 0;
   }
   .pid {
     gap: 14px;
@@ -331,9 +376,6 @@
   .pid .marble {
     width: 64px;
     height: 64px;
-  }
-  .pid h1 {
-    font-size: 24px;
   }
   .pstats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -343,10 +385,10 @@
     padding: 12px 15px;
   }
   .pstat dd {
-    font-size: 20px;
+    font-size: calc(20rem / 16);
   }
   .pseason {
-    margin-bottom: 16px;
+    margin-block-end: 16px;
   }
   .ptier {
     grid-template-columns: 120px minmax(0, 1fr);
@@ -362,9 +404,16 @@
     min-height: 92px;
   }
   .ptabs,
-  .pws {
-    margin-left: 0;
-    margin-right: 0;
+  .pws,
+  .dt-legend,
+  .dt-months,
+  .dt-none {
+    margin-inline: 0;
+  }
+  /* a player's Daily months side by side */
+  .dt-months {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 22px;
   }
   .trophies {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -381,8 +430,7 @@
   }
   .mecard {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
-    margin-left: 0;
-    margin-right: 0;
+    margin-inline: 0;
   }
   .mecard .go {
     grid-column: auto;
@@ -392,21 +440,21 @@
   }
   .vsside {
     flex-direction: row;
-    text-align: left;
+    text-align: start;
   }
   .vsside.r {
     flex-direction: row-reverse;
-    text-align: right;
+    text-align: end;
   }
   .vsside .marble {
     width: 56px;
     height: 56px;
   }
   .vsside a {
-    font-size: 20px;
+    font-size: calc(20rem / 16);
   }
   .vshead .score {
-    font-size: 60px;
+    font-size: calc(60rem / 16);
   }
   .vside {
     flex-direction: row;
@@ -442,19 +490,18 @@
     padding: 9px 14px;
   }
   .plt .pr {
-    font-size: 15px;
+    font-size: calc(15rem / 16);
   }
+  /* the name gives way first where the table only just fits (a long name at 820px, with
+     room for the CI runner's wider fallback font) */
   .who {
-    max-width: 340px;
+    max-width: clamp(8em, 100vw - 43rem, 340px);
     gap: 12px;
   }
   .who .marble,
   .plpin .marble {
     width: 34px;
     height: 34px;
-  }
-  .ws-h1 {
-    font-size: 26px;
   }
   .car {
     grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
@@ -467,9 +514,6 @@
   .car-in {
     padding: 22px;
   }
-  .car-t {
-    font-size: 30px;
-  }
   .strip {
     grid-auto-columns: minmax(200px, 220px);
   }
@@ -479,26 +523,107 @@
   .app[data-view="map"] .main {
     grid-template-columns: 320px minmax(0, 1fr);
   }
+  /* the Daily: the calendar of months beside the day's panel, which stays put while the
+     page scrolls, like the rail; the strip is the phone's */
+  .app[data-view="daily"] .main {
+    grid-template-columns: 400px minmax(0, 1fr);
+  }
+  .app[data-view="daily"] .content {
+    grid-column: 2;
+  }
+  .app[data-view="daily"] .ds-switch {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  /* the standings are one column: the record cards three across over the medal table */
+  .app[data-view="daily"] .main.ds {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app[data-view="daily"] .main.ds .content {
+    grid-column: 1;
+  }
+  .ds-top,
+  .ds-cards,
+  .ds-table > .ds-h,
+  .ds-table > .dp-more {
+    padding: 0;
+    margin: 0;
+  }
+  .ds-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* three across, a card keeps its podium at its own width, as it did before the phone's
+     single shrinking column */
+  .ds-card {
+    grid-template-columns: none;
+  }
+  .ds-medals {
+    margin: 0;
+  }
+  .ds-medals th button {
+    min-width: 64px;
+  }
+  .ds-medals .ds-r {
+    width: 44px;
+    padding-left: 14px;
+  }
+  .ds-medals [data-medal="podiums"],
+  .ds-medals [data-medal="top10"] {
+    display: table-cell;
+  }
+  .dc-strip {
+    display: none;
+  }
+  .dc-side {
+    display: grid;
+    gap: 18px;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    /* room for the picked day's outline */
+    padding: 3px;
+  }
+  .dc-n {
+    font-size: calc(13rem / 16);
+  }
+  .dp-podium {
+    margin: 0;
+    padding: 18px 22px;
+  }
+  .dp-more {
+    margin: 0;
+  }
+  .dp-podhead h1 {
+    font-size: calc(30rem / 16);
+  }
+  .dp-steps {
+    max-width: 520px;
+    justify-self: center;
+    width: 100%;
+  }
   /* the panel stays put while the board scrolls past it, like the rail; if it is taller
      than the window it scrolls on its own */
   .mpanel {
     margin: 0;
     position: sticky;
-    top: 16px;
-    max-height: calc(100vh - 32px);
+    inset-block-start: 16px;
+    max-height: calc(100dvh - 32px);
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
   }
   /* with a pointer, a card's top three appear over its picture instead of the leader under it */
-  @media (hover: hover) {
+  @media (hover: hover) and (pointer: fine) {
     .mcard .lead {
       display: none;
     }
     .mcard .pod3 {
       display: grid;
       opacity: 0;
-      transition: opacity 0.2s ease;
+      transition: opacity 0.2s var(--ease-out);
     }
     .mcard:hover .pod3,
     .mcard:focus-visible .pod3 {
@@ -512,9 +637,8 @@
 
   footer {
     margin: 30px 0 0;
-    padding-top: 16px;
-    border-top: 1px solid var(--line2);
-    font-size: 12px;
+    padding-block-start: 16px;
+    border-block-start: 1px solid var(--line2);
     line-height: 1.6;
   }
 }

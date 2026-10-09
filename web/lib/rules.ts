@@ -3,6 +3,7 @@
 // them.
 
 export const SITE_TITLE = "Ballest of Them All";
+export const SITE_NAME = "ballestrecords.com";
 /* a page's title in the tab: its own name, then the site's (the layout's title template) */
 export const pageTitle = (title: string) => title + " · " + SITE_TITLE;
 
@@ -103,7 +104,7 @@ export function trackPoints(place: number) {
   return Math.floor((POINTS_FIRST * 9) / 100 / 2 ** k + (POINTS_FIRST * 5 ** k) / 10 / place);
 }
 
-/* A marble's colour, from the Steam ID: the leaderboard API doesn't say which ball a player raced */
+/* A marble's colour, from the Steam ID: the leaderboard API doesn't say which ball was raced */
 export function hueFor(seed: string) {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
@@ -136,10 +137,24 @@ export const CREATOR_BEAT_MARGIN_TICKS = 100;
    No creator margin here: the old page's tierOf showed a creator's own run its Medal as
    is, and only the collector's author_beaten count applied CREATOR_BEAT_MARGIN_TICKS. */
 export function medalOf(medals: ReadonlyArray<number>, rank: number, score: number): MedalKey {
-  if (rank === 1) return "wr";
-  const at = (i: number) => score <= (medals[i] ?? 0) * SCORE_TICKS_PER_SECOND;
+  return rank === 1 ? "wr" : timeMedal(medals, score);
+}
+
+/* the Medal a time earns by itself, with no world record: a Daily's board is the Map's
+   played for one day, so its 1st is no record of the Map's */
+export function timeMedal(medals: ReadonlyArray<number>, score: number): MedalKey {
+  const at = (i: number) => earns(medals, i, score);
   return at(3) ? "author" : at(2) ? "gold" : at(1) ? "silver" : at(0) ? "bronze" : "none";
 }
+
+/* a Medal's target in score ticks, from its index into [bronze, silver, gold, author] */
+export const medalTicks = (medals: ReadonlyArray<number>, i: number) =>
+  (medals[i] ?? 0) * SCORE_TICKS_PER_SECOND;
+
+/* whether a time earns the Medal at index i: on its target or under it. timeMedal and the
+   bar toward the next Medal (lib/standing.ts) both read it */
+export const earns = (medals: ReadonlyArray<number>, i: number, score: number) =>
+  score <= medalTicks(medals, i);
 
 /* where a run sits in its field. Inside the first percent it reads "top 0.1%" at worst:
    a rounded "top 0.0%" would claim a share that cannot exist. */
@@ -176,10 +191,18 @@ export const safeImg = (u: string | null | undefined) => (u?.startsWith("https:/
 /* the link out to a Steam profile, likewise only plain http(s) */
 export const safeUrl = (u: string | null | undefined) => (u && /^https?:\/\//i.test(u) ? u : "");
 
-/* each Medal's name, colour and index into a [bronze, silver, gold, author] list, best first */
+/* each Medal's name, colour, index into a [bronze, silver, gold, author] list, and key,
+   best first */
 export const MEDALS = [
-  ["Author", "var(--author)", 3],
-  ["Gold", "var(--gold)", 2],
-  ["Silver", "var(--silver)", 1],
-  ["Bronze", "var(--bronze)", 0],
+  ["Author", "var(--author)", 3, "author"],
+  ["Gold", "var(--gold)", 2, "gold"],
+  ["Silver", "var(--silver)", 1, "silver"],
+  ["Bronze", "var(--bronze)", 0, "bronze"],
 ] as const;
+/* the four Medals a time earns against its targets */
+export type TargetMedal = (typeof MEDALS)[number][3];
+/* each of them's colour, by key */
+export const MEDAL_COLOR = Object.fromEntries(MEDALS.map(([, c, , k]) => [k, c])) as Record<
+  TargetMedal,
+  string
+>;

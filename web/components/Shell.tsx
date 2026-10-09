@@ -1,5 +1,5 @@
-// Every page's frame: the header with the brand and when the boards were read, the tabs,
-// the page itself, and the footer. `view` is the .app's data-view, which the stylesheet
+// Every page's frame: the header with the brand, when the boards were read and You's card,
+// the tabs, the page itself, and the footer. `view` is the .app's data-view, which the stylesheet
 // keys each view's layout off.
 import Link from "next/link";
 import { Suspense } from "react";
@@ -7,22 +7,33 @@ import { Suspense } from "react";
 import { Freshness } from "./Freshness";
 import { GroupTabs, Tabs, type GroupTab } from "./GroupTabs";
 import { Rack } from "./Marble";
-import { getSite, getWorkshop } from "../db/data";
+import { YouCard } from "./YouCard";
+import { getDailyDates, getSite, getWorkshop } from "../db/data";
 import { groupsOf, overallOf } from "../lib/player";
-import { PLAYERS_TAB, WORKSHOP_GROUP, boardHref, homeHref, playersHref } from "../lib/routes";
+import {
+  DAILY_TAB,
+  PLAYERS_TAB,
+  WORKSHOP_GROUP,
+  boardHref,
+  dailyHref,
+  homeHref,
+  playersHref,
+} from "../lib/routes";
 import { SITE_TITLE } from "../lib/rules";
 
-export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "players";
+export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "players" | "daily";
 
-/* the Workshop is the homepage, so its tab leads; Players, over every board, comes last */
+/* the Workshop is the homepage, so its tab leads and the Daily, a Map a day, follows it;
+   Players, over every board, comes last */
 async function tabs(): Promise<Array<GroupTab>> {
-  const [site, maps] = await Promise.all([getSite(), getWorkshop()]);
+  const [site, maps, dailies] = await Promise.all([getSite(), getWorkshop(), getDailyDates()]);
   const seasons = groupsOf(site.boards).map((group) => {
     const open = overallOf(site.boards, group) ?? site.boards.find((b) => b.group === group);
     return { group, href: open ? boardHref(open.name) : homeHref() };
   });
   return [
     ...(maps.length ? [{ group: WORKSHOP_GROUP, href: homeHref() }] : []),
+    ...(dailies.length ? [{ group: DAILY_TAB, href: dailyHref() }] : []),
     ...seasons,
     { group: PLAYERS_TAB, href: playersHref("all", "wr") },
   ];
@@ -39,6 +50,7 @@ export async function Shell({ view, children }: { view: View; children: React.Re
         </Link>
         <p className="tagline">Circuit and Workshop leaderboards</p>
         <Freshness refreshedAt={site.refreshedAt} mapsReadBy={site.mapsReadBy} />
+        <YouCard />
       </header>
 
       <Suspense fallback={<Tabs tabs={list} on={null} />}>
@@ -55,6 +67,10 @@ export async function Shell({ view, children }: { view: View; children: React.Re
         <p>
           Marble colours are derived from each player&apos;s Steam ID. The leaderboard API
           doesn&apos;t expose the ball someone actually raced with.
+        </p>
+        <p>
+          Signing in with Steam keeps only your Steam ID, in a signed cookie on this browser, to
+          show where you stand. Sign out from your own page.
         </p>
       </footer>
     </div>

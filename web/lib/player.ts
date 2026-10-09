@@ -2,7 +2,7 @@
 // player page"): the board table is read here and nowhere below, so a player page, the
 // head to head and the score card are only markup over a PlayerRecord. matchup() is the
 // one place two records are paired up. Pure, so the server and the browser share it.
-import { COMPOSITE_BOARD, S1_CURRENT_BOARD } from "./circuit";
+import { COMPOSITE_BOARD, S1_CURRENT_BOARD, TRACKS } from "./circuit";
 import type { PlayerData, WorkshopMap } from "./rows";
 import {
   SCORE_TICKS_PER_SECOND,
@@ -10,6 +10,7 @@ import {
   isPoints,
   seasonTag,
   medalOf,
+  timeMedal,
   trackPoints,
   type MedalKey,
 } from "./rules";
@@ -32,7 +33,9 @@ export interface TrackTile {
   name: string;
   display: string;
   field: number;
-  finish: { rank: number; score: number; lead: number } | null;
+  /* earned: the Medal the time earned by the Track's in-game Medal times, as a Workshop
+     finish's, which a world record does not replace */
+  finish: { rank: number; score: number; lead: number; earned: MedalKey } | null;
   /* what the place pays toward the season's Overall */
   points: number;
 }
@@ -57,8 +60,18 @@ export interface WorkshopFinish {
   rank: number;
   score: number;
   gap: number;
+  /* what the row shows: a world record, else the Medal its time earned */
   medal: MedalKey;
+  /* the Medal the time earned by itself, which a world record does not replace */
+  earned: MedalKey;
   holder: Who;
+}
+
+/* whether a finish counts under one of the Workshop tab's Medal tiles. A world record is
+   its rank and a Medal is its time, counted apart: a record at the author time counts
+   under both, and a slower one under the Medal its time earned (CONTEXT.md, Medal) */
+export function countsUnder(f: WorkshopFinish, k: MedalKey) {
+  return k === "wr" ? f.rank === 1 : f.earned === k;
 }
 
 export interface MadeMap {
@@ -85,7 +98,10 @@ export interface PlayerRecord {
   workshop: {
     finishes: Array<WorkshopFinish>;
     medals: Record<MedalKey, number>;
-    maps: number;
+    /* every Map on the Workshop, finished or not: the "of N" in "242 of 1,245" */
+    mapsOnWorkshop: number;
+    /* the Maps this player has a time on: You's count in the header */
+    mapsFinished: number;
     podiums: number;
     near: number;
   };
@@ -137,11 +153,13 @@ export function playerRecord(
       score: f.score,
       gap: f.score - f.lead,
       medal: medalOf(m.medals, f.rank, f.score),
+      earned: timeMedal(m.medals, f.score),
       holder: { steamId: m.top3[0][0], persona: m.top3[0][1] },
     });
   }
-  const byMedal = Object.fromEntries(MEDAL_KEYS.map(([k]) => [k, 0])) as Record<MedalKey, number>;
-  for (const f of finishes) byMedal[f.medal]++;
+  const byMedal = Object.fromEntries(
+    MEDAL_KEYS.map(([k]) => [k, finishes.filter((f) => countsUnder(f, k)).length]),
+  ) as Record<MedalKey, number>;
   /* every Map they published, timed or not; one with no time has no board to link to */
   const timedNames = new Set(timed.map((m) => m.name));
   const made = maps
@@ -170,7 +188,14 @@ export function playerRecord(
         name: b.name,
         display: b.display,
         field: b.entryCount,
-        finish: f ? { rank: f.rank, score: f.score, lead: f.lead } : null,
+        finish: f
+          ? {
+              rank: f.rank,
+              score: f.score,
+              lead: f.lead,
+              earned: b.name in TRACKS ? timeMedal(TRACKS[b.name].medals, f.score) : "none",
+            }
+          : null,
         points: f ? trackPoints(f.rank) : 0,
       };
     });
@@ -226,7 +251,8 @@ export function playerRecord(
     workshop: {
       finishes,
       medals: byMedal,
-      maps: maps.length,
+      mapsOnWorkshop: maps.length,
+      mapsFinished: finishes.length,
       podiums: finishes.filter((f) => f.rank <= 3).length,
       near: finishes.filter((f) => f.rank > 1 && f.gap <= SCORE_TICKS_PER_SECOND).length,
     },

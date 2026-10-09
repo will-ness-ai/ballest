@@ -11,6 +11,8 @@ const config: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   skipTrailingSlashRedirect: true,
+  // the share images read their fonts and Track pictures from disk (components/share)
+  outputFileTracingIncludes: { "/og/**": ["./assets/share/**"] },
   rewrites() {
     return Promise.resolve({
       beforeFiles: [

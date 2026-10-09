@@ -1,44 +1,29 @@
 // How every run on a board spreads out, as a chart with the Medal cut-offs: a Circuit
-// Track's card and a Map's panel. No state, so the server draws it.
-import { MEDALS, SCORE_TICKS_PER_SECOND, fmtN, fmtSec, fmtTime, plural } from "../../lib/rules";
+// Track's card and a Map's panel. No state, so the server draws it; YouSpread draws it
+// again in the browser with You's run on it.
+import { MEDALS, fmtN, fmtSec, fmtTime, hueFor, medalTicks, plural } from "../../lib/rules";
+import { markOn, type SpreadChart } from "../../lib/spread";
 
-/* How every run on a board spreads out, with each Medal's cut-off drawn in. `ts` is the
-   run times in rank order, `medals` [bronze, silver, gold, author] in seconds. On a Map's
-   panel the slowest twentieth is left off the right edge, or one abandoned run would
-   squash the rest into a single bar. `wide` is a Circuit track's header card: the chart
-   runs to just past Bronze and each line carries its Medal's name and time, staggered
-   over two rows so neighbouring labels don't collide. */
-export function Spread({
-  ts,
-  medals,
-  wide,
-}: {
-  ts: ReadonlyArray<number>;
-  medals: ReadonlyArray<number>;
-  wide: boolean;
-}) {
-  if (ts.length < 2)
-    return <p className="sp-cap">{ts.length ? "One run so far." : "No runs yet."}</p>;
-  const lo = ts[0];
-  const cut = wide
-    ? medals[0] * 1.08 * SCORE_TICKS_PER_SECOND
-    : ts[Math.min(ts.length - 1, Math.floor(ts.length * 0.95))];
-  const hi = Math.max(cut, lo + 1);
-  const N = wide ? 44 : 24,
-    bins = new Array<number>(N).fill(0);
-  let over = 0;
-  for (const t of ts) {
-    if (t > hi) {
-      over++;
-      continue;
-    }
-    bins[Math.min(N - 1, Math.floor(((t - lo) / (hi - lo)) * N))]++;
-  }
+/* You's run on the chart: your score, and your Steam ID for your marble's hue */
+export interface SpreadYou {
+  score: number;
+  id: string;
+}
+
+/* `chart` is every run's spread (spreadOf). A wide chart is a Circuit track's header card:
+   each line carries its Medal's name and time, staggered over two rows so neighbouring
+   labels don't collide. `you` adds your time as a line in your marble's hue, held at the
+   right edge with an arrow when it is past it. */
+export function Spread({ chart, you = null }: { chart: SpreadChart; you?: SpreadYou | null }) {
+  const { medals, wide } = chart;
+  const s = chart.scale;
+  if (!s) return <p className="sp-cap">{chart.runs ? "One run so far." : "No runs yet."}</p>;
+  const { lo, hi, bins, over } = s;
   const W = wide ? 560 : 320,
     H = wide ? 132 : 118,
     top = wide ? 30 : 16,
     base = H - 22,
-    bw = W / N,
+    bw = W / bins.length,
     max = Math.max(...bins);
   const x = (t: number) => (((t - lo) / (hi - lo)) * W).toFixed(1);
   return (
@@ -47,7 +32,7 @@ export function Spread({
         className="spread"
         viewBox={`-8 -8 ${String(W + 16)} ${String(H + 8)}`}
         role="img"
-        aria-label={`How all ${String(ts.length)} run times spread out, with the medal cut-offs`}
+        aria-label={`How all ${String(chart.runs)} run times spread out, with the medal cut-offs${you ? " and your time" : ""}`}
       >
         <line className="sp-axis" x1="0" x2={W} y1={base} y2={base} />
         {bins.map((n, i) =>
@@ -64,7 +49,7 @@ export function Spread({
           ) : null,
         )}
         {MEDALS.map(([name, c, i], k) => {
-          const t = medals[i] * SCORE_TICKS_PER_SECOND;
+          const t = medalTicks(medals, i);
           if (t < lo || t > hi) return null;
           const at = +x(t),
             anchor = !wide ? "middle" : at < 40 ? "start" : at > W - 40 ? "end" : "middle";
@@ -91,6 +76,7 @@ export function Spread({
             </g>
           );
         })}
+        {you && <YouLine you={you} s={s} W={W} top={top} base={base} />}
         <text className="sp-lbl" x="0" y={H - 6}>
           {fmtTime(lo)} record
         </text>
@@ -99,9 +85,44 @@ export function Spread({
         </text>
       </svg>
       <p className="sp-cap">
-        {plural(ts.length, "run", "runs")}
+        {plural(chart.runs, "run", "runs")}
         {over ? `; the slowest ${fmtN(over)} are off the right edge` : ""}.
       </p>
     </>
+  );
+}
+
+/* your run: a line with a dot on top and "You" beside it, on the side with room */
+function YouLine({
+  you,
+  s,
+  W,
+  top,
+  base,
+}: {
+  you: SpreadYou;
+  s: { lo: number; hi: number };
+  W: number;
+  top: number;
+  base: number;
+}) {
+  const { at, past } = markOn(s, you.score);
+  const ax = (at * W).toFixed(1);
+  const right = at * W < W - 50;
+  const c = { "--h": hueFor(you.id) } as React.CSSProperties;
+  return (
+    <g className="sp-you" style={c}>
+      <line x1={ax} x2={ax} y1={top - 4} y2={base} strokeWidth="2.5" />
+      <circle cx={ax} cy={top - 4} r="3.5" />
+      <text
+        x={(at * W + (right ? 5 : -5)).toFixed(1)}
+        y={top + 4}
+        fontSize="10.5"
+        fontWeight="700"
+        textAnchor={right ? "start" : "end"}
+      >
+        {past ? "You →" : "You"}
+      </text>
+    </g>
   );
 }

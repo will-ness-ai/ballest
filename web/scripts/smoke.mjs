@@ -1,6 +1,6 @@
 // Requests every route the app serves and every static file the pages load from a running
-// build seeded with the tiny dataset (pnpm db:seed tiny), so a broken page or a site file
-// SITE in sync-site.mjs leaves out fails here rather than in production. Prints only
+// build seeded with the tiny dataset (or stress, which holds all of tiny), so a broken page or
+// a site file SITE in sync-site.mjs leaves out fails here rather than in production. Prints only
 // failures and a summary line.
 //
 //   pnpm db:seed tiny && pnpm build && pnpm start &   then   node scripts/smoke.mjs [base URL]
@@ -40,6 +40,7 @@ const ROUTES = [
   ["/player/" + P1 + "/circuit", 200],
   ["/player/" + P1 + "/workshop", 200],
   ["/player/" + P1 + "/made", 200],
+  ["/player/" + P1 + "/daily", 200, null, "Days in a row"],
   ["/player/" + P1 + "/nope", 404],
   ["/player/nope", 404],
   ["/vs/" + P1 + "/" + P2, 200, null, "Rolling Rae"],
@@ -53,9 +54,41 @@ const ROUTES = [
   ["/players/circuit/maps", 307, "/players/circuit/wr"],
   ["/players/workshop", 307, "/players/workshop/wr"],
   ["/players/nope/wr", 404],
+  ["/daily", 200, null, "Fresh Fields"],
+  ["/daily/2026-08-30", 200, null, "Justy Sparks"],
+  // another day's title is only in the calendar
+  ["/daily/2026-08-29", 200, null, "Fresh Fields"],
+  ["/daily/2026-07-01", 200, null, "NEXT_REDIRECT;replace;/daily;"],
+  // p2 holds the most podiums; a name links to the player's Daily tab
+  ["/daily/standings", 200, null, "Justy Sparks"],
+  ["/daily/standings/x", 404],
+  ["/daily/not-a-date", 404],
+  ["/daily/2026-02-30", 404],
+  ["/daily/2026-08-30/" + P1, 404],
   ["/api/board/Map_Track13?from=0&count=2", 200],
   ["/api/board/Map_Track13?q=rae", 200],
   ["/api/board/Workshop_123?from=0", 404],
+  // share images (lib/share.ts): a PNG for a page that exists, a 404 for one that doesn't,
+  // and the pages naming theirs
+  ["/og/player/" + P1, 200, null, "PNG"],
+  ["/og/player/76561199000000099", 404],
+  ["/og/map/" + MAP, 200, null, "PNG"],
+  ["/og/map/1", 404],
+  ["/og/track/Map_Track13", 200, null, "PNG"],
+  ["/og/track/Map_Nope", 404],
+  ["/og/track/OverallLeaderboard_EASeason2", 404],
+  ["/og/daily/2026-08-30", 200, null, "PNG"],
+  ["/og/daily/2026-07-01", 404],
+  ["/og/nope/1", 404],
+  [
+    "/player/" + P1 + "/circuit",
+    200,
+    null,
+    '<meta property="og:image" content="https://ballestrecords.com/og/player/' + P1 + "?v=",
+  ],
+  ["/map/" + MAP, 200, null, "/og/map/" + MAP + "?v="],
+  ["/board/Map_Track13", 200, null, "/og/track/Map_Track13?v="],
+  ["/daily", 200, null, "/og/daily/"],
   ["/leth", 301, "/leth/"],
   ["/leth/", 200],
   ["/multiballs/terms", 200],

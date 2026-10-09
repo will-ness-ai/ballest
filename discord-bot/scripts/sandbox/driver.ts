@@ -193,6 +193,14 @@ export const makeDriver = (opts: {
               200,
               await run(setTime(String(input.matchId), String(input.as), Number(input.seconds))),
             );
+          if (req.method === "POST" && req.url === "/steam") {
+            const down = input.down === true;
+            // Every read fails while down, as when Steam stops answering; up clears it.
+            await run(opts.steam.failNextReads(down ? Number.MAX_SAFE_INTEGER : 0));
+            return send(res, 200, {
+              ok: down ? "fake Steam is down: every read fails" : "fake Steam is up again",
+            });
+          }
           return send(res, 404, { error: `no route ${req.method} ${req.url}` });
         } catch (e) {
           return send(res, 500, { error: e instanceof Error ? e.message : String(e) });

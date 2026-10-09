@@ -1,8 +1,10 @@
 """The collector's database writer (db_writer.write_refresh), driven with Refreshes as the
 collector holds them, and read back the way a reader of Score history would."""
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
+import daily
 import db_writer
 import psycopg
 import pytest
@@ -286,3 +288,145 @@ def test_map_history_appends_only_on_change(conn):
         ("Jungle islands", 9, r3, r3),
         ("Jungle isles", 9, r4, r4),
     ]
+
+
+# Dailies (tools/daily.py): each its own board, read until a read after its close.
+
+DAY = daily.Daily(
+    date="2026-10-06",
+    board="ballest_v0_3812794783_Daily_20261006_0a1b2c3d",
+    leaderboard_id="20900006",
+    pfid=PFID,
+    title="Jungle islands",
+    starts_at=datetime(2026, 10, 6, 1, tzinfo=UTC),
+    ends_at=datetime(2026, 10, 7, 1, tzinfo=UTC),
+)
+
+
+def daily_read(read_at, *pairs, failed=False, of=DAY):
+    return daily.DailyRead(daily=of, rows=None if failed else rows(*pairs), read_at=read_at)
+
+
+def dailies(conn):
+    return conn.execute(
+        "select date::text, board, pfid, title, starts_at, ends_at, final_refresh from dailies"
+        " order by date"
+    ).fetchall()
+
+
+def test_a_refresh_carrying_a_daily_writes_its_board_daily_read_and_entries(conn):
+    live = DAY.starts_at + timedelta(hours=5)
+    r1 = db_writer.write_refresh(
+        conn, refresh(0, [], dailies=[daily_read(live, ("1001", 2931805), ("1002", 3073137))])
+    )
+    assert conn.execute(
+        "select kind, display, leaderboard_id, scores_points from boards where name = %s",
+        (DAY.board,),
+    ).fetchone() == ("daily", "Jungle islands", 20900006, False)
+    assert dailies(conn) == [
+        ("2026-10-06", DAY.board, PFID, "Jungle islands", DAY.starts_at, DAY.ends_at, None)
+    ]
+    assert reads(conn, r1) == {DAY.board: True}
+    assert history(conn, DAY.board, "1002") == [(3073137, r1, r1, None)]
+
+
+def final_refresh(conn):
+    (rid,) = conn.execute(
+        "select final_refresh from dailies where date = %s", (DAY.date,)
+    ).fetchone()
+    return rid
+
+
+def test_only_a_read_at_or_after_the_close_makes_a_daily_final(conn):
+    just_before = DAY.ends_at - timedelta(minutes=1)
+    db_writer.write_refresh(
+        conn, refresh(0, [], dailies=[daily_read(just_before, ("1001", 2931805))])
+    )
+    assert final_refresh(conn) is None
+    r2 = db_writer.write_refresh(
+        conn, refresh(1, [], dailies=[daily_read(DAY.ends_at, ("1001", 2931805))])
+    )
+    assert final_refresh(conn) == r2
+    # a later read, had one been made, never moves it
+    later = DAY.ends_at + timedelta(hours=3)
+    db_writer.write_refresh(conn, refresh(2, [], dailies=[daily_read(later, ("1001", 2931805))]))
+    assert final_refresh(conn) == r2
+
+
+def test_a_failed_or_empty_daily_read_moves_nothing_and_never_makes_it_final(conn):
+    live = DAY.starts_at + timedelta(hours=5)
+    r1 = db_writer.write_refresh(
+        conn, refresh(0, [], dailies=[daily_read(live, ("1001", 2931805), ("1002", 3073137))])
+    )
+    r2 = db_writer.write_refresh(
+        conn, refresh(1, [], dailies=[daily_read(DAY.ends_at, failed=True)])
+    )
+    r3 = db_writer.write_refresh(conn, refresh(2, [], dailies=[daily_read(DAY.ends_at)]))
+    assert reads(conn, r2) == {DAY.board: False}
+    assert reads(conn, r3) == {DAY.board: False}
+    assert open_entries(conn, DAY.board) == {"1001": 2931805, "1002": 3073137}
+    assert history(conn, DAY.board, "1001") == [(2931805, r1, r1, None)]
+    assert final_refresh(conn) is None
+
+
+def test_a_better_daily_time_closes_the_old_entry_and_opens_a_new_one(conn):
+    live = DAY.starts_at + timedelta(hours=5)
+    r1 = db_writer.write_refresh(
+        conn, refresh(0, [], dailies=[daily_read(live, ("1001", 2931805))])
+    )
+    r2 = db_writer.write_refresh(
+        conn, refresh(1, [], dailies=[daily_read(live + timedelta(hours=3), ("1001", 2800000))])
+    )
+    assert history(conn, DAY.board, "1001") == [(2931805, r1, r1, r2), (2800000, r2, r2, None)]
+
+
+def test_the_dailies_written_are_the_ones_the_next_run_knows(conn):
+    other = daily.Daily(
+        date="2026-10-07",
+        board="ballest_v0_1_Daily_20261007_0",
+        leaderboard_id="20900007",
+        pfid="1",
+        title="Next",
+        starts_at=DAY.ends_at,
+        ends_at=DAY.ends_at + timedelta(days=1),
+    )
+    live = other.starts_at + timedelta(hours=1)
+    db_writer.write_refresh(
+        conn,
+        refresh(
+            0,
+            [],
+            dailies=[daily_read(live, ("1001", 2931805)), daily_read(live, ("1001", 1), of=other)],
+        ),
+    )
+    known = db_writer.known_dailies(conn)
+    assert known == {DAY.date: replace(DAY, final=True), other.date: other}
+
+
+def test_a_daily_leaves_the_maps_and_tracks_read_beside_it_alone(conn):
+    live = DAY.starts_at + timedelta(hours=5)
+    r1 = db_writer.write_refresh(
+        conn,
+        refresh(
+            0,
+            [board(TRACK, ("1001", 1013307))],
+            workshop=ws(a_map(), rows(("1001", 3100000), ("1002", 3073137))),
+            dailies=[daily_read(live, ("1001", 2931805))],
+        ),
+    )
+    # the Daily is played on the Map, but its board and times are its own
+    assert open_entries(conn, MAP) == {"1001": 3100000, "1002": 3073137}
+    assert open_entries(conn, DAY.board) == {"1001": 2931805}
+    r2 = db_writer.write_refresh(
+        conn,
+        refresh(
+            1,
+            [board(TRACK, ("1001", 1013307))],
+            workshop=ws(a_map()),
+            dailies=[daily_read(DAY.ends_at, ("1003", 2700000))],
+        ),
+    )
+    assert reads(conn, r2) == {TRACK: True, DAY.board: True}
+    assert history(conn, MAP, "1001") == [(3100000, r1, r1, None)]
+    assert history(conn, TRACK, "1001") == [(1013307, r1, r2, None)]
+    assert open_entries(conn, DAY.board) == {"1003": 2700000}

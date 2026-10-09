@@ -73,12 +73,19 @@ Postgres on Neon, written alongside the JSON, and what the site reads. It holds 
 what Steam reports, as Score history: no ranks and no derived boards. The schema is
 `web/db/schema.ts` (Drizzle), and its migrations in `web/db/migrations/` are generated from
 it with `pnpm db:generate` and applied by `pnpm db:migrate`, which `pnpm build` runs first,
-so each Vercel deploy migrates the branch it reads. Never edit a migration by hand.
+so each Vercel deploy migrates the database it reads. Never edit a migration by hand. A
+preview reads production for now (below), so its build skips the migration: a branch's
+schema reaches production only when it merges, and its preview fails on any page that
+needs the new tables.
+
+The database sits in a Neon organization that Vercel manages, not in anyone's own Neon
+account, so it opens from Vercel: the `ballest` project's Storage tab, the database, then
+Open in Neon.
 
 - `refreshes`: one per collector Refresh, or per git snapshot replayed by the backfill
   (`source`, and `commit_sha` for a backfill).
-- `boards`: every Steam board, Tracks, Overall boards and each Map's, with its kind,
-  Season, display name, leaderboard ID and whether it scores points.
+- `boards`: every Steam board, Tracks, Overall boards, each Map's and each Daily's, with
+  its kind, Season, display name, leaderboard ID and whether it scores points.
 - `board_reads`: which boards each Refresh read and whether the read succeeded. A Map not
   read in a Refresh has no row, and that says nothing about play.
 - `players` and `persona_history`: the current profile, and every persona with the first
@@ -93,6 +100,35 @@ so each Vercel deploy migrates the branch it reads. Never edit a migration by ha
 - `maps` and `map_history`: what a Map never changes (its board, creator, created time),
   and a row per change of its title, creator name, preview, Medals, sessions,
   subscriptions or entry count.
+- `dailies`: one per Daily (`CONTEXT.md`), by date: its board (`kind = 'daily'`, named
+  exactly as the developers' API returns it), the Map's pfid (no foreign key: a Map can
+  leave the Workshop) and title, its window (`starts_at`, `ends_at`), and
+  `final_refresh`, the first Refresh that read the board ok at or after `ends_at`.
+
+### Dailies are database-only
+
+A Daily gets no file under `data/` and no `git add` line: the site reads only the
+database, and phase 5 of `docs/nextjs-migration.md` stops the JSON anyway. So where the
+rest of the write path takes what the JSON guards decided, a Daily has its own rule: a
+failed or empty read is a `board_reads` row with `ok = false`, and its Entries stay as they
+were. `check_db.py` leaves Daily boards out, since there is no file to compare.
+
+The Daily step (`collect_dailies` in `tools/steampy_collect.py`) runs after the Workshop
+step and never blocks it or the Circuit. Without `BALLEST_API_KEY` and
+`BALLEST_DAILY_URL` (GitHub secrets, given to the collector step only; the URL is a prefix
+the collector appends the date to), or without a
+database to write to, it is skipped with a log line. It loads the Dailies the database
+holds (`db_writer.load_dailies`), and `daily.plan` picks every date since the first Daily
+(2026-08-20) with no final Daily: one the database doesn't hold is looked up in the API
+(one call a second at most, well under the API's limit; a date with no Daily, or a failed call, is
+tried again next run), and one that has opened is read by its `leaderboard_id` through
+`fetch_board`, the ones it holds before the ones it looked up. So the first run catches
+up on every Daily, and later runs read today's, plus yesterday's until a read after its
+close makes it final. The step stops at `daily.BUDGET` (five minutes) with what it has
+read (`daily.collect`), abandoning a call still going, so a slow API or board read never
+holds up the Circuit and Workshop write; the rest waits for the next run. Nothing assumes a window:
+they ran 00:00 to 00:00 UTC through 2026-09-04, 25 hours on 09-05, and 01:00 to 01:00
+since. The collector never prints the key or the URL.
 
 ### How a Refresh gets there
 
@@ -121,6 +157,9 @@ rows loaded by COPY into temp tables and each step one statement, since a Refres
 5. `maps` upserted, and `map_history` appended when the title, creator name, preview,
    Medals, sessions, subscriptions or entry count differ from the latest row. Sessions and
    subscriptions are the ones `workshop.json` stores, as of each Map's last board read.
+6. Each Daily the Daily step read: its board and `dailies` row upserted, a `board_reads`
+   row (ok unless the read failed or came back empty), and its Entries as in step 4.
+   `final_refresh` is set by the first ok read at or after `ends_at`, and never moves.
 
 Which database: `DATABASE_URL`, and the step is skipped with a log line without it. With
 `--out`, only `DEV_DATABASE_URL` (a local Postgres for now). A failure is logged as a
@@ -134,7 +173,7 @@ step when the `DATABASE_URL` secret is set. Every Circuit board file in `BOARDS`
 Map file `workshop.json` lists must equal the database's open Entries on that board, as
 (steam_id, score) pairs, and a stored board with open Entries must have a file. A Map gone
 from the Workshop loses its file while its Entries stay open, since nothing reads it again,
-so it is reported but is not drift.
+so it is reported but is not drift. Daily boards are left out: they have no file.
 
 `tools/db_backfill.py` replays every commit on the first-parent line that touched
 `data/boards`, `data/workshop` or `data/workshop.json`, oldest first, through
@@ -157,7 +196,8 @@ The app reads the database only through `web/db/data.ts`, whose functions are
 `"use cache: remote"` (shared by every server instance), tagged `data`, with the `max` lifetime: what every page's frame needs
 (`getSite`: when the boards were read, every Circuit board's count, the podium tallies), the
 Workshop's Maps with their figures (`getWorkshop`), a slice of a board (`getBoardPage`), a
-player's record (`getPlayer`) and the Players counts (`getStandings`). Searches
+player's record (`getPlayer`) and the Players counts (`getStandings`), and one Daily by its date (`getDaily`, checked against
+`getDailyDates` first), whose board is read like any other. Searches
 (`searchBoard`, `searchPlayers`) are read fresh. The queries are in `web/db/site.ts`, built on
 the ranked boards in `web/db/boards.ts`, and tested against `tiny` (`web/test/site.test.ts`).
 Cached values are JSON, so times come back as ISO strings.
@@ -179,11 +219,14 @@ it once a Refresh has committed.
 ### Seeding a branch
 
 `pnpm db:seed <dataset>` in `web/` empties every table of the database at `DATABASE_URL`
-and writes a named dataset, in one transaction. The database must already be migrated: a
-preview's deploy migrates its branch, and locally `pnpm db:migrate` does. Run it with no
-name, or a wrong one, to list the datasets. `empty` has no rows; `tiny` has a Track, an
-Overall board, two Maps, ten players and three Refreshes of Score history, and is also the
-fixture the read layer's tests run against.
+and writes a named dataset, in one transaction. The database must already be migrated,
+locally by `pnpm db:migrate`. Run it with no
+name, or a wrong one, to list the datasets. `empty` has no rows; `tiny` has two Tracks, an
+Overall board, three Maps, four Dailies (three final, one live with a failed read), ten
+players and three Refreshes of Score history, and is also the fixture the read layer's
+tests run against. `stress` is tiny plus what strains a layout: 12,000 more players on the
+Overall board, so the last one, who has a long name, ranks in five digits, and a Map with a
+long title; `pnpm qa` and CI's layout check run on it (`docs/site.md`).
 
 It refuses production three ways: when `VERCEL_ENV` is `production`; when the URL's Neon
 endpoint ID (the host's first label, without `-pooler`) is `PRODUCTION_DB_ENDPOINT`, which
@@ -192,10 +235,12 @@ unset, for any host but localhost unless `--i-know-this-is-not-production` is pa
 
 - **Locally**, use a local Postgres: `DATABASE_URL=postgres://postgres:postgres@localhost:5432/<db>`.
   Never `vercel env pull`: Vercel's Development variables point at production.
-- **A preview branch**: Neon gives a git branch's preview deploys their own database
-  branch, `preview/<git-branch>`, copied from production on the first deploy and reused by
-  later ones, so a seed stays until that branch is deleted. Copy its connection string
-  from the Neon console, then from `web/`:
+- **A preview branch**: not yet. Previews read production (found on PR #152, 2026-10-08):
+  the Neon integration gives them no branch of their own, and the seed refuses production.
+  Once branching per preview is turned on in the integration, a git branch's preview deploys
+  get `preview/<git-branch>`, copied from production on the first deploy and reused by later
+  ones, so a seed stays until that branch is deleted. Copy its connection string from the
+  Neon console, then from `web/`:
   `PRODUCTION_DB_ENDPOINT=<production endpoint ID> DATABASE_URL='<preview branch URL>' pnpm db:seed tiny`.
   The preview shows the seeded rows once its cached reads are revalidated, by a
   `POST /api/revalidate` to it with the secret. A new deploy may not be: the Data Cache

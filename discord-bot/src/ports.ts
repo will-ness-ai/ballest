@@ -89,6 +89,8 @@ export interface CardView {
   readonly expiresAt: number | null;
   /** Shown as a live Discord timestamp while the Match is live. */
   readonly endsAt: number | null;
+  /** Time is up and the Result is waiting for Steam: no buttons, and the Card says so. */
+  readonly waitingForSteam: boolean;
 }
 
 /** A Match as its Card shows it: the Map stays sealed while the Invite is open. */
@@ -104,6 +106,7 @@ export const cardView = (m: Match): CardView => ({
   standings: standings(m),
   expiresAt: m.state === "invite" ? expiresAt(m) : null,
   endsAt: m.state === "live" ? m.endsAt : null,
+  waitingForSteam: m.state === "live" && m.waitingForSteam,
 });
 
 export interface Improvement {
@@ -148,7 +151,15 @@ export type ThreadPost = Data.TaggedEnum<{
   };
   /** After the Result: every PB of the Match over time, for the progression graph. */
   Progression: { readonly card: CardView; readonly history: ReadonlyArray<PbEvent> };
-  Result: { readonly standings: ReadonlyArray<Standing>; readonly card: CardView };
+  /** `steamDown`: the end read never came back, so the times are the last ones polled. */
+  Result: {
+    readonly standings: ReadonlyArray<Standing>;
+    readonly card: CardView;
+    readonly steamDown: boolean;
+  };
+  /** Time is up but Steam isn't answering the end read, so the Result waits for it. */
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- a variant with no fields, as Data.TaggedEnum spells it
+  WaitingForSteam: {};
   /** No Map is eligible, so the Invite is cancelled; everyone in it is told. */
   NoMap: { readonly players: ReadonlyArray<Player> };
   /** Every Player left the live Match before anyone set a time, so it is cancelled. */

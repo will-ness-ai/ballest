@@ -11,7 +11,6 @@ import { BoardBody } from "../board/BoardBody";
 import { HistoryCard } from "../board/HistoryCard";
 import { MapImage } from "../MapImage";
 import { ScorePlates } from "../board/BoardTop";
-import { Spread } from "../board/Spread";
 import {
   getBoardHistory,
   getBoardPage,
@@ -19,9 +18,13 @@ import {
   getBoardScores,
   getSite,
 } from "../../db/data";
+import { YouBanner } from "../board/YouBanner";
+import { YouMarks } from "../board/YouMarks";
+import { YouSpread } from "../board/YouSpread";
 import type { WorkshopMap } from "../../lib/rows";
 import { homeHref, mapHref } from "../../lib/routes";
 import { BOARD_CHUNK, MEDALS, fmtN, fmtSec, fmtTime, isSteamId } from "../../lib/rules";
+import { spreadOf } from "../../lib/spread";
 import { HIDDEN, reportHref } from "../../lib/workshop";
 
 function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; asOf: number }) {
@@ -71,7 +74,7 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
       <div className="mp-chart">
         <span className="eyebrow">Every run</span>
         <div id="spread">
-          <Spread ts={scores} medals={m.medals} wide={false} />
+          <YouSpread name={m.name} chart={spreadOf(scores, m.medals, false)} />
         </div>
       </div>
       <a
@@ -111,6 +114,8 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
       <DocTitle title={m.title} />
       <MapPanel m={m} scores={scores} asOf={site.asOf} />
       <section className="content">
+        <YouMarks name={name} />
+        <YouBanner name={name} field={page.total} medals={m.medals} />
         <BoardBody
           order="score"
           name={name}

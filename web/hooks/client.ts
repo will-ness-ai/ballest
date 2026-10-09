@@ -2,6 +2,8 @@
 // Small hooks the client components share.
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { isLive } from "../lib/daily";
+
 /* a useSyncExternalStore subscription for a value that never changes once the page runs:
    its server snapshot shows until hydration is done, then the browser's */
 export const never = () => () => undefined;
@@ -33,6 +35,33 @@ export const useNow = () =>
     () => now || (now = Date.now()),
     () => null,
   );
+
+/* useNow, but with a timer at `at` (an ISO time) as well, so what changes there (a
+   Daily's close) changes on time rather than at the next minute */
+export function useNowPast(at: string) {
+  const now = useNow();
+  /* the `at` whose timer has gone off */
+  const [passed, setPassed] = useState<string | null>(null);
+  useEffect(() => {
+    const ms = Date.parse(at) - Date.now();
+    if (!(ms > 0 && ms < 2 ** 31)) return;
+    const t = setTimeout(() => {
+      setPassed(at);
+    }, ms);
+    return () => {
+      clearTimeout(t);
+    };
+  }, [at]);
+  return now != null && passed === at ? Math.max(now, Date.parse(at)) : now;
+}
+
+/* A Daily's clock: the time (useNowPast, so it moves on each minute and at the close
+   itself) and whether the Daily is live by it (isLive). A page rendered before the close
+   flips to Final at it without a reload. */
+export function useDailyClock(d: { endsAt: string; final: boolean }) {
+  const now = useNowPast(d.endsAt);
+  return { now, live: isLive(d, now) };
+}
 
 /* The time an age is counted to: the browser's clock once the page runs, and until then
    `asOf` (when the data was read), so the server render and hydration agree. */

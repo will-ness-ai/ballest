@@ -43,8 +43,12 @@ jobs:
         env:
           STEAM_REFRESH_TOKEN: ${{ secrets.STEAM_REFRESH_TOKEN }}
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+          # the developers' API, which names each Daily's board; this step only, and the
+          # collector never prints either (tools/daily.py)
+          BALLEST_API_KEY: ${{ secrets.BALLEST_API_KEY }}
+          BALLEST_DAILY_URL: ${{ secrets.BALLEST_DAILY_URL }}
           # after the database commit, the collector asks the site to refetch its cached reads
-          SITE_URL: https://ballest.willness.dev
+          SITE_URL: https://ballestrecords.com
           REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
         run: python tools/steampy_collect.py
 

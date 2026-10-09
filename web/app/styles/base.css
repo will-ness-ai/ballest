@@ -16,40 +16,51 @@
    ========================================================================== */
 
 :root {
-  --bg: #0a1020;
-  --surface: rgba(255, 255, 255, 0.05);
-  --surface2: rgba(255, 255, 255, 0.09);
-  --solid: #111a2c;
-  --line: rgba(150, 175, 245, 0.18);
-  --line2: rgba(255, 255, 255, 0.055);
-  --text: #eaf0ff;
-  --dim: #93a2c8;
-  --faint: #63719a;
-  --accent: #8be03c;
-  --accent-ink: #0d2000;
-  --accent-soft: rgba(139, 224, 60, 0.14);
-  --gold: #ffd447;
-  --silver: #d3dcea;
-  --bronze: #ef9a52;
-  --author: #5fd4ff;
-  --gold-soft: rgba(255, 212, 71, 0.1);
-  --silver-soft: rgba(211, 220, 234, 0.08);
-  --bronze-soft: rgba(239, 154, 82, 0.1);
-  --author-soft: rgba(95, 212, 255, 0.13);
-  --none: #3a4566;
-  --ribbon: #c9485a;
-  --ribbon2: #4a6fd0;
-  --warn: #ffb347;
-  --warn-soft: rgba(255, 179, 71, 0.1);
-  --a: #ff7a8a;
-  --a-soft: rgba(255, 122, 138, 0.13);
-  --b: #5fd4ff;
-  --b-soft: rgba(95, 212, 255, 0.12);
-  --glow-blue: rgba(88, 168, 255, 0.16);
-  --glow-lime: rgba(139, 224, 60, 0.1);
-  --scrim: rgba(4, 7, 14, 0.66);
+  /* motion: things ease out, and the marble's face overshoots a little as it pops up.
+     Anything that moves, or loops, does so only under prefers-reduced-motion:
+     no-preference; a one-off fade is for everyone */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-pop: cubic-bezier(0.2, 0.85, 0.3, 1.35);
+  --bg: oklch(17.65% 0.0346 267.28);
+  --surface: oklch(100% 0 none / 0.05);
+  --surface2: oklch(100% 0 none / 0.09);
+  --solid: oklch(21.9% 0.038 263.34);
+  --line: oklch(76.19% 0.1048 268.77 / 0.18);
+  --line2: oklch(100% 0 none / 0.055);
+  --text: oklch(95.5% 0.0212 268.43);
+  --dim: oklch(71.39% 0.0582 268.06);
+  --faint: oklch(55.35% 0.0663 269.62);
+  --accent: oklch(82.22% 0.2085 133.37);
+  --accent-ink: oklch(21.86% 0.0626 133.89);
+  /* the old brightness(1.08) of --accent: brighter and more saturated than a mix with white */
+  --accent-hover: oklch(87.13% 0.2216 133.43);
+  --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+  --gold: oklch(88.34% 0.1583 91.38);
+  --silver: oklch(89.18% 0.0215 259.19);
+  --bronze: oklch(75.87% 0.1343 58.89);
+  --author: oklch(81.94% 0.1207 225.44);
+  --gold-soft: color-mix(in oklch, var(--gold) 10%, transparent);
+  --silver-soft: color-mix(in oklch, var(--silver) 8%, transparent);
+  --bronze-soft: color-mix(in oklch, var(--bronze) 10%, transparent);
+  --author-soft: color-mix(in oklch, var(--author) 13%, transparent);
+  --none: oklch(39.57% 0.0579 269.53);
+  --ribbon: oklch(58.29% 0.1636 15.57);
+  --ribbon2: oklch(56.43% 0.1553 265.91);
+  --warn: oklch(82.08% 0.1486 72.1);
+  --warn-soft: color-mix(in oklch, var(--warn) 10%, transparent);
+  --a: oklch(73.81% 0.1621 14.45);
+  --a-soft: color-mix(in oklch, var(--a) 13%, transparent);
+  --b: oklch(81.94% 0.1207 225.44);
+  --b-soft: color-mix(in oklch, var(--b) 12%, transparent);
+  --glow-blue: oklch(71.96% 0.1499 252.32 / 0.16);
+  --glow-lime: color-mix(in oklch, var(--accent) 10%, transparent);
+  --scrim: oklch(12.81% 0.0181 260.7 / 0.66);
   --radius: 11px;
-  --pad: 16px;
+  /* 0 on a 390px phone, rising to 1rem at desktop.css's breakpoint (820px at the default
+     text size) and staying there: a size that grows from phone to desktop is written
+     calc((Nrem + D * var(--ramp)) / 16), N its phone px and D how much it gains */
+  --ramp: clamp(0rem, (100vw - 24.375rem) / 26.875, 1rem);
+  --pad: calc((16rem + 8 * var(--ramp)) / 16);
   --f-marquee: "Bungee", system-ui, sans-serif;
   --f-hud: "Chakra Petch", system-ui, sans-serif;
   --f-body: "Archivo", system-ui, sans-serif;
@@ -58,10 +69,39 @@
 * {
   box-sizing: border-box;
 }
+/* the gutter stays when an open dialog locks the page's scroll, so nothing shifts */
+html {
+  scrollbar-gutter: stable;
+}
+html:has(dialog:modal) {
+  overflow: hidden;
+}
+/* every modal is a native <dialog> opened with showModal(), placed by its own class;
+   none of the browser's box. Fixed here too, not just while :modal, so a sheet sliding
+   out after close() stays where it was. */
+dialog {
+  position: fixed;
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: none;
+  max-block-size: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  overscroll-behavior: contain;
+}
+dialog:not([open]) {
+  display: none;
+}
+dialog::backdrop {
+  background: var(--scrim);
+}
 body {
   margin: 0;
   color: var(--text);
-  font: 400 15px/1.5 var(--f-body);
+  font: 400 calc(15rem / 16)/1.5 var(--f-body);
   -webkit-font-smoothing: antialiased;
   background:
     radial-gradient(900px 520px at 80% -10%, var(--glow-blue), transparent 62%),
@@ -91,9 +131,69 @@ button {
 input {
   font: inherit;
 }
+/* under 16px, iOS Safari zooms the page when a field takes focus */
+input,
+select,
+textarea {
+  font-size: max(16px, 1rem);
+}
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* press feedback: on a touch screen a tap otherwise shows nothing */
+:where(
+  button:enabled,
+  a.gtab,
+  a.tstrip,
+  .ptile,
+  .scard,
+  .wrow,
+  .mkcard,
+  .mcard,
+  .vmid,
+  .go,
+  .alllink,
+  .youcard
+):active {
+  scale: 0.97;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :where(
+    button,
+    a.gtab,
+    a.tstrip,
+    .ptile,
+    .scard,
+    .wrow,
+    .mkcard,
+    .mcard,
+    .vmid,
+    .go,
+    .alllink,
+    .youcard
+  ) {
+    transition: scale 160ms var(--ease-out);
+  }
+}
+
+/* buttons drawn smaller than a fingertip get an invisible 44px hit area */
+:where(.qmark, .dh button, .snav button, .car-nav button, .freshness button, .linkbtn) {
+  position: relative;
+}
+:where(
+  button.marble,
+  .qmark,
+  .dh button,
+  .snav button,
+  .car-nav button,
+  .freshness button,
+  .linkbtn
+)::after {
+  content: "";
+  position: absolute;
+  inset: min(0px, (100% - 44px) / 2);
 }
 
 /* ---------- the marble ---------- */
@@ -108,9 +208,7 @@ input {
   display: block;
   width: 100%;
   height: 100%;
-  transition:
-    transform 0.22s cubic-bezier(0.2, 0.8, 0.3, 1),
-    opacity 0.14s ease;
+  transition: opacity 0.14s var(--ease-out);
 }
 .marble .face {
   position: absolute;
@@ -122,25 +220,45 @@ input {
   opacity: 0;
   transform: scale(0.5) rotate(14deg);
   background: var(--surface2);
-  transition:
-    opacity 0.14s ease,
-    transform 0.22s cubic-bezier(0.2, 0.85, 0.3, 1.35);
+  transition: opacity 0.14s var(--ease-out);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .marble .ball {
+    transition:
+      transform 0.22s var(--ease-out),
+      opacity 0.14s var(--ease-out);
+  }
+  .marble .face {
+    transition:
+      opacity 0.14s var(--ease-out),
+      transform 0.22s var(--ease-pop);
+  }
 }
 .marble.on .face,
-.marble:focus-visible .face,
-.row:hover .marble .face,
-.plate:hover .marble .face,
-.pid:hover .marble .face {
+.marble:focus-visible .face {
   opacity: 1;
   transform: scale(1) rotate(0);
 }
+@media (hover: hover) and (pointer: fine) {
+  .row:hover .marble .face,
+  .plate:hover .marble .face,
+  .pid:hover .marble .face {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
 .marble.on .ball,
-.marble:focus-visible .ball,
-.row:hover .marble .ball,
-.plate:hover .marble .ball,
-.pid:hover .marble .ball {
+.marble:focus-visible .ball {
   transform: scale(0.84) rotate(-18deg);
   opacity: 0.16;
+}
+@media (hover: hover) and (pointer: fine) {
+  .row:hover .marble .ball,
+  .plate:hover .marble .ball,
+  .pid:hover .marble .ball {
+    transform: scale(0.84) rotate(-18deg);
+    opacity: 0.16;
+  }
 }
 /* in the list the avatar keeps the marble's colour as a ring; on the podium the
    medal ring is already doing that job */
@@ -151,7 +269,7 @@ input {
 .ambient {
   position: fixed;
   inset: 0;
-  overflow: hidden;
+  overflow: clip;
   pointer-events: none;
   z-index: 0;
 }
@@ -163,21 +281,21 @@ input {
   opacity: 0.13;
 }
 .ambient > span:nth-child(1) {
-  top: -80px;
-  right: -50px;
+  inset-block-start: -80px;
+  inset-inline-end: -50px;
   width: 320px;
   height: 320px;
 }
 .ambient > span:nth-child(2) {
-  top: 46%;
-  left: -100px;
+  inset-block-start: 46%;
+  inset-inline-start: -100px;
   width: 230px;
   height: 230px;
   opacity: 0.08;
 }
 .ambient > span:nth-child(3) {
-  bottom: -100px;
-  right: 24%;
+  inset-block-end: -100px;
+  inset-inline-end: 24%;
   width: 270px;
   height: 270px;
   opacity: 0.07;

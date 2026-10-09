@@ -1,6 +1,7 @@
 // `pnpm db:seed <dataset>` (scripts/seed.ts): replaces everything in the database it
-// targets with a named dataset from datasets/index.ts. It exists for Neon preview and dev
-// branches and the tests, so it refuses anything that could be production (refusal).
+// targets with a named dataset from datasets/index.ts. It exists for Neon dev branches (and
+// preview branches, once the integration makes them) and the tests, so it refuses anything
+// that could be production (refusal).
 import { getTableName, is, sql } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";
 

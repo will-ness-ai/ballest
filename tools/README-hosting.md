@@ -1,4 +1,4 @@
-# Hosting Ballest leaderboards on `ballest.willness.dev`
+# Hosting Ballest leaderboards on `ballestrecords.com`
 
 The site is the Next.js app in `web/`, served by **Vercel** (ADR 0004) and reading a
 Postgres database on Neon (ADR 0005). The data is refreshed by a **GitHub Actions** job
@@ -14,7 +14,7 @@ GitHub Actions (every 3 hours)
       └─ reads every campaign leaderboard (full) for appid 3339810
           └─ resolves names via STEAM_API_KEY (secret)
               └─ writes the Refresh to Postgres, commits data/
-                  └─ POST /api/revalidate  ──►  ballest.willness.dev reads fresh
+                  └─ POST /api/revalidate  ──►  ballestrecords.com reads fresh
 ```
 
 ---
@@ -68,22 +68,29 @@ Everything else comes from `web/vercel.json`. Production is `main`.
 
 ### 5. Point DNS
 
-Add `ballest.willness.dev` to the project (`vercel domains add ballest.willness.dev
-ballest`), then at whoever manages `willness.dev` DNS (Porkbun) set the CNAME it asks for:
+Add `ballestrecords.com` to the project (`vercel domains add ballestrecords.com ballest`)
+and `www.ballestrecords.com` as a 308 redirect to it. The domain is registered at Porkbun
+(bought 2026-10-08), so its DNS is set there by hand: delete Porkbun's parking records
+(anything pointing at `uixie.porkbun.com` or `pixie.porkbun.com`), then add the records
+Vercel's domain config asks for:
 
 ```
-Type: CNAME
-Name: ballest
-Value: <the project's target, e.g. ….vercel-dns-017.com>
+Type: A      Host: (blank)  Answer: 216.198.79.1
+Type: A      Host: (blank)  Answer: 64.29.17.1
+Type: CNAME  Host: www      Answer: <the project's target, e.g. ….vercel-dns-017.com>
 ```
 
-Vercel issues the certificate once the record resolves.
+The old address, `ballest.willness.dev`, stays on the project as a 308 redirect to the new
+one so links already shared keep working; it is still a CNAME at Porkbun (where
+`willness.dev` lives) to the same project target.
+
+Vercel issues the certificates once the records resolve.
 
 ### 6. Populate the data
 
 Repo → **Actions → "Refresh leaderboards" → Run workflow**. It logs in, writes the Refresh
 to the database, commits `data/`, and revalidates the site, which shows it at
-`https://ballest.willness.dev` on the next request.
+`https://ballestrecords.com` on the next request.
 
 ---
 

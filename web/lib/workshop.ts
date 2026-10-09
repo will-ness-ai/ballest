@@ -4,6 +4,7 @@
 // server pages, the client views and the /api/maps search all use one copy. Anything that
 // reads the clock takes `now`, so a cached page never freezes it (hooks/client.ts useNow).
 import type { WorkshopMap } from "./rows";
+import { SITE_ORIGIN, mapHref } from "./routes";
 import { SCORE_TICKS_PER_SECOND, ageDays, ageText, fmtN, fmtSec, plural, secs } from "./rules";
 
 /* what a card, the carousel and All maps need of a Map; the rest of WorkshopMap stays on
@@ -252,7 +253,7 @@ export const reportHref = (m: { title: string; pfid: string }) =>
   "?" +
   new URLSearchParams({
     title: `Hide map: ${m.title} (${m.pfid})`,
-    body: `Map: https://ballest.willness.dev/map/${m.pfid}\n\nWhat's wrong with it:\n`,
+    body: `Map: ${SITE_ORIGIN}${mapHref(m.pfid)}\n\nWhat's wrong with it:\n`,
   }).toString();
 
 /* the homepage's Maps: the carousel and every shelf draw from this */

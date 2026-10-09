@@ -19,11 +19,26 @@ export function GroupTabs({ tabs }: { tabs: ReadonlyArray<GroupTab> }) {
 /* the same tabs with none lit, while the path is not known yet */
 export function Tabs({ tabs, on }: { tabs: ReadonlyArray<GroupTab>; on: string | null }) {
   const bar = useRef<HTMLElement>(null);
-  /* where the bar scrolls sideways, keep the selected tab in it */
+  /* where the bar scrolls sideways, keep the selected tab in it, clear of the faded edge
+     (the bar's scroll-padding) */
   useEffect(() => {
-    const el = bar.current,
-      sel = el?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (el && sel) el.scrollLeft = Math.max(0, sel.offsetLeft + sel.offsetWidth - el.clientWidth);
+    /* sideways only: a scrollIntoView would also move the page, undoing an entry page's
+       scroll to its row */
+    const show = () => {
+      const b = bar.current;
+      const tab = b?.querySelector('[aria-selected="true"]');
+      if (!b || !tab) return;
+      const cs = getComputedStyle(b);
+      const t = tab.getBoundingClientRect();
+      const r = b.getBoundingClientRect();
+      const left = r.left + (parseFloat(cs.scrollPaddingInlineStart) || 0);
+      const right = r.right - (parseFloat(cs.scrollPaddingInlineEnd) || 0);
+      if (t.left < left) b.scrollLeft -= left - t.left;
+      else if (t.right > right) b.scrollLeft += t.right - right;
+    };
+    show();
+    /* the web fonts widen the tabs when they arrive, which can push the lit one back out */
+    void document.fonts.ready.then(show);
   }, [on]);
   return (
     <nav className="groups" id="groups" role="tablist" aria-label="Season" ref={bar}>

@@ -27,6 +27,7 @@ const HELP = `usage: pnpm --silent axi [command] [args]
                                  submit a form
   time <match> <seconds> --as <member>
                                  a finished run on the Match's Map (fake Steam)
+  steam down | steam up          make every fake Steam read fail, or stop failing
   wait <text> [--in <channel|thread>] [--timeout s]
                                  until a new message whose text or image name has it ("" for any)
   sandbox create [name] | sandbox delete [channel id]
@@ -440,6 +441,21 @@ const time = async () => {
   ]);
 };
 
+const steamCmd = async () => {
+  const state = args[0];
+  if (state !== "down" && state !== "up") return fail("steam needs down or up");
+  const out = await driver<{ ok?: string; error?: string }>("/steam", { down: state === "down" });
+  if (out.error !== undefined) return fail(out.error, ["pnpm --silent axi"]);
+  say([
+    out.ok ?? "",
+    ...helpLines(
+      state === "down"
+        ? ['pnpm --silent axi wait "Time\'s up" --in <thread>   (when a Match ends while down)']
+        : ['pnpm --silent axi wait "Final result" --in <thread>'],
+    ),
+  ]);
+};
+
 const wait = async () => {
   const text = args[0] ?? fail('wait needs the text to wait for ("" for any new message)');
   const where = flag("in") ?? sandboxChannel();
@@ -545,6 +561,7 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   pick,
   submit,
   time,
+  steam: steamCmd,
   wait,
   sandbox: sandboxCmd,
 };

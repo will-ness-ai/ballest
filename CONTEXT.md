@@ -19,8 +19,10 @@ _Avoid_: campaign, campaign map
 **Medal**:
 One of a Map's four time targets, Bronze, Silver, Gold and Author (fastest), set by its
 creator. A Track has the same four, set by the game. A time earns the best Medal whose target it meets. A player's page sorts their
-finishes six ways, best first: World record (rank 1 on the Map's board, counted there and
-not again under its Medal), Author, Gold, Silver, Bronze, and No medal.
+finishes six ways, best first: World record (rank 1 on the Map's board), Author, Gold,
+Silver, Bronze, and No medal. A world record is a rank and a Medal is a time, so they are
+counted apart: a record at the author time counts under both, a slower one under its own
+Medal.
 _Avoid_: tier, grade
 
 **Played**:
@@ -28,6 +30,13 @@ A player has Played a Map if they hold a time on that Map's leaderboard. Attempt
 never finished are invisible and do not count. A time can still beat the author time:
 that is a Medal, not Played.
 _Avoid_: attempted, beaten (for Played)
+
+**You**:
+The player signed in with Steam in this browser (ADR 0008). The header's card links to
+your page, boards show where you stand, and another player's page scores you against
+them. Signed in as a Steam ID on no board counts as no You: the header only offers Sign
+out, since that player has no page to sign out from.
+_Avoid_: me, current user, logged-in player
 
 **Entry**:
 A player's score on one board as Steam holds it: a time on a Map or Track, points on an
@@ -54,6 +63,13 @@ and neither does an Entry Steam removed after one Refresh. A record already ther
 board was first read was set then or earlier. When a holder leaves the board, the record
 passes back to the next fastest time, which starts a Reign with no cut.
 _Avoid_: streak, hold, tenure
+
+**Daily**:
+The game's one-day challenge: one Map, played in a window (`starts_at` to `ends_at`, as
+the developers' API gives them) on its own Steam board, apart from the Map's all-time
+board. Named by its date. It is live while its window is open, and final once a Refresh
+has read its board after the window closed; a Daily's standings count final Dailies only.
+_Avoid_: daily challenge board, Daily Report (that is Multiballs' post)
 
 **Daily Report**:
 Multiballs' once-a-day post of the Workshop standings (Maps played, Author Medals, world
@@ -130,4 +146,5 @@ _Avoid_: sticky, pinned message
 
 **Result**:
 Each Player's best time on the Match's Map, read the moment the Match ends, ranked. A
-Player with no time did not finish.
+Player with no time did not finish. If Steam is down then, the Result waits for it (up to 30
+minutes, the thread saying time's up), and failing that stands on the last times polled.

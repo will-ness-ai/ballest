@@ -1,9 +1,9 @@
 // pnpm db:seed <dataset> [--i-know-this-is-not-production]
 //
 // Empties the database at DATABASE_URL and writes the named dataset (db/seed/datasets/).
-// The database must already be migrated (a preview's deploy migrates its branch; locally,
-// `pnpm db:migrate`). Refuses production (refusal in db/seed/harness.ts). docs/data.md
-// has how to seed a preview branch and how to add a dataset.
+// The database must already be migrated (locally, `pnpm db:migrate`). Refuses production
+// (refusal in db/seed/harness.ts). docs/data.md has how to seed a preview branch and how to
+// add a dataset.
 import { connect } from "../db/client";
 import { datasets } from "../db/seed/datasets";
 import { isDataset, refusal, seed } from "../db/seed/harness";

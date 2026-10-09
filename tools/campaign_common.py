@@ -252,20 +252,25 @@ def secret_roots():
     return roots
 
 
-def load_key():
-    """Steam Web API key: env STEAM_API_KEY first (CI), then a .env file."""
-    key = os.environ.get("STEAM_API_KEY", "").strip()
-    if key:
-        return key
+def load_secret(name):
+    """A secret: env `name` first (CI), then a NAME= line in a .env file."""
+    val = os.environ.get(name, "").strip()
+    if val:
+        return val
     for root in secret_roots():
         env_path = os.path.join(root, ".env")
         if os.path.exists(env_path):
             with open(env_path, encoding="utf-8") as f:
                 for raw in f:
                     line = raw.strip()
-                    if line.startswith("STEAM_API_KEY=") and not line.startswith("#"):
+                    if line.startswith(name + "=") and not line.startswith("#"):
                         return line.split("=", 1)[1].strip()
     return ""
+
+
+def load_key():
+    """Steam Web API key: env STEAM_API_KEY first (CI), then a .env file."""
+    return load_secret("STEAM_API_KEY")
 
 
 def load_refresh_token():
@@ -895,6 +900,13 @@ def name_rows(row_lists, all_ids):
             if val:
                 cur[field] = val
 
+    fill_names(row_lists, names)
+    return names
+
+
+def fill_names(row_lists, names):
+    """Put persona/avatar/profileurl from `names` (what name_rows returned) on every row in
+    row_lists."""
     for rows in row_lists:
         for r in rows:
             info = names.get(r["steam_id"], {})
@@ -904,7 +916,6 @@ def name_rows(row_lists, all_ids):
             r["persona"] = info.get("persona") or r.get("persona", "")
             r["avatar"] = info.get("avatar") or r.get("avatar", "")
             r["profileurl"] = info.get("profileurl") or r.get("profileurl", "")
-    return names
 
 
 def committed_boards():
@@ -945,9 +956,10 @@ def write_site(boards_out, all_ids, workshop=None):
     workshop, when given, is {"maps", "boards": {pfid: rows}, "full_sweep_at"}:
     its rows get names from the same lookup, then write_workshop publishes it.
 
-    Returns workshop if its files were written, else None: what the database step
-    (db_writer) may count as read, so a Workshop write that failed here reads as no
-    Map read there either."""
+    Returns (workshop, names). workshop if its files were written, else None: what the
+    database step (db_writer) may count as read, so a Workshop write that failed here reads
+    as no Map read there either. names is this run's name lookup (name_rows), for rows
+    written elsewhere (the Dailies, which are database-only) to take with fill_names."""
     # Names first: derive() copies persona/avatar/profileurl from the rows, so
     # rows it reads without names publish derived files with blank ones while
     # the boards get theirs (the 2026-09-27T23:32Z refresh did exactly that).
@@ -1025,4 +1037,4 @@ def write_site(boards_out, all_ids, workshop=None):
             indent=2,
         )
     print(f"\nWrote {INDEX_PATH} + {len(boards_out)} board files ({len(unique)} unique players)")
-    return workshop
+    return workshop, names

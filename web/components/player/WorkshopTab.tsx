@@ -7,8 +7,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { PW_CHUNK, usePlayerView, type PwSort } from "./usePlayerView";
 import { MapImage } from "../MapImage";
+import { Medal } from "../Medal";
 import { useDebounced } from "../../hooks/client";
-import type { PlayerRecord, WorkshopFinish } from "../../lib/player";
+import { countsUnder, type PlayerRecord, type WorkshopFinish } from "../../lib/player";
 import { boardHref } from "../../lib/routes";
 import {
   MEDAL_KEYS,
@@ -23,20 +24,9 @@ import {
 } from "../../lib/rules";
 
 const PW_SHELF = 14;
-
-/* a Medal as the trophy shelf and each row draw it */
-function Medal({ t, size, mini }: { t: MedalKey; size: number; mini?: boolean }) {
-  return (
-    <span
-      className={mini ? "medal mini" : "medal"}
-      data-t={t}
-      style={{ "--s": String(size) + "px" } as React.CSSProperties}
-      title={MEDAL_LABEL[t]}
-    >
-      {t === "wr" ? "1" : ""}
-    </span>
-  );
-}
+/* a scripted scroll glides only for those who haven't asked for less motion */
+const glide = (): ScrollBehavior =>
+  matchMedia("(prefers-reduced-motion: no-preference)").matches ? "smooth" : "auto";
 
 type Cmp = (a: WorkshopFinish, b: WorkshopFinish) => number;
 const SORTS: Record<PwSort, [string, Cmp]> = {
@@ -79,7 +69,7 @@ function Shelf({ title, children }: { title: React.ReactNode; children: React.Re
   }, []);
   const scroll = (dir: number) => {
     const el = strip.current;
-    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: "smooth" });
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: glide() });
   };
   return (
     <section className="shelf">
@@ -185,7 +175,7 @@ export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"]
   const rows = w.finishes
     .filter(
       (f) =>
-        (!pw.medal || f.medal === pw.medal) &&
+        (!pw.medal || countsUnder(f, pw.medal)) &&
         (!q || (f.display + " " + f.creator).toLowerCase().includes(q)),
     )
     .sort(SORTS[pw.sort][1]);
@@ -193,7 +183,7 @@ export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"]
     const medal = pw.medal === k ? null : k;
     setPw({ ...pw, medal, shown: PW_CHUNK });
     if (medal)
-      document.getElementById("pwall")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("pwall")?.scrollIntoView({ behavior: glide(), block: "start" });
   };
   return (
     <div className="pws">
@@ -215,7 +205,7 @@ export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"]
         ))}
       </div>{" "}
       <p className="wsline">
-        {`${fmtN(w.finishes.length)} of ${fmtN(w.maps)} maps finished · ${plural(w.podiums, "podium", "podiums")} · ${fmtN(w.near)} within a second of a record`}
+        {`${fmtN(w.mapsFinished)} of ${fmtN(w.mapsOnWorkshop)} maps finished · ${plural(w.podiums, "podium", "podiums")} · ${fmtN(w.near)} within a second of a record`}
       </p>{" "}
       {recs.length ? (
         <Shelf

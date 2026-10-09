@@ -3,11 +3,11 @@
 // /maps/<view>) or narrowed further in the Refine panel, sixty at a time. The panel's
 // choices live in this page only; a view's link starts it over from its preset.
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { MapGrid } from "./Card";
 import { BackLink } from "../BackLink";
-import { useModalKeys } from "../Behaviours";
+import { useDialog } from "../Modal";
 import { useClock } from "../../hooks/client";
 import { homeHref, mapsHref } from "../../lib/routes";
 import { plural } from "../../lib/rules";
@@ -32,20 +32,16 @@ function Drawer({
   n,
   set,
   reset,
-  close,
+  onClose,
 }: {
   f: Refine;
   n: number;
   set: (k: keyof Refine, v: string) => void;
   reset: () => void;
-  close: () => void;
+  onClose: () => void;
 }) {
-  const box = useRef<HTMLElement>(null);
-  useModalKeys(true, box, close);
-  /* the panel opens with the keyboard on its close button */
-  useEffect(() => {
-    box.current?.querySelector<HTMLElement>(".dh button")?.focus();
-  }, []);
+  /* the panel opens with the keyboard on its close button, the first thing in it */
+  const { props, close } = useDialog({ open: true, onClose });
   const opt = (k: keyof Refine, v: string, label: string) => (
     <button
       key={v}
@@ -59,43 +55,40 @@ function Drawer({
     </button>
   );
   return (
-    <>
-      <div className="dscrim" onClick={close}></div>
-      <aside className="drawer" role="dialog" aria-modal="true" aria-label="Refine maps" ref={box}>
-        <div className="dh">
-          <b>Refine</b>
-          <button type="button" aria-label="Close" onClick={close}>
-            &times;
-          </button>
-        </div>
-        {FILTER_KEYS.map((k) => {
-          const g = FILTERS[k];
-          return (
-            <div className="fg" key={k}>
-              <span className="eyebrow">{g.label}</span>
-              <div className="opts">
-                {opt(k, "any", g.any)}
-                {Object.entries(g.opts).map(([v, [label]]) => opt(k, v, label))}
-              </div>
+    <dialog className="drawer" aria-label="Refine maps" {...props}>
+      <div className="dh">
+        <b>Refine</b>
+        <button type="button" aria-label="Close" onClick={close}>
+          &times;
+        </button>
+      </div>
+      {FILTER_KEYS.map((k) => {
+        const g = FILTERS[k];
+        return (
+          <div className="fg" key={k}>
+            <span className="eyebrow">{g.label}</span>
+            <div className="opts">
+              {opt(k, "any", g.any)}
+              {Object.entries(g.opts).map(([v, [label]]) => opt(k, v, label))}
             </div>
-          );
-        })}
-        <div className="fg">
-          <span className="eyebrow">Sort</span>
-          <div className="opts">
-            {(Object.keys(SORTS) as Array<SortKey>).map((k) => opt("sort", k, SORTS[k].label))}
           </div>
+        );
+      })}
+      <div className="fg">
+        <span className="eyebrow">Sort</span>
+        <div className="opts">
+          {(Object.keys(SORTS) as Array<SortKey>).map((k) => opt("sort", k, SORTS[k].label))}
         </div>
-        <div className="dfoot">
-          <button type="button" className="linkbtn" onClick={reset}>
-            Clear all
-          </button>
-          <button type="button" className="go" onClick={close}>
-            Show {plural(n, "map", "maps")}
-          </button>
-        </div>
-      </aside>
-    </>
+      </div>
+      <div className="dfoot">
+        <button type="button" className="linkbtn" onClick={reset}>
+          Clear all
+        </button>
+        <button type="button" className="go" onClick={close}>
+          Show {plural(n, "map", "maps")}
+        </button>
+      </div>
+    </dialog>
   );
 }
 
@@ -191,7 +184,7 @@ export function AllMaps({
             setF(NO_FILTER());
             setShown(MAPS_CHUNK);
           }}
-          close={close}
+          onClose={close}
         />
       )}
     </>

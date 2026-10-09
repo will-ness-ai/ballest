@@ -1,5 +1,6 @@
 // Every message the bot posts, as discord.js payloads. The images in them come from
 // src/render/; here they are only attached, with the buttons and text around them.
+import { createHash } from "node:crypto";
 import {
   ActionRowBuilder,
   AttachmentBuilder,
@@ -38,6 +39,22 @@ import type { MarbleEmojis } from "./marbles.js";
  * the new files to it, so the same payload posts and redraws.
  */
 export type Payload = BaseMessageOptions & { readonly attachments?: Array<never> };
+
+/**
+ * A hash of everything a payload shows: text, embeds, buttons, and each file's name and bytes.
+ * Two payloads with the same fingerprint draw the same message, so a message already showing
+ * one needs no edit.
+ */
+export const fingerprint = (payload: Payload): string => {
+  const { files = [], ...rest } = payload;
+  const hash = createHash("sha256").update(JSON.stringify(rest));
+  for (const file of files) {
+    if (!(file instanceof AttachmentBuilder) || !Buffer.isBuffer(file.attachment))
+      throw new Error("fingerprint: only in-memory attachments can be hashed");
+    hash.update(`\0${file.name ?? ""}\0`).update(file.attachment);
+  }
+  return hash.digest("hex");
+};
 
 export const PROFILE_FIELD = "profile";
 
@@ -106,6 +123,7 @@ const cardButtons = (v: CardView) => {
   const join = () =>
     button(`Join (${v.players.length})`, act("join", v.matchId), ButtonStyle.Success);
   if (v.state === "live" && v.map !== null) {
+    if (v.waitingForSteam) return [row(workshopLink(v.map.pfid))];
     const leave = button("Leave", { _tag: "AskLeave", matchId: v.matchId });
     return [
       v.type === "lobby"
@@ -132,9 +150,11 @@ const cardButtons = (v: CardView) => {
 const clockText = (v: CardView): string | null =>
   v.state === "invite" && v.expiresAt !== null
     ? `Invite expires <t:${unix(v.expiresAt)}:R>`
-    : v.state === "live" && v.endsAt !== null
-      ? `**Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
-      : null;
+    : v.state === "live" && v.waitingForSteam
+      ? "**Time's up** · the Result posts once Steam answers"
+      : v.state === "live" && v.endsAt !== null
+        ? `**Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
+        : null;
 
 const INVITE_GREY = 0x4e5058;
 const LIVE_LIME = 0x8be03c;
@@ -276,11 +296,20 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
       return {
         content: line(
           art.marbles.forHue(RESULT_HUE),
-          post.standings.every((s) => s.rank === null)
+          (post.standings.every((s) => s.rank === null)
             ? "**Final result** · no finishers"
-            : "**Final result**",
+            : "**Final result**") +
+            (post.steamDown
+              ? "\n-# Steam never gave the end-of-Match read, so these are the last times read before the end."
+              : ""),
         ),
         ...pic,
+        ...quiet,
+      };
+    case "WaitingForSteam":
+      return {
+        content:
+          "⏱️ **Time's up**, stop playing. Steam isn't answering right now, so the Result will post once it does.",
         ...quiet,
       };
     case "PlayedBefore": {

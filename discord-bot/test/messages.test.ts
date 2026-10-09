@@ -9,6 +9,7 @@ import {
   cardMessage,
   closedCardMessage,
   confirmLeaveMessage,
+  fingerprint,
   footerMessage,
   type Payload,
   pingDeclinedMessage,
@@ -156,6 +157,11 @@ describe("the Card", () => {
     expect(labels(cardMessage(card(state, type), PNG, redrawn))).toEqual(expected);
   });
 
+  it("offers only the Workshop link once time is up and the Result waits for Steam", () => {
+    const waiting = cardMessage({ ...card("live", "lobby"), waitingForSteam: true }, PNG, redrawn);
+    expect(labels(waiting)).toEqual([WORKSHOP]);
+  });
+
   it("wires every button to its action on this Match", () => {
     const lobby = buttons(cardMessage(card("invite", "lobby"), PNG, redrawn));
     expect(lobby.map((b) => b.does)).toEqual(
@@ -238,7 +244,9 @@ describe("thread posts", () => {
     ["Accepted", ThreadPost.Accepted({ player: BOB })],
     ["Joined", ThreadPost.Joined({ player: CARA })],
     ["Left", ThreadPost.Left({ player: CARA })],
-    ["Result", ThreadPost.Result({ standings: [], card: live })],
+    ["Result", ThreadPost.Result({ standings: [], card: live, steamDown: false })],
+    ["Result, Steam down", ThreadPost.Result({ standings: [], card: live, steamDown: true })],
+    ["WaitingForSteam", ThreadPost.WaitingForSteam()],
     ["Progression", ThreadPost.Progression({ card: live, history: [] })],
     ["Abandoned", ThreadPost.Abandoned()],
     [
@@ -294,5 +302,20 @@ describe("thread posts", () => {
       ALICE.discordId,
       BOB.discordId,
     ]);
+  });
+});
+
+describe("fingerprint", () => {
+  it("is the same for two payloads that draw the same message", () => {
+    expect(fingerprint(footerMessage(Buffer.from([1, 2])))).toBe(
+      fingerprint(footerMessage(Buffer.from([1, 2]))),
+    );
+  });
+
+  it("changes when the image, the text or the buttons do", () => {
+    const footer = footerMessage(Buffer.from([1, 2]));
+    expect(fingerprint(footerMessage(Buffer.from([1, 3])))).not.toBe(fingerprint(footer));
+    expect(fingerprint({ ...footer, content: "hi" })).not.toBe(fingerprint(footer));
+    expect(fingerprint({ ...footer, components: [] })).not.toBe(fingerprint(footer));
   });
 });

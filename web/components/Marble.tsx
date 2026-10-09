@@ -57,12 +57,13 @@ export interface MarbleWho {
 }
 
 /* the marble is the control that reveals the avatar, so where there is an avatar to reveal
-   it is a real button; where Steam gave none it stays inert */
-export function Marble({ who }: { who: MarbleWho }) {
+   it is a real button; where Steam gave none it stays inert. `still` keeps it inert
+   anyway, for a marble inside a link, where a button can't go */
+export function Marble({ who, still = false }: { who: MarbleWho; still?: boolean }) {
   const h = hueFor(who.steamId);
   const style = { "--h": h } as React.CSSProperties;
   const avatar = safeImg(who.avatar);
-  if (!avatar)
+  if (!avatar || still)
     return (
       <span className="marble" style={style}>
         <Ball h={h} />

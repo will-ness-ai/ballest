@@ -1,8 +1,8 @@
 "use client";
 // The Players table: the search, the scope tabs, the note, then every player ranked by the
 // column the reader sorts on (lib/players.ts), drawn a step at a time as the table scrolls.
-// On a phone the table scrolls inside its own box, from 820px the page itself does. Your
-// own row ("This is me"), while it is out of view, is pinned to the foot as a card that
+// On a phone the table scrolls inside its own box, on the desktop layout the page itself does. Your
+// own row (signed in), while it is out of view, is pinned to the foot as a card that
 // says how far the next rank and the top 10 are; tapping it brings the row into view.
 import Link from "next/link";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -11,7 +11,7 @@ import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
 import type { Standings } from "../../lib/rows";
 import { useDebounced } from "../../hooks/client";
-import { useMe } from "../../hooks/me";
+import { useYou } from "../../hooks/me";
 import {
   PL_SCOPE_LABELS,
   plCol,
@@ -38,7 +38,7 @@ const NOBODY = (
 );
 
 /* what of the table is on screen: the box's own view on a phone, where it scrolls inside
-   itself, or the window's from 820px, where the page scrolls */
+   itself, or the window's on the desktop layout, where the page scrolls */
 const inBox = (wrap: HTMLElement) => getComputedStyle(wrap).overflowY !== "visible";
 function viewOf(wrap: HTMLElement) {
   const b = wrap.getBoundingClientRect();
@@ -83,7 +83,7 @@ const Row = memo(function Row({
               tab={scope === "all" ? undefined : scope}
             />
           </span>
-          {me && <span className="you">You</span>}
+          {me && <span className="youtag">You</span>}
         </span>
       </td>
       {plCols(scope).map(([k]) => (
@@ -172,7 +172,7 @@ function Pin({
       <span className="me-t">
         <b>
           {personaOf(r.p)}
-          <span className="you">You</span>
+          <span className="youtag">You</span>
         </b>
         <small>
           {ord(r.rank)} &middot; {fmtN(r.v)} {r.v === 1 ? noun[0] : noun[1]}
@@ -211,7 +211,8 @@ export function PlayersTable({
   scope: PlScope;
   sort: PlSort;
 }) {
-  const me = useMe();
+  const you = useYou();
+  const me = you.state === "ready" ? you.id : null;
   const [text, setText] = useState(keptQuery);
   const query = useDebounced(text);
   useEffect(() => {

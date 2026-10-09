@@ -2,7 +2,7 @@
 // leaderboard site's, keyed by SteamID so a Player has one colour everywhere) and a Medal.
 import type { MedalKind } from "../domain.js";
 
-/** The site's hue for a SteamID (FNV-1a), so a marble here matches the one on ballest.willness.dev. */
+/** The site's hue for a SteamID (FNV-1a), so a marble here matches the one on ballestrecords.com. */
 export const hueFor = (seed: string): number => {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
