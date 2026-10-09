@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function generateStaticParams() {
-  return [{ variant: "1", kind: "player", id: "76561198071746847" }];
+  return [{ variant: "A", kind: "player", id: "76561198071746847" }];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -33,7 +33,9 @@ async function Body({ params }: Props) {
   return (
     <p style={{ padding: 24, color: "#eaf0ff" }}>
       Prototype share link: variant {variant}, {kind} {id}.{" "}
-      <a style={{ color: "#8be03c" }} href={`/og-proto?variant=${variant}`}>Back to the picker</a>
+      <a style={{ color: "#8be03c" }} href={`/og-proto?variant=${variant}`}>
+        Back to the picker
+      </a>
     </p>
   );
 }

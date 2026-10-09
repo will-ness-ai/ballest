@@ -16,6 +16,7 @@ import {
   getWorkshop,
 } from "../../db/data";
 import { CIRCUIT, TRACKS } from "../../lib/circuit";
+import type { WorkshopMap } from "../../lib/rows";
 import {
   SCORE_TICKS_PER_SECOND,
   fmtN,
@@ -23,11 +24,16 @@ import {
   fmtTime,
   hueFor,
   personaOf,
+  secs,
   safeImg,
 } from "../../lib/rules";
 
 export const VARIANTS = {
-  "3": "Final",
+  A: "Gold time",
+  B: "Near the record",
+  C: "Times played",
+  D: "Published",
+  E: "1st to 3rd",
 } as const;
 export type Variant = keyof typeof VARIANTS;
 export const KINDS = ["player", "map", "track", "daily"] as const;
@@ -101,7 +107,35 @@ const wrLine = (score: number | undefined, who: string | undefined): Stat =>
     ? { value: "—", label: "No times yet" }
     : { value: fmtTime(score), label: "World record · " + (who ?? ""), color: C.gold };
 
-export async function cardFor(kind: Kind, id: string): Promise<CardData | null> {
+/* the Workshop Map card's fourth tile, one candidate per variant (round 4) */
+function mapTile(m: WorkshopMap, v: Variant): Stat {
+  switch (v) {
+    case "A":
+      return { value: fmtSec(m.medals[2] ?? 0), label: "Gold time", color: C.gold };
+    case "B":
+      return { value: fmtN(m.crowd), label: "Within 1s of the record" };
+    case "C":
+      return { value: fmtN(m.sessions), label: "Times played" };
+    case "D":
+      return { value: shortAge(m.created), label: "Published" };
+    case "E":
+      return { value: m.gap13 === null ? "—" : secs(m.gap13), label: "1st to 3rd" };
+  }
+}
+
+/* "3d ago", "5w ago", "4mo ago": short enough for a tile */
+function shortAge(created: number) {
+  const d = Math.floor((Date.now() / 1000 - created) / 86400);
+  return d < 1
+    ? "Today"
+    : d < 14
+      ? `${d}d ago`
+      : d < 60
+        ? `${Math.floor(d / 7)}w ago`
+        : `${Math.round(d / 30)}mo ago`;
+}
+
+export async function cardFor(kind: Kind, id: string, v: Variant = "A"): Promise<CardData | null> {
   if (kind === "player") {
     const rec = await getPlayer(id);
     if (!rec) return null;
@@ -172,7 +206,7 @@ export async function cardFor(kind: Kind, id: string): Promise<CardData | null> 
         { value: fmtN(m.entryCount), label: "Players" },
         { value: fmtSec(m.medals[3] ?? 0), label: "Author time", color: C.author },
         { value: fmtN(m.authorBeaten), label: "Beat the author", color: C.author },
-        { value: fmtN(m.subs), label: "Subscribers" },
+        mapTile(m, v),
       ],
     };
   }
@@ -283,7 +317,12 @@ function Picture({ d, w, h, radius }: { d: CardData; w: number; h: number; radiu
   if (d.image)
     return (
       // eslint-disable-next-line @next/next/no-img-element -- satori draws plain img only
-      <img src={d.image} width={w} height={h} style={{ borderRadius: radius, objectFit: "cover" }} />
+      <img
+        src={d.image}
+        width={w}
+        height={h}
+        style={{ borderRadius: radius, objectFit: "cover" }}
+      />
     );
   return (
     <div
@@ -621,7 +660,12 @@ function Column({ d, children }: { d: CardData; children: React.ReactNode }) {
   return (
     <div style={{ ...fill }}>
       <div
-        style={{ display: "flex", flexDirection: "column", flex: 1, padding: "44px 40px 44px 56px" }}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          padding: "44px 40px 44px 56px",
+        }}
       >
         {children}
       </div>
@@ -909,9 +953,8 @@ function SplitPlayer({ d, face, rack }: { d: CardData; face: React.ReactNode; ra
 }
 
 type Draw = (p: { d: CardData }) => React.ReactElement;
-const DRAW: Record<Variant, Draw> = {
-  "3": ({ d }) => <SplitPlayer d={d} face={<TurnedOver d={d} size={400} />} />,
-};
+const Final: Draw = ({ d }) => <SplitPlayer d={d} face={<TurnedOver d={d} size={400} />} />;
+const DRAW: Record<Variant, Draw> = { A: Final, B: Final, C: Final, D: Final, E: Final };
 
 let fonts: Promise<ConstructorParameters<typeof ImageResponse>[1]> | undefined;
 function loadFonts() {
