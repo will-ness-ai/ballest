@@ -67,6 +67,14 @@ from it. Backfilled from the git history of the old JSON, so its earliest Entrie
 first seen no later than their first Refresh, not exactly then.
 _Avoid_: snapshots, audit log
 
+**Reign**:
+The span one world record stood on a Track or Map board: from the Refresh that first saw it
+lead to the one that saw a faster time take it. An equal time does not start a new Reign,
+and neither does an Entry Steam removed after one Refresh. A record already there when the
+board was first read was set then or earlier. When a holder leaves the board, the record
+passes back to the next fastest time, which starts a Reign with no cut.
+_Avoid_: streak, hold, tenure
+
 **Daily**:
 The game's one-day challenge: one Map, played in a window (`starts_at` to `ends_at`, as
 the developers' API gives them) on its own Steam board, apart from the Map's all-time

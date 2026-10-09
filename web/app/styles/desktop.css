@@ -148,6 +148,9 @@
   .bcard.nopic {
     grid-template-columns: minmax(0, 1fr);
   }
+  .hist {
+    margin: 0 0 14px;
+  }
   .bc-pic {
     aspect-ratio: auto;
     height: 100%;
@@ -193,43 +196,6 @@
     width: 230px;
     border-radius: 9px;
     padding: 8px 12px;
-  }
-
-  .tiles {
-    display: flex;
-    gap: 10px;
-    margin: 0 0 16px;
-  }
-  .tile {
-    flex: 1 1 0;
-    padding: 12px 15px;
-  }
-  .tile dd {
-    margin: 5px 0 0;
-    font-family: var(--f-hud);
-    font-size: calc(20rem / 16);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-  .tile .tsub {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: var(--f-body);
-    font-size: calc(12rem / 16);
-    color: var(--dim);
-    margin-block-start: 3px;
-    font-weight: 400;
-    min-width: 0;
-  }
-  .tile .tsub .marble {
-    width: 13px;
-    height: 13px;
-  }
-  .tile .tsub span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   /* podium, full size */

@@ -13,12 +13,14 @@ import {
   circuitCounts,
   freshness,
   derivedStandings,
+  historyInput,
   playerData,
   searchPlayers,
   standings,
   trackPodiums,
   workshopMaps,
 } from "../db/site";
+import { boardHistory } from "../lib/history";
 import { podiumTallies } from "../lib/podiums";
 import { freshDb } from "./pg";
 
@@ -324,5 +326,28 @@ describe("the player search", () => {
   test("leaves out the player being compared against", async () => {
     const hits = await searchPlayers(t.db, "pa", { except: p(2) });
     expect(hits.map((h) => h.steamId)).toEqual([p(8)]);
+  });
+});
+
+describe("a board's record history", () => {
+  const r1 = "2026-09-01T00:00:00.000Z";
+  const r2 = "2026-09-01T03:00:00.000Z";
+
+  test("a Track's Reigns, from its Score history", async () => {
+    const input = await historyInput(t.db, "Map_Track13");
+    expect(input?.now).toBe("2026-09-01T06:00:00.000Z");
+    expect(input?.entries).toHaveLength(8);
+    // p2 led from before history; p1's 1013307 in R2 took it by 6577
+    expect(
+      input && boardHistory(input)?.reigns.map((x) => [x.steamId, x.from, x.to, x.cut]),
+    ).toEqual([
+      [p(2), r1, r2, null],
+      [p(1), r2, null, 6577],
+    ]);
+  });
+
+  test("an Overall board and an unknown board have none", async () => {
+    expect(await historyInput(t.db, "OverallLeaderboard_EASeason2")).toBeNull();
+    expect(await historyInput(t.db, "Map_Nope")).toBeNull();
   });
 });
