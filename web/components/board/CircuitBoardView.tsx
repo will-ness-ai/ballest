@@ -14,11 +14,12 @@ import { RailItems } from "./Rail";
 import { YouBanner } from "./YouBanner";
 import { YouMarks } from "./YouMarks";
 import {
-  SwitchAccordion,
-  SwitchChips,
-  SwitchDropdown,
-  SwitchSegmented,
-  SwitchSubtabs,
+  DropCrumb,
+  DropField,
+  DropHeading,
+  DropNative,
+  DropRich,
+  SeasonTabs,
   type Season,
 } from "../proto/CircuitSwitch";
 import { groupsOf, overallOf } from "../../lib/player";
@@ -65,49 +66,43 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
   /* PROTOTYPE: the seasons the switch offers, each opening its Overall board */
   const seasons: Array<Season> = groupsOf(site.boards).map((g) => {
     const o = overallOf(site.boards, g);
+    const mine = site.boards.filter((x) => x.group === g && !isPoints(x.name)).length;
     return {
       group: g,
-      label: g.replace("Season ", "S").replace("All Seasons", "All"),
       href: o ? boardHref(o.name) : "/",
+      players: o?.entryCount ?? 0,
+      tracks: mine || site.boards.filter((x) => !isPoints(x.name)).length,
     };
   });
 
   return (
     <div className="main">
       <DocTitle title={`${b.group} ${b.display}`} />
-      <SwitchSubtabs seasons={seasons} on={b.group} />
+      <SeasonTabs seasons={seasons} on={b.group} />
       <aside className="rail">
-        <SwitchSegmented seasons={seasons} on={b.group} />
-        <SwitchDropdown seasons={seasons} on={b.group} where="rail" />
-        <h2 id="railhead" className="pv-plainhead">
-          {b.group}
-        </h2>
-        <nav className="boards pv-plainboards" id="boards" aria-label="Leaderboard">
+        <h2 id="railhead">{b.group}</h2>
+        <nav className="boards" id="boards" aria-label="Leaderboard">
           {items}
         </nav>
-        <SwitchAccordion seasons={seasons} on={b.group}>
-          {items}
-        </SwitchAccordion>
       </aside>
 
       <section className="content">
         <YouMarks name={name} />
-        <SwitchChips seasons={seasons} on={b.group} />
-        <div className="pv pv-A pv-phone">
-          <SwitchSegmented seasons={seasons} on={b.group} />
+        <DropCrumb seasons={seasons} on={b.group} board={points ? b.display : trackNo(b.display)} />
+        <div className="pv pv-B pv-phone">
+          <DropField seasons={seasons} on={b.group} />
         </div>
         <div className="pboardrow">
-          <SwitchDropdown seasons={seasons} on={b.group} where="phone" />
+          <DropHeading seasons={seasons} on={b.group} where="phone" />
+          <DropRich seasons={seasons} on={b.group} where="phone" />
+          <DropNative seasons={seasons} on={b.group} where="phone" />
           <BoardSheet
             img={t?.img ?? null}
             name={points ? b.display : trackNo(b.display)}
             count={countText(b)}
             group={b.group}
           >
-            <div className="pv-plainboards">{items}</div>
-            <SwitchAccordion seasons={seasons} on={b.group}>
-              {items}
-            </SwitchAccordion>
+            {items}
           </BoardSheet>
         </div>
 

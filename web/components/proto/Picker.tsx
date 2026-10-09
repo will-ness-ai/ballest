@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const VARIANTS = [
-  ["A", "Segmented in the rail"],
-  ["B", "Sub-tabs under the tabs"],
-  ["C", "Dropdown on the heading"],
-  ["D", "Accordion rail"],
-  ["E", "Chips above the card"],
+  ["A", "Chip beside the board"],
+  ["B", "Labelled field"],
+  ["C", "Chip, rich menu"],
+  ["D", "Breadcrumb"],
+  ["E", "Native select"],
 ] as const;
 
 /* the URL's variant, else the last one picked in this tab, so clicking around keeps it */

@@ -1,42 +1,85 @@
-// PROTOTYPE (grill-design, Circuit tab): every variant's season switch is rendered, and
-// the stylesheet shows the one `?variant=` names (proto.css). Never merged.
+// PROTOTYPE (grill-design, Circuit tab, round 2): five takes on the season dropdown Will
+// picked in round 1. Every variant is rendered, and proto.css shows the one `?variant=`
+// names. Never merged.
 import Link from "next/link";
+
+import { NativeSeason } from "./NativeSeason";
 
 export interface Season {
   group: string;
-  label: string;
   href: string;
+  /* the season's Overall board's field, and how many Tracks it covers */
+  players: number;
+  tracks: number;
 }
 
-/* A · Segmented: a three-way switch at the top of the rail (the sheet's top on a phone) */
-export function SwitchSegmented({ seasons, on }: { seasons: ReadonlyArray<Season>; on: string }) {
+const fmt = (n: number) => n.toLocaleString("en-US");
+
+function Menu({
+  seasons,
+  on,
+  rich,
+}: {
+  seasons: ReadonlyArray<Season>;
+  on: string;
+  rich?: boolean;
+}) {
   return (
-    <nav className="pv pv-A pseg" aria-label="Season">
+    <div className={rich ? "pmenu prich" : "pmenu"}>
       {seasons.map((s) => (
         <Link key={s.group} href={s.href} aria-current={s.group === on}>
-          {s.group}
+          <b>{s.group}</b>
+          {rich && (
+            <small>
+              {s.tracks} Tracks · {fmt(s.players)} players
+            </small>
+          )}
         </Link>
       ))}
-    </nav>
+    </div>
   );
 }
 
-/* B · Sub-tabs: a second, smaller tab row under the main tabs, across the page */
-export function SwitchSubtabs({ seasons, on }: { seasons: ReadonlyArray<Season>; on: string }) {
+/* A · Heading menu (round 1's C): the rail's heading opens the menu; on a phone, a chip
+   beside the board button */
+export function DropHeading({
+  seasons,
+  on,
+  where,
+}: {
+  seasons: ReadonlyArray<Season>;
+  on: string;
+  where: "rail" | "phone";
+}) {
   return (
-    <nav className="pv pv-B psub" aria-label="Season">
-      {seasons.map((s) => (
-        <Link key={s.group} href={s.href} aria-current={s.group === on}>
-          {s.group}
-        </Link>
-      ))}
-    </nav>
+    <details className={`pv pv-A pdrop pdrop-${where}`}>
+      <summary>
+        {on} <span aria-hidden="true">&#9662;</span>
+      </summary>
+      <Menu seasons={seasons} on={on} />
+    </details>
   );
 }
 
-/* C · Dropdown: the rail's heading opens a menu of seasons; on a phone a chip beside the
-   board button does */
-export function SwitchDropdown({
+/* B · Field: a boxed, labelled field at the top of the rail and across a phone, like a
+   form's select */
+export function DropField({ seasons, on }: { seasons: ReadonlyArray<Season>; on: string }) {
+  return (
+    <details className="pv pv-B pfield">
+      <summary>
+        <span className="pfield-lab">Season</span>
+        <span className="pfield-val">{on}</span>
+        <span className="pfield-chev" aria-hidden="true">
+          &#9662;
+        </span>
+      </summary>
+      <Menu seasons={seasons} on={on} />
+    </details>
+  );
+}
+
+/* C · Rich menu: A's trigger, with each season's Tracks and field in the menu */
+export function DropRich({
   seasons,
   on,
   where,
@@ -50,53 +93,59 @@ export function SwitchDropdown({
       <summary>
         {on} <span aria-hidden="true">&#9662;</span>
       </summary>
-      <div className="pmenu">
-        {seasons.map((s) => (
-          <Link key={s.group} href={s.href} aria-current={s.group === on}>
-            {s.group}
-          </Link>
-        ))}
-      </div>
+      <Menu seasons={seasons} on={on} rich />
     </details>
   );
 }
 
-/* D · Accordion: every season is a heading in the rail; the one on screen is open with its
-   boards, the others are links to their Overall board */
-export function SwitchAccordion({
+/* D · Breadcrumb: "Circuit › Season 2 ▾ › Overall" above the board's card on every size;
+   the rail keeps its plain heading */
+export function DropCrumb({
   seasons,
   on,
-  children,
+  board,
 }: {
   seasons: ReadonlyArray<Season>;
   on: string;
-  children: React.ReactNode;
+  board: string;
 }) {
   return (
-    <div className="pv pv-D pacc">
-      {seasons.map((s) =>
-        s.group === on ? (
-          <div key={s.group} className="pacc-open">
-            <h3>
-              {s.group} <span aria-hidden="true">&#9662;</span>
-            </h3>
-            <div className="boards">{children}</div>
-          </div>
-        ) : (
-          <Link key={s.group} className="pacc-shut" href={s.href}>
-            {s.group} <span aria-hidden="true">&#9656;</span>
-          </Link>
-        ),
-      )}
+    <div className="pv pv-D pcrumb">
+      <span>Circuit</span>
+      <span aria-hidden="true">&#8250;</span>
+      <details className="pdrop">
+        <summary>
+          {on} <span aria-hidden="true">&#9662;</span>
+        </summary>
+        <Menu seasons={seasons} on={on} />
+      </details>
+      <span aria-hidden="true">&#8250;</span>
+      <b>{board}</b>
     </div>
   );
 }
 
-/* E · Chips: the seasons as chips above the board's card, on every size */
-export function SwitchChips({ seasons, on }: { seasons: ReadonlyArray<Season>; on: string }) {
+/* E · Native: the browser's own select, so a phone opens its system picker */
+export function DropNative({
+  seasons,
+  on,
+  where,
+}: {
+  seasons: ReadonlyArray<Season>;
+  on: string;
+  where: "rail" | "phone";
+}) {
   return (
-    <nav className="pv pv-E pchips" aria-label="Season">
-      <span className="pchips-lab">Circuit</span>
+    <div className={`pv pv-E pnative pnative-${where}`}>
+      <NativeSeason seasons={seasons} on={on} />
+    </div>
+  );
+}
+
+/* Desktop, settled in round 1 (B): a second, smaller tab row under the main tabs */
+export function SeasonTabs({ seasons, on }: { seasons: ReadonlyArray<Season>; on: string }) {
+  return (
+    <nav className="psub" aria-label="Season">
       {seasons.map((s) => (
         <Link key={s.group} href={s.href} aria-current={s.group === on}>
           {s.group}
