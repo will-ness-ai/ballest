@@ -65,14 +65,14 @@ describe("a player's record", () => {
         name: "Map_Track13",
         display: "01",
         field: 6,
-        finish: { rank: 1, score: 1_013_307, lead: 1_013_307 },
+        finish: { rank: 1, score: 1_013_307, lead: 1_013_307, earned: "author" },
         points: 40000,
       },
       {
         name: "Map_Track15",
         display: "02",
         field: 3,
-        finish: { rank: 2, score: 1_900_000, lead: 1_800_000 },
+        finish: { rank: 2, score: 1_900_000, lead: 1_800_000, earned: "author" },
         points: 20000,
       },
     ]);
