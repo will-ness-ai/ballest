@@ -217,7 +217,7 @@ only visible ones.
 
 - **A production build**: `pnpm serve <port> [database]` builds against that local
   database and serves it in the background; `fuser -k -n tcp <port>` stops it.
-  `pnpm smoke <url>` then requests every route of a build seeded with `tiny` and checks
+  `pnpm smoke <url>` then requests every route of a build seeded with `tiny` or `stress` and checks
   each answer, as `web.yml` does in CI. Under `next start`, some prefetches (header
   `next-router-prefetch: 3`) answer 404 in the console; Vercel answers them 200.
 - **Revalidate**: serve with `REVALIDATE_SECRET` set, add a Refresh to the database (the
@@ -231,8 +231,21 @@ only visible ones.
   (`gh api 'repos/will-ness-ai/ballest/deployments?ref=<branch>'`, then that deployment's
   `statuses`). It is up once that status is `success`. Previews count against the Hobby
   plan's 100 deploys a day, so push a branch in batches.
-- **A screenshot**: `pnpm shot <url> <out.png> [selector] [width]` from `web/`, against
-  `pnpm dev`, a build or a preview. It finds Chromium at `$CHROMIUM` or the cloud image's
-  `/opt/pw-browsers/chromium`; on another machine run `npx playwright-core install chromium` once.
+- **Looking at it**: `pnpm --silent qa` from `web/`, run bare, lists the targets (production,
+  this branch's preview with its deploy state, a local build) and what it checks. `qa check`
+  draws every page and dialog in `scripts/qa/catalogue.mjs` at 320px with 20px text, 390,
+  820 and 1280, on the preview and on production, and prints only what is wrong: sideways
+  scroll, an element past the edge (with the one holding it open), text cut off or drawn
+  over other text, page errors, and changed pixels, with one picture per change to read
+  (reference | target | changes in red) in `scratch/qa/`. Read those pictures, not
+  screenshots of your own. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
+  `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
+  place of a throwaway Playwright script. Both sides read the same database, so a change in
+  numbers alone is data, and the two deployments' caches can differ by a Refresh.
+  Production's domain may be outside a cloud session's network policy; `prod` is its Vercel
+  address. A page or dialog with no row in the catalogue is not checked: add it. Locally,
+  serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank and a long
+  Map title), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
+  one.
 - **Parity**: `pnpm db:parity` compares the read layer with `data/` figure by figure, on a
   database backfilled from the same commit; it stops first when the database is anything else.

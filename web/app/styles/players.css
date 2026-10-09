@@ -226,6 +226,8 @@
   align-items: center;
   gap: 14px;
   flex: 1 1 240px;
+  /* the search box shrinks into what is left, rather than its own width holding this open */
+  min-width: 0;
   justify-content: flex-end;
 }
 .alllink {

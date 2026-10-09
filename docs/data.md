@@ -224,7 +224,9 @@ locally by `pnpm db:migrate`. Run it with no
 name, or a wrong one, to list the datasets. `empty` has no rows; `tiny` has two Tracks, an
 Overall board, three Maps, four Dailies (three final, one live with a failed read), ten
 players and three Refreshes of Score history, and is also the fixture the read layer's
-tests run against.
+tests run against. `stress` is tiny plus what strains a layout: 12,000 more players on the
+Overall board, so the last one, who has a long name, ranks in five digits, and a Map with a
+long title; `pnpm qa` and CI's layout check run on it (`docs/site.md`).
 
 It refuses production three ways: when `VERCEL_ENV` is `production`; when the URL's Neon
 endpoint ID (the host's first label, without `-pooler`) is `PRODUCTION_DB_ENDPOINT`, which
