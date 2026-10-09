@@ -16,6 +16,10 @@
     gap: 7px;
     padding: 0 0 22px;
   }
+  /* the phone's row basis would be a height in this column */
+  .brand {
+    flex: none;
+  }
   .rack .marble {
     width: 24px;
     height: 24px;
@@ -38,6 +42,7 @@
     font-weight: 600;
   }
   .freshness {
+    margin-inline-start: 0;
     text-align: start;
     font-size: calc(12.5rem / 16);
   }
@@ -490,8 +495,10 @@
   .plt .pr {
     font-size: calc(15rem / 16);
   }
+  /* the name gives way first where the table only just fits (a long name at 820px, with
+     room for the CI runner's wider fallback font) */
   .who {
-    max-width: 340px;
+    max-width: clamp(8em, 100vw - 43rem, 340px);
     gap: 12px;
   }
   .who .marble,
@@ -547,6 +554,11 @@
   }
   .ds-cards {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* three across, a card keeps its podium at its own width, as it did before the phone's
+     single shrinking column */
+  .ds-card {
+    grid-template-columns: none;
   }
   .ds-medals {
     margin: 0;

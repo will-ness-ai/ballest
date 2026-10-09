@@ -14,12 +14,12 @@
     "start": "next start",
     "serve": "scripts/serve.sh",
     "smoke": "node scripts/smoke.mjs",
-    "shot": "node scripts/shot.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed": "tsx scripts/seed.ts",
     "db:parity": "tsx scripts/parity.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "qa": "node scripts/qa.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.3",

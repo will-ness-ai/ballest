@@ -90,6 +90,22 @@ describe("seeding", () => {
     expect(await rows()).toEqual(tinyCounts);
   });
 
+  test("stress is tiny plus its own rows", async () => {
+    await seed(t.db, "stress");
+    const extra = {
+      boards: 1,
+      boardReads: 1,
+      players: 12_001,
+      personaHistory: 12_001,
+      entries: 12_005,
+      maps: 1,
+      mapHistory: 1,
+    };
+    const want = { ...tinyCounts };
+    for (const [k, n] of Object.entries(extra)) want[k as keyof typeof want] += n;
+    expect(await rows()).toEqual(want);
+  });
+
   test("empty leaves every table empty, refreshes numbered from 1 again after", async () => {
     await seed(t.db, "tiny");
     await seed(t.db, "empty");

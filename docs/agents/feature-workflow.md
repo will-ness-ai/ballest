@@ -70,7 +70,9 @@ Push, then rewrite the PR description to match what landed (Before / After, and 
 including the design verdicts and the prototype branch), and mark it ready for review once
 CI is green and the final commit itself has been checked: the smoke test, its preview
 deploy, and, for a site change, a Refresh's revalidate end to end and the changed pages
-against production (`docs/site.md`, "Checking a change"). A gap left unchecked goes in the
+against production with `pnpm --silent qa check` (`docs/site.md`, "Checking a change"). A
+QA brief for a subagent says the same: run `qa check` first, read only the pictures it
+writes, and add a catalogue row for any page or dialog it does not draw. A gap left unchecked goes in the
 PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` left one.
 
 Merge `main` into the branch before marking it ready and again just before it merges, even
