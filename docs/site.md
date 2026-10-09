@@ -109,7 +109,7 @@ player's row reads down to that row first. Each row carries the score of the row
 (`ahead`, from the query), which is what the interval column is worked out from, so rows
 are never re-sorted on the client.
 
-A Track's or a Map's page carries its record history between the board's bar and the plates
+A Track's or a Map's page carries its record history above the board's bar and search
 (`components/board/HistoryCard.tsx`). `lib/history.ts` works it out from the board's Score
 history (`historyInput` in `db/site.ts`): its Reigns and what each day
 brought, all dated by the Refresh that first saw a time, in UTC days. The card arrives closed,

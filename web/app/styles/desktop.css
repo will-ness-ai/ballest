@@ -109,6 +109,9 @@
   .bcard.nopic {
     grid-template-columns: minmax(0, 1fr);
   }
+  .hist {
+    margin: 0 0 14px;
+  }
   .bc-pic {
     aspect-ratio: auto;
     height: 100%;

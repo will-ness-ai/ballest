@@ -2,8 +2,7 @@
    open, the card with its Records and What changed tabs. Records are gold throughout. */
 .hist {
   display: block;
-  width: 100%;
-  margin: 0 0 16px;
+  margin: 0 var(--pad) 12px;
   padding: 12px 14px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -116,6 +115,7 @@
   height: 5px;
   border-radius: 3px;
   background: var(--line2);
+  overflow: hidden;
 }
 .hi-track span {
   position: absolute;

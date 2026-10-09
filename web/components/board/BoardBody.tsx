@@ -1,9 +1,9 @@
 "use client";
-// A board's list: the bar over it (where the board is, how many it ranks, the sort switch
-// and the search), the history card and plates the server drew, then the rows. The list starts
-// with what the server rendered and grows as the reader scrolls, reading further pages from
-// /api/board/<name>; a search reads its matches the same way. A board sorted by podiums
-// holds its few players whole, so it pages and searches them here.
+// A board's list: the history card, the bar over the list (where the board is, how many it
+// ranks, the sort switch and the search), the plates the server drew, then the rows. The
+// list starts with what the server rendered and grows as the reader scrolls, reading
+// further pages from /api/board/<name>; a search reads its matches the same way. A board
+// sorted by podiums holds its few players whole, so it pages and searches them here.
 //
 // Unfiltered, the top three are up on the plates and the list starts at 4th. A board with
 // fewer than three has no plates, so its rows stay in the list: plenty of Maps have one or
@@ -29,7 +29,7 @@ interface Common {
   count: number;
   /* the sort switch, the history card and the plates, drawn on the server */
   sortsw?: React.ReactNode;
-  /* a Track's or a Map's record history (HistoryCard), over the plates */
+  /* a Track's or a Map's record history (HistoryCard), over the bar with the search */
   history?: React.ReactNode;
   leaders?: React.ReactNode;
 }
@@ -199,8 +199,8 @@ export function BoardBody(props: BoardBodyProps) {
   return props.order === "score" ? <ScoreList {...props} /> : <PodiumList {...props} />;
 }
 
-/* everything around the rows: the bar with the meta line and the search, then the history
-   card and plates, and the meta line again (it shows under the plates on a phone) */
+/* everything around the rows: the history card, the bar with the meta line and the search,
+   the plates, and the meta line again (it shows under the plates on a phone) */
 function Frame({
   props,
   meta,
@@ -216,6 +216,7 @@ function Frame({
 }) {
   return (
     <>
+      {props.history}
       <div className="boardbar">
         <div className="boardtitle">
           <p className="bmeta" id="bmetaD">
@@ -236,7 +237,6 @@ function Frame({
           />
         </div>
       </div>
-      {props.history}
       {props.leaders ?? <div className="leaders" id="leaders" hidden></div>}
       <p className="bmeta" id="bmetaM">
         {meta}
