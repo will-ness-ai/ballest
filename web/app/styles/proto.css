@@ -223,3 +223,6 @@
   color: var(--accent);
   font-weight: 700;
 }
+.pfield summary {
+  flex: 1;
+}
