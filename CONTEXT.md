@@ -34,7 +34,8 @@ _Avoid_: attempted, beaten (for Played)
 **You**:
 The player signed in with Steam in this browser (ADR 0008). The header's card links to
 your page, boards show where you stand, and another player's page scores you against
-them. Signed in as a Steam ID on no board counts as no You.
+them. Signed in as a Steam ID on no board counts as no You: the header only offers Sign
+out, since that player has no page to sign out from.
 _Avoid_: me, current user, logged-in player
 
 **Entry**:

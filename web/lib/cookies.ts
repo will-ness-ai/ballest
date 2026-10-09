@@ -1,4 +1,4 @@
-// The sign-in cookies' names (ADR 0008), here rather than in session.ts so the browser can
+// The sign-in cookies' names (ADR 0008), here rather than in auth.ts so the browser can
 // read them without pulling in node:crypto.
 
 /* httpOnly: the signed session */

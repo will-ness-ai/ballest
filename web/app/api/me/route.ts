@@ -1,14 +1,10 @@
-// GET /api/me: the signed-in player's Steam ID, or null (ADR 0008). Pages stay cached and
-// ask this from the browser; it is never cached. A session that no longer verifies is
-// cleared, so the browser stops asking.
+// GET /api/me: the signed-in player's Steam ID, or null (lib/auth.ts). Pages stay cached and
+// the browser asks this; it is never cached.
 import { connection } from "next/server";
 
-import { sessionCookies, sessionOf } from "../../../lib/session";
+import { whoIs } from "../../../lib/auth";
 
 export async function GET(request: Request) {
   await connection();
-  const { id, stale } = sessionOf(request);
-  const headers = new Headers({ "cache-control": "private, no-store" });
-  if (stale) for (const c of sessionCookies(null)) headers.append("set-cookie", c);
-  return Response.json({ id }, { headers });
+  return whoIs(request);
 }

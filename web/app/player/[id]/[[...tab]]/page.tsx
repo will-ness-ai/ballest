@@ -13,6 +13,7 @@ import { getBoardPage, getDailies, getPlayer, getPlayerDailies } from "../../../
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
 import { isPlayerTab } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
+import { shareMetadata } from "../../../../components/share/metadata";
 
 interface Props {
   params: Promise<{ id: string; tab?: Array<string> }>;
@@ -34,10 +35,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const rec = await recordOf(await params);
   if (!rec) return {};
   const name = personaOf(rec.who);
-  return {
-    title: name,
-    description: `${name}'s Circuit, Workshop and Daily times on Ballest of Them All, read straight from Steam.`,
-  };
+  return shareMetadata(
+    {
+      title: name,
+      description: `${name}'s Circuit, Workshop and Daily times on Ballest of Them All, read straight from Steam.`,
+    },
+    { kind: "player", id: rec.id, alt: `${name}'s marble and record on Ballest of Them All.` },
+  );
 }
 
 async function Player({ params }: Pick<Props, "params">) {

@@ -6,7 +6,7 @@ import type { Metadata, Viewport } from "next";
 import { Ambient } from "../components/Marble";
 import { LegacyHash, MarbleFlip } from "../components/Behaviours";
 import { SITE_ORIGIN } from "../lib/routes";
-import { SITE_TITLE, pageTitle } from "../lib/rules";
+import { SITE_NAME, SITE_TITLE, pageTitle } from "../lib/rules";
 
 import "./styles/base.css";
 import "./styles/board.css";
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    siteName: "ballestrecords.com",
+    siteName: SITE_NAME,
     title: SITE_TITLE,
     description: DESCRIPTION,
     images: [
@@ -63,7 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font -- the root layout loads them for every page */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font -- root layout: every page */}
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bungee&family=Chakra+Petch:wght@400;500;600;700&display=swap"

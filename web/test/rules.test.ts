@@ -36,6 +36,8 @@ import {
   mapHref,
   playerHref,
   playersHref,
+  signInHref,
+  signOutHref,
   vsHref,
 } from "../lib/routes";
 
@@ -291,4 +293,9 @@ describe("the Circuit table", () => {
     expect(by.Map_Track_S2_Checkerboard.tier).toBe("Intermediate");
     expect(by.OverallLeaderboard_S1Current.display).toBe("Current");
   });
+});
+
+test("signing in and out come back to the page they were asked from", () => {
+  expect(signInHref("/board/Map_Track13")).toBe("/api/auth/steam?next=%2Fboard%2FMap_Track13");
+  expect(signOutHref("/player/" + ID)).toBe("/api/auth/signout?next=%2Fplayer%2F" + ID);
 });

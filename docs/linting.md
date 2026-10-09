@@ -31,6 +31,9 @@ which `pnpm --dir web exec next typegen` writes (CI runs it first).
 ## Settled choices
 
 - **Line width 100**, for Prettier and Ruff alike: the width the code was already written to.
+  Prettier leaves comments as written, so ESLint's `max-len` holds the site's comment lines to
+  100 too (code gets a limit no line reaches; a comment trailing code is not checked). The bot
+  keeps its one-line doc comments, many longer.
 - **One root tooling package.** `package.json` at the root holds only dev tools. It is not a
   workspace: `discord-bot/` and `web/` keep their own lockfiles, so the Fly image and the
   Vercel build install exactly what they did before.

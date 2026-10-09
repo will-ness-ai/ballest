@@ -8,6 +8,7 @@ import { Shell } from "../../../../components/Shell";
 import { BoardSkeleton } from "../../../../components/Skeleton";
 import { MapView } from "../../../../components/workshop/MapView";
 import { getWorkshop } from "../../../../db/data";
+import { shareMetadata } from "../../../../components/share/metadata";
 import { timed } from "../../../../lib/workshop";
 
 interface Props {
@@ -25,10 +26,13 @@ const mapOf = async (pfid: string) => (await getWorkshop()).find((m) => m.pfid =
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const m = await mapOf((await params).pfid);
   if (!m) return {};
-  return {
-    title: m.title,
-    description: `The leaderboard of ${m.title}, a Ballest of Them All Workshop map by ${m.creator}, read straight from Steam.`,
-  };
+  return shareMetadata(
+    {
+      title: m.title,
+      description: `The leaderboard of ${m.title}, a Ballest of Them All Workshop map by ${m.creator}, read straight from Steam.`,
+    },
+    { kind: "map", id: m.pfid, alt: `${m.title}, a Workshop map by ${m.creator}, and its record.` },
+  );
 }
 
 async function MapPage({ params }: Props) {

@@ -1,7 +1,7 @@
 // A player's page: who they are, Sign out on your own and the score card on anyone else's,
-// the tabs, and the tab on screen. Everything comes from one PlayerRecord (lib/player.ts) but the Daily tab,
-// which is their Daily record over every Daily; the Circuit tab is drawn here, the
-// Workshop and Made tabs are client components over the record.
+// the tabs, and the tab on screen. Everything comes from one PlayerRecord (lib/player.ts)
+// but the Daily tab, which is their Daily record over every Daily; the Circuit tab is drawn
+// here, the Workshop and Made tabs are client components over the record.
 import Link from "next/link";
 
 import { CompareButton } from "./Compare";
