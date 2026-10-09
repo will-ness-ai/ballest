@@ -90,9 +90,9 @@ export function ProtoProvider({ board, children }: { board: string; children: Re
   const [lens, setLens] = useState<Lens>("time");
   useEffect(() => {
     setVariant(readVariant());
+    /* switching variants keeps the open drawer, so the change shows where you are looking */
     const on = () => {
       setVariant(readVariant());
-      setOpen(null);
     };
     addEventListener("proto-variant", on);
     void load().then(setData);
@@ -109,6 +109,14 @@ export function ProtoProvider({ board, children }: { board: string; children: Re
       document.removeEventListener("click", plate);
     };
   }, []);
+  /* open the first row in the list once the data is in, so a variant always has something to show */
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!data || opened.current) return;
+    opened.current = true;
+    const first = document.querySelector<HTMLElement>("#board .row[data-id]");
+    if (first?.dataset.id && data[board]?.entries[first.dataset.id]) setOpen(first.dataset.id);
+  }, [data, board]);
   useEffect(() => {
     document.querySelectorAll(".leaders [data-id]").forEach((el) => {
       el.classList.toggle("p-plate-open", el.getAttribute("data-id") === open);
