@@ -8,11 +8,10 @@ import { Suspense } from "react";
 import { Shell } from "../../../components/Shell";
 import { DailySkeleton } from "../../../components/Skeleton";
 import { DailyView } from "../../../components/daily/DailyView";
-import { getDaily, getDailyDates, getSite } from "../../../db/data";
+import { getDailies, getDaily, getDailyDates } from "../../../db/data";
 import { dayLabel } from "../../../lib/daily";
 import { isDailyDate } from "../../../lib/routes";
 import { shareMetadata } from "../../../components/share/metadata";
-import { shareHref } from "../../../lib/share";
 
 interface Props {
   params: Promise<{ slot?: Array<string> }>;
@@ -28,20 +27,21 @@ const dateOf = (slot: Array<string> = []) => (isDailyDate(slot[0]) ? slot[0] : n
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slot = [] } = await params;
   const date = dateOf(slot);
-  const [d, site] = await Promise.all([date ? getDaily(date) : null, getSite()]);
+  const d = date ? await getDaily(date) : null;
   if (!d) {
-    const newest = slot.length ? undefined : (await getDailyDates()).at(-1);
+    const newest = slot.length ? undefined : (await getDailies()).at(-1)?.date;
     const latest = {
       title: "Daily",
       description: "The game's Daily, one Workshop map a day, and every day's results.",
     };
-    /* /daily opens on the newest Daily, so it shares that day's card */
+    /* /daily opens on the newest Daily (DailyView reads the same list), so it shares that
+       day's card */
     return newest
-      ? shareMetadata(
-          latest,
-          shareHref("daily", newest, site.asOf),
-          "The newest Daily's Map and its fastest time.",
-        )
+      ? shareMetadata(latest, {
+          kind: "daily",
+          id: newest,
+          alt: "The newest Daily's Map and its fastest time.",
+        })
       : latest;
   }
   const day = dayLabel(d.date, true);
@@ -50,8 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${d.title} · Daily ${day}`,
       description: `The Daily of ${day} on ${d.title}: every time, read straight from Steam.`,
     },
-    shareHref("daily", d.date, site.asOf),
-    `The Daily of ${day} on ${d.title} and its fastest time.`,
+    { kind: "daily", id: d.date, alt: `The Daily of ${day} on ${d.title} and its fastest time.` },
   );
 }
 

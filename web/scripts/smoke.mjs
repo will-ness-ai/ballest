@@ -75,6 +75,7 @@ const ROUTES = [
   ["/og/map/" + MAP, 200, null, "PNG"],
   ["/og/map/1", 404],
   ["/og/track/Map_Track13", 200, null, "PNG"],
+  ["/og/track/Map_Nope", 404],
   ["/og/track/OverallLeaderboard_EASeason2", 404],
   ["/og/daily/2026-08-30", 200, null, "PNG"],
   ["/og/daily/2026-07-01", 404],

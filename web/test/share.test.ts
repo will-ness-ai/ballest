@@ -16,13 +16,13 @@ import {
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
 import { dayLabel } from "../lib/daily";
 import { playerRecord, type IndexBoard } from "../lib/player";
+import { shareHref } from "../lib/routes";
 import type { WorkshopMap } from "../lib/rows";
 import {
   beatAuthor,
   dailyCard,
   mapCard,
   playerCard,
-  shareHref,
   shortAge,
   trackCard,
   type BoardTop,

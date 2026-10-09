@@ -9,6 +9,7 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
+import { SITE_NAME } from "../../lib/rules";
 import type { ShareCard, ShareStat, Tone } from "../../lib/share";
 
 export const SHARE_ASSETS = join(process.cwd(), "assets", "share");
@@ -31,14 +32,6 @@ const C = {
 const TONE: Record<Tone, string> = { gold: C.gold, author: C.author };
 const toneOf = (s: ShareStat) => (s.tone ? TONE[s.tone] : C.text);
 
-/* the pictures a card draws, as data: URLs, or null when there is none to draw */
-export interface SharePictures {
-  /* a player's Steam avatar */
-  face: string | null;
-  /* a Map's Workshop preview or a Track's screenshot */
-  banner: string | null;
-}
-
 /* the Ball of components/Marble.tsx as an SVG picture: Satori runs no React hooks, so the
    component itself can't be drawn */
 function ballSrc(h: number) {
@@ -56,7 +49,7 @@ function Brand({ size = 24 }: { size?: number }) {
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
       <Ball hue={96} size={size} />
       <div style={{ fontFamily: "Bungee", fontSize: size * 0.85, color: C.text, letterSpacing: 1 }}>
-        ballestrecords.com
+        {SITE_NAME}
       </div>
     </div>
   );
@@ -277,19 +270,37 @@ function loadFonts() {
 
 /* The card as a PNG response. Vercel's CDN keeps a function's answer only under s-maxage,
    which ImageResponse's own header lacks; the page names the card with the latest Refresh
-   in its URL, so a cached copy is never older than the link that asks for it. */
-export async function drawShare(card: ShareCard, pictures: SharePictures) {
+   in its URL, so a cached copy is never older than the link that asks for it. The picture
+   is a data: URL (a player's Steam avatar, a place's Workshop preview or Track screenshot),
+   or null to draw the card without one. A picture Satori can't read draws the card without
+   it too, rather than a 500 no CDN keeps. */
+export async function drawShare(card: ShareCard, picture: string | null) {
+  try {
+    return await render(card, picture);
+  } catch (e) {
+    if (!picture) throw e;
+    console.warn(`share image ${card.kind} "${card.title}": drawn without its picture`, e);
+    return render(card, null);
+  }
+}
+
+async function render(card: ShareCard, picture: string | null) {
   const body =
     card.kind === "player" ? (
-      <Split card={card} face={pictures.face} />
+      <Split card={card} face={picture} />
     ) : (
-      <Banner card={card} banner={pictures.banner} />
+      <Banner card={card} banner={picture} />
     );
-  return new ImageResponse(body, {
+  /* ImageResponse draws as its body streams, so it is read here, where a failure can
+     still be caught */
+  const png = await new ImageResponse(body, {
     width: W,
     height: H,
     fonts: await loadFonts(),
+  }).arrayBuffer();
+  return new Response(png, {
     headers: {
+      "content-type": "image/png",
       "cache-control": "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400",
     },
   });

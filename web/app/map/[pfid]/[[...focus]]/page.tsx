@@ -7,9 +7,8 @@ import { Suspense } from "react";
 import { Shell } from "../../../../components/Shell";
 import { BoardSkeleton } from "../../../../components/Skeleton";
 import { MapView } from "../../../../components/workshop/MapView";
-import { getSite, getWorkshop } from "../../../../db/data";
+import { getWorkshop } from "../../../../db/data";
 import { shareMetadata } from "../../../../components/share/metadata";
-import { shareHref } from "../../../../lib/share";
 import { timed } from "../../../../lib/workshop";
 
 interface Props {
@@ -25,15 +24,14 @@ export async function generateStaticParams() {
 const mapOf = async (pfid: string) => (await getWorkshop()).find((m) => m.pfid === pfid);
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const [m, site] = await Promise.all([mapOf((await params).pfid), getSite()]);
+  const m = await mapOf((await params).pfid);
   if (!m) return {};
   return shareMetadata(
     {
       title: m.title,
       description: `The leaderboard of ${m.title}, a Ballest of Them All Workshop map by ${m.creator}, read straight from Steam.`,
     },
-    shareHref("map", m.pfid, site.asOf),
-    `${m.title}, a Workshop map by ${m.creator}, and its record.`,
+    { kind: "map", id: m.pfid, alt: `${m.title}, a Workshop map by ${m.creator}, and its record.` },
   );
 }
 

@@ -5,7 +5,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { SHARE_ASSETS, drawShare, type SharePictures } from "../../../../components/share/Card";
+import { SHARE_ASSETS, drawShare } from "../../../../components/share/Card";
 import {
   getBoardPage,
   getBoardScores,
@@ -27,15 +27,21 @@ import {
   type ShareKind,
 } from "../../../../lib/share";
 
-/* a picture from Steam's CDN as a data: URL; a slow or failed fetch draws the fallback */
+/* the largest picture a card takes; a Workshop preview is well under it */
+const MAX_PICTURE = 4 * 1024 * 1024;
+
+/* a picture from Steam's CDN as a data: URL; a slow, failed or oversized fetch draws the
+   fallback */
 async function remote(url: string | null | undefined) {
   const u = safeImg(url);
   if (!u) return null;
   try {
     const r = await fetch(u, { signal: AbortSignal.timeout(3000) });
     const type = r.headers.get("content-type") ?? "";
-    if (!r.ok || !/^image\/(png|jpeg|gif)/.test(type)) return null;
-    return `data:${type};base64,${Buffer.from(await r.arrayBuffer()).toString("base64")}`;
+    const size = Number(r.headers.get("content-length") ?? 0);
+    if (!r.ok || !/^image\/(png|jpeg|gif)/.test(type) || size > MAX_PICTURE) return null;
+    const body = Buffer.from(await r.arrayBuffer());
+    return body.length > MAX_PICTURE ? null : `data:${type};base64,${body.toString("base64")}`;
   } catch {
     return null;
   }
@@ -62,36 +68,29 @@ const fullAvatar = (u: string | null | undefined) => u?.replace(/_medium\.jpg$/,
 async function shareOf(
   kind: ShareKind,
   id: string,
-): Promise<{ card: ShareCard; pictures: SharePictures } | null> {
-  const none = { face: null, banner: null };
+): Promise<{ card: ShareCard; picture: string | null } | null> {
   switch (kind) {
     case "player": {
       const rec = isSteamId(id) ? await getPlayer(id) : null;
       if (!rec) return null;
-      return {
-        card: playerCard(rec),
-        pictures: { ...none, face: await remote(fullAvatar(rec.who.avatar)) },
-      };
+      return { card: playerCard(rec), picture: await remote(fullAvatar(rec.who.avatar)) };
     }
     case "map": {
       const m = (await getWorkshop()).find((x) => x.pfid === id);
       if (!m) return null;
-      return {
-        card: mapCard(m, Date.now()),
-        pictures: { ...none, banner: await remote(m.preview) },
-      };
+      return { card: mapCard(m, Date.now()), picture: await remote(m.preview) };
     }
     case "track": {
       const b = circuitBoard(id);
       const card = b ? trackCard(b, await topOf(b.name)) : null;
-      if (!card) return null;
-      return { card, pictures: { ...none, banner: await trackShot(id) } };
+      if (!b || !card) return null;
+      return { card, picture: await trackShot(b.name) };
     }
     case "daily": {
       const d = isDailyDate(id) ? await getDaily(id) : null;
       if (!d) return null;
-      const [top, banner] = await Promise.all([topOf(d.board), remote(d.preview)]);
-      return { card: dailyCard(d, top), pictures: { ...none, banner } };
+      const [top, picture] = await Promise.all([topOf(d.board), remote(d.preview)]);
+      return { card: dailyCard(d, top), picture };
     }
   }
 }
@@ -103,5 +102,5 @@ export async function GET(
   const { kind, id } = await ctx.params;
   const share = isShareKind(kind) ? await shareOf(kind, id) : null;
   if (!share) return new Response("no such page", { status: 404 });
-  return drawShare(share.card, share.pictures);
+  return drawShare(share.card, share.picture);
 }

@@ -58,10 +58,7 @@ export const beatAuthor = (scores: ReadonlyArray<number>, medals: ReadonlyArray<
 export function playerCard(rec: PlayerRecord): ShareCard {
   const ws = rec.workshop;
   const run = rec.seasons.flatMap((s) => s.tiers.flatMap((t) => t.tracks));
-  const trackAuthors = run.filter((t) => {
-    const medals = t.name in TRACKS ? TRACKS[t.name].medals : null;
-    return !!t.finish && !!medals && timeMedal(medals, t.finish.score) === "author";
-  }).length;
+  const trackAuthors = run.filter((t) => t.finish?.earned === "author").length;
   const s2 = rec.seasons.find((s) => s.group === "Season 2")?.overall;
   const counts: Array<[number, string, Tone?]> = [
     [rec.medals.gold + ws.medals.wr, "World records", "gold"],
@@ -136,10 +133,14 @@ export interface BoardTop {
 const holder = (top: BoardTop) =>
   top.first ? { score: top.first.score, who: personaOf(top.first) } : null;
 
+/* a board with a card of its own: a Track, whose Medal times are known; an Overall board
+   keeps the site's picture */
+export const hasTrackCard = (b: CircuitBoard) => b.name in TRACKS;
+
 /* A Circuit Track's card: its record, then Players, Author time, Beat the author and the
    Gold time, from the Track's in-game Medal times */
 export function trackCard(b: CircuitBoard, top: BoardTop): ShareCard | null {
-  if (!(b.name in TRACKS)) return null;
+  if (!hasTrackCard(b)) return null;
   const medals = TRACKS[b.name].medals;
   return {
     kind: "track",
@@ -173,10 +174,3 @@ export function dailyCard(d: DailyDay, top: BoardTop): ShareCard {
     hue: hueFor(d.pfid),
   };
 }
-
-/* the card's address; v is the latest Refresh, so each Refresh is a new URL for crawlers
-   that keep a picture by its URL (Discord, Slack, X) */
-export const shareHref = (kind: ShareKind, id: string, asOf: number) =>
-  `/og/${kind}/${id}?v=${String(asOf)}`;
-
-export const SITE_NAME = "ballestrecords.com";

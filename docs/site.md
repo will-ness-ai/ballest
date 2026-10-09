@@ -107,8 +107,8 @@ needs: TTF copies of Bungee and Chakra Petch (OFL, licences beside them) and a J
 of each `circuit/*.webp`. Regenerate those copies whenever a Track screenshot changes
 (quality 82; PIL's `Image.open(webp).convert("RGB").save(jpg, quality=82)`).
 `next.config.ts` traces the folder into the route's function. Steam pictures are fetched
-with a 3-second timeout and only as PNG, JPEG or GIF; a card whose picture fails draws
-without it.
+with a 3-second timeout, only as PNG, JPEG or GIF and up to 4 MB; a card whose picture
+fails to load, or that Satori can't read, draws without it.
 
 ## Routes
 
