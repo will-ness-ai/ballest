@@ -1,6 +1,6 @@
 // A Map's page: the panel of its facts where a Circuit board has its rail (the picture,
 // who made it, its Medals and how every run spreads out), and its board beside it, with
-// no tiles or card. `focus` is a Steam ID whose row to find and mark.
+// no card. `focus` is a Steam ID whose row to find and mark.
 import { notFound, redirect } from "next/navigation";
 
 import { CreatorLink } from "./Card";

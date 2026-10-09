@@ -1,6 +1,6 @@
 "use client";
 // A board's list: the bar over it (where the board is, how many it ranks, the sort switch
-// and the search), the tiles and plates the server drew, then the rows. The list starts
+// and the search), the history card and plates the server drew, then the rows. The list starts
 // with what the server rendered and grows as the reader scrolls, reading further pages from
 // /api/board/<name>; a search reads its matches the same way. A board sorted by podiums
 // holds its few players whole, so it pages and searches them here.
@@ -27,10 +27,9 @@ interface Common {
   where: string;
   /* how many the board ranks */
   count: number;
-  /* the sort switch, the tiles and the plates, drawn on the server */
+  /* the sort switch, the history card and the plates, drawn on the server */
   sortsw?: React.ReactNode;
-  tiles?: React.ReactNode;
-  /* a Track's or a Map's record history (HistoryCard), between the tiles and the plates */
+  /* a Track's or a Map's record history (HistoryCard), over the plates */
   history?: React.ReactNode;
   leaders?: React.ReactNode;
 }
@@ -200,8 +199,8 @@ export function BoardBody(props: BoardBodyProps) {
   return props.order === "score" ? <ScoreList {...props} /> : <PodiumList {...props} />;
 }
 
-/* everything around the rows: the bar with the meta line and the search, then the tiles
-   and plates, and the meta line again (it shows under the plates on a phone) */
+/* everything around the rows: the bar with the meta line and the search, then the history
+   card and plates, and the meta line again (it shows under the plates on a phone) */
 function Frame({
   props,
   meta,
@@ -237,7 +236,6 @@ function Frame({
           />
         </div>
       </div>
-      {props.tiles ?? <dl className="tiles" id="tiles"></dl>}
       {props.history}
       {props.leaders ?? <div className="leaders" id="leaders" hidden></div>}
       <p className="bmeta" id="bmetaM">

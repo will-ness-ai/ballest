@@ -1,5 +1,5 @@
 "use client";
-// A Track's or a Map's record history, between the board's tiles and its plates (docs/site.md,
+// A Track's or a Map's record history, over the board's plates (docs/site.md,
 // "A board"). Closed, it is a summary: the record's step chart and the last three Reigns.
 // Opened, it becomes the full card in its place, with the Records and What changed tabs.
 // Everything it shows is the BoardHistory the server worked out (lib/history.ts).

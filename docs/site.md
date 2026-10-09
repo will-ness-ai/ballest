@@ -102,14 +102,14 @@ hours ago still says how old the boards are now.
 
 ## A board
 
-A board's first rows are rendered on the server, with the tiles, the plates and the card
+A board's first rows are rendered on the server, with the plates and the card
 across the top. The rest of the list is read from `/api/board/<name>` as you scroll, a few
 chunks ahead of what is shown, and a search reads its matches the same way. A link to a
 player's row reads down to that row first. Each row carries the score of the row above it
 (`ahead`, from the query), which is what the interval column is worked out from, so rows
 are never re-sorted on the client.
 
-A Track's or a Map's page carries its record history between the tiles and the plates
+A Track's or a Map's page carries its record history between the board's bar and the plates
 (`components/board/HistoryCard.tsx`). `lib/history.ts` works it out from the board's Score
 history (`historyInput` in `db/site.ts`): its Reigns, the week's Climbers and what each day
 brought, all dated by the Refresh that first saw a time, in UTC days. The card arrives closed,

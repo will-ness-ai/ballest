@@ -171,10 +171,6 @@
   color: var(--faint);
 }
 
-.tiles {
-  display: none;
-}
-
 /* podium. The plates stay 1st, 2nd, 3rd in the markup, for screen readers and keyboard
    order, and stand 2nd, 1st, 3rd on screen, as the link-preview image does */
 .leaders {

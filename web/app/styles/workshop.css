@@ -15,7 +15,6 @@
 .app[data-view="maps"] .main,
 .app[data-view="map"] .rail,
 .app[data-view="map"] .boardbtn,
-.app[data-view="map"] .tiles,
 .app[data-view="map"] .bcard,
 .app[data-view="map"] .sortsw {
   display: none;

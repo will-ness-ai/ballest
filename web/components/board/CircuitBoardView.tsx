@@ -1,5 +1,5 @@
 // A Circuit board's page: the season's boards in the rail (a sheet on a phone), the card
-// across the top, the tiles and plates, and the list. `slot` is what follows the board's
+// across the top, the history card and plates, and the list. `slot` is what follows the board's
 // name in its path: a Steam ID whose row to find and mark, or on an Overall board
 // "podiums" for its podium order.
 import { notFound } from "next/navigation";
@@ -8,7 +8,7 @@ import { BoardBody } from "./BoardBody";
 import { Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardSheet } from "./BoardSheet";
-import { OverallCard, PodiumPlates, ScorePlates, SortSwitch, Tiles, TrackCard } from "./BoardTop";
+import { OverallCard, PodiumPlates, ScorePlates, SortSwitch, TrackCard } from "./BoardTop";
 import { HistoryCard } from "./HistoryCard";
 import { PointsDialog } from "./PointsDialog";
 import { RailItems } from "./Rail";
@@ -107,7 +107,6 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
             where={b.group}
             count={page.total}
             sortsw={tally ? <SortSwitch name={name} podiums={false} /> : undefined}
-            tiles={<Tiles name={name} rows={rows} count={page.total} />}
             history={history && <HistoryCard h={history} />}
             leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
             initial={page.total >= 3 ? rows.slice(3) : rows}

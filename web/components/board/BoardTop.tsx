@@ -1,7 +1,7 @@
 // What a board shows above its list, drawn on the server from the board's first rows: the
-// tiles, the three plates, the card across the top (a Track's screenshot and spread, or an
-// Overall board's standings), and the switch between an Overall board's two orders.
-// A Map's page uses the tiles-free parts: the plates and the list.
+// three plates, the card across the top (a Track's screenshot and spread, or an Overall
+// board's standings), and the switch between an Overall board's two orders. A Map's page
+// uses the plates and the list.
 import Link from "next/link";
 
 import { QMark } from "./PointsDialog";
@@ -28,56 +28,6 @@ function Facts({ facts }: { facts: ReadonlyArray<[string, React.ReactNode]> }) {
           <dd>{v}</dd>
         </div>
       ))}
-    </dl>
-  );
-}
-
-export function Tiles({
-  name,
-  rows,
-  count,
-}: {
-  name: string;
-  rows: Array<BoardRow>;
-  count: number;
-}) {
-  if (!rows.length) return <dl className="tiles" id="tiles"></dl>;
-  const points = isPoints(name);
-  const lead = rows[0],
-    tenth = rows[Math.min(9, rows.length - 1)];
-  const spread = points
-    ? fmtN(lead.score - tenth.score) + " pts"
-    : fmtTime(tenth.score - lead.score);
-  return (
-    <dl className="tiles" id="tiles">
-      <div className="tile">
-        <dt>Leader</dt>
-        <dd>
-          {value(name, lead.score)}{" "}
-          <span className="tsub">
-            <Marble who={lead} />
-            <span>{personaOf(lead)}</span>
-          </span>
-        </dd>
-      </div>
-      <div className="tile">
-        <dt>Field</dt>
-        <dd>
-          {fmtN(count)}{" "}
-          <span className="tsub">
-            <span>{points ? "players ranked" : "runs recorded"}</span>
-          </span>
-        </dd>
-      </div>
-      <div className="tile">
-        <dt>Top ten spread</dt>
-        <dd>
-          {spread}{" "}
-          <span className="tsub">
-            <span>1st to {Math.min(10, count)}th</span>
-          </span>
-        </dd>
-      </div>
     </dl>
   );
 }
