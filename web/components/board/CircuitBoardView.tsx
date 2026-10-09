@@ -40,12 +40,9 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
   const podiums = slot === PODIUM_SORT && !!tally;
   const focusId = slot && isSteamId(slot) ? slot : null;
   const own = site.boards.filter((x) => x.group === b.group);
-  /* how many Tracks an Overall board adds up: its season's, or for All Seasons, which has
-     none of its own, every Track */
-  const tracks =
-    tally?.tracks ??
-    (own.filter((x) => !isPoints(x.name)).length ||
-      site.boards.filter((x) => !isPoints(x.name)).length);
+  const seasons = seasonsOf(site.boards);
+  /* how many Tracks an Overall board adds up */
+  const tracks = tally?.tracks ?? seasons.find((s) => s.group === b.group)?.tracks ?? 0;
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
   const [page, scores, places, focus, history] = await Promise.all([
@@ -64,7 +61,6 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
   const focusAt = focusId ? focus[focusId] : undefined;
   const t = TRACKS[name] as (typeof TRACKS)[string] | undefined;
   const items = <RailItems boards={own} current={name} podiums={site.podiums} />;
-  const seasons = seasonsOf(site.boards);
 
   return (
     <div className="main">
