@@ -30,8 +30,11 @@ type Data = Record<string, { top: number; entries: Record<string, Ghost> }>;
 
 /* round 2 asks what picture of a run C's drawer shows; round 1's variants are kept below,
    switched off by ROUND */
-const ROUND: number = 4;
+const ROUND: number = 5;
 export const VARIANTS = [
+  { key: "A", name: "Headline, tidied", note: "round 4's C with the date and top speed on top, the race, gap and clock in one card" },
+] as const;
+export const ROUND4 = [
   { key: "A", name: "As is", note: "round 3's stats line: avg, top, distance, set, ball" },
   { key: "B", name: "Against the leader", note: "each stat with its difference from the leader's run; ball dropped" },
   { key: "C", name: "Headline", note: "no stats grid: one line on top, the date and top speed; ball, avg and distance dropped" },
@@ -59,7 +62,8 @@ export const ROUND1 = [
   { key: "D", name: "Lens", note: "a switch over the board swaps the right column between Time, speeds, distance and date" },
   { key: "E", name: "Run card", note: "tap a row for a run card beside the board (a sheet on a phone); rows get a speed bar" },
 ] as const;
-export type Variant = (typeof VARIANTS)[number]["key"];
+/* a plain string, so earlier rounds' variant checks still compile with a one-variant round */
+export type Variant = string;
 
 function readVariant(): Variant {
   const v = new URLSearchParams(location.search).get("variant")?.toUpperCase();
@@ -194,6 +198,7 @@ function Stats({ g }: { g: Ghost }) {
 function Detail({ g, c }: { g: Ghost; c: Ctx }) {
   const lead = leaderOf(c);
   const last = g.gap[g.gap.length - 1];
+  if (ROUND === 5) return <Picture5 g={g} lead={lead} c={c} />;
   if (ROUND === 4) return <Picture4 g={g} lead={lead} c={c} />;
   if (ROUND === 3) return <Picture3 g={g} lead={lead} c={c} />;
   if (ROUND === 2) return <Picture g={g} lead={lead} c={c} />;
@@ -635,6 +640,80 @@ function Picture4({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
   );
 }
 
+/* ---------- round 5: C · Headline, tidied (good-css) ---------- */
+const shortDay = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : null;
+
+function RunGap({ g, lead, race }: { g: Ghost; lead: Ghost; race: Race }) {
+  const gap = gapOf(g, lead);
+  const h = 100;
+  const max = Math.max(0.02, ...gap.map(Math.abs));
+  const y = (d: number) => h / 2 + (d / max) * (h / 2 - 8);
+  const me = fracAt(g.at, race.t);
+  const onScrub = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.type === "pointermove" && e.buttons !== 1) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const f = (e.clientX - r.left) / r.width;
+    race.seek(g.at[Math.max(0, Math.min(g.at.length - 1, Math.round(f * g.at.length) - 1))]);
+  };
+  return (
+    <div className="r-gap" onPointerDown={onScrub} onPointerMove={onScrub}>
+      <svg viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" x2={W} y1={h / 2} y2={h / 2} className="r-zero" />
+        <polyline points={`0,${h / 2} ` + gap.map((d, i) => `${pct(i, gap.length)},${y(d)}`).join(" ")} className="r-line" />
+        {race.t > 0 && <line x1={me * W} x2={me * W} y1="0" y2={h} className="r-head" />}
+      </svg>
+      <span className="r-on r-on-up">Ahead</span>
+      <span className="r-on r-on-dn">Behind</span>
+    </div>
+  );
+}
+
+function Picture5({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
+  const second = Object.values(c.data?.[c.board]?.entries ?? {}).sort((a, b) => a.rank - b.rank)[1] ?? null;
+  const L = lead && lead !== g ? lead : second;
+  const vs = lead && lead !== g ? (lead.rank === 1 ? "the leader" : ordinal(lead.rank)) : ordinal(second?.rank ?? 2);
+  const end = Math.max(g.at[g.at.length - 1], L ? L.at[L.at.length - 1] : 0);
+  const race = useRace(end, false);
+  const when = shortDay(g.set);
+  const me = fracAt(g.at, race.t);
+  const ld = L ? fracAt(L.at, race.t) : 0;
+  return (
+    <div className="r-run">
+      <p className="r-meta">
+        {when ? <>Set <b>{when}</b></> : "Date not recorded"}
+        <span aria-hidden="true"> · </span>
+        Top speed <b className="r-num">{kmh(g.top)}</b>
+      </p>
+      {L && (
+        <div className="r-card">
+          <div className="r-bar">
+            <p>
+              Against {vs} · <b className="r-num">{signed(gapOf(g, L).at(-1)!)}</b> at the line
+            </p>
+            <span className="r-clock r-num">{fmtTime(Math.round(race.t * 1e5))}</span>
+            <button type="button" className="r-btn" onClick={race.play}>
+              {race.run ? "Racing" : race.t ? "Replay" : "Race"}
+            </button>
+          </div>
+          <div className="r-lanes">
+            <div className="r-lane">
+              <span>{vs === "the leader" ? "Leader" : vs}</span>
+              <i className="r-ball r-ball-lead" style={{ insetInlineStart: `${(ld * 100).toFixed(2)}%` }} />
+            </div>
+            <div className="r-lane">
+              <span>This run</span>
+              <i className="r-ball" style={{ insetInlineStart: `${(me * 100).toFixed(2)}%` }} />
+            </div>
+          </div>
+          <RunGap g={g} lead={L} race={race} />
+          <div className="r-axis"><span>Start</span><span>Finish</span></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const NSEC = 8;
 function sectors(a: Ghost) {
   const per = a.at.length / NSEC;
@@ -968,5 +1047,40 @@ const CSS = `
 .leaders .p-tap{cursor:pointer}
 .p-plate-open .ball,.p-plate-open svg{filter:drop-shadow(0 0 10px var(--accent))}
 .p-podium-drawer{margin:4px 0 14px;padding:14px;background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius)}
+
+/* round 5: the run drawer, written to good-css (logical properties, oklch derived with
+   color-mix, hover only where hover exists, :active and :focus-visible, tabular numbers) */
+.p-drawer:has(.r-run){padding-block:4px 16px;padding-inline:12px}
+.r-run{display:flex;flex-direction:column;gap:10px}
+.r-meta{margin:0;font:500 13px var(--f-hud);color:var(--dim)}
+.r-meta b{color:var(--text);font-weight:600}
+.r-num{font-variant-numeric:tabular-nums}
+.r-card{--r-pad:12px;display:flex;flex-direction:column;gap:10px;padding:var(--r-pad);border:1px solid var(--line2);border-radius:var(--radius);background:color-mix(in oklch,var(--solid),black 25%)}
+.r-bar{display:flex;flex-wrap:wrap;align-items:center;column-gap:12px;row-gap:4px}
+.r-bar p{margin:0;flex:1 1 16ch;font-size:12.5px;color:var(--dim)}
+.r-bar p b{color:var(--text)}
+.r-clock{margin-inline-start:auto;font:600 14px var(--f-hud);color:var(--text)}
+.r-btn{position:relative;border:0;cursor:pointer;padding-block:6px;padding-inline:14px;border-radius:999px;background:var(--surface2);color:var(--text);font:600 12px var(--f-hud)}
+.r-btn::after{content:"";position:absolute;inset:min(0px,(100% - 44px)/2)}
+.r-btn:active{transform:scale(.97)}
+.r-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (hover:hover) and (pointer:fine){.r-btn:hover{background:color-mix(in oklch,var(--surface2),white 8%)}}
+@media (prefers-reduced-motion:no-preference){.r-btn{transition:transform 160ms ease-out,background-color 160ms ease-out}}
+.r-lanes{display:flex;flex-direction:column;gap:6px}
+.r-lane{position:relative;block-size:24px;margin-inline:10px;border-block-end:1px dashed var(--line)}
+.r-lane span{position:absolute;inset-block-start:0;inset-inline-start:-10px;font:600 10px var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.r-ball{position:absolute;inset-block-end:0;inline-size:18px;block-size:18px;border-radius:50%;translate:-50% 50%;background:radial-gradient(circle at 34% 27%,hsl(var(--h,100) 94% 90%),hsl(var(--h,100) 80% 64%) 34%,hsl(var(--h,100) 62% 25%))}
+.r-ball-lead{background:radial-gradient(circle at 34% 27%,color-mix(in oklch,var(--gold),white 70%),var(--gold) 34%,color-mix(in oklch,var(--gold),black 55%))}
+.r-gap{position:relative;touch-action:none;cursor:ew-resize;border-block-start:1px solid var(--line2);padding-block-start:6px}
+.r-gap svg{display:block;inline-size:100%;block-size:96px}
+.r-gap polyline,.r-gap line{fill:none;vector-effect:non-scaling-stroke}
+.r-line{stroke:hsl(var(--h,100) 80% 64%);stroke-width:2.5;stroke-linejoin:round}
+.r-zero{stroke:var(--gold);stroke-dasharray:4 4;opacity:.55}
+.r-head{stroke:var(--text);stroke-width:1.5;opacity:.7}
+.r-on{position:absolute;inset-inline-start:0;font:600 10px var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--faint);pointer-events:none}
+.r-on-up{inset-block-end:calc(50% - 3px + 3px)}
+.r-on-dn{inset-block-start:calc(50% + 6px)}
+.r-axis{display:flex;justify-content:space-between;font:500 10.5px var(--f-hud);color:var(--faint)}
+@media (min-width:900px){.p-drawer:has(.r-run){padding-inline:110px 24px}}
 `;
 // ===================== end PROTOTYPE =====================
