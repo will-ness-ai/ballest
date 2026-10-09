@@ -13,7 +13,8 @@ export async function freshDb(): Promise<{ db: Db; url: string; drop: () => Prom
   const admin = new pg.Client({ connectionString: base });
   await admin.connect().catch((e: unknown) => {
     // otherwise every test fails on its own and reads like a bug in the code under test
-    throw new Error(`Postgres isn't reachable at TEST_DATABASE_URL (${base}); start it first`, {
+    const host = new URL(base).host;
+    throw new Error(`Can't connect to Postgres at TEST_DATABASE_URL (${host}); is it running?`, {
       cause: e,
     });
   });
