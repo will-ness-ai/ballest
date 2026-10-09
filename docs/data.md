@@ -104,6 +104,31 @@ Open in Neon.
   exactly as the developers' API returns it), the Map's pfid (no foreign key: a Map can
   leave the Workshop) and title, its window (`starts_at`, `ends_at`), and
   `final_refresh`, the first Refresh that read the board ok at or after `ends_at`.
+- `ghosts`: one per Ghost (`CONTEXT.md`) the collector has read, by UGC ID: its state
+  (`ok`; `empty`, a Ghost with no samples; `gone`, one Steam has no file for), the Skin
+  and the hat as the object paths the Ghost names (raw, as `skinMaterial` and `accessory`
+  write them, or for a Skin with no material, Snow Globe, its `?SpecialSkinClass`), and
+  when it was read. A Ghost never changes, so a row is final. An Entry's Ghost is its
+  `ugc_id`; the boards draw the Skin (`docs/site.md`, "Ball skins").
+
+### Ghosts
+
+The Ghost step (`tools/ghosts.py`) runs after the database write, into the same database,
+and never blocks or fails the run: an error is a warning. It reads the Ghost of every open
+Entry in the top `TOP` (100) of each time board, Tracks, Maps and Dailies (Overall boards
+have none), whose UGC ID has no `ghosts` row, best rank first: `GetUGCFileDetails` with the
+Web API key, then the file at the CDN URL it returns, which costs no quota. A few run at
+once, and the step stops at `BUDGET` (four minutes) with what it has read, so a backlog,
+such as the first run's, is read over several Refreshes. A read that fails writes nothing
+and is tried again next run; Steam saying the file is gone is final. When it wrote any
+Ghost it revalidates the site again, since the boards draw them. It is skipped without
+`STEAM_API_KEY` or a database, and with `--out` writes only `DEV_DATABASE_URL`, as the
+database step does.
+
+What a Ghost holds beyond the Skin (the path at ~10 samples a second, velocities, the
+checkpoint splits, the texture slider in `ballerSkinPrefs`) is not stored. Ghosts from
+before about 2026-01 have no `?SpecialSkinClass`, and from before about 2026-07 no
+`ballerSkinPrefs`.
 
 ### Dailies are database-only
 

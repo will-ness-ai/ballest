@@ -94,14 +94,17 @@ export async function boardPage(
   { from = 0, count = 50, q = "" }: { from?: number; count?: number; q?: string } = {},
 ): Promise<BoardPage> {
   const match = q.trim() ? contains(q.trim().toLowerCase()) : null;
-  const matched = sql`select b.*, p.persona, nullif(p.avatar, '') as avatar
+  const matched = sql`select b.*, p.persona, nullif(p.avatar, '') as avatar, g.skin
     from (select *, lag(score) over (order by rank) as ahead from (${boardSql(name)}) r) b
     join players p on p.steam_id = b.steam_id
+    left join entries e
+      on e.board = b.board and e.steam_id = b.steam_id and e.closed_refresh is null
+    left join ghosts g on g.ugc_id = e.ugc_id
     ${match ? sql`where lower(${personaSql}) like ${match} or b.steam_id like ${match}` : sql``}`;
   const found = await rows<BoardRow & { total: number }>(
     db,
     sql`select rank, steam_id as "steamId", persona, avatar, score::float8 as score,
-        ahead::float8 as ahead, seasons, (count(*) over ())::int as total
+        ahead::float8 as ahead, seasons, skin, (count(*) over ())::int as total
       from (${matched}) m
       order by rank offset ${from} limit ${count}`,
   );

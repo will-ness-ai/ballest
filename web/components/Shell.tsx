@@ -65,8 +65,8 @@ export async function Shell({ view, children }: { view: View; children: React.Re
           fan project, not affiliated with the developer.
         </p>
         <p>
-          Marble colours are derived from each player&apos;s Steam ID. The leaderboard API
-          doesn&apos;t expose the ball someone actually raced with.
+          A top run shows the ball it was rolled with, read from its ghost. Any other marble takes
+          its colour from the player&apos;s Steam ID.
         </p>
         <p>
           Signing in with Steam keeps only your Steam ID, in a signed cookie on this browser, to

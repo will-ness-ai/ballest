@@ -85,6 +85,22 @@ Each level's data asset names its screenshot texture; the Season 2 names do not 
 track order, and two asset folders differ in case from the board names (`LongHaul`,
 `Nightway`), so the script maps them through the data asset rather than by name.
 
+## Ball skins
+
+A board's rows and plates draw each run's ball skin in place of the made-up marble, once
+the collector has read the run's Ghost (`docs/data.md`, "Ghosts"): the board query carries
+the skin the Ghost names, and `skinPicture` in `lib/skins.ts` maps it to
+`skins/<asset>.webp`, the game's menu ball wearing that skin, shot in a sandboxed test copy
+and cut round, 192px for a 2x screen. A run with no Ghost read, a skin the list doesn't
+know (one a game update added) and every derived or Overall board keep the marble, and the
+marble still turns over to the Steam avatar either way.
+
+A new skin takes a picture and a line in `lib/skins.ts`. The list and pictures were made
+on 2026-10-08 (`prototype/skins/` on branch `claude/prototype-skins`, with the game's own
+tile icons and notes on which skins animate): the plain colours are shot with the texture
+slider at 0, which most players use, and an animated skin (Spirit, Disco, Magma) is one
+frame of it.
+
 ## Share images
 
 A player, a Workshop Map, a Circuit Track and a Daily each unfurl with their own

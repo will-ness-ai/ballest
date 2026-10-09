@@ -3,13 +3,15 @@
 // time board and on a points board, a Map not read in a Refresh, one whose read failed and
 // one gone from the Workshop, two Season 1 Tracks to add up, a persona change, and four
 // Dailies (three final, one live, a tie on a podium, a player who missed a day mid-run and
-// a failed read). The read layer's tests (test/site.test.ts, test/reads.test.ts) take their
-// expected values from the comments here. Every player and Map is made up.
+// a failed read), and a few runs' Ghosts read for their Skins. The read layer's tests
+// (test/site.test.ts, test/reads.test.ts) take their expected values from the comments
+// here. Every player and Map is made up.
 import {
   boardReads,
   boards,
   dailies,
   entries,
+  ghosts,
   mapHistory,
   maps,
   personaHistory,
@@ -17,6 +19,16 @@ import {
   refreshes,
 } from "../../schema";
 import type { Dataset } from "./types";
+
+/* skins as a Ghost names them */
+export const SKIN = {
+  pink: "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink",
+  magma: "/Game/Art/Materials/Masters/M_LavaBall.M_LavaBall",
+  cosmic:
+    "/Game/Packs/Vefects/Stylized_Galaxy_Shader/Galaxy/Materials/MI_VFX_Lush_Galaxy_Shader_02.MI_VFX_Lush_Galaxy_Shader_02",
+  gold: "/Game/Art/M_GoldReal.M_GoldReal",
+};
+const HAT = "/Game/Art/Props/Player/CatEars/SM_CatEars_Combined.SM_CatEars_Combined";
 
 const TRACK = "Map_Track13";
 const TRACK2 = "Map_Track15";
@@ -38,7 +50,8 @@ const DAY4 = "ballest_v0_9000000004_Daily_20260901_aa000004";
 const p = (n: number) => `765611990000000${String(n).padStart(2, "0")}`;
 
 export const tiny: Dataset = {
-  description: "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes",
+  description:
+    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 7 Ghosts",
   seed: async (tx) => {
     const [r1, r2, r3] = (
       await tx
@@ -265,6 +278,26 @@ export const tiny: Dataset = {
       // Daily 09-01 (Fresh Fields), live, last read ok in R2: p8 5200000, p1 5500000.
       e(DAY4, 1, 5_500_000, r2, r2),
       e(DAY4, 8, 5_200_000, r2, r2),
+    ]);
+
+    // Ghosts, read for their skins (lib/skins.ts): Track p1's run is Pink (its closed
+    // run was Magma), p2's Cosmic, p4's a skin the site doesn't know, p5's had no samples,
+    // and p6's is gone. Map A p9's run is Gold. The rest are not read yet.
+    const ghost = (n: number, score: number) => `${String(9_000_000_000 + n)}${String(score)}`;
+    const readAt = new Date("2026-09-01T03:10:00Z");
+    await tx.insert(ghosts).values([
+      { ugcId: ghost(1, 1_013_307), state: "ok", skin: SKIN.pink, readAt },
+      { ugcId: ghost(1, 1_050_000), state: "ok", skin: SKIN.magma, readAt },
+      { ugcId: ghost(2, 1_019_884), state: "ok", skin: SKIN.cosmic, hat: HAT, readAt },
+      {
+        ugcId: ghost(4, 1_100_000),
+        state: "ok",
+        skin: "/Game/Art/New/MI_NewSkin.MI_NewSkin",
+        readAt,
+      },
+      { ugcId: ghost(5, 1_019_884), state: "empty", readAt },
+      { ugcId: ghost(6, 1_200_000), state: "gone", readAt },
+      { ugcId: ghost(9, 4_200_000), state: "ok", skin: SKIN.gold, readAt },
     ]);
 
     await tx.insert(maps).values([
