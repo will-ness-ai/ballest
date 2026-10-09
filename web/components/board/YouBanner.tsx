@@ -53,7 +53,7 @@ function Holder({ bar }: { bar: boolean }) {
           </p>
         )}
       </div>
-      <span className="go">Jump to your row</span>
+      <span className="go">Jump to your place</span>
     </div>
   );
 }
@@ -62,7 +62,7 @@ export function YouBanner(board: BoardFacts) {
   const you = useYouOnBoard(board.name);
   const path = usePathname();
   if (you.kind === "loading") return you.claimed ? <Holder bar={medalsOn(board) != null} /> : null;
-  if (you.kind === "unset")
+  if (you.kind === "none")
     return (
       <div className="you-banner yb-empty">
         <p>Sign in to see where you stand here.</p>
@@ -117,7 +117,7 @@ export function YouBanner(board: BoardFacts) {
         )}
       </div>
       <Link className="go" href={boardHref(board.name, you.who.steamId)}>
-        Jump to your row
+        Jump to your place
       </Link>
     </div>
   );

@@ -12,19 +12,19 @@ them back with a signed assertion, and the site checks it by asking Steam itself
 the Steam ID from the claimed identity. No Steam Web API key, no profile read, no
 database table: names and marbles still come from the boards.
 
-The session is one httpOnly, `SameSite=Lax`, `Secure` cookie holding the Steam ID, the time
-it was issued and an HMAC of both under `SESSION_SECRET`, a Vercel environment variable.
-A second, readable cookie holds only `1`, so the browser knows a session exists without
-asking. Nothing else about the reader is stored anywhere. Sign out clears both. Sign out can't revoke a copied cookie, which
-lasts a year: the only way to end every session is a new `SESSION_SECRET`. Sign-in also
-sets a ten-minute state cookie whose value rides in the return address, so Steam's answer
-only signs in the browser that asked for it, and an answer more than five minutes old is
-refused.
+The session is one httpOnly, `SameSite=Lax`, `Secure` cookie holding the Steam ID, the
+time it was issued and an HMAC of both under `SESSION_SECRET`, a Vercel environment
+variable. A second, readable cookie holds only `1`, so the browser knows a session exists
+without asking. Nothing else about the reader is stored anywhere. Sign out clears both.
+Sign out can't revoke a copied cookie, which lasts a year: the only way to end every
+session is a new `SESSION_SECRET`. Sign-in also sets a ten-minute state cookie whose value
+rides in the return address, so Steam's answer only signs in the browser that asked for
+it, and an answer more than five minutes old is refused.
 
-Pages stay cached (ADR 0004): the server never reads the cookie while drawing a page.
-The browser asks `GET /api/me`, which is never cached, only when that cookie is there, for the signed-in Steam ID, and
-You's header card, banners and highlights draw from that, as they did from the browser's
-claim. Old claims in browsers are ignored.
+Pages stay cached (ADR 0004): the server never reads the cookie while drawing a page. The
+browser asks `GET /api/me`, which is never cached, only when that cookie is there, for the
+signed-in Steam ID, and You's header card, banners and highlights draw from that, as they
+did from the browser's claim. Old claims in browsers are ignored.
 
 ## Considered Options
 

@@ -98,7 +98,10 @@ export interface PlayerRecord {
   workshop: {
     finishes: Array<WorkshopFinish>;
     medals: Record<MedalKey, number>;
-    maps: number;
+    /* every Map on the Workshop, finished or not: the "of N" in "242 of 1,245" */
+    mapsOnWorkshop: number;
+    /* the Maps this player has a time on: You's count in the header */
+    mapsFinished: number;
     podiums: number;
     near: number;
   };
@@ -248,7 +251,8 @@ export function playerRecord(
     workshop: {
       finishes,
       medals: byMedal,
-      maps: maps.length,
+      mapsOnWorkshop: maps.length,
+      mapsFinished: finishes.length,
       podiums: finishes.filter((f) => f.rank <= 3).length,
       near: finishes.filter((f) => f.rank > 1 && f.gap <= SCORE_TICKS_PER_SECOND).length,
     },

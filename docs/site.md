@@ -25,9 +25,14 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     Season 2 tiers, each Track's screenshot and Medal times.
   - `rows.ts`, the row types the read layer returns.
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
-    the rows it is given.
-- `web/hooks/` — the client-only hooks: the clock and debounced searches (`client.ts`), and
-  who is signed in (`me.ts`, reading `/api/me`).
+    the rows it is given; `standing.ts` (You's place, Medal and next Medal on a board) and
+    `spread.ts` (the spread chart's columns and where a time falls on it) for You.
+  - `auth.ts`, Sign in with Steam end to end, one call per route (ADR 0008), over
+    `steam-openid.ts` (Steam's login and its check) and `cookies.ts` (the cookie names the
+    browser also reads). Not pure like the rest: it signs with `node:crypto` and asks Steam.
+- `web/hooks/` — the client-only hooks: the clock and debounced searches (`client.ts`), a
+  read made once per page and shared (`read.ts`), who is signed in (`me.ts`, reading
+  `/api/me`), and You on one board (`you.ts`).
 - `web/db/` — the read layer. `site.ts` is the SQL, `data.ts` the cached reads pages call
   (below), `schema.ts` the Drizzle schema the collector writes to.
 - `web/proxy.ts` — the checks that must answer before a page starts streaming: a real 404
@@ -161,7 +166,7 @@ copy too (`components/Freshness.tsx`). Ages are worked out in the browser, so a 
 hours ago still says how old the boards are now.
 
 You's card sits at the top right (`components/YouCard.tsx`): your marble and name, with your
-All Seasons place and Maps played on a desktop, linking to your page. On a phone it folds to
+All Seasons place and Maps finished on a desktop, linking to your page. On a phone it folds to
 marble and name and takes the refresh time's place, which is hidden there (a blank card
 holds that place while your record is read). Signed out, it is Sign in with Steam, coming
 back to the page you were on; signed in as a Steam ID on no board yet, it is Sign out, since
@@ -180,19 +185,19 @@ player's row reads down to that row first. Each row carries the score of the row
 are never re-sorted on the client.
 
 Once you are signed in, a banner above the plates gives You's standing on the board (a
-Map, a Track, or an Overall board on its points sort): place, score, the Medal it holds and
-a bar toward the next one (`standingOn` in `lib/standing.ts`), and a link to the board at
-your row. It reads your row from `/api/board/<name>?player=<steam id>` through
+Map, a Track, or an Overall board on its points sort): place, score, the Medal it holds
+and a bar toward the next one (`standingOn` in `lib/standing.ts`), and a link to the board
+at your row. It reads your row from `/api/board/<name>?player=<steam id>` through
 `useYouOnBoard` (`hooks/you.ts`), which every view of You on a board shares, and draws
 nothing until it has, so the server's page is the same for everyone; once the browser
 knows there is a session it holds the banner's height while the row is read, so the plates
-don't jump. The same read draws your time on the spread chart (a Map's panel, a Track's card) as a line in your marble's hue,
-held at the right edge with an arrow when it is past it: the server works the chart out
-(`spreadOf` in `lib/spread.ts`) and `YouSpread` draws it again with the line, so only the
-chart's columns reach the browser, not every run. `YouMarks` picks out your row and plate
-with a style rule on their `data-id`, so rows added later by scrolling or search are marked
-too; the rule reaches only into its own page's content, so a page Next keeps hidden leaves
-the others alone.
+don't jump. The same read draws your time on the spread chart (a Map's panel, a Track's
+card) as a line in your marble's hue, held at the right edge with an arrow when it is past
+it: the server works the chart out (`spreadOf` in `lib/spread.ts`) and `YouSpread` draws
+it again with the line, so only the chart's columns reach the browser, not every run.
+`YouMarks` picks out your row and plate with a style rule on their `data-id`, so rows
+added later by scrolling or search are marked too; the rule reaches only into its own
+page's content, so a page Next keeps hidden leaves the others alone.
 
 Ranks follow Steam's tie rule: equal scores are ordered by Steam ID, ascending on a time
 board and descending on a points board (`docs/data.md`).
@@ -230,9 +235,9 @@ their header order, then the name, set the order. A search filters that list and
 each player's real rank.
 
 The table scrolls inside its own box on a phone, so the rank and name columns stay put
-going sideways; on the desktop layout it fits, and the page scrolls. The pinned card is your own row,
-once you are signed in, shown at the foot while the row is out of view: how far the
-next rank up and the top 10 are, and a click scrolls to the row.
+going sideways; on the desktop layout it fits, and the page scrolls. The pinned card is
+your own row, once you are signed in, shown at the foot while the row is out of view: how
+far the next rank up and the top 10 are, and a click scrolls to the row.
 
 The Players tab sits last in the tab bar, but it is not a season, so it is lit from the
 path rather than a group.

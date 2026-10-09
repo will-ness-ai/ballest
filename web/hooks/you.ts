@@ -10,7 +10,7 @@ import type { YourRow } from "../lib/standing";
 
 export type YouOnBoard =
   /* signed out */
-  | { kind: "unset" }
+  | { kind: "none" }
   /* signed in as a Steam ID on no board yet */
   | { kind: "unknown" }
   /* not known yet: hydrating, or You's record or row still being read (or a read failed).
@@ -34,7 +34,7 @@ export function useYouOnBoard(name: string): YouOnBoard {
       ? `/api/board/${encodeURIComponent(name)}?player=${encodeURIComponent(you.id)}`
       : null;
   const got = useRead(readRow, path);
-  if (you.state === "none") return { kind: "unset" };
+  if (you.state === "none") return { kind: "none" };
   if (you.state === "unknown") return { kind: "unknown" };
   if (you.state === "loading") return { kind: "loading", claimed: you.claimed };
   if (!got) return { kind: "loading", claimed: true };
