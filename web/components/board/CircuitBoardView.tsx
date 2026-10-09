@@ -80,7 +80,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
       <section className="content">
         <YouMarks name={name} />
         <div className="boardrow">
-          <SeasonChip seasons={seasons} on={b.group} />
+          <SeasonChip seasons={seasons} on={b.group} board={name} />
           <BoardSheet
             img={t?.img ?? null}
             name={points ? b.display : trackNo(b.display)}

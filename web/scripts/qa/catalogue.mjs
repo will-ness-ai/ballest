@@ -52,6 +52,7 @@ export const PAGES = [
  */
 export const STATES = [
   { name: "sheet", page: "overall", click: "#boardBtn" },
+  { name: "seasons", page: "overall", click: ".seasonchip" },
   { name: "points", page: "overall", click: "button[aria-label='How points work']" },
   { name: "fresh", page: "home", click: "#freshness" },
   { name: "compare", page: "player", click: "button:has-text('Compare')" },

@@ -285,42 +285,30 @@
 .boardrow {
   display: flex;
   gap: 8px;
-  margin: 0 var(--pad) 12px;
+  margin-inline: var(--pad);
+  margin-block-end: 12px;
 }
 .boardrow .boardbtn {
   flex: 1;
   min-inline-size: 0;
-  width: auto;
+  inline-size: auto;
   margin: 0;
 }
 .seasonchip {
-  position: relative;
-}
-.seasonchip summary {
   display: flex;
   align-items: center;
   gap: 6px;
-  block-size: 100%;
-  padding: 0 12px;
+  padding-inline: 12px;
   border-radius: 12px;
   background: var(--surface);
   border: 1px solid var(--line);
-  list-style: none;
-  cursor: pointer;
   font-family: var(--f-hud);
   font-size: calc(12.5rem / 16);
   font-weight: 600;
   color: var(--accent);
   white-space: nowrap;
 }
-.seasonchip summary::-webkit-details-marker {
-  display: none;
-}
-.seasonmenu {
-  position: absolute;
-  z-index: 20;
-  inset-block-start: calc(100% + 4px);
-  inset-inline-start: 0;
+.seasonmenu:popover-open {
   display: flex;
   flex-direction: column;
   min-inline-size: 180px;
@@ -329,6 +317,19 @@
   background: var(--solid);
   border: 1px solid var(--line);
   box-shadow: 0 10px 30px var(--scrim);
+  color: inherit;
+}
+/* under the chip; a browser without anchoring opens it in the middle of the screen */
+@supports (position-area: block-end) {
+  .seasonmenu {
+    margin: 0;
+    margin-block-start: 4px;
+    position-area: block-end span-inline-end;
+    position-try-fallbacks:
+      flip-block,
+      flip-inline,
+      flip-block flip-inline;
+  }
 }
 .seasonmenu a {
   display: flex;

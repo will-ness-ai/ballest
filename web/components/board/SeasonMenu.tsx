@@ -1,42 +1,33 @@
 "use client";
-// The phone's season chip: a <details> whose menu closes on a pick, a tap outside it, or
-// Escape, the way the board sheet beside it does.
-import { useEffect, useRef, type ReactNode } from "react";
+// The phone's season chip: a button and the popover menu it opens. The browser closes it on
+// a tap outside or Escape; a pick closes it here, since the page it opens keeps this one.
+import type { ReactNode } from "react";
 
-export function SeasonMenu({ label, children }: { label: string; children: ReactNode }) {
-  const box = useRef<HTMLDetailsElement>(null);
-
-  useEffect(() => {
-    const close = () => {
-      if (box.current) box.current.open = false;
-    };
-    const onDown = (e: PointerEvent) => {
-      if (!box.current?.contains(e.target as Node)) close();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    addEventListener("pointerdown", onDown);
-    addEventListener("keydown", onKey);
-    return () => {
-      removeEventListener("pointerdown", onDown);
-      removeEventListener("keydown", onKey);
-    };
-  }, []);
-
+export function SeasonMenu({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: ReactNode;
+}) {
   return (
-    <details className="seasonchip" ref={box}>
-      <summary aria-label={`Season: ${label}`}>
+    <>
+      <button className="seasonchip" popoverTarget={id} aria-label={`Season: ${label}`}>
         {label} <span aria-hidden="true">&#9662;</span>
-      </summary>
-      <div
+      </button>
+      <nav
         className="seasonmenu"
+        id={id}
+        popover="auto"
+        aria-label="Season"
         onClick={(e) => {
-          if ((e.target as Element).closest("a") && box.current) box.current.open = false;
+          if ((e.target as Element).closest("a")) e.currentTarget.hidePopover();
         }}
       >
         {children}
-      </div>
-    </details>
+      </nav>
+    </>
   );
 }
