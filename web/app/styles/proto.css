@@ -31,11 +31,12 @@
 }
 .pseg a {
   flex: 1;
-  padding: 7px 6px;
+  padding: 7px 4px;
+  white-space: nowrap;
   border-radius: 7px;
   text-align: center;
   font-family: var(--f-hud);
-  font-size: calc(12rem / 16);
+  font-size: calc(11.5rem / 16);
   font-weight: 600;
   color: var(--dim);
 }
@@ -252,4 +253,9 @@
   background: var(--accent-ink);
   color: var(--accent);
   font-weight: 700;
+}
+
+.pv a,
+.pmenu a {
+  text-decoration: none;
 }

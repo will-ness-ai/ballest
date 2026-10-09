@@ -14,7 +14,7 @@ export function SwitchSegmented({ seasons, on }: { seasons: ReadonlyArray<Season
     <nav className="pv pv-A pseg" aria-label="Season">
       {seasons.map((s) => (
         <Link key={s.group} href={s.href} aria-current={s.group === on}>
-          {s.label}
+          {s.group}
         </Link>
       ))}
     </nav>
