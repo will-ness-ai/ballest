@@ -7,6 +7,7 @@ import { Ambient } from "../components/Marble";
 import { LegacyHash, MarbleFlip } from "../components/Behaviours";
 import { SITE_ORIGIN } from "../lib/routes";
 import { SITE_TITLE, pageTitle } from "../lib/rules";
+import { SITE_NAME } from "../lib/share";
 
 import "./styles/base.css";
 import "./styles/board.css";
@@ -36,7 +37,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    siteName: "ballestrecords.com",
+    siteName: SITE_NAME,
     title: SITE_TITLE,
     description: DESCRIPTION,
     images: [

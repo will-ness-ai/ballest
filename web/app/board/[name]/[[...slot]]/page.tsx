@@ -7,9 +7,12 @@ import { Suspense } from "react";
 import { Shell } from "../../../../components/Shell";
 import { BoardSkeleton } from "../../../../components/Skeleton";
 import { CircuitBoardView } from "../../../../components/board/CircuitBoardView";
-import { CIRCUIT, circuitBoard } from "../../../../lib/circuit";
+import { getSite } from "../../../../db/data";
+import { CIRCUIT, TRACKS, circuitBoard } from "../../../../lib/circuit";
 import { PODIUM_SORT } from "../../../../lib/routes";
 import { isPoints } from "../../../../lib/rules";
+import { shareMetadata } from "../../../../components/share/metadata";
+import { shareHref } from "../../../../lib/share";
 
 interface Props {
   params: Promise<{ name: string; slot?: Array<string> }>;
@@ -27,10 +30,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const b = circuitBoard(name);
   if (!b) return {};
   const title = `${b.group} ${b.display}`;
-  return {
-    title,
-    description: `The ${title} leaderboard of Ballest of Them All, read straight from Steam.`,
-  };
+  const description = `The ${title} leaderboard of Ballest of Them All, read straight from Steam.`;
+  /* a Track has its own share image; an Overall board keeps the site's */
+  if (!(b.name in TRACKS)) return { title, description };
+  const site = await getSite();
+  return shareMetadata(
+    { title, description },
+    shareHref("track", b.name, site.asOf),
+    `Circuit track ${title} and its record.`,
+  );
 }
 
 async function Board({ params }: Pick<Props, "params">) {

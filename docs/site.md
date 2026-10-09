@@ -80,6 +80,36 @@ Each level's data asset names its screenshot texture; the Season 2 names do not 
 track order, and two asset folders differ in case from the board names (`LongHaul`,
 `Nightway`), so the script maps them through the data asset rather than by name.
 
+## Share images
+
+A player, a Workshop Map, a Circuit Track and a Daily each unfurl with their own
+1200×630 card (spec #179). `lib/share.ts` decides what a card says, `components/share/`
+draws it through `next/og` and names it in the page's metadata, and `/og/<kind>/<id>`
+(`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`, `map`, `track`, `daily`) serves
+the PNG, or a 404 when there is no such page. Any other page, an Overall board included,
+keeps the site-wide `og.png`.
+
+- A player gets their marble turned over to their Steam avatar, the Season 2 Overall rank
+  if they have one, and up to four tiles: World records, Author medals, Maps finished,
+  Maps made. Each counts the Circuit and the Workshop together, and a count of zero is
+  left out.
+- A Map, Track or Daily gets its picture across the top (the Workshop preview, or the
+  Track's screenshot), its world record (a Daily's "Fastest", live or final alike), then
+  Players, Author time, Beat the author and either Published (a Map) or Gold time.
+
+The page names its card with the latest Refresh in the URL (`?v=`, `shareHref`), so each
+Refresh is a new address for crawlers that keep a picture by URL, and the route answers
+with `s-maxage` for a year: Vercel's CDN renders each card once per Refresh at most. On a
+preview the card's URL is the branch's own address, since `metadataBase` is production.
+
+Satori reads no WebP, no variable font and no `oklch`, so `assets/share/` holds what it
+needs: TTF copies of Bungee and Chakra Petch (OFL, licences beside them) and a JPEG copy
+of each `circuit/*.webp`. Regenerate those copies whenever a Track screenshot changes
+(quality 82; PIL's `Image.open(webp).convert("RGB").save(jpg, quality=82)`).
+`next.config.ts` traces the folder into the route's function. Steam pictures are fetched
+with a 3-second timeout and only as PNG, JPEG or GIF; a card whose picture fails draws
+without it.
+
 ## Routes
 
 - `/` — the Workshop homepage: the carousel, the shelves and the search.
