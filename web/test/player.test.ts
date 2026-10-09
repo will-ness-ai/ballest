@@ -107,7 +107,7 @@ describe("a player's record", () => {
       },
     ]);
     expect(w.medals).toEqual({ wr: 0, author: 0, gold: 0, silver: 0, bronze: 1, none: 0 });
-    expect([w.maps, w.podiums, w.near]).toEqual([2, 1, 0]);
+    expect([w.mapsOnWorkshop, w.podiums, w.near]).toEqual([2, 1, 0]);
   });
 
   test("the creator's own Map is on their Made tab, with its record", async () => {

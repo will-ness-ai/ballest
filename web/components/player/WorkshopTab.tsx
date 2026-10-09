@@ -205,7 +205,7 @@ export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"]
         ))}
       </div>{" "}
       <p className="wsline">
-        {`${fmtN(w.finishes.length)} of ${fmtN(w.maps)} maps finished · ${plural(w.podiums, "podium", "podiums")} · ${fmtN(w.near)} within a second of a record`}
+        {`${fmtN(w.finishes.length)} of ${fmtN(w.mapsOnWorkshop)} maps finished · ${plural(w.podiums, "podium", "podiums")} · ${fmtN(w.near)} within a second of a record`}
       </p>{" "}
       {recs.length ? (
         <Shelf

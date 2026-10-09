@@ -63,7 +63,7 @@ export function YouCard() {
         <b>{personaOf(rec.who)}</b>
         <small>
           {rec.allSeasons ? ord(rec.allSeasons.rank) + " All Seasons" : "Unranked"} ·{" "}
-          {plural(rec.workshop.maps, "Map", "Maps")}
+          {plural(rec.workshop.finishes.length, "Map", "Maps")}
         </small>
       </span>
     </Link>
