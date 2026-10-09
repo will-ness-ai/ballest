@@ -1,11 +1,11 @@
 "use client";
-// The tabs across the top: the Workshop (the homepage), each season, All Seasons, then
+// The tabs across the top: the Workshop (the homepage), the Daily, the Circuit, then
 // Players. Which one is lit follows the path, so every page's frame can share them.
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-import { groupOfPath } from "../lib/routes";
+import { tabOfPath } from "../lib/routes";
 
 export interface GroupTab {
   group: string;
@@ -13,7 +13,7 @@ export interface GroupTab {
 }
 
 export function GroupTabs({ tabs }: { tabs: ReadonlyArray<GroupTab> }) {
-  return <Tabs tabs={tabs} on={groupOfPath(usePathname())} />;
+  return <Tabs tabs={tabs} on={tabOfPath(usePathname())} />;
 }
 
 /* the same tabs with none lit, while the path is not known yet */
@@ -41,7 +41,7 @@ export function Tabs({ tabs, on }: { tabs: ReadonlyArray<GroupTab>; on: string |
     void document.fonts.ready.then(show);
   }, [on]);
   return (
-    <nav className="groups" id="groups" role="tablist" aria-label="Season" ref={bar}>
+    <nav className="groups" id="groups" role="tablist" aria-label="Leaderboards" ref={bar}>
       {tabs.map((t) => (
         <Link
           key={t.group}

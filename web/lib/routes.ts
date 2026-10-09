@@ -27,19 +27,21 @@ export const isPlayerTab = oneOf(PLAYER_TABS);
 export const isPlScope = oneOf(PL_SCOPES);
 export const isPlSort = oneOf(PL_SORTS);
 
-/* the tabs across the top that aren't a season: the Workshop leads, the Daily follows it,
+/* the tabs across the top: the Workshop leads, the Daily follows it, then the Circuit, and
    Players comes last */
 export const WORKSHOP_GROUP = "Workshop";
+/* every season's boards sit under the one Circuit tab, with the seasons as a switch inside */
+export const CIRCUIT_TAB = "Circuit";
 export const DAILY_TAB = "Daily";
 export const PLAYERS_TAB = "Players";
 
 /* the tab a path belongs to; a player's page and a head to head belong to none */
-export function groupOfPath(path: string): string | null {
+export function tabOfPath(path: string): string | null {
   if (path === "/" || /^\/maps?(\/|$)/.test(path)) return WORKSHOP_GROUP;
   if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
   if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
   const board = /^\/board\/([^/]+)/.exec(path);
-  return board ? (circuitBoard(decodeURIComponent(board[1]))?.group ?? null) : null;
+  return board && circuitBoard(decodeURIComponent(board[1])) ? CIRCUIT_TAB : null;
 }
 
 export const homeHref = () => "/";
