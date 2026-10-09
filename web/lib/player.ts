@@ -129,6 +129,19 @@ export function overallOf(boards: ReadonlyArray<IndexBoard>, group: string) {
   return own.find((b) => b.name === S1_CURRENT_BOARD) ?? own.find((b) => isPoints(b.name));
 }
 
+/* The season switch's choices, newest first: each season's Overall board, that board's
+   field, and how many Tracks it adds up (All Seasons, which has none of its own: every one) */
+export function seasonsOf(boards: ReadonlyArray<IndexBoard>) {
+  const tracks = (group?: string) =>
+    boards.filter((b) => !isPoints(b.name) && (!group || b.group === group)).length;
+  return groupsOf(boards).flatMap((group) => {
+    const o = overallOf(boards, group);
+    return o
+      ? [{ group, overall: o.name, players: o.entryCount, tracks: tracks(group) || tracks() }]
+      : [];
+  });
+}
+
 export function playerRecord(
   data: PlayerData,
   boards: ReadonlyArray<IndexBoard>,

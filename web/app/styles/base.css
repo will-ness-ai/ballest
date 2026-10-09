@@ -119,7 +119,7 @@ button {
   padding: 0;
   cursor: pointer;
 }
-/* the season tabs and the rail's strips were buttons on the single-page site; as links
+/* the tabs and the rail's strips were buttons on the single-page site; as links
    they are drawn the same */
 :where(a.gtab, a.tstrip) {
   color: inherit;

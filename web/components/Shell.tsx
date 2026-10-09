@@ -9,8 +9,9 @@ import { GroupTabs, Tabs, type GroupTab } from "./GroupTabs";
 import { Rack } from "./Marble";
 import { YouCard } from "./YouCard";
 import { getDailyDates, getSite, getWorkshop } from "../db/data";
-import { groupsOf, overallOf } from "../lib/player";
+import { seasonsOf } from "../lib/player";
 import {
+  CIRCUIT_TAB,
   DAILY_TAB,
   PLAYERS_TAB,
   WORKSHOP_GROUP,
@@ -24,17 +25,15 @@ import { SITE_TITLE } from "../lib/rules";
 export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "players" | "daily";
 
 /* the Workshop is the homepage, so its tab leads and the Daily, a Map a day, follows it;
-   Players, over every board, comes last */
+   the Circuit opens on its newest season's Overall board, and Players, over every board,
+   comes last */
 async function tabs(): Promise<Array<GroupTab>> {
   const [site, maps, dailies] = await Promise.all([getSite(), getWorkshop(), getDailyDates()]);
-  const seasons = groupsOf(site.boards).map((group) => {
-    const open = overallOf(site.boards, group) ?? site.boards.find((b) => b.group === group);
-    return { group, href: open ? boardHref(open.name) : homeHref() };
-  });
+  const newest = seasonsOf(site.boards).at(0);
   return [
     ...(maps.length ? [{ group: WORKSHOP_GROUP, href: homeHref() }] : []),
     ...(dailies.length ? [{ group: DAILY_TAB, href: dailyHref() }] : []),
-    ...seasons,
+    ...(newest ? [{ group: CIRCUIT_TAB, href: boardHref(newest.overall) }] : []),
     { group: PLAYERS_TAB, href: playersHref("all", "wr") },
   ];
 }

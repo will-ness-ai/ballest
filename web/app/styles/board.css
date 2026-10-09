@@ -165,7 +165,7 @@
   background: var(--surface2);
 }
 
-/* six tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a label
+/* the tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a label
    wraps onto two lines. The side with more tabs fades out over --edge, so the bar reads
    as one that scrolls (good-css, "Styles that apply only when a scroller overflows"),
    and the lit tab is scrolled clear of the fade (scroll-padding, GroupTabs.tsx) */
@@ -275,6 +275,82 @@
   color: var(--dim);
   font-size: calc(12rem / 16);
   flex: none;
+}
+
+/* a Circuit board puts the season chip to the left of the board button; the sub-tabs are
+   the desktop's (desktop.css) */
+.seasontabs {
+  display: none;
+}
+.boardrow {
+  display: flex;
+  gap: 8px;
+  margin: 0 var(--pad) 12px;
+}
+.boardrow .boardbtn {
+  flex: 1;
+  min-inline-size: 0;
+  width: auto;
+  margin: 0;
+}
+.seasonchip {
+  position: relative;
+}
+.seasonchip summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  block-size: 100%;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  list-style: none;
+  cursor: pointer;
+  font-family: var(--f-hud);
+  font-size: calc(12.5rem / 16);
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.seasonchip summary::-webkit-details-marker {
+  display: none;
+}
+.seasonmenu {
+  position: absolute;
+  z-index: 20;
+  inset-block-start: calc(100% + 4px);
+  inset-inline-start: 0;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 180px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--solid);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px var(--scrim);
+}
+.seasonmenu a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-family: var(--f-hud);
+  color: var(--dim);
+  text-decoration: none;
+}
+.seasonmenu b {
+  font-weight: 600;
+}
+.seasonmenu small {
+  font-family: var(--f-body);
+  font-size: calc(12rem / 16);
+  color: var(--faint);
+}
+.seasonmenu a[aria-current="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .boardtitle {
