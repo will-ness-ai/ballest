@@ -164,7 +164,7 @@ def write(conn, rows, read_at):
     conn.commit()
 
 
-def record_ghosts(*, scratch=False, env=None, key=None, read_one=None, budget=BUDGET):
+def record_ghosts(*, scratch=False, env=None, key=None, read_one=None):
     """The Ghost step, after the Refresh is in the database. Returns how many Ghosts it
     wrote, or None when it was skipped or failed. Never raises. Revalidates the site when
     it wrote any, since the boards draw them."""
@@ -178,7 +178,7 @@ def record_ghosts(*, scratch=False, env=None, key=None, read_one=None, budget=BU
     try:
         with psycopg.connect(url, connect_timeout=30) as conn:
             todo = due(conn)
-            rows, failed = collect(todo, read_one, budget=budget)
+            rows, failed = collect(todo, read_one)
             write(conn, rows, datetime.now(UTC))
     except Exception as e:
         print(f"::warning::Ghost step failed: {type(e).__name__}")
