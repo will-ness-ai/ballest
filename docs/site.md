@@ -166,7 +166,7 @@ copy too (`components/Freshness.tsx`). Ages are worked out in the browser, so a 
 hours ago still says how old the boards are now.
 
 You's card sits at the top right (`components/YouCard.tsx`): your marble and name, with your
-All Seasons place and Maps played on a desktop, linking to your page. On a phone it folds to
+All Seasons place and Maps finished on a desktop, linking to your page. On a phone it folds to
 marble and name and takes the refresh time's place, which is hidden there (a blank card
 holds that place while your record is read). Signed out, it is Sign in with Steam, coming
 back to the page you were on; signed in as a Steam ID on no board yet, it is Sign out, since

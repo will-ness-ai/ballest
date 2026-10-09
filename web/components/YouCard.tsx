@@ -1,6 +1,6 @@
 "use client";
 // You's card in the header, on every page: your marble and name, with your All Seasons place
-// and Maps played on a desktop, linking to your page. Signed out, it is Sign in with Steam,
+// and Maps finished on a desktop, linking to your page. Signed out, it is Sign in with Steam,
 // coming back to this page; signed in as a Steam ID on no board yet, it is Sign out, since
 // that player has no page to sign out from. Drawn once the browser can tell which, so a
 // signed-in visitor never sees Sign in flash first; while your record is read, a blank card
@@ -63,7 +63,7 @@ export function YouCard() {
         <b>{personaOf(rec.who)}</b>
         <small>
           {rec.allSeasons ? ord(rec.allSeasons.rank) + " All Seasons" : "Unranked"} ·{" "}
-          {plural(rec.workshop.finishes.length, "Map", "Maps")}
+          {plural(rec.workshop.mapsFinished, "Map", "Maps")} finished
         </small>
       </span>
     </Link>
