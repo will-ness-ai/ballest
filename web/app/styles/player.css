@@ -6,7 +6,6 @@
 .app[data-view="player"] .boardbtn,
 .app[data-view="player"] .boardbar,
 .app[data-view="player"] .bcard,
-.app[data-view="player"] .tiles,
 .app[data-view="player"] .leaders,
 .app[data-view="player"] .board,
 .app[data-view="player"] #bmetaM,
@@ -15,7 +14,6 @@
 .app[data-view="vs"] .boardbtn,
 .app[data-view="vs"] .boardbar,
 .app[data-view="vs"] .bcard,
-.app[data-view="vs"] .tiles,
 .app[data-view="vs"] .leaders,
 .app[data-view="vs"] .board,
 .app[data-view="vs"] #bmetaM {
@@ -115,10 +113,6 @@
   gap: 8px;
   margin: 0 var(--pad) 16px;
 }
-/* the same box and label as the board's own stat tile, which only exists on
-   the desktop layout; a player's summary shows at every width, so the shared part lives
-   here and each keeps its own padding and figure size */
-.tile,
 .pstat {
   min-width: 0;
   border: 1px solid var(--line);
@@ -126,7 +120,6 @@
   background: var(--surface);
   backdrop-filter: blur(10px);
 }
-.tile dt,
 .pstat dt {
   font-family: var(--f-hud);
   font-size: calc(10rem / 16);

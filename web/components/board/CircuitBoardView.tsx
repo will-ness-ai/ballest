@@ -1,5 +1,5 @@
 // A Circuit board's page: the season's boards in the rail (a sheet on a phone), the card
-// across the top, the tiles and plates, and the list. `slot` is what follows the board's
+// across the top, the history card and plates, and the list. `slot` is what follows the board's
 // name in its path: a Steam ID whose row to find and mark, or on an Overall board
 // "podiums" for its podium order.
 import { notFound } from "next/navigation";
@@ -8,12 +8,19 @@ import { BoardBody } from "./BoardBody";
 import { Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardSheet } from "./BoardSheet";
-import { OverallCard, PodiumPlates, ScorePlates, SortSwitch, Tiles, TrackCard } from "./BoardTop";
+import { OverallCard, PodiumPlates, ScorePlates, SortSwitch, TrackCard } from "./BoardTop";
+import { HistoryCard } from "./HistoryCard";
 import { PointsDialog } from "./PointsDialog";
 import { RailItems } from "./Rail";
+import {
+  getBoardHistory,
+  getBoardPage,
+  getBoardPlaces,
+  getBoardScores,
+  getSite,
+} from "../../db/data";
 import { YouBanner } from "./YouBanner";
 import { YouMarks } from "./YouMarks";
-import { getBoardPage, getBoardPlaces, getBoardScores, getSite } from "../../db/data";
 import { TRACKS, circuitBoard, trackNo } from "../../lib/circuit";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
 import { podiumRows } from "../../lib/podiums";
@@ -38,7 +45,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
       site.boards.filter((x) => !isPoints(x.name)).length);
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
-  const [page, scores, places, focus] = await Promise.all([
+  const [page, scores, places, focus, history] = await Promise.all([
     getBoardPage(name, 0, BOARD_CHUNK + 3),
     points ? Promise.resolve([]) : getBoardScores(name),
     podiums
@@ -48,6 +55,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
         )
       : none,
     focusId ? getBoardPlaces(name, [focusId]) : none,
+    points ? Promise.resolve(null) : getBoardHistory(name),
   ]);
   const rows = page.rows;
   const focusAt = focusId ? focus[focusId] : undefined;
@@ -105,7 +113,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
             where={b.group}
             count={page.total}
             sortsw={tally ? <SortSwitch name={name} podiums={false} /> : undefined}
-            tiles={<Tiles name={name} rows={rows} count={page.total} />}
+            history={history && <HistoryCard h={history} />}
             leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
             initial={page.total >= 3 ? rows.slice(3) : rows}
             lead={rows[0]?.score ?? null}

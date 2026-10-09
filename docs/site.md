@@ -177,12 +177,19 @@ browser can tell, so a signed-in visitor never sees Sign in first.
 
 ## A board
 
-A board's first rows are rendered on the server, with the tiles, the plates and the card
+A board's first rows are rendered on the server, with the plates and the card
 across the top. The rest of the list is read from `/api/board/<name>` as you scroll, a few
 chunks ahead of what is shown, and a search reads its matches the same way. A link to a
 player's row reads down to that row first. Each row carries the score of the row above it
 (`ahead`, from the query), which is what the interval column is worked out from, so rows
 are never re-sorted on the client.
+
+A Track's or a Map's page carries its record history above the board's bar and search
+(`components/board/HistoryCard.tsx`). `lib/history.ts` works it out from the board's Score
+history (`historyInput` in `db/site.ts`): its Reigns and what each day
+brought, all dated by the Refresh that first saw a time, in UTC days. The card arrives closed,
+as a summary of the last three Reigns, and opening it replaces the summary with the Records
+and What changed tabs. An Overall board has none, since it keeps current points only.
 
 Once you are signed in, a banner above the plates gives You's standing on the board (a
 Map, a Track, or an Overall board on its points sort): place, score, the Medal it holds
