@@ -1067,8 +1067,8 @@ const CSS = `
 @media (hover:hover) and (pointer:fine){.r-btn:hover{background:color-mix(in oklch,var(--surface2),white 8%)}}
 @media (prefers-reduced-motion:no-preference){.r-btn{transition:transform 160ms ease-out,background-color 160ms ease-out}}
 .r-lanes{display:flex;flex-direction:column;gap:6px}
-.r-lane{position:relative;block-size:24px;margin-inline:10px;border-block-end:1px dashed var(--line)}
-.r-lane span{position:absolute;inset-block-start:0;inset-inline-start:-10px;font:600 10px var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.r-lane{position:relative;block-size:24px;border-block-end:1px dashed var(--line)}
+.r-lane span{position:absolute;inset-block-start:0;inset-inline-start:0;font:600 10px var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
 .r-ball{position:absolute;inset-block-end:0;inline-size:18px;block-size:18px;border-radius:50%;translate:-50% 50%;background:radial-gradient(circle at 34% 27%,hsl(var(--h,100) 94% 90%),hsl(var(--h,100) 80% 64%) 34%,hsl(var(--h,100) 62% 25%))}
 .r-ball-lead{background:radial-gradient(circle at 34% 27%,color-mix(in oklch,var(--gold),white 70%),var(--gold) 34%,color-mix(in oklch,var(--gold),black 55%))}
 .r-gap{position:relative;touch-action:none;cursor:ew-resize;border-block-start:1px solid var(--line2);padding-block-start:6px}
