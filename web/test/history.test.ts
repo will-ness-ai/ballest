@@ -1,4 +1,4 @@
-// A board's record history (lib/history.ts): Reigns, Climbers and the day list, from Entries
+// A board's record history (lib/history.ts): Reigns and the day list, from Entries
 // written out here by hand. Refresh k starts at hour 3k on 1 Sep (UTC), so r(8) is 2 Sep.
 import { describe, expect, test } from "vitest";
 
@@ -109,38 +109,6 @@ describe("Reigns", () => {
 
   test("a board with no Entries has no history", () => {
     expect(history([])).toBeNull();
-  });
-});
-
-describe("Climbers", () => {
-  // the week runs from day 1 to day 8: Refresh 64 is 9 Sep, 7 days after Refresh 8
-  const later = 64;
-  test("places gained over the week, among the top 100 now, most first", () => {
-    const h = history(
-      [
-        e(1, 1_000_000, 0, later),
-        e(2, 1_100_000, 0, later),
-        e(3, 1_200_000, 0, later),
-        e(4, 1_300_000, 0, 20, 21),
-        e(4, 1_050_000, 21, later), // 4th to 2nd
-        e(5, 1_400_000, 0, 30, 31),
-        e(5, 900_000, 31, later), // 5th to 1st
-        e(6, 1_150_000, 40, later), // new this week
-      ],
-      later,
-    );
-    expect(h?.weekFrom).toBe(r(later - 56));
-    expect(h?.climbers.map((c) => [c.persona, c.was, c.rank, c.cut])).toEqual([
-      ["P5", 5, 1, 500_000],
-      ["P4", 4, 3, 250_000],
-    ]);
-    expect(h?.arrivals.map((a) => [a.persona, a.rank])).toEqual([["P6", 5]]);
-  });
-
-  test("a board younger than a week counts from its first Refresh", () => {
-    const h = history([e(1, 1_000_000, 4), e(2, 900_000, 6)]);
-    expect(h?.weekFrom).toBe(r(4));
-    expect(h?.arrivals.map((a) => a.persona)).toEqual(["P2"]);
   });
 });
 

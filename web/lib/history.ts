@@ -1,6 +1,6 @@
 // A Track or Map board's record history, worked out from its Score history (every Entry it
 // has held, open and closed, with the Refreshes that first saw, last saw and closed it):
-// its Reigns, the week's Climbers, and what changed day by day. The history card on a
+// its Reigns and what changed day by day. The history card on a
 // board page draws this and nothing else (components/board/HistoryCard.tsx).
 //
 // Dates are Refresh starts, so a time is known only to the Refresh that first saw it, and
@@ -36,23 +36,6 @@ export interface Reign {
   beforeHistory: boolean;
 }
 
-export interface Climber {
-  steamId: string;
-  persona: string;
-  score: number;
-  rank: number;
-  was: number;
-  /* ticks taken off since `was` */
-  cut: number;
-}
-
-export interface Arrival {
-  steamId: string;
-  persona: string;
-  score: number;
-  rank: number;
-}
-
 export interface DayRecord {
   steamId: string;
   persona: string;
@@ -84,18 +67,10 @@ export interface BoardHistory {
   now: string;
   /* oldest first */
   reigns: Array<Reign>;
-  climbers: Array<Climber>;
-  /* now in the top 100 with no time at the start of the week */
-  arrivals: Array<Arrival>;
-  /* the start of the week Climbers are counted over */
-  weekFrom: string;
   /* newest first; a day nothing new was seen on is left out */
   days: Array<HistoryDay>;
 }
 
-export const CLIMB_DAYS = 7;
-export const CLIMB_TOP = 100;
-export const CLIMBERS_SHOWN = 10;
 const DAY_MS = 86_400_000;
 
 interface E {
@@ -115,7 +90,7 @@ const iso = (t: number) => new Date(t).toISOString();
 const utcDay = (t: number) => iso(t).slice(0, 10);
 
 /* An Entry seen by one Refresh and then gone without its player improving on it: one
-   Steam removed. It never counts as a record, a climb or a day's change. */
+   Steam removed. It never counts as a record or a day's change. */
 function removed(e: E, mine: ReadonlyArray<E>) {
   if (e.c === null || e.f !== e.l) return false;
   return !mine.some((x) => x.f > e.f && x.score < e.score);
@@ -183,38 +158,6 @@ export function boardHistory(input: HistoryInput): BoardHistory | null {
     beforeHistory: r.from === since,
   }));
 
-  /* Climbers: places gained over the week among the top 100 now */
-  const weekFrom = Math.max(since, now - CLIMB_DAYS * DAY_MS);
-  const ranksAt = (t: number) => {
-    const m = new Map<string, { rank: number; e: E }>();
-    for (const e of ranked) if (openAt(e, t)) m.set(e.steamId, { rank: m.size + 1, e });
-    return m;
-  };
-  const then = ranksAt(weekFrom),
-    current = ranksAt(now);
-  const top = [...current.values()].filter((v) => v.rank <= CLIMB_TOP);
-  const climbers: Array<Climber> = top
-    .flatMap(({ rank, e }) => {
-      const was = then.get(e.steamId);
-      return was && was.rank > rank
-        ? [
-            {
-              steamId: e.steamId,
-              persona: e.persona,
-              score: e.score,
-              rank,
-              was: was.rank,
-              cut: was.e.score - e.score,
-            },
-          ]
-        : [];
-    })
-    .sort((a, b) => b.was - b.rank - (a.was - a.rank) || a.rank - b.rank)
-    .slice(0, CLIMBERS_SHOWN);
-  const arrivals: Array<Arrival> = top
-    .filter(({ e }) => !then.has(e.steamId))
-    .map(({ rank, e }) => ({ steamId: e.steamId, persona: e.persona, score: e.score, rank }));
-
   /* what each day brought: everything first seen after the first Refresh */
   /* an Entry's first Reign: a record handed back to it later is not set again */
   const recordAt = new Map<E, (typeof held)[number]>();
@@ -257,9 +200,6 @@ export function boardHistory(input: HistoryInput): BoardHistory | null {
     since: iso(since),
     now: iso(now),
     reigns,
-    climbers,
-    arrivals,
-    weekFrom: iso(weekFrom),
     days: [...days.values()].sort((a, b) => (a.day < b.day ? 1 : -1)),
   };
 }

@@ -17,7 +17,7 @@ import {
   type BoardHistory,
   type Reign,
 } from "../../lib/history";
-import { fmtN, fmtTime, ord } from "../../lib/rules";
+import { fmtN, fmtTime } from "../../lib/rules";
 
 /* the history's span as a fraction: where a moment falls between `since` and `now` */
 function spanOf(h: BoardHistory) {
@@ -165,54 +165,25 @@ const DAYS_SHOWN = 7;
 
 function Changed({ h }: { h: BoardHistory }) {
   const [days, setDays] = useState(DAYS_SHOWN);
-  if (!h.days.length && !h.climbers.length && !h.arrivals.length)
-    return <p className="hi-none">Nothing has changed on this board since {dayText(h.since)}.</p>;
+  const [recordsOnly, setRecordsOnly] = useState(false);
+  const shown = recordsOnly ? h.days.filter((d) => d.records.length) : h.days;
   return (
     <>
-      <h3 className="hi-sub">
-        Climbers <small>since {dayText(h.weekFrom)}, everyone now in the top 100</small>
-      </h3>
-      {h.climbers.length ? (
-        <table className="hi-climb">
-          <thead>
-            <tr>
-              <th>Now</th>
-              <th>Player</th>
-              <th>Time</th>
-              <th>Places</th>
-              <th>Cut</th>
-            </tr>
-          </thead>
-          <tbody>
-            {h.climbers.map((c) => (
-              <tr key={c.steamId}>
-                <td>{c.rank}</td>
-                <td>
-                  <PlayerLink id={c.steamId} text={c.persona} />
-                </td>
-                <td>{fmtTime(c.score)}</td>
-                <td className="hi-up">▲ {fmtN(c.was - c.rank)}</td>
-                <td>{c.cut > 0 ? cutText(c.cut) : ""}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className="hi-none">Nobody in the top 100 moved up this week.</p>
-      )}
-      {h.arrivals.length > 0 && (
-        <p className="hi-new">
-          Straight into the top 100 with a first time:{" "}
-          {h.arrivals.map((a, i) => (
-            <span key={a.steamId}>
-              {i ? ", " : ""}
-              <PlayerLink id={a.steamId} text={a.persona} /> {ord(a.rank)}
-            </span>
-          ))}
+      <div className="hi-seg" role="group" aria-label="Show">
+        <button type="button" aria-pressed={!recordsOnly} onClick={() => setRecordsOnly(false)}>
+          Everything
+        </button>
+        <button type="button" aria-pressed={recordsOnly} onClick={() => setRecordsOnly(true)}>
+          Records only
+        </button>
+      </div>
+      {!shown.length && (
+        <p className="hi-none">
+          {recordsOnly ? "No new records" : "Nothing has changed on this board"} since{" "}
+          {dayText(h.since)}.
         </p>
       )}
-      <h3 className="hi-sub">By day</h3>
-      {h.days.slice(0, days).map((d) => (
+      {shown.slice(0, days).map((d) => (
         <div key={d.day} className="hi-day">
           <h4>{longDayText(d.day)}</h4>
           <ul>
@@ -228,24 +199,27 @@ function Changed({ h }: { h: BoardHistory }) {
                 )}
               </li>
             ))}
-            {d.topTen.map((x) => (
-              <li key={x.steamId + String(x.score)}>
-                <span className="hi-tag top">Top 10</span>
-                <PlayerLink id={x.steamId} text={x.persona} /> {fmtTime(x.score)}{" "}
-                <span className="hi-when">{x.cut === null ? "first time" : cutText(x.cut)}</span>
+            {!recordsOnly &&
+              d.topTen.map((x) => (
+                <li key={x.steamId + String(x.score)}>
+                  <span className="hi-tag top">Top 10</span>
+                  <PlayerLink id={x.steamId} text={x.persona} /> {fmtTime(x.score)}{" "}
+                  <span className="hi-when">{x.cut === null ? "first time" : cutText(x.cut)}</span>
+                </li>
+              ))}
+            {!recordsOnly && (
+              <li>
+                <span className="hi-tag">Board</span>
+                <span className="hi-when">
+                  {fmtN(d.improved)} improved · {fmtN(d.firstTimes)}{" "}
+                  {d.firstTimes === 1 ? "first time" : "first times"}
+                </span>
               </li>
-            ))}
-            <li>
-              <span className="hi-tag">Board</span>
-              <span className="hi-when">
-                {fmtN(d.improved)} improved · {fmtN(d.firstTimes)}{" "}
-                {d.firstTimes === 1 ? "first time" : "first times"}
-              </span>
-            </li>
+            )}
           </ul>
         </div>
       ))}
-      {h.days.length > days && (
+      {shown.length > days && (
         <button type="button" className="hi-more" onClick={() => setDays(days + DAYS_SHOWN)}>
           Earlier days
         </button>

@@ -111,7 +111,7 @@ are never re-sorted on the client.
 
 A Track's or a Map's page carries its record history between the board's bar and the plates
 (`components/board/HistoryCard.tsx`). `lib/history.ts` works it out from the board's Score
-history (`historyInput` in `db/site.ts`): its Reigns, the week's Climbers and what each day
+history (`historyInput` in `db/site.ts`): its Reigns and what each day
 brought, all dated by the Refresh that first saw a time, in UTC days. The card arrives closed,
 as a summary of the last three Reigns, and opening it replaces the summary with the Records
 and What changed tabs. An Overall board has none, since it keeps current points only.

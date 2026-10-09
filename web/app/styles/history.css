@@ -104,8 +104,7 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.hi-cut,
-.hi-up {
+.hi-cut {
   color: var(--accent);
 }
 .hi-when {
@@ -153,54 +152,31 @@
 }
 
 /* What changed */
-.hi-sub {
-  margin: 4px 0 8px;
-  font: 600 13px var(--f-hud);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.hi-seg {
+  display: inline-flex;
+  margin: 0 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.hi-seg button {
+  padding: 6px 12px;
+  border: 0;
+  background: none;
   color: var(--dim);
-}
-.hi-sub small {
-  font: 400 12px var(--f-body);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--faint);
-}
-.hi-climb {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.hi-climb th,
-.hi-climb td {
-  padding: 6px 4px;
-  border-top: 1px solid var(--line2);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.hi-climb th {
-  border-top: 0;
-  font: 600 11px var(--f-hud);
-  letter-spacing: 0.08em;
+  font: 600 12px var(--f-hud);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--faint);
+  cursor: pointer;
 }
-.hi-climb th:nth-child(2),
-.hi-climb td:nth-child(2) {
-  width: 100%;
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
+.hi-seg button[aria-pressed="true"] {
+  background: var(--surface2);
+  color: var(--text);
 }
-.hi-new,
 .hi-none {
   margin: 8px 0 0;
   font-size: 13px;
   color: var(--dim);
-}
-.hi-sub:not(:first-child) {
-  margin-top: 18px;
 }
 .hi-day {
   padding: 10px 0;
