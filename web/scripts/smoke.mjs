@@ -93,6 +93,7 @@ const ROUTES = [
   ["/leth/", 200],
   ["/multiballs/terms", 200],
   ["/multiballs/privacy", 200],
+  ["/robots.txt", 200, null, "Disallow: /player/*/"],
   ["/no-such-page", 404],
 ];
 

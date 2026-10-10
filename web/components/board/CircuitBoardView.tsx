@@ -18,6 +18,7 @@ import {
   getBoardHistory,
   getBoardPage,
   getBoardPlaces,
+  getPlacesOf,
   getBoardScores,
   getSite,
 } from "../../db/data";
@@ -49,7 +50,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
     getBoardPage(name, 0, BOARD_CHUNK + 3),
     points ? Promise.resolve([]) : getBoardScores(name),
     podiums
-      ? getBoardPlaces(
+      ? getPlacesOf(
           name,
           tally.players.map((p) => p.steamId),
         )

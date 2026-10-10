@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { Shell } from "../../../../components/Shell";
 import { BoardSkeleton } from "../../../../components/Skeleton";
 import { MapView } from "../../../../components/workshop/MapView";
-import { getWorkshop } from "../../../../db/data";
+import { getMap, getWorkshop } from "../../../../db/data";
 import { shareMetadata } from "../../../../components/share/metadata";
 import { timed } from "../../../../lib/workshop";
 
@@ -21,10 +21,8 @@ export async function generateStaticParams() {
     .map((m) => ({ pfid: m.pfid, focus: [] }));
 }
 
-const mapOf = async (pfid: string) => (await getWorkshop()).find((m) => m.pfid === pfid);
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const m = await mapOf((await params).pfid);
+  const m = await getMap((await params).pfid);
   if (!m) return {};
   return shareMetadata(
     {
@@ -37,7 +35,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 async function MapPage({ params }: Props) {
   const { pfid, focus = [] } = await params;
-  return <MapView m={await mapOf(pfid)} focus={focus.length > 1 ? "-" : (focus[0] ?? null)} />;
+  return (
+    <MapView
+      m={(await getMap(pfid)) ?? undefined}
+      focus={focus.length > 1 ? "-" : (focus[0] ?? null)}
+    />
+  );
 }
 
 export default function Page({ params }: Props) {
