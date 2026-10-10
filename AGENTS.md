@@ -49,6 +49,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   writes the Refresh to the database and revalidates the site's cached reads, then runs
   the parity check when the `DATABASE_URL` secret is set. `backfill.yml`, by hand only, runs the backfill against
   production (cloud sessions can't reach Neon) in the same concurrency group.
+- `.github/workflows/vercel-usage.yml` — daily, runs `tools/vercel_usage.py`, which warns the
+  private ops channel (`OPS_WEBHOOK_URL`) when the Vercel team's last 30 days pass half of a
+  Hobby limit; a project over a limit is paused. Run it by hand to post the numbers anyway.
 - `tools/ue4ss_mod/` — BallestGrindStats, a UE4SS Lua mod that shows per-map grind stats
   inside the game. Local-only, nothing on the site reads it; `tools/ue4ss_mod/README.md`
   covers install and how it hooks the game. Its card now ships in AnythingGoes's Grind Stats
