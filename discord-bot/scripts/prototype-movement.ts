@@ -531,27 +531,84 @@ const number = (t: TagStyle, row: Row, show: boolean) => {
   return box({ alignItems: "center", gap: 6 }, tag, n);
 };
 
-const tagged = (t: TagStyle) => (day: Day) =>
-  grid(day, (b) =>
-    box(
-      { flexDirection: "column", width: 270, gap: 4 },
-      label(b.title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 }),
-      ...b.rows.map((row, i) => {
-        const m = day.hasYesterday ? moved(row, i + 1) : 0;
-        const slot = (width: number, justify: string) =>
-          box({ width, alignItems: "center", justifyContent: justify }, moveTag(t, m));
-        return rowBox(
-          i,
-          {},
-          rankBox(i, 18),
-          t.movePos === "afterRank" ? slot(t.move === "arrowOnly" ? 12 : 30, "flex-start") : null,
-          box({ flexGrow: 1, overflow: "hidden" }, clip(row.name, 17)),
-          number(t, row, day.hasYesterday),
-          t.movePos === "end" ? slot(28, "flex-end") : null,
-        );
-      }),
-    ),
+type OutStyle = "none" | "line" | "row" | "footer" | "header";
+
+const outPill = (text: string) =>
+  box(
+    {
+      alignItems: "center",
+      gap: 3,
+      padding: "1px 5px",
+      borderRadius: 4,
+      backgroundColor: tint(false, 0.18),
+      color: DOWN,
+    },
+    triangle(false, 6),
+    hud(text, { fontSize: 10 }),
   );
+
+const tagged =
+  (t: TagStyle, out: OutStyle = "none") =>
+  (day: Day) => {
+    const showOut = (b: Board) => day.hasYesterday && b.out.length > 0;
+    const footerNames = day.boards.flatMap((b) =>
+      showOut(b) ? b.out.map((name) => `${name} (${b.title.replace("Most ", "")})`) : [],
+    );
+    return grid(
+      day,
+      (b) =>
+        box(
+          { flexDirection: "column", width: 270, gap: 4 },
+          box(
+            { alignItems: "center", marginBottom: 6, gap: 6 },
+            label(b.title, { fontSize: 13, letterSpacing: 1.4, flexGrow: 1 }),
+            out === "header" && showOut(b) ? outPill(b.out.join(", ")) : null,
+          ),
+          ...b.rows.map((row, i) => {
+            const m = day.hasYesterday ? moved(row, i + 1) : 0;
+            const slot = (width: number, justify: string) =>
+              box({ width, alignItems: "center", justifyContent: justify }, moveTag(t, m));
+            return rowBox(
+              i,
+              {},
+              rankBox(i, 18),
+              t.movePos === "afterRank"
+                ? slot(t.move === "arrowOnly" ? 12 : 30, "flex-start")
+                : null,
+              box({ flexGrow: 1, overflow: "hidden" }, clip(row.name, 17)),
+              number(t, row, day.hasYesterday),
+              t.movePos === "end" ? slot(28, "flex-end") : null,
+            );
+          }),
+          out === "line" && showOut(b)
+            ? box(
+                { fontSize: 11, color: C.faint, padding: "2px 8px" },
+                `Out of the top 10: ${b.out.join(", ")}`,
+              )
+            : null,
+          ...(out === "row" && showOut(b)
+            ? b.out.map((name) =>
+                rowBox(
+                  9,
+                  { backgroundColor: "transparent", border: `1px dashed ${C.line}`, opacity: 0.75 },
+                  hud("–", { width: 18, color: C.faint }),
+                  box({ width: 46 }, outPill("OUT")),
+                  box({ flexGrow: 1, color: C.dim }, clip(name, 17)),
+                ),
+              )
+            : []),
+        ),
+      [
+        out === "footer" && footerNames.length > 0
+          ? box(
+              { alignItems: "center", gap: 8, fontSize: 12, color: C.dim },
+              outPill("OUT"),
+              `Dropped out of the top 10: ${footerNames.join(" · ")}`,
+            )
+          : null,
+      ],
+    );
+  };
 
 const ROUND2 = {
   "r2-1-baseline": tagged({ move: "arrowNum", movePos: "afterRank", delta: "colour", fresh: "text" }),
@@ -559,6 +616,15 @@ const ROUND2 = {
   "r2-3-quiet": tagged({ move: "arrowOnly", movePos: "afterRank", delta: "dim", fresh: "dot" }),
   "r2-4-right-edge": tagged({ move: "arrowNum", movePos: "end", delta: "colour", fresh: "text" }),
   "r2-5-superscript": tagged({ move: "arrowNum", movePos: "afterRank", delta: "super", fresh: "pill" }),
+} as const;
+
+const PILLS: TagStyle = { move: "pill", movePos: "afterRank", delta: "pill", fresh: "pill" };
+const ROUND3 = {
+  "r3-1-leave-out": tagged(PILLS, "none"),
+  "r3-2-line": tagged(PILLS, "line"),
+  "r3-3-ghost-row": tagged(PILLS, "row"),
+  "r3-4-footer": tagged(PILLS, "footer"),
+  "r3-5-header": tagged(PILLS, "header"),
 } as const;
 
 // ---------------------------------------------------------------- run
@@ -569,7 +635,7 @@ const out = process.argv[2] ?? ".logs/movement";
 const program = Effect.gen(function* () {
   const renderer = yield* Renderer;
   yield* Effect.tryPromise(() => mkdir(out, { recursive: true }));
-  for (const [v, scene] of Object.entries(ROUND2))
+  for (const [v, scene] of Object.entries(ROUND3))
     for (const [d, day] of Object.entries(DAYS)) {
       const png = yield* renderer.scene(scene(day), 620);
       yield* Effect.tryPromise(() => writeFile(join(out, `${v}--${d}.png`), png));
