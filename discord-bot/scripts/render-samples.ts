@@ -204,6 +204,52 @@ const program = Effect.gen(function* () {
     }),
   );
   yield* save("marble", yield* renderer.marble(96));
+  const row = (name: string, n: number, move: number | "new", gain = 0) => ({
+    name,
+    n,
+    move,
+    gain,
+  });
+  yield* save(
+    "standings",
+    yield* renderer.standings({
+      title: "Saturday 10 October",
+      subtitle: "Workshop standings · 1,286 Workshop Maps · 4,778 players",
+      boards: [
+        {
+          title: "Most Maps played",
+          rows: [
+            row("Slati Jnr", 999, 0, 14),
+            row("Chaos", 462, 0, 3),
+            row("Pamzei", 304, 0),
+            row("Ronko Tomyno", 291, 1, 19),
+            row("SlugSalt", 277, -1),
+            row("[:D:] CryT4x", 268, 0, 2),
+            row("R23", 251, 0),
+            row("nuts", 248, "new", 31),
+            row("ChknThugget", 242, -1, 1),
+            row("Action Jackson", 237, -1),
+          ],
+          out: ["Low5ive"],
+        },
+        {
+          title: "Most world records",
+          rows: [
+            row("Slati Jnr", 169, 0, 5),
+            row("123JLaney123", 100, 0, -2),
+            row("Pamzei", 78, 0),
+          ],
+          out: [],
+        },
+        { title: "Most Author Medals", rows: [], out: [] },
+        {
+          title: "Most top 5s",
+          rows: [row("a_name_far_too_long_for_its_row", 608, 0, 9), row("Chaos", 243, 0)],
+          out: ["purple", "Skylar <3"],
+        },
+      ],
+    }),
+  );
   yield* Effect.log(`wrote samples to ${out}`);
 });
 

@@ -72,10 +72,16 @@ export interface Standing {
   readonly steamId: string;
   readonly persona: string;
   readonly n: number;
+  /** The place held on this board 24 hours before, or null if not in its top TOP then. */
+  readonly was: number | null;
+  /** n now less n 24 hours before. */
+  readonly gain: number;
 }
 export interface Board {
   readonly stat: Stat;
   readonly rows: ReadonlyArray<Standing>;
+  /** Players in this board's top TOP 24 hours before who are not in it now. */
+  readonly out: ReadonlyArray<{ readonly steamId: string; readonly persona: string }>;
 }
 
 /** A Track as the report names and links it. */
@@ -189,6 +195,28 @@ const STATS: ReadonlyArray<{ stat: Stat; then?: Stat }> = [
 /** Workshop changes listed before "and N more", busiest Map first. */
 export const CHANGES_SHOWN = 6;
 
+type Tally = Map<string, Record<Stat, number> & { persona: string }>;
+
+/** Counts one Map's counted Entries, in rank order, into the tally. */
+const tallyMap = (tally: Tally, map: ReportMap, ranked: ReadonlyArray<ReportEntry>) =>
+  ranked.forEach((e, i) => {
+    const t = tally.get(e.steamId) ?? { played: 0, author: 0, wr: 0, top5: 0, persona: e.persona };
+    t.persona = e.persona;
+    t.played += 1;
+    if (medalled(map, e)) t.author += 1;
+    if (i === 0) t.wr += 1;
+    if (i < 5) t.top5 += 1;
+    tally.set(e.steamId, t);
+  });
+
+/** Everyone with any of the stat, best first; a tie goes to `then`, then the Steam ID. */
+const ranked = (tally: Tally, stat: Stat, then?: Stat) =>
+  [...tally.entries()]
+    .filter(([, t]) => t[stat] > 0)
+    .sort(
+      ([a, t], [b, u]) => u[stat] - t[stat] || (then ? u[then] - t[then] : 0) || bySteamId(a, b),
+    );
+
 export const buildReport = (data: ReportData, at: number): Report => {
   const yesterday = at - DAY_MS;
   const byBoard = new Map<string, Array<ReportEntry>>();
@@ -198,7 +226,8 @@ export const buildReport = (data: ReportData, at: number): Report => {
     byBoard.set(e.board, list);
   }
 
-  const tally = new Map<string, Record<Stat, number> & { persona: string }>();
+  const tally: Tally = new Map();
+  const tallyBefore: Tally = new Map();
   const unfinished: Array<ListedMap> = [];
   const unclaimed: Array<ListedMap> = [];
   const mapChanges: Array<Extract<Change, { map: ListedMap }>> = [];
@@ -214,24 +243,13 @@ export const buildReport = (data: ReportData, at: number): Report => {
       all.filter((e) => openAt(e, yesterday)),
     );
     const listed: ListedMap = { pfid: map.pfid, title: map.title, finishers: now.length };
-    now.forEach((e, i) => {
-      const t = tally.get(e.steamId) ?? {
-        played: 0,
-        author: 0,
-        wr: 0,
-        top5: 0,
-        persona: e.persona,
-      };
-      t.persona = e.persona;
-      t.played += 1;
-      if (medalled(map, e)) t.author += 1;
-      if (i === 0) t.wr += 1;
-      if (i < 5) t.top5 += 1;
-      tally.set(e.steamId, t);
-    });
-
     // Maps up less than a day aren't listed or reported on: they haven't been played yet.
     const dayOld = map.createdAt === null || map.createdAt <= yesterday;
+    const readYesterday = map.firstReadAt !== null && map.firstReadAt <= yesterday;
+    tallyMap(tally, map, now);
+    // A board first read in the last day has no yesterday: it counts as it stands, not as a gain.
+    tallyMap(tallyBefore, map, readYesterday || !dayOld ? before : now);
+
     if (!dayOld) newMaps += 1;
     const medals = now.filter((e) => medalled(map, e));
     if (dayOld && now.length === 0) unfinished.push(listed);
@@ -249,7 +267,6 @@ export const buildReport = (data: ReportData, at: number): Report => {
         publishedAt: map.createdAt,
       });
 
-    const readYesterday = map.firstReadAt !== null && map.firstReadAt <= yesterday;
     if (!dayOld || !readYesterday || record === undefined) continue;
     const players = open.length;
     const held = before[0];
@@ -274,14 +291,25 @@ export const buildReport = (data: ReportData, at: number): Report => {
       mapChanges.push({ kind: "firstAuthor", map: listed, players, by: firstMedal.persona });
   }
 
-  const ranked = (stat: Stat, then?: Stat): ReadonlyArray<Standing> =>
-    [...tally.entries()]
-      .filter(([, t]) => t[stat] > 0)
-      .sort(
-        ([a, t], [b, u]) => u[stat] - t[stat] || (then ? u[then] - t[then] : 0) || bySteamId(a, b),
-      )
-      .slice(0, TOP)
-      .map(([steamId, t]) => ({ steamId, persona: t.persona, n: t[stat] }));
+  const board = (stat: Stat, then?: Stat): Board => {
+    const top = ranked(tally, stat, then).slice(0, TOP);
+    const topBefore = ranked(tallyBefore, stat, then).slice(0, TOP);
+    const place = new Map(topBefore.map(([steamId], i) => [steamId, i + 1]));
+    const kept = new Set(top.map(([steamId]) => steamId));
+    return {
+      stat,
+      rows: top.map(([steamId, t]) => ({
+        steamId,
+        persona: t.persona,
+        n: t[stat],
+        was: place.get(steamId) ?? null,
+        gain: t[stat] - (tallyBefore.get(steamId)?.[stat] ?? 0),
+      })),
+      out: topBefore
+        .filter(([steamId]) => !kept.has(steamId))
+        .map(([steamId, t]) => ({ steamId, persona: tally.get(steamId)?.persona ?? t.persona })),
+    };
+  };
 
   const trackChanges: Array<Extract<Change, { kind: "trackRecord" }>> = [];
   const trackRecords: Array<RecordCandidate> = [];
@@ -315,7 +343,7 @@ export const buildReport = (data: ReportData, at: number): Report => {
     refreshedAt: data.refreshedAt,
     maps: data.maps.length,
     players: tally.size,
-    boards: STATS.map(({ stat, then }) => ({ stat, rows: ranked(stat, then) })),
+    boards: STATS.map(({ stat, then }) => board(stat, then)),
     unfinished: unfinished.sort((a, b) => title(a).localeCompare(title(b))),
     unclaimed: unclaimed.sort(
       (a, b) => b.finishers - a.finishers || title(a).localeCompare(title(b)),

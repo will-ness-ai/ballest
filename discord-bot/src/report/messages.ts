@@ -112,7 +112,13 @@ export const standingsImage = (r: Report): StandingsImage => ({
   subtitle: `Workshop standings · ${counts(r)}`,
   boards: r.boards.map((b) => ({
     title: BOARD_TITLE[b.stat],
-    rows: b.rows.map((row) => ({ name: row.persona, n: row.n })),
+    rows: b.rows.map((row, i) => ({
+      name: row.persona,
+      n: row.n,
+      move: row.was === null ? "new" : row.was - (i + 1),
+      gain: row.gain,
+    })),
+    out: b.out.map((o) => o.persona),
   })),
 });
 
