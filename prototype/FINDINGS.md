@@ -53,4 +53,22 @@ Strategies, cheapest first:
 3. **Everything, only new**: ~5,000 a day after a two-day backfill; the only way a whole
    board can sort by a ghost stat.
 
-Round verdicts so far: 1 C Expand, 2 A Gap + D Race, 3 B Linked; round 4 (stats) open.
+## Verdicts
+
+The prototype (`web/components/board/Prototype.tsx`, ROUND5 to ROUND1 kept below the live round)
+is the primary source for each look.
+
+1. Where ghost data shows on a board: **C · Expand**. A tap on a row opens a drawer under it.
+2. What picture of a run the drawer shows: **A · Gap** (the time behind the leader along the
+   course, with no shaded stretch, and "Ahead" / "Behind" on the middle line) together with
+   **D · Race** (this run and the leader as two marbles racing in real time).
+3. How the gap and the race share the drawer: **B · Linked**. A playhead on the gap chart
+   follows the race, and a drag on the chart scrubs it. The top three open the same drawer
+   from the podium, under the podium; the leader races 2nd place.
+4. Which stats sit with the race: **C · Headline**. One line on top: the date the run was
+   set and its top speed. No stats grid; ball, avg speed and distance are dropped.
+   Will then asked for the drawer to follow the good-css skill: it was tidied (ROUND5) and
+   approved: the clock, the gap at the line and the Race button in the card's header.
+5. What a run with no replay does: **B · Race mark**, only runs with a replay open.
+6. How the mark looks: **C · Dotted time**. No mark: the time of a run with a replay has a
+   faint dotted underline.
