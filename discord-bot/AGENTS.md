@@ -193,5 +193,5 @@ with `tools/steampy_mint.py` and `fly secrets set STEAM_REFRESH_TOKEN=...`. Logs
 `.github/workflows/bot-cost.yml` posts a weekly cost estimate there (`scripts/cost_report.py`;
 Fly has no billing API, so it prices what is provisioned with the rates in that script, and
 reads payment health, billing status and card on file, from Fly's undocumented GraphQL API).
-`.github/workflows/vercel-usage.yml` posts there when the site's Vercel team nears a Hobby limit
-(`tools/vercel_usage.py`).
+`.github/workflows/vercel-usage.yml` posts the site's Vercel plan and usage there on Mondays,
+and whenever it nears a limit (`tools/vercel_usage.py`).

@@ -1,7 +1,7 @@
 name: Vercel usage
 
-# Warns the private ops channel when the Vercel team's last 30 days near a Hobby limit
-# (tools/vercel_usage.py). Quiet otherwise; run it by hand to post the numbers anyway.
+# Reports the Vercel team's plan and usage to the private ops channel (tools/vercel_usage.py):
+# on Mondays, and whenever something nears a limit. Run it by hand to post the numbers anyway.
 
 on:
   schedule:
