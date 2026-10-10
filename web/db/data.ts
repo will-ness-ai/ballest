@@ -158,6 +158,26 @@ export async function isBoard(name: string): Promise<boolean> {
   return !!circuitBoard(name) || (pfid !== null && (await getMap(pfid)) !== null);
 }
 
+/* whether a board's runs can race: a board that can be read, or a Daily's */
+export async function isRaceBoard(name: string): Promise<boolean> {
+  const day = /_Daily_(\d{4})(\d{2})(\d{2})_/.exec(name);
+  if (!day) return isBoard(name);
+  return (await getDaily(`${day[1]}-${day[2]}-${day[3]}`))?.board === name;
+}
+
+/* a run's Ghost against its rival's for the race drawer, or null; for a board
+   isRaceBoard accepts and a Steam ID the database has seen */
+export async function getBoardRun(name: string, steamId: string) {
+  return (await isPlayer(steamId)) ? boardRunOf(name, steamId) : null;
+}
+
+async function boardRunOf(name: string, steamId: string) {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.boardRun(db(), name, steamId);
+}
+
 /* the rows of a board whose persona or Steam ID contains `query`, read fresh */
 export function searchBoard(name: string, query: string, from: number, count: number) {
   return q.boardPage(db(), name, { from, count, q: query });

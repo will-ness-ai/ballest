@@ -27,6 +27,7 @@ import type {
   PlayerData,
   PlayerFinish,
   PlayerProfile,
+  RunRace,
   Standings,
   StandingsRow,
   WorkshopMap,
@@ -95,7 +96,8 @@ export async function boardPage(
   { from = 0, count = 50, q = "" }: { from?: number; count?: number; q?: string } = {},
 ): Promise<BoardPage> {
   const match = q.trim() ? contains(q.trim().toLowerCase()) : null;
-  const matched = sql`select b.*, p.persona, nullif(p.avatar, '') as avatar, g.skin
+  const matched = sql`select b.*, p.persona, nullif(p.avatar, '') as avatar, g.skin,
+      coalesce(cardinality(g.profile) > 0, false) as race
     from (select *, lag(score) over (order by rank) as ahead from (${boardSql(name)}) r) b
     join players p on p.steam_id = b.steam_id
     left join entries e on e.board = b.board and e.steam_id = b.steam_id
@@ -106,7 +108,7 @@ export async function boardPage(
   const found = await rows<BoardRow & { total: number }>(
     db,
     sql`select rank, steam_id as "steamId", persona, avatar, score::float8 as score,
-        ahead::float8 as ahead, seasons, skin, (count(*) over ())::int as total
+        ahead::float8 as ahead, seasons, skin, race, (count(*) over ())::int as total
       from (${matched}) m
       order by rank offset ${from} limit ${count}`,
   );
@@ -115,6 +117,41 @@ export async function boardPage(
     (await rows<{ n: number }>(db, sql`select count(*)::int as n from (${matched}) m`))[0].n;
   for (const r of found) delete (r as Partial<typeof r>).total;
   return { total, rows: found };
+}
+
+/* A run's Ghost with its rival's (the leader, or 2nd for the leader), or null when the
+   run has no profile: not on the board, no Ghost read, or read before profiles */
+export async function boardRun(db: Db, name: string, steamId: string): Promise<RunRace | null> {
+  const found = await rows<{
+    rank: number;
+    steamId: string;
+    setAt: string | null;
+    topSpeed: number | null;
+    profile: Array<number> | null;
+  }>(
+    db,
+    sql`select b.rank, b.steam_id as "steamId",
+        to_char(g.set_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "setAt",
+        g.top_speed::float8 as "topSpeed", g.profile::float8[] as profile
+      from (${boardSql(name)}) b
+      left join entries e on e.board = b.board and e.steam_id = b.steam_id
+        and e.closed_refresh is null
+        and e.board in (select name from boards where not scores_points)
+      left join ghosts g on g.ugc_id = e.ugc_id and cardinality(g.profile) > 0
+      where b.rank <= 2 or b.steam_id = ${steamId}
+      order by b.rank`,
+  );
+  const run = found.find((r) => r.steamId === steamId);
+  if (!run?.profile) return null;
+  const rival = found.find((r) => r.rank === (run.rank === 1 ? 2 : 1));
+  /* a real[] read as float8 carries float4 noise: a profile is in thousandths */
+  const exact = (ns: Array<number>) => ns.map((n) => Math.round(n * 1000) / 1000);
+  return {
+    setAt: run.setAt,
+    topSpeed: run.topSpeed == null ? null : Math.round(run.topSpeed * 10) / 10,
+    profile: exact(run.profile),
+    rival: rival?.profile ? { rank: rival.rank, profile: exact(rival.profile) } : null,
+  };
 }
 
 /* Whether the database has seen a Steam ID */

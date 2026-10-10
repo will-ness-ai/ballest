@@ -19,6 +19,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  real,
   serial,
   text,
   timestamp,
@@ -185,13 +186,19 @@ export const ghostState = pgEnum("ghost_state", ["ok", "empty", "gone"]);
 
 // A run's Ghost: the replay Steam stores with a score, by its UGC ID, read once by the
 // collector's Ghost step (tools/ghosts.py). A Ghost never changes (a new PB gets a new UGC
-// ID), so a row is final. Skin and hat are the object paths the Ghost names, as Steam
-// reports them; the site maps a skin to its picture (lib/skins.ts). `empty` is a Ghost with
-// no samples, `gone` one Steam has no file for: neither has a skin.
+// ID), so a row with a profile is final; an `ok` row from before profiles is read once more.
+// Skin and hat are the object paths the Ghost names, as Steam reports them; the site maps a
+// skin to its picture (lib/skins.ts). The profile is the run's time, in seconds, at each
+// eightieth of its own path length, which the race drawer compares with the leader's. Top
+// speed is in km/h. `empty` is a Ghost with no samples, `gone` one Steam has no file for:
+// neither has any of these.
 export const ghosts = pgTable("ghosts", {
   ugcId: text("ugc_id").primaryKey(),
   state: ghostState("state").notNull(),
   skin: text("skin"),
   hat: text("hat"),
+  setAt: timestamp("set_at", { withTimezone: true }),
+  topSpeed: real("top_speed"),
+  profile: real("profile").array(),
   readAt: timestamp("read_at", { withTimezone: true }).notNull(),
 });

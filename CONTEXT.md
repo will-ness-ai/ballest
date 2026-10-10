@@ -36,6 +36,12 @@ The ball a run was rolled with, one of the game's 36, named in the run's Ghost. 
 draws it in place of the player's marble.
 _Avoid_: ball colour, cosmetic
 
+**Race**:
+Two runs' Ghosts played against each other on the site, a run against the leader (the
+leader against 2nd), to show where along the course one gained on the other. A board's
+race drawer shows it; a live contest between players is a Match.
+_Avoid_: duel, comparison, replay
+
 **Played**:
 A player has Played a Map if they hold a time on that Map's leaderboard. Attempts that
 never finished are invisible and do not count. A time can still beat the author time:

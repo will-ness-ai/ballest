@@ -5,12 +5,14 @@
 // rest of the board with each time's Medal. Live or final is the reader's clock against
 // the close (isLive), so a page cached before the close flips at it without a fresh read.
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { MapImage } from "../MapImage";
 import { Marble } from "../Marble";
 import { Medal } from "../Medal";
 import { PlayerLink } from "../PlayerLink";
+import { PodiumRace, RaceDrawer, useRaceOpen } from "../board/RaceDrawer";
+import { RaceTime } from "../board/RaceTime";
 import { ScoreRow } from "../board/ScoreRow";
 import { useDailyClock } from "../../hooks/client";
 import { dayLabel, timeLeft } from "../../lib/daily";
@@ -53,7 +55,17 @@ function When({ d, live, now }: { d: DailyDay; live: boolean; now: number | null
 }
 
 /* 2nd, 1st, 3rd, as podium steps stand; an empty step where nobody stands yet */
-function Steps({ top, live }: { top: ReadonlyArray<BoardRow>; live: boolean }) {
+function Steps({
+  top,
+  live,
+  open,
+  onRace,
+}: {
+  top: ReadonlyArray<BoardRow>;
+  live: boolean;
+  open: string | null;
+  onRace: (steamId: string) => void;
+}) {
   return (
     <ol className="dp-steps">
       {[top.at(1), top.at(0), top.at(2)].map((r, i) =>
@@ -67,7 +79,14 @@ function Steps({ top, live }: { top: ReadonlyArray<BoardRow>; live: boolean }) {
             <span className="dp-wn">
               <PlayerLink id={r.steamId} text={personaOf(r)} />
             </span>
-            <span className="num">{fmtTime(r.score)}</span>
+            <RaceTime
+              steamId={r.steamId}
+              who={personaOf(r)}
+              score={fmtTime(r.score)}
+              className="num"
+              open={open === r.steamId}
+              onRace={r.race ? onRace : undefined}
+            />
             {r.rank === 1 && <span className="dp-lead">{live ? "Leading" : "Won the day"}</span>}
             <b>{r.rank}</b>
           </li>
@@ -85,6 +104,8 @@ export function DayPanel({ d, rows }: { d: DailyDay; rows: ReadonlyArray<BoardRo
   /* the countdown moves on each minute, and Final shows at the close itself */
   const { now, live } = useDailyClock(d);
   const [all, setAll] = useState(false);
+  const race = useRaceOpen(d.board, "list");
+  const podium = useRaceOpen(d.board, "podium");
   const rest = rows.slice(3);
   const shown = all ? rest : rest.slice(0, SHOWN);
   const lead = rows.at(0)?.score ?? 0;
@@ -115,13 +136,14 @@ export function DayPanel({ d, rows }: { d: DailyDay; rows: ReadonlyArray<BoardRo
           )}
         </div>
         {rows.length ? (
-          <Steps top={rows.slice(0, 3)} live={live} />
+          <Steps top={rows.slice(0, 3)} live={live} open={podium.open} onRace={podium.toggle} />
         ) : (
           <p className="dp-none">
             {live ? "Nobody has set a time yet." : "Nobody set a time on this Daily."}
           </p>
         )}
       </section>
+      <PodiumRace board={d.board} />
       {rest.length > 0 && (
         <div className="board" id="board">
           <div className="head">
@@ -131,16 +153,20 @@ export function DayPanel({ d, rows }: { d: DailyDay; rows: ReadonlyArray<BoardRo
             <span className="c-score">Time</span>
           </div>
           {shown.map((r) => (
-            <ScoreRow
-              key={r.steamId}
-              r={r}
-              lead={lead}
-              points={false}
-              pods={null}
-              focus={false}
-              leads={live ? "Leading" : "Won the day"}
-              mark={mark(r)}
-            />
+            <Fragment key={r.steamId}>
+              <ScoreRow
+                r={r}
+                lead={lead}
+                points={false}
+                pods={null}
+                focus={false}
+                leads={live ? "Leading" : "Won the day"}
+                mark={mark(r)}
+                open={race.open === r.steamId}
+                onRace={race.toggle}
+              />
+              {race.open === r.steamId && <RaceDrawer board={d.board} steamId={r.steamId} />}
+            </Fragment>
           ))}
         </div>
       )}

@@ -49,11 +49,51 @@ def test_a_skin_with_no_material_is_its_actor_class():
 
 
 def test_an_old_ghost_without_the_newer_fields_still_names_its_skin():
-    assert ghosts.parse("1", OLD) == ghosts.Ghost("1", "ok", PINK, None)
+    assert ghosts.parse("1", OLD).skin == PINK
 
 
 def test_a_ghost_with_no_samples_is_empty():
     assert ghosts.parse("1", EMPTY) == ghosts.Ghost("1", "empty")
+
+
+def line(n, *, timestamp="2026.09.28-22.48.51"):
+    """A Ghost rolling 100 cm a sample along x for n samples, 0.1 s apart. The fields' shape
+    is the one the plugin host's Ghost reader takes (ghostdata.cpp in
+    ballest-plugin-manager); the values are made up so the profile is easy to check."""
+    return {
+        **OLD,
+        "elapsedTime": [round(0.1 * i, 1) for i in range(n)],
+        "locations": [{"x": 100.0 * i, "y": 0.0, "z": 0.0} for i in range(n)],
+        "velocities": [{"x": 3000.0, "y": 4000.0, "z": 0.0}] * n,
+        "timestamp": timestamp,
+    }
+
+
+def test_a_ghost_keeps_the_date_it_was_set_and_its_top_speed():
+    g = ghosts.parse("1", line(9))
+    assert g.set_at == datetime(2026, 9, 28, 22, 48, 51, tzinfo=UTC)
+    assert g.top_speed == 180.0  # 5000 cm/s in km/h
+
+
+def test_an_unset_date_is_none():
+    assert ghosts.parse("1", line(9, timestamp="0001.01.01-00.00.00")).set_at is None
+
+
+def test_the_profile_is_when_the_run_reached_each_eightieth_of_its_path():
+    profile = ghosts.parse("1", line(9)).profile
+    assert len(profile) == ghosts.PROFILE_POINTS == 80
+    assert profile[0] == 0.01
+    assert profile[39] == 0.4
+    assert profile[-1] == 0.8
+
+
+def test_a_ghost_that_never_moves_has_an_empty_profile_and_is_not_read_again(conn):
+    seed(conn)
+    still = {**line(3), "locations": [{"x": 0.0, "y": 0.0, "z": 0.0}] * 3}
+    g = ghosts.parse("u1", still)
+    assert g.profile == ()
+    ghosts.write(conn, [g], T0)
+    assert ghosts.due(conn) == ["u2"]
 
 
 def test_a_read_asks_for_the_file_then_reads_it():
@@ -154,8 +194,33 @@ def test_due_reads_only_the_top_of_each_board(conn, monkeypatch):
 
 def test_a_written_ghost_is_never_due_again(conn):
     seed(conn)
-    ghosts.write(conn, [ghosts.Ghost("u1", "ok", PINK)], T0)
+    ghosts.write(conn, [ghosts.parse("u1", line(9))], T0)
     assert ghosts.due(conn) == ["u2"]
+
+
+def test_an_ok_ghost_with_no_profile_is_read_again_after_the_unread_ones(conn):
+    seed(conn)
+    ghosts.write(conn, [ghosts.Ghost("u1", "ok", PINK)], T0)
+    assert ghosts.due(conn) == ["u2", "u1"]
+
+
+def test_a_ghost_read_again_gets_its_profile_and_is_never_due_again(conn):
+    seed(conn)
+    ghosts.write(conn, [ghosts.Ghost("u1", "ok", PINK), ghosts.Ghost("u2", "gone")], T0)
+    ghosts.write(conn, [ghosts.parse("u1", line(9))], T0)
+    assert ghosts.due(conn) == []
+    skin, top_speed, profile = conn.execute(
+        "select skin, top_speed, profile from ghosts where ugc_id = 'u1'"
+    ).fetchone()
+    assert (skin, top_speed, len(profile)) == (PINK, 180.0, 80)
+
+
+def test_a_ghost_gone_when_read_again_keeps_its_skin_and_is_never_due_again(conn):
+    seed(conn)
+    ghosts.write(conn, [ghosts.Ghost("u1", "ok", PINK)], T0)
+    ghosts.write(conn, [ghosts.Ghost("u1", "gone")], T0)
+    assert ghosts.due(conn) == ["u2"]
+    assert conn.execute("select state, skin, profile from ghosts").fetchone() == ("ok", PINK, [])
 
 
 def test_collect_keeps_reads_and_gone_files_and_counts_failures():
@@ -193,7 +258,7 @@ def test_the_step_writes_what_it_read_and_a_failed_read_stays_due(db_url, capsys
     def read_one(u):
         if u == "u2":
             raise OSError("timeout")
-        return ghosts.Ghost(u, "ok", PINK)
+        return ghosts.parse(u, line(9))
 
     n = ghosts.record_ghosts(env={"DATABASE_URL": db_url}, key="KEY", read_one=read_one)
     assert n == 1

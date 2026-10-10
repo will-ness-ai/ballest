@@ -23,6 +23,19 @@ export interface BoardRow {
   /* the ball skin the run's Ghost names (lib/skins.ts), once the collector has read it;
      null on a derived board, an Overall board, or a run with no Ghost read */
   skin: string | null;
+  /* the run's Ghost has a profile, so the row opens the race drawer */
+  race: boolean;
+}
+
+/* A run's Ghost as the race drawer shows it (db/site.ts, boardRun). A profile is the run's
+   time in seconds at each eightieth of its own path length (lib/race.ts). */
+export interface RunRace {
+  setAt: string | null;
+  /* km/h */
+  topSpeed: number | null;
+  profile: Array<number>;
+  /* the leader, or 2nd for the leader; null when that run has no profile */
+  rival: { rank: number; profile: Array<number> } | null;
 }
 
 export interface BoardPage {

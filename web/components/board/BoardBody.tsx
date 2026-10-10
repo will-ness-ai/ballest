@@ -8,9 +8,10 @@
 // Unfiltered, the top three are up on the plates and the list starts at 4th. A board with
 // fewer than three has no plates, so its rows stay in the list: plenty of Maps have one or
 // two.
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { QMark } from "./PointsDialog";
+import { RaceDrawer, useRaceOpen } from "./RaceDrawer";
 import { ScoreRow } from "./ScoreRow";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
@@ -203,6 +204,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
   const { name, points, where, count, initial, lead, pods, focus } = props;
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
+  const race = useRaceOpen(name, "list");
   /* unfiltered, the list starts under the plates */
   const base = count >= 3 ? 3 : 0;
   /* `rows` are on screen and `ahead` read but not yet shown: the list reads four steps at a
@@ -315,14 +317,18 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
         <div className={pods ? "board pods" : "board"} id="board">
           <Head pods={!!pods} score={points ? "Points" : "Time"} qmark={points} />
           {rows.map((r) => (
-            <ScoreRow
-              key={r.steamId}
-              r={r}
-              lead={lead ?? r.score}
-              points={points}
-              pods={pods}
-              focus={focus?.id === r.steamId}
-            />
+            <Fragment key={r.steamId}>
+              <ScoreRow
+                r={r}
+                lead={lead ?? r.score}
+                points={points}
+                pods={pods}
+                focus={focus?.id === r.steamId}
+                open={race.open === r.steamId}
+                onRace={race.toggle}
+              />
+              {race.open === r.steamId && <RaceDrawer board={name} steamId={r.steamId} />}
+            </Fragment>
           ))}
           {rows.length < total && (
             <div className="more" id="more">

@@ -308,8 +308,12 @@
   .row:nth-child(2) {
     border-radius: 0;
   }
-  .row:last-child {
+  .row:last-child,
+  .race-drawer:last-child {
     border-radius: 0 0 10px 10px;
+  }
+  .race-drawer:not(.race-podium) {
+    padding-inline: 110px 24px;
   }
   /* the podium column only gets its own column when the board has room for it beside a
      readable name; until then the counts stay under the name, as on a phone */

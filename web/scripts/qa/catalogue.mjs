@@ -58,6 +58,8 @@ export const STATES = [
   { name: "compare", page: "player", click: "button:has-text('Compare')" },
   { name: "change", page: "vs", click: "[data-change=b]" },
   { name: "refine", page: "maps", click: "button.refine" },
+  { name: "race", page: "board", click: ".row .c-race" },
+  { name: "race-podium", page: "board", click: ".pl-score.c-race" },
 ];
 
 // Hidden before every screenshot on both sides: the refresh time differs between two

@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { QMark } from "./PointsDialog";
 import { Plates } from "./Plates";
+import { RacePlates } from "./RacePlates";
 import { YouSpread } from "./YouSpread";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
@@ -43,7 +44,8 @@ export function ScorePlates({
   const points = isPoints(name),
     lead = rows[0] as BoardRow | undefined;
   return (
-    <Plates
+    <RacePlates
+      name={name}
       focus={focus}
       top={rows.slice(0, 3).map((r, i) => {
         const gap = points ? (lead?.score ?? 0) - r.score : r.score - (lead?.score ?? 0);
@@ -56,6 +58,7 @@ export function ScorePlates({
               : points
                 ? fmtN(gap) + " pts back"
                 : "+" + fmtTime(gap) + " back",
+          race: r.race,
         };
       })}
     />
