@@ -74,6 +74,7 @@ describe("Steam's boards", () => {
       ahead: null,
       seasons: null,
       skin: SKIN.pink,
+      race: true,
     });
     expect(page.rows.map((r) => r.ahead)).toEqual([null, 1_013_307, 1_019_884]);
   });
@@ -102,6 +103,21 @@ describe("Steam's boards", () => {
     });
     const overall = await boardPage(t.db, "OverallLeaderboard_EASeason2", { count: 4 });
     expect(overall.rows.map((r) => r.skin)).toEqual([null, null, null, null]);
+  });
+
+  test("a row races where its open run's Ghost has a profile", async () => {
+    const track = await boardPage(t.db, "Map_Track13", { count: 10 });
+    // p4's Ghost was read before profiles, p5's had no samples, p7's isn't read
+    expect(track.rows.map((r) => [r.steamId, r.race])).toEqual([
+      [p(1), true],
+      [p(2), true],
+      [p(5), false],
+      [p(4), false],
+      [p(7), false],
+      [p(6), false],
+    ]);
+    const derived = await boardPage(t.db, "OverallLeaderboard_AllSeasons", { count: 3 });
+    expect(derived.rows.map((r) => r.race)).toEqual([false, false, false]);
   });
 
   test("a page starts where it is asked to", async () => {

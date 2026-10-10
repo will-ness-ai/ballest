@@ -6,7 +6,18 @@
 // GET /api/board/<name>?player=<steam id>: that player's { rank, score } on the board, or
 // null when they hold no Entry on it (or nobody raced under the ID), for You's banner
 // (hooks/you.ts). Something that isn't a Steam ID is a 400.
-import { getBoardPlaces, isBoard, readBoard, searchBoard } from "../../../../db/data";
+//
+// GET /api/board/<name>?run=<steam id>: that run's Ghost against its rival's (RunRace in
+// lib/rows.ts), or null when it has no profile, for the race drawer (components/board/
+// RaceDrawer). A Daily's board is accepted too. Something that isn't a Steam ID is a 400.
+import {
+  getBoardPlaces,
+  getBoardRun,
+  isBoard,
+  isRaceBoard,
+  readBoard,
+  searchBoard,
+} from "../../../../db/data";
 import { isSteamId } from "../../../../lib/rules";
 
 /* a search pages its matches; a link to a player's row reads down to it in one go, as far
@@ -16,8 +27,15 @@ const MAX_SEARCH = 200,
 
 export async function GET(request: Request, { params }: { params: Promise<{ name: string }> }) {
   const { name } = await params;
-  if (!(await isBoard(name))) return Response.json({ error: "no such board" }, { status: 404 });
   const url = new URL(request.url);
+  const run = url.searchParams.get("run");
+  if (run != null) {
+    if (!(await isRaceBoard(name)))
+      return Response.json({ error: "no such board" }, { status: 404 });
+    if (!isSteamId(run)) return Response.json({ error: "not a Steam ID" }, { status: 400 });
+    return Response.json(await getBoardRun(name, run));
+  }
+  if (!(await isBoard(name))) return Response.json({ error: "no such board" }, { status: 404 });
   const player = url.searchParams.get("player");
   if (player != null) {
     if (!isSteamId(player)) return Response.json({ error: "not a Steam ID" }, { status: 400 });
