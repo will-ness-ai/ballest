@@ -9,13 +9,14 @@ data/workshop/*.json), reading only the ones played since the last run
 (collect_workshop), and reads the Dailies the developers' API names (collect_dailies),
 which are database-only. Then the same Refresh goes into the database
 (db_writer.record_refresh): DATABASE_URL, or with --out only DEV_DATABASE_URL;
-skipped when unset.
+skipped when unset. Last, the Ghosts of the top runs are read for their skins
+(ghosts.record_ghosts), into the same database.
 
 Auth (secrets, provided as env vars in CI; locally they fall back to the files
 steampy_mint.py and .env hold, in this checkout or the main one if this is a
 worktree):
   STEAM_REFRESH_TOKEN  — minted once locally with steampy_mint.py
-  STEAM_API_KEY        — Steam Web API key (name resolution)
+  STEAM_API_KEY        — Steam Web API key (name resolution, Ghosts)
   BALLEST_API_KEY, BALLEST_DAILY_URL — the developers' API, which names each Daily's
                          board (the URL is a prefix the date is appended to); the Daily
                          step is skipped without them. Never printed.
@@ -47,6 +48,7 @@ import warnings
 import campaign_common as cc
 import daily
 import db_writer
+import ghosts
 
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
 
@@ -360,6 +362,12 @@ async def on_ready():
             ),
             scratch=OUT is not None,
         )
+        # Each top run's Ghost, for its skin: after the Refresh, so it never holds it up,
+        # and never fails the run.
+        try:
+            await asyncio.to_thread(ghosts.record_ghosts, scratch=OUT is not None)
+        except Exception as e:
+            print(f"::warning::Ghost step failed: {type(e).__name__}")
     except Exception as e:
         _state["error"] = e
         traceback.print_exc()

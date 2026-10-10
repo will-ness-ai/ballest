@@ -3,7 +3,8 @@
 import { desc } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { entries, refreshes } from "../db/schema";
+import { entries, ghosts, refreshes } from "../db/schema";
+import { SKIN } from "../db/seed/datasets/tiny";
 import { seed } from "../db/seed/harness";
 import {
   boardPage,
@@ -72,8 +73,35 @@ describe("Steam's boards", () => {
       score: 1_013_307,
       ahead: null,
       seasons: null,
+      skin: SKIN.pink,
     });
     expect(page.rows.map((r) => r.ahead)).toEqual([null, 1_013_307, 1_019_884]);
+  });
+
+  test("a row carries the skin its open run's Ghost names, where one was read", async () => {
+    const track = await boardPage(t.db, "Map_Track13", { count: 10 });
+    // p1's closed run was Magma; p5's Ghost had no samples, p7's isn't read, p6's is gone
+    expect(track.rows.map((r) => [r.steamId, r.skin])).toEqual([
+      [p(1), SKIN.pink],
+      [p(2), SKIN.cosmic],
+      [p(5), null],
+      [p(4), "/Game/Art/New/MI_NewSkin.MI_NewSkin"],
+      [p(7), null],
+      [p(6), null],
+    ]);
+    const map = await boardPage(t.db, "Workshop_9000000001", { count: 1 });
+    expect(map.rows[0]).toMatchObject({ steamId: p(9), skin: SKIN.gold });
+    const derived = await boardPage(t.db, "OverallLeaderboard_AllSeasons", { count: 3 });
+    expect(derived.rows.map((r) => r.skin)).toEqual([null, null, null]);
+    // an Overall board has no Ghost, even where its UGC ID has a row
+    await t.db.insert(ghosts).values({
+      ugcId: `${String(9_000_000_000 + 2)}1200`,
+      state: "ok",
+      skin: SKIN.pink,
+      readAt: new Date(),
+    });
+    const overall = await boardPage(t.db, "OverallLeaderboard_EASeason2", { count: 4 });
+    expect(overall.rows.map((r) => r.skin)).toEqual([null, null, null, null]);
   });
 
   test("a page starts where it is asked to", async () => {

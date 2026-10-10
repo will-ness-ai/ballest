@@ -25,6 +25,17 @@ counted apart: a record at the author time counts under both, a slower one under
 Medal.
 _Avoid_: tier, grade
 
+**Ghost**:
+The replay the game uploads with a score, kept by Steam under the Entry's UGC ID: the
+ball's path, and the Skin and hat it was rolled with. A new personal best gets a new
+Ghost, so a Ghost never changes.
+_Avoid_: replay file, UGC (for the Ghost itself)
+
+**Skin**:
+The ball a run was rolled with, one of the game's 36, named in the run's Ghost. A board
+draws it in place of the player's marble.
+_Avoid_: ball colour, cosmetic
+
 **Played**:
 A player has Played a Map if they hold a time on that Map's leaderboard. Attempts that
 never finished are invisible and do not count. A time can still beat the author time:
