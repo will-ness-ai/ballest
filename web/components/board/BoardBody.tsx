@@ -100,51 +100,61 @@ const ScoreRow = memo(function ScoreRow({
   const p = pods ? pods[r.steamId] : undefined;
   /* PROTOTYPE */
   const proto = P.useProto();
-  const click = P.rowClick(proto, r.steamId);
+  const click = P.rowClick(proto, r.steamId, r.rank);
   const lens = <P.LensScore id={r.steamId} />;
   return (
     <>
-    <div
-      onClick={click}
-      className={(focus ? "row focus" : "row") + (click ? " p-tap" : "") + (proto?.open === r.steamId ? " p-open" : "")}
-      style={{ "--h": hueFor(r.steamId) } as React.CSSProperties}
-      data-m={r.rank <= 3 ? r.rank : 0}
-      data-id={r.steamId}
-    >
-      <span className="c-rank">{r.rank}</span>
-      <Marble who={r} />
-      <span className="c-text">
-        <span className="nm">
-          <PlayerLink id={r.steamId} text={personaOf(r)} />
+      <div
+        onClick={click}
+        className={
+          (focus ? "row focus" : "row") +
+          (click ? " p-tap" : "") +
+          (proto?.open === r.steamId ? " p-open" : "")
+        }
+        style={{ "--h": hueFor(r.steamId) } as React.CSSProperties}
+        data-m={r.rank <= 3 ? r.rank : 0}
+        data-id={r.steamId}
+      >
+        <span className="c-rank">{r.rank}</span>
+        <Marble who={r} />
+        <span className="c-text">
+          <span className="nm">
+            <PlayerLink id={r.steamId} text={personaOf(r)} />
+          </span>
+          {r.rank === 1 ? (
+            <>
+              <span className="sub sub-d">Leads the board{parts}</span>
+              <span className="sub sub-m">Leads the board{parts}</span>
+            </>
+          ) : (
+            <>
+              <span className="sub sub-d">
+                <em>{g}</em> behind · {st} to {up}
+                {parts}
+              </span>{" "}
+              <span className="sub sub-m">
+                <em>{st}</em> to {up}
+                {parts || " · " + g + " back"}
+              </span>
+            </>
+          )}
+          <P.RowLine id={r.steamId} rank={r.rank} />
         </span>
-        {r.rank === 1 ? (
-          <>
-            <span className="sub sub-d">Leads the board{parts}</span>
-            <span className="sub sub-m">Leads the board{parts}</span>
-          </>
-        ) : (
-          <>
-            <span className="sub sub-d">
-              <em>{g}</em> behind · {st} to {up}
-              {parts}
-            </span>{" "}
-            <span className="sub sub-m">
-              <em>{st}</em> to {up}
-              {parts || " · " + g + " back"}
-            </span>
-          </>
-        )}
-        <P.RowLine id={r.steamId} />
-      </span>
-      <P.RowCols id={r.steamId} />
-      {pods && <span className="c-pods">{p ? <MedalCounts p={p} /> : null}</span>}
-      <span className="c-score">
-        {proto?.variant === "D" && proto.lens !== "time" ? lens : <span>{points ? fmtN(r.score) : fmtTime(r.score)}</span>}
-        <i className="pill"></i>
-      </span>
-      <P.SpeedBar id={r.steamId} />
-    </div>
-    <P.Drawer id={r.steamId} />
+        <P.RowCols id={r.steamId} />
+        {pods && <span className="c-pods">{p ? <MedalCounts p={p} /> : null}</span>}
+        <span className="c-score">
+          <P.RowMark id={r.steamId} rank={r.rank} />
+          {proto?.variant === "D" && proto.lens !== "time" ? (
+            lens
+          ) : (
+            <span>{points ? fmtN(r.score) : fmtTime(r.score)}</span>
+          )}
+          <i className="pill"></i>
+        </span>
+        <P.SpeedBar id={r.steamId} />
+      </div>
+      <P.Drawer id={r.steamId} rank={r.rank} />
+      <P.CutLine rank={r.rank} />
     </>
   );
 });
@@ -395,32 +405,32 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
     : `${where} · ${fmtN(count)} ${noun} · showing ${fmtN(rows.length)}`;
   return (
     <P.ProtoProvider board={name}>
-    <Frame props={props} meta={meta} query={query} setQuery={setQuery}>
-      {rows.length ? (
-        <div className={pods ? "board pods" : "board"} id="board">
-          <Head pods={!!pods} score={points ? "Points" : "Time"} qmark={points} />
-          {rows.map((r) => (
-            <ScoreRow
-              key={r.steamId}
-              r={r}
-              lead={lead ?? r.score}
-              points={points}
-              pods={pods}
-              focus={focus?.id === r.steamId}
-            />
-          ))}
-          {rows.length < total && (
-            <div className="more" id="more">
-              Loading more
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className={pods ? "board pods" : "board"} id="board">
-          {q ? NOBODY : NO_RUNS}
-        </div>
-      )}
-    </Frame>
+      <Frame props={props} meta={meta} query={query} setQuery={setQuery}>
+        {rows.length ? (
+          <div className={pods ? "board pods" : "board"} id="board">
+            <Head pods={!!pods} score={points ? "Points" : "Time"} qmark={points} />
+            {rows.map((r) => (
+              <ScoreRow
+                key={r.steamId}
+                r={r}
+                lead={lead ?? r.score}
+                points={points}
+                pods={pods}
+                focus={focus?.id === r.steamId}
+              />
+            ))}
+            {rows.length < total && (
+              <div className="more" id="more">
+                Loading more
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className={pods ? "board pods" : "board"} id="board">
+            {q ? NOBODY : NO_RUNS}
+          </div>
+        )}
+      </Frame>
     </P.ProtoProvider>
   );
 }

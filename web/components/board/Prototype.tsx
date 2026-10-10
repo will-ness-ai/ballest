@@ -30,37 +30,152 @@ type Data = Record<string, { top: number; entries: Record<string, Ghost> }>;
 
 /* round 2 asks what picture of a run C's drawer shows; round 1's variants are kept below,
    switched off by ROUND */
-const ROUND: number = 5;
+const ROUND: number = 6;
 export const VARIANTS = [
-  { key: "A", name: "Headline, tidied", note: "round 4's C with the date and top speed on top, the race, gap and clock in one card" },
+  {
+    key: "A",
+    name: "Quiet",
+    note: "only rows with a replay open; nothing marks them, a tap on any other row does nothing",
+  },
+  {
+    key: "B",
+    name: "Race mark",
+    note: "a small play mark before the time on rows with a replay; only those open",
+  },
+  {
+    key: "C",
+    name: "Say why",
+    note: "every row opens; one with no replay opens a short note saying why",
+  },
+  {
+    key: "D",
+    name: "Read on tap",
+    note: "every row opens; past the top 100 the replay is read from Steam on the tap (about a second), then the full drawer",
+  },
+  {
+    key: "E",
+    name: "Cut line",
+    note: "a line across the board after the last replay read; rows under it don't open, a missing one above it says no replay",
+  },
 ] as const;
+export const ROUND5 = [
+  {
+    key: "A",
+    name: "Headline, tidied",
+    note: "round 4's C with the date and top speed on top, the race, gap and clock in one card",
+  },
+] as const;
+/* round 6's states: which runs have no replay. The prototype cuts at 20 so the cut shows
+   without scrolling; the collector reads the top 100. */
+export const STATES = [
+  { key: "all", name: "Has a replay", open: 4 },
+  { key: "cut", name: "Past the top 100", open: 21 },
+  { key: "gone", name: "Steam has none", open: 4 },
+] as const;
+const CUT = 20;
+function readState(): string {
+  const v = new URLSearchParams(location.search).get("state");
+  return STATES.find((x) => x.key === v)?.key ?? "all";
+}
 export const ROUND4 = [
   { key: "A", name: "As is", note: "round 3's stats line: avg, top, distance, set, ball" },
-  { key: "B", name: "Against the leader", note: "each stat with its difference from the leader's run; ball dropped" },
-  { key: "C", name: "Headline", note: "no stats grid: one line on top, the date and top speed; ball, avg and distance dropped" },
-  { key: "D", name: "Ball card", note: "the run told as a sentence over the race: when, which ball and hat; no stats grid" },
-  { key: "E", name: "Ranked", note: "each stat with where it ranks among the top 50 read; ball dropped" },
+  {
+    key: "B",
+    name: "Against the leader",
+    note: "each stat with its difference from the leader's run; ball dropped",
+  },
+  {
+    key: "C",
+    name: "Headline",
+    note: "no stats grid: one line on top, the date and top speed; ball, avg and distance dropped",
+  },
+  {
+    key: "D",
+    name: "Ball card",
+    note: "the run told as a sentence over the race: when, which ball and hat; no stats grid",
+  },
+  {
+    key: "E",
+    name: "Ranked",
+    note: "each stat with where it ranks among the top 50 read; ball dropped",
+  },
 ] as const;
 export const ROUND3 = [
-  { key: "A", name: "Stacked", note: "the race on top, playing on open; the gap chart under it, still" },
-  { key: "B", name: "Linked", note: "the gap chart's playhead follows the race; drag the chart to scrub" },
+  {
+    key: "A",
+    name: "Stacked",
+    note: "the race on top, playing on open; the gap chart under it, still",
+  },
+  {
+    key: "B",
+    name: "Linked",
+    note: "the gap chart's playhead follows the race; drag the chart to scrub",
+  },
   { key: "C", name: "Tabs", note: "a Gap / Race switch; the race plays when picked" },
-  { key: "D", name: "Ride", note: "no lanes: the marbles race on the gap chart itself, the leader along the line" },
-  { key: "E", name: "Side by side", note: "race and gap next to each other (stacked on a phone), both playing" },
+  {
+    key: "D",
+    name: "Ride",
+    note: "no lanes: the marbles race on the gap chart itself, the leader along the line",
+  },
+  {
+    key: "E",
+    name: "Side by side",
+    note: "race and gap next to each other (stacked on a phone), both playing",
+  },
 ] as const;
 export const ROUND2 = [
-  { key: "A", name: "Gap", note: "time behind the leader along the course, where it was lost named" },
-  { key: "B", name: "Speed", note: "this run's speed along the course over the leader's, green where faster" },
-  { key: "C", name: "Side view", note: "the course's climbs and drops from the side, coloured by this run's speed" },
-  { key: "D", name: "Race", note: "this run and the leader's as two marbles racing in real time, with replay" },
-  { key: "E", name: "Sectors", note: "the course cut into 8 equal sectors, each one's time against the leader's" },
+  {
+    key: "A",
+    name: "Gap",
+    note: "time behind the leader along the course, where it was lost named",
+  },
+  {
+    key: "B",
+    name: "Speed",
+    note: "this run's speed along the course over the leader's, green where faster",
+  },
+  {
+    key: "C",
+    name: "Side view",
+    note: "the course's climbs and drops from the side, coloured by this run's speed",
+  },
+  {
+    key: "D",
+    name: "Race",
+    note: "this run and the leader's as two marbles racing in real time, with replay",
+  },
+  {
+    key: "E",
+    name: "Sectors",
+    note: "the course cut into 8 equal sectors, each one's time against the leader's",
+  },
 ] as const;
 export const ROUND1 = [
-  { key: "A", name: "Chips", note: "a line of stat chips under the gap line: avg, top speed, distance, when, hat" },
-  { key: "B", name: "Columns", note: "Avg, Top and Set columns before Time (phone: one line under the name)" },
-  { key: "C", name: "Expand", note: "tap a row to open a drawer: route over the leader's, the gap along the course, the stats" },
-  { key: "D", name: "Lens", note: "a switch over the board swaps the right column between Time, speeds, distance and date" },
-  { key: "E", name: "Run card", note: "tap a row for a run card beside the board (a sheet on a phone); rows get a speed bar" },
+  {
+    key: "A",
+    name: "Chips",
+    note: "a line of stat chips under the gap line: avg, top speed, distance, when, hat",
+  },
+  {
+    key: "B",
+    name: "Columns",
+    note: "Avg, Top and Set columns before Time (phone: one line under the name)",
+  },
+  {
+    key: "C",
+    name: "Expand",
+    note: "tap a row to open a drawer: route over the leader's, the gap along the course, the stats",
+  },
+  {
+    key: "D",
+    name: "Lens",
+    note: "a switch over the board swaps the right column between Time, speeds, distance and date",
+  },
+  {
+    key: "E",
+    name: "Run card",
+    note: "tap a row for a run card beside the board (a sheet on a phone); rows get a speed bar",
+  },
 ] as const;
 /* a plain string, so earlier rounds' variant checks still compile with a one-variant round */
 export type Variant = string;
@@ -71,10 +186,12 @@ function readVariant(): Variant {
 }
 
 let cache: Promise<Data> | null = null;
-const load = () => (cache ??= fetch("/prototype/ghosts.json").then((r) => r.json() as Promise<Data>));
+const load = () =>
+  (cache ??= fetch("/prototype/ghosts.json").then((r) => r.json() as Promise<Data>));
 
 interface Ctx {
   variant: Variant;
+  state: string;
   board: string;
   data: Data | null;
   open: string | null;
@@ -89,14 +206,17 @@ export type Lens = "time" | "avg" | "top" | "dist" | "set";
 
 export function ProtoProvider({ board, children }: { board: string; children: React.ReactNode }) {
   const [variant, setVariant] = useState<Variant>("A");
+  const [state, setState] = useState("all");
   const [data, setData] = useState<Data | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [lens, setLens] = useState<Lens>("time");
   useEffect(() => {
     setVariant(readVariant());
+    setState(readState());
     /* switching variants keeps the open drawer, so the change shows where you are looking */
     const on = () => {
       setVariant(readVariant());
+      setState(readState());
     };
     addEventListener("proto-variant", on);
     void load().then(setData);
@@ -114,13 +234,16 @@ export function ProtoProvider({ board, children }: { board: string; children: Re
     };
   }, []);
   /* open the first row in the list once the data is in, so a variant always has something to show */
-  const opened = useRef(false);
+  /* a state opens the run it is about: rank 4 (the first row under the podium) or the first past the cut */
   useEffect(() => {
-    if (!data || opened.current) return;
-    opened.current = true;
-    const first = document.querySelector<HTMLElement>("#board .row[data-id]");
-    if (first?.dataset.id && data[board]?.entries[first.dataset.id]) setOpen(first.dataset.id);
-  }, [data, board]);
+    if (!data) return;
+    const want = STATES.find((x) => x.key === state)!.open;
+    const id = Object.entries(data[board]?.entries ?? {}).find(([, g]) => g.rank === want)?.[0];
+    if (!id) return;
+    setOpen(id);
+    if (state === "cut")
+      document.querySelector(`#board .row[data-id="${id}"]`)?.scrollIntoView({ block: "center" });
+  }, [data, board, state]);
   useEffect(() => {
     document.querySelectorAll(".leaders [data-id]").forEach((el) => {
       el.classList.toggle("p-plate-open", el.getAttribute("data-id") === open);
@@ -128,12 +251,15 @@ export function ProtoProvider({ board, children }: { board: string; children: Re
     });
   }, [open]);
   return (
-    <ProtoCtx.Provider value={{ variant, board, data, open, setOpen, lens, setLens }}>
+    <ProtoCtx.Provider value={{ variant, state, board, data, open, setOpen, lens, setLens }}>
       <style>{CSS}</style>
-      <div className={`p-v-${variant}` + (ROUND === 1 ? " p-round1" : "")} style={{ display: "contents" }}>
+      <div
+        className={`p-v-${variant}` + (ROUND === 1 ? " p-round1" : "")}
+        style={{ display: "contents" }}
+      >
         {children}
       </div>
-      <Picker variant={variant} />
+      <Picker variant={variant} state={state} />
       {ROUND === 1 && variant === "E" && <RunCard />}
     </ProtoCtx.Provider>
   );
@@ -142,9 +268,23 @@ export function ProtoProvider({ board, children }: { board: string; children: Re
 export function ghostOf(c: Ctx | null, id: string): Ghost | null {
   return c?.data?.[c.board]?.entries[id] ?? null;
 }
+
+/* round 6: a run's replay under the picked state, or why there is none. "cut" is past the
+   replays read, "gone" is Steam having no file (or an empty one) for a run inside them. */
+type Why = "cut" | "gone";
+function runOf(c: Ctx, id: string, rank: number): { g: Ghost | null; why: Why | null } {
+  const g = ghostOf(c, id);
+  const cut = c.state === "cut" ? CUT : (c.data?.[c.board]?.top ?? 50);
+  if (rank > cut) return { g, why: "cut" };
+  if (c.state === "gone" && rank === 4) return { g: null, why: "gone" };
+  return g ? { g, why: null } : { g: null, why: "gone" };
+}
+const cutOf = (c: Ctx) => (c.state === "cut" ? CUT : (c.data?.[c.board]?.top ?? 50));
+const opens = (c: Ctx, why: Why | null) => why === null || c.variant === "C" || c.variant === "D";
+const read = new Set<string>();
 const leaderOf = (c: Ctx) => {
   const e = c.data?.[c.board]?.entries;
-  return e ? Object.values(e).sort((a, b) => a.rank - b.rank)[0] ?? null : null;
+  return e ? (Object.values(e).sort((a, b) => a.rank - b.rank)[0] ?? null) : null;
 };
 
 /* ---------- formatting ---------- */
@@ -162,9 +302,16 @@ const day = (iso: string | null) =>
 
 /* ---------- pieces ---------- */
 function Route({ g, lead, size = 120 }: { g: Ghost; lead: Ghost | null; size?: number }) {
-  const pts = (p: Array<[number, number]>) => p.map(([x, y]) => `${(x * 100).toFixed(1)},${(y * 100).toFixed(1)}`).join(" ");
+  const pts = (p: Array<[number, number]>) =>
+    p.map(([x, y]) => `${(x * 100).toFixed(1)},${(y * 100).toFixed(1)}`).join(" ");
   return (
-    <svg className="p-route" viewBox="-4 -4 108 108" width={size} height={size} aria-label="Route from above">
+    <svg
+      className="p-route"
+      viewBox="-4 -4 108 108"
+      width={size}
+      height={size}
+      aria-label="Route from above"
+    >
       {lead && lead !== g && <polyline points={pts(lead.path)} className="p-route-lead" />}
       <polyline points={pts(g.path)} className="p-route-me" />
       <circle cx={g.path[0][0] * 100} cy={g.path[0][1] * 100} r="3" className="p-route-start" />
@@ -174,9 +321,17 @@ function Route({ g, lead, size = 120 }: { g: Ghost; lead: Ghost | null; size?: n
 
 function GapLine({ g, w = 220, h = 54 }: { g: Ghost; w?: number; h?: number }) {
   const max = Math.max(0.05, ...g.gap.map(Math.abs));
-  const pts = g.gap.map((v, i) => `${((i + 1) / g.gap.length) * w},${3 + (Math.max(0, v) / max) * (h - 6)}`);
+  const pts = g.gap.map(
+    (v, i) => `${((i + 1) / g.gap.length) * w},${3 + (Math.max(0, v) / max) * (h - 6)}`,
+  );
   return (
-    <svg className="p-gap" viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none">
+    <svg
+      className="p-gap"
+      viewBox={`0 0 ${w} ${h}`}
+      width="100%"
+      height={h}
+      preserveAspectRatio="none"
+    >
       <line x1="0" x2={w} y1={3} y2={3} className="p-gap-zero" />
       <polyline points={`0,3 ` + pts.join(" ")} className="p-gap-line" />
     </svg>
@@ -186,11 +341,29 @@ function GapLine({ g, w = 220, h = 54 }: { g: Ghost; w?: number; h?: number }) {
 function Stats({ g }: { g: Ghost }) {
   return (
     <dl className="p-stats">
-      <div><dt>Avg speed</dt><dd>{kmh(g.avg)}</dd></div>
-      <div><dt>Top speed</dt><dd>{kmh(g.top)}</dd></div>
-      <div><dt>Distance</dt><dd>{g.dist.toFixed(0)} m</dd></div>
-      <div><dt>Set</dt><dd>{ago(g.set)}</dd></div>
-      <div><dt>Ball</dt><dd>{g.skin ?? "Default"}{g.hat ? ` + ${g.hat}` : ""}</dd></div>
+      <div>
+        <dt>Avg speed</dt>
+        <dd>{kmh(g.avg)}</dd>
+      </div>
+      <div>
+        <dt>Top speed</dt>
+        <dd>{kmh(g.top)}</dd>
+      </div>
+      <div>
+        <dt>Distance</dt>
+        <dd>{g.dist.toFixed(0)} m</dd>
+      </div>
+      <div>
+        <dt>Set</dt>
+        <dd>{ago(g.set)}</dd>
+      </div>
+      <div>
+        <dt>Ball</dt>
+        <dd>
+          {g.skin ?? "Default"}
+          {g.hat ? ` + ${g.hat}` : ""}
+        </dd>
+      </div>
     </dl>
   );
 }
@@ -198,7 +371,7 @@ function Stats({ g }: { g: Ghost }) {
 function Detail({ g, c }: { g: Ghost; c: Ctx }) {
   const lead = leaderOf(c);
   const last = g.gap[g.gap.length - 1];
-  if (ROUND === 5) return <Picture5 g={g} lead={lead} c={c} />;
+  if (ROUND >= 5) return <Picture5 g={g} lead={lead} c={c} />;
   if (ROUND === 4) return <Picture4 g={g} lead={lead} c={c} />;
   if (ROUND === 3) return <Picture3 g={g} lead={lead} c={c} />;
   if (ROUND === 2) return <Picture g={g} lead={lead} c={c} />;
@@ -209,7 +382,9 @@ function Detail({ g, c }: { g: Ghost; c: Ctx }) {
         <Stats g={g} />
         {g.rank > 1 && (
           <>
-            <p className="p-cap">Behind the leader along the course, {fmtTime(Math.round(last * 1e5))} at the line</p>
+            <p className="p-cap">
+              Behind the leader along the course, {fmtTime(Math.round(last * 1e5))} at the line
+            </p>
             <GapLine g={g} />
           </>
         )}
@@ -240,7 +415,11 @@ function Picture({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
 }
 
 const leaderNote = (lead: Ghost | null) =>
-  lead ? null : <p className="p-cap">This is the fastest replay read here, so there is nothing to compare it with.</p>;
+  lead ? null : (
+    <p className="p-cap">
+      This is the fastest replay read here, so there is nothing to compare it with.
+    </p>
+  );
 
 function GapPic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
   if (!lead) return leaderNote(lead);
@@ -249,23 +428,41 @@ function GapPic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
   const max = Math.max(0.02, ...gap.map(Math.abs));
   const y = (d: number) => h / 2 + (d / max) * (h / 2 - 4);
   /* the stretch where the most time went: the steepest tenth */
-  let worst = 0, wi = 0;
+  let worst = 0,
+    wi = 0;
   for (let i = 8; i < gap.length; i++) {
     const d = gap[i] - gap[i - 8];
-    if (d > worst) { worst = d; wi = i - 8; }
+    if (d > worst) {
+      worst = d;
+      wi = i - 8;
+    }
   }
   const from = Math.round((wi / gap.length) * 100);
   return (
     <>
       <p className="p-cap">
-        Behind the leader along the course · <b>{signed(gap[gap.length - 1])}</b> at the line. Most lost between {from}% and {from + 10}% of the way: {secs(worst)}.
+        Behind the leader along the course · <b>{signed(gap[gap.length - 1])}</b> at the line. Most
+        lost between {from}% and {from + 10}% of the way: {secs(worst)}.
       </p>
       <svg className="p-chart" viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none">
-        <rect x={(wi / gap.length) * W} width={(8 / gap.length) * W} y="0" height={h} className="p-hot" />
+        <rect
+          x={(wi / gap.length) * W}
+          width={(8 / gap.length) * W}
+          y="0"
+          height={h}
+          className="p-hot"
+        />
         <line x1="0" x2={W} y1={h / 2} y2={h / 2} className="p-zero" />
-        <polyline points={`0,${h / 2} ` + gap.map((d, i) => `${pct(i, gap.length)},${y(d)}`).join(" ")} className="p-ln-me" />
+        <polyline
+          points={`0,${h / 2} ` + gap.map((d, i) => `${pct(i, gap.length)},${y(d)}`).join(" ")}
+          className="p-ln-me"
+        />
       </svg>
-      <div className="p-axis"><span>start</span><span>ahead ↑ · behind ↓</span><span>finish</span></div>
+      <div className="p-axis">
+        <span>start</span>
+        <span>ahead ↑ · behind ↓</span>
+        <span>finish</span>
+      </div>
     </>
   );
 }
@@ -273,9 +470,11 @@ function GapPic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
 function SpeedPic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
   const h = 110;
   const all = [...g.spd, ...(lead?.spd ?? [])];
-  const lo = Math.min(...all) * 0.9, hi = Math.max(...all);
+  const lo = Math.min(...all) * 0.9,
+    hi = Math.max(...all);
   const y = (s: number) => h - 4 - ((s - lo) / (hi - lo)) * (h - 8);
-  const line = (a: Array<number>) => `0,${y(a[0])} ` + a.map((s, i) => `${pct(i, a.length)},${y(s)}`).join(" ");
+  const line = (a: Array<number>) =>
+    `0,${y(a[0])} ` + a.map((s, i) => `${pct(i, a.length)},${y(s)}`).join(" ");
   return (
     <>
       <p className="p-cap">
@@ -285,30 +484,51 @@ function SpeedPic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
       <svg className="p-chart" viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none">
         {lead &&
           g.spd.map((s, i) => (
-            <rect key={i} x={pct(i - 1, g.spd.length)} width={W / g.spd.length} y="0" height={h} className={s >= lead.spd[i] ? "p-fast" : "p-slow"} />
+            <rect
+              key={i}
+              x={pct(i - 1, g.spd.length)}
+              width={W / g.spd.length}
+              y="0"
+              height={h}
+              className={s >= lead.spd[i] ? "p-fast" : "p-slow"}
+            />
           ))}
         {lead && <polyline points={line(lead.spd)} className="p-ln-lead" />}
         <polyline points={line(g.spd)} className="p-ln-me" />
       </svg>
-      <div className="p-axis"><span>start</span><span>{lead ? "green: faster than the leader there" : ""}</span><span>finish</span></div>
+      <div className="p-axis">
+        <span>start</span>
+        <span>{lead ? "green: faster than the leader there" : ""}</span>
+        <span>finish</span>
+      </div>
     </>
   );
 }
 
 function SidePic({ g }: { g: Ghost }) {
   const h = 120;
-  const lo = Math.min(0, ...g.elev), hi = Math.max(0.5, ...g.elev);
+  const lo = Math.min(0, ...g.elev),
+    hi = Math.max(0.5, ...g.elev);
   const y = (e: number) => h - 6 - ((e - lo) / (hi - lo)) * (h - 20);
-  const sLo = Math.min(...g.spd), sHi = Math.max(...g.spd);
+  const sLo = Math.min(...g.spd),
+    sHi = Math.max(...g.spd);
   const pts = [0, ...g.elev];
   const ti = g.spd.indexOf(Math.max(...g.spd));
   return (
     <>
       <p className="p-cap">
-        The course from the side, coloured by this run’s speed · {(hi - lo).toFixed(0)} m from lowest to highest
+        The course from the side, coloured by this run’s speed · {(hi - lo).toFixed(0)} m from
+        lowest to highest
       </p>
       <svg className="p-chart" viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none">
-        <polygon points={`0,${h} ` + pts.map((e, i) => `${(i / g.elev.length) * W},${y(e)}`).join(" ") + ` ${W},${h}`} className="p-ground" />
+        <polygon
+          points={
+            `0,${h} ` +
+            pts.map((e, i) => `${(i / g.elev.length) * W},${y(e)}`).join(" ") +
+            ` ${W},${h}`
+          }
+          className="p-ground"
+        />
         {g.elev.map((e, i) => (
           <line
             key={i}
@@ -323,15 +543,22 @@ function SidePic({ g }: { g: Ghost }) {
         ))}
         <circle cx={pct(ti, g.spd.length)} cy={y(g.elev[ti])} r="5" className="p-dot" />
       </svg>
-      <div className="p-axis"><span>start</span><span><i className="p-key" /> slow → fast · ● top speed</span><span>finish</span></div>
+      <div className="p-axis">
+        <span>start</span>
+        <span>
+          <i className="p-key" /> slow → fast · ● top speed
+        </span>
+        <span>finish</span>
+      </div>
     </>
   );
 }
 
 /* the fraction of the course a run has covered at time t */
 function fracAt(at: Array<number>, t: number) {
-  if (t <= at[0]) return (t / at[0]) / at.length;
-  for (let i = 1; i < at.length; i++) if (at[i] >= t) return (i + (t - at[i - 1]) / (at[i] - at[i - 1])) / at.length;
+  if (t <= at[0]) return t / at[0] / at.length;
+  for (let i = 1; i < at.length; i++)
+    if (at[i] >= t) return (i + (t - at[i - 1]) / (at[i] - at[i - 1])) / at.length;
   return 1;
 }
 
@@ -345,7 +572,11 @@ function RacePic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
     const t0 = performance.now() - t * 1000;
     const tick = (now: number) => {
       const s = (now - t0) / 1000;
-      if (s >= end + 0.6) { setT(end); setRun(false); return; }
+      if (s >= end + 0.6) {
+        setT(end);
+        setRun(false);
+        return;
+      }
       setT(Math.min(s, end));
       raf = requestAnimationFrame(tick);
     };
@@ -359,8 +590,14 @@ function RacePic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
   return (
     <>
       <p className="p-cap">
-        {lead ? "Racing the leader’s replay" : "The run in real time"} · <b>{fmtTime(Math.round(t * 1e5))}</b>
-        {lead && t > 0.3 && <> · {Math.abs(ahead).toFixed(1)} m {ahead >= 0 ? "ahead" : "behind"}</>}
+        {lead ? "Racing the leader’s replay" : "The run in real time"} ·{" "}
+        <b>{fmtTime(Math.round(t * 1e5))}</b>
+        {lead && t > 0.3 && (
+          <>
+            {" "}
+            · {Math.abs(ahead).toFixed(1)} m {ahead >= 0 ? "ahead" : "behind"}
+          </>
+        )}
       </p>
       <div className="p-race">
         {lead && (
@@ -374,7 +611,15 @@ function RacePic({ g, lead }: { g: Ghost; lead: Ghost | null }) {
           <i className="p-mb" style={{ left: `${me * 100}%` }} />
         </div>
       </div>
-      <button className="p-btn" onClick={() => { setT(0); setRun(true); }}>{run ? "Racing…" : "Replay"}</button>
+      <button
+        className="p-btn"
+        onClick={() => {
+          setT(0);
+          setRun(true);
+        }}
+      >
+        {run ? "Racing…" : "Replay"}
+      </button>
     </>
   );
 }
@@ -390,7 +635,11 @@ function useRace(end: number, auto: boolean) {
     const t0 = performance.now() - t * 1000;
     const tick = (now: number) => {
       const s = (now - t0) / 1000;
-      if (s >= end + 0.6) { setT(end); setRun(false); return; }
+      if (s >= end + 0.6) {
+        setT(end);
+        setRun(false);
+        return;
+      }
       setT(Math.min(s, end));
       raf = requestAnimationFrame(tick);
     };
@@ -401,15 +650,33 @@ function useRace(end: number, auto: boolean) {
   return {
     t,
     run,
-    play: () => { setT(0); setRun(true); },
-    seek: (s: number) => { setRun(false); setT(Math.max(0, Math.min(end, s))); },
+    play: () => {
+      setT(0);
+      setRun(true);
+    },
+    seek: (s: number) => {
+      setRun(false);
+      setT(Math.max(0, Math.min(end, s)));
+    },
   };
 }
 type Race = ReturnType<typeof useRace>;
 
 const gapOf = (g: Ghost, lead: Ghost) => g.at.map((t, i) => t - lead.at[i]);
 
-function GapChart({ g, lead, race, ride, scrub }: { g: Ghost; lead: Ghost; race?: Race; ride?: boolean; scrub?: boolean }) {
+function GapChart({
+  g,
+  lead,
+  race,
+  ride,
+  scrub,
+}: {
+  g: Ghost;
+  lead: Ghost;
+  race?: Race;
+  ride?: boolean;
+  scrub?: boolean;
+}) {
   const gap = gapOf(g, lead);
   const h = 100;
   const max = Math.max(0.02, ...gap.map(Math.abs));
@@ -430,18 +697,30 @@ function GapChart({ g, lead, race, ride, scrub }: { g: Ghost; lead: Ghost; race?
     race.seek(g.at[Math.max(0, Math.min(g.at.length - 1, Math.round(f * g.at.length) - 1))]);
   };
   return (
-    <div className={"p-gapbox" + (scrub ? " p-scrub" : "")} onPointerDown={onScrub} onPointerMove={onScrub}>
+    <div
+      className={"p-gapbox" + (scrub ? " p-scrub" : "")}
+      onPointerDown={onScrub}
+      onPointerMove={onScrub}
+    >
       <svg className="p-chart" viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none">
         <line x1="0" x2={W} y1={h / 2} y2={h / 2} className="p-zero" />
-        <polyline points={`0,${h / 2} ` + gap.map((d, i) => `${pct(i, gap.length)},${y(d)}`).join(" ")} className="p-ln-me" />
-        {race && !ride && me != null && <line x1={me * W} x2={me * W} y1="0" y2={h} className="p-head" />}
+        <polyline
+          points={`0,${h / 2} ` + gap.map((d, i) => `${pct(i, gap.length)},${y(d)}`).join(" ")}
+          className="p-ln-me"
+        />
+        {race && !ride && me != null && (
+          <line x1={me * W} x2={me * W} y1="0" y2={h} className="p-head" />
+        )}
       </svg>
       <span className="p-on p-on-up">ahead</span>
       <span className="p-on p-on-dn">behind</span>
       {race && ride && me != null && ld != null && (
         <>
           <i className="p-mb p-mb-lead p-ride" style={{ left: `${ld * 100}%`, top: "50%" }} />
-          <i className="p-mb p-ride" style={{ left: `${me * 100}%`, top: `${(y(gapAt(me)) / h) * 100}%` }} />
+          <i
+            className="p-mb p-ride"
+            style={{ left: `${me * 100}%`, top: `${(y(gapAt(me)) / h) * 100}%` }}
+          />
         </>
       )}
     </div>
@@ -470,8 +749,15 @@ function RaceCap({ g, lead, race }: { g: Ghost; lead: Ghost; race: Race }) {
   return (
     <span className="p-racecap">
       <b>{fmtTime(Math.round(race.t * 1e5))}</b>
-      {race.t > 0.3 && <> · {Math.abs(ahead).toFixed(1)} m {ahead >= 0 ? "ahead" : "behind"}</>}
-      <button className="p-btn" onClick={race.play}>{race.run ? "Racing…" : race.t ? "Replay" : "Race"}</button>
+      {race.t > 0.3 && (
+        <>
+          {" "}
+          · {Math.abs(ahead).toFixed(1)} m {ahead >= 0 ? "ahead" : "behind"}
+        </>
+      )}
+      <button className="p-btn" onClick={race.play}>
+        {race.run ? "Racing…" : race.t ? "Replay" : "Race"}
+      </button>
     </span>
   );
 }
@@ -510,14 +796,29 @@ function Picture3({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
           <RaceCap g={g} lead={L} race={race} />
           <Lanes g={g} lead={L} race={race} />
           <GapChart g={g} lead={L} race={race} scrub />
-          <div className="p-axis"><span>start</span><span>drag the chart to scrub</span><span>finish</span></div>
+          <div className="p-axis">
+            <span>start</span>
+            <span>drag the chart to scrub</span>
+            <span>finish</span>
+          </div>
         </>
       )}
       {v === "C" && (
         <>
           <div className="p-lens" role="tablist">
-            <button role="tab" aria-selected={tab === "gap"} onClick={() => setTab("gap")}>Gap</button>
-            <button role="tab" aria-selected={tab === "race"} onClick={() => { setTab("race"); race.play(); }}>Race</button>
+            <button role="tab" aria-selected={tab === "gap"} onClick={() => setTab("gap")}>
+              Gap
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === "race"}
+              onClick={() => {
+                setTab("race");
+                race.play();
+              }}
+            >
+              Race
+            </button>
           </div>
           {tab === "gap" ? (
             <>
@@ -537,7 +838,11 @@ function Picture3({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
           {cap}
           <RaceCap g={g} lead={L} race={race} />
           <GapChart g={g} lead={L} race={race} ride />
-          <div className="p-axis"><span>start</span><span>gold: the leader, on the line</span><span>finish</span></div>
+          <div className="p-axis">
+            <span>start</span>
+            <span>gold: the leader, on the line</span>
+            <span>finish</span>
+          </div>
         </>
       )}
       {v === "E" && (
@@ -567,27 +872,62 @@ function Linked({ g, L, race, vs }: { g: Ghost; L: Ghost; race: Race; vs: string
       <RaceCap g={g} lead={L} race={race} />
       <Lanes g={g} lead={L} race={race} />
       <GapChart g={g} lead={L} race={race} scrub />
-      <div className="p-axis"><span>start</span><span>drag the chart to scrub</span><span>finish</span></div>
+      <div className="p-axis">
+        <span>start</span>
+        <span>drag the chart to scrub</span>
+        <span>finish</span>
+      </div>
     </>
   );
 }
 
-const ordinal = (n: number) => n + (["th", "st", "nd", "rd"][(n % 100 >> 3) ^ 1 && n % 10] || "th");
+const ordinal = (n: number) =>
+  n + (["th", "st", "nd", "rd"][((n % 100) >> 3) ^ 1 && n % 10] || "th");
 const fullDay = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : null;
+  iso
+    ? new Date(iso).toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
 
 function StatsVs({ g, L }: { g: Ghost; L: Ghost | null }) {
   const d = (a: number, b: number, unit: string, better: number) => {
     const x = a - b;
     if (!L || Math.abs(x) < 0.05) return null;
-    return <span className={x * better > 0 ? "p-plus" : "p-minus"}>{x > 0 ? "+" : "−"}{Math.abs(x).toFixed(1)}{unit}</span>;
+    return (
+      <span className={x * better > 0 ? "p-plus" : "p-minus"}>
+        {x > 0 ? "+" : "−"}
+        {Math.abs(x).toFixed(1)}
+        {unit}
+      </span>
+    );
   };
   return (
     <dl className="p-stats">
-      <div><dt>Top speed</dt><dd>{kmh(g.top)} {L && d(g.top, L.top, "", 1)}</dd></div>
-      <div><dt>Avg speed</dt><dd>{kmh(g.avg)} {L && d(g.avg, L.avg, "", 1)}</dd></div>
-      <div><dt>Distance</dt><dd>{g.dist.toFixed(0)} m {L && d(g.dist, L.dist, " m", -1)}</dd></div>
-      <div><dt>Set</dt><dd>{ago(g.set)}</dd></div>
+      <div>
+        <dt>Top speed</dt>
+        <dd>
+          {kmh(g.top)} {L && d(g.top, L.top, "", 1)}
+        </dd>
+      </div>
+      <div>
+        <dt>Avg speed</dt>
+        <dd>
+          {kmh(g.avg)} {L && d(g.avg, L.avg, "", 1)}
+        </dd>
+      </div>
+      <div>
+        <dt>Distance</dt>
+        <dd>
+          {g.dist.toFixed(0)} m {L && d(g.dist, L.dist, " m", -1)}
+        </dd>
+      </div>
+      <div>
+        <dt>Set</dt>
+        <dd>{ago(g.set)}</dd>
+      </div>
     </dl>
   );
 }
@@ -599,17 +939,45 @@ function StatsRanked({ g, c }: { g: Ghost; c: Ctx }) {
   const n = all.length;
   return (
     <dl className="p-stats">
-      <div><dt>Top speed</dt><dd>{kmh(g.top)}<small>{ordinal(rank("top", true))} of {n}</small></dd></div>
-      <div><dt>Avg speed</dt><dd>{kmh(g.avg)}<small>{ordinal(rank("avg", true))} of {n}</small></dd></div>
-      <div><dt>Shortest line</dt><dd>{g.dist.toFixed(1)} m<small>{ordinal(rank("dist", false))} of {n}</small></dd></div>
-      <div><dt>Set</dt><dd>{ago(g.set)}</dd></div>
+      <div>
+        <dt>Top speed</dt>
+        <dd>
+          {kmh(g.top)}
+          <small>
+            {ordinal(rank("top", true))} of {n}
+          </small>
+        </dd>
+      </div>
+      <div>
+        <dt>Avg speed</dt>
+        <dd>
+          {kmh(g.avg)}
+          <small>
+            {ordinal(rank("avg", true))} of {n}
+          </small>
+        </dd>
+      </div>
+      <div>
+        <dt>Shortest line</dt>
+        <dd>
+          {g.dist.toFixed(1)} m
+          <small>
+            {ordinal(rank("dist", false))} of {n}
+          </small>
+        </dd>
+      </div>
+      <div>
+        <dt>Set</dt>
+        <dd>{ago(g.set)}</dd>
+      </div>
     </dl>
   );
 }
 
 function Picture4({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
   /* the leader races the next fastest replay read */
-  const second = Object.values(c.data?.[c.board]?.entries ?? {}).sort((a, b) => a.rank - b.rank)[1] ?? null;
+  const second =
+    Object.values(c.data?.[c.board]?.entries ?? {}).sort((a, b) => a.rank - b.rank)[1] ?? null;
   const L = lead && lead !== g ? lead : second;
   const vs = lead && lead !== g ? "the leader" : `${ordinal(second?.rank ?? 2)} place`;
   const end = Math.max(g.at[g.at.length - 1], L ? L.at[L.at.length - 1] : 0);
@@ -620,15 +988,35 @@ function Picture4({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
     <div className="p-pic">
       {v === "C" && (
         <p className="p-head-line">
-          {when ? <>Set on <b>{when}</b></> : "Date not recorded"} · top speed <b>{kmh(g.top)}</b>
+          {when ? (
+            <>
+              Set on <b>{when}</b>
+            </>
+          ) : (
+            "Date not recorded"
+          )}{" "}
+          · top speed <b>{kmh(g.top)}</b>
         </p>
       )}
       {v === "D" && (
         <div className="p-ballcard">
           <i className="p-mb p-mb-big" />
           <p>
-            {when ? <>Set <b>{ago(g.set)}</b> ({when})</> : "Date not recorded"}, rolling a{" "}
-            <b>{g.skin ?? "default"}</b> ball{g.hat ? <> in a <b>{g.hat}</b></> : null}.
+            {when ? (
+              <>
+                Set <b>{ago(g.set)}</b> ({when})
+              </>
+            ) : (
+              "Date not recorded"
+            )}
+            , rolling a <b>{g.skin ?? "default"}</b> ball
+            {g.hat ? (
+              <>
+                {" "}
+                in a <b>{g.hat}</b>
+              </>
+            ) : null}
+            .
           </p>
         </div>
       )}
@@ -642,7 +1030,13 @@ function Picture4({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
 
 /* ---------- round 5: C · Headline, tidied (good-css) ---------- */
 const shortDay = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : null;
+  iso
+    ? new Date(iso).toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
 
 function RunGap({ g, lead, race }: { g: Ghost; lead: Ghost; race: Race }) {
   const gap = gapOf(g, lead);
@@ -660,7 +1054,10 @@ function RunGap({ g, lead, race }: { g: Ghost; lead: Ghost; race: Race }) {
     <div className="r-gap" onPointerDown={onScrub} onPointerMove={onScrub}>
       <svg viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none" aria-hidden="true">
         <line x1="0" x2={W} y1={h / 2} y2={h / 2} className="r-zero" />
-        <polyline points={`0,${h / 2} ` + gap.map((d, i) => `${pct(i, gap.length)},${y(d)}`).join(" ")} className="r-line" />
+        <polyline
+          points={`0,${h / 2} ` + gap.map((d, i) => `${pct(i, gap.length)},${y(d)}`).join(" ")}
+          className="r-line"
+        />
         {race.t > 0 && <line x1={me * W} x2={me * W} y1="0" y2={h} className="r-head" />}
       </svg>
       <span className="r-on r-on-up">Ahead</span>
@@ -670,9 +1067,15 @@ function RunGap({ g, lead, race }: { g: Ghost; lead: Ghost; race: Race }) {
 }
 
 function Picture5({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
-  const second = Object.values(c.data?.[c.board]?.entries ?? {}).sort((a, b) => a.rank - b.rank)[1] ?? null;
+  const second =
+    Object.values(c.data?.[c.board]?.entries ?? {}).sort((a, b) => a.rank - b.rank)[1] ?? null;
   const L = lead && lead !== g ? lead : second;
-  const vs = lead && lead !== g ? (lead.rank === 1 ? "the leader" : ordinal(lead.rank)) : ordinal(second?.rank ?? 2);
+  const vs =
+    lead && lead !== g
+      ? lead.rank === 1
+        ? "the leader"
+        : ordinal(lead.rank)
+      : ordinal(second?.rank ?? 2);
   const end = Math.max(g.at[g.at.length - 1], L ? L.at[L.at.length - 1] : 0);
   const race = useRace(end, false);
   const when = shortDay(g.set);
@@ -681,7 +1084,13 @@ function Picture5({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
   return (
     <div className="r-run">
       <p className="r-meta">
-        {when ? <>Set <b>{when}</b></> : "Date not recorded"}
+        {when ? (
+          <>
+            Set <b>{when}</b>
+          </>
+        ) : (
+          "Date not recorded"
+        )}
         <span aria-hidden="true"> · </span>
         Top speed <b className="r-num">{kmh(g.top)}</b>
       </p>
@@ -699,7 +1108,10 @@ function Picture5({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
           <div className="r-lanes">
             <div className="r-lane">
               <span>{vs === "the leader" ? "Leader" : vs}</span>
-              <i className="r-ball r-ball-lead" style={{ insetInlineStart: `${(ld * 100).toFixed(2)}%` }} />
+              <i
+                className="r-ball r-ball-lead"
+                style={{ insetInlineStart: `${(ld * 100).toFixed(2)}%` }}
+              />
             </div>
             <div className="r-lane">
               <span>This run</span>
@@ -707,7 +1119,10 @@ function Picture5({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
             </div>
           </div>
           <RunGap g={g} lead={L} race={race} />
-          <div className="r-axis"><span>Start</span><span>Finish</span></div>
+          <div className="r-axis">
+            <span>Start</span>
+            <span>Finish</span>
+          </div>
         </div>
       )}
     </div>
@@ -717,7 +1132,10 @@ function Picture5({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
 const NSEC = 8;
 function sectors(a: Ghost) {
   const per = a.at.length / NSEC;
-  return Array.from({ length: NSEC }, (_, k) => a.at[(k + 1) * per - 1] - (k ? a.at[k * per - 1] : 0));
+  return Array.from(
+    { length: NSEC },
+    (_, k) => a.at[(k + 1) * per - 1] - (k ? a.at[k * per - 1] : 0),
+  );
 }
 function SectorPic({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
   const mine = sectors(g);
@@ -726,11 +1144,15 @@ function SectorPic({ g, lead, c }: { g: Ghost; lead: Ghost | null; c: Ctx }) {
   const best = mine.map((_, k) => Math.min(...field.map((f) => f[k])));
   return (
     <>
-      <p className="p-cap">Eight equal stretches of the course, against the leader · <i className="p-sw p-sw-best" /> fastest of the top 50</p>
+      <p className="p-cap">
+        Eight equal stretches of the course, against the leader · <i className="p-sw p-sw-best" />{" "}
+        fastest of the top 50
+      </p>
       <div className="p-sectors">
         {mine.map((s, k) => {
           const d = theirs ? s - theirs[k] : 0;
-          const cls = Math.abs(s - best[k]) < 0.0005 ? "p-best-s" : !theirs ? "" : d <= 0 ? "p-up" : "p-down";
+          const cls =
+            Math.abs(s - best[k]) < 0.0005 ? "p-best-s" : !theirs ? "" : d <= 0 ? "p-up" : "p-down";
           return (
             <div key={k} className={"p-sec " + cls}>
               <small>S{k + 1}</small>
@@ -749,8 +1171,10 @@ const NONE = <span className="p-none">no replay read</span>;
 /* ---------- what each variant adds to a row ---------- */
 
 /* A and B: a line under the name. Returns null when the variant draws nothing there. */
-export function RowLine({ id }: { id: string }) {
+export function RowLine({ id, rank }: { id: string; rank: number }) {
   const c = useProto();
+  if (ROUND === 6 && c?.data && c.variant === "E" && runOf(c, id, rank).why === "gone")
+    return <span className="q-none">No replay</span>;
   if (ROUND !== 1 || !c || !c.data) return null;
   const g = ghostOf(c, id);
   if (c.variant === "A")
@@ -770,7 +1194,11 @@ export function RowLine({ id }: { id: string }) {
       </span>
     );
   if (c.variant === "B")
-    return <span className="p-bline">{g ? `${kmh(g.avg)} avg · ${g.top.toFixed(0)} top · ${day(g.set)}` : NONE}</span>;
+    return (
+      <span className="p-bline">
+        {g ? `${kmh(g.avg)} avg · ${g.top.toFixed(0)} top · ${day(g.set)}` : NONE}
+      </span>
+    );
   return null;
 }
 
@@ -808,7 +1236,11 @@ export function LensScore({ id }: { id: string }) {
   const all = Object.values(c.data[c.board]?.entries ?? {});
   const v = { avg: g.avg, top: g.top, dist: g.dist, set: 0, time: 0 }[c.lens];
   const best =
-    c.lens === "dist" ? Math.min(...all.map((x) => x.dist)) : c.lens === "set" ? 0 : Math.max(...all.map((x) => x[c.lens as "avg" | "top"]));
+    c.lens === "dist"
+      ? Math.min(...all.map((x) => x.dist))
+      : c.lens === "set"
+        ? 0
+        : Math.max(...all.map((x) => x[c.lens as "avg" | "top"]));
   const txt = c.lens === "set" ? day(g.set) : c.lens === "dist" ? `${g.dist.toFixed(0)} m` : kmh(v);
   return <span className={v === best ? "p-best" : ""}>{txt}</span>;
 }
@@ -822,15 +1254,96 @@ export function SpeedBar({ id }: { id: string }) {
   const all = Object.values(c.data[c.board]?.entries ?? {});
   const lo = Math.min(...all.map((x) => x.avg)) * 0.97;
   const hi = Math.max(...all.map((x) => x.avg));
-  return <i className="p-bar" style={{ width: `${(((g.avg - lo) / (hi - lo)) * 100).toFixed(1)}%` }} />;
+  return (
+    <i className="p-bar" style={{ width: `${(((g.avg - lo) / (hi - lo)) * 100).toFixed(1)}%` }} />
+  );
 }
 
 /* C: the drawer under an open row */
-export function Drawer({ id }: { id: string }) {
+export function Drawer({ id, rank }: { id: string; rank: number }) {
   const c = useProto();
+  if (ROUND === 6) return c?.open === id && c.data ? <Drawer6 c={c} id={id} rank={rank} /> : null;
   if ((ROUND === 1 && c?.variant !== "C") || !c || c.open !== id || !c.data) return null;
   const g = ghostOf(c, id);
-  return <div className="p-drawer">{g ? <Detail g={g} c={c} /> : <p className="p-cap">No replay read for this run. Only the top {c.data[c.board]?.top ?? 50} are read.</p>}</div>;
+  return (
+    <div className="p-drawer">
+      {g ? (
+        <Detail g={g} c={c} />
+      ) : (
+        <p className="p-cap">
+          No replay read for this run. Only the top {c.data[c.board]?.top ?? 50} are read.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Drawer6({ c, id, rank }: { c: Ctx; id: string; rank: number }) {
+  const { g, why } = runOf(c, id, rank);
+  const [, tick] = useState(0);
+  const key = c.board + id;
+  const reading = c.variant === "D" && why === "cut" && !read.has(key);
+  useEffect(() => {
+    if (!reading) return;
+    const t = setTimeout(() => {
+      read.add(key);
+      tick((n) => n + 1);
+    }, 900);
+    return () => clearTimeout(t);
+  }, [reading, key]);
+  if (!opens(c, why)) return null;
+  if (why === null && g)
+    return (
+      <div className="p-drawer">
+        <Detail g={g} c={c} />
+      </div>
+    );
+  if (c.variant === "D" && why === "cut")
+    return (
+      <div className="p-drawer q-drawer">
+        {reading ? (
+          <p className="q-note q-reading" role="status">
+            Reading this run's replay from Steam…
+          </p>
+        ) : g ? (
+          <Detail g={g} c={c} />
+        ) : (
+          <p className="q-note">(Prototype: no replay data past the top 50 here.)</p>
+        )}
+      </div>
+    );
+  return (
+    <div className="p-drawer q-drawer">
+      <p className="q-note">
+        <b>No replay for this run.</b>{" "}
+        {why === "cut"
+          ? "Replays are read for the top 100 runs of each board."
+          : "Steam has no replay file for it."}
+      </p>
+    </div>
+  );
+}
+
+/* B: the mark before the time on a run that has a replay */
+export function RowMark({ id, rank }: { id: string; rank: number }) {
+  const c = useProto();
+  if (ROUND !== 6 || c?.variant !== "B" || !c.data || runOf(c, id, rank).why) return null;
+  return (
+    <svg className="q-mark" viewBox="0 0 12 12" role="img" aria-label="Has a replay">
+      <path d="M3 1.8v8.4L10.2 6z" />
+    </svg>
+  );
+}
+
+/* E: the line across the board under the last replay read */
+export function CutLine({ rank }: { rank: number }) {
+  const c = useProto();
+  if (ROUND !== 6 || c?.variant !== "E" || !c.data || rank !== cutOf(c)) return null;
+  return (
+    <div className="q-cut" role="separator">
+      <span>Replays are read for the top 100</span>
+    </div>
+  );
 }
 
 /* the drawer for a podium plate, under the podium */
@@ -847,8 +1360,9 @@ export function PodiumDrawer() {
 }
 
 /* C and E open on a row tap */
-export function rowClick(c: Ctx | null, id: string) {
+export function rowClick(c: Ctx | null, id: string, rank: number) {
   if (!c || (ROUND === 1 && c.variant !== "C" && c.variant !== "E")) return undefined;
+  if (ROUND === 6 && c.data && !opens(c, runOf(c, id, rank).why)) return undefined;
   return (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("a")) return;
     c.setOpen(c.open === id ? null : id);
@@ -885,7 +1399,9 @@ function RunCard() {
   const row = document.querySelector(`.row[data-id="${c.open}"] .nm`)?.textContent ?? "";
   return (
     <aside className="p-card">
-      <button className="p-x" onClick={() => c.setOpen(null)} aria-label="Close">×</button>
+      <button className="p-x" onClick={() => c.setOpen(null)} aria-label="Close">
+        ×
+      </button>
       <h3>{row}</h3>
       {g ? <Detail g={g} c={c} /> : <p className="p-cap">No replay read for this run.</p>}
     </aside>
@@ -893,7 +1409,7 @@ function RunCard() {
 }
 
 /* ---------- the picker: plainly not part of the design ---------- */
-function Picker({ variant }: { variant: Variant }) {
+function Picker({ variant, state }: { variant: Variant; state: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const i = VARIANTS.findIndex((v) => v.key === variant);
   const go = (d: number) => {
@@ -914,31 +1430,70 @@ function Picker({ variant }: { variant: Variant }) {
   });
   useEffect(() => {
     const el = ref.current!;
-    let sx = 0, sy = 0, ox = 0, oy = 0, drag = false;
+    let sx = 0,
+      sy = 0,
+      ox = 0,
+      oy = 0,
+      drag = false;
     const down = (e: PointerEvent) => {
       if ((e.target as HTMLElement).closest("button")) return;
-      drag = true; sx = e.clientX; sy = e.clientY;
-      const r = el.getBoundingClientRect(); ox = r.left; oy = r.top;
+      drag = true;
+      sx = e.clientX;
+      sy = e.clientY;
+      const r = el.getBoundingClientRect();
+      ox = r.left;
+      oy = r.top;
       el.setPointerCapture(e.pointerId);
     };
     const move = (e: PointerEvent) => {
       if (!drag) return;
-      el.style.left = `${ox + e.clientX - sx}px`; el.style.top = `${oy + e.clientY - sy}px`;
-      el.style.right = "auto"; el.style.bottom = "auto";
+      el.style.left = `${ox + e.clientX - sx}px`;
+      el.style.top = `${oy + e.clientY - sy}px`;
+      el.style.right = "auto";
+      el.style.bottom = "auto";
     };
-    const up = () => { drag = false; };
-    el.addEventListener("pointerdown", down); el.addEventListener("pointermove", move); el.addEventListener("pointerup", up);
-    return () => { el.removeEventListener("pointerdown", down); el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); };
+    const up = () => {
+      drag = false;
+    };
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    return () => {
+      el.removeEventListener("pointerdown", down);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+    };
   }, []);
   const v = VARIANTS[i];
+  const pick = (k: string) => {
+    const u = new URL(location.href);
+    u.searchParams.set("state", k);
+    history.replaceState(history.state, "", u);
+    dispatchEvent(new Event("proto-variant"));
+  };
   return (
     <div className="p-picker" ref={ref}>
-      <button onClick={() => go(-1)} aria-label="Previous variant">←</button>
+      <button onClick={() => go(-1)} aria-label="Previous variant">
+        ←
+      </button>
       <div>
-        <b>{v.key} · {v.name}</b>
+        <b>
+          {v.key} · {v.name}
+        </b>
         <small>{v.note}</small>
+        {ROUND === 6 && (
+          <span className="p-states">
+            {STATES.map((s) => (
+              <button key={s.key} aria-pressed={s.key === state} onClick={() => pick(s.key)}>
+                {s.name}
+              </button>
+            ))}
+          </span>
+        )}
       </div>
-      <button onClick={() => go(1)} aria-label="Next variant">→</button>
+      <button onClick={() => go(1)} aria-label="Next variant">
+        →
+      </button>
     </div>
   );
 }
@@ -1082,5 +1637,21 @@ const CSS = `
 .r-on-dn{inset-block-start:calc(50% + 6px)}
 .r-axis{display:flex;justify-content:space-between;font:500 10.5px var(--f-hud);color:var(--faint)}
 @media (min-width:900px){.p-drawer:has(.r-run){padding-inline:110px 24px}}
+
+/* round 6: rows with no replay */
+.p-picker{border-radius:22px}
+.p-states{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.p-picker .p-states button{all:unset;cursor:pointer;width:auto;height:auto;line-height:1;padding:5px 8px;border-radius:999px;background:#e6e6e6;color:#000;font:600 11px system-ui}
+.p-picker .p-states button[aria-pressed=true]{background:#000;color:#fff}
+.q-drawer{padding-block:4px 14px;padding-inline:12px}
+.q-note{margin:0;font-size:13px;color:var(--dim)}
+.q-note b{color:var(--text);font-weight:600}
+@media (prefers-reduced-motion:no-preference){.q-reading{animation:q-pulse 1.2s ease-in-out infinite}}
+@keyframes q-pulse{50%{opacity:.45}}
+.q-mark{inline-size:10px;block-size:10px;margin-inline-end:6px;fill:var(--accent);vertical-align:0}
+.q-none{display:block;margin-top:2px;font:500 11px var(--f-hud);color:var(--faint)}
+.q-cut{display:flex;align-items:center;gap:10px;padding-block:10px;font:600 10.5px var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.q-cut::before,.q-cut::after{content:"";flex:1;border-block-start:1px dashed var(--line)}
+@media (min-width:900px){.q-drawer{padding-inline:110px 24px}}
 `;
 // ===================== end PROTOTYPE =====================
