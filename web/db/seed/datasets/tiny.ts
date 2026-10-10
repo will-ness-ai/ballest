@@ -288,8 +288,8 @@ export const tiny: Dataset = {
     // run was Magma), p2's Cosmic, p4's a skin the site doesn't know, p5's had no samples,
     // p6's is gone and p7's is Gold. Map A p9's run is Gold. The rest are not read yet.
     // Track p1's, p2's and p7's runs, Map A p9's and Daily 08-29 p1's have a profile, so
-    // they race (p2 is ahead of p1 early on); p4's was read before profiles. Map A p10 and Daily 08-29 p2 have no
-    // Ghost read, so p9 and p1 there race nobody.
+    // they race (p2 is ahead of p1 early on); p4's was read before profiles. Map A p10
+    // and Daily 08-29 p2 have no Ghost read, so p9 and p1 there race nobody.
     const ghost = (n: number, score: number) => `${String(9_000_000_000 + n)}${String(score)}`;
     const readAt = new Date("2026-09-01T03:10:00Z");
     await tx.insert(ghosts).values([
