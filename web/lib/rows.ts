@@ -35,7 +35,7 @@ export interface RunRace {
   topSpeed: number | null;
   profile: Array<number>;
   /* the leader, or 2nd for the leader; null when that run has no profile */
-  rival: { rank: number; steamId: string; persona: string; profile: Array<number> } | null;
+  rival: { rank: number; profile: Array<number> } | null;
 }
 
 export interface BoardPage {

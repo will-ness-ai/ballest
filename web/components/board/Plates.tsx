@@ -5,7 +5,7 @@
 // drawer (RacePlates).
 import { Marble, type MarbleWho } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
-import { raceDrawerId } from "../../lib/race";
+import { RaceTime } from "./RaceTime";
 import { personaOf } from "../../lib/rules";
 
 const PLACE = ["1st", "2nd", "3rd"];
@@ -60,22 +60,14 @@ export function Plates({
               <span className="pl-name">
                 <PlayerLink id={who.steamId} text={personaOf(who)} tab={tab} />
               </span>
-              {race && onRace ? (
-                <button
-                  type="button"
-                  className="pl-score c-race"
-                  aria-expanded={open === who.steamId}
-                  aria-controls={open === who.steamId ? raceDrawerId(who.steamId) : undefined}
-                  aria-label={`Race ${personaOf(who)}'s run`}
-                  onClick={() => {
-                    onRace(who.steamId);
-                  }}
-                >
-                  {score}
-                </button>
-              ) : (
-                <span className="pl-score">{score}</span>
-              )}
+              <RaceTime
+                steamId={who.steamId}
+                who={personaOf(who)}
+                score={score}
+                className="pl-score"
+                open={open === who.steamId}
+                onRace={race ? onRace : undefined}
+              />
               <span className="pl-gap">{line}</span>
             </span>
             <span className="pl-rank">{PLACE[place - 1]}</span>

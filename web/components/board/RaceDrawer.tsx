@@ -4,8 +4,7 @@
 // leader) as two marbles over a gap chart along the course. Race starts the race, and a
 // drag on the chart moves it. It reads the run from /api/board/<name>?run= when it opens.
 // One drawer is open at a time on a page, under the podium or under a row of the list
-// (useRaceOpen). The look was settled in the prototype rounds on
-// claude/prototype-entry-data.
+// (useRaceOpen).
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import { gapAtLine, gaps, raceDrawerId, raceEnd, reached, timeAt } from "../../lib/race";
@@ -44,7 +43,7 @@ export function useRaceOpen(board: string, place: "podium" | "list") {
 
 const clock = (s: number) => fmtTime(Math.round(s * SCORE_TICKS_PER_SECOND));
 const signed = (s: number) => (s >= 0 ? "+" : "−") + clock(s);
-const setOn = (iso: string) =>
+const dateOf = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 
 type Read = { state: "loading" } | { state: "failed" } | { state: "done"; run: RunRace | null };
@@ -97,7 +96,7 @@ function RaceRun({ run }: { run: RunRace }) {
       <p className="race-meta">
         {run.setAt ? (
           <>
-            Set <b>{setOn(run.setAt)}</b>
+            Set <b>{dateOf(run.setAt)}</b>
           </>
         ) : (
           "Date not recorded"
@@ -153,8 +152,8 @@ const W = 600,
 function RaceCard({ run, rival }: { run: Array<number>; rival: NonNullable<RunRace["rival"]> }) {
   const race = useRace(raceEnd(run, rival.profile));
   const vs = rival.rank === 1 ? "the leader" : ord(rival.rank);
-  const me = reached(run, race.t);
-  const them = reached(rival.profile, race.t);
+  const runAt = reached(run, race.t);
+  const rivalAt = reached(rival.profile, race.t);
   return (
     <div className="race-card">
       <div className="race-bar">
@@ -172,15 +171,15 @@ function RaceCard({ run, rival }: { run: Array<number>; rival: NonNullable<RunRa
           <span>{rival.rank === 1 ? "Leader" : vs}</span>
           <i
             className="race-ball race-ball-rival"
-            style={{ insetInlineStart: `${(them * 100).toFixed(2)}%` }}
+            style={{ insetInlineStart: `${(rivalAt * 100).toFixed(2)}%` }}
           />
         </div>
         <div className="race-lane">
           <span>This run</span>
-          <i className="race-ball" style={{ insetInlineStart: `${(me * 100).toFixed(2)}%` }} />
+          <i className="race-ball" style={{ insetInlineStart: `${(runAt * 100).toFixed(2)}%` }} />
         </div>
       </div>
-      <GapChart run={run} rival={rival.profile} at={race.t > 0 ? me : null} seek={race.seek} />
+      <GapChart run={run} rival={rival.profile} at={race.t > 0 ? runAt : null} seek={race.seek} />
       <div className="race-axis">
         <span>Start</span>
         <span>Finish</span>
@@ -207,7 +206,8 @@ function GapChart({
   const y = (d: number) => H / 2 + (d / max) * (H / 2 - 8);
   const x = (i: number) => ((i + 1) / gap.length) * W;
   const onScrub = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.type === "pointermove" && e.buttons !== 1) return;
+    if (e.type === "pointerdown") e.currentTarget.setPointerCapture(e.pointerId);
+    else if (e.buttons !== 1) return;
     const box = e.currentTarget.getBoundingClientRect();
     seek(timeAt(run, (e.clientX - box.left) / box.width));
   };

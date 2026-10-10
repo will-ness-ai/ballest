@@ -12,10 +12,10 @@ import { Marble } from "../Marble";
 import { Medal } from "../Medal";
 import { PlayerLink } from "../PlayerLink";
 import { RaceDrawer, useRaceOpen } from "../board/RaceDrawer";
+import { RaceTime } from "../board/RaceTime";
 import { ScoreRow } from "../board/ScoreRow";
 import { useDailyClock } from "../../hooks/client";
 import { dayLabel, timeLeft } from "../../lib/daily";
-import { raceDrawerId } from "../../lib/race";
 import { mapHref } from "../../lib/routes";
 import type { BoardRow, DailyDay } from "../../lib/rows";
 import { fmtN, fmtTime, hueFor, personaOf, timeMedal } from "../../lib/rules";
@@ -79,22 +79,14 @@ function Steps({
             <span className="dp-wn">
               <PlayerLink id={r.steamId} text={personaOf(r)} />
             </span>
-            {r.race ? (
-              <button
-                type="button"
-                className="num c-race"
-                aria-expanded={open === r.steamId}
-                aria-controls={open === r.steamId ? raceDrawerId(r.steamId) : undefined}
-                aria-label={`Race ${personaOf(r)}'s run`}
-                onClick={() => {
-                  onRace(r.steamId);
-                }}
-              >
-                {fmtTime(r.score)}
-              </button>
-            ) : (
-              <span className="num">{fmtTime(r.score)}</span>
-            )}
+            <RaceTime
+              steamId={r.steamId}
+              who={personaOf(r)}
+              score={fmtTime(r.score)}
+              className="num"
+              open={open === r.steamId}
+              onRace={r.race ? onRace : undefined}
+            />
             {r.rank === 1 && <span className="dp-lead">{live ? "Leading" : "Won the day"}</span>}
             <b>{r.rank}</b>
           </li>

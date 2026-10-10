@@ -96,20 +96,20 @@ def profile(times, locations):
     if n < 2:
         return ()
     points = [_xyz(p) for p in locations[:n]]
-    far = [0.0]
+    rolled = [0.0]
     for a, b in pairwise(points):
-        far.append(far[-1] + math.dist(a, b))
-    if far[-1] <= 0:
+        rolled.append(rolled[-1] + math.dist(a, b))
+    if rolled[-1] <= 0:
         return ()
-    out, i = [], 1
+    reached, i = [], 1
     for k in range(1, PROFILE_POINTS + 1):
-        goal = far[-1] * k / PROFILE_POINTS
-        while i < n - 1 and far[i] < goal:
+        goal = rolled[-1] * k / PROFILE_POINTS
+        while i < n - 1 and rolled[i] < goal:
             i += 1
-        step = far[i] - far[i - 1]
-        t = times[i - 1] + (times[i] - times[i - 1]) * ((goal - far[i - 1]) / step if step else 1)
-        out.append(round(t, 3))
-    return tuple(out)
+        step = rolled[i] - rolled[i - 1]
+        frac = (goal - rolled[i - 1]) / step if step else 1
+        reached.append(round(times[i - 1] + (times[i] - times[i - 1]) * frac, 3))
+    return tuple(reached)
 
 
 def parse(ugc_id, ghost):
@@ -226,8 +226,9 @@ def collect(ugc_ids, read_one, *, budget=BUDGET, workers=WORKERS, clock=time.mon
 
 
 def write(conn, rows, read_at):
-    """The Ghosts read, in one transaction. A row with a profile is final, so it stays;
-    any other is replaced by the new read."""
+    """The Ghosts read, in one transaction. A row with a profile is final, so it stays. An
+    ok row read again for its profile takes the new read, or, when the file is now gone or
+    empty, keeps its skin and hat and gets an empty profile, so it is final too."""
     with conn.cursor() as cur:
         cur.executemany(
             """
@@ -237,7 +238,7 @@ def write(conn, rows, read_at):
               state = excluded.state, skin = excluded.skin, hat = excluded.hat,
               set_at = excluded.set_at, top_speed = excluded.top_speed,
               profile = excluded.profile, read_at = excluded.read_at
-            where ghosts.profile is null
+            where ghosts.profile is null and excluded.state = 'ok'
             """,
             [
                 (
@@ -252,6 +253,13 @@ def write(conn, rows, read_at):
                 )
                 for g in rows
             ],
+        )
+        cur.execute(
+            """
+            update ghosts set profile = '{}', read_at = %s
+            where ugc_id = any(%s) and state = 'ok' and profile is null
+            """,
+            (read_at, [g.ugc_id for g in rows if g.state != "ok"]),
         )
     conn.commit()
 

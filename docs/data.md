@@ -120,8 +120,9 @@ The Ghost step (`tools/ghosts.py`) runs after the database write, into the same 
 and never blocks or fails the run: an error is a warning. It reads the Ghost of every open
 Entry in the top `TOP` (100) of each time board, Tracks, Maps and Dailies (Overall boards
 have none), whose UGC ID has no `ghosts` row, best rank first, then those whose `ok` row
-has no profile (rows read before profiles were kept, read once more and updated in place),
-also best rank first: `GetUGCFileDetails` with the
+has no profile (rows read before profiles were kept, read once more and updated in place;
+one whose file is now gone or empty keeps its skin and gets an empty profile), also best
+rank first: `GetUGCFileDetails` with the
 Web API key, then the file at the CDN URL it returns, which costs no quota. A few run at
 once, and the step starts no read after `BUDGET` (four minutes) and keeps what it has read
 (a read still going then can hold the run up by its own timeouts, not past them), so a backlog,

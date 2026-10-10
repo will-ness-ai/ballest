@@ -95,7 +95,7 @@ describe("one run against its rival", () => {
     expect(body).toMatchObject({
       setAt: "2026-08-20T18:30:00.000Z",
       topSpeed: 96.5,
-      rival: { rank: 1, steamId: p(1), persona: "Rolling Rae" },
+      rival: { rank: 1 },
     });
     expect(body?.profile).toEqual(profile(10.19884, 0.98));
     expect(body?.rival?.profile).toEqual(profile(10.13307, 1));
@@ -103,7 +103,7 @@ describe("one run against its rival", () => {
 
   test("the leader races 2nd", async () => {
     const { body } = await runOn("Map_Track13", p(1));
-    expect(body?.rival).toMatchObject({ rank: 2, steamId: p(2) });
+    expect(body?.rival).toEqual({ rank: 2, profile: profile(10.19884, 0.98) });
   });
 
   test("a run whose rival has no profile races nobody", async () => {

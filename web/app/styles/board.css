@@ -1110,7 +1110,7 @@
   padding: 12px;
   border: 1px solid var(--line2);
   border-radius: var(--radius);
-  background: color-mix(in oklch, var(--solid), black 25%);
+  background: color-mix(in oklch, var(--solid), var(--bg) 70%);
 }
 .race-bar {
   display: flex;
@@ -1158,7 +1158,7 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .race-btn:hover {
-    background: color-mix(in oklch, var(--surface2), white 8%);
+    background: oklch(100% 0 none / 0.16);
   }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -1206,12 +1206,7 @@
   );
 }
 .race-ball-rival {
-  background: radial-gradient(
-    circle at 34% 27%,
-    color-mix(in oklch, var(--gold), white 70%),
-    var(--gold) 34%,
-    color-mix(in oklch, var(--gold), black 55%)
-  );
+  --h: 46;
 }
 .race-gap {
   position: relative;

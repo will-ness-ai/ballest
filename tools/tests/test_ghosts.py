@@ -215,6 +215,14 @@ def test_a_ghost_read_again_gets_its_profile_and_is_never_due_again(conn):
     assert (skin, top_speed, len(profile)) == (PINK, 180.0, 80)
 
 
+def test_a_ghost_gone_when_read_again_keeps_its_skin_and_is_never_due_again(conn):
+    seed(conn)
+    ghosts.write(conn, [ghosts.Ghost("u1", "ok", PINK)], T0)
+    ghosts.write(conn, [ghosts.Ghost("u1", "gone")], T0)
+    assert ghosts.due(conn) == ["u2"]
+    assert conn.execute("select state, skin, profile from ghosts").fetchone() == ("ok", PINK, [])
+
+
 def test_collect_keeps_reads_and_gone_files_and_counts_failures():
     def read_one(u):
         if u == "gone":

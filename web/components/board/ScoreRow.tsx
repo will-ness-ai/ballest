@@ -8,8 +8,8 @@ import { memo } from "react";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
+import { RaceTime } from "./RaceTime";
 import type { Medals } from "../../lib/podiums";
-import { raceDrawerId } from "../../lib/race";
 import { fmtN, fmtTime, hueFor, ord, personaOf } from "../../lib/rules";
 import type { BoardRow } from "../../lib/rows";
 
@@ -96,22 +96,13 @@ export const ScoreRow = memo(function ScoreRow({
       </span>
       {pods && <span className="c-pods">{p ? <MedalCounts p={p} /> : null}</span>}
       <span className="c-score">
-        {r.race && onRace ? (
-          <button
-            type="button"
-            className="c-race"
-            aria-expanded={open}
-            aria-controls={open ? raceDrawerId(r.steamId) : undefined}
-            aria-label={`${score}, race this run`}
-            onClick={() => {
-              onRace(r.steamId);
-            }}
-          >
-            {score}
-          </button>
-        ) : (
-          <span>{score}</span>
-        )}
+        <RaceTime
+          steamId={r.steamId}
+          who={personaOf(r)}
+          score={score}
+          open={open}
+          onRace={r.race ? onRace : undefined}
+        />
         {mark ?? <i className="pill"></i>}
       </span>
     </div>

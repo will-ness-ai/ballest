@@ -125,17 +125,15 @@ export async function boardRun(db: Db, name: string, steamId: string): Promise<R
   const found = await rows<{
     rank: number;
     steamId: string;
-    persona: string;
     setAt: string | null;
     topSpeed: number | null;
     profile: Array<number> | null;
   }>(
     db,
-    sql`select b.rank, b.steam_id as "steamId", ${personaSql} as persona,
+    sql`select b.rank, b.steam_id as "steamId",
         to_char(g.set_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "setAt",
         g.top_speed::float8 as "topSpeed", g.profile::float8[] as profile
       from (${boardSql(name)}) b
-      join players p on p.steam_id = b.steam_id
       left join entries e on e.board = b.board and e.steam_id = b.steam_id
         and e.closed_refresh is null
         and e.board in (select name from boards where not scores_points)
@@ -152,14 +150,7 @@ export async function boardRun(db: Db, name: string, steamId: string): Promise<R
     setAt: run.setAt,
     topSpeed: run.topSpeed == null ? null : Math.round(run.topSpeed * 10) / 10,
     profile: exact(run.profile),
-    rival: rival?.profile
-      ? {
-          rank: rival.rank,
-          steamId: rival.steamId,
-          persona: rival.persona,
-          profile: exact(rival.profile),
-        }
-      : null,
+    rival: rival?.profile ? { rank: rival.rank, profile: exact(rival.profile) } : null,
   };
 }
 
