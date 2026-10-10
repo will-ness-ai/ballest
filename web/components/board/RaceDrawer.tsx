@@ -90,6 +90,13 @@ export function RaceDrawer({
   );
 }
 
+/* the podium's drawer, for whichever podium run on `board` is open; keyed by the run, so a
+   tap on another plate reads that run afresh */
+export function PodiumRace({ board }: { board: string }) {
+  const { open } = useRaceOpen(board, "podium");
+  return open && <RaceDrawer key={open} board={board} steamId={open} podium />;
+}
+
 function RaceRun({ run }: { run: RunRace }) {
   return (
     <div className="race-run">

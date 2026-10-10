@@ -11,7 +11,7 @@ import { MapImage } from "../MapImage";
 import { Marble } from "../Marble";
 import { Medal } from "../Medal";
 import { PlayerLink } from "../PlayerLink";
-import { RaceDrawer, useRaceOpen } from "../board/RaceDrawer";
+import { PodiumRace, RaceDrawer, useRaceOpen } from "../board/RaceDrawer";
 import { RaceTime } from "../board/RaceTime";
 import { ScoreRow } from "../board/ScoreRow";
 import { useDailyClock } from "../../hooks/client";
@@ -143,7 +143,7 @@ export function DayPanel({ d, rows }: { d: DailyDay; rows: ReadonlyArray<BoardRo
           </p>
         )}
       </section>
-      {podium.open && <RaceDrawer key={podium.open} board={d.board} steamId={podium.open} podium />}
+      <PodiumRace board={d.board} />
       {rest.length > 0 && (
         <div className="board" id="board">
           <div className="head">
