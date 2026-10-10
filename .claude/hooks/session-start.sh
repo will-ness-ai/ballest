@@ -12,6 +12,10 @@ fi
 
 cd "$CLAUDE_PROJECT_DIR"
 
+# the commit identity CODING_STANDARDS.md asks for
+git config user.name will-ness-ai
+git config user.email n3s.online@gmail.com
+
 service postgresql start >/dev/null
 su postgres -c "psql -qc \"alter user postgres password 'postgres'\"" >/dev/null
 for db in ballest_dev smoke; do

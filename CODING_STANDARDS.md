@@ -52,6 +52,11 @@ it breaks. Those files carry the reasons; this file carries the checks.
 - A change to when a board is read (`collect_workshop`'s trigger, `FULL_SWEEP_SECONDS`, the
   `refresh.yml` cron) updates the refresh dialog's copy (`components/Freshness.tsx`), which
   restates those rules for players.
+- A step that reads an outside service (Steam, its CDN, the Daily API) writes a final state
+  only from a definite answer, such as Steam saying a file is gone. Every error, from any
+  request, writes nothing, so the next Refresh retries it.
+- A fake for an outside service's response copies one captured from the real service, status
+  and body, with where it came from in a comment.
 
 ## Discord bot (`discord-bot/`)
 

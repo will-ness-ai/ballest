@@ -8,10 +8,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "format": "prettier --write . && ruff format",
-    "format:check": "prettier --check . && ruff format --check",
-    "lint": "eslint --max-warnings=0 . && ruff check && node web/scripts/check-styles.mjs",
-    "lint:fix": "eslint --fix . && ruff check --fix",
+    "format": "node web/scripts/check-ruff.mjs && prettier --write . && ruff format",
+    "format:check": "node web/scripts/check-ruff.mjs && prettier --check . && ruff format --check",
+    "lint": "node web/scripts/check-ruff.mjs && eslint --max-warnings=0 . && ruff check && node web/scripts/check-styles.mjs",
+    "lint:fix": "node web/scripts/check-ruff.mjs && eslint --fix . && ruff check --fix",
     "check": "pnpm format:check && pnpm lint"
   },
   "devDependencies": {

@@ -82,6 +82,10 @@ pnpm dev
 (or use the `ballest` config in `.claude/launch.json`, which runs `pnpm dev` on whatever
 port it is given).
 
+A project thread starts outside the repo, where `.claude/hooks/session-start.sh` (Postgres,
+installs, the pinned Ruff) runs only through the cloud environment's setup script; when
+Postgres is down or Ruff is the wrong version, run its line from `docs/linting.md`.
+
 A database with real boards comes from backfilling `data/` into it, a tiny one from
 `pnpm db:seed tiny` (`docs/data.md`). A page you want to look at but not commit goes in
 `scratch/`, which is gitignored. Refreshing data locally needs a
