@@ -71,23 +71,25 @@ def parse(ugc_id, ghost):
 
 
 def _get_json(url):
-    """A URL's JSON. Steam answers a missing file with HTTP 404 and its status in the
-    body ({"status":{"code":9}}), so an error's JSON body is the answer too."""
-    try:
-        with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310 (Steam's https URLs)
-            return json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        try:
-            return json.loads(e.read())
-        except ValueError:
-            raise e from None
+    with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310 (Steam's https URLs)
+        return json.loads(r.read())
 
 
 def read(key, ugc_id, get=_get_json):
     """One Ghost from Steam, as a row. Raises GoneError when Steam has no file for it, and any
-    other error for a read to try again."""
+    other error for a read to try again. Steam answers a missing file with HTTP 404 and its
+    status in the body ({"status":{"code":9}}), so only that request's 404 is read as an
+    answer; an error from the CDN is always a failed read."""
     q = urllib.parse.urlencode({"key": key, "appid": cc.APP_ID, "ugcid": ugc_id})
-    details = get(DETAILS + q)
+    try:
+        details = get(DETAILS + q)
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            raise
+        try:
+            details = json.loads(e.read())
+        except ValueError:
+            raise e from None
     url = (details.get("data") or {}).get("url")
     if not url:
         if (details.get("status") or {}).get("code") == 9:  # k_EResultFileNotFound

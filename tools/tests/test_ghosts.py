@@ -4,7 +4,6 @@ faked; the database is real."""
 
 import io
 import urllib.error
-import urllib.request
 from datetime import UTC, datetime
 
 import db_writer
@@ -77,19 +76,33 @@ def test_a_file_steam_does_not_have_is_gone_and_anything_else_fails():
         ghosts.read("KEY", "1", get=lambda _: {"status": {"code": 2}})
 
 
-def test_steam_answers_a_missing_file_with_a_404_whose_body_says_so(monkeypatch):
-    def urlopen(url, **_):
-        body = b'{"status":{"code":9}}' if "missing" in url else b"{}"
-        raise urllib.error.HTTPError(
-            url, 404 if "missing" in url else 400, "", {}, io.BytesIO(body)
-        )
+def http_error(url, code, body):
+    return urllib.error.HTTPError(url, code, "", {}, io.BytesIO(body))
 
-    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+
+def test_steam_answers_a_missing_file_with_a_404_whose_body_says_so():
+    def get(url):
+        raise http_error(url, 404, b'{"status":{"code":9}}')
+
     with pytest.raises(ghosts.GoneError):
-        ghosts.read("KEY", "missing")
-    # an error with a body that says nothing is a failed read, tried again next time
-    with pytest.raises(RuntimeError):
-        ghosts.read("KEY", "1")
+        ghosts.read("KEY", "1", get=get)
+
+
+def test_any_other_http_error_is_a_failed_read_tried_again():
+    def details_fails(url):
+        raise http_error(url, 400, b"{}")
+
+    with pytest.raises(urllib.error.HTTPError):
+        ghosts.read("KEY", "1", get=details_fails)
+
+    def cdn_fails(url):
+        if "GetUGCFileDetails" in url:
+            return {"data": {"url": "https://cdn/1"}}
+        raise http_error(url, 404, b'{"error":"not found"}')
+
+    # never taken for a Ghost with no samples, which would be final
+    with pytest.raises(urllib.error.HTTPError):
+        ghosts.read("KEY", "1", get=cdn_fails)
 
 
 def rows(*runs):
