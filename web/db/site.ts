@@ -113,10 +113,10 @@ export async function boardPage(
   return { total, rows: found };
 }
 
-/* Every Steam ID the database has seen, in no order */
-export async function playerIds(db: Db): Promise<Array<string>> {
-  const found = await rows<{ id: string }>(db, sql`select steam_id as id from players`);
-  return found.map((r) => r.id);
+/* Whether the database has seen a Steam ID */
+export async function isPlayer(db: Db, steamId: string): Promise<boolean> {
+  const found = await rows(db, sql`select 1 from players where steam_id = ${steamId}`);
+  return found.length > 0;
 }
 
 /* Every score on a board in rank order: how its runs spread out, for a chart */

@@ -8,9 +8,12 @@
 // preview's entries never mix with another deploy's.
 //
 // Only what a page shows unasked is cached; a search is read fresh, since its keys would
-// never repeat. What a reader can name in a URL (a player, a slice of a board) is checked
-// against what exists, or read in fixed blocks, before it reaches the cache, so a script
-// walking made-up IDs or offsets can't fill it.
+// never repeat. What a reader can name in a URL (a player, a Map, a slice of a board) is
+// checked against what exists, or read in fixed blocks, before its data is cached, so a
+// script walking made-up IDs or offsets can only add a false per ID, never a record. The
+// check is per ID because a page reads what it shows and no more: a cache entry comes
+// back whole on every render, so a list of every player or Map read to look up one costs
+// its full size each time.
 import { cacheLife, cacheTag } from "next/cache";
 
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
@@ -83,6 +86,22 @@ export async function getWorkshop(): Promise<Array<WorkshopMap>> {
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.workshopMaps(db());
+}
+
+/* one Map the Workshop lists, by its published file ID, or null */
+export async function getMap(pfid: string): Promise<WorkshopMap | null> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return (await getWorkshop()).find((m) => m.pfid === pfid) ?? null;
+}
+
+/* whether the Workshop lists any Map, for the header's tab */
+export async function hasWorkshop(): Promise<boolean> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return (await getWorkshop()).length > 0;
 }
 
 /* the Maps with a time, as the cards the Workshop views and their search draw */
@@ -158,10 +177,10 @@ export async function getBoardScores(name: string) {
 /* where `ids` stand on a board: an Overall board's podium order says where each player on
    a podium stands on points, and a link to a player's row on a board needs their rank */
 export async function getBoardPlaces(name: string, ids: ReadonlyArray<string>) {
-  const known = await getPlayerIds();
+  const known = await Promise.all(ids.map(isPlayer));
   return boardPlaces(
     name,
-    ids.filter((id) => known.includes(id)),
+    ids.filter((_, i) => known[i]),
   );
 }
 
@@ -180,17 +199,17 @@ async function getDerivedStandings() {
   return q.derivedStandings(db());
 }
 
-/* every Steam ID the database has seen */
-async function getPlayerIds(): Promise<Array<string>> {
+/* whether the database has seen a Steam ID */
+async function isPlayer(steamId: string): Promise<boolean> {
   "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
-  return q.playerIds(db());
+  return q.isPlayer(db(), steamId);
 }
 
 /* a player's record, or null for a Steam ID nobody raced under */
 export async function getPlayer(steamId: string): Promise<PlayerRecord | null> {
-  return (await getPlayerIds()).includes(steamId) ? playerOf(steamId) : null;
+  return (await isPlayer(steamId)) ? playerOf(steamId) : null;
 }
 
 async function playerOf(steamId: string): Promise<PlayerRecord | null> {
@@ -251,7 +270,7 @@ export async function getDailyStandings(): Promise<DailyStandings> {
 /* a player's Daily record (their place on each Daily, their runs); only a Steam ID the
    database has seen is read */
 export async function getPlayerDailies(steamId: string): Promise<PlayerDailies | null> {
-  return (await getPlayerIds()).includes(steamId) ? playerDailiesOf(steamId) : null;
+  return (await isPlayer(steamId)) ? playerDailiesOf(steamId) : null;
 }
 
 async function playerDailiesOf(steamId: string) {

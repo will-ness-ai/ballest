@@ -8,7 +8,7 @@ import { Freshness } from "./Freshness";
 import { GroupTabs, Tabs, type GroupTab } from "./GroupTabs";
 import { Rack } from "./Marble";
 import { YouCard } from "./YouCard";
-import { getDailyDates, getSite, getWorkshop } from "../db/data";
+import { getDailyDates, getSite, hasWorkshop } from "../db/data";
 import { seasonsOf } from "../lib/player";
 import {
   CIRCUIT_TAB,
@@ -28,10 +28,10 @@ export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "pl
    the Circuit opens on its newest season's Overall board, and Players, over every board,
    comes last */
 async function tabs(): Promise<Array<GroupTab>> {
-  const [site, maps, dailies] = await Promise.all([getSite(), getWorkshop(), getDailyDates()]);
+  const [site, workshop, dailies] = await Promise.all([getSite(), hasWorkshop(), getDailyDates()]);
   const newest = seasonsOf(site.boards).at(0);
   return [
-    ...(maps.length ? [{ group: WORKSHOP_GROUP, href: homeHref() }] : []),
+    ...(workshop ? [{ group: WORKSHOP_GROUP, href: homeHref() }] : []),
     ...(dailies.length ? [{ group: DAILY_TAB, href: dailyHref() }] : []),
     ...(newest ? [{ group: CIRCUIT_TAB, href: boardHref(newest.overall) }] : []),
     { group: PLAYERS_TAB, href: playersHref("all", "wr") },
