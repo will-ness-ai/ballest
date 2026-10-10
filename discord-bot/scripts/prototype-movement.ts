@@ -44,72 +44,72 @@ const r = (name: string, n: number, was: number | null, delta = 0): Row => ({
 
 const busy: Day = {
   title: "Saturday 10 October",
-  subtitle: "Workshop standings · 412 Workshop Maps · 1,208 players",
+  subtitle: "Workshop standings · 1,286 Workshop Maps · 4,778 players",
   hasYesterday: true,
   boards: [
     {
       title: "Most Maps played",
       rows: [
-        r("ChknThugget", 311, 1, 4),
-        r("tilt_queen", 298, 3, 12),
-        r("gravwell", 296, 2, 0),
-        r("シドニー", 240, 4, 2),
-        r("pebblewright", 233, 5, 1),
-        r("MarbleMaxxer_2000", 219, 8, 15),
-        r("loopdeloop", 214, 6, 0),
-        r("Spinny", 212, 7, 0),
-        r("ballsy_mcballface", 198, null, 22),
-        r("kroko", 197, 9, 0),
+        r("Slati Jnr", 999, 1, 14),
+        r("Chaos", 462, 2, 3),
+        r("Pamzei", 304, 3, 0),
+        r("Ronko Tomyno", 291, 5, 19),
+        r("SlugSalt", 277, 4, 0),
+        r("[:D:] CryT4x", 268, 6, 2),
+        r("R23", 251, 7, 0),
+        r("nuts", 248, null, 31),
+        r("ChknThugget", 242, 8, 1),
+        r("Action Jackson", 237, 9, 0),
       ],
-      out: ["oddball"],
+      out: ["Low5ive"],
     },
     {
       title: "Most Author Medals",
       rows: [
-        r("gravwell", 142, 1, 3),
-        r("ChknThugget", 131, 2, 1),
-        r("tilt_queen", 118, 3, 0),
-        r("シドニー", 97, 5, 6),
-        r("Spinny", 95, 4, 0),
-        r("kroko", 71, 6, 0),
-        r("pebblewright", 64, 7, 2),
-        r("loopdeloop", 58, 8, 0),
-        r("MarbleMaxxer_2000", 51, 10, 4),
-        r("oddball", 49, 9, 0),
+        r("Slati Jnr", 979, 1, 12),
+        r("Chaos", 414, 2, 2),
+        r("Pamzei", 280, 3, 0),
+        r("Ronko Tomyno", 235, 5, 9),
+        r("[:D:] CryT4x", 234, 4, 1),
+        r("SlugSalt", 207, 6, 0),
+        r("Action Jackson", 206, 8, 4),
+        r("Bill Lumbergh", 201, 7, 0),
+        r("123JLaney123", 199, 9, 1),
+        r("ChknThugget", 190, 10, 0),
       ],
       out: [],
     },
     {
       title: "Most world records",
       rows: [
-        r("gravwell", 88, 1, 2),
-        r("ChknThugget", 64, 2, -1),
-        r("tilt_queen", 41, 3, 1),
-        r("Spinny", 30, 4, -2),
-        r("シドニー", 22, 6, 3),
-        r("kroko", 21, 5, 0),
-        r("pebblewright", 12, 7, 0),
-        r("loopdeloop", 9, 8, 0),
-        r("ballsy_mcballface", 7, null, 4),
-        r("MarbleMaxxer_2000", 6, 9, 0),
+        r("Slati Jnr", 169, 1, 5),
+        r("123JLaney123", 100, 2, -2),
+        r("Pamzei", 78, 3, 0),
+        r("alepa", 65, 4, 1),
+        r("Chaos", 56, 5, -1),
+        r("Bill Lumbergh", 34, 6, 0),
+        r("snayK", 28, 8, 3),
+        r("Skylar <3", 26, 7, -1),
+        r("Vulpathy", 18, null, 4),
+        r("purple", 18, 9, 0),
       ],
-      out: ["oddball"],
+      out: ["Low5ive"],
     },
     {
       title: "Most top 5s",
       rows: [
-        r("gravwell", 201, 1, 1),
-        r("ChknThugget", 188, 2, 0),
-        r("tilt_queen", 160, 3, 4),
-        r("Spinny", 121, 4, -1),
-        r("シドニー", 119, 5, 5),
-        r("kroko", 83, 6, 0),
-        r("pebblewright", 70, 7, 0),
-        r("MarbleMaxxer_2000", 66, 9, 3),
-        r("loopdeloop", 64, 8, -1),
-        r("oddball", 50, 10, 0),
+        r("Slati Jnr", 608, 1, 9),
+        r("Chaos", 243, 2, 0),
+        r("Pamzei", 207, 3, -1),
+        r("123JLaney123", 181, 4, 2),
+        r("Bill Lumbergh", 150, 6, 6),
+        r("alepa", 140, 5, -2),
+        r("Action Jackson", 107, 7, 1),
+        r("[:D:] CryT4x", 83, 9, 4),
+        r("Low5ive", 77, 8, -3),
+        r("nuts", 71, null, 11),
       ],
-      out: [],
+      out: ["purple"],
     },
   ],
 };
@@ -454,6 +454,113 @@ const heat = (day: Day) =>
     ],
   );
 
+
+// ---------------------------------------------------------------- round 2: takes on A
+
+interface TagStyle {
+  readonly move: "arrowNum" | "pill" | "arrowOnly";
+  readonly movePos: "afterRank" | "end";
+  readonly delta: "colour" | "pill" | "dim" | "super";
+  readonly fresh: "text" | "pill" | "dot";
+}
+
+const sign = (d: number) => `${d > 0 ? "+" : "−"}${Math.abs(d)}`;
+const tint = (up: boolean, a: number) => (up ? `rgba(139,224,60,${a})` : `rgba(255,107,107,${a})`);
+const BLUE = "#58a8ff";
+
+const freshTag = (t: TagStyle) =>
+  t.fresh === "pill"
+    ? hud("NEW", {
+        fontSize: 8,
+        letterSpacing: 0.6,
+        color: "#0a1020",
+        backgroundColor: BLUE,
+        padding: "1px 3px",
+        borderRadius: 3,
+      })
+    : t.fresh === "dot"
+      ? box({ width: 7, height: 7, borderRadius: 4, backgroundColor: BLUE })
+      : hud("NEW", { fontSize: 9, color: BLUE, letterSpacing: 0.5 });
+
+const moveTag = (t: TagStyle, m: number | null) => {
+  if (m === null) return freshTag(t);
+  if (m === 0) return null;
+  const up = m > 0;
+  if (t.move === "arrowOnly") return triangle(up, 8);
+  if (t.move === "pill")
+    return box(
+      {
+        alignItems: "center",
+        gap: 2,
+        padding: "1px 4px",
+        borderRadius: 4,
+        backgroundColor: tint(up, 0.18),
+        color: up ? UP : DOWN,
+      },
+      triangle(up, 6),
+      hud(String(Math.abs(m)), { fontSize: 10 }),
+    );
+  return box(
+    { alignItems: "center", gap: 2, color: up ? UP : DOWN },
+    triangle(up, 7),
+    hud(String(Math.abs(m)), { fontSize: 11 }),
+  );
+};
+
+const number = (t: TagStyle, row: Row, show: boolean) => {
+  const d = show ? row.delta : 0;
+  const n = hud(String(row.n));
+  if (d === 0) return n;
+  const colour = d > 0 ? UP : DOWN;
+  if (t.delta === "super")
+    return box(
+      { alignItems: "flex-start" },
+      n,
+      hud(sign(d), { fontSize: 9, marginLeft: 2, marginTop: -3, color: colour }),
+    );
+  const tag =
+    t.delta === "pill"
+      ? hud(sign(d), {
+          fontSize: 10,
+          color: colour,
+          backgroundColor: tint(d > 0, 0.16),
+          padding: "1px 4px",
+          borderRadius: 4,
+        })
+      : hud(sign(d), { fontSize: 11, color: t.delta === "dim" ? C.faint : colour });
+  return box({ alignItems: "center", gap: 6 }, tag, n);
+};
+
+const tagged = (t: TagStyle) => (day: Day) =>
+  grid(day, (b) =>
+    box(
+      { flexDirection: "column", width: 270, gap: 4 },
+      label(b.title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 }),
+      ...b.rows.map((row, i) => {
+        const m = day.hasYesterday ? moved(row, i + 1) : 0;
+        const slot = (width: number, justify: string) =>
+          box({ width, alignItems: "center", justifyContent: justify }, moveTag(t, m));
+        return rowBox(
+          i,
+          {},
+          rankBox(i, 18),
+          t.movePos === "afterRank" ? slot(t.move === "arrowOnly" ? 12 : 30, "flex-start") : null,
+          box({ flexGrow: 1, overflow: "hidden" }, clip(row.name, 17)),
+          number(t, row, day.hasYesterday),
+          t.movePos === "end" ? slot(28, "flex-end") : null,
+        );
+      }),
+    ),
+  );
+
+const ROUND2 = {
+  "r2-1-baseline": tagged({ move: "arrowNum", movePos: "afterRank", delta: "colour", fresh: "text" }),
+  "r2-2-pills": tagged({ move: "pill", movePos: "afterRank", delta: "pill", fresh: "pill" }),
+  "r2-3-quiet": tagged({ move: "arrowOnly", movePos: "afterRank", delta: "dim", fresh: "dot" }),
+  "r2-4-right-edge": tagged({ move: "arrowNum", movePos: "end", delta: "colour", fresh: "text" }),
+  "r2-5-superscript": tagged({ move: "arrowNum", movePos: "afterRank", delta: "super", fresh: "pill" }),
+} as const;
+
 // ---------------------------------------------------------------- run
 
 const VARIANTS = { "a-tags": tags, "b-ledger": ledger, "c-spelled": spelled, "d-slopes": slopes, "e-heat": heat } as const;
@@ -462,7 +569,7 @@ const out = process.argv[2] ?? ".logs/movement";
 const program = Effect.gen(function* () {
   const renderer = yield* Renderer;
   yield* Effect.tryPromise(() => mkdir(out, { recursive: true }));
-  for (const [v, scene] of Object.entries(VARIANTS))
+  for (const [v, scene] of Object.entries(ROUND2))
     for (const [d, day] of Object.entries(DAYS)) {
       const png = yield* renderer.scene(scene(day), 620);
       yield* Effect.tryPromise(() => writeFile(join(out, `${v}--${d}.png`), png));
