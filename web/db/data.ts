@@ -10,16 +10,16 @@
 // Only what a page shows unasked is cached; a search is read fresh, since its keys would
 // never repeat. What a reader can name in a URL (a player, a Map, a slice of a board) is
 // checked against what exists, or read in fixed blocks, before its data is cached, so a
-// script walking made-up IDs or offsets can only add a false per ID, never a record. The
-// check is per ID because a page reads what it shows and no more: a cache entry comes
-// back whole on every render, so a list of every player or Map read to look up one costs
-// its full size each time.
+// script walking made-up IDs or offsets can only add an empty answer per ID, never a
+// record. The check is per ID because a cache entry comes back whole on every read: a
+// list of every player or Map read to look up one costs its full size each time.
 import { cacheLife, cacheTag } from "next/cache";
 
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
 import { boardHistory, type BoardHistory } from "../lib/history";
 import { playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
 import { podiumTallies, type PodiumTally } from "../lib/podiums";
+import { mapPfidOf } from "../lib/rules";
 import type {
   BoardPage,
   DailyCell,
@@ -88,8 +88,13 @@ export async function getWorkshop(): Promise<Array<WorkshopMap>> {
   return q.workshopMaps(db());
 }
 
-/* one Map the Workshop lists, by its published file ID, or null */
+/* one Map the Workshop lists, by its published file ID, or null; only an ID shaped like
+   one is looked up */
 export async function getMap(pfid: string): Promise<WorkshopMap | null> {
+  return /^\d{1,20}$/.test(pfid) ? mapOf(pfid) : null;
+}
+
+async function mapOf(pfid: string): Promise<WorkshopMap | null> {
   "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
@@ -149,7 +154,8 @@ export async function readBoard(name: string, from: number, count: number): Prom
 
 /* whether a board can be read: a Circuit board, or a Map the Workshop lists */
 export async function isBoard(name: string): Promise<boolean> {
-  return !!circuitBoard(name) || (await getWorkshop()).some((m) => m.name === name);
+  const pfid = mapPfidOf(name);
+  return !!circuitBoard(name) || (pfid !== null && (await getMap(pfid)) !== null);
 }
 
 /* the rows of a board whose persona or Steam ID contains `query`, read fresh */
@@ -178,13 +184,14 @@ export async function getBoardScores(name: string) {
    a podium stands on points, and a link to a player's row on a board needs their rank */
 export async function getBoardPlaces(name: string, ids: ReadonlyArray<string>) {
   const known = await Promise.all(ids.map(isPlayer));
-  return boardPlaces(
+  return getPlacesOf(
     name,
     ids.filter((_, i) => known[i]),
   );
 }
 
-async function boardPlaces(name: string, ids: ReadonlyArray<string>) {
+/* the same, for Steam IDs the database gave (a podium tally's), which need no check */
+export async function getPlacesOf(name: string, ids: ReadonlyArray<string>) {
   "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
