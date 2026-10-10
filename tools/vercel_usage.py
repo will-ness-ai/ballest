@@ -5,15 +5,18 @@ Run daily by .github/workflows/vercel-usage.yml. It reads the team's plan and bi
 
 - the plan, whether it is active, and when it renews;
 - on Pro, this cycle's CDN requests and data transfer against the Flat Rate CDN tier (a cycle
-  over the tier moves the team to the next, paid tier from the next cycle);
+  over the tier moves the team to the next, dearer tier from the next cycle);
 - whether the last 30 days would fit Hobby, which on Hobby means whether the site is about to be
   paused (Hobby pauses a project over a limit), and on Pro whether it could go back to Hobby.
 
-It posts on Mondays, and on any day something needs attention: a Hobby limit or the CDN tier
-past WARN_AT, or the last full day's pace past either, or a plan that is not active. The limits
-are Vercel's published ones, copied by hand: check https://vercel.com/docs/plans/hobby and
-https://vercel.com/docs/pricing/flat-rate-cdn if they look wrong. The usage is the whole
-team's, which is what the limits count; ballest is almost all of it.
+A limit "needs attention" past WARN_AT of its cap, or when the last full day's pace would pass
+the cap: on Hobby that is the margin before a pause, and on Pro the margin a downgrade wants. It
+posts on Mondays, so the plan and the downgrade verdict come round weekly, and on any day
+something needs attention. The limits are Vercel's published ones, copied by hand: check
+https://vercel.com/docs/plans/hobby and https://vercel.com/docs/pricing/flat-rate-cdn if they
+look wrong. Hobby's Active CPU (4 hours) and Fast Origin Transfer (10 GB) are not in the usage
+this reads, so the report can't check them. The usage is the whole team's, which is what the
+limits count; ballest is almost all of it.
 
 Usage: python vercel_usage.py [--always]
   (posts to OPS_WEBHOOK_URL if set, else prints; --always posts whatever the day or the numbers)
@@ -32,6 +35,7 @@ API = "https://api.vercel.com"
 TEAM = "team_OvQ9vq2bBFHLchpIqOs2FCZn"  # n3sonline's projects
 USAGE_PAGE = "<https://vercel.com/n3sonlines-projects/~/usage>"  # <> stops Discord's preview
 BILLING_PAGE = "<https://vercel.com/n3sonlines-projects/~/settings/billing>"
+PRO_DOLLARS = 20  # a month, which is also its usage credit
 DAYS = 30
 WARN_AT = 0.5
 GB = 1e9
@@ -39,9 +43,14 @@ GB = 1e9
 
 class Limit(NamedTuple):
     name: str
-    cap: float  # over 30 days
+    cap: float  # over its window: 30 days for Hobby, the billing cycle for the CDN tier
     amount: Callable[[dict], float]  # from one day's totals
     show: Callable[[float], str]
+
+
+class Check(NamedTuple):
+    flag: bool  # needs attention
+    text: str
 
 
 def requests(d: dict) -> float:
@@ -58,6 +67,10 @@ def count(n: float) -> str:
 
 def tenths(n: float) -> str:
     return f"{n:,.1f}"
+
+
+def date(t: dt.datetime) -> str:
+    return f"{t:%b} {t.day}"
 
 
 HOBBY = [
@@ -81,22 +94,28 @@ HOBBY = [
     Limit("Data transfer out (GB)", 100, transfer_gb, tenths),
 ]
 
-# Flat Rate CDN tiers on Pro by monthly price in cents (the team's `flatRateCdnBase` item):
-# CDN requests and data transfer (GB) a cycle may use. The included tier costs nothing.
+
+class Tier(NamedTuple):
+    requests: float  # CDN requests a cycle
+    gb: float  # data transfer a cycle
+
+
+# Flat Rate CDN tiers on Pro, by monthly price in cents (the team's `flatRateCdnBase` item), in
+# order. The included tier costs nothing.
 CDN_TIERS = {
-    0: (1_000_000, 1_000),
-    2000: (10_000_000, 50_000),
-    10000: (50_000_000, 50_000),
-    30000: (150_000_000, 50_000),
+    0: Tier(1_000_000, 1_000),
+    2000: Tier(10_000_000, 50_000),
+    10000: Tier(50_000_000, 50_000),
+    30000: Tier(150_000_000, 50_000),
 }
 
 
 class Billing(NamedTuple):
     plan: str  # "hobby" or "pro"
     active: bool
-    start: dt.datetime  # this billing cycle
-    end: dt.datetime
-    cdn: tuple[float, float] | None  # the Flat Rate CDN tier's capacity, None when off
+    start: dt.datetime | None  # this billing cycle, when the plan has one
+    end: dt.datetime | None
+    cdn: int | None  # the Flat Rate CDN tier's price in cents, None when it is off
 
 
 def get(token: str, path: str, **query: str) -> dict:
@@ -106,17 +125,21 @@ def get(token: str, path: str, **query: str) -> dict:
         return json.load(res)
 
 
+def moment(ms: float | None) -> dt.datetime | None:
+    return dt.datetime.fromtimestamp(ms / 1000, dt.UTC) if ms else None
+
+
 def billing(token: str) -> Billing:
     """The team's plan and current billing cycle."""
     b = get(token, f"/v2/teams/{TEAM}")["billing"]
-    when = lambda ms: dt.datetime.fromtimestamp(ms / 1000, dt.UTC)  # noqa: E731
-    base = b.get("invoiceItems", {}).get("flatRateCdnBase")
+    period = b.get("period") or {}
+    base = (b.get("invoiceItems") or {}).get("flatRateCdnBase")
     return Billing(
         plan=b["plan"],
-        active=b["status"] == "active" and not b.get("cancelation"),
-        start=when(b["period"]["start"]),
-        end=when(b["period"]["end"]),
-        cdn=CDN_TIERS.get(round(base["price"])) if base else None,
+        active=b.get("status", "active") == "active" and not b.get("cancelation"),
+        start=moment(period.get("start")),
+        end=moment(period.get("end")),
+        cdn=round(base["price"]) if base else None,
     )
 
 
@@ -131,46 +154,68 @@ def usage_days(token: str, since: dt.datetime, now: dt.datetime) -> list:
     )["data"]
 
 
-class Check(NamedTuple):
-    flag: bool  # past WARN_AT of its cap, or on pace to pass the cap
-    share: float
-    text: str
-
-
-def check(name: str, show: Callable[[float], str], total: float, pace: float, cap: float, day: str):
-    share = total / cap
-    flag = share >= WARN_AT or pace >= cap
+def check(limit: Limit, days: list, last: dict | None, pace_days: int) -> Check:
+    """`limit` over `days`, and the pace of `last` (the last full day) over `pace_days`."""
+    total = sum(limit.amount(d) for d in days)
+    pace = limit.amount(last) * pace_days if last else 0
+    share = total / limit.cap
+    flag = share >= WARN_AT or pace >= limit.cap
+    day = f"{last['date'][:10]}'s" if last else "no full day's"
     return Check(
         flag,
-        share,
-        f"{'⚠️' if flag else '•'} {name}: {show(total)} of {show(cap)} ({share:.0%})"
-        f" · {show(pace)} a month at {day}'s pace",
+        f"{'⚠️' if flag else '•'} {limit.name}: {limit.show(total)} of {limit.show(limit.cap)}"
+        f" ({share:.0%}) · {limit.show(pace)} a month at {day} pace",
     )
+
+
+def since_day(days: list, t: dt.datetime) -> list:
+    """The days from `t`'s date on (the rows are dated at UTC midnight)."""
+    return [d for d in days if d["date"][:10] >= t.strftime("%Y-%m-%d")]
+
+
+def cdn_tier(bill: Billing, days: list, last: dict | None) -> tuple[list[str], bool]:
+    """Pro's lines on this cycle against the Flat Rate CDN tier, and whether they need attention."""
+    tier = CDN_TIERS.get(bill.cdn) if bill.cdn is not None else None
+    if bill.cdn is None:
+        return [
+            f"Flat Rate CDN is off, so CDN requests are billed from the ${PRO_DOLLARS} credit."
+        ], False
+    if tier is None or not (bill.start and bill.end):
+        return [
+            f"⚠️ The Flat Rate CDN tier at ${bill.cdn / 100:.0f} a month isn't in CDN_TIERS."
+        ], True
+    prices = list(CDN_TIERS)
+    step = prices.index(bill.cdn) + 1
+    if step < len(prices):
+        more = (prices[step] - bill.cdn) / 100
+        up = f"to the {count(CDN_TIERS[prices[step]].requests)} tier (${more:.0f} a month more)"
+    else:
+        up = "to on-demand pricing"
+    length = (bill.end - bill.start).days
+    cycle = since_day(days, bill.start)
+    checks = [
+        check(Limit("CDN requests", tier.requests, requests, count), cycle, last, length),
+        check(Limit("Data transfer (GB)", tier.gb, transfer_gb, tenths), cycle, last, length),
+    ]
+    lines = [
+        f"This cycle since {date(bill.start)}, against the Flat Rate CDN tier:",
+        *(c.text for c in checks),
+        f"A cycle over its tier moves the team {up} from the next cycle.",
+    ]
+    return lines, any(c.flag for c in checks)
 
 
 def report(bill: Billing, days: list, now: dt.datetime) -> tuple[str, bool]:
     """The report's text, and whether anything in it needs attention."""
     # the last full day sets the pace; today's row is still filling
-    today = now.strftime("%Y-%m-%d")
-    full = [d for d in days if not d["date"].startswith(today)]
+    full = [d for d in days if not d["date"].startswith(now.strftime("%Y-%m-%d"))]
     last = full[-1] if full else None
-    day = last["date"][:10] if last else "no full day"
-    month = days[-DAYS:]
-    renews = f"{bill.end:%b} {bill.end.day}"
-
-    # Hobby's limits, over the last 30 days
     hobby = [
-        check(
-            limit.name,
-            limit.show,
-            sum(limit.amount(d) for d in month),
-            limit.amount(last) * DAYS if last else 0,
-            limit.cap,
-            day,
-        )
-        for limit in HOBBY
+        check(limit, since_day(days, now - dt.timedelta(days=DAYS)), last, DAYS) for limit in HOBBY
     ]
     over = [c for c in hobby if c.flag]
+    ends = f", ends {date(bill.end)}" if bill.end else ""
+    inactive = [] if bill.active else [f"⚠️ The plan is not active{ends}."]
 
     if bill.plan == "hobby":
         head = (
@@ -180,47 +225,33 @@ def report(bill: Billing, days: list, now: dt.datetime) -> tuple[str, bool]:
         )
         lines = [
             f"{head} (Hobby, free; last {DAYS} days, whole team)",
+            *inactive,
             *(c.text for c in hobby),
             f"Hobby pauses a project that goes over: {USAGE_PAGE}",
         ]
-        return "\n".join(lines), bool(over)
+        return "\n".join(lines), bool(over or inactive)
 
     # Pro: the plan, this cycle against the Flat Rate CDN tier, and whether Hobby would do
-    status = f"renews {renews}" if bill.active else f"not active, ends {renews} ⚠️"
-    lines = [f"**Vercel: Pro, {status}** ($20 a month, with $20 of usage credit)"]
-    near = not bill.active
-    if bill.cdn:
-        cycle = [d for d in days if d["date"][:10] >= bill.start.strftime("%Y-%m-%d")]
-        length = (bill.end - bill.start).days
-        tier = [
-            check(
-                name,
-                show,
-                sum(amount(d) for d in cycle),
-                amount(last) * length if last else 0,
-                cap,
-                day,
-            )
-            for name, amount, cap, show in [
-                ("CDN requests", requests, bill.cdn[0], count),
-                ("Data transfer (GB)", transfer_gb, bill.cdn[1], tenths),
-            ]
-        ]
-        near = near or any(c.flag for c in tier)
-        lines += [
-            f"This cycle since {bill.start:%b} {bill.start.day}, against the Flat Rate CDN tier:",
-            *(c.text for c in tier),
-            "A cycle over its tier moves the team up a tier ($20 a month more) next cycle.",
-        ]
-    else:
-        lines.append("Flat Rate CDN is off, so CDN requests are billed from the $20 credit.")
+    renews = f", renews {date(bill.end)}" if bill.active and bill.end else ""
+    lines = [
+        f"**Vercel: Pro{renews}** (${PRO_DOLLARS} a month, with ${PRO_DOLLARS} of usage credit)",
+        *inactive,
+    ]
+    near = bool(inactive)
+    tier, tier_near = cdn_tier(bill, days, last)
+    lines += tier
+    near = near or tier_near
     if over:
-        lines += [f"**Back to Hobby?** Not yet. Last {DAYS} days against Hobby's limits:"]
+        lines.append(
+            f"**Back to Hobby?** Not yet; each limit should be under half for {DAYS} days:"
+        )
         lines += [c.text for c in over]
     else:
+        before = f" before {date(bill.end)}" if bill.end else ""
         lines.append(
-            f"**Back to Hobby?** Yes: the last {DAYS} days fit Hobby's limits, so downgrading"
-            f" before {renews} saves $20 a month: {BILLING_PAGE}"
+            f"**Back to Hobby?** Yes: the last {DAYS} days are under half of each Hobby limit"
+            f" this checks (not Active CPU or origin transfer), so downgrading{before} saves"
+            f" ${PRO_DOLLARS} a month: {BILLING_PAGE}"
         )
     lines.append(f"Usage: {USAGE_PAGE}")
     return "\n".join(lines), near
@@ -232,7 +263,7 @@ def main() -> None:
         sys.exit("VERCEL_TOKEN is not set")
     now = dt.datetime.now(dt.UTC)
     bill = billing(token)
-    since = min(now - dt.timedelta(days=DAYS), bill.start)
+    since = min(now - dt.timedelta(days=DAYS), bill.start or now)
     text, near = report(bill, usage_days(token, since, now), now)
     url = os.environ.get("OPS_WEBHOOK_URL")
     monday = now.weekday() == 0
