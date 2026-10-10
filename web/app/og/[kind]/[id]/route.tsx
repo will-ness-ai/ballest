@@ -6,13 +6,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { SHARE_ASSETS, drawShare } from "../../../../components/share/Card";
-import {
-  getBoardPage,
-  getBoardScores,
-  getDaily,
-  getPlayer,
-  getWorkshop,
-} from "../../../../db/data";
+import { getBoardPage, getBoardScores, getDaily, getPlayer, getMap } from "../../../../db/data";
 import { circuitBoard } from "../../../../lib/circuit";
 import { isDailyDate } from "../../../../lib/routes";
 import { isSteamId, safeImg } from "../../../../lib/rules";
@@ -76,7 +70,7 @@ async function shareOf(
       return { card: playerCard(rec), picture: await remote(fullAvatar(rec.who.avatar)) };
     }
     case "map": {
-      const m = (await getWorkshop()).find((x) => x.pfid === id);
+      const m = await getMap(id);
       if (!m) return null;
       return { card: mapCard(m, Date.now()), picture: await remote(m.preview) };
     }

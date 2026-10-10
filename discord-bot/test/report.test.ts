@@ -1,6 +1,12 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Option } from "effect";
-import { headMessage, MESSAGE_LIMIT, pack, threadSections } from "../src/report/messages.js";
+import {
+  headMessage,
+  MESSAGE_LIMIT,
+  pack,
+  standingsImage,
+  threadSections,
+} from "../src/report/messages.js";
 import {
   GhostDates,
   GhostUnavailable,
@@ -72,7 +78,7 @@ describe("the Daily Report's standings", () => {
     // 19.9995 s is 0.5 ms under Author: matching the publishing run, not beating it
     expect(r.players).toBe(1);
     expect(r.boards.find((b) => b.stat === "wr")?.rows).toEqual([
-      { steamId: "ann", persona: "ANN", n: 1 },
+      { steamId: "ann", persona: "ANN", n: 1, placeBefore: 1, gain: 0 },
     ]);
     const beat = buildReport(data({ maps: [a], entries: [entry(a, "creator", 19.99)] }), AT);
     expect(beat.boards.find((b) => b.stat === "author")?.rows[0]?.steamId).toBe("creator");
@@ -102,6 +108,79 @@ describe("the Daily Report's standings", () => {
       "amy",
       "bob",
       "zed",
+    ]);
+  });
+
+  it("moves each row from its place 24 hours before, and counts what it gained since", () => {
+    const [a, b, c] = [map(1), map(2), map(3)];
+    const r = buildReport(
+      data({
+        maps: [a, b, c],
+        entries: [
+          entry(a, "amy", 10),
+          entry(b, "bob", 10, { closedAt: TODAY }),
+          entry(b, "bob", 9, { firstSeenAt: TODAY }),
+          entry(b, "amy", 8, { firstSeenAt: TODAY }),
+          entry(c, "amy", 12),
+          entry(c, "bob", 11),
+        ],
+      }),
+      AT,
+    );
+    // yesterday bob held b and c, amy only a; today amy took b from him
+    const wr = r.boards.find((x) => x.stat === "wr");
+    expect(wr?.rows).toEqual([
+      { steamId: "amy", persona: "AMY", n: 2, placeBefore: 2, gain: 1 },
+      { steamId: "bob", persona: "BOB", n: 1, placeBefore: 1, gain: -1 },
+    ]);
+    expect(wr?.out).toEqual([]);
+    expect(standingsImage(r).boards[2]?.rows.map((x) => x.move)).toEqual([1, -1]);
+  });
+
+  it("marks a player new to a top 10, and names who it pushed out", () => {
+    const [a, b, c] = [map(1), map(2), map(3)];
+    const ten = Array.from({ length: 10 }, (_, i) => `p${String(i).padStart(2, "0")}`);
+    const r = buildReport(
+      data({
+        maps: [a, b, c],
+        entries: [
+          ...ten.flatMap((id, i) => [entry(a, id, 10 + i), entry(b, id, 10 + i)]),
+          ...[a, b, c].map((m) => entry(m, "zoe", 30, { firstSeenAt: TODAY })),
+        ],
+      }),
+      AT,
+    );
+    const played = r.boards.find((x) => x.stat === "played");
+    expect(played?.rows[0]).toEqual({
+      steamId: "zoe",
+      persona: "ZOE",
+      n: 3,
+      placeBefore: null,
+      gain: 3,
+    });
+    expect(played?.rows[1]).toMatchObject({ steamId: "p00", placeBefore: 1 });
+    expect(played?.out).toEqual([{ steamId: "p09", persona: "P09" }]);
+    expect(standingsImage(r).boards[0]?.rows[0]?.move).toBe("new");
+    expect(standingsImage(r).boards[0]?.out).toEqual(["P09"]);
+  });
+
+  it("counts a board first read today as it stands, and a Map published today as a gain", () => {
+    const unread = map(1, { firstReadAt: TODAY });
+    const published = map(2, { createdAt: TODAY, firstReadAt: TODAY });
+    const r = buildReport(
+      data({
+        maps: [unread, published],
+        entries: [
+          entry(unread, "amy", 10, { firstSeenAt: TODAY }),
+          entry(published, "bob", 10, { firstSeenAt: TODAY }),
+        ],
+      }),
+      AT,
+    );
+    // amy's finish predates the first read, so it is no gain; bob's could not have
+    expect(r.boards.find((x) => x.stat === "played")?.rows).toEqual([
+      { steamId: "amy", persona: "AMY", n: 1, placeBefore: 1, gain: 0 },
+      { steamId: "bob", persona: "BOB", n: 1, placeBefore: null, gain: 1 },
     ]);
   });
 

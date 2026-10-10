@@ -55,6 +55,10 @@ const C = {
   dim: "#93a2c8",
   faint: "#63719a",
   accent: "#8be03c",
+  down: "#ff6b6b",
+  upTint: "rgba(139,224,60,0.16)",
+  downTint: "rgba(255,107,107,0.18)",
+  fresh: "#58a8ff",
   accentInk: "#0d2000",
   gold: "#ffd447",
   silver: "#d3dcea",
@@ -983,8 +987,18 @@ export const activityArtScene = (art: ActivityArt, dev: boolean): El => {
 // ---------------------------------------------------------------- the Daily Report's standings
 
 export const STANDINGS_WIDTH = 620;
-/** Widest a name gets before it is clipped, so a row stays on one line. */
-const STANDINGS_NAME = 20;
+/** Widest a name gets before it is clipped, so a row and its pills stay on one line. */
+const STANDINGS_NAME = 17;
+
+/** A row on one of the Daily Report's boards, and how it changed in the last 24 hours. */
+export interface StandingsRow {
+  readonly name: string;
+  readonly n: number;
+  /** Places climbed (negative: fallen), or "new" to the board's top 10. */
+  readonly move: number | "new";
+  /** n now less n 24 hours before. */
+  readonly gain: number;
+}
 
 /** The four boards of the Daily Report (src/report/), two by two, ten rows each. */
 export interface StandingsImage {
@@ -992,9 +1006,61 @@ export interface StandingsImage {
   readonly subtitle: string;
   readonly boards: ReadonlyArray<{
     readonly title: string;
-    readonly rows: ReadonlyArray<{ readonly name: string; readonly n: number }>;
+    readonly rows: ReadonlyArray<StandingsRow>;
+    /** Who left the board's top 10 in the last 24 hours. */
+    readonly out: ReadonlyArray<string>;
   }>;
 }
+
+const tone = (up: boolean) =>
+  up ? { ink: C.accent, tint: C.upTint } : { ink: C.down, tint: C.downTint };
+
+const triangle = (up: boolean) =>
+  img(
+    svgUri(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 10 10"><path d="${up ? "M5 1L9.5 9H0.5Z" : "M5 9L9.5 1H0.5Z"}" fill="${tone(up).ink}"/></svg>`,
+    ),
+    6,
+    6,
+  );
+
+const pill = (up: boolean, ...children: ReadonlyArray<Child>) =>
+  box(
+    {
+      alignItems: "center",
+      gap: 2,
+      padding: "1px 4px",
+      borderRadius: 4,
+      fontFamily: F.hud,
+      fontWeight: 700,
+      fontSize: 10,
+      color: tone(up).ink,
+      backgroundColor: tone(up).tint,
+    },
+    ...children,
+  );
+
+const movePill = (move: StandingsRow["move"]) =>
+  move === "new"
+    ? box(
+        {
+          fontFamily: F.hud,
+          fontWeight: 700,
+          fontSize: 8,
+          letterSpacing: 0.6,
+          padding: "1px 3px",
+          borderRadius: 3,
+          color: C.bg,
+          backgroundColor: C.fresh,
+        },
+        "NEW",
+      )
+    : move === 0
+      ? null
+      : pill(move > 0, triangle(move > 0), String(Math.abs(move)));
+
+const clipName = (name: string) =>
+  name.length > STANDINGS_NAME ? `${name.slice(0, STANDINGS_NAME - 1)}…` : name;
 
 export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El => {
   const column = (board: StandingsImage["boards"][number]) =>
@@ -1009,22 +1075,40 @@ export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El 
             fontSize: 15,
             padding: "3px 8px",
             borderRadius: 6,
-            backgroundColor: i === 0 ? "rgba(139,224,60,0.16)" : C.surface,
+            backgroundColor: i === 0 ? C.upTint : C.surface,
           },
           box(
-            { width: 22, color: i < 3 ? C.gold : C.faint, fontFamily: F.hud, fontWeight: 700 },
+            { width: 18, color: i < 3 ? C.gold : C.faint, fontFamily: F.hud, fontWeight: 700 },
             String(i + 1),
           ),
-          box(
-            { flexGrow: 1, overflow: "hidden" },
-            row.name.length > STANDINGS_NAME
-              ? `${row.name.slice(0, STANDINGS_NAME - 1)}…`
-              : row.name,
-          ),
+          box({ width: 30 }, movePill(row.move)),
+          box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
+          row.gain === 0
+            ? null
+            : pill(row.gain > 0, `${row.gain > 0 ? "+" : "−"}${Math.abs(row.gain)}`),
           box({ fontFamily: F.hud, fontWeight: 700, color: C.text }, String(row.n)),
         ),
       ),
-      board.rows.length === 0 ? box({ color: C.faint, fontSize: 14 }, "Nobody yet") : null,
+      ...board.out.map((name) =>
+        box(
+          {
+            alignItems: "center",
+            gap: 8,
+            fontSize: 15,
+            padding: "2px 7px",
+            borderRadius: 6,
+            border: `1px dashed ${C.line}`,
+            color: C.dim,
+            opacity: 0.75,
+          },
+          box({ width: 18, color: C.faint, fontFamily: F.hud, fontWeight: 700 }, "–"),
+          box({ width: 46 }, pill(false, triangle(false), "OUT")),
+          box({ flexGrow: 1, overflow: "hidden" }, clipName(name)),
+        ),
+      ),
+      board.rows.length + board.out.length === 0
+        ? box({ color: C.faint, fontSize: 14 }, "Nobody yet")
+        : null,
     );
   const pairs = [boards.slice(0, 2), boards.slice(2, 4)].filter((p) => p.length > 0);
   return backdrop(
