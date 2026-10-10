@@ -200,6 +200,7 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
       marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
       /** The Daily Report's four boards. */
       standings: (image: StandingsImage) => draw(standingsScene(image), STANDINGS_WIDTH),
+      scene: draw,
     };
   }),
 }) {}

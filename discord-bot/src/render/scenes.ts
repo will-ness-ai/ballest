@@ -30,11 +30,11 @@ export interface El {
 }
 
 /** A box; Satori needs every box with children to be flex. */
-const box = (style: Style, ...children: ReadonlyArray<Child>): El => ({
+export const box = (style: Style, ...children: ReadonlyArray<Child>): El => ({
   type: "div",
   props: { style: { display: "flex", ...style }, children: children.filter((c) => c !== null) },
 });
-const img = (src: string, width: number, height: number, style: Style = {}): El => ({
+export const img = (src: string, width: number, height: number, style: Style = {}): El => ({
   type: "img",
   props: { src, width, height, style: { width, height, ...style } },
 });
@@ -45,7 +45,7 @@ const medal = (kind: MedalKind, size: number) =>
 
 // ---------------------------------------------------------------- the site's theme
 
-const C = {
+export const C = {
   bg: "#0a1020",
   surface: "rgba(255,255,255,0.05)",
   solid: "#111a2c",
@@ -61,12 +61,12 @@ const C = {
   bronze: "#ef9a52",
 } as const;
 
-const F = { medal: "Nunito", hud: "Chakra Petch", body: "Archivo", marquee: "Bungee" } as const;
+export const F = { medal: "Nunito", hud: "Chakra Petch", body: "Archivo", marquee: "Bungee" } as const;
 
 /** The game's black outline on white lettering. */
 const OUTLINE = "-1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111, 0 2px 0 #111";
 
-const backdrop = (style: Style, ...children: ReadonlyArray<Child>) =>
+export const backdrop = (style: Style, ...children: ReadonlyArray<Child>) =>
   box(
     {
       flexDirection: "column",
@@ -83,7 +83,7 @@ const backdrop = (style: Style, ...children: ReadonlyArray<Child>) =>
     ...children,
   );
 
-const label = (text: string, style: Style = {}) =>
+export const label = (text: string, style: Style = {}) =>
   box(
     {
       fontFamily: F.hud,
