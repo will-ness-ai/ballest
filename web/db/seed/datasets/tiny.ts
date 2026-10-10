@@ -55,7 +55,7 @@ export const profile = (seconds: number, bend: number) =>
 
 export const tiny: Dataset = {
   description:
-    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 8 Ghosts",
+    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts",
   seed: async (tx) => {
     const [r1, r2, r3] = (
       await tx
@@ -286,9 +286,9 @@ export const tiny: Dataset = {
 
     // Ghosts, read for their skins (lib/skins.ts): Track p1's run is Pink (its closed
     // run was Magma), p2's Cosmic, p4's a skin the site doesn't know, p5's had no samples,
-    // and p6's is gone. Map A p9's run is Gold. The rest are not read yet. Track p1's and
-    // p2's runs, Map A p9's and Daily 08-29 p1's have a profile, so they race (p2 is ahead
-    // of p1 early on); p4's was read before profiles. Map A p10 and Daily 08-29 p2 have no
+    // p6's is gone and p7's is Gold. Map A p9's run is Gold. The rest are not read yet.
+    // Track p1's, p2's and p7's runs, Map A p9's and Daily 08-29 p1's have a profile, so
+    // they race (p2 is ahead of p1 early on); p4's was read before profiles. Map A p10 and Daily 08-29 p2 have no
     // Ghost read, so p9 and p1 there race nobody.
     const ghost = (n: number, score: number) => `${String(9_000_000_000 + n)}${String(score)}`;
     const readAt = new Date("2026-09-01T03:10:00Z");
@@ -321,6 +321,14 @@ export const tiny: Dataset = {
       },
       { ugcId: ghost(5, 1_019_884), state: "empty", readAt },
       { ugcId: ghost(6, 1_200_000), state: "gone", readAt },
+      {
+        ugcId: ghost(7, 1_100_000),
+        state: "ok",
+        skin: SKIN.gold,
+        topSpeed: 92.4,
+        profile: profile(11, 1.03),
+        readAt,
+      },
       {
         ugcId: ghost(9, 4_200_000),
         state: "ok",

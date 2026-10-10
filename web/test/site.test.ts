@@ -81,13 +81,13 @@ describe("Steam's boards", () => {
 
   test("a row carries the skin its open run's Ghost names, where one was read", async () => {
     const track = await boardPage(t.db, "Map_Track13", { count: 10 });
-    // p1's closed run was Magma; p5's Ghost had no samples, p7's isn't read, p6's is gone
+    // p1's closed run was Magma; p5's Ghost had no samples, p6's is gone
     expect(track.rows.map((r) => [r.steamId, r.skin])).toEqual([
       [p(1), SKIN.pink],
       [p(2), SKIN.cosmic],
       [p(5), null],
       [p(4), "/Game/Art/New/MI_NewSkin.MI_NewSkin"],
-      [p(7), null],
+      [p(7), SKIN.gold],
       [p(6), null],
     ]);
     const map = await boardPage(t.db, "Workshop_9000000001", { count: 1 });
@@ -107,13 +107,13 @@ describe("Steam's boards", () => {
 
   test("a row races where its open run's Ghost has a profile", async () => {
     const track = await boardPage(t.db, "Map_Track13", { count: 10 });
-    // p4's Ghost was read before profiles, p5's had no samples, p7's isn't read
+    // p4's Ghost was read before profiles, p5's had no samples, p6's is gone
     expect(track.rows.map((r) => [r.steamId, r.race])).toEqual([
       [p(1), true],
       [p(2), true],
       [p(5), false],
       [p(4), false],
-      [p(7), false],
+      [p(7), true],
       [p(6), false],
     ]);
     const derived = await boardPage(t.db, "OverallLeaderboard_AllSeasons", { count: 3 });

@@ -233,6 +233,15 @@ it again with the line, so only the chart's columns reach the browser, not every
 added later by scrolling or search are marked too; the rule reaches only into its own
 page's content, so a page Next keeps hidden leaves the others alone.
 
+A run whose Ghost has a profile (`race` on the row, `docs/data.md`, "Ghosts") has a
+dotted underline on its time, and a tap there opens the race drawer
+(`components/board/RaceDrawer.tsx`) under the row, or under the podium for a plate or a
+Daily's podium step. The drawer reads `/api/board/<name>?run=<steam id>` when it opens: the
+date the run was set, its top speed, and a race against the leader (the leader races 2nd),
+which shows only when both Ghosts have a profile. The gap arithmetic is in `lib/race.ts`.
+`useRaceOpen` keeps one drawer open on a page, so a tap on another run moves it and a
+second tap closes it.
+
 Ranks follow Steam's tie rule: equal scores are ordered by Steam ID, ascending on a time
 board and descending on a points board (`docs/data.md`).
 
