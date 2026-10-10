@@ -73,7 +73,7 @@ export interface Standing {
   readonly persona: string;
   readonly n: number;
   /** The place held on this board 24 hours before, or null if not in its top TOP then. */
-  readonly was: number | null;
+  readonly placeBefore: number | null;
   /** n now less n 24 hours before. */
   readonly gain: number;
 }
@@ -81,7 +81,7 @@ export interface Board {
   readonly stat: Stat;
   readonly rows: ReadonlyArray<Standing>;
   /** Players in this board's top TOP 24 hours before who are not in it now. */
-  readonly out: ReadonlyArray<{ readonly steamId: string; readonly persona: string }>;
+  readonly out: ReadonlyArray<Pick<Standing, "steamId" | "persona">>;
 }
 
 /** A Track as the report names and links it. */
@@ -302,7 +302,7 @@ export const buildReport = (data: ReportData, at: number): Report => {
         steamId,
         persona: t.persona,
         n: t[stat],
-        was: place.get(steamId) ?? null,
+        placeBefore: place.get(steamId) ?? null,
         gain: t[stat] - (tallyBefore.get(steamId)?.[stat] ?? 0),
       })),
       out: topBefore

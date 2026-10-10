@@ -56,6 +56,8 @@ const C = {
   faint: "#63719a",
   accent: "#8be03c",
   down: "#ff6b6b",
+  upTint: "rgba(139,224,60,0.16)",
+  downTint: "rgba(255,107,107,0.18)",
   fresh: "#58a8ff",
   accentInk: "#0d2000",
   gold: "#ffd447",
@@ -1010,10 +1012,13 @@ export interface StandingsImage {
   }>;
 }
 
+const tone = (up: boolean) =>
+  up ? { ink: C.accent, tint: C.upTint } : { ink: C.down, tint: C.downTint };
+
 const triangle = (up: boolean) =>
   img(
     svgUri(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 10 10"><path d="${up ? "M5 1L9.5 9H0.5Z" : "M5 9L9.5 1H0.5Z"}" fill="${up ? C.accent : C.down}"/></svg>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 10 10"><path d="${up ? "M5 1L9.5 9H0.5Z" : "M5 9L9.5 1H0.5Z"}" fill="${tone(up).ink}"/></svg>`,
     ),
     6,
     6,
@@ -1029,8 +1034,8 @@ const pill = (up: boolean, ...children: ReadonlyArray<Child>) =>
       fontFamily: F.hud,
       fontWeight: 700,
       fontSize: 10,
-      color: up ? C.accent : C.down,
-      backgroundColor: up ? "rgba(139,224,60,0.16)" : "rgba(255,107,107,0.18)",
+      color: tone(up).ink,
+      backgroundColor: tone(up).tint,
     },
     ...children,
   );
@@ -1070,7 +1075,7 @@ export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El 
             fontSize: 15,
             padding: "3px 8px",
             borderRadius: 6,
-            backgroundColor: i === 0 ? "rgba(139,224,60,0.16)" : C.surface,
+            backgroundColor: i === 0 ? C.upTint : C.surface,
           },
           box(
             { width: 18, color: i < 3 ? C.gold : C.faint, fontFamily: F.hud, fontWeight: 700 },
@@ -1101,7 +1106,9 @@ export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El 
           box({ flexGrow: 1, overflow: "hidden" }, clipName(name)),
         ),
       ),
-      board.rows.length === 0 ? box({ color: C.faint, fontSize: 14 }, "Nobody yet") : null,
+      board.rows.length + board.out.length === 0
+        ? box({ color: C.faint, fontSize: 14 }, "Nobody yet")
+        : null,
     );
   const pairs = [boards.slice(0, 2), boards.slice(2, 4)].filter((p) => p.length > 0);
   return backdrop(

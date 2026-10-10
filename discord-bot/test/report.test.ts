@@ -78,7 +78,7 @@ describe("the Daily Report's standings", () => {
     // 19.9995 s is 0.5 ms under Author: matching the publishing run, not beating it
     expect(r.players).toBe(1);
     expect(r.boards.find((b) => b.stat === "wr")?.rows).toEqual([
-      { steamId: "ann", persona: "ANN", n: 1, was: 1, gain: 0 },
+      { steamId: "ann", persona: "ANN", n: 1, placeBefore: 1, gain: 0 },
     ]);
     const beat = buildReport(data({ maps: [a], entries: [entry(a, "creator", 19.99)] }), AT);
     expect(beat.boards.find((b) => b.stat === "author")?.rows[0]?.steamId).toBe("creator");
@@ -130,8 +130,8 @@ describe("the Daily Report's standings", () => {
     // yesterday bob held b and c, amy only a; today amy took b from him
     const wr = r.boards.find((x) => x.stat === "wr");
     expect(wr?.rows).toEqual([
-      { steamId: "amy", persona: "AMY", n: 2, was: 2, gain: 1 },
-      { steamId: "bob", persona: "BOB", n: 1, was: 1, gain: -1 },
+      { steamId: "amy", persona: "AMY", n: 2, placeBefore: 2, gain: 1 },
+      { steamId: "bob", persona: "BOB", n: 1, placeBefore: 1, gain: -1 },
     ]);
     expect(wr?.out).toEqual([]);
     expect(standingsImage(r).boards[2]?.rows.map((x) => x.move)).toEqual([1, -1]);
@@ -151,8 +151,14 @@ describe("the Daily Report's standings", () => {
       AT,
     );
     const played = r.boards.find((x) => x.stat === "played");
-    expect(played?.rows[0]).toEqual({ steamId: "zoe", persona: "ZOE", n: 3, was: null, gain: 3 });
-    expect(played?.rows[1]).toMatchObject({ steamId: "p00", was: 1 });
+    expect(played?.rows[0]).toEqual({
+      steamId: "zoe",
+      persona: "ZOE",
+      n: 3,
+      placeBefore: null,
+      gain: 3,
+    });
+    expect(played?.rows[1]).toMatchObject({ steamId: "p00", placeBefore: 1 });
     expect(played?.out).toEqual([{ steamId: "p09", persona: "P09" }]);
     expect(standingsImage(r).boards[0]?.rows[0]?.move).toBe("new");
     expect(standingsImage(r).boards[0]?.out).toEqual(["P09"]);
@@ -173,8 +179,8 @@ describe("the Daily Report's standings", () => {
     );
     // amy's finish predates the first read, so it is no gain; bob's could not have
     expect(r.boards.find((x) => x.stat === "played")?.rows).toEqual([
-      { steamId: "amy", persona: "AMY", n: 1, was: 1, gain: 0 },
-      { steamId: "bob", persona: "BOB", n: 1, was: null, gain: 1 },
+      { steamId: "amy", persona: "AMY", n: 1, placeBefore: 1, gain: 0 },
+      { steamId: "bob", persona: "BOB", n: 1, placeBefore: null, gain: 1 },
     ]);
   });
 
