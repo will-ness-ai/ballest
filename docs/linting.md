@@ -22,11 +22,15 @@ Once, at the repo root: `pnpm install`, plus `pnpm install` in `discord-bot/` an
 (ESLint types each TS file through its own package's `tsconfig.json`, so those packages
 need their dependencies), and Ruff (`uv tool install ruff@0.15.20`, or `pip install
 ruff==0.15.20`; CI pins that version). A cloud session gets the installs from
-`.claude/hooks/session-start.sh`. A project thread starts in `/home/user`, outside the repo, so
-the repo's hooks never load there: the cloud environment's setup script runs the same file
-(`CLAUDE_CODE_REMOTE=true CLAUDE_PROJECT_DIR=/home/user/ballest /home/user/ballest/.claude/hooks/session-start.sh`),
-and a thread whose container restarted runs that line itself. `pnpm check` stops first when
-the Ruff on PATH isn't the pinned one (`web/scripts/check-ruff.mjs`). Lint types the site's pages with Next's route types,
+`.claude/hooks/session-start.sh`. A project thread starts in `/home/user`, outside the repo,
+so there the cloud environment's setup script runs that file:
+
+```bash
+CLAUDE_CODE_REMOTE=true CLAUDE_PROJECT_DIR=/home/user/ballest /home/user/ballest/.claude/hooks/session-start.sh
+```
+
+and a thread whose container restarted runs the same line itself. Every Ruff script in
+`package.json` first checks that the Ruff on PATH is the pinned one (`web/scripts/check-ruff.mjs`). Lint types the site's pages with Next's route types,
 which `pnpm --dir web exec next typegen` writes (CI runs it first).
 
 - `pnpm format` rewrites everything; `pnpm lint:fix` applies the safe lint fixes.
