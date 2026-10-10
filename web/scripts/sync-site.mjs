@@ -22,6 +22,7 @@ const SITE = [
   "circuit",
   "leth",
   "multiballs",
+  "skins",
 ];
 
 rmSync(pub, { recursive: true, force: true });

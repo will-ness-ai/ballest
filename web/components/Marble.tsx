@@ -1,9 +1,11 @@
-// A player's marble: a glass ball in a hue taken from their Steam ID, which turns over to
+// A player's marble: the ball skin their run was rolled with where its Ghost has been read
+// (lib/skins.ts), else a glass ball in a hue taken from their Steam ID. It turns over to
 // their Steam avatar where Steam gave one (on hover, focus, or a tap: Behaviours.tsx).
 // Server and client components both draw them; each ball's gradient gets its own id.
 import { useId } from "react";
 
 import { hueFor, personaOf, safeImg } from "../lib/rules";
+import { skinPicture } from "../lib/skins";
 
 export function Ball({ h }: { h: number }) {
   const id = useId();
@@ -50,8 +52,15 @@ export function Ball({ h }: { h: number }) {
   );
 }
 
+/* the ball as the game draws it: a picture of the skin, already round */
+function Skin({ src }: { src: string }) {
+  return <img className="ball skin" src={src} alt="" loading="lazy" decoding="async" />;
+}
+
 export interface MarbleWho {
   steamId: string;
+  /* the skin the run's Ghost names, where there is one */
+  skin?: string | null;
   persona?: string | null;
   avatar?: string | null;
 }
@@ -61,12 +70,14 @@ export interface MarbleWho {
    anyway, for a marble inside a link, where a button can't go */
 export function Marble({ who, still = false }: { who: MarbleWho; still?: boolean }) {
   const h = hueFor(who.steamId);
+  const skin = skinPicture(who.skin);
+  const ball = skin ? <Skin src={skin} /> : <Ball h={h} />;
   const style = { "--h": h } as React.CSSProperties;
   const avatar = safeImg(who.avatar);
   if (!avatar || still)
     return (
       <span className="marble" style={style}>
-        <Ball h={h} />
+        {ball}
       </span>
     );
   return (
@@ -76,7 +87,7 @@ export function Marble({ who, still = false }: { who: MarbleWho; still?: boolean
       style={style}
       aria-label={`Show ${personaOf(who)}'s Steam avatar`}
     >
-      <Ball h={h} />
+      {ball}
       <img className="face" src={avatar} alt="" loading="lazy" decoding="async" />
     </button>
   );

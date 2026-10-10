@@ -42,6 +42,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   compares the database's open Entries with the board files (the parity check), and
   `tools/db_backfill.py` replays the git history of `data/` through the same writer. Their
   tests are `tools/tests/`. The tables: `docs/data.md`.
+- `tools/ghosts.py` — the collector's Ghost step, after the database write: reads each top
+  run's Ghost once for its ball Skin, which the boards draw from `skins/<asset>.webp`
+  (`docs/data.md`, "Ghosts"; `docs/site.md`, "Ball skins").
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, commits refreshed data to `main`,
   writes the Refresh to the database and revalidates the site's cached reads, then runs
   the parity check when the `DATABASE_URL` secret is set. `backfill.yml`, by hand only, runs the backfill against

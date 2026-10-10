@@ -20,6 +20,9 @@ export interface BoardRow {
   ahead: number | null;
   /* All Seasons only: each season's part of the total */
   seasons: Record<string, number> | null;
+  /* the ball skin the run's Ghost names (lib/skins.ts), once the collector has read it;
+     null on a derived board, an Overall board, or a run with no Ghost read */
+  skin: string | null;
 }
 
 export interface BoardPage {

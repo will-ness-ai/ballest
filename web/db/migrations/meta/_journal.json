@@ -15,6 +15,13 @@
       "when": 1791420122054,
       "tag": "0001_daily",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791517594579,
+      "tag": "0002_ghosts",
+      "breakpoints": true
     }
   ]
 }
