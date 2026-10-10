@@ -30,8 +30,23 @@ type Data = Record<string, { top: number; entries: Record<string, Ghost> }>;
 
 /* round 2 asks what picture of a run C's drawer shows; round 1's variants are kept below,
    switched off by ROUND */
-const ROUND: number = 6;
+const ROUND: number = 7;
 export const VARIANTS = [
+  { key: "A", name: "Faint play", note: "round 6's play mark, smaller and in the faint grey" },
+  { key: "B", name: "Dot", note: "a small faint dot before the time" },
+  { key: "C", name: "Dotted time", note: "no mark: the time gets a faint dotted underline" },
+  {
+    key: "D",
+    name: "Bright rank",
+    note: "no mark: the rank number is brighter on rows with a replay, dim on the rest",
+  },
+  {
+    key: "E",
+    name: "Edge tick",
+    note: "no mark by the time: a thin faint line on the row's left edge",
+  },
+] as const;
+export const ROUND6 = [
   {
     key: "A",
     name: "Quiet",
@@ -280,7 +295,8 @@ function runOf(c: Ctx, id: string, rank: number): { g: Ghost | null; why: Why | 
   return g ? { g, why: null } : { g: null, why: "gone" };
 }
 const cutOf = (c: Ctx) => (c.state === "cut" ? CUT : (c.data?.[c.board]?.top ?? 50));
-const opens = (c: Ctx, why: Why | null) => why === null || c.variant === "C" || c.variant === "D";
+const opens = (c: Ctx, why: Why | null) =>
+  why === null || (ROUND === 6 && (c.variant === "C" || c.variant === "D"));
 const read = new Set<string>();
 const leaderOf = (c: Ctx) => {
   const e = c.data?.[c.board]?.entries;
@@ -1262,7 +1278,7 @@ export function SpeedBar({ id }: { id: string }) {
 /* C: the drawer under an open row */
 export function Drawer({ id, rank }: { id: string; rank: number }) {
   const c = useProto();
-  if (ROUND === 6) return c?.open === id && c.data ? <Drawer6 c={c} id={id} rank={rank} /> : null;
+  if (ROUND >= 6) return c?.open === id && c.data ? <Drawer6 c={c} id={id} rank={rank} /> : null;
   if ((ROUND === 1 && c?.variant !== "C") || !c || c.open !== id || !c.data) return null;
   const g = ghostOf(c, id);
   return (
@@ -1327,7 +1343,11 @@ function Drawer6({ c, id, rank }: { c: Ctx; id: string; rank: number }) {
 /* B: the mark before the time on a run that has a replay */
 export function RowMark({ id, rank }: { id: string; rank: number }) {
   const c = useProto();
-  if (ROUND !== 6 || c?.variant !== "B" || !c.data || runOf(c, id, rank).why) return null;
+  if (ROUND < 6 || (ROUND === 6 && c?.variant !== "B") || !c?.data || runOf(c, id, rank).why)
+    return null;
+  if (ROUND === 7 && c.variant !== "A" && c.variant !== "B") return null;
+  if (ROUND === 7 && c.variant === "B")
+    return <i className="q-dot" role="img" aria-label="Has a replay" />;
   return (
     <svg className="q-mark" viewBox="0 0 12 12" role="img" aria-label="Has a replay">
       <path d="M3 1.8v8.4L10.2 6z" />
@@ -1362,7 +1382,7 @@ export function PodiumDrawer() {
 /* C and E open on a row tap */
 export function rowClick(c: Ctx | null, id: string, rank: number) {
   if (!c || (ROUND === 1 && c.variant !== "C" && c.variant !== "E")) return undefined;
-  if (ROUND === 6 && c.data && !opens(c, runOf(c, id, rank).why)) return undefined;
+  if (ROUND >= 6 && c.data && !opens(c, runOf(c, id, rank).why)) return undefined;
   return (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("a")) return;
     c.setOpen(c.open === id ? null : id);
@@ -1481,7 +1501,7 @@ function Picker({ variant, state }: { variant: Variant; state: string }) {
           {v.key} · {v.name}
         </b>
         <small>{v.note}</small>
-        {ROUND === 6 && (
+        {ROUND >= 6 && (
           <span className="p-states">
             {STATES.map((s) => (
               <button key={s.key} aria-pressed={s.key === state} onClick={() => pick(s.key)}>
@@ -1653,5 +1673,13 @@ const CSS = `
 .q-cut{display:flex;align-items:center;gap:10px;padding-block:10px;font:600 10.5px var(--f-hud);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
 .q-cut::before,.q-cut::after{content:"";flex:1;border-block-start:1px dashed var(--line)}
 @media (min-width:900px){.q-drawer{padding-inline:110px 24px}}
+
+/* round 7: subtler marks on rows with a replay (they carry .p-tap) */
+.p-v-A .q-mark{inline-size:8px;block-size:8px;margin-inline-end:5px;fill:var(--faint);opacity:.8}
+.q-dot{display:inline-block;inline-size:4px;block-size:4px;margin-inline-end:7px;border-radius:50%;background:var(--faint);vertical-align:middle}
+.p-v-C .row.p-tap .c-score>span{text-decoration:underline dotted color-mix(in oklch,var(--faint),transparent 30%);text-underline-offset:4px;text-decoration-thickness:1px}
+.p-v-D .board .row .c-rank{color:color-mix(in oklch,var(--faint),transparent 35%)}
+.p-v-D .board .row.p-tap .c-rank{color:var(--dim)}
+.p-v-E .board .row.p-tap{box-shadow:inset 2px 0 color-mix(in oklch,var(--faint),transparent 40%)}
 `;
 // ===================== end PROTOTYPE =====================

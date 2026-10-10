@@ -109,7 +109,7 @@ const ScoreRow = memo(function ScoreRow({
         className={
           (focus ? "row focus" : "row") +
           (click ? " p-tap" : "") +
-          (proto?.open === r.steamId ? " p-open" : "")
+          (click && proto?.open === r.steamId ? " p-open" : "")
         }
         style={{ "--h": hueFor(r.steamId) } as React.CSSProperties}
         data-m={r.rank <= 3 ? r.rank : 0}
