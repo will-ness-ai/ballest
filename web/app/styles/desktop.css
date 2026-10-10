@@ -134,8 +134,33 @@
     gap: 6px;
   }
   .boardbtn,
-  .sheet {
+  .sheet,
+  .seasonchip {
     display: none;
+  }
+  .boardrow {
+    display: contents;
+  }
+  /* the Circuit's seasons, a smaller row of tabs under the main ones */
+  .seasontabs {
+    display: flex;
+    gap: 22px;
+    grid-column: 1 / -1;
+    margin-block: -8px 16px;
+    padding-inline: 15px;
+  }
+  .seasontabs a {
+    padding: 4px 0;
+    font-family: var(--f-hud);
+    font-size: calc(12.5rem / 16);
+    font-weight: 600;
+    color: var(--dim);
+    text-decoration: none;
+    border-block-end: 2px solid transparent;
+  }
+  .seasontabs a[aria-current="true"] {
+    color: var(--text);
+    border-block-end-color: var(--accent);
   }
 
   .you-banner {

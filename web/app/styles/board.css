@@ -165,7 +165,7 @@
   background: var(--surface2);
 }
 
-/* six tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a label
+/* the tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a label
    wraps onto two lines. The side with more tabs fades out over --edge, so the bar reads
    as one that scrolls (good-css, "Styles that apply only when a scroller overflows"),
    and the lit tab is scrolled clear of the fade (scroll-padding, GroupTabs.tsx) */
@@ -275,6 +275,83 @@
   color: var(--dim);
   font-size: calc(12rem / 16);
   flex: none;
+}
+
+/* a Circuit board puts the season chip to the left of the board button; the sub-tabs are
+   the desktop's (desktop.css) */
+.seasontabs {
+  display: none;
+}
+.boardrow {
+  display: flex;
+  gap: 8px;
+  margin-inline: var(--pad);
+  margin-block-end: 12px;
+}
+.boardrow .boardbtn {
+  flex: 1;
+  min-inline-size: 0;
+  inline-size: auto;
+  margin: 0;
+}
+.seasonchip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-family: var(--f-hud);
+  font-size: calc(12.5rem / 16);
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.seasonmenu:popover-open {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 180px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--solid);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px var(--scrim);
+  color: inherit;
+}
+/* under the chip; a browser without anchoring opens it in the middle of the screen */
+@supports (position-area: block-end) {
+  .seasonmenu {
+    margin: 0;
+    margin-block-start: 4px;
+    position-area: block-end span-inline-end;
+    position-try-fallbacks:
+      flip-block,
+      flip-inline,
+      flip-block flip-inline;
+  }
+}
+.seasonmenu a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-family: var(--f-hud);
+  color: var(--dim);
+  text-decoration: none;
+}
+.seasonmenu b {
+  font-weight: 600;
+}
+.seasonmenu small {
+  font-family: var(--f-body);
+  font-size: calc(12rem / 16);
+  color: var(--faint);
+}
+.seasonmenu a[aria-current="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .boardtitle {

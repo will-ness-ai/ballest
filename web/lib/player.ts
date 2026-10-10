@@ -2,7 +2,7 @@
 // player page"): the board table is read here and nowhere below, so a player page, the
 // head to head and the score card are only markup over a PlayerRecord. matchup() is the
 // one place two records are paired up. Pure, so the server and the browser share it.
-import { COMPOSITE_BOARD, S1_CURRENT_BOARD, TRACKS } from "./circuit";
+import { COMPOSITE_BOARD, COMPOSITE_GROUP, S1_CURRENT_BOARD, TRACKS } from "./circuit";
 import type { PlayerData, WorkshopMap } from "./rows";
 import {
   SCORE_TICKS_PER_SECOND,
@@ -127,6 +127,27 @@ export function groupsOf(boards: ReadonlyArray<{ group: string }>) {
 export function overallOf(boards: ReadonlyArray<IndexBoard>, group: string) {
   const own = boards.filter((b) => b.group === group);
   return own.find((b) => b.name === S1_CURRENT_BOARD) ?? own.find((b) => isPoints(b.name));
+}
+
+/* one choice on the season switch: the season, the Overall board it opens, that board's
+   field, and how many Tracks it adds up */
+export interface Season {
+  group: string;
+  overall: string;
+  players: number;
+  tracks: number;
+}
+
+/* The season switch's choices, newest first. All Seasons has no Tracks of its own and adds
+   up every one */
+export function seasonsOf(boards: ReadonlyArray<IndexBoard>): Array<Season> {
+  const tracks = (group: string) =>
+    boards.filter((b) => !isPoints(b.name) && (group === COMPOSITE_GROUP || b.group === group))
+      .length;
+  return groupsOf(boards).flatMap((group) => {
+    const o = overallOf(boards, group);
+    return o ? [{ group, overall: o.name, players: o.entryCount, tracks: tracks(group) }] : [];
+  });
 }
 
 export function playerRecord(
