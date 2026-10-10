@@ -107,16 +107,21 @@ Open in Neon.
 - `ghosts`: one per Ghost (`CONTEXT.md`) the collector has read, by UGC ID: its state
   (`ok`; `empty`, a Ghost with no samples; `gone`, one Steam has no file for), the Skin
   and the hat as the object paths the Ghost names (raw, as `skinMaterial` and `accessory`
-  write them, or for a Skin with no material, Snow Globe, its `?SpecialSkinClass`), and
-  when it was read. A Ghost never changes, so a row is final. An Entry's Ghost is its
-  `ugc_id`; the boards draw the Skin (`docs/site.md`, "Ball skins").
+  write them, or for a Skin with no material, Snow Globe, its `?SpecialSkinClass`), the
+  date the run was set (`set_at`), its top speed in km/h, its profile, and when it was
+  read. The profile is the run's time in seconds at each eightieth of its own path length
+  (80 numbers, `PROFILE_POINTS`), empty for a path with no length; the race drawer compares
+  two of them. A Ghost never changes, so a row with a profile is final. An Entry's Ghost is
+  its `ugc_id`; the boards draw the Skin (`docs/site.md`, "Ball skins").
 
 ### Ghosts
 
 The Ghost step (`tools/ghosts.py`) runs after the database write, into the same database,
 and never blocks or fails the run: an error is a warning. It reads the Ghost of every open
 Entry in the top `TOP` (100) of each time board, Tracks, Maps and Dailies (Overall boards
-have none), whose UGC ID has no `ghosts` row, best rank first: `GetUGCFileDetails` with the
+have none), whose UGC ID has no `ghosts` row, best rank first, then those whose `ok` row
+has no profile (rows read before profiles were kept, read once more and updated in place),
+also best rank first: `GetUGCFileDetails` with the
 Web API key, then the file at the CDN URL it returns, which costs no quota. A few run at
 once, and the step starts no read after `BUDGET` (four minutes) and keeps what it has read
 (a read still going then can hold the run up by its own timeouts, not past them), so a backlog,
@@ -129,8 +134,11 @@ Ghost it revalidates the site again, since the boards draw them. It is skipped w
 `STEAM_API_KEY` or a database, and with `--out` writes only `DEV_DATABASE_URL`, as the
 database step does.
 
-What a Ghost holds beyond the Skin (the path at ~10 samples a second, velocities, the
-checkpoint splits, the texture slider in `ballerSkinPrefs`) is not stored. Ghosts from
+The Ghost's `locations` and `velocities` are lists of `{x, y, z}` in cm and cm/s, one per
+`elapsedTime` sample (~10 a second), and its `timestamp` reads `2026.09.28-22.48.51`, in
+UTC, or a year-1 date when unset. Only the set date, the top speed and the profile come
+from them; the path, the velocities, the checkpoint splits and the texture slider in
+`ballerSkinPrefs` are not stored. Ghosts from
 before about 2026-01 have no `?SpecialSkinClass`, and from before about 2026-07 no
 `ballerSkinPrefs`.
 
