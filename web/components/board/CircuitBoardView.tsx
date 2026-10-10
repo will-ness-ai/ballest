@@ -1,4 +1,5 @@
-// A Circuit board's page: the season's boards in the rail (a sheet on a phone), the card
+// A Circuit board's page: the season switch, the season's boards in the rail (a sheet on a
+// phone, beside the switch's chip), the card
 // across the top, the history card and plates, and the list. `slot` is what follows the board's
 // name in its path: a Steam ID whose row to find and mark, or on an Overall board
 // "podiums" for its podium order.
@@ -12,6 +13,7 @@ import { OverallCard, PodiumPlates, ScorePlates, SortSwitch, TrackCard } from ".
 import { HistoryCard } from "./HistoryCard";
 import { PointsDialog } from "./PointsDialog";
 import { RailItems } from "./Rail";
+import { SeasonChip, SeasonTabs } from "./SeasonSwitch";
 import {
   getBoardHistory,
   getBoardPage,
@@ -22,6 +24,7 @@ import {
 import { YouBanner } from "./YouBanner";
 import { YouMarks } from "./YouMarks";
 import { TRACKS, circuitBoard, trackNo } from "../../lib/circuit";
+import { seasonsOf } from "../../lib/player";
 import { PODIUM_SORT, boardHref } from "../../lib/routes";
 import { podiumRows } from "../../lib/podiums";
 import { BOARD_CHUNK, countText, isPoints, isSteamId } from "../../lib/rules";
@@ -37,12 +40,9 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
   const podiums = slot === PODIUM_SORT && !!tally;
   const focusId = slot && isSteamId(slot) ? slot : null;
   const own = site.boards.filter((x) => x.group === b.group);
-  /* how many Tracks an Overall board adds up: its season's, or for All Seasons, which has
-     none of its own, every Track */
-  const tracks =
-    tally?.tracks ??
-    (own.filter((x) => !isPoints(x.name)).length ||
-      site.boards.filter((x) => !isPoints(x.name)).length);
+  const seasons = seasonsOf(site.boards);
+  /* how many Tracks an Overall board adds up */
+  const tracks = tally?.tracks ?? seasons.find((s) => s.group === b.group)?.tracks ?? 0;
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
   const [page, scores, places, focus, history] = await Promise.all([
@@ -65,6 +65,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
   return (
     <div className="main">
       <DocTitle title={`${b.group} ${b.display}`} />
+      <SeasonTabs seasons={seasons} on={b.group} />
       <aside className="rail">
         <h2 id="railhead">{b.group}</h2>
         <nav className="boards" id="boards" aria-label="Leaderboard">
@@ -74,14 +75,17 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
 
       <section className="content">
         <YouMarks name={name} />
-        <BoardSheet
-          img={t?.img ?? null}
-          name={points ? b.display : trackNo(b.display)}
-          count={countText(b)}
-          group={b.group}
-        >
-          {items}
-        </BoardSheet>
+        <div className="boardrow">
+          <SeasonChip seasons={seasons} on={b.group} board={name} />
+          <BoardSheet
+            img={t?.img ?? null}
+            name={points ? b.display : trackNo(b.display)}
+            count={countText(b)}
+            group={b.group}
+          >
+            {items}
+          </BoardSheet>
+        </div>
 
         {points ? (
           <OverallCard b={b} rows={rows} tally={tally} tracks={tracks} podiums={podiums} />

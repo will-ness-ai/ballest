@@ -30,7 +30,7 @@ import {
   boardHref,
   dailyHref,
   dailyStandingsHref,
-  groupOfPath,
+  tabOfPath,
   isDailyDate,
   legacyPath,
   mapHref,
@@ -237,14 +237,20 @@ describe("Steam IDs and URLs", () => {
   });
 
   test("which tab a path lights", () => {
-    expect(groupOfPath("/")).toBe("Workshop");
-    expect(groupOfPath("/map/42")).toBe("Workshop");
-    expect(groupOfPath("/players/circuit/pod")).toBe("Players");
-    expect(groupOfPath("/daily")).toBe("Daily");
-    expect(groupOfPath("/daily/2026-09-05")).toBe("Daily");
-    expect(groupOfPath("/daily/standings")).toBe("Daily");
-    expect(groupOfPath("/dailyish")).toBeNull();
-    expect(groupOfPath(`/player/${ID}`)).toBeNull();
+    expect(tabOfPath("/")).toBe("Workshop");
+    expect(tabOfPath("/map/42")).toBe("Workshop");
+    expect(tabOfPath("/players/circuit/pod")).toBe("Players");
+    expect(tabOfPath("/daily")).toBe("Daily");
+    expect(tabOfPath("/daily/2026-09-05")).toBe("Daily");
+    expect(tabOfPath("/daily/standings")).toBe("Daily");
+    expect(tabOfPath("/dailyish")).toBeNull();
+    /* every Circuit board, whatever its season, lights the one Circuit tab */
+    expect(tabOfPath("/board/OverallLeaderboard_EASeason2")).toBe("Circuit");
+    expect(tabOfPath("/board/OverallLeaderboard")).toBe("Circuit");
+    expect(tabOfPath("/board/OverallLeaderboard_AllSeasons/podiums")).toBe("Circuit");
+    expect(tabOfPath("/board/Map_Track13")).toBe("Circuit");
+    expect(tabOfPath("/board/Nope")).toBeNull();
+    expect(tabOfPath(`/player/${ID}`)).toBeNull();
   });
 
   test("every old #/ link lands on its path", () => {

@@ -5,8 +5,21 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { seed } from "../db/seed/harness";
 import { circuitCounts, derivedStandings, playerData, workshopMaps } from "../db/site";
-import { CIRCUIT } from "../lib/circuit";
-import { matchup, playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
+import {
+  CIRCUIT,
+  COMPOSITE_BOARD,
+  S1_CURRENT_BOARD,
+  S1_TRACKS,
+  S2_OVERALL_BOARD,
+  S2_TRACKS,
+} from "../lib/circuit";
+import {
+  matchup,
+  playerRecord,
+  seasonsOf,
+  type IndexBoard,
+  type PlayerRecord,
+} from "../lib/player";
 import type { WorkshopMap } from "../lib/rows";
 import { freshDb } from "./pg";
 
@@ -217,5 +230,22 @@ describe("the head to head", () => {
     const m = matchup(await record(2), await record(5));
     expect(m.rows).toMatchObject([{ name: "Map_Track13", d: 0, win: "tie", rel: 0 }]);
     expect(m.tally.all).toEqual({ n: 1, a: 0, b: 0 });
+  });
+});
+
+describe("the Circuit's seasons", () => {
+  test("the newest season first, each opening its Overall board with its field and Tracks", () => {
+    const s = seasonsOf(boards);
+    const field = (name: string) => boards.find((b) => b.name === name)?.entryCount;
+    expect(s.map((x) => [x.group, x.overall, x.tracks])).toEqual([
+      ["Season 2", S2_OVERALL_BOARD, S2_TRACKS.length],
+      ["Season 1", S1_CURRENT_BOARD, S1_TRACKS.length],
+      ["All Seasons", COMPOSITE_BOARD, S1_TRACKS.length + S2_TRACKS.length],
+    ]);
+    expect(s.map((x) => x.players)).toEqual([
+      field(S2_OVERALL_BOARD),
+      field(S1_CURRENT_BOARD),
+      field(COMPOSITE_BOARD),
+    ]);
   });
 });

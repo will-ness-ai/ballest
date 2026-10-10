@@ -123,7 +123,11 @@ fails to load, or that Satori can't read, draws without it.
 - `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row.
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
-  cannot collide.
+  cannot collide. Every Circuit board lights the one Circuit tab, which opens the newest
+  season's Overall board. The seasons, newest first then All Seasons (`seasonsOf` in
+  `lib/player.ts`), are a row of sub-tabs under the tabs on a desktop and a chip beside
+  the board button on a phone, whose menu gives each season's Tracks and field. Each
+  season opens its Overall board.
 - `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/circuit`, `/workshop`,
   `/made`). Without one the page opens on Workshop for anyone with a Workshop time, else
   Circuit.
@@ -252,8 +256,8 @@ going sideways; on the desktop layout it fits, and the page scrolls. The pinned 
 your own row, once you are signed in, shown at the foot while the row is out of view: how
 far the next rank up and the top 10 are, and a click scrolls to the row.
 
-The Players tab sits last in the tab bar, but it is not a season, so it is lit from the
-path rather than a group.
+The Players tab sits last in the tab bar, and like every tab it is lit from the path
+(`tabOfPath`).
 
 ## Checking a change
 
