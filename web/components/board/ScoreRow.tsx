@@ -1,12 +1,15 @@
 // A board's ranked row: rank, marble, name, the gap to the leader and to the place above,
 // the score, and the mark beside it. A board's list draws it, and so can any page with a
-// ranked board of its own. No state, so server and client components both use it.
+// ranked board of its own. No state, so server and client components both use it. Given
+// onRace, a row whose run races has its time as the button that opens the race drawer
+// (RaceDrawer), which the list draws under it.
 import { memo } from "react";
 
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
 import type { Medals } from "../../lib/podiums";
+import { raceDrawerId } from "../../lib/race";
 import { fmtN, fmtTime, hueFor, ord, personaOf } from "../../lib/rules";
 import type { BoardRow } from "../../lib/rows";
 
@@ -21,6 +24,8 @@ export const ScoreRow = memo(function ScoreRow({
   focus,
   leads = "Leads the board",
   mark,
+  open = false,
+  onRace,
 }: {
   r: BoardRow;
   /* the leader's score, which the first gap is to */
@@ -31,6 +36,9 @@ export const ScoreRow = memo(function ScoreRow({
   focus: boolean;
   leads?: string;
   mark?: React.ReactNode;
+  /* this row's race drawer is open */
+  open?: boolean;
+  onRace?: (steamId: string) => void;
 }) {
   const gap = points ? lead - r.score : r.score - lead;
   const prev = r.ahead;
@@ -48,6 +56,7 @@ export const ScoreRow = memo(function ScoreRow({
         .join(" · ")
     : "";
   const p = pods ? pods[r.steamId] : undefined;
+  const score = points ? fmtN(r.score) : fmtTime(r.score);
   return (
     <div
       className={focus ? "row focus" : "row"}
@@ -87,7 +96,22 @@ export const ScoreRow = memo(function ScoreRow({
       </span>
       {pods && <span className="c-pods">{p ? <MedalCounts p={p} /> : null}</span>}
       <span className="c-score">
-        <span>{points ? fmtN(r.score) : fmtTime(r.score)}</span>
+        {r.race && onRace ? (
+          <button
+            type="button"
+            className="c-race"
+            aria-expanded={open}
+            aria-controls={open ? raceDrawerId(r.steamId) : undefined}
+            aria-label={`${score}, race this run`}
+            onClick={() => {
+              onRace(r.steamId);
+            }}
+          >
+            {score}
+          </button>
+        ) : (
+          <span>{score}</span>
+        )}
         {mark ?? <i className="pill"></i>}
       </span>
     </div>

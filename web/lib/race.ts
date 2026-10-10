@@ -35,3 +35,6 @@ export function timeAt(profile: ReadonlyArray<number>, f: number) {
   const before = i ? profile[i - 1] : 0;
   return x >= n ? profile[n - 1] : before + (profile[i] - before) * (x - i);
 }
+
+/* the id of a row's race drawer, which its button controls */
+export const raceDrawerId = (steamId: string) => "race-" + steamId;

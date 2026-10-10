@@ -1007,3 +1007,253 @@
   font-size: calc(12.5rem / 16);
   white-space: nowrap;
 }
+
+/* a row, plate or podium step whose run races: its time is the button that opens the race
+   drawer (components/board/RaceDrawer.tsx), and the button covers the whole row or plate.
+   The reset is in :where so the time's own class keeps its font. */
+.row:has(.c-race),
+.plate:has(.c-race),
+.dp-steps li:has(.c-race) {
+  position: relative;
+}
+.row:has(.c-race) .nm a,
+.plate:has(.c-race) .pl-name a,
+.dp-steps li:has(.c-race) .dp-wn a {
+  position: relative;
+  z-index: 1;
+}
+:where(.c-race) {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+.c-race {
+  cursor: pointer;
+  text-decoration: underline dotted color-mix(in oklch, var(--faint), transparent 30%);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+.c-race::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.c-race:focus-visible {
+  outline: 2px solid transparent;
+}
+.row:has(.c-race:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.plate:has(.c-race:focus-visible),
+.dp-steps li:has(.c-race:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius);
+}
+.plate:has(.c-race[aria-expanded="true"]) .pl-score,
+.dp-steps li:has(.c-race[aria-expanded="true"]) .num {
+  color: var(--accent);
+}
+.row:has(.c-race[aria-expanded="true"]) {
+  background: var(--surface2);
+}
+.row:has(.c-race):active {
+  background: var(--surface2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .row:has(.c-race):hover {
+    background: var(--surface);
+  }
+}
+
+.race-drawer {
+  padding-block: 4px 16px;
+  padding-inline: 12px;
+  border-block-end: 1px solid var(--line2);
+  background: var(--surface2);
+}
+.race-drawer:last-child {
+  border-block-end: 0;
+  border-radius: 0 0 13px 13px;
+}
+.race-drawer.race-podium {
+  margin: 0 var(--pad) 14px;
+  padding: 14px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.race-run {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.race-meta {
+  margin: 0;
+  font: 500 calc(13rem / 16) var(--f-hud);
+  color: var(--dim);
+}
+.race-meta b {
+  color: var(--text);
+  font-weight: 600;
+}
+.race-num {
+  font-variant-numeric: tabular-nums;
+}
+.race-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  background: color-mix(in oklch, var(--solid), black 25%);
+}
+.race-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 4px;
+}
+.race-bar p {
+  margin: 0;
+  flex: 1 1 16ch;
+  font-size: calc(12.5rem / 16);
+  color: var(--dim);
+}
+.race-bar p b {
+  color: var(--text);
+}
+.race-clock {
+  margin-inline-start: auto;
+  font: 600 calc(14rem / 16) var(--f-hud);
+  color: var(--text);
+}
+.race-btn {
+  position: relative;
+  border: 0;
+  cursor: pointer;
+  padding-block: 6px;
+  padding-inline: 14px;
+  border-radius: 999px;
+  background: var(--surface2);
+  color: var(--text);
+  font: 600 calc(12rem / 16) var(--f-hud);
+}
+.race-btn::after {
+  content: "";
+  position: absolute;
+  inset: min(0px, (100% - 44px) / 2);
+}
+.race-btn:active {
+  transform: scale(0.97);
+}
+.race-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .race-btn:hover {
+    background: color-mix(in oklch, var(--surface2), white 8%);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .race-btn {
+    transition:
+      transform 160ms var(--ease-out),
+      background-color 160ms var(--ease-out);
+  }
+}
+.race-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.race-lane {
+  position: relative;
+  block-size: 24px;
+  border-block-end: 1px dashed var(--line);
+}
+.race-lane span,
+.race-on {
+  position: absolute;
+  inset-inline-start: 0;
+  font: 600 calc(10rem / 16) var(--f-hud);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  pointer-events: none;
+}
+.race-lane span {
+  inset-block-start: 0;
+}
+.race-ball {
+  position: absolute;
+  inset-block-end: 0;
+  inline-size: 18px;
+  block-size: 18px;
+  border-radius: 50%;
+  translate: -50% 50%;
+  background: radial-gradient(
+    circle at 34% 27%,
+    hsl(var(--h) 94% 90%),
+    hsl(var(--h) 80% 64%) 34%,
+    hsl(var(--h) 62% 25%)
+  );
+}
+.race-ball-rival {
+  background: radial-gradient(
+    circle at 34% 27%,
+    color-mix(in oklch, var(--gold), white 70%),
+    var(--gold) 34%,
+    color-mix(in oklch, var(--gold), black 55%)
+  );
+}
+.race-gap {
+  position: relative;
+  touch-action: none;
+  cursor: ew-resize;
+  border-block-start: 1px solid var(--line2);
+  padding-block-start: 6px;
+}
+.race-gap svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 96px;
+}
+.race-gap polyline,
+.race-gap line {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+.race-line {
+  stroke: hsl(var(--h) 80% 64%);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.race-zero {
+  stroke: var(--gold);
+  stroke-dasharray: 4 4;
+  opacity: 0.55;
+}
+.race-head {
+  stroke: var(--text);
+  stroke-width: 1.5;
+  opacity: 0.7;
+}
+.race-on-up {
+  inset-block-end: 50%;
+}
+.race-on-dn {
+  inset-block-start: calc(50% + 6px);
+}
+.race-axis {
+  display: flex;
+  justify-content: space-between;
+  font: 500 calc(10.5rem / 16) var(--f-hud);
+  color: var(--faint);
+}
