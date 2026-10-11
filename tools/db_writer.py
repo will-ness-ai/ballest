@@ -6,10 +6,10 @@ write_refresh is the one entry point that changes the database. It takes a Refre
 collector holds it after its guards have run, and writes it in one transaction:
 
   - the Refresh itself, then every board it carries (Tracks, Overall boards, each Map's)
-  - board_reads: a row per board read, ok or not. A board the collector kept from the
-    committed copy (Refresh.reused), a Map whose read failed, and a board that came back
-    empty are all ok=false, and their Entries are left exactly as they were. A Map the
-    Workshop step did not read has no row at all.
+  - board_reads: a row per board read, ok or not. A Circuit board whose read failed
+    (Refresh.failed), a Map whose read failed, and a board that came back empty are all
+    ok=false, and their Entries are left exactly as they were. A Map the Workshop step did
+    not read has no row at all.
   - for each board read ok: an open Entry whose score is unchanged only moves
     last_seen_refresh; a changed score closes the old Entry and opens a new one; a new
     player opens one; a player no longer on the board has theirs closed, never deleted.
@@ -18,29 +18,27 @@ collector holds it after its guards have run, and writes it in one transaction:
   - players and persona_history, maps and map_history: upserted, with a history row
     appended only when something in it changed (otherwise its last_seen_refresh moves).
 
-The derived boards (Season 1 Current, All Seasons) are never stored: they come from these
-rows. A score is the raw score_ms, ticks (SCORE_TICKS_PER_SECOND) on a time board and
+The derived boards (Season 1 Current, All Seasons) are never stored: the site works them
+out from these rows. A score is the raw score_ms, ticks (SCORE_TICKS_PER_SECOND) on a time board and
 points on an Overall one; nothing here converts it.
 
 Set-based throughout, because a Refresh carries ~155k rows across ~1,100 boards: rows go
 into temp tables by COPY and each step is one statement over them.
 
-record_refresh wraps write_refresh for the collector: picks the database, never lets a
-database failure stop the JSON write, and revalidates the site after a commit.
+record_refresh wraps write_refresh for the collector: picks the database, logs a failure
+rather than raising it, and revalidates the site after a commit. load_memory is the other
+way: what the collector remembers between Refreshes, read back from the same tables.
 """
 
 import os
 import urllib.request
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import UTC, datetime
 
 import campaign_common as cc
 import daily
 import psycopg
 from psycopg.rows import dict_row
-
-# Built by the collector from Steam's boards, so stored only as the rows they come from.
-DERIVED_BOARDS = frozenset({cc.S1_CURRENT_BOARD, cc.COMPOSITE_BOARD})
 
 
 @dataclass
@@ -48,19 +46,18 @@ class Refresh:
     """What one Refresh read, as the collector holds it once its guards have run.
 
     boards: Circuit boards ({"name", "group", "entry_count", "rows"}), rows as board_rows
-      makes them with names filled in. A derived board here is skipped.
-    reused: names in boards whose read failed and whose rows are the committed copy.
-    workshop: what collect_workshop returned, if the Workshop files were published this
-      Refresh: {"maps": [...], "boards": {pfid: rows read}, "failed": [pfid, ...]}. None
-      when the Workshop step failed or its guards kept the committed files, and then no
-      Map counts as read.
+      makes them with names filled in.
+    failed: names in boards whose read failed this Refresh. Their rows, if any, are ignored.
+    workshop: what collect_workshop returned: {"maps": [...], "boards": {pfid: rows read},
+      "failed": [pfid, ...], "full_sweep": whether it read every Map}. None when the
+      Workshop step failed or its guards declined, and then no Map counts as read.
     dailies: a daily.DailyRead per Daily the Daily step read, ok or not. A Daily not read
       (final already, or not yet open) is left out, and its rows stay as they are.
     """
 
     started_at: datetime
     boards: list = field(default_factory=list)
-    reused: tuple = ()
+    failed: tuple = ()
     workshop: dict | None = None
     dailies: tuple = ()
     source: str = "collector"
@@ -69,7 +66,7 @@ class Refresh:
 
 
 def database_url(env, *, scratch=False):
-    """The database this run writes, or None to skip the step. A run with --out (scratch)
+    """The database this run writes, or None to skip the step. A run with --dev (scratch)
     writes only DEV_DATABASE_URL, never DATABASE_URL, so a feature branch can't touch
     production, and a DEV_DATABASE_URL equal to DATABASE_URL counts as unset."""
     if scratch:
@@ -79,11 +76,10 @@ def database_url(env, *, scratch=False):
 
 
 def record_refresh(refresh, *, scratch=False, env=None):
-    """The collector's database step, after the JSON is written. Returns the Refresh's ID,
-    or None when it was skipped or failed. It never raises: the JSON is still the source
-    while the collector writes both, so a database failure is a GitHub ::error:: line and
-    the run goes on, and the parity check after the commit (check_db.py) turns the job
-    red. After a commit, revalidates the site's cached reads."""
+    """The collector's database step. Returns the Refresh's ID, or None when it was skipped
+    or failed, which the collector turns into a failed run. It never raises: a database
+    failure is a GitHub ::error:: line. After a commit, revalidates the site's cached
+    reads."""
     env = os.environ if env is None else env
     url = database_url(env, scratch=scratch)
     if not url:
@@ -94,7 +90,7 @@ def record_refresh(refresh, *, scratch=False, env=None):
         with psycopg.connect(url, connect_timeout=30) as conn:
             rid = write_refresh(conn, refresh)
     except Exception as e:
-        print(f"::error::Database write failed; the JSON is written regardless: {e!r}")
+        print(f"::error::Database write failed; this Refresh is lost: {e!r}")
         return None
     print(f"Database: wrote Refresh {rid}")
     revalidate(env)
@@ -128,6 +124,91 @@ def load_dailies(*, scratch=False, env=None):
             return known_dailies(conn)
     except Exception as e:
         print(f"::warning::Reading the known Dailies failed: {type(e).__name__}")
+        return None
+
+
+@dataclass
+class Memory:
+    """What the collector remembers between Refreshes, all of it read back from what earlier
+    Refreshes wrote (load_memory).
+
+    names: {steam_id: {"persona", "avatar", "profileurl"}} for every player with a persona,
+      which a run carries forward rather than looking up again (cc.name_rows).
+    maps: {pfid: {"handle", "entry_count", "rows", "sessions", "subs"}} for every Map ever
+      stored: its board's leaderboard ID (None until a first finish makes one), and as of
+      its last successful read, Steam's entry count, the open Entries, and the Workshop
+      session and subscription counts (collect_workshop reads a board when these move).
+    listed: how many Maps the latest catalogue listed, for the shrink guard.
+    full_sweep_at: when the latest Refresh that read every Map's board started, in Unix
+      seconds, or 0 if none has.
+    """
+
+    names: dict = field(default_factory=dict)
+    maps: dict = field(default_factory=dict)
+    listed: int = 0
+    full_sweep_at: int = 0
+
+
+def read_memory(conn):
+    """The Memory the database at conn holds."""
+    names = {
+        sid: {"persona": persona, "avatar": avatar or "", "profileurl": url or ""}
+        for sid, persona, avatar, url in conn.execute(
+            "select steam_id, persona, avatar, profile_url from players where persona <> ''"
+        )
+    }
+    maps, latest = {}, None
+    for pfid, lid, entry_count, sessions, subs, seen, held in conn.execute(
+        """
+        select m.pfid, b.leaderboard_id, h.entry_count, h.sessions, h.subs,
+          h.last_seen_refresh, coalesce(n.held, 0)
+        from maps m
+        join boards b on b.name = m.board
+        join lateral (
+          select entry_count, sessions, subs, last_seen_refresh from map_history
+          where pfid = m.pfid order by last_seen_refresh desc, id desc limit 1
+        ) h on true
+        left join (
+          select board, count(*) as held from entries
+          where closed_refresh is null and board in (select board from maps)
+          group by board
+        ) n on n.board = m.board
+        """
+    ):
+        maps[pfid] = {
+            "handle": str(lid) if lid else None,
+            "entry_count": entry_count or 0,
+            "rows": held,
+            "sessions": sessions,
+            "subs": subs,
+            "seen": seen,
+        }
+        latest = max(latest or seen, seen)
+    # the Maps whose latest row the newest catalogue wrote, as the site counts the Workshop
+    listed = sum(1 for m in maps.values() if m.pop("seen") == latest)
+    (swept,) = conn.execute("select max(started_at) from refreshes where full_sweep").fetchone()
+    return Memory(
+        names=names,
+        maps=maps,
+        listed=listed,
+        full_sweep_at=int(swept.astimezone(UTC).timestamp()) if swept else 0,
+    )
+
+
+def load_memory(*, scratch=False, env=None):
+    """The Memory of the database this run writes, or None when there is no such database
+    or it can't be read: the collector then has nowhere to write either, and stops."""
+    env = os.environ if env is None else env
+    url = database_url(env, scratch=scratch)
+    if not url:
+        var = "DEV_DATABASE_URL" if scratch else "DATABASE_URL"
+        print(f"::error::No {var}: the collector has no database to read or write")
+        return None
+    try:
+        with psycopg.connect(url, connect_timeout=30) as conn:
+            return read_memory(conn)
+    except Exception as e:
+        print(f"::error::Reading the collector's memory from the database failed: {e!r}")
         return None
 
 
@@ -171,17 +252,15 @@ def _copy(cur, table, cols, rows):
 def _gather(refresh):
     """(boards, reads, entries, players, maps, days) from the Refresh: plain tuples, but the
     Maps as the Workshop result holds them and the days as daily.Daily."""
-    reused = set(refresh.reused)
+    failed = set(refresh.failed)
     boards, reads, read_rows = [], [], []
     for b in refresh.boards:
         name = b["name"]
-        if name in DERIVED_BOARDS:
-            continue
         lid = cc.LEADERBOARD_IDS.get(name) or (int(b["handle"]) if b.get("handle") else None)
         kind = board_kind(name)
         boards.append((name, kind, b.get("group"), cc.display_name(name), lid, kind == "overall"))
         # An empty read is a failed read: it must never close a whole board's Entries.
-        ok = name not in reused and bool(b["rows"])
+        ok = name not in failed and bool(b["rows"])
         reads.append((name, ok, b.get("entry_count") if ok else None))
         read_rows.append((name, b["rows"], ok))
     maps = []
@@ -251,9 +330,14 @@ def write_refresh(conn, refresh):
     boards, reads, entries, players, maps, days = _gather(refresh)
     with conn.transaction(), conn.cursor() as cur:
         (rid,) = cur.execute(
-            "insert into refreshes (started_at, source, commit_sha) values (%s, %s, %s)"
-            " returning id",
-            (refresh.started_at, refresh.source, refresh.commit_sha),
+            "insert into refreshes (started_at, source, commit_sha, full_sweep)"
+            " values (%s, %s, %s, %s) returning id",
+            (
+                refresh.started_at,
+                refresh.source,
+                refresh.commit_sha,
+                bool(refresh.workshop and refresh.workshop.get("full_sweep")),
+            ),
         ).fetchone()
 
         _copy(

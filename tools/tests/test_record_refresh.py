@@ -1,5 +1,5 @@
 """record_refresh, the collector's database step: which database it writes, and that a
-database failure never stops the Refresh."""
+database failure is reported rather than raised."""
 
 import threading
 from datetime import UTC, datetime
@@ -19,7 +19,7 @@ def test_a_run_writes_database_url():
     assert db_writer.database_url({"DATABASE_URL": PROD, "DEV_DATABASE_URL": DEV}) == PROD
 
 
-def test_an_out_run_writes_only_the_dev_database():
+def test_a_dev_run_writes_only_the_dev_database():
     env = {"DATABASE_URL": PROD, "DEV_DATABASE_URL": DEV}
     assert db_writer.database_url(env, scratch=True) == DEV
     assert db_writer.database_url({"DATABASE_URL": PROD}, scratch=True) is None
@@ -33,6 +33,16 @@ def test_an_out_run_writes_only_the_dev_database():
 def test_no_url_skips_the_step(capsys):
     assert db_writer.record_refresh(refresh(), env={}) is None
     assert "skipping" in capsys.readouterr().out
+
+
+def test_no_url_leaves_the_collector_no_memory(capsys):
+    assert db_writer.load_memory(env={}) is None
+    assert "::error::" in capsys.readouterr().out
+
+
+def test_a_dev_run_reads_its_memory_from_the_dev_database(db_url):
+    memory = db_writer.load_memory(scratch=True, env={"DEV_DATABASE_URL": db_url})
+    assert memory == db_writer.Memory()
 
 
 def test_a_database_failure_is_logged_as_an_error_and_does_not_raise(capsys):

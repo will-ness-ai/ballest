@@ -7,7 +7,6 @@ import { describe, expect, test } from "vitest";
 import { CIRCUIT, TRACKS } from "../lib/circuit";
 import { calendarOf, dayLabel, isLive, timeLeft, todayOf } from "../lib/daily";
 import {
-  CREATOR_BEAT_MARGIN_TICKS,
   SCORE_TICKS_PER_SECOND,
   ageText,
   fmtSec,
@@ -112,7 +111,7 @@ describe("words and numbers", () => {
 });
 
 describe("the game's rules", () => {
-  test("a Track's points for a place (track_points in campaign_common.py)", () => {
+  test("a Track's points for a place", () => {
     expect([1, 2, 3, 10, 11, 100, 101, 1000, 10000].map(trackPoints)).toEqual([
       40000, 20000, 13333, 4000, 3618, 2000, 1890, 1000, 500,
     ]);
@@ -136,14 +135,9 @@ describe("the game's rules", () => {
     expect(timeMedal([], 1)).toBe("none");
   });
 
-  test("a creator's own margin applies to authorBeaten alone, as the collector's does", () => {
-    // the collector's author_beaten and workshopMaps' SQL share the margin
-    const py = readFileSync(new URL("../../tools/campaign_common.py", import.meta.url), "utf8");
-    expect(Number(/^CREATOR_BEAT_MARGIN_TICKS = (\d+)/m.exec(py)?.[1])).toBe(
-      CREATOR_BEAT_MARGIN_TICKS,
-    );
-    // a Medal does not: a run at the author time is an author Medal, whoever set it,
-    // as on the old page
+  test("a creator's own run at the author time still earns the author Medal", () => {
+    // CREATOR_BEAT_MARGIN_TICKS applies to a Map's authorBeaten count alone, as on the
+    // old page
     expect(medalOf([30, 20, 15, 12], 2, 12 * SCORE_TICKS_PER_SECOND)).toBe("author");
   });
 });

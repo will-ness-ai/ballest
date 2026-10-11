@@ -52,7 +52,7 @@ which `pnpm --dir web exec next typegen` writes (CI runs it first).
 - **Index reads are typed as present** (`noUncheckedIndexedAccess` is off), so
   `no-unnecessary-condition` rejects `m[1] ?? "all"` on a regex group. Type an optional
   group as what it is first: `(m[1] as string | undefined) ?? "all"`, or `slot.at(1)`.
-- **Not linted**: `leth/` (a frozen snapshot), `data/` (CI-written), the vendored
+- **Not linted**: `leth/` (a frozen snapshot), a local `data/`, the vendored
   `.claude/skills/`. `.prettierignore` and the `globalIgnores` in `eslint.config.js` list them.
 - **The legacy Steamworks-SDK scripts** (`tools/README-hosting.md`) are formatted and linted
   for bugs, but keep their style (SDK struct names, bare `open()`): they only run on Windows
