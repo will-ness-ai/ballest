@@ -94,6 +94,22 @@ const ROUTES = [
   ["/multiballs/terms", 200],
   ["/multiballs/privacy", 200],
   ["/robots.txt", 200, null, "Disallow: /player/*/"],
+  ["/robots.txt", 200, null, "Sitemap: https://ballestrecords.com/sitemap.xml"],
+  ["/sitemap.xml", 200, null, "<loc>https://ballestrecords.com/map/" + MAP + "</loc>"],
+  // a view of a page names the page itself as canonical (lib/sitemap.ts, docs/site.md)
+  [
+    "/player/" + P1 + "/circuit",
+    200,
+    null,
+    '<link rel="canonical" href="https://ballestrecords.com/player/' + P1 + '"',
+  ],
+  [
+    "/board/OverallLeaderboard_EASeason2/podiums",
+    200,
+    null,
+    '<link rel="canonical" href="https://ballestrecords.com/board/OverallLeaderboard_EASeason2"',
+  ],
+  ["/", 200, null, '"@type":"WebSite"'],
   ["/no-such-page", 404],
 ];
 

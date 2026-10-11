@@ -8,9 +8,9 @@ import { Shell } from "../../../../components/Shell";
 import { BoardSkeleton } from "../../../../components/Skeleton";
 import { CircuitBoardView } from "../../../../components/board/CircuitBoardView";
 import { CIRCUIT, circuitBoard } from "../../../../lib/circuit";
-import { PODIUM_SORT } from "../../../../lib/routes";
+import { PODIUM_SORT, boardHref } from "../../../../lib/routes";
 import { isPoints } from "../../../../lib/rules";
-import { shareMetadata } from "../../../../components/share/metadata";
+import { pageMetadata } from "../../../../components/share/metadata";
 import { hasTrackCard } from "../../../../lib/share";
 
 interface Props {
@@ -30,11 +30,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!b) return {};
   const title = `${b.group} ${b.display}`;
   const description = `The ${title} leaderboard of Ballest of Them All, read straight from Steam.`;
-  /* a Track has its own share image; an Overall board keeps the site's */
-  if (!hasTrackCard(b)) return { title, description };
-  return shareMetadata(
-    { title, description },
-    { kind: "track", id: b.name, alt: `Circuit track ${title} and its record.` },
+  /* a player's row or the podium order is a view of the board; a Track has its own share
+     image, and an Overall board keeps the site's */
+  return pageMetadata(
+    { title, description, canonical: boardHref(b.name) },
+    hasTrackCard(b)
+      ? { kind: "track", id: b.name, alt: `Circuit track ${title} and its record.` }
+      : undefined,
   );
 }
 

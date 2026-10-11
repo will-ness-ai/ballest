@@ -6,11 +6,13 @@ import { Suspense } from "react";
 import { Shell } from "../../../components/Shell";
 import { DailySkeleton } from "../../../components/Skeleton";
 import { StandingsView } from "../../../components/daily/StandingsView";
+import { dailyStandingsHref } from "../../../lib/routes";
 
 export const metadata: Metadata = {
   title: "Daily standings",
   description:
     "The game's Daily, all time: the most wins, podiums and Dailies played, the longest runs, and every player's medals.",
+  alternates: { canonical: dailyStandingsHref() },
 };
 
 export default function Page() {

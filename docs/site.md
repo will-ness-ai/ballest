@@ -176,6 +176,25 @@ head to heads and `/api/`. Every one of those multiplies by the number of player
 crawlers walking them all once outran the site's Hobby limits. A new route that adds a
 view of a page belongs on that list.
 
+Search engines get the rest from `/sitemap.xml` (`app/sitemap.ts`, `lib/sitemap.ts`),
+which robots.txt names. It lists the pages worth a search result, not every page allowed:
+the Workshop, All maps, Players, Daily and Daily standings pages, every Circuit board,
+every Map with a time, every Daily, and only the players with a world record or podium,
+some two thousand pages where all of them would be fifteen thousand more. Each is a server
+render per Refresh for whichever crawler reads it, so keep it to pages people search for.
+Only a final Daily carries a `lastmod` (its close), since a page that changes every
+Refresh would only ask crawlers back sooner. A test checks robots.txt allows every listed
+page. The sitemap reads the cached data, so a Refresh's revalidate renews it too.
+
+Every page names its canonical address (`alternates.canonical`; a page with a
+`generateMetadata` goes through `pageMetadata` in `components/share/metadata.ts`), on
+`ballestrecords.com` through `metadataBase`: a view
+names the page it is a view of (a player's tab names the player's page, a board or Map
+focused on a row or in podium order names the board), while All maps' views, the Players
+table's rankings and each Daily are pages of their own. A head to head is `noindex`. The
+homepage's title says what the site is, and it carries the site's name for search results
+as schema.org `WebSite` JSON-LD.
+
 The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash` replaces
 one with its path on load (`legacyPath` in `lib/routes.ts`). Every player name links to a
 player page (`PlayerLink`), and the link out to Steam lives on that page. A Map's creator

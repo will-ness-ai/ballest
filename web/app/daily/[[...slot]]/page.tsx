@@ -10,8 +10,8 @@ import { DailySkeleton } from "../../../components/Skeleton";
 import { DailyView } from "../../../components/daily/DailyView";
 import { getDailies, getDaily, getDailyDates } from "../../../db/data";
 import { dayLabel } from "../../../lib/daily";
-import { isDailyDate } from "../../../lib/routes";
-import { shareMetadata } from "../../../components/share/metadata";
+import { dailyHref, isDailyDate } from "../../../lib/routes";
+import { pageMetadata } from "../../../components/share/metadata";
 
 interface Props {
   params: Promise<{ slot?: Array<string> }>;
@@ -33,22 +33,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const latest = {
       title: "Daily",
       description: "The game's Daily, one Workshop map a day, and every day's results.",
+      canonical: dailyHref(),
     };
     /* /daily opens on the newest Daily (DailyView reads the same list), so it shares that
        day's card */
-    return newest
-      ? shareMetadata(latest, {
-          kind: "daily",
-          id: newest,
-          alt: "The newest Daily's Map and its fastest time.",
-        })
-      : latest;
+    return pageMetadata(
+      latest,
+      newest
+        ? { kind: "daily", id: newest, alt: "The newest Daily's Map and its fastest time." }
+        : undefined,
+    );
   }
   const day = dayLabel(d.date, true);
-  return shareMetadata(
+  return pageMetadata(
     {
       title: `${d.title} · Daily ${day}`,
       description: `The Daily of ${day} on ${d.title}: every time, read straight from Steam.`,
+      canonical: dailyHref(d.date),
     },
     { kind: "daily", id: d.date, alt: `The Daily of ${day} on ${d.title} and its fastest time.` },
   );

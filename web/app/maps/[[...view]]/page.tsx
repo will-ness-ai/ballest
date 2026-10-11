@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import { Remember } from "../../../components/BackLink";
 import { Shell } from "../../../components/Shell";
+import { pageMetadata } from "../../../components/share/metadata";
 import { AllMaps } from "../../../components/workshop/AllMaps";
 import { getMapCards, getSite } from "../../../db/data";
 import { mapsHref } from "../../../lib/routes";
@@ -19,11 +20,16 @@ export function generateStaticParams() {
   return [{ view: [] }, ...Object.keys(PRESETS).map((v) => ({ view: [v] }))];
 }
 
-export const metadata: Metadata = {
-  title: "All maps",
-  description:
-    "Every Ballest of Them All Workshop map with a time, by runs, plays, length, age or how close the racing is.",
-};
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { view = [] } = await params;
+  return pageMetadata({
+    title: "All maps",
+    description:
+      "Every Ballest of Them All Workshop map with a time, by runs, plays, length, age or how close the racing is.",
+    /* each view is its own list, so its own page */
+    canonical: mapsHref(view.length === 1 && isPreset(view[0]) ? view[0] : null),
+  });
+}
 
 async function Maps({ params }: Props) {
   const { view = [] } = await params;
