@@ -355,7 +355,7 @@ def name_rows(row_lists, all_ids, known):
     # The slice covers every player we know, not only this run's rows: a Workshop board
     # is re-read only when played, so its players would otherwise rarely come up.
     due = names_due(set(all_ids) | set(known), known)
-    print(f"Resolving {len(due)} of {len(all_ids)} player names (new, plus this run's slice)...")
+    print(f"Resolving {len(due)} player names (new, plus this run's slice)...")
     names = {sid: dict(v) for sid, v in known.items()}
     for sid, info in resolve_names(key, due).items():
         cur = names.setdefault(sid, {})

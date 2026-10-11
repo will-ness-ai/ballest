@@ -90,9 +90,8 @@ A Daily's read follows the same rule as any board's: a failed or empty read is a
 The Daily step (`collect_dailies` in `tools/steampy_collect.py`) runs after the Workshop
 step and never blocks it or the Circuit. Without `BALLEST_API_KEY` and
 `BALLEST_DAILY_URL` (GitHub secrets, given to the collector step only; the URL is a prefix
-the collector appends the date to), or without a
-database to write to, it is skipped with a log line. It loads the Dailies the database
-holds (`db_writer.load_dailies`), and `daily.plan` picks every date since the first Daily
+the collector appends the date to) it is skipped with a log line. It plans from the
+Dailies the database holds (`known_dailies`, part of the collector's memory), and `daily.plan` picks every date since the first Daily
 (2026-08-20) with no final Daily: one the database doesn't hold is looked up in the API
 (one call a second at most, well under the API's limit; a date with no Daily, or a failed call, is
 tried again next run), and one that has opened is read by its `leaderboard_id` through
@@ -116,7 +115,8 @@ The database is also the collector's only memory between runs. Before it logs in
   latest `map_history` row the Workshop sessions, subscriptions and entry count as of its
   last good read, with how many open Entries its board holds;
 - how many Maps the latest catalogue listed, for the shrink guard;
-- when the latest Refresh with `full_sweep` started.
+- when the latest Refresh with `full_sweep` started;
+- every Daily it holds, for the Daily step to plan from.
 
 `collect_workshop` in `tools/steampy_collect.py` reads a Map's board only when its Workshop
 session or subscription count moved since its last read, plus every board once every
@@ -168,13 +168,14 @@ skipped. It refuses a database holding any Refresh unless given `--rebuild`, whi
 truncates every table first, and refuses even then once the database holds a collector
 Refresh newer than the last snapshot, which nothing could bring back: production, from
 phase 5 on. `backfill.yml` runs it by hand, so it can only ever fill an empty production.
+On 2026-10-04 it replayed 150 snapshots in ~7.5 minutes locally to 1.24M Entries and 470
+MB, 1.05M of those Entries on the Season 2 Overall board, whose points move for most
+players on every Refresh.
 
 **Snapshot before anything that could lose rows.** With no JSON in git, a Neon snapshot is
-the only way back from a bad migration or a leaderboard reset by the developers (one is
-expected: `notes/leaderboard-reset-analysis.md` in the project files). Take one in the Neon
-console (the `ballest` project's Storage tab, the database, then Open in Neon) before either. On 2026-10-04 it replayed 150 snapshots in ~7.5 minutes
-locally to 1.24M Entries and 470 MB, 1.05M of those Entries on the Season 2 Overall board,
-whose points move for most players on every Refresh.
+the only way back from a bad migration or a leaderboard reset by the developers, which is
+expected. Take one in the Neon console (the `ballest` project's Storage tab, the database,
+then Open in Neon) before either.
 
 Tests in `web/test/` each get a throwaway database on the Postgres at `TEST_DATABASE_URL`
 (`postgres://postgres:postgres@localhost:5432/postgres` by default), which `web.yml`

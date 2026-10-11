@@ -201,8 +201,8 @@ export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
         return (yield* getJson(file.data.url, {}, Ghost)).timestamp;
       }),
 
-      /** The campaign Track boards' ids, as the leaderboard site currently lists them. */
-      campaignBoardIds: Effect.fn("WebApi.campaignBoardIds")(function* () {
+      /** The Circuit Track boards' ids, as the leaderboard site lists them (GET /api/tracks). */
+      trackBoardIds: Effect.fn("WebApi.trackBoardIds")(function* () {
         const { tracks } = yield* getJson(`${site}/api/tracks`, {}, SiteTracks);
         return tracks.map((t) => t.leaderboardId);
       }),

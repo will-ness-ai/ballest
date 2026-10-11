@@ -164,11 +164,10 @@ async def collect_workshop(catalogue, all_ids, memory):
 DAILY_API_PACE = 1.0
 
 
-async def collect_dailies(all_ids):
+async def collect_dailies(all_ids, memory):
     """Read the Dailies that are due (daily.plan): a list of daily.DailyRead for
     db_writer, each with its rows or None for a read that failed. Returns [] when the step
-    is skipped: no API secrets, or no database to learn the known Dailies from and write
-    them to (they are database-only).
+    is skipped for want of the API secrets. The Dailies already held are memory.dailies.
 
     The due Dailies the database holds are read first, then each Daily it doesn't hold is
     looked up, paced by DAILY_API_PACE, and read; a lookup that fails, or a date with no
@@ -179,12 +178,8 @@ async def collect_dailies(all_ids):
     if not (url and key):
         print("Daily: no BALLEST_API_KEY/BALLEST_DAILY_URL; skipping the Daily step")
         return []
-    known = await asyncio.to_thread(db_writer.load_dailies, scratch=DEV)
-    if known is None:
-        print("Daily: no database to write Dailies to; skipping the Daily step")
-        return []
     now = datetime.now(UTC)
-    lookups, reads = daily.plan(known, now)
+    lookups, reads = daily.plan(memory.dailies, now)
 
     async def look_up(d):
         return await asyncio.to_thread(daily.look_up, url, key, d)
@@ -268,7 +263,7 @@ async def on_ready():
                 print(f"  [warn] Workshop step failed: {e!r}")
         dailies = []
         try:
-            dailies = await collect_dailies(all_ids)
+            dailies = await collect_dailies(all_ids, memory)
         except Exception as e:
             # Never blocks the Circuit or the Workshop: no Daily counts as read.
             print(f"  [warn] Daily step failed: {type(e).__name__}")

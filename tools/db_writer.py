@@ -27,7 +27,8 @@ into temp tables by COPY and each step is one statement over them.
 
 record_refresh wraps write_refresh for the collector: picks the database, logs a failure
 rather than raising it, and revalidates the site after a commit. load_memory is the other
-way: what the collector remembers between Refreshes, read back from the same tables.
+way: what the collector remembers between Refreshes (names, Maps, sweeps, Dailies), read
+back from the same tables.
 """
 
 import os
@@ -111,22 +112,6 @@ def known_dailies(conn):
     return {r["date"]: daily.Daily(**r) for r in found}
 
 
-def load_dailies(*, scratch=False, env=None):
-    """The Dailies the database this run writes holds, or None when there is no such
-    database or it can't be read. Dailies are database-only, so with None the Daily step
-    has nowhere to write and is skipped."""
-    env = os.environ if env is None else env
-    url = database_url(env, scratch=scratch)
-    if not url:
-        return None
-    try:
-        with psycopg.connect(url, connect_timeout=30) as conn:
-            return known_dailies(conn)
-    except Exception as e:
-        print(f"::warning::Reading the known Dailies failed: {type(e).__name__}")
-        return None
-
-
 @dataclass
 class Memory:
     """What the collector remembers between Refreshes, all of it read back from what earlier
@@ -141,12 +126,15 @@ class Memory:
     listed: how many Maps the latest catalogue listed, for the shrink guard.
     full_sweep_at: when the latest Refresh that read every Map's board started, in Unix
       seconds, or 0 if none has.
+    dailies: {date: daily.Daily} for every Daily held (known_dailies), what the Daily step
+      plans from.
     """
 
     names: dict = field(default_factory=dict)
     maps: dict = field(default_factory=dict)
     listed: int = 0
     full_sweep_at: int = 0
+    dailies: dict = field(default_factory=dict)
 
 
 def read_memory(conn):
@@ -157,11 +145,12 @@ def read_memory(conn):
             "select steam_id, persona, avatar, profile_url from players where persona <> ''"
         )
     }
-    maps, latest = {}, None
-    for pfid, lid, entry_count, sessions, subs, seen, held in conn.execute(
+    maps, listed = {}, 0
+    # a Map is listed when the newest catalogue wrote its latest row, as the site counts it
+    for pfid, lid, entry_count, sessions, subs, held, is_listed in conn.execute(
         """
-        select m.pfid, b.leaderboard_id, h.entry_count, h.sessions, h.subs,
-          h.last_seen_refresh, coalesce(n.held, 0)
+        select m.pfid, b.leaderboard_id, h.entry_count, h.sessions, h.subs, coalesce(n.held, 0),
+          h.last_seen_refresh = (select max(last_seen_refresh) from map_history)
         from maps m
         join boards b on b.name = m.board
         join lateral (
@@ -181,17 +170,15 @@ def read_memory(conn):
             "rows": held,
             "sessions": sessions,
             "subs": subs,
-            "seen": seen,
         }
-        latest = max(latest or seen, seen)
-    # the Maps whose latest row the newest catalogue wrote, as the site counts the Workshop
-    listed = sum(1 for m in maps.values() if m.pop("seen") == latest)
+        listed += is_listed
     (swept,) = conn.execute("select max(started_at) from refreshes where full_sweep").fetchone()
     return Memory(
         names=names,
         maps=maps,
         listed=listed,
         full_sweep_at=int(swept.astimezone(UTC).timestamp()) if swept else 0,
+        dailies=known_dailies(conn),
     )
 
 
