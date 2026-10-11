@@ -4,6 +4,7 @@
 // thousands: every Circuit board, every Workshop Map with a time, every Daily, and the
 // players with a world record or podium, of some 15,000 with a page.
 import { CIRCUIT } from "./circuit";
+import { plPlayer } from "./players";
 import {
   SITE_ORIGIN,
   boardHref,
@@ -30,8 +31,11 @@ export interface SitemapEntry {
   lastModified?: string;
 }
 
-/* a world record or podium on the Circuit or the Workshop (StandingsRow's columns 2-5) */
-const onPodium = (r: StandingsRow) => r[2] + r[3] + r[4] + r[5] > 0;
+/* a world record or podium on the Circuit or the Workshop */
+const onPodium = (r: StandingsRow) => {
+  const { c, w } = plPlayer(r);
+  return c.wr + w.wr + c.pod + w.pod > 0;
+};
 
 /* Only a final Daily says when it last changed: its close. A live page changes every
    Refresh, and a lastmod that moves that often only asks crawlers back sooner. */

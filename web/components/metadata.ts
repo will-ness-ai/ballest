@@ -2,10 +2,10 @@
 // image if it has one (lib/share.ts, docs/site.md "Share images").
 import type { Metadata } from "next";
 
-import { getSite } from "../../db/data";
-import { SITE_NAME, pageTitle } from "../../lib/rules";
-import { shareHref } from "../../lib/routes";
-import type { ShareKind } from "../../lib/share";
+import { getSite } from "../db/data";
+import { SITE_NAME, pageTitle } from "../lib/rules";
+import { shareHref } from "../lib/routes";
+import type { ShareKind } from "../lib/share";
 
 /* `canonical` is the page's own path (lib/routes.ts), without the view a URL may add (a
    player's tab, a focused row), resolved against metadataBase. A page with no card keeps

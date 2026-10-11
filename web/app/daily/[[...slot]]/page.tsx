@@ -11,7 +11,7 @@ import { DailyView } from "../../../components/daily/DailyView";
 import { getDailies, getDaily, getDailyDates } from "../../../db/data";
 import { dayLabel } from "../../../lib/daily";
 import { dailyHref, isDailyDate } from "../../../lib/routes";
-import { pageMetadata } from "../../../components/share/metadata";
+import { pageMetadata } from "../../../components/metadata";
 
 interface Props {
   params: Promise<{ slot?: Array<string> }>;

@@ -23,7 +23,8 @@ export const metadata: Metadata = {
 const WEBSITE = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: SITE_NAME,
+  name: "Ballest Records",
+  alternateName: SITE_NAME,
   url: SITE_ORIGIN + homeHref(),
 });
 

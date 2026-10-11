@@ -5,7 +5,6 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { Shell } from "../../../components/Shell";
-import { pageMetadata } from "../../../components/share/metadata";
 import { PlayersSkeleton } from "../../../components/Skeleton";
 import { PlayersTable } from "../../../components/players/PlayersTable";
 import { getStandings } from "../../../db/data";
@@ -25,17 +24,13 @@ export function generateStaticParams() {
   ];
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slot = [] } = await params;
-  const [scope = "all", sort = "wr"] = slot;
-  return pageMetadata({
-    title: "Players",
-    description:
-      "Every Ballest of Them All player ranked by world records, podiums, top 5s or Maps finished, on the Circuit, the Workshop or both.",
-    /* each ranking is its own page (the proxy has already turned away any other path) */
-    canonical: playersHref(isPlScope(scope) ? scope : "all", isPlSort(sort) ? sort : "wr"),
-  });
-}
+export const metadata: Metadata = {
+  title: "Players",
+  description:
+    "Every Ballest of Them All player ranked by world records, podiums, top 5s or Maps finished, on the Circuit, the Workshop or both.",
+  /* a ranking is the one table sorted another way, so it names the one page */
+  alternates: { canonical: playersHref("all", "wr") },
+};
 
 async function Table({ params }: Pick<Props, "params">) {
   const { slot = [] } = await params;

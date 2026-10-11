@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-import { SITE_ORIGIN } from "../lib/routes";
+import { SITE_ORIGIN, sitemapHref } from "../lib/routes";
 
 // /robots.txt. Crawlers may read every page that stands on its own, but not the views of
 // one: a player's tabs, a board or Map focused on a player, an Overall board in podium
@@ -15,6 +15,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/player/*/", "/board/*/", "/map/*/", "/vs/", "/api/"],
     },
-    sitemap: SITE_ORIGIN + "/sitemap.xml",
+    sitemap: SITE_ORIGIN + sitemapHref(),
   };
 }

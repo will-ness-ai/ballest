@@ -13,7 +13,7 @@ import { getBoardPage, getDailies, getPlayer, getPlayerDailies } from "../../../
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
 import { isPlayerTab, playerHref } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
-import { pageMetadata } from "../../../../components/share/metadata";
+import { pageMetadata } from "../../../../components/metadata";
 
 interface Props {
   params: Promise<{ id: string; tab?: Array<string> }>;
@@ -33,7 +33,8 @@ async function recordOf({ id, tab = [] }: Awaited<Props["params"]>) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const rec = await recordOf(await params);
-  if (!rec) return {};
+  /* a Steam ID nobody raced under is a soft 404 (proxy.ts), kept out of results */
+  if (!rec) return { robots: { index: false } };
   const name = personaOf(rec.who);
   return pageMetadata(
     {

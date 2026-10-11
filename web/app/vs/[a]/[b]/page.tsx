@@ -41,8 +41,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description: `${title}: every Circuit track and Workshop map they both have a time on, in Ballest of Them All.`,
-    /* robots.txt keeps crawlers off head to heads; one found by a link stays out of results */
-    robots: { index: false },
   };
 }
 

@@ -10,7 +10,7 @@ import { CircuitBoardView } from "../../../../components/board/CircuitBoardView"
 import { CIRCUIT, circuitBoard } from "../../../../lib/circuit";
 import { PODIUM_SORT, boardHref } from "../../../../lib/routes";
 import { isPoints } from "../../../../lib/rules";
-import { pageMetadata } from "../../../../components/share/metadata";
+import { pageMetadata } from "../../../../components/metadata";
 import { hasTrackCard } from "../../../../lib/share";
 
 interface Props {
