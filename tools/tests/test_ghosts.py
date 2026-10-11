@@ -198,10 +198,10 @@ def test_a_written_ghost_is_never_due_again(conn):
     assert ghosts.due(conn) == ["u2"]
 
 
-def test_an_ok_ghost_with_no_profile_is_read_again_after_the_unread_ones(conn):
+def test_an_ok_ghost_with_no_profile_is_read_again_in_rank_order_with_the_unread_ones(conn):
     seed(conn)
     ghosts.write(conn, [ghosts.Ghost("u1", "ok", PINK)], T0)
-    assert ghosts.due(conn) == ["u2", "u1"]
+    assert ghosts.due(conn) == ["u1", "u2"]
 
 
 def test_a_ghost_read_again_gets_its_profile_and_is_never_due_again(conn):

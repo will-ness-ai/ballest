@@ -5,8 +5,8 @@ date it was set, its top speed and its profile, which the race drawer shows (doc
 "Ghosts").
 
 After the database write, `record_ghosts` picks the open Entries in the top TOP of every
-time board whose UGC ID has no `ghosts` row, best rank first, then those whose `ok` row
-has no profile (read before profiles were kept) (`due`), reads each through the Steam Web
+time board whose UGC ID has no `ghosts` row or whose `ok` row has no profile (read before
+profiles were kept), best rank first (`due`), reads each through the Steam Web
 API (`read`: GetUGCFileDetails, then the file's CDN URL; only the first call counts toward
 the key's daily quota), a few at once, and stops at BUDGET with what it has (`collect`). A
 Ghost never changes, so a row with a profile is never read again. A read that fails writes
@@ -161,8 +161,8 @@ def read(key, ugc_id, get=_get_json):
 
 def due(conn, limit=None):
     """UGC IDs to read: on every time board, the open Entries ranked within TOP that have a
-    Ghost and no `ghosts` row, best rank first, so a short budget reads the top first; then
-    those whose `ok` row has no profile, also best rank first."""
+    Ghost and no `ghosts` row, or an `ok` row with no profile, best rank first, so a short
+    budget reads the top first and a leader's run races soonest."""
     with conn.cursor() as cur:
         found = cur.execute(
             """
@@ -175,8 +175,8 @@ def due(conn, limit=None):
             left join ghosts g using (ugc_id)
             where rank <= %s and ugc_id is not null and ugc_id <> %s
               and (g.ugc_id is null or (g.state = 'ok' and g.profile is null))
-            group by ugc_id, g.ugc_id
-            order by g.ugc_id is not null, min(rank), ugc_id
+            group by ugc_id
+            order by min(rank), ugc_id
             limit %s
             """,
             (TOP, NO_UGC, limit),
