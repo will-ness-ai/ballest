@@ -244,6 +244,14 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
     );
   }
 
+  /* a page read again for a newer Refresh (useLatestRefresh) starts the board over from
+     its new first rows */
+  const [had, setHad] = useState(initial);
+  if (had !== initial) {
+    setHad(initial);
+    setFound((f) => (f.q ? f : { q: "", rows: initial, ahead: [], total: count - base }));
+  }
+
   const showing = found.q === q ? found : null;
   /* read the next pages into `ahead`, once it runs low */
   const refill = useCallback(

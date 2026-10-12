@@ -1,12 +1,13 @@
 "use client";
 // "Refreshed ... ago" in the header, and the dialog it opens on how the boards refresh.
 // The time is worked out in the browser, so a page cached hours ago still says how old
-// the boards are now.
+// the boards are now, and a tab come back to after a while reads a newer Refresh in
+// (useLatestRefresh).
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useDialog } from "./Modal";
-import { useMounted, useNow } from "../hooks/client";
+import { useLatestRefresh, useMounted, useNow } from "../hooks/client";
 import { relTime } from "../lib/rules";
 
 export function Freshness({
@@ -17,6 +18,7 @@ export function Freshness({
   mapsReadBy: string | null;
 }) {
   const now = useNow();
+  useLatestRefresh(refreshedAt);
   const mounted = useMounted();
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);

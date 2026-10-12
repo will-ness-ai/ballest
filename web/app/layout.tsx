@@ -1,11 +1,10 @@
 // Every page's document: the head the single-page site had (fonts, analytics, the link
-// preview), the drifting marbles behind everything, and the page-wide behaviours: the
-// marble flip, the old #/ links, and reading the boards again in a tab come back to.
-// Each route's own frame is components/Shell.tsx.
+// preview), the drifting marbles behind everything, and the two page-wide behaviours,
+// the marble flip and the old #/ links. Each route's own frame is components/Shell.tsx.
 import type { Metadata, Viewport } from "next";
 
 import { Ambient } from "../components/Marble";
-import { LegacyHash, MarbleFlip, StaleRefresh } from "../components/Behaviours";
+import { LegacyHash, MarbleFlip } from "../components/Behaviours";
 import { SITE_ORIGIN } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE, pageTitle } from "../lib/rules";
 
@@ -83,7 +82,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <LegacyHash />
         <MarbleFlip />
-        <StaleRefresh />
       </body>
     </html>
   );

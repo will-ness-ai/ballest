@@ -58,9 +58,11 @@ which expires the tag, and the next request reads fresh. Searches are read fresh
 time, since their keys would never repeat.
 
 A tab left open keeps the page it loaded. When the reader comes back to it (the tab in
-view again, or the page restored from the back/forward cache) and it was read over ten
-minutes ago, `StaleRefresh` (`components/Behaviours.tsx`) calls `router.refresh()`, which
-asks the same cache again and keeps the page's state. Nothing polls while a tab is open.
+view again, the window focused, or the page restored from the back/forward cache) and it
+was read over ten minutes ago, `useLatestRefresh` (`hooks/client.ts`, run by the header's
+`Freshness`) asks `/api/refreshed` for the latest Refresh, from the same cached read, and
+calls `router.refresh()` only when that is newer than the one on the page. A board's list
+then starts over from its new first rows. Nothing polls while a tab is open.
 
 Sign in with Steam (ADR 0008) never touches a page's cache: the session cookie is signed
 with `SESSION_SECRET` and only `/api/me` reads it, from the browser, which asks only when
