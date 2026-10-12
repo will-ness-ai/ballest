@@ -57,6 +57,11 @@ collector POSTs `/api/revalidate` (Bearer `REVALIDATE_SECRET`) once a Refresh ha
 which expires the tag, and the next request reads fresh. Searches are read fresh every
 time, since their keys would never repeat.
 
+A tab left open keeps the page it loaded. When the reader comes back to it (the tab in
+view again, or the page restored from the back/forward cache) and it was read over ten
+minutes ago, `StaleRefresh` (`components/Behaviours.tsx`) calls `router.refresh()`, which
+asks the same cache again and keeps the page's state. Nothing polls while a tab is open.
+
 Sign in with Steam (ADR 0008) never touches a page's cache: the session cookie is signed
 with `SESSION_SECRET` and only `/api/me` reads it, from the browser, which asks only when
 the readable `ballest-in` cookie says a session exists. Without `SESSION_SECRET` nobody can

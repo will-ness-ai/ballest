@@ -17,16 +17,20 @@ export const useMounted = () =>
   );
 
 /* The time, for "... ago": null on the server and during hydration, since a cached page
-   would freeze it, then the browser's clock, moving on every minute. */
+   would freeze it, then the browser's clock, moving on every minute and at once when the
+   tab comes back into view (a sleeping laptop's timers stop). */
 let now = 0;
 function tick(changed: () => void) {
   now = Date.now();
-  const t = setInterval(() => {
+  const move = () => {
     now = Date.now();
     changed();
-  }, 60_000);
+  };
+  const t = setInterval(move, 60_000);
+  document.addEventListener("visibilitychange", move);
   return () => {
     clearInterval(t);
+    document.removeEventListener("visibilitychange", move);
   };
 }
 export const useNow = () =>

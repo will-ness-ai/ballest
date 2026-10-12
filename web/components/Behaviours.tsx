@@ -1,7 +1,7 @@
 "use client";
 // What the whole page does whatever is on it: an old #/ link opens the page it always
-// opened, a tap turns a marble over, and a
-// page whose title comes from the database keeps the tab's title right.
+// opened, a tab come back to after a while reads the boards again, a tap turns a marble
+// over, and a page whose title comes from the database keeps the tab's title right.
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -21,6 +21,35 @@ export function LegacyHash() {
     addEventListener("hashchange", go);
     return () => {
       removeEventListener("hashchange", go);
+    };
+  }, [router]);
+  return null;
+}
+
+/* how long a page's boards are taken as current; a Refresh lands hours apart, so a
+   shorter wait would only ask again for the same boards */
+const STALE_AFTER = 10 * 60_000;
+
+/* A tab left open (a laptop asleep overnight) keeps the boards it loaded and goes on
+   saying "Refreshed a day ago". When the reader comes back to it and it was read over
+   STALE_AFTER ago, the page reads the boards again, from the same cache a fresh load
+   would hit; while the tab is open and in view it never asks. router.refresh keeps the
+   page's state (scroll, open dialogs, rows already loaded) and swaps in the new boards. */
+export function StaleRefresh() {
+  const router = useRouter();
+  useEffect(() => {
+    let readAt = Date.now();
+    const back = () => {
+      if (document.visibilityState !== "visible" || Date.now() - readAt < STALE_AFTER) return;
+      readAt = Date.now();
+      router.refresh();
+    };
+    document.addEventListener("visibilitychange", back);
+    /* a page restored from the back/forward cache fires pageshow, not visibilitychange */
+    addEventListener("pageshow", back);
+    return () => {
+      document.removeEventListener("visibilitychange", back);
+      removeEventListener("pageshow", back);
     };
   }, [router]);
   return null;
