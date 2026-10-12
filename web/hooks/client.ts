@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { isLive } from "../lib/daily";
+import type { Freshness } from "../lib/rows";
 
 /* a useSyncExternalStore subscription for a value that never changes once the page runs:
    its server snapshot shows until hydration is done, then the browser's */
@@ -54,7 +55,7 @@ const STALE_AFTER = 10 * 60_000;
    STALE_AFTER ago, the page asks /api/refreshed for the latest Refresh, and reads itself
    again only when that is newer than `refreshedAt`, the one it shows. Nothing polls
    while a tab stays open. */
-export function useLatestRefresh(refreshedAt: string | null) {
+export function useLatestRefresh(refreshedAt: Freshness["refreshedAt"]) {
   const router = useRouter();
   useEffect(() => {
     let readAt = Date.now();
@@ -62,7 +63,7 @@ export function useLatestRefresh(refreshedAt: string | null) {
       if (document.visibilityState !== "visible" || Date.now() - readAt < STALE_AFTER) return;
       readAt = Date.now();
       void fetch("/api/refreshed", { cache: "no-store" })
-        .then((res) => (res.ok ? (res.json() as Promise<{ refreshedAt: string | null }>) : null))
+        .then((res) => (res.ok ? (res.json() as Promise<Pick<Freshness, "refreshedAt">>) : null))
         .then((latest) => {
           if (latest?.refreshedAt && latest.refreshedAt !== refreshedAt) router.refresh();
         })
