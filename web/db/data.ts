@@ -311,3 +311,12 @@ async function playerDailiesOf(steamId: string) {
 export function searchPlayers(query: string, except: string) {
   return q.searchPlayers(db(), query, { except });
 }
+
+/* PROTOTYPE (grill-design, claude/prototype-standing): the Daily Report's four lists */
+export async function getProtoLists() {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const { protoLists } = await import("./prototype-standing");
+  return protoLists(db());
+}
