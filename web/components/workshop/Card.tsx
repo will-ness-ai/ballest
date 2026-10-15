@@ -9,6 +9,7 @@ import { PlayerLink } from "../PlayerLink";
 import { mapHref } from "../../lib/routes";
 import { fmtTime, personaOf } from "../../lib/rules";
 import { recordOf, type MapCard } from "../../lib/workshop";
+import { CAMPAIGNS } from "../../lib/campaigns";
 
 /* one place of a Map's top three: [steam ID, persona, time] */
 export function PodLine({ p, i }: { p: [string, string, number]; i: number }) {
@@ -31,10 +32,17 @@ export const CreatorLink = ({ m }: { m: { cid: string | null; creator: string } 
 /* `stat` is the figure the order in use is about */
 export function MapCardLink({ m, stat }: { m: MapCard; stat: string }) {
   const r = { steamId: m.top3[0][0], persona: m.top3[0][1] };
+  /* PROTOTYPE (round 3, variant C): a Map in a Campaign carries its badge */
+  const c = CAMPAIGNS.find((x) => x.maps.includes(m.pfid));
   return (
     <Link className="mcard" href={mapHref(m.pfid)}>
       <span className="im">
         <MapImage preview={m.preview} />
+        {c && (
+          <span className="cbadge hv-C">
+            {c.title} {c.maps.indexOf(m.pfid) + 1}/{c.maps.length}
+          </span>
+        )}
         <span className="pod3">
           {m.top3.map((p, i) => (
             <PodLine key={i} p={p} i={i} />

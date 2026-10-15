@@ -183,7 +183,10 @@ export function WorkshopHome({
   picks,
   shelves,
   asOf,
+  proto,
 }: {
+  /* PROTOTYPE (grill-design round 3): the Campaign entries, drawn on the server */
+  proto: { head: React.ReactNode; top: React.ReactNode; mid: React.ReactNode };
   picks: ReadonlyArray<Pick>;
   /* each of SHELVES' Maps, in order */
   shelves: ReadonlyArray<ReadonlyArray<MapCard>>;
@@ -201,6 +204,7 @@ export function WorkshopHome({
       <div className="ws-head">
         <h1 className="ws-h1">Workshop</h1>
         <span className="ws-tools">
+          {proto.head}
           <Link className="alllink" href={mapsHref()}>
             All maps &rarr;
           </Link>
@@ -229,7 +233,9 @@ export function WorkshopHome({
           />
         ) : (
           <>
+            {proto.top}
             <Carousel picks={picks} now={now} />
+            {proto.mid}
             <Shelves shelves={shelves} now={now} />
           </>
         )}
