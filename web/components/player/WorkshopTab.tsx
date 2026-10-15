@@ -49,7 +49,7 @@ const fieldPos = (f: WorkshopFinish) =>
   f.field > 1 ? Math.min(100, ((f.rank - 1) / (f.field - 1)) * 100) : 0;
 
 /* an arrow greys out at its end; a shelf that fits on screen has none */
-function Shelf({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
+export function Shelf({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   const strip = useRef<HTMLDivElement>(null);
   const [at, setAt] = useState({ hidden: false, start: true, end: false });
   useEffect(() => {

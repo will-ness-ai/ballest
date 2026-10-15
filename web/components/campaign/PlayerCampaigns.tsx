@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { CampaignPics } from "./CampaignPics";
+import { Shelf } from "../player/WorkshopTab";
 import { Season } from "../player/PlayerView";
 import type { getPlayerCampaigns } from "../../db/data";
 import { campaignHref } from "../../lib/campaigns";
@@ -11,7 +12,15 @@ import { fmtN, ord } from "../../lib/rules";
 export type PlayerCamps = Awaited<ReturnType<typeof getPlayerCampaigns>>;
 
 /* A and B: each Campaign as a Circuit season, a tile per Map */
-export function CampaignSeasons({ camps, id, cls }: { camps: PlayerCamps; id: string; cls: string }) {
+export function CampaignSeasons({
+  camps,
+  id,
+  cls,
+}: {
+  camps: PlayerCamps;
+  id: string;
+  cls: string;
+}) {
   return (
     <div className={cls}>
       {camps.map((k) => (
@@ -24,15 +33,17 @@ export function CampaignSeasons({ camps, id, cls }: { camps: PlayerCamps; id: st
 /* C: a card per Campaign */
 export function CampaignCardsRow({ camps }: { camps: PlayerCamps }) {
   return (
-    <section className="shelf qv-C">
-      <div className="shelf-h">
-        <h2>Campaigns</h2>
-      </div>
-      <div className="pcamps">
+    <div className="qv-C pcamps pws">
+      <Shelf title="Campaigns">
         {camps.map((k) => {
           const o = k.season.overall;
           return (
-            <Link key={k.slug} className="pcamp" href={campaignHref(k.slug)} data-m={o.rank <= 3 ? o.rank : 0}>
+            <Link
+              key={k.slug}
+              className="pcamp"
+              href={campaignHref(k.slug)}
+              data-m={o.rank <= 3 ? o.rank : 0}
+            >
               <span className="pc-pic">
                 <CampaignPics previews={k.previews} max={4} />
                 <span className="pc-t">{k.c.title}</span>
@@ -50,8 +61,8 @@ export function CampaignCardsRow({ camps }: { camps: PlayerCamps }) {
             </Link>
           );
         })}
-      </div>
-    </section>
+      </Shelf>
+    </div>
   );
 }
 
@@ -63,7 +74,8 @@ export function CampaignLine({ camps }: { camps: PlayerCamps }) {
       {camps.map((k, i) => (
         <span key={k.slug}>
           {i ? " · " : ""}
-          <b>{ord(k.season.overall.rank)}</b> in <Link href={campaignHref(k.slug)}>{k.c.title}</Link>
+          <b>{ord(k.season.overall.rank)}</b> in{" "}
+          <Link href={campaignHref(k.slug)}>{k.c.title}</Link>
         </span>
       ))}
     </span>

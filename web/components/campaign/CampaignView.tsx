@@ -38,7 +38,15 @@ import {
 import type { IndexBoard } from "../../lib/player";
 import { podiumRows, tally } from "../../lib/podiums";
 import { PODIUM_SORT, mapHref } from "../../lib/routes";
-import { BOARD_CHUNK, countText, fmtN, fmtTime, isSteamId, personaOf, plural } from "../../lib/rules";
+import {
+  BOARD_CHUNK,
+  countText,
+  fmtN,
+  fmtTime,
+  isSteamId,
+  personaOf,
+  plural,
+} from "../../lib/rules";
 import type { BoardRow, WorkshopMap } from "../../lib/rows";
 import { spreadOf } from "../../lib/spread";
 
@@ -186,17 +194,27 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
   const name = m ? m.name : campaignBoard(c);
   const podiums = !m && slot === PODIUM_SORT;
   const focusId = !m && slot && isSteamId(slot) ? slot : null;
-  const t = tally(c.title, maps.map((x) => x.name), placings, (n) => {
-    const k = maps.findIndex((x) => x.name === n);
-    return k >= 0 ? no(k) + " " + shortTitle(c, maps[k].title) : n;
-  });
+  const t = tally(
+    c.title,
+    maps.map((x) => x.name),
+    placings,
+    (n) => {
+      const k = maps.findIndex((x) => x.name === n);
+      return k >= 0 ? no(k) + " " + shortTitle(c, maps[k].title) : n;
+    },
+  );
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
   const [page, overall, scores, places, focus, history] = await Promise.all([
     getBoardPage(name, 0, BOARD_CHUNK + 3),
     getBoardPage(campaignBoard(c), 0, 1),
     m ? getBoardScores(name) : Promise.resolve([]),
-    podiums ? getPlacesOf(name, t.players.map((p) => p.steamId)) : none,
+    podiums
+      ? getPlacesOf(
+          name,
+          t.players.map((p) => p.steamId),
+        )
+      : none,
     focusId ? getBoardPlaces(name, [focusId]) : none,
     m ? getBoardHistory(name) : Promise.resolve(null),
   ]);
@@ -242,7 +260,14 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
         {m ? (
           <MapBoardCard c={c} m={m} i={mapAt} rows={rows} scores={scores} />
         ) : (
-          <OverallCard b={b} rows={rows} tally={t} tracks={maps.length} podiums={podiums} unit="maps" />
+          <OverallCard
+            b={b}
+            rows={rows}
+            tally={t}
+            tracks={maps.length}
+            podiums={podiums}
+            unit="maps"
+          />
         )}
 
         {!podiums && <YouBanner name={name} field={page.total} medals={m?.medals ?? null} />}
@@ -275,7 +300,10 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
             pods={
               !m
                 ? Object.fromEntries(
-                    t.players.map((p) => [p.steamId, { gold: p.gold, silver: p.silver, bronze: p.bronze }]),
+                    t.players.map((p) => [
+                      p.steamId,
+                      { gold: p.gold, silver: p.silver, bronze: p.bronze },
+                    ]),
                   )
                 : null
             }
@@ -287,8 +315,16 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
       <Remember trail="board" href={campaignHref(c.slug)} label={c.title} />
       <Picker
         variants={[
-          { key: "A", name: "Maps stay in the Campaign", note: "A Map in the rail opens its board inside the Campaign's frame, like a Track." },
-          { key: "B", name: "Maps open their page", note: "A Map in the rail opens its usual Map page (rail gone)." },
+          {
+            key: "A",
+            name: "Maps stay in the Campaign",
+            note: "A Map in the rail opens its board inside the Campaign's frame, like a Track.",
+          },
+          {
+            key: "B",
+            name: "Maps open their page",
+            note: "A Map in the rail opens its usual Map page (rail gone).",
+          },
         ]}
         states={CAMPAIGNS.map((x) => [x.title, campaignHref(x.slug)])}
       />

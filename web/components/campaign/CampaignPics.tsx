@@ -2,7 +2,13 @@
 // Never merged. The homepage banner and a player's Campaign card both draw it.
 import { safeImg } from "../../lib/rules";
 
-export function CampaignPics({ previews, max = 5 }: { previews: ReadonlyArray<string | null>; max?: number }) {
+export function CampaignPics({
+  previews,
+  max = 5,
+}: {
+  previews: ReadonlyArray<string | null>;
+  max?: number;
+}) {
   const pics = previews.slice(0, max);
   return (
     <span className="cpics" aria-hidden="true">

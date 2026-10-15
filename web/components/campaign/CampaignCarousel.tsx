@@ -26,6 +26,9 @@ export function CampaignCarousel({ cards }: { cards: Array<CampaignCard> }) {
       <div className="shelf-h">
         <h2>Campaigns</h2>
         <span className="car-nav">
+          <span className="shelf-n">
+            <Link href="/campaigns">See all</Link>
+          </span>
           <button type="button" aria-label="Previous campaign" onClick={() => step(-1)}>
             &larr;
           </button>
@@ -47,24 +50,30 @@ export function CampaignCarousel({ cards }: { cards: Array<CampaignCard> }) {
         }}
       >
         {cards.map((k) => (
-          <Link key={k.c.slug} className="cban" href={campaignHref(k.c.slug)}>
-            <CampaignPics previews={k.previews} />
-            <span className="cban-in">
-              <span className="eyebrow">
-                Campaign · {k.c.maps.length} maps · {fmtN(k.players)} players
-              </span>
-              <b>{k.c.title}</b>
-              <span className="cban-by">by {k.c.creator}</span>
-              {k.leader && (
-                <span className="cban-lead">
-                  <Marble who={k.leader} still /> {personaOf(k.leader)} leads with{" "}
-                  {fmtN(k.leader.score)}
-                </span>
-              )}
-            </span>
-          </Link>
+          <CampaignBanner key={k.c.slug} k={k} />
         ))}
       </div>
     </section>
+  );
+}
+
+/* one Campaign's banner: its Maps' pictures, name, maker and leader */
+export function CampaignBanner({ k }: { k: CampaignCard }) {
+  return (
+    <Link className="cban" href={campaignHref(k.c.slug)}>
+      <CampaignPics previews={k.previews} />
+      <span className="cban-in">
+        <span className="eyebrow">
+          Campaign · {k.c.maps.length} maps · {fmtN(k.players)} players
+        </span>
+        <b>{k.c.title}</b>
+        <span className="cban-by">by {k.c.creator}</span>
+        {k.leader && (
+          <span className="cban-lead">
+            <Marble who={k.leader} still /> {personaOf(k.leader)} leads with {fmtN(k.leader.score)}
+          </span>
+        )}
+      </span>
+    </Link>
   );
 }

@@ -441,10 +441,10 @@
 :root[data-v="D"] .qv-D {
   display: inline !important;
 }
-.pcamps {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
+.pcamps .strip {
+  grid-auto-columns: minmax(230px, 260px);
+  scrollbar-width: none;
+  padding-block-end: 0;
 }
 .pcamp {
   display: grid;
@@ -572,4 +572,33 @@
 .pct-maps i[data-m="3"] {
   color: var(--bronze);
   border-color: var(--bronze);
+}
+
+/* /campaigns */
+.call-h {
+  margin-block: 14px 18px;
+}
+.call-h h1 {
+  font-family: var(--f-marquee);
+  font-size: calc((24rem + 10 * var(--ramp)) / 16);
+}
+.call-h p {
+  max-width: 60ch;
+  color: var(--dim);
+}
+.call {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 12px;
+}
+.call .cban {
+  min-height: 190px;
+}
+.call .cban-in {
+  align-content: end;
+  height: 100%;
+  padding: 18px 20px;
+}
+.pcamps {
+  margin-block-end: 18px;
 }
