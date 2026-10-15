@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { campaignCards } from "./HomeEntry";
 import { Picker } from "./Picker";
 import { Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
@@ -43,10 +44,10 @@ import { spreadOf } from "../../lib/spread";
 
 const no = (i: number) => String(i + 1).padStart(2, "0");
 
-function CampaignTabs({ on }: { on: Campaign }) {
+function CampaignTabs({ on, list }: { on: Campaign; list: Array<Campaign> }) {
   return (
     <nav className="seasontabs" aria-label="Campaign">
-      {CAMPAIGNS.map((c) => (
+      {list.map((c) => (
         <Link key={c.slug} href={campaignHref(c.slug)} aria-current={c.slug === on.slug}>
           {c.title}
         </Link>
@@ -55,10 +56,10 @@ function CampaignTabs({ on }: { on: Campaign }) {
   );
 }
 
-function CampaignChip({ on, board }: { on: Campaign; board: string }) {
+function CampaignChip({ on, board, list }: { on: Campaign; board: string; list: Array<Campaign> }) {
   return (
     <SeasonMenu id={`campaigns-${board}`} label={on.title}>
-      {CAMPAIGNS.map((c) => (
+      {list.map((c) => (
         <Link key={c.slug} href={campaignHref(c.slug)} aria-current={c.slug === on.slug}>
           <b>{c.title}</b>
           <small>
@@ -178,6 +179,7 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
   const data = c && (await getCampaignData(slug));
   if (!c || !data) notFound();
   const { maps, placings } = data;
+  const list = (await campaignCards()).map((k) => k.c);
   const mapAt = slot ? maps.findIndex((m) => m.pfid === slot) : -1;
   const m = mapAt >= 0 ? maps[mapAt] : null;
   if (slot && !m && slot !== PODIUM_SORT && !isSteamId(slot)) notFound();
@@ -212,7 +214,7 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
   return (
     <div className="main">
       <DocTitle title={`${c.title} ${b.display}`} />
-      <CampaignTabs on={c} />
+      <CampaignTabs on={c} list={list} />
       <aside className="rail">
         <h2 id="railhead">{c.title}</h2>
         <p className="cby">
@@ -226,7 +228,7 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
       <section className="content">
         <YouMarks name={name} />
         <div className="boardrow">
-          <CampaignChip on={c} board={name} />
+          <CampaignChip on={c} board={name} list={list} />
           <BoardSheet
             img={m?.preview ?? null}
             name={m ? no(mapAt) + " " + b.display : "Overall"}

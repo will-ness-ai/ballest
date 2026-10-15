@@ -291,20 +291,9 @@
 .bv-E {
   display: none !important;
 }
-:root:not([data-v]) .bv-A,
-:root[data-v="A"] .bv-A,
-:root[data-v="B"] .bv-B,
-:root[data-v="E"] .bv-E {
+/* round 4 verdict: B */
+.bv-B {
   display: flex !important;
-}
-:root[data-v="C"] .bv-C {
-  display: flex !important;
-}
-:root[data-v="D"] span.cb-chip.bv-D {
-  display: grid !important;
-}
-:root[data-v="D"] .s .bv-D {
-  display: inline !important;
 }
 /* A: glass tag */
 .cb-tag {
@@ -418,4 +407,143 @@
 .mp-partof span:last-child {
   color: var(--accent);
   font-size: calc(13rem / 16);
+}
+
+/* round 5: a player's Campaigns */
+.qv-A,
+.qv-B,
+.qv-Bc,
+.qv-C,
+.qv-D,
+.qv-E {
+  display: none !important;
+}
+:root:not([data-v]) .qv-A,
+:root[data-v="A"] .qv-A,
+:root[data-v="B"] .qv-Bc,
+:root[data-v="C"] .qv-C,
+:root[data-v="E"] .qv-E {
+  display: block !important;
+}
+:root[data-v="B"] .qv-B {
+  display: flex !important;
+}
+:root[data-v="D"] .qv-D {
+  display: inline !important;
+}
+.pcamps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.pcamp {
+  display: grid;
+  font-family: var(--f-hud);
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+.pcamp:hover {
+  border-color: var(--accent);
+}
+.pc-t {
+  font-weight: 600;
+}
+.pc-r b {
+  font-family: var(--f-marquee);
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+.pcamp[data-m="1"] .pc-r b {
+  font-family: var(--f-marquee);
+  color: var(--gold);
+}
+.pcamp[data-m="2"] .pc-r b {
+  font-family: var(--f-marquee);
+  color: var(--silver);
+}
+.pcamp[data-m="3"] .pc-r b {
+  font-family: var(--f-marquee);
+  color: var(--bronze);
+}
+.pc-r small,
+.pc-s {
+  color: var(--dim);
+  font-size: 0.85rem;
+}
+.pc-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.pc-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.pctab {
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.pctr {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  color: inherit;
+  text-decoration: none;
+  background: var(--surface);
+}
+.pctr + .pctr {
+  border-top: 1px solid var(--line);
+}
+.pct-n {
+  display: grid;
+}
+.pct-n small {
+  color: var(--dim);
+}
+.pct-maps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pct-maps i {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: 6px;
+  font-style: normal;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+  border: 1px dashed var(--line);
+}
+.pct-maps i.on {
+  color: inherit;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+.pct-maps i[data-m="1"] {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+.pct-maps i[data-m="2"] {
+  color: var(--silver);
+  border-color: var(--silver);
+}
+.pct-maps i[data-m="3"] {
+  color: var(--bronze);
+  border-color: var(--bronze);
 }

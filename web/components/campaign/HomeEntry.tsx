@@ -16,8 +16,9 @@ export interface CampaignCard {
   leader: BoardRow | null;
 }
 
+/* most players first (Will, 2026-10-15): a player counts once however many Maps they ran */
 export async function campaignCards(): Promise<Array<CampaignCard>> {
-  return Promise.all(
+  const cards = await Promise.all(
     CAMPAIGNS.map(async (c) => {
       const [data, page] = await Promise.all([
         getCampaignData(c.slug),
@@ -31,6 +32,7 @@ export async function campaignCards(): Promise<Array<CampaignCard>> {
       };
     }),
   );
+  return cards.sort((a, b) => b.players - a.players);
 }
 
 function Leader({ k }: { k: CampaignCard }) {

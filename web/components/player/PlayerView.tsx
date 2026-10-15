@@ -9,6 +9,13 @@ import { DailyTab } from "./DailyTab";
 import { MadeTab } from "./MadeTab";
 import { ScoreCard, SignOut } from "./Me";
 import { WorkshopTab } from "./WorkshopTab";
+import {
+  CampaignCardsRow,
+  CampaignLine,
+  CampaignSeasons,
+  CampaignTable,
+  type PlayerCamps,
+} from "../campaign/PlayerCampaigns";
 import { BackLink } from "../BackLink";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
@@ -75,7 +82,7 @@ function Tile({ t, id }: { t: TrackTile; id: string }) {
   );
 }
 
-function Season({ s, id }: { s: SeasonRecord; id: string }) {
+export function Season({ s, id }: { s: SeasonRecord; id: string }) {
   return (
     <section className="pseason">
       <div className="pslab">
@@ -160,7 +167,10 @@ export function PlayerView({
   rec,
   tab,
   daily,
+  camps = [],
 }: {
+  /* PROTOTYPE (round 5): their Campaigns */
+  camps?: PlayerCamps;
   rec: PlayerRecord;
   tab: PlayerTab;
   /* their Daily record, and every Daily for its calendar */
@@ -194,6 +204,8 @@ export function PlayerView({
                   </span>
                 </>
               ) : null}{" "}
+              {camps.length ? <br /> : null}
+              <CampaignLine camps={camps} />{" "}
               <SignOut id={rec.id} />
             </span>{" "}
             <CompareButton keep={rec.who} />{" "}
@@ -217,8 +229,28 @@ export function PlayerView({
                 <small>{fmtN(t.count(rec, daily.mine))}</small>
               </Link>
             ))}
+            {camps.length ? (
+              <Link
+                className="qv-B"
+                href={playerHref(rec.id, "campaigns")}
+                scroll={false}
+                aria-current={tab === "campaigns" ? "page" : undefined}
+              >
+                Campaigns
+                <small>{camps.length}</small>
+              </Link>
+            ) : null}
           </nav>{" "}
-          {tab === "circuit" ? (
+          {tab === "workshop" && camps.length ? (
+            <>
+              <CampaignSeasons camps={camps} id={rec.id} cls="qv-A" />
+              <CampaignCardsRow camps={camps} />
+              <CampaignTable camps={camps} />
+            </>
+          ) : null}
+          {tab === "campaigns" ? (
+            <CampaignSeasons camps={camps} id={rec.id} cls="qv-Bc" />
+          ) : tab === "circuit" ? (
             <CircuitTab rec={rec} />
           ) : tab === "workshop" ? (
             <WorkshopTab id={rec.id} w={rec.workshop} />

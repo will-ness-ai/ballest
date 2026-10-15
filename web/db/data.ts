@@ -15,7 +15,8 @@
 // list of every player or Map read to look up one costs its full size each time.
 import { cacheLife, cacheTag } from "next/cache";
 
-import { campaignOf, campaignOfBoard } from "../lib/campaigns";
+import { CAMPAIGNS, campaignBoard, campaignOf, campaignOfBoard, shortTitle } from "../lib/campaigns";
+import { trackPoints, type MedalKey } from "../lib/rules";
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
 import { boardHistory, type BoardHistory } from "../lib/history";
 import { playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
@@ -328,4 +329,48 @@ export async function getCampaignData(slug: string) {
   const maps = c.maps.flatMap((pfid) => all.filter((m) => m.pfid === pfid));
   const placings = await q.podiumsOf(db(), maps.map((m) => m.name));
   return { maps, placings };
+}
+
+/* PROTOTYPE (round 5): a player's place in every Campaign they hold a time in, with a tile
+   per Map shaped like a Circuit Track's */
+export async function getPlayerCampaigns(
+  id: string,
+  finishes: ReadonlyArray<{ pfid: string; rank: number; score: number; gap: number; earned: MedalKey }>,
+) {
+  const out = await Promise.all(
+    CAMPAIGNS.map(async (c) => {
+      const board = campaignBoard(c);
+      const [data, places, head] = await Promise.all([
+        getCampaignData(c.slug),
+        getBoardPlaces(board, [id]),
+        getBoardPage(board, 0, 1),
+      ]);
+      const place = places[id] as { rank: number; score: number } | undefined;
+      if (!data || !place) return null;
+      const tracks = data.maps.map((m, i) => {
+        const f = finishes.find((x) => x.pfid === m.pfid);
+        return {
+          name: m.name,
+          display: String(i + 1).padStart(2, "0") + " " + shortTitle(c, m.title),
+          field: m.entryCount,
+          finish: f ? { rank: f.rank, score: f.score, lead: f.score - f.gap, earned: f.earned } : null,
+          points: f ? trackPoints(f.rank) : 0,
+        };
+      });
+      return {
+        c,
+        slug: c.slug,
+        players: head.total,
+        finished: tracks.filter((t) => t.finish).length,
+        season: {
+          group: c.title,
+          overall: place,
+          tiers: [{ tier: "", tracks, points: place.score }],
+          points: place.score,
+          lagging: false,
+        },
+      };
+    }),
+  );
+  return out.filter((x) => x !== null);
 }

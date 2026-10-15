@@ -9,7 +9,14 @@ import { DocTitle } from "../../../../components/Behaviours";
 import { Shell } from "../../../../components/Shell";
 import { PlayerSkeleton } from "../../../../components/Skeleton";
 import { PlayerView, tabFor } from "../../../../components/player/PlayerView";
-import { getBoardPage, getDailies, getPlayer, getPlayerDailies } from "../../../../db/data";
+import { Picker } from "../../../../components/campaign/Picker";
+import {
+  getBoardPage,
+  getDailies,
+  getPlayer,
+  getPlayerCampaigns,
+  getPlayerDailies,
+} from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
 import { isPlayerTab } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
@@ -48,10 +55,29 @@ async function Player({ params }: Pick<Props, "params">) {
   const p = await params;
   const [rec, mine, days] = await Promise.all([recordOf(p), getPlayerDailies(p.id), getDailies()]);
   if (!rec || !mine) notFound();
+  const camps = await getPlayerCampaigns(rec.id, rec.workshop.finishes);
   return (
     <>
       <DocTitle title={personaOf(rec.who)} />
-      <PlayerView rec={rec} tab={tabFor(rec, p.tab?.[0] ?? null)} daily={{ mine, days }} />
+      <PlayerView
+        rec={rec}
+        tab={p.tab?.[0] === "campaigns" ? "campaigns" : tabFor(rec, p.tab?.[0] ?? null)}
+        daily={{ mine, days }}
+        camps={camps}
+      />
+      <Picker
+        variants={[
+          { key: "A", name: "Seasons on Workshop", note: "On the Workshop tab, each Campaign drawn like a Circuit season: place, points and a tile per Map." },
+          { key: "B", name: "Campaigns tab", note: "Its own tab beside Circuit and Workshop, holding the same season blocks." },
+          { key: "C", name: "Cards", note: "A row of small cards on the Workshop tab: place of N, points, maps finished and a bar." },
+          { key: "D", name: "Header line", note: "Nothing on a tab: one line under their name, 4th in Solar Trials and so on." },
+          { key: "E", name: "Table", note: "A row per Campaign on the Workshop tab with their place on each Map, medal colours for a podium." },
+        ]}
+        states={[
+          ["Leth", "/player/76561198085868465/workshop"],
+          ["Leth (Campaigns tab)", "/player/76561198085868465/campaigns?variant=B"],
+        ]}
+      />
     </>
   );
 }
