@@ -61,10 +61,12 @@ export function Shelf({ title, children }: { title: React.ReactNode; children: R
     };
     check();
     el.addEventListener("scroll", check, { passive: true });
-    addEventListener("resize", check);
+    /* re-measure whenever the strip's size changes: a resize, or a strip that was hidden */
+    const seen = new ResizeObserver(check);
+    seen.observe(el);
     return () => {
       el.removeEventListener("scroll", check);
-      removeEventListener("resize", check);
+      seen.disconnect();
     };
   }, []);
   const scroll = (dir: number) => {
