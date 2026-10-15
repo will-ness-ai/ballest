@@ -1,7 +1,10 @@
 // A Map's page: the panel of its facts where a Circuit board has its rail (the picture,
 // who made it, its Medals and how every run spreads out), and its board beside it, with
 // no card. `focus` is a Steam ID whose row to find and mark.
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+
+import { CAMPAIGNS, campaignMapHref } from "../../lib/campaigns";
 
 import { CreatorLink } from "./Card";
 import { Age } from "./Age";
@@ -27,6 +30,21 @@ import { BOARD_CHUNK, MEDALS, fmtN, fmtSec, fmtTime, isSteamId } from "../../lib
 import { spreadOf } from "../../lib/spread";
 import { HIDDEN, reportHref } from "../../lib/workshop";
 
+/* PROTOTYPE (round 4): a Map in a Campaign links to its place there */
+function PartOf({ pfid }: { pfid: string }) {
+  const c = CAMPAIGNS.find((x) => x.maps.includes(pfid));
+  if (!c) return null;
+  return (
+    <Link className="mp-partof" href={campaignMapHref(c, pfid)}>
+      <span className="eyebrow">Campaign</span>
+      <b>{c.title}</b>
+      <span>
+        Map {c.maps.indexOf(pfid) + 1} of {c.maps.length} &rarr;
+      </span>
+    </Link>
+  );
+}
+
 function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; asOf: number }) {
   const reason = HIDDEN[m.pfid];
   return (
@@ -40,6 +58,7 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
         </span>
       </div>
       {reason && <p className="mp-flag">Reported broken: {reason}</p>}
+      <PartOf pfid={m.pfid} />
       <dl className="mp-facts">
         <div>
           <dt>Runs</dt>

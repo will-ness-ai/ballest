@@ -5,13 +5,8 @@ import { Remember } from "../components/BackLink";
 import { Shell } from "../components/Shell";
 import { WorkshopHome } from "../components/workshop/WorkshopHome";
 import { getMapCards, getSite } from "../db/data";
-import {
-  CampaignBand,
-  CampaignMenu,
-  CampaignShelf,
-  CampaignTable,
-  campaignCards,
-} from "../components/campaign/HomeEntry";
+import { campaignCards } from "../components/campaign/HomeEntry";
+import { CampaignCarousel } from "../components/campaign/CampaignCarousel";
 import { Picker } from "../components/campaign/Picker";
 import { CAMPAIGNS } from "../lib/campaigns";
 import { homeHref } from "../lib/routes";
@@ -26,26 +21,21 @@ export default async function Page() {
           picks={picks(maps)}
           shelves={SHELVES.map((d) => shelfMaps(maps, d))}
           asOf={asOf}
-          proto={{
-            head: <CampaignMenu cards={cards} />,
-            top: <CampaignTable cards={cards} />,
-            mid: (
-              <>
-                <CampaignShelf cards={cards} />
-                <CampaignBand cards={cards} />
-              </>
-            ),
-          }}
+          proto={{ head: null, top: null, mid: <CampaignCarousel cards={cards} /> }}
         />
         <Picker
           variants={[
-            { key: "A", name: "Shelf", note: "A Campaigns shelf under the carousel: cards with four of its Maps' pictures and the leader." },
-            { key: "B", name: "Banners", note: "Wide banners under the carousel, each Campaign's pictures behind its name and leader." },
-            { key: "C", name: "Badges", note: "No section: a Map card in a Campaign carries its badge (Solar Trials 3/9), on its picture." },
-            { key: "D", name: "Head menu", note: "A Campaigns menu beside All maps in the head; nothing else changes." },
-            { key: "E", name: "Table on top", note: "A compact Campaigns list above the carousel." },
+            { key: "A", name: "Glass tag", note: "A dark glass tag on the picture's corner: the Campaign and the Map's number." },
+            { key: "B", name: "Picture strip", note: "A strip across the bottom of the picture: Campaign name left, 3 / 9 right." },
+            { key: "C", name: "Text line", note: "Nothing on the picture: a line under the title, a small mark, the Campaign, map 3 of 9." },
+            { key: "D", name: "Number chip", note: "A small round chip with the Map's number in its Campaign, the name on the card's by-line." },
+            { key: "E", name: "Progress dots", note: "A row of dots along the picture's bottom edge, one per Map, this one lit, with the Campaign name." },
           ]}
-          states={[["Solar Trials page", "/campaign/" + CAMPAIGNS[0].slug]]}
+          states={[
+            ["All maps", "/maps"],
+            ["Earth's Map page", "/map/3805391903"],
+            ["Solar Trials", "/campaign/" + CAMPAIGNS[0].slug],
+          ]}
         />
       </section>
       <Remember trail="maps" href={homeHref()} />

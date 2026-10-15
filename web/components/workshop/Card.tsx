@@ -29,6 +29,37 @@ export const CreatorLink = ({ m }: { m: { cid: string | null; creator: string } 
   <PlayerLink id={m.cid} text={m.creator} tab="made" />
 );
 
+/* PROTOTYPE (round 4): the five badge looks a Map in a Campaign can carry on its picture;
+   the picker shows one */
+function CampaignBadges({ c, pfid }: { c: { title: string; maps: Array<string> }; pfid: string }) {
+  const n = c.maps.indexOf(pfid) + 1,
+    of = c.maps.length;
+  return (
+    <>
+      <span className="cb-tag bv-A">
+        <b>{c.title}</b> {n}/{of}
+      </span>
+      <span className="cb-strip bv-B">
+        <span>{c.title}</span>
+        <span>
+          {n} / {of}
+        </span>
+      </span>
+      <span className="cb-chip bv-D" title={c.title}>
+        {n}/{of}
+      </span>
+      <span className="cb-dots bv-E">
+        <span className="cb-dn">{c.title}</span>
+        <span className="cb-dd">
+          {c.maps.map((x, i) => (
+            <i key={x} className={i + 1 === n ? "on" : undefined}></i>
+          ))}
+        </span>
+      </span>
+    </>
+  );
+}
+
 /* `stat` is the figure the order in use is about */
 export function MapCardLink({ m, stat }: { m: MapCard; stat: string }) {
   const r = { steamId: m.top3[0][0], persona: m.top3[0][1] };
@@ -38,11 +69,7 @@ export function MapCardLink({ m, stat }: { m: MapCard; stat: string }) {
     <Link className="mcard" href={mapHref(m.pfid)}>
       <span className="im">
         <MapImage preview={m.preview} />
-        {c && (
-          <span className="cbadge hv-C">
-            {c.title} {c.maps.indexOf(m.pfid) + 1}/{c.maps.length}
-          </span>
-        )}
+        {c && <CampaignBadges c={c} pfid={m.pfid} />}
         <span className="pod3">
           {m.top3.map((p, i) => (
             <PodLine key={i} p={p} i={i} />
@@ -50,8 +77,17 @@ export function MapCardLink({ m, stat }: { m: MapCard; stat: string }) {
         </span>
       </span>
       <span className="t">{m.title}</span>
+      {c && (
+        <span className="cline bv-C">
+          <i aria-hidden="true"></i>
+          {c.title} · map {c.maps.indexOf(m.pfid) + 1} of {c.maps.length}
+        </span>
+      )}
       <span className="s">
-        <span>by {m.creator}</span>
+        <span>
+          by {m.creator}
+          {c && <span className="bv-D"> · {c.title}</span>}
+        </span>
         <span className="num">{stat}</span>
       </span>
       <span className="lead">
