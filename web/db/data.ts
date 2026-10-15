@@ -361,6 +361,7 @@ export async function getPlayerCampaigns(
         c,
         slug: c.slug,
         players: head.total,
+        previews: data.maps.map((m) => m.preview),
         finished: tracks.filter((t) => t.finish).length,
         season: {
           group: c.title,

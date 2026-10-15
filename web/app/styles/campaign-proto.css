@@ -111,23 +111,33 @@
   color: inherit;
   text-decoration: none;
 }
-.cban-pics {
-  position: absolute;
-  inset: 0;
+/* a Campaign's picture: its Maps side by side, a hairline between */
+.cpics {
   display: flex;
-  opacity: 0.45;
+  gap: 2px;
+  background: var(--bg);
 }
-.cban-pics img {
+.cpics > span {
   flex: 1;
   min-width: 0;
+  background: var(--surface);
+}
+.cpics img {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+}
+.cban > .cpics {
+  position: absolute;
+  inset: 0;
 }
 .cban-in {
   position: relative;
   display: grid;
   gap: 3px;
   padding: 14px 16px;
-  background: linear-gradient(90deg, var(--bg) 30%, transparent);
+  background: linear-gradient(90deg, color-mix(in oklch, var(--bg) 85%, transparent) 25%, transparent 75%);
 }
 .cban-in b {
   font-family: var(--f-marquee);
@@ -440,7 +450,8 @@
   display: grid;
   font-family: var(--f-hud);
   gap: 4px;
-  padding: 12px 14px;
+  padding: 0 14px 12px;
+  overflow: clip;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
@@ -450,8 +461,23 @@
 .pcamp:hover {
   border-color: var(--accent);
 }
+.pc-pic {
+  position: relative;
+  display: grid;
+  margin: 0 -14px 6px;
+  aspect-ratio: 16 / 6;
+}
+.pc-pic > * {
+  grid-area: 1 / 1;
+}
+.pc-pic .cpics {
+  height: 100%;
+}
 .pc-t {
+  align-self: end;
+  padding: 18px 14px 8px;
   font-weight: 600;
+  background: linear-gradient(transparent, var(--scrim));
 }
 .pc-r b {
   font-family: var(--f-marquee);

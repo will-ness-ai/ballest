@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 
-import { MapImage } from "../MapImage";
+import { CampaignPics } from "./CampaignPics";
 import { Marble } from "../Marble";
 import { campaignHref } from "../../lib/campaigns";
 import { fmtN, personaOf } from "../../lib/rules";
@@ -48,11 +48,7 @@ export function CampaignCarousel({ cards }: { cards: Array<CampaignCard> }) {
       >
         {cards.map((k) => (
           <Link key={k.c.slug} className="cban" href={campaignHref(k.c.slug)}>
-            <span className="cban-pics">
-              {k.previews.slice(0, 5).map((p, i) => (
-                <MapImage key={i} preview={p} />
-              ))}
-            </span>
+            <CampaignPics previews={k.previews} />
             <span className="cban-in">
               <span className="eyebrow">
                 Campaign · {k.c.maps.length} maps · {fmtN(k.players)} players

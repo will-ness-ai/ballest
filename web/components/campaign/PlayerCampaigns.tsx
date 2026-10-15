@@ -2,6 +2,7 @@
 // variant is drawn; the picker's data-v on <html> shows one.
 import Link from "next/link";
 
+import { CampaignPics } from "./CampaignPics";
 import { Season } from "../player/PlayerView";
 import type { getPlayerCampaigns } from "../../db/data";
 import { campaignHref } from "../../lib/campaigns";
@@ -32,7 +33,10 @@ export function CampaignCardsRow({ camps }: { camps: PlayerCamps }) {
           const o = k.season.overall;
           return (
             <Link key={k.slug} className="pcamp" href={campaignHref(k.slug)} data-m={o.rank <= 3 ? o.rank : 0}>
-              <span className="pc-t">{k.c.title}</span>
+              <span className="pc-pic">
+                <CampaignPics previews={k.previews} max={4} />
+                <span className="pc-t">{k.c.title}</span>
+              </span>
               <span className="pc-r">
                 <b>{ord(o.rank)}</b>
                 <small> of {fmtN(k.players)}</small>
