@@ -1,5 +1,6 @@
 // Every URL the site links to, and how an old #/ link from the single-page site maps onto
 // one. A Steam ID only ever reaches a path through isSteamId: one can arrive from the URL.
+import { campaignOfBoard } from "./campaigns";
 import { circuitBoard } from "./circuit";
 import { STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
@@ -57,6 +58,14 @@ export const mapHref = (pfid: string, focus?: string | null) =>
 export function boardHref(name: string, slot?: string | null) {
   const pfid = mapPfidOf(name);
   if (pfid) return mapHref(pfid, slot);
+  /* PROTOTYPE: a Campaign's standings live at /campaign/<slug> */
+  const campaign = campaignOfBoard(name);
+  if (campaign)
+    return (
+      "/campaign/" +
+      campaign.slug +
+      (slot && (slot === PODIUM_SORT || isSteamId(slot)) ? "/" + slot : "")
+    );
   return "/board/" + name + (slot && (slot === PODIUM_SORT || isSteamId(slot)) ? "/" + slot : "");
 }
 

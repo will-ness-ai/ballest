@@ -197,6 +197,19 @@ export async function trackPodiums(db: Db): Promise<Array<Placing>> {
   );
 }
 
+/* PROTOTYPE: the top three of each of `boards`, in their order */
+export async function podiumsOf(db: Db, boards: ReadonlyArray<string>): Promise<Array<Placing>> {
+  return rows<Placing>(
+    db,
+    sql`select r.board, r.steam_id as "steamId", p.persona, nullif(p.avatar, '') as avatar,
+        nullif(p.profile_url, '') as "profileUrl", r.rank, r.score::float8 as score
+      from (${rankedSql(sql`e.board = any(${array(boards)})`)}) r
+      join players p on p.steam_id = r.steam_id
+      where r.rank <= 3
+      order by array_position(${array(boards)}, r.board), r.rank`,
+  );
+}
+
 /* Every Workshop Map with its latest details and what the Workshop pages show of its board
    without reading it: workshop_stats in tools/campaign_common.py. Newest first. */
 export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {

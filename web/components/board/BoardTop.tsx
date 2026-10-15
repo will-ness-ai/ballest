@@ -166,12 +166,15 @@ export function OverallCard({
   tally,
   tracks,
   podiums,
+  unit = "tracks",
 }: {
   b: IndexBoard;
   rows: Array<BoardRow>;
   tally: PodiumTally | null;
   tracks: number;
   podiums: boolean;
+  /* PROTOTYPE: a Campaign adds up maps */
+  unit?: string;
 }) {
   /* the tally ranks golds first, so the most podiums need not be the top one */
   const most = tally?.players.length
@@ -226,7 +229,7 @@ export function OverallCard({
           <div>
             <h1>{b.display}</h1>
             <span className="bc-by">
-              {b.group} · points{tally ? " and podiums" : ""} across all {fmtN(tracks)} tracks
+              {b.group} · points{tally ? " and podiums" : ""} across all {fmtN(tracks)} {unit}
               <QMark always={podiums} />
             </span>
           </div>

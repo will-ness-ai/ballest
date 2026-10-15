@@ -8,6 +8,7 @@
 // (7,288 of them, 2026-10-04) reads that way, so the ranks here are Steam's.
 import { sql, type SQL } from "drizzle-orm";
 
+import { campaignOfBoard, mapBoards } from "../lib/campaigns";
 import { COMPOSITE_BOARD, S1_CURRENT_BOARD, S1_TRACKS, S2_OVERALL_BOARD } from "../lib/circuit";
 
 /* The open Entries of the boards `where` picks, each with its rank on its board:
@@ -78,8 +79,25 @@ export const DERIVED = [S1_CURRENT_BOARD, COMPOSITE_BOARD] as const;
 
 /* One board's ranked rows, Steam's or derived: (board, steam_id, score, rank, seasons) */
 export function boardSql(name: string) {
+  const campaign = campaignOfBoard(name);
+  if (campaign) return campaignSql(name, mapBoards(campaign));
   if (name === S1_CURRENT_BOARD) return s1CurrentSql();
   if (name === COMPOSITE_BOARD) return compositeSql();
   return sql`select board, steam_id, score, rank, null::jsonb as seasons
     from (${rankedSql(sql`e.board = ${name}`)}) r`;
+}
+
+/* PROTOTYPE: a Campaign's standings, the Circuit's Overall rule over its Maps; equal totals
+   in the order the Maps meet them, as Season 1 Current orders its ties */
+function campaignSql(name: string, boards: ReadonlyArray<string>) {
+  const maps = array(boards);
+  return sql`select ${name}::text as board, steam_id, score,
+      (row_number() over (order by score desc, first))::int as rank,
+      null::jsonb as seasons
+    from (
+      select steam_id, sum(${trackPointsSql(sql`rank`)})::bigint as score,
+        min(array_position(${maps}, board) * 1000000 + rank) as first
+      from (${rankedSql(sql`e.board = any(${maps})`)}) t
+      group by steam_id
+    ) p`;
 }

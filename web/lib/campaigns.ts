@@ -48,3 +48,16 @@ export const CAMPAIGNS: Array<Campaign> = [
 
 export const campaignOf = (slug: string) => CAMPAIGNS.find((c) => c.slug === slug) ?? null;
 export const campaignHref = (slug: string) => "/campaign/" + slug;
+
+/* a Campaign's standings read as a derived Overall board, so every board piece takes it
+   (isPoints keys off the Overall prefix) */
+export const CAMPAIGN_PREFIX = "OverallCampaign_";
+export const campaignBoard = (c: Campaign) => CAMPAIGN_PREFIX + c.slug;
+export const campaignOfBoard = (name: string) =>
+  name.startsWith(CAMPAIGN_PREFIX) ? campaignOf(name.slice(CAMPAIGN_PREFIX.length)) : null;
+export const mapBoards = (c: Campaign) => c.maps.map((pfid) => "Workshop_" + pfid);
+
+/* a Map's name inside its Campaign: the title without the Campaign's name */
+export const shortTitle = (c: Campaign, title: string) =>
+  title.replace(new RegExp("^" + c.title + "\\s*", "i"), "").trim() || title;
+export const campaignMapHref = (c: Campaign, pfid: string) => campaignHref(c.slug) + "/" + pfid;

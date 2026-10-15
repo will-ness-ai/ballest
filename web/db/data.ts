@@ -15,6 +15,7 @@
 // list of every player or Map read to look up one costs its full size each time.
 import { cacheLife, cacheTag } from "next/cache";
 
+import { campaignOf, campaignOfBoard } from "../lib/campaigns";
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
 import { boardHistory, type BoardHistory } from "../lib/history";
 import { playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
@@ -155,7 +156,11 @@ export async function readBoard(name: string, from: number, count: number): Prom
 /* whether a board can be read: a Circuit board, or a Map the Workshop lists */
 export async function isBoard(name: string): Promise<boolean> {
   const pfid = mapPfidOf(name);
-  return !!circuitBoard(name) || (pfid !== null && (await getMap(pfid)) !== null);
+  return (
+    !!circuitBoard(name) ||
+    !!campaignOfBoard(name) ||
+    (pfid !== null && (await getMap(pfid)) !== null)
+  );
 }
 
 /* whether a board's runs can race: a board that can be read, or a Daily's */
@@ -310,4 +315,17 @@ async function playerDailiesOf(steamId: string) {
 /* the Compare dialog's search, read fresh */
 export function searchPlayers(query: string, except: string) {
   return q.searchPlayers(db(), query, { except });
+}
+
+/* PROTOTYPE: a Campaign's Maps (those the Workshop lists, in its order) and its podiums */
+export async function getCampaignData(slug: string) {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const c = campaignOf(slug);
+  if (!c) return null;
+  const all = await getWorkshop();
+  const maps = c.maps.flatMap((pfid) => all.filter((m) => m.pfid === pfid));
+  const placings = await q.podiumsOf(db(), maps.map((m) => m.name));
+  return { maps, placings };
 }

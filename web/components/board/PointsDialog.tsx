@@ -25,7 +25,15 @@ export function QMark({ always }: { always?: boolean }) {
   );
 }
 
-export function PointsDialog({ board, tracks }: { board: string; tracks: number }) {
+export function PointsDialog({
+  board,
+  tracks,
+  unit = "tracks",
+}: {
+  board: string;
+  tracks: number;
+  unit?: string;
+}) {
   const mounted = useMounted();
   const [open, setOpen] = useState(false);
   const from = useRef<HTMLElement | null>(null);
@@ -61,7 +69,7 @@ export function PointsDialog({ board, tracks }: { board: string; tracks: number 
       <div>
         <p>
           Every track pays points for your place on it, and past 10th the payout halves at every
-          10&times; in place. Your points are what all {fmtN(tracks)} tracks pay you, added up.
+          10&times; in place. Your points are what all {fmtN(tracks)} {unit} pay you, added up.
         </p>
         <table>
           <tbody>
