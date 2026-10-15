@@ -37,7 +37,7 @@ export const DATA_TAG = "data";
 let client: Db | undefined;
 
 // One pool per server process, opened on the first read.
-function db(): Db {
+export function db(): Db {
   if (!client) {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL is not set");

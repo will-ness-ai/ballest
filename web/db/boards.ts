@@ -28,7 +28,7 @@ export function rankedSql(where: SQL) {
    and trackPoints in lib/rules.ts. Past 10th it is floor(360000/(100·2^k) +
    40000·5^k/(10·place)) for place in (10^k, 10^(k+1)], which over one denominator is the
    integer division below, so no rounding can creep in. */
-const trackPointsSql = (rank: SQL) => sql`(case when ${rank} <= 10 then 40000 / ${rank}
+export const trackPointsSql = (rank: SQL) => sql`(case when ${rank} <= 10 then 40000 / ${rank}
     else (3600000::bigint * ${rank}
           + 4000000::bigint * (10::bigint ^ (length((${rank} - 1)::text) - 1))::bigint)
          / (1000::bigint * (2::bigint ^ (length((${rank} - 1)::text) - 1))::bigint * ${rank})

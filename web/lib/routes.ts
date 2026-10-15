@@ -37,7 +37,7 @@ export const PLAYERS_TAB = "Players";
 
 /* the tab a path belongs to; a player's page and a head to head belong to none */
 export function tabOfPath(path: string): string | null {
-  if (path === "/" || /^\/maps?(\/|$)/.test(path)) return WORKSHOP_GROUP;
+  if (path === "/" || /^\/(maps?|campaign)(\/|$)/.test(path)) return WORKSHOP_GROUP;
   if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
   if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
   const board = /^\/board\/([^/]+)/.exec(path);
