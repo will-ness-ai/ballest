@@ -39,8 +39,12 @@ async function previewStill(chosen: Chosen): Promise<Blob | null> {
   }
 }
 
+/* the minute after `iso`, so a player who comes back then isn't refused for the seconds */
 const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+  new Date(Date.parse(iso) + 60_000).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
 export function UploadForm() {
   const [quota, setQuota] = useState<UploadQuota | null>(null);
