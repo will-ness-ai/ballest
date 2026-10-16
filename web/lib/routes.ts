@@ -28,19 +28,21 @@ export const isPlayerTab = oneOf(PLAYER_TABS);
 export const isPlScope = oneOf(PL_SCOPES);
 export const isPlSort = oneOf(PL_SORTS);
 
-/* the tabs across the top: the Workshop leads, the Daily follows it, then the Circuit, and
-   Players comes last */
+/* the tabs across the top: the Workshop leads, the Daily follows it, then the Circuit and
+   Players, and the Prefabs come last */
 export const WORKSHOP_GROUP = "Workshop";
 /* every season's boards sit under the one Circuit tab, with the seasons as a switch inside */
 export const CIRCUIT_TAB = "Circuit";
 export const DAILY_TAB = "Daily";
 export const PLAYERS_TAB = "Players";
+export const PREFABS_TAB = "Prefabs";
 
 /* the tab a path belongs to; a player's page and a head to head belong to none */
 export function tabOfPath(path: string): string | null {
   if (path === "/" || /^\/(maps?|campaigns?)(\/|$)/.test(path)) return WORKSHOP_GROUP;
   if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
   if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
+  if (/^\/prefabs?(\/|$)/.test(path)) return PREFABS_TAB;
   const board = /^\/board\/([^/]+)/.exec(path);
   return board && circuitBoard(decodeURIComponent(board[1])) ? CIRCUIT_TAB : null;
 }
@@ -97,6 +99,24 @@ export function campaignPath(path: string) {
 
 export const vsHref = (a: string, b: string) =>
   isSteamId(a) && isSteamId(b) ? "/vs/" + a + "/" + b : "/";
+
+/* the Prefabs gallery, a Prefab's page, its file (the download and what the viewer draws),
+   and the upload form; a slug only ever reaches a path through isPrefabSlug */
+export const PREFAB_SLUG = /[a-z0-9]+(?:-[a-z0-9]+)*/;
+const WHOLE_PREFAB_SLUG = new RegExp(`^${PREFAB_SLUG.source}$`);
+export const isPrefabSlug = (s: string | undefined): s is string =>
+  !!s && s.length <= 64 && WHOLE_PREFAB_SLUG.test(s);
+export const prefabsHref = () => "/prefabs";
+export const newPrefabHref = () => "/prefabs/new";
+export const prefabHref = (slug: string) => (isPrefabSlug(slug) ? "/prefab/" + slug : "/prefabs");
+/* the Prefab API (db/prefab-api.ts): uploading, a Prefab's file, favorite, edit and take
+   down, and a player's upload ban */
+export const prefabsApiHref = () => "/api/prefabs";
+export const prefabApiHref = (slug: string) => "/api/prefabs/" + slug;
+export const prefabFileHref = (slug: string) => prefabApiHref(slug) + "/file";
+export const prefabFavoriteHref = (slug: string) => prefabApiHref(slug) + "/favorite";
+export const prefabTakeDownHref = (slug: string) => prefabApiHref(slug) + "/takedown";
+export const prefabBanHref = (id: string) => (isSteamId(id) ? "/api/prefab-bans/" + id : null);
 
 export const mapsHref = (view?: string | null) => "/maps" + (view ? "/" + view : "");
 

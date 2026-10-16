@@ -4,7 +4,8 @@
 // Two ID sets, each picked to be hard on the layout: `real` for production and previews
 // (both read the production database) and `stress` for a local build seeded with the stress
 // dataset (db/seed/datasets/stress.ts). RANKED holds a five-digit rank on an Overall board,
-// LONG has a long name, RIVAL is the head to head's other side, and MAP has a long title. In
+// LONG has a long name, RIVAL is the head to head's other side, MAP has a long title, and
+// PREFAB is a Prefab (production's is one of the two samples). In
 // stress one player is RANKED and LONG; on production RANKED is Hky. (12697th in Season 2)
 // and LONG is "Twizy #POPEM #LongLiveTheRuler". CAMPAIGN is a Campaign with its podium
 // order and CAMPAIGN_MAP one of its Maps inside its frame: on production Solar Trials (nine
@@ -20,6 +21,7 @@ export const IDS = {
     CAMPAIGN: "solar-trials",
     CAMPAIGN_MAP: "3805413302",
     CAMPAIGNER: "76561197968999419",
+    PREFAB: "park-hill",
   },
   stress: {
     RANKED: "76561199000000011",
@@ -29,6 +31,7 @@ export const IDS = {
     CAMPAIGN: "solar-trials",
     CAMPAIGN_MAP: "3805399883",
     CAMPAIGNER: "76561199000000011",
+    PREFAB: "twin-cubes",
   },
 };
 
@@ -56,6 +59,9 @@ export const PAGES = [
   { name: "players-maps", path: "/players/workshop/maps" },
   { name: "daily", path: "/daily" },
   { name: "daily-standings", path: "/daily/standings" },
+  { name: "prefabs", path: "/prefabs" },
+  { name: "prefab", path: "/prefab/{PREFAB}" },
+  { name: "prefab-new", path: "/prefabs/new" },
   { name: "notfound", path: "/no-such-page", status: 404 },
 ];
 
@@ -77,6 +83,7 @@ export const STATES = [
   { name: "change", page: "vs", click: "[data-change=b]" },
   { name: "refine", page: "maps", click: "button.refine" },
   { name: "race", page: "board", click: ".row .c-race" },
+  { name: "howto", page: "prefab", click: ".pf-q" },
   { name: "race-podium", page: "board", click: ".pl-score.c-race" },
 ];
 

@@ -1,0 +1,1195 @@
+{
+	"format": "BallestPrefab",
+	"version": 1,
+	"group":
+	{
+		"rotation": [
+			0,
+			0,
+			-0
+		],
+		"scale": [
+			1,
+			1,
+			1
+		]
+	},
+	"items": [
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Cube.BP_Prim_Cube_C",
+			"transform":
+			{
+				"location": [
+					0,
+					33.229642033902564,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-90.000000000000014
+				],
+				"scale": [
+					0.20460685223909938,
+					0.012700025595217081,
+					0.066459284067805616
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Art/GreyBoxing/_GENERATED/PC/Box_C559BEB3.Box_C559BEB3",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Cube.BP_Prim_Cube_C",
+			"transform":
+			{
+				"location": [
+					-90,
+					23.229642033902564,
+					-30.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-90.000000000000014
+				],
+				"scale": [
+					0.01,
+					0.041504909661725327,
+					0.01
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Art/GreyBoxing/_GENERATED/PC/Box_C559BEB3.Box_C559BEB3",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Cube.BP_Prim_Cube_C",
+			"transform":
+			{
+				"location": [
+					-90,
+					-16.770357966097436,
+					-30.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-90.000000000000014
+				],
+				"scale": [
+					0.01,
+					0.041504909661725327,
+					0.01
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Art/GreyBoxing/_GENERATED/PC/Box_C559BEB3.Box_C559BEB3",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Cube.BP_Prim_Cube_C",
+			"transform":
+			{
+				"location": [
+					90,
+					23.229642033902564,
+					-30.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-90.000000000000014
+				],
+				"scale": [
+					0.01,
+					0.041504909661725327,
+					0.01
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Art/GreyBoxing/_GENERATED/PC/Box_C559BEB3.Box_C559BEB3",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Cube.BP_Prim_Cube_C",
+			"transform":
+			{
+				"location": [
+					90,
+					-16.770357966097436,
+					-30.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-90.000000000000014
+				],
+				"scale": [
+					0.01,
+					0.041504909661725327,
+					0.01
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Art/GreyBoxing/_GENERATED/PC/Box_C559BEB3.Box_C559BEB3",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					100,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030873676964613874
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					90,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					80,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					70,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					60,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					50,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					40,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					30,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					20,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					10,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					0,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-10,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-20,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.027084138607167213
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-20,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-30,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-40,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-50,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-60,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-70,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-80,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-90,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					-100,
+					-26.770357966097436,
+					-10.721699252258986
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.030929533012630003
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Tube1.BP_Pipe_Tube1_C",
+			"transform":
+			{
+				"location": [
+					100,
+					-26.770357966097436,
+					49.278300747741014
+				],
+				"rotation": [
+					90,
+					0,
+					0
+				],
+				"scale": [
+					0.043917066707635517,
+					0.054574909921725256,
+					0.10087201606286295
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_Pipe.SM_2000_Pipe",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth"
+				],
+				"colors": [
+					2
+				]
+			}
+		}
+	]
+}

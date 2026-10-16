@@ -13,7 +13,7 @@
 // script walking made-up IDs or offsets can only add an empty answer per ID, never a
 // record. The check is per ID because a cache entry comes back whole on every read: a
 // list of every player or Map read to look up one costs its full size each time.
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
 import {
   CAMPAIGNS,
@@ -40,10 +40,18 @@ import type {
 } from "../lib/rows";
 import type { CampaignStanding } from "../lib/share";
 import { mapCard, timed, type MapCard } from "../lib/workshop";
+import { footprintOf, partsOf, shapesOf, type PrefabFile } from "../lib/prefab";
+import { fileNameOf } from "../lib/prefab-check";
+import { isPrefabSlug } from "../lib/routes";
 import { connect, type Db } from "./client";
+import type { PrefabDeps } from "./prefab-api";
+import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
 import * as q from "./site";
 
 export const DATA_TAG = "data";
+/* the Prefab reads, expired by every write the site makes to them (and, since an uploader's
+   persona comes from the boards, by a Refresh too) */
+export const PREFAB_TAG = "prefabs";
 
 let client: Db | undefined;
 
@@ -462,4 +470,71 @@ async function finishedEveryMapOf(slug: string) {
 /* the Compare dialog's search, read fresh */
 export function searchPlayers(query: string, except: string) {
   return q.searchPlayers(db(), query, { except });
+}
+
+/* every live Prefab as the gallery's cards, newest first */
+export async function getPrefabCards(): Promise<Array<PrefabCard>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG, PREFAB_TAG);
+  cacheLife("max");
+  return prefabList(db());
+}
+
+export interface PrefabPage extends Omit<PrefabView, "file"> {
+  parts: Array<{ piece: string; count: number }>;
+  size: { w: number; d: number; h: number };
+  fileName: string;
+}
+
+/* a Prefab's page, without its file (the viewer fetches that), or null for a slug nobody
+   uploaded; one that isn't live comes back with its state, for the page to say it's gone.
+   Only a slug shaped like one is looked up */
+export async function getPrefab(slug: string): Promise<PrefabPage | null> {
+  return isPrefabSlug(slug) ? prefabPageOf(slug) : null;
+}
+
+async function prefabPageOf(slug: string): Promise<PrefabPage | null> {
+  "use cache: remote";
+  cacheTag(DATA_TAG, PREFAB_TAG);
+  cacheLife("max");
+  const p = await prefabOf(db(), slug);
+  if (!p) return null;
+  const { file, ...rest } = p;
+  const parsed = JSON.parse(file) as PrefabFile;
+  return {
+    ...rest,
+    parts: partsOf(parsed),
+    size: footprintOf(shapesOf(parsed)),
+    fileName: fileNameOf(p.name),
+  };
+}
+
+/* a file bigger than this is read fresh, not cached: a cache entry has a size limit */
+const CACHED_FILE_BYTES = 1_000_000;
+
+/* a live Prefab's file as it was uploaded and the name it downloads as, or null */
+export async function getPrefabFile(
+  slug: string,
+): Promise<{ fileName: string; file: string } | null> {
+  if (!isPrefabSlug(slug)) return null;
+  const cached = await prefabFileOf(slug);
+  if (!cached) return null;
+  if (cached.file !== null) return { fileName: cached.fileName, file: cached.file };
+  const p = await prefabOf(db(), slug);
+  return p?.state === "live" ? { fileName: fileNameOf(p.name), file: p.file } : null;
+}
+
+async function prefabFileOf(slug: string) {
+  "use cache: remote";
+  cacheTag(PREFAB_TAG);
+  cacheLife("max");
+  const p = await prefabOf(db(), slug);
+  if (p?.state !== "live") return null;
+  return { fileName: fileNameOf(p.name), file: p.bytes > CACHED_FILE_BYTES ? null : p.file };
+}
+
+/* what the Prefab API's routes write with: this server's database, and every cached Prefab
+   read expired after a write so the change shows at once */
+export function prefabDeps(): PrefabDeps {
+  return { db: db(), changed: () => revalidateTag(PREFAB_TAG, { expire: 0 }) };
 }

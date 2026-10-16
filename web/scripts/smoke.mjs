@@ -149,6 +149,28 @@ const ROUTES = [
   ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
   ["/", 200, null, '"@type":"WebSite"'],
   ["/", 200, null, "<title>Ballest of Them All Records: "],
+  // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
+  ["/prefabs", 200, null, "Twin cubes"],
+  ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
+  ["/prefabs/new", 200, null, "Upload a prefab"],
+  ["/api/prefabs", 200, null, '"signedIn":false'],
+  ["/robots.txt", 200, null, "Disallow: /prefabs/new"],
+  ["/prefab/twin-cubes", 200, null, "Twin cubes"],
+  [
+    "/prefab/twin-cubes",
+    200,
+    null,
+    '<link rel="canonical" href="' + ORIGIN + '/prefab/twin-cubes"',
+  ],
+  ["/prefab/cube-row", 200, null, "Newcomer"],
+  ["/prefab/nope", 200, null, "This prefab is gone"],
+  ["/prefab/Not_A_Slug", 404],
+  ["/prefab/twin-cubes/x", 404],
+  ["/api/prefabs/twin-cubes/file", 200, null, "BallestPrefab"],
+  ["/api/prefabs/nope/file", 404],
+  ["/api/prefabs/twin-cubes/favorite", 200, null, '"favorites":0'],
+  ["/api/prefabs/nope/favorite", 404],
+  ["/api/prefabs/twin-cubes", 405],
   ["/no-such-page", 404],
 ];
 

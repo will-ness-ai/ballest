@@ -1,0 +1,650 @@
+/* ==========================================================================
+   PREFABS: a Prefab's page (B · Sidebar from grill-design round 1), the
+   gallery and the upload form. Desktop overrides are in desktop.css.
+   ========================================================================== */
+
+.pf {
+  margin: 0 var(--pad);
+  display: grid;
+  gap: 1rem;
+  padding-block: 0.5rem 2rem;
+  min-width: 0;
+}
+.pf > *,
+.pf-side,
+.pf-steps,
+.pf-steps li {
+  min-width: 0;
+}
+.pf h1 {
+  font-family: var(--f-marquee);
+  font-size: calc((26rem + 10 * var(--ramp)) / 16);
+  font-weight: 400;
+  line-height: 1.1;
+  margin: 0;
+}
+.pf h2 {
+  font-family: var(--f-hud);
+  font-size: calc(15rem / 16);
+  margin: 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pf-by {
+  color: var(--dim);
+  margin: 0.25rem 0 0;
+}
+.pf-by a {
+  color: var(--text);
+}
+.pf-desc {
+  color: var(--dim);
+  margin: 0;
+  max-width: 60ch;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+/* low specificity, so a chip's or Download's own look wins */
+:where(.pf) button {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+/* the viewer */
+.pf-split {
+  display: grid;
+  gap: 1rem;
+}
+.pf-vwrap {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: radial-gradient(120% 90% at 50% 20%, var(--surface2), transparent 70%), var(--solid);
+  overflow: hidden;
+  min-width: 0;
+}
+.pfv {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  cursor: grab;
+  touch-action: none;
+  display: grid;
+  place-items: center;
+}
+.pfv:active {
+  cursor: grabbing;
+}
+.pfv canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.pf-fail {
+  color: var(--faint);
+}
+.pf-tools {
+  position: absolute;
+  inset: auto 0.5rem 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.pf-tools button {
+  pointer-events: auto;
+}
+.pf-hint {
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+}
+
+/* the ? and the how-to it opens */
+.pf .pf-q {
+  position: absolute;
+  z-index: 1;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  font-weight: 700;
+}
+.pf-dialog {
+  margin: auto;
+  height: fit-content;
+  max-width: min(34rem, calc(100vw - 2rem));
+  background: var(--solid);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.2rem;
+}
+.pf-dialog::backdrop {
+  background: oklch(0% 0 none / 0.6);
+}
+.pf-dialog form {
+  display: flex;
+  justify-content: end;
+  margin-top: 1rem;
+}
+.pf-dialog h2 {
+  margin-bottom: 0.8rem;
+}
+.pf-steps {
+  margin: 0;
+  padding-left: 1.3rem;
+  display: grid;
+  gap: 0.7rem;
+}
+.pf-code {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-block: 0.3rem;
+  min-width: 0;
+}
+.pf-code code {
+  font-family: ui-monospace, monospace;
+  font-size: calc(13rem / 16);
+  background: var(--solid);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  padding: 0.25rem 0.45rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  min-width: 0;
+}
+.pf .pf-copy {
+  font-size: calc(12rem / 16);
+  padding: 0.2rem 0.5rem;
+  flex: none;
+}
+
+/* the facts beside it */
+.pf-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.9rem;
+  align-content: start;
+}
+.pf-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+}
+.pf-stats dt {
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.pf-stats dd {
+  margin: 0;
+  font-family: var(--f-hud);
+  font-weight: 600;
+}
+.pf-parts,
+.pf-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pf-parts li {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  color: var(--dim);
+}
+.pf-parts b {
+  color: var(--text);
+}
+.pf-tags li {
+  font-size: calc(13rem / 16);
+  color: var(--dim);
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+}
+
+/* Download */
+.pf-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+.pf-dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-self: start;
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pf-dl:hover {
+  background: var(--accent-hover);
+}
+.pf-dl.big {
+  padding: 0.8rem 1.3rem;
+  font-size: calc(17rem / 16);
+  max-width: 100%;
+}
+/* a long file name trims rather than widening the page on a narrow phone */
+.pf-dl .pf-fn {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pf-dl svg {
+  width: 1.2em;
+  height: 1.2em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pf-fn {
+  font-weight: 400;
+  opacity: 0.7;
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pf-gone p {
+  color: var(--dim);
+  margin: 0;
+}
+
+/* ==========================================================================
+   The gallery (grill-design round 2, A · Gallery)
+   ========================================================================== */
+.pfl {
+  margin: 0 var(--pad);
+  display: grid;
+  gap: 1rem;
+  padding-block: 0.5rem 2rem;
+  min-width: 0;
+}
+.pfl > * {
+  min-width: 0;
+}
+.pfl a {
+  color: inherit;
+  text-decoration: none;
+}
+.pfl-head {
+  display: flex;
+  gap: 1rem;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.pfl-head h1 {
+  font-family: var(--f-marquee);
+  font-weight: 400;
+  font-size: calc((26rem + 10 * var(--ramp)) / 16);
+  margin: 0;
+}
+.pfl-head p {
+  color: var(--dim);
+  margin: 0.3rem 0 0;
+  max-width: 60ch;
+}
+.pfl .pf-dl {
+  color: var(--accent-ink);
+}
+.pfl-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: center;
+}
+.pfl-seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.pfl-seg button {
+  font: inherit;
+  color: var(--dim);
+  background: none;
+  border: 0;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+.pfl-seg button.on {
+  background: var(--surface2);
+  color: var(--text);
+}
+.pfl-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.pfl-tag {
+  font: inherit;
+  font-size: calc(13rem / 16);
+  color: var(--dim);
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
+}
+.pfl-tag.on {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.pfl-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(11rem, 100%), 1fr));
+}
+.pfl-card {
+  display: grid;
+  gap: 0.3rem;
+  align-content: start;
+  padding: 0.5rem 0.5rem 0.7rem;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  transition: border-color 0.15s;
+  min-width: 0;
+}
+.pfl-card:hover,
+.pfl-card:focus-visible {
+  border-color: var(--line);
+}
+.pfl-still {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  background: radial-gradient(120% 90% at 50% 20%, var(--surface2), transparent 70%), var(--solid);
+  overflow: hidden;
+}
+.pfl-still img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.pfl-cardrow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: baseline;
+  min-width: 0;
+}
+.pfl-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pfl-sub {
+  display: block;
+  color: var(--faint);
+  font-size: calc(13rem / 16);
+  overflow-wrap: anywhere;
+}
+.pfl-favs {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  flex: none;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+  font-family: var(--f-hud);
+  font-weight: 600;
+}
+.pf-heart {
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.pf-heart.on {
+  fill: var(--bronze);
+  stroke: var(--bronze);
+}
+
+/* ==========================================================================
+   Uploading (grill-design round 3, E · Form + card)
+   ========================================================================== */
+.pfu {
+  margin: 0 var(--pad);
+  display: grid;
+  gap: 1rem;
+  padding-block: 0.5rem 2rem;
+  min-width: 0;
+}
+.pfu > *,
+.pfu-col,
+.pfu-col > * {
+  min-width: 0;
+}
+.pfu-split {
+  display: grid;
+  gap: 1.5rem;
+}
+.pfu-col {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  max-width: 44rem;
+}
+.pfu-h2 {
+  font-family: var(--f-hud);
+  font-size: calc(15rem / 16);
+  margin: 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pfu-drop {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  min-height: 9rem;
+  padding: 1rem;
+  border: 2px dashed var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  cursor: pointer;
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}
+.pfu-drop b {
+  color: var(--text);
+}
+.pfu-drop small {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--faint);
+}
+.pfu-drop.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.pfu-drop.ok,
+.pfu-drop.bad {
+  border-style: solid;
+  min-height: 0;
+}
+.pfu-drop.ok {
+  border-color: color-mix(in oklch, var(--accent) 50%, transparent);
+}
+.pfu-drop.bad {
+  border-color: var(--bronze);
+}
+.pfu-change {
+  display: block;
+  margin-top: 0.2rem;
+  text-decoration: underline;
+  color: var(--faint);
+}
+.pfu-bad {
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: var(--bronze-soft);
+  border: 1px solid color-mix(in oklch, var(--bronze) 45%, transparent);
+  overflow-wrap: anywhere;
+}
+.pfu-bad ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+.pfu-fields {
+  display: grid;
+  gap: 0.9rem;
+}
+.pfu-fields label,
+.pfu-fields fieldset {
+  display: grid;
+  gap: 0.3rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.pfu-fields span,
+.pfu-fields legend {
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+.pfu-fields i {
+  font-weight: 400;
+  color: var(--faint);
+}
+.pfu-fields small,
+.pfu-publish small {
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+}
+.pfu-fields input,
+.pfu-fields textarea {
+  font: inherit;
+  font-size: max(16px, 1rem);
+  color: var(--text);
+  background: var(--solid);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  min-width: 0;
+}
+.pfu-publish {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+button.pf-dl {
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pf-dl:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pfu-empty {
+  color: var(--faint);
+}
+.pfu-gate {
+  display: grid;
+  gap: 0.8rem;
+  justify-items: start;
+  padding: 1.2rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  max-width: 34rem;
+}
+.pfu-gate p {
+  margin: 0;
+}
+.pfu-gate .pf-dl {
+  color: var(--accent-ink);
+}
+.pfu-card {
+  max-width: 16rem;
+}
+
+/* the heart beside Download */
+.pf .pf-fav {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding-inline: 1rem;
+  font-family: var(--f-hud);
+  font-weight: 700;
+  font-size: calc(17rem / 16);
+  border-radius: 10px;
+}
+.pf-note {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+}
+
+/* the uploader's Edit and Delete, and the dialogs they open */
+.pf-own {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.pf-dialog .pfu-fields {
+  margin-block: 0.8rem;
+  min-width: min(28rem, calc(100vw - 4.4rem));
+}
+.pf-dialog p {
+  color: var(--dim);
+}
+.pf-dlg-row {
+  display: flex;
+  justify-content: end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.pf-dlg-row .pf-dl {
+  padding: 0.35rem 0.9rem;
+}
+.pf .pf-danger {
+  color: var(--bronze);
+  border-color: color-mix(in oklch, var(--bronze) 50%, transparent);
+}
+
+/* the admin's Take down and Ban */
+.pf-admin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px dashed var(--bronze);
+  border-radius: 10px;
+  color: var(--bronze);
+  font-size: calc(13rem / 16);
+}
