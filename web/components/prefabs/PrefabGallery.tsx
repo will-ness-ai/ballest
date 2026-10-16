@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { fetchPrefabFile } from "./file";
 import { Heart } from "./Heart";
 import { stillOf } from "./scene";
 import type { PrefabCard } from "../../db/prefabs";
@@ -39,7 +40,7 @@ export function Still({
       ([e]) => {
         if (!e.isIntersecting) return;
         seen.disconnect();
-        void (file ? Promise.resolve(file) : fetchFile(src ?? ""))
+        void (file ? Promise.resolve(file) : fetchPrefabFile(src ?? ""))
           .then((f) => stillOf(f, w, h, undefined, JSON.parse(view) as PrefabAngle | null))
           .then((s) => run.live && setImg(s))
           .catch(() => undefined);
@@ -58,11 +59,6 @@ export function Still({
     </span>
   );
 }
-
-const fetchFile = (src: string) =>
-  fetch(src).then((r) =>
-    r.ok ? (r.json() as Promise<PrefabFile>) : Promise.reject(new Error(String(r.status))),
-  );
 
 type CardFacts = Pick<PrefabCard, "slug" | "name" | "favorites" | "uploader" | "pieces" | "angle">;
 

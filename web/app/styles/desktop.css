@@ -696,7 +696,7 @@
     grid-template-columns: minmax(0, 1fr) 21rem;
     align-items: start;
   }
-  .pf-split .pfv {
+  .pf-split > .pf-vwrap > .pfv {
     aspect-ratio: auto;
     height: min(40rem, calc(100svh - 12rem));
   }

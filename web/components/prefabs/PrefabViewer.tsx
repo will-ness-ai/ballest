@@ -17,6 +17,7 @@ export function PrefabViewer({
   controls: interactive = true,
   angle = null,
   attach,
+  onTurn,
 }: {
   file: PrefabFile;
   className?: string;
@@ -24,12 +25,19 @@ export function PrefabViewer({
   controls?: boolean;
   angle?: PrefabAngle | null;
   attach?: (viewer: Viewer | null) => void;
+  /* someone grabbed it to turn, zoom or pan */
+  onTurn?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   /* read at each home(), so a new angle moves the camera there without rebuilding the
      scene; compared by value, so the same view arriving again doesn't */
   const home = useRef(angle);
   const goHome = useRef<(() => void) | null>(null);
+  /* the latest onTurn, so a new one doesn't rebuild the scene */
+  const turned = useRef(onTurn);
+  useEffect(() => {
+    turned.current = onTurn;
+  }, [onTurn]);
   const view = JSON.stringify(angle);
   useEffect(() => {
     home.current = angle;
@@ -61,7 +69,10 @@ export function PrefabViewer({
       controls.autoRotate = spin && !matchMedia("(prefers-reduced-motion: reduce)").matches;
       controls.autoRotateSpeed = 1.6;
       /* the spin only says "this is 3D": the first grab stops it for good */
-      controls.addEventListener("start", () => (controls.autoRotate = false));
+      controls.addEventListener("start", () => {
+        controls.autoRotate = false;
+        turned.current?.();
+      });
       const toHome = () => {
         const view = framing(THREE, camera, centre, radius, home.current);
         camera.position.copy(view.position);

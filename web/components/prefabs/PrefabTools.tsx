@@ -1,23 +1,28 @@
 "use client";
 // What the signed-in reader may do to a Prefab beyond viewing it: its uploader can edit its
-// name, description and tags, or delete it (db/prefab-api.ts editPrefab); the admin can take
-// it down, or ban its uploader, which hides all their Prefabs, and lift the ban from a
+// name, description, tags and angle, or delete it (db/prefab-api.ts editPrefab); the admin can
+// take it down, or ban its uploader, which hides all their Prefabs, and lift the ban from a
 // hidden one's page, or give its uploader their own hourly upload limit. Nobody else sees these.
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { AnglePicker } from "./AnglePicker";
+import { fetchPrefabFile } from "./file";
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
+import type { PrefabFile } from "../../lib/prefab";
 import {
   ADMIN_STEAM_ID,
   HOURLY_UPLOADS,
   MAX_HOURLY_UPLOADS,
   type PrefabFields,
+  type PrefabAngle,
   type UploaderLimit,
 } from "../../lib/prefabs";
 import {
   prefabApiHref,
+  prefabFileHref,
   prefabBanHref,
   prefabLimitHref,
   prefabTakeDownHref,
@@ -154,9 +159,31 @@ function OwnerTools({ p }: { p: PrefabPage }) {
     description: p.description,
     tags: p.tags,
   });
+  const [angle, setAngle] = useState<PrefabAngle | null>(p.angle);
+  /* the file, for the angle's preview, fetched when Edit opens until one read succeeds; the
+     picker is drawn only while the dialog is open, so a closed one holds no WebGL context */
+  const [file, setFile] = useState<PrefabFile | null>(null);
+  const [fileRead, setFileRead] = useState<"loading" | "failed" | null>(null);
+  const [editing, setEditing] = useState(false);
   const [problems, setProblems] = useState<Array<string>>([]);
   const [busy, setBusy] = useState(false);
   const url = prefabApiHref(p.slug);
+  const openEdit = () => {
+    setFields({ name: p.name, description: p.description, tags: p.tags });
+    setAngle(p.angle);
+    setProblems([]);
+    setEditing(true);
+    edit.current?.showModal();
+    if (!file && fileRead !== "loading") {
+      setFileRead("loading");
+      void fetchPrefabFile(prefabFileHref(p.slug))
+        .then((f) => {
+          setFile(f);
+          setFileRead(null);
+        })
+        .catch(() => setFileRead("failed"));
+    }
+  };
 
   const send = async (method: "PATCH" | "DELETE") => {
     setBusy(true);
@@ -165,7 +192,7 @@ function OwnerTools({ p }: { p: PrefabPage }) {
       const r = await fetch(url, {
         method,
         headers: { "content-type": "application/json" },
-        body: method === "PATCH" ? JSON.stringify(fields) : undefined,
+        body: method === "PATCH" ? JSON.stringify({ ...fields, angle }) : undefined,
       });
       if (r.ok) {
         /* a full load: the router's cached gallery would still show it */
@@ -186,15 +213,26 @@ function OwnerTools({ p }: { p: PrefabPage }) {
 
   return (
     <div className="pf-own">
-      <button type="button" onClick={() => edit.current?.showModal()}>
+      <button type="button" onClick={openEdit}>
         Edit
       </button>
       <button type="button" onClick={() => del.current?.showModal()}>
         Delete
       </button>
-      <dialog ref={edit} className="pf-dialog">
+      <dialog ref={edit} className="pf-dialog" onClose={() => setEditing(false)}>
         <h2>Edit {p.name}</h2>
         <Fields value={fields} onChange={setFields} />
+        {editing && file && (
+          <AnglePicker file={file} angle={angle} onPick={setAngle} className="pfa-dlg" />
+        )}
+        {editing && fileRead === "loading" && (
+          <p className="pfa-note pfa-dlg">Loading the preview…</p>
+        )}
+        {editing && fileRead === "failed" && (
+          <p className="pfa-note pfa-dlg">
+            The preview didn&apos;t load, so the angle stays as it is.
+          </p>
+        )}
         {problems.length > 0 && (
           <ul className="pfu-bad" role="alert">
             {problems.map((x) => (

@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Card } from "./PrefabGallery";
-import { PrefabViewer, useViewer } from "./PrefabViewer";
+import { AnglePicker } from "./AnglePicker";
 import { stillOf } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
@@ -204,6 +204,7 @@ function Form({
             file={chosen.file}
             angle={angle}
             onPick={setAngle}
+            className="pfu-tall"
           />
         ) : (
           <div className="pf-vwrap pfu-tall">
@@ -225,45 +226,6 @@ function Form({
             />
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-/* the preview, still so the uploader can turn it to the view they want, and the buttons that
-   make that view the card's (its angle) or go back to the default; the page's viewer starts
-   from it too */
-function AnglePicker({
-  file,
-  angle,
-  onPick,
-}: {
-  file: PrefabFile;
-  angle: PrefabAngle | null;
-  onPick: (angle: PrefabAngle | null) => void;
-}) {
-  const { attach, angleNow } = useViewer();
-  return (
-    <div className="pf-vwrap pfu-tall">
-      <PrefabViewer file={file} spin={false} angle={angle} attach={attach} />
-      <div className="pf-tools">
-        <span className="pf-hint">Turn it to the view you want on the card</span>
-        <span className="pf-tools-end">
-          {angle && (
-            <button type="button" onClick={() => onPick(null)}>
-              Default view
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              const a = angleNow();
-              if (a) onPick(a);
-            }}
-          >
-            Use this view
-          </button>
-        </span>
       </div>
     </div>
   );
