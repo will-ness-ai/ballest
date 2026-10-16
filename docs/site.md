@@ -435,8 +435,13 @@ branch `claude/prototype-prefabs` (spec #213).
   Steam, 5 a day per player counted from the rows. The file is checked in the browser the
   moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,
   described and tagged, previewed in 3D beside the card it will make, and live at once. Each
-  upload pings the ops channel through `OPS_WEBHOOK_URL` (skipped with a log line when it is
-  unset). An uploader the boards haven't seen is credited by the persona on their public
+  upload pings #prefabs on the dev Discord server through Vercel's `OPS_WEBHOOK_URL` (skipped
+  with a log line when it is unset; the GitHub and Fly secrets of that name are a different
+  webhook, #ops's): the admin bot made that webhook, so it may carry link buttons
+  (Open, Take down, Ban uploader; `db/prefab-ping.ts`). The two admin ones open the Prefab's page with
+  `?admin=take-down` or `?admin=ban`, which opens that confirm for the admin. The ping's
+  picture is a still of the preview the uploader's browser sends with the file (any PNG up to
+  1 MB; shown only in #prefabs). An uploader the boards haven't seen is credited by the persona on their public
   Steam profile, read once at upload (`steamPersona`). The download name is the Prefab's name
   as the spawn command takes it (`fileNameOf`).
 - **Favorites, editing and the admin** (`Favorite.tsx`, `PrefabTools.tsx`): a signed-in
