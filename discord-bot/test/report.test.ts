@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer, Option } from "effect";
+import { Effect, Either, Layer, Option } from "effect";
 import {
   headMessage,
   MESSAGE_LIMIT,
@@ -21,7 +21,11 @@ import {
   type ReportData,
   type ReportEntry,
   type ReportMap,
+  type Stat,
+  type Standings,
 } from "../src/report/report.js";
+import { standingsFrom } from "../src/report/standings.js";
+import type { SiteStandings } from "../src/steam/webApi.js";
 import { ticks } from "./harness.js";
 
 const AT = Date.UTC(2026, 9, 4, 16); // Sunday 4 October 2026, 16:00 UTC
@@ -65,135 +69,133 @@ const data = (over: Partial<ReportData>): ReportData => ({
   ...over,
 });
 
+/** A list row as the site serves it, with a Steam ID for the player's index. */
+type Row = [steamId: string, n: number, nBefore: number, place: number, placeBefore: number];
+type Lists = Partial<Record<Stat, Array<Row>>>;
+
+/** The site's GET /api/standings payload for these lists, every player named in capitals. */
+const payload = (lists: Lists): SiteStandings => {
+  const ids = [...new Set(Object.values(lists).flatMap((rows) => rows.map((r) => r[0])))].sort();
+  const index = (rows: Array<Row> = []) =>
+    rows.map(([id, ...counts]): SiteStandings["lists"]["played"][number] => [
+      ids.indexOf(id),
+      ...counts,
+    ]);
+  return {
+    readAt: new Date(TODAY).toISOString(),
+    since: new Date(AT - DAY_MS).toISOString(),
+    maps: 3,
+    players: ids.map((id): [string, string] => [id, id.toUpperCase()]),
+    lists: {
+      played: index(lists.played),
+      author: index(lists.author),
+      wr: index(lists.wr),
+      top5: index(lists.top5),
+    },
+  };
+};
+const standings = (lists: Lists = {}): Standings =>
+  Either.getOrThrow(standingsFrom(payload(lists)));
+const build = (d: ReportData, lists: Lists = {}) => buildReport(d, standings(lists), AT);
+const player = (i: number) => `p${String(i).padStart(2, "0")}`;
+
 describe("the Daily Report's standings", () => {
-  it("counts a creator on their own Map only when they beat the Author Medal by 1 ms", () => {
-    const a = map(1);
-    const r = buildReport(
-      data({
-        maps: [a],
-        entries: [entry(a, "creator", 19.9995), entry(a, "ann", 25)],
-      }),
-      AT,
-    );
-    // 19.9995 s is 0.5 ms under Author: matching the publishing run, not beating it
-    expect(r.players).toBe(1);
+  it("takes the four boards from the site, in its order, and counts the players on them", () => {
+    const r = build(data({}), {
+      played: [
+        ["amy", 3, 3, 1, 1],
+        ["bob", 2, 2, 2, 2],
+        ["cat", 1, 0, 3, 3],
+      ],
+      wr: [["bob", 1, 1, 1, 1]],
+    });
+    expect(r.boards.map((b) => b.stat)).toEqual(["played", "author", "wr", "top5"]);
     expect(r.boards.find((b) => b.stat === "wr")?.rows).toEqual([
-      { steamId: "ann", persona: "ANN", n: 1, placeBefore: 1, gain: 0 },
+      { steamId: "bob", persona: "BOB", n: 1, place: 1, placeBefore: 1, gain: 0 },
     ]);
-    const beat = buildReport(data({ maps: [a], entries: [entry(a, "creator", 19.99)] }), AT);
-    expect(beat.boards.find((b) => b.stat === "author")?.rows[0]?.steamId).toBe("creator");
+    expect(r.players).toBe(3);
   });
 
-  it("ranks by the stat, and breaks a tie by Steam ID", () => {
-    const [a, b, c] = [map(1), map(2), map(3)];
-    const r = buildReport(
-      data({
-        maps: [a, b, c],
-        entries: [
-          entry(a, "zed", 10),
-          entry(b, "amy", 10),
-          entry(c, "amy", 11),
-          entry(c, "bob", 12),
-          entry(a, "bob", 11),
-        ],
-      }),
-      AT,
+  it("moves each row by its shared place, so a tie shows no move", () => {
+    const r = build(data({}), {
+      wr: [
+        ["amy", 2, 2, 1, 1],
+        ["bob", 2, 1, 1, 3],
+        ["cat", 2, 2, 1, 1],
+        ["dan", 1, 1, 4, 3],
+      ],
+    });
+    // bob caught amy and cat, who were tied all along; dan fell behind bob
+    expect(standingsImage(r).boards[2]?.rows.map((x) => [x.name, x.place, x.move, x.gain])).toEqual(
+      [
+        ["AMY", 1, 0, 0],
+        ["BOB", 1, 2, 1],
+        ["CAT", 1, 0, 0],
+        ["DAN", 4, -1, 0],
+      ],
     );
-    // amy holds two records and zed one; amy and bob tie on Maps played, and the ID decides
-    expect(r.boards.find((b) => b.stat === "wr")?.rows.map((x) => x.steamId)).toEqual([
-      "amy",
-      "zed",
-    ]);
-    expect(r.boards.find((b) => b.stat === "played")?.rows.map((x) => x.steamId)).toEqual([
-      "amy",
-      "bob",
-      "zed",
-    ]);
   });
 
-  it("moves each row from its place 24 hours before, and counts what it gained since", () => {
-    const [a, b, c] = [map(1), map(2), map(3)];
-    const r = buildReport(
-      data({
-        maps: [a, b, c],
-        entries: [
-          entry(a, "amy", 10),
-          entry(b, "bob", 10, { closedAt: TODAY }),
-          entry(b, "bob", 9, { firstSeenAt: TODAY }),
-          entry(b, "amy", 8, { firstSeenAt: TODAY }),
-          entry(c, "amy", 12),
-          entry(c, "bob", 11),
-        ],
-      }),
-      AT,
-    );
-    // yesterday bob held b and c, amy only a; today amy took b from him
-    const wr = r.boards.find((x) => x.stat === "wr");
-    expect(wr?.rows).toEqual([
-      { steamId: "amy", persona: "AMY", n: 2, placeBefore: 2, gain: 1 },
-      { steamId: "bob", persona: "BOB", n: 1, placeBefore: 1, gain: -1 },
+  it("marks a player new to a top 10, and names who fell out of it", () => {
+    const ten = Array.from({ length: 10 }, (_, i): Row => [
+      player(i),
+      20 - i,
+      20 - i,
+      i + 2,
+      i + 1,
     ]);
-    expect(wr?.out).toEqual([]);
-    expect(standingsImage(r).boards[2]?.rows.map((x) => x.move)).toEqual([1, -1]);
-  });
-
-  it("marks a player new to a top 10, and names who it pushed out", () => {
-    const [a, b, c] = [map(1), map(2), map(3)];
-    const ten = Array.from({ length: 10 }, (_, i) => `p${String(i).padStart(2, "0")}`);
-    const r = buildReport(
-      data({
-        maps: [a, b, c],
-        entries: [
-          ...ten.flatMap((id, i) => [entry(a, id, 10 + i), entry(b, id, 10 + i)]),
-          ...[a, b, c].map((m) => entry(m, "zoe", 30, { firstSeenAt: TODAY })),
-        ],
-      }),
-      AT,
-    );
+    // zoe is new, and p09 drops to 11th
+    const r = build(data({}), { played: [["zoe", 30, 0, 1, 12], ...ten] });
     const played = r.boards.find((x) => x.stat === "played");
+    expect(played?.rows).toHaveLength(10);
     expect(played?.rows[0]).toEqual({
       steamId: "zoe",
       persona: "ZOE",
-      n: 3,
+      n: 30,
+      place: 1,
       placeBefore: null,
-      gain: 3,
+      gain: 30,
     });
-    expect(played?.rows[1]).toMatchObject({ steamId: "p00", placeBefore: 1 });
     expect(played?.out).toEqual([{ steamId: "p09", persona: "P09" }]);
     expect(standingsImage(r).boards[0]?.rows[0]?.move).toBe("new");
     expect(standingsImage(r).boards[0]?.out).toEqual(["P09"]);
   });
 
-  it("counts a board first read today as it stands, and a Map published today as a gain", () => {
-    const unread = map(1, { firstReadAt: TODAY });
-    const published = map(2, { createdAt: TODAY, firstReadAt: TODAY });
-    const r = buildReport(
-      data({
-        maps: [unread, published],
-        entries: [
-          entry(unread, "amy", 10, { firstSeenAt: TODAY }),
-          entry(published, "bob", 10, { firstSeenAt: TODAY }),
-        ],
-      }),
-      AT,
-    );
-    // amy's finish predates the first read, so it is no gain; bob's could not have
-    expect(r.boards.find((x) => x.stat === "played")?.rows).toEqual([
-      { steamId: "amy", persona: "AMY", n: 1, placeBefore: 1, gain: 0 },
-      { steamId: "bob", persona: "BOB", n: 1, placeBefore: null, gain: 1 },
-    ]);
+  it("keeps exactly ten rows in the site's order when a tie runs past tenth", () => {
+    const twelve = Array.from({ length: 12 }, (_, i): Row => [player(i), 1, 1, 1, 1]);
+    const wr = build(data({}), { wr: twelve }).boards.find((x) => x.stat === "wr");
+    expect(wr?.rows.map((x) => x.steamId)).toEqual(twelve.slice(0, 10).map((x) => x[0]));
+    // the two cut by the tie still share first place: neither fell out
+    expect(wr?.out).toEqual([]);
+  });
+
+  it("leaves off a player whose count is gone, and names them out of the top 10", () => {
+    const r = build(data({}), {
+      wr: [
+        ["amy", 1, 0, 1, 2],
+        ["bob", 0, 1, 2, 1],
+      ],
+    });
+    const wr = r.boards.find((x) => x.stat === "wr");
+    expect(wr?.rows.map((x) => x.steamId)).toEqual(["amy"]);
+    expect(wr?.out).toEqual([{ steamId: "bob", persona: "BOB" }]);
+  });
+
+  it("refuses a payload whose rows name no player", () => {
+    const bad = payload({ played: [["amy", 1, 1, 1, 1]] });
+    const wr: SiteStandings["lists"]["wr"] = [[5, 1, 1, 1, 1]];
+    expect(Either.isLeft(standingsFrom({ ...bad, lists: { ...bad.lists, wr } }))).toBe(true);
   });
 
   it("lists unfinished and unclaimed Maps only once they are a day old", () => {
     const old = map(1, { title: "b old" });
     const fresh = map(2, { createdAt: TODAY });
     const tough = map(3, { title: "Tough", authorTicks: ticks(5) });
-    const r = buildReport(
+    const r = build(
       data({
         maps: [old, fresh, tough],
         entries: [entry(tough, "ann", 9), entry(tough, "bob", 8)],
       }),
-      AT,
     );
     expect(r.unfinished.map((m) => m.title)).toEqual(["b old"]);
     expect(r.unclaimed).toEqual([{ pfid: "pf3", title: "Tough", finishers: 2 }]);
@@ -206,7 +208,7 @@ describe("since yesterday", () => {
     const quiet = map(1);
     const busy = map(2);
     const ann = entry(busy, "ann", 10, { closedAt: TODAY });
-    const r = buildReport(
+    const r = build(
       data({
         maps: [quiet, busy],
         entries: [
@@ -227,7 +229,6 @@ describe("since yesterday", () => {
           },
         ],
       }),
-      AT,
     );
     expect(changes(r).map((c) => c.kind)).toEqual(["trackRecord", "mapRecord", "firstFinish"]);
     expect(changes(r)[1]).toMatchObject({ by: "BOB", from: "ANN", players: 3 });
@@ -240,7 +241,7 @@ describe("since yesterday", () => {
   it("doesn't list a holder improving their own record, or a Map published today", () => {
     const a = map(1);
     const fresh = map(2, { createdAt: TODAY });
-    const r = buildReport(
+    const r = build(
       data({
         maps: [a, fresh],
         entries: [
@@ -249,28 +250,23 @@ describe("since yesterday", () => {
           entry(fresh, "bob", 30, { firstSeenAt: TODAY }),
         ],
       }),
-      AT,
     );
     expect(changes(r)).toEqual([]);
   });
 
   it("lists nothing for a Map whose board was first read in the last day", () => {
     const a = map(1, { firstReadAt: TODAY });
-    const r = buildReport(
-      data({ maps: [a], entries: [entry(a, "ann", 10, { firstSeenAt: TODAY })] }),
-      AT,
-    );
+    const r = build(data({ maps: [a], entries: [entry(a, "ann", 10, { firstSeenAt: TODAY })] }));
     expect(changes(r)).toEqual([]);
   });
 
   it("notes the first Author Medal on a Map", () => {
     const a = map(1, { authorTicks: ticks(10) });
-    const r = buildReport(
+    const r = build(
       data({
         maps: [a],
         entries: [entry(a, "ann", 12), entry(a, "bob", 9.9, { firstSeenAt: TODAY })],
       }),
-      AT,
     );
     expect(changes(r).map((c) => [c.kind, "by" in c ? c.by : null])).toEqual([
       ["mapRecord", "BOB"],
@@ -288,7 +284,7 @@ describe("the Daily Report's messages", () => {
       entry(m, "old-holder-with-a-long-name", 10, { closedAt: TODAY }),
       entry(m, "new_holder @everyone", 9, { firstSeenAt: TODAY }),
     ]);
-    return buildReport(data({ maps, entries }), AT);
+    return build(data({ maps, entries }));
   };
 
   it("heads the post with the day, and fits Since yesterday under Discord's limit", () => {
@@ -303,7 +299,7 @@ describe("the Daily Report's messages", () => {
   });
 
   it("dates the data with a Discord timestamp", () => {
-    const r = buildReport(data({ refreshedAt: Date.UTC(2026, 9, 4, 14) }), AT);
+    const r = build(data({ refreshedAt: Date.UTC(2026, 9, 4, 14) }));
     expect(headMessage(r).split("\n")[1]).toBe(
       "-# Workshop standings · 0 Workshop Maps · 0 players · data as of <t:1791122400:R>",
     );
@@ -311,7 +307,7 @@ describe("the Daily Report's messages", () => {
 
   it("links Maps and Tracks to their pages on the site", () => {
     const a = map(1, { pfid: "3623648768" });
-    const r = buildReport(
+    const r = build(
       data({
         maps: [a],
         entries: [entry(a, "ann", 30, { firstSeenAt: TODAY })],
@@ -324,7 +320,6 @@ describe("the Daily Report's messages", () => {
           },
         ],
       }),
-      AT,
     );
     const text = headMessage(r);
     expect(text).toContain("took [S1 01](<https://ballestrecords.com/board/Map_Track13>) from");
@@ -348,14 +343,12 @@ describe("the Daily Report's messages", () => {
   });
 
   it("says when nothing changed", () => {
-    expect(headMessage(buildReport(data({}), AT))).toContain("- Nothing changed.");
+    expect(headMessage(build(data({})))).toContain("- Nothing changed.");
   });
 
   it("splits the thread into messages under the limit, a long list between lines", () => {
     const maps = Array.from({ length: 200 }, (_, i) => map(i, { title: `Unplayed ${i}` }));
-    const messages = pack(
-      threadSections(buildReport(data({ maps }), AT), { tracks: [], maps: [] }),
-    );
+    const messages = pack(threadSections(build(data({ maps })), { tracks: [], maps: [] }));
     expect(messages.length).toBeGreaterThan(1);
     for (const m of messages) expect(m.length).toBeLessThanOrEqual(MESSAGE_LIMIT);
     expect(messages.join("\n")).toContain("Unplayed 199");

@@ -151,15 +151,19 @@ URL Mapping pointing there.
 `src/report/` posts the Daily Report (spec #126, design on branch
 `claude/prototype-daily-report`) in `STATS_CHANNEL_ID` at 16:00 UTC: the day, the counts and
 Since yesterday in the channel with the four boards as an image, and the map lists and
-longest-standing records in a thread on it. It reads the leaderboard database at `DATABASE_URL`
-(ADR 0006: plain SQL over the schema `web/` owns, in `source.ts`) and dates records from their
-ghost replays through the Steam Web API. It is off unless both settings are set, so `pnpm dev` and
+longest-standing records in a thread on it. The four boards come from the site: it counts the
+Workshop standings and serves them at `GET /api/standings` (ADR 0009), which `standings.ts` reads
+at `SITE_URL` (default the live site) with the baseline 24 hours before the post, so the image's
+places are the site's shared places. Everything else reads the leaderboard database at
+`DATABASE_URL` (ADR 0006: plain SQL over the schema `web/` owns, in `source.ts`), and records are
+dated from their ghost replays through the Steam Web API. A site or database that can't be read
+fails that day's post, and ops hears. It is off unless `STATS_CHANNEL_ID` and `DATABASE_URL` are both set, so `pnpm dev` and
 the sandbox never post it. Each posted day is recorded in SQLite (`daily_reports`); a bot that
 was down at 16:00 posts once when it starts, and a day whose last Refresh is over 48 hours old
 is skipped with a note to the ops channel, as is a post that fails.
 
-What it says is pure and tested: the standings, lists and Since yesterday in `report.ts`
-(`test/report.test.ts`), the words in `messages.ts`, the schedule in `daily.ts` over fakes on the
+What it says is pure and tested: the boards (from a fake of the site's payload), lists and Since
+yesterday in `report.ts` (`test/report.test.ts`), the words in `messages.ts`, the schedule in `daily.ts` over fakes on the
 TestClock (`test/daily.test.ts`). The SQL and the Discord REST calls are checked by posting one:
 
 ```
@@ -169,7 +173,8 @@ pnpm --silent axi read --full
 ```
 
 `pnpm report` posts the report now into the sandbox channel (or `--channel <id>`), skipping the
-schedule's checks, and refuses any database but a local one. Fill a local Postgres with real
+schedule's checks, and refuses any database but a local one. Its boards come from `SITE_URL`;
+set it to a local `pnpm dev` of `web/` on the same database to have them agree with the rest. Fill a local Postgres with real
 history by migrating it (`web/scripts/migrate.mjs`) and replaying `tools/db_backfill.py` into it
 (`docs/data.md`); the database must be UTF-8.
 

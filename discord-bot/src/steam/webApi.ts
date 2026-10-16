@@ -1,5 +1,6 @@
-// Steam Web API calls (plain HTTPS with the API key), plus the Circuit Track boards from our
-// own site (GET /api/tracks), so the bot never keeps a second copy of the board table.
+// Steam Web API calls (plain HTTPS with the API key), plus two reads from our own site: the
+// Circuit Track boards (GET /api/tracks), so the bot never keeps a second copy of the board table,
+// and the Workshop standings (GET /api/standings), which the site counts (docs/adr/0009).
 import {
   FetchHttpClient,
   HttpClient,
@@ -74,6 +75,33 @@ const Ghost = Schema.Struct({ timestamp: Schema.String });
 const SiteTracks = Schema.Struct({
   tracks: Schema.Array(Schema.Struct({ name: Schema.String, leaderboardId: Schema.Number })),
 });
+
+/** One player on one of the site's Workshop standings: [index into players, count now, count at
+ * the baseline, shared place now, shared place at the baseline]. */
+const SiteStandingRow = Schema.Tuple(
+  Schema.Number,
+  Schema.Number,
+  Schema.Number,
+  Schema.Number,
+  Schema.Number,
+);
+const SiteStandingList = Schema.Array(SiteStandingRow);
+
+/** The leaderboard site's GET /api/standings (web/lib/rows.ts, WorkshopStandings): the four
+ * Workshop standings now and at a baseline, each list in the site's order. */
+const SiteStandings = Schema.Struct({
+  readAt: Schema.NullOr(Schema.String),
+  since: Schema.String,
+  maps: Schema.Number,
+  players: Schema.Array(Schema.Tuple(Schema.String, Schema.String)),
+  lists: Schema.Struct({
+    played: SiteStandingList,
+    author: SiteStandingList,
+    wr: SiteStandingList,
+    top5: SiteStandingList,
+  }),
+});
+export type SiteStandings = typeof SiteStandings.Type;
 
 export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
   effect: Effect.gen(function* () {
@@ -205,6 +233,11 @@ export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
       trackBoardIds: Effect.fn("WebApi.trackBoardIds")(function* () {
         const { tracks } = yield* getJson(`${site}/api/tracks`, {}, SiteTracks);
         return tracks.map((t) => t.leaderboardId);
+      }),
+
+      /** The Workshop standings now and at `since` (ms), as the site counts them. */
+      workshopStandings: Effect.fn("WebApi.workshopStandings")(function* (since: number) {
+        return yield* getJson(`${site}/api/standings`, { since: String(since) }, SiteStandings);
       }),
     } as const;
   }),

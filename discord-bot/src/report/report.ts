@@ -1,6 +1,7 @@
 // The Daily Report (spec #126) as plain data: what the database holds (ReportData, read by
-// source.ts) in, the standings, the lists and what changed since yesterday out. Pure, so every
-// rule here is tested without Postgres, Steam or Discord.
+// source.ts) and the Workshop standings the site counts (Standings, read by standings.ts) in, the
+// four boards, the lists and what changed since yesterday out. Pure, so every rule here is tested
+// without Postgres, the site, Steam or Discord.
 import { SCORE_TICKS_PER_SECOND } from "../domain.js";
 
 export const DAY_MS = 86_400_000;
@@ -68,11 +69,32 @@ export interface ReportData {
 // ---------------------------------------------------------------- the report
 
 export type Stat = "played" | "author" | "wr" | "top5";
+/** The four boards, in the image's order. */
+const STATS: ReadonlyArray<Stat> = ["played", "author", "wr", "top5"];
+
+/**
+ * One player on one of the Workshop standings, as the site counts it (GET /api/standings, docs/adr/
+ * 0009). A place is shared: 1 + the players with a strictly higher count.
+ */
+export interface SiteStanding {
+  readonly steamId: string;
+  readonly persona: string;
+  /** The count now, and at the baseline (24 hours before the report). */
+  readonly n: number;
+  readonly nBefore: number;
+  readonly place: number;
+  readonly placeBefore: number;
+}
+/** The four Workshop standings, each in the site's order: most first, ties as the site breaks them. */
+export type Standings = Readonly<Record<Stat, ReadonlyArray<SiteStanding>>>;
+
 export interface Standing {
   readonly steamId: string;
   readonly persona: string;
   readonly n: number;
-  /** The place held on this board 24 hours before, or null if not in its top TOP then. */
+  /** The shared place on this board now. */
+  readonly place: number;
+  /** The shared place 24 hours before, or null if it was outside the top TOP places then. */
   readonly placeBefore: number | null;
   /** n now less n 24 hours before. */
   readonly gain: number;
@@ -80,7 +102,7 @@ export interface Standing {
 export interface Board {
   readonly stat: Stat;
   readonly rows: ReadonlyArray<Standing>;
-  /** Players in this board's top TOP 24 hours before who are not in it now. */
+  /** Players in this board's top TOP places 24 hours before who are outside them now. */
   readonly out: ReadonlyArray<Pick<Standing, "steamId" | "persona">>;
 }
 
@@ -185,39 +207,36 @@ export const counted = (map: ReportMap, entries: ReadonlyArray<ReportEntry>) =>
 const medalled = (map: ReportMap, e: ReportEntry) =>
   map.authorTicks !== null && e.score <= map.authorTicks;
 
-const STATS: ReadonlyArray<{ stat: Stat; then?: Stat }> = [
-  { stat: "played" },
-  { stat: "author" },
-  { stat: "wr", then: "top5" },
-  { stat: "top5", then: "wr" },
-];
-
 /** Workshop changes listed before "and N more", busiest Map first. */
 export const CHANGES_SHOWN = 6;
 
-type Tally = Map<string, Record<Stat, number> & { persona: string }>;
+/**
+ * A board's top TOP rows in the site's order (exactly TOP, where a tie runs past the last), each
+ * moved by its shared place, and who fell out of the top TOP places.
+ */
+const board = (stat: Stat, list: ReadonlyArray<SiteStanding>): Board => {
+  const wasTop = (s: SiteStanding) => s.nBefore > 0 && s.placeBefore <= TOP;
+  return {
+    stat,
+    rows: list
+      .filter((s) => s.n > 0)
+      .slice(0, TOP)
+      .map((s) => ({
+        steamId: s.steamId,
+        persona: s.persona,
+        n: s.n,
+        place: s.place,
+        placeBefore: wasTop(s) ? s.placeBefore : null,
+        gain: s.n - s.nBefore,
+      })),
+    out: list
+      .filter((s) => wasTop(s) && (s.n === 0 || s.place > TOP))
+      .sort((a, b) => a.placeBefore - b.placeBefore)
+      .map((s) => ({ steamId: s.steamId, persona: s.persona })),
+  };
+};
 
-/** Counts one Map's counted Entries, in rank order, into the tally. */
-const tallyMap = (tally: Tally, map: ReportMap, ranked: ReadonlyArray<ReportEntry>) =>
-  ranked.forEach((e, i) => {
-    const t = tally.get(e.steamId) ?? { played: 0, author: 0, wr: 0, top5: 0, persona: e.persona };
-    t.persona = e.persona;
-    t.played += 1;
-    if (medalled(map, e)) t.author += 1;
-    if (i === 0) t.wr += 1;
-    if (i < 5) t.top5 += 1;
-    tally.set(e.steamId, t);
-  });
-
-/** Everyone with any of the stat, best first; a tie goes to `then`, then the Steam ID. */
-const ranked = (tally: Tally, stat: Stat, then?: Stat) =>
-  [...tally.entries()]
-    .filter(([, t]) => t[stat] > 0)
-    .sort(
-      ([a, t], [b, u]) => u[stat] - t[stat] || (then ? u[then] - t[then] : 0) || bySteamId(a, b),
-    );
-
-export const buildReport = (data: ReportData, at: number): Report => {
+export const buildReport = (data: ReportData, standings: Standings, at: number): Report => {
   const yesterday = at - DAY_MS;
   const byBoard = new Map<string, Array<ReportEntry>>();
   for (const e of data.entries) {
@@ -226,8 +245,6 @@ export const buildReport = (data: ReportData, at: number): Report => {
     byBoard.set(e.board, list);
   }
 
-  const tally: Tally = new Map();
-  const tallyBefore: Tally = new Map();
   const unfinished: Array<ListedMap> = [];
   const unclaimed: Array<ListedMap> = [];
   const mapChanges: Array<Extract<Change, { map: ListedMap }>> = [];
@@ -246,9 +263,6 @@ export const buildReport = (data: ReportData, at: number): Report => {
     // Maps up less than a day aren't listed or reported on: they haven't been played yet.
     const dayOld = map.createdAt === null || map.createdAt <= yesterday;
     const readYesterday = map.firstReadAt !== null && map.firstReadAt <= yesterday;
-    tallyMap(tally, map, now);
-    // A board first read in the last day has no yesterday: it counts as it stands, not as a gain.
-    tallyMap(tallyBefore, map, readYesterday || !dayOld ? before : now);
 
     if (!dayOld) newMaps += 1;
     const medals = now.filter((e) => medalled(map, e));
@@ -291,26 +305,6 @@ export const buildReport = (data: ReportData, at: number): Report => {
       mapChanges.push({ kind: "firstAuthor", map: listed, players, by: firstMedal.persona });
   }
 
-  const board = (stat: Stat, then?: Stat): Board => {
-    const top = ranked(tally, stat, then).slice(0, TOP);
-    const topBefore = ranked(tallyBefore, stat, then).slice(0, TOP);
-    const place = new Map(topBefore.map(([steamId], i) => [steamId, i + 1]));
-    const kept = new Set(top.map(([steamId]) => steamId));
-    return {
-      stat,
-      rows: top.map(([steamId, t]) => ({
-        steamId,
-        persona: t.persona,
-        n: t[stat],
-        placeBefore: place.get(steamId) ?? null,
-        gain: t[stat] - (tallyBefore.get(steamId)?.[stat] ?? 0),
-      })),
-      out: topBefore
-        .filter(([steamId]) => !kept.has(steamId))
-        .map(([steamId, t]) => ({ steamId, persona: tally.get(steamId)?.persona ?? t.persona })),
-    };
-  };
-
   const trackChanges: Array<Extract<Change, { kind: "trackRecord" }>> = [];
   const trackRecords: Array<RecordCandidate> = [];
   for (const track of data.tracks) {
@@ -342,8 +336,8 @@ export const buildReport = (data: ReportData, at: number): Report => {
     at,
     refreshedAt: data.refreshedAt,
     maps: data.maps.length,
-    players: tally.size,
-    boards: STATS.map(({ stat, then }) => board(stat, then)),
+    players: standings.played.filter((s) => s.n > 0).length,
+    boards: STATS.map((stat) => board(stat, standings[stat])),
     unfinished: unfinished.sort((a, b) => title(a).localeCompare(title(b))),
     unclaimed: unclaimed.sort(
       (a, b) => b.finishers - a.finishers || title(a).localeCompare(title(b)),
