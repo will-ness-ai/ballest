@@ -22,7 +22,7 @@ export interface PrefabItem {
   paint?: { categories: Array<string>; colors: Array<number> };
 }
 
-export type ShapeKind = "box" | "cylinder" | "sphere" | "scoop";
+export type ShapeKind = "box" | "cylinder" | "sphere" | "scoop" | "halfRing" | "quarterRing";
 
 export interface MeshShape {
   kind: ShapeKind;

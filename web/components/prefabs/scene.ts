@@ -17,15 +17,22 @@ export function buildScene(
   grid = true,
 ) {
   const scene = new THREE.Scene();
-  scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x30333d, 1.6));
+  /* a key light and a fill from the other side, so no face is left to the sky light alone,
+     which drew a sign's white letters grey and its red maroon from behind the key */
+  scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x30333d, 2.4));
   const sun = new THREE.DirectionalLight(0xffffff, 2.2);
   sun.position.set(0.6, 1, 0.4);
   scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xffffff, 1.4);
+  fill.position.set(-0.6, 0.5, -0.5);
+  scene.add(fill);
   const geometry = {
     box: new RoundedBoxGeometry(1, 1, 1, 1, 0.01),
     cylinder: new THREE.CylinderGeometry(0.5, 0.5, 1, 40),
     sphere: new THREE.SphereGeometry(0.5, 32, 20),
     scoop: scoopGeometry(THREE),
+    halfRing: ringGeometry(THREE, Math.PI),
+    quarterRing: ringGeometry(THREE, Math.PI / 2),
   };
   const group = new THREE.Group();
   for (const s of shapesOf(file)) {
@@ -114,5 +121,22 @@ function scoopGeometry(THREE: Three) {
   shape.lineTo(-0.5, -0.5);
   const g = new THREE.ExtrudeGeometry(shape, { depth: 1, bevelEnabled: false });
   g.translate(0, 0, -0.5);
+  return g;
+}
+
+/* the hole bowls' stand-in: a flat ring with a hole, cut to a half (Unreal y >= 0) or a quarter
+   (x and y >= 0) around a centre on the bounds' edge, as SM_HalfShallowHoleBowl and
+   SM_QuarterShallowHoleBowl are; the hole is 55% of the radius, read off a sign built from them */
+function ringGeometry(THREE: Three, sweep: number) {
+  const shape = new THREE.Shape();
+  shape.absarc(0, 0, 1, 0, sweep, false);
+  shape.absarc(0, 0, 0.55, sweep, 0, true);
+  const g = new THREE.ExtrudeGeometry(shape, { depth: 1, curveSegments: 48, bevelEnabled: false });
+  /* the shape's (x, y) is Unreal's (x, y), which the unit shape keeps as three's (x, z) */
+  g.rotateX(Math.PI / 2);
+  g.translate(0, 0.5, 0);
+  const half = sweep > Math.PI / 2;
+  g.scale(half ? 0.5 : 1, 1, 1);
+  g.translate(half ? 0 : -0.5, 0, -0.5);
   return g;
 }
