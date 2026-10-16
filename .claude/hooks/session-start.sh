@@ -17,7 +17,7 @@ cd "${CLAUDE_PROJECT_DIR:-$(git -C "$(dirname "$0")" rev-parse --show-toplevel)}
 git config user.name will-ness-ai
 git config user.email n3s.online@gmail.com
 
-service postgresql start >/dev/null
+web/scripts/pg-up.sh
 su postgres -c "psql -qc \"alter user postgres password 'postgres'\"" >/dev/null
 for db in ballest_dev smoke; do
   su postgres -c "psql -qtAc \"select 1 from pg_database where datname = '$db'\"" | grep -q 1 ||

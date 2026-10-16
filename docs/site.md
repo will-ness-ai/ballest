@@ -452,14 +452,14 @@ branch `claude/prototype-prefabs` (spec #213).
 `pnpm dev` in `web/` against a local Postgres (never `vercel env pull`: its development
 variables point at production), or `pnpm dev:up <port> [database]` in a cloud session, which
 starts Postgres if a container restart stopped it and serves in the background until
-`pnpm dev:down <port>`. After "An unexpected Turbopack error occurred" in its log, remove
+`pnpm dev:down <port>` stops it by port (a `pkill -f` pattern also kills its own shell). After "An unexpected Turbopack error occurred" in its log, remove
 `web/.next` and start it again. For a database with real boards, backfill one from
 `data/`'s git history (`docs/data.md`); for a tiny one, `pnpm db:seed tiny`. Next keeps the page you
 navigated away from in the DOM, hidden, so a scripted check counting elements should count
 only visible ones.
 
 - **A production build**: `pnpm serve <port> [database]` builds against that local
-  database and serves it in the background; `fuser -k -n tcp <port>` stops it.
+  database and serves it in the background; `pnpm dev:down <port>` stops it.
   `pnpm smoke <url>` then requests every route of a build seeded with `tiny` or `stress` and checks
   each answer, as `web.yml` does in CI. Under `next start`, some prefetches (header
   `next-router-prefetch: 3`) answer 404 in the console; Vercel answers them 200.

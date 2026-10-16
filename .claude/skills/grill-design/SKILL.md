@@ -26,19 +26,17 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
    pnpm --dir ../ballest-prototype-<slug>/web dev:up <port>
    ```
 
-   It starts Postgres first if a container restart stopped it, and `dev:down <port>` stops
-   it. For the bot's Activity, run `pnpm --dir discord-bot activity:demo` in the worktree
+   `dev:down <port>` stops it. For the bot's Activity, run `pnpm --dir discord-bot activity:demo` in the worktree
    instead (port 8740). Push the branch too: its Vercel preview is a link the user can open
    away from their PC.
 
 3. Hand the user the URL with the route the feature lives on, e.g.
-   `http://localhost:<port>/?variant=A#/players`. If the session runs in the cloud and the
+   `http://localhost:<port>/players?variant=A`. If the session runs in the cloud and the
    user cannot open its localhost, screenshot each variant and state with Playwright
    (Chromium is preinstalled) and post the images instead, keeping the URL for when they
    run it themselves. Shoot at `deviceScaleFactor: 1`, clipped to the feature's element,
-   as JPEG (`quality: 80`) at most 1000px wide. Every image you
-   read stays in your context for the rest of the session, so read one per round to check
-   the shots came out, and send the rest unread.
+   as JPEG (`quality: 80`) at most 1000px wide. Read one per round to check the shots came
+   out and send the rest unread: every image read stays in context for the session.
 
 ## Each round
 
