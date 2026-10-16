@@ -42,7 +42,7 @@ import { BOARD_CHUNK, countText, isSteamId } from "../../lib/rules";
 export async function CampaignView({ slug, slot }: { slug: string; slot: string | null }) {
   const [data, list] = await Promise.all([getCampaign(slug), getCampaigns()]);
   if (!data) notFound();
-  const { c, maps, tally } = data;
+  const { c, maps, players, tally } = data;
   const m = slot ? maps.find((x) => x.pfid === slot) : undefined;
   /* a Steam ID's row, unless the slot is a Map: one of this Campaign's the Workshop no
      longer lists, or another Campaign's */
@@ -51,7 +51,6 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
   const overall = campaignBoard(c);
   const name = m ? m.name : overall;
   const podiums = slot === PODIUM_SORT;
-  const players = list.find((x) => x.c.slug === c.slug)?.players ?? 0;
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
   const [page, scores, places, focus, history] = await Promise.all([

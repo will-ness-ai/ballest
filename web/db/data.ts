@@ -371,12 +371,14 @@ export interface CampaignData {
   c: Campaign;
   /* its Maps the Workshop lists, in the Campaign's order */
   maps: Array<WorkshopMap>;
+  /* how many players its board ranks: those with a time on one of those Maps */
+  players: number;
   /* the podium places on those Maps, labelled as the rail numbers them */
   tally: PodiumTally;
 }
 
-/* a curated Campaign by its slug with its Maps and podium tally, or null for one that isn't
-   curated or none of whose Maps the Workshop lists */
+/* a curated Campaign by its slug with its Maps, players and podium tally, or null for one
+   that isn't curated or none of whose Maps the Workshop lists */
 export async function getCampaign(slug: string): Promise<CampaignData | null> {
   return campaignOf(slug) ? campaignData(slug) : null;
 }
@@ -395,7 +397,11 @@ async function campaignData(slug: string): Promise<CampaignData | null> {
     const m = maps.find((x) => x.name === name);
     return m ? mapLabel(c, m.pfid, m.title) : name;
   };
-  return { c, maps, tally: tally(c.title, boards, await q.mapPodiums(db(), boards), label) };
+  const [head, podiums] = await Promise.all([
+    getBoardPage(campaignBoard(c), 0, 1),
+    q.mapPodiums(db(), boards),
+  ]);
+  return { c, maps, players: head.total, tally: tally(c.title, boards, podiums, label) };
 }
 
 /* what a Campaign's share card reads: its Maps and where it stands, or null where
@@ -412,7 +418,7 @@ export async function getCampaignShare(
   return {
     data,
     standing: {
-      players: head.total,
+      players: data.players,
       leader: head.rows[0] ?? null,
       finishedEveryMap: finished,
     },
