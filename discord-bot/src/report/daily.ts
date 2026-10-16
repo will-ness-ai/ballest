@@ -8,7 +8,14 @@ import { MigratorLive } from "../db.js";
 import { OpsAlerts } from "../ops.js";
 import { Renderer } from "../render/renderer.js";
 import { ReportChannel, ReportChannelLive } from "./channel.js";
-import { standingsImage, headMessage, pack, threadName, threadSections } from "./messages.js";
+import {
+  headMessage,
+  pack,
+  reportButtons,
+  standingsImage,
+  threadName,
+  threadSections,
+} from "./messages.js";
 import { GhostDatesLive, oldestMapRecords, oldestTrackRecords } from "./records.js";
 import { buildReport, DAY_MS, type Report } from "./report.js";
 import { ReportSource, ReportSourceLive } from "./source.js";
@@ -78,6 +85,7 @@ export const postReport = Effect.fn("postReport")(function* (report: Report) {
   return yield* channel.post({
     content: headMessage(report),
     image,
+    components: reportButtons,
     threadName: threadName(report),
     thread: pack(threadSections(report, { tracks, maps })),
   });

@@ -1,6 +1,6 @@
 // The Discord messages the bot sends, built from plain data: which buttons each one offers,
 // what they do, and who each one pings. No Discord needed; the payloads are checked as built.
-import { type ActionRowBuilder, type ButtonBuilder, ButtonStyle } from "discord.js";
+import { type ActionRowBuilder, type ButtonBuilder, ButtonStyle, ComponentType } from "discord.js";
 import { describe, expect, it } from "vitest";
 import type { MatchState, MatchType } from "../src/domain.js";
 import { parseControl } from "../src/discord/controls.js";
@@ -20,6 +20,7 @@ import {
   withPingFailure,
 } from "../src/discord/messages.js";
 import { ThreadPost } from "../src/ports.js";
+import { reportButtons } from "../src/report/messages.js";
 import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js";
 
 const marbles: MarbleEmojis = { forHue: () => "", forPlayer: () => "" };
@@ -317,5 +318,23 @@ describe("fingerprint", () => {
     expect(fingerprint(footerMessage(Buffer.from([1, 3])))).not.toBe(fingerprint(footer));
     expect(fingerprint({ ...footer, content: "hi" })).not.toBe(fingerprint(footer));
     expect(fingerprint({ ...footer, components: [] })).not.toBe(fingerprint(footer));
+  });
+});
+
+describe("the Daily Report's channel message", () => {
+  it("has one link button under the image, to the site's Where you stand", () => {
+    expect(reportButtons).toEqual([
+      {
+        type: ComponentType.ActionRow,
+        components: [
+          {
+            type: ComponentType.Button,
+            style: ButtonStyle.Link,
+            label: "Where do I stand?",
+            url: "https://ballestrecords.com/you",
+          },
+        ],
+      },
+    ]);
   });
 });

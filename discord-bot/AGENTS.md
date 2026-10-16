@@ -150,8 +150,11 @@ URL Mapping pointing there.
 
 `src/report/` posts the Daily Report (spec #126, design on branch
 `claude/prototype-daily-report`) in `STATS_CHANNEL_ID` at 16:00 UTC: the day, the counts and
-Since yesterday in the channel with the four boards as an image, and the map lists and
-longest-standing records in a thread on it. The four boards come from the site: it counts the
+Since yesterday in the channel with the four boards as an image and one link button under it,
+"Where do I stand?", to the site's `/you` (spec #221), and the map lists and longest-standing
+records in a thread on it. The button and the message's Map links go to the live site whatever
+`SITE_URL` says, so a sandbox post's button opens the real `/you`; the bot never hears a press
+of a link button, and it never edits the message. The four boards come from the site: it counts the
 Workshop standings and serves them at `GET /api/standings` (ADR 0009), which `standings.ts` reads
 at `SITE_URL` (default the live site) with the baseline 24 hours before the post, so the image's
 places are the site's shared places. Everything else reads the leaderboard database at
@@ -163,7 +166,8 @@ was down at 16:00 posts once when it starts, and a day whose last Refresh is ove
 is skipped with a note to the ops channel, as is a post that fails.
 
 What it says is pure and tested: the boards (from a fake of the site's payload), lists and Since
-yesterday in `report.ts` (`test/report.test.ts`), the words in `messages.ts`, the schedule in `daily.ts` over fakes on the
+yesterday in `report.ts` (`test/report.test.ts`), the words and the button in `messages.ts` (the
+button in `test/messages.test.ts`), the schedule in `daily.ts` over fakes on the
 TestClock (`test/daily.test.ts`). The SQL and the Discord REST calls are checked by posting one:
 
 ```
