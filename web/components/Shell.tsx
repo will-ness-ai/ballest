@@ -35,6 +35,8 @@ async function tabs(): Promise<Array<GroupTab>> {
     ...(dailies.length ? [{ group: DAILY_TAB, href: dailyHref() }] : []),
     ...(newest ? [{ group: CIRCUIT_TAB, href: boardHref(newest.overall) }] : []),
     { group: PLAYERS_TAB, href: playersHref("all", "wr") },
+    /* PROTOTYPE (grill-design, claude/prototype-prefabs) */
+    { group: "Prefabs", href: "/prefab/bench" },
   ];
 }
 
