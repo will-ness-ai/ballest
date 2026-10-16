@@ -11,11 +11,14 @@ import type { StandingsStat, WorkshopStandingRow, WorkshopStandings } from "../l
    strictly higher), on both sides */
 function played(counts: ReadonlyArray<[number, number]>): WorkshopStandings {
   const ids = counts.map((_, i) => String.fromCharCode(97 + i));
-  const placeOf = (side: 0 | 1, n: number) =>
-    1 + counts.filter((c) => c[side] > n).length;
-  const rows = counts.map(
-    ([now, then], i): WorkshopStandingRow => [i, now, then, placeOf(0, now), placeOf(1, then)],
-  );
+  const placeOf = (side: 0 | 1, n: number) => 1 + counts.filter((c) => c[side] > n).length;
+  const rows = counts.map(([now, then], i): WorkshopStandingRow => [
+    i,
+    now,
+    then,
+    placeOf(0, now),
+    placeOf(1, then),
+  ]);
   return {
     readAt: "2026-10-16T12:00:00.000Z",
     since: "2026-10-14T16:00:00.000Z",
@@ -37,6 +40,11 @@ const twenty = played(Array.from({ length: 20 }, (_, i): [number, number] => [20
 describe("a ladder's rows", () => {
   test("mid-table: the top 3, a gap, two above You, You and one below", () => {
     expect(shape(twenty, "l")).toBe("abc|jklm");
+  });
+
+  test("say where You are listed, so Show all can read down to You", () => {
+    expect(ladderOf(twenty, "played", "l").at).toBe(11);
+    expect(ladderOf(twenty, "played", "zz").at).toBeNull();
   });
 
   test("in or near the top 5: unbroken from 1st to the row below You", () => {

@@ -22,7 +22,7 @@ import {
   type PlRanked,
 } from "../../lib/players";
 import { fmtN, ord, personaOf, plural } from "../../lib/rules";
-import { playersHref, type PlScope, type PlSort } from "../../lib/routes";
+import { playersHref, youHref, type PlScope, type PlSort } from "../../lib/routes";
 
 /* rows the table adds per step */
 const PL_CHUNK = 50;
@@ -322,6 +322,9 @@ export function PlayersTable({
       <div className="ws-head">
         <h1 className="ws-h1">Players</h1>
         <span className="ws-tools">
+          <Link className="alllink" href={youHref()}>
+            Where you stand
+          </Link>
           <input
             className="ws-q"
             id="plq"

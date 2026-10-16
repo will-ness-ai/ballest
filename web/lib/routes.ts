@@ -39,7 +39,7 @@ export const PLAYERS_TAB = "Players";
 export function tabOfPath(path: string): string | null {
   if (path === "/" || /^\/maps?(\/|$)/.test(path)) return WORKSHOP_GROUP;
   if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
-  if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
+  if (/^\/(players|you)(\/|$)/.test(path)) return PLAYERS_TAB;
   const board = /^\/board\/([^/]+)/.exec(path);
   return board && circuitBoard(decodeURIComponent(board[1])) ? CIRCUIT_TAB : null;
 }
@@ -84,6 +84,9 @@ export const dailyStandingsHref = () => "/daily/" + DAILY_STANDINGS;
 
 export const playersHref = (scope: PlScope, sort: PlSort) =>
   "/players" + (scope === "all" && sort === "wr" ? "" : "/" + scope + "/" + sort);
+
+/* Where you stand: You on the four Workshop standings, reached from the Players tab */
+export const youHref = () => "/you";
 
 /* the sitemap robots.txt names (lib/sitemap.ts) */
 export const sitemapHref = () => "/sitemap.xml";

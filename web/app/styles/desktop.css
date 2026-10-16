@@ -510,6 +510,21 @@
     margin: 0;
     --prw: 52px;
   }
+  /* Where you stand: the four ladders side by side once each can be 17rem wide, two by two
+     until then (never three and one): a column is a quarter of the row, or half of it while
+     68rem - 100% is positive */
+  .ys {
+    margin: 0;
+  }
+  .ys-cards {
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(
+        max(calc((100% - 30px) / 4), min(calc((100% - 10px) / 2), calc((68rem - 100%) * 999))),
+        1fr
+      )
+    );
+  }
   .plwrap {
     max-height: none;
     overflow: visible;

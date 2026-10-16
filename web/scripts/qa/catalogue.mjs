@@ -41,6 +41,7 @@ export const PAGES = [
   { name: "players-maps", path: "/players/workshop/maps" },
   { name: "daily", path: "/daily" },
   { name: "daily-standings", path: "/daily/standings" },
+  { name: "you", path: "/you" },
   { name: "notfound", path: "/no-such-page", status: 404 },
 ];
 
@@ -60,6 +61,7 @@ export const STATES = [
   { name: "refine", page: "maps", click: "button.refine" },
   { name: "race", page: "board", click: ".row .c-race" },
   { name: "race-podium", page: "board", click: ".pl-score.c-race" },
+  { name: "you-all", page: "you", click: ".yl-more" },
 ];
 
 // Hidden before every screenshot on both sides: the refresh time differs between two

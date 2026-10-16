@@ -1,0 +1,197 @@
+/* ---------- Where you stand (/you) ----------
+   A card per Workshop standing, stacked on a phone and four across on the desktop layout
+   (desktop.css). Each card is a ladder: the top 3, a gap, then You and the players around
+   You, every row's columns shared down the card through a subgrid so places, counts and
+   changes line up. "Show all" opens the whole list inside the card, in a box that scrolls
+   on its own. */
+.ys {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-content: start;
+  margin: 0 var(--pad);
+}
+.ys-top {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.ys-top .marble {
+  flex: none;
+  width: 44px;
+  height: 44px;
+}
+.ys-top h1 {
+  margin: 0 0 2px;
+  font: 600 calc((22rem + 4 * var(--ramp)) / 16) var(--f-hud);
+}
+.ys-line {
+  margin: 0;
+  font-size: calc(13rem / 16);
+  color: var(--faint);
+}
+.ys-line a {
+  color: var(--accent);
+}
+.ys-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+.ys-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+}
+.ys-h {
+  margin: 0 0 2px;
+  font: 600 calc(15rem / 16) var(--f-hud);
+}
+.ys-chase {
+  margin: 0;
+  font-size: calc(13rem / 16);
+  color: var(--dim);
+}
+
+/* place, marble, name, count, change */
+.yl-rows {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  column-gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.yl-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  min-block-size: 30px;
+  padding: 3px 6px;
+  border-radius: 8px;
+}
+.yl-row[data-you] {
+  background: var(--accent-soft);
+  outline: 1px solid color-mix(in oklch, var(--accent) 45%, transparent);
+  outline-offset: -1px;
+}
+.yl-row .marble {
+  width: 22px;
+  height: 22px;
+}
+.yl-pl {
+  font: 600 calc(12rem / 16) var(--f-hud);
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+  text-align: end;
+}
+.yl-nm {
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.yl-nm a {
+  color: var(--text);
+}
+@media (hover: hover) and (pointer: fine) {
+  .yl-nm a:hover {
+    color: var(--accent);
+  }
+}
+.yl-n {
+  font: 700 calc(14rem / 16) var(--f-hud);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+.yl-ch {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  justify-content: end;
+  font-family: var(--f-hud);
+  font-variant-numeric: tabular-nums;
+}
+.yl-gain {
+  font-size: calc(13rem / 16);
+  font-weight: 700;
+  color: var(--accent);
+}
+.yl-gain[data-down] {
+  color: var(--a);
+}
+.yl-move {
+  font-size: calc(11rem / 16);
+  font-weight: 600;
+  color: var(--faint);
+}
+.yl-move[data-dir="up"] {
+  color: var(--accent);
+}
+.yl-move[data-dir="down"] {
+  color: var(--a);
+}
+/* the word a screen reader says for ▲ and ▼ */
+.yl-sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: clip;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.yl-gap {
+  grid-column: 1 / -1;
+  color: var(--faint);
+  text-align: center;
+  line-height: 1;
+}
+/* You's rows, while they are read: the gap and four rows */
+.yl-hold {
+  grid-column: 1 / -1;
+  block-size: 136px;
+}
+.yl-off {
+  display: block;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+}
+.yl-all {
+  position: relative;
+  max-block-size: 22rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.yl-wait {
+  margin: 0;
+  font-size: calc(13rem / 16);
+  color: var(--faint);
+}
+.yl-more {
+  justify-self: start;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--dim);
+  font: 600 calc(12rem / 16) var(--f-hud);
+  cursor: pointer;
+}
+.yl-more:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) and (pointer: fine) {
+  .yl-more:hover {
+    color: var(--text);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .yl-more {
+    transition: transform 160ms var(--ease-out);
+  }
+}

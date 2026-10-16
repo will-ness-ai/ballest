@@ -22,7 +22,8 @@ import {
 } from "../lib/routes";
 import { SITE_TITLE } from "../lib/rules";
 
-export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "players" | "daily";
+export type View =
+  "board" | "map" | "workshop" | "maps" | "player" | "vs" | "players" | "daily" | "you";
 
 /* the Workshop is the homepage, so its tab leads and the Daily, a Map a day, follows it;
    the Circuit opens on its newest season's Overall board, and Players, over every board,

@@ -64,6 +64,17 @@ const ROUTES = [
   ["/daily/standings", 200, null, "Justy Sparks"],
   ["/daily/standings/x", 404],
   ["/daily/not-a-date", 404],
+  // Where you stand: the four lists' top 3 for anyone, You's cards and Show all's slices
+  // from the standings API; the Players tab links to it
+  ["/you", 200, null, "Most world records"],
+  ["/you", 200, null, '<link rel="canonical" href="' + ORIGIN + '/you"'],
+  ["/you/x", 404],
+  ["/players", 200, null, 'href="/you"'],
+  ["/api/standings", 200, null, '"lists"'],
+  ["/api/standings?ladders&player=" + P1, 200, null, '"chase"'],
+  ["/api/standings?ladders&player=nope", 400],
+  ["/api/standings?list=played&from=0&count=2", 200, null, "Rolling Rae"],
+  ["/api/standings?list=podiums", 400],
   ["/daily/2026-02-30", 404],
   ["/daily/2026-08-30/" + P1, 404],
   ["/api/board/Map_Track13?from=0&count=2", 200],

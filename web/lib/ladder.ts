@@ -40,6 +40,8 @@ export interface Ladder {
   rows: Array<LadderRow | null>;
   /* You's row, or null when You aren't on the list (or nobody is signed in) */
   you: LadderRow | null;
+  /* where You are listed (0-based), or null: Show all reads down to it in one go */
+  at: number | null;
   chase: Chase;
 }
 
@@ -110,7 +112,13 @@ export function ladderOf(s: WorkshopStandings, stat: StandingsStat, you: string 
   if (i < 0) rows = all.slice(0, TOP);
   else if (i - ABOVE <= TOP + 1) rows = all.slice(0, Math.max(UNBROKEN, i + 1 + BELOW));
   else rows = [...all.slice(0, TOP), null, ...all.slice(i - ABOVE, i + 1 + BELOW)];
-  return { total: all.length, rows, you: i < 0 ? null : all[i], chase: chaseOf(all, i) };
+  return {
+    total: all.length,
+    rows,
+    you: i < 0 ? null : all[i],
+    at: i < 0 ? null : i,
+    chase: chaseOf(all, i),
+  };
 }
 
 /* `count` rows of the list from `from` (0-based), for "Show all", and how many are on it */

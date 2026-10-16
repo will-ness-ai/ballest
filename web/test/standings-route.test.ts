@@ -111,16 +111,20 @@ describe("GET /api/standings", () => {
 });
 
 /* a read of the /you modes, whose bodies aren't the whole standings */
-async function read<T>(query: string) {
+async function read(query: string) {
   const res = await GET(new Request(`http://site.invalid/api/standings${query}`));
-  return { status: res.status, body: (await res.json()) as T };
+  return { status: res.status, body: (await res.json()) as unknown };
 }
+const ladders = async (query: string) => {
+  const { status, body } = await read(query);
+  return { status, body: body as YouLadders };
+};
 
 describe("GET /api/standings?ladders: You's four cards", () => {
   test("each list's ladder around the player, against the /you baseline", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-09-02T05:00:00Z"));
-    const { status, body } = await read<YouLadders>("?ladders&player=" + p(1));
+    const { status, body } = await ladders("?ladders&player=" + p(1));
     expect(status).toBe(200);
     expect(body.readAt).toBe("2026-09-01T06:05:00.000Z");
     expect(body.since).toBe("2026-08-31T16:00:00.000Z");
@@ -139,20 +143,24 @@ describe("GET /api/standings?ladders: You's four cards", () => {
     expect(body.lists.played.chase).toEqual({ to: "outright" });
     // p1 holds no world record
     expect(body.lists.wr).toMatchObject({ total: 2, you: null, chase: { to: "join" } });
-    expect(body.lists.author).toEqual({ total: 0, rows: [], you: null, chase: { to: "join" } });
+    expect(body.lists.author).toEqual({
+      total: 0,
+      rows: [],
+      you: null,
+      at: null,
+      chase: { to: "join" },
+    });
   });
 
   test("at a given baseline: p1's Map arrived after it", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-09-02T05:00:00Z"));
-    const { body } = await read<YouLadders>(
-      "?ladders&player=" + p(1) + "&since=2026-09-01T04:00:00Z",
-    );
+    const { body } = await ladders("?ladders&player=" + p(1) + "&since=2026-09-01T04:00:00Z");
     expect(body.lists.played.you).toMatchObject({ n: 1, gain: 1, place: 1, move: null });
   });
 
   test("with nobody signed in, the top 3; a player that isn't a Steam ID is a 400", async () => {
-    const { body } = await read<YouLadders>("?ladders");
+    const { body } = await ladders("?ladders");
     expect(body.lists.top5.rows.map((r) => r?.steamId)).toEqual([p(9), p(10), p(1)]);
     expect(body.lists.top5.you).toBeNull();
     expect((await read("?ladders&player=nope")).status).toBe(400);
@@ -161,10 +169,9 @@ describe("GET /api/standings?ladders: You's four cards", () => {
 
 describe("GET /api/standings?list=: a slice for Show all", () => {
   test("rows in listing order from `from`, and the list's length", async () => {
-    const { status, body } = await read<{ total: number; rows: Array<LadderRow> }>(
-      "?list=top5&from=1&count=2",
-    );
-    expect(status).toBe(200);
+    const got = await read("?list=top5&from=1&count=2");
+    expect(got.status).toBe(200);
+    const body = got.body as { total: number; rows: Array<LadderRow> };
     expect(body.total).toBe(4);
     expect(body.rows.map((r) => [r.steamId, r.place])).toEqual([
       [p(10), 1],

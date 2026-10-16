@@ -29,7 +29,9 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     `spread.ts` (the spread chart's columns and where a time falls on it) for You.
   - `workshop-standings.ts`, the Workshop standings (`CONTEXT.md`) counted now and at a
     baseline with shared places, and `youBaseline`, the baseline /you compares against
-    (ADR 0009). `GET /api/standings?since=` serves them, for /you and for Multiballs.
+    (ADR 0009). `GET /api/standings?since=` serves them, for /you and for Multiballs;
+    `ladder.ts` is what /you shows of them (a card's rows around You, the line under it,
+    "Show all"'s slices, and a shared place's "=1,840th").
   - `auth.ts`, Sign in with Steam end to end, one call per route (ADR 0008), over
     `steam-openid.ts` (Steam's login and its check) and `cookies.ts` (the cookie names the
     browser also reads). Not pure like the rest: it signs with `node:crypto` and asks Steam.
@@ -172,6 +174,17 @@ fails to load, or that Satori can't read, draws without it.
   by any column's header button (`aria-sort`), medal order breaking ties, 25 rows before
   "Show all". A phone drops its Podiums and Top 10 columns. Names link to the player's
   Daily tab.
+- `/you`: Where you stand, You on the four Workshop standings (spec #221), linked from the
+  Players table and the Daily Report's button, and lighting the Players tab. A ladder card
+  per list, stacked on a phone, two by two and then four across on the desktop layout: the
+  top 3, a gap, two above You, You, one below (unbroken in or near the top 5), each row
+  with +N since the baseline and its places moved, then "N more to pass X" or "You lead by
+  N". The page is static: the server draws each list's top 3 (`laddersOf` with nobody),
+  and the browser reads You's cards from `GET /api/standings?ladders&player=`. Gains and
+  moves count from the /you baseline by the reader's clock (`youBaseline`), so the
+  server's are shown only when its baseline, from the latest Refresh, is that one, and
+  otherwise the browser reads them again. "Show all" opens the list in the card, read from
+  `GET /api/standings?list=` down to You in one go and in chunks after, scrolled to You.
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
 it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board or Map,
@@ -302,7 +315,8 @@ each player's real rank.
 The table scrolls inside its own box on a phone, so the rank and name columns stay put
 going sideways; on the desktop layout it fits, and the page scrolls. The pinned card is
 your own row, once you are signed in, shown at the foot while the row is out of view: how
-far the next rank up and the top 10 are, and a click scrolls to the row.
+far the next rank up and the top 10 are, and a click scrolls to the row. "Where you stand"
+beside the search goes to `/you`, which counts differently (the Workshop standings).
 
 The Players tab sits last in the tab bar, and like every tab it is lit from the path
 (`tabOfPath`).
