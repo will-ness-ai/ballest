@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Children, useEffect, useRef, useState } from "react";
 
 import { campaignsHref } from "../../lib/routes";
+import { glide } from "../player/Shelf";
 
 /* the banners in view, from the track's scroll: the first (0-based) and how many */
 function inView(t: HTMLElement) {
@@ -48,12 +49,8 @@ export function CampaignCarousel({ children }: { children: React.ReactNode }) {
     const { at, per } = inView(t);
     const to = d > 0 ? (at + per >= n ? 0 : at + 1) : at === 0 ? n - per : at - 1;
     const banner = t.children[to] as HTMLElement | undefined;
-    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    t.scrollTo({
-      /* the track is positioned, so a banner's offset is from its start */
-      left: banner ? banner.offsetLeft : 0,
-      behavior: still ? "instant" : "smooth",
-    });
+    /* the track is positioned, so a banner's offset is from its start */
+    t.scrollTo({ left: banner ? banner.offsetLeft : 0, behavior: glide() });
   };
   const last = Math.min(n, view.at + view.per);
   return (
