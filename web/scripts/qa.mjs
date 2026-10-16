@@ -10,7 +10,7 @@ import { compare } from "./qa/compare.mjs";
 import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
 import { REFS, pieces } from "./qa/piece.mjs";
-import { rankRows } from "./qa/piece-math.mjs";
+import { fmt, rankRows } from "./qa/piece-math.mjs";
 import { preview, resolve, up } from "./qa/targets.mjs";
 
 const OUT = fileURLToPath(new URL("../../scratch/qa/", import.meta.url));
@@ -52,7 +52,13 @@ fault kinds: overflow (page scrolls sideways), offscreen, clipped (text or place
           game's, cyan only the viewer's)
   --all   every mesh the viewer knows, worst first, no pictures
   --refs  the folder of <mesh>-<view>-mask.png and -ortho.png renders
-          (default the ballest-map-making checkout beside this one: references/pieces/)`,
+          (default the ballest-map-making checkout beside this one: references/pieces/)
+  the viewer side is the site's scene code (components/prefabs/scene.ts) drawn here, so its
+  shaded picture can differ slightly in colour from the page; the outlines don't
+examples:
+  pnpm --silent qa piece --all
+  pnpm --silent qa piece SM_1000_90turn
+  pnpm --silent qa piece Torus --refs ~/renders/`,
 };
 
 // ---------------------------------------------------------------- args
@@ -203,11 +209,12 @@ async function piece() {
       mkdirSync(OUT, { recursive: true });
       const file = `${OUT}piece-${mesh}.png`;
       writeFileSync(file, r.sheet);
-      const [row] = rankRows([{ mesh, scores: r.scores }]);
       say([
         `${mesh}: stand-in ${r.kind}`,
         r.scores
-          ? `scores: top ${row.top}, front ${row.front}, side ${row.side}`
+          ? `scores: ${Object.entries(r.scores)
+              .map(([view, n]) => `${view} ${fmt(n)}`)
+              .join(", ")}`
           : `scores: none (no renders in ${rel(dir)})`,
         `image: ${rel(file)}`,
         ...rows(
@@ -227,12 +234,12 @@ async function piece() {
       }
       const ranked = rankRows(found);
       const missing = ranked.filter((r) => !r.scores).map((r) => r.mesh);
+      const scored = ranked.filter((r) => r.scores);
+      const refs = flags.refs ? ` --refs ${flags.refs}` : "";
       say([
-        ...rows(
-          "pieces",
-          ["mesh", "kind", "worst", "top", "front", "side"],
-          ranked.filter((r) => r.scores),
-        ),
+        ...(scored.length
+          ? rows("pieces", ["mesh", "kind", "worst", "top", "front", "side"], scored)
+          : [`pieces: none scored of ${String(ranked.length)}`]),
         ...(missing.length
           ? [`no renders in ${rel(dir)} for ${String(missing.length)}: ${few(missing)}`]
           : []),
@@ -242,7 +249,9 @@ async function piece() {
           p.errors.map((detail) => ({ detail })),
         ),
         "next:",
-        "  pnpm --silent qa piece <mesh>   # the worst one's scores and sheet",
+        scored.length
+          ? `  pnpm --silent qa piece ${scored[0].mesh}${refs}   # the worst one's scores and sheet`
+          : `  render the game meshes into ${rel(dir)} (piece-math.mjs has the framing)`,
       ]);
     }
   } finally {

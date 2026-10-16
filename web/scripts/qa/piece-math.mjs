@@ -3,11 +3,12 @@
 // image's right and up, framed from the piece's bounds so its larger extent fills 90% of the
 // image. Pure, so the page that draws the viewer's side and the tests read the same numbers.
 
-/* axis indices into Unreal [x, y, z] */
+/* axis indices into Unreal [x, y, z] for the image's right and up, and the side the camera
+   sits on as [axis, sign]. The game mesh renders in ballest-map-making follow this table. */
 export const VIEWS = [
-  { name: "top", right: 0, up: 1 },
-  { name: "front", right: 1, up: 2 },
-  { name: "side", right: 0, up: 2 },
+  { name: "top", right: 0, up: 1, toward: [2, 1] },
+  { name: "front", right: 1, up: 2, toward: [0, -1] },
+  { name: "side", right: 0, up: 2, toward: [1, -1] },
 ];
 const FILL = 0.9;
 
@@ -32,6 +33,31 @@ export function project(point, bounds, name, size) {
   return [((point[right] - cr) / span + 0.5) * size, (0.5 - (point[up] - cu) / span) * size];
 }
 
+/* an Unreal axis as a unit vector in three's space (y and z swapped, as lib/prefab.ts converts) */
+function inThree(axis, sign = 1) {
+  const v = [0, 0, 0];
+  v[[0, 2, 1][axis]] = sign;
+  return v;
+}
+
+/**
+ * The view's camera axes in three: right, up and toward the camera. Some views are mirror
+ * images (three's axes are Unreal's reflected), which no camera can draw: those turn their
+ * right axis round, and the picture is flipped back left to right (`mirrored`).
+ */
+export function camera(view) {
+  const right = inThree(view.right);
+  const up = inThree(view.up);
+  const toward = inThree(...view.toward);
+  const cross = [
+    right[1] * up[2] - right[2] * up[1],
+    right[2] * up[0] - right[0] * up[2],
+    right[0] * up[1] - right[1] * up[0],
+  ];
+  const mirrored = cross.reduce((sum, c, i) => sum + c * toward[i], 0) < 0;
+  return { right: mirrored ? right.map((x) => (x ? -x : 0)) : right, up, toward, mirrored };
+}
+
 /* intersection over union of two outlines, one 0/1 per pixel; two empty outlines match */
 export function overlap(a, b) {
   let both = 0;
@@ -43,10 +69,11 @@ export function overlap(a, b) {
   return either ? both / either : 1;
 }
 
+export const fmt = (n) => n.toFixed(2);
+
 /* one row per piece, worst view first; a piece with no reference renders sorts last */
 export function rankRows(pieces) {
   const worst = (p) => (p.scores ? Math.min(...VIEWS.map((v) => p.scores[v.name])) : Infinity);
-  const fmt = (n) => n.toFixed(2);
   return [...pieces]
     .sort((x, y) => worst(x) - worst(y))
     .map((p) => ({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { VIEWS, frameOf, overlap, project, rankRows } from "../scripts/qa/piece-math.mjs";
+import { VIEWS, camera, frameOf, overlap, project, rankRows } from "../scripts/qa/piece-math.mjs";
 
 const bounds = { min: [-500, -250, 0], max: [500, 250, 100] } as const;
 
@@ -25,7 +25,19 @@ describe("project", () => {
     expect(row).toBeLessThan(size / 2);
   });
 
-  it("names the three views the contract does", () => {
+  it("draws the views that map Unreal's left-handed axes as mirror images, flipped back", () => {
+    // three's axes are Unreal's with y and z swapped, a reflection, so a view keeps its
+    // handedness only if it was already a mirror in Unreal
+    expect(VIEWS.map((v) => [v.name, camera(v).mirrored])).toEqual([
+      ["top", true],
+      ["front", false],
+      ["side", true],
+    ]);
+    // its axes in three (metres, y up): the top view looks down from above
+    expect(camera(VIEWS[0])).toMatchObject({ right: [-1, 0, 0], up: [0, 0, 1], toward: [0, 1, 0] });
+  });
+
+  it("names the three views the render script draws", () => {
     expect(VIEWS.map((v) => v.name)).toEqual(["top", "front", "side"]);
   });
 });

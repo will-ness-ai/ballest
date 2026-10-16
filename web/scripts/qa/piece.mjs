@@ -30,10 +30,10 @@ function refsOf(dir, mesh) {
 
 /**
  * Opens a page with the bundled viewer and returns `{ meshes, run }`: every mesh the viewer has
- * a stand-in for, and `run(mesh, sheet)`, which draws one and gives `{ kind, scores, sheet,
- * refs }`. `close` ends the browser.
+ * a stand-in for, and `run(mesh, sheet)`, which draws one and gives `{ kind, scores, sheet }`.
+ * `close` ends the browser.
  */
-export async function pieces(dir = REFS) {
+export async function pieces(dir) {
   const bundle = await build({
     entryPoints: [fileURLToPath(new URL("./piece-page.ts", import.meta.url))],
     bundle: true,
@@ -60,7 +60,6 @@ export async function pieces(dir = REFS) {
       );
       return {
         ...r,
-        refs: !!refs,
         sheet: r.sheet ? Buffer.from(r.sheet.split(",")[1], "base64") : null,
       };
     },

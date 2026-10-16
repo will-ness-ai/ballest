@@ -1,10 +1,10 @@
 // The browser half of `qa piece`, bundled by scripts/qa/piece.mjs: draws one mesh's stand-in
-// through the viewer's own scene code from the three contract views (piece-math.mjs), scores
+// through the viewer's own scene code from the three views in piece-math.mjs, scores
 // each view's outline against the mesh render's, and lays out the sheet a person reads.
 import { buildScene, loadThree } from "../../components/prefabs/scene";
 import { MESHES } from "../../lib/prefab-meshes";
 import type { PrefabFile } from "../../lib/prefab";
-import { VIEWS, frameOf, overlap } from "./piece-math.mjs";
+import { VIEWS, camera, frameOf, overlap } from "./piece-math.mjs";
 
 type Vec3 = [number, number, number];
 /** per view, the mesh render's outline and shaded picture as data URLs */
@@ -20,8 +20,6 @@ export interface PieceResult {
 const SIZE = 512;
 const CELL = 256;
 const BACKGROUND = 0x14161c;
-/* the side each view's camera sits on, as an Unreal axis and sign (the contract's last column) */
-const TOWARD: Record<string, [number, number]> = { top: [2, 1], front: [0, -1], side: [1, -1] };
 
 const three = loadThree();
 const renderer = three.then(({ THREE }) => {
@@ -32,11 +30,6 @@ const renderer = three.then(({ THREE }) => {
 
 /* Unreal (cm, z up) to three (m, y up), as lib/prefab.ts converts */
 const toThree = (v: Vec3): Vec3 => [v[0] / 100, v[2] / 100, v[1] / 100];
-const axis = (i: number, sign = 1): Vec3 => {
-  const v: Vec3 = [0, 0, 0];
-  v[i] = sign;
-  return toThree(v).map((x) => x * 100) as Vec3;
-};
 
 async function draw(mesh: string) {
   const shape = MESHES[mesh];
@@ -61,27 +54,25 @@ async function draw(mesh: string) {
   const shots: Record<string, { shaded: string; mask: Uint8Array }> = {};
   for (const v of VIEWS) {
     const { cr, cu, span } = frameOf(shape, v.name);
-    const [depth, sign] = TOWARD[v.name];
+    const [depth, sign] = v.toward;
     const at: Vec3 = [0, 0, 0];
     at[v.right] = cr;
     at[v.up] = cu;
     at[depth] = sign > 0 ? shape.max[depth] + 1000 : shape.min[depth] - 1000;
     const half = span / 200;
-    const camera = new THREE.OrthographicCamera(-half, half, half, -half, 0.01, 1000);
-    camera.matrixAutoUpdate = false;
-    /* the contract's views map Unreal's left-handed axes, so some are mirror images: draw
-       through a proper camera with its right axis turned round, then flip the picture back */
-    const right = new THREE.Vector3(...axis(v.right));
-    const up = new THREE.Vector3(...axis(v.up));
-    const toward = new THREE.Vector3(...axis(depth, sign));
-    const mirrored = right.clone().cross(up).dot(toward) < 0;
-    if (mirrored) right.negate();
-    camera.matrix.makeBasis(right, up, toward);
-    camera.matrix.setPosition(new THREE.Vector3(...toThree(at)));
-    camera.updateMatrixWorld(true);
+    const lens = new THREE.OrthographicCamera(-half, half, half, -half, 0.01, 1000);
+    lens.matrixAutoUpdate = false;
+    const { right, up, toward, mirrored } = camera(v);
+    lens.matrix.makeBasis(
+      new THREE.Vector3(...right),
+      new THREE.Vector3(...up),
+      new THREE.Vector3(...toward),
+    );
+    lens.matrix.setPosition(new THREE.Vector3(...toThree(at)));
+    lens.updateMatrixWorld(true);
     const shoot = (clear: number) => {
       r.setClearColor(clear, 1);
-      r.render(scene, camera);
+      r.render(scene, lens);
       const c = new OffscreenCanvas(SIZE, SIZE);
       const g = context(c);
       if (mirrored) g.setTransform(-1, 0, 0, 1, SIZE, 0);
@@ -144,8 +135,7 @@ async function piece(mesh: string, refs: PieceRefs | null, withSheet: boolean) {
   return result;
 }
 
-/* one column per view; rows: the mesh render, the viewer, then the outlines over each other
-   (red only the game's, cyan only the viewer's, white both) */
+/* one column per view; rows: the mesh render, the viewer, then the two outlines */
 async function sheet(
   mesh: string,
   kind: string,
@@ -176,27 +166,31 @@ async function sheet(
       if (row === "viewer") g.drawImage(await image(shots[v.name].shaded), x, y, CELL, CELL);
       else if (row === "game" && ref) g.drawImage(await image(ref.ortho), x, y, CELL, CELL);
       else if (row === "outlines" && a) {
-        const b = shots[v.name].mask;
-        const out = new ImageData(SIZE, SIZE);
-        for (let k = 0; k < a.length; k++) {
-          const [r, gr, bl] =
-            a[k] && b[k]
-              ? [230, 230, 230]
-              : a[k]
-                ? [230, 60, 60]
-                : b[k]
-                  ? [60, 210, 230]
-                  : [20, 22, 28];
-          out.data.set([r, gr, bl, 255], k * 4);
-        }
-        const o = new OffscreenCanvas(SIZE, SIZE);
-        context(o).putImageData(out, 0, 0);
+        const o = outlines(a, shots[v.name].mask);
         g.drawImage(o, x, y, CELL, CELL);
       }
     }
   }
   return dataUrl(c);
 }
+
+/* two outlines over each other: red only the game's, cyan only the viewer's, white both */
+function outlines(game: Uint8Array, viewer: Uint8Array) {
+  const out = new ImageData(SIZE, SIZE);
+  for (let k = 0; k < game.length; k++) {
+    const colour = game[k] ? (viewer[k] ? WHITE : RED) : viewer[k] ? CYAN : DARK;
+    out.data.set(colour, k * 4);
+  }
+  const c = new OffscreenCanvas(SIZE, SIZE);
+  context(c).putImageData(out, 0, 0);
+  return c;
+}
+const [WHITE, RED, CYAN, DARK] = [
+  [230, 230, 230, 255],
+  [230, 60, 60, 255],
+  [60, 210, 230, 255],
+  [20, 22, 28, 255],
+];
 
 async function dataUrl(c: OffscreenCanvas) {
   const blob = await c.convertToBlob({ type: "image/png" });
