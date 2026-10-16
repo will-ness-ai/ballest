@@ -673,6 +673,10 @@
     aspect-ratio: auto;
     height: min(40rem, calc(100svh - 12rem));
   }
+  /* the upload form beside the preview and card it will make */
+  .pfu-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
 
   footer {
     margin: 30px 0 0;

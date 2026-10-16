@@ -7,7 +7,10 @@ import { slugOf } from "../lib/prefabs";
 import type { Db } from "./client";
 import { prefabs } from "./schema";
 
-async function rows<T>(db: Db, query: SQL): Promise<Array<T>> {
+/* the database, or a transaction on it */
+export type Conn = Db | Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+async function rows<T>(db: Conn, query: SQL): Promise<Array<T>> {
   return (await db.execute(query)).rows as Array<T>;
 }
 
@@ -38,10 +41,12 @@ export interface NewPrefab {
   uploader: string;
   uploaderName: string | null;
   file: string;
+  /* now, unless a test says otherwise */
+  createdAt?: Date;
 }
 
 /* store a Prefab under the first free slug its name gives */
-export async function addPrefab(db: Db, p: NewPrefab): Promise<{ slug: string }> {
+export async function addPrefab(db: Conn, p: NewPrefab): Promise<{ slug: string }> {
   const base = slugOf(p.name);
   const taken = new Set(
     (
@@ -55,6 +60,7 @@ export async function addPrefab(db: Db, p: NewPrefab): Promise<{ slug: string }>
   for (let n = 2; taken.has(slug); n++) slug = `${base}-${String(n)}`;
   await db.insert(prefabs).values({
     ...p,
+    updatedAt: p.createdAt,
     slug,
     pieces: (JSON.parse(p.file) as { items: Array<unknown> }).items.length,
     bytes: Buffer.byteLength(p.file),

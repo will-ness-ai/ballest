@@ -126,6 +126,9 @@ const ROUTES = [
   // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
+  ["/prefabs/new", 200, null, "Upload a prefab"],
+  ["/api/prefabs", 200, null, '"signedIn":false'],
+  ["/robots.txt", 200, null, "Disallow: /prefabs/new"],
   ["/prefab/twin-cubes", 200, null, "Twin cubes"],
   [
     "/prefab/twin-cubes",

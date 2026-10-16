@@ -420,3 +420,164 @@
   fill: var(--bronze);
   stroke: var(--bronze);
 }
+
+/* ==========================================================================
+   Uploading (grill-design round 3, E · Form + card)
+   ========================================================================== */
+.pfu {
+  margin: 0 var(--pad);
+  display: grid;
+  gap: 1rem;
+  padding-block: 0.5rem 2rem;
+  min-width: 0;
+}
+.pfu > *,
+.pfu-col,
+.pfu-col > * {
+  min-width: 0;
+}
+.pfu-split {
+  display: grid;
+  gap: 1.5rem;
+}
+.pfu-col {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  max-width: 44rem;
+}
+.pfu-h2 {
+  font-family: var(--f-hud);
+  font-size: calc(15rem / 16);
+  margin: 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pfu-drop {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  min-height: 9rem;
+  padding: 1rem;
+  border: 2px dashed var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  cursor: pointer;
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}
+.pfu-drop b {
+  color: var(--text);
+}
+.pfu-drop small {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--faint);
+}
+.pfu-drop.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.pfu-drop.ok,
+.pfu-drop.bad {
+  border-style: solid;
+  min-height: 0;
+}
+.pfu-drop.ok {
+  border-color: color-mix(in oklch, var(--accent) 50%, transparent);
+}
+.pfu-drop.bad {
+  border-color: var(--bronze);
+}
+.pfu-change {
+  display: block;
+  margin-top: 0.2rem;
+  text-decoration: underline;
+  color: var(--faint);
+}
+.pfu-bad {
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: var(--bronze-soft);
+  border: 1px solid color-mix(in oklch, var(--bronze) 45%, transparent);
+  overflow-wrap: anywhere;
+}
+.pfu-bad ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+.pfu-fields {
+  display: grid;
+  gap: 0.9rem;
+}
+.pfu-fields label,
+.pfu-fields fieldset {
+  display: grid;
+  gap: 0.3rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.pfu-fields span,
+.pfu-fields legend {
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+.pfu-fields i {
+  font-weight: 400;
+  color: var(--faint);
+}
+.pfu-fields small,
+.pfu-publish small {
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+}
+.pfu-fields input,
+.pfu-fields textarea {
+  font: inherit;
+  font-size: max(16px, 1rem);
+  color: var(--text);
+  background: var(--solid);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  min-width: 0;
+}
+.pfu-publish {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+button.pf-dl {
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pf-dl:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pfu-empty {
+  color: var(--faint);
+}
+.pfu-gate {
+  display: grid;
+  gap: 0.8rem;
+  justify-items: start;
+  padding: 1.2rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  max-width: 34rem;
+}
+.pfu-gate p {
+  margin: 0;
+}
+.pfu-gate .pf-dl {
+  color: var(--accent-ink);
+}
+.pfu-card {
+  max-width: 16rem;
+}

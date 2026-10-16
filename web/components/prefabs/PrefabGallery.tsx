@@ -13,8 +13,18 @@ import type { PrefabFile } from "../../lib/prefab";
 import { TAGS, galleryOf, type GallerySort } from "../../lib/prefabs";
 import { newPrefabHref, prefabFileHref, prefabHref } from "../../lib/routes";
 
-/* a Prefab's picture, drawn once its card scrolls near */
-export function Still({ src, w = 480, h = 320 }: { src: string; w?: number; h?: number }) {
+/* a Prefab's picture, drawn once its card scrolls near, from its file or the URL it's at */
+export function Still({
+  src,
+  file,
+  w = 480,
+  h = 320,
+}: {
+  src?: string;
+  file?: PrefabFile;
+  w?: number;
+  h?: number;
+}) {
   const [img, setImg] = useState<string | null>(null);
   const box = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -25,9 +35,8 @@ export function Still({ src, w = 480, h = 320 }: { src: string; w?: number; h?: 
       ([e]) => {
         if (!e.isIntersecting) return;
         seen.disconnect();
-        void fetch(src)
-          .then((r) => (r.ok ? (r.json() as Promise<PrefabFile>) : Promise.reject(new Error())))
-          .then((file) => stillOf(file, w, h))
+        void (file ? Promise.resolve(file) : fetchFile(src ?? ""))
+          .then((f) => stillOf(f, w, h))
           .then((s) => run.live && setImg(s))
           .catch(() => undefined);
       },
@@ -38,7 +47,7 @@ export function Still({ src, w = 480, h = 320 }: { src: string; w?: number; h?: 
       run.live = false;
       seen.disconnect();
     };
-  }, [src, w, h]);
+  }, [src, file, w, h]);
   return (
     <span ref={box} className="pfl-still" style={{ aspectRatio: `${String(w)} / ${String(h)}` }}>
       {img && <img src={img} alt="" />}
@@ -46,10 +55,18 @@ export function Still({ src, w = 480, h = 320 }: { src: string; w?: number; h?: 
   );
 }
 
-export function Card({ p, still }: { p: PrefabCard; still?: React.ReactNode }) {
-  return (
-    <Link className="pfl-card" href={prefabHref(p.slug)}>
-      {still ?? <Still src={prefabFileHref(p.slug)} />}
+const fetchFile = (src: string) =>
+  fetch(src).then((r) =>
+    r.ok ? (r.json() as Promise<PrefabFile>) : Promise.reject(new Error(String(r.status))),
+  );
+
+type CardFacts = Pick<PrefabCard, "slug" | "name" | "favorites" | "uploader" | "pieces">;
+
+/* a Prefab's card; with `file`, the card a Prefab not yet uploaded will make */
+export function Card({ p, file }: { p: CardFacts; file?: PrefabFile }) {
+  const inner = (
+    <>
+      {file ? <Still file={file} /> : <Still src={prefabFileHref(p.slug)} />}
       <span className="pfl-cardrow">
         <span className="pfl-name">{p.name}</span>
         <span className="pfl-favs" aria-label={`${String(p.favorites)} favorites`}>
@@ -59,6 +76,13 @@ export function Card({ p, still }: { p: PrefabCard; still?: React.ReactNode }) {
       <span className="pfl-sub">
         by {p.uploader.name} · {p.pieces} pieces
       </span>
+    </>
+  );
+  return file ? (
+    <div className="pfl-card">{inner}</div>
+  ) : (
+    <Link className="pfl-card" href={prefabHref(p.slug)}>
+      {inner}
     </Link>
   );
 }

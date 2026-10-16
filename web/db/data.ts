@@ -13,7 +13,7 @@
 // script walking made-up IDs or offsets can only add an empty answer per ID, never a
 // record. The check is per ID because a cache entry comes back whole on every read: a
 // list of every player or Map read to look up one costs its full size each time.
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
 import { boardHistory, type BoardHistory } from "../lib/history";
@@ -33,6 +33,7 @@ import { footprintOf, partsOf, shapesOf, type PrefabFile } from "../lib/prefab";
 import { fileNameOf } from "../lib/prefab-check";
 import { isPrefabSlug } from "../lib/routes";
 import { connect, type Db } from "./client";
+import type { PrefabDeps } from "./prefab-api";
 import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
 import * as q from "./site";
 
@@ -384,4 +385,10 @@ async function prefabFileOf(slug: string) {
   cacheLife("max");
   const p = await prefabOf(db(), slug);
   return p && { fileName: fileNameOf(p.name), file: p.bytes > CACHED_FILE_BYTES ? null : p.file };
+}
+
+/* what the Prefab API's routes write with: this server's database, and every cached Prefab
+   read expired after a write so the change shows at once */
+export function prefabDeps(): PrefabDeps {
+  return { db: db(), changed: () => revalidateTag(PREFAB_TAG, { expire: 0 }) };
 }
