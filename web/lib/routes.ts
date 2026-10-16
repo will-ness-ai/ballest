@@ -68,9 +68,6 @@ export function boardHref(name: string, slot?: string | null) {
 export const campaignHref = (slug: string, pfid?: string | null) =>
   "/campaign/" + slug + (pfid ? "/" + pfid : "");
 
-/* the IDs of a Campaign's Maps the Workshop lists (app/api/campaign), which proxy.ts asks */
-export const campaignApiHref = (slug: string) => "/api/campaign/" + slug;
-
 /* every Campaign, as banners */
 export const campaignsHref = () => "/campaigns";
 

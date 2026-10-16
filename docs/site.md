@@ -71,13 +71,11 @@ title on every later visit to the same route.
 
 A `notFound()` inside a streamed page can only answer 200, so anything that can be told
 from the path alone (a board name, a tab, a Players scope, a Steam ID's shape) is checked
-in `proxy.ts` instead. A Steam ID nobody raced under is still a soft 404. A Campaign's page
-is the one the proxy checks against the database: the proxy can't read the cache, so it
-asks `/api/campaign/<slug>` (the IDs of the Campaign's listed Maps, from the page's own
-cached `getCampaign`) and answers 404 for a Campaign none of whose Maps is listed, or a
-Map of it that isn't. A request that fails leaves it to the page, which streams a soft
-404; a preview behind Vercel's protection reaches its own API only with
-`VERCEL_AUTOMATION_BYPASS_SECRET`.
+in `proxy.ts` instead. A Steam ID nobody raced under is still a soft 404, and so is a
+curated Campaign none of whose Maps the Workshop lists, or a Map of it that it no longer
+lists: only the database knows, and the proxy can't read the cache, so asking would cost
+a function call on every Campaign page view for a case that comes up only when a maker
+pulls their Maps.
 
 ## Track screenshots
 
@@ -131,8 +129,7 @@ Any other page, a Circuit Overall board included, keeps the site-wide `og.png`.
   every map: the players with a time on every one of its Maps the Workshop lists
   (`finishedEveryMap`). Its Overall, podiums and a focused row name it; a Map inside its
   frame (`/campaign/<slug>/<pfid>`) names that Map's own card, as a Track names its own
-  inside its season. A slug that isn't curated, or none of whose Maps is listed, is a 404,
-  as its page is.
+  inside its season. A slug that isn't curated, or none of whose Maps is listed, is a 404.
 
 The page names its card with the latest Refresh in the URL (`?v=`, `shareHref`), so each
 Refresh is a new address for crawlers that keep a picture by URL, and the route answers
@@ -242,7 +239,7 @@ longer than a season's. The Overall card, the points dialog and the podium count
 where a season says tracks, and count the Maps the Workshop lists, which are the ones that
 pay points. A Map inside the frame gets the Track card's layout with its preview picture
 and a link to its own page. A Campaign none of whose Maps the Workshop lists is shown
-nowhere and its page is a real 404 (see "Caching"), as is a Map of it the Workshop no
+nowhere and its page is a soft 404 (see "Caching"), as is a Map of it the Workshop no
 longer lists. `stress` lists Solar Trials' first Map alone, so its builds have one listed
 Campaign of one listed Map and four unlisted ones; `tiny`'s Maps are in no Campaign.
 
