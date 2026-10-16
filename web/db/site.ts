@@ -8,7 +8,15 @@ import { CIRCUIT, S1_TRACKS, S2_TRACKS } from "../lib/circuit";
 import { playerDailiesOf, standingsOf } from "../lib/daily";
 import { CREATOR_BEAT_MARGIN_TICKS, SCORE_TICKS_PER_SECOND } from "../lib/rules";
 import type { Db } from "./client";
-import { DERIVED, array, boardSql, campaignMapBoards, listedMapsSql, rankedSql } from "./boards";
+import {
+  DERIVED,
+  array,
+  boardSql,
+  campaignMapBoards,
+  campaignSql,
+  listedMapsSql,
+  rankedSql,
+} from "./boards";
 import type { Campaign } from "../lib/campaigns";
 import type { HistoryInput } from "../lib/history";
 import type {
@@ -21,6 +29,7 @@ import type {
   DerivedStanding,
   DerivedStandings,
   Freshness,
+  ListedCampaignRow,
   NameHit,
   Placing,
   PlayerDailies,
@@ -197,27 +206,52 @@ export async function mapPodiums(db: Db, boards: ReadonlyArray<string>): Promise
 }
 
 /* The Campaigns of `list` with a Map the Workshop lists, each with how many of its Maps it
-   lists and how many players hold a time on one (its board's field), most players first;
-   equal counts keep the list's order. A Campaign none of whose Maps is listed is left out,
-   so no page shows an empty one. */
+   lists, how many players hold a time on one (its board's field), those Maps' pictures in
+   its order and the leader of its board; most players first, equal counts in the list's
+   order. A Campaign none of whose Maps is listed is left out, so no page shows an empty
+   one. */
 export async function listedCampaigns(
   db: Db,
   list: ReadonlyArray<Campaign>,
-): Promise<Array<{ slug: string; maps: number; players: number }>> {
+): Promise<Array<ListedCampaignRow>> {
   if (!list.length) return [];
-  const found = await rows<{ slug: string; maps: number; players: number }>(
+  return rows<ListedCampaignRow>(
     db,
-    sql`select c.slug, count(distinct c.board)::int as maps, count(distinct e.steam_id)::int as players
-      from (values ${sql.join(
-        list.flatMap((k, i) => campaignMapBoards(k).map((b) => sql`(${k.slug}, ${i}::int, ${b})`)),
-        sql`, `,
-      )}) as c(slug, at, board)
-      left join entries e on e.board = c.board and e.closed_refresh is null
-      where c.board in (${listedMapsSql})
-      group by c.slug, c.at
-      order by players desc, c.at`,
+    sql`with c(slug, at, idx, board) as (values ${sql.join(
+      list.flatMap((k, i) =>
+        campaignMapBoards(k).map((b, j) => sql`(${k.slug}, ${i}::int, ${j}::int, ${b})`),
+      ),
+      sql`, `,
+    )}), listed as (
+        select * from c where board in (${listedMapsSql})
+      ), counts as (
+        select l.slug, l.at, count(distinct l.board)::int as maps,
+          count(distinct e.steam_id)::int as players
+        from listed l
+        left join entries e on e.board = l.board and e.closed_refresh is null
+        group by l.slug, l.at
+      ), pics as (
+        select l.slug, array_agg(h.preview order by l.idx) as previews
+        from listed l join maps m on m.board = l.board
+        cross join lateral (select preview from map_history where pfid = m.pfid
+          order by last_seen_refresh desc, id desc limit 1) h
+        group by l.slug
+      ), leaders as (${sql.join(
+        list.map(
+          (k) => sql`select ${k.slug}::text as slug, steam_id, score
+            from (${campaignSql(k)}) r where rank = 1`,
+        ),
+        sql` union all `,
+      )})
+      select n.slug, n.maps, n.players, pp.previews,
+        case when ld.steam_id is null then null else jsonb_build_object(
+          'steamId', ld.steam_id, 'persona', p.persona, 'avatar', nullif(p.avatar, ''),
+          'score', ld.score::float8) end as leader
+      from counts n join pics pp on pp.slug = n.slug
+      left join leaders ld on ld.slug = n.slug
+      left join players p on p.steam_id = ld.steam_id
+      order by n.players desc, n.at`,
   );
-  return found;
 }
 
 /* Every Workshop Map with its latest details and what the Workshop pages show of its board

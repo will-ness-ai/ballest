@@ -56,6 +56,19 @@ export interface Placing {
 }
 
 /* a Workshop Map with its latest details and what its board says at a glance */
+/* A curated Campaign some of whose Maps the Workshop lists (db/site.ts, listedCampaigns) */
+export interface ListedCampaignRow {
+  slug: string;
+  /* how many of its Maps the Workshop lists */
+  maps: number;
+  /* how many players hold a time on one of them: its board's field */
+  players: number;
+  /* those Maps' preview pictures, in the Campaign's order */
+  previews: Array<string | null>;
+  /* first on its board, or null while nobody has a time */
+  leader: { steamId: string; persona: string; avatar: string | null; score: number } | null;
+}
+
 export interface WorkshopMap {
   pfid: string;
   /* the Map's board, Workshop_<pfid> */

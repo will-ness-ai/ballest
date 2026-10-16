@@ -26,6 +26,7 @@ export const IDS = {
 export const PAGES = [
   { name: "home", path: "/" },
   { name: "maps", path: "/maps" },
+  { name: "campaigns", path: "/campaigns" },
   { name: "map", path: "/map/{MAP}" },
   { name: "board", path: "/board/Map_Track13" },
   { name: "entry", path: "/board/Map_Track13/{RANKED}" },

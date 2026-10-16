@@ -555,6 +555,19 @@
   .strip {
     grid-auto-columns: minmax(200px, 220px);
   }
+  /* Campaigns: two banners in view on the homepage, two across on /campaigns */
+  .ccar-track {
+    grid-auto-columns: calc((100% - 12px) / 2);
+  }
+  .cban {
+    min-height: 190px;
+  }
+  .cban-in {
+    padding: 18px 64px 18px 20px;
+  }
+  .call {
+    grid-template-columns: 1fr 1fr;
+  }
   .mgrid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }

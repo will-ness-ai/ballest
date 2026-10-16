@@ -33,6 +33,7 @@ import type {
   DailyCell,
   DailyDay,
   DailyStandings,
+  ListedCampaignRow,
   PlayerDailies,
   WorkshopMap,
 } from "../lib/rows";
@@ -319,24 +320,21 @@ async function playerDailiesOf(steamId: string) {
   return q.playerDailies(db(), steamId);
 }
 
-export interface ListedCampaign {
+export interface ListedCampaign extends Omit<ListedCampaignRow, "slug"> {
   c: Campaign;
-  /* how many of its Maps the Workshop lists */
-  maps: number;
-  /* how many players hold a time on one of them: its board's field */
-  players: number;
 }
 
-/* the Campaigns with a Map the Workshop lists, most players first: what the Campaign switch
-   lists; one with none is shown nowhere */
+/* the Campaigns with a Map the Workshop lists, most players first, each with its pictures
+   and leader: what the Campaign switch, the homepage's carousel and /campaigns list; one
+   with none is shown nowhere */
 export async function getCampaigns(): Promise<Array<ListedCampaign>> {
   "use cache: remote";
   cacheTag(DATA_TAG);
   cacheLife("max");
   const listed = await q.listedCampaigns(db(), CAMPAIGNS);
-  return listed.flatMap(({ slug, maps, players }) => {
+  return listed.flatMap(({ slug, ...rest }) => {
     const c = campaignOf(slug);
-    return c ? [{ c, maps, players }] : [];
+    return c ? [{ c, ...rest }] : [];
   });
 }
 

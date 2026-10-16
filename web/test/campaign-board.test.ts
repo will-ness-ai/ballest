@@ -137,9 +137,36 @@ describe("the Campaigns to list", () => {
     // Map C alone has left the Workshop; Map B alone has p10, p5 and p2; the test Campaign
     // has those and Map A's p9 and p1
     const list = [one("gone", ["9000000003"]), one("small", ["9000000002"]), TEST];
+    expect((await listedCampaigns(t.db, list)).map((c) => [c.slug, c.maps, c.players])).toEqual([
+      ["test-run", 2, 5],
+      ["small", 1, 3],
+    ]);
+  });
+
+  test("each with its listed Maps' pictures in order and the leader of its board", async () => {
+    // Map A has a picture and Map B none; Map C has left the Workshop, so it draws nothing.
+    // Tenpin (p10) leads both: 60000 over Maps A and B, 40000 over Map B alone.
+    const list = [TEST, one("small", ["9000000003", "9000000002"])];
+    const tenpin = {
+      steamId: p(10),
+      persona: "Tenpin",
+      avatar: "https://avatars.example.invalid/10_medium.jpg",
+    };
     expect(await listedCampaigns(t.db, list)).toEqual([
-      { slug: "test-run", maps: 2, players: 5 },
-      { slug: "small", maps: 1, players: 3 },
+      {
+        slug: "test-run",
+        maps: 2,
+        players: 5,
+        previews: ["https://images.example.invalid/marble-run.jpg", null],
+        leader: { ...tenpin, score: 60000 },
+      },
+      {
+        slug: "small",
+        maps: 1,
+        players: 3,
+        previews: [null],
+        leader: { ...tenpin, score: 40000 },
+      },
     ]);
   });
 

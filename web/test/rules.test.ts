@@ -29,6 +29,7 @@ import {
 import {
   boardHref,
   campaignHref,
+  campaignsHref,
   dailyHref,
   isCampaignPath,
   dailyStandingsHref,
@@ -239,6 +240,7 @@ describe("Steam IDs and URLs", () => {
     expect(boardHref("OverallCampaign_solar-trials", "<x>")).toBe("/campaign/solar-trials");
     expect(campaignHref("ajc")).toBe("/campaign/ajc");
     expect(campaignHref("ajc", "3646349274")).toBe("/campaign/ajc/3646349274");
+    expect(campaignsHref()).toBe("/campaigns");
   });
 
   test("a Campaign's paths: its board, its podium order, a row, or one of its Maps", () => {

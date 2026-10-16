@@ -135,7 +135,8 @@ fails to load, or that Satori can't read, draws without it.
 
 ## Routes
 
-- `/` — the Workshop homepage: the carousel, the shelves and the search.
+- `/` — the Workshop homepage: the carousel, the Campaigns' carousel, the shelves and the
+  search.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
   (`lib/workshop.ts`).
 - `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row.
@@ -151,6 +152,8 @@ fails to load, or that Satori can't read, draws without it.
   as a Track opens inside its season. Lights the Workshop tab. The proxy 404s a slug that
   isn't curated, or anything after it but those; how the page is built is under
   "Campaigns".
+- `/campaigns`: every Campaign as a banner, most players first, two across on a desktop
+  and one on a phone. Prerendered; lights the Workshop tab.
 - `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/circuit`, `/workshop`,
   `/made`). Without one the page opens on Workshop for anyone with a Workshop time, else
   Circuit.
@@ -221,6 +224,22 @@ and the podium count say maps where a season says tracks. A Map inside the frame
 Track card's layout with its preview picture and a link to its own page. A Campaign none
 of whose Maps the Workshop lists is shown nowhere and its page is a 404, which is how the
 seeds' builds pass: their Maps are in no Campaign.
+
+**Where they are listed.** `getCampaigns` (`listedCampaigns` in `db/site.ts`) is the one
+read every list takes: each Campaign with a listed Map, its Maps and players counted, its
+listed Maps' preview pictures in its order and its board's leader, most players first
+(distinct players with a time on any of its Maps). A Campaign's picture is
+`CampaignPics`: its first five Maps' previews side by side with a hairline between, a Map
+with no preview a blank panel; the banners and a player's Campaign cards all draw it. A
+banner (`CampaignBanner`) sets the picture at full strength with a full-height fade behind
+its text only: "Campaign · N maps · N players", the name, the maker and "<leader> leads
+with <points> pts". The homepage's Campaigns carousel (`CampaignCarousel`, under the main
+carousel and hidden with it while there is a search) is a scroll-snap track of banners:
+a phone shows one with the next peeking in and swipes, a desktop shows two. Its arrows
+step one banner and wrap round as the main carousel's do; the counter names the banners
+in view ("1 / 5" on a phone, "1–2 / 5" on a desktop), and both hide when every banner
+fits. Its heading's See all opens `/campaigns`. With no Campaign listed (the seeds'
+builds) the homepage leaves the carousel out and `/campaigns` says there are none.
 
 ## The header
 

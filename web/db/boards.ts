@@ -9,7 +9,7 @@
 // (7,288 of them, 2026-10-04) reads that way, so the ranks here are Steam's.
 import { sql, type SQL } from "drizzle-orm";
 
-import { campaignOfBoard, type Campaign } from "../lib/campaigns";
+import { campaignBoard, campaignOfBoard, type Campaign } from "../lib/campaigns";
 import { COMPOSITE_BOARD, S1_CURRENT_BOARD, S1_TRACKS, S2_OVERALL_BOARD } from "../lib/circuit";
 
 /* The open Entries of the boards `where` picks, each with its rank on its board:
@@ -89,10 +89,11 @@ function compositeSql() {
 /* A Campaign as it stands, by Season 1 Current's rule over the Campaign's Maps the Workshop
    lists, the ones its page shows: each player's points for their place on every one, added
    up, highest first; equal totals by the first Map (in the Campaign's order) a player is
-   on, then their place there. */
-function campaignSql(name: string, c: Campaign) {
+   on, then their place there. Takes the Campaign rather than its board's name, so a read
+   can rank Campaigns that aren't curated (the tests' own). */
+export function campaignSql(c: Campaign) {
   const maps = array(campaignMapBoards(c));
-  return sql`select ${name}::text as board, steam_id, score,
+  return sql`select ${campaignBoard(c)}::text as board, steam_id, score,
       (row_number() over (order by score desc, first))::int as rank,
       null::jsonb as seasons
     from (
@@ -108,7 +109,7 @@ export const DERIVED = [S1_CURRENT_BOARD, COMPOSITE_BOARD] as const;
 /* One board's ranked rows, Steam's or derived: (board, steam_id, score, rank, seasons) */
 export function boardSql(name: string) {
   const campaign = campaignOfBoard(name);
-  if (campaign) return campaignSql(name, campaign);
+  if (campaign) return campaignSql(campaign);
   if (name === S1_CURRENT_BOARD) return s1CurrentSql();
   if (name === COMPOSITE_BOARD) return compositeSql();
   return sql`select board, steam_id, score, rank, null::jsonb as seasons

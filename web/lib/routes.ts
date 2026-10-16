@@ -68,6 +68,9 @@ export function boardHref(name: string, slot?: string | null) {
 export const campaignHref = (slug: string, pfid?: string | null) =>
   "/campaign/" + slug + (pfid ? "/" + pfid : "");
 
+/* every Campaign, as banners */
+export const campaignsHref = () => "/campaigns";
+
 /* whether a path under /campaign/ names a page: a curated Campaign, then nothing, its
    podium order, a Steam ID's row, or one of its Maps */
 export function isCampaignPath(path: string): boolean {

@@ -1,8 +1,9 @@
 "use client";
 // The Workshop homepage's body: the search box in the head, then either the carousel of
-// five picks and the shelves, or, while there is a search, the Maps that match it, read
-// from /api/maps. The server picked the carousel's Maps and each shelf's; what reads the
-// clock (the ages, New this week) is counted here, so a cached page never freezes it.
+// five picks, the Campaigns (drawn on the server and passed in) and the shelves, or, while
+// there is a search, the Maps that match it, read from /api/maps. The server picked the
+// carousel's Maps and each shelf's; what reads the clock (the ages, New this week) is
+// counted here, so a cached page never freezes it.
 import Link from "next/link";
 import { useState } from "react";
 
@@ -181,10 +182,13 @@ function Results({ q, found, clear }: { q: string; found: MapSearch; clear: () =
 
 export function WorkshopHome({
   picks,
+  campaigns,
   shelves,
   asOf,
 }: {
   picks: ReadonlyArray<Pick>;
+  /* the Campaigns' carousel, under the picks' */
+  campaigns: React.ReactNode;
   /* each of SHELVES' Maps, in order */
   shelves: ReadonlyArray<ReadonlyArray<MapCard>>;
   asOf: number;
@@ -230,6 +234,7 @@ export function WorkshopHome({
         ) : (
           <>
             <Carousel picks={picks} now={now} />
+            {campaigns}
             <Shelves shelves={shelves} now={now} />
           </>
         )}

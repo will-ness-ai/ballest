@@ -38,6 +38,7 @@ const ROUTES = [
   ["/map/" + MAP + "/nope", 404],
   /* the seeds' Maps are in no curated Campaign, so a Campaign's page is shown nowhere and
      only its path is checked */
+  ["/campaigns", 200, null, "No Campaign has a map"],
   ["/campaign/nope", 404],
   ["/campaign/solar-trials/nope", 404],
   ["/campaign/solar-trials/podiums/x", 404],

@@ -612,3 +612,128 @@
   font-size: calc(12.5rem / 16);
   color: var(--faint);
 }
+
+/* Campaigns. A Campaign's picture is its first Maps' previews side by side with a hairline
+   between (CampaignPics); a banner sets it at full strength behind the name, maker,
+   counts and leader, with the fade, full height, only behind the text. The homepage's carousel is a
+   scroll-snap track of banners, one with the next peeking in on a phone; /campaigns is a
+   grid of them */
+.cpics {
+  display: flex;
+  gap: 2px;
+  background: var(--bg);
+}
+.cpics > span {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: var(--surface2);
+}
+.cpics img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cban {
+  position: relative;
+  display: grid;
+  min-height: 170px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: clip;
+  background: var(--solid);
+  color: inherit;
+  text-decoration: none;
+}
+.cban > .cpics {
+  position: absolute;
+  inset: 0;
+}
+.cban-in {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  align-content: end;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  padding: 18px 56px 16px 16px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--bg) 90%, transparent) 55%,
+    transparent
+  );
+  text-shadow: 0 1px 3px var(--bg);
+}
+.cban-t {
+  font-family: var(--f-marquee);
+  font-weight: 400;
+  font-size: calc((20rem + 8 * var(--ramp)) / 16);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.cban-by,
+.cban-lead {
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+}
+.cban-lead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.cban-lead .marble {
+  width: 16px;
+  height: 16px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cban:hover {
+    border-color: var(--accent);
+  }
+  .cban:hover .cban-t {
+    color: var(--accent);
+  }
+}
+.ccar {
+  min-width: 0;
+}
+.ccar .shelf-h {
+  align-items: center;
+}
+.ccar-h {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.ccar-track {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 92%;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.ccar-track::-webkit-scrollbar {
+  display: none;
+}
+.ccar-track .cban {
+  scroll-snap-align: start;
+}
+.call-h {
+  margin-block: 14px 18px;
+}
+.call-h p {
+  max-width: 60ch;
+  margin-block: 10px 0;
+  color: var(--dim);
+}
+.call {
+  display: grid;
+  gap: 12px;
+}
