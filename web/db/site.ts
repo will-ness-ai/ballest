@@ -384,7 +384,7 @@ export async function workshopStandings(db: Db, since: number): Promise<Workshop
         and (e.closed_refresh is null or c.started_at > ${new Date(since)})`,
   );
   return {
-    readAt: last?.at == null ? null : new Date(last.at).toISOString(),
+    readAt: last.at === null ? null : new Date(last.at).toISOString(),
     since: new Date(since).toISOString(),
     ...countStandings(
       maps.map(({ author, ...m }) => ({

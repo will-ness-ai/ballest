@@ -14,7 +14,8 @@ const OLDEST_MS = 7 * 24 * HOUR_MS;
 export async function GET(request: Request) {
   const now = Date.now();
   const given = new URL(request.url).searchParams.get("since");
-  const at = given == null ? youBaseline(now) : /^\d+$/.test(given) ? Number(given) : Date.parse(given);
+  const at =
+    given == null ? youBaseline(now) : /^\d+$/.test(given) ? Number(given) : Date.parse(given);
   if (!Number.isFinite(at)) return Response.json({ error: "since is not a time" }, { status: 400 });
   const since = Math.floor(at / HOUR_MS) * HOUR_MS;
   if (since > now || since < now - OLDEST_MS)
