@@ -23,6 +23,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     old `#/` link maps onto one.
   - `circuit.ts`, the Circuit's fixed facts: the board order (the in-game numbering), the
     Season 2 tiers, each Track's screenshot and Medal times.
+  - `campaigns.ts`, the curated Campaigns and their lookups (below, "Campaigns").
   - `rows.ts`, the row types the read layer returns.
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
     the rows it is given; `standing.ts` (You's place, Medal and next Medal on a board) and
@@ -145,6 +146,11 @@ fails to load, or that Satori can't read, draws without it.
   `lib/player.ts`), are a row of sub-tabs under the tabs on a desktop and a chip beside
   the board button on a phone, whose menu gives each season's Tracks and field. Each
   season opens its Overall board.
+- `/campaign/<slug>`: a Campaign's Overall board, with the same optional `/<steam_id>` or
+  `/podiums`, or `/campaign/<slug>/<pfid>` for one of its Maps inside the Campaign's frame,
+  as a Track opens inside its season. Lights the Workshop tab. The proxy 404s a slug that
+  isn't curated, or anything after it but those; how the page is built is under
+  "Campaigns".
 - `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/circuit`, `/workshop`,
   `/made`). Without one the page opens on Workshop for anyone with a Workshop time, else
   Circuit.
@@ -171,7 +177,8 @@ fails to load, or that Satori can't read, draws without it.
   Daily tab.
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
-it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board or Map,
+it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board, Map or
+Campaign, a Campaign's Maps (each has its own page),
 head to heads and `/api/`. Every one of those multiplies by the number of players, and AI
 crawlers walking them all once outran the site's Hobby limits. A new route that adds a
 view of a page belongs on that list.
@@ -182,6 +189,38 @@ player page (`PlayerLink`), and the link out to Steam lives on that page. A Map'
 links to their player page's Made tab, except inside a card or row that is itself a link.
 A player or Map page's back link returns to the board or list you came from, remembered
 for the tab in `sessionStorage`.
+
+## Campaigns
+
+A Campaign (CONTEXT.md) is a player-made run of Workshop Maps that the site ranks the way
+the game ranks a Circuit season. The game knows nothing of them, so the list in
+`web/lib/campaigns.ts` (`CAMPAIGNS`) is the only place one exists.
+
+**Adding one** is one entry in `CAMPAIGNS`: its `slug` (the path, lowercase words joined by
+`-`), `title`, `creator` (the maker's Workshop name), `cid` (the maker's Steam ID) and
+`maps`, the Maps' Workshop IDs in the maker's order. That order numbers the Maps 01, 02 and
+so on, so append a Map rather than insert one. `campaignProblems` fails the tests on a
+repeated slug, a Map in two Campaigns (or twice in one), an empty Campaign or an ID that
+isn't one. Nothing else changes: the pages are prerendered from the list.
+
+**The board.** A Campaign's standings are a derived board named `OverallCampaign_<slug>`
+(`campaignBoard`). The `Overall` prefix makes it a points board to `isPoints` and
+`board_kind` with no special case, so every board piece (paging, search, You, plates, the
+Podiums sort, a row's focus) takes it through `/api/board/<name>` unchanged. Like Season 1
+Current it is never stored: `boardSql` (`db/boards.ts`) adds it up on every read from the
+open Entries of its Maps the Workshop lists, each place paying the Circuit's track points,
+equal totals ordered by the first Map (in the Campaign's order) a player is on, then their
+place there. A player is ranked once they have a time on one Map.
+
+**The page** (`components/campaign/CampaignView.tsx`) is a Circuit season's twin, built
+from the same pieces: the Campaign switch (`CampaignSwitch.tsx`, the season switch's tabs
+and chip) lists the Campaigns most players first (`getCampaigns`); the rail lists Overall,
+then each Map as a strip of its preview picture with its number, record and the part of
+its title after the Campaign's name (`shortTitle`); the Overall card, the points dialog
+and the podium count say maps where a season says tracks. A Map inside the frame gets the
+Track card's layout with its preview picture and a link to its own page. A Campaign none
+of whose Maps the Workshop lists is shown nowhere and its page is a 404, which is how the
+seeds' builds pass: their Maps are in no Campaign.
 
 ## The header
 

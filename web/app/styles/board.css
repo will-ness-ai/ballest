@@ -846,6 +846,10 @@
   font-size: calc(12.5rem / 16);
   color: var(--dim);
 }
+/* a Campaign's Map links out to its own page */
+.bc-by a {
+  color: var(--accent);
+}
 .bc-facts {
   display: flex;
   gap: 16px;

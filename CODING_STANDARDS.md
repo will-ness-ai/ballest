@@ -39,7 +39,7 @@ it breaks. Those files carry the reasons; this file carries the checks.
   Workshop Map can have 1 or 2, so anything that assumes a podium, a tenth place or a
   `rows[i]` is checked at 1, 2 and 3 rows.
 - User-facing text uses `CONTEXT.md`'s terms, and a word on an _Avoid_ line is a finding
-  ("campaign" is the Circuit).
+  ("campaign" for the Circuit is one: a Campaign is a curated run of Workshop Maps).
 
 ## Collector (`tools/`)
 

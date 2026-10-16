@@ -13,9 +13,9 @@ import { PlayerLink } from "../PlayerLink";
 import { TRACKS, trackNo } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podiums";
-import { PODIUM_SORT, boardHref } from "../../lib/routes";
-import { fmtN, fmtTime, hueFor, isPoints, personaOf, value } from "../../lib/rules";
-import type { BoardRow } from "../../lib/rows";
+import { PODIUM_SORT, boardHref, mapHref } from "../../lib/routes";
+import { fmtN, fmtTime, hueFor, isPoints, personaOf, safeImg, value } from "../../lib/rules";
+import type { BoardRow, WorkshopMap } from "../../lib/rows";
 import { spreadOf } from "../../lib/spread";
 
 /* a card's facts, each a label over its value */
@@ -140,6 +140,52 @@ export function TrackCard({
   );
 }
 
+/* a Map inside its Campaign's frame: the Track card's layout, with the Map's preview
+   picture, and a link out to the Map's own page */
+export function CampaignMapCard({
+  m,
+  title,
+  group,
+  rows,
+  scores,
+}: {
+  m: WorkshopMap;
+  title: string;
+  group: string;
+  rows: Array<BoardRow>;
+  scores: ReadonlyArray<number>;
+}) {
+  const lead = rows[0] as BoardRow | undefined;
+  const pic = safeImg(m.preview);
+  return (
+    <div className={pic ? "bcard" : "bcard nopic"} id="bcard">
+      {pic && <img className="bc-pic" src={pic} alt="" />}
+      <div className="bc-body">
+        <div className="bc-top">
+          <div>
+            <h1>{title}</h1>
+            <span className="bc-by">
+              {group} · by {m.creator} · <Link href={mapHref(m.pfid)}>Map page</Link>
+            </span>
+          </div>
+          <Facts
+            facts={[
+              ["Runs", fmtN(m.entryCount)],
+              ["Record", lead ? fmtTime(lead.score) : "—"],
+              [
+                "Record holder",
+                lead ? <PlayerLink id={lead.steamId} text={personaOf(lead)} /> : "—",
+              ],
+            ]}
+          />
+        </div>
+        <YouSpread name={m.name} chart={spreadOf(scores, m.medals, false)} />
+        {pic && <p className="bc-cap">Workshop preview picture.</p>}
+      </div>
+    </div>
+  );
+}
+
 function StandRow({
   who,
   bar,
@@ -166,12 +212,15 @@ export function OverallCard({
   tally,
   tracks,
   podiums,
+  unit = "track",
 }: {
   b: IndexBoard;
   rows: Array<BoardRow>;
   tally: PodiumTally | null;
   tracks: number;
   podiums: boolean;
+  /* what the board adds up, one of them: a Campaign's are maps */
+  unit?: string;
 }) {
   /* the tally ranks golds first, so the most podiums need not be the top one */
   const most = tally?.players.length
@@ -226,7 +275,7 @@ export function OverallCard({
           <div>
             <h1>{b.display}</h1>
             <span className="bc-by">
-              {b.group} · points{tally ? " and podiums" : ""} across all {fmtN(tracks)} tracks
+              {b.group} · points{tally ? " and podiums" : ""} across all {fmtN(tracks)} {unit}s
               <QMark always={podiums} />
             </span>
           </div>
