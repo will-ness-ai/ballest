@@ -177,7 +177,7 @@ export const MESHES: Partial<Record<string, MeshShape>> = {
   SM_Sphere: { kind: "sphere", min: [-200, -200, 0], max: [200, 200, 400] },
   SM_Start_Fixed: { kind: "cylinder", min: [-500, -500, 0.01], max: [500, 500, 199.98] },
   ShallowbowlV2: { kind: "box", min: [-1000, -1000, -250], max: [1000, 1000, 250] },
-  Torus: { kind: "box", min: [-1150, -1150, 0], max: [1150, 1150, 300] },
+  Torus: { kind: "torus", min: [-1150, -1150, 0], max: [1150, 1150, 300] },
 };
 
 export const PIECE_MESHES: Partial<Record<string, string>> = {

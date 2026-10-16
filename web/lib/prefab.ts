@@ -22,7 +22,8 @@ export interface PrefabItem {
   paint?: { categories: Array<string>; colors: Array<number> };
 }
 
-export type ShapeKind = "box" | "cylinder" | "sphere" | "scoop" | "halfRing" | "quarterRing";
+export type ShapeKind =
+  "box" | "cylinder" | "sphere" | "scoop" | "halfRing" | "quarterRing" | "torus";
 
 export interface MeshShape {
   kind: ShapeKind;
@@ -44,6 +45,8 @@ const COLOURS: Array<[RegExp, string]> = [
   [/Pink/i, "#e96aa8"],
   [/Green/i, "#3fae5a"],
   [/Black/i, "#202329"],
+  [/Iron/i, "#2a2c31"],
+  [/Aluminum/i, "#c9ccd2"],
 ];
 
 export interface Shape {
@@ -53,6 +56,8 @@ export interface Shape {
   /** column-major 4x4, local unit shape (centred at the origin) to three world, metres */
   matrix: Array<number>;
   colour: string;
+  /** an Emissive material, which lights itself in the game */
+  glow: boolean;
   piece: string;
   material: string;
 }
@@ -108,6 +113,7 @@ export function shapesOf(file: PrefabFile): Array<Shape> {
       size: [ext[0] / 100, ext[2] / 100, ext[1] / 100],
       matrix: [...ax, 0, ...ay, 0, ...az, 0, ...o, 1],
       colour: COLOURS.find(([re]) => re.test(material))?.[1] ?? "#8a90a0",
+      glow: /Emissive/i.test(material),
       piece: pieceName(item),
       material,
     };

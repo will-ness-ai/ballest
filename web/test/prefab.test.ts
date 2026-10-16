@@ -117,6 +117,25 @@ describe("a Prefab file", () => {
     expect(bowl("QuarterShallowHoleBowl")).toBe("quarterRing");
   });
 
+  test("a rounded torus is a torus, and an Emissive material glows", () => {
+    const [shape] = shapesOf({
+      ...cubes(),
+      items: [
+        {
+          class: "/Game/LevelEditor/MP_RoundedTorus.MP_RoundedTorus_C",
+          transform: { location: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+          meshes: [
+            {
+              mesh: "/Game/Meshes/Torus.Torus",
+              materials: ["/Game/M/MI_Env_Emissive_Red.MI_Env_Emissive_Red"],
+            },
+          ],
+        },
+      ],
+    });
+    expect(shape).toMatchObject({ kind: "torus", glow: true, colour: "#d8433a" });
+  });
+
   test("Unreal's y lands on three's z, so two pieces apart in y are deep, not tall", () => {
     const pair = cubes(
       [

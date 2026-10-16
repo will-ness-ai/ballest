@@ -33,6 +33,7 @@ export function buildScene(
     scoop: scoopGeometry(THREE),
     halfRing: ringGeometry(THREE, "half"),
     quarterRing: ringGeometry(THREE, "quarter"),
+    torus: torusGeometry(THREE),
   };
   const group = new THREE.Group();
   for (const s of shapesOf(file)) {
@@ -43,6 +44,11 @@ export function buildScene(
         roughness: 0.75,
         metalness: 0.05,
         side: THREE.DoubleSide,
+        /* a lamp glows as the game draws it, washed toward white */
+        ...(s.glow && {
+          emissive: new THREE.Color(s.colour).lerp(new THREE.Color(0xffffff), 0.5),
+          emissiveIntensity: 0.9,
+        }),
       }),
     );
     mesh.matrixAutoUpdate = false;
@@ -140,5 +146,14 @@ function ringGeometry(THREE: Three, cut: "half" | "quarter") {
   /* into the unit box: a half spans x -1..1 and y 0..1, a quarter both 0..1 */
   g.scale(half ? 0.5 : 1, 1, 1);
   g.translate(half ? 0 : -0.5, 0, -0.5);
+  return g;
+}
+
+/* MP_RoundedTorus's stand-in: a ring lying flat (Unreal's x-y plane) whose tube is the bounds'
+   height, 300 of 2300 cm across */
+function torusGeometry(THREE: Three) {
+  const g = new THREE.TorusGeometry(1000, 150, 16, 64);
+  g.rotateX(Math.PI / 2);
+  g.scale(1 / 2300, 1 / 300, 1 / 2300);
   return g;
 }
