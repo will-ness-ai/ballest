@@ -1,7 +1,7 @@
 "use client";
 // ============================================================================================
-// PROTOTYPE (grill-design, claude/prototype-standing): never merged. Round 1 asks the page's
-// overall shape: five layouts of "where you stand on the Daily Report's four lists", with a
+// PROTOTYPE (grill-design, claude/prototype-standing): never merged. Round 1 picked ladders
+// (B); round 2 asks the ladder card: five versions of "where you stand on the Daily Report's four lists", with a
 // picker (bottom right, ←/→) and states (signed out, a mid-table player, a leader, no times).
 // ============================================================================================
 import { useSearchParams } from "next/navigation";
@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
+import { Plates } from "../board/Plates";
 import { SteamMark } from "../SteamMark";
 import type { ProtoLists, Stat } from "../../db/prototype-standing";
 import { useYou } from "../../hooks/me";
@@ -55,11 +56,11 @@ interface ListView {
 }
 
 const VARIANTS = [
-  ["A", "Four cards"],
-  ["B", "Ladders"],
-  ["C", "One table"],
-  ["D", "The report's image"],
-  ["E", "Headline and chase"],
+  ["A", "Top 3 and you (round 1's B)"],
+  ["B", "Neighbours only"],
+  ["C", "Gap bars"],
+  ["D", "Opens to the whole list"],
+  ["E", "Podium and ladder"],
 ] as const;
 type VariantKey = (typeof VARIANTS)[number][0];
 const STATES = [
@@ -135,184 +136,186 @@ function chaseLine(v: ListView) {
   return `${plural(n, one, many)} more to pass ${v.above.persona}`;
 }
 
-// ------------------------------------------------------------------ A · Four cards
-function Cards({ views }: { views: Array<ListView> }) {
+// ------------------------------------------------------------------ round 2: the ladder card
+/* the rows a ladder shows: the top 3, a gap, then two above you, you and one below; the
+   top 5 run on unbroken when you're in or near them */
+function ladderRows(v: ListView, above = 2, below = 1, top = 3): Array<Row | "gap"> {
+  const r = v.ranked;
+  if (!v.me) return [...r.slice(0, top), "gap"];
+  const i = v.me.place - 1;
+  if (i <= top + above) return r.slice(0, Math.max(5, i + 1 + below));
+  return [...r.slice(0, top), "gap", ...r.slice(i - above, i + 1 + below)];
+}
+
+function LRow({ row, id, extra }: { row: Row; id: string; extra?: React.ReactNode }) {
   return (
-    <div className="pta-grid">
-      {views.map((v) => (
-        <section key={v.stat} className="pta-card">
-          <h2 className="pt-h">{TITLE[v.stat]}</h2>
-          <div className="pta-place">
-            <b>{v.me ? ord(v.me.place) : "–"}</b>
-            <Move v={v} />
-          </div>
-          <p className="pta-of">
-            {v.me ? `of ${fmtN(v.ranked.length)} · ${plural(v.me.n, ...NOUN[v.stat])}` : "Not on this list yet"}
-            {v.gain > 0 && <span className="pt-gain"> +{v.gain} today</span>}
-          </p>
-          <p className="pta-chase">{chaseLine(v)}</p>
-        </section>
-      ))}
-    </div>
+    <li className={row.steamId === id ? "ptb-row me" : "ptb-row"}>
+      <span className="ptb-pl">{row.place}</span>
+      <Marble who={row} still />
+      <span className="ptb-name">
+        <PlayerLink id={row.steamId} text={row.persona} />
+      </span>
+      <b className="ptb-n">{fmtN(row.n)}</b>
+      {extra}
+    </li>
+  );
+}
+const Ghost = () => <li className="ptb-row me ghost">You · not on this list yet</li>;
+const Gap = ({ k }: { k: number }) => (
+  <li key={"g" + k} className="ptb-gap">
+    ⋯
+  </li>
+);
+
+/* A · as picked: the top 3, then your neighbourhood */
+function LadderA({ v, id }: { v: ListView; id: string }) {
+  return (
+    <section className="ptb-card">
+      <h2 className="pt-h">
+        {TITLE[v.stat]} <Move v={v} />
+      </h2>
+      <ol className="ptb-rows">
+        {ladderRows(v).map((row, k) => (row === "gap" ? <Gap key={"g" + k} k={k} /> : <LRow key={row.steamId} row={row} id={id} />))}
+        {!v.me && <Ghost />}
+      </ol>
+      <p className="pt-foot">{chaseLine(v)}</p>
+    </section>
   );
 }
 
-// ------------------------------------------------------------------ B · Ladders
-function ladderRows(v: ListView): Array<Row | "gap"> {
+/* B · neighbours only: no top 3, a wider window centred on you, the leader as one line */
+function LadderB({ v, id }: { v: ListView; id: string }) {
   const r = v.ranked;
-  if (!v.me) return [...r.slice(0, 3), "gap"];
-  const i = v.me.place - 1;
-  if (i <= 5) return r.slice(0, Math.max(5, i + 2));
-  return [...r.slice(0, 3), "gap", ...r.slice(i - 2, i + 2)];
+  const i = v.me ? v.me.place - 1 : r.length;
+  const from = Math.max(0, i - 3);
+  const rows = r.slice(from, i + 3);
+  const lead = r[0];
+  return (
+    <section className="ptb-card">
+      <h2 className="pt-h">
+        {TITLE[v.stat]} <Move v={v} />
+      </h2>
+      {lead && from > 0 && (
+        <p className="ptB-lead">
+          Leader: <b>{lead.persona}</b> · {fmtN(lead.n)}
+        </p>
+      )}
+      <ol className="ptb-rows">
+        {rows.map((row) => (
+          <LRow key={row.steamId} row={row} id={id} />
+        ))}
+        {!v.me && <Ghost />}
+      </ol>
+    </section>
+  );
 }
-function Ladders({ views, id }: { views: Array<ListView>; id: string }) {
+
+/* C · gap bars: each row's count as a bar, the gap to the row above written between them */
+function LadderC({ v, id }: { v: ListView; id: string }) {
+  const rows = ladderRows(v);
+  const max = v.ranked[0]?.n ?? 1;
+  return (
+    <section className="ptb-card">
+      <h2 className="pt-h">
+        {TITLE[v.stat]} <Move v={v} />
+      </h2>
+      <ol className="ptb-rows ptC">
+        {rows.map((row, k) => {
+          if (row === "gap") return <Gap key={"g" + k} k={k} />;
+          const p = rows[k - 1];
+          const prev = p && p !== "gap" ? p : null;
+          const gap = row.steamId === id && prev ? prev.n - row.n : null;
+          return (
+            <LRow
+              key={row.steamId}
+              row={row}
+              id={id}
+              extra={
+                <>
+                  <span className="ptC-bar" style={{ "--w": `${(100 * row.n) / max}%` } as React.CSSProperties} />
+                  {gap !== null && prev && <span className="ptC-gap">{gap === 0 ? "level" : `−${fmtN(gap)} to ${ord(prev.place)}`}</span>}
+                </>
+              }
+            />
+          );
+        })}
+        {!v.me && <Ghost />}
+      </ol>
+    </section>
+  );
+}
+
+/* D · expandable: the top 3 and you, with the whole list opening in place around you */
+function LadderD({ v, id }: { v: ListView; id: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    if (open) ref.current?.querySelector(".me")?.scrollIntoView({ block: "center" });
+  }, [open]);
+  const r = v.ranked;
+  const i = v.me ? v.me.place - 1 : -1;
+  const shown: Array<Row | "gap"> = open
+    ? r.slice(0, Math.max(i + 26, 50))
+    : v.me && i > 3
+      ? [...r.slice(0, 3), "gap", v.me]
+      : r.slice(0, 4);
+  return (
+    <section className="ptb-card">
+      <h2 className="pt-h">
+        {TITLE[v.stat]} <Move v={v} />
+      </h2>
+      <ol ref={ref} className={open ? "ptb-rows ptD-open" : "ptb-rows"}>
+        {shown.map((row, k) => (row === "gap" ? <Gap key={"g" + k} k={k} /> : <LRow key={row.steamId} row={row} id={id} />))}
+        {!v.me && <Ghost />}
+      </ol>
+      <button type="button" className="ptD-more" onClick={() => setOpen(!open)}>
+        {open ? "Close" : `Show all ${fmtN(r.length)}`}
+      </button>
+      <p className="pt-foot">{chaseLine(v)}</p>
+    </section>
+  );
+}
+
+/* E · podium and ladder: the site's marble podium for the top 3, your neighbourhood under it */
+function LadderE({ v, id }: { v: ListView; id: string }) {
+  const [one, many] = NOUN[v.stat];
+  const rows = ladderRows(v).filter((r): r is Row => r !== "gap" && r.place > 3);
+  return (
+    <section className="ptb-card ptE">
+      <h2 className="pt-h">
+        {TITLE[v.stat]} <Move v={v} />
+      </h2>
+      <Plates
+        size="small"
+        focus={id}
+        top={v.ranked.slice(0, 3).map((r) => ({ who: r, score: plural(r.n, one, many), line: "" }))}
+      />
+      {rows.length > 0 && (
+        <ol className="ptb-rows">
+          {rows[0] && rows[0].place > 4 && <Gap k={0} />}
+          {rows.map((row) => (
+            <LRow key={row.steamId} row={row} id={id} />
+          ))}
+        </ol>
+      )}
+      {!v.me && (
+        <ol className="ptb-rows">
+          <Ghost />
+        </ol>
+      )}
+      <p className="pt-foot">{chaseLine(v)}</p>
+    </section>
+  );
+}
+
+const LADDER = { A: LadderA, B: LadderB, C: LadderC, D: LadderD, E: LadderE };
+function Ladders({ views, id, variant }: { views: Array<ListView>; id: string; variant: VariantKey }) {
+  const L = LADDER[variant];
   return (
     <div className="ptb-grid">
       {views.map((v) => (
-        <section key={v.stat} className="ptb-card">
-          <h2 className="pt-h">
-            {TITLE[v.stat]} <Move v={v} />
-          </h2>
-          <ol className="ptb-rows">
-            {ladderRows(v).map((row, k) =>
-              row === "gap" ? (
-                <li key={"g" + k} className="ptb-gap">
-                  ⋯
-                </li>
-              ) : (
-                <li key={row.steamId} className={row.steamId === id ? "ptb-row me" : "ptb-row"}>
-                  <span className="ptb-pl">{row.place}</span>
-                  <Marble who={row} still />
-                  <span className="ptb-name">
-                    <PlayerLink id={row.steamId} text={row.persona} />
-                  </span>
-                  <b className="ptb-n">{fmtN(row.n)}</b>
-                </li>
-              ),
-            )}
-            {!v.me && <li className="ptb-row me ghost">You · not on this list yet</li>}
-          </ol>
-          <p className="pt-foot">{chaseLine(v)}</p>
-        </section>
+        <L key={v.stat} v={v} id={id} />
       ))}
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------ C · One table
-function Table({ views }: { views: Array<ListView> }) {
-  return (
-    <table className="ptc-table">
-      <thead>
-        <tr>
-          <th>List</th>
-          <th>Place</th>
-          <th>You</th>
-          <th className="ptc-day">Today</th>
-          <th className="ptc-next">Next up</th>
-        </tr>
-      </thead>
-      <tbody>
-        {views.map((v) => (
-          <tr key={v.stat}>
-            <th scope="row">{SHORT[v.stat]}</th>
-            <td>
-              <b>{v.me ? ord(v.me.place) : "–"}</b>
-              <small> / {fmtN(v.ranked.length)}</small>
-            </td>
-            <td>{fmtN(v.me?.n ?? 0)}</td>
-            <td className="ptc-day">
-              <Move v={v} />
-              {v.gain > 0 && <span className="pt-gain"> +{v.gain}</span>}
-            </td>
-            <td className="ptc-next">{chaseLine(v)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-// ------------------------------------------------------------------ D · The report's image
-function Image({ views, id, data }: { views: Array<ListView>; id: string; data: ProtoLists }) {
-  return (
-    <div className="ptd-sheet">
-      <header className="ptd-head">
-        <b>Workshop standings</b>
-        <span>
-          {fmtN(data.maps)} Workshop Maps · {fmtN(data.rows.length)} players
-        </span>
-      </header>
-      <div className="ptd-grid">
-        {views.map((v) => (
-          <section key={v.stat} className="ptd-board">
-            <h2 className="pt-h">{TITLE[v.stat]}</h2>
-            <ol>
-              {v.ranked.slice(0, 10).map((r) => (
-                <li key={r.steamId} className={r.steamId === id ? "me" : undefined}>
-                  <span className="ptd-pl">{r.place}</span>
-                  <span className="ptd-name">{r.persona}</span>
-                  <b>{fmtN(r.n)}</b>
-                </li>
-              ))}
-              {(!v.me || v.me.place > 10) && (
-                <li className="me pinned">
-                  <span className="ptd-pl">{v.me ? v.me.place : "–"}</span>
-                  <span className="ptd-name">You</span>
-                  <b>{fmtN(v.me?.n ?? 0)}</b>
-                </li>
-              )}
-            </ol>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------ E · Headline and chase
-function Chase({ views }: { views: Array<ListView> }) {
-  const on = views.filter((v) => v.me);
-  const best = [...on].sort((a, b) => (a.me?.place ?? 0) - (b.me?.place ?? 0))[0];
-  const rest = on.filter((v) => v !== best);
-  const chase = [...views].filter((v) => v.above).sort((a, b) => toPass(a) - toPass(b));
-  return (
-    <div className="pte">
-      {best?.me ? (
-        <p className="pte-hero">
-          You&apos;re <b>{ord(best.me.place)}</b> in {TITLE[best.stat]}
-          {rest.length > 0 && (
-            <small>
-              and{" "}
-              {rest
-                .map((v) => `${ord(v.me?.place ?? 0)} in ${SHORT[v.stat].toLowerCase()}`)
-                .join(", ")}
-            </small>
-          )}
-        </p>
-      ) : (
-        <p className="pte-hero">You&apos;re not on any list yet</p>
-      )}
-      <h2 className="pt-h">Closest to climb</h2>
-      <ol className="pte-list">
-        {chase.map((v) => (
-          <li key={v.stat}>
-            <span className="pte-n">+{toPass(v)}</span>
-            <span>
-              <b>{NOUN[v.stat][toPass(v) === 1 ? 0 : 1]}</b> to pass {v.above?.persona} for{" "}
-              {ord(v.above?.place ?? 0)} in {SHORT[v.stat].toLowerCase()}
-            </span>
-          </li>
-        ))}
-        {views
-          .filter((v) => v.me && !v.above)
-          .map((v) => (
-            <li key={v.stat} className="lead">
-              <span className="pte-n">1st</span>
-              <span>{chaseLine(v)} in {SHORT[v.stat].toLowerCase()}</span>
-            </li>
-          ))}
-      </ol>
     </div>
   );
 }
@@ -403,11 +406,7 @@ export function Standing({ data }: { data: ProtoLists }) {
                 </p>
               </div>
             </header>
-            {variant === "A" && <Cards views={views} />}
-            {variant === "B" && <Ladders views={views} id={id} />}
-            {variant === "C" && <Table views={views} />}
-            {variant === "D" && <Image views={views} id={id} data={data} />}
-            {variant === "E" && <Chase views={views} />}
+            <Ladders views={views} id={id} variant={variant} />
           </>
         )}
       </section>

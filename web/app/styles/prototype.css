@@ -413,3 +413,51 @@
   background: #000;
   color: #ff0;
 }
+
+/* round 2: the ladder card */
+.ptB-lead {
+  margin: 0;
+  font-size: calc(13rem / 16);
+  color: var(--faint);
+}
+.ptB-lead b {
+  color: var(--dim);
+}
+.ptC .ptb-row {
+  position: relative;
+  isolation: isolate;
+}
+.ptC-bar {
+  position: absolute;
+  inset: 3px auto 3px 0;
+  z-index: -1;
+  width: var(--w);
+  border-radius: 6px;
+  background: var(--surface2);
+}
+.ptC .ptb-row.me .ptC-bar {
+  background: color-mix(in oklch, var(--accent) 22%, transparent);
+}
+.ptC-gap {
+  grid-column: 3 / -1;
+  font: 600 calc(12rem / 16) var(--f-hud);
+  color: var(--accent);
+}
+.ptD-open {
+  max-height: 320px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.ptD-more {
+  justify-self: start;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--dim);
+  font: 600 calc(12rem / 16) var(--f-hud);
+  cursor: pointer;
+}
+.ptE .leaders.small {
+  margin: 4px 0;
+}
