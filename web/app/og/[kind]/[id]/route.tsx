@@ -15,11 +15,11 @@ import {
   getPlayer,
   getMap,
 } from "../../../../db/data";
+import { CAMPAIGN_MAX_PICTURES } from "../../../../lib/campaigns";
 import { circuitBoard } from "../../../../lib/circuit";
 import { isDailyDate } from "../../../../lib/routes";
 import { isSteamId, safeImg } from "../../../../lib/rules";
 import {
-  CAMPAIGN_BAND_MAX_PICTURES,
   campaignCard,
   dailyCard,
   isShareKind,
@@ -102,7 +102,7 @@ async function shareOf(
       const s = await getCampaignShare(id);
       if (!s) return null;
       const band = await Promise.all(
-        s.data.maps.slice(0, CAMPAIGN_BAND_MAX_PICTURES).map((m) => remote(m.preview)),
+        s.data.maps.slice(0, CAMPAIGN_MAX_PICTURES).map((m) => remote(m.preview)),
       );
       return { card: campaignCard(s.data.c, s.standing), picture: band };
     }

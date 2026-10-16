@@ -124,7 +124,7 @@ Any other page, a Circuit Overall board included, keeps the site-wide `og.png`.
   Track's screenshot), its world record (a Daily's "Fastest", live or final alike), then
   Players, Author time, Beat the author and either Published (a Map) or Gold time.
 - A Campaign (`/og/campaign/<slug>`) gets the same Banner with its first five Maps'
-  previews side by side as the band (`CAMPAIGN_BAND_MAX_PICTURES`), a missing one a blank slice;
+  previews side by side as the band (`CAMPAIGN_MAX_PICTURES`), a missing one a blank slice;
   "Campaign · by <maker>", its leader and their points, then Maps, Players and Finished
   every map: the players with a time on every one of its Maps the Workshop lists
   (`finishedEveryMap`). Its Overall, podiums and a focused row name it; a Map inside its

@@ -2,10 +2,11 @@
 // homepage's banners, /campaigns and a player's Campaign cards all draw it. No state, so
 // server and client components both can.
 import { MapImage } from "../MapImage";
+import { CAMPAIGN_MAX_PICTURES } from "../../lib/campaigns";
 
 export function CampaignPics({
   previews,
-  max = 5,
+  max = CAMPAIGN_MAX_PICTURES,
   className,
 }: {
   /* the Maps' preview pictures, in the Campaign's order; a Map with none is a blank panel */

@@ -100,6 +100,11 @@ export function campaignProblems(list: ReadonlyArray<Campaign>): Array<string> {
   return out;
 }
 
+/* how many Map previews at most a Campaign's picture lays side by side: its first Maps',
+   in its order, on its banners and its share card; a Campaign of fewer Maps has a panel
+   for each */
+export const CAMPAIGN_MAX_PICTURES = 5;
+
 const PREFIX = "OverallCampaign_";
 
 /* a Campaign's standings, as a board name */
