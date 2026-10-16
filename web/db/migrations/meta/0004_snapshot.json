@@ -39,8 +39,12 @@
           "name": "board_reads_refresh_id_refreshes_id_fk",
           "tableFrom": "board_reads",
           "tableTo": "refreshes",
-          "columnsFrom": ["refresh_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "refresh_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -48,8 +52,12 @@
           "name": "board_reads_board_boards_name_fk",
           "tableFrom": "board_reads",
           "tableTo": "boards",
-          "columnsFrom": ["board"],
-          "columnsTo": ["name"],
+          "columnsFrom": [
+            "board"
+          ],
+          "columnsTo": [
+            "name"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -57,7 +65,10 @@
       "compositePrimaryKeys": {
         "board_reads_refresh_id_board_pk": {
           "name": "board_reads_refresh_id_board_pk",
-          "columns": ["refresh_id", "board"]
+          "columns": [
+            "refresh_id",
+            "board"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -114,7 +125,9 @@
         "boards_leaderboard_id_unique": {
           "name": "boards_leaderboard_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["leaderboard_id"]
+          "columns": [
+            "leaderboard_id"
+          ]
         }
       },
       "policies": {},
@@ -174,8 +187,12 @@
           "name": "dailies_board_boards_name_fk",
           "tableFrom": "dailies",
           "tableTo": "boards",
-          "columnsFrom": ["board"],
-          "columnsTo": ["name"],
+          "columnsFrom": [
+            "board"
+          ],
+          "columnsTo": [
+            "name"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -183,8 +200,12 @@
           "name": "dailies_final_refresh_refreshes_id_fk",
           "tableFrom": "dailies",
           "tableTo": "refreshes",
-          "columnsFrom": ["final_refresh"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "final_refresh"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -194,7 +215,9 @@
         "dailies_board_unique": {
           "name": "dailies_board_unique",
           "nullsNotDistinct": false,
-          "columns": ["board"]
+          "columns": [
+            "board"
+          ]
         }
       },
       "policies": {},
@@ -283,8 +306,12 @@
           "name": "entries_board_boards_name_fk",
           "tableFrom": "entries",
           "tableTo": "boards",
-          "columnsFrom": ["board"],
-          "columnsTo": ["name"],
+          "columnsFrom": [
+            "board"
+          ],
+          "columnsTo": [
+            "name"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -292,8 +319,12 @@
           "name": "entries_steam_id_players_steam_id_fk",
           "tableFrom": "entries",
           "tableTo": "players",
-          "columnsFrom": ["steam_id"],
-          "columnsTo": ["steam_id"],
+          "columnsFrom": [
+            "steam_id"
+          ],
+          "columnsTo": [
+            "steam_id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -301,8 +332,12 @@
           "name": "entries_first_seen_refresh_refreshes_id_fk",
           "tableFrom": "entries",
           "tableTo": "refreshes",
-          "columnsFrom": ["first_seen_refresh"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "first_seen_refresh"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -310,8 +345,12 @@
           "name": "entries_last_seen_refresh_refreshes_id_fk",
           "tableFrom": "entries",
           "tableTo": "refreshes",
-          "columnsFrom": ["last_seen_refresh"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "last_seen_refresh"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -319,8 +358,12 @@
           "name": "entries_closed_refresh_refreshes_id_fk",
           "tableFrom": "entries",
           "tableTo": "refreshes",
-          "columnsFrom": ["closed_refresh"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "closed_refresh"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -486,8 +529,12 @@
           "name": "map_history_first_seen_refresh_refreshes_id_fk",
           "tableFrom": "map_history",
           "tableTo": "refreshes",
-          "columnsFrom": ["first_seen_refresh"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "first_seen_refresh"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -495,8 +542,12 @@
           "name": "map_history_last_seen_refresh_refreshes_id_fk",
           "tableFrom": "map_history",
           "tableTo": "refreshes",
-          "columnsFrom": ["last_seen_refresh"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "last_seen_refresh"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -504,8 +555,12 @@
           "name": "map_history_pfid_maps_pfid_fk",
           "tableFrom": "map_history",
           "tableTo": "maps",
-          "columnsFrom": ["pfid"],
-          "columnsTo": ["pfid"],
+          "columnsFrom": [
+            "pfid"
+          ],
+          "columnsTo": [
+            "pfid"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -551,8 +606,12 @@
           "name": "maps_board_boards_name_fk",
           "tableFrom": "maps",
           "tableTo": "boards",
-          "columnsFrom": ["board"],
-          "columnsTo": ["name"],
+          "columnsFrom": [
+            "board"
+          ],
+          "columnsTo": [
+            "name"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -562,7 +621,9 @@
         "maps_board_unique": {
           "name": "maps_board_unique",
           "nullsNotDistinct": false,
-          "columns": ["board"]
+          "columns": [
+            "board"
+          ]
         }
       },
       "policies": {},
@@ -626,8 +687,12 @@
           "name": "persona_history_steam_id_players_steam_id_fk",
           "tableFrom": "persona_history",
           "tableTo": "players",
-          "columnsFrom": ["steam_id"],
-          "columnsTo": ["steam_id"],
+          "columnsFrom": [
+            "steam_id"
+          ],
+          "columnsTo": [
+            "steam_id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -635,8 +700,12 @@
           "name": "persona_history_first_seen_refresh_refreshes_id_fk",
           "tableFrom": "persona_history",
           "tableTo": "refreshes",
-          "columnsFrom": ["first_seen_refresh"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "first_seen_refresh"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -644,8 +713,12 @@
           "name": "persona_history_last_seen_refresh_refreshes_id_fk",
           "tableFrom": "persona_history",
           "tableTo": "refreshes",
-          "columnsFrom": ["last_seen_refresh"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "last_seen_refresh"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -749,17 +822,29 @@
     "public.board_kind": {
       "name": "board_kind",
       "schema": "public",
-      "values": ["track", "overall", "map", "daily"]
+      "values": [
+        "track",
+        "overall",
+        "map",
+        "daily"
+      ]
     },
     "public.ghost_state": {
       "name": "ghost_state",
       "schema": "public",
-      "values": ["ok", "empty", "gone"]
+      "values": [
+        "ok",
+        "empty",
+        "gone"
+      ]
     },
     "public.refresh_source": {
       "name": "refresh_source",
       "schema": "public",
-      "values": ["collector", "backfill"]
+      "values": [
+        "collector",
+        "backfill"
+      ]
     }
   },
   "schemas": {},
