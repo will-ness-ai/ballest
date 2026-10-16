@@ -8,9 +8,8 @@ import { sql } from "drizzle-orm";
 
 import { connect } from "../db/client";
 import { addPrefab } from "../db/prefabs";
-import { slugOf } from "../lib/prefabs";
+import { ADMIN_STEAM_ID, slugOf } from "../lib/prefabs";
 
-const WILL = "76561198047685844";
 const SAMPLES = [
   { file: "bench.json", name: "Bench", tags: ["Decoration"] },
   { file: "testparkhill.json", name: "Park hill", tags: ["Scenery"] },
@@ -34,7 +33,7 @@ for (const s of SAMPLES) {
     name: s.name,
     description: "",
     tags: s.tags,
-    uploader: WILL,
+    uploader: ADMIN_STEAM_ID,
     uploaderName: "Will",
     file,
   });

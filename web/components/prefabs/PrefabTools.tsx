@@ -1,19 +1,89 @@
 "use client";
 // What the signed-in reader may do to a Prefab beyond viewing it: its uploader can edit its
-// name, description and tags, or delete it (db/prefab-api.ts editPrefab). Nobody else sees
-// these.
+// name, description and tags, or delete it (db/prefab-api.ts editPrefab); the admin can take
+// it down, or ban its uploader, which hides all their Prefabs, and lift the ban from a
+// hidden one's page. Nobody else sees these.
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
+import { ADMIN_STEAM_ID } from "../../lib/prefabs";
 import { prefabsHref } from "../../lib/routes";
 
 export function PrefabTools({ p }: { p: PrefabPage }) {
   const me = useSession();
-  if (!me || p.state !== "live" || me !== p.uploader.steamId) return null;
-  return <OwnerTools p={p} />;
+  if (!me) return null;
+  return (
+    <>
+      {p.state === "live" && me === p.uploader.steamId && <OwnerTools p={p} />}
+      {me === ADMIN_STEAM_ID && <AdminTools p={p} />}
+    </>
+  );
+}
+
+function AdminTools({ p }: { p: PrefabPage }) {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const who = p.uploader.steamId;
+  const act = async (url: string, method: string, ask: string) => {
+    if (!confirm(ask)) return;
+    setBusy(true);
+    const r = await fetch(url, { method }).catch(() => null);
+    if (r?.ok) location.reload();
+    else {
+      setFailed(true);
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="pf-admin">
+      <b>Admin</b>
+      {p.state === "live" && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            void act(`/api/prefabs/${p.slug}/takedown`, "POST", `Take ${p.name} down for good?`)
+          }
+        >
+          Take down
+        </button>
+      )}
+      {p.state === "live" && who !== ADMIN_STEAM_ID && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            void act(
+              `/api/prefab-bans/${who}`,
+              "PUT",
+              `Ban ${p.uploader.name} from uploading? Every prefab they uploaded is hidden until you unban them.`,
+            )
+          }
+        >
+          Ban {p.uploader.name} from uploading
+        </button>
+      )}
+      {p.state === "hidden" && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            void act(
+              `/api/prefab-bans/${who}`,
+              "DELETE",
+              `Unban ${p.uploader.name}? Their prefabs come back.`,
+            )
+          }
+        >
+          Unban {p.uploader.name}
+        </button>
+      )}
+      {failed && <span>That didn&apos;t work. Try again.</span>}
+    </div>
+  );
 }
 
 function OwnerTools({ p }: { p: PrefabPage }) {

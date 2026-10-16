@@ -336,6 +336,13 @@ branch `claude/prototype-prefabs` (spec #213).
   upload pings the ops channel through `OPS_WEBHOOK_URL` (skipped with a log line when it is
   unset). The download name is the Prefab's name as the spawn command takes it
   (`fileNameOf`).
+- **Favorites, editing and the admin** (`Favorite.tsx`, `PrefabTools.tsx`): a signed-in
+  reader hearts a Prefab once (`/api/prefabs/<slug>/favorite`). Its uploader can edit its
+  name, description and tags or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,
+  one Steam ID (`ADMIN_STEAM_ID` in `lib/prefabs.ts`), can take any Prefab down
+  (`/api/prefabs/<slug>/takedown`) and ban its uploader (`/api/prefab-bans/<steam_id>`),
+  which hides all their Prefabs; a hidden one's gone page offers Unban. Every write expires
+  the cached Prefab reads (`PREFAB_TAG`), so it shows at once.
 
 ## Checking a change
 

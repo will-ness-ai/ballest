@@ -627,3 +627,16 @@ button.pf-dl {
   color: var(--bronze);
   border-color: color-mix(in oklch, var(--bronze) 50%, transparent);
 }
+
+/* the admin's Take down and Ban */
+.pf-admin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px dashed var(--bronze);
+  border-radius: 10px;
+  color: var(--bronze);
+  font-size: calc(13rem / 16);
+}

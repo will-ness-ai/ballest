@@ -5,8 +5,10 @@ import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";
 
 import {
+  banUploader,
   editPrefab,
   favoritePrefab,
+  takeDownPrefab,
   uploadPrefab,
   uploadQuota,
   type PrefabDeps,
@@ -331,5 +333,79 @@ describe("editing and deleting your own", () => {
     expect(
       (await editPrefab(change("mine-to-edit", "DELETE", owner), deps(), "mine-to-edit")).status,
     ).toBe(404);
+  });
+});
+
+describe("the admin's take down and ban", () => {
+  const ADMIN = "76561198047685844";
+  const BAD = "76561199000000041";
+  const post = (path: string, method: string, cookie: string) =>
+    new Request(SITE + path, { method, headers: { cookie, origin: SITE } });
+  const states = async () =>
+    Object.fromEntries(
+      await Promise.all(
+        ["bad-one", "bad-two"].map(async (s) => [s, (await prefabOf(t.db, s))?.state]),
+      ),
+    ) as Record<string, string>;
+
+  test("only the admin can take a Prefab down, and it reads gone", async () => {
+    const bad = await sessionOf(BAD);
+    await uploadPrefab(uploading({ name: "Bad one" }, bad), deps());
+    await uploadPrefab(uploading({ name: "Bad two" }, bad), deps());
+    const other = await sessionOf("76561199000000042");
+    expect(
+      (
+        await takeDownPrefab(
+          post("/api/prefabs/bad-one/takedown", "POST", other),
+          deps(),
+          "bad-one",
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (await takeDownPrefab(post("/api/prefabs/bad-one/takedown", "POST", bad), deps(), "bad-one"))
+        .status,
+    ).toBe(403);
+    changes = 0;
+    const admin = await sessionOf(ADMIN);
+    expect(
+      (
+        await takeDownPrefab(
+          post("/api/prefabs/bad-one/takedown", "POST", admin),
+          deps(),
+          "bad-one",
+        )
+      ).status,
+    ).toBe(200);
+    expect(await states()).toEqual({ "bad-one": "taken-down", "bad-two": "live" });
+    expect((await prefabList(t.db)).map((c) => c.slug)).not.toContain("bad-one");
+    expect(changes).toBe(1);
+  });
+
+  test("a ban stops the player uploading and hides their Prefabs; an unban brings them back", async () => {
+    const admin = await sessionOf(ADMIN);
+    const bad = await sessionOf(BAD);
+    const other = await sessionOf("76561199000000042");
+    expect(
+      (await banUploader(post(`/api/prefab-bans/${BAD}`, "PUT", other), deps(), BAD)).status,
+    ).toBe(403);
+    expect(
+      (await banUploader(post(`/api/prefab-bans/${BAD}`, "PUT", admin), deps(), BAD)).status,
+    ).toBe(200);
+    expect(await states()).toEqual({ "bad-one": "taken-down", "bad-two": "hidden" });
+    expect((await prefabList(t.db)).map((c) => c.slug)).not.toContain("bad-two");
+    expect((await uploadPrefab(uploading({ name: "Bad three" }, bad), deps())).status).toBe(403);
+    expect(
+      (await banUploader(post(`/api/prefab-bans/${BAD}`, "DELETE", admin), deps(), BAD)).status,
+    ).toBe(200);
+    expect(await states()).toEqual({ "bad-one": "taken-down", "bad-two": "live" });
+    expect((await prefabList(t.db)).map((c) => c.slug)).toContain("bad-two");
+  });
+
+  test("the admin can't ban themselves", async () => {
+    const admin = await sessionOf(ADMIN);
+    expect(
+      (await banUploader(post(`/api/prefab-bans/${ADMIN}`, "PUT", admin), deps(), ADMIN)).status,
+    ).toBe(400);
   });
 });

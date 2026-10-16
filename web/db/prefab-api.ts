@@ -4,15 +4,21 @@
 // request another site sent. `deps` carries the database and what the tests stand in for:
 // the session's secret and clock, the ops ping, the uploader's Steam persona, and the cache
 // to expire after a write.
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { isCrossSite, sessionOf, type AuthEnv } from "../lib/auth";
 import { MAX_BYTES, checkPrefab } from "../lib/prefab-check";
-import { DAILY_UPLOADS, UPLOAD_WINDOW_MS, checkFields, type PrefabFields } from "../lib/prefabs";
+import {
+  ADMIN_STEAM_ID,
+  DAILY_UPLOADS,
+  UPLOAD_WINDOW_MS,
+  checkFields,
+  type PrefabFields,
+} from "../lib/prefabs";
 import { SITE_ORIGIN, prefabHref } from "../lib/routes";
 import type { Db } from "./client";
 import { LIVE, addPrefab, prefabOf, type Conn } from "./prefabs";
-import { prefabs } from "./schema";
+import { prefabBans, prefabs } from "./schema";
 
 export interface PrefabDeps {
   db: Db;
@@ -220,4 +226,54 @@ export async function editPrefab(
     .where(eq(prefabs.id, prefab.id));
   deps.changed?.();
   return json({ slug });
+}
+
+/* the admin's Steam ID when the request is theirs, from this site; else the refusal */
+function asAdmin(request: Request, deps: PrefabDeps): string | Response {
+  if (isCrossSite(request)) return json({ error: "cross-site" }, 403);
+  const id = sessionOf(request, deps.auth);
+  if (!id) return json({ error: "sign in with Steam" }, 401);
+  if (id !== ADMIN_STEAM_ID) return json({ error: "only the admin can do that" }, 403);
+  return id;
+}
+
+/* POST /api/prefabs/<slug>/takedown: the admin takes a Prefab down (B1). Its row stays,
+   stamped, and its page reads gone */
+export async function takeDownPrefab(
+  request: Request,
+  deps: PrefabDeps,
+  slug: string,
+): Promise<Response> {
+  const admin = asAdmin(request, deps);
+  if (admin instanceof Response) return admin;
+  const at = new Date(now(deps));
+  const done = await deps.db
+    .update(prefabs)
+    .set({ takenDownAt: at })
+    .where(and(eq(prefabs.slug, slug), isNull(prefabs.takenDownAt)))
+    .returning({ id: prefabs.id });
+  if (!done.length) return json({ error: "no such prefab" }, 404);
+  deps.changed?.();
+  return json({ takenDown: slug });
+}
+
+/* PUT /api/prefab-bans/<steam_id>: the admin stops a player uploading, which hides every
+   Prefab they uploaded; DELETE lifts the ban and brings them back (B1) */
+export async function banUploader(
+  request: Request,
+  deps: PrefabDeps,
+  steamId: string,
+): Promise<Response> {
+  const admin = asAdmin(request, deps);
+  if (admin instanceof Response) return admin;
+  if (steamId === admin) return json({ error: "you can't ban yourself" }, 400);
+  if (request.method === "DELETE")
+    await deps.db.delete(prefabBans).where(eq(prefabBans.steamId, steamId));
+  else
+    await deps.db
+      .insert(prefabBans)
+      .values({ steamId, bannedBy: admin, bannedAt: new Date(now(deps)) })
+      .onConflictDoNothing();
+  deps.changed?.();
+  return json({ steamId, banned: request.method !== "DELETE" });
 }
