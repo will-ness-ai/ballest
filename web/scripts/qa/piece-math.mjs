@@ -26,13 +26,6 @@ export function frameOf({ min, max }, name) {
   };
 }
 
-/* a point in the piece's space as [column, row] on a `size`-pixel image, rows counting down */
-export function project(point, bounds, name, size) {
-  const { right, up } = viewOf(name);
-  const { cr, cu, span } = frameOf(bounds, name);
-  return [((point[right] - cr) / span + 0.5) * size, (0.5 - (point[up] - cu) / span) * size];
-}
-
 /* an Unreal axis as a unit vector in three's space (y and z swapped, as lib/prefab.ts converts) */
 function inThree(axis, sign = 1) {
   const v = [0, 0, 0];

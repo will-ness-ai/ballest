@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { VIEWS, camera, frameOf, overlap, project, rankRows } from "../scripts/qa/piece-math.mjs";
+import { VIEWS, camera, frameOf, overlap, rankRows } from "../scripts/qa/piece-math.mjs";
 
 const bounds = { min: [-500, -250, 0], max: [500, 250, 100] } as const;
 
@@ -12,19 +12,7 @@ describe("frameOf", () => {
   });
 });
 
-describe("project", () => {
-  it("maps each view's right and up axes to image column and row, up being smaller rows", () => {
-    const size = 512;
-    // the bounds' +X end on the top view sits at the right, 5% in from the edge
-    expect(project([500, 0, 50], bounds, "top", size)[0]).toBeCloseTo(size * 0.95);
-    // +Y is up on the top view: a smaller row than the centre
-    expect(project([0, 250, 0], bounds, "top", size)[1]).toBeLessThan(size / 2);
-    // +Y is right on the front view, +Z up
-    const [col, row] = project([0, 250, 100], bounds, "front", size);
-    expect(col).toBeCloseTo(size * 0.95);
-    expect(row).toBeLessThan(size / 2);
-  });
-
+describe("camera", () => {
   it("draws the views that map Unreal's left-handed axes as mirror images, flipped back", () => {
     // three's axes are Unreal's with y and z swapped, a reflection, so a view keeps its
     // handedness only if it was already a mirror in Unreal
