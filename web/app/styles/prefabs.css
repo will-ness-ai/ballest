@@ -606,7 +606,7 @@ button.pf-dl {
   margin: 0;
   color: var(--dim);
 }
-.pf-tools-end button.on {
+.pfa button[aria-pressed="true"] {
   border-color: var(--accent);
   color: var(--accent);
 }

@@ -50,7 +50,6 @@ export function AnglePicker({
             )}
             <button
               type="button"
-              className={showing ? "on" : ""}
               aria-pressed={showing}
               onClick={() => {
                 const a = angleNow();

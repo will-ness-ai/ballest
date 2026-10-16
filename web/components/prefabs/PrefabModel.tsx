@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { PrefabViewer, useViewer } from "./PrefabViewer";
-import type { PrefabFile } from "../../lib/prefab";
+import { fetchPrefabFile, type PrefabFile } from "../../lib/prefab";
 import type { PrefabAngle } from "../../lib/prefabs";
 
 const FOLDER = "%LOCALAPPDATA%\\Ballest\\Saved\\SaveGames\\Prefabs";
@@ -25,8 +25,7 @@ export function PrefabModel({
   const { attach, home } = useViewer();
   useEffect(() => {
     let live = true;
-    fetch(src)
-      .then((r) => (r.ok ? (r.json() as Promise<PrefabFile>) : Promise.reject(new Error())))
+    fetchPrefabFile(src)
       .then((f) => live && setFile(f))
       .catch(() => live && setFailed(true));
     return () => {

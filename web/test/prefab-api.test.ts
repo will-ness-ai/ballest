@@ -428,6 +428,22 @@ describe("the angle its picture is drawn from", () => {
     );
   });
 
+  test("Edit saves the angle with the words, and can reset it while changing them", async () => {
+    const owner = await sessionOf(OWNER);
+    const turned = { from: [0, 0, 1], zoom: 3, pan: [0, 0, 0] };
+    const words = { name: "Angled", description: "Turned", tags: [] };
+    expect(
+      (await editPrefab(patch({ ...words, angle: turned }, owner), deps(), "angled")).status,
+    ).toBe(200);
+    expect(await prefabOf(t.db, "angled")).toMatchObject({ description: "Turned", angle: turned });
+    await editPrefab(
+      patch({ ...words, description: "Reset", angle: null }, owner),
+      deps(),
+      "angled",
+    );
+    expect(await prefabOf(t.db, "angled")).toMatchObject({ description: "Reset", angle: null });
+  });
+
   test("nobody else can change it", async () => {
     const other = await sessionOf("76561199000000042");
     const r = await editPrefab(patch({ angle: angle }, other), deps(), "angled");

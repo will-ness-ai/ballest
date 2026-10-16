@@ -441,8 +441,8 @@ branch `claude/prototype-prefabs` (spec #213).
   looks in radii), so it frames the same at any picture size. The uploader picks it in
   `AnglePicker.tsx`, on the upload form and in the Edit dialog: a line saying what to do, the
   preview held still, and Use this view (or Default view), which reads "✓ Card uses this
-  view" until they turn the model again. Edit saves it with the words; `PATCH
-/api/prefabs/<slug>` also takes `{ angle }` alone.
+  view" until they turn the model again. Edit saves it with the name, description and tags;
+  `PATCH /api/prefabs/<slug>` also takes `{ angle }` alone.
 - **Uploading** (`UploadForm.tsx`, `POST /api/prefabs` in `db/prefab-api.ts`): signed in with
   Steam, 5 an hour per player (or the limit the admin gave them) counted from the rows. The file is checked in the browser the
   moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,

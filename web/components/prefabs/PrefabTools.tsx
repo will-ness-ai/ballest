@@ -1,7 +1,7 @@
 "use client";
 // What the signed-in reader may do to a Prefab beyond viewing it: its uploader can edit its
-// name, description, tags and angle, or delete it (db/prefab-api.ts editPrefab); the admin can take
-// it down, or ban its uploader, which hides all their Prefabs, and lift the ban from a
+// name, description, tags and angle, or delete it (db/prefab-api.ts editPrefab); the admin can
+// take it down, or ban its uploader, which hides all their Prefabs, and lift the ban from a
 // hidden one's page, or give its uploader their own hourly upload limit. Nobody else sees these.
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -10,14 +10,14 @@ import { AnglePicker } from "./AnglePicker";
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
-import type { PrefabFile } from "../../lib/prefab";
+import { fetchPrefabFile, type PrefabFile } from "../../lib/prefab";
 import {
   ADMIN_STEAM_ID,
   HOURLY_UPLOADS,
   MAX_HOURLY_UPLOADS,
   type PrefabFields,
-  type UploaderLimit,
   type PrefabAngle,
+  type UploaderLimit,
 } from "../../lib/prefabs";
 import {
   prefabApiHref,
@@ -161,20 +161,23 @@ function OwnerTools({ p }: { p: PrefabPage }) {
   const [angle, setAngle] = useState<PrefabAngle | null>(p.angle);
   /* the file, fetched the first time Edit opens, for the angle's preview; the picker is
      drawn only while the dialog is open, so a closed one holds no WebGL context */
-  const [file, setFile] = useState<PrefabFile | null>(null);
+  const [file, setFile] = useState<PrefabFile | "loading" | "failed" | null>(null);
   const [editing, setEditing] = useState(false);
   const [problems, setProblems] = useState<Array<string>>([]);
   const [busy, setBusy] = useState(false);
   const url = prefabApiHref(p.slug);
   const openEdit = () => {
+    setFields({ name: p.name, description: p.description, tags: p.tags });
     setAngle(p.angle);
+    setProblems([]);
     setEditing(true);
     edit.current?.showModal();
-    if (!file)
-      void fetch(prefabFileHref(p.slug))
-        .then((r) => (r.ok ? (r.json() as Promise<PrefabFile>) : null))
+    if (file === null || file === "failed") {
+      setFile("loading");
+      void fetchPrefabFile(prefabFileHref(p.slug))
         .then(setFile)
-        .catch(() => undefined);
+        .catch(() => setFile("failed"));
+    }
   };
 
   const send = async (method: "PATCH" | "DELETE") => {
@@ -214,8 +217,12 @@ function OwnerTools({ p }: { p: PrefabPage }) {
       <dialog ref={edit} className="pf-dialog" onClose={() => setEditing(false)}>
         <h2>Edit {p.name}</h2>
         <Fields value={fields} onChange={setFields} />
-        {editing && file && (
+        {editing && typeof file === "object" && file && (
           <AnglePicker file={file} angle={angle} onPick={setAngle} className="pfa-dlg" />
+        )}
+        {editing && file === "loading" && <p className="pfa-note">Loading the preview…</p>}
+        {editing && file === "failed" && (
+          <p className="pfa-note">The preview didn&apos;t load, so the angle stays as it is.</p>
         )}
         {problems.length > 0 && (
           <ul className="pfu-bad" role="alert">
