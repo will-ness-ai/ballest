@@ -15,6 +15,7 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const P1 = "76561199000000001",
   P2 = "76561199000000002",
   MAP = "9000000001";
+const ORIGIN = "https://ballestrecords.com";
 
 // [path, status, Location for a redirect, text the page must contain]
 const ROUTES = [
@@ -94,6 +95,33 @@ const ROUTES = [
   ["/multiballs/terms", 200],
   ["/multiballs/privacy", 200],
   ["/robots.txt", 200, null, "Disallow: /player/*/"],
+  ["/robots.txt", 200, null, "Sitemap: https://ballestrecords.com/sitemap.xml"],
+  ["/sitemap.xml", 200, null, "<loc>https://ballestrecords.com/map/" + MAP + "</loc>"],
+  // canonical addresses (docs/site.md): a view names the page it views, and each Daily is
+  // its own
+  [
+    "/player/" + P1 + "/circuit",
+    200,
+    null,
+    '<link rel="canonical" href="https://ballestrecords.com/player/' + P1 + '"',
+  ],
+  [
+    "/board/OverallLeaderboard_EASeason2/podiums",
+    200,
+    null,
+    '<link rel="canonical" href="https://ballestrecords.com/board/OverallLeaderboard_EASeason2"',
+  ],
+  [
+    "/map/" + MAP + "/" + P1,
+    200,
+    null,
+    '<link rel="canonical" href="' + ORIGIN + "/map/" + MAP + '"',
+  ],
+  ["/maps/new", 200, null, '<link rel="canonical" href="' + ORIGIN + '/maps"'],
+  ["/players/circuit/pod", 200, null, '<link rel="canonical" href="' + ORIGIN + '/players"'],
+  ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
+  ["/", 200, null, '"@type":"WebSite"'],
+  ["/", 200, null, "<title>Ballest of Them All Records: "],
   ["/no-such-page", 404],
 ];
 

@@ -106,7 +106,7 @@ frame of it.
 
 A player, a Workshop Map, a Circuit Track and a Daily each unfurl with their own
 1200×630 card (spec #179). `lib/share.ts` decides what a card says, `components/share/`
-draws it through `next/og` and names it in the page's metadata, and `/og/<kind>/<id>`
+draws it through `next/og`, `pageMetadata` (`components/metadata.ts`) names it in the page's metadata, and `/og/<kind>/<id>`
 (`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`, `map`, `track`, `daily`) serves
 the PNG, or a 404 when there is no such page. Any other page, an Overall board included,
 keeps the site-wide `og.png`.
@@ -175,6 +175,25 @@ it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board 
 head to heads and `/api/`. Every one of those multiplies by the number of players, and AI
 crawlers walking them all once outran the site's Hobby limits. A new route that adds a
 view of a page belongs on that list.
+
+Search engines get the rest from `/sitemap.xml` (`app/sitemap.ts`, `lib/sitemap.ts`),
+which robots.txt names. It lists the pages worth a search result, not every page allowed:
+the Workshop, All maps, Players, Daily and Daily standings pages, every Circuit board,
+every Map with a time, every Daily, and only the players with a world record or podium,
+some two thousand pages where all of them would be fifteen thousand more. Each is a server
+render per Refresh for whichever crawler reads it, so keep it to pages people search for.
+Only a final Daily carries a `lastmod` (its close), since a page that changes every
+Refresh would only ask crawlers back sooner. A test checks robots.txt allows every listed
+page. The sitemap reads the cached data, so a Refresh's revalidate renews it too.
+
+Every page of the app names its canonical address (`alternates.canonical`; a page with a
+`generateMetadata` goes through `pageMetadata` in `components/metadata.ts`), on
+`ballestrecords.com` through `metadataBase`: a view names the page it is a view of (a
+player's tab names the player's page, a board or Map focused on a row or in podium order
+names the board), All maps' views name All maps and the Players table's rankings name
+Players, and each Daily is a page of its own. A Map or player the page can only send away
+(a soft 404) is `noindex`. The homepage's title says what the site is, and it carries the
+site's name for search results as schema.org `WebSite` JSON-LD.
 
 The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash` replaces
 one with its path on load (`legacyPath` in `lib/routes.ts`). Every player name links to a
