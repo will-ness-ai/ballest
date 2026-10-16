@@ -76,7 +76,9 @@
   padding: 3px 6px;
   border-radius: 8px;
 }
-.yl-row[data-you] {
+/* You's row, and the sign-in in its place when nobody is signed in */
+.yl-row[data-you],
+.yl-sign a {
   background: var(--accent-soft);
   outline: 1px solid color-mix(in oklch, var(--accent) 45%, transparent);
   outline-offset: -1px;
@@ -161,11 +163,14 @@
   color: var(--dim);
   font-size: calc(13rem / 16);
 }
+/* rows read above go in with the scroll kept by hand (AllRows), so the browser's own
+   anchoring must not move it a second time */
 .yl-all {
   position: relative;
   max-block-size: 22rem;
   overflow-y: auto;
   overscroll-behavior: contain;
+  overflow-anchor: none;
 }
 .yl-wait {
   margin: 0;
@@ -243,9 +248,6 @@
   min-block-size: 30px;
   padding: 5px 6px;
   border-radius: 8px;
-  background: var(--accent-soft);
-  outline: 1px solid color-mix(in oklch, var(--accent) 45%, transparent);
-  outline-offset: -1px;
   color: var(--accent);
   font-weight: 600;
 }

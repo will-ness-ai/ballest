@@ -1,5 +1,5 @@
 // Where you stand (/you): a card per Workshop standing, four across on a desktop and stacked on
-// a phone (verdicts 1 and 2 of spec #221). The lists' top 3 are the same for everyone, so they
+// a phone (spec #221). The lists' top 3 are the same for everyone, so they
 // are read here, cached, and drawn into the page; You's rows come from the browser
 // (Ladders), since the page is cached for everyone.
 import { Ladders } from "./Ladders";

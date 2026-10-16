@@ -4,19 +4,20 @@
 // the players around You and the line under each card. Gains and moves count from the /you
 // baseline by the reader's clock, so the server's are shown only when its baseline is that
 // one, and otherwise the cards are read again. "Show all" opens the whole list in the card,
-// read in slices from GET /api/standings?list=, scrolled to You.
-// Signed out (verdict 3, "C"), the top 3s stay open, a strip on top signs in, and in each card
-// the row where You would be is the sign-in, both back to /you. Until the browser can tell
+// read in slices from GET /api/standings?list=: first the one around You, scrolled to You,
+// then more above and below as it scrolls.
+// Signed out (spec #221), the top 3s stay open, a strip on top signs in, and in each card the
+// row where You would be is the sign-in, both back to /you. Until the browser can tell
 // whether anyone is signed in (the server's page, and hydration), the strip and those rows
 // are drawn unseen and out of reach, so a signed-out visitor's page doesn't jump when they
 // show and a signed-in one never sees them.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
 import { SteamMark } from "../SteamMark";
 import { useNow } from "../../hooks/client";
-import { useYou } from "../../hooks/me";
+import { useYou, type You } from "../../hooks/me";
 import { readOnce, useRead } from "../../hooks/read";
 import { dayLabel } from "../../lib/daily";
 import {
@@ -28,6 +29,7 @@ import {
   type LadderRow,
   type YouLadders,
 } from "../../lib/ladder";
+import type { Who } from "../../lib/player";
 import type { StandingsStat } from "../../lib/rows";
 import { signInHref, youHref } from "../../lib/routes";
 import { BOARD_CHUNK, fmtN, isSteamId, personaOf, relTime } from "../../lib/rules";
@@ -103,8 +105,14 @@ function Row({ r, you, moves }: { r: LadderRow; you: boolean; moves: boolean }) 
   );
 }
 
-/* the whole list, opened in the card: read down to You in one go, then a few chunks at a
-   time as it scrolls, and scrolled to You once it lands */
+/* the rows "Show all" reads at a time */
+const SLICE = BOARD_CHUNK * 2;
+/* how near an end of the read rows a scroll reads the next slice past it */
+const EDGE_PX = 400;
+
+/* The whole list, opened in the card. It reads the slice around You first and opens on You
+   in the middle, then a slice at a time above or below as it scrolls near either end. Rows
+   read above go in without moving the rows in view. */
 function AllRows({
   stat,
   since,
@@ -116,44 +124,72 @@ function AllRows({
   at: number | null;
   you: string | null;
 }) {
-  const [got, setGot] = useState<{ total: number; rows: Array<LadderRow> } | null>(null);
+  /* rows from..from + rows.length of the list's total */
+  const [got, setGot] = useState<{ total: number; from: number; rows: Array<LadderRow> } | null>(
+    null,
+  );
   const reading = useRef(false);
   const box = useRef<HTMLOListElement>(null);
-  const placed = useRef(false);
+  /* what the next render scrolls to: You's row, or (rows read above) the same distance from
+     the bottom as before them */
+  const keep = useRef<"you" | { fromBottom: number } | null>("you");
 
-  const more = useCallback(
-    (from: number, count: number) => {
-      if (reading.current) return;
-      reading.current = true;
-      readSlice(stat, since, from, count).then(
-        (s) => {
-          reading.current = false;
-          setGot((g) => ({ total: s.total, rows: [...(g?.rows ?? []), ...s.rows] }));
-        },
-        () => {
-          reading.current = false;
-        },
-      );
-    },
-    [stat, since],
-  );
   useEffect(() => {
-    more(0, (at ?? 0) + BOARD_CHUNK);
-  }, [more, at]);
+    let live = true;
+    const from = Math.max(0, (at ?? 0) - SLICE / 2);
+    readSlice(stat, since, from, SLICE).then(
+      (s) => {
+        if (live) setGot({ total: s.total, from, rows: s.rows });
+      },
+      () => undefined /* stays "Reading the list…" */,
+    );
+    return () => {
+      live = false;
+    };
+  }, [stat, since, at]);
 
   useLayoutEffect(() => {
     const ol = box.current;
-    if (!got || !ol || placed.current) return;
-    placed.current = true;
-    const li = ol.querySelector<HTMLElement>("[data-you]");
-    if (li) ol.scrollTop = li.offsetTop - (ol.clientHeight - li.offsetHeight) / 2;
+    const k = keep.current;
+    if (!got || !ol || !k) return;
+    keep.current = null;
+    if (k === "you") {
+      const li = ol.querySelector<HTMLElement>("[data-you]");
+      if (li) ol.scrollTop = li.offsetTop - (ol.clientHeight - li.offsetHeight) / 2;
+    } else ol.scrollTop = ol.scrollHeight - k.fromBottom;
   }, [got]);
+
+  const read = (from: number, count: number, above: boolean) => {
+    reading.current = true;
+    readSlice(stat, since, from, count).then(
+      (s) => {
+        reading.current = false;
+        const ol = box.current;
+        if (above && ol) keep.current = { fromBottom: ol.scrollHeight - ol.scrollTop };
+        setGot((g) =>
+          g === null
+            ? g
+            : above
+              ? { total: s.total, from, rows: [...s.rows, ...g.rows] }
+              : { total: s.total, from: g.from, rows: [...g.rows, ...s.rows] },
+        );
+      },
+      () => {
+        reading.current = false;
+      },
+    );
+  };
 
   const onScroll = () => {
     const ol = box.current;
-    if (!ol || !got || got.rows.length >= got.total) return;
-    if (ol.scrollHeight - ol.scrollTop - ol.clientHeight < 400)
-      more(got.rows.length, BOARD_CHUNK * 4);
+    if (!ol || !got || reading.current) return;
+    const end = got.from + got.rows.length;
+    if (end < got.total && ol.scrollHeight - ol.scrollTop - ol.clientHeight < EDGE_PX)
+      read(end, SLICE, false);
+    else if (got.from > 0 && ol.scrollTop < EDGE_PX) {
+      const from = Math.max(0, got.from - SLICE);
+      read(from, got.from - from, true);
+    }
   };
 
   if (!got) return <p className="yl-wait">Reading the list…</p>;
@@ -169,6 +205,36 @@ function AllRows({
 /* what a card's rows end with for nobody signed in: the sign-in, seen ("out") or holding its
    place ("unsure") */
 type SignIn = "out" | "unsure" | null;
+
+/* who the page is for, worked out once from the sign-in */
+interface View {
+  /* whose cards to read: You's Steam ID, NOBODY for the top 3s again, or null for none */
+  key: string | null;
+  /* someone is signed in: You's rows hold their place until they are read */
+  claimed: boolean;
+  signIn: SignIn;
+  /* You, once the player record is read */
+  who: Who | null;
+}
+
+/* `stale`: the server's top 3s are from another baseline than the reader's */
+function viewOf(you: You, stale: boolean): View {
+  switch (you.state) {
+    case "ready":
+      return { key: you.id, claimed: true, signIn: null, who: you.rec.who };
+    case "unknown":
+      return { key: you.id, claimed: true, signIn: null, who: null };
+    case "none":
+      return { key: stale ? NOBODY : null, claimed: false, signIn: "out", who: null };
+    case "loading":
+      return {
+        key: null,
+        claimed: you.claimed,
+        signIn: you.claimed ? null : "unsure",
+        who: null,
+      };
+  }
+}
 
 /* the props that keep a part of the page unseen and out of reach while it holds its place */
 const held = (unsure: boolean) =>
@@ -272,29 +338,18 @@ function Card({
 }
 
 export function Ladders({ tops }: { tops: YouLadders }) {
-  const you = useYou();
   const now = useNow();
   const fresh = now != null && youBaseline(now) === Date.parse(tops.since);
-  /* who to read the cards for: You, or nobody when the server's are from another baseline */
-  const key =
-    you.state === "ready" || you.state === "unknown"
-      ? you.id
-      : you.state === "none" && now != null && !fresh
-        ? NOBODY
-        : null;
+  const { key, claimed, signIn, who } = viewOf(useYou(), now != null && !fresh);
   const got = useRead(readLadders, key);
   const data = got?.value ?? tops;
-  const id = got && key !== NOBODY ? key : null;
-  const holding = you.state === "loading" ? you.claimed : key !== null && key !== NOBODY && !got;
-
-  /* nobody is signed in, or the browser can't tell yet */
-  const signIn: SignIn =
-    you.state === "none" ? "out" : you.state === "loading" && !you.claimed ? "unsure" : null;
+  /* You's Steam ID once You's cards are read */
+  const id = got && claimed ? key : null;
+  const holding = claimed && !got;
 
   /* the gains and moves shown are from the reader's baseline */
   const moves = got !== null || fresh;
 
-  const who = you.state === "ready" ? you.rec.who : null;
   const read = data.readAt && now != null ? relTime(new Date(data.readAt), now) : null;
   return (
     <section className="ys">

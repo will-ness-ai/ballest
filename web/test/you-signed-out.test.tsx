@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// /you signed out (spec #221, verdict 3 "C"): the lists' top 3 stay open, a sign-in strip sits
+// /you signed out (spec #221): the lists' top 3 stay open, a sign-in strip sits
 // on top, and in each card the row where You would be is the way to sign in, back to /you.
 // A signed-in visitor never sees any of it, not even before the browser can tell.
 import { act } from "react";
