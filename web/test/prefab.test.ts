@@ -66,6 +66,41 @@ describe("a Prefab file", () => {
     near(long([90, 0, 0]), [10, 10, 20]);
   });
 
+  test("yaw turns Unreal's x toward its y (three's z), pitch tilts it up", () => {
+    const xAxis = (rotation: Array<number>) =>
+      shapesOf(cubes([[0, 0, 0], rotation, [1, 1, 1]]))[0]
+        .matrix.slice(0, 3)
+        .map((v) => v / 10);
+    const close = (got: Array<number>, want: Array<number>) =>
+      got.forEach((v, i) => expect(v).toBeCloseTo(want[i]));
+    close(xAxis([0, 0, 0]), [1, 0, 0]);
+    close(xAxis([0, 90, 0]), [0, 0, 1]);
+    close(xAxis([90, 0, 0]), [0, 1, 0]);
+  });
+
+  test("a piece is drawn at its own mesh's size, or its piece's when the mesh is unknown", () => {
+    const track = (mesh: string) =>
+      footprintOf(
+        shapesOf({
+          ...cubes([
+            [0, 0, 0],
+            [0, 0, 0],
+            [1, 1, 1],
+          ]),
+          items: [
+            {
+              class: "/Game/LevelEditor/BP_Track_Short1.BP_Track_Short1_C",
+              transform: { location: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+              meshes: [{ mesh, materials: [] }],
+            },
+          ],
+        }),
+      );
+    // SM_500 is 500 x 500 x 100 cm (piece_bounds.json)
+    near(track("/Game/Maps/_GENERATED/PC/SM_500.SM_500"), [5, 5, 1]);
+    near(track("/Game/Somewhere/SM_Unheardof.SM_Unheardof"), [5, 5, 1]);
+  });
+
   test("Unreal's y lands on three's z, so two pieces apart in y are deep, not tall", () => {
     const pair = cubes(
       [
@@ -128,6 +163,18 @@ describe("the upload check", () => {
     const odd = [one[0], { ...one[0], class: "/Game/BP_Nope.BP_Nope_C" }];
     expect(problems(withFile({ items: odd }))).toEqual([
       "Pieces the editor doesn't have: BP_Nope.",
+    ]);
+  });
+
+  test("pieces not laid out as the editor saves them are refused, not drawn", () => {
+    const one = (JSON.parse(sample("bench")) as PrefabFile).items[0];
+    const bare = { class: one.class };
+    const noScale = { ...one, transform: { ...one.transform, scale: [1, 1] } };
+    expect(problems(withFile({ items: [null, null] }))).toEqual([
+      "2 pieces aren't laid out as the editor saves them (a position, rotation, scale and meshes each).",
+    ]);
+    expect(problems(withFile({ items: [one, bare, noScale] }))).toEqual([
+      "2 pieces aren't laid out as the editor saves them (a position, rotation, scale and meshes each).",
     ]);
   });
 

@@ -2,7 +2,9 @@
 // the viewer draws. A BallestPrefab file names each piece's mesh, material and transform
 // but carries no geometry, so each mesh the editor's pieces use is a stand-in shape here,
 // sized from the mesh's bounds (cm, pivot at the bottom centre). An unknown mesh is a grey box.
-// Only numbers: the game's meshes stay out of the repo (ADR 0001).
+// The bounds are lib/prefab-meshes.ts; the game's meshes stay out of the repo (ADR 0001).
+
+import { MESHES, PIECE_MESHES } from "./prefab-meshes";
 
 export interface PrefabFile {
   format: "BallestPrefab";
@@ -22,19 +24,11 @@ export interface PrefabItem {
 
 export type ShapeKind = "box" | "cylinder" | "sphere" | "scoop";
 
-interface MeshShape {
+export interface MeshShape {
   kind: ShapeKind;
   min: Vec3;
   max: Vec3;
 }
-
-const MESHES: Partial<Record<string, MeshShape>> = {
-  Box_C559BEB3: { kind: "box", min: [-500, -500, 0], max: [500, 500, 1000] },
-  SM_Sphere: { kind: "sphere", min: [-200, -200, 0], max: [200, 200, 400] },
-  SM_Start_Fixed: { kind: "cylinder", min: [-500, -500, 0], max: [500, 500, 200] },
-  SM_2000_Pipe: { kind: "cylinder", min: [-50, -50, 0], max: [50, 50, 2000] },
-  SM_2000_45scoop: { kind: "scoop", min: [-993.63, -250, 0], max: [993.63, 250, 290.03] },
-};
 
 /* the material's own colour word, as the editor's swatches show it */
 const COLOURS: Array<[RegExp, string]> = [
@@ -85,11 +79,13 @@ function rotationRows([pitch, yaw, roll]: Vec3): [Vec3, Vec3, Vec3] {
 export function shapesOf(file: PrefabFile): Array<Shape> {
   return file.items.map((item) => {
     const mesh = item.meshes.at(0);
-    const shape: MeshShape = (mesh && MESHES[tail(mesh.mesh)]) ?? {
-      kind: "box",
-      min: [-50, -50, 0],
-      max: [50, 50, 100],
-    };
+    const named = PIECE_MESHES[pieceName(item)];
+    const shape: MeshShape = (mesh && MESHES[tail(mesh.mesh)]) ??
+      (named ? MESHES[named] : undefined) ?? {
+        kind: "box",
+        min: [-50, -50, 0],
+        max: [50, 50, 100],
+      };
     const first = mesh?.materials.at(0);
     const material = first ? tail(first) : "";
     const { location, rotation, scale } = item.transform;

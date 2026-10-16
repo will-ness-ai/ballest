@@ -55,6 +55,15 @@ export async function render(
     reducedMotion: "reduce",
   });
   const page = await ctx.newPage();
+  // a Prefab's how-to opens on its own on a first visit; it stays shut here, and the
+  // "howto" state opens it
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("prefab-howto-seen", "1");
+    } catch {
+      // storage blocked: the dialog shows in the screenshot instead
+    }
+  });
   const errors = [];
   try {
     await page.clock.setFixedTime(now);

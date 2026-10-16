@@ -128,7 +128,7 @@ export function checkPrefab(text: string): Check {
     problems.push("It's a prefab version this site doesn't know yet (only version 1).");
   if (typeof f.group !== "object" || f.group === null)
     problems.push("Its group transform is missing.");
-  const items = Array.isArray(f.items) ? (f.items as Array<{ class?: unknown }>) : null;
+  const items = Array.isArray(f.items) ? (f.items as Array<unknown>) : null;
   if (!items) problems.push("It has no pieces.");
   else {
     if (items.length < 2) problems.push("A prefab needs at least 2 pieces.");
@@ -136,7 +136,11 @@ export function checkPrefab(text: string): Check {
       problems.push(`It has ${items.length} pieces; the game takes at most 4096.`);
     const unknown = new Set<string>();
     let start = false;
-    for (const it of items) {
+    let misshapen = 0;
+    for (const item of items) {
+      if (!laidOut(item)) misshapen++;
+      if (typeof item !== "object" || item === null) continue;
+      const it = item as { class?: unknown };
       const name =
         typeof it.class === "string"
           ? (it.class.split(/[./]/).at(-1) ?? "").replace(/_C$/, "")
@@ -144,6 +148,10 @@ export function checkPrefab(text: string): Check {
       if (name === "MP_PlayerStart") start = true;
       else if (!PIECES.has(name)) unknown.add(name || "(no class)");
     }
+    if (misshapen)
+      problems.push(
+        `${misshapen === 1 ? "1 piece isn't" : `${String(misshapen)} pieces aren't`} laid out as the editor saves them (a position, rotation, scale and meshes each).`,
+      );
     if (start) problems.push("It contains the start pad, which the game won't spawn in a prefab.");
     if (unknown.size)
       problems.push(
@@ -151,6 +159,25 @@ export function checkPrefab(text: string): Check {
       );
   }
   return problems.length ? { ok: false, problems } : { ok: true, pieces: items?.length ?? 0 };
+}
+
+const vec3 = (v: unknown) =>
+  Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === "number" && Number.isFinite(n));
+
+/* whether an item has what the viewer places it by, as the editor saves every piece */
+function laidOut(item: unknown): boolean {
+  if (typeof item !== "object" || item === null) return false;
+  const { transform: t, meshes } = item as { transform?: unknown; meshes?: unknown };
+  if (typeof t !== "object" || t === null || !Array.isArray(meshes)) return false;
+  const mesh = (m: unknown) =>
+    typeof m === "object" &&
+    m !== null &&
+    typeof (m as { mesh?: unknown }).mesh === "string" &&
+    Array.isArray((m as { materials?: unknown }).materials) &&
+    (m as { materials: Array<unknown> }).materials.every((x) => typeof x === "string");
+  if (!meshes.every(mesh)) return false;
+  const { location, rotation, scale } = t as Record<string, unknown>;
+  return vec3(location) && vec3(rotation) && vec3(scale);
 }
 
 /* the name the game spawns it by: letters, digits, _ and -, 1 to 64 */

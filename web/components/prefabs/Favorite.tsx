@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { Heart } from "./Heart";
 import { useSession } from "../../hooks/me";
-import { signInHref } from "../../lib/routes";
+import { prefabFavoriteHref, signInHref } from "../../lib/routes";
 
 export function Favorite({ slug, favorites }: { slug: string; favorites: number }) {
   const me = useSession();
@@ -14,7 +14,7 @@ export function Favorite({ slug, favorites }: { slug: string; favorites: number 
   const [state, setState] = useState({ on: false, favorites });
   const [busy, setBusy] = useState(false);
   const [askSignIn, setAskSignIn] = useState(false);
-  const url = `/api/prefabs/${slug}/favorite`;
+  const url = prefabFavoriteHref(slug);
   useEffect(() => {
     if (!me) return;
     void fetch(url, { cache: "no-store" })

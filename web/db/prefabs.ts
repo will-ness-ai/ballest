@@ -61,16 +61,24 @@ export async function addPrefab(db: Conn, p: NewPrefab): Promise<{ slug: string 
       )
     ).map((r) => r.slug),
   );
-  let slug = base;
-  for (let n = 2; taken.has(slug); n++) slug = `${base}-${String(n)}`;
-  await db.insert(prefabs).values({
+  const row = {
     ...p,
     updatedAt: p.createdAt,
-    slug,
     pieces: (JSON.parse(p.file) as { items: Array<unknown> }).items.length,
     bytes: Buffer.byteLength(p.file),
-  });
-  return { slug };
+  };
+  /* a slug taken between the read and the insert (two uploads of one name at once) moves
+     on to the next */
+  for (let n = 1; ; n++) {
+    const slug = n === 1 ? base : `${base}-${String(n)}`;
+    if (taken.has(slug)) continue;
+    const added = await db
+      .insert(prefabs)
+      .values({ ...row, slug })
+      .onConflictDoNothing({ target: prefabs.slug })
+      .returning({ id: prefabs.id });
+    if (added.length) return { slug };
+  }
 }
 
 /* a Prefab as the gallery and its page show it, its uploader named from the boards when

@@ -10,7 +10,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     headers: {
       "content-type": "application/json; charset=utf-8",
       "content-disposition": `attachment; filename="${p.fileName}"`,
-      "cache-control": "public, max-age=300",
+      // short: a Prefab deleted or taken down stops downloading within the minute
+      "cache-control": "public, max-age=60",
     },
   });
 }

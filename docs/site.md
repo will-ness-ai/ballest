@@ -334,8 +334,9 @@ branch `claude/prototype-prefabs` (spec #213).
   moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,
   described and tagged, previewed in 3D beside the card it will make, and live at once. Each
   upload pings the ops channel through `OPS_WEBHOOK_URL` (skipped with a log line when it is
-  unset). The download name is the Prefab's name as the spawn command takes it
-  (`fileNameOf`).
+  unset). An uploader the boards haven't seen is credited by the persona on their public
+  Steam profile, read once at upload (`steamPersona`). The download name is the Prefab's name
+  as the spawn command takes it (`fileNameOf`).
 - **Favorites, editing and the admin** (`Favorite.tsx`, `PrefabTools.tsx`): a signed-in
   reader hearts a Prefab once (`/api/prefabs/<slug>/favorite`). Its uploader can edit its
   name, description and tags or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,

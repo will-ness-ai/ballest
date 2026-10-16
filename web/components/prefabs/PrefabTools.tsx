@@ -10,7 +10,7 @@ import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
 import { ADMIN_STEAM_ID } from "../../lib/prefabs";
-import { prefabsHref } from "../../lib/routes";
+import { prefabApiHref, prefabBanHref, prefabTakeDownHref, prefabsHref } from "../../lib/routes";
 
 export function PrefabTools({ p }: { p: PrefabPage }) {
   const me = useSession();
@@ -27,6 +27,7 @@ function AdminTools({ p }: { p: PrefabPage }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const who = p.uploader.steamId;
+  const ban = prefabBanHref(who);
   const act = async (url: string, method: string, ask: string) => {
     if (!confirm(ask)) return;
     setBusy(true);
@@ -45,19 +46,19 @@ function AdminTools({ p }: { p: PrefabPage }) {
           type="button"
           disabled={busy}
           onClick={() =>
-            void act(`/api/prefabs/${p.slug}/takedown`, "POST", `Take ${p.name} down for good?`)
+            void act(prefabTakeDownHref(p.slug), "POST", `Take ${p.name} down for good?`)
           }
         >
           Take down
         </button>
       )}
-      {p.state === "live" && who !== ADMIN_STEAM_ID && (
+      {ban && p.state === "live" && who !== ADMIN_STEAM_ID && (
         <button
           type="button"
           disabled={busy}
           onClick={() =>
             void act(
-              `/api/prefab-bans/${who}`,
+              ban,
               "PUT",
               `Ban ${p.uploader.name} from uploading? Every prefab they uploaded is hidden until you unban them.`,
             )
@@ -66,16 +67,12 @@ function AdminTools({ p }: { p: PrefabPage }) {
           Ban {p.uploader.name} from uploading
         </button>
       )}
-      {p.state === "hidden" && (
+      {ban && p.state === "hidden" && (
         <button
           type="button"
           disabled={busy}
           onClick={() =>
-            void act(
-              `/api/prefab-bans/${who}`,
-              "DELETE",
-              `Unban ${p.uploader.name}? Their prefabs come back.`,
-            )
+            void act(ban, "DELETE", `Unban ${p.uploader.name}? Their prefabs come back.`)
           }
         >
           Unban {p.uploader.name}
@@ -95,7 +92,7 @@ function OwnerTools({ p }: { p: PrefabPage }) {
   const [tags, setTags] = useState(p.tags);
   const [problems, setProblems] = useState<Array<string>>([]);
   const [busy, setBusy] = useState(false);
-  const url = `/api/prefabs/${p.slug}`;
+  const url = prefabApiHref(p.slug);
 
   const send = async (method: "PATCH" | "DELETE") => {
     setBusy(true);

@@ -10,7 +10,7 @@ import { PrefabViewer } from "./PrefabViewer";
 import type { PrefabFile } from "../../lib/prefab";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
 import { DAILY_UPLOADS, DESCRIPTION_MAX, MAX_TAGS, NAME_MAX, TAGS } from "../../lib/prefabs";
-import { newPrefabHref, prefabHref, signInHref } from "../../lib/routes";
+import { newPrefabHref, prefabHref, prefabsApiHref, signInHref } from "../../lib/routes";
 
 interface Quota {
   signedIn: boolean;
@@ -32,7 +32,7 @@ const when = (iso: string) =>
 export function UploadForm() {
   const [quota, setQuota] = useState<Quota | null>(null);
   useEffect(() => {
-    void fetch("/api/prefabs", { cache: "no-store" })
+    void fetch(prefabsApiHref(), { cache: "no-store" })
       .then((r) => r.json() as Promise<Quota>)
       .then(setQuota)
       .catch(() => setQuota({ signedIn: false, banned: false, left: 0, nextAt: null }));
@@ -112,7 +112,7 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
     for (const t of tags) body.append("tags", t);
     body.set("file", new Blob([chosen.text], { type: "application/json" }), chosen.fileName);
     try {
-      const r = await fetch("/api/prefabs", { method: "POST", body });
+      const r = await fetch(prefabsApiHref(), { method: "POST", body });
       const got = (await r.json()) as { slug?: string; problems?: Array<string>; nextAt?: string };
       /* a full load, so the router's cached gallery doesn't miss it on the way back */
       if (r.status === 201 && got.slug) return location.assign(prefabHref(got.slug));

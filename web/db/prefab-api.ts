@@ -7,7 +7,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { isCrossSite, sessionOf, type AuthEnv } from "../lib/auth";
-import { MAX_BYTES, checkPrefab } from "../lib/prefab-check";
+import { checkPrefab } from "../lib/prefab-check";
 import {
   ADMIN_STEAM_ID,
   DAILY_UPLOADS,
@@ -16,6 +16,7 @@ import {
   type PrefabFields,
 } from "../lib/prefabs";
 import { SITE_ORIGIN, prefabHref } from "../lib/routes";
+import { isSteamId } from "../lib/rules";
 import type { Db } from "./client";
 import { LIVE, addPrefab, prefabOf, type Conn } from "./prefabs";
 import { prefabBans, prefabs } from "./schema";
@@ -66,7 +67,8 @@ export async function uploadQuota(request: Request, deps: PrefabDeps): Promise<R
 
 const now = (deps: PrefabDeps) => deps.auth?.now ?? Date.now();
 
-/* the upload form's fields, or null when the body isn't one */
+/* the upload form's fields, or null when the body isn't one; the file's size is the upload
+   check's to refuse (Vercel caps a request body at 4.5 MB before it gets here) */
 async function formOf(request: Request): Promise<(PrefabFields & { file: string }) | null> {
   try {
     const form = await request.formData();
@@ -75,7 +77,7 @@ async function formOf(request: Request): Promise<(PrefabFields & { file: string 
       const v = form.get(k);
       return typeof v === "string" ? v : "";
     };
-    if (!(file instanceof Blob) || file.size > MAX_BYTES + 1) return null;
+    if (!(file instanceof Blob)) return null;
     return {
       name: text("name"),
       description: text("description"),
@@ -95,7 +97,7 @@ export async function uploadPrefab(request: Request, deps: PrefabDeps): Promise<
   const id = sessionOf(request, deps.auth);
   if (!id) return json({ error: "sign in with Steam to upload" }, 401);
   const form = await formOf(request);
-  if (!form) return json({ problems: ["The file is over 4 MB."] }, 400);
+  if (!form) return json({ problems: ["That upload didn't arrive whole. Try again."] }, 400);
   const file = checkPrefab(form.file);
   const fields = checkFields(form);
   if (!file.ok || !fields.ok)
@@ -266,6 +268,7 @@ export async function banUploader(
 ): Promise<Response> {
   const admin = asAdmin(request, deps);
   if (admin instanceof Response) return admin;
+  if (!isSteamId(steamId)) return json({ error: "not a Steam ID" }, 400);
   if (steamId === admin) return json({ error: "you can't ban yourself" }, 400);
   if (request.method === "DELETE")
     await deps.db.delete(prefabBans).where(eq(prefabBans.steamId, steamId));
