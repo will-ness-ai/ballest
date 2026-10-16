@@ -10,8 +10,8 @@ import { isCrossSite, sessionOf, type AuthEnv } from "../lib/auth";
 import { checkPrefab } from "../lib/prefab-check";
 import {
   ADMIN_STEAM_ID,
-  DAILY_UPLOADS,
-  MAX_DAILY_UPLOADS,
+  HOURLY_UPLOADS,
+  MAX_HOURLY_UPLOADS,
   NO_UPLOADS,
   UPLOAD_WINDOW_MS,
   checkFields,
@@ -39,17 +39,17 @@ export interface PrefabDeps {
 const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { "cache-control": "private, no-store" } });
 
-/* the daily upload limit the admin gave `steamId`, or null when they have the default */
+/* the hourly upload limit the admin gave `steamId`, or null when they have the default */
 async function ownLimitOf(db: Conn, steamId: string): Promise<number | null> {
   const { rows } = await db.execute(
-    sql`select daily from prefab_limits where steam_id = ${steamId}`,
+    sql`select per_hour from prefab_limits where steam_id = ${steamId}`,
   );
-  return (rows as Array<{ daily: number }>).at(0)?.daily ?? null;
+  return (rows as Array<{ per_hour: number }>).at(0)?.per_hour ?? null;
 }
 
 /* how many uploads `steamId` has left now, of their limit, and, at none, when the next frees up */
 async function quotaOf(db: Conn, steamId: string, now: number) {
-  const limit = (await ownLimitOf(db, steamId)) ?? DAILY_UPLOADS;
+  const limit = (await ownLimitOf(db, steamId)) ?? HOURLY_UPLOADS;
   const since = new Date(now - UPLOAD_WINDOW_MS).toISOString();
   const { rows } = await db.execute(sql`
     select to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at
@@ -121,7 +121,7 @@ async function formOf(
 }
 
 /* POST /api/prefabs: the upload form. Live at once (U2), so the admin gets a ping; refused signed
-   out, from another site, banned, over the daily limit, or with a file or fields that fail
+   out, from another site, banned, over the hourly limit, or with a file or fields that fail
    their checks */
 export async function uploadPrefab(request: Request, deps: PrefabDeps): Promise<Response> {
   if (isCrossSite(request)) return json({ error: "cross-site" }, 403);
@@ -155,7 +155,7 @@ export async function uploadPrefab(request: Request, deps: PrefabDeps): Promise<
   if (result.status === 403) return json({ error: "you can't upload prefabs" }, 403);
   if (result.status === 429)
     return json(
-      { error: "that's today's uploads", limit: result.limit, nextAt: result.nextAt },
+      { error: "that's this hour's uploads", limit: result.limit, nextAt: result.nextAt },
       429,
     );
   deps.changed?.();
@@ -220,7 +220,7 @@ export async function favoritePrefab(
 
 /* PATCH /api/prefabs/<slug> with { name, description, tags }: the uploader edits what the
    gallery and page say (the file and the link stay). DELETE: the uploader deletes it; its
-   row stays, so it still counts against their daily limit, and its page reads gone */
+   row stays, so it still counts against their hourly limit, and its page reads gone */
 export async function editPrefab(
   request: Request,
   deps: PrefabDeps,
@@ -305,18 +305,18 @@ export async function banUploader(
   return json({ steamId, banned: request.method !== "DELETE" });
 }
 
-/* the { daily } a PUT sends, if it is a whole number the admin may set */
-function dailyOf(body: unknown): number | null {
-  const daily = (body as { daily?: unknown } | null)?.daily;
-  return typeof daily === "number" &&
-    Number.isInteger(daily) &&
-    daily >= 1 &&
-    daily <= MAX_DAILY_UPLOADS
-    ? daily
+/* the { perHour } a PUT sends, if it is a whole number the admin may set */
+function perHourOf(body: unknown): number | null {
+  const perHour = (body as { perHour?: unknown } | null)?.perHour;
+  return typeof perHour === "number" &&
+    Number.isInteger(perHour) &&
+    perHour >= 1 &&
+    perHour <= MAX_HOURLY_UPLOADS
+    ? perHour
     : null;
 }
 
-/* GET /api/prefab-limits/<steam_id>: the player's daily upload limit; PUT with { daily } gives
+/* GET /api/prefab-limits/<steam_id>: the player's hourly upload limit; PUT with { perHour } gives
    them their own, DELETE puts them back on the default. The admin's only */
 export async function limitUploader(
   request: Request,
@@ -329,15 +329,19 @@ export async function limitUploader(
   if (request.method === "DELETE")
     await deps.db.delete(prefabLimits).where(eq(prefabLimits.steamId, steamId));
   if (request.method === "PUT") {
-    const daily = dailyOf(await request.json().catch(() => null));
-    if (daily === null)
-      return json({ error: `a whole number from 1 to ${String(MAX_DAILY_UPLOADS)}` }, 400);
-    const row = { daily, setBy: admin, setAt: new Date(now(deps)) };
+    const perHour = perHourOf(await request.json().catch(() => null));
+    if (perHour === null)
+      return json({ error: `a whole number from 1 to ${String(MAX_HOURLY_UPLOADS)}` }, 400);
+    const row = { perHour, setBy: admin, setAt: new Date(now(deps)) };
     await deps.db
       .insert(prefabLimits)
       .values({ steamId, ...row })
       .onConflictDoUpdate({ target: prefabLimits.steamId, set: row });
   }
   const own = await ownLimitOf(deps.db, steamId);
-  return json({ steamId, daily: own ?? DAILY_UPLOADS, own: own !== null } satisfies UploaderLimit);
+  return json({
+    steamId,
+    perHour: own ?? HOURLY_UPLOADS,
+    own: own !== null,
+  } satisfies UploaderLimit);
 }

@@ -2,7 +2,7 @@
 // What the signed-in reader may do to a Prefab beyond viewing it: its uploader can edit its
 // name, description and tags, or delete it (db/prefab-api.ts editPrefab); the admin can take
 // it down, or ban its uploader, which hides all their Prefabs, and lift the ban from a
-// hidden one's page, or give its uploader their own daily upload limit. Nobody else sees these.
+// hidden one's page, or give its uploader their own hourly upload limit. Nobody else sees these.
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -11,8 +11,8 @@ import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
 import {
   ADMIN_STEAM_ID,
-  DAILY_UPLOADS,
-  MAX_DAILY_UPLOADS,
+  HOURLY_UPLOADS,
+  MAX_HOURLY_UPLOADS,
   type PrefabFields,
   type UploaderLimit,
 } from "../../lib/prefabs";
@@ -99,14 +99,14 @@ function AdminTools({ p }: { p: PrefabPage }) {
           Unban {p.uploader.name}
         </button>
       )}
-      <DailyLimit who={who} name={p.uploader.name} />
+      <UploadLimit who={who} name={p.uploader.name} />
       {failed && <span>That didn&apos;t work. Try again.</span>}
     </div>
   );
 }
 
-/* the uploader's daily upload limit, which the admin can change or put back to the default */
-function DailyLimit({ who, name }: { who: string; name: string }) {
+/* the uploader's hourly upload limit, which the admin can change or put back to the default */
+function UploadLimit({ who, name }: { who: string; name: string }) {
   const url = prefabLimitHref(who);
   const [limit, setLimit] = useState<UploaderLimit | null>(null);
   const [failed, setFailed] = useState(false);
@@ -120,15 +120,15 @@ function DailyLimit({ who, name }: { who: string; name: string }) {
   if (!url || !limit) return null;
   const change = async () => {
     const typed = prompt(
-      `Uploads a day for ${name}? Leave it empty for the default, ${String(DAILY_UPLOADS)}.`,
-      String(limit.daily),
+      `Uploads an hour for ${name}? Leave it empty for the default, ${String(HOURLY_UPLOADS)}.`,
+      String(limit.perHour),
     );
     if (typed === null) return;
-    const daily = Number(typed.trim());
+    const perHour = Number(typed.trim());
     const r = await fetch(url, {
       method: typed.trim() ? "PUT" : "DELETE",
       headers: { "content-type": "application/json" },
-      body: typed.trim() ? JSON.stringify({ daily }) : undefined,
+      body: typed.trim() ? JSON.stringify({ perHour }) : undefined,
     }).catch(() => null);
     setFailed(!r?.ok);
     if (r?.ok) setLimit((await r.json()) as UploaderLimit);
@@ -136,10 +136,10 @@ function DailyLimit({ who, name }: { who: string; name: string }) {
   return (
     <>
       <button type="button" onClick={() => void change()}>
-        {limit.daily} uploads a day{limit.own ? "" : " (default)"}
+        {limit.perHour} uploads an hour{limit.own ? "" : " (default)"}
       </button>
       {failed && (
-        <span>That didn&apos;t save. Use a whole number from 1 to {MAX_DAILY_UPLOADS}.</span>
+        <span>That didn&apos;t save. Use a whole number from 1 to {MAX_HOURLY_UPLOADS}.</span>
       )}
     </>
   );
@@ -219,7 +219,7 @@ function OwnerTools({ p }: { p: PrefabPage }) {
       <dialog ref={del} className="pf-dialog">
         <h2>Delete {p.name}?</h2>
         <p>
-          It leaves the gallery and its link stops working. It still counts toward today&apos;s
+          It leaves the gallery and its link stops working. It still counts toward this hour&apos;s
           uploads.
         </p>
         <div className="pf-dlg-row">

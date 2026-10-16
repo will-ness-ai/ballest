@@ -209,7 +209,7 @@ export const ghosts = pgTable("ghosts", {
 // A Prefab (CONTEXT.md): a group of editor pieces a player uploaded, with the file exactly as
 // they sent it (ADR 0009, the first table the site itself writes). The slug comes from the
 // first name and never changes, so a link survives a rename. A deleted or taken-down Prefab
-// keeps its row, which still counts against its uploader's daily limit, and reads as gone. A
+// keeps its row, which still counts against its uploader's hourly limit, and reads as gone. A
 // banned uploader's Prefabs are hidden by the reads, not here, so an unban brings them back.
 // The uploader is any signed-in Steam ID, not only a player the boards have seen, so there is
 // no foreign key; uploader_name is their Steam persona when they uploaded, for a byline when
@@ -259,11 +259,11 @@ export const prefabBans = pgTable("prefab_bans", {
   bannedBy: text("banned_by").notNull(),
 });
 
-// A player the admin has given their own daily upload limit, in place of DAILY_UPLOADS
+// A player the admin has given their own hourly upload limit, in place of HOURLY_UPLOADS
 // (lib/prefabs.ts). No row is the default.
 export const prefabLimits = pgTable("prefab_limits", {
   steamId: text("steam_id").primaryKey(),
-  daily: integer("daily").notNull(),
+  perHour: integer("per_hour").notNull(),
   setAt: timestamp("set_at", { withTimezone: true }).notNull().defaultNow(),
   setBy: text("set_by").notNull(),
 });

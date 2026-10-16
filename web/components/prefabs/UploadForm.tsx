@@ -2,7 +2,7 @@
 // /prefabs/new, the upload form (grill-design round 3, E · Form + card): the file and its
 // fields on the left; the 3D preview and the gallery card it will make on the right. The
 // file is checked the moment it's chosen (lib/prefab-check.ts), and again by the server.
-// Signed out, banned or at the daily limit, a note takes the form's place.
+// Signed out, banned or at the hourly limit, a note takes the form's place.
 import { useEffect, useRef, useState } from "react";
 
 import { Card } from "./PrefabGallery";
@@ -86,8 +86,8 @@ function Limit({ limit, nextAt }: { limit: number; nextAt: string | null }) {
   return (
     <div className="pfu-gate">
       <p>
-        You&apos;ve reached your daily limit of {limit} prefabs.
-        {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again tomorrow."}
+        You&apos;ve reached your limit of {limit} prefabs an hour.
+        {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again soon."}
       </p>
     </div>
   );
@@ -181,7 +181,8 @@ function Form({
             {sending ? "Publishing…" : "Publish"}
           </button>
           <small>
-            {left} of {limit} uploads left today · goes live at once, credited to your Steam name
+            {left} of {limit} uploads left this hour · goes live at once, credited to your Steam
+            name
           </small>
         </div>
       </div>
