@@ -438,7 +438,7 @@ branch `claude/prototype-prefabs` (spec #213).
   upload pings #prefabs on the dev Discord server through Vercel's `OPS_WEBHOOK_URL` (skipped
   with a log line when it is unset; the GitHub and Fly secrets of that name are a different
   webhook, #ops's): the admin bot made that webhook, so it may carry link buttons
-  (Open, Take down, Ban uploader; `pingOf`). The two admin ones open the Prefab's page with
+  (Open, Take down, Ban uploader; `db/prefab-ping.ts`). The two admin ones open the Prefab's page with
   `?admin=take-down` or `?admin=ban`, which opens that confirm for the admin. The ping's
   picture is a still of the preview the uploader's browser sends with the file (any PNG up to
   1 MB; shown only in #prefabs). An uploader the boards haven't seen is credited by the persona on their public

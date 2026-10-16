@@ -10,11 +10,10 @@ import {
   favoritePrefab,
   takeDownPrefab,
   uploadPrefab,
-  pingOf,
   uploadQuota,
   type PrefabDeps,
-  type PrefabPing,
 } from "../db/prefab-api";
+import { pingOf, type PrefabPing } from "../db/prefab-ping";
 import { galleryOf } from "../lib/prefabs";
 import { prefabList, prefabOf } from "../db/prefabs";
 import { prefabBans } from "../db/schema";

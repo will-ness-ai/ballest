@@ -15,9 +15,9 @@ import {
   checkFields,
   type PrefabFields,
 } from "../lib/prefabs";
-import { SITE_ORIGIN, prefabAdminHref, prefabHref } from "../lib/routes";
 import { isSteamId } from "../lib/rules";
 import type { Db } from "./client";
+import { discordPing, type PrefabPing } from "./prefab-ping";
 import { LIVE, addPrefab, prefabOf, type Conn } from "./prefabs";
 import { prefabBans, prefabs } from "./schema";
 
@@ -67,10 +67,9 @@ export async function uploadQuota(request: Request, deps: PrefabDeps): Promise<R
 
 const now = (deps: PrefabDeps) => deps.auth?.now ?? Date.now();
 
-/* the PNG signature, the most a preview still may weigh, and its name in the ping */
+/* the PNG signature, and the most a preview still may weigh */
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const MAX_PICTURE_BYTES = 1_000_000;
-const PICTURE = "prefab.png";
 
 /* the preview still the upload form sends, or null when there is none, it isn't a PNG, or
    it is too big; it is only ever shown to the admin in Discord */
@@ -161,70 +160,6 @@ async function steamPersona(steamId: string): Promise<string | null> {
   if (!r.ok) return null;
   const m = /<steamID><!\[CDATA\[([\s\S]*?)\]\]><\/steamID>/.exec(await r.text());
   return m?.[1].trim().slice(0, 64) || null; // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing -- an empty persona is none
-}
-
-/* what the admin hears about an upload */
-export interface PrefabPing {
-  slug: string;
-  name: string;
-  pieces: number;
-  tags: Array<string>;
-  uploader: { steamId: string; name: string };
-  picture: Uint8Array<ArrayBuffer> | null;
-}
-
-/* the Discord message for an upload: its picture, and link buttons to the page and to its
-   Take down and Ban confirms there (a webhook can't take clicks itself; the page acts on
-   the admin's own session) */
-export function pingOf(p: PrefabPing) {
-  const page = SITE_ORIGIN + prefabHref(p.slug);
-  const link = (label: string, url: string) => ({ type: 2, style: 5, label, url });
-  return {
-    allowed_mentions: { parse: [] },
-    embeds: [
-      {
-        title: p.name,
-        url: page,
-        description: [`by ${p.uploader.name}`, `${String(p.pieces)} pieces`, p.tags.join(", ")]
-          .filter(Boolean)
-          .join(" · "),
-        ...(p.picture && { image: { url: `attachment://${PICTURE}` } }),
-      },
-    ],
-    components: [
-      {
-        type: 1,
-        components: [
-          link("Open", page),
-          link("Take down", SITE_ORIGIN + prefabAdminHref(p.slug, "take-down")),
-          link("Ban uploader", SITE_ORIGIN + prefabAdminHref(p.slug, "ban")),
-        ],
-      },
-    ],
-  };
-}
-
-/* posts an upload to the Prefabs channel's webhook (Vercel's OPS_WEBHOOK_URL, which the
-   admin bot made, so it may carry buttons); skipped, with a log line, when it isn't set. A
-   webhook Discord won't let carry buttons gets the message again without them */
-async function discordPing(p: PrefabPing): Promise<void> {
-  const url = process.env.OPS_WEBHOOK_URL;
-  if (!url) {
-    console.log("prefab ping skipped: OPS_WEBHOOK_URL is not set");
-    return;
-  }
-  const post = (withButtons: boolean) => {
-    const { components, ...message } = pingOf(p);
-    const body = new FormData();
-    body.set("payload_json", JSON.stringify(withButtons ? { ...message, components } : message));
-    if (p.picture) body.set("files[0]", new Blob([p.picture], { type: "image/png" }), PICTURE);
-    const to = new URL(url);
-    if (withButtons) to.searchParams.set("with_components", "true");
-    return fetch(to, { method: "POST", body, signal: AbortSignal.timeout(5000) });
-  };
-  let r = await post(true);
-  if (r.status === 400) r = await post(false);
-  if (!r.ok) throw new Error(`Discord answered ${String(r.status)}: ${await r.text()}`);
 }
 
 /* a live Prefab's id and uploader by its slug, or null: deleted, taken down and hidden
