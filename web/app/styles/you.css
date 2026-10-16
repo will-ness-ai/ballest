@@ -195,3 +195,85 @@
     transition: transform 160ms var(--ease-out);
   }
 }
+
+/* Signed out: the strip on top that signs in, and in each card the row where You would be.
+   Until the browser can tell whether anyone is signed in, both hold their place unseen. */
+.ys-in {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.ys-in-mark {
+  display: inline-grid;
+  flex: none;
+}
+.ys-in-mark svg {
+  inline-size: 28px;
+  block-size: 28px;
+  fill: var(--text);
+}
+/* the line takes the room left, and the button wraps under it where there is too little */
+.ys-in p {
+  flex: 1 1 12rem;
+  margin: 0;
+  color: var(--dim);
+}
+.ys-in b {
+  color: var(--text);
+}
+.ys-go {
+  margin-inline-start: auto;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 600 calc(15rem / 16) var(--f-hud);
+  text-decoration: none;
+}
+.yl-sign {
+  grid-column: 1 / -1;
+}
+.yl-sign a {
+  display: block;
+  min-block-size: 30px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  outline: 1px solid color-mix(in oklch, var(--accent) 45%, transparent);
+  outline-offset: -1px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.yl-sign a:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.ys-go:active,
+.yl-sign a:active {
+  transform: scale(0.98);
+}
+@media (hover: hover) and (pointer: fine) {
+  .ys-go:hover {
+    background: color-mix(in oklch, var(--accent) 88%, var(--text));
+  }
+  .yl-sign a:hover {
+    background: color-mix(in oklch, var(--accent) 22%, transparent);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ys-go,
+  .yl-sign a {
+    transition: transform 160ms var(--ease-out);
+  }
+}
+/* a part held unseen in its place: the strip, a sign-in row, or the gains line before the
+   gains are from the reader's baseline */
+.ys-line[data-wait],
+.ys-in[data-wait],
+.yl-sign[data-wait] {
+  visibility: hidden;
+}

@@ -5,10 +5,16 @@
 // baseline by the reader's clock, so the server's are shown only when its baseline is that
 // one, and otherwise the cards are read again. "Show all" opens the whole list in the card,
 // read in slices from GET /api/standings?list=, scrolled to You.
+// Signed out (verdict 3, "C"), the top 3s stay open, a strip on top signs in, and in each card
+// the row where You would be is the sign-in, both back to /you. Until the browser can tell
+// whether anyone is signed in (the server's page, and hydration), the strip and those rows
+// are drawn unseen and out of reach, so a signed-out visitor's page doesn't jump when they
+// show and a signed-in one never sees them.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
+import { SteamMark } from "../SteamMark";
 import { useNow } from "../../hooks/client";
 import { useYou } from "../../hooks/me";
 import { readOnce, useRead } from "../../hooks/read";
@@ -160,6 +166,40 @@ function AllRows({
   );
 }
 
+/* what a card's rows end with for nobody signed in: the sign-in, seen ("out") or holding its
+   place ("unsure") */
+type SignIn = "out" | "unsure" | null;
+
+/* the props that keep a part of the page unseen and out of reach while it holds its place */
+const held = (unsure: boolean) =>
+  unsure ? ({ "data-wait": true, "aria-hidden": true, inert: true } as const) : {};
+
+/* the row where You would be, as the way to sign in */
+function SignInRow({ signIn }: { signIn: "out" | "unsure" }) {
+  return (
+    <li className="yl-sign" {...held(signIn === "unsure")}>
+      <a href={signInHref(youHref())}>Sign in with Steam to see your row</a>
+    </li>
+  );
+}
+
+/* on top of the cards, signed out */
+function SignInStrip({ unsure }: { unsure: boolean }) {
+  return (
+    <div className="ys-in" {...held(unsure)}>
+      <span className="ys-in-mark">
+        <SteamMark />
+      </span>
+      <p>
+        <b>Where do you stand?</b> Sign in with Steam and your row shows on every list.
+      </p>
+      <a className="ys-go" href={signInHref(youHref())}>
+        Sign in
+      </a>
+    </div>
+  );
+}
+
 function Card({
   stat,
   ladder,
@@ -167,6 +207,7 @@ function Card({
   moves,
   you,
   holding,
+  signIn,
 }: {
   stat: StandingsStat;
   ladder: Ladder;
@@ -177,6 +218,7 @@ function Card({
   you: string | null;
   /* You's rows are being read: hold their place */
   holding: boolean;
+  signIn: SignIn;
 }) {
   const [open, setOpen] = useState(false);
   const title = STANDINGS_TITLE[stat];
@@ -198,10 +240,18 @@ function Card({
             ),
           )}
           {holding && <li className="yl-hold" aria-hidden="true" />}
+          {signIn && ladder.total > shown && (
+            <li className="yl-gap" aria-hidden="true">
+              &#8943;
+            </li>
+          )}
+          {signIn && <SignInRow signIn={signIn} />}
           {you && !ladder.you && (
             <li className="yl-row yl-off">You aren&apos;t on this list yet</li>
           )}
-          {!ladder.total && !you && !holding && <li className="yl-row yl-off">Nobody yet</li>}
+          {!ladder.total && !you && !holding && !signIn && (
+            <li className="yl-row yl-off">Nobody yet</li>
+          )}
         </ol>
       )}
       {(open || ladder.total > shown) && !holding && (
@@ -237,6 +287,13 @@ export function Ladders({ tops }: { tops: YouLadders }) {
   const id = got && key !== NOBODY ? key : null;
   const holding = you.state === "loading" ? you.claimed : key !== null && key !== NOBODY && !got;
 
+  /* nobody is signed in, or the browser can't tell yet */
+  const signIn: SignIn =
+    you.state === "none" ? "out" : you.state === "loading" && !you.claimed ? "unsure" : null;
+
+  /* the gains and moves shown are from the reader's baseline */
+  const moves = got !== null || fresh;
+
   const who = you.state === "ready" ? you.rec.who : null;
   const read = data.readAt && now != null ? relTime(new Date(data.readAt), now) : null;
   return (
@@ -250,20 +307,15 @@ export function Ladders({ tops }: { tops: YouLadders }) {
               ? "Where you stand on the Daily Report's four lists"
               : "The Daily Report's four lists"}
             {read && <> &middot; read {read}</>}
-            {you.state === "none" && (
-              <>
-                {" "}
-                &middot; <a href={signInHref(youHref())}>Sign in with Steam</a> to see your row
-              </>
-            )}
           </p>
-          {(got !== null || fresh) && (
-            <p className="ys-line">
-              Gains and places since {sinceText(data.since)}, as the latest Daily Report counts them
-            </p>
-          )}
+          {/* held, unseen, until the gains are from the reader's baseline, so the cards
+              don't move down when it shows */}
+          <p className="ys-line" {...held(!moves)}>
+            Gains and places since {sinceText(data.since)}, as the latest Daily Report counts them
+          </p>
         </div>
       </header>
+      {signIn && <SignInStrip unsure={signIn === "unsure"} />}
       <div className="ys-cards">
         {STANDINGS_STATS.map((stat) => (
           <Card
@@ -271,9 +323,10 @@ export function Ladders({ tops }: { tops: YouLadders }) {
             stat={stat}
             ladder={data.lists[stat]}
             since={data.since}
-            moves={got !== null || fresh}
+            moves={moves}
             you={id}
             holding={holding}
+            signIn={signIn}
           />
         ))}
       </div>
