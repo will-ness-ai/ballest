@@ -1,6 +1,12 @@
 // What the Daily Report says, as plain strings: the channel message (the day, the counts, Since
 // yesterday) and the thread's messages (the map lists and the longest-standing records). The
 // settled design is round 3 of the prototype on branch claude/prototype-daily-report.
+import {
+  type APIActionRowComponent,
+  type APIButtonComponentWithURL,
+  ButtonStyle,
+  ComponentType,
+} from "discord.js";
 import { formatTime, SCORE_TICKS_PER_SECOND } from "../domain.js";
 import type { StandingsImage } from "../render/scenes.js";
 import type { DatedRecord } from "./records.js";
@@ -16,7 +22,7 @@ import {
 
 /** Discord's cap on a bot message's text. */
 export const MESSAGE_LIMIT = 2000;
-/** Where the links go: each Map's and Track's page on the site. */
+/** Where the links go: each Map's and Track's page on the site, and the button's /you. */
 const SITE_URL = "https://ballestrecords.com";
 
 /** The four boards' headings, in the image. */
@@ -105,6 +111,25 @@ export const headMessage = (r: Report): string => {
     if (text.length <= MESSAGE_LIMIT || shown === 0) return text;
   }
 };
+
+/**
+ * The channel message's one button, under the standings image: a link to the site's /you, where
+ * each reader finds their own place on the four lists (spec #221, round 4's verdict A). A link
+ * button carries no custom_id and the bot never hears a press, so nothing handles it.
+ */
+export const reportButtons: ReadonlyArray<APIActionRowComponent<APIButtonComponentWithURL>> = [
+  {
+    type: ComponentType.ActionRow,
+    components: [
+      {
+        type: ComponentType.Button,
+        style: ButtonStyle.Link,
+        label: "Where do I stand?",
+        url: `${SITE_URL}/you`,
+      },
+    ],
+  },
+];
 
 /** What the standings image shows: the day, the counts and the four boards. */
 export const standingsImage = (r: Report): StandingsImage => ({

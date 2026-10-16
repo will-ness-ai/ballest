@@ -12,12 +12,15 @@ import { StandingsSource } from "../src/report/standings.js";
 
 const HOUR = 3_600_000;
 const DAY0 = Date.UTC(2026, 9, 4); // midnight UTC, Sunday 4 October
+/** Where the channel message's one button goes. */
+const YOU = "https://ballestrecords.com/you";
 
 /** The schedule over fakes: a database refreshed `refreshedAgo` before each read, a site that
  * records which baselines it was asked for (or is down while `siteDown`), a channel that records
  * what it was given (or fails while `failing`), and the ops channel's messages. */
 const setup = Effect.gen(function* () {
   const heads = yield* Ref.make<Array<string>>([]);
+  const links = yield* Ref.make<Array<string>>([]);
   const threads = yield* Ref.make(0);
   const alerts = yield* Ref.make<Array<string>>([]);
   const failing = yield* Ref.make(false);
@@ -53,11 +56,15 @@ const setup = Effect.gen(function* () {
     Layer.succeed(
       ReportChannel,
       ReportChannel.of({
-        post: ({ content }) =>
+        post: ({ content, components }) =>
           Effect.gen(function* () {
             if (yield* Ref.get(failing))
               return yield* Effect.fail(new ReportPostFailed({ reason: "Missing Permissions" }));
             yield* Ref.update(heads, (h) => [...h, content.split("\n")[0] ?? ""]);
+            yield* Ref.update(links, (l) => [
+              ...l,
+              components.flatMap((row) => row.components.map((b) => b.url)).join(" "),
+            ]);
             const messageId = `m${(yield* Ref.get(heads)).length}`;
             if (yield* Ref.get(threadFailing))
               return yield* Effect.fail(
@@ -81,7 +88,18 @@ const setup = Effect.gen(function* () {
       standings: () => Effect.succeed(new Uint8Array()),
     } as unknown as Renderer),
   );
-  return { heads, threads, alerts, failing, threadFailing, refreshedAgo, siteDown, asked, fakes };
+  return {
+    heads,
+    links,
+    threads,
+    alerts,
+    failing,
+    threadFailing,
+    refreshedAgo,
+    siteDown,
+    asked,
+    fakes,
+  };
 });
 
 /** Run the schedule from the TestClock's current time until `ms` later, then stop it. */
@@ -102,6 +120,7 @@ describe("the Daily Report's schedule", () => {
         expect(yield* Ref.get(t.heads)).toEqual([]);
         yield* runFor(2 * HOUR + DAY_MS);
         expect(yield* Ref.get(t.heads)).toEqual(["# Sunday 4 October", "# Monday 5 October"]);
+        expect(yield* Ref.get(t.links)).toEqual([YOU, YOU]);
         expect(yield* Ref.get(t.threads)).toBe(2);
       }).pipe(Effect.provide(t.fakes));
     }),
@@ -144,6 +163,7 @@ describe("the Daily Report's schedule", () => {
         yield* runFor(HOUR);
         yield* runFor(HOUR); // a restart the same evening
         expect(yield* Ref.get(t.heads)).toEqual(["# Sunday 4 October"]);
+        expect(yield* Ref.get(t.links)).toEqual([YOU]);
       }).pipe(Effect.provide(t.fakes));
     }),
   );
