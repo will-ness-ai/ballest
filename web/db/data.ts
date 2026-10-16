@@ -27,6 +27,7 @@ import type {
   DailyStandings,
   PlayerDailies,
   WorkshopMap,
+  WorkshopStandings,
 } from "../lib/rows";
 import { mapCard, timed, type MapCard } from "../lib/workshop";
 import { connect, type Db } from "./client";
@@ -264,6 +265,15 @@ export async function getStandings() {
   cacheTag(DATA_TAG);
   cacheLife("max");
   return q.standings(db());
+}
+
+/* the Workshop standings now and at a baseline (Unix ms), which GET /api/standings serves;
+   the route keeps baselines to the hour and the last week, so few are ever cached */
+export async function getWorkshopStandings(since: number): Promise<WorkshopStandings> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.workshopStandings(db(), since);
 }
 
 /* every Daily's date, oldest first */
