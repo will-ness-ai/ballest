@@ -4,7 +4,8 @@
 // shared place reads. A player whose count is 0 now has dropped off the list: the payload
 // keeps them only for the baseline's places.
 import type { StandingsStat, WorkshopStandings } from "./rows";
-import { fmtN, ord, personaOf, plural } from "./rules";
+import { fmtN, ordSuffix, personaOf, plural } from "./rules";
+import { standingOf } from "./workshop-standings";
 
 /* one player on a list, as a ladder draws them */
 export interface LadderRow {
@@ -23,9 +24,9 @@ export interface LadderRow {
   move: number | null;
 }
 
-/* what the line under a card says: how many more pass the player listed above You, a
-   leader's margin (or, level with another for the lead, what leads alone), or what gets
-   You on the list */
+/* what the line under a card says: how many more pass the nearest player with a strictly
+   higher count (not a player level with You), a leader's margin (or, level with another for
+   the lead, what leads alone), or what gets You on the list */
 export type Chase =
   | { to: "pass"; more: number; persona: string }
   | { to: "lead"; by: number }
@@ -40,7 +41,7 @@ export interface Ladder {
   rows: Array<LadderRow | null>;
   /* You's row, or null when You aren't on the list (or nobody is signed in) */
   you: LadderRow | null;
-  /* where You are listed (0-based), or null: Show all reads down to it in one go */
+  /* where You are listed (0-based), or null: Show all opens on the slice around it */
   at: number | null;
   chase: Chase;
 }
@@ -89,18 +90,21 @@ const TOP = 3,
 
 /* the list's rows with a count now, in listing order */
 function rowsOf(s: WorkshopStandings, stat: StandingsStat): Array<LadderRow> {
-  const list = s.lists[stat].filter((r) => r[1] > 0);
+  const list = s.lists[stat].map(standingOf).filter((r) => r.n > 0);
   const atPlace = new Map<number, number>();
-  for (const r of list) atPlace.set(r[3], (atPlace.get(r[3]) ?? 0) + 1);
-  return list.map(([i, n, then, place, placeThen]) => ({
-    steamId: s.players[i][0],
-    persona: personaOf({ steamId: s.players[i][0], persona: s.players[i][1] }),
-    n,
-    gain: n - then,
-    place,
-    shared: (atPlace.get(place) ?? 0) > 1,
-    move: then > 0 ? placeThen - place : null,
-  }));
+  for (const r of list) atPlace.set(r.place, (atPlace.get(r.place) ?? 0) + 1);
+  return list.map(({ player, n, nBefore, place, placeBefore }) => {
+    const [steamId, persona] = s.players[player];
+    return {
+      steamId,
+      persona: personaOf({ steamId, persona }),
+      n,
+      gain: n - nBefore,
+      place,
+      shared: (atPlace.get(place) ?? 0) > 1,
+      move: nBefore > 0 ? placeBefore - place : null,
+    };
+  });
 }
 
 /* The card for `you` (a Steam ID, or null): the top 3, a gap, two above You, You and one
@@ -134,15 +138,20 @@ export function sliceOf(
 
 /* a place as it reads on /you: "1st", or "=1,840th" when another player shares it */
 export const placeText = (r: Pick<LadderRow, "place" | "shared">) =>
-  (r.shared ? "=" : "") + fmtN(r.place) + ord(r.place).replace(/^\d+/, "");
+  (r.shared ? "=" : "") + fmtN(r.place) + ordSuffix(r.place);
 
+/* the line under You's card. The list is most first, so the players with a strictly higher
+   count all sit above You, and the nearest is the last of them; passing them takes one more
+   than the difference. With nobody higher, You lead, alone or level with others. */
 function chaseOf(all: ReadonlyArray<LadderRow>, i: number): Chase {
   if (i < 0) return { to: "join" };
   const me = all[i];
-  if (i > 0) return { to: "pass", more: all[i - 1].n - me.n + 1, persona: all[i - 1].persona };
+  const ahead = all.slice(0, i).findLast((r) => r.n > me.n);
+  if (ahead) return { to: "pass", more: ahead.n - me.n + 1, persona: ahead.persona };
   if (all.length === 1) return { to: "alone" };
-  const by = me.n - all[1].n;
-  return by > 0 ? { to: "lead", by } : { to: "outright" };
+  /* the highest count but You's: the first row that isn't You */
+  const next = all[i === 0 ? 1 : 0].n;
+  return me.n > next ? { to: "lead", by: me.n - next } : { to: "outright" };
 }
 
 /* the line under a card, in the list's own noun */

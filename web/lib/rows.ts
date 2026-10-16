@@ -236,7 +236,8 @@ export type StandingsStat = "played" | "author" | "wr" | "top5";
 
 /* one player on one Workshop standing: [index into WorkshopStandings.players, count now,
    count at the baseline, place now, place at the baseline]. A place is 1 + the players
-   with a strictly higher count, so equal counts share it. */
+   with a strictly higher count, so equal counts share it. Written and read through
+   standingRow and standingOf (lib/workshop-standings.ts), which name the positions. */
 export type WorkshopStandingRow = [number, number, number, number, number];
 
 /* The Workshop standings now and at a baseline (lib/workshop-standings.ts), as GET

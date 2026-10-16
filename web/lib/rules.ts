@@ -34,8 +34,9 @@ export const mapPfidOf = (name: string | null | undefined) =>
 export const fmtN = (n: number) => n.toLocaleString("en-US");
 
 const SUFFIX: Partial<Record<number, string>> = { 1: "st", 2: "nd", 3: "rd" };
-export const ord = (n: number) =>
-  String(n) + (SUFFIX[((n % 100) - 20) % 10] ?? SUFFIX[n % 100] ?? "th");
+/* "st", "nd", "rd" or "th": what follows n written as an ordinal */
+export const ordSuffix = (n: number) => SUFFIX[((n % 100) - 20) % 10] ?? SUFFIX[n % 100] ?? "th";
+export const ord = (n: number) => String(n) + ordSuffix(n);
 
 export const plural = (n: number, one: string, many: string) =>
   fmtN(n) + " " + (n === 1 ? one : many);

@@ -10,6 +10,8 @@ const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
 /* the Daily Report's post, 16:00 UTC */
 const REPORT_HOUR_UTC = 16;
+/* the furthest back a baseline may be, so only a few are ever cached */
+const OLDEST_MS = 7 * DAY_MS;
 
 /* A Map the Workshop lists now, as the counting needs it */
 export interface StandingsMap {
@@ -35,6 +37,33 @@ export interface StandingsEntry {
   /* when the Refresh that closed it started, or null while it is open */
   closedAt: number | null;
 }
+
+/* One player on one list, by name: what a WorkshopStandingRow carries by position. The
+   wire's rows are written and read only through these two, so no caller counts positions. */
+export interface StandingFields {
+  /* the index into WorkshopStandings.players */
+  player: number;
+  /* the count now, and at the baseline */
+  n: number;
+  nBefore: number;
+  /* the shared place now, and at the baseline */
+  place: number;
+  placeBefore: number;
+}
+export const standingRow = (r: StandingFields): WorkshopStandingRow => [
+  r.player,
+  r.n,
+  r.nBefore,
+  r.place,
+  r.placeBefore,
+];
+export const standingOf = ([
+  player,
+  n,
+  nBefore,
+  place,
+  placeBefore,
+]: WorkshopStandingRow): StandingFields => ({ player, n, nBefore, place, placeBefore });
 
 /* each list, and the count that breaks a tie on it before the Steam ID */
 const LISTS: ReadonlyArray<[StandingsStat, StandingsStat | null]> = [
@@ -136,24 +165,30 @@ export function countStandings(
   }
 
   const ids = [...new Set([...now.keys(), ...before.keys()])].sort(bySteamId);
-  const index = new Map(ids.map((id, i) => [id, i]));
   const countOf = (from: Map<string, Counts>, id: string) => from.get(id) ?? zero();
   const lists = Object.fromEntries(
-    LISTS.map(([stat, then]) => {
-      const on = ids.filter((id) => countOf(now, id)[stat] > 0 || countOf(before, id)[stat] > 0);
-      const placeNow = placesOf(on.map((id) => countOf(now, id)[stat]));
-      const placeBefore = placesOf(on.map((id) => countOf(before, id)[stat]));
+    LISTS.map(([stat, tieBreak]) => {
+      /* ids is in Steam ID order, so a player's index there breaks the last tie */
+      const on = ids
+        .map((id, player) => ({
+          player,
+          n: countOf(now, id)[stat],
+          nBefore: countOf(before, id)[stat],
+          tie: tieBreak ? countOf(now, id)[tieBreak] : 0,
+        }))
+        .filter((r) => r.n > 0 || r.nBefore > 0);
+      const placeNow = placesOf(on.map((r) => r.n));
+      const placeBefore = placesOf(on.map((r) => r.nBefore));
       const rows = on
-        .map((id): WorkshopStandingRow => {
-          const n = countOf(now, id)[stat];
-          const b = countOf(before, id)[stat];
-          return [index.get(id) ?? 0, n, b, placeNow.get(n) ?? 0, placeBefore.get(b) ?? 0];
-        })
-        .sort(
-          (a, b) =>
-            b[1] - a[1] ||
-            (then ? countOf(now, ids[b[0]])[then] - countOf(now, ids[a[0]])[then] : 0) ||
-            a[0] - b[0],
+        .sort((x, y) => y.n - x.n || y.tie - x.tie || x.player - y.player)
+        .map(({ player, n, nBefore }) =>
+          standingRow({
+            player,
+            n,
+            nBefore,
+            place: placeNow.get(n) ?? 0,
+            placeBefore: placeBefore.get(nBefore) ?? 0,
+          }),
         );
       return [stat, rows];
     }),
@@ -171,4 +206,20 @@ export function countStandings(
 export function youBaseline(now: number): number {
   const post = Math.floor((now - REPORT_HOUR_UTC * HOUR_MS) / DAY_MS) * DAY_MS;
   return post + REPORT_HOUR_UTC * HOUR_MS - DAY_MS;
+}
+
+/* The baseline GET /api/standings counts from: `given` (an ISO time or Unix ms, or null for
+   the /you baseline), read down to the hour. One that can't be read, is in the future or is
+   more than a week back is refused, with why, so only a few baselines are ever cached. */
+export function baselineOf(
+  given: string | null,
+  now: number,
+): { since: number } | { error: string } {
+  const at =
+    given === null ? youBaseline(now) : /^\d+$/.test(given) ? Number(given) : Date.parse(given);
+  if (!Number.isFinite(at)) return { error: "since is not a time" };
+  const since = Math.floor(at / HOUR_MS) * HOUR_MS;
+  if (since > now || since < now - OLDEST_MS)
+    return { error: "since must be within the last week" };
+  return { since };
 }

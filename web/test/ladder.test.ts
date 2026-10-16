@@ -141,15 +141,26 @@ describe("the line under a card", () => {
   const line = (s: WorkshopStandings, you: string | null, stat: StandingsStat = "played") =>
     chaseText(stat, ladderOf(s, stat, you).chase);
 
-  test("how many more pass the player above", () => {
+  test("how many more pass the nearest player with more", () => {
     expect(line(twenty, "l")).toBe("2 Maps more to pass K");
-    // level with the player listed above: one more passes them
+    // level with the players listed above: they aren't the ones to pass, A is
     const tied = played([
-      [5, 5],
+      [20, 20],
+      [4, 4],
+      [4, 4],
+      [4, 4],
+    ]);
+    expect(line(tied, "d")).toBe("17 Maps more to pass A");
+    expect(line(tied, "b")).toBe("17 Maps more to pass A");
+    // the nearest with more, not the top: B and C share 2nd above D and E
+    const steps = played([
+      [9, 9],
+      [6, 6],
+      [6, 6],
       [3, 3],
       [3, 3],
     ]);
-    expect(line(tied, "c")).toBe("1 Map more to pass B");
+    expect(line(steps, "e")).toBe("4 Maps more to pass C");
   });
 
   test("a leader's margin", () => {
@@ -159,6 +170,15 @@ describe("the line under a card", () => {
       [4, 4],
     ]);
     expect(line(level, "a")).toBe("1 Map more to lead outright");
+    // level for the lead but listed third: still one more to lead outright
+    const three = played([
+      [4, 4],
+      [4, 4],
+      [4, 4],
+      [1, 1],
+    ]);
+    expect(line(three, "c")).toBe("1 Map more to lead outright");
+    expect(line(three, "d")).toBe("4 Maps more to pass C");
     expect(line(played([[2, 2]]), "a")).toBe("You lead");
   });
 

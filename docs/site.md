@@ -28,8 +28,8 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     the rows it is given; `standing.ts` (You's place, Medal and next Medal on a board) and
     `spread.ts` (the spread chart's columns and where a time falls on it) for You.
   - `workshop-standings.ts`, the Workshop standings (`CONTEXT.md`) counted now and at a
-    baseline with shared places, and `youBaseline`, the baseline /you compares against
-    (ADR 0009). `GET /api/standings?since=` serves them, for /you and for Multiballs;
+    baseline with shared places, `youBaseline`, the baseline /you compares against, and
+    `baselineOf`, which baselines the route takes (ADR 0009). `GET /api/standings?since=` serves them, for /you and for Multiballs;
     `ladder.ts` is what /you shows of them (a card's rows around You, the line under it,
     "Show all"'s slices, and a shared place's "=1,840th").
   - `auth.ts`, Sign in with Steam end to end, one call per route (ADR 0008), over
@@ -178,13 +178,14 @@ fails to load, or that Satori can't read, draws without it.
   Players table and the Daily Report's button, and lighting the Players tab. A ladder card
   per list, stacked on a phone, two by two and then four across on the desktop layout: the
   top 3, a gap, two above You, You, one below (unbroken in or near the top 5), each row
-  with +N since the baseline and its places moved, then "N more to pass X" or "You lead by
-  N". The page is static: the server draws each list's top 3 (`laddersOf` with nobody),
+  with +N since the baseline and its places moved, then "N more to pass X" (the nearest player with a strictly higher count) or "You
+  lead by N". The page is static: the server draws each list's top 3 (`laddersOf` with nobody),
   and the browser reads You's cards from `GET /api/standings?ladders&player=`. Gains and
   moves count from the /you baseline by the reader's clock (`youBaseline`), so the
   server's are shown only when its baseline, from the latest Refresh, is that one, and
   otherwise the browser reads them again. "Show all" opens the list in the card, read from
-  `GET /api/standings?list=` down to You in one go and in chunks after, scrolled to You.
+  `GET /api/standings?list=` in slices: the one around You first, scrolled to You, then
+  more above and below as it scrolls, the rows in view kept still when rows go in above.
   Signed out, the top 3s stay open to anyone, a strip on top asks "Where do you stand?"
   and signs in, and each card's row where You would be reads "Sign in with Steam to see
   your row" and is the sign-in; all of them come back to /you. Until the browser can tell

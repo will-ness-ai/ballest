@@ -15,6 +15,7 @@ import {
   isSteamId,
   mapPfidOf,
   ord,
+  ordSuffix,
   pctOf,
   personaOf,
   plural,
@@ -81,6 +82,8 @@ describe("words and numbers", () => {
       "101st",
       "111th",
     ]);
+    /* the suffix alone, for a number written another way */
+    expect([1840, 1841, 1811].map(ordSuffix)).toEqual(["th", "st", "th"]);
   });
 
   test("plurals and personas", () => {
