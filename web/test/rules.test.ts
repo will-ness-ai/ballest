@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
+import { CAMPAIGNS } from "../lib/campaigns";
 import { CIRCUIT, TRACKS } from "../lib/circuit";
 import { calendarOf, dayLabel, isLive, timeLeft, todayOf } from "../lib/daily";
 import {
@@ -266,17 +267,14 @@ describe("Steam IDs and URLs", () => {
       "/campaign/solar-trials/x",
     ])
       expect(campaignPath(bad)).toBeNull();
-    expect(campaignPath("/campaign/solar-trials/podiums")).toEqual({
-      slug: "solar-trials",
-      pfid: null,
-    });
-    expect(campaignPath(`/campaign/solar-trials/${ID}`)).toEqual({
-      slug: "solar-trials",
-      pfid: null,
-    });
+    const solar = CAMPAIGNS[0];
+    const none = { c: solar, map: null, focus: null, podiums: false };
+    expect(campaignPath("/campaign/solar-trials/")).toEqual(none);
+    expect(campaignPath("/campaign/solar-trials/podiums")).toEqual({ ...none, podiums: true });
+    expect(campaignPath(`/campaign/solar-trials/${ID}`)).toEqual({ ...none, focus: ID });
     expect(campaignPath("/campaign/solar-trials/3805391903/")).toEqual({
-      slug: "solar-trials",
-      pfid: "3805391903",
+      ...none,
+      map: "3805391903",
     });
   });
 

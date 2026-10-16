@@ -33,24 +33,24 @@ import {
   getCampaigns,
   getPlacesOf,
 } from "../../db/data";
-import { campaignBoard, campaignOfMap, mapLabel } from "../../lib/campaigns";
+import { campaignBoard, mapLabel } from "../../lib/campaigns";
 import type { IndexBoard } from "../../lib/player";
 import { podiumRows } from "../../lib/podiums";
-import { PODIUM_SORT, boardHref, campaignHref } from "../../lib/routes";
-import { BOARD_CHUNK, countText, isSteamId } from "../../lib/rules";
+import { PODIUM_SORT, boardHref, campaignHref, campaignSlot } from "../../lib/routes";
+import { BOARD_CHUNK, countText } from "../../lib/rules";
 
 export async function CampaignView({ slug, slot }: { slug: string; slot: string | null }) {
   const [data, list] = await Promise.all([getCampaign(slug), getCampaigns()]);
   if (!data) notFound();
   const { c, maps, players, tally } = data;
-  const m = slot ? maps.find((x) => x.pfid === slot) : undefined;
-  /* a Steam ID's row, unless the slot is a Map: one of this Campaign's the Workshop no
-     longer lists, or another Campaign's */
-  const focusId = !m && isSteamId(slot) && !campaignOfMap(slot) ? slot : null;
-  if (slot && !m && !focusId && slot !== PODIUM_SORT) notFound();
+  const at = campaignSlot(c, slot);
+  if (!at) notFound();
+  const { focus: focusId, podiums } = at;
+  /* one of its Maps the Workshop no longer lists is no page */
+  const m = at.map ? maps.find((x) => x.pfid === at.map) : undefined;
+  if (at.map && !m) notFound();
   const overall = campaignBoard(c);
   const name = m ? m.name : overall;
-  const podiums = slot === PODIUM_SORT;
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
   const [page, scores, places, focus, history] = await Promise.all([

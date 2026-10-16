@@ -1,6 +1,6 @@
 // Every URL the site links to, and how an old #/ link from the single-page site maps onto
 // one. A Steam ID only ever reaches a path through isSteamId: one can arrive from the URL.
-import { campaignOf, campaignOfBoard, campaignOfMap } from "./campaigns";
+import { campaignOf, campaignOfBoard, campaignOfMap, type Campaign } from "./campaigns";
 import { circuitBoard } from "./circuit";
 import { STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
@@ -71,18 +71,28 @@ export const campaignHref = (slug: string, pfid?: string | null) =>
 /* every Campaign, as banners */
 export const campaignsHref = () => "/campaigns";
 
-/* the page a path under /campaign/ names, or null for none: a curated Campaign's slug, and
-   one of its Maps when the path names one (its podium order or a Steam ID's row is the
-   Campaign's own board, so null). Another Campaign's Map is shaped like a Steam ID, and is
-   none. */
-export function campaignPath(path: string): { slug: string; pfid: string | null } | null {
+/* what follows a Campaign's slug in its path, or null for what can't: nothing (its Overall
+   board), podiums (its podium order), one of its Maps (`map`, inside its frame) or a Steam
+   ID whose row to mark (`focus`). Another Campaign's Map is shaped like a Steam ID, and is
+   none. The proxy and the page both read a path through it. */
+export function campaignSlot(
+  c: Campaign,
+  slot: string | null | undefined,
+): { map: string | null; focus: string | null; podiums: boolean } | null {
+  const none = { map: null, focus: null, podiums: false };
+  if (!slot) return none;
+  if (slot === PODIUM_SORT) return { ...none, podiums: true };
+  if (c.maps.includes(slot)) return { ...none, map: slot };
+  return isSteamId(slot) && !campaignOfMap(slot) ? { ...none, focus: slot } : null;
+}
+
+/* the Campaign a path under /campaign/ names and what follows its slug (campaignSlot), or
+   null for a path that is no Campaign's page */
+export function campaignPath(path: string) {
   const m = /^\/campaign\/([^/]+)(?:\/([^/]+))?\/?$/.exec(path);
   const c = m && campaignOf(m[1]);
-  if (!c) return null;
-  const slot = m[2] as string | undefined;
-  if (!slot || slot === PODIUM_SORT) return { slug: c.slug, pfid: null };
-  if (c.maps.includes(slot)) return { slug: c.slug, pfid: slot };
-  return isSteamId(slot) && !campaignOfMap(slot) ? { slug: c.slug, pfid: null } : null;
+  const at = c && campaignSlot(c, m[2]);
+  return c && at ? { c, ...at } : null;
 }
 
 export const vsHref = (a: string, b: string) =>
