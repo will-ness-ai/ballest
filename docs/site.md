@@ -27,6 +27,9 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
     the rows it is given; `standing.ts` (You's place, Medal and next Medal on a board) and
     `spread.ts` (the spread chart's columns and where a time falls on it) for You.
+  - `workshop-standings.ts`, the Workshop standings (`CONTEXT.md`) counted now and at a
+    baseline with shared places, and `youBaseline`, the baseline /you compares against
+    (ADR 0009). `GET /api/standings?since=` serves them, for /you and for Multiballs.
   - `auth.ts`, Sign in with Steam end to end, one call per route (ADR 0008), over
     `steam-openid.ts` (Steam's login and its check) and `cookies.ts` (the cookie names the
     browser also reads). Not pure like the rest: it signs with `node:crypto` and asks Steam.
