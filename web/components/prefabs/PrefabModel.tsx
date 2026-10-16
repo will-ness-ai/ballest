@@ -1,15 +1,12 @@
 "use client";
 // A Prefab's viewer on its page: the file fetched from its download URL and drawn from its
 // angle, the ? that opens the how-to (open on its own on a first visit), and Reset view, back
-// to the angle. Its uploader can make the view they've turned to its angle.
-import { useRouter } from "next/navigation";
+// to the angle (its uploader picks the angle in Edit).
 import { useEffect, useRef, useState } from "react";
 
 import { PrefabViewer, useViewer } from "./PrefabViewer";
-import { useSession } from "../../hooks/me";
 import type { PrefabFile } from "../../lib/prefab";
 import type { PrefabAngle } from "../../lib/prefabs";
-import { prefabApiHref } from "../../lib/routes";
 
 const FOLDER = "%LOCALAPPDATA%\\Ballest\\Saved\\SaveGames\\Prefabs";
 const SEEN = "prefab-howto-seen";
@@ -17,20 +14,15 @@ const SEEN = "prefab-howto-seen";
 export function PrefabModel({
   src,
   name,
-  slug,
-  uploader,
   angle,
 }: {
   src: string;
   name: string;
-  slug: string;
-  uploader: string;
   angle: PrefabAngle | null;
 }) {
   const [file, setFile] = useState<PrefabFile | null>(null);
   const [failed, setFailed] = useState(false);
-  const { attach, angleNow, home } = useViewer();
-  const mine = useSession() === uploader;
+  const { attach, home } = useViewer();
   useEffect(() => {
     let live = true;
     fetch(src)
@@ -56,61 +48,8 @@ export function PrefabModel({
           Reset view
         </button>
         <span className="pf-hint">Drag to turn · scroll to zoom</span>
-        {mine && file && (
-          <span className="pf-tools-end">
-            <SaveAngle slug={slug} read={angleNow} saved={angle !== null} />
-          </span>
-        )}
       </div>
     </div>
-  );
-}
-
-/* the uploader's buttons that make the view they've turned to the Prefab's angle (its card
-   in the gallery and where this viewer starts), or, once it has one, put it back to the
-   default */
-function SaveAngle({
-  slug,
-  read,
-  saved,
-}: {
-  slug: string;
-  read: () => PrefabAngle | null;
-  saved: boolean;
-}) {
-  const router = useRouter();
-  const [said, setSaid] = useState<string | null>(null);
-  useEffect(() => {
-    if (!said) return;
-    const t = setTimeout(() => setSaid(null), 1500);
-    return () => clearTimeout(t);
-  }, [said]);
-  const save = async (angle: PrefabAngle | null) => {
-    const r = await fetch(prefabApiHref(slug), {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ angle }),
-    }).catch(() => null);
-    setSaid(r?.ok ? "Saved" : "Didn't save");
-    if (r?.ok) router.refresh();
-  };
-  return (
-    <>
-      {saved && (
-        <button type="button" onClick={() => void save(null)}>
-          Default view
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={() => {
-          const angle = read();
-          if (angle) void save(angle);
-        }}
-      >
-        {said ?? "Use this view for its picture"}
-      </button>
-    </>
   );
 }
 

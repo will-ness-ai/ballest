@@ -1,23 +1,27 @@
 "use client";
 // What the signed-in reader may do to a Prefab beyond viewing it: its uploader can edit its
-// name, description and tags, or delete it (db/prefab-api.ts editPrefab); the admin can take
+// name, description, tags and angle, or delete it (db/prefab-api.ts editPrefab); the admin can take
 // it down, or ban its uploader, which hides all their Prefabs, and lift the ban from a
 // hidden one's page, or give its uploader their own hourly upload limit. Nobody else sees these.
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { AnglePicker } from "./AnglePicker";
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
+import type { PrefabFile } from "../../lib/prefab";
 import {
   ADMIN_STEAM_ID,
   HOURLY_UPLOADS,
   MAX_HOURLY_UPLOADS,
   type PrefabFields,
   type UploaderLimit,
+  type PrefabAngle,
 } from "../../lib/prefabs";
 import {
   prefabApiHref,
+  prefabFileHref,
   prefabBanHref,
   prefabLimitHref,
   prefabTakeDownHref,
@@ -154,9 +158,24 @@ function OwnerTools({ p }: { p: PrefabPage }) {
     description: p.description,
     tags: p.tags,
   });
+  const [angle, setAngle] = useState<PrefabAngle | null>(p.angle);
+  /* the file, fetched the first time Edit opens, for the angle's preview; the picker is
+     drawn only while the dialog is open, so a closed one holds no WebGL context */
+  const [file, setFile] = useState<PrefabFile | null>(null);
+  const [editing, setEditing] = useState(false);
   const [problems, setProblems] = useState<Array<string>>([]);
   const [busy, setBusy] = useState(false);
   const url = prefabApiHref(p.slug);
+  const openEdit = () => {
+    setAngle(p.angle);
+    setEditing(true);
+    edit.current?.showModal();
+    if (!file)
+      void fetch(prefabFileHref(p.slug))
+        .then((r) => (r.ok ? (r.json() as Promise<PrefabFile>) : null))
+        .then(setFile)
+        .catch(() => undefined);
+  };
 
   const send = async (method: "PATCH" | "DELETE") => {
     setBusy(true);
@@ -165,7 +184,7 @@ function OwnerTools({ p }: { p: PrefabPage }) {
       const r = await fetch(url, {
         method,
         headers: { "content-type": "application/json" },
-        body: method === "PATCH" ? JSON.stringify(fields) : undefined,
+        body: method === "PATCH" ? JSON.stringify({ ...fields, angle }) : undefined,
       });
       if (r.ok) {
         /* a full load: the router's cached gallery would still show it */
@@ -186,15 +205,18 @@ function OwnerTools({ p }: { p: PrefabPage }) {
 
   return (
     <div className="pf-own">
-      <button type="button" onClick={() => edit.current?.showModal()}>
+      <button type="button" onClick={openEdit}>
         Edit
       </button>
       <button type="button" onClick={() => del.current?.showModal()}>
         Delete
       </button>
-      <dialog ref={edit} className="pf-dialog">
+      <dialog ref={edit} className="pf-dialog" onClose={() => setEditing(false)}>
         <h2>Edit {p.name}</h2>
         <Fields value={fields} onChange={setFields} />
+        {editing && file && (
+          <AnglePicker file={file} angle={angle} onPick={setAngle} className="pfa-dlg" />
+        )}
         {problems.length > 0 && (
           <ul className="pfu-bad" role="alert">
             {problems.map((x) => (

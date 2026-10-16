@@ -597,6 +597,28 @@ button.pf-dl {
 .pfu-gate .pf-dl {
   color: var(--accent-ink);
 }
+/* the angle picker (AnglePicker.tsx): its note, and the button lit while it shows the angle */
+.pfa {
+  display: grid;
+  gap: 0.5rem;
+}
+.pfa-note {
+  margin: 0;
+  color: var(--dim);
+}
+.pf-tools-end button.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pfa-dlg {
+  margin-block-end: 0.8rem;
+}
+/* the gallery card's shape, a little shorter than the page's viewer; sized by the dialog
+   alone, so the canvas it draws can't widen the fit-content dialog it sits in */
+.pfa-dlg .pfv {
+  aspect-ratio: 3 / 2;
+  contain: size;
+}
 .pfu-card {
   max-width: 16rem;
 }
