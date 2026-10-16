@@ -1,7 +1,7 @@
 // `pnpm report`: build the Daily Report now and post it as the dev app, into the sandbox channel
 // (`pnpm axi sandbox create`) or the channel given with --channel. It reads the database at
 // DATABASE_URL, which must be a local Postgres (AGENTS.md has how to fill one): never production's.
-// The four boards come from the site at SITE_URL (default the live site), whose GET /api/standings
+// The Workshop standings come from the site at SITE_URL (default the live site), whose GET /api/standings
 // counts its own database: point it at a local `pnpm dev` of web/ to draw them from the same one.
 // It skips the schedule's checks (already posted today, stale data) and records nothing.
 import { PlatformConfigProvider } from "@effect/platform";

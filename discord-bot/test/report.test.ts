@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Either, Layer, Option } from "effect";
+import { Effect, Either, Layer, Option, Schema } from "effect";
 import {
   headMessage,
   MESSAGE_LIMIT,
@@ -25,7 +25,7 @@ import {
   type Standings,
 } from "../src/report/report.js";
 import { standingsFrom } from "../src/report/standings.js";
-import type { SiteStandings } from "../src/steam/webApi.js";
+import { SiteStandings } from "../src/steam/webApi.js";
 import { ticks } from "./harness.js";
 
 const AT = Date.UTC(2026, 9, 4, 16); // Sunday 4 October 2026, 16:00 UTC
@@ -73,11 +73,12 @@ const data = (over: Partial<ReportData>): ReportData => ({
 type Row = [steamId: string, n: number, nBefore: number, place: number, placeBefore: number];
 type Lists = Partial<Record<Stat, Array<Row>>>;
 
-/** The site's GET /api/standings payload for these lists, every player named in capitals. */
-const payload = (lists: Lists): SiteStandings => {
+/** The site's GET /api/standings payload for these lists, as it serves it, every player named in
+ * capitals. */
+const payload = (lists: Lists): typeof SiteStandings.Encoded => {
   const ids = [...new Set(Object.values(lists).flatMap((rows) => rows.map((r) => r[0])))].sort();
   const index = (rows: Array<Row> = []) =>
-    rows.map(([id, ...counts]): SiteStandings["lists"]["played"][number] => [
+    rows.map(([id, ...counts]): (typeof SiteStandings.Encoded)["lists"]["played"][number] => [
       ids.indexOf(id),
       ...counts,
     ]);
@@ -94,8 +95,10 @@ const payload = (lists: Lists): SiteStandings => {
     },
   };
 };
-const standings = (lists: Lists = {}): Standings =>
-  Either.getOrThrow(standingsFrom(payload(lists)));
+/** The payload read as the bot reads it: decoded, then its players named. */
+const fromSite = (wire: typeof SiteStandings.Encoded) =>
+  standingsFrom(Schema.decodeSync(SiteStandings)(wire));
+const standings = (lists: Lists = {}): Standings => Either.getOrThrow(fromSite(payload(lists)));
 const build = (d: ReportData, lists: Lists = {}) => buildReport(d, standings(lists), AT);
 const player = (i: number) => `p${String(i).padStart(2, "0")}`;
 
@@ -183,8 +186,8 @@ describe("the Daily Report's standings", () => {
 
   it("refuses a payload whose rows name no player", () => {
     const bad = payload({ played: [["amy", 1, 1, 1, 1]] });
-    const wr: SiteStandings["lists"]["wr"] = [[5, 1, 1, 1, 1]];
-    expect(Either.isLeft(standingsFrom({ ...bad, lists: { ...bad.lists, wr } }))).toBe(true);
+    const wr: (typeof SiteStandings.Encoded)["lists"]["wr"] = [[5, 1, 1, 1, 1]];
+    expect(Either.isLeft(fromSite({ ...bad, lists: { ...bad.lists, wr } }))).toBe(true);
   });
 
   it("lists unfinished and unclaimed Maps only once they are a day old", () => {

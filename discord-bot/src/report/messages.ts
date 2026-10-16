@@ -25,7 +25,7 @@ export const MESSAGE_LIMIT = 2000;
 /** Where the links go: each Map's and Track's page on the site, and the button's /you. */
 const SITE_URL = "https://ballestrecords.com";
 
-/** The four boards' headings, in the image. */
+/** The four Workshop standings' headings, in the image. */
 export const BOARD_TITLE: Record<Stat, string> = {
   played: "Most Maps played",
   author: "Most Author Medals",
@@ -114,7 +114,8 @@ export const headMessage = (r: Report): string => {
 
 /**
  * The channel message's one button, under the standings image: a link to the site's /you, where
- * each reader finds their own place on the four lists (spec #221, round 4's verdict A). A link
+ * each reader finds their own place on the four Workshop standings (spec #221: the one link button
+ * under the image). A link
  * button carries no custom_id and the bot never hears a press, so nothing handles it.
  */
 export const reportButtons: ReadonlyArray<APIActionRowComponent<APIButtonComponentWithURL>> = [
@@ -131,7 +132,7 @@ export const reportButtons: ReadonlyArray<APIActionRowComponent<APIButtonCompone
   },
 ];
 
-/** What the standings image shows: the day, the counts and the four boards. */
+/** What the standings image shows: the day, the counts and the four Workshop standings. */
 export const standingsImage = (r: Report): StandingsImage => ({
   title: dayTitle(r.at),
   subtitle: `Workshop standings · ${counts(r)}`,

@@ -3,7 +3,7 @@
 // with something that isn't the four lists, fails the day's report as an unreachable database does.
 import { Context, Effect, Either, Layer } from "effect";
 import { type SiteStandings, WebApi } from "../steam/webApi.js";
-import type { SiteStanding, Standings, Stat } from "./report.js";
+import { type SiteStanding, STATS, type Standings, type Stat } from "./report.js";
 import { ReportDataUnavailable } from "./source.js";
 
 export class StandingsSource extends Context.Tag("multiballs/StandingsSource")<
@@ -14,8 +14,6 @@ export class StandingsSource extends Context.Tag("multiballs/StandingsSource")<
   }
 >() {}
 
-const STATS: ReadonlyArray<Stat> = ["played", "author", "wr", "top5"];
-
 /** The site's payload with its players named, or why it can't be read. */
 export const standingsFrom = (
   payload: SiteStandings,
@@ -23,15 +21,15 @@ export const standingsFrom = (
   const lists: Partial<Record<Stat, ReadonlyArray<SiteStanding>>> = {};
   for (const stat of STATS) {
     const rows: Array<SiteStanding> = [];
-    for (const [i, n, nBefore, place, placeBefore] of payload.lists[stat]) {
-      const player = payload.players[i];
-      if (player === undefined)
+    for (const { player, n, nBefore, place, placeBefore } of payload.lists[stat]) {
+      const named = payload.players[player];
+      if (named === undefined)
         return Either.left(
           new ReportDataUnavailable({
-            reason: `the site's ${stat} standings name player ${i} of ${payload.players.length}`,
+            reason: `the site's ${stat} standings name player ${player} of ${payload.players.length}`,
           }),
         );
-      rows.push({ steamId: player[0], persona: player[1], n, nBefore, place, placeBefore });
+      rows.push({ steamId: named[0], persona: named[1], n, nBefore, place, placeBefore });
     }
     lists[stat] = rows;
   }

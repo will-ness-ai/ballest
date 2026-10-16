@@ -76,20 +76,36 @@ const SiteTracks = Schema.Struct({
   tracks: Schema.Array(Schema.Struct({ name: Schema.String, leaderboardId: Schema.Number })),
 });
 
-/** One player on one of the site's Workshop standings: [index into players, count now, count at
- * the baseline, shared place now, shared place at the baseline]. */
-const SiteStandingRow = Schema.Tuple(
-  Schema.Number,
-  Schema.Number,
-  Schema.Number,
-  Schema.Number,
-  Schema.Number,
+/** One player on one of the site's Workshop standings. The site serves it as a tuple, [index into
+ * players, count now, count at the baseline, shared place now, shared place at the baseline]
+ * (standingRow in web/lib/workshop-standings.ts); this names its fields, the one place that reads
+ * them by position. */
+const SiteStandingRow = Schema.transform(
+  Schema.Tuple(Schema.Number, Schema.Number, Schema.Number, Schema.Number, Schema.Number),
+  Schema.Struct({
+    player: Schema.Number,
+    n: Schema.Number,
+    nBefore: Schema.Number,
+    place: Schema.Number,
+    placeBefore: Schema.Number,
+  }),
+  {
+    strict: true,
+    decode: ([player, n, nBefore, place, placeBefore]) => ({
+      player,
+      n,
+      nBefore,
+      place,
+      placeBefore,
+    }),
+    encode: (r) => [r.player, r.n, r.nBefore, r.place, r.placeBefore] as const,
+  },
 );
 const SiteStandingList = Schema.Array(SiteStandingRow);
 
 /** The leaderboard site's GET /api/standings (web/lib/rows.ts, WorkshopStandings): the four
  * Workshop standings now and at a baseline, each list in the site's order. */
-const SiteStandings = Schema.Struct({
+export const SiteStandings = Schema.Struct({
   readAt: Schema.NullOr(Schema.String),
   since: Schema.String,
   maps: Schema.Number,

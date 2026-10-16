@@ -1,13 +1,13 @@
 // The Daily Report (spec #126) as plain data: what the database holds (ReportData, read by
 // source.ts) and the Workshop standings the site counts (Standings, read by standings.ts) in, the
-// four boards, the lists and what changed since yesterday out. Pure, so every rule here is tested
+// four Workshop standings' top rows, the lists and what changed since yesterday out. Pure, so every rule here is tested
 // without Postgres, the site, Steam or Discord.
 import { SCORE_TICKS_PER_SECOND } from "../domain.js";
 
 export const DAY_MS = 86_400_000;
 /** A creator's own time must beat their Author Medal by this much to count (1 ms). */
 export const CREATOR_BEAT_MARGIN = SCORE_TICKS_PER_SECOND / 1000;
-/** Rows on each of the four boards. */
+/** Rows shown of each of the four Workshop standings. */
 export const TOP = 10;
 
 /** A Workshop Map as the report needs it. */
@@ -69,8 +69,8 @@ export interface ReportData {
 // ---------------------------------------------------------------- the report
 
 export type Stat = "played" | "author" | "wr" | "top5";
-/** The four boards, in the image's order. */
-const STATS: ReadonlyArray<Stat> = ["played", "author", "wr", "top5"];
+/** The four Workshop standings, in the image's order. */
+export const STATS: ReadonlyArray<Stat> = ["played", "author", "wr", "top5"];
 
 /**
  * One player on one of the Workshop standings, as the site counts it (GET /api/standings, docs/adr/
@@ -92,7 +92,7 @@ export interface Standing {
   readonly steamId: string;
   readonly persona: string;
   readonly n: number;
-  /** The shared place on this board now. */
+  /** The shared place on this standing now. */
   readonly place: number;
   /** The shared place 24 hours before, or null if it was outside the top TOP places then. */
   readonly placeBefore: number | null;
@@ -102,7 +102,7 @@ export interface Standing {
 export interface Board {
   readonly stat: Stat;
   readonly rows: ReadonlyArray<Standing>;
-  /** Players in this board's top TOP places 24 hours before who are outside them now. */
+  /** Players in this standing's top TOP places 24 hours before who are outside them now. */
   readonly out: ReadonlyArray<Pick<Standing, "steamId" | "persona">>;
 }
 
@@ -211,7 +211,7 @@ const medalled = (map: ReportMap, e: ReportEntry) =>
 export const CHANGES_SHOWN = 6;
 
 /**
- * A board's top TOP rows in the site's order (exactly TOP, where a tie runs past the last), each
+ * A standing's top TOP rows in the site's order (exactly TOP, where a tie runs past the last), each
  * moved by its shared place, and who fell out of the top TOP places.
  */
 const board = (stat: Stat, list: ReadonlyArray<SiteStanding>): Board => {
