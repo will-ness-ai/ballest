@@ -294,6 +294,19 @@
   inline-size: auto;
   margin: 0;
 }
+/* a Campaign's chip carries its title and its Maps have names, not only numbers: where
+   the two don't fit side by side, the board button takes a line of its own, and a name
+   longer than that line breaks rather than push the count past the edge */
+.boardrow.named {
+  flex-wrap: wrap;
+}
+.boardrow.named .boardbtn {
+  flex: 1 1 auto;
+}
+.boardrow.named .bb-name {
+  min-inline-size: 0;
+  overflow-wrap: break-word;
+}
 .seasonchip {
   display: flex;
   align-items: center;

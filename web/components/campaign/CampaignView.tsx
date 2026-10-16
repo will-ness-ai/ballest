@@ -93,7 +93,7 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
 
       <section className="content">
         <YouMarks name={name} />
-        <div className="boardrow">
+        <div className="boardrow named">
           <CampaignChip list={list} on={c} board={name} />
           <BoardSheet img={m?.preview ?? null} name={title} count={countText(b)} group={c.title}>
             {items}
