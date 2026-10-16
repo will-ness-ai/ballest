@@ -230,6 +230,14 @@ Track card's layout with its preview picture and a link to its own page. A Campa
 of whose Maps the Workshop lists is shown nowhere and its page is a 404, which is how the
 seeds' builds pass: their Maps are in no Campaign.
 
+**A Campaign Map elsewhere** says so (`components/workshop/Campaign.tsx`, both reading
+`campaignOfMap`). Its card, wherever `MapCardLink` draws it (the homepage shelves, All maps,
+the search), carries a strip along the bottom of its picture: the Campaign's name on the
+left and "n / N" on the right, n its place in `maps` and N the Campaign's Map count. With a
+pointer, the strip fades while the card's top three cover the picture. The Map page's panel
+has a Part of box under the title ("Campaign", its name, "Map n of N →") that links to the
+Map inside the Campaign's frame, `/campaign/<slug>/<pfid>`.
+
 ## The header
 
 The wordmark links home. The refresh time under it is a button that opens a dialog on how
