@@ -16,6 +16,7 @@ import { ScoreRow } from "./ScoreRow";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
+import { unitOf } from "../../lib/campaigns";
 import type { BoardPage, BoardRow } from "../../lib/rows";
 import { useDebouncedFetch } from "../../hooks/client";
 import { podiumTotal, type Medals, type PodiumRow } from "../../lib/podiums";
@@ -54,8 +55,6 @@ export type BoardBodyProps = Common &
         players: Array<PodiumRow>;
         tracks: number;
         group: string;
-        /* what the tally counts, one of them: a Campaign's are maps */
-        unit?: string;
       }
   );
 
@@ -353,7 +352,8 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
 }
 
 function PodiumList(props: Common & Extract<BoardBodyProps, { order: "podiums" }>) {
-  const { players, tracks, group, unit = "track" } = props;
+  const { players, tracks, group } = props;
+  const unit = unitOf(props.name);
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const filtering = q.length > 0;

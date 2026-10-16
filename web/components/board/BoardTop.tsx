@@ -10,6 +10,7 @@ import { RacePlates } from "./RacePlates";
 import { YouSpread } from "./YouSpread";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
+import { unitOf } from "../../lib/campaigns";
 import { TRACKS, trackNo } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podiums";
@@ -212,15 +213,12 @@ export function OverallCard({
   tally,
   tracks,
   podiums,
-  unit = "track",
 }: {
   b: IndexBoard;
   rows: Array<BoardRow>;
   tally: PodiumTally | null;
   tracks: number;
   podiums: boolean;
-  /* what the board adds up, one of them: a Campaign's are maps */
-  unit?: string;
 }) {
   /* the tally ranks golds first, so the most podiums need not be the top one */
   const most = tally?.players.length
@@ -275,7 +273,8 @@ export function OverallCard({
           <div>
             <h1>{b.display}</h1>
             <span className="bc-by">
-              {b.group} · points{tally ? " and podiums" : ""} across all {fmtN(tracks)} {unit}s
+              {b.group} · points{tally ? " and podiums" : ""} across all {fmtN(tracks)}{" "}
+              {unitOf(b.name)}s
               <QMark always={podiums} />
             </span>
           </div>

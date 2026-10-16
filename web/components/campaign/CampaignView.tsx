@@ -103,14 +103,7 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
         {m ? (
           <CampaignMapCard m={m} title={title} group={c.title} rows={rows} scores={scores} />
         ) : (
-          <OverallCard
-            b={b}
-            rows={rows}
-            tally={tally}
-            tracks={maps.length}
-            podiums={podiums}
-            unit="map"
-          />
+          <OverallCard b={b} rows={rows} tally={tally} tracks={maps.length} podiums={podiums} />
         )}
 
         {/* You on the points order only: the podium order ranks no one by score */}
@@ -127,7 +120,6 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
             leaders={<PodiumPlates tally={tally} />}
             players={podiumRows(tally, places)}
             tracks={tally.tracks}
-            unit="map"
             group={c.title}
           />
         ) : (
@@ -156,7 +148,7 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
           />
         )}
       </section>
-      {!m && <PointsDialog board={name} tracks={maps.length} unit="map" />}
+      {!m && <PointsDialog board={name} tracks={maps.length} />}
       <Remember
         trail="board"
         href={m ? campaignHref(c.slug, m.pfid) : boardHref(name, podiums ? PODIUM_SORT : null)}

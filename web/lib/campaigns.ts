@@ -115,6 +115,10 @@ export const campaignOf = (slug: string) => CAMPAIGNS.find((c) => c.slug === slu
 export const campaignOfBoard = (name: string) =>
   name.startsWith(PREFIX) ? campaignOf(name.slice(PREFIX.length)) : null;
 
+/* what an Overall board adds up, one of them, as its copy names it: a Campaign's Maps, or a
+   season's Tracks */
+export const unitOf = (board: string) => (campaignOfBoard(board) ? "map" : "track");
+
 /* the Campaign a Map is in and its place there (0-based), or null; a Map is in one at most */
 export function campaignOfMap(pfid: string): { campaign: Campaign; index: number } | null {
   for (const campaign of CAMPAIGNS) {

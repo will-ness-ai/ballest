@@ -56,7 +56,7 @@ async function drawn() {
   };
   const card = (podiums: boolean) =>
     renderToStaticMarkup(
-      <OverallCard b={b} rows={page.rows} tally={tal} tracks={1} podiums={podiums} unit="map" />,
+      <OverallCard b={b} rows={page.rows} tally={tal} tracks={1} podiums={podiums} />,
     );
   const score = renderToStaticMarkup(
     <BoardBody
@@ -82,7 +82,6 @@ async function drawn() {
       leaders={<PodiumPlates tally={tal} />}
       players={podiumRows(tal, {})}
       tracks={tal.tracks}
-      unit="map"
       group={SMALL.title}
     />,
   );

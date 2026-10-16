@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useDialog } from "../Modal";
-import { campaignOfBoard } from "../../lib/campaigns";
+import { campaignOfBoard, unitOf } from "../../lib/campaigns";
 import { S1_CURRENT_BOARD, S1_FINAL_BOARD } from "../../lib/circuit";
 import { useMounted } from "../../hooks/client";
 import { fmtN, ord, trackPoints } from "../../lib/rules";
@@ -26,19 +26,11 @@ export function QMark({ always }: { always?: boolean }) {
   );
 }
 
-/* `unit` is what the board adds up, one of them: a Campaign's are maps */
-export function PointsDialog({
-  board,
-  tracks,
-  unit = "track",
-}: {
-  board: string;
-  tracks: number;
-  unit?: string;
-}) {
+export function PointsDialog({ board, tracks }: { board: string; tracks: number }) {
   const mounted = useMounted();
   const [open, setOpen] = useState(false);
   const from = useRef<HTMLElement | null>(null);
+  const unit = unitOf(board);
   const { props, close } = useDialog({
     open,
     onClose: () => {
