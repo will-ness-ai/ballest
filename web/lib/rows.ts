@@ -55,7 +55,6 @@ export interface Placing {
   score: number;
 }
 
-/* a Workshop Map with its latest details and what its board says at a glance */
 /* A curated Campaign some of whose Maps the Workshop lists (db/site.ts, listedCampaigns) */
 export interface ListedCampaignRow {
   slug: string;
@@ -82,6 +81,7 @@ export interface PlayerCampaignRow {
   players: number;
 }
 
+/* a Workshop Map with its latest details and what its board says at a glance */
 export interface WorkshopMap {
   pfid: string;
   /* the Map's board, Workshop_<pfid> */

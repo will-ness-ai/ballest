@@ -12,6 +12,7 @@ import {
   DERIVED,
   array,
   boardSql,
+  campaignListedSql,
   campaignMapBoards,
   campaignSql,
   listedMapsSql,
@@ -218,14 +219,14 @@ export async function listedCampaigns(
   if (!list.length) return [];
   return rows<ListedCampaignRow>(
     db,
-    sql`with c(slug, at, idx, board) as (values ${sql.join(
-      list.flatMap((k, i) =>
-        campaignMapBoards(k).map((b, j) => sql`(${k.slug}, ${i}::int, ${j}::int, ${b})`),
+    sql`with listed(slug, at, idx, board) as (${sql.join(
+      list.map(
+        (k, i) => sql`select ${k.slug}::text, ${i}::int,
+          array_position(${array(campaignMapBoards(k))}, board), board
+          from (${campaignListedSql(k)}) l`,
       ),
-      sql`, `,
-    )}), listed as (
-        select * from c where board in (${listedMapsSql})
-      ), counts as (
+      sql` union all `,
+    )}), counts as (
         select l.slug, l.at, count(distinct l.board)::int as maps,
           count(distinct e.steam_id)::int as players
         from listed l
@@ -271,8 +272,7 @@ export async function playerCampaigns(
     db,
     sql`select slug, rank, score, finished, maps, players from (${sql.join(
       list.map((k, i) => {
-        const maps = sql`(select board from (${listedMapsSql}) l
-          where board = any(${array(campaignMapBoards(k))}))`;
+        const maps = sql`(${campaignListedSql(k)})`;
         return sql`select ${k.slug}::text as slug, ${i}::int as at, r.rank,
             r.score::float8 as score, r.players,
             (select count(*)::int from entries e where e.steam_id = r.steam_id
@@ -294,8 +294,7 @@ export async function playerCampaigns(
 export async function finishedEveryMap(db: Db, c: Campaign): Promise<number> {
   const [r] = await rows<{ n: number }>(
     db,
-    sql`with listed as (
-        select board from (${listedMapsSql}) l where board = any(${array(campaignMapBoards(c))}))
+    sql`with listed as (${campaignListedSql(c)})
       select count(*)::int as n from (
         select steam_id from entries
         where closed_refresh is null and board in (select board from listed)

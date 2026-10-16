@@ -14,6 +14,7 @@ import {
   fmtTime,
   isPoints,
   isSteamId,
+  mapBoard,
   mapPfidOf,
   ord,
   pctOf,
@@ -221,6 +222,7 @@ describe("Steam IDs and URLs", () => {
     expect(boardHref("Workshop_3623648768", ID)).toBe(`/map/3623648768/${ID}`);
     expect(mapPfidOf("Workshop_42")).toBe("42");
     expect(mapPfidOf("Map_Track13")).toBeNull();
+    expect(mapBoard("42")).toBe("Workshop_42");
     expect(mapHref("42")).toBe("/map/42");
     expect(vsHref(ID, "76561198000000001")).toBe(`/vs/${ID}/76561198000000001`);
     expect(playersHref("all", "wr")).toBe("/players");

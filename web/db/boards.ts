@@ -11,6 +11,7 @@ import { sql, type SQL } from "drizzle-orm";
 
 import { campaignBoard, campaignOfBoard, type Campaign } from "../lib/campaigns";
 import { COMPOSITE_BOARD, S1_CURRENT_BOARD, S1_TRACKS, S2_OVERALL_BOARD } from "../lib/circuit";
+import { mapBoard } from "../lib/rules";
 
 /* The open Entries of the boards `where` picks, each with its rank on its board:
    (board, steam_id, score, rank). `where` is a condition on entries `e`. */
@@ -51,7 +52,12 @@ export const listedMapsSql = sql`select m.board from maps m join (
   where l.last_seen_refresh = (select max(last_seen_refresh) from map_history)`;
 
 /* A Campaign's Maps' boards, in its order */
-export const campaignMapBoards = (c: Campaign) => c.maps.map((pfid) => "Workshop_" + pfid);
+export const campaignMapBoards = (c: Campaign) => c.maps.map(mapBoard);
+
+/* The boards of a Campaign's Maps the Workshop lists now, as a query of one column, board:
+   the Maps its board adds up, its "finished every map" asks for and its lists count */
+export const campaignListedSql = (c: Campaign) =>
+  sql`select board from (${listedMapsSql}) l where board = any(${array(campaignMapBoards(c))})`;
 
 /* Season 1 as it stands: each player's points for their place on every Season 1 Track,
    added up, highest first. Equal totals keep the order the collector met them in: by the
@@ -92,14 +98,13 @@ function compositeSql() {
    on, then their place there. Takes the Campaign rather than its board's name, so a read
    can rank Campaigns that aren't curated (the tests' own). */
 export function campaignSql(c: Campaign) {
-  const maps = array(campaignMapBoards(c));
   return sql`select ${campaignBoard(c)}::text as board, steam_id, score,
       (row_number() over (order by score desc, first))::int as rank,
       null::jsonb as seasons
     from (
       select steam_id, sum(${trackPointsSql(sql`rank`)})::bigint as score,
-        min(array_position(${maps}, board) * 1000000 + rank) as first
-      from (${rankedSql(sql`e.board = any(${maps}) and e.board in (${listedMapsSql})`)}) t
+        min(array_position(${array(campaignMapBoards(c))}, board) * 1000000 + rank) as first
+      from (${rankedSql(sql`e.board in (${campaignListedSql(c)})`)}) t
       group by steam_id
     ) p`;
 }
