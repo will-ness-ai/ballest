@@ -15,6 +15,7 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const P1 = "76561199000000001",
   P2 = "76561199000000002",
   MAP = "9000000001";
+const ORIGIN = "https://ballestrecords.com";
 
 /* what a page that calls notFound() after it has started streaming answers with */
 const SOFT_404 = "NEXT_HTTP_ERROR_FALLBACK;404";
@@ -94,6 +95,7 @@ const ROUTES = [
   ["/api/board/Map_Track13?from=0&count=2", 200],
   ["/api/board/Map_Track13?q=rae", 200],
   ["/api/board/Workshop_123?from=0", 404],
+  ["/api/tracks", 200, null, "17800617"],
   // share images (lib/share.ts): a PNG for a page that exists, a 404 for one that doesn't,
   // and the pages naming theirs
   ["/og/player/" + P1, 200, null, "PNG"],
@@ -120,6 +122,33 @@ const ROUTES = [
   ["/multiballs/terms", 200],
   ["/multiballs/privacy", 200],
   ["/robots.txt", 200, null, "Disallow: /player/*/"],
+  ["/robots.txt", 200, null, "Sitemap: https://ballestrecords.com/sitemap.xml"],
+  ["/sitemap.xml", 200, null, "<loc>https://ballestrecords.com/map/" + MAP + "</loc>"],
+  // canonical addresses (docs/site.md): a view names the page it views, and each Daily is
+  // its own
+  [
+    "/player/" + P1 + "/circuit",
+    200,
+    null,
+    '<link rel="canonical" href="https://ballestrecords.com/player/' + P1 + '"',
+  ],
+  [
+    "/board/OverallLeaderboard_EASeason2/podiums",
+    200,
+    null,
+    '<link rel="canonical" href="https://ballestrecords.com/board/OverallLeaderboard_EASeason2"',
+  ],
+  [
+    "/map/" + MAP + "/" + P1,
+    200,
+    null,
+    '<link rel="canonical" href="' + ORIGIN + "/map/" + MAP + '"',
+  ],
+  ["/maps/new", 200, null, '<link rel="canonical" href="' + ORIGIN + '/maps"'],
+  ["/players/circuit/pod", 200, null, '<link rel="canonical" href="' + ORIGIN + '/players"'],
+  ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
+  ["/", 200, null, '"@type":"WebSite"'],
+  ["/", 200, null, "<title>Ballest of Them All Records: "],
   ["/no-such-page", 404],
 ];
 
@@ -140,7 +169,6 @@ const STATIC = [
   "/favicon.svg",
   "/apple-touch-icon.png",
   "/og.png",
-  "/data/index.json",
   ...readdirSync(join(root, "circuit")).map((f) => "/circuit/" + f),
   ...["leth/index.html", "multiballs/terms.html", "multiballs/privacy.html"].flatMap(refs),
 ].filter((p) => statSync(join(root, p), { throwIfNoEntry: false })?.isFile());

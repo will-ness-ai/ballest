@@ -90,6 +90,21 @@ export async function circuitCounts(db: Db): Promise<Record<string, number>> {
   return Object.fromEntries(counts.map((c) => [c.board, c.n]));
 }
 
+/* Every Circuit Track's Steam leaderboard ID, in the site's order: the boards Multiballs
+   counts a player's Tracks on (GET /api/tracks). A Track no Refresh has stored is left out. */
+export async function trackBoards(db: Db): Promise<Array<{ name: string; leaderboardId: number }>> {
+  const found = await rows<{ name: string; id: string }>(
+    db,
+    sql`select name, leaderboard_id::text as id from boards
+      where kind = 'track' and leaderboard_id is not null and name = any(${array(TRACKS)})`,
+  );
+  const ids = new Map(found.map((b) => [b.name, Number(b.id)]));
+  return TRACKS.flatMap((name) => {
+    const id = ids.get(name);
+    return id === undefined ? [] : [{ name, leaderboardId: id }];
+  });
+}
+
 /* A slice of a board's rows in rank order, from `from` (0-based), optionally only those
    whose persona or Steam ID contains `q`. A row keeps its real rank and interval when a
    search leaves out the rows around it. */
@@ -250,7 +265,7 @@ export async function finishedEveryMap(db: Db, c: Campaign): Promise<number> {
 }
 
 /* Every Workshop Map with its latest details and what the Workshop pages show of its board
-   without reading it: workshop_stats in tools/campaign_common.py. Newest first. */
+   without reading it. Newest first. */
 export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
   const found = await rows<WorkshopMap>(
     db,

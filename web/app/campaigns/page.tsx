@@ -7,12 +7,13 @@ import { BackLink } from "../../components/BackLink";
 import { Shell } from "../../components/Shell";
 import { CampaignBanner } from "../../components/campaign/CampaignBanner";
 import { getCampaigns } from "../../db/data";
-import { homeHref } from "../../lib/routes";
+import { campaignsHref, homeHref } from "../../lib/routes";
 
 export const metadata: Metadata = {
   title: "Campaigns",
   description:
     "Player-made Campaigns of Ballest of Them All Workshop maps, each ranked by points for every map the way the Circuit ranks a season.",
+  alternates: { canonical: campaignsHref() },
 };
 
 export default async function Page() {

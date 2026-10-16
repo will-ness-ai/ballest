@@ -118,13 +118,13 @@ def reads(conn, rid):
     )
 
 
-def test_a_board_kept_from_the_committed_copy_is_a_failed_read_and_moves_nothing(conn):
+def test_a_board_whose_read_failed_is_a_failed_read_and_moves_nothing(conn):
     r1 = db_writer.write_refresh(
         conn, refresh(0, [board(TRACK, ("1001", 1013307), ("1002", 1100000))])
     )
-    # the collector reuses the committed rows; here they even look different
+    # any rows a failed board carries are ignored; here they even look different
     r2 = db_writer.write_refresh(
-        conn, refresh(1, [board(TRACK, ("1001", 1000000))], reused=(TRACK,))
+        conn, refresh(1, [board(TRACK, ("1001", 1000000))], failed=(TRACK,))
     )
     assert reads(conn, r2) == {TRACK: False}
     assert history(conn, TRACK, "1001") == [(1013307, r1, r1, None)]
@@ -138,15 +138,13 @@ def test_an_empty_board_is_rejected_like_a_failed_read(conn):
     assert history(conn, TRACK, "1001") == [(1013307, r1, r1, None)]
 
 
-def test_derived_boards_are_not_stored_and_overall_boards_score_points(conn):
+def test_overall_boards_score_points(conn):
     db_writer.write_refresh(
         conn,
         refresh(
             0,
             [
                 board("OverallLeaderboard_EASeason2", ("1001", 40000)),
-                board("OverallLeaderboard_S1Current", ("1001", 80000)),
-                board("OverallLeaderboard_AllSeasons", ("1001", 120000)),
                 board(TRACK, ("1001", 1013307)),
             ],
         ),
@@ -226,11 +224,12 @@ def a_map(**kw):
     } | kw
 
 
-def ws(m, read=None, failed=()):
+def ws(m, read=None, failed=(), *, full_sweep=False):
     return {
         "maps": [m],
         "boards": {PFID: read} if read is not None else {},
         "failed": list(failed),
+        "full_sweep": full_sweep,
     }
 
 
@@ -241,7 +240,7 @@ def test_a_map_not_read_has_no_board_read_and_keeps_its_entries(conn):
     r2 = db_writer.write_refresh(conn, refresh(1, [], workshop=ws(a_map())))
     assert reads(conn, r2) == {}
     assert history(conn, MAP, "1002") == [(3073137, r1, r1, None)]
-    # a Workshop step that published nothing reads no Map at all
+    # a Workshop step that failed or declined reads no Map at all
     r3 = db_writer.write_refresh(conn, refresh(2, [board(TRACK, ("1001", 1013307))]))
     assert reads(conn, r3) == {TRACK: True}
     assert open_entries(conn, MAP) == {"1001": 2931805, "1002": 3073137}
@@ -288,6 +287,60 @@ def test_map_history_appends_only_on_change(conn):
         ("Jungle islands", 9, r3, r3),
         ("Jungle isles", 9, r4, r4),
     ]
+
+
+# The collector's memory (db_writer.load_memory): what the next run reads back.
+
+
+def test_memory_holds_each_maps_handle_and_counters_as_of_its_last_good_read(conn):
+    db_writer.write_refresh(
+        conn, refresh(0, [], workshop=ws(a_map(), rows(("1001", 2931805), ("1002", 3073137))))
+    )
+    # the next run's read failed, so it kept the counters it had
+    db_writer.write_refresh(conn, refresh(1, [], workshop=ws(a_map(), failed=[PFID])))
+    memory = db_writer.read_memory(conn)
+    assert memory.maps == {
+        PFID: {"handle": "21195816", "entry_count": 2, "rows": 2, "sessions": 6, "subs": 10}
+    }
+    assert memory.listed == 1
+
+
+def test_memory_has_no_handle_for_a_map_with_no_board_yet(conn):
+    db_writer.write_refresh(
+        conn, refresh(0, [], workshop=ws(a_map(handle=None, entry_count=0, sessions=None)))
+    )
+    assert db_writer.read_memory(conn).maps[PFID] == {
+        "handle": None,
+        "entry_count": 0,
+        "rows": 0,
+        "sessions": None,
+        "subs": 10,
+    }
+
+
+def test_memory_lists_only_the_maps_the_latest_catalogue_carried(conn):
+    gone = a_map(name="Workshop_1", pfid="1", handle="5")
+    db_writer.write_refresh(conn, refresh(0, [], workshop={**ws(a_map()), "maps": [a_map(), gone]}))
+    db_writer.write_refresh(conn, refresh(1, [], workshop=ws(a_map())))
+    memory = db_writer.read_memory(conn)
+    assert set(memory.maps) == {PFID, "1"}
+    assert memory.listed == 1
+
+
+def test_memory_knows_the_latest_full_sweep(conn):
+    assert db_writer.read_memory(conn).full_sweep_at == 0
+    db_writer.write_refresh(conn, refresh(0, [], workshop=ws(a_map(), full_sweep=True)))
+    db_writer.write_refresh(conn, refresh(1, [], workshop=ws(a_map())))
+    assert db_writer.read_memory(conn).full_sweep_at == int(T0.timestamp())
+
+
+def test_memory_carries_every_named_players_profile(conn):
+    db_writer.write_refresh(
+        conn, refresh(0, [board(TRACK, ("1001", 1013307), ("1002", 1100000), names={"1002": ""})])
+    )
+    assert db_writer.read_memory(conn).names == {
+        "1001": {"persona": "p001", "avatar": "", "profileurl": ""}
+    }
 
 
 # Dailies (tools/daily.py): each its own board, read until a read after its close.

@@ -111,10 +111,11 @@ frame of it.
 
 A player, a Workshop Map, a Circuit Track, a Daily and a Campaign each unfurl with their
 own 1200×630 card (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
-card says, `components/share/` draws it through `next/og` and names it in the page's
-metadata, and `/og/<kind>/<id>` (`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`,
-`map`, `track`, `daily`, `campaign`) serves the PNG, or a 404 when there is no such page.
-Any other page, a Circuit Overall board included, keeps the site-wide `og.png`.
+card says, `components/share/` draws it through `next/og`, `pageMetadata`
+(`components/metadata.ts`) names it in the page's metadata, and `/og/<kind>/<id>`
+(`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`, `map`, `track`, `daily`,
+`campaign`) serves the PNG, or a 404 when there is no such page. Any other page, an
+Overall board included, keeps the site-wide `og.png`.
 
 - A player gets their marble turned over to their Steam avatar, the Season 2 Overall rank
   if they have one, and up to four tiles: World records, Author medals, Maps finished,
@@ -196,6 +197,25 @@ Campaign, a Campaign's Maps (each has its own page),
 head to heads and `/api/`. Every one of those multiplies by the number of players, and AI
 crawlers walking them all once outran the site's Hobby limits. A new route that adds a
 view of a page belongs on that list.
+
+Search engines get the rest from `/sitemap.xml` (`app/sitemap.ts`, `lib/sitemap.ts`),
+which robots.txt names. It lists the pages worth a search result, not every page allowed:
+the Workshop, All maps, Players, Daily, Daily standings and Campaigns pages, every Circuit
+board, every Map with a time, every Daily, every Campaign with a listed Map, and only the players with a world record or podium,
+some two thousand pages where all of them would be fifteen thousand more. Each is a server
+render per Refresh for whichever crawler reads it, so keep it to pages people search for.
+Only a final Daily carries a `lastmod` (its close), since a page that changes every
+Refresh would only ask crawlers back sooner. A test checks robots.txt allows every listed
+page. The sitemap reads the cached data, so a Refresh's revalidate renews it too.
+
+Every page of the app names its canonical address (`alternates.canonical`; a page with a
+`generateMetadata` goes through `pageMetadata` in `components/metadata.ts`), on
+`ballestrecords.com` through `metadataBase`: a view names the page it is a view of (a
+player's tab names the player's page, a board or Map focused on a row or in podium order
+names the board), All maps' views name All maps and the Players table's rankings name
+Players, and each Daily is a page of its own. A Map or player the page can only send away
+(a soft 404) is `noindex`. The homepage's title says what the site is, and it carries the
+site's name for search results as schema.org `WebSite` JSON-LD.
 
 The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash` replaces
 one with its path on load (`legacyPath` in `lib/routes.ts`). Every player name links to a
@@ -390,7 +410,7 @@ The Players tab sits last in the tab bar, and like every tab it is lit from the 
 
 `pnpm dev` in `web/` against a local Postgres (never `vercel env pull`: its development
 variables point at production). For a database with real boards, backfill one from
-`data/` (`docs/data.md`); for a tiny one, `pnpm db:seed tiny`. Next keeps the page you
+`data/`'s git history (`docs/data.md`); for a tiny one, `pnpm db:seed tiny`. Next keeps the page you
 navigated away from in the DOM, hidden, so a scripted check counting elements should count
 only visible ones.
 
@@ -400,7 +420,7 @@ only visible ones.
   each answer, as `web.yml` does in CI. Under `next start`, some prefetches (header
   `next-router-prefetch: 3`) answer 404 in the console; Vercel answers them 200.
 - **Revalidate**: serve with `REVALIDATE_SECRET` set, add a Refresh to the database (the
-  collector's `--out` run, or rows by hand), then `revalidate()` in `tools/db_writer.py`
+  collector's `--dev` run, or rows by hand), then `revalidate()` in `tools/db_writer.py`
   with `SITE_URL` pointing at the build. The changed boards should show at once.
 - **The preview**: every pushed branch gets a public preview at
   `https://ballest-git-<branch>-n3sonlines-projects.vercel.app`, the branch name lowercased
@@ -426,5 +446,3 @@ only visible ones.
   serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank, a long
   Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
   one.
-- **Parity**: `pnpm db:parity` compares the read layer with `data/` figure by figure, on a
-  database backfilled from the same commit; it stops first when the database is anything else.

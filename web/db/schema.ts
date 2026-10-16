@@ -36,6 +36,9 @@ export const refreshes = pgTable("refreshes", {
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   source: refreshSource("source").notNull(),
   commitSha: text("commit_sha"),
+  // whether this Refresh's Workshop step read every Map's board, not only the ones played
+  // since the last read: the collector sweeps once every FULL_SWEEP_SECONDS from the latest
+  fullSweep: boolean("full_sweep").notNull().default(false),
 });
 
 export const boardKind = pgEnum("board_kind", ["track", "overall", "map", "daily"]);

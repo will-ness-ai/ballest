@@ -96,9 +96,9 @@ export function relTime(dt: Date, now = Date.now()) {
 }
 
 /* What one Track pays toward Overall for a place: 1st pays POINTS_FIRST, 10th a tenth of
-   it, then it halves at every 10x in place. The game's own rule, as the collector rebuilt
-   Season 1's current board with it (track_points in tools/campaign_common.py); if the
-   game rescales, both change. trackPointsSql in db/boards.ts is the same rule in SQL. */
+   it, then it halves at every 10x in place. The game's own rule, which Season 1's current
+   board is rebuilt with; if the game rescales, it changes here. trackPointsSql in
+   db/boards.ts is the same rule in SQL. */
 export const POINTS_FIRST = 40000;
 export function trackPoints(place: number) {
   if (place <= 10) return Math.floor(POINTS_FIRST / place);
@@ -131,13 +131,12 @@ export const MEDAL_LABEL = Object.fromEntries(MEDAL_KEYS) as Record<MedalKey, st
 
 /* A creator's own run counts toward a Map's authorBeaten (workshopMaps in db/site.ts) only
    when it is this much faster than the author time: the author time is their publishing
-   run, and the two disagree by up to ~0.75 ms. CREATOR_BEAT_MARGIN_TICKS in
-   tools/campaign_common.py, which author_beaten uses. */
+   run, and the two disagree by up to ~0.75 ms. */
 export const CREATOR_BEAT_MARGIN_TICKS = 100;
 
 /* the one place that rule lives. A Map's Medals are [bronze, silver, gold, author], seconds.
    No creator margin here: the old page's tierOf showed a creator's own run its Medal as
-   is, and only the collector's author_beaten count applied CREATOR_BEAT_MARGIN_TICKS. */
+   is, and only the Workshop's authorBeaten count applies CREATOR_BEAT_MARGIN_TICKS. */
 export function medalOf(medals: ReadonlyArray<number>, rank: number, score: number): MedalKey {
   return rank === 1 ? "wr" : timeMedal(medals, score);
 }
