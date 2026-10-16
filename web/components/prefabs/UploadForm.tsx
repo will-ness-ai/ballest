@@ -9,7 +9,14 @@ import { Card } from "./PrefabGallery";
 import { PrefabViewer } from "./PrefabViewer";
 import type { PrefabFile } from "../../lib/prefab";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
-import { DAILY_UPLOADS, DESCRIPTION_MAX, MAX_TAGS, NAME_MAX, TAGS } from "../../lib/prefabs";
+import {
+  DAILY_UPLOADS,
+  DESCRIPTION_MAX,
+  MAX_TAGS,
+  NAME_MAX,
+  TAGS,
+  type PrefabFields,
+} from "../../lib/prefabs";
 import { newPrefabHref, prefabHref, prefabsApiHref, signInHref } from "../../lib/routes";
 
 interface Quota {
@@ -78,9 +85,7 @@ function Limit({ nextAt }: { nextAt: string | null }) {
 
 function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null) => void }) {
   const [chosen, setChosen] = useState<Chosen | null>(null);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [tags, setTags] = useState<Array<string>>([]);
+  const [fields, setFields] = useState<PrefabFields>({ name: "", description: "", tags: [] });
   const [sending, setSending] = useState(false);
   const [refused, setRefused] = useState<Array<string>>([]);
 
@@ -93,23 +98,24 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
       file: check.ok ? (JSON.parse(text) as PrefabFile) : null,
     });
     setRefused([]);
-    if (!name) {
+    if (!fields.name) {
       const stem = fileName
         .replace(/\.json$/i, "")
         .replace(/[_-]+/g, " ")
         .trim();
-      setName((stem.charAt(0).toUpperCase() + stem.slice(1)).slice(0, NAME_MAX));
+      const name = (stem.charAt(0).toUpperCase() + stem.slice(1)).slice(0, NAME_MAX);
+      setFields((f) => ({ ...f, name }));
     }
   };
 
-  const ready = !!chosen?.check.ok && name.trim().length > 0 && !sending;
+  const ready = !!chosen?.check.ok && fields.name.trim().length > 0 && !sending;
   const publish = async () => {
     if (!chosen || !ready) return;
     setSending(true);
     const body = new FormData();
-    body.set("name", name);
-    body.set("description", description);
-    for (const t of tags) body.append("tags", t);
+    body.set("name", fields.name);
+    body.set("description", fields.description);
+    for (const t of fields.tags) body.append("tags", t);
     body.set("file", new Blob([chosen.text], { type: "application/json" }), chosen.fileName);
     try {
       const r = await fetch(prefabsApiHref(), { method: "POST", body });
@@ -139,14 +145,7 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
             </ul>
           </div>
         )}
-        <Fields
-          name={name}
-          setName={setName}
-          description={description}
-          setDescription={setDescription}
-          tags={tags}
-          setTags={setTags}
-        />
+        <Fields value={fields} onChange={setFields} />
         <div className="pfu-publish">
           <button
             type="button"
@@ -176,7 +175,7 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
             <Card
               p={{
                 slug: "",
-                name: name.trim() || "Your prefab",
+                name: fields.name.trim() || "Your prefab",
                 favorites: 0,
                 uploader: { steamId: "", name: "you", isPlayer: false },
                 pieces: chosen.file.items.length,
@@ -242,22 +241,22 @@ function Drop({
 }
 
 /* a Prefab's name, description and tags, as uploading and editing both ask for them */
-export function Fields(f: {
-  name: string;
-  setName: (v: string) => void;
-  description: string;
-  setDescription: (v: string) => void;
-  tags: Array<string>;
-  setTags: (v: Array<string>) => void;
+export function Fields({
+  value: f,
+  onChange,
+}: {
+  value: PrefabFields;
+  onChange: (v: PrefabFields) => void;
 }) {
   const toggle = (t: string) =>
-    f.setTags(
-      f.tags.includes(t)
+    onChange({
+      ...f,
+      tags: f.tags.includes(t)
         ? f.tags.filter((x) => x !== t)
         : f.tags.length < MAX_TAGS
           ? [...f.tags, t]
           : f.tags,
-    );
+    });
   return (
     <div className="pfu-fields">
       <label>
@@ -266,7 +265,7 @@ export function Fields(f: {
           value={f.name}
           maxLength={NAME_MAX}
           required
-          onChange={(e) => f.setName(e.target.value)}
+          onChange={(e) => onChange({ ...f, name: e.target.value })}
           placeholder="Park bench"
         />
         <small>Downloads as {fileNameOf(f.name || "prefab")}</small>
@@ -279,7 +278,7 @@ export function Fields(f: {
           value={f.description}
           maxLength={DESCRIPTION_MAX}
           rows={3}
-          onChange={(e) => f.setDescription(e.target.value)}
+          onChange={(e) => onChange({ ...f, description: e.target.value })}
           placeholder="What it is and where it fits in a map"
         />
         <small>{DESCRIPTION_MAX - f.description.length} left</small>

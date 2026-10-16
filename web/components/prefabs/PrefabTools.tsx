@@ -9,7 +9,7 @@ import { useRef, useState } from "react";
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
-import { ADMIN_STEAM_ID } from "../../lib/prefabs";
+import { ADMIN_STEAM_ID, type PrefabFields } from "../../lib/prefabs";
 import { prefabApiHref, prefabBanHref, prefabTakeDownHref, prefabsHref } from "../../lib/routes";
 
 export function PrefabTools({ p }: { p: PrefabPage }) {
@@ -87,9 +87,11 @@ function OwnerTools({ p }: { p: PrefabPage }) {
   const router = useRouter();
   const edit = useRef<HTMLDialogElement>(null);
   const del = useRef<HTMLDialogElement>(null);
-  const [name, setName] = useState(p.name);
-  const [description, setDescription] = useState(p.description);
-  const [tags, setTags] = useState(p.tags);
+  const [fields, setFields] = useState<PrefabFields>({
+    name: p.name,
+    description: p.description,
+    tags: p.tags,
+  });
   const [problems, setProblems] = useState<Array<string>>([]);
   const [busy, setBusy] = useState(false);
   const url = prefabApiHref(p.slug);
@@ -101,7 +103,7 @@ function OwnerTools({ p }: { p: PrefabPage }) {
       const r = await fetch(url, {
         method,
         headers: { "content-type": "application/json" },
-        body: method === "PATCH" ? JSON.stringify({ name, description, tags }) : undefined,
+        body: method === "PATCH" ? JSON.stringify(fields) : undefined,
       });
       if (r.ok) {
         /* a full load: the router's cached gallery would still show it */
@@ -130,14 +132,7 @@ function OwnerTools({ p }: { p: PrefabPage }) {
       </button>
       <dialog ref={edit} className="pf-dialog">
         <h2>Edit {p.name}</h2>
-        <Fields
-          name={name}
-          setName={setName}
-          description={description}
-          setDescription={setDescription}
-          tags={tags}
-          setTags={setTags}
-        />
+        <Fields value={fields} onChange={setFields} />
         {problems.length > 0 && (
           <ul className="pfu-bad" role="alert">
             {problems.map((x) => (
@@ -152,7 +147,7 @@ function OwnerTools({ p }: { p: PrefabPage }) {
           <button
             type="button"
             className="pf-dl"
-            disabled={busy || !name.trim()}
+            disabled={busy || !fields.name.trim()}
             onClick={() => void send("PATCH")}
           >
             Save
