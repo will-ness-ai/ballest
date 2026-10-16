@@ -185,9 +185,10 @@ function readPrefab(file) {
   }
 }
 
-/* a page meant to be there that answers 200 with a not-found title: a stale catalogue ID */
+/* a page meant to be there whose title says not found: a stale catalogue ID. A streamed page
+   (a Prefab's) answers 200 even then, so its status can't tell. */
 function gone(r, expect) {
-  return expect < 400 && /not (be )?found|is gone/i.test(r.title ?? "");
+  return expect < 400 && /not (be )?found/i.test(r.title ?? "");
 }
 
 /* the layout probes' findings as rows */
