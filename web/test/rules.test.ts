@@ -238,6 +238,10 @@ describe("Steam IDs and URLs", () => {
     expect(tabOfPath("/daily/2026-09-05")).toBe("Daily");
     expect(tabOfPath("/daily/standings")).toBe("Daily");
     expect(tabOfPath("/dailyish")).toBeNull();
+    expect(tabOfPath("/prefabs")).toBe("Prefabs");
+    expect(tabOfPath("/prefabs/new")).toBe("Prefabs");
+    expect(tabOfPath("/prefab/park-bench")).toBe("Prefabs");
+    expect(tabOfPath("/prefabsy")).toBeNull();
     /* every Circuit board, whatever its season, lights the one Circuit tab */
     expect(tabOfPath("/board/OverallLeaderboard_EASeason2")).toBe("Circuit");
     expect(tabOfPath("/board/OverallLeaderboard")).toBe("Circuit");

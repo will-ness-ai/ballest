@@ -205,3 +205,56 @@ export const ghosts = pgTable("ghosts", {
   profile: real("profile").array(),
   readAt: timestamp("read_at", { withTimezone: true }).notNull(),
 });
+
+// A Prefab (CONTEXT.md): a group of editor pieces a player uploaded, with the file exactly as
+// they sent it (ADR 0009, the first table the site itself writes). The slug comes from the
+// first name and never changes, so a link survives a rename. A deleted or taken-down Prefab
+// keeps its row, which still counts against its uploader's daily limit, and reads as gone. A
+// banned uploader's Prefabs are hidden by the reads, not here, so an unban brings them back.
+// The uploader is any signed-in Steam ID, not only a player the boards have seen, so there is
+// no foreign key; uploader_name is their Steam persona when they uploaded, for a byline when
+// the boards have no persona for them.
+export const prefabs = pgTable(
+  "prefabs",
+  {
+    id: serial("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    // values from TAGS (lib/prefab-check.ts)
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    uploader: text("uploader").notNull(),
+    uploaderName: text("uploader_name"),
+    file: text("file").notNull(),
+    pieces: integer("pieces").notNull(),
+    bytes: integer("bytes").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    takenDownAt: timestamp("taken_down_at", { withTimezone: true }),
+  },
+  (t) => [index("prefabs_uploader").on(t.uploader, t.createdAt)],
+);
+
+// A Favorite: one signed-in player's heart on one Prefab.
+export const prefabFavorites = pgTable(
+  "prefab_favorites",
+  {
+    prefabId: integer("prefab_id")
+      .notNull()
+      .references(() => prefabs.id),
+    steamId: text("steam_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.prefabId, t.steamId] })],
+);
+
+// A player the admin has stopped uploading. Their Prefabs read as hidden while the row is here.
+export const prefabBans = pgTable("prefab_bans", {
+  steamId: text("steam_id").primaryKey(),
+  bannedAt: timestamp("banned_at", { withTimezone: true }).notNull().defaultNow(),
+  bannedBy: text("banned_by").notNull(),
+});

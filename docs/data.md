@@ -103,6 +103,18 @@ holds up the Circuit and Workshop write; the rest waits for the next run. Nothin
 they ran 00:00 to 00:00 UTC through 2026-09-04, 25 hours on 09-05, and 01:00 to 01:00
 since. The collector never prints the key or the URL.
 
+### Prefabs
+
+The only tables the site writes (ADR 0009); the collector never touches them. `prefabs`
+holds each upload: a slug from its first name that never changes, the name, description,
+Tags, the uploader's Steam ID and their Steam persona when they uploaded, the file's text
+exactly as sent, its piece count and size, and `deleted_at` / `taken_down_at`, which hide it
+without removing the row (it still counts against the uploader's 5 a day).
+`prefab_favorites` is one row per player per Prefab. `prefab_bans` is a player the admin
+stopped uploading; the reads hide their Prefabs while the row is there. `tiny` seeds two
+Prefabs. `scripts/prefab-samples.ts` adds the two samples in `prefabs/samples/` (Will's,
+from before uploads) to a database once, idempotently.
+
 ### What the collector remembers
 
 The database is also the collector's only memory between runs. Before it logs into Steam,

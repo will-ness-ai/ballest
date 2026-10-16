@@ -95,6 +95,23 @@ Author Medals and the longest-standing records. A creator counts on their own Ma
 beating its Author Medal, since the Author time is their publishing run.
 _Avoid_: daily stats, stat report
 
+### Prefabs
+
+**Prefab**:
+A group of level-editor pieces a player saved as one file and spawns into their own map as
+one unit (a bench, a hill, a loop gate). Never a whole Map. The site hosts the ones players
+upload, credited to the uploader.
+_Avoid_: blueprint, asset, template, build
+
+**Favorite**:
+A signed-in player's heart on a Prefab, one each. The gallery's Popular order counts them.
+_Avoid_: like, upvote, star
+
+**Tag**:
+One of a fixed list of kinds (Decoration, Obstacle, Ramp, Loop, Scenery, Structure) an
+uploader gives a Prefab, up to three, which the gallery filters by.
+_Avoid_: category, label
+
 ### Matches
 
 **Player**:

@@ -8,6 +8,8 @@ web/db/migrations/
 pnpm-lock.yaml
 discord-bot/.logs/
 discord-bot/assets/
+# Prefab files exactly as the game saved them
+prefabs/samples/
 
 # Vendored skills (skills-lock.json): kept byte-for-byte so updates diff cleanly
 .claude/skills/

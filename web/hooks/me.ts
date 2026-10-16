@@ -34,9 +34,9 @@ const readMe = readOnce(async (): Promise<string | null> => {
   }
 });
 
-/* null signed out; undefined until the browser can tell: on the server, during hydration,
-   and while /api/me is asked */
-function useSession(): string | null | undefined {
+/* the signed-in Steam ID: null signed out; undefined until the browser can tell: on the
+   server, during hydration, and while /api/me is asked */
+export function useSession(): string | null | undefined {
   const signedIn = useSyncExternalStore(onReturn, hinted, () => null);
   const got = useRead(readMe, signedIn ? "me" : null);
   if (signedIn === null) return undefined;

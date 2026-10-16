@@ -169,10 +169,12 @@ fails to load, or that Satori can't read, draws without it.
   by any column's header button (`aria-sort`), medal order breaking ties, 25 rows before
   "Show all". A phone drops its Podiums and Top 10 columns. Names link to the player's
   Daily tab.
+- `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
+  upload form. The Prefabs tab comes last and is lit on all three. See "Prefabs".
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
 it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board or Map,
-head to heads and `/api/`. Every one of those multiplies by the number of players, and AI
+head to heads, `/api/` and the upload form. Every one of those multiplies by the number of players, and AI
 crawlers walking them all once outran the site's Hobby limits. A new route that adds a
 view of a page belongs on that list.
 
@@ -303,6 +305,45 @@ far the next rank up and the top 10 are, and a click scrolls to the row.
 
 The Players tab sits last in the tab bar, and like every tab it is lit from the path
 (`tabOfPath`).
+
+## Prefabs
+
+Players' Prefabs (CONTEXT.md), stored in the database by the site itself (ADR 0009; the
+tables are in `docs/data.md`). Settled in three grill-design rounds on the never-merged
+branch `claude/prototype-prefabs` (spec #213).
+
+- **A Prefab's page** (`components/prefabs/PrefabPage.tsx`): the viewer on the left, and
+  beside it the name, uploader, description, size, piece chips, tags and Download. The
+  viewer (`PrefabModel`, `PrefabViewer`, `scene.ts`) fetches the file from
+  `/api/prefabs/<slug>/file`, the same URL Download saves, and loads three.js from npm only
+  there. It turns slowly until it is grabbed, and not at all under reduced motion. The ?
+  opens the how-to, with the Prefabs folder and the exact spawn command; it opens on its
+  own once per browser (`localStorage`). A slug nobody uploaded, or a Prefab deleted, taken
+  down or hidden, reads as gone.
+- **Stand-in shapes**: the file names meshes but carries no geometry, and the game's
+  meshes stay off the repo (ADR 0001), so `lib/prefab.ts` draws each known mesh as a box,
+  cylinder, sphere or scoop sized from its bounds, an unknown one as a grey box, and
+  colours each by its material's name. Rotations are Unreal's [pitch, yaw, roll] in
+  degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
+- **The gallery** (`PrefabGallery.tsx`): a card per live Prefab, Popular (favorites, newest
+  breaking a tie) or Newest, filtered by one Tag (`galleryOf` in `lib/prefabs.ts`). Each
+  card's picture is drawn in the browser from the file by one shared renderer once the card
+  scrolls near, so no image is stored.
+- **Uploading** (`UploadForm.tsx`, `POST /api/prefabs` in `db/prefab-api.ts`): signed in with
+  Steam, 5 a day per player counted from the rows. The file is checked in the browser the
+  moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,
+  described and tagged, previewed in 3D beside the card it will make, and live at once. Each
+  upload pings the ops channel through `OPS_WEBHOOK_URL` (skipped with a log line when it is
+  unset). An uploader the boards haven't seen is credited by the persona on their public
+  Steam profile, read once at upload (`steamPersona`). The download name is the Prefab's name
+  as the spawn command takes it (`fileNameOf`).
+- **Favorites, editing and the admin** (`Favorite.tsx`, `PrefabTools.tsx`): a signed-in
+  reader hearts a Prefab once (`/api/prefabs/<slug>/favorite`). Its uploader can edit its
+  name, description and tags or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,
+  one Steam ID (`ADMIN_STEAM_ID` in `lib/prefabs.ts`), can take any Prefab down
+  (`/api/prefabs/<slug>/takedown`) and ban its uploader (`/api/prefab-bans/<steam_id>`),
+  which hides all their Prefabs; a hidden one's gone page offers Unban. Every write expires
+  the cached Prefab reads (`PREFAB_TAG`), so it shows at once.
 
 ## Checking a change
 
