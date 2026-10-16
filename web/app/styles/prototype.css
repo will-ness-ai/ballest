@@ -464,3 +464,134 @@
 .ptE .leaders.small {
   margin: 4px 0;
 }
+
+/* round 3: signed out */
+.ptb-row.ghost a {
+  color: var(--accent);
+  font-weight: 600;
+}
+.ptO-stack {
+  display: grid;
+}
+.ptO-stack > * {
+  grid-area: 1 / 1;
+}
+.ptO-blur {
+  filter: blur(7px) saturate(0.7);
+  opacity: 0.55;
+  pointer-events: none;
+  user-select: none;
+}
+.ptO-over {
+  align-self: start;
+  margin-top: 20px;
+}
+.ptO-over .pt-signin {
+  margin: 0 auto;
+  box-shadow: 0 20px 60px var(--scrim);
+}
+.ptO-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.ptO-bar p {
+  margin: 0;
+  color: var(--dim);
+}
+.ptO-bar b {
+  color: var(--text);
+}
+.ptO-bar .pt-steam svg {
+  width: 28px;
+  height: 28px;
+}
+.ptO-or {
+  margin: 6px 0 0;
+  font-size: calc(13rem / 16);
+}
+.ptO-search {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.ptO-hits {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.ptO-hits a {
+  display: block;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+.ptO-steps ol {
+  display: grid;
+  gap: 12px;
+  max-width: 560px;
+  margin: 20px auto;
+  padding: 0;
+  list-style: none;
+}
+.ptO-steps li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--solid);
+  opacity: 0.55;
+}
+.ptO-steps li.on {
+  border-color: color-mix(in oklch, var(--accent) 45%, transparent);
+  opacity: 1;
+}
+.ptO-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface2);
+  font: 700 calc(18rem / 16) var(--f-hud);
+}
+.ptO-steps li.on > span {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.ptO-steps b {
+  font: 600 calc(17rem / 16) var(--f-hud);
+}
+.ptO-steps p {
+  margin: 4px 0 10px;
+  color: var(--dim);
+}
+.ptO-steps .pt-go {
+  display: inline-block;
+}
+.ptO-skel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.ptO-skel i {
+  height: 64px;
+  border-radius: 8px;
+  background: var(--surface2);
+}

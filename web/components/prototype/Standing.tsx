@@ -1,7 +1,7 @@
 "use client";
 // ============================================================================================
 // PROTOTYPE (grill-design, claude/prototype-standing): never merged. Round 1 picked ladders
-// (B); round 2 asks the ladder card: five versions of "where you stand on the Daily Report's four lists", with a
+// (B), round 2 the card (A with Show all); round 3 asks the signed-out page: five versions of "where you stand on the Daily Report's four lists", with a
 // picker (bottom right, ←/→) and states (signed out, a mid-table player, a leader, no times).
 // ============================================================================================
 import { useSearchParams } from "next/navigation";
@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
-import { Plates } from "../board/Plates";
 import { SteamMark } from "../SteamMark";
 import type { ProtoLists, Stat } from "../../db/prototype-standing";
 import { useYou } from "../../hooks/me";
@@ -56,11 +55,11 @@ interface ListView {
 }
 
 const VARIANTS = [
-  ["A", "Top 3 and you (round 1's B)"],
-  ["B", "Neighbours only"],
-  ["C", "Gap bars"],
-  ["D", "Opens to the whole list"],
-  ["E", "Podium and ladder"],
+  ["A", "A card on its own"],
+  ["B", "Blurred preview"],
+  ["C", "Lists open, your row signs in"],
+  ["D", "Sign in or find yourself"],
+  ["E", "Two steps"],
 ] as const;
 type VariantKey = (typeof VARIANTS)[number][0];
 const STATES = [
@@ -167,86 +166,9 @@ const Gap = ({ k }: { k: number }) => (
   </li>
 );
 
-/* A · as picked: the top 3, then your neighbourhood */
-function LadderA({ v, id }: { v: ListView; id: string }) {
-  return (
-    <section className="ptb-card">
-      <h2 className="pt-h">
-        {TITLE[v.stat]} <Move v={v} />
-      </h2>
-      <ol className="ptb-rows">
-        {ladderRows(v).map((row, k) => (row === "gap" ? <Gap key={"g" + k} k={k} /> : <LRow key={row.steamId} row={row} id={id} />))}
-        {!v.me && <Ghost />}
-      </ol>
-      <p className="pt-foot">{chaseLine(v)}</p>
-    </section>
-  );
-}
-
-/* B · neighbours only: no top 3, a wider window centred on you, the leader as one line */
-function LadderB({ v, id }: { v: ListView; id: string }) {
-  const r = v.ranked;
-  const i = v.me ? v.me.place - 1 : r.length;
-  const from = Math.max(0, i - 3);
-  const rows = r.slice(from, i + 3);
-  const lead = r[0];
-  return (
-    <section className="ptb-card">
-      <h2 className="pt-h">
-        {TITLE[v.stat]} <Move v={v} />
-      </h2>
-      {lead && from > 0 && (
-        <p className="ptB-lead">
-          Leader: <b>{lead.persona}</b> · {fmtN(lead.n)}
-        </p>
-      )}
-      <ol className="ptb-rows">
-        {rows.map((row) => (
-          <LRow key={row.steamId} row={row} id={id} />
-        ))}
-        {!v.me && <Ghost />}
-      </ol>
-    </section>
-  );
-}
-
-/* C · gap bars: each row's count as a bar, the gap to the row above written between them */
-function LadderC({ v, id }: { v: ListView; id: string }) {
-  const rows = ladderRows(v);
-  const max = v.ranked[0]?.n ?? 1;
-  return (
-    <section className="ptb-card">
-      <h2 className="pt-h">
-        {TITLE[v.stat]} <Move v={v} />
-      </h2>
-      <ol className="ptb-rows ptC">
-        {rows.map((row, k) => {
-          if (row === "gap") return <Gap key={"g" + k} k={k} />;
-          const p = rows[k - 1];
-          const prev = p && p !== "gap" ? p : null;
-          const gap = row.steamId === id && prev ? prev.n - row.n : null;
-          return (
-            <LRow
-              key={row.steamId}
-              row={row}
-              id={id}
-              extra={
-                <>
-                  <span className="ptC-bar" style={{ "--w": `${(100 * row.n) / max}%` } as React.CSSProperties} />
-                  {gap !== null && prev && <span className="ptC-gap">{gap === 0 ? "level" : `−${fmtN(gap)} to ${ord(prev.place)}`}</span>}
-                </>
-              }
-            />
-          );
-        })}
-        {!v.me && <Ghost />}
-      </ol>
-    </section>
-  );
-}
-
-/* D · expandable: the top 3 and you, with the whole list opening in place around you */
-function LadderD({ v, id }: { v: ListView; id: string }) {
+/* the settled card (round 2: A with D's Show all): the top 3, then your neighbourhood, and the
+   whole list opening in place around you. Signed out, your row is the way to sign in */
+function Ladder({ v, id, signIn }: { v: ListView; id: string; signIn?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLOListElement>(null);
   useEffect(() => {
@@ -254,11 +176,7 @@ function LadderD({ v, id }: { v: ListView; id: string }) {
   }, [open]);
   const r = v.ranked;
   const i = v.me ? v.me.place - 1 : -1;
-  const shown: Array<Row | "gap"> = open
-    ? r.slice(0, Math.max(i + 26, 50))
-    : v.me && i > 3
-      ? [...r.slice(0, 3), "gap", v.me]
-      : r.slice(0, 4);
+  const shown: Array<Row | "gap"> = open ? r.slice(0, Math.max(i + 26, 50)) : ladderRows(v);
   return (
     <section className="ptb-card">
       <h2 className="pt-h">
@@ -266,56 +184,152 @@ function LadderD({ v, id }: { v: ListView; id: string }) {
       </h2>
       <ol ref={ref} className={open ? "ptb-rows ptD-open" : "ptb-rows"}>
         {shown.map((row, k) => (row === "gap" ? <Gap key={"g" + k} k={k} /> : <LRow key={row.steamId} row={row} id={id} />))}
-        {!v.me && <Ghost />}
+        {!v.me &&
+          (signIn ? (
+            <li className="ptb-row me ghost">
+              <a href={signInHref("/you")}>Sign in with Steam to see your row</a>
+            </li>
+          ) : (
+            <Ghost />
+          ))}
       </ol>
       <button type="button" className="ptD-more" onClick={() => setOpen(!open)}>
         {open ? "Close" : `Show all ${fmtN(r.length)}`}
       </button>
-      <p className="pt-foot">{chaseLine(v)}</p>
+      {!signIn && <p className="pt-foot">{chaseLine(v)}</p>}
     </section>
   );
 }
 
-/* E · podium and ladder: the site's marble podium for the top 3, your neighbourhood under it */
-function LadderE({ v, id }: { v: ListView; id: string }) {
-  const [one, many] = NOUN[v.stat];
-  const rows = ladderRows(v).filter((r): r is Row => r !== "gap" && r.place > 3);
-  return (
-    <section className="ptb-card ptE">
-      <h2 className="pt-h">
-        {TITLE[v.stat]} <Move v={v} />
-      </h2>
-      <Plates
-        size="small"
-        focus={id}
-        top={v.ranked.slice(0, 3).map((r) => ({ who: r, score: plural(r.n, one, many), line: "" }))}
-      />
-      {rows.length > 0 && (
-        <ol className="ptb-rows">
-          {rows[0] && rows[0].place > 4 && <Gap k={0} />}
-          {rows.map((row) => (
-            <LRow key={row.steamId} row={row} id={id} />
-          ))}
-        </ol>
-      )}
-      {!v.me && (
-        <ol className="ptb-rows">
-          <Ghost />
-        </ol>
-      )}
-      <p className="pt-foot">{chaseLine(v)}</p>
-    </section>
-  );
-}
-
-const LADDER = { A: LadderA, B: LadderB, C: LadderC, D: LadderD, E: LadderE };
-function Ladders({ views, id, variant }: { views: Array<ListView>; id: string; variant: VariantKey }) {
-  const L = LADDER[variant];
+function Ladders({ views, id, signIn }: { views: Array<ListView>; id: string; signIn?: boolean }) {
   return (
     <div className="ptb-grid">
       {views.map((v) => (
-        <L key={v.stat} v={v} id={id} />
+        <Ladder key={v.stat} v={v} id={id} signIn={signIn} />
       ))}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ round 3: signed out
+function SignInCard({ title = "Where do you stand?" }: { title?: string }) {
+  return (
+    <div className="pt-signin">
+      <span className="pt-steam">
+        <SteamMark />
+      </span>
+      <h1>{title}</h1>
+      <p>
+        Sign in with Steam to see your place on the Daily Report&apos;s four lists: Maps played,
+        Author Medals, world records and top 5s.
+      </p>
+      <a className="pt-go" href={signInHref("/you")}>
+        Sign in with Steam
+      </a>
+      <small>Steam tells us only your Steam ID. Nothing else is kept.</small>
+    </div>
+  );
+}
+
+/* A · a card on its own, nothing else on the page */
+const OutA = () => <SignInCard />;
+
+/* B · the page you'd get, blurred behind the card */
+function OutB({ views, id }: { views: Array<ListView>; id: string }) {
+  return (
+    <div className="ptO-stack">
+      <div className="ptO-blur" aria-hidden="true" inert>
+        <Ladders views={views} id={id} />
+      </div>
+      <div className="ptO-over">
+        <SignInCard />
+      </div>
+    </div>
+  );
+}
+
+/* C · the lists themselves, open to anyone, your row the sign-in */
+function OutC({ views }: { views: Array<ListView> }) {
+  return (
+    <>
+      <div className="ptO-bar">
+        <span className="pt-steam">
+          <SteamMark />
+        </span>
+        <p>
+          <b>Where do you stand?</b> Sign in with Steam and your row shows on every list.
+        </p>
+        <a className="pt-go" href={signInHref("/you")}>
+          Sign in
+        </a>
+      </div>
+      <Ladders views={views} id="" signIn />
+    </>
+  );
+}
+
+/* D · sign in, or find yourself by name without signing in */
+function OutD({ data }: { data: ProtoLists }) {
+  const [q, setQ] = useState("");
+  const hits =
+    q.trim().length < 2
+      ? []
+      : data.rows.filter((r) => r[1].toLowerCase().includes(q.trim().toLowerCase())).slice(0, 6);
+  return (
+    <div className="pt-signin">
+      <span className="pt-steam">
+        <SteamMark />
+      </span>
+      <h1>Where do you stand?</h1>
+      <a className="pt-go" href={signInHref("/you")}>
+        Sign in with Steam
+      </a>
+      <p className="ptO-or">or find yourself by name</p>
+      <input
+        className="ptO-search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Your Steam name"
+      />
+      <ul className="ptO-hits">
+        {hits.map((r) => (
+          <li key={r[0]}>
+            <a href={`/you?variant=D&state=auto&as=${r[0]}`}>{r[1]}</a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* E · two steps, the second waiting: what the Discord button promised, in order */
+function OutE() {
+  return (
+    <div className="ptO-steps">
+      <ol>
+        <li className="on">
+          <span>1</span>
+          <div>
+            <b>Sign in with Steam</b>
+            <p>So we know which row is yours. Steam tells us only your Steam ID.</p>
+            <a className="pt-go" href={signInHref("/you")}>
+              Sign in with Steam
+            </a>
+          </div>
+        </li>
+        <li>
+          <span>2</span>
+          <div>
+            <b>See where you stand</b>
+            <p>Your place on Maps played, Author Medals, world records and top 5s.</p>
+            <div className="ptO-skel" aria-hidden="true">
+              {[0, 1, 2, 3].map((k) => (
+                <i key={k} />
+              ))}
+            </div>
+          </div>
+        </li>
+      </ol>
     </div>
   );
 }
@@ -327,7 +341,7 @@ export function Standing({ data }: { data: ProtoLists }) {
     (VARIANTS.find((v) => v[0] === params.get("variant"))?.[0] ?? "A") as VariantKey,
   );
   const [state, setState] = useState<StateKey>(
-    (STATES.find((s) => s[0] === params.get("state"))?.[0] ?? "auto") as StateKey,
+    (STATES.find((s) => s[0] === params.get("state"))?.[0] ?? "out") as StateKey,
   );
   const you = useYou();
   const all = useMemo(() => lists(data), [data]);
@@ -381,20 +395,13 @@ export function Standing({ data }: { data: ProtoLists }) {
     <div className="main pt" data-variant={variant}>
       <section className="content pt-body">
         {signedOut ? (
-          <div className="pt-signin">
-            <span className="pt-steam">
-              <SteamMark />
-            </span>
-            <h1>Where do you stand?</h1>
-            <p>
-              Sign in with Steam to see your place on the Daily Report&apos;s four lists: Maps played,
-              Author Medals, world records and top 5s.
-            </p>
-            <a className="pt-go" href={signInHref("/you")}>
-              Sign in with Steam
-            </a>
-            <small>Steam tells us only your Steam ID. Nothing else is kept.</small>
-          </div>
+          <>
+            {variant === "A" && <OutA />}
+            {variant === "B" && <OutB views={views} id={id} />}
+            {variant === "C" && <OutC views={viewFor(all, "")} />}
+            {variant === "D" && <OutD data={data} />}
+            {variant === "E" && <OutE />}
+          </>
         ) : (
           <>
             <header className="pt-top">
@@ -406,7 +413,7 @@ export function Standing({ data }: { data: ProtoLists }) {
                 </p>
               </div>
             </header>
-            <Ladders views={views} id={id} variant={variant} />
+            <Ladders views={views} id={id} />
           </>
         )}
       </section>
