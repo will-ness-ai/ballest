@@ -3,7 +3,8 @@
 // or SVG pictures (no WebP), and knows no oklch, so the theme's colours are restated here
 // in sRGB and the fonts are TTF copies in assets/share/. A player gets the Split layout,
 // their marble turned over to their avatar; a Map, Track or Daily gets the Banner, its
-// picture across the top (docs/site.md, "Share images").
+// picture across the top, and a Campaign the Banner with its Maps' pictures side by side
+// (docs/site.md, "Share images").
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -193,16 +194,41 @@ function Split({ card, face }: { card: ShareCard; face: string | null }) {
   );
 }
 
-const BAND = 380;
+/* what a card is drawn with: a player's avatar or a place's picture, as a data: URL; a
+   Campaign's Map pictures, in its order; or null to draw without one */
+export type SharePicture = string | null | ReadonlyArray<string | null>;
 
-/* a Map, Track or Daily: the picture as a band across the top, fading to the background
-   under the name, and one row of tiles below */
-function Banner({ card, banner }: { card: ShareCard; banner: string | null }) {
+const BAND = 380;
+/* the hairline between a Campaign's slices */
+const GAP = 4;
+
+/* a Campaign's Map pictures side by side across the band, a missing one a blank slice */
+function Slices({ pics }: { pics: ReadonlyArray<string | null> }) {
+  const each = (W - (pics.length - 1) * GAP) / pics.length;
+  return (
+    <div style={{ display: "flex", gap: GAP, width: W, height: BAND, backgroundColor: C.bg }}>
+      {pics.map((p, i) =>
+        p ? (
+          <img key={i} src={p} width={each} height={BAND} alt="" style={{ objectFit: "cover" }} />
+        ) : (
+          <div
+            key={i}
+            style={{ display: "flex", width: each, height: BAND, backgroundColor: C.tile }}
+          />
+        ),
+      )}
+    </div>
+  );
+}
+
+/* a Map, Track, Daily or Campaign: the picture (a Campaign's slices) as a band across the
+   top, fading to the background under the name, and one row of tiles below */
+function Banner({ card, banner }: { card: ShareCard; banner: SharePicture }) {
   const layer = { position: "absolute", left: 0, top: 0, width: W, height: BAND } as const;
   return (
     <div style={{ ...frame, flexDirection: "column" }}>
       <div style={{ display: "flex", width: W, height: BAND, position: "relative" }}>
-        {banner ? (
+        {typeof banner === "string" ? (
           <img
             src={banner}
             width={W}
@@ -210,12 +236,20 @@ function Banner({ card, banner }: { card: ShareCard; banner: string | null }) {
             alt=""
             style={{ ...layer, objectFit: "cover" }}
           />
+        ) : banner?.length ? (
+          <div style={{ ...layer, display: "flex" }}>
+            <Slices pics={banner} />
+          </div>
         ) : null}
         <div
           style={{
             ...layer,
             display: "flex",
-            backgroundImage: `linear-gradient(180deg, rgba(10,16,32,0) 30%, rgba(10,16,32,0.85) 85%, ${C.bg} 100%)`,
+            /* the slices fade a little sooner: four or five pictures are busier than one */
+            backgroundImage:
+              typeof banner === "string" || !banner
+                ? `linear-gradient(180deg, rgba(10,16,32,0) 30%, rgba(10,16,32,0.85) 85%, ${C.bg} 100%)`
+                : `linear-gradient(180deg, rgba(10,16,32,0) 25%, rgba(10,16,32,0.88) 82%, ${C.bg} 100%)`,
           }}
         />
         <div
@@ -271,23 +305,24 @@ function loadFonts() {
 /* The card as a PNG response. Vercel's CDN keeps a function's answer only under s-maxage,
    which ImageResponse's own header lacks; the page names the card with the latest Refresh
    in its URL, so a cached copy is never older than the link that asks for it. The picture
-   is a data: URL (a player's Steam avatar, a place's Workshop preview or Track screenshot),
-   or null to draw the card without one. A picture Satori can't read draws the card without
-   it too, rather than a 500 no CDN keeps. */
-export async function drawShare(card: ShareCard, picture: string | null) {
+   is a player's Steam avatar, a place's Workshop preview or Track screenshot, or a
+   Campaign's Map previews (SharePicture). A picture Satori can't read draws the card
+   without any, rather than a 500 no CDN keeps. */
+export async function drawShare(card: ShareCard, picture: SharePicture) {
   try {
     return await render(card, picture);
   } catch (e) {
-    if (!picture) throw e;
+    const drawn = typeof picture === "string" || !!picture?.some((x) => x);
+    if (!drawn) throw e;
     console.warn(`share image ${card.kind} "${card.title}": drawn without its picture`, e);
     return render(card, null);
   }
 }
 
-async function render(card: ShareCard, picture: string | null) {
+async function render(card: ShareCard, picture: SharePicture) {
   const body =
     card.kind === "player" ? (
-      <Split card={card} face={picture} />
+      <Split card={card} face={typeof picture === "string" ? picture : null} />
     ) : (
       <Banner card={card} banner={picture} />
     );

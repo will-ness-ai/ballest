@@ -1,8 +1,9 @@
 // What a page's share image says (docs/site.md, "Share images"): the link-preview card a
-// player, a Map, a Circuit Track or a Daily unfurls with in Discord and elsewhere. Pure, so
-// the rules a card follows are tested here; components/share draws a ShareCard and
-// app/og serves it. The design was settled in grill-design (spec #179, prototype branch
-// claude/prototype-og).
+// player, a Map, a Circuit Track, a Daily or a Campaign unfurls with in Discord and
+// elsewhere. Pure, so the rules a card follows are tested here; components/share draws a
+// ShareCard and app/og serves it. The design was settled in grill-design (spec #179,
+// prototype branch claude/prototype-og; the Campaign's in spec #206).
+import type { Campaign } from "./campaigns";
 import type { CircuitBoard } from "./circuit";
 import { TRACKS } from "./circuit";
 import { dayLabel } from "./daily";
@@ -10,7 +11,7 @@ import type { PlayerRecord } from "./player";
 import type { BoardRow, DailyDay, WorkshopMap } from "./rows";
 import { fmtN, fmtSec, fmtTime, hueFor, personaOf, timeMedal } from "./rules";
 
-export const SHARE_KINDS = ["player", "map", "track", "daily"] as const;
+export const SHARE_KINDS = ["player", "map", "track", "daily", "campaign"] as const;
 export type ShareKind = (typeof SHARE_KINDS)[number];
 export const isShareKind = (k: string): k is ShareKind => SHARE_KINDS.some((x) => x === k);
 
@@ -32,7 +33,7 @@ export interface ShareCard {
      Season 2's Overall board has none */
   headline: ShareStat | null;
   /* a player's tiles leave out a count of zero, so there are one to four; a place's are
-     always four */
+     always four, a Campaign's three */
   tiles: Array<ShareStat>;
   /* the marble's hue, for a player */
   hue: number;
@@ -172,5 +173,43 @@ export function dailyCard(d: DailyDay, top: BoardTop): ShareCard {
       goldTime(d.medals),
     ],
     hue: hueFor(d.pfid),
+  };
+}
+
+/* the most Map pictures a Campaign's band shows side by side: its first ones, in its order */
+export const CAMPAIGN_BAND = 5;
+
+/* what a Campaign's card reads, besides the Campaign itself */
+export interface CampaignStanding {
+  /* how many of its Maps the Workshop lists */
+  maps: number;
+  /* its board's field: the players with a time on one of those Maps */
+  players: number;
+  /* rank 1 on its board */
+  leader: BoardRow | null;
+  /* how many players hold a time on every one of those Maps */
+  finishedEveryMap: number;
+}
+
+/* A Campaign's card: who leads and with how many points, then Maps, Players and how many
+   finished every Map */
+export function campaignCard(c: Campaign, s: CampaignStanding): ShareCard {
+  return {
+    kind: "campaign",
+    kicker: "Campaign · by " + c.creator,
+    title: c.title,
+    headline: s.leader
+      ? {
+          value: personaOf(s.leader),
+          label: `leads with ${fmtN(s.leader.score)} pts`,
+          tone: "gold",
+        }
+      : { value: "—", label: "No times yet" },
+    tiles: [
+      { value: fmtN(s.maps), label: "Maps" },
+      players(s.players),
+      { value: fmtN(s.finishedEveryMap), label: "Finished every map", tone: "author" },
+    ],
+    hue: hueFor(c.slug),
   };
 }

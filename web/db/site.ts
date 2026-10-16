@@ -254,6 +254,24 @@ export async function listedCampaigns(
   );
 }
 
+/* How many players hold a time on every one of a Campaign's Maps the Workshop lists: its
+   share card's "Finished every map". A Map gone from the Workshop asks nothing, as it adds
+   nothing to the board; a Campaign none of whose Maps is listed has no one. */
+export async function finishedEveryMap(db: Db, c: Campaign): Promise<number> {
+  const [r] = await rows<{ n: number }>(
+    db,
+    sql`with listed as (
+        select board from (${listedMapsSql}) l where board = any(${array(campaignMapBoards(c))}))
+      select count(*)::int as n from (
+        select steam_id from entries
+        where closed_refresh is null and board in (select board from listed)
+        group by steam_id
+        having count(distinct board) = (select count(*) from listed)
+      ) x`,
+  );
+  return r.n;
+}
+
 /* Every Workshop Map with its latest details and what the Workshop pages show of its board
    without reading it: workshop_stats in tools/campaign_common.py. Newest first. */
 export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {

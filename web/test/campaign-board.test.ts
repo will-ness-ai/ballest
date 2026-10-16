@@ -6,6 +6,7 @@ import { desc } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 
 import { GET } from "../app/api/board/[name]/route";
+import { GET as OG } from "../app/og/[kind]/[id]/route";
 import type { Db } from "../db/client";
 import { entries, refreshes } from "../db/schema";
 import { seed } from "../db/seed/harness";
@@ -173,5 +174,24 @@ describe("the Campaigns to list", () => {
   test("equal counts keep the curated order", async () => {
     const list = [one("b", ["9000000002"]), one("a", ["9000000002"])];
     expect((await listedCampaigns(t.db, list)).map((c) => c.slug)).toEqual(["b", "a"]);
+  });
+});
+
+describe("a Campaign's share image", () => {
+  async function og(id: string) {
+    return OG(new Request(`http://site.invalid/og/campaign/${id}`), {
+      params: Promise.resolve({ kind: "campaign", id }),
+    });
+  }
+
+  test("is drawn at /og/campaign/<slug>, even with no Map picture to be had", async () => {
+    // Marble Run's preview is on a host that doesn't exist, and Loop de Loop has none
+    const res = await og("test-run");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+  });
+
+  test("is a 404 for a slug that isn't a curated Campaign", async () => {
+    expect((await og("nope")).status).toBe(404);
   });
 });
