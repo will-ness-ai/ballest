@@ -4,6 +4,7 @@
 import Link from "next/link";
 
 import { PlayerLink } from "../PlayerLink";
+import { Favorite } from "./Favorite";
 import { PrefabModel } from "./PrefabModel";
 import type { PrefabPage as Prefab } from "../../db/data";
 import { dayLabel } from "../../lib/daily";
@@ -68,6 +69,7 @@ export function PrefabPage({ p }: { p: Prefab }) {
               </svg>
               Download <span className="pf-fn">{p.fileName}</span>
             </a>
+            <Favorite slug={p.slug} favorites={p.favorites} />
           </div>
         </aside>
       </div>

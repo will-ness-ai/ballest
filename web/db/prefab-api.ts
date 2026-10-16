@@ -147,3 +147,41 @@ async function opsPing(text: string): Promise<void> {
     signal: AbortSignal.timeout(5000),
   });
 }
+
+/* a live Prefab's id by its slug, or null: deleted, taken down and hidden ones can't be
+   hearted or edited */
+async function liveIdOf(db: Conn, slug: string): Promise<number | null> {
+  const { rows } = await db.execute(sql`
+    select p.id from prefabs p
+    where p.slug = ${slug} and p.deleted_at is null and p.taken_down_at is null
+      and not exists (select 1 from prefab_bans b where b.steam_id = p.uploader)`);
+  return (rows as Array<{ id: number }>).at(0)?.id ?? null;
+}
+
+/* GET, PUT and DELETE /api/prefabs/<slug>/favorite: whether the reader has hearted it and
+   how many have; PUT hearts it, DELETE takes the heart back. Signed out, GET only counts */
+export async function favoritePrefab(
+  request: Request,
+  deps: PrefabDeps,
+  slug: string,
+): Promise<Response> {
+  const write = request.method !== "GET";
+  if (write && isCrossSite(request)) return json({ error: "cross-site" }, 403);
+  const id = sessionOf(request, deps.auth);
+  if (write && !id) return json({ error: "sign in with Steam to favorite" }, 401);
+  const prefab = await liveIdOf(deps.db, slug);
+  if (prefab === null) return json({ error: "no such prefab" }, 404);
+  if (id && request.method === "PUT")
+    await deps.db.execute(sql`
+      insert into prefab_favorites (prefab_id, steam_id) values (${prefab}, ${id})
+      on conflict do nothing`);
+  if (id && request.method === "DELETE")
+    await deps.db.execute(
+      sql`delete from prefab_favorites where prefab_id = ${prefab} and steam_id = ${id}`,
+    );
+  if (write) deps.changed?.();
+  const { rows } = await deps.db.execute(sql`
+    select count(*)::int as favorites, coalesce(bool_or(steam_id = ${id ?? ""}), false) as on
+    from prefab_favorites where prefab_id = ${prefab}`);
+  return json((rows as Array<{ on: boolean; favorites: number }>)[0]);
+}

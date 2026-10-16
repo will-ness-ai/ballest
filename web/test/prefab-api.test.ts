@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";
 
-import { uploadPrefab, uploadQuota, type PrefabDeps } from "../db/prefab-api";
+import { favoritePrefab, uploadPrefab, uploadQuota, type PrefabDeps } from "../db/prefab-api";
+import { galleryOf } from "../lib/prefabs";
 import { prefabList, prefabOf } from "../db/prefabs";
 import { prefabBans } from "../db/schema";
 import { cubesFile } from "../db/seed/datasets/tiny";
@@ -179,5 +180,69 @@ describe("uploading a Prefab", () => {
       left: 0,
       nextAt: null,
     });
+  });
+});
+
+describe("favorites", () => {
+  /* a request to /api/prefabs/<slug>/favorite */
+  const fav = (slug: string, method: string, cookie = "") =>
+    new Request(`${SITE}/api/prefabs/${slug}/favorite`, {
+      method,
+      headers: { cookie, origin: SITE },
+    });
+  const said = async (r: Response) => ({ status: r.status, body: (await r.json()) as unknown });
+
+  test("a signed-in player hearts a Prefab once, and can take it back", async () => {
+    const owner = await sessionOf("76561199000000021");
+    await uploadPrefab(uploading({ name: "Heart me" }, owner), deps());
+    changes = 0;
+    const a = await sessionOf("76561199000000022");
+    const b = await sessionOf("76561199000000023");
+    expect(await said(await favoritePrefab(fav("heart-me", "GET", a), deps(), "heart-me"))).toEqual(
+      {
+        status: 200,
+        body: { on: false, favorites: 0 },
+      },
+    );
+    expect(await said(await favoritePrefab(fav("heart-me", "PUT", a), deps(), "heart-me"))).toEqual(
+      {
+        status: 200,
+        body: { on: true, favorites: 1 },
+      },
+    );
+    // twice is still once
+    await favoritePrefab(fav("heart-me", "PUT", a), deps(), "heart-me");
+    expect(await said(await favoritePrefab(fav("heart-me", "PUT", b), deps(), "heart-me"))).toEqual(
+      {
+        status: 200,
+        body: { on: true, favorites: 2 },
+      },
+    );
+    expect((await prefabOf(t.db, "heart-me"))?.favorites).toBe(2);
+    expect(
+      await said(await favoritePrefab(fav("heart-me", "DELETE", a), deps(), "heart-me")),
+    ).toEqual({
+      status: 200,
+      body: { on: false, favorites: 1 },
+    });
+    expect(changes).toBe(4);
+  });
+
+  test("signed out it only counts, and asks to sign in to change", async () => {
+    expect(await said(await favoritePrefab(fav("heart-me", "GET"), deps(), "heart-me"))).toEqual({
+      status: 200,
+      body: { on: false, favorites: 1 },
+    });
+    expect((await favoritePrefab(fav("heart-me", "PUT"), deps(), "heart-me")).status).toBe(401);
+  });
+
+  test("a Prefab nobody uploaded can't be hearted", async () => {
+    const a = await sessionOf("76561199000000022");
+    expect((await favoritePrefab(fav("nope", "PUT", a), deps(), "nope")).status).toBe(404);
+  });
+
+  test("the gallery puts the most hearted first", async () => {
+    const cards = galleryOf(await prefabList(t.db), "popular", null);
+    expect(cards[0].slug).toBe("heart-me");
   });
 });

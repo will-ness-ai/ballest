@@ -581,3 +581,21 @@ button.pf-dl {
 .pfu-card {
   max-width: 16rem;
 }
+
+/* the heart beside Download */
+.pf .pf-fav {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding-inline: 1rem;
+  font-family: var(--f-hud);
+  font-weight: 700;
+  font-size: calc(17rem / 16);
+  border-radius: 10px;
+}
+.pf-note {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+}

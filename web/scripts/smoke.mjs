@@ -142,6 +142,8 @@ const ROUTES = [
   ["/prefab/twin-cubes/x", 404],
   ["/api/prefabs/twin-cubes/file", 200, null, "BallestPrefab"],
   ["/api/prefabs/nope/file", 404],
+  ["/api/prefabs/twin-cubes/favorite", 200, null, '"favorites":0'],
+  ["/api/prefabs/nope/favorite", 404],
   ["/no-such-page", 404],
 ];
 
