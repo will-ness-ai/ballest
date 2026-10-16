@@ -81,6 +81,14 @@ export async function getSite(): Promise<Site> {
   };
 }
 
+/* every Circuit Track's Steam leaderboard ID, in the site's order (GET /api/tracks) */
+export async function getTrackBoards(): Promise<Array<{ name: string; leaderboardId: number }>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return q.trackBoards(db());
+}
+
 export async function getWorkshop(): Promise<Array<WorkshopMap>> {
   "use cache: remote";
   cacheTag(DATA_TAG);

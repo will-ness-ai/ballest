@@ -117,8 +117,7 @@ export interface PlayerData {
 
 /* The Players page's counts for everyone with a world record, podium or top 5 on the
    Circuit, or a time on a Map: [steam ID, persona, Circuit WRs, Workshop WRs, Circuit
-   podiums, Workshop podiums, Circuit top 5s, Workshop top 5s, Maps], in Steam ID order
-   (build_standings in tools/campaign_common.py). */
+   podiums, Workshop podiums, Circuit top 5s, Workshop top 5s, Maps], in Steam ID order. */
 export type StandingsRow = [string, string, number, number, number, number, number, number, number];
 
 export interface Standings {

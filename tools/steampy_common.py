@@ -55,7 +55,7 @@ def _ugc(val):
 
 
 def board_rows(entries):
-    """The site's row shape for a board's entries, names left for write_site to fill."""
+    """The site's row shape for a board's entries, names left for name_rows to fill."""
     return [
         {
             "rank": e.global_rank,

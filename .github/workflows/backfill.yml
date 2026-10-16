@@ -1,14 +1,15 @@
 name: Backfill the database
 
 # One-off, by hand: replays the git history of data/ into the production database as
-# backfill Refreshes (tools/db_backfill.py, docs/adr/0005), then checks the result against
-# the committed JSON and reports its size against Neon's 0.5 GB free tier. It runs here
+# backfill Refreshes (tools/db_backfill.py, docs/adr/0005), then reports its size against
+# Neon's 0.5 GB free tier. It runs here
 # because the database is not reachable from cloud agent sessions. Run it from main: it
 # replays the history of the branch it runs on.
 #
 # It refuses a database that already holds Refreshes; tick "rebuild" to truncate every
-# table and replay the whole history (the collector's own Refreshes are in git as data
-# commits, so only their exact times are lost).
+# table and replay the whole history. Since phase 5 of docs/nextjs-migration.md the
+# collector commits no data, so production holds Refreshes git has no copy of, and the
+# backfill refuses to rebuild it at all.
 
 on:
   workflow_dispatch:
@@ -64,9 +65,6 @@ jobs:
 
       - name: Replay data/ into the database
         run: python tools/db_backfill.py ${{ inputs.rebuild && '--rebuild' || '' }}
-
-      - name: Check the database against the JSON
-        run: python tools/check_db.py
 
       - name: Rows per table and database size
         if: always()

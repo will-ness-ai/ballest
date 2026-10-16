@@ -38,7 +38,7 @@ feature small enough for one ticket still gets one, so `/implement-spec` has its
 
 Implement the tickets test-first where tests exist (`discord-bot/` has them, the
 site with its vitest tests, the smoke test and the served page, and the collector with
-`tools/check_data.py`, per `CLAUDE.md`): call the Skill tool for 'tdd'. A change to what the bot posts in Discord is also played through
+`tools/tests/`, per `CLAUDE.md`): call the Skill tool for 'tdd'. A change to what the bot posts in Discord is also played through
 in the sandbox: call the Skill tool for 'discord-sandbox'. Work on a `claude/<slug>` branch and open a **draft** PR
 that closes the spec and its tickets as soon as the branch has a commit.
 It stays a draft through steps 5 and 6: step 7 marks it ready, in place of
@@ -61,7 +61,7 @@ review, and a brief asking for a light workflow trims the planning steps, never 
 Call the Skill tool for 'codebase-design', a one-line fix included. With the feature working and reviewed, read the code it touched for deepening
 opportunities: shallow modules, logic spread across callers, a seam in the wrong place.
 Make the ones inside the PR's own code, and keep each one checked the same way the feature
-was (tests, the smoke test, `check_data.py`, the served page). Anything wider becomes a note
+was (tests, the smoke test, the served page). Anything wider becomes a note
 in the PR, not part of it.
 
 ## 7. Update the PR

@@ -1,5 +1,5 @@
 /* ---------- Players ----------
-   One table over data/standings.json: every player ranked by the column the reader
+   One table: every player ranked by the column the reader
    sorts on. The header row stays put going down; your own row, when it is out of view,
    is pinned to the foot as a card that says how far the next rank and the top 10 are.
    On a phone the table is wider than the screen, so it scrolls inside a box one screen

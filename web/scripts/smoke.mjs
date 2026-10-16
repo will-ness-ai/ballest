@@ -69,6 +69,7 @@ const ROUTES = [
   ["/api/board/Map_Track13?from=0&count=2", 200],
   ["/api/board/Map_Track13?q=rae", 200],
   ["/api/board/Workshop_123?from=0", 404],
+  ["/api/tracks", 200, null, "17800617"],
   // share images (lib/share.ts): a PNG for a page that exists, a 404 for one that doesn't,
   // and the pages naming theirs
   ["/og/player/" + P1, 200, null, "PNG"],
@@ -142,7 +143,6 @@ const STATIC = [
   "/favicon.svg",
   "/apple-touch-icon.png",
   "/og.png",
-  "/data/index.json",
   ...readdirSync(join(root, "circuit")).map((f) => "/circuit/" + f),
   ...["leth/index.html", "multiballs/terms.html", "multiballs/privacy.html"].flatMap(refs),
 ].filter((p) => statSync(join(root, p), { throwIfNoEntry: false })?.isFile());

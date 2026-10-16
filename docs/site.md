@@ -308,7 +308,7 @@ The Players tab sits last in the tab bar, and like every tab it is lit from the 
 
 `pnpm dev` in `web/` against a local Postgres (never `vercel env pull`: its development
 variables point at production). For a database with real boards, backfill one from
-`data/` (`docs/data.md`); for a tiny one, `pnpm db:seed tiny`. Next keeps the page you
+`data/`'s git history (`docs/data.md`); for a tiny one, `pnpm db:seed tiny`. Next keeps the page you
 navigated away from in the DOM, hidden, so a scripted check counting elements should count
 only visible ones.
 
@@ -318,7 +318,7 @@ only visible ones.
   each answer, as `web.yml` does in CI. Under `next start`, some prefetches (header
   `next-router-prefetch: 3`) answer 404 in the console; Vercel answers them 200.
 - **Revalidate**: serve with `REVALIDATE_SECRET` set, add a Refresh to the database (the
-  collector's `--out` run, or rows by hand), then `revalidate()` in `tools/db_writer.py`
+  collector's `--dev` run, or rows by hand), then `revalidate()` in `tools/db_writer.py`
   with `SITE_URL` pointing at the build. The changed boards should show at once.
 - **The preview**: every pushed branch gets a public preview at
   `https://ballest-git-<branch>-n3sonlines-projects.vercel.app`, the branch name lowercased
@@ -344,5 +344,3 @@ only visible ones.
   serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank and a long
   Map title), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
   one.
-- **Parity**: `pnpm db:parity` compares the read layer with `data/` figure by figure, on a
-  database backfilled from the same commit; it stops first when the database is anything else.
