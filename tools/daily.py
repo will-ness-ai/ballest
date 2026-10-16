@@ -3,8 +3,7 @@ The Daily: the game's one-day challenge on one Workshop Map, with its own Steam 
 (CONTEXT.md). The developers' API names each day's board; this module decides which
 Dailies a Refresh looks up and reads (plan), and asks the API (look_up).
 
-Dailies are database-only: they get no file under data/, and the collector learns which
-ones it already holds from the database (known_dailies).
+The collector learns which Dailies it already holds from the database (known_dailies).
 """
 
 import asyncio

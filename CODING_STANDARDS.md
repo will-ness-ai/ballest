@@ -43,12 +43,9 @@ it breaks. Those files carry the reasons; this file carries the checks.
 
 ## Collector (`tools/`)
 
-- A change to the write path keeps the fallback-then-abort shape described under
-  "Never let a run publish an empty board" in `CLAUDE.md`. A derived file such as
-  `podiums.json` keeps its previous copy when its input comes out empty.
-- A derived file is built from its inputs as written to disk, after every guarded write of
-  those inputs, so a write that fails leaves the two agreeing.
-- `python tools/check_data.py` passes on the committed data after any collector change.
+- A change to the write path keeps the shape described under "Never let a read close a
+  whole board" in `CLAUDE.md`: a failed or empty read leaves its board's Entries as they were.
+- `python -m pytest tools/tests` passes after any collector change.
 - A change to when a board is read (`collect_workshop`'s trigger, `FULL_SWEEP_SECONDS`, the
   `refresh.yml` cron) updates the refresh dialog's copy (`components/Freshness.tsx`), which
   restates those rules for players.

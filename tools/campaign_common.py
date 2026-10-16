@@ -4,20 +4,19 @@ Shared constants + helpers for the Ballest campaign leaderboard collectors.
 Used by:
   - steampy_collect.py  (headless, refresh-token login — the CI path)
   - steampy_mint.py     (one-time interactive token mint + validation)
+  - db_writer.py, db_backfill.py, ghosts.py (the database the site reads)
 
 Pure stdlib so it imports under any Python the collectors run on.
 """
 
 import contextlib
 import json
-import math
 import os
 import re
 import subprocess
 import time
 import urllib.parse
 import urllib.request
-from fractions import Fraction
 
 APP_ID = 3339810
 # Steam returns an entire board in one LBSGetLBEntries call at these sizes
@@ -27,22 +26,6 @@ FETCH_WINDOW = 100000
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.dirname(HERE)
-DATA_DIR = os.path.join(PROJ, "data")
-BOARDS_DIR = os.path.join(DATA_DIR, "boards")
-INDEX_PATH = os.path.join(DATA_DIR, "index.json")
-# Everything else under data/ is named by derive(), relative to DATA_DIR.
-
-
-def use_data_dir(path):
-    """Point every read and write in this module at path instead of data/: the
-    collector's --out and check_data's --data, so a branch can run and check the
-    whole write path against a scratch copy. Call it before anything reads."""
-    global DATA_DIR, BOARDS_DIR, INDEX_PATH, WORKSHOP_PATH, WORKSHOP_DIR  # noqa: PLW0603
-    DATA_DIR = os.path.abspath(path)
-    BOARDS_DIR = os.path.join(DATA_DIR, "boards")
-    INDEX_PATH = os.path.join(DATA_DIR, "index.json")
-    WORKSHOP_PATH = os.path.join(DATA_DIR, "workshop.json")
-    WORKSHOP_DIR = os.path.join(DATA_DIR, "workshop")
 
 
 # Leaderboard names = level asset names, verbatim (discovered by probing the pak).
@@ -80,7 +63,7 @@ S2_TRACKS = [
 # predates that finding and reads entries directly by ID (LBSGetLBEntries), which
 # works. These IDs are stable for the campaign boards.
 # To add a board: add it to BOARDS below AND its ID here. (Get a new ID from the
-# SDK collector's output, or from an existing data/campaign.json "handle".)
+# SDK collector's output, or from the boards table's leaderboard_id once it is read.)
 LEADERBOARD_IDS = {
     "OverallLeaderboard": 17800972,
     "Map_Track13": 17800617,
@@ -119,49 +102,12 @@ BOARDS = (
 # run times, so the site never had anything trustworthy to show. Its ID is kept
 # above so it can be put back by re-adding it to BOARDS.
 
-# The one board Steam does not have: every season's Overall points added up per
-# player. It is derived by the collector from the Overall* boards above (see
-# build_composite), so it has no leaderboard ID and is not in BOARDS. The name
-# keeps the Overall prefix on purpose — that prefix is how the site knows a
-# board is points rather than run times.
-COMPOSITE_BOARD = "OverallLeaderboard_AllSeasons"
-COMPOSITE_GROUP = "All Seasons"
-
-# Steam's Season 1 Overall board stopped moving when the season ended: it holds the
-# standings as they were then, and only a fraction of the players on the Season 1
-# tracks. The site rebuilds a current one from today's track places with the game's
-# own points rule (track_points), derived like the composite, and lists it ahead of
-# Steam's so a season tab opens on it. Season 2's Overall board is live and is
-# shown as Steam has it.
-S1_CURRENT_BOARD = "OverallLeaderboard_S1Current"
-
-# What a place on one track pays toward Overall: 1st pays POINTS_FIRST, 2nd half
-# that, down to a tenth of it at 10th; past 10th the payout halves at every 10x in
-# place (100th, 1000th, ...) and falls smoothly in between. Each track's payout is
-# rounded down, then summed. Fitted on Season 2's live Overall board (70% of
-# players exact, the rest stale totals Steam has not recomputed) and confirmed by
-# the developers. The site states the same table (POINTS_FIRST in web/lib/rules.ts); if
-# the game rescales, both change.
-POINTS_FIRST = 40000
-
-# Workshop Maps live apart from the campaign boards: their own list, data/workshop.json
-# (what the site's Workshop tab lists, and the collector's memory of what it last read),
-# and one board file per Map, data/workshop/<pfid>.json. They are not in BOARDS or
-# index.json, so the podiums and the composite stay campaign-only; derive() takes their
-# rows (workshop_boards) only to put them in the player shards.
-WORKSHOP_GROUP = "Workshop"
-WORKSHOP_PATH = os.path.join(DATA_DIR, "workshop.json")
-WORKSHOP_DIR = os.path.join(DATA_DIR, "workshop")
+# Workshop Maps (collect_workshop in steampy_collect.py).
 # Every Map's board is read at least this often, whatever the Workshop counters say:
 # nothing on the Workshop moves when a player beats their own time.
 FULL_SWEEP_SECONDS = 24 * 3600
 # A catalogue this much smaller than the last one is a broken read, not mass deletion.
 WORKSHOP_SHRINK_LIMIT = 0.9
-# A creator's own time must be faster than their author time by at least this much to
-# count as a beat. The author time in the Workshop metadata and the leaderboard score
-# of the very same publishing run disagree by up to ~0.75 ms in observed data (float
-# noise), so anything under 1 ms would count the publishing run itself as a beat.
-CREATOR_BEAT_MARGIN_TICKS = 100  # 1 ms
 
 
 def track_number(name):
@@ -193,10 +139,8 @@ def display_name(name):
     *other* numbers (Map_Track13 is in-game 01) and only confuse, so those are
     the number alone. The season is carried by the "group" field, not repeated.
     """
-    if name in ("OverallLeaderboard_EASeason2", COMPOSITE_BOARD):
+    if name == "OverallLeaderboard_EASeason2":
         return "Overall"
-    if name == S1_CURRENT_BOARD:
-        return "Current"
     if name == "OverallLeaderboard":
         return "Final"
     if name == "Map_TheTower":
@@ -316,36 +260,11 @@ def resolve_names(key, ids):
     return out
 
 
-# Names are carried forward from the committed board files rather than looked up
+# Names are carried forward from the database's players rather than looked up
 # every run (13k players is 131 GetPlayerSummaries calls). A run looks up players it
 # has no name for, plus one slice of everyone else: slices rotate every three hours,
 # so every name is refreshed about once a week.
 NAME_REFRESH_SLICES = 56
-
-
-def known_names():
-    """SteamID64 -> {persona, avatar, profileurl}, from every committed board file."""
-    out = {}
-    for folder in (BOARDS_DIR, WORKSHOP_DIR):
-        if not os.path.isdir(folder):
-            continue
-        for fname in os.listdir(folder):
-            if not fname.endswith(".json"):
-                continue
-            try:
-                with open(os.path.join(folder, fname), encoding="utf-8") as f:
-                    rows = json.load(f).get("rows") or []
-            except Exception as e:
-                print(f"  (could not read {fname} for names: {e!r})")
-                continue
-            for r in rows:
-                if r.get("persona"):
-                    out[r["steam_id"]] = {
-                        "persona": r["persona"],
-                        "avatar": r.get("avatar", ""),
-                        "profileurl": r.get("profileurl", ""),
-                    }
-    return out
 
 
 def names_due(ids, known, now=None):
@@ -423,476 +342,20 @@ def workshop_catalogue(key):
     return maps
 
 
-def load_workshop():
-    """The committed data/workshop.json, or None."""
-    if os.path.exists(WORKSHOP_PATH):
-        try:
-            with open(WORKSHOP_PATH, encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"  (could not read existing workshop.json: {e!r})")
-    return None
-
-
-def workshop_board_doc(m, rows):
-    """A Map's board file: the same shape as a campaign board file."""
-    return {
-        "name": m["name"],
-        "display": m["display"],
-        "group": WORKSHOP_GROUP,
-        "handle": m["handle"],
-        "entry_count": m["entry_count"],
-        "rows": rows,
-    }
-
-
-AUTHOR_MEDAL_INDEX = 3  # medal_times_by_index = [bronze, silver, gold, author], seconds
-
-
-def workshop_stats(m, rows):
-    """What the Workshop homepage shows of a Map without fetching its board: the top
-    three (for the cards and the carousel) and the numbers the shelves sort on. Rows
-    are rank-ordered and carry names. author_beaten counts runs at or under the author
-    time, where the creator's own run counts only if CREATOR_BEAT_MARGIN_TICKS faster:
-    the author time is their publishing run."""
-    lead = rows[0]["score_ms"]
-    author = m["medals"][AUTHOR_MEDAL_INDEX] * SCORE_TICKS_PER_SECOND
-    return {
-        "top3": [[r["steam_id"], r.get("persona", ""), r["score_ms"]] for r in rows[:3]],
-        "gap13": rows[2]["score_ms"] - lead if len(rows) >= 3 else None,
-        "crowd": sum(1 for r in rows if r["score_ms"] - lead <= SCORE_TICKS_PER_SECOND),
-        "author_beaten": sum(
-            1
-            for r in rows
-            if r["score_ms"]
-            <= (author - CREATOR_BEAT_MARGIN_TICKS if r["steam_id"] == m.get("cid") else author)
-        ),
-    }
-
-
-def workshop_boards(ws=None):
-    """The Workshop boards as they stand: {"Workshop_<pfid>": rows} for every Map with
-    a board, in the list's order. Without ws, the committed workshop.json and board
-    files. With ws (what collect_workshop returns), this run's reads laid over the
-    committed files of the Maps it did not read. A Map whose file is missing or empty
-    is left out, as write_workshop lists it without a board."""
-    maps = ws["maps"] if ws else (load_workshop() or {}).get("maps", [])
-    fresh = ws["boards"] if ws else {}
-    out = {}
-    for m in maps:
-        if not m.get("file"):
-            continue
-        rows = fresh.get(m["pfid"])
-        if rows is None:
-            path = os.path.join(DATA_DIR, m["file"])
-            if not os.path.exists(path):
-                continue
-            with open(path, encoding="utf-8") as f:
-                rows = json.load(f).get("rows") or []
-        if rows:
-            out["Workshop_" + m["pfid"]] = rows
-    return out
-
-
-def write_workshop(ws, names):
-    """Write the boards read this run, drop the files of Maps no longer on the
-    Workshop, then the list. Boards not read this run keep their committed file, and
-    their stats are worked out again from it, with this run's names on the top three
-    so a renamed leader shows on the homepage before their board is next read. A Map
-    whose committed file has gone missing is listed without a board until it is read."""
-    os.makedirs(WORKSHOP_DIR, exist_ok=True)
-    by_pfid = {m["pfid"]: m for m in ws["maps"]}
-    boards = workshop_boards(ws)
-    for m in ws["maps"]:
-        if not m.get("file"):
-            continue
-        rows = boards.get("Workshop_" + m["pfid"])
-        if rows is None:
-            print(
-                f"  [warn] Workshop Map {m['pfid']}: {m['file']} is missing or empty;"
-                " listed without a board"
-            )
-            m.update(file=None, rows=0)
-            continue
-        m.update(workshop_stats(m, rows))
-        for t in m["top3"]:
-            t[1] = names.get(t[0], {}).get("persona") or t[1]
-    for pfid, rows in ws["boards"].items():
-        with open(os.path.join(WORKSHOP_DIR, pfid + ".json"), "w", encoding="utf-8") as f:
-            json.dump(
-                workshop_board_doc(by_pfid[pfid], rows),
-                f,
-                ensure_ascii=False,
-                separators=(",", ":"),
-            )
-    keep = {m["file"].split("/", 1)[1] for m in ws["maps"] if m.get("file")}
-    for fname in os.listdir(WORKSHOP_DIR):
-        if fname.endswith(".json") and fname not in keep:
-            os.remove(os.path.join(WORKSHOP_DIR, fname))
-    with open(WORKSHOP_PATH, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "full_sweep_at": ws["full_sweep_at"],
-                "maps": ws["maps"],
-            },
-            f,
-            ensure_ascii=False,
-            separators=(",", ":"),
-        )
-    print(
-        f"Wrote {WORKSHOP_PATH}: {len(ws['maps'])} Maps, {len(ws['boards'])} boards read this run"
-    )
-
-
-def load_existing_board(name):
-    """Return the previously-written data/boards/<name>.json (dict), or None.
-    Used to keep last-good data for a board whose live read failed this run."""
-    path = os.path.join(BOARDS_DIR, name + ".json")
-    if os.path.exists(path):
-        try:
-            with open(path, encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"  (could not read existing {name}.json: {e!r})")
-    return None
-
-
-def build_podiums(boards_out):
-    """Per-season podium tally: who holds the 1st, 2nd and 3rd places across a
-    season's tracks. Only Map_* boards count (an Overall board is points, not a
-    race), so a season with no track boards is left out entirely. After the
-    seasons comes one more entry, COMPOSITE_GROUP, tallied over every season's
-    tracks at once, which is what the all-seasons board shows beside its points;
-    its finishes name the season as well as the track, since each season has an 01.
-
-    Players are sorted by golds, then silvers, then bronzes, and equal counts
-    share a rank (1, 2, 2, 4 ...) rather than being split by some fourth key the
-    reader can't see. Rows come from boards_out AFTER name resolution, so each
-    player carries the same persona/avatar the board files do."""
-    tracks = [b for b in boards_out if b["name"].startswith("Map_")]
-    seasons = [
-        tally_podiums(group, [b for b in tracks if b["group"] == group], lambda b: b["display"])
-        for group in dict.fromkeys(g for _, g in BOARDS)
-    ]
-    seasons = [s for s in seasons if s["tracks"]]
-    if len(seasons) > 1:
-        seasons.append(
-            tally_podiums(COMPOSITE_GROUP, tracks, lambda b: b["group"] + " " + b["display"])
-        )
-    return seasons
-
-
-def tally_podiums(group, tracks, label):
-    """One entry of build_podiums: the top three of each board in tracks, counted and
-    ranked. label(board) is what a finish calls its track."""
-    players = {}
-    for b in tracks:
-        for r in b["rows"][:3]:  # rows are rank-ordered; the podium is the first three
-            p = players.setdefault(
-                r["steam_id"],
-                {
-                    "steam_id": r["steam_id"],
-                    "persona": r.get("persona", ""),
-                    "avatar": r.get("avatar", ""),
-                    "profileurl": r.get("profileurl", ""),
-                    "gold": 0,
-                    "silver": 0,
-                    "bronze": 0,
-                    "finishes": [],
-                },
-            )
-            p[("gold", "silver", "bronze")[r["rank"] - 1]] += 1
-            p["finishes"].append(
-                {
-                    "track": label(b),
-                    "rank": r["rank"],
-                    "score_ms": r["score_ms"],
-                    "time": fmt_time(r["score_ms"]),
-                }
-            )
-    ordered = sorted(players.values(), key=lambda p: (-p["gold"], -p["silver"], -p["bronze"]))
-    prev = None
-    for i, p in enumerate(ordered):
-        counts = (p["gold"], p["silver"], p["bronze"])
-        p["rank"] = i + 1 if counts != prev else ordered[i - 1]["rank"]
-        prev = counts
-        p["finishes"].sort(key=lambda f: (f["rank"], f["track"]))
-    return {"group": group, "tracks": len(tracks), "players": ordered}
-
-
-def track_points(rank):
-    """What one track pays toward Overall for this place (see POINTS_FIRST)."""
-    if rank <= 10:
-        return POINTS_FIRST // rank
-    k = len(str(rank - 1)) - 1  # rank is in (10^k, 10^(k+1)]
-    return math.floor(
-        Fraction(POINTS_FIRST * 9, 100 * 2**k) + Fraction(POINTS_FIRST * 5**k, 10 * rank)
-    )
-
-
-def build_current(boards_out, group, name):
-    """A season's Overall board rebuilt from its track boards as they stand: each
-    player's track_points summed over the season's tracks, ranked highest first.
-    Ranks are sequential and equal totals keep their order of first appearance,
-    as in build_composite. Rows carry persona/avatar copied from the track rows."""
-    players = {}
-    for b in boards_out:
-        if b["group"] != group or not b["name"].startswith("Map_"):
-            continue
-        for r in b["rows"]:
-            p = players.setdefault(
-                r["steam_id"],
-                {
-                    "steam_id": r["steam_id"],
-                    "persona": r.get("persona", ""),
-                    "avatar": r.get("avatar", ""),
-                    "profileurl": r.get("profileurl", ""),
-                    "score_ms": 0,
-                },
-            )
-            p["score_ms"] += track_points(r["rank"])
-    rows = sorted(players.values(), key=lambda p: -p["score_ms"])
-    for i, p in enumerate(rows):
-        p["rank"] = i + 1
-    return {
-        "name": name,
-        "display": display_name(name),
-        "group": group,
-        "tier": None,
-        "handle": None,
-        "entry_count": len(rows),
-        "rows": rows,
-    }
-
-
-def build_composite(boards_out):
-    """The all-seasons board: each player's Overall points summed across every
-    season, ranked highest first. Season 1 counts through S1_CURRENT_BOARD
-    when boards_out has it, not Steam's frozen board. A player missing from a season simply adds
-    nothing for it, so a Season-2-only player ranks on Season 2 points alone.
-
-    Ranks are sequential (1, 2, 3 ...) like every Steam board, because the
-    site indexes rows by rank; equal totals keep their order of first
-    appearance, oldest season first, which is stable from run to run. Each
-    row keeps the per-season parts under "seasons" so the site can show where
-    a total came from. Rows carry persona/avatar copied from the source rows,
-    which write_site then refreshes along with every other board."""
-    # Steam's Overall boards, except that Season 1 counts through its current board
-    steam = {n for n, _ in BOARDS}
-    overall = [b for b in boards_out if b["name"].startswith("Overall") and b["name"] in steam]
-    current = next((b for b in boards_out if b["name"] == S1_CURRENT_BOARD), None)
-    if current:
-        overall = [current if b["group"] == current["group"] else b for b in overall]
-    players = {}
-    for b in overall:
-        for r in b["rows"]:
-            p = players.setdefault(
-                r["steam_id"],
-                {
-                    "steam_id": r["steam_id"],
-                    "persona": r.get("persona", ""),
-                    "avatar": r.get("avatar", ""),
-                    "profileurl": r.get("profileurl", ""),
-                    "score_ms": 0,
-                    "seasons": {},
-                },
-            )
-            p["score_ms"] += r["score_ms"]
-            p["seasons"][b["group"]] = r["score_ms"]
-    rows = sorted(players.values(), key=lambda p: -p["score_ms"])
-    for i, p in enumerate(rows):
-        p["rank"] = i + 1
-    return {
-        "name": COMPOSITE_BOARD,
-        "display": display_name(COMPOSITE_BOARD),
-        "group": COMPOSITE_GROUP,
-        "tier": None,
-        "handle": None,
-        "entry_count": len(rows),
-        "rows": rows,
-    }
-
-
-def player_shard(steam_id):
-    """Which players file a Steam ID lives in: the last digit of the ID.
-
-    A player's page needs that player's rank on every board at once, which is
-    the transpose of the board files. Written whole it is a few megabytes, so it
-    is split ten ways and the page fetches only the shard its player is in.
-    Steam64 IDs are decimal, so the last digit divides them evenly; anything
-    else (there should be nothing) lands in shard 0."""
-    last = steam_id[-1:] if steam_id else ""
-    return last if last.isdigit() else "0"
-
-
-PLAYER_SHARDS = tuple("0123456789")
-
-
-def build_players(boards_out, maps):
-    """Every player's finish on every board, keyed by Steam ID, split into the
-    ten shards player_shard() describes. Returns {shard: doc}. The boards are
-    boards_out (campaign boards, composite last), then every Map's board from
-    maps, {"Workshop_<pfid>": rows}, so a Workshop-only player has a page too.
-
-    A player's rows are [board index, rank, score] triples, indexed against the
-    shard's own "boards" list rather than index.json, so a shard the page has
-    cached alongside a newer index can still be read correctly. Each board in
-    that list carries "lead", its rank-1 score, which is all the page needs to
-    show a run's gap to the record without fetching the board itself.
-
-    persona/avatar/profileurl are copied from the rows, so this must be built
-    after write_site's name refresh. profileurl is carried rather than derived:
-    a third of players have a vanity /id/ URL that a Steam ID cannot produce."""
-    sources = [(b["name"], b["rows"]) for b in boards_out] + list(maps.items())
-    boards = [
-        {"name": name, "lead": rows[0]["score_ms"] if rows else None} for name, rows in sources
-    ]
-    players = {s: {} for s in PLAYER_SHARDS}
-    for i, (_, rows) in enumerate(sources):
-        for r in rows:
-            sid = r["steam_id"]
-            p = players[player_shard(sid)].setdefault(
-                sid,
-                {
-                    "persona": r.get("persona", ""),
-                    "avatar": r.get("avatar", ""),
-                    "profileurl": r.get("profileurl", ""),
-                    "rows": [],
-                },
-            )
-            p["rows"].append([i, r["rank"], r["score_ms"]])
-    return {s: {"shard": s, "boards": boards, "players": players[s]} for s in PLAYER_SHARDS}
-
-
-def build_names(shards):
-    """[[steam_id, persona], ...] for every player in the shards, in Steam ID order:
-    what the head to head's Compare dialog searches, without fetching ten shards."""
-    return sorted(
-        [sid, p["persona"]] for doc in shards.values() for sid, p in doc["players"].items()
-    )
-
-
-def build_standings(boards_out, maps):
-    """The Players page's table: for every player, their world records, podiums
-    and top 5s on the Circuit and on the Workshop, and how many Maps they have a
-    time on. A world record is rank 1, as on a player's page (CONTEXT.md, Medal).
-    The Circuit counts come from the Map_* boards only, since an Overall board is
-    points, not a race; the Workshop's from maps, {"Workshop_<pfid>": rows}.
-
-    Rows are [steam_id, persona, circuit WRs, Workshop WRs, circuit podiums,
-    Workshop podiums, circuit top 5s, Workshop top 5s, Maps], in Steam ID order so
-    a refresh diffs by player. A player with nothing to count (a Circuit time
-    outside every top 5 and no Workshop time) is left out. The page ranks them:
-    which column leads is the reader's choice, so no order is baked in here."""
-    tracks = [b["rows"] for b in boards_out if b["name"].startswith("Map_")]
-    players = {}
-
-    def tally(rows, side):  # side 0 is the Circuit, 1 the Workshop
-        for r in rows:
-            p = players.setdefault(r["steam_id"], [r["steam_id"], r.get("persona", "")] + [0] * 7)
-            p[2 + side] += r["rank"] == 1
-            p[4 + side] += r["rank"] <= 3
-            p[6 + side] += r["rank"] <= 5
-            p[8] += side
-
-    for rows in tracks:
-        tally(rows[:5], 0)  # rows are rank-ordered; nothing past 5th counts
-    for rows in maps.values():
-        tally(rows, 1)
-    return {
-        "tracks": len(tracks),
-        "maps": len(maps),
-        "players": sorted(p for p in players.values() if any(p[2:])),
-    }
-
-
-def derive(boards_out, maps):
-    """Everything the collector works out from the board rows it just read.
-
-    maps is the Workshop boards, {"Workshop_<pfid>": rows} (workshop_boards). They
-    go into the player shards and nowhere else: not the podiums, not the composite.
-
-    Returns (boards_out with the composite appended, [artifact, ...]) where an
-    artifact is {"path" (relative to data/), "doc", "empty", "summary"}. This is
-    the one description of what is derived, where it lands, what counts as empty
-    and how it reads in a log: write_site publishes the list, check_data compares
-    the committed files against it, and neither has to restate the assembly —
-    which matters, because the shards' board indices are positions in exactly
-    this list of boards: campaign boards, composite, then every Map. Nor does either
-    caller have to know one artifact from another; both just write or compare, and
-    print the summary.
-
-    Each artifact carries its own idea of empty, because only its builder knows
-    what nothing looks like: no seasons, or a season with nobody on a podium, or
-    a shard with no players."""
-    current = build_current(boards_out, "Season 1", S1_CURRENT_BOARD)
-    if current["rows"]:
-        # ahead of Steam's board, so it is the one the season opens on
-        at = next((i for i, b in enumerate(boards_out) if b["name"] == "OverallLeaderboard"), 0)
-        boards_out = [*boards_out[:at], current, *boards_out[at:]]
-    composite = build_composite(boards_out)
-    if composite["rows"]:
-        boards_out = [*boards_out, composite]
-    seasons = build_podiums(boards_out)
-    artifacts = [
-        {
-            "path": "podiums.json",
-            "doc": {"seasons": seasons},
-            "empty": not seasons or any(not s["players"] for s in seasons),
-            # ASCII only: this prints to a Windows console in the local runbook
-            "summary": "podiums  "
-            + ", ".join(
-                f"{s['group']} tracks={s['tracks']} players={len(s['players'])}" for s in seasons
-            ),
-        }
-    ]
-    shards = build_players(boards_out, maps)
-    artifacts += [
-        {
-            "path": "players/" + shard + ".json",
-            "doc": doc,
-            "empty": not doc["players"],
-            "summary": f"players/{shard}  {len(doc['players'])} players",
-        }
-        for shard, doc in shards.items()
-    ]
-    names = build_names(shards)
-    artifacts.append(
-        {
-            "path": "names.json",
-            "doc": names,
-            "empty": not names,
-            "summary": f"names  {len(names)} players",
-        }
-    )
-    standings = build_standings(boards_out, maps)
-    artifacts.append(
-        {
-            "path": "standings.json",
-            "doc": standings,
-            "empty": not standings["players"],
-            "summary": f"standings  {len(standings['players'])} players",
-        }
-    )
-    return boards_out, artifacts
-
-
-def name_rows(row_lists, all_ids):
+def name_rows(row_lists, all_ids, known):
     """Put persona/avatar/profileurl on every row in row_lists, and return the
-    SteamID64 -> names map they came from. Names are carried forward from the
-    committed board files; only players without one, plus this run's slice
-    (names_due), are looked up."""
+    SteamID64 -> names map they came from. Names are carried forward from known (the
+    players the database holds, db_writer.load_memory); only players without one, plus
+    this run's slice (names_due), are looked up."""
     key = load_key()
     if not key:
         print(
             "WARNING: no STEAM_API_KEY (env or .env) — names will be blank (ids still collected)."
         )
-    known = known_names()
     # The slice covers every player we know, not only this run's rows: a Workshop board
     # is re-read only when played, so its players would otherwise rarely come up.
     due = names_due(set(all_ids) | set(known), known)
-    print(f"Resolving {len(due)} of {len(all_ids)} player names (new, plus this run's slice)...")
+    print(f"Resolving {len(due)} player names (new, plus this run's slice)...")
     names = {sid: dict(v) for sid, v in known.items()}
     for sid, info in resolve_names(key, due).items():
         cur = names.setdefault(sid, {})
@@ -916,125 +379,3 @@ def fill_names(row_lists, names):
             r["persona"] = info.get("persona") or r.get("persona", "")
             r["avatar"] = info.get("avatar") or r.get("avatar", "")
             r["profileurl"] = info.get("profileurl") or r.get("profileurl", "")
-
-
-def committed_boards():
-    """The committed Circuit boards, in BOARDS order, each with its group: what
-    derive() takes when this run read no Circuit board (--workshop-only). A board
-    with no file or no rows is left out, and the podiums it feeds come out short."""
-    out = []
-    for name, group in BOARDS:
-        b = load_existing_board(name)
-        if b and b.get("rows"):
-            b["group"] = group
-            out.append(b)
-    return out
-
-
-def write_derived(artifacts):
-    """Write derive()'s artifacts, or none of them if any came out empty."""
-    blank = [a["path"] for a in artifacts if a["empty"]]
-    if blank:
-        print(
-            f"  [warn] derived empty: {blank}; keeping the committed copies of all "
-            f"{len(artifacts)} derived files"
-        )
-        return
-    for a in artifacts:
-        path = os.path.join(DATA_DIR, a["path"])
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(a["doc"], f, ensure_ascii=False, separators=(",", ":"))
-        print("  " + a["summary"])
-
-
-def write_site(boards_out, all_ids, workshop=None):
-    """Resolve names, then write one file per board (data/boards/<name>.json) plus
-    a small data/index.json the page loads first. Board files omit generated_at so
-    an unchanged board produces no diff (only index.json changes every run).
-
-    workshop, when given, is {"maps", "boards": {pfid: rows}, "full_sweep_at"}:
-    its rows get names from the same lookup, then write_workshop publishes it.
-
-    Returns (workshop, names). workshop if its files were written, else None: what the
-    database step (db_writer) may count as read, so a Workshop write that failed here reads
-    as no Map read there either. names is this run's name lookup (name_rows), for rows
-    written elsewhere (the Dailies, which are database-only) to take with fill_names."""
-    # Names first: derive() copies persona/avatar/profileurl from the rows, so
-    # rows it reads without names publish derived files with blank ones while
-    # the boards get theirs (the 2026-09-27T23:32Z refresh did exactly that).
-    ws_rows = list(workshop["boards"].values()) if workshop else []
-    names = name_rows([b["rows"] for b in boards_out] + ws_rows, all_ids)
-    if workshop:
-        # Guarded: nothing on the Workshop side may stop the campaign files below.
-        try:
-            write_workshop(workshop, names)
-        except Exception as e:
-            print(f"  [warn] Workshop files not written: {e!r}")
-            workshop = None
-
-    # Everything below the boards is derived from the named rows above, fallback
-    # data included, so it can never disagree with the boards the page shows.
-    # The composite comes back inside boards_out, which puts it through the same
-    # file write and index entry as a Steam board. The Maps are read back from the
-    # Workshop files as they now stand on disk: this run's, or the committed ones when
-    # the Workshop step failed or its write did. Either way the shards agree with the
-    # Map files, and a bad run never blanks anyone's Workshop times on their page.
-    boards_out, artifacts = derive(boards_out, workshop_boards())
-    composite = next((b for b in boards_out if b["name"] == COMPOSITE_BOARD), None)
-    if composite:
-        print(f"  {COMPOSITE_BOARD:34s} derived  players={len(composite['rows'])}")
-    else:
-        print(f"  [warn] {COMPOSITE_BOARD}: no Overall rows to derive from; not written")
-
-    os.makedirs(BOARDS_DIR, exist_ok=True)
-    index_boards = []
-    unique = set()
-    for b in boards_out:
-        for r in b["rows"]:
-            unique.add(r["steam_id"])
-        fname = b["name"] + ".json"
-        board_doc = {
-            "name": b["name"],
-            "display": b["display"],
-            "group": b["group"],
-            "handle": b["handle"],
-            "entry_count": b["entry_count"],
-            "rows": b["rows"],
-        }
-        with open(os.path.join(BOARDS_DIR, fname), "w", encoding="utf-8") as f:
-            json.dump(board_doc, f, ensure_ascii=False, separators=(",", ":"))
-        index_boards.append(
-            {
-                "name": b["name"],
-                "display": b["display"],
-                "group": b["group"],
-                "tier": b.get("tier"),
-                "handle": b["handle"],
-                "entry_count": b["entry_count"],
-                "rows": len(b["rows"]),
-                "file": "boards/" + fname,
-            }
-        )
-
-    # The derived files carry the same never-publish-empty rule as the boards,
-    # and they carry it together: they all come from the one set of rows, so one
-    # of them arriving blank says the rows were blank, and every committed copy
-    # is the better copy. Like the board files they omit generated_at, so an
-    # unchanged season produces no diff.
-    write_derived(artifacts)
-
-    with open(INDEX_PATH, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "app_id": APP_ID,
-                "player_count": len(unique),
-                "boards": index_boards,
-            },
-            f,
-            ensure_ascii=False,
-            indent=2,
-        )
-    print(f"\nWrote {INDEX_PATH} + {len(boards_out)} board files ({len(unique)} unique players)")
-    return workshop, names

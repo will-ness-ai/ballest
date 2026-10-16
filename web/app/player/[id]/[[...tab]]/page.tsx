@@ -11,9 +11,9 @@ import { PlayerSkeleton } from "../../../../components/Skeleton";
 import { PlayerView, tabFor } from "../../../../components/player/PlayerView";
 import { getBoardPage, getDailies, getPlayer, getPlayerDailies } from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
-import { isPlayerTab } from "../../../../lib/routes";
+import { isPlayerTab, playerHref } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
-import { shareMetadata } from "../../../../components/share/metadata";
+import { pageMetadata } from "../../../../components/metadata";
 
 interface Props {
   params: Promise<{ id: string; tab?: Array<string> }>;
@@ -33,12 +33,15 @@ async function recordOf({ id, tab = [] }: Awaited<Props["params"]>) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const rec = await recordOf(await params);
-  if (!rec) return {};
+  /* a Steam ID nobody raced under is a soft 404 (proxy.ts), kept out of results */
+  if (!rec) return { robots: { index: false } };
   const name = personaOf(rec.who);
-  return shareMetadata(
+  return pageMetadata(
     {
       title: name,
       description: `${name}'s Circuit, Workshop and Daily times on Ballest of Them All, read straight from Steam.`,
+      /* every tab is a view of the one page */
+      canonical: playerHref(rec.id),
     },
     { kind: "player", id: rec.id, alt: `${name}'s marble and record on Ballest of Them All.` },
   );

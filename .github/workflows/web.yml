@@ -6,7 +6,7 @@ name: Build web
 # or a site file missing from SITE in scripts/sync-site.mjs fails here rather than in
 # production. Then `pnpm qa check --assert` draws every page at phone and desktop sizes and
 # fails on sideways scroll, text cut off or drawn over other text, and page errors. The paths are the ones
-# web/vercel.json's ignoreCommand deploys on, plus data/, which the app still publishes.
+# web/vercel.json's ignoreCommand deploys on.
 
 on:
   pull_request:
@@ -18,7 +18,6 @@ on:
       - "favicon.svg"
       - "apple-touch-icon.png"
       - "og.png"
-      - "data/**"
       - "circuit/**"
       - "leth/**"
       - "multiballs/**"
@@ -31,7 +30,6 @@ on:
       - "favicon.svg"
       - "apple-touch-icon.png"
       - "og.png"
-      - "data/**"
       - "circuit/**"
       - "leth/**"
       - "multiballs/**"

@@ -35,16 +35,7 @@ __pycache__/
 node_modules/
 *.pyc
 
-# data: the site serves index.json + boards/*.json + podiums.json + players/*.json
-# + workshop.json + workshop/*.json + names.json + standings.json
-# (committed so Pages can serve them); ignore any other local data artifacts (e.g.
-# the SDK collector's campaign.json).
-data/*
-!data/index.json
-!data/boards/
-!data/podiums.json
-!data/players/
-!data/workshop.json
-!data/workshop/
-!data/names.json
-!data/standings.json
+# data/: no longer committed. The collector writes only the database since phase 5 of
+# docs/nextjs-migration.md, and its JSON stays in git history (tools/db_backfill.py); a
+# local data/ is the legacy SDK collector's (campaign.json).
+data/

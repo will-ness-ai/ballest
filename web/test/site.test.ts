@@ -17,6 +17,7 @@ import {
   playerData,
   searchPlayers,
   standings,
+  trackBoards,
   trackPodiums,
   workshopMaps,
 } from "../db/site";
@@ -35,6 +36,15 @@ afterAll(() => t.drop());
 
 const ranks = async (name: string) =>
   (await boardPage(t.db, name, { count: 100 })).rows.map((r) => [r.steamId, r.score]);
+
+describe("the Track boards Multiballs reads", () => {
+  test("are every stored Track's leaderboard ID, in the site's order, Overall boards and Maps aside", async () => {
+    expect(await trackBoards(t.db)).toEqual([
+      { name: "Map_Track13", leaderboardId: 17800617 },
+      { name: "Map_Track15", leaderboardId: 17800873 },
+    ]);
+  });
+});
 
 describe("Steam's boards", () => {
   test("a time board ranks fastest first, equal times lower Steam ID first", async () => {
