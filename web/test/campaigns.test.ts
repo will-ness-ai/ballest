@@ -12,7 +12,6 @@ import {
   mapLabel,
   mapName,
   mapNo,
-  shortTitle,
   type Campaign,
 } from "../lib/campaigns";
 
@@ -92,14 +91,14 @@ describe("the lookups", () => {
     expect(mapNo(CAMPAIGNS[3], "3815119058")).toBe("10");
   });
 
-  test("a Map's title in its Campaign drops the Campaign's name", () => {
-    expect(shortTitle(solar, "Solar Trials Mercury")).toBe("Mercury");
-    expect(shortTitle(solar, "solar trials  Finale The Sun")).toBe("Finale The Sun");
-    expect(shortTitle(make("ajc", []), "AJC1")).toBe("1");
+  test("a Map's name in its Campaign drops the Campaign's name", () => {
+    const name = (title: string) => mapName(solar, "3805399883", title);
+    expect(name("Solar Trials Mercury")).toBe("Mercury");
+    expect(name("solar trials  Finale The Sun")).toBe("Finale The Sun");
     /* a title that is only the name, or doesn't start with it, stays whole */
-    expect(shortTitle(solar, "Solar Trials")).toBe("Solar Trials");
-    expect(shortTitle(solar, "Mercury Solar Trials")).toBe("Mercury Solar Trials");
-    expect(shortTitle(make("a.b", []), "axb 2")).toBe("axb 2");
+    expect(name("Solar Trials")).toBe("Solar Trials");
+    expect(name("Mercury Solar Trials")).toBe("Mercury Solar Trials");
+    expect(mapName(make("a.b", ["5"]), "5", "axb 2")).toBe("axb 2");
   });
 
   test("a Map's label is its number, then its title in the Campaign", () => {

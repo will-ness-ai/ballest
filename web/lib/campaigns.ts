@@ -126,18 +126,14 @@ export const mapNumber = (c: Campaign, pfid: string) => c.maps.indexOf(pfid) + 1
 /* that number as the rail shows it, two digits */
 export const mapNo = (c: Campaign, pfid: string) => String(mapNumber(c, pfid)).padStart(2, "0");
 
-/* a Map's title inside its Campaign: the part after the Campaign's name, when it starts
-   with it ("Solar Trials Mercury" is Mercury), else the whole title */
-export function shortTitle(c: Campaign, title: string) {
-  const name = c.title.toLowerCase();
-  if (!title.toLowerCase().startsWith(name)) return title;
-  return title.slice(name.length).trim() || title;
-}
-
-/* a Map's name inside its Campaign: its short title, or null when that is only its number
-   ("Miniblack 01", "AJC1"), which its label already gives */
+/* a Map's name inside its Campaign: its title after the Campaign's name, when it starts
+   with it ("Solar Trials Mercury" is Mercury), else the whole title; or null when that is
+   only its number ("Miniblack 01", "AJC1"), which its label already gives */
 export function mapName(c: Campaign, pfid: string, title: string): string | null {
-  const name = shortTitle(c, title);
+  const prefix = c.title.toLowerCase();
+  const name = title.toLowerCase().startsWith(prefix)
+    ? title.slice(prefix.length).trim() || title
+    : title;
   return /^\d+$/.test(name) && Number(name) === mapNumber(c, pfid) ? null : name;
 }
 
