@@ -2,7 +2,7 @@
 // /prefabs/new, the upload form (grill-design round 3, E · Form + card): the file and its
 // fields on the left; the 3D preview and the gallery card it will make on the right. The
 // file is checked the moment it's chosen (lib/prefab-check.ts), and again by the server.
-// Signed out, banned or at the daily limit, a note takes the form's place.
+// Signed out, banned or at the hourly limit, a note takes the form's place.
 import { useEffect, useRef, useState } from "react";
 
 import { Card } from "./PrefabGallery";
@@ -11,21 +11,15 @@ import { stillOf } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
 import {
-  DAILY_UPLOADS,
   DESCRIPTION_MAX,
   MAX_TAGS,
   NAME_MAX,
+  NO_UPLOADS,
   TAGS,
   type PrefabFields,
+  type UploadQuota,
 } from "../../lib/prefabs";
 import { newPrefabHref, prefabHref, prefabsApiHref, signInHref } from "../../lib/routes";
-
-interface Quota {
-  signedIn: boolean;
-  banned: boolean;
-  left: number;
-  nextAt: string | null;
-}
 
 interface Chosen {
   fileName: string;
@@ -45,16 +39,20 @@ async function previewStill(chosen: Chosen): Promise<Blob | null> {
   }
 }
 
+/* the minute after `iso`, so a player who comes back then isn't refused for the seconds */
 const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+  new Date(Date.parse(iso) + 60_000).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
 export function UploadForm() {
-  const [quota, setQuota] = useState<Quota | null>(null);
+  const [quota, setQuota] = useState<UploadQuota | null>(null);
   useEffect(() => {
     void fetch(prefabsApiHref(), { cache: "no-store" })
-      .then((r) => r.json() as Promise<Quota>)
+      .then((r) => r.json() as Promise<UploadQuota>)
       .then(setQuota)
-      .catch(() => setQuota({ signedIn: false, banned: false, left: 0, nextAt: null }));
+      .catch(() => setQuota(NO_UPLOADS));
   }, []);
   return (
     <section className="pfu">
@@ -76,26 +74,38 @@ export function UploadForm() {
           <p>You can&apos;t upload prefabs.</p>
         </div>
       ) : !quota.left ? (
-        <Limit nextAt={quota.nextAt} />
+        <Limit limit={quota.limit} nextAt={quota.nextAt} />
       ) : (
-        <Form left={quota.left} onLimit={(nextAt) => setQuota({ ...quota, left: 0, nextAt })} />
+        <Form
+          left={quota.left}
+          limit={quota.limit}
+          onLimit={(limit, nextAt) => setQuota({ ...quota, left: 0, limit, nextAt })}
+        />
       )}
     </section>
   );
 }
 
-function Limit({ nextAt }: { nextAt: string | null }) {
+function Limit({ limit, nextAt }: { limit: number; nextAt: string | null }) {
   return (
     <div className="pfu-gate">
       <p>
-        You&apos;ve uploaded {DAILY_UPLOADS} prefabs today, the daily limit.
-        {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again tomorrow."}
+        You&apos;ve reached your limit of {limit} prefabs an hour.
+        {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again soon."}
       </p>
     </div>
   );
 }
 
-function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null) => void }) {
+function Form({
+  left,
+  limit,
+  onLimit,
+}: {
+  left: number;
+  limit: number;
+  onLimit: (limit: number, nextAt: string | null) => void;
+}) {
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [fields, setFields] = useState<PrefabFields>({ name: "", description: "", tags: [] });
   const [sending, setSending] = useState(false);
@@ -133,10 +143,15 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
     if (picture) body.set("picture", picture, "prefab.png");
     try {
       const r = await fetch(prefabsApiHref(), { method: "POST", body });
-      const got = (await r.json()) as { slug?: string; problems?: Array<string>; nextAt?: string };
+      const got = (await r.json()) as {
+        slug?: string;
+        problems?: Array<string>;
+        limit?: number;
+        nextAt?: string;
+      };
       /* a full load, so the router's cached gallery doesn't miss it on the way back */
       if (r.status === 201 && got.slug) return location.assign(prefabHref(got.slug));
-      if (r.status === 429) return onLimit(got.nextAt ?? null);
+      if (r.status === 429) return onLimit(got.limit ?? limit, got.nextAt ?? null);
       setRefused(got.problems ?? ["That didn't upload. Try again in a moment."]);
     } catch {
       setRefused(["That didn't upload. Try again in a moment."]);
@@ -170,7 +185,7 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
             {sending ? "Publishing…" : "Publish"}
           </button>
           <small>
-            {left} of {DAILY_UPLOADS} uploads left today · goes live at once, credited to your Steam
+            {left} of {limit} uploads left this hour · goes live at once, credited to your Steam
             name
           </small>
         </div>

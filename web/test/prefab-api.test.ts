@@ -10,6 +10,7 @@ import {
   favoritePrefab,
   takeDownPrefab,
   uploadPrefab,
+  limitUploader,
   uploadQuota,
   type PrefabDeps,
 } from "../db/prefab-api";
@@ -23,6 +24,7 @@ import { ENV, NOW, SITE, signIn } from "./session";
 
 const UPLOADER = "76561199000000011";
 const HOUR = 3_600_000;
+const MINUTE = 60_000;
 const bench = readFileSync(new URL("../../prefabs/samples/bench.json", import.meta.url), "utf8");
 
 let t: Awaited<ReturnType<typeof freshDb>>;
@@ -172,14 +174,20 @@ describe("uploading a Prefab", () => {
     ]);
   });
 
-  test("a sixth in 24 hours waits until the oldest is a day old", async () => {
+  test("a sixth in an hour waits until the oldest is an hour old", async () => {
     const id = "76561199000000012";
     const cookie = await sessionOf(id);
     const quota = async (): Promise<unknown> =>
       (await uploadQuota(uploading({}, cookie), deps())).json();
-    expect(await quota()).toEqual({ signedIn: true, banned: false, left: 5, nextAt: null });
+    expect(await quota()).toEqual({
+      signedIn: true,
+      banned: false,
+      left: 5,
+      limit: 5,
+      nextAt: null,
+    });
     for (let i = 0; i < 5; i++) {
-      clock = NOW + i * HOUR;
+      clock = NOW + i * 10 * MINUTE;
       expect(
         (
           await uploadPrefab(
@@ -189,16 +197,17 @@ describe("uploading a Prefab", () => {
         ).status,
       ).toBe(201);
     }
-    clock = NOW + 6 * HOUR;
+    clock = NOW + 50 * MINUTE;
     expect(await quota()).toEqual({
       signedIn: true,
       banned: false,
       left: 0,
-      nextAt: new Date(NOW + 24 * HOUR).toISOString(),
+      limit: 5,
+      nextAt: new Date(NOW + HOUR).toISOString(),
     });
     const refused = await uploadPrefab(uploading({ name: "One more" }, cookie), deps());
     expect(refused.status).toBe(429);
-    clock = NOW + 24 * HOUR + 1000;
+    clock = NOW + HOUR + 1000;
     expect(await quota()).toMatchObject({ left: 1 });
     expect((await uploadPrefab(uploading({ name: "One more" }, cookie), deps())).status).toBe(201);
   });
@@ -219,6 +228,7 @@ describe("uploading a Prefab", () => {
       signedIn: false,
       banned: false,
       left: 0,
+      limit: 0,
       nextAt: null,
     });
   });
@@ -433,6 +443,53 @@ describe("the admin's take down and ban", () => {
     ).toBe(200);
     expect(await states()).toEqual({ "bad-one": "taken-down", "bad-two": "live" });
     expect((await prefabList(t.db)).map((c) => c.slug)).toContain("bad-two");
+  });
+
+  test("the admin gives a player their own hourly limit, and can put them back on the default", async () => {
+    const id = "76561199000000043";
+    const url = `/api/prefab-limits/${id}`;
+    const admin = await sessionOf(ADMIN);
+    const them = await sessionOf(id);
+    const set = (perHour: unknown, cookie = admin) =>
+      limitUploader(
+        new Request(SITE + url, {
+          method: "PUT",
+          body: JSON.stringify({ perHour }),
+          headers: { cookie, origin: SITE, "content-type": "application/json" },
+        }),
+        deps(),
+        id,
+      );
+    const left = async () =>
+      ((await (await uploadQuota(uploading({}, them), deps())).json()) as { left: number }).left;
+    expect(await (await limitUploader(post(url, "GET", admin), deps(), id)).json()).toEqual({
+      steamId: id,
+      perHour: 5,
+      own: false,
+    });
+    expect((await set(25, them)).status).toBe(403);
+    for (const bad of [0, 2.5, "25", 1001]) expect((await set(bad)).status).toBe(400);
+    expect(await (await set(25)).json()).toEqual({ steamId: id, perHour: 25, own: true });
+    for (let i = 0; i < 6; i++)
+      await uploadPrefab(
+        uploading({ name: `Sign ${String(i)}`, file: cubesFile(2) }, them),
+        deps(),
+      );
+    expect(await left()).toBe(19);
+    expect(await (await set(6)).json()).toMatchObject({ perHour: 6 });
+    expect(await left()).toBe(0);
+    const refused = await uploadPrefab(uploading({ name: "Sign 7" }, them), deps());
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({
+      limit: 6,
+      nextAt: new Date(NOW + HOUR).toISOString(),
+    });
+    expect(await (await limitUploader(post(url, "DELETE", admin), deps(), id)).json()).toEqual({
+      steamId: id,
+      perHour: 5,
+      own: false,
+    });
+    expect(await left()).toBe(0);
   });
 
   test("the admin can't ban themselves", async () => {
