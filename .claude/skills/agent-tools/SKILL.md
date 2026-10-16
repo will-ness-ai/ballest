@@ -1,16 +1,30 @@
 ---
 name: agent-tools
-description: Build commands for agents in AXI style. Use when writing or changing a script or CLI whose reader is an agent, or when an agent needs a chain of tool calls that one command could answer.
+description: Build commands for agents in AXI style. Use when writing or changing a script or CLI whose reader is an agent, or when an agent runs a chain or loop of tool calls toward one answer.
 ---
 
 # Agent tools
 
 An **agent tool** is a command whose reader is an agent, not a person. Its cost is **turns**
-(every follow-up call re-reads the context) and **tokens** (every line it prints stays in the
-window). Its job is to collapse a **chain** of tool calls (repeated or not: read a config, query
-a service, filter the answer, open a file) into one, and print the **minimally relevant
-context**: everything the agent would have gone on to use from that chain, and nothing else.
-Fewer turns, a smaller window, the same facts in hand. The style is AXI ([axi.md](https://axi.md); the upstream spec is
+(every call is another round trip through the model) and **tokens** (every line it prints stays
+in the window). Its job is to collapse a **chain**: the run of tool calls an agent makes toward
+one answer, where each call's **intermediate result** passes through the window only to pick the
+next call. A loop is a chain whose links repeat (poll, check, sleep, poll); most chains don't
+(read a config, query a service, filter the answer, open a file). The tool runs the chain itself
+and prints the **minimally relevant context**: what the agent would have gone on to use, and
+nothing else. Fewer turns, a smaller window, the same facts in hand.
+
+Two pieces of Anthropic's research name this. [Writing effective tools for
+agents](https://www.anthropic.com/engineering/writing-tools-for-agents) builds one tool for
+"frequently chained, multi-step tasks" (`schedule_event` over list-then-create, `search_logs`
+over `read_logs`) and finds those chains by counting calls and tokens in transcripts. [Code
+execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) keeps
+intermediate results out of the window by running the chain in code, so the agent sees "five
+rows instead of 10,000". A chain that recurs across sessions earns a tool built here; a one-off
+chain is still one call when the agent writes a short script that runs it and prints only the
+answer, and that script, written a second time, is a tool waiting to be built.
+
+The style is AXI ([axi.md](https://axi.md); the upstream spec is
 [kunchenguid/axi's skill](https://raw.githubusercontent.com/kunchenguid/axi/main/.agents/skills/axi/SKILL.md)),
 adapted to this repo below. Three tools here already work this way; read the closest one before
 starting:
@@ -30,7 +44,7 @@ in the part you touch.
 1. **Name the chain.** Write down the calls an agent makes today to answer the question
    the tool is for (from the session or retro that asked for it): each command, what it printed,
    what the agent kept of it. Done when you can say which of those calls the tool replaces, and
-   the turn count before and after.
+   the turns and tokens before and after.
 2. **Shape the commands.** One entry point with subcommands, run the way the package runs
    scripts (`pnpm --silent <name>` in a Node package, `python tools/<name>.py` in Python). Write
    each command's `--help` first, from the rules below. Done when every link of the chain maps to
@@ -62,6 +76,8 @@ in the part you touch.
 - **Cut long text with its size.** A long value prints its first 500-1500 characters and
   `… (truncated, 8432 chars total; use --full)`. Images and other files are written to disk and
   printed as paths for the agent to read.
+- **Meaning over ids.** Print names and states the agent reasons with; keep an id only where a
+  next command takes it.
 - **Answer the next question too.** Include the totals and summaries the agent would otherwise
   fetch next: `count: 30 of 847`, `checks: 3/3 passed`, `errors: 2`. Only what is cheap to
   compute.
