@@ -455,7 +455,7 @@ branch `claude/prototype-prefabs` (spec #213).
   as the spawn command takes it (`fileNameOf`).
 - **Favorites, editing and the admin** (`Favorite.tsx`, `PrefabTools.tsx`): a signed-in
   reader hearts a Prefab once (`/api/prefabs/<slug>/favorite`). Its uploader can edit its
-  name, description and tags or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,
+  name, description and tags (and its angle, above) or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,
   one Steam ID (`ADMIN_STEAM_ID` in `lib/prefabs.ts`), can take any Prefab down
   (`/api/prefabs/<slug>/takedown`) and ban its uploader (`/api/prefab-bans/<steam_id>`),
   which hides all their Prefabs; a hidden one's gone page offers Unban. Every write expires

@@ -92,7 +92,7 @@ export const DEFAULT_ANGLE: PrefabAngle = {
 };
 
 export const ZOOM_RANGE = [0.05, 20] as const;
-const PAN_MAX = 10;
+export const PAN_MAX = 10;
 
 function unit(v: Vec3): Vec3 {
   const n = Math.hypot(...v);

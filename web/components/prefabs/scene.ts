@@ -1,7 +1,13 @@
 // A Prefab as a three.js scene, shared
 // by the live viewer and the list's still pictures.
 import { shapesOf, type PrefabFile } from "../../lib/prefab";
-import { DEFAULT_ANGLE, ZOOM_RANGE, checkAngle, type PrefabAngle } from "../../lib/prefabs";
+import {
+  DEFAULT_ANGLE,
+  PAN_MAX,
+  ZOOM_RANGE,
+  checkAngle,
+  type PrefabAngle,
+} from "../../lib/prefabs";
 
 type Three = typeof import("three");
 
@@ -63,8 +69,9 @@ export function framing(
   camera: import("three").PerspectiveCamera,
   centre: import("three").Vector3,
   radius: number,
-  angle: PrefabAngle = DEFAULT_ANGLE,
+  angle: PrefabAngle | null = null,
 ) {
+  angle ??= DEFAULT_ANGLE;
   const target = centre.clone().add(new THREE.Vector3(...angle.pan).multiplyScalar(radius));
   const dist = fitDistance(camera, radius) * angle.zoom;
   const position = target
@@ -81,7 +88,8 @@ export function angleNow(
   radius: number,
 ): PrefabAngle {
   const off = camera.position.clone().sub(target);
-  const pan = target.clone().sub(centre).divideScalar(radius);
+  /* clamped like zoom, so a view past the limits saves as the nearest one it can be */
+  const pan = target.clone().sub(centre).divideScalar(radius).clampScalar(-PAN_MAX, PAN_MAX);
   const angle = checkAngle({
     from: off.toArray(),
     zoom: Math.min(
@@ -110,7 +118,7 @@ export async function stillOf(
   h: number,
   /* a solid backdrop instead of a transparent one */
   background?: string,
-  angle?: PrefabAngle | null,
+  angle: PrefabAngle | null = null,
 ): Promise<string> {
   shared ??= loadThree().then((three) => {
     const renderer = new three.THREE.WebGLRenderer({
@@ -124,7 +132,7 @@ export async function stillOf(
   const { three, renderer } = await shared;
   const { scene, centre, radius } = buildScene(three, file, false);
   const camera = new three.THREE.PerspectiveCamera(40, w / h, 0.05, 2000);
-  const view = framing(three.THREE, camera, centre, radius, angle ?? undefined);
+  const view = framing(three.THREE, camera, centre, radius, angle);
   camera.position.copy(view.position);
   camera.lookAt(view.target);
   renderer.setSize(w, h, false);

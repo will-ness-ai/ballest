@@ -4,10 +4,10 @@
 // the uploader turns the preview to the view the card is drawn from (its angle). The
 // file is checked the moment it's chosen (lib/prefab-check.ts), and again by the server.
 // Signed out, banned or at the daily limit, a note takes the form's place.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Card } from "./PrefabGallery";
-import { PrefabViewer } from "./PrefabViewer";
+import { PrefabViewer, useAngleReader } from "./PrefabViewer";
 import { stillOf } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
@@ -237,10 +237,7 @@ function AnglePicker({
   angle: PrefabAngle | null;
   onPick: (angle: PrefabAngle | null) => void;
 }) {
-  const read = useRef<(() => PrefabAngle) | null>(null);
-  const onGrab = useCallback((r: (() => PrefabAngle) | null) => {
-    read.current = r;
-  }, []);
+  const { onGrab, angleNow } = useAngleReader();
   return (
     <div className="pf-vwrap pfu-tall">
       <PrefabViewer file={file} spin={false} angle={angle} onGrab={onGrab} />
@@ -252,7 +249,13 @@ function AnglePicker({
               Default view
             </button>
           )}
-          <button type="button" onClick={() => read.current && onPick(read.current())}>
+          <button
+            type="button"
+            onClick={() => {
+              const a = angleNow();
+              if (a) onPick(a);
+            }}
+          >
             Use this view
           </button>
         </span>

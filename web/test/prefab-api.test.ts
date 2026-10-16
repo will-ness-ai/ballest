@@ -422,6 +422,9 @@ describe("the angle its picture is drawn from", () => {
     expect((await prefabOf(t.db, "angled"))?.angle).toBeNull();
     const r = await editPrefab(patch({ angle: { zoom: 1 } }, owner), deps(), "angled");
     expect(r.status).toBe(400);
+    expect((await editPrefab(patch(5 as unknown as object, owner), deps(), "angled")).status).toBe(
+      400,
+    );
   });
 
   test("nobody else can change it", async () => {

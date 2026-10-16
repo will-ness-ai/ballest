@@ -265,12 +265,16 @@ export async function editPrefab(
     deps.changed?.();
     return json({ deleted: slug });
   }
-  const body = (await request.json().catch(() => null)) as
-    (Partial<PrefabFields> & { angle?: unknown }) | null;
+  const sent: unknown = await request.json().catch(() => null);
+  const body =
+    typeof sent === "object" && sent !== null
+      ? (sent as Partial<PrefabFields> & { angle?: unknown })
+      : null;
   const set: Partial<typeof prefabs.$inferInsert> = { updatedAt: new Date(at) };
-  /* a body with only an angle leaves the words as they are */
-  const onlyAngle = !!body && "angle" in body && Object.keys(body).length === 1;
-  if (!onlyAngle) {
+  /* a body with an angle and none of the words leaves the words as they are */
+  const words =
+    !body || !("angle" in body) || ["name", "description", "tags"].some((k) => k in body);
+  if (words) {
     const fields = checkFields({
       name: typeof body?.name === "string" ? body.name : "",
       description: typeof body?.description === "string" ? body.description : "",
