@@ -51,20 +51,20 @@ A value bound for the clipboard goes through `clip.exe`, then `pbcopy`, then `xc
 
 - `bash -n <script>`; run `shellcheck` if available.
 - `chmod +x <script>`.
-- Strip CRLF line endings, then confirm it boots: `timeout 5 bash <script> </dev/null` reaches the banner's "Ready to start?" with no error, and writes nothing.
+- Strip CRLF line endings, then confirm it boots: `timeout 5 bash <script> </dev/null` reaches the banner's "Ready to start?" with no error. With stdin at EOF every `pause` passes, so the run goes through every stage and writes what they write: run it with `HOME` at a scratch folder, from a scratch git repo outside the checkout.
 - Dry-run it by piping one answer per prompt, with `HOME` pointed at a scratch folder and `ENV_FILE` left unset, so the run exercises the script's own file choice: `printf '\n\nvalue1\nvalue2\n…' | HOME=<scratch> bash <script>`. Then check that every value from step 1 landed where step 1 said, that the repo's `.env` is untouched, and that every `set_secret` name exactly matches a `secrets.*` reference in CI.
 
 ### 5. Deliver it to the human's machine
 
-The wizard runs where the human's browser is: Will's Windows PC. Will expects it already running in a window on his desktop; his only job is typing into it. A cloud session reaches his PC through a Remote Control session in his Ballest folder. That session acts only on Will's own words, so ask him to say "launch the wizard" in the thread and start the session on that message; started on anything else, its permission check blocks writing secrets.
+The wizard runs where the human's browser is: Will's Windows PC. Will expects it already running in a window on his desktop; his only job is typing into it. A cloud session reaches his PC through a Remote Control session in his Ballest folder. That session acts only on Will's own words, so ask him to say "launch the wizard" in the thread and start the session on that message; started on anything else, its permission check blocks writing secrets. A wizard that copies secrets out of a `.env` (to a hand-off file or the clipboard) can still be refused as a secret-store write after that phrase. His next message saying he expects Claude to open the window clears it, so ask him for that rather than handing him a command to paste.
 
 Two exceptions, both seen on the Daily (2026-10-08):
 
 - **A Remote Control session already runs on the thread.** It hears Will's message as he sends it and writes the wizard itself, so the cloud session doesn't author a second one: it says the PC is on it and folds what the PC reports into its replies.
 - **The wizard sets GitHub secrets.** The PC session's permission check refuses to launch a script that runs `gh secret set`, so it can't open the window for him. It writes and checks the script, and Will runs the one `bash` command it prints in a Git Bash window. Say so up front rather than promising a window.
 
-1. Hand that session the whole script inline in its instructions. It writes it to `scratch/<name>.sh` with LF endings and repeats the boot check from step 4 there.
-2. It launches a new visible window running the script by absolute path: `Start-Process "C:\Program Files\Git\git-bash.exe" -ArgumentList "-c","bash /c/Users/Will/Documents/Projects/Ballest/scratch/<name>.sh; exec bash"`. Have the script append a line to `scratch/<name>.log` at its first screen, and the session confirms that line appeared before you tell Will the window is up.
+1. Hand that session the whole script inline in its instructions. It writes it to `scratch/<name>.sh` with LF endings and runs `bash -n` on it. The step 4 boot run stays in the cloud: on the PC it would write `scratch/<name>.log`, and step 2's check would pass before the window opens.
+2. It launches a new visible window running the script by absolute path: `Start-Process "C:\Program Files\Git\git-bash.exe" -ArgumentList '-c "bash /c/Users/Will/Documents/Projects/Ballest/scratch/<name>.sh; exec bash"'`. The command after `-c` must be one quoted string: Start-Process joins a list unquoted, so Git Bash gets only `bash` and opens an empty window (2026-10-16). Have the script append a line to `scratch/<name>.log` at its first screen, and the session confirms that line appeared before you tell Will the window is up.
 3. Your reply names the window and the first screen he should see. Keep a copy at `/mnt/project-files/wizards/<name>.sh` attached as the fallback.
 4. When he says he's done, the session deletes `scratch/<name>.sh` and its log and confirms the hand-off file is gone with `test -e`, never reading it. A fix to the script waits for this point too: bash reads a running script as it goes, so rewriting it mid-run corrupts the wizard he's typing into.
 
