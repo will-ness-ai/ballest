@@ -37,13 +37,14 @@ export const viewName = ({ page, state, width, text }) =>
  * Loads `url` at the view's size, opens its state by clicking `control`, and returns the
  * page's status, its screenshot, what the layout probes found and the errors it raised,
  * plus the boxes of the elements `boxes` selects and the value of the expression `script`.
- * `skipped` says why there is nothing to compare (a control this width hides).
+ * `prefab` is a Prefab file's text, served in place of every Prefab's file, so a Prefab's
+ * page draws it. `skipped` says why there is nothing to compare (a control this width hides).
  */
 export async function render(
   browser,
   url,
   view,
-  { control, now, full = false, element, boxes, script },
+  { control, now, full = false, element, boxes, script, prefab },
 ) {
   const phone = view.width < 600;
   const ctx = await browser.newContext({
@@ -68,6 +69,10 @@ export async function render(
   try {
     await page.clock.setFixedTime(now);
     await page.route(DROP, (r) => r.abort());
+    if (prefab)
+      await page.route("**/api/prefabs/*/file", (r) =>
+        r.fulfill({ status: 200, contentType: "application/json", body: prefab }),
+      );
     await page.route(STAND_IN, (r) =>
       r.fulfill({ status: 200, contentType: "image/webp", body: PICTURE }),
     );
@@ -144,7 +149,9 @@ export async function render(
       });
       shot = await (element ? page.locator(element).first() : page).screenshot();
     }
-    return { status, shot, probes, errors, measured, evaluated };
+    // a page that answers 200 but says it's gone (a Prefab's page streams, so it can't 404)
+    const title = await page.title();
+    return { status, title, shot, probes, errors, measured, evaluated };
   } finally {
     await ctx.close();
   }

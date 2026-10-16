@@ -499,7 +499,9 @@ only visible ones.
   (reference | target | changes in red) in `scratch/qa/`. Read those pictures, not
   screenshots of your own. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
-  place of a throwaway Playwright script. Both sides read the same database, so a change in
+  place of a throwaway Playwright script. `qa shot prefab@1280 --prefab <file.json>` has the
+  Prefab page's viewer draw any file, for checking stand-in shapes against the game. A page
+  that answers 200 with a "not found" title is a `gone` fault: the catalogue's ID is stale. Both sides read the same database, so a change in
   numbers alone is data, and the two deployments' caches can differ by a Refresh.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel
   address. A page or dialog with no row in the catalogue is not checked: add it. Locally,
