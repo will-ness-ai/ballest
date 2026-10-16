@@ -1,14 +1,16 @@
 ---
 name: agent-tools
-description: Build commands for agents in AXI style. Use when writing or changing a script or CLI whose reader is an agent, or when a session keeps spending turns on a loop one command could answer.
+description: Build commands for agents in AXI style. Use when writing or changing a script or CLI whose reader is an agent, or when an agent needs a chain of tool calls that one command could answer.
 ---
 
 # Agent tools
 
 An **agent tool** is a command whose reader is an agent, not a person. Its cost is **turns**
 (every follow-up call re-reads the context) and **tokens** (every line it prints stays in the
-window). Build it so an agent gets from question to next action in one call, reading only what
-it needs. The style is AXI ([axi.md](https://axi.md); the upstream spec is
+window). Its job is to collapse a **chain** of tool calls (repeated or not: read a config, query
+a service, filter the answer, open a file) into one, and print the **minimally relevant
+context**: everything the agent would have gone on to use from that chain, and nothing else.
+Fewer turns, a smaller window, the same facts in hand. The style is AXI ([axi.md](https://axi.md); the upstream spec is
 [kunchenguid/axi's skill](https://raw.githubusercontent.com/kunchenguid/axi/main/.agents/skills/axi/SKILL.md)),
 adapted to this repo below. Three tools here already work this way; read the closest one before
 starting:
@@ -25,13 +27,13 @@ in the part you touch.
 
 ## Steps
 
-1. **Name the loop.** Write down the run of calls an agent makes today to answer the question
+1. **Name the chain.** Write down the calls an agent makes today to answer the question
    the tool is for (from the session or retro that asked for it): each command, what it printed,
    what the agent kept of it. Done when you can say which of those calls the tool replaces, and
    the turn count before and after.
 2. **Shape the commands.** One entry point with subcommands, run the way the package runs
    scripts (`pnpm --silent <name>` in a Node package, `python tools/<name>.py` in Python). Write
-   each command's `--help` first, from the rules below. Done when every step of the loop maps to
+   each command's `--help` first, from the rules below. Done when every link of the chain maps to
    one command, and the bare run's output is sketched.
 3. **Build it** to the rules below, with tests for its parsing and row formatting (as
    `discord-bot/test/axiDescribe.test.ts` does). Done when every rule is met or its absence is
@@ -39,12 +41,12 @@ in the part you touch.
 4. **Run it as the agent will.** In a fresh shell: the bare run, each command's happy path, an
    empty result, a misspelt flag, a missing argument and a dependency failure (network down,
    process not running). Done when each output alone tells the agent its next step, nothing
-   leaks a stack trace, and the loop from step 1 takes the turns you promised.
+   leaks a stack trace, and the chain from step 1 takes the turns you promised.
 5. **Point at it.** Add one line where agents working in that area already look (the package's
    `AGENTS.md`, the `docs/` page, the skill that drives the work), naming the command and when to
    run it; its `--help` carries the rest. Call the Skill tool for 'writing-for-agents', and word
    that line by it. Done when an agent starting cold on that area's work would reach the line
-   before writing its own loop.
+   before building its own chain.
 
 ## Rules
 
