@@ -3,7 +3,7 @@
 // record, short name and run count. A Map opens inside the Campaign's frame.
 import Link from "next/link";
 
-import { campaignBoard, mapNo, shortTitle, type Campaign } from "../../lib/campaigns";
+import { campaignBoard, mapName, mapNo, type Campaign } from "../../lib/campaigns";
 import { campaignHref } from "../../lib/routes";
 import { fmtTime, plural, safeImg } from "../../lib/rules";
 import type { WorkshopMap } from "../../lib/rows";
@@ -33,6 +33,7 @@ export function CampaignRailItems({
       </Link>
       {maps.map((m) => {
         const pic = safeImg(m.preview);
+        const named = mapName(c, m.pfid, m.title);
         return (
           <Link
             key={m.pfid}
@@ -45,7 +46,11 @@ export function CampaignRailItems({
               <b>{mapNo(c, m.pfid)}</b>
               <span className="rt">{m.top3[0] ? fmtTime(m.top3[0][2]) : " "}</span>{" "}
               <small>
-                <span className="mname">{shortTitle(c, m.title)}</span> ·{" "}
+                {named !== null && (
+                  <>
+                    <span className="mname">{named}</span> ·{" "}
+                  </>
+                )}
                 {plural(m.entryCount, "run", "runs")}
               </small>
             </span>

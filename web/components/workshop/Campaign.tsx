@@ -3,7 +3,7 @@
 // in the curated list, out of the Campaign's Map count (lib/campaigns.ts).
 import Link from "next/link";
 
-import { campaignOfMap } from "../../lib/campaigns";
+import { campaignOfMap, mapNumber } from "../../lib/campaigns";
 import { campaignHref } from "../../lib/routes";
 
 /* inside a card's picture: the Campaign's name, then "n / N" */
@@ -14,7 +14,7 @@ export function CampaignStrip({ pfid }: { pfid: string }) {
     <span className="cb-strip">
       <span>{at.campaign.title}</span>
       <span>
-        {at.index + 1} / {at.campaign.maps.length}
+        {mapNumber(at.campaign, pfid)} / {at.campaign.maps.length}
       </span>
     </span>
   );
@@ -30,7 +30,7 @@ export function PartOf({ pfid }: { pfid: string }) {
       <span className="eyebrow">Campaign</span>
       <b>{c.title}</b>
       <span>
-        Map {at.index + 1} of {c.maps.length} &rarr;
+        Map {mapNumber(c, pfid)} of {c.maps.length} &rarr;
       </span>
     </Link>
   );

@@ -11,7 +11,7 @@ import { BoardSkeleton } from "../../../../components/Skeleton";
 import { CampaignView } from "../../../../components/campaign/CampaignView";
 import { shareMetadata } from "../../../../components/share/metadata";
 import { getCampaign } from "../../../../db/data";
-import { CAMPAIGNS, mapNo, shortTitle } from "../../../../lib/campaigns";
+import { CAMPAIGNS, mapLabel, mapNumber } from "../../../../lib/campaigns";
 import { PODIUM_SORT } from "../../../../lib/routes";
 
 interface Props {
@@ -34,11 +34,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { c, maps } = data;
   const m = slot.length === 1 ? maps.find((x) => x.pfid === slot[0]) : undefined;
   if (m) {
-    const title = `${c.title} ${mapNo(c, m.pfid)} ${shortTitle(c, m.title)}`;
+    const title = `${c.title} ${mapLabel(c, m.pfid, m.title)}`;
     return shareMetadata(
       {
         title,
-        description: `The leaderboard of ${m.title}, map ${String(c.maps.indexOf(m.pfid) + 1)} of the ${c.title} Campaign by ${c.creator}, read straight from Steam.`,
+        description: `The leaderboard of ${m.title}, map ${String(mapNumber(c, m.pfid))} of the ${c.title} Campaign by ${c.creator}, read straight from Steam.`,
       },
       {
         kind: "map",

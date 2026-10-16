@@ -227,7 +227,9 @@ place there. A player is ranked once they have a time on one Map.
 from the same pieces: the Campaign switch (`CampaignSwitch.tsx`, the season switch's tabs
 and chip) lists the Campaigns most players first (`getCampaigns`); the rail lists Overall,
 then each Map as a strip of its preview picture with its number, record and the part of
-its title after the Campaign's name (`shortTitle`); the Overall card, the points dialog
+its title after the Campaign's name (`mapName`), left out when that is only its number
+("Miniblack 01", "AJC1"). Everywhere the frame names a Map (the rail's sheet, the podium
+tally, the page's title) it is `mapLabel`: the number, then that name; the Overall card, the points dialog
 and the podium count say maps where a season says tracks. A Map inside the frame gets the
 Track card's layout with its preview picture and a link to its own page. A Campaign none
 of whose Maps the Workshop lists is shown nowhere and its page is a 404, which is how the

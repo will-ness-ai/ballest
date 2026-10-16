@@ -9,6 +9,8 @@ import {
   campaignOfBoard,
   campaignOfMap,
   campaignProblems,
+  mapLabel,
+  mapName,
   mapNo,
   shortTitle,
   type Campaign,
@@ -98,5 +100,24 @@ describe("the lookups", () => {
     expect(shortTitle(solar, "Solar Trials")).toBe("Solar Trials");
     expect(shortTitle(solar, "Mercury Solar Trials")).toBe("Mercury Solar Trials");
     expect(shortTitle(make("a.b", []), "axb 2")).toBe("axb 2");
+  });
+
+  test("a Map's label is its number, then its title in the Campaign", () => {
+    expect(mapLabel(solar, "3805399883", "Solar Trials Mercury")).toBe("01 Mercury");
+    expect(mapLabel(solar, "3805413302", "Solar Trials Finale The Sun")).toBe("09 Finale The Sun");
+    expect(mapLabel(solar, "3805394429", "Venus")).toBe("02 Venus");
+  });
+
+  test("a Map titled by its number alone is labelled with the number once", () => {
+    const [, velocity, , miniblack, ajc] = CAMPAIGNS;
+    // "Miniblack 01" would read "01 01", "AJC1" "01 1"
+    expect(mapLabel(miniblack, "3811078255", "Miniblack 01")).toBe("01");
+    expect(mapLabel(miniblack, "3815119058", "Miniblack 10")).toBe("10");
+    expect(mapLabel(ajc, "3646349274", "AJC1")).toBe("01");
+    expect(mapLabel(velocity, "3803937353", "Velocity Trials 5")).toBe("05");
+    expect(mapName(ajc, "3788055152", "AJC5")).toBeNull();
+    expect(mapName(solar, "3805399883", "Solar Trials Mercury")).toBe("Mercury");
+    // a number that isn't the Map's place is part of its name
+    expect(mapLabel(velocity, "3803908791", "Velocity Trials 7")).toBe("01 7");
   });
 });

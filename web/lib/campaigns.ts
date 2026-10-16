@@ -120,9 +120,11 @@ export function campaignOfMap(pfid: string): { campaign: Campaign; index: number
 }
 
 /* a Map's number in its Campaign, as a Track's is in its season: its place in the maker's
-   order, two digits */
-export const mapNo = (c: Campaign, pfid: string) =>
-  String(c.maps.indexOf(pfid) + 1).padStart(2, "0");
+   order, counting from 1 */
+export const mapNumber = (c: Campaign, pfid: string) => c.maps.indexOf(pfid) + 1;
+
+/* that number as the rail shows it, two digits */
+export const mapNo = (c: Campaign, pfid: string) => String(mapNumber(c, pfid)).padStart(2, "0");
 
 /* a Map's title inside its Campaign: the part after the Campaign's name, when it starts
    with it ("Solar Trials Mercury" is Mercury), else the whole title */
@@ -130,4 +132,18 @@ export function shortTitle(c: Campaign, title: string) {
   const name = c.title.toLowerCase();
   if (!title.toLowerCase().startsWith(name)) return title;
   return title.slice(name.length).trim() || title;
+}
+
+/* a Map's name inside its Campaign: its short title, or null when that is only its number
+   ("Miniblack 01", "AJC1"), which its label already gives */
+export function mapName(c: Campaign, pfid: string, title: string): string | null {
+  const name = shortTitle(c, title);
+  return /^\d+$/.test(name) && Number(name) === mapNumber(c, pfid) ? null : name;
+}
+
+/* a Map's label inside its Campaign, wherever the Campaign's frame names it (the rail's
+   card, the tally, the page's title): its number, then its name when it has one */
+export function mapLabel(c: Campaign, pfid: string, title: string) {
+  const name = mapName(c, pfid, title);
+  return name === null ? mapNo(c, pfid) : `${mapNo(c, pfid)} ${name}`;
 }

@@ -20,8 +20,7 @@ import {
   campaignBoard,
   campaignOf,
   campaignOfBoard,
-  mapNo,
-  shortTitle,
+  mapLabel,
   type Campaign,
 } from "../lib/campaigns";
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
@@ -394,7 +393,7 @@ async function campaignData(slug: string): Promise<CampaignData | null> {
   const boards = maps.map((m) => m.name);
   const label = (name: string) => {
     const m = maps.find((x) => x.name === name);
-    return m ? mapNo(c, m.pfid) + " " + shortTitle(c, m.title) : name;
+    return m ? mapLabel(c, m.pfid, m.title) : name;
   };
   return { c, maps, tally: tally(c.title, boards, await q.mapPodiums(db(), boards), label) };
 }

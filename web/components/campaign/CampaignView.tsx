@@ -33,7 +33,7 @@ import {
   getCampaigns,
   getPlacesOf,
 } from "../../db/data";
-import { campaignBoard, campaignOfMap, mapNo, shortTitle } from "../../lib/campaigns";
+import { campaignBoard, campaignOfMap, mapLabel } from "../../lib/campaigns";
 import type { IndexBoard } from "../../lib/player";
 import { podiumRows } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref, campaignHref } from "../../lib/routes";
@@ -68,7 +68,7 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
   ]);
   const rows = page.rows;
   const focusAt = focusId ? focus[focusId] : undefined;
-  const title = m ? mapNo(c, m.pfid) + " " + shortTitle(c, m.title) : "Overall";
+  const title = m ? mapLabel(c, m.pfid, m.title) : "Overall";
   const b: IndexBoard = {
     name,
     group: c.title,

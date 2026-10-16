@@ -6,12 +6,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 
 import { CampaignBanner } from "../components/campaign/CampaignBanner";
+import { CampaignRailItems } from "../components/campaign/CampaignRail";
 import { CampaignChip } from "../components/campaign/CampaignSwitch";
 import { CampaignCards } from "../components/player/CampaignCards";
 import { MapCardLink } from "../components/workshop/Card";
 import { PartOf } from "../components/workshop/Campaign";
 import type { ListedCampaign } from "../db/data";
 import { CAMPAIGNS } from "../lib/campaigns";
+import type { WorkshopMap } from "../lib/rows";
 import type { MapCard } from "../lib/workshop";
 
 const card = (pfid: string, title: string): MapCard => ({
@@ -88,4 +90,25 @@ test("a player's Campaign card counts their Maps out of all the Campaign's", () 
   );
   expect(text(html)).toContain("1,200 pts · 6/9 maps");
   expect(html).toContain("width:67%");
+});
+
+const railMap = (pfid: string, title: string): WorkshopMap => ({
+  ...card(pfid, title),
+  name: "Workshop_" + pfid,
+  medals: [],
+  subs: 0,
+});
+
+test("the rail names a Map by its number, then its name when it has one besides", () => {
+  const [solarC, , , miniblack] = CAMPAIGNS;
+  const rail = (c: (typeof CAMPAIGNS)[number], m: WorkshopMap) =>
+    text(renderToStaticMarkup(<CampaignRailItems c={c} maps={[m]} current="" players={41} />));
+  // "Miniblack 01" is the 1st Map: its number alone, not "01 01"
+  const mini = rail(miniblack, railMap("3811078255", "Miniblack 01"));
+  // the number, the record, then straight to the runs
+  expect(mini).toMatch(/\|01\|\|[^|]+\| \|39 runs\|/);
+  expect(mini).not.toContain("Miniblack");
+  const solarRail = rail(solarC, railMap("3805391903", "Solar Trials Earth"));
+  expect(solarRail).toContain("|03|");
+  expect(solarRail).toContain("|Earth|");
 });
