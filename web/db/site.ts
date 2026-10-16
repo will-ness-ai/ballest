@@ -520,3 +520,16 @@ export async function playerDailies(db: Db, steamId: string): Promise<PlayerDail
   );
   return playerDailiesOf(days, played);
 }
+
+/* PROTOTYPE (share round): how many players hold a time on every one of a Campaign's Maps */
+export async function finishedAllOf(db: Db, boards: ReadonlyArray<string>): Promise<number> {
+  const [r] = await rows<{ n: number }>(
+    db,
+    sql`select count(*)::int as n from (
+        select steam_id from entries
+        where closed_refresh is null and board = any(${array(boards)})
+        group by steam_id having count(distinct board) = ${boards.length}
+      ) x`,
+  );
+  return r.n;
+}

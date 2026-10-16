@@ -375,3 +375,22 @@ export async function getPlayerCampaigns(
   );
   return out.filter((x) => x !== null);
 }
+
+/* PROTOTYPE (share round): what a Campaign's share card reads */
+export async function getCampaignShare(slug: string) {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const c = campaignOf(slug);
+  const data = await getCampaignData(slug);
+  if (!c || !data) return null;
+  const board = campaignBoard(c);
+  const [page, all] = await Promise.all([
+    getBoardPage(board, 0, 3),
+    q.finishedAllOf(
+      db(),
+      data.maps.map((m) => m.name),
+    ),
+  ]);
+  return { c, maps: data.maps, total: page.total, top: page.rows, all };
+}

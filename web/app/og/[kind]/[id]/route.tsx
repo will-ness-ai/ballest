@@ -6,11 +6,20 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { SHARE_ASSETS, drawShare } from "../../../../components/share/Card";
-import { getBoardPage, getBoardScores, getDaily, getPlayer, getMap } from "../../../../db/data";
+import {
+  getBoardPage,
+  getBoardScores,
+  getCampaignShare,
+  getDaily,
+  getPlayer,
+  getMap,
+} from "../../../../db/data";
+import { campaignOf, shortTitle } from "../../../../lib/campaigns";
 import { circuitBoard } from "../../../../lib/circuit";
 import { isDailyDate } from "../../../../lib/routes";
 import { isSteamId, safeImg } from "../../../../lib/rules";
 import {
+  campaignCard,
   dailyCard,
   isShareKind,
   mapCard,
@@ -62,7 +71,7 @@ const fullAvatar = (u: string | null | undefined) => u?.replace(/_medium\.jpg$/,
 async function shareOf(
   kind: ShareKind,
   id: string,
-): Promise<{ card: ShareCard; picture: string | null } | null> {
+): Promise<{ card: ShareCard; picture: string | null; pictures?: Array<string | null> } | null> {
   switch (kind) {
     case "player": {
       const rec = isSteamId(id) ? await getPlayer(id) : null;
@@ -80,6 +89,34 @@ async function shareOf(
       if (!b || !card) return null;
       return { card, picture: await trackShot(b.name) };
     }
+    case "campaign": {
+      /* PROTOTYPE: <slug>~<variant> */
+      const [slug, v = "A"] = id.split("~");
+      const c = campaignOf(slug);
+      const x = c ? await getCampaignShare(slug) : null;
+      if (!c || !x) return null;
+      /* a picture Steam won't give (the cloud can't reach it) stands in a Track's */
+      const stand = [
+        "Map_Track05",
+        "Map_Track_S2_Pyramids",
+        "Map_Track13",
+        "Map_Track_S2_NightClimb",
+        "Map_Track16",
+        "Map_Track_S2_Loopworks",
+        "Map_Track19",
+        "Map_Track_S2_BigStairs",
+        "Map_Track21",
+        "Map_Track_S2_Downhill",
+      ];
+      const pictures = await Promise.all(
+        x.maps.slice(0, 10).map(async (m, i) => (await remote(m.preview)) ?? trackShot(stand[i])),
+      );
+      return {
+        card: campaignCard(x, (t) => shortTitle(c, t), v),
+        picture: pictures[0] ?? null,
+        pictures,
+      };
+    }
     case "daily": {
       const d = isDailyDate(id) ? await getDaily(id) : null;
       if (!d) return null;
@@ -96,5 +133,5 @@ export async function GET(
   const { kind, id } = await ctx.params;
   const share = isShareKind(kind) ? await shareOf(kind, id) : null;
   if (!share) return new Response("no such page", { status: 404 });
-  return drawShare(share.card, share.picture);
+  return drawShare(share.card, share.picture, share.pictures);
 }

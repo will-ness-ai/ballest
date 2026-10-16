@@ -274,9 +274,13 @@ function loadFonts() {
    is a data: URL (a player's Steam avatar, a place's Workshop preview or Track screenshot),
    or null to draw the card without one. A picture Satori can't read draws the card without
    it too, rather than a 500 no CDN keeps. */
-export async function drawShare(card: ShareCard, picture: string | null) {
+export async function drawShare(
+  card: ShareCard,
+  picture: string | null,
+  pictures: Array<string | null> = [],
+) {
   try {
-    return await render(card, picture);
+    return await render(card, picture, pictures);
   } catch (e) {
     if (!picture) throw e;
     console.warn(`share image ${card.kind} "${card.title}": drawn without its picture`, e);
@@ -284,9 +288,15 @@ export async function drawShare(card: ShareCard, picture: string | null) {
   }
 }
 
-async function render(card: ShareCard, picture: string | null) {
+async function render(
+  card: ShareCard,
+  picture: string | null,
+  pictures: Array<string | null> = [],
+) {
   const body =
-    card.kind === "player" ? (
+    card.kind === "campaign" ? (
+      <CampaignShare card={card} pics={pictures} />
+    ) : card.kind === "player" ? (
       <Split card={card} face={picture} />
     ) : (
       <Banner card={card} banner={picture} />
@@ -304,4 +314,274 @@ async function render(card: ShareCard, picture: string | null) {
       "cache-control": "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400",
     },
   });
+}
+
+/* PROTOTYPE (share round): a Campaign's card, four ways */
+function Slices({
+  pics,
+  n,
+  w,
+  h,
+}: {
+  pics: Array<string | null>;
+  n: number;
+  w: number;
+  h: number;
+}) {
+  const list = pics.slice(0, n);
+  const each = (w - (list.length - 1) * 4) / list.length;
+  return (
+    <div style={{ display: "flex", gap: 4, width: w, height: h, backgroundColor: C.bg }}>
+      {list.map((p, i) =>
+        p ? (
+          <img key={i} src={p} width={each} height={h} alt="" style={{ objectFit: "cover" }} />
+        ) : (
+          <div
+            key={i}
+            style={{ display: "flex", width: each, height: h, backgroundColor: C.tile }}
+          />
+        ),
+      )}
+    </div>
+  );
+}
+
+/* the band across the top, fading under the name like the Banner's */
+function SliceBand({
+  card,
+  pics,
+  band,
+}: {
+  card: ShareCard;
+  pics: Array<string | null>;
+  band: number;
+}) {
+  const layer = { position: "absolute", left: 0, top: 0, width: W, height: band } as const;
+  return (
+    <div style={{ display: "flex", width: W, height: band, position: "relative" }}>
+      <div style={{ ...layer, display: "flex" }}>
+        <Slices pics={pics} n={5} w={W} h={band} />
+      </div>
+      <div
+        style={{
+          ...layer,
+          display: "flex",
+          backgroundImage: `linear-gradient(180deg, rgba(10,16,32,0) 25%, rgba(10,16,32,0.88) 82%, ${C.bg} 100%)`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: 56,
+          right: 56,
+          top: 36,
+          bottom: 18,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Pill>
+            <Brand size={22} />
+          </Pill>
+        </div>
+        <div style={{ display: "flex", marginTop: "auto" }}>
+          <Heading card={card} size={70} tight />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const MEDAL = [C.gold, "#dfe5f2", "#e59a52"];
+
+function CampaignShare({ card, pics }: { card: ShareCard; pics: Array<string | null> }) {
+  const v = card.variant ?? "A";
+  if (v === "B") {
+    /* a mosaic of its Maps on the left, the name and tiles on the right */
+    const grid = pics.length >= 9 ? 3 : 2;
+    const cell = (420 - (grid - 1) * 6) / grid;
+    const cells = pics.slice(0, grid * grid);
+    return (
+      <div style={{ ...frame, padding: 48, gap: 44 }}>
+        <div style={{ display: "flex", flexDirection: "column", width: 420 }}>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+              width: 420,
+              borderRadius: 22,
+              overflow: "hidden",
+            }}
+          >
+            {cells.map((p, i) =>
+              p ? (
+                <img
+                  key={i}
+                  src={p}
+                  width={cell}
+                  height={cell}
+                  alt=""
+                  style={{ objectFit: "cover" }}
+                />
+              ) : (
+                <div
+                  key={i}
+                  style={{ display: "flex", width: cell, height: cell, backgroundColor: C.tile }}
+                />
+              ),
+            )}
+          </div>
+          <div style={{ display: "flex", marginTop: "auto" }}>
+            <Brand />
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+          <Heading card={card} size={64} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: "auto" }}>
+            <div style={{ display: "flex", gap: 16 }}>
+              {card.tiles.slice(0, 2).map((s) => (
+                <Tile key={s.label} s={s} big={50} />
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 16 }}>
+              {card.tiles.slice(2).map((s) => (
+                <Tile key={s.label} s={s} big={50} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (v === "C") {
+    /* the band, then the top three on the podium */
+    const pod = card.podium ?? [];
+    return (
+      <div style={{ ...frame, flexDirection: "column" }}>
+        <SliceBand card={{ ...card, headline: null }} pics={pics} band={410} />
+        <div style={{ display: "flex", gap: 18, padding: "34px 56px 0" }}>
+          {pod.map((r, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 18,
+                padding: "18px 22px",
+                borderRadius: 18,
+                backgroundColor: C.tile,
+                border: `2px solid ${i === 0 ? C.gold : C.line}`,
+              }}
+            >
+              <div style={{ display: "flex", fontFamily: "Bungee", fontSize: 44, color: MEDAL[i] }}>
+                {String(i + 1)}
+              </div>
+              <Ball hue={r.hue} size={62} />
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <div style={{ fontSize: 30, fontWeight: 700, color: C.text }}>
+                  {r.name.length > 13 ? r.name.slice(0, 12) + "…" : r.name}
+                </div>
+                <div style={{ fontSize: 24, color: C.dim, fontWeight: 600 }}>
+                  {r.points + " pts"}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (v === "D") {
+    /* the run of Maps itself: a numbered frame per Map under the name */
+    const maps = card.maps ?? [];
+    const named = maps.some((m) => !/^\d+$/.test(m));
+    const n = Math.min(maps.length, 10);
+    const each = (W - 112 - (n - 1) * 12) / n;
+    return (
+      <div style={{ ...frame, flexDirection: "column", padding: "44px 56px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <Heading card={card} size={70} />
+          <Brand size={22} />
+        </div>
+        <div style={{ display: "flex", gap: 12, marginTop: "auto" }}>
+          {maps.slice(0, n).map((name, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", width: each, gap: 8 }}>
+              <div style={{ display: "flex", position: "relative", width: each, height: 150 }}>
+                {pics[i] ? (
+                  <img
+                    src={pics[i]}
+                    width={each}
+                    height={150}
+                    alt=""
+                    style={{ objectFit: "cover", borderRadius: 12 }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      width: each,
+                      height: 150,
+                      borderRadius: 12,
+                      backgroundColor: C.tile,
+                    }}
+                  />
+                )}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 8,
+                    top: 8,
+                    display: "flex",
+                    padding: "2px 10px",
+                    borderRadius: 8,
+                    backgroundColor: C.pill,
+                    fontFamily: "Bungee",
+                    fontSize: 22,
+                  }}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </div>
+              </div>
+              {named ? (
+                <div style={{ fontSize: n > 6 ? 18 : 22, color: C.dim, fontWeight: 600 }}>
+                  {name.length > 12 ? name.slice(0, 11) + "…" : name}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 28,
+            marginTop: 22,
+            fontSize: 26,
+            fontWeight: 600,
+            color: C.dim,
+          }}
+        >
+          {card.tiles.map((s) => (
+            <div key={s.label} style={{ display: "flex", gap: 10 }}>
+              <span style={{ color: toneOf(s), fontWeight: 700 }}>{s.value}</span>
+              <span>{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  /* A: the Map pictures as one split band, then the tiles */
+  return (
+    <div style={{ ...frame, flexDirection: "column" }}>
+      <SliceBand card={card} pics={pics} band={380} />
+      <div style={{ display: "flex", gap: 18, padding: "30px 56px 0" }}>
+        {card.tiles.map((s) => (
+          <Tile key={s.label} s={s} big={48} />
+        ))}
+      </div>
+    </div>
+  );
 }

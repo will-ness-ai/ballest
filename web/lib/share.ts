@@ -10,7 +10,7 @@ import type { PlayerRecord } from "./player";
 import type { BoardRow, DailyDay, WorkshopMap } from "./rows";
 import { fmtN, fmtSec, fmtTime, hueFor, personaOf, timeMedal } from "./rules";
 
-export const SHARE_KINDS = ["player", "map", "track", "daily"] as const;
+export const SHARE_KINDS = ["player", "map", "track", "daily", "campaign"] as const;
 export type ShareKind = (typeof SHARE_KINDS)[number];
 export const isShareKind = (k: string): k is ShareKind => SHARE_KINDS.some((x) => x === k);
 
@@ -36,6 +36,11 @@ export interface ShareCard {
   tiles: Array<ShareStat>;
   /* the marble's hue, for a player */
   hue: number;
+  /* PROTOTYPE (share round): a Campaign's top three, its Maps' short names, and which
+     layout the round draws */
+  podium?: Array<{ name: string; points: string; hue: number }>;
+  maps?: Array<string>;
+  variant?: string;
 }
 
 /* "Today", "3d ago", "4w ago", "5mo ago": a Map's age, short enough for a tile */
@@ -172,5 +177,42 @@ export function dailyCard(d: DailyDay, top: BoardTop): ShareCard {
       goldTime(d.medals),
     ],
     hue: hueFor(d.pfid),
+  };
+}
+
+/* PROTOTYPE (share round): a Campaign's card. Its leader, then Maps, Players and how many
+   finished every Map */
+export function campaignCard(
+  x: {
+    c: { title: string; creator: string; slug: string };
+    maps: ReadonlyArray<{ title: string }>;
+    total: number;
+    top: ReadonlyArray<BoardRow>;
+    all: number;
+  },
+  short: (t: string) => string,
+  variant: string,
+): ShareCard {
+  const lead = x.top.at(0);
+  return {
+    kind: "campaign",
+    kicker: "Campaign · by " + x.c.creator,
+    title: x.c.title,
+    headline: lead
+      ? { value: personaOf(lead), label: `leads with ${fmtN(lead.score)} pts`, tone: "gold" }
+      : null,
+    tiles: [
+      { value: fmtN(x.maps.length), label: "Maps" },
+      players(x.total),
+      { value: fmtN(x.all), label: "Finished every map", tone: "author" },
+    ],
+    hue: hueFor(x.c.slug),
+    podium: x.top.map((r) => ({
+      name: personaOf(r),
+      points: fmtN(r.score),
+      hue: hueFor(r.steamId),
+    })),
+    maps: x.maps.map((m) => short(m.title)),
+    variant,
   };
 }
