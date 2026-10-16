@@ -668,3 +668,356 @@
     display: table-cell;
   }
 }
+
+/* ==========================================================================
+   PROTOTYPE round 2's settled gallery and round 3's answers
+   ========================================================================== */
+.pfl-headrow {
+  display: flex;
+  gap: 1rem;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.pfl-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: center;
+}
+.pfl-seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.pfl-seg button {
+  font: inherit;
+  color: var(--dim);
+  background: none;
+  border: 0;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+.pfl-seg button.on {
+  background: var(--surface2);
+  color: var(--text);
+}
+.pfl-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pfl-tag {
+  font: inherit;
+  font-size: calc(13rem / 16);
+  color: var(--dim);
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
+}
+.pfl-tag.on {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+li.pfl-tag {
+  cursor: default;
+}
+.pfl-cardrow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+.pfl-favs {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+  font-family: var(--f-hud);
+  font-weight: 600;
+}
+.pf-heart {
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.pf-heart.on {
+  fill: var(--bronze);
+  stroke: var(--bronze);
+}
+.pf-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+.pf .pf-fav {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding-inline: 1rem;
+  font-family: var(--f-hud);
+  font-weight: 700;
+  font-size: calc(17rem / 16);
+  border-radius: 10px;
+}
+.pf-admin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px dashed var(--bronze);
+  border-radius: 10px;
+  color: var(--bronze);
+  font-size: calc(13rem / 16);
+}
+
+/* round 3: uploading */
+.pfu {
+  margin: 0 var(--pad);
+  display: grid;
+  gap: 1rem;
+  padding-block: 0.5rem 2rem;
+  min-width: 0;
+}
+.pfu > *,
+.pfu-col,
+.pfu-col > * {
+  min-width: 0;
+}
+.pfu button:not(.pfl-tag):not(.pf-dl) {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+.pfu-col {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  max-width: 44rem;
+}
+.pfu-drop {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  min-height: 9rem;
+  padding: 1rem;
+  border: 2px dashed var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  cursor: pointer;
+  color: var(--dim);
+}
+.pfu-drop b {
+  color: var(--text);
+}
+.pfu-drop small {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+}
+.pfu-drop.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.pfu-drop.ok {
+  border-style: solid;
+  border-color: color-mix(in oklch, var(--accent) 50%, transparent);
+  min-height: 0;
+}
+.pfu-drop.bad {
+  border-style: solid;
+  border-color: var(--bronze);
+  min-height: 0;
+}
+.pfu-drop.compact {
+  min-height: 0;
+  padding: 0.5rem;
+  font-size: calc(13rem / 16);
+}
+.pfu-change {
+  display: block;
+  margin-top: 0.2rem;
+  text-decoration: underline;
+  color: var(--faint);
+}
+.pfu-bad {
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--bronze) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--bronze) 45%, transparent);
+}
+.pfu-bad ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+.pfu-fields {
+  display: grid;
+  gap: 0.9rem;
+}
+.pfu-fields label,
+.pfu-fields fieldset {
+  display: grid;
+  gap: 0.3rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.pfu-fields span,
+.pfu-fields legend {
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+.pfu-fields i {
+  font-weight: 400;
+  color: var(--faint);
+}
+.pfu-fields small,
+.pfu-publish small {
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+}
+.pfu input:not([type]),
+.pfu textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--solid);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  min-width: 0;
+}
+.pfu-publish {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+.pf-dl:disabled,
+.pf-dl[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+button.pf-dl {
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pfu-empty {
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+}
+.pfu-gate {
+  display: grid;
+  gap: 0.8rem;
+  justify-items: start;
+  padding: 1.2rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  max-width: 34rem;
+}
+.pfu-gate p {
+  margin: 0;
+}
+.pfu-stepper {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pfu-stepper li {
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  color: var(--faint);
+  border: 1px solid var(--line2);
+}
+.pfu-stepper li.on {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.pfu-mini {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+}
+.pfu-mini .pf-vwrap {
+  width: 9rem;
+}
+.pfu-h1 {
+  font-family: var(--f-marquee) !important;
+  font-size: calc((24rem + 8 * var(--ramp)) / 16) !important;
+  background: transparent !important;
+  border: 1px dashed var(--line) !important;
+}
+.pfu-desc {
+  background: transparent !important;
+  border: 1px dashed var(--line) !important;
+  color: var(--dim) !important;
+}
+.pfu-dropbig {
+  padding: 1rem;
+}
+.pfu-dropbig .pfu-drop {
+  width: 100%;
+  height: 100%;
+}
+.pfu-dialog {
+  width: min(60rem, calc(100vw - 2rem));
+  max-width: none;
+}
+.pfu-dgrid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.8rem;
+}
+.pfu-split {
+  display: grid;
+  gap: 1.5rem;
+}
+.pfu-card {
+  display: grid;
+}
+
+@media (min-width: 51.25em) {
+  .pfu-dgrid,
+  .pfu-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .pfu-tall .pfv {
+    aspect-ratio: 4 / 3;
+  }
+}
+.pf button.pf-dl {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 0;
+}
+.pfu-C .pf {
+  margin: 0;
+}
+.pfu-C fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.4rem;
+}

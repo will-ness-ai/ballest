@@ -2,8 +2,10 @@
 /* PROTOTYPE (grill-design, claude/prototype-prefabs): a Prefab's page as round 1 settled it:
    B · Sidebar, with A's piece chips, D's ? help dialog (open on a first visit) and a slow
    spin until the viewer is grabbed. Never merged. */
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { Heart } from "./PrefabGallery";
 import { PrefabViewer } from "./PrefabViewer";
 import type { PrefabFile } from "../../lib/prefab";
 
@@ -173,6 +175,21 @@ export function Parts({ facts }: { facts: PrefabFacts }) {
   );
 }
 
+/* round 3's answers: a favorite toggle, the prefab's tags, and Will's admin buttons */
+function Fav() {
+  const [on, setOn] = useState(false);
+  return (
+    <button
+      type="button"
+      className={"pf-fav" + (on ? " on" : "")}
+      aria-pressed={on}
+      onClick={() => setOn(!on)}
+    >
+      <Heart on={on} /> {12 + (on ? 1 : 0)}
+    </button>
+  );
+}
+
 export function PrefabPage({
   file,
   facts,
@@ -182,6 +199,8 @@ export function PrefabPage({
   facts: PrefabFacts;
   first?: boolean;
 }) {
+  /* ?admin=1 shows what Will sees signed in */
+  const admin = useSearchParams().get("admin") === "1";
   const reset = (e: React.MouseEvent) =>
     e.currentTarget
       .closest(".pf-vwrap")
@@ -206,7 +225,21 @@ export function PrefabPage({
           <p className="pf-desc">{facts.description}</p>
           <Stats facts={facts} />
           <Parts facts={facts} />
-          <Download facts={facts} big />
+          <ul className="pfl-tags pf-tags">
+            <li className="pfl-tag">Decoration</li>
+            <li className="pfl-tag">Scenery</li>
+          </ul>
+          <div className="pf-actions">
+            <Download facts={facts} big />
+            <Fav />
+          </div>
+          {admin && (
+            <div className="pf-admin">
+              <b>Admin</b>
+              <button type="button">Take down</button>
+              <button type="button">Ban {facts.creator} from uploading</button>
+            </div>
+          )}
         </aside>
       </div>
     </div>

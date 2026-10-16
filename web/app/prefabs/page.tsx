@@ -2,12 +2,12 @@
 import { Suspense } from "react";
 
 import { Shell } from "../../components/Shell";
-import { ListPrototype } from "../../components/prefabs/ListPrototype";
+import { PrefabGallery } from "../../components/prefabs/PrefabGallery";
 import { PREFABS, readPrefab } from "../../lib/prefabs-list";
 
 async function Body() {
   const all = await Promise.all(PREFABS.map(readPrefab));
-  return <ListPrototype prefabs={all} />;
+  return <PrefabGallery prefabs={all} />;
 }
 
 export default function Page() {
