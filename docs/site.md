@@ -243,10 +243,11 @@ nowhere and its page is a soft 404 (see "Caching"), as is a Map of it the Worksh
 longer lists. `stress` lists Solar Trials' first Map alone, so its builds have one listed
 Campaign of one listed Map and four unlisted ones; `tiny`'s Maps are in no Campaign.
 
-**Where they are listed.** `getCampaigns` (`listedCampaigns` in `db/site.ts`) is the one
-read every list takes: each Campaign with a listed Map, its players counted, its
-listed Maps' preview pictures in its order and its board's leader, most players first
-(distinct players with a time on any of its Maps). A Campaign's picture is
+**Where they are listed.** `getCampaigns` is the one read every list takes: each Campaign
+`getCampaign` finds (one with a listed Map), with the players its board ranks, its listed
+Maps' preview pictures in its order and its board's leader, most players first. A
+Campaign's page, its share card and every list read it through `getCampaign`, so it is
+counted and led the same way everywhere. A Campaign's picture is
 `CampaignPics`: its first five Maps' previews side by side with a hairline between, a Map
 with no preview a blank panel; the banners and a player's Campaign cards all draw it. A
 banner (`CampaignBanner`) sets the picture at full strength with a full-height fade behind
@@ -272,9 +273,9 @@ Map inside the Campaign's frame, `/campaign/<slug>/<pfid>`.
 **On a player's page** the Workshop tab opens with a Campaigns shelf
 (`components/player/CampaignCards.tsx`), a card for each Campaign the player holds a place
 in, in `getCampaigns`' order (most players first). `getPlayerCampaigns` reads it:
-`playerCampaigns` in `db/site.ts` gives their place and points on each Campaign's board,
-how many of its listed Maps they have a time on out of how many it lists, and how many
-players it ranks, and the pictures come from `getCampaigns`. A card is `CampaignPics` (four
+`playerCampaigns` in `db/site.ts` gives their place and points on each Campaign's board
+and how many of its listed Maps they have a time on, and the pictures and the players it
+ranks come from `getCampaigns`. A card is `CampaignPics` (four
 Maps) with the name over a fade, their place "of N" (gold, silver or bronze for 1st to
 3rd), points, "n/N maps" and a bar of them, and it opens the Campaign's board focused on
 their row (`/campaign/<slug>/<steam_id>`). A player in no Campaign has no shelf. The shelf

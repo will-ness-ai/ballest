@@ -52,10 +52,11 @@ export const listedMapsSql = sql`select m.board from maps m join (
   where l.last_seen_refresh = (select max(last_seen_refresh) from map_history)`;
 
 /* A Campaign's Maps' boards, in its order */
-export const campaignMapBoards = (c: Campaign) => c.maps.map(mapBoard);
+const campaignMapBoards = (c: Campaign) => c.maps.map(mapBoard);
 
 /* The boards of a Campaign's Maps the Workshop lists now, as a query of one column, board:
-   the Maps its board adds up, its "finished every map" asks for and its lists count */
+   the Maps its board adds up, and those a player's Maps finished and "finished every map"
+   count */
 export const campaignListedSql = (c: Campaign) =>
   sql`select board from (${listedMapsSql}) l where board = any(${array(campaignMapBoards(c))})`;
 

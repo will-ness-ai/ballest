@@ -33,7 +33,7 @@ import type {
   DailyCell,
   DailyDay,
   DailyStandings,
-  ListedCampaignRow,
+  BoardRow,
   PlayerCampaignRow,
   PlayerDailies,
   WorkshopMap,
@@ -322,63 +322,22 @@ async function playerDailiesOf(steamId: string) {
   return q.playerDailies(db(), steamId);
 }
 
-export interface ListedCampaign extends Omit<ListedCampaignRow, "slug"> {
-  c: Campaign;
-}
-
-/* the Campaigns with a Map the Workshop lists, most players first, each with its pictures
-   and leader: what the Campaign switch, the homepage's carousel and /campaigns list; one
-   with none is shown nowhere */
-export async function getCampaigns(): Promise<Array<ListedCampaign>> {
-  "use cache: remote";
-  cacheTag(DATA_TAG);
-  cacheLife("max");
-  const listed = await q.listedCampaigns(db(), CAMPAIGNS);
-  return listed.flatMap(({ slug, ...rest }) => {
-    const c = campaignOf(slug);
-    return c ? [{ c, ...rest }] : [];
-  });
-}
-
-export interface PlayerCampaign extends Omit<PlayerCampaignRow, "slug"> {
-  c: Campaign;
-  /* its listed Maps' pictures, in its order */
-  previews: Array<string | null>;
-}
-
-/* where a player stands in each Campaign they hold a place in, most players first as
-   getCampaigns lists them, with the Campaign's pictures: their page's Campaigns shelf. Only
-   a Steam ID the database has seen is read. */
-export async function getPlayerCampaigns(steamId: string): Promise<Array<PlayerCampaign>> {
-  return (await isPlayer(steamId)) ? playerCampaignsOf(steamId) : [];
-}
-
-async function playerCampaignsOf(steamId: string): Promise<Array<PlayerCampaign>> {
-  "use cache: remote";
-  cacheTag(DATA_TAG);
-  cacheLife("max");
-  const [listed, mine] = await Promise.all([
-    getCampaigns(),
-    q.playerCampaigns(db(), steamId, CAMPAIGNS),
-  ]);
-  return mine.flatMap(({ slug, ...rest }) => {
-    const k = listed.find((x) => x.c.slug === slug);
-    return k ? [{ c: k.c, previews: k.previews, ...rest }] : [];
-  });
-}
-
 export interface CampaignData {
   c: Campaign;
   /* its Maps the Workshop lists, in the Campaign's order */
   maps: Array<WorkshopMap>;
   /* how many players its board ranks: those with a time on one of those Maps */
   players: number;
+  /* first on its board, or null while nobody has a time */
+  leader: BoardRow | null;
   /* the podium places on those Maps, labelled as the rail numbers them */
   tally: PodiumTally;
 }
 
-/* a curated Campaign by its slug with its Maps, players and podium tally, or null for one
-   that isn't curated or none of whose Maps the Workshop lists */
+/* a curated Campaign by its slug with its Maps, players, leader and podium tally, or null
+   for one that isn't curated or none of whose Maps the Workshop lists. Every list of
+   Campaigns is made of these, so a Campaign is listed, counted and led the same way on
+   every page. */
 export async function getCampaign(slug: string): Promise<CampaignData | null> {
   return campaignOf(slug) ? campaignData(slug) : null;
 }
@@ -401,7 +360,70 @@ async function campaignData(slug: string): Promise<CampaignData | null> {
     getBoardPage(campaignBoard(c), 0, 1),
     q.mapPodiums(db(), boards),
   ]);
-  return { c, maps, players: head.total, tally: tally(c.title, boards, podiums, label) };
+  return {
+    c,
+    maps,
+    players: head.total,
+    leader: head.rows[0] ?? null,
+    tally: tally(c.title, boards, podiums, label),
+  };
+}
+
+/* a Campaign as the lists draw it: the Campaign switch, the banners, a player's cards */
+export interface ListedCampaign {
+  c: Campaign;
+  players: number;
+  /* its listed Maps' preview pictures, in its order */
+  previews: Array<string | null>;
+  leader: BoardRow | null;
+}
+
+/* every Campaign getCampaign finds, most players first, equal counts in the curated order:
+   what the Campaign switch, the homepage's carousel and /campaigns list; one none of whose
+   Maps the Workshop lists is shown nowhere */
+export async function getCampaigns(): Promise<Array<ListedCampaign>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const all = await Promise.all(CAMPAIGNS.map((c) => campaignData(c.slug)));
+  return all
+    .flatMap((d) =>
+      d
+        ? [{ c: d.c, players: d.players, previews: d.maps.map((m) => m.preview), leader: d.leader }]
+        : [],
+    )
+    .sort((a, b) => b.players - a.players);
+}
+
+export interface PlayerCampaign extends Omit<PlayerCampaignRow, "slug"> {
+  c: Campaign;
+  /* its listed Maps' pictures, in its order */
+  previews: Array<string | null>;
+  /* how many players its board ranks */
+  players: number;
+}
+
+/* where a player stands in each Campaign they hold a place in, in getCampaigns' order, with
+   the Campaign's pictures and field: their page's Campaigns shelf. Only a Steam ID the
+   database has seen is read. */
+export async function getPlayerCampaigns(steamId: string): Promise<Array<PlayerCampaign>> {
+  return (await isPlayer(steamId)) ? playerCampaignsOf(steamId) : [];
+}
+
+async function playerCampaignsOf(steamId: string): Promise<Array<PlayerCampaign>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const [listed, mine] = await Promise.all([
+    getCampaigns(),
+    q.playerCampaigns(db(), steamId, CAMPAIGNS),
+  ]);
+  return listed.flatMap(({ c, previews, players }) => {
+    const at = mine.find((x) => x.slug === c.slug);
+    return at
+      ? [{ c, previews, players, rank: at.rank, score: at.score, finished: at.finished }]
+      : [];
+  });
 }
 
 /* what a Campaign's share card reads: its Maps and where it stands, or null where
@@ -411,16 +433,12 @@ export async function getCampaignShare(
 ): Promise<{ data: CampaignData; standing: CampaignStanding } | null> {
   const data = await getCampaign(slug);
   if (!data) return null;
-  const [head, finished] = await Promise.all([
-    getBoardPage(campaignBoard(data.c), 0, 1),
-    finishedEveryMapOf(slug),
-  ]);
   return {
     data,
     standing: {
       players: data.players,
-      leader: head.rows[0] ?? null,
-      finishedEveryMap: finished,
+      leader: data.leader,
+      finishedEveryMap: await finishedEveryMapOf(slug),
     },
   };
 }

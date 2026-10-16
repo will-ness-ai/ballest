@@ -10,13 +10,15 @@ import { GET as OG } from "../app/og/[kind]/[id]/route";
 import type { Db } from "../db/client";
 import { entries, refreshes } from "../db/schema";
 import { seed } from "../db/seed/harness";
-import { boardPage, listedCampaigns, mapPodiums, playerCampaigns } from "../db/site";
+import { getCampaigns, getPlayerCampaigns } from "../db/data";
+import { boardPage, mapPodiums } from "../db/site";
 import type { Campaign } from "../lib/campaigns";
 import { tally } from "../lib/podiums";
 import { freshDb } from "./pg";
 
 /* Map A (Marble Run), then Map B (Loop de Loop), then Map C (Gone Gully), which has left the
-   Workshop. Added to the curated list for this file only, so the board resolves by name. */
+   Workshop. Added to the curated list for this file only, so the board resolves by name,
+   with three more for the lists: Map B alone twice, and Map C alone. */
 const TEST = vi.hoisted((): Campaign => ({
   slug: "test-run",
   title: "Test Run",
@@ -26,7 +28,13 @@ const TEST = vi.hoisted((): Campaign => ({
 }));
 vi.mock("../lib/campaigns", async (original) => {
   const m = await original<typeof import("../lib/campaigns")>();
-  (m.CAMPAIGNS as Array<Campaign>).push(TEST);
+  const one = (slug: string, maps: Array<string>): Campaign => ({ ...TEST, slug, maps });
+  (m.CAMPAIGNS as Array<Campaign>).push(
+    one("test-gone", ["9000000003"]),
+    one("test-small", ["9000000002"]),
+    TEST,
+    one("test-same", ["9000000002"]),
+  );
   return m;
 });
 
@@ -132,73 +140,58 @@ describe("a Campaign's board", () => {
 });
 
 describe("the Campaigns to list", () => {
-  const one = (slug: string, maps: Array<string>): Campaign => ({ ...TEST, slug, maps });
-
-  test("those with a Map the Workshop lists, by how many players they have, most first", async () => {
-    // Map C alone has left the Workshop; Map B alone has p10, p5 and p2; the test Campaign
-    // has those and Map A's p9 and p1
-    const list = [one("gone", ["9000000003"]), one("small", ["9000000002"]), TEST];
-    expect((await listedCampaigns(t.db, list)).map((c) => [c.slug, c.players])).toEqual([
+  test("those with a Map the Workshop lists, most players first, equal counts in order", async () => {
+    // The curated Campaigns' Maps are none of tiny's, and Map C alone has left the
+    // Workshop, so "test-gone" is left out with them. Map B alone has p10, p5 and p2; the
+    // test Campaign has those and Map A's p9 and p1.
+    expect((await getCampaigns()).map((k) => [k.c.slug, k.players])).toEqual([
       ["test-run", 5],
-      ["small", 3],
+      ["test-small", 3],
+      ["test-same", 3],
     ]);
   });
 
   test("each with its listed Maps' pictures in order and the leader of its board", async () => {
     // Map A has a picture and Map B none; Map C has left the Workshop, so it draws nothing.
     // Tenpin (p10) leads both: 60000 over Maps A and B, 40000 over Map B alone.
-    const list = [TEST, one("small", ["9000000003", "9000000002"])];
-    const tenpin = {
-      steamId: p(10),
-      persona: "Tenpin",
-      avatar: "https://avatars.example.invalid/10_medium.jpg",
-    };
-    expect(await listedCampaigns(t.db, list)).toEqual([
-      {
-        slug: "test-run",
-        players: 5,
-        previews: ["https://images.example.invalid/marble-run.jpg", null],
-        leader: { ...tenpin, score: 60000 },
-      },
-      {
-        slug: "small",
-        players: 3,
-        previews: [null],
-        leader: { ...tenpin, score: 40000 },
-      },
-    ]);
-  });
-
-  test("equal counts keep the curated order", async () => {
-    const list = [one("b", ["9000000002"]), one("a", ["9000000002"])];
-    expect((await listedCampaigns(t.db, list)).map((c) => c.slug)).toEqual(["b", "a"]);
+    const [run, small] = await getCampaigns();
+    expect(run.previews).toEqual(["https://images.example.invalid/marble-run.jpg", null]);
+    expect(run.leader).toMatchObject({ steamId: p(10), persona: "Tenpin", score: 60000 });
+    expect(small.previews).toEqual([null]);
+    expect(small.leader).toMatchObject({ steamId: p(10), score: 40000 });
   });
 });
 
 describe("a player's Campaigns", () => {
-  const list = [{ ...TEST, slug: "small", maps: ["9000000002"] }, TEST];
-
   test("each Campaign they hold a place in, with their place, points and Maps finished", async () => {
-    // Tenpin (p10) wins both: 60000 over Maps A and B in the test Campaign, 40000 on Map B
-    // alone, and has a time on both listed Maps of the test Campaign (Map C has left the
-    // Workshop). It has 5 players, "small" Map B's 3. Most players first, as the Campaigns
-    // are listed.
-    expect(await playerCampaigns(t.db, p(10), list)).toEqual([
-      { slug: "test-run", rank: 1, score: 60000, finished: 2, players: 5 },
-      { slug: "small", rank: 1, score: 40000, finished: 1, players: 3 },
+    // Tenpin (p10) wins all three: 60000 over Maps A and B in the test Campaign, 40000 on
+    // Map B alone, and has a time on both listed Maps of the test Campaign (Map C has left
+    // the Workshop). In the order the Campaigns are listed, with each one's field.
+    expect(
+      (await getPlayerCampaigns(p(10))).map((k) => [
+        k.c.slug,
+        k.rank,
+        k.score,
+        k.finished,
+        k.players,
+      ]),
+    ).toEqual([
+      ["test-run", 1, 60000, 2, 5],
+      ["test-small", 1, 40000, 1, 3],
+      ["test-same", 1, 40000, 1, 3],
     ]);
   });
 
   test("leaves out a Campaign they have no time in", async () => {
-    // p9 is on Map A alone, which "small" doesn't have
-    expect(await playerCampaigns(t.db, p(9), list)).toEqual([
-      { slug: "test-run", rank: 2, score: 40000, finished: 1, players: 5 },
-    ]);
+    // p9 is on Map A alone, which only the test Campaign has
+    expect(
+      (await getPlayerCampaigns(p(9))).map((k) => [k.c.slug, k.rank, k.score, k.finished]),
+    ).toEqual([["test-run", 2, 40000, 1]]);
   });
 
   test("a time on a Map gone from the Workshop places no one", async () => {
     // p3's only Campaign time is on Map C
-    expect(await playerCampaigns(t.db, p(3), list)).toEqual([]);
+    expect(await getPlayerCampaigns(p(3))).toEqual([]);
   });
 });
 

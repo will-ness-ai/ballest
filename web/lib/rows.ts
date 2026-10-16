@@ -55,17 +55,6 @@ export interface Placing {
   score: number;
 }
 
-/* A curated Campaign some of whose Maps the Workshop lists (db/site.ts, listedCampaigns) */
-export interface ListedCampaignRow {
-  slug: string;
-  /* how many players hold a time on one of them: its board's field */
-  players: number;
-  /* those Maps' preview pictures, in the Campaign's order */
-  previews: Array<string | null>;
-  /* first on its board, or null while nobody has a time */
-  leader: { steamId: string; persona: string; avatar: string | null; score: number } | null;
-}
-
 /* Where one player stands in a Campaign they hold a place in (db/site.ts, playerCampaigns) */
 export interface PlayerCampaignRow {
   slug: string;
@@ -74,8 +63,6 @@ export interface PlayerCampaignRow {
   score: number;
   /* how many of its listed Maps they hold a time on */
   finished: number;
-  /* how many players its board ranks */
-  players: number;
 }
 
 /* a Workshop Map with its latest details and what its board says at a glance */
