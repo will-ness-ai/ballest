@@ -21,7 +21,7 @@ export const IDS = {
     CAMPAIGN: "solar-trials",
     CAMPAIGN_MAP: "3805413302",
     CAMPAIGNER: "76561197968999419",
-    PREFAB: "park-hill",
+    PREFAB: "bench",
   },
   stress: {
     RANKED: "76561199000000011",
