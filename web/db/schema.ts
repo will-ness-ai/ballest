@@ -258,3 +258,12 @@ export const prefabBans = pgTable("prefab_bans", {
   bannedAt: timestamp("banned_at", { withTimezone: true }).notNull().defaultNow(),
   bannedBy: text("banned_by").notNull(),
 });
+
+// A player the admin has given their own daily upload limit, in place of DAILY_UPLOADS
+// (lib/prefabs.ts). No row is the default.
+export const prefabLimits = pgTable("prefab_limits", {
+  steamId: text("steam_id").primaryKey(),
+  daily: integer("daily").notNull(),
+  setAt: timestamp("set_at", { withTimezone: true }).notNull().defaultNow(),
+  setBy: text("set_by").notNull(),
+});

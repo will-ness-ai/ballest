@@ -2,17 +2,23 @@
 // What the signed-in reader may do to a Prefab beyond viewing it: its uploader can edit its
 // name, description and tags, or delete it (db/prefab-api.ts editPrefab); the admin can take
 // it down, or ban its uploader, which hides all their Prefabs, and lift the ban from a
-// hidden one's page. Nobody else sees these.
+// hidden one's page, or give its uploader their own daily upload limit. Nobody else sees these.
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
-import { ADMIN_STEAM_ID, type PrefabFields } from "../../lib/prefabs";
+import {
+  ADMIN_STEAM_ID,
+  DAILY_UPLOADS,
+  MAX_DAILY_UPLOADS,
+  type PrefabFields,
+} from "../../lib/prefabs";
 import {
   prefabApiHref,
   prefabBanHref,
+  prefabLimitHref,
   prefabTakeDownHref,
   prefabsHref,
   adminActionOf,
@@ -92,8 +98,49 @@ function AdminTools({ p }: { p: PrefabPage }) {
           Unban {p.uploader.name}
         </button>
       )}
+      <DailyLimit who={who} name={p.uploader.name} />
       {failed && <span>That didn&apos;t work. Try again.</span>}
     </div>
+  );
+}
+
+/* the uploader's daily upload limit, which the admin can change or put back to the default */
+function DailyLimit({ who, name }: { who: string; name: string }) {
+  const url = prefabLimitHref(who);
+  const [limit, setLimit] = useState<{ daily: number; own: boolean } | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (url)
+      void fetch(url, { cache: "no-store" })
+        .then((r) => (r.ok ? (r.json() as Promise<{ daily: number; own: boolean }>) : null))
+        .then(setLimit)
+        .catch(() => null);
+  }, [url]);
+  if (!url || !limit) return null;
+  const change = async () => {
+    const typed = prompt(
+      `Uploads a day for ${name}? Leave it empty for the default, ${String(DAILY_UPLOADS)}.`,
+      String(limit.daily),
+    );
+    if (typed === null) return;
+    const daily = Number(typed.trim());
+    const r = await fetch(url, {
+      method: typed.trim() ? "PUT" : "DELETE",
+      headers: { "content-type": "application/json" },
+      body: typed.trim() ? JSON.stringify({ daily }) : undefined,
+    }).catch(() => null);
+    setFailed(!r?.ok);
+    if (r?.ok) setLimit((await r.json()) as { daily: number; own: boolean });
+  };
+  return (
+    <>
+      <button type="button" onClick={() => void change()}>
+        {limit.daily} uploads a day{limit.own ? "" : " (default)"}
+      </button>
+      {failed && (
+        <span>That didn&apos;t save. Use a whole number from 1 to {MAX_DAILY_UPLOADS}.</span>
+      )}
+    </>
   );
 }
 

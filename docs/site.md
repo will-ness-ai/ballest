@@ -432,7 +432,7 @@ branch `claude/prototype-prefabs` (spec #213).
   card's picture is drawn in the browser from the file by one shared renderer once the card
   scrolls near, so no image is stored.
 - **Uploading** (`UploadForm.tsx`, `POST /api/prefabs` in `db/prefab-api.ts`): signed in with
-  Steam, 5 a day per player counted from the rows. The file is checked in the browser the
+  Steam, 5 a day per player (or the limit the admin gave them) counted from the rows. The file is checked in the browser the
   moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,
   described and tagged, previewed in 3D beside the card it will make, and live at once. Each
   upload pings #prefabs on the dev Discord server through Vercel's `OPS_WEBHOOK_URL` (skipped
@@ -449,7 +449,10 @@ branch `claude/prototype-prefabs` (spec #213).
   name, description and tags or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,
   one Steam ID (`ADMIN_STEAM_ID` in `lib/prefabs.ts`), can take any Prefab down
   (`/api/prefabs/<slug>/takedown`) and ban its uploader (`/api/prefab-bans/<steam_id>`),
-  which hides all their Prefabs; a hidden one's gone page offers Unban. Every write expires
+  which hides all their Prefabs; a hidden one's gone page offers Unban. From the same page it can
+  give the uploader their own daily upload limit, or put them back on the 5
+  (`/api/prefab-limits/<steam_id>`, the `prefab_limits` table), which the upload form then
+  counts against. Every write expires
   the cached Prefab reads (`PREFAB_TAG`), so it shows at once.
 
 ## Checking a change

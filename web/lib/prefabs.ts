@@ -8,8 +8,10 @@ export const MAX_TAGS = 3;
 
 export const NAME_MAX = 64;
 export const DESCRIPTION_MAX = 500;
-/* uploads per player in any 24 hours, deleted ones included (R1) */
+/* uploads per player in any 24 hours, deleted ones included (R1), unless the admin gave them
+   their own limit (prefab_limits), up to MAX_DAILY_UPLOADS */
 export const DAILY_UPLOADS = 5;
+export const MAX_DAILY_UPLOADS = 1000;
 export const UPLOAD_WINDOW_MS = 24 * 3_600_000;
 /* the site's admin (B2): Will, who can take any Prefab down and ban an uploader */
 export const ADMIN_STEAM_ID = "76561198047685844";

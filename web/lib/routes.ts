@@ -120,13 +120,14 @@ export const adminActionOf = (search: string): AdminAction | null => {
   return want === "take-down" || want === "ban" ? want : null;
 };
 /* the Prefab API (db/prefab-api.ts): uploading, a Prefab's file, favorite, edit and take
-   down, and a player's upload ban */
+   down, and a player's upload ban and daily limit */
 export const prefabsApiHref = () => "/api/prefabs";
 export const prefabApiHref = (slug: string) => "/api/prefabs/" + slug;
 export const prefabFileHref = (slug: string) => prefabApiHref(slug) + "/file";
 export const prefabFavoriteHref = (slug: string) => prefabApiHref(slug) + "/favorite";
 export const prefabTakeDownHref = (slug: string) => prefabApiHref(slug) + "/takedown";
 export const prefabBanHref = (id: string) => (isSteamId(id) ? "/api/prefab-bans/" + id : null);
+export const prefabLimitHref = (id: string) => (isSteamId(id) ? "/api/prefab-limits/" + id : null);
 
 export const mapsHref = (view?: string | null) => "/maps" + (view ? "/" + view : "");
 

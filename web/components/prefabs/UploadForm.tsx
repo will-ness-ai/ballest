@@ -10,20 +10,15 @@ import { PrefabViewer } from "./PrefabViewer";
 import { stillOf } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
-import {
-  DAILY_UPLOADS,
-  DESCRIPTION_MAX,
-  MAX_TAGS,
-  NAME_MAX,
-  TAGS,
-  type PrefabFields,
-} from "../../lib/prefabs";
+import { DESCRIPTION_MAX, MAX_TAGS, NAME_MAX, TAGS, type PrefabFields } from "../../lib/prefabs";
 import { newPrefabHref, prefabHref, prefabsApiHref, signInHref } from "../../lib/routes";
 
 interface Quota {
   signedIn: boolean;
   banned: boolean;
   left: number;
+  /* their daily limit: DAILY_UPLOADS unless the admin gave them their own */
+  limit: number;
   nextAt: string | null;
 }
 
@@ -54,7 +49,7 @@ export function UploadForm() {
     void fetch(prefabsApiHref(), { cache: "no-store" })
       .then((r) => r.json() as Promise<Quota>)
       .then(setQuota)
-      .catch(() => setQuota({ signedIn: false, banned: false, left: 0, nextAt: null }));
+      .catch(() => setQuota({ signedIn: false, banned: false, left: 0, limit: 0, nextAt: null }));
   }, []);
   return (
     <section className="pfu">
@@ -76,26 +71,38 @@ export function UploadForm() {
           <p>You can&apos;t upload prefabs.</p>
         </div>
       ) : !quota.left ? (
-        <Limit nextAt={quota.nextAt} />
+        <Limit limit={quota.limit} nextAt={quota.nextAt} />
       ) : (
-        <Form left={quota.left} onLimit={(nextAt) => setQuota({ ...quota, left: 0, nextAt })} />
+        <Form
+          left={quota.left}
+          limit={quota.limit}
+          onLimit={(nextAt) => setQuota({ ...quota, left: 0, nextAt })}
+        />
       )}
     </section>
   );
 }
 
-function Limit({ nextAt }: { nextAt: string | null }) {
+function Limit({ limit, nextAt }: { limit: number; nextAt: string | null }) {
   return (
     <div className="pfu-gate">
       <p>
-        You&apos;ve uploaded {DAILY_UPLOADS} prefabs today, the daily limit.
+        You&apos;ve uploaded {limit} prefabs today, the daily limit.
         {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again tomorrow."}
       </p>
     </div>
   );
 }
 
-function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null) => void }) {
+function Form({
+  left,
+  limit,
+  onLimit,
+}: {
+  left: number;
+  limit: number;
+  onLimit: (nextAt: string | null) => void;
+}) {
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [fields, setFields] = useState<PrefabFields>({ name: "", description: "", tags: [] });
   const [sending, setSending] = useState(false);
@@ -170,8 +177,7 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
             {sending ? "Publishing…" : "Publish"}
           </button>
           <small>
-            {left} of {DAILY_UPLOADS} uploads left today · goes live at once, credited to your Steam
-            name
+            {left} of {limit} uploads left today · goes live at once, credited to your Steam name
           </small>
         </div>
       </div>

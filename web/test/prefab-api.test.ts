@@ -10,6 +10,7 @@ import {
   favoritePrefab,
   takeDownPrefab,
   uploadPrefab,
+  uploadLimit,
   uploadQuota,
   type PrefabDeps,
 } from "../db/prefab-api";
@@ -177,7 +178,13 @@ describe("uploading a Prefab", () => {
     const cookie = await sessionOf(id);
     const quota = async (): Promise<unknown> =>
       (await uploadQuota(uploading({}, cookie), deps())).json();
-    expect(await quota()).toEqual({ signedIn: true, banned: false, left: 5, nextAt: null });
+    expect(await quota()).toEqual({
+      signedIn: true,
+      banned: false,
+      left: 5,
+      limit: 5,
+      nextAt: null,
+    });
     for (let i = 0; i < 5; i++) {
       clock = NOW + i * HOUR;
       expect(
@@ -194,6 +201,7 @@ describe("uploading a Prefab", () => {
       signedIn: true,
       banned: false,
       left: 0,
+      limit: 5,
       nextAt: new Date(NOW + 24 * HOUR).toISOString(),
     });
     const refused = await uploadPrefab(uploading({ name: "One more" }, cookie), deps());
@@ -219,6 +227,7 @@ describe("uploading a Prefab", () => {
       signedIn: false,
       banned: false,
       left: 0,
+      limit: 0,
       nextAt: null,
     });
   });
@@ -433,6 +442,48 @@ describe("the admin's take down and ban", () => {
     ).toBe(200);
     expect(await states()).toEqual({ "bad-one": "taken-down", "bad-two": "live" });
     expect((await prefabList(t.db)).map((c) => c.slug)).toContain("bad-two");
+  });
+
+  test("the admin gives a player their own daily limit, and can put them back on the default", async () => {
+    const id = "76561199000000043";
+    const url = `/api/prefab-limits/${id}`;
+    const admin = await sessionOf(ADMIN);
+    const them = await sessionOf(id);
+    const set = (daily: unknown, cookie = admin) =>
+      uploadLimit(
+        new Request(SITE + url, {
+          method: "PUT",
+          body: JSON.stringify({ daily }),
+          headers: { cookie, origin: SITE, "content-type": "application/json" },
+        }),
+        deps(),
+        id,
+      );
+    const left = async () =>
+      ((await (await uploadQuota(uploading({}, them), deps())).json()) as { left: number }).left;
+    expect(await (await uploadLimit(post(url, "GET", admin), deps(), id)).json()).toEqual({
+      steamId: id,
+      daily: 5,
+      own: false,
+    });
+    expect((await set(25, them)).status).toBe(403);
+    for (const bad of [0, 2.5, "25", 1001]) expect((await set(bad)).status).toBe(400);
+    expect(await (await set(25)).json()).toEqual({ steamId: id, daily: 25, own: true });
+    for (let i = 0; i < 6; i++)
+      await uploadPrefab(
+        uploading({ name: `Sign ${String(i)}`, file: cubesFile(2) }, them),
+        deps(),
+      );
+    expect(await left()).toBe(19);
+    expect(await (await set(6)).json()).toMatchObject({ daily: 6 });
+    expect(await left()).toBe(0);
+    expect((await uploadPrefab(uploading({ name: "Sign 7" }, them), deps())).status).toBe(429);
+    expect(await (await uploadLimit(post(url, "DELETE", admin), deps(), id)).json()).toEqual({
+      steamId: id,
+      daily: 5,
+      own: false,
+    });
+    expect(await left()).toBe(0);
   });
 
   test("the admin can't ban themselves", async () => {

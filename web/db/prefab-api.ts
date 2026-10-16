@@ -11,6 +11,7 @@ import { checkPrefab } from "../lib/prefab-check";
 import {
   ADMIN_STEAM_ID,
   DAILY_UPLOADS,
+  MAX_DAILY_UPLOADS,
   UPLOAD_WINDOW_MS,
   checkFields,
   type PrefabFields,
@@ -19,7 +20,7 @@ import { isSteamId } from "../lib/rules";
 import type { Db } from "./client";
 import { discordPing, type PrefabPing } from "./prefab-ping";
 import { LIVE, addPrefab, prefabOf, type Conn } from "./prefabs";
-import { prefabBans, prefabs } from "./schema";
+import { prefabBans, prefabLimits, prefabs } from "./schema";
 
 export interface PrefabDeps {
   db: Db;
@@ -35,18 +36,28 @@ export interface PrefabDeps {
 const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { "cache-control": "private, no-store" } });
 
-/* how many uploads `steamId` has left now and, at none, when the next frees up */
+/* the daily upload limit the admin gave `steamId`, or null when they have the default */
+async function ownLimitOf(db: Conn, steamId: string): Promise<number | null> {
+  const { rows } = await db.execute(
+    sql`select daily from prefab_limits where steam_id = ${steamId}`,
+  );
+  return (rows as Array<{ daily: number }>).at(0)?.daily ?? null;
+}
+
+/* how many uploads `steamId` has left now, of their limit, and, at none, when the next frees up */
 async function quotaOf(db: Conn, steamId: string, now: number) {
+  const limit = (await ownLimitOf(db, steamId)) ?? DAILY_UPLOADS;
   const since = new Date(now - UPLOAD_WINDOW_MS).toISOString();
   const { rows } = await db.execute(sql`
     select to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at
     from prefabs where uploader = ${steamId} and created_at > ${since}
     order by created_at`);
   const times = (rows as Array<{ at: string }>).map((r) => r.at);
-  const left = Math.max(0, DAILY_UPLOADS - times.length);
-  const oldest = times.at(-DAILY_UPLOADS);
+  const left = Math.max(0, limit - times.length);
+  const oldest = times.at(-limit);
   return {
     left,
+    limit,
     nextAt: left || !oldest ? null : new Date(Date.parse(oldest) + UPLOAD_WINDOW_MS).toISOString(),
   };
 }
@@ -59,9 +70,9 @@ async function isBanned(db: Conn, steamId: string) {
 /* GET /api/prefabs: what the upload form tells the reader before they start */
 export async function uploadQuota(request: Request, deps: PrefabDeps): Promise<Response> {
   const id = sessionOf(request, deps.auth);
-  if (!id) return json({ signedIn: false, banned: false, left: 0, nextAt: null });
+  if (!id) return json({ signedIn: false, banned: false, left: 0, limit: 0, nextAt: null });
   if (await isBanned(deps.db, id))
-    return json({ signedIn: true, banned: true, left: 0, nextAt: null });
+    return json({ signedIn: true, banned: true, left: 0, limit: 0, nextAt: null });
   return json({ signedIn: true, banned: false, ...(await quotaOf(deps.db, id, now(deps))) });
 }
 
@@ -126,7 +137,7 @@ export async function uploadPrefab(request: Request, deps: PrefabDeps): Promise<
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${"prefab-upload:" + id}))`);
     if (await isBanned(tx, id)) return { status: 403 as const };
     const quota = await quotaOf(tx, id, now(deps));
-    if (!quota.left) return { status: 429 as const, nextAt: quota.nextAt };
+    if (!quota.left) return { status: 429 as const, limit: quota.limit, nextAt: quota.nextAt };
     const { slug } = await addPrefab(tx, {
       ...fields.fields,
       uploader: id,
@@ -138,7 +149,10 @@ export async function uploadPrefab(request: Request, deps: PrefabDeps): Promise<
   });
   if (result.status === 403) return json({ error: "you can't upload prefabs" }, 403);
   if (result.status === 429)
-    return json({ error: "that's today's uploads", nextAt: result.nextAt }, 429);
+    return json(
+      { error: "that's today's uploads", limit: result.limit, nextAt: result.nextAt },
+      429,
+    );
   deps.changed?.();
   const name = (await prefabOf(deps.db, result.slug))?.uploader.name;
   await (deps.ping ?? discordPing)({
@@ -284,4 +298,31 @@ export async function banUploader(
       .onConflictDoNothing();
   deps.changed?.();
   return json({ steamId, banned: request.method !== "DELETE" });
+}
+
+/* GET /api/prefab-limits/<steam_id>: the player's daily upload limit and whether it is their
+   own; PUT with { daily } gives them their own, DELETE puts them back on the default. The
+   admin's only */
+export async function uploadLimit(
+  request: Request,
+  deps: PrefabDeps,
+  steamId: string,
+): Promise<Response> {
+  const admin = asAdmin(request, deps);
+  if (admin instanceof Response) return admin;
+  if (!isSteamId(steamId)) return json({ error: "not a Steam ID" }, 400);
+  if (request.method === "DELETE")
+    await deps.db.delete(prefabLimits).where(eq(prefabLimits.steamId, steamId));
+  if (request.method === "PUT") {
+    const daily = ((await request.json().catch(() => null)) as { daily?: unknown } | null)?.daily;
+    if (!Number.isInteger(daily) || (daily as number) < 1 || (daily as number) > MAX_DAILY_UPLOADS)
+      return json({ error: `a whole number from 1 to ${String(MAX_DAILY_UPLOADS)}` }, 400);
+    const row = { daily: daily as number, setBy: admin, setAt: new Date(now(deps)) };
+    await deps.db
+      .insert(prefabLimits)
+      .values({ steamId, ...row })
+      .onConflictDoUpdate({ target: prefabLimits.steamId, set: row });
+  }
+  const own = await ownLimitOf(deps.db, steamId);
+  return json({ steamId, daily: own ?? DAILY_UPLOADS, own: own !== null });
 }
