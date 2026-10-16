@@ -22,7 +22,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await getPrefab((await params).slug);
-  if (!p) return { title: "Prefab not found", robots: { index: false } };
+  if (p?.state !== "live") return { title: "Prefab not found", robots: { index: false } };
   return pageMetadata({
     title: p.name,
     description: `${p.name}, a Ballest of Them All editor prefab by ${p.uploader.name}: ${String(p.pieces)} pieces to view in 3D and download.`,
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 async function Body({ params }: Props) {
   const p = await getPrefab((await params).slug);
-  return p ? <PrefabPage p={p} /> : <PrefabGone />;
+  return p?.state === "live" ? <PrefabPage p={p} /> : <PrefabGone p={p} />;
 }
 
 export default function Page({ params }: Props) {

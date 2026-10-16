@@ -3,7 +3,6 @@
 // fields on the left; the 3D preview and the gallery card it will make on the right. The
 // file is checked the moment it's chosen (lib/prefab-check.ts), and again by the server.
 // Signed out, banned or at the daily limit, a note takes the form's place.
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Card } from "./PrefabGallery";
@@ -78,7 +77,6 @@ function Limit({ nextAt }: { nextAt: string | null }) {
 }
 
 function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null) => void }) {
-  const router = useRouter();
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -116,7 +114,8 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
     try {
       const r = await fetch("/api/prefabs", { method: "POST", body });
       const got = (await r.json()) as { slug?: string; problems?: Array<string>; nextAt?: string };
-      if (r.status === 201 && got.slug) return router.push(prefabHref(got.slug));
+      /* a full load, so the router's cached gallery doesn't miss it on the way back */
+      if (r.status === 201 && got.slug) return location.assign(prefabHref(got.slug));
       if (r.status === 429) return onLimit(got.nextAt ?? null);
       setRefused(got.problems ?? ["That didn't upload. Try again in a moment."]);
     } catch {

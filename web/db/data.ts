@@ -343,7 +343,8 @@ export interface PrefabPage extends Omit<PrefabView, "file"> {
 }
 
 /* a Prefab's page, without its file (the viewer fetches that), or null for a slug nobody
-   uploaded; only a slug shaped like one is looked up */
+   uploaded; one that isn't live comes back with its state, for the page to say it's gone.
+   Only a slug shaped like one is looked up */
 export async function getPrefab(slug: string): Promise<PrefabPage | null> {
   return isPrefabSlug(slug) ? prefabPageOf(slug) : null;
 }
@@ -367,7 +368,7 @@ async function prefabPageOf(slug: string): Promise<PrefabPage | null> {
 /* a file bigger than this is read fresh, not cached: a cache entry has a size limit */
 const CACHED_FILE_BYTES = 1_000_000;
 
-/* a Prefab's file as it was uploaded and the name it downloads as, or null */
+/* a live Prefab's file as it was uploaded and the name it downloads as, or null */
 export async function getPrefabFile(
   slug: string,
 ): Promise<{ fileName: string; file: string } | null> {
@@ -376,7 +377,7 @@ export async function getPrefabFile(
   if (!cached) return null;
   if (cached.file !== null) return { fileName: cached.fileName, file: cached.file };
   const p = await prefabOf(db(), slug);
-  return p && { fileName: fileNameOf(p.name), file: p.file };
+  return p?.state === "live" ? { fileName: fileNameOf(p.name), file: p.file } : null;
 }
 
 async function prefabFileOf(slug: string) {
@@ -384,7 +385,8 @@ async function prefabFileOf(slug: string) {
   cacheTag(PREFAB_TAG);
   cacheLife("max");
   const p = await prefabOf(db(), slug);
-  return p && { fileName: fileNameOf(p.name), file: p.bytes > CACHED_FILE_BYTES ? null : p.file };
+  if (p?.state !== "live") return null;
+  return { fileName: fileNameOf(p.name), file: p.bytes > CACHED_FILE_BYTES ? null : p.file };
 }
 
 /* what the Prefab API's routes write with: this server's database, and every cached Prefab

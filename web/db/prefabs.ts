@@ -21,7 +21,12 @@ export interface Uploader {
   isPlayer: boolean;
 }
 
+/* live, or why it reads as gone: deleted by its uploader, taken down by the admin, or
+   hidden while its uploader is banned */
+export type PrefabState = "live" | "deleted" | "taken-down" | "hidden";
+
 export interface PrefabView {
+  state: PrefabState;
   slug: string;
   name: string;
   description: string;
@@ -71,6 +76,12 @@ export async function addPrefab(db: Conn, p: NewPrefab): Promise<{ slug: string 
 /* a Prefab as the gallery and its page show it, its uploader named from the boards when
    they have raced, else by their Steam persona when they uploaded */
 const VIEW = sql`
+  case
+    when p.deleted_at is not null then 'deleted'
+    when p.taken_down_at is not null then 'taken-down'
+    when exists (select 1 from prefab_bans b where b.steam_id = p.uploader) then 'hidden'
+    else 'live'
+  end as state,
   p.slug, p.name, p.description, p.tags, p.pieces, p.bytes,
   to_char(p.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "createdAt",
   json_build_object(
@@ -80,7 +91,7 @@ const VIEW = sql`
   ) as uploader,
   (select count(*)::int from prefab_favorites f where f.prefab_id = p.id) as favorites`;
 
-/* a Prefab by its slug, or null for one nobody uploaded */
+/* a Prefab by its slug, whatever its state, or null for one nobody uploaded */
 export async function prefabOf(db: Db, slug: string): Promise<PrefabView | null> {
   const found = await rows<PrefabView>(
     db,
@@ -93,14 +104,17 @@ export async function prefabOf(db: Db, slug: string): Promise<PrefabView | null>
 
 export type PrefabCard = Omit<PrefabView, "file" | "description">;
 
+/* a Prefab anyone can see: not deleted, not taken down, its uploader not banned */
+export const LIVE = sql`p.deleted_at is null and p.taken_down_at is null
+  and not exists (select 1 from prefab_bans b where b.steam_id = p.uploader)`;
+
 /* every live Prefab, newest first: not deleted, not taken down, its uploader not banned */
 export async function prefabList(db: Db): Promise<Array<PrefabCard>> {
   return rows<PrefabCard>(
     db,
     sql`select ${VIEW}
       from prefabs p left join players pl on pl.steam_id = p.uploader
-      where p.deleted_at is null and p.taken_down_at is null
-        and not exists (select 1 from prefab_bans b where b.steam_id = p.uploader)
+      where ${LIVE}
       order by p.created_at desc, p.id desc`,
   );
 }

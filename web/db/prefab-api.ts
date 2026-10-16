@@ -4,14 +4,15 @@
 // request another site sent. `deps` carries the database and what the tests stand in for:
 // the session's secret and clock, the ops ping, the uploader's Steam persona, and the cache
 // to expire after a write.
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { isCrossSite, sessionOf, type AuthEnv } from "../lib/auth";
 import { MAX_BYTES, checkPrefab } from "../lib/prefab-check";
 import { DAILY_UPLOADS, UPLOAD_WINDOW_MS, checkFields, type PrefabFields } from "../lib/prefabs";
 import { SITE_ORIGIN, prefabHref } from "../lib/routes";
 import type { Db } from "./client";
-import { addPrefab, prefabOf, type Conn } from "./prefabs";
+import { LIVE, addPrefab, prefabOf, type Conn } from "./prefabs";
+import { prefabs } from "./schema";
 
 export interface PrefabDeps {
   db: Db;
@@ -148,14 +149,13 @@ async function opsPing(text: string): Promise<void> {
   });
 }
 
-/* a live Prefab's id by its slug, or null: deleted, taken down and hidden ones can't be
-   hearted or edited */
-async function liveIdOf(db: Conn, slug: string): Promise<number | null> {
-  const { rows } = await db.execute(sql`
-    select p.id from prefabs p
-    where p.slug = ${slug} and p.deleted_at is null and p.taken_down_at is null
-      and not exists (select 1 from prefab_bans b where b.steam_id = p.uploader)`);
-  return (rows as Array<{ id: number }>).at(0)?.id ?? null;
+/* a live Prefab's id and uploader by its slug, or null: deleted, taken down and hidden
+   ones can't be hearted or edited */
+async function liveOf(db: Conn, slug: string): Promise<{ id: number; uploader: string } | null> {
+  const { rows } = await db.execute(
+    sql`select p.id, p.uploader from prefabs p where p.slug = ${slug} and ${LIVE}`,
+  );
+  return (rows as Array<{ id: number; uploader: string }>).at(0) ?? null;
 }
 
 /* GET, PUT and DELETE /api/prefabs/<slug>/favorite: whether the reader has hearted it and
@@ -169,8 +169,8 @@ export async function favoritePrefab(
   if (write && isCrossSite(request)) return json({ error: "cross-site" }, 403);
   const id = sessionOf(request, deps.auth);
   if (write && !id) return json({ error: "sign in with Steam to favorite" }, 401);
-  const prefab = await liveIdOf(deps.db, slug);
-  if (prefab === null) return json({ error: "no such prefab" }, 404);
+  const prefab = (await liveOf(deps.db, slug))?.id;
+  if (prefab === undefined) return json({ error: "no such prefab" }, 404);
   if (id && request.method === "PUT")
     await deps.db.execute(sql`
       insert into prefab_favorites (prefab_id, steam_id) values (${prefab}, ${id})
@@ -184,4 +184,40 @@ export async function favoritePrefab(
     select count(*)::int as favorites, coalesce(bool_or(steam_id = ${id ?? ""}), false) as on
     from prefab_favorites where prefab_id = ${prefab}`);
   return json((rows as Array<{ on: boolean; favorites: number }>)[0]);
+}
+
+/* PATCH /api/prefabs/<slug> with { name, description, tags }: the uploader edits what the
+   gallery and page say (the file and the link stay). DELETE: the uploader deletes it; its
+   row stays, so it still counts against their daily limit, and its page reads gone */
+export async function editPrefab(
+  request: Request,
+  deps: PrefabDeps,
+  slug: string,
+): Promise<Response> {
+  if (isCrossSite(request)) return json({ error: "cross-site" }, 403);
+  const id = sessionOf(request, deps.auth);
+  if (!id) return json({ error: "sign in with Steam" }, 401);
+  const prefab = await liveOf(deps.db, slug);
+  if (!prefab) return json({ error: "no such prefab" }, 404);
+  if (prefab.uploader !== id) return json({ error: "only its uploader can change it" }, 403);
+  const at = new Date(now(deps)).toISOString();
+  if (request.method === "DELETE") {
+    await deps.db.execute(sql`update prefabs set deleted_at = ${at} where id = ${prefab.id}`);
+    deps.changed?.();
+    return json({ deleted: slug });
+  }
+  const body = (await request.json().catch(() => null)) as Partial<PrefabFields> | null;
+  const fields = checkFields({
+    name: typeof body?.name === "string" ? body.name : "",
+    description: typeof body?.description === "string" ? body.description : "",
+    tags: Array.isArray(body?.tags) ? body.tags.filter((t) => typeof t === "string") : [],
+  });
+  if (!fields.ok) return json({ problems: fields.problems }, 400);
+  const { name, description, tags } = fields.fields;
+  await deps.db
+    .update(prefabs)
+    .set({ name, description, tags, updatedAt: new Date(at) })
+    .where(eq(prefabs.id, prefab.id));
+  deps.changed?.();
+  return json({ slug });
 }

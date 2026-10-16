@@ -144,6 +144,7 @@ const ROUTES = [
   ["/api/prefabs/nope/file", 404],
   ["/api/prefabs/twin-cubes/favorite", 200, null, '"favorites":0'],
   ["/api/prefabs/nope/favorite", 404],
+  ["/api/prefabs/twin-cubes", 405],
   ["/no-such-page", 404],
 ];
 

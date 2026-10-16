@@ -4,7 +4,13 @@ import { readFileSync } from "node:fs";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";
 
-import { favoritePrefab, uploadPrefab, uploadQuota, type PrefabDeps } from "../db/prefab-api";
+import {
+  editPrefab,
+  favoritePrefab,
+  uploadPrefab,
+  uploadQuota,
+  type PrefabDeps,
+} from "../db/prefab-api";
 import { galleryOf } from "../lib/prefabs";
 import { prefabList, prefabOf } from "../db/prefabs";
 import { prefabBans } from "../db/schema";
@@ -244,5 +250,86 @@ describe("favorites", () => {
   test("the gallery puts the most hearted first", async () => {
     const cards = galleryOf(await prefabList(t.db), "popular", null);
     expect(cards[0].slug).toBe("heart-me");
+  });
+});
+
+describe("editing and deleting your own", () => {
+  const OWNER = "76561199000000031";
+  /* PATCH or DELETE /api/prefabs/<slug> */
+  const change = (slug: string, method: string, cookie: string, body?: object) =>
+    new Request(`${SITE}/api/prefabs/${slug}`, {
+      method,
+      headers: { cookie, origin: SITE, "content-type": "application/json" },
+      body: body && JSON.stringify(body),
+    });
+
+  test("the uploader renames, redescribes and retags it, and its link stays", async () => {
+    const owner = await sessionOf(OWNER);
+    await uploadPrefab(uploading({ name: "Mine to edit", tags: ["Ramp"] }, owner), deps());
+    changes = 0;
+    const r = await editPrefab(
+      change("mine-to-edit", "PATCH", owner, {
+        name: "Edited",
+        description: "Now described.",
+        tags: ["Loop", "Scenery"],
+      }),
+      deps(),
+      "mine-to-edit",
+    );
+    expect(r.status).toBe(200);
+    expect(await prefabOf(t.db, "mine-to-edit")).toMatchObject({
+      slug: "mine-to-edit",
+      name: "Edited",
+      description: "Now described.",
+      tags: ["Loop", "Scenery"],
+      state: "live",
+    });
+    expect(changes).toBe(1);
+  });
+
+  test("fields out of bounds are refused as on upload", async () => {
+    const owner = await sessionOf(OWNER);
+    const r = await editPrefab(
+      change("mine-to-edit", "PATCH", owner, { name: "", description: "", tags: [] }),
+      deps(),
+      "mine-to-edit",
+    );
+    expect(r.status).toBe(400);
+    expect(await r.json()).toEqual({ problems: ["Give it a name."] });
+  });
+
+  test("nobody else can edit or delete it, signed in or not", async () => {
+    const other = await sessionOf("76561199000000032");
+    const edit = { name: "Mine now", description: "", tags: [] };
+    expect(
+      (await editPrefab(change("mine-to-edit", "PATCH", other, edit), deps(), "mine-to-edit"))
+        .status,
+    ).toBe(403);
+    expect(
+      (await editPrefab(change("mine-to-edit", "PATCH", "", edit), deps(), "mine-to-edit")).status,
+    ).toBe(401);
+    expect(
+      (await editPrefab(change("mine-to-edit", "DELETE", other), deps(), "mine-to-edit")).status,
+    ).toBe(403);
+    expect((await prefabOf(t.db, "mine-to-edit"))?.name).toBe("Edited");
+  });
+
+  test("deleting it takes it out of the gallery, its page reads gone, and it still counts", async () => {
+    const owner = await sessionOf(OWNER);
+    const before = (await (await uploadQuota(uploading({}, owner), deps())).json()) as {
+      left: number;
+    };
+    expect(
+      (await editPrefab(change("mine-to-edit", "DELETE", owner), deps(), "mine-to-edit")).status,
+    ).toBe(200);
+    expect((await prefabOf(t.db, "mine-to-edit"))?.state).toBe("deleted");
+    expect((await prefabList(t.db)).map((c) => c.slug)).not.toContain("mine-to-edit");
+    expect(await (await uploadQuota(uploading({}, owner), deps())).json()).toMatchObject({
+      left: before.left,
+    });
+    // and once deleted it can't be edited or deleted again
+    expect(
+      (await editPrefab(change("mine-to-edit", "DELETE", owner), deps(), "mine-to-edit")).status,
+    ).toBe(404);
   });
 });

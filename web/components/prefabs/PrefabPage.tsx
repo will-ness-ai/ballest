@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PlayerLink } from "../PlayerLink";
 import { Favorite } from "./Favorite";
 import { PrefabModel } from "./PrefabModel";
+import { PrefabTools } from "./PrefabTools";
 import type { PrefabPage as Prefab } from "../../db/data";
 import { dayLabel } from "../../lib/daily";
 import { pieceLabel } from "../../lib/prefab";
@@ -71,6 +72,7 @@ export function PrefabPage({ p }: { p: Prefab }) {
             </a>
             <Favorite slug={p.slug} favorites={p.favorites} />
           </div>
+          <PrefabTools p={p} />
         </aside>
       </div>
     </div>
@@ -78,7 +80,7 @@ export function PrefabPage({ p }: { p: Prefab }) {
 }
 
 /* a link to a Prefab nobody uploaded, or one that is deleted, taken down or hidden */
-export function PrefabGone() {
+export function PrefabGone({ p }: { p: Prefab | null }) {
   return (
     <div className="pf pf-gone">
       <h1>This prefab is gone</h1>
@@ -86,6 +88,7 @@ export function PrefabGone() {
         It was deleted or taken down, or the link is wrong.{" "}
         <Link href={prefabsHref()}>See every prefab</Link>.
       </p>
+      {p && <PrefabTools p={p} />}
     </div>
   );
 }

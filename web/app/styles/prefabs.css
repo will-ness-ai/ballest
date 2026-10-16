@@ -44,7 +44,8 @@
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
-.pf button {
+/* low specificity, so a chip's or Download's own look wins */
+:where(.pf) button {
   font: inherit;
   color: var(--text);
   background: var(--surface2);
@@ -598,4 +599,31 @@ button.pf-dl {
   margin: 0;
   color: var(--dim);
   font-size: calc(13rem / 16);
+}
+
+/* the uploader's Edit and Delete, and the dialogs they open */
+.pf-own {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.pf-dialog .pfu-fields {
+  margin-block: 0.8rem;
+  min-width: min(28rem, calc(100vw - 4.4rem));
+}
+.pf-dialog p {
+  color: var(--dim);
+}
+.pf-dlg-row {
+  display: flex;
+  justify-content: end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.pf-dlg-row .pf-dl {
+  padding: 0.35rem 0.9rem;
+}
+.pf .pf-danger {
+  color: var(--bronze);
+  border-color: color-mix(in oklch, var(--bronze) 50%, transparent);
 }
