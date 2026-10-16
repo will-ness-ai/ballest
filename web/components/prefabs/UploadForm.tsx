@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Card } from "./PrefabGallery";
 import { PrefabViewer } from "./PrefabViewer";
+import { stillOf } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
 import {
@@ -31,6 +32,17 @@ interface Chosen {
   text: string;
   check: Check;
   file: PrefabFile | null;
+}
+
+/* a still of the preview for the admin's upload ping, or null: none for a file so big the
+   pair could pass Vercel's 4.5 MB request cap, or when the browser can't draw one */
+async function pictureOf(chosen: Chosen): Promise<Blob | null> {
+  if (!chosen.file || chosen.text.length > 3_000_000) return null;
+  try {
+    return await (await fetch(await stillOf(chosen.file, 800, 450, "#141a2b"))).blob();
+  } catch {
+    return null;
+  }
 }
 
 const when = (iso: string) =>
@@ -117,6 +129,8 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
     body.set("description", fields.description);
     for (const t of fields.tags) body.append("tags", t);
     body.set("file", new Blob([chosen.text], { type: "application/json" }), chosen.fileName);
+    const picture = await pictureOf(chosen);
+    if (picture) body.set("picture", picture, "prefab.png");
     try {
       const r = await fetch(prefabsApiHref(), { method: "POST", body });
       const got = (await r.json()) as { slug?: string; problems?: Array<string>; nextAt?: string };

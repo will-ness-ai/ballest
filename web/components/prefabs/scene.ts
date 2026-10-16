@@ -73,7 +73,13 @@ let shared: Promise<{
   three: Awaited<ReturnType<typeof loadThree>>;
   renderer: import("three").WebGLRenderer;
 }> | null = null;
-export async function stillOf(file: PrefabFile, w: number, h: number): Promise<string> {
+export async function stillOf(
+  file: PrefabFile,
+  w: number,
+  h: number,
+  /* a solid backdrop instead of a transparent one */
+  background?: string,
+): Promise<string> {
   shared ??= loadThree().then((three) => {
     const renderer = new three.THREE.WebGLRenderer({
       antialias: true,
@@ -89,7 +95,9 @@ export async function stillOf(file: PrefabFile, w: number, h: number): Promise<s
   camera.position.copy(framing(three.THREE, camera, centre, radius));
   camera.lookAt(centre);
   renderer.setSize(w, h, false);
+  if (background) renderer.setClearColor(background, 1);
   renderer.render(scene, camera);
+  if (background) renderer.setClearColor(0x000000, 0);
   return renderer.domElement.toDataURL("image/png");
 }
 

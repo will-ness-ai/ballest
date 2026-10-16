@@ -4,12 +4,12 @@
 // it down, or ban its uploader, which hides all their Prefabs, and lift the ban from a
 // hidden one's page. Nobody else sees these.
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
-import { ADMIN_STEAM_ID, type PrefabFields } from "../../lib/prefabs";
+import { ADMIN_STEAM_ID, BAN, TAKE_DOWN, type PrefabFields } from "../../lib/prefabs";
 import { prefabApiHref, prefabBanHref, prefabTakeDownHref, prefabsHref } from "../../lib/routes";
 
 export function PrefabTools({ p }: { p: PrefabPage }) {
@@ -38,32 +38,40 @@ function AdminTools({ p }: { p: PrefabPage }) {
       setBusy(false);
     }
   };
+  const live = p.state === "live";
+  const canBan = ban !== null && live && who !== ADMIN_STEAM_ID;
+  const takeDown = () =>
+    void act(prefabTakeDownHref(p.slug), "POST", `Take ${p.name} down for good?`);
+  const banUploader = () => {
+    if (ban)
+      void act(
+        ban,
+        "PUT",
+        `Ban ${p.uploader.name} from uploading? Every prefab they uploaded is hidden until you unban them.`,
+      );
+  };
+  /* the upload ping's Take down and Ban buttons land here with ?admin=, which opens that
+     confirm once the page has drawn, and leaves the address clean */
+  useEffect(() => {
+    const want = new URLSearchParams(location.search).get("admin");
+    if (!want) return;
+    const t = setTimeout(() => {
+      history.replaceState(null, "", location.pathname);
+      if (want === TAKE_DOWN && live) takeDown();
+      if (want === BAN && canBan) banUploader();
+    }, 300);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, on arrival
   return (
     <div className="pf-admin">
       <b>Admin</b>
-      {p.state === "live" && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            void act(prefabTakeDownHref(p.slug), "POST", `Take ${p.name} down for good?`)
-          }
-        >
+      {live && (
+        <button type="button" disabled={busy} onClick={takeDown}>
           Take down
         </button>
       )}
-      {ban && p.state === "live" && who !== ADMIN_STEAM_ID && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            void act(
-              ban,
-              "PUT",
-              `Ban ${p.uploader.name} from uploading? Every prefab they uploaded is hidden until you unban them.`,
-            )
-          }
-        >
+      {canBan && (
+        <button type="button" disabled={busy} onClick={banUploader}>
           Ban {p.uploader.name} from uploading
         </button>
       )}

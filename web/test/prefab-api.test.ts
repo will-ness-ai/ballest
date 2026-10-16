@@ -10,8 +10,10 @@ import {
   favoritePrefab,
   takeDownPrefab,
   uploadPrefab,
+  pingOf,
   uploadQuota,
   type PrefabDeps,
+  type PrefabPing,
 } from "../db/prefab-api";
 import { galleryOf } from "../lib/prefabs";
 import { prefabList, prefabOf } from "../db/prefabs";
@@ -25,14 +27,14 @@ const HOUR = 3_600_000;
 const bench = readFileSync(new URL("../../prefabs/samples/bench.json", import.meta.url), "utf8");
 
 let t: Awaited<ReturnType<typeof freshDb>>;
-let pings: Array<string>;
+let pings: Array<PrefabPing>;
 let changes: number;
 let clock: number;
 const deps = (): PrefabDeps => ({
   db: t.db,
   auth: { ...ENV, now: clock },
-  ping: (text) => {
-    pings.push(text);
+  ping: (p) => {
+    pings.push(p);
     return Promise.resolve();
   },
   persona: () => Promise.resolve("Uploader on Steam"),
@@ -54,7 +56,13 @@ const sessionOf = async (id: string) => `ballest-session=${(await signIn(id)).se
 
 /* POST /api/prefabs as the upload form sends it */
 function uploading(
-  fields: { name?: string; description?: string; tags?: Array<string>; file?: string },
+  fields: {
+    name?: string;
+    description?: string;
+    tags?: Array<string>;
+    file?: string;
+    picture?: Uint8Array<ArrayBuffer>;
+  },
   cookie = "",
   headers: Record<string, string> = {},
 ) {
@@ -63,6 +71,7 @@ function uploading(
   body.set("description", fields.description ?? "");
   for (const tag of fields.tags ?? []) body.append("tags", tag);
   body.set("file", new Blob([fields.file ?? bench]), "bench.json");
+  if (fields.picture) body.set("picture", new Blob([fields.picture]), "prefab.png");
   return new Request(SITE + "/api/prefabs", {
     method: "POST",
     body,
@@ -117,7 +126,7 @@ describe("uploading a Prefab", () => {
     expect(await prefabList(t.db)).toEqual([]);
   });
 
-  test("a good one is live at once, credited to the uploader, and pinged to ops", async () => {
+  test("a good one is live at once, credited to the uploader, and pinged", async () => {
     const cookie = await sessionOf(UPLOADER);
     const r = await uploadPrefab(
       uploading({ name: " Park bench ", description: "Sit.", tags: ["Decoration"] }, cookie),
@@ -135,7 +144,28 @@ describe("uploading a Prefab", () => {
     });
     expect(changes).toBe(1);
     expect(pings).toEqual([
-      "New prefab: **Park bench** (28 pieces) by Uploader on Steam\nhttps://ballestrecords.com/prefab/park-bench",
+      {
+        slug: "park-bench",
+        name: "Park bench",
+        pieces: 28,
+        tags: ["Decoration"],
+        uploader: { steamId: UPLOADER, name: "Uploader on Steam" },
+        picture: null,
+      },
+    ]);
+  });
+
+  test("the preview still the browser sends rides along with the ping, if it is a PNG", async () => {
+    const cookie = await sessionOf("76561199000000013");
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+    await uploadPrefab(uploading({ name: "Pictured", picture: png }, cookie), deps());
+    await uploadPrefab(
+      uploading({ name: "Not a picture", picture: new TextEncoder().encode("<svg/>") }, cookie),
+      deps(),
+    );
+    expect(pings.map((p) => [p.name, p.picture])).toEqual([
+      ["Pictured", png],
+      ["Not a picture", null],
     ]);
   });
 
@@ -407,5 +437,37 @@ describe("the admin's take down and ban", () => {
     expect(
       (await banUploader(post(`/api/prefab-bans/${ADMIN}`, "PUT", admin), deps(), ADMIN)).status,
     ).toBe(400);
+  });
+});
+
+describe("the ping to the Prefabs channel", () => {
+  const ping: PrefabPing = {
+    slug: "park-bench",
+    name: "Park bench",
+    pieces: 28,
+    tags: ["Decoration", "Scenery"],
+    uploader: { steamId: UPLOADER, name: "Uploader on Steam" },
+    picture: new Uint8Array([0x89, 0x50]),
+  };
+
+  test("shows the picture and links the page, the take-down and the ban", () => {
+    const { embeds, components } = pingOf(ping);
+    expect(embeds).toEqual([
+      {
+        title: "Park bench",
+        url: "https://ballestrecords.com/prefab/park-bench",
+        description: "by Uploader on Steam · 28 pieces · Decoration, Scenery",
+        image: { url: "attachment://prefab.png" },
+      },
+    ]);
+    expect(components[0].components.map((b) => [b.label, b.url])).toEqual([
+      ["Open", "https://ballestrecords.com/prefab/park-bench"],
+      ["Take down", "https://ballestrecords.com/prefab/park-bench?admin=take-down"],
+      ["Ban uploader", "https://ballestrecords.com/prefab/park-bench?admin=ban"],
+    ]);
+  });
+
+  test("without a picture, the embed has none", () => {
+    expect(pingOf({ ...ping, picture: null }).embeds[0]).not.toHaveProperty("image");
   });
 });

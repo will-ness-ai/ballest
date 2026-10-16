@@ -2,7 +2,7 @@
 // Request to its Response, so the tests can make the same calls against a throwaway
 // database. Every write checks the Sign in with Steam session (lib/auth.ts) and refuses a
 // request another site sent. `deps` carries the database and what the tests stand in for:
-// the session's secret and clock, the ops ping, the uploader's Steam persona, and the cache
+// the session's secret and clock, the upload ping, the uploader's Steam persona, and the cache
 // to expire after a write.
 import { and, eq, isNull, sql } from "drizzle-orm";
 
@@ -10,7 +10,9 @@ import { isCrossSite, sessionOf, type AuthEnv } from "../lib/auth";
 import { checkPrefab } from "../lib/prefab-check";
 import {
   ADMIN_STEAM_ID,
+  BAN,
   DAILY_UPLOADS,
+  TAKE_DOWN,
   UPLOAD_WINDOW_MS,
   checkFields,
   type PrefabFields,
@@ -24,8 +26,8 @@ import { prefabBans, prefabs } from "./schema";
 export interface PrefabDeps {
   db: Db;
   auth?: AuthEnv;
-  /* posts a line to the ops Discord channel */
-  ping?: (text: string) => Promise<void>;
+  /* tells the Prefabs Discord channel about an upload */
+  ping?: (p: PrefabPing) => Promise<void>;
   /* a Steam ID's persona on Steam, or null */
   persona?: (steamId: string) => Promise<string | null>;
   /* expires the cached Prefab reads */
@@ -67,9 +69,23 @@ export async function uploadQuota(request: Request, deps: PrefabDeps): Promise<R
 
 const now = (deps: PrefabDeps) => deps.auth?.now ?? Date.now();
 
+/* the PNG signature, and the most a preview still may weigh */
+const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const MAX_PICTURE_BYTES = 1_000_000;
+
+/* the preview still the upload form sends, or null when there is none, it isn't a PNG, or
+   it is too big; it is only ever shown to the admin in Discord */
+async function pictureOf(v: FormDataEntryValue | null): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (!(v instanceof Blob) || v.size > MAX_PICTURE_BYTES) return null;
+  const bytes = new Uint8Array(await v.arrayBuffer());
+  return PNG.every((b, i) => bytes[i] === b) ? bytes : null;
+}
+
 /* the upload form's fields, or null when the body isn't one; the file's size is the upload
    check's to refuse (Vercel caps a request body at 4.5 MB before it gets here) */
-async function formOf(request: Request): Promise<(PrefabFields & { file: string }) | null> {
+async function formOf(
+  request: Request,
+): Promise<(PrefabFields & { file: string; picture: Uint8Array<ArrayBuffer> | null }) | null> {
   try {
     const form = await request.formData();
     const file = form.get("file");
@@ -83,13 +99,14 @@ async function formOf(request: Request): Promise<(PrefabFields & { file: string 
       description: text("description"),
       tags: form.getAll("tags").filter((v) => typeof v === "string"),
       file: await file.text(),
+      picture: await pictureOf(form.get("picture")),
     };
   } catch {
     return null;
   }
 }
 
-/* POST /api/prefabs: the upload form. Live at once (U2), so ops gets a ping; refused signed
+/* POST /api/prefabs: the upload form. Live at once (U2), so the admin gets a ping; refused signed
    out, from another site, banned, over the daily limit, or with a file or fields that fail
    their checks */
 export async function uploadPrefab(request: Request, deps: PrefabDeps): Promise<Response> {
@@ -126,9 +143,14 @@ export async function uploadPrefab(request: Request, deps: PrefabDeps): Promise<
     return json({ error: "that's today's uploads", nextAt: result.nextAt }, 429);
   deps.changed?.();
   const name = (await prefabOf(deps.db, result.slug))?.uploader.name;
-  await (deps.ping ?? opsPing)(
-    `New prefab: **${fields.fields.name}** (${String(file.pieces)} pieces) by ${name ?? id}\n${SITE_ORIGIN}${prefabHref(result.slug)}`,
-  ).catch((e: unknown) => console.warn("prefab ping failed:", e));
+  await (deps.ping ?? discordPing)({
+    slug: result.slug,
+    name: fields.fields.name,
+    pieces: file.pieces,
+    tags: fields.fields.tags,
+    uploader: { steamId: id, name: name ?? id },
+    picture: form.picture,
+  }).catch((e: unknown) => console.warn("prefab ping failed:", e));
   return json({ slug: result.slug }, 201);
 }
 
@@ -142,19 +164,64 @@ async function steamPersona(steamId: string): Promise<string | null> {
   return m?.[1].trim().slice(0, 64) || null; // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing -- an empty persona is none
 }
 
-/* posts to the ops Discord channel's webhook; skipped, with a log line, when it isn't set */
-async function opsPing(text: string): Promise<void> {
+/* what the admin hears about an upload */
+export interface PrefabPing {
+  slug: string;
+  name: string;
+  pieces: number;
+  tags: Array<string>;
+  uploader: { steamId: string; name: string };
+  picture: Uint8Array<ArrayBuffer> | null;
+}
+
+/* the Discord message for an upload: its picture, and link buttons to the page and to its
+   Take down and Ban confirms there (a webhook can't take clicks itself; the page acts on
+   the admin's own session) */
+export function pingOf(p: PrefabPing) {
+  const page = SITE_ORIGIN + prefabHref(p.slug);
+  const link = (label: string, url: string) => ({ type: 2, style: 5, label, url });
+  return {
+    allowed_mentions: { parse: [] },
+    embeds: [
+      {
+        title: p.name,
+        url: page,
+        description: [`by ${p.uploader.name}`, `${String(p.pieces)} pieces`, p.tags.join(", ")]
+          .filter(Boolean)
+          .join(" · "),
+        ...(p.picture && { image: { url: "attachment://prefab.png" } }),
+      },
+    ],
+    components: [
+      {
+        type: 1,
+        components: [
+          link("Open", page),
+          link("Take down", `${page}?admin=${TAKE_DOWN}`),
+          link("Ban uploader", `${page}?admin=${BAN}`),
+        ],
+      },
+    ],
+  };
+}
+
+/* posts an upload to the Prefabs channel's webhook (OPS_WEBHOOK_URL, which the admin bot
+   made, so it may carry buttons); skipped, with a log line, when it isn't set */
+async function discordPing(p: PrefabPing): Promise<void> {
   const url = process.env.OPS_WEBHOOK_URL;
   if (!url) {
     console.log("prefab ping skipped: OPS_WEBHOOK_URL is not set");
     return;
   }
-  await fetch(url, {
+  const body = new FormData();
+  body.set("payload_json", JSON.stringify(pingOf(p)));
+  if (p.picture) body.set("files[0]", new Blob([p.picture], { type: "image/png" }), "prefab.png");
+  const r = await fetch(`${url}?with_components=true`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ content: text, allowed_mentions: { parse: [] } }),
+    body,
     signal: AbortSignal.timeout(5000),
   });
+  if (!r.ok) throw new Error(`Discord answered ${String(r.status)}: ${await r.text()}`);
 }
 
 /* a live Prefab's id and uploader by its slug, or null: deleted, taken down and hidden
