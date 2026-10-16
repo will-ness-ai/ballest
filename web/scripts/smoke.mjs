@@ -36,6 +36,11 @@ const ROUTES = [
   ["/map/" + MAP, 200, null, "Marble Run"],
   ["/map/" + MAP + "/" + P1, 200],
   ["/map/" + MAP + "/nope", 404],
+  /* the seeds' Maps are in no curated Campaign, so a Campaign's page is shown nowhere and
+     only its path is checked */
+  ["/campaign/nope", 404],
+  ["/campaign/solar-trials/nope", 404],
+  ["/campaign/solar-trials/podiums/x", 404],
   ["/player/" + P1, 200, null, "Rolling Rae"],
   ["/player/" + P1 + "/circuit", 200],
   ["/player/" + P1 + "/workshop", 200],

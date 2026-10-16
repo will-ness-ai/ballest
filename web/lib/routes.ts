@@ -1,5 +1,6 @@
 // Every URL the site links to, and how an old #/ link from the single-page site maps onto
 // one. A Steam ID only ever reaches a path through isSteamId: one can arrive from the URL.
+import { campaignOf, campaignOfBoard } from "./campaigns";
 import { circuitBoard } from "./circuit";
 import { STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
@@ -37,7 +38,7 @@ export const PLAYERS_TAB = "Players";
 
 /* the tab a path belongs to; a player's page and a head to head belong to none */
 export function tabOfPath(path: string): string | null {
-  if (path === "/" || /^\/maps?(\/|$)/.test(path)) return WORKSHOP_GROUP;
+  if (path === "/" || /^\/(maps?|campaigns?)(\/|$)/.test(path)) return WORKSHOP_GROUP;
   if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
   if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
   const board = /^\/board\/([^/]+)/.exec(path);
@@ -57,7 +58,24 @@ export const mapHref = (pfid: string, focus?: string | null) =>
 export function boardHref(name: string, slot?: string | null) {
   const pfid = mapPfidOf(name);
   if (pfid) return mapHref(pfid, slot);
-  return "/board/" + name + (slot && (slot === PODIUM_SORT || isSteamId(slot)) ? "/" + slot : "");
+  const tail = slot && (slot === PODIUM_SORT || isSteamId(slot)) ? "/" + slot : "";
+  const campaign = campaignOfBoard(name);
+  if (campaign) return campaignHref(campaign.slug) + tail;
+  return "/board/" + name + tail;
+}
+
+/* a Campaign's page: its Overall board, or one of its Maps inside its frame */
+export const campaignHref = (slug: string, pfid?: string | null) =>
+  "/campaign/" + slug + (pfid ? "/" + pfid : "");
+
+/* whether a path under /campaign/ names a page: a curated Campaign, then nothing, its
+   podium order, a Steam ID's row, or one of its Maps */
+export function isCampaignPath(path: string): boolean {
+  const m = /^\/campaign\/([^/]+)(?:\/([^/]+))?\/?$/.exec(path);
+  const c = m && campaignOf(m[1]);
+  if (!c) return false;
+  const slot = m[2];
+  return !slot || slot === PODIUM_SORT || isSteamId(slot) || c.maps.includes(slot);
 }
 
 export const vsHref = (a: string, b: string) =>

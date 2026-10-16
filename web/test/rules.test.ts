@@ -28,7 +28,9 @@ import {
 } from "../lib/rules";
 import {
   boardHref,
+  campaignHref,
   dailyHref,
+  isCampaignPath,
   dailyStandingsHref,
   tabOfPath,
   isDailyDate,
@@ -228,6 +230,39 @@ describe("Steam IDs and URLs", () => {
     expect(dailyStandingsHref()).toBe("/daily/standings");
   });
 
+  test("a Campaign's links", () => {
+    expect(boardHref("OverallCampaign_solar-trials")).toBe("/campaign/solar-trials");
+    expect(boardHref("OverallCampaign_solar-trials", "podiums")).toBe(
+      "/campaign/solar-trials/podiums",
+    );
+    expect(boardHref("OverallCampaign_solar-trials", ID)).toBe(`/campaign/solar-trials/${ID}`);
+    expect(boardHref("OverallCampaign_solar-trials", "<x>")).toBe("/campaign/solar-trials");
+    expect(campaignHref("ajc")).toBe("/campaign/ajc");
+    expect(campaignHref("ajc", "3646349274")).toBe("/campaign/ajc/3646349274");
+  });
+
+  test("a Campaign's paths: its board, its podium order, a row, or one of its Maps", () => {
+    for (const ok of [
+      "/campaign/solar-trials",
+      "/campaign/solar-trials/",
+      "/campaign/solar-trials/podiums",
+      `/campaign/solar-trials/${ID}`,
+      "/campaign/solar-trials/3805391903",
+    ])
+      expect(isCampaignPath(ok)).toBe(true);
+    for (const bad of [
+      "/campaign",
+      "/campaign/",
+      "/campaign/nope",
+      /* neither one of its Maps nor shaped like a Steam ID; another Campaign's Map is
+         shaped like one, so only the page can tell it apart */
+      "/campaign/solar-trials/42",
+      `/campaign/solar-trials/podiums/${ID}`,
+      "/campaign/solar-trials/x",
+    ])
+      expect(isCampaignPath(bad)).toBe(false);
+  });
+
   test("a Daily's date is a real day, written YYYY-MM-DD", () => {
     expect(isDailyDate("2026-09-05")).toBe(true);
     expect(isDailyDate("2026-02-30")).toBe(false);
@@ -250,6 +285,11 @@ describe("Steam IDs and URLs", () => {
     expect(tabOfPath("/board/OverallLeaderboard_AllSeasons/podiums")).toBe("Circuit");
     expect(tabOfPath("/board/Map_Track13")).toBe("Circuit");
     expect(tabOfPath("/board/Nope")).toBeNull();
+    /* a Campaign is the Workshop's */
+    expect(tabOfPath("/campaign/solar-trials")).toBe("Workshop");
+    expect(tabOfPath("/campaign/solar-trials/3805391903")).toBe("Workshop");
+    expect(tabOfPath("/campaigns")).toBe("Workshop");
+    expect(tabOfPath("/campaignsy")).toBeNull();
     expect(tabOfPath(`/player/${ID}`)).toBeNull();
   });
 

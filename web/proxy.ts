@@ -6,6 +6,7 @@ import {
   DAILY_DATE,
   DAILY_STANDINGS,
   PLAYER_TABS,
+  isCampaignPath,
   isDailyDate,
   PODIUM_SORT,
   isPlScope,
@@ -24,6 +25,8 @@ import { isPreset } from "./lib/workshop";
 //   (Overall) podiums, gets a real 404. Every page streams its static shell
 //   first, so a notFound() in the page itself could only answer 200 (a soft 404); the
 //   Circuit's boards are a fixed list, so this can tell before anything is sent.
+// - So is a Campaign path whose slug isn't a curated Campaign, or with anything after it
+//   but one of its Maps, a Steam ID or podiums (lib/campaigns.ts is a fixed list too).
 // - So are the Players table's scopes and sorts: one that isn't is a 404, and a scope on
 //   its own, or the Circuit by Maps (it has no Maps column), goes to the scope's table.
 // - So are All maps' views, and a Map's path has a fixed shape (a Map that has left the
@@ -53,6 +56,7 @@ export function proxy(request: NextRequest) {
     const board = BOARD_PATH.exec(path);
     if (!board || !circuitBoard(board[1])) return notFound(request);
   }
+  if (path.startsWith("/campaign/") && !isCampaignPath(path)) return notFound(request);
   const pl = /^\/players\/(.+?)\/?$/.exec(path);
   if (pl) {
     const slot = pl[1].split("/"),
@@ -82,6 +86,7 @@ export const config = {
   matcher: [
     "/leth",
     "/board/:path*",
+    "/campaign/:path*",
     "/players/:path*",
     "/maps/:path*",
     "/map/:path*",
