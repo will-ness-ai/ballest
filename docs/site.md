@@ -424,8 +424,10 @@ branch `claude/prototype-prefabs` (spec #213).
   down or hidden, reads as gone.
 - **Stand-in shapes**: the file names meshes but carries no geometry, and the game's
   meshes stay off the repo (ADR 0001), so `lib/prefab.ts` draws each known mesh as a box,
-  cylinder, sphere or scoop sized from its bounds, an unknown one as a grey box, and
-  colours each by its material's name. Rotations are Unreal's [pitch, yaw, roll] in
+  cylinder, sphere, scoop, torus or half or quarter ring (the hole bowls) sized from its
+  bounds, an unknown one as a grey box, and colours each by its material's name; an Emissive
+  material glows, as the game's lamps do. A fill light opposite
+  the key keeps every side's colours true, so a sign seen from the front isn't greyed. Rotations are Unreal's [pitch, yaw, roll] in
   degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
 - **The gallery** (`PrefabGallery.tsx`): a card per live Prefab, Popular (favorites, newest
   breaking a tie) or Newest, filtered by one Tag (`galleryOf` in `lib/prefabs.ts`). Each
