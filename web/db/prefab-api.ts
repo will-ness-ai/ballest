@@ -12,9 +12,12 @@ import {
   ADMIN_STEAM_ID,
   DAILY_UPLOADS,
   MAX_DAILY_UPLOADS,
+  NO_UPLOADS,
   UPLOAD_WINDOW_MS,
   checkFields,
   type PrefabFields,
+  type UploadQuota,
+  type UploaderLimit,
 } from "../lib/prefabs";
 import { isSteamId } from "../lib/rules";
 import type { Db } from "./client";
@@ -70,10 +73,12 @@ async function isBanned(db: Conn, steamId: string) {
 /* GET /api/prefabs: what the upload form tells the reader before they start */
 export async function uploadQuota(request: Request, deps: PrefabDeps): Promise<Response> {
   const id = sessionOf(request, deps.auth);
-  if (!id) return json({ signedIn: false, banned: false, left: 0, limit: 0, nextAt: null });
-  if (await isBanned(deps.db, id))
-    return json({ signedIn: true, banned: true, left: 0, limit: 0, nextAt: null });
-  return json({ signedIn: true, banned: false, ...(await quotaOf(deps.db, id, now(deps))) });
+  const quota: UploadQuota = !id
+    ? NO_UPLOADS
+    : (await isBanned(deps.db, id))
+      ? { ...NO_UPLOADS, signedIn: true, banned: true }
+      : { signedIn: true, banned: false, ...(await quotaOf(deps.db, id, now(deps))) };
+  return json(quota);
 }
 
 const now = (deps: PrefabDeps) => deps.auth?.now ?? Date.now();
@@ -298,13 +303,6 @@ export async function banUploader(
       .onConflictDoNothing();
   deps.changed?.();
   return json({ steamId, banned: request.method !== "DELETE" });
-}
-
-/* a player's daily upload limit, and whether the admin gave it them or it is the default */
-export interface UploaderLimit {
-  steamId: string;
-  daily: number;
-  own: boolean;
 }
 
 /* the { daily } a PUT sends, if it is a whole number the admin may set */

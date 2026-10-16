@@ -8,13 +8,13 @@ import { useEffect, useRef, useState } from "react";
 
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
-import type { UploaderLimit } from "../../db/prefab-api";
 import { useSession } from "../../hooks/me";
 import {
   ADMIN_STEAM_ID,
   DAILY_UPLOADS,
   MAX_DAILY_UPLOADS,
   type PrefabFields,
+  type UploaderLimit,
 } from "../../lib/prefabs";
 import {
   prefabApiHref,

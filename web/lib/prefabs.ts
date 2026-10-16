@@ -13,6 +13,32 @@ export const DESCRIPTION_MAX = 500;
 export const DAILY_UPLOADS = 5;
 export const MAX_DAILY_UPLOADS = 1000;
 export const UPLOAD_WINDOW_MS = 24 * 3_600_000;
+
+/* what GET /api/prefabs tells the upload form: who may upload, how many more they may now
+   of their daily limit, and, at none, when the next frees up */
+export interface UploadQuota {
+  signedIn: boolean;
+  banned: boolean;
+  left: number;
+  limit: number;
+  nextAt: string | null;
+}
+/* the quota of a reader who may not upload: signed out, or banned */
+export const NO_UPLOADS: UploadQuota = {
+  signedIn: false,
+  banned: false,
+  left: 0,
+  limit: 0,
+  nextAt: null,
+};
+
+/* a player's daily upload limit, and whether the admin gave it them or it is the default */
+export interface UploaderLimit {
+  steamId: string;
+  daily: number;
+  own: boolean;
+}
+
 /* the site's admin (B2): Will, who can take any Prefab down and ban an uploader */
 export const ADMIN_STEAM_ID = "76561198047685844";
 

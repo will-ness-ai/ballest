@@ -10,17 +10,16 @@ import { PrefabViewer } from "./PrefabViewer";
 import { stillOf } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
-import { DESCRIPTION_MAX, MAX_TAGS, NAME_MAX, TAGS, type PrefabFields } from "../../lib/prefabs";
+import {
+  DESCRIPTION_MAX,
+  MAX_TAGS,
+  NAME_MAX,
+  NO_UPLOADS,
+  TAGS,
+  type PrefabFields,
+  type UploadQuota,
+} from "../../lib/prefabs";
 import { newPrefabHref, prefabHref, prefabsApiHref, signInHref } from "../../lib/routes";
-
-interface Quota {
-  signedIn: boolean;
-  banned: boolean;
-  left: number;
-  /* their daily limit: DAILY_UPLOADS unless the admin gave them their own */
-  limit: number;
-  nextAt: string | null;
-}
 
 interface Chosen {
   fileName: string;
@@ -44,12 +43,12 @@ const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
 
 export function UploadForm() {
-  const [quota, setQuota] = useState<Quota | null>(null);
+  const [quota, setQuota] = useState<UploadQuota | null>(null);
   useEffect(() => {
     void fetch(prefabsApiHref(), { cache: "no-store" })
-      .then((r) => r.json() as Promise<Quota>)
+      .then((r) => r.json() as Promise<UploadQuota>)
       .then(setQuota)
-      .catch(() => setQuota({ signedIn: false, banned: false, left: 0, limit: 0, nextAt: null }));
+      .catch(() => setQuota(NO_UPLOADS));
   }, []);
   return (
     <section className="pfu">
