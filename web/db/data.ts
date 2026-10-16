@@ -29,10 +29,17 @@ import type {
   WorkshopMap,
 } from "../lib/rows";
 import { mapCard, timed, type MapCard } from "../lib/workshop";
+import { footprintOf, partsOf, shapesOf, type PrefabFile } from "../lib/prefab";
+import { fileNameOf } from "../lib/prefab-check";
+import { isPrefabSlug } from "../lib/routes";
 import { connect, type Db } from "./client";
+import { prefabOf, type PrefabView } from "./prefabs";
 import * as q from "./site";
 
 export const DATA_TAG = "data";
+/* the Prefab reads, expired by every write the site makes to them (and, since an uploader's
+   persona comes from the boards, by a Refresh too) */
+export const PREFAB_TAG = "prefabs";
 
 let client: Db | undefined;
 
@@ -318,4 +325,55 @@ async function playerDailiesOf(steamId: string) {
 /* the Compare dialog's search, read fresh */
 export function searchPlayers(query: string, except: string) {
   return q.searchPlayers(db(), query, { except });
+}
+
+export interface PrefabPage extends Omit<PrefabView, "file"> {
+  parts: Array<{ piece: string; count: number }>;
+  size: { w: number; d: number; h: number };
+  fileName: string;
+}
+
+/* a Prefab's page, without its file (the viewer fetches that), or null for a slug nobody
+   uploaded; only a slug shaped like one is looked up */
+export async function getPrefab(slug: string): Promise<PrefabPage | null> {
+  return isPrefabSlug(slug) ? prefabPageOf(slug) : null;
+}
+
+async function prefabPageOf(slug: string): Promise<PrefabPage | null> {
+  "use cache: remote";
+  cacheTag(DATA_TAG, PREFAB_TAG);
+  cacheLife("max");
+  const p = await prefabOf(db(), slug);
+  if (!p) return null;
+  const { file, ...rest } = p;
+  const parsed = JSON.parse(file) as PrefabFile;
+  return {
+    ...rest,
+    parts: partsOf(parsed),
+    size: footprintOf(shapesOf(parsed)),
+    fileName: fileNameOf(p.name),
+  };
+}
+
+/* a file bigger than this is read fresh, not cached: a cache entry has a size limit */
+const CACHED_FILE_BYTES = 1_000_000;
+
+/* a Prefab's file as it was uploaded and the name it downloads as, or null */
+export async function getPrefabFile(
+  slug: string,
+): Promise<{ fileName: string; file: string } | null> {
+  if (!isPrefabSlug(slug)) return null;
+  const cached = await prefabFileOf(slug);
+  if (!cached) return null;
+  if (cached.file !== null) return { fileName: cached.fileName, file: cached.file };
+  const p = await prefabOf(db(), slug);
+  return p && { fileName: fileNameOf(p.name), file: p.file };
+}
+
+async function prefabFileOf(slug: string) {
+  "use cache: remote";
+  cacheTag(PREFAB_TAG);
+  cacheLife("max");
+  const p = await prefabOf(db(), slug);
+  return p && { fileName: fileNameOf(p.name), file: p.bytes > CACHED_FILE_BYTES ? null : p.file };
 }

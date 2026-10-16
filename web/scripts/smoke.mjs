@@ -123,6 +123,20 @@ const ROUTES = [
   ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
   ["/", 200, null, '"@type":"WebSite"'],
   ["/", 200, null, "<title>Ballest of Them All Records: "],
+  // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
+  ["/prefab/twin-cubes", 200, null, "Twin cubes"],
+  [
+    "/prefab/twin-cubes",
+    200,
+    null,
+    '<link rel="canonical" href="' + ORIGIN + '/prefab/twin-cubes"',
+  ],
+  ["/prefab/cube-row", 200, null, "Newcomer"],
+  ["/prefab/nope", 200, null, "This prefab is gone"],
+  ["/prefab/Not_A_Slug", 404],
+  ["/prefab/twin-cubes/x", 404],
+  ["/api/prefabs/twin-cubes/file", 200, null, "BallestPrefab"],
+  ["/api/prefabs/nope/file", 404],
   ["/no-such-page", 404],
 ];
 
