@@ -87,7 +87,9 @@ pnpm dev
 ```
 
 (or use the `ballest` config in `.claude/launch.json`, which runs `pnpm dev` on whatever
-port it is given).
+port it is given). In a cloud session, `pnpm dev:up <port>` runs it in the background and
+`pnpm dev:down <port>` stops it by port. The cloud container is restarted while a session
+waits, which stops Postgres, so `dev:up` and `pnpm serve` start it again first.
 
 A project thread starts outside the repo, where `.claude/hooks/session-start.sh` (Postgres,
 installs, the pinned Ruff) runs only through the cloud environment's setup script; when

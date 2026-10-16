@@ -18,6 +18,8 @@ it breaks. Those files carry the reasons; this file carries the checks.
   module.
 - Anything that can be told from the path alone (a board name, a tab, a Steam ID's shape)
   answers 404 or redirects in `proxy.ts`: a `notFound()` inside a streamed page is a 200.
+  What only the database knows stays a soft 404 from the page: the proxy reads no data, so
+  a real 404 there would cost a request on every view (`docs/site.md`, "Caching").
 - Colors come from the custom properties on `:root`, written in `oklch()`, with a tint
   derived from its base by `color-mix(in oklch, …)`. Two literals are allowed: the
   translucent black and white used for shadows and hairlines, `oklch(0% 0 none / a)` and

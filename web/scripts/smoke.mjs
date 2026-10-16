@@ -198,6 +198,41 @@ const STATIC = [
 const failures = [];
 let checked = 0;
 
+// Every page the app defines answers 200 on at least one route above, so a new kind of page
+// gets seed data (tiny or stress) and a route here with the code that adds it, rather than
+// being checked only by its 404s.
+function pages(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory()
+      ? pages(join(dir, e.name))
+      : e.name === "page.tsx"
+        ? [posix.relative(join(root, "web/app"), dir).split("/").filter(Boolean)]
+        : [],
+  );
+}
+const pattern = (segs) =>
+  new RegExp(
+    "^" +
+      segs
+        .map((s) =>
+          s.startsWith("[[...")
+            ? "(/[^?]+)?"
+            : s.startsWith("[...")
+              ? "/[^?]+"
+              : s.startsWith("[")
+                ? "/[^/?]+"
+                : "/" + s,
+        )
+        .join("") +
+      "/?(\\?.*)?$",
+  );
+const served = ROUTES.filter(([, status, , text]) => status === 200 && text !== SOFT_404);
+for (const segs of pages(join(root, "web/app"))) {
+  const re = pattern(segs);
+  if (!served.some(([path]) => re.test(path)))
+    failures.push(`/${segs.join("/")}: no route above answers it with a page`);
+}
+
 for (const [path, status, location, text] of ROUTES) {
   checked++;
   const res = await fetch(base + path, { redirect: "manual" });

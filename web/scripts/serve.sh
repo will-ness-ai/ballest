@@ -1,5 +1,5 @@
 #!/bin/bash
-# pnpm serve <port> [database], in a cloud session: builds the site against a local
+# pnpm serve <port> [database], in a cloud session: starts Postgres if it is down, builds the site against a local
 # database (default ballest_dev) and serves it on <port> in the background, after stopping
 # whatever already holds that port. Stop it with `fuser -k -n tcp <port>`. Kill by port:
 # `pkill -f "next start"` matches the shell that runs it too. One served build at a time,
@@ -9,6 +9,7 @@ command -v fuser >/dev/null || { echo "serve.sh needs fuser (psmisc)"; exit 1; }
 port=${1:?usage: pnpm serve <port> [database]}
 url=postgres://postgres:postgres@localhost:5432/${2:-ballest_dev}
 cd "$(dirname "$0")/.."
+scripts/pg-up.sh
 fuser -k -n tcp "$port" >/dev/null 2>&1 || true
 while fuser -n tcp "$port" >/dev/null 2>&1; do sleep 0.2; done
 log=$(mktemp -t "serve-$port-XXXX.log")

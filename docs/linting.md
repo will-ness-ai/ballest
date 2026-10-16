@@ -26,7 +26,7 @@ ruff==0.15.20`; CI pins that version). A cloud session gets the installs from
 so there the cloud environment's setup script runs that file:
 
 ```bash
-CLAUDE_CODE_REMOTE=true CLAUDE_PROJECT_DIR=/home/user/ballest /home/user/ballest/.claude/hooks/session-start.sh
+CLAUDE_CODE_REMOTE=true /home/user/ballest/.claude/hooks/session-start.sh
 ```
 
 and a thread whose container restarted runs the same line itself. Every Ruff script in

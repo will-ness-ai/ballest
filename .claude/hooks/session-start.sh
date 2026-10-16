@@ -10,7 +10,8 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
-cd "$CLAUDE_PROJECT_DIR"
+# run by hand after a container restart, it finds the repo from its own path
+cd "${CLAUDE_PROJECT_DIR:-$(git -C "$(dirname "$0")" rev-parse --show-toplevel)}"
 
 # the commit identity CODING_STANDARDS.md asks for
 git config user.name will-ness-ai
