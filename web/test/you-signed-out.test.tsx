@@ -157,3 +157,15 @@ describe("signed in", () => {
     expect(el.textContent).not.toContain("Sign in");
   });
 });
+
+describe("once the session is known", () => {
+  test("You's cards are read without waiting for You's record", () => {
+    const asked: Array<string> = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      asked.push(url);
+      return new Promise(() => undefined);
+    });
+    draw({ state: "loading", claimed: true, id: "76561198000000002" });
+    expect(asked).toContain("/api/standings?ladders&player=76561198000000002");
+  });
+});

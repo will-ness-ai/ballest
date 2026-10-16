@@ -62,11 +62,12 @@ const readRecord = readOnce(async (id): Promise<PlayerRecord | "unknown"> => {
    yet, so there is nothing to show but a way to sign out; "loading" on the server, during
    hydration, until the record lands, and after a read that failed, so nothing is drawn
    from it. `claimed` says a session is known to exist, so
-   a view of You can hold its place rather than jump in when the record lands */
+   a view of You can hold its place rather than jump in when the record lands, and `id` is
+   its Steam ID once read, so a view that needs only the ID needn't wait on the record */
 export type You =
   | { state: "none" }
   | { state: "unknown"; id: string }
-  | { state: "loading"; claimed: boolean }
+  | { state: "loading"; claimed: boolean; id?: string }
   | { state: "ready"; id: string; rec: PlayerRecord };
 
 export function useYou(): You {
@@ -77,5 +78,7 @@ export function useYou(): You {
   if (me === undefined) return { state: "loading", claimed: true };
   if (!me) return { state: "none" };
   if (got?.value === "unknown") return { state: "unknown", id: me };
-  return got ? { state: "ready", id: me, rec: got.value } : { state: "loading", claimed: true };
+  return got
+    ? { state: "ready", id: me, rec: got.value }
+    : { state: "loading", claimed: true, id: me };
 }

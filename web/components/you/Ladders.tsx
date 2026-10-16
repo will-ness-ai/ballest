@@ -228,7 +228,8 @@ function viewOf(you: You, stale: boolean): View {
       return { key: stale ? NOBODY : null, claimed: false, signIn: "out", who: null };
     case "loading":
       return {
-        key: null,
+        /* You's cards need only the Steam ID, so they are read beside the record */
+        key: you.id ?? null,
         claimed: you.claimed,
         signIn: you.claimed ? null : "unsure",
         who: null,
