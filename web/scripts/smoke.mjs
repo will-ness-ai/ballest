@@ -36,12 +36,20 @@ const ROUTES = [
   ["/map/" + MAP, 200, null, "Marble Run"],
   ["/map/" + MAP + "/" + P1, 200],
   ["/map/" + MAP + "/nope", 404],
-  /* the seeds' Maps are in no curated Campaign, so a Campaign's page is shown nowhere and
-     only its path is checked */
+  /* the seeds' Maps are in no curated Campaign, so every Campaign is unlisted: each of its
+     pages is a real 404 (proxy.ts asks /api/campaign), not a 200 with the not-found page */
   ["/campaigns", 200, null, "No Campaign has a map"],
   ["/campaign/nope", 404],
   ["/campaign/solar-trials/nope", 404],
   ["/campaign/solar-trials/podiums/x", 404],
+  ["/campaign/solar-trials", 404],
+  ["/campaign/solar-trials/podiums", 404],
+  ["/campaign/solar-trials/" + P1, 404],
+  ["/campaign/solar-trials/3805399883", 404],
+  // Velocity Trials' first Map, shaped like a Steam ID
+  ["/campaign/solar-trials/3803908791", 404],
+  ["/api/campaign/solar-trials", 404],
+  ["/api/campaign/nope", 404],
   ["/player/" + P1, 200, null, "Rolling Rae"],
   ["/player/" + P1 + "/circuit", 200],
   ["/player/" + P1 + "/workshop", 200],

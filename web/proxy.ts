@@ -6,7 +6,8 @@ import {
   DAILY_DATE,
   DAILY_STANDINGS,
   PLAYER_TABS,
-  isCampaignPath,
+  campaignApiHref,
+  campaignPath,
   isDailyDate,
   PODIUM_SORT,
   isPlScope,
@@ -26,7 +27,11 @@ import { isPreset } from "./lib/workshop";
 //   first, so a notFound() in the page itself could only answer 200 (a soft 404); the
 //   Circuit's boards are a fixed list, so this can tell before anything is sent.
 // - So is a Campaign path whose slug isn't a curated Campaign, or with anything after it
-//   but one of its Maps, a Steam ID or podiums (lib/campaigns.ts is a fixed list too).
+//   but one of its Maps, a Steam ID or podiums (lib/campaigns.ts is a fixed list too). A
+//   curated Campaign none of whose Maps the Workshop lists, or one of its Maps it no longer
+//   lists, is only known to the database, which the proxy can't read through the cache:
+//   it asks /api/campaign/<slug>, which answers from the page's own cached read, so that is
+//   a real 404 too.
 // - So are the Players table's scopes and sorts: one that isn't is a 404, and a scope on
 //   its own, or the Circuit by Maps (it has no Maps column), goes to the scope's table.
 // - So are All maps' views, and a Map's path has a fixed shape (a Map that has left the
@@ -47,7 +52,26 @@ const BOARD_PATH = new RegExp(`^/board/(\\w{1,64})(?:/(?:${ID}|${PODIUM_SORT}))?
 const notFound = (request: NextRequest) =>
   NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 });
 
-export function proxy(request: NextRequest) {
+/* whether the Workshop lists a curated Campaign's Map, and `pfid` among them when the path
+   names one. A request that fails says yes and leaves the page to decide, as it did before
+   this check: a preview behind Vercel's protection answers its own proxy only with the
+   automation bypass. */
+async function isListedCampaign(request: NextRequest, slug: string, pfid: string | null) {
+  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  try {
+    const res = await fetch(new URL(campaignApiHref(slug), request.url), {
+      headers: bypass ? { "x-vercel-protection-bypass": bypass } : {},
+    });
+    if (res.status === 404) return false;
+    if (!res.ok) return true;
+    const { maps } = (await res.json()) as { maps: Array<string> };
+    return pfid === null || maps.includes(pfid);
+  } catch {
+    return true;
+  }
+}
+
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if (path === "/leth")
     // a plain URL: a NextURL drops the trailing slash again when it is serialized
@@ -56,7 +80,10 @@ export function proxy(request: NextRequest) {
     const board = BOARD_PATH.exec(path);
     if (!board || !circuitBoard(board[1])) return notFound(request);
   }
-  if (path.startsWith("/campaign/") && !isCampaignPath(path)) return notFound(request);
+  if (path.startsWith("/campaign/")) {
+    const at = campaignPath(path);
+    if (!at || !(await isListedCampaign(request, at.slug, at.pfid))) return notFound(request);
+  }
   const pl = /^\/players\/(.+?)\/?$/.exec(path);
   if (pl) {
     const slot = pl[1].split("/"),

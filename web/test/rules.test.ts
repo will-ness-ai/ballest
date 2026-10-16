@@ -32,7 +32,7 @@ import {
   campaignHref,
   campaignsHref,
   dailyHref,
-  isCampaignPath,
+  campaignPath,
   dailyStandingsHref,
   tabOfPath,
   isDailyDate,
@@ -253,18 +253,31 @@ describe("Steam IDs and URLs", () => {
       `/campaign/solar-trials/${ID}`,
       "/campaign/solar-trials/3805391903",
     ])
-      expect(isCampaignPath(ok)).toBe(true);
+      expect(campaignPath(ok)).not.toBeNull();
     for (const bad of [
       "/campaign",
       "/campaign/",
       "/campaign/nope",
-      /* neither one of its Maps nor shaped like a Steam ID; another Campaign's Map is
-         shaped like one, so only the page can tell it apart */
+      /* neither one of its Maps nor shaped like a Steam ID */
       "/campaign/solar-trials/42",
+      /* another Campaign's Map, though shaped like a Steam ID */
+      "/campaign/solar-trials/3803908791",
       `/campaign/solar-trials/podiums/${ID}`,
       "/campaign/solar-trials/x",
     ])
-      expect(isCampaignPath(bad)).toBe(false);
+      expect(campaignPath(bad)).toBeNull();
+    expect(campaignPath("/campaign/solar-trials/podiums")).toEqual({
+      slug: "solar-trials",
+      pfid: null,
+    });
+    expect(campaignPath(`/campaign/solar-trials/${ID}`)).toEqual({
+      slug: "solar-trials",
+      pfid: null,
+    });
+    expect(campaignPath("/campaign/solar-trials/3805391903/")).toEqual({
+      slug: "solar-trials",
+      pfid: "3805391903",
+    });
   });
 
   test("a Daily's date is a real day, written YYYY-MM-DD", () => {

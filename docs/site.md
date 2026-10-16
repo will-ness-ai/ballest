@@ -71,7 +71,13 @@ title on every later visit to the same route.
 
 A `notFound()` inside a streamed page can only answer 200, so anything that can be told
 from the path alone (a board name, a tab, a Players scope, a Steam ID's shape) is checked
-in `proxy.ts` instead. A Steam ID nobody raced under is still a soft 404.
+in `proxy.ts` instead. A Steam ID nobody raced under is still a soft 404. A Campaign's page
+is the one the proxy checks against the database: the proxy can't read the cache, so it
+asks `/api/campaign/<slug>` (the IDs of the Campaign's listed Maps, from the page's own
+cached `getCampaign`) and answers 404 for a Campaign none of whose Maps is listed, or a
+Map of it that isn't. A request that fails leaves it to the page, which streams a soft
+404; a preview behind Vercel's protection reaches its own API only with
+`VERCEL_AUTOMATION_BYPASS_SECRET`.
 
 ## Track screenshots
 
@@ -232,8 +238,9 @@ its title after the Campaign's name (`mapName`), left out when that is only its 
 tally, the page's title) it is `mapLabel`: the number, then that name; the Overall card, the points dialog
 and the podium count say maps where a season says tracks. A Map inside the frame gets the
 Track card's layout with its preview picture and a link to its own page. A Campaign none
-of whose Maps the Workshop lists is shown nowhere and its page is a 404, which is how the
-seeds' builds pass: their Maps are in no Campaign.
+of whose Maps the Workshop lists is shown nowhere and its page is a real 404 (see
+"Caching"), as is a Map of it the Workshop no longer lists; that is how the seeds' builds
+pass, since their Maps are in no Campaign.
 
 **Where they are listed.** `getCampaigns` (`listedCampaigns` in `db/site.ts`) is the one
 read every list takes: each Campaign with a listed Map, its Maps and players counted, its
