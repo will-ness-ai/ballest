@@ -278,7 +278,8 @@ export function picks(maps: ReadonlyArray<MapCard>): Array<Pick> {
   const used = new Set<string>();
   const pick = (label: string, sort: SortKey, keep?: (m: MapCard) => boolean) => {
     const m = homeSorted(maps, sort, (x) => !used.has(x.pfid) && (!keep || keep(x)))[0] as
-      MapCard | undefined;
+      | MapCard
+      | undefined;
     if (!m) return null;
     used.add(m.pfid);
     return { label, sort, m };

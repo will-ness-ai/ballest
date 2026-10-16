@@ -4,6 +4,7 @@
    ========================================================================== */
 
 .pf {
+  margin: 0 var(--pad);
   display: grid;
   gap: 1rem;
   padding-block: 0.5rem 2rem;
@@ -432,4 +433,238 @@
 }
 .pf-banner span {
   min-width: 0;
+}
+
+/* round 1's verdict: the ? on the settled page */
+.pf-vwrap .pf-q {
+  z-index: 1;
+}
+
+/* ==========================================================================
+   PROTOTYPE round 2: the Prefabs list
+   ========================================================================== */
+.pfl {
+  margin: 0 var(--pad);
+  display: grid;
+  gap: 1rem;
+  padding-block: 0.5rem 2rem;
+  min-width: 0;
+}
+.pfl > * {
+  min-width: 0;
+}
+.pfl-head h1 {
+  font-family: var(--f-marquee);
+  font-weight: 400;
+  font-size: calc((26rem + 10 * var(--ramp)) / 16);
+  margin: 0;
+}
+.pfl-head p {
+  color: var(--dim);
+  margin: 0.3rem 0 0;
+  max-width: 60ch;
+}
+.pfl h2 {
+  font-family: var(--f-marquee);
+  font-weight: 400;
+  margin: 0;
+  font-size: calc(22rem / 16);
+}
+.pfl a {
+  color: inherit;
+  text-decoration: none;
+}
+.pfl-still {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  background: radial-gradient(120% 90% at 50% 20%, var(--surface2), transparent 70%), var(--solid);
+  overflow: hidden;
+  aspect-ratio: 3 / 2;
+}
+.pfl-still img,
+.pfl-live {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.pfl-live.pfv {
+  aspect-ratio: auto;
+}
+.pfl-name {
+  display: block;
+  font-weight: 700;
+}
+.pfl-sub {
+  display: block;
+  color: var(--faint);
+  font-size: calc(13rem / 16);
+}
+.pfl-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(11rem, 100%), 1fr));
+}
+.pfl-card {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.5rem 0.5rem 0.7rem;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  transition: border-color 0.15s;
+}
+.pfl-card:hover,
+.pfl-card:focus-visible {
+  border-color: var(--line);
+}
+.pfl-hero {
+  display: grid;
+  gap: 1rem;
+}
+.pfl-hero-text {
+  display: grid;
+  gap: 0.6rem;
+  align-content: center;
+}
+.pfl-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+.pfl-more {
+  color: var(--dim) !important;
+  text-decoration: underline !important;
+}
+.pfl-shelf-h {
+  font-family: var(--f-hud) !important;
+  font-size: calc(15rem / 16) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pfl-shelf {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: min(12rem, 70%);
+  gap: 0.8rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 0.5rem;
+}
+.pfl-shelf > * {
+  scroll-snap-align: start;
+}
+.pfl-browser {
+  display: grid;
+  gap: 1rem;
+}
+.pfl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.pfl-list li {
+  position: relative;
+}
+.pfl-list button {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: 0.7rem;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  padding: 0.4rem;
+  cursor: pointer;
+}
+.pfl-list button.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.pfl-phone-link {
+  position: absolute;
+  inset: 0;
+}
+.pfl-detail {
+  display: none;
+}
+.pfl-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pfl-table th {
+  text-align: left;
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.4rem;
+}
+.pfl-table td {
+  padding: 0.4rem;
+  border-top: 1px solid var(--line2);
+  vertical-align: middle;
+}
+.pfl-thumb {
+  width: 4.5rem;
+}
+.pfl-wide {
+  display: none;
+}
+.pfl-dlcell {
+  text-align: right;
+}
+.pfl-dlicon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink) !important;
+}
+.pfl-dlicon svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (min-width: 51.25em) {
+  .pfl-grid {
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  }
+  .pfl-hero {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+  .pfl-browser {
+    grid-template-columns: 20rem minmax(0, 1fr);
+    align-items: start;
+  }
+  .pfl-list {
+    max-height: calc(100svh - 14rem);
+    overflow-y: auto;
+  }
+  .pfl-phone-link {
+    display: none;
+  }
+  .pfl-detail {
+    display: grid;
+    gap: 0.6rem;
+    position: sticky;
+    top: 1rem;
+  }
+  .pfl-wide {
+    display: table-cell;
+  }
 }

@@ -40,6 +40,8 @@ export function tabOfPath(path: string): string | null {
   if (path === "/" || /^\/maps?(\/|$)/.test(path)) return WORKSHOP_GROUP;
   if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
   if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
+  /* PROTOTYPE (grill-design, claude/prototype-prefabs) */
+  if (/^\/prefabs?(\/|$)/.test(path)) return "Prefabs";
   const board = /^\/board\/([^/]+)/.exec(path);
   return board && circuitBoard(decodeURIComponent(board[1])) ? CIRCUIT_TAB : null;
 }
