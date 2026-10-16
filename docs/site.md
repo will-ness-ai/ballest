@@ -235,15 +235,19 @@ and chip) lists the Campaigns most players first (`getCampaigns`); the rail list
 then each Map as a strip of its preview picture with its number, record and the part of
 its title after the Campaign's name (`mapName`), left out when that is only its number
 ("Miniblack 01", "AJC1"). Everywhere the frame names a Map (the rail's sheet, the podium
-tally, the page's title) it is `mapLabel`: the number, then that name; the Overall card, the points dialog
-and the podium count say maps where a season says tracks. A Map inside the frame gets the
-Track card's layout with its preview picture and a link to its own page. A Campaign none
-of whose Maps the Workshop lists is shown nowhere and its page is a real 404 (see
-"Caching"), as is a Map of it the Workshop no longer lists; that is how the seeds' builds
-pass, since their Maps are in no Campaign.
+tally, the page's title) it is `mapLabel`: the number, then that name. On a phone the
+switch's chip and the board button share a row while they fit, and the button takes a line
+of its own when they don't (`.boardrow.named`), since a Campaign's title and Map names run
+longer than a season's. The Overall card, the points dialog and the podium count say maps
+where a season says tracks, and count the Maps the Workshop lists, which are the ones that
+pay points. A Map inside the frame gets the Track card's layout with its preview picture
+and a link to its own page. A Campaign none of whose Maps the Workshop lists is shown
+nowhere and its page is a real 404 (see "Caching"), as is a Map of it the Workshop no
+longer lists. `stress` lists Solar Trials' first Map alone, so its builds have one listed
+Campaign of one listed Map and four unlisted ones; `tiny`'s Maps are in no Campaign.
 
 **Where they are listed.** `getCampaigns` (`listedCampaigns` in `db/site.ts`) is the one
-read every list takes: each Campaign with a listed Map, its Maps and players counted, its
+read every list takes: each Campaign with a listed Map, its players counted, its
 listed Maps' preview pictures in its order and its board's leader, most players first
 (distinct players with a time on any of its Maps). A Campaign's picture is
 `CampaignPics`: its first five Maps' previews side by side with a hairline between, a Map
@@ -255,8 +259,10 @@ carousel and hidden with it while there is a search) is a scroll-snap track of b
 a phone shows one with the next peeking in and swipes, a desktop shows two. Its arrows
 step one banner and wrap round as the main carousel's do; the counter names the banners
 in view ("1 / 5" on a phone, "1–2 / 5" on a desktop), and both hide when every banner
-fits. Its heading's See all opens `/campaigns`. With no Campaign listed (the seeds'
-builds) the homepage leaves the carousel out and `/campaigns` says there are none.
+fits. Its heading's See all opens `/campaigns`. With no Campaign listed (a `tiny` build)
+the homepage leaves the carousel out and `/campaigns` says there are none. Every count of a
+Campaign's Maps that is shown (a banner's, the switch's, a player's card's "n/N maps", the
+share card's) is its curated total, as its Maps are numbered out of it.
 
 **A Campaign Map elsewhere** says so (`components/workshop/Campaign.tsx`, both reading
 `campaignOfMap`). Its card, wherever `MapCardLink` draws it (the homepage shelves, All maps,
@@ -419,8 +425,8 @@ only visible ones.
   numbers alone is data, and the two deployments' caches can differ by a Refresh.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel
   address. A page or dialog with no row in the catalogue is not checked: add it. Locally,
-  serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank and a long
-  Map title), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
+  serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank, a long
+  Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
   one.
 - **Parity**: `pnpm db:parity` compares the read layer with `data/` figure by figure, on a
   database backfilled from the same commit; it stops first when the database is anything else.

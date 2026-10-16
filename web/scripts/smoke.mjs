@@ -36,20 +36,32 @@ const ROUTES = [
   ["/map/" + MAP, 200, null, "Marble Run"],
   ["/map/" + MAP + "/" + P1, 200],
   ["/map/" + MAP + "/nope", 404],
-  /* the seeds' Maps are in no curated Campaign, so every Campaign is unlisted: each of its
-     pages is a real 404 (proxy.ts asks /api/campaign), not a 200 with the not-found page */
-  ["/campaigns", 200, null, "No Campaign has a map"],
+  /* stress lists one curated Campaign's Map, Solar Trials' first (Mercury), so Solar Trials
+     is listed and every other Campaign isn't: an unlisted Campaign, or a Map of a listed
+     one the Workshop doesn't list, is a real 404 (proxy.ts asks /api/campaign), not a 200
+     with the not-found page */
+  ["/campaigns", 200, null, "Solar Trials"],
+  ["/", 200, null, "Solar Trials"],
+  ["/campaign/solar-trials", 200, null, "Twizzle"],
+  ["/campaign/solar-trials", 200, null, "/og/campaign/solar-trials?v="],
+  ["/campaign/solar-trials/podiums", 200, null, "Twizzle"],
+  ["/campaign/solar-trials/" + P1, 200, null, "Rolling Rae"],
+  ["/campaign/solar-trials/3805399883", 200, null, "01 Mercury"],
+  ["/api/campaign/solar-trials", 200, null, '{"maps":["3805399883"]}'],
+  ["/og/campaign/solar-trials", 200, null, "PNG"],
+  ["/campaign/solar-trials/3805394429", 404],
+  ["/campaign/ajc", 404],
+  ["/campaign/ajc/podiums", 404],
+  ["/campaign/ajc/" + P1, 404],
+  ["/campaign/ajc/3646349274", 404],
+  ["/api/campaign/ajc", 404],
+  ["/og/campaign/ajc", 404],
   ["/campaign/nope", 404],
+  ["/api/campaign/nope", 404],
   ["/campaign/solar-trials/nope", 404],
   ["/campaign/solar-trials/podiums/x", 404],
-  ["/campaign/solar-trials", 404],
-  ["/campaign/solar-trials/podiums", 404],
-  ["/campaign/solar-trials/" + P1, 404],
-  ["/campaign/solar-trials/3805399883", 404],
   // Velocity Trials' first Map, shaped like a Steam ID
   ["/campaign/solar-trials/3803908791", 404],
-  ["/api/campaign/solar-trials", 404],
-  ["/api/campaign/nope", 404],
   ["/player/" + P1, 200, null, "Rolling Rae"],
   ["/player/" + P1 + "/circuit", 200],
   ["/player/" + P1 + "/workshop", 200],
