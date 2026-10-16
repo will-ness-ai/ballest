@@ -105,12 +105,12 @@ frame of it.
 
 ## Share images
 
-A player, a Workshop Map, a Circuit Track and a Daily each unfurl with their own
-1200×630 card (spec #179). `lib/share.ts` decides what a card says, `components/share/`
-draws it through `next/og` and names it in the page's metadata, and `/og/<kind>/<id>`
-(`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`, `map`, `track`, `daily`) serves
-the PNG, or a 404 when there is no such page. Any other page, an Overall board included,
-keeps the site-wide `og.png`.
+A player, a Workshop Map, a Circuit Track, a Daily and a Campaign each unfurl with their
+own 1200×630 card (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
+card says, `components/share/` draws it through `next/og` and names it in the page's
+metadata, and `/og/<kind>/<id>` (`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`,
+`map`, `track`, `daily`, `campaign`) serves the PNG, or a 404 when there is no such page.
+Any other page, a Circuit Overall board included, keeps the site-wide `og.png`.
 
 - A player gets their marble turned over to their Steam avatar, the Season 2 Overall rank
   if they have one, and up to four tiles: World records, Author medals, Maps finished,
@@ -119,6 +119,14 @@ keeps the site-wide `og.png`.
 - A Map, Track or Daily gets its picture across the top (the Workshop preview, or the
   Track's screenshot), its world record (a Daily's "Fastest", live or final alike), then
   Players, Author time, Beat the author and either Published (a Map) or Gold time.
+- A Campaign (`/og/campaign/<slug>`) gets the same Banner with its first five Maps'
+  previews side by side as the band (`CAMPAIGN_BAND`), a missing one a blank slice;
+  "Campaign · by <maker>", its leader and their points, then Maps, Players and Finished
+  every map: the players with a time on every one of its Maps the Workshop lists
+  (`finishedEveryMap`). Its Overall, podiums and a focused row name it; a Map inside its
+  frame (`/campaign/<slug>/<pfid>`) names that Map's own card, as a Track names its own
+  inside its season. A slug that isn't curated, or none of whose Maps is listed, is a 404,
+  as its page is.
 
 The page names its card with the latest Refresh in the URL (`?v=`, `shareHref`), so each
 Refresh is a new address for crawlers that keep a picture by URL, and the route answers

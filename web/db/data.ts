@@ -17,6 +17,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import {
   CAMPAIGNS,
+  campaignBoard,
   campaignOf,
   campaignOfBoard,
   mapNo,
@@ -36,6 +37,7 @@ import type {
   PlayerDailies,
   WorkshopMap,
 } from "../lib/rows";
+import type { CampaignStanding } from "../lib/share";
 import { mapCard, timed, type MapCard } from "../lib/workshop";
 import { connect, type Db } from "./client";
 import * as q from "./site";
@@ -369,6 +371,36 @@ async function campaignData(slug: string): Promise<CampaignData | null> {
     return m ? mapNo(c, m.pfid) + " " + shortTitle(c, m.title) : name;
   };
   return { c, maps, tally: tally(c.title, boards, await q.mapPodiums(db(), boards), label) };
+}
+
+/* what a Campaign's share card reads: its Maps and where it stands, or null where
+   getCampaign is null */
+export async function getCampaignShare(
+  slug: string,
+): Promise<{ data: CampaignData; standing: CampaignStanding } | null> {
+  const data = await getCampaign(slug);
+  if (!data) return null;
+  const [head, finished] = await Promise.all([
+    getBoardPage(campaignBoard(data.c), 0, 1),
+    finishedEveryMapOf(slug),
+  ]);
+  return {
+    data,
+    standing: {
+      maps: data.maps.length,
+      players: head.total,
+      leader: head.rows[0] ?? null,
+      finishedEveryMap: finished,
+    },
+  };
+}
+
+async function finishedEveryMapOf(slug: string) {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const c = campaignOf(slug);
+  return c ? q.finishedEveryMap(db(), c) : 0;
 }
 
 /* the Compare dialog's search, read fresh */

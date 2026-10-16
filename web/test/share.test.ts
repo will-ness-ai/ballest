@@ -1,7 +1,7 @@
 // What each share image says (lib/share.ts) over the tiny dataset, read through the same
 // queries the card route uses; the expected values come from db/seed/datasets/tiny.ts and
 // the Medal times in lib/circuit.ts.
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 
 import { seed } from "../db/seed/harness";
 import {
@@ -10,9 +10,11 @@ import {
   circuitCounts,
   dailyDay,
   derivedStandings,
+  finishedEveryMap,
   playerData,
   workshopMaps,
 } from "../db/site";
+import type { Campaign } from "../lib/campaigns";
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
 import { dayLabel } from "../lib/daily";
 import { playerRecord, type IndexBoard } from "../lib/player";
@@ -20,6 +22,7 @@ import { shareHref } from "../lib/routes";
 import type { WorkshopMap } from "../lib/rows";
 import {
   beatAuthor,
+  campaignCard,
   dailyCard,
   mapCard,
   playerCard,
@@ -28,6 +31,21 @@ import {
   type BoardTop,
 } from "../lib/share";
 import { freshDb } from "./pg";
+
+/* Map A (Marble Run), then Map B (Loop de Loop), then Map C (Gone Gully), which has left the
+   Workshop. Added to the curated list for this file only, so its board resolves by name. */
+const TEST = vi.hoisted((): Campaign => ({
+  slug: "test-run",
+  title: "Test Run",
+  creator: "Tenpin",
+  cid: "76561199000000010",
+  maps: ["9000000001", "9000000002", "9000000003"],
+}));
+vi.mock("../lib/campaigns", async (original) => {
+  const m = await original<typeof import("../lib/campaigns")>();
+  (m.CAMPAIGNS as Array<Campaign>).push(TEST);
+  return m;
+});
 
 const p = (n: number) => `765611990000000${String(n).padStart(2, "0")}`;
 const DAY = 86400;
@@ -132,6 +150,43 @@ describe("a place's card", () => {
       "Gold time",
     ]);
     expect(c.tiles[3].value).toBe("1:02.000");
+  });
+});
+
+describe("a Campaign's card", () => {
+  test("finished every map counts the players with a time on each Map the Workshop lists", async () => {
+    // Map A has p9, p10 and p1; Map B has p10 and p2; Map C, which only p3 is on, has left
+    // the Workshop and asks nothing
+    expect(await finishedEveryMap(t.db, TEST)).toBe(1);
+    expect(await finishedEveryMap(t.db, { ...TEST, maps: ["9000000002"] })).toBe(2);
+    expect(await finishedEveryMap(t.db, { ...TEST, maps: ["9000000003"] })).toBe(0);
+  });
+
+  test("its leader and points, then Maps, Players and Finished every map", async () => {
+    // Tenpin (p10) is 2nd on Map A and 1st on Map B: 20,000 + 40,000 points. Four players
+    // hold a time on Map A or Map B.
+    const page = await boardPage(t.db, "OverallCampaign_test-run", { from: 0, count: 1 });
+    const c = campaignCard(TEST, {
+      maps: 2,
+      players: page.total,
+      leader: page.rows[0] ?? null,
+      finishedEveryMap: await finishedEveryMap(t.db, TEST),
+    });
+    expect(c.kind).toBe("campaign");
+    expect(c.kicker).toBe("Campaign · by Tenpin");
+    expect(c.title).toBe("Test Run");
+    expect(c.headline).toEqual({ value: "Tenpin", label: "leads with 60,000 pts", tone: "gold" });
+    expect(c.tiles).toEqual([
+      { value: "2", label: "Maps" },
+      { value: "4", label: "Players" },
+      { value: "1", label: "Finished every map", tone: "author" },
+    ]);
+  });
+
+  test("with no times yet, no one leads", () => {
+    const c = campaignCard(TEST, { maps: 3, players: 0, leader: null, finishedEveryMap: 0 });
+    expect(c.headline).toEqual({ value: "—", label: "No times yet" });
+    expect(c.tiles.map((s) => s.value)).toEqual(["3", "0", "0"]);
   });
 });
 
