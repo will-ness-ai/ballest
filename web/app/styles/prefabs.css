@@ -169,6 +169,7 @@
 /* the facts beside it */
 .pf-side {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.9rem;
   align-content: start;
 }
@@ -244,6 +245,13 @@
 .pf-dl.big {
   padding: 0.8rem 1.3rem;
   font-size: calc(17rem / 16);
+  max-width: 100%;
+}
+/* a long file name trims rather than widening the page on a narrow phone */
+.pf-dl .pf-fn {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .pf-dl svg {
   width: 1.2em;
