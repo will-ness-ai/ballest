@@ -42,7 +42,7 @@ async function previewStill(chosen: Chosen, angle: PrefabAngle | null): Promise<
 }
 
 /* the minute after `iso`, so a player who comes back then isn't refused for the seconds */
-const when = (iso: string) =>
+const freeAt = (iso: string) =>
   new Date(Date.parse(iso) + 60_000).toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
@@ -93,7 +93,7 @@ function Limit({ limit, nextAt }: { limit: number; nextAt: string | null }) {
     <div className="pfu-gate">
       <p>
         You&apos;ve reached your limit of {limit} prefabs an hour.
-        {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again soon."}
+        {nextAt ? ` You can upload again from ${freeAt(nextAt)}.` : " You can upload again soon."}
       </p>
     </div>
   );
@@ -191,8 +191,7 @@ function Form({
             {sending ? "Publishing…" : "Publish"}
           </button>
           <small>
-            {left} of {limit} uploads left this hour · goes live at once, credited to your Steam
-            name
+            {left} of {limit} hourly uploads left · goes live at once, credited to your Steam name
           </small>
         </div>
       </div>
