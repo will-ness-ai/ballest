@@ -1,4 +1,4 @@
-// GET /api/prefabs: how many uploads the signed-in reader has left today, for the upload
+// GET /api/prefabs: how many uploads the signed-in reader has left this hour, for the upload
 // form. POST /api/prefabs: the upload form (db/prefab-api.ts). Never cached.
 import { connection } from "next/server";
 

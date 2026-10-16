@@ -1,6 +1,13 @@
 // A Prefab as a three.js scene, shared
 // by the live viewer and the list's still pictures.
 import { shapesOf, type PrefabFile } from "../../lib/prefab";
+import {
+  DEFAULT_ANGLE,
+  PAN_MAX,
+  ZOOM_RANGE,
+  checkAngle,
+  type PrefabAngle,
+} from "../../lib/prefabs";
 
 type Three = typeof import("three");
 
@@ -17,15 +24,23 @@ export function buildScene(
   grid = true,
 ) {
   const scene = new THREE.Scene();
-  scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x30333d, 1.6));
+  /* a key light and a fill from the other side, so no face is left to the sky light alone,
+     which drew a sign's white letters grey and its red maroon from behind the key */
+  scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x30333d, 1.8));
   const sun = new THREE.DirectionalLight(0xffffff, 2.2);
   sun.position.set(0.6, 1, 0.4);
   scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xffffff, 1.6);
+  fill.position.set(-0.6, 0.5, -0.5);
+  scene.add(fill);
   const geometry = {
     box: new RoundedBoxGeometry(1, 1, 1, 1, 0.01),
     cylinder: new THREE.CylinderGeometry(0.5, 0.5, 1, 40),
     sphere: new THREE.SphereGeometry(0.5, 32, 20),
     scoop: scoopGeometry(THREE),
+    halfRing: ringGeometry(THREE, "half"),
+    quarterRing: ringGeometry(THREE, "quarter"),
+    torus: torusGeometry(THREE),
   };
   const group = new THREE.Group();
   for (const s of shapesOf(file)) {
@@ -36,6 +51,11 @@ export function buildScene(
         roughness: 0.75,
         metalness: 0.05,
         side: THREE.DoubleSide,
+        /* a lamp glows as the game draws it, washed toward white */
+        ...(s.glow && {
+          emissive: new THREE.Color(s.colour).lerp(new THREE.Color(0xffffff), 0.5),
+          emissiveIntensity: 0.9,
+        }),
       }),
     );
     mesh.matrixAutoUpdate = false;
@@ -55,17 +75,49 @@ export function buildScene(
   return { scene, centre, radius };
 }
 
-/* where the camera sits to fit the whole prefab, three-quarters from above */
+/* where the camera sits and looks for `angle` (lib/prefabs.ts PrefabAngle): at zoom 1, just
+   far enough back to fit the whole prefab */
 export function framing(
   THREE: Three,
   camera: import("three").PerspectiveCamera,
   centre: import("three").Vector3,
   radius: number,
+  angle: PrefabAngle | null = null,
 ) {
+  angle ??= DEFAULT_ANGLE;
+  const target = centre.clone().add(new THREE.Vector3(...angle.pan).multiplyScalar(radius));
+  const dist = fitDistance(camera, radius) * angle.zoom;
+  const position = target
+    .clone()
+    .add(new THREE.Vector3(...angle.from).normalize().multiplyScalar(dist));
+  return { position, target };
+}
+
+/* the angle the camera now shows, framing's inverse */
+export function angleNow(
+  camera: import("three").PerspectiveCamera,
+  target: import("three").Vector3,
+  centre: import("three").Vector3,
+  radius: number,
+): PrefabAngle {
+  const off = camera.position.clone().sub(target);
+  /* clamped like zoom, so a view past the limits saves as the nearest one it can be */
+  const pan = target.clone().sub(centre).divideScalar(radius).clampScalar(-PAN_MAX, PAN_MAX);
+  const angle = checkAngle({
+    from: off.toArray(),
+    zoom: Math.min(
+      ZOOM_RANGE[1],
+      Math.max(ZOOM_RANGE[0], off.length() / fitDistance(camera, radius)),
+    ),
+    pan: pan.toArray(),
+  });
+  return angle ?? DEFAULT_ANGLE;
+}
+
+function fitDistance(camera: import("three").PerspectiveCamera, radius: number) {
   const v = (camera.fov * Math.PI) / 360;
   const h = Math.atan(Math.tan(v) * camera.aspect);
-  const dist = (radius / Math.sin(Math.min(v, h))) * 1.05;
-  return centre.clone().add(new THREE.Vector3(1, 0.7, 1.2).normalize().multiplyScalar(dist));
+  return (radius / Math.sin(Math.min(v, h))) * 1.05;
 }
 
 /* one shared renderer draws every still, so a long list costs one WebGL context */
@@ -79,6 +131,7 @@ export async function stillOf(
   h: number,
   /* a solid backdrop instead of a transparent one */
   background?: string,
+  angle: PrefabAngle | null = null,
 ): Promise<string> {
   shared ??= loadThree().then((three) => {
     const renderer = new three.THREE.WebGLRenderer({
@@ -92,8 +145,9 @@ export async function stillOf(
   const { three, renderer } = await shared;
   const { scene, centre, radius } = buildScene(three, file, false);
   const camera = new three.THREE.PerspectiveCamera(40, w / h, 0.05, 2000);
-  camera.position.copy(framing(three.THREE, camera, centre, radius));
-  camera.lookAt(centre);
+  const view = framing(three.THREE, camera, centre, radius, angle);
+  camera.position.copy(view.position);
+  camera.lookAt(view.target);
   renderer.setSize(w, h, false);
   if (background) renderer.setClearColor(background, 1);
   renderer.render(scene, camera);
@@ -114,5 +168,33 @@ function scoopGeometry(THREE: Three) {
   shape.lineTo(-0.5, -0.5);
   const g = new THREE.ExtrudeGeometry(shape, { depth: 1, bevelEnabled: false });
   g.translate(0, 0, -0.5);
+  return g;
+}
+
+/* the hole bowls' stand-in: a flat ring with a hole, cut to a half (Unreal y >= 0) or a quarter
+   (x and y >= 0) around a centre on the bounds' edge, as SM_HalfShallowHoleBowl and
+   SM_QuarterShallowHoleBowl are; the hole is 55% of the radius, read off a sign built from them */
+function ringGeometry(THREE: Three, cut: "half" | "quarter") {
+  const half = cut === "half";
+  const sweep = half ? Math.PI : Math.PI / 2;
+  const shape = new THREE.Shape();
+  shape.absarc(0, 0, 1, 0, sweep, false);
+  shape.absarc(0, 0, 0.55, sweep, 0, true);
+  const g = new THREE.ExtrudeGeometry(shape, { depth: 1, curveSegments: 48, bevelEnabled: false });
+  /* the shape's (x, y) is Unreal's (x, y), which the unit shape keeps as three's (x, z) */
+  g.rotateX(Math.PI / 2);
+  g.translate(0, 0.5, 0);
+  /* into the unit box: a half spans x -1..1 and y 0..1, a quarter both 0..1 */
+  g.scale(half ? 0.5 : 1, 1, 1);
+  g.translate(half ? 0 : -0.5, 0, -0.5);
+  return g;
+}
+
+/* MP_RoundedTorus's stand-in: a ring lying flat (Unreal's x-y plane) whose tube is the bounds'
+   height, 300 of 2300 cm across */
+function torusGeometry(THREE: Three) {
+  const g = new THREE.TorusGeometry(1000, 150, 16, 64);
+  g.rotateX(Math.PI / 2);
+  g.scale(1 / 2300, 1 / 300, 1 / 2300);
   return g;
 }

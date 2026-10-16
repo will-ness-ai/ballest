@@ -16,6 +16,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -25,6 +26,8 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+import type { PrefabAngle } from "../lib/prefabs";
 
 export const refreshSource = pgEnum("refresh_source", ["collector", "backfill"]);
 
@@ -209,7 +212,7 @@ export const ghosts = pgTable("ghosts", {
 // A Prefab (CONTEXT.md): a group of editor pieces a player uploaded, with the file exactly as
 // they sent it (ADR 0009, the first table the site itself writes). The slug comes from the
 // first name and never changes, so a link survives a rename. A deleted or taken-down Prefab
-// keeps its row, which still counts against its uploader's daily limit, and reads as gone. A
+// keeps its row, which still counts against its uploader's hourly limit, and reads as gone. A
 // banned uploader's Prefabs are hidden by the reads, not here, so an unban brings them back.
 // The uploader is any signed-in Steam ID, not only a player the boards have seen, so there is
 // no foreign key; uploader_name is their Steam persona when they uploaded, for a byline when
@@ -235,6 +238,9 @@ export const prefabs = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     takenDownAt: timestamp("taken_down_at", { withTimezone: true }),
+    // the view its uploader picked for its picture (PrefabAngle in lib/prefabs.ts), or null
+    // for the default
+    angle: jsonb("angle").$type<PrefabAngle>(),
   },
   (t) => [index("prefabs_uploader").on(t.uploader, t.createdAt)],
 );
@@ -257,4 +263,13 @@ export const prefabBans = pgTable("prefab_bans", {
   steamId: text("steam_id").primaryKey(),
   bannedAt: timestamp("banned_at", { withTimezone: true }).notNull().defaultNow(),
   bannedBy: text("banned_by").notNull(),
+});
+
+// A player the admin has given their own hourly upload limit, in place of HOURLY_UPLOADS
+// (lib/prefabs.ts). No row is the default.
+export const prefabLimits = pgTable("prefab_limits", {
+  steamId: text("steam_id").primaryKey(),
+  perHour: integer("per_hour").notNull(),
+  setAt: timestamp("set_at", { withTimezone: true }).notNull().defaultNow(),
+  setBy: text("set_by").notNull(),
 });

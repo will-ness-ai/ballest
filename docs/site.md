@@ -418,21 +418,32 @@ branch `claude/prototype-prefabs` (spec #213).
   beside it the name, uploader, description, size, piece chips, tags and Download. The
   viewer (`PrefabModel`, `PrefabViewer`, `scene.ts`) fetches the file from
   `/api/prefabs/<slug>/file`, the same URL Download saves, and loads three.js from npm only
-  there. It turns slowly until it is grabbed, and not at all under reduced motion. The ?
+  there. It starts from the Prefab's angle and turns slowly until it is grabbed, and not at
+  all under reduced motion; Reset view goes back to the angle. The ?
   opens the how-to, with the Prefabs folder and the exact spawn command; it opens on its
   own once per browser (`localStorage`). A slug nobody uploaded, or a Prefab deleted, taken
   down or hidden, reads as gone.
 - **Stand-in shapes**: the file names meshes but carries no geometry, and the game's
   meshes stay off the repo (ADR 0001), so `lib/prefab.ts` draws each known mesh as a box,
-  cylinder, sphere or scoop sized from its bounds, an unknown one as a grey box, and
-  colours each by its material's name. Rotations are Unreal's [pitch, yaw, roll] in
+  cylinder, sphere, scoop, torus or half or quarter ring (the hole bowls) sized from its
+  bounds, an unknown one as a grey box, and colours each by its material's name; an Emissive
+  material glows, as the game's lamps do. A fill light opposite
+  the key keeps every side's colours true, so a sign seen from the front isn't greyed. Rotations are Unreal's [pitch, yaw, roll] in
   degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
 - **The gallery** (`PrefabGallery.tsx`): a card per live Prefab, Popular (favorites, newest
   breaking a tie) or Newest, filtered by one Tag (`galleryOf` in `lib/prefabs.ts`). Each
   card's picture is drawn in the browser from the file by one shared renderer once the card
   scrolls near, so no image is stored.
+- **The angle** (`PrefabAngle` in `lib/prefabs.ts`, the `angle` column): the view its uploader
+  picked, which the card, the upload ping's still and the page's viewer start from; none is
+  three-quarters from above with the whole Prefab in view. It is stored relative to the
+  Prefab's bounds (the camera's direction, its distance over the fitting one, and where it
+  looks in radii), so it frames the same at any picture size. The upload form's preview holds
+  still so the uploader can turn it and press Use this view (or Default view); on the page,
+  the uploader's Use this view for its picture saves the view they've turned to
+  (`PATCH /api/prefabs/<slug>` with only `{ angle }`).
 - **Uploading** (`UploadForm.tsx`, `POST /api/prefabs` in `db/prefab-api.ts`): signed in with
-  Steam, 5 a day per player counted from the rows. The file is checked in the browser the
+  Steam, 5 an hour per player (or the limit the admin gave them) counted from the rows. The file is checked in the browser the
   moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,
   described and tagged, previewed in 3D beside the card it will make, and live at once. Each
   upload pings #prefabs on the dev Discord server through Vercel's `OPS_WEBHOOK_URL` (skipped
@@ -446,11 +457,14 @@ branch `claude/prototype-prefabs` (spec #213).
   as the spawn command takes it (`fileNameOf`).
 - **Favorites, editing and the admin** (`Favorite.tsx`, `PrefabTools.tsx`): a signed-in
   reader hearts a Prefab once (`/api/prefabs/<slug>/favorite`). Its uploader can edit its
-  name, description and tags or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,
+  name, description and tags (and its angle, above) or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,
   one Steam ID (`ADMIN_STEAM_ID` in `lib/prefabs.ts`), can take any Prefab down
   (`/api/prefabs/<slug>/takedown`) and ban its uploader (`/api/prefab-bans/<steam_id>`),
   which hides all their Prefabs; a hidden one's gone page offers Unban. Every write expires
-  the cached Prefab reads (`PREFAB_TAG`), so it shows at once.
+  the cached Prefab reads (`PREFAB_TAG`), so it shows at once. From the same page the admin
+  can give the uploader their own hourly upload limit, or put them back on the 5
+  (`/api/prefab-limits/<steam_id>`, the `prefab_limits` table); nothing cached reads it, as
+  the upload form asks for its quota uncached.
 
 ## Checking a change
 

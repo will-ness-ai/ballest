@@ -10,6 +10,7 @@ import {
   favoritePrefab,
   takeDownPrefab,
   uploadPrefab,
+  limitUploader,
   uploadQuota,
   type PrefabDeps,
 } from "../db/prefab-api";
@@ -23,6 +24,7 @@ import { ENV, NOW, SITE, signIn } from "./session";
 
 const UPLOADER = "76561199000000011";
 const HOUR = 3_600_000;
+const MINUTE = 60_000;
 const bench = readFileSync(new URL("../../prefabs/samples/bench.json", import.meta.url), "utf8");
 
 let t: Awaited<ReturnType<typeof freshDb>>;
@@ -61,6 +63,7 @@ function uploading(
     tags?: Array<string>;
     file?: string;
     picture?: Uint8Array<ArrayBuffer>;
+    angle?: string;
   },
   cookie = "",
   headers: Record<string, string> = {},
@@ -71,6 +74,7 @@ function uploading(
   for (const tag of fields.tags ?? []) body.append("tags", tag);
   body.set("file", new Blob([fields.file ?? bench]), "bench.json");
   if (fields.picture) body.set("picture", new Blob([fields.picture]), "prefab.png");
+  if (fields.angle !== undefined) body.set("angle", fields.angle);
   return new Request(SITE + "/api/prefabs", {
     method: "POST",
     body,
@@ -172,14 +176,20 @@ describe("uploading a Prefab", () => {
     ]);
   });
 
-  test("a sixth in 24 hours waits until the oldest is a day old", async () => {
+  test("a sixth in an hour waits until the oldest is an hour old", async () => {
     const id = "76561199000000012";
     const cookie = await sessionOf(id);
     const quota = async (): Promise<unknown> =>
       (await uploadQuota(uploading({}, cookie), deps())).json();
-    expect(await quota()).toEqual({ signedIn: true, banned: false, left: 5, nextAt: null });
+    expect(await quota()).toEqual({
+      signedIn: true,
+      banned: false,
+      left: 5,
+      limit: 5,
+      nextAt: null,
+    });
     for (let i = 0; i < 5; i++) {
-      clock = NOW + i * HOUR;
+      clock = NOW + i * 10 * MINUTE;
       expect(
         (
           await uploadPrefab(
@@ -189,16 +199,17 @@ describe("uploading a Prefab", () => {
         ).status,
       ).toBe(201);
     }
-    clock = NOW + 6 * HOUR;
+    clock = NOW + 50 * MINUTE;
     expect(await quota()).toEqual({
       signedIn: true,
       banned: false,
       left: 0,
-      nextAt: new Date(NOW + 24 * HOUR).toISOString(),
+      limit: 5,
+      nextAt: new Date(NOW + HOUR).toISOString(),
     });
     const refused = await uploadPrefab(uploading({ name: "One more" }, cookie), deps());
     expect(refused.status).toBe(429);
-    clock = NOW + 24 * HOUR + 1000;
+    clock = NOW + HOUR + 1000;
     expect(await quota()).toMatchObject({ left: 1 });
     expect((await uploadPrefab(uploading({ name: "One more" }, cookie), deps())).status).toBe(201);
   });
@@ -219,6 +230,7 @@ describe("uploading a Prefab", () => {
       signedIn: false,
       banned: false,
       left: 0,
+      limit: 0,
       nextAt: null,
     });
   });
@@ -369,6 +381,60 @@ describe("editing and deleting your own", () => {
   });
 });
 
+describe("the angle its picture is drawn from", () => {
+  const OWNER = "76561199000000041";
+  const angle = { from: [0, 2, 0], zoom: 1.23456, pan: [0.1, 0, 0] };
+  const tidied = { from: [0, 1, 0], zoom: 1.2346, pan: [0.1, 0, 0] };
+  const patch = (body: object, cookie: string) =>
+    new Request(`${SITE}/api/prefabs/angled`, {
+      method: "PATCH",
+      headers: { cookie, origin: SITE, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  test("an upload without one reads as the default, and one with one keeps it tidied", async () => {
+    const owner = await sessionOf(OWNER);
+    await uploadPrefab(uploading({ name: "Plain" }, owner), deps());
+    expect((await prefabOf(t.db, "plain"))?.angle).toBeNull();
+    const r = await uploadPrefab(
+      uploading({ name: "Angled", angle: JSON.stringify(angle) }, owner),
+      deps(),
+    );
+    expect(r.status).toBe(201);
+    expect((await prefabOf(t.db, "angled"))?.angle).toEqual(tidied);
+    expect((await prefabList(t.db)).find((p) => p.slug === "angled")?.angle).toEqual(tidied);
+  });
+
+  test("an upload with one that can't be an angle is refused", async () => {
+    const owner = await sessionOf(OWNER);
+    for (const bad of ["not json", '{"from":[0,0,0],"zoom":1,"pan":[0,0,0]}'])
+      expect(
+        await (await uploadPrefab(uploading({ name: "Bad", angle: bad }, owner), deps())).json(),
+      ).toEqual({ problems: ["That view can't be saved. Pick it again."] });
+    expect(await prefabOf(t.db, "bad")).toBeNull();
+  });
+
+  test("the uploader changes only the angle, or puts it back to the default", async () => {
+    const owner = await sessionOf(OWNER);
+    const turned = { from: [1, 0, 0], zoom: 2, pan: [0, 0, 0] };
+    expect((await editPrefab(patch({ angle: turned }, owner), deps(), "angled")).status).toBe(200);
+    expect(await prefabOf(t.db, "angled")).toMatchObject({ name: "Angled", angle: turned });
+    await editPrefab(patch({ angle: null }, owner), deps(), "angled");
+    expect((await prefabOf(t.db, "angled"))?.angle).toBeNull();
+    const r = await editPrefab(patch({ angle: { zoom: 1 } }, owner), deps(), "angled");
+    expect(r.status).toBe(400);
+    expect((await editPrefab(patch(5 as unknown as object, owner), deps(), "angled")).status).toBe(
+      400,
+    );
+  });
+
+  test("nobody else can change it", async () => {
+    const other = await sessionOf("76561199000000042");
+    const r = await editPrefab(patch({ angle: angle }, other), deps(), "angled");
+    expect(r.status).toBe(403);
+  });
+});
+
 describe("the admin's take down and ban", () => {
   const ADMIN = "76561198047685844";
   const BAD = "76561199000000041";
@@ -433,6 +499,53 @@ describe("the admin's take down and ban", () => {
     ).toBe(200);
     expect(await states()).toEqual({ "bad-one": "taken-down", "bad-two": "live" });
     expect((await prefabList(t.db)).map((c) => c.slug)).toContain("bad-two");
+  });
+
+  test("the admin gives a player their own hourly limit, and can put them back on the default", async () => {
+    const id = "76561199000000043";
+    const url = `/api/prefab-limits/${id}`;
+    const admin = await sessionOf(ADMIN);
+    const them = await sessionOf(id);
+    const set = (perHour: unknown, cookie = admin) =>
+      limitUploader(
+        new Request(SITE + url, {
+          method: "PUT",
+          body: JSON.stringify({ perHour }),
+          headers: { cookie, origin: SITE, "content-type": "application/json" },
+        }),
+        deps(),
+        id,
+      );
+    const left = async () =>
+      ((await (await uploadQuota(uploading({}, them), deps())).json()) as { left: number }).left;
+    expect(await (await limitUploader(post(url, "GET", admin), deps(), id)).json()).toEqual({
+      steamId: id,
+      perHour: 5,
+      own: false,
+    });
+    expect((await set(25, them)).status).toBe(403);
+    for (const bad of [0, 2.5, "25", 1001]) expect((await set(bad)).status).toBe(400);
+    expect(await (await set(25)).json()).toEqual({ steamId: id, perHour: 25, own: true });
+    for (let i = 0; i < 6; i++)
+      await uploadPrefab(
+        uploading({ name: `Sign ${String(i)}`, file: cubesFile(2) }, them),
+        deps(),
+      );
+    expect(await left()).toBe(19);
+    expect(await (await set(6)).json()).toMatchObject({ perHour: 6 });
+    expect(await left()).toBe(0);
+    const refused = await uploadPrefab(uploading({ name: "Sign 7" }, them), deps());
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({
+      limit: 6,
+      nextAt: new Date(NOW + HOUR).toISOString(),
+    });
+    expect(await (await limitUploader(post(url, "DELETE", admin), deps(), id)).json()).toEqual({
+      steamId: id,
+      perHour: 5,
+      own: false,
+    });
+    expect(await left()).toBe(0);
   });
 
   test("the admin can't ban themselves", async () => {

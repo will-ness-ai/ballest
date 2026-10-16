@@ -1,31 +1,27 @@
 "use client";
 // /prefabs/new, the upload form (grill-design round 3, E · Form + card): the file and its
-// fields on the left; the 3D preview and the gallery card it will make on the right. The
+// fields on the left; the 3D preview and the gallery card it will make on the right, where
+// the uploader turns the preview to the view the card is drawn from (its angle). The
 // file is checked the moment it's chosen (lib/prefab-check.ts), and again by the server.
-// Signed out, banned or at the daily limit, a note takes the form's place.
+// Signed out, banned or at the hourly limit, a note takes the form's place.
 import { useEffect, useRef, useState } from "react";
 
 import { Card } from "./PrefabGallery";
-import { PrefabViewer } from "./PrefabViewer";
+import { PrefabViewer, useViewer } from "./PrefabViewer";
 import { stillOf } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
 import {
-  DAILY_UPLOADS,
   DESCRIPTION_MAX,
   MAX_TAGS,
   NAME_MAX,
+  NO_UPLOADS,
   TAGS,
+  type PrefabAngle,
   type PrefabFields,
+  type UploadQuota,
 } from "../../lib/prefabs";
 import { newPrefabHref, prefabHref, prefabsApiHref, signInHref } from "../../lib/routes";
-
-interface Quota {
-  signedIn: boolean;
-  banned: boolean;
-  left: number;
-  nextAt: string | null;
-}
 
 interface Chosen {
   fileName: string;
@@ -36,25 +32,29 @@ interface Chosen {
 
 /* a still of the preview for the admin's upload ping, or null: none for a file so big the
    pair could pass Vercel's 4.5 MB request cap, or when the browser can't draw one */
-async function previewStill(chosen: Chosen): Promise<Blob | null> {
+async function previewStill(chosen: Chosen, angle: PrefabAngle | null): Promise<Blob | null> {
   if (!chosen.file || chosen.text.length > 3_000_000) return null;
   try {
-    return await (await fetch(await stillOf(chosen.file, 800, 450, "#141a2b"))).blob();
+    return await (await fetch(await stillOf(chosen.file, 800, 450, "#141a2b", angle))).blob();
   } catch {
     return null;
   }
 }
 
+/* the minute after `iso`, so a player who comes back then isn't refused for the seconds */
 const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+  new Date(Date.parse(iso) + 60_000).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
 export function UploadForm() {
-  const [quota, setQuota] = useState<Quota | null>(null);
+  const [quota, setQuota] = useState<UploadQuota | null>(null);
   useEffect(() => {
     void fetch(prefabsApiHref(), { cache: "no-store" })
-      .then((r) => r.json() as Promise<Quota>)
+      .then((r) => r.json() as Promise<UploadQuota>)
       .then(setQuota)
-      .catch(() => setQuota({ signedIn: false, banned: false, left: 0, nextAt: null }));
+      .catch(() => setQuota(NO_UPLOADS));
   }, []);
   return (
     <section className="pfu">
@@ -76,33 +76,48 @@ export function UploadForm() {
           <p>You can&apos;t upload prefabs.</p>
         </div>
       ) : !quota.left ? (
-        <Limit nextAt={quota.nextAt} />
+        <Limit limit={quota.limit} nextAt={quota.nextAt} />
       ) : (
-        <Form left={quota.left} onLimit={(nextAt) => setQuota({ ...quota, left: 0, nextAt })} />
+        <Form
+          left={quota.left}
+          limit={quota.limit}
+          onLimit={(limit, nextAt) => setQuota({ ...quota, left: 0, limit, nextAt })}
+        />
       )}
     </section>
   );
 }
 
-function Limit({ nextAt }: { nextAt: string | null }) {
+function Limit({ limit, nextAt }: { limit: number; nextAt: string | null }) {
   return (
     <div className="pfu-gate">
       <p>
-        You&apos;ve uploaded {DAILY_UPLOADS} prefabs today, the daily limit.
-        {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again tomorrow."}
+        You&apos;ve reached your limit of {limit} prefabs an hour.
+        {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again soon."}
       </p>
     </div>
   );
 }
 
-function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null) => void }) {
+function Form({
+  left,
+  limit,
+  onLimit,
+}: {
+  left: number;
+  limit: number;
+  onLimit: (limit: number, nextAt: string | null) => void;
+}) {
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [fields, setFields] = useState<PrefabFields>({ name: "", description: "", tags: [] });
   const [sending, setSending] = useState(false);
   const [refused, setRefused] = useState<Array<string>>([]);
+  const [angle, setAngle] = useState<PrefabAngle | null>(null);
 
   const take = (fileName: string, text: string) => {
     const check = checkPrefab(text);
+    /* an angle is relative to the file's bounds, so a new file starts from the default */
+    setAngle(null);
     setChosen({
       fileName,
       text,
@@ -129,14 +144,20 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
     body.set("description", fields.description);
     for (const t of fields.tags) body.append("tags", t);
     body.set("file", new Blob([chosen.text], { type: "application/json" }), chosen.fileName);
-    const picture = await previewStill(chosen);
+    if (angle) body.set("angle", JSON.stringify(angle));
+    const picture = await previewStill(chosen, angle);
     if (picture) body.set("picture", picture, "prefab.png");
     try {
       const r = await fetch(prefabsApiHref(), { method: "POST", body });
-      const got = (await r.json()) as { slug?: string; problems?: Array<string>; nextAt?: string };
+      const got = (await r.json()) as {
+        slug?: string;
+        problems?: Array<string>;
+        limit?: number;
+        nextAt?: string;
+      };
       /* a full load, so the router's cached gallery doesn't miss it on the way back */
       if (r.status === 201 && got.slug) return location.assign(prefabHref(got.slug));
-      if (r.status === 429) return onLimit(got.nextAt ?? null);
+      if (r.status === 429) return onLimit(got.limit ?? limit, got.nextAt ?? null);
       setRefused(got.problems ?? ["That didn't upload. Try again in a moment."]);
     } catch {
       setRefused(["That didn't upload. Try again in a moment."]);
@@ -170,20 +191,25 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
             {sending ? "Publishing…" : "Publish"}
           </button>
           <small>
-            {left} of {DAILY_UPLOADS} uploads left today · goes live at once, credited to your Steam
+            {left} of {limit} uploads left this hour · goes live at once, credited to your Steam
             name
           </small>
         </div>
       </div>
       <div className="pfu-col">
         <h2 className="pfu-h2">How it&apos;ll look</h2>
-        <div className="pf-vwrap pfu-tall">
-          {chosen?.file ? (
-            <PrefabViewer key={chosen.fileName + String(chosen.text.length)} file={chosen.file} />
-          ) : (
+        {chosen?.file ? (
+          <AnglePicker
+            key={chosen.fileName + String(chosen.text.length)}
+            file={chosen.file}
+            angle={angle}
+            onPick={setAngle}
+          />
+        ) : (
+          <div className="pf-vwrap pfu-tall">
             <div className="pfv pfu-empty">The 3D preview appears here</div>
-          )}
-        </div>
+          </div>
+        )}
         {chosen?.file && (
           <div className="pfu-card">
             <Card
@@ -193,11 +219,51 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
                 favorites: 0,
                 uploader: { steamId: "", name: "you", isPlayer: false },
                 pieces: chosen.file.items.length,
+                angle,
               }}
               file={chosen.file}
             />
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* the preview, still so the uploader can turn it to the view they want, and the buttons that
+   make that view the card's (its angle) or go back to the default; the page's viewer starts
+   from it too */
+function AnglePicker({
+  file,
+  angle,
+  onPick,
+}: {
+  file: PrefabFile;
+  angle: PrefabAngle | null;
+  onPick: (angle: PrefabAngle | null) => void;
+}) {
+  const { attach, angleNow } = useViewer();
+  return (
+    <div className="pf-vwrap pfu-tall">
+      <PrefabViewer file={file} spin={false} angle={angle} attach={attach} />
+      <div className="pf-tools">
+        <span className="pf-hint">Turn it to the view you want on the card</span>
+        <span className="pf-tools-end">
+          {angle && (
+            <button type="button" onClick={() => onPick(null)}>
+              Default view
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              const a = angleNow();
+              if (a) onPick(a);
+            }}
+          >
+            Use this view
+          </button>
+        </span>
       </div>
     </div>
   );
