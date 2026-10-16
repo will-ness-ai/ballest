@@ -141,7 +141,7 @@ function AllRows({
       (s) => {
         if (live) setGot({ total: s.total, from, rows: s.rows });
       },
-      () => undefined /* stays "Reading the list…" */,
+      () => undefined /* stays grey bars */,
     );
     return () => {
       live = false;
@@ -192,13 +192,30 @@ function AllRows({
     }
   };
 
-  if (!got) return <p className="yl-wait">Reading the list…</p>;
+  if (!got)
+    return (
+      <ol className="yl-rows yl-all" aria-busy="true">
+        <Holder rows={8} />
+      </ol>
+    );
   return (
     <ol className="yl-rows yl-all" ref={box} onScroll={onScroll} tabIndex={0}>
       {got.rows.map((r) => (
         <Row key={r.steamId} r={r} you={r.steamId === you} moves />
       ))}
     </ol>
+  );
+}
+
+/* rows as grey bars while they are read, as the site's other lists show them; `you` marks
+   the one that will be You's, and `gap` leaves room for the gap above them */
+function Holder({ rows, you, gap }: { rows: number; you?: number; gap?: boolean }) {
+  return (
+    <li className="yl-hold" data-gap={gap ? true : undefined} aria-hidden="true">
+      {Array.from({ length: rows }, (_, k) => (
+        <span key={k} data-you={k === you || undefined} />
+      ))}
+    </li>
   );
 }
 
@@ -306,7 +323,7 @@ function Card({
               </li>
             ),
           )}
-          {holding && <li className="yl-hold" aria-hidden="true" />}
+          {holding && <Holder rows={4} you={2} gap />}
           {signIn && ladder.total > shown && (
             <li className="yl-gap" aria-hidden="true">
               &#8943;

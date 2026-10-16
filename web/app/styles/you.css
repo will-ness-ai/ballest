@@ -153,10 +153,29 @@
   text-align: center;
   line-height: 1;
 }
-/* You's rows, while they are read: the gap and four rows */
+/* rows while they are read: grey bars a row tall, pulsing like the boards' (board.css) */
 .yl-hold {
   grid-column: 1 / -1;
-  block-size: 136px;
+  display: grid;
+}
+/* the gap's height, so the card doesn't move when the rows land */
+.yl-hold[data-gap] {
+  padding-block-start: 16px;
+}
+.yl-hold span {
+  block-size: 9px;
+  margin: 10.5px 6px;
+  border-radius: 5px;
+  background: var(--surface2);
+  opacity: 0.75;
+}
+.yl-hold span[data-you] {
+  background: var(--accent-soft);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .yl-hold span {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
 }
 .yl-off {
   display: block;
@@ -171,11 +190,6 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   overflow-anchor: none;
-}
-.yl-wait {
-  margin: 0;
-  font-size: calc(13rem / 16);
-  color: var(--faint);
 }
 .yl-more {
   justify-self: start;
