@@ -1,0 +1,17 @@
+name: prefab-fetch-tmp
+on: push
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir out
+          curl -sSfL https://ballestrecords.com/prefabs -o out/prefabs.html
+          grep -oE '/prefab/[a-z0-9-]+' out/prefabs.html | sort -u | sed 's#/prefab/##' > out/slugs.txt
+          cat out/slugs.txt
+          while read s; do curl -sSfL "https://ballestrecords.com/api/prefabs/$s/file" -o "out/$s.json" || echo "fail $s"; done < out/slugs.txt
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prefabs
+          path: out
