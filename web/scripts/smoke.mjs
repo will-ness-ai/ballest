@@ -17,6 +17,9 @@ const P1 = "76561199000000001",
   MAP = "9000000001";
 const ORIGIN = "https://ballestrecords.com";
 
+/* what a page that calls notFound() after it has started streaming answers with */
+const SOFT_404 = "NEXT_HTTP_ERROR_FALLBACK;404";
+
 // [path, status, Location for a redirect, text the page must contain]
 const ROUTES = [
   ["/", 200],
@@ -37,6 +40,29 @@ const ROUTES = [
   ["/map/" + MAP, 200, null, "Marble Run"],
   ["/map/" + MAP + "/" + P1, 200],
   ["/map/" + MAP + "/nope", 404],
+  /* stress lists one curated Campaign's Map, Solar Trials' first (Mercury), so Solar Trials
+     is listed and every other Campaign isn't. A path no curated Campaign can have is a real
+     404 (proxy.ts); an unlisted Campaign, or a Map of a listed one the Workshop doesn't
+     list, is only known to the page: a soft 404, the not-found page with a 200 */
+  ["/campaigns", 200, null, "Solar Trials"],
+  ["/", 200, null, "Solar Trials"],
+  ["/campaign/solar-trials", 200, null, "Twizzle"],
+  ["/campaign/solar-trials", 200, null, "/og/campaign/solar-trials?v="],
+  ["/campaign/solar-trials/podiums", 200, null, "Twizzle"],
+  ["/campaign/solar-trials/" + P1, 200, null, "Rolling Rae"],
+  ["/campaign/solar-trials/3805399883", 200, null, "01 Mercury"],
+  ["/og/campaign/solar-trials", 200, null, "PNG"],
+  ["/campaign/solar-trials/3805394429", 200, null, SOFT_404],
+  ["/campaign/ajc", 200, null, SOFT_404],
+  ["/campaign/ajc/podiums", 200, null, SOFT_404],
+  ["/campaign/ajc/" + P1, 200, null, SOFT_404],
+  ["/campaign/ajc/3646349274", 200, null, SOFT_404],
+  ["/og/campaign/ajc", 404],
+  ["/campaign/nope", 404],
+  ["/campaign/solar-trials/nope", 404],
+  ["/campaign/solar-trials/podiums/x", 404],
+  // Velocity Trials' first Map, shaped like a Steam ID
+  ["/campaign/solar-trials/3803908791", 404],
   ["/player/" + P1, 200, null, "Rolling Rae"],
   ["/player/" + P1 + "/circuit", 200],
   ["/player/" + P1 + "/workshop", 200],

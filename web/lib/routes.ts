@@ -1,5 +1,6 @@
 // Every URL the site links to, and how an old #/ link from the single-page site maps onto
 // one. A Steam ID only ever reaches a path through isSteamId: one can arrive from the URL.
+import { campaignOf, campaignOfBoard, campaignOfMap, type Campaign } from "./campaigns";
 import { circuitBoard } from "./circuit";
 import { STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
@@ -38,7 +39,7 @@ export const PREFABS_TAB = "Prefabs";
 
 /* the tab a path belongs to; a player's page and a head to head belong to none */
 export function tabOfPath(path: string): string | null {
-  if (path === "/" || /^\/maps?(\/|$)/.test(path)) return WORKSHOP_GROUP;
+  if (path === "/" || /^\/(maps?|campaigns?)(\/|$)/.test(path)) return WORKSHOP_GROUP;
   if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
   if (/^\/players(\/|$)/.test(path)) return PLAYERS_TAB;
   if (/^\/prefabs?(\/|$)/.test(path)) return PREFABS_TAB;
@@ -59,7 +60,41 @@ export const mapHref = (pfid: string, focus?: string | null) =>
 export function boardHref(name: string, slot?: string | null) {
   const pfid = mapPfidOf(name);
   if (pfid) return mapHref(pfid, slot);
-  return "/board/" + name + (slot && (slot === PODIUM_SORT || isSteamId(slot)) ? "/" + slot : "");
+  const tail = slot && (slot === PODIUM_SORT || isSteamId(slot)) ? "/" + slot : "";
+  const campaign = campaignOfBoard(name);
+  if (campaign) return campaignHref(campaign.slug) + tail;
+  return "/board/" + name + tail;
+}
+
+/* a Campaign's page: its Overall board, or one of its Maps inside its frame */
+export const campaignHref = (slug: string, pfid?: string | null) =>
+  "/campaign/" + slug + (pfid ? "/" + pfid : "");
+
+/* every Campaign, as banners */
+export const campaignsHref = () => "/campaigns";
+
+/* what follows a Campaign's slug in its path, or null for what can't: nothing (its Overall
+   board), podiums (its podium order), one of its Maps (`map`, inside its frame) or a Steam
+   ID whose row to mark (`focus`). Another Campaign's Map is shaped like a Steam ID, and is
+   none. The proxy and the page both read a path through it. */
+export function campaignSlot(
+  c: Campaign,
+  slot: string | null | undefined,
+): { map: string | null; focus: string | null; podiums: boolean } | null {
+  const none = { map: null, focus: null, podiums: false };
+  if (!slot) return none;
+  if (slot === PODIUM_SORT) return { ...none, podiums: true };
+  if (c.maps.includes(slot)) return { ...none, map: slot };
+  return isSteamId(slot) && !campaignOfMap(slot) ? { ...none, focus: slot } : null;
+}
+
+/* the Campaign a path under /campaign/ names and what follows its slug (campaignSlot), or
+   null for a path that is no Campaign's page */
+export function campaignPath(path: string) {
+  const m = /^\/campaign\/([^/]+)(?:\/([^/]+))?\/?$/.exec(path);
+  const c = m && campaignOf(m[1]);
+  const at = c && campaignSlot(c, m[2]);
+  return c && at ? { c, ...at } : null;
 }
 
 export const vsHref = (a: string, b: string) =>

@@ -16,6 +16,13 @@ _Avoid_: custom map, UGC map, level
 One of the game's own courses in its Circuit mode (Season 1 or Season 2).
 _Avoid_: campaign, campaign map
 
+**Campaign**:
+A set of Maps, in their creator's order, that we curate and rank together the way the game
+ranks a Circuit season: each Map pays the same place points a Track pays toward Overall, and a
+player's total is the sum over the Maps they hold a time on. The Workshop's counterpart to a
+Circuit season, made by players; the game itself knows nothing of it, so the list is ours.
+_Avoid_: playlist, series, collection (a Steam Workshop collection is a different thing)
+
 **Medal**:
 One of a Map's four time targets, Bronze, Silver, Gold and Author (fastest), set by its
 creator. A Track has the same four, set by the game. A time earns the best Medal whose target it meets. A player's page sorts their

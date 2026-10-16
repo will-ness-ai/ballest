@@ -128,6 +128,15 @@
     color: var(--dim);
     font-weight: 600;
   }
+  /* a Campaign's maker, under its name */
+  .rail .railby {
+    margin: -5px 0 10px;
+    color: var(--dim);
+    font-size: calc(13rem / 16);
+  }
+  .rail .railby a {
+    color: var(--accent);
+  }
   .boards {
     display: flex;
     flex-direction: column;
@@ -546,6 +555,19 @@
   .strip {
     grid-auto-columns: minmax(200px, 220px);
   }
+  /* Campaigns: two banners in view on the homepage, two across on /campaigns */
+  .ccar-track {
+    grid-auto-columns: calc((100% - 12px) / 2);
+  }
+  .cban {
+    min-height: 190px;
+  }
+  .cban-in {
+    padding: 18px 64px 18px 20px;
+  }
+  .call {
+    grid-template-columns: 1fr 1fr;
+  }
   .mgrid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
@@ -657,6 +679,11 @@
     .mcard:hover .pod3,
     .mcard:focus-visible .pod3 {
       opacity: 1;
+    }
+    /* the top three take the picture, so a Campaign strip steps aside */
+    .mcard:hover .cb-strip,
+    .mcard:focus-visible .cb-strip {
+      opacity: 0;
     }
     .mcard:hover img,
     .mcard:focus-visible img {

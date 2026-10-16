@@ -13,6 +13,7 @@ import { BackLink } from "../BackLink";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { SteamMark } from "../SteamMark";
+import type { PlayerCampaign } from "../../db/data";
 import type { PlayerRecord, SeasonRecord, TrackTile } from "../../lib/player";
 import type { DailyCell, PlayerDailies } from "../../lib/rows";
 import { boardHref, playerHref, type PlayerTab } from "../../lib/routes";
@@ -160,11 +161,14 @@ export function PlayerView({
   rec,
   tab,
   daily,
+  campaigns,
 }: {
   rec: PlayerRecord;
   tab: PlayerTab;
   /* their Daily record, and every Daily for its calendar */
   daily: { mine: PlayerDailies; days: ReadonlyArray<DailyCell> };
+  /* the Campaigns they hold a place in, which the Workshop tab opens with */
+  campaigns: ReadonlyArray<PlayerCampaign>;
 }) {
   const url = safeUrl(rec.profileUrl);
   return (
@@ -221,7 +225,7 @@ export function PlayerView({
           {tab === "circuit" ? (
             <CircuitTab rec={rec} />
           ) : tab === "workshop" ? (
-            <WorkshopTab id={rec.id} w={rec.workshop} />
+            <WorkshopTab id={rec.id} w={rec.workshop} campaigns={campaigns} />
           ) : tab === "daily" ? (
             <DailyTab mine={daily.mine} days={daily.days} />
           ) : (

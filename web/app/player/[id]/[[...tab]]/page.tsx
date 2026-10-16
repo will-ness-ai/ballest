@@ -9,7 +9,13 @@ import { DocTitle } from "../../../../components/Behaviours";
 import { Shell } from "../../../../components/Shell";
 import { PlayerSkeleton } from "../../../../components/Skeleton";
 import { PlayerView, tabFor } from "../../../../components/player/PlayerView";
-import { getBoardPage, getDailies, getPlayer, getPlayerDailies } from "../../../../db/data";
+import {
+  getBoardPage,
+  getDailies,
+  getPlayer,
+  getPlayerCampaigns,
+  getPlayerDailies,
+} from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
 import { isPlayerTab, playerHref } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
@@ -49,12 +55,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 async function Player({ params }: Pick<Props, "params">) {
   const p = await params;
-  const [rec, mine, days] = await Promise.all([recordOf(p), getPlayerDailies(p.id), getDailies()]);
+  const [rec, mine, days, campaigns] = await Promise.all([
+    recordOf(p),
+    getPlayerDailies(p.id),
+    getDailies(),
+    getPlayerCampaigns(p.id),
+  ]);
   if (!rec || !mine) notFound();
   return (
     <>
       <DocTitle title={personaOf(rec.who)} />
-      <PlayerView rec={rec} tab={tabFor(rec, p.tab?.[0] ?? null)} daily={{ mine, days }} />
+      <PlayerView
+        rec={rec}
+        tab={tabFor(rec, p.tab?.[0] ?? null)}
+        daily={{ mine, days }}
+        campaigns={campaigns}
+      />
     </>
   );
 }

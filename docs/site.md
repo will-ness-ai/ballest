@@ -23,6 +23,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     old `#/` link maps onto one.
   - `circuit.ts`, the Circuit's fixed facts: the board order (the in-game numbering), the
     Season 2 tiers, each Track's screenshot and Medal times.
+  - `campaigns.ts`, the curated Campaigns and their lookups (below, "Campaigns").
   - `rows.ts`, the row types the read layer returns.
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
     the rows it is given; `standing.ts` (You's place, Medal and next Medal on a board) and
@@ -70,7 +71,11 @@ title on every later visit to the same route.
 
 A `notFound()` inside a streamed page can only answer 200, so anything that can be told
 from the path alone (a board name, a tab, a Players scope, a Steam ID's shape) is checked
-in `proxy.ts` instead. A Steam ID nobody raced under is still a soft 404.
+in `proxy.ts` instead. A Steam ID nobody raced under is still a soft 404, and so is a
+curated Campaign none of whose Maps the Workshop lists, or a Map of it that it no longer
+lists: only the database knows, and the proxy can't read the cache, so asking would cost
+a function call on every Campaign page view for a case that comes up only when a maker
+pulls their Maps.
 
 ## Track screenshots
 
@@ -104,12 +109,13 @@ frame of it.
 
 ## Share images
 
-A player, a Workshop Map, a Circuit Track and a Daily each unfurl with their own
-1200×630 card (spec #179). `lib/share.ts` decides what a card says, `components/share/`
-draws it through `next/og`, `pageMetadata` (`components/metadata.ts`) names it in the page's metadata, and `/og/<kind>/<id>`
-(`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`, `map`, `track`, `daily`) serves
-the PNG, or a 404 when there is no such page. Any other page, an Overall board included,
-keeps the site-wide `og.png`.
+A player, a Workshop Map, a Circuit Track, a Daily and a Campaign each unfurl with their
+own 1200×630 card (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
+card says, `components/share/` draws it through `next/og`, `pageMetadata`
+(`components/metadata.ts`) names it in the page's metadata, and `/og/<kind>/<id>`
+(`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`, `map`, `track`, `daily`,
+`campaign`) serves the PNG, or a 404 when there is no such page. Any other page, an
+Overall board included, keeps the site-wide `og.png`.
 
 - A player gets their marble turned over to their Steam avatar, the Season 2 Overall rank
   if they have one, and up to four tiles: World records, Author medals, Maps finished,
@@ -118,6 +124,13 @@ keeps the site-wide `og.png`.
 - A Map, Track or Daily gets its picture across the top (the Workshop preview, or the
   Track's screenshot), its world record (a Daily's "Fastest", live or final alike), then
   Players, Author time, Beat the author and either Published (a Map) or Gold time.
+- A Campaign (`/og/campaign/<slug>`) gets the same Banner with its first five Maps'
+  previews side by side as the band (`CAMPAIGN_MAX_PICTURES`), a missing one a blank slice;
+  "Campaign · by <maker>", its leader and their points, then Maps, Players and Finished
+  every map: the players with a time on every one of its Maps the Workshop lists
+  (`finishedEveryMap`). Its Overall, podiums and a focused row name it; a Map inside its
+  frame (`/campaign/<slug>/<pfid>`) names that Map's own card, as a Track names its own
+  inside its season. A slug that isn't curated, or none of whose Maps is listed, is a 404.
 
 The page names its card with the latest Refresh in the URL (`?v=`, `shareHref`), so each
 Refresh is a new address for crawlers that keep a picture by URL, and the route answers
@@ -134,7 +147,8 @@ fails to load, or that Satori can't read, draws without it.
 
 ## Routes
 
-- `/` — the Workshop homepage: the carousel, the shelves and the search.
+- `/` — the Workshop homepage: the carousel, the Campaigns' carousel, the shelves and the
+  search.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
   (`lib/workshop.ts`).
 - `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row.
@@ -145,6 +159,13 @@ fails to load, or that Satori can't read, draws without it.
   `lib/player.ts`), are a row of sub-tabs under the tabs on a desktop and a chip beside
   the board button on a phone, whose menu gives each season's Tracks and field. Each
   season opens its Overall board.
+- `/campaign/<slug>`: a Campaign's Overall board, with the same optional `/<steam_id>` or
+  `/podiums`, or `/campaign/<slug>/<pfid>` for one of its Maps inside the Campaign's frame,
+  as a Track opens inside its season. Lights the Workshop tab. The proxy 404s a slug that
+  isn't curated, or anything after it but those; how the page is built is under
+  "Campaigns".
+- `/campaigns`: every Campaign as a banner, most players first, two across on a desktop
+  and one on a phone. Prerendered; lights the Workshop tab.
 - `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/circuit`, `/workshop`,
   `/made`). Without one the page opens on Workshop for anyone with a Workshop time, else
   Circuit.
@@ -173,15 +194,16 @@ fails to load, or that Satori can't read, draws without it.
   upload form. The Prefabs tab comes last and is lit on all three. See "Prefabs".
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
-it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board or Map,
-head to heads, `/api/` and the upload form. Every one of those multiplies by the number of players, and AI
+it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board, Map or
+Campaign, a Campaign's Maps (each has its own page), head to heads, `/api/` and the upload
+form. Every one of those multiplies by the number of players, and AI
 crawlers walking them all once outran the site's Hobby limits. A new route that adds a
 view of a page belongs on that list.
 
 Search engines get the rest from `/sitemap.xml` (`app/sitemap.ts`, `lib/sitemap.ts`),
 which robots.txt names. It lists the pages worth a search result, not every page allowed:
-the Workshop, All maps, Players, Daily and Daily standings pages, every Circuit board,
-every Map with a time, every Daily, and only the players with a world record or podium,
+the Workshop, All maps, Players, Daily, Daily standings and Campaigns pages, every Circuit
+board, every Map with a time, every Daily, every Campaign with a listed Map, and only the players with a world record or podium,
 some two thousand pages where all of them would be fifteen thousand more. Each is a server
 render per Refresh for whichever crawler reads it, so keep it to pages people search for.
 Only a final Daily carries a `lastmod` (its close), since a page that changes every
@@ -203,6 +225,86 @@ player page (`PlayerLink`), and the link out to Steam lives on that page. A Map'
 links to their player page's Made tab, except inside a card or row that is itself a link.
 A player or Map page's back link returns to the board or list you came from, remembered
 for the tab in `sessionStorage`.
+
+## Campaigns
+
+A Campaign (CONTEXT.md) is a player-made run of Workshop Maps that the site ranks the way
+the game ranks a Circuit season. The game knows nothing of them, so the list in
+`web/lib/campaigns.ts` (`CAMPAIGNS`) is the only place one exists.
+
+**Adding one** is one entry in `CAMPAIGNS`: its `slug` (the path, lowercase words joined by
+`-`), `title`, `creator` (the maker's Workshop name), `creatorId` (the maker's Steam ID) and
+`maps`, the Maps' Workshop IDs in the maker's order. That order numbers the Maps 01, 02 and
+so on, so append a Map rather than insert one. `campaignProblems` fails the tests on a
+repeated slug, a Map in two Campaigns (or twice in one), an empty Campaign or an ID that
+isn't one. Nothing else changes: the pages are prerendered from the list.
+
+**The board.** A Campaign's standings are a derived board named `OverallCampaign_<slug>`
+(`campaignBoard`). The `Overall` prefix makes it a points board to `isPoints` and
+`board_kind` with no special case, so every board piece (paging, search, You, plates, the
+Podiums sort, a row's focus) takes it through `/api/board/<name>` unchanged. Like Season 1
+Current it is never stored: `boardSql` (`db/boards.ts`) adds it up on every read from the
+open Entries of its Maps the Workshop lists, each place paying the Circuit's track points,
+equal totals ordered by the first Map (in the Campaign's order) a player is on, then their
+place there. A player is ranked once they have a time on one Map.
+
+**The page** (`components/campaign/CampaignView.tsx`) is a Circuit season's twin, built
+from the same pieces: the Campaign switch (`CampaignSwitch.tsx`, the season switch's tabs
+and chip) lists the Campaigns most players first (`getCampaigns`); the rail lists Overall,
+then each Map as a strip of its preview picture with its number, record and the part of
+its title after the Campaign's name (`mapName`), left out when that is only its number
+("Miniblack 01", "AJC1"). Everywhere the frame names a Map (the rail's sheet, the podium
+tally, the page's title) it is `mapLabel`: the number, then that name. On a phone the
+switch's chip and the board button share a row while they fit, and the button takes a line
+of its own when they don't (`.boardrow.named`), since a Campaign's title and Map names run
+longer than a season's. The Overall card, the points dialog and the podium count say maps
+where a season says tracks, and count the Maps the Workshop lists, which are the ones that
+pay points. A Map inside the frame gets the Track card's layout with its preview picture
+and a link to its own page. A Campaign none of whose Maps the Workshop lists is shown
+nowhere and its page is a soft 404 (see "Caching"), as is a Map of it the Workshop no
+longer lists. `stress` lists Solar Trials' first Map alone, so its builds have one listed
+Campaign of one listed Map and four unlisted ones; `tiny`'s Maps are in no Campaign.
+
+**Where they are listed.** `getCampaigns` is the one read every list takes: each Campaign
+`getCampaign` finds (one with a listed Map), with the players its board ranks, its listed
+Maps' preview pictures in its order and its board's leader, most players first. A
+Campaign's page, its share card and every list read it through `getCampaign`, so it is
+counted and led the same way everywhere. A Campaign's picture is
+`CampaignPics`: its first five Maps' previews side by side with a hairline between, a Map
+with no preview a blank panel; the banners and a player's Campaign cards all draw it. A
+banner (`CampaignBanner`) sets the picture at full strength with a full-height fade behind
+its text only: "Campaign · N maps · N players", the name, the maker and "<leader> leads
+with <points> pts". The homepage's Campaigns carousel (`CampaignCarousel`, under the main
+carousel and hidden with it while there is a search) is a scroll-snap track of banners:
+a phone shows one with the next peeking in and swipes, a desktop shows two. Its arrows
+step one banner and wrap round as the main carousel's do; the counter names the banners
+in view ("1 / 5" on a phone, "1–2 / 5" on a desktop), and both hide when every banner
+fits. Its heading's See all opens `/campaigns`. With no Campaign listed (a `tiny` build)
+the homepage leaves the carousel out and `/campaigns` says there are none. Every count of a
+Campaign's Maps that is shown (a banner's, the switch's, a player's card's "n/N maps", the
+share card's) is its curated total, as its Maps are numbered out of it.
+
+**A Campaign Map elsewhere** says so (`components/workshop/Campaign.tsx`, both reading
+`campaignOfMap`). Its card, wherever `MapCardLink` draws it (the homepage shelves, All maps,
+the search), carries a strip along the bottom of its picture: the Campaign's name on the
+left and "n / N" on the right, n its place in `maps` and N the Campaign's Map count. With a
+pointer, the strip fades while the card's top three cover the picture. The Map page's panel
+has a Part of box under the title ("Campaign", its name, "Map n of N →") that links to the
+Map inside the Campaign's frame, `/campaign/<slug>/<pfid>`.
+
+**On a player's page** the Workshop tab opens with a Campaigns shelf
+(`components/player/CampaignCards.tsx`), a card for each Campaign the player holds a place
+in, in `getCampaigns`' order (most players first). `getPlayerCampaigns` reads it:
+`playerCampaigns` in `db/site.ts` gives their place and points on each Campaign's board
+and how many of its listed Maps they have a time on, and the pictures and the players it
+ranks come from `getCampaigns`. A card is `CampaignPics` (four
+Maps) with the name over a fade, their place "of N" (gold, silver or bronze for 1st to
+3rd), points, "n/N maps" and a bar of them, and it opens the Campaign's board focused on
+their row (`/campaign/<slug>/<steam_id>`). A player in no Campaign has no shelf. The shelf
+is `Shelf` (`components/player/Shelf.tsx`), the same as World records and Closest to a
+record: ← → buttons, swipe, no scrollbar. Its buttons re-measure with a `ResizeObserver` on
+the strip rather than on window resize only, so a strip whose size changes after it mounts
+still shows them.
 
 ## The header
 
@@ -382,6 +484,6 @@ only visible ones.
   numbers alone is data, and the two deployments' caches can differ by a Refresh.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel
   address. A page or dialog with no row in the catalogue is not checked: add it. Locally,
-  serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank and a long
-  Map title), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
+  serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank, a long
+  Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
   one.

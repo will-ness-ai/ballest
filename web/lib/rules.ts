@@ -26,10 +26,12 @@ const IS_STEAM_ID = new RegExp("^" + STEAM_ID.source + "$");
 export const isSteamId = (id: unknown): id is string =>
   typeof id === "string" && IS_STEAM_ID.test(id);
 
-/* the one place that reads a Map's board name: Workshop_<pfid>, or null for a Circuit board */
+/* the one place that reads and writes a Map's board name, Workshop_<pfid>: its pfid, or null
+   for a Circuit board, and a Map's board by its pfid */
 export const MAP_PREFIX = "Workshop_";
 export const mapPfidOf = (name: string | null | undefined) =>
   name?.startsWith(MAP_PREFIX) ? name.slice(MAP_PREFIX.length) : null;
+export const mapBoard = (pfid: string) => MAP_PREFIX + pfid;
 
 export const fmtN = (n: number) => n.toLocaleString("en-US");
 

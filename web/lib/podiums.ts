@@ -39,8 +39,9 @@ export interface PodiumTally {
 
 /* one tally: the top three of each of `tracks`, counted and ranked golds first, then
    silvers, then bronzes, and equal counts share a rank rather than being split by a key
-   the reader can't see. `placings` are in Track order and rank order within a Track. */
-function tally(
+   the reader can't see. `placings` are in Track order and rank order within a Track. A
+   Campaign's tally is the same over its Maps. */
+export function tally(
   group: string,
   tracks: ReadonlyArray<string>,
   placings: ReadonlyArray<Placing>,

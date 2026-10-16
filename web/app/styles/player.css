@@ -667,6 +667,89 @@
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
+/* the Campaigns shelf that opens the tab: a card per Campaign, its pictures across the top
+   with the name over a fade, then their place of N (in its medal colour on a podium), points,
+   Maps finished and a bar of them */
+.pws .pcamps {
+  margin-block-start: 0;
+}
+.pcamps .strip {
+  grid-auto-columns: minmax(230px, 260px);
+}
+.pcamp {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 0 14px 12px;
+  overflow: clip;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  font-family: var(--f-hud);
+  font-variant-numeric: tabular-nums;
+  scroll-snap-align: start;
+  min-width: 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pcamp:hover {
+    border-color: var(--accent);
+  }
+}
+.pc-pic {
+  display: grid;
+  margin: 0 -14px 6px;
+  aspect-ratio: 16 / 6;
+}
+.pc-pic > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.pc-t {
+  align-self: end;
+  padding: 18px 14px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  background: linear-gradient(transparent, var(--scrim));
+}
+.pc-r b {
+  font-family: var(--f-marquee);
+  font-size: calc(26rem / 16);
+  font-weight: 400;
+}
+.pcamp[data-m="1"] .pc-r b {
+  color: var(--gold);
+}
+.pcamp[data-m="2"] .pc-r b {
+  color: var(--silver);
+}
+.pcamp[data-m="3"] .pc-r b {
+  color: var(--bronze);
+}
+.pc-r small,
+.pc-s {
+  color: var(--dim);
+  font-size: calc(13.5rem / 16);
+}
+.pc-bar {
+  height: 4px;
+  margin-block-start: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.pc-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.pcamps + .trophies {
+  margin-block-start: 18px;
+}
+
 .thumb {
   position: relative;
   display: block;

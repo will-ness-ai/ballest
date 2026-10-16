@@ -1,7 +1,10 @@
 // tiny, plus the data that strains a layout: a player with a long name holding a five-digit
-// rank, and a Map with a long title. `pnpm qa` checks a local build seeded with it
-// (scripts/qa/catalogue.mjs names these IDs); tiny's own rows are untouched, so every page
-// tiny's comments describe still reads the same, with more players below on the Overall board.
+// rank, a Map with a long title, and one Map of a curated Campaign (Solar Trials' first,
+// lib/campaigns.ts), so that Campaign is listed with one of its nine Maps and its pages,
+// the carousel and the long-named player's Campaigns shelf have something to draw. `pnpm qa`
+// checks a local build seeded with it (scripts/qa/catalogue.mjs names these IDs); tiny's
+// own rows are untouched, so every page tiny's comments describe still reads the same, with
+// more players below on the Overall board.
 import {
   boardReads,
   boards,
@@ -22,11 +25,14 @@ const MAP = "Workshop_9000000005";
 const FILLERS = 12_000;
 const LONG = "Twizzle #ROLLEMALL #LongLiveTheMarble";
 const TITLE = "Rocky Alpine but backwards or something like that";
+/* Solar Trials' first Map: p11 1st, p1 2nd, p2 3rd */
+const CAMPAIGN_PFID = "3805399883";
+const CAMPAIGN_MAP = "Workshop_" + CAMPAIGN_PFID;
 
 const id = (n: number) => `7656119900${String(n).padStart(7, "0")}`;
 
 export const stress: Dataset = {
-  description: `tiny, plus ${String(FILLERS)} Overall players, a long name at a five-digit rank and a long Map title`,
+  description: `tiny, plus ${String(FILLERS)} Overall players, a long name at a five-digit rank, a long Map title and a Campaign's Map`,
   seed: async (tx) => {
     await tiny.seed(tx);
     const r3 = 3;
@@ -64,14 +70,26 @@ export const stress: Dataset = {
         })),
       );
     }
-    await tx.insert(boards).values({
-      name: MAP,
-      kind: "map",
-      display: TITLE,
-      leaderboardId: 90000005,
-      scoresPoints: false,
-    });
-    await tx.insert(boardReads).values({ refreshId: r3, board: MAP, ok: true, entryCount: 2 });
+    await tx.insert(boards).values([
+      {
+        name: MAP,
+        kind: "map",
+        display: TITLE,
+        leaderboardId: 90000005,
+        scoresPoints: false,
+      },
+      {
+        name: CAMPAIGN_MAP,
+        kind: "map",
+        display: "Solar Trials Mercury",
+        leaderboardId: 90000006,
+        scoresPoints: false,
+      },
+    ]);
+    await tx.insert(boardReads).values([
+      { refreshId: r3, board: MAP, ok: true, entryCount: 2 },
+      { refreshId: r3, board: CAMPAIGN_MAP, ok: true, entryCount: 3 },
+    ]);
     await tx.insert(entries).values([
       {
         board: MAP,
@@ -91,6 +109,15 @@ export const stress: Dataset = {
         lastSeenRefresh: r3,
         closedRefresh: null,
       },
+      ...[p11, id(1), id(2)].map((steamId, i) => ({
+        board: CAMPAIGN_MAP,
+        steamId,
+        score: 5_100_000 + i * 150_000,
+        ugcId: `920000001${String(i)}`,
+        firstSeenRefresh: r3,
+        lastSeenRefresh: r3,
+        closedRefresh: null,
+      })),
       {
         board: TRACK,
         steamId: p11,
@@ -110,23 +137,45 @@ export const stress: Dataset = {
         closedRefresh: null,
       },
     ]);
-    await tx.insert(maps).values({
-      pfid: "9000000005",
-      board: MAP,
-      creatorSteamId: p11,
-      createdAt: new Date("2026-08-31T18:00:00Z"),
-    });
-    await tx.insert(mapHistory).values({
-      pfid: "9000000005",
-      title: TITLE,
-      creator: LONG,
-      preview: "https://images.example.invalid/rocky.jpg",
-      medals: [120, 95, 88, 80.5],
-      sessions: 40,
-      subs: 31,
-      entryCount: 2,
-      firstSeenRefresh: r3,
-      lastSeenRefresh: r3,
-    });
+    await tx.insert(maps).values([
+      {
+        pfid: "9000000005",
+        board: MAP,
+        creatorSteamId: p11,
+        createdAt: new Date("2026-08-31T18:00:00Z"),
+      },
+      {
+        pfid: CAMPAIGN_PFID,
+        board: CAMPAIGN_MAP,
+        creatorSteamId: id(10),
+        createdAt: new Date("2026-08-31T19:00:00Z"),
+      },
+    ]);
+    await tx.insert(mapHistory).values([
+      {
+        pfid: "9000000005",
+        title: TITLE,
+        creator: LONG,
+        preview: "https://images.example.invalid/rocky.jpg",
+        medals: [120, 95, 88, 80.5],
+        sessions: 40,
+        subs: 31,
+        entryCount: 2,
+        firstSeenRefresh: r3,
+        lastSeenRefresh: r3,
+      },
+      {
+        pfid: CAMPAIGN_PFID,
+        title: "Solar Trials Mercury",
+        creator: "Tenpin",
+        preview: "https://images.example.invalid/mercury.jpg",
+        medals: [70, 60, 55, 50],
+        sessions: 12,
+        subs: 9,
+        entryCount: 3,
+        firstSeenRefresh: r3,
+        lastSeenRefresh: r3,
+      },
+    ]);
   },
 };

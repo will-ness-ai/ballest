@@ -17,6 +17,7 @@ const DATA = {
     { date: "2026-10-09", endsAt: "2026-10-10T00:00:00.000Z", final: true },
     { date: "2026-10-10", endsAt: "2026-10-11T00:00:00.000Z", final: false },
   ],
+  campaigns: ["solar-trials"],
   players: [
     row("76561198000000001", [1, 0, 0, 0, 0, 0, 0]), // a Circuit world record
     row("76561198000000002", [0, 0, 0, 1, 0, 0, 0]), // a Workshop podium
@@ -31,7 +32,7 @@ describe("sitemapOf", () => {
     for (const e of entries) expect(e.url.startsWith(SITE_ORIGIN + "/")).toBe(true);
   });
 
-  test("lists the site's own pages, every Circuit board, Map and Daily", () => {
+  test("lists the site's own pages, every Circuit board, Map, Daily and Campaign", () => {
     expect(paths).toEqual(
       expect.arrayContaining([
         "/",
@@ -43,6 +44,8 @@ describe("sitemapOf", () => {
         "/map/3002",
         "/daily/2026-10-09",
         "/daily/2026-10-10",
+        "/campaigns",
+        "/campaign/solar-trials",
         ...CIRCUIT.map((b) => "/board/" + b.name),
       ]),
     );

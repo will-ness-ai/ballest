@@ -154,6 +154,11 @@ footer a {
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
+/* a Campaign's Map is named, where a Track has only its number */
+.tstrip .mname {
+  color: var(--text);
+  font-weight: 600;
+}
 @media (hover: hover) and (pointer: fine) {
   .tstrip:hover {
     border-color: var(--line);
