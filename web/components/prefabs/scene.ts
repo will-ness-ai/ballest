@@ -19,11 +19,11 @@ export function buildScene(
   const scene = new THREE.Scene();
   /* a key light and a fill from the other side, so no face is left to the sky light alone,
      which drew a sign's white letters grey and its red maroon from behind the key */
-  scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x30333d, 2.4));
+  scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x30333d, 1.8));
   const sun = new THREE.DirectionalLight(0xffffff, 2.2);
   sun.position.set(0.6, 1, 0.4);
   scene.add(sun);
-  const fill = new THREE.DirectionalLight(0xffffff, 1.4);
+  const fill = new THREE.DirectionalLight(0xffffff, 1.6);
   fill.position.set(-0.6, 0.5, -0.5);
   scene.add(fill);
   const geometry = {
@@ -31,8 +31,8 @@ export function buildScene(
     cylinder: new THREE.CylinderGeometry(0.5, 0.5, 1, 40),
     sphere: new THREE.SphereGeometry(0.5, 32, 20),
     scoop: scoopGeometry(THREE),
-    halfRing: ringGeometry(THREE, Math.PI),
-    quarterRing: ringGeometry(THREE, Math.PI / 2),
+    halfRing: ringGeometry(THREE, "half"),
+    quarterRing: ringGeometry(THREE, "quarter"),
   };
   const group = new THREE.Group();
   for (const s of shapesOf(file)) {
@@ -127,7 +127,9 @@ function scoopGeometry(THREE: Three) {
 /* the hole bowls' stand-in: a flat ring with a hole, cut to a half (Unreal y >= 0) or a quarter
    (x and y >= 0) around a centre on the bounds' edge, as SM_HalfShallowHoleBowl and
    SM_QuarterShallowHoleBowl are; the hole is 55% of the radius, read off a sign built from them */
-function ringGeometry(THREE: Three, sweep: number) {
+function ringGeometry(THREE: Three, cut: "half" | "quarter") {
+  const half = cut === "half";
+  const sweep = half ? Math.PI : Math.PI / 2;
   const shape = new THREE.Shape();
   shape.absarc(0, 0, 1, 0, sweep, false);
   shape.absarc(0, 0, 0.55, sweep, 0, true);
@@ -135,7 +137,7 @@ function ringGeometry(THREE: Three, sweep: number) {
   /* the shape's (x, y) is Unreal's (x, y), which the unit shape keeps as three's (x, z) */
   g.rotateX(Math.PI / 2);
   g.translate(0, 0.5, 0);
-  const half = sweep > Math.PI / 2;
+  /* into the unit box: a half spans x -1..1 and y 0..1, a quarter both 0..1 */
   g.scale(half ? 0.5 : 1, 1, 1);
   g.translate(half ? 0 : -0.5, 0, -0.5);
   return g;
