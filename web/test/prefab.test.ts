@@ -6,6 +6,7 @@ import { describe, expect, test } from "vitest";
 
 import { footprintOf, partsOf, pieceLabel, shapesOf, type PrefabFile } from "../lib/prefab";
 import { MAX_BYTES, checkPrefab, fileNameOf } from "../lib/prefab-check";
+import { galleryOf } from "../lib/prefabs";
 
 const sample = (name: string) =>
   readFileSync(new URL(`../../prefabs/samples/${name}.json`, import.meta.url), "utf8");
@@ -139,5 +140,44 @@ describe("the upload check", () => {
     expect(fileNameOf("  Loop-gate #2!  ")).toBe("loop-gate_2.json");
     expect(fileNameOf("😀😀")).toBe("prefab.json");
     expect(fileNameOf("a".repeat(80))).toBe("a".repeat(64) + ".json");
+  });
+});
+
+describe("the gallery's order", () => {
+  const card = (slug: string, favorites: number, createdAt: string, tags: Array<string> = []) => ({
+    slug,
+    favorites,
+    createdAt,
+    tags,
+  });
+  const cards = [
+    card("old-hit", 9, "2026-10-01T00:00:00.000Z", ["Ramp"]),
+    card("new-quiet", 0, "2026-10-15T00:00:00.000Z"),
+    card("tie-newer", 3, "2026-10-12T00:00:00.000Z", ["Ramp", "Loop"]),
+    card("tie-older", 3, "2026-10-10T00:00:00.000Z"),
+  ];
+  const slugs = (list: Array<{ slug: string }>) => list.map((c) => c.slug);
+
+  test("Popular is most favorited first, newest breaking a tie", () => {
+    expect(slugs(galleryOf(cards, "popular", null))).toEqual([
+      "old-hit",
+      "tie-newer",
+      "tie-older",
+      "new-quiet",
+    ]);
+  });
+
+  test("Newest is by when it was uploaded", () => {
+    expect(slugs(galleryOf(cards, "newest", null))).toEqual([
+      "new-quiet",
+      "tie-newer",
+      "tie-older",
+      "old-hit",
+    ]);
+  });
+
+  test("a tag keeps only the Prefabs carrying it", () => {
+    expect(slugs(galleryOf(cards, "popular", "Ramp"))).toEqual(["old-hit", "tie-newer"]);
+    expect(slugs(galleryOf(cards, "popular", "Structure"))).toEqual([]);
   });
 });

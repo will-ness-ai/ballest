@@ -8,7 +8,7 @@ import { sql } from "drizzle-orm";
 
 import { connect } from "../db/client";
 import { addPrefab } from "../db/prefabs";
-import { slugOf } from "../lib/prefab-check";
+import { slugOf } from "../lib/prefabs";
 
 const WILL = "76561198047685844";
 const SAMPLES = [

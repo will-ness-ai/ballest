@@ -163,14 +163,3 @@ export function fileNameOf(name: string) {
     .slice(0, 64);
   return (stem || "prefab") + ".json";
 }
-
-/* a Prefab's link from its first name: lower case, every other run of characters a dash */
-export function slugOf(name: string) {
-  const stem = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48)
-    .replace(/-+$/, "");
-  return stem || "prefab";
-}

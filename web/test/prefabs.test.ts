@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { players } from "../db/schema";
-import { addPrefab, prefabOf } from "../db/prefabs";
+import { addPrefab, prefabList, prefabOf } from "../db/prefabs";
 import { freshDb } from "./pg";
 
 const WILL = "76561198047685844";
@@ -63,5 +63,16 @@ describe("a Prefab's page", () => {
 
   test("a slug nobody uploaded is null", async () => {
     expect(await prefabOf(t.db, "nope")).toBeNull();
+  });
+});
+
+describe("the gallery", () => {
+  test("every live Prefab as a card, without its file", async () => {
+    const cards = await prefabList(t.db);
+    expect(cards.map((c) => [c.slug, c.uploader.name, c.pieces, c.favorites, c.tags])).toEqual([
+      ["park-bench-2", "New Kid", 28, 0, []],
+      ["park-bench", "Will", 28, 0, ["Decoration"]],
+    ]);
+    expect(cards[0]).not.toHaveProperty("file");
   });
 });

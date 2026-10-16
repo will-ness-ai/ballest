@@ -27,8 +27,8 @@ export const isPlayerTab = oneOf(PLAYER_TABS);
 export const isPlScope = oneOf(PL_SCOPES);
 export const isPlSort = oneOf(PL_SORTS);
 
-/* the tabs across the top: the Workshop leads, the Daily follows it, then the Circuit, and
-   Players comes last */
+/* the tabs across the top: the Workshop leads, the Daily follows it, then the Circuit and
+   Players, and the Prefabs come last */
 export const WORKSHOP_GROUP = "Workshop";
 /* every season's boards sit under the one Circuit tab, with the seasons as a switch inside */
 export const CIRCUIT_TAB = "Circuit";

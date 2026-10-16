@@ -6,17 +6,18 @@ import { Suspense } from "react";
 import { Shell } from "../../../components/Shell";
 import { PrefabGone, PrefabPage } from "../../../components/prefabs/PrefabPage";
 import { pageMetadata } from "../../../components/metadata";
-import { getPrefab } from "../../../db/data";
+import { getPrefab, getPrefabCards } from "../../../db/data";
 import { prefabHref } from "../../../lib/routes";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-/* Cache Components needs one param to build the route's shell; a slug that can't be one
-   renders the gone page without reading the database */
-export function generateStaticParams() {
-  return [{ slug: "_" }];
+/* the five newest are prerendered; Cache Components needs one param to build the route's
+   shell, so with none uploaded a slug that can't be one renders the gone page */
+export async function generateStaticParams() {
+  const newest = (await getPrefabCards()).slice(0, 5).map((p) => ({ slug: p.slug }));
+  return newest.length ? newest : [{ slug: "_" }];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

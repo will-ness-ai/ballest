@@ -33,7 +33,7 @@ import { footprintOf, partsOf, shapesOf, type PrefabFile } from "../lib/prefab";
 import { fileNameOf } from "../lib/prefab-check";
 import { isPrefabSlug } from "../lib/routes";
 import { connect, type Db } from "./client";
-import { prefabOf, type PrefabView } from "./prefabs";
+import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
 import * as q from "./site";
 
 export const DATA_TAG = "data";
@@ -325,6 +325,14 @@ async function playerDailiesOf(steamId: string) {
 /* the Compare dialog's search, read fresh */
 export function searchPlayers(query: string, except: string) {
   return q.searchPlayers(db(), query, { except });
+}
+
+/* every live Prefab as the gallery's cards, newest first */
+export async function getPrefabCards(): Promise<Array<PrefabCard>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG, PREFAB_TAG);
+  cacheLife("max");
+  return prefabList(db());
 }
 
 export interface PrefabPage extends Omit<PrefabView, "file"> {

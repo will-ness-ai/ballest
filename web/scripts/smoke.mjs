@@ -124,6 +124,8 @@ const ROUTES = [
   ["/", 200, null, '"@type":"WebSite"'],
   ["/", 200, null, "<title>Ballest of Them All Records: "],
   // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
+  ["/prefabs", 200, null, "Twin cubes"],
+  ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
   ["/prefab/twin-cubes", 200, null, "Twin cubes"],
   [
     "/prefab/twin-cubes",
