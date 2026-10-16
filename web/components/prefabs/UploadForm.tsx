@@ -3,7 +3,7 @@
 // fields on the left; the 3D preview and the gallery card it will make on the right, where
 // the uploader turns the preview to the view the card is drawn from (its angle). The
 // file is checked the moment it's chosen (lib/prefab-check.ts), and again by the server.
-// Signed out, banned or at the daily limit, a note takes the form's place.
+// Signed out, banned or at the hourly limit, a note takes the form's place.
 import { useEffect, useRef, useState } from "react";
 
 import { Card } from "./PrefabGallery";
@@ -41,8 +41,12 @@ async function previewStill(chosen: Chosen, angle: PrefabAngle | null): Promise<
   }
 }
 
+/* the minute after `iso`, so a player who comes back then isn't refused for the seconds */
 const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+  new Date(Date.parse(iso) + 60_000).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
 export function UploadForm() {
   const [quota, setQuota] = useState<UploadQuota | null>(null);
@@ -88,8 +92,8 @@ function Limit({ limit, nextAt }: { limit: number; nextAt: string | null }) {
   return (
     <div className="pfu-gate">
       <p>
-        You&apos;ve reached your daily limit of {limit} prefabs.
-        {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again tomorrow."}
+        You&apos;ve reached your limit of {limit} prefabs an hour.
+        {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again soon."}
       </p>
     </div>
   );
@@ -187,7 +191,8 @@ function Form({
             {sending ? "Publishing…" : "Publish"}
           </button>
           <small>
-            {left} of {limit} uploads left today · goes live at once, credited to your Steam name
+            {left} of {limit} uploads left this hour · goes live at once, credited to your Steam
+            name
           </small>
         </div>
       </div>

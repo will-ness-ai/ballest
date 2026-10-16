@@ -1,5 +1,5 @@
 // GET, PUT and DELETE /api/prefab-limits/<steam_id>: the admin reads, sets or resets a
-// player's daily upload limit (db/prefab-api.ts limitUploader). Never cached.
+// player's hourly upload limit (db/prefab-api.ts limitUploader). Never cached.
 import { connection } from "next/server";
 
 import { prefabDeps } from "../../../../db/data";

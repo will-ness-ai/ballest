@@ -101,6 +101,41 @@ describe("a Prefab file", () => {
     near(track("/Game/Somewhere/SM_Unheardof.SM_Unheardof"), [5, 5, 1]);
   });
 
+  test("the hole bowls are drawn as half and quarter rings, not boxes", () => {
+    const bowl = (name: string) =>
+      shapesOf({
+        ...cubes(),
+        items: [
+          {
+            class: `/Game/LevelEditor/MP_SM_${name}.MP_SM_${name}_C`,
+            transform: { location: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+            meshes: [{ mesh: `/Game/Meshes/SM_${name}.SM_${name}`, materials: [] }],
+          },
+        ],
+      })[0].kind;
+    expect(bowl("HalfShallowHoleBowl")).toBe("halfRing");
+    expect(bowl("QuarterShallowHoleBowl")).toBe("quarterRing");
+  });
+
+  test("a rounded torus is a torus, and an Emissive material glows", () => {
+    const [shape] = shapesOf({
+      ...cubes(),
+      items: [
+        {
+          class: "/Game/LevelEditor/MP_RoundedTorus.MP_RoundedTorus_C",
+          transform: { location: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+          meshes: [
+            {
+              mesh: "/Game/Meshes/Torus.Torus",
+              materials: ["/Game/M/MI_Env_Emissive_Red.MI_Env_Emissive_Red"],
+            },
+          ],
+        },
+      ],
+    });
+    expect(shape).toMatchObject({ kind: "torus", glow: true, colour: "#d8433a" });
+  });
+
   test("Unreal's y lands on three's z, so two pieces apart in y are deep, not tall", () => {
     const pair = cubes(
       [

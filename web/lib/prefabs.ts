@@ -8,14 +8,14 @@ export const MAX_TAGS = 3;
 
 export const NAME_MAX = 64;
 export const DESCRIPTION_MAX = 500;
-/* uploads per player in any 24 hours, deleted ones included (R1), unless the admin gave them
-   their own limit (prefab_limits), up to MAX_DAILY_UPLOADS */
-export const DAILY_UPLOADS = 5;
-export const MAX_DAILY_UPLOADS = 1000;
-export const UPLOAD_WINDOW_MS = 24 * 3_600_000;
+/* uploads per player in any hour, deleted ones included (R1), unless the admin gave them
+   their own limit (prefab_limits), up to MAX_HOURLY_UPLOADS */
+export const HOURLY_UPLOADS = 5;
+export const MAX_HOURLY_UPLOADS = 1000;
+export const UPLOAD_WINDOW_MS = 3_600_000;
 
 /* what GET /api/prefabs tells the upload form: who may upload, how many more they may now
-   of their daily limit, and, at none, when the next frees up */
+   of their hourly limit, and, at none, when the next frees up */
 export interface UploadQuota {
   signedIn: boolean;
   banned: boolean;
@@ -32,10 +32,10 @@ export const NO_UPLOADS: UploadQuota = {
   nextAt: null,
 };
 
-/* a player's daily upload limit, and whether the admin gave it them or it is the default */
+/* a player's hourly upload limit, and whether the admin gave it them or it is the default */
 export interface UploaderLimit {
   steamId: string;
-  daily: number;
+  perHour: number;
   own: boolean;
 }
 

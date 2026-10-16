@@ -165,11 +165,11 @@ export const MESHES: Partial<Record<string, MeshShape>> = {
   SM_CornerScoop: { kind: "box", min: [-500, -500, -365], max: [500, 392, 500] },
   SM_FullMediumBowl: { kind: "box", min: [-1000, -1000, -178], max: [1000, 1000, 500] },
   SM_GoalRing: { kind: "box", min: [-265, -265, 0], max: [265, 265, 30] },
-  SM_HalfShallowHoleBowl: { kind: "box", min: [-1000, 0, -125], max: [1000, 1000, 125] },
+  SM_HalfShallowHoleBowl: { kind: "halfRing", min: [-1000, 0, -125], max: [1000, 1000, 125] },
   SM_Hole: { kind: "box", min: [-400, -400, -25], max: [400, 400, 25] },
   SM_Pyramid: { kind: "box", min: [-250, -250, 0], max: [250, 250, 200] },
   SM_QuarterMediumBowl: { kind: "box", min: [-0, -1000, -178], max: [1000, 0, 500] },
-  SM_QuarterShallowHoleBowl: { kind: "box", min: [0, 0, -125], max: [1000, 1000, 125] },
+  SM_QuarterShallowHoleBowl: { kind: "quarterRing", min: [0, 0, -125], max: [1000, 1000, 125] },
   SM_Quarter_180turn: { kind: "box", min: [-817.9, -677.5, 0], max: [34.46, 140.44, 268.49] },
   SM_RoundedGlassPlane: { kind: "box", min: [-5, -138.58, 0], max: [59.47, 138.58, 200] },
   SM_RubberCylinder: { kind: "cylinder", min: [-50, -50, 0], max: [50, 50, 200] },
@@ -177,7 +177,7 @@ export const MESHES: Partial<Record<string, MeshShape>> = {
   SM_Sphere: { kind: "sphere", min: [-200, -200, 0], max: [200, 200, 400] },
   SM_Start_Fixed: { kind: "cylinder", min: [-500, -500, 0.01], max: [500, 500, 199.98] },
   ShallowbowlV2: { kind: "box", min: [-1000, -1000, -250], max: [1000, 1000, 250] },
-  Torus: { kind: "box", min: [-1150, -1150, 0], max: [1150, 1150, 300] },
+  Torus: { kind: "torus", min: [-1150, -1150, 0], max: [1150, 1150, 300] },
 };
 
 export const PIECE_MESHES: Partial<Record<string, string>> = {

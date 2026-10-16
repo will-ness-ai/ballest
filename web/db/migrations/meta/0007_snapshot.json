@@ -1,6 +1,6 @@
 {
-  "id": "aa3c53e1-5ad2-4871-b36a-dfb5bfb157c8",
-  "prevId": "5709aabe-c3f2-4216-9860-50509b1eab30",
+  "id": "ed976535-bddb-4bef-9b39-95bd8eeaf4c7",
+  "prevId": "0d2625c7-d23c-480f-afe5-083b818d718a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -862,8 +862,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "daily": {
-          "name": "daily",
+        "per_hour": {
+          "name": "per_hour",
           "type": "integer",
           "primaryKey": false,
           "notNull": true

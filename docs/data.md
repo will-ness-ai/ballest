@@ -110,10 +110,10 @@ holds each upload: a slug from its first name that never changes, the name, desc
 Tags, the uploader's Steam ID and their Steam persona when they uploaded, the file's text
 exactly as sent, its piece count and size, the `angle` its picture is drawn from (null for the
 default; `docs/site.md`, "Prefabs"), and `deleted_at` / `taken_down_at`, which hide it
-without removing the row (it still counts against the uploader's daily limit).
+without removing the row (it still counts against the uploader's hourly limit).
 `prefab_favorites` is one row per player per Prefab. `prefab_bans` is a player the admin
 stopped uploading; the reads hide their Prefabs while the row is there. `prefab_limits` is a
-player the admin gave their own daily upload limit in place of the 5; no row is the default. `tiny` seeds two
+player the admin gave their own hourly upload limit in place of the 5; no row is the default. `tiny` seeds two
 Prefabs. `scripts/prefab-samples.ts` adds the two samples in `prefabs/samples/` (Will's,
 from before uploads) to a database once, idempotently.
 
