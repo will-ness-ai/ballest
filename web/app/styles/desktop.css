@@ -153,7 +153,8 @@
   /* the Circuit's seasons, a smaller row of tabs under the main ones */
   .seasontabs {
     display: flex;
-    gap: 22px;
+    flex-wrap: wrap;
+    gap: 0 22px;
     grid-column: 1 / -1;
     margin-block: -8px 16px;
     padding-inline: 15px;
