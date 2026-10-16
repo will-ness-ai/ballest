@@ -10,8 +10,8 @@ two can no longer count them apart. The site owns the counting now:
 creator margin, a board first read after the baseline counting as it stands, Maps gone from
 the Workshop on neither side), plus shared places. `workshopStandings` in `web/db/site.ts`
 reads the rows, `getWorkshopStandings` in `web/db/data.ts` caches them per baseline under the
-data tag, and `GET /api/standings` serves them. The bot will draw the report's image from that
-route (ticket #225) instead of counting.
+data tag, and `GET /api/standings` serves them. The bot draws the report's image from that
+route (`discord-bot/src/report/standings.ts`) instead of counting.
 
 ADR 0006 turned down a site API because no page needed every Map's Entries at once; /you now
 does, and a second copy of the rules in the bot would drift. The rest of 0006 stands: the bot
