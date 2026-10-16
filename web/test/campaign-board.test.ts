@@ -21,7 +21,7 @@ const TEST = vi.hoisted((): Campaign => ({
   slug: "test-run",
   title: "Test Run",
   creator: "Tenpin",
-  cid: "76561199000000010",
+  creatorId: "76561199000000010",
   maps: ["9000000001", "9000000002", "9000000003"],
 }));
 vi.mock("../lib/campaigns", async (original) => {

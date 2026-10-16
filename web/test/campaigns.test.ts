@@ -18,7 +18,7 @@ const make = (slug: string, maps: Array<string>): Campaign => ({
   slug,
   title: slug,
   creator: "Maker",
-  cid: "76561199000000001",
+  creatorId: "76561199000000001",
   maps,
 });
 

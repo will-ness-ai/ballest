@@ -85,7 +85,7 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
       <aside className="rail">
         <h2 id="railhead">{c.title}</h2>
         <p className="railby">
-          A Campaign by <PlayerLink id={c.cid} text={c.creator} tab="made" />
+          A Campaign by <PlayerLink id={c.creatorId} text={c.creator} tab="made" />
         </p>
         <nav className="boards" id="boards" aria-label="Leaderboard">
           {items}

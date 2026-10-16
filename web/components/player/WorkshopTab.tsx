@@ -100,12 +100,12 @@ function Row({ f, id }: { f: WorkshopFinish; id: string }) {
 export function WorkshopTab({
   id,
   w,
-  camps,
+  campaigns,
 }: {
   id: string;
   w: PlayerRecord["workshop"];
   /* the Campaigns they hold a place in, for the shelf that opens the tab */
-  camps: ReadonlyArray<PlayerCampaign>;
+  campaigns: ReadonlyArray<PlayerCampaign>;
 }) {
   const [pw, setPw] = usePlayerView(id);
   /* the search box's text, which reaches the view (and starts the list over) once it settles */
@@ -138,7 +138,7 @@ export function WorkshopTab({
   };
   return (
     <div className="pws">
-      <CampaignCards camps={camps} id={id} />{" "}
+      <CampaignCards campaigns={campaigns} id={id} />{" "}
       <div className="trophies" id="pwtro">
         {MEDAL_KEYS.map(([k, label]) => (
           <button

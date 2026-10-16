@@ -12,11 +12,17 @@ import { campaignBoard } from "../../lib/campaigns";
 import { boardHref } from "../../lib/routes";
 import { fmtN, ord } from "../../lib/rules";
 
-export function CampaignCards({ camps, id }: { camps: ReadonlyArray<PlayerCampaign>; id: string }) {
-  if (!camps.length) return null;
+export function CampaignCards({
+  campaigns,
+  id,
+}: {
+  campaigns: ReadonlyArray<PlayerCampaign>;
+  id: string;
+}) {
+  if (!campaigns.length) return null;
   return (
     <Shelf title="Campaigns" className="pcamps">
-      {camps.map((k) => (
+      {campaigns.map((k) => (
         <Link
           key={k.c.slug}
           className="pcamp"

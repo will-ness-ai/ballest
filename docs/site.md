@@ -120,7 +120,7 @@ Any other page, a Circuit Overall board included, keeps the site-wide `og.png`.
   Track's screenshot), its world record (a Daily's "Fastest", live or final alike), then
   Players, Author time, Beat the author and either Published (a Map) or Gold time.
 - A Campaign (`/og/campaign/<slug>`) gets the same Banner with its first five Maps'
-  previews side by side as the band (`CAMPAIGN_BAND`), a missing one a blank slice;
+  previews side by side as the band (`CAMPAIGN_BAND_MAX_PICTURES`), a missing one a blank slice;
   "Campaign · by <maker>", its leader and their points, then Maps, Players and Finished
   every map: the players with a time on every one of its Maps the Workshop lists
   (`finishedEveryMap`). Its Overall, podiums and a focused row name it; a Map inside its
@@ -208,7 +208,7 @@ the game ranks a Circuit season. The game knows nothing of them, so the list in
 `web/lib/campaigns.ts` (`CAMPAIGNS`) is the only place one exists.
 
 **Adding one** is one entry in `CAMPAIGNS`: its `slug` (the path, lowercase words joined by
-`-`), `title`, `creator` (the maker's Workshop name), `cid` (the maker's Steam ID) and
+`-`), `title`, `creator` (the maker's Workshop name), `creatorId` (the maker's Steam ID) and
 `maps`, the Maps' Workshop IDs in the maker's order. That order numbers the Maps 01, 02 and
 so on, so append a Map rather than insert one. `campaignProblems` fails the tests on a
 repeated slug, a Map in two Campaigns (or twice in one), an empty Campaign or an ID that

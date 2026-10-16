@@ -176,8 +176,9 @@ export function dailyCard(d: DailyDay, top: BoardTop): ShareCard {
   };
 }
 
-/* the most Map pictures a Campaign's band shows side by side: its first ones, in its order */
-export const CAMPAIGN_BAND = 5;
+/* how many Map previews at most a Campaign's share card lays side by side across its band:
+   its first Maps', in its order; a Campaign of fewer Maps has a slice for each */
+export const CAMPAIGN_BAND_MAX_PICTURES = 5;
 
 /* what a Campaign's card reads, besides the Campaign itself */
 export interface CampaignStanding {

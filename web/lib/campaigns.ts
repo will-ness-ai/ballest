@@ -14,7 +14,7 @@ export interface Campaign {
   /* the maker, as their Workshop name reads */
   creator: string;
   /* the maker's Steam ID */
-  cid: string;
+  creatorId: string;
   /* the Maps by Workshop ID, in the maker's order */
   maps: ReadonlyArray<string>;
 }
@@ -24,7 +24,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     slug: "solar-trials",
     title: "Solar Trials",
     creator: "habibal223366977",
-    cid: "76561199154600151",
+    creatorId: "76561199154600151",
     maps: [
       "3805399883",
       "3805394429",
@@ -41,21 +41,21 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     slug: "velocity-trials",
     title: "Velocity Trials",
     creator: "habibal223366977",
-    cid: "76561199154600151",
+    creatorId: "76561199154600151",
     maps: ["3803908791", "3803910868", "3803919944", "3803929459", "3803937353"],
   },
   {
     slug: "tilted-campaign",
     title: "Tilted Campaign",
     creator: "Helvetica Standard",
-    cid: "76561198329712885",
+    creatorId: "76561198329712885",
     maps: ["3818800453", "3818796364", "3818793772", "3818792773"],
   },
   {
     slug: "miniblack",
     title: "Miniblack",
     creator: "Raincake",
-    cid: "76561198324121617",
+    creatorId: "76561198324121617",
     maps: [
       "3811078255",
       "3811099010",
@@ -73,7 +73,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     slug: "ajc",
     title: "AJC",
     creator: "Action Jackson",
-    cid: "76561198008697957",
+    creatorId: "76561198008697957",
     maps: ["3646349274", "3737890903", "3744752972", "3762695115", "3788055152"],
   },
 ];

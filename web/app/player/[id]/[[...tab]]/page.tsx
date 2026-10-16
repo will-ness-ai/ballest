@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 async function Player({ params }: Pick<Props, "params">) {
   const p = await params;
-  const [rec, mine, days, camps] = await Promise.all([
+  const [rec, mine, days, campaigns] = await Promise.all([
     recordOf(p),
     getPlayerDailies(p.id),
     getDailies(),
@@ -66,7 +66,7 @@ async function Player({ params }: Pick<Props, "params">) {
         rec={rec}
         tab={tabFor(rec, p.tab?.[0] ?? null)}
         daily={{ mine, days }}
-        camps={camps}
+        campaigns={campaigns}
       />
     </>
   );
