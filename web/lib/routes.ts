@@ -109,6 +109,16 @@ export const isPrefabSlug = (s: string | undefined): s is string =>
 export const prefabsHref = () => "/prefabs";
 export const newPrefabHref = () => "/prefabs/new";
 export const prefabHref = (slug: string) => (isPrefabSlug(slug) ? "/prefab/" + slug : "/prefabs");
+
+/* what the upload ping's admin buttons ask a Prefab's page to confirm (`?admin=`) */
+export type AdminAction = "take-down" | "ban";
+export const prefabAdminHref = (slug: string, action: AdminAction) =>
+  `${prefabHref(slug)}?admin=${action}`;
+/* the action a Prefab page's address asks for, or null */
+export const adminActionOf = (search: string): AdminAction | null => {
+  const want = new URLSearchParams(search).get("admin");
+  return want === "take-down" || want === "ban" ? want : null;
+};
 /* the Prefab API (db/prefab-api.ts): uploading, a Prefab's file, favorite, edit and take
    down, and a player's upload ban */
 export const prefabsApiHref = () => "/api/prefabs";

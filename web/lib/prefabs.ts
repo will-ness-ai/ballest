@@ -14,10 +14,6 @@ export const UPLOAD_WINDOW_MS = 24 * 3_600_000;
 /* the site's admin (B2): Will, who can take any Prefab down and ban an uploader */
 export const ADMIN_STEAM_ID = "76561198047685844";
 
-/* `?admin=` on a Prefab's page, from the upload ping's buttons: opens that confirm */
-export const TAKE_DOWN = "take-down";
-export const BAN = "ban";
-
 export interface PrefabFields {
   name: string;
   description: string;

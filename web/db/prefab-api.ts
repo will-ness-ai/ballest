@@ -10,14 +10,12 @@ import { isCrossSite, sessionOf, type AuthEnv } from "../lib/auth";
 import { checkPrefab } from "../lib/prefab-check";
 import {
   ADMIN_STEAM_ID,
-  BAN,
   DAILY_UPLOADS,
-  TAKE_DOWN,
   UPLOAD_WINDOW_MS,
   checkFields,
   type PrefabFields,
 } from "../lib/prefabs";
-import { SITE_ORIGIN, prefabHref } from "../lib/routes";
+import { SITE_ORIGIN, prefabAdminHref, prefabHref } from "../lib/routes";
 import { isSteamId } from "../lib/rules";
 import type { Db } from "./client";
 import { LIVE, addPrefab, prefabOf, type Conn } from "./prefabs";
@@ -69,9 +67,10 @@ export async function uploadQuota(request: Request, deps: PrefabDeps): Promise<R
 
 const now = (deps: PrefabDeps) => deps.auth?.now ?? Date.now();
 
-/* the PNG signature, and the most a preview still may weigh */
+/* the PNG signature, the most a preview still may weigh, and its name in the ping */
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const MAX_PICTURE_BYTES = 1_000_000;
+const PICTURE = "prefab.png";
 
 /* the preview still the upload form sends, or null when there is none, it isn't a PNG, or
    it is too big; it is only ever shown to the admin in Discord */
@@ -189,7 +188,7 @@ export function pingOf(p: PrefabPing) {
         description: [`by ${p.uploader.name}`, `${String(p.pieces)} pieces`, p.tags.join(", ")]
           .filter(Boolean)
           .join(" · "),
-        ...(p.picture && { image: { url: "attachment://prefab.png" } }),
+        ...(p.picture && { image: { url: `attachment://${PICTURE}` } }),
       },
     ],
     components: [
@@ -197,30 +196,34 @@ export function pingOf(p: PrefabPing) {
         type: 1,
         components: [
           link("Open", page),
-          link("Take down", `${page}?admin=${TAKE_DOWN}`),
-          link("Ban uploader", `${page}?admin=${BAN}`),
+          link("Take down", SITE_ORIGIN + prefabAdminHref(p.slug, "take-down")),
+          link("Ban uploader", SITE_ORIGIN + prefabAdminHref(p.slug, "ban")),
         ],
       },
     ],
   };
 }
 
-/* posts an upload to the Prefabs channel's webhook (OPS_WEBHOOK_URL, which the admin bot
-   made, so it may carry buttons); skipped, with a log line, when it isn't set */
+/* posts an upload to the Prefabs channel's webhook (Vercel's OPS_WEBHOOK_URL, which the
+   admin bot made, so it may carry buttons); skipped, with a log line, when it isn't set. A
+   webhook Discord won't let carry buttons gets the message again without them */
 async function discordPing(p: PrefabPing): Promise<void> {
   const url = process.env.OPS_WEBHOOK_URL;
   if (!url) {
     console.log("prefab ping skipped: OPS_WEBHOOK_URL is not set");
     return;
   }
-  const body = new FormData();
-  body.set("payload_json", JSON.stringify(pingOf(p)));
-  if (p.picture) body.set("files[0]", new Blob([p.picture], { type: "image/png" }), "prefab.png");
-  const r = await fetch(`${url}?with_components=true`, {
-    method: "POST",
-    body,
-    signal: AbortSignal.timeout(5000),
-  });
+  const post = (withButtons: boolean) => {
+    const { components, ...message } = pingOf(p);
+    const body = new FormData();
+    body.set("payload_json", JSON.stringify(withButtons ? { ...message, components } : message));
+    if (p.picture) body.set("files[0]", new Blob([p.picture], { type: "image/png" }), PICTURE);
+    const to = new URL(url);
+    if (withButtons) to.searchParams.set("with_components", "true");
+    return fetch(to, { method: "POST", body, signal: AbortSignal.timeout(5000) });
+  };
+  let r = await post(true);
+  if (r.status === 400) r = await post(false);
   if (!r.ok) throw new Error(`Discord answered ${String(r.status)}: ${await r.text()}`);
 }
 

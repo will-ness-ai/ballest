@@ -9,8 +9,14 @@ import { useEffect, useRef, useState } from "react";
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
-import { ADMIN_STEAM_ID, BAN, TAKE_DOWN, type PrefabFields } from "../../lib/prefabs";
-import { prefabApiHref, prefabBanHref, prefabTakeDownHref, prefabsHref } from "../../lib/routes";
+import { ADMIN_STEAM_ID, type PrefabFields } from "../../lib/prefabs";
+import {
+  prefabApiHref,
+  prefabBanHref,
+  prefabTakeDownHref,
+  prefabsHref,
+  adminActionOf,
+} from "../../lib/routes";
 
 export function PrefabTools({ p }: { p: PrefabPage }) {
   const me = useSession();
@@ -53,12 +59,12 @@ function AdminTools({ p }: { p: PrefabPage }) {
   /* the upload ping's Take down and Ban buttons land here with ?admin=, which opens that
      confirm once the page has drawn, and leaves the address clean */
   useEffect(() => {
-    const want = new URLSearchParams(location.search).get("admin");
+    const want = adminActionOf(location.search);
     if (!want) return;
     const t = setTimeout(() => {
       history.replaceState(null, "", location.pathname);
-      if (want === TAKE_DOWN && live) takeDown();
-      if (want === BAN && canBan) banUploader();
+      if (want === "take-down" && live) takeDown();
+      if (want === "ban" && canBan) banUploader();
     }, 300);
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, on arrival

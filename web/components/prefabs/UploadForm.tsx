@@ -36,7 +36,7 @@ interface Chosen {
 
 /* a still of the preview for the admin's upload ping, or null: none for a file so big the
    pair could pass Vercel's 4.5 MB request cap, or when the browser can't draw one */
-async function pictureOf(chosen: Chosen): Promise<Blob | null> {
+async function previewStill(chosen: Chosen): Promise<Blob | null> {
   if (!chosen.file || chosen.text.length > 3_000_000) return null;
   try {
     return await (await fetch(await stillOf(chosen.file, 800, 450, "#141a2b"))).blob();
@@ -129,7 +129,7 @@ function Form({ left, onLimit }: { left: number; onLimit: (nextAt: string | null
     body.set("description", fields.description);
     for (const t of fields.tags) body.append("tags", t);
     body.set("file", new Blob([chosen.text], { type: "application/json" }), chosen.fileName);
-    const picture = await pictureOf(chosen);
+    const picture = await previewStill(chosen);
     if (picture) body.set("picture", picture, "prefab.png");
     try {
       const r = await fetch(prefabsApiHref(), { method: "POST", body });

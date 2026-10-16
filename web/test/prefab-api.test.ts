@@ -163,9 +163,13 @@ describe("uploading a Prefab", () => {
       uploading({ name: "Not a picture", picture: new TextEncoder().encode("<svg/>") }, cookie),
       deps(),
     );
+    const big = new Uint8Array(1_000_001);
+    big.set(png);
+    await uploadPrefab(uploading({ name: "Too big", picture: big }, cookie), deps());
     expect(pings.map((p) => [p.name, p.picture])).toEqual([
       ["Pictured", png],
       ["Not a picture", null],
+      ["Too big", null],
     ]);
   });
 
