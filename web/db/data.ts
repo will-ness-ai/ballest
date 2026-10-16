@@ -413,7 +413,6 @@ export async function getCampaignShare(
   return {
     data,
     standing: {
-      maps: data.maps.length,
       players: head.total,
       leader: head.rows[0] ?? null,
       finishedEveryMap: finished,

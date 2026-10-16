@@ -182,18 +182,16 @@ export const CAMPAIGN_BAND_MAX_PICTURES = 5;
 
 /* what a Campaign's card reads, besides the Campaign itself */
 export interface CampaignStanding {
-  /* how many of its Maps the Workshop lists */
-  maps: number;
   /* its board's field: the players with a time on one of those Maps */
   players: number;
   /* rank 1 on its board */
   leader: BoardRow | null;
-  /* how many players hold a time on every one of those Maps */
+  /* how many players hold a time on every one of its Maps the Workshop lists */
   finishedEveryMap: number;
 }
 
-/* A Campaign's card: who leads and with how many points, then Maps, Players and how many
-   finished every Map */
+/* A Campaign's card: who leads and with how many points, then Maps (all of them, as they
+   are numbered), Players and how many finished every Map */
 export function campaignCard(c: Campaign, s: CampaignStanding): ShareCard {
   return {
     kind: "campaign",
@@ -207,7 +205,7 @@ export function campaignCard(c: Campaign, s: CampaignStanding): ShareCard {
         }
       : { value: "—", label: "No times yet" },
     tiles: [
-      { value: fmtN(s.maps), label: "Maps" },
+      { value: fmtN(c.maps.length), label: "Maps" },
       players(s.players),
       { value: fmtN(s.finishedEveryMap), label: "Finished every map", tone: "author" },
     ],

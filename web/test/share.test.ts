@@ -164,10 +164,10 @@ describe("a Campaign's card", () => {
 
   test("its leader and points, then Maps, Players and Finished every map", async () => {
     // Tenpin (p10) is 2nd on Map A and 1st on Map B: 20,000 + 40,000 points. Four players
-    // hold a time on Map A or Map B.
+    // hold a time on Map A or Map B. Maps counts all three, Map C (gone) included, as its
+    // Maps are numbered.
     const page = await boardPage(t.db, "OverallCampaign_test-run", { from: 0, count: 1 });
     const c = campaignCard(TEST, {
-      maps: 2,
       players: page.total,
       leader: page.rows[0] ?? null,
       finishedEveryMap: await finishedEveryMap(t.db, TEST),
@@ -177,14 +177,14 @@ describe("a Campaign's card", () => {
     expect(c.title).toBe("Test Run");
     expect(c.headline).toEqual({ value: "Tenpin", label: "leads with 60,000 pts", tone: "gold" });
     expect(c.tiles).toEqual([
-      { value: "2", label: "Maps" },
+      { value: "3", label: "Maps" },
       { value: "4", label: "Players" },
       { value: "1", label: "Finished every map", tone: "author" },
     ]);
   });
 
   test("with no times yet, no one leads", () => {
-    const c = campaignCard(TEST, { maps: 3, players: 0, leader: null, finishedEveryMap: 0 });
+    const c = campaignCard(TEST, { players: 0, leader: null, finishedEveryMap: 0 });
     expect(c.headline).toEqual({ value: "—", label: "No times yet" });
     expect(c.tiles.map((s) => s.value)).toEqual(["3", "0", "0"]);
   });

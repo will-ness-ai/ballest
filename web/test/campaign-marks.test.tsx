@@ -1,10 +1,17 @@
 // A Campaign Map says so wherever it shows: the picture strip on its card (the shelves and
 // All maps) and the Part of box on its page, which leads to the Map inside its Campaign.
+// And every count of a Campaign's Maps it shows is its curated total, as its Maps' numbers
+// are, even while the Workshop lists fewer of them.
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 
+import { CampaignBanner } from "../components/campaign/CampaignBanner";
+import { CampaignChip } from "../components/campaign/CampaignSwitch";
+import { CampaignCards } from "../components/player/CampaignCards";
 import { MapCardLink } from "../components/workshop/Card";
 import { PartOf } from "../components/workshop/Campaign";
+import type { ListedCampaign } from "../db/data";
+import { CAMPAIGNS } from "../lib/campaigns";
 import type { MapCard } from "../lib/workshop";
 
 const card = (pfid: string, title: string): MapCard => ({
@@ -50,4 +57,35 @@ test("a Campaign Map's page names its Campaign and place, and links to it in the
 
 test("any other Map's page has no Part of box", () => {
   expect(renderToStaticMarkup(<PartOf pfid="9000000001" />)).toBe("");
+});
+
+/* Solar Trials (9 Maps) with one Map gone from the Workshop: 8 pictures */
+const solar = CAMPAIGNS[0];
+const listed: ListedCampaign = {
+  c: solar,
+  players: 41,
+  previews: Array<string | null>(8).fill(null),
+  leader: null,
+};
+
+test("a Campaign's banner and switch count all its Maps, listed or not", () => {
+  expect(text(renderToStaticMarkup(<CampaignBanner k={listed} />))).toContain(
+    "Campaign · 9 maps · 41 players",
+  );
+  expect(
+    text(renderToStaticMarkup(<CampaignChip list={[listed]} on={solar} board="b" />)),
+  ).toContain("9 Maps · 41 players");
+});
+
+test("a player's Campaign card counts their Maps out of all the Campaign's", () => {
+  const html = renderToStaticMarkup(
+    <CampaignCards
+      campaigns={[
+        { c: solar, previews: listed.previews, rank: 2, score: 1200, finished: 6, players: 41 },
+      ]}
+      id="76561198000000001"
+    />,
+  );
+  expect(text(html)).toContain("1,200 pts · 6/9 maps");
+  expect(html).toContain("width:67%");
 });

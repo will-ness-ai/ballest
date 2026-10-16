@@ -37,11 +37,11 @@ export function CampaignTabs({ list, on }: Props) {
 export function CampaignChip({ list, on, board }: Props & { board: string }) {
   return (
     <SeasonMenu id={`campaigns-${board}`} label={on.title} kind="Campaign">
-      {list.map(({ c, maps, players }) => (
+      {list.map(({ c, players }) => (
         <Link {...link(c, on)} key={c.slug}>
           <b>{c.title}</b>
           <small>
-            {plural(maps, "Map", "Maps")} · {plural(players, "player", "players")}
+            {plural(c.maps.length, "Map", "Maps")} · {plural(players, "player", "players")}
           </small>
         </Link>
       ))}

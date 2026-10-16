@@ -138,9 +138,9 @@ describe("the Campaigns to list", () => {
     // Map C alone has left the Workshop; Map B alone has p10, p5 and p2; the test Campaign
     // has those and Map A's p9 and p1
     const list = [one("gone", ["9000000003"]), one("small", ["9000000002"]), TEST];
-    expect((await listedCampaigns(t.db, list)).map((c) => [c.slug, c.maps, c.players])).toEqual([
-      ["test-run", 2, 5],
-      ["small", 1, 3],
+    expect((await listedCampaigns(t.db, list)).map((c) => [c.slug, c.players])).toEqual([
+      ["test-run", 5],
+      ["small", 3],
     ]);
   });
 
@@ -156,14 +156,12 @@ describe("the Campaigns to list", () => {
     expect(await listedCampaigns(t.db, list)).toEqual([
       {
         slug: "test-run",
-        maps: 2,
         players: 5,
         previews: ["https://images.example.invalid/marble-run.jpg", null],
         leader: { ...tenpin, score: 60000 },
       },
       {
         slug: "small",
-        maps: 1,
         players: 3,
         previews: [null],
         leader: { ...tenpin, score: 40000 },
@@ -182,18 +180,19 @@ describe("a player's Campaigns", () => {
 
   test("each Campaign they hold a place in, with their place, points and Maps finished", async () => {
     // Tenpin (p10) wins both: 60000 over Maps A and B in the test Campaign, 40000 on Map B
-    // alone. The test Campaign has 5 players and lists 2 Maps (Map C has left the Workshop);
-    // "small" has Map B's 3. Most players first, as the Campaigns are listed.
+    // alone, and has a time on both listed Maps of the test Campaign (Map C has left the
+    // Workshop). It has 5 players, "small" Map B's 3. Most players first, as the Campaigns
+    // are listed.
     expect(await playerCampaigns(t.db, p(10), list)).toEqual([
-      { slug: "test-run", rank: 1, score: 60000, finished: 2, maps: 2, players: 5 },
-      { slug: "small", rank: 1, score: 40000, finished: 1, maps: 1, players: 3 },
+      { slug: "test-run", rank: 1, score: 60000, finished: 2, players: 5 },
+      { slug: "small", rank: 1, score: 40000, finished: 1, players: 3 },
     ]);
   });
 
   test("leaves out a Campaign they have no time in", async () => {
     // p9 is on Map A alone, which "small" doesn't have
     expect(await playerCampaigns(t.db, p(9), list)).toEqual([
-      { slug: "test-run", rank: 2, score: 40000, finished: 1, maps: 2, players: 5 },
+      { slug: "test-run", rank: 2, score: 40000, finished: 1, players: 5 },
     ]);
   });
 

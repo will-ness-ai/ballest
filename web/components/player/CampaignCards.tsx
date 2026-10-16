@@ -1,8 +1,9 @@
 // The Campaigns shelf at the top of a player's Workshop tab: a card for each Campaign they
 // hold a place in, most players first, with its pictures and name, their place of all its
 // players (in its medal colour on a podium), their points, how many of its Maps they have
-// finished and a bar of it. A card opens the Campaign's board at their row. A player in no
-// Campaign has no shelf.
+// finished out of all it has (a Map gone from the Workshop counts, as it is numbered), and
+// a bar of it. A card opens the Campaign's board at their row. A player in no Campaign has
+// no shelf.
 import Link from "next/link";
 
 import { Shelf } from "./Shelf";
@@ -37,10 +38,10 @@ export function CampaignCards({
             <b>{ord(k.rank)}</b> <small>of {fmtN(k.players)}</small>
           </span>{" "}
           <span className="pc-s">
-            {`${fmtN(k.score)} pts · ${String(k.finished)}/${String(k.maps)} maps`}
+            {`${fmtN(k.score)} pts · ${String(k.finished)}/${String(k.c.maps.length)} maps`}
           </span>{" "}
           <span className="pc-bar" aria-hidden="true">
-            <i style={{ width: ((k.finished / k.maps) * 100).toFixed(0) + "%" }}></i>
+            <i style={{ width: ((k.finished / k.c.maps.length) * 100).toFixed(0) + "%" }}></i>
           </span>
         </Link>
       ))}

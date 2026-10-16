@@ -58,8 +58,6 @@ export interface Placing {
 /* A curated Campaign some of whose Maps the Workshop lists (db/site.ts, listedCampaigns) */
 export interface ListedCampaignRow {
   slug: string;
-  /* how many of its Maps the Workshop lists */
-  maps: number;
   /* how many players hold a time on one of them: its board's field */
   players: number;
   /* those Maps' preview pictures, in the Campaign's order */
@@ -74,9 +72,8 @@ export interface PlayerCampaignRow {
   /* their place and points on its board */
   rank: number;
   score: number;
-  /* how many of its listed Maps they hold a time on, out of how many it lists */
+  /* how many of its listed Maps they hold a time on */
   finished: number;
-  maps: number;
   /* how many players its board ranks */
   players: number;
 }

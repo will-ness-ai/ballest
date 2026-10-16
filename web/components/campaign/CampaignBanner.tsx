@@ -15,7 +15,8 @@ export function CampaignBanner({ k }: { k: ListedCampaign }) {
       <CampaignPics previews={k.previews} />
       <span className="cban-in">
         <span className="eyebrow">
-          Campaign · {plural(k.maps, "map", "maps")} · {plural(k.players, "player", "players")}
+          Campaign · {plural(k.c.maps.length, "map", "maps")} ·{" "}
+          {plural(k.players, "player", "players")}
         </span>
         <b className="cban-t">{k.c.title}</b>
         <span className="cban-by">by {k.c.creator}</span>
