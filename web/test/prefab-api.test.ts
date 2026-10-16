@@ -10,7 +10,7 @@ import {
   favoritePrefab,
   takeDownPrefab,
   uploadPrefab,
-  uploadLimit,
+  limitUploader,
   uploadQuota,
   type PrefabDeps,
 } from "../db/prefab-api";
@@ -450,7 +450,7 @@ describe("the admin's take down and ban", () => {
     const admin = await sessionOf(ADMIN);
     const them = await sessionOf(id);
     const set = (daily: unknown, cookie = admin) =>
-      uploadLimit(
+      limitUploader(
         new Request(SITE + url, {
           method: "PUT",
           body: JSON.stringify({ daily }),
@@ -461,7 +461,7 @@ describe("the admin's take down and ban", () => {
       );
     const left = async () =>
       ((await (await uploadQuota(uploading({}, them), deps())).json()) as { left: number }).left;
-    expect(await (await uploadLimit(post(url, "GET", admin), deps(), id)).json()).toEqual({
+    expect(await (await limitUploader(post(url, "GET", admin), deps(), id)).json()).toEqual({
       steamId: id,
       daily: 5,
       own: false,
@@ -477,8 +477,13 @@ describe("the admin's take down and ban", () => {
     expect(await left()).toBe(19);
     expect(await (await set(6)).json()).toMatchObject({ daily: 6 });
     expect(await left()).toBe(0);
-    expect((await uploadPrefab(uploading({ name: "Sign 7" }, them), deps())).status).toBe(429);
-    expect(await (await uploadLimit(post(url, "DELETE", admin), deps(), id)).json()).toEqual({
+    const refused = await uploadPrefab(uploading({ name: "Sign 7" }, them), deps());
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({
+      limit: 6,
+      nextAt: new Date(NOW + 24 * HOUR).toISOString(),
+    });
+    expect(await (await limitUploader(post(url, "DELETE", admin), deps(), id)).json()).toEqual({
       steamId: id,
       daily: 5,
       own: false,

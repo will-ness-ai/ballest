@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
+import type { UploaderLimit } from "../../db/prefab-api";
 import { useSession } from "../../hooks/me";
 import {
   ADMIN_STEAM_ID,
@@ -107,12 +108,12 @@ function AdminTools({ p }: { p: PrefabPage }) {
 /* the uploader's daily upload limit, which the admin can change or put back to the default */
 function DailyLimit({ who, name }: { who: string; name: string }) {
   const url = prefabLimitHref(who);
-  const [limit, setLimit] = useState<{ daily: number; own: boolean } | null>(null);
+  const [limit, setLimit] = useState<UploaderLimit | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (url)
       void fetch(url, { cache: "no-store" })
-        .then((r) => (r.ok ? (r.json() as Promise<{ daily: number; own: boolean }>) : null))
+        .then((r) => (r.ok ? (r.json() as Promise<UploaderLimit>) : null))
         .then(setLimit)
         .catch(() => null);
   }, [url]);
@@ -130,7 +131,7 @@ function DailyLimit({ who, name }: { who: string; name: string }) {
       body: typed.trim() ? JSON.stringify({ daily }) : undefined,
     }).catch(() => null);
     setFailed(!r?.ok);
-    if (r?.ok) setLimit((await r.json()) as { daily: number; own: boolean });
+    if (r?.ok) setLimit((await r.json()) as UploaderLimit);
   };
   return (
     <>

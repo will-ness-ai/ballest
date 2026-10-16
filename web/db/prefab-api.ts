@@ -300,10 +300,27 @@ export async function banUploader(
   return json({ steamId, banned: request.method !== "DELETE" });
 }
 
-/* GET /api/prefab-limits/<steam_id>: the player's daily upload limit and whether it is their
-   own; PUT with { daily } gives them their own, DELETE puts them back on the default. The
-   admin's only */
-export async function uploadLimit(
+/* a player's daily upload limit, and whether the admin gave it them or it is the default */
+export interface UploaderLimit {
+  steamId: string;
+  daily: number;
+  own: boolean;
+}
+
+/* the { daily } a PUT sends, if it is a whole number the admin may set */
+function dailyOf(body: unknown): number | null {
+  const daily = (body as { daily?: unknown } | null)?.daily;
+  return typeof daily === "number" &&
+    Number.isInteger(daily) &&
+    daily >= 1 &&
+    daily <= MAX_DAILY_UPLOADS
+    ? daily
+    : null;
+}
+
+/* GET /api/prefab-limits/<steam_id>: the player's daily upload limit; PUT with { daily } gives
+   them their own, DELETE puts them back on the default. The admin's only */
+export async function limitUploader(
   request: Request,
   deps: PrefabDeps,
   steamId: string,
@@ -314,15 +331,15 @@ export async function uploadLimit(
   if (request.method === "DELETE")
     await deps.db.delete(prefabLimits).where(eq(prefabLimits.steamId, steamId));
   if (request.method === "PUT") {
-    const daily = ((await request.json().catch(() => null)) as { daily?: unknown } | null)?.daily;
-    if (!Number.isInteger(daily) || (daily as number) < 1 || (daily as number) > MAX_DAILY_UPLOADS)
+    const daily = dailyOf(await request.json().catch(() => null));
+    if (daily === null)
       return json({ error: `a whole number from 1 to ${String(MAX_DAILY_UPLOADS)}` }, 400);
-    const row = { daily: daily as number, setBy: admin, setAt: new Date(now(deps)) };
+    const row = { daily, setBy: admin, setAt: new Date(now(deps)) };
     await deps.db
       .insert(prefabLimits)
       .values({ steamId, ...row })
       .onConflictDoUpdate({ target: prefabLimits.steamId, set: row });
   }
   const own = await ownLimitOf(deps.db, steamId);
-  return json({ steamId, daily: own ?? DAILY_UPLOADS, own: own !== null });
+  return json({ steamId, daily: own ?? DAILY_UPLOADS, own: own !== null } satisfies UploaderLimit);
 }

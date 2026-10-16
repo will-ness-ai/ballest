@@ -109,7 +109,7 @@ The only tables the site writes (ADR 0009); the collector never touches them. `p
 holds each upload: a slug from its first name that never changes, the name, description,
 Tags, the uploader's Steam ID and their Steam persona when they uploaded, the file's text
 exactly as sent, its piece count and size, and `deleted_at` / `taken_down_at`, which hide it
-without removing the row (it still counts against the uploader's 5 a day).
+without removing the row (it still counts against the uploader's daily limit).
 `prefab_favorites` is one row per player per Prefab. `prefab_bans` is a player the admin
 stopped uploading; the reads hide their Prefabs while the row is there. `prefab_limits` is a
 player the admin gave their own daily upload limit in place of the 5; no row is the default. `tiny` seeds two

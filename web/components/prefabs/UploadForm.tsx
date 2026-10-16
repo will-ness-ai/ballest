@@ -76,7 +76,7 @@ export function UploadForm() {
         <Form
           left={quota.left}
           limit={quota.limit}
-          onLimit={(nextAt) => setQuota({ ...quota, left: 0, nextAt })}
+          onLimit={(limit, nextAt) => setQuota({ ...quota, left: 0, limit, nextAt })}
         />
       )}
     </section>
@@ -87,7 +87,7 @@ function Limit({ limit, nextAt }: { limit: number; nextAt: string | null }) {
   return (
     <div className="pfu-gate">
       <p>
-        You&apos;ve uploaded {limit} prefabs today, the daily limit.
+        You&apos;ve reached your daily limit of {limit} prefabs.
         {nextAt ? ` You can upload again from ${when(nextAt)}.` : " You can upload again tomorrow."}
       </p>
     </div>
@@ -101,7 +101,7 @@ function Form({
 }: {
   left: number;
   limit: number;
-  onLimit: (nextAt: string | null) => void;
+  onLimit: (limit: number, nextAt: string | null) => void;
 }) {
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [fields, setFields] = useState<PrefabFields>({ name: "", description: "", tags: [] });
@@ -140,10 +140,15 @@ function Form({
     if (picture) body.set("picture", picture, "prefab.png");
     try {
       const r = await fetch(prefabsApiHref(), { method: "POST", body });
-      const got = (await r.json()) as { slug?: string; problems?: Array<string>; nextAt?: string };
+      const got = (await r.json()) as {
+        slug?: string;
+        problems?: Array<string>;
+        limit?: number;
+        nextAt?: string;
+      };
       /* a full load, so the router's cached gallery doesn't miss it on the way back */
       if (r.status === 201 && got.slug) return location.assign(prefabHref(got.slug));
-      if (r.status === 429) return onLimit(got.nextAt ?? null);
+      if (r.status === 429) return onLimit(got.limit ?? limit, got.nextAt ?? null);
       setRefused(got.problems ?? ["That didn't upload. Try again in a moment."]);
     } catch {
       setRefused(["That didn't upload. Try again in a moment."]);

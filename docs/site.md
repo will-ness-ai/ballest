@@ -449,11 +449,11 @@ branch `claude/prototype-prefabs` (spec #213).
   name, description and tags or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,
   one Steam ID (`ADMIN_STEAM_ID` in `lib/prefabs.ts`), can take any Prefab down
   (`/api/prefabs/<slug>/takedown`) and ban its uploader (`/api/prefab-bans/<steam_id>`),
-  which hides all their Prefabs; a hidden one's gone page offers Unban. From the same page it can
-  give the uploader their own daily upload limit, or put them back on the 5
-  (`/api/prefab-limits/<steam_id>`, the `prefab_limits` table), which the upload form then
-  counts against. Every write expires
-  the cached Prefab reads (`PREFAB_TAG`), so it shows at once.
+  which hides all their Prefabs; a hidden one's gone page offers Unban. Every write expires
+  the cached Prefab reads (`PREFAB_TAG`), so it shows at once. From the same page the admin
+  can give the uploader their own daily upload limit, or put them back on the 5
+  (`/api/prefab-limits/<steam_id>`, the `prefab_limits` table); nothing cached reads it, as
+  the upload form asks for its quota uncached.
 
 ## Checking a change
 
