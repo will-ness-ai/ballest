@@ -15,6 +15,13 @@ import {
   type Campaign,
 } from "../lib/campaigns";
 
+/* a Campaign the list holds, by its slug */
+function curated(slug: string): Campaign {
+  const c = campaignOf(slug);
+  if (c === null) throw new Error(`no Campaign "${slug}"`);
+  return c;
+}
+
 const make = (slug: string, maps: Array<string>): Campaign => ({
   slug,
   title: slug,
@@ -118,7 +125,8 @@ describe("the lookups", () => {
     expect(mapName(solar, "3805399883", "Solar Trials Mercury")).toBe("Mercury");
     // a number that isn't the Map's place keeps the whole title, not "01 7"
     expect(mapLabel(velocity, "3803908791", "Velocity Trials 7")).toBe("01 Velocity Trials 7");
-    const [aj, ninja] = CAMPAIGNS.filter((c) => c.slug === "aj" || c.slug === "ninja");
+    const aj = curated("aj");
+    const ninja = curated("ninja");
     expect(mapLabel(ninja, "3605138459", "Ninja0")).toBe("01 Ninja0");
     expect(mapLabel(aj, "3591825761", "AJ26")).toBe("03 AJ26");
     expect(mapLabel(aj, "3619755748", "AJ07 Redux")).toBe("01 AJ07 Redux");

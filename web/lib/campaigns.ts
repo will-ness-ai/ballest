@@ -19,6 +19,9 @@ export interface Campaign {
   maps: ReadonlyArray<string>;
 }
 
+/* a maker of more than one Campaign, written once */
+const ACTION_JACKSON = { creator: "Action Jackson", creatorId: "76561198008697957" };
+
 export const CAMPAIGNS: ReadonlyArray<Campaign> = [
   {
     slug: "solar-trials",
@@ -72,15 +75,13 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
   {
     slug: "ajc",
     title: "AJC",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: ["3646349274", "3737890903", "3744752972", "3762695115", "3788055152"],
   },
   {
     slug: "aj",
     title: "AJ",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: [
       "3619755748",
       "3595665408",
@@ -97,57 +98,49 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
   {
     slug: "hydro",
     title: "Hydro",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: ["3594957354", "3595338265", "3598520302", "3628579558", "3802390659"],
   },
   {
     slug: "ancient",
     title: "Ancient",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: ["3602760496", "3603850726", "3609081915", "3637508568"],
   },
   {
     slug: "madhouse",
     title: "Madhouse",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: ["3619178150", "3626117259", "3631235757", "3746019892"],
   },
   {
     slug: "neon",
     title: "Neon",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: ["3613242012", "3620833811", "3626852353", "3748587455"],
   },
   {
     slug: "ninja",
     title: "Ninja",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: ["3605138459", "3607096927", "3612357898"],
   },
   {
     slug: "minitower",
     title: "MiniTower",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: ["3622417599", "3623062895", "3623920896"],
   },
   {
     slug: "speedway",
     title: "Speedway",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: ["3627401234", "3627753428", "3629139384"],
   },
   {
     slug: "8p",
     title: "8p",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: ["3640116850", "3640654366", "3640866380", "3642152991", "3642195386"],
   },
   {

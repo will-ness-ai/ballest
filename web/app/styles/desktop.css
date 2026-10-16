@@ -150,7 +150,8 @@
   .boardrow {
     display: contents;
   }
-  /* the Circuit's seasons, a smaller row of tabs under the main ones */
+  /* the Circuit's seasons or the Campaigns, a smaller row of tabs under the main ones; it
+     wraps when there are more than fit */
   .seasontabs {
     display: flex;
     flex-wrap: wrap;

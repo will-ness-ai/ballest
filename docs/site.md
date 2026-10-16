@@ -258,7 +258,8 @@ isn't the Map's place ("Ninja0", "AJ26"). Everywhere the frame names a Map (the 
 tally, the page's title) it is `mapLabel`: the number, then that name. On a phone the
 switch's chip and the board button share a row while they fit, and the button takes a line
 of its own when they don't (`.boardrow.named`), since a Campaign's title and Map names run
-longer than a season's. The Overall card, the points dialog and the podium count say maps
+longer than a season's. With more Campaigns than fit, the desktop tabs wrap onto another row and
+the phone menu scrolls inside itself. The Overall card, the points dialog and the podium count say maps
 where a season says tracks, and count the Maps the Workshop lists, which are the ones that
 pay points. A Map inside the frame gets the Track card's layout with its preview picture
 and a link to its own page. A Campaign none of whose Maps the Workshop lists is shown
