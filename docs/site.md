@@ -185,6 +185,12 @@ fails to load, or that Satori can't read, draws without it.
   server's are shown only when its baseline, from the latest Refresh, is that one, and
   otherwise the browser reads them again. "Show all" opens the list in the card, read from
   `GET /api/standings?list=` down to You in one go and in chunks after, scrolled to You.
+  Signed out, the top 3s stay open to anyone, a strip on top asks "Where do you stand?"
+  and signs in, and each card's row where You would be reads "Sign in with Steam to see
+  your row" and is the sign-in; all of them come back to /you. Until the browser can tell
+  whether anyone is signed in, the strip, those rows and the gains line are drawn unseen,
+  out of reach, holding their place, so a signed-out page doesn't jump when they show and
+  a signed-in visitor never sees Sign in.
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
 it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board or Map,
