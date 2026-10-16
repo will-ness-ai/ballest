@@ -19,7 +19,13 @@ export function PrefabPage({ p }: { p: Prefab }) {
   return (
     <div className="pf">
       <div className="pf-split">
-        <PrefabModel src={prefabFileHref(p.slug)} name={p.fileName.replace(/\.json$/, "")} />
+        <PrefabModel
+          src={prefabFileHref(p.slug)}
+          name={p.fileName.replace(/\.json$/, "")}
+          slug={p.slug}
+          uploader={p.uploader.steamId}
+          angle={p.angle}
+        />
         <aside className="pf-side">
           <h1>{p.name}</h1>
           <p className="pf-by">

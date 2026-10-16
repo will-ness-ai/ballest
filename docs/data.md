@@ -108,7 +108,8 @@ since. The collector never prints the key or the URL.
 The only tables the site writes (ADR 0009); the collector never touches them. `prefabs`
 holds each upload: a slug from its first name that never changes, the name, description,
 Tags, the uploader's Steam ID and their Steam persona when they uploaded, the file's text
-exactly as sent, its piece count and size, and `deleted_at` / `taken_down_at`, which hide it
+exactly as sent, its piece count and size, the `angle` its picture is drawn from (null for the
+default; `docs/site.md`, "Prefabs"), and `deleted_at` / `taken_down_at`, which hide it
 without removing the row (it still counts against the uploader's hourly limit).
 `prefab_favorites` is one row per player per Prefab. `prefab_bans` is a player the admin
 stopped uploading; the reads hide their Prefabs while the row is there. `prefab_limits` is a

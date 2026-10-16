@@ -6,7 +6,7 @@ import { describe, expect, test } from "vitest";
 
 import { footprintOf, partsOf, pieceLabel, shapesOf, type PrefabFile } from "../lib/prefab";
 import { MAX_BYTES, checkPrefab, fileNameOf } from "../lib/prefab-check";
-import { galleryOf } from "../lib/prefabs";
+import { DEFAULT_ANGLE, PAN_MAX, ZOOM_RANGE, checkAngle, galleryOf } from "../lib/prefabs";
 
 const sample = (name: string) =>
   readFileSync(new URL(`../../prefabs/samples/${name}.json`, import.meta.url), "utf8");
@@ -261,5 +261,34 @@ describe("the gallery's order", () => {
   test("a tag keeps only the Prefabs carrying it", () => {
     expect(slugs(galleryOf(cards, "popular", "Ramp"))).toEqual(["old-hit", "tie-newer"]);
     expect(slugs(galleryOf(cards, "popular", "Structure"))).toEqual([]);
+  });
+});
+
+describe("a Prefab's angle", () => {
+  const ok = { from: [3, 0, 4], zoom: 2, pan: [0, 0, 0] };
+  test("is tidied: its direction made unit length, every number to four places", () => {
+    expect(checkAngle({ ...ok, zoom: 2.000049, pan: [1 / 3, 0, -0] })).toEqual({
+      from: [0.6, 0, 0.8],
+      zoom: 2,
+      pan: [0.3333, 0, 0],
+    });
+  });
+  test("can't be one with no direction, a zoom or pan past its limits, or a number that isn't one", () => {
+    for (const bad of [
+      null,
+      5,
+      { ...ok, from: [0, 0, 0] },
+      { ...ok, from: [1, 0] },
+      { ...ok, zoom: ZOOM_RANGE[0] / 2 },
+      { ...ok, zoom: ZOOM_RANGE[1] * 2 },
+      { ...ok, zoom: "2" },
+      { ...ok, pan: [PAN_MAX + 1, 0, 0] },
+      { ...ok, from: [NaN, 0, 1] },
+      { ...ok, pan: [Infinity, 0, 0] },
+    ])
+      expect(checkAngle(bad)).toBeNull();
+  });
+  test("the default is itself an angle", () => {
+    expect(checkAngle(DEFAULT_ANGLE)?.from[0]).toBeCloseTo(DEFAULT_ANGLE.from[0], 4);
   });
 });

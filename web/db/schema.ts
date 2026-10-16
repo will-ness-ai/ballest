@@ -16,6 +16,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -25,6 +26,8 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+import type { PrefabAngle } from "../lib/prefabs";
 
 export const refreshSource = pgEnum("refresh_source", ["collector", "backfill"]);
 
@@ -235,6 +238,9 @@ export const prefabs = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     takenDownAt: timestamp("taken_down_at", { withTimezone: true }),
+    // the view its uploader picked for its picture (PrefabAngle in lib/prefabs.ts), or null
+    // for the default
+    angle: jsonb("angle").$type<PrefabAngle>(),
   },
   (t) => [index("prefabs_uploader").on(t.uploader, t.createdAt)],
 );

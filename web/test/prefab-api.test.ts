@@ -63,6 +63,7 @@ function uploading(
     tags?: Array<string>;
     file?: string;
     picture?: Uint8Array<ArrayBuffer>;
+    angle?: string;
   },
   cookie = "",
   headers: Record<string, string> = {},
@@ -73,6 +74,7 @@ function uploading(
   for (const tag of fields.tags ?? []) body.append("tags", tag);
   body.set("file", new Blob([fields.file ?? bench]), "bench.json");
   if (fields.picture) body.set("picture", new Blob([fields.picture]), "prefab.png");
+  if (fields.angle !== undefined) body.set("angle", fields.angle);
   return new Request(SITE + "/api/prefabs", {
     method: "POST",
     body,
@@ -376,6 +378,60 @@ describe("editing and deleting your own", () => {
     expect(
       (await editPrefab(change("mine-to-edit", "DELETE", owner), deps(), "mine-to-edit")).status,
     ).toBe(404);
+  });
+});
+
+describe("the angle its picture is drawn from", () => {
+  const OWNER = "76561199000000041";
+  const angle = { from: [0, 2, 0], zoom: 1.23456, pan: [0.1, 0, 0] };
+  const tidied = { from: [0, 1, 0], zoom: 1.2346, pan: [0.1, 0, 0] };
+  const patch = (body: object, cookie: string) =>
+    new Request(`${SITE}/api/prefabs/angled`, {
+      method: "PATCH",
+      headers: { cookie, origin: SITE, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  test("an upload without one reads as the default, and one with one keeps it tidied", async () => {
+    const owner = await sessionOf(OWNER);
+    await uploadPrefab(uploading({ name: "Plain" }, owner), deps());
+    expect((await prefabOf(t.db, "plain"))?.angle).toBeNull();
+    const r = await uploadPrefab(
+      uploading({ name: "Angled", angle: JSON.stringify(angle) }, owner),
+      deps(),
+    );
+    expect(r.status).toBe(201);
+    expect((await prefabOf(t.db, "angled"))?.angle).toEqual(tidied);
+    expect((await prefabList(t.db)).find((p) => p.slug === "angled")?.angle).toEqual(tidied);
+  });
+
+  test("an upload with one that can't be an angle is refused", async () => {
+    const owner = await sessionOf(OWNER);
+    for (const bad of ["not json", '{"from":[0,0,0],"zoom":1,"pan":[0,0,0]}'])
+      expect(
+        await (await uploadPrefab(uploading({ name: "Bad", angle: bad }, owner), deps())).json(),
+      ).toEqual({ problems: ["That view can't be saved. Pick it again."] });
+    expect(await prefabOf(t.db, "bad")).toBeNull();
+  });
+
+  test("the uploader changes only the angle, or puts it back to the default", async () => {
+    const owner = await sessionOf(OWNER);
+    const turned = { from: [1, 0, 0], zoom: 2, pan: [0, 0, 0] };
+    expect((await editPrefab(patch({ angle: turned }, owner), deps(), "angled")).status).toBe(200);
+    expect(await prefabOf(t.db, "angled")).toMatchObject({ name: "Angled", angle: turned });
+    await editPrefab(patch({ angle: null }, owner), deps(), "angled");
+    expect((await prefabOf(t.db, "angled"))?.angle).toBeNull();
+    const r = await editPrefab(patch({ angle: { zoom: 1 } }, owner), deps(), "angled");
+    expect(r.status).toBe(400);
+    expect((await editPrefab(patch(5 as unknown as object, owner), deps(), "angled")).status).toBe(
+      400,
+    );
+  });
+
+  test("nobody else can change it", async () => {
+    const other = await sessionOf("76561199000000042");
+    const r = await editPrefab(patch({ angle: angle }, other), deps(), "angled");
+    expect(r.status).toBe(403);
   });
 });
 

@@ -1,24 +1,40 @@
 "use client";
-// A Prefab drawn in three.js. It turns
+// A Prefab drawn in three.js, starting from its angle. It turns
 // slowly on its own until someone grabs it (not under reduced motion); drag to turn, wheel
-// or pinch to zoom, right-drag to pan. three loads only where a viewer is.
-import { useEffect, useRef } from "react";
+// or pinch to zoom, right-drag to pan. three loads only where a viewer is. A parent that
+// needs to steer it takes useViewer() and passes its `attach`: home() goes back to the angle,
+// and angleNow() reads the view it shows now.
+import { useCallback, useEffect, useRef } from "react";
 
-import { buildScene, framing, loadThree } from "./scene";
+import { angleNow, buildScene, framing, loadThree } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
+import type { PrefabAngle } from "../../lib/prefabs";
 
 export function PrefabViewer({
   file,
   className,
   spin = true,
   controls: interactive = true,
+  angle = null,
+  attach,
 }: {
   file: PrefabFile;
   className?: string;
   spin?: boolean;
   controls?: boolean;
+  angle?: PrefabAngle | null;
+  attach?: (viewer: Viewer | null) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  /* read at each home(), so a new angle moves the camera there without rebuilding the
+     scene; compared by value, so the same view arriving again doesn't */
+  const home = useRef(angle);
+  const goHome = useRef<(() => void) | null>(null);
+  const view = JSON.stringify(angle);
+  useEffect(() => {
+    home.current = angle;
+    goHome.current?.();
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps -- by value
 
   useEffect(() => {
     const el = host.current;
@@ -46,12 +62,17 @@ export function PrefabViewer({
       controls.autoRotateSpeed = 1.6;
       /* the spin only says "this is 3D": the first grab stops it for good */
       controls.addEventListener("start", () => (controls.autoRotate = false));
-      const home = () => {
-        camera.position.copy(framing(THREE, camera, centre, radius));
-        controls.target.copy(centre);
+      const toHome = () => {
+        const view = framing(THREE, camera, centre, radius, home.current);
+        camera.position.copy(view.position);
+        controls.target.copy(view.target);
         controls.update();
       };
-      el.addEventListener("prefab:home", home);
+      goHome.current = toHome;
+      attach?.({
+        home: toHome,
+        angleNow: () => angleNow(camera, controls.target, centre, radius),
+      });
       const resize = () => {
         const { width, height } = el.getBoundingClientRect();
         renderer.setSize(width, height, false);
@@ -61,13 +82,15 @@ export function PrefabViewer({
       const ro = new ResizeObserver(resize);
       ro.observe(el);
       resize();
-      home();
+      toHome();
       el.dataset.ready = "1";
       renderer.setAnimationLoop(() => {
         controls.update();
         renderer.render(scene, camera);
       });
       stop = () => {
+        attach?.(null);
+        goHome.current = null;
         ro.disconnect();
         renderer.setAnimationLoop(null);
         controls.dispose();
@@ -79,7 +102,26 @@ export function PrefabViewer({
       run.cancelled = true;
       stop?.();
     };
-  }, [file, spin, interactive]);
+  }, [file, spin, interactive, attach]);
 
   return <div ref={host} className={className ?? "pfv"} />;
+}
+
+interface Viewer {
+  home: () => void;
+  angleNow: () => PrefabAngle;
+}
+
+/* a handle on a viewer: pass `attach` to it; home() and angleNow() do nothing, or read null,
+   until it has drawn */
+export function useViewer() {
+  const viewer = useRef<Viewer | null>(null);
+  const attach = useCallback((v: Viewer | null) => {
+    viewer.current = v;
+  }, []);
+  return {
+    attach,
+    home: () => viewer.current?.home(),
+    angleNow: () => viewer.current?.angleNow() ?? null,
+  };
 }

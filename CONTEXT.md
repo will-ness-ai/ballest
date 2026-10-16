@@ -119,6 +119,11 @@ One of a fixed list of kinds (Decoration, Obstacle, Ramp, Loop, Scenery, Structu
 uploader gives a Prefab, up to three, which the gallery filters by.
 _Avoid_: category, label
 
+**Angle**:
+The view of a Prefab its uploader picked: its gallery card is drawn from it, and its viewer
+starts there. Without one, three-quarters from above with the whole Prefab in view.
+_Avoid_: thumbnail angle, camera, pose
+
 ### Matches
 
 **Player**:

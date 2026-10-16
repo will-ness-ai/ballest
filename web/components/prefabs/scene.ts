@@ -1,6 +1,13 @@
 // A Prefab as a three.js scene, shared
 // by the live viewer and the list's still pictures.
 import { shapesOf, type PrefabFile } from "../../lib/prefab";
+import {
+  DEFAULT_ANGLE,
+  PAN_MAX,
+  ZOOM_RANGE,
+  checkAngle,
+  type PrefabAngle,
+} from "../../lib/prefabs";
 
 type Three = typeof import("three");
 
@@ -68,17 +75,49 @@ export function buildScene(
   return { scene, centre, radius };
 }
 
-/* where the camera sits to fit the whole prefab, three-quarters from above */
+/* where the camera sits and looks for `angle` (lib/prefabs.ts PrefabAngle): at zoom 1, just
+   far enough back to fit the whole prefab */
 export function framing(
   THREE: Three,
   camera: import("three").PerspectiveCamera,
   centre: import("three").Vector3,
   radius: number,
+  angle: PrefabAngle | null = null,
 ) {
+  angle ??= DEFAULT_ANGLE;
+  const target = centre.clone().add(new THREE.Vector3(...angle.pan).multiplyScalar(radius));
+  const dist = fitDistance(camera, radius) * angle.zoom;
+  const position = target
+    .clone()
+    .add(new THREE.Vector3(...angle.from).normalize().multiplyScalar(dist));
+  return { position, target };
+}
+
+/* the angle the camera now shows, framing's inverse */
+export function angleNow(
+  camera: import("three").PerspectiveCamera,
+  target: import("three").Vector3,
+  centre: import("three").Vector3,
+  radius: number,
+): PrefabAngle {
+  const off = camera.position.clone().sub(target);
+  /* clamped like zoom, so a view past the limits saves as the nearest one it can be */
+  const pan = target.clone().sub(centre).divideScalar(radius).clampScalar(-PAN_MAX, PAN_MAX);
+  const angle = checkAngle({
+    from: off.toArray(),
+    zoom: Math.min(
+      ZOOM_RANGE[1],
+      Math.max(ZOOM_RANGE[0], off.length() / fitDistance(camera, radius)),
+    ),
+    pan: pan.toArray(),
+  });
+  return angle ?? DEFAULT_ANGLE;
+}
+
+function fitDistance(camera: import("three").PerspectiveCamera, radius: number) {
   const v = (camera.fov * Math.PI) / 360;
   const h = Math.atan(Math.tan(v) * camera.aspect);
-  const dist = (radius / Math.sin(Math.min(v, h))) * 1.05;
-  return centre.clone().add(new THREE.Vector3(1, 0.7, 1.2).normalize().multiplyScalar(dist));
+  return (radius / Math.sin(Math.min(v, h))) * 1.05;
 }
 
 /* one shared renderer draws every still, so a long list costs one WebGL context */
@@ -92,6 +131,7 @@ export async function stillOf(
   h: number,
   /* a solid backdrop instead of a transparent one */
   background?: string,
+  angle: PrefabAngle | null = null,
 ): Promise<string> {
   shared ??= loadThree().then((three) => {
     const renderer = new three.THREE.WebGLRenderer({
@@ -105,8 +145,9 @@ export async function stillOf(
   const { three, renderer } = await shared;
   const { scene, centre, radius } = buildScene(three, file, false);
   const camera = new three.THREE.PerspectiveCamera(40, w / h, 0.05, 2000);
-  camera.position.copy(framing(three.THREE, camera, centre, radius));
-  camera.lookAt(centre);
+  const view = framing(three.THREE, camera, centre, radius, angle);
+  camera.position.copy(view.position);
+  camera.lookAt(view.target);
   renderer.setSize(w, h, false);
   if (background) renderer.setClearColor(background, 1);
   renderer.render(scene, camera);
