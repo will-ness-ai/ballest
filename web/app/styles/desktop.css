@@ -667,6 +667,11 @@
     .mcard:focus-visible .pod3 {
       opacity: 1;
     }
+    /* the top three take the picture, so a Campaign strip steps aside */
+    .mcard:hover .cb-strip,
+    .mcard:focus-visible .cb-strip {
+      opacity: 0;
+    }
     .mcard:hover img,
     .mcard:focus-visible img {
       filter: brightness(0.28) blur(1px);
