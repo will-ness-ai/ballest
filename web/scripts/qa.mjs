@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import { compare } from "./qa/compare.mjs";
 import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
+import { REFS, pieces } from "./qa/piece.mjs";
+import { rankRows } from "./qa/piece-math.mjs";
 import { preview, resolve, up } from "./qa/targets.mjs";
 
 const OUT = fileURLToPath(new URL("../../scratch/qa/", import.meta.url));
@@ -18,6 +20,7 @@ const HELP = {
   (none)    targets and what there is to check
   check     every page at every size on a target, against a reference
   shot      one view's screenshot
+  piece     an editor piece's stand-in against the game mesh's render
 views are page[+state][@width[/text]], e.g. player+compare@320/20 (text in px, 16 by default)
 targets are prod, preview (this branch's), local[:port] or a URL
 run \`pnpm --silent qa <command> --help\` for a command's flags`,
@@ -41,6 +44,15 @@ fault kinds: overflow (page scrolls sideways), offscreen, clipped (text or place
   --eval  print the value of this expression, run in the page
   --prefab  a Prefab file the page's viewer draws in place of the real one (prefab@1280
           --prefab sign.json): the viewer as that target builds it, on any file`,
+  piece: `usage: pnpm --silent qa piece <mesh> | --all [--refs <dir>]
+  draws the viewer's stand-in for a mesh (its asset name, e.g. SM_1000_90turn) from the top,
+  front and side, orthographic, and scores each view's outline against the game mesh's
+  render: 1.00 is the same outline. Renders follow the framing in piece-math.mjs
+  <mesh>  one mesh: its scores and a sheet to read (game | viewer | outlines, red only the
+          game's, cyan only the viewer's)
+  --all   every mesh the viewer knows, worst first, no pictures
+  --refs  the folder of <mesh>-<view>-mask.png and -ortho.png renders
+          (default the ballest-map-making checkout beside this one: references/pieces/)`,
 };
 
 // ---------------------------------------------------------------- args
@@ -62,9 +74,10 @@ if (argv.includes("--help")) {
 const FLAGS = {
   check: ["at", "against", "pages", "sizes", "jobs"],
   shot: ["at", "el", "box", "eval", "prefab"],
+  piece: ["refs"],
   "": [],
 };
-const SWITCHES = { check: ["no-states", "assert"], shot: ["full"], "": [] };
+const SWITCHES = { check: ["no-states", "assert"], shot: ["full"], piece: ["all"], "": [] };
 const flags = {};
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
@@ -111,6 +124,7 @@ const rows = (name, fields, list) =>
 
 if (command === "") await home();
 else if (command === "shot") await shot();
+else if (command === "piece") await piece();
 else await check();
 
 async function home() {
@@ -173,6 +187,66 @@ async function shot() {
     ]);
   } finally {
     await browser.close();
+  }
+}
+
+async function piece() {
+  const mesh = positional[0];
+  if (!mesh === !flags.all) fail("name one mesh, or pass --all", HELP.piece);
+  const dir = flags.refs ? flags.refs.replace(/\/?$/, "/") : REFS;
+  const p = await pieces(dir);
+  try {
+    if (mesh) {
+      if (!p.meshes.includes(mesh))
+        fail(`no stand-in for "${mesh}"`, `meshes[${String(p.meshes.length)}]: ${few(p.meshes)}`);
+      const r = await p.run(mesh, true);
+      mkdirSync(OUT, { recursive: true });
+      const file = `${OUT}piece-${mesh}.png`;
+      writeFileSync(file, r.sheet);
+      const [row] = rankRows([{ mesh, scores: r.scores }]);
+      say([
+        `${mesh}: stand-in ${r.kind}`,
+        r.scores
+          ? `scores: top ${row.top}, front ${row.front}, side ${row.side}`
+          : `scores: none (no renders in ${rel(dir)})`,
+        `image: ${rel(file)}`,
+        ...rows(
+          "errors",
+          ["detail"],
+          p.errors.map((detail) => ({ detail })),
+        ),
+        "next:",
+        `  read ${rel(file)}`,
+        "  change its stand-in (components/prefabs/scene.ts, lib/prefab-meshes.ts) and run this again",
+      ]);
+    } else {
+      const found = [];
+      for (const m of p.meshes) {
+        const r = await p.run(m, false);
+        found.push({ mesh: m, kind: r.kind, scores: r.scores });
+      }
+      const ranked = rankRows(found);
+      const missing = ranked.filter((r) => !r.scores).map((r) => r.mesh);
+      say([
+        ...rows(
+          "pieces",
+          ["mesh", "kind", "worst", "top", "front", "side"],
+          ranked.filter((r) => r.scores),
+        ),
+        ...(missing.length
+          ? [`no renders in ${rel(dir)} for ${String(missing.length)}: ${few(missing)}`]
+          : []),
+        ...rows(
+          "errors",
+          ["detail"],
+          p.errors.map((detail) => ({ detail })),
+        ),
+        "next:",
+        "  pnpm --silent qa piece <mesh>   # the worst one's scores and sheet",
+      ]);
+    }
+  } finally {
+    await p.close();
   }
 }
 
