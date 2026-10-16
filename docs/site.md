@@ -418,7 +418,8 @@ branch `claude/prototype-prefabs` (spec #213).
   beside it the name, uploader, description, size, piece chips, tags and Download. The
   viewer (`PrefabModel`, `PrefabViewer`, `scene.ts`) fetches the file from
   `/api/prefabs/<slug>/file`, the same URL Download saves, and loads three.js from npm only
-  there. It turns slowly until it is grabbed, and not at all under reduced motion. The ?
+  there. It starts from the Prefab's angle and turns slowly until it is grabbed, and not at
+  all under reduced motion; Reset view goes back to the angle. The ?
   opens the how-to, with the Prefabs folder and the exact spawn command; it opens on its
   own once per browser (`localStorage`). A slug nobody uploaded, or a Prefab deleted, taken
   down or hidden, reads as gone.
@@ -431,6 +432,14 @@ branch `claude/prototype-prefabs` (spec #213).
   breaking a tie) or Newest, filtered by one Tag (`galleryOf` in `lib/prefabs.ts`). Each
   card's picture is drawn in the browser from the file by one shared renderer once the card
   scrolls near, so no image is stored.
+- **The angle** (`PrefabAngle` in `lib/prefabs.ts`, the `angle` column): the view its uploader
+  picked, which the card, the upload ping's still and the page's viewer start from; none is
+  three-quarters from above with the whole Prefab in view. It is stored relative to the
+  Prefab's bounds (the camera's direction, its distance over the fitting one, and where it
+  looks in radii), so it frames the same at any picture size. The upload form's preview holds
+  still so the uploader can turn it and press Use this view (or Default view); on the page,
+  the uploader's Use this view for its picture saves the view they've turned to
+  (`PATCH /api/prefabs/<slug>` with only `{ angle }`).
 - **Uploading** (`UploadForm.tsx`, `POST /api/prefabs` in `db/prefab-api.ts`): signed in with
   Steam, 5 a day per player (or the limit the admin gave them) counted from the rows. The file is checked in the browser the
   moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,

@@ -45,7 +45,7 @@
   overflow-wrap: anywhere;
 }
 /* low specificity, so a chip's or Download's own look wins */
-:where(.pf) button {
+:where(.pf, .pf-tools) button {
   font: inherit;
   color: var(--text);
   background: var(--surface2);
@@ -98,10 +98,20 @@
 }
 .pf-tools button {
   pointer-events: auto;
+  white-space: nowrap;
 }
 .pf-hint {
   color: var(--faint);
   font-size: calc(12rem / 16);
+}
+/* the angle buttons, at the right; on a narrow viewer the hint takes a line of its own */
+.pf-tools:has(.pf-tools-end) {
+  flex-wrap: wrap;
+}
+.pf-tools-end {
+  display: flex;
+  gap: 0.5rem;
+  margin-inline-start: auto;
 }
 
 /* the ? and the how-to it opens */

@@ -70,6 +70,48 @@ export function checkFields(
     : { ok: true, fields: { name, description, tags } };
 }
 
+/* the view of a Prefab its uploader picked for its picture: the gallery card, the upload ping's
+   still, and where its viewer starts and Reset view returns. It is relative to the Prefab's
+   own bounds (centre and radius), so it frames the same at any picture size */
+export interface PrefabAngle {
+  /* from where the camera looks to the camera, unit length, in three's axes (y up) */
+  from: Vec3;
+  /* the camera's distance over the one that just fits the whole Prefab */
+  zoom: number;
+  /* where the camera looks, from the Prefab's centre, in radii */
+  pan: Vec3;
+}
+
+type Vec3 = [number, number, number];
+
+/* three-quarters from above, the whole Prefab in view: a Prefab with no angle of its own */
+export const DEFAULT_ANGLE: PrefabAngle = {
+  from: unit([1, 0.7, 1.2]),
+  zoom: 1,
+  pan: [0, 0, 0],
+};
+
+export const ZOOM_RANGE = [0.05, 20] as const;
+const PAN_MAX = 10;
+
+function unit(v: Vec3): Vec3 {
+  const n = Math.hypot(...v);
+  return [v[0] / n, v[1] / n, v[2] / n];
+}
+
+/* an angle as sent, tidied to four places, or null when it can't be one */
+export function checkAngle(raw: unknown): PrefabAngle | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const { from, zoom, pan } = raw as Record<string, unknown>;
+  const vec = (v: unknown): v is Vec3 =>
+    Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === "number" && isFinite(x));
+  if (!vec(from) || !vec(pan) || typeof zoom !== "number") return null;
+  if (Math.hypot(...from) < 1e-6 || !(zoom >= ZOOM_RANGE[0] && zoom <= ZOOM_RANGE[1])) return null;
+  if (pan.some((x) => Math.abs(x) > PAN_MAX)) return null;
+  const r = (x: number) => Math.round(x * 1e4) / 1e4 || 0;
+  return { from: unit(from).map(r) as Vec3, zoom: r(zoom), pan: pan.map(r) as Vec3 };
+}
+
 export type GallerySort = "popular" | "newest";
 
 interface Sortable {

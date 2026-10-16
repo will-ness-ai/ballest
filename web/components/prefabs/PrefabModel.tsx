@@ -1,18 +1,40 @@
 "use client";
-// A Prefab's viewer on its page: the file fetched from its download URL and drawn, the ?
-// that opens the how-to (open on its own on a first visit), and Reset view.
-import { useEffect, useRef, useState } from "react";
+// A Prefab's viewer on its page: the file fetched from its download URL and drawn from its
+// angle, the ? that opens the how-to (open on its own on a first visit), and Reset view, back
+// to the angle. Its uploader can make the view they've turned to its angle.
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { PrefabViewer } from "./PrefabViewer";
+import { useSession } from "../../hooks/me";
 import type { PrefabFile } from "../../lib/prefab";
+import type { PrefabAngle } from "../../lib/prefabs";
+import { prefabApiHref } from "../../lib/routes";
 
 const FOLDER = "%LOCALAPPDATA%\\Ballest\\Saved\\SaveGames\\Prefabs";
 const SEEN = "prefab-howto-seen";
 
-export function PrefabModel({ src, name }: { src: string; name: string }) {
+export function PrefabModel({
+  src,
+  name,
+  slug,
+  uploader,
+  angle,
+}: {
+  src: string;
+  name: string;
+  slug: string;
+  uploader: string;
+  angle: PrefabAngle | null;
+}) {
   const [file, setFile] = useState<PrefabFile | null>(null);
   const [failed, setFailed] = useState(false);
   const view = useRef<HTMLDivElement>(null);
+  const read = useRef<(() => PrefabAngle) | null>(null);
+  const onGrab = useCallback((r: (() => PrefabAngle) | null) => {
+    read.current = r;
+  }, []);
+  const mine = useSession() === uploader;
   useEffect(() => {
     let live = true;
     fetch(src)
@@ -26,7 +48,7 @@ export function PrefabModel({ src, name }: { src: string; name: string }) {
   return (
     <div className="pf-vwrap" ref={view}>
       {file ? (
-        <PrefabViewer file={file} />
+        <PrefabViewer file={file} angle={angle} onGrab={onGrab} />
       ) : (
         <div className="pfv">
           {failed && <p className="pf-fail">Couldn&apos;t load the model.</p>}
@@ -43,8 +65,37 @@ export function PrefabModel({ src, name }: { src: string; name: string }) {
           Reset view
         </button>
         <span className="pf-hint">Drag to turn · scroll to zoom</span>
+        {mine && file && (
+          <span className="pf-tools-end">
+            <SaveAngle slug={slug} read={() => read.current?.() ?? null} />
+          </span>
+        )}
       </div>
     </div>
+  );
+}
+
+/* the uploader's button that makes the view they've turned to the Prefab's angle: its card
+   in the gallery and where this viewer starts */
+function SaveAngle({ slug, read }: { slug: string; read: () => PrefabAngle | null }) {
+  const router = useRouter();
+  const [said, setSaid] = useState<string | null>(null);
+  const save = async () => {
+    const angle = read();
+    if (!angle) return;
+    const r = await fetch(prefabApiHref(slug), {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ angle }),
+    }).catch(() => null);
+    setSaid(r?.ok ? "Saved" : "Didn't save");
+    setTimeout(() => setSaid(null), 1500);
+    if (r?.ok) router.refresh();
+  };
+  return (
+    <button type="button" onClick={() => void save()}>
+      {said ?? "Use this view for its picture"}
+    </button>
   );
 }
 

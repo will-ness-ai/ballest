@@ -3,7 +3,7 @@
 // run it against a throwaway one. Results are plain JSON, because db/data.ts caches the reads.
 import { sql, type SQL } from "drizzle-orm";
 
-import { slugOf } from "../lib/prefabs";
+import { slugOf, type PrefabAngle } from "../lib/prefabs";
 import type { Db } from "./client";
 import { prefabs } from "./schema";
 
@@ -37,6 +37,8 @@ export interface PrefabView {
   bytes: number;
   favorites: number;
   createdAt: string;
+  /* the view its uploader picked for its picture, or null for the default */
+  angle: PrefabAngle | null;
 }
 
 export interface NewPrefab {
@@ -46,6 +48,7 @@ export interface NewPrefab {
   uploader: string;
   uploaderName: string | null;
   file: string;
+  angle?: PrefabAngle | null;
   /* now, unless a test says otherwise */
   createdAt?: Date;
 }
@@ -90,7 +93,7 @@ const VIEW = sql`
     when exists (select 1 from prefab_bans b where b.steam_id = p.uploader) then 'hidden'
     else 'live'
   end as state,
-  p.slug, p.name, p.description, p.tags, p.pieces, p.bytes,
+  p.slug, p.name, p.description, p.tags, p.pieces, p.bytes, p.angle,
   to_char(p.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "createdAt",
   json_build_object(
     'steamId', p.uploader,
