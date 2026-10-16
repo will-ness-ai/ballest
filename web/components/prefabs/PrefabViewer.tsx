@@ -1,8 +1,9 @@
 "use client";
 // A Prefab drawn in three.js, starting from its angle. It turns
 // slowly on its own until someone grabs it (not under reduced motion); drag to turn, wheel
-// or pinch to zoom, right-drag to pan. three loads only where a viewer is. A "prefab:home"
-// event on it goes back to the angle, and `onGrab` is handed a read of the angle it shows now.
+// or pinch to zoom, right-drag to pan. three loads only where a viewer is. A parent that
+// needs to steer it takes useViewer() and passes its `attach`: home() goes back to the angle,
+// and angleNow() reads the view it shows now.
 import { useCallback, useEffect, useRef } from "react";
 
 import { angleNow, buildScene, framing, loadThree } from "./scene";
@@ -15,23 +16,24 @@ export function PrefabViewer({
   spin = true,
   controls: interactive = true,
   angle = null,
-  onGrab,
+  attach,
 }: {
   file: PrefabFile;
   className?: string;
   spin?: boolean;
   controls?: boolean;
   angle?: PrefabAngle | null;
-  onGrab?: (read: (() => PrefabAngle) | null) => void;
+  attach?: (viewer: Viewer | null) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
-  /* read at each "home", so a new angle moves the camera there without rebuilding the
+  /* read at each home(), so a new angle moves the camera there without rebuilding the
      scene; compared by value, so the same view arriving again doesn't */
   const home = useRef(angle);
+  const goHome = useRef<(() => void) | null>(null);
   const view = JSON.stringify(angle);
   useEffect(() => {
     home.current = angle;
-    host.current?.dispatchEvent(new Event("prefab:home"));
+    goHome.current?.();
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps -- by value
 
   useEffect(() => {
@@ -60,14 +62,17 @@ export function PrefabViewer({
       controls.autoRotateSpeed = 1.6;
       /* the spin only says "this is 3D": the first grab stops it for good */
       controls.addEventListener("start", () => (controls.autoRotate = false));
-      const goHome = () => {
+      const toHome = () => {
         const view = framing(THREE, camera, centre, radius, home.current);
         camera.position.copy(view.position);
         controls.target.copy(view.target);
         controls.update();
       };
-      el.addEventListener("prefab:home", goHome);
-      onGrab?.(() => angleNow(camera, controls.target, centre, radius));
+      goHome.current = toHome;
+      attach?.({
+        home: toHome,
+        angleNow: () => angleNow(camera, controls.target, centre, radius),
+      });
       const resize = () => {
         const { width, height } = el.getBoundingClientRect();
         renderer.setSize(width, height, false);
@@ -77,15 +82,15 @@ export function PrefabViewer({
       const ro = new ResizeObserver(resize);
       ro.observe(el);
       resize();
-      goHome();
+      toHome();
       el.dataset.ready = "1";
       renderer.setAnimationLoop(() => {
         controls.update();
         renderer.render(scene, camera);
       });
       stop = () => {
-        onGrab?.(null);
-        el.removeEventListener("prefab:home", goHome);
+        attach?.(null);
+        goHome.current = null;
         ro.disconnect();
         renderer.setAnimationLoop(null);
         controls.dispose();
@@ -97,17 +102,26 @@ export function PrefabViewer({
       run.cancelled = true;
       stop?.();
     };
-  }, [file, spin, interactive, onGrab]);
+  }, [file, spin, interactive, attach]);
 
   return <div ref={host} className={className ?? "pfv"} />;
 }
 
-/* what a parent passes as a viewer's onGrab, and a read of the angle it shows now (null
-   until it has drawn) */
-export function useAngleReader() {
-  const read = useRef<(() => PrefabAngle) | null>(null);
-  const onGrab = useCallback((r: (() => PrefabAngle) | null) => {
-    read.current = r;
+interface Viewer {
+  home: () => void;
+  angleNow: () => PrefabAngle;
+}
+
+/* a handle on a viewer: pass `attach` to it; home() and angleNow() do nothing, or read null,
+   until it has drawn */
+export function useViewer() {
+  const viewer = useRef<Viewer | null>(null);
+  const attach = useCallback((v: Viewer | null) => {
+    viewer.current = v;
   }, []);
-  return { onGrab, angleNow: () => read.current?.() ?? null };
+  return {
+    attach,
+    home: () => viewer.current?.home(),
+    angleNow: () => viewer.current?.angleNow() ?? null,
+  };
 }

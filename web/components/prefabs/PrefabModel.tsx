@@ -5,7 +5,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { PrefabViewer, useAngleReader } from "./PrefabViewer";
+import { PrefabViewer, useViewer } from "./PrefabViewer";
 import { useSession } from "../../hooks/me";
 import type { PrefabFile } from "../../lib/prefab";
 import type { PrefabAngle } from "../../lib/prefabs";
@@ -29,8 +29,7 @@ export function PrefabModel({
 }) {
   const [file, setFile] = useState<PrefabFile | null>(null);
   const [failed, setFailed] = useState(false);
-  const view = useRef<HTMLDivElement>(null);
-  const { onGrab, angleNow } = useAngleReader();
+  const { attach, angleNow, home } = useViewer();
   const mine = useSession() === uploader;
   useEffect(() => {
     let live = true;
@@ -43,9 +42,9 @@ export function PrefabModel({
     };
   }, [src]);
   return (
-    <div className="pf-vwrap" ref={view}>
+    <div className="pf-vwrap">
       {file ? (
-        <PrefabViewer file={file} angle={angle} onGrab={onGrab} />
+        <PrefabViewer file={file} angle={angle} attach={attach} />
       ) : (
         <div className="pfv">
           {failed && <p className="pf-fail">Couldn&apos;t load the model.</p>}
@@ -53,12 +52,7 @@ export function PrefabModel({
       )}
       <HelpDialog name={name} />
       <div className="pf-tools">
-        <button
-          type="button"
-          onClick={() =>
-            view.current?.querySelector(".pfv")?.dispatchEvent(new Event("prefab:home"))
-          }
-        >
+        <button type="button" onClick={home}>
           Reset view
         </button>
         <span className="pf-hint">Drag to turn · scroll to zoom</span>

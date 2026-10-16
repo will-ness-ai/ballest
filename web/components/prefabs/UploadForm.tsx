@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Card } from "./PrefabGallery";
-import { PrefabViewer, useAngleReader } from "./PrefabViewer";
+import { PrefabViewer, useViewer } from "./PrefabViewer";
 import { stillOf } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
@@ -237,10 +237,10 @@ function AnglePicker({
   angle: PrefabAngle | null;
   onPick: (angle: PrefabAngle | null) => void;
 }) {
-  const { onGrab, angleNow } = useAngleReader();
+  const { attach, angleNow } = useViewer();
   return (
     <div className="pf-vwrap pfu-tall">
-      <PrefabViewer file={file} spin={false} angle={angle} onGrab={onGrab} />
+      <PrefabViewer file={file} spin={false} angle={angle} attach={attach} />
       <div className="pf-tools">
         <span className="pf-hint">Turn it to the view you want on the card</span>
         <span className="pf-tools-end">
