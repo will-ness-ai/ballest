@@ -257,6 +257,20 @@ pointer, the strip fades while the card's top three cover the picture. The Map p
 has a Part of box under the title ("Campaign", its name, "Map n of N →") that links to the
 Map inside the Campaign's frame, `/campaign/<slug>/<pfid>`.
 
+**On a player's page** the Workshop tab opens with a Campaigns shelf
+(`components/player/CampaignCards.tsx`), a card for each Campaign the player holds a place
+in, in `getCampaigns`' order (most players first). `getPlayerCampaigns` reads it:
+`playerCampaigns` in `db/site.ts` gives their place and points on each Campaign's board,
+how many of its listed Maps they have a time on out of how many it lists, and how many
+players it ranks, and the pictures come from `getCampaigns`. A card is `CampaignPics` (four
+Maps) with the name over a fade, their place "of N" (gold, silver or bronze for 1st to
+3rd), points, "n/N maps" and a bar of them, and it opens the Campaign's board focused on
+their row (`/campaign/<slug>/<steam_id>`). A player in no Campaign has no shelf. The shelf
+is `Shelf` (`components/player/Shelf.tsx`), the same as World records and Closest to a
+record: ← → buttons, swipe, no scrollbar. Its buttons re-measure with a `ResizeObserver` on
+the strip rather than on window resize only, so a strip whose size changes after it mounts
+still shows them.
+
 ## The header
 
 The wordmark links home. The refresh time under it is a button that opens a dialog on how

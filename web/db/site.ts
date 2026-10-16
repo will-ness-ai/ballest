@@ -36,6 +36,7 @@ import type {
   PlayerDaily,
   PlayerData,
   PlayerFinish,
+  PlayerCampaignRow,
   PlayerProfile,
   RunRace,
   Standings,
@@ -251,6 +252,39 @@ export async function listedCampaigns(
       left join leaders ld on ld.slug = n.slug
       left join players p on p.steam_id = ld.steam_id
       order by n.players desc, n.at`,
+  );
+}
+
+/* Where `steamId` stands in each Campaign of `list` they hold a place in: their place and
+   points on its board, how many of its listed Maps they have a time on out of how many it
+   lists, and how many players it ranks. In listedCampaigns' order (most players first,
+   equal counts in the list's order), so a player's page lists them as every other page
+   does. A Campaign they have no time in, or whose Maps the Workshop no longer lists, is
+   left out. */
+export async function playerCampaigns(
+  db: Db,
+  steamId: string,
+  list: ReadonlyArray<Campaign>,
+): Promise<Array<PlayerCampaignRow>> {
+  if (!list.length) return [];
+  return rows<PlayerCampaignRow>(
+    db,
+    sql`select slug, rank, score, finished, maps, players from (${sql.join(
+      list.map((k, i) => {
+        const maps = sql`(select board from (${listedMapsSql}) l
+          where board = any(${array(campaignMapBoards(k))}))`;
+        return sql`select ${k.slug}::text as slug, ${i}::int as at, r.rank,
+            r.score::float8 as score, r.players,
+            (select count(*)::int from entries e where e.steam_id = r.steam_id
+              and e.closed_refresh is null and e.board in ${maps}) as finished,
+            (select count(*)::int from ${maps} m) as maps
+          from (select steam_id, rank, score, (count(*) over ())::int as players
+            from (${campaignSql(k)}) c) r
+          where r.steam_id = ${steamId}`;
+      }),
+      sql` union all `,
+    )}) x
+    order by players desc, at`,
   );
 }
 

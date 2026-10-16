@@ -69,6 +69,19 @@ export interface ListedCampaignRow {
   leader: { steamId: string; persona: string; avatar: string | null; score: number } | null;
 }
 
+/* Where one player stands in a Campaign they hold a place in (db/site.ts, playerCampaigns) */
+export interface PlayerCampaignRow {
+  slug: string;
+  /* their place and points on its board */
+  rank: number;
+  score: number;
+  /* how many of its listed Maps they hold a time on, out of how many it lists */
+  finished: number;
+  maps: number;
+  /* how many players its board ranks */
+  players: number;
+}
+
 export interface WorkshopMap {
   pfid: string;
   /* the Map's board, Workshop_<pfid> */

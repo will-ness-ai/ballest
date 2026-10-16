@@ -1,13 +1,17 @@
 "use client";
-// A player's Workshop tab: the trophy shelf (which doubles as the Medal filter), one line
-// of totals, two shelves, then every Map they finished, with its search, sort and "show
-// more". Drawn on the server from the record's finishes, then run here.
+// A player's Workshop tab: their Campaigns (CampaignCards), the trophy shelf (which doubles
+// as the Medal filter), one line of totals, two shelves, then every Map they finished, with
+// its search, sort and "show more". Drawn on the server from the record's finishes, then
+// run here.
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
+import { CampaignCards } from "./CampaignCards";
+import { Shelf, glide } from "./Shelf";
 import { PW_CHUNK, usePlayerView, type PwSort } from "./usePlayerView";
 import { MapImage } from "../MapImage";
 import { Medal } from "../Medal";
+import type { PlayerCampaign } from "../../db/data";
 import { useDebounced } from "../../hooks/client";
 import { countsUnder, type PlayerRecord, type WorkshopFinish } from "../../lib/player";
 import { boardHref } from "../../lib/routes";
@@ -24,9 +28,6 @@ import {
 } from "../../lib/rules";
 
 const PW_SHELF = 14;
-/* a scripted scroll glides only for those who haven't asked for less motion */
-const glide = (): ScrollBehavior =>
-  matchMedia("(prefers-reduced-motion: no-preference)").matches ? "smooth" : "auto";
 
 type Cmp = (a: WorkshopFinish, b: WorkshopFinish) => number;
 const SORTS: Record<PwSort, [string, Cmp]> = {
@@ -47,65 +48,6 @@ const SORTS: Record<PwSort, [string, Cmp]> = {
 
 const fieldPos = (f: WorkshopFinish) =>
   f.field > 1 ? Math.min(100, ((f.rank - 1) / (f.field - 1)) * 100) : 0;
-
-/* an arrow greys out at its end; a shelf that fits on screen has none */
-function Shelf({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
-  const strip = useRef<HTMLDivElement>(null);
-  const [at, setAt] = useState({ hidden: false, start: true, end: false });
-  useEffect(() => {
-    const el = strip.current;
-    if (!el) return;
-    const check = () => {
-      const end = el.scrollWidth - el.clientWidth;
-      setAt({ hidden: end <= 1, start: el.scrollLeft <= 1, end: el.scrollLeft >= end - 1 });
-    };
-    check();
-    el.addEventListener("scroll", check, { passive: true });
-    addEventListener("resize", check);
-    return () => {
-      el.removeEventListener("scroll", check);
-      removeEventListener("resize", check);
-    };
-  }, []);
-  const scroll = (dir: number) => {
-    const el = strip.current;
-    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: glide() });
-  };
-  return (
-    <section className="shelf">
-      <div className="shelf-h">
-        <h2>{title}</h2>{" "}
-        <span className="snav" hidden={at.hidden}>
-          <button
-            type="button"
-            data-shelf="-1"
-            aria-label="Scroll left"
-            disabled={at.start}
-            onClick={() => {
-              scroll(-1);
-            }}
-          >
-            &larr;
-          </button>{" "}
-          <button
-            type="button"
-            data-shelf="1"
-            aria-label="Scroll right"
-            disabled={at.end}
-            onClick={() => {
-              scroll(1);
-            }}
-          >
-            &rarr;
-          </button>
-        </span>
-      </div>{" "}
-      <div className="strip" ref={strip}>
-        {children}
-      </div>
-    </section>
-  );
-}
 
 function ShelfCard({
   f,
@@ -155,7 +97,16 @@ function Row({ f, id }: { f: WorkshopFinish; id: string }) {
   );
 }
 
-export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"] }) {
+export function WorkshopTab({
+  id,
+  w,
+  camps,
+}: {
+  id: string;
+  w: PlayerRecord["workshop"];
+  /* the Campaigns they hold a place in, for the shelf that opens the tab */
+  camps: ReadonlyArray<PlayerCampaign>;
+}) {
   const [pw, setPw] = usePlayerView(id);
   /* the search box's text, which reaches the view (and starts the list over) once it settles */
   const [text, setText] = useState(pw.q);
@@ -187,6 +138,7 @@ export function WorkshopTab({ id, w }: { id: string; w: PlayerRecord["workshop"]
   };
   return (
     <div className="pws">
+      <CampaignCards camps={camps} id={id} />{" "}
       <div className="trophies" id="pwtro">
         {MEDAL_KEYS.map(([k, label]) => (
           <button

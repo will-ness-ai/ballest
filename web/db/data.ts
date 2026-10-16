@@ -35,6 +35,7 @@ import type {
   DailyDay,
   DailyStandings,
   ListedCampaignRow,
+  PlayerCampaignRow,
   PlayerDailies,
   WorkshopMap,
 } from "../lib/rows";
@@ -337,6 +338,33 @@ export async function getCampaigns(): Promise<Array<ListedCampaign>> {
   return listed.flatMap(({ slug, ...rest }) => {
     const c = campaignOf(slug);
     return c ? [{ c, ...rest }] : [];
+  });
+}
+
+export interface PlayerCampaign extends Omit<PlayerCampaignRow, "slug"> {
+  c: Campaign;
+  /* its listed Maps' pictures, in its order */
+  previews: Array<string | null>;
+}
+
+/* where a player stands in each Campaign they hold a place in, most players first as
+   getCampaigns lists them, with the Campaign's pictures: their page's Campaigns shelf. Only
+   a Steam ID the database has seen is read. */
+export async function getPlayerCampaigns(steamId: string): Promise<Array<PlayerCampaign>> {
+  return (await isPlayer(steamId)) ? playerCampaignsOf(steamId) : [];
+}
+
+async function playerCampaignsOf(steamId: string): Promise<Array<PlayerCampaign>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const [listed, mine] = await Promise.all([
+    getCampaigns(),
+    q.playerCampaigns(db(), steamId, CAMPAIGNS),
+  ]);
+  return mine.flatMap(({ slug, ...rest }) => {
+    const k = listed.find((x) => x.c.slug === slug);
+    return k ? [{ c: k.c, previews: k.previews, ...rest }] : [];
   });
 }
 

@@ -10,7 +10,7 @@ import { GET as OG } from "../app/og/[kind]/[id]/route";
 import type { Db } from "../db/client";
 import { entries, refreshes } from "../db/schema";
 import { seed } from "../db/seed/harness";
-import { boardPage, listedCampaigns, mapPodiums } from "../db/site";
+import { boardPage, listedCampaigns, mapPodiums, playerCampaigns } from "../db/site";
 import type { Campaign } from "../lib/campaigns";
 import { tally } from "../lib/podiums";
 import { freshDb } from "./pg";
@@ -174,6 +174,32 @@ describe("the Campaigns to list", () => {
   test("equal counts keep the curated order", async () => {
     const list = [one("b", ["9000000002"]), one("a", ["9000000002"])];
     expect((await listedCampaigns(t.db, list)).map((c) => c.slug)).toEqual(["b", "a"]);
+  });
+});
+
+describe("a player's Campaigns", () => {
+  const list = [{ ...TEST, slug: "small", maps: ["9000000002"] }, TEST];
+
+  test("each Campaign they hold a place in, with their place, points and Maps finished", async () => {
+    // Tenpin (p10) wins both: 60000 over Maps A and B in the test Campaign, 40000 on Map B
+    // alone. The test Campaign has 5 players and lists 2 Maps (Map C has left the Workshop);
+    // "small" has Map B's 3. Most players first, as the Campaigns are listed.
+    expect(await playerCampaigns(t.db, p(10), list)).toEqual([
+      { slug: "test-run", rank: 1, score: 60000, finished: 2, maps: 2, players: 5 },
+      { slug: "small", rank: 1, score: 40000, finished: 1, maps: 1, players: 3 },
+    ]);
+  });
+
+  test("leaves out a Campaign they have no time in", async () => {
+    // p9 is on Map A alone, which "small" doesn't have
+    expect(await playerCampaigns(t.db, p(9), list)).toEqual([
+      { slug: "test-run", rank: 2, score: 40000, finished: 1, maps: 2, players: 5 },
+    ]);
+  });
+
+  test("a time on a Map gone from the Workshop places no one", async () => {
+    // p3's only Campaign time is on Map C
+    expect(await playerCampaigns(t.db, p(3), list)).toEqual([]);
   });
 });
 
