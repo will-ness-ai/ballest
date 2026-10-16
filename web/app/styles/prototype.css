@@ -135,6 +135,7 @@
 }
 .ptb-card {
   display: grid;
+  align-content: start;
   gap: 6px;
   padding: 12px;
   border: 1px solid var(--line);
@@ -429,6 +430,8 @@
 }
 .ptC-bar {
   position: absolute;
+  grid-row: 1;
+  grid-column: 1 / -1;
   inset: 3px auto 3px 0;
   z-index: -1;
   width: var(--w);
