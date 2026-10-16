@@ -95,3 +95,6 @@ export const MASK = ["#freshness b"];
 // Steam's images and avatars are answered with one fixed picture, so every run draws the same.
 export const DROP = /vercel\.live|plausible|railway\.app/;
 export const STAND_IN = /steamusercontent|steamstatic|example\.invalid/;
+// A Prefab's file, as its page's viewer fetches it (prefabApiHref in lib/routes.ts): `qa shot
+// --prefab` answers it with a local file.
+export const PREFAB_FILE = "**/api/prefabs/*/file";

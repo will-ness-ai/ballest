@@ -7,7 +7,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
-import { DROP, MASK, STAND_IN } from "./catalogue.mjs";
+import { DROP, MASK, PREFAB_FILE, STAND_IN } from "./catalogue.mjs";
 import { measure, probe } from "./probes.mjs";
 
 const circuit = fileURLToPath(new URL("../../../circuit/", import.meta.url));
@@ -70,7 +70,7 @@ export async function render(
     await page.clock.setFixedTime(now);
     await page.route(DROP, (r) => r.abort());
     if (prefab)
-      await page.route("**/api/prefabs/*/file", (r) =>
+      await page.route(PREFAB_FILE, (r) =>
         r.fulfill({ status: 200, contentType: "application/json", body: prefab }),
       );
     await page.route(STAND_IN, (r) =>
@@ -149,7 +149,6 @@ export async function render(
       });
       shot = await (element ? page.locator(element).first() : page).screenshot();
     }
-    // a page that answers 200 but says it's gone (a Prefab's page streams, so it can't 404)
     const title = await page.title();
     return { status, title, shot, probes, errors, measured, evaluated };
   } finally {

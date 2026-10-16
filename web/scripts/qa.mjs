@@ -135,7 +135,7 @@ async function shot() {
   const view = positional[0] ? parseView(positional[0]) : null;
   if (!view) fail("name a view, like player@390", HELP.shot);
   const t = target(flags.at ?? "preview");
-  const { path } = pageOf(view.page, t.ids);
+  const { path, status } = pageOf(view.page, t.ids);
   if (!path) fail(`no page "${view.page}"`, pageNames);
   const state = view.state ? stateOf(view.state) : undefined;
   if (view.state && !state)
@@ -149,11 +149,15 @@ async function shot() {
       element: flags.el,
       boxes: flags.box,
       script: flags.eval,
-      prefab: flags.prefab && readFileSync(flags.prefab, "utf8"),
+      prefab: flags.prefab && readPrefab(flags.prefab),
     });
     if (r.skipped) fail(`${viewName(view)}: ${r.skipped} at this width`);
-    if (r.status !== pageOf(view.page).status) fail(`${t.url + path} answered ${String(r.status)}`);
-    if (gone(r, pageOf(view.page).status)) fail(`${t.url + path} says "${r.title}"`);
+    if (r.status !== status) fail(`${t.url + path} answered ${String(r.status)}`);
+    if (gone(r, status))
+      fail(
+        `${t.url + path} says "${r.title}"`,
+        "point its ID in scripts/qa/catalogue.mjs at one that exists",
+      );
     mkdirSync(OUT, { recursive: true });
     const file = OUT + "shot-" + viewName(view).replaceAll("/", "-") + ".png";
     writeFileSync(file, r.shot);
@@ -172,9 +176,18 @@ async function shot() {
   }
 }
 
+/* a Prefab file's text for --prefab, or the error that names the path */
+function readPrefab(file) {
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    return fail(`can't read ${file}`, "give --prefab the path of a Prefab's .json file");
+  }
+}
+
 /* a page meant to be there that answers 200 with a not-found title: a stale catalogue ID */
 function gone(r, expect) {
-  return expect < 400 && /not found/i.test(r.title ?? "");
+  return expect < 400 && /not (be )?found|is gone/i.test(r.title ?? "");
 }
 
 /* the layout probes' findings as rows */
