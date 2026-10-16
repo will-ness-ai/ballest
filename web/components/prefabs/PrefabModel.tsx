@@ -4,8 +4,9 @@
 // to the angle (its uploader picks the angle in Edit).
 import { useEffect, useRef, useState } from "react";
 
+import { fetchPrefabFile } from "./file";
 import { PrefabViewer, useViewer } from "./PrefabViewer";
-import { fetchPrefabFile, type PrefabFile } from "../../lib/prefab";
+import type { PrefabFile } from "../../lib/prefab";
 import type { PrefabAngle } from "../../lib/prefabs";
 
 const FOLDER = "%LOCALAPPDATA%\\Ballest\\Saved\\SaveGames\\Prefabs";

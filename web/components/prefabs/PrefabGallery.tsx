@@ -6,10 +6,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { fetchPrefabFile } from "./file";
 import { Heart } from "./Heart";
 import { stillOf } from "./scene";
 import type { PrefabCard } from "../../db/prefabs";
-import { fetchPrefabFile, type PrefabFile } from "../../lib/prefab";
+import type { PrefabFile } from "../../lib/prefab";
 import { TAGS, galleryOf, type GallerySort, type PrefabAngle } from "../../lib/prefabs";
 import { newPrefabHref, prefabFileHref, prefabHref } from "../../lib/routes";
 

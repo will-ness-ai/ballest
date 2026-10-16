@@ -7,10 +7,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { AnglePicker } from "./AnglePicker";
+import { fetchPrefabFile } from "./file";
 import { Fields } from "./UploadForm";
 import type { PrefabPage } from "../../db/data";
 import { useSession } from "../../hooks/me";
-import { fetchPrefabFile, type PrefabFile } from "../../lib/prefab";
+import type { PrefabFile } from "../../lib/prefab";
 import {
   ADMIN_STEAM_ID,
   HOURLY_UPLOADS,
@@ -159,9 +160,10 @@ function OwnerTools({ p }: { p: PrefabPage }) {
     tags: p.tags,
   });
   const [angle, setAngle] = useState<PrefabAngle | null>(p.angle);
-  /* the file, fetched the first time Edit opens, for the angle's preview; the picker is
-     drawn only while the dialog is open, so a closed one holds no WebGL context */
-  const [file, setFile] = useState<PrefabFile | "loading" | "failed" | null>(null);
+  /* the file, for the angle's preview, fetched when Edit opens until one read succeeds; the
+     picker is drawn only while the dialog is open, so a closed one holds no WebGL context */
+  const [file, setFile] = useState<PrefabFile | null>(null);
+  const [fileRead, setFileRead] = useState<"loading" | "failed" | null>(null);
   const [editing, setEditing] = useState(false);
   const [problems, setProblems] = useState<Array<string>>([]);
   const [busy, setBusy] = useState(false);
@@ -172,11 +174,14 @@ function OwnerTools({ p }: { p: PrefabPage }) {
     setProblems([]);
     setEditing(true);
     edit.current?.showModal();
-    if (file === null || file === "failed") {
-      setFile("loading");
+    if (!file && fileRead !== "loading") {
+      setFileRead("loading");
       void fetchPrefabFile(prefabFileHref(p.slug))
-        .then(setFile)
-        .catch(() => setFile("failed"));
+        .then((f) => {
+          setFile(f);
+          setFileRead(null);
+        })
+        .catch(() => setFileRead("failed"));
     }
   };
 
@@ -217,12 +222,16 @@ function OwnerTools({ p }: { p: PrefabPage }) {
       <dialog ref={edit} className="pf-dialog" onClose={() => setEditing(false)}>
         <h2>Edit {p.name}</h2>
         <Fields value={fields} onChange={setFields} />
-        {editing && typeof file === "object" && file && (
+        {editing && file && (
           <AnglePicker file={file} angle={angle} onPick={setAngle} className="pfa-dlg" />
         )}
-        {editing && file === "loading" && <p className="pfa-note">Loading the preview…</p>}
-        {editing && file === "failed" && (
-          <p className="pfa-note">The preview didn&apos;t load, so the angle stays as it is.</p>
+        {editing && fileRead === "loading" && (
+          <p className="pfa-note pfa-dlg">Loading the preview…</p>
+        )}
+        {editing && fileRead === "failed" && (
+          <p className="pfa-note pfa-dlg">
+            The preview didn&apos;t load, so the angle stays as it is.
+          </p>
         )}
         {problems.length > 0 && (
           <ul className="pfu-bad" role="alert">

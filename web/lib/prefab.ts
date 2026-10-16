@@ -15,12 +15,6 @@ export interface PrefabFile {
 
 type Vec3 = [number, number, number];
 
-/** A Prefab's file from the site (lib/routes.ts prefabFileHref); rejects on a failed load. */
-export const fetchPrefabFile = (href: string): Promise<PrefabFile> =>
-  fetch(href).then((r) =>
-    r.ok ? (r.json() as Promise<PrefabFile>) : Promise.reject(new Error(String(r.status))),
-  );
-
 export interface PrefabItem {
   class: string;
   transform: { location: Vec3; rotation: Vec3; scale: Vec3 };

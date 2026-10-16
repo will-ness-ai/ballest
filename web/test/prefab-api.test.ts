@@ -428,7 +428,7 @@ describe("the angle its picture is drawn from", () => {
     );
   });
 
-  test("Edit saves the angle with the words, and can reset it while changing them", async () => {
+  test("Edit saves the angle with the name, description and tags, and can reset it with them", async () => {
     const owner = await sessionOf(OWNER);
     const turned = { from: [0, 0, 1], zoom: 3, pan: [0, 0, 0] };
     const words = { name: "Angled", description: "Turned", tags: [] };
