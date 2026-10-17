@@ -508,7 +508,8 @@ only visible ones.
   Prefab page's viewer draw any file. To work on a stand-in shape, run `qa piece <mesh>`
   instead: it scores the stand-in's top, front and side outlines against the game mesh's
   renders in `ballest-map-making/references/pieces/` (1.00 is the same outline) and writes a
-  game | viewer | outlines sheet; `qa piece --all` lists every mesh, worst first. A page
+  game | viewer | outlines sheet; `qa piece --all` lists every mesh, worst first, and
+  `--montage` adds their game and viewer rows 16 to a picture (`--match` narrows the list). A page
   that answers 200 with a "not found" title is a `gone` fault: its catalogue ID is stale. Both sides read the same database, so a change in
   numbers alone is data, and the two deployments' caches can differ by a Refresh.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel

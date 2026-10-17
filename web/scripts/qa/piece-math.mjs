@@ -75,3 +75,20 @@ export function rankRows(pieces) {
       ...Object.fromEntries(VIEWS.map((v) => [v.name, p.scores ? fmt(p.scores[v.name]) : ""])),
     }));
 }
+
+/* the pieces whose mesh or stand-in kind matches `pattern` (a regex, any case); all without one */
+export function matching(rows, pattern) {
+  if (!pattern) return rows;
+  const re = new RegExp(pattern, "i");
+  return rows.filter((r) => re.test(r.mesh) || re.test(r.kind));
+}
+
+/* a montage's pictures: PER pieces each, ACROSS to a row, so one picture stays readable at a
+   glance */
+export const ACROSS = 4;
+export const PER = 16;
+export function pagesOf(items) {
+  const out = [];
+  for (let i = 0; i < items.length; i += PER) out.push(items.slice(i, i + PER));
+  return out;
+}

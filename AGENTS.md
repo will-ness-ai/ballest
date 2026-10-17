@@ -110,7 +110,7 @@ backfill it so the run starts from real boards rather than looking up every Map'
 `DEV_DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev python tools/steampy_collect.py --dev`.
 
 Every file is formatted by Prettier or Ruff and linted by ESLint or Ruff; run `pnpm check`
-at the root before pushing, and read `docs/linting.md` for setup, a disabled rule, or a
+at the root before pushing (the pre-push hook runs it too), and read `docs/linting.md` for setup, a disabled rule, or a
 branch from before the reformat. The collector has no type checks, and its only tests are the database writer's: `python -m pytest tools/tests` (deps in
 `tools/requirements-test.txt`), against the Postgres at `TEST_DATABASE_URL` (default
 `postgres://postgres:postgres@localhost:5432/postgres`), after `pnpm install` in `web/`,
