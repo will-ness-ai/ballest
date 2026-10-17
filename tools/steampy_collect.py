@@ -272,7 +272,7 @@ async def on_ready():
             + list(workshop["boards"].values() if workshop else [])
             + [r.rows for r in dailies if r.ok],
             all_ids,
-            memory.names,
+            memory,
         )
         if failed:
             print(f"NOTE: {len(failed)} board(s) not read, left as they were: {failed}")
