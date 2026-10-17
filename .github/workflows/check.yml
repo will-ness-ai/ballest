@@ -1,7 +1,7 @@
 name: Check the collector and lint
 
-# The collector's database writer against a throwaway Postgres, and formatting and lint for
-# every file. No Steam credentials either way.
+# The collector's database writer against a throwaway Postgres, formatting and lint for every
+# file, and each PR commit's identity. No Steam credentials anywhere.
 
 on:
   pull_request:
@@ -100,11 +100,15 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-  # Every commit a PR adds carries the repo-local identity (CODING_STANDARDS.md, Git), or the
-  # noreply address GitHub gives Will's own merges from its web page.
+  # Every commit a PR adds, as author and committer, is the repo-local identity
+  # (CODING_STANDARDS.md, Git), or a merge GitHub made for Will from its web page. Commits main
+  # already has are left out, since branches here merge main in.
   authors:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    env:
+      IDENTITY: n3s.online@gmail.com
+      WEB_MERGE: 113004972+will-ness-ai@users.noreply.github.com noreply@github.com
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -113,13 +117,13 @@ jobs:
 
       - name: Check commit authors
         env:
-          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          wrong=$(git log --format='%h %an <%ae>' "$RANGE" |
-            grep -v -e ' will-ness-ai <n3s.online@gmail.com>$' \
-              -e '<113004972+will-ness-ai@users.noreply.github.com>$' || true)
-          if [ -n "$wrong" ]; then
-            echo "$wrong"
-            echo "::error::these commits aren't authored as will-ness-ai <n3s.online@gmail.com>; rewrite them on your branch with git commit --amend --reset-author"
+          commits=$(git log --format='%h %ae %ce' "$HEAD_SHA" --not origin/main)
+          offenders=$(echo "$commits" | awk -v id="$IDENTITY" -v web="$WEB_MERGE" \
+            'NF && $2 " " $3 != id " " id && $2 " " $3 != web')
+          if [ -n "$offenders" ]; then
+            echo "$offenders"
+            echo "::error::these commits aren't authored and committed as will-ness-ai <$IDENTITY>; rewrite them on your branch with git commit --amend --reset-author"
             exit 1
           fi
