@@ -33,6 +33,10 @@ porcelain commands fail. Use `gh api` with the REST equivalent:
   API, `.../pulls/<n>/ccr/review_threads`, `.../pulls/<n>/ccr/ready_for_review` and
   `.../pulls/<n>/ccr/auto_merge`, as the GraphQL error message lists.
 
+`gh auth status` checks the token over GraphQL too, so in a cloud session it always reports
+"The token in GH_TOKEN is invalid" while REST calls work. `gh api user --jq .login` printing
+`will-ness-ai` is the check that counts.
+
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 The remote is `will-ness-ai/ballest`. Issues and pull requests share one number space here,
 and most history so far is PRs (`#42`, `#43`, `#44`), so a bare `#n` in a commit message is
