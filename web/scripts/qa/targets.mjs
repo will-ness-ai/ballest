@@ -1,7 +1,10 @@
 // Where `pnpm qa` points: a name (prod, preview, local, local:<port>) or any URL, each with
-// the ID set its data has (catalogue.mjs). A preview's address and whether it has finished
+// the ID set its data has (catalogue.mjs) and, for a local build, the secret its sessions
+// are signed with (session.mjs). A preview's address and whether it has finished
 // building come from GitHub's deployment records, so an agent never digs them out itself.
 import { execFileSync } from "node:child_process";
+
+import { localSecret } from "./session.mjs";
 
 // production's own Vercel address, which serves the same deployment as the site's domain
 // (ballestrecords.com, which ballest.willness.dev redirects to); a cloud session's network
@@ -59,7 +62,10 @@ export function resolve(spec) {
   const url = local ? `http://localhost:${local[1] ?? "3000"}` : spec.replace(/\/$/, "");
   if (!/^https?:\/\//.test(url)) return null;
   const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(url);
-  return { name: local ? spec : url, url, ids: isLocal ? "stress" : "real" };
+  // a local build's secret is the one qa can sign its pages' signed-in rows with
+  return isLocal
+    ? { name: local ? spec : url, url, ids: "stress", secret: localSecret() }
+    : { name: url, url, ids: "real" };
 }
 
 /* is anything answering on a local port */
