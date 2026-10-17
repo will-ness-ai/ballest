@@ -33,7 +33,17 @@ def _admin(sql):
 @pytest.fixture(scope="session")
 def template():
     name = f"tools_tpl_{os.getpid()}"
-    _admin(f"drop database if exists {name}")
+    try:
+        _admin(f"drop database if exists {name}")
+    except psycopg.OperationalError as e:
+        # one line instead of every test erroring as if the writer were broken
+        host = urlsplit(BASE).netloc.rsplit("@", 1)[-1]
+        pytest.exit(
+            f"Can't connect to Postgres at TEST_DATABASE_URL ({host}); is it running? A cloud "
+            "container stops it on restart: `service postgresql start` (docs/linting.md, setup). "
+            f"{e}",
+            returncode=1,
+        )
     _admin(f"create database {name}")
     subprocess.run(
         ["node", "scripts/migrate.mjs"],
