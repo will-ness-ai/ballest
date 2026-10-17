@@ -7,7 +7,7 @@
 import { notFound } from "next/navigation";
 
 import { CampaignRailItems } from "./CampaignRail";
-import { CampaignChip, CampaignTabs } from "./CampaignSwitch";
+import { CampaignChip } from "./CampaignSwitch";
 import { Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { PlayerLink } from "../PlayerLink";
@@ -80,11 +80,11 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
   return (
     <div className="main">
       <DocTitle title={`${c.title} ${title}`} />
-      <CampaignTabs list={list} on={c} />
       <aside className="rail">
-        <h2 id="railhead">{c.title}</h2>
+        <h2 id="railhead">Campaign</h2>
+        <CampaignChip list={list} on={c} board={`rail-${name}`} />
         <p className="railby">
-          A Campaign by <PlayerLink id={c.creatorId} text={c.creator} tab="made" />
+          by <PlayerLink id={c.creatorId} text={c.creator} tab="made" />
         </p>
         <nav className="boards" id="boards" aria-label="Leaderboard">
           {items}

@@ -15,6 +15,13 @@ import {
   type Campaign,
 } from "../lib/campaigns";
 
+/* a Campaign the list holds, by its slug */
+function curated(slug: string): Campaign {
+  const c = campaignOf(slug);
+  if (c === null) throw new Error(`no Campaign "${slug}"`);
+  return c;
+}
+
 const make = (slug: string, maps: Array<string>): Campaign => ({
   slug,
   title: slug,
@@ -28,8 +35,8 @@ describe("the curated list", () => {
     expect(campaignProblems(CAMPAIGNS)).toEqual([]);
   });
 
-  test("launches with the five Campaigns", () => {
-    expect(CAMPAIGNS.map((c) => c.slug)).toEqual([
+  test("starts with the five it launched with", () => {
+    expect(CAMPAIGNS.slice(0, 5).map((c) => c.slug)).toEqual([
       "solar-trials",
       "velocity-trials",
       "tilted-campaign",
@@ -116,7 +123,14 @@ describe("the lookups", () => {
     expect(mapLabel(velocity, "3803937353", "Velocity Trials 5")).toBe("05");
     expect(mapName(ajc, "3788055152", "AJC5")).toBeNull();
     expect(mapName(solar, "3805399883", "Solar Trials Mercury")).toBe("Mercury");
-    // a number that isn't the Map's place is part of its name
-    expect(mapLabel(velocity, "3803908791", "Velocity Trials 7")).toBe("01 7");
+    // a number that isn't the Map's place keeps the whole title, not "01 7"
+    expect(mapLabel(velocity, "3803908791", "Velocity Trials 7")).toBe("01 Velocity Trials 7");
+    const aj = curated("aj");
+    const ninja = curated("ninja");
+    expect(mapLabel(ninja, "3605138459", "Ninja0")).toBe("01 Ninja0");
+    expect(mapLabel(aj, "3591825761", "AJ26")).toBe("03 AJ26");
+    expect(mapLabel(aj, "3619755748", "AJ07 Redux")).toBe("01 AJ07 Redux");
+    // its place, then more of a name
+    expect(mapName(make("a", ["5"]), "5", "a 1 Remix")).toBe("1 Remix");
   });
 });

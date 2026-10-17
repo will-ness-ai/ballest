@@ -1,7 +1,7 @@
-// The switch between Campaigns, the Circuit's season switch over again: on a desktop, a row
-// of sub-tabs under the main tabs; on a phone, a chip beside the board button whose menu
-// gives each Campaign's Maps and players. Each Campaign opens its Overall board. The list
-// is getCampaigns', most players first.
+// The switch between Campaigns: a chip whose menu gives each Campaign's Maps and players, at
+// the head of the rail on a desktop and beside the board button on a phone. Unlike the
+// Circuit's seasons it is never a row of tabs, since the list keeps growing. Each Campaign
+// opens its Overall board. The list is getCampaigns', most players first.
 import Link from "next/link";
 
 import { SeasonMenu } from "../board/SeasonMenu";
@@ -20,18 +20,6 @@ const link = (c: Campaign, on: Campaign) => ({
   href: campaignHref(c.slug),
   "aria-current": c.slug === on.slug,
 });
-
-export function CampaignTabs({ list, on }: Props) {
-  return (
-    <nav className="seasontabs" aria-label="Campaign">
-      {list.map(({ c }) => (
-        <Link {...link(c, on)} key={c.slug}>
-          {c.title}
-        </Link>
-      ))}
-    </nav>
-  );
-}
 
 /* `board` names the menu, since a board page left behind can stay in the document */
 export function CampaignChip({ list, on, board }: Props & { board: string }) {

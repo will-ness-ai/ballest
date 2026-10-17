@@ -147,6 +147,15 @@
   .seasonchip {
     display: none;
   }
+  /* a Campaign's switch heads its rail, in place of a row of tabs */
+  .rail .seasonchip {
+    display: flex;
+    justify-content: space-between;
+    inline-size: 100%;
+    min-block-size: 40px;
+    margin-block-end: 12px;
+    font-size: calc(14rem / 16);
+  }
   .boardrow {
     display: contents;
   }

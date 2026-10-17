@@ -19,12 +19,15 @@ export interface Campaign {
   maps: ReadonlyArray<string>;
 }
 
+/* makers of more than one Campaign, each written once */
+const HABIBAL = { creator: "habibal223366977", creatorId: "76561199154600151" };
+const ACTION_JACKSON = { creator: "Action Jackson", creatorId: "76561198008697957" };
+
 export const CAMPAIGNS: ReadonlyArray<Campaign> = [
   {
     slug: "solar-trials",
     title: "Solar Trials",
-    creator: "habibal223366977",
-    creatorId: "76561199154600151",
+    ...HABIBAL,
     maps: [
       "3805399883",
       "3805394429",
@@ -40,8 +43,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
   {
     slug: "velocity-trials",
     title: "Velocity Trials",
-    creator: "habibal223366977",
-    creatorId: "76561199154600151",
+    ...HABIBAL,
     maps: ["3803908791", "3803910868", "3803919944", "3803929459", "3803937353"],
   },
   {
@@ -72,9 +74,136 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
   {
     slug: "ajc",
     title: "AJC",
-    creator: "Action Jackson",
-    creatorId: "76561198008697957",
+    ...ACTION_JACKSON,
     maps: ["3646349274", "3737890903", "3744752972", "3762695115", "3788055152"],
+  },
+  {
+    slug: "aj",
+    title: "AJ",
+    ...ACTION_JACKSON,
+    maps: [
+      "3619755748",
+      "3595665408",
+      "3591825761",
+      "3592062662",
+      "3591823909",
+      "3591813905",
+      "3604397166",
+      "3620234858",
+      "3624133638",
+      "3642850471",
+    ],
+  },
+  {
+    slug: "hydro",
+    title: "Hydro",
+    ...ACTION_JACKSON,
+    maps: ["3594957354", "3595338265", "3598520302", "3628579558", "3802390659"],
+  },
+  {
+    slug: "ancient",
+    title: "Ancient",
+    ...ACTION_JACKSON,
+    maps: ["3602760496", "3603850726", "3609081915", "3637508568"],
+  },
+  {
+    slug: "madhouse",
+    title: "Madhouse",
+    ...ACTION_JACKSON,
+    maps: ["3619178150", "3626117259", "3631235757", "3746019892"],
+  },
+  {
+    slug: "neon",
+    title: "Neon",
+    ...ACTION_JACKSON,
+    maps: ["3613242012", "3620833811", "3626852353", "3748587455"],
+  },
+  {
+    slug: "ninja",
+    title: "Ninja",
+    ...ACTION_JACKSON,
+    maps: ["3605138459", "3607096927", "3612357898"],
+  },
+  {
+    slug: "minitower",
+    title: "MiniTower",
+    ...ACTION_JACKSON,
+    maps: ["3622417599", "3623062895", "3623920896"],
+  },
+  {
+    slug: "speedway",
+    title: "Speedway",
+    ...ACTION_JACKSON,
+    maps: ["3627401234", "3627753428", "3629139384"],
+  },
+  {
+    slug: "8p",
+    title: "8p",
+    ...ACTION_JACKSON,
+    maps: ["3640116850", "3640654366", "3640866380", "3642152991", "3642195386"],
+  },
+  {
+    slug: "escape",
+    title: "Escape",
+    creator: "Slati Jnr",
+    creatorId: "76561198047392190",
+    maps: ["3603923125", "3605632707", "3614673281"],
+  },
+  {
+    slug: "numbers",
+    title: "Numbers",
+    creator: "Acehole Viscunty",
+    creatorId: "76561199344200746",
+    maps: [
+      "3802885119",
+      "3802896653",
+      "3802928235",
+      "3802938803",
+      "3802951860",
+      "3803134364",
+      "3803232786",
+      "3803242804",
+      "3803265605",
+      "3803278949",
+    ],
+  },
+  {
+    slug: "3-piece",
+    title: "3 Piece",
+    creator: "NeM™",
+    creatorId: "76561198004413594",
+    maps: [
+      "3803993639",
+      "3803996533",
+      "3803998516",
+      "3804003840",
+      "3804005195",
+      "3804008300",
+      "3804009819",
+      "3804013160",
+      "3804016296",
+      "3804018504",
+    ],
+  },
+  {
+    slug: "u10s",
+    title: "U10s",
+    creator: "larsandreas2010",
+    creatorId: "76561199800498989",
+    maps: ["3807433356", "3807445665", "3807494763", "3807762066", "3807797202"],
+  },
+  {
+    slug: "avg-circuit",
+    title: "AVG Circuit",
+    creator: "AvgRon",
+    creatorId: "76561198216876299",
+    maps: ["3797182398", "3798819807", "3803569863", "3808529641"],
+  },
+  {
+    slug: "mind-trials",
+    title: "Mind Trials",
+    ...HABIBAL,
+    maps: ["3821602774", "3821588330", "3821590642", "3821598041", "3821600974"],
   },
 ];
 
@@ -137,13 +266,17 @@ export const mapNo = (c: Campaign, pfid: string) => String(mapNumber(c, pfid)).p
 
 /* a Map's name inside its Campaign: its title after the Campaign's name, when it starts
    with it ("Solar Trials Mercury" is Mercury), else the whole title; or null when that is
-   only its number ("Miniblack 01", "AJC1"), which its label already gives */
+   only its number ("Miniblack 01", "AJC1"), which its label already gives. When what is
+   left starts with a number that isn't its place ("Ninja0", "AJ26"), it stays whole, so
+   the label doesn't read "01 0" */
 export function mapName(c: Campaign, pfid: string, title: string): string | null {
   const prefix = c.title.toLowerCase();
-  const name = title.toLowerCase().startsWith(prefix)
-    ? title.slice(prefix.length).trim() || title
-    : title;
-  return /^\d+$/.test(name) && Number(name) === mapNumber(c, pfid) ? null : name;
+  if (!title.toLowerCase().startsWith(prefix)) return title;
+  const name = title.slice(prefix.length).trim() || title;
+  const lead = /^\d+/.exec(name);
+  if (lead === null) return name;
+  if (Number(lead[0]) !== mapNumber(c, pfid)) return title;
+  return lead[0] === name ? null : name;
 }
 
 /* a Map's label inside its Campaign, wherever the Campaign's frame names it (the rail's
