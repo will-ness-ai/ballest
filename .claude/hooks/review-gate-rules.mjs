@@ -39,7 +39,7 @@ export function mergeTargets(tool, input) {
   return found
     .filter(([, t]) => t)
     .sort(([a], [b]) => a - b)
-    .map(([at, t]) => (t.opaque || t.repo !== null ? t : withCd(t, command, at)));
+    .map(([at, t]) => (t.repo ? t : withCd(t, command, at)));
 }
 
 /* the text with each quoted string as one bare word, so its spaces and separators don't split it */
@@ -55,8 +55,12 @@ function ghPr(command, m) {
   const args = flatten(command.slice(m.index + whole.length)).split(SEPARATOR)[0];
   const tokens = args.trim().split(/\s+/).map(unquote).filter(Boolean);
   if (tokens.includes(verb === "ready" ? "--undo" : "--disable-auto")) return null;
-  const exported = [...command.slice(0, m.index).matchAll(/\bGH_REPO=([^\s;&|]+)/g)].at(-1);
-  let repo = globalRepo ?? (exported ? unquote(exported[1]) : null);
+  // GH_REPO counts when exported earlier, or set in front of this gh call
+  const before = command.slice(0, m.index);
+  const set =
+    /\bGH_REPO=([^\s;&|]+)\s+[^;&|\n]*$/.exec(before) ??
+    [...before.matchAll(/\bexport\s+GH_REPO=([^\s;&|]+)/g)].at(-1);
+  let repo = globalRepo ?? (set ? unquote(set[1]) : null);
   let first = null;
   for (let i = 0; i < tokens.length; i++) {
     if (VALUED.test(tokens[i])) {
@@ -86,12 +90,16 @@ function apiCall(command, m) {
   return { repo: placeholder ? null : route[1], number: Number(route[2]) };
 }
 
+/* where `cd to` lands from `from`: an absolute path (or ~, $HOME) starts again */
+const joinCd = (from, to) => (/^[/~$]/.test(to) || !from ? to : `${from}/${to}`);
+
 /* the cds before `at`, each from the last, name the checkout the command runs in */
 function withCd(target, command, at) {
   const cd = [...command.matchAll(CD)]
     .filter((c) => c.index < at)
     .map((c) => unquote(c[1]))
-    .reduce((from, to) => (/^[/~$]/.test(to) || !from ? to : `${from}/${to}`), "");
+    .filter((to) => to !== "-")
+    .reduce(joinCd, "");
   return cd ? { ...target, cd } : target;
 }
 

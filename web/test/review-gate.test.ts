@@ -20,6 +20,8 @@ describe("mergeTargets", () => {
     expect(bash('gh pr merge "246" --squash')).toEqual(pr(246));
     expect(bash('gh pr merge "$PR" --squash')).toEqual(pr(null, { branch: "$PR" }));
     expect(bash("export GH_REPO=o/r; gh pr merge 3")).toEqual([{ repo: "o/r", number: 3 }]);
+    // a GH_REPO in front of an earlier call was that call's only
+    expect(bash("GH_REPO=o/r gh pr view 3; gh pr merge 4")).toEqual(pr(4));
     expect(bash("gh pr merge https://github.com/o/r/pull/8")).toEqual([{ repo: "o/r", number: 8 }]);
     expect(bash("gh pr merge -R will-ness-ai/ballest 7")).toEqual([
       { repo: "will-ness-ai/ballest", number: 7 },
@@ -71,6 +73,9 @@ describe("mergeTargets", () => {
     expect(
       bash("gh api graphql -f query='mutation { mergePullRequest(input: {}) { x } }'"),
     ).toEqual([{ opaque: true }]);
+    expect(bash("cd /w/p && gh api graphql -f query='mutation { mergePullRequest }'")).toEqual([
+      { opaque: true, cd: "/w/p" },
+    ]);
   });
 
   test("leaves every other command alone", () => {
