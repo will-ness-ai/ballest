@@ -681,6 +681,39 @@
     overscroll-behavior: contain;
     scrollbar-width: thin;
   }
+  /* a Map in 3D: the record and Medals in a card under the bar, which names the Map; it
+     follows the bar in .m3d-top's flow, so it never overlaps it */
+  .m3d-card {
+    inline-size: 15rem;
+    margin-inline: 16px;
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--scrim);
+    backdrop-filter: blur(6px);
+    font-size: calc(13.5rem / 16);
+  }
+  .m3d-card div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .m3d-card dt {
+    color: var(--dim);
+  }
+  .m3d-card dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .m3d-card i {
+    display: inline-block;
+    inline-size: 8px;
+    block-size: 8px;
+    margin-inline-end: 6px;
+    border-radius: 50%;
+  }
   /* with a pointer, a card's top three appear over its picture instead of the leader under it */
   @media (hover: hover) and (pointer: fine) {
     .mcard .lead {

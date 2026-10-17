@@ -11,7 +11,9 @@
 // order and CAMPAIGN_MAP one of its Maps inside its frame: on production Solar Trials (nine
 // Maps) and its Finale, the longest name; stress lists Solar Trials' first Map alone.
 // CAMPAIGNER holds a place in Campaigns, for their Workshop tab's shelf: on production
-// Chaos, in every launch Campaign; in stress the long-named player.
+// Chaos, in every launch Campaign; in stress the long-named player. MAP3D is a Map whose file
+// the site holds, for its 3D view: on production Ice Boat Race (3.1 MB, a long track on a
+// wide floor); in stress tiny's Marble Run.
 export const IDS = {
   real: {
     RANKED: "76561198259485267",
@@ -22,6 +24,7 @@ export const IDS = {
     CAMPAIGN_MAP: "3805413302",
     CAMPAIGNER: "76561197968999419",
     PREFAB: "wrongwaysign",
+    MAP3D: "3810672947",
   },
   stress: {
     RANKED: "76561199000000011",
@@ -32,6 +35,7 @@ export const IDS = {
     CAMPAIGN_MAP: "3805399883",
     CAMPAIGNER: "76561199000000011",
     PREFAB: "twin-cubes",
+    MAP3D: "9000000001",
   },
 };
 
@@ -44,6 +48,7 @@ export const PAGES = [
   { name: "campaign-pods", path: "/campaign/{CAMPAIGN}/podiums" },
   { name: "campaign-map", path: "/campaign/{CAMPAIGN}/{CAMPAIGN_MAP}" },
   { name: "map", path: "/map/{MAP}" },
+  { name: "map-3d", path: "/map/{MAP3D}" },
   { name: "board", path: "/board/Map_Track13" },
   { name: "entry", path: "/board/Map_Track13/{RANKED}" },
   { name: "overall", path: "/board/OverallLeaderboard_S1Current" },
@@ -85,6 +90,7 @@ export const STATES = [
   { name: "race", page: "board", click: ".row .c-race" },
   { name: "howto", page: "prefab", click: ".pf-q" },
   { name: "race-podium", page: "board", click: ".pl-score.c-race" },
+  { name: "map3d", page: "map-3d", click: ".m3d-open" },
 ];
 
 // Hidden before every screenshot on both sides: the refresh time differs between two

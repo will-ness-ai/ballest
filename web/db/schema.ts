@@ -11,6 +11,7 @@ import {
   bigint,
   bigserial,
   boolean,
+  customType,
   date,
   doublePrecision,
   foreignKey,
@@ -206,6 +207,25 @@ export const ghosts = pgTable("ghosts", {
   setAt: timestamp("set_at", { withTimezone: true }),
   topSpeed: real("top_speed"),
   profile: real("profile").array(),
+  readAt: timestamp("read_at", { withTimezone: true }).notNull(),
+});
+
+// Postgres bytes, which Drizzle has no column type for: a Buffer either way.
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
+
+// A Workshop Map's file (its .ballmap, the JSON the editor saves), downloaded from Steam by
+// the collector's Map file step (tools/map_files.py, ADR 0010) and only read by the site.
+// Only the current file is kept: `version` is Steam's content handle for it
+// (`hcontent_file`), and a Map whose catalogue handle differs is downloaded again and its
+// row replaced. `gzipped` is the file gzip-compressed, `raw_size` its length before. No
+// foreign key to `maps`, as `dailies` has none: a Map can leave the Workshop.
+export const mapFiles = pgTable("map_files", {
+  pfid: text("pfid").primaryKey(),
+  version: text("version").notNull(),
+  rawSize: integer("raw_size").notNull(),
+  gzipped: bytea("gzipped").notNull(),
   readAt: timestamp("read_at", { withTimezone: true }).notNull(),
 });
 

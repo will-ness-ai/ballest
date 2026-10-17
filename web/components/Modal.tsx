@@ -12,17 +12,24 @@ import { useCallback, useEffect, useRef, type RefObject } from "react";
    focus a button it clicks, so the browser's own hand-back can land on the page), or else
    to whatever had it when the dialog opened. `focus` picks what opens focused when the
    dialog's first button isn't it. The <dialog> must be in the document when `open` turns
-   true. */
+   true.
+
+   With `back` the dialog is a step in the browser's history, for one that fills the screen
+   (a Map in 3D), where Back reads as "close this": opening it adds an entry at the same URL,
+   Back closes it and the page stays where it was, and closing it any other way goes back
+   over that entry, so the history ends as it was before it opened. */
 export function useDialog({
   open,
   onClose,
   focus,
   from,
+  back = false,
 }: {
   open: boolean;
   onClose: () => void;
   focus?: (d: HTMLDialogElement) => HTMLElement | null | undefined;
   from?: RefObject<HTMLElement | null>;
+  back?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -40,6 +47,54 @@ export function useDialog({
       if (d.open) d.close();
     };
   }, [open, focus]);
+  /* declared before the effect below, so on unmount its cleanup runs first */
+  const leftPage = useRef(false);
+  useEffect(() => {
+    leftPage.current = false;
+    return () => {
+      leftPage.current = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (!back || !open) return;
+    /* Next's pushState copies its own state into the entry, so its router can come back to
+       it; the mark tells this entry from the one under it */
+    const mark = Math.random();
+    let live = true;
+    let pushed = false;
+    let ours = true;
+    const pop = () => {
+      if ((history.state as { dialog?: number } | null)?.dialog === mark) return;
+      ours = false;
+      ref.current?.close();
+    };
+    const push = () => {
+      if (!live) return;
+      history.pushState({ dialog: mark }, "");
+      pushed = true;
+      addEventListener("popstate", pop);
+    };
+    /* reopened before the last close's Back has landed, that Back would close this one */
+    if (leaving) void leaving.then(push);
+    else push();
+    return () => {
+      live = false;
+      removeEventListener("popstate", pop);
+      /* leaving the page with it open (a link, a remount) is a step of its own to keep */
+      if (!pushed || !ours || leftPage.current) return;
+      leaving = new Promise((done) =>
+        addEventListener(
+          "popstate",
+          () => {
+            leaving = null;
+            done();
+          },
+          { once: true },
+        ),
+      );
+      history.back();
+    };
+  }, [back, open]);
   /* a tap on the backdrop lands on the dialog itself, outside its box; one that starts
      inside (a drag out of the search box) is not a tap on the backdrop */
   const down = useRef(false);
@@ -63,6 +118,10 @@ export function useDialog({
   const close = useCallback(() => ref.current?.close(), []);
   return { props, close };
 }
+
+/* the Back a closing `back` dialog sent, until the browser has done it; one for the page,
+   since the site opens one `back` dialog at a time */
+let leaving: Promise<void> | null = null;
 
 function outside(e: React.MouseEvent<HTMLDialogElement>) {
   if (e.target !== e.currentTarget) return false;

@@ -2,7 +2,7 @@
 // one. A Steam ID only ever reaches a path through isSteamId: one can arrive from the URL.
 import { campaignOf, campaignOfBoard, campaignOfMap, type Campaign } from "./campaigns";
 import { circuitBoard } from "./circuit";
-import { STEAM_ID, isSteamId, mapPfidOf } from "./rules";
+import { PFID, STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
 
 /* where the site is served: link previews and links posted outside it start here */
@@ -54,6 +54,11 @@ export const playerHref = (id: string, tab?: string | null) =>
 
 export const mapHref = (pfid: string, focus?: string | null) =>
   "/map/" + pfid + (focus && isSteamId(focus) ? "/" + focus : "");
+/* a Map's file at one version, for its 3D view (app/map/[pfid]/file); the version in the
+   address lets the response be cached for good */
+export const MAP_FILE = "file";
+export const mapFileHref = (pfid: string, version: string) =>
+  mapHref(pfid) + "/" + MAP_FILE + "?v=" + encodeURIComponent(version);
 
 /* a board, optionally with a player's row marked or (Overall) its podium order; a Map's
    board name turns into its /map/ link */
@@ -173,7 +178,7 @@ const LEGACY: Array<[RegExp, (m: RegExpExecArray) => string]> = [
         ((m[2] as string | undefined) ?? "wr") as PlSort,
       ),
   ],
-  [new RegExp(`^#/map/(\\d{1,20})(?:/(${ID}))?$`), (m) => mapHref(m[1], m[2])],
+  [new RegExp(`^#/map/(${PFID.source})(?:/(${ID}))?$`), (m) => mapHref(m[1], m[2])],
   [/^#\/maps(?:\/([a-z]{1,12}))?$/, (m) => mapsHref(m[1])],
   [
     new RegExp(`^#/board/([A-Za-z0-9_]{1,64})(?:/(${ID}|${PODIUM_SORT}))?$`),

@@ -296,13 +296,28 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
         coalesce((select count(*) from unnest(s.scores, s.ids) as u(score, id)
           where u.score <= l.medals[4] * ${SCORE_TICKS_PER_SECOND}
             - case when u.id = m.creator_steam_id then ${CREATOR_BEAT_MARGIN_TICKS} else 0 end), 0)::int
-          as "authorBeaten"
+          as "authorBeaten",
+        f.version as "fileVersion"
       from maps m join latest l on l.pfid = m.pfid
       left join stats s on s.board = m.board
+      left join map_files f on f.pfid = m.pfid
       where l.last_seen_refresh = (select max(last_seen_refresh) from map_history)
       order by m.created_at desc nulls last, m.pfid`,
   );
   return found;
+}
+
+/* A Map's file as the collector stored it (gzip-compressed) and its version, or null when
+   the site holds none */
+export async function mapFile(
+  db: Db,
+  pfid: string,
+): Promise<{ version: string; gzipped: Buffer } | null> {
+  const found = await rows<{ version: string; gzipped: Buffer }>(
+    db,
+    sql`select version, gzipped from map_files where pfid = ${pfid}`,
+  );
+  return found.at(0) ?? null;
 }
 
 /* A player and their place on every board, or null for a Steam ID on no board */
