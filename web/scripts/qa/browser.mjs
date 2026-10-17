@@ -38,9 +38,9 @@ export const viewName = ({ page, state, width, text }) =>
  * page's status, its screenshot, what the layout probes found and the errors it raised,
  * plus the boxes of the elements `boxes` selects and the value of the expression `script`.
  * `prefab` is a Prefab file's text, served in place of every Prefab's file, so a Prefab's
- * page draws it. `cookies` are set before the page loads (session.mjs's signedIn signs a
- * player in with them), and `me` says who the site took the browser for. `skipped` says
- * why there is nothing to compare (a control this width hides).
+ * page draws it. `cookies` are set before the page loads (session.mjs's signIn gives the
+ * ones that sign a player in), and `me` says who the site took the browser for. `skipped`
+ * says why there is nothing to compare (a control this width hides).
  * @param {import("playwright-core").Browser} browser
  * @param {string} url
  * @param {{ width: number, text: number }} view

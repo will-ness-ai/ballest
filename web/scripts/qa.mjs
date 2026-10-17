@@ -189,9 +189,10 @@ async function shot() {
       script: flags.eval,
       prefab: flags.prefab && readPrefab(flags.prefab),
     });
-    if (r.skipped) fail(`${viewName(view)}: ${r.skipped} at this width`);
+    // a refused session is the first thing wrong: the page was drawn signed out
     if (r.me !== signed.as)
       fail(`${t.url} didn't take the browser as signed in`, "give qa the server's SESSION_SECRET");
+    if (r.skipped) fail(`${viewName(view)}: ${r.skipped} at this width`);
     if (r.status !== status) fail(`${t.url + path} answered ${String(r.status)}`);
     if (gone(r, status))
       fail(
