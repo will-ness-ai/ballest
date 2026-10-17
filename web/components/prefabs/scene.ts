@@ -104,7 +104,7 @@ export function buildScene(
   const radius = box.getSize(new THREE.Vector3()).length() / 2 || 1;
   if (grid) {
     const size = Math.max(2, Math.ceil(radius * 1.6));
-    const g = new THREE.GridHelper(size, size, 0x5a6280, 0x2c3248);
+    const g = new THREE.GridHelper(size, Math.min(size, 40), 0x5a6280, 0x2c3248);
     g.position.set(centre.x, box.min.y - 0.001, centre.z);
     scene.add(g);
   }
