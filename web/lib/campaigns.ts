@@ -19,15 +19,15 @@ export interface Campaign {
   maps: ReadonlyArray<string>;
 }
 
-/* a maker of more than one Campaign, written once */
+/* makers of more than one Campaign, each written once */
+const HABIBAL = { creator: "habibal223366977", creatorId: "76561199154600151" };
 const ACTION_JACKSON = { creator: "Action Jackson", creatorId: "76561198008697957" };
 
 export const CAMPAIGNS: ReadonlyArray<Campaign> = [
   {
     slug: "solar-trials",
     title: "Solar Trials",
-    creator: "habibal223366977",
-    creatorId: "76561199154600151",
+    ...HABIBAL,
     maps: [
       "3805399883",
       "3805394429",
@@ -43,8 +43,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
   {
     slug: "velocity-trials",
     title: "Velocity Trials",
-    creator: "habibal223366977",
-    creatorId: "76561199154600151",
+    ...HABIBAL,
     maps: ["3803908791", "3803910868", "3803919944", "3803929459", "3803937353"],
   },
   {
@@ -199,6 +198,12 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     creator: "AvgRon",
     creatorId: "76561198216876299",
     maps: ["3797182398", "3798819807", "3803569863", "3808529641"],
+  },
+  {
+    slug: "mind-trials",
+    title: "Mind Trials",
+    ...HABIBAL,
+    maps: ["3821602774", "3821588330", "3821590642", "3821598041", "3821600974"],
   },
 ];
 

@@ -249,8 +249,8 @@ equal totals ordered by the first Map (in the Campaign's order) a player is on, 
 place there. A player is ranked once they have a time on one Map.
 
 **The page** (`components/campaign/CampaignView.tsx`) is a Circuit season's twin, built
-from the same pieces: the Campaign switch (`CampaignSwitch.tsx`, the season switch's tabs
-and chip) lists the Campaigns most players first (`getCampaigns`); the rail lists Overall,
+from the same pieces: the Campaign switch (`CampaignSwitch.tsx`, the season switch's chip,
+never a row of tabs, since the list keeps growing; it heads the rail on a desktop) lists the Campaigns most players first (`getCampaigns`); the rail lists Overall,
 then each Map as a strip of its preview picture with its number, record and the part of
 its title after the Campaign's name (`mapName`), left out when that is only its number
 ("Miniblack 01", "AJC1"), and the whole title when what is left starts with a number that
@@ -258,8 +258,8 @@ isn't the Map's place ("Ninja0", "AJ26"). Everywhere the frame names a Map (the 
 tally, the page's title) it is `mapLabel`: the number, then that name. On a phone the
 switch's chip and the board button share a row while they fit, and the button takes a line
 of its own when they don't (`.boardrow.named`), since a Campaign's title and Map names run
-longer than a season's. With more Campaigns than fit, the desktop tabs wrap onto another row and
-the phone menu scrolls inside itself. The Overall card, the points dialog and the podium count say maps
+longer than a season's. The switch's menu scrolls inside itself when the list outgrows the
+screen. The Overall card, the points dialog and the podium count say maps
 where a season says tracks, and count the Maps the Workshop lists, which are the ones that
 pay points. A Map inside the frame gets the Track card's layout with its preview picture
 and a link to its own page. A Campaign none of whose Maps the Workshop lists is shown

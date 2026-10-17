@@ -147,15 +147,23 @@
   .seasonchip {
     display: none;
   }
+  /* a Campaign's switch heads its rail, in place of a row of tabs */
+  .rail .seasonchip {
+    display: flex;
+    justify-content: space-between;
+    inline-size: 100%;
+    min-block-size: 40px;
+    font-size: calc(14rem / 16);
+    letter-spacing: normal;
+    text-transform: none;
+  }
   .boardrow {
     display: contents;
   }
-  /* the Circuit's seasons or the Campaigns, a smaller row of tabs under the main ones; it
-     wraps when there are more than fit */
+  /* the Circuit's seasons, a smaller row of tabs under the main ones */
   .seasontabs {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0 22px;
+    gap: 22px;
     grid-column: 1 / -1;
     margin-block: -8px 16px;
     padding-inline: 15px;
