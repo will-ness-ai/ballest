@@ -10,14 +10,13 @@ MAPS = [
 ]
 
 
-def test_a_query_is_an_item_a_player_or_a_name():
-    url = "https://steamcommunity.com/sharedfiles/filedetails/?id=3821607033"
-    assert parse_query(url) == ("item", "3821607033")
-    assert parse_query("https://steamcommunity.com/workshop/filedetails/?id=5&searchtext=") == (
-        "item",
-        "5",
-    )
-    assert parse_query("3821607033") == ("item", "3821607033")
+def test_a_query_is_items_a_player_or_a_name():
+    link = "https://steamcommunity.com/sharedfiles/filedetails/?id="
+    assert parse_query(link + "3821607033") == ("items", ["3821607033"])
+    # a pasted post: every link in it, in order, once
+    post = f"{link}5\n{link}6, {link}5 https://steamcommunity.com/workshop/filedetails/?id=7&x=1"
+    assert parse_query(post) == ("items", ["5", "6", "7"])
+    assert parse_query("3821607033 3821607034") == ("items", ["3821607033", "3821607034"])
     assert parse_query("https://steamcommunity.com/profiles/76561199154600151/myworkshopfiles") == (
         "player",
         "76561199154600151",
@@ -27,7 +26,8 @@ def test_a_query_is_an_item_a_player_or_a_name():
         "vanity",
         "stoxy999",
     )
-    assert parse_query("tekkno") == ("name", "tekkno")
+    # a name with a space, quoted or not
+    assert parse_query("Acehole Viscunty") == ("name", "Acehole Viscunty")
 
 
 def test_a_player_or_a_name_finds_their_maps_oldest_first():

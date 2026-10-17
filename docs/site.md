@@ -239,9 +239,9 @@ so on, so append a Map rather than insert one. `campaignProblems` fails the test
 repeated slug, a Map in two Campaigns (or twice in one), an empty Campaign or an ID that
 isn't one. Nothing else changes: the pages are prerendered from the list.
 
-`python tools/workshop_maps.py <query> ...` finds the IDs: give it Workshop links or IDs (a
-Map stands for itself, a Steam collection for its Maps in order, several keep the order
-given), or one maker: a profile URL, a SteamID64, or part of their in-game or Steam name
+`python tools/workshop_maps.py <query ...>` finds the IDs: give it Workshop links or IDs, or
+a whole pasted post holding them (a Map stands for itself, a Steam collection for its Maps in
+order, in the order given), or one maker: a profile URL, a SteamID64, or part of their in-game or Steam name
 (oldest first). It prints each Map with its maker's name and ID, marks
 any already in a Campaign, and ends with the `maps:` line to paste. A Map the collector
 hasn't listed yet (one published since the last Refresh) leaves its Campaign a not-found page

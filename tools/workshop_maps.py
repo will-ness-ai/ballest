@@ -1,11 +1,11 @@
 """A maker's Workshop Maps, or a list or collection of them, for adding a Campaign.
 
-    python tools/workshop_maps.py <query> [<query> ...]
+    python tools/workshop_maps.py <query ...>
 
-Each query is a Workshop item (its URL or ID): a Map stands for itself and a Steam
-collection for its Maps in the collection's order, and several keep the order given. Or
-one query names a maker: a profile URL (/profiles/ or /id/), a SteamID64, or any part of
-their in-game or Steam name in any case (their Maps oldest first). Prints each Map's ID,
+The query is Workshop items (their links or IDs, or a whole pasted post holding them): a
+Map stands for itself and a Steam collection for its Maps in the collection's order, in the
+order given. Or it names a maker: a profile URL (/profiles/ or /id/), a SteamID64, or any
+part of their in-game or Steam name in any case (their Maps oldest first). Prints each Map's ID,
 date, title and maker, marks the ones already in a Campaign (web/lib/campaigns.ts), and
 ends with the `maps:` line to paste. Needs STEAM_API_KEY (env or .env), as the collector
 does; docs/site.md, "Campaigns", covers adding one.
@@ -28,21 +28,23 @@ API = "https://api.steampowered.com/"
 
 
 def parse_query(text):
-    """("item", Workshop ID), ("player", SteamID64), ("vanity", a custom URL's name) or
-    ("name", text)."""
-    item = re.search(r"filedetails/\?id=(\d+)", text)
-    if item:
-        return ("item", item.group(1))
+    """What the command line names: ("items", Workshop IDs in order, once each),
+    ("player", SteamID64), ("vanity", a custom URL's name) or ("name", text)."""
+    ids = re.findall(r"filedetails/\?id=(\d+)", text)
+    tokens = text.split()
+    if not ids and tokens and all(t.isdigit() for t in tokens):
+        if len(tokens) == 1 and len(text.strip()) == 17 and text.strip().startswith("7656"):
+            return ("player", text.strip())
+        ids = tokens
+    if ids:
+        return ("items", list(dict.fromkeys(ids)))
     player = re.search(r"/profiles/(\d+)", text)
     if player:
         return ("player", player.group(1))
-    vanity = re.search(r"steamcommunity\.com/id/([^/?#]+)", text)
+    vanity = re.search(r"steamcommunity\.com/id/([^/?#\s]+)", text)
     if vanity:
         return ("vanity", vanity.group(1))
-    if text.isdigit():
-        is_player = len(text) == 17 and text.startswith("7656")
-        return ("player", text) if is_player else ("item", text)
-    return ("name", text)
+    return ("name", text.strip())
 
 
 def match(maps, query, personas=None):
@@ -97,28 +99,26 @@ def resolve_vanity(key, name):
 
 
 def main():
-    queries = [parse_query(a) for a in sys.argv[1:]]
-    if not queries or (len(queries) > 1 and any(k != "item" for k, _ in queries)):
+    if len(sys.argv) < 2:
         sys.exit(__doc__)
+    kind, value = parse_query(" ".join(sys.argv[1:]))
     key = load_key()
     if not key:
         sys.exit("no STEAM_API_KEY (env or .env)")
     maps = workshop_catalogue(key)
-    kind, value = queries[0]
     personas = None
-    if kind == "item":
-        query = ("items", [i for _, item in queries for i in expand(item)])
+    if kind == "items":
+        # a collection's Maps in its order, and a Map listed twice only once
+        value = list(dict.fromkeys(i for item in value for i in expand(item)))
     elif kind == "vanity":
-        query = ("player", resolve_vanity(key, value))
-    else:
-        query = (kind, value)
-    if kind == "name":
-        found = resolve_names(key, sorted({m["cid"] for m in maps if m["cid"]}))
-        personas = {cid: p["persona"] for cid, p in found.items()}
-    found = match(maps, query, personas)
-    if query[0] == "items":
+        kind, value = "player", resolve_vanity(key, value)
+    elif kind == "name":
+        summaries = resolve_names(key, sorted({m["cid"] for m in maps if m["cid"]}))
+        personas = {cid: p["persona"] for cid, p in summaries.items()}
+    found = match(maps, (kind, value), personas)
+    if kind == "items":
         listed = {m["pfid"] for m in found}
-        missing = [i for i in query[1] if i not in listed]
+        missing = [i for i in value if i not in listed]
         if missing:
             print(
                 "not this game's Maps, not public, or newer than Steam's catalogue: "
