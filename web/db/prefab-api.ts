@@ -181,7 +181,11 @@ export async function uploadPrefab(request: Request, deps: PrefabDeps): Promise<
   if (result.status === 403) return json({ error: "you can't upload prefabs" }, 403);
   if (result.status === 429)
     return json(
-      { error: "that's this hour's uploads", limit: result.limit, nextAt: result.nextAt },
+      {
+        error: "that's your uploads for the last hour",
+        limit: result.limit,
+        nextAt: result.nextAt,
+      },
       429,
     );
   deps.changed?.();
