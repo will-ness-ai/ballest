@@ -262,6 +262,8 @@ export const PIECE_MESHES: Partial<Record<string, string>> = {
   Bevel_Tall_StraightPlatform: "Bevel_Tall_StraightPlatform",
   Bevel_Tall_StraightWall: "Bevel_Tall_StraightWall",
   MP_ActualCheckpoint_Strip: "SM_ActualCheckpoint_Strip",
+  /* the class a vent saves as; piece_bounds.json, read from the catalogue, has it as BP_AirVent */
+  MP_AirVent: "SM_AirVent",
   MP_Cone: "SM_Cone",
   MP_FlatGlassPlane: "SM_SmallGlassPane_Flat",
   MP_FlatRing: "Boolean8",

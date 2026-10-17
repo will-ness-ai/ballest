@@ -35,6 +35,16 @@ function cubes(...items: Array<[Array<number>, Array<number>, Array<number>]>): 
   };
 }
 
+/* an air vent as the editor saves it (copied from a player's upload, 2026-10-17): its mesh
+   comes from the blueprint, so the file leaves it blank, and its airflow is in properties */
+const VENT = {
+  class: "/Game/Core/Gameplay/Props/MP_AirVent.MP_AirVent_C",
+  transform: { location: [0, 0, 0], rotation: [0, 180, 0], scale: [0.75, 0.75, 1] },
+  properties: { "Field Magnitude": 750000, EntryAssistMinSpeed: 800 },
+  meshes: [{ tag: "SKGMapEditor", mesh: "", materials: [] }],
+  paint: { categories: [], colors: [] },
+};
+
 const near = (got: { w: number; d: number; h: number }, want: [number, number, number]) => {
   expect(got.w).toBeCloseTo(want[0]);
   expect(got.d).toBeCloseTo(want[1]);
@@ -202,11 +212,22 @@ describe("a Prefab file", () => {
   });
 });
 
+test("a vent is drawn at the air vent's size, not as the unknown-mesh box", () => {
+  const file = { ...cubes(), items: [VENT] } as unknown as PrefabFile;
+  const [shape] = shapesOf(file);
+  expect(shape.kind).toBe("box");
+  expect(shape.size[0]).toBeCloseTo(1);
+  expect(shape.size[1]).toBeCloseTo(0.0356);
+});
+
 test("a piece reads as the editor's catalogue names it, without its blueprint prefix", () => {
   expect(pieceLabel("BP_Pipe_Tube1")).toBe("Pipe Tube 1");
   expect(pieceLabel("BP_Prim_Cube")).toBe("Cube");
   expect(pieceLabel("BP_Ramp_Curve_Long1")).toBe("Ramp Curve Long 1");
   expect(pieceLabel("Bevel_Full_Ring")).toBe("Bevel Full Ring");
+  expect(pieceLabel("MP_AirVent")).toBe("Air Vent");
+  expect(pieceLabel("MP_SM_ConeBowl")).toBe("Cone Bowl");
+  expect(pieceLabel("Bevel_Full_HalfRingKicker")).toBe("Bevel Full Half Ring Kicker");
 });
 
 describe("the upload check", () => {
@@ -260,6 +281,11 @@ describe("the upload check", () => {
     expect(problems(withFile({ items: [one, bare, noScale] }))).toEqual([
       "2 pieces aren't laid out as the editor saves them (a position, rotation, scale and meshes each).",
     ]);
+  });
+
+  test("a vent passes as the editor saves it, with no mesh, materials or paint", () => {
+    const one = (JSON.parse(sample("bench")) as PrefabFile).items[0];
+    expect(checkPrefab(withFile({ items: [one, VENT] }))).toEqual({ ok: true, pieces: 2 });
   });
 
   test("a file over 4 MB is refused before it is read", () => {
