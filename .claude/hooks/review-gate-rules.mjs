@@ -17,6 +17,9 @@ const GH_FIELDS = /\s(?:-[fF]|--(?:field|raw-field|input))\b/;
 // a cd, as a command of its own (inside `bash -c "..."` or an if/then too)
 const CD = /(?:^|[;&(\n'"]|\b(?:then|do|else)\b)\s*cd\s+("[^"]*"|'[^']*'|[^\s;&|)'"]+)/g;
 const SEPARATOR = /[;&|\n]/;
+// GH_REPO set in front of the gh call itself, or exported earlier in the command
+const GH_REPO_PREFIX = /\bGH_REPO=([^\s;&|]+)\s+[^;&|\n]*$/;
+const GH_REPO_EXPORT = /\bexport\s+GH_REPO=([^\s;&|]+)/g;
 // gh pr merge's flags that take a value, so the value isn't read as the PR
 const VALUED = /^(?:-[btFRA]|--(?:body|body-file|subject|repo|author-email|match-head-commit))$/;
 
@@ -57,10 +60,8 @@ function ghPr(command, m) {
   if (tokens.includes(verb === "ready" ? "--undo" : "--disable-auto")) return null;
   // GH_REPO counts when exported earlier, or set in front of this gh call
   const before = command.slice(0, m.index);
-  const set =
-    /\bGH_REPO=([^\s;&|]+)\s+[^;&|\n]*$/.exec(before) ??
-    [...before.matchAll(/\bexport\s+GH_REPO=([^\s;&|]+)/g)].at(-1);
-  let repo = globalRepo ?? (set ? unquote(set[1]) : null);
+  const repoVar = GH_REPO_PREFIX.exec(before) ?? [...before.matchAll(GH_REPO_EXPORT)].at(-1);
+  let repo = globalRepo ?? (repoVar ? unquote(repoVar[1]) : null);
   let first = null;
   for (let i = 0; i < tokens.length; i++) {
     if (VALUED.test(tokens[i])) {
@@ -98,8 +99,11 @@ function withCd(target, command, at) {
   const cd = [...command.matchAll(CD)]
     .filter((c) => c.index < at)
     .map((c) => unquote(c[1]))
-    .filter((to) => to !== "-")
-    .reduce(joinCd, "");
+    // `cd -` goes back to where the last cd left
+    .reduce(
+      ([from, last], to) => (to === "-" ? [last, from] : [joinCd(from, to), from]),
+      ["", ""],
+    )[0];
   return cd ? { ...target, cd } : target;
 }
 

@@ -49,6 +49,8 @@ describe("mergeTargets", () => {
     // each relative cd moves from the last
     expect(bash("cd web && pnpm test && cd .. && gh pr merge 5")).toEqual(pr(5, { cd: "web/.." }));
     expect(bash("cd a && cd /w/b && cd c && gh pr merge 5")).toEqual(pr(5, { cd: "/w/b/c" }));
+    expect(bash("cd /w/o && git pull && cd - && gh pr merge 5")).toEqual(pr(5));
+    expect(bash("cd /a && cd /b && cd - && gh pr merge 5")).toEqual(pr(5, { cd: "/a" }));
   });
 
   test("finds the REST routes that write", () => {
