@@ -11,6 +11,7 @@ import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
 import { REFS, pieces } from "./qa/piece.mjs";
 import { fmt, matching, pagesOf, rankRows } from "./qa/piece-math.mjs";
+import { signedIn } from "./qa/session.mjs";
 import { preview, resolve, up } from "./qa/targets.mjs";
 
 const OUT = fileURLToPath(new URL("../../scratch/qa/", import.meta.url));
@@ -117,6 +118,16 @@ const pageOf = (page, ids = "real") => {
   return { path: path?.replace(/\{(\w+)\}/g, (_, k) => IDS[ids][k]), status: p?.status ?? 200 };
 };
 const stateOf = (name) => STATES.find((x) => x.name === name);
+/* the cookies that sign `t`'s browser in as the page's `as`: none for a page drawn signed
+   out, null when `t` can't sign (no secret known for it, or no such ID in its set) */
+const cookiesFor = (page, t, now) => {
+  const as = PAGES.find((x) => x.name === page)?.as;
+  if (!as) return [];
+  const id = IDS[t.ids][as];
+  return id && t.secret ? signedIn(t.url, id, t.secret, now) : null;
+};
+const UNSIGNED =
+  "signed in: only a local target whose SESSION_SECRET qa knows (env or web/.env.local)";
 const pageNames = `pages: ${PAGES.map((p) => p.name).join(", ")}`;
 /* a list cut to its first three once it runs past four */
 const few = (list) =>
@@ -171,11 +182,14 @@ async function shot() {
   const state = view.state ? stateOf(view.state) : undefined;
   if (view.state && !state)
     fail(`no state "${view.state}"`, `states: ${STATES.map((x) => x.name).join(", ")}`);
+  const now = Date.now();
+  const cookies = cookiesFor(view.page, t, now) ?? fail(`${view.page} is drawn ${UNSIGNED}`);
   const browser = await launch();
   try {
     const r = await render(browser, t.url + path, view, {
       control: state?.click,
-      now: Date.now(),
+      now,
+      cookies,
       full: !!flags.full,
       element: flags.el,
       boxes: flags.box,
@@ -336,7 +350,8 @@ async function check() {
   const browser = await launch();
   const found = [],
     diffs = [],
-    skipped = [];
+    skipped = [],
+    unsigned = [];
   try {
     const queue = [...chosen];
     const work = async () => {
@@ -346,11 +361,16 @@ async function check() {
       const name = viewName(v);
       const control = v.state ? stateOf(v.state).click : undefined;
       const expect = pageOf(v.page).status;
+      const signs = (t) => cookiesFor(v.page, t, started);
+      if (!signs(at)) return unsigned.push(name);
       const draw = (t) =>
-        render(browser, t.url + pageOf(v.page, t.ids).path, v, { control, now: started }).catch(
-          (e) => ({ failed: String(e.message).split("\n")[0] }),
-        );
-      const [a, b] = await Promise.all([draw(at), ref ? draw(ref) : null]);
+        render(browser, t.url + pageOf(v.page, t.ids).path, v, {
+          control,
+          now: started,
+          cookies: signs(t),
+        }).catch((e) => ({ failed: String(e.message).split("\n")[0] }));
+      // a reference that can't sign in has nothing to compare against
+      const [a, b] = await Promise.all([draw(at), ref && signs(ref) ? draw(ref) : null]);
       // a side that did not draw is a fault of its own, and nothing to compare against
       const broken = (r, t) => {
         if (r.failed) found.push({ view: name, kind: "failed", where: t.name, detail: r.failed });
@@ -429,7 +449,10 @@ async function check() {
   // shows on a phone (some only there), so a run with no phone width can't tell
   if (sizes.some((s) => s.width < 600))
     for (const st of STATES) {
-      const names = chosen.filter((v) => v.state === st.name).map(viewName);
+      const names = chosen
+        .filter((v) => v.state === st.name)
+        .map(viewName)
+        .filter((n) => !unsigned.includes(n));
       if (names.length && names.every((n) => skipped.includes(n)))
         found.push({
           view: names[0],
@@ -456,13 +479,16 @@ async function check() {
   const diffRows = [...shared.values()].map((d) => ({ ...d, alike: few(d.alike) }));
   const secs = Math.round((Date.now() - started) / 1000);
   say([
-    `checked ${String(chosen.length - skipped.length)} views of ${describe(at)}${ref ? ` against ${describe(ref)}` : ""} in ${String(secs)}s`,
+    `checked ${String(chosen.length - skipped.length - unsigned.length)} views of ${describe(at)}${ref ? ` against ${describe(ref)}` : ""} in ${String(secs)}s`,
     ...rows("faults", ["kind", "where", "detail", ...(ref ? ["ref"] : []), "views"], faultRows),
     ...(ref
       ? rows("changed", ["view", "px", "box", "height", "shows", "image", "alike"], diffRows)
       : []),
     ...(skipped.length
       ? [`skipped[${String(skipped.length)}] (control hidden at that width): ${skipped.join(", ")}`]
+      : []),
+    ...(unsigned.length
+      ? [`unsigned[${String(unsigned.length)}] (drawn ${UNSIGNED}): ${few(unsigned)}`]
       : []),
     "next:",
     ...(diffs.length

@@ -18,6 +18,14 @@ addEventListener("resize", () => {
 </script>
 <button onclick='fetch("/more").then(() => { document.title = "clicked"; })'>more</button>`;
 
+// Placeholders: a textarea wraps its own onto the lines it has, an input can't.
+const FIELDS = `<!doctype html><body style="margin:0;font:16px sans-serif">
+<textarea id="wraps" rows="3" style="width:200px;padding:0"
+  placeholder="What it is and where it fits in a map"></textarea>
+<textarea id="cut" rows="1" style="width:200px;padding:0"
+  placeholder="What it is and where it fits in a map, and why it looks the way it does"></textarea>
+<input id="long" style="width:200px;padding:0" placeholder="What it is and where it fits in a map">`;
+
 let server: Server;
 let base: string;
 let browser: Browser;
@@ -25,6 +33,13 @@ let browser: Browser;
 beforeAll(async () => {
   server = createServer((req, res) => {
     if (req.url === "/more") setTimeout(() => res.end("ok"), 1500);
+    else if (req.url?.startsWith("/api/player/") || req.url === "/api/broken")
+      res.writeHead(404).end();
+    else if (req.url === "/fetches")
+      res
+        .setHeader("content-type", "text/html")
+        .end(`<script>fetch("/api/player/76561199000000099"); fetch("/api/broken");</script>`);
+    else if (req.url === "/fields") res.setHeader("content-type", "text/html").end(FIELDS);
     else res.setHeader("content-type", "text/html").end(PAGE);
   });
   await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
@@ -47,5 +62,19 @@ describe("render", () => {
     const view = { width: 820, text: 16 };
     const r = await render(browser, base + "/", view, { now: 0, control: "button" });
     expect(r.title).toBe("clicked");
+  }, 60_000);
+});
+
+describe("errors", () => {
+  it("takes a player API's 404 as an answer, any other as a fault", async () => {
+    const r = await render(browser, base + "/fetches", { width: 820, text: 16 }, { now: 0 });
+    expect(r.errors).toEqual([{ where: "/api/broken", detail: "404" }]);
+  }, 60_000);
+});
+
+describe("probes", () => {
+  it("finds a placeholder cut off, not one its textarea wraps", async () => {
+    const r = await render(browser, base + "/fields", { width: 820, text: 16 }, { now: 0 });
+    expect(r.probes?.clipped.map(([where]: [string, number]) => where)).toEqual(["#cut", "#long"]);
   }, 60_000);
 });
