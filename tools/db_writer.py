@@ -128,7 +128,7 @@ class Memory:
       seconds, or 0 if none has.
     refreshes: how many Refreshes the database holds, which picks this run's slice of names
       to look up again (cc.names_due).
-    active: the steam IDs that set a score (a new or changed Entry) in the latest Refresh,
+    just_scored: the steam IDs that set a score (a new or changed Entry) in the latest Refresh,
       whose names this run looks up whatever the slice.
     dailies: {date: daily.Daily} for every Daily held (known_dailies), what the Daily step
       plans from.
@@ -139,7 +139,7 @@ class Memory:
     listed: int = 0
     full_sweep_at: int = 0
     refreshes: int = 0
-    active: set = field(default_factory=set)
+    just_scored: set = field(default_factory=set)
     dailies: dict = field(default_factory=dict)
 
 
@@ -181,7 +181,7 @@ def read_memory(conn):
     swept, refreshes = conn.execute(
         "select max(started_at) filter (where full_sweep), count(*) from refreshes"
     ).fetchone()
-    active = {
+    just_scored = {
         sid
         for (sid,) in conn.execute(
             "select distinct steam_id from entries"
@@ -194,7 +194,7 @@ def read_memory(conn):
         listed=listed,
         full_sweep_at=int(swept.astimezone(UTC).timestamp()) if swept else 0,
         refreshes=refreshes,
-        active=active,
+        just_scored=just_scored,
         dailies=known_dailies(conn),
     )
 

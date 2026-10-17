@@ -269,8 +269,8 @@ def resolve_names(key, ids):
 NAME_REFRESH_SLICES = 16
 
 
-def names_due(ids, known, refreshes, active=()):
-    """The IDs this run looks up: every one without a name, every active one (who set a
+def names_due(ids, known, refreshes, just_scored):
+    """The IDs this run looks up: every one without a name, every one that just scored (set a
     score in the latest Refresh, so a player racing now shows a rename after one run), plus
     this run's slice, where refreshes is how many Refreshes the database holds
     (db_writer.Memory)."""
@@ -279,7 +279,7 @@ def names_due(ids, known, refreshes, active=()):
         sid
         for sid in ids
         if sid not in known
-        or sid in active
+        or sid in just_scored
         or (sid.isdigit() and int(sid) % NAME_REFRESH_SLICES == slot)
     ]
 
@@ -353,7 +353,7 @@ def name_rows(row_lists, all_ids, memory):
     """Put persona/avatar/profileurl on every row in row_lists, and return the
     SteamID64 -> names map they came from. Names are carried forward from memory.names
     (the players the database holds, db_writer.load_memory); only players without one,
-    plus memory.active and this run's slice (names_due, by memory.refreshes), are looked up."""
+    plus memory.just_scored and this run's slice (names_due, by memory.refreshes), are looked up."""
     known = memory.names
     key = load_key()
     if not key:
@@ -362,8 +362,8 @@ def name_rows(row_lists, all_ids, memory):
         )
     # The slice covers every player we know, not only this run's rows: a Workshop board
     # is re-read only when played, so its players would otherwise rarely come up.
-    due = names_due(set(all_ids) | set(known), known, memory.refreshes, memory.active)
-    print(f"Resolving {len(due)} player names (new, active, plus this run's slice)...")
+    due = names_due(set(all_ids) | set(known), known, memory.refreshes, memory.just_scored)
+    print(f"Resolving {len(due)} player names (new, just scored, plus this run's slice)...")
     names = {sid: dict(v) for sid, v in known.items()}
     for sid, info in resolve_names(key, due).items():
         cur = names.setdefault(sid, {})
