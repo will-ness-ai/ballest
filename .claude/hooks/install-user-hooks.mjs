@@ -7,7 +7,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repo = fileURLToPath(new URL("../..", import.meta.url)).replace(/[\\/]$/, "");
+const repo = fileURLToPath(new URL("../..", import.meta.url))
+  .replaceAll("\\", "/")
+  .replace(/\/$/, "");
 const file = process.argv[2];
 const ours = JSON.parse(readFileSync(new URL("../settings.json", import.meta.url), "utf8")).hooks;
 const settings = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
@@ -16,13 +18,15 @@ for (const event of ["PreToolUse", "PostToolUse"]) {
   const kept = (settings.hooks[event] ?? []).filter(
     (h) => !JSON.stringify(h).includes("review-gate"),
   );
-  const gate = ours[event].map((h) => ({
-    ...h,
-    hooks: h.hooks.map((c) => ({
-      ...c,
-      command: c.command.replaceAll("$CLAUDE_PROJECT_DIR", repo) + " --user",
-    })),
-  }));
+  const gate = ours[event]
+    .filter((h) => JSON.stringify(h).includes("review-gate"))
+    .map((h) => ({
+      ...h,
+      hooks: h.hooks.map((c) => ({
+        ...c,
+        command: c.command.replaceAll("$CLAUDE_PROJECT_DIR", repo) + " --user",
+      })),
+    }));
   settings.hooks[event] = [...kept, ...gate];
 }
 mkdirSync(dirname(file), { recursive: true });

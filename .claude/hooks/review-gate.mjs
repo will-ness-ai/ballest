@@ -4,11 +4,12 @@
 // either skill hasn't seen. Wired in .claude/settings.json, and for cloud threads, which
 // start outside the repo, in the user settings install-user-hooks.mjs writes (`--user`).
 import { execFileSync } from "node:child_process";
-import { appendFileSync, readFileSync, realpathSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { SKILLS, mergeTarget, skillName, unreviewed } from "./review-gate-rules.mjs";
+import { SKILLS, mergeTargets, repoSlug, skillName, unreviewed } from "./review-gate-rules.mjs";
 
 const HOME_REPO = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -22,11 +23,11 @@ const tries = (f) => {
   }
 };
 
-/* a checkout's "owner/name", from its origin: GitHub's URL, or a proxy's ending the same way */
-const slugAt = (dir) =>
-  /([^/:]+\/[^/]+?)(?:\.git)?\/?$/.exec(
-    tries(() => run("git", ["remote", "get-url", "origin"], dir)) ?? "",
-  )?.[1] ?? null;
+/* a checkout's "owner/name", from its origin */
+const slugAt = (dir) => {
+  const url = tries(() => run("git", ["remote", "get-url", "origin"], dir));
+  return url && repoSlug(url);
+};
 
 /* The checkout of this repo that `dir` is in (a worktree, say), or null when it is in another
    repo. A directory in no repo at all (a cloud thread's /home/user) means this file's. */
@@ -50,22 +51,30 @@ function record(input) {
   appendFileSync(logOf(dir), `${skill} ${run("git", ["rev-parse", "HEAD"], dir)}\n`);
 }
 
-function gate(input) {
-  const target = mergeTarget(input.tool_name, input.tool_input ?? {});
-  if (!target) return;
-  const dir = checkout(target.cd ? resolve(input.cwd ?? ".", target.cd) : input.cwd);
+/* where a `cd` lands, or null when it can't be told from here (a missing directory) */
+function landing(cwd, cd) {
+  const path = resolve(cwd ?? ".", cd.replace(/^~(?=\/|$)|^\$HOME\b|^\$\{HOME\}/, homedir()));
+  return existsSync(path) ? path : null;
+}
+
+/* Why `target` can't merge yet, or null when it can (or is another repo's). */
+function blocker(target, cwd) {
+  if (target.opaque)
+    return "A GraphQL mutation names its PR by node ID, so the review gate can't check it: merge with `gh pr merge <number>` instead.";
+  const where = target.cd ? landing(cwd, target.cd) : cwd;
+  if (target.cd && !where) throw new Error(`can't find ${target.cd}`);
+  const dir = checkout(where);
   const slug = slugAt(HOME_REPO);
-  const repo = target.repo ?? (dir ? slug : null);
-  if (repo !== slug) return;
+  if ((target.repo ? repoSlug(target.repo) : dir && slug) !== slug) return null;
   const at = dir ?? HOME_REPO;
   const gh = (...args) => run("gh", ["api", ...args], at);
   const branch = target.branch ?? run("git", ["branch", "--show-current"], at);
   const number =
     target.number ??
-    Number(gh(`repos/${repo}/pulls?head=${repo.split("/")[0]}:${branch}`, "--jq", ".[0].number"));
-  if (!number) return;
+    Number(gh(`repos/${slug}/pulls?head=${slug.split("/")[0]}:${branch}`, "--jq", ".[0].number"));
+  if (!number) throw new Error(`no open PR for ${branch}`);
   const commits = gh(
-    `repos/${repo}/pulls/${number}/commits`,
+    `repos/${slug}/pulls/${number}/commits`,
     "--paginate",
     "--jq",
     ".[] | select((.parents | length) == 1) | .sha",
@@ -75,7 +84,7 @@ function gate(input) {
   if (commits.some((c) => tries(() => run("git", ["cat-file", "-e", c], at)) === null))
     run(
       "git",
-      ["fetch", "-q", "origin", gh(`repos/${repo}/pulls/${number}`, "--jq", ".head.ref")],
+      ["fetch", "-q", "origin", gh(`repos/${slug}/pulls/${number}`, "--jq", ".head.ref")],
       at,
     );
   const records = (tries(() => readFileSync(logOf(at), "utf8")) ?? "")
@@ -90,7 +99,7 @@ function gate(input) {
   const missing = Object.entries(unreviewed(commits, records, isAncestor)).filter(
     ([, cs]) => cs.length,
   );
-  if (!missing.length) return;
+  if (!missing.length) return null;
   const first = commits.find((c) => missing.some(([, cs]) => cs.includes(c)));
   const since =
     tries(() => run("git", ["rev-parse", "--short", `${first}^`], at)) ?? first.slice(0, 7);
@@ -99,15 +108,20 @@ function gate(input) {
       `/${skill} hasn't seen: ` +
       cs.map((c) => run("git", ["log", "-1", "--format=%h %s", c], at)).join("; "),
   );
-  return preToolUse({
-    permissionDecision: "deny",
-    permissionDecisionReason:
-      `PR #${number} isn't reviewed to its head (docs/agents/feature-workflow.md, steps 5 and 6). ` +
-      lines.join(". ") +
-      `. Call the Skill tool for 'code-review' with fixed point ${since}, then for 'codebase-design', ` +
-      "on the PR's head in this clone, fix what they find, push, and try again. " +
-      "Runs in this clone count from any session or worktree; an ad-hoc review or a run on another machine doesn't.",
-  });
+  return (
+    `PR #${number} isn't reviewed to its head (docs/agents/feature-workflow.md, steps 5 and 6). ` +
+    lines.join(". ") +
+    `. Call the Skill tool for 'code-review' with fixed point ${since}, then for 'codebase-design', ` +
+    "on the PR's head in this clone, fix what they find, push, and try again. " +
+    "Runs in this clone count from any session or worktree; an ad-hoc review or a run on another machine doesn't."
+  );
+}
+
+function gate(input) {
+  for (const target of mergeTargets(input.tool_name, input.tool_input ?? {})) {
+    const reason = blocker(target, input.cwd);
+    if (reason) return preToolUse({ permissionDecision: "deny", permissionDecisionReason: reason });
+  }
 }
 
 const mode = process.argv[2];
