@@ -6,9 +6,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { launch, render } from "../scripts/qa/browser.mjs";
 
-// A board in miniature: rows down the page, and one more page of them fetched when the
-// window grows, as useScrollMore does when qa stretches the window to the page's height.
-// The fetch answers slowly, as a cold preview does, and the title says when it has landed.
+// A board in miniature: rows down the page, and a fetch for more when the window grows, as
+// useScrollMore makes when qa stretches the window to the page's height. The fetch answers
+// slowly, as a cold preview does, and the title says when it has landed.
 const PAGE = `<!doctype html><title>first</title><body style="margin:0">
 <script>
 for (let i = 0; i < 30; i++) document.body.append(Object.assign(document.createElement("div"), { style: "height:100px" }));

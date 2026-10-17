@@ -71,8 +71,8 @@ export async function render(
     }
   });
   const errors = [];
-  // requests still out: the load's networkidle has fired once and is never awaited again, so
-  // a fetch the taller window starts below is only seen through this count
+  // requests still out: the load's networkidle fires once and never again, so what a click or
+  // the taller window below starts is only seen through this count
   let pending = 0;
   page.on("request", () => pending++);
   page.on("requestfinished", () => pending--);
@@ -131,7 +131,7 @@ export async function render(
       if (!(await el.isVisible().catch(() => false)))
         return { status, skipped: "control hidden", errors };
       await el.click();
-      await page.waitForLoadState("networkidle").catch(() => undefined);
+      await quiet(page, () => pending);
       await settle(page);
     }
     const probes = await page.evaluate(probe);

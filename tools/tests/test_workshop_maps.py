@@ -68,3 +68,4 @@ def test_a_map_page_says_whether_the_site_lists_the_map():
     unlisted = '<title>Ballest of Them All</title><meta name="robots" content="noindex"/>'
     assert listed_on_site(listed)
     assert not listed_on_site(unlisted)
+    assert not listed_on_site('<meta content="noindex, follow" name="robots"/>')

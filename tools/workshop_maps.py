@@ -27,7 +27,7 @@ CAMPAIGNS_TS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "lib", "campaigns.ts"
 )
 API = "https://api.steampowered.com/"
-SITE = "https://ballestrecords.com/map/"
+MAP_PAGE = "https://ballestrecords.com/map/"
 
 
 # a Workshop link's ID (wherever it sits among the link's parameters), or a bare one
@@ -97,13 +97,14 @@ def listed_on_site(html):
     """Whether a site Map page shows the Map. One the collector hasn't listed yet is a soft
     not-found that still answers 200, told apart only by its noindex (generateMetadata in
     web/app/map/[pfid]/[[...focus]]/page.tsx)."""
-    return not re.search(r'<meta name="robots" content="noindex', html)
+    return not re.search(r'<meta(?=[^>]*name="robots")[^>]*noindex', html)
 
 
 def on_site(pfid):
     """listed_on_site for one Map, or None when the site can't be read."""
     try:
-        with urllib.request.urlopen(SITE + pfid, timeout=30) as r:  # noqa: S310 (fixed https)
+        url = MAP_PAGE + pfid
+        with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310 (our site, a numeric ID)
             return listed_on_site(r.read().decode("utf-8", "replace"))
     except OSError:
         return None
