@@ -39,8 +39,8 @@ export const viewName = ({ page, state, width, text }) =>
  * plus the boxes of the elements `boxes` selects and the value of the expression `script`.
  * `prefab` is a Prefab file's text, served in place of every Prefab's file, so a Prefab's
  * page draws it. `cookies` are set before the page loads (session.mjs's signedIn signs a
- * player in with them). `skipped` says why there is nothing to compare (a control this
- * width hides).
+ * player in with them), and `me` says who the site took the browser for. `skipped` says
+ * why there is nothing to compare (a control this width hides).
  * @param {import("playwright-core").Browser} browser
  * @param {string} url
  * @param {{ width: number, text: number }} view
@@ -130,10 +130,20 @@ export async function render(
       }
     }
     await settle(page);
+    // the signed-in Steam ID the site answers with, so a session it refused isn't drawn as
+    // if it were the page signed in
+    const me = cookies?.length
+      ? await page.evaluate(() =>
+          fetch("/api/me")
+            .then((r) => (r.ok ? r.json() : {}))
+            .then((j) => j.id ?? null)
+            .catch(() => null),
+        )
+      : undefined;
     if (control) {
       const el = page.locator(control).first();
       if (!(await el.isVisible().catch(() => false)))
-        return { status, skipped: "control hidden", errors };
+        return { status, me, skipped: "control hidden", errors };
       await el.click();
       await quiet(page, () => pending);
       await settle(page);
@@ -165,7 +175,7 @@ export async function render(
       shot = await (element ? page.locator(element).first() : page).screenshot();
     }
     const title = await page.title();
-    return { status, title, shot, probes, errors, measured, evaluated };
+    return { status, me, title, shot, probes, errors, measured, evaluated };
   } finally {
     await ctx.close();
   }

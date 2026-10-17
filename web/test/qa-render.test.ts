@@ -39,6 +39,12 @@ beforeAll(async () => {
       res
         .setHeader("content-type", "text/html")
         .end(`<script>fetch("/api/player/76561199000000099"); fetch("/api/broken");</script>`);
+    else if (req.url === "/api/me")
+      res.setHeader("content-type", "application/json").end(
+        JSON.stringify({
+          id: (req.headers.cookie ?? "").includes("ballest-session=good") ? "7" : null,
+        }),
+      );
     else if (req.url === "/fields") res.setHeader("content-type", "text/html").end(FIELDS);
     else res.setHeader("content-type", "text/html").end(PAGE);
   });
@@ -69,6 +75,16 @@ describe("errors", () => {
   it("takes a player API's 404 as an answer, any other as a fault", async () => {
     const r = await render(browser, base + "/fetches", { width: 820, text: 16 }, { now: 0 });
     expect(r.errors).toEqual([{ where: "/api/broken", detail: "404" }]);
+  }, 60_000);
+});
+
+describe("signing in", () => {
+  it("says who the site took the browser for", async () => {
+    const view = { width: 820, text: 16 };
+    const as = (value: string) => [{ name: "ballest-session", value, url: base }];
+    const good = await render(browser, base + "/", view, { now: 0, cookies: as("good") });
+    const bad = await render(browser, base + "/", view, { now: 0, cookies: as("bad") });
+    expect([good.me, bad.me]).toEqual(["7", null]);
   }, 60_000);
 });
 

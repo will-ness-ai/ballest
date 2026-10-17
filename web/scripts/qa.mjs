@@ -36,7 +36,8 @@ run \`pnpm --silent qa <command> --help\` for a command's flags`,
   --jobs      views drawn at once (default 4)
 fault kinds: overflow (page scrolls sideways), offscreen, clipped (text or placeholder cut),
   overlap (text over text), error (page, console or a failed load), scroll (lands elsewhere
-  on load than the reference), missing (a state's control at no size), failed, status,
+  on load than the reference), missing (a state's control at no size), signed-out (the
+  site refused qa's session: give qa the server's SESSION_SECRET), failed, status,
   gone (answers 200 but its title says not found: the catalogue's ID is wrong)`,
   shot: `usage: pnpm --silent qa shot <view> [--at preview] [--el <selector>] [--full] [--box <selector>] [--eval <js>] [--prefab <file.json>]
   writes the view's screenshot to scratch/qa/ and prints its path, faults and errors
@@ -121,13 +122,18 @@ const stateOf = (name) => STATES.find((x) => x.name === name);
 /* the cookies that sign `t`'s browser in as the page's `as`: none for a page drawn signed
    out, null when `t` can't sign (no secret known for it, or no such ID in its set) */
 const cookiesFor = (page, t, now) => {
-  const as = PAGES.find((x) => x.name === page)?.as;
-  if (!as) return [];
-  const id = IDS[t.ids][as];
+  const id = playerOf(page, t);
+  if (id === undefined) return [];
   return id && t.secret ? signedIn(t.url, id, t.secret, now) : null;
 };
+/* the Steam ID a page is drawn signed in as on `t`: undefined for one drawn signed out,
+   null when `t`'s ID set has no such player */
+const playerOf = (page, t) => {
+  const as = PAGES.find((x) => x.name === page)?.as;
+  return as ? (IDS[t.ids][as] ?? null) : undefined;
+};
 const UNSIGNED =
-  "signed in: only a local target whose SESSION_SECRET qa knows (env or web/.env.local)";
+  "signed in: only a local target whose SESSION_SECRET qa knows (env, web/.env.local or web/.env)";
 const pageNames = `pages: ${PAGES.map((p) => p.name).join(", ")}`;
 /* a list cut to its first three once it runs past four */
 const few = (list) =>
@@ -197,6 +203,8 @@ async function shot() {
       prefab: flags.prefab && readPrefab(flags.prefab),
     });
     if (r.skipped) fail(`${viewName(view)}: ${r.skipped} at this width`);
+    if (r.me !== playerOf(view.page, t))
+      fail(`${t.url} didn't take the browser as signed in`, "give qa the server's SESSION_SECRET");
     if (r.status !== status) fail(`${t.url + path} answered ${String(r.status)}`);
     if (gone(r, status))
       fail(
@@ -351,7 +359,8 @@ async function check() {
   const found = [],
     diffs = [],
     skipped = [],
-    unsigned = [];
+    unsigned = [],
+    uncompared = [];
   try {
     const queue = [...chosen];
     const work = async () => {
@@ -371,6 +380,7 @@ async function check() {
         }).catch((e) => ({ failed: String(e.message).split("\n")[0] }));
       // a reference that can't sign in has nothing to compare against
       const [a, b] = await Promise.all([draw(at), ref && signs(ref) ? draw(ref) : null]);
+      if (ref && !b) uncompared.push(name);
       // a side that did not draw is a fault of its own, and nothing to compare against
       const broken = (r, t) => {
         if (r.failed) found.push({ view: name, kind: "failed", where: t.name, detail: r.failed });
@@ -383,6 +393,8 @@ async function check() {
           });
         else if (gone(r, expect))
           found.push({ view: name, kind: "gone", where: t.name, detail: r.title });
+        else if (r.me !== playerOf(v.page, t))
+          found.push({ view: name, kind: "signed-out", where: t.name, detail: "session refused" });
         else return false;
         return true;
       };
@@ -489,6 +501,9 @@ async function check() {
       : []),
     ...(unsigned.length
       ? [`unsigned[${String(unsigned.length)}] (drawn ${UNSIGNED}): ${few(unsigned)}`]
+      : []),
+    ...(uncompared.length
+      ? [`uncompared[${String(uncompared.length)}] (${ref.name} can't sign in): ${few(uncompared)}`]
       : []),
     "next:",
     ...(diffs.length

@@ -21,11 +21,16 @@ export function sessionCookie(id, secret, now) {
   return `${body}.${createHmac("sha256", secret.trim()).update(body).digest("base64url")}`;
 }
 
-/* the secret a local build signs sessions with: SESSION_SECRET, or web/.env.local's */
+/* the secret a local build signs sessions with: SESSION_SECRET, or else the first of
+   web/.env.local and web/.env that sets it, the order Next reads them in */
 export function localSecret() {
   if (process.env.SESSION_SECRET?.trim()) return process.env.SESSION_SECRET;
-  const file = new URL("../../.env.local", import.meta.url);
-  if (!existsSync(file)) return null;
-  const m = /^SESSION_SECRET=(.*)$/m.exec(readFileSync(file, "utf8"));
-  return m?.[1].trim().replace(/^["']|["']$/g, "") || null;
+  for (const name of [".env.local", ".env"]) {
+    const file = new URL("../../" + name, import.meta.url);
+    if (!existsSync(file)) continue;
+    const m = /^SESSION_SECRET=(.*)$/m.exec(readFileSync(file, "utf8"));
+    const secret = m?.[1].trim().replace(/^["']|["']$/g, "");
+    if (secret) return secret;
+  }
+  return null;
 }

@@ -105,14 +105,13 @@ export function probe() {
     const cs = getComputedStyle(el);
     pen.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
     const room = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    const wide = pen.measureText(el.placeholder).width;
     // a textarea wraps its placeholder onto its lines, word by word: it is cut when the
     // lines it needs are more than the box holds
     const over =
       el instanceof HTMLTextAreaElement
         ? wrapped(pen, el.placeholder, room) * lineOf(cs) -
           (el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom))
-        : wide - room;
+        : pen.measureText(el.placeholder).width - room;
     if (over > 1) add(clipped, el, Math.round(over));
   }
   /* lines of text drawn over other text. Each line is cut to the boxes
