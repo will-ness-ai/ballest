@@ -214,7 +214,6 @@ describe("Steam IDs and URLs", () => {
     expect(isPfid("1".repeat(21))).toBe(false);
     expect(isPfid("3810672947x")).toBe(false);
     expect(isPfid("")).toBe(false);
-    expect(isPfid(null)).toBe(false);
   });
 
   test("links", () => {

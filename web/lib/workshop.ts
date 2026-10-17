@@ -48,7 +48,34 @@ export const mapCard = (m: WorkshopMap): MapCard => ({
 export const timed = <T extends { top3: ReadonlyArray<unknown> }>(maps: ReadonlyArray<T>) =>
   maps.filter((m) => m.top3.length > 0);
 
-export const recordOf = (m: MapCard) => m.top3[0][2];
+/* a timed Map's record, in ticks */
+export const recordOf = (m: { top3: MapCard["top3"] }) => m.top3[0][2];
+
+/* what a Map's 3D view (components/workshop/Map3D.tsx) shows of it: its file's version, the
+   bar's name and maker, and the card's record and Medals */
+export interface Map3DView {
+  pfid: string;
+  version: string;
+  title: string;
+  creator: string;
+  /* the record in ticks, or null with no time on the Map */
+  record: number | null;
+  /* [bronze, silver, gold, author], seconds */
+  medals: Array<number>;
+}
+
+/* a Map's 3D view, or null for one whose file the site doesn't hold, which has none */
+export const map3dOf = (m: WorkshopMap): Map3DView | null =>
+  m.fileVersion
+    ? {
+        pfid: m.pfid,
+        version: m.fileVersion,
+        title: m.title,
+        creator: m.creator,
+        record: m.top3.length ? recordOf(m) : null,
+        medals: m.medals,
+      }
+    : null;
 /* how far the record is under the author time, in ticks; negative when it is slower */
 const underAuthor = (m: MapCard) => m.author * SCORE_TICKS_PER_SECOND - recordOf(m);
 const unbeaten = (m: MapCard) => m.authorBeaten === 0;

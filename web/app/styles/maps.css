@@ -559,6 +559,7 @@
 .mp-medals {
   display: grid;
   gap: 4px;
+  margin: 0;
 }
 .mp-medals div {
   display: flex;
@@ -566,7 +567,7 @@
   align-items: center;
   font-size: calc(13.5rem / 16);
 }
-.mp-medals span {
+.mp-medals dt {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -576,7 +577,8 @@
   height: calc(10rem / 16);
   border-radius: 50%;
 }
-.mp-medals b {
+.mp-medals dd {
+  margin: 0;
   font-family: var(--f-hud);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -673,9 +675,17 @@ html:has(.m3d:modal) {
 .m3d-view[data-ready] ~ .m3d-wait {
   display: none;
 }
-.m3d-bar {
+/* the bar and, on a desktop, the card under it, stacked in flow over the Map, so the card
+   sits below the bar whatever its height */
+.m3d-top {
   position: absolute;
   inset: 0 0 auto;
+  display: grid;
+  justify-items: start;
+  pointer-events: none;
+}
+.m3d-bar {
+  justify-self: stretch;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -688,20 +698,20 @@ html:has(.m3d:modal) {
   display: grid;
   min-inline-size: 0;
 }
-.m3d-bar b {
-  font-family: var(--f-hud);
-  font-size: calc(18rem / 16);
-  line-height: 1.2;
+.m3d-bar b,
+.m3d-bar span {
   overflow: clip;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.m3d-bar b {
+  font-family: var(--f-hud);
+  font-size: calc(18rem / 16);
+  line-height: 1.2;
+}
 .m3d-bar span {
   color: var(--dim);
   font-size: calc(13rem / 16);
-  overflow: clip;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .m3d-bar form {
   pointer-events: auto;

@@ -489,20 +489,28 @@ branch `claude/prototype-prefabs` (spec #213).
 A Map whose file the collector has stored (`map_files`, `docs/data.md` "Map files") has a
 **See it in 3D** button under its picture (spec #250; settled in four grill-design rounds on
 the never-merged `claude/prototype-maps3d`, variant F). `getWorkshop`'s Map carries the
-file's version (`fileVersion`), or null, and the button shows only with one.
+file's version (`fileVersion`), or null, and the button shows only with one: `map3dOf`
+(`lib/workshop.ts`) builds the view's props from the Map, or null without a file.
 
 - **The full screen** (`components/workshop/Map3D.tsx`) is a native `<dialog>` through
-  `useDialog`, so Escape, Close (a `method="dialog"` form) and Android's Back close it and
-  focus returns to the button. A bar across the top names the Map and its maker; on a desktop
-  a corner card under it gives the record ("None yet" without one) and the four Medal times,
-  and a phone leaves it out so the Map isn't covered. While it is open the page gives up its
-  scrollbar gutter, which nothing in the top layer can cover.
+  `useDialog`, so Escape and Close (a `method="dialog"` form) close it and focus returns to
+  the button. It opens with `useDialog`'s `back`, the one dialog on the site that does: opening
+  adds a history entry at the same URL, Back (the browser's, or Android's) closes it and the
+  page stays where it was, and closing it any other way goes back over that entry, so one
+  Back afterwards leaves the page as it would have before. A bar across the top names the Map
+  and its maker; on a desktop a corner card under it (`MedalList`, which the panel's Medals
+  share) gives the record ("None yet" without one) and the four Medal times, and a phone
+  leaves it out so the Map isn't covered. The card follows the bar in one stack
+  (`.m3d-top`), so it can't overlap it. While it is open the page gives up its scrollbar
+  gutter, which nothing in the top layer can cover.
 - **The Map** (`MapModel.tsx`, its own chunk, mounted only while the dialog is open, so
   neither three.js nor the file loads before the button is pressed) is the file read into a
   Prefab file by `lib/ballmap.ts` (each quaternion as an FRotator by `FQuat::Rotator`'s
   formula, each path out of its type and quote marks) and drawn by `PrefabViewer` with the
-  Prefabs' stand-in shapes, from the default angle; on a screen taller than wide it starts
-  1.3x further back. "Building the map…" shows until the viewer has drawn.
+  Prefabs' stand-in shapes, from `MAP_ANGLE`: the prototype's "Angled" view that Will
+  approved in round 4 (`from: [0.58, 0.45, 0.68], zoom: 0.8`), closer than a Prefab's
+  default; on a screen taller than wide it starts 1.3x further back. "Building the map…"
+  (`MapWait`) shows until the viewer has drawn.
 - **The file** comes from `/map/<pfid>/file?v=<version>` (`mapFileHref`,
   `app/map/[pfid]/file/route.ts`): the stored gzip bytes with `Content-Encoding: gzip`, read
   fresh (bytes don't belong in the JSON cache). Under the stored version the answer is cached

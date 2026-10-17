@@ -220,8 +220,7 @@ export function campaignProblems(list: ReadonlyArray<Campaign>): Array<string> {
       out.push(`slug "${c.slug}" is not lowercase words joined by -`);
     if (!c.maps.length) out.push(`"${c.slug}" has no Maps`);
     for (const pfid of c.maps) {
-      if (!isPfid(pfid))
-        out.push(`"${c.slug}" lists "${pfid}", which is not a Workshop ID`);
+      if (!isPfid(pfid)) out.push(`"${c.slug}" lists "${pfid}", which is not a Workshop ID`);
       const home = homes.get(pfid);
       if (home !== undefined) out.push(`Map ${pfid} is in "${home}" and "${c.slug}"`);
       homes.set(pfid, c.slug);

@@ -30,8 +30,7 @@ export const isSteamId = (id: unknown): id is string =>
    may hold one: up to 20 digits. Every place that tests a pfid uses this. */
 export const PFID = /\d{1,20}/;
 const IS_PFID = new RegExp("^" + PFID.source + "$");
-export const isPfid = (pfid: unknown): pfid is string =>
-  typeof pfid === "string" && IS_PFID.test(pfid);
+export const isPfid = (pfid: string) => IS_PFID.test(pfid);
 
 /* the one place that reads and writes a Map's board name, Workshop_<pfid>: its pfid, or null
    for a Circuit board, and a Map's board by its pfid */

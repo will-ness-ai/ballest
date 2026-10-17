@@ -675,13 +675,11 @@
     overscroll-behavior: contain;
     scrollbar-width: thin;
   }
-  /* a Map in 3D: the record and Medals in a card under the bar, which names the Map */
+  /* a Map in 3D: the record and Medals in a card under the bar, which names the Map; it
+     follows the bar in .m3d-top's flow, so it never overlaps it */
   .m3d-card {
-    position: absolute;
-    inset-block-start: 72px;
-    inset-inline-start: 16px;
     inline-size: 15rem;
-    margin: 0;
+    margin: 0 16px;
     display: grid;
     gap: 4px;
     padding: 12px 14px;
