@@ -224,3 +224,61 @@
   }
 }
 /* =================================== end PROTOTYPE =================================== */
+/* round 2 */
+.m3d-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--scrim);
+  color: var(--text);
+  cursor: pointer;
+}
+.m3d-sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  height: 78svh;
+  z-index: 900;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--solid);
+  border-top: 1px solid var(--line);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -12px 40px oklch(0% 0 none / 0.5);
+}
+.m3d-sheet .m3d {
+  border: 0;
+  border-radius: 0;
+}
+.m3d-sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+}
+.m3d-x2,
+.m3d-back {
+  justify-self: start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.m3d-hint2 {
+  color: var(--dim);
+  font-size: 0.8rem;
+}
+@media (min-width: 900px) {
+  .m3d-sheet {
+    inset: 0 0 0 auto;
+    width: min(44rem, 55vw);
+    height: auto;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    border-radius: 16px 0 0 16px;
+  }
+}

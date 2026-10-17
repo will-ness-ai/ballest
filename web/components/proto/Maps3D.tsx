@@ -25,12 +25,25 @@ export const TOP10: Array<{ pfid: string; title: string }> = [
 export const rankOf = (pfid: string) => TOP10.findIndex((m) => m.pfid === pfid);
 
 export const VARIANTS: Array<[string, string, string]> = [
-  ["A", "Picture is 3D", "the panel's picture becomes the live 3D map"],
-  ["B", "Stage", "a wide 3D band across the top of the Map page, above panel and board"],
-  ["C", "View in 3D button", "a button on the picture opens the map full screen"],
-  ["D", "Top 10 page", "a new page with the ten maps; the Map page links to it"],
-  ["E", "Board | 3D tabs", "tabs above the board swap it for the 3D map"],
+  ["A", "Full screen", "the button opens the map over the whole page"],
+  ["B", "Own page", "the button goes to the map's own 3D page"],
+  ["C", "In the panel", "the picture turns into the 3D map where it is"],
+  ["D", "In the board's place", "the board column swaps to the 3D map"],
+  ["E", "Drawer", "a sheet slides up (phone) or in from the side (desktop)"],
 ];
+
+/* every Map whose file the prototype fetched */
+export const HAS = new Set([
+  ...TOP10.map((m) => m.pfid),
+  "3755236154",
+  "3762695115",
+  "3796494598",
+  "3805044786",
+  "3805306900",
+  "3806993482",
+  "3808173247",
+  "3820471145",
+]);
 
 export function useVariant() {
   const [v, setV] = useState("A");
@@ -135,119 +148,110 @@ export function Picker() {
   );
 }
 
-/* the Map page's hooks: each renders only under its variant, and only for a top-ten Map */
+/* the Map page's hooks: each renders only under its variant, and only for a Map with a file */
 export function ProtoSlot({ pfid, slot }: { pfid: string; slot: "img" | "stage" | "tabs" }) {
   const v = useVariant();
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"board" | "3d">("board");
-  const rank = rankOf(pfid);
-  /* ?state=open starts C's full screen and E's 3D tab, for screenshots */
+  /* ?state=open starts the 3D view open, for screenshots */
   useEffect(() => {
-    if (new URLSearchParams(location.search).get("state") === "open") {
-      setOpen(true); // eslint-disable-line react-hooks/set-state-in-effect -- PROTOTYPE
-      setTab("3d");
-    }
+    if (new URLSearchParams(location.search).get("state") === "open") setOpen(true); // eslint-disable-line react-hooks/set-state-in-effect -- PROTOTYPE
   }, []);
   useEffect(() => {
-    document.documentElement.classList.toggle("proto-3dtab", v === "E" && tab === "3d");
-    document.documentElement.classList.toggle("proto-hideimg", rank >= 0 && v === "A");
-  }, [v, tab, rank]);
-  if (rank < 0) return null;
-  if (slot === "img" && v === "A")
-    return (
-      <div className="m3d-a">
-        <Map3D pfid={pfid} />
-        <span className="m3d-badge">#{rank + 1} most popular · drag to turn</span>
-      </div>
-    );
-  if (slot === "img" && v === "C")
-    return (
-      <>
-        <button type="button" className="m3d-cbtn" onClick={() => setOpen(true)}>
-          View in 3D
-        </button>
-        {open && (
-          <div className="m3d-full" role="dialog">
-            <Map3D pfid={pfid} className="m3d m3d-fill" />
-            <button type="button" className="m3d-close" onClick={() => setOpen(false)}>
-              Close
-            </button>
-            <span className="m3d-hint">Drag to turn · scroll to zoom · right-drag to pan</span>
-          </div>
-        )}
-      </>
-    );
-  if (slot === "img" && v === "D")
-    return (
-      <a className="go m3d-dlink" href={`/maps3d?variant=D#${pfid}`}>
-        See it in 3D · #{rank + 1} of the top 10
-      </a>
-    );
-  if (slot === "stage" && v === "B")
-    return (
-      <div className="m3d-stage">
-        <Map3D pfid={pfid} className="m3d m3d-fill" />
-        <span className="m3d-badge">#{rank + 1} most popular · drag to turn</span>
-      </div>
-    );
-  if (slot === "tabs" && v === "E")
-    return (
-      <div className="m3d-tabs">
-        <div className="m3d-tabbar" role="tablist">
-          <button type="button" aria-selected={tab === "board"} onClick={() => setTab("board")}>
-            Board
-          </button>
-          <button type="button" aria-selected={tab === "3d"} onClick={() => setTab("3d")}>
-            3D map
+    document.documentElement.classList.toggle("proto-3dtab", v === "D" && open);
+    document.documentElement.classList.toggle("proto-hideimg", v === "C" && open);
+  }, [v, open]);
+  if (!HAS.has(pfid)) return null;
+  const button = (label = "See it in 3D") => (
+    <button type="button" className="go m3d-dlink" onClick={() => setOpen(true)}>
+      {label}
+    </button>
+  );
+  if (slot === "img") {
+    if (v === "B")
+      return (
+        <a className="go m3d-dlink" href={`/maps3d?variant=B#${pfid}`}>
+          See it in 3D
+        </a>
+      );
+    if (v === "A")
+      return (
+        <>
+          {button()}
+          {open && (
+            <div className="m3d-full" role="dialog">
+              <Map3D pfid={pfid} className="m3d m3d-fill" />
+              <button type="button" className="m3d-close" onClick={() => setOpen(false)}>
+                Close
+              </button>
+              <span className="m3d-hint">Drag to turn · scroll to zoom · right-drag to pan</span>
+            </div>
+          )}
+        </>
+      );
+    if (v === "C")
+      return open ? (
+        <div className="m3d-a">
+          <Map3D pfid={pfid} />
+          <button type="button" className="m3d-x" onClick={() => setOpen(false)}>
+            Picture
           </button>
         </div>
-        {tab === "3d" && <Map3D pfid={pfid} className="m3d m3d-tab" />}
+      ) : (
+        button()
+      );
+    if (v === "D") return open ? null : button();
+    if (v === "E")
+      return (
+        <>
+          {button()}
+          {open && (
+            <div className="m3d-sheet" role="dialog">
+              <div className="m3d-sheet-head">
+                <b>3D map</b>
+                <button type="button" className="m3d-x2" onClick={() => setOpen(false)}>
+                  Close
+                </button>
+              </div>
+              <Map3D pfid={pfid} className="m3d m3d-fill" />
+            </div>
+          )}
+        </>
+      );
+  }
+  if (slot === "tabs" && v === "D" && open)
+    return (
+      <div className="m3d-tabs">
+        <button type="button" className="m3d-back" onClick={() => setOpen(false)}>
+          ← Back to the board
+        </button>
+        <Map3D pfid={pfid} className="m3d m3d-tab" />
       </div>
     );
   return null;
 }
 
-/* variant D's page: one big viewer and the ten Maps beside it */
+/* variant B's page: the Map's own 3D page */
 export function Top10Page() {
-  const [pfid, setPfid] = useState(TOP10[0].pfid);
+  const [pfid, setPfid] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
   useEffect(() => {
     const h = location.hash.slice(1);
-    if (rankOf(h) >= 0) setPfid(h);
+    setPfid(h); // eslint-disable-line react-hooks/set-state-in-effect -- PROTOTYPE
+    setTitle(TOP10.find((m) => m.pfid === h)?.title ?? "");
   }, []);
-  const m = TOP10[rankOf(pfid)];
+  if (!pfid) return null;
   return (
     <div className="m3d-page">
+      <a className="back" href={`/map/${pfid}?variant=B`}>
+        ← Board
+      </a>
       <header>
-        <span className="eyebrow">Workshop in 3D</span>
-        <h1>The ten most popular maps</h1>
+        <span className="eyebrow">Workshop map in 3D</span>
+        <h1>{title || "Map"}</h1>
       </header>
-      <div className="m3d-pgrid">
-        <div className="m3d-pview">
-          <Map3D key={pfid} pfid={pfid} className="m3d m3d-fill" />
-          <div className="m3d-pcap">
-            <b>
-              #{rankOf(pfid) + 1} {m.title}
-            </b>
-            <a href={`/map/${pfid}`}>Board →</a>
-          </div>
-        </div>
-        <ol className="m3d-rail">
-          {TOP10.map((t, i) => (
-            <li key={t.pfid}>
-              <button
-                type="button"
-                aria-current={t.pfid === pfid}
-                onClick={() => {
-                  setPfid(t.pfid);
-                  history.replaceState(null, "", `#${t.pfid}`);
-                }}
-              >
-                <span>{i + 1}</span>
-                {t.title}
-              </button>
-            </li>
-          ))}
-        </ol>
+      <div className="m3d-pview">
+        <Map3D pfid={pfid} className="m3d m3d-fill" />
+        <span className="m3d-hint2">Drag to turn · scroll to zoom · right-drag to pan</span>
       </div>
     </div>
   );
