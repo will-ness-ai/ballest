@@ -5,7 +5,7 @@
 // (both read the production database) and `stress` for a local build seeded with the stress
 // dataset (db/seed/datasets/stress.ts). RANKED holds a five-digit rank on an Overall board,
 // LONG has a long name, RIVAL is the head to head's other side, MAP has a long title, and
-// PREFAB is a Prefab (production's is one of the two samples). In
+// PREFAB is a Prefab (production's is wrongwaysign, which mixes rings, cubes and pipes). In
 // stress one player is RANKED and LONG; on production RANKED is Hky. (12697th in Season 2)
 // and LONG is "Twizy #POPEM #LongLiveTheRuler". CAMPAIGN is a Campaign with its podium
 // order and CAMPAIGN_MAP one of its Maps inside its frame: on production Solar Trials (nine
@@ -21,7 +21,7 @@ export const IDS = {
     CAMPAIGN: "solar-trials",
     CAMPAIGN_MAP: "3805413302",
     CAMPAIGNER: "76561197968999419",
-    PREFAB: "bench",
+    PREFAB: "wrongwaysign",
   },
   stress: {
     RANKED: "76561199000000011",
@@ -95,3 +95,6 @@ export const MASK = ["#freshness b"];
 // Steam's images and avatars are answered with one fixed picture, so every run draws the same.
 export const DROP = /vercel\.live|plausible|railway\.app/;
 export const STAND_IN = /steamusercontent|steamstatic|example\.invalid/;
+// A Prefab's file, as its page's viewer fetches it (prefabFileHref in lib/routes.ts): `qa shot
+// --prefab` answers it with a local file.
+export const PREFAB_FILE = "**/api/prefabs/*/file";

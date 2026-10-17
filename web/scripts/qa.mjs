@@ -3,7 +3,7 @@
 // exit code 1). `check` draws every page at several sizes on a target and a reference,
 // reports layout faults, errors and changed pixels, and writes one picture per changed view
 // to read in place of the screenshots. What it looks at: scripts/qa/catalogue.mjs.
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { compare } from "./qa/compare.mjs";
@@ -31,13 +31,16 @@ run \`pnpm --silent qa <command> --help\` for a command's flags`,
   --jobs      views drawn at once (default 4)
 fault kinds: overflow (page scrolls sideways), offscreen, clipped (text or placeholder cut),
   overlap (text over text), error (page, console or a failed load), scroll (lands elsewhere
-  on load than the reference), missing (a state's control at no size), failed, status`,
-  shot: `usage: pnpm --silent qa shot <view> [--at preview] [--el <selector>] [--full] [--box <selector>] [--eval <js>]
+  on load than the reference), missing (a state's control at no size), failed, status,
+  gone (answers 200 but its title says not found: the catalogue's ID is wrong)`,
+  shot: `usage: pnpm --silent qa shot <view> [--at preview] [--el <selector>] [--full] [--box <selector>] [--eval <js>] [--prefab <file.json>]
   writes the view's screenshot to scratch/qa/ and prints its path, faults and errors
   --el    only this element
   --full  the whole page, past the 4000px check cuts at
   --box   print the box of each element the selector matches (x, right, page y, size, text)
-  --eval  print the value of this expression, run in the page`,
+  --eval  print the value of this expression, run in the page
+  --prefab  a Prefab file the page's viewer draws in place of the real one (prefab@1280
+          --prefab sign.json): the viewer as that target builds it, on any file`,
 };
 
 // ---------------------------------------------------------------- args
@@ -58,7 +61,7 @@ if (argv.includes("--help")) {
 }
 const FLAGS = {
   check: ["at", "against", "pages", "sizes", "jobs"],
-  shot: ["at", "el", "box", "eval"],
+  shot: ["at", "el", "box", "eval", "prefab"],
   "": [],
 };
 const SWITCHES = { check: ["no-states", "assert"], shot: ["full"], "": [] };
@@ -132,7 +135,7 @@ async function shot() {
   const view = positional[0] ? parseView(positional[0]) : null;
   if (!view) fail("name a view, like player@390", HELP.shot);
   const t = target(flags.at ?? "preview");
-  const { path } = pageOf(view.page, t.ids);
+  const { path, status } = pageOf(view.page, t.ids);
   if (!path) fail(`no page "${view.page}"`, pageNames);
   const state = view.state ? stateOf(view.state) : undefined;
   if (view.state && !state)
@@ -146,9 +149,15 @@ async function shot() {
       element: flags.el,
       boxes: flags.box,
       script: flags.eval,
+      prefab: flags.prefab && readPrefab(flags.prefab),
     });
     if (r.skipped) fail(`${viewName(view)}: ${r.skipped} at this width`);
-    if (r.status !== pageOf(view.page).status) fail(`${t.url + path} answered ${String(r.status)}`);
+    if (r.status !== status) fail(`${t.url + path} answered ${String(r.status)}`);
+    if (gone(r, status))
+      fail(
+        `${t.url + path} says "${r.title}"`,
+        "point its ID in scripts/qa/catalogue.mjs at one that exists",
+      );
     mkdirSync(OUT, { recursive: true });
     const file = OUT + "shot-" + viewName(view).replaceAll("/", "-") + ".png";
     writeFileSync(file, r.shot);
@@ -165,6 +174,21 @@ async function shot() {
   } finally {
     await browser.close();
   }
+}
+
+/* a Prefab file's text for --prefab, or the error that names the path */
+function readPrefab(file) {
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    return fail(`can't read ${file}`, "give --prefab the path of a Prefab's .json file");
+  }
+}
+
+/* a page meant to be there whose title says not found: a stale catalogue ID. A streamed page
+   (a Prefab's) answers 200 even then, so its status can't tell. */
+function gone(r, expect) {
+  return expect < 400 && /not (be )?found/i.test(r.title ?? "");
 }
 
 /* the layout probes' findings as rows */
@@ -230,6 +254,8 @@ async function check() {
             where: t.name,
             detail: `${String(r.status)}, expected ${String(expect)}`,
           });
+        else if (gone(r, expect))
+          found.push({ view: name, kind: "gone", where: t.name, detail: r.title });
         else return false;
         return true;
       };
