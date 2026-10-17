@@ -35,6 +35,13 @@ which `pnpm --dir web exec next typegen` writes (CI runs it first).
 
 - `pnpm format` rewrites everything; `pnpm lint:fix` applies the safe lint fixes.
 - `pnpm check` is what CI runs: `format:check` then `lint`.
+- `git push` runs `pnpm check` first (`.githooks/pre-push`, about a minute) and stops on a
+  failure. A root `pnpm install` that installs anything turns it on (`prepare` sets
+  `core.hooksPath`), and so does `session-start.sh`; in an older checkout, run
+  `git config core.hooksPath .githooks` once. `git push --no-verify` skips it.
+- A database test that can't reach Postgres fails with a message naming
+  `service postgresql start` (pytest stops at the first): a cloud container stops Postgres
+  when it restarts.
 
 ## Settled choices
 
@@ -52,7 +59,7 @@ which `pnpm --dir web exec next typegen` writes (CI runs it first).
 - **Index reads are typed as present** (`noUncheckedIndexedAccess` is off), so
   `no-unnecessary-condition` rejects `m[1] ?? "all"` on a regex group. Type an optional
   group as what it is first: `(m[1] as string | undefined) ?? "all"`, or `slot.at(1)`.
-- **Not linted**: `leth/` (a frozen snapshot), `data/` (CI-written), the vendored
+- **Not linted**: `leth/` (a frozen snapshot), a local `data/`, the vendored
   `.claude/skills/`. `.prettierignore` and the `globalIgnores` in `eslint.config.js` list them.
 - **The legacy Steamworks-SDK scripts** (`tools/README-hosting.md`) are formatted and linted
   for bugs, but keep their style (SDK struct names, bare `open()`): they only run on Windows

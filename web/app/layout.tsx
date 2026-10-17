@@ -19,10 +19,11 @@ import "./styles/players.css";
 import "./styles/maps.css";
 import "./styles/history.css";
 import "./styles/daily.css";
+import "./styles/prefabs.css";
 import "./styles/desktop.css";
 
 const DESCRIPTION =
-  "Circuit and Workshop leaderboards for Ballest of Them All, read straight from Steam.";
+  "Workshop, Circuit and Daily leaderboards for Ballest of Them All, with every world record and player, read straight from Steam.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),

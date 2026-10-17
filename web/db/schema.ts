@@ -16,6 +16,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -25,6 +26,8 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+import type { PrefabAngle } from "../lib/prefabs";
 
 export const refreshSource = pgEnum("refresh_source", ["collector", "backfill"]);
 
@@ -36,6 +39,9 @@ export const refreshes = pgTable("refreshes", {
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   source: refreshSource("source").notNull(),
   commitSha: text("commit_sha"),
+  // whether this Refresh's Workshop step read every Map's board, not only the ones played
+  // since the last read: the collector sweeps once every FULL_SWEEP_SECONDS from the latest
+  fullSweep: boolean("full_sweep").notNull().default(false),
 });
 
 export const boardKind = pgEnum("board_kind", ["track", "overall", "map", "daily"]);
@@ -201,4 +207,69 @@ export const ghosts = pgTable("ghosts", {
   topSpeed: real("top_speed"),
   profile: real("profile").array(),
   readAt: timestamp("read_at", { withTimezone: true }).notNull(),
+});
+
+// A Prefab (CONTEXT.md): a group of editor pieces a player uploaded, with the file exactly as
+// they sent it (ADR 0009, the first table the site itself writes). The slug comes from the
+// first name and never changes, so a link survives a rename. A deleted or taken-down Prefab
+// keeps its row, which still counts against its uploader's hourly limit, and reads as gone. A
+// banned uploader's Prefabs are hidden by the reads, not here, so an unban brings them back.
+// The uploader is any signed-in Steam ID, not only a player the boards have seen, so there is
+// no foreign key; uploader_name is their Steam persona when they uploaded, for a byline when
+// the boards have no persona for them.
+export const prefabs = pgTable(
+  "prefabs",
+  {
+    id: serial("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    // values from TAGS (lib/prefab-check.ts)
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    uploader: text("uploader").notNull(),
+    uploaderName: text("uploader_name"),
+    file: text("file").notNull(),
+    pieces: integer("pieces").notNull(),
+    bytes: integer("bytes").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    takenDownAt: timestamp("taken_down_at", { withTimezone: true }),
+    // the view its uploader picked for its picture (PrefabAngle in lib/prefabs.ts), or null
+    // for the default
+    angle: jsonb("angle").$type<PrefabAngle>(),
+  },
+  (t) => [index("prefabs_uploader").on(t.uploader, t.createdAt)],
+);
+
+// A Favorite: one signed-in player's heart on one Prefab.
+export const prefabFavorites = pgTable(
+  "prefab_favorites",
+  {
+    prefabId: integer("prefab_id")
+      .notNull()
+      .references(() => prefabs.id),
+    steamId: text("steam_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.prefabId, t.steamId] })],
+);
+
+// A player the admin has stopped uploading. Their Prefabs read as hidden while the row is here.
+export const prefabBans = pgTable("prefab_bans", {
+  steamId: text("steam_id").primaryKey(),
+  bannedAt: timestamp("banned_at", { withTimezone: true }).notNull().defaultNow(),
+  bannedBy: text("banned_by").notNull(),
+});
+
+// A player the admin has given their own hourly upload limit, in place of HOURLY_UPLOADS
+// (lib/prefabs.ts). No row is the default.
+export const prefabLimits = pgTable("prefab_limits", {
+  steamId: text("steam_id").primaryKey(),
+  perHour: integer("per_hour").notNull(),
+  setAt: timestamp("set_at", { withTimezone: true }).notNull().defaultNow(),
+  setBy: text("set_by").notNull(),
 });

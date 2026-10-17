@@ -19,9 +19,14 @@ did not change says nothing about whether the collector read it, so it is left u
 as the collector leaves a Map it did not read. Map metadata comes from that commit's
 workshop.json.
 
+The collector stopped committing data/ in phase 5 of docs/nextjs-migration.md, and the
+commit that deleted it is skipped, so the history replays up to the last snapshot.
+
 It runs from an empty database. It refuses one that already holds any Refresh, unless
 given --rebuild, which truncates every table first and replays everything: the collector's
-own Refreshes are in git as data commits too, so nothing is lost but their exact times.
+Refreshes up to phase 5 are in git as data commits too, so nothing is lost but their exact
+times. A database holding a collector Refresh from after the last snapshot is refused even
+with --rebuild, since nothing could bring that Refresh back: production, from phase 5 on.
 """
 
 import os
@@ -44,6 +49,7 @@ TABLES = (
     "persona_history",
     "map_history",
     "maps",
+    "dailies",
     "players",
     "boards",
     "refreshes",
@@ -141,9 +147,20 @@ def snapshot(files, prev, blobs, cache):
     return boards, workshop
 
 
-def prepare(conn, *, rebuild):
-    """Refuse a database that already holds Refreshes, unless rebuilding it."""
+def prepare(conn, *, rebuild, last):
+    """Refuse a database that already holds Refreshes, unless rebuilding it, and never
+    rebuild one holding a collector Refresh from after last, the newest snapshot: git has
+    no copy of it (the collector stopped committing data/), so truncating would lose it."""
     held = dict(conn.execute("select source, count(*) from refreshes group by source").fetchall())
+    (newer,) = conn.execute(
+        "select count(*) from refreshes where source = 'collector'"
+        " and started_at > coalesce(%s::timestamptz, '-infinity')",
+        (last,),
+    ).fetchone()
+    if newer:
+        print(f"ERROR: the database holds {newer} collector Refreshes newer than the last")
+        print("snapshot of data/ in git, which a replay cannot bring back. Not touching it.")
+        return False
     if held and not rebuild:
         kinds = ", ".join(f"{n} {s}" for s, n in held.items())
         print(f"ERROR: the database already holds Refreshes ({kinds}). Rerun with --rebuild")
@@ -158,14 +175,17 @@ def prepare(conn, *, rebuild):
 def main(url, *, rebuild=False):
     began = time.monotonic()
     with psycopg.connect(url, autocommit=True) as conn:
-        if not prepare(conn, rebuild=rebuild):
-            return 2
         snaps = commits()
+        if not prepare(conn, rebuild=rebuild, last=snaps[-1][1] if snaps else None):
+            return 2
         print(f"Replaying {len(snaps)} snapshots of data/ ...")
         blobs, cache, prev = Blobs(), {}, {}
         try:
             for i, (sha, when) in enumerate(snaps, 1):
                 files = tree(sha)
+                if not files:
+                    print(f"  [{i}/{len(snaps)}] {sha[:9]} removed data/; nothing to replay")
+                    continue
                 boards, workshop = snapshot(files, prev, blobs, cache)
                 rid = db_writer.write_refresh(
                     conn,

@@ -3,6 +3,7 @@
 // no card. `focus` is a Steam ID whose row to find and mark.
 import { notFound, redirect } from "next/navigation";
 
+import { PartOf } from "./Campaign";
 import { CreatorLink } from "./Card";
 import { Age } from "./Age";
 import { BackLink, Remember } from "../BackLink";
@@ -40,6 +41,7 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
         </span>
       </div>
       {reason && <p className="mp-flag">Reported broken: {reason}</p>}
+      <PartOf pfid={m.pfid} />
       <dl className="mp-facts">
         <div>
           <dt>Runs</dt>

@@ -1,0 +1,1 @@
+ALTER TABLE "prefabs" ADD COLUMN "angle" jsonb;

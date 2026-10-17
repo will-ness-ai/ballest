@@ -18,8 +18,6 @@
       "Bash(npx tsc --noEmit)",
       "Bash(npx vitest run)",
       "Bash(npx vitest run *)",
-      "Bash(python tools/check_data.py)",
-      "Bash(python tools/check_data.py *)",
       "Bash(pnpm qa *)",
       "Bash(pnpm qa)",
       "Bash(pnpm --silent qa *)",

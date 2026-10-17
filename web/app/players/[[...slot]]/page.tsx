@@ -28,6 +28,8 @@ export const metadata: Metadata = {
   title: "Players",
   description:
     "Every Ballest of Them All player ranked by world records, podiums, top 5s or Maps finished, on the Circuit, the Workshop or both.",
+  /* a ranking is the one table sorted another way, so it names the one page */
+  alternates: { canonical: playersHref("all", "wr") },
 };
 
 async function Table({ params }: Pick<Props, "params">) {

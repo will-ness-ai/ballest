@@ -1,0 +1,6445 @@
+{
+	"format": "BallestPrefab",
+	"version": 1,
+	"group":
+	{
+		"rotation": [
+			0,
+			0,
+			-0
+		],
+		"scale": [
+			1,
+			1,
+			1
+		]
+	},
+	"items": [
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Ramp_Curve_Long1.BP_Ramp_Curve_Long1_C",
+			"transform":
+			{
+				"location": [
+					816.77784060892373,
+					40,
+					-155.86358267700416
+				],
+				"rotation": [
+					-9.9999999999999982,
+					0,
+					0
+				],
+				"scale": [
+					1,
+					0.56232293153577473,
+					1
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_2000_45scoop.SM_2000_45scoop",
+					"materials": [
+						"/Game/Art/Materials/Masters/MI_Concrete.MI_Concrete"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Concrete.MaterialCategory_Concrete"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					265.99261102609671,
+					190,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					225.99261102609671,
+					200,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					185.99261102609671,
+					200,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					145.99261102609671,
+					200,
+					118.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					105.99261102609671,
+					190,
+					138.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					75.992611026096711,
+					190,
+					158.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					35.992611026096711,
+					190,
+					178.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-4.0073889739032893,
+					200,
+					208.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-34.007388973903289,
+					200,
+					228.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-64.007388973903289,
+					190,
+					248.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-94.007388973903289,
+					190,
+					258.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					265.99261102609671,
+					-120,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					225.99261102609671,
+					-120,
+					88.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					165.99261102609671,
+					-110,
+					118.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					115.99261102609671,
+					-110,
+					148.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					65.992611026096711,
+					-120,
+					178.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Cylinder.BP_Prim_Cylinder_C",
+			"transform":
+			{
+				"location": [
+					-794.00738897390329,
+					60,
+					88.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					1.4843253816017656,
+					1.4074872744688693,
+					0.99732915739061634
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Start_Fixed.SM_Start_Fixed",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_Lime.MI_Env_Rough_Lime"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					6
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Cylinder.BP_Prim_Cylinder_C",
+			"transform":
+			{
+				"location": [
+					-794.00738897390329,
+					50,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					1.4615285551130068,
+					1.3810318250902565,
+					0.99732915739061634
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Start_Fixed.SM_Start_Fixed",
+					"materials": [
+						"/Game/Art/Materials/Masters/MI_Concrete.MI_Concrete"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Concrete.MaterialCategory_Concrete"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Cylinder.BP_Prim_Cylinder_C",
+			"transform":
+			{
+				"location": [
+					-794.00738897390329,
+					50,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					1.1170003421663914,
+					1.1440397073079913,
+					0.99732915739061634
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Start_Fixed.SM_Start_Fixed",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_Lime.MI_Env_Rough_Lime"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					6
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Cylinder.BP_Prim_Cylinder_C",
+			"transform":
+			{
+				"location": [
+					-784.00738897390329,
+					0,
+					-91.937228795577539
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					2.1233543442843197,
+					2.0201998869815321,
+					0.99732915739061634
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Start_Fixed.SM_Start_Fixed",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_Lime.MI_Env_Rough_Lime"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					6
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					155.99261102609671,
+					-160,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					135.99261102609671,
+					-150,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					135.99261102609671,
+					-210,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-4.0073889739032893,
+					-180,
+					28.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					105.99261102609671,
+					-270,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					65.992611026096711,
+					-260,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					55.992611026096711,
+					-340,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					15.992611026096711,
+					-340,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-144.00738897390329,
+					-310,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					5.9926110260967107,
+					-270,
+					168.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					35.992611026096711,
+					-180,
+					148.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-14.007388973903289,
+					-370,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-14.007388973903289,
+					-440,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-44.007388973903289,
+					-440,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-94.007388973903289,
+					-460,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-134.00738897390329,
+					-510,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-84.007388973903289,
+					-540,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-294.00738897390329,
+					-490,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-184.00738897390329,
+					-550,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-194.00738897390329,
+					-640,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-274.00738897390329,
+					-640,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-414.00738897390329,
+					-600,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-264.00738897390329,
+					-700,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-274.00738897390329,
+					-690,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-334.00738897390329,
+					-710,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-374.00738897390329,
+					-770,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-394.00738897390329,
+					-760,
+					88.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-444.00738897390329,
+					-750,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-444.00738897390329,
+					-760,
+					118.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-464.00738897390329,
+					-800,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-444.00738897390329,
+					-830,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-514.00738897390329,
+					-830,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-584.00738897390329,
+					-690,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-584.00738897390329,
+					-880,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-614.00738897390329,
+					-810,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-694.00738897390329,
+					-850,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-694.00738897390329,
+					-820,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-764.00738897390329,
+					-810,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-794.00738897390329,
+					-680,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-814.00738897390329,
+					-830,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-814.00738897390329,
+					-860,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-874.00738897390329,
+					-810,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-964.00738897390329,
+					-810,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-974.00738897390329,
+					-730,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-944.00738897390329,
+					-760,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1054.0073889739033,
+					-770,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1034.0073889739033,
+					-620,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1124.0073889739033,
+					-730,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1194.0073889739033,
+					-730,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1164.0073889739033,
+					-700,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1194.0073889739033,
+					-670,
+					128.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1224.0073889739033,
+					-660,
+					48.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1294.0073889739033,
+					-670,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1274.0073889739033,
+					-640,
+					88.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1344.0073889739033,
+					-590,
+					48.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1224.0073889739033,
+					-510,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1424.0073889739033,
+					-540,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1374.0073889739033,
+					-540,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1344.0073889739033,
+					-400,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1454.0073889739033,
+					-470,
+					48.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1494.0073889739033,
+					-410,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1454.0073889739033,
+					-370,
+					48.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1524.0073889739033,
+					-300,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1444.0073889739033,
+					-230,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1594.0073889739033,
+					-260,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1584.0073889739033,
+					-180,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1604.0073889739033,
+					-200,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1614.0073889739033,
+					-150,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1654.0073889739033,
+					-150,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1514.0073889739033,
+					-50,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1634.0073889739033,
+					-80,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1684.0073889739033,
+					-40,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1654.0073889739033,
+					-10,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1674.0073889739033,
+					20,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1564.0073889739033,
+					110,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1714.0073889739033,
+					80,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1724.0073889739033,
+					120,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1704.0073889739033,
+					170,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1614.0073889739033,
+					190,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1644.0073889739033,
+					270,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1464.0073889739033,
+					320,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1584.0073889739033,
+					360,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1574.0073889739033,
+					430,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1484.0073889739033,
+					470,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1464.0073889739033,
+					490,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1324.0073889739033,
+					500,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1454.0073889739033,
+					580,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1394.0073889739033,
+					600,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1334.0073889739033,
+					670,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1254.0073889739033,
+					670,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1124.0073889739033,
+					650,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1254.0073889739033,
+					730,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1194.0073889739033,
+					800,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1134.0073889739033,
+					840,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1054.0073889739033,
+					800,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1074.0073889739033,
+					790,
+					98.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-904.00738897390329,
+					720,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-984.00738897390329,
+					850,
+					118.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-1004.0073889739033,
+					870,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-924.00738897390329,
+					880,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-834.00738897390329,
+					900,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-834.00738897390329,
+					850,
+					118.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-694.00738897390329,
+					780,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-794.00738897390329,
+					920,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-744.00738897390329,
+					910,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-694.00738897390329,
+					910,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-614.00738897390329,
+					840,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-554.00738897390329,
+					870,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-554.00738897390329,
+					870,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-474.00738897390329,
+					840,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-494.00738897390329,
+					720,
+					88.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-404.00738897390329,
+					810,
+					58.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-354.00738897390329,
+					730,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-334.00738897390329,
+					720,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-304.00738897390329,
+					570,
+					88.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-284.00738897390329,
+					730,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-254.00738897390329,
+					680,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-214.00738897390329,
+					680,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-164.00738897390329,
+					600,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-84.007388973903289,
+					570,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-134.00738897390329,
+					510,
+					88.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-44.007388973903289,
+					540,
+					68.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-64.007388973903289,
+					480,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-34.007388973903289,
+					460,
+					38.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.42344452920596781,
+					0.43416206616726027,
+					0.26513235979693883
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					35.992611026096711,
+					410,
+					78.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					25.992611026096711,
+					390,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					25.992611026096711,
+					230,
+					18.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-124.00738897390329,
+					320,
+					88.062771204422461
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					15.992611026096711,
+					270,
+					158.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-134.00738897390329,
+					230,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-14.007388973903289,
+					-120,
+					228.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.21954518898633307,
+					0.19200538608526158,
+					0.17585691576632356
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		},
+		{
+			"class": "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Sphere.BP_Prim_Sphere_C",
+			"transform":
+			{
+				"location": [
+					-124.00738897390329,
+					-180,
+					108.06277120442246
+				],
+				"rotation": [
+					0,
+					0,
+					-0
+				],
+				"scale": [
+					0.86076380927439111,
+					0.83216573700330476,
+					0.4612792664341947
+				]
+			},
+			"properties":
+			{
+			},
+			"meshes": [
+				{
+					"tag": "SKGMapEditor",
+					"mesh": "/Game/Maps/_GENERATED/PC/SM_Sphere.SM_Sphere",
+					"materials": [
+						"/Game/Art/Materials/Environment/Materials/Instances/MI_Env_Rough_White.MI_Env_Rough_White"
+					]
+				}
+			],
+			"paint":
+			{
+				"categories": [
+					"/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Rough.MaterialCategory_Rough"
+				],
+				"colors": [
+					1
+				]
+			}
+		}
+	]
+}

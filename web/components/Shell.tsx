@@ -14,19 +14,31 @@ import {
   CIRCUIT_TAB,
   DAILY_TAB,
   PLAYERS_TAB,
+  PREFABS_TAB,
   WORKSHOP_GROUP,
   boardHref,
   dailyHref,
   homeHref,
   playersHref,
+  prefabsHref,
 } from "../lib/routes";
 import { SITE_TITLE } from "../lib/rules";
 
-export type View = "board" | "map" | "workshop" | "maps" | "player" | "vs" | "players" | "daily";
+export type View =
+  | "board"
+  | "map"
+  | "workshop"
+  | "maps"
+  | "player"
+  | "vs"
+  | "players"
+  | "daily"
+  | "prefab"
+  | "prefabs";
 
 /* the Workshop is the homepage, so its tab leads and the Daily, a Map a day, follows it;
    the Circuit opens on its newest season's Overall board, and Players, over every board,
-   comes last */
+   comes next, then the Prefabs for the level editor */
 async function tabs(): Promise<Array<GroupTab>> {
   const [site, workshop, dailies] = await Promise.all([getSite(), hasWorkshop(), getDailyDates()]);
   const newest = seasonsOf(site.boards).at(0);
@@ -35,6 +47,7 @@ async function tabs(): Promise<Array<GroupTab>> {
     ...(dailies.length ? [{ group: DAILY_TAB, href: dailyHref() }] : []),
     ...(newest ? [{ group: CIRCUIT_TAB, href: boardHref(newest.overall) }] : []),
     { group: PLAYERS_TAB, href: playersHref("all", "wr") },
+    { group: PREFABS_TAB, href: prefabsHref() },
   ];
 }
 

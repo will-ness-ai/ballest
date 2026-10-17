@@ -3,7 +3,8 @@
 // time board and on a points board, a Map not read in a Refresh, one whose read failed and
 // one gone from the Workshop, two Season 1 Tracks to add up, a persona change, and four
 // Dailies (three final, one live, a tie on a podium, a player who missed a day mid-run and
-// a failed read), and a few runs' Ghosts read for their Skins, some with a profile. The
+// a failed read), a few runs' Ghosts read for their Skins, some with a profile, and two
+// Prefabs, one by a player and one by someone the boards haven't seen. The
 // read layer's tests (test/site.test.ts, test/reads.test.ts, test/board-route.test.ts) take
 // their expected values from the comments here. Every player and Map is made up.
 import {
@@ -16,6 +17,7 @@ import {
   maps,
   personaHistory,
   players,
+  prefabs,
   refreshes,
 } from "../../schema";
 import type { Dataset } from "./types";
@@ -49,13 +51,33 @@ const DAY4 = "ballest_v0_9000000004_Daily_20260901_aa000004";
 // p(1) .. p(10)
 const p = (n: number) => `765611990000000${String(n).padStart(2, "0")}`;
 
+/* a Prefab file of `n` cubes in a row */
+export const cubesFile = (n: number) =>
+  JSON.stringify({
+    format: "BallestPrefab",
+    version: 1,
+    group: { rotation: [0, 0, 0], scale: [1, 1, 1] },
+    items: Array.from({ length: n }, (_, i) => ({
+      class: "/Game/Blueprints/Editor/BP_Prim_Cube.BP_Prim_Cube_C",
+      transform: { location: [i * 1200, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+      properties: {},
+      meshes: [
+        {
+          tag: "",
+          mesh: "/Game/Art/GreyBoxing/_GENERATED/PC/Box_C559BEB3.Box_C559BEB3",
+          materials: ["/Game/Art/Materials/MI_Env_Lime.MI_Env_Lime"],
+        },
+      ],
+    })),
+  });
+
 /* a Ghost's profile for a run of `seconds`: below 1, `bend` puts the run ahead early */
 export const profile = (seconds: number, bend: number) =>
   Array.from({ length: 80 }, (_, i) => Math.round(seconds * ((i + 1) / 80) ** bend * 1000) / 1000);
 
 export const tiny: Dataset = {
   description:
-    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts",
+    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts, 2 Prefabs",
   seed: async (tx) => {
     const [r1, r2, r3] = (
       await tx
@@ -417,6 +439,35 @@ export const tiny: Dataset = {
         entryCount: 1,
         firstSeenRefresh: r1,
         lastSeenRefresh: r1,
+      },
+    ]);
+
+    const twin = cubesFile(2);
+    const row = cubesFile(5);
+    await tx.insert(prefabs).values([
+      {
+        slug: "twin-cubes",
+        name: "Twin cubes",
+        description: "Two lime cubes side by side.",
+        tags: ["Obstacle"],
+        uploader: p(1),
+        uploaderName: "Rae on Steam",
+        file: twin,
+        pieces: 2,
+        bytes: twin.length,
+        createdAt: new Date("2026-09-01T01:00:00Z"),
+        updatedAt: new Date("2026-09-01T01:00:00Z"),
+      },
+      {
+        slug: "cube-row",
+        name: "Cube row",
+        uploader: "76561199000000099",
+        uploaderName: "Newcomer",
+        file: row,
+        pieces: 5,
+        bytes: row.length,
+        createdAt: new Date("2026-09-01T02:00:00Z"),
+        updatedAt: new Date("2026-09-01T02:00:00Z"),
       },
     ]);
   },

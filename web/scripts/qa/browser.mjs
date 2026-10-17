@@ -7,7 +7,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
-import { DROP, MASK, STAND_IN } from "./catalogue.mjs";
+import { DROP, MASK, PREFAB_FILE, STAND_IN } from "./catalogue.mjs";
 import { measure, probe } from "./probes.mjs";
 
 const circuit = fileURLToPath(new URL("../../../circuit/", import.meta.url));
@@ -37,13 +37,14 @@ export const viewName = ({ page, state, width, text }) =>
  * Loads `url` at the view's size, opens its state by clicking `control`, and returns the
  * page's status, its screenshot, what the layout probes found and the errors it raised,
  * plus the boxes of the elements `boxes` selects and the value of the expression `script`.
- * `skipped` says why there is nothing to compare (a control this width hides).
+ * `prefab` is a Prefab file's text, served in place of every Prefab's file, so a Prefab's
+ * page draws it. `skipped` says why there is nothing to compare (a control this width hides).
  */
 export async function render(
   browser,
   url,
   view,
-  { control, now, full = false, element, boxes, script },
+  { control, now, full = false, element, boxes, script, prefab },
 ) {
   const phone = view.width < 600;
   const ctx = await browser.newContext({
@@ -55,10 +56,23 @@ export async function render(
     reducedMotion: "reduce",
   });
   const page = await ctx.newPage();
+  // a Prefab's how-to opens on its own on a first visit; it stays shut here, and the
+  // "howto" state opens it
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("prefab-howto-seen", "1");
+    } catch {
+      // storage blocked: the dialog shows in the screenshot instead
+    }
+  });
   const errors = [];
   try {
     await page.clock.setFixedTime(now);
     await page.route(DROP, (r) => r.abort());
+    if (prefab)
+      await page.route(PREFAB_FILE, (r) =>
+        r.fulfill({ status: 200, contentType: "application/json", body: prefab }),
+      );
     await page.route(STAND_IN, (r) =>
       r.fulfill({ status: 200, contentType: "image/webp", body: PICTURE }),
     );
@@ -135,7 +149,8 @@ export async function render(
       });
       shot = await (element ? page.locator(element).first() : page).screenshot();
     }
-    return { status, shot, probes, errors, measured, evaluated };
+    const title = await page.title();
+    return { status, title, shot, probes, errors, measured, evaluated };
   } finally {
     await ctx.close();
   }

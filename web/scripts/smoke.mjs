@@ -15,6 +15,10 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const P1 = "76561199000000001",
   P2 = "76561199000000002",
   MAP = "9000000001";
+const ORIGIN = "https://ballestrecords.com";
+
+/* what a page that calls notFound() after it has started streaming answers with */
+const SOFT_404 = "NEXT_HTTP_ERROR_FALLBACK;404";
 
 // [path, status, Location for a redirect, text the page must contain]
 const ROUTES = [
@@ -36,6 +40,29 @@ const ROUTES = [
   ["/map/" + MAP, 200, null, "Marble Run"],
   ["/map/" + MAP + "/" + P1, 200],
   ["/map/" + MAP + "/nope", 404],
+  /* stress lists one curated Campaign's Map, Solar Trials' first (Mercury), so Solar Trials
+     is listed and every other Campaign isn't. A path no curated Campaign can have is a real
+     404 (proxy.ts); an unlisted Campaign, or a Map of a listed one the Workshop doesn't
+     list, is only known to the page: a soft 404, the not-found page with a 200 */
+  ["/campaigns", 200, null, "Solar Trials"],
+  ["/", 200, null, "Solar Trials"],
+  ["/campaign/solar-trials", 200, null, "Twizzle"],
+  ["/campaign/solar-trials", 200, null, "/og/campaign/solar-trials?v="],
+  ["/campaign/solar-trials/podiums", 200, null, "Twizzle"],
+  ["/campaign/solar-trials/" + P1, 200, null, "Rolling Rae"],
+  ["/campaign/solar-trials/3805399883", 200, null, "01 Mercury"],
+  ["/og/campaign/solar-trials", 200, null, "PNG"],
+  ["/campaign/solar-trials/3805394429", 200, null, SOFT_404],
+  ["/campaign/ajc", 200, null, SOFT_404],
+  ["/campaign/ajc/podiums", 200, null, SOFT_404],
+  ["/campaign/ajc/" + P1, 200, null, SOFT_404],
+  ["/campaign/ajc/3646349274", 200, null, SOFT_404],
+  ["/og/campaign/ajc", 404],
+  ["/campaign/nope", 404],
+  ["/campaign/solar-trials/nope", 404],
+  ["/campaign/solar-trials/podiums/x", 404],
+  // Velocity Trials' first Map, shaped like a Steam ID
+  ["/campaign/solar-trials/3803908791", 404],
   ["/player/" + P1, 200, null, "Rolling Rae"],
   ["/player/" + P1 + "/circuit", 200],
   ["/player/" + P1 + "/workshop", 200],
@@ -68,6 +95,7 @@ const ROUTES = [
   ["/api/board/Map_Track13?from=0&count=2", 200],
   ["/api/board/Map_Track13?q=rae", 200],
   ["/api/board/Workshop_123?from=0", 404],
+  ["/api/tracks", 200, null, "17800617"],
   // share images (lib/share.ts): a PNG for a page that exists, a 404 for one that doesn't,
   // and the pages naming theirs
   ["/og/player/" + P1, 200, null, "PNG"],
@@ -94,6 +122,55 @@ const ROUTES = [
   ["/multiballs/terms", 200],
   ["/multiballs/privacy", 200],
   ["/robots.txt", 200, null, "Disallow: /player/*/"],
+  ["/robots.txt", 200, null, "Sitemap: https://ballestrecords.com/sitemap.xml"],
+  ["/sitemap.xml", 200, null, "<loc>https://ballestrecords.com/map/" + MAP + "</loc>"],
+  // canonical addresses (docs/site.md): a view names the page it views, and each Daily is
+  // its own
+  [
+    "/player/" + P1 + "/circuit",
+    200,
+    null,
+    '<link rel="canonical" href="https://ballestrecords.com/player/' + P1 + '"',
+  ],
+  [
+    "/board/OverallLeaderboard_EASeason2/podiums",
+    200,
+    null,
+    '<link rel="canonical" href="https://ballestrecords.com/board/OverallLeaderboard_EASeason2"',
+  ],
+  [
+    "/map/" + MAP + "/" + P1,
+    200,
+    null,
+    '<link rel="canonical" href="' + ORIGIN + "/map/" + MAP + '"',
+  ],
+  ["/maps/new", 200, null, '<link rel="canonical" href="' + ORIGIN + '/maps"'],
+  ["/players/circuit/pod", 200, null, '<link rel="canonical" href="' + ORIGIN + '/players"'],
+  ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
+  ["/", 200, null, '"@type":"WebSite"'],
+  ["/", 200, null, "<title>Ballest of Them All Records: "],
+  // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
+  ["/prefabs", 200, null, "Twin cubes"],
+  ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
+  ["/prefabs/new", 200, null, "Upload a prefab"],
+  ["/api/prefabs", 200, null, '"signedIn":false'],
+  ["/robots.txt", 200, null, "Disallow: /prefabs/new"],
+  ["/prefab/twin-cubes", 200, null, "Twin cubes"],
+  [
+    "/prefab/twin-cubes",
+    200,
+    null,
+    '<link rel="canonical" href="' + ORIGIN + '/prefab/twin-cubes"',
+  ],
+  ["/prefab/cube-row", 200, null, "Newcomer"],
+  ["/prefab/nope", 200, null, "This prefab is gone"],
+  ["/prefab/Not_A_Slug", 404],
+  ["/prefab/twin-cubes/x", 404],
+  ["/api/prefabs/twin-cubes/file", 200, null, "BallestPrefab"],
+  ["/api/prefabs/nope/file", 404],
+  ["/api/prefabs/twin-cubes/favorite", 200, null, '"favorites":0'],
+  ["/api/prefabs/nope/favorite", 404],
+  ["/api/prefabs/twin-cubes", 405],
   ["/no-such-page", 404],
 ];
 
@@ -114,7 +191,6 @@ const STATIC = [
   "/favicon.svg",
   "/apple-touch-icon.png",
   "/og.png",
-  "/data/index.json",
   ...readdirSync(join(root, "circuit")).map((f) => "/circuit/" + f),
   ...["leth/index.html", "multiballs/terms.html", "multiballs/privacy.html"].flatMap(refs),
 ].filter((p) => statSync(join(root, p), { throwIfNoEntry: false })?.isFile());

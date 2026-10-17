@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useDialog } from "../Modal";
+import { campaignOfBoard, unitOf } from "../../lib/campaigns";
 import { S1_CURRENT_BOARD, S1_FINAL_BOARD } from "../../lib/circuit";
 import { useMounted } from "../../hooks/client";
 import { fmtN, ord, trackPoints } from "../../lib/rules";
@@ -29,6 +30,7 @@ export function PointsDialog({ board, tracks }: { board: string; tracks: number 
   const mounted = useMounted();
   const [open, setOpen] = useState(false);
   const from = useRef<HTMLElement | null>(null);
+  const unit = unitOf(board);
   const { props, close } = useDialog({
     open,
     onClose: () => {
@@ -60,8 +62,8 @@ export function PointsDialog({ board, tracks }: { board: string; tracks: number 
       </div>
       <div>
         <p>
-          Every track pays points for your place on it, and past 10th the payout halves at every
-          10&times; in place. Your points are what all {fmtN(tracks)} tracks pay you, added up.
+          Every {unit} pays points for your place on it, and past 10th the payout halves at every
+          10&times; in place. Your points are what all {fmtN(tracks)} {unit}s pay you, added up.
         </p>
         <table>
           <tbody>
@@ -82,6 +84,11 @@ export function PointsDialog({ board, tracks }: { board: string; tracks: number 
           <p>
             These are the standings when Season 1 ended. Places have moved since; Current has them
             as they are now.
+          </p>
+        ) : campaignOfBoard(board) ? (
+          <p>
+            The game doesn&apos;t rank a Campaign: these are worked out here from today&apos;s
+            places on its maps, the way the game adds up a Circuit season.
           </p>
         ) : null}
       </div>

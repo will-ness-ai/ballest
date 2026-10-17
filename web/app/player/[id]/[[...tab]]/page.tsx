@@ -9,11 +9,17 @@ import { DocTitle } from "../../../../components/Behaviours";
 import { Shell } from "../../../../components/Shell";
 import { PlayerSkeleton } from "../../../../components/Skeleton";
 import { PlayerView, tabFor } from "../../../../components/player/PlayerView";
-import { getBoardPage, getDailies, getPlayer, getPlayerDailies } from "../../../../db/data";
+import {
+  getBoardPage,
+  getDailies,
+  getPlayer,
+  getPlayerCampaigns,
+  getPlayerDailies,
+} from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
-import { isPlayerTab } from "../../../../lib/routes";
+import { isPlayerTab, playerHref } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
-import { shareMetadata } from "../../../../components/share/metadata";
+import { pageMetadata } from "../../../../components/metadata";
 
 interface Props {
   params: Promise<{ id: string; tab?: Array<string> }>;
@@ -33,12 +39,15 @@ async function recordOf({ id, tab = [] }: Awaited<Props["params"]>) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const rec = await recordOf(await params);
-  if (!rec) return {};
+  /* a Steam ID nobody raced under is a soft 404 (proxy.ts), kept out of results */
+  if (!rec) return { robots: { index: false } };
   const name = personaOf(rec.who);
-  return shareMetadata(
+  return pageMetadata(
     {
       title: name,
       description: `${name}'s Circuit, Workshop and Daily times on Ballest of Them All, read straight from Steam.`,
+      /* every tab is a view of the one page */
+      canonical: playerHref(rec.id),
     },
     { kind: "player", id: rec.id, alt: `${name}'s marble and record on Ballest of Them All.` },
   );
@@ -46,12 +55,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 async function Player({ params }: Pick<Props, "params">) {
   const p = await params;
-  const [rec, mine, days] = await Promise.all([recordOf(p), getPlayerDailies(p.id), getDailies()]);
+  const [rec, mine, days, campaigns] = await Promise.all([
+    recordOf(p),
+    getPlayerDailies(p.id),
+    getDailies(),
+    getPlayerCampaigns(p.id),
+  ]);
   if (!rec || !mine) notFound();
   return (
     <>
       <DocTitle title={personaOf(rec.who)} />
-      <PlayerView rec={rec} tab={tabFor(rec, p.tab?.[0] ?? null)} daily={{ mine, days }} />
+      <PlayerView
+        rec={rec}
+        tab={tabFor(rec, p.tab?.[0] ?? null)}
+        daily={{ mine, days }}
+        campaigns={campaigns}
+      />
     </>
   );
 }

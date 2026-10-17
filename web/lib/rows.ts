@@ -55,6 +55,16 @@ export interface Placing {
   score: number;
 }
 
+/* Where one player stands in a Campaign they hold a place in (db/site.ts, playerCampaigns) */
+export interface PlayerCampaignRow {
+  slug: string;
+  /* their place and points on its board */
+  rank: number;
+  score: number;
+  /* how many of its listed Maps they hold a time on */
+  finished: number;
+}
+
 /* a Workshop Map with its latest details and what its board says at a glance */
 export interface WorkshopMap {
   pfid: string;
@@ -117,8 +127,7 @@ export interface PlayerData {
 
 /* The Players page's counts for everyone with a world record, podium or top 5 on the
    Circuit, or a time on a Map: [steam ID, persona, Circuit WRs, Workshop WRs, Circuit
-   podiums, Workshop podiums, Circuit top 5s, Workshop top 5s, Maps], in Steam ID order
-   (build_standings in tools/campaign_common.py). */
+   podiums, Workshop podiums, Circuit top 5s, Workshop top 5s, Maps], in Steam ID order. */
 export type StandingsRow = [string, string, number, number, number, number, number, number, number];
 
 export interface Standings {

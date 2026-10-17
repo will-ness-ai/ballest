@@ -1,0 +1,1 @@
+ALTER TABLE "refreshes" ADD COLUMN "full_sweep" boolean DEFAULT false NOT NULL;

@@ -26,8 +26,8 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
 
    (the `ballest` config in `.claude/launch.json` does the same with no caching when
    started from the worktree). For the bot's Activity, run `pnpm --dir discord-bot
-   activity:demo` in the worktree instead (port 8740). The data in `data/` is the
-   committed data, so every board and player is real.
+   activity:demo` in the worktree instead (port 8740). Point it at a database backfilled
+   from `data/`'s git history (`docs/data.md`), so every board and player is real.
 
 3. Hand the user the URL with the route the feature lives on, e.g.
    `http://localhost:<port>/?variant=A#/players`. If the session runs in the cloud and the

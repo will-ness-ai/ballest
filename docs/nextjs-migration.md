@@ -61,8 +61,13 @@ it. `index.html` is gone. A refresh commit no longer deploys (`vercel.json`'s
 so the published `data/` files are as of the last deploy. How the app is built:
 `docs/site.md`.
 
-## Phase 5: stop the JSON
+## Phase 5: stop the JSON (done)
 
-Once nothing reads `data/`, the collector stops writing it, the refresh stops committing,
-and the JSON-only code goes: `derive()`'s file assembly, `check_data.py`'s file checks,
-`sync-site.mjs`'s `data/` entry, and "Data and git" in `AGENTS.md`.
+The collector writes only the database, and reads what it remembers between runs from it
+(`db_writer.load_memory`: names, each Map's board ID and Workshop counters, and the last
+full sweep, `refreshes.full_sweep`). The refresh commits nothing, `data/` is gone from the
+tree and no longer published, and the JSON-only code went with it: `derive()` and the files
+it assembled, `check_data.py`, the parity checks (`check_db.py`, `pnpm db:parity`) and
+`sync-site.mjs`'s `data/` entry. Multiballs reads the Track boards from `GET /api/tracks`
+instead of `data/index.json`. `data/`'s git history is still the record up to here, and
+`tools/db_backfill.py` still replays it into an empty database.

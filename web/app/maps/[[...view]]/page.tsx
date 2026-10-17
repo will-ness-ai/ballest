@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   title: "All maps",
   description:
     "Every Ballest of Them All Workshop map with a time, by runs, plays, length, age or how close the racing is.",
+  /* a view is All maps sorted or filtered, so it names the one page */
+  alternates: { canonical: mapsHref() },
 };
 
 async function Maps({ params }: Props) {

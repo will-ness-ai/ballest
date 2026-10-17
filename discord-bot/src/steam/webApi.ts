@@ -1,5 +1,5 @@
-// Steam Web API calls (plain HTTPS with the API key), plus the campaign board list from our
-// own site, so the bot never keeps a second copy of tools/campaign_common.py's board table.
+// Steam Web API calls (plain HTTPS with the API key), plus the Circuit Track boards from our
+// own site (GET /api/tracks), so the bot never keeps a second copy of the board table.
 import {
   FetchHttpClient,
   HttpClient,
@@ -70,11 +70,9 @@ const UgcDetails = Schema.Struct({ data: Schema.Struct({ url: Schema.String }) }
 /** A ghost replay is plain JSON; only its stamp is read. */
 const Ghost = Schema.Struct({ timestamp: Schema.String });
 
-const SiteIndex = Schema.Struct({
-  // handle is null for the one board Steam doesn't have (the derived all-seasons Overall)
-  boards: Schema.Array(
-    Schema.Struct({ name: Schema.String, handle: Schema.NullOr(Schema.String) }),
-  ),
+/** The leaderboard site's GET /api/tracks: every Circuit Track's board, in the site's order. */
+const SiteTracks = Schema.Struct({
+  tracks: Schema.Array(Schema.Struct({ name: Schema.String, leaderboardId: Schema.Number })),
 });
 
 export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
@@ -203,12 +201,10 @@ export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
         return (yield* getJson(file.data.url, {}, Ghost)).timestamp;
       }),
 
-      /** The campaign Track boards' ids, as the leaderboard site currently lists them. */
-      campaignBoardIds: Effect.fn("WebApi.campaignBoardIds")(function* () {
-        const index = yield* getJson(`${site}/data/index.json`, {}, SiteIndex);
-        return index.boards.flatMap((b) =>
-          b.name.startsWith("Map_") && b.handle !== null ? [Number(b.handle)] : [],
-        );
+      /** The Circuit Track boards' ids, as the leaderboard site lists them (GET /api/tracks). */
+      trackBoardIds: Effect.fn("WebApi.trackBoardIds")(function* () {
+        const { tracks } = yield* getJson(`${site}/api/tracks`, {}, SiteTracks);
+        return tracks.map((t) => t.leaderboardId);
       }),
     } as const;
   }),

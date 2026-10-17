@@ -16,6 +16,7 @@ import { ScoreRow } from "./ScoreRow";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
+import { unitOf } from "../../lib/campaigns";
 import type { BoardPage, BoardRow } from "../../lib/rows";
 import { useDebouncedFetch } from "../../hooks/client";
 import { podiumTotal, type Medals, type PodiumRow } from "../../lib/podiums";
@@ -49,7 +50,12 @@ export type BoardBodyProps = Common &
         /* a player to find and mark, with their rank */
         focus: { id: string; rank: number } | null;
       }
-    | { order: "podiums"; players: Array<PodiumRow>; tracks: number; group: string }
+    | {
+        order: "podiums";
+        players: Array<PodiumRow>;
+        tracks: number;
+        group: string;
+      }
   );
 
 const NOBODY = (
@@ -355,6 +361,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
 
 function PodiumList(props: Common & Extract<BoardBodyProps, { order: "podiums" }>) {
   const { players, tracks, group } = props;
+  const unit = unitOf(props.name);
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const filtering = q.length > 0;
@@ -371,7 +378,7 @@ function PodiumList(props: Common & Extract<BoardBodyProps, { order: "podiums" }
   const n = players.length;
   const meta = filtering
     ? `${group} · ${fmtN(visible.length)} of ${plural(n, "player", "players")} match`
-    : `${group} · ${plural(n, "player", "players")} on a podium · ${plural(tracks, "track", "tracks")}`;
+    : `${group} · ${plural(n, "player", "players")} on a podium · ${plural(tracks, unit, unit + "s")}`;
   return (
     <Frame props={props} meta={meta} query={query} setQuery={setQuery}>
       <div className="board pods" id="board">

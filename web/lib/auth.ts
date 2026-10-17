@@ -3,7 +3,9 @@
 // - startSignIn: off to Steam's login, with a ten-minute state cookie for this browser;
 // - finishSignIn: Steam's answer, checked by lib/steam-openid.ts, signs the browser in;
 // - signOut: clears the session, from this site's own pages only;
-// - whoIs: the signed-in Steam ID, for the browser's You (hooks/me.ts).
+// - whoIs: the signed-in Steam ID, for the browser's You (hooks/me.ts);
+// - sessionOf and isCrossSite: who sent a request that writes (the Prefab API, ADR 0009),
+//   and whether another site sent it.
 // The session is an httpOnly cookie holding the Steam ID, when it was issued and an HMAC of
 // both under SESSION_SECRET, beside a readable hint cookie (lib/cookies.ts). Nothing else
 // about the reader is kept. `env` lets tests pass their own secret, clock and Steam.
@@ -55,11 +57,23 @@ export async function finishSignIn(request: Request, env: AuthEnv = {}): Promise
 
 /* POST /api/auth/signout?next=<path>: another site can't post a reader out */
 export function signOut(request: Request): Response {
-  const url = new URL(request.url);
+  if (isCrossSite(request)) return Response.json({ error: "cross-site" }, { status: 403 });
+  return redirectTo(new URL(request.url).searchParams.get("next"), sessionCookies(null));
+}
+
+/* whether another site sent this request, by what the browser says of where it came from */
+export function isCrossSite(request: Request): boolean {
   const origin = request.headers.get("origin");
-  if (request.headers.get("sec-fetch-site") === "cross-site" || (origin && origin !== url.origin))
-    return Response.json({ error: "cross-site" }, { status: 403 });
-  return redirectTo(url.searchParams.get("next"), sessionCookies(null));
+  return (
+    request.headers.get("sec-fetch-site") === "cross-site" ||
+    (!!origin && origin !== new URL(request.url).origin)
+  );
+}
+
+/* the Steam ID a request's session was signed for, or null */
+export function sessionOf(request: Request, env: AuthEnv = {}): string | null {
+  const { secret, now } = envOf(env);
+  return verify(cookieOf(request, SESSION_COOKIE), secret, now);
 }
 
 /* GET /api/me: { id } or { id: null }, never cached. A session that doesn't verify under a

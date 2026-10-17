@@ -1,9 +1,8 @@
 name: Refresh leaderboards
 
-# Regenerates data/index.json + data/boards/*.json + data/podiums.json +
-# data/players/*.json + data/workshop.json + data/workshop/*.json from Steam
-# and commits them. Vercel deploys the commit itself: its Git integration sees
-# a GITHUB_TOKEN push, which no GitHub workflow does (docs/adr/0004).
+# Reads Steam's boards into the database as one Refresh (tools/steampy_collect.py),
+# then asks the site to refetch its cached reads. Nothing is committed: the database
+# is the only copy (phase 5 of docs/nextjs-migration.md).
 
 on:
   schedule:
@@ -18,13 +17,13 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write # needed to commit the updated JSON back to main
+  contents: read
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    # The database (docs/adr/0005). Without the secret, the collector skips its database
-    # write and the parity check below is skipped, so this works before it exists.
+    # The database (docs/adr/0005): where the collector reads what it remembers and writes
+    # the Refresh. Without it the run fails before logging into Steam.
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
@@ -51,36 +50,3 @@ jobs:
           SITE_URL: https://ballestrecords.com
           REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
         run: python tools/steampy_collect.py
-
-      - name: Commit updated data if changed
-        run: |
-          git config user.name  "will-ness-ai"
-          git config user.email "n3s.online@gmail.com"
-          git add -A data/index.json data/boards data/podiums.json data/players data/workshop.json data/workshop data/names.json data/standings.json
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "data: refresh campaign leaderboards ($(date -u +%Y-%m-%dT%H:%MZ))"
-            # Rebase-and-retry so an unrelated push to main during the run doesn't
-            # fail the cycle. Data files are regenerated, so on a conflict ours
-            # wins outright. A run that never manages to push must fail loudly:
-            # a green run with nothing on main once hid a whole refresh.
-            pushed=0
-            for i in 1 2 3; do
-              if git pull --rebase --autostash -X theirs origin main && git push; then
-                pushed=1; break
-              fi
-              git rebase --abort 2>/dev/null || true
-              echo "push attempt $i failed; retrying..."; sleep 5
-            done
-            if [ "$pushed" != 1 ]; then
-              echo "ERROR: could not push refreshed data after 3 attempts"; exit 1
-            fi
-          fi
-
-      # The collector writes the JSON and the database from the same Refresh, and a
-      # database failure is only an ::error:: line there, so the JSON still ships. This
-      # is where that failure, or any drift between the two, turns the run red.
-      - name: Check the database against the JSON
-        if: env.DATABASE_URL != ''
-        run: python tools/check_db.py

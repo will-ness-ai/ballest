@@ -3,8 +3,7 @@
 The site is the Next.js app in `web/`, served by **Vercel** (ADR 0004) and reading a
 Postgres database on Neon (ADR 0005). The data is refreshed by a **GitHub Actions** job
 that logs into Steam with a **refresh token** (via `steam.py`), reads the full
-leaderboards, writes them to the database, commits the JSON under `data/`, and tells the
-site to read fresh (`POST /api/revalidate`). The site's pages are cached until then.
+leaderboards, writes them to the database, and tells the site to read fresh (`POST /api/revalidate`). The site's pages are cached until then.
 
 No machine of yours has to be running — the refresh happens entirely in CI.
 
@@ -13,7 +12,7 @@ GitHub Actions (every 3 hours)
   └─ steam.py logs in with STEAM_REFRESH_TOKEN (secret)
       └─ reads every campaign leaderboard (full) for appid 3339810
           └─ resolves names via STEAM_API_KEY (secret)
-              └─ writes the Refresh to Postgres, commits data/
+              └─ writes the Refresh to Postgres
                   └─ POST /api/revalidate  ──►  ballestrecords.com reads fresh
 ```
 
@@ -89,7 +88,7 @@ Vercel issues the certificates once the records resolve.
 ### 6. Populate the data
 
 Repo → **Actions → "Refresh leaderboards" → Run workflow**. It logs in, writes the Refresh
-to the database, commits `data/`, and revalidates the site, which shows it at
+to the database, and revalidates the site, which shows it at
 `https://ballestrecords.com` on the next request.
 
 ---
@@ -104,25 +103,21 @@ to the database, commits `data/`, and revalidates the site, which shows it at
 
 ## Local testing (optional)
 
-Run the exact CI collector locally against your token:
+Run the CI collector locally against your token and a local database (never production;
+`CLAUDE.md` has how to make one):
 
 ```powershell
 $env:STEAM_REFRESH_TOKEN = (Get-Content tools\refresh_token.txt)
-tools\.venv-steampy\Scripts\python.exe tools\steampy_collect.py
+$env:DEV_DATABASE_URL = "postgres://postgres:postgres@localhost:5432/ballest_dev"
+tools\.venv-steampy\Scripts\python.exe tools\steampy_collect.py --dev
 ```
 
-From a feature branch, add `--out scratch/data` and check the copy with
-`python tools/check_data.py --data scratch/data`: the run reads and writes a fresh copy of
-`data/`, and the committed data stays as it is. `--workshop-only` reads only the Workshop
-Maps, and rebuilds the player shards from them and the committed Circuit boards.
-
-Then preview the site with any static server, e.g.
-`python -m http.server 8765` and open <http://localhost:8765>.
+Then run the site against that database (`pnpm dev` in `web/`).
 
 ## Notes
 
 - `tools/steam_collect.py` (the Steamworks-SDK collector) is the **legacy/local**
   path — it needs the Steam client running and writes the older single
   `data/campaign.json`. The CI path uses `steampy_collect.py`, which does the full
-  scrape and writes `data/index.json` + `data/boards/*.json`.
+  scrape and writes the database.
 - `steam.py` is pinned with `aiohttp<3.13` (newer aiohttp removed a symbol it imports).
