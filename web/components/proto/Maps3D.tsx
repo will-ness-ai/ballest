@@ -5,6 +5,8 @@
 // fetched from Steam into /prototype-maps/<pfid>.ballmap by prototype-maps/fetch.py.
 import { useEffect, useState } from "react";
 
+import { useDialog } from "../Modal";
+
 import { PrefabViewer } from "../prefabs/PrefabViewer";
 import { prefabOfBallmap, type BallmapFile } from "../../lib/ballmap";
 import type { PrefabFile } from "../../lib/prefab";
@@ -177,15 +179,7 @@ export function ProtoSlot({ pfid, slot }: { pfid: string; slot: "img" | "stage" 
       return (
         <>
           {button()}
-          {open && (
-            <div className="m3d-full" role="dialog">
-              <Map3D pfid={pfid} className="m3d m3d-fill" />
-              <button type="button" className="m3d-close" onClick={() => setOpen(false)}>
-                Close
-              </button>
-              <span className="m3d-hint">Drag to turn · scroll to zoom · right-drag to pan</span>
-            </div>
-          )}
+          <FullScreen pfid={pfid} open={open} onClose={() => setOpen(false)} />
         </>
       );
     if (v === "C")
@@ -228,6 +222,20 @@ export function ProtoSlot({ pfid, slot }: { pfid: string; slot: "img" | "stage" 
       </div>
     );
   return null;
+}
+
+/* variant A: a native <dialog> in the top layer, so nothing on the page can sit above it */
+function FullScreen({ pfid, open, onClose }: { pfid: string; open: boolean; onClose: () => void }) {
+  const dialog = useDialog({ open, onClose });
+  return (
+    <dialog className="m3d-full" aria-label="3D map" {...dialog.props}>
+      {open && <Map3D pfid={pfid} className="m3d m3d-fill" />}
+      <form method="dialog">
+        <button className="m3d-close">Close</button>
+      </form>
+      <span className="m3d-hint">Drag to turn · scroll or pinch to zoom</span>
+    </dialog>
+  );
 }
 
 /* variant B's page: the Map's own 3D page */
