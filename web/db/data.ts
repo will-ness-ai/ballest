@@ -128,6 +128,12 @@ async function mapOf(pfid: string): Promise<WorkshopMap | null> {
   return (await getWorkshop()).find((m) => m.pfid === pfid) ?? null;
 }
 
+/* a Map's stored file and its version, or null (GET /map/<pfid>/file). Read fresh, never
+   cached here: its bytes are no JSON, and the response itself is cached a year by version */
+export function readMapFile(pfid: string) {
+  return /^\d{1,20}$/.test(pfid) ? q.mapFile(db(), pfid) : Promise.resolve(null);
+}
+
 /* whether the Workshop lists any Map, for the header's tab */
 export async function hasWorkshop(): Promise<boolean> {
   "use cache: remote";

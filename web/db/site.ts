@@ -307,6 +307,19 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
   return found;
 }
 
+/* A Map's file as the collector stored it (gzip-compressed) and its version, or null when
+   the site holds none */
+export async function mapFile(
+  db: Db,
+  pfid: string,
+): Promise<{ version: string; gzipped: Buffer } | null> {
+  const [f] = await rows<{ version: string; gzipped: Buffer }>(
+    db,
+    sql`select version, gzipped from map_files where pfid = ${pfid}`,
+  );
+  return f ?? null;
+}
+
 /* A player and their place on every board, or null for a Steam ID on no board */
 /* Season 1 Current and All Seasons, each ranked whole, which a player's page reads its
    rows from (playerData) */

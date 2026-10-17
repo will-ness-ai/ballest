@@ -54,6 +54,11 @@ export const playerHref = (id: string, tab?: string | null) =>
 
 export const mapHref = (pfid: string, focus?: string | null) =>
   "/map/" + pfid + (focus && isSteamId(focus) ? "/" + focus : "");
+/* a Map's file at one version, for its 3D view (app/map/[pfid]/file); the version in the
+   address lets the response be cached for good */
+export const MAP_FILE = "file";
+export const mapFileHref = (pfid: string, version: string) =>
+  mapHref(pfid) + "/" + MAP_FILE + "?v=" + encodeURIComponent(version);
 
 /* a board, optionally with a player's row marked or (Overall) its podium order; a Map's
    board name turns into its /map/ link */
