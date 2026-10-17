@@ -62,7 +62,15 @@ export function PrefabViewer({
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       el.appendChild(renderer.domElement);
       const { scene, centre, radius } = buildScene(three, file, interactive);
-      const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 2000);
+      /* a Prefab fits the fixed planes; a Workshop Map can be hundreds of metres across,
+         and from as far back as the zoom goes (20 fits) on a tall screen it would fall past
+         the far plane, so they grow with it */
+      const camera = new THREE.PerspectiveCamera(
+        40,
+        1,
+        Math.max(0.05, radius / 2000),
+        Math.max(2000, radius * 200),
+      );
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enabled = interactive;
       controls.enableDamping = true;
