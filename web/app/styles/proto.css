@@ -101,7 +101,7 @@
 .m3d-full {
   position: fixed;
   inset: 0;
-  z-index: 900;
+  z-index: 9000;
   background: var(--bg);
 }
 .m3d-full .m3d {
@@ -240,7 +240,7 @@
   position: fixed;
   inset: auto 0 0 0;
   height: 78svh;
-  z-index: 900;
+  z-index: 9000;
   display: grid;
   grid-template-rows: auto 1fr;
   background: var(--solid);
