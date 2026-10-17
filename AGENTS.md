@@ -45,6 +45,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `tools/ghosts.py` — the collector's Ghost step, after the database write: reads each top
   run's Ghost once for its ball Skin, which the boards draw from `skins/<asset>.webp`
   (`docs/data.md`, "Ghosts"; `docs/site.md`, "Ball skins").
+- `tools/map_files.py` — the collector's Map file step, after the Ghost step: downloads each
+  Workshop Map's new or changed file into `map_files` for the 3D view (`docs/data.md`, "Map files").
 - `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
   Workshop links) and prints the `maps:` line; `docs/site.md`, "Campaigns".
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, writes the Refresh to the database
@@ -119,7 +121,8 @@ branch from before the reformat. The collector has no type checks, and its tests
 since each test's database is built by `web/scripts/migrate.mjs`. `collector-tests` in
 `check.yml` runs them in CI.
 The site's checks are in `web/`: `npx tsc --noEmit`, `pnpm test` (vitest, against the same
-local Postgres; each test file builds its own database), and `pnpm smoke <url>` against a
+local Postgres; each test file builds its own database, and qa's own test needs
+Chromium: the cloud image has one, elsewhere `npx playwright-core install chromium`), and `pnpm smoke <url>` against a
 build seeded with `stress` (as CI does; it holds all of `tiny`). Verify front-end changes
 with `pnpm --silent qa check` (preview against production, every page at phone and desktop sizes; `docs/site.md`), and test a board's
 infinite scroll with a real wheel scroll: a scripted `scrollTo` does not trigger it in

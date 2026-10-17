@@ -57,6 +57,13 @@
       "when": 1792186226106,
       "tag": "0007_prefab_angle",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792265477136,
+      "tag": "0008_map_files",
+      "breakpoints": true
     }
   ]
 }

@@ -281,8 +281,11 @@ describe("the Workshop", () => {
       gap13: 800_000,
       crowd: 1,
       authorBeaten: 0,
+      fileVersion: "5101012345678901234",
     });
     expect(maps[0]).toMatchObject({
+      // Loop de Loop's file hasn't been read: no 3D view
+      fileVersion: null,
       gap13: null,
       crowd: 1,
       top3: [

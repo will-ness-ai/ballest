@@ -337,6 +337,10 @@ def workshop_catalogue(key):
                     "preview": it.get("preview_url") or "",
                     "sessions": int(it.get("lifetime_playtime_sessions") or 0),
                     "subs": int(it.get("lifetime_subscriptions") or 0),
+                    # the file's content handle, which changes with each update: the
+                    # Map file step's version (map_files.py); file_url is empty here
+                    "version": str(it.get("hcontent_file") or ""),
+                    "file_size": int(it.get("file_size") or 0),
                 }
             )
         nxt = resp.get("next_cursor")

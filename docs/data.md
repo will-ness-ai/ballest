@@ -52,6 +52,11 @@ Open in Neon.
   (80 numbers, `PROFILE_POINTS`), empty for a path with no length; the race drawer compares
   two of them. A Ghost never changes, so a row with a profile is final. An Entry's Ghost is
   its `ugc_id`; the boards draw the Skin (`docs/site.md`, "Ball skins").
+- `map_files`: one per Workshop Map whose file the collector holds, by pfid (no foreign key:
+  a Map can leave the Workshop): the file's `version` (Steam's content handle for it,
+  `hcontent_file`, which changes with each update), its size before compression
+  (`raw_size`), the file gzip-compressed (`gzipped`, bytes) and when it was read. Only the
+  current version is kept (ADR 0010).
 
 ### Ghosts
 
@@ -81,6 +86,28 @@ from them; the path, the velocities, the checkpoint splits and the texture slide
 `ballerSkinPrefs` are not stored. Ghosts from
 before about 2026-01 have no `?SpecialSkinClass`, and from before about 2026-07 no
 `ballerSkinPrefs`.
+
+### Map files
+
+The Map file step (`tools/map_files.py`, ADR 0010) runs after the Ghost step, while the
+Steam client is still connected, into the same database, and never blocks or fails the run:
+an error is a warning. The Workshop catalogue gives each Map's `hcontent_file` and
+`file_size` but no `file_url` for this app, so the file comes through steam.py's content
+servers: the Map's published file, its manifest, and the one file in it whose bytes start
+with `{` or a UTF-8 BOM (the manifest also holds the preview JPEG). It downloads every
+catalogue Map with no `map_files` row or one of another version, most subscribed first; an
+unchanged Map is never downloaded. A few run at once, each file is written (an upsert) as
+it arrives, and no download starts after `BUDGET` (four minutes), so the first catch-up
+(1,521 Maps, 454 MB raw, ~16 MB gzipped, on 2026-10-17) spreads over several Refreshes and
+later runs fetch only what changed. A failed download writes nothing and keeps the old
+file; a manifest with no map file is logged and skipped; both are tried again next run, and
+the log counts the failures by error. So a Map whose manifest holds no map file stays due and
+is downloaded again every run. That is deliberate: its creator's next update may add one,
+and it costs one download a run. When it wrote any file it revalidates the site. It is
+skipped without a catalogue or a database, and with `--dev` writes only `DEV_DATABASE_URL`.
+Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
+file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
+`getWorkshop` carries each Map's stored version.
 
 ### Dailies
 
@@ -230,7 +257,7 @@ and writes a named dataset, in one transaction. The database must already be mig
 locally by `pnpm db:migrate`. Run it with no
 name, or a wrong one, to list the datasets. `empty` has no rows; `tiny` has two Tracks, an
 Overall board, three Maps, four Dailies (three final, one live with a failed read), ten
-players and three Refreshes of Score history, and is also the fixture the read layer's
+players, three Refreshes of Score history and one Map's file, and is also the fixture the read layer's
 tests run against. `stress` is tiny plus what strains a layout: 12,000 more players on the
 Overall board, so the last one, who has a long name, ranks in five digits, and a Map with a
 long title; `pnpm qa` and CI's layout check run on it (`docs/site.md`).

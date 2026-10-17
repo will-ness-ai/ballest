@@ -40,6 +40,11 @@ const ROUTES = [
   ["/map/" + MAP, 200, null, "Marble Run"],
   ["/map/" + MAP + "/" + P1, 200],
   ["/map/" + MAP + "/nope", 404],
+  // Marble Run's file and its 3D button; Loop de Loop's file hasn't been read
+  ["/map/" + MAP, 200, null, "See it in 3D"],
+  ["/map/" + MAP + "/file?v=5101012345678901234", 200, null, '"userLevelName": "Marble Run"'],
+  ["/map/9000000002/file", 404],
+  ["/map/" + MAP + "/file/x", 404],
   /* stress lists one curated Campaign's Map, Solar Trials' first (Mercury), so Solar Trials
      is listed and every other Campaign isn't. A path no curated Campaign can have is a real
      404 (proxy.ts); an unlisted Campaign, or a Map of a listed one the Workshop doesn't

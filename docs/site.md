@@ -158,7 +158,8 @@ fails to load, or that Satori can't read, draws without it.
   search.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
   (`lib/workshop.ts`).
-- `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row.
+- `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row, and
+  `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D").
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
   cannot collide. Every Circuit board lights the one Circuit tab, which opens the newest
@@ -250,10 +251,12 @@ isn't one. Nothing else changes: the pages are prerendered from the list.
 a whole pasted post holding them (a Map stands for itself, a Steam collection for its Maps in
 order, in the order given), or one maker: a profile URL, a SteamID64, or part of their in-game or Steam name
 (oldest first). It prints each Map with its maker's name and ID, marks
-any already in a Campaign, and ends with the `maps:` line to paste. A Map the collector
-hasn't listed yet (one published since the last Refresh) leaves its Campaign a not-found page
-until it is, so after merging a Campaign with new Maps run a Refresh
-(`gh workflow run refresh.yml --ref main`) and check the page on production.
+any already in a Campaign and any the site doesn't list yet, and ends with the `maps:` line to
+paste. A Map the collector hasn't listed yet (one published since the last Refresh) is left
+off its Campaign's page until a Refresh lists it, so a preview can show fewer Maps; after merging a Campaign with new Maps run a Refresh
+(`gh workflow run refresh.yml --ref main`) and check the page on production. `qa check` draws
+one fixed Campaign, so look at the new one's page with
+`pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
 **The board.** A Campaign's standings are a derived board named `OverallCampaign_<slug>`
 (`campaignBoard`). The `Overall` prefix makes it a points board to `isPoints` and
@@ -489,6 +492,41 @@ branch `claude/prototype-prefabs` (spec #213).
   can give the uploader their own hourly upload limit, or put them back on the 5
   (`/api/prefab-limits/<steam_id>`, the `prefab_limits` table); nothing cached reads it, as
   the upload form asks for its quota uncached.
+
+## Maps in 3D
+
+A Map whose file the collector has stored (`map_files`, `docs/data.md` "Map files") has a
+**See it in 3D** button under its picture (spec #250; settled in four grill-design rounds on
+the never-merged `claude/prototype-maps3d`, variant F). `getWorkshop`'s Map carries the
+file's version (`fileVersion`), or null, and the button shows only with one: `map3dOf`
+(`lib/workshop.ts`) builds the view's props from the Map, or null without a file.
+
+- **The full screen** (`components/workshop/Map3D.tsx`) is a native `<dialog>` through
+  `useDialog`, so Escape and Close (a `method="dialog"` form) close it and focus returns to
+  the button. It opens with `useDialog`'s `back`, the one dialog on the site that does: opening
+  adds a history entry at the same URL, Back (the browser's, or Android's) closes it and the
+  page stays where it was, and closing it any other way goes back over that entry, so one
+  Back afterwards leaves the page as it would have before. A bar across the top names the Map
+  and its maker; on a desktop a corner card under it (`MedalList`, which the panel's Medals
+  share) gives the record and the four Medal times, and a phone leaves it out so the Map
+  isn't covered. The card follows the bar in one stack (`.m3d-top`), so it can't overlap it.
+  While it is open the page gives up its scrollbar gutter, which nothing in the top layer
+  can cover.
+- **The Map** (`MapModel.tsx`, its own chunk, mounted only while the dialog is open, so
+  neither three.js nor the file loads before the button is pressed) is the file read into a
+  Prefab file by `lib/ballmap.ts` (each quaternion as an FRotator by `FQuat::Rotator`'s
+  formula, each path out of its type and quote marks) and drawn by `PrefabViewer` with the
+  Prefabs' stand-in shapes, from `MAP_ANGLE`: the prototype's "Angled" view that Will
+  approved in round 4, closer than a Prefab's default; on a screen taller than wide it
+  starts 1.3x further back. "Building the map…" (`MapWait`) shows until the viewer has
+  drawn.
+- **The file** comes from `/map/<pfid>/file?v=<version>` (`mapFileHref`,
+  `app/map/[pfid]/file/route.ts`): the stored gzip bytes with `Content-Encoding: gzip`, read
+  fresh (bytes don't belong in the JSON cache). Under the stored version the answer is cached
+  a year, immutable, by the browser and the CDN; under any other, a minute. A Map with no
+  stored file is a 404. `robots.txt` already keeps crawlers off it (`/map/*/`).
+- `tiny` holds Marble Run's file, a four-piece `.ballmap`; `qa`'s `map3d` state opens it
+  (`MAP3D` in the catalogue; Ice Boat Race on production).
 
 ## Checking a change
 
