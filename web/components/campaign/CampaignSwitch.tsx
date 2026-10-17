@@ -15,18 +15,12 @@ interface Props {
   on: Campaign;
 }
 
-/* each Campaign's link, lit on the Campaign on screen */
-const link = (c: Campaign, on: Campaign) => ({
-  href: campaignHref(c.slug),
-  "aria-current": c.slug === on.slug,
-});
-
 /* `board` names the menu, since a board page left behind can stay in the document */
 export function CampaignChip({ list, on, board }: Props & { board: string }) {
   return (
     <SeasonMenu id={`campaigns-${board}`} label={on.title} kind="Campaign">
       {list.map(({ c, players }) => (
-        <Link {...link(c, on)} key={c.slug}>
+        <Link href={campaignHref(c.slug)} aria-current={c.slug === on.slug} key={c.slug}>
           <b>{c.title}</b>
           <small>
             {plural(c.maps.length, "Map", "Maps")} · {plural(players, "player", "players")}
