@@ -191,11 +191,13 @@ export function shapesOf(file: PrefabFile): Array<Shape> {
   });
 }
 
-/* a piece's name as a person reads it: "BP_Pipe_Tube1" is Pipe Tube 1, a primitive just Cube */
+/* a piece's name as a person reads it: "BP_Pipe_Tube1" is Pipe Tube 1, a primitive just Cube,
+   "MP_AirVent" Air Vent */
 export function pieceLabel(piece: string) {
   return piece
-    .replace(/^BP_(Prim_)?/, "")
+    .replace(/^(BP_(Prim_)?|MP_(SM_)?)/, "")
     .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/(\D)(\d+)$/, "$1 $2");
 }
 
