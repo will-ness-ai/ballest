@@ -57,24 +57,49 @@ export function buildScene(
     if (!g) profiles.set(p, (g = profileGeometry(THREE, p)));
     return g;
   };
-  const group = new THREE.Group();
+  /* one instanced mesh per geometry and colour, so a whole Map's thousands of pieces are a few
+     dozen draws instead of one each */
+  const batches = new Map<
+    string,
+    {
+      geometry: import("three").BufferGeometry;
+      colour: string;
+      glow: boolean;
+      matrices: Array<Array<number>>;
+    }
+  >();
   for (const s of shapesOf(file)) {
-    const mesh = new THREE.Mesh(
-      s.profile ? prismGeometry(s.profile) : geometry[s.kind],
+    const g = s.profile ? prismGeometry(s.profile) : geometry[s.kind];
+    const key = `${g.uuid}|${s.colour}|${s.glow}`;
+    let batch = batches.get(key);
+    if (!batch) {
+      batch = { geometry: g, colour: s.colour, glow: s.glow, matrices: [] };
+      batches.set(key, batch);
+    }
+    batch.matrices.push(s.matrix);
+  }
+  const group = new THREE.Group();
+  const matrix = new THREE.Matrix4();
+  for (const { geometry: g, colour, glow, matrices } of batches.values()) {
+    const mesh = new THREE.InstancedMesh(
+      g,
       new THREE.MeshStandardMaterial({
-        color: s.colour,
+        color: colour,
         roughness: 0.75,
         metalness: 0.05,
         side: THREE.DoubleSide,
         /* a lamp glows as the game draws it, washed toward white */
-        ...(s.glow && {
-          emissive: new THREE.Color(s.colour).lerp(new THREE.Color(0xffffff), 0.5),
+        ...(glow && {
+          emissive: new THREE.Color(colour).lerp(new THREE.Color(0xffffff), 0.5),
           emissiveIntensity: 0.9,
         }),
       }),
+      matrices.length,
     );
-    mesh.matrixAutoUpdate = false;
-    mesh.matrix.fromArray(s.matrix);
+    matrices.forEach((m, i) => mesh.setMatrixAt(i, matrix.fromArray(m)));
+    /* the bounds cover every instance, for the framing below and for culling */
+    mesh.computeBoundingBox();
+    mesh.computeBoundingSphere();
     group.add(mesh);
   }
   scene.add(group);
@@ -83,12 +108,16 @@ export function buildScene(
   const radius = box.getSize(new THREE.Vector3()).length() / 2 || 1;
   if (grid) {
     const size = Math.max(2, Math.ceil(radius * 1.6));
-    const g = new THREE.GridHelper(size, size, 0x5a6280, 0x2c3248);
+    /* a line every unit, but no more than GRID_MAX squares across, where a whole Map would
+       otherwise draw thousands */
+    const g = new THREE.GridHelper(size, Math.min(size, GRID_MAX), 0x5a6280, 0x2c3248);
     g.position.set(centre.x, box.min.y - 0.001, centre.z);
     scene.add(g);
   }
   return { scene, centre, radius };
 }
+
+const GRID_MAX = 40;
 
 /* where the camera sits and looks for `angle` (lib/prefabs.ts PrefabAngle): at zoom 1, just
    far enough back to fit the whole prefab */
