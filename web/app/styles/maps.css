@@ -692,7 +692,6 @@ html:has(.m3d:modal) {
   gap: 12px;
   padding: 12px 16px 24px;
   background: linear-gradient(var(--bg), transparent);
-  pointer-events: none;
 }
 .m3d-bar div {
   display: grid;

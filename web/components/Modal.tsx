@@ -47,6 +47,14 @@ export function useDialog({
       if (d.open) d.close();
     };
   }, [open, focus]);
+  /* declared before the effect below, so on unmount its cleanup runs first */
+  const leftPage = useRef(false);
+  useEffect(() => {
+    leftPage.current = false;
+    return () => {
+      leftPage.current = true;
+    };
+  }, []);
   useEffect(() => {
     if (!back || !open) return;
     /* Next's pushState copies its own state into the entry, so its router can come back to
@@ -72,7 +80,8 @@ export function useDialog({
     return () => {
       live = false;
       removeEventListener("popstate", pop);
-      if (!pushed || !ours) return;
+      /* leaving the page with it open (a link, a remount) is a step of its own to keep */
+      if (!pushed || !ours || leftPage.current) return;
       leaving = new Promise((done) =>
         addEventListener(
           "popstate",
@@ -110,7 +119,8 @@ export function useDialog({
   return { props, close };
 }
 
-/* the Back a closing `back` dialog sent, until the browser has done it */
+/* the Back a closing `back` dialog sent, until the browser has done it; one for the page,
+   since the site opens one `back` dialog at a time */
 let leaving: Promise<void> | null = null;
 
 function outside(e: React.MouseEvent<HTMLDialogElement>) {

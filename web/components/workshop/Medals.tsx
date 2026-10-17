@@ -10,8 +10,8 @@ export function MedalList({
 }: {
   /* [bronze, silver, gold, author], seconds */
   medals: ReadonlyArray<number>;
-  /* with it, a Record row first: the record in ticks, or null for "None yet" */
-  record?: number | null;
+  /* with it, a Record row first: the record in ticks */
+  record?: number;
   className: string;
 }) {
   return (
@@ -19,7 +19,7 @@ export function MedalList({
       {record !== undefined && (
         <div>
           <dt>Record</dt>
-          <dd>{record === null ? "None yet" : fmtTime(record)}</dd>
+          <dd>{fmtTime(record)}</dd>
         </div>
       )}
       {MEDALS.map(([name, c, i]) => (

@@ -679,7 +679,7 @@
      follows the bar in .m3d-top's flow, so it never overlaps it */
   .m3d-card {
     inline-size: 15rem;
-    margin: 0 16px;
+    margin-inline: 16px;
     display: grid;
     gap: 4px;
     padding: 12px 14px;
@@ -688,7 +688,6 @@
     background: var(--scrim);
     backdrop-filter: blur(6px);
     font-size: calc(13.5rem / 16);
-    pointer-events: none;
   }
   .m3d-card div {
     display: flex;

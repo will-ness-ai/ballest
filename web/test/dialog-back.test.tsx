@@ -103,3 +103,21 @@ test("reopened before its Back lands, the dialog stays open", async () => {
     history.back = back;
   }
 });
+
+test("leaving the page with it open takes no step back", async () => {
+  const back = history.back.bind(history);
+  let backs = 0;
+  history.back = () => {
+    backs++;
+  };
+  try {
+    click("open");
+    act(() => {
+      root.render(<></>);
+    });
+    await settle();
+    expect(backs).toBe(0);
+  } finally {
+    history.back = back;
+  }
+});

@@ -109,11 +109,10 @@ def test_a_changed_version_is_due_and_replaces_the_old_file(conn):
     assert stored(conn) == {"1": ("h2", len(BALLMAP_V2), BALLMAP_V2)}
 
 
-# The JPEG signature (SOI then a JFIF APP0 marker), not a capture: a Map's manifest also holds
-# its preview picture, but this session's network can't reach Steam's image host
-# (images.steamusercontent.com, refused by the egress proxy on 2026-10-17), so these are the
-# bytes a JFIF file opens with rather than a recorded preview's.
-JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF"
+# The opening bytes of a Map's preview picture as its manifest holds it: "the drop"
+# (3796494598), fetched from Steam by the prototype's first Actions run on 2026-10-17, which
+# saved every manifest's first file (commit 5f25771d on claude/prototype-maps3d).
+JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
 
 
 def test_the_map_file_is_the_manifest_entry_that_starts_like_json():

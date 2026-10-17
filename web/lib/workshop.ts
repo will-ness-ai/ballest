@@ -58,8 +58,8 @@ export interface Map3DView {
   version: string;
   title: string;
   creator: string;
-  /* the record in ticks, or null with no time on the Map */
-  record: number | null;
+  /* the record in ticks: only a timed Map has a page */
+  record: number;
   /* [bronze, silver, gold, author], seconds */
   medals: Array<number>;
 }
@@ -72,7 +72,7 @@ export const map3dOf = (m: WorkshopMap): Map3DView | null =>
         version: m.fileVersion,
         title: m.title,
         creator: m.creator,
-        record: m.top3.length ? recordOf(m) : null,
+        record: recordOf(m),
         medals: m.medals,
       }
     : null;
