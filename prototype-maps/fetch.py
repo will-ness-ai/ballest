@@ -4,6 +4,8 @@ round. Runs in GitHub Actions (cloud sessions can't reach Steam's content server
 import json
 import os
 import sys
+import time
+import traceback
 import urllib.parse
 import urllib.request
 
@@ -87,6 +89,9 @@ class C(steam.Client):
                     with open(os.path.join(OUT, f"{pf.id}.ballmap"), "wb") as fh:  # noqa: ASYNC230
                         fh.write(data)
                     print(pf.id, f, len(data), flush=True)
+        except Exception:
+            traceback.print_exc()
+            sys.stdout.flush()
         finally:
             await self.close()
 
@@ -98,7 +103,6 @@ for _attempt in range(4):
         print("run ended:", repr(e)[:200], flush=True)
     if all(os.path.exists(os.path.join(OUT, f"{p}.ballmap")) for p in picks):
         break
-    import time
 
     time.sleep(10)
 with open(os.path.join(OUT, "index.json"), "w") as fh:
