@@ -12,7 +12,8 @@
     "format:check": "node web/scripts/check-ruff.mjs && prettier --check . && ruff format --check",
     "lint": "node web/scripts/check-ruff.mjs && eslint --max-warnings=0 . && ruff check && node web/scripts/check-styles.mjs",
     "lint:fix": "node web/scripts/check-ruff.mjs && eslint --fix . && ruff check --fix",
-    "check": "pnpm format:check && pnpm lint"
+    "check": "pnpm format:check && pnpm lint",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
