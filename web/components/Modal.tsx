@@ -52,17 +52,38 @@ export function useDialog({
     /* Next's pushState copies its own state into the entry, so its router can come back to
        it; the mark tells this entry from the one under it */
     const mark = Math.random();
-    history.pushState({ dialog: mark }, "");
+    let live = true;
+    let pushed = false;
     let ours = true;
     const pop = () => {
       if ((history.state as { dialog?: number } | null)?.dialog === mark) return;
       ours = false;
       ref.current?.close();
     };
-    addEventListener("popstate", pop);
+    const push = () => {
+      if (!live) return;
+      history.pushState({ dialog: mark }, "");
+      pushed = true;
+      addEventListener("popstate", pop);
+    };
+    /* reopened before the last close's Back has landed, that Back would close this one */
+    if (leaving) void leaving.then(push);
+    else push();
     return () => {
+      live = false;
       removeEventListener("popstate", pop);
-      if (ours) history.back();
+      if (!pushed || !ours) return;
+      leaving = new Promise((done) =>
+        addEventListener(
+          "popstate",
+          () => {
+            leaving = null;
+            done();
+          },
+          { once: true },
+        ),
+      );
+      history.back();
     };
   }, [back, open]);
   /* a tap on the backdrop lands on the dialog itself, outside its box; one that starts
@@ -88,6 +109,9 @@ export function useDialog({
   const close = useCallback(() => ref.current?.close(), []);
   return { props, close };
 }
+
+/* the Back a closing `back` dialog sent, until the browser has done it */
+let leaving: Promise<void> | null = null;
 
 function outside(e: React.MouseEvent<HTMLDialogElement>) {
   if (e.target !== e.currentTarget) return false;

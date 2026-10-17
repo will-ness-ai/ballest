@@ -80,3 +80,26 @@ test("closing it takes its entry off again, so one Back leaves the page as befor
   expect(dialog().open).toBe(false);
   expect(history.state).toEqual({ page: "map" });
 });
+
+test("reopened before its Back lands, the dialog stays open", async () => {
+  /* a browser busy tearing down a big Map runs the Back a moment late */
+  const back = history.back.bind(history);
+  history.back = () => setTimeout(back, 5);
+  try {
+    history.replaceState({ page: "map" }, "");
+    click("open");
+    act(() => {
+      dialog().close();
+    });
+    click("open");
+    await settle();
+    expect(dialog().open).toBe(true);
+    act(() => {
+      dialog().close();
+    });
+    await settle();
+    expect(history.state).toEqual({ page: "map" });
+  } finally {
+    history.back = back;
+  }
+});
