@@ -74,10 +74,11 @@ export function prismOf({ view, squeeze }: MeshProfile) {
   const through = axes[2];
   const shared = squeeze && VIEW_AXES[view].find((a) => VIEW_AXES[squeeze.view].includes(a));
   if (!squeeze || shared === undefined) return { axes, squeeze: null };
+  const along = toThree(shared);
   return {
     axes,
     squeeze: (p: Vec3): Vec3 => {
-      const [lo, hi] = squeezeAt(squeeze.spans, p[toThree(shared)] + 0.5);
+      const [lo, hi] = squeezeAt(squeeze.spans, p[along] + 0.5);
       const out: Vec3 = [...p];
       out[through] = lo + (p[through] + 0.5) * (hi - lo) - 0.5;
       return out;

@@ -52,7 +52,7 @@ export function buildScene(
   };
   /* one geometry per outline, however many pieces share it */
   const profiles = new Map<MeshProfile, import("three").BufferGeometry>();
-  const prismOf = (p: MeshProfile) => {
+  const prismGeometry = (p: MeshProfile) => {
     let g = profiles.get(p);
     if (!g) profiles.set(p, (g = profileGeometry(THREE, p)));
     return g;
@@ -60,7 +60,7 @@ export function buildScene(
   const group = new THREE.Group();
   for (const s of shapesOf(file)) {
     const mesh = new THREE.Mesh(
-      s.profile ? prismOf(s.profile) : geometry[s.kind],
+      s.profile ? prismGeometry(s.profile) : geometry[s.kind],
       new THREE.MeshStandardMaterial({
         color: s.colour,
         roughness: 0.75,
