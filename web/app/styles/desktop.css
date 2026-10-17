@@ -130,7 +130,7 @@
   }
   /* a Campaign's maker, under its switch */
   .rail .railby {
-    margin: 0 0 10px;
+    margin-block: 0 10px;
     color: var(--dim);
     font-size: calc(13rem / 16);
   }
