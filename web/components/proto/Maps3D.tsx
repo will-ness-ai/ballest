@@ -71,14 +71,14 @@ const beacon = (at: PrefabItem, material: string): PrefabItem => ({
   transform: {
     location: at.transform.location,
     rotation: [0, 0, 0],
-    scale: [3, 3, 0.6],
+    scale: [7, 7, 1.6],
   },
   meshes: [{ mesh: "SM_2000_Pipe", materials: [material] }],
 });
 function withBeacons(f: PrefabFile): PrefabFile {
   const extra: Array<PrefabItem> = [];
   for (const it of f.items) {
-    if (/MP_PlayerStart/.test(it.class)) extra.push(beacon(it, "MI_Emissive_Lime"));
+    if (/MP_PlayerStart/.test(it.class)) extra.push(beacon(it, "MI_Emissive_Red"));
     if (/BP_Checkpoint_C|Finish/.test(it.class)) extra.push(beacon(it, "MI_Emissive_Yellow"));
   }
   return { ...f, items: [...f.items, ...extra] };
@@ -89,6 +89,10 @@ const VIEWS: Record<string, PrefabAngle> = {
   "From above": { from: [0, 1, 0.0001], zoom: 0.75, pan: [0, 0, 0] },
   "From the side": { from: [1, 0.12, 0.2], zoom: 0.75, pan: [0, 0, 0] },
 };
+
+/* a tall screen fits a wide map only from further back */
+const fit = (a: PrefabAngle): PrefabAngle =>
+  typeof window !== "undefined" && innerWidth < innerHeight ? { ...a, zoom: a.zoom * 1.3 } : a;
 
 export function Map3D({
   pfid,
@@ -115,7 +119,7 @@ export function Map3D({
     <PrefabViewer
       file={file}
       className={className ?? "m3d"}
-      angle={angle ?? VIEWS.Angled}
+      angle={fit(angle ?? VIEWS.Angled)}
       attach={attach}
     />
   ) : (
