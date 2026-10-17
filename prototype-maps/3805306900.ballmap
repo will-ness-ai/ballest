@@ -1,0 +1,1334 @@
+{
+	"worldSettings":
+	{
+		"directionalLight":
+		{
+			"timeOfDay": 12.000000953674316,
+			"brightness": 2
+		},
+		"metaData": [
+			{
+				"title": "Come And Get A Flat Bread_Doe Bailin",
+				"descriptor": ""
+			}
+		],
+		"levelData":
+		{
+			"systemLevelName": "Map_TrackUGCPlayback",
+			"userLevelName": "Come And Get A Flat Bread_Doe Bailin",
+			"levelDifficulty": "Beginner",
+			"levelDescription": "",
+			"uploaderOnlyLevelPreviewImagePath": "C:/Users/jabai/AppData/Local/Ballest/Saved/UserSavedMaps/Lemon Pop/Lemon Pop_Doe Bailin.jpg",
+			"bValidated": true,
+			"mapTags":
+			{
+				"gameplayTags": [
+					{
+						"tagName": "UGCTypes.Map"
+					},
+					{
+						"tagName": "MapTags.UGCTags.Mood.sunrise"
+					},
+					{
+						"tagName": "MapTags.UGCTags.Difficulty.beginner"
+					},
+					{
+						"tagName": "MapTags.UGCTags.Gameplay.flow"
+					},
+					{
+						"tagName": "MapTags.UGCTags.Gameplay.mini"
+					},
+					{
+						"tagName": "MapTags.UGCTags.Routes.single"
+					},
+					{
+						"tagName": "MapTags.UGCTags.Mood.day"
+					}
+				]
+			},
+			"medalTimesByIndex": [
+				56,
+				42,
+				37,
+				34.491600036621094
+			],
+			"createdAt": "2026.09.20-19.49.21",
+			"creatorName": "Doe Bailin",
+			"levelDisplayName": "Come And Get A Flat Bread",
+			"levelPublishedFileId": -1
+		},
+		"skylightIntensity": 1,
+		"directionalLightAngle": -21.779760360717773
+	},
+	"items": [
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/MapItems/PlayerStart/MP_PlayerStart.MP_PlayerStart_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0,
+					"y": 0,
+					"z": 0,
+					"w": 1
+				},
+				"translation":
+				{
+					"x": -3955,
+					"y": -1785,
+					"z": 8615
+				},
+				"scale3D":
+				{
+					"x": 0.27653800000000001,
+					"y": 0.27653800000000001,
+					"z": 0.27653800000000001
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Stadium/Arena/MI_GoalYellow.MI_GoalYellow'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_Start_Fixed.SM_Start_Fixed",
+					"materialAssetPaths": [
+						"/Game/Art/Stadium/Arena/MI_GoalYellow.MI_GoalYellow"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/Core/Gameplay/MapTriggers/BP_Checkpoint.BP_Checkpoint_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": -0.33327341145678718,
+					"y": -0.62364159035134514,
+					"z": -0.33327341145678724,
+					"w": 0.62364159035134525
+				},
+				"translation":
+				{
+					"x": -23728.564679285184,
+					"y": -1702.9539841352196,
+					"z": 7191.9999999999964
+				},
+				"scale3D":
+				{
+					"x": 1.5,
+					"y": 1.5,
+					"z": 1.5
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Stadium/Arena/MI_GoalYellow.MI_GoalYellow'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_GoalRing.SM_GoalRing",
+					"materialAssetPaths": [
+						"/Game/Art/Stadium/Arena/MI_GoalYellow.MI_GoalYellow"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Quarter_Large.BP_Pipe_Quarter_Large_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.053108116231133901,
+					"y": 0.21601338284487365,
+					"z": -0.41572927311592422,
+					"w": 0.8818655894731352
+				},
+				"translation":
+				{
+					"x": -3025.3010424716008,
+					"y": -2096.3339480749833,
+					"z": 8062.0992869539932
+				},
+				"scale3D":
+				{
+					"x": 1,
+					"y": 1,
+					"z": 1
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_2000_Quarter90turn.SM_2000_Quarter90turn",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Quarter_Large.BP_Pipe_Quarter_Large_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": -0.11527111451731639,
+					"y": 0.1902493724973657,
+					"z": -0.91767610201393557,
+					"w": 0.32922381173724896
+				},
+				"translation":
+				{
+					"x": -3283.6536886260283,
+					"y": -3888.2043240072485,
+					"z": 7616.1638646431329
+				},
+				"scale3D":
+				{
+					"x": 1,
+					"y": 1,
+					"z": 1
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_2000_Quarter90turn.SM_2000_Quarter90turn",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.14447100636458293,
+					"y": -0.13105344706013336,
+					"z": -0.65897037680141146,
+					"w": 0.72643730963646636
+				},
+				"translation":
+				{
+					"x": -5626.8496842450522,
+					"y": -4057.1498352201615,
+					"z": 7620.6563243286819
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.65901069210233743,
+					"y": 0.72640068694267756,
+					"z": 0.14428699482832114,
+					"w": 0.13125628681102025
+				},
+				"translation":
+				{
+					"x": -5894.1376800980215,
+					"y": -4083.1032021075475,
+					"z": 8269.1093960115941
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.65901069210233731,
+					"y": 0.72640068694267768,
+					"z": 0.14428699482832116,
+					"w": 0.13125628681102022
+				},
+				"translation":
+				{
+					"x": -6552.5243738918316,
+					"y": -4147.3801987192237,
+					"z": 7995.1542370131965
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.14447100636458293,
+					"y": -0.13105344706013336,
+					"z": -0.65897037680141146,
+					"w": 0.72643730963646636
+				},
+				"translation":
+				{
+					"x": -6285.2363780388623,
+					"y": -4121.4268318318382,
+					"z": 7346.7011653302843
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.65901069210233731,
+					"y": 0.72640068694267768,
+					"z": 0.14428699482832116,
+					"w": 0.13125628681102022
+				},
+				"translation":
+				{
+					"x": -7213.6696711512586,
+					"y": -4211.9265123558098,
+					"z": 7720.0512212033527
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.14447100636458299,
+					"y": -0.13105344706013336,
+					"z": -0.65897037680141157,
+					"w": 0.72643730963646647
+				},
+				"translation":
+				{
+					"x": -6946.3816752982893,
+					"y": -4185.9731454684243,
+					"z": 7071.5981495204405
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.65901069210233731,
+					"y": 0.72640068694267768,
+					"z": 0.14428699482832116,
+					"w": 0.13125628681102022
+				},
+				"translation":
+				{
+					"x": -7869.2977614794527,
+					"y": -4275.9341919425779,
+					"z": 7447.2439190164005
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.14447100636458299,
+					"y": -0.13105344706013336,
+					"z": -0.65897037680141157,
+					"w": 0.72643730963646647
+				},
+				"translation":
+				{
+					"x": -7602.0097656264834,
+					"y": -4249.9808250551923,
+					"z": 6798.7908473334883
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.65901069210233731,
+					"y": 0.72640068694267768,
+					"z": 0.14428699482832116,
+					"w": 0.13125628681102022
+				},
+				"translation":
+				{
+					"x": -8529.5235242503404,
+					"y": -4340.3907332375275,
+					"z": 7172.5235221437051
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.14447100636458299,
+					"y": -0.13105344706013336,
+					"z": -0.65897037680141157,
+					"w": 0.72643730963646647
+				},
+				"translation":
+				{
+					"x": -8262.235528397372,
+					"y": -4314.4373663501419,
+					"z": 6524.0704504607929
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.65901069210233731,
+					"y": 0.72640068694267768,
+					"z": 0.14428699482832116,
+					"w": 0.13125628681102022
+				},
+				"translation":
+				{
+					"x": -9189.7492870212282,
+					"y": -4404.8472745324771,
+					"z": 6897.8031252710098
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Tiny1.BP_Pipe_Half_Tiny1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.14447100636458299,
+					"y": -0.13105344706013336,
+					"z": -0.65897037680141157,
+					"w": 0.72643730963646647
+				},
+				"translation":
+				{
+					"x": -8922.4612911682598,
+					"y": -4378.8939076450915,
+					"z": 6249.3500535880976
+				},
+				"scale3D":
+				{
+					"x": 1.6568685434416417,
+					"y": 1.4365788027881072,
+					"z": 1.6822746978916459
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_500_180scoop.SM_500_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Large1.BP_Pipe_Half_Large1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": -0,
+					"y": 0.47131977846053902,
+					"z": 0,
+					"w": 0.88196239513479724
+				},
+				"translation":
+				{
+					"x": -14465.285729364754,
+					"y": -4416.6704615631752,
+					"z": 6003.5572313943649
+				},
+				"scale3D":
+				{
+					"x": 4.4871217122166831,
+					"y": 1,
+					"z": 6.0482258168452274
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_2000_180scoop.SM_2000_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Large1.BP_Pipe_Half_Large1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": -0.00027915026924944905,
+					"y": -0.013486016370137971,
+					"z": -0.99970569930180542,
+					"w": 0.020163437729712005
+				},
+				"translation":
+				{
+					"x": -16138.932376215364,
+					"y": -3815.1296360419105,
+					"z": 6351.5018543654915
+				},
+				"scale3D":
+				{
+					"x": 4.4871217122166831,
+					"y": 1,
+					"z": 6.0482258168452274
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_2000_180scoop.SM_2000_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Large1.BP_Pipe_Half_Large1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": -0.00027915026924944927,
+					"y": -0.013486016370137971,
+					"z": -0.99970569930180542,
+					"w": 0.020163437729712005
+				},
+				"translation":
+				{
+					"x": -20804.313258529626,
+					"y": -4522.6126557260804,
+					"z": 6257.618949664261
+				},
+				"scale3D":
+				{
+					"x": 4.4871217122166831,
+					"y": 1,
+					"z": 6.0482258168452274
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_2000_180scoop.SM_2000_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Large1.BP_Pipe_Half_Large1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": -0.0002791502692494496,
+					"y": -0.013486016370137971,
+					"z": -0.99970569930180542,
+					"w": 0.020163437729712005
+				},
+				"translation":
+				{
+					"x": -20845.442245741291,
+					"y": -3503.8130669176558,
+					"z": 6230.127055318314
+				},
+				"scale3D":
+				{
+					"x": 4.4871217122166831,
+					"y": 1,
+					"z": 6.0482258168452274
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_2000_180scoop.SM_2000_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Half_Large1.BP_Pipe_Half_Large1_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": -0.00027915026924944927,
+					"y": -0.013486016370137971,
+					"z": -0.99970569930180542,
+					"w": 0.020163437729712005
+				},
+				"translation":
+				{
+					"x": -25679.167137796252,
+					"y": -4199.9854358104058,
+					"z": 6362.023608414067
+				},
+				"scale3D":
+				{
+					"x": 4.4871217122166831,
+					"y": 1,
+					"z": 6.0482258168452274
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_2000_180scoop.SM_2000_180scoop",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Quarter_Large.BP_Pipe_Quarter_Large_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": -0.063197213171284905,
+					"y": 0.18178998101048316,
+					"z": 0.59496182006101728,
+					"w": 0.78037103208747638
+				},
+				"translation":
+				{
+					"x": -29051.384321459198,
+					"y": -1754.8341191960244,
+					"z": 7847.2178006563117
+				},
+				"scale3D":
+				{
+					"x": 2.102122881160231,
+					"y": 2.2056854395040899,
+					"z": 2.9209730633559068
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_2000_Quarter90turn.SM_2000_Quarter90turn",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Pipe_Quarter_Large.BP_Pipe_Quarter_Large_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": -0.17115922259934896,
+					"y": 0.088011393964618961,
+					"z": -0.10761090839710499,
+					"w": 0.97538628627100377
+				},
+				"translation":
+				{
+					"x": -25880.007363849607,
+					"y": 25.093862696529378,
+					"z": 6528.6237643426584
+				},
+				"scale3D":
+				{
+					"x": 2.102122881160231,
+					"y": 2.2056854395040899,
+					"z": 2.9209730633559068
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.MaterialInstanceConstant'/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/Maps/_GENERATED/PC/SM_2000_Quarter90turn.SM_2000_Quarter90turn",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Environment/Materials/Instances_2/MI_Env_Red_Smooth.MI_Env_Red_Smooth"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/BallestAssets/MaterialUpdatePieces/MP_FlatGlassPlane.MP_FlatGlassPlane_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0,
+					"y": -0,
+					"z": 0.90390346533031274,
+					"w": 0.42773651394737366
+				},
+				"translation":
+				{
+					"x": -23518.902207011586,
+					"y": -2005.2661046903063,
+					"z": 6718.6838936559889
+				},
+				"scale3D":
+				{
+					"x": 1,
+					"y": 3.2674186199735402,
+					"z": 5.8326321624536881
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.Material'/Game/Art/Materials/Masters/M_GlassStylized.M_GlassStylized'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/LevelEditor/PackageAssets/BallestAssets/MaterialUpdatePieces/Meshes/SM_SmallGlassPane_Flat.SM_SmallGlassPane_Flat",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Masters/M_GlassStylized.M_GlassStylized"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/BallestAssets/MaterialUpdatePieces/MP_FlatGlassPlane.MP_FlatGlassPlane_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0,
+					"y": -0,
+					"z": 0.33683234127851014,
+					"w": 0.94156464136501916
+				},
+				"translation":
+				{
+					"x": -24199.894858209002,
+					"y": -1944.409989680847,
+					"z": 6718.6838936559889
+				},
+				"scale3D":
+				{
+					"x": 1,
+					"y": 3.2674186199735402,
+					"z": 5.8326321624536881
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.Material'/Game/Art/Materials/Masters/M_GlassStylized.M_GlassStylized'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/LevelEditor/PackageAssets/BallestAssets/MaterialUpdatePieces/Meshes/SM_SmallGlassPane_Flat.SM_SmallGlassPane_Flat",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Masters/M_GlassStylized.M_GlassStylized"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/BallestAssets/MaterialUpdatePieces/MP_FlatGlassPlane.MP_FlatGlassPlane_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0,
+					"y": -0,
+					"z": 0.33683234127851036,
+					"w": 0.94156464136501916
+				},
+				"translation":
+				{
+					"x": -23441.495581478343,
+					"y": -1322.1628225081759,
+					"z": 6718.6838936559889
+				},
+				"scale3D":
+				{
+					"x": 1,
+					"y": 3.2674186199735402,
+					"z": 5.8326321624536881
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.Material'/Game/Art/Materials/Masters/M_GlassStylized.M_GlassStylized'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/LevelEditor/PackageAssets/BallestAssets/MaterialUpdatePieces/Meshes/SM_SmallGlassPane_Flat.SM_SmallGlassPane_Flat",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Masters/M_GlassStylized.M_GlassStylized"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		},
+		{
+			"actorToSpawn": "/Script/Engine.BlueprintGeneratedClass'/Game/LevelEditor/PackageAssets/BallestAssets/MaterialUpdatePieces/MP_FlatGlassPlane.MP_FlatGlassPlane_C'",
+			"itemTransform":
+			{
+				"rotation":
+				{
+					"x": 0.23811747705688432,
+					"y": -0.66580783047367675,
+					"z": 0.23811747705688435,
+					"w": 0.66580783047367686
+				},
+				"translation":
+				{
+					"x": -23371.90755731512,
+					"y": -1265.0882494212165,
+					"z": 7875.6838936559889
+				},
+				"scale3D":
+				{
+					"x": 1,
+					"y": 3.2674186199735402,
+					"z": 5.8326321624536881
+				}
+			},
+			"meshComponents": [
+				{
+					"meshComponentTag": "SKGMapEditor",
+					"materials": [
+						{
+							"material": "/Script/Engine.Material'/Game/Art/Materials/Masters/M_GlassStylized.M_GlassStylized'",
+							"materialIndex": 0
+						}
+					],
+					"meshAssetPath": "/Game/LevelEditor/PackageAssets/BallestAssets/MaterialUpdatePieces/Meshes/SM_SmallGlassPane_Flat.SM_SmallGlassPane_Flat",
+					"materialAssetPaths": [
+						"/Game/Art/Materials/Masters/M_GlassStylized.M_GlassStylized"
+					]
+				}
+			],
+			"bIsBaseItem": true,
+			"boolProperties": [],
+			"floatProperties": [],
+			"intProperties": [],
+			"textProperties": [],
+			"nameProperties": [],
+			"stringProperties": []
+		}
+	]
+}
