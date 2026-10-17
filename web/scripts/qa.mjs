@@ -10,7 +10,7 @@ import { compare } from "./qa/compare.mjs";
 import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
 import { REFS, pieces } from "./qa/piece.mjs";
-import { fmt, rankRows } from "./qa/piece-math.mjs";
+import { fmt, matching, pagesOf, rankRows } from "./qa/piece-math.mjs";
 import { preview, resolve, up } from "./qa/targets.mjs";
 
 const OUT = fileURLToPath(new URL("../../scratch/qa/", import.meta.url));
@@ -44,19 +44,24 @@ fault kinds: overflow (page scrolls sideways), offscreen, clipped (text or place
   --eval  print the value of this expression, run in the page
   --prefab  a Prefab file the page's viewer draws in place of the real one (prefab@1280
           --prefab sign.json): the viewer as that target builds it, on any file`,
-  piece: `usage: pnpm --silent qa piece <mesh> | --all [--refs <dir>]
+  piece: `usage: pnpm --silent qa piece <mesh> | --all [--match <regex>] [--montage] [--refs <dir>]
   draws the viewer's stand-in for a mesh (its asset name, e.g. SM_1000_90turn) from the top,
   front and side, orthographic, and scores each view's outline against the game mesh's
   render: 1.00 is the same outline. Renders follow the framing in piece-math.mjs
   <mesh>  one mesh: its scores and a sheet to read (game | viewer | outlines, red only the
           game's, cyan only the viewer's)
   --all   every mesh the viewer knows, worst first, no pictures
+  --match with --all, only meshes whose name or stand-in kind matches (any case), e.g.
+          "scoop" or "\\+" (stand-ins drawn from two outlines)
+  --montage  with --all, also the listed meshes' game and viewer rows in pictures of 16,
+          worst first, to look the lot over in a few reads
   --refs  the folder of <mesh>-<view>-mask.png and -ortho.png renders
           (default the ballest-map-making checkout beside this one: references/pieces/)
   the viewer side is the site's scene code (components/prefabs/scene.ts) drawn here, so its
   shaded picture can differ slightly in colour from the page; the outlines don't
 examples:
   pnpm --silent qa piece --all
+  pnpm --silent qa piece --all --match scoop --montage
   pnpm --silent qa piece SM_1000_90turn
   pnpm --silent qa piece Torus --refs ~/renders/`,
 };
@@ -80,10 +85,15 @@ if (argv.includes("--help")) {
 const FLAGS = {
   check: ["at", "against", "pages", "sizes", "jobs"],
   shot: ["at", "el", "box", "eval", "prefab"],
-  piece: ["refs"],
+  piece: ["refs", "match"],
   "": [],
 };
-const SWITCHES = { check: ["no-states", "assert"], shot: ["full"], piece: ["all"], "": [] };
+const SWITCHES = {
+  check: ["no-states", "assert"],
+  shot: ["full"],
+  piece: ["all", "montage"],
+  "": [],
+};
 const flags = {};
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
@@ -199,6 +209,8 @@ async function shot() {
 async function piece() {
   const mesh = positional[0];
   if (!mesh === !flags.all) fail("name one mesh, or pass --all", HELP.piece);
+  if (mesh && (flags.match || flags.montage))
+    fail("--match and --montage go with --all", HELP.piece);
   const dir = flags.refs ? flags.refs.replace(/\/?$/, "/") : REFS;
   const p = await pieces(dir);
   try {
@@ -229,10 +241,20 @@ async function piece() {
     } else {
       const found = [];
       for (const m of p.meshes) {
-        const r = await p.run(m, false);
-        found.push({ mesh: m, kind: r.kind, scores: r.scores });
+        const r = await p.run(m, !!flags.montage);
+        found.push({ mesh: m, kind: r.kind, scores: r.scores, sheet: r.sheet });
       }
-      const ranked = rankRows(found);
+      const ranked = matching(rankRows(found), flags.match);
+      const images = [];
+      if (flags.montage) {
+        mkdirSync(OUT, { recursive: true });
+        for (const [i, page] of pagesOf(ranked).entries()) {
+          const file = `${OUT}pieces-${String(i + 1)}.png`;
+          const sheets = page.map((r) => `data:image/png;base64,${r.sheet.toString("base64")}`);
+          writeFileSync(file, await p.montage(sheets));
+          images.push(rel(file));
+        }
+      }
       const missing = ranked.filter((r) => !r.scores).map((r) => r.mesh);
       const scored = ranked.filter((r) => r.scores);
       const refs = flags.refs ? ` --refs ${flags.refs}` : "";
@@ -240,6 +262,7 @@ async function piece() {
         ...(scored.length
           ? rows("pieces", ["mesh", "kind", "worst", "top", "front", "side"], scored)
           : [`pieces: none scored of ${String(ranked.length)}`]),
+        ...(images.length ? [`images[${String(images.length)}]: ${images.join(", ")}`] : []),
         ...(missing.length
           ? [`no renders in ${rel(dir)} for ${String(missing.length)}: ${few(missing)}`]
           : []),
@@ -249,6 +272,7 @@ async function piece() {
           p.errors.map((detail) => ({ detail })),
         ),
         "next:",
+        ...images.map((f) => `  read ${f}`),
         scored.length
           ? `  pnpm --silent qa piece ${scored[0].mesh}${refs}   # the worst one's scores and sheet`
           : `  render the game meshes into ${rel(dir)} (piece-math.mjs has the framing)`,

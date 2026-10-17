@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { VIEWS, camera, frameOf, overlap, rankRows } from "../scripts/qa/piece-math.mjs";
+import {
+  VIEWS,
+  camera,
+  frameOf,
+  matching,
+  overlap,
+  pagesOf,
+  rankRows,
+} from "../scripts/qa/piece-math.mjs";
 
 const bounds = { min: [-500, -250, 0], max: [500, 250, 100] } as const;
 
@@ -55,5 +63,25 @@ describe("rankRows", () => {
       ["A", "0.90"],
       ["B", "no ref"],
     ]);
+  });
+});
+
+describe("the montage", () => {
+  it("keeps the pieces whose mesh or stand-in matches, ignoring case", () => {
+    const rows = [
+      { mesh: "SM_Cone", kind: "cone" },
+      { mesh: "Bevel_Half_SSurve", kind: "outline top+front" },
+      { mesh: "SM_GoalRing", kind: "outline top" },
+    ];
+    const meshes = (pattern: string) => (matching(rows, pattern) as typeof rows).map((r) => r.mesh);
+    expect(meshes("\\+")).toEqual(["Bevel_Half_SSurve"]);
+    expect(meshes("cone|ring")).toEqual(["SM_Cone", "SM_GoalRing"]);
+    expect(matching(rows, undefined)).toHaveLength(3);
+  });
+
+  it("lays 16 pieces to a picture, worst first, so each stays readable", () => {
+    const pages = pagesOf(Array.from({ length: 35 }, (_, i) => i)) as Array<Array<number>>;
+    expect(pages.map((p) => p.length)).toEqual([16, 16, 3]);
+    expect(pages[1][0]).toBe(16);
   });
 });

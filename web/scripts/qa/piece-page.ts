@@ -204,4 +204,23 @@ async function dataUrl(c: OffscreenCanvas) {
   return "data:image/png;base64," + btoa(s);
 }
 
-Object.assign(globalThis, { piece, meshes: () => Object.keys(MESHES) });
+/* several sheets' top two rows (the game, then the viewer) laid out four across, half size */
+async function montage(sheets: Array<string>) {
+  const across = 4;
+  const [w, h] = [(70 + CELL * VIEWS.length) / 2, (22 * 2 + CELL * 2) / 2];
+  const c = new OffscreenCanvas(
+    w * Math.min(across, sheets.length),
+    h * Math.ceil(sheets.length / across),
+  );
+  const g = context(c);
+  g.fillStyle = "#0b0c10";
+  g.fillRect(0, 0, c.width, c.height);
+  for (const [i, src] of sheets.entries()) {
+    const img = await image(src);
+    const top = Math.min(img.height, h * 2);
+    g.drawImage(img, 0, 0, w * 2, top, (i % across) * w, Math.floor(i / across) * h, w, top / 2);
+  }
+  return dataUrl(c);
+}
+
+Object.assign(globalThis, { piece, montage, meshes: () => Object.keys(MESHES) });

@@ -29,9 +29,10 @@ function refsOf(dir, mesh) {
 }
 
 /**
- * Opens a page with the bundled viewer and returns `{ meshes, run }`: every mesh the viewer has
- * a stand-in for, and `run(mesh, sheet)`, which draws one and gives `{ kind, scores, sheet }`.
- * `close` ends the browser.
+ * Opens a page with the bundled viewer and returns `{ meshes, run, montage }`: every mesh the
+ * viewer has a stand-in for, `run(mesh, sheet)`, which draws one and gives
+ * `{ kind, scores, sheet }`, and `montage(sheets)`, several sheets in one picture. `close` ends
+ * the browser.
  */
 export async function pieces(dir) {
   const bundle = await build({
@@ -62,6 +63,11 @@ export async function pieces(dir) {
         ...r,
         sheet: r.sheet ? Buffer.from(r.sheet.split(",")[1], "base64") : null,
       };
+    },
+    /* one picture of several sheets (data URLs from run), as a PNG */
+    async montage(sheets) {
+      const url = await page.evaluate((s) => globalThis.montage(s), sheets);
+      return Buffer.from(url.split(",")[1], "base64");
     },
     close: () => browser.close(),
   };
