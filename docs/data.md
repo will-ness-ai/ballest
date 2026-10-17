@@ -101,7 +101,9 @@ it arrives, and no download starts after `BUDGET` (four minutes), so the first c
 (1,521 Maps, 454 MB raw, ~16 MB gzipped, on 2026-10-17) spreads over several Refreshes and
 later runs fetch only what changed. A failed download writes nothing and keeps the old
 file; a manifest with no map file is logged and skipped; both are tried again next run, and
-the log counts the failures by error. When it wrote any file it revalidates the site. It is
+the log counts the failures by error. So a Map whose manifest holds no map file stays due and
+is downloaded again every run. That is deliberate: its creator's next update may add one,
+and it costs one download a run. When it wrote any file it revalidates the site. It is
 skipped without a catalogue or a database, and with `--dev` writes only `DEV_DATABASE_URL`.
 Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
 file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and

@@ -27,7 +27,8 @@ import psycopg
 # downloads at once, and the step's wall-clock limit; the backlog waits for the next Refresh
 WORKERS = 4
 BUDGET = 240.0
-# how a .ballmap starts: JSON, sometimes after a UTF-8 BOM
+# how a .ballmap starts: JSON ("{\n\t"worldSettings"" in every file captured so far), or a
+# UTF-8 BOM before it, which a JSON file may carry though none captured so far does
 MAP_FILE_STARTS = (b"{", b"\xef\xbb\xbf")
 
 

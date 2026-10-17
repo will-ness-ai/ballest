@@ -15,7 +15,18 @@ import psycopg
 import pytest
 
 T0 = datetime(2026, 10, 17, tzinfo=UTC)
-BALLMAP = b'{"items": []}'
+# The opening bytes of two real .ballmap files, downloaded from Steam on 2026-10-17 by the
+# prototype's Actions run (prototype-maps/fetch.py on branch claude/prototype-maps3d): "the
+# drop" (3796494598) and "Brand New TV Offer v2" (3802991891). A real file goes on to the
+# Map's items; the step only looks at how a file starts and stores the bytes it is given.
+BALLMAP = (
+    b'{\n\t"worldSettings":\n\t{\n\t\t"directionalLight":\n\t\t{\n\t\t\t"timeOfDay": 0,'
+    b'\n\t\t\t"brightness": 2\n\t\t},'
+)
+BALLMAP_V2 = (
+    b'{\n\t"worldSettings":\n\t{\n\t\t"directionalLight":\n\t\t{\n\t\t\t"timeOfDay": 0,'
+    b'\n\t\t\t"brightness": 8\n\t\t},'
+)
 
 
 def cat(pfid, version, subs):
@@ -94,16 +105,22 @@ def test_a_written_file_is_kept_gzipped_and_not_due_again(conn):
 def test_a_changed_version_is_due_and_replaces_the_old_file(conn):
     map_files.write(conn, cat("1", "h1", 10), BALLMAP, T0)
     assert [m["pfid"] for m in map_files.due(conn, [cat("1", "h2", 10)])] == ["1"]
-    map_files.write(conn, cat("1", "h2", 10), b'{"items": [1]}', T0)
-    assert stored(conn) == {"1": ("h2", 14, b'{"items": [1]}')}
+    map_files.write(conn, cat("1", "h2", 10), BALLMAP_V2, T0)
+    assert stored(conn) == {"1": ("h2", len(BALLMAP_V2), BALLMAP_V2)}
 
 
-JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF"  # a preview picture's first bytes
+# The JPEG signature (SOI then a JFIF APP0 marker), not a capture: a Map's manifest also holds
+# its preview picture, but this session's network can't reach Steam's image host
+# (images.steamusercontent.com, refused by the egress proxy on 2026-10-17), so these are the
+# bytes a JFIF file opens with rather than a recorded preview's.
+JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF"
 
 
 def test_the_map_file_is_the_manifest_entry_that_starts_like_json():
     assert map_files.map_file([JPEG, BALLMAP]) == BALLMAP
-    bom = b"\xef\xbb\xbf" + BALLMAP  # the editor sometimes saves a UTF-8 BOM first
+    # None of the 18 files the prototype captured opens with a UTF-8 BOM, but a JSON file may,
+    # and the prototype's fetch accepted one too: here the BOM goes before the real bytes.
+    bom = b"\xef\xbb\xbf" + BALLMAP
     assert map_files.map_file([bom, JPEG]) == bom
 
 
@@ -117,6 +134,10 @@ def test_a_map_the_catalogue_gives_no_version_is_never_due(conn):
     assert map_files.due(conn, [cat("1", None, 10), cat("2", "0", 10)]) == []
 
 
+# FakePath and FakeClient are shaped after steamio 1.1.3's API (Client.fetch_published_files,
+# PublishedFile.manifest, Manifest.paths, a path's is_file and read_bytes) as the prototype's
+# fetch run used it to download the files above (prototype-maps/fetch.py on branch
+# claude/prototype-maps3d), where a manifest lists directories as well as files.
 class FakePath:
     """A steam.py manifest path: a file or a directory, and the file's bytes."""
 
@@ -180,7 +201,7 @@ def test_collect_writes_each_file_and_a_failed_download_keeps_the_old_one(conn):
     written, failed = asyncio.run(map_files.collect(conn, todo, fake_download(files)))
     assert written == 1
     assert failed == {"OSError": 1, "NoMapFileError": 1}
-    assert stored(conn) == {"1": ("h1", len(BALLMAP), BALLMAP), "2": ("old", 13, BALLMAP)}
+    assert stored(conn) == {"1": ("h1", len(BALLMAP), BALLMAP), "2": ("old", len(BALLMAP), BALLMAP)}
     # both failures are tried again next run
     assert [m["pfid"] for m in map_files.due(conn, todo)] == ["2", "3"]
 
