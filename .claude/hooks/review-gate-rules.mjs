@@ -58,7 +58,6 @@ function ghPr(command, m) {
   const args = flatten(command.slice(m.index + whole.length)).split(SEPARATOR)[0];
   const tokens = args.trim().split(/\s+/).map(unquote).filter(Boolean);
   if (tokens.includes(verb === "ready" ? "--undo" : "--disable-auto")) return null;
-  // GH_REPO counts when exported earlier, or set in front of this gh call
   const before = command.slice(0, m.index);
   const repoVar = GH_REPO_PREFIX.exec(before) ?? [...before.matchAll(GH_REPO_EXPORT)].at(-1);
   let repo = globalRepo ?? (repoVar ? unquote(repoVar[1]) : null);
@@ -96,14 +95,15 @@ const joinCd = (from, to) => (/^[/~$]/.test(to) || !from ? to : `${from}/${to}`)
 
 /* the cds before `at`, each from the last, name the checkout the command runs in */
 function withCd(target, command, at) {
-  const cd = [...command.matchAll(CD)]
+  // like the shell's PWD and OLDPWD, relative to where the command starts ("")
+  const { pwd: cd } = [...command.matchAll(CD)]
     .filter((c) => c.index < at)
     .map((c) => unquote(c[1]))
-    // `cd -` goes back to where the last cd left
     .reduce(
-      ([from, last], to) => (to === "-" ? [last, from] : [joinCd(from, to), from]),
-      ["", ""],
-    )[0];
+      ({ pwd, oldpwd }, to) =>
+        to === "-" ? { pwd: oldpwd, oldpwd: pwd } : { pwd: joinCd(pwd, to), oldpwd: pwd },
+      { pwd: "", oldpwd: "" },
+    );
   return cd ? { ...target, cd } : target;
 }
 
