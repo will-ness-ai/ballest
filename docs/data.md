@@ -103,7 +103,9 @@ later runs fetch only what changed. A failed download writes nothing and keeps t
 file; a manifest with no map file is logged and skipped; both are tried again next run, and
 the log counts the failures by error. When it wrote any file it revalidates the site. It is
 skipped without a catalogue or a database, and with `--dev` writes only `DEV_DATABASE_URL`.
-Only Actions can download: a cloud session can't reach `*.steamcontent.com`.
+Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
+file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
+`getWorkshop` carries each Map's stored version.
 
 ### Dailies
 
@@ -253,7 +255,7 @@ and writes a named dataset, in one transaction. The database must already be mig
 locally by `pnpm db:migrate`. Run it with no
 name, or a wrong one, to list the datasets. `empty` has no rows; `tiny` has two Tracks, an
 Overall board, three Maps, four Dailies (three final, one live with a failed read), ten
-players and three Refreshes of Score history, and is also the fixture the read layer's
+players, three Refreshes of Score history and one Map's file, and is also the fixture the read layer's
 tests run against. `stress` is tiny plus what strains a layout: 12,000 more players on the
 Overall board, so the last one, who has a long name, ranks in five digits, and a Map with a
 long title; `pnpm qa` and CI's layout check run on it (`docs/site.md`).

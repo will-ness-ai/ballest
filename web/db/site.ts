@@ -313,11 +313,11 @@ export async function mapFile(
   db: Db,
   pfid: string,
 ): Promise<{ version: string; gzipped: Buffer } | null> {
-  const [f] = await rows<{ version: string; gzipped: Buffer }>(
+  const found = await rows<{ version: string; gzipped: Buffer }>(
     db,
     sql`select version, gzipped from map_files where pfid = ${pfid}`,
   );
-  return f ?? null;
+  return found.at(0) ?? null;
 }
 
 /* A player and their place on every board, or null for a Steam ID on no board */

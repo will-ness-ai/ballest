@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { PartOf } from "./Campaign";
 import { CreatorLink } from "./Card";
 import { Age } from "./Age";
+import { Map3D } from "./Map3D";
 import { BackLink, Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardBody } from "../board/BoardBody";
@@ -34,6 +35,16 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
     <aside className="mpanel" id="mpanel">
       <BackLink trail="maps" />
       <MapImage preview={m.preview} className="mp-img" />
+      {m.fileVersion && (
+        <Map3D
+          pfid={m.pfid}
+          version={m.fileVersion}
+          title={m.title}
+          creator={m.creator}
+          record={m.top3.at(0)?.[2] ?? null}
+          medals={m.medals}
+        />
+      )}
       <div>
         <h1 className="mp-t">{m.title}</h1>
         <span className="mp-by">
