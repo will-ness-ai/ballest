@@ -169,3 +169,25 @@ describe("once the session is known", () => {
     expect(asked).toContain("/api/standings?ladders&player=76561198000000002");
   });
 });
+
+describe("when You's cards can't be read", () => {
+  test("each card says so, and Try again reads them again", async () => {
+    const asked: Array<string> = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      asked.push(url);
+      return Promise.resolve(new Response("", { status: 503 }));
+    });
+    draw({ state: "loading", claimed: true, id: "76561198000000003" });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(el.querySelectorAll(".yl-hold")).toHaveLength(0);
+    expect(el.textContent).toContain("Couldn't read your rows");
+    const again = [...el.querySelectorAll("button")].find((b) => b.textContent === "Try again");
+    expect(again).toBeDefined();
+    act(() => {
+      again?.click();
+    });
+    expect(asked.filter((u) => u.includes("player=76561198000000003"))).toHaveLength(2);
+  });
+});

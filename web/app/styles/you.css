@@ -162,20 +162,36 @@
 .yl-hold[data-gap] {
   padding-block-start: 16px;
 }
+/* centred in a row's 30px */
 .yl-hold span {
-  block-size: 9px;
   margin: 10.5px 6px;
-  border-radius: 5px;
-  background: var(--surface2);
-  opacity: 0.75;
 }
 .yl-hold span[data-you] {
   background: var(--accent-soft);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .yl-hold span {
-    animation: pulse 1.2s ease-in-out infinite;
-  }
+/* the header's name, until You's record is read */
+h1 .ys-hold {
+  display: inline-block;
+  vertical-align: middle;
+  inline-size: 9em;
+  block-size: 0.6em;
+}
+.ys-top .ys-hold.marble {
+  block-size: 44px;
+  border-radius: 50%;
+}
+.yl-again {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.yl-more:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 .yl-off {
   display: block;

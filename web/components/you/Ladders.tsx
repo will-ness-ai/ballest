@@ -133,6 +133,8 @@ function AllRows({
   /* what the next render scrolls to: You's row, or (rows read above) the same distance from
      the bottom as before them */
   const keep = useRef<"you" | { fromBottom: number } | null>("you");
+  /* the first slice's read failed: 0, 1, ... counts the tries, so another try reads again */
+  const [tries, setTries] = useState({ n: 0, failed: false });
 
   useEffect(() => {
     let live = true;
@@ -141,12 +143,14 @@ function AllRows({
       (s) => {
         if (live) setGot({ total: s.total, from, rows: s.rows });
       },
-      () => undefined /* stays grey bars */,
+      () => {
+        if (live) setTries((t) => ({ ...t, failed: true }));
+      },
     );
     return () => {
       live = false;
     };
-  }, [stat, since, at]);
+  }, [stat, since, at, tries.n]);
 
   useLayoutEffect(() => {
     const ol = box.current;
@@ -194,8 +198,16 @@ function AllRows({
 
   if (!got)
     return (
-      <ol className="yl-rows yl-all" aria-busy="true">
-        <Holder rows={8} />
+      <ol className="yl-rows yl-all" aria-busy={!tries.failed}>
+        {tries.failed ? (
+          <Failed
+            retry={() => {
+              setTries((t) => ({ n: t.n + 1, failed: false }));
+            }}
+          />
+        ) : (
+          <Holder rows={8} />
+        )}
       </ol>
     );
   return (
@@ -215,6 +227,18 @@ function Holder({ rows, you, gap }: { rows: number; you?: number; gap?: boolean 
       {Array.from({ length: rows }, (_, k) => (
         <span key={k} data-you={k === you || undefined} />
       ))}
+    </li>
+  );
+}
+
+/* in place of rows whose read failed */
+function Failed({ retry }: { retry: () => void }) {
+  return (
+    <li className="yl-row yl-off">
+      Couldn&apos;t read your rows.{" "}
+      <button type="button" className="yl-again" onClick={retry}>
+        Try again
+      </button>
     </li>
   );
 }
@@ -291,6 +315,7 @@ function Card({
   moves,
   you,
   holding,
+  failed,
   signIn,
 }: {
   stat: StandingsStat;
@@ -302,6 +327,8 @@ function Card({
   you: string | null;
   /* You's rows are being read: hold their place */
   holding: boolean;
+  /* You's rows couldn't be read: try again */
+  failed: (() => void) | null;
   signIn: SignIn;
 }) {
   const [open, setOpen] = useState(false);
@@ -323,7 +350,7 @@ function Card({
               </li>
             ),
           )}
-          {holding && <Holder rows={4} you={2} gap />}
+          {holding && (failed ? <Failed retry={failed} /> : <Holder rows={4} you={2} gap />)}
           {signIn && ladder.total > shown && (
             <li className="yl-gap" aria-hidden="true">
               &#8943;
@@ -338,10 +365,12 @@ function Card({
           )}
         </ol>
       )}
-      {(open || ladder.total > shown) && !holding && (
+      {(open || ladder.total > shown) && (
         <button
           type="button"
           className="yl-more"
+          /* there from the first draw, so it doesn't blink out while You's rows are read */
+          disabled={holding}
           aria-expanded={open}
           onClick={() => {
             setOpen(!open);
@@ -355,11 +384,37 @@ function Card({
   );
 }
 
+/* Each try draws the page afresh, and a fresh draw reads again what failed (hooks/read.ts) */
 export function Ladders({ tops }: { tops: YouLadders }) {
+  const [tries, setTries] = useState(0);
+  return (
+    <Page
+      key={tries}
+      tops={tops}
+      retry={() => {
+        setTries((n) => n + 1);
+      }}
+    />
+  );
+}
+
+function Page({ tops, retry }: { tops: YouLadders; retry: () => void }) {
   const now = useNow();
   const fresh = now != null && youBaseline(now) === Date.parse(tops.since);
   const { key, claimed, signIn, who } = viewOf(useYou(), now != null && !fresh);
   const got = useRead(readLadders, key);
+  /* the read useRead shares; it gives nothing when it fails, so watch for that here */
+  const [failed, setFailed] = useState<string | null>(null);
+  useEffect(() => {
+    if (key == null) return;
+    let live = true;
+    readLadders(key).catch(() => {
+      if (live) setFailed(key);
+    });
+    return () => {
+      live = false;
+    };
+  }, [key]);
   const data = got?.value ?? tops;
   /* You's Steam ID once You's cards are read */
   const id = got && claimed ? key : null;
@@ -372,11 +427,26 @@ export function Ladders({ tops }: { tops: YouLadders }) {
   return (
     <section className="ys">
       <header className="ys-top">
-        {who && <Marble who={who} still />}
+        {who ? (
+          <Marble who={who} still />
+        ) : (
+          claimed && <span className="marble ys-hold" aria-hidden="true" />
+        )}
         <div>
-          <h1>{who ? personaOf(who) : "Where you stand"}</h1>
+          <h1>
+            {who ? (
+              personaOf(who)
+            ) : claimed ? (
+              <>
+                <span className="ys-hold" aria-hidden="true" />
+                <span className="yl-sr">Where you stand</span>
+              </>
+            ) : (
+              "Where you stand"
+            )}
+          </h1>
           <p className="ys-line">
-            {who
+            {claimed
               ? "Where you stand on the Daily Report's four lists"
               : "The Daily Report's four lists"}
             {read && <> &middot; read {read}</>}
@@ -399,6 +469,7 @@ export function Ladders({ tops }: { tops: YouLadders }) {
             moves={moves}
             you={id}
             holding={holding}
+            failed={key != null && failed === key ? retry : null}
             signIn={signIn}
           />
         ))}
