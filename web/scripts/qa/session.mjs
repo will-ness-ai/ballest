@@ -5,6 +5,21 @@
 import { createHmac } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 
+import { IDS, PAGES } from "./catalogue.mjs";
+
+/**
+ * How qa signs target `t`'s browser in to draw catalogue page `page`: the cookies to set,
+ * and `as`, the Steam ID the site should then answer /api/me with (undefined for a page
+ * drawn signed out, which needs no cookies). Null when `t` can't sign the page in: no
+ * secret known for it, or no such player in its ID set.
+ */
+export function signIn(page, t, now) {
+  const as = PAGES.find((x) => x.name === page)?.as;
+  if (!as) return { as: undefined, cookies: [] };
+  const id = IDS[t.ids][as];
+  return id && t.secret ? { as: id, cookies: signedIn(t.url, id, t.secret, now) } : null;
+}
+
 // lib/cookies.ts's names, which a plain Node script can't import
 export const SESSION_COOKIE = "ballest-session";
 export const HINT_COOKIE = "ballest-in";

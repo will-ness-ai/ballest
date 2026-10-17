@@ -54,3 +54,20 @@ describe("the players qa signs in as", () => {
     expect(prefab.uploader).toBe(IDS.stress.UPLOADER);
   });
 });
+
+describe("signIn", () => {
+  const local = { url: "http://localhost:3000", ids: "stress", secret: "qa-secret" };
+
+  it("signs a page in as its player where the target's secret is known", () => {
+    expect(qa.signIn("prefab-admin", local, 0)?.as).toBe(ADMIN_STEAM_ID);
+    expect(qa.signIn("prefab-admin", { ...local, secret: null }, 0)).toBeNull();
+    expect(qa.signIn("prefab-admin", { ...local, ids: "real" }, 0)).toBeNull();
+  });
+
+  it("leaves a page drawn signed out alone", () => {
+    expect(qa.signIn("home", { ...local, secret: null }, 0)).toEqual({
+      as: undefined,
+      cookies: [],
+    });
+  });
+});

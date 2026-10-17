@@ -11,7 +11,7 @@ import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
 import { REFS, pieces } from "./qa/piece.mjs";
 import { fmt, matching, pagesOf, rankRows } from "./qa/piece-math.mjs";
-import { signedIn } from "./qa/session.mjs";
+import { signIn } from "./qa/session.mjs";
 import { preview, resolve, up } from "./qa/targets.mjs";
 
 const OUT = fileURLToPath(new URL("../../scratch/qa/", import.meta.url));
@@ -119,19 +119,6 @@ const pageOf = (page, ids = "real") => {
   return { path: path?.replace(/\{(\w+)\}/g, (_, k) => IDS[ids][k]), status: p?.status ?? 200 };
 };
 const stateOf = (name) => STATES.find((x) => x.name === name);
-/* the cookies that sign `t`'s browser in as the page's `as`: none for a page drawn signed
-   out, null when `t` can't sign (no secret known for it, or no such ID in its set) */
-const cookiesFor = (page, t, now) => {
-  const id = playerOf(page, t);
-  if (id === undefined) return [];
-  return id && t.secret ? signedIn(t.url, id, t.secret, now) : null;
-};
-/* the Steam ID a page is drawn signed in as on `t`: undefined for one drawn signed out,
-   null when `t`'s ID set has no such player */
-const playerOf = (page, t) => {
-  const as = PAGES.find((x) => x.name === page)?.as;
-  return as ? (IDS[t.ids][as] ?? null) : undefined;
-};
 const UNSIGNED =
   "signed in: only a local target whose SESSION_SECRET qa knows (env, web/.env.local or web/.env)";
 const pageNames = `pages: ${PAGES.map((p) => p.name).join(", ")}`;
@@ -189,13 +176,13 @@ async function shot() {
   if (view.state && !state)
     fail(`no state "${view.state}"`, `states: ${STATES.map((x) => x.name).join(", ")}`);
   const now = Date.now();
-  const cookies = cookiesFor(view.page, t, now) ?? fail(`${view.page} is drawn ${UNSIGNED}`);
+  const signed = signIn(view.page, t, now) ?? fail(`${view.page} is drawn ${UNSIGNED}`);
   const browser = await launch();
   try {
     const r = await render(browser, t.url + path, view, {
       control: state?.click,
       now,
-      cookies,
+      cookies: signed.cookies,
       full: !!flags.full,
       element: flags.el,
       boxes: flags.box,
@@ -203,7 +190,7 @@ async function shot() {
       prefab: flags.prefab && readPrefab(flags.prefab),
     });
     if (r.skipped) fail(`${viewName(view)}: ${r.skipped} at this width`);
-    if (r.me !== playerOf(view.page, t))
+    if (r.me !== signed.as)
       fail(`${t.url} didn't take the browser as signed in`, "give qa the server's SESSION_SECRET");
     if (r.status !== status) fail(`${t.url + path} answered ${String(r.status)}`);
     if (gone(r, status))
@@ -370,16 +357,18 @@ async function check() {
       const name = viewName(v);
       const control = v.state ? stateOf(v.state).click : undefined;
       const expect = pageOf(v.page).status;
-      const signs = (t) => cookiesFor(v.page, t, started);
-      if (!signs(at)) return unsigned.push(name);
-      const draw = (t) =>
+      const [signA, signB] = [at, ref].map((t) => t && signIn(v.page, t, started));
+      if (!signA) return unsigned.push(name);
+      const draw = (t, signed) =>
         render(browser, t.url + pageOf(v.page, t.ids).path, v, {
           control,
           now: started,
-          cookies: signs(t),
-        }).catch((e) => ({ failed: String(e.message).split("\n")[0] }));
+          cookies: signed.cookies,
+        })
+          .then((r) => ({ ...r, as: signed.as }))
+          .catch((e) => ({ failed: String(e.message).split("\n")[0] }));
       // a reference that can't sign in has nothing to compare against
-      const [a, b] = await Promise.all([draw(at), ref && signs(ref) ? draw(ref) : null]);
+      const [a, b] = await Promise.all([draw(at, signA), signB ? draw(ref, signB) : null]);
       if (ref && !b) uncompared.push(name);
       // a side that did not draw is a fault of its own, and nothing to compare against
       const broken = (r, t) => {
@@ -393,7 +382,7 @@ async function check() {
           });
         else if (gone(r, expect))
           found.push({ view: name, kind: "gone", where: t.name, detail: r.title });
-        else if (r.me !== playerOf(v.page, t))
+        else if (r.me !== r.as)
           found.push({ view: name, kind: "signed-out", where: t.name, detail: "session refused" });
         else return false;
         return true;
