@@ -438,3 +438,10 @@
     display: block;
   }
 }
+/* the bar already names the map */
+.m3d-vF .m3d-card b {
+  display: none;
+}
+.m3d-vF .m3d-card dl {
+  margin-top: 0;
+}
