@@ -40,7 +40,7 @@ export function Map3D({ m }: { m: Map3DView }) {
               <button className="m3d-close">Close</button>
             </form>
           </header>
-          <MedalList className="m3d-card" record={m.record ?? undefined} medals={m.medals} />
+          <MedalList className="m3d-card" record={m.record} medals={m.medals} />
         </div>
         <p className="m3d-hint">Drag to turn · scroll or pinch to zoom</p>
       </dialog>
