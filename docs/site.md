@@ -425,8 +425,12 @@ branch `claude/prototype-prefabs` (spec #213).
   down or hidden, reads as gone.
 - **Stand-in shapes**: the file names meshes but carries no geometry, and the game's
   meshes stay off the repo (ADR 0001), so `lib/prefab.ts` draws each known mesh as a box,
-  cylinder, sphere, scoop, torus or half or quarter ring (the hole bowls) sized from its
-  bounds, an unknown one as a grey box, and colours each by its material's name; an Emissive
+  cylinder, cone, pyramid, sphere, torus or half or quarter ring (the hole bowls) sized from its
+  bounds, an unknown one as a grey box. A box whose mesh is curved is drawn instead as its
+  outline in one view pushed through the bounds, squeezed by a second view's outline where that
+  helps (`lib/prefab-profiles.ts`): coarse outlines, a few dozen points traced from mesh renders
+  in the private ballest-map-making (`extract/piece_profiles.py`), never the mesh itself.
+  `pnpm --silent qa piece` scores each against those renders. Each piece is coloured by its material's name; an Emissive
   material glows, as the game's lamps do. A fill light opposite
   the key keeps every side's colours true, so a sign seen from the front isn't greyed. Rotations are Unreal's [pitch, yaw, roll] in
   degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
@@ -501,7 +505,10 @@ only visible ones.
   screenshots of your own. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
   place of a throwaway Playwright script. `qa shot prefab@1280 --prefab <file.json>` has the
-  Prefab page's viewer draw any file, for checking stand-in shapes against the game. A page
+  Prefab page's viewer draw any file. To work on a stand-in shape, run `qa piece <mesh>`
+  instead: it scores the stand-in's top, front and side outlines against the game mesh's
+  renders in `ballest-map-making/references/pieces/` (1.00 is the same outline) and writes a
+  game | viewer | outlines sheet; `qa piece --all` lists every mesh, worst first. A page
   that answers 200 with a "not found" title is a `gone` fault: its catalogue ID is stale. Both sides read the same database, so a change in
   numbers alone is data, and the two deployments' caches can differ by a Refresh.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel
