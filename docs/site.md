@@ -251,10 +251,12 @@ isn't one. Nothing else changes: the pages are prerendered from the list.
 a whole pasted post holding them (a Map stands for itself, a Steam collection for its Maps in
 order, in the order given), or one maker: a profile URL, a SteamID64, or part of their in-game or Steam name
 (oldest first). It prints each Map with its maker's name and ID, marks
-any already in a Campaign, and ends with the `maps:` line to paste. A Map the collector
-hasn't listed yet (one published since the last Refresh) leaves its Campaign a not-found page
-until it is, so after merging a Campaign with new Maps run a Refresh
-(`gh workflow run refresh.yml --ref main`) and check the page on production.
+any already in a Campaign and any the site doesn't list yet, and ends with the `maps:` line to
+paste. A Map the collector hasn't listed yet (one published since the last Refresh) is left
+off its Campaign's page until a Refresh lists it, so a preview can show fewer Maps; after merging a Campaign with new Maps run a Refresh
+(`gh workflow run refresh.yml --ref main`) and check the page on production. `qa check` draws
+one fixed Campaign, so look at the new one's page with
+`pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
 **The board.** A Campaign's standings are a derived board named `OverallCampaign_<slug>`
 (`campaignBoard`). The `Overall` prefix makes it a points board to `isPoints` and

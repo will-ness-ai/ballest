@@ -121,7 +121,8 @@ branch from before the reformat. The collector has no type checks, and its tests
 since each test's database is built by `web/scripts/migrate.mjs`. `collector-tests` in
 `check.yml` runs them in CI.
 The site's checks are in `web/`: `npx tsc --noEmit`, `pnpm test` (vitest, against the same
-local Postgres; each test file builds its own database), and `pnpm smoke <url>` against a
+local Postgres; each test file builds its own database, and qa's own test needs
+Chromium: the cloud image has one, elsewhere `npx playwright-core install chromium`), and `pnpm smoke <url>` against a
 build seeded with `stress` (as CI does; it holds all of `tiny`). Verify front-end changes
 with `pnpm --silent qa check` (preview against production, every page at phone and desktop sizes; `docs/site.md`), and test a board's
 infinite scroll with a real wheel scroll: a scripted `scrollTo` does not trigger it in
