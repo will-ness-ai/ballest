@@ -35,7 +35,16 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
     <aside className="mpanel" id="mpanel">
       <BackLink trail="maps" />
       <MapImage preview={m.preview} className="mp-img" />
-      <ProtoSlot pfid={m.pfid} slot="img" />
+      <ProtoSlot
+        m={{
+          pfid: m.pfid,
+          title: m.title,
+          creator: m.creator,
+          medals: m.medals,
+          record: m.top3[0][2],
+        }}
+        slot="img"
+      />
       <div>
         <h1 className="mp-t">{m.title}</h1>
         <span className="mp-by">
@@ -115,12 +124,10 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
   const at = focus ? places?.[focus] : undefined;
   return (
     <>
-      <ProtoSlot pfid={m.pfid} slot="stage" />
       <div className="main">
         <DocTitle title={m.title} />
         <MapPanel m={m} scores={scores} asOf={site.asOf} />
         <section className="content">
-          <ProtoSlot pfid={m.pfid} slot="tabs" />
           <YouMarks name={name} />
           <YouBanner name={name} field={page.total} medals={m.medals} />
           <BoardBody

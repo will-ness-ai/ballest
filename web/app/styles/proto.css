@@ -297,3 +297,133 @@
     border-radius: 16px 0 0 16px;
   }
 }
+/* round 3 */
+.m3d-full > form,
+.m3d-bar,
+.m3d-views,
+.m3d-key,
+.m3d-card {
+  position: absolute;
+}
+.m3d-bar {
+  inset: 0 0 auto 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(var(--bg), transparent);
+}
+.m3d-bar div {
+  display: grid;
+  min-width: 0;
+}
+.m3d-bar b {
+  font-family: var(--f-hud);
+  font-size: calc(18rem / 16);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m3d-bar span {
+  color: var(--dim);
+  font-size: 0.8rem;
+}
+.m3d-close2 {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--solid);
+  color: var(--text);
+  cursor: pointer;
+}
+.m3d-views {
+  left: 50%;
+  bottom: 110px;
+  translate: -50% 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+.m3d-views button {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--solid);
+  color: var(--dim);
+  cursor: pointer;
+}
+.m3d-views button[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.m3d-key {
+  left: 16px;
+  top: 16px;
+  display: flex;
+  gap: 14px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--scrim);
+  font-size: 0.8rem;
+}
+.m3d-key i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.k-start {
+  background: var(--accent);
+}
+.k-goal {
+  background: var(--gold);
+}
+.m3d-card {
+  left: 16px;
+  top: 16px;
+  width: min(15rem, calc(100vw - 110px));
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+}
+.m3d-card b {
+  font-family: var(--f-hud);
+}
+.m3d-card dl {
+  margin: 8px 0 0;
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+.m3d-card dl div {
+  display: flex;
+  justify-content: space-between;
+}
+.m3d-card dt {
+  color: var(--dim);
+}
+.m3d-card dd {
+  margin: 0;
+}
+.m3d-card i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.m3d-full > form {
+  top: 14px;
+  right: 14px;
+}
+.m3d-close {
+  position: static;
+}

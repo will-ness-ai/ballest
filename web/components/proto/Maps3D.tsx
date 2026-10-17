@@ -1,42 +1,37 @@
 "use client";
 // ============================ PROTOTYPE (grill-design, maps3d) ============================
-// Never merged: claude/prototype-maps3d only. The variants of "3D Workshop maps" and the
-// picker that cycles them (?variant=A..E, ?state=...). The Map files are the .ballmap JSON
-// fetched from Steam into /prototype-maps/<pfid>.ballmap by prototype-maps/fetch.py.
+// Never merged: claude/prototype-maps3d only. Round 3: what the full-screen 3D map holds
+// (?variant=A..E, ?state=open starts it open). The Map files are the .ballmap JSON fetched
+// from Steam into /prototype-maps/<pfid>.ballmap by prototype-maps/fetch.py.
 import { useEffect, useState } from "react";
 
 import { useDialog } from "../Modal";
-
-import { PrefabViewer } from "../prefabs/PrefabViewer";
+import { PrefabViewer, useViewer } from "../prefabs/PrefabViewer";
 import { prefabOfBallmap, type BallmapFile } from "../../lib/ballmap";
-import type { PrefabFile } from "../../lib/prefab";
-
-/* Steam's Most Popular (ranked by vote) top ten on 2026-10-17 */
-export const TOP10: Array<{ pfid: string; title: string }> = [
-  { pfid: "3796933002", title: "Sway n So" },
-  { pfid: "3802991891", title: "Brand New TV Offer v2" },
-  { pfid: "3816860716", title: "Cube Void" },
-  { pfid: "3810672947", title: "Ice Boat Race" },
-  { pfid: "3810099846", title: "Crimson Flux" },
-  { pfid: "3809412387", title: "Mirror's Edge" },
-  { pfid: "3810207749", title: "Wallest" },
-  { pfid: "3798532776", title: "SANDSTONE" },
-  { pfid: "3799090646", title: "Jumping and bumping" },
-  { pfid: "3816865675", title: "Sunken Ruins" },
-];
-export const rankOf = (pfid: string) => TOP10.findIndex((m) => m.pfid === pfid);
+import type { PrefabFile, PrefabItem } from "../../lib/prefab";
+import type { PrefabAngle } from "../../lib/prefabs";
+import { MEDALS, fmtSec, fmtTime } from "../../lib/rules";
 
 export const VARIANTS: Array<[string, string, string]> = [
-  ["A", "Full screen", "the button opens the map over the whole page"],
-  ["B", "Own page", "the button goes to the map's own 3D page"],
-  ["C", "In the panel", "the picture turns into the 3D map where it is"],
-  ["D", "In the board's place", "the board column swaps to the 3D map"],
-  ["E", "Drawer", "a sheet slides up (phone) or in from the side (desktop)"],
+  ["A", "Bare", "just the map, Close and a hint (round 2's A, fixed)"],
+  ["B", "Title bar", "the map's name, maker and Close across the top"],
+  ["C", "Views", "Angled / From above / From the side buttons, and Reset"],
+  ["D", "Start and finish", "glowing beacons over the start pad and each goal, with a key"],
+  ["E", "Facts card", "a corner card with the record and Medals over the map"],
 ];
 
 /* every Map whose file the prototype fetched */
 export const HAS = new Set([
-  ...TOP10.map((m) => m.pfid),
+  "3796933002",
+  "3802991891",
+  "3816860716",
+  "3810672947",
+  "3810099846",
+  "3809412387",
+  "3810207749",
+  "3798532776",
+  "3799090646",
+  "3816865675",
   "3755236154",
   "3762695115",
   "3796494598",
@@ -70,25 +65,59 @@ export function loadMap(pfid: string) {
   return f;
 }
 
+/* variant D: a tall glowing column over the start pad and each goal ring */
+const beacon = (at: PrefabItem, material: string): PrefabItem => ({
+  class: "Beacon",
+  transform: {
+    location: at.transform.location,
+    rotation: [0, 0, 0],
+    scale: [3, 3, 0.6],
+  },
+  meshes: [{ mesh: "SM_2000_Pipe", materials: [material] }],
+});
+function withBeacons(f: PrefabFile): PrefabFile {
+  const extra: Array<PrefabItem> = [];
+  for (const it of f.items) {
+    if (/MP_PlayerStart/.test(it.class)) extra.push(beacon(it, "MI_Emissive_Lime"));
+    if (/BP_Checkpoint_C|Finish/.test(it.class)) extra.push(beacon(it, "MI_Emissive_Yellow"));
+  }
+  return { ...f, items: [...f.items, ...extra] };
+}
+
+const VIEWS: Record<string, PrefabAngle> = {
+  Angled: { from: [0.58, 0.45, 0.68], zoom: 0.8, pan: [0, 0, 0] },
+  "From above": { from: [0, 1, 0.0001], zoom: 0.75, pan: [0, 0, 0] },
+  "From the side": { from: [1, 0.12, 0.2], zoom: 0.75, pan: [0, 0, 0] },
+};
+
 export function Map3D({
   pfid,
   className,
-  spin = true,
+  beacons = false,
+  angle = null,
+  attach,
 }: {
   pfid: string;
   className?: string;
-  spin?: boolean;
+  beacons?: boolean;
+  angle?: PrefabAngle | null;
+  attach?: ReturnType<typeof useViewer>["attach"];
 }) {
   const [file, setFile] = useState<PrefabFile | null>(null);
   useEffect(() => {
     let live = true;
-    void loadMap(pfid).then((f) => live && setFile(f));
+    void loadMap(pfid).then((f) => live && setFile(beacons ? withBeacons(f) : f));
     return () => {
       live = false;
     };
-  }, [pfid]);
+  }, [pfid, beacons]);
   return file ? (
-    <PrefabViewer file={file} className={className ?? "m3d"} spin={spin} />
+    <PrefabViewer
+      file={file}
+      className={className ?? "m3d"}
+      angle={angle ?? VIEWS.Angled}
+      attach={attach}
+    />
   ) : (
     <div className={(className ?? "m3d") + " m3d-wait"}>Building the map…</div>
   );
@@ -150,118 +179,117 @@ export function Picker() {
   );
 }
 
-/* the Map page's hooks: each renders only under its variant, and only for a Map with a file */
-export function ProtoSlot({ pfid, slot }: { pfid: string; slot: "img" | "stage" | "tabs" }) {
-  const v = useVariant();
+export interface MapInfo {
+  pfid: string;
+  title: string;
+  creator: string;
+  medals: Array<number>;
+  record: number;
+}
+
+/* the Map page's button and its full-screen map */
+export function ProtoSlot({ m, slot }: { m: MapInfo; slot: string }) {
   const [open, setOpen] = useState(false);
   /* ?state=open starts the 3D view open, for screenshots */
   useEffect(() => {
     if (new URLSearchParams(location.search).get("state") === "open") setOpen(true); // eslint-disable-line react-hooks/set-state-in-effect -- PROTOTYPE
   }, []);
-  useEffect(() => {
-    document.documentElement.classList.toggle("proto-3dtab", v === "D" && open);
-    document.documentElement.classList.toggle("proto-hideimg", v === "C" && open);
-  }, [v, open]);
-  if (!HAS.has(pfid)) return null;
-  const button = (label = "See it in 3D") => (
-    <button type="button" className="go m3d-dlink" onClick={() => setOpen(true)}>
-      {label}
-    </button>
+  if (slot !== "img" || !HAS.has(m.pfid)) return null;
+  return (
+    <>
+      <button type="button" className="go m3d-dlink" onClick={() => setOpen(true)}>
+        See it in 3D
+      </button>
+      <FullScreen m={m} open={open} onClose={() => setOpen(false)} />
+    </>
   );
-  if (slot === "img") {
-    if (v === "B")
-      return (
-        <a className="go m3d-dlink" href={`/maps3d?variant=B#${pfid}`}>
-          See it in 3D
-        </a>
-      );
-    if (v === "A")
-      return (
-        <>
-          {button()}
-          <FullScreen pfid={pfid} open={open} onClose={() => setOpen(false)} />
-        </>
-      );
-    if (v === "C")
-      return open ? (
-        <div className="m3d-a">
-          <Map3D pfid={pfid} />
-          <button type="button" className="m3d-x" onClick={() => setOpen(false)}>
-            Picture
+}
+
+/* a native <dialog> in the top layer, so nothing on the page can sit above it */
+function FullScreen({ m, open, onClose }: { m: MapInfo; open: boolean; onClose: () => void }) {
+  const v = useVariant();
+  const dialog = useDialog({ open, onClose });
+  const viewer = useViewer();
+  const [view, setView] = useState("Angled");
+  return (
+    <dialog className={`m3d-full m3d-v${v}`} aria-label={`${m.title} in 3D`} {...dialog.props}>
+      {open && (
+        <Map3D
+          key={v}
+          pfid={m.pfid}
+          className="m3d m3d-fill"
+          beacons={v === "D"}
+          angle={v === "C" ? VIEWS[view] : null}
+          attach={viewer.attach}
+        />
+      )}
+      {v === "B" ? (
+        <header className="m3d-bar">
+          <div>
+            <b>{m.title}</b>
+            <span>by {m.creator}</span>
+          </div>
+          <form method="dialog">
+            <button className="m3d-close2">Close</button>
+          </form>
+        </header>
+      ) : (
+        <form method="dialog">
+          <button className="m3d-close">Close</button>
+        </form>
+      )}
+      {v === "C" && (
+        <div className="m3d-views">
+          {Object.keys(VIEWS).map((k) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={view === k}
+              onClick={() => {
+                setView(k);
+                viewer.home();
+              }}
+            >
+              {k}
+            </button>
+          ))}
+          <button type="button" onClick={viewer.home}>
+            Reset
           </button>
         </div>
-      ) : (
-        button()
-      );
-    if (v === "D") return open ? null : button();
-    if (v === "E")
-      return (
-        <>
-          {button()}
-          {open && (
-            <div className="m3d-sheet" role="dialog">
-              <div className="m3d-sheet-head">
-                <b>3D map</b>
-                <button type="button" className="m3d-x2" onClick={() => setOpen(false)}>
-                  Close
-                </button>
-              </div>
-              <Map3D pfid={pfid} className="m3d m3d-fill" />
+      )}
+      {v === "D" && (
+        <div className="m3d-key">
+          <span>
+            <i className="k-start"></i>Start
+          </span>
+          <span>
+            <i className="k-goal"></i>Finish
+          </span>
+        </div>
+      )}
+      {v === "E" && (
+        <aside className="m3d-card">
+          <b>{m.title}</b>
+          <dl>
+            <div>
+              <dt>Record</dt>
+              <dd>{fmtTime(m.record)}</dd>
             </div>
-          )}
-        </>
-      );
-  }
-  if (slot === "tabs" && v === "D" && open)
-    return (
-      <div className="m3d-tabs">
-        <button type="button" className="m3d-back" onClick={() => setOpen(false)}>
-          ← Back to the board
-        </button>
-        <Map3D pfid={pfid} className="m3d m3d-tab" />
-      </div>
-    );
-  return null;
-}
-
-/* variant A: a native <dialog> in the top layer, so nothing on the page can sit above it */
-function FullScreen({ pfid, open, onClose }: { pfid: string; open: boolean; onClose: () => void }) {
-  const dialog = useDialog({ open, onClose });
-  return (
-    <dialog className="m3d-full" aria-label="3D map" {...dialog.props}>
-      {open && <Map3D pfid={pfid} className="m3d m3d-fill" />}
-      <form method="dialog">
-        <button className="m3d-close">Close</button>
-      </form>
+            {MEDALS.map(([name, c, i]) => (
+              <div key={name}>
+                <dt>
+                  <i style={{ background: c }}></i>
+                  {name}
+                </dt>
+                <dd>{fmtSec(m.medals[i])}</dd>
+              </div>
+            ))}
+          </dl>
+        </aside>
+      )}
       <span className="m3d-hint">Drag to turn · scroll or pinch to zoom</span>
     </dialog>
-  );
-}
-
-/* variant B's page: the Map's own 3D page */
-export function Top10Page() {
-  const [pfid, setPfid] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  useEffect(() => {
-    const h = location.hash.slice(1);
-    setPfid(h); // eslint-disable-line react-hooks/set-state-in-effect -- PROTOTYPE
-    setTitle(TOP10.find((m) => m.pfid === h)?.title ?? "");
-  }, []);
-  if (!pfid) return null;
-  return (
-    <div className="m3d-page">
-      <a className="back" href={`/map/${pfid}?variant=B`}>
-        ← Board
-      </a>
-      <header>
-        <span className="eyebrow">Workshop map in 3D</span>
-        <h1>{title || "Map"}</h1>
-      </header>
-      <div className="m3d-pview">
-        <Map3D pfid={pfid} className="m3d m3d-fill" />
-        <span className="m3d-hint2">Drag to turn · scroll to zoom · right-drag to pan</span>
-      </div>
-    </div>
   );
 }
 // ========================== end PROTOTYPE (grill-design, maps3d) ==========================
