@@ -27,7 +27,7 @@ CAMPAIGNS_TS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "lib", "campaigns.ts"
 )
 API = "https://api.steampowered.com/"
-MAP_PAGES = "https://ballestrecords.com/map/"
+MAP_URL_BASE = "https://ballestrecords.com/map/"
 
 
 # a Workshop link's ID (wherever it sits among the link's parameters), or a bare one
@@ -103,7 +103,7 @@ def listed_on_site(html):
 def on_site(pfid):
     """listed_on_site for one Map, or None when the site can't be read."""
     try:
-        url = MAP_PAGES + pfid
+        url = MAP_URL_BASE + pfid
         with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310 (our site, a numeric ID)
             return listed_on_site(r.read().decode("utf-8", "replace"))
     except OSError:
