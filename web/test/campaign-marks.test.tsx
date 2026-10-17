@@ -97,6 +97,7 @@ const railMap = (pfid: string, title: string): WorkshopMap => ({
   name: "Workshop_" + pfid,
   medals: [],
   subs: 0,
+  fileVersion: null,
 });
 
 test("the rail names a Map by its number, then its name when it has one besides", () => {

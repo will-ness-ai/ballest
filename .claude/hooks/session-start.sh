@@ -16,6 +16,8 @@ cd "${CLAUDE_PROJECT_DIR:-$(git -C "$(dirname "$0")" rev-parse --show-toplevel)}
 # the commit identity CODING_STANDARDS.md asks for
 git config user.name will-ness-ai
 git config user.email n3s.online@gmail.com
+# the pre-push check (docs/linting.md); a root `pnpm install` that changes nothing skips prepare
+git config core.hooksPath .githooks
 
 web/scripts/pg-up.sh
 su postgres -c "psql -qc \"alter user postgres password 'postgres'\"" >/dev/null
@@ -44,3 +46,7 @@ if [ "$(ruff --version 2>/dev/null)" != "ruff $v" ]; then
     python3 -m pip install -q --root-user-action=ignore "ruff==$v"
   fi
 fi
+
+# the review gate (.claude/hooks/review-gate.mjs): a project thread starts outside the repo, so
+# it never reads .claude/settings.json; give it the same hooks as user settings
+node .claude/hooks/install-user-hooks.mjs "$HOME/.claude/settings.json"

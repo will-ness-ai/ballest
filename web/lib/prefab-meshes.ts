@@ -2,7 +2,8 @@
 // the game's packages): each mesh a level-editor piece uses, by its asset name, as the stand-in
 // shape the viewer draws and its bounds in cm (lib/prefab.ts). Numbers only: the meshes
 // themselves stay out of the repo (ADR 0001). PIECE_MESHES names each piece's own mesh, for an
-// item whose file names none the table knows.
+// item whose file names none the table knows, and PIECE_MATERIALS the material of a piece whose
+// file names none (hand-added, from the same catalogue).
 import type { MeshShape } from "./prefab";
 
 export const MESHES: Partial<Record<string, MeshShape>> = {
@@ -127,15 +128,15 @@ export const MESHES: Partial<Record<string, MeshShape>> = {
   RubberBlock2: { kind: "box", min: [-521.37, -61.2, -266.82], max: [521.37, 61.2, 266.82] },
   SMHalfTunnel_223D6CF8: { kind: "box", min: [-792.26, 0, 0], max: [792.26, 792.26, 96] },
   SM_1000: { kind: "box", min: [-500, -250, 0], max: [500, 250, 100] },
-  SM_1000_90scoop: { kind: "scoop", min: [-485.51, -250, 0.34], max: [485.51, 250, 271.82] },
+  SM_1000_90scoop: { kind: "box", min: [-485.51, -250, 0.34], max: [485.51, 250, 271.82] },
   SM_1000_90turn: { kind: "box", min: [-626.93, -249.56, -0], max: [626.93, 363.24, 100] },
   SM_1000_Bridge: { kind: "box", min: [-500, -250, -0], max: [500, 250, 100] },
   SM_1000_Sausage: { kind: "box", min: [-499.79, -250, 0.34], max: [499.95, 250, 149.9] },
   SM_1000_kicker: { kind: "box", min: [-500, -250, 0], max: [368.31, 250, 368.31] },
   SM_1000_softkicker: { kind: "box", min: [-500, -250, 0], max: [485.51, 250, 271.82] },
   SM_2000_180scoop: { kind: "box", min: [-686.62, -250, 0], max: [686.62, 250, 686.62] },
-  SM_2000_45scoop: { kind: "scoop", min: [-993.63, -250, 0], max: [993.63, 250, 290.03] },
-  SM_2000_90scoop: { kind: "scoop", min: [-935.67, -250, 0.65], max: [935.67, 250, 458.28] },
+  SM_2000_45scoop: { kind: "box", min: [-993.63, -250, 0], max: [993.63, 250, 290.03] },
+  SM_2000_90scoop: { kind: "box", min: [-935.67, -250, 0.65], max: [935.67, 250, 458.28] },
   SM_2000_90turn: { kind: "box", min: [-1077.09, -549.7, -0], max: [1077.09, 250, 100] },
   SM_2000_Pipe: { kind: "cylinder", min: [-50, -50, 0], max: [50, 50, 2000] },
   SM_2000_Quarter: { kind: "box", min: [-1000, -250, -0], max: [0, 118.31, 368.31] },
@@ -153,23 +154,23 @@ export const MESHES: Partial<Record<string, MeshShape>> = {
   },
   SM_500: { kind: "box", min: [-250, -250, 0], max: [250, 250, 100] },
   SM_500_180scoop: { kind: "box", min: [-209.15, -250, 0.41], max: [209.15, 250, 209.15] },
-  SM_500_45scoop: { kind: "scoop", min: [-262.76, -250, 0.08], max: [262.76, 250, 144.65] },
-  SM_500_90scoop: { kind: "scoop", min: [-260.43, -250, 0.18], max: [260.43, 250, 178.59] },
+  SM_500_45scoop: { kind: "box", min: [-262.76, -250, 0.08], max: [262.76, 250, 144.65] },
+  SM_500_90scoop: { kind: "box", min: [-260.43, -250, 0.18], max: [260.43, 250, 178.59] },
   SM_500_90turn: { kind: "box", min: [-249.72, -401.86, 0], max: [270.01, 401.86, 100] },
   SM_500_kicker: { kind: "box", min: [-250, -250, -0], max: [209.15, 250, 209.15] },
   SM_500_softkicker: { kind: "box", min: [-250, -250, -0], max: [260.43, 250, 178.59] },
   SM_ActualCheckpoint_Strip: { kind: "box", min: [-379, -253.5, -12.5], max: [379, 253.5, 12.5] },
   SM_AirVent: { kind: "box", min: [-50, -50, 0], max: [50, 50, 3.56] },
-  SM_Cone: { kind: "box", min: [-150, -150, 0], max: [150, 150, 200] },
+  SM_Cone: { kind: "cone", min: [-150, -150, 0], max: [150, 150, 200] },
   SM_ConeBowl: { kind: "box", min: [-1153.12, -1153.12, -251.88], max: [1153.12, 1153.12, 251.88] },
   SM_CornerScoop: { kind: "box", min: [-500, -500, -365], max: [500, 392, 500] },
   SM_FullMediumBowl: { kind: "box", min: [-1000, -1000, -178], max: [1000, 1000, 500] },
   SM_GoalRing: { kind: "box", min: [-265, -265, 0], max: [265, 265, 30] },
-  SM_HalfShallowHoleBowl: { kind: "box", min: [-1000, 0, -125], max: [1000, 1000, 125] },
+  SM_HalfShallowHoleBowl: { kind: "halfRing", min: [-1000, 0, -125], max: [1000, 1000, 125] },
   SM_Hole: { kind: "box", min: [-400, -400, -25], max: [400, 400, 25] },
-  SM_Pyramid: { kind: "box", min: [-250, -250, 0], max: [250, 250, 200] },
+  SM_Pyramid: { kind: "pyramid", min: [-250, -250, 0], max: [250, 250, 200] },
   SM_QuarterMediumBowl: { kind: "box", min: [-0, -1000, -178], max: [1000, 0, 500] },
-  SM_QuarterShallowHoleBowl: { kind: "box", min: [0, 0, -125], max: [1000, 1000, 125] },
+  SM_QuarterShallowHoleBowl: { kind: "quarterRing", min: [0, 0, -125], max: [1000, 1000, 125] },
   SM_Quarter_180turn: { kind: "box", min: [-817.9, -677.5, 0], max: [34.46, 140.44, 268.49] },
   SM_RoundedGlassPlane: { kind: "box", min: [-5, -138.58, 0], max: [59.47, 138.58, 200] },
   SM_RubberCylinder: { kind: "cylinder", min: [-50, -50, 0], max: [50, 50, 200] },
@@ -177,7 +178,7 @@ export const MESHES: Partial<Record<string, MeshShape>> = {
   SM_Sphere: { kind: "sphere", min: [-200, -200, 0], max: [200, 200, 400] },
   SM_Start_Fixed: { kind: "cylinder", min: [-500, -500, 0.01], max: [500, 500, 199.98] },
   ShallowbowlV2: { kind: "box", min: [-1000, -1000, -250], max: [1000, 1000, 250] },
-  Torus: { kind: "box", min: [-1150, -1150, 0], max: [1150, 1150, 300] },
+  Torus: { kind: "torus", min: [-1150, -1150, 0], max: [1150, 1150, 300] },
 };
 
 export const PIECE_MESHES: Partial<Record<string, string>> = {
@@ -262,6 +263,8 @@ export const PIECE_MESHES: Partial<Record<string, string>> = {
   Bevel_Tall_StraightPlatform: "Bevel_Tall_StraightPlatform",
   Bevel_Tall_StraightWall: "Bevel_Tall_StraightWall",
   MP_ActualCheckpoint_Strip: "SM_ActualCheckpoint_Strip",
+  /* the class a vent saves as; piece_bounds.json, read from the catalogue, has it as BP_AirVent */
+  MP_AirVent: "SM_AirVent",
   MP_Cone: "SM_Cone",
   MP_FlatGlassPlane: "SM_SmallGlassPane_Flat",
   MP_FlatRing: "Boolean8",
@@ -280,4 +283,11 @@ export const PIECE_MESHES: Partial<Record<string, string>> = {
   MP_TunnelHalf: "SMHalfTunnel_223D6CF8",
   RubberBlock2_M_PlasticBase: "RubberBlock2",
   RubberCylinder: "SM_RubberCylinder",
+};
+
+/* a piece whose blueprint brings its own material, so its file names none, by the material the
+   catalogue lists for it */
+export const PIECE_MATERIALS: Partial<Record<string, string>> = {
+  BP_AirVent: "MI_ArenaWhite",
+  MP_AirVent: "MI_ArenaWhite",
 };

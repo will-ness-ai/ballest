@@ -45,7 +45,7 @@
   overflow-wrap: anywhere;
 }
 /* low specificity, so a chip's or Download's own look wins */
-:where(.pf) button {
+:where(.pf, .pf-tools) button {
   font: inherit;
   color: var(--text);
   background: var(--surface2);
@@ -98,10 +98,20 @@
 }
 .pf-tools button {
   pointer-events: auto;
+  white-space: nowrap;
 }
 .pf-hint {
   color: var(--faint);
   font-size: calc(12rem / 16);
+}
+/* the angle buttons, at the right; on a narrow viewer the hint takes a line of its own */
+.pf-tools:has(.pf-tools-end) {
+  flex-wrap: wrap;
+}
+.pf-tools-end {
+  display: flex;
+  gap: 0.5rem;
+  margin-inline-start: auto;
 }
 
 /* the ? and the how-to it opens */
@@ -586,6 +596,28 @@ button.pf-dl {
 }
 .pfu-gate .pf-dl {
   color: var(--accent-ink);
+}
+/* the angle picker (AnglePicker.tsx): its note, and the button lit while it shows the angle */
+.pfa {
+  display: grid;
+  gap: 0.5rem;
+}
+.pfa-note {
+  margin: 0;
+  color: var(--dim);
+}
+.pfa button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pfa-dlg {
+  margin-block-end: 0.8rem;
+}
+/* the gallery card's shape, a little shorter than the page's viewer; sized by the dialog
+   alone, so the canvas it draws can't widen the fit-content dialog it sits in */
+.pfa-dlg .pfv {
+  aspect-ratio: 3 / 2;
+  contain: size;
 }
 .pfu-card {
   max-width: 16rem;

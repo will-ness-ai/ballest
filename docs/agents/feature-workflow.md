@@ -72,6 +72,13 @@ A one-line fix gets the same review: call the Skill tool for 'code-review', whic
 two reviewers as subagents on the diff. Your own read of the diff is implementation, not
 review, and a brief asking for a light workflow trims the planning steps, never this one.
 
+A hook holds both steps (`.claude/hooks/review-gate.mjs`): it notes the commit each Skill-tool
+`/code-review` and `/codebase-design` runs on, and refuses an agent's merge, auto-merge or
+mark-ready while the PR has a commit either hasn't seen, fixes for their own findings included.
+Its record is the clone's (`.git/claude-reviews`, shared by worktrees and sessions), so run them
+in the clone that merges. When it can't check (gh offline, say) it lets the call through with a
+warning, and it never sees a merge pressed on GitHub.
+
 ## 6. Deepen: `/codebase-design`
 
 Call the Skill tool for 'codebase-design', a one-line fix included. With the feature working and reviewed, read the code it touched for deepening
@@ -82,7 +89,8 @@ in the PR, not part of it.
 
 ## 7. Update the PR
 
-Push, then rewrite the PR description to match what landed (Before / After, and How,
+Push, then rewrite the PR description in the shape of `.github/pull_request_template.md` (a body
+passed through `gh` or the API skips the template, so copy its Checked lines in) to match what landed (Before / After, and How,
 including the design verdicts and the prototype branch), and mark it ready for review once
 CI is green and the final commit itself has been checked: the smoke test, its preview
 deploy, and, for a site change, a Refresh's revalidate end to end and the changed pages

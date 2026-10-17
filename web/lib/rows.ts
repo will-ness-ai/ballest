@@ -91,6 +91,9 @@ export interface WorkshopMap {
   crowd: number;
   /* runs at or under the author time */
   authorBeaten: number;
+  /* the version of the Map's file the site holds (map_files), or null before the collector
+     has read it: the 3D view shows only with one */
+  fileVersion: string | null;
 }
 
 export interface PlayerProfile {

@@ -11,11 +11,13 @@ import {
   bigint,
   bigserial,
   boolean,
+  customType,
   date,
   doublePrecision,
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -25,6 +27,8 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+import type { PrefabAngle } from "../lib/prefabs";
 
 export const refreshSource = pgEnum("refresh_source", ["collector", "backfill"]);
 
@@ -206,10 +210,29 @@ export const ghosts = pgTable("ghosts", {
   readAt: timestamp("read_at", { withTimezone: true }).notNull(),
 });
 
+// Postgres bytes, which Drizzle has no column type for: a Buffer either way.
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
+
+// A Workshop Map's file (its .ballmap, the JSON the editor saves), downloaded from Steam by
+// the collector's Map file step (tools/map_files.py, ADR 0010) and only read by the site.
+// Only the current file is kept: `version` is Steam's content handle for it
+// (`hcontent_file`), and a Map whose catalogue handle differs is downloaded again and its
+// row replaced. `gzipped` is the file gzip-compressed, `raw_size` its length before. No
+// foreign key to `maps`, as `dailies` has none: a Map can leave the Workshop.
+export const mapFiles = pgTable("map_files", {
+  pfid: text("pfid").primaryKey(),
+  version: text("version").notNull(),
+  rawSize: integer("raw_size").notNull(),
+  gzipped: bytea("gzipped").notNull(),
+  readAt: timestamp("read_at", { withTimezone: true }).notNull(),
+});
+
 // A Prefab (CONTEXT.md): a group of editor pieces a player uploaded, with the file exactly as
 // they sent it (ADR 0009, the first table the site itself writes). The slug comes from the
 // first name and never changes, so a link survives a rename. A deleted or taken-down Prefab
-// keeps its row, which still counts against its uploader's daily limit, and reads as gone. A
+// keeps its row, which still counts against its uploader's hourly limit, and reads as gone. A
 // banned uploader's Prefabs are hidden by the reads, not here, so an unban brings them back.
 // The uploader is any signed-in Steam ID, not only a player the boards have seen, so there is
 // no foreign key; uploader_name is their Steam persona when they uploaded, for a byline when
@@ -235,6 +258,9 @@ export const prefabs = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     takenDownAt: timestamp("taken_down_at", { withTimezone: true }),
+    // the view its uploader picked for its picture (PrefabAngle in lib/prefabs.ts), or null
+    // for the default
+    angle: jsonb("angle").$type<PrefabAngle>(),
   },
   (t) => [index("prefabs_uploader").on(t.uploader, t.createdAt)],
 );
@@ -257,4 +283,13 @@ export const prefabBans = pgTable("prefab_bans", {
   steamId: text("steam_id").primaryKey(),
   bannedAt: timestamp("banned_at", { withTimezone: true }).notNull().defaultNow(),
   bannedBy: text("banned_by").notNull(),
+});
+
+// A player the admin has given their own hourly upload limit, in place of HOURLY_UPLOADS
+// (lib/prefabs.ts). No row is the default.
+export const prefabLimits = pgTable("prefab_limits", {
+  steamId: text("steam_id").primaryKey(),
+  perHour: integer("per_hour").notNull(),
+  setAt: timestamp("set_at", { withTimezone: true }).notNull().defaultNow(),
+  setBy: text("set_by").notNull(),
 });
