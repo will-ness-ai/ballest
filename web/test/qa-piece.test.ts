@@ -66,7 +66,7 @@ describe("rankRows", () => {
   });
 });
 
-describe("the montage", () => {
+describe("matching", () => {
   it("keeps the pieces whose mesh or stand-in matches, ignoring case", () => {
     const rows = [
       { mesh: "SM_Cone", kind: "cone" },
@@ -78,7 +78,9 @@ describe("the montage", () => {
     expect(meshes("cone|ring")).toEqual(["SM_Cone", "SM_GoalRing"]);
     expect(matching(rows, undefined)).toHaveLength(3);
   });
+});
 
+describe("the montage", () => {
   it("lays 16 pieces to a picture, worst first, so each stays readable", () => {
     const pages = pagesOf(Array.from({ length: 35 }, (_, i) => i)) as Array<Array<number>>;
     expect(pages.map((p) => p.length)).toEqual([16, 16, 3]);

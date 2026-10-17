@@ -83,7 +83,9 @@ export function matching(rows, pattern) {
   return rows.filter((r) => re.test(r.mesh) || re.test(r.kind));
 }
 
-/* a montage's pictures: PER pieces each, so one picture stays readable at a glance */
+/* a montage's pictures: PER pieces each, ACROSS to a row, so one picture stays readable at a
+   glance */
+export const ACROSS = 4;
 export const PER = 16;
 export function pagesOf(items) {
   const out = [];

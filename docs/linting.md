@@ -39,8 +39,9 @@ which `pnpm --dir web exec next typegen` writes (CI runs it first).
   failure. A root `pnpm install` that installs anything turns it on (`prepare` sets
   `core.hooksPath`), and so does `session-start.sh`; in an older checkout, run
   `git config core.hooksPath .githooks` once. `git push --no-verify` skips it.
-- A database test that can't reach Postgres stops with one line naming
-  `service postgresql start`: a cloud container stops Postgres when it restarts.
+- A database test that can't reach Postgres fails with a message naming
+  `service postgresql start` (pytest stops at the first): a cloud container stops Postgres
+  when it restarts.
 
 ## Settled choices
 

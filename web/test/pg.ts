@@ -18,7 +18,7 @@ export async function freshDb(): Promise<{ db: Db; url: string; drop: () => Prom
     const host = new URL(base).host;
     throw new Error(
       `Can't connect to Postgres at TEST_DATABASE_URL (${host}); is it running? A cloud ` +
-        "container stops it on restart: `service postgresql start` (docs/linting.md, setup).",
+        "container stops it on restart: `service postgresql start` (docs/linting.md, Running it).",
       { cause: e },
     );
   });

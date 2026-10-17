@@ -4,7 +4,7 @@
 import { buildScene, loadThree } from "../../components/prefabs/scene";
 import { profileOf, type PrefabFile } from "../../lib/prefab";
 import { MESHES } from "../../lib/prefab-meshes";
-import { VIEWS, camera, frameOf, overlap } from "./piece-math.mjs";
+import { ACROSS, VIEWS, camera, frameOf, overlap } from "./piece-math.mjs";
 
 type Vec3 = [number, number, number];
 /** per view, the mesh render's outline and shaded picture as data URLs */
@@ -19,6 +19,9 @@ export interface PieceResult {
 
 const SIZE = 512;
 const CELL = 256;
+/* a sheet's label rows and left label column, px */
+const LABEL = 22;
+const LEFT = 70;
 const BACKGROUND = 0x14161c;
 
 const three = loadThree();
@@ -149,9 +152,7 @@ async function sheet(
   scores: Record<string, number> | null,
 ) {
   const rows = refs ? ["game", "viewer", "outlines"] : ["viewer"];
-  const label = 22;
-  const left = 70;
-  const c = new OffscreenCanvas(left + CELL * VIEWS.length, label * 2 + CELL * rows.length);
+  const c = new OffscreenCanvas(LEFT + CELL * VIEWS.length, LABEL * 2 + CELL * rows.length);
   const g = context(c);
   g.fillStyle = "#0b0c10";
   g.fillRect(0, 0, c.width, c.height);
@@ -159,11 +160,11 @@ async function sheet(
   g.font = "14px sans-serif";
   g.fillText(`${mesh} (stand-in: ${kind})`, 6, 16);
   for (const [i, v] of VIEWS.entries()) {
-    const x = left + i * CELL;
+    const x = LEFT + i * CELL;
     const score = scores ? ` ${scores[v.name].toFixed(2)}` : "";
-    g.fillText(v.name + score, x + 6, label + 16);
+    g.fillText(v.name + score, x + 6, LABEL + 16);
     for (const [j, row] of rows.entries()) {
-      const y = label * 2 + j * CELL;
+      const y = LABEL * 2 + j * CELL;
       if (i === 0) g.fillText(row, 6, y + CELL / 2);
       const ref = refs?.[v.name];
       const a = masks[v.name];
@@ -206,8 +207,8 @@ async function dataUrl(c: OffscreenCanvas) {
 
 /* several sheets' top two rows (the game, then the viewer) laid out four across, half size */
 async function montage(sheets: Array<string>) {
-  const across = 4;
-  const [w, h] = [(70 + CELL * VIEWS.length) / 2, (22 * 2 + CELL * 2) / 2];
+  const across = ACROSS;
+  const [w, h] = [(LEFT + CELL * VIEWS.length) / 2, (LABEL * 2 + CELL * 2) / 2];
   const c = new OffscreenCanvas(
     w * Math.min(across, sheets.length),
     h * Math.ceil(sheets.length / across),

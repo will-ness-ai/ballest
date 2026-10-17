@@ -40,7 +40,8 @@ def template():
         host = urlsplit(BASE).netloc.rsplit("@", 1)[-1]
         pytest.exit(
             f"Can't connect to Postgres at TEST_DATABASE_URL ({host}); is it running? A cloud "
-            "container stops it on restart: `service postgresql start` (docs/linting.md, setup). "
+            "container stops it on restart: `service postgresql start` "
+            "(docs/linting.md, Running it). "
             f"{e}",
             returncode=1,
         )
