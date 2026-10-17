@@ -1,0 +1,28 @@
+# PROTOTYPE (claude/prototype-maps3d only, never merged): fetches the top Workshop Maps'
+# files for the 3D Map grill-design round and commits them to this branch.
+name: Prototype map fetch
+on:
+  push:
+    branches: [claude/prototype-maps3d]
+    paths: [prototype-maps/fetch.py, .github/workflows/prototype-maps.yml]
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -r tools/requirements-steampy.txt
+      - env:
+          STEAM_REFRESH_TOKEN: ${{ secrets.STEAM_REFRESH_TOKEN }}
+          STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+        run: python prototype-maps/fetch.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add prototype-maps
+          git commit -m "prototype: fetched Workshop map files"
+          git push
