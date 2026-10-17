@@ -16,7 +16,7 @@ import {
   playerHref,
   playersHref,
 } from "./lib/routes";
-import { STEAM_ID } from "./lib/rules";
+import { PFID, STEAM_ID } from "./lib/rules";
 import { isPreset } from "./lib/workshop";
 
 // The checks that have to happen before a response starts:
@@ -46,7 +46,7 @@ import { isPreset } from "./lib/workshop";
 const ID = STEAM_ID.source;
 const PLAYER_PATH = new RegExp(`^/player/${ID}(?:/(?:${PLAYER_TABS.join("|")}))?$`);
 const VS_PATH = new RegExp(`^/vs/(${ID})/(${ID})$`);
-const MAP_PATH = new RegExp(`^/map/\\d{1,20}(/(?:${ID}|${MAP_FILE}))?$`);
+const MAP_PATH = new RegExp(`^/map/${PFID.source}(/(?:${ID}|${MAP_FILE}))?$`);
 /* a board's name is letters, digits and _, so it never needs decoding */
 const DAILY_PATH = new RegExp(`^/daily(?:/(${DAILY_DATE.source}|${DAILY_STANDINGS}))?/?$`);
 const PREFAB_PATH = new RegExp(`^/prefab/${PREFAB_SLUG.source}$`);

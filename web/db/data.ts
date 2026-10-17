@@ -27,7 +27,7 @@ import { CIRCUIT, circuitBoard } from "../lib/circuit";
 import { boardHistory, type BoardHistory } from "../lib/history";
 import { playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
 import { podiumTallies, tally, type PodiumTally } from "../lib/podiums";
-import { mapPfidOf } from "../lib/rules";
+import { isPfid, mapPfidOf } from "../lib/rules";
 import type {
   BoardPage,
   DailyCell,
@@ -118,7 +118,7 @@ export async function getWorkshop(): Promise<Array<WorkshopMap>> {
 /* one Map the Workshop lists, by its published file ID, or null; only an ID shaped like
    one is looked up */
 export async function getMap(pfid: string): Promise<WorkshopMap | null> {
-  return /^\d{1,20}$/.test(pfid) ? mapOf(pfid) : null;
+  return isPfid(pfid) ? mapOf(pfid) : null;
 }
 
 async function mapOf(pfid: string): Promise<WorkshopMap | null> {
@@ -131,7 +131,7 @@ async function mapOf(pfid: string): Promise<WorkshopMap | null> {
 /* a Map's stored file and its version, or null (GET /map/<pfid>/file). Read fresh, never
    cached here: its bytes are no JSON, and the response itself is cached a year by version */
 export function readMapFile(pfid: string) {
-  return /^\d{1,20}$/.test(pfid) ? q.mapFile(db(), pfid) : Promise.resolve(null);
+  return isPfid(pfid) ? q.mapFile(db(), pfid) : Promise.resolve(null);
 }
 
 /* whether the Workshop lists any Map, for the header's tab */

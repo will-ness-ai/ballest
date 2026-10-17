@@ -12,6 +12,7 @@ import {
   ageText,
   fmtSec,
   fmtTime,
+  isPfid,
   isPoints,
   isSteamId,
   mapBoard,
@@ -205,6 +206,15 @@ describe("Steam IDs and URLs", () => {
     expect(isSteamId("123")).toBe(false);
     expect(isSteamId(ID + "x")).toBe(false);
     expect(isSteamId(null)).toBe(false);
+  });
+
+  test("a Workshop ID is up to 20 digits and nothing else", () => {
+    expect(isPfid("3810672947")).toBe(true);
+    expect(isPfid("1")).toBe(true);
+    expect(isPfid("1".repeat(21))).toBe(false);
+    expect(isPfid("3810672947x")).toBe(false);
+    expect(isPfid("")).toBe(false);
+    expect(isPfid(null)).toBe(false);
   });
 
   test("links", () => {
