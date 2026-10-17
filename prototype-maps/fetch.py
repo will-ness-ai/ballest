@@ -84,14 +84,14 @@ class C(steam.Client):
                     data = await f.read()
                     if not data:
                         continue
-                    with open(os.path.join(OUT, f"{pf.id}.ballmap"), "wb") as fh:
+                    with open(os.path.join(OUT, f"{pf.id}.ballmap"), "wb") as fh:  # noqa: ASYNC230
                         fh.write(data)
                     print(pf.id, f, len(data), flush=True)
         finally:
             await self.close()
 
 
-for attempt in range(4):
+for _attempt in range(4):
     try:
         C().run(refresh_token=os.environ["STEAM_REFRESH_TOKEN"])
     except Exception as e:
