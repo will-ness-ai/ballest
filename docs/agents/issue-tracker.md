@@ -15,11 +15,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Cloud sessions use `gh` too, in preference to the GitHub MCP tools. There `gh` reaches
 only GitHub's REST API: GraphQL is blocked, so `gh issue list`, `gh pr view` and the other
-porcelain commands fail. `gh auth status` is one of them: it checks the token over GraphQL, so
-it always reports "The token in GH_TOKEN is invalid". That is expected, not a broken login: the
-session's proxy swaps the placeholder `GH_TOKEN` for the real credential on REST calls, so
-check the login with `gh api user --jq .login` instead, and don't fall back to the GitHub MCP
-tools over that message. Use `gh api` with the REST equivalent:
+porcelain commands fail. Use `gh api` with the REST equivalent:
 
 - **List / read**: `gh api repos/will-ness-ai/ballest/issues?state=open` (PRs appear here too;
   `pulls` lists only PRs), `gh api repos/will-ness-ai/ballest/issues/<n>` and
@@ -36,6 +32,11 @@ tools over that message. Use `gh api` with the REST equivalent:
 - **Review threads, ready for review, auto-merge**: the session's own routes on the REST
   API, `.../pulls/<n>/ccr/review_threads`, `.../pulls/<n>/ccr/ready_for_review` and
   `.../pulls/<n>/ccr/auto_merge`, as the GraphQL error message lists.
+
+`gh auth status` checks the token over GraphQL too, so in a cloud session it always reports
+"The token in GH_TOKEN is invalid". The login is fine: `GH_TOKEN` there is a placeholder the
+session's proxy fills in, and `gh api user --jq .login` printing `will-ness-ai` is the check
+that counts.
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 The remote is `will-ness-ai/ballest`. Issues and pull requests share one number space here,

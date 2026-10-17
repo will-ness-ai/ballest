@@ -227,7 +227,9 @@ the other side, then push a merge on top of theirs, never a force.
 ### Issue tracker
 
 GitHub issues and pull requests on `will-ness-ai/ballest`, through the `gh` CLI rather than
-GitHub MCP tools, cloud sessions included. See `docs/agents/issue-tracker.md`.
+GitHub MCP tools, cloud sessions included. In a cloud session `gh auth status` always says the
+token is invalid (it asks GraphQL, which is blocked there); check with `gh api user` instead.
+See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
