@@ -14,7 +14,8 @@ const MUTATION =
 // a request that writes: a method, or gh api's fields (which make it a POST)
 const WRITES = /(?:-X|--method|--request)[\s=]*['"]?(?:PUT|POST|PATCH)\b/i;
 const GH_FIELDS = /\s(?:-[fF]|--(?:field|raw-field|input))\b/;
-const CD = /(?:^|[;&(\n]\s*)cd\s+("[^"]*"|'[^']*'|\S+)/g;
+// a cd, as a command of its own (inside `bash -c "..."` or an if/then too)
+const CD = /(?:^|[;&(\n'"]|\b(?:then|do|else)\b)\s*cd\s+("[^"]*"|'[^']*'|[^\s;&|)'"]+)/g;
 const SEPARATOR = /[;&|\n]/;
 // gh pr merge's flags that take a value, so the value isn't read as the PR
 const VALUED = /^(?:-[btFRA]|--(?:body|body-file|subject|repo|author-email|match-head-commit))$/;
@@ -41,28 +42,28 @@ export function mergeTargets(tool, input) {
     .map(([at, t]) => (t.opaque || t.repo !== null ? t : withCd(t, command, at)));
 }
 
+/* the text with each quoted string as one bare word, so its spaces and separators don't split it */
+const flatten = (text) =>
+  text.replace(/'([^']*)'|"([^"]*)"/g, (_, single, double) =>
+    (single ?? double).replace(/[\s;&|]/g, "_"),
+  );
+const unquote = (text) => text.replace(/['"]/g, "");
+
 /* `gh pr merge|ready [args]` */
 function ghPr(command, m) {
   const [whole, globalRepo, verb] = m;
-  const args = command
-    .slice(m.index + whole.length)
-    .replace(/'[^']*'|"[^"]*"/g, "''")
-    .split(SEPARATOR)[0];
-  const tokens = args
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((t) => t.replace(/['"]/g, ""));
+  const args = flatten(command.slice(m.index + whole.length)).split(SEPARATOR)[0];
+  const tokens = args.trim().split(/\s+/).map(unquote).filter(Boolean);
   if (tokens.includes(verb === "ready" ? "--undo" : "--disable-auto")) return null;
-  const before = command.slice(0, m.index).split(SEPARATOR).pop();
-  let repo = globalRepo ?? /\bGH_REPO=(\S+)/.exec(before)?.[1] ?? null;
+  const exported = [...command.slice(0, m.index).matchAll(/\bGH_REPO=([^\s;&|]+)/g)].at(-1);
+  let repo = globalRepo ?? (exported ? unquote(exported[1]) : null);
   let first = null;
   for (let i = 0; i < tokens.length; i++) {
     if (VALUED.test(tokens[i])) {
       if (/^(?:-R|--repo)$/.test(tokens[i])) repo = tokens[i + 1];
       i++;
     } else if (tokens[i].startsWith("--repo=")) repo = tokens[i].slice(7);
-    else if (tokens[i] && !tokens[i].startsWith("-") && first === null) first = tokens[i];
+    else if (!tokens[i].startsWith("-") && first === null) first = tokens[i];
   }
   const url = first && /github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/.exec(first);
   if (url) return { repo: url[1], number: Number(url[2]) };
@@ -75,18 +76,23 @@ function apiCall(command, m) {
   const rest = command.slice(m.index + m[0].length);
   if (/^\s+graphql\b/.test(rest) || /\/graphql\b/.test(rest.split(SEPARATOR)[0]))
     return MUTATION.test(rest) ? { opaque: true } : null;
-  const call = rest.split(SEPARATOR)[0];
+  const call = flatten(rest).split(SEPARATOR)[0];
   const route = ROUTE.exec(call);
   if (!route) return null;
   const writes = WRITES.test(call) || (m[1].startsWith("gh") && GH_FIELDS.test(call));
   if (!writes) return null;
-  return { repo: route[1] === "{owner}/{repo}" ? null : route[1], number: Number(route[2]) };
+  // gh fills in {owner}/{repo} and :owner/:repo from the checkout
+  const placeholder = /^(?:\{owner\}\/\{repo\}|:owner\/:repo)$/.test(route[1]);
+  return { repo: placeholder ? null : route[1], number: Number(route[2]) };
 }
 
-/* the last `cd` before `at` names the checkout the command runs in */
+/* the cds before `at`, each from the last, name the checkout the command runs in */
 function withCd(target, command, at) {
-  const cds = [...command.matchAll(CD)].filter((c) => c.index < at);
-  return cds.length ? { ...target, cd: cds.at(-1)[1].replace(/^['"]|['"]$/g, "") } : target;
+  const cd = [...command.matchAll(CD)]
+    .filter((c) => c.index < at)
+    .map((c) => unquote(c[1]))
+    .reduce((from, to) => (/^[/~$]/.test(to) || !from ? to : `${from}/${to}`), "");
+  return cd ? { ...target, cd } : target;
 }
 
 /* "owner/name", lower case, from gh's -R forms or a remote URL (GitHub's or a proxy's) */

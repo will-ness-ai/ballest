@@ -17,6 +17,9 @@ describe("mergeTargets", () => {
     expect(bash("gh pr merge --squash --body 'fixes 12 things'")).toEqual(pr(null));
     expect(bash('gh pr merge --body "a; b" 5')).toEqual(pr(5));
     expect(bash("gh pr merge claude/x --squash")).toEqual(pr(null, { branch: "claude/x" }));
+    expect(bash('gh pr merge "246" --squash')).toEqual(pr(246));
+    expect(bash('gh pr merge "$PR" --squash')).toEqual(pr(null, { branch: "$PR" }));
+    expect(bash("export GH_REPO=o/r; gh pr merge 3")).toEqual([{ repo: "o/r", number: 3 }]);
     expect(bash("gh pr merge https://github.com/o/r/pull/8")).toEqual([{ repo: "o/r", number: 8 }]);
     expect(bash("gh pr merge -R will-ness-ai/ballest 7")).toEqual([
       { repo: "will-ness-ai/ballest", number: 7 },
@@ -39,6 +42,11 @@ describe("mergeTargets", () => {
   test("notes a cd into another checkout", () => {
     expect(bash("cd /w/ballest\ngh pr merge 5")).toEqual(pr(5, { cd: "/w/ballest" }));
     expect(bash('cd "../plugins" && gh pr merge 5')).toEqual(pr(5, { cd: "../plugins" }));
+    expect(bash('bash -c "cd /w/wt && gh pr merge"')).toEqual(pr(null, { cd: "/w/wt" }));
+    expect(bash("if x; then cd /w/wt; fi; gh pr merge 5")).toEqual(pr(5, { cd: "/w/wt" }));
+    // each relative cd moves from the last
+    expect(bash("cd web && pnpm test && cd .. && gh pr merge 5")).toEqual(pr(5, { cd: "web/.." }));
+    expect(bash("cd a && cd /w/b && cd c && gh pr merge 5")).toEqual(pr(5, { cd: "/w/b/c" }));
   });
 
   test("finds the REST routes that write", () => {
@@ -53,6 +61,10 @@ describe("mergeTargets", () => {
     ]);
     // gh fills these in from the checkout
     expect(bash("gh api -X PUT repos/{owner}/{repo}/pulls/5/merge")).toEqual(pr(5));
+    expect(bash("gh api -X PUT repos/:owner/:repo/pulls/5/merge")).toEqual(pr(5));
+    expect(bash('gh api -X PUT -f commit_title="Fix; tidy" repos/o/r/pulls/7/merge')).toEqual([
+      { repo: "o/r", number: 7 },
+    ]);
   });
 
   test("can't name the PR a GraphQL mutation merges", () => {
