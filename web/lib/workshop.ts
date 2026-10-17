@@ -64,7 +64,8 @@ export interface Map3DView {
   medals: Array<number>;
 }
 
-/* a Map's 3D view, or null for one whose file the site doesn't hold, which has none */
+/* a timed Map's 3D view (MapView sends an untimed Map's page home first), or null for one
+   whose file the site doesn't hold, which has none */
 export const map3dOf = (m: WorkshopMap): Map3DView | null =>
   m.fileVersion
     ? {
