@@ -58,23 +58,44 @@ export function buildScene(
     return g;
   };
   const group = new THREE.Group();
+  /* PROTOTYPE (maps3d): one instanced mesh per geometry and colour, so a whole Map's
+     thousands of pieces are a few dozen draws instead of one each */
+  const batches = new Map<
+    string,
+    {
+      geometry: import("three").BufferGeometry;
+      colour: string;
+      glow: boolean;
+      m: Array<Array<number>>;
+    }
+  >();
   for (const s of shapesOf(file)) {
-    const mesh = new THREE.Mesh(
-      s.profile ? prismGeometry(s.profile) : geometry[s.kind],
+    const g = s.profile ? prismGeometry(s.profile) : geometry[s.kind];
+    const key = `${g.uuid}|${s.colour}|${s.glow}`;
+    let b = batches.get(key);
+    if (!b) batches.set(key, (b = { geometry: g, colour: s.colour, glow: s.glow, m: [] }));
+    b.m.push(s.matrix);
+  }
+  for (const b of batches.values()) {
+    const mesh = new THREE.InstancedMesh(
+      b.geometry,
       new THREE.MeshStandardMaterial({
-        color: s.colour,
+        color: b.colour,
         roughness: 0.75,
         metalness: 0.05,
         side: THREE.DoubleSide,
         /* a lamp glows as the game draws it, washed toward white */
-        ...(s.glow && {
-          emissive: new THREE.Color(s.colour).lerp(new THREE.Color(0xffffff), 0.5),
+        ...(b.glow && {
+          emissive: new THREE.Color(b.colour).lerp(new THREE.Color(0xffffff), 0.5),
           emissiveIntensity: 0.9,
         }),
       }),
+      b.m.length,
     );
-    mesh.matrixAutoUpdate = false;
-    mesh.matrix.fromArray(s.matrix);
+    const mat = new THREE.Matrix4();
+    b.m.forEach((m, i) => mesh.setMatrixAt(i, mat.fromArray(m)));
+    mesh.computeBoundingBox();
+    mesh.computeBoundingSphere();
     group.add(mesh);
   }
   scene.add(group);

@@ -8,6 +8,7 @@ import { LegacyHash, MarbleFlip } from "../components/Behaviours";
 import { SITE_ORIGIN } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE, pageTitle } from "../lib/rules";
 
+import { Picker } from "../components/proto/Maps3D"; // PROTOTYPE (maps3d)
 import "./styles/base.css";
 import "./styles/board.css";
 import "./styles/player.css";
@@ -21,6 +22,7 @@ import "./styles/history.css";
 import "./styles/daily.css";
 import "./styles/prefabs.css";
 import "./styles/desktop.css";
+import "./styles/proto.css"; // PROTOTYPE (maps3d)
 
 const DESCRIPTION =
   "Workshop, Circuit and Daily leaderboards for Ballest of Them All, with every world record and player, read straight from Steam.";
@@ -81,6 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Ambient />
         {children}
+        <Picker />
         <LegacyHash />
         <MarbleFlip />
       </body>

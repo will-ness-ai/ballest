@@ -20,6 +20,7 @@ const SITE = [
   "leth",
   "multiballs",
   "skins",
+  "prototype-maps",
 ];
 
 rmSync(pub, { recursive: true, force: true });

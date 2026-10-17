@@ -3,6 +3,7 @@
 // no card. `focus` is a Steam ID whose row to find and mark.
 import { notFound, redirect } from "next/navigation";
 
+import { ProtoSlot } from "../proto/Maps3D"; // PROTOTYPE (maps3d)
 import { PartOf } from "./Campaign";
 import { CreatorLink } from "./Card";
 import { Age } from "./Age";
@@ -34,6 +35,7 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
     <aside className="mpanel" id="mpanel">
       <BackLink trail="maps" />
       <MapImage preview={m.preview} className="mp-img" />
+      <ProtoSlot pfid={m.pfid} slot="img" />
       <div>
         <h1 className="mp-t">{m.title}</h1>
         <span className="mp-by">
@@ -112,27 +114,31 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
   const rows = page.rows;
   const at = focus ? places?.[focus] : undefined;
   return (
-    <div className="main">
-      <DocTitle title={m.title} />
-      <MapPanel m={m} scores={scores} asOf={site.asOf} />
-      <section className="content">
-        <YouMarks name={name} />
-        <YouBanner name={name} field={page.total} medals={m.medals} />
-        <BoardBody
-          order="score"
-          name={name}
-          points={false}
-          where={"by " + m.creator}
-          count={page.total}
-          history={history && <HistoryCard h={history} />}
-          leaders={<ScorePlates name={name} rows={rows} focus={focus} />}
-          initial={page.total >= 3 ? rows.slice(3) : rows}
-          lead={rows[0]?.score ?? null}
-          pods={null}
-          focus={focus && at ? { id: focus, rank: at.rank } : null}
-        />
-      </section>
-      <Remember trail="board" href={mapHref(m.pfid)} label={m.title} />
-    </div>
+    <>
+      <ProtoSlot pfid={m.pfid} slot="stage" />
+      <div className="main">
+        <DocTitle title={m.title} />
+        <MapPanel m={m} scores={scores} asOf={site.asOf} />
+        <section className="content">
+          <ProtoSlot pfid={m.pfid} slot="tabs" />
+          <YouMarks name={name} />
+          <YouBanner name={name} field={page.total} medals={m.medals} />
+          <BoardBody
+            order="score"
+            name={name}
+            points={false}
+            where={"by " + m.creator}
+            count={page.total}
+            history={history && <HistoryCard h={history} />}
+            leaders={<ScorePlates name={name} rows={rows} focus={focus} />}
+            initial={page.total >= 3 ? rows.slice(3) : rows}
+            lead={rows[0]?.score ?? null}
+            pods={null}
+            focus={focus && at ? { id: focus, rank: at.rank } : null}
+          />
+        </section>
+        <Remember trail="board" href={mapHref(m.pfid)} label={m.title} />
+      </div>
+    </>
   );
 }
