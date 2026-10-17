@@ -1,6 +1,7 @@
 // A Prefab as a three.js scene, shared
 // by the live viewer and the list's still pictures.
 import {
+  PROFILE_SCALE,
   profileAxes,
   shapesOf,
   squeezeAt,
@@ -53,7 +54,7 @@ export function buildScene(
   };
   /* one geometry per outline, however many pieces share it */
   const profiles = new Map<MeshProfile, import("three").BufferGeometry>();
-  const outline = (p: MeshProfile) => {
+  const prismOf = (p: MeshProfile) => {
     let g = profiles.get(p);
     if (!g) profiles.set(p, (g = profileGeometry(THREE, p)));
     return g;
@@ -61,7 +62,7 @@ export function buildScene(
   const group = new THREE.Group();
   for (const s of shapesOf(file)) {
     const mesh = new THREE.Mesh(
-      s.profile ? outline(s.profile) : geometry[s.kind],
+      s.profile ? prismOf(s.profile) : geometry[s.kind],
       new THREE.MeshStandardMaterial({
         color: s.colour,
         roughness: 0.75,
@@ -174,7 +175,8 @@ export async function stillOf(
 /* a piece's outline in one view pushed straight through its bounds, in the unit box: the
    outline's across, up and through directions laid along three's axes (lib/prefab.ts) */
 function profileGeometry(THREE: Three, profile: MeshProfile) {
-  /* a squeezed prism bends between its corners, so it needs corners all along it */
+  /* a squeezed prism bends along its outline, so it needs corners all along it (the squeeze is
+     even through the depth, so the depth needs none) */
   const step = profile.squeeze ? 1 / SQUEEZE_STEPS : Infinity;
   const shapes = profile.shapes.map(([outer, ...holes]) => {
     const shape = new THREE.Shape(points(THREE, outer, step));
@@ -183,7 +185,6 @@ function profileGeometry(THREE: Three, profile: MeshProfile) {
   });
   const g = new THREE.ExtrudeGeometry(shapes, {
     depth: 1,
-    steps: profile.squeeze ? SQUEEZE_STEPS : 1,
     bevelEnabled: false,
   });
   const [across, up, through] = profileAxes(profile.view);
@@ -198,10 +199,11 @@ function profileGeometry(THREE: Three, profile: MeshProfile) {
   const shared = squeezeAxis(profile);
   if (profile.squeeze && shared !== null) {
     /* a second view's outline narrows how far each part of the prism reaches */
-    const at = g.getAttribute("position");
-    for (let i = 0; i < at.count; i++) {
-      const [lo, hi] = squeezeAt(profile.squeeze.spans, at.getComponent(i, shared) + 0.5);
-      at.setComponent(i, through, lo + (at.getComponent(i, through) + 0.5) * (hi - lo) - 0.5);
+    const position = g.getAttribute("position");
+    for (let i = 0; i < position.count; i++) {
+      const [lo, hi] = squeezeAt(profile.squeeze.spans, position.getComponent(i, shared) + 0.5);
+      const depth = position.getComponent(i, through) + 0.5;
+      position.setComponent(i, through, lo + depth * (hi - lo) - 0.5);
     }
     g.computeVertexNormals();
   }
@@ -216,9 +218,9 @@ function points(THREE: Three, flat: Array<number>, step: number) {
   const out = [];
   const n = flat.length / 2;
   for (let i = 0; i < n; i++) {
-    const a = new THREE.Vector2(flat[2 * i], flat[2 * i + 1]).divideScalar(1000);
+    const a = new THREE.Vector2(flat[2 * i], flat[2 * i + 1]).divideScalar(PROFILE_SCALE);
     const j = (i + 1) % n;
-    const b = new THREE.Vector2(flat[2 * j], flat[2 * j + 1]).divideScalar(1000);
+    const b = new THREE.Vector2(flat[2 * j], flat[2 * j + 1]).divideScalar(PROFILE_SCALE);
     const parts = Math.max(1, Math.ceil(a.distanceTo(b) / step));
     for (let k = 0; k < parts; k++) out.push(a.clone().lerp(b, k / parts));
   }

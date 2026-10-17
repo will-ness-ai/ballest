@@ -2,9 +2,8 @@
 // through the viewer's own scene code from the three views in piece-math.mjs, scores
 // each view's outline against the mesh render's, and lays out the sheet a person reads.
 import { buildScene, loadThree } from "../../components/prefabs/scene";
+import { profileOf, type PrefabFile } from "../../lib/prefab";
 import { MESHES } from "../../lib/prefab-meshes";
-import { PROFILES } from "../../lib/prefab-profiles";
-import type { PrefabFile } from "../../lib/prefab";
 import { VIEWS, camera, frameOf, overlap } from "./piece-math.mjs";
 
 type Vec3 = [number, number, number];
@@ -87,8 +86,9 @@ async function draw(mesh: string) {
     shots[v.name] = { shaded, mask: covered(outline, "red") };
   }
   /* named as the viewer draws it: a box with an outline is that outline's prism */
-  const p = shape.kind === "box" ? PROFILES[mesh] : undefined;
-  const kind = p ? `outline ${[p.view, p.squeeze?.view].filter(Boolean).join("+")}` : shape.kind;
+  const outline = profileOf(mesh);
+  const views = [outline?.view, outline?.squeeze?.view].filter(Boolean).join("+");
+  const kind = outline ? `outline ${views}` : shape.kind;
   return { kind, shots };
 }
 

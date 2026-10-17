@@ -40,6 +40,9 @@ export interface MeshProfile {
   squeeze?: { view: ProfileView; spans: Array<number> };
 }
 
+/** an outline's numbers are thousandths of the bounds */
+export const PROFILE_SCALE = 1000;
+
 /* Unreal axes [x, y, z] across and up each view, as the reference renders frame it */
 const VIEW_AXES: Record<ProfileView, [number, number]> = {
   top: [0, 1],
@@ -61,8 +64,9 @@ export function squeezeAt(spans: Array<number>, t: number): [number, number] {
   const at = Math.min(Math.max(t * n - 0.5, 0), n - 1);
   const i = Math.min(Math.floor(at), n - 2);
   const f = n > 1 ? at - i : 0;
-  const lerp = (k: number) => (spans[2 * i + k] * (1 - f) + spans[2 * (i + 1) + k] * f) / 1000;
-  return n > 1 ? [lerp(0), lerp(1)] : [spans[0] / 1000, spans[1] / 1000];
+  const lerp = (k: number) =>
+    (spans[2 * i + k] * (1 - f) + spans[2 * (i + 1) + k] * f) / PROFILE_SCALE;
+  return n > 1 ? [lerp(0), lerp(1)] : [spans[0] / PROFILE_SCALE, spans[1] / PROFILE_SCALE];
 }
 
 /** three's axes (x, y up, z) an outline's across, up and pushed-through directions lie along */
@@ -129,6 +133,12 @@ function rotationRows([pitch, yaw, roll]: Vec3): [Vec3, Vec3, Vec3] {
   ];
 }
 
+/** the outline a mesh is drawn from, if it has one; a hand-made shape (a cylinder, a torus) is
+    already round where an outline would be flat, so only a box gives way to one */
+export function profileOf(mesh: string) {
+  return MESHES[mesh]?.kind === "box" ? PROFILES[mesh] : undefined;
+}
+
 export function shapesOf(file: PrefabFile): Array<Shape> {
   return file.items.map((item) => {
     const mesh = item.meshes.at(0);
@@ -156,8 +166,7 @@ export function shapesOf(file: PrefabFile): Array<Shape> {
     const swap = (v: Vec3): Vec3 => [v[0] / 100, v[2] / 100, v[1] / 100];
     const [ax, ay, az] = [swap(axis(0)), swap(axis(2)), swap(axis(1))];
     const o = swap(origin);
-    /* a hand-made shape (a cylinder, a torus) is already round where an outline would be flat */
-    const profile = shape.kind === "box" && meshName ? PROFILES[meshName] : undefined;
+    const profile = meshName ? profileOf(meshName) : undefined;
     return {
       kind: shape.kind,
       profile,

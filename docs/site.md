@@ -425,8 +425,12 @@ branch `claude/prototype-prefabs` (spec #213).
   down or hidden, reads as gone.
 - **Stand-in shapes**: the file names meshes but carries no geometry, and the game's
   meshes stay off the repo (ADR 0001), so `lib/prefab.ts` draws each known mesh as a box,
-  cylinder, sphere, scoop, torus or half or quarter ring (the hole bowls) sized from its
-  bounds, an unknown one as a grey box, and colours each by its material's name; an Emissive
+  cylinder, cone, pyramid, sphere, torus or half or quarter ring (the hole bowls) sized from its
+  bounds, an unknown one as a grey box. A box whose mesh is curved is drawn instead as its
+  outline in one view pushed through the bounds, squeezed by a second view's outline where that
+  helps (`lib/prefab-profiles.ts`): coarse outlines, a few dozen points traced from mesh renders
+  in the private ballest-map-making (`extract/piece_profiles.py`), never the mesh itself.
+  `pnpm --silent qa piece` scores each against those renders. Each piece is coloured by its material's name; an Emissive
   material glows, as the game's lamps do. A fill light opposite
   the key keeps every side's colours true, so a sign seen from the front isn't greyed. Rotations are Unreal's [pitch, yaw, roll] in
   degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
