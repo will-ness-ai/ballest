@@ -3,6 +3,7 @@
 // each view's outline against the mesh render's, and lays out the sheet a person reads.
 import { buildScene, loadThree } from "../../components/prefabs/scene";
 import { MESHES } from "../../lib/prefab-meshes";
+import { PROFILES } from "../../lib/prefab-profiles";
 import type { PrefabFile } from "../../lib/prefab";
 import { VIEWS, camera, frameOf, overlap } from "./piece-math.mjs";
 
@@ -85,7 +86,10 @@ async function draw(mesh: string) {
     const outline = context(shoot(0x000000)).getImageData(0, 0, SIZE, SIZE).data;
     shots[v.name] = { shaded, mask: covered(outline, "red") };
   }
-  return { kind: shape.kind, shots };
+  /* named as the viewer draws it: a box with an outline is that outline's prism */
+  const p = shape.kind === "box" ? PROFILES[mesh] : undefined;
+  const kind = p ? `outline ${[p.view, p.squeeze?.view].filter(Boolean).join("+")}` : shape.kind;
+  return { kind, shots };
 }
 
 /* a canvas's 2D context; Chromium always has one */

@@ -1,6 +1,13 @@
 // A Prefab as a three.js scene, shared
 // by the live viewer and the list's still pictures.
-import { shapesOf, type PrefabFile } from "../../lib/prefab";
+import {
+  profileAxes,
+  shapesOf,
+  squeezeAt,
+  squeezeAxis,
+  type MeshProfile,
+  type PrefabFile,
+} from "../../lib/prefab";
 import {
   DEFAULT_ANGLE,
   PAN_MAX,
@@ -36,16 +43,25 @@ export function buildScene(
   const geometry = {
     box: new RoundedBoxGeometry(1, 1, 1, 1, 0.01),
     cylinder: new THREE.CylinderGeometry(0.5, 0.5, 1, 40),
+    cone: new THREE.CylinderGeometry(0, 0.5, 1, 40),
+    /* four sides, its corners at the middle of the bounds' edges, as SM_Pyramid's are */
+    pyramid: new THREE.CylinderGeometry(0, 0.5, 1, 4),
     sphere: new THREE.SphereGeometry(0.5, 32, 20),
-    scoop: scoopGeometry(THREE),
     halfRing: ringGeometry(THREE, "half"),
     quarterRing: ringGeometry(THREE, "quarter"),
     torus: torusGeometry(THREE),
   };
+  /* one geometry per outline, however many pieces share it */
+  const profiles = new Map<MeshProfile, import("three").BufferGeometry>();
+  const outline = (p: MeshProfile) => {
+    let g = profiles.get(p);
+    if (!g) profiles.set(p, (g = profileGeometry(THREE, p)));
+    return g;
+  };
   const group = new THREE.Group();
   for (const s of shapesOf(file)) {
     const mesh = new THREE.Mesh(
-      geometry[s.kind],
+      s.profile ? outline(s.profile) : geometry[s.kind],
       new THREE.MeshStandardMaterial({
         color: s.colour,
         roughness: 0.75,
@@ -155,20 +171,58 @@ export async function stillOf(
   return renderer.domElement.toDataURL("image/png");
 }
 
-/* SM_2000_45scoop stand-in: a slab whose top curves up from flat to 45 degrees along x */
-function scoopGeometry(THREE: Three) {
-  const shape = new THREE.Shape();
-  const n = 16;
-  shape.moveTo(-0.5, -0.5);
-  shape.lineTo(0.5, -0.5);
-  for (let i = n; i >= 0; i--) {
-    const t = i / n;
-    shape.lineTo(-0.5 + t, -0.5 + 0.12 + 0.88 * t * t);
+/* a piece's outline in one view pushed straight through its bounds, in the unit box: the
+   outline's across, up and through directions laid along three's axes (lib/prefab.ts) */
+function profileGeometry(THREE: Three, profile: MeshProfile) {
+  /* a squeezed prism bends between its corners, so it needs corners all along it */
+  const step = profile.squeeze ? 1 / SQUEEZE_STEPS : Infinity;
+  const shapes = profile.shapes.map(([outer, ...holes]) => {
+    const shape = new THREE.Shape(points(THREE, outer, step));
+    shape.holes = holes.map((h) => new THREE.Path(points(THREE, h, step)));
+    return shape;
+  });
+  const g = new THREE.ExtrudeGeometry(shapes, {
+    depth: 1,
+    steps: profile.squeeze ? SQUEEZE_STEPS : 1,
+    bevelEnabled: false,
+  });
+  const [across, up, through] = profileAxes(profile.view);
+  const axis = (i: number, sign = 1) => new THREE.Vector3().setComponent(i, sign);
+  /* an odd swap of axes would turn the faces inside out; pushing the other way undoes it,
+     and the prism is the same either way */
+  const odd =
+    new THREE.Matrix4().makeBasis(axis(across), axis(up), axis(through)).determinant() < 0;
+  const place = new THREE.Matrix4().makeBasis(axis(across), axis(up), axis(through, odd ? -1 : 1));
+  g.translate(-0.5, -0.5, -0.5);
+  g.applyMatrix4(place);
+  const shared = squeezeAxis(profile);
+  if (profile.squeeze && shared !== null) {
+    /* a second view's outline narrows how far each part of the prism reaches */
+    const at = g.getAttribute("position");
+    for (let i = 0; i < at.count; i++) {
+      const [lo, hi] = squeezeAt(profile.squeeze.spans, at.getComponent(i, shared) + 0.5);
+      at.setComponent(i, through, lo + (at.getComponent(i, through) + 0.5) * (hi - lo) - 0.5);
+    }
+    g.computeVertexNormals();
   }
-  shape.lineTo(-0.5, -0.5);
-  const g = new THREE.ExtrudeGeometry(shape, { depth: 1, bevelEnabled: false });
-  g.translate(0, 0, -0.5);
   return g;
+}
+
+const SQUEEZE_STEPS = 24;
+
+/* an outline's flat x, y list (thousandths) as points in the unit square, no two more than
+   `step` apart */
+function points(THREE: Three, flat: Array<number>, step: number) {
+  const out = [];
+  const n = flat.length / 2;
+  for (let i = 0; i < n; i++) {
+    const a = new THREE.Vector2(flat[2 * i], flat[2 * i + 1]).divideScalar(1000);
+    const j = (i + 1) % n;
+    const b = new THREE.Vector2(flat[2 * j], flat[2 * j + 1]).divideScalar(1000);
+    const parts = Math.max(1, Math.ceil(a.distanceTo(b) / step));
+    for (let k = 0; k < parts; k++) out.push(a.clone().lerp(b, k / parts));
+  }
+  return out;
 }
 
 /* the hole bowls' stand-in: a flat ring with a hole, cut to a half (Unreal y >= 0) or a quarter

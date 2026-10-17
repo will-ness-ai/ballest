@@ -4,7 +4,16 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
-import { footprintOf, partsOf, pieceLabel, shapesOf, type PrefabFile } from "../lib/prefab";
+import {
+  footprintOf,
+  partsOf,
+  pieceLabel,
+  profileAxes,
+  squeezeAt,
+  squeezeAxis,
+  shapesOf,
+  type PrefabFile,
+} from "../lib/prefab";
 import { MAX_BYTES, checkPrefab, fileNameOf } from "../lib/prefab-check";
 import { DEFAULT_ANGLE, PAN_MAX, ZOOM_RANGE, checkAngle, galleryOf } from "../lib/prefabs";
 
@@ -115,6 +124,44 @@ describe("a Prefab file", () => {
       })[0].kind;
     expect(bowl("HalfShallowHoleBowl")).toBe("halfRing");
     expect(bowl("QuarterShallowHoleBowl")).toBe("quarterRing");
+  });
+
+  test("a curved piece is its own outline pushed through its bounds; a hand-made shape stays", () => {
+    const piece = (mesh: string) =>
+      shapesOf({
+        ...cubes(),
+        items: [
+          {
+            class: "/Game/LevelEditor/BP_Piece.BP_Piece_C",
+            transform: { location: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+            meshes: [{ mesh: `/Game/Maps/_GENERATED/PC/${mesh}.${mesh}`, materials: [] }],
+          },
+        ],
+      })[0];
+    // a kicker's ramp shows from the side, so that's the outline it is drawn from
+    expect(piece("SM_1000_kicker").profile?.view).toBe("side");
+    expect(piece("SM_1000_kicker").profile?.shapes[0][0].length).toBeGreaterThan(6);
+    // the goal ring's hole shows from above
+    expect(piece("SM_GoalRing").profile?.shapes[0]).toHaveLength(2);
+    expect(piece("Torus")).toMatchObject({ kind: "torus", profile: undefined });
+    expect(piece("SM_500").profile).toBeUndefined();
+  });
+
+  test("an outline is laid in its view's plane, in three's axes, and pushed along the third", () => {
+    // Unreal x, y, z are three's x, z, y; side is Unreal x across and z up, seen along y
+    expect(profileAxes("side")).toEqual([0, 1, 2]);
+    expect(profileAxes("top")).toEqual([0, 2, 1]);
+    expect(profileAxes("front")).toEqual([2, 1, 0]);
+  });
+
+  test("a second view squeezes the prism: how far it reaches, read between evenly spaced places", () => {
+    // two places, at a quarter and three quarters along: full depth, then only its lower half
+    const spans = [0, 1000, 0, 500];
+    expect(squeezeAt(spans, 0)).toEqual([0, 1]);
+    expect(squeezeAt(spans, 0.5)).toEqual([0, 0.75]);
+    expect(squeezeAt(spans, 1)).toEqual([0, 0.5]);
+    // a top outline squeezed from the front shares Unreal's y, three's z
+    expect(squeezeAxis({ view: "top", shapes: [], squeeze: { view: "front", spans } })).toBe(2);
   });
 
   test("a rounded torus is a torus, and an Emissive material glows", () => {

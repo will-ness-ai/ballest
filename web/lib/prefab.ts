@@ -2,9 +2,12 @@
 // the viewer draws. A BallestPrefab file names each piece's mesh, material and transform
 // but carries no geometry, so each mesh the editor's pieces use is a stand-in shape here,
 // sized from the mesh's bounds (cm, pivot at the bottom centre). An unknown mesh is a grey box.
-// The bounds are lib/prefab-meshes.ts; the game's meshes stay out of the repo (ADR 0001).
+// The bounds are lib/prefab-meshes.ts; the game's meshes stay out of the repo (ADR 0001). A
+// curved piece is drawn from its outline in one view pushed through its bounds, a prism
+// (lib/prefab-profiles.ts).
 
 import { MESHES, PIECE_MESHES } from "./prefab-meshes";
+import { PROFILES } from "./prefab-profiles";
 
 export interface PrefabFile {
   format: "BallestPrefab";
@@ -23,7 +26,50 @@ export interface PrefabItem {
 }
 
 export type ShapeKind =
-  "box" | "cylinder" | "sphere" | "scoop" | "halfRing" | "quarterRing" | "torus";
+  "box" | "cylinder" | "cone" | "pyramid" | "sphere" | "halfRing" | "quarterRing" | "torus";
+
+export type ProfileView = "top" | "front" | "side";
+
+/** a mesh's outline in one view: shapes, each an outline then its holes, as flat x, y lists in
+    thousandths of the bounds along the view's right and up axes */
+export interface MeshProfile {
+  view: ProfileView;
+  shapes: Array<Array<Array<number>>>;
+  /** a second view's outline: where the prism reaches along the axis it is pushed through,
+      [low, high] thousandths at evenly spaced places along the axis the two views share */
+  squeeze?: { view: ProfileView; spans: Array<number> };
+}
+
+/* Unreal axes [x, y, z] across and up each view, as the reference renders frame it */
+const VIEW_AXES: Record<ProfileView, [number, number]> = {
+  top: [0, 1],
+  front: [1, 2],
+  side: [0, 2],
+};
+
+const toThree = (unreal: number) => [0, 2, 1][unreal];
+
+/** the three axis a profile's squeeze is read along: the one both its views lie across */
+export function squeezeAxis({ view, squeeze }: MeshProfile) {
+  const shared = VIEW_AXES[view].find((a) => squeeze && VIEW_AXES[squeeze.view].includes(a));
+  return shared === undefined ? null : toThree(shared);
+}
+
+/** how far the prism reaches, 0 to 1 low and high, at `t` (0 to 1) along the shared axis */
+export function squeezeAt(spans: Array<number>, t: number): [number, number] {
+  const n = spans.length / 2;
+  const at = Math.min(Math.max(t * n - 0.5, 0), n - 1);
+  const i = Math.min(Math.floor(at), n - 2);
+  const f = n > 1 ? at - i : 0;
+  const lerp = (k: number) => (spans[2 * i + k] * (1 - f) + spans[2 * (i + 1) + k] * f) / 1000;
+  return n > 1 ? [lerp(0), lerp(1)] : [spans[0] / 1000, spans[1] / 1000];
+}
+
+/** three's axes (x, y up, z) an outline's across, up and pushed-through directions lie along */
+export function profileAxes(view: ProfileView): Vec3 {
+  const [across, up] = VIEW_AXES[view];
+  return [toThree(across), toThree(up), toThree(3 - across - up)];
+}
 
 export interface MeshShape {
   kind: ShapeKind;
@@ -56,6 +102,8 @@ export interface Shape {
   /** column-major 4x4, local unit shape (centred at the origin) to three world, metres */
   matrix: Array<number>;
   colour: string;
+  /** the outline it is drawn from instead of the kind's shape, for a piece with one */
+  profile?: MeshProfile;
   /** an Emissive material, which lights itself in the game */
   glow: boolean;
   piece: string;
@@ -85,12 +133,12 @@ export function shapesOf(file: PrefabFile): Array<Shape> {
   return file.items.map((item) => {
     const mesh = item.meshes.at(0);
     const named = PIECE_MESHES[pieceName(item)];
-    const shape: MeshShape = (mesh && MESHES[tail(mesh.mesh)]) ??
-      (named ? MESHES[named] : undefined) ?? {
-        kind: "box",
-        min: [-50, -50, 0],
-        max: [50, 50, 100],
-      };
+    const meshName = mesh && MESHES[tail(mesh.mesh)] ? tail(mesh.mesh) : named;
+    const shape: MeshShape = (meshName ? MESHES[meshName] : undefined) ?? {
+      kind: "box",
+      min: [-50, -50, 0],
+      max: [50, 50, 100],
+    };
     const first = mesh?.materials.at(0);
     const material = first ? tail(first) : "";
     const { location, rotation, scale } = item.transform;
@@ -108,8 +156,11 @@ export function shapesOf(file: PrefabFile): Array<Shape> {
     const swap = (v: Vec3): Vec3 => [v[0] / 100, v[2] / 100, v[1] / 100];
     const [ax, ay, az] = [swap(axis(0)), swap(axis(2)), swap(axis(1))];
     const o = swap(origin);
+    /* a hand-made shape (a cylinder, a torus) is already round where an outline would be flat */
+    const profile = shape.kind === "box" && meshName ? PROFILES[meshName] : undefined;
     return {
       kind: shape.kind,
+      profile,
       size: [ext[0] / 100, ext[2] / 100, ext[1] / 100],
       matrix: [...ax, 0, ...ay, 0, ...az, 0, ...o, 1],
       colour: COLOURS.find(([re]) => re.test(material))?.[1] ?? "#8a90a0",
