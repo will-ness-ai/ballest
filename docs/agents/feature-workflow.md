@@ -33,6 +33,9 @@ visible surface.
 Write the verdicts from steps 1 and 2 into a spec issue (labelled `ready-for-agent`) that
 names the prototype branch, then split it into tickets with their blocking edges. A
 feature small enough for one ticket still gets one, so `/implement-spec` has its frontier.
+A feature that adds pages gives the `tiny` or `stress` seed (`web/db/seed/`) the data they need in its
+first ticket, with smoke routes and `qa` catalogue rows, so CI draws every later ticket's
+pages instead of a 404.
 
 ## 4. Build and open the PR: `/implement-spec`
 
@@ -44,11 +47,24 @@ that closes the spec and its tickets as soon as the branch has a commit.
 It stays a draft through steps 5 and 6: step 7 marks it ready, in place of
 `/implement-spec`'s own step 8.
 
+Each implementer's brief says:
+
+- **Commit as you go.** Commit and push after each piece that passes its tests. A cloud
+  container restart stops a running subagent, and only what it pushed survives for the next
+  one to pick up.
+- **One plain command per call.** The worktree guard refuses a compound command (`&&`, a
+  pipe, `cd` then a command) as too complex to check, so run `git -C <worktree> ...` and
+  tools with absolute paths, one per call.
+- **Look at a page** with `qa check` (step 7), or `pnpm --silent qa shot <view> --el <selector>`
+  for one element at one width: every image read stays in context for the session.
+
 ## 5. Review: `/code-review`
 
 Review the branch against `main` on both axes: `CODING_STANDARDS.md` (with every invariant
 in `CLAUDE.md`) and the spec. `/implement-spec` runs this as its own step 7; that run is the
-final review, so it isn't repeated. Fix every finding before moving on. Commits that land
+final review, so it isn't repeated. Fix every finding before moving on, checking one that
+asks for something the spec never named against `CODING_STANDARDS.md` first: #212 built a
+real 404 the standards rule out, then deleted it. Commits that land
 after it (a fix found while testing, dev tooling) get `/code-review` since the last reviewed
 commit before the merge.
 
@@ -96,6 +112,12 @@ when GitHub shows no conflict. A long PR outlives conventions: while #152 was op
 dropped `useModalKeys` for native dialogs and moved the CSS to rem type, oklch colors and
 an em breakpoint, and each catch-up was a port that `check-styles` and `tsc` flagged, not a
 textual conflict.
+
+When Will says "merge", fetch `main` first:
+other threads merge often, and a merge against a stale head fails on conflicts it can't
+show. Merge (`docs/agents/issue-tracker.md`) once the merged head's CI and preview are
+green. The session's permission check can refuse to merge a PR with no approving review;
+then say so in one line and try again on Will's next word, naming the PR.
 
 ## 8. After the merge: `/retro`
 

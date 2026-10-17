@@ -91,7 +91,8 @@ pnpm dev
 ```
 
 (or use the `ballest` config in `.claude/launch.json`, which runs `pnpm dev` on whatever
-port it is given).
+port it is given). In a cloud session, use `pnpm dev:up <port>` and `pnpm dev:down <port>`
+(`docs/site.md`, "Checking a change").
 
 A project thread starts outside the repo, where `.claude/hooks/session-start.sh` (Postgres,
 installs, the pinned Ruff) runs only through the cloud environment's setup script; when
