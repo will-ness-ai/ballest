@@ -16,8 +16,8 @@ Prefab reads by their tag, and the browser asks who is signed in, as it already 
 
 The file is stored as the text the player uploaded, at most 4 MB, after the same checks the
 game's spawn command applies. A Prefab is never deleted outright: deleting or taking one
-down stamps its row, so it still counts against the uploader's limit of 5 a day (5 an hour
-since PR #233, with a per-player limit the admin can set in `prefab_limits`), and a ban
+down stamps its row, so it still counts against the uploader's limit (5 a day at first; since
+PR #233, 5 in any rolling hour, or a per-player limit the admin sets in `prefab_limits`), and a ban
 hides an uploader's Prefabs at read time, so an unban brings them back. The admin is one
 Steam ID in code (Will's), not a role table.
 
