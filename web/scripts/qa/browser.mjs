@@ -39,6 +39,11 @@ export const viewName = ({ page, state, width, text }) =>
  * plus the boxes of the elements `boxes` selects and the value of the expression `script`.
  * `prefab` is a Prefab file's text, served in place of every Prefab's file, so a Prefab's
  * page draws it. `skipped` says why there is nothing to compare (a control this width hides).
+ * @param {import("playwright-core").Browser} browser
+ * @param {string} url
+ * @param {{ width: number, text: number }} view
+ * @param {{ control?: string, now: number, full?: boolean, element?: string, boxes?: string,
+ *   script?: string, prefab?: string }} options
  */
 export async function render(
   browser,
@@ -66,6 +71,12 @@ export async function render(
     }
   });
   const errors = [];
+  // requests still out: the load's networkidle has fired once and is never awaited again, so
+  // a fetch the taller window starts below is only seen through this count
+  let pending = 0;
+  page.on("request", () => pending++);
+  page.on("requestfinished", () => pending--);
+  page.on("requestfailed", () => pending--);
   try {
     await page.clock.setFixedTime(now);
     await page.route(DROP, (r) => r.abort());
@@ -137,7 +148,7 @@ export async function render(
       await page.setViewportSize({ width: view.width, height });
       // a taller window lets a list's infinite scroll load more: wait until it stops
       for (let last = -1, i = 0; i < 10; i++) {
-        await page.waitForLoadState("networkidle").catch(() => undefined);
+        await quiet(page, () => pending);
         await settle(page);
         const count = await page.evaluate(() => document.body.querySelectorAll("*").length);
         if (count === last) break;
@@ -153,6 +164,14 @@ export async function render(
     return { status, title, shot, probes, errors, measured, evaluated };
   } finally {
     await ctx.close();
+  }
+}
+
+/* until no request has been out for half a second, or ten seconds have passed */
+async function quiet(page, pending) {
+  for (let calm = 0, i = 0; calm < 2 && i < 40; i++) {
+    await page.waitForTimeout(250);
+    calm = pending() === 0 ? calm + 1 : 0;
   }
 }
 

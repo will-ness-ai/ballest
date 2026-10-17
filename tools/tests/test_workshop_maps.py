@@ -1,6 +1,6 @@
 """workshop_maps.py's choices, without Steam: what a query names, and which Maps it finds."""
 
-from workshop_maps import campaign_line, curated_ids, match, parse_query
+from workshop_maps import campaign_line, curated_ids, listed_on_site, match, parse_query
 
 MAPS = [
     {"pfid": "3", "title": "Hydro 3", "creator": "Action Jackson", "cid": "765", "created": 300},
@@ -59,3 +59,12 @@ def test_the_campaign_line_is_ready_to_paste():
 def test_curated_ids_reads_campaigns_ts():
     source = 'maps: ["3605138459", "3607096927"],\n  maps: [\n    "3612357898",\n  ],'
     assert curated_ids(source) == {"3605138459", "3607096927", "3612357898"}
+
+
+def test_a_map_page_says_whether_the_site_lists_the_map():
+    # the site's page for a Map the collector hasn't listed yet is a soft not-found: it
+    # answers 200 like any other, and only its robots tag tells them apart
+    listed = '<title>stoxy&#x27;s mini golf 009 · Ballest of Them All</title><meta name="x"/>'
+    unlisted = '<title>Ballest of Them All</title><meta name="robots" content="noindex"/>'
+    assert listed_on_site(listed)
+    assert not listed_on_site(unlisted)

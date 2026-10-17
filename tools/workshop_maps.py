@@ -6,9 +6,10 @@ The query is Workshop items (their links or IDs, or a whole pasted post holding 
 Map stands for itself and a Steam collection for its Maps in the collection's order, in the
 order given. Or it names a maker: a profile URL (/profiles/ or /id/), a SteamID64, or any
 part of their in-game or Steam name in any case (their Maps oldest first). Prints each Map's ID,
-date, title and maker, marks the ones already in a Campaign (web/lib/campaigns.ts), and
-ends with the `maps:` line to paste. Needs STEAM_API_KEY (env or .env), as the collector
-does; docs/site.md, "Campaigns", covers adding one.
+date, title and maker, marks the ones already in a Campaign (web/lib/campaigns.ts) and the
+ones the site doesn't list yet (a Refresh lists them), and ends with the `maps:` line to
+paste. Needs STEAM_API_KEY (env or .env), as the collector does; docs/site.md, "Campaigns",
+covers adding one.
 """
 
 import json
@@ -18,6 +19,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 from campaign_common import load_key, resolve_names, workshop_catalogue
 
@@ -25,6 +27,7 @@ CAMPAIGNS_TS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "lib", "campaigns.ts"
 )
 API = "https://api.steampowered.com/"
+SITE = "https://ballestrecords.com/map/"
 
 
 # a Workshop link's ID (wherever it sits among the link's parameters), or a bare one
@@ -90,6 +93,22 @@ def expand(item_id):
     return [c["publishedfileid"] for c in children] or [item_id]
 
 
+def listed_on_site(html):
+    """Whether a site Map page shows the Map. One the collector hasn't listed yet is a soft
+    not-found that still answers 200, told apart only by its noindex (generateMetadata in
+    web/app/map/[pfid]/[[...focus]]/page.tsx)."""
+    return not re.search(r'<meta name="robots" content="noindex', html)
+
+
+def on_site(pfid):
+    """listed_on_site for one Map, or None when the site can't be read."""
+    try:
+        with urllib.request.urlopen(SITE + pfid, timeout=30) as r:  # noqa: S310 (fixed https)
+            return listed_on_site(r.read().decode("utf-8", "replace"))
+    except OSError:
+        return None
+
+
 def resolve_vanity(key, name):
     q = urllib.parse.urlencode({"key": key, "vanityurl": name})
     url = API + "ISteamUser/ResolveVanityURL/v1/?" + q
@@ -130,10 +149,20 @@ def main():
         sys.exit("no Maps found")
     with open(CAMPAIGNS_TS, encoding="utf-8") as f:
         curated = curated_ids(f.read())
-    for m in found:
+    with ThreadPoolExecutor(8) as pool:
+        site = list(pool.map(on_site, [m["pfid"] for m in found]))
+    for m, shown in zip(found, site, strict=True):
         day = time.strftime("%Y-%m-%d", time.gmtime(m["created"]))
         mark = "  (in a Campaign)" if m["pfid"] in curated else ""
+        if shown is False:
+            mark += "  (not on the site yet)"
         print(f"{m['pfid']}  {day}  {m['title']}  by {m['creator']} ({m['cid']}){mark}")
+    if False in site:
+        print(
+            "the site lists a Map from the Refresh after it is published: run one before checking"
+        )
+    if None in site:
+        print("couldn't reach the site to check which Maps it lists")
     print(campaign_line(found))
 
 
