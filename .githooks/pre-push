@@ -1,0 +1,4 @@
+#!/bin/sh
+# Before a push, the format and lint checks CI runs (`pnpm check`, docs/linting.md), so a push
+# never turns CI red on a lint error. Turned on by `pnpm install` at the root (its prepare script).
+exec pnpm --silent check

@@ -66,7 +66,8 @@ in the PR, not part of it.
 
 ## 7. Update the PR
 
-Push, then rewrite the PR description to match what landed (Before / After, and How,
+Push, then rewrite the PR description in the shape of `.github/pull_request_template.md` (a body
+passed through `gh` or the API skips the template, so copy its Checked lines in) to match what landed (Before / After, and How,
 including the design verdicts and the prototype branch), and mark it ready for review once
 CI is green and the final commit itself has been checked: the smoke test, its preview
 deploy, and, for a site change, a Refresh's revalidate end to end and the changed pages

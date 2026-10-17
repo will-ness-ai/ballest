@@ -427,8 +427,12 @@ branch `claude/prototype-prefabs` (spec #213).
   down or hidden, reads as gone.
 - **Stand-in shapes**: the file names meshes but carries no geometry, and the game's
   meshes stay off the repo (ADR 0001), so `lib/prefab.ts` draws each known mesh as a box,
-  cylinder, sphere, scoop, torus or half or quarter ring (the hole bowls) sized from its
-  bounds, an unknown one as a grey box, and colours each by its material's name; an Emissive
+  cylinder, cone, pyramid, sphere, torus or half or quarter ring (the hole bowls) sized from its
+  bounds, an unknown one as a grey box. A box whose mesh is curved is drawn instead as its
+  outline in one view pushed through the bounds, squeezed by a second view's outline where that
+  helps (`lib/prefab-profiles.ts`): coarse outlines, a few dozen points traced from mesh renders
+  in the private ballest-map-making (`extract/piece_profiles.py`), never the mesh itself.
+  `pnpm --silent qa piece` scores each against those renders. Each piece is coloured by its material's name; an Emissive
   material glows, as the game's lamps do. A fill light opposite
   the key keeps every side's colours true, so a sign seen from the front isn't greyed. Rotations are Unreal's [pitch, yaw, roll] in
   degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
@@ -440,10 +444,11 @@ branch `claude/prototype-prefabs` (spec #213).
   picked, which the card, the upload ping's still and the page's viewer start from; none is
   three-quarters from above with the whole Prefab in view. It is stored relative to the
   Prefab's bounds (the camera's direction, its distance over the fitting one, and where it
-  looks in radii), so it frames the same at any picture size. The upload form's preview holds
-  still so the uploader can turn it and press Use this view (or Default view); on the page,
-  the uploader's Use this view for its picture saves the view they've turned to
-  (`PATCH /api/prefabs/<slug>` with only `{ angle }`).
+  looks in radii), so it frames the same at any picture size. The uploader picks it in
+  `AnglePicker.tsx`, on the upload form and in the Edit dialog: a line saying what to do, the
+  preview held still, and Use this view (or Default view), which reads "✓ Card uses this
+  view" until they turn the model again. Edit saves it with the name, description and tags;
+  `PATCH /api/prefabs/<slug>` also takes `{ angle }` alone.
 - **Uploading** (`UploadForm.tsx`, `POST /api/prefabs` in `db/prefab-api.ts`): signed in with
   Steam, 5 an hour per player (or the limit the admin gave them) counted from the rows. The file is checked in the browser the
   moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,
@@ -501,7 +506,13 @@ only visible ones.
   (reference | target | changes in red) in `scratch/qa/`. Read those pictures, not
   screenshots of your own. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
-  place of a throwaway Playwright script. Both sides read the same database, so a change in
+  place of a throwaway Playwright script. `qa shot prefab@1280 --prefab <file.json>` has the
+  Prefab page's viewer draw any file. To work on a stand-in shape, run `qa piece <mesh>`
+  instead: it scores the stand-in's top, front and side outlines against the game mesh's
+  renders in `ballest-map-making/references/pieces/` (1.00 is the same outline) and writes a
+  game | viewer | outlines sheet; `qa piece --all` lists every mesh, worst first, and
+  `--montage` adds their game and viewer rows 16 to a picture (`--match` narrows the list). A page
+  that answers 200 with a "not found" title is a `gone` fault: its catalogue ID is stale. Both sides read the same database, so a change in
   numbers alone is data, and the two deployments' caches can differ by a Refresh.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel
   address. A page or dialog with no row in the catalogue is not checked: add it. Locally,

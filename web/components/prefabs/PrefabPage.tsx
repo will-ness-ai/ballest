@@ -22,8 +22,6 @@ export function PrefabPage({ p }: { p: Prefab }) {
         <PrefabModel
           src={prefabFileHref(p.slug)}
           name={p.fileName.replace(/\.json$/, "")}
-          slug={p.slug}
-          uploader={p.uploader.steamId}
           angle={p.angle}
         />
         <aside className="pf-side">
