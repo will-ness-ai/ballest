@@ -82,8 +82,8 @@ class C(steam.Client):
             print("ready", flush=True)
             for pf in await self.fetch_published_files(*[int(p) for p in picks]):
                 m = await pf.manifest()
-                for f in m.files:
-                    data = await f.read()
+                for f in [p for p in m.paths if p.is_file()]:
+                    data = await f.read_bytes()
                     if not data:
                         continue
                     with open(os.path.join(OUT, f"{pf.id}.ballmap"), "wb") as fh:  # noqa: ASYNC230
