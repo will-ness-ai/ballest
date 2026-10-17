@@ -124,8 +124,8 @@ The database is also the collector's only memory between runs. Before it logs in
 
 - every player's persona, picture and profile (`players`), carried forward so a run looks up
   only players with no name, plus one slice of the rest (`names_due`) picked by how many
-  Refreshes the database holds, so every name is looked up again within 16 Refreshes
-  however late GitHub starts them;
+  Refreshes the database holds, so every name is looked up again within
+  `NAME_REFRESH_SLICES` Refreshes however late GitHub starts them;
 - every Map's board ID (`boards.leaderboard_id`, set on its first finish), and from its
   latest `map_history` row the Workshop sessions, subscriptions and entry count as of its
   last good read, with how many open Entries its board holds;
