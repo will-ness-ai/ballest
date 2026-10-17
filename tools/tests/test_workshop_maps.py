@@ -13,10 +13,16 @@ MAPS = [
 def test_a_query_is_items_a_player_or_a_name():
     link = "https://steamcommunity.com/sharedfiles/filedetails/?id="
     assert parse_query(link + "3821607033") == ("items", ["3821607033"])
-    # a pasted post: every link in it, in order, once
+    # a pasted post: every link in it, in order (main drops repeats once collections expand)
     post = f"{link}5\n{link}6, {link}5 https://steamcommunity.com/workshop/filedetails/?id=7&x=1"
-    assert parse_query(post) == ("items", ["5", "6", "7"])
-    assert parse_query("3821607033 3821607034") == ("items", ["3821607033", "3821607034"])
+    assert parse_query(post) == ("items", ["5", "6", "5", "7"])
+    assert parse_query("3821607033, 3821607034") == ("items", ["3821607033", "3821607034"])
+    assert parse_query(f"Map 1: 3821607033 then {link}3821607034") == (
+        "items",
+        ["3821607033", "3821607034"],
+    )
+    # Steam's own links often put the ID after another parameter
+    assert parse_query(f"{link[:-3]}l=english&id=42") == ("items", ["42"])
     assert parse_query("https://steamcommunity.com/profiles/76561199154600151/myworkshopfiles") == (
         "player",
         "76561199154600151",
@@ -26,7 +32,7 @@ def test_a_query_is_items_a_player_or_a_name():
         "vanity",
         "stoxy999",
     )
-    # a name with a space, quoted or not
+    # a name with a space (main joins the arguments, so quoting doesn't matter)
     assert parse_query("Acehole Viscunty") == ("name", "Acehole Viscunty")
 
 

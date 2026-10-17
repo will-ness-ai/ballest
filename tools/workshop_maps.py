@@ -27,24 +27,26 @@ CAMPAIGNS_TS = os.path.join(
 API = "https://api.steampowered.com/"
 
 
+# a Workshop link's ID (wherever it sits among the link's parameters), or a bare one
+ITEM = re.compile(r"filedetails/\?(?:[^\s#]*?&)?id=(\d+)|(?<![\w/=?&])(\d{6,11})(?!\w)")
+
+
 def parse_query(text):
-    """What the command line names: ("items", Workshop IDs in order, once each),
+    """What the command line names: ("items", Workshop IDs in the order given),
     ("player", SteamID64), ("vanity", a custom URL's name) or ("name", text)."""
-    ids = re.findall(r"filedetails/\?id=(\d+)", text)
-    tokens = text.split()
-    if not ids and tokens and all(t.isdigit() for t in tokens):
-        if len(tokens) == 1 and len(text.strip()) == 17 and text.strip().startswith("7656"):
-            return ("player", text.strip())
-        ids = tokens
+    text = text.strip()
+    if len(text) == 17 and text.isdigit() and text.startswith("7656"):
+        return ("player", text)
+    ids = [link or bare for link, bare in ITEM.findall(text)]
     if ids:
-        return ("items", list(dict.fromkeys(ids)))
+        return ("items", ids)
     player = re.search(r"/profiles/(\d+)", text)
     if player:
         return ("player", player.group(1))
     vanity = re.search(r"steamcommunity\.com/id/([^/?#\s]+)", text)
     if vanity:
         return ("vanity", vanity.group(1))
-    return ("name", text.strip())
+    return ("name", text)
 
 
 def match(maps, query, personas=None):
