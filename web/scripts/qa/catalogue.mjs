@@ -75,7 +75,7 @@ export const STATES = [
   { name: "sheet", page: "overall", click: "#boardBtn" },
   { name: "seasons", page: "overall", click: ".seasonchip" },
   { name: "points", page: "overall", click: "button[aria-label='How points work']" },
-  { name: "campaign-switch", page: "campaign", click: ".seasonchip" },
+  { name: "campaign-switch", page: "campaign", click: ".seasonchip:visible" },
   { name: "campaign-sheet", page: "campaign-map", click: "#boardBtn" },
   { name: "campaign-points", page: "campaign", click: "button[aria-label='How points work']" },
   { name: "fresh", page: "home", click: "#freshness" },

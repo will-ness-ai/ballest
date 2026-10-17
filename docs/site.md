@@ -250,8 +250,9 @@ place there. A player is ranked once they have a time on one Map.
 
 **The page** (`components/campaign/CampaignView.tsx`) is a Circuit season's twin, built
 from the same pieces: the Campaign switch (`CampaignSwitch.tsx`, the season switch's chip,
-never a row of tabs, since the list keeps growing; it heads the rail on a desktop) lists the Campaigns most players first (`getCampaigns`); the rail lists Overall,
-then each Map as a strip of its preview picture with its number, record and the part of
+never a row of tabs, since the list keeps growing; on a desktop it heads the rail, under a
+"Campaign" label and over the maker's name) lists the Campaigns most players first
+(`getCampaigns`); the rail lists Overall, then each Map as a strip of its preview picture with its number, record and the part of
 its title after the Campaign's name (`mapName`), left out when that is only its number
 ("Miniblack 01", "AJC1"), and the whole title when what is left starts with a number that
 isn't the Map's place ("Ninja0", "AJ26"). Everywhere the frame names a Map (the rail's sheet, the podium

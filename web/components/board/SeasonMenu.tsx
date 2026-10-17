@@ -1,7 +1,7 @@
 "use client";
-// The phone's season chip: a button and the popover menu it opens. The browser closes it on
+// The season chip: a button and the popover menu it opens. The browser closes it on
 // a tap outside or Escape; a pick closes it here, since the page it opens keeps this one.
-// A Campaign's switch uses it too, as `kind` "Campaign".
+// A Campaign's switch uses it too, as `kind` "Campaign", on a desktop as well as a phone.
 import type { ReactNode } from "react";
 
 export function SeasonMenu({
