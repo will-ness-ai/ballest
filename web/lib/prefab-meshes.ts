@@ -2,7 +2,8 @@
 // the game's packages): each mesh a level-editor piece uses, by its asset name, as the stand-in
 // shape the viewer draws and its bounds in cm (lib/prefab.ts). Numbers only: the meshes
 // themselves stay out of the repo (ADR 0001). PIECE_MESHES names each piece's own mesh, for an
-// item whose file names none the table knows.
+// item whose file names none the table knows, and PIECE_MATERIALS the material of a piece whose
+// file names none (hand-added, from the same catalogue).
 import type { MeshShape } from "./prefab";
 
 export const MESHES: Partial<Record<string, MeshShape>> = {
@@ -282,4 +283,11 @@ export const PIECE_MESHES: Partial<Record<string, string>> = {
   MP_TunnelHalf: "SMHalfTunnel_223D6CF8",
   RubberBlock2_M_PlasticBase: "RubberBlock2",
   RubberCylinder: "SM_RubberCylinder",
+};
+
+/* a piece whose blueprint brings its own material, so its file names none, by the material the
+   catalogue lists for it */
+export const PIECE_MATERIALS: Partial<Record<string, string>> = {
+  BP_AirVent: "MI_ArenaWhite",
+  MP_AirVent: "MI_ArenaWhite",
 };

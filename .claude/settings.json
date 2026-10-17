@@ -44,6 +44,28 @@
         ],
         "matcher": "startup|resume"
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/review-gate.mjs\" record"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|mcp__github__merge_pull_request|mcp__github__enable_pr_auto_merge|mcp__github__update_pull_request",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/review-gate.mjs\" gate"
+          }
+        ]
+      }
     ]
   }
 }

@@ -58,6 +58,13 @@ collector POSTs `/api/revalidate` (Bearer `REVALIDATE_SECRET`) once a Refresh ha
 which expires the tag, and the next request reads fresh. Searches are read fresh every
 time, since their keys would never repeat.
 
+A tab left open keeps the page it loaded. When the reader comes back to it (the tab in
+view again, the window focused, or the page restored from the back/forward cache) and it
+was read over ten minutes ago, `useLatestRefresh` (`hooks/client.ts`, run by the header's
+`Freshness`) asks `/api/refreshed` for the latest Refresh, from the same cached read, and
+calls `router.refresh()` only when that is newer than the one on the page. A board's list
+then starts over from its new first rows. Nothing polls while a tab is open.
+
 Sign in with Steam (ADR 0008) never touches a page's cache: the session cookie is signed
 with `SESSION_SECRET` and only `/api/me` reads it, from the browser, which asks only when
 the readable `ballest-in` cookie says a session exists. Without `SESSION_SECRET` nobody can
@@ -443,7 +450,7 @@ branch `claude/prototype-prefabs` (spec #213).
   outline in one view pushed through the bounds, squeezed by a second view's outline where that
   helps (`lib/prefab-profiles.ts`): coarse outlines, a few dozen points traced from mesh renders
   in the private ballest-map-making (`extract/piece_profiles.py`), never the mesh itself.
-  `pnpm --silent qa piece` scores each against those renders. Each piece is coloured by its material's name; an Emissive
+  `pnpm --silent qa piece` scores each against those renders. Each piece is coloured by its material's name (or, for a piece whose file names none, like a vent, the catalogue's, `PIECE_MATERIALS`); an Emissive
   material glows, as the game's lamps do. A fill light opposite
   the key keeps every side's colours true, so a sign seen from the front isn't greyed. Rotations are Unreal's [pitch, yaw, roll] in
   degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
