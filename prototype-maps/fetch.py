@@ -78,6 +78,7 @@ print(json.dumps(index, indent=1))
 class C(steam.Client):
     async def on_ready(self):
         try:
+            print('ready', flush=True)
             for pf in await self.fetch_published_files(*[int(p) for p in picks]):
                 m = await pf.manifest()
                 for f in m.files:
@@ -86,12 +87,21 @@ class C(steam.Client):
                         continue
                     with open(os.path.join(OUT, f"{pf.id}.ballmap"), "wb") as fh:
                         fh.write(data)
-                    print(pf.id, f, len(data))
+                    print(pf.id, f, len(data), flush=True)
         finally:
             await self.close()
 
 
-C().run(refresh_token=os.environ["STEAM_REFRESH_TOKEN"])
+for attempt in range(4):
+    try:
+        C().run(refresh_token=os.environ["STEAM_REFRESH_TOKEN"])
+    except Exception as e:
+        print("run ended:", repr(e)[:200], flush=True)
+    if all(os.path.exists(os.path.join(OUT, f"{p}.ballmap")) for p in picks):
+        break
+    import time
+
+    time.sleep(10)
 with open(os.path.join(OUT, "index.json"), "w") as fh:
     json.dump(index, fh, indent=1)
 sys.exit(0)
