@@ -50,6 +50,8 @@ export const timed = <T extends { top3: ReadonlyArray<unknown> }>(maps: Readonly
 
 /* a timed Map's record, in ticks */
 export const recordOf = (m: { top3: MapCard["top3"] }) => m.top3[0][2];
+/* a Map's record, in ticks, or null for one nobody has a time on yet (spec #259) */
+export const recordIfAny = (m: { top3: MapCard["top3"] }) => (m.top3.length ? recordOf(m) : null);
 
 /* what a Map's 3D view (components/workshop/Map3D.tsx) shows of it: its file's version, the
    bar's name and maker, and the card's record and Medals */
@@ -58,8 +60,8 @@ export interface Map3DView {
   version: string;
   title: string;
   creator: string;
-  /* the record in ticks: only a timed Map has a page */
-  record: number;
+  /* the record in ticks, or null on a Map nobody has a time on yet */
+  record: number | null;
   /* [bronze, silver, gold, author], seconds */
   medals: Array<number>;
 }
@@ -73,7 +75,7 @@ export const map3dOf = (m: WorkshopMap): Map3DView | null =>
         version: m.fileVersion,
         title: m.title,
         creator: m.creator,
-        record: recordOf(m),
+        record: recordIfAny(m),
         medals: m.medals,
       }
     : null;
