@@ -82,4 +82,6 @@ it breaks. Those files carry the reasons; this file carries the checks.
 ## Git
 
 - Work lands on `claude/<slug>` branches, squash-merged onto `main`.
-- Commits carry the repo-local identity `will-ness-ai <n3s.online@gmail.com>`.
+- Commits carry the repo-local identity `will-ness-ai <n3s.online@gmail.com>` as author and
+  committer; never override it with `git -c user.email=...`. The `authors` job in `check.yml`
+  fails a PR that does, except for merges GitHub makes from its web page.
