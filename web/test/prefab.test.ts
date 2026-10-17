@@ -8,9 +8,7 @@ import {
   footprintOf,
   partsOf,
   pieceLabel,
-  profileAxes,
-  squeezeAt,
-  squeezeAxis,
+  prismOf,
   shapesOf,
   type PrefabFile,
 } from "../lib/prefab";
@@ -149,19 +147,23 @@ describe("a Prefab file", () => {
 
   test("an outline is laid in its view's plane, in three's axes, and pushed along the third", () => {
     // Unreal x, y, z are three's x, z, y; side is Unreal x across and z up, seen along y
-    expect(profileAxes("side")).toEqual([0, 1, 2]);
-    expect(profileAxes("top")).toEqual([0, 2, 1]);
-    expect(profileAxes("front")).toEqual([2, 1, 0]);
+    const axes = (view: "top" | "front" | "side") => prismOf({ view, shapes: [] }).axes;
+    expect(axes("side")).toEqual([0, 1, 2]);
+    expect(axes("top")).toEqual([0, 2, 1]);
+    expect(axes("front")).toEqual([2, 1, 0]);
   });
 
   test("a second view squeezes the prism: how far it reaches, read between evenly spaced places", () => {
     // two places, at a quarter and three quarters along: full depth, then only its lower half
     const spans = [0, 1000, 0, 500];
-    expect(squeezeAt(spans, 0)).toEqual([0, 1]);
-    expect(squeezeAt(spans, 0.5)).toEqual([0, 0.75]);
-    expect(squeezeAt(spans, 1)).toEqual([0, 0.5]);
-    // a top outline squeezed from the front shares Unreal's y, three's z
-    expect(squeezeAxis({ view: "top", shapes: [], squeeze: { view: "front", spans } })).toBe(2);
+    // a top outline (pushed up, three's y) squeezed from the front: they share Unreal's y,
+    // three's z, so how high a point reaches is read by how deep it is
+    const { squeeze } = prismOf({ view: "top", shapes: [], squeeze: { view: "front", spans } });
+    expect(squeeze?.([0, 0.5, -0.5])).toEqual([0, 0.5, -0.5]);
+    expect(squeeze?.([0, 0.5, 0])).toEqual([0, 0.25, 0]);
+    expect(squeeze?.([0, 0.5, 0.5])).toEqual([0, 0, 0.5]);
+    expect(squeeze?.([0, -0.5, 0.5])).toEqual([0, -0.5, 0.5]);
+    expect(prismOf({ view: "top", shapes: [] }).squeeze).toBeNull();
   });
 
   test("a rounded torus is a torus, and an Emissive material glows", () => {

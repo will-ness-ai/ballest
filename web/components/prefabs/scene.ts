@@ -2,10 +2,8 @@
 // by the live viewer and the list's still pictures.
 import {
   PROFILE_SCALE,
-  profileAxes,
+  prismOf,
   shapesOf,
-  squeezeAt,
-  squeezeAxis,
   type MeshProfile,
   type PrefabFile,
 } from "../../lib/prefab";
@@ -187,7 +185,8 @@ function profileGeometry(THREE: Three, profile: MeshProfile) {
     depth: 1,
     bevelEnabled: false,
   });
-  const [across, up, through] = profileAxes(profile.view);
+  const prism = prismOf(profile);
+  const [across, up, through] = prism.axes;
   const axis = (i: number, sign = 1) => new THREE.Vector3().setComponent(i, sign);
   /* an odd swap of axes would turn the faces inside out; pushing the other way undoes it,
      and the prism is the same either way */
@@ -196,14 +195,12 @@ function profileGeometry(THREE: Three, profile: MeshProfile) {
   const place = new THREE.Matrix4().makeBasis(axis(across), axis(up), axis(through, odd ? -1 : 1));
   g.translate(-0.5, -0.5, -0.5);
   g.applyMatrix4(place);
-  const shared = squeezeAxis(profile);
-  if (profile.squeeze && shared !== null) {
-    /* a second view's outline narrows how far each part of the prism reaches */
+  if (prism.squeeze) {
     const position = g.getAttribute("position");
+    const p = new THREE.Vector3();
     for (let i = 0; i < position.count; i++) {
-      const [lo, hi] = squeezeAt(profile.squeeze.spans, position.getComponent(i, shared) + 0.5);
-      const depth = position.getComponent(i, through) + 0.5;
-      position.setComponent(i, through, lo + depth * (hi - lo) - 0.5);
+      const [x, y, z] = prism.squeeze(p.fromBufferAttribute(position, i).toArray());
+      position.setXYZ(i, x, y, z);
     }
     g.computeVertexNormals();
   }

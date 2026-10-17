@@ -52,14 +52,8 @@ const VIEW_AXES: Record<ProfileView, [number, number]> = {
 
 const toThree = (unreal: number) => [0, 2, 1][unreal];
 
-/** the three axis a profile's squeeze is read along: the one both its views lie across */
-export function squeezeAxis({ view, squeeze }: MeshProfile) {
-  const shared = VIEW_AXES[view].find((a) => squeeze && VIEW_AXES[squeeze.view].includes(a));
-  return shared === undefined ? null : toThree(shared);
-}
-
 /** how far the prism reaches, 0 to 1 low and high, at `t` (0 to 1) along the shared axis */
-export function squeezeAt(spans: Array<number>, t: number): [number, number] {
+function squeezeAt(spans: Array<number>, t: number): [number, number] {
   const n = spans.length / 2;
   const at = Math.min(Math.max(t * n - 0.5, 0), n - 1);
   const i = Math.min(Math.floor(at), n - 2);
@@ -69,10 +63,26 @@ export function squeezeAt(spans: Array<number>, t: number): [number, number] {
   return n > 1 ? [lerp(0), lerp(1)] : [spans[0] / PROFILE_SCALE, spans[1] / PROFILE_SCALE];
 }
 
-/** three's axes (x, y up, z) an outline's across, up and pushed-through directions lie along */
-export function profileAxes(view: ProfileView): Vec3 {
+/**
+ * How an outline becomes its prism in the unit box (three's axes, -0.5..0.5): `axes` are three's
+ * axes its across, up and pushed-through directions lie along, and `squeeze` moves a point of the
+ * plain prism to where a second view's outline lets it reach (null without one).
+ */
+export function prismOf({ view, squeeze }: MeshProfile) {
   const [across, up] = VIEW_AXES[view];
-  return [toThree(across), toThree(up), toThree(3 - across - up)];
+  const axes: Vec3 = [toThree(across), toThree(up), toThree(3 - across - up)];
+  const through = axes[2];
+  const shared = squeeze && VIEW_AXES[view].find((a) => VIEW_AXES[squeeze.view].includes(a));
+  if (!squeeze || shared === undefined) return { axes, squeeze: null };
+  return {
+    axes,
+    squeeze(p: Vec3): Vec3 {
+      const [lo, hi] = squeezeAt(squeeze.spans, p[toThree(shared)] + 0.5);
+      const out: Vec3 = [...p];
+      out[through] = lo + (p[through] + 0.5) * (hi - lo) - 0.5;
+      return out;
+    },
+  };
 }
 
 export interface MeshShape {
