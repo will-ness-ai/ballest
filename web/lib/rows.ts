@@ -55,6 +55,16 @@ export interface Placing {
   score: number;
 }
 
+/* Where one player stands in a Campaign they hold a place in (db/site.ts, playerCampaigns) */
+export interface PlayerCampaignRow {
+  slug: string;
+  /* their place and points on its board */
+  rank: number;
+  score: number;
+  /* how many of its listed Maps they hold a time on */
+  finished: number;
+}
+
 /* a Workshop Map with its latest details and what its board says at a glance */
 export interface WorkshopMap {
   pfid: string;
@@ -81,6 +91,9 @@ export interface WorkshopMap {
   crowd: number;
   /* runs at or under the author time */
   authorBeaten: number;
+  /* the version of the Map's file the site holds (map_files), or null before the collector
+     has read it: the 3D view shows only with one */
+  fileVersion: string | null;
 }
 
 export interface PlayerProfile {

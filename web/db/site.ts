@@ -8,7 +8,16 @@ import { CIRCUIT, S1_TRACKS, S2_TRACKS } from "../lib/circuit";
 import { playerDailiesOf, standingsOf } from "../lib/daily";
 import { CREATOR_BEAT_MARGIN_TICKS, SCORE_TICKS_PER_SECOND } from "../lib/rules";
 import type { Db } from "./client";
-import { DERIVED, array, boardSql, rankedSql } from "./boards";
+import {
+  DERIVED,
+  array,
+  boardSql,
+  campaignListedSql,
+  campaignSql,
+  listedMapsSql,
+  rankedSql,
+} from "./boards";
+import type { Campaign } from "../lib/campaigns";
 import type { HistoryInput } from "../lib/history";
 import type {
   BoardPage,
@@ -26,6 +35,7 @@ import type {
   PlayerDaily,
   PlayerData,
   PlayerFinish,
+  PlayerCampaignRow,
   PlayerProfile,
   RunRace,
   Standings,
@@ -40,13 +50,6 @@ const TRACKS = [...S1_TRACKS, ...S2_TRACKS];
 async function rows<T>(db: Db, query: SQL): Promise<Array<T>> {
   return (await db.execute(query)).rows as Array<T>;
 }
-
-/* The boards of the Maps the Workshop lists now: those the latest catalogue carried. A
-   Map gone from the Workshop keeps its rows, but nothing reads it again (docs/data.md). */
-const listedMapsSql = sql`select m.board from maps m join (
-    select distinct on (pfid) pfid, last_seen_refresh from map_history
-    order by pfid, last_seen_refresh desc, id desc) l on l.pfid = m.pfid
-  where l.last_seen_refresh = (select max(last_seen_refresh) from map_history)`;
 
 /* A persona, or the stand-in the page shows for a player Steam gave no name */
 const personaSql = sql`coalesce(nullif(p.persona, ''), 'Player ' || right(p.steam_id, 6))`;
@@ -202,16 +205,65 @@ export async function boardPlaces(
 }
 
 /* The top three of every Circuit Track, which the podium tallies count */
-export async function trackPodiums(db: Db): Promise<Array<Placing>> {
+export function trackPodiums(db: Db): Promise<Array<Placing>> {
+  return mapPodiums(db, TRACKS);
+}
+
+/* The top three of each of `boards`, in their order: a Campaign's Maps for its tally */
+export async function mapPodiums(db: Db, boards: ReadonlyArray<string>): Promise<Array<Placing>> {
   return rows<Placing>(
     db,
     sql`select r.board, r.steam_id as "steamId", p.persona, nullif(p.avatar, '') as avatar,
         nullif(p.profile_url, '') as "profileUrl", r.rank, r.score::float8 as score
-      from (${rankedSql(sql`e.board = any(${array(TRACKS)})`)}) r
+      from (${rankedSql(sql`e.board = any(${array(boards)})`)}) r
       join players p on p.steam_id = r.steam_id
       where r.rank <= 3
-      order by array_position(${array(TRACKS)}, r.board), r.rank`,
+      order by array_position(${array(boards)}, r.board), r.rank`,
   );
+}
+
+/* Where `steamId` stands in each Campaign of `list` they hold a place in, in the list's
+   order: their place and points on its board, and how many of its Maps the Workshop lists
+   they have a time on. A Campaign they have no time in, or whose Maps the Workshop no
+   longer lists, is left out. */
+export async function playerCampaigns(
+  db: Db,
+  steamId: string,
+  list: ReadonlyArray<Campaign>,
+): Promise<Array<PlayerCampaignRow>> {
+  if (!list.length) return [];
+  return rows<PlayerCampaignRow>(
+    db,
+    sql`select slug, rank, score, finished from (${sql.join(
+      list.map(
+        (k, i) =>
+          sql`select ${k.slug}::text as slug, ${i}::int as at, r.rank, r.score::float8 as score,
+            (select count(*)::int from entries e where e.steam_id = r.steam_id
+              and e.closed_refresh is null and e.board in (${campaignListedSql(k)})) as finished
+          from (${campaignSql(k)}) r
+          where r.steam_id = ${steamId}`,
+      ),
+      sql` union all `,
+    )}) x
+    order by at`,
+  );
+}
+
+/* How many players hold a time on every one of a Campaign's Maps the Workshop lists: its
+   share card's "Finished every map". A Map gone from the Workshop asks nothing, as it adds
+   nothing to the board; a Campaign none of whose Maps is listed has no one. */
+export async function finishedEveryMap(db: Db, c: Campaign): Promise<number> {
+  const [r] = await rows<{ n: number }>(
+    db,
+    sql`with listed as (${campaignListedSql(c)})
+      select count(*)::int as n from (
+        select steam_id from entries
+        where closed_refresh is null and board in (select board from listed)
+        group by steam_id
+        having count(distinct board) = (select count(*) from listed)
+      ) x`,
+  );
+  return r.n;
 }
 
 /* Every Workshop Map with its latest details and what the Workshop pages show of its board
@@ -246,13 +298,28 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
         coalesce((select count(*) from unnest(s.scores, s.ids) as u(score, id)
           where u.score <= l.medals[4] * ${SCORE_TICKS_PER_SECOND}
             - case when u.id = m.creator_steam_id then ${CREATOR_BEAT_MARGIN_TICKS} else 0 end), 0)::int
-          as "authorBeaten"
+          as "authorBeaten",
+        f.version as "fileVersion"
       from maps m join latest l on l.pfid = m.pfid
       left join stats s on s.board = m.board
+      left join map_files f on f.pfid = m.pfid
       where l.last_seen_refresh = (select max(last_seen_refresh) from map_history)
       order by m.created_at desc nulls last, m.pfid`,
   );
   return found;
+}
+
+/* A Map's file as the collector stored it (gzip-compressed) and its version, or null when
+   the site holds none */
+export async function mapFile(
+  db: Db,
+  pfid: string,
+): Promise<{ version: string; gzipped: Buffer } | null> {
+  const found = await rows<{ version: string; gzipped: Buffer }>(
+    db,
+    sql`select version, gzipped from map_files where pfid = ${pfid}`,
+  );
+  return found.at(0) ?? null;
 }
 
 /* A player and their place on every board, or null for a Steam ID on no board */

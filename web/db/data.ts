@@ -13,27 +13,46 @@
 // script walking made-up IDs or offsets can only add an empty answer per ID, never a
 // record. The check is per ID because a cache entry comes back whole on every read: a
 // list of every player or Map read to look up one costs its full size each time.
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
+import {
+  CAMPAIGNS,
+  campaignBoard,
+  campaignOf,
+  campaignOfBoard,
+  mapLabel,
+  type Campaign,
+} from "../lib/campaigns";
 import { CIRCUIT, circuitBoard } from "../lib/circuit";
 import { boardHistory, type BoardHistory } from "../lib/history";
 import { playerRecord, type IndexBoard, type PlayerRecord } from "../lib/player";
-import { podiumTallies, type PodiumTally } from "../lib/podiums";
-import { mapPfidOf } from "../lib/rules";
+import { podiumTallies, tally, type PodiumTally } from "../lib/podiums";
+import { isPfid, mapPfidOf } from "../lib/rules";
 import type {
   BoardPage,
   DailyCell,
   DailyDay,
   DailyStandings,
+  BoardRow,
+  PlayerCampaignRow,
   PlayerDailies,
   WorkshopMap,
   WorkshopStandings,
 } from "../lib/rows";
+import type { CampaignStanding } from "../lib/share";
 import { mapCard, timed, type MapCard } from "../lib/workshop";
+import { footprintOf, partsOf, shapesOf, type PrefabFile } from "../lib/prefab";
+import { fileNameOf } from "../lib/prefab-check";
+import { isPrefabSlug } from "../lib/routes";
 import { connect, type Db } from "./client";
+import type { PrefabDeps } from "./prefab-api";
+import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
 import * as q from "./site";
 
 export const DATA_TAG = "data";
+/* the Prefab reads, expired by every write the site makes to them (and, since an uploader's
+   persona comes from the boards, by a Refresh too) */
+export const PREFAB_TAG = "prefabs";
 
 let client: Db | undefined;
 
@@ -100,7 +119,7 @@ export async function getWorkshop(): Promise<Array<WorkshopMap>> {
 /* one Map the Workshop lists, by its published file ID, or null; only an ID shaped like
    one is looked up */
 export async function getMap(pfid: string): Promise<WorkshopMap | null> {
-  return /^\d{1,20}$/.test(pfid) ? mapOf(pfid) : null;
+  return isPfid(pfid) ? mapOf(pfid) : null;
 }
 
 async function mapOf(pfid: string): Promise<WorkshopMap | null> {
@@ -108,6 +127,12 @@ async function mapOf(pfid: string): Promise<WorkshopMap | null> {
   cacheTag(DATA_TAG);
   cacheLife("max");
   return (await getWorkshop()).find((m) => m.pfid === pfid) ?? null;
+}
+
+/* a Map's stored file and its version, or null (GET /map/<pfid>/file). Read fresh, never
+   cached here: its bytes are no JSON, and the response itself is cached a year by version */
+export function readMapFile(pfid: string) {
+  return isPfid(pfid) ? q.mapFile(db(), pfid) : Promise.resolve(null);
 }
 
 /* whether the Workshop lists any Map, for the header's tab */
@@ -161,10 +186,14 @@ export async function readBoard(name: string, from: number, count: number): Prom
   return { total: head.total, rows: blocks.flatMap((b) => b.rows).slice(at, at + end - from) };
 }
 
-/* whether a board can be read: a Circuit board, or a Map the Workshop lists */
+/* whether a board can be read: a Circuit board, a Campaign's, or a Map the Workshop lists */
 export async function isBoard(name: string): Promise<boolean> {
   const pfid = mapPfidOf(name);
-  return !!circuitBoard(name) || (pfid !== null && (await getMap(pfid)) !== null);
+  return (
+    !!circuitBoard(name) ||
+    !!campaignOfBoard(name) ||
+    (pfid !== null && (await getMap(pfid)) !== null)
+  );
 }
 
 /* whether a board's runs can race: a board that can be read, or a Daily's */
@@ -325,7 +354,203 @@ async function playerDailiesOf(steamId: string) {
   return q.playerDailies(db(), steamId);
 }
 
+export interface CampaignData {
+  c: Campaign;
+  /* its Maps the Workshop lists, in the Campaign's order */
+  maps: Array<WorkshopMap>;
+  /* how many players its board ranks: those with a time on one of those Maps */
+  players: number;
+  /* first on its board, or null while nobody has a time */
+  leader: BoardRow | null;
+  /* the podium places on those Maps, labelled as the rail numbers them */
+  tally: PodiumTally;
+}
+
+/* a curated Campaign by its slug with its Maps, players, leader and podium tally, or null
+   for one that isn't curated or none of whose Maps the Workshop lists. Every list of
+   Campaigns is made of these, so a Campaign is listed, counted and led the same way on
+   every page. */
+export async function getCampaign(slug: string): Promise<CampaignData | null> {
+  return campaignOf(slug) ? campaignData(slug) : null;
+}
+
+async function campaignData(slug: string): Promise<CampaignData | null> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const c = campaignOf(slug);
+  if (!c) return null;
+  const workshop = await getWorkshop();
+  const maps = c.maps.flatMap((pfid) => workshop.filter((m) => m.pfid === pfid));
+  if (!maps.length) return null;
+  const boards = maps.map((m) => m.name);
+  const label = (name: string) => {
+    const m = maps.find((x) => x.name === name);
+    return m ? mapLabel(c, m.pfid, m.title) : name;
+  };
+  const [head, podiums] = await Promise.all([
+    getBoardPage(campaignBoard(c), 0, 1),
+    q.mapPodiums(db(), boards),
+  ]);
+  return {
+    c,
+    maps,
+    players: head.total,
+    leader: head.rows[0] ?? null,
+    tally: tally(c.title, boards, podiums, label),
+  };
+}
+
+/* a Campaign as the lists draw it: the Campaign switch, the banners, a player's cards */
+export interface ListedCampaign {
+  c: Campaign;
+  players: number;
+  /* its listed Maps' preview pictures, in its order */
+  previews: Array<string | null>;
+  leader: BoardRow | null;
+}
+
+/* every Campaign getCampaign finds, most players first, equal counts in the curated order:
+   what the Campaign switch, the homepage's carousel and /campaigns list; one none of whose
+   Maps the Workshop lists is shown nowhere */
+export async function getCampaigns(): Promise<Array<ListedCampaign>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const all = await Promise.all(CAMPAIGNS.map((c) => campaignData(c.slug)));
+  return all
+    .flatMap((d) =>
+      d
+        ? [{ c: d.c, players: d.players, previews: d.maps.map((m) => m.preview), leader: d.leader }]
+        : [],
+    )
+    .sort((a, b) => b.players - a.players);
+}
+
+export interface PlayerCampaign extends Omit<PlayerCampaignRow, "slug"> {
+  c: Campaign;
+  /* its listed Maps' pictures, in its order */
+  previews: Array<string | null>;
+  /* how many players its board ranks */
+  players: number;
+}
+
+/* where a player stands in each Campaign they hold a place in, in getCampaigns' order, with
+   the Campaign's pictures and field: their page's Campaigns shelf. Only a Steam ID the
+   database has seen is read. */
+export async function getPlayerCampaigns(steamId: string): Promise<Array<PlayerCampaign>> {
+  return (await isPlayer(steamId)) ? playerCampaignsOf(steamId) : [];
+}
+
+async function playerCampaignsOf(steamId: string): Promise<Array<PlayerCampaign>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const [listed, mine] = await Promise.all([
+    getCampaigns(),
+    q.playerCampaigns(db(), steamId, CAMPAIGNS),
+  ]);
+  return listed.flatMap(({ c, previews, players }) => {
+    const at = mine.find((x) => x.slug === c.slug);
+    return at
+      ? [{ c, previews, players, rank: at.rank, score: at.score, finished: at.finished }]
+      : [];
+  });
+}
+
+/* what a Campaign's share card reads: its Maps and where it stands, or null where
+   getCampaign is null */
+export async function getCampaignShare(
+  slug: string,
+): Promise<{ data: CampaignData; standing: CampaignStanding } | null> {
+  const data = await getCampaign(slug);
+  if (!data) return null;
+  return {
+    data,
+    standing: {
+      players: data.players,
+      leader: data.leader,
+      finishedEveryMap: await finishedEveryMapOf(slug),
+    },
+  };
+}
+
+async function finishedEveryMapOf(slug: string) {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const c = campaignOf(slug);
+  return c ? q.finishedEveryMap(db(), c) : 0;
+}
+
 /* the Compare dialog's search, read fresh */
 export function searchPlayers(query: string, except: string) {
   return q.searchPlayers(db(), query, { except });
+}
+
+/* every live Prefab as the gallery's cards, newest first */
+export async function getPrefabCards(): Promise<Array<PrefabCard>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG, PREFAB_TAG);
+  cacheLife("max");
+  return prefabList(db());
+}
+
+export interface PrefabPage extends Omit<PrefabView, "file"> {
+  parts: Array<{ piece: string; count: number }>;
+  size: { w: number; d: number; h: number };
+  fileName: string;
+}
+
+/* a Prefab's page, without its file (the viewer fetches that), or null for a slug nobody
+   uploaded; one that isn't live comes back with its state, for the page to say it's gone.
+   Only a slug shaped like one is looked up */
+export async function getPrefab(slug: string): Promise<PrefabPage | null> {
+  return isPrefabSlug(slug) ? prefabPageOf(slug) : null;
+}
+
+async function prefabPageOf(slug: string): Promise<PrefabPage | null> {
+  "use cache: remote";
+  cacheTag(DATA_TAG, PREFAB_TAG);
+  cacheLife("max");
+  const p = await prefabOf(db(), slug);
+  if (!p) return null;
+  const { file, ...rest } = p;
+  const parsed = JSON.parse(file) as PrefabFile;
+  return {
+    ...rest,
+    parts: partsOf(parsed),
+    size: footprintOf(shapesOf(parsed)),
+    fileName: fileNameOf(p.name),
+  };
+}
+
+/* a file bigger than this is read fresh, not cached: a cache entry has a size limit */
+const CACHED_FILE_BYTES = 1_000_000;
+
+/* a live Prefab's file as it was uploaded and the name it downloads as, or null */
+export async function getPrefabFile(
+  slug: string,
+): Promise<{ fileName: string; file: string } | null> {
+  if (!isPrefabSlug(slug)) return null;
+  const cached = await prefabFileOf(slug);
+  if (!cached) return null;
+  if (cached.file !== null) return { fileName: cached.fileName, file: cached.file };
+  const p = await prefabOf(db(), slug);
+  return p?.state === "live" ? { fileName: fileNameOf(p.name), file: p.file } : null;
+}
+
+async function prefabFileOf(slug: string) {
+  "use cache: remote";
+  cacheTag(PREFAB_TAG);
+  cacheLife("max");
+  const p = await prefabOf(db(), slug);
+  if (p?.state !== "live") return null;
+  return { fileName: fileNameOf(p.name), file: p.bytes > CACHED_FILE_BYTES ? null : p.file };
+}
+
+/* what the Prefab API's routes write with: this server's database, and every cached Prefab
+   read expired after a write so the change shows at once */
+export function prefabDeps(): PrefabDeps {
+  return { db: db(), changed: () => revalidateTag(PREFAB_TAG, { expire: 0 }) };
 }

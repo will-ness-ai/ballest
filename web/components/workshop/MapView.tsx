@@ -3,8 +3,11 @@
 // no card. `focus` is a Steam ID whose row to find and mark.
 import { notFound, redirect } from "next/navigation";
 
+import { PartOf } from "./Campaign";
 import { CreatorLink } from "./Card";
 import { Age } from "./Age";
+import { Map3D } from "./Map3D";
+import { MedalList } from "./Medals";
 import { BackLink, Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
 import { BoardBody } from "../board/BoardBody";
@@ -23,16 +26,27 @@ import { YouMarks } from "../board/YouMarks";
 import { YouSpread } from "../board/YouSpread";
 import type { WorkshopMap } from "../../lib/rows";
 import { homeHref, mapHref } from "../../lib/routes";
-import { BOARD_CHUNK, MEDALS, fmtN, fmtSec, fmtTime, isSteamId } from "../../lib/rules";
+import { BOARD_CHUNK, fmtN, fmtTime, isSteamId } from "../../lib/rules";
 import { spreadOf } from "../../lib/spread";
-import { HIDDEN, reportHref } from "../../lib/workshop";
+import { HIDDEN, map3dOf, recordOf, reportHref } from "../../lib/workshop";
 
-function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; asOf: number }) {
+/* exported for its test (test/map-3d-button.test.tsx) */
+export function MapPanel({
+  m,
+  scores,
+  asOf,
+}: {
+  m: WorkshopMap;
+  scores: Array<number>;
+  asOf: number;
+}) {
   const reason = HIDDEN[m.pfid];
+  const view = map3dOf(m);
   return (
     <aside className="mpanel" id="mpanel">
       <BackLink trail="maps" />
       <MapImage preview={m.preview} className="mp-img" />
+      {view && <Map3D m={view} />}
       <div>
         <h1 className="mp-t">{m.title}</h1>
         <span className="mp-by">
@@ -40,6 +54,7 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
         </span>
       </div>
       {reason && <p className="mp-flag">Reported broken: {reason}</p>}
+      <PartOf pfid={m.pfid} />
       <dl className="mp-facts">
         <div>
           <dt>Runs</dt>
@@ -57,20 +72,10 @@ function MapPanel({ m, scores, asOf }: { m: WorkshopMap; scores: Array<number>; 
         </div>
         <div>
           <dt>Record</dt>
-          <dd>{fmtTime(m.top3[0][2])}</dd>
+          <dd>{fmtTime(recordOf(m))}</dd>
         </div>
       </dl>
-      <div className="mp-medals">
-        {MEDALS.map(([name, c, i]) => (
-          <div key={name}>
-            <span>
-              <i style={{ background: c }}></i>
-              {name}
-            </span>
-            <b>{fmtSec(m.medals[i])}</b>
-          </div>
-        ))}
-      </div>
+      <MedalList className="mp-medals" medals={m.medals} />
       <div className="mp-chart">
         <span className="eyebrow">Every run</span>
         <div id="spread">

@@ -3,19 +3,25 @@
 // time board and on a points board, a Map not read in a Refresh, one whose read failed and
 // one gone from the Workshop, two Season 1 Tracks to add up, a persona change, and four
 // Dailies (three final, one live, a tie on a podium, a player who missed a day mid-run and
-// a failed read), and a few runs' Ghosts read for their Skins, some with a profile. The
+// a failed read), a few runs' Ghosts read for their Skins, some with a profile, and two
+// Prefabs, one by a player and one by someone the boards haven't seen, and Marble Run's
+// file for its 3D view (Loop de Loop's hasn't been read). The
 // read layer's tests (test/site.test.ts, test/reads.test.ts, test/board-route.test.ts) take
 // their expected values from the comments here. Every player and Map is made up.
+import { gzipSync } from "node:zlib";
+
 import {
   boardReads,
   boards,
   dailies,
   entries,
   ghosts,
+  mapFiles,
   mapHistory,
   maps,
   personaHistory,
   players,
+  prefabs,
   refreshes,
 } from "../../schema";
 import type { Dataset } from "./types";
@@ -49,13 +55,111 @@ const DAY4 = "ballest_v0_9000000004_Daily_20260901_aa000004";
 // p(1) .. p(10)
 const p = (n: number) => `765611990000000${String(n).padStart(2, "0")}`;
 
+/* a Prefab file of `n` cubes in a row */
+export const cubesFile = (n: number) =>
+  JSON.stringify({
+    format: "BallestPrefab",
+    version: 1,
+    group: { rotation: [0, 0, 0], scale: [1, 1, 1] },
+    items: Array.from({ length: n }, (_, i) => ({
+      class: "/Game/Blueprints/Editor/BP_Prim_Cube.BP_Prim_Cube_C",
+      transform: { location: [i * 1200, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+      properties: {},
+      meshes: [
+        {
+          tag: "",
+          mesh: "/Game/Art/GreyBoxing/_GENERATED/PC/Box_C559BEB3.Box_C559BEB3",
+          materials: ["/Game/Art/Materials/MI_Env_Lime.MI_Env_Lime"],
+        },
+      ],
+    })),
+  });
+
+/* a .ballmap with `TINY_MAP_ITEMS` pieces as the editor saves it, BOM and all: the player
+   start, a floor, a ramp turned a quarter about its length and a lamp. Marble Run's file. */
+const piece = (
+  actor: string,
+  mesh: string,
+  material: string,
+  at: [number, number, number],
+  rotation: [number, number, number, number],
+  scale: [number, number, number],
+) => ({
+  actorToSpawn: `/Script/Engine.BlueprintGeneratedClass'${actor}'`,
+  itemTransform: {
+    rotation: { x: rotation[0], y: rotation[1], z: rotation[2], w: rotation[3] },
+    translation: { x: at[0], y: at[1], z: at[2] },
+    scale3D: { x: scale[0], y: scale[1], z: scale[2] },
+  },
+  meshComponents: [
+    {
+      meshComponentTag: "SKGMapEditor",
+      materials: [
+        { material: `/Script/Engine.MaterialInstanceConstant'${material}'`, materialIndex: 0 },
+      ],
+      meshAssetPath: mesh,
+    },
+  ],
+  bIsBaseItem: true,
+});
+const CUBE =
+  "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces/BP_Prim_Cube.BP_Prim_Cube_C";
+const BOX = "/Game/Art/GreyBoxing/_GENERATED/PC/Box_C559BEB3.Box_C559BEB3";
+export const TINY_MAP_FILE = Buffer.from(
+  "\uFEFF" +
+    JSON.stringify(
+      {
+        worldSettings: { levelData: { userLevelName: "Marble Run" } },
+        items: [
+          piece(
+            "/Game/MapItems/PlayerStart/MP_PlayerStart.MP_PlayerStart_C",
+            "/Game/Maps/_GENERATED/PC/SM_Start_Fixed.SM_Start_Fixed",
+            "/Game/Art/Stadium/Arena/MI_GoalYellow.MI_GoalYellow",
+            [0, 0, 120],
+            [0, 0, 0, 1],
+            [0.3, 0.3, 0.3],
+          ),
+          piece(
+            CUBE,
+            BOX,
+            "/Game/Art/Materials/Environment/MI_Env_Lime.MI_Env_Lime",
+            [1500, 0, 0],
+            [0, 0, 0, 1],
+            [4, 1.5, 0.1],
+          ),
+          piece(
+            CUBE,
+            BOX,
+            "/Game/Art/Materials/Environment/MI_Env_Dark_Smooth.MI_Env_Dark_Smooth",
+            [4200, 0, -300],
+            [0, 0.130526, 0, 0.991445],
+            [2, 1.5, 0.1],
+          ),
+          piece(
+            CUBE,
+            BOX,
+            "/Game/Art/Materials/Emissive/MI_Emissive_Yellow.MI_Emissive_Yellow",
+            [1500, 900, 300],
+            [0, 0, 0.707107, 0.707107],
+            [0.2, 0.2, 0.6],
+          ),
+        ],
+      },
+      null,
+      "\t",
+    ),
+);
+export const TINY_MAP_ITEMS = 4;
+/* Steam's content handle for that file */
+export const TINY_MAP_VERSION = "5101012345678901234";
+
 /* a Ghost's profile for a run of `seconds`: below 1, `bend` puts the run ahead early */
 export const profile = (seconds: number, bend: number) =>
   Array.from({ length: 80 }, (_, i) => Math.round(seconds * ((i + 1) / 80) ** bend * 1000) / 1000);
 
 export const tiny: Dataset = {
   description:
-    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts",
+    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts, 2 Prefabs, 1 Map file",
   seed: async (tx) => {
     const [r1, r2, r3] = (
       await tx
@@ -417,6 +521,43 @@ export const tiny: Dataset = {
         entryCount: 1,
         firstSeenRefresh: r1,
         lastSeenRefresh: r1,
+      },
+    ]);
+
+    await tx.insert(mapFiles).values({
+      pfid: "9000000001",
+      version: TINY_MAP_VERSION,
+      rawSize: TINY_MAP_FILE.length,
+      gzipped: gzipSync(TINY_MAP_FILE),
+      readAt: new Date("2026-09-01T06:10:00Z"),
+    });
+
+    const twin = cubesFile(2);
+    const row = cubesFile(5);
+    await tx.insert(prefabs).values([
+      {
+        slug: "twin-cubes",
+        name: "Twin cubes",
+        description: "Two lime cubes side by side.",
+        tags: ["Obstacle"],
+        uploader: p(1),
+        uploaderName: "Rae on Steam",
+        file: twin,
+        pieces: 2,
+        bytes: twin.length,
+        createdAt: new Date("2026-09-01T01:00:00Z"),
+        updatedAt: new Date("2026-09-01T01:00:00Z"),
+      },
+      {
+        slug: "cube-row",
+        name: "Cube row",
+        uploader: "76561199000000099",
+        uploaderName: "Newcomer",
+        file: row,
+        pieces: 5,
+        bytes: row.length,
+        createdAt: new Date("2026-09-01T02:00:00Z"),
+        updatedAt: new Date("2026-09-01T02:00:00Z"),
       },
     ]);
   },

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
+import { CAMPAIGNS } from "../lib/campaigns";
 import { CIRCUIT, TRACKS } from "../lib/circuit";
 import { calendarOf, dayLabel, isLive, timeLeft, todayOf } from "../lib/daily";
 import {
@@ -11,8 +12,10 @@ import {
   ageText,
   fmtSec,
   fmtTime,
+  isPfid,
   isPoints,
   isSteamId,
+  mapBoard,
   mapPfidOf,
   ord,
   ordSuffix,
@@ -28,7 +31,10 @@ import {
 } from "../lib/rules";
 import {
   boardHref,
+  campaignHref,
+  campaignsHref,
   dailyHref,
+  campaignPath,
   dailyStandingsHref,
   tabOfPath,
   isDailyDate,
@@ -205,6 +211,14 @@ describe("Steam IDs and URLs", () => {
     expect(isSteamId(null)).toBe(false);
   });
 
+  test("a Workshop ID is up to 20 digits and nothing else", () => {
+    expect(isPfid("3810672947")).toBe(true);
+    expect(isPfid("1")).toBe(true);
+    expect(isPfid("1".repeat(21))).toBe(false);
+    expect(isPfid("3810672947x")).toBe(false);
+    expect(isPfid("")).toBe(false);
+  });
+
   test("links", () => {
     expect(playerHref(ID)).toBe(`/player/${ID}`);
     expect(playerHref(ID, "made")).toBe(`/player/${ID}/made`);
@@ -215,6 +229,7 @@ describe("Steam IDs and URLs", () => {
     expect(boardHref("Workshop_3623648768", ID)).toBe(`/map/3623648768/${ID}`);
     expect(mapPfidOf("Workshop_42")).toBe("42");
     expect(mapPfidOf("Map_Track13")).toBeNull();
+    expect(mapBoard("42")).toBe("Workshop_42");
     expect(mapHref("42")).toBe("/map/42");
     expect(vsHref(ID, "76561198000000001")).toBe(`/vs/${ID}/76561198000000001`);
     expect(playersHref("all", "wr")).toBe("/players");
@@ -223,6 +238,50 @@ describe("Steam IDs and URLs", () => {
     expect(dailyHref("2026-09-05")).toBe("/daily/2026-09-05");
     expect(dailyHref("../x")).toBe("/daily");
     expect(dailyStandingsHref()).toBe("/daily/standings");
+  });
+
+  test("a Campaign's links", () => {
+    expect(boardHref("OverallCampaign_solar-trials")).toBe("/campaign/solar-trials");
+    expect(boardHref("OverallCampaign_solar-trials", "podiums")).toBe(
+      "/campaign/solar-trials/podiums",
+    );
+    expect(boardHref("OverallCampaign_solar-trials", ID)).toBe(`/campaign/solar-trials/${ID}`);
+    expect(boardHref("OverallCampaign_solar-trials", "<x>")).toBe("/campaign/solar-trials");
+    expect(campaignHref("ajc")).toBe("/campaign/ajc");
+    expect(campaignHref("ajc", "3646349274")).toBe("/campaign/ajc/3646349274");
+    expect(campaignsHref()).toBe("/campaigns");
+  });
+
+  test("a Campaign's paths: its board, its podium order, a row, or one of its Maps", () => {
+    for (const ok of [
+      "/campaign/solar-trials",
+      "/campaign/solar-trials/",
+      "/campaign/solar-trials/podiums",
+      `/campaign/solar-trials/${ID}`,
+      "/campaign/solar-trials/3805391903",
+    ])
+      expect(campaignPath(ok)).not.toBeNull();
+    for (const bad of [
+      "/campaign",
+      "/campaign/",
+      "/campaign/nope",
+      /* neither one of its Maps nor shaped like a Steam ID */
+      "/campaign/solar-trials/42",
+      /* another Campaign's Map, though shaped like a Steam ID */
+      "/campaign/solar-trials/3803908791",
+      `/campaign/solar-trials/podiums/${ID}`,
+      "/campaign/solar-trials/x",
+    ])
+      expect(campaignPath(bad)).toBeNull();
+    const solar = CAMPAIGNS[0];
+    const none = { c: solar, map: null, focus: null, podiums: false };
+    expect(campaignPath("/campaign/solar-trials/")).toEqual(none);
+    expect(campaignPath("/campaign/solar-trials/podiums")).toEqual({ ...none, podiums: true });
+    expect(campaignPath(`/campaign/solar-trials/${ID}`)).toEqual({ ...none, focus: ID });
+    expect(campaignPath("/campaign/solar-trials/3805391903/")).toEqual({
+      ...none,
+      map: "3805391903",
+    });
   });
 
   test("a Daily's date is a real day, written YYYY-MM-DD", () => {
@@ -244,12 +303,21 @@ describe("Steam IDs and URLs", () => {
     expect(tabOfPath("/daily/2026-09-05")).toBe("Daily");
     expect(tabOfPath("/daily/standings")).toBe("Daily");
     expect(tabOfPath("/dailyish")).toBeNull();
+    expect(tabOfPath("/prefabs")).toBe("Prefabs");
+    expect(tabOfPath("/prefabs/new")).toBe("Prefabs");
+    expect(tabOfPath("/prefab/park-bench")).toBe("Prefabs");
+    expect(tabOfPath("/prefabsy")).toBeNull();
     /* every Circuit board, whatever its season, lights the one Circuit tab */
     expect(tabOfPath("/board/OverallLeaderboard_EASeason2")).toBe("Circuit");
     expect(tabOfPath("/board/OverallLeaderboard")).toBe("Circuit");
     expect(tabOfPath("/board/OverallLeaderboard_AllSeasons/podiums")).toBe("Circuit");
     expect(tabOfPath("/board/Map_Track13")).toBe("Circuit");
     expect(tabOfPath("/board/Nope")).toBeNull();
+    /* a Campaign is the Workshop's */
+    expect(tabOfPath("/campaign/solar-trials")).toBe("Workshop");
+    expect(tabOfPath("/campaign/solar-trials/3805391903")).toBe("Workshop");
+    expect(tabOfPath("/campaigns")).toBe("Workshop");
+    expect(tabOfPath("/campaignsy")).toBeNull();
     expect(tabOfPath(`/player/${ID}`)).toBeNull();
   });
 

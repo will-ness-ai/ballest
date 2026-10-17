@@ -294,6 +294,19 @@
   inline-size: auto;
   margin: 0;
 }
+/* a Campaign's chip carries its title and its Maps have names, not only numbers: where
+   the two don't fit side by side, the board button takes a line of its own, and a name
+   longer than that line breaks rather than push the count past the edge */
+.boardrow.named {
+  flex-wrap: wrap;
+}
+.boardrow.named .boardbtn {
+  flex: 1 1 auto;
+}
+.boardrow.named .bb-name {
+  min-inline-size: 0;
+  overflow-wrap: break-word;
+}
 .seasonchip {
   display: flex;
   align-items: center;
@@ -312,6 +325,9 @@
   display: flex;
   flex-direction: column;
   min-inline-size: 180px;
+  /* a long list (the Campaigns) scrolls inside the menu rather than off the screen */
+  max-block-size: 70dvh;
+  overflow-y: auto;
   padding: 4px;
   border-radius: 10px;
   background: var(--solid);
@@ -845,6 +861,10 @@
 .bc-by {
   font-size: calc(12.5rem / 16);
   color: var(--dim);
+}
+/* a Campaign's Map links out to its own page */
+.bc-by a {
+  color: var(--accent);
 }
 .bc-facts {
   display: flex;

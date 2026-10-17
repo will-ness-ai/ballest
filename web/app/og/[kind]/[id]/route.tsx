@@ -1,16 +1,26 @@
-// GET /og/<player|map|track|daily>/<id>: the share image a page names as its og:image
-// (docs/site.md, "Share images"). Read through the same cached reads as the pages, so a card
-// for a page someone just opened costs no database read; drawn on the first request and
-// then kept by Vercel's CDN. 404 for an id that names nothing, so no crawler keeps junk.
+// GET /og/<player|map|track|daily|campaign>/<id>: the share image a page names as its
+// og:image (docs/site.md, "Share images"). Read through the same cached reads as the
+// pages, so a card for a page someone just opened costs no database read; drawn on the
+// first request and then kept by Vercel's CDN. 404 for an id that names nothing, so no
+// crawler keeps junk.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { SHARE_ASSETS, drawShare } from "../../../../components/share/Card";
-import { getBoardPage, getBoardScores, getDaily, getPlayer, getMap } from "../../../../db/data";
+import { SHARE_ASSETS, drawShare, type SharePicture } from "../../../../components/share/Card";
+import {
+  getBoardPage,
+  getBoardScores,
+  getCampaignShare,
+  getDaily,
+  getPlayer,
+  getMap,
+} from "../../../../db/data";
+import { CAMPAIGN_MAX_PICTURES } from "../../../../lib/campaigns";
 import { circuitBoard } from "../../../../lib/circuit";
 import { isDailyDate } from "../../../../lib/routes";
 import { isSteamId, safeImg } from "../../../../lib/rules";
 import {
+  campaignCard,
   dailyCard,
   isShareKind,
   mapCard,
@@ -62,7 +72,7 @@ const fullAvatar = (u: string | null | undefined) => u?.replace(/_medium\.jpg$/,
 async function shareOf(
   kind: ShareKind,
   id: string,
-): Promise<{ card: ShareCard; picture: string | null } | null> {
+): Promise<{ card: ShareCard; picture: SharePicture } | null> {
   switch (kind) {
     case "player": {
       const rec = isSteamId(id) ? await getPlayer(id) : null;
@@ -85,6 +95,16 @@ async function shareOf(
       if (!d) return null;
       const [top, picture] = await Promise.all([topOf(d.board), remote(d.preview)]);
       return { card: dailyCard(d, top), picture };
+    }
+    case "campaign": {
+      /* null for a slug that isn't curated, or none of whose Maps the Workshop lists: the
+         page's own 404 */
+      const s = await getCampaignShare(id);
+      if (!s) return null;
+      const band = await Promise.all(
+        s.data.maps.slice(0, CAMPAIGN_MAX_PICTURES).map((m) => remote(m.preview)),
+      );
+      return { card: campaignCard(s.data.c, s.standing), picture: band };
     }
   }
 }

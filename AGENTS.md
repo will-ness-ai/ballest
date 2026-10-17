@@ -45,6 +45,10 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `tools/ghosts.py` — the collector's Ghost step, after the database write: reads each top
   run's Ghost once for its ball Skin, which the boards draw from `skins/<asset>.webp`
   (`docs/data.md`, "Ghosts"; `docs/site.md`, "Ball skins").
+- `tools/map_files.py` — the collector's Map file step, after the Ghost step: downloads each
+  Workshop Map's new or changed file into `map_files` for the 3D view (`docs/data.md`, "Map files").
+- `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
+  Workshop links) and prints the `maps:` line; `docs/site.md`, "Campaigns".
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, writes the Refresh to the database
   and revalidates the site's cached reads; it commits nothing. `backfill.yml`, by hand only,
   runs the backfill against an empty production (cloud sessions can't reach Neon) in the
@@ -61,6 +65,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `leth/` — a second, self-contained page at `/leth/`: a 3D ghost-route viewer for the
   Leth Trial #1 event board. Frozen snapshots, its own `data/`, not touched by the
   collector; `leth/README.md` covers it.
+- `prefabs/samples/` — the two Prefab files Will shared before uploads existed, exactly as
+  the game saved them; `web/scripts/prefab-samples.ts` adds them to a database once. The site
+  hosts players' Prefabs from the database it writes itself (ADR 0009, `docs/site.md`).
 - `discord-bot/` — Multiballs, the unofficial Discord Match bot (TypeScript, Effect 3,
   Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site: it runs on
   Fly.io, deployed by `.github/workflows/bot.yml`; its own `AGENTS.md` covers running it
@@ -107,14 +114,15 @@ backfill it so the run starts from real boards rather than looking up every Map'
 `DEV_DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev python tools/steampy_collect.py --dev`.
 
 Every file is formatted by Prettier or Ruff and linted by ESLint or Ruff; run `pnpm check`
-at the root before pushing, and read `docs/linting.md` for setup, a disabled rule, or a
-branch from before the reformat. The collector has no type checks, and its only tests are the database writer's: `python -m pytest tools/tests` (deps in
+at the root before pushing (the pre-push hook runs it too), and read `docs/linting.md` for setup, a disabled rule, or a
+branch from before the reformat. The collector has no type checks, and its tests are mostly the database writer's: `python -m pytest tools/tests` (deps in
 `tools/requirements-test.txt`), against the Postgres at `TEST_DATABASE_URL` (default
 `postgres://postgres:postgres@localhost:5432/postgres`), after `pnpm install` in `web/`,
 since each test's database is built by `web/scripts/migrate.mjs`. `collector-tests` in
 `check.yml` runs them in CI.
 The site's checks are in `web/`: `npx tsc --noEmit`, `pnpm test` (vitest, against the same
-local Postgres; each test file builds its own database), and `pnpm smoke <url>` against a
+local Postgres; each test file builds its own database, and qa's own test needs
+Chromium: the cloud image has one, elsewhere `npx playwright-core install chromium`), and `pnpm smoke <url>` against a
 build seeded with `stress` (as CI does; it holds all of `tiny`). Verify front-end changes
 with `pnpm --silent qa check` (preview against production, every page at phone and desktop sizes; `docs/site.md`), and test a board's
 infinite scroll with a real wheel scroll: a scripted `scrollTo` does not trigger it in

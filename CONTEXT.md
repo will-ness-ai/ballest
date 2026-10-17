@@ -16,6 +16,13 @@ _Avoid_: custom map, UGC map, level
 One of the game's own courses in its Circuit mode (Season 1 or Season 2).
 _Avoid_: campaign, campaign map
 
+**Campaign**:
+A set of Maps, in their creator's order, that we curate and rank together the way the game
+ranks a Circuit season: each Map pays the same place points a Track pays toward Overall, and a
+player's total is the sum over the Maps they hold a time on. The Workshop's counterpart to a
+Circuit season, made by players; the game itself knows nothing of it, so the list is ours.
+_Avoid_: playlist, series, collection (a Steam Workshop collection is a different thing)
+
 **Medal**:
 One of a Map's four time targets, Bronze, Silver, Gold and Author (fastest), set by its
 creator. A Track has the same four, set by the game. A time earns the best Medal whose target it meets. A player's page sorts their
@@ -102,6 +109,28 @@ Players level on a count share its place: 1 + the players with a strictly higher
 Map whose board was first read after the baseline counts as it stands on both sides.
 _Avoid_: rankings, the report's boards (the Players table is not these lists: it counts the
 Circuit too, and podiums)
+
+### Prefabs
+
+**Prefab**:
+A group of level-editor pieces a player saved as one file and spawns into their own map as
+one unit (a bench, a hill, a loop gate). Never a whole Map. The site hosts the ones players
+upload, credited to the uploader.
+_Avoid_: blueprint, asset, template, build
+
+**Favorite**:
+A signed-in player's heart on a Prefab, one each. The gallery's Popular order counts them.
+_Avoid_: like, upvote, star
+
+**Tag**:
+One of a fixed list of kinds (Decoration, Obstacle, Ramp, Loop, Scenery, Structure) an
+uploader gives a Prefab, up to three, which the gallery filters by.
+_Avoid_: category, label
+
+**Angle**:
+The view of a Prefab its uploader picked: its gallery card is drawn from it, and its viewer
+starts there. Without one, three-quarters from above with the whole Prefab in view.
+_Avoid_: thumbnail angle, camera, pose
 
 ### Matches
 

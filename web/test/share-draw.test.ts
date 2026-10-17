@@ -27,3 +27,25 @@ test("a broken picture draws the card without it", async () => {
   expect(png.subarray(1, 4).toString()).toBe("PNG");
   warn.mockRestore();
 });
+
+test("a Campaign draws its band of Map pictures, a missing one as a blank slice", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  const campaign: ShareCard = {
+    kind: "campaign",
+    kicker: "Campaign · by habibal223366977",
+    title: "Solar Trials",
+    headline: { value: "Leth", label: "leads with 151,622 pts", tone: "gold" },
+    tiles: [
+      { value: "9", label: "Maps" },
+      { value: "114", label: "Players" },
+      { value: "7", label: "Finished every map", tone: "author" },
+    ],
+    hue: 200,
+  };
+  const res = await drawShare(campaign, [null, null, null, null, null]);
+  expect(res.status).toBe(200);
+  expect(warn).not.toHaveBeenCalled();
+  const png = Buffer.from(await res.arrayBuffer());
+  expect(png.subarray(1, 4).toString()).toBe("PNG");
+  warn.mockRestore();
+});

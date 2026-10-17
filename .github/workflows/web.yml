@@ -1,8 +1,8 @@
 name: Build web
 
 # Builds the Next.js app in web/ that Vercel serves (ADR 0004) against a database seeded
-# with the stress dataset (tiny plus long names and five-digit ranks), starts it, and
-# requests every route and every file the pages load (scripts/smoke.mjs), so a broken page
+# with the stress dataset (tiny plus long names, five-digit ranks and a Campaign Map),
+# starts it, and requests every route and every file the pages load (scripts/smoke.mjs), so a broken page
 # or a site file missing from SITE in scripts/sync-site.mjs fails here rather than in
 # production. Then `pnpm qa check --assert` draws every page at phone and desktop sizes and
 # fails on sideways scroll, text cut off or drawn over other text, and page errors. The paths are the ones
@@ -63,6 +63,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # before the tests: qa's own (qa-render) draw a page
+      - run: pnpm exec playwright-core install --with-deps chromium
       - run: pnpm test
       - run: node scripts/migrate.mjs && pnpm db:seed stress
         env:
@@ -71,7 +73,6 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-      - run: pnpm exec playwright-core install --with-deps chromium
       - name: Smoke-test the build and check its layout
         run: |
           DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres pnpm start -p 3000 &

@@ -3,6 +3,7 @@
 // the client views both draw them.
 import Link from "next/link";
 
+import { CampaignStrip } from "./Campaign";
 import { MapImage } from "../MapImage";
 import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
@@ -35,6 +36,7 @@ export function MapCardLink({ m, stat }: { m: MapCard; stat: string }) {
     <Link className="mcard" href={mapHref(m.pfid)}>
       <span className="im">
         <MapImage preview={m.preview} />
+        <CampaignStrip pfid={m.pfid} />
         <span className="pod3">
           {m.top3.map((p, i) => (
             <PodLine key={i} p={p} i={i} />

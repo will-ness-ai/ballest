@@ -128,6 +128,15 @@
     color: var(--dim);
     font-weight: 600;
   }
+  /* a Campaign's maker, under its switch */
+  .rail .railby {
+    margin-block: 0 10px;
+    color: var(--dim);
+    font-size: calc(13rem / 16);
+  }
+  .rail .railby a {
+    color: var(--accent);
+  }
   .boards {
     display: flex;
     flex-direction: column;
@@ -137,6 +146,21 @@
   .sheet,
   .seasonchip {
     display: none;
+  }
+  /* a Campaign's switch heads its rail, in place of a row of tabs */
+  .rail .seasonchip {
+    display: flex;
+    justify-content: space-between;
+    inline-size: 100%;
+    min-block-size: 40px;
+    margin-block-end: 6px;
+    font-size: calc(14rem / 16);
+  }
+  /* its menu is never narrower than the chip that opens it */
+  @supports (position-area: block-end) {
+    .rail .seasonmenu {
+      min-inline-size: anchor-size(inline);
+    }
   }
   .boardrow {
     display: contents;
@@ -561,6 +585,19 @@
   .strip {
     grid-auto-columns: minmax(200px, 220px);
   }
+  /* Campaigns: two banners in view on the homepage, two across on /campaigns */
+  .ccar-track {
+    grid-auto-columns: calc((100% - 12px) / 2);
+  }
+  .cban {
+    min-height: 190px;
+  }
+  .cban-in {
+    padding: 18px 64px 18px 20px;
+  }
+  .call {
+    grid-template-columns: 1fr 1fr;
+  }
   .mgrid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
@@ -659,6 +696,39 @@
     overscroll-behavior: contain;
     scrollbar-width: thin;
   }
+  /* a Map in 3D: the record and Medals in a card under the bar, which names the Map; it
+     follows the bar in .m3d-top's flow, so it never overlaps it */
+  .m3d-card {
+    inline-size: 15rem;
+    margin-inline: 16px;
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--scrim);
+    backdrop-filter: blur(6px);
+    font-size: calc(13.5rem / 16);
+  }
+  .m3d-card div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .m3d-card dt {
+    color: var(--dim);
+  }
+  .m3d-card dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .m3d-card i {
+    display: inline-block;
+    inline-size: 8px;
+    block-size: 8px;
+    margin-inline-end: 6px;
+    border-radius: 50%;
+  }
   /* with a pointer, a card's top three appear over its picture instead of the leader under it */
   @media (hover: hover) and (pointer: fine) {
     .mcard .lead {
@@ -673,10 +743,29 @@
     .mcard:focus-visible .pod3 {
       opacity: 1;
     }
+    /* the top three take the picture, so a Campaign strip steps aside */
+    .mcard:hover .cb-strip,
+    .mcard:focus-visible .cb-strip {
+      opacity: 0;
+    }
     .mcard:hover img,
     .mcard:focus-visible img {
       filter: brightness(0.28) blur(1px);
     }
+  }
+
+  /* a Prefab's page: the viewer fills the height beside the facts */
+  .pf-split {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    align-items: start;
+  }
+  .pf-split > .pf-vwrap > .pfv {
+    aspect-ratio: auto;
+    height: min(40rem, calc(100svh - 12rem));
+  }
+  /* the upload form beside the preview and card it will make */
+  .pfu-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   footer {
