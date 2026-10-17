@@ -88,6 +88,7 @@ const PIECES = new Set([
   "Bevel_Tall_StraightPlatform",
   "Bevel_Tall_StraightWall",
   "MP_ActualCheckpoint_Strip",
+  "MP_AirVent",
   "MP_Cone",
   "MP_FlatGlassPlane",
   "MP_FlatRing",
