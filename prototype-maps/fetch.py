@@ -84,7 +84,8 @@ class C(steam.Client):
                 m = await pf.manifest()
                 for f in [p for p in m.paths if p.is_file()]:
                     data = await f.read_bytes()
-                    if not data:
+                    print(pf.id, f, len(data), flush=True)
+                    if not data or data[:1] not in (b"{", b"\xef"):
                         continue
                     with open(os.path.join(OUT, f"{pf.id}.ballmap"), "wb") as fh:  # noqa: ASYNC230
                         fh.write(data)
