@@ -99,3 +99,27 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+  # Every commit a PR adds carries the repo-local identity (CODING_STANDARDS.md, Git), or the
+  # noreply address GitHub gives Will's own merges from its web page.
+  authors:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit authors
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: |
+          wrong=$(git log --format='%h %an <%ae>' "$RANGE" |
+            grep -v -e ' will-ness-ai <n3s.online@gmail.com>$' \
+              -e '<113004972+will-ness-ai@users.noreply.github.com>$' || true)
+          if [ -n "$wrong" ]; then
+            echo "$wrong"
+            echo "::error::these commits aren't authored as will-ness-ai <n3s.online@gmail.com>; rewrite them on your branch with git commit --amend --reset-author"
+            exit 1
+          fi
