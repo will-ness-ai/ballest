@@ -201,6 +201,11 @@ describe("while You's record is read", () => {
     expect(more.every((b) => b.disabled)).toBe(true);
   });
 
+  test("a record that couldn't be read gives the plain header, not a bar that never lands", () => {
+    draw({ state: "loading", claimed: true, id: "76561198000000006", failed: true });
+    expect(el.querySelector(".ys-hold")).toBeNull();
+  });
+
   test("a signed-in player on no list gets the plain header, not a bar that never lands", () => {
     draw({ state: "unknown", id: "76561198000000005" });
     expect(el.querySelector(".ys-hold")).toBeNull();

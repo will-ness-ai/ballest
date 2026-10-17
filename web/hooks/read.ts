@@ -2,7 +2,7 @@
 // A read from the site's API, made once per key for as long as the page is open and shared
 // by every component that asks for it. A read that fails is forgotten, so the next mount
 // (often the next page) tries again. useRead gives nothing until one succeeds; useReadOutcome
-// also says when it failed.
+// also says when it failed, with a retry that reads it again in place.
 import { useEffect, useState } from "react";
 
 /* `load` reads one key, rejecting when the read fails; the result reads each key once */

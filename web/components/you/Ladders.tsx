@@ -232,11 +232,11 @@ function Holder({ rows, you, gap }: { rows: number; you?: number; gap?: boolean 
   );
 }
 
-/* in place of rows whose read failed, said aloud when it shows */
+/* in place of rows whose read failed */
 function Failed({ what, retry }: { what: string; retry: () => void }) {
   return (
     <li className="yl-row yl-off">
-      <span role="status">Couldn&apos;t read {what}.</span>{" "}
+      Couldn&apos;t read {what}.{" "}
       <button type="button" className="yl-again" onClick={retry}>
         Try again
       </button>
@@ -287,7 +287,7 @@ function viewOf(you: You, stale: boolean): View {
         claimed: you.claimed,
         signIn: you.claimed ? null : "unsure",
         who: null,
-        naming: you.claimed,
+        naming: you.claimed && !you.failed,
       };
   }
 }
