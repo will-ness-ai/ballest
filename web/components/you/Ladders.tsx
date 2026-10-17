@@ -18,7 +18,7 @@ import { PlayerLink } from "../PlayerLink";
 import { SteamMark } from "../SteamMark";
 import { useNow } from "../../hooks/client";
 import { useYou, type You } from "../../hooks/me";
-import { readOnce, useRead } from "../../hooks/read";
+import { readOnce, useReadOutcome } from "../../hooks/read";
 import { dayLabel } from "../../lib/daily";
 import {
   STANDINGS_STATS,
@@ -402,19 +402,8 @@ function Page({ tops, retry }: { tops: YouLadders; retry: () => void }) {
   const now = useNow();
   const fresh = now != null && youBaseline(now) === Date.parse(tops.since);
   const { key, claimed, signIn, who } = viewOf(useYou(), now != null && !fresh);
-  const got = useRead(readLadders, key);
-  /* the read useRead shares; it gives nothing when it fails, so watch for that here */
-  const [failed, setFailed] = useState<string | null>(null);
-  useEffect(() => {
-    if (key == null) return;
-    let live = true;
-    readLadders(key).catch(() => {
-      if (live) setFailed(key);
-    });
-    return () => {
-      live = false;
-    };
-  }, [key]);
+  const outcome = useReadOutcome(readLadders, key);
+  const got = outcome && "value" in outcome ? outcome : null;
   const data = got?.value ?? tops;
   /* You's Steam ID once You's cards are read */
   const id = got && claimed ? key : null;
@@ -469,7 +458,7 @@ function Page({ tops, retry }: { tops: YouLadders; retry: () => void }) {
             moves={moves}
             you={id}
             holding={holding}
-            failed={key != null && failed === key ? retry : null}
+            failed={outcome && "failed" in outcome ? retry : null}
             signIn={signIn}
           />
         ))}
