@@ -1,7 +1,6 @@
 """PROTOTYPE: download the most-subscribed Workshop Maps' .ballmap files for the grill-design
 round. Runs in GitHub Actions (cloud sessions can't reach Steam's content servers)."""
 
-import asyncio
 import json
 import os
 import sys
@@ -78,7 +77,7 @@ print(json.dumps(index, indent=1))
 class C(steam.Client):
     async def on_ready(self):
         try:
-            print('ready', flush=True)
+            print("ready", flush=True)
             for pf in await self.fetch_published_files(*[int(p) for p in picks]):
                 m = await pf.manifest()
                 for f in m.files:
