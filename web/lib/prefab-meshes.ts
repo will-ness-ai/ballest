@@ -283,3 +283,10 @@ export const PIECE_MESHES: Partial<Record<string, string>> = {
   RubberBlock2_M_PlasticBase: "RubberBlock2",
   RubberCylinder: "SM_RubberCylinder",
 };
+
+/* a piece whose blueprint brings its own material, so its file names none, by the material the
+   catalogue lists for it */
+export const PIECE_MATERIALS: Partial<Record<string, string>> = {
+  BP_AirVent: "MI_ArenaWhite",
+  MP_AirVent: "MI_ArenaWhite",
+};

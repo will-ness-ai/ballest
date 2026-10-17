@@ -289,6 +289,14 @@ describe("the upload check", () => {
     expect(checkPrefab(withFile({ items: [one, VENT] }))).toEqual({ ok: true, pieces: 2 });
   });
 
+  test("the Rubber Block's thumbnail, RubberBlock, is not a piece the editor has", () => {
+    const one = (JSON.parse(sample("bench")) as PrefabFile).items[0];
+    const thumb = { ...one, class: "/Game/LevelEditor/SS/RubberBlock.RubberBlock_C" };
+    expect(problems(withFile({ items: [one, thumb] }))).toEqual([
+      "Pieces the editor doesn't have: RubberBlock.",
+    ]);
+  });
+
   test("a file over 4 MB is refused before it is read", () => {
     expect(problems(" ".repeat(MAX_BYTES + 1))).toEqual(["The file is over 4 MB."]);
   });

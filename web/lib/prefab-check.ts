@@ -7,9 +7,8 @@ import { PIECE_MESHES } from "./prefab-meshes";
 
 export const MAX_BYTES = 4 * 1024 * 1024;
 
-/* every piece the editor offers, by the class name it saves: each one the viewer knows a mesh
-   for, and the rubber block, which has none */
-const PIECES = new Set([...Object.keys(PIECE_MESHES), "RubberBlock"]);
+/* every piece the editor offers, by the class name it saves: each one the viewer has a mesh for */
+const PIECES = new Set(Object.keys(PIECE_MESHES));
 
 export type Check = { ok: true; pieces: number } | { ok: false; problems: Array<string> };
 
