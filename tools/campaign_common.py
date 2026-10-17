@@ -262,14 +262,17 @@ def resolve_names(key, ids):
 
 # Names are carried forward from the database's players rather than looked up
 # every run (13k players is 131 GetPlayerSummaries calls). A run looks up players it
-# has no name for, plus one slice of everyone else: slices rotate every three hours,
-# so every name is refreshed about once a week.
-NAME_REFRESH_SLICES = 56
+# has no name for, plus one slice of everyone else, picked by how many Refreshes the
+# database holds rather than by the clock: GitHub starts the three-hourly run late or
+# skips it, which left a clock slice unread for weeks. So every name is looked up again
+# within NAME_REFRESH_SLICES Refreshes, a few days at the pace GitHub keeps.
+NAME_REFRESH_SLICES = 16
 
 
-def names_due(ids, known, now=None):
-    """The IDs this run looks up: every one without a name, plus this run's slice."""
-    slot = int(now if now is not None else time.time()) // (3 * 3600) % NAME_REFRESH_SLICES
+def names_due(ids, known, refreshes):
+    """The IDs this run looks up: every one without a name, plus this run's slice, where
+    refreshes is how many Refreshes the database holds (db_writer.Memory)."""
+    slot = refreshes % NAME_REFRESH_SLICES
     return [
         sid
         for sid in ids
@@ -342,11 +345,11 @@ def workshop_catalogue(key):
     return maps
 
 
-def name_rows(row_lists, all_ids, known):
+def name_rows(row_lists, all_ids, known, refreshes):
     """Put persona/avatar/profileurl on every row in row_lists, and return the
     SteamID64 -> names map they came from. Names are carried forward from known (the
     players the database holds, db_writer.load_memory); only players without one, plus
-    this run's slice (names_due), are looked up."""
+    this run's slice (names_due, by the database's Refresh count), are looked up."""
     key = load_key()
     if not key:
         print(
@@ -354,7 +357,7 @@ def name_rows(row_lists, all_ids, known):
         )
     # The slice covers every player we know, not only this run's rows: a Workshop board
     # is re-read only when played, so its players would otherwise rarely come up.
-    due = names_due(set(all_ids) | set(known), known)
+    due = names_due(set(all_ids) | set(known), known, refreshes)
     print(f"Resolving {len(due)} player names (new, plus this run's slice)...")
     names = {sid: dict(v) for sid, v in known.items()}
     for sid, info in resolve_names(key, due).items():

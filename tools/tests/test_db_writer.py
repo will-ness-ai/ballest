@@ -483,3 +483,10 @@ def test_a_daily_leaves_the_maps_and_tracks_read_beside_it_alone(conn):
     assert history(conn, MAP, "1001") == [(3100000, r1, r1, None)]
     assert history(conn, TRACK, "1001") == [(1013307, r1, r2, None)]
     assert open_entries(conn, DAY.board) == {"1003": 2700000}
+
+
+def test_memory_counts_the_refreshes_written(conn):
+    assert db_writer.read_memory(conn).refreshes == 0
+    db_writer.write_refresh(conn, refresh(0, [board(TRACK, ("1001", 1013307))]))
+    db_writer.write_refresh(conn, refresh(1, [board(TRACK, ("1001", 1013307))]))
+    assert db_writer.read_memory(conn).refreshes == 2

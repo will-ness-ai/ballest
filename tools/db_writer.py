@@ -126,6 +126,8 @@ class Memory:
     listed: how many Maps the latest catalogue listed, for the shrink guard.
     full_sweep_at: when the latest Refresh that read every Map's board started, in Unix
       seconds, or 0 if none has.
+    refreshes: how many Refreshes the database holds, which picks this run's slice of names
+      to look up again (cc.names_due).
     dailies: {date: daily.Daily} for every Daily held (known_dailies), what the Daily step
       plans from.
     """
@@ -134,6 +136,7 @@ class Memory:
     maps: dict = field(default_factory=dict)
     listed: int = 0
     full_sweep_at: int = 0
+    refreshes: int = 0
     dailies: dict = field(default_factory=dict)
 
 
@@ -172,12 +175,15 @@ def read_memory(conn):
             "subs": subs,
         }
         listed += is_listed
-    (swept,) = conn.execute("select max(started_at) from refreshes where full_sweep").fetchone()
+    swept, refreshes = conn.execute(
+        "select max(started_at) filter (where full_sweep), count(*) from refreshes"
+    ).fetchone()
     return Memory(
         names=names,
         maps=maps,
         listed=listed,
         full_sweep_at=int(swept.astimezone(UTC).timestamp()) if swept else 0,
+        refreshes=refreshes,
         dailies=known_dailies(conn),
     )
 
