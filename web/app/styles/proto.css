@@ -427,3 +427,14 @@
 .m3d-close {
   position: static;
 }
+.m3d-card-desk {
+  display: none;
+}
+.m3d-vF .m3d-card {
+  top: 72px;
+}
+@media (min-width: 900px) {
+  .m3d-card-desk {
+    display: block;
+  }
+}

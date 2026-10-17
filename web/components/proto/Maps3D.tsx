@@ -18,6 +18,7 @@ export const VARIANTS: Array<[string, string, string]> = [
   ["C", "Views", "Angled / From above / From the side buttons, and Reset"],
   ["D", "Start and finish", "glowing beacons over the start pad and each goal, with a key"],
   ["E", "Facts card", "a corner card with the record and Medals over the map"],
+  ["F", "B + E", "Will's pick: title bar, and the facts card on desktop only"],
 ];
 
 /* every Map whose file the prototype fetched */
@@ -227,7 +228,7 @@ function FullScreen({ m, open, onClose }: { m: MapInfo; open: boolean; onClose: 
           attach={viewer.attach}
         />
       )}
-      {v === "B" ? (
+      {v === "B" || v === "F" ? (
         <header className="m3d-bar">
           <div>
             <b>{m.title}</b>
@@ -272,8 +273,8 @@ function FullScreen({ m, open, onClose }: { m: MapInfo; open: boolean; onClose: 
           </span>
         </div>
       )}
-      {v === "E" && (
-        <aside className="m3d-card">
+      {(v === "E" || v === "F") && (
+        <aside className={v === "F" ? "m3d-card m3d-card-desk" : "m3d-card"}>
           <b>{m.title}</b>
           <dl>
             <div>
