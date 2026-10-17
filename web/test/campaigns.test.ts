@@ -132,6 +132,9 @@ describe("the lookups", () => {
     expect(mapLabel(aj, "3619755748", "AJ07 Redux")).toBe("01 AJ07 Redux");
     // titles that don't start with the Campaign's stay whole
     expect(mapLabel(curated("mind-trials"), "3821602774", "focus")).toBe("01 focus");
+    // the maker's lowercase title and zero-padded number still read as the number alone
+    expect(mapLabel(curated("stoxys-mini-golf"), "3821644937", "stoxy's mini golf 001")).toBe("01");
+    expect(mapLabel(curated("stoxys-mini-golf"), "3821669040", "stoxy's mini golf 009")).toBe("09");
     // its place, then more of a name
     expect(mapName(make("a", ["5"]), "5", "a 1 Remix")).toBe("1 Remix");
   });
