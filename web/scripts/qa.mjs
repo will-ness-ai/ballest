@@ -21,7 +21,8 @@ const HELP = {
   check     every page at every size on a target, against a reference
   shot      one view's screenshot
   piece     an editor piece's stand-in against the game mesh's render
-views are page[+state][@width[/text]], e.g. player+compare@320/20 (text in px, 16 by default)
+views are page[+state][@width[/text]], e.g. player+compare@320/20 (text in px, 16 by default);
+  a page is a catalogue name or any path, e.g. /campaign/solar-trials@390
 targets are prod, preview (this branch's), local[:port] or a URL
 run \`pnpm --silent qa <command> --help\` for a command's flags`,
   check: `usage: pnpm --silent qa check [--at preview] [--against prod] [--pages a,b] [--sizes ${SIZES}] [--no-states] [--assert] [--jobs 4]

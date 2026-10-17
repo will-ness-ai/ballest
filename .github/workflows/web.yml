@@ -63,6 +63,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # before the tests: qa's own (qa-render) draw a page
+      - run: pnpm exec playwright-core install --with-deps chromium
       - run: pnpm test
       - run: node scripts/migrate.mjs && pnpm db:seed stress
         env:
@@ -71,7 +73,6 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: "1"
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-      - run: pnpm exec playwright-core install --with-deps chromium
       - name: Smoke-test the build and check its layout
         run: |
           DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres pnpm start -p 3000 &
