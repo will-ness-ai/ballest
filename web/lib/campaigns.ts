@@ -205,6 +205,23 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     ...HABIBAL,
     maps: ["3821602774", "3821588330", "3821590642", "3821598041", "3821600974"],
   },
+  {
+    slug: "stoxys-mini-golf",
+    title: "Stoxy's mini golf",
+    creator: "stoxy999",
+    creatorId: "76561198055494306",
+    maps: [
+      "3821644937",
+      "3821647288",
+      "3821649079",
+      "3821651434",
+      "3821655060",
+      "3821661000",
+      "3821663568",
+      "3821666331",
+      "3821669040",
+    ],
+  },
 ];
 
 /* what is wrong with a list of Campaigns, in words; empty when it holds together */
