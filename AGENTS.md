@@ -45,6 +45,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `tools/ghosts.py` — the collector's Ghost step, after the database write: reads each top
   run's Ghost once for its ball Skin, which the boards draw from `skins/<asset>.webp`
   (`docs/data.md`, "Ghosts"; `docs/site.md`, "Ball skins").
+- `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
+  Workshop links) and prints the `maps:` line; `docs/site.md`, "Campaigns".
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, writes the Refresh to the database
   and revalidates the site's cached reads; it commits nothing. `backfill.yml`, by hand only,
   runs the backfill against an empty production (cloud sessions can't reach Neon) in the
@@ -111,7 +113,7 @@ backfill it so the run starts from real boards rather than looking up every Map'
 
 Every file is formatted by Prettier or Ruff and linted by ESLint or Ruff; run `pnpm check`
 at the root before pushing (the pre-push hook runs it too), and read `docs/linting.md` for setup, a disabled rule, or a
-branch from before the reformat. The collector has no type checks, and its only tests are the database writer's: `python -m pytest tools/tests` (deps in
+branch from before the reformat. The collector has no type checks, and its tests are mostly the database writer's: `python -m pytest tools/tests` (deps in
 `tools/requirements-test.txt`), against the Postgres at `TEST_DATABASE_URL` (default
 `postgres://postgres:postgres@localhost:5432/postgres`), after `pnpm install` in `web/`,
 since each test's database is built by `web/scripts/migrate.mjs`. `collector-tests` in
