@@ -191,3 +191,41 @@ describe("when You's cards can't be read", () => {
     expect(asked.filter((u) => u.includes("player=76561198000000003"))).toHaveLength(2);
   });
 });
+
+describe("while You's record is read", () => {
+  test("the header holds a bar for You's name, and Show all stays drawn but can't be pressed", () => {
+    draw({ state: "loading", claimed: true, id: "76561198000000004" });
+    expect(el.querySelector("h1 .ys-hold")).not.toBeNull();
+    const more = [...el.querySelectorAll<HTMLButtonElement>(".yl-more")];
+    expect(more).toHaveLength(4);
+    expect(more.every((b) => b.disabled)).toBe(true);
+  });
+
+  test("a signed-in player on no list gets the plain header, not a bar that never lands", () => {
+    draw({ state: "unknown", id: "76561198000000005" });
+    expect(el.querySelector(".ys-hold")).toBeNull();
+    expect(el.querySelector("h1")?.textContent).toBe("Where you stand");
+  });
+});
+
+describe("when Show all's rows can't be read", () => {
+  test("the card says so, and Try again reads them again", async () => {
+    const asked: Array<string> = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      asked.push(url);
+      return Promise.resolve(new Response("", { status: 503 }));
+    });
+    draw({ state: "none" });
+    act(() => {
+      el.querySelector<HTMLButtonElement>(".yl-more")?.click();
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(el.textContent).toContain("Couldn't read this list");
+    act(() => {
+      [...el.querySelectorAll("button")].find((b) => b.textContent === "Try again")?.click();
+    });
+    expect(asked.filter((u) => u.includes("list="))).toHaveLength(2);
+  });
+});

@@ -20,11 +20,14 @@ export function readOnce<T>(load: (key: string) => Promise<T>): (key: string) =>
 }
 
 /* what `read` gave for `key`, boxed so a read of null still counts as read, or that it
-   failed; null while there is no key and while the read is out */
+   failed, with a retry that reads it again; null while there is no key and while the read
+   is out */
 export function useReadOutcome<T>(
   read: (key: string) => Promise<T>,
   key: string | null,
-): { value: T } | { failed: true } | null {
+): { value: T } | { retry: () => void } | null {
+  /* counts the tries, so a retry runs the read again */
+  const [tries, setTries] = useState(0);
   const [got, setGot] = useState<({ key: string } & ({ value: T } | { failed: true })) | null>(
     null,
   );
@@ -42,8 +45,15 @@ export function useReadOutcome<T>(
     return () => {
       live = false;
     };
-  }, [read, key]);
-  return key != null && got?.key === key ? got : null;
+  }, [read, key, tries]);
+  if (key == null || got?.key !== key) return null;
+  if ("value" in got) return got;
+  return {
+    retry: () => {
+      setGot(null);
+      setTries((n) => n + 1);
+    },
+  };
 }
 
 /* what `read` gave for `key`; null while there is no key, while the read is out, and after

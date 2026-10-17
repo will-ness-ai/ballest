@@ -201,6 +201,7 @@ function AllRows({
       <ol className="yl-rows yl-all" aria-busy={!tries.failed}>
         {tries.failed ? (
           <Failed
+            what="this list"
             retry={() => {
               setTries((t) => ({ n: t.n + 1, failed: false }));
             }}
@@ -231,17 +232,21 @@ function Holder({ rows, you, gap }: { rows: number; you?: number; gap?: boolean 
   );
 }
 
-/* in place of rows whose read failed */
-function Failed({ retry }: { retry: () => void }) {
+/* in place of rows whose read failed, said aloud when it shows */
+function Failed({ what, retry }: { what: string; retry: () => void }) {
   return (
     <li className="yl-row yl-off">
-      Couldn&apos;t read your rows.{" "}
+      <span role="status">Couldn&apos;t read {what}.</span>{" "}
       <button type="button" className="yl-again" onClick={retry}>
         Try again
       </button>
     </li>
   );
 }
+
+/* You's rows: read (or nobody's to read), held while they are read, or failed with the way
+   to read them again */
+type Rows = "read" | "held" | { retry: () => void };
 
 /* what a card's rows end with for nobody signed in: the sign-in, seen ("out") or holding its
    place ("unsure") */
@@ -256,17 +261,25 @@ interface View {
   signIn: SignIn;
   /* You, once the player record is read */
   who: Who | null;
+  /* the record is being read: the header holds You's name */
+  naming: boolean;
 }
 
 /* `stale`: the server's top 3s are from another baseline than the reader's */
 function viewOf(you: You, stale: boolean): View {
   switch (you.state) {
     case "ready":
-      return { key: you.id, claimed: true, signIn: null, who: you.rec.who };
+      return { key: you.id, claimed: true, signIn: null, who: you.rec.who, naming: false };
     case "unknown":
-      return { key: you.id, claimed: true, signIn: null, who: null };
+      return { key: you.id, claimed: true, signIn: null, who: null, naming: false };
     case "none":
-      return { key: stale ? NOBODY : null, claimed: false, signIn: "out", who: null };
+      return {
+        key: stale ? NOBODY : null,
+        claimed: false,
+        signIn: "out",
+        who: null,
+        naming: false,
+      };
     case "loading":
       return {
         /* You's cards need only the Steam ID, so they are read beside the record */
@@ -274,6 +287,7 @@ function viewOf(you: You, stale: boolean): View {
         claimed: you.claimed,
         signIn: you.claimed ? null : "unsure",
         who: null,
+        naming: you.claimed,
       };
   }
 }
@@ -314,8 +328,7 @@ function Card({
   since,
   moves,
   you,
-  holding,
-  failed,
+  rows,
   signIn,
 }: {
   stat: StandingsStat;
@@ -325,10 +338,7 @@ function Card({
   moves: boolean;
   /* You's Steam ID once You's card is read, else null */
   you: string | null;
-  /* You's rows are being read: hold their place */
-  holding: boolean;
-  /* You's rows couldn't be read: try again */
-  failed: (() => void) | null;
+  rows: Rows;
   signIn: SignIn;
 }) {
   const [open, setOpen] = useState(false);
@@ -350,7 +360,8 @@ function Card({
               </li>
             ),
           )}
-          {holding && (failed ? <Failed retry={failed} /> : <Holder rows={4} you={2} gap />)}
+          {rows === "held" && <Holder rows={4} you={2} gap />}
+          {typeof rows === "object" && <Failed what="your rows" retry={rows.retry} />}
           {signIn && ladder.total > shown && (
             <li className="yl-gap" aria-hidden="true">
               &#8943;
@@ -360,7 +371,7 @@ function Card({
           {you && !ladder.you && (
             <li className="yl-row yl-off">You aren&apos;t on this list yet</li>
           )}
-          {!ladder.total && !you && !holding && !signIn && (
+          {!ladder.total && !you && rows === "read" && !signIn && (
             <li className="yl-row yl-off">Nobody yet</li>
           )}
         </ol>
@@ -370,7 +381,7 @@ function Card({
           type="button"
           className="yl-more"
           /* there from the first draw, so it doesn't blink out while You's rows are read */
-          disabled={holding}
+          disabled={rows !== "read"}
           aria-expanded={open}
           onClick={() => {
             setOpen(!open);
@@ -384,30 +395,17 @@ function Card({
   );
 }
 
-/* Each try draws the page afresh, and a fresh draw reads again what failed (hooks/read.ts) */
 export function Ladders({ tops }: { tops: YouLadders }) {
-  const [tries, setTries] = useState(0);
-  return (
-    <Page
-      key={tries}
-      tops={tops}
-      retry={() => {
-        setTries((n) => n + 1);
-      }}
-    />
-  );
-}
-
-function Page({ tops, retry }: { tops: YouLadders; retry: () => void }) {
   const now = useNow();
   const fresh = now != null && youBaseline(now) === Date.parse(tops.since);
-  const { key, claimed, signIn, who } = viewOf(useYou(), now != null && !fresh);
+  const { key, claimed, signIn, who, naming } = viewOf(useYou(), now != null && !fresh);
   const outcome = useReadOutcome(readLadders, key);
   const got = outcome && "value" in outcome ? outcome : null;
+  /* You's rows, until they are read: held, or (the read failed) the way to try again */
+  const rows: Rows = !claimed || got ? "read" : outcome && "retry" in outcome ? outcome : "held";
   const data = got?.value ?? tops;
   /* You's Steam ID once You's cards are read */
   const id = got && claimed ? key : null;
-  const holding = claimed && !got;
 
   /* the gains and moves shown are from the reader's baseline */
   const moves = got !== null || fresh;
@@ -419,13 +417,13 @@ function Page({ tops, retry }: { tops: YouLadders; retry: () => void }) {
         {who ? (
           <Marble who={who} still />
         ) : (
-          claimed && <span className="marble ys-hold" aria-hidden="true" />
+          naming && <span className="marble ys-hold" aria-hidden="true" />
         )}
         <div>
           <h1>
             {who ? (
               personaOf(who)
-            ) : claimed ? (
+            ) : naming ? (
               <>
                 <span className="ys-hold" aria-hidden="true" />
                 <span className="yl-sr">Where you stand</span>
@@ -457,8 +455,7 @@ function Page({ tops, retry }: { tops: YouLadders; retry: () => void }) {
             since={data.since}
             moves={moves}
             you={id}
-            holding={holding}
-            failed={outcome && "failed" in outcome ? retry : null}
+            rows={rows}
             signIn={signIn}
           />
         ))}
