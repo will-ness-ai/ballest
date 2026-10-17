@@ -102,6 +102,14 @@ Author Medals and the longest-standing records. A creator counts on their own Ma
 beating its Author Medal, since the Author time is their publishing run.
 _Avoid_: daily stats, stat report
 
+**Workshop standings**:
+The four lists the Daily Report and /you show, Maps played, Author Medals, world records and
+top 5s, counted over the Maps the Workshop lists now, as they stand now and at a baseline.
+Players level on a count share its place: 1 + the players with a strictly higher count. A
+Map whose board was first read after the baseline counts as it stands on both sides.
+_Avoid_: rankings, the report's boards (the Players table is not these lists: it counts the
+Circuit too, and podiums)
+
 ### Prefabs
 
 **Prefab**:

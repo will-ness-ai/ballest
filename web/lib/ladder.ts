@@ -1,0 +1,172 @@
+// What /you shows of one Workshop standing, over the lists GET /api/standings serves
+// (lib/workshop-standings.ts counts them): the ladder card's rows (the top 3, then You and
+// the players around You), the line under the card, the slices "Show all" reads, and how a
+// shared place reads. A player whose count is 0 now has dropped off the list: the payload
+// keeps them only for the baseline's places.
+import type { StandingsStat, WorkshopStandings } from "./rows";
+import { fmtN, ordSuffix, personaOf, plural } from "./rules";
+import { standingOf } from "./workshop-standings";
+
+/* one player on a list, as a ladder draws them */
+export interface LadderRow {
+  steamId: string;
+  persona: string;
+  /* the count now */
+  n: number;
+  /* the count now less the count at the baseline */
+  gain: number;
+  /* the shared place now: 1 + the players with a strictly higher count */
+  place: number;
+  /* another player holds the same place */
+  shared: boolean;
+  /* places climbed since the baseline (negative: dropped), or null for a player who wasn't
+     on the list then */
+  move: number | null;
+}
+
+/* what the line under a card says: how many more pass the nearest player with a strictly
+   higher count (not a player level with You), a leader's margin (or, level with another for
+   the lead, what leads alone), or what gets You on the list */
+export type Chase =
+  | { to: "pass"; more: number; persona: string }
+  | { to: "lead"; by: number }
+  | { to: "outright" }
+  | { to: "alone" }
+  | { to: "join" };
+
+/* one card: its rows, null for the gap between the top 3 and You's neighbourhood */
+export interface Ladder {
+  /* the players on the list now */
+  total: number;
+  rows: Array<LadderRow | null>;
+  /* You's row, or null when You aren't on the list (or nobody is signed in) */
+  you: LadderRow | null;
+  /* where You are listed (0-based), or null: Show all opens on the slice around it */
+  at: number | null;
+  chase: Chase;
+}
+
+/* the four lists in the order /you shows them, and each one's title */
+export const STANDINGS_STATS: ReadonlyArray<StandingsStat> = ["played", "author", "wr", "top5"];
+export const isStandingsStat = (s: unknown): s is StandingsStat =>
+  STANDINGS_STATS.includes(s as StandingsStat);
+export const STANDINGS_TITLE: Record<StandingsStat, string> = {
+  played: "Most Maps played",
+  author: "Most Author Medals",
+  wr: "Most world records",
+  top5: "Most top 5s",
+};
+
+/* You's four cards, as GET /api/standings?ladders serves them */
+export interface YouLadders {
+  /* when the latest Refresh finished, and the baseline the gains and moves are from */
+  readAt: string | null;
+  since: string;
+  lists: Record<StandingsStat, Ladder>;
+}
+
+export const laddersOf = (s: WorkshopStandings, you: string | null): YouLadders => ({
+  readAt: s.readAt,
+  since: s.since,
+  lists: Object.fromEntries(STANDINGS_STATS.map((k) => [k, ladderOf(s, k, you)])) as Record<
+    StandingsStat,
+    Ladder
+  >,
+});
+
+/* each list's noun, one and many */
+export const STANDINGS_NOUN: Record<StandingsStat, [string, string]> = {
+  played: ["Map", "Maps"],
+  author: ["Author Medal", "Author Medals"],
+  wr: ["world record", "world records"],
+  top5: ["top 5", "top 5s"],
+};
+
+const TOP = 3,
+  ABOVE = 2,
+  BELOW = 1,
+  /* the top 5 run on unbroken when You are in or near them */
+  UNBROKEN = 5;
+
+/* the list's rows with a count now, in listing order */
+function rowsOf(s: WorkshopStandings, stat: StandingsStat): Array<LadderRow> {
+  const list = s.lists[stat].map(standingOf).filter((r) => r.n > 0);
+  const atPlace = new Map<number, number>();
+  for (const r of list) atPlace.set(r.place, (atPlace.get(r.place) ?? 0) + 1);
+  return list.map(({ player, n, nBefore, place, placeBefore }) => {
+    const [steamId, persona] = s.players[player];
+    return {
+      steamId,
+      persona: personaOf({ steamId, persona }),
+      n,
+      gain: n - nBefore,
+      place,
+      shared: (atPlace.get(place) ?? 0) > 1,
+      move: nBefore > 0 ? placeBefore - place : null,
+    };
+  });
+}
+
+/* The card for `you` (a Steam ID, or null): the top 3, a gap, two above You, You and one
+   below; from 1st down past You, unbroken, when the gap would hide no more than one row */
+export function ladderOf(s: WorkshopStandings, stat: StandingsStat, you: string | null): Ladder {
+  const all = rowsOf(s, stat);
+  const i = you === null ? -1 : all.findIndex((r) => r.steamId === you);
+  let rows: Array<LadderRow | null>;
+  if (i < 0) rows = all.slice(0, TOP);
+  else if (i - ABOVE <= TOP + 1) rows = all.slice(0, Math.max(UNBROKEN, i + 1 + BELOW));
+  else rows = [...all.slice(0, TOP), null, ...all.slice(i - ABOVE, i + 1 + BELOW)];
+  return {
+    total: all.length,
+    rows,
+    you: i < 0 ? null : all[i],
+    at: i < 0 ? null : i,
+    chase: chaseOf(all, i),
+  };
+}
+
+/* `count` rows of the list from `from` (0-based), for "Show all", and how many are on it */
+export function sliceOf(
+  s: WorkshopStandings,
+  stat: StandingsStat,
+  from: number,
+  count: number,
+): { total: number; rows: Array<LadderRow> } {
+  const all = rowsOf(s, stat);
+  return { total: all.length, rows: all.slice(from, from + count) };
+}
+
+/* a place as it reads on /you: "1st", or "=1,840th" when another player shares it */
+export const placeText = (r: Pick<LadderRow, "place" | "shared">) =>
+  (r.shared ? "=" : "") + fmtN(r.place) + ordSuffix(r.place);
+
+/* the line under You's card. The list is most first, so the players with a strictly higher
+   count all sit above You, and the nearest is the last of them; passing them takes one more
+   than the difference. With nobody higher, You lead, alone or level with others. */
+function chaseOf(all: ReadonlyArray<LadderRow>, i: number): Chase {
+  if (i < 0) return { to: "join" };
+  const me = all[i];
+  const ahead = all.slice(0, i).findLast((r) => r.n > me.n);
+  if (ahead) return { to: "pass", more: ahead.n - me.n + 1, persona: ahead.persona };
+  if (all.length === 1) return { to: "alone" };
+  /* the highest count but You's: the first row that isn't You */
+  const next = all[i === 0 ? 1 : 0].n;
+  return me.n > next ? { to: "lead", by: me.n - next } : { to: "outright" };
+}
+
+/* the line under a card, in the list's own noun */
+export function chaseText(stat: StandingsStat, c: Chase): string {
+  const [one, many] = STANDINGS_NOUN[stat];
+  switch (c.to) {
+    case "pass":
+      return `${plural(c.more, one, many)} more to pass ${c.persona}`;
+    case "lead":
+      return `You lead by ${plural(c.by, one, many)}`;
+    case "outright":
+      return `1 ${one} more to lead outright`;
+    case "alone":
+      return "You lead";
+    case "join":
+      return `1 ${one} to get on this list`;
+  }
+}

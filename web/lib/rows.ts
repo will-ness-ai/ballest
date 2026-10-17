@@ -243,6 +243,32 @@ export interface DailyRecord {
   more: number;
 }
 
+/* The four Workshop standings (CONTEXT.md): Maps played, Author Medals, world records and
+   top 5s */
+export type StandingsStat = "played" | "author" | "wr" | "top5";
+
+/* one player on one Workshop standing: [index into WorkshopStandings.players, count now,
+   count at the baseline, place now, place at the baseline]. A place is 1 + the players
+   with a strictly higher count, so equal counts share it. Written and read through
+   standingRow and standingOf (lib/workshop-standings.ts), which name the positions. */
+export type WorkshopStandingRow = [number, number, number, number, number];
+
+/* The Workshop standings now and at a baseline (lib/workshop-standings.ts), as GET
+   /api/standings serves them. Each list holds everyone with a count now or at the
+   baseline, in listing order: most first, a tie by world records for top 5s and by top 5s
+   for world records, then by Steam ID. */
+export interface WorkshopStandings {
+  /* when the latest Refresh finished: the "now" side */
+  readAt: string | null;
+  /* the baseline the counts and places are compared against */
+  since: string;
+  /* the Maps the Workshop lists now, which the lists count over */
+  maps: number;
+  /* [steam ID, persona] of everyone on a list, by Steam ID */
+  players: Array<[string, string]>;
+  lists: Record<StandingsStat, Array<WorkshopStandingRow>>;
+}
+
 export interface DailyStandings {
   /* how many final Dailies are counted, and the first one's date */
   dailies: number;

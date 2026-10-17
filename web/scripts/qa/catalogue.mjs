@@ -64,6 +64,7 @@ export const PAGES = [
   { name: "players-maps", path: "/players/workshop/maps" },
   { name: "daily", path: "/daily" },
   { name: "daily-standings", path: "/daily/standings" },
+  { name: "you", path: "/you" },
   { name: "prefabs", path: "/prefabs" },
   { name: "prefab", path: "/prefab/{PREFAB}" },
   { name: "prefab-new", path: "/prefabs/new" },
@@ -90,6 +91,7 @@ export const STATES = [
   { name: "race", page: "board", click: ".row .c-race" },
   { name: "howto", page: "prefab", click: ".pf-q" },
   { name: "race-podium", page: "board", click: ".pl-score.c-race" },
+  { name: "you-all", page: "you", click: ".yl-more" },
   { name: "map3d", page: "map-3d", click: ".m3d-open" },
 ];
 

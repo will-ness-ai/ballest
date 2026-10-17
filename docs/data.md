@@ -230,7 +230,9 @@ The app reads the database only through `web/db/data.ts`, whose functions are
 `"use cache: remote"` (shared by every server instance), tagged `data`, with the `max` lifetime: what every page's frame needs
 (`getSite`: when the boards were read, every Circuit board's count, the podium tallies), the
 Workshop's Maps with their figures (`getWorkshop`), a slice of a board (`getBoardPage`), a
-player's record (`getPlayer`) and the Players counts (`getStandings`), and one Daily by its date (`getDaily`, checked against
+player's record (`getPlayer`) and the Players counts (`getStandings`), the Workshop standings
+at a baseline (`getWorkshopStandings`, keyed by the baseline, which `GET /api/standings` keeps
+to the hour and the last week), and one Daily by its date (`getDaily`, checked against
 `getDailyDates` first), whose board is read like any other. Searches
 (`searchBoard`, `searchPlayers`) are read fresh. The queries are in `web/db/site.ts`, built on
 the ranked boards in `web/db/boards.ts`, and tested against `tiny` (`web/test/site.test.ts`).
