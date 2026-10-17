@@ -22,3 +22,8 @@ def test_every_known_name_is_looked_up_within_one_turn_of_the_slices():
 def test_a_run_looks_up_only_its_own_slice_of_the_known_names():
     due = cc.names_due(KNOWN, KNOWN, refreshes=3)
     assert 0 < len(due) <= len(KNOWN) // cc.NAME_REFRESH_SLICES + 1
+
+
+def test_a_player_who_just_set_a_score_is_looked_up_whatever_the_slice():
+    sid = next(s for s in KNOWN if s not in cc.names_due(KNOWN, KNOWN, refreshes=3))
+    assert sid in cc.names_due(KNOWN, KNOWN, refreshes=3, active={sid})

@@ -490,3 +490,13 @@ def test_memory_counts_the_refreshes_written(conn):
     db_writer.write_refresh(conn, refresh(0, [board(TRACK, ("1001", 1013307))]))
     db_writer.write_refresh(conn, refresh(1, [board(TRACK, ("1001", 1013307))]))
     assert db_writer.read_memory(conn).refreshes == 2
+
+
+def test_memory_knows_who_set_a_score_in_the_latest_refresh(conn):
+    assert db_writer.read_memory(conn).active == set()
+    db_writer.write_refresh(conn, refresh(0, [board(TRACK, ("1001", 1013307), ("1002", 1100000))]))
+    # 1002 improves; 1001 stands still, and 1003 is new
+    db_writer.write_refresh(
+        conn, refresh(1, [board(TRACK, ("1001", 1013307), ("1002", 1090000), ("1003", 1200000))])
+    )
+    assert db_writer.read_memory(conn).active == {"1002", "1003"}
