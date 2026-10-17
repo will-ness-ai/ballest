@@ -20,7 +20,7 @@ import { describeDiscordError, Discord } from "./discord/client.js";
 import { OpsAlerts } from "./ops.js";
 
 /** How long after a post the step starts, so a burst of posts makes one run. */
-export const BATCH = Duration.toMillis("1 minute");
+export const WAIT_AFTER_POST = Duration.toMillis("1 minute");
 
 const WORKFLOW =
   "https://api.github.com/repos/will-ness-ai/ballest/actions/workflows/add-maps.yml/dispatches";
@@ -66,26 +66,25 @@ const addMapsLive = (token: Redacted.Redacted) =>
   ).pipe(Layer.provide(FetchHttpClient.layer));
 
 /** For every post, the step a minute later, unless one is already waiting to start. */
-export const newTracksLoop = (posts: Stream.Stream<string>) =>
-  Effect.gen(function* () {
-    const addMaps = yield* AddMaps;
-    const alerts = yield* OpsAlerts;
-    const waiting = yield* Ref.make(false);
-    const run = Effect.sleep(BATCH).pipe(
-      Effect.zipRight(Ref.set(waiting, false)),
-      Effect.zipRight(addMaps.start),
-      Effect.tap(() => Effect.logInfo("new tracks: started adding new Maps")),
-      Effect.catchTag("AddMapsFailed", (e) =>
-        alerts.post(`Multiballs couldn't start adding a new Workshop Map: ${e.reason}`),
-      ),
-    );
-    yield* Stream.runForEach(posts, () =>
-      Effect.gen(function* () {
-        if (yield* Ref.getAndSet(waiting, true)) return;
-        yield* Effect.forkScoped(run);
-      }),
-    );
-  }).pipe(Effect.scoped);
+export const newTracksLoop = Effect.fn("newTracksLoop")(function* (posts: Stream.Stream<string>) {
+  const addMaps = yield* AddMaps;
+  const alerts = yield* OpsAlerts;
+  const waiting = yield* Ref.make(false);
+  const run = Effect.sleep(WAIT_AFTER_POST).pipe(
+    Effect.zipRight(Ref.set(waiting, false)),
+    Effect.zipRight(addMaps.start),
+    Effect.tap(() => Effect.logInfo("new tracks: started adding new Maps")),
+    Effect.catchTag("AddMapsFailed", (e) =>
+      alerts.post(`Multiballs couldn't start adding a new Workshop Map: ${e.reason}`),
+    ),
+  );
+  yield* Stream.runForEach(posts, () =>
+    Effect.gen(function* () {
+      if (yield* Ref.getAndSet(waiting, true)) return;
+      yield* Effect.forkScoped(run);
+    }),
+  );
+}, Effect.scoped);
 
 /** The listener, on when NEW_TRACKS_CHANNEL_ID and GITHUB_DISPATCH_TOKEN are both set and the
  * bot can view that channel; otherwise it says why and the bot runs on without it. */

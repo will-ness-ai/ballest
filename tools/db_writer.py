@@ -382,6 +382,21 @@ def write_refresh(conn, refresh):
     return rid
 
 
+def map_of(c):
+    """A catalogue Map (campaign_common.catalogue_map) as the writer takes it in a Refresh's
+    `workshop`, without its board ID or counters, which each caller adds."""
+    return {
+        "name": "Workshop_" + c["pfid"],
+        "pfid": c["pfid"],
+        "display": c["title"],
+        "creator": c["creator"],
+        "cid": c["cid"],
+        "preview": c["preview"],
+        "created": c["created"],
+        "medals": c["medals"],
+    }
+
+
 def add_maps(conn, catalogue):
     """Write the catalogue Maps (campaign_common.catalogue_map) the database lacks, in one
     transaction, and return their pfids: the step a #new-tracks post runs (add_maps.py),
@@ -403,22 +418,7 @@ def add_maps(conn, catalogue):
         new = list({c["pfid"]: c for c in catalogue if c["pfid"] not in held}.values())
         if not new:
             return []
-        maps = [
-            {
-                "name": "Workshop_" + c["pfid"],
-                "pfid": c["pfid"],
-                "display": c["title"],
-                "creator": c["creator"],
-                "cid": c["cid"],
-                "preview": c["preview"],
-                "created": c["created"],
-                "medals": c["medals"],
-                "entry_count": 0,
-                "sessions": None,
-                "subs": None,
-            }
-            for c in new
-        ]
+        maps = [map_of(c) | {"entry_count": 0, "sessions": None, "subs": None} for c in new]
         _copy(
             cur,
             "in_boards",

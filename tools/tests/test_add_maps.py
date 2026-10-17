@@ -2,10 +2,15 @@
 lacks, written so the site lists them before the next Refresh, and read back the way the
 site and the collector's memory read them."""
 
+import contextlib
+import io
+import json
 from datetime import UTC, datetime
 
 import add_maps
+import campaign_common as cc
 import db_writer
+from test_map_files import SLICK_SLIDE
 
 T0 = datetime(2026, 10, 1, tzinfo=UTC)
 OLD, NEW = "3812794783", "3821808619"
@@ -116,13 +121,13 @@ def test_nothing_is_added_before_any_catalogue_was_written(conn):
     assert conn.execute("select count(*) from maps").fetchone() == (0,)
 
 
-# The step's loop (add_maps.run): Steam's newest page can lag the #new-tracks post.
+# The step's loop (add_maps.add_when_listed): Steam's newest page can lag the #new-tracks post.
 
 
 def test_the_step_tries_again_until_steam_lists_the_new_map():
     pages = iter([[item(OLD)], [item(OLD)], [item(NEW), item(OLD)]])
     waits = []
-    added = add_maps.run(
+    added = add_maps.add_when_listed(
         lambda: next(pages), lambda c: [m["pfid"] for m in c if m["pfid"] == NEW], waits.append
     )
     assert added == [NEW]
@@ -134,5 +139,26 @@ def test_the_step_gives_up_after_its_tries_and_a_failed_read_is_one_try():
         raise OSError("Steam is down")
 
     waits = []
-    assert add_maps.run(newest, lambda _: [], waits.append) == []
+    assert add_maps.add_when_listed(newest, lambda _: [], waits.append) == []
     assert len(waits) == add_maps.TRIES - 1
+
+
+def test_the_newest_page_is_one_request_read_as_the_catalogue_reads_it(monkeypatch):
+    urls = []
+
+    def urlopen(url, **_):
+        urls.append(url)
+        page = {"response": {"total": 1525, "publishedfiledetails": [SLICK_SLIDE]}}
+        return contextlib.nullcontext(io.BytesIO(json.dumps(page).encode()))
+
+    monkeypatch.setattr(cc.urllib.request, "urlopen", urlopen)
+    [m] = cc.newest_maps("key")
+    assert len(urls) == 1
+    assert "query_type=1" in urls[0]
+    assert (m["pfid"], m["title"], m["creator"], m["board"]) == (
+        "3821728582",
+        "Slick Slide",
+        "xMetzger",
+        "ballest_v0_3821728582_Climb_Slick Slide",
+    )
+    assert m["medals"] == [39.0, 30.0, 26.0, 24.340808868408203]

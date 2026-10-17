@@ -155,8 +155,8 @@ its `boards` row with no board ID, `maps`, and one `map_history` row. It writes 
 reads no board. The row's first and last seen are the newest catalogue's Refresh
 (`max(last_seen_refresh)`), so the site lists the Map beside that catalogue's Maps, and its
 sessions and subscriptions are empty, so the next Refresh reads them as moved and looks its board
-up. Its 3D file and Ghosts come with that Refresh. While nothing is new it tries again, five
-times a minute apart, since Steam's list can lag the post. Before any catalogue was written it
+up. Its 3D file and Ghosts come with that Refresh. While nothing is new it reads the page again, up to five
+reads a minute apart, since Steam's list can lag the post. Before any catalogue was written it
 adds nothing.
 
 It runs in its own concurrency group, because a pending run in `refresh-leaderboards` would

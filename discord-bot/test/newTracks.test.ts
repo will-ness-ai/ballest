@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Layer, Queue, Ref, Stream, TestClock } from "effect";
-import { AddMaps, AddMapsFailed, BATCH, newTracksLoop } from "../src/newTracks.js";
+import { AddMaps, AddMapsFailed, WAIT_AFTER_POST, newTracksLoop } from "../src/newTracks.js";
 import { OpsAlerts } from "../src/ops.js";
 
 /** The loop over a #new-tracks channel fed by `post`, an AddMaps that counts its runs (or fails
@@ -41,7 +41,7 @@ describe("adding new Maps from #new-tracks", () => {
     Effect.gen(function* () {
       const t = yield* setup;
       yield* t.post;
-      yield* TestClock.adjust(BATCH - 1);
+      yield* TestClock.adjust(WAIT_AFTER_POST - 1);
       expect(yield* Ref.get(t.runs)).toBe(0);
       yield* TestClock.adjust(1);
       expect(yield* Ref.get(t.runs)).toBe(1);
@@ -53,13 +53,13 @@ describe("adding new Maps from #new-tracks", () => {
     Effect.gen(function* () {
       const t = yield* setup;
       yield* t.post;
-      yield* TestClock.adjust(BATCH / 2);
+      yield* TestClock.adjust(WAIT_AFTER_POST / 2);
       yield* t.post;
       yield* t.post;
-      yield* TestClock.adjust(BATCH / 2);
+      yield* TestClock.adjust(WAIT_AFTER_POST / 2);
       expect(yield* Ref.get(t.runs)).toBe(1);
       yield* t.post;
-      yield* TestClock.adjust(BATCH);
+      yield* TestClock.adjust(WAIT_AFTER_POST);
       expect(yield* Ref.get(t.runs)).toBe(2);
       yield* Fiber.interrupt(t.fiber);
     }),
@@ -70,13 +70,13 @@ describe("adding new Maps from #new-tracks", () => {
       const t = yield* setup;
       yield* Ref.set(t.failing, true);
       yield* t.post;
-      yield* TestClock.adjust(BATCH);
+      yield* TestClock.adjust(WAIT_AFTER_POST);
       expect(yield* Ref.get(t.alerts)).toEqual([
         "Multiballs couldn't start adding a new Workshop Map: 401 Bad credentials",
       ]);
       yield* Ref.set(t.failing, false);
       yield* t.post;
-      yield* TestClock.adjust(BATCH);
+      yield* TestClock.adjust(WAIT_AFTER_POST);
       expect(yield* Ref.get(t.runs)).toBe(1);
       yield* Fiber.interrupt(t.fiber);
     }),
