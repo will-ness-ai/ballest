@@ -11,6 +11,7 @@ import { describeDiscordError, Discord } from "./discord/client.js";
 import { DriverInteractions, InteractionsLive } from "./discord/interactions.js";
 import { DiscordChannelLive } from "./discord/channel.js";
 import { Marbles } from "./discord/marbles.js";
+import { NewTracksLive } from "./newTracks.js";
 import { PingRoleLive } from "./discord/pingRole.js";
 import { DailyReportLive } from "./report/daily.js";
 import { ChannelSurfaceLive } from "./discord/surface.js";
@@ -122,6 +123,7 @@ export const app = <E, R, E2 = never>(
     sandbox === undefined ? InteractionsLive : InteractionsLive.pipe(Layer.provide(sandbox.feed)),
     OpsLive,
     DailyReportLive,
+    NewTracksLive,
     ActivityLive,
     sandbox?.server ?? Layer.empty,
   ).pipe(

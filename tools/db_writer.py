@@ -382,6 +382,57 @@ def write_refresh(conn, refresh):
     return rid
 
 
+def add_maps(conn, catalogue):
+    """Write the catalogue Maps (campaign_common.catalogue_map) the database lacks, in one
+    transaction, and return their pfids: the step a #new-tracks post runs (add_maps.py),
+    between Refreshes. A Map is written as the latest catalogue's Refresh saw it, so the
+    site lists it beside that catalogue's Maps until the next Refresh, which lists it as
+    usual. No Refresh is written and no board read: the Map has no board ID, and its
+    counters are left empty so the next Refresh reads them as moved and looks the board
+    up. Before any catalogue was written there is nothing to list it beside: nothing is
+    added.
+
+    conn must be outside a transaction, as for write_refresh."""
+    if conn.info.transaction_status != psycopg.pq.TransactionStatus.IDLE:
+        raise RuntimeError("add_maps needs a connection outside a transaction")
+    with conn.transaction(), conn.cursor() as cur:
+        (rid,) = cur.execute("select max(last_seen_refresh) from map_history").fetchone()
+        if rid is None:
+            return []
+        held = {p for (p,) in cur.execute("select pfid from maps")}
+        new = list({c["pfid"]: c for c in catalogue if c["pfid"] not in held}.values())
+        if not new:
+            return []
+        maps = [
+            {
+                "name": "Workshop_" + c["pfid"],
+                "pfid": c["pfid"],
+                "display": c["title"],
+                "creator": c["creator"],
+                "cid": c["cid"],
+                "preview": c["preview"],
+                "created": c["created"],
+                "medals": c["medals"],
+                "entry_count": 0,
+                "sessions": None,
+                "subs": None,
+            }
+            for c in new
+        ]
+        _copy(
+            cur,
+            "in_boards",
+            "name text, display text",
+            [(m["name"], m["display"]) for m in maps],
+        )
+        cur.execute(
+            "insert into boards (name, kind, display, scores_points)"
+            " select name, 'map', display, false from in_boards on conflict (name) do nothing"
+        )
+        _write_maps(cur, rid, maps)
+    return [c["pfid"] for c in new]
+
+
 # in_dailies's columns, each a daily.Daily field of the same name
 DAILY_COLUMNS = (
     ("date", "date"),
