@@ -141,6 +141,13 @@ export function ProtoSlot({ pfid, slot }: { pfid: string; slot: "img" | "stage" 
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"board" | "3d">("board");
   const rank = rankOf(pfid);
+  /* ?state=open starts C's full screen and E's 3D tab, for screenshots */
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("state") === "open") {
+      setOpen(true); // eslint-disable-line react-hooks/set-state-in-effect -- PROTOTYPE
+      setTab("3d");
+    }
+  }, []);
   useEffect(() => {
     document.documentElement.classList.toggle("proto-3dtab", v === "E" && tab === "3d");
     document.documentElement.classList.toggle("proto-hideimg", rank >= 0 && v === "A");
