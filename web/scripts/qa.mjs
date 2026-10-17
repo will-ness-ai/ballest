@@ -250,8 +250,7 @@ async function piece() {
         mkdirSync(OUT, { recursive: true });
         for (const [i, page] of pagesOf(ranked).entries()) {
           const file = `${OUT}pieces-${String(i + 1)}.png`;
-          const sheets = page.map((r) => `data:image/png;base64,${r.sheet.toString("base64")}`);
-          writeFileSync(file, await p.montage(sheets));
+          writeFileSync(file, await p.montage(page.map((r) => r.sheet)));
           images.push(rel(file));
         }
       }

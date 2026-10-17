@@ -64,9 +64,10 @@ export async function pieces(dir) {
         sheet: r.sheet ? Buffer.from(r.sheet.split(",")[1], "base64") : null,
       };
     },
-    /* one picture of several sheets (data URLs from run), as a PNG */
+    /* one picture of several sheets (the PNGs run gave), as a PNG */
     async montage(sheets) {
-      const url = await page.evaluate((s) => globalThis.montage(s), sheets);
+      const urls = sheets.map((b) => `data:image/png;base64,${b.toString("base64")}`);
+      const url = await page.evaluate((s) => globalThis.montage(s), urls);
       return Buffer.from(url.split(",")[1], "base64");
     },
     close: () => browser.close(),
