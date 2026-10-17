@@ -249,15 +249,18 @@ equal totals ordered by the first Map (in the Campaign's order) a player is on, 
 place there. A player is ranked once they have a time on one Map.
 
 **The page** (`components/campaign/CampaignView.tsx`) is a Circuit season's twin, built
-from the same pieces: the Campaign switch (`CampaignSwitch.tsx`, the season switch's tabs
-and chip) lists the Campaigns most players first (`getCampaigns`); the rail lists Overall,
-then each Map as a strip of its preview picture with its number, record and the part of
+from the same pieces: the Campaign switch (`CampaignSwitch.tsx`, the season switch's chip,
+never a row of tabs, since the list keeps growing; on a desktop it heads the rail, under a
+"Campaign" label and over the maker's name) lists the Campaigns most players first
+(`getCampaigns`); the rail lists Overall, then each Map as a strip of its preview picture with its number, record and the part of
 its title after the Campaign's name (`mapName`), left out when that is only its number
-("Miniblack 01", "AJC1"). Everywhere the frame names a Map (the rail's sheet, the podium
+("Miniblack 01", "AJC1"), and the whole title when what is left starts with a number that
+isn't the Map's place ("Ninja0", "AJ26"). Everywhere the frame names a Map (the rail's sheet, the podium
 tally, the page's title) it is `mapLabel`: the number, then that name. On a phone the
 switch's chip and the board button share a row while they fit, and the button takes a line
 of its own when they don't (`.boardrow.named`), since a Campaign's title and Map names run
-longer than a season's. The Overall card, the points dialog and the podium count say maps
+longer than a season's. The switch's menu scrolls inside itself when the list outgrows the
+screen. The Overall card, the points dialog and the podium count say maps
 where a season says tracks, and count the Maps the Workshop lists, which are the ones that
 pay points. A Map inside the frame gets the Track card's layout with its preview picture
 and a link to its own page. A Campaign none of whose Maps the Workshop lists is shown
@@ -425,8 +428,12 @@ branch `claude/prototype-prefabs` (spec #213).
   down or hidden, reads as gone.
 - **Stand-in shapes**: the file names meshes but carries no geometry, and the game's
   meshes stay off the repo (ADR 0001), so `lib/prefab.ts` draws each known mesh as a box,
-  cylinder, sphere, scoop, torus or half or quarter ring (the hole bowls) sized from its
-  bounds, an unknown one as a grey box, and colours each by its material's name; an Emissive
+  cylinder, cone, pyramid, sphere, torus or half or quarter ring (the hole bowls) sized from its
+  bounds, an unknown one as a grey box. A box whose mesh is curved is drawn instead as its
+  outline in one view pushed through the bounds, squeezed by a second view's outline where that
+  helps (`lib/prefab-profiles.ts`): coarse outlines, a few dozen points traced from mesh renders
+  in the private ballest-map-making (`extract/piece_profiles.py`), never the mesh itself.
+  `pnpm --silent qa piece` scores each against those renders. Each piece is coloured by its material's name; an Emissive
   material glows, as the game's lamps do. A fill light opposite
   the key keeps every side's colours true, so a sign seen from the front isn't greyed. Rotations are Unreal's [pitch, yaw, roll] in
   degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
@@ -501,7 +508,11 @@ only visible ones.
   screenshots of your own. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
   place of a throwaway Playwright script. `qa shot prefab@1280 --prefab <file.json>` has the
-  Prefab page's viewer draw any file, for checking stand-in shapes against the game. A page
+  Prefab page's viewer draw any file. To work on a stand-in shape, run `qa piece <mesh>`
+  instead: it scores the stand-in's top, front and side outlines against the game mesh's
+  renders in `ballest-map-making/references/pieces/` (1.00 is the same outline) and writes a
+  game | viewer | outlines sheet; `qa piece --all` lists every mesh, worst first, and
+  `--montage` adds their game and viewer rows 16 to a picture (`--match` narrows the list). A page
   that answers 200 with a "not found" title is a `gone` fault: its catalogue ID is stale. Both sides read the same database, so a change in
   numbers alone is data, and the two deployments' caches can differ by a Refresh.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel

@@ -15,6 +15,8 @@ cd "$CLAUDE_PROJECT_DIR"
 # the commit identity CODING_STANDARDS.md asks for
 git config user.name will-ness-ai
 git config user.email n3s.online@gmail.com
+# the pre-push check (docs/linting.md); a root `pnpm install` that changes nothing skips prepare
+git config core.hooksPath .githooks
 
 service postgresql start >/dev/null
 su postgres -c "psql -qc \"alter user postgres password 'postgres'\"" >/dev/null

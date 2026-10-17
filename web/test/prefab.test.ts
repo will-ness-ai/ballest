@@ -4,7 +4,14 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
-import { footprintOf, partsOf, pieceLabel, shapesOf, type PrefabFile } from "../lib/prefab";
+import {
+  footprintOf,
+  partsOf,
+  pieceLabel,
+  prismOf,
+  shapesOf,
+  type PrefabFile,
+} from "../lib/prefab";
 import { MAX_BYTES, checkPrefab, fileNameOf } from "../lib/prefab-check";
 import { DEFAULT_ANGLE, PAN_MAX, ZOOM_RANGE, checkAngle, galleryOf } from "../lib/prefabs";
 
@@ -27,6 +34,16 @@ function cubes(...items: Array<[Array<number>, Array<number>, Array<number>]>): 
     })) as PrefabFile["items"],
   };
 }
+
+/* an air vent as the editor saves it (copied from a player's upload, 2026-10-17): its mesh
+   comes from the blueprint, so the file leaves it blank, and its airflow is in properties */
+const VENT = {
+  class: "/Game/Core/Gameplay/Props/MP_AirVent.MP_AirVent_C",
+  transform: { location: [0, 0, 0], rotation: [0, 180, 0], scale: [0.75, 0.75, 1] },
+  properties: { "Field Magnitude": 750000, EntryAssistMinSpeed: 800 },
+  meshes: [{ tag: "SKGMapEditor", mesh: "", materials: [] }],
+  paint: { categories: [], colors: [] },
+};
 
 const near = (got: { w: number; d: number; h: number }, want: [number, number, number]) => {
   expect(got.w).toBeCloseTo(want[0]);
@@ -117,6 +134,48 @@ describe("a Prefab file", () => {
     expect(bowl("QuarterShallowHoleBowl")).toBe("quarterRing");
   });
 
+  test("a curved piece is its own outline pushed through its bounds; a hand-made shape stays", () => {
+    const piece = (mesh: string) =>
+      shapesOf({
+        ...cubes(),
+        items: [
+          {
+            class: "/Game/LevelEditor/BP_Piece.BP_Piece_C",
+            transform: { location: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+            meshes: [{ mesh: `/Game/Maps/_GENERATED/PC/${mesh}.${mesh}`, materials: [] }],
+          },
+        ],
+      })[0];
+    // a kicker's ramp shows from the side, so that's the outline it is drawn from
+    expect(piece("SM_1000_kicker").profile?.view).toBe("side");
+    expect(piece("SM_1000_kicker").profile?.shapes[0][0].length).toBeGreaterThan(6);
+    // the goal ring's hole shows from above
+    expect(piece("SM_GoalRing").profile?.shapes[0]).toHaveLength(2);
+    expect(piece("Torus")).toMatchObject({ kind: "torus", profile: undefined });
+    expect(piece("SM_500").profile).toBeUndefined();
+  });
+
+  test("an outline is laid in its view's plane, in three's axes, and pushed along the third", () => {
+    // Unreal x, y, z are three's x, z, y; side is Unreal x across and z up, seen along y
+    const axes = (view: "top" | "front" | "side") => prismOf({ view, shapes: [] }).axes;
+    expect(axes("side")).toEqual([0, 1, 2]);
+    expect(axes("top")).toEqual([0, 2, 1]);
+    expect(axes("front")).toEqual([2, 1, 0]);
+  });
+
+  test("a second view squeezes the prism: how far it reaches, read between evenly spaced places", () => {
+    // two places, at a quarter and three quarters along: full depth, then only its lower half
+    const spans = [0, 1000, 0, 500];
+    // a top outline (pushed up, three's y) squeezed from the front: they share Unreal's y,
+    // three's z, so how high a point reaches is read by how deep it is
+    const { squeeze } = prismOf({ view: "top", shapes: [], squeeze: { view: "front", spans } });
+    expect(squeeze?.([0, 0.5, -0.5])).toEqual([0, 0.5, -0.5]);
+    expect(squeeze?.([0, 0.5, 0])).toEqual([0, 0.25, 0]);
+    expect(squeeze?.([0, 0.5, 0.5])).toEqual([0, 0, 0.5]);
+    expect(squeeze?.([0, -0.5, 0.5])).toEqual([0, -0.5, 0.5]);
+    expect(prismOf({ view: "top", shapes: [] }).squeeze).toBeNull();
+  });
+
   test("a rounded torus is a torus, and an Emissive material glows", () => {
     const [shape] = shapesOf({
       ...cubes(),
@@ -153,11 +212,22 @@ describe("a Prefab file", () => {
   });
 });
 
+test("a vent is drawn at the air vent's size, not as the unknown-mesh box", () => {
+  const file = { ...cubes(), items: [VENT] } as unknown as PrefabFile;
+  const [shape] = shapesOf(file);
+  expect(shape.kind).toBe("box");
+  expect(shape.size[0]).toBeCloseTo(1);
+  expect(shape.size[1]).toBeCloseTo(0.0356);
+});
+
 test("a piece reads as the editor's catalogue names it, without its blueprint prefix", () => {
   expect(pieceLabel("BP_Pipe_Tube1")).toBe("Pipe Tube 1");
   expect(pieceLabel("BP_Prim_Cube")).toBe("Cube");
   expect(pieceLabel("BP_Ramp_Curve_Long1")).toBe("Ramp Curve Long 1");
   expect(pieceLabel("Bevel_Full_Ring")).toBe("Bevel Full Ring");
+  expect(pieceLabel("MP_AirVent")).toBe("Air Vent");
+  expect(pieceLabel("MP_SM_ConeBowl")).toBe("Cone Bowl");
+  expect(pieceLabel("Bevel_Full_HalfRingKicker")).toBe("Bevel Full Half Ring Kicker");
 });
 
 describe("the upload check", () => {
@@ -211,6 +281,11 @@ describe("the upload check", () => {
     expect(problems(withFile({ items: [one, bare, noScale] }))).toEqual([
       "2 pieces aren't laid out as the editor saves them (a position, rotation, scale and meshes each).",
     ]);
+  });
+
+  test("a vent passes as the editor saves it, with no mesh, materials or paint", () => {
+    const one = (JSON.parse(sample("bench")) as PrefabFile).items[0];
+    expect(checkPrefab(withFile({ items: [one, VENT] }))).toEqual({ ok: true, pieces: 2 });
   });
 
   test("a file over 4 MB is refused before it is read", () => {

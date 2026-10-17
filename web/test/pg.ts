@@ -16,9 +16,11 @@ export async function freshDb(): Promise<{ db: Db; url: string; drop: () => Prom
   await admin.connect().catch((e: unknown) => {
     // otherwise every test fails on its own and reads like a bug in the code under test
     const host = new URL(base).host;
-    throw new Error(`Can't connect to Postgres at TEST_DATABASE_URL (${host}); is it running?`, {
-      cause: e,
-    });
+    throw new Error(
+      `Can't connect to Postgres at TEST_DATABASE_URL (${host}); is it running? A cloud ` +
+        "container stops it on restart: `service postgresql start` (docs/linting.md, Running it).",
+      { cause: e },
+    );
   });
   await admin.query(`create database ${name}`);
   await admin.end();
