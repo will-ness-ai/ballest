@@ -30,7 +30,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     `spread.ts` (the spread chart's columns and where a time falls on it) for You.
   - `workshop-standings.ts`, the Workshop standings (`CONTEXT.md`) counted now and at a
     baseline with shared places, `youBaseline`, the baseline /you compares against, and
-    `baselineOf`, which baselines the route takes (ADR 0009). `GET /api/standings?since=` serves them, for /you and for Multiballs;
+    `baselineOf`, which baselines the route takes (ADR 0011). `GET /api/standings?since=` serves them, for /you and for Multiballs;
     `ladder.ts` is what /you shows of them (a card's rows around You, the line under it,
     "Show all"'s slices, and a shared place's "=1,840th").
   - `auth.ts`, Sign in with Steam end to end, one call per route (ADR 0008), over

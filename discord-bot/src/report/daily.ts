@@ -1,5 +1,5 @@
 // The Daily Report (spec #126): built from the leaderboard database and the Workshop standings the
-// site counts (docs/adr/0009), posted to STATS_CHANNEL_ID at
+// site counts (docs/adr/0011), posted to STATS_CHANNEL_ID at
 // 16:00 UTC every day. Each posted day is recorded in the bot's SQLite, so a restart after the post
 // never posts it again, and a bot that was down at 16:00 posts once when it starts.
 import { SqlClient } from "@effect/sql";

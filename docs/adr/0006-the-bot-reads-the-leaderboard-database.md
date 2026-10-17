@@ -1,6 +1,6 @@
 # The bot reads the leaderboard database directly, with plain SQL
 
-Status: accepted (2026-10-04). Amended by ADR 0009: the site counts the Workshop standings and serves them.
+Status: accepted (2026-10-04). Amended by ADR 0011: the site counts the Workshop standings and serves them.
 
 The Daily Report (spec #126) needs every Workshop Map's board, each Map's Author Medal and
 creator, and what changed in the last 24 hours: the Score history that ADR 0005 put in

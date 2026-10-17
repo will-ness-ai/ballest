@@ -1,5 +1,5 @@
 // GET /api/standings?since=: the Workshop standings (WorkshopStandings in lib/rows.ts), now and
-// at a baseline, with each player's count and shared place on both sides (docs/adr/0009).
+// at a baseline, with each player's count and shared place on both sides (docs/adr/0011).
 // Multiballs draws the Daily Report's image from them.
 //
 // GET /api/standings?ladders&player=<steam id>: /you's four cards for that player (YouLadders

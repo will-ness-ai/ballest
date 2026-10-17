@@ -1,6 +1,6 @@
 // Steam Web API calls (plain HTTPS with the API key), plus two reads from our own site: the
 // Circuit Track boards (GET /api/tracks), so the bot never keeps a second copy of the board table,
-// and the Workshop standings (GET /api/standings), which the site counts (docs/adr/0009).
+// and the Workshop standings (GET /api/standings), which the site counts (docs/adr/0011).
 import {
   FetchHttpClient,
   HttpClient,

@@ -1,5 +1,5 @@
 // The Workshop standings the Daily Report's image draws: counted by the site, not here
-// (docs/adr/0009), and read from its GET /api/standings. A site that can't be reached, or answers
+// (docs/adr/0011), and read from its GET /api/standings. A site that can't be reached, or answers
 // with something that isn't the four lists, fails the day's report as an unreachable database does.
 import { Context, Effect, Either, Layer } from "effect";
 import { type SiteStandings, WebApi } from "../steam/webApi.js";

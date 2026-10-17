@@ -155,7 +155,7 @@ Since yesterday in the channel with the four Workshop standings as an image and 
 records in a thread on it. The button and the message's Map links go to the live site whatever
 `SITE_URL` says, so a sandbox post's button opens the real `/you`; the bot never hears a press
 of a link button, and it never edits the message. The Workshop standings come from the site: it counts
-them and serves them at `GET /api/standings` (ADR 0009), which `standings.ts` reads
+them and serves them at `GET /api/standings` (ADR 0011), which `standings.ts` reads
 at `SITE_URL` (default the live site) with the baseline 24 hours before the post, so the image's
 places are the site's shared places. Everything else reads the leaderboard database at
 `DATABASE_URL` (ADR 0006: plain SQL over the schema `web/` owns, in `source.ts`), and records are

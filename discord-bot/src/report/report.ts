@@ -74,7 +74,7 @@ export const STATS: ReadonlyArray<Stat> = ["played", "author", "wr", "top5"];
 
 /**
  * One player on one of the Workshop standings, as the site counts it (GET /api/standings, docs/adr/
- * 0009). A place is shared: 1 + the players with a strictly higher count.
+ * 0011). A place is shared: 1 + the players with a strictly higher count.
  */
 export interface SiteStanding {
   readonly steamId: string;
