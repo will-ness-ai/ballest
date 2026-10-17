@@ -130,6 +130,8 @@ describe("the lookups", () => {
     expect(mapLabel(ninja, "3605138459", "Ninja0")).toBe("01 Ninja0");
     expect(mapLabel(aj, "3591825761", "AJ26")).toBe("03 AJ26");
     expect(mapLabel(aj, "3619755748", "AJ07 Redux")).toBe("01 AJ07 Redux");
+    // titles that don't start with the Campaign's stay whole
+    expect(mapLabel(curated("mind-trials"), "3821602774", "focus")).toBe("01 focus");
     // its place, then more of a name
     expect(mapName(make("a", ["5"]), "5", "a 1 Remix")).toBe("1 Remix");
   });

@@ -1,8 +1,10 @@
 "use client";
 // Small hooks the client components share.
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { isLive } from "../lib/daily";
+import type { Freshness } from "../lib/rows";
 
 /* a useSyncExternalStore subscription for a value that never changes once the page runs:
    its server snapshot shows until hydration is done, then the browser's */
@@ -17,16 +19,23 @@ export const useMounted = () =>
   );
 
 /* The time, for "... ago": null on the server and during hydration, since a cached page
-   would freeze it, then the browser's clock, moving on every minute. */
+   would freeze it, then the browser's clock, moving on every minute and at once when the
+   tab comes back into view (a sleeping laptop's timers stop). */
 let now = 0;
 function tick(changed: () => void) {
   now = Date.now();
-  const t = setInterval(() => {
+  const move = () => {
     now = Date.now();
     changed();
-  }, 60_000);
+  };
+  const back = () => {
+    if (document.visibilityState === "visible") move();
+  };
+  const t = setInterval(move, 60_000);
+  document.addEventListener("visibilitychange", back);
   return () => {
     clearInterval(t);
+    document.removeEventListener("visibilitychange", back);
   };
 }
 export const useNow = () =>
@@ -35,6 +44,41 @@ export const useNow = () =>
     () => now || (now = Date.now()),
     () => null,
   );
+
+/* how long a page goes before it asks whether a newer Refresh has landed; Refreshes land
+   hours apart, so asking sooner would only hear the same answer */
+const STALE_AFTER = 10 * 60_000;
+
+/* A tab left open (a laptop asleep overnight) keeps the page it loaded and goes on saying
+   "Refreshed a day ago". When the reader comes back to it (the tab in view again, the
+   window focused, the page restored from the back/forward cache) and it was read over
+   STALE_AFTER ago, the page asks /api/refreshed for the latest Refresh, and reads itself
+   again only when that is newer than `refreshedAt`, the one it shows. Nothing polls
+   while a tab stays open. */
+export function useLatestRefresh(refreshedAt: Freshness["refreshedAt"]) {
+  const router = useRouter();
+  useEffect(() => {
+    let readAt = Date.now();
+    const back = () => {
+      if (document.visibilityState !== "visible" || Date.now() - readAt < STALE_AFTER) return;
+      readAt = Date.now();
+      void fetch("/api/refreshed", { cache: "no-store" })
+        .then((res) => (res.ok ? (res.json() as Promise<Pick<Freshness, "refreshedAt">>) : null))
+        .then((latest) => {
+          if (latest?.refreshedAt && latest.refreshedAt !== refreshedAt) router.refresh();
+        })
+        .catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", back);
+    addEventListener("focus", back);
+    addEventListener("pageshow", back);
+    return () => {
+      document.removeEventListener("visibilitychange", back);
+      removeEventListener("focus", back);
+      removeEventListener("pageshow", back);
+    };
+  }, [refreshedAt, router]);
+}
 
 /* useNow, but with a timer at `at` (an ISO time) as well, so what changes there (a
    Daily's close) changes on time rather than at the next minute */
