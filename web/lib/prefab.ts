@@ -110,6 +110,13 @@ const COLOURS: Array<[RegExp, string]> = [
   [/Aluminum/i, "#c9ccd2"],
 ];
 
+/* a piece whose blueprint brings its own material, so its file names none, by the material the
+   catalogue lists for it */
+const OWN_MATERIALS: Partial<Record<string, string>> = {
+  BP_AirVent: "MI_ArenaWhite",
+  MP_AirVent: "MI_ArenaWhite",
+};
+
 export interface Shape {
   kind: ShapeKind;
   /** the stand-in's own size in metres, along three's x, y (up), z */
@@ -161,7 +168,7 @@ export function shapesOf(file: PrefabFile): Array<Shape> {
       max: [50, 50, 100],
     };
     const first = mesh?.materials.at(0);
-    const material = first ? tail(first) : "";
+    const material = first ? tail(first) : (OWN_MATERIALS[pieceName(item)] ?? "");
     const { location, rotation, scale } = item.transform;
     const rows = rotationRows(rotation);
     const centre = shape.min.map((lo, i) => (lo + shape.max[i]) / 2) as Vec3;
