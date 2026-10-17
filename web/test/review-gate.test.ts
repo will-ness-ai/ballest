@@ -3,12 +3,38 @@ import { describe, expect, test } from "vitest";
 import { mergeTarget, skillName, unreviewed } from "../../.claude/hooks/review-gate-rules.mjs";
 
 describe("mergeTarget", () => {
-  const bash = (command: string) => mergeTarget("Bash", { command });
+  const bash = (command: string): unknown => mergeTarget("Bash", { command });
 
   test("finds a merge or a mark-ready in gh commands", () => {
     expect(bash("gh pr merge 246 --squash")).toEqual({ repo: null, number: 246 });
+    expect(bash("gh pr merge --squash --body 'fixes 12 things'")).toEqual({
+      repo: null,
+      number: null,
+    });
+    expect(bash("gh pr merge claude/x --squash")).toEqual({
+      repo: null,
+      number: null,
+      branch: "claude/x",
+    });
+    expect(bash("gh pr merge https://github.com/o/r/pull/8")).toEqual({ repo: "o/r", number: 8 });
+    expect(bash("cd /w/ballest\ngh pr merge 5")).toEqual({
+      repo: null,
+      number: 5,
+      cd: "/w/ballest",
+    });
+    expect(bash("cd ../plugins && gh pr merge 5")).toEqual({
+      repo: null,
+      number: 5,
+      cd: "../plugins",
+    });
+    expect(bash("GH_TOKEN=x gh -R o/r pr merge 5")).toEqual({ repo: "o/r", number: 5 });
+    expect(bash("gh pr ready 12 --undo")).toBeNull();
     expect(bash("gh pr ready 12")).toEqual({ repo: null, number: 12 });
-    expect(bash("cd ballest && gh pr merge --squash")).toEqual({ repo: null, number: null });
+    expect(bash("cd ballest && gh pr merge --squash")).toEqual({
+      repo: null,
+      number: null,
+      cd: "ballest",
+    });
     expect(bash("gh pr merge -R will-ness-ai/ballest 7 --squash")).toEqual({
       repo: "will-ness-ai/ballest",
       number: 7,
@@ -30,11 +56,23 @@ describe("mergeTarget", () => {
       repo: "o/r",
       number: 3,
     });
+    expect(bash("curl -X PUT https://api.github.com/repos/o/r/pulls/4/merge")).toEqual({
+      repo: "o/r",
+      number: 4,
+    });
+    // GraphQL names the PR by node ID, so the checkout's own PR stands in
+    expect(
+      bash("gh api graphql -f query='mutation { mergePullRequest(input: {}) { x } }'"),
+    ).toEqual({
+      repo: null,
+      number: null,
+    });
   });
 
   test("leaves every other command alone", () => {
     expect(bash("gh pr view 246")).toBeNull();
     expect(bash("gh api repos/o/r/pulls/246/commits")).toBeNull();
+    expect(bash("gh api -X DELETE repos/o/r/pulls/3/ccr/auto_merge")).toBeNull();
     expect(bash("git merge origin/main")).toBeNull();
     expect(bash("echo gh pr merge")).toBeNull();
   });
@@ -43,6 +81,9 @@ describe("mergeTarget", () => {
     expect(
       mergeTarget("mcp__github__merge_pull_request", { owner: "o", repo: "r", pullNumber: 5 }),
     ).toEqual({ repo: "o/r", number: 5 });
+    expect(
+      mergeTarget("mcp__github__enable_pr_auto_merge", { owner: "o", repo: "r", pullNumber: 6 }),
+    ).toEqual({ repo: "o/r", number: 6 });
     expect(
       mergeTarget("mcp__github__update_pull_request", {
         owner: "o",
