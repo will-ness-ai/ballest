@@ -35,8 +35,8 @@ function cubes(...items: Array<[Array<number>, Array<number>, Array<number>]>): 
   };
 }
 
-/* an air vent as the editor saves it: its mesh comes from the blueprint, so the file leaves
-   it blank, and its airflow is in properties */
+/* an air vent as the editor saves it (copied from a player's upload, 2026-10-17): its mesh
+   comes from the blueprint, so the file leaves it blank, and its airflow is in properties */
 const VENT = {
   class: "/Game/Core/Gameplay/Props/MP_AirVent.MP_AirVent_C",
   transform: { location: [0, 0, 0], rotation: [0, 180, 0], scale: [0.75, 0.75, 1] },
@@ -225,6 +225,9 @@ test("a piece reads as the editor's catalogue names it, without its blueprint pr
   expect(pieceLabel("BP_Prim_Cube")).toBe("Cube");
   expect(pieceLabel("BP_Ramp_Curve_Long1")).toBe("Ramp Curve Long 1");
   expect(pieceLabel("Bevel_Full_Ring")).toBe("Bevel Full Ring");
+  expect(pieceLabel("MP_AirVent")).toBe("Air Vent");
+  expect(pieceLabel("MP_SM_ConeBowl")).toBe("Cone Bowl");
+  expect(pieceLabel("Bevel_Full_HalfRingKicker")).toBe("Bevel Full Half Ring Kicker");
 });
 
 describe("the upload check", () => {
