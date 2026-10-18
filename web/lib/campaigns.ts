@@ -223,6 +223,22 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
       "3821669040",
     ],
   },
+  {
+    slug: "limbo",
+    title: "Limbo campaign",
+    creator: "DanielProp",
+    creatorId: "76561198042310114",
+    maps: [
+      "3820698656",
+      "3820723299",
+      "3820815874",
+      "3821054361",
+      "3821401093",
+      "3821580151",
+      "3821631254",
+      "3821808619",
+    ],
+  },
 ];
 
 /* what is wrong with a list of Campaigns, in words; empty when it holds together */
@@ -283,13 +299,17 @@ export const mapNo = (c: Campaign, pfid: string) => String(mapNumber(c, pfid)).p
 
 /* a Map's name inside its Campaign: its title after the Campaign's name, when it starts
    with it ("Solar Trials Mercury" is Mercury), else the whole title; or null when that is
-   only its number ("Miniblack 01", "AJC1"), which its label already gives. When what is
-   left starts with a number that isn't its place ("Ninja0", "AJ26"), it stays whole, so
-   the label doesn't read "01 0" */
+   only its number ("Miniblack 01", "AJC1", or "Limbo campaign 1 of 8", which counts the Maps,
+   even with one letter before the number, as in the maker's "A08 of 8"), which its label
+   already gives. When what is left starts with a number that isn't its place ("Ninja0",
+   "AJ26"), it stays whole, so the label doesn't read "01 0" */
 export function mapName(c: Campaign, pfid: string, title: string): string | null {
   const prefix = c.title.toLowerCase();
   if (!title.toLowerCase().startsWith(prefix)) return title;
   const name = title.slice(prefix.length).trim() || title;
+  const counted = /^[a-z]?(\d+) of (\d+)$/i.exec(name);
+  if (counted && Number(counted[1]) === mapNumber(c, pfid) && Number(counted[2]) === c.maps.length)
+    return null;
   const lead = /^\d+/.exec(name);
   if (lead === null) return name;
   if (Number(lead[0]) !== mapNumber(c, pfid)) return title;
