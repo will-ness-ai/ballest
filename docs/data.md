@@ -13,8 +13,9 @@ what Steam reports, as Score history: no ranks and no derived boards. The schema
 it with `pnpm db:generate` and applied by `pnpm db:migrate`, which `pnpm build` runs first,
 so each Vercel deploy migrates the database it reads. Never edit a migration by hand. A
 preview reads production for now (below), so its build skips the migration: a branch's
-schema reaches production only when it merges, and its preview fails on any page that
-needs the new tables.
+schema reaches production when it merges, or earlier through `migrate.yml` (by hand, with
+Will's OK; `docs/agents/feature-workflow.md`), and until then its preview fails on any page
+that needs the new tables.
 
 The database sits in a Neon organization that Vercel manages, not in anyone's own Neon
 account, so it opens from Vercel: the `ballest` project's Storage tab, the database, then
