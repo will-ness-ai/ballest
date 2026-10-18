@@ -163,6 +163,13 @@ describe("a Daily Post's thread lines", () => {
     );
   });
 
+  it("says a backfilled line was seen by a Refresh, not when it happened", () => {
+    const history = [lead(0.4, ["MitchPlease"], 8.912)];
+    expect(leadLine(history, lead(2, ["FEDUS"], 8.701), "byRefresh")).toBe(
+      "-# by the <t:1792292400:t> Refresh · 🏁 **FEDUS** takes the lead from **MitchPlease**, who held it for 1h 36m · 0:08.912 → **0:08.701** (−0.211 s)",
+    );
+  });
+
   it("says nothing when the leader only beats their own time", () => {
     expect(leadLine([lead(1, ["FEDUS"], 8.701)], lead(2, ["FEDUS"], 8.65))).toBeNull();
   });

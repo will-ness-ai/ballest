@@ -58,11 +58,17 @@ const reignStart = (history: ReadonlyArray<Lead>, leaders: ReadonlyArray<string>
 /**
  * The thread line for the lead going from the last of `history` to `next`, or null when no one
  * new leads (the leader beat their own time, or a tied leader left). Several changes between two
- * reads are seen as one: the line names only the latest leader.
+ * reads are seen as one: the line names only the latest leader. `byRefresh`: the lead was rebuilt
+ * from the leaderboard database (the backfill), so the line says which Refresh first saw it.
  */
-export const leadLine = (history: ReadonlyArray<Lead>, next: Lead): string | null => {
+export const leadLine = (
+  history: ReadonlyArray<Lead>,
+  next: Lead,
+  seen: "read" | "byRefresh" = "read",
+): string | null => {
   const last = history.at(-1);
-  const at = `-# <t:${Math.floor(next.at / 1000)}:t> · `;
+  const time = `<t:${Math.floor(next.at / 1000)}:t>`;
+  const at = `-# ${seen === "read" ? time : `by the ${time} Refresh`} · `;
   if (last === undefined)
     return `${at}🏁 ${names(next.leaders)} ${next.leaders.length === 1 ? "sets" : "set"} the first time: ${bold(dailyTime(next.ticks))}`;
   const joined = next.leaders.filter((n) => !last.leaders.includes(n));
