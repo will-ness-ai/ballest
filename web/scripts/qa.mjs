@@ -11,6 +11,7 @@ import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
 import { REFS, pieces } from "./qa/piece.mjs";
 import { fmt, matching, pagesOf, rankRows } from "./qa/piece-math.mjs";
+import { signIn } from "./qa/session.mjs";
 import { preview, resolve, up } from "./qa/targets.mjs";
 
 const OUT = fileURLToPath(new URL("../../scratch/qa/", import.meta.url));
@@ -35,7 +36,8 @@ run \`pnpm --silent qa <command> --help\` for a command's flags`,
   --jobs      views drawn at once (default 4)
 fault kinds: overflow (page scrolls sideways), offscreen, clipped (text or placeholder cut),
   overlap (text over text), error (page, console or a failed load), scroll (lands elsewhere
-  on load than the reference), missing (a state's control at no size), failed, status,
+  on load than the reference), missing (a state's control at no size), signed-out (the
+  site refused qa's session: give qa the server's SESSION_SECRET), failed, status,
   gone (answers 200 but its title says not found: the catalogue's ID is wrong)`,
   shot: `usage: pnpm --silent qa shot <view> [--at preview] [--el <selector>] [--full] [--box <selector>] [--eval <js>] [--prefab <file.json>]
   writes the view's screenshot to scratch/qa/ and prints its path, faults and errors
@@ -117,6 +119,8 @@ const pageOf = (page, ids = "real") => {
   return { path: path?.replace(/\{(\w+)\}/g, (_, k) => IDS[ids][k]), status: p?.status ?? 200 };
 };
 const stateOf = (name) => STATES.find((x) => x.name === name);
+const UNSIGNED =
+  "signed in: only a local target whose SESSION_SECRET qa knows (env, web/.env.local or web/.env)";
 const pageNames = `pages: ${PAGES.map((p) => p.name).join(", ")}`;
 /* a list cut to its first three once it runs past four */
 const few = (list) =>
@@ -171,17 +175,23 @@ async function shot() {
   const state = view.state ? stateOf(view.state) : undefined;
   if (view.state && !state)
     fail(`no state "${view.state}"`, `states: ${STATES.map((x) => x.name).join(", ")}`);
+  const now = Date.now();
+  const signed = signIn(view.page, t, now) ?? fail(`${view.page} is drawn ${UNSIGNED}`);
   const browser = await launch();
   try {
     const r = await render(browser, t.url + path, view, {
       control: state?.click,
-      now: Date.now(),
+      now,
+      cookies: signed.cookies,
       full: !!flags.full,
       element: flags.el,
       boxes: flags.box,
       script: flags.eval,
       prefab: flags.prefab && readPrefab(flags.prefab),
     });
+    // a refused session is the first thing wrong: the page was drawn signed out
+    if (r.me !== signed.as)
+      fail(`${t.url} didn't take the browser as signed in`, "give qa the server's SESSION_SECRET");
     if (r.skipped) fail(`${viewName(view)}: ${r.skipped} at this width`);
     if (r.status !== status) fail(`${t.url + path} answered ${String(r.status)}`);
     if (gone(r, status))
@@ -336,7 +346,9 @@ async function check() {
   const browser = await launch();
   const found = [],
     diffs = [],
-    skipped = [];
+    skipped = [],
+    unsigned = [],
+    uncompared = [];
   try {
     const queue = [...chosen];
     const work = async () => {
@@ -346,11 +358,19 @@ async function check() {
       const name = viewName(v);
       const control = v.state ? stateOf(v.state).click : undefined;
       const expect = pageOf(v.page).status;
-      const draw = (t) =>
-        render(browser, t.url + pageOf(v.page, t.ids).path, v, { control, now: started }).catch(
-          (e) => ({ failed: String(e.message).split("\n")[0] }),
-        );
-      const [a, b] = await Promise.all([draw(at), ref ? draw(ref) : null]);
+      const [signA, signB] = [at, ref].map((t) => t && signIn(v.page, t, started));
+      if (!signA) return unsigned.push(name);
+      const draw = (t, signed) =>
+        render(browser, t.url + pageOf(v.page, t.ids).path, v, {
+          control,
+          now: started,
+          cookies: signed.cookies,
+        })
+          .then((r) => ({ ...r, as: signed.as }))
+          .catch((e) => ({ failed: String(e.message).split("\n")[0] }));
+      // a reference that can't sign in has nothing to compare against
+      const [a, b] = await Promise.all([draw(at, signA), signB ? draw(ref, signB) : null]);
+      if (ref && !b) uncompared.push(name);
       // a side that did not draw is a fault of its own, and nothing to compare against
       const broken = (r, t) => {
         if (r.failed) found.push({ view: name, kind: "failed", where: t.name, detail: r.failed });
@@ -363,6 +383,8 @@ async function check() {
           });
         else if (gone(r, expect))
           found.push({ view: name, kind: "gone", where: t.name, detail: r.title });
+        else if (r.me !== r.as)
+          found.push({ view: name, kind: "signed-out", where: t.name, detail: "session refused" });
         else return false;
         return true;
       };
@@ -429,7 +451,10 @@ async function check() {
   // shows on a phone (some only there), so a run with no phone width can't tell
   if (sizes.some((s) => s.width < 600))
     for (const st of STATES) {
-      const names = chosen.filter((v) => v.state === st.name).map(viewName);
+      const names = chosen
+        .filter((v) => v.state === st.name)
+        .map(viewName)
+        .filter((n) => !unsigned.includes(n));
       if (names.length && names.every((n) => skipped.includes(n)))
         found.push({
           view: names[0],
@@ -456,13 +481,19 @@ async function check() {
   const diffRows = [...shared.values()].map((d) => ({ ...d, alike: few(d.alike) }));
   const secs = Math.round((Date.now() - started) / 1000);
   say([
-    `checked ${String(chosen.length - skipped.length)} views of ${describe(at)}${ref ? ` against ${describe(ref)}` : ""} in ${String(secs)}s`,
+    `checked ${String(chosen.length - skipped.length - unsigned.length)} views of ${describe(at)}${ref ? ` against ${describe(ref)}` : ""} in ${String(secs)}s`,
     ...rows("faults", ["kind", "where", "detail", ...(ref ? ["ref"] : []), "views"], faultRows),
     ...(ref
       ? rows("changed", ["view", "px", "box", "height", "shows", "image", "alike"], diffRows)
       : []),
     ...(skipped.length
       ? [`skipped[${String(skipped.length)}] (control hidden at that width): ${skipped.join(", ")}`]
+      : []),
+    ...(unsigned.length
+      ? [`unsigned[${String(unsigned.length)}] (drawn ${UNSIGNED}): ${few(unsigned)}`]
+      : []),
+    ...(uncompared.length
+      ? [`uncompared[${String(uncompared.length)}] (${ref.name} can't sign in): ${few(uncompared)}`]
       : []),
     "next:",
     ...(diffs.length
