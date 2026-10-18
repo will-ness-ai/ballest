@@ -438,7 +438,10 @@ export function ProtoPicker() {
     if (path === location.pathname) {
       history.replaceState(history.state, "", url);
       emit();
-    } else router.push(url);
+    } else {
+      router.push(url);
+      setTimeout(emit, 300);
+    }
   };
   const goRef = useRef(go);
   goRef.current = go;
@@ -452,8 +455,38 @@ export function ProtoPicker() {
     addEventListener("keydown", key);
     return () => removeEventListener("keydown", key);
   }, []);
-  if (!v) return null;
+  const view = useSyncExternalStore(
+    subscribe,
+    () => param("view"),
+    () => null,
+  );
+  const framed = useSyncExternalStore(
+    subscribe,
+    () => window.top !== window,
+    () => false,
+  );
+  const href = useSyncExternalStore(
+    subscribe,
+    () => location.pathname + location.search,
+    () => "",
+  );
+  /* inside the phone frame the page draws no picker: the one outside drives it */
+  if (!v || framed) return null;
   const label = VARIANTS.find((x) => x[0] === v)?.[1];
+  const phone = view === "phone";
+  const toggle = () => {
+    const q = new URLSearchParams(location.search);
+    if (phone) q.delete("view");
+    else q.set("view", "phone");
+    history.replaceState(history.state, "", location.pathname + "?" + q.toString());
+    emit();
+  };
+  const inner = (() => {
+    const [path, query = ""] = href.split("?");
+    const q = new URLSearchParams(query);
+    q.delete("view");
+    return path + "?" + q.toString();
+  })();
   const drag = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest("button")) return;
     const box = ref.current?.getBoundingClientRect();
@@ -469,24 +502,41 @@ export function ProtoPicker() {
     addEventListener("pointerup", up);
   };
   return (
-    <div
-      ref={ref}
-      className="proto-picker"
-      onPointerDown={drag}
-      style={pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : undefined}
-    >
-      <div className="pp-row">
-        <button type="button" onClick={() => go(-1)} aria-label="Previous variant">
-          ←
-        </button>
-        <b>
-          {v} · {label}
-        </b>
-        <button type="button" onClick={() => go(1)} aria-label="Next variant">
-          →
-        </button>
+    <>
+      {phone ? (
+        <div className="proto-frame">
+          <iframe key={inner} src={inner} title="Phone view" />
+        </div>
+      ) : null}
+      <div
+        ref={ref}
+        className="proto-picker"
+        onPointerDown={drag}
+        style={pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : undefined}
+      >
+        <div className="pp-row">
+          <button type="button" onClick={() => go(-1)} aria-label="Previous variant">
+            ←
+          </button>
+          <b>
+            {v} · {label}
+          </b>
+          <button type="button" onClick={() => go(1)} aria-label="Next variant">
+            →
+          </button>
+        </div>
+        <div className="pp-row">
+          <button type="button" aria-pressed={!phone} onClick={phone ? toggle : undefined}>
+            Desktop
+          </button>
+          <button type="button" aria-pressed={phone} onClick={phone ? undefined : toggle}>
+            Phone
+          </button>
+        </div>
+        {you.state === "none" ? (
+          <small>Sign in (or add ?as=&lt;Steam ID&gt;) to see it</small>
+        ) : null}
       </div>
-      {you.state === "none" ? <small>Sign in (or add ?as=&lt;Steam ID&gt;) to see it</small> : null}
-    </div>
+    </>
   );
 }

@@ -299,3 +299,24 @@
   font: inherit;
   cursor: pointer;
 }
+.proto-picker button[aria-pressed="true"] {
+  background: var(--proto-ink);
+  color: var(--proto-pill);
+}
+/* the phone view: the same page at 390px, in a frame over the page */
+.proto-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: grid;
+  place-items: center;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+}
+.proto-frame iframe {
+  inline-size: 390px;
+  block-size: min(844px, calc(100dvh - 32px));
+  border: 3px solid var(--proto-ink);
+  border-radius: 28px;
+  background: var(--bg);
+}
