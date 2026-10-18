@@ -1,6 +1,6 @@
 """A maker's Workshop Maps, or a list or collection of them, for adding a Campaign.
 
-    python tools/workshop_maps.py <query ...>
+    python tools/workshop_maps.py [--json] <query ...>
 
 The query is Workshop items (their links or IDs, or a whole pasted post holding them): a
 Map stands for itself and a Steam collection for its Maps in the collection's order, in the
@@ -8,8 +8,9 @@ order given. Or it names a maker: a profile URL (/profiles/ or /id/), a SteamID6
 part of their in-game or Steam name in any case (their Maps oldest first). Prints each Map's ID,
 date, title and maker, marks the ones already in a Campaign (web/lib/campaigns.ts) and the
 ones the site doesn't list yet (a Refresh lists them), and ends with the `maps:` line to
-paste. Needs STEAM_API_KEY (env or .env), as the collector does; docs/site.md, "Campaigns",
-covers adding one.
+paste. --json prints the same as one JSON object for `pnpm --silent campaign draft`
+(web/scripts/campaign.ts), with errors as {"error": ...}. Needs STEAM_API_KEY (env or .env),
+as the collector does; docs/site.md, "Campaigns", covers adding one.
 """
 
 import json
@@ -110,23 +111,38 @@ def on_site(pfid):
         return None
 
 
+def report(found, site, missing):
+    """What --json prints: each Map with whether the site lists it (None when the site
+    couldn't be read), and the IDs that found no Map. The campaign tool reads which Campaign
+    has a Map from campaigns.ts itself."""
+    keys = ("pfid", "title", "creator", "cid", "created")
+    maps = [
+        {**{k: m[k] for k in keys}, "on_site": shown} for m, shown in zip(found, site, strict=True)
+    ]
+    return {"maps": maps, "missing": missing}
+
+
+class QueryError(Exception):
+    """A query that finds nothing to show, in words."""
+
+
 def resolve_vanity(key, name):
     q = urllib.parse.urlencode({"key": key, "vanityurl": name})
     url = API + "ISteamUser/ResolveVanityURL/v1/?" + q
     with urllib.request.urlopen(url, timeout=30) as r:  # noqa: S310 (a fixed https URL)
         resp = json.load(r)["response"]
     if resp.get("success") != 1:
-        sys.exit(f"no Steam profile at /id/{name}")
+        raise QueryError(f"no Steam profile at /id/{name}")
     return resp["steamid"]
 
 
-def main():
-    if len(sys.argv) < 2:
-        sys.exit(__doc__)
-    kind, value = parse_query(" ".join(sys.argv[1:]))
+def find(query):
+    """The Maps a query names, the IDs that found none, the curated IDs and which Maps
+    the site lists; QueryError when there is nothing to show."""
+    kind, value = parse_query(query)
     key = load_key()
     if not key:
-        sys.exit("no STEAM_API_KEY (env or .env)")
+        raise QueryError("no STEAM_API_KEY (env or .env)")
     maps = workshop_catalogue(key)
     personas = None
     if kind == "items":
@@ -138,20 +154,41 @@ def main():
         summaries = resolve_names(key, sorted({m["cid"] for m in maps if m["cid"]}))
         personas = {cid: p["persona"] for cid, p in summaries.items()}
     found = match(maps, (kind, value), personas)
-    if kind == "items":
-        listed = {m["pfid"] for m in found}
-        missing = [i for i in value if i not in listed]
-        if missing:
-            print(
-                "not this game's Maps, not public, or newer than Steam's catalogue: "
-                + ", ".join(missing)
-            )
+    listed = {m["pfid"] for m in found}
+    missing = [i for i in value if i not in listed] if kind == "items" else []
     if not found:
-        sys.exit("no Maps found")
+        raise QueryError("no Maps found" + (f" for {', '.join(missing)}" if missing else ""))
     with open(CAMPAIGNS_TS, encoding="utf-8") as f:
         curated = curated_ids(f.read())
     with ThreadPoolExecutor(8) as pool:
         site = list(pool.map(on_site, [m["pfid"] for m in found]))
+    return found, missing, curated, site
+
+
+def main():
+    args = sys.argv[1:]
+    as_json = args[:1] == ["--json"]
+    if as_json:
+        args = args[1:]
+    if not args:
+        sys.exit(__doc__)
+    try:
+        found, missing, curated, site = find(" ".join(args))
+    except (QueryError, OSError) as e:
+        if isinstance(e, OSError):
+            e = f"couldn't reach Steam: {e}"
+        if as_json:
+            print(json.dumps({"error": str(e)}))
+            sys.exit(1)
+        sys.exit(str(e))
+    if as_json:
+        print(json.dumps(report(found, site, missing)))
+        return
+    if missing:
+        print(
+            "not this game's Maps, not public, or newer than Steam's catalogue: "
+            + ", ".join(missing)
+        )
     for m, shown in zip(found, site, strict=True):
         day = time.strftime("%Y-%m-%d", time.gmtime(m["created"]))
         mark = "  (in a Campaign)" if m["pfid"] in curated else ""

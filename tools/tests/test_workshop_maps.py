@@ -1,6 +1,6 @@
 """workshop_maps.py's choices, without Steam: what a query names, and which Maps it finds."""
 
-from workshop_maps import campaign_line, curated_ids, listed_on_site, match, parse_query
+from workshop_maps import campaign_line, curated_ids, listed_on_site, match, parse_query, report
 
 MAPS = [
     {"pfid": "3", "title": "Hydro 3", "creator": "Action Jackson", "cid": "765", "created": 300},
@@ -69,3 +69,27 @@ def test_a_map_page_says_whether_the_site_lists_the_map():
     assert listed_on_site(listed)
     assert not listed_on_site(unlisted)
     assert not listed_on_site('<meta content="noindex, follow" name="robots"/>')
+
+
+def test_the_json_report_carries_each_map_and_whether_the_site_lists_it():
+    found = [MAPS[1], MAPS[0]]
+    out = report(found, site=[True, None], missing=["9"])
+    assert out["missing"] == ["9"]
+    assert out["maps"] == [
+        {
+            "pfid": "1",
+            "title": "Hydro 1",
+            "creator": "Action Jackson",
+            "cid": "765",
+            "created": 100,
+            "on_site": True,
+        },
+        {
+            "pfid": "3",
+            "title": "Hydro 3",
+            "creator": "Action Jackson",
+            "cid": "765",
+            "created": 300,
+            "on_site": None,
+        },
+    ]
