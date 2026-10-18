@@ -14,11 +14,11 @@ import { cardText, closedText, type DailyView } from "./card.js";
 const SITE_URL = "https://ballestrecords.com";
 const ACCENT = 0x9ee34b;
 /** The Workshop screenshot's name as attached to the card. */
-export const PREVIEW_FILE = "preview.jpg";
+const PREVIEW_FILE = "preview.jpg";
 /** The lead graph's name as attached to the card: an edit replaces it with a fresh one. */
-export const GRAPH_FILE = "graph.png";
+const GRAPH_FILE = "graph.png";
 /** The Map's spinning 3D GIF's name as attached to the card (map_spins, spin.ts). */
-export const SPIN_FILE = "spin.gif";
+const SPIN_FILE = "spin.gif";
 
 export const workshopUrl = (pfid: string) =>
   `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
@@ -31,25 +31,75 @@ export interface DailyMessage {
   readonly allowed_mentions: { readonly parse: ReadonlyArray<never> };
 }
 
+/** A file attached to the card, by the name its components show it by. */
+export interface DailyFile {
+  readonly name: string;
+  readonly data: Uint8Array;
+}
+
 /**
- * The live card. `preview`: the Workshop screenshot is attached as PREVIEW_FILE; `spin`: the
- * Map's spinning GIF is attached as SPIN_FILE, beside the podium; `graph`: the lead graph is
- * attached as GRAPH_FILE, and shows under the podium. `closed`: the Daily is over, and the card
- * heads it with its winner, in the same layout with the same pictures, its site button reading
- * "Final board".
+ * One of the card's pictures: new bytes to attach (replacing the one the card has), "kept" when
+ * the card already has it attached, or null (or left out) when the card has none.
  */
-export const dailyCardMessage = (
+export type Picture = Uint8Array | "kept" | null;
+
+/** A card to post or edit in: its message, and the files to attach with it. */
+export interface DailyCard {
+  readonly message: DailyMessage;
+  readonly files: ReadonlyArray<DailyFile>;
+}
+
+/**
+ * A Daily Post's card. `preview`: the Workshop screenshot, at the top; `spin`: the Map's
+ * spinning GIF, beside the podium; `graph`: the lead graph, under the podium. The card shows each
+ * picture that is given, and attaches the new ones under the names it shows them by. `closed`:
+ * the Daily is over, and the card heads it with its winner, in the same layout with the same
+ * pictures, its site button reading "Final board".
+ */
+export const dailyCard = (
+  v: DailyView,
+  {
+    preview = null,
+    spin = null,
+    graph = null,
+    closed = false,
+  }: {
+    readonly preview?: Picture;
+    readonly spin?: Picture;
+    readonly graph?: Picture;
+    readonly closed?: boolean;
+  },
+): DailyCard => {
+  const files = (
+    [
+      [PREVIEW_FILE, preview],
+      [GRAPH_FILE, graph],
+      [SPIN_FILE, spin],
+    ] as const
+  ).flatMap(([name, p]) => (p instanceof Uint8Array ? [{ name, data: p }] : []));
+  return {
+    message: cardMessage(v, {
+      preview: preview !== null,
+      spin: spin !== null,
+      graph: graph !== null,
+      closed,
+    }),
+    files,
+  };
+};
+
+const cardMessage = (
   v: DailyView,
   {
     preview,
-    spin = false,
-    graph = false,
-    closed = false,
+    spin,
+    graph,
+    closed,
   }: {
     readonly preview: boolean;
-    readonly spin?: boolean;
-    readonly graph?: boolean;
-    readonly closed?: boolean;
+    readonly spin: boolean;
+    readonly graph: boolean;
+    readonly closed: boolean;
   },
 ): DailyMessage => {
   const text = closed ? closedText(v) : cardText(v);

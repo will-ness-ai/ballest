@@ -137,7 +137,7 @@ const setup = Effect.gen(function* () {
     Layer.succeed(
       DailyChannel,
       DailyChannel.of({
-        post: (message, files, thread) =>
+        post: ({ message, files }, thread) =>
           Effect.gen(function* () {
             if (yield* Ref.get(channelDown))
               return yield* new DailyPostFailed({ reason: "Missing Permissions" });
@@ -148,7 +148,7 @@ const setup = Effect.gen(function* () {
               return yield* new DailyThreadFailed({ messageId, reason: "Missing Create Threads" });
             return { messageId, threadId: `t-${messageId}` };
           }),
-        edit: (messageId, message, files = []) =>
+        edit: (messageId, { message, files }) =>
           Effect.gen(function* () {
             if (yield* Ref.get(channelDown))
               return yield* new DailyPostFailed({ reason: "Missing Permissions" });

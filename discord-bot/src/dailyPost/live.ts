@@ -183,7 +183,7 @@ export const DailyChannelLive = Layer.effect(
       return created.id;
     });
     return DailyChannel.of({
-      post: Effect.fn("DailyChannel.post")(function* (message, files, threadName) {
+      post: Effect.fn("DailyChannel.post")(function* ({ message, files }, threadName) {
         const messageId = yield* create("post the card", Routes.channelMessages(channelId), {
           body: message,
           files: files.map((f) => ({ name: f.name, data: Buffer.from(f.data) })),
@@ -197,7 +197,7 @@ export const DailyChannelLive = Layer.effect(
         );
         return { messageId, threadId };
       }),
-      edit: Effect.fn("DailyChannel.edit")(function* (messageId, message, files = []) {
+      edit: Effect.fn("DailyChannel.edit")(function* (messageId, { message, files }) {
         const route = Routes.channelMessage(channelId, messageId);
         if (files.length === 0) {
           yield* call("edit the card", () => rest.patch(route, { body: message }));

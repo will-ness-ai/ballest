@@ -39,13 +39,11 @@ import { addDays, dailyDateAt, openingOf } from "./date.js";
 import { DailyHistory, type PastDaily } from "./history.js";
 import { type Lead, leadChanged, leadLine, leadOf } from "./lead.js";
 import {
-  dailyCardMessage,
+  type DailyCard,
+  dailyCard,
   dailyLineMessage,
   type DailyLine,
-  type DailyMessage,
-  GRAPH_FILE,
-  PREVIEW_FILE,
-  SPIN_FILE,
+  type Picture,
 } from "./messages.js";
 import { DailySpins, SPIN_WAIT, type SpinUnavailable } from "./spin.js";
 
@@ -93,33 +91,23 @@ export class DailyThreadFailed extends Data.TaggedError("DailyThreadFailed")<{
   readonly reason: string;
 }> {}
 
-export interface DailyFile {
-  readonly name: string;
-  readonly data: Uint8Array;
-}
-
 /** The daily daily channel. */
 export class DailyChannel extends Context.Tag("multiballs/DailyChannel")<
   DailyChannel,
   {
-    /** Post a card with these files attached and open a thread on it. */
+    /** Post a card with its files attached and open a thread on it. */
     readonly post: (
-      message: DailyMessage,
-      files: ReadonlyArray<DailyFile>,
+      card: DailyCard,
       threadName: string,
     ) => Effect.Effect<
       { readonly messageId: string; readonly threadId: string },
       DailyPostFailed | DailyThreadFailed
     >;
     /**
-     * Redraw a card: its attachments stay, and each of `files` is attached beside them, replacing
-     * the one of its name.
+     * Redraw a card: its attachments stay, and each of its files is attached beside them,
+     * replacing the one of its name.
      */
-    readonly edit: (
-      messageId: string,
-      message: DailyMessage,
-      files?: ReadonlyArray<DailyFile>,
-    ) => Effect.Effect<void, DailyPostFailed>;
+    readonly edit: (messageId: string, card: DailyCard) => Effect.Effect<void, DailyPostFailed>;
     /** Post a line in a card's thread. */
     readonly say: (threadId: string, line: DailyLine) => Effect.Effect<void, DailyPostFailed>;
   }
@@ -310,16 +298,13 @@ const pictures = Effect.fn("pictures")(function* (
           Effect.option,
         );
   return {
-    preview: Option.isSome(preview),
-    graph: Option.isSome(graph),
-    files: [
-      ...Option.toArray(
-        Option.map(preview, (p): DailyFile => ({ name: PREVIEW_FILE, data: p.body })),
-      ),
-      ...Option.toArray(Option.map(graph, (png): DailyFile => ({ name: GRAPH_FILE, data: png }))),
-    ],
+    preview: Option.getOrNull(Option.map(preview, (p) => p.body)),
+    graph: Option.getOrNull(graph),
   };
 });
+
+/** A picture the card already has, or none. */
+const kept = (has: boolean): Picture => (has ? "kept" : null);
 
 /**
  * Post a card with its thread, then each of `lines` in the thread, stopping at the first refused.
@@ -329,13 +314,12 @@ const pictures = Effect.fn("pictures")(function* (
  */
 const postCard = Effect.fn("postCard")(function* (
   view: DailyView,
-  message: DailyMessage,
-  files: ReadonlyArray<DailyFile>,
+  card: DailyCard,
   record: Omit<DailyPostRecord, "messageId" | "threadId">,
   lines: ReadonlyArray<string>,
 ) {
   const channel = yield* DailyChannel;
-  const posted = yield* channel.post(message, files, threadName(view)).pipe(
+  const posted = yield* channel.post(card, threadName(view)).pipe(
     Effect.map(({ messageId, threadId }) => ({
       post: { ...record, messageId, threadId },
       threadFailed: Option.none<string>(),
@@ -372,16 +356,15 @@ export const postDaily = Effect.fn("postDaily")(function* (daily: Daily) {
   const lead = Option.flatMapNullable(board, (b) => leadOf(b, readAt));
   const pics = yield* pictures(daily, map, Option.toArray(lead), readAt);
   // A lead the card couldn't draw is left for the next read to record.
-  const shown = Option.filter(lead, () => pics.graph);
+  const shown = Option.filter(lead, () => pics.graph !== null);
   const leads = Option.toArray(shown);
   const posted = yield* postCard(
     view,
-    dailyCardMessage(view, { preview: pics.preview, graph: pics.graph }),
-    pics.files,
+    dailyCard(view, pics),
     {
       daily,
       map,
-      preview: pics.preview,
+      preview: pics.preview !== null,
       state: "live",
       shown: shownOf(view, leads),
       readAt,
@@ -414,12 +397,11 @@ export const postPast = Effect.fn("postPast")(function* (past: PastDaily) {
   const pics = yield* pictures(daily, map, graphed, daily.endsAt);
   const posted = yield* postCard(
     view,
-    dailyCardMessage(view, { preview: pics.preview, graph: pics.graph, closed: true }),
-    pics.files,
+    dailyCard(view, { ...pics, closed: true }),
     {
       daily,
       map,
-      preview: pics.preview,
+      preview: pics.preview !== null,
       state: "closed",
       shown: shownOf(view, leads),
       readAt: postedAt,
@@ -596,30 +578,22 @@ export const keepCurrent = Effect.fn("keepCurrent")(function* (start: DailyPostR
           const landed = yield* k.edit(
             Effect.gen(function* () {
               const graph = redraw
-                ? [
-                    {
-                      name: GRAPH_FILE,
-                      data: yield* drawGraph(daily, leads, at).pipe(
-                        Effect.mapError(
-                          (e) =>
-                            new DailyPostFailed({
-                              reason: `draw the lead graph: ${String(e.cause)}`,
-                            }),
-                        ),
-                      ),
-                    },
-                  ]
-                : [];
-              const message = dailyCardMessage(view, {
-                preview: post.preview,
-                graph: leads.length > 0,
-                spin: post.spin.state === "shown" || Option.isSome(gif),
-                closed: final,
-              });
-              yield* k.channel.edit(post.messageId, message, [
-                ...graph,
-                ...Option.toArray(Option.map(gif, (data) => ({ name: SPIN_FILE, data }))),
-              ]);
+                ? yield* drawGraph(daily, leads, at).pipe(
+                    Effect.mapError(
+                      (e) =>
+                        new DailyPostFailed({ reason: `draw the lead graph: ${String(e.cause)}` }),
+                    ),
+                  )
+                : kept(leads.length > 0);
+              yield* k.channel.edit(
+                post.messageId,
+                dailyCard(view, {
+                  preview: kept(post.preview),
+                  graph,
+                  spin: Option.getOrElse(gif, () => kept(post.spin.state === "shown")),
+                  closed: final,
+                }),
+              );
             }),
           );
           if (!landed) return false;
@@ -671,15 +645,13 @@ const untilSpinShown = Effect.fn("untilSpinShown")(function* (k: Keeper) {
         const post = yield* Ref.get(k.current);
         if (Option.isSome(gif)) {
           const leads = yield* k.log.leads(daily.date);
-          const message = dailyCardMessage(viewOf(daily, map, post.board, post.readAt), {
-            preview: post.preview,
-            graph: leads.length > 0,
-            spin: true,
+          const card = dailyCard(viewOf(daily, map, post.board, post.readAt), {
+            preview: kept(post.preview),
+            graph: kept(leads.length > 0),
+            spin: gif.value,
             closed: true,
           });
-          const landed = yield* k.edit(
-            k.channel.edit(post.messageId, message, [{ name: SPIN_FILE, data: gif.value }]),
-          );
+          const landed = yield* k.edit(k.channel.edit(post.messageId, card));
           if (landed) yield* k.setSpin({ state: "shown" });
           return landed;
         }
