@@ -176,7 +176,7 @@ try {
     process.stdout.write(
       JSON.stringify(
         preToolUse({
-          additionalContext: `The review gate couldn't check this PR (${e.message.split("\n")[0]}); make sure /code-review and /codebase-design have seen its head.`,
+          additionalContext: `The review gate couldn't check this PR (${e.message.split("\n")[0]}); make sure /code-review and /codebase-design have seen its head, and squash-merge it.`,
         }),
       ),
     );

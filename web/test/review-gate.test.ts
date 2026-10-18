@@ -10,7 +10,7 @@ import {
 
 describe("mergeTargets", () => {
   // which PRs; whether each merge squashes is under "unsquashed merges"
-  // toEqual skips an undefined field
+  // these tests are about which PRs; toEqual skips the field once it is undefined
   const targets = (tool: string, input: object) =>
     (mergeTargets(tool, input) as Array<object>).map((t) => ({ ...t, unsquashed: undefined }));
   const bash = (command: string): unknown => targets("Bash", { command });
