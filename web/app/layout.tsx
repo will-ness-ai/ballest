@@ -20,6 +20,7 @@ import "./styles/maps.css";
 import "./styles/history.css";
 import "./styles/daily.css";
 import "./styles/you.css";
+import "./styles/proto-history.css"; // PROTOTYPE
 import "./styles/prefabs.css";
 import "./styles/desktop.css";
 
