@@ -56,13 +56,13 @@ const nameOf = (a: string | null) => SKIN_LIST.find((s) => s[0] === a)?.[1] ?? "
 const src = (a: string) => `/skins/${a}.webp`;
 
 const VARIANTS = [
-  ["A", "Dialog from your marble", "own"],
-  ["B", "Header menu", "own"],
-  ["C", "Card on Where you stand", "you"],
-  ["D", "Inline grid on your page", "own"],
-  ["E", "Spinner on your page", "own"],
-] as const;
-type VariantKey = (typeof VARIANTS)[number][0];
+  ["1", "A1 · Grouped grid, tap to save", "own"],
+  ["2", "A2 · Big preview, then Save", "own"],
+  ["3", "A3 · Tabs by kind", "own"],
+  ["4", "A4 · Tight swatches, no names", "own"],
+  ["5", "A5 · Your board row as the preview", "own"],
+] as ReadonlyArray<[string, string, string]>;
+type VariantKey = string;
 
 /* ---------- this browser's prototype state: the URL and localStorage ---------- */
 const listeners = new Set<() => void>();
@@ -80,11 +80,11 @@ const param = (k: string) =>
 export function useVariant(): VariantKey | null {
   const v = useSyncExternalStore(
     subscribe,
-    () => param("variant") ?? "A",
+    () => param("variant") ?? "1",
     () => null,
   );
   if (v === null) return null;
-  return VARIANTS.find((x) => x[0] === v)?.[0] ?? "A";
+  return VARIANTS.find((x) => x[0] === v)?.[0] ?? "1";
 }
 const KEY = "proto-skin";
 export function useChosen(): [string | null, (a: string | null) => void] {
@@ -203,59 +203,172 @@ export function ProtoOwnPage({ id }: { id: string }) {
   const mine = you.state === "ready" && you.id === id;
   useSwap(".pid .marble", mine ? chosen : null);
   if (!mine || !v) return null;
-  if (v === "A") return <VariantA chosen={chosen} choose={choose} />;
-  if (v === "D") return <VariantD chosen={chosen} choose={choose} />;
-  if (v === "E") return <VariantE chosen={chosen} choose={choose} />;
-  return null;
+  return (
+    <VariantA
+      v={v}
+      chosen={chosen}
+      choose={choose}
+      persona={you.state === "ready" ? personaOf(you.rec.who) : ""}
+    />
+  );
 }
 
 function VariantA({
+  v,
   chosen,
   choose,
+  persona,
 }: {
+  v: VariantKey;
   chosen: string | null;
   choose: (a: string | null) => void;
+  persona: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const [draft, setDraft] = useState<string | null>(chosen);
+  const [tab, setTab] = useState<Group>("Colours");
+  const open = () => {
+    setDraft(chosen);
+    ref.current?.showModal();
+  };
+  const openRef = useRef(open);
+  openRef.current = open;
   /* the marble itself opens it too */
   useEffect(() => {
     const m = document.querySelector<HTMLElement>(".pid .marble");
     if (!m) return;
     m.classList.add("pkA-edit");
-    const open = (e: Event) => {
+    const click = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
-      ref.current?.showModal();
+      openRef.current();
     };
-    m.addEventListener("click", open, true);
+    m.addEventListener("click", click, true);
     return () => {
       m.classList.remove("pkA-edit");
-      m.removeEventListener("click", open, true);
+      m.removeEventListener("click", click, true);
     };
   }, []);
+  const close = () => ref.current?.close();
+  const saveNow = (a: string | null) => {
+    choose(a);
+    close();
+  };
+  const confirm = v === "2" || v === "5";
+  const footer = confirm ? (
+    <div className="pkA-foot">
+      <button type="button" className="linkbtn" onClick={close}>
+        Cancel
+      </button>
+      <button
+        type="button"
+        className="pkE-use"
+        disabled={draft === chosen}
+        onClick={() => saveNow(draft)}
+      >
+        Save
+      </button>
+    </div>
+  ) : null;
+  let body: React.ReactNode;
+  if (v === "1") body = <Grid chosen={chosen} onPick={saveNow} />;
+  else if (v === "2")
+    body = (
+      <>
+        <div className="pkA2-hero">
+          <Ball asset={draft} size={120} />
+          <b>{nameOf(draft)}</b>
+          {draft === chosen ? <small>Your ball now</small> : <small>Not saved yet</small>}
+        </div>
+        <div className="pkA2-grid">
+          <Grid chosen={draft} onPick={setDraft} size={36} groups={false} />
+        </div>
+      </>
+    );
+  else if (v === "3")
+    body = (
+      <>
+        <div className="pkA3-tabs" role="tablist">
+          {GROUPS.map((g) => (
+            <button
+              key={g}
+              type="button"
+              role="tab"
+              aria-selected={tab === g}
+              onClick={() => setTab(g)}
+            >
+              {g}
+              <small>
+                {SKIN_LIST.filter((s) => s[2] === g).length + (g === "Colours" ? 1 : 0)}
+              </small>
+            </button>
+          ))}
+        </div>
+        <div className="pk-grid pkA3-grid">
+          {(tab === "Colours" ? [null] : ([] as Array<string | null>))
+            .concat(SKIN_LIST.filter((s) => s[2] === tab).map((s) => s[0]))
+            .map((a) => (
+              <button
+                key={a ?? "none"}
+                type="button"
+                className="pk-cell"
+                aria-pressed={chosen === a}
+                onClick={() => saveNow(a)}
+              >
+                <Ball asset={a} size={56} />
+                <span className="pk-name">{nameOf(a)}</span>
+              </button>
+            ))}
+        </div>
+      </>
+    );
+  else if (v === "4")
+    body = (
+      <div className="pkA4">
+        <Grid chosen={chosen} onPick={saveNow} size={34} groups={false} />
+        <small className="pkA4-name">Now: {nameOf(chosen)}</small>
+      </div>
+    );
+  else
+    body = (
+      <>
+        <div className="pkA5-row" aria-label="How your row will look">
+          <span className="pkA5-rank">4</span>
+          <Ball asset={draft} size={34} />
+          <span className="pkA5-who">
+            <b>{persona}</b>
+            <small>{nameOf(draft)}</small>
+          </span>
+          <span className="pkA5-time">0:12.541</span>
+        </div>
+        <Grid chosen={draft} onPick={setDraft} size={36} />
+      </>
+    );
   return (
     <>
-      <button type="button" className="linkbtn pkA-open" onClick={() => ref.current?.showModal()}>
+      <button type="button" className="linkbtn pkA-open" onClick={open}>
         Change your ball
       </button>
       {createPortal(
-        <dialog ref={ref} className="ptsx pkA" aria-labelledby="pkAHead">
+        <dialog
+          ref={ref}
+          className={"ptsx pkA pkA" + v}
+          aria-labelledby="pkAHead"
+          onClose={() => setDraft(chosen)}
+        >
           <div className="dh">
             <h2 id="pkAHead">Your ball</h2>
-            <button type="button" aria-label="Close" onClick={() => ref.current?.close()}>
+            <button type="button" aria-label="Close" onClick={close}>
               &times;
             </button>
           </div>
-          <p className="pk-lead">
-            Shown beside your name on every board where the run&apos;s own ball isn&apos;t known.
-          </p>
-          <Grid
-            chosen={chosen}
-            onPick={(a) => {
-              choose(a);
-              ref.current?.close();
-            }}
-          />
+          {v === "4" ? null : (
+            <p className="pk-lead">
+              Shown beside your name wherever a run&apos;s own ball isn&apos;t known.
+            </p>
+          )}
+          {body}
+          {footer}
         </dialog>,
         document.body,
       )}

@@ -320,3 +320,123 @@
   border-radius: 28px;
   background: var(--bg);
 }
+
+/* round 2: inside the dialog */
+.pkA-foot {
+  position: sticky;
+  inset-block-end: -16px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  margin: 0 -16px -16px;
+  padding: 12px 16px;
+  border-block-start: 1px solid var(--line2);
+  background: var(--solid);
+}
+.pkE-use:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.pkA2-hero {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 8px 0 4px;
+}
+.pkA2-hero b {
+  font: 700 calc(18rem / 16) var(--f-hud);
+}
+.pkA2-hero small {
+  color: var(--faint);
+}
+.pkA2-grid .pk-grid,
+.pkA4 .pk-grid {
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+}
+.pkA2-grid .pk-name,
+.pkA4 .pk-name {
+  display: none;
+}
+.pkA3-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.pkA3-tabs button {
+  flex: 1;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--dim);
+  font: 600 calc(13rem / 16) var(--f-hud);
+  cursor: pointer;
+}
+.pkA3-tabs button small {
+  margin-inline-start: 6px;
+  color: var(--faint);
+}
+.pkA3-tabs button[aria-selected="true"] {
+  background: var(--surface2);
+  color: var(--text);
+}
+.pkA3-grid {
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+}
+.pkA4 {
+  display: grid;
+  gap: 8px;
+}
+.pkA4 .pk-cell {
+  padding: 4px;
+}
+.pkA4-name {
+  color: var(--faint);
+}
+.pkA.pkA4 {
+  inline-size: min(380px, calc(100% - 32px));
+}
+.pkA5-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+.pkA5-rank {
+  inline-size: 1.5em;
+  color: var(--dim);
+  font: 700 calc(14rem / 16) var(--f-hud);
+}
+.pkA5-who {
+  display: grid;
+  flex: 1;
+  min-inline-size: 0;
+}
+.pkA5-who small {
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+}
+.pkA5-time {
+  font: 600 calc(14rem / 16) var(--f-hud);
+}
+/* the preview stays in view while the grid scrolls under it */
+.pkA2-hero,
+.pkA5-row {
+  position: sticky;
+  inset-block-start: -16px;
+  z-index: 1;
+}
+.pkA2-hero {
+  margin-inline: -16px;
+  background: var(--solid);
+  box-shadow: 0 1px 0 var(--line2);
+}
+.pkA5-row {
+  background: color-mix(in oklch, var(--accent) 14%, var(--solid));
+}
