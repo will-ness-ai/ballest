@@ -3,6 +3,7 @@
 // the way of the entry, and the entry itself, written into campaigns.ts. Tested in
 // test/campaign-tool.test.ts.
 import {
+  CAMPAIGNS,
   type Campaign,
   campaignOfMap,
   mapLabel,
@@ -100,6 +101,73 @@ export function insertEntry(source: string, entry: string): string | null {
   const end = start < 0 ? -1 : source.indexOf("\n];", start);
   if (end < 0) return null;
   return `${source.slice(0, end)}\n${entry}${source.slice(end)}`;
+}
+
+export type Plan =
+  /* the Maps' titles share no words, so the Campaign needs a --title */
+  | { kind: "untitled" }
+  /* these Maps are a Campaign already */
+  | { kind: "added"; campaign: Campaign }
+  | {
+      kind: "draft";
+      campaign: Campaign;
+      rows: Array<Row>;
+      /* what stops the entry, one line each */
+      problems: Array<string>;
+      /* what to look at before writing it, one line each */
+      notes: Array<string>;
+      slugTaken: boolean;
+      entry: string;
+    };
+
+/* what `draft` makes of the Maps workshop_maps.py found (and the IDs that found none): the
+   Campaign, named by --title and --slug or from its Maps' titles, made by whoever made most
+   of them, with its rows, problems, notes and entry */
+export function plan(
+  found: ReadonlyArray<Found>,
+  missing: ReadonlyArray<string>,
+  named: { title?: string; slug?: string },
+  list: ReadonlyArray<Campaign> = CAMPAIGNS,
+): Plan {
+  const title = named.title ?? sharedTitle(found.map((m) => m.title));
+  if (title === null) return { kind: "untitled" };
+  const count = (cid: string) => found.filter((m) => m.cid === cid).length;
+  const maker = [...found].sort((a, b) => count(b.cid) - count(a.cid))[0];
+  const campaign: Campaign = {
+    slug: named.slug ?? slugOf(title),
+    title,
+    creator: maker.creator,
+    creatorId: maker.cid,
+    maps: found.map((m) => m.pfid),
+  };
+  const added = list.find((x) => x.maps.join() === campaign.maps.join());
+  if (added) return { kind: "added", campaign: added };
+
+  const table = rows(campaign, found);
+  const line = (r: Row, what: Array<string>) => `${r.no} ${r.pfid}: ${what.join(", ")}`;
+  const problems = table.filter((r) => r.problems.length).map((r) => line(r, r.problems));
+  const taken = list.find((x) => x.slug === campaign.slug);
+  if (taken) problems.push(`slug "${campaign.slug}" is ${taken.title}'s`);
+  const notes = [
+    ...missing.map(
+      (id) => `${id}: no Map (not this game's, not public, or newer than Steam's catalogue)`,
+    ),
+    ...table.filter((r) => r.notes.length).map((r) => line(r, r.notes)),
+  ];
+  const elsewhere = list.find((x) => x.creatorId === campaign.creatorId);
+  if (elsewhere)
+    notes.push(
+      `${campaign.creator} also made ${elsewhere.slug}: share their creator fields as a constant`,
+    );
+  return {
+    kind: "draft",
+    campaign,
+    rows: table,
+    problems,
+    notes,
+    slugTaken: taken !== undefined,
+    entry: entryText(campaign),
+  };
 }
 
 /* a value as a row's cell: quoted when it holds a comma, a colon or a quote */

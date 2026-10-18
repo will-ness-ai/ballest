@@ -8,6 +8,7 @@ import {
   entryText,
   type Found,
   insertEntry,
+  plan,
   rows,
   sharedTitle,
   slugOf,
@@ -114,4 +115,43 @@ describe("the entry", () => {
 test("a cell is quoted when it holds a comma, a colon or a quote", () => {
   expect(cell("Limbo campaign 1 of 8")).toBe("Limbo campaign 1 of 8");
   expect(cell("Run: 1, 2")).toBe('"Run: 1, 2"');
+});
+
+describe("the plan", () => {
+  const limbo = ["3820698656", "3820723299"].map((p, i) =>
+    found(p, `Limbo campaign ${String(i + 1)} of 8`),
+  );
+  const fresh = [found("1", "Run 1"), found("2", "Run 2", { on_site: false })];
+
+  test("names the Campaign from its Maps' titles, made by whoever made most of them", () => {
+    const p = plan([...fresh, found("3", "Run 3", { creator: "Other", cid: "7656119" })], [], {});
+    expect(p.kind === "draft" && [p.campaign.slug, p.campaign.title, p.campaign.creator]).toEqual([
+      "run",
+      "Run",
+      "DanielProp",
+    ]);
+    expect(plan([found("1", "Mercury"), found("2", "Venus")], [], {})).toEqual({
+      kind: "untitled",
+    });
+  });
+
+  test("is a no-op for Maps that are a Campaign already", () => {
+    const list = [{ ...draft("Limbo", limbo), slug: "limbo" }];
+    expect(plan(limbo, [], {}, list)).toEqual({ kind: "added", campaign: list[0] });
+  });
+
+  test("stops on a Map another Campaign has or a taken slug, and only notes the rest", () => {
+    const list = [{ ...draft("Run", [found("9", "x")]), creatorId: "76561198042310114" }];
+    const p = plan([...fresh, found("3820698656", "Run 3")], ["42"], { slug: "run" }, list);
+    if (p.kind !== "draft") throw new Error(p.kind);
+    expect(p.problems).toEqual(["03 3820698656: in limbo", 'slug "run" is Run\'s']);
+    expect(p.slugTaken).toBe(true);
+    expect(p.notes).toEqual([
+      "42: no Map (not this game's, not public, or newer than Steam's catalogue)",
+      "02 2: not on the site yet",
+      "DanielProp also made run: share their creator fields as a constant",
+    ]);
+    const clean = plan(fresh, [], {}, []);
+    expect(clean.kind === "draft" && [clean.problems, clean.notes.length]).toEqual([[], 1]);
+  });
 });

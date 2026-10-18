@@ -7,16 +7,8 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { CAMPAIGNS, type Campaign } from "../lib/campaigns";
-import {
-  cell,
-  entryText,
-  type Found,
-  insertEntry,
-  rows,
-  sharedTitle,
-  slugOf,
-} from "./campaign/draft";
+import { CAMPAIGNS } from "../lib/campaigns";
+import { cell, type Found, insertEntry, plan } from "./campaign/draft";
 import { campaignHref } from "../lib/routes";
 import { resolve } from "./qa/targets.mjs";
 
@@ -135,54 +127,25 @@ function draft(args: Array<string>) {
     pos.join(" "),
     `pnpm --silent campaign draft ${args.map((a) => (a.startsWith("--") ? a : JSON.stringify(a))).join(" ")}`,
   );
-  const title =
-    typeof flags["--title"] === "string" ? flags["--title"] : sharedTitle(maps.map((m) => m.title));
-  if (title === null)
-    fail("the Maps' titles share no words to name it by", [
-      `pnpm --silent campaign draft ${pos.map((p) => JSON.stringify(p)).join(" ")} --title "<title>"`,
-    ]);
-  const slug = typeof flags["--slug"] === "string" ? flags["--slug"] : slugOf(title);
-  const makers = new Map(maps.map((m) => [m.cid, m.creator]));
-  // the maker of most of the Maps; the others show as flags on their rows
-  const counts = [...makers.keys()].map(
-    (cid) => [cid, maps.filter((m) => m.cid === cid).length] as const,
-  );
-  const [cid] = counts.sort((a, b) => b[1] - a[1])[0];
-  const c: Campaign = {
-    slug,
-    title,
-    creator: makers.get(cid) ?? "",
-    creatorId: cid,
-    maps: maps.map((m) => m.pfid),
+  const query = pos.map((p) => JSON.stringify(p)).join(" ");
+  const named = {
+    title: typeof flags["--title"] === "string" ? flags["--title"] : undefined,
+    slug: typeof flags["--slug"] === "string" ? flags["--slug"] : undefined,
   };
-
-  const added = CAMPAIGNS.find((x) => x.maps.join() === c.maps.join());
-  if (added) {
+  const p = plan(maps, missing, named);
+  if (p.kind === "untitled")
+    fail("the Maps' titles share no words to name it by", [
+      `pnpm --silent campaign draft ${query} --title "<title>"`,
+    ]);
+  if (p.kind === "added") {
     out([
-      `campaign: these Maps are already ${added.title} (${added.slug}) (no-op)`,
-      ...help([`pnpm --silent campaign check ${added.slug}`]),
+      `campaign: these Maps are already ${p.campaign.title} (${p.campaign.slug}) (no-op)`,
+      ...help([`pnpm --silent campaign check ${p.campaign.slug}`]),
     ]);
     return;
   }
-  const table = rows(c, maps);
-  const problems = table
-    .filter((r) => r.problems.length)
-    .map((r) => `${r.no} ${r.pfid}: ${r.problems.join(", ")}`);
-  const taken = CAMPAIGNS.find((x) => x.slug === slug);
-  if (taken) problems.push(`slug "${slug}" is ${taken.title}'s`);
-  const notes = [
-    ...missing.map(
-      (id) => `${id}: no Map (not this game's, not public, or newer than Steam's catalogue)`,
-    ),
-    ...table.filter((r) => r.notes.length).map((r) => `${r.no} ${r.pfid}: ${r.notes.join(", ")}`),
-  ];
-  const elsewhere = CAMPAIGNS.find((x) => x.creatorId === cid);
-  if (elsewhere)
-    notes.push(
-      `${c.creator} also made ${elsewhere.slug}: share their creator fields as a constant`,
-    );
-  const entry = entryText(c);
-  const query = pos.map((p) => JSON.stringify(p)).join(" ");
+  const { campaign: c, rows: table, problems, notes, entry } = p;
+  const { title, slug, creatorId: cid } = c;
 
   const lines = [
     `campaign: ${title} (${slug}) by ${c.creator} (${cid}), ${String(maps.length)} Maps`,
@@ -199,12 +162,12 @@ function draft(args: Array<string>) {
         ? "entry: not written while there are problems"
         : "entry: none while there are problems",
       ...help([
-        ...(taken
+        ...(p.slugTaken
           ? [
               `pnpm --silent campaign draft ${query} --title ${JSON.stringify(title)} --slug <another slug>`,
             ]
           : []),
-        ...(problems.length > (taken ? 1 : 0)
+        ...(problems.length > (p.slugTaken ? 1 : 0)
           ? ['pnpm --silent campaign draft "<the links without Maps another Campaign has>"']
           : []),
       ]),
