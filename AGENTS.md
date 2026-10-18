@@ -47,6 +47,7 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   (`docs/data.md`, "Ghosts"; `docs/site.md`, "Ball skins").
 - `tools/map_files.py` — the collector's Map file step, after the Ghost step: downloads each
   Workshop Map's new or changed file into `map_files` for the 3D view (`docs/data.md`, "Map files").
+  `map-files.yml`, by hand, runs it alone for an hour to fill a backlog.
 - `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
   Workshop links) and prints the `maps:` line; `docs/site.md`, "Campaigns".
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, writes the Refresh to the database

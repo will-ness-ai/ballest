@@ -1,0 +1,49 @@
+name: Download Map files
+
+# By hand: downloads every Workshop Map's file the database lacks or holds an older version
+# of (tools/map_files.py, docs/data.md "Map files") in one long run, rather than the few
+# minutes each Refresh spends on it. Downloads need Steam's content servers, which cloud
+# agent sessions can't reach.
+
+on:
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: Seconds to keep starting downloads
+        default: "3600"
+
+# Never alongside a refresh: both log into Steam with the same account.
+concurrency:
+  group: refresh-leaderboards
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  map-files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install collector deps
+        run: python -m pip install -r tools/requirements-steampy.txt
+
+      - name: Download Map files
+        env:
+          STEAM_REFRESH_TOKEN: ${{ secrets.STEAM_REFRESH_TOKEN }}
+          STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+          # Map pages offer the 3D view once a Map's file is held
+          SITE_URL: https://ballestrecords.com
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+          BUDGET: ${{ inputs.budget }}
+        run: python tools/map_files.py --budget "$BUDGET"
