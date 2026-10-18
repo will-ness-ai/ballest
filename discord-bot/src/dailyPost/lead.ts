@@ -3,7 +3,7 @@
 // say exactly the same. A lead held by one player is a Reign (CONTEXT.md): it runs from the read
 // that saw it start to the read that saw a faster time take it, through the holder's own faster
 // times, and a matched time does not start a new one.
-import { escape } from "../report/messages.js";
+import { bold } from "../report/messages.js";
 import { type BoardRead, dailyTime, millis, sameTime } from "./card.js";
 
 /** The lead as one read saw it: every name on the fastest time, in board order. */
@@ -31,7 +31,6 @@ export const leadChanged = (last: Lead | undefined, next: Lead): boolean =>
   last.leaders.length !== next.leaders.length ||
   last.leaders.some((name) => !next.leaders.includes(name));
 
-const bold = (s: string) => `**${escape(s)}**`;
 const names = (list: ReadonlyArray<string>) => list.map(bold).join(" & ");
 
 /** "3h 12m", "46m", "6h". */

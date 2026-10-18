@@ -82,7 +82,7 @@ afterAll(() => admin(`drop database if exists ${name} with (force)`));
 describe("a past Daily from the leaderboard database", () => {
   it("has its window, Map and board as the dailies table names them", async () => {
     const found = Option.getOrThrow(await run(pastDaily("2026-09-01")));
-    expect(found.challenge).toEqual({
+    expect(found.daily).toEqual({
       date: "2026-09-01",
       pfid: "9000000004",
       title: "Fresh Fields",

@@ -2,11 +2,11 @@
 // header, the podium with ties, the Medal times, and the thread's name. Pure, so the schedule and
 // `pnpm daily-post` say exactly the same, and the tests read it without Discord.
 import { type Medals, SCORE_TICKS_PER_SECOND } from "../domain.js";
-import { escape } from "../report/messages.js";
+import { bold, escape } from "../report/messages.js";
 import { DAY, dayStart } from "./date.js";
 
 /** One Daily, as the developers' API names it. Times in ms. */
-export interface Challenge {
+export interface Daily {
   /** "2026-10-18": the Daily's name, and the key its Daily Post is recorded under. */
   readonly date: string;
   readonly pfid: string;
@@ -46,16 +46,16 @@ export interface DailyView {
 }
 
 export const viewOf = (
-  challenge: Challenge,
+  daily: Daily,
   map: DailyMap,
   board: BoardRead | null,
   readAt: number,
 ): DailyView => ({
-  date: challenge.date,
-  pfid: challenge.pfid,
-  title: map.title || challenge.title,
+  date: daily.date,
+  pfid: daily.pfid,
+  title: map.title || daily.title,
   maker: map.maker,
-  endsAt: challenge.endsAt,
+  endsAt: daily.endsAt,
   medals: map.medals,
   board,
   readAt,
@@ -78,7 +78,6 @@ const shortDay = (date: string) => {
 
 /** A Discord timestamp, shown in each reader's own time zone. */
 const stamp = (at: number, style: "R" | "t" | "f") => `<t:${Math.floor(at / 1000)}:${style}>`;
-const bold = (s: string) => `**${escape(s)}**`;
 const PLACES = ["🥇", "🥈", "🥉"];
 
 /** A run time in whole milliseconds, cut rather than rounded: the site's `fmtTime`. */
@@ -106,6 +105,9 @@ const podium = (top: BoardRead["top"]) =>
     return `${PLACES[place < 0 ? i : place]} ${bold(e.name)} ${dailyTime(e.ticks)}`;
   });
 
+/** "**145** players", "**1** player". */
+const players = (n: number) => `**${n}** ${n === 1 ? "player" : "players"}`;
+
 const medalTime = (seconds: number) => dailyTime(Math.round(seconds * SCORE_TICKS_PER_SECOND));
 const medalsLine = ({ author, gold, silver, bronze }: Medals) =>
   `Author ${medalTime(author)} · Gold ${medalTime(gold)} · Silver ${medalTime(silver)} · Bronze ${medalTime(bronze)}`;
@@ -117,7 +119,7 @@ export const cardText = (v: DailyView) => {
     v.board === null || first === undefined
       ? "No times yet"
       : [
-          `**${v.board.players}** ${v.board.players === 1 ? "player" : "players"} · fastest **${dailyTime(first.ticks)}**`,
+          `${players(v.board.players)} · fastest **${dailyTime(first.ticks)}**`,
           ...podium(v.board.top),
         ].join("\n");
   return {
@@ -141,13 +143,13 @@ const winners = (names: ReadonlyArray<string>) => {
 export const closedText = (v: DailyView) => {
   const top = v.board?.top ?? [];
   const first = top[0];
-  const players = v.board?.players ?? 0;
+  const count = v.board?.players ?? 0;
   const head = `-# DAILY #${dailyNumber(v.date)} · ${shortDay(v.date).toUpperCase()} · ${escape(v.title)} by ${escape(v.maker)}`;
   return {
     header:
       first === undefined
         ? `${head}\n# No winner`
-        : `${head}\n# 🏆 ${winners(top.filter((e) => sameTime(e.ticks, first.ticks)).map((e) => e.name))}\n**${dailyTime(first.ticks)}**, out of **${players}** ${players === 1 ? "player" : "players"}`,
+        : `${head}\n# 🏆 ${winners(top.filter((e) => sameTime(e.ticks, first.ticks)).map((e) => e.name))}\n**${dailyTime(first.ticks)}**, out of ${players(count)}`,
     stats: first === undefined ? "Nobody set a time" : podium(top).join("\n"),
     foot: `${medalsLine(v.medals)}\n-# Closed ${stamp(v.endsAt, "f")} · final`,
   };

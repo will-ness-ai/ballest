@@ -63,17 +63,19 @@ if (
 }
 
 /** A past Daily from a local leaderboard database, posted closed as the backfill would. */
-const backfilled = (url: string) =>
-  Effect.gen(function* () {
+const backfilled = Effect.fn("backfilled")(
+  function* (url: string) {
     const found = yield* (yield* DailyHistory).find(date);
     if (Option.isNone(found)) return false;
-    if (found.value.challenge.endsAt > Date.now()) return false;
+    if (found.value.daily.endsAt > Date.now()) return false;
     const { post, threadFailed } = yield* postPast(found.value);
     yield* Effect.logInfo(
       `daily post: backfilled ${date} as ${post.messageId} in ${channel} from ${new URL(url).pathname.slice(1)} (${found.value.leads.length} changes of lead), thread ${post.threadId ?? "failed"}${Option.match(threadFailed, { onNone: () => "", onSome: (r) => ` (${r})` })}`,
     );
     return true;
-  }).pipe(Effect.provide(dailyHistoryAt(Redacted.make(url))));
+  },
+  (effect, url) => effect.pipe(Effect.provide(dailyHistoryAt(Redacted.make(url)))),
+);
 
 const program = Effect.gen(function* () {
   if (database !== undefined && (yield* backfilled(database))) return;

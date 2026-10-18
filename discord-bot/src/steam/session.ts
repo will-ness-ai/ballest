@@ -302,14 +302,9 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
         Effect.map((r) => Option.fromNullable(r.entries[0])),
       ),
     /** Ranks `from` to `to`, with how many entries the whole board holds: one request. */
-    range: (
-      boardId: number,
-      from: number,
-      to: number,
-    ): Effect.Effect<
-      { readonly count: number; readonly entries: ReadonlyArray<BoardEntry> },
-      SteamUnavailable
-    > => entries(boardId, REQUEST_GLOBAL, [from, to], []),
+    range: Effect.fn("SteamSession.range")(function* (boardId: number, from: number, to: number) {
+      return yield* entries(boardId, REQUEST_GLOBAL, [from, to], []);
+    }),
     /** These Players' entries; a Player with no time is simply absent. */
     players: (
       boardId: number,

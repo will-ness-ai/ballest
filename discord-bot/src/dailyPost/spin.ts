@@ -63,13 +63,12 @@ const live = (token: Redacted.Redacted) =>
       const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
       // Each read opens its own connection and closes it, as the Daily Report's do, so a
       // database that can't be reached fails that read, not the bot's startup.
-      const query = <A, I>(
+      const query = Effect.fn("DailySpins.query")(function* <A, I>(
         schema: Schema.Schema<A, I>,
         run: (sql: SqlClient.SqlClient) => Effect.Effect<ReadonlyArray<unknown>, unknown>,
-      ) =>
-        Effect.flatMap(SqlClient.SqlClient, run).pipe(
+      ) {
+        const rows = yield* Effect.flatMap(SqlClient.SqlClient, run).pipe(
           Effect.flatMap(Schema.decodeUnknown(Schema.Array(schema))),
-          Effect.map((rows) => Option.fromNullable(rows[0])),
           Effect.provide(PgClient.layerConfig({ url: Config.redacted("DATABASE_URL") })),
           Effect.mapError(
             (e) =>
@@ -78,20 +77,26 @@ const live = (token: Redacted.Redacted) =>
               }),
           ),
         );
+        return Option.fromNullable(rows[0]);
+      });
       return DailySpins.of({
-        fileVersion: (pfid) =>
-          query(VersionRow, (sql) => sql`select version from map_files where pfid = ${pfid}`).pipe(
-            Effect.map(Option.map((r) => r.version)),
-          ),
-        latest: (pfid) =>
-          query(
+        fileVersion: Effect.fn("DailySpins.fileVersion")(function* (pfid: string) {
+          const row = yield* query(
+            VersionRow,
+            (sql) => sql`select version from map_files where pfid = ${pfid}`,
+          );
+          return Option.map(row, (r) => r.version);
+        }),
+        latest: Effect.fn("DailySpins.latest")(function* (pfid: string) {
+          return yield* query(
             SpinRow,
             (sql) =>
               sql`select version, (extract(epoch from drawn_at) * 1000)::float8 as "drawnAt", gif
                   from map_spins where pfid = ${pfid}`,
-          ),
-        draw: (pfid) =>
-          http
+          );
+        }),
+        draw: Effect.fn("DailySpins.draw")(function* (pfid: string) {
+          yield* http
             .execute(
               HttpClientRequest.post(WORKFLOW).pipe(
                 HttpClientRequest.bearerToken(Redacted.value(token)),
@@ -101,7 +106,6 @@ const live = (token: Redacted.Redacted) =>
             )
             .pipe(
               Effect.scoped,
-              Effect.asVoid,
               Effect.mapError(
                 (e) =>
                   new SpinUnavailable({
@@ -109,7 +113,8 @@ const live = (token: Redacted.Redacted) =>
                       e._tag === "ResponseError" ? `GitHub said ${e.response.status}` : e.message,
                   }),
               ),
-            ),
+            );
+        }),
       });
     }),
   ).pipe(Layer.provide(FetchHttpClient.layer));

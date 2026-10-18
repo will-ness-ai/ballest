@@ -204,7 +204,9 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
       /** The Daily Report's four boards. */
       standings: (image: StandingsImage) => draw(standingsScene(image), STANDINGS_WIDTH),
       /** A Daily Post's lead through the day. */
-      leadGraph: (image: LeadGraphImage) => draw(leadGraphScene(image), LEAD_GRAPH_WIDTH),
+      leadGraph: Effect.fn("Renderer.leadGraph")(function* (image: LeadGraphImage) {
+        return yield* draw(leadGraphScene(image), LEAD_GRAPH_WIDTH);
+      }),
     };
   }),
 }) {}

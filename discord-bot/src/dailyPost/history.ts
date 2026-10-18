@@ -6,7 +6,7 @@
 import { SqlClient } from "@effect/sql";
 import { PgClient } from "@effect/sql-pg";
 import { Config, Context, Data, Effect, Layer, Option, type Redacted, Schema } from "effect";
-import { type BoardRead, type Challenge, sameTime } from "./card.js";
+import { type BoardRead, type Daily, sameTime } from "./card.js";
 import { type Lead, leadChanged } from "./lead.js";
 
 /**
@@ -19,7 +19,7 @@ export interface PastLead extends Lead {
 
 /** A Daily that has run: its window and board, its final board, and its lead through the day. */
 export interface PastDaily {
-  readonly challenge: Challenge;
+  readonly daily: Daily;
   readonly board: BoardRead;
   readonly leads: ReadonlyArray<PastLead>;
 }
@@ -93,9 +93,9 @@ export const pastDaily = Effect.fn("pastDaily")(function* (date: string) {
            ${ms("d.ends_at")} as "endsAt", b.leaderboard_id::float8 as "boardId"
     from dailies d join boards b on b.name = d.board
     where d.date = ${date}`.pipe(Effect.flatMap(rows(DailyRow)));
-  const daily = found[0];
-  if (daily === undefined) return Option.none<PastDaily>();
-  const board = daily.board;
+  const row = found[0];
+  if (row === undefined) return Option.none<PastDaily>();
+  const board = row.board;
   // The site's ranking: fastest first, then first seen, then Steam ID.
   const top = yield* sql`
     select coalesce(p.persona, e.steam_id) as name, e.score::float8 as ticks
@@ -131,13 +131,13 @@ export const pastDaily = Effect.fn("pastDaily")(function* (date: string) {
     ) prev on true
     where e.board = ${board}`.pipe(Effect.flatMap(rows(HeldRow)));
   return Option.some<PastDaily>({
-    challenge: {
+    daily: {
       date,
-      pfid: daily.pfid,
-      title: daily.title,
-      startsAt: daily.startsAt,
-      endsAt: daily.endsAt,
-      boardId: daily.boardId ?? 0,
+      pfid: row.pfid,
+      title: row.title,
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+      boardId: row.boardId ?? 0,
     },
     board: { players: count[0]?.players ?? 0, top },
     leads: leadsOf(held),
@@ -168,8 +168,8 @@ export const dailyHistoryAt = (url: Redacted.Redacted) =>
     DailyHistory,
     DailyHistory.of({
       available: true,
-      find: (date) =>
-        pastDaily(date).pipe(
+      find: Effect.fn("DailyHistory.find")(function* (date: string) {
+        return yield* pastDaily(date).pipe(
           Effect.provide(PgClient.layer({ url })),
           Effect.mapError(
             (e) =>
@@ -177,7 +177,8 @@ export const dailyHistoryAt = (url: Redacted.Redacted) =>
                 reason: e instanceof Error ? e.message : "the database couldn't be read",
               }),
           ),
-        ),
+        );
+      }),
     }),
   );
 

@@ -3,7 +3,7 @@
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Clock, Effect, Fiber, Layer, Option, Ref, TestClock } from "effect";
-import type { BoardRead, Challenge, DailyMap } from "../src/dailyPost/card.js";
+import type { BoardRead, Daily, DailyMap } from "../src/dailyPost/card.js";
 import type { DailyMessage } from "../src/dailyPost/messages.js";
 import {
   DailyApi,
@@ -29,7 +29,7 @@ const HOUR = 60 * MINUTE;
 const DAY0 = Date.UTC(2026, 9, 18); // midnight UTC, Sunday 18 October: Daily #60
 const OPENS = DAY0 + HOUR;
 
-const challenge = (date: string, startsAt: number): Challenge => ({
+const dailyOn = (date: string, startsAt: number): Daily => ({
   date,
   pfid: "3796494598",
   title: "the drop",
@@ -118,7 +118,7 @@ const setup = Effect.gen(function* () {
             const now = yield* Clock.currentTimeMillis;
             // Today's opens at `opensAt`; any other day's once its own 01:00 has passed.
             const open = start === OPENS ? now >= (yield* Ref.get(opensAt)) : now >= start;
-            return open ? Option.some(challenge(date, start)) : Option.none();
+            return open ? Option.some(dailyOn(date, start)) : Option.none();
           }),
       }),
     ),
@@ -682,7 +682,7 @@ describe("the Daily Post's backfill", () => {
   const past = (date: string, leads: PastDaily["leads"]): PastDaily => {
     const startsAt = Date.parse(`${date}T01:00:00Z`);
     return {
-      challenge: challenge(date, startsAt),
+      daily: dailyOn(date, startsAt),
       board: topOf(["airman", 8.532], ["FEDUS", 8.566]),
       leads: leads.map((l) => ({ ...l, at: startsAt + l.at })),
     };

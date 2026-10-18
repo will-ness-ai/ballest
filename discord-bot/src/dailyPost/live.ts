@@ -14,7 +14,7 @@ import { OpsAlerts } from "../ops.js";
 import { SteamUnavailable } from "../ports.js";
 import { SteamSession } from "../steam/session.js";
 import { WebApi } from "../steam/webApi.js";
-import type { Challenge } from "./card.js";
+import type { Daily } from "./card.js";
 import {
   DailyApi,
   DailyApiUnavailable,
@@ -83,8 +83,8 @@ export const DailyApiLive = Layer.effect(
             ),
           );
         const c = answer.challenge;
-        if (!answer.found || c === null) return Option.none<Challenge>();
-        const challenge: Challenge = {
+        if (!answer.found || c === null) return Option.none<Daily>();
+        const daily: Daily = {
           date: c.date,
           pfid: c.published_file_id,
           title: c.level_display_name,
@@ -92,9 +92,9 @@ export const DailyApiLive = Layer.effect(
           endsAt: Date.parse(c.ends_at),
           boardId: Number(c.leaderboard_id),
         };
-        if (![challenge.startsAt, challenge.endsAt, challenge.boardId].every(Number.isFinite))
+        if (![daily.startsAt, daily.endsAt, daily.boardId].every(Number.isFinite))
           return yield* new DailyApiUnavailable({ reason: "an answer it couldn't read" });
-        return Option.some(challenge);
+        return Option.some(daily);
       }),
     });
   }),
@@ -159,24 +159,29 @@ export const DailyChannelLive = Layer.effect(
     const token = yield* Config.redacted("DISCORD_TOKEN");
     const channelId = yield* Config.string("DAILY_CHANNEL_ID");
     const rest = new REST({ version: "10" }).setToken(Redacted.value(token));
-    const call = (op: string, run: () => Promise<unknown>) =>
-      Effect.tryPromise({
+    const call = Effect.fn("DailyChannel.call")(function* (
+      op: string,
+      run: () => Promise<unknown>,
+    ) {
+      return yield* Effect.tryPromise({
         try: run,
         catch: (cause) => new DailyPostFailed({ reason: `${op}: ${oneLine(cause)}` }),
       });
+    });
     /** A REST call that creates a message or thread: the new id, read from Discord's reply. */
-    const create = (
+    const create = Effect.fn("DailyChannel.create")(function* (
       op: string,
       route: `/${string}`,
       options: Omit<RequestData, "body"> & { readonly body: object },
-    ) =>
-      call(op, () => rest.post(route, options)).pipe(
-        Effect.flatMap(Schema.decodeUnknown(Created)),
-        Effect.map((created) => created.id),
+    ) {
+      const reply = yield* call(op, () => rest.post(route, options));
+      const created = yield* Schema.decodeUnknown(Created)(reply).pipe(
         Effect.catchTag("ParseError", () =>
           Effect.fail(new DailyPostFailed({ reason: `${op}: Discord's reply had no id` })),
         ),
       );
+      return created.id;
+    });
     return DailyChannel.of({
       post: Effect.fn("DailyChannel.post")(function* (message, files, threadName) {
         const messageId = yield* create("post the card", Routes.channelMessages(channelId), {
