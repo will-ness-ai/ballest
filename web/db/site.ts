@@ -41,7 +41,9 @@ import type {
   Standings,
   StandingsRow,
   WorkshopMap,
+  WorkshopStandings,
 } from "../lib/rows";
+import { countStandings, type StandingsEntry, type StandingsMap } from "../lib/workshop-standings";
 
 const TRACKS = [...S1_TRACKS, ...S2_TRACKS];
 
@@ -413,6 +415,54 @@ export async function standings(db: Db): Promise<Standings> {
       where closed_refresh is null and board in (${listedMapsSql})`,
   );
   return { tracks: TRACKS.length, maps: n.maps, players: found.map((r) => r.row) };
+}
+
+/* The Workshop standings now and at `since` (Unix ms), counted by lib/workshop-standings.ts
+   from every listed Map and its Entries open now or closed after `since` */
+export async function workshopStandings(db: Db, since: number): Promise<WorkshopStandings> {
+  const ms = (column: string) => sql.raw(`(extract(epoch from ${column}) * 1000)::float8`);
+  const [last] = await rows<{ at: number | null }>(
+    db,
+    sql`select ${ms("max(coalesce(finished_at, started_at))")} as at from refreshes`,
+  );
+  /* medals are [bronze, silver, gold, author] in seconds */
+  const maps = await rows<Omit<StandingsMap, "authorTicks"> & { author: number | null }>(
+    db,
+    sql`select m.board, m.creator_steam_id as creator, h.medals[4]::float8 as author,
+        ${ms("m.created_at")} as "createdAt", ${ms("r.first_read")} as "firstReadAt"
+      from maps m
+      join lateral (select medals from map_history
+        where pfid = m.pfid order by last_seen_refresh desc, id desc limit 1) h on true
+      left join (select br.board, min(f.started_at) as first_read
+        from board_reads br join refreshes f on f.id = br.refresh_id
+        where br.ok group by br.board) r on r.board = m.board
+      where m.board in (${listedMapsSql})`,
+  );
+  const entries = await rows<StandingsEntry>(
+    db,
+    sql`select e.board, e.steam_id as "steamId", ${personaSql} as persona,
+        e.score::float8 as score, ${ms("f.started_at")} as "firstSeenAt",
+        ${ms("c.started_at")} as "closedAt"
+      from entries e
+      join players p on p.steam_id = e.steam_id
+      join refreshes f on f.id = e.first_seen_refresh
+      left join refreshes c on c.id = e.closed_refresh
+      where e.board in (${listedMapsSql})
+        and (e.closed_refresh is null or c.started_at > ${new Date(since)})`,
+  );
+  return {
+    readAt: last.at === null ? null : new Date(last.at).toISOString(),
+    since: new Date(since).toISOString(),
+    ...countStandings(
+      maps.map(({ author, ...m }) => ({
+        ...m,
+        // as the Daily Report did: int(seconds * ticks), truncated
+        authorTicks: author === null ? null : Math.trunc(author * SCORE_TICKS_PER_SECOND),
+      })),
+      entries,
+      since,
+    ),
+  };
 }
 
 /* Up to `limit` players on any board whose persona or Steam ID contains q, the names that

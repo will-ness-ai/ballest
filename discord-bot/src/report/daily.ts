@@ -1,4 +1,5 @@
-// The Daily Report (spec #126): built from the leaderboard database, posted to STATS_CHANNEL_ID at
+// The Daily Report (spec #126): built from the leaderboard database and the Workshop standings the
+// site counts (docs/adr/0011), posted to STATS_CHANNEL_ID at
 // 16:00 UTC every day. Each posted day is recorded in the bot's SQLite, so a restart after the post
 // never posts it again, and a bot that was down at 16:00 posts once when it starts.
 import { SqlClient } from "@effect/sql";
@@ -7,10 +8,18 @@ import { MigratorLive } from "../db.js";
 import { OpsAlerts } from "../ops.js";
 import { Renderer } from "../render/renderer.js";
 import { ReportChannel, ReportChannelLive } from "./channel.js";
-import { standingsImage, headMessage, pack, threadName, threadSections } from "./messages.js";
+import {
+  headMessage,
+  pack,
+  reportButtons,
+  standingsImage,
+  threadName,
+  threadSections,
+} from "./messages.js";
 import { GhostDatesLive, oldestMapRecords, oldestTrackRecords } from "./records.js";
 import { buildReport, DAY_MS, type Report } from "./report.js";
 import { ReportSource, ReportSourceLive } from "./source.js";
+import { StandingsSource, StandingsSourceLive } from "./standings.js";
 
 export const REPORT_HOUR_UTC = 16;
 /** No Refresh in this long, and the numbers are too old to post as today's. */
@@ -76,6 +85,7 @@ export const postReport = Effect.fn("postReport")(function* (report: Report) {
   return yield* channel.post({
     content: headMessage(report),
     image,
+    components: reportButtons,
     threadName: threadName(report),
     thread: pack(threadSections(report, { tracks, maps })),
   });
@@ -98,8 +108,9 @@ export const runDay = Effect.fn("runDay")(function* (at: number) {
         `Multiballs skipped the Daily Report for ${day}: no Refresh ${since}.`,
       );
     }
+    const standings = yield* (yield* StandingsSource).read(at - DAY_MS);
     // A report whose thread failed is still that day's report: recorded, so it isn't posted again.
-    const messageId = yield* postReport(buildReport(data, at)).pipe(
+    const messageId = yield* postReport(buildReport(data, standings, at)).pipe(
       Effect.catchTag("ThreadPostFailed", (e) =>
         alerts
           .post(`Multiballs posted the Daily Report for ${day}, but not its thread: ${e.reason}`)
@@ -154,6 +165,7 @@ export const DailyReportLive = Layer.unwrapEffect(
       Layer.provide(
         Layer.mergeAll(
           ReportSourceLive,
+          StandingsSourceLive,
           GhostDatesLive,
           ReportChannelLive,
           ReportLogLive,

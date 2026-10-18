@@ -92,6 +92,8 @@ export function probe() {
     if (
       (cs.overflowX === "hidden" || cs.overflowX === "clip") &&
       cs.textOverflow !== "ellipsis" &&
+      // text hidden for screen readers only is cut to nothing on purpose
+      cs.clipPath !== "inset(50%)" &&
       el.scrollWidth > el.clientWidth + 1 &&
       [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())
     )

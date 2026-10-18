@@ -994,6 +994,8 @@ const STANDINGS_NAME = 17;
 export interface StandingsRow {
   readonly name: string;
   readonly n: number;
+  /** The shared place: players on the same count show the same one. */
+  readonly place: number;
   /** Places climbed (negative: fallen), or "new" to the board's top 10. */
   readonly move: number | "new";
   /** n now less n 24 hours before. */
@@ -1078,8 +1080,13 @@ export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El 
             backgroundColor: i === 0 ? C.upTint : C.surface,
           },
           box(
-            { width: 18, color: i < 3 ? C.gold : C.faint, fontFamily: F.hud, fontWeight: 700 },
-            String(i + 1),
+            {
+              width: 18,
+              color: row.place <= 3 ? C.gold : C.faint,
+              fontFamily: F.hud,
+              fontWeight: 700,
+            },
+            String(row.place),
           ),
           box({ width: 30 }, movePill(row.move)),
           box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
