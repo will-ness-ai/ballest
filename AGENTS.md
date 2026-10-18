@@ -198,6 +198,8 @@ developers resetting the leaderboards, snapshot production in Neon first (`docs/
 
 `CODING_STANDARDS.md` is the review checklist; it also holds the branch and commit
 conventions.
+`CLAUDE.md` is a symlink to this file, so git sees an edit to either as `AGENTS.md`: stage
+that path (or `git add -A`).
 
 ## Agent skills
 
