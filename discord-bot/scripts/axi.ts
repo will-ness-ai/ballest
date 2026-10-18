@@ -179,8 +179,8 @@ const saveFiles = async (m: ApiMessage) => {
     if (a.url === undefined) continue;
     mkdirSync(AXI_DIR, { recursive: true });
     const path = posix.join(AXI_DIR, `${m.id}-${a.filename}`);
-    if (!existsSync(path))
-      writeFileSync(path, Buffer.from(await (await fetch(a.url)).arrayBuffer()));
+    // Always fetched: an edited Card keeps its message id and file name but not its picture.
+    writeFileSync(path, Buffer.from(await (await fetch(a.url)).arrayBuffer()));
     files.set(a.filename, path);
   }
   return files;
