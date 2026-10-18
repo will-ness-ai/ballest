@@ -179,9 +179,12 @@ async def record_map_files(catalogue, download, *, scratch=False, env=None, budg
     return written
 
 
-def among(maps, pfids):
-    """The Maps whose pfid is one of `pfids`."""
-    return [m for m in maps if m["pfid"] in pfids]
+def catalogue_of(key, pfids=None):
+    """The Maps the step looks at: just `pfids`, from the newest page (one request, and a
+    #new-tracks post's Maps are on it), or with no pfids the whole catalogue."""
+    if pfids:
+        return [m for m in cc.newest_maps(key) if m["pfid"] in pfids]
+    return cc.workshop_catalogue(key)
 
 
 def main(argv=None):
@@ -201,8 +204,7 @@ def main(argv=None):
     if not (token and key and db_writer.database_url(os.environ, scratch=args.dev)):
         print("ERROR: needs STEAM_REFRESH_TOKEN, STEAM_API_KEY and the database's URL")
         return 2
-    # Maps a #new-tracks post just added are on the newest page: one request, not every page
-    catalogue = among(cc.newest_maps(key), args.maps) if args.maps else cc.workshop_catalogue(key)
+    catalogue = catalogue_of(key, args.maps)
     client = steam.Client()
     result = {}
 

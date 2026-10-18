@@ -290,6 +290,9 @@ def test_the_step_takes_a_budget_for_a_backlog_run(db_url, capsys):
     assert "1 due, 0 written, 0 failed, 1 left" in capsys.readouterr().out
 
 
-def test_maps_narrows_the_newest_page_to_the_maps_named():
+def test_maps_named_come_from_the_newest_page_and_none_from_the_whole_catalogue(monkeypatch):
     newest = [cat("1", "h1", 9), cat("2", "h2", 5), cat("3", "h3", 1)]
-    assert [m["pfid"] for m in map_files.among(newest, {"3", "1"})] == ["1", "3"]
+    monkeypatch.setattr(map_files.cc, "newest_maps", lambda _: newest)
+    monkeypatch.setattr(map_files.cc, "workshop_catalogue", lambda _: [*newest, cat("4", "h4", 1)])
+    assert [m["pfid"] for m in map_files.catalogue_of("key", {"3", "1"})] == ["1", "3"]
+    assert len(map_files.catalogue_of("key")) == 4
