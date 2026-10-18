@@ -105,7 +105,10 @@ the log counts the failures by error. So a Map whose manifest holds no map file 
 is downloaded again every run. That is deliberate: its creator's next update may add one,
 and it costs one download a run. When it wrote any file it revalidates the site. It is
 skipped without a catalogue or a database, and with `--dev` writes only `DEV_DATABASE_URL`.
-Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
+To fill a backlog in one go, run `.github/workflows/map-files.yml` by hand: it runs the same
+step alone (`python tools/map_files.py --budget <seconds>`), an hour by default, in the
+refresh's concurrency group, so a Refresh due meanwhile waits for it, and it fails when it
+wrote no file. Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
 file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
 `getWorkshop` carries each Map's stored version.
 
