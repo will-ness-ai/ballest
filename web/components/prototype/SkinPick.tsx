@@ -77,7 +77,11 @@ const subscribe = (l: () => void) => {
 const param = (k: string) =>
   typeof location === "undefined" ? null : new URLSearchParams(location.search).get(k);
 export function useVariant(): VariantKey | null {
-  const v = useSyncExternalStore(subscribe, () => param("variant") ?? "A", () => null);
+  const v = useSyncExternalStore(
+    subscribe,
+    () => param("variant") ?? "A",
+    () => null,
+  );
   if (v === null) return null;
   return VARIANTS.find((x) => x[0] === v)?.[0] ?? "A";
 }
@@ -204,7 +208,13 @@ export function ProtoOwnPage({ id }: { id: string }) {
   return null;
 }
 
-function VariantA({ chosen, choose }: { chosen: string | null; choose: (a: string | null) => void }) {
+function VariantA({
+  chosen,
+  choose,
+}: {
+  chosen: string | null;
+  choose: (a: string | null) => void;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   /* the marble itself opens it too */
   useEffect(() => {
@@ -252,7 +262,13 @@ function VariantA({ chosen, choose }: { chosen: string | null; choose: (a: strin
   );
 }
 
-function VariantD({ chosen, choose }: { chosen: string | null; choose: (a: string | null) => void }) {
+function VariantD({
+  chosen,
+  choose,
+}: {
+  chosen: string | null;
+  choose: (a: string | null) => void;
+}) {
   return (
     <section className="pkD">
       <div className="pkD-head">
@@ -265,7 +281,13 @@ function VariantD({ chosen, choose }: { chosen: string | null; choose: (a: strin
   );
 }
 
-function VariantE({ chosen, choose }: { chosen: string | null; choose: (a: string | null) => void }) {
+function VariantE({
+  chosen,
+  choose,
+}: {
+  chosen: string | null;
+  choose: (a: string | null) => void;
+}) {
   const all: (string | null)[] = [null, ...SKIN_LIST.map((s) => s[0])];
   const [i, setI] = useState(() => Math.max(0, all.indexOf(chosen)));
   const draft = all[i] ?? null;
