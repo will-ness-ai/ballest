@@ -1,7 +1,7 @@
 // What a Daily Post's card says (spec #268), as plain data and text: the Daily's number, the
 // header, the podium with ties, the Medal times, and the thread's name. Pure, so the schedule and
 // `pnpm daily-post` say exactly the same, and the tests read it without Discord.
-import { formatTime, type Medals, SCORE_TICKS_PER_SECOND } from "../domain.js";
+import { type Medals, SCORE_TICKS_PER_SECOND } from "../domain.js";
 import { escape } from "../report/messages.js";
 
 /** One Daily, as the developers' API names it. Times in ms. */
@@ -83,14 +83,26 @@ const stamp = (at: number, style: "R" | "t" | "f") => `<t:${Math.floor(at / 1000
 const bold = (s: string) => `**${escape(s)}**`;
 const PLACES = ["🥇", "🥈", "🥉"];
 
+/** A run time in whole milliseconds, cut rather than rounded: the site's `fmtTime`. */
+const millis = (ticks: number) => Math.floor((ticks * 1000) / SCORE_TICKS_PER_SECOND);
+
+/**
+ * A run time as the site shows it, 0:08.532: cut to the thousandth, never rounded, so the Daily
+ * Post and the site's board agree. (Matches round, through `formatTime`.)
+ */
+export const dailyTime = (ticks: number): string => {
+  const ms = millis(ticks);
+  return `${Math.floor(ms / 60_000)}:${String(Math.floor((ms % 60_000) / 1000)).padStart(2, "0")}.${String(ms % 1000).padStart(3, "0")}`;
+};
+
 /** The top 3, an equal time sharing the place above it: 🥇 🥇 🥉. */
 const podium = (top: BoardRead["top"]) =>
   top.slice(0, 3).map((e, i) => {
     const place = top.findIndex((o) => o.ticks === e.ticks);
-    return `${PLACES[place < 0 ? i : place]} ${bold(e.name)} ${formatTime(e.ticks)}`;
+    return `${PLACES[place < 0 ? i : place]} ${bold(e.name)} ${dailyTime(e.ticks)}`;
   });
 
-const medalTime = (seconds: number) => formatTime(Math.round(seconds * SCORE_TICKS_PER_SECOND));
+const medalTime = (seconds: number) => dailyTime(Math.round(seconds * SCORE_TICKS_PER_SECOND));
 
 /** The card's three blocks of text. */
 export const cardText = (v: DailyView) => {
@@ -99,7 +111,7 @@ export const cardText = (v: DailyView) => {
     v.board === null || first === undefined
       ? "No times yet"
       : [
-          `**${v.board.players}** ${v.board.players === 1 ? "player" : "players"} · fastest **${formatTime(first.ticks)}**`,
+          `**${v.board.players}** ${v.board.players === 1 ? "player" : "players"} · fastest **${dailyTime(first.ticks)}**`,
           ...podium(v.board.top),
         ].join("\n");
   const { author, gold, silver, bronze } = v.medals;

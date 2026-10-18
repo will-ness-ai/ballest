@@ -59,8 +59,13 @@ describe("a Daily Post's card", () => {
 
   it("ends with the Medal times and when it was updated", () => {
     expect(cardText(view()).foot).toBe(
-      "Author 0:08.912 · Gold 0:09.000 · Silver 0:11.000 · Bronze 0:14.000\n-# Updated <t:1792342800:R>",
+      "Author 0:08.911 · Gold 0:09.000 · Silver 0:11.000 · Bronze 0:14.000\n-# Updated <t:1792342800:R>",
     );
+  });
+
+  it("shows times as the site does, cut to the thousandth rather than rounded", () => {
+    const close = view({ board: { players: 1, top: [{ name: "Water", ticks: 853_299 }] } });
+    expect(cardText(close).stats).toBe("**1** player · fastest **0:08.532**\n🥇 **Water** 0:08.532");
   });
 
   it("names the thread after the Daily", () => {
