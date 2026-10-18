@@ -1,5 +1,8 @@
 # Ballest community tools
 
+`CLAUDE.md` is a symlink to this file, so git sees an edit to either as `AGENTS.md`:
+stage `AGENTS.md`.
+
 The public monorepo for **Ballest of Them All** (appid `3339810`) community tools. Its
 main tool is a static, read-only mirror of the game's Steam leaderboards, live at
 https://ballestrecords.com on Vercel (the old ballest.willness.dev redirects there). The
@@ -57,7 +60,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, writes the Refresh to the database
   and revalidates the site's cached reads; it commits nothing. `backfill.yml`, by hand only,
   runs the backfill against an empty production (cloud sessions can't reach Neon) in the
-  same concurrency group.
+  same concurrency group. `migrate.yml`, by hand with Will's OK, applies a branch's
+  migrations to production before it merges.
 - `.github/workflows/vercel-usage.yml` — daily, runs `tools/vercel_usage.py`, which reports the
   Vercel team's plan and renewal, this cycle against Pro's Flat Rate CDN tier, and whether the
   last 30 days would fit Hobby, to the private ops channel (`OPS_WEBHOOK_URL`). It posts on
@@ -214,6 +218,7 @@ at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. 
 maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
 `writing-for-agents` (also `mattpocock/skills`) is adapted too: its `SKILL-MECHANICS.md` says how to word a call to another skill, and the vendored skills' calls follow it.
+`agent-tools` (ours) builds commands for agents; `retro` hands it the call chains it finds.
 `good-css` (MIT, from `vojtaholik/good-css` at `6d16d2f`, also recorded in `skills-lock.json`) loads on its own whenever you write or
 review CSS. The site is dark-only (`docs/site.md`), so skip its light/dark token entry.
 

@@ -474,7 +474,7 @@ branch `claude/prototype-prefabs` (spec #213).
   view" until they turn the model again. Edit saves it with the name, description and tags;
   `PATCH /api/prefabs/<slug>` also takes `{ angle }` alone.
 - **Uploading** (`UploadForm.tsx`, `POST /api/prefabs` in `db/prefab-api.ts`): signed in with
-  Steam, 5 an hour per player (or the limit the admin gave them) counted from the rows. The file is checked in the browser the
+  Steam, 5 in any rolling hour per player (or the limit the admin gave them) counted from the rows. The file is checked in the browser the
   moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,
   described and tagged, previewed in 3D beside the card it will make, and live at once. Each
   upload pings #prefabs on the dev Discord server through Vercel's `OPS_WEBHOOK_URL` (skipped
@@ -584,4 +584,9 @@ only visible ones.
   address. A page or dialog with no row in the catalogue is not checked: add it. Locally,
   serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank, a long
   Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
-  one.
+  one. A catalogue row with `as` is drawn signed in as that player (the Prefab upload form, an
+  owner's Edit and Delete, the admin box): qa signs the cookie itself with the target's
+  `SESSION_SECRET` (`scripts/qa/session.mjs`), which it knows only for a local build (from the
+  environment, `web/.env.local` or `web/.env`), so `check` lists those views as `unsigned`
+  elsewhere, and as `uncompared` when only the reference can't sign in. A `signed-out` fault
+  means the site refused qa's session: qa read a different secret from the server's.

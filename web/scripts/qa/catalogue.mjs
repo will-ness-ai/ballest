@@ -13,7 +13,9 @@
 // CAMPAIGNER holds a place in Campaigns, for their Workshop tab's shelf: on production
 // Chaos, in every launch Campaign; in stress the long-named player. MAP3D is a Map whose file
 // the site holds, for its 3D view: on production Ice Boat Race (3.1 MB, a long track on a
-// wide floor); in stress tiny's Marble Run.
+// wide floor); in stress tiny's Marble Run. UPLOADER is PREFAB's uploader and ADMIN the Prefab
+// admin (ADMIN_STEAM_ID in lib/prefabs.ts), whom a row's `as` signs in as: only a local build's
+// secret is known (scripts/qa/session.mjs), so `real` has neither.
 export const IDS = {
   real: {
     RANKED: "76561198259485267",
@@ -36,10 +38,16 @@ export const IDS = {
     CAMPAIGNER: "76561199000000011",
     PREFAB: "twin-cubes",
     MAP3D: "9000000001",
+    UPLOADER: "76561199000000001",
+    ADMIN: "76561198047685844",
   },
 };
 
-/** @type {ReadonlyArray<{ name: string, path: string, status?: number }>} */
+/**
+ * A page drawn signed in names who as `as`, an ID above; a target with no secret to sign
+ * with, or no such ID, skips it.
+ * @type {ReadonlyArray<{ name: string, path: string, status?: number, as?: string }>}
+ */
 export const PAGES = [
   { name: "home", path: "/" },
   { name: "maps", path: "/maps" },
@@ -67,6 +75,9 @@ export const PAGES = [
   { name: "prefabs", path: "/prefabs" },
   { name: "prefab", path: "/prefab/{PREFAB}" },
   { name: "prefab-new", path: "/prefabs/new" },
+  { name: "prefab-upload", path: "/prefabs/new", as: "UPLOADER" },
+  { name: "prefab-owner", path: "/prefab/{PREFAB}", as: "UPLOADER" },
+  { name: "prefab-admin", path: "/prefab/{PREFAB}", as: "ADMIN" },
   { name: "notfound", path: "/no-such-page", status: 404 },
 ];
 
@@ -89,6 +100,8 @@ export const STATES = [
   { name: "refine", page: "maps", click: "button.refine" },
   { name: "race", page: "board", click: ".row .c-race" },
   { name: "howto", page: "prefab", click: ".pf-q" },
+  { name: "edit", page: "prefab-owner", click: ".pf-own button:has-text('Edit')" },
+  { name: "delete", page: "prefab-owner", click: ".pf-own button:has-text('Delete')" },
   { name: "race-podium", page: "board", click: ".pl-score.c-race" },
   { name: "map3d", page: "map-3d", click: ".m3d-open" },
 ];
@@ -101,6 +114,9 @@ export const MASK = ["#freshness b"];
 // Steam's images and avatars are answered with one fixed picture, so every run draws the same.
 export const DROP = /vercel\.live|plausible|railway\.app/;
 export const STAND_IN = /steamusercontent|steamstatic|example\.invalid/;
+// Failed answers the site reads as a result, not a fault: GET /api/player/<id>'s 404 is a
+// signed-in player on no board (hooks/me.ts).
+export const ANSWERS = /\/api\/player\/\d+$/;
 // A Prefab's file, as its page's viewer fetches it (prefabFileHref in lib/routes.ts): `qa shot
 // --prefab` answers it with a local file.
 export const PREFAB_FILE = "**/api/prefabs/*/file";

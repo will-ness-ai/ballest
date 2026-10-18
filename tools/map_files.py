@@ -91,6 +91,8 @@ async def collect(conn, todo, download, *, budget=BUDGET, workers=WORKERS, clock
                 continue
             except Exception as e:
                 failed[type(e).__name__] += 1
+                if failed[type(e).__name__] == 1:  # the counts alone don't say what broke
+                    print(f"  [warn] Map {m['pfid']}: {type(e).__name__}: {str(e)[:160]}")
                 continue
             await asyncio.to_thread(write, conn, m, data, datetime.now(UTC))
             written += 1

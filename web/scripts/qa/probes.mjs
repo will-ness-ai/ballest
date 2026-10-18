@@ -22,6 +22,22 @@ export function probe() {
   };
   const visible = (el, r) =>
     r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden";
+  /* the lines `text` takes wrapped word by word to `room` px with `pen`'s font */
+  const wrapped = (pen, text, room) => {
+    let lines = 1;
+    let line = "";
+    for (const word of text.split(/\s+/)) {
+      const next = line ? line + " " + word : word;
+      if (line && pen.measureText(next).width > room) {
+        lines++;
+        line = word;
+      } else line = next;
+    }
+    return lines;
+  };
+  /* a line's height in px; "normal" is about 1.2 times the font size */
+  const lineOf = (cs) =>
+    cs.lineHeight === "normal" ? 1.2 * parseFloat(cs.fontSize) : parseFloat(cs.lineHeight);
   // an ancestor that clips or scrolls sideways, which makes reaching past the viewport fine
   const held = (el) => {
     for (let a = el.parentElement; a && a !== document.body; a = a.parentElement)
@@ -89,8 +105,14 @@ export function probe() {
     const cs = getComputedStyle(el);
     pen.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
     const room = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    const over = pen.measureText(el.placeholder).width - room;
-    if (over > 1) add(clipped, el, over);
+    // a textarea wraps its placeholder onto its lines, word by word: it is cut when the
+    // lines it needs are more than the box holds
+    const over =
+      el instanceof HTMLTextAreaElement
+        ? wrapped(pen, el.placeholder, room) * lineOf(cs) -
+          (el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom))
+        : pen.measureText(el.placeholder).width - room;
+    if (over > 1) add(clipped, el, Math.round(over));
   }
   /* lines of text drawn over other text. Each line is cut to the boxes
      that clip it (an ellipsis hides the rest), and only the open dialog or popover menu counts

@@ -235,6 +235,7 @@ def test_the_step_downloads_only_new_or_changed_files_and_revalidates(db_url, ca
     assert calls == ["3", "2"]  # most subscribed first; "1" is unchanged
     out = capsys.readouterr().out
     assert "2 due, 1 written, 1 failed (OSError 1)" in out
+    assert "Map 3: OSError: timeout" in out  # what broke, not just how often
     assert "not revalidating" in out  # it tried: no SITE_URL in this env
 
 
