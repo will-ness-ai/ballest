@@ -197,6 +197,11 @@ logging in: it would have nowhere to write either.
 
 ### How a Refresh gets there
 
+`refresh.yml` asks for a Refresh every three hours, but GitHub starts it three to five times a
+day, often an hour or more late (measured over October 2026), so a three-hour window can pass
+with no run. Work spread across Refreshes counts Refreshes for that reason: a slice keyed on
+the clock window was skipped for weeks (PR #247).
+
 `record_refresh` in `tools/db_writer.py` is the collector's database step, called from
 `on_ready` with what that run read: the Circuit boards, the names of those whose read
 failed (`failed`, with no rows), the Workshop result (None when the Workshop step failed or

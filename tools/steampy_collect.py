@@ -261,7 +261,11 @@ async def on_ready():
         except Exception as e:
             # Never blocks the Circuit or the Workshop: no Daily counts as read.
             print(f"  [warn] Daily step failed: {type(e).__name__}")
-        cc.name_rows(
+        # Plain HTTP that sleeps between batches: run it off the event loop, or a big
+        # lookup (an empty database: 16k names) starves steam.py's heartbeat and Steam
+        # drops the connection mid-run.
+        await asyncio.to_thread(
+            cc.name_rows,
             [b["rows"] for b in boards_out]
             + list(workshop["boards"].values() if workshop else [])
             + [r.rows for r in dailies if r.ok],

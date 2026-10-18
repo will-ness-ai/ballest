@@ -50,6 +50,11 @@ it breaks. Those files carry the reasons; this file carries the checks.
 - A change to when a board is read (`collect_workshop`'s trigger, `FULL_SWEEP_SECONDS`, the
   `refresh.yml` cron) updates the refresh dialog's copy (`components/Freshness.tsx`), which
   restates those rules for players.
+- Work spread across Refreshes (a rotating slice, a turn) is keyed on the Refresh count
+  rather than on clock windows (`docs/data.md`, "How a Refresh gets there"). Elapsed-time
+  checks such as `FULL_SWEEP_SECONDS` are fine.
+- Blocking work on the collector's event loop (anything `on_ready` awaits: plain HTTP,
+  `time.sleep`, the database) goes through `asyncio.to_thread`, as `cc.name_rows` does.
 - A step that reads an outside service (Steam, its CDN, the Daily API) writes a final state
   only from a definite answer, such as Steam saying a file is gone. Every error, from any
   request, writes nothing, so the next Refresh retries it.
