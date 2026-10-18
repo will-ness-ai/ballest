@@ -1,5 +1,7 @@
 # Ballest community tools
 
+`CLAUDE.md` is a symlink to this file, so git sees an edit to either as `AGENTS.md`: stage that.
+
 The public monorepo for **Ballest of Them All** (appid `3339810`) community tools. Its
 main tool is a static, read-only mirror of the game's Steam leaderboards, live at
 https://ballestrecords.com on Vercel (the old ballest.willness.dev redirects there). The
@@ -198,8 +200,6 @@ developers resetting the leaderboards, snapshot production in Neon first (`docs/
 
 `CODING_STANDARDS.md` is the review checklist; it also holds the branch and commit
 conventions.
-`CLAUDE.md` is a symlink to this file, so git sees an edit to either as `AGENTS.md`: stage
-that path (or `git add -A`).
 
 ## Agent skills
 
