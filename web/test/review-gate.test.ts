@@ -236,15 +236,15 @@ describe("unreviewed", () => {
     });
   });
 
-  test("a run on a picture commit counts as a run on the PR", () => {
+  test("a run that saw only pictures is no run on the PR", () => {
     const pictures = (c: string) => (c === "a" ? null : 5);
     const records = [
       { skill: "code-review", sha: "a" },
       { skill: "codebase-design", sha: "a" },
     ];
     expect(unreviewed(["a", "b"], records, isAncestor, pictures)).toEqual({
-      "code-review": [],
-      "codebase-design": [],
+      "code-review": ["b"],
+      "codebase-design": ["b"],
     });
   });
 });
@@ -252,6 +252,8 @@ describe("unreviewed", () => {
 describe("linesChanged", () => {
   test("adds up a commit's added and removed lines", () => {
     expect(linesChanged("3\t1\tweb/a.ts\n2\t0\tdocs/b.md\n")).toBe(6);
+    // a merge commit shows no files
+    expect(linesChanged("")).toBe(0);
   });
 
   test("leaves pictures out, and is null when a commit changes nothing else", () => {

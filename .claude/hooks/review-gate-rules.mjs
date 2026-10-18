@@ -148,7 +148,7 @@ export function linesChanged(numstat) {
     .filter(Boolean)
     .map((line) => line.split("\t"));
   const files = all.filter(([added, , path]) => !(added === "-" && PICTURE.test(path)));
-  // an empty commit is no picture
+  // a merge commit shows no files, and is no picture
   if (all.length && !files.length) return null;
   return files.reduce(
     (sum, [added, removed]) =>
@@ -170,8 +170,8 @@ export function unreviewed(commits, records, isAncestor, linesOf) {
       const sees = (c) => seen.some((s) => isAncestor(c, s));
       const missing = reviewable.filter((c) => !sees(c));
       const lines = missing.reduce((sum, c) => sum + linesIn.get(c), 0);
-      // a run on one of the PR's picture commits is a run on the PR too
-      const followUp = commits.some(sees) && lines < FOLLOW_UP_LINES;
+      // a run that saw only pictures has reviewed nothing yet
+      const followUp = reviewable.some(sees) && lines < FOLLOW_UP_LINES;
       return [skill, followUp ? [] : missing];
     }),
   );
