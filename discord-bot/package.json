@@ -18,7 +18,8 @@
     "activity:demo": "node --import tsx scripts/activity-demo.ts",
     "sandbox": "node --import tsx scripts/sandbox.ts",
     "axi": "node --no-warnings --import tsx scripts/axi.ts",
-    "report": "node --import tsx scripts/report.ts"
+    "report": "node --import tsx scripts/report.ts",
+    "traffic": "node --import tsx scripts/traffic.ts"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "2.5.0",

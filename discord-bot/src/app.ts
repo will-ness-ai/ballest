@@ -14,6 +14,7 @@ import { Marbles } from "./discord/marbles.js";
 import { NewTracksLive } from "./newTracks.js";
 import { PingRoleLive } from "./discord/pingRole.js";
 import { DailyReportLive } from "./report/daily.js";
+import { TrafficReportLive } from "./traffic/daily.js";
 import { ChannelSurfaceLive } from "./discord/surface.js";
 import { Engine } from "./engine.js";
 import type { Steam, Store } from "./ports.js";
@@ -123,6 +124,7 @@ export const app = <E, R, E2 = never>(
     sandbox === undefined ? InteractionsLive : InteractionsLive.pipe(Layer.provide(sandbox.feed)),
     OpsLive,
     DailyReportLive,
+    TrafficReportLive,
     NewTracksLive,
     ActivityLive,
     sandbox?.server ?? Layer.empty,

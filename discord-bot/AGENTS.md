@@ -186,6 +186,29 @@ In production the bot's role needs View Channel, Send Messages, Attach Files, Cr
 Threads and Send Messages in Threads in #stats-by-will, and `fly secrets` needs `STATS_CHANNEL_ID`
 and `DATABASE_URL` (the collector's Neon URL).
 
+## The Traffic Report
+
+`src/traffic/` posts the Traffic Report in the dev server's #search-analytics at 13:00 UTC, through
+that channel's webhook (`TRAFFIC_WEBHOOK_URL`), apart from the ops channel. It has two halves, each
+on only when its keys are set:
+
+- Visits, yesterday, from the site's Plausible (`plausible.ts`: Stats API v1 at `PLAUSIBLE_URL`,
+  in `fly.toml`, with `PLAUSIBLE_API_KEY` for `PLAUSIBLE_SITE_ID`, default `ballest.willness.dev`,
+  the name the site's script reports under): visitors and pageviews against the week before, visit
+  length, bounce rate, top pages and top sources.
+- Google search, the newest final day Search Console has, about two days back (`searchConsole.ts`:
+  the Domain property `sc-domain:ballestrecords.com`, read as a Google Cloud service account whose
+  JSON key is `GSC_SERVICE_ACCOUNT` and which the property lists as a Restricted user): clicks,
+  impressions, position, the top searches and pages, searches new against the 28 days before, and
+  each sitemap's errors.
+
+A half that can't be read says so in the post; only a post that fails goes to the ops channel.
+The schedule is shared with the Daily Report (`src/everyDay.ts`): a bot that was down at 13:00
+posts once when it starts, and each posted day is recorded in SQLite (`traffic_reports`). What it
+says and the schedule are tested in `test/traffic.test.ts`. `pnpm traffic` builds the report now
+from whichever keys the environment has and prints it, and `pnpm traffic --post` posts it too,
+recording nothing. Plausible's host answers Fly but not a cloud session.
+
 ## New tracks
 
 `src/newTracks.ts` gets a new Workshop Map onto the site within minutes (spec #259). The game
@@ -209,7 +232,8 @@ live in `fly secrets`, and the repo holds only `FLY_API_TOKEN`, a deploy token f
 A deploy stops the old copy before starting the new one (one volume, one machine), and the
 engine's restart recovery resumes live Matches. `src/ops.ts` pings Healthchecks.io every minute
 (`HEALTHCHECK_URL`), which alerts the private `#multiballs-ops` channel when pings stop, and
-posts there daily (`OPS_WEBHOOK_URL`) once the Steam refresh token has 30 days left; renew it
+posts there daily (`OPS_WEBHOOK_URL`) once the Steam refresh token has 30 days left (the Traffic
+Report has its own channel, above); renew it
 with `tools/steampy_mint.py` and `fly secrets set STEAM_REFRESH_TOKEN=...`. Logs: `fly logs`.
 `.github/workflows/bot-cost.yml` posts a weekly cost estimate there (`scripts/cost_report.py`;
 Fly has no billing API, so it prices what is provisioned with the rates in that script, and
