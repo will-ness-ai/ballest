@@ -270,6 +270,57 @@ if (process.argv.includes("--round3")) {
   process.exit(0);
 }
 
+// Round 3 verdicts: lead post E with who lost it and how long they held it; closed card B; the first
+// run gets a post. Round 4: a graph of the leader(s) on the card.
+const withGraph = (graph: string, under: "hero" | "podium") => {
+  const body = structuredClone(V.A!.body) as { components: { components: object[] }[] };
+  const parts = body.components[0]!.components;
+  const g = { type: 12, items: [{ media: { url: `attachment://${graph}` } }] };
+  parts.splice(under === "hero" ? 2 : 3, 0, g);
+  return body;
+};
+const graphVariants: [string, string, "hero" | "podium"][] = [
+  ["A · The leading time, stepped, each step named", "graph-A.png", "podium"],
+  ["B · Who held the lead, as one band", "graph-B.png", "podium"],
+  ["C · The podium's runs through the day", "graph-C.png", "podium"],
+  ["D · A thin strip under the screenshot", "graph-D.png", "hero"],
+  ["E · Time in the lead per player", "graph-E.png", "podium"],
+];
+const leadLine = (t: string) =>
+  `-# <t:${t}:t> · 🏁 **airman** takes the lead from **FEDUS**, who held it for 3h 12m · 0:08.566 → **0:08.532** (−0.034 s)`;
+
+if (process.argv.includes("--round4")) {
+  await say(
+    "**══ ROUND 4: a graph of the leader(s) on the card (the lead history is made up) ══**",
+  );
+  for (const [label, graph, under] of graphVariants) {
+    await say(`**── PROTOTYPE ${label} ──**`);
+    const m = (await rest.post(Routes.channelMessages(channel), {
+      body: { ...withGraph(graph, under), allowed_mentions: NO_PINGS },
+      files: [file("preview.jpg"), file("spin.gif"), file(graph)],
+    })) as { id: string };
+    if (label.startsWith("A")) {
+      const th = (await rest.post(Routes.threads(channel, m.id), {
+        body: { name: threadName, auto_archive_duration: 1440 },
+      })) as { id: string };
+      await say(
+        `-# <t:1792287840:t> · 🏁 **MitchPlease** sets the first time: **0:08.912**`,
+        th.id,
+      );
+      await say(
+        `-# <t:1792290600:t> · 🏁 **FEDUS** takes the lead from **MitchPlease**, who held it for 46m · 0:08.912 → **0:08.701** (−0.211 s)`,
+        th.id,
+      );
+      await say(leadLine("1792322220"), th.id);
+      await say(
+        `-# <t:1792338480:t> · 🤝 **snayK** ties **airman** for the lead: **0:08.532**`,
+        th.id,
+      );
+    }
+  }
+  process.exit(0);
+}
+
 const keys = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 for (const k of keys.length ? keys : Object.keys(V)) {
   const v = V[k]!;
