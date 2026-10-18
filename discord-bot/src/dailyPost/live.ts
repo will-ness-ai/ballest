@@ -134,6 +134,10 @@ export const DailySteamLive = Layer.effect(
 // ---------------------------------------------------------------- the channel
 
 const Created = Schema.Struct({ id: Schema.String });
+/** The attachments of a message, from Discord's Get Channel Message. */
+const Attached = Schema.Struct({
+  attachments: Schema.Array(Schema.Struct({ id: Schema.String, filename: Schema.String })),
+});
 
 /** DAILY_CHANNEL_ID over REST with the bot's token. */
 export const DailyChannelLive = Layer.effect(
@@ -175,9 +179,37 @@ export const DailyChannelLive = Layer.effect(
         );
         return { messageId, threadId };
       }),
-      edit: Effect.fn("DailyChannel.edit")(function* (messageId, message) {
+      edit: Effect.fn("DailyChannel.edit")(function* (messageId, message, files) {
+        const route = Routes.channelMessage(channelId, messageId);
+        if (files.length === 0) {
+          yield* call("edit the card", () => rest.patch(route, { body: message }));
+          return;
+        }
+        // An edit's files are added to the message's; `attachments` names every one it keeps, so
+        // each file replaces the attachment of its name and the others stay.
+        const current = yield* call("read the card", () => rest.get(route)).pipe(
+          Effect.flatMap(Schema.decodeUnknown(Attached)),
+          Effect.catchTag("ParseError", () =>
+            Effect.fail(new DailyPostFailed({ reason: "read the card: no attachments in it" })),
+          ),
+        );
+        const kept = current.attachments.filter((a) => !files.some((f) => f.name === a.filename));
         yield* call("edit the card", () =>
-          rest.patch(Routes.channelMessage(channelId, messageId), { body: message }),
+          rest.patch(route, {
+            body: {
+              ...message,
+              attachments: [
+                ...kept.map((a) => ({ id: a.id })),
+                ...files.map((f, i) => ({ id: String(i), filename: f.name })),
+              ],
+            },
+            files: files.map((f) => ({ name: f.name, data: Buffer.from(f.data) })),
+          }),
+        );
+      }),
+      say: Effect.fn("DailyChannel.say")(function* (threadId, line) {
+        yield* call("post in the thread", () =>
+          rest.post(Routes.channelMessages(threadId), { body: line }),
         );
       }),
     });

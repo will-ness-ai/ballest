@@ -80,7 +80,7 @@ describe("the Daily Post's lead graph", () => {
       now: OPENS + 6 * H,
     });
     const svg = Buffer.from(
-      JSON.stringify(scene).match(/data:image\/svg\+xml;base64,([^"]*)/)?.[1] ?? "",
+      /data:image\/svg\+xml;base64,([^"]*)/.exec(JSON.stringify(scene))?.[1] ?? "",
       "base64",
     ).toString();
     const strokes = [...svg.matchAll(/<line [^>]*stroke="(#[0-9a-f]{6})" stroke-width="1.5"/g)].map(

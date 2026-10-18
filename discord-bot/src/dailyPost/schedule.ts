@@ -2,7 +2,8 @@
 // today's Daily every minute until it answers, posts its card in DAILY_CHANNEL_ID with a thread,
 // then reads the Daily's Steam board every 15 minutes and edits the card when what it shows
 // changed. The first read at or after the Daily's end is its last. Each Daily Post is recorded in
-// the bot's SQLite, so a restart resumes the live one and never posts a date twice.
+// the bot's SQLite, so a restart resumes the live one and never posts a date twice, and so is
+// each read that changed the lead: it redraws the card's lead graph and gets a line in the thread.
 //
 // The schedule runs over ports (the Daily API, the Daily's Steam reads, the channel, the record),
 // so it is tested on the TestClock over fakes; the real adapters are in live.ts.
@@ -24,15 +25,25 @@ import { MigratorLive } from "../db.js";
 import { OpsAlerts } from "../ops.js";
 import type { SteamUnavailable } from "../ports.js";
 import { MapPreviews } from "../previews.js";
+import { Renderer } from "../render/renderer.js";
 import {
   type BoardRead,
   type Challenge,
   type DailyMap,
   shownKey,
   threadName,
+  type DailyView,
   viewOf,
 } from "./card.js";
-import { dailyCardMessage, type DailyMessage, PREVIEW_FILE } from "./messages.js";
+import { type Lead, leadChanged, leadLine, leadOf } from "./lead.js";
+import {
+  dailyCardMessage,
+  dailyLineMessage,
+  type DailyLine,
+  type DailyMessage,
+  GRAPH_FILE,
+  PREVIEW_FILE,
+} from "./messages.js";
 
 /** How often a live Daily's board is read. */
 export const READ_EVERY = Duration.toMillis("15 minutes");
@@ -103,11 +114,14 @@ export class DailyChannel extends Context.Tag("multiballs/DailyChannel")<
       { readonly messageId: string; readonly threadId: string },
       DailyPostFailed | DailyThreadFailed
     >;
-    /** Redraw a card; its attachments stay. */
+    /** Redraw a card: each of `files` replaces the attachment of its name, and the rest stay. */
     readonly edit: (
       messageId: string,
       message: DailyMessage,
+      files: ReadonlyArray<DailyFile>,
     ) => Effect.Effect<void, DailyPostFailed>;
+    /** Post a line in a card's thread. */
+    readonly say: (threadId: string, line: DailyLine) => Effect.Effect<void, DailyPostFailed>;
   }
 >() {}
 
@@ -149,6 +163,11 @@ const DailyPostRecord = Schema.Struct({
 export type DailyPostRecord = typeof DailyPostRecord.Type;
 
 const Row = Schema.Struct({ data: Schema.parseJson(DailyPostRecord) });
+const LeadRow = Schema.Struct({
+  at: Schema.Number,
+  leaders: Schema.parseJson(Schema.Array(Schema.String)),
+  ticks: Schema.Number,
+});
 
 export class DailyPostLog extends Context.Tag("multiballs/DailyPostLog")<
   DailyPostLog,
@@ -157,6 +176,9 @@ export class DailyPostLog extends Context.Tag("multiballs/DailyPostLog")<
     /** Every Daily Post still live, oldest first. */
     readonly live: Effect.Effect<ReadonlyArray<DailyPostRecord>>;
     readonly put: (post: DailyPostRecord) => Effect.Effect<void>;
+    /** Each read of a Daily that changed its lead, oldest first. */
+    readonly leads: (date: string) => Effect.Effect<ReadonlyArray<Lead>>;
+    readonly addLead: (date: string, lead: Lead) => Effect.Effect<void>;
   }
 >() {}
 
@@ -187,6 +209,17 @@ export const DailyPostLogLive = Layer.effect(
           Effect.orDie,
         );
       }),
+      leads: Effect.fn("DailyPostLog.leads")(function* (date: string) {
+        return yield* sql`SELECT at, leaders, ticks FROM daily_leads WHERE date = ${date} ORDER BY at`.pipe(
+          Effect.flatMap(Schema.decodeUnknown(Schema.Array(LeadRow))),
+          Effect.orDie,
+        );
+      }),
+      addLead: Effect.fn("DailyPostLog.addLead")(function* (date: string, lead: Lead) {
+        yield* sql`INSERT INTO daily_leads (date, at, leaders, ticks) VALUES (${date}, ${lead.at}, ${JSON.stringify(lead.leaders)}, ${lead.ticks})`.pipe(
+          Effect.orDie,
+        );
+      }),
     });
   }),
 ).pipe(Layer.provide(MigratorLive));
@@ -211,10 +244,26 @@ const onceUntilCleared = Effect.gen(function* () {
   };
 });
 
+/** What the card shows apart from when it was updated, its lead graph included. */
+const shownOf = (view: DailyView, leads: ReadonlyArray<Lead>) =>
+  `${shownKey(view)}#${leads.length}`;
+
+/** The lead graph as it stands at `at`: "now" marked while the Daily is live. */
+const drawGraph = (challenge: Challenge, leads: ReadonlyArray<Lead>, at: number) =>
+  Effect.flatMap(Renderer, (renderer) =>
+    renderer.leadGraph({
+      opensAt: challenge.startsAt,
+      closesAt: challenge.endsAt,
+      leads,
+      now: at >= challenge.endsAt ? null : at,
+    }),
+  );
+
 /**
  * Post a Daily's card: its Map, a first read of its board (none if that fails: the next read
- * retries), the Workshop screenshot when Steam gives it, and a thread. Returns the record, and
- * why the thread failed if it did.
+ * retries), the Workshop screenshot when Steam gives it, the lead graph once anyone has a time,
+ * and a thread, with the first time's line when there is one. Returns the record, the lead the
+ * read showed (to record), and why the thread or its line failed if it did.
  */
 export const postDaily = Effect.fn("postDaily")(function* (challenge: Challenge) {
   const steam = yield* DailySteam;
@@ -224,11 +273,29 @@ export const postDaily = Effect.fn("postDaily")(function* (challenge: Challenge)
   const board = yield* steam.board(challenge.boardId).pipe(Effect.option);
   const readAt = yield* Clock.currentTimeMillis;
   const view = viewOf(challenge, map, Option.getOrNull(board), readAt);
+  const lead = Option.flatMapNullable(board, (b) => leadOf(b, readAt));
+  const leads = Option.toArray(lead);
   const preview = yield* previews.of(map.previewUrl);
-  const files = Option.match(preview, {
-    onNone: () => [],
-    onSome: (p) => [{ name: PREVIEW_FILE, data: p.body }],
-  });
+  // A graph that can't be drawn leaves the card without one until the next change redraws it.
+  const graph =
+    leads.length === 0
+      ? Option.none()
+      : yield* drawGraph(challenge, leads, readAt).pipe(
+          Effect.tapError((e) =>
+            Effect.logWarning(`daily post: no lead graph (${String(e.cause)})`),
+          ),
+          Effect.option,
+        );
+  const files = [
+    ...Option.match(preview, {
+      onNone: () => [],
+      onSome: (p) => [{ name: PREVIEW_FILE, data: p.body }],
+    }),
+    ...Option.match(graph, {
+      onNone: () => [],
+      onSome: (png) => [{ name: GRAPH_FILE, data: png }],
+    }),
+  ];
   const record = (messageId: string, threadId: string | null): DailyPostRecord => ({
     challenge,
     map,
@@ -236,21 +303,33 @@ export const postDaily = Effect.fn("postDaily")(function* (challenge: Challenge)
     messageId,
     threadId,
     state: "live",
-    shown: shownKey(view),
+    shown: Option.isSome(graph) ? shownOf(view, leads) : shownOf(view, []),
     readAt,
   });
+  const message = dailyCardMessage(view, {
+    preview: Option.isSome(preview),
+    graph: Option.isSome(graph),
+  });
   // A card whose thread failed is still that day's post: recorded, so it isn't posted again.
-  return yield* channel
-    .post(dailyCardMessage(view, { preview: Option.isSome(preview) }), files, threadName(view))
-    .pipe(
-      Effect.map(({ messageId, threadId }) => ({
-        post: record(messageId, threadId),
-        threadFailed: Option.none<string>(),
-      })),
-      Effect.catchTag("DailyThreadFailed", (e) =>
-        Effect.succeed({ post: record(e.messageId, null), threadFailed: Option.some(e.reason) }),
-      ),
-    );
+  const posted = yield* channel.post(message, files, threadName(view)).pipe(
+    Effect.map(({ messageId, threadId }) => ({
+      post: record(messageId, threadId),
+      threadFailed: Option.none<string>(),
+    })),
+    Effect.catchTag("DailyThreadFailed", (e) =>
+      Effect.succeed({ post: record(e.messageId, null), threadFailed: Option.some(e.reason) }),
+    ),
+  );
+  const { threadId } = posted.post;
+  const first = Option.flatMapNullable(lead, (l) => leadLine([], l));
+  if (threadId === null || Option.isNone(first) || Option.isNone(graph))
+    return { ...posted, lead: Option.filter(lead, () => Option.isSome(graph)) };
+  const said = yield* Effect.either(channel.say(threadId, dailyLineMessage(first.value)));
+  return {
+    ...posted,
+    lead,
+    threadFailed: Either.isLeft(said) ? Option.some(said.left.reason) : posted.threadFailed,
+  };
 });
 
 /**
@@ -282,10 +361,37 @@ const keepCurrent = Effect.fn("keepCurrent")(function* (start: DailyPostRecord) 
     }
     yield* ops.clear("read");
     const view = viewOf(challenge, map, read.right, at);
-    const shown = shownKey(view);
+    // A changed lead is recorded only once the card shows it, so a refused edit is tried again.
+    const history = yield* log.leads(date);
+    const lead = leadOf(read.right, at);
+    const changed = lead !== null && leadChanged(history.at(-1), lead) ? lead : null;
+    const leads = changed === null ? history : [...history, changed];
+    const shown = shownOf(view, leads);
     if (shown !== post.shown) {
       const edited = yield* Effect.either(
-        channel.edit(post.messageId, dailyCardMessage(view, { preview: post.preview })),
+        Effect.gen(function* () {
+          const graph =
+            leads.length === 0
+              ? []
+              : [
+                  {
+                    name: GRAPH_FILE,
+                    data: yield* drawGraph(challenge, leads, at).pipe(
+                      Effect.mapError(
+                        (e) =>
+                          new DailyPostFailed({
+                            reason: `draw the lead graph: ${String(e.cause)}`,
+                          }),
+                      ),
+                    ),
+                  },
+                ];
+          const message = dailyCardMessage(view, {
+            preview: post.preview,
+            graph: leads.length > 0,
+          });
+          yield* channel.edit(post.messageId, message, graph);
+        }),
       );
       if (Either.isLeft(edited)) {
         yield* ops.tell(
@@ -295,6 +401,19 @@ const keepCurrent = Effect.fn("keepCurrent")(function* (start: DailyPostRecord) 
         continue;
       }
       yield* ops.clear("edit");
+    }
+    if (changed !== null) {
+      yield* log.addLead(date, changed);
+      const line = leadLine(history, changed);
+      if (line !== null && post.threadId !== null) {
+        const said = yield* Effect.either(channel.say(post.threadId, dailyLineMessage(line)));
+        if (Either.isLeft(said))
+          yield* ops.tell(
+            "line",
+            `Multiballs couldn't post in the Daily Post's thread for ${date}: ${said.left.reason}`,
+          );
+        else yield* ops.clear("line");
+      }
     }
     const final = at >= challenge.endsAt;
     post = { ...post, shown, readAt: at, state: final ? "closed" : "live" };
@@ -348,8 +467,9 @@ const postToday = Effect.fn("postToday")(function* (date: string) {
     } else {
       const posted = yield* Effect.either(postDaily(found.right.value));
       if (Either.isRight(posted)) {
-        const { post, threadFailed } = posted.right;
+        const { post, threadFailed, lead } = posted.right;
         yield* log.put(post);
+        if (Option.isSome(lead)) yield* log.addLead(date, lead.value);
         if (Option.isSome(threadFailed))
           yield* ops.tell(
             "thread",

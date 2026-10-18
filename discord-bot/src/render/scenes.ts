@@ -1228,7 +1228,9 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
       [4, "closes", "end"],
     ] as const
   ).forEach(([q, text, anchor]) =>
-    overlays.push(textAt(x(opensAt + (span * q) / 4), axisY, text, hud(7.5, 500, G.dim), anchor, W)),
+    overlays.push(
+      textAt(x(opensAt + (span * q) / 4), axisY, text, hud(7.5, 500, G.dim), anchor, W),
+    ),
   );
 
   if (now !== null) {
@@ -1247,7 +1249,8 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
     lines += `<line x1="${x0}" y1="${ly}" x2="${x1}" y2="${ly}" stroke="${colour}" stroke-width="1.5"/>`;
     if (next !== undefined)
       lines += `<line x1="${x1}" y1="${ly}" x2="${x1}" y2="${y(secs(next.ticks))}" stroke="${colour}" stroke-width="1"/>`;
-    const joined = prev?.ticks === lead.ticks ? lead.leaders.filter((n) => !prev.leaders.includes(n)) : [];
+    const joined =
+      prev?.ticks === lead.ticks ? lead.leaders.filter((n) => !prev.leaders.includes(n)) : [];
     const dot = joined[0] ?? holderOf(lead);
     lines += `<circle cx="${x0}" cy="${ly}" r="2.5" fill="${colourOf(dot)}" stroke="${G.bg}" stroke-width="1"/>`;
     if (joined.length > 0) {
@@ -1276,7 +1279,9 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
     const beside = x(end) + 5;
     const fits =
       beside + width <= W - 2 &&
-      !kept.some((k) => k.y > ly && k.y - ly < 14 && k.x < beside + width && beside < k.x + k.width);
+      !kept.some(
+        (k) => k.y > ly && k.y - ly < 14 && k.x < beside + width && beside < k.x + k.width,
+      );
     overlays.push(
       fits
         ? textAt(beside, ly + 3.5, text, hud(9, 700, G.text), "start", W)
@@ -1291,6 +1296,13 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
     { width: W, height: H, position: "relative", backgroundColor: G.bg, color: G.text },
     img(svgUri(chart), W, H, { position: "absolute", left: 0, top: 0 }),
     ...overlays,
-    textAt(12, 15, "THE LEAD THROUGH THE DAY", { ...hud(8.5, 600, G.dim), letterSpacing: 0.4 }, "start", W),
+    textAt(
+      12,
+      15,
+      "THE LEAD THROUGH THE DAY",
+      { ...hud(8.5, 600, G.dim), letterSpacing: 0.4 },
+      "start",
+      W,
+    ),
   );
 };

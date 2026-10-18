@@ -66,7 +66,9 @@ describe("a Daily Post's card", () => {
 
   it("shows times as the site does, cut to the thousandth rather than rounded", () => {
     const close = view({ board: { players: 1, top: [{ name: "Water", ticks: 853_299 }] } });
-    expect(cardText(close).stats).toBe("**1** player · fastest **0:08.532**\n🥇 **Water** 0:08.532");
+    expect(cardText(close).stats).toBe(
+      "**1** player · fastest **0:08.532**\n🥇 **Water** 0:08.532",
+    );
   });
 
   it("names the thread after the Daily", () => {

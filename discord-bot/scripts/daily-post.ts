@@ -9,6 +9,7 @@ import { Effect, Layer, Option } from "effect";
 import { DailyApiLive, DailyChannelLive, DailySteamLive } from "../src/dailyPost/live.js";
 import { DailyApi, postDaily } from "../src/dailyPost/schedule.js";
 import { MapPreviews, PreviewSourceLive } from "../src/previews.js";
+import { Renderer } from "../src/render/renderer.js";
 import { devEnvFile } from "./devEnv.js";
 import { readSandbox } from "./sandbox/config.js";
 
@@ -50,6 +51,7 @@ program.pipe(
       DailySteamLive,
       DailyChannelLive,
       MapPreviews.Default.pipe(Layer.provide(PreviewSourceLive)),
+      Renderer.Default,
     ),
   ),
   Effect.provide(

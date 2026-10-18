@@ -21,12 +21,14 @@ export const leadOf = (board: BoardRead, at: number): Lead | null => {
   return { at, leaders, ticks: first.ticks };
 };
 
-/** Whether `next` is worth recording after `last`: a new leading time or a new set of leaders. */
+/**
+ * Whether `next` is worth recording after `last`: a new leading time or a new set of leaders
+ * (Steam may list a tie in either order).
+ */
 export const leadChanged = (last: Lead | undefined, next: Lead): boolean =>
-  last === undefined ||
-  last.ticks !== next.ticks ||
+  last?.ticks !== next.ticks ||
   last.leaders.length !== next.leaders.length ||
-  last.leaders.some((name, i) => next.leaders[i] !== name);
+  last.leaders.some((name) => !next.leaders.includes(name));
 
 const bold = (s: string) => `**${escape(s)}**`;
 const names = (list: ReadonlyArray<string>) => list.map(bold).join(" & ");
@@ -47,7 +49,7 @@ const reignStart = (history: ReadonlyArray<Lead>, leaders: ReadonlyArray<string>
   let start = history.at(-1)?.at ?? 0;
   for (let i = history.length - 1; i >= 0; i--) {
     const lead = history[i];
-    if (lead === undefined || !lead.leaders.some((n) => leaders.includes(n))) break;
+    if (!lead?.leaders.some((n) => leaders.includes(n))) break;
     start = lead.at;
   }
   return start;
