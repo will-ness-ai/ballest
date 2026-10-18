@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable -- PROTOTYPE, never merged */
 // PROTOTYPE: grill-design for the Chosen Skin picker (claude/prototype-skin-pick). Never
 // merged: the winner is rebuilt by /implement-spec. ?variant= picks the design, ?as=<steamId>
 // signs the page in as that player, and the pick is kept in this browser's localStorage.
