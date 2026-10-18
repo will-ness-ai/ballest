@@ -63,7 +63,7 @@ jobs:
             busy=$((busy + n))
           done
           echo "busy=$busy" >> "$GITHUB_OUTPUT"
-          [ "$busy" = 0 ] || echo "A Refresh is running: the new Maps' files wait for the next one"
+          [ "$busy" = 0 ] || echo "A Refresh or Map file run is queued or running: the new Maps' files wait for the next Refresh"
 
       - name: Download their files
         if: steps.add.outputs.added != '' && steps.steam.outputs.busy == '0'

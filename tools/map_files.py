@@ -13,9 +13,10 @@ manifest with no map file, writes nothing and is tried again next run. The step 
 raises: a failure is a warning, and the Refresh it follows is already written.
 
 Run on its own (`python tools/map_files.py [--budget SECONDS] [--maps PFIDS] [--dev]`), it
-logs into Steam, takes the catalogue and downloads every due Map within the budget: by hand
-through `.github/workflows/map-files.yml` for a whole backlog, and from
-`.github/workflows/add-maps.yml` for the Maps a #new-tracks post just added (`--maps`).
+logs into Steam and downloads every due Map within the budget: by hand through
+`.github/workflows/map-files.yml` for the whole catalogue's backlog, and from
+`.github/workflows/add-maps.yml` for the Maps a #new-tracks post just added, read from the
+Workshop's newest page (`--maps`).
 """
 
 import argparse
@@ -195,7 +196,7 @@ def main(argv=None):
     ap.add_argument("--dev", action="store_true", help="write DEV_DATABASE_URL only")
     ap.add_argument(
         "--maps",
-        type=lambda s: set(s.split(",")),
+        type=lambda s: {p for p in s.split(",") if p},
         help="only these just-published Maps, comma-separated pfids, read from the newest page",
     )
     args = ap.parse_args(argv)
