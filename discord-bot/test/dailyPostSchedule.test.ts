@@ -343,9 +343,9 @@ describe("the Daily Post's schedule", () => {
       yield* Ref.set(t.lineDown, false);
       yield* t.runFor(16 * MINUTE);
       expect((yield* Ref.get(t.posts)).length).toBe(1);
-      // The lead the card showed was recorded: the next read draws it once, and adds no line.
-      expect((yield* Ref.get(t.graphs)).at(-1)?.leads.length).toBe(1);
+      // The lead the card showed was recorded: the next read finds no change, so no line or redraw.
       expect(yield* Ref.get(t.lines)).toEqual([]);
+      expect((yield* Ref.get(t.graphs)).length).toBe(1);
     }),
   );
 

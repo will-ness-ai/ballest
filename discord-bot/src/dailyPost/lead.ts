@@ -56,6 +56,18 @@ const reignStart = (history: ReadonlyArray<Lead>, leaders: ReadonlyArray<string>
 };
 
 /**
+ * Who ties for the lead going from `last` to `next`: whoever leads at `last`'s shown time beside
+ * those who led it, or beside a leader's new best matched in the same read. Empty for no tie.
+ * The thread's lines and the graph's labels both read ties from here.
+ */
+export const joinedLead = (last: Lead, next: Lead): ReadonlyArray<string> => {
+  const joined = next.leaders.filter((n) => !last.leaders.includes(n));
+  if (sameTime(next.ticks, last.ticks)) return joined;
+  if (millis(next.ticks) > millis(last.ticks)) return [];
+  return last.leaders.every((n) => next.leaders.includes(n)) ? joined : [];
+};
+
+/**
  * The thread line for the lead going from the last of `history` to `next`, or null when no one
  * new leads (the leader beat their own time, or a tied leader left). Several changes between two
  * reads are seen as one: the line names only the latest leader. `byRefresh`: the lead was rebuilt
@@ -71,17 +83,13 @@ export const leadLine = (
   const at = `-# ${seen === "read" ? time : `by the ${time} Refresh`} · `;
   if (last === undefined)
     return `${at}🏁 ${names(next.leaders)} ${next.leaders.length === 1 ? "sets" : "set"} the first time: ${bold(dailyTime(next.ticks))}`;
-  const joined = next.leaders.filter((n) => !last.leaders.includes(n));
-  const tie = () =>
-    joined.length === 0
-      ? null
-      : `${at}🤝 ${names(joined)} ${joined.length === 1 ? "ties" : "tie"} ${names(last.leaders)} for the lead: ${bold(dailyTime(next.ticks))}`;
-  if (sameTime(next.ticks, last.ticks)) return tie();
-  if (millis(next.ticks) > millis(last.ticks)) return null;
-  // A faster time: whoever led before and doesn't now has lost the lead to it. A leader who
-  // still leads on a new best, matched in the same read, is tied.
+  const joined = joinedLead(last, next);
+  if (joined.length > 0)
+    return `${at}🤝 ${names(joined)} ${joined.length === 1 ? "ties" : "tie"} ${names(last.leaders)} for the lead: ${bold(dailyTime(next.ticks))}`;
+  if (sameTime(next.ticks, last.ticks) || millis(next.ticks) > millis(last.ticks)) return null;
+  // A faster time: whoever led before and doesn't now has lost the lead to it.
   const lost = last.leaders.filter((n) => !next.leaders.includes(n));
-  if (lost.length === 0) return tie();
+  if (lost.length === 0) return null;
   const takers = next.leaders.filter((n) => !lost.includes(n));
   return `${at}🏁 ${names(takers)} ${takers.length === 1 ? "takes" : "take"} the lead from ${names(lost)}, who held it for ${held(next.at - reignStart(history, lost))} · ${dailyTime(last.ticks)} → ${bold(dailyTime(next.ticks))} (−${gap(last.ticks, next.ticks)} s)`;
 };

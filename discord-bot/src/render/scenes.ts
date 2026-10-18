@@ -12,7 +12,7 @@ import {
 } from "../domain.js";
 import { dailyTime } from "../dailyPost/card.js";
 import { HOUR } from "../dailyPost/date.js";
-import type { Lead } from "../dailyPost/lead.js";
+import { joinedLead, type Lead } from "../dailyPost/lead.js";
 import type { CardView, Improvement, ProfilePreview } from "../ports.js";
 import { boardRows, formatGap, mapTitle, matchDetails } from "../present.js";
 import { hueFor, MEDAL_BAR, marbleSvg, medalHeight, medalSvg, svgUri } from "./art.js";
@@ -1252,12 +1252,7 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
     steps.push({ from: x0, to: x1, y: ly });
     if (next !== undefined)
       lines += `<line x1="${x1}" y1="${ly}" x2="${x1}" y2="${y(secs(next.ticks))}" stroke="${colour}" stroke-width="1"/>`;
-    // A tie, as the thread reads it: everyone who led before still leads (at the same shown time,
-    // or a leader's new best matched in the same read), with someone new beside them.
-    const joined =
-      prev?.leaders.every((n) => lead.leaders.includes(n)) === true
-        ? lead.leaders.filter((n) => !prev.leaders.includes(n))
-        : [];
+    const joined = prev === undefined ? [] : joinedLead(prev, lead);
     const dot = joined[0] ?? holderOf(lead);
     lines += `<circle cx="${x0}" cy="${ly}" r="2.5" fill="${colourOf(dot)}" stroke="${G.bg}" stroke-width="1"/>`;
     // A name starts at its dot, or ends at the plot's right edge when it would run past it (a
