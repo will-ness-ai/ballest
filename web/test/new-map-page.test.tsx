@@ -47,7 +47,7 @@ test("a new Map's 3D card has the Medals and no Record row", () => {
   expect(text(card)).toBe("|Author|0:35.000|Gold|0:40.000|Silver|0:45.000|Bronze|1:00.000|");
 });
 
-test("a new Map is not timed, so the lists and the sitemap leave it out until it has a time", () => {
+test("a new Map is not timed, so timed() leaves it out until it has a time", () => {
   const raced = {
     ...fresh(),
     pfid: "3821808620",
