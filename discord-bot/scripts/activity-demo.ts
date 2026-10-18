@@ -8,6 +8,7 @@ import { ConfigProvider, Context, Effect, Layer, Option, Schedule } from "effect
 import { AuthFailed, DiscordAuth, DiscordMembers } from "../src/activity/auth.js";
 import { activityServer } from "../src/activity/server.js";
 import { seconds as tickSeconds } from "../src/domain.js";
+import { NoChosenSkins } from "../src/chosenSkins.js";
 import { Engine } from "../src/engine.js";
 import { Pings } from "../src/pings.js";
 import { MatchLinks, PingRole, Store, Steam, Surface } from "../src/ports.js";
@@ -106,6 +107,7 @@ const Demo = Layer.unwrapScoped(
       LogSurface,
       NoLinks,
       NoPreviews,
+      NoChosenSkins,
       pings,
     );
 

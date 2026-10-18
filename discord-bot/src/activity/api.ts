@@ -19,6 +19,7 @@ import { Pings, warnPingRole } from "../pings.js";
 import {
   type CardView,
   cardView,
+  ChosenSkins,
   MatchLinks,
   type ProfilePreview,
   type RemovalReason,
@@ -99,6 +100,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
   const places = yield* MatchLinks;
   const store = yield* Store;
   const engine = yield* Engine;
+  const chosenSkins = yield* ChosenSkins;
   const pings = yield* Pings;
   /** Each member's last previewed profile, waiting for them to confirm it. */
   const previews = yield* Ref.make(new Map<string, ProfilePreview>());
@@ -143,7 +145,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
 
   /** A Match as `discordId` sees it. */
   const viewOf = Effect.fn("viewOf")(function* (m: Match, discordId: string) {
-    const card = cardView(m);
+    const card = cardView(m, yield* chosenSkins.all);
     const people = card.target === null ? card.players : [...card.players, card.target];
     const names = Object.fromEntries(
       yield* Effect.forEach(people, (p) =>

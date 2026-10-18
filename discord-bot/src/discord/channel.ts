@@ -159,6 +159,7 @@ export const DiscordChannelLive = Layer.scoped(
         return yield* renderer.improvement(
           post.improvement,
           yield* discord.displayName(post.improvement.player.discordId),
+          post.skin,
         );
       if (post._tag === "Started" || post._tag === "Result") return yield* drawCard(post.card);
       if (post._tag === "Progression")
@@ -237,7 +238,7 @@ export const DiscordChannelLive = Layer.scoped(
       ) {
         const thread = yield* fetchThread(threadId);
         const png = yield* threadPng(post);
-        const art: ThreadArt = { marbles: yield* marbles.current, png };
+        const art: ThreadArt = { marbles, png };
         yield* tryDiscord(`post ${post._tag}`, () =>
           thread.send(threadMessage(matchId, post, art)),
         );

@@ -5,8 +5,7 @@ import { performance } from "node:perf_hooks";
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Fiber, Layer } from "effect";
-import { ChosenSkins } from "../src/chosenSkins.js";
+import { Effect, Fiber } from "effect";
 import { Renderer } from "../src/render/renderer.js";
 import { ALICE, BOB, cardView, drawnMap, ticks } from "./harness.js";
 
@@ -34,45 +33,32 @@ const names = new Map([
   [BOB.discordId, "Bob"],
 ]);
 
-/** The Renderer over Chosen Skins where Alice has picked `skin`, or nobody has. */
-const rendererWith = (skin: string | null) =>
-  Renderer.Default.pipe(
-    Layer.provide(
-      Layer.succeed(
-        ChosenSkins,
-        ChosenSkins.of({
-          all: Effect.succeed(new Map(skin === null ? [] : [[ALICE.steamId, skin]])),
-        }),
-      ),
+/** Alice's Link confirmation, carrying `skin` as her Chosen Skin. */
+const aliceLink = (skin: string | null) =>
+  Effect.flatMap(Renderer, (r) =>
+    r.link(
+      {
+        steamId: ALICE.steamId,
+        personaName: "Alice",
+        avatarUrl: "",
+        campaignTracks: 3,
+        campaignTrackTotal: 23,
+      },
+      skin,
     ),
   );
-const aliceLink = Effect.flatMap(Renderer, (r) =>
-  r.link({
-    steamId: ALICE.steamId,
-    personaName: "Alice",
-    avatarUrl: "",
-    campaignTracks: 3,
-    campaignTrackTotal: 23,
-  }),
-);
 
 describe("the Renderer", () => {
   it.effect(
-    "draws a player's Chosen Skin, and their marble for a Skin it has no picture of",
+    "draws the Chosen Skin an image carries, and the marble for a Skin it has no picture of",
     () =>
       Effect.gen(function* () {
-        const marble = yield* aliceLink.pipe(Effect.provide(rendererWith(null)));
-        const pink = yield* aliceLink.pipe(
-          Effect.provide(
-            rendererWith("/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink"),
-          ),
-        );
-        const unknown = yield* aliceLink.pipe(
-          Effect.provide(rendererWith("/Game/Art/Some/Future/Skin.Skin")),
-        );
+        const marble = yield* aliceLink(null);
+        const pink = yield* aliceLink("/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink");
+        const unknown = yield* aliceLink("/Game/Art/Some/Future/Skin.Skin");
         expect(pink.equals(marble)).toBe(false);
         expect(unknown.equals(marble)).toBe(true);
-      }),
+      }).pipe(Effect.provide(Renderer.Default)),
     60_000,
   );
 
@@ -87,7 +73,7 @@ describe("the Renderer", () => {
         // Each live Card is about 3 MB of pixels; kept, 40 of them would be over 100 MB.
         for (let i = 0; i < 40; i++) yield* renderer.card({ view: live, names, preview: null });
         expect(resident() - before).toBeLessThan(40);
-      }).pipe(Effect.provide(rendererWith(null))),
+      }).pipe(Effect.provide(Renderer.Default)),
     60_000,
   );
 
@@ -108,7 +94,7 @@ describe("the Renderer", () => {
         );
         yield* Fiber.join(drawing);
         expect(late).toBeLessThan(300);
-      }).pipe(Effect.provide(rendererWith(null))),
+      }).pipe(Effect.provide(Renderer.Default)),
     60_000,
   );
 });

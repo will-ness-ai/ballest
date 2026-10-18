@@ -13,13 +13,14 @@ export const hueFor = (seed: string): number => {
 };
 
 /**
- * How an image draws each player: their Chosen Skin's picture as a data URI, or null for their
- * hue marble. The Renderer makes one from the Chosen Skins for every draw (chosenSkins.ts).
+ * Each Skin's picture as a data URI, by the object path a Chosen Skin names (skins.ts). An image
+ * draws a player in the picture of the Chosen Skin its input carries for them, and in their hue
+ * marble when it carries none or names a Skin with no picture here.
  */
-export type Looks = (steamId: string) => string | null;
+export type SkinPictureUris = ReadonlyMap<string, string>;
 
-/** Every player in their hue marble. */
-export const HUE_MARBLES: Looks = () => null;
+/** No pictures: every player in their hue marble. */
+export const NO_SKIN_PICTURES: SkinPictureUris = new Map();
 
 /** The lime of the start line and the Multiballs logo's green marble. */
 export const START_HUE = 96;

@@ -13,9 +13,8 @@ import { Worker } from "node:worker_threads";
 import { Data, Effect } from "effect";
 import satori, { type Font } from "satori";
 import type { Improvement, ProfilePreview } from "../ports.js";
-import { ChosenSkins } from "../chosenSkins.js";
-import { type Looks, marbleSvg } from "./art.js";
-import { loadSkinPictures } from "./skins.js";
+import { marbleSvg, type SkinPictureUris } from "./art.js";
+import { SkinPictures } from "./skins.js";
 import {
   ACTIVITY_ART_SIZE,
   type ActivityArt,
@@ -186,39 +185,37 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
     });
     const footer = yield* Effect.cached(draw(footerScene(), FOOTER_WIDTH));
 
-    // Each player drawn in their Chosen Skin's picture, else their hue marble; a Skin with no
-    // picture (one a game update added before the list knew it) draws the marble.
-    const chosenSkins = yield* ChosenSkins;
-    const pictures = new Map(
-      [...(yield* loadSkinPictures)].map(([path, png]) => [
+    // Each player is drawn in the picture of the Chosen Skin the image's input carries for them
+    // (captured when its post or view was built), else their hue marble; a Skin with no picture
+    // (one a game update added before the list knew it) draws the marble.
+    const pictures: SkinPictureUris = new Map(
+      [...(yield* SkinPictures).pngs].map(([path, png]) => [
         path,
         `data:image/png;base64,${png.toString("base64")}`,
       ]),
     );
-    const withLooks = <A, E>(drawWith: (looks: Looks) => Effect.Effect<A, E>) =>
-      Effect.flatMap(chosenSkins.all, (chosen) =>
-        drawWith((steamId) => pictures.get(chosen.get(steamId) ?? "") ?? null),
-      );
 
     return {
-      /** The Match Card, in any state. */
-      card: (card: CardImage) => withLooks((looks) => draw(cardScene(card, looks), CARD_WIDTH)),
-      improvement: (improvement: Improvement, name: string) =>
-        withLooks((looks) => draw(improvementScene(improvement, name, looks), ROW_WIDTH)),
+      /** The Match Card, in any state, its Players in the Chosen Skins its view carries. */
+      card: (card: CardImage) => draw(cardScene(card, pictures), CARD_WIDTH),
+      /** An Improvement's row; `skin` is the Improver's Chosen Skin its post carries. */
+      improvement: (improvement: Improvement, name: string, skin: string | null) =>
+        draw(improvementScene(improvement, name, skin, pictures), ROW_WIDTH),
       footer,
-      link: (preview: ProfilePreview) =>
-        withLooks((looks) => draw(linkScene(preview, looks), LINK_WIDTH)),
+      /** The Link confirmation; `skin` is the account's Chosen Skin. */
+      link: (preview: ProfilePreview, skin: string | null) =>
+        draw(linkScene(preview, skin, pictures), LINK_WIDTH),
       /** After the Result: every PB of the Match over its clock. */
       progression: (image: ProgressionImage) =>
-        withLooks((looks) => draw(progressionScene(image, looks), PROGRESSION_WIDTH)),
+        draw(progressionScene(image, pictures), PROGRESSION_WIDTH),
       /** The Activity's art for the Developer Portal; `dev` tags it for the dev app. */
       activityArt: (art: ActivityArt, dev: boolean) =>
         draw(activityArtScene(art, dev), ACTIVITY_ART_SIZE[art][0]),
       /** A bare marble, for the lifecycle-line emojis. */
       marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
-      /** The Daily Report's four boards. */
-      standings: (image: StandingsImage) =>
-        withLooks((looks) => draw(standingsScene(image, looks), STANDINGS_WIDTH)),
+      /** The Daily Report's four boards, each row in the Chosen Skin it carries. */
+      standings: (image: StandingsImage) => draw(standingsScene(image, pictures), STANDINGS_WIDTH),
     };
   }),
+  dependencies: [SkinPictures.Default],
 }) {}

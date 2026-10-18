@@ -72,6 +72,27 @@ export class Steam extends Context.Tag("multiballs/Steam")<
   }
 >() {}
 
+// ---------------------------------------------------------------- Chosen Skins
+
+/**
+ * Each Player's Chosen Skin (CONTEXT.md, spec #276), read from the site's database: the object
+ * path it stores, by SteamID. The engine reads it as it builds each Card view and thread post, so
+ * the post carries the Skins its message shows (chosenSkins.ts has the adapters).
+ */
+export class ChosenSkins extends Context.Tag("multiballs/ChosenSkins")<
+  ChosenSkins,
+  {
+    /** Every Chosen Skin, as the object path chosen_skins.skin holds, by SteamID. */
+    readonly all: Effect.Effect<ReadonlyMap<string, string>>;
+  }
+>() {}
+
+/**
+ * The Chosen Skins of the Players a view or post shows, as they stood when it was built: the
+ * object path by SteamID, and a Player with none absent.
+ */
+export type ShownSkins = Readonly<Record<string, string>>;
+
 // ---------------------------------------------------------------- Discord surface
 
 /** Everything the Match Card image and its embed are drawn from. */
@@ -91,10 +112,27 @@ export interface CardView {
   readonly endsAt: number | null;
   /** Time is up and the Result is waiting for Steam: no buttons, and the Card says so. */
   readonly waitingForSteam: boolean;
+  /** The Chosen Skins of its Players (and the Challenge's opponent), each drawn in theirs. */
+  readonly skins: ShownSkins;
 }
 
-/** A Match as its Card shows it: the Map stays sealed while the Invite is open. */
-export const cardView = (m: Match): CardView => ({
+/** The Chosen Skins, out of `chosen`, of the given Players. */
+export const shownSkins = (
+  chosen: ReadonlyMap<string, string>,
+  players: ReadonlyArray<Player>,
+): ShownSkins =>
+  Object.fromEntries(
+    players.flatMap((p) => {
+      const skin = chosen.get(p.steamId);
+      return skin === undefined ? [] : [[p.steamId, skin] as const];
+    }),
+  );
+
+/**
+ * A Match as its Card shows it: the Map stays sealed while the Invite is open. `chosen` is every
+ * Chosen Skin as it stands now; the view keeps its Players'.
+ */
+export const cardView = (m: Match, chosen: ReadonlyMap<string, string>): CardView => ({
   matchId: m.id,
   state: m.state,
   type: m.type,
@@ -107,6 +145,7 @@ export const cardView = (m: Match): CardView => ({
   expiresAt: m.state === "invite" ? expiresAt(m) : null,
   endsAt: m.state === "live" ? m.endsAt : null,
   waitingForSteam: m.state === "live" && m.waitingForSteam,
+  skins: shownSkins(chosen, m.target === null ? m.players : [...m.players, m.target]),
 });
 
 export interface Improvement {
@@ -121,18 +160,28 @@ export interface Improvement {
   readonly beatWorldRecord: number | null;
 }
 
+/**
+ * What goes in a Match Thread. A post about one Player carries `skin`, that Player's Chosen Skin
+ * (or null) when it was built, for its line's marble; one with a Card carries them in the Card.
+ */
 export type ThreadPost = Data.TaggedEnum<{
-  Opened: { readonly by: Player; readonly type: MatchType; readonly minutes: Minutes };
+  Opened: {
+    readonly by: Player;
+    readonly skin: string | null;
+    readonly type: MatchType;
+    readonly minutes: Minutes;
+  };
   /** `expiresAt` is when the challenged Player must answer by. */
   Challenged: {
     readonly by: Player;
+    readonly skin: string | null;
     readonly target: Player;
     readonly minutes: Minutes;
     readonly expiresAt: number;
   };
-  Accepted: { readonly player: Player };
-  Joined: { readonly player: Player };
-  Left: { readonly player: Player };
+  Accepted: { readonly player: Player; readonly skin: string | null };
+  Joined: { readonly player: Player; readonly skin: string | null };
+  Left: { readonly player: Player; readonly skin: string | null };
   /**
    * The start ping. `players` are the ones sent off, and pinged: everyone at the start, or
    * one Player joining a live Lobby. `card` is the live Card it shows.
@@ -143,7 +192,7 @@ export type ThreadPost = Data.TaggedEnum<{
     readonly endsAt: number;
     readonly card: CardView;
   };
-  Improved: { readonly improvement: Improvement };
+  Improved: { readonly improvement: Improvement; readonly skin: string | null };
   /** `card` is the finished Card the Result shows. */
   /** Players who had finished the drawn Map before: only a run faster than `ticks`, their PB, counts. */
   PlayedBefore: {

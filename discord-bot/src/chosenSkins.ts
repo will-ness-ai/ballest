@@ -7,15 +7,8 @@
 // that can't be read, every player keeps their hue marble, and a failed read says so in the log.
 import { SqlClient } from "@effect/sql";
 import { PgClient } from "@effect/sql-pg";
-import { Config, Context, Effect, Layer, Option, Schema } from "effect";
-
-export class ChosenSkins extends Context.Tag("multiballs/ChosenSkins")<
-  ChosenSkins,
-  {
-    /** Every Chosen Skin, as the object path chosen_skins.skin holds, by SteamID. */
-    readonly all: Effect.Effect<ReadonlyMap<string, string>>;
-  }
->() {}
+import { Config, Effect, Layer, Option, Schema } from "effect";
+import { ChosenSkins } from "./ports.js";
 
 /** A pick on the site reaches Discord within this long; a Card redraws far more often. */
 const FRESH_FOR = "1 minute";
@@ -32,6 +25,10 @@ const readAll = Effect.gen(function* () {
 });
 
 const NONE: ReadonlyMap<string, string> = new Map();
+
+/** A read that failed: said in the log, and every player keeps their hue marble until the next. */
+const unreadable = (reason: string) =>
+  Effect.logWarning(`chosen skins unreadable, marbles only: ${reason}`).pipe(Effect.as(NONE));
 
 /** No Chosen Skins: every player draws their hue marble. For tests and scripts without a database. */
 export const NoChosenSkins = Layer.succeed(
@@ -54,11 +51,10 @@ export const ChosenSkinsLive = Layer.unwrapEffect(
       readAll.pipe(
         Effect.provide(PgClient.layer({ url: url.value })),
         Effect.scoped,
-        Effect.catchAll((e) =>
-          Effect.logWarning(`chosen skins unreadable, marbles only: ${e.message}`).pipe(
-            Effect.as(NONE),
-          ),
-        ),
+        Effect.catchTags({
+          SqlError: (e) => unreadable(e.message),
+          ParseError: (e) => unreadable(e.message),
+        }),
       ),
       FRESH_FOR,
     );

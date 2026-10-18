@@ -102,7 +102,12 @@ A player's Chosen Skin (CONTEXT.md, spec #276) replaces their hue marble in ever
 Renderer draws and in Match Thread lines; the bot reads no Ghosts, so its order is Chosen Skin,
 then hue. `src/chosenSkins.ts` reads `chosen_skins` at `DATABASE_URL` at most once a minute;
 with no database (`pnpm dev`, the sandbox) or one it can't read, everyone keeps their hue. Run
-the sandbox with `DATABASE_URL` set to a local database to see picks. The Skin list and its
+the sandbox with `DATABASE_URL` set to a local database to see picks. The engine reads the
+`ChosenSkins` port as it builds each Card view and thread post, which carry their Players' Skins
+(`skins` on a `CardView`, `skin` on a post about one Player), so a redraw draws exactly what the
+post brought; the Link confirmation and the Daily Report read them as they build their image.
+`SkinPictures` (`src/render/skins.ts`) reads the pictures once at startup for the Renderer and
+`Marbles` both. The Skin list and its
 pictures are copies of the site's (`src/render/skins.ts`, `assets/skins/`, made by
 `scripts/skin_pngs.py`), since resvg reads no WebP and the Fly image is built from
 `discord-bot/` alone; `test/skins.test.ts` holds them to `web/lib/skins.ts`. `Marbles` uploads

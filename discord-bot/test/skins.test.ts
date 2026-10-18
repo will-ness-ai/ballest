@@ -3,7 +3,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { SKINS as SITE_SKINS } from "../../web/lib/skins.js";
-import { loadSkinPictures, SKINS, skinEmojiName } from "../src/render/skins.js";
+import { SkinPictures, SKINS, skinEmojiName } from "../src/render/skins.js";
 
 const PNG = [0x89, 0x50, 0x4e, 0x47];
 
@@ -14,9 +14,9 @@ describe("the bot's Skins", () => {
 
   it.effect("each have a PNG picture", () =>
     Effect.gen(function* () {
-      const pictures = yield* loadSkinPictures;
+      const { pngs } = yield* SkinPictures.pipe(Effect.provide(SkinPictures.Default));
       for (const path of SITE_SKINS.keys()) {
-        const png = pictures.get(path);
+        const png = pngs.get(path);
         expect([...(png ?? Buffer.alloc(0)).subarray(0, 4)], path).toEqual(PNG);
       }
     }),
@@ -29,5 +29,9 @@ describe("the bot's Skins", () => {
     expect(skinEmojiName("/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink")).toBe(
       "skin_Pink",
     );
+  });
+
+  it("have no emoji name for a Skin the list doesn't know", () => {
+    expect(skinEmojiName("/Game/Art/Some/Future/Skin.Skin")).toBeNull();
   });
 });

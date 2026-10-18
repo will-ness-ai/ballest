@@ -55,7 +55,8 @@ program.pipe(
       StandingsSourceLive,
       GhostDatesLive,
       ReportChannelLive,
-      Renderer.Default.pipe(Layer.provide(ChosenSkinsLive)),
+      Renderer.Default,
+      ChosenSkinsLive,
     ),
   ),
   Effect.provide(

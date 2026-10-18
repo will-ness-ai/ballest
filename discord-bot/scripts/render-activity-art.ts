@@ -4,8 +4,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { NodeRuntime } from "@effect/platform-node";
-import { Effect, Layer } from "effect";
-import { NoChosenSkins } from "../src/chosenSkins.js";
+import { Effect } from "effect";
 import { Renderer } from "../src/render/renderer.js";
 import type { ActivityArt } from "../src/render/scenes.js";
 
@@ -29,7 +28,4 @@ const program = Effect.gen(function* () {
   yield* Effect.log(`wrote the Activity's art to ${out}`);
 });
 
-program.pipe(
-  Effect.provide(Renderer.Default.pipe(Layer.provide(NoChosenSkins))),
-  NodeRuntime.runMain,
-);
+program.pipe(Effect.provide(Renderer.Default), NodeRuntime.runMain);

@@ -3,8 +3,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { NodeRuntime } from "@effect/platform-node";
-import { Effect, Layer } from "effect";
-import { ChosenSkins } from "../src/chosenSkins.js";
+import { Effect } from "effect";
 import { type Player, SCORE_TICKS_PER_SECOND, type Standing } from "../src/domain.js";
 import type { CardView } from "../src/ports.js";
 import { Renderer } from "../src/render/renderer.js";
@@ -22,6 +21,15 @@ const [chkn, tilt, grav, maxx] = [
   p("シドニー"),
 ] as const;
 const names = new Map([chkn, tilt, grav, maxx].map((x) => [x.discordId, x.discordId]));
+// A few players with a Chosen Skin, to check the pictures by eye beside the hue marbles.
+const chosen: Readonly<Record<string, string>> = {
+  [grav.steamId]: "/Game/Art/Materials/Masters/M_LavaBall.M_LavaBall",
+  [tilt.steamId]: "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink",
+  "s-Slati Jnr": "/Game/Art/M_GoldReal.M_GoldReal",
+  "s-Chaos":
+    "/Game/Packs/Vefects/Stylized_Galaxy_Shader/Galaxy/Materials/MI_VFX_Lush_Galaxy_Shader_02.MI_VFX_Lush_Galaxy_Shader_02",
+};
+const skinOf = (steamId: string) => chosen[steamId] ?? null;
 const map = {
   pfid: "3791550212",
   title: "Gutter Run",
@@ -57,6 +65,7 @@ const base: CardView = {
   expiresAt: null,
   endsAt: null,
   waitingForSteam: false,
+  skins: chosen,
 };
 const cards: Record<string, CardView> = {
   "card-invite-lobby": base,
@@ -148,6 +157,7 @@ const program = Effect.gen(function* () {
         beatWorldRecord: null,
       },
       "gravwell",
+      skinOf(grav.steamId),
     ),
   );
   yield* save(
@@ -163,6 +173,7 @@ const program = Effect.gen(function* () {
         beatWorldRecord: null,
       },
       "tilt_queen",
+      skinOf(tilt.steamId),
     ),
   );
   yield* save(
@@ -178,6 +189,7 @@ const program = Effect.gen(function* () {
         beatWorldRecord: 12.981 * T,
       },
       "gravwell",
+      skinOf(grav.steamId),
     ),
   );
   const finalWr = cards["card-final-wr"];
@@ -196,17 +208,21 @@ const program = Effect.gen(function* () {
   yield* save("footer", yield* renderer.footer);
   yield* save(
     "link",
-    yield* renderer.link({
-      steamId: "76561198012345678",
-      personaName: "ChknThugget",
-      avatarUrl: "",
-      campaignTracks: 21,
-      campaignTrackTotal: 23,
-    }),
+    yield* renderer.link(
+      {
+        steamId: "76561198012345678",
+        personaName: "ChknThugget",
+        avatarUrl: "",
+        campaignTracks: 21,
+        campaignTrackTotal: 23,
+      },
+      null,
+    ),
   );
   yield* save("marble", yield* renderer.marble(96));
   const row = (name: string, n: number, place: number, move: number | "new", gain = 0) => ({
     steamId: `s-${name}`,
+    skin: skinOf(`s-${name}`),
     name,
     n,
     place,
@@ -256,19 +272,4 @@ const program = Effect.gen(function* () {
   yield* Effect.log(`wrote samples to ${out}`);
 });
 
-// A few players with a Chosen Skin, to check the pictures by eye beside the hue marbles.
-const chosen = new Map([
-  [grav.steamId, "/Game/Art/Materials/Masters/M_LavaBall.M_LavaBall"],
-  [tilt.steamId, "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink"],
-  ["s-Slati Jnr", "/Game/Art/M_GoldReal.M_GoldReal"],
-  [
-    "s-Chaos",
-    "/Game/Packs/Vefects/Stylized_Galaxy_Shader/Galaxy/Materials/MI_VFX_Lush_Galaxy_Shader_02.MI_VFX_Lush_Galaxy_Shader_02",
-  ],
-]);
-const SampleSkins = Layer.succeed(ChosenSkins, ChosenSkins.of({ all: Effect.succeed(chosen) }));
-
-program.pipe(
-  Effect.provide(Renderer.Default.pipe(Layer.provide(SampleSkins))),
-  NodeRuntime.runMain,
-);
+program.pipe(Effect.provide(Renderer.Default), NodeRuntime.runMain);

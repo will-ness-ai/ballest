@@ -7,7 +7,8 @@ import { SqlClient } from "@effect/sql";
 import { PgClient } from "@effect/sql-pg";
 import { afterAll, beforeAll, describe, expect, it } from "@effect/vitest";
 import { ConfigProvider, Effect, Layer, Redacted } from "effect";
-import { ChosenSkins, ChosenSkinsLive } from "../src/chosenSkins.js";
+import { ChosenSkinsLive } from "../src/chosenSkins.js";
+import { ChosenSkins } from "../src/ports.js";
 
 const BASE =
   process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/postgres";

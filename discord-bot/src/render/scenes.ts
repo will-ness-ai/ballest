@@ -12,7 +12,15 @@ import {
 } from "../domain.js";
 import type { CardView, Improvement, ProfilePreview } from "../ports.js";
 import { boardRows, formatGap, mapTitle, matchDetails } from "../present.js";
-import { hueFor, type Looks, MEDAL_BAR, marbleSvg, medalHeight, medalSvg, svgUri } from "./art.js";
+import {
+  hueFor,
+  MEDAL_BAR,
+  marbleSvg,
+  medalHeight,
+  medalSvg,
+  type SkinPictureUris,
+  svgUri,
+} from "./art.js";
 
 // ---------------------------------------------------------------- elements
 
@@ -45,14 +53,15 @@ const marble = (hue: number, size: number, style: Style = {}) =>
  * the marble's hue is a key (the progression graph's lines), `ring` circles a picture in it.
  */
 const playerMarble = (
-  looks: Looks,
+  pictures: SkinPictureUris,
+  skin: string | null,
   steamId: string,
   size: number,
   style: Style = {},
   ring: string | null = null,
 ) => {
-  const picture = looks(steamId);
-  if (picture === null) return marble(hueFor(steamId), size, style);
+  const picture = skin === null ? undefined : pictures.get(skin);
+  if (picture === undefined) return marble(hueFor(steamId), size, style);
   return ring === null
     ? img(picture, size, size, style)
     : box(
@@ -257,7 +266,7 @@ const rowsOf = (card: CardImage) => boardRows(card.view, (id) => card.names.get(
 
 const COLUMNS = { rank: 34, marble: 24 } as const;
 
-const slab = (card: CardImage, looks: Looks) => {
+const slab = (card: CardImage, pictures: SkinPictureUris) => {
   const invite = card.view.state === "invite";
   return box(
     {
@@ -301,7 +310,13 @@ const slab = (card: CardImage, looks: Looks) => {
         ),
         r.steamId === null
           ? marble(0, 24, r.faded ? { opacity: 0.25 } : {})
-          : playerMarble(looks, r.steamId, 24, r.faded ? { opacity: 0.25 } : {}),
+          : playerMarble(
+              pictures,
+              card.view.skins[r.steamId] ?? null,
+              r.steamId,
+              24,
+              r.faded ? { opacity: 0.25 } : {},
+            ),
         box(
           { flexGrow: 1, flexDirection: "column", minWidth: 0 },
           box(
@@ -346,7 +361,7 @@ const stateChip = (view: CardView) =>
           )
         : chip("Final", { color: C.gold, border: "1px solid rgba(255,212,71,0.4)" });
 
-export const cardScene = (card: CardImage, looks: Looks): El => {
+export const cardScene = (card: CardImage, pictures: SkinPictureUris): El => {
   const { view } = card;
   const height = view.state === "invite" ? 110 : 150;
   const title = mapTitle(view);
@@ -404,7 +419,7 @@ export const cardScene = (card: CardImage, looks: Looks): El => {
     ),
     box(
       { flexDirection: "column", padding: "2px 16px 14px" },
-      box({ marginTop: 10, flexDirection: "column" }, slab(card, looks)),
+      box({ marginTop: 10, flexDirection: "column" }, slab(card, pictures)),
     ),
   );
 };
@@ -436,7 +451,8 @@ const worldRecordScene = (
   improvement: Improvement,
   name: string,
   beaten: number,
-  looks: Looks,
+  skin: string | null,
+  pictures: SkinPictureUris,
 ): El =>
   box(
     {
@@ -451,7 +467,7 @@ const worldRecordScene = (
       textShadow: OUTLINE,
     },
     box({ width: 58, justifyContent: "center", fontSize: 24 }, "WR"),
-    playerMarble(looks, improvement.player.steamId, 28),
+    playerMarble(pictures, skin, improvement.player.steamId, 28),
     box(
       { flexGrow: 1, flexDirection: "column", marginLeft: 10, minWidth: 0 },
       box(
@@ -466,9 +482,15 @@ const worldRecordScene = (
     box({ fontSize: 22, paddingRight: 16 }, formatTime(improvement.ticks)),
   );
 
-export const improvementScene = (improvement: Improvement, name: string, looks: Looks): El => {
+/** An Improvement's row; `skin` is the Improver's Chosen Skin the post carries. */
+export const improvementScene = (
+  improvement: Improvement,
+  name: string,
+  skin: string | null,
+  pictures: SkinPictureUris,
+): El => {
   if (improvement.beatWorldRecord !== null)
-    return worldRecordScene(improvement, name, improvement.beatWorldRecord, looks);
+    return worldRecordScene(improvement, name, improvement.beatWorldRecord, skin, pictures);
   const lead = improvement.rank === 1;
   const diff =
     improvement.previousTicks === null
@@ -499,7 +521,7 @@ export const improvementScene = (improvement: Improvement, name: string, looks: 
     ),
     box(
       { flexGrow: 1, alignItems: "center", gap: 10, paddingRight: 12, minHeight: 44 },
-      playerMarble(looks, improvement.player.steamId, 24),
+      playerMarble(pictures, skin, improvement.player.steamId, 24),
       box(
         {
           flexGrow: 1,
@@ -571,7 +593,12 @@ export const footerScene = (): El =>
 
 export const LINK_WIDTH = 400;
 
-export const linkScene = (preview: ProfilePreview, looks: Looks): El =>
+/** The Link confirmation; `skin` is the account's Chosen Skin. */
+export const linkScene = (
+  preview: ProfilePreview,
+  skin: string | null,
+  pictures: SkinPictureUris,
+): El =>
   backdrop(
     {
       width: LINK_WIDTH,
@@ -580,7 +607,7 @@ export const linkScene = (preview: ProfilePreview, looks: Looks): El =>
       gap: 12,
       padding: "14px 16px",
     },
-    playerMarble(looks, preview.steamId, 48),
+    playerMarble(pictures, skin, preview.steamId, 48),
     box(
       { flexDirection: "column", width: LINK_WIDTH - 32 - 48 - 12 },
       box({ fontFamily: F.hud, fontWeight: 700, fontSize: 17 }, preview.personaName),
@@ -681,7 +708,10 @@ const clockLabel = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padSta
  * record from the start of the Match as dotted lines (each break of it a star), and any PB a
  * Player brought into the Match dotted in until they beat it.
  */
-export const progressionScene = ({ view, history, names }: ProgressionImage, looks: Looks): El => {
+export const progressionScene = (
+  { view, history, names }: ProgressionImage,
+  pictures: SkinPictureUris,
+): El => {
   const W = PROGRESSION_WIDTH,
     H = 470,
     L = 78,
@@ -853,7 +883,14 @@ export const progressionScene = ({ view, history, names }: ProgressionImage, loo
           gap: roomy ? 8 : 6,
           alignItems: roomy ? "flex-start" : "center",
         },
-        playerMarble(looks, id, roomy ? 16 : 11, roomy ? { marginTop: 1 } : {}, colourOf(id)),
+        playerMarble(
+          pictures,
+          view.skins[id] ?? null,
+          id,
+          roomy ? 16 : 11,
+          roomy ? { marginTop: 1 } : {},
+          colourOf(id),
+        ),
         box(
           { flexDirection: "column", flexShrink: 1, minWidth: 0 },
           box(
@@ -1019,15 +1056,25 @@ export const activityArtScene = (art: ActivityArt, dev: boolean): El => {
 
 // ---------------------------------------------------------------- the Daily Report's standings
 
-/** Two boards side by side, each row a marble wider than before Chosen Skins. */
-const STANDINGS_COLUMN = 294;
-export const STANDINGS_WIDTH = 28 * 2 + STANDINGS_COLUMN * 2 + 24;
+/** The standings image's padding, and the gap between the two boards side by side. */
+const STANDINGS_PADDING = 28;
+const STANDINGS_GAP = 24;
+/** A row's marble, and the gap between the things on a row. */
+const STANDINGS_MARBLE = 16;
+const STANDINGS_ROW_GAP = 8;
+/** What a board's row held before Chosen Skins: its place, move pill, name and counts. */
+const STANDINGS_TEXT = 270;
+/** One board: its text, and a marble before each name. */
+const STANDINGS_COLUMN = STANDINGS_TEXT + STANDINGS_MARBLE + STANDINGS_ROW_GAP;
+export const STANDINGS_WIDTH = STANDINGS_PADDING * 2 + STANDINGS_COLUMN * 2 + STANDINGS_GAP;
 /** Widest a name gets before it is clipped, so a row and its pills stay on one line. */
 const STANDINGS_NAME = 17;
 
 /** A row on one of the Daily Report's boards, and how it changed in the last 24 hours. */
 export interface StandingsRow {
   readonly steamId: string;
+  /** Their Chosen Skin when the report was built, or null for their hue marble. */
+  readonly skin: string | null;
   readonly name: string;
   readonly n: number;
   /** The shared place: players on the same count show the same one. */
@@ -1100,7 +1147,10 @@ const movePill = (move: StandingsRow["move"]) =>
 const clipName = (name: string) =>
   name.length > STANDINGS_NAME ? `${name.slice(0, STANDINGS_NAME - 1)}…` : name;
 
-export const standingsScene = ({ title, subtitle, boards }: StandingsImage, looks: Looks): El => {
+export const standingsScene = (
+  { title, subtitle, boards }: StandingsImage,
+  pictures: SkinPictureUris,
+): El => {
   const column = (board: StandingsImage["boards"][number]) =>
     box(
       { flexDirection: "column", width: STANDINGS_COLUMN, gap: 4 },
@@ -1109,7 +1159,7 @@ export const standingsScene = ({ title, subtitle, boards }: StandingsImage, look
         box(
           {
             alignItems: "center",
-            gap: 8,
+            gap: STANDINGS_ROW_GAP,
             fontSize: 15,
             padding: "3px 8px",
             borderRadius: 6,
@@ -1125,7 +1175,7 @@ export const standingsScene = ({ title, subtitle, boards }: StandingsImage, look
             String(row.place),
           ),
           box({ width: 30 }, movePill(row.move)),
-          playerMarble(looks, row.steamId, 16),
+          playerMarble(pictures, row.skin, row.steamId, STANDINGS_MARBLE),
           box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
           row.gain === 0
             ? null
@@ -1156,12 +1206,12 @@ export const standingsScene = ({ title, subtitle, boards }: StandingsImage, look
     );
   const pairs = [boards.slice(0, 2), boards.slice(2, 4)].filter((p) => p.length > 0);
   return backdrop(
-    { padding: 28, gap: 20 },
+    { padding: STANDINGS_PADDING, gap: 20 },
     box(
       { flexDirection: "column", gap: 4 },
       box({ fontFamily: F.marquee, fontSize: 28 }, title),
       box({ color: C.dim, fontSize: 14 }, subtitle),
     ),
-    ...pairs.map((pair) => box({ gap: 24 }, ...pair.map(column))),
+    ...pairs.map((pair) => box({ gap: STANDINGS_GAP }, ...pair.map(column))),
   );
 };

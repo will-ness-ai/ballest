@@ -13,7 +13,7 @@ import {
 } from "../src/activity/auth.js";
 import { Engine } from "../src/engine.js";
 import { Pings } from "../src/pings.js";
-import { MatchLinks, Store } from "../src/ports.js";
+import { ChosenSkins, MatchLinks, Store } from "../src/ports.js";
 import {
   ALICE,
   advance,
@@ -75,6 +75,7 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
       Effect.provideService(DiscordAuth, auth),
       Effect.provideService(DiscordMembers, members),
       Effect.provideService(MatchLinks, links),
+      Effect.provideService(ChosenSkins, h.chosenSkins.port),
     );
     /** One request as `as` (a Discord id) or with a raw `token`, answered with its status and JSON body. */
     const call = (
@@ -322,6 +323,7 @@ describe("opening a Match", () => {
             waitingForSteam: false,
             map: null,
             standings: [{ player: ALICE, ticks: null, rank: null, medal: null }],
+            skins: {},
             names: { [ALICE.discordId]: "Alice" },
             history: [],
             links: {

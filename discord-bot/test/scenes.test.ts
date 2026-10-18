@@ -1,8 +1,9 @@
-// What each image draws for a player's marble: their Chosen Skin's picture when they have one,
-// their hue marble otherwise. The scenes are element trees, so a marble is an image whose source
-// is either the picture or a drawn marble in the player's hue.
+// What each image draws for a player's marble: the picture of the Chosen Skin its input carries
+// for them, their hue marble otherwise, or for a Skin with no picture. The scenes are element
+// trees, so a marble is an image whose source is either the picture or a drawn marble in the
+// player's hue.
 import { describe, expect, it } from "@effect/vitest";
-import { hueFor } from "../src/render/art.js";
+import { hueFor, type SkinPictureUris } from "../src/render/art.js";
 import type { PbEvent } from "../src/domain.js";
 import type { Improvement, ProfilePreview } from "../src/ports.js";
 import {
@@ -15,9 +16,13 @@ import {
 } from "../src/render/scenes.js";
 import { ALICE, BOB, cardView, drawnMap, ticks } from "./harness.js";
 
-const PICTURE = "data:image/png;base64,QUxJQ0UnUyBTS0lO";
-/** Alice picked a Skin; Bob didn't. */
-const looks = (steamId: string) => (steamId === ALICE.steamId ? PICTURE : null);
+const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
+const PICTURE = "data:image/png;base64,UElOSw==";
+/** The only Skin with a picture is Pink. */
+const PICTURES: SkinPictureUris = new Map([[PINK, PICTURE]]);
+/** Alice picked Pink; Bob has no Chosen Skin. */
+const skinOf = (who: typeof ALICE) => (who.steamId === ALICE.steamId ? PINK : null);
+const skins = { [ALICE.steamId]: PINK };
 
 /** Every image source in a scene, SVGs decoded. */
 const sources = (el: El): Array<string> => [
@@ -49,6 +54,7 @@ const live = cardView("m1", {
     { player: ALICE, ticks: ticks(19), rank: 1, medal: "author" },
     { player: BOB, ticks: ticks(24), rank: 2, medal: "gold" },
   ],
+  skins,
 });
 
 const improvement = (player: typeof ALICE, beatWorldRecord: number | null): Improvement => ({
@@ -71,8 +77,9 @@ const history: ReadonlyArray<PbEvent> = [
   { at: 60_000, steamId: ALICE.steamId, ticks: ticks(19) },
   { at: 90_000, steamId: BOB.steamId, ticks: ticks(24) },
 ];
-const row = (steamId: string, name: string, place: number) => ({
-  steamId,
+const row = (who: typeof ALICE, name: string, place: number) => ({
+  steamId: who.steamId,
+  skin: skinOf(who),
   name,
   n: 10 - place,
   place,
@@ -82,17 +89,30 @@ const row = (steamId: string, name: string, place: number) => ({
 
 /** A scene drawing one player's marble, for each image that draws one. */
 const scenes: ReadonlyArray<readonly [string, (who: typeof ALICE) => El]> = [
-  ["an Improvement row", (who) => improvementScene(improvement(who, null), "Name", looks)],
-  ["a world record's row", (who) => improvementScene(improvement(who, ticks(15)), "Name", looks)],
-  ["the Link confirmation", (who) => linkScene(preview(who.steamId), looks)],
+  [
+    "an Improvement row",
+    (who) => improvementScene(improvement(who, null), "Name", skinOf(who), PICTURES),
+  ],
+  [
+    "a world record's row",
+    (who) => improvementScene(improvement(who, ticks(15)), "Name", skinOf(who), PICTURES),
+  ],
+  ["the Link confirmation", (who) => linkScene(preview(who.steamId), skinOf(who), PICTURES)],
 ];
 
 describe("a player's marble", () => {
   it("on the Card is their Chosen Skin, or their hue marble without one", () => {
-    const scene = cardScene({ view: live, names, preview: null }, looks);
+    const scene = cardScene({ view: live, names, preview: null }, PICTURES);
     expect(pictures(scene)).toBe(1);
     expect(drawsHueMarble(scene, ALICE.steamId)).toBe(false);
     expect(drawsHueMarble(scene, BOB.steamId)).toBe(true);
+  });
+
+  it("is their hue marble for a Chosen Skin with no picture (one a game update added)", () => {
+    const future = { ...live, skins: { [ALICE.steamId]: "/Game/Art/Some/Future/Skin.Skin" } };
+    const scene = cardScene({ view: future, names, preview: null }, PICTURES);
+    expect(pictures(scene)).toBe(0);
+    expect(drawsHueMarble(scene, ALICE.steamId)).toBe(true);
   });
 
   for (const [name, draw] of scenes)
@@ -113,8 +133,9 @@ describe("a player's marble", () => {
         { player: ALICE, ticks: ticks(19), rank: 1, medal: "author" },
         { player: BOB, ticks: ticks(24), rank: 2, medal: "gold" },
       ],
+      skins,
     });
-    const scene = progressionScene({ view: final, history, names }, looks);
+    const scene = progressionScene({ view: final, history, names }, PICTURES);
     expect(pictures(scene)).toBe(1);
     expect(drawsHueMarble(scene, ALICE.steamId)).toBe(false);
     expect(drawsHueMarble(scene, BOB.steamId)).toBe(true);
@@ -128,13 +149,13 @@ describe("a player's marble", () => {
         boards: [
           {
             title: "Most played",
-            rows: [row(ALICE.steamId, "Alice", 1), row(BOB.steamId, "Bob", 2)],
+            rows: [row(ALICE, "Alice", 1), row(BOB, "Bob", 2)],
             out: [],
           },
-          { title: "Most authors", rows: [row(ALICE.steamId, "Alice", 1)], out: [] },
+          { title: "Most authors", rows: [row(ALICE, "Alice", 1)], out: [] },
         ],
       },
-      looks,
+      PICTURES,
     );
     expect(pictures(scene)).toBe(2);
     expect(drawsHueMarble(scene, ALICE.steamId)).toBe(false);

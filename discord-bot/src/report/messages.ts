@@ -132,14 +132,18 @@ export const reportButtons: ReadonlyArray<APIActionRowComponent<APIButtonCompone
   },
 ];
 
-/** What the standings image shows: the day, the counts and the four Workshop standings. */
-export const standingsImage = (r: Report): StandingsImage => ({
+/**
+ * What the standings image shows: the day, the counts and the four Workshop standings, each row
+ * in its player's Chosen Skin out of `chosen` (every pick, as it stands when the report is built).
+ */
+export const standingsImage = (r: Report, chosen: ReadonlyMap<string, string>): StandingsImage => ({
   title: dayTitle(r.at),
   subtitle: `Workshop standings · ${counts(r)}`,
   boards: r.boards.map((b) => ({
     title: BOARD_TITLE[b.stat],
     rows: b.rows.map((row) => ({
       steamId: row.steamId,
+      skin: chosen.get(row.steamId) ?? null,
       name: row.persona,
       n: row.n,
       place: row.place,

@@ -234,7 +234,7 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
     case "Opened":
       return {
         content: line(
-          art.marbles.forPlayer(post.by.steamId),
+          art.marbles.forPlayer(post.by.steamId, post.skin),
           `**${who(post.by.discordId)}** opened a ${post.minutes}-minute ${MATCH_TYPE_NAME[post.type]}`,
         ),
         ...quiet,
@@ -242,7 +242,7 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
     case "Challenged": {
       return {
         content: line(
-          art.marbles.forPlayer(post.by.steamId),
+          art.marbles.forPlayer(post.by.steamId, post.skin),
           `${who(post.target.discordId)} **${who(post.by.discordId)}** challenges you · ${post.minutes} min · answer <t:${unix(post.expiresAt)}:R>`,
         ),
         components: [row(acceptButton(matchId), declineButton(matchId))],
@@ -252,7 +252,7 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
     case "Accepted":
       return {
         content: line(
-          art.marbles.forPlayer(post.player.steamId),
+          art.marbles.forPlayer(post.player.steamId, post.skin),
           `**${who(post.player.discordId)}** accepted`,
         ),
         ...quiet,
@@ -260,14 +260,14 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
     case "Joined":
       return {
         content: line(
-          art.marbles.forPlayer(post.player.steamId),
+          art.marbles.forPlayer(post.player.steamId, post.skin),
           `**${who(post.player.discordId)}** joined`,
         ),
         ...quiet,
       };
     case "Left":
       return {
-        content: `-# ${line(art.marbles.forPlayer(post.player.steamId), `**${who(post.player.discordId)}** left`)}`,
+        content: `-# ${line(art.marbles.forPlayer(post.player.steamId, post.skin), `**${who(post.player.discordId)}** left`)}`,
         ...quiet,
       };
     case "Started":

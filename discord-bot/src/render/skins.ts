@@ -4,7 +4,7 @@
 // the pictures are the site's root skins/, copied in as PNGs by scripts/skin_pngs.py, since resvg
 // reads no WebP and the Fly image is built from discord-bot/ alone.
 import { readFile } from "node:fs/promises";
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 
 export const SKINS: ReadonlyMap<string, string> = new Map([
   // Pink
@@ -95,19 +95,40 @@ export const SKINS: ReadonlyMap<string, string> = new Map([
 
 const PICTURES = new URL("../../assets/skins/", import.meta.url);
 
-/**
- * Each Skin's picture as a PNG (128px, already round), by object path. Read once at startup; a
- * picture missing from the image is a defect, which stops the bot there.
- */
-export const loadSkinPictures: Effect.Effect<ReadonlyMap<string, Buffer>> = Effect.forEach(
-  [...SKINS],
-  ([path, asset]) =>
-    Effect.promise(() => readFile(new URL(`${asset}.png`, PICTURES))).pipe(
-      Effect.map((png) => [path, png] as const),
-    ),
-  { concurrency: 8 },
-).pipe(Effect.map((pairs) => new Map(pairs)));
+/** A Skin's picture that couldn't be read from the image's assets/skins/. */
+export class SkinPictureMissing extends Data.TaggedError("SkinPictureMissing")<{
+  readonly asset: string;
+  readonly cause: unknown;
+}> {}
 
-/** The application emoji a Skin's Match Thread lines use: "skin_Pink" for DA_Skin_Pink. */
-export const skinEmojiName = (path: string): string =>
-  `skin_${(SKINS.get(path) ?? path).replace(/^DA_(Skin_)?/, "")}`;
+/**
+ * Each Skin's picture as a PNG (128px, already round), by object path: read once at startup and
+ * shared by the Renderer (for the images) and Marbles (for the emojis). A picture missing from
+ * the image is a defect, which stops the bot there.
+ */
+export class SkinPictures extends Effect.Service<SkinPictures>()("multiballs/SkinPictures", {
+  effect: Effect.forEach(
+    [...SKINS],
+    ([path, asset]) =>
+      Effect.tryPromise({
+        try: () => readFile(new URL(`${asset}.png`, PICTURES)),
+        catch: (cause) => new SkinPictureMissing({ asset, cause }),
+      }).pipe(Effect.map((png) => [path, png] as const)),
+    { concurrency: 8 },
+  ).pipe(
+    Effect.map((pairs): { readonly pngs: ReadonlyMap<string, Buffer> } => ({
+      pngs: new Map(pairs),
+    })),
+    Effect.tap(({ pngs }) => Effect.log(`skin pictures loaded (${pngs.size})`)),
+    Effect.orDie,
+  ),
+}) {}
+
+/**
+ * The application emoji a Skin's Match Thread lines use: "skin_Pink" for DA_Skin_Pink; null for
+ * a Skin the list doesn't know, which has no emoji.
+ */
+export const skinEmojiName = (path: string): string | null => {
+  const asset = SKINS.get(path);
+  return asset === undefined ? null : `skin_${asset.replace(/^DA_(Skin_)?/, "")}`;
+};

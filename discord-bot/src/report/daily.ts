@@ -6,6 +6,7 @@ import { SqlClient } from "@effect/sql";
 import { Cause, Clock, Config, Context, Effect, Layer, Option, Schema } from "effect";
 import { MigratorLive } from "../db.js";
 import { OpsAlerts } from "../ops.js";
+import { ChosenSkins } from "../ports.js";
 import { Renderer } from "../render/renderer.js";
 import { ReportChannel, ReportChannelLive } from "./channel.js";
 import {
@@ -79,9 +80,10 @@ export const ReportLogLive = Layer.effect(
 export const postReport = Effect.fn("postReport")(function* (report: Report) {
   const channel = yield* ReportChannel;
   const renderer = yield* Renderer;
+  const chosenSkins = yield* ChosenSkins;
   const tracks = yield* oldestTrackRecords(report.trackRecords);
   const maps = yield* oldestMapRecords(report.mapRecords);
-  const image = yield* renderer.standings(standingsImage(report));
+  const image = yield* renderer.standings(standingsImage(report, yield* chosenSkins.all));
   return yield* channel.post({
     content: headMessage(report),
     image,
