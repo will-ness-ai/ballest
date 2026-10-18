@@ -132,19 +132,19 @@ function draft(args: Array<string>) {
     title: typeof flags["--title"] === "string" ? flags["--title"] : undefined,
     slug: typeof flags["--slug"] === "string" ? flags["--slug"] : undefined,
   };
-  const p = plan(maps, missing, named);
-  if (p.kind === "untitled")
+  const planned = plan(maps, missing, named);
+  if (planned.kind === "untitled")
     fail("the Maps' titles share no words to name it by", [
       `pnpm --silent campaign draft ${query} --title "<title>"`,
     ]);
-  if (p.kind === "added") {
+  if (planned.kind === "added") {
     out([
-      `campaign: these Maps are already ${p.campaign.title} (${p.campaign.slug}) (no-op)`,
-      ...help([`pnpm --silent campaign check ${p.campaign.slug}`]),
+      `campaign: these Maps are already ${planned.campaign.title} (${planned.campaign.slug}) (no-op)`,
+      ...help([`pnpm --silent campaign check ${planned.campaign.slug}`]),
     ]);
     return;
   }
-  const { campaign: c, rows: table, problems, notes, entry } = p;
+  const { campaign: c, rows: table, problems, notes, entry } = planned;
   const { title, slug, creatorId: cid } = c;
 
   const lines = [
@@ -162,12 +162,12 @@ function draft(args: Array<string>) {
         ? "entry: not written while there are problems"
         : "entry: none while there are problems",
       ...help([
-        ...(p.slugTaken
+        ...(planned.slugTaken
           ? [
               `pnpm --silent campaign draft ${query} --title ${JSON.stringify(title)} --slug <another slug>`,
             ]
           : []),
-        ...(problems.length > (p.slugTaken ? 1 : 0)
+        ...(planned.mapsTaken
           ? ['pnpm --silent campaign draft "<the links without Maps another Campaign has>"']
           : []),
       ]),

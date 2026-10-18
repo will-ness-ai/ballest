@@ -116,13 +116,16 @@ export type Plan =
       problems: Array<string>;
       /* what to look at before writing it, one line each */
       notes: Array<string>;
+      /* which problems there are, for the next step: a Map another Campaign has, the slug */
+      mapsTaken: boolean;
       slugTaken: boolean;
       entry: string;
     };
 
 /* what `draft` makes of the Maps workshop_maps.py found (and the IDs that found none): the
    Campaign, named by --title and --slug or from its Maps' titles, made by whoever made most
-   of them, with its rows, problems, notes and entry */
+   of them, with its rows, problems, notes and entry. `list` stands in for CAMPAIGNS in the
+   no-op, slug and maker checks; which Campaign has a Map is always read from CAMPAIGNS */
 export function plan(
   found: ReadonlyArray<Found>,
   missing: ReadonlyArray<string>,
@@ -165,6 +168,7 @@ export function plan(
     rows: table,
     problems,
     notes,
+    mapsTaken: table.some((r) => r.problems.length),
     slugTaken: taken !== undefined,
     entry: entryText(campaign),
   };
