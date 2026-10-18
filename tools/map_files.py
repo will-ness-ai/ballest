@@ -11,18 +11,26 @@ arrives, so a budget stop or a later failure keeps what was written (`collect`).
 download starts after BUDGET; the rest wait for the next Refresh. A failed download, or a
 manifest with no map file, writes nothing and is tried again next run. The step never
 raises: a failure is a warning, and the Refresh it follows is already written.
+
+Run on its own (`python tools/map_files.py [--budget SECONDS] [--dev]`, by hand through
+`.github/workflows/map-files.yml`), it logs into Steam, takes the catalogue and downloads
+every due Map within the longer budget, to fill a backlog without waiting on Refreshes.
 """
 
+import argparse
 import asyncio
 import gzip
 import os
+import sys
 import time
 from asyncio import FIRST_COMPLETED
 from collections import Counter
 from datetime import UTC, datetime
 
+import campaign_common as cc
 import db_writer
 import psycopg
+import steam
 
 # downloads at once, and the step's wall-clock limit; the backlog waits for the next Refresh
 WORKERS = 4
@@ -81,6 +89,8 @@ async def collect(conn, todo, download, *, budget=BUDGET, workers=WORKERS, clock
                 continue
             except Exception as e:
                 failed[type(e).__name__] += 1
+                if failed[type(e).__name__] == 1:  # the counts alone don't say what broke
+                    print(f"  [warn] Map {m['pfid']}: {type(e).__name__}: {str(e)[:160]}")
                 continue
             await asyncio.to_thread(write, conn, m, data, datetime.now(UTC))
             written += 1
@@ -137,7 +147,7 @@ def steam_download(client):
     return download
 
 
-async def record_map_files(catalogue, download, *, scratch=False, env=None):
+async def record_map_files(catalogue, download, *, scratch=False, env=None, budget=BUDGET):
     """The Map file step, after the Refresh is in the database, while the Steam client is
     still connected. Returns how many files it wrote, or None when it was skipped or failed.
     Never raises. Revalidates the site when it wrote any, since the Map pages offer the 3D
@@ -151,7 +161,7 @@ async def record_map_files(catalogue, download, *, scratch=False, env=None):
         conn = await asyncio.to_thread(psycopg.connect, url, connect_timeout=30)
         try:
             todo = await asyncio.to_thread(due, conn, catalogue)
-            written, failed = await collect(conn, todo, download)
+            written, failed = await collect(conn, todo, download, budget=budget)
         finally:
             await asyncio.to_thread(conn.close)
     except Exception as e:
@@ -163,8 +173,57 @@ async def record_map_files(catalogue, download, *, scratch=False, env=None):
     print(
         f"Map files: {len(todo)} due, {written} written, {n_failed} failed"
         + (f" ({why})" if why else "")
-        + (f", {left} left for the next Refresh" if left else "")
+        + (f", {left} left for the next run" if left else "")
     )
     if written:
         await asyncio.to_thread(db_writer.revalidate, env)
     return written
+
+
+def main(argv=None):
+    """The step on its own: Steam login, the catalogue, every due Map within `--budget`."""
+    ap = argparse.ArgumentParser(description="Download every due Workshop Map's file.")
+    ap.add_argument("--budget", type=float, default=3600.0, help="seconds (default 3600)")
+    ap.add_argument("--dev", action="store_true", help="write DEV_DATABASE_URL only")
+    args = ap.parse_args(argv)
+
+    token, key = cc.load_refresh_token(), cc.load_key()
+    if not (token and key and db_writer.database_url(os.environ, scratch=args.dev)):
+        print("ERROR: needs STEAM_REFRESH_TOKEN, STEAM_API_KEY and the database's URL")
+        return 2
+    catalogue = cc.workshop_catalogue(key)
+    client = steam.Client()
+    result = {}
+
+    @client.event
+    async def on_ready():
+        # steam.py calls this again after a reconnect; the run is already under way
+        if "started" in result:
+            return
+        result["started"] = True
+        try:
+            result["written"] = await record_map_files(
+                catalogue, steam_download(client), scratch=args.dev, budget=args.budget
+            )
+        finally:
+            await client.close()
+
+    try:
+        client.run(refresh_token=token)
+    except Exception as e:
+        # steam.py often raises on the teardown after close(); only a run that never got
+        # to the step is a failure
+        if "written" not in result:
+            print(f"ERROR: Steam login/run failed: {e!r}")
+            return 1
+    written = result.get("written")
+    if not written:
+        # this run's whole job is downloading, so one that wrote nothing shows red (nothing
+        # due, every download failed, or the step skipped); the line above says which
+        print("::error::Map files: no file written")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

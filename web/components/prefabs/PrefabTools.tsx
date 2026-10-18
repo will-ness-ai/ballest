@@ -257,8 +257,8 @@ function OwnerTools({ p }: { p: PrefabPage }) {
       <dialog ref={del} className="pf-dialog">
         <h2>Delete {p.name}?</h2>
         <p>
-          It leaves the gallery and its link stops working. It still counts toward your uploads for
-          the next hour.
+          It leaves the gallery and its link stops working. It still counts toward your uploads
+          until an hour after you uploaded it.
         </p>
         <div className="pf-dlg-row">
           <button type="button" onClick={() => del.current?.close()}>

@@ -1,0 +1,88 @@
+name: Migrate production
+
+# By hand, with Will's typed OK: applies the migrations of the branch it runs on to the
+# production database, so a PR that adds a table gets a working preview before it merges
+# (previews read production and skip migrations; docs/agents/feature-workflow.md). Cloud
+# agent sessions can't reach Neon, so this is how they apply one. Run it once the branch's
+# migration is final: production keeps what it applies, and a later edit to that migration
+# no longer reaches it.
+#
+# It refuses a branch whose migrations are not main's plus new ones at the end, which is
+# what keeps production's history the one main will have after the merge.
+
+on:
+  workflow_dispatch: {}
+
+# Never alongside a refresh or a backfill: they write the tables a migration changes.
+concurrency:
+  group: refresh-leaderboards
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout, with main to compare against
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Refuse migrations that don't extend main's
+        run: |
+          main=$(git show origin/main:web/db/migrations/meta/_journal.json | jq -c '[.entries[].tag]')
+          here=$(jq -c '[.entries[].tag]' web/db/migrations/meta/_journal.json)
+          echo "main: $main"
+          echo "here: $here"
+          jq -e -n --argjson m "$main" --argjson h "$here" '$h[:($m|length)] == $m' > /dev/null \
+            || { echo "::error::this branch's migrations are not main's plus new ones; merge main first"; exit 1; }
+          git diff --quiet origin/main -- $(jq -r '.[]' <<<"$main" | sed 's|^|web/db/migrations/|; s|$|.sql|') \
+            || { echo "::error::this branch edits a migration main already has"; exit 1; }
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm --dir web install --frozen-lockfile
+
+      # Drizzle applies only entries newer than production's newest, so a migration another
+      # branch applied ahead of main would make this one skip silently: refuse that too.
+      - name: Refuse a production another branch migrated ahead of main
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        working-directory: web
+        run: |
+          node --input-type=module -e '
+            import pg from "pg";
+            import { readFileSync } from "node:fs";
+            import { execSync } from "node:child_process";
+            const when = (j) => j.entries.map((e) => e.when);
+            const mine = when(JSON.parse(readFileSync("db/migrations/meta/_journal.json", "utf8")));
+            const main = when(JSON.parse(execSync("git show origin/main:web/db/migrations/meta/_journal.json")));
+            const c = new pg.Client({ connectionString: process.env.DATABASE_URL });
+            await c.connect();
+            const { rows } = await c.query("select max(created_at)::text as at from drizzle.__drizzle_migrations");
+            await c.end();
+            const at = Number(rows[0].at);
+            console.log(`production newest: ${at}; main newest: ${Math.max(...main)}`);
+            if (at > Math.max(...main) && !mine.includes(at)) {
+              console.log("::error::production holds a migration from another branch; merge or roll that back first");
+              process.exit(1);
+            }
+          '
+
+      - name: Apply the migrations
+        env:
+          # the direct (unpooled) URL, which a migration's lock needs (web/scripts/migrate.mjs)
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node web/scripts/migrate.mjs

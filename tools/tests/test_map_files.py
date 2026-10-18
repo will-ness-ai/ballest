@@ -235,6 +235,7 @@ def test_the_step_downloads_only_new_or_changed_files_and_revalidates(db_url, ca
     assert calls == ["3", "2"]  # most subscribed first; "1" is unchanged
     out = capsys.readouterr().out
     assert "2 due, 1 written, 1 failed (OSError 1)" in out
+    assert "Map 3: OSError: timeout" in out  # what broke, not just how often
     assert "not revalidating" in out  # it tried: no SITE_URL in this env
 
 
@@ -274,3 +275,17 @@ def test_a_database_failure_is_a_warning_and_does_not_raise(capsys):
     n = asyncio.run(map_files.record_map_files([cat("1", "h", 1)], fake_download({}), env=env))
     assert n is None
     assert "::warning::" in capsys.readouterr().out
+
+
+def test_the_step_takes_a_budget_for_a_backlog_run(db_url, capsys):
+    calls = []
+    n = asyncio.run(
+        map_files.record_map_files(
+            [cat("1", "h1", 9)],
+            fake_download({"1": BALLMAP}, calls),
+            env={"DATABASE_URL": db_url},
+            budget=0,
+        )
+    )
+    assert (n, calls) == (0, [])  # no download starts once the budget is spent
+    assert "1 due, 0 written, 0 failed, 1 left" in capsys.readouterr().out
