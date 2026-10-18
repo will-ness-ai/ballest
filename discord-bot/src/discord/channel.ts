@@ -237,7 +237,7 @@ export const DiscordChannelLive = Layer.scoped(
       ) {
         const thread = yield* fetchThread(threadId);
         const png = yield* threadPng(post);
-        const art: ThreadArt = { marbles, png };
+        const art: ThreadArt = { marbles: yield* marbles.current, png };
         yield* tryDiscord(`post ${post._tag}`, () =>
           thread.send(threadMessage(matchId, post, art)),
         );
