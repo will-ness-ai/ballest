@@ -85,7 +85,7 @@ export const leadLine = (
     return `${at}🏁 ${names(next.leaders)} ${next.leaders.length === 1 ? "sets" : "set"} the first time: ${bold(dailyTime(next.ticks))}`;
   const joined = joinedLead(last, next);
   if (joined.length > 0)
-    return `${at}🤝 ${names(joined)} ${joined.length === 1 ? "ties" : "tie"} ${names(last.leaders)} for the lead: ${bold(dailyTime(next.ticks))}`;
+    return `${at}🤝 ${names(joined)} ${joined.length === 1 ? "ties" : "tie"} ${names(last.leaders.filter((n) => next.leaders.includes(n)))} for the lead: ${bold(dailyTime(next.ticks))}`;
   if (sameTime(next.ticks, last.ticks) || millis(next.ticks) > millis(last.ticks)) return null;
   // A faster time: whoever led before and doesn't now has lost the lead to it.
   const lost = last.leaders.filter((n) => !next.leaders.includes(n));

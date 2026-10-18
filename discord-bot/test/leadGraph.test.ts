@@ -101,10 +101,7 @@ describe("the Daily Post's lead graph", () => {
     const scene = leadGraphScene({
       opensAt: OPENS,
       closesAt: OPENS + 24 * H,
-      leads: [
-        lead(1, ["A", "B"], 9.0),
-        { at: OPENS + 2 * H, leaders: ["A", "C"], ticks: ticks(9.0) },
-      ],
+      leads: [lead(1, ["A", "B"], 9.0), lead(2, ["A", "C"], 9.0)],
       now: OPENS + 3 * H,
     });
     expect(textsOf(scene)).toContain("C ties");
@@ -114,10 +111,10 @@ describe("the Daily Post's lead graph", () => {
     const scene = leadGraphScene({
       opensAt: OPENS,
       closesAt: OPENS + 24 * H,
-      leads: [lead(1, ["A"], 9.0), { at: OPENS + 2 * H, leaders: ["A", "B"], ticks: ticks(9.1) }],
+      leads: [lead(1, ["A"], 9.0), lead(2, ["A", "B"], 9.1)],
       now: OPENS + 3 * H,
     });
-    expect(textsOf(scene)).not.toContain("B ties");
+    expect(textsOf(scene).filter((s) => s.endsWith(" ties"))).toEqual([]);
   });
 
   it("colours leaders in the order they first led, a fifth in the neutral dim", () => {

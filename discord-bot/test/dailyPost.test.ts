@@ -226,8 +226,8 @@ describe("a Daily Post's thread lines", () => {
 
   it("posts a newcomer at the same time as a tie, though a tied leader left", () => {
     const history = [lead(8, ["airman", "snayK"], 8.532)];
-    expect(leadLine(history, lead(9, ["airman", "FEDUS"], 8.532))).toContain(
-      "🤝 **FEDUS** ties **airman** & **snayK** for the lead",
+    expect(leadLine(history, lead(9, ["airman", "FEDUS"], 8.532))).toBe(
+      "-# <t:1792317600:t> · 🤝 **FEDUS** ties **airman** for the lead: **0:08.532**",
     );
   });
 
@@ -238,7 +238,7 @@ describe("a Daily Post's thread lines", () => {
   it("names a tied leader left behind by the other's faster time", () => {
     const history = [lead(8, ["airman"], 8.6), lead(10, ["airman", "snayK"], 8.6)];
     expect(leadLine(history, lead(12, ["airman"], 8.5))).toContain(
-      "🏁 **airman** takes the lead from **snayK**, who held it for 2h ·",
+      "🏁 **airman** takes the lead from **snayK**, who held it for 2h · 0:08.600 → **0:08.500** (−0.100 s)",
     );
   });
 
