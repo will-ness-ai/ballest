@@ -47,12 +47,14 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   (`docs/data.md`, "Ghosts"; `docs/site.md`, "Ball skins").
 - `tools/map_files.py` — the collector's Map file step, after the Ghost step: downloads each
   Workshop Map's new or changed file into `map_files` for the 3D view (`docs/data.md`, "Map files").
+  `map-files.yml`, by hand, runs it alone for an hour to fill a backlog.
 - `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
   Workshop links) and prints the `maps:` line; `docs/site.md`, "Campaigns".
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, writes the Refresh to the database
   and revalidates the site's cached reads; it commits nothing. `backfill.yml`, by hand only,
   runs the backfill against an empty production (cloud sessions can't reach Neon) in the
-  same concurrency group.
+  same concurrency group. `migrate.yml`, by hand with Will's OK, applies a branch's
+  migrations to production before it merges.
 - `.github/workflows/vercel-usage.yml` — daily, runs `tools/vercel_usage.py`, which reports the
   Vercel team's plan and renewal, this cycle against Pro's Flat Rate CDN tier, and whether the
   last 30 days would fit Hobby, to the private ops channel (`OPS_WEBHOOK_URL`). It posts on

@@ -205,6 +205,8 @@ def collect(ugc_ids, read_one, *, budget=BUDGET, workers=WORKERS, clock=time.mon
                 rows.append(Ghost(u, "gone"))
             except Exception as e:
                 failed[type(e).__name__] += 1
+                if failed[type(e).__name__] == 1:  # the counts alone don't say what broke
+                    print(f"  [warn] Ghost {u}: {type(e).__name__}: {str(e)[:160]}")
 
     try:
         while True:

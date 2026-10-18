@@ -102,10 +102,13 @@ PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` 
 A PR that adds a table can't get a working preview: previews read the production
 database and skip migrations, so a page that reads the table fails to build until production
 has it. To check it there before the merge, ask Will in the thread for a typed OK to apply that
-migration to production (his PC's permission check accepts only a typed message, not a card's tap), then
-start a Remote Control session on his PC with the steps in its brief (`migrate.mjs` against
-production, then any backfill), since nothing can message it once it runs. The real fix is a
-Neon branch per preview.
+migration to production, then, once the migration is final, run `.github/workflows/migrate.yml`
+on the PR's branch (`gh api -X POST repos/will-ness-ai/ballest/actions/workflows/migrate.yml/dispatches -f ref=<branch>`).
+It refuses a branch whose migrations aren't main's plus new ones, so merge main first, or when
+another branch's migration already ran ahead of main. Then redeploy the preview
+(`npx vercel redeploy <preview url> --token "$VERCEL_TOKEN"`). From then on that PR merges
+before any other PR with a migration: Drizzle applies only migrations newer than production's
+newest, so an older one merged after it would be skipped without an error (regenerate it if so). The real fix is a Neon branch per preview.
 
 Merge `main` into the branch before marking it ready and again just before it merges, even
 when GitHub shows no conflict. A long PR outlives conventions: while #152 was open, `main`
