@@ -12,12 +12,12 @@ one answer, where each call's **intermediate result** passes through the window 
 next call. A loop is a chain whose links repeat (poll, check, sleep, poll); most chains don't
 (read a config, query a service, filter the answer, open a file). The tool runs the chain itself
 and prints the **minimally relevant context**: what the agent would have gone on to use, and
-nothing else. Fewer turns, a smaller window, the same facts in hand.
+nothing else.
 
 Two pieces of Anthropic's research name this. [Writing effective tools for
 agents](https://www.anthropic.com/engineering/writing-tools-for-agents) builds one tool for
 "frequently chained, multi-step tasks" (`schedule_event` over list-then-create, `search_logs`
-over `read_logs`) and finds those chains by counting calls and tokens in transcripts. [Code
+over `read_logs`) and tracks tool calls to reveal the workflows agents keep chaining. [Code
 execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) keeps
 intermediate results out of the window by running the chain in code, so the agent sees "five
 rows instead of 10,000". A chain that recurs across sessions earns a tool built here; a one-off
@@ -47,15 +47,15 @@ in the part you touch.
    the turns and tokens before and after.
 2. **Shape the commands.** One entry point with subcommands, run the way the package runs
    scripts (`pnpm --silent <name>` in a Node package, `python tools/<name>.py` in Python). Write
-   each command's `--help` first, from the rules below. Done when every link of the chain maps to
-   one command, and the bare run's output is sketched.
+   each command's `--help` first, from the rules below. Done when each answer the chain reached
+   is one command whose links run inside it, and the bare run's output is sketched.
 3. **Build it** to the rules below, with tests for its parsing and row formatting (as
    `discord-bot/test/axiDescribe.test.ts` does). Done when every rule is met or its absence is
    a deliberate choice you can name, and the tests pass.
 4. **Run it as the agent will.** In a fresh shell: the bare run, each command's happy path, an
    empty result, a misspelt flag, a missing argument and a dependency failure (network down,
    process not running). Done when each output alone tells the agent its next step, nothing
-   leaks a stack trace, and the chain from step 1 takes the turns you promised.
+   leaks a stack trace, and the chain from step 1 takes the turns and tokens you promised.
 5. **Point at it.** Add one line where agents working in that area already look (the package's
    `AGENTS.md`, the `docs/` page, the skill that drives the work), naming the command and when to
    run it; its `--help` carries the rest. Call the Skill tool for 'writing-for-agents', and word
@@ -70,14 +70,12 @@ in the part you touch.
   `matches[3]{id,state,players}:` then one comma-separated line each, quoting any value that
   holds a comma, a colon or a quote. Detail views print `key: value` lines. Plain text, no
   colour, no space-padded tables.
-- **Few fields, enough rows.** A list row carries what lets the agent pick the next call: an
-  id, a name, a state. Everything else waits for the detail view or `--full`. Default limits
-  cover the common case in one call.
+- **Few fields, enough rows.** A list row carries what lets the agent pick the next call: a
+  name and a state it reasons with, and an id only where a next command takes one. Everything
+  else waits for the detail view or `--full`. Default limits cover the common case in one call.
 - **Cut long text with its size.** A long value prints its first 500-1500 characters and
   `… (truncated, 8432 chars total; use --full)`. Images and other files are written to disk and
   printed as paths for the agent to read.
-- **Meaning over ids.** Print names and states the agent reasons with; keep an id only where a
-  next command takes it.
 - **Answer the next question too.** Include the totals and summaries the agent would otherwise
   fetch next: `count: 30 of 847`, `checks: 3/3 passed`, `errors: 2`. Only what is cheap to
   compute.
@@ -94,6 +92,9 @@ in the part you touch.
   commands that follow from it, carrying the flags in use and `<id>`-style placeholders for
   values the agent must fill. Offer a few directions, not a fixed sequence. A detail view that
   fully answers leaves it out.
+- **The chain runs inside.** Each lookup, filter and join the agent would have made happens in
+  the tool; only the answer prints. Intermediate results stay out of stdout, or go to a file
+  whose path prints when the agent may need them later.
 - **Waits are commands.** When the agent would otherwise poll (a log line, a message, a window),
   give it a `wait <pattern>` that returns when it matches and says so when it times out.
 - **Mutations repeat safely.** Asking for a state that already holds succeeds with `(no-op)`.
