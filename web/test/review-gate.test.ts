@@ -235,19 +235,33 @@ describe("unreviewed", () => {
       "codebase-design": ["a"],
     });
   });
+
+  test("a run on a picture commit counts as a run on the PR", () => {
+    const pictures = (c: string) => (c === "a" ? null : 5);
+    const records = [
+      { skill: "code-review", sha: "a" },
+      { skill: "codebase-design", sha: "a" },
+    ];
+    expect(unreviewed(["a", "b"], records, isAncestor, pictures)).toEqual({
+      "code-review": [],
+      "codebase-design": [],
+    });
+  });
 });
 
 describe("linesChanged", () => {
   test("adds up a commit's added and removed lines", () => {
     expect(linesChanged("3\t1\tweb/a.ts\n2\t0\tdocs/b.md\n")).toBe(6);
-    // a merge commit shows no files
-    expect(linesChanged("")).toBe(0);
   });
 
   test("leaves pictures out, and is null when a commit changes nothing else", () => {
     expect(linesChanged("-\t-\tskins/DA_LBall.webp\n")).toBeNull();
     expect(linesChanged("-\t-\tog.png\n-\t-\tskins/{a.webp => b.webp}\n")).toBeNull();
     expect(linesChanged("-\t-\tcircuit/Track 1.webp\n4\t4\tweb/lib/skins.ts\n")).toBe(8);
+  });
+
+  test("a picture git reads as text counts its lines", () => {
+    expect(linesChanged("12\t3\tfavicon.svg\n")).toBe(15);
   });
 
   test("any other binary file is too big to skip", () => {

@@ -119,14 +119,15 @@ tile icons and notes on which skins animate): the plain colours are shot with th
 slider at 0, which most players use, and an animated skin (Spirit, Disco, Magma) is one
 frame of it.
 
-To reshoot one, as #275 did for Leth: in a sandbox slot (`docs/agents/plugins.md`), open
-Customize (`call WBP_MainMenu_UIManager_C DoCustomize Transient`, `cosmode public`), press
-the skin with `cosmetictile -<n>` and take a `shot`. `-<n>` counts the collection, special,
-medal and basic grids in that order, not the order the page shows them (Leth is -9). A
-special skin is its own actor over the menu ball, turned with `K2_SetActorRotation` (Leth's
-`BP_LBall05`: pitch 59.638, yaw 90.957, roll 96.401 puts its logo to the camera). Crop the
-209px box at (581, 269) of the 1280×720 shot, scale it to 192px, and take the round cut
-from another skin's alpha so every edge matches.
+To reshoot one, as #275 did for Leth (this replaces the prototype notes' steps): in a
+sandbox slot (`docs/agents/plugins.md`), open Customize (`call WBP_MainMenu_UIManager_C
+DoCustomize Transient`, `cosmode public`), press the skin with `cosmetictile -<n>` and take
+a `shot`. `-<n>` counts the collection, special, medal and basic grids in that order, not
+the order the page shows them (Leth is -9). A special skin (Leth, Snow Globe) is its own
+actor over the menu ball, turned with `callx <class> K2_SetActorRotation <id> |
+v:<pitch>,<yaw>,<roll> | b:0` (Leth's `BP_LBall05_C` at 59.638, 90.957, 96.401 puts its logo
+to the camera). Crop the 209px box at (581, 269) of the 1280×720 shot, scale it to 192px,
+and take the round cut from another skin's alpha so every edge matches.
 
 ## Share images
 

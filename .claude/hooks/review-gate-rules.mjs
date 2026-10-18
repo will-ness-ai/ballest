@@ -138,7 +138,7 @@ export const FOLLOW_UP_LINES = 40;
 
 // A picture (a skin, a screenshot) has no lines to review (Will, 2026-10-18, after PR #275
 // ran both skills on one .webp). Any other binary file can't be read, so it is never small.
-const PICTURE = /\.(?:webp|png|jpe?g|gif|avif|ico|svg)\}?$/i;
+const PICTURE = /\.(?:webp|png|jpe?g|gif|avif|ico)\}?$/i;
 
 /* The lines a commit's `git show --numstat` adds and removes, pictures left out: null when it
    changes nothing but pictures, Infinity when it changes another binary file. */
@@ -148,10 +148,11 @@ export function linesChanged(numstat) {
     .filter(Boolean)
     .map((line) => line.split("\t"));
   const files = all.filter(([added, , path]) => !(added === "-" && PICTURE.test(path)));
-  // a merge commit shows no files, and is no picture
+  // an empty commit is no picture
   if (all.length && !files.length) return null;
   return files.reduce(
-    (sum, [added, removed]) => (added === "-" ? Infinity : sum + Number(added) + Number(removed)),
+    (sum, [added, removed]) =>
+      added === "-" ? Infinity : sum + (Number(added) || 0) + (Number(removed) || 0),
     0,
   );
 }
@@ -160,14 +161,17 @@ export function linesChanged(numstat) {
    commit before it, and once it has run on the PR, later commits that change fewer than
    FOLLOW_UP_LINES lines in all pass too. A commit of only pictures needs no run. `records`
    are { skill, sha }, `isAncestor(a, b)` is git's, `linesOf(sha)` is linesChanged's. */
-export function unreviewed(allCommits, records, isAncestor, linesOf) {
-  const commits = allCommits.filter((c) => linesOf(c) !== null);
+export function unreviewed(commits, records, isAncestor, linesOf) {
+  const linesIn = new Map(commits.map((c) => [c, linesOf(c)]));
+  const reviewable = commits.filter((c) => linesIn.get(c) !== null);
   return Object.fromEntries(
     SKILLS.map((skill) => {
       const seen = records.filter((r) => r.skill === skill).map((r) => r.sha);
-      const missing = commits.filter((c) => !seen.some((s) => isAncestor(c, s)));
-      const lines = missing.reduce((sum, c) => sum + linesOf(c), 0);
-      const followUp = missing.length < commits.length && lines < FOLLOW_UP_LINES;
+      const sees = (c) => seen.some((s) => isAncestor(c, s));
+      const missing = reviewable.filter((c) => !sees(c));
+      const lines = missing.reduce((sum, c) => sum + linesIn.get(c), 0);
+      // a run on one of the PR's picture commits is a run on the PR too
+      const followUp = commits.some(sees) && lines < FOLLOW_UP_LINES;
       return [skill, followUp ? [] : missing];
     }),
   );
