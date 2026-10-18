@@ -21,6 +21,8 @@ import "./styles/history.css";
 import "./styles/daily.css";
 import "./styles/you.css";
 import "./styles/prefabs.css";
+import { ProtoPicker } from "../components/prototype/SkinPick"; // PROTOTYPE
+import "./styles/prototype.css"; // PROTOTYPE
 import "./styles/desktop.css";
 
 const DESCRIPTION =
@@ -84,6 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <LegacyHash />
         <MarbleFlip />
+        <ProtoPicker /> {/* PROTOTYPE */}
       </body>
     </html>
   );

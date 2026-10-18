@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { ProtoYouSection } from "../../components/prototype/SkinPick"; // PROTOTYPE
 import { Shell } from "../../components/Shell";
 import { YouSkeleton } from "../../components/Skeleton";
 import { YouView } from "../../components/you/YouView";
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
 export default function Page() {
   return (
     <Shell view="you">
+      <ProtoYouSection /> {/* PROTOTYPE */}
       <Suspense fallback={<YouSkeleton />}>
         <YouView />
       </Suspense>

@@ -39,6 +39,16 @@ const readMe = readOnce(async (): Promise<string | null> => {
 export function useSession(): string | null | undefined {
   const signedIn = useSyncExternalStore(onReturn, hinted, () => null);
   const got = useRead(readMe, signedIn ? "me" : null);
+  /* PROTOTYPE: ?as=<steamId> signs the page in as that player */
+  const as = useSyncExternalStore(
+    onReturn,
+    () => new URLSearchParams(location.search).get("as") ?? sessionStorage.getItem("proto-as"),
+    () => null,
+  );
+  if (as && isSteamId(as)) {
+    sessionStorage.setItem("proto-as", as);
+    return as;
+  }
   if (signedIn === null) return undefined;
   if (!signedIn) return null;
   return got ? got.value : undefined;

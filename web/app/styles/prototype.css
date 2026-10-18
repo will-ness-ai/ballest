@@ -1,0 +1,296 @@
+/* PROTOTYPE: grill-design for the Chosen Skin picker (claude/prototype-skin-pick). Never
+   merged. */
+
+/* the shared pieces */
+.pk-ball {
+  display: block;
+  inline-size: var(--s);
+  block-size: var(--s);
+  flex: none;
+}
+.pk-ball img,
+.pk-none {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: 50%;
+}
+.pk-none {
+  border: 2px dashed var(--faint);
+}
+.pk-lead {
+  margin: 0;
+  font-size: calc(13rem / 16);
+  color: var(--faint);
+}
+.pk-groups {
+  display: grid;
+  gap: 12px;
+}
+.pk-groups h3 {
+  margin: 0 0 6px;
+}
+.pk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 4px;
+}
+.pk-cell {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px 2px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: calc(11rem / 16);
+  cursor: pointer;
+}
+.pk-cell:hover {
+  background: var(--surface);
+}
+.pk-cell[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.pk-name {
+  line-height: 1.15;
+  text-align: center;
+}
+
+/* A: the dialog, opened from your marble */
+.pkA {
+  inline-size: min(560px, calc(100% - 32px));
+}
+.pkA-open {
+  margin-inline-start: 8px;
+}
+.pid .marble.pkA-edit {
+  cursor: pointer;
+}
+.pid .marble.pkA-edit::before {
+  content: "✎";
+  position: absolute;
+  inset-block-end: -2px;
+  inset-inline-end: -2px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  inline-size: 22px;
+  block-size: 22px;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* B: the header card opens a menu */
+.pkB-menu {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  gap: 10px;
+  inline-size: min(340px, calc(100vw - 24px));
+  max-block-size: calc(100dvh - 120px);
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--solid);
+  box-shadow: 0 20px 60px oklch(0% 0 none / 0.6);
+}
+.pkB-menu h3 {
+  margin: 0;
+}
+.pkB-menu .pk-grid {
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+}
+.pkB-menu .pk-name {
+  display: none;
+}
+.pkB-me {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.pkB-me span {
+  display: grid;
+}
+.pkB-me small {
+  color: var(--faint);
+}
+.pkB-link {
+  display: block;
+  inline-size: 100%;
+  padding: 8px 0 0;
+  border: 0;
+  border-block-start: 1px solid var(--line2);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: calc(14rem / 16);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* C: a card at the top of Where you stand */
+.pkC {
+  display: grid;
+  gap: 12px;
+  margin: 0 var(--pad) 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.pkC-me {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.pkC-me span {
+  display: grid;
+}
+.pkC-me b {
+  font: 600 calc(18rem / 16) var(--f-hud);
+}
+.pkC-me small:last-child {
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+}
+.pkC-strip {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-block-end: 4px;
+}
+.pkC-strip .pk-cell {
+  scroll-snap-align: start;
+  padding: 6px;
+}
+
+/* D: an inline grid on your page */
+.pkD {
+  display: grid;
+  gap: 10px;
+  flex-basis: 100%;
+  margin-block-start: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.pkD-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.pkD-head h2 {
+  margin: 0;
+}
+.pkD-now {
+  font-family: var(--f-hud);
+  font-weight: 600;
+}
+.pkD .pk-grid {
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+}
+.pkD .pk-name {
+  display: none;
+}
+
+/* E: a spinner on your page */
+.pkE {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin-block-start: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: radial-gradient(circle at 50% 40%, var(--glow-lime), transparent 70%), var(--surface);
+}
+.pkE h2 {
+  margin: 0;
+  justify-self: start;
+}
+.pkE-stage {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.pkE-stage button {
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.pkE-name {
+  font: 700 calc(18rem / 16) var(--f-hud);
+}
+.pkE-count {
+  color: var(--faint);
+}
+.pkE-use {
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 calc(14rem / 16) var(--f-hud);
+  cursor: pointer;
+}
+.pkE-on {
+  padding: 8px 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* the picker: plainly not part of the design */
+.proto-picker {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 9999;
+  display: grid;
+  gap: 6px;
+  max-width: calc(100vw - 28px);
+  padding: 8px 10px;
+  border: 2px solid #000;
+  border-radius: 14px;
+  background: #ff0;
+  color: #000;
+  font:
+    600 13px system-ui,
+    sans-serif;
+  box-shadow: 0 6px 24px #0008;
+  cursor: grab;
+  touch-action: none;
+}
+.pp-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.proto-picker button {
+  padding: 3px 8px;
+  border: 1px solid #000;
+  border-radius: 8px;
+  background: #fff;
+  color: #000;
+  font: inherit;
+  cursor: pointer;
+}

@@ -17,6 +17,7 @@ import type { PlayerCampaign } from "../../db/data";
 import type { PlayerRecord, SeasonRecord, TrackTile } from "../../lib/player";
 import type { DailyCell, PlayerDailies } from "../../lib/rows";
 import { boardHref, playerHref, type PlayerTab } from "../../lib/routes";
+import { ProtoOwnPage } from "../prototype/SkinPick"; // PROTOTYPE
 import { fmtN, fmtTime, ord, pctOf, personaOf, plural, safeUrl, shortGap } from "../../lib/rules";
 
 /* a player's page's tabs, in order; Made only for someone who published a Map */
@@ -199,6 +200,7 @@ export function PlayerView({
                 </>
               ) : null}{" "}
               <SignOut id={rec.id} />
+              <ProtoOwnPage id={rec.id} /> {/* PROTOTYPE */}
             </span>{" "}
             <CompareButton keep={rec.who} />{" "}
             {url ? (

@@ -8,6 +8,7 @@ import { Freshness } from "./Freshness";
 import { GroupTabs, Tabs, type GroupTab } from "./GroupTabs";
 import { Rack } from "./Marble";
 import { YouCard } from "./YouCard";
+import { ProtoYouMenu } from "./prototype/SkinPick"; // PROTOTYPE
 import { getDailyDates, getSite, hasWorkshop } from "../db/data";
 import { seasonsOf } from "../lib/player";
 import {
@@ -64,6 +65,7 @@ export async function Shell({ view, children }: { view: View; children: React.Re
         <p className="tagline">Circuit and Workshop leaderboards</p>
         <Freshness refreshedAt={site.refreshedAt} mapsReadBy={site.mapsReadBy} />
         <YouCard />
+        <ProtoYouMenu /> {/* PROTOTYPE */}
       </header>
 
       <Suspense fallback={<Tabs tabs={list} on={null} />}>
