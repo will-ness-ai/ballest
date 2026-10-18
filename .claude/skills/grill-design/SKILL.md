@@ -18,22 +18,25 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
    git worktree add ../ballest-prototype-<slug> -b claude/prototype-<slug> origin/main
    ```
 
-2. Serve it on a free port, from the worktree's root:
+2. Give the worktree its own `pnpm install --prefer-offline` in `web/` (Turbopack rejects a
+   symlinked `node_modules`), then serve it on a free port against a database backfilled
+   from `data/`'s git history (`docs/data.md`), so every board and player is real:
 
    ```bash
-   python -m http.server <port> -d ../ballest-prototype-<slug>
+   pnpm --dir ../ballest-prototype-<slug>/web dev:up <port>
    ```
 
-   (the `ballest` config in `.claude/launch.json` does the same with no caching when
-   started from the worktree). For the bot's Activity, run `pnpm --dir discord-bot
-   activity:demo` in the worktree instead (port 8740). Point it at a database backfilled
-   from `data/`'s git history (`docs/data.md`), so every board and player is real.
+   `dev:down <port>` stops it. For the bot's Activity, run `pnpm --dir discord-bot activity:demo` in the worktree
+   instead (port 8740). Push the branch too: its Vercel preview is a link the user can open
+   away from their PC.
 
 3. Hand the user the URL with the route the feature lives on, e.g.
-   `http://localhost:<port>/?variant=A#/players`. If the session runs in the cloud and the
+   `http://localhost:<port>/players?variant=A`. If the session runs in the cloud and the
    user cannot open its localhost, screenshot each variant and state with Playwright
    (Chromium is preinstalled) and post the images instead, keeping the URL for when they
-   run it themselves.
+   run it themselves. Shoot at `deviceScaleFactor: 1`, clipped to the feature's element,
+   as JPEG (`quality: 80`) at most 1000px wide. Read one per round to check the shots came
+   out and send the rest unread: every image read stays in context for the session.
 
 ## Each round
 

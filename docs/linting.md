@@ -26,7 +26,7 @@ ruff==0.15.20`; CI pins that version). A cloud session gets the installs from
 so there the cloud environment's setup script runs that file:
 
 ```bash
-CLAUDE_CODE_REMOTE=true CLAUDE_PROJECT_DIR=/home/user/ballest /home/user/ballest/.claude/hooks/session-start.sh
+CLAUDE_CODE_REMOTE=true /home/user/ballest/.claude/hooks/session-start.sh
 ```
 
 and a thread whose container restarted runs the same line itself. Every Ruff script in
@@ -35,6 +35,13 @@ which `pnpm --dir web exec next typegen` writes (CI runs it first).
 
 - `pnpm format` rewrites everything; `pnpm lint:fix` applies the safe lint fixes.
 - `pnpm check` is what CI runs: `format:check` then `lint`.
+- `git push` runs `pnpm check` first (`.githooks/pre-push`, about a minute) and stops on a
+  failure. A root `pnpm install` that installs anything turns it on (`prepare` sets
+  `core.hooksPath`), and so does `session-start.sh`; in an older checkout, run
+  `git config core.hooksPath .githooks` once. `git push --no-verify` skips it.
+- A database test that can't reach Postgres fails with a message naming
+  `service postgresql start` (pytest stops at the first): a cloud container stops Postgres
+  when it restarts.
 
 ## Settled choices
 

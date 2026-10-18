@@ -40,6 +40,11 @@ const ROUTES = [
   ["/map/" + MAP, 200, null, "Marble Run"],
   ["/map/" + MAP + "/" + P1, 200],
   ["/map/" + MAP + "/nope", 404],
+  // Marble Run's file and its 3D button; Loop de Loop's file hasn't been read
+  ["/map/" + MAP, 200, null, "See it in 3D"],
+  ["/map/" + MAP + "/file?v=5101012345678901234", 200, null, '"userLevelName": "Marble Run"'],
+  ["/map/9000000002/file", 404],
+  ["/map/" + MAP + "/file/x", 404],
   /* stress lists one curated Campaign's Map, Solar Trials' first (Mercury), so Solar Trials
      is listed and every other Campaign isn't. A path no curated Campaign can have is a real
      404 (proxy.ts); an unlisted Campaign, or a Map of a listed one the Workshop doesn't
@@ -197,6 +202,44 @@ const STATIC = [
 
 const failures = [];
 let checked = 0;
+
+// Every page the app defines answers 200 on at least one route above, so a new kind of page
+// gets seed data (tiny or stress) and a route here with the code that adds it, rather than
+// being checked only by its 404s.
+function appPages(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory()
+      ? appPages(join(dir, e.name))
+      : e.name === "page.tsx"
+        ? [posix.relative(join(root, "web/app"), dir).split("/").filter(Boolean)]
+        : [],
+  );
+}
+/* a route group `(x)` or a parallel route `@x` adds no path segment */
+const routeRegex = (segs) =>
+  new RegExp(
+    "^" +
+      segs
+        .filter((s) => !s.startsWith("(") && !s.startsWith("@"))
+        .map((s) =>
+          s.startsWith("[[...")
+            ? "(/[^?]+)?"
+            : s.startsWith("[...")
+              ? "/[^?]+"
+              : s.startsWith("[")
+                ? "/[^/?]+"
+                : "/" + s,
+        )
+        .join("") +
+      "/?(\\?.*)?$",
+  );
+const served = ROUTES.filter(([, status, , text]) => status === 200 && text !== SOFT_404);
+for (const segs of appPages(join(root, "web/app"))) {
+  checked++;
+  const re = routeRegex(segs);
+  if (!served.some(([path]) => re.test(path)))
+    failures.push(`/${segs.join("/")}: no route above answers it with a page`);
+}
 
 for (const [path, status, location, text] of ROUTES) {
   checked++;

@@ -7,7 +7,8 @@ Maps' boards current, reading only the ones played since the last run
 (collect_workshop), reads the Dailies the developers' API names (collect_dailies),
 resolves player names via the Steam Web API, and writes it all to the database as one
 Refresh (db_writer.record_refresh). Last, the Ghosts of the top runs are read for their
-skins (ghosts.record_ghosts), into the same database.
+skins (ghosts.record_ghosts), and the Workshop Maps' new or changed files are downloaded
+(map_files.record_map_files), into the same database.
 
 The database is the only place it writes and the only memory it has between runs: each
 Map's board ID and Workshop counters, when it last read every Map, and every player's
@@ -44,6 +45,7 @@ import campaign_common as cc
 import daily
 import db_writer
 import ghosts
+import map_files
 
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
 
@@ -272,7 +274,7 @@ async def on_ready():
             + list(workshop["boards"].values() if workshop else [])
             + [r.rows for r in dailies if r.ok],
             all_ids,
-            memory.names,
+            memory,
         )
         if failed:
             print(f"NOTE: {len(failed)} board(s) not read, left as they were: {failed}")
@@ -297,6 +299,14 @@ async def on_ready():
             await asyncio.to_thread(ghosts.record_ghosts, scratch=DEV)
         except Exception as e:
             print(f"::warning::Ghost step failed: {type(e).__name__}")
+        # Each Workshop Map's file, new or changed since the last run, for the site's 3D
+        # view: needs the client, so before it closes; never fails the run.
+        try:
+            await map_files.record_map_files(
+                _state["catalogue"], map_files.steam_download(client), scratch=DEV
+            )
+        except Exception as e:
+            print(f"::warning::Map file step failed: {type(e).__name__}")
     except Exception as e:
         _state["error"] = e
         traceback.print_exc()

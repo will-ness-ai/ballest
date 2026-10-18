@@ -33,6 +33,9 @@ visible surface.
 Write the verdicts from steps 1 and 2 into a spec issue (labelled `ready-for-agent`) that
 names the prototype branch, then split it into tickets with their blocking edges. A
 feature small enough for one ticket still gets one, so `/implement-spec` has its frontier.
+A feature that adds pages gives the `tiny` or `stress` seed (`web/db/seed/`) the data they need in its
+first ticket, with smoke routes and `qa` catalogue rows, so CI draws every later ticket's
+pages instead of a 404.
 
 ## 4. Build and open the PR: `/implement-spec`
 
@@ -44,17 +47,37 @@ that closes the spec and its tickets as soon as the branch has a commit.
 It stays a draft through steps 5 and 6: step 7 marks it ready, in place of
 `/implement-spec`'s own step 8.
 
+Each implementer's brief says:
+
+- **Commit as you go.** Commit and push after each piece that passes its tests. A cloud
+  container restart stops a running subagent, and only what it pushed survives for the next
+  one to pick up.
+- **One plain command per call.** The worktree guard refuses a compound command (`&&`, a
+  pipe, `cd` then a command) as too complex to check, so run `git -C <worktree> ...` and
+  tools with absolute paths, one per call.
+- **Look at a page** with `qa check` (step 7), or `pnpm --silent qa shot <view> --el <selector>`
+  for one element at one width: every image read stays in context for the session.
+
 ## 5. Review: `/code-review`
 
 Review the branch against `main` on both axes: `CODING_STANDARDS.md` (with every invariant
 in `CLAUDE.md`) and the spec. `/implement-spec` runs this as its own step 7; that run is the
-final review, so it isn't repeated. Fix every finding before moving on. Commits that land
+final review, so it isn't repeated. Fix every finding before moving on, checking one that
+asks for something the spec never named against `CODING_STANDARDS.md` first: #212 built a
+real 404 the standards rule out, then deleted it. Commits that land
 after it (a fix found while testing, dev tooling) get `/code-review` since the last reviewed
 commit before the merge.
 
 A one-line fix gets the same review: call the Skill tool for 'code-review', which runs its
 two reviewers as subagents on the diff. Your own read of the diff is implementation, not
 review, and a brief asking for a light workflow trims the planning steps, never this one.
+
+A hook holds both steps (`.claude/hooks/review-gate.mjs`): it notes the commit each Skill-tool
+`/code-review` and `/codebase-design` runs on, and refuses an agent's merge, auto-merge or
+mark-ready while the PR has a commit either hasn't seen, fixes for their own findings included.
+Its record is the clone's (`.git/claude-reviews`, shared by worktrees and sessions), so run them
+in the clone that merges. When it can't check (gh offline, say) it lets the call through with a
+warning, and it never sees a merge pressed on GitHub.
 
 ## 6. Deepen: `/codebase-design`
 
@@ -66,7 +89,8 @@ in the PR, not part of it.
 
 ## 7. Update the PR
 
-Push, then rewrite the PR description to match what landed (Before / After, and How,
+Push, then rewrite the PR description in the shape of `.github/pull_request_template.md` (a body
+passed through `gh` or the API skips the template, so copy its Checked lines in) to match what landed (Before / After, and How,
 including the design verdicts and the prototype branch), and mark it ready for review once
 CI is green and the final commit itself has been checked: the smoke test, its preview
 deploy, and, for a site change, a Refresh's revalidate end to end and the changed pages
@@ -78,16 +102,25 @@ PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` 
 A PR that adds a table can't get a working preview: previews read the production
 database and skip migrations, so a page that reads the table fails to build until production
 has it. To check it there before the merge, ask Will in the thread for a typed OK to apply that
-migration to production (his PC's permission check accepts only a typed message, not a card's tap), then
-start a Remote Control session on his PC with the steps in its brief (`migrate.mjs` against
-production, then any backfill), since nothing can message it once it runs. The real fix is a
-Neon branch per preview.
+migration to production, then, once the migration is final, run `.github/workflows/migrate.yml`
+on the PR's branch (`gh api -X POST repos/will-ness-ai/ballest/actions/workflows/migrate.yml/dispatches -f ref=<branch>`).
+It refuses a branch whose migrations aren't main's plus new ones, so merge main first, or when
+another branch's migration already ran ahead of main. Then redeploy the preview
+(`npx vercel redeploy <preview url> --token "$VERCEL_TOKEN"`). From then on that PR merges
+before any other PR with a migration: Drizzle applies only migrations newer than production's
+newest, so an older one merged after it would be skipped without an error (regenerate it if so). The real fix is a Neon branch per preview.
 
 Merge `main` into the branch before marking it ready and again just before it merges, even
 when GitHub shows no conflict. A long PR outlives conventions: while #152 was open, `main`
 dropped `useModalKeys` for native dialogs and moved the CSS to rem type, oklch colors and
 an em breakpoint, and each catch-up was a port that `check-styles` and `tsc` flagged, not a
 textual conflict.
+
+When Will says "merge", fetch `main` first:
+other threads merge often, and a merge against a stale head fails on conflicts it can't
+show. Merge (`docs/agents/issue-tracker.md`) once the merged head's CI and preview are
+green. The session's permission check can refuse to merge a PR with no approving review;
+then say so in one line and try again on Will's next word, naming the PR.
 
 ## 8. After the merge: `/retro`
 

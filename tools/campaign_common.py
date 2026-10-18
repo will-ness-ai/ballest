@@ -262,18 +262,25 @@ def resolve_names(key, ids):
 
 # Names are carried forward from the database's players rather than looked up
 # every run (13k players is 131 GetPlayerSummaries calls). A run looks up players it
-# has no name for, plus one slice of everyone else: slices rotate every three hours,
-# so every name is refreshed about once a week.
-NAME_REFRESH_SLICES = 56
+# has no name for, plus one slice of everyone else, picked by how many Refreshes the
+# database holds rather than by the clock: GitHub starts the three-hourly run late or
+# skips it, which left a clock slice unread for weeks. So every name is looked up again
+# within NAME_REFRESH_SLICES Refreshes, a few days at the pace GitHub keeps.
+NAME_REFRESH_SLICES = 16
 
 
-def names_due(ids, known, now=None):
-    """The IDs this run looks up: every one without a name, plus this run's slice."""
-    slot = int(now if now is not None else time.time()) // (3 * 3600) % NAME_REFRESH_SLICES
+def names_due(ids, memory):
+    """The IDs this run looks up, from what the collector remembers (db_writer.Memory):
+    every one without a name, every one that just scored (set a score in the latest Refresh,
+    so a player racing now shows a rename after one run), plus this run's slice, picked by
+    how many Refreshes the database holds."""
+    slot = memory.refreshes % NAME_REFRESH_SLICES
     return [
         sid
         for sid in ids
-        if sid not in known or (sid.isdigit() and int(sid) % NAME_REFRESH_SLICES == slot)
+        if sid not in memory.names
+        or sid in memory.just_scored
+        or (sid.isdigit() and int(sid) % NAME_REFRESH_SLICES == slot)
     ]
 
 
@@ -330,6 +337,10 @@ def workshop_catalogue(key):
                     "preview": it.get("preview_url") or "",
                     "sessions": int(it.get("lifetime_playtime_sessions") or 0),
                     "subs": int(it.get("lifetime_subscriptions") or 0),
+                    # the file's content handle, which changes with each update: the
+                    # Map file step's version (map_files.py); file_url is empty here
+                    "version": str(it.get("hcontent_file") or ""),
+                    "file_size": int(it.get("file_size") or 0),
                 }
             )
         nxt = resp.get("next_cursor")
@@ -342,11 +353,12 @@ def workshop_catalogue(key):
     return maps
 
 
-def name_rows(row_lists, all_ids, known):
+def name_rows(row_lists, all_ids, memory):
     """Put persona/avatar/profileurl on every row in row_lists, and return the
-    SteamID64 -> names map they came from. Names are carried forward from known (the
-    players the database holds, db_writer.load_memory); only players without one, plus
-    this run's slice (names_due), are looked up."""
+    SteamID64 -> names map they came from. Names are carried forward from memory.names
+    (the players the database holds, db_writer.load_memory); only players without one,
+    plus those names_due picks (who just scored, and this run's slice), are looked up."""
+    known = memory.names
     key = load_key()
     if not key:
         print(
@@ -354,8 +366,8 @@ def name_rows(row_lists, all_ids, known):
         )
     # The slice covers every player we know, not only this run's rows: a Workshop board
     # is re-read only when played, so its players would otherwise rarely come up.
-    due = names_due(set(all_ids) | set(known), known)
-    print(f"Resolving {len(due)} player names (new, plus this run's slice)...")
+    due = names_due(set(all_ids) | set(known), memory)
+    print(f"Resolving {len(due)} player names (new, just scored, plus this run's slice)...")
     names = {sid: dict(v) for sid, v in known.items()}
     for sid, info in resolve_names(key, due).items():
         cur = names.setdefault(sid, {})

@@ -267,7 +267,9 @@ def test_the_step_writes_what_it_read_and_a_failed_read_stays_due(db_url, capsys
             ("u1", "ok", PINK)
         ]
         assert ghosts.due(conn) == ["u2"]
-    assert "1 failed (OSError 1)" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "1 failed (OSError 1)" in out
+    assert "Ghost u2: OSError: timeout" in out  # what broke, not just how often
 
 
 def test_the_step_is_skipped_without_a_key_or_a_database(capsys):

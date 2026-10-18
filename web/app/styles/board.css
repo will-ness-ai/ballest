@@ -325,6 +325,9 @@
   display: flex;
   flex-direction: column;
   min-inline-size: 180px;
+  /* a long list (the Campaigns) scrolls inside the menu rather than off the screen */
+  max-block-size: 70dvh;
+  overflow-y: auto;
   padding: 4px;
   border-radius: 10px;
   background: var(--solid);

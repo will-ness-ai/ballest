@@ -58,6 +58,13 @@ collector POSTs `/api/revalidate` (Bearer `REVALIDATE_SECRET`) once a Refresh ha
 which expires the tag, and the next request reads fresh. Searches are read fresh every
 time, since their keys would never repeat.
 
+A tab left open keeps the page it loaded. When the reader comes back to it (the tab in
+view again, the window focused, or the page restored from the back/forward cache) and it
+was read over ten minutes ago, `useLatestRefresh` (`hooks/client.ts`, run by the header's
+`Freshness`) asks `/api/refreshed` for the latest Refresh, from the same cached read, and
+calls `router.refresh()` only when that is newer than the one on the page. A board's list
+then starts over from its new first rows. Nothing polls while a tab is open.
+
 Sign in with Steam (ADR 0008) never touches a page's cache: the session cookie is signed
 with `SESSION_SECRET` and only `/api/me` reads it, from the browser, which asks only when
 the readable `ballest-in` cookie says a session exists. Without `SESSION_SECRET` nobody can
@@ -151,7 +158,8 @@ fails to load, or that Satori can't read, draws without it.
   search.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
   (`lib/workshop.ts`).
-- `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row.
+- `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row, and
+  `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D").
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
   cannot collide. Every Circuit board lights the one Circuit tab, which opens the newest
@@ -239,6 +247,17 @@ so on, so append a Map rather than insert one. `campaignProblems` fails the test
 repeated slug, a Map in two Campaigns (or twice in one), an empty Campaign or an ID that
 isn't one. Nothing else changes: the pages are prerendered from the list.
 
+`python tools/workshop_maps.py <query ...>` finds the IDs: give it Workshop links or IDs, or
+a whole pasted post holding them (a Map stands for itself, a Steam collection for its Maps in
+order, in the order given), or one maker: a profile URL, a SteamID64, or part of their in-game or Steam name
+(oldest first). It prints each Map with its maker's name and ID, marks
+any already in a Campaign and any the site doesn't list yet, and ends with the `maps:` line to
+paste. A Map the collector hasn't listed yet (one published since the last Refresh) is left
+off its Campaign's page until a Refresh lists it, so a preview can show fewer Maps; after merging a Campaign with new Maps run a Refresh
+(`gh workflow run refresh.yml --ref main`) and check the page on production. `qa check` draws
+one fixed Campaign, so look at the new one's page with
+`pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
+
 **The board.** A Campaign's standings are a derived board named `OverallCampaign_<slug>`
 (`campaignBoard`). The `Overall` prefix makes it a points board to `isPoints` and
 `board_kind` with no special case, so every board piece (paging, search, You, plates, the
@@ -249,15 +268,18 @@ equal totals ordered by the first Map (in the Campaign's order) a player is on, 
 place there. A player is ranked once they have a time on one Map.
 
 **The page** (`components/campaign/CampaignView.tsx`) is a Circuit season's twin, built
-from the same pieces: the Campaign switch (`CampaignSwitch.tsx`, the season switch's tabs
-and chip) lists the Campaigns most players first (`getCampaigns`); the rail lists Overall,
-then each Map as a strip of its preview picture with its number, record and the part of
+from the same pieces: the Campaign switch (`CampaignSwitch.tsx`, the season switch's chip,
+never a row of tabs, since the list keeps growing; on a desktop it heads the rail, under a
+"Campaign" label and over the maker's name) lists the Campaigns most players first
+(`getCampaigns`); the rail lists Overall, then each Map as a strip of its preview picture with its number, record and the part of
 its title after the Campaign's name (`mapName`), left out when that is only its number
-("Miniblack 01", "AJC1"). Everywhere the frame names a Map (the rail's sheet, the podium
+("Miniblack 01", "AJC1"), and the whole title when what is left starts with a number that
+isn't the Map's place ("Ninja0", "AJ26"). Everywhere the frame names a Map (the rail's sheet, the podium
 tally, the page's title) it is `mapLabel`: the number, then that name. On a phone the
 switch's chip and the board button share a row while they fit, and the button takes a line
 of its own when they don't (`.boardrow.named`), since a Campaign's title and Map names run
-longer than a season's. The Overall card, the points dialog and the podium count say maps
+longer than a season's. The switch's menu scrolls inside itself when the list outgrows the
+screen. The Overall card, the points dialog and the podium count say maps
 where a season says tracks, and count the Maps the Workshop lists, which are the ones that
 pay points. A Map inside the frame gets the Track card's layout with its preview picture
 and a link to its own page. A Campaign none of whose Maps the Workshop lists is shown
@@ -418,45 +440,107 @@ branch `claude/prototype-prefabs` (spec #213).
   beside it the name, uploader, description, size, piece chips, tags and Download. The
   viewer (`PrefabModel`, `PrefabViewer`, `scene.ts`) fetches the file from
   `/api/prefabs/<slug>/file`, the same URL Download saves, and loads three.js from npm only
-  there. It turns slowly until it is grabbed, and not at all under reduced motion. The ?
+  there. It starts from the Prefab's angle and turns slowly until it is grabbed, and not at
+  all under reduced motion; Reset view goes back to the angle. The ?
   opens the how-to, with the Prefabs folder and the exact spawn command; it opens on its
   own once per browser (`localStorage`). A slug nobody uploaded, or a Prefab deleted, taken
   down or hidden, reads as gone.
 - **Stand-in shapes**: the file names meshes but carries no geometry, and the game's
   meshes stay off the repo (ADR 0001), so `lib/prefab.ts` draws each known mesh as a box,
-  cylinder, sphere or scoop sized from its bounds, an unknown one as a grey box, and
-  colours each by its material's name. Rotations are Unreal's [pitch, yaw, roll] in
+  cylinder, cone, pyramid, sphere, torus or half or quarter ring (the hole bowls) sized from its
+  bounds, an unknown one as a grey box. A box whose mesh is curved is drawn instead as its
+  outline in one view pushed through the bounds, squeezed by a second view's outline where that
+  helps (`lib/prefab-profiles.ts`): coarse outlines, a few dozen points traced from mesh renders
+  in the private ballest-map-making (`extract/piece_profiles.py`), never the mesh itself.
+  `pnpm --silent qa piece` scores each against those renders. Each piece is coloured by its material's name (or, for a piece whose file names none, like a vent, the catalogue's, `PIECE_MATERIALS`); an Emissive
+  material glows, as the game's lamps do. A fill light opposite
+  the key keeps every side's colours true, so a sign seen from the front isn't greyed. Rotations are Unreal's [pitch, yaw, roll] in
   degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
 - **The gallery** (`PrefabGallery.tsx`): a card per live Prefab, Popular (favorites, newest
   breaking a tie) or Newest, filtered by one Tag (`galleryOf` in `lib/prefabs.ts`). Each
   card's picture is drawn in the browser from the file by one shared renderer once the card
   scrolls near, so no image is stored.
+- **The angle** (`PrefabAngle` in `lib/prefabs.ts`, the `angle` column): the view its uploader
+  picked, which the card, the upload ping's still and the page's viewer start from; none is
+  three-quarters from above with the whole Prefab in view. It is stored relative to the
+  Prefab's bounds (the camera's direction, its distance over the fitting one, and where it
+  looks in radii), so it frames the same at any picture size. The uploader picks it in
+  `AnglePicker.tsx`, on the upload form and in the Edit dialog: a line saying what to do, the
+  preview held still, and Use this view (or Default view), which reads "✓ Card uses this
+  view" until they turn the model again. Edit saves it with the name, description and tags;
+  `PATCH /api/prefabs/<slug>` also takes `{ angle }` alone.
 - **Uploading** (`UploadForm.tsx`, `POST /api/prefabs` in `db/prefab-api.ts`): signed in with
-  Steam, 5 a day per player counted from the rows. The file is checked in the browser the
+  Steam, 5 an hour per player (or the limit the admin gave them) counted from the rows. The file is checked in the browser the
   moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,
   described and tagged, previewed in 3D beside the card it will make, and live at once. Each
-  upload pings the ops channel through `OPS_WEBHOOK_URL` (skipped with a log line when it is
-  unset). An uploader the boards haven't seen is credited by the persona on their public
+  upload pings #prefabs on the dev Discord server through Vercel's `OPS_WEBHOOK_URL` (skipped
+  with a log line when it is unset; the GitHub and Fly secrets of that name are a different
+  webhook, #ops's): the admin bot made that webhook, so it may carry link buttons
+  (Open, Take down, Ban uploader; `db/prefab-ping.ts`). The two admin ones open the Prefab's page with
+  `?admin=take-down` or `?admin=ban`, which opens that confirm for the admin. The ping's
+  picture is a still of the preview the uploader's browser sends with the file (any PNG up to
+  1 MB; shown only in #prefabs). An uploader the boards haven't seen is credited by the persona on their public
   Steam profile, read once at upload (`steamPersona`). The download name is the Prefab's name
   as the spawn command takes it (`fileNameOf`).
 - **Favorites, editing and the admin** (`Favorite.tsx`, `PrefabTools.tsx`): a signed-in
   reader hearts a Prefab once (`/api/prefabs/<slug>/favorite`). Its uploader can edit its
-  name, description and tags or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,
+  name, description and tags (and its angle, above) or delete it (`PATCH`/`DELETE /api/prefabs/<slug>`). The admin,
   one Steam ID (`ADMIN_STEAM_ID` in `lib/prefabs.ts`), can take any Prefab down
   (`/api/prefabs/<slug>/takedown`) and ban its uploader (`/api/prefab-bans/<steam_id>`),
   which hides all their Prefabs; a hidden one's gone page offers Unban. Every write expires
-  the cached Prefab reads (`PREFAB_TAG`), so it shows at once.
+  the cached Prefab reads (`PREFAB_TAG`), so it shows at once. From the same page the admin
+  can give the uploader their own hourly upload limit, or put them back on the 5
+  (`/api/prefab-limits/<steam_id>`, the `prefab_limits` table); nothing cached reads it, as
+  the upload form asks for its quota uncached.
+
+## Maps in 3D
+
+A Map whose file the collector has stored (`map_files`, `docs/data.md` "Map files") has a
+**See it in 3D** button under its picture (spec #250; settled in four grill-design rounds on
+the never-merged `claude/prototype-maps3d`, variant F). `getWorkshop`'s Map carries the
+file's version (`fileVersion`), or null, and the button shows only with one: `map3dOf`
+(`lib/workshop.ts`) builds the view's props from the Map, or null without a file.
+
+- **The full screen** (`components/workshop/Map3D.tsx`) is a native `<dialog>` through
+  `useDialog`, so Escape and Close (a `method="dialog"` form) close it and focus returns to
+  the button. It opens with `useDialog`'s `back`, the one dialog on the site that does: opening
+  adds a history entry at the same URL, Back (the browser's, or Android's) closes it and the
+  page stays where it was, and closing it any other way goes back over that entry, so one
+  Back afterwards leaves the page as it would have before. A bar across the top names the Map
+  and its maker; on a desktop a corner card under it (`MedalList`, which the panel's Medals
+  share) gives the record and the four Medal times, and a phone leaves it out so the Map
+  isn't covered. The card follows the bar in one stack (`.m3d-top`), so it can't overlap it.
+  While it is open the page gives up its scrollbar gutter, which nothing in the top layer
+  can cover.
+- **The Map** (`MapModel.tsx`, its own chunk, mounted only while the dialog is open, so
+  neither three.js nor the file loads before the button is pressed) is the file read into a
+  Prefab file by `lib/ballmap.ts` (each quaternion as an FRotator by `FQuat::Rotator`'s
+  formula, each path out of its type and quote marks) and drawn by `PrefabViewer` with the
+  Prefabs' stand-in shapes, from `MAP_ANGLE`: the prototype's "Angled" view that Will
+  approved in round 4, closer than a Prefab's default; on a screen taller than wide it
+  starts 1.3x further back. "Building the map…" (`MapWait`) shows until the viewer has
+  drawn.
+- **The file** comes from `/map/<pfid>/file?v=<version>` (`mapFileHref`,
+  `app/map/[pfid]/file/route.ts`): the stored gzip bytes with `Content-Encoding: gzip`, read
+  fresh (bytes don't belong in the JSON cache). Under the stored version the answer is cached
+  a year, immutable, by the browser and the CDN; under any other, a minute. A Map with no
+  stored file is a 404. `robots.txt` already keeps crawlers off it (`/map/*/`).
+- `tiny` holds Marble Run's file, a four-piece `.ballmap`; `qa`'s `map3d` state opens it
+  (`MAP3D` in the catalogue; Ice Boat Race on production).
 
 ## Checking a change
 
 `pnpm dev` in `web/` against a local Postgres (never `vercel env pull`: its development
-variables point at production). For a database with real boards, backfill one from
+variables point at production), or `pnpm dev:up <port> [database]` in a cloud session, which
+starts Postgres if a container restart stopped it and serves in the background until
+`pnpm dev:down <port>` stops it by port (a `pkill -f` pattern also kills its own shell). After "An unexpected Turbopack error occurred" in its log, remove
+`web/.next` and start it again. For a database with real boards, backfill one from
 `data/`'s git history (`docs/data.md`); for a tiny one, `pnpm db:seed tiny`. Next keeps the page you
 navigated away from in the DOM, hidden, so a scripted check counting elements should count
 only visible ones.
 
 - **A production build**: `pnpm serve <port> [database]` builds against that local
-  database and serves it in the background; `fuser -k -n tcp <port>` stops it.
+  database and serves it in the background; `pnpm dev:down <port>` stops it.
   `pnpm smoke <url>` then requests every route of a build seeded with `tiny` or `stress` and checks
   each answer, as `web.yml` does in CI. Under `next start`, some prefetches (header
   `next-router-prefetch: 3`) answer 404 in the console; Vercel answers them 200.
@@ -470,7 +554,11 @@ only visible ones.
   the `environment_url` of the branch's deployment status
   (`gh api 'repos/will-ness-ai/ballest/deployments?ref=<branch>'`, then that deployment's
   `statuses`). It is up once that status is `success`. Previews count against the Hobby
-  plan's 100 deploys a day, so push a branch in batches.
+  plan's 100 deploys a day, so push a branch in batches. A `failure` status names its
+  deployment: `npx vercel inspect <deployment> --logs` reads the build log (the CLI finds
+  `VERCEL_TOKEN` in a cloud session's environment). A prerender that fails on Neon's "could
+  not resize shared memory segment" (code 53100) is Neon running short under the build's
+  parallel queries, not the code: `npx vercel redeploy <deployment>` once.
 - **Looking at it**: `pnpm --silent qa` from `web/`, run bare, lists the targets (production,
   this branch's preview with its deploy state, a local build) and what it checks. `qa check`
   draws every page and dialog in `scripts/qa/catalogue.mjs` at 320px with 20px text, 390,
@@ -480,7 +568,13 @@ only visible ones.
   (reference | target | changes in red) in `scratch/qa/`. Read those pictures, not
   screenshots of your own. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
-  place of a throwaway Playwright script. Both sides read the same database, so a change in
+  place of a throwaway Playwright script. `qa shot prefab@1280 --prefab <file.json>` has the
+  Prefab page's viewer draw any file. To work on a stand-in shape, run `qa piece <mesh>`
+  instead: it scores the stand-in's top, front and side outlines against the game mesh's
+  renders in `ballest-map-making/references/pieces/` (1.00 is the same outline) and writes a
+  game | viewer | outlines sheet; `qa piece --all` lists every mesh, worst first, and
+  `--montage` adds their game and viewer rows 16 to a picture (`--match` narrows the list). A page
+  that answers 200 with a "not found" title is a `gone` fault: its catalogue ID is stale. Both sides read the same database, so a change in
   numbers alone is data, and the two deployments' caches can differ by a Refresh.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel
   address. A page or dialog with no row in the catalogue is not checked: add it. Locally,

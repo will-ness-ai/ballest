@@ -10,9 +10,11 @@ import {
   favoritePrefab,
   takeDownPrefab,
   uploadPrefab,
+  limitUploader,
   uploadQuota,
   type PrefabDeps,
 } from "../db/prefab-api";
+import { pingOf, type PrefabPing } from "../db/prefab-ping";
 import { galleryOf } from "../lib/prefabs";
 import { prefabList, prefabOf } from "../db/prefabs";
 import { prefabBans } from "../db/schema";
@@ -22,17 +24,18 @@ import { ENV, NOW, SITE, signIn } from "./session";
 
 const UPLOADER = "76561199000000011";
 const HOUR = 3_600_000;
+const MINUTE = 60_000;
 const bench = readFileSync(new URL("../../prefabs/samples/bench.json", import.meta.url), "utf8");
 
 let t: Awaited<ReturnType<typeof freshDb>>;
-let pings: Array<string>;
+let pings: Array<PrefabPing>;
 let changes: number;
 let clock: number;
 const deps = (): PrefabDeps => ({
   db: t.db,
   auth: { ...ENV, now: clock },
-  ping: (text) => {
-    pings.push(text);
+  ping: (p) => {
+    pings.push(p);
     return Promise.resolve();
   },
   persona: () => Promise.resolve("Uploader on Steam"),
@@ -54,7 +57,14 @@ const sessionOf = async (id: string) => `ballest-session=${(await signIn(id)).se
 
 /* POST /api/prefabs as the upload form sends it */
 function uploading(
-  fields: { name?: string; description?: string; tags?: Array<string>; file?: string },
+  fields: {
+    name?: string;
+    description?: string;
+    tags?: Array<string>;
+    file?: string;
+    picture?: Uint8Array<ArrayBuffer>;
+    angle?: string;
+  },
   cookie = "",
   headers: Record<string, string> = {},
 ) {
@@ -63,6 +73,8 @@ function uploading(
   body.set("description", fields.description ?? "");
   for (const tag of fields.tags ?? []) body.append("tags", tag);
   body.set("file", new Blob([fields.file ?? bench]), "bench.json");
+  if (fields.picture) body.set("picture", new Blob([fields.picture]), "prefab.png");
+  if (fields.angle !== undefined) body.set("angle", fields.angle);
   return new Request(SITE + "/api/prefabs", {
     method: "POST",
     body,
@@ -117,7 +129,7 @@ describe("uploading a Prefab", () => {
     expect(await prefabList(t.db)).toEqual([]);
   });
 
-  test("a good one is live at once, credited to the uploader, and pinged to ops", async () => {
+  test("a good one is live at once, credited to the uploader, and pinged", async () => {
     const cookie = await sessionOf(UPLOADER);
     const r = await uploadPrefab(
       uploading({ name: " Park bench ", description: "Sit.", tags: ["Decoration"] }, cookie),
@@ -135,18 +147,49 @@ describe("uploading a Prefab", () => {
     });
     expect(changes).toBe(1);
     expect(pings).toEqual([
-      "New prefab: **Park bench** (28 pieces) by Uploader on Steam\nhttps://ballestrecords.com/prefab/park-bench",
+      {
+        slug: "park-bench",
+        name: "Park bench",
+        pieces: 28,
+        tags: ["Decoration"],
+        uploader: { steamId: UPLOADER, name: "Uploader on Steam" },
+        picture: null,
+      },
     ]);
   });
 
-  test("a sixth in 24 hours waits until the oldest is a day old", async () => {
+  test("the preview still the browser sends rides along with the ping, if it is a PNG", async () => {
+    const cookie = await sessionOf("76561199000000013");
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+    await uploadPrefab(uploading({ name: "Pictured", picture: png }, cookie), deps());
+    await uploadPrefab(
+      uploading({ name: "Not a picture", picture: new TextEncoder().encode("<svg/>") }, cookie),
+      deps(),
+    );
+    const big = new Uint8Array(1_000_001);
+    big.set(png);
+    await uploadPrefab(uploading({ name: "Too big", picture: big }, cookie), deps());
+    expect(pings.map((p) => [p.name, p.picture])).toEqual([
+      ["Pictured", png],
+      ["Not a picture", null],
+      ["Too big", null],
+    ]);
+  });
+
+  test("a sixth in an hour waits until the oldest is an hour old", async () => {
     const id = "76561199000000012";
     const cookie = await sessionOf(id);
     const quota = async (): Promise<unknown> =>
       (await uploadQuota(uploading({}, cookie), deps())).json();
-    expect(await quota()).toEqual({ signedIn: true, banned: false, left: 5, nextAt: null });
+    expect(await quota()).toEqual({
+      signedIn: true,
+      banned: false,
+      left: 5,
+      limit: 5,
+      nextAt: null,
+    });
     for (let i = 0; i < 5; i++) {
-      clock = NOW + i * HOUR;
+      clock = NOW + i * 10 * MINUTE;
       expect(
         (
           await uploadPrefab(
@@ -156,16 +199,17 @@ describe("uploading a Prefab", () => {
         ).status,
       ).toBe(201);
     }
-    clock = NOW + 6 * HOUR;
+    clock = NOW + 50 * MINUTE;
     expect(await quota()).toEqual({
       signedIn: true,
       banned: false,
       left: 0,
-      nextAt: new Date(NOW + 24 * HOUR).toISOString(),
+      limit: 5,
+      nextAt: new Date(NOW + HOUR).toISOString(),
     });
     const refused = await uploadPrefab(uploading({ name: "One more" }, cookie), deps());
     expect(refused.status).toBe(429);
-    clock = NOW + 24 * HOUR + 1000;
+    clock = NOW + HOUR + 1000;
     expect(await quota()).toMatchObject({ left: 1 });
     expect((await uploadPrefab(uploading({ name: "One more" }, cookie), deps())).status).toBe(201);
   });
@@ -186,6 +230,7 @@ describe("uploading a Prefab", () => {
       signedIn: false,
       banned: false,
       left: 0,
+      limit: 0,
       nextAt: null,
     });
   });
@@ -336,6 +381,76 @@ describe("editing and deleting your own", () => {
   });
 });
 
+describe("the angle its picture is drawn from", () => {
+  const OWNER = "76561199000000041";
+  const angle = { from: [0, 2, 0], zoom: 1.23456, pan: [0.1, 0, 0] };
+  const tidied = { from: [0, 1, 0], zoom: 1.2346, pan: [0.1, 0, 0] };
+  const patch = (body: object, cookie: string) =>
+    new Request(`${SITE}/api/prefabs/angled`, {
+      method: "PATCH",
+      headers: { cookie, origin: SITE, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  test("an upload without one reads as the default, and one with one keeps it tidied", async () => {
+    const owner = await sessionOf(OWNER);
+    await uploadPrefab(uploading({ name: "Plain" }, owner), deps());
+    expect((await prefabOf(t.db, "plain"))?.angle).toBeNull();
+    const r = await uploadPrefab(
+      uploading({ name: "Angled", angle: JSON.stringify(angle) }, owner),
+      deps(),
+    );
+    expect(r.status).toBe(201);
+    expect((await prefabOf(t.db, "angled"))?.angle).toEqual(tidied);
+    expect((await prefabList(t.db)).find((p) => p.slug === "angled")?.angle).toEqual(tidied);
+  });
+
+  test("an upload with one that can't be an angle is refused", async () => {
+    const owner = await sessionOf(OWNER);
+    for (const bad of ["not json", '{"from":[0,0,0],"zoom":1,"pan":[0,0,0]}'])
+      expect(
+        await (await uploadPrefab(uploading({ name: "Bad", angle: bad }, owner), deps())).json(),
+      ).toEqual({ problems: ["That view can't be saved. Pick it again."] });
+    expect(await prefabOf(t.db, "bad")).toBeNull();
+  });
+
+  test("the uploader changes only the angle, or puts it back to the default", async () => {
+    const owner = await sessionOf(OWNER);
+    const turned = { from: [1, 0, 0], zoom: 2, pan: [0, 0, 0] };
+    expect((await editPrefab(patch({ angle: turned }, owner), deps(), "angled")).status).toBe(200);
+    expect(await prefabOf(t.db, "angled")).toMatchObject({ name: "Angled", angle: turned });
+    await editPrefab(patch({ angle: null }, owner), deps(), "angled");
+    expect((await prefabOf(t.db, "angled"))?.angle).toBeNull();
+    const r = await editPrefab(patch({ angle: { zoom: 1 } }, owner), deps(), "angled");
+    expect(r.status).toBe(400);
+    expect((await editPrefab(patch(5 as unknown as object, owner), deps(), "angled")).status).toBe(
+      400,
+    );
+  });
+
+  test("Edit saves the angle with the name, description and tags, and can reset it with them", async () => {
+    const owner = await sessionOf(OWNER);
+    const turned = { from: [0, 0, 1], zoom: 3, pan: [0, 0, 0] };
+    const words = { name: "Angled", description: "Turned", tags: [] };
+    expect(
+      (await editPrefab(patch({ ...words, angle: turned }, owner), deps(), "angled")).status,
+    ).toBe(200);
+    expect(await prefabOf(t.db, "angled")).toMatchObject({ description: "Turned", angle: turned });
+    await editPrefab(
+      patch({ ...words, description: "Reset", angle: null }, owner),
+      deps(),
+      "angled",
+    );
+    expect(await prefabOf(t.db, "angled")).toMatchObject({ description: "Reset", angle: null });
+  });
+
+  test("nobody else can change it", async () => {
+    const other = await sessionOf("76561199000000042");
+    const r = await editPrefab(patch({ angle: angle }, other), deps(), "angled");
+    expect(r.status).toBe(403);
+  });
+});
+
 describe("the admin's take down and ban", () => {
   const ADMIN = "76561198047685844";
   const BAD = "76561199000000041";
@@ -402,10 +517,89 @@ describe("the admin's take down and ban", () => {
     expect((await prefabList(t.db)).map((c) => c.slug)).toContain("bad-two");
   });
 
+  test("the admin gives a player their own hourly limit, and can put them back on the default", async () => {
+    const id = "76561199000000043";
+    const url = `/api/prefab-limits/${id}`;
+    const admin = await sessionOf(ADMIN);
+    const them = await sessionOf(id);
+    const set = (perHour: unknown, cookie = admin) =>
+      limitUploader(
+        new Request(SITE + url, {
+          method: "PUT",
+          body: JSON.stringify({ perHour }),
+          headers: { cookie, origin: SITE, "content-type": "application/json" },
+        }),
+        deps(),
+        id,
+      );
+    const left = async () =>
+      ((await (await uploadQuota(uploading({}, them), deps())).json()) as { left: number }).left;
+    expect(await (await limitUploader(post(url, "GET", admin), deps(), id)).json()).toEqual({
+      steamId: id,
+      perHour: 5,
+      own: false,
+    });
+    expect((await set(25, them)).status).toBe(403);
+    for (const bad of [0, 2.5, "25", 1001]) expect((await set(bad)).status).toBe(400);
+    expect(await (await set(25)).json()).toEqual({ steamId: id, perHour: 25, own: true });
+    for (let i = 0; i < 6; i++)
+      await uploadPrefab(
+        uploading({ name: `Sign ${String(i)}`, file: cubesFile(2) }, them),
+        deps(),
+      );
+    expect(await left()).toBe(19);
+    expect(await (await set(6)).json()).toMatchObject({ perHour: 6 });
+    expect(await left()).toBe(0);
+    const refused = await uploadPrefab(uploading({ name: "Sign 7" }, them), deps());
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({
+      limit: 6,
+      nextAt: new Date(NOW + HOUR).toISOString(),
+    });
+    expect(await (await limitUploader(post(url, "DELETE", admin), deps(), id)).json()).toEqual({
+      steamId: id,
+      perHour: 5,
+      own: false,
+    });
+    expect(await left()).toBe(0);
+  });
+
   test("the admin can't ban themselves", async () => {
     const admin = await sessionOf(ADMIN);
     expect(
       (await banUploader(post(`/api/prefab-bans/${ADMIN}`, "PUT", admin), deps(), ADMIN)).status,
     ).toBe(400);
+  });
+});
+
+describe("the ping to the Prefabs channel", () => {
+  const ping: PrefabPing = {
+    slug: "park-bench",
+    name: "Park bench",
+    pieces: 28,
+    tags: ["Decoration", "Scenery"],
+    uploader: { steamId: UPLOADER, name: "Uploader on Steam" },
+    picture: new Uint8Array([0x89, 0x50]),
+  };
+
+  test("shows the picture and links the page, the take-down and the ban", () => {
+    const { embeds, components } = pingOf(ping);
+    expect(embeds).toEqual([
+      {
+        title: "Park bench",
+        url: "https://ballestrecords.com/prefab/park-bench",
+        description: "by Uploader on Steam · 28 pieces · Decoration, Scenery",
+        image: { url: "attachment://prefab.png" },
+      },
+    ]);
+    expect(components[0].components.map((b) => [b.label, b.url])).toEqual([
+      ["Open", "https://ballestrecords.com/prefab/park-bench"],
+      ["Take down", "https://ballestrecords.com/prefab/park-bench?admin=take-down"],
+      ["Ban uploader", "https://ballestrecords.com/prefab/park-bench?admin=ban"],
+    ]);
+  });
+
+  test("without a picture, the embed has none", () => {
+    expect(pingOf({ ...ping, picture: null }).embeds[0]).not.toHaveProperty("image");
   });
 });

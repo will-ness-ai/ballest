@@ -2,31 +2,36 @@
 // The Prefabs gallery (grill-design round 2, A · Gallery): a card per Prefab with a still
 // picture, its name, favorites, uploader and piece count; Popular | Newest and tag chips
 // above, and Upload. Each picture is drawn in the browser from the Prefab's file by one
-// shared renderer (stillOf), so no image is stored.
+// shared renderer (stillOf) from the angle its uploader picked, so no image is stored.
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { fetchPrefabFile } from "./file";
 import { Heart } from "./Heart";
 import { stillOf } from "./scene";
 import type { PrefabCard } from "../../db/prefabs";
 import type { PrefabFile } from "../../lib/prefab";
-import { TAGS, galleryOf, type GallerySort } from "../../lib/prefabs";
+import { TAGS, galleryOf, type GallerySort, type PrefabAngle } from "../../lib/prefabs";
 import { newPrefabHref, prefabFileHref, prefabHref } from "../../lib/routes";
 
 /* a Prefab's picture, drawn once its card scrolls near, from its file or the URL it's at */
 export function Still({
   src,
   file,
+  angle = null,
   w = 480,
   h = 320,
 }: {
   src?: string;
   file?: PrefabFile;
+  angle?: PrefabAngle | null;
   w?: number;
   h?: number;
 }) {
   const [img, setImg] = useState<string | null>(null);
   const box = useRef<HTMLSpanElement>(null);
+  /* an angle by value, so a new object with the same view doesn't redraw */
+  const view = JSON.stringify(angle);
   useEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -35,8 +40,8 @@ export function Still({
       ([e]) => {
         if (!e.isIntersecting) return;
         seen.disconnect();
-        void (file ? Promise.resolve(file) : fetchFile(src ?? ""))
-          .then((f) => stillOf(f, w, h))
+        void (file ? Promise.resolve(file) : fetchPrefabFile(src ?? ""))
+          .then((f) => stillOf(f, w, h, undefined, JSON.parse(view) as PrefabAngle | null))
           .then((s) => run.live && setImg(s))
           .catch(() => undefined);
       },
@@ -47,7 +52,7 @@ export function Still({
       run.live = false;
       seen.disconnect();
     };
-  }, [src, file, w, h]);
+  }, [src, file, view, w, h]);
   return (
     <span ref={box} className="pfl-still" style={{ aspectRatio: `${String(w)} / ${String(h)}` }}>
       {img && <img src={img} alt="" />}
@@ -55,18 +60,17 @@ export function Still({
   );
 }
 
-const fetchFile = (src: string) =>
-  fetch(src).then((r) =>
-    r.ok ? (r.json() as Promise<PrefabFile>) : Promise.reject(new Error(String(r.status))),
-  );
-
-type CardFacts = Pick<PrefabCard, "slug" | "name" | "favorites" | "uploader" | "pieces">;
+type CardFacts = Pick<PrefabCard, "slug" | "name" | "favorites" | "uploader" | "pieces" | "angle">;
 
 /* a Prefab's card; with `file`, the card a Prefab not yet uploaded will make */
 export function Card({ p, file }: { p: CardFacts; file?: PrefabFile }) {
   const inner = (
     <>
-      {file ? <Still file={file} /> : <Still src={prefabFileHref(p.slug)} />}
+      {file ? (
+        <Still file={file} angle={p.angle} />
+      ) : (
+        <Still src={prefabFileHref(p.slug)} angle={p.angle} />
+      )}
       <span className="pfl-cardrow">
         <span className="pfl-name">{p.name}</span>
         <span className="pfl-favs" aria-label={`${String(p.favorites)} favorites`}>
