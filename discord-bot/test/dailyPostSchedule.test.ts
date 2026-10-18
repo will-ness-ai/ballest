@@ -115,9 +115,9 @@ const setup = Effect.gen(function* () {
             if (yield* Ref.get(apiDown))
               return yield* new DailyApiUnavailable({ reason: "503 Service Unavailable" });
             const start = Date.parse(`${date}T00:00:00Z`) + HOUR;
-            const opened = (yield* Clock.currentTimeMillis) >= (yield* Ref.get(opensAt));
-            // A later day is open too once its own 01:00 has passed.
-            const open = start > OPENS ? (yield* Clock.currentTimeMillis) >= start : opened;
+            const now = yield* Clock.currentTimeMillis;
+            // Today's opens at `opensAt`; any other day's once its own 01:00 has passed.
+            const open = start === OPENS ? now >= (yield* Ref.get(opensAt)) : now >= start;
             return open ? Option.some(challenge(date, start)) : Option.none();
           }),
       }),
@@ -242,7 +242,8 @@ describe("the Daily Post's schedule", () => {
       yield* Ref.set(t.opensAt, OPENS + 3 * MINUTE + 20_000);
       yield* TestClock.setTime(DAY0 + 30 * MINUTE);
       yield* t.runFor(HOUR);
-      const posts = yield* Ref.get(t.posts);
+      // (The first post is the 17th's, still live at 00:30.)
+      const posts = (yield* Ref.get(t.posts)).slice(1);
       expect(posts.map((p) => p.at)).toEqual([OPENS + 4 * MINUTE]);
       expect(posts[0]?.files).toBe(1);
       expect(posts[0]?.thread).toBe("Daily #60 · the drop · Sun 18 Oct");
@@ -757,6 +758,32 @@ describe("the Daily Post's backfill", () => {
       expect((yield* Ref.get(t.lines))[0]?.content).toBe(
         `-# <t:${Date.UTC(2026, 9, 17, 3, 17) / 1000}:t> · 🏁 **FEDUS** sets the first time: **0:08.566**`,
       );
+    }),
+  );
+
+  it.scoped("first started before 01:00, posts the three closed Dailies, then the live one", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* Ref.set(t.history, held("2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17"));
+      yield* Ref.set(t.boardNow, topOf(["airman", 8.532]));
+      // 00:30 on the 18th: the 17th's Daily is still live until 01:00.
+      yield* TestClock.setTime(DAY0 + 30 * MINUTE);
+      yield* t.runFor(MINUTE);
+      expect(yield* threads(t)).toEqual([
+        "Daily #56 · the drop · Wed 14 Oct",
+        "Daily #57 · the drop · Thu 15 Oct",
+        "Daily #58 · the drop · Fri 16 Oct",
+        "Daily #59 · the drop · Sat 17 Oct",
+      ]);
+      const posts = yield* Ref.get(t.posts);
+      expect(posts.map((p) => words(p.message).includes("🏆"))).toEqual([true, true, true, false]);
+      yield* t.runFor(HOUR);
+      expect((yield* threads(t)).at(-1)).toBe("Daily #60 · the drop · Sun 18 Oct");
+      // The 17th's card closes at its end.
+      const closing = (yield* Ref.get(t.edits)).filter((e) => e.messageId === "m4");
+      expect(closing.map((e) => e.at)).toEqual([OPENS]);
+      expect(words(closing[0]!.message)).toContain("# 🏆 airman wins");
+      expect(yield* Ref.get(t.alerts)).toEqual([]);
     }),
   );
 

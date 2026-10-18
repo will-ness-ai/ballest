@@ -3,6 +3,7 @@
 // `pnpm daily-post` say exactly the same, and the tests read it without Discord.
 import { type Medals, SCORE_TICKS_PER_SECOND } from "../domain.js";
 import { escape } from "../report/messages.js";
+import { DAY, dayStart } from "./date.js";
 
 /** One Daily, as the developers' API names it. Times in ms. */
 export interface Challenge {
@@ -60,15 +61,12 @@ export const viewOf = (
   readAt,
 });
 
-const DAY_MS = 86_400_000;
 /** Daily #1. */
 const FIRST_DAILY = Date.UTC(2026, 7, 20);
 
-const dayStart = (date: string) => Date.parse(`${date}T00:00:00Z`);
-
 /** Dailies count by date from 20 August 2026, #1. */
 export const dailyNumber = (date: string): number =>
-  Math.round((dayStart(date) - FIRST_DAILY) / DAY_MS) + 1;
+  Math.round((dayStart(date) - FIRST_DAILY) / DAY) + 1;
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

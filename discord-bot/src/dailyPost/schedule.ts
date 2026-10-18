@@ -35,6 +35,7 @@ import {
   type DailyView,
   viewOf,
 } from "./card.js";
+import { addDays, dailyDateAt, openingOf } from "./date.js";
 import { DailyHistory, type PastDaily } from "./history.js";
 import { type Lead, leadChanged, leadLine, leadOf } from "./lead.js";
 import {
@@ -52,14 +53,7 @@ import { DailySpins, SPIN_WAIT, type SpinUnavailable } from "./spin.js";
 export const READ_EVERY = Duration.toMillis("15 minutes");
 /** How often the API is asked for today's Daily until it answers. */
 export const ASK_EVERY = Duration.toMillis("1 minute");
-/** When the bot starts asking for a day's Daily (the window opens at 01:00 UTC since 2026-09-05). */
-export const OPENING_HOUR_UTC = 1;
 const HOUR = 3_600_000;
-const DAY = 24 * HOUR;
-
-/** The UTC day a moment falls on, "2026-10-18". */
-export const dayOf = (at: number) => new Date(at).toISOString().slice(0, 10);
-const openingOf = (date: string) => Date.parse(`${date}T00:00:00Z`) + OPENING_HOUR_UTC * HOUR;
 
 // ---------------------------------------------------------------- ports
 
@@ -714,12 +708,12 @@ const keepCurrentSafely = (post: DailyPostRecord) =>
 const awaitSpinSafely = (post: DailyPostRecord) =>
   safely(`updating the Daily Post for ${post.challenge.date}`, awaitSpin(post));
 
-/** How many Dailies before today's the first run posts. */
+/** How many Dailies before the one open now the first run posts. */
 export const BACKFILL_DAYS = 3;
 
 /**
  * The backfill, on the first run with no Daily Posts recorded: the BACKFILL_DAYS Dailies before
- * `today`'s, oldest first, posted closed from the leaderboard database (postPast) and recorded,
+ * `today`'s (the one open now), oldest first, posted closed from the leaderboard database (postPast) and recorded,
  * each with its lead. Without a database it says why and posts none; a database that can't be
  * read reaches ops and ends it; a date the database has no Daily for, or one still running, is
  * skipped. Returns the posts, whose GIFs are still to come.
@@ -734,7 +728,7 @@ export const backfill = Effect.fn("backfill")(function* (today: string) {
   }
   const posted: Array<DailyPostRecord> = [];
   for (let n = BACKFILL_DAYS; n >= 1; n--) {
-    const date = dayOf(Date.parse(`${today}T00:00:00Z`) - n * DAY);
+    const date = addDays(today, -n);
     const found = yield* Effect.either(history.find(date));
     if (Either.isLeft(found)) {
       yield* ops.tell(
@@ -786,7 +780,7 @@ const postToday = Effect.fn("postToday")(function* (date: string) {
   const ops = yield* onceUntilCleared;
   while (true) {
     const now = yield* Clock.currentTimeMillis;
-    if (dayOf(now) !== date) return;
+    if (dailyDateAt(now) !== date) return;
     const found = yield* Effect.either(api.find(date));
     if (Either.isLeft(found))
       yield* ops.tell(
@@ -830,7 +824,8 @@ export const dailyPostLoop = Effect.gen(function* () {
     if (post.state === "live") yield* Effect.forkScoped(keepCurrentSafely(post));
     else if (spinPending(post)) yield* Effect.forkScoped(awaitSpinSafely(post));
   if (posts.length === 0) {
-    const today = dayOf(yield* Clock.currentTimeMillis);
+    // Before 01:00 UTC the Daily still live is yesterday's: the backfill is the three before it.
+    const today = dailyDateAt(yield* Clock.currentTimeMillis);
     const backfilled = yield* safely(
       `backfilling the Daily Posts before ${today}`,
       backfill(today),
@@ -839,18 +834,14 @@ export const dailyPostLoop = Effect.gen(function* () {
   }
   while (true) {
     const now = yield* Clock.currentTimeMillis;
-    const date = dayOf(now);
-    const opening = openingOf(date);
-    if (now < opening) {
-      yield* Effect.sleep(opening - now);
-      continue;
-    }
+    // The Daily open now: before 01:00 UTC, yesterday's.
+    const date = dailyDateAt(now);
     if (Option.isNone(yield* log.get(date))) {
       const post = yield* safely(`posting the Daily Post for ${date}`, postToday(date));
       if (post === undefined) yield* Effect.sleep(ASK_EVERY);
       else yield* Effect.forkScoped(keepCurrentSafely(post));
       continue;
     }
-    yield* Effect.sleep(opening + DAY - now);
+    yield* Effect.sleep(openingOf(addDays(date, 1)) - now);
   }
 });

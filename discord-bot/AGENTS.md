@@ -225,8 +225,9 @@ every picture the card keeps, read from its components (a Components V2 message 
 `attachments`).
 
 On its first run with no Daily Posts recorded the bot backfills (`backfill` in `schedule.ts`): it
-posts the three Dailies before today's, oldest first, as closed cards with threads, then today's
-as usual, and records them, so it happens once. Their data comes from the leaderboard database
+posts the three Dailies before the one open now (before 01:00 UTC that is yesterday's, still
+live), oldest first, as closed cards with threads, then the open one as usual, and records them,
+so it happens once. Their data comes from the leaderboard database
 (`history.ts`, plain SQL at `DATABASE_URL`): the final board is the Daily's open Entries, and the
 lead is rebuilt from its Score history, every score the board held (closed ones included) from
 when its Ghost says it was set (`ghosts.set_at`, used only when it falls after the last read
