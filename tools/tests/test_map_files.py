@@ -297,3 +297,15 @@ def test_maps_named_come_from_the_newest_page_and_none_from_the_whole_catalogue(
     assert [m["pfid"] for m in map_files.catalogue_of("key", {"3", "1"})] == ["1", "3"]
     assert len(map_files.catalogue_of("key")) == 4
     assert map_files.catalogue_of("key", set()) == []  # --maps "," names nothing, not everything
+
+
+def test_maps_naming_none_on_the_newest_page_never_logs_into_steam(monkeypatch, capsys):
+    monkeypatch.setattr(map_files.cc, "load_refresh_token", lambda: "token")
+    monkeypatch.setattr(map_files.cc, "load_key", lambda: "key")
+    monkeypatch.setattr(map_files.cc, "newest_maps", lambda _: [cat("1", "h1", 9)])
+    monkeypatch.setattr(map_files.steam, "Client", None)  # calling it would raise
+    env = {"DEV_DATABASE_URL": "postgres://unused"}
+    monkeypatch.setattr(map_files.os, "environ", env)
+    assert map_files.main(["--maps", ",", "--dev"]) == 1
+    assert map_files.main(["--maps", "2", "--dev"]) == 1
+    assert "no Map to look at" in capsys.readouterr().out

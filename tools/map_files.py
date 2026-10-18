@@ -206,6 +206,10 @@ def main(argv=None):
         print("ERROR: needs STEAM_REFRESH_TOKEN, STEAM_API_KEY and the database's URL")
         return 2
     catalogue = catalogue_of(key, args.maps)
+    if not catalogue:
+        # no Steam login for nothing to download: a second login can drop a Refresh's
+        print("::error::Map files: no Map to look at (none of --maps is on the newest page)")
+        return 1
     client = steam.Client()
     result = {}
 
