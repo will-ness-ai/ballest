@@ -85,7 +85,7 @@
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 12px;
+  font-size: calc(12rem / 16);
   line-height: 1;
 }
 
@@ -259,6 +259,11 @@
 }
 
 /* the picker: plainly not part of the design */
+:root {
+  --proto-ink: oklch(0% 0 none);
+  --proto-pill: oklch(96.8% 0.211 109.77);
+  --proto-white: oklch(100% 0 none);
+}
 .proto-picker {
   position: fixed;
   right: 14px;
@@ -268,14 +273,14 @@
   gap: 6px;
   max-width: calc(100vw - 28px);
   padding: 8px 10px;
-  border: 2px solid #000;
+  border: 2px solid var(--proto-ink);
   border-radius: 14px;
-  background: #ff0;
-  color: #000;
+  background: var(--proto-pill);
+  color: var(--proto-ink);
   font:
-    600 13px system-ui,
+    600 calc(13rem / 16) system-ui,
     sans-serif;
-  box-shadow: 0 6px 24px #0008;
+  box-shadow: 0 6px 24px var(--proto-ink) 8;
   cursor: grab;
   touch-action: none;
 }
@@ -287,10 +292,10 @@
 }
 .proto-picker button {
   padding: 3px 8px;
-  border: 1px solid #000;
+  border: 1px solid var(--proto-ink);
   border-radius: 8px;
-  background: #fff;
-  color: #000;
+  background: var(--proto-white);
+  color: var(--proto-ink);
   font: inherit;
   cursor: pointer;
 }
