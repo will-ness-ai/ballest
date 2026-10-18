@@ -144,6 +144,26 @@ player the admin gave their own hourly upload limit in place of the 5; no row is
 Prefabs. `scripts/prefab-samples.ts` adds the two samples in `prefabs/samples/` (Will's,
 from before uploads) to a database once, idempotently.
 
+### New Maps
+
+A Map published since the last Refresh is added on its own, within minutes, when the game
+Discord's #new-tracks gets a post (spec #259): Multiballs starts `.github/workflows/add-maps.yml`
+a minute after the post (`discord-bot/src/newTracks.ts`), which runs `tools/add_maps.py`. That
+reads the newest page of the catalogue (`campaign_common.newest_maps`, one Steam Web API request,
+no Steam login) and `db_writer.add_maps` writes each Map the database lacks in one transaction:
+its `boards` row with no board ID, `maps`, and one `map_history` row. It writes no Refresh and
+reads no board. The row's first and last seen are the newest catalogue's Refresh
+(`max(last_seen_refresh)`), as if that catalogue had seen it, so the site counts the Map as
+listed and serves its page (with an empty board until it has times; `docs/site.md`, Routes), and its
+sessions and subscriptions are empty, so the next Refresh reads them as moved and looks its board
+up. Its 3D file and Ghosts come with that Refresh. While nothing is new it reads the page again, up to five
+reads a minute apart, since Steam's list can lag the post. Before any catalogue was written it
+adds nothing.
+
+It runs in its own concurrency group, because a pending run in `refresh-leaderboards` would
+replace the scheduled Refresh waiting there. So a Refresh that read the catalogue before the Map
+was published and commits after `add_maps` leaves the Map unlisted until the next Refresh.
+
 ### What the collector remembers
 
 The database is also the collector's only memory between runs. Before it logs into Steam,

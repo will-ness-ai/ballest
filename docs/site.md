@@ -159,7 +159,10 @@ fails to load, or that Satori can't read, draws without it.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
   (`lib/workshop.ts`).
 - `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row, and
-  `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D").
+  `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D"). A Map nobody has a
+  time on yet, such as one added from #new-tracks since the last Refresh (`docs/data.md`,
+  "New Maps"), has its page with an empty board and no record; the lists and shelves still
+  show only Maps with times. A Map the Workshop doesn't list sends the link home.
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
   cannot collide. Every Circuit board lights the one Circuit tab, which opens the newest

@@ -284,32 +284,72 @@ def names_due(ids, memory):
     ]
 
 
-def workshop_catalogue(key):
-    """Every published Workshop Map, from IPublishedFileService/QueryFiles.
+def catalogue_map(it):
+    """One QueryFiles item as the collector holds a Map, or None when it carries no usable
+    ballest metadata.
 
     The game records each Map's Steam leaderboard name in the item's metadata
     (ballest_v0_<pfid>_Climb_<title>); key off that, never the Workshop title,
     which a rename changes. lifetime_playtime_sessions and lifetime_subscriptions
-    are what tell the collector a Map was played since it last read the board.
-    Raises if the pages come back short of the total Steam reports, so a partial
-    read can never look like deleted Maps."""
+    are what tell the collector a Map was played since it last read the board."""
+    pfid = it["publishedfileid"]
+    try:
+        b = json.loads(it.get("metadata") or "{}")["ballest"]
+        board = b["leaderboard_name_current"]
+        medals = [float(t) for t in b["medal_times_by_index"]]
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        print(f"  [skip] Map {pfid} {it.get('title')!r}: no usable ballest metadata")
+        return None
+    return {
+        "pfid": pfid,
+        "title": it.get("title") or b.get("level_display_name") or pfid,
+        "creator": b.get("creator_name", ""),
+        "created": int(it.get("time_created") or 0),
+        "medals": medals,
+        "board": board,
+        "cid": str(it.get("creator") or ""),
+        "preview": it.get("preview_url") or "",
+        "sessions": int(it.get("lifetime_playtime_sessions") or 0),
+        "subs": int(it.get("lifetime_subscriptions") or 0),
+        # the file's content handle, which changes with each update: the
+        # Map file step's version (map_files.py); file_url is empty here
+        "version": str(it.get("hcontent_file") or ""),
+        "file_size": int(it.get("file_size") or 0),
+    }
+
+
+def _query_files(key, cursor):
+    """One page of the Workshop's Maps, newest published first: the QueryFiles response."""
+    q = urllib.parse.urlencode(
+        {
+            "key": key,
+            "appid": APP_ID,
+            "query_type": 1,
+            "numperpage": 100,
+            "cursor": cursor,
+            "return_metadata": 1,
+            "return_playtime_stats": 1,
+        }
+    )
+    with urllib.request.urlopen(
+        "https://api.steampowered.com/IPublishedFileService/QueryFiles/v1/?" + q, timeout=60
+    ) as r:
+        return json.load(r)["response"]
+
+
+def newest_maps(key):
+    """The 100 Workshop Maps published last (about two days' worth), in one request."""
+    batch = _query_files(key, "*").get("publishedfiledetails") or []
+    return [m for it in batch if it.get("publishedfileid") and (m := catalogue_map(it))]
+
+
+def workshop_catalogue(key):
+    """Every published Workshop Map, from IPublishedFileService/QueryFiles, each as
+    catalogue_map holds it. Raises if the pages come back short of the total Steam
+    reports, so a partial read can never look like deleted Maps."""
     maps, cursor, seen, fetched, total = [], "*", set(), 0, None
     while True:
-        q = urllib.parse.urlencode(
-            {
-                "key": key,
-                "appid": APP_ID,
-                "query_type": 1,
-                "numperpage": 100,
-                "cursor": cursor,
-                "return_metadata": 1,
-                "return_playtime_stats": 1,
-            }
-        )
-        with urllib.request.urlopen(
-            "https://api.steampowered.com/IPublishedFileService/QueryFiles/v1/?" + q, timeout=60
-        ) as r:
-            resp = json.load(r)["response"]
+        resp = _query_files(key, cursor)
         total = int(resp.get("total", 0))
         batch = resp.get("publishedfiledetails") or []
         for it in batch:
@@ -318,31 +358,9 @@ def workshop_catalogue(key):
                 continue
             seen.add(pfid)
             fetched += 1
-            try:
-                b = json.loads(it.get("metadata") or "{}")["ballest"]
-                board = b["leaderboard_name_current"]
-                medals = [float(t) for t in b["medal_times_by_index"]]
-            except (KeyError, TypeError, ValueError, json.JSONDecodeError):
-                print(f"  [skip] Map {pfid} {it.get('title')!r}: no usable ballest metadata")
-                continue
-            maps.append(
-                {
-                    "pfid": pfid,
-                    "title": it.get("title") or b.get("level_display_name") or pfid,
-                    "creator": b.get("creator_name", ""),
-                    "created": int(it.get("time_created") or 0),
-                    "medals": medals,
-                    "board": board,
-                    "cid": str(it.get("creator") or ""),
-                    "preview": it.get("preview_url") or "",
-                    "sessions": int(it.get("lifetime_playtime_sessions") or 0),
-                    "subs": int(it.get("lifetime_subscriptions") or 0),
-                    # the file's content handle, which changes with each update: the
-                    # Map file step's version (map_files.py); file_url is empty here
-                    "version": str(it.get("hcontent_file") or ""),
-                    "file_size": int(it.get("file_size") or 0),
-                }
-            )
+            m = catalogue_map(it)
+            if m:
+                maps.append(m)
         nxt = resp.get("next_cursor")
         if not batch or not nxt or nxt == cursor:
             break
