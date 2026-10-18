@@ -289,3 +289,27 @@ def test_the_step_takes_a_budget_for_a_backlog_run(db_url, capsys):
     )
     assert (n, calls) == (0, [])  # no download starts once the budget is spent
     assert "1 due, 0 written, 0 failed, 1 left" in capsys.readouterr().out
+
+
+def test_maps_named_come_from_the_newest_page_and_none_from_the_whole_catalogue(monkeypatch):
+    newest = [cat("1", "h1", 9), cat("2", "h2", 5), cat("3", "h3", 1)]
+    monkeypatch.setattr(map_files.cc, "newest_maps", lambda _: newest)
+    monkeypatch.setattr(map_files.cc, "workshop_catalogue", lambda _: [*newest, cat("4", "h4", 1)])
+    assert [m["pfid"] for m in map_files.catalogue_of("key", {"3", "1"})] == ["1", "3"]
+    assert len(map_files.catalogue_of("key")) == 4
+    assert map_files.catalogue_of("key", set()) == []  # --maps "," names nothing, not everything
+
+
+def test_with_no_map_to_look_at_the_step_never_logs_into_steam(monkeypatch, capsys):
+    monkeypatch.setattr(map_files.cc, "load_refresh_token", lambda: "token")
+    monkeypatch.setattr(map_files.cc, "load_key", lambda: "key")
+    monkeypatch.setattr(map_files.cc, "newest_maps", lambda _: [cat("1", "h1", 9)])
+    monkeypatch.setattr(map_files.steam, "Client", None)  # calling it would raise
+    monkeypatch.setenv("DEV_DATABASE_URL", "postgres://unused")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(map_files.cc, "workshop_catalogue", lambda _: [])
+    assert map_files.main(["--maps", ",", "--dev"]) == 1
+    assert map_files.main(["--maps", "2", "--dev"]) == 1
+    assert capsys.readouterr().out.count("none of --maps is on the newest page") == 2
+    assert map_files.main(["--dev"]) == 1
+    assert "(the Workshop lists none)" in capsys.readouterr().out

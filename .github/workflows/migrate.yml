@@ -14,6 +14,10 @@ on:
   workflow_dispatch: {}
 
 # Never alongside a refresh or a backfill: they write the tables a migration changes.
+# add-maps.yml keeps its own group (a run pending here would replace the scheduled Refresh), so
+# it can overlap one. Postgres's locks keep that safe: a migration waits for its open
+# transactions (its Map file step's can last that step's two minutes), and later ones wait for
+# the migration.
 concurrency:
   group: refresh-leaderboards
   cancel-in-progress: false

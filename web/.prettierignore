@@ -1,0 +1,7 @@
+# Prettier reads only the .prettierignore where it runs, so a run from web/ needs the root
+# file's web/ lines too. drizzle-kit writes the migrations, pnpm the lockfile, Next the rest.
+db/migrations/
+.next/
+public/
+next-env.d.ts
+pnpm-lock.yaml

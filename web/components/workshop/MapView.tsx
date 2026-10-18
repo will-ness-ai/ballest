@@ -28,7 +28,7 @@ import type { WorkshopMap } from "../../lib/rows";
 import { homeHref, mapHref } from "../../lib/routes";
 import { BOARD_CHUNK, fmtN, fmtTime, isSteamId } from "../../lib/rules";
 import { spreadOf } from "../../lib/spread";
-import { HIDDEN, map3dOf, recordOf, reportHref } from "../../lib/workshop";
+import { HIDDEN, map3dOf, recordIfAny, reportHref } from "../../lib/workshop";
 
 /* exported for its test (test/map-3d-button.test.tsx) */
 export function MapPanel({
@@ -42,6 +42,7 @@ export function MapPanel({
 }) {
   const reason = HIDDEN[m.pfid];
   const view = map3dOf(m);
+  const record = recordIfAny(m);
   return (
     <aside className="mpanel" id="mpanel">
       <BackLink trail="maps" />
@@ -70,12 +71,15 @@ export function MapPanel({
             <Age created={m.created} asOf={asOf} />
           </dd>
         </div>
-        <div>
-          <dt>Record</dt>
-          <dd>{fmtTime(recordOf(m))}</dd>
-        </div>
+        {record !== null && (
+          <div>
+            <dt>Record</dt>
+            <dd>{fmtTime(record)}</dd>
+          </div>
+        )}
       </dl>
-      <MedalList className="mp-medals" medals={m.medals} />
+      {/* the record is in the facts above */}
+      <MedalList className="mp-medals" record={null} medals={m.medals} />
       <div className="mp-chart">
         <span className="eyebrow">Every run</span>
         <div id="spread">
@@ -99,11 +103,12 @@ export function MapPanel({
   );
 }
 
-/* `m` is the Map, or undefined for one the Workshop no longer lists (or never did, or
-   nobody has a time on): as the single-page site did, a stale link lands on the homepage */
+/* `m` is the Map, or undefined for one the Workshop no longer lists (or never did): as the
+   single-page site did, a stale link lands on the homepage. A Map nobody has a time on yet,
+   new since the last Refresh (spec #259), has its page with an empty board. */
 export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus: string | null }) {
   if (focus && !isSteamId(focus)) notFound();
-  if (!m?.top3.length) redirect(homeHref());
+  if (!m) redirect(homeHref());
   const name = m.name;
   const [site, page, scores, places, history] = await Promise.all([
     getSite(),

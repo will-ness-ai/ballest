@@ -9,7 +9,14 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { SKILLS, mergeTargets, repoSlug, skillName, unreviewed } from "./review-gate-rules.mjs";
+import {
+  FOLLOW_UP_LINES,
+  SKILLS,
+  mergeTargets,
+  repoSlug,
+  skillName,
+  unreviewed,
+} from "./review-gate-rules.mjs";
 
 const HOME_REPO = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -57,18 +64,26 @@ function landing(cwd, cd) {
   return existsSync(path) ? path : null;
 }
 
-/* Why the gate refuses to let `target` merge, or null when it may (or is another repo's).
-   Throws when it can't tell, which the caller turns into a warning. */
-function refusal(target, cwd) {
+/* The checkout a target's command runs in, this repo's slug, and whether the target is one
+   of this repo's PRs. Throws when a `cd` lands nowhere. */
+function locate(target, cwd) {
   const where = target.cd ? landing(cwd, target.cd) : cwd;
   if (target.cd && !where) throw new Error(`can't find ${target.cd}`);
   const dir = checkout(where);
   const slug = slugAt(HOME_REPO);
+  const ours = !target.opaque && (target.repo ? repoSlug(target.repo) : dir && slug) === slug;
+  return { dir, slug, ours };
+}
+
+/* Why the gate refuses to let `target` merge, or null when it may (or is another repo's).
+   Throws when it can't tell, which the caller turns into a warning. */
+function refusal(target, cwd) {
+  const { dir, slug, ours } = locate(target, cwd);
   if (target.opaque)
     return dir
       ? "A GraphQL mutation names its PR by node ID, so the review gate can't check it: merge with `gh pr merge <number>` instead."
       : null;
-  if ((target.repo ? repoSlug(target.repo) : dir && slug) !== slug) return null;
+  if (!ours) return null;
   const at = dir ?? HOME_REPO;
   const gh = (...args) => run("gh", ["api", ...args], at);
   const branch = target.branch ?? run("git", ["branch", "--show-current"], at);
@@ -99,7 +114,15 @@ function refusal(target, cwd) {
     });
   const isAncestor = (a, b) =>
     tries(() => run("git", ["merge-base", "--is-ancestor", a, b], at)) !== null;
-  const missing = Object.entries(unreviewed(commits, records, isAncestor)).filter(
+  const linesOf = (c) =>
+    run("git", ["show", "--numstat", "--format=", c], at)
+      .split("\n")
+      .reduce((sum, line) => {
+        const [added, removed] = line.split("\t");
+        // git counts a binary file's lines as "-": no follow-up is small enough to skip it
+        return added === "-" ? Infinity : sum + (Number(added) || 0) + (Number(removed) || 0);
+      }, 0);
+  const missing = Object.entries(unreviewed(commits, records, isAncestor, linesOf)).filter(
     ([, cs]) => cs.length,
   );
   if (!missing.length) return null;
@@ -114,6 +137,7 @@ function refusal(target, cwd) {
   return (
     `PR #${number} isn't reviewed to its head (docs/agents/feature-workflow.md, steps 5 and 6). ` +
     lines.join(". ") +
+    `. Commits after a run need no new one while they change fewer than ${FOLLOW_UP_LINES} lines in all` +
     `. Call the Skill tool for 'code-review' with fixed point ${since}, then for 'codebase-design', ` +
     "on the PR's head in this clone, fix what they find, push, and try again. " +
     "Runs in this clone count from any session or worktree; an ad-hoc review or a run on another machine doesn't."
@@ -122,6 +146,12 @@ function refusal(target, cwd) {
 
 function gate(input) {
   for (const target of mergeTargets(input.tool_name, input.tool_input ?? {})) {
+    // one that can't be placed falls to refusal, which warns
+    if (target.unsquashed && tries(() => locate(target, input.cwd).ours))
+      return preToolUse({
+        permissionDecision: "deny",
+        permissionDecisionReason: `This repo squash-merges (docs/agents/issue-tracker.md): use \`gh api -X PUT repos/${slugAt(HOME_REPO)}/pulls/<n>/merge -f merge_method=squash\`, \`gh pr merge --squash\`, or merge_method squash.`,
+      });
     const reason = refusal(target, input.cwd);
     if (reason) return preToolUse({ permissionDecision: "deny", permissionDecisionReason: reason });
   }
@@ -146,7 +176,7 @@ try {
     process.stdout.write(
       JSON.stringify(
         preToolUse({
-          additionalContext: `The review gate couldn't check this PR (${e.message.split("\n")[0]}); make sure /code-review and /codebase-design have seen its head.`,
+          additionalContext: `The review gate couldn't check this PR (${e.message.split("\n")[0]}); make sure /code-review and /codebase-design have seen its head, and squash-merge it.`,
         }),
       ),
     );

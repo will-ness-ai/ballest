@@ -69,6 +69,25 @@ export function PlayerSkeleton({ id, className }: { id: string; className: strin
   );
 }
 
+/* Where you stand: the heading, then the four cards' first rows */
+export function YouSkeleton() {
+  return (
+    <section className="ys">
+      <header className="ys-top">
+        <h1>&nbsp;</h1>
+        <p className="ys-line">&nbsp;</p>
+      </header>
+      <div className="ys-cards">
+        {[0, 1, 2, 3].map((k) => (
+          <section className="ys-card" key={k}>
+            <Bars n={3} />
+          </section>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* the Players table, inside its section */
 export function PlayersSkeleton() {
   return <Bars n={8} />;

@@ -23,15 +23,21 @@ const GH_REPO_EXPORT = /\bexport\s+GH_REPO=([^\s;&|]+)/g;
 // gh pr merge's flags that take a value, so the value isn't read as the PR
 const VALUED = /^(?:-[btFRA]|--(?:body|body-file|subject|repo|author-email|match-head-commit))$/;
 
-const MERGE_TOOLS = ["mcp__github__merge_pull_request", "mcp__github__enable_pr_auto_merge"];
-
 /* The pull requests a tool call merges or marks ready, in order: { repo: "owner/name" | null,
-   number | null, branch?, cd? }, or { opaque: true } for a GraphQL mutation, which names its
-   PR by node ID. A null repo is the checkout's (in `cd`, when the command moves there
-   first); a null number is its branch's PR, or `branch`'s. */
+   number | null, branch?, cd?, unsquashed? }, or { opaque: true } for a GraphQL mutation,
+   which names its PR by node ID. A null repo is the checkout's (in `cd`, when the command
+   moves there first); a null number is its branch's PR, or `branch`'s. `unsquashed` marks a
+   merge that doesn't squash: GitHub's REST merge, like gh's prompt, makes a merge commit
+   unless told otherwise, and this repo squash-merges (docs/agents/issue-tracker.md). The
+   ccr/auto_merge route's method isn't read, so it is never marked. */
 export function mergeTargets(tool, input) {
   const pr = { repo: `${input.owner}/${input.repo}`, number: input.pullNumber };
-  if (MERGE_TOOLS.includes(tool)) return [pr];
+  if (tool === "mcp__github__merge_pull_request")
+    return [input.merge_method === "squash" ? pr : { ...pr, unsquashed: true }];
+  if (tool === "mcp__github__enable_pr_auto_merge")
+    return [
+      String(input.mergeMethod).toUpperCase() === "SQUASH" ? pr : { ...pr, unsquashed: true },
+    ];
   if (tool === "mcp__github__update_pull_request") return input.draft === false ? [pr] : [];
   if (tool !== "Bash") return [];
   const command = String(input.command ?? "");
@@ -69,10 +75,14 @@ function ghPr(command, m) {
     } else if (tokens[i].startsWith("--repo=")) repo = tokens[i].slice(7);
     else if (!tokens[i].startsWith("-") && first === null) first = tokens[i];
   }
+  // gh pr merge's flags without a value can share one dash: -sd
+  const squash = tokens.some((t) => t === "--squash" || /^-[dmrs]*s[dmrs]*$/.test(t));
+  const marked = verb === "merge" && !squash ? { unsquashed: true } : {};
   const url = first && /github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/.exec(first);
-  if (url) return { repo: url[1], number: Number(url[2]) };
-  if (first && /^#?\d+$/.test(first)) return { repo, number: Number(first.replace("#", "")) };
-  return first ? { repo, number: null, branch: first } : { repo, number: null };
+  if (url) return { repo: url[1], number: Number(url[2]), ...marked };
+  if (first && /^#?\d+$/.test(first))
+    return { repo, number: Number(first.replace("#", "")), ...marked };
+  return { repo, number: null, ...(first ? { branch: first } : {}), ...marked };
 }
 
 /* `gh api` or `curl` on a route that merges or marks ready, or a GraphQL mutation that does */
@@ -87,7 +97,10 @@ function apiCall(command, m) {
   if (!writes) return null;
   // gh fills in {owner}/{repo} and :owner/:repo from the checkout
   const placeholder = /^(?:\{owner\}\/\{repo\}|:owner\/:repo)$/.test(route[1]);
-  return { repo: placeholder ? null : route[1], number: Number(route[2]) };
+  // merge_method=squash, or in a JSON body, quoted or escaped
+  const squash = /merge_method[\\"'_\s]*[:=][\\"'_\s]*squash\b/.test(call);
+  const marked = /\/pulls\/\d+\/merge\b/.test(call) && !squash ? { unsquashed: true } : {};
+  return { repo: placeholder ? null : route[1], number: Number(route[2]), ...marked };
 }
 
 /* where `cd to` lands from `from`: an absolute path (or ~, $HOME) starts again */
@@ -119,13 +132,22 @@ export function repoSlug(text) {
 /* "projectSettings:code-review" and "code-review" are the same skill */
 export const skillName = (name) => String(name).split(":").pop();
 
+// A follow-up this small, after both skills have run on the PR, needs no new run (Will,
+// 2026-10-18: each round of review fixes was costing a whole review round).
+export const FOLLOW_UP_LINES = 40;
+
 /* Each skill's commits that no run of it has seen: a run on a commit sees it and every
-   commit before it. `records` are { skill, sha }, `isAncestor(a, b)` is git's. */
-export function unreviewed(commits, records, isAncestor) {
+   commit before it, and once it has run on the PR, later commits that change fewer than
+   FOLLOW_UP_LINES lines in all pass too. `records` are { skill, sha }, `isAncestor(a, b)` is
+   git's, `linesOf(sha)` the lines a commit adds and removes. */
+export function unreviewed(commits, records, isAncestor, linesOf) {
   return Object.fromEntries(
     SKILLS.map((skill) => {
       const seen = records.filter((r) => r.skill === skill).map((r) => r.sha);
-      return [skill, commits.filter((c) => !seen.some((s) => isAncestor(c, s)))];
+      const missing = commits.filter((c) => !seen.some((s) => isAncestor(c, s)));
+      const lines = missing.reduce((sum, c) => sum + linesOf(c), 0);
+      const followUp = missing.length < commits.length && lines < FOLLOW_UP_LINES;
+      return [skill, followUp ? [] : missing];
     }),
   );
 }

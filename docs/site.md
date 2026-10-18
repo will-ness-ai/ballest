@@ -28,6 +28,11 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
     the rows it is given; `standing.ts` (You's place, Medal and next Medal on a board) and
     `spread.ts` (the spread chart's columns and where a time falls on it) for You.
+  - `workshop-standings.ts`, the Workshop standings (`CONTEXT.md`) counted now and at a
+    baseline with shared places, `youBaseline`, the baseline /you compares against, and
+    `baselineOf`, which baselines the route takes (ADR 0011). `GET /api/standings?since=` serves them, for /you and for Multiballs;
+    `ladder.ts` is what /you shows of them (a card's rows around You, the line under it,
+    "Show all"'s slices, and a shared place's "=1,840th").
   - `auth.ts`, Sign in with Steam end to end, one call per route (ADR 0008), over
     `steam-openid.ts` (Steam's login and its check) and `cookies.ts` (the cookie names the
     browser also reads). Not pure like the rest: it signs with `node:crypto` and asks Steam.
@@ -159,7 +164,10 @@ fails to load, or that Satori can't read, draws without it.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
   (`lib/workshop.ts`).
 - `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row, and
-  `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D").
+  `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D"). A Map nobody has a
+  time on yet, such as one added from #new-tracks since the last Refresh (`docs/data.md`,
+  "New Maps"), has its page with an empty board and no record; the lists and shelves still
+  show only Maps with times. A Map the Workshop doesn't list sends the link home.
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
   cannot collide. Every Circuit board lights the one Circuit tab, which opens the newest
@@ -198,6 +206,24 @@ fails to load, or that Satori can't read, draws without it.
   by any column's header button (`aria-sort`), medal order breaking ties, 25 rows before
   "Show all". A phone drops its Podiums and Top 10 columns. Names link to the player's
   Daily tab.
+- `/you`: Where you stand, You on the four Workshop standings (spec #221), linked from the
+  Players table and the Daily Report's button, and lighting the Players tab. A ladder card
+  per list, stacked on a phone, two by two and then four across on the desktop layout: the
+  top 3, a gap, two above You, You, one below (unbroken in or near the top 5), each row
+  with +N since the baseline and its places moved, then "N more to pass X" (the nearest player with a strictly higher count) or "You
+  lead by N". The page is static: the server draws each list's top 3 (`laddersOf` with nobody),
+  and the browser reads You's cards from `GET /api/standings?ladders&player=`. Gains and
+  moves count from the /you baseline by the reader's clock (`youBaseline`), so the
+  server's are shown only when its baseline, from the latest Refresh, is that one, and
+  otherwise the browser reads them again. "Show all" opens the list in the card, read from
+  `GET /api/standings?list=` in slices: the one around You first, scrolled to You, then
+  more above and below as it scrolls, the rows in view kept still when rows go in above.
+  Signed out, the top 3s stay open to anyone, a strip on top asks "Where do you stand?"
+  and signs in, and each card's row where You would be reads "Sign in with Steam to see
+  your row" and is the sign-in; all of them come back to /you. Until the browser can tell
+  whether anyone is signed in, the strip, those rows and the gains line are drawn unseen,
+  out of reach, holding their place, so a signed-out page doesn't jump when they show and
+  a signed-in visitor never sees Sign in.
 - `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
   upload form. The Prefabs tab comes last and is lit on all three. See "Prefabs".
 
@@ -224,7 +250,8 @@ Every page of the app names its canonical address (`alternates.canonical`; a pag
 player's tab names the player's page, a board or Map focused on a row or in podium order
 names the board), All maps' views name All maps and the Players table's rankings name
 Players, and each Daily is a page of its own. A Map or player the page can only send away
-(a soft 404) is `noindex`. The homepage's title says what the site is, and it carries the
+(a soft 404) is `noindex`, and so is a Map nobody has a time on yet, as the sitemap leaves
+it out. The homepage's title says what the site is, and it carries the
 site's name for search results as schema.org `WebSite` JSON-LD.
 
 The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash` replaces
@@ -425,7 +452,8 @@ each player's real rank.
 The table scrolls inside its own box on a phone, so the rank and name columns stay put
 going sideways; on the desktop layout it fits, and the page scrolls. The pinned card is
 your own row, once you are signed in, shown at the foot while the row is out of view: how
-far the next rank up and the top 10 are, and a click scrolls to the row.
+far the next rank up and the top 10 are, and a click scrolls to the row. "Where you stand"
+beside the search goes to `/you`, which counts differently (the Workshop standings).
 
 The Players tab sits last in the tab bar, and like every tab it is lit from the path
 (`tabOfPath`).
@@ -470,7 +498,7 @@ branch `claude/prototype-prefabs` (spec #213).
   view" until they turn the model again. Edit saves it with the name, description and tags;
   `PATCH /api/prefabs/<slug>` also takes `{ angle }` alone.
 - **Uploading** (`UploadForm.tsx`, `POST /api/prefabs` in `db/prefab-api.ts`): signed in with
-  Steam, 5 an hour per player (or the limit the admin gave them) counted from the rows. The file is checked in the browser the
+  Steam, 5 in any rolling hour per player (or the limit the admin gave them) counted from the rows. The file is checked in the browser the
   moment it's chosen and again on the server (`checkPrefab`, the game's own rules), named,
   described and tagged, previewed in 3D beside the card it will make, and live at once. Each
   upload pings #prefabs on the dev Discord server through Vercel's `OPS_WEBHOOK_URL` (skipped
@@ -580,4 +608,9 @@ only visible ones.
   address. A page or dialog with no row in the catalogue is not checked: add it. Locally,
   serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank, a long
   Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
-  one.
+  one, and its report is a notice on the build job (`gh api repos/will-ness-ai/ballest/check-runs/<id>/annotations`). A catalogue row with `as` is drawn signed in as that player (the Prefab upload form, an
+  owner's Edit and Delete, the admin box): qa signs the cookie itself with the target's
+  `SESSION_SECRET` (`scripts/qa/session.mjs`), which it knows only for a local build (from the
+  environment, `web/.env.local` or `web/.env`), so `check` lists those views as `unsigned`
+  elsewhere, and as `uncompared` when only the reference can't sign in. A `signed-out` fault
+  means the site refused qa's session: qa read a different secret from the server's.

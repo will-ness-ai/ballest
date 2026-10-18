@@ -7,7 +7,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
-import { DROP, MASK, PREFAB_FILE, STAND_IN } from "./catalogue.mjs";
+import { ANSWERS, DROP, MASK, PREFAB_FILE, STAND_IN } from "./catalogue.mjs";
 import { measure, probe } from "./probes.mjs";
 
 const circuit = fileURLToPath(new URL("../../../circuit/", import.meta.url));
@@ -38,18 +38,20 @@ export const viewName = ({ page, state, width, text }) =>
  * page's status, its screenshot, what the layout probes found and the errors it raised,
  * plus the boxes of the elements `boxes` selects and the value of the expression `script`.
  * `prefab` is a Prefab file's text, served in place of every Prefab's file, so a Prefab's
- * page draws it. `skipped` says why there is nothing to compare (a control this width hides).
+ * page draws it. `cookies` are set before the page loads (session.mjs's signIn gives the
+ * ones that sign a player in), and `me` says who the site took the browser for. `skipped`
+ * says why there is nothing to compare (a control this width hides).
  * @param {import("playwright-core").Browser} browser
  * @param {string} url
  * @param {{ width: number, text: number }} view
  * @param {{ control?: string, now: number, full?: boolean, element?: string, boxes?: string,
- *   script?: string, prefab?: string }} options
+ *   script?: string, prefab?: string, cookies?: Array<object> }} options
  */
 export async function render(
   browser,
   url,
   view,
-  { control, now, full = false, element, boxes, script, prefab },
+  { control, now, full = false, element, boxes, script, prefab, cookies },
 ) {
   const phone = view.width < 600;
   const ctx = await browser.newContext({
@@ -60,6 +62,7 @@ export async function render(
     // the carousels hold still, as they do for a reader who asks for less motion
     reducedMotion: "reduce",
   });
+  if (cookies) await ctx.addCookies(cookies);
   const page = await ctx.newPage();
   // a Prefab's how-to opens on its own on a first visit; it stays shut here, and the
   // "howto" state opens it
@@ -99,6 +102,7 @@ export async function render(
       // start` answers some prefetches 404 where Vercel answers 200 (docs/site.md)
       if (res.status() < 400 || req.isNavigationRequest()) return;
       if (req.headers()["next-router-prefetch"]) return;
+      if (res.status() === 404 && ANSWERS.test(new URL(res.url()).pathname)) return;
       errors.push({ where: new URL(res.url()).pathname, detail: String(res.status()) });
     });
     if (view.text !== 16) {
@@ -126,10 +130,20 @@ export async function render(
       }
     }
     await settle(page);
+    // the signed-in Steam ID the site answers with, so a session it refused isn't drawn as
+    // if it were the page signed in
+    const me = cookies?.length
+      ? await page.evaluate(() =>
+          fetch("/api/me")
+            .then((r) => (r.ok ? r.json() : {}))
+            .then((j) => j.id ?? null)
+            .catch(() => null),
+        )
+      : undefined;
     if (control) {
       const el = page.locator(control).first();
       if (!(await el.isVisible().catch(() => false)))
-        return { status, skipped: "control hidden", errors };
+        return { status, me, skipped: "control hidden", errors };
       await el.click();
       await quiet(page, () => pending);
       await settle(page);
@@ -161,7 +175,7 @@ export async function render(
       shot = await (element ? page.locator(element).first() : page).screenshot();
     }
     const title = await page.title();
-    return { status, title, shot, probes, errors, measured, evaluated };
+    return { status, me, title, shot, probes, errors, measured, evaluated };
   } finally {
     await ctx.close();
   }

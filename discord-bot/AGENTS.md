@@ -150,16 +150,24 @@ URL Mapping pointing there.
 
 `src/report/` posts the Daily Report (spec #126, design on branch
 `claude/prototype-daily-report`) in `STATS_CHANNEL_ID` at 16:00 UTC: the day, the counts and
-Since yesterday in the channel with the four boards as an image, and the map lists and
-longest-standing records in a thread on it. It reads the leaderboard database at `DATABASE_URL`
-(ADR 0006: plain SQL over the schema `web/` owns, in `source.ts`) and dates records from their
-ghost replays through the Steam Web API. It is off unless both settings are set, so `pnpm dev` and
+Since yesterday in the channel with the four Workshop standings as an image and one link button under it,
+"Where do I stand?", to the site's `/you` (spec #221), and the map lists and longest-standing
+records in a thread on it. The button and the message's Map links go to the live site whatever
+`SITE_URL` says, so a sandbox post's button opens the real `/you`; the bot never hears a press
+of a link button, and it never edits the message. The Workshop standings come from the site: it counts
+them and serves them at `GET /api/standings` (ADR 0011), which `standings.ts` reads
+at `SITE_URL` (default the live site) with the baseline 24 hours before the post, so the image's
+places are the site's shared places. Everything else reads the leaderboard database at
+`DATABASE_URL` (ADR 0006: plain SQL over the schema `web/` owns, in `source.ts`), and records are
+dated from their ghost replays through the Steam Web API. A site or database that can't be read
+fails that day's post, and ops hears. It is off unless `STATS_CHANNEL_ID` and `DATABASE_URL` are both set, so `pnpm dev` and
 the sandbox never post it. Each posted day is recorded in SQLite (`daily_reports`); a bot that
 was down at 16:00 posts once when it starts, and a day whose last Refresh is over 48 hours old
 is skipped with a note to the ops channel, as is a post that fails.
 
-What it says is pure and tested: the standings, lists and Since yesterday in `report.ts`
-(`test/report.test.ts`), the words in `messages.ts`, the schedule in `daily.ts` over fakes on the
+What it says is pure and tested: the Workshop standings (from a fake of the site's payload), lists and Since
+yesterday in `report.ts` (`test/report.test.ts`), the words and the button in `messages.ts` (the
+button in `test/messages.test.ts`), the schedule in `daily.ts` over fakes on the
 TestClock (`test/daily.test.ts`). The SQL and the Discord REST calls are checked by posting one:
 
 ```
@@ -169,13 +177,26 @@ pnpm --silent axi read --full
 ```
 
 `pnpm report` posts the report now into the sandbox channel (or `--channel <id>`), skipping the
-schedule's checks, and refuses any database but a local one. Fill a local Postgres with real
+schedule's checks, and refuses any database but a local one. Its Workshop standings come from `SITE_URL`;
+set it to a local `pnpm dev` of `web/` on the same database to have them agree with the rest. Fill a local Postgres with real
 history by migrating it (`web/scripts/migrate.mjs`) and replaying `tools/db_backfill.py` into it
 (`docs/data.md`); the database must be UTF-8.
 
 In production the bot's role needs View Channel, Send Messages, Attach Files, Create Public
 Threads and Send Messages in Threads in #stats-by-will, and `fly secrets` needs `STATS_CHANNEL_ID`
 and `DATABASE_URL` (the collector's Neon URL).
+
+## New tracks
+
+`src/newTracks.ts` gets a new Workshop Map onto the site within minutes (spec #259). The game
+Discord's #new-tracks (`NEW_TRACKS_CHANNEL_ID`, in `fly.toml`) gets a post from the HubUpdates app as each Map
+goes up; a minute after a post the bot starts the site repo's `add-maps.yml` on `main` through
+GitHub's API (`GITHUB_DISPATCH_TOKEN`, a fine-grained token with Actions read and write on
+`will-ness-ai/ballest` only), and posts within that minute share the run. It never reads a post's
+words: the GuildMessages intent only says one arrived, and the workflow finds what is new
+(`docs/data.md`, "New Maps"). A dispatch that fails goes to the ops channel. It is off unless both
+settings are set and the bot can view that channel, and then says why in the log; the bot runs on.
+The batching is tested on the TestClock (`test/newTracks.test.ts`).
 
 ## Production
 

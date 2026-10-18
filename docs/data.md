@@ -109,7 +109,7 @@ skipped without a catalogue or a database, and with `--dev` writes only `DEV_DAT
 To fill a backlog in one go, run `.github/workflows/map-files.yml` by hand: it runs the same
 step alone (`python tools/map_files.py --budget <seconds>`), an hour by default, in the
 refresh's concurrency group, so a Refresh due meanwhile waits for it, and it fails when it
-wrote no file. Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
+wrote no file. `add-maps.yml` runs it too, on just the Maps it added, read from the newest page (`--maps`; "New Maps"). Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
 file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
 `getWorkshop` carries each Map's stored version.
 
@@ -147,6 +147,32 @@ stopped uploading; the reads hide their Prefabs while the row is there. `prefab_
 player the admin gave their own hourly upload limit in place of the 5; no row is the default. `tiny` seeds two
 Prefabs. `scripts/prefab-samples.ts` adds the two samples in `prefabs/samples/` (Will's,
 from before uploads) to a database once, idempotently.
+
+### New Maps
+
+A Map published since the last Refresh is added on its own, within minutes, when the game
+Discord's #new-tracks gets a post (spec #259): Multiballs starts `.github/workflows/add-maps.yml`
+a minute after the post (`discord-bot/src/newTracks.ts`), which runs `tools/add_maps.py`. That
+reads the newest page of the catalogue (`campaign_common.newest_maps`, one Steam Web API request,
+no Steam login) and `db_writer.add_maps` writes each Map the database lacks in one transaction:
+its `boards` row with no board ID, `maps`, and one `map_history` row. It writes no Refresh and
+reads no board. The row's first and last seen are the newest catalogue's Refresh
+(`max(last_seen_refresh)`), as if that catalogue had seen it, so the site counts the Map as
+listed and serves its page (with an empty board until it has times; `docs/site.md`, Routes), and its
+sessions and subscriptions are empty, so the next Refresh reads them as moved and looks its board
+up. While nothing is new it reads the page again, up to five reads a minute apart, since Steam's
+list can lag the post. Before any catalogue was written it adds nothing. The workflow's next step
+downloads the added Maps' files (`map_files.py --maps`, two minutes of downloads, the step stopped
+at five), so their 3D view comes within minutes too. It skips while `refresh.yml` or
+`map-files.yml` is queued or running, since a second Steam login on the same account can drop
+theirs. That check can't stop a Refresh that starts during the download: its newer login ends the
+download's session, not its own. A skipped or failed download leaves the file to the next Refresh,
+as any due file is. Ghosts come with that Refresh.
+
+It runs in its own concurrency group, because a pending run in `refresh-leaderboards` would
+replace the scheduled Refresh waiting there. So a Refresh that read the catalogue before the Map
+was published and commits after `add_maps` leaves the Map unlisted, its link sending players home
+again, until the next Refresh.
 
 ### What the collector remembers
 
@@ -239,7 +265,9 @@ The app reads the database only through `web/db/data.ts`, whose functions are
 `"use cache: remote"` (shared by every server instance), tagged `data`, with the `max` lifetime: what every page's frame needs
 (`getSite`: when the boards were read, every Circuit board's count, the podium tallies), the
 Workshop's Maps with their figures (`getWorkshop`), a slice of a board (`getBoardPage`), a
-player's record (`getPlayer`) and the Players counts (`getStandings`), and one Daily by its date (`getDaily`, checked against
+player's record (`getPlayer`) and the Players counts (`getStandings`), the Workshop standings
+at a baseline (`getWorkshopStandings`, keyed by the baseline, which `GET /api/standings` keeps
+to the hour and the last week), and one Daily by its date (`getDaily`, checked against
 `getDailyDates` first), whose board is read like any other. Searches
 (`searchBoard`, `searchPlayers`) are read fresh. The queries are in `web/db/site.ts`, built on
 the ranked boards in `web/db/boards.ts`, and tested against `tiny` (`web/test/site.test.ts`).

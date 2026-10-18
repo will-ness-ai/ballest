@@ -1,0 +1,78 @@
+name: Add new Workshop Maps
+
+# Started by Multiballs when the game Discord's #new-tracks gets a post (discord-bot/src/newTracks.ts):
+# writes the Workshop's newest Maps the database lacks (tools/add_maps.py), so they show on the
+# site within minutes, not at the next Refresh (one Steam Web API request a try, no Steam login),
+# then downloads those Maps' files for the 3D view (tools/map_files.py --maps).
+
+on:
+  workflow_dispatch: {}
+
+# Its own group, never refresh-leaderboards: a pending run there would replace the scheduled
+# Refresh waiting behind it. A Refresh that read the catalogue before the Map was published and
+# commits after this run unlists it again until the next one (docs/data.md, "New Maps").
+concurrency:
+  group: add-maps
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read # to see whether a Refresh is logged into Steam
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: python -m pip install -r tools/requirements-steampy.txt
+
+      - name: Add new Workshop Maps
+        id: add
+        env:
+          STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+          SITE_URL: https://ballestrecords.com
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+        run: python tools/add_maps.py
+
+      # The files come second and on their own: the pages are already up, so a failed or slow
+      # download only leaves them to the next Refresh's Map file step, as any due file is. It
+      # skips while refresh.yml or map-files.yml is queued or running, since a second Steam login
+      # on the same account can drop theirs; when this check fails, the download skips too.
+      - name: Is another run logged into Steam?
+        id: steam
+        if: steps.add.outputs.added != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          busy=0
+          for wf in refresh.yml map-files.yml; do
+            n=$(gh run list -R "$GITHUB_REPOSITORY" --workflow "$wf" --json status \
+              --jq '[.[] | select(.status != "completed")] | length')
+            busy=$((busy + n))
+          done
+          echo "busy=$busy" >> "$GITHUB_OUTPUT"
+          [ "$busy" = 0 ] || echo "A Refresh or Map file run is queued or running: the new Maps' files wait for the next Refresh"
+
+      - name: Download their files
+        if: steps.add.outputs.added != '' && steps.steam.outputs.busy == '0'
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          STEAM_REFRESH_TOKEN: ${{ secrets.STEAM_REFRESH_TOKEN }}
+          STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+          SITE_URL: https://ballestrecords.com
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+          MAPS: ${{ steps.add.outputs.added }}
+        run: python tools/map_files.py --maps "$MAPS" --budget 120
