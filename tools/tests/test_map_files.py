@@ -296,3 +296,4 @@ def test_maps_named_come_from_the_newest_page_and_none_from_the_whole_catalogue(
     monkeypatch.setattr(map_files.cc, "workshop_catalogue", lambda _: [*newest, cat("4", "h4", 1)])
     assert [m["pfid"] for m in map_files.catalogue_of("key", {"3", "1"})] == ["1", "3"]
     assert len(map_files.catalogue_of("key")) == 4
+    assert map_files.catalogue_of("key", set()) == []  # --maps "," names nothing, not everything

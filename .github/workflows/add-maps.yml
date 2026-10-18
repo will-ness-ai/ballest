@@ -49,7 +49,7 @@ jobs:
       # download only leaves them to the next Refresh's Map file step, as any due file is. It
       # skips while refresh.yml or map-files.yml is queued or running, since a second Steam login
       # on the same account can drop theirs; when this check fails, the download skips too.
-      - name: Is a Refresh logged into Steam?
+      - name: Is another run logged into Steam?
         id: steam
         if: steps.add.outputs.added != ''
         continue-on-error: true

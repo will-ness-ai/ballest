@@ -182,8 +182,8 @@ async def record_map_files(catalogue, download, *, scratch=False, env=None, budg
 
 def catalogue_of(key, pfids=None):
     """The Maps the step looks at: just `pfids`, from the newest page (one request, and a
-    #new-tracks post's Maps are on it), or with no pfids the whole catalogue."""
-    if pfids:
+    #new-tracks post's Maps are on it), or with pfids None the whole catalogue."""
+    if pfids is not None:
         return [m for m in cc.newest_maps(key) if m["pfid"] in pfids]
     return cc.workshop_catalogue(key)
 
