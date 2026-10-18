@@ -507,12 +507,13 @@ async function check() {
     ...(!diffs.length && !found.length ? ["  nothing to look at"] : []),
   ];
   say(report);
-  // in CI, the job's summary too: a cloud session can read it from the check run
-  // (`gh api .../check-runs`, output.summary) but not the job's log
+  // in CI, the job's summary for people, and a notice a cloud session can read, since it
+  // can't read the job's log: gh api repos/<repo>/check-runs/<build job id>/annotations
   if (process.env.GITHUB_STEP_SUMMARY)
     appendFileSync(
       process.env.GITHUB_STEP_SUMMARY,
       `## qa check\n\n\`\`\`\n${report.join("\n")}\n\`\`\`\n`,
     );
+  if (process.env.GITHUB_ACTIONS) say(`::notice title=qa check::${report.join("%0A")}`);
   if (flags.assert && found.length) process.exit(1);
 }
