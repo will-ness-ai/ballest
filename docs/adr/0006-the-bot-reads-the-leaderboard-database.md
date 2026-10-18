@@ -1,15 +1,30 @@
 # The bot reads the leaderboard database directly, with plain SQL
 
 Status: accepted (2026-10-04). Amended by ADR 0011: the site counts the Workshop standings and serves them.
+Extended 2026-10-18: the Daily Post reads the database the same way (below).
 
 The Daily Report (spec #126) needs every Workshop Map's board, each Map's Author Medal and
 creator, and what changed in the last 24 hours: the Score history that ADR 0005 put in
 Postgres on Neon. Multiballs reads it directly, with `@effect/sql-pg` and the same
 `DATABASE_URL` the collector writes with, set as a Fly secret. Its queries are plain SQL in
-`discord-bot/src/report/source.ts`; the schema stays owned by Drizzle in `web/`, so a
-migration that renames or reshapes `maps`, `map_history`, `entries`, `boards`, `players`,
-`refreshes` or `board_reads` must update that file too. The bot keeps its own SQLite for
-Matches (ADR 0003); the Neon client is provided only to the report's reads.
+`discord-bot/src/report/source.ts`; the schema stays owned by Drizzle in `web/`. The bot keeps
+its own SQLite for Matches and Daily Posts (ADR 0003); the Neon client is provided only to the
+reads below, each on a connection of its own, so a database that can't be reached fails that
+read and never the bot's startup.
+
+The Daily Post (spec #268) reads the same database with the same plain SQL and `DATABASE_URL`,
+from two more files. `discord-bot/src/dailyPost/history.ts` reads a past Daily for the backfill:
+`dailies`, `boards`, `entries`, `refreshes`, `players`, `ghosts` (a Ghost's `set_at` times a
+backfilled lead) and `board_reads`. `discord-bot/src/dailyPost/spin.ts` reads a Map's file
+version from `map_files` and its spinning GIF from `map_spins` (ADR 0013). Neither writes.
+
+A migration that renames or reshapes a table the bot reads must update the file that reads it:
+
+- `report/source.ts`: `maps`, `map_history`, `entries`, `boards`, `players`, `refreshes`,
+  `board_reads`.
+- `dailyPost/history.ts`: `dailies`, `boards`, `entries`, `refreshes`, `players`, `ghosts`,
+  `board_reads`.
+- `dailyPost/spin.ts`: `map_files`, `map_spins`.
 
 ## Considered Options
 

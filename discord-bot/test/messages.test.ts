@@ -1,7 +1,15 @@
 // The Discord messages the bot sends, built from plain data: which buttons each one offers,
 // what they do, and who each one pings. No Discord needed; the payloads are checked as built.
-import { type ActionRowBuilder, type ButtonBuilder, ButtonStyle, ComponentType } from "discord.js";
+import {
+  type ActionRowBuilder,
+  type ButtonBuilder,
+  ButtonStyle,
+  ComponentType,
+  MessageFlags,
+} from "discord.js";
 import { describe, expect, it } from "vitest";
+import type { DailyView } from "../src/dailyPost/card.js";
+import { dailyCard, dailyLineMessage, type DailyMessage } from "../src/dailyPost/messages.js";
 import type { MatchState, MatchType } from "../src/domain.js";
 import { parseControl } from "../src/discord/controls.js";
 import type { MarbleEmojis } from "../src/discord/marbles.js";
@@ -336,5 +344,102 @@ describe("the Daily Report's channel message", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("a Daily Post's card", () => {
+  const view: DailyView = {
+    date: "2026-10-18",
+    pfid: "3796494598",
+    title: "the drop",
+    maker: "AvgRon",
+    endsAt: Date.UTC(2026, 9, 19, 1),
+    medals: { bronze: 14, silver: 11, gold: 9, author: 8.9 },
+    board: { players: 1, top: [{ name: "<@123>", ticks: ticks(9) }] },
+    readAt: Date.UTC(2026, 9, 18, 17),
+  };
+  const card = (pictures: Parameters<typeof dailyCard>[1]) => dailyCard(view, pictures).message;
+  const message = card({ preview: "kept" });
+  const links = (m: DailyMessage) =>
+    JSON.stringify(m.components).match(/"label":"[^"]+","url":"[^"]+"/g);
+
+  it("links to the Map's Workshop page, then the Daily's board on the site", () => {
+    expect(links(message)).toEqual([
+      '"label":"Steam Workshop","url":"https://steamcommunity.com/sharedfiles/filedetails/?id=3796494598"',
+      '"label":"Today\'s board","url":"https://ballestrecords.com/daily/2026-10-18"',
+    ]);
+  });
+
+  it("pings nobody, whatever a name holds", () => {
+    expect(message.allowed_mentions).toEqual({ parse: [] });
+  });
+
+  it("is a Components V2 card that shows the screenshot only when it is attached", () => {
+    expect(message.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(JSON.stringify(message)).toContain("attachment://preview.jpg");
+    expect(JSON.stringify(card({}))).not.toContain("attachment://");
+  });
+
+  it("shows the spinning GIF beside the podium once it is attached, and not before", () => {
+    const spinning = JSON.stringify(card({ preview: "kept", spin: "kept" }));
+    expect(spinning).toContain('"accessory":{"type":11,"media":{"url":"attachment://spin.gif"}}');
+    expect(spinning).toContain("🥇");
+    expect(JSON.stringify(message)).not.toContain("spin.gif");
+  });
+
+  it("draws the lead graph under the podium only when it is attached", () => {
+    const parts = (m: DailyMessage) =>
+      JSON.stringify(m.components).match(/🥇|attachment:\/\/[a-z]+\.[a-z]+/g);
+    expect(parts(card({ preview: "kept", graph: "kept", spin: "kept" }))).toEqual([
+      "attachment://preview.jpg",
+      "🥇",
+      "attachment://spin.gif",
+      "attachment://graph.png",
+    ]);
+    expect(JSON.stringify(message)).not.toContain("graph.png");
+  });
+
+  it("once closed, heads it with the winner, keeps its pictures and graph, and links its final board", () => {
+    const closed = card({ preview: "kept", graph: "kept", spin: "kept", closed: true });
+    const text = JSON.stringify(closed.components);
+    expect(text.match(/🏆|🥇|attachment:\/\/[a-z]+\.[a-z]+|Closed|Updated/g)).toEqual([
+      "🏆",
+      "attachment://preview.jpg",
+      "🥇",
+      "attachment://spin.gif",
+      "attachment://graph.png",
+      "Closed",
+    ]);
+    expect(links(closed)).toEqual([
+      '"label":"Steam Workshop","url":"https://steamcommunity.com/sharedfiles/filedetails/?id=3796494598"',
+      '"label":"Final board","url":"https://ballestrecords.com/daily/2026-10-18"',
+    ]);
+    expect(closed.allowed_mentions).toEqual({ parse: [] });
+  });
+
+  it("attaches each new picture under the name it shows by, and none it keeps", () => {
+    const png = new Uint8Array([2]),
+      gif = new Uint8Array([3]);
+    const { message: shown, files } = dailyCard(view, {
+      preview: "kept",
+      graph: png,
+      spin: gif,
+    });
+    expect(files).toEqual([
+      { name: "graph.png", data: png },
+      { name: "spin.gif", data: gif },
+    ]);
+    const urls = JSON.stringify(shown.components).match(/attachment:\/\/[a-z]+\.[a-z]+/g);
+    for (const f of files) expect(urls).toContain(`attachment://${f.name}`);
+    expect(dailyCard(view, { preview: "kept", graph: "kept" }).files).toEqual([]);
+  });
+});
+
+describe("a Daily Post's thread line", () => {
+  const line = dailyLineMessage("-# 🏁 **@everyone** sets the first time: **0:08.912**");
+
+  it("pings nobody and notifies nobody", () => {
+    expect(line.allowed_mentions).toEqual({ parse: [] });
+    expect(line.flags).toBe(MessageFlags.SuppressNotifications);
   });
 });
