@@ -2,22 +2,24 @@
 // engine but the tests' fake Steam, an in-memory database and no Discord. Sign in as any of
 // the demo members (alice has not linked Steam yet; paste https://steamcommunity.com/id/alice).
 // Open a second tab with `?as=d-bob` to play the other side. Once a Match is live, fake racers
-// set times on its Map every few seconds, which the engine picks up on its 10-second poll.
+// set times on its Map every few seconds, which the engine picks up on its 10-second poll. Bob and
+// Cara have Chosen Skins; alice and dan keep their hue marbles.
 import { NodeRuntime } from "@effect/platform-node";
 import { ConfigProvider, Context, Effect, Layer, Option, Schedule } from "effect";
 import { AuthFailed, DiscordAuth, DiscordMembers } from "../src/activity/auth.js";
 import { activityServer } from "../src/activity/server.js";
 import { seconds as tickSeconds } from "../src/domain.js";
-import { NoChosenSkins } from "../src/chosenSkins.js";
 import { Engine } from "../src/engine.js";
 import { Pings } from "../src/pings.js";
-import { MatchLinks, PingRole, Store, Steam, Surface } from "../src/ports.js";
+import { ChosenSkins, MatchLinks, PingRole, Store, Steam, Surface } from "../src/ports.js";
 import { MapPreviews, PreviewSource, PreviewUnavailable } from "../src/previews.js";
+import { SkinPictures } from "../src/render/skins.js";
 import { SqliteStoreInMemory } from "../src/sqliteStore.js";
 import {
   BOB,
   CARA,
   DAN,
+  makeFakeChosenSkins,
   makeFakePingRole,
   makeFakeSteam,
   makeMap,
@@ -97,6 +99,15 @@ const Demo = Layer.unwrapScoped(
     yield* steam.control.setCatalogue(MAPS);
     // The @Multiplayer ping role, held in memory: the bell and the offer work as in Discord.
     const role = yield* makeFakePingRole;
+    const chosenSkins = yield* makeFakeChosenSkins;
+    yield* chosenSkins.pick(
+      BOB.steamId,
+      "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink",
+    );
+    yield* chosenSkins.pick(
+      CARA.steamId,
+      "/Game/Packs/Vefects/Stylized_Galaxy_Shader/Galaxy/Materials/MI_VFX_Lush_Galaxy_Shader_02.MI_VFX_Lush_Galaxy_Shader_02",
+    );
     const pings = Pings.Default.pipe(
       Layer.provide(Layer.succeed(PingRole, role.port)),
       Layer.provide(Layer.succeed(Store, store)),
@@ -107,7 +118,8 @@ const Demo = Layer.unwrapScoped(
       LogSurface,
       NoLinks,
       NoPreviews,
-      NoChosenSkins,
+      Layer.succeed(ChosenSkins, chosenSkins.port),
+      SkinPictures.Default,
       pings,
     );
 

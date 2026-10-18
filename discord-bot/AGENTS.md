@@ -106,9 +106,11 @@ the sandbox with `DATABASE_URL` set to a local database to see picks. The engine
 `ChosenSkins` port as it builds each Card view and thread post, which carry their Players' Skins
 (`skins` on a `CardView`, `skin` on a post about one Player), so a redraw draws exactly what the
 post brought; the Link confirmation and the Daily Report read them as they build their image.
-`SkinPictures` (`src/render/skins.ts`) reads the pictures once at startup for the Renderer and
-`Marbles` both. The Skin list and its
-pictures are copies of the site's (`src/render/skins.ts`, `assets/skins/`, made by
+`SkinPictures` (`src/render/skins.ts`) reads the pictures once at startup for the Renderer,
+`Marbles` and the Activity, which serves them at `/skins/` beside its fonts and draws a Player's
+Chosen Skin from what its API sends (`skins` on a Match view, `skin` on the viewer's Link, the
+Challenge picker and the Link preview). The Skin list and its
+pictures are copies of the site's (`src/render/skinList.ts`, `assets/skins/`, made by
 `scripts/skin_pngs.py`), since resvg reads no WebP and the Fly image is built from
 `discord-bot/` alone; `test/skins.test.ts` holds them to `web/lib/skins.ts`. `Marbles` uploads
 one application emoji per Skin (`skin_<name>`) at startup beside the hue marbles.
@@ -125,8 +127,8 @@ Engine, tested in `test/activity.test.ts` like the engine tests; it names Player
 does and refuses anyone outside `DISCORD_GUILD_ID`. `auth.ts` swaps the SDK's OAuth code for an
 access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
 page (`web/`: `view.ts` is the markup, `app.ts` the state and actions, bundled by esbuild at
-startup), its fonts from `@fontsource`, and each Map's Workshop preview (from `src/previews.ts`),
-because Discord's proxy blocks every other host. The page polls every two seconds. The visual reference
+startup), its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and
+each Skin's picture, because Discord's proxy blocks every other host. The page polls every two seconds. The visual reference
 is the prototype on branch `claude/prototype-activity-surfaces`.
 
 The Activity's art in the Developer Portal (the app icon, and the cover and grid-view background

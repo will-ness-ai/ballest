@@ -178,7 +178,7 @@ describe("signing in", () => {
       const { call } = yield* setup({ maps: [MAP] });
       expect((yield* call("GET", "/api/me", { as: ALICE.discordId })).body).toEqual({
         discordId: ALICE.discordId,
-        link: { steamId: ALICE.steamId, personaName: "alice" },
+        link: { steamId: ALICE.steamId, personaName: "alice", skin: null },
         matchId: null,
         pings: false,
         pingRole: "@Multiplayer ping",
@@ -214,6 +214,7 @@ describe("linking Steam", () => {
       expect((yield* call("GET", "/api/me", { as: ALICE.discordId })).body.link).toEqual({
         steamId: ALICE.steamId,
         personaName: "alice",
+        skin: null,
       });
     }),
   );
@@ -279,6 +280,7 @@ describe("the Challenge picker", () => {
               name: "Bob",
               steamName: "bob",
               busy: false,
+              skin: null,
             },
             {
               discordId: CARA.discordId,
@@ -286,6 +288,7 @@ describe("the Challenge picker", () => {
               name: "Cara",
               steamName: "cara",
               busy: true,
+              skin: null,
             },
             {
               discordId: DAN.discordId,
@@ -293,6 +296,7 @@ describe("the Challenge picker", () => {
               name: "Dan",
               steamName: "dan",
               busy: false,
+              skin: null,
             },
           ],
         },
@@ -832,6 +836,58 @@ describe("Lobby pings", () => {
       const refused = yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId });
       expect(refused.status).toBe(409);
       expect(refused.body.pingOffer ?? false).toBe(false);
+    }),
+  );
+});
+
+describe("Chosen Skins", () => {
+  const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
+  const GOLD = "/Game/Art/M_GoldReal.M_GoldReal";
+
+  it.scoped("a Match view carries its Players' Chosen Skins as they stand now", () =>
+    Effect.gen(function* () {
+      const { h, call, open } = yield* setup({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      yield* h.chosenSkins.pick(DAN.steamId, GOLD);
+      const matchId = yield* open(ALICE.discordId, lobby);
+      yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId });
+      const view = (yield* call("GET", `/api/matches/${matchId}`, { as: CARA.discordId })).body;
+      expect(view.match.skins).toEqual({ [ALICE.steamId]: PINK });
+      yield* h.chosenSkins.pick(BOB.steamId, GOLD);
+      const later = (yield* call("GET", "/api/matches", { as: CARA.discordId })).body;
+      expect(later.matches[0].skins).toEqual({ [ALICE.steamId]: PINK, [BOB.steamId]: GOLD });
+    }),
+  );
+
+  it.scoped("the viewer's own Link carries their Chosen Skin", () =>
+    Effect.gen(function* () {
+      const { h, call } = yield* setup({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      expect((yield* call("GET", "/api/me", { as: ALICE.discordId })).body.link).toEqual({
+        steamId: ALICE.steamId,
+        personaName: "alice",
+        skin: PINK,
+      });
+      expect((yield* call("GET", "/api/me", { as: BOB.discordId })).body.link.skin).toBeNull();
+    }),
+  );
+
+  it.scoped("the Challenge picker and the Link preview carry each account's Chosen Skin", () =>
+    Effect.gen(function* () {
+      const { h, call } = yield* setup({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      yield* h.chosenSkins.pick(BOB.steamId, GOLD);
+      const players = (yield* call("GET", "/api/players", { as: ALICE.discordId })).body.players;
+      expect(players.map((p: any) => [p.name, p.skin])).toEqual([
+        ["Bob", GOLD],
+        ["Cara", null],
+        ["Dan", null],
+      ]);
+      const preview = yield* call("POST", "/api/link/preview", {
+        as: CARA.discordId,
+        body: { profile: ALICE_PROFILE },
+      });
+      expect(preview.body).toMatchObject({ steamId: ALICE.steamId, skin: PINK });
     }),
   );
 });
