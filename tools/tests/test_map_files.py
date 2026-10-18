@@ -299,7 +299,7 @@ def test_maps_named_come_from_the_newest_page_and_none_from_the_whole_catalogue(
     assert map_files.catalogue_of("key", set()) == []  # --maps "," names nothing, not everything
 
 
-def test_maps_naming_none_on_the_newest_page_never_logs_into_steam(monkeypatch, capsys):
+def test_with_no_map_to_look_at_the_step_never_logs_into_steam(monkeypatch, capsys):
     monkeypatch.setattr(map_files.cc, "load_refresh_token", lambda: "token")
     monkeypatch.setattr(map_files.cc, "load_key", lambda: "key")
     monkeypatch.setattr(map_files.cc, "newest_maps", lambda _: [cat("1", "h1", 9)])
