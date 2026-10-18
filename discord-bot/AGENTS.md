@@ -180,7 +180,7 @@ and `DATABASE_URL` (the collector's Neon URL).
 ## New tracks
 
 `src/newTracks.ts` gets a new Workshop Map onto the site within minutes (spec #259). The game
-Discord's #new-tracks (`NEW_TRACKS_CHANNEL_ID`) gets a post from the HubUpdates app as each Map
+Discord's #new-tracks (`NEW_TRACKS_CHANNEL_ID`, in `fly.toml`) gets a post from the HubUpdates app as each Map
 goes up; a minute after a post the bot starts the site repo's `add-maps.yml` on `main` through
 GitHub's API (`GITHUB_DISPATCH_TOKEN`, a fine-grained token with Actions read and write on
 `will-ness-ai/ballest` only), and posts within that minute share the run. It never reads a post's

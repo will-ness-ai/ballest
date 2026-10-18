@@ -12,6 +12,8 @@ kill_timeout = 30
 [env]
   DB_PATH = "/data/multiballs.sqlite"
   PORT = "8080"
+  # the game Discord's #new-tracks, where HubUpdates posts each new Workshop Map (src/newTracks.ts)
+  NEW_TRACKS_CHANNEL_ID = "1539225431998341160"
 
 # The Discord Activity: Discord's URL Mapping sends the page's requests to multiballs.fly.dev,
 # and Fly's proxy passes them to the bot. The bot only listens once DISCORD_CLIENT_SECRET is
