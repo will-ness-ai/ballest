@@ -107,7 +107,7 @@ is downloaded again every run. That is deliberate: its creator's next update may
 and it costs one download a run. When it wrote any file it revalidates the site. It is
 skipped without a catalogue or a database, and with `--dev` writes only `DEV_DATABASE_URL`.
 To fill a backlog in one go, ask the collector's service (`tools/runner.py`):
-`fly ssh console -a ballest-collector -C "python runner.py ask map-files?budget=3600"` runs the same
+`fly ssh console -a ballest-collector -C "python /app/runner.py ask map-files?budget=3600"` runs the same
 step alone (`python tools/map_files.py --budget <seconds>`) in its turn on the Steam login, so a
 Refresh due meanwhile waits for it, and it fails when it wrote no file. The service runs it too on
 just the Maps a #new-tracks post added, read from the newest page (`--maps`; "New Maps"). Only Fly

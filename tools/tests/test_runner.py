@@ -2,7 +2,7 @@
 for which, what reaches the ops channel, and the private HTTP door Multiballs knocks on."""
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import runner
@@ -72,8 +72,8 @@ async def settle():
         await asyncio.sleep(0)
 
 
-def service(fake):
-    return runner.Service(fake.run, fake.alert)
+def service(fake, now="12:00"):
+    return runner.Service(fake.run, fake.alert, now=lambda: at(now))
 
 
 def test_requests_while_one_waits_fold_into_it():
@@ -174,7 +174,7 @@ def test_the_file_backlog_takes_its_turn_on_steam_with_its_own_budget():
         s = service(fake)
         s.refresh()
         await settle()
-        s.map_file_backlog(3600)
+        s.map_file_backlog(3600)  # at 12:00: the 15:00 slot is well clear of it
         await settle()
         assert not any(e[1] == "map_files.py" for e in fake.log)
         fake.gate("steampy_collect.py").set()
@@ -184,6 +184,76 @@ def test_the_file_backlog_takes_its_turn_on_steam_with_its_own_budget():
         assert fake.limits[-1] > 3600
         fake.gate("map_files.py").set()
         await settle()
+
+    asyncio.run(go())
+
+
+def test_the_backlog_stops_starting_downloads_before_the_next_slot():
+    async def go():
+        fake = Fake()
+        s = service(fake, now="14:00")
+        s.map_file_backlog(3600)
+        await settle()
+        # 45 minutes to the margin before 15:00, so the slot's Refresh needn't wait for it
+        assert fake.log[-1] == ("start", "map_files.py", "--budget", "2700")
+        fake.gate("map_files.py").set()
+        await settle()
+
+    asyncio.run(go())
+
+
+def test_a_failed_map_add_reaches_the_ops_channel():
+    async def go():
+        fake = Fake(codes={"add_maps.py": 1})
+        s = service(fake)
+        s.add_maps()
+        await settle()
+        fake.gate("add_maps.py").set()
+        await settle()
+        assert "Adding new Maps failed (exit 1)" in fake.alerts[0]
+
+    asyncio.run(go())
+
+
+def test_a_script_that_cannot_run_alerts_and_frees_steam():
+    async def go():
+        fake = Fake()
+        s = service(fake)
+
+        async def broken(*_args):
+            raise OSError("no python")
+
+        s.run = broken
+        s.refresh()
+        await settle()
+        assert "Refresh failed" in fake.alerts[0]
+        assert "no python" in fake.alerts[0]
+        assert s.status()["refresh"]["last"]["exit"] != 0
+        assert not s.steam.locked()
+
+    asyncio.run(go())
+
+
+def test_each_slot_runs_one_refresh_even_when_the_timer_wakes_early():
+    async def go():
+        clock = [at("12:10")]
+        requests = []
+
+        class Counting:
+            def refresh(self):
+                requests.append(clock[0])
+
+        async def sleep(seconds):
+            if len(requests) >= 3:
+                raise asyncio.CancelledError
+            # wakes a hair before the slot, as the loop's timer may
+            clock[0] += timedelta(seconds=seconds) - timedelta(milliseconds=1)
+
+        with pytest.raises(asyncio.CancelledError):
+            await runner.schedule(
+                Counting(), now=lambda: clock[0], sleep=sleep, last=lambda: at("12:00")
+            )
+        assert [r.hour for r in requests] == [14, 17, 20]
 
     asyncio.run(go())
 

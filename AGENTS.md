@@ -60,8 +60,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   runs the Refresh every three hours on the hour (UTC), writing the database and revalidating
   the site's cached reads, and every other job that logs into Steam, one at a time, since two
   logins on one account drop each other. Its private HTTP door takes a Refresh, a Map add or a
-  file backlog on request (`fly ssh console -a ballest-collector -C "python runner.py ask refresh"`),
-  and a failure posts to the ops channel. `tools/fly.toml` and `tools/Dockerfile` build it, and
+  file backlog on request (`fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"`),
+  and a failure posts to the ops channel. The backlog stops 15 minutes before a slot. `tools/fly.toml` and `tools/Dockerfile` build it, and
   `collector.yml` deploys it on every push to `main` that touches `tools/*.py`. Logs: `fly logs -a ballest-collector`.
 - `.github/workflows/refresh.yml` — the Refresh by hand, only while the Fly service is down.
   `backfill.yml`, by hand only, runs the backfill against an empty production (cloud sessions
@@ -274,4 +274,4 @@ contents into a committed file, a commit message, or a PR description. The agree
 for this project is read-only, sourced from Steam rather than the developers' servers, at
 a modest cadence. The one exception is the public API the developers gave us for the
 Daily (ADR 0007): the collector asks it which Steam board is each day's Daily, with its
-endpoint and key in GitHub secrets only, and still reads the scores from Steam.
+endpoint and key in GitHub and Fly secrets only, and still reads the scores from Steam.

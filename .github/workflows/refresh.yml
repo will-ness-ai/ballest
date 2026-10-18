@@ -6,7 +6,7 @@ name: Refresh leaderboards
 #
 # By hand only, as a fallback: the collector's service on Fly runs the Refresh every three
 # hours (tools/runner.py, ADR 0012), and asking it is how to run one now
-# (`fly ssh console -a ballest-collector -C "python runner.py ask refresh"`). Run this only
+# (`fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"`). Run this only
 # while that service is down: both log into Steam with the same account, and two logins drop
 # each other.
 

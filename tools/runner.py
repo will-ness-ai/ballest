@@ -9,25 +9,29 @@ as a workflow step ran them.
 - `POST /add-maps`, from Multiballs when the game Discord's #new-tracks gets a post, adds the
   Workshop's newest Maps (add_maps.py, no Steam login), then downloads their files
   (map_files.py --maps).
-- `POST /refresh` runs a Refresh now: the Actions tab's "Run workflow" button, from
-  `fly ssh console -C "python runner.py ask refresh"`.
+- `POST /refresh` runs a Refresh now, in place of the Actions tab's "Run workflow" button:
+  `fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"`.
 - `POST /map-files?budget=SECONDS` downloads every due Map file within the budget, the
   backlog a Refresh's few minutes don't reach (map_files.py --budget), from
-  `fly ssh console -C "python runner.py ask map-files?budget=3600"`.
-- `GET /` says what each job last did and whether one is running or waiting.
+  `fly ssh console -a ballest-collector -C "python /app/runner.py ask map-files?budget=3600"`.
+  It stops starting downloads BACKLOG_MARGIN before the next slot, so a Refresh never waits
+  on it for long.
+- `GET /` says what each job last did and whether one is running or waiting
+  (`python /app/runner.py status` prints it a line a job).
 
 Every job is a Job: at most one running and one waiting, and a request while one waits
 folds into it, as an Actions concurrency group did. The jobs that log into Steam (the
 Refresh and both kinds of file download) also take turns on one lock, since a second login on the
 same account drops the first: that is the reason the service exists (ADR 0012).
 
-A failed Refresh or Map add posts its last lines to the private ops channel
-(OPS_WEBHOOK_URL), in place of Actions' failure emails; a failed download only logs, since
-the next Refresh's Map file step downloads any file still due. The HTTP door listens on
-Fly's private network only (no public address), so it takes no secret.
+A failed Refresh or Map add (or one whose script can't start) posts its last lines to the
+private ops channel (OPS_WEBHOOK_URL), in place of Actions' failure emails; a failed download
+only logs, since the next Refresh's Map file step downloads any file still due. The HTTP door
+listens on Fly's private network only (no public address), so it takes no secret.
 
-REFRESH_SCHEDULE=off leaves the Refresh to `POST /refresh`: for a first deploy while the
-Actions cron still runs, or locally, against a local database (the scripts write DATABASE_URL,
+REFRESH_SCHEDULE=off leaves the Refresh to `POST /refresh`: for a first deploy while another
+Refresh could still start elsewhere (the Actions cron did, until this service replaced it), or
+locally, against a local database (the scripts write DATABASE_URL,
 so never with production's in the environment):
   REFRESH_SCHEDULE=off DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev \\
     python tools/runner.py
@@ -35,6 +39,7 @@ so never with production's in the environment):
 
 import asyncio
 import collections
+import contextlib
 import json
 import os
 import sys
@@ -52,6 +57,8 @@ SLOT_SOON = timedelta(minutes=30)
 # a job still running after this is killed and counts as failed (a Refresh takes 2-6 minutes,
 # a first one on an empty database ~12)
 JOB_TIMEOUT = 60 * 60
+# the backlog stops starting downloads this long before the next slot
+BACKLOG_MARGIN = timedelta(minutes=15)
 # seconds to keep starting downloads of a new-tracks post's Maps, as add-maps.yml gave
 NEW_MAP_FILES_BUDGET = 120
 TAIL_LINES = 15
@@ -108,6 +115,9 @@ class Job:
             started = datetime.now(UTC)
             try:
                 code = await self.work()
+            except Exception as e:
+                print(f"A job failed: {e!r}", flush=True)
+                code = -1
             finally:
                 self.running = False
             self.last = {"started": started.isoformat(), "exit": code}
@@ -117,11 +127,11 @@ class Job:
 
 
 class Service:
-    """The jobs and the order they keep. `run(script, args)` runs one script to a Result;
-    `alert(text)` posts to the ops channel."""
+    """The jobs and the order they keep. `run(script, args, limit)` runs one script to a
+    Result; `alert(text)` posts to the ops channel."""
 
-    def __init__(self, run, alert):
-        self.run, self.alert = run, alert
+    def __init__(self, run, alert, now=lambda: datetime.now(UTC)):
+        self.run, self.alert, self.now = run, alert, now
         self.steam = asyncio.Lock()
         self.new_maps = set()
         self.jobs = {
@@ -138,45 +148,49 @@ class Service:
     def add_maps(self):
         return self.jobs["add-maps"].request()
 
+    def map_file_backlog(self, budget):
+        """Queue the backlog's downloads; a request while one waits sets its budget."""
+        self.backlog_budget = budget
+        return self.jobs["map-files"].request()
+
+    async def _script(self, what, script, args, *, steam, limit=JOB_TIMEOUT):
+        """Runs one script, on the Steam lock when it logs in, and alerts the ops channel when
+        it fails and `what` names it. A script that can't run at all fails with exit -1."""
+        async with self.steam if steam else contextlib.nullcontext():
+            try:
+                result = await self.run(script, args, limit)
+            except Exception as e:
+                result = Result(-1, [f"couldn't run {script}: {e!r}"])
+        if result.exit and what:
+            lines = "\n".join(result.tail)[-1500:]
+            await self.alert(f"Collector: {what} failed (exit {result.exit}).\n```\n{lines}\n```")
+        return result
+
     async def _refresh(self):
-        async with self.steam:
-            result = await self.run("steampy_collect.py", [])
-        if result.exit:
-            await self._alert("Refresh", result)
-        return result.exit
+        return (await self._script("Refresh", "steampy_collect.py", [], steam=True)).exit
 
     async def _add_maps(self):
-        result = await self.run("add_maps.py", [])
-        if result.exit:
-            await self._alert("Adding new Maps", result)
+        result = await self._script("Adding new Maps", "add_maps.py", [], steam=False)
         added = [p for p in result.outputs.get("added", "").split(",") if p]
         if added:
             self.new_maps.update(added)
             self.jobs["new-map-files"].request()
         return result.exit
 
-    def map_file_backlog(self, budget):
-        """Queue the backlog's downloads; a request while one waits sets its budget."""
-        self.backlog_budget = budget
-        return self.jobs["map-files"].request()
-
-    async def _map_file_backlog(self):
-        async with self.steam:
-            budget = self.backlog_budget
-            # a download started just before the budget ends may run several minutes on
-            return (
-                await self.run("map_files.py", ["--budget", str(budget)], budget + JOB_TIMEOUT)
-            ).exit
-
     async def _new_map_files(self):
+        # the Maps are taken once the lock is, so Maps added while this waits come along
         async with self.steam:
             maps, self.new_maps = sorted(self.new_maps), set()
             args = ["--maps", ",".join(maps), "--budget", str(NEW_MAP_FILES_BUDGET)]
-            return (await self.run("map_files.py", args)).exit
+            return (await self._script(None, "map_files.py", args, steam=False)).exit
 
-    async def _alert(self, what, result):
-        lines = "\n".join(result.tail)[-1500:]
-        await self.alert(f"Collector: {what} failed (exit {result.exit}).\n```\n{lines}\n```")
+    async def _map_file_backlog(self):
+        # stops starting downloads BACKLOG_MARGIN before the next slot, so the slot's Refresh
+        # isn't kept waiting on the Steam lock; the downloads under way finish within the limit
+        to_slot = (next_slot(self.now()) - self.now() - BACKLOG_MARGIN).total_seconds()
+        budget = max(0, min(self.backlog_budget, int(to_slot)))
+        args = ["--budget", str(budget)]
+        return (await self._script(None, "map_files.py", args, steam=True, limit=budget + 600)).exit
 
     def status(self):
         return {name: job.status() for name, job in self.jobs.items()}
@@ -194,6 +208,7 @@ async def run_script(script, args, limit=JOB_TIMEOUT):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
             env={**os.environ, "GITHUB_OUTPUT": out.name},
+            limit=1 << 20,  # the longest line read; a longer one ends the run, killed below
         )
         tail = collections.deque(maxlen=TAIL_LINES)
         name = script.removesuffix(".py")
@@ -207,9 +222,12 @@ async def run_script(script, args, limit=JOB_TIMEOUT):
         try:
             await asyncio.wait_for(asyncio.gather(relay(), proc.wait()), limit)
         except TimeoutError:
-            proc.kill()
-            await proc.wait()
             tail.append(f"(killed after {limit // 60} minutes)")
+        finally:
+            # never leave a child logged into Steam once its turn on the lock is over
+            if proc.returncode is None:
+                proc.kill()
+                await proc.wait()
         outputs = dict(line.split("=", 1) for line in out.read().splitlines() if "=" in line)
         return Result(proc.returncode, list(tail), outputs)
 
@@ -274,21 +292,24 @@ def last_refresh():
     return row[0]
 
 
-async def schedule(service):
-    """Runs the Refresh at every slot, and at once when a slot was missed before this start."""
+async def schedule(service, *, now=lambda: datetime.now(UTC), sleep=asyncio.sleep, last=None):
+    """Runs the Refresh at every slot, and at once when a slot was missed before this start.
+    Each slot follows the last one fired, so a timer waking a moment early can't fire a slot
+    twice."""
     try:
-        last = await asyncio.to_thread(last_refresh)
+        last_started = await asyncio.to_thread(last or last_refresh)
     except Exception as e:
         print(f"Couldn't read the last Refresh ({e!r}); refreshing now", flush=True)
-        last = None
-    if due_on_start(last, datetime.now(UTC)):
-        print(f"No Refresh since the last slot (last {last}); refreshing now", flush=True)
+        last_started = None
+    if due_on_start(last_started, now()):
+        print(f"No Refresh since the last slot (last {last_started}); refreshing now", flush=True)
         service.refresh()
+    slot = next_slot(now())
     while True:
-        slot = next_slot(datetime.now(UTC))
         print(f"Next Refresh at {slot:%H:%M} UTC", flush=True)
-        await asyncio.sleep((slot - datetime.now(UTC)).total_seconds())
+        await sleep(max(0.0, (slot - now()).total_seconds()))
         service.refresh()
+        slot += timedelta(hours=SLOT_HOURS)
 
 
 async def serve():
@@ -304,6 +325,16 @@ async def serve():
     await schedule(service)
 
 
+def status():
+    """`python runner.py status`: one line per job, `<job> running|waiting|idle last=<exit>`."""
+    with urllib.request.urlopen(f"http://localhost:{PORT}/", timeout=30) as r:
+        for name, job in json.load(r).items():
+            state = "running" if job["running"] else "waiting" if job["waiting"] else "idle"
+            last = job["last"]["exit"] if job["last"] else "none"
+            print(f"{name} {state} last={last}")
+    return 0
+
+
 def ask(job):
     """`python runner.py ask refresh|add-maps|map-files?budget=N`: queue a job on the service
     running beside it."""
@@ -316,4 +347,6 @@ def ask(job):
 if __name__ == "__main__":
     if sys.argv[1:2] == ["ask"] and len(sys.argv) == 3:
         sys.exit(ask(sys.argv[2]))
+    if sys.argv[1:] == ["status"]:
+        sys.exit(status())
     asyncio.run(serve())

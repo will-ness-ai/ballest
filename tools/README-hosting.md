@@ -108,7 +108,7 @@ the Refresh to the database, and revalidates the site, which shows it at
 ## Ongoing
 
 - The service runs a Refresh **every 3 hours** (`SLOT_HOURS` in `tools/runner.py`). Run one
-  now with `fly ssh console -a ballest-collector -C "python runner.py ask refresh"` and follow
+  now with `fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"` and follow
   it with `fly logs -a ballest-collector`. `.github/workflows/refresh.yml` runs one by hand,
   only while the Fly service is down (two Steam logins on one account drop each other).
 - To change which boards appear, edit `tools/campaign_common.py` (`BOARDS`).
