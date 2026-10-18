@@ -359,8 +359,9 @@ const postCard = Effect.fn("postCard")(function* (
 /**
  * Post a Daily's card: its Map, a first read of its board (none if that fails: the next read
  * retries), the Workshop screenshot when Steam gives it, the lead graph once anyone has a time,
- * and a thread, with the first time's line when there is one. Returns the record, the lead the
- * card shows (to record), and why the thread or its line failed if it did.
+ * and a thread, with the first time's line when there is one. Records the post, and the lead the
+ * card shows, so a restart resumes it. Returns the record, and why the thread or its line failed
+ * if it did.
  */
 export const postDaily = Effect.fn("postDaily")(function* (daily: Daily) {
   const steam = yield* DailySteam;
@@ -389,14 +390,18 @@ export const postDaily = Effect.fn("postDaily")(function* (daily: Daily) {
     },
     leads.flatMap((l) => leadLine([], l) ?? []),
   );
-  return { ...posted, lead: shown };
+  const log = yield* DailyPostLog;
+  yield* log.put(posted.post);
+  for (const lead of leads) yield* log.addLead(daily.date, lead);
+  return posted;
 });
 
 /**
  * Post a Daily that has already closed, from the leaderboard database (the backfill): its closed
  * card, with the lead graph drawn over the whole day, and a thread telling its lead, each line
- * timed by the run's Ghost or else by the Refresh that saw it. Returns the record (closed, its
- * GIF still to ask for) and why the thread or a line failed if one did.
+ * timed by the run's Ghost or else by the Refresh that saw it. Records the post and its lead.
+ * Returns the record (closed, its GIF still to ask for) and why the thread or a line failed if
+ * one did.
  */
 export const postPast = Effect.fn("postPast")(function* (past: PastDaily) {
   const steam = yield* DailySteam;
@@ -407,7 +412,7 @@ export const postPast = Effect.fn("postPast")(function* (past: PastDaily) {
   // A lead the database first saw after the close was set by then (boards lock at the end).
   const graphed = leads.map((l) => ({ ...l, at: Math.min(l.at, daily.endsAt) }));
   const pics = yield* pictures(daily, map, graphed, daily.endsAt);
-  return yield* postCard(
+  const posted = yield* postCard(
     view,
     dailyCardMessage(view, { preview: pics.preview, graph: pics.graph, closed: true }),
     pics.files,
@@ -425,6 +430,11 @@ export const postPast = Effect.fn("postPast")(function* (past: PastDaily) {
       (lead, i) => leadLine(leads.slice(0, i), lead, lead.exact ? "read" : "byRefresh") ?? [],
     ),
   );
+  const log = yield* DailyPostLog;
+  yield* log.put(posted.post);
+  for (const { at, leaders, ticks } of leads)
+    yield* log.addLead(daily.date, { at, leaders, ticks });
+  return posted;
 });
 
 /** A closed card whose spinning GIF is still to ask for or to come. */
@@ -715,7 +725,6 @@ export const BACKFILL_DAYS = 3;
  */
 export const backfill = Effect.fn("backfill")(function* (today: string) {
   const history = yield* DailyHistory;
-  const log = yield* DailyPostLog;
   const ops = yield* onceUntilCleared;
   if (!history.available) {
     yield* Effect.logInfo("daily post: no backfill (DATABASE_URL not set)");
@@ -750,9 +759,6 @@ export const backfill = Effect.fn("backfill")(function* (today: string) {
       continue;
     }
     const { post, threadFailed } = result.right;
-    yield* log.put(post);
-    for (const lead of past.leads)
-      yield* log.addLead(date, { at: lead.at, leaders: lead.leaders, ticks: lead.ticks });
     if (Option.isSome(threadFailed))
       yield* ops.tell(
         `thread ${date}`,
@@ -771,7 +777,6 @@ export const backfill = Effect.fn("backfill")(function* (today: string) {
  */
 const postToday = Effect.fn("postToday")(function* (date: string) {
   const api = yield* DailyApi;
-  const log = yield* DailyPostLog;
   const ops = yield* onceUntilCleared;
   while (true) {
     const now = yield* Clock.currentTimeMillis;
@@ -791,9 +796,7 @@ const postToday = Effect.fn("postToday")(function* (date: string) {
     } else {
       const posted = yield* Effect.either(postDaily(found.right.value));
       if (Either.isRight(posted)) {
-        const { post, threadFailed, lead } = posted.right;
-        yield* log.put(post);
-        if (Option.isSome(lead)) yield* log.addLead(date, lead.value);
+        const { post, threadFailed } = posted.right;
         if (Option.isSome(threadFailed))
           yield* ops.tell(
             "thread",

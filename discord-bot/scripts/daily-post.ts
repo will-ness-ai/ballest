@@ -2,7 +2,7 @@
 // channel (`pnpm axi sandbox create`) or the channel given with --channel. It asks the Daily API
 // (BALLEST_DAILY_URL, BALLEST_API_KEY) for the Daily, reads its board with the bot account's Steam
 // session, and posts the live card with its thread, exactly as the schedule would. It records
-// nothing, so the schedule never sees it. With --close it then keeps the card current as the
+// only in memory, so the schedule never sees it. With --close it then keeps the card current as the
 // schedule does until the Daily's end, so a past date's card is closed at once by the schedule's
 // own final edit (the GIF and ops are off: ops warnings go to the log only). With DATABASE_URL
 // set to a local Postgres (it refuses any other) that holds the date's Daily, closed by now, it
@@ -14,7 +14,6 @@ import { Effect, Layer, Option, Redacted } from "effect";
 import { DailyApiLive, DailyChannelLive, DailySteamLive } from "../src/dailyPost/live.js";
 import {
   DailyApi,
-  DailyPostLog,
   DailyPostLogLive,
   keepCurrent,
   postDaily,
@@ -81,16 +80,11 @@ const program = Effect.gen(function* () {
   if (database !== undefined && (yield* backfilled(database))) return;
   const found = yield* (yield* DailyApi).find(date);
   if (Option.isNone(found)) return yield* Effect.logInfo(`daily post: no Daily for ${date} yet`);
-  const { post, threadFailed, lead } = yield* postDaily(found.value);
+  const { post, threadFailed } = yield* postDaily(found.value);
   yield* Effect.logInfo(
     `daily post: posted ${date} as ${post.messageId} in ${channel}, thread ${post.threadId ?? `failed (${Option.getOrElse(threadFailed, () => "")})`}`,
   );
-  if (!close) return;
-  // Recorded as the schedule records a post (in memory here), so the close knows the lead.
-  const log = yield* DailyPostLog;
-  yield* log.put(post);
-  if (Option.isSome(lead)) yield* log.addLead(date, lead.value);
-  yield* keepCurrent(post);
+  if (close) yield* keepCurrent(post);
 });
 
 program.pipe(
