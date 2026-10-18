@@ -119,9 +119,28 @@ save expires) and hands it down through `components/ChosenSkins.tsx`, and `Marbl
 the run's Skin, then the Chosen Skin, then the hue: so every surface that draws a marble shows
 it, even one that knows a player only by Steam ID, and no query carries it.
 
-A new skin takes a picture and a line in `lib/skins.ts`, and the same line in Multiballs' copy,
-`discord-bot/src/render/skins.ts`, with its PNG made by `discord-bot/scripts/skin_pngs.py`
-(the bot's `test/skins.test.ts` fails until both match). The list and pictures were made
+A signed-in player picks theirs on their own player page (`components/player/SkinPicker.tsx`,
+grill-design rounds 1 A and 2 A5 in spec #276): drawn only when You is the player on screen,
+the pencil badge on their marble (which then opens the picker rather than turning over to
+the avatar) and "Change your ball" beside Sign out open a `useDialog` dialog. Its heading
+scrolls away with the grid, and a mock board row (rank, the ball, your name with the Skin's
+name under it, a time) stays pinned at the top with room above it; Cancel and Save sit under
+the scroller. The grid is `SKIN_GROUPS` from `lib/skins.ts` (Colours with No skin first,
+drawn as your hue marble, then Metals and Specials, each ball named there). A tap only
+previews; Save, disabled until the preview differs from the saved pick, sends `PUT
+/api/me/skin` with `{ skin }` (an object path) or `DELETE` for No skin
+(`db/chosen-skin-api.ts`), and a failed save says so in the dialog's foot and changes
+nothing. The API refuses no session (401), a cross-site request (403), a Skin `lib/skins.ts`
+has no picture for (400) and an 11th save, pick or clear, in a rolling hour (429, counted in
+`chosen_skin_saves`); a save expires only the Chosen Skin tag. The saved pick is laid over the
+layout's map in `ChosenSkins` (`useSaveChosenSkin`), so your marble on the page and in the
+header draw it at once, before any page is read again. `qa`'s `player-own+skin-pick` state
+opens it, signed in as tiny's p1.
+
+A new skin takes a picture and a line in `lib/skins.ts`, with its name and picker group, and
+its path and asset in Multiballs' copy, `discord-bot/src/render/skins.ts`, with its PNG made by
+`discord-bot/scripts/skin_pngs.py` (the bot's `test/skins.test.ts` fails until they match).
+The list and pictures were made
 on 2026-10-08 (`prototype/skins/` on branch `claude/prototype-skins`, with the game's own
 tile icons and notes on which skins animate): the plain colours are shot with the texture
 slider at 0, which most players use, and an animated skin (Spirit, Disco, Magma) is one

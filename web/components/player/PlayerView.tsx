@@ -1,16 +1,17 @@
-// A player's page: who they are, Sign out on your own and the score card on anyone else's,
-// the tabs, and the tab on screen. Everything comes from one PlayerRecord (lib/player.ts)
-// but the Daily tab, which is their Daily record over every Daily; the Circuit tab is drawn
-// here, the Workshop and Made tabs are client components over the record.
+// A player's page: who they are, Sign out and the Chosen Skin picker on your own and the
+// score card on anyone else's, the tabs, and the tab on screen. Everything comes from one
+// PlayerRecord (lib/player.ts) but the Daily tab, which is their Daily record over every
+// Daily; the Circuit tab is drawn here, the Workshop and Made tabs are client components over
+// the record.
 import Link from "next/link";
 
 import { CompareButton } from "./Compare";
 import { DailyTab } from "./DailyTab";
 import { MadeTab } from "./MadeTab";
 import { ScoreCard, SignOut } from "./Me";
+import { SkinPicker, YourMarble } from "./SkinPicker";
 import { WorkshopTab } from "./WorkshopTab";
 import { BackLink } from "../BackLink";
-import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { SteamMark } from "../SteamMark";
 import type { PlayerCampaign } from "../../db/data";
@@ -177,36 +178,38 @@ export function PlayerView({
         <div className="pp" id="player">
           <BackLink trail="board" />{" "}
           <div className="pid">
-            <Marble who={rec.who} />{" "}
-            <span className="pwho">
-              <h1>{personaOf(rec.who)}</h1>{" "}
-              <span className="pline">
-                {rec.allSeasons ? (
+            <SkinPicker id={rec.id}>
+              <YourMarble who={rec.who} />{" "}
+              <span className="pwho">
+                <h1>{personaOf(rec.who)}</h1>{" "}
+                <span className="pline">
+                  {rec.allSeasons ? (
+                    <>
+                      <b>{ord(rec.allSeasons.rank)}</b>
+                      {` across all seasons · ${fmtN(rec.allSeasons.score)} pts`}
+                    </>
+                  ) : (
+                    "Not on the all-seasons board"
+                  )}
+                </span>{" "}
+                {rec.made.length ? (
                   <>
-                    <b>{ord(rec.allSeasons.rank)}</b>
-                    {` across all seasons · ${fmtN(rec.allSeasons.score)} pts`}
+                    <br />
+                    <span className="maker">
+                      {"Map maker · " + plural(rec.made.length, "map", "maps")}
+                    </span>
                   </>
-                ) : (
-                  "Not on the all-seasons board"
-                )}
+                ) : null}{" "}
+                <SignOut id={rec.id} />
               </span>{" "}
-              {rec.made.length ? (
-                <>
-                  <br />
-                  <span className="maker">
-                    {"Map maker · " + plural(rec.made.length, "map", "maps")}
-                  </span>
-                </>
-              ) : null}{" "}
-              <SignOut id={rec.id} />
-            </span>{" "}
-            <CompareButton keep={rec.who} />{" "}
-            {url ? (
-              <a className="steam" href={url} target="_blank" rel="noopener">
-                <SteamMark />
-                Steam profile
-              </a>
-            ) : null}
+              <CompareButton keep={rec.who} />{" "}
+              {url ? (
+                <a className="steam" href={url} target="_blank" rel="noopener">
+                  <SteamMark />
+                  Steam profile
+                </a>
+              ) : null}
+            </SkinPicker>
           </div>{" "}
           <ScoreCard rec={rec} />{" "}
           <nav className="ptabs">

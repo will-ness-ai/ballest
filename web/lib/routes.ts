@@ -133,6 +133,8 @@ export const prefabFavoriteHref = (slug: string) => prefabApiHref(slug) + "/favo
 export const prefabTakeDownHref = (slug: string) => prefabApiHref(slug) + "/takedown";
 export const prefabBanHref = (id: string) => (isSteamId(id) ? "/api/prefab-bans/" + id : null);
 export const prefabLimitHref = (id: string) => (isSteamId(id) ? "/api/prefab-limits/" + id : null);
+/* the Chosen Skin API (db/chosen-skin-api.ts): saving or clearing your own pick */
+export const chosenSkinApiHref = () => "/api/me/skin";
 
 export const mapsHref = (view?: string | null) => "/maps" + (view ? "/" + view : "");
 

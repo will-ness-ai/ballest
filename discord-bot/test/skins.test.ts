@@ -9,7 +9,7 @@ const PNG = [0x89, 0x50, 0x4e, 0x47];
 
 describe("the bot's Skins", () => {
   it("are the site's Skins", () => {
-    expect([...SKINS]).toEqual([...SITE_SKINS]);
+    expect(SKINS).toEqual(SITE_SKINS);
   });
 
   it.effect("each have a PNG picture", () =>

@@ -295,7 +295,7 @@ export const prefabLimits = pgTable("prefab_limits", {
 });
 
 // A player's Chosen Skin (CONTEXT.md): the Skin a signed-in player picked to stand for them
-// wherever no run's Skin is known, written only by the site (POST /api/me/skin). The Skin is
+// wherever no run's Skin is known, written only by the site (PUT /api/me/skin). The Skin is
 // the object path a Ghost names (a key of lib/skins.ts), so every Skin is named one way. No
 // row is no pick: the hue marble.
 export const chosenSkins = pgTable("chosen_skins", {
@@ -305,7 +305,7 @@ export const chosenSkins = pgTable("chosen_skins", {
 });
 
 // Every save of a Chosen Skin, a pick or a clear, which the hourly limit counts
-// (lib/chosen-skin.ts). Older ones are pruned as new ones land.
+// (db/chosen-skin-api.ts). Older ones are pruned as new ones land.
 export const chosenSkinSaves = pgTable(
   "chosen_skin_saves",
   {

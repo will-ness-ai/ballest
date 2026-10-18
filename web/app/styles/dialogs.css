@@ -1,8 +1,9 @@
 /* the centred dialogs: Compare, which picks the other player by name, how the boards
-   refresh and how points work. Each scrolls inside itself on a short screen. */
+   refresh, how points work and your ball. Each scrolls inside itself on a short screen. */
 .cmp,
 .rfx,
-.ptsx {
+.ptsx,
+.skp {
   inset-block: 12dvh auto;
   inset-inline: 0;
   margin-inline: auto;
@@ -19,7 +20,8 @@
 }
 .cmp h2,
 .rfx h2,
-.ptsx h2 {
+.ptsx h2,
+.skp h2 {
   margin: 0;
   font-family: var(--f-hud);
   font-size: 1rem;
@@ -167,4 +169,158 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* your ball (components/player/SkinPicker.tsx): the heading scrolls away with the grouped grid
+   and a mock board row stays pinned at the top over it; Cancel and Save sit below the scroller */
+.skp {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: clip;
+}
+.skp-body {
+  display: grid;
+  gap: 12px;
+  min-block-size: 0;
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.skp-lead {
+  margin: 0;
+  font-size: calc(13rem / 16);
+  color: var(--faint);
+}
+.skp .marble {
+  inline-size: 36px;
+  block-size: 36px;
+}
+.skp-row {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block-start: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--accent) 14%, var(--solid));
+  /* the dialog's own colour fills the 16px of room above it once it is pinned, so the grid
+     never shows there; the 4px margin keeps that fill off the lead line above */
+  box-shadow: 0 -12px 0 4px var(--solid);
+}
+.skp-row .marble {
+  inline-size: 34px;
+  block-size: 34px;
+}
+.skp-rank {
+  inline-size: 1.5em;
+  font: 700 calc(14rem / 16) var(--f-hud);
+  color: var(--dim);
+}
+.skp-who {
+  display: grid;
+  flex: 1;
+  min-inline-size: 0;
+}
+.skp-who b {
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.skp-who small {
+  font-size: calc(12rem / 16);
+  color: var(--faint);
+}
+.skp-time {
+  font: 600 calc(14rem / 16) var(--f-hud);
+  font-variant-numeric: tabular-nums;
+}
+.skp section {
+  display: grid;
+  gap: 6px;
+}
+.skp h3 {
+  margin: 0;
+}
+.skp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 4px;
+}
+.skp-cell {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px 2px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: calc(11rem / 16);
+  line-height: 1.15;
+  text-align: center;
+  color: var(--dim);
+}
+.skp-cell[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.skp-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.skp-cell:active {
+  background: var(--surface2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .skp-cell:hover {
+    background: var(--surface);
+  }
+}
+.skp-foot {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  border-block-start: 1px solid var(--line2);
+  background: var(--solid);
+}
+.skp-bad {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in oklch, var(--bronze) 45%, transparent);
+  border-radius: 10px;
+  background: var(--bronze-soft);
+  font-size: calc(13rem / 16);
+}
+.skp-save {
+  padding: 8px 18px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 calc(14rem / 16) var(--f-hud);
+}
+.skp-save:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.skp-save:not(:disabled):active {
+  background: var(--accent-hover);
+}
+.skp-save:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .skp-save:not(:disabled):hover {
+    background: var(--accent-hover);
+  }
 }
