@@ -53,7 +53,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `.github/workflows/refresh.yml` — cron `0 */3 * * *`, writes the Refresh to the database
   and revalidates the site's cached reads; it commits nothing. `backfill.yml`, by hand only,
   runs the backfill against an empty production (cloud sessions can't reach Neon) in the
-  same concurrency group.
+  same concurrency group. `migrate.yml`, by hand with Will's OK, applies a branch's
+  migrations to production before it merges.
 - `.github/workflows/vercel-usage.yml` — daily, runs `tools/vercel_usage.py`, which reports the
   Vercel team's plan and renewal, this cycle against Pro's Flat Rate CDN tier, and whether the
   last 30 days would fit Hobby, to the private ops channel (`OPS_WEBHOOK_URL`). It posts on
