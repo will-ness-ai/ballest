@@ -224,6 +224,24 @@ describe("a Daily Post's thread lines", () => {
     expect(leadChanged(before!, leadOf(board([["airman", 853_201]]), OPEN + 9 * H)!)).toBe(false);
   });
 
+  it("posts a newcomer at the same time as a tie, though a tied leader left", () => {
+    const history = [lead(8, ["airman", "snayK"], 8.532)];
+    expect(leadLine(history, lead(9, ["airman", "FEDUS"], 8.532))).toContain(
+      "🤝 **FEDUS** ties **airman** & **snayK** for the lead",
+    );
+  });
+
+  it("says nothing of a slower lead, as when a leader leaves the board", () => {
+    expect(leadLine([lead(8, ["airman"], 8.5)], lead(9, ["snayK"], 8.6))).toBeNull();
+  });
+
+  it("names a tied leader left behind by the other's faster time", () => {
+    const history = [lead(8, ["airman"], 8.6), lead(10, ["airman", "snayK"], 8.6)];
+    expect(leadLine(history, lead(12, ["airman"], 8.5))).toContain(
+      "🏁 **airman** takes the lead from **snayK**, who held it for 2h ·",
+    );
+  });
+
   it("takes a shared lead from everyone who shared it", () => {
     const history = [lead(8, ["airman"], 8.532), lead(12, ["airman", "snayK"], 8.532)];
     expect(leadLine(history, lead(14, ["FEDUS"], 8.5))).toContain(

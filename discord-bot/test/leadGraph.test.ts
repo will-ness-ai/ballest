@@ -97,6 +97,29 @@ describe("the Daily Post's lead graph", () => {
     expect(textsOf(scene)).toContain("B ties");
   });
 
+  it("reads a newcomer at the same shown time as a tie though a leader left", () => {
+    const scene = leadGraphScene({
+      opensAt: OPENS,
+      closesAt: OPENS + 24 * H,
+      leads: [
+        lead(1, ["A", "B"], 9.0),
+        { at: OPENS + 2 * H, leaders: ["A", "C"], ticks: ticks(9.0) },
+      ],
+      now: OPENS + 3 * H,
+    });
+    expect(textsOf(scene)).toContain("C ties");
+  });
+
+  it("labels no tie when a slower lead gains a leader beside the old ones", () => {
+    const scene = leadGraphScene({
+      opensAt: OPENS,
+      closesAt: OPENS + 24 * H,
+      leads: [lead(1, ["A"], 9.0), { at: OPENS + 2 * H, leaders: ["A", "B"], ticks: ticks(9.1) }],
+      now: OPENS + 3 * H,
+    });
+    expect(textsOf(scene)).not.toContain("B ties");
+  });
+
   it("colours leaders in the order they first led, a fifth in the neutral dim", () => {
     const five = ["A", "B", "C", "D", "E"].map((n, i) => lead(i + 1, [n], 9 - i * 0.1));
     const scene = leadGraphScene({
