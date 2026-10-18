@@ -66,22 +66,28 @@ final review, so it isn't repeated. Fix every finding before moving on, checking
 asks for something the spec never named against `CODING_STANDARDS.md` first: #212 built a
 real 404 the standards rule out, then deleted it. Commits that land
 after it (a fix found while testing, dev tooling) get `/code-review` since the last reviewed
-commit before the merge.
+commit before the merge, unless they are a small follow-up: fewer than `FOLLOW_UP_LINES` (40) changed lines in
+all since both skills last ran, such as the fixes for their own findings, need no new round
+(Will, 2026-10-18). Batch a round's fixes into one commit, and re-run both skills when the
+follow-ups grow past that.
 
-A one-line fix gets the same review: call the Skill tool for 'code-review', which runs its
+A one-line PR gets the same first review: call the Skill tool for 'code-review', which runs its
 two reviewers as subagents on the diff. Your own read of the diff is implementation, not
 review, and a brief asking for a light workflow trims the planning steps, never this one.
 
 A hook holds both steps (`.claude/hooks/review-gate.mjs`): it notes the commit each Skill-tool
 `/code-review` and `/codebase-design` runs on, and refuses an agent's merge, auto-merge or
-mark-ready while the PR has a commit either hasn't seen, fixes for their own findings included.
+mark-ready while the PR has a commit either hasn't seen, unless every such commit together is a
+small follow-up (`FOLLOW_UP_LINES` in `review-gate-rules.mjs`). It also refuses a merge of this
+repo's PRs that doesn't squash (`docs/agents/issue-tracker.md`).
 Its record is the clone's (`.git/claude-reviews`, shared by worktrees and sessions), so run them
 in the clone that merges. When it can't check (gh offline, say) it lets the call through with a
 warning, and it never sees a merge pressed on GitHub.
 
 ## 6. Deepen: `/codebase-design`
 
-Call the Skill tool for 'codebase-design', a one-line fix included. With the feature working and reviewed, read the code it touched for deepening
+Call the Skill tool for 'codebase-design', a one-line PR included, then again only when
+the follow-ups outgrow step 5's small-follow-up rule. With the feature working and reviewed, read the code it touched for deepening
 opportunities: shallow modules, logic spread across callers, a seam in the wrong place.
 Make the ones inside the PR's own code, and keep each one checked the same way the feature
 was (tests, the smoke test, the served page). Anything wider becomes a note
@@ -121,6 +127,11 @@ other threads merge often, and a merge against a stale head fails on conflicts i
 show. Merge (`docs/agents/issue-tracker.md`) once the merged head's CI and preview are
 green. The session's permission check can refuse to merge a PR with no approving review;
 then say so in one line and try again on Will's next word, naming the PR.
+
+Will's "merge" can land on GitHub long before its merged event reaches the session (#237 took
+47 minutes), so commits pushed in between never reach `main`. The pre-push hook
+(`.githooks/merged-pr.mjs`) refuses a push stacked on a merged PR: restart the branch from
+`main`, bring the new commits over, and open a new PR.
 
 ## 8. After the merge: `/retro`
 
