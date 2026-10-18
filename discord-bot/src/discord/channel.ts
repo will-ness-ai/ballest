@@ -159,6 +159,7 @@ export const DiscordChannelLive = Layer.scoped(
         return yield* renderer.improvement(
           post.improvement,
           yield* discord.displayName(post.improvement.player.discordId),
+          post.skin,
         );
       if (post._tag === "Started" || post._tag === "Result") return yield* drawCard(post.card);
       if (post._tag === "Progression")

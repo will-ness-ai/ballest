@@ -249,10 +249,10 @@ describe("thread posts", () => {
   const live = card("live", "lobby");
 
   it.each([
-    ["Opened", ThreadPost.Opened({ by: ALICE, type: "lobby", minutes: 10 })],
-    ["Accepted", ThreadPost.Accepted({ player: BOB })],
-    ["Joined", ThreadPost.Joined({ player: CARA })],
-    ["Left", ThreadPost.Left({ player: CARA })],
+    ["Opened", ThreadPost.Opened({ by: ALICE, skin: null, type: "lobby", minutes: 10 })],
+    ["Accepted", ThreadPost.Accepted({ player: BOB, skin: null })],
+    ["Joined", ThreadPost.Joined({ player: CARA, skin: null })],
+    ["Left", ThreadPost.Left({ player: CARA, skin: null })],
     ["Result", ThreadPost.Result({ standings: [], card: live, steamDown: false })],
     ["Result, Steam down", ThreadPost.Result({ standings: [], card: live, steamDown: true })],
     ["WaitingForSteam", ThreadPost.WaitingForSteam()],
@@ -270,6 +270,7 @@ describe("thread posts", () => {
           previousRank: null,
           beatWorldRecord: null,
         },
+        skin: null,
       }),
     ],
   ] as const)("%s pings nobody", (_, post) => {
@@ -293,7 +294,13 @@ describe("thread posts", () => {
   });
 
   it("a Challenge pings only its target, who can answer from the post", () => {
-    const post = ThreadPost.Challenged({ by: ALICE, target: BOB, minutes: 10, expiresAt: 1 });
+    const post = ThreadPost.Challenged({
+      by: ALICE,
+      skin: null,
+      target: BOB,
+      minutes: 10,
+      expiresAt: 1,
+    });
     const message = threadMessage("7", post, art);
     expect(pinged(message)).toEqual([BOB.discordId]);
     expect(buttons(message).map((b) => b.does)).toEqual([

@@ -5,7 +5,8 @@
 // Discord reaches it through the Activity's URL Mapping (`/` → this server's public host), so
 // the page and the API share one origin and every path the page fetches is relative. Nothing
 // loads from any other host: Discord's proxy blocks it. So the fonts come from the @fontsource
-// packages, and each Map's Workshop preview is fetched here and passed on.
+// packages, each Map's Workshop preview is fetched here and passed on, and each Skin's picture
+// (for a Player's Chosen Skin) is the bot's own copy, from SkinPictures.
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
@@ -16,6 +17,8 @@ import { build } from "esbuild";
 import { Config, Data, Effect, Layer, Option } from "effect";
 import { Store } from "../ports.js";
 import { MapPreviews } from "../previews.js";
+import { skinPictureFile } from "../render/skinList.js";
+import { SkinPictures } from "../render/skins.js";
 import { makeActivityApi } from "./api.js";
 
 const WEB = fileURLToPath(new URL("./web/", import.meta.url));
@@ -86,7 +89,29 @@ const loadPage = Effect.tryPromise({
 
 const DAY = "public, max-age=86400";
 
-/** The whole app: page, script, fonts, previews, config, API. `channelId` is where the links point. */
+/**
+ * Each Skin's picture by the file the page asks for at /skins/:file (skinPictureFile, from a
+ * Player's Chosen Skin), and 404 for any other file.
+ */
+export const skinPictureResponses = (pngs: ReadonlyMap<string, Uint8Array>) => {
+  const byFile = new Map(
+    [...pngs].flatMap(([path, png]) => {
+      const file = skinPictureFile(path);
+      return file === null ? [] : [[file, png] as const];
+    }),
+  );
+  return (file: string): HttpServerResponse.HttpServerResponse => {
+    const body = byFile.get(file);
+    return body === undefined
+      ? HttpServerResponse.empty({ status: 404 })
+      : HttpServerResponse.uint8Array(body, {
+          contentType: "image/png",
+          headers: { "cache-control": DAY },
+        });
+  };
+};
+
+/** The whole app: page, script, fonts, previews, Skin pictures, config, API. `channelId` is where the links point. */
 export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
   config: PageConfig & { readonly channelId: string },
 ) {
@@ -128,6 +153,9 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
         });
   });
 
+  const skinPicture = skinPictureResponses((yield* SkinPictures).pngs);
+  const skin = Effect.map(HttpRouter.params, ({ file = "" }) => skinPicture(file));
+
   const pages = HttpRouter.empty.pipe(
     HttpRouter.get("/", Effect.succeed(HttpServerResponse.html(html))),
     HttpRouter.get(
@@ -136,12 +164,13 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
     ),
     HttpRouter.get("/fonts/:file", font),
     HttpRouter.get("/previews/:id", preview),
+    HttpRouter.get("/skins/:file", skin),
     HttpRouter.get("/api/config", Effect.succeed(HttpServerResponse.unsafeJson(page))),
   );
   return pages.pipe(Effect.catchTag("RouteNotFound", () => api));
 });
 
-/** Serve the Activity on PORT. Needs the Engine, the Store, Lobby pings, where Cards are, and Discord's sign-in and members. */
+/** Serve the Activity on PORT. Needs the Engine, the Store, Lobby pings, Chosen Skins and their pictures, where Cards are, and Discord's sign-in and members. */
 export const activityServer = (config: PageConfig & { readonly channelId: string }) =>
   Layer.unwrapEffect(
     Effect.gen(function* () {

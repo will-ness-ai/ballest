@@ -46,6 +46,7 @@ describe("axi's message reader", () => {
   it("says who a thread post pings", () => {
     const post = ThreadPost.Challenged({
       by: ALICE,
+      skin: null,
       target: BOB,
       minutes: 10,
       expiresAt: 1_700_000_000_000,

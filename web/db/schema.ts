@@ -304,3 +304,24 @@ export const prefabLimits = pgTable("prefab_limits", {
   setAt: timestamp("set_at", { withTimezone: true }).notNull().defaultNow(),
   setBy: text("set_by").notNull(),
 });
+
+// A player's Chosen Skin (CONTEXT.md): the Skin a signed-in player picked to stand for them
+// wherever no run's Skin is known, written only by the site (PUT /api/me/skin). The Skin is
+// the object path a Ghost names (a key of lib/skins.ts), so every Skin is named one way. No
+// row is no pick: the hue marble.
+export const chosenSkins = pgTable("chosen_skins", {
+  steamId: text("steam_id").primaryKey(),
+  skin: text("skin").notNull(),
+  chosenAt: timestamp("chosen_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Every save of a Chosen Skin, a pick or a clear, which the hourly limit counts
+// (db/chosen-skin-api.ts). Older ones are pruned as new ones land.
+export const chosenSkinSaves = pgTable(
+  "chosen_skin_saves",
+  {
+    steamId: text("steam_id").notNull(),
+    savedAt: timestamp("saved_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("chosen_skin_saves_player").on(t.steamId, t.savedAt)],
+);

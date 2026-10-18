@@ -11,7 +11,7 @@ import { Context, Effect, Layer, Match, Option, Ref, Stream } from "effect";
 import { Engine } from "../engine.js";
 import { explain } from "../explain.js";
 import { Pings, warnPingRole } from "../pings.js";
-import { Store, type ProfilePreview } from "../ports.js";
+import { ChosenSkins, chosenSkinOf, Store, type ProfilePreview } from "../ports.js";
 import { Renderer, type RenderError } from "../render/renderer.js";
 import { describeDiscordError, Discord, type DiscordError, oneLine, tryDiscord } from "./client.js";
 import { type Action, parseControl } from "./controls.js";
@@ -58,6 +58,7 @@ export const InteractionsLive = Layer.scopedDiscard(
     const engine = yield* Engine;
     const store = yield* Store;
     const renderer = yield* Renderer;
+    const chosenSkins = yield* ChosenSkins;
     const pings = yield* Pings;
     const pingRole = { id: discord.pingRoleId, name: pings.role };
     const previews = yield* Ref.make(new Map<string, ProfilePreview>());
@@ -280,7 +281,10 @@ export const InteractionsLive = Layer.scopedDiscard(
           i.editReply(tryAgainMessage(explain(found.left, i.user.id))),
         );
       yield* Ref.update(previews, (m) => new Map(m).set(i.user.id, found.right));
-      const png = yield* renderer.link(found.right);
+      const png = yield* renderer.link(
+        found.right,
+        chosenSkinOf(yield* chosenSkins.all, found.right.steamId),
+      );
       yield* tryDiscord("edit reply", () => i.editReply(linkPreviewMessage(png)));
     });
 

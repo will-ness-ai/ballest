@@ -43,6 +43,12 @@ The ball a run was rolled with, one of the game's 36, named in the run's Ghost. 
 draws it in place of the player's marble.
 _Avoid_: ball colour, cosmetic
 
+**Chosen Skin**:
+The Skin a signed-in player picked to stand for them wherever no run's Skin is known: a
+run's own Skin first, then their Chosen Skin, then the marble in their hue. Multiballs draws
+it too.
+_Avoid_: avatar, icon, profile ball
+
 **Race**:
 Two runs' Ghosts played against each other on the site, a run against the leader (the
 leader against 2nd), to show where along the course one gained on the other. A board's

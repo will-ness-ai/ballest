@@ -7,6 +7,7 @@
 import { PlatformConfigProvider } from "@effect/platform";
 import { NodeContext, NodeRuntime } from "@effect/platform-node";
 import { Clock, Effect, Layer } from "effect";
+import { ChosenSkinsLive } from "../src/chosenSkins.js";
 import { ReportChannelLive } from "../src/report/channel.js";
 import { postReport } from "../src/report/daily.js";
 import { GhostDatesLive } from "../src/report/records.js";
@@ -55,6 +56,7 @@ program.pipe(
       GhostDatesLive,
       ReportChannelLive,
       Renderer.Default,
+      ChosenSkinsLive,
     ),
   ),
   Effect.provide(

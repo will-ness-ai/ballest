@@ -15,6 +15,7 @@ import {
   boards,
   dailies,
   entries,
+  chosenSkins,
   ghosts,
   mapFiles,
   mapHistory,
@@ -159,7 +160,7 @@ export const profile = (seconds: number, bend: number) =>
 
 export const tiny: Dataset = {
   description:
-    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts, 2 Prefabs, 1 Map file",
+    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts, 2 Chosen Skins, 2 Prefabs, 1 Map file",
   seed: async (tx) => {
     const [r1, r2, r3] = (
       await tx
@@ -531,6 +532,17 @@ export const tiny: Dataset = {
       gzipped: gzipSync(TINY_MAP_FILE),
       readAt: new Date("2026-09-01T06:10:00Z"),
     });
+
+    // p1 chose Cosmic, which shows wherever p1 has no read Ghost (their Track 01 run keeps
+    // its Pink); p3 chose a Skin the site has no picture for, so p3 keeps the hue marble
+    await tx.insert(chosenSkins).values([
+      { steamId: p(1), skin: SKIN.cosmic, chosenAt: new Date("2026-09-01T04:00:00Z") },
+      {
+        steamId: p(3),
+        skin: "/Game/Art/New/MI_NewSkin.MI_NewSkin",
+        chosenAt: new Date("2026-09-01T04:00:00Z"),
+      },
+    ]);
 
     const twin = cubesFile(2);
     const row = cubesFile(5);

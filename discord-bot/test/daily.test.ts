@@ -2,6 +2,7 @@ import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Layer, Option, Ref, TestClock } from "effect";
 import { OpsAlerts } from "../src/ops.js";
+import { NoChosenSkins } from "../src/chosenSkins.js";
 import { Renderer } from "../src/render/renderer.js";
 import { ReportChannel, ReportPostFailed, ThreadPostFailed } from "../src/report/channel.js";
 import { dailyLoop, ReportLogLive } from "../src/report/daily.js";
@@ -87,6 +88,7 @@ const setup = Effect.gen(function* () {
     Layer.succeed(Renderer, {
       standings: () => Effect.succeed(new Uint8Array()),
     } as unknown as Renderer),
+    NoChosenSkins,
   );
   return {
     heads,

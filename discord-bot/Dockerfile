@@ -7,6 +7,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
 COPY src ./src
+# Chosen Skins' pictures (src/render/skins.ts); the Activity art beside them is uploaded by hand.
+COPY assets/skins ./assets/skins
 ENV NODE_ENV=production
 # Node itself is PID 1 (not pnpm or the tsx CLI), so Fly's stop signal reaches the bot directly.
 CMD ["node", "--import", "tsx", "src/main.ts"]

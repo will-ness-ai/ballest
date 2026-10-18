@@ -965,3 +965,86 @@ describe("restart", () => {
     }),
   );
 });
+
+describe("Chosen Skins", () => {
+  const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
+  const GOLD = "/Game/Art/M_GoldReal.M_GoldReal";
+  const lobby = { type: "lobby", minutes: 5, target: null } as const;
+
+  it.scoped(
+    "each Card view and thread post carries its Players' Chosen Skins as they stood when it was built",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ maps: [MAP] });
+        yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+        yield* h.chosenSkins.pick(DAN.steamId, GOLD);
+        const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+        yield* h.engine.join(BOB.discordId, id);
+        expect(Option.getOrThrow(yield* h.surface.card(id)).skins).toEqual({
+          [ALICE.steamId]: PINK,
+        });
+
+        // Picks made later reach later posts and views, never the ones already built.
+        yield* h.chosenSkins.pick(ALICE.steamId, GOLD);
+        yield* h.chosenSkins.pick(BOB.steamId, PINK);
+        yield* h.engine.start(ALICE.discordId, id);
+        yield* h.steam.setTime(1, BOB.steamId, 19);
+        yield* advance("10 seconds");
+        yield* h.engine.join(CARA.discordId, id);
+
+        const posts = yield* h.surface.posts(id);
+        const skinOf = (tag: ThreadPost["_tag"]) => {
+          const post = posts.find((p) => p._tag === tag);
+          return post !== undefined && "skin" in post ? post.skin : "no such post";
+        };
+        expect(skinOf("Opened")).toBe(PINK);
+        expect(skinOf("Joined")).toBeNull();
+        expect(skinOf("Improved")).toBe(PINK);
+        const started = posts.find((p) => p._tag === "Started");
+        if (started?._tag !== "Started") return expect.unreachable();
+        expect(started.card.skins).toEqual({ [ALICE.steamId]: GOLD, [BOB.steamId]: PINK });
+        // Cara has no Chosen Skin, and players outside the Match are never carried.
+        expect(Option.getOrThrow(yield* h.surface.card(id)).skins).toEqual({
+          [ALICE.steamId]: GOLD,
+          [BOB.steamId]: PINK,
+        });
+      }),
+  );
+
+  it.scoped("the Challenged, Accepted and Left posts carry their Player's Chosen Skin", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      yield* h.chosenSkins.pick(BOB.steamId, GOLD);
+      const id = yield* h.engine.openInvite(ALICE.discordId, {
+        type: "challenge",
+        minutes: 5,
+        target: BOB.discordId,
+      });
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.engine.leave(BOB.discordId, id);
+
+      const posts = yield* h.surface.posts(id);
+      const challenged = posts.find((p) => p._tag === "Challenged");
+      const accepted = posts.find((p) => p._tag === "Accepted");
+      const left = posts.find((p) => p._tag === "Left");
+      expect(challenged?._tag === "Challenged" && challenged.skin).toBe(PINK);
+      expect(accepted?._tag === "Accepted" && accepted.skin).toBe(GOLD);
+      expect(left?._tag === "Left" && left.skin).toBe(GOLD);
+    }),
+  );
+
+  it.scoped("a Player who leaves a Lobby Invite is posted in their Chosen Skin", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+      yield* h.engine.join(BOB.discordId, id);
+      yield* h.chosenSkins.pick(BOB.steamId, GOLD);
+      yield* h.engine.leave(BOB.discordId, id);
+      const left = (yield* h.surface.posts(id)).find((p) => p._tag === "Left");
+      if (left?._tag !== "Left") return expect.unreachable();
+      expect(left.skin).toBe(GOLD);
+    }),
+  );
+});

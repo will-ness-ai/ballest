@@ -9,7 +9,7 @@
 import { Common, DiscordSDK } from "@discord/embedded-app-sdk";
 import type { MatchType, Minutes } from "../../domain.js";
 import { DECLINE_PING, getPing, pingOffer, pingsHave, UNDO_PING } from "../../pingWords.js";
-import type { Challengeable, MatchView } from "../api.js";
+import type { Challengeable, LinkPreview, MatchView } from "../api.js";
 import type { PageConfig } from "../server.js";
 import * as V from "./view.js";
 
@@ -18,12 +18,6 @@ interface Me extends V.Viewer {
   readonly matchId: string | null;
   /** The ping role as the server names it: "@Multiplayer ping". */
   readonly pingRole: string;
-}
-interface Preview {
-  readonly steamId: string;
-  readonly personaName: string;
-  readonly campaignTracks: number;
-  readonly campaignTrackTotal: number;
 }
 
 /** What a member pressed before they had to link Steam; it goes through once they have. */
@@ -73,7 +67,7 @@ const ui = {
   link: null as {
     step: "paste" | "preview";
     input: string;
-    preview: Preview | null;
+    preview: LinkPreview | null;
     error: string;
     pending: Pending | null;
     changing: boolean;
@@ -432,7 +426,7 @@ const check = async () => {
   ui.busy = true;
   render();
   try {
-    link.preview = await api<Preview>("POST", "/api/link/preview", { profile: link.input });
+    link.preview = await api<LinkPreview>("POST", "/api/link/preview", { profile: link.input });
     link.step = "preview";
     link.error = "";
   } catch (e) {

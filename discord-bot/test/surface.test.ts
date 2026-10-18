@@ -343,7 +343,10 @@ describe("the channel", () => {
         channel.failNext("startThread", 3);
         yield* surface.showCard(view("m1"));
         expect(channel.threadCount()).toBe(0);
-        yield* surface.post("m1", ThreadPost.Opened({ by: ALICE, type: "public", minutes: 10 }));
+        yield* surface.post(
+          "m1",
+          ThreadPost.Opened({ by: ALICE, skin: null, type: "public", minutes: 10 }),
+        );
         expect(channel.threadPosts("m1")).toEqual(["Opened"]);
       }),
   );

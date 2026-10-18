@@ -6,6 +6,7 @@ import { NodeContext } from "@effect/platform-node";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { Config, Effect, Layer, Logger, Option } from "effect";
 import { DiscordAuthLive, DiscordMembers, MembersUnavailable } from "./activity/auth.js";
+import { ChosenSkinsLive } from "./chosenSkins.js";
 import { activityServer } from "./activity/server.js";
 import { describeDiscordError, Discord } from "./discord/client.js";
 import { DriverInteractions, InteractionsLive } from "./discord/interactions.js";
@@ -23,6 +24,7 @@ import { OpsLive } from "./ops.js";
 import { Pings } from "./pings.js";
 import { MapPreviews, PreviewSourceLive } from "./previews.js";
 import { Renderer } from "./render/renderer.js";
+import { SkinPictures } from "./render/skins.js";
 import { SqliteStoreLive } from "./sqliteStore.js";
 
 /**
@@ -102,6 +104,9 @@ const portsLive = <E, R>(steam: Layer.Layer<Steam, E, R>) =>
   Layer.mergeAll(steam, SurfaceLive, SqliteStoreLive, PingRoleLive).pipe(
     Layer.provideMerge(PreviewsLive),
     Layer.provideMerge(Renderer.Default),
+    // The same pictures the Renderer draws, for the Activity to serve.
+    Layer.provideMerge(SkinPictures.Default),
+    Layer.provideMerge(ChosenSkinsLive),
     Layer.provideMerge(Discord.Default),
     Layer.provideMerge(SqlLive),
   );
