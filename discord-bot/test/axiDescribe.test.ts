@@ -96,3 +96,28 @@ describe("axi's private answers", () => {
     expect(detail({ id: "1", content: "one\ntwo" })).toContain("content: one\n  two");
   });
 });
+
+describe("a Components V2 message's files", () => {
+  it("lists the files its components show, since it has none under attachments", () => {
+    const url = (name: string) => `https://cdn.discordapp.com/attachments/1/2/${name}?ex=1`;
+    const card = {
+      id: "1",
+      components: [
+        {
+          type: 17,
+          components: [
+            { type: 12, items: [{ media: { url: url("preview.jpg") } }] },
+            {
+              type: 9,
+              components: [{ type: 10, content: "🥇" }],
+              accessory: { type: 11, media: { url: url("spin.gif") } },
+            },
+          ],
+        },
+      ],
+    };
+    expect(detail(card)).toContain(`  spin.gif,${url("spin.gif")}`);
+    expect(detail(card)).toContain("files[2]{name,path}:");
+    expect(summary(card)).toContain("[2 files]");
+  });
+});

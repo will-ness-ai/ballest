@@ -68,8 +68,15 @@
     {
       "idx": 9,
       "version": "7",
+      "when": 1792346326511,
+      "tag": "0009_map_spins",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
       "when": 1792345543699,
-      "tag": "0009_chosen_skins",
+      "tag": "0010_chosen_skins",
       "breakpoints": true
     }
   ]

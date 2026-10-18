@@ -101,6 +101,12 @@ board. Named by its date. It is live while its window is open, and final once a 
 has read its board after the window closed; a Daily's standings count final Dailies only.
 _Avoid_: daily challenge board, Daily Report (that is Multiballs' post)
 
+**Daily Post**:
+Multiballs' card for one Daily in the game Discord's daily challenge channel, with its thread:
+posted when the Daily opens, kept current while it is live, and turned into the result once it
+closes. A lead held by one player on it is a Reign, as on the site.
+_Avoid_: daily challenge post, Daily Report (that is the stats post)
+
 **Daily Report**:
 Multiballs' once-a-day post of the Workshop standings (Maps played, Author Medals, world
 records, top 5s), what changed since the day before, Maps nobody has finished, unclaimed

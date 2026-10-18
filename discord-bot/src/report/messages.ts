@@ -48,7 +48,8 @@ const mapLink = (m: ListedMap) => siteLink(m.title || m.pfid, `/map/${m.pfid}`);
 /** The Track's board on the site. */
 const trackLink = (t: ListedTrack) => siteLink(t.label, `/board/${t.board}`);
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const bold = (name: string) => `**${escape(name)}**`;
+/** A name or title in bold, kept from pinging or breaking the markdown. */
+export const bold = (name: string) => `**${escape(name)}**`;
 
 const utc = (at: number, options: Intl.DateTimeFormatOptions) =>
   new Date(at).toLocaleDateString("en-GB", { timeZone: "UTC", ...options });

@@ -1,0 +1,5 @@
+# The collector image (Dockerfile) takes only the scripts and their deps: never
+# refresh_token.txt, a venv, or anything else a checkout keeps in tools/.
+*
+!*.py
+!requirements-steampy.txt

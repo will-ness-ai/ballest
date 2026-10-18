@@ -36,6 +36,8 @@ export const FRESH_LOGON_AFTER_MS = 2 * 60_000;
 const FindResponse = Schema.Struct({ eresult: Schema.Number, leaderboard_id: Schema.Number });
 const EntriesResponse = Schema.Struct({
   eresult: Schema.Number,
+  /** How many entries the whole board holds, whatever range was asked for. */
+  leaderboard_entry_count: Schema.Number,
   entries: Schema.Array(
     Schema.Struct({
       steam_id_user: Schema.String,
@@ -269,13 +271,14 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
         (r) => r.eresult === EResultOK,
         (r) => new SteamUnavailable({ reason: `GetLBEntries eresult ${r.eresult}` }),
       ),
-      Effect.map((r) =>
-        r.entries.map((e): BoardEntry => ({
+      Effect.map((r) => ({
+        count: r.leaderboard_entry_count,
+        entries: r.entries.map((e): BoardEntry => ({
           steamId: e.steam_id_user,
           globalRank: e.global_rank,
           score: e.score,
         })),
-      ),
+      })),
     );
 
   return {
@@ -296,8 +299,12 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
     /** Rank 1, if the board has any entry. */
     top: (boardId: number) =>
       entries(boardId, REQUEST_GLOBAL, [1, 1], []).pipe(
-        Effect.map((es) => Option.fromNullable(es[0])),
+        Effect.map((r) => Option.fromNullable(r.entries[0])),
       ),
+    /** Ranks `from` to `to`, with how many entries the whole board holds: one request. */
+    range: Effect.fn("SteamSession.range")(function* (boardId: number, from: number, to: number) {
+      return yield* entries(boardId, REQUEST_GLOBAL, [from, to], []);
+    }),
     /** These Players' entries; a Player with no time is simply absent. */
     players: (
       boardId: number,
@@ -305,7 +312,7 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
     ): Effect.Effect<ReadonlyArray<BoardEntry>, SteamUnavailable> =>
       steamIds.length === 0
         ? Effect.succeed<ReadonlyArray<BoardEntry>>([])
-        : entries(boardId, REQUEST_USERS, [0, 0], steamIds),
+        : entries(boardId, REQUEST_USERS, [0, 0], steamIds).pipe(Effect.map((r) => r.entries)),
   } as const;
 });
 

@@ -14,9 +14,9 @@ on:
     paths:
       - "discord-bot/**"
       - ".github/workflows/bot.yml"
+      - "web/db/**"
       - "web/lib/skins.ts"
       - "skins/**"
-      - "web/db/migrations/**"
   workflow_dispatch: {}
 
 permissions:
@@ -25,8 +25,9 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # The Chosen Skins read (test/chosenSkins.test.ts) runs against a throwaway database the
-    # site's migrations build, so the site's dependencies are installed too.
+    # The Chosen Skins read (test/chosenSkins.test.ts) and the Daily Post's backfill read the
+    # leaderboard database: both are tested in a throwaway database migrated (and, for the
+    # backfill, seeded with the tiny dataset) by web/'s own scripts.
     services:
       postgres:
         image: postgres:16

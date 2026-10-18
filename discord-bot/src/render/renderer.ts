@@ -25,6 +25,9 @@ import {
   type El,
   FOOTER_WIDTH,
   footerScene,
+  LEAD_GRAPH_WIDTH,
+  type LeadGraphImage,
+  leadGraphScene,
   improvementScene,
   LINK_WIDTH,
   linkScene,
@@ -215,6 +218,10 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
       marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
       /** The Daily Report's four boards, each row in the Chosen Skin it carries. */
       standings: (image: StandingsImage) => draw(standingsScene(image, pictures), STANDINGS_WIDTH),
+      /** A Daily Post's lead through the day. */
+      leadGraph: Effect.fn("Renderer.leadGraph")(function* (image: LeadGraphImage) {
+        return yield* draw(leadGraphScene(image), LEAD_GRAPH_WIDTH);
+      }),
     };
   }),
   dependencies: [SkinPictures.Default],

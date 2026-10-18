@@ -323,7 +323,7 @@ order, in the order given), or one maker: a profile URL, a SteamID64, or part of
 any already in a Campaign and any the site doesn't list yet, and ends with the `maps:` line to
 paste. A Map the collector hasn't listed yet (one published since the last Refresh) is left
 off its Campaign's page until a Refresh lists it, so a preview can show fewer Maps; after merging a Campaign with new Maps run a Refresh
-(`gh workflow run refresh.yml --ref main`) and check the page on production. `qa check` draws
+(`fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"`, from Will's PC) and check the page on production. `qa check` draws
 one fixed Campaign, so look at the new one's page with
 `pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
