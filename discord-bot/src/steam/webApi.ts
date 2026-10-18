@@ -33,6 +33,13 @@ const QueryFilesPage = Schema.Struct({
   }),
 });
 
+/** IPublishedFileService/GetDetails: the same fields as a QueryFiles page, for the ids asked. */
+const FileDetails = Schema.Struct({
+  response: Schema.Struct({
+    publishedfiledetails: QueryFilesPage.fields.response.fields.publishedfiledetails,
+  }),
+});
+
 /** The game writes each Map's board name and Medal times into its Workshop metadata. */
 const BallestMetadata = Schema.parseJson(
   Schema.Struct({
@@ -219,6 +226,29 @@ export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
             },
           }),
         );
+      }),
+
+      /** One Workshop Map by its id, creator named; None without usable Ballest metadata. */
+      workshopMap: Effect.fn("WebApi.workshopMap")(function* (pfid: string) {
+        const body = yield* steamApi(
+          "/IPublishedFileService/GetDetails/v1/",
+          { "publishedfileids[0]": pfid, includemetadata: "true", appid: String(APP_ID) },
+          FileDetails,
+        );
+        const file = body.response.publishedfiledetails[0];
+        if (file === undefined) return Option.none<MapInfo>();
+        const creator = (yield* summaries([file.creator]))[0]?.personaname ?? "";
+        return Option.map(decodeMetadata(file.metadata), ({ ballest }): MapInfo => {
+          const [bronze, silver, gold, author] = ballest.medal_times_by_index;
+          return {
+            pfid: file.publishedfileid,
+            title: file.title,
+            creator,
+            previewUrl: file.preview_url,
+            boardName: ballest.leaderboard_name_current,
+            medals: { bronze, silver, gold, author },
+          };
+        });
       }),
 
       /** A custom URL name to a SteamID64, or None. */

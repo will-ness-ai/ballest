@@ -1,5 +1,5 @@
 """
-Ballest campaign leaderboard collector — HEADLESS (GitHub Actions path).
+Ballest campaign leaderboard collector — HEADLESS (the live path, run by runner.py on Fly).
 
 Logs into Steam with a refresh token (no Steam client, no password at runtime),
 reads every Circuit leaderboard over the Steam CM via steam.py, keeps the Workshop
@@ -15,7 +15,7 @@ Map's board ID and Workshop counters, when it last read every Map, and every pla
 name are read back from it first (db_writer.load_memory). It writes DATABASE_URL, or with
 --dev only DEV_DATABASE_URL, and without one it stops before logging in.
 
-Auth (secrets, provided as env vars in CI; locally they fall back to the files
+Auth (secrets, provided as env vars on Fly; locally they fall back to the files
 steampy_mint.py and .env hold, in this checkout or the main one if this is a
 worktree):
   STEAM_REFRESH_TOKEN  — minted once locally with steampy_mint.py

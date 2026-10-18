@@ -16,6 +16,9 @@ and the JSON compresses about 29 times, so about 16 MB stored. At that size the 
 0009 gave for Prefabs hold: one store, one backup story (a Neon snapshot covers the files
 with the scores), and one connection for the collector, which already writes there.
 
+The Daily Post's spinning GIF is drawn from these files, and kept beside them in `map_spins`,
+by a GitHub Actions workflow rather than the collector (ADR 0013).
+
 ## Considered Options
 
 - Vercel Blob: cheaper per byte and served from the CDN directly, but a second store to

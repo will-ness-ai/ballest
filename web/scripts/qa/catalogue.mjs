@@ -13,7 +13,8 @@
 // CAMPAIGNER holds a place in Campaigns, for their Workshop tab's shelf: on production
 // Chaos, in every launch Campaign; in stress the long-named player. MAP3D is a Map whose file
 // the site holds, for its 3D view: on production Ice Boat Race (3.1 MB, a long track on a
-// wide floor); in stress tiny's Marble Run. UPLOADER is PREFAB's uploader and ADMIN the Prefab
+// wide floor); in stress tiny's Marble Run. UPLOADER is PREFAB's uploader, whose own player
+// page opens the Chosen Skin picker (tiny's p1, who chose Cosmic), and ADMIN the Prefab
 // admin (ADMIN_STEAM_ID in lib/prefabs.ts), whom a row's `as` signs in as: only a local build's
 // secret is known (scripts/qa/session.mjs), so `real` has neither.
 export const IDS = {
@@ -79,6 +80,7 @@ export const PAGES = [
   { name: "prefab-upload", path: "/prefabs/new", as: "UPLOADER" },
   { name: "prefab-owner", path: "/prefab/{PREFAB}", as: "UPLOADER" },
   { name: "prefab-admin", path: "/prefab/{PREFAB}", as: "ADMIN" },
+  { name: "player-own", path: "/player/{UPLOADER}", as: "UPLOADER" },
   { name: "notfound", path: "/no-such-page", status: 404 },
 ];
 
@@ -106,6 +108,7 @@ export const STATES = [
   { name: "race-podium", page: "board", click: ".pl-score.c-race" },
   { name: "you-all", page: "you", click: ".yl-more" },
   { name: "map3d", page: "map-3d", click: ".m3d-open" },
+  { name: "skin-pick", page: "player-own", click: ".skp-edit" },
 ];
 
 // Hidden before every screenshot on both sides: the refresh time differs between two

@@ -10,9 +10,20 @@ import {
   progress,
   SCORE_TICKS_PER_SECOND,
 } from "../domain.js";
-import type { CardView, Improvement, ProfilePreview } from "../ports.js";
+import { dailyTime } from "../dailyPost/card.js";
+import { HOUR } from "../dailyPost/date.js";
+import { joinedLead, type Lead } from "../dailyPost/lead.js";
+import type { CardView, ChosenSkin, Improvement, ProfilePreview } from "../ports.js";
 import { boardRows, formatGap, mapTitle, matchDetails } from "../present.js";
-import { hueFor, MEDAL_BAR, marbleSvg, medalHeight, medalSvg, svgUri } from "./art.js";
+import {
+  hueFor,
+  MEDAL_BAR,
+  marbleSvg,
+  medalHeight,
+  medalSvg,
+  type SkinPictureUris,
+  svgUri,
+} from "./art.js";
 
 // ---------------------------------------------------------------- elements
 
@@ -40,6 +51,33 @@ const img = (src: string, width: number, height: number, style: Style = {}): El 
 });
 const marble = (hue: number, size: number, style: Style = {}) =>
   img(svgUri(marbleSvg(hue, size)), size, size, style);
+/**
+ * A player's marble: their Chosen Skin's picture (already round), else their hue marble. Where
+ * the marble's hue is a key (the progression graph's lines), `ring` circles a picture in it.
+ */
+const playerMarble = (
+  pictures: SkinPictureUris,
+  skin: ChosenSkin,
+  steamId: string,
+  size: number,
+  style: Style = {},
+  ring: string | null = null,
+) => {
+  const picture = skin === null ? undefined : pictures.get(skin);
+  if (picture === undefined) return marble(hueFor(steamId), size, style);
+  return ring === null
+    ? img(picture, size, size, style)
+    : box(
+        {
+          ...style,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          border: `1.5px solid ${ring}`,
+        },
+        img(picture, size - 3, size - 3),
+      );
+};
 const medal = (kind: MedalKind, size: number) =>
   img(svgUri(medalSvg(kind, size)), size, medalHeight(size));
 
@@ -231,7 +269,7 @@ const rowsOf = (card: CardImage) => boardRows(card.view, (id) => card.names.get(
 
 const COLUMNS = { rank: 34, marble: 24 } as const;
 
-const slab = (card: CardImage) => {
+const slab = (card: CardImage, pictures: SkinPictureUris) => {
   const invite = card.view.state === "invite";
   return box(
     {
@@ -273,7 +311,15 @@ const slab = (card: CardImage) => {
           },
           r.rank,
         ),
-        marble(r.steamId === null ? 0 : hueFor(r.steamId), 24, r.faded ? { opacity: 0.25 } : {}),
+        r.steamId === null
+          ? marble(0, 24, r.faded ? { opacity: 0.25 } : {})
+          : playerMarble(
+              pictures,
+              card.view.skins[r.steamId] ?? null,
+              r.steamId,
+              24,
+              r.faded ? { opacity: 0.25 } : {},
+            ),
         box(
           { flexGrow: 1, flexDirection: "column", minWidth: 0 },
           box(
@@ -318,7 +364,7 @@ const stateChip = (view: CardView) =>
           )
         : chip("Final", { color: C.gold, border: "1px solid rgba(255,212,71,0.4)" });
 
-export const cardScene = (card: CardImage): El => {
+export const cardScene = (card: CardImage, pictures: SkinPictureUris): El => {
   const { view } = card;
   const height = view.state === "invite" ? 110 : 150;
   const title = mapTitle(view);
@@ -376,7 +422,7 @@ export const cardScene = (card: CardImage): El => {
     ),
     box(
       { flexDirection: "column", padding: "2px 16px 14px" },
-      box({ marginTop: 10, flexDirection: "column" }, slab(card)),
+      box({ marginTop: 10, flexDirection: "column" }, slab(card, pictures)),
     ),
   );
 };
@@ -404,7 +450,13 @@ const wrRibbon = () =>
   );
 
 /** "Gold Takeover": a PB that beat the world record, as the game's gold medal bar. */
-const worldRecordScene = (improvement: Improvement, name: string, beaten: number): El =>
+const worldRecordScene = (
+  improvement: Improvement,
+  name: string,
+  beaten: number,
+  skin: ChosenSkin,
+  pictures: SkinPictureUris,
+): El =>
   box(
     {
       width: ROW_WIDTH,
@@ -418,7 +470,7 @@ const worldRecordScene = (improvement: Improvement, name: string, beaten: number
       textShadow: OUTLINE,
     },
     box({ width: 58, justifyContent: "center", fontSize: 24 }, "WR"),
-    marble(hueFor(improvement.player.steamId), 28),
+    playerMarble(pictures, skin, improvement.player.steamId, 28),
     box(
       { flexGrow: 1, flexDirection: "column", marginLeft: 10, minWidth: 0 },
       box(
@@ -433,9 +485,15 @@ const worldRecordScene = (improvement: Improvement, name: string, beaten: number
     box({ fontSize: 22, paddingRight: 16 }, formatTime(improvement.ticks)),
   );
 
-export const improvementScene = (improvement: Improvement, name: string): El => {
+/** An Improvement's row; `skin` is the Improver's Chosen Skin the post carries. */
+export const improvementScene = (
+  improvement: Improvement,
+  name: string,
+  skin: ChosenSkin,
+  pictures: SkinPictureUris,
+): El => {
   if (improvement.beatWorldRecord !== null)
-    return worldRecordScene(improvement, name, improvement.beatWorldRecord);
+    return worldRecordScene(improvement, name, improvement.beatWorldRecord, skin, pictures);
   const lead = improvement.rank === 1;
   const diff =
     improvement.previousTicks === null
@@ -466,7 +524,7 @@ export const improvementScene = (improvement: Improvement, name: string): El => 
     ),
     box(
       { flexGrow: 1, alignItems: "center", gap: 10, paddingRight: 12, minHeight: 44 },
-      marble(hueFor(improvement.player.steamId), 24),
+      playerMarble(pictures, skin, improvement.player.steamId, 24),
       box(
         {
           flexGrow: 1,
@@ -538,7 +596,12 @@ export const footerScene = (): El =>
 
 export const LINK_WIDTH = 400;
 
-export const linkScene = (preview: ProfilePreview): El =>
+/** The Link confirmation; `skin` is the account's Chosen Skin. */
+export const linkScene = (
+  preview: ProfilePreview,
+  skin: ChosenSkin,
+  pictures: SkinPictureUris,
+): El =>
   backdrop(
     {
       width: LINK_WIDTH,
@@ -547,7 +610,7 @@ export const linkScene = (preview: ProfilePreview): El =>
       gap: 12,
       padding: "14px 16px",
     },
-    marble(hueFor(preview.steamId), 48),
+    playerMarble(pictures, skin, preview.steamId, 48),
     box(
       { flexDirection: "column", width: LINK_WIDTH - 32 - 48 - 12 },
       box({ fontFamily: F.hud, fontWeight: 700, fontSize: 17 }, preview.personaName),
@@ -594,13 +657,14 @@ const textAt = (
   text: string,
   style: Style,
   anchor: "start" | "end" | "middle" = "start",
+  width: number = PROGRESSION_WIDTH,
 ): El => {
   const size = typeof style.fontSize === "number" ? style.fontSize : 10;
   const place: Style =
     anchor === "start"
       ? { left: x }
       : anchor === "end"
-        ? { right: PROGRESSION_WIDTH - x }
+        ? { right: width - x }
         : { left: x - 60, width: 120, justifyContent: "center" };
   return box(
     {
@@ -648,7 +712,10 @@ const clockLabel = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padSta
  * record from the start of the Match as dotted lines (each break of it a star), and any PB a
  * Player brought into the Match dotted in until they beat it.
  */
-export const progressionScene = ({ view, history, names }: ProgressionImage): El => {
+export const progressionScene = (
+  { view, history, names }: ProgressionImage,
+  pictures: SkinPictureUris,
+): El => {
   const W = PROGRESSION_WIDTH,
     H = 470,
     L = 78,
@@ -820,7 +887,14 @@ export const progressionScene = ({ view, history, names }: ProgressionImage): El
           gap: roomy ? 8 : 6,
           alignItems: roomy ? "flex-start" : "center",
         },
-        marble(hueFor(id), roomy ? 16 : 11, roomy ? { marginTop: 1 } : {}),
+        playerMarble(
+          pictures,
+          view.skins[id] ?? null,
+          id,
+          roomy ? 16 : 11,
+          roomy ? { marginTop: 1 } : {},
+          colourOf(id),
+        ),
         box(
           { flexDirection: "column", flexShrink: 1, minWidth: 0 },
           box(
@@ -986,12 +1060,25 @@ export const activityArtScene = (art: ActivityArt, dev: boolean): El => {
 
 // ---------------------------------------------------------------- the Daily Report's standings
 
-export const STANDINGS_WIDTH = 620;
+/** The standings image's padding, and the gap between the two boards side by side. */
+const STANDINGS_PADDING = 28;
+const STANDINGS_GAP = 24;
+/** A row's marble, and the gap between the things on a row. */
+const STANDINGS_MARBLE = 16;
+const STANDINGS_ROW_GAP = 8;
+/** A row's text part, beside its marble: its place, move pill, name and counts. */
+const STANDINGS_TEXT = 270;
+/** One board: its text, and a marble before each name. */
+const STANDINGS_COLUMN = STANDINGS_TEXT + STANDINGS_MARBLE + STANDINGS_ROW_GAP;
+export const STANDINGS_WIDTH = STANDINGS_PADDING * 2 + STANDINGS_COLUMN * 2 + STANDINGS_GAP;
 /** Widest a name gets before it is clipped, so a row and its pills stay on one line. */
 const STANDINGS_NAME = 17;
 
 /** A row on one of the Daily Report's boards, and how it changed in the last 24 hours. */
 export interface StandingsRow {
+  readonly steamId: string;
+  /** Their Chosen Skin when the report was built, or null for their hue marble. */
+  readonly skin: ChosenSkin;
   readonly name: string;
   readonly n: number;
   /** The shared place: players on the same count show the same one. */
@@ -1064,16 +1151,19 @@ const movePill = (move: StandingsRow["move"]) =>
 const clipName = (name: string) =>
   name.length > STANDINGS_NAME ? `${name.slice(0, STANDINGS_NAME - 1)}…` : name;
 
-export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El => {
+export const standingsScene = (
+  { title, subtitle, boards }: StandingsImage,
+  pictures: SkinPictureUris,
+): El => {
   const column = (board: StandingsImage["boards"][number]) =>
     box(
-      { flexDirection: "column", width: 270, gap: 4 },
+      { flexDirection: "column", width: STANDINGS_COLUMN, gap: 4 },
       label(board.title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 }),
       ...board.rows.map((row, i) =>
         box(
           {
             alignItems: "center",
-            gap: 8,
+            gap: STANDINGS_ROW_GAP,
             fontSize: 15,
             padding: "3px 8px",
             borderRadius: 6,
@@ -1089,6 +1179,7 @@ export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El 
             String(row.place),
           ),
           box({ width: 30 }, movePill(row.move)),
+          playerMarble(pictures, row.skin, row.steamId, STANDINGS_MARBLE),
           box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
           row.gain === 0
             ? null
@@ -1119,12 +1210,200 @@ export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El 
     );
   const pairs = [boards.slice(0, 2), boards.slice(2, 4)].filter((p) => p.length > 0);
   return backdrop(
-    { padding: 28, gap: 20 },
+    { padding: STANDINGS_PADDING, gap: 20 },
     box(
       { flexDirection: "column", gap: 4 },
       box({ fontFamily: F.marquee, fontSize: 28 }, title),
       box({ color: C.dim, fontSize: 14 }, subtitle),
     ),
-    ...pairs.map((pair) => box({ gap: 24 }, ...pair.map(column))),
+    ...pairs.map((pair) => box({ gap: STANDINGS_GAP }, ...pair.map(column))),
+  );
+};
+
+// ---------------------------------------------------------------- the Daily Post's lead graph
+// Under the podium on a Daily Post (spec #268): the leading time through the Daily as a step
+// line, faster times lower, each step coloured by its leader and named under it. The settled
+// design is graph A (flipped) in the prototype on branch claude/prototype-daily-post. Laid out at
+// half size; the renderer draws it at twice that.
+
+export const LEAD_GRAPH_WIDTH = 500;
+
+export interface LeadGraphImage {
+  readonly opensAt: number;
+  readonly closesAt: number;
+  /** Each read that changed the lead, oldest first. */
+  readonly leads: ReadonlyArray<Lead>;
+  /** While the Daily is live, the moment marked "now"; null once it has closed. */
+  readonly now: number | null;
+}
+
+/** The graph's own ground, and the dataviz palette's dark categorical slots validated on it. */
+const G = { bg: "#121628", grid: "#262c46", dim: "#9aa3c7", text: "#eef0fb", faint: "#5b648a" };
+const LEADER_COLOURS = ["#3987e5", "#d95926", "#199e70", "#c98500"];
+
+/** A round step for the time axis's lines, about a third of `range` seconds. */
+const niceStep = (range: number) => {
+  const raw = range / 3;
+  const power = 10 ** Math.floor(Math.log10(raw));
+  return ([1, 2, 5, 10].find((m) => m * power >= raw) ?? 10) * power;
+};
+
+/** Roughly how wide a line of Chakra Petch is: for keeping labels apart. */
+const textWidth = (text: string, size: number) => text.length * size * 0.56;
+
+const clip = (name: string) => (name.length > 16 ? `${name.slice(0, 15)}…` : name);
+
+export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage): El => {
+  const W = LEAD_GRAPH_WIDTH,
+    H = 190,
+    L = 45,
+    R = 15,
+    T = 30,
+    B = 24;
+  const span = Math.max(closesAt - opensAt, 1);
+  const end = Math.min(now ?? closesAt, closesAt);
+  const x = (at: number) => L + (Math.min(Math.max(at - opensAt, 0), span) / span) * (W - L - R);
+  const secs = (ticks: number) => ticks / SCORE_TICKS_PER_SECOND;
+  const times = leads.map((l) => secs(l.ticks));
+  const fastest = times.length === 0 ? 0 : Math.min(...times);
+  const slowest = times.length === 0 ? 1 : Math.max(...times);
+  const range = Math.max(slowest - fastest, 0.05);
+  const lo = fastest - range * 0.12,
+    hi = slowest + range * 0.08;
+  // Faster is lower: the slowest time sits at the top.
+  const y = (s: number) => T + ((hi - s) / (hi - lo)) * (H - T - B);
+
+  // Each leader's colour, in the order they first led; a fifth on reuses no hue.
+  const order: Array<string> = [];
+  for (const lead of leads) for (const n of lead.leaders) if (!order.includes(n)) order.push(n);
+  const colourOf = (name: string) => LEADER_COLOURS[order.indexOf(name)] ?? G.dim;
+  /** Whose Reign a step is: of a tie, whoever led first. */
+  const holderOf = (lead: Lead) =>
+    [...lead.leaders].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] ?? "";
+
+  const hud = (size: number, weight: number, color: string): Style => ({
+    fontFamily: F.hud,
+    fontWeight: weight,
+    fontSize: size,
+    color,
+  });
+  let lines = "";
+  const overlays: Array<El> = [];
+
+  const step = niceStep(hi - lo);
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+    lines += `<line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" stroke="${G.grid}" stroke-width="0.5"/>`;
+    overlays.push(
+      textAt(
+        L - 5,
+        y(v) + 3,
+        dailyTime(Math.round(v * SCORE_TICKS_PER_SECOND)),
+        hud(7.5, 500, G.dim),
+        "end",
+        W,
+      ),
+    );
+  }
+
+  const axisY = H - B + 12;
+  const quarter = Math.round(span / 4 / HOUR);
+  (
+    [
+      [0, "opened", "start"],
+      [1, `+${quarter}h`, "middle"],
+      [2, `+${quarter * 2}h`, "middle"],
+      [3, `+${quarter * 3}h`, "middle"],
+      [4, "closes", "end"],
+    ] as const
+  ).forEach(([q, text, anchor]) =>
+    overlays.push(
+      textAt(x(opensAt + (span * q) / 4), axisY, text, hud(7.5, 500, G.dim), anchor, W),
+    ),
+  );
+
+  if (now !== null) {
+    lines += `<line x1="${x(end)}" y1="${T - 5}" x2="${x(end)}" y2="${H - B}" stroke="${G.faint}" stroke-width="0.5" stroke-dasharray="2 2"/>`;
+    lines += `<line x1="${x(end)}" y1="${H - B + 1}" x2="${x(end)}" y2="${H - B + 4}" stroke="${G.text}" stroke-width="1"/>`;
+    overlays.push(textAt(x(end) + 3, T - 1, "now", hud(7, 600, G.dim), "start", W));
+  }
+
+  // The steps, then a dot where each began, and who led it named under it.
+  const labels: Array<{ x: number; y: number; text: string; width: number }> = [];
+  const steps: Array<{ from: number; to: number; y: number }> = [];
+  leads.forEach((lead, i) => {
+    const next = leads[i + 1];
+    const prev = leads[i - 1];
+    const colour = colourOf(holderOf(lead));
+    const [x0, x1, ly] = [x(lead.at), x(next?.at ?? end), y(secs(lead.ticks))];
+    lines += `<line x1="${x0}" y1="${ly}" x2="${x1}" y2="${ly}" stroke="${colour}" stroke-width="1.5"/>`;
+    steps.push({ from: x0, to: x1, y: ly });
+    if (next !== undefined)
+      lines += `<line x1="${x1}" y1="${ly}" x2="${x1}" y2="${y(secs(next.ticks))}" stroke="${colour}" stroke-width="1"/>`;
+    const joined = prev === undefined ? [] : joinedLead(prev, lead);
+    const dot = joined[0] ?? holderOf(lead);
+    lines += `<circle cx="${x0}" cy="${ly}" r="2.5" fill="${colourOf(dot)}" stroke="${G.bg}" stroke-width="1"/>`;
+    // A name starts at its dot, or ends at the plot's right edge when it would run past it (a
+    // late steal, or a lead first seen at the close).
+    const label = (text: string, ty: number) => {
+      const width = textWidth(text, 8);
+      labels.push({ x: Math.min(x0 + 2, W - R - width), y: ty, text, width });
+    };
+    if (joined.length > 0)
+      label(`${joined.map(clip).join(" & ")} ${joined.length === 1 ? "ties" : "tie"}`, ly - 5);
+    else if (prev === undefined || holderOf(prev) !== holderOf(lead))
+      label(clip(holderOf(lead)), ly + 11);
+  });
+  // The latest labels win where two would overlap.
+  const kept: typeof labels = [];
+  for (const l of [...labels].reverse())
+    if (!kept.some((k) => Math.abs(k.y - l.y) < 9 && l.x < k.x + k.width && k.x < l.x + l.width))
+      kept.push(l);
+  for (const l of kept.reverse())
+    overlays.push(textAt(l.x, l.y, l.text, hud(8, 600, G.text), "start", W));
+
+  // The leading time now, at the end of the line: beside it, else above or below it, wherever it
+  // clears the names; ending against the right edge once the line reaches it.
+  const last = leads.at(-1);
+  if (last !== undefined) {
+    const text = dailyTime(last.ticks);
+    const ly = y(secs(last.ticks));
+    const width = textWidth(text, 9);
+    const right = x(end) + 5 + width <= W - 2;
+    const left = right ? x(end) + 5 : x(end) - width;
+    // Each label's box runs from a line's height above its baseline down to the baseline. The
+    // time clears the names, and the steps it would sit on (a late steal's last step is short).
+    const clear = (baseline: number) =>
+      !kept.some(
+        (k) =>
+          k.y - 8 < baseline + 1 &&
+          baseline - 9 < k.y + 1 &&
+          k.x < left + width &&
+          left < k.x + k.width,
+      ) &&
+      !steps.some(
+        (st) =>
+          baseline - 8 < st.y && st.y < baseline + 2 && st.from < left + width && left < st.to,
+      );
+    const baseline = [right ? ly + 3.5 : ly - 6, ly - 6, ly + 13, ly - 16].find(clear) ?? ly - 6;
+    overlays.push(
+      right
+        ? textAt(left, baseline, text, hud(9, 700, G.text), "start", W)
+        : textAt(x(end), baseline, text, hud(9, 700, G.text), "end", W),
+    );
+  }
+
+  const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`;
+  return box(
+    { width: W, height: H, position: "relative", backgroundColor: G.bg, color: G.text },
+    img(svgUri(chart), W, H, { position: "absolute", left: 0, top: 0 }),
+    ...overlays,
+    textAt(
+      12,
+      15,
+      "THE LEAD THROUGH THE DAY",
+      { ...hud(8.5, 600, G.dim), letterSpacing: 0.4 },
+      "start",
+      W,
+    ),
   );
 };

@@ -12,6 +12,16 @@ export const hueFor = (seed: string): number => {
   return Math.abs(h) % 360;
 };
 
+/**
+ * Each Skin's picture as a data URI, by the object path a Chosen Skin names (skinList.ts). An image
+ * draws a player in the picture of the Chosen Skin its input carries for them, and in their hue
+ * marble when it carries none or names a Skin with no picture here.
+ */
+export type SkinPictureUris = ReadonlyMap<string, string>;
+
+/** No pictures: every player in their hue marble. */
+export const NO_SKIN_PICTURES: SkinPictureUris = new Map();
+
 /** The lime of the start line and the Multiballs logo's green marble. */
 export const START_HUE = 96;
 /** The warm marble that heads a Result. */

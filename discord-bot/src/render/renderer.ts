@@ -12,8 +12,9 @@ import { createRequire } from "node:module";
 import { Worker } from "node:worker_threads";
 import { Data, Effect } from "effect";
 import satori, { type Font } from "satori";
-import type { Improvement, ProfilePreview } from "../ports.js";
-import { marbleSvg } from "./art.js";
+import type { ChosenSkin, Improvement, ProfilePreview } from "../ports.js";
+import { marbleSvg, type SkinPictureUris } from "./art.js";
+import { SkinPictures } from "./skins.js";
 import {
   ACTIVITY_ART_SIZE,
   type ActivityArt,
@@ -24,6 +25,9 @@ import {
   type El,
   FOOTER_WIDTH,
   footerScene,
+  LEAD_GRAPH_WIDTH,
+  type LeadGraphImage,
+  leadGraphScene,
   improvementScene,
   LINK_WIDTH,
   linkScene,
@@ -184,22 +188,41 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
     });
     const footer = yield* Effect.cached(draw(footerScene(), FOOTER_WIDTH));
 
+    // Each player is drawn in the picture of the Chosen Skin the image's input carries for them
+    // (captured when its post or view was built), else their hue marble; a Skin with no picture
+    // (one a game update added before the list knew it) draws the marble.
+    const pictures: SkinPictureUris = new Map(
+      [...(yield* SkinPictures).pngs].map(([path, png]) => [
+        path,
+        `data:image/png;base64,${png.toString("base64")}`,
+      ]),
+    );
+
     return {
-      /** The Match Card, in any state. */
-      card: (card: CardImage) => draw(cardScene(card), CARD_WIDTH),
-      improvement: (improvement: Improvement, name: string) =>
-        draw(improvementScene(improvement, name), ROW_WIDTH),
+      /** The Match Card, in any state, its Players in the Chosen Skins its view carries. */
+      card: (card: CardImage) => draw(cardScene(card, pictures), CARD_WIDTH),
+      /** An Improvement's row; `skin` is the Improver's Chosen Skin its post carries. */
+      improvement: (improvement: Improvement, name: string, skin: ChosenSkin) =>
+        draw(improvementScene(improvement, name, skin, pictures), ROW_WIDTH),
       footer,
-      link: (preview: ProfilePreview) => draw(linkScene(preview), LINK_WIDTH),
+      /** The Link confirmation; `skin` is the account's Chosen Skin. */
+      link: (preview: ProfilePreview, skin: ChosenSkin) =>
+        draw(linkScene(preview, skin, pictures), LINK_WIDTH),
       /** After the Result: every PB of the Match over its clock. */
-      progression: (image: ProgressionImage) => draw(progressionScene(image), PROGRESSION_WIDTH),
+      progression: (image: ProgressionImage) =>
+        draw(progressionScene(image, pictures), PROGRESSION_WIDTH),
       /** The Activity's art for the Developer Portal; `dev` tags it for the dev app. */
       activityArt: (art: ActivityArt, dev: boolean) =>
         draw(activityArtScene(art, dev), ACTIVITY_ART_SIZE[art][0]),
       /** A bare marble, for the lifecycle-line emojis. */
       marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
-      /** The Daily Report's four boards. */
-      standings: (image: StandingsImage) => draw(standingsScene(image), STANDINGS_WIDTH),
+      /** The Daily Report's four boards, each row in the Chosen Skin it carries. */
+      standings: (image: StandingsImage) => draw(standingsScene(image, pictures), STANDINGS_WIDTH),
+      /** A Daily Post's lead through the day. */
+      leadGraph: Effect.fn("Renderer.leadGraph")(function* (image: LeadGraphImage) {
+        return yield* draw(leadGraphScene(image), LEAD_GRAPH_WIDTH);
+      }),
     };
   }),
+  dependencies: [SkinPictures.Default],
 }) {}

@@ -20,11 +20,13 @@ import {
   type Player,
 } from "./domain.js";
 import {
+  ChosenSkins,
   Steam,
   Store,
   Surface,
   ThreadPost,
   cardView,
+  chosenSkinOf,
   type Entry,
   type Improvement,
   type ProfileNotFound,
@@ -103,6 +105,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     const steam = yield* Steam;
     const surface = yield* Surface;
     const store = yield* Store;
+    const chosenSkins = yield* ChosenSkins;
     const lock = yield* Effect.makeSemaphore(1);
     /** Engine state changes happen one at a time. Steam reads are kept outside it. */
     const locked = lock.withPermits(1);
@@ -124,10 +127,19 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
 
     // ---------------------------------------------------------------- helpers
 
+    /** A Match's Card view, with its Players' Chosen Skins as they stand now. */
+    const viewOf = Effect.fn("viewOf")(function* (m: Match) {
+      return cardView(m, yield* chosenSkins.all);
+    });
+    /** A Player's Chosen Skin as it stands now, for a thread post about them. */
+    const skinOf = Effect.fn("skinOf")(function* (player: Player) {
+      return chosenSkinOf(yield* chosenSkins.all, player.steamId);
+    });
+
     /** Persist a Match and redraw its Card. */
     const save = Effect.fn("save")(function* (m: Match) {
       yield* store.putMatch(m);
-      yield* surface.showCard(cardView(m));
+      yield* surface.showCard(yield* viewOf(m));
     });
 
     const orFail = <A, E>(found: Effect.Effect<Option.Option<A>>, missing: () => E) =>
@@ -243,7 +255,10 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       endsAt: number,
       players: ReadonlyArray<Player>,
     ) {
-      yield* surface.post(m.id, ThreadPost.Started({ players, map, endsAt, card: cardView(m) }));
+      yield* surface.post(
+        m.id,
+        ThreadPost.Started({ players, map, endsAt, card: yield* viewOf(m) }),
+      );
       const bars = barsOf(players, map);
       if (bars.length > 0) yield* surface.post(m.id, ThreadPost.PlayedBefore({ bars }));
     });
@@ -304,8 +319,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         });
       yield* store.putMatch(after);
       for (const improvement of improvements)
-        yield* surface.post(after.id, ThreadPost.Improved({ improvement }));
-      yield* surface.showCard(cardView(after));
+        yield* surface.post(
+          after.id,
+          ThreadPost.Improved({ improvement, skin: yield* skinOf(improvement.player) }),
+        );
+      yield* surface.showCard(yield* viewOf(after));
       return after;
     });
 
@@ -348,12 +366,12 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       yield* save(done);
       yield* surface.post(
         done.id,
-        ThreadPost.Result({ standings: standings(done), card: cardView(done), steamDown }),
+        ThreadPost.Result({ standings: standings(done), card: yield* viewOf(done), steamDown }),
       );
       if (done.history.length > 0)
         yield* surface.post(
           done.id,
-          ThreadPost.Progression({ card: cardView(done), history: done.history }),
+          ThreadPost.Progression({ card: yield* viewOf(done), history: done.history }),
         );
     });
 
@@ -440,7 +458,10 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         yield* locked(
           Effect.gen(function* () {
             if (accepted !== null)
-              yield* surface.post(full.id, ThreadPost.Accepted({ player: accepted }));
+              yield* surface.post(
+                full.id,
+                ThreadPost.Accepted({ player: accepted, skin: yield* skinOf(accepted) }),
+              );
             const startedAt = yield* Clock.currentTimeMillis;
             const endsAt = startedAt + full.minutes * 60_000;
             const live: Match = {
@@ -494,7 +515,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       const m = yield* getInvite(matchId);
       const player = yield* joiner(m, discordId);
       yield* save({ ...m, players: [...m.players, player] });
-      yield* surface.post(matchId, ThreadPost.Joined({ player }));
+      yield* surface.post(matchId, ThreadPost.Joined({ player, skin: yield* skinOf(player) }));
     });
 
     /** A live Match, with the Map and end it always has once live. Closed once its time is up. */
@@ -530,7 +551,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           const withPb = pb === undefined ? map : withPersonalBest(map, pb);
           const joined: Match = { ...m, map: withPb, players: [...m.players, player] };
           yield* save(joined);
-          yield* surface.post(matchId, ThreadPost.Joined({ player }));
+          yield* surface.post(matchId, ThreadPost.Joined({ player, skin: yield* skinOf(player) }));
           yield* announceStart(joined, withPb, endsAt, [player]);
         }),
       );
@@ -547,7 +568,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       if (m.creator.discordId === discordId)
         return yield* new NotAllowed({ reason: "Cancel the Lobby instead." });
       yield* save({ ...m, players: m.players.filter((p) => p.discordId !== discordId) });
-      yield* surface.post(matchId, ThreadPost.Left({ player }));
+      yield* surface.post(matchId, ThreadPost.Left({ player, skin: yield* skinOf(player) }));
     }, locked);
 
     /** Who may leave: a Player still racing in a live Match. */
@@ -581,7 +602,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           const { m: current } = yield* liveRacer(matchId, discordId);
           const read = yield* applyEntries(current, entries);
           const after: Match = { ...read, left: [...read.left, player.steamId] };
-          yield* surface.post(after.id, ThreadPost.Left({ player }));
+          yield* surface.post(after.id, ThreadPost.Left({ player, skin: yield* skinOf(player) }));
           if (racing(after).length > 0) return yield* save(after);
           yield* FiberMap.remove(timers, after.id);
           yield* after.history.length > 0 ? conclude(after, { steamDown: false }) : abandon(after);
@@ -598,7 +619,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         else yield* scheduleExpiry(m);
       } else {
         // Redrawn, so a Card drawn by an older build gets today's buttons.
-        yield* surface.showCard(cardView(m));
+        yield* surface.showCard(yield* viewOf(m));
         yield* FiberMap.run(timers, m.id, runLive(m.id));
       }
     }
@@ -653,13 +674,19 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         yield* save(m);
         yield* surface.post(
           m.id,
-          ThreadPost.Opened({ by: creator, type: m.type, minutes: m.minutes }),
+          ThreadPost.Opened({
+            by: creator,
+            skin: yield* skinOf(creator),
+            type: m.type,
+            minutes: m.minutes,
+          }),
         );
         if (target !== null)
           yield* surface.post(
             m.id,
             ThreadPost.Challenged({
               by: creator,
+              skin: yield* skinOf(creator),
               target,
               minutes: m.minutes,
               expiresAt: expiresAt(m),

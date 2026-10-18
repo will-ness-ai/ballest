@@ -229,6 +229,17 @@ export const mapFiles = pgTable("map_files", {
   readAt: timestamp("read_at", { withTimezone: true }).notNull(),
 });
 
+// A Map's spinning 3D GIF for its Daily Post (spec #268): one full turn of the Map's 3D view on
+// the site, drawn by daily-spin.yml (scripts/map-spin.ts) when Multiballs asks, and read by the
+// bot. Only the latest drawing is kept; `version` is the map_files version it was drawn from,
+// so a Map whose file changed since is drawn again. No foreign key, as map_files has none.
+export const mapSpins = pgTable("map_spins", {
+  pfid: text("pfid").primaryKey(),
+  version: text("version").notNull(),
+  gif: bytea("gif").notNull(),
+  drawnAt: timestamp("drawn_at", { withTimezone: true }).notNull(),
+});
+
 // A Prefab (CONTEXT.md): a group of editor pieces a player uploaded, with the file exactly as
 // they sent it (ADR 0009, the first table the site itself writes). The slug comes from the
 // first name and never changes, so a link survives a rename. A deleted or taken-down Prefab
@@ -293,3 +304,24 @@ export const prefabLimits = pgTable("prefab_limits", {
   setAt: timestamp("set_at", { withTimezone: true }).notNull().defaultNow(),
   setBy: text("set_by").notNull(),
 });
+
+// A player's Chosen Skin (CONTEXT.md): the Skin a signed-in player picked to stand for them
+// wherever no run's Skin is known, written only by the site (PUT /api/me/skin). The Skin is
+// the object path a Ghost names (a key of lib/skins.ts), so every Skin is named one way. No
+// row is no pick: the hue marble.
+export const chosenSkins = pgTable("chosen_skins", {
+  steamId: text("steam_id").primaryKey(),
+  skin: text("skin").notNull(),
+  chosenAt: timestamp("chosen_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Every save of a Chosen Skin, a pick or a clear, which the hourly limit counts
+// (db/chosen-skin-api.ts). Older ones are pruned as new ones land.
+export const chosenSkinSaves = pgTable(
+  "chosen_skin_saves",
+  {
+    steamId: text("steam_id").notNull(),
+    savedAt: timestamp("saved_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("chosen_skin_saves_player").on(t.steamId, t.savedAt)],
+);

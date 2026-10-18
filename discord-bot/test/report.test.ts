@@ -129,14 +129,14 @@ describe("the Daily Report's standings", () => {
       ],
     });
     // bob caught amy and cat, who were tied all along; dan fell behind bob
-    expect(standingsImage(r).boards[2]?.rows.map((x) => [x.name, x.place, x.move, x.gain])).toEqual(
-      [
-        ["AMY", 1, 0, 0],
-        ["BOB", 1, 2, 1],
-        ["CAT", 1, 0, 0],
-        ["DAN", 4, -1, 0],
-      ],
-    );
+    expect(
+      standingsImage(r, new Map()).boards[2]?.rows.map((x) => [x.name, x.place, x.move, x.gain]),
+    ).toEqual([
+      ["AMY", 1, 0, 0],
+      ["BOB", 1, 2, 1],
+      ["CAT", 1, 0, 0],
+      ["DAN", 4, -1, 0],
+    ]);
   });
 
   it("marks a player new to a top 10, and names who fell out of it", () => {
@@ -160,8 +160,29 @@ describe("the Daily Report's standings", () => {
       gain: 30,
     });
     expect(played?.out).toEqual([{ steamId: "p09", persona: "P09" }]);
-    expect(standingsImage(r).boards[0]?.rows[0]?.move).toBe("new");
-    expect(standingsImage(r).boards[0]?.out).toEqual(["P09"]);
+    expect(standingsImage(r, new Map()).boards[0]?.rows[0]?.move).toBe("new");
+    expect(standingsImage(r, new Map()).boards[0]?.out).toEqual(["P09"]);
+  });
+
+  it("draws each row in the Chosen Skin its player had when the report was built", () => {
+    const r = build(data({}), {
+      wr: [
+        ["amy", 2, 2, 1, 1],
+        ["bob", 1, 1, 2, 2],
+      ],
+    });
+    const pink = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
+    const rows = standingsImage(
+      r,
+      new Map([
+        ["amy", pink],
+        ["zed", pink],
+      ]),
+    ).boards[2]?.rows;
+    expect(rows?.map((x) => [x.name, x.skin])).toEqual([
+      ["AMY", pink],
+      ["BOB", null],
+    ]);
   });
 
   it("keeps exactly ten rows in the site's order when a tie runs past tenth", () => {

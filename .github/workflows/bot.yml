@@ -9,8 +9,14 @@ on:
   push:
     branches: [main]
     paths: ["discord-bot/**", ".github/workflows/bot.yml"]
+  # A PR changing the site's Skins or its schema checks the bot too: its tests read both.
   pull_request:
-    paths: ["discord-bot/**", ".github/workflows/bot.yml"]
+    paths:
+      - "discord-bot/**"
+      - ".github/workflows/bot.yml"
+      - "web/db/**"
+      - "web/lib/skins.ts"
+      - "skins/**"
   workflow_dispatch: {}
 
 permissions:
@@ -19,6 +25,19 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # The Chosen Skins read (test/chosenSkins.test.ts) and the Daily Post's backfill read the
+    # leaderboard database: both are tested in a throwaway database migrated (and, for the
+    # backfill, seeded with the tiny dataset) by web/'s own scripts.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 15
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
     defaults:
       run:
         working-directory: discord-bot
@@ -31,8 +50,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: discord-bot/pnpm-lock.yaml
+          cache-dependency-path: |
+            discord-bot/pnpm-lock.yaml
+            web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir ../web install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
 

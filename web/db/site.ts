@@ -43,6 +43,7 @@ import type {
   WorkshopMap,
   WorkshopStandings,
 } from "../lib/rows";
+import { SKINS } from "../lib/skins";
 import { countStandings, type StandingsEntry, type StandingsMap } from "../lib/workshop-standings";
 
 const TRACKS = [...S1_TRACKS, ...S2_TRACKS];
@@ -463,6 +464,18 @@ export async function workshopStandings(db: Db, since: number): Promise<Workshop
       since,
     ),
   };
+}
+
+/* Every player's Chosen Skin as its object path, by Steam ID; a Skin the site doesn't list
+   (one a game update renamed) is left out, so that player keeps the hue marble */
+export async function chosenSkins(db: Db): Promise<Record<string, string>> {
+  const found = await rows<{ steamId: string; skin: string }>(
+    db,
+    sql`select steam_id as "steamId", skin from chosen_skins`,
+  );
+  return Object.fromEntries(
+    found.flatMap(({ steamId, skin }) => (SKINS.has(skin) ? [[steamId, skin]] : [])),
+  );
 }
 
 /* Up to `limit` players on any board whose persona or Steam ID contains q, the names that

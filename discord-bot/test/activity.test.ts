@@ -5,6 +5,8 @@ import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Option } from "effect";
 import { makeActivityApi } from "../src/activity/api.js";
+import { skinPictureResponses } from "../src/activity/server.js";
+import { marble } from "../src/activity/web/view.js";
 import {
   AuthFailed,
   DiscordAuth,
@@ -13,7 +15,7 @@ import {
 } from "../src/activity/auth.js";
 import { Engine } from "../src/engine.js";
 import { Pings } from "../src/pings.js";
-import { MatchLinks, Store } from "../src/ports.js";
+import { ChosenSkins, MatchLinks, Store } from "../src/ports.js";
 import {
   ALICE,
   advance,
@@ -75,6 +77,7 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
       Effect.provideService(DiscordAuth, auth),
       Effect.provideService(DiscordMembers, members),
       Effect.provideService(MatchLinks, links),
+      Effect.provideService(ChosenSkins, h.chosenSkins.port),
     );
     /** One request as `as` (a Discord id) or with a raw `token`, answered with its status and JSON body. */
     const call = (
@@ -177,7 +180,7 @@ describe("signing in", () => {
       const { call } = yield* setup({ maps: [MAP] });
       expect((yield* call("GET", "/api/me", { as: ALICE.discordId })).body).toEqual({
         discordId: ALICE.discordId,
-        link: { steamId: ALICE.steamId, personaName: "alice" },
+        link: { steamId: ALICE.steamId, personaName: "alice", skin: null },
         matchId: null,
         pings: false,
         pingRole: "@Multiplayer ping",
@@ -213,6 +216,7 @@ describe("linking Steam", () => {
       expect((yield* call("GET", "/api/me", { as: ALICE.discordId })).body.link).toEqual({
         steamId: ALICE.steamId,
         personaName: "alice",
+        skin: null,
       });
     }),
   );
@@ -278,6 +282,7 @@ describe("the Challenge picker", () => {
               name: "Bob",
               steamName: "bob",
               busy: false,
+              skin: null,
             },
             {
               discordId: CARA.discordId,
@@ -285,6 +290,7 @@ describe("the Challenge picker", () => {
               name: "Cara",
               steamName: "cara",
               busy: true,
+              skin: null,
             },
             {
               discordId: DAN.discordId,
@@ -292,6 +298,7 @@ describe("the Challenge picker", () => {
               name: "Dan",
               steamName: "dan",
               busy: false,
+              skin: null,
             },
           ],
         },
@@ -322,6 +329,7 @@ describe("opening a Match", () => {
             waitingForSteam: false,
             map: null,
             standings: [{ player: ALICE, ticks: null, rank: null, medal: null }],
+            skins: {},
             names: { [ALICE.discordId]: "Alice" },
             history: [],
             links: {
@@ -830,6 +838,91 @@ describe("Lobby pings", () => {
       const refused = yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId });
       expect(refused.status).toBe(409);
       expect(refused.body.pingOffer ?? false).toBe(false);
+    }),
+  );
+});
+
+describe("Chosen Skins", () => {
+  const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
+  const GOLD = "/Game/Art/M_GoldReal.M_GoldReal";
+
+  it.scoped("a Match view carries its Players' Chosen Skins as they stand now", () =>
+    Effect.gen(function* () {
+      const { h, call, open } = yield* setup({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      yield* h.chosenSkins.pick(DAN.steamId, GOLD);
+      const matchId = yield* open(ALICE.discordId, lobby);
+      yield* call("POST", `/api/matches/${matchId}/join`, { as: BOB.discordId });
+      const view = (yield* call("GET", `/api/matches/${matchId}`, { as: CARA.discordId })).body;
+      expect(view.match.skins).toEqual({ [ALICE.steamId]: PINK });
+      yield* h.chosenSkins.pick(BOB.steamId, GOLD);
+      const later = (yield* call("GET", "/api/matches", { as: CARA.discordId })).body;
+      expect(later.matches[0].skins).toEqual({ [ALICE.steamId]: PINK, [BOB.steamId]: GOLD });
+    }),
+  );
+
+  it.scoped("the viewer's own Link carries their Chosen Skin", () =>
+    Effect.gen(function* () {
+      const { h, call } = yield* setup({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      expect((yield* call("GET", "/api/me", { as: ALICE.discordId })).body.link).toEqual({
+        steamId: ALICE.steamId,
+        personaName: "alice",
+        skin: PINK,
+      });
+      expect((yield* call("GET", "/api/me", { as: BOB.discordId })).body.link.skin).toBeNull();
+    }),
+  );
+
+  it.scoped("the Challenge picker and the Link preview carry each account's Chosen Skin", () =>
+    Effect.gen(function* () {
+      const { h, call } = yield* setup({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      yield* h.chosenSkins.pick(BOB.steamId, GOLD);
+      const players = (yield* call("GET", "/api/players", { as: ALICE.discordId })).body.players;
+      expect(players.map((p: any) => [p.name, p.skin])).toEqual([
+        ["Bob", GOLD],
+        ["Cara", null],
+        ["Dan", null],
+      ]);
+      const preview = yield* call("POST", "/api/link/preview", {
+        as: CARA.discordId,
+        body: { profile: ALICE_PROFILE },
+      });
+      expect(preview.body).toMatchObject({ steamId: ALICE.steamId, skin: PINK });
+    }),
+  );
+});
+
+describe("Skin pictures", () => {
+  const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
+  const UNKNOWN_SKIN = "/Game/Art/Some/Future/Skin.Skin";
+  const STEAM_ID = "76561198000000001";
+
+  it("draw a Player's Chosen Skin as its picture, served by the Activity", () => {
+    const html = marble(STEAM_ID, 24, PINK);
+    expect(html).toContain('<img src="/skins/DA_Skin_Pink.png"');
+    expect(html).not.toContain("<svg");
+  });
+
+  it("draw the hue marble with no Chosen Skin, or one the list doesn't know", () => {
+    for (const skin of [null, UNKNOWN_SKIN]) {
+      const html = marble(STEAM_ID, 24, skin);
+      expect(html).toContain("<svg");
+      expect(html).not.toContain("<img");
+    }
+  });
+
+  it.effect("are served by the file the page asks for, and nothing else", () =>
+    Effect.gen(function* () {
+      const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+      const serve = skinPictureResponses(new Map([[PINK, png]]));
+      const found = HttpServerResponse.toWeb(serve("DA_Skin_Pink.png"));
+      expect(found.status).toBe(200);
+      expect(found.headers.get("content-type")).toBe("image/png");
+      expect(new Uint8Array(yield* Effect.promise(() => found.arrayBuffer()))).toEqual(png);
+      expect(serve("DA_Skin_Brick.png").status).toBe(404);
+      expect(serve("../package.json").status).toBe(404);
     }),
   );
 });

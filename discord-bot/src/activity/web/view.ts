@@ -1,9 +1,10 @@
 // The page's markup: every screen as a string of HTML, from the API's views and nothing else.
 // Ported from the settled prototype (branch claude/prototype-activity-surfaces). What a Match
 // says is shared with the Card: its rows and words come from present.ts, its PBs from
-// `progress`, its marbles and Medals from render/art.ts, and what the viewer may press from the
-// server. Buttons carry `data-act="<verb>[:<arg>]"`, which app.ts acts on; countdowns are
-// `data-until` spans it fills.
+// `progress`, its marbles and Medals from render/art.ts, each Player's Chosen Skin from what the
+// API sent (drawn from the server's /skins/), and what the viewer may press from the server.
+// Buttons carry `data-act="<verb>[:<arg>]"`, which app.ts acts on; countdowns are `data-until`
+// spans it fills.
 import {
   DURATIONS,
   formatTime,
@@ -25,13 +26,19 @@ import {
   STEAM_LINK_HOWTO,
 } from "../../present.js";
 import { pingsState } from "../../pingWords.js";
+import type { ChosenSkin } from "../../ports.js";
 import { hueFor, marbleSvg, medalSvg } from "../../render/art.js";
-import type { Challengeable, MatchView } from "../api.js";
+import { skinPictureFile } from "../../render/skinList.js";
+import type { Challengeable, LinkPreview, MatchView } from "../api.js";
 
 /** Who is looking: their Discord id, their Link if they have one, and their Lobby pings. */
 export interface Viewer {
   readonly discordId: string;
-  readonly link: { readonly steamId: string; readonly personaName: string } | null;
+  readonly link: {
+    readonly steamId: string;
+    readonly personaName: string;
+    readonly skin: ChosenSkin;
+  } | null;
   /** Whether they have @Multiplayer ping; null when Discord couldn't say. */
   readonly pings: boolean | null;
 }
@@ -65,13 +72,24 @@ export const resetIds = () => {
   uid = 0;
 };
 
-/** The site's marble, coloured by SteamID so a Player has one colour everywhere; grey for an empty seat. */
+/**
+ * A Player's marble: their Chosen Skin's picture (already round), else the site's marble,
+ * coloured by SteamID so a Player has one colour everywhere; grey for an empty seat. A Skin the
+ * list doesn't know draws the marble.
+ */
 export const marble = (
   steamId: string | null,
   size = 24,
+  skin: ChosenSkin = null,
   hue = steamId === null ? 220 : hueFor(steamId),
-) =>
-  `<span class="marble" style="width:${size}px;height:${size}px">${marbleSvg(hue, size, `m${uid++}`)}</span>`;
+) => {
+  const file = skin === null ? null : skinPictureFile(skin);
+  const art =
+    file === null
+      ? marbleSvg(hue, size, `m${uid++}`)
+      : `<img src="/skins/${esc(file)}" alt="" width="${size}" height="${size}">`;
+  return `<span class="marble" style="width:${size}px;height:${size}px">${art}</span>`;
+};
 
 const medal = (kind: MedalKind | null, w = 16) =>
   kind === null
@@ -79,7 +97,7 @@ const medal = (kind: MedalKind | null, w = 16) =>
     : `<span role="img" aria-label="${kind} Medal" style="display:inline-flex;flex:none">${medalSvg(kind, w, `d${uid++}`)}</span>`;
 
 export const logo = () =>
-  `<span class="logo"><span class="rack">${marble(null, 18, 212)}${marble(null, 18, 332)}${marble(null, 18, 96)}</span><span class="wordmark">Multi<b>balls</b></span></span>`;
+  `<span class="logo"><span class="rack">${marble(null, 18, null, 212)}${marble(null, 18, null, 332)}${marble(null, 18, null, 96)}</span><span class="wordmark">Multi<b>balls</b></span></span>`;
 
 /** Matches whose preview didn't load: they keep the stand-in art rather than asking again at every redraw. */
 export const noPreview = new Set<string>();
@@ -93,6 +111,9 @@ const art = (m: MatchView) =>
 // ---------------------------------------------------------------- a Match, derived
 
 const nameOf = (m: MatchView) => (discordId: string) => m.names[discordId] ?? "Player";
+/** A Player's marble in the Match, in the Chosen Skin its view carries for them. */
+const marbleIn = (m: MatchView, steamId: string | null, size?: number) =>
+  marble(steamId, size, steamId === null ? null : (m.skins[steamId] ?? null));
 const nameBySteam = (m: MatchView, steamId: string) => {
   const p = m.players.find((pl) => pl.steamId === steamId);
   return esc(p === undefined ? "Player" : nameOf(m)(p.discordId));
@@ -108,7 +129,7 @@ const chipFor = (m: MatchView) =>
       : `<span class="chip final">Final</span>`;
 
 const stackOf = (m: MatchView, size = 22) =>
-  `<span class="stack">${m.players.map((p) => marble(p.steamId, size)).join("")}</span>`;
+  `<span class="stack">${m.players.map((p) => marbleIn(m, p.steamId, size)).join("")}</span>`;
 
 /** When the Match started, on the server's clock. */
 export const startedAt = (m: MatchView) => (m.endsAt ?? 0) - m.minutes * 60_000;
@@ -131,7 +152,7 @@ const slab = (m: MatchView, viewer: Viewer) => {
             ? `<span class="dnf">DNF</span>`
             : `${r.score}${r.worldRecord ? `<span class="wr">WR</span>` : medal(r.medal)}`;
     const me = r.discordId === viewer.discordId && !r.faded;
-    return `<div class="row ${me ? "me" : ""} ${r.faded ? "open" : ""}"><span class="rk ${r.faded ? "rn" : rankClass(r.place)}">${r.rank}</span>${marble(r.steamId, 26)}<div style="min-width:0"><div class="nm">${esc(r.name)}</div>${r.note === "" ? "" : `<div class="note">${r.note}</div>`}</div><div class="sc">${score}</div></div>`;
+    return `<div class="row ${me ? "me" : ""} ${r.faded ? "open" : ""}"><span class="rk ${r.faded ? "rn" : rankClass(r.place)}">${r.rank}</span>${marbleIn(m, r.steamId, 26)}<div style="min-width:0"><div class="nm">${esc(r.name)}</div>${r.note === "" ? "" : `<div class="note">${r.note}</div>`}</div><div class="sc">${score}</div></div>`;
   });
   return `<div class="panel slab">${rows.join("")}</div>`;
 };
@@ -175,7 +196,7 @@ const track = (m: MatchView, viewer: Viewer) => {
       if (s.ticks === null) return [];
       const me = s.player.discordId === viewer.discordId;
       return [
-        `<div class="pin" style="left:${x(secs(s.ticks))};z-index:${me ? 3 : 1}" title="${esc(nameOf(m)(s.player.discordId))}">${marble(s.player.steamId, me ? 28 : 22)}</div>`,
+        `<div class="pin" style="left:${x(secs(s.ticks))};z-index:${me ? 3 : 1}" title="${esc(nameOf(m)(s.player.discordId))}">${marbleIn(m, s.player.steamId, me ? 28 : 22)}</div>`,
       ];
     })
     .join("");
@@ -274,9 +295,9 @@ const feed = (m: MatchView) => {
     .map((e) => {
       const at = clockText(e.at / 1000);
       if (e.beatWorldRecord !== null)
-        return `<div class="imp wrk"><span class="pk">WR</span>${marble(e.steamId, 26)}<div style="min-width:0"><div class="nm">${nameBySteam(m, e.steamId)}</div><div class="sub">beat ${formatTime(e.beatWorldRecord)} by ${formatGap(e.beatWorldRecord - e.ticks)} · at ${at}</div></div><span class="tm">${formatTime(e.ticks)}</span></div>`;
+        return `<div class="imp wrk"><span class="pk">WR</span>${marbleIn(m, e.steamId, 26)}<div style="min-width:0"><div class="nm">${nameBySteam(m, e.steamId)}</div><div class="sub">beat ${formatTime(e.beatWorldRecord)} by ${formatGap(e.beatWorldRecord - e.ticks)} · at ${at}</div></div><span class="tm">${formatTime(e.ticks)}</span></div>`;
       const kind = map === null ? null : medalFor(e.ticks, map.medals);
-      return `<div class="imp ${e.rank === 1 ? "gold" : ""}"><span class="pk">P${e.rank}</span>${marble(e.steamId, 24)}<div style="min-width:0"><div class="nm">${nameBySteam(m, e.steamId)}</div><div class="note">at <span class="stamp">${at}</span>${e.previousTicks === null ? " · first time" : ""}</div></div><span class="tm">${formatTime(e.ticks)}${e.previousTicks === null ? "" : `<span class="diff" style="font-size:12.5px">-${formatGap(e.previousTicks - e.ticks)}</span>`}${medal(kind)}</span></div>`;
+      return `<div class="imp ${e.rank === 1 ? "gold" : ""}"><span class="pk">P${e.rank}</span>${marbleIn(m, e.steamId, 24)}<div style="min-width:0"><div class="nm">${nameBySteam(m, e.steamId)}</div><div class="note">at <span class="stamp">${at}</span>${e.previousTicks === null ? " · first time" : ""}</div></div><span class="tm">${formatTime(e.ticks)}${e.previousTicks === null ? "" : `<span class="diff" style="font-size:12.5px">-${formatGap(e.previousTicks - e.ticks)}</span>`}${medal(kind)}</span></div>`;
     })
     .join("");
   return `<div class="panel"><div class="panel-h"><span class="label">Improvements · ${ev.length}</span></div><div class="feed scroll">${rows || `<div style="padding:14px" class="note">No times yet.</div>`}</div></div>`;
@@ -339,7 +360,7 @@ const bell = (pings: boolean | null) => {
 const meLink = (viewer: Viewer) =>
   viewer.link === null
     ? `<span class="me-link">Not linked · <button data-act="link"><u>Link Steam</u></button></span>`
-    : `<span class="me-link">${marble(viewer.link.steamId, 18)}Linked as <u>${esc(viewer.link.personaName)}</u> · <button data-act="link"><u>Change</u></button>${bell(viewer.pings)}</span>`;
+    : `<span class="me-link">${marble(viewer.link.steamId, 18, viewer.link.skin)}Linked as <u>${esc(viewer.link.personaName)}</u> · <button data-act="link"><u>Change</u></button>${bell(viewer.pings)}</span>`;
 
 const topBar = (viewer: Viewer) => `<div class="top">${logo()}${meLink(viewer)}</div>`;
 
@@ -385,7 +406,7 @@ const whoPicker = (draft: Draft, players: ReadonlyArray<Challengeable> | null, s
       : shown
           .map(
             (p) =>
-              `<button class="wp ${draft.target === p.discordId ? "on" : ""}" data-act="who:${esc(p.discordId)}"${p.busy ? " disabled" : ""}>${marble(p.steamId, 22)}<span style="display:grid;line-height:1.15;text-align:left"><span>${esc(p.name)}</span><span class="note">${esc(p.steamName)}${p.busy ? " · in a Match" : ""}</span></span></button>`,
+              `<button class="wp ${draft.target === p.discordId ? "on" : ""}" data-act="who:${esc(p.discordId)}"${p.busy ? " disabled" : ""}>${marble(p.steamId, 22, p.skin)}<span style="display:grid;line-height:1.15;text-align:left"><span>${esc(p.name)}</span><span class="note">${esc(p.steamName)}${p.busy ? " · in a Match" : ""}</span></span></button>`,
           )
           .join("") || `<span class="note">Nobody by that name.</span>`;
   return `<div class="who"><input id="who" value="${esc(search)}" placeholder="Search by Discord or Steam name" aria-label="Search Players" autocomplete="off"><div class="wl">${list}</div>
@@ -406,10 +427,10 @@ const composer = (
 
 /** An Invite's seats: its Players, then the seats left (a Lobby always shows one spare). */
 const seats = (m: MatchView, viewer: Viewer, size = 30) => {
-  const filled = m.players.map((p) => `<span class="seat">${marble(p.steamId, size)}</span>`);
+  const filled = m.players.map((p) => `<span class="seat">${marbleIn(m, p.steamId, size)}</span>`);
   if (m.type === "challenge" && m.target !== null)
     filled.push(
-      `<span class="seat ${m.target.discordId === viewer.discordId ? "you" : ""}" style="opacity:.55">${marble(m.target.steamId, size)}</span>`,
+      `<span class="seat ${m.target.discordId === viewer.discordId ? "you" : ""}" style="opacity:.55">${marbleIn(m, m.target.steamId, size)}</span>`,
     );
   const empty = m.type === "lobby" ? 1 : m.type === "public" ? 2 - m.players.length : 0;
   for (let i = 0; i < empty; i++)
@@ -422,7 +443,7 @@ const top3 = (m: MatchView) =>
     .slice(0, 3)
     .map(
       (s) =>
-        `<div class="t3"><span class="${rankClass(s.rank)}">${s.rank ?? "–"}</span>${marble(s.player.steamId, 18)}<span class="n">${esc(nameOf(m)(s.player.discordId))}</span><span>${s.ticks === null ? "—" : formatTime(s.ticks)}</span></div>`,
+        `<div class="t3"><span class="${rankClass(s.rank)}">${s.rank ?? "–"}</span>${marbleIn(m, s.player.steamId, 18)}<span class="n">${esc(nameOf(m)(s.player.discordId))}</span><span>${s.ticks === null ? "—" : formatTime(s.ticks)}</span></div>`,
     )
     .join("")}</div>`;
 
@@ -579,7 +600,7 @@ const pipMatch = (m: MatchView, viewer: Viewer) => {
         s.ticks === null || lead === null || s.ticks === lead
           ? ""
           : `+${formatGap(s.ticks - lead)}`;
-      return `<div class="pr ${s.player.discordId === viewer.discordId ? "me" : ""}"><span class="${rankClass(s.rank)}">${s.rank ?? "–"}</span>${marble(s.player.steamId, 15)}<span class="n">${esc(nameOf(m)(s.player.discordId))}</span><span>${s.ticks === null ? "—" : formatTime(s.ticks)}</span><span class="gap">${gap}</span></div>`;
+      return `<div class="pr ${s.player.discordId === viewer.discordId ? "me" : ""}"><span class="${rankClass(s.rank)}">${s.rank ?? "–"}</span>${marbleIn(m, s.player.steamId, 15)}<span class="n">${esc(nameOf(m)(s.player.discordId))}</span><span>${s.ticks === null ? "—" : formatTime(s.ticks)}</span><span class="gap">${gap}</span></div>`;
     })
     .join("");
   return `<div class="pip"><div class="pip-h"><span class="mt">${esc(mapTitle(m))}</span>${chipFor(m)}</div><div class="pip-rows">${rows}</div></div>`;
@@ -590,7 +611,7 @@ export const pip = (viewer: Viewer, focus: MatchView | null, matches: ReadonlyAr
   if (focus !== null) return pipMatch(focus, viewer);
   const challenge = matches.find((m) => m.actions.includes("decline"));
   if (challenge !== undefined)
-    return `<div class="pip">${logo()}<div class="pip-box you">${marble(challenge.creator.steamId, 22)}<div><div class="mt">${esc(nameOf(challenge)(challenge.creator.discordId))} challenges you</div><div class="note">${esc(matchDetails(challenge))} · ${until(challenge.expiresAt)} to answer</div></div></div></div>`;
+    return `<div class="pip">${logo()}<div class="pip-box you">${marbleIn(challenge, challenge.creator.steamId, 22)}<div><div class="mt">${esc(nameOf(challenge)(challenge.creator.discordId))} challenges you</div><div class="note">${esc(matchDetails(challenge))} · ${until(challenge.expiresAt)} to answer</div></div></div></div>`;
   const n = matches.length;
   return `<div class="pip">${logo()}<div class="pip-box"><div class="mt">${n === 0 ? "No active Matches" : `${n} active Match${n === 1 ? "" : "es"}`}</div></div></div>`;
 };
@@ -600,12 +621,7 @@ export const pip = (viewer: Viewer, focus: MatchView | null, matches: ReadonlyAr
 export interface LinkState {
   readonly step: "paste" | "preview";
   readonly input: string;
-  readonly preview: {
-    readonly steamId: string;
-    readonly personaName: string;
-    readonly campaignTracks: number;
-    readonly campaignTrackTotal: number;
-  } | null;
+  readonly preview: LinkPreview | null;
   readonly error: string;
   /** The Match being joined once linked, if any. */
   readonly joining: MatchView | null;
@@ -636,7 +652,7 @@ export const linkDialog = (s: LinkState, viewer: Viewer) => {
     const p = s.preview;
     const yes =
       s.joining !== null ? "Link and join" : s.changing ? "Yes, link this one" : "Yes, link it";
-    body = `<div class="found">${marble(p.steamId, 52)}<div style="min-width:0"><div class="hud" style="font-weight:700;font-size:18px">${esc(p.personaName)}</div><div class="note">SteamID ${esc(p.steamId)} · times on ${p.campaignTracks} of ${p.campaignTrackTotal} Circuit Tracks</div></div></div>
+    body = `<div class="found">${marble(p.steamId, 52, p.skin)}<div style="min-width:0"><div class="hud" style="font-weight:700;font-size:18px">${esc(p.personaName)}</div><div class="note">SteamID ${esc(p.steamId)} · times on ${p.campaignTracks} of ${p.campaignTrackTotal} Circuit Tracks</div></div></div>
       <div class="note" style="font-size:13px;color:var(--dim)">Is this you?</div>${s.error === "" ? "" : `<div class="err">${esc(s.error)}</div>`}
       <div class="row-btns">${btn("confirm", yes, "go", s.busy)}${btn("retry", "Try again", "ghost", s.busy)}</div>`;
   } else {

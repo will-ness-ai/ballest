@@ -43,6 +43,12 @@ The ball a run was rolled with, one of the game's 36, named in the run's Ghost. 
 draws it in place of the player's marble.
 _Avoid_: ball colour, cosmetic
 
+**Chosen Skin**:
+The Skin a signed-in player picked to stand for them wherever no run's Skin is known: a
+run's own Skin first, then their Chosen Skin, then the marble in their hue. Multiballs draws
+it too.
+_Avoid_: avatar, icon, profile ball
+
 **Race**:
 Two runs' Ghosts played against each other on the site, a run against the leader (the
 leader against 2nd), to show where along the course one gained on the other. A board's
@@ -94,6 +100,12 @@ the developers' API gives them) on its own Steam board, apart from the Map's all
 board. Named by its date. It is live while its window is open, and final once a Refresh
 has read its board after the window closed; a Daily's standings count final Dailies only.
 _Avoid_: daily challenge board, Daily Report (that is Multiballs' post)
+
+**Daily Post**:
+Multiballs' card for one Daily in the game Discord's daily challenge channel, with its thread:
+posted when the Daily opens, kept current while it is live, and turned into the result once it
+closes. A lead held by one player on it is a Reign, as on the site.
+_Avoid_: daily challenge post, Daily Report (that is the stats post)
 
 **Daily Report**:
 Multiballs' once-a-day post of the Workshop standings (Maps played, Author Medals, world
