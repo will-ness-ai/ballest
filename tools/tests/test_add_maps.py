@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 import add_maps
 import campaign_common as cc
 import db_writer
-import pytest
 from test_map_files import SLICK_SLIDE
 
 T0 = datetime(2026, 10, 1, tzinfo=UTC)
@@ -131,8 +130,7 @@ def test_the_step_tries_again_until_steam_lists_the_new_map():
     added = add_maps.add_when_listed(
         lambda: next(pages), lambda c: [m["pfid"] for m in c if m["pfid"] == NEW], waits.append
     )
-    # the catalogue's Maps it added, as the Map file step reads them
-    assert added == [item(NEW)]
+    assert added == [NEW]
     assert waits == [add_maps.RETRY_SECONDS] * 2
 
 
@@ -143,26 +141,6 @@ def test_the_step_gives_up_after_its_tries_and_a_failed_read_is_one_try():
     waits = []
     assert add_maps.add_when_listed(newest, lambda _: [], waits.append) == []
     assert len(waits) == add_maps.TRIES - 1
-
-
-# Its Map file step: the added Maps' files, downloaded once their pages are up.
-
-
-def test_the_added_maps_files_are_downloaded_with_the_steam_login(monkeypatch):
-    calls = []
-    monkeypatch.setattr(
-        add_maps.map_files, "download", lambda maps, token, **kw: calls.append((maps, token, kw))
-    )
-    monkeypatch.setattr(add_maps.cc, "load_refresh_token", lambda: "T")
-    add_maps.download_files([item(NEW)], scratch=False)
-    assert calls == [([item(NEW)], "T", {"scratch": False, "budget": add_maps.FILE_BUDGET})]
-
-
-def test_without_a_steam_login_the_files_wait_for_the_next_refresh(monkeypatch, capsys):
-    monkeypatch.setattr(add_maps.map_files, "download", lambda *_, **__: pytest.fail("logged in"))
-    monkeypatch.setattr(add_maps.cc, "load_refresh_token", lambda: None)
-    add_maps.download_files([item(NEW)], scratch=False)
-    assert "next Refresh" in capsys.readouterr().out
 
 
 def test_the_newest_page_is_one_request_read_as_the_catalogue_reads_it(monkeypatch):
@@ -184,3 +162,18 @@ def test_the_newest_page_is_one_request_read_as_the_catalogue_reads_it(monkeypat
         "ballest_v0_3821728582_Climb_Slick Slide",
     )
     assert m["medals"] == [39.0, 30.0, 26.0, 24.340808868408203]
+
+
+# The workflow's next step downloads the added Maps' files (map_files.py --maps), so the step
+# names them in its output.
+
+
+def test_the_added_maps_are_named_in_the_steps_output(tmp_path):
+    out = tmp_path / "github_output"
+    out.write_text("earlier=1\n")
+    add_maps.name_in_output([NEW, OLD], {"GITHUB_OUTPUT": str(out)})
+    assert out.read_text() == f"earlier=1\nadded={NEW},{OLD}\n"
+
+
+def test_outside_actions_there_is_no_output_to_name_them_in():
+    add_maps.name_in_output([NEW], {})

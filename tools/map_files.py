@@ -12,9 +12,10 @@ download starts after BUDGET; the rest wait for the next Refresh. A failed downl
 manifest with no map file, writes nothing and is tried again next run. The step never
 raises: a failure is a warning, and the Refresh it follows is already written.
 
-Run on its own (`python tools/map_files.py [--budget SECONDS] [--dev]`, by hand through
-`.github/workflows/map-files.yml`), it logs into Steam, takes the catalogue and downloads
-every due Map within the longer budget, to fill a backlog without waiting on Refreshes.
+Run on its own (`python tools/map_files.py [--budget SECONDS] [--maps PFIDS] [--dev]`), it
+logs into Steam, takes the catalogue and downloads every due Map within the budget: by hand
+through `.github/workflows/map-files.yml` for a whole backlog, and from
+`.github/workflows/add-maps.yml` for the Maps a #new-tracks post just added (`--maps`).
 """
 
 import argparse
@@ -178,9 +179,28 @@ async def record_map_files(catalogue, download, *, scratch=False, env=None, budg
     return written
 
 
-def download(catalogue, token, *, scratch=False, budget=BUDGET):
-    """Log into Steam and run the step on `catalogue`: the files it wrote, or None when it
-    was skipped, failed, or never got past the login."""
+def only(catalogue, maps):
+    """The catalogue's Maps among `maps` (comma-separated pfids), or all of it for None."""
+    if maps is None:
+        return catalogue
+    wanted = set(maps.split(","))
+    return [m for m in catalogue if m["pfid"] in wanted]
+
+
+def main(argv=None):
+    """The step on its own: Steam login, the catalogue (or the Maps `--maps` names), every
+    due Map within `--budget`."""
+    ap = argparse.ArgumentParser(description="Download every due Workshop Map's file.")
+    ap.add_argument("--budget", type=float, default=3600.0, help="seconds (default 3600)")
+    ap.add_argument("--dev", action="store_true", help="write DEV_DATABASE_URL only")
+    ap.add_argument("--maps", help="only these Maps, comma-separated pfids (add-maps.yml)")
+    args = ap.parse_args(argv)
+
+    token, key = cc.load_refresh_token(), cc.load_key()
+    if not (token and key and db_writer.database_url(os.environ, scratch=args.dev)):
+        print("ERROR: needs STEAM_REFRESH_TOKEN, STEAM_API_KEY and the database's URL")
+        return 2
+    catalogue = only(cc.workshop_catalogue(key), args.maps)
     client = steam.Client()
     result = {}
 
@@ -192,7 +212,7 @@ def download(catalogue, token, *, scratch=False, budget=BUDGET):
         result["started"] = True
         try:
             result["written"] = await record_map_files(
-                catalogue, steam_download(client), scratch=scratch, budget=budget
+                catalogue, steam_download(client), scratch=args.dev, budget=args.budget
             )
         finally:
             await client.close()
@@ -203,27 +223,12 @@ def download(catalogue, token, *, scratch=False, budget=BUDGET):
         # steam.py often raises on the teardown after close(); only a run that never got
         # to the step is a failure
         if "written" not in result:
-            print(f"::warning::Map files: Steam login/run failed: {e!r}")
-    return result.get("written")
-
-
-def main(argv=None):
-    """The step on its own: Steam login, the catalogue, every due Map within `--budget`."""
-    ap = argparse.ArgumentParser(description="Download every due Workshop Map's file.")
-    ap.add_argument("--budget", type=float, default=3600.0, help="seconds (default 3600)")
-    ap.add_argument("--dev", action="store_true", help="write DEV_DATABASE_URL only")
-    args = ap.parse_args(argv)
-
-    token, key = cc.load_refresh_token(), cc.load_key()
-    if not (token and key and db_writer.database_url(os.environ, scratch=args.dev)):
-        print("ERROR: needs STEAM_REFRESH_TOKEN, STEAM_API_KEY and the database's URL")
-        return 2
-    catalogue = cc.workshop_catalogue(key)
-    written = download(catalogue, token, scratch=args.dev, budget=args.budget)
+            print(f"ERROR: Steam login/run failed: {e!r}")
+            return 1
+    written = result.get("written")
     if not written:
         # this run's whole job is downloading, so one that wrote nothing shows red (nothing
-        # due, every download failed, the step skipped, or the login failed); the line above
-        # says which
+        # due, every download failed, or the step skipped); the line above says which
         print("::error::Map files: no file written")
         return 1
     return 0

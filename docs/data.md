@@ -108,7 +108,7 @@ skipped without a catalogue or a database, and with `--dev` writes only `DEV_DAT
 To fill a backlog in one go, run `.github/workflows/map-files.yml` by hand: it runs the same
 step alone (`python tools/map_files.py --budget <seconds>`), an hour by default, in the
 refresh's concurrency group, so a Refresh due meanwhile waits for it, and it fails when it
-wrote no file. Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
+wrote no file. `add-maps.yml` runs it too, on just the Maps it added (`--maps`; "New Maps"). Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
 file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
 `getWorkshop` carries each Map's stored version.
 
@@ -160,10 +160,12 @@ reads no board. The row's first and last seen are the newest catalogue's Refresh
 listed and serves its page (with an empty board until it has times; `docs/site.md`, Routes), and its
 sessions and subscriptions are empty, so the next Refresh reads them as moved and looks its board
 up. While nothing is new it reads the page again, up to five reads a minute apart, since Steam's
-list can lag the post. Before any catalogue was written it adds nothing. Once the pages are up it
-logs into Steam and runs the Map file step on the new Maps (`map_files.download`, two minutes at
-most), so their 3D view comes within minutes too; a failed download leaves the file to the next
-Refresh, as any due file is. Their Ghosts come with that Refresh.
+list can lag the post. Before any catalogue was written it adds nothing. The workflow's next step
+downloads the added Maps' files (`map_files.py --maps`, two minutes of downloads, the step stopped
+at five), so their 3D view comes within minutes too. It skips while `refresh.yml` or
+`map-files.yml` runs, since a second Steam login on the same account can drop theirs, and a skipped
+or failed download leaves the file to the next Refresh, as any due file is. Ghosts come with that
+Refresh.
 
 It runs in its own concurrency group, because a pending run in `refresh-leaderboards` would
 replace the scheduled Refresh waiting there. So a Refresh that read the catalogue before the Map
