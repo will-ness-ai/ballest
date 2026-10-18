@@ -219,6 +219,7 @@ maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot 
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
 `writing-for-agents` (also `mattpocock/skills`) is adapted too: its `SKILL-MECHANICS.md` says how to word a call to another skill, and the vendored skills' calls follow it.
 `agent-tools` (ours) builds commands for agents; `retro` hands it the call chains it finds.
+`add-campaign` (ours) adds a player's Campaign, from the request to the live page.
 `good-css` (MIT, from `vojtaholik/good-css` at `6d16d2f`, also recorded in `skills-lock.json`) loads on its own whenever you write or
 review CSS. The site is dark-only (`docs/site.md`), so skip its light/dark token entry.
 

@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import {
   FOLLOW_UP_LINES,
   SKILLS,
+  linesChanged,
   mergeTargets,
   repoSlug,
   skillName,
@@ -114,14 +115,7 @@ function refusal(target, cwd) {
     });
   const isAncestor = (a, b) =>
     tries(() => run("git", ["merge-base", "--is-ancestor", a, b], at)) !== null;
-  const linesOf = (c) =>
-    run("git", ["show", "--numstat", "--format=", c], at)
-      .split("\n")
-      .reduce((sum, line) => {
-        const [added, removed] = line.split("\t");
-        // git counts a binary file's lines as "-": no follow-up is small enough to skip it
-        return added === "-" ? Infinity : sum + (Number(added) || 0) + (Number(removed) || 0);
-      }, 0);
+  const linesOf = (c) => linesChanged(run("git", ["show", "--numstat", "--format=", c], at));
   const missing = Object.entries(unreviewed(commits, records, isAncestor, linesOf)).filter(
     ([, cs]) => cs.length,
   );
