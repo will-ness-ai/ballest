@@ -10,28 +10,30 @@ A Campaign (`CONTEXT.md`) is one entry in `CAMPAIGNS` (`web/lib/campaigns.ts`). 
 merging: read it first. This is the run, from a request to a live page; it takes
 `docs/agents/feature-workflow.md`'s small-change path from step 4, with no spec or tickets.
 
-## 1. Find the Maps
+## 1. Draft the entry
 
-Run `tools/workshop_maps.py` on what the request gave, the whole pasted post if there is one. Done
-when it ends with the `maps:` line and every Map is by the one maker, in no other Campaign, in the
-maker's order (the post's for links, the collection's for a collection; a maker query prints
-oldest first, so check that against the series' titles), and the count matches the request (a post
-saying "8 maps" lists eight). A Map by someone else, or already in a Campaign, is a question for
-Will, asked on a decision card. A Map the site doesn't list yet stays in: step 5's Refresh lists
-it.
+From `web/`, run `pnpm --silent campaign draft` on what the request gave, the whole pasted post if
+there is one (its `--help` covers the rest). It finds the Maps, labels each as the rail will, and
+lists problems (what stops the entry) and notes (what to look at). Done when it prints `problems:
+none`, every note is settled below, the rows are in the maker's order (the post's for links, the
+collection's for a collection; a maker query lists oldest first, so check that against the series'
+titles), the count matches the request (a post saying "8 maps" lists eight), and the title and
+slug read well (it names the Campaign by the words its Maps' titles share; `--title` and `--slug`
+set them).
+
+- A Map already in a Campaign (a problem), or by someone else (a note), is a question for Will,
+  asked on a decision card.
+- A Map not on the site yet stays in: step 5's Refresh lists it.
+- A label that repeats its number (`01 1 of 8`) is a `mapName` change, test-first: call the Skill
+  tool for 'tdd', with the new titles as cases in `web/test/campaigns.test.ts`, and add the
+  pattern to the page paragraph of `docs/site.md`, "Campaigns".
+- A maker of another Campaign gets a shared constant for their `creator` and `creatorId` at the
+  top of `web/lib/campaigns.ts`, as `HABIBAL` is, after step 2 writes the entry.
 
 ## 2. Write the entry
 
-Pick the `slug` from the title (`limbo` for "Limbo campaign"), branch `claude/<slug>` from `main`,
-then append the entry to `CAMPAIGNS` with the five fields `docs/site.md` lists: that `slug`,
-`title` as the maker names the series, `creator` and `creatorId` from step 1's output (a maker of
-several Campaigns is a shared constant at the top), and `maps` from its `maps:` line.
-
-Then read each Map's title through `mapLabel`, as the rail will. Done when every label reads
-cleanly (`01 Mercury`, or `01` for a title that is only its number) and none repeats the number
-(`01 1 of 8`). A title pattern that reads badly is a `mapName` change, test-first: call the Skill
-tool for 'tdd', with the new titles as cases in `web/test/campaigns.test.ts`, and add the pattern
-to the page paragraph of `docs/site.md`, "Campaigns".
+Branch `claude/<slug>` from `main` and run the same `draft` with `--write`, which appends the entry
+to `CAMPAIGNS`.
 
 ## 3. Open and review the PR
 
@@ -46,7 +48,7 @@ feature-workflow step 5 says.
 
 Shoot the new Campaign's page on the PR's preview at both widths, as `docs/site.md` says. Done
 when both pictures show the Campaign's name, the maker and every Map the site lists, with the
-labels from step 2. Map pictures come from Steam's CDN, which cloud screenshots can't load: blank
+labels from step 1. Map pictures come from Steam's CDN, which cloud screenshots can't load: blank
 pictures there are expected.
 
 Then finish as feature-workflow step 7 says (the Checked lines, `main` merged, ready, and the
@@ -54,6 +56,7 @@ merge itself), and send Will the PR and the preview's `/campaign/<slug>` link. M
 
 ## 5. After the merge
 
-Run the Refresh, as `docs/site.md` says, and once its run is green check the page. Done when
-`https://ballestrecords.com/campaign/<slug>` shows every Map of the Campaign. Tell Will that link:
-it is the one to send the maker. Then take feature-workflow step 8.
+Run the Refresh, as `docs/site.md` says, and once its run is green run `pnpm --silent campaign
+check <slug>` from `web/`. Done when it prints `shown: N of N Maps`. Tell Will
+`https://ballestrecords.com/campaign/<slug>`: it is the one to send the maker. Then take
+feature-workflow step 8.
