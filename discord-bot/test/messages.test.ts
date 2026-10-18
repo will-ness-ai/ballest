@@ -380,4 +380,11 @@ describe("a Daily Post's card", () => {
       "attachment://",
     );
   });
+
+  it("shows the spinning GIF beside the podium once it is attached, and not before", () => {
+    const spinning = JSON.stringify(dailyCardMessage(view, { preview: true, spin: true }));
+    expect(spinning).toContain('"accessory":{"type":11,"media":{"url":"attachment://spin.gif"}}');
+    expect(spinning).toContain("🥇");
+    expect(JSON.stringify(message)).not.toContain("spin.gif");
+  });
 });

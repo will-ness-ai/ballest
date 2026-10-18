@@ -15,6 +15,8 @@ const SITE_URL = "https://ballestrecords.com";
 const ACCENT = 0x9ee34b;
 /** The Workshop screenshot's name as attached to the card. */
 export const PREVIEW_FILE = "preview.jpg";
+/** The Map's spinning 3D GIF's name as attached to the card (map_spins, spin.ts). */
+export const SPIN_FILE = "spin.gif";
 
 export const workshopUrl = (pfid: string) =>
   `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
@@ -27,10 +29,13 @@ export interface DailyMessage {
   readonly allowed_mentions: { readonly parse: ReadonlyArray<never> };
 }
 
-/** The live card. `preview`: the Workshop screenshot is attached as PREVIEW_FILE. */
+/**
+ * The live card. `preview`: the Workshop screenshot is attached as PREVIEW_FILE; `spin`: the
+ * Map's spinning GIF is attached as SPIN_FILE, beside the podium.
+ */
 export const dailyCardMessage = (
   v: DailyView,
-  { preview }: { readonly preview: boolean },
+  { preview, spin = false }: { readonly preview: boolean; readonly spin?: boolean },
 ): DailyMessage => {
   const text = cardText(v);
   const textDisplay = (content: string) => ({ type: ComponentType.TextDisplay as const, content });
@@ -51,7 +56,16 @@ export const dailyCardMessage = (
                 },
               ]
             : []),
-          textDisplay(text.stats),
+          spin
+            ? {
+                type: ComponentType.Section as const,
+                components: [textDisplay(text.stats)],
+                accessory: {
+                  type: ComponentType.Thumbnail as const,
+                  media: { url: `attachment://${SPIN_FILE}` },
+                },
+              }
+            : textDisplay(text.stats),
           {
             type: ComponentType.Separator,
             divider: true,

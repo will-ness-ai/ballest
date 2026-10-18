@@ -202,6 +202,17 @@ they clear. It is off unless all three settings are set and the bot has View Cha
 Messages, Embed Links, Attach Files, Create Public Threads and Send Messages in Threads there; then
 it says why in the log and the bot runs on.
 
+The spinning 3D GIF beside the podium (`spin.ts`) is drawn in GitHub Actions, since it needs a
+browser with WebGL: as the card goes up, the bot starts the site repo's `daily-spin.yml` on `main`
+for the Map (`GITHUB_DISPATCH_TOKEN`, as for new tracks), which stores the GIF in the leaderboard
+database's `map_spins` (`docs/data.md`). Each read, it looks there (`DATABASE_URL`, plain SQL) and
+edits the GIF in once one is drawn from the Map's current file or since it asked. A Map with no
+`map_files` row gets no GIF and no run, and one already drawn from the same file is used without
+a run. A run that can't be started, or no GIF an hour after asking, reaches ops once; the card
+stays without it. Without both settings the card has no GIF. An edit that attaches a file names
+every picture the card keeps, read from its components (a Components V2 message lists none under
+`attachments`).
+
 What the card says is pure (`card.ts`, `test/dailyPost.test.ts`), its layout and buttons are in
 `messages.ts` (`test/messages.test.ts`), and the schedule in `schedule.ts` runs over ports on the
 TestClock (`test/dailyPostSchedule.test.ts`). The real adapters (`live.ts`) are checked by posting
