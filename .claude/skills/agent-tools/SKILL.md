@@ -7,10 +7,10 @@ description: Build commands for agents in AXI style. Use when writing or changin
 
 An **agent tool** is a command whose reader is an agent, not a person. Its cost is **turns**
 (every call is another round trip through the model) and **tokens** (every line it prints stays
-in the window). Its job is to collapse a **chain**: the run of tool calls an agent makes toward
+in the window; count them as output bytes, `wc -c`). Its job is to collapse a **chain**: the run of tool calls an agent makes toward
 one answer, where each call's **intermediate result** passes through the window only to pick the
-next call. A loop is a chain whose links repeat (poll, check, sleep, poll); most chains don't
-(read a config, query a service, filter the answer, open a file). The tool runs the chain itself
+next call. A loop is a chain whose links repeat (poll, check, sleep, poll); a **one-way chain**
+doesn't (read a config, query a service, filter the answer, open a file). The tool runs the chain itself
 and prints the **minimally relevant context**: what the agent would have gone on to use, and
 nothing else.
 
@@ -74,8 +74,8 @@ in the part you touch.
 - **Few fields, enough rows.** A list row carries what lets the agent pick the next call: a
   name and a state it reasons with, and an id only where a next command takes one. Everything
   else waits for the detail view or `--full`. Default limits cover the common case in one call.
-- **Intermediate results stay inside.** Only the answer prints; a result the agent may need
-  later goes to a file, and its path prints.
+- **Intermediate results stay inside.** Each lookup, filter and join happens in the tool and
+  stays out of stdout; a result the agent may need later goes to a file, and its path prints.
 - **Cut long text with its size.** A long value prints its first 500-1500 characters and
   `… (truncated, 8432 chars total; use --full)`. Images and other files are written to disk and
   printed as paths for the agent to read.
