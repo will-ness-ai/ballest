@@ -1,0 +1,188 @@
+[
+ {
+  "pfid": "3821728582",
+  "title": "Slick Slide",
+  "published": 1792264995,
+  "maker": "xMetzger",
+  "record": "0:18.907",
+  "runs": "49",
+  "medals": [
+   "0:24.340",
+   "0:26.000",
+   "0:30.000",
+   "0:39.000"
+  ],
+  "podium": [
+   [
+    "Nikarus",
+    "0:18.907"
+   ],
+   [
+    "Solo Player",
+    "0:19.687"
+   ],
+   [
+    "warzone1320",
+    "0:20.196"
+   ]
+  ],
+  "tags": [
+   "sunrise",
+   "rubber",
+   "medium",
+   "downhill",
+   "precision",
+   "speed",
+   "day",
+   "single"
+  ]
+ },
+ {
+  "pfid": "3821786518",
+  "title": "lock in",
+  "published": 1792270339,
+  "maker": "DirtWrittenPro",
+  "record": "0:25.200",
+  "runs": "9",
+  "medals": [
+   "0:26.249",
+   "0:28.000",
+   "0:32.000",
+   "0:42.000"
+  ],
+  "podium": [
+   [
+    "Action Jackson",
+    "0:25.200"
+   ],
+   [
+    "DirtWrittenPro",
+    "0:25.234"
+   ],
+   [
+    "Borgmajster",
+    "0:25.314"
+   ]
+  ],
+  "tags": [
+   "sunrise",
+   "expert",
+   "endurance",
+   "balance",
+   "precision",
+   "speed",
+   "symmetrical",
+   "day"
+  ]
+ },
+ {
+  "pfid": "3821738025",
+  "title": "Amphitheater",
+  "published": 1792265938,
+  "maker": "yaboi63",
+  "record": "1:07.624",
+  "runs": "14",
+  "medals": [
+   "1:15.489",
+   "1:21.000",
+   "1:31.000",
+   "2:01.000"
+  ],
+  "podium": [
+   [
+    "Gekkenman",
+    "1:07.624"
+   ],
+   [
+    "Woods",
+    "1:09.361"
+   ],
+   [
+    "Papa Strawnks",
+    "1:11.253"
+   ]
+  ],
+  "tags": [
+   "sunrise",
+   "medium",
+   "single",
+   "day"
+  ]
+ },
+ {
+  "pfid": "3821670142",
+  "title": "Industry",
+  "published": 1792259550,
+  "maker": "DpDP3DQ",
+  "record": "0:33.262",
+  "runs": "8",
+  "medals": [
+   "0:33.811",
+   "0:36.000",
+   "0:41.000",
+   "0:55.000"
+  ],
+  "podium": [
+   [
+    "DpDP3DQ",
+    "0:33.262"
+   ],
+   [
+    "Nausses",
+    "0:34.053"
+   ],
+   [
+    "Papa Strawnks",
+    "0:37.422"
+   ]
+  ],
+  "tags": [
+   "sunset",
+   "single",
+   "rubber",
+   "vents",
+   "flow",
+   "climb",
+   "speed",
+   "tech",
+   "medium"
+  ]
+ },
+ {
+  "pfid": "3821651186",
+  "title": "Fih",
+  "published": 1792257846,
+  "maker": "Lucid XO",
+  "record": "0:06.535",
+  "runs": "12",
+  "medals": [
+   "0:09.793",
+   "0:11.000",
+   "0:12.000",
+   "0:16.000"
+  ],
+  "podium": [
+   [
+    "Skylar <3",
+    "0:06.535"
+   ],
+   [
+    "XxSkillzy93xX",
+    "0:06.665"
+   ],
+   [
+    "John 3:16",
+    "0:07.532"
+   ]
+  ],
+  "tags": [
+   "beginner",
+   "precision",
+   "mini",
+   "flow",
+   "day",
+   "multiple",
+   "single"
+  ]
+ }
+]
