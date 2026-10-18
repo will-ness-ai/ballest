@@ -22,10 +22,10 @@ it.
 
 ## 2. Write the entry
 
-Branch `claude/<slug>` from `main`, then append the entry to `CAMPAIGNS` with the five fields
-`docs/site.md` lists: `title` as the maker names the series, `creator` and `creatorId` from step
-1's output, `maps` from its `maps:` line (a maker of several Campaigns is a shared constant at the
-top).
+Pick the `slug` from the title (`limbo` for "Limbo campaign"), branch `claude/<slug>` from `main`,
+then append the entry to `CAMPAIGNS` with the five fields `docs/site.md` lists: that `slug`,
+`title` as the maker names the series, `creator` and `creatorId` from step 1's output (a maker of
+several Campaigns is a shared constant at the top), and `maps` from its `maps:` line.
 
 Then read each Map's title through `mapLabel`, as the rail will. Done when every label reads
 cleanly (`01 Mercury`, or `01` for a title that is only its number) and none repeats the number
@@ -49,8 +49,8 @@ when both pictures show the Campaign's name, the maker and every Map the site li
 labels from step 2. Map pictures come from Steam's CDN, which cloud screenshots can't load: blank
 pictures there are expected.
 
-Then finish as feature-workflow step 7 says (the Checked lines, `main` merged, ready), and send
-Will the PR and the preview's `/campaign/<slug>` link. Merge on his word, as step 7 says.
+Then finish as feature-workflow step 7 says (the Checked lines, `main` merged, ready, and the
+merge itself), and send Will the PR and the preview's `/campaign/<slug>` link. Merge on his word.
 
 ## 5. After the merge
 
