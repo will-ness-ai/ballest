@@ -149,6 +149,18 @@ tile icons and notes on which skins animate): the plain colours are shot with th
 slider at 0, which most players use, and an animated skin (Spirit, Disco, Magma) is one
 frame of it.
 
+To reshoot one, as #275 did for Leth (these steps replace the ones in
+`prototype/skins/notes.md`): in a sandbox slot (`docs/agents/plugins.md`), open Customize
+(`call WBP_MainMenu_UIManager_C DoCustomize Transient`, then `cosmode public`), press the
+skin with `cosmetictile -<n>` and take a `shot`. `-<n>` counts the collection, special,
+medal and basic grids in that order, not the order the page shows them (Leth is -9). A
+special skin (Leth, Snow Globe) is its own actor over the menu ball, turned with
+`callx <class> K2_SetActorRotation <id> | v:<pitch>,<yaw>,<roll> | b:0`, where `<id>` is
+the number ending the actor's object name (`BP_LBall05_C_2147479702`, a child of
+`BP_MenuBall_C_3`). Leth at 59.638, 90.957, 96.401 puts its logo to the camera. Crop the
+209px box at (581, 269) of the 1280×720 shot, scale it to 192px, and take the round cut
+from another skin's alpha so every edge matches.
+
 ## Share images
 
 A player, a Workshop Map, a Circuit Track, a Daily and a Campaign each unfurl with their
@@ -297,7 +309,7 @@ A Campaign (CONTEXT.md) is a player-made run of Workshop Maps that the site rank
 the game ranks a Circuit season. The game knows nothing of them, so the list in
 `web/lib/campaigns.ts` (`CAMPAIGNS`) is the only place one exists.
 
-**Adding one** is one entry in `CAMPAIGNS`: its `slug` (the path, lowercase words joined by
+**Adding one** is one entry in `CAMPAIGNS` (the run, request to live page: the `add-campaign` skill): its `slug` (the path, lowercase words joined by
 `-`), `title`, `creator` (the maker's Workshop name), `creatorId` (the maker's Steam ID) and
 `maps`, the Maps' Workshop IDs in the maker's order. That order numbers the Maps 01, 02 and
 so on, so append a Map rather than insert one. `campaignProblems` fails the tests on a
@@ -330,7 +342,7 @@ never a row of tabs, since the list keeps growing; on a desktop it heads the rai
 "Campaign" label and over the maker's name) lists the Campaigns most players first
 (`getCampaigns`); the rail lists Overall, then each Map as a strip of its preview picture with its number, record and the part of
 its title after the Campaign's name (`mapName`), left out when that is only its number
-("Miniblack 01", "AJC1"), and the whole title when what is left starts with a number that
+("Miniblack 01", "AJC1", or "Limbo campaign 1 of 8" and its "A08 of 8", which count the Maps), and the whole title when what is left starts with a number that
 isn't the Map's place ("Ninja0", "AJ26"). Everywhere the frame names a Map (the rail's sheet, the podium
 tally, the page's title) it is `mapLabel`: the number, then that name. On a phone the
 switch's chip and the board button share a row while they fit, and the button takes a line
