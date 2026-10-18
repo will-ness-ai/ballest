@@ -227,7 +227,8 @@ Every page of the app names its canonical address (`alternates.canonical`; a pag
 player's tab names the player's page, a board or Map focused on a row or in podium order
 names the board), All maps' views name All maps and the Players table's rankings name
 Players, and each Daily is a page of its own. A Map or player the page can only send away
-(a soft 404) is `noindex`. The homepage's title says what the site is, and it carries the
+(a soft 404) is `noindex`, and so is a Map nobody has a time on yet, as the sitemap leaves
+it out. The homepage's title says what the site is, and it carries the
 site's name for search results as schema.org `WebSite` JSON-LD.
 
 The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash` replaces
