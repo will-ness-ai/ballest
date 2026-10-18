@@ -2,8 +2,9 @@
 // Ported from the settled prototype (branch claude/prototype-activity-surfaces). What a Match
 // says is shared with the Card: its rows and words come from present.ts, its PBs from
 // `progress`, its marbles and Medals from render/art.ts, each Player's Chosen Skin from what the
-// API sent (drawn from the server's /skins/), and what the viewer may press from the server. Buttons carry `data-act="<verb>[:<arg>]"`, which app.ts acts on; countdowns are
-// `data-until` spans it fills.
+// API sent (drawn from the server's /skins/), and what the viewer may press from the server.
+// Buttons carry `data-act="<verb>[:<arg>]"`, which app.ts acts on; countdowns are `data-until`
+// spans it fills.
 import {
   DURATIONS,
   formatTime,

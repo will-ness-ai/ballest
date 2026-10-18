@@ -89,6 +89,29 @@ const loadPage = Effect.tryPromise({
 
 const DAY = "public, max-age=86400";
 
+/**
+ * GET /skins/:file: each Skin's picture by the file the page asks for (skinPictureFile, from a
+ * Player's Chosen Skin), and 404 for any other file.
+ */
+export const skinPicture = (pngs: ReadonlyMap<string, Uint8Array>) => {
+  const byFile = new Map(
+    [...pngs].flatMap(([path, png]) => {
+      const file = skinPictureFile(path);
+      return file === null ? [] : [[file, png] as const];
+    }),
+  );
+  return Effect.gen(function* () {
+    const { file = "" } = yield* HttpRouter.params;
+    const body = byFile.get(file);
+    return body === undefined
+      ? HttpServerResponse.empty({ status: 404 })
+      : HttpServerResponse.uint8Array(body, {
+          contentType: "image/png",
+          headers: { "cache-control": DAY },
+        });
+  });
+};
+
 /** The whole app: page, script, fonts, previews, Skin pictures, config, API. `channelId` is where the links point. */
 export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
   config: PageConfig & { readonly channelId: string },
@@ -100,13 +123,6 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
   const script = yield* bundle;
   const html = yield* loadPage;
   const fonts = yield* loadFonts;
-  /** Each Skin's picture by the file the page asks for (skinPictureFile). */
-  const skins = new Map(
-    [...(yield* SkinPictures).pngs].flatMap(([path, png]) => {
-      const file = skinPictureFile(path);
-      return file === null ? [] : [[file, png] as const];
-    }),
-  );
   /** A Match's Map preview, only for a Match the bot has drawn a Map for: this is no open proxy. */
   const preview = Effect.gen(function* () {
     const { id = "" } = yield* HttpRouter.params;
@@ -138,16 +154,7 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
         });
   });
 
-  const skin = Effect.gen(function* () {
-    const { file = "" } = yield* HttpRouter.params;
-    const body = skins.get(file);
-    return body === undefined
-      ? HttpServerResponse.empty({ status: 404 })
-      : HttpServerResponse.uint8Array(body, {
-          contentType: "image/png",
-          headers: { "cache-control": DAY },
-        });
-  });
+  const skin = skinPicture((yield* SkinPictures).pngs);
 
   const pages = HttpRouter.empty.pipe(
     HttpRouter.get("/", Effect.succeed(HttpServerResponse.html(html))),

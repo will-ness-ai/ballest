@@ -1,6 +1,7 @@
 // The two balls a marble can draw: a glass ball in a player's hue, and the game's own ball
-// wearing a skin (lib/skins.ts). Server and client components both draw them (Marble.tsx,
-// ChosenSkins.tsx, the Chosen Skin picker); each glass ball's gradient gets its own id.
+// wearing a skin (lib/skins.ts), and PlayerBall, which picks between them for a player's Skin.
+// Server and client components both draw them (Marble.tsx, ChosenSkins.tsx, the Chosen Skin
+// picker); each glass ball's gradient gets its own id.
 import { useId } from "react";
 
 import { hueFor } from "../lib/rules";
@@ -56,8 +57,8 @@ export function SkinBall({ src }: { src: string }) {
   return <img className="ball skin" src={src} alt="" loading="lazy" decoding="async" />;
 }
 
-/* a player's ball in `skin` (an object path): its picture, else their hue ball, which a Skin
-   the site has no picture for, or none, draws too */
+/* a player's ball in `skin` (an object path): that Skin's picture, or their hue ball when
+   `skin` is null or a Skin the site has no picture for */
 export function PlayerBall({ steamId, skin }: { steamId: string; skin: string | null }) {
   const src = skinPicture(skin);
   return src ? <SkinBall src={src} /> : <Ball h={hueFor(steamId)} />;

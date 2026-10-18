@@ -1,10 +1,12 @@
 // The Activity's HTTP API, driven with real Requests over the same engine, fakes and TestClock
 // as the engine tests. Discord is faked too: OAuth knows a few codes and access tokens, the
 // server knows its members' display names, and the channel knows where each Match's Card is.
-import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Option } from "effect";
 import { makeActivityApi } from "../src/activity/api.js";
+import { skinPicture } from "../src/activity/server.js";
+import { marble } from "../src/activity/web/view.js";
 import {
   AuthFailed,
   DiscordAuth,
@@ -888,6 +890,49 @@ describe("Chosen Skins", () => {
         body: { profile: ALICE_PROFILE },
       });
       expect(preview.body).toMatchObject({ steamId: ALICE.steamId, skin: PINK });
+    }),
+  );
+});
+
+describe("Skin pictures", () => {
+  const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
+  const UNKNOWN_SKIN = "/Game/Art/Some/Future/Skin.Skin";
+  const STEAM_ID = "76561198000000001";
+
+  it("draw a Player's Chosen Skin as its picture, served by the Activity", () => {
+    const html = marble(STEAM_ID, 24, PINK);
+    expect(html).toContain('<img src="/skins/DA_Skin_Pink.png"');
+    expect(html).not.toContain("<svg");
+  });
+
+  it("draw the hue marble with no Chosen Skin, or one the list doesn't know", () => {
+    for (const skin of [null, UNKNOWN_SKIN]) {
+      const html = marble(STEAM_ID, 24, skin);
+      expect(html).toContain("<svg");
+      expect(html).not.toContain("<img");
+    }
+  });
+
+  it.effect("are served by the file the page asks for, and nothing else", () =>
+    Effect.gen(function* () {
+      const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+      const app = HttpRouter.empty.pipe(
+        HttpRouter.get("/skins/:file", skinPicture(new Map([[PINK, png]]))),
+      );
+      const get = (path: string) =>
+        app.pipe(
+          Effect.provideService(
+            HttpServerRequest.HttpServerRequest,
+            HttpServerRequest.fromWeb(new Request(`http://activity.test${path}`)),
+          ),
+          Effect.map(HttpServerResponse.toWeb),
+        );
+      const found = yield* get("/skins/DA_Skin_Pink.png");
+      expect(found.status).toBe(200);
+      expect(found.headers.get("content-type")).toBe("image/png");
+      expect(new Uint8Array(yield* Effect.promise(() => found.arrayBuffer()))).toEqual(png);
+      expect((yield* get("/skins/DA_Skin_Brick.png")).status).toBe(404);
+      expect((yield* get("/skins/..%2Fpackage.json")).status).toBe(404);
     }),
   );
 });
