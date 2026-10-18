@@ -356,7 +356,7 @@ export const postDaily = Effect.fn("postDaily")(function* (challenge: Challenge)
  * the next. Its spinning GIF is asked for at once (spin.ts), and edited in at the first read
  * after it is drawn.
  */
-const keepCurrent = Effect.fn("keepCurrent")(function* (start: DailyPostRecord) {
+export const keepCurrent = Effect.fn("keepCurrent")(function* (start: DailyPostRecord) {
   const steam = yield* DailySteam;
   const channel = yield* DailyChannel;
   const log = yield* DailyPostLog;
@@ -449,16 +449,20 @@ const keepCurrent = Effect.fn("keepCurrent")(function* (start: DailyPostRecord) 
     const view = viewOf(challenge, map, read.right, at);
     // A changed lead is recorded only once the card shows it, so a refused edit is tried again.
     const history = yield* log.leads(date);
-    const lead = leadOf(read.right, at);
+    // Boards lock at the end, so a lead first seen after it was set by then.
+    const lead = leadOf(read.right, Math.min(at, challenge.endsAt));
     const changed = lead !== null && leadChanged(history.at(-1), lead) ? lead : null;
     const leads = changed === null ? history : [...history, changed];
     const shown = shownOf(view, leads);
-    if (shown !== post.shown || Option.isSome(gif)) {
+    // The first read at or after the end is final: the card becomes the result whatever it shows,
+    // its graph redrawn as the whole day.
+    const final = at >= challenge.endsAt;
+    if (final || shown !== post.shown || Option.isSome(gif)) {
       const spin = post.spin.state === "shown" || Option.isSome(gif);
       const edited = yield* Effect.either(
         Effect.gen(function* () {
           const graph =
-            leads.length === 0 || shown === post.shown
+            leads.length === 0 || (shown === post.shown && !final)
               ? []
               : [
                   {
@@ -484,6 +488,7 @@ const keepCurrent = Effect.fn("keepCurrent")(function* (start: DailyPostRecord) 
             preview: post.preview,
             graph: leads.length > 0,
             spin,
+            closed: final,
           });
           yield* channel.edit(post.messageId, message, files);
         }),
@@ -511,7 +516,6 @@ const keepCurrent = Effect.fn("keepCurrent")(function* (start: DailyPostRecord) 
         else yield* ops.clear("line");
       }
     }
-    const final = at >= challenge.endsAt;
     post = { ...post, shown, readAt: at, state: final ? "closed" : "live" };
     yield* log.put(post);
     if (final) {

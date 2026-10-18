@@ -195,7 +195,11 @@ developers' Daily API (`BALLEST_DAILY_URL` with the date appended, `BALLEST_API_
 posts its card, a Components V2 message with the Workshop screenshot attached, and a thread on it.
 Every 15 minutes it reads the Daily's own Steam board (ranks 1 to 3 and the entry count, one
 request through the bot's session) and edits the card only when what it shows changed; the first
-read at or after the Daily's end is its last. Each post is recorded in SQLite (`daily_posts`), so
+read at or after the Daily's end is its last, and always turns the card into the result: "🏆 X
+wins" (everyone on the fastest time shares it; a read sees only the top 3), the winning time and
+player count, the final podium, the pictures and the lead graph drawn without "now", and `Closed
+<t:f> · final`, or "No winner" when nobody set a time. A bot that was down at the close makes
+that read as it starts. Each post is recorded in SQLite (`daily_posts`), so
 a restart resumes the live one and never posts a date twice. Each read that changes the lead (its
 time or who holds it) is recorded too (`daily_leads`, `lead.ts`): once the card shows it, with the
 lead graph under the podium redrawn by `src/render/` (`leadGraphScene`), the thread gets a quiet
@@ -224,7 +228,10 @@ What the card says is pure (`card.ts`, `test/dailyPost.test.ts`), its layout and
 TestClock (`test/dailyPostSchedule.test.ts`). The real adapters (`live.ts`) are checked by posting
 one: `pnpm daily-post <date>` posts that date's live card and thread into the sandbox channel (or
 `--channel <id>`, never the production one) with the bot account's Steam session, and records
-nothing. Read it back with `pnpm --silent axi show <id> --in <channel>`.
+nothing. With `--close` it then keeps the card current as the schedule does until the Daily's
+end, so a past date is posted and at once closed by the schedule's own final edit (no GIF, ops
+warnings to the log only). Read it back with `pnpm --silent axi show <id> --in <channel>`, which
+lists and saves the files a Components V2 card shows.
 
 ## New tracks
 

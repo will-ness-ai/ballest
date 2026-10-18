@@ -457,6 +457,73 @@ describe("the Daily Post's lead", () => {
   );
 });
 
+describe("the Daily Post's close", () => {
+  const CLOSES = OPENS + 24 * HOUR;
+
+  it.scoped("turns the card into its result at the close, a tie for first winning jointly", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* TestClock.setTime(OPENS);
+      yield* Ref.set(t.boardNow, topOf(["airman", 8.532], ["snayK", 8.532], ["FEDUS", 8.566]));
+      yield* t.runFor(23 * HOUR);
+      const before = (yield* Ref.get(t.edits)).length;
+      // Nothing on the board changes before the close: the close still redraws the card.
+      yield* t.runFor(2 * HOUR);
+      const closing = (yield* Ref.get(t.edits)).slice(before);
+      expect(closing.map((e) => [e.at, e.files])).toEqual([[CLOSES, ["graph.png"]]]);
+      const said = words(closing[0]!.message);
+      expect(said).toContain("# 🏆 airman & snayK win\n**0:08.532**, out of **13** players");
+      expect(said).toContain(`-# Closed <t:${CLOSES / 1000}:f> · final`);
+      expect(JSON.stringify(closing[0]!.message)).toContain("attachment://graph.png");
+      // Its graph is drawn as the whole day, with no "now".
+      const drawn = (yield* Ref.get(t.graphs)).filter((g) => g.opensAt === OPENS);
+      expect(drawn.at(-1)?.now).toBeNull();
+      // Closed: nothing touches it again.
+      yield* Ref.set(t.boardNow, topOf(["Water", 8.1]));
+      yield* t.runFor(HOUR);
+      expect((yield* Ref.get(t.edits)).filter((e) => e.messageId === "m1")).toHaveLength(
+        before + 1,
+      );
+      expect((yield* Ref.get(t.lines)).filter((l) => l.threadId === "t-m1")).toHaveLength(1);
+    }),
+  );
+
+  it.scoped("closes on start a card whose Daily ended while the bot was down", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* TestClock.setTime(OPENS);
+      yield* Ref.set(t.boardNow, topOf(["FEDUS", 8.566]));
+      yield* t.runFor(20 * HOUR);
+      yield* TestClock.adjust(6 * HOUR);
+      yield* Ref.set(t.boardNow, topOf(["airman", 8.532], ["FEDUS", 8.566]));
+      const before = (yield* Ref.get(t.edits)).length;
+      yield* t.runFor(MINUTE);
+      const closing = (yield* Ref.get(t.edits)).slice(before);
+      expect(closing.map((e) => [e.at, e.messageId])).toEqual([[CLOSES + 2 * HOUR, "m1"]]);
+      expect(words(closing[0]!.message)).toContain("# 🏆 airman wins");
+      // A lead first seen after the close was set before it: the graph ends at the close.
+      const graph = (yield* Ref.get(t.graphs)).filter((g) => g.opensAt === OPENS).at(-1);
+      expect(graph?.leads.map((l) => l.at)).toEqual([OPENS, CLOSES]);
+      yield* t.runFor(HOUR);
+      expect((yield* Ref.get(t.edits)).filter((e) => e.messageId === "m1")).toHaveLength(
+        before + 1,
+      );
+    }),
+  );
+
+  it.scoped("closes a Daily nobody played with no winner", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* TestClock.setTime(OPENS);
+      yield* t.runFor(25 * HOUR);
+      const edits = (yield* Ref.get(t.edits)).filter((e) => e.messageId === "m1");
+      expect(edits.map((e) => [e.at, e.files])).toEqual([[CLOSES, []]]);
+      expect(words(edits[0]!.message)).toContain("# No winner");
+      expect(words(edits[0]!.message)).toContain("Nobody set a time");
+    }),
+  );
+});
+
 describe("the Daily Post's spinning GIF", () => {
   const GIF = new Uint8Array([71, 73, 70]);
   const spin = (drawnAt: number, version = "v1"): Spin => ({ version, drawnAt, gif: GIF });

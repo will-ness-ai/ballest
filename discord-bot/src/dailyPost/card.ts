@@ -103,6 +103,8 @@ const podium = (top: BoardRead["top"]) =>
   });
 
 const medalTime = (seconds: number) => dailyTime(Math.round(seconds * SCORE_TICKS_PER_SECOND));
+const medalsLine = ({ author, gold, silver, bronze }: Medals) =>
+  `Author ${medalTime(author)} · Gold ${medalTime(gold)} · Silver ${medalTime(silver)} · Bronze ${medalTime(bronze)}`;
 
 /** The card's three blocks of text. */
 export const cardText = (v: DailyView) => {
@@ -114,11 +116,36 @@ export const cardText = (v: DailyView) => {
           `**${v.board.players}** ${v.board.players === 1 ? "player" : "players"} · fastest **${dailyTime(first.ticks)}**`,
           ...podium(v.board.top),
         ].join("\n");
-  const { author, gold, silver, bronze } = v.medals;
   return {
     header: `-# DAILY #${dailyNumber(v.date)} · ${shortDay(v.date).toUpperCase()}\n# ${escape(v.title)}\nby ${bold(v.maker)} · ends ${stamp(v.endsAt, "R")}`,
     stats,
-    foot: `Author ${medalTime(author)} · Gold ${medalTime(gold)} · Silver ${medalTime(silver)} · Bronze ${medalTime(bronze)}\n-# Updated ${stamp(v.readAt, "R")}`,
+    foot: `${medalsLine(v.medals)}\n-# Updated ${stamp(v.readAt, "R")}`,
+  };
+};
+
+/** "a wins", "a & b win", "a, b & c win". */
+const winners = (names: ReadonlyArray<string>) => {
+  const all = names.map(escape);
+  const last = all.pop() ?? "";
+  return all.length === 0 ? `${last} wins` : `${all.join(", ")} & ${last} win`;
+};
+
+/**
+ * The card once the Daily has closed: the winner as the headline. Everyone on the fastest time
+ * shares the win; a read sees only the top 3, so a fourth on the same time goes unnamed.
+ */
+export const closedText = (v: DailyView) => {
+  const top = v.board?.top ?? [];
+  const first = top[0];
+  const players = v.board?.players ?? 0;
+  const head = `-# DAILY #${dailyNumber(v.date)} · ${shortDay(v.date).toUpperCase()} · ${escape(v.title)} by ${escape(v.maker)}`;
+  return {
+    header:
+      first === undefined
+        ? `${head}\n# No winner`
+        : `${head}\n# 🏆 ${winners(top.filter((e) => e.ticks === first.ticks).map((e) => e.name))}\n**${dailyTime(first.ticks)}**, out of **${players}** ${players === 1 ? "player" : "players"}`,
+    stats: first === undefined ? "Nobody set a time" : podium(top).join("\n"),
+    foot: `${medalsLine(v.medals)}\n-# Closed ${stamp(v.endsAt, "f")} · final`,
   };
 };
 

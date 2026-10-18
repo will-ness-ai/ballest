@@ -403,6 +403,21 @@ describe("a Daily Post's card", () => {
     ]);
     expect(JSON.stringify(message)).not.toContain("graph.png");
   });
+
+  it("once closed, heads it with the winner and keeps its pictures, graph and buttons", () => {
+    const closed = dailyCardMessage(view, { preview: true, graph: true, spin: true, closed: true });
+    const text = JSON.stringify(closed.components);
+    expect(text.match(/🏆|🥇|attachment:\/\/[a-z]+\.[a-z]+|Closed|Updated/g)).toEqual([
+      "🏆",
+      "attachment://preview.jpg",
+      "🥇",
+      "attachment://spin.gif",
+      "attachment://graph.png",
+      "Closed",
+    ]);
+    expect(links(closed)).toEqual(links(message));
+    expect(closed.allowed_mentions).toEqual({ parse: [] });
+  });
 });
 
 describe("a Daily Post's thread line", () => {

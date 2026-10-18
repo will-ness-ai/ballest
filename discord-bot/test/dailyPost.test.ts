@@ -1,7 +1,13 @@
 // What a Daily Post's card says, as pure data (spec #268): the Daily's number, the header, the
 // podium with ties, the Medals line, and the thread's name. Real data: Daily #60, "the drop".
 import { describe, expect, it } from "vitest";
-import { cardText, dailyNumber, type DailyView, threadName } from "../src/dailyPost/card.js";
+import {
+  cardText,
+  closedText,
+  dailyNumber,
+  type DailyView,
+  threadName,
+} from "../src/dailyPost/card.js";
 import { type Lead, leadLine } from "../src/dailyPost/lead.js";
 import { ticks } from "./harness.js";
 
@@ -73,6 +79,54 @@ describe("a Daily Post's card", () => {
 
   it("names the thread after the Daily", () => {
     expect(threadName(view())).toBe("Daily #60 · the drop · Sun 18 Oct");
+  });
+});
+
+describe("a closed Daily Post's card", () => {
+  it("heads it with the winner, the winning time and the player count", () => {
+    const one = view({
+      board: {
+        players: 145,
+        top: [
+          { name: "airman", ticks: ticks(8.532) },
+          { name: "FEDUS", ticks: ticks(8.566) },
+        ],
+      },
+    });
+    expect(closedText(one).header).toBe(
+      "-# DAILY #60 · SUN 18 OCT · the drop by AvgRon\n# 🏆 airman wins\n**0:08.532**, out of **145** players",
+    );
+    expect(closedText(one).stats).toBe("🥇 **airman** 0:08.532\n🥈 **FEDUS** 0:08.566");
+  });
+
+  it("names joint winners on a tie for first", () => {
+    expect(closedText(view()).header).toContain("\n# 🏆 airman & snayK win\n");
+    const three = view({
+      board: { players: 3, top: ["a", "b", "c"].map((name) => ({ name, ticks: ticks(9) })) },
+    });
+    expect(closedText(three).header).toContain(
+      "\n# 🏆 a, b & c win\n**0:09.000**, out of **3** players",
+    );
+  });
+
+  it("says when it closed, under the Medals", () => {
+    expect(closedText(view()).foot).toBe(
+      "Author 0:08.911 · Gold 0:09.000 · Silver 0:11.000 · Bronze 0:14.000\n-# Closed <t:1792371600:f> · final",
+    );
+  });
+
+  it("has no winner when nobody set a time", () => {
+    const empty = closedText(view({ board: { players: 0, top: [] } }));
+    expect(empty.header).toBe("-# DAILY #60 · SUN 18 OCT · the drop by AvgRon\n# No winner");
+    expect(empty.stats).toBe("Nobody set a time");
+    expect(closedText(view({ board: null })).stats).toBe("Nobody set a time");
+  });
+
+  it("keeps a winner's name from pinging or breaking the headline", () => {
+    const sly = view({ board: { players: 1, top: [{ name: "@everyone *x*", ticks: ticks(9) }] } });
+    expect(closedText(sly).header).toContain(
+      "# 🏆 @​everyone \\*x\\* wins\n**0:09.000**, out of **1** player",
+    );
   });
 });
 

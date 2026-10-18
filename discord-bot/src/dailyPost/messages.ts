@@ -8,7 +8,7 @@ import {
   MessageFlags,
   SeparatorSpacingSize,
 } from "discord.js";
-import { cardText, type DailyView } from "./card.js";
+import { cardText, closedText, type DailyView } from "./card.js";
 
 /** The site and the Workshop: links only, so no press ever reaches the bot. */
 const SITE_URL = "https://ballestrecords.com";
@@ -34,7 +34,8 @@ export interface DailyMessage {
 /**
  * The live card. `preview`: the Workshop screenshot is attached as PREVIEW_FILE; `spin`: the
  * Map's spinning GIF is attached as SPIN_FILE, beside the podium; `graph`: the lead graph is
- * attached as GRAPH_FILE, and shows under the podium.
+ * attached as GRAPH_FILE, and shows under the podium. `closed`: the Daily is over, and the card
+ * heads it with its winner, in the same layout with the same pictures and buttons.
  */
 export const dailyCardMessage = (
   v: DailyView,
@@ -42,9 +43,15 @@ export const dailyCardMessage = (
     preview,
     spin = false,
     graph = false,
-  }: { readonly preview: boolean; readonly spin?: boolean; readonly graph?: boolean },
+    closed = false,
+  }: {
+    readonly preview: boolean;
+    readonly spin?: boolean;
+    readonly graph?: boolean;
+    readonly closed?: boolean;
+  },
 ): DailyMessage => {
-  const text = cardText(v);
+  const text = closed ? closedText(v) : cardText(v);
   const textDisplay = (content: string) => ({ type: ComponentType.TextDisplay as const, content });
   return {
     flags: MessageFlags.IsComponentsV2,

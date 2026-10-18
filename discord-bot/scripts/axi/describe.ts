@@ -15,6 +15,10 @@ export interface ApiComponent {
   readonly content?: string;
   readonly components?: ReadonlyArray<ApiComponent>;
   readonly component?: ApiComponent;
+  /** Components V2: a thumbnail's or file's media, a gallery's items, a section's accessory. */
+  readonly media?: { readonly url?: string };
+  readonly items?: ReadonlyArray<{ readonly media?: { readonly url?: string } }>;
+  readonly accessory?: ApiComponent;
 }
 
 export interface ApiEmbed {
@@ -150,6 +154,33 @@ const textsOf = (components: ReadonlyArray<ApiComponent> = []): Array<string> =>
     ...(c.component === undefined ? [] : textsOf([c.component])),
   ]);
 
+/** Media urls shown by components (Components V2 galleries, thumbnails), in reading order. */
+const mediaOf = (components: ReadonlyArray<ApiComponent> = []): Array<string> =>
+  components.flatMap((c) => [
+    ...(c.media?.url === undefined ? [] : [c.media.url]),
+    ...(c.items ?? []).flatMap((i) => (i.media?.url === undefined ? [] : [i.media.url])),
+    ...mediaOf(c.accessory === undefined ? [] : [c.accessory]),
+    ...mediaOf(c.components),
+    ...(c.component === undefined ? [] : mediaOf([c.component])),
+  ]);
+
+/**
+ * A message's files: its attachments, and the files its components show (a Components V2
+ * message lists none under `attachments`), each once, by name.
+ */
+export const attachmentsOf = (m: ApiMessage): Array<{ filename: string; url?: string }> => {
+  const files = new Map<string, { filename: string; url?: string }>();
+  for (const a of m.attachments ?? []) files.set(a.filename, a);
+  for (const url of mediaOf(m.components)) {
+    const filename = url.startsWith("attachment://")
+      ? url.slice("attachment://".length)
+      : decodeURIComponent(new URL(url).pathname.split("/").at(-1) ?? "");
+    if (!files.has(filename))
+      files.set(filename, url.startsWith("attachment://") ? { filename } : { filename, url });
+  }
+  return [...files.values()];
+};
+
 /** A value for a TOON row: quoted when it would break the row. */
 export const cell = (v: string | number | boolean) => {
   const s = String(v);
@@ -173,7 +204,7 @@ export const summary = (m: ApiMessage, limit = 80): string => {
     .join(" | ")
     .replace(/\s+/g, " ");
   if (text !== "") parts.push(cut(text, limit).replace(/ \(truncated.*$/, "…"));
-  const images = (m.attachments ?? []).length;
+  const images = attachmentsOf(m).length;
   if (images > 0) parts.push(`[${images} file${images === 1 ? "" : "s"}]`);
   const controls = controlsOf(m.components).filter((c) => c.kind !== "input");
   if (controls.length > 0)
@@ -216,7 +247,7 @@ export const detail = (
       .join(" ");
     lines.push(`embed: ${indent(cut(body, limit))}`);
   }
-  const files = (m.attachments ?? []).map(
+  const files = attachmentsOf(m).map(
     (a) => [a.filename, opts.files?.get(a.filename) ?? a.url ?? "(not saved)"] as const,
   );
   lines.push(...table("files", ["name", "path"], files));

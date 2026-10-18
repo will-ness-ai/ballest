@@ -2,12 +2,23 @@
 // channel (`pnpm axi sandbox create`) or the channel given with --channel. It asks the Daily API
 // (BALLEST_DAILY_URL, BALLEST_API_KEY) for the Daily, reads its board with the bot account's Steam
 // session, and posts the live card with its thread, exactly as the schedule would. It records
-// nothing, so the schedule never sees it, and it never edits the card afterwards.
+// nothing, so the schedule never sees it. With --close it then keeps the card current as the
+// schedule does until the Daily's end, so a past date's card is closed at once by the schedule's
+// own final edit (the GIF and ops are off: ops warnings go to the log only).
 import { PlatformConfigProvider } from "@effect/platform";
 import { NodeContext, NodeRuntime } from "@effect/platform-node";
+import { SqliteClient } from "@effect/sql-sqlite-node";
 import { Effect, Layer, Option } from "effect";
 import { DailyApiLive, DailyChannelLive, DailySteamLive } from "../src/dailyPost/live.js";
-import { DailyApi, postDaily } from "../src/dailyPost/schedule.js";
+import {
+  DailyApi,
+  DailyPostLog,
+  DailyPostLogLive,
+  keepCurrent,
+  postDaily,
+} from "../src/dailyPost/schedule.js";
+import { DailySpinsOff } from "../src/dailyPost/spin.js";
+import { OpsAlerts } from "../src/ops.js";
 import { MapPreviews, PreviewSourceLive } from "../src/previews.js";
 import { Renderer } from "../src/render/renderer.js";
 import { devEnvFile } from "./devEnv.js";
@@ -16,9 +27,10 @@ import { readSandbox } from "./sandbox/config.js";
 const args = process.argv.slice(2);
 const flag = args.indexOf("--channel");
 const channel = flag >= 0 ? args[flag + 1] : readSandbox()?.channelId;
+const close = args.includes("--close");
 const date = args.find((a, i) => /^\d{4}-\d{2}-\d{2}$/.test(a) && args[i - 1] !== "--channel");
 if (date === undefined) {
-  console.log("error: no date. Usage: pnpm daily-post 2026-10-18 [--channel <id>]");
+  console.log("error: no date. Usage: pnpm daily-post 2026-10-18 [--close] [--channel <id>]");
   process.exit(1);
 }
 if (channel === undefined) {
@@ -38,10 +50,16 @@ process.env.DAILY_CHANNEL_ID = channel;
 const program = Effect.gen(function* () {
   const found = yield* (yield* DailyApi).find(date);
   if (Option.isNone(found)) return yield* Effect.logInfo(`daily post: no Daily for ${date} yet`);
-  const { post, threadFailed } = yield* postDaily(found.value);
+  const { post, threadFailed, lead } = yield* postDaily(found.value);
   yield* Effect.logInfo(
     `daily post: posted ${date} as ${post.messageId} in ${channel}, thread ${post.threadId ?? `failed (${Option.getOrElse(threadFailed, () => "")})`}`,
   );
+  if (!close) return;
+  // Recorded as the schedule records a post (in memory here), so the close knows the lead.
+  const log = yield* DailyPostLog;
+  yield* log.put(post);
+  if (Option.isSome(lead)) yield* log.addLead(date, lead.value);
+  yield* keepCurrent(post);
 });
 
 program.pipe(
@@ -52,6 +70,12 @@ program.pipe(
       DailyChannelLive,
       MapPreviews.Default.pipe(Layer.provide(PreviewSourceLive)),
       Renderer.Default,
+      DailyPostLogLive.pipe(Layer.provide(SqliteClient.layer({ filename: ":memory:" }))),
+      DailySpinsOff,
+      Layer.succeed(
+        OpsAlerts,
+        OpsAlerts.make({ configured: false, post: (content) => Effect.logWarning(content) }),
+      ),
     ),
   ),
   Effect.provide(
