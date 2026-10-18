@@ -69,5 +69,5 @@ jobs:
             https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/ \
             | jq -r '.response.publishedfiledetails[0].title // empty' || true)
           jq -n --arg title "${title:-Map $PFID}" --arg pfid "$PFID" --arg run "$RUN_URL" \
-            '{content: "daily-spin.yml couldn’t draw the spinning GIF for **\($title)** (<https://steamcommunity.com/sharedfiles/filedetails/?id=\($pfid)>), so the Daily Post stays without it: \($run)", allowed_mentions: {parse: []}}' \
+            '{content: "daily-spin.yml couldn’t draw the spinning GIF for **\($title)** (<https://steamcommunity.com/sharedfiles/filedetails/?id=\($pfid)>); a Daily Post waiting on it stays without it: \($run)", allowed_mentions: {parse: []}}' \
             | curl -sf --max-time 20 -H "Content-Type: application/json" -d @- "$OPS_WEBHOOK_URL"

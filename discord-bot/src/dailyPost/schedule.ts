@@ -35,7 +35,7 @@ import {
   type DailyView,
   viewOf,
 } from "./card.js";
-import { addDays, dailyDateAt, openingOf } from "./date.js";
+import { addDays, dailyDateAt, HOUR, OPENING_HOUR_UTC, openingOf } from "./date.js";
 import { DailyHistory, type PastDaily } from "./history.js";
 import { type Lead, leadChanged, leadLine, leadOf } from "./lead.js";
 import {
@@ -51,7 +51,6 @@ import { DailySpins, SPIN_WAIT, type SpinUnavailable } from "./spin.js";
 export const READ_EVERY = Duration.toMillis("15 minutes");
 /** How often the API is asked for today's Daily until it answers. */
 export const ASK_EVERY = Duration.toMillis("1 minute");
-const HOUR = 3_600_000;
 
 // ---------------------------------------------------------------- ports
 
@@ -91,7 +90,7 @@ export class DailyThreadFailed extends Data.TaggedError("DailyThreadFailed")<{
   readonly reason: string;
 }> {}
 
-/** The daily daily channel. */
+/** The Daily Post channel. */
 export class DailyChannel extends Context.Tag("multiballs/DailyChannel")<
   DailyChannel,
   {
@@ -307,18 +306,20 @@ const pictures = Effect.fn("pictures")(function* (
 const kept = (has: boolean): Picture => (has ? "kept" : null);
 
 /**
- * Post a card with its thread, then each of `lines` in the thread, stopping at the first refused.
- * A card whose thread failed is still that day's post: recorded (as `record`, with the ids
- * Discord gave), so it isn't posted again. Returns the record and why the thread or a line
- * failed if one did.
+ * Post a card with its thread, then each of `lines` in the thread, stopping at the first refused,
+ * and record the post (as `record`, with the ids Discord gave) and the `leads` its card shows. A
+ * card whose thread failed is still that day's post, recorded so it isn't posted again. Returns
+ * the record and why the thread or a line failed if one did.
  */
 const postCard = Effect.fn("postCard")(function* (
   view: DailyView,
   card: DailyCard,
   record: Omit<DailyPostRecord, "messageId" | "threadId">,
+  leads: ReadonlyArray<Lead>,
   lines: ReadonlyArray<string>,
 ) {
   const channel = yield* DailyChannel;
+  const log = yield* DailyPostLog;
   const posted = yield* channel.post(card, threadName(view)).pipe(
     Effect.map(({ messageId, threadId }) => ({
       post: { ...record, messageId, threadId },
@@ -331,6 +332,9 @@ const postCard = Effect.fn("postCard")(function* (
       }),
     ),
   );
+  yield* log.put(posted.post);
+  for (const { at, leaders, ticks } of leads)
+    yield* log.addLead(record.daily.date, { at, leaders, ticks });
   const { threadId } = posted.post;
   if (threadId === null) return posted;
   for (const line of lines) {
@@ -358,7 +362,7 @@ export const postDaily = Effect.fn("postDaily")(function* (daily: Daily) {
   // A lead the card couldn't draw is left for the next read to record.
   const shown = Option.filter(lead, () => pics.graph !== null);
   const leads = Option.toArray(shown);
-  const posted = yield* postCard(
+  return yield* postCard(
     view,
     dailyCard(view, pics),
     {
@@ -371,12 +375,9 @@ export const postDaily = Effect.fn("postDaily")(function* (daily: Daily) {
       spin: SPIN_TO_ASK,
       board: null,
     },
+    leads,
     leads.flatMap((l) => leadLine([], l) ?? []),
   );
-  const log = yield* DailyPostLog;
-  yield* log.put(posted.post);
-  for (const lead of leads) yield* log.addLead(daily.date, lead);
-  return posted;
 });
 
 /**
@@ -395,7 +396,7 @@ export const postPast = Effect.fn("postPast")(function* (past: PastDaily) {
   // A lead the database first saw after the close was set by then (boards lock at the end).
   const graphed = leads.map((l) => ({ ...l, at: Math.min(l.at, daily.endsAt) }));
   const pics = yield* pictures(daily, map, graphed, daily.endsAt);
-  const posted = yield* postCard(
+  return yield* postCard(
     view,
     dailyCard(view, { ...pics, closed: true }),
     {
@@ -408,18 +409,14 @@ export const postPast = Effect.fn("postPast")(function* (past: PastDaily) {
       spin: SPIN_TO_ASK,
       board,
     },
+    leads,
     leads.flatMap(
       (lead, i) => leadLine(leads.slice(0, i), lead, lead.exact ? "read" : "byRefresh") ?? [],
     ),
   );
-  const log = yield* DailyPostLog;
-  yield* log.put(posted.post);
-  for (const { at, leaders, ticks } of leads)
-    yield* log.addLead(daily.date, { at, leaders, ticks });
-  return posted;
 });
 
-/** A closed card whose spinning GIF is still to ask for or to come. */
+/** Whether a Daily Post's spinning GIF, live or closed, is still to ask for or to come. */
 const spinPending = (post: DailyPostRecord) =>
   post.spin.state === "ask" || post.spin.state === "asked";
 
@@ -501,7 +498,7 @@ const keeperOf = Effect.fn("keeperOf")(function* (start: DailyPostRecord) {
       if ((yield* Clock.currentTimeMillis) >= askedAt + SPIN_WAIT) {
         yield* ops.tell(
           "late",
-          `Multiballs has no spinning GIF for the Daily for ${date} an hour after asking for it (daily-spin.yml); the card stays without it.`,
+          `Multiballs has no spinning GIF for the Daily for ${date} an hour after asking for it: daily-spin.yml may have failed or never started. The card stays without it.`,
         );
         yield* setSpin({ state: "late" });
       }
@@ -690,10 +687,10 @@ export const BACKFILL_DAYS = 3;
 
 /**
  * The backfill, on the first run with no Daily Posts recorded: the BACKFILL_DAYS Dailies before
- * `today`'s (the one open now), oldest first, posted closed from the leaderboard database (postPast) and recorded,
- * each with its lead. Without a database it says why and posts none; a database that can't be
- * read reaches ops and ends it; a date the database has no Daily for, or one still running, is
- * skipped. Returns the posts, whose GIFs are still to come.
+ * `today`'s (the one open now), oldest first, posted closed from the leaderboard database
+ * (postPast) and recorded, each with its lead. Without a database it says why and posts none; a
+ * database that can't be read reaches ops and ends it; a date the database has no Daily for, or
+ * one still running, is skipped. Returns the posts, whose GIFs are still to come.
  */
 export const backfill = Effect.fn("backfill")(function* (today: string) {
   const history = yield* DailyHistory;
@@ -763,7 +760,7 @@ const postToday = Effect.fn("postToday")(function* (date: string) {
       if (now >= openingOf(date) + HOUR)
         yield* ops.tell(
           "missing",
-          `Multiballs has found no Daily for ${date} an hour after 01:00 UTC; it keeps asking every minute.`,
+          `Multiballs has found no Daily for ${date} an hour after ${String(OPENING_HOUR_UTC).padStart(2, "0")}:00 UTC; it keeps asking every minute.`,
         );
     } else {
       const posted = yield* Effect.either(postDaily(found.right.value));

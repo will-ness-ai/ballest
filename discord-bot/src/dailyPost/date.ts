@@ -1,7 +1,7 @@
 // A Daily's date, "2026-10-18": its name (CONTEXT.md), the key its Daily Post is recorded under,
 // and the day its window opens on. The one place that string is read, written and timed.
 
-const HOUR = 3_600_000;
+export const HOUR = 3_600_000;
 export const DAY = 24 * HOUR;
 /** When a day's Daily opens (its window opens at 01:00 UTC since 2026-09-05). */
 export const OPENING_HOUR_UTC = 1;

@@ -71,6 +71,22 @@ describe("the Daily Post's lead graph", () => {
     expect(textsOf(closed)).not.toContain("now");
   });
 
+  it("reads a match at the same shown time as a tie, however many ticks apart", () => {
+    const scene = leadGraphScene({
+      opensAt: OPENS,
+      closesAt: OPENS + 24 * H,
+      // B's run is one tick faster than A's, both shown as 0:09.000.
+      leads: [
+        lead(1, ["A"], 9.0005),
+        { at: OPENS + 2 * H, leaders: ["B", "A"], ticks: ticks(9.0005) - 1 },
+      ],
+      now: OPENS + 3 * H,
+    });
+    const texts = textsOf(scene);
+    expect(texts).toContain("B ties");
+    expect(texts).not.toContain("B");
+  });
+
   it("colours leaders in the order they first led, a fifth in the neutral dim", () => {
     const five = ["A", "B", "C", "D", "E"].map((n, i) => lead(i + 1, [n], 9 - i * 0.1));
     const scene = leadGraphScene({

@@ -654,7 +654,7 @@ describe("the Daily Post's spinning GIF", () => {
         yield* TestClock.setTime(OPENS);
         yield* t.runFor(2 * HOUR);
         expect(yield* Ref.get(t.alerts)).toEqual([
-          "Multiballs has no spinning GIF for the Daily for 2026-10-18 an hour after asking for it (daily-spin.yml); the card stays without it.",
+          "Multiballs has no spinning GIF for the Daily for 2026-10-18 an hour after asking for it: daily-spin.yml may have failed or never started. The card stays without it.",
         ]);
         yield* Ref.set(t.drawn, Option.some(spin(OPENS + 2 * HOUR)));
         yield* t.runFor(2 * HOUR);
@@ -747,18 +747,25 @@ describe("the Daily Post's backfill", () => {
     }),
   );
 
-  it.scoped("times a backfilled line exactly when the run's Ghost dated it", () =>
-    Effect.gen(function* () {
-      const t = yield* setup;
-      const date = "2026-10-17";
-      const exact = past(date, [{ ...steal[0]!, at: 2 * HOUR + 17 * MINUTE, exact: true }]);
-      yield* Ref.set(t.history, Option.some(new Map([[date, exact]])));
-      yield* TestClock.setTime(OPENS);
-      yield* t.runFor(MINUTE);
-      expect((yield* Ref.get(t.lines))[0]?.content).toBe(
-        `-# <t:${Date.UTC(2026, 9, 17, 3, 17) / 1000}:t> · 🏁 **FEDUS** sets the first time: **0:08.566**`,
-      );
-    }),
+  it.scoped(
+    "times a backfilled line exactly when the run's Ghost dated it, as a live one reads",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* setup;
+        const date = "2026-10-17";
+        // The first time only by its Refresh; the steal dated by its Ghost.
+        const mixed = past(date, [
+          steal[0]!,
+          { ...steal[1]!, at: 13 * HOUR + 41 * MINUTE, exact: true },
+        ]);
+        yield* Ref.set(t.history, Option.some(new Map([[date, mixed]])));
+        yield* TestClock.setTime(OPENS);
+        yield* t.runFor(MINUTE);
+        expect((yield* Ref.get(t.lines)).map((l) => l.content)).toEqual([
+          `-# by the <t:${Date.UTC(2026, 9, 17, 3) / 1000}:t> Refresh · 🏁 **FEDUS** sets the first time: **0:08.566**`,
+          `-# <t:${Date.UTC(2026, 9, 17, 14, 41) / 1000}:t> · 🏁 **airman** takes the lead from **FEDUS**, who held it for 11h 41m · 0:08.566 → **0:08.532** (−0.034 s)`,
+        ]);
+      }),
   );
 
   it.scoped("first started before 01:00, posts the three closed Dailies, then the live one", () =>

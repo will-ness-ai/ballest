@@ -10,7 +10,7 @@ import {
   progress,
   SCORE_TICKS_PER_SECOND,
 } from "../domain.js";
-import { dailyTime } from "../dailyPost/card.js";
+import { dailyTime, sameTime } from "../dailyPost/card.js";
 import type { Lead } from "../dailyPost/lead.js";
 import type { CardView, Improvement, ProfilePreview } from "../ports.js";
 import { boardRows, formatGap, mapTitle, matchDetails } from "../present.js";
@@ -1252,7 +1252,9 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
     if (next !== undefined)
       lines += `<line x1="${x1}" y1="${ly}" x2="${x1}" y2="${y(secs(next.ticks))}" stroke="${colour}" stroke-width="1"/>`;
     const joined =
-      prev?.ticks === lead.ticks ? lead.leaders.filter((n) => !prev.leaders.includes(n)) : [];
+      prev !== undefined && sameTime(prev.ticks, lead.ticks)
+        ? lead.leaders.filter((n) => !prev.leaders.includes(n))
+        : [];
     const dot = joined[0] ?? holderOf(lead);
     lines += `<circle cx="${x0}" cy="${ly}" r="2.5" fill="${colourOf(dot)}" stroke="${G.bg}" stroke-width="1"/>`;
     // A name starts at its dot, or ends at the plot's right edge when it would run past it (a
