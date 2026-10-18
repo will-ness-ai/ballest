@@ -113,6 +113,12 @@ know (one a game update added) keep the marble, and so does every derived or Ove
 whose Entries the Ghost step never reads, and the
 marble still turns over to the Steam avatar either way.
 
+Where no run's Skin is known, a player's Chosen Skin (CONTEXT.md) stands in for the marble.
+The root layout reads every pick once (`getChosenSkins`, cached under its own tag, which a
+save expires) and hands it down through `components/ChosenSkins.tsx`, and `Marble` resolves
+the run's Skin, then the Chosen Skin, then the hue: so every surface that draws a marble shows
+it, even one that knows a player only by Steam ID, and no query carries it.
+
 A new skin takes a picture and a line in `lib/skins.ts`. The list and pictures were made
 on 2026-10-08 (`prototype/skins/` on branch `claude/prototype-skins`, with the game's own
 tile icons and notes on which skins animate): the plain colours are shot with the texture

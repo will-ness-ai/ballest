@@ -10,6 +10,7 @@ import {
   boardPage,
   boardPlaces,
   boardScores,
+  chosenSkins,
   circuitCounts,
   freshness,
   derivedStandings,
@@ -378,5 +379,12 @@ describe("a board's record history", () => {
   test("an Overall board and an unknown board have none", async () => {
     expect(await historyInput(t.db, "OverallLeaderboard_EASeason2")).toBeNull();
     expect(await historyInput(t.db, "Map_Nope")).toBeNull();
+  });
+});
+
+describe("Chosen Skins", () => {
+  test("are every pick as its picture; one the site has no picture for draws the marble", async () => {
+    /* tiny: p1 chose Cosmic; p3 chose a Skin the site doesn't list */
+    expect(await chosenSkins(t.db)).toEqual({ [p(1)]: "/skins/DA_Skin_Cosmic1.webp" });
   });
 });

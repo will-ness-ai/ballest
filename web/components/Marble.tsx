@@ -1,9 +1,12 @@
+"use client";
 // A player's marble: the ball skin their run was rolled with where its Ghost has been read
-// (lib/skins.ts), else a glass ball in a hue taken from their Steam ID. It turns over to
-// their Steam avatar where Steam gave one (on hover, focus, or a tap: Behaviours.tsx).
-// Server and client components both draw them; each ball's gradient gets its own id.
+// (lib/skins.ts), else the Chosen Skin they picked (components/ChosenSkins.tsx), else a glass
+// ball in a hue taken from their Steam ID. It turns over to their Steam avatar where Steam
+// gave one (on hover, focus, or a tap: Behaviours.tsx). Server and client components both
+// draw them; each ball's gradient gets its own id.
 import { useId } from "react";
 
+import { useChosenSkin } from "./ChosenSkins";
 import { hueFor, personaOf, safeImg } from "../lib/rules";
 import { skinPicture } from "../lib/skins";
 
@@ -70,7 +73,8 @@ export interface MarbleWho {
    anyway, for a marble inside a link, where a button can't go */
 export function Marble({ who, still = false }: { who: MarbleWho; still?: boolean }) {
   const h = hueFor(who.steamId);
-  const skin = skinPicture(who.skin);
+  const chosen = useChosenSkin(who.steamId);
+  const skin = skinPicture(who.skin) ?? chosen;
   const ball = skin ? <Skin src={skin} /> : <Ball h={h} />;
   const style = { "--h": h } as React.CSSProperties;
   const avatar = safeImg(who.avatar);

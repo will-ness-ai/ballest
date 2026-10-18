@@ -54,6 +54,9 @@ export const DATA_TAG = "data";
    persona comes from the boards, by a Refresh too) */
 export const PREFAB_TAG = "prefabs";
 
+/* every player's Chosen Skin, expired only by a save (POST /api/me/skin) */
+export const CHOSEN_SKIN_TAG = "chosen-skins";
+
 let client: Db | undefined;
 
 // One pool per server process, opened on the first read.
@@ -99,6 +102,15 @@ export async function getSite(): Promise<Site> {
     })),
     podiums: podiumTallies(placings),
   };
+}
+
+/* every player's Chosen Skin, as the picture each marble draws (components/ChosenSkins.tsx):
+   read once per page by the root layout */
+export async function getChosenSkins(): Promise<Record<string, string>> {
+  "use cache: remote";
+  cacheTag(CHOSEN_SKIN_TAG);
+  cacheLife("max");
+  return q.chosenSkins(db());
 }
 
 /* every Circuit Track's Steam leaderboard ID, in the site's order (GET /api/tracks) */

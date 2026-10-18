@@ -64,6 +64,13 @@
       "when": 1792265477136,
       "tag": "0008_map_files",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792345543699,
+      "tag": "0009_chosen_skins",
+      "breakpoints": true
     }
   ]
 }
