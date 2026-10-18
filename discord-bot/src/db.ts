@@ -44,5 +44,11 @@ export const MigratorLive = SqliteMigrator.layer({
       const sql = yield* SqlClient.SqlClient;
       yield* sql`CREATE TABLE daily_reports (day TEXT PRIMARY KEY, message_id TEXT NOT NULL)`;
     }),
+    // Each Daily Post (spec #268) by its Daily's date, so a restart resumes the live one and
+    // never posts a date twice. `data` is the record as JSON (dailyPost/schedule.ts).
+    "0006_daily_posts": Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE daily_posts (date TEXT PRIMARY KEY, state TEXT NOT NULL, data TEXT NOT NULL)`;
+    }),
   }),
 }).pipe(Layer.provide(NodeContext.layer));
