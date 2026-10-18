@@ -1,0 +1,37 @@
+name: Deploy the collector
+
+# Deploys the collector's service to Fly.io (tools/fly.toml, tools/runner.py; ADR 0012) on every
+# push to main that touches what its image holds. check.yml has already tested the scripts on
+# the PR. Its one secret, FLY_COLLECTOR_TOKEN, is a deploy token scoped to the Fly app; the
+# collector's own secrets live in `fly secrets`. A deploy stops a running Refresh, which writes
+# nothing, and the new copy runs it again at once (runner.due_on_start).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/*.py"
+      - "tools/requirements-steampy.txt"
+      - "tools/Dockerfile"
+      - "tools/.dockerignore"
+      - "tools/fly.toml"
+      - ".github/workflows/collector.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: collector-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # one machine: two would log into Steam with the same account and drop each other
+      - run: flyctl deploy --remote-only --ha=false
+        working-directory: tools
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_COLLECTOR_TOKEN }}

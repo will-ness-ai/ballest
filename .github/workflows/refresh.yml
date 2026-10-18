@@ -3,13 +3,15 @@ name: Refresh leaderboards
 # Reads Steam's boards into the database as one Refresh (tools/steampy_collect.py),
 # then asks the site to refetch its cached reads. Nothing is committed: the database
 # is the only copy (phase 5 of docs/nextjs-migration.md).
+#
+# By hand only, as a fallback: the collector's service on Fly runs the Refresh every three
+# hours (tools/runner.py, ADR 0012), and asking it is how to run one now
+# (`fly ssh console -a ballest-collector -C "python runner.py ask refresh"`). Run this only
+# while that service is down: both log into Steam with the same account, and two logins drop
+# each other.
 
 on:
-  schedule:
-    # Every 3 hours (00:00, 03:00, ... UTC). GitHub may delay scheduled runs by
-    # a few minutes under load.
-    - cron: "0 */3 * * *"
-  workflow_dispatch: {} # allow manual "Run workflow" from the Actions tab
+  workflow_dispatch: {}
 
 # Don't let two refreshes overlap.
 concurrency:

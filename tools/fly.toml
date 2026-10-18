@@ -1,0 +1,26 @@
+# The collector's service in production (runner.py, ADR 0012): the Refresh every 3 hours and
+# the Maps a #new-tracks post adds. CI deploys it on every push to main that touches the
+# collector (.github/workflows/collector.yml). Secrets live in `fly secrets`, never here.
+app = "ballest-collector"
+primary_region = "ord"
+kill_signal = "SIGTERM"
+kill_timeout = 10
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  # after each database commit the scripts ask the site to refetch its cached reads
+  SITE_URL = "https://ballestrecords.com"
+
+# No [http_service]: the app has no public address. Multiballs reaches it on Fly's private
+# network at ballest-collector.internal:8080. One machine only (deploy with --ha=false): a
+# second would log into Steam beside the first, and the two would drop each other.
+
+[[restart]]
+  policy = "always"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

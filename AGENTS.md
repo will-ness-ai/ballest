@@ -35,7 +35,7 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `docs/data.md` — the database the collector writes and the site reads, table by table,
   and how a Refresh gets there. Read it before changing a table or the write path.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
-- `tools/steampy_collect.py` — the collector CI runs. **This is the live path.** It reads
+- `tools/steampy_collect.py` — the collector, run every three hours on Fly. **This is the live path.** It reads
   the Circuit boards and keeps the Workshop boards current (`collect_workshop`).
 - `tools/steampy_common.py` — the steam.py leaderboard requests the collector and the
   Discord script share: read a board by ID, find a board by name.
@@ -50,18 +50,23 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   (`docs/data.md`, "Ghosts"; `docs/site.md`, "Ball skins").
 - `tools/map_files.py` — the collector's Map file step, after the Ghost step: downloads each
   Workshop Map's new or changed file into `map_files` for the 3D view (`docs/data.md`, "Map files").
-  `map-files.yml`, by hand, runs it alone for an hour to fill a backlog, and `add-maps.yml` runs it
-  on just the Maps it added.
+  The service asks it alone for an hour to fill a backlog (`ask map-files?budget=3600`).
 - `tools/add_maps.py` — adds the Workshop's newest Maps between Refreshes, run by
   `add-maps.yml` when Multiballs hears a post in the game Discord's #new-tracks
   (`docs/data.md`, "New Maps").
 - `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
   Workshop links) and prints the `maps:` line; `docs/site.md`, "Campaigns".
-- `.github/workflows/refresh.yml` — cron `0 */3 * * *`, writes the Refresh to the database
-  and revalidates the site's cached reads; it commits nothing. `backfill.yml`, by hand only,
-  runs the backfill against an empty production (cloud sessions can't reach Neon) in the
-  same concurrency group. `migrate.yml`, by hand with Will's OK, applies a branch's
-  migrations to production before it merges.
+- `tools/runner.py` — the collector's service on Fly.io (app `ballest-collector`, ADR 0012):
+  runs the Refresh every three hours on the hour (UTC), writing the database and revalidating
+  the site's cached reads, and every other job that logs into Steam, one at a time, since two
+  logins on one account drop each other. Its private HTTP door takes a Refresh, a Map add or a
+  file backlog on request (`fly ssh console -a ballest-collector -C "python runner.py ask refresh"`),
+  and a failure posts to the ops channel. `tools/fly.toml` and `tools/Dockerfile` build it, and
+  `collector.yml` deploys it on every push to `main` that touches `tools/*.py`. Logs: `fly logs -a ballest-collector`.
+- `.github/workflows/refresh.yml` — the Refresh by hand, only while the Fly service is down.
+  `backfill.yml`, by hand only, runs the backfill against an empty production (cloud sessions
+  can't reach Neon). `migrate.yml`, by hand with Will's OK, applies a branch's migrations to
+  production before it merges.
 - `.github/workflows/vercel-usage.yml` — daily, runs `tools/vercel_usage.py`, which reports the
   Vercel team's plan and renewal, this cycle against Pro's Flat Rate CDN tier, and whether the
   last 30 days would fit Hobby, to the private ops channel (`OPS_WEBHOOK_URL`). It posts on
@@ -115,7 +120,7 @@ secrets (`.env`, `tools/refresh_token.txt`) live in the main checkout and are fo
 a worktree.
 
 The collector writes only the database, and reads its memory from it first, so it never
-runs without one. A run writes `DATABASE_URL` (production, set only in CI). From a feature
+runs without one. A run writes `DATABASE_URL` (production, set only on Fly and in Actions secrets). From a feature
 branch, run it with `--dev`, which ignores `DATABASE_URL` and writes only
 `DEV_DATABASE_URL`, a local Postgres for now, not a Neon branch. Create a database and
 migrate it with

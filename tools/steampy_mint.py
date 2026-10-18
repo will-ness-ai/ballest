@@ -6,7 +6,8 @@ Steam Guard code — they are never stored or sent anywhere but Steam), then:
   1. prints your refresh token and saves it to tools/refresh_token.txt (gitignored),
   2. proves the whole pipeline by reading the top 5 of the Season 2 Overall board.
 
-Take the printed token and store it as the GitHub Actions secret STEAM_REFRESH_TOKEN.
+Take the printed token and store it as the Fly secret STEAM_REFRESH_TOKEN of ballest-collector
+(and the GitHub Actions secret of the same name, for the hand-run workflows).
 The token is long-lived; re-run this only if CI later reports the token expired.
 
 Run:  (from repo root, in the steam.py venv — see tools/README-hosting.md)

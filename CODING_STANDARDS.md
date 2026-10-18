@@ -48,7 +48,7 @@ it breaks. Those files carry the reasons; this file carries the checks.
   whole board" in `CLAUDE.md`: a failed or empty read leaves its board's Entries as they were.
 - `python -m pytest tools/tests` passes after any collector change.
 - A change to when a board is read (`collect_workshop`'s trigger, `FULL_SWEEP_SECONDS`, the
-  `refresh.yml` cron) updates the refresh dialog's copy (`components/Freshness.tsx`), which
+  Refresh slots, `SLOT_HOURS` in `tools/runner.py`) updates the refresh dialog's copy (`components/Freshness.tsx`), which
   restates those rules for players.
 - Work spread across Refreshes (a rotating slice, a turn) is keyed on the Refresh count
   rather than on clock windows (`docs/data.md`, "How a Refresh gets there"). Elapsed-time
