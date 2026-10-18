@@ -3,7 +3,7 @@
 // a test can hold it to.
 import { describe, expect, it } from "vitest";
 import type { Lead } from "../src/dailyPost/lead.js";
-import { type El, leadGraphScene } from "../src/render/scenes.js";
+import { type El, LEAD_GRAPH_WIDTH, leadGraphScene } from "../src/render/scenes.js";
 import { ticks } from "./harness.js";
 
 const H = 3_600_000;
@@ -87,5 +87,56 @@ describe("the Daily Post's lead graph", () => {
       (m) => m[1],
     );
     expect(strokes).toEqual(["#3987e5", "#d95926", "#199e70", "#c98500", "#9aa3c7"]);
+  });
+
+  it("keeps every name and the leading time inside the image, a late steal's too", () => {
+    /** Each placed text's left and right edge, its width measured at a generous 0.6 em a letter. */
+    const edges = (el: El): Array<{ text: string; from: number; to: number }> => {
+      const style = el.props.style ?? {};
+      const kids = el.props.children ?? [];
+      const text = kids.find((c): c is string => typeof c === "string");
+      const here: Array<{ text: string; from: number; to: number }> = [];
+      if (style.position === "absolute" && text !== undefined) {
+        const width = text.length * Number(style.fontSize) * 0.6;
+        if (typeof style.left === "number")
+          here.push({ text, from: style.left, to: style.left + width });
+        else if (typeof style.right === "number")
+          here.push({
+            text,
+            from: LEAD_GRAPH_WIDTH - style.right - width,
+            to: LEAD_GRAPH_WIDTH - style.right,
+          });
+      }
+      return [
+        ...here,
+        ...kids.flatMap((c) => (c === null || typeof c === "string" ? [] : edges(c))),
+      ];
+    };
+    const scenes = [
+      // A closed card whose only lead was first seen at the close.
+      leadGraphScene({
+        opensAt: OPENS,
+        closesAt: OPENS + 24 * H,
+        leads: [lead(24, ["snayK"], 17.585)],
+        now: null,
+      }),
+      // A steal minutes before the close, by a long name.
+      leadGraphScene({
+        opensAt: OPENS,
+        closesAt: OPENS + 24 * H,
+        leads: [...LEADS, lead(23.8, ["MitchPleaseAgain"], 8.5)],
+        now: null,
+      }),
+    ];
+    for (const scene of scenes) {
+      const placed = edges(scene);
+      expect(placed.map((p) => p.text)).toEqual(
+        expect.arrayContaining([expect.stringMatching(/snayK|MitchPleaseAgain/)]),
+      );
+      for (const p of placed) {
+        expect(p.from, p.text).toBeGreaterThanOrEqual(0);
+        expect(p.to, p.text).toBeLessThanOrEqual(LEAD_GRAPH_WIDTH);
+      }
+    }
   });
 });

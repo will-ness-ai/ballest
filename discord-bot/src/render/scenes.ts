@@ -1241,25 +1241,30 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
 
   // The steps, then a dot where each began, and who led it named under it.
   const labels: Array<{ x: number; y: number; text: string; width: number }> = [];
+  const steps: Array<{ from: number; to: number; y: number }> = [];
   leads.forEach((lead, i) => {
     const next = leads[i + 1];
     const prev = leads[i - 1];
     const colour = colourOf(holderOf(lead));
     const [x0, x1, ly] = [x(lead.at), x(next?.at ?? end), y(secs(lead.ticks))];
     lines += `<line x1="${x0}" y1="${ly}" x2="${x1}" y2="${ly}" stroke="${colour}" stroke-width="1.5"/>`;
+    steps.push({ from: x0, to: x1, y: ly });
     if (next !== undefined)
       lines += `<line x1="${x1}" y1="${ly}" x2="${x1}" y2="${y(secs(next.ticks))}" stroke="${colour}" stroke-width="1"/>`;
     const joined =
       prev?.ticks === lead.ticks ? lead.leaders.filter((n) => !prev.leaders.includes(n)) : [];
     const dot = joined[0] ?? holderOf(lead);
     lines += `<circle cx="${x0}" cy="${ly}" r="2.5" fill="${colourOf(dot)}" stroke="${G.bg}" stroke-width="1"/>`;
-    if (joined.length > 0) {
-      const text = `${joined.map(clip).join(" & ")} ${joined.length === 1 ? "ties" : "tie"}`;
-      labels.push({ x: x0 + 2, y: ly - 5, text, width: textWidth(text, 8) });
-    } else if (prev === undefined || holderOf(prev) !== holderOf(lead)) {
-      const text = clip(holderOf(lead));
-      labels.push({ x: x0 + 2, y: ly + 11, text, width: textWidth(text, 8) });
-    }
+    // A name starts at its dot, or ends at the plot's right edge when it would run past it (a
+    // late steal, or a lead first seen at the close).
+    const label = (text: string, ty: number) => {
+      const width = textWidth(text, 8);
+      labels.push({ x: Math.min(x0 + 2, W - R - width), y: ty, text, width });
+    };
+    if (joined.length > 0)
+      label(`${joined.map(clip).join(" & ")} ${joined.length === 1 ? "ties" : "tie"}`, ly - 5);
+    else if (prev === undefined || holderOf(prev) !== holderOf(lead))
+      label(clip(holderOf(lead)), ly + 11);
   });
   // The latest labels win where two would overlap.
   const kept: typeof labels = [];
@@ -1278,7 +1283,8 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
     const width = textWidth(text, 9);
     const right = x(end) + 5 + width <= W - 2;
     const left = right ? x(end) + 5 : x(end) - width;
-    // Each label's box runs from a line's height above its baseline down to the baseline.
+    // Each label's box runs from a line's height above its baseline down to the baseline. The
+    // time clears the names, and the steps it would sit on (a late steal's last step is short).
     const clear = (baseline: number) =>
       !kept.some(
         (k) =>
@@ -1286,6 +1292,10 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
           baseline - 9 < k.y + 1 &&
           k.x < left + width &&
           left < k.x + k.width,
+      ) &&
+      !steps.some(
+        (st) =>
+          baseline - 8 < st.y && st.y < baseline + 2 && st.from < left + width && left < st.to,
       );
     const baseline = [right ? ly + 3.5 : ly - 6, ly - 6, ly + 13, ly - 16].find(clear) ?? ly - 6;
     overlays.push(

@@ -275,6 +275,19 @@ const program = Effect.gen(function* () {
     "lead-graph-first",
     yield* renderer.leadGraph({ ...graph, leads: leads.slice(0, 1), now: hour(0.5) }),
   );
+  // A steal minutes before the close, and a lead first seen at it: names stay inside the image.
+  yield* save(
+    "lead-graph-late-steal",
+    yield* renderer.leadGraph({
+      ...graph,
+      leads: [...leads, lead(23.8, ["MitchPleaseAgain"], 8.5)],
+      now: null,
+    }),
+  );
+  yield* save(
+    "lead-graph-at-close",
+    yield* renderer.leadGraph({ ...graph, leads: [lead(24, ["snayK"], 17.585)], now: null }),
+  );
   yield* Effect.log(`wrote samples to ${out}`);
 });
 
