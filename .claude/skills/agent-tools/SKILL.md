@@ -44,18 +44,19 @@ in the part you touch.
 1. **Name the chain.** Write down the calls an agent makes today to answer the question
    the tool is for (from the session or retro that asked for it): each command, what it printed,
    what the agent kept of it. Done when you can say which of those calls the tool replaces, and
-   the turns and tokens before and after.
+   the turns and output bytes (`wc -c`) before and after.
 2. **Shape the commands.** One entry point with subcommands, run the way the package runs
    scripts (`pnpm --silent <name>` in a Node package, `python tools/<name>.py` in Python). Write
-   each command's `--help` first, from the rules below. Done when each answer the chain reached
-   is one command whose links run inside it, and the bare run's output is sketched.
+   each command's `--help` first, from the rules below. Done when each chain from step 1 is one
+   command that runs its links inside, and the bare run's output is sketched.
 3. **Build it** to the rules below, with tests for its parsing and row formatting (as
    `discord-bot/test/axiDescribe.test.ts` does). Done when every rule is met or its absence is
    a deliberate choice you can name, and the tests pass.
 4. **Run it as the agent will.** In a fresh shell: the bare run, each command's happy path, an
    empty result, a misspelt flag, a missing argument and a dependency failure (network down,
    process not running). Done when each output alone tells the agent its next step, nothing
-   leaks a stack trace, and the chain from step 1 takes the turns and tokens you promised.
+   leaks a stack trace, and the chain from step 1 takes the turns and bytes you promised while
+   its output still holds every fact step 1 marked as kept.
 5. **Point at it.** Add one line where agents working in that area already look (the package's
    `AGENTS.md`, the `docs/` page, the skill that drives the work), naming the command and when to
    run it; its `--help` carries the rest. Call the Skill tool for 'writing-for-agents', and word
@@ -73,6 +74,8 @@ in the part you touch.
 - **Few fields, enough rows.** A list row carries what lets the agent pick the next call: a
   name and a state it reasons with, and an id only where a next command takes one. Everything
   else waits for the detail view or `--full`. Default limits cover the common case in one call.
+- **Intermediate results stay inside.** Only the answer prints; a result the agent may need
+  later goes to a file, and its path prints.
 - **Cut long text with its size.** A long value prints its first 500-1500 characters and
   `… (truncated, 8432 chars total; use --full)`. Images and other files are written to disk and
   printed as paths for the agent to read.
@@ -92,9 +95,6 @@ in the part you touch.
   commands that follow from it, carrying the flags in use and `<id>`-style placeholders for
   values the agent must fill. Offer a few directions, not a fixed sequence. A detail view that
   fully answers leaves it out.
-- **The chain runs inside.** Each lookup, filter and join the agent would have made happens in
-  the tool; only the answer prints. Intermediate results stay out of stdout, or go to a file
-  whose path prints when the agent may need them later.
 - **Waits are commands.** When the agent would otherwise poll (a log line, a message, a window),
   give it a `wait <pattern>` that returns when it matches and says so when it times out.
 - **Mutations repeat safely.** Asking for a state that already holds succeeds with `(no-op)`.
