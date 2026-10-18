@@ -60,8 +60,9 @@ Open in Neon.
   current version is kept (ADR 0010).
 - `map_spins`: one per Map whose spinning GIF has been drawn for a Daily Post (spec #268), by
   pfid (no foreign key): the `map_files` version it was drawn from, the GIF (`gif`, bytes,
-  about 4 MB) and when (`drawn_at`). Only the latest drawing is kept. `daily-spin.yml` writes
-  it, started by Multiballs with a pfid (or by hand): `web/scripts/map-spin.ts` opens the Map's
+  about 4 MB) and when (`drawn_at`). Only the latest drawing is kept. Not the collector but
+  `daily-spin.yml` writes it (ADR 0013: drawing it needs a browser with WebGL), started by
+  Multiballs with a pfid (or by hand): `web/scripts/map-spin.ts` opens the Map's
   3D view on ballestrecords.com in Chromium with software WebGL, drags it one full turn in 160
   frames and encodes a 360 px GIF at 12.8 frames a second with ffmpeg. It refuses a Map with
   no `map_files` row. The bot only reads it (`discord-bot/AGENTS.md`, "The Daily Post"). To
