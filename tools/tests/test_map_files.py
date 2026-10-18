@@ -306,6 +306,9 @@ def test_maps_naming_none_on_the_newest_page_never_logs_into_steam(monkeypatch, 
     monkeypatch.setattr(map_files.steam, "Client", None)  # calling it would raise
     monkeypatch.setenv("DEV_DATABASE_URL", "postgres://unused")
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(map_files.cc, "workshop_catalogue", lambda _: [])
     assert map_files.main(["--maps", ",", "--dev"]) == 1
     assert map_files.main(["--maps", "2", "--dev"]) == 1
-    assert "no Map to look at" in capsys.readouterr().out
+    assert capsys.readouterr().out.count("none of --maps is on the newest page") == 2
+    assert map_files.main(["--dev"]) == 1
+    assert "(the Workshop lists none)" in capsys.readouterr().out

@@ -207,9 +207,14 @@ def main(argv=None):
         return 2
     catalogue = catalogue_of(key, args.maps)
     if not catalogue:
-        # no Steam login when there is nothing to download: a second login can drop a Refresh's
-        where = "the Workshop" if args.maps is None else "the newest page, among --maps"
-        print(f"::error::Map files: no Map to look at on {where}")
+        # no Steam login when there is nothing to download: a second login on the account can
+        # end a running Refresh's session
+        why = (
+            "the Workshop lists none"
+            if args.maps is None
+            else "none of --maps is on the newest page"
+        )
+        print(f"::error::Map files: no Map to look at ({why})")
         return 1
     client = steam.Client()
     result = {}
