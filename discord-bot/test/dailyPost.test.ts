@@ -2,6 +2,7 @@
 // podium with ties, the Medals line, and the thread's name. Real data: Daily #60, "the drop".
 import { describe, expect, it } from "vitest";
 import { cardText, dailyNumber, type DailyView, threadName } from "../src/dailyPost/card.js";
+import { type Lead, leadLine } from "../src/dailyPost/lead.js";
 import { ticks } from "./harness.js";
 
 const ENDS = Date.UTC(2026, 9, 19, 1);
@@ -70,5 +71,60 @@ describe("a Daily Post's card", () => {
 
   it("names the thread after the Daily", () => {
     expect(threadName(view())).toBe("Daily #60 · the drop · Sun 18 Oct");
+  });
+});
+
+describe("a Daily Post's thread lines", () => {
+  const H = 3_600_000;
+  const OPEN = Date.UTC(2026, 9, 18, 1);
+  const lead = (hours: number, leaders: ReadonlyArray<string>, seconds: number): Lead => ({
+    at: OPEN + hours * H,
+    leaders,
+    ticks: ticks(seconds),
+  });
+
+  it("marks the first time", () => {
+    expect(leadLine([], lead(0.4, ["MitchPlease"], 8.912))).toBe(
+      "-# <t:1792286640:t> · 🏁 **MitchPlease** sets the first time: **0:08.912**",
+    );
+  });
+
+  it("names who the lead was taken from, how long they held it, and by how much", () => {
+    const history = [lead(0.4, ["MitchPlease"], 8.912)];
+    expect(leadLine(history, lead(1.17, ["FEDUS"], 8.701))).toBe(
+      "-# <t:1792289412:t> · 🏁 **FEDUS** takes the lead from **MitchPlease**, who held it for 46m · 0:08.912 → **0:08.701** (−0.211 s)",
+    );
+  });
+
+  it("counts a Reign from when it began, through the holder's own faster times", () => {
+    const history = [
+      lead(0.4, ["MitchPlease"], 8.912),
+      lead(1, ["FEDUS"], 8.701),
+      lead(2, ["FEDUS"], 8.65),
+    ];
+    expect(leadLine(history, lead(4.25, ["airman"], 8.6))).toContain(
+      "from **FEDUS**, who held it for 3h 15m · 0:08.650 → **0:08.600** (−0.050 s)",
+    );
+  });
+
+  it("says nothing when the leader only beats their own time", () => {
+    expect(leadLine([lead(1, ["FEDUS"], 8.701)], lead(2, ["FEDUS"], 8.65))).toBeNull();
+  });
+
+  it("posts a matched time as a tie", () => {
+    const history = [lead(8, ["airman"], 8.532)];
+    expect(leadLine(history, lead(12.5, ["airman", "snayK"], 8.532))).toBe(
+      "-# <t:1792330200:t> · 🤝 **snayK** ties **airman** for the lead: **0:08.532**",
+    );
+  });
+
+  it("takes a shared lead from everyone who shared it", () => {
+    const history = [lead(8, ["airman"], 8.532), lead(12, ["airman", "snayK"], 8.532)];
+    expect(leadLine(history, lead(14, ["FEDUS"], 8.5))).toContain(
+      "🏁 **FEDUS** takes the lead from **airman** & **snayK**, who held it for 6h ·",
+    );
+    expect(leadLine(history, lead(14, ["snayK"], 8.5))).toContain(
+      "🏁 **snayK** takes the lead from **airman**, who held it for 6h ·",
+    );
   });
 });

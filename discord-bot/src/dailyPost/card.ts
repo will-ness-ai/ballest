@@ -84,7 +84,7 @@ const bold = (s: string) => `**${escape(s)}**`;
 const PLACES = ["🥇", "🥈", "🥉"];
 
 /** A run time in whole milliseconds, cut rather than rounded: the site's `fmtTime`. */
-const millis = (ticks: number) => Math.floor((ticks * 1000) / SCORE_TICKS_PER_SECOND);
+export const millis = (ticks: number) => Math.floor((ticks * 1000) / SCORE_TICKS_PER_SECOND);
 
 /**
  * A run time as the site shows it, 0:08.532: cut to the thousandth, never rounded, so the Daily
