@@ -9,8 +9,14 @@ on:
   push:
     branches: [main]
     paths: ["discord-bot/**", ".github/workflows/bot.yml"]
+  # A PR changing the site's Skins or its schema checks the bot too: its tests read both.
   pull_request:
-    paths: ["discord-bot/**", ".github/workflows/bot.yml"]
+    paths:
+      - "discord-bot/**"
+      - ".github/workflows/bot.yml"
+      - "web/lib/skins.ts"
+      - "skins/**"
+      - "web/db/migrations/**"
   workflow_dispatch: {}
 
 permissions:
@@ -19,6 +25,18 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # The Chosen Skins read (test/chosenSkins.test.ts) runs against a throwaway database the
+    # site's migrations build, so the site's dependencies are installed too.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 15
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
     defaults:
       run:
         working-directory: discord-bot
@@ -31,8 +49,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: discord-bot/pnpm-lock.yaml
+          cache-dependency-path: |
+            discord-bot/pnpm-lock.yaml
+            web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir ../web install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
 
