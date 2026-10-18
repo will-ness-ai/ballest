@@ -44,6 +44,7 @@ import { mapCard, timed, type MapCard } from "../lib/workshop";
 import { footprintOf, partsOf, shapesOf, type PrefabFile } from "../lib/prefab";
 import { fileNameOf } from "../lib/prefab-check";
 import { isPrefabSlug } from "../lib/routes";
+import type { ChosenSkinDeps } from "./chosen-skin-api";
 import { connect, type Db } from "./client";
 import type { PrefabDeps } from "./prefab-api";
 import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
@@ -54,7 +55,7 @@ export const DATA_TAG = "data";
    persona comes from the boards, by a Refresh too) */
 export const PREFAB_TAG = "prefabs";
 
-/* every player's Chosen Skin, expired only by a save (POST /api/me/skin) */
+/* every player's Chosen Skin, expired only by a save (PUT or DELETE /api/me/skin) */
 export const CHOSEN_SKIN_TAG = "chosen-skins";
 
 let client: Db | undefined;
@@ -565,4 +566,10 @@ async function prefabFileOf(slug: string) {
    read expired after a write so the change shows at once */
 export function prefabDeps(): PrefabDeps {
   return { db: db(), changed: () => revalidateTag(PREFAB_TAG, { expire: 0 }) };
+}
+
+/* what the Chosen Skin API writes with: this server's database, and the cached picks expired
+   after a save, so every page draws it on its next load without reading the boards again */
+export function chosenSkinDeps(): ChosenSkinDeps {
+  return { db: db(), changed: () => revalidateTag(CHOSEN_SKIN_TAG, { expire: 0 }) };
 }
