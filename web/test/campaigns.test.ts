@@ -136,6 +136,10 @@ describe("the lookups", () => {
     const stoxy = curated("stoxys-mini-golf");
     expect(mapLabel(stoxy, "3821644937", "stoxy's mini golf 001")).toBe("01");
     expect(mapLabel(stoxy, "3821669040", "stoxy's mini golf 009")).toBe("09");
+    // "1 of 8" counts the Maps, and the maker's last one reads "A08 of 8"
+    const limbo = curated("limbo");
+    expect(mapLabel(limbo, "3820698656", "Limbo campaign 1 of 8")).toBe("01");
+    expect(mapLabel(limbo, "3821808619", "Limbo campaign A08 of 8")).toBe("08");
     // its place, then more of a name
     expect(mapName(make("a", ["5"]), "5", "a 1 Remix")).toBe("1 Remix");
   });

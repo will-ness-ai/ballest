@@ -267,7 +267,7 @@ A Campaign (CONTEXT.md) is a player-made run of Workshop Maps that the site rank
 the game ranks a Circuit season. The game knows nothing of them, so the list in
 `web/lib/campaigns.ts` (`CAMPAIGNS`) is the only place one exists.
 
-**Adding one** is one entry in `CAMPAIGNS`: its `slug` (the path, lowercase words joined by
+**Adding one** (the run, request to live page: the `add-campaign` skill) is one entry in `CAMPAIGNS`: its `slug` (the path, lowercase words joined by
 `-`), `title`, `creator` (the maker's Workshop name), `creatorId` (the maker's Steam ID) and
 `maps`, the Maps' Workshop IDs in the maker's order. That order numbers the Maps 01, 02 and
 so on, so append a Map rather than insert one. `campaignProblems` fails the tests on a
