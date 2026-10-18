@@ -10,7 +10,7 @@ import { MapView } from "../../../../components/workshop/MapView";
 import { getMap, getWorkshop } from "../../../../db/data";
 import { pageMetadata } from "../../../../components/metadata";
 import { mapHref } from "../../../../lib/routes";
-import { timed } from "../../../../lib/workshop";
+import { isTimed, timed } from "../../../../lib/workshop";
 
 interface Props {
   params: Promise<{ pfid: string; focus?: Array<string> }>;
@@ -26,14 +26,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const m = await getMap((await params).pfid);
   /* a Map that has left the Workshop is sent home, a soft 404 kept out of results */
   if (!m) return { robots: { index: false } };
-  return pageMetadata(
+  const hasTime = isTimed(m);
+  const meta = await pageMetadata(
     {
       title: m.title,
       description: `The leaderboard of ${m.title}, a Ballest of Them All Workshop map by ${m.creator}, read straight from Steam.`,
       canonical: mapHref(m.pfid),
     },
-    { kind: "map", id: m.pfid, alt: `${m.title}, a Workshop map by ${m.creator}, and its record.` },
+    {
+      kind: "map",
+      id: m.pfid,
+      alt: `${m.title}, a Workshop map by ${m.creator}${hasTime ? ", and its record" : ""}.`,
+    },
   );
+  /* a Map nobody has a time on yet has a page, kept out of results as the sitemap keeps it */
+  return hasTime ? meta : { ...meta, robots: { index: false } };
 }
 
 async function MapPage({ params }: Props) {

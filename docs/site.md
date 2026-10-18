@@ -159,7 +159,10 @@ fails to load, or that Satori can't read, draws without it.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
   (`lib/workshop.ts`).
 - `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row, and
-  `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D").
+  `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D"). A Map nobody has a
+  time on yet, such as one added from #new-tracks since the last Refresh (`docs/data.md`,
+  "New Maps"), has its page with an empty board and no record; the lists and shelves still
+  show only Maps with times. A Map the Workshop doesn't list sends the link home.
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
   cannot collide. Every Circuit board lights the one Circuit tab, which opens the newest
@@ -224,7 +227,8 @@ Every page of the app names its canonical address (`alternates.canonical`; a pag
 player's tab names the player's page, a board or Map focused on a row or in podium order
 names the board), All maps' views name All maps and the Players table's rankings name
 Players, and each Daily is a page of its own. A Map or player the page can only send away
-(a soft 404) is `noindex`. The homepage's title says what the site is, and it carries the
+(a soft 404) is `noindex`, and so is a Map nobody has a time on yet, as the sitemap leaves
+it out. The homepage's title says what the site is, and it carries the
 site's name for search results as schema.org `WebSite` JSON-LD.
 
 The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash` replaces

@@ -100,7 +100,9 @@ export function Freshness({
                 <tr>
                   <th scope="row">A new map</th>
                   <td>&ndash;</td>
-                  <td>next refresh</td>
+                  <td>
+                    within minutes<small>its times come with the next refresh</small>
+                  </td>
                 </tr>
               </tbody>
             </table>

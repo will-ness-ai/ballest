@@ -9,6 +9,7 @@ import {
   GatewayIntentBits,
   PermissionFlagsBits,
   type Interaction,
+  type Message,
   type TextChannel,
 } from "discord.js";
 import { Config, Data, Effect, Option, Redacted, Stream } from "effect";
@@ -70,7 +71,10 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     const sandbox = yield* Config.boolean("MULTIBALLS_SANDBOX").pipe(Config.withDefault(false));
 
     const client = yield* Effect.acquireRelease(
-      Effect.sync(() => new Client({ intents: [GatewayIntentBits.Guilds] })),
+      // GuildMessages for postsIn: only that a message arrived, never its words (no Message Content).
+      Effect.sync(
+        () => new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] }),
+      ),
       (c) => Effect.promise(() => c.destroy()),
     );
     yield* Effect.async<undefined, DiscordError>((resume) => {
@@ -159,6 +163,40 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       ),
     );
 
+    /**
+     * A stream of the id of each message posted in another channel of this server, from
+     * anyone. It fails at once if that channel isn't one the bot can view, so a listener can say
+     * so and stay off.
+     */
+    const postsIn = Effect.fn("postsIn")(function* (otherId: string) {
+      const other = yield* tryDiscord("fetch channel", () => client.channels.fetch(otherId));
+      const viewable =
+        other !== null &&
+        !other.isDMBased() &&
+        other.guildId === guildId &&
+        me !== null &&
+        (other.permissionsFor(me)?.has(PermissionFlagsBits.ViewChannel) ?? false);
+      if (!viewable)
+        return yield* Effect.fail(
+          new DiscordError({
+            op: "fetch channel",
+            cause: `${otherId} is not a channel the bot can view in this server`,
+          }),
+        );
+      return Stream.asyncPush<string>((emit) =>
+        Effect.acquireRelease(
+          Effect.sync(() => {
+            const onMessage = (m: Message) => {
+              if (m.channelId === otherId) emit.single(m.id);
+            };
+            client.on(Events.MessageCreate, onMessage);
+            return onMessage;
+          }),
+          (onMessage) => Effect.sync(() => client.off(Events.MessageCreate, onMessage)),
+        ),
+      );
+    });
+
     const application = client.application;
     if (application === null) return yield* Effect.dieMessage("logged in without an application");
 
@@ -169,6 +207,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       /** That role's name on the server, as it was at startup: the words name the role by it. */
       pingRoleName: pingRole.name,
       interactions,
+      postsIn,
       /** The application's own emojis (usable anywhere the bot posts), name to id. */
       appEmojis: tryDiscord("fetch app emojis", () => application.emojis.fetch()).pipe(
         Effect.map((all) => new Map(all.map((emoji) => [emoji.name, emoji.id]))),
