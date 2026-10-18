@@ -15,6 +15,7 @@ import {
   DailySteam,
   DailyThreadFailed,
 } from "../src/dailyPost/schedule.js";
+import { DailySpins, type Spin, SpinUnavailable } from "../src/dailyPost/spin.js";
 import { OpsAlerts } from "../src/ops.js";
 import { Renderer } from "../src/render/renderer.js";
 import type { LeadGraphImage } from "../src/render/scenes.js";
@@ -79,6 +80,12 @@ const setup = Effect.gen(function* () {
   const lines = yield* Ref.make<Array<{ at: number; threadId: string; content: string }>>([]);
   const graphs = yield* Ref.make<Array<LeadGraphImage>>([]);
   const alerts = yield* Ref.make<Array<string>>([]);
+  // The Map's file in map_files (none unless a test gives it one), its drawing in map_spins,
+  // and daily-spin.yml's starts.
+  const mapFile = yield* Ref.make<Option.Option<string>>(Option.none());
+  const drawn = yield* Ref.make<Option.Option<Spin>>(Option.none());
+  const githubDown = yield* Ref.make(false);
+  const draws = yield* Ref.make<Array<{ at: number; pfid: string }>>([]);
   const sql = SqliteClient.layer({ filename: ":memory:" });
   const fakes = Layer.mergeAll(
     Layer.succeed(
@@ -122,13 +129,15 @@ const setup = Effect.gen(function* () {
               return yield* new DailyThreadFailed({ messageId, reason: "Missing Create Threads" });
             return { messageId, threadId: `t-${messageId}` };
           }),
-        edit: (messageId, message, files) =>
+        edit: (messageId, message, files = []) =>
           Effect.gen(function* () {
             if (yield* Ref.get(channelDown))
               return yield* new DailyPostFailed({ reason: "Missing Permissions" });
             const at = yield* Clock.currentTimeMillis;
-            const names = files.map((f) => f.name);
-            yield* Ref.update(edits, (e) => [...e, { at, messageId, message, files: names }]);
+            yield* Ref.update(edits, (e) => [
+              ...e,
+              { at, messageId, message, files: files.map((f) => f.name) },
+            ]);
           }),
         say: (threadId, { content }) =>
           Effect.gen(function* () {
@@ -136,6 +145,20 @@ const setup = Effect.gen(function* () {
               return yield* new DailyPostFailed({ reason: "Missing Permissions" });
             const at = yield* Clock.currentTimeMillis;
             yield* Ref.update(lines, (l) => [...l, { at, threadId, content }]);
+          }),
+      }),
+    ),
+    Layer.succeed(
+      DailySpins,
+      DailySpins.of({
+        fileVersion: () => Ref.get(mapFile),
+        latest: () => Ref.get(drawn),
+        draw: (pfid) =>
+          Effect.gen(function* () {
+            if (yield* Ref.get(githubDown))
+              return yield* new SpinUnavailable({ reason: "GitHub said 401" });
+            const at = yield* Clock.currentTimeMillis;
+            yield* Ref.update(draws, (d) => [...d, { at, pfid }]);
           }),
       }),
     ),
@@ -183,6 +206,10 @@ const setup = Effect.gen(function* () {
     lines,
     graphs,
     alerts,
+    mapFile,
+    drawn,
+    githubDown,
+    draws,
     runFor,
   };
 });
@@ -426,6 +453,122 @@ describe("the Daily Post's lead", () => {
       expect(yield* Ref.get(t.alerts)).toEqual([
         "Multiballs couldn't update the Daily Post for 2026-10-18: Missing Permissions",
       ]);
+    }),
+  );
+});
+
+describe("the Daily Post's spinning GIF", () => {
+  const GIF = new Uint8Array([71, 73, 70]);
+  const spin = (drawnAt: number, version = "v1"): Spin => ({ version, drawnAt, gif: GIF });
+  const spinning = (m: DailyMessage) =>
+    JSON.stringify(m.components).includes("attachment://spin.gif");
+
+  it.scoped(
+    "is asked for as the card goes up, and edited in at the first read after it's drawn",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* setup;
+        yield* Ref.set(t.mapFile, Option.some("v1"));
+        yield* TestClock.setTime(OPENS);
+        yield* t.runFor(5 * MINUTE);
+        expect(yield* Ref.get(t.draws)).toEqual([{ at: OPENS, pfid: "3796494598" }]);
+        expect(spinning((yield* Ref.get(t.posts))[0]!.message)).toBe(false);
+        yield* Ref.set(t.drawn, Option.some(spin(OPENS + 4 * MINUTE)));
+        yield* t.runFor(20 * MINUTE);
+        const edits = yield* Ref.get(t.edits);
+        expect(edits.map((e) => [e.at, e.files])).toEqual([[OPENS + 15 * MINUTE, ["spin.gif"]]]);
+        expect(spinning(edits[0]!.message)).toBe(true);
+        // Later edits keep it beside the podium, without sending it again.
+        yield* Ref.set(t.boardNow, board(2));
+        yield* t.runFor(15 * MINUTE);
+        const later = (yield* Ref.get(t.edits))[1]!;
+        // (The board's first time brings the lead graph with it.)
+        expect([later.files, spinning(later.message)]).toEqual([["graph.png"], true]);
+        expect((yield* Ref.get(t.draws)).length).toBe(1);
+        expect(yield* Ref.get(t.alerts)).toEqual([]);
+      }),
+  );
+
+  it.scoped("is neither asked for nor shown for a Map with no file", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* Ref.set(t.drawn, Option.some(spin(OPENS - HOUR)));
+      yield* TestClock.setTime(OPENS);
+      yield* t.runFor(3 * HOUR);
+      expect(yield* Ref.get(t.draws)).toEqual([]);
+      expect(yield* Ref.get(t.edits)).toEqual([]);
+      expect(yield* Ref.get(t.alerts)).toEqual([]);
+    }),
+  );
+
+  it.scoped("is not drawn again when one from the same file is there", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* Ref.set(t.mapFile, Option.some("v1"));
+      yield* Ref.set(t.drawn, Option.some(spin(OPENS - 30 * 24 * HOUR)));
+      yield* TestClock.setTime(OPENS);
+      yield* t.runFor(20 * MINUTE);
+      expect(yield* Ref.get(t.draws)).toEqual([]);
+      expect((yield* Ref.get(t.edits)).map((e) => e.files)).toEqual([["spin.gif"]]);
+    }),
+  );
+
+  it.scoped("is drawn again when the Map's file changed, and the old one isn't shown", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* Ref.set(t.mapFile, Option.some("v2"));
+      yield* Ref.set(t.drawn, Option.some(spin(OPENS - 30 * 24 * HOUR)));
+      yield* TestClock.setTime(OPENS);
+      yield* t.runFor(20 * MINUTE);
+      expect((yield* Ref.get(t.draws)).length).toBe(1);
+      expect(yield* Ref.get(t.edits)).toEqual([]);
+    }),
+  );
+
+  it.scoped("tells ops once when it can't be asked for, and asks again until it can", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* Ref.set(t.mapFile, Option.some("v1"));
+      yield* Ref.set(t.githubDown, true);
+      yield* TestClock.setTime(OPENS);
+      yield* t.runFor(40 * MINUTE);
+      expect(yield* Ref.get(t.alerts)).toEqual([
+        "Multiballs couldn't start drawing the spinning GIF for the Daily for 2026-10-18: GitHub said 401",
+      ]);
+      yield* Ref.set(t.githubDown, false);
+      yield* t.runFor(10 * MINUTE);
+      expect((yield* Ref.get(t.draws)).map((d) => d.at)).toEqual([OPENS + 40 * MINUTE]);
+    }),
+  );
+
+  it.scoped(
+    "tells ops once when it hasn't come an hour after asking, and still shows it later",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* setup;
+        yield* Ref.set(t.mapFile, Option.some("v1"));
+        yield* TestClock.setTime(OPENS);
+        yield* t.runFor(2 * HOUR);
+        expect(yield* Ref.get(t.alerts)).toEqual([
+          "Multiballs has no spinning GIF for the Daily for 2026-10-18 an hour after asking for it (daily-spin.yml); the card stays without it.",
+        ]);
+        yield* Ref.set(t.drawn, Option.some(spin(OPENS + 2 * HOUR)));
+        yield* t.runFor(2 * HOUR);
+        expect((yield* Ref.get(t.edits)).map((e) => e.files)).toEqual([["spin.gif"]]);
+        expect((yield* Ref.get(t.alerts)).length).toBe(1);
+      }),
+  );
+
+  it.scoped("is not asked for twice across a restart, and is edited in after it", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* Ref.set(t.mapFile, Option.some("v1"));
+      yield* TestClock.setTime(OPENS);
+      yield* t.runFor(5 * MINUTE);
+      yield* Ref.set(t.drawn, Option.some(spin(OPENS + 4 * MINUTE)));
+      yield* t.runFor(20 * MINUTE);
+      expect((yield* Ref.get(t.draws)).length).toBe(1);
+      expect((yield* Ref.get(t.edits)).map((e) => e.files)).toEqual([["spin.gif"]]);
     }),
   );
 });

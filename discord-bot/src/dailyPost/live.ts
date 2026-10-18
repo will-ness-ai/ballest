@@ -25,6 +25,7 @@ import {
   DailySteam,
   DailyThreadFailed,
 } from "./schedule.js";
+import { DailySpinsLive } from "./spin.js";
 
 // ---------------------------------------------------------------- the Daily API
 
@@ -134,31 +135,19 @@ export const DailySteamLive = Layer.effect(
 // ---------------------------------------------------------------- the channel
 
 const Created = Schema.Struct({ id: Schema.String });
-/**
- * The files attached to a message, from Discord's Get Channel Message. A Components V2 message
- * lists none under `attachments`: each is a `media` item in its components, carrying its
- * `attachment_id` and a URL ending in its name (seen 2026-10-18 on a Daily Post).
- */
-const attachedTo = (message: unknown) => {
+/** Each file a Components V2 message shows: its media's attachment id, and its file's name. */
+const attachedTo = (message: unknown): Array<{ id: string; filename: string }> => {
   const found = new Map<string, string>();
   const walk = (node: unknown): void => {
-    if (Array.isArray(node)) return node.forEach(walk);
-    if (typeof node !== "object" || node === null) return;
-    const o = node as Record<string, unknown>;
-    if (typeof o.attachment_id === "string" && typeof o.url === "string")
-      found.set(
-        o.attachment_id,
-        decodeURIComponent(new URL(o.url).pathname.split("/").at(-1) ?? ""),
-      );
-    else if (
-      typeof o.id === "string" &&
-      typeof o.filename === "string" &&
-      typeof o.url === "string"
-    )
-      found.set(o.id, o.filename);
-    Object.values(o).forEach(walk);
+    if (Array.isArray(node)) node.forEach(walk);
+    else if (typeof node === "object" && node !== null) {
+      const { attachment_id: id, url } = node as Record<string, unknown>;
+      if (typeof id === "string" && typeof url === "string")
+        found.set(id, decodeURIComponent(new URL(url).pathname.split("/").at(-1) ?? ""));
+      Object.values(node).forEach(walk);
+    }
   };
-  walk(message);
+  walk((message as { components?: unknown }).components);
   return [...found].map(([id, filename]) => ({ id, filename }));
 };
 
@@ -202,24 +191,24 @@ export const DailyChannelLive = Layer.effect(
         );
         return { messageId, threadId };
       }),
-      edit: Effect.fn("DailyChannel.edit")(function* (messageId, message, files) {
+      edit: Effect.fn("DailyChannel.edit")(function* (messageId, message, files = []) {
         const route = Routes.channelMessage(channelId, messageId);
         if (files.length === 0) {
           yield* call("edit the card", () => rest.patch(route, { body: message }));
           return;
         }
-        // An edit's files are added to the message's; `attachments` names every one it keeps, so
-        // each file replaces the attachment of its name and the others stay.
-        const current = yield* call("read the card", () => rest.get(route));
-        const kept = attachedTo(current).filter((a) => !files.some((f) => f.name === a.filename));
+        // An edit that attaches a file names every attachment the card keeps, or Discord drops
+        // the ones left out: the ones it has, then the new ones by their index. A Components V2
+        // message lists none under `attachments`: each one is in the component that shows it. A
+        // new file replaces the one of its name (the lead graph, redrawn).
+        const kept = attachedTo(yield* call("read the card", () => rest.get(route))).filter(
+          (a) => !files.some((f) => f.name === a.filename),
+        );
         yield* call("edit the card", () =>
           rest.patch(route, {
             body: {
               ...message,
-              attachments: [
-                ...kept.map((a) => ({ id: a.id, filename: a.filename })),
-                ...files.map((f, i) => ({ id: String(i), filename: f.name })),
-              ],
+              attachments: [...kept, ...files.map((f, i) => ({ id: i, filename: f.name }))],
             },
             files: files.map((f) => ({ name: f.name, data: Buffer.from(f.data) })),
           }),
@@ -283,6 +272,7 @@ export const DailyPostLive = Layer.unwrapEffect(
           DailySteamLive,
           DailyChannelLive,
           DailyPostLogLive,
+          DailySpinsLive,
           OpsAlerts.Default,
         ),
       ),

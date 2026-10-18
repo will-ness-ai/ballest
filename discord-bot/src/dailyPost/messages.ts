@@ -17,6 +17,8 @@ const ACCENT = 0x9ee34b;
 export const PREVIEW_FILE = "preview.jpg";
 /** The lead graph's name as attached to the card: an edit replaces it with a fresh one. */
 export const GRAPH_FILE = "graph.png";
+/** The Map's spinning 3D GIF's name as attached to the card (map_spins, spin.ts). */
+export const SPIN_FILE = "spin.gif";
 
 export const workshopUrl = (pfid: string) =>
   `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
@@ -30,12 +32,17 @@ export interface DailyMessage {
 }
 
 /**
- * The live card. `preview`: the Workshop screenshot is attached as PREVIEW_FILE; `graph`: the
- * lead graph is attached as GRAPH_FILE, and shows under the podium.
+ * The live card. `preview`: the Workshop screenshot is attached as PREVIEW_FILE; `spin`: the
+ * Map's spinning GIF is attached as SPIN_FILE, beside the podium; `graph`: the lead graph is
+ * attached as GRAPH_FILE, and shows under the podium.
  */
 export const dailyCardMessage = (
   v: DailyView,
-  { preview, graph = false }: { readonly preview: boolean; readonly graph?: boolean },
+  {
+    preview,
+    spin = false,
+    graph = false,
+  }: { readonly preview: boolean; readonly spin?: boolean; readonly graph?: boolean },
 ): DailyMessage => {
   const text = cardText(v);
   const textDisplay = (content: string) => ({ type: ComponentType.TextDisplay as const, content });
@@ -56,7 +63,16 @@ export const dailyCardMessage = (
                 },
               ]
             : []),
-          textDisplay(text.stats),
+          spin
+            ? {
+                type: ComponentType.Section as const,
+                components: [textDisplay(text.stats)],
+                accessory: {
+                  type: ComponentType.Thumbnail as const,
+                  media: { url: `attachment://${SPIN_FILE}` },
+                },
+              }
+            : textDisplay(text.stats),
           ...(graph
             ? [
                 {

@@ -1,0 +1,56 @@
+name: Draw a Map's spinning GIF
+
+# Started by Multiballs when it posts a Daily whose Map has a file (discord-bot/src/dailyPost/,
+# spec #268), or by hand with a pfid: opens the Map's 3D view on ballestrecords.com in Chromium,
+# turns it one full turn and stores the GIF in map_spins (web/scripts/map-spin.ts), which the bot
+# reads and edits into the Daily Post. It reads the site and writes only that one row.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pfid:
+        description: "The Map's Workshop ID"
+        required: true
+        type: string
+
+# One drawing of a Map at a time; a second ask waits rather than drawing twice at once.
+concurrency:
+  group: daily-spin-${{ inputs.pfid }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  draw:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - name: Install ffmpeg
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg)
+      - name: Draw and store the GIF
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PFID: ${{ inputs.pfid }}
+        run: |
+          [[ "$PFID" =~ ^[0-9]+$ ]] || { echo "::error::not a Workshop ID: $PFID"; exit 1; }
+          pnpm exec tsx scripts/map-spin.ts "$PFID" --out spin.gif
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spin-${{ inputs.pfid }}
+          path: web/spin.gif
+          retention-days: 7

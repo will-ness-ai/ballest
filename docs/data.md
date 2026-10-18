@@ -58,6 +58,15 @@ Open in Neon.
   `hcontent_file`, which changes with each update), its size before compression
   (`raw_size`), the file gzip-compressed (`gzipped`, bytes) and when it was read. Only the
   current version is kept (ADR 0010).
+- `map_spins`: one per Map whose spinning GIF has been drawn for a Daily Post (spec #268), by
+  pfid (no foreign key): the `map_files` version it was drawn from, the GIF (`gif`, bytes,
+  about 4 MB) and when (`drawn_at`). Only the latest drawing is kept. `daily-spin.yml` writes
+  it, started by Multiballs with a pfid (or by hand): `web/scripts/map-spin.ts` opens the Map's
+  3D view on ballestrecords.com in Chromium with software WebGL, drags it one full turn in 160
+  frames and encodes a 360 px GIF at 12.8 frames a second with ffmpeg. It refuses a Map with
+  no `map_files` row. The bot only reads it (`discord-bot/AGENTS.md`, "The Daily Post"). To
+  look at one without a database: `pnpm exec tsx scripts/map-spin.ts <pfid> --no-db --out
+spin.gif` in `web/`.
 
 ### Ghosts
 

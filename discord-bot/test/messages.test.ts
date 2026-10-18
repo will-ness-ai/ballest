@@ -385,12 +385,20 @@ describe("a Daily Post's card", () => {
     );
   });
 
+  it("shows the spinning GIF beside the podium once it is attached, and not before", () => {
+    const spinning = JSON.stringify(dailyCardMessage(view, { preview: true, spin: true }));
+    expect(spinning).toContain('"accessory":{"type":11,"media":{"url":"attachment://spin.gif"}}');
+    expect(spinning).toContain("🥇");
+    expect(JSON.stringify(message)).not.toContain("spin.gif");
+  });
+
   it("draws the lead graph under the podium only when it is attached", () => {
     const parts = (m: DailyMessage) =>
       JSON.stringify(m.components).match(/🥇|attachment:\/\/[a-z]+\.[a-z]+/g);
-    expect(parts(dailyCardMessage(view, { preview: true, graph: true }))).toEqual([
+    expect(parts(dailyCardMessage(view, { preview: true, graph: true, spin: true }))).toEqual([
       "attachment://preview.jpg",
       "🥇",
+      "attachment://spin.gif",
       "attachment://graph.png",
     ]);
     expect(JSON.stringify(message)).not.toContain("graph.png");
