@@ -196,7 +196,13 @@ posts its card, a Components V2 message with the Workshop screenshot attached, a
 Every 15 minutes it reads the Daily's own Steam board (ranks 1 to 3 and the entry count, one
 request through the bot's session) and edits the card only when what it shows changed; the first
 read at or after the Daily's end is its last. Each post is recorded in SQLite (`daily_posts`), so
-a restart resumes the live one and never posts a date twice. A failed read keeps the card; the API
+a restart resumes the live one and never posts a date twice. Each read that changes the lead (its
+time or who holds it) is recorded too (`daily_leads`, `lead.ts`): once the card shows it, with the
+lead graph under the podium redrawn by `src/render/` (`leadGraphScene`), the thread gets a quiet
+`-#` line for the first time, a steal (with how long the Reign it ended lasted) or a tie; several
+changes between two reads are one line, the latest. A Components V2 message lists its files only
+in its components' `media` items, not under `attachments`, so an edit that replaces the graph
+reads them from there to keep the rest. A failed read keeps the card; the API
 failing, no Daily an hour after 01:00, and a post, thread or edit refused each reach ops once until
 they clear. It is off unless all three settings are set and the bot has View Channel, Send
 Messages, Embed Links, Attach Files, Create Public Threads and Send Messages in Threads there; then

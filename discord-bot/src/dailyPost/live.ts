@@ -134,10 +134,33 @@ export const DailySteamLive = Layer.effect(
 // ---------------------------------------------------------------- the channel
 
 const Created = Schema.Struct({ id: Schema.String });
-/** The attachments of a message, from Discord's Get Channel Message. */
-const Attached = Schema.Struct({
-  attachments: Schema.Array(Schema.Struct({ id: Schema.String, filename: Schema.String })),
-});
+/**
+ * The files attached to a message, from Discord's Get Channel Message. A Components V2 message
+ * lists none under `attachments`: each is a `media` item in its components, carrying its
+ * `attachment_id` and a URL ending in its name (seen 2026-10-18 on a Daily Post).
+ */
+const attachedTo = (message: unknown) => {
+  const found = new Map<string, string>();
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (typeof node !== "object" || node === null) return;
+    const o = node as Record<string, unknown>;
+    if (typeof o.attachment_id === "string" && typeof o.url === "string")
+      found.set(
+        o.attachment_id,
+        decodeURIComponent(new URL(o.url).pathname.split("/").at(-1) ?? ""),
+      );
+    else if (
+      typeof o.id === "string" &&
+      typeof o.filename === "string" &&
+      typeof o.url === "string"
+    )
+      found.set(o.id, o.filename);
+    Object.values(o).forEach(walk);
+  };
+  walk(message);
+  return [...found].map(([id, filename]) => ({ id, filename }));
+};
 
 /** DAILY_CHANNEL_ID over REST with the bot's token. */
 export const DailyChannelLive = Layer.effect(
@@ -187,19 +210,14 @@ export const DailyChannelLive = Layer.effect(
         }
         // An edit's files are added to the message's; `attachments` names every one it keeps, so
         // each file replaces the attachment of its name and the others stay.
-        const current = yield* call("read the card", () => rest.get(route)).pipe(
-          Effect.flatMap(Schema.decodeUnknown(Attached)),
-          Effect.catchTag("ParseError", () =>
-            Effect.fail(new DailyPostFailed({ reason: "read the card: no attachments in it" })),
-          ),
-        );
-        const kept = current.attachments.filter((a) => !files.some((f) => f.name === a.filename));
+        const current = yield* call("read the card", () => rest.get(route));
+        const kept = attachedTo(current).filter((a) => !files.some((f) => f.name === a.filename));
         yield* call("edit the card", () =>
           rest.patch(route, {
             body: {
               ...message,
               attachments: [
-                ...kept.map((a) => ({ id: a.id })),
+                ...kept.map((a) => ({ id: a.id, filename: a.filename })),
                 ...files.map((f, i) => ({ id: String(i), filename: f.name })),
               ],
             },

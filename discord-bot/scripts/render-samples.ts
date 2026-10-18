@@ -270,6 +270,7 @@ const program = Effect.gen(function* () {
   const graph = { opensAt, closesAt: hour(24), leads };
   yield* save("lead-graph", yield* renderer.leadGraph({ ...graph, now: hour(16.33) }));
   yield* save("lead-graph-closed", yield* renderer.leadGraph({ ...graph, now: null }));
+  yield* save("lead-graph-tie-now", yield* renderer.leadGraph({ ...graph, now: hour(12.8) }));
   yield* save(
     "lead-graph-first",
     yield* renderer.leadGraph({ ...graph, leads: leads.slice(0, 1), now: hour(0.5) }),

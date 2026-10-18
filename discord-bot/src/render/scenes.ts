@@ -1269,25 +1269,29 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
   for (const l of kept.reverse())
     overlays.push(textAt(l.x, l.y, l.text, hud(8, 600, G.text), "start", W));
 
-  // The leading time now, at the end of the line: beside it while there is room and no name sits
-  // under it, else above it.
+  // The leading time now, at the end of the line: beside it, else above or below it, wherever it
+  // clears the names; ending against the right edge once the line reaches it.
   const last = leads.at(-1);
   if (last !== undefined) {
     const text = dailyTime(last.ticks);
     const ly = y(secs(last.ticks));
     const width = textWidth(text, 9);
-    const beside = x(end) + 5;
-    const fits =
-      beside + width <= W - 2 &&
+    const right = x(end) + 5 + width <= W - 2;
+    const left = right ? x(end) + 5 : x(end) - width;
+    // Each label's box runs from a line's height above its baseline down to the baseline.
+    const clear = (baseline: number) =>
       !kept.some(
-        (k) => k.y > ly && k.y - ly < 14 && k.x < beside + width && beside < k.x + k.width,
+        (k) =>
+          k.y - 8 < baseline + 1 &&
+          baseline - 9 < k.y + 1 &&
+          k.x < left + width &&
+          left < k.x + k.width,
       );
+    const baseline = [right ? ly + 3.5 : ly - 6, ly - 6, ly + 13, ly - 16].find(clear) ?? ly - 6;
     overlays.push(
-      fits
-        ? textAt(beside, ly + 3.5, text, hud(9, 700, G.text), "start", W)
-        : beside + width <= W - 2
-          ? textAt(beside, ly - 5, text, hud(9, 700, G.text), "start", W)
-          : textAt(x(end), ly - 6, text, hud(9, 700, G.text), "end", W),
+      right
+        ? textAt(left, baseline, text, hud(9, 700, G.text), "start", W)
+        : textAt(x(end), baseline, text, hud(9, 700, G.text), "end", W),
     );
   }
 
