@@ -202,7 +202,9 @@ on only when its keys are set:
   impressions, position, the top searches and pages, searches new against the 28 days before, and
   each sitemap's errors.
 
-A half that can't be read says so in the post; only a post that fails goes to the ops channel.
+A half that can't be read (a revoked key, say) says so in the post and in the ops channel, and a
+post that fails goes to the ops channel. A day counts against the mean of the seven before it, a
+day Search Console has no row for counting as 0.
 The schedule is shared with the Daily Report (`src/everyDay.ts`): a bot that was down at 13:00
 posts once when it starts, and each posted day is recorded in SQLite (`traffic_reports`). What it
 says and the schedule are tested in `test/traffic.test.ts`. `pnpm traffic` builds the report now

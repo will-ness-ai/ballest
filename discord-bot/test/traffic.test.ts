@@ -5,15 +5,21 @@ import { createVerify, generateKeyPairSync } from "node:crypto";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Layer, Ref, TestClock } from "effect";
 import { OpsAlerts } from "../src/ops.js";
-import { TrafficChannel, TrafficPostFailed, trafficLoop } from "../src/traffic/daily.js";
 import {
+  TrafficChannel,
+  TrafficLog,
+  TrafficPostFailed,
+  trafficLoop,
+} from "../src/traffic/daily.js";
+import { daysBefore } from "../src/everyDay.js";
+import { rankedBy, VisitsSource } from "../src/traffic/plausible.js";
+import {
+  change,
   compared,
-  daysBefore,
-  rankedBy,
   TrafficUnavailable,
-  VisitsSource,
-} from "../src/traffic/plausible.js";
-import { change, trafficMessage, type Visits } from "../src/traffic/report.js";
+  trafficMessage,
+  type Visits,
+} from "../src/traffic/report.js";
 import { assertion, searchFrom } from "../src/traffic/searchConsole.js";
 
 const HOUR = 3_600_000;
@@ -86,13 +92,14 @@ describe("what the Traffic Report says", () => {
 });
 
 describe("reading the APIs' answers", () => {
-  it("compares with the days before that the series holds", () => {
+  it("compares with the week before, a day the series lacks counting as 0", () => {
     const days = [
       { date: "2026-10-15", n: 2 },
       { date: "2026-10-16", n: 4 },
       { date: "2026-10-17", n: 9 },
     ];
-    expect(compared(days, "2026-10-17")).toEqual({ day: 9, weekMean: 3 });
+    expect(compared(days, "2026-10-17")).toEqual({ day: 9, weekMean: 6 / 7 });
+    expect(compared([...days, { date: "2026-10-09", n: 70 }], "2026-10-17").weekMean).toBe(6 / 7);
     expect(compared([], "2026-10-17")).toEqual({ day: 0, weekMean: null });
   });
 
@@ -123,13 +130,13 @@ describe("reading the APIs' answers", () => {
       },
     })!;
     expect(s.date).toBe("2026-10-16");
-    expect(s.clicks).toEqual({ day: 5, weekMean: 2 });
+    expect(s.clicks).toEqual({ day: 5, weekMean: 4 / 7 });
     expect(s.position).toBe(12.5);
     expect(s.newQueries).toEqual(["ballest records"]);
     const text = trafficMessage({ _tag: "Off" }, { _tag: "Ok", value: s });
     expect(text).toContain("## Google search · Friday 16 October");
     expect(text).toContain(
-      "**5** clicks (+150% on the week's 2 a day) from **50** times in results",
+      "**5** clicks (+775% on the week's 1 a day) from **50** times in results",
     );
     expect(text).toContain('**New searches** "ballest records"');
     expect(text).toContain("[/](<https://ballestrecords.com/>) 4 clicks, 40 seen, #10.0");
@@ -190,6 +197,11 @@ const setup = Effect.gen(function* () {
               return yield* new TrafficPostFailed({ reason: "ResponseError" });
             yield* Ref.update(posts, (p) => [...p, content.split("\n")[0] ?? ""]);
           }),
+      }),
+    ),
+    Layer.succeed(
+      TrafficLog,
+      TrafficLog.of({
         posted: (day) => Effect.sync(() => days.has(day)),
         record: (day) => Effect.sync(() => void days.add(day)),
       }),
@@ -256,7 +268,7 @@ describe("the Traffic Report's schedule", () => {
     }),
   );
 
-  it.scoped("still posts when a half can't be read, saying so", () =>
+  it.scoped("still posts when a half can't be read, saying so there and in ops", () =>
     Effect.gen(function* () {
       const t = yield* setup;
       yield* Ref.set(t.down, true);
@@ -266,7 +278,9 @@ describe("the Traffic Report's schedule", () => {
         expect(yield* Ref.get(t.posts)).toEqual([
           "_Visits: couldn't be read (Plausible timeseries: RequestError)._",
         ]);
-        expect(yield* Ref.get(t.alerts)).toEqual([]);
+        expect(yield* Ref.get(t.alerts)).toEqual([
+          "The Traffic Report for 2026-10-18 couldn't read Visits: Plausible timeseries: RequestError",
+        ]);
       }).pipe(Effect.provide(t.fakes));
     }),
   );

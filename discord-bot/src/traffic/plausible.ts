@@ -7,12 +7,9 @@ import {
   HttpClientRequest,
   HttpClientResponse,
 } from "@effect/platform";
-import { Config, Context, Data, Effect, Layer, Redacted, Schema } from "effect";
-import type { Compared, Ranked, Visits } from "./report.js";
-
-export class TrafficUnavailable extends Data.TaggedError("TrafficUnavailable")<{
-  readonly reason: string;
-}> {}
+import { Config, Context, Effect, Layer, Redacted, Schema } from "effect";
+import { daysBefore } from "../everyDay.js";
+import { compared, type Ranked, TrafficUnavailable, type Visits } from "./report.js";
 
 export class VisitsSource extends Context.Tag("multiballs/VisitsSource")<
   VisitsSource,
@@ -25,30 +22,14 @@ const Day = Schema.Struct({
   pageviews: Schema.Number,
 });
 const Timeseries = Schema.Struct({ results: Schema.Array(Day) });
-const Value = Schema.Struct({ value: Schema.Number });
+// null on a day nobody visited
+const Value = Schema.Struct({ value: Schema.NullOr(Schema.Number) });
 const Aggregate = Schema.Struct({
   results: Schema.Struct({ visit_duration: Value, bounce_rate: Value }),
 });
 const Breakdown = Schema.Struct({
   results: Schema.Array(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
 });
-
-/** "2026-10-17" `n` days before `date` */
-export const daysBefore = (date: string, n: number) =>
-  new Date(Date.parse(date + "T00:00:00Z") - n * 86_400_000).toISOString().slice(0, 10);
-
-/** A day's value against the mean of the days before it that the series holds. */
-export const compared = (
-  days: ReadonlyArray<{ date: string; n: number }>,
-  date: string,
-): Compared => {
-  const day = days.find((d) => d.date === date)?.n ?? 0;
-  const before = days.filter((d) => d.date < date);
-  return {
-    day,
-    weekMean: before.length ? before.reduce((s, d) => s + d.n, 0) / before.length : null,
-  };
-};
 
 /** A breakdown's rows as names and visitors, whatever the property's key is called. */
 export const rankedBy = (
@@ -117,8 +98,8 @@ export const PlausibleLive = Layer.effect(
             series.results.map((d) => ({ date: d.date, n: d.pageviews })),
             date,
           ),
-          visitDuration: totals.results.visit_duration.value,
-          bounceRate: totals.results.bounce_rate.value,
+          visitDuration: totals.results.visit_duration.value ?? 0,
+          bounceRate: totals.results.bounce_rate.value ?? 0,
           pages: rankedBy("page", pages.results),
           sources: rankedBy("source", sources.results),
         };

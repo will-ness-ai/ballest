@@ -11,8 +11,8 @@ import {
   HttpClientResponse,
 } from "@effect/platform";
 import { Config, Context, Effect, Layer, Redacted, Schema } from "effect";
-import { compared, daysBefore, TrafficUnavailable } from "./plausible.js";
-import type { Search, SearchRow } from "./report.js";
+import { dayOf, daysBefore } from "../everyDay.js";
+import { compared, type Search, type SearchRow, TrafficUnavailable } from "./report.js";
 
 export class SearchSource extends Context.Tag("multiballs/SearchSource")<
   SearchSource,
@@ -59,6 +59,10 @@ const Sitemaps = Schema.Struct({
   ),
 });
 type Row = typeof Row.Type;
+/** A row's one dimension: its date, search or page. */
+const keyOf = (r: Row) => r.keys[0] ?? "";
+/** The newest date of rows by date. */
+const newestDate = (days: ReadonlyArray<Row>) => days.map(keyOf).sort().at(-1);
 
 /** The signed JWT a service account trades for an access token (RFC 7523). */
 export const assertion = (
@@ -81,7 +85,7 @@ export const assertion = (
 };
 
 const searchRow = (r: Row): SearchRow => ({
-  name: r.keys[0] ?? "",
+  name: keyOf(r),
   clicks: r.clicks,
   impressions: r.impressions,
   position: r.position,
@@ -96,13 +100,11 @@ export const searchFrom = (a: {
   seen: ReadonlyArray<Row>;
   sitemaps: typeof Sitemaps.Type;
 }): Search | null => {
-  const dates = a.days.map((r) => r.keys[0] ?? "").sort();
-  const date = dates.at(-1);
+  const date = newestDate(a.days);
   if (date === undefined) return null;
-  const week = a.days.filter((r) => (r.keys[0] ?? "") >= daysBefore(date, 7));
-  const of = (pick: (r: Row) => number) => week.map((r) => ({ date: r.keys[0] ?? "", n: pick(r) }));
-  const newest = a.days.find((r) => r.keys[0] === date);
-  const seen = new Set(a.seen.map((r) => r.keys[0]));
+  const of = (pick: (r: Row) => number) => a.days.map((r) => ({ date: keyOf(r), n: pick(r) }));
+  const newest = a.days.find((r) => keyOf(r) === date);
+  const seen = new Set(a.seen.map(keyOf));
   return {
     date,
     clicks: compared(
@@ -117,10 +119,10 @@ export const searchFrom = (a: {
     queries: a.queries.slice(0, 5).map(searchRow),
     pages: a.pages.slice(0, 5).map(searchRow),
     newQueries: [...a.queries]
-      .filter((r) => !seen.has(r.keys[0]))
+      .filter((r) => !seen.has(keyOf(r)))
       .sort((x, y) => y.impressions - x.impressions)
       .slice(0, 5)
-      .map((r) => r.keys[0] ?? ""),
+      .map(keyOf),
     sitemaps: a.sitemaps.sitemap.map((m) => ({
       path: m.path,
       errors: m.errors,
@@ -171,16 +173,13 @@ export const SearchConsoleLive = Layer.effect(
             json("query", Rows),
             Effect.map((r) => r.rows),
           );
-        const today = new Date(at).toISOString().slice(0, 10);
+        const today = dayOf(at);
         const days = yield* query({
           startDate: daysBefore(today, LOOK_BACK),
           endDate: today,
           dimensions: ["date"],
         });
-        const date = days
-          .map((r) => r.keys[0] ?? "")
-          .sort()
-          .at(-1);
+        const date = newestDate(days);
         const on = (dimension: string, rowLimit: number) =>
           query({ startDate: date, endDate: date, dimensions: [dimension], rowLimit });
         const [queries, pages, seen, sitemaps] = date

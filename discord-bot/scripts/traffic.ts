@@ -3,56 +3,43 @@
 // it goes to TRAFFIC_WEBHOOK_URL too. It skips the schedule and records nothing, so it is how to
 // check the keys and the words before the bot posts at 13:00 UTC.
 import { NodeRuntime } from "@effect/platform-node";
-import { SqliteClient } from "@effect/sql-sqlite-node";
-import { Clock, Config, Effect, Layer, Option } from "effect";
-import { dayOf } from "../src/everyDay.js";
-import { TrafficChannel, TrafficChannelLive } from "../src/traffic/daily.js";
-import {
-  daysBefore,
-  PlausibleLive,
-  TrafficUnavailable,
-  VisitsSource,
-} from "../src/traffic/plausible.js";
-import { type Half, type Search, trafficMessage, type Visits } from "../src/traffic/report.js";
+import { Clock, Effect, Layer, Option } from "effect";
+import { dayOf, daysBefore } from "../src/everyDay.js";
+import { half, isSet, TrafficChannel, TrafficChannelLive } from "../src/traffic/daily.js";
+import { PlausibleLive, VisitsSource } from "../src/traffic/plausible.js";
+import { trafficMessage } from "../src/traffic/report.js";
 import { SearchConsoleLive, SearchSource } from "../src/traffic/searchConsole.js";
 
 const post = process.argv.includes("--post");
 
-const half = <A, E>(read: Effect.Effect<A, E>): Effect.Effect<Half<A>> =>
-  read.pipe(
-    Effect.map((value): Half<A> => ({ _tag: "Ok", value })),
-    Effect.catchAll((e) =>
-      Effect.succeed<Half<A>>({
-        _tag: "Failed",
-        reason: e instanceof TrafficUnavailable ? e.reason : String(e),
-      }),
-    ),
-  );
-
-const set = (name: string) => Config.option(Config.string(name)).pipe(Effect.map(Option.isSome));
+/** A half's read when `on`, with its source's layer; a missing key there is a crash, not a half. */
+const when = <A, E, S>(
+  on: boolean,
+  read: Effect.Effect<A, E, S>,
+  layer: Layer.Layer<S, unknown>,
+) => (on ? Option.some(read.pipe(Effect.provide(Layer.orDie(layer)))) : Option.none());
 
 const program = Effect.gen(function* () {
   const at = yield* Clock.currentTimeMillis;
-  const visits: Half<Visits> =
-    (yield* set("PLAUSIBLE_URL")) && (yield* set("PLAUSIBLE_API_KEY"))
-      ? yield* half(
-          Effect.flatMap(VisitsSource, (s) => s.read(daysBefore(dayOf(at), 1))).pipe(
-            Effect.provide(PlausibleLive),
-          ),
-        )
-      : { _tag: "Off" };
-  const search: Half<Search> = (yield* set("GSC_SERVICE_ACCOUNT"))
-    ? yield* half(
-        Effect.flatMap(SearchSource, (s) => s.read(at)).pipe(Effect.provide(SearchConsoleLive)),
-      )
-    : { _tag: "Off" };
+  const visits = yield* half(
+    when(
+      (yield* isSet("PLAUSIBLE_URL")) && (yield* isSet("PLAUSIBLE_API_KEY")),
+      Effect.flatMap(VisitsSource, (s) => s.read(daysBefore(dayOf(at), 1))),
+      PlausibleLive,
+    ),
+  );
+  const search = yield* half(
+    when(
+      yield* isSet("GSC_SERVICE_ACCOUNT"),
+      Effect.flatMap(SearchSource, (s) => s.read(at)),
+      SearchConsoleLive,
+    ),
+  );
   const message = trafficMessage(visits, search);
   console.log(message);
   if (post)
     yield* Effect.flatMap(TrafficChannel, (c) => c.post(message)).pipe(
-      Effect.provide(
-        TrafficChannelLive.pipe(Layer.provide(SqliteClient.layer({ filename: ":memory:" }))),
-      ),
+      Effect.provide(TrafficChannelLive),
     );
 });
 

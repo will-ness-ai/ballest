@@ -1,12 +1,33 @@
 // What the Traffic Report says, from plain data: one day of the site's visits (Plausible) and
 // one day of Google search (Search Console), each against the week before it. Either half can
 // be missing (not set up, or its read failed), and the message says so in one line.
+import { Data } from "effect";
+import { daysBefore } from "../everyDay.js";
+
+/** A half's source couldn't be read; the post says why, and so does ops. */
+export class TrafficUnavailable extends Data.TaggedError("TrafficUnavailable")<{
+  readonly reason: string;
+}> {}
 
 /** A day's numbers, and their mean over the seven days before it (null without history). */
 export interface Compared {
   readonly day: number;
   readonly weekMean: number | null;
 }
+
+/** A day's value against the mean of the seven days before it, a day the series lacks counting
+ * as 0 (Search Console leaves out days nobody saw the site), and no mean without any of them. */
+export const compared = (
+  days: ReadonlyArray<{ date: string; n: number }>,
+  date: string,
+): Compared => {
+  const day = days.find((d) => d.date === date)?.n ?? 0;
+  const week = days.filter((d) => d.date < date && d.date >= daysBefore(date, 7));
+  return {
+    day,
+    weekMean: week.length ? week.reduce((s, d) => s + d.n, 0) / 7 : null,
+  };
+};
 
 /** A row of a top-five list: a page, a source or a search, and its count. */
 export interface Ranked {

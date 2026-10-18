@@ -8,6 +8,10 @@ const DAY_MS = 86_400_000;
 /** The UTC day a moment falls on, "2026-10-04": the key a day's run is recorded under. */
 export const dayOf = (at: number) => new Date(at).toISOString().slice(0, 10);
 
+/** The day `n` days before `day` ("2026-10-04"). */
+export const daysBefore = (day: string, n: number) =>
+  dayOf(Date.parse(day + "T00:00:00Z") - n * DAY_MS);
+
 /** Today's `hour` (UTC), or tomorrow's once today's has passed. */
 export const nextAt = (hour: number, now: number) => {
   const d = new Date(now);
