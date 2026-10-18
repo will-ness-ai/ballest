@@ -327,7 +327,7 @@ async def serve():
 
 def status():
     """`python runner.py status`: one line per job, `<job> running|waiting|idle last=<exit>`."""
-    with urllib.request.urlopen(f"http://localhost:{PORT}/", timeout=30) as r:
+    with urllib.request.urlopen(f"http://[::1]:{PORT}/", timeout=30) as r:
         for name, job in json.load(r).items():
             state = "running" if job["running"] else "waiting" if job["waiting"] else "idle"
             last = job["last"]["exit"] if job["last"] else "none"
@@ -338,7 +338,7 @@ def status():
 def ask(job):
     """`python runner.py ask refresh|add-maps|map-files?budget=N`: queue a job on the service
     running beside it."""
-    req = urllib.request.Request(f"http://localhost:{PORT}/{job}", method="POST")
+    req = urllib.request.Request(f"http://[::1]:{PORT}/{job}", method="POST")
     with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310 (as above)
         print(r.read().decode(), "- follow it with `fly logs`")
     return 0

@@ -2,10 +2,12 @@
 for which, what reaches the ops channel, and the private HTTP door Multiballs knocks on."""
 
 import asyncio
+import socket
 from datetime import UTC, datetime, timedelta
 
 import pytest
 import runner
+from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 
 
@@ -295,3 +297,27 @@ def test_a_script_runs_as_a_workflow_step_ran_it(tmp_path, monkeypatch):
     assert result.exit == 3
     assert result.tail == [f"line {n}" for n in range(5, 20)]
     assert result.outputs == {"added": "1,2"}
+
+
+def test_the_commands_reach_the_service_where_it_listens(monkeypatch, capsys):
+    # it binds "::" for Fly's private network, which takes no IPv4, so localhost's 127.0.0.1
+    # in the image's /etc/hosts would find nothing (the first production deploy, 2026-10-18)
+    try:
+        with socket.socket(socket.AF_INET6) as s:
+            s.bind(("::1", 0))
+            port = s.getsockname()[1]
+    except OSError:
+        pytest.skip("no IPv6 loopback here (a cloud container has none; CI's runner does)")
+    monkeypatch.setattr(runner, "PORT", port)
+
+    async def go():
+        site_runner = web.AppRunner(runner.app(service(Fake())))
+        await site_runner.setup()
+        await web.TCPSite(site_runner, "::", port).start()
+        try:
+            await asyncio.to_thread(runner.status)
+        finally:
+            await site_runner.cleanup()
+
+    asyncio.run(go())
+    assert "refresh idle last=none" in capsys.readouterr().out
