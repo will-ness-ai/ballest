@@ -534,13 +534,16 @@ file's version (`fileVersion`), or null, and the button shows only with one: `ma
 ## Checking a change
 
 `pnpm dev` in `web/` against a local Postgres (never `vercel env pull`: its development
-variables point at production). For a database with real boards, backfill one from
+variables point at production), or `pnpm dev:up <port> [database]` in a cloud session, which
+starts Postgres if a container restart stopped it and serves in the background until
+`pnpm dev:down <port>` stops it by port (a `pkill -f` pattern also kills its own shell). After "An unexpected Turbopack error occurred" in its log, remove
+`web/.next` and start it again. For a database with real boards, backfill one from
 `data/`'s git history (`docs/data.md`); for a tiny one, `pnpm db:seed tiny`. Next keeps the page you
 navigated away from in the DOM, hidden, so a scripted check counting elements should count
 only visible ones.
 
 - **A production build**: `pnpm serve <port> [database]` builds against that local
-  database and serves it in the background; `fuser -k -n tcp <port>` stops it.
+  database and serves it in the background; `pnpm dev:down <port>` stops it.
   `pnpm smoke <url>` then requests every route of a build seeded with `tiny` or `stress` and checks
   each answer, as `web.yml` does in CI. Under `next start`, some prefetches (header
   `next-router-prefetch: 3`) answer 404 in the console; Vercel answers them 200.
@@ -554,7 +557,11 @@ only visible ones.
   the `environment_url` of the branch's deployment status
   (`gh api 'repos/will-ness-ai/ballest/deployments?ref=<branch>'`, then that deployment's
   `statuses`). It is up once that status is `success`. Previews count against the Hobby
-  plan's 100 deploys a day, so push a branch in batches.
+  plan's 100 deploys a day, so push a branch in batches. A `failure` status names its
+  deployment: `npx vercel inspect <deployment> --logs` reads the build log (the CLI finds
+  `VERCEL_TOKEN` in a cloud session's environment). A prerender that fails on Neon's "could
+  not resize shared memory segment" (code 53100) is Neon running short under the build's
+  parallel queries, not the code: `npx vercel redeploy <deployment>` once.
 - **Looking at it**: `pnpm --silent qa` from `web/`, run bare, lists the targets (production,
   this branch's preview with its deploy state, a local build) and what it checks. `qa check`
   draws every page and dialog in `scripts/qa/catalogue.mjs` at 320px with 20px text, 390,
