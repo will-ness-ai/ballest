@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   FOLLOW_UP_LINES,
+  linesChanged,
   mergeTargets,
   repoSlug,
   skillName,
@@ -221,5 +222,35 @@ describe("unreviewed", () => {
       "code-review": ["a"],
       "codebase-design": ["a"],
     });
+  });
+
+  test("a commit of only pictures needs no run", () => {
+    const pictures = (c: string) => (c === "b" ? null : 1);
+    expect(unreviewed(["b"], [], isAncestor, pictures)).toEqual({
+      "code-review": [],
+      "codebase-design": [],
+    });
+    expect(unreviewed(["a", "b"], [], isAncestor, pictures)).toEqual({
+      "code-review": ["a"],
+      "codebase-design": ["a"],
+    });
+  });
+});
+
+describe("linesChanged", () => {
+  test("adds up a commit's added and removed lines", () => {
+    expect(linesChanged("3\t1\tweb/a.ts\n2\t0\tdocs/b.md\n")).toBe(6);
+    // a merge commit shows no files
+    expect(linesChanged("")).toBe(0);
+  });
+
+  test("leaves pictures out, and is null when a commit changes nothing else", () => {
+    expect(linesChanged("-\t-\tskins/DA_LBall.webp\n")).toBeNull();
+    expect(linesChanged("-\t-\tog.png\n-\t-\tskins/{a.webp => b.webp}\n")).toBeNull();
+    expect(linesChanged("-\t-\tcircuit/Track 1.webp\n4\t4\tweb/lib/skins.ts\n")).toBe(8);
+  });
+
+  test("any other binary file is too big to skip", () => {
+    expect(linesChanged("-\t-\ttools/version.dll\n1\t0\ta.ts\n")).toBe(Infinity);
   });
 });

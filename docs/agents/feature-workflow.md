@@ -78,7 +78,8 @@ review, and a brief asking for a light workflow trims the planning steps, never 
 A hook holds both steps (`.claude/hooks/review-gate.mjs`): it notes the commit each Skill-tool
 `/code-review` and `/codebase-design` runs on, and refuses an agent's merge, auto-merge or
 mark-ready while the PR has a commit either hasn't seen, unless every such commit together is a
-small follow-up (`FOLLOW_UP_LINES` in `review-gate-rules.mjs`). It also refuses a merge of this
+small follow-up (`FOLLOW_UP_LINES` in `review-gate-rules.mjs`). A commit that changes only
+pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. It also refuses a merge of this
 repo's PRs that doesn't squash (`docs/agents/issue-tracker.md`).
 Its record is the clone's (`.git/claude-reviews`, shared by worktrees and sessions), so run them
 in the clone that merges. When it can't check (gh offline, say) it lets the call through with a
