@@ -299,8 +299,9 @@ export const mapNo = (c: Campaign, pfid: string) => String(mapNumber(c, pfid)).p
 
 /* a Map's name inside its Campaign: its title after the Campaign's name, when it starts
    with it ("Solar Trials Mercury" is Mercury), else the whole title; or null when that is
-   only its number ("Miniblack 01", "AJC1", "Limbo campaign 1 of 8", counting the Maps,
-   or the maker's "A08 of 8"), which its label already gives. When what is
+   only its number ("Miniblack 01", "AJC1", "Limbo campaign 1 of 8", which counts the Maps;
+   one letter before the number is let through for the maker's "A08 of 8"), which its label
+   already gives. When what is
    left starts with a number that isn't its place ("Ninja0", "AJ26"), it stays whole, so
    the label doesn't read "01 0" */
 export function mapName(c: Campaign, pfid: string, title: string): string | null {

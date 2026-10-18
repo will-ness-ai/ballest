@@ -267,7 +267,7 @@ A Campaign (CONTEXT.md) is a player-made run of Workshop Maps that the site rank
 the game ranks a Circuit season. The game knows nothing of them, so the list in
 `web/lib/campaigns.ts` (`CAMPAIGNS`) is the only place one exists.
 
-**Adding one** (the run, request to live page: the `add-campaign` skill) is one entry in `CAMPAIGNS`: its `slug` (the path, lowercase words joined by
+**Adding one** is one entry in `CAMPAIGNS` (the run, request to live page: the `add-campaign` skill): its `slug` (the path, lowercase words joined by
 `-`), `title`, `creator` (the maker's Workshop name), `creatorId` (the maker's Steam ID) and
 `maps`, the Maps' Workshop IDs in the maker's order. That order numbers the Maps 01, 02 and
 so on, so append a Map rather than insert one. `campaignProblems` fails the tests on a
@@ -300,7 +300,7 @@ never a row of tabs, since the list keeps growing; on a desktop it heads the rai
 "Campaign" label and over the maker's name) lists the Campaigns most players first
 (`getCampaigns`); the rail lists Overall, then each Map as a strip of its preview picture with its number, record and the part of
 its title after the Campaign's name (`mapName`), left out when that is only its number
-("Miniblack 01", "AJC1"), and the whole title when what is left starts with a number that
+("Miniblack 01", "AJC1", or "Limbo campaign 1 of 8", which counts the Maps), and the whole title when what is left starts with a number that
 isn't the Map's place ("Ninja0", "AJ26"). Everywhere the frame names a Map (the rail's sheet, the podium
 tally, the page's title) it is `mapLabel`: the number, then that name. On a phone the
 switch's chip and the board button share a row while they fit, and the button takes a line
