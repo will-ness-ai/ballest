@@ -66,12 +66,12 @@ final review, so it isn't repeated. Fix every finding before moving on, checking
 asks for something the spec never named against `CODING_STANDARDS.md` first: #212 built a
 real 404 the standards rule out, then deleted it. Commits that land
 after it (a fix found while testing, dev tooling) get `/code-review` since the last reviewed
-commit before the merge, unless they are a small follow-up: fewer than 40 changed lines in
+commit before the merge, unless they are a small follow-up: fewer than `FOLLOW_UP_LINES` (40) changed lines in
 all since both skills last ran, such as the fixes for their own findings, need no new round
 (Will, 2026-10-18). Batch a round's fixes into one commit, and re-run both skills when the
 follow-ups grow past that.
 
-A one-line fix gets the same review: call the Skill tool for 'code-review', which runs its
+A one-line PR gets the same first review: call the Skill tool for 'code-review', which runs its
 two reviewers as subagents on the diff. Your own read of the diff is implementation, not
 review, and a brief asking for a light workflow trims the planning steps, never this one.
 
@@ -86,7 +86,8 @@ warning, and it never sees a merge pressed on GitHub.
 
 ## 6. Deepen: `/codebase-design`
 
-Call the Skill tool for 'codebase-design', a one-line fix included. With the feature working and reviewed, read the code it touched for deepening
+Call the Skill tool for 'codebase-design', a one-line PR included, then again only when
+the follow-ups outgrow step 5's small-follow-up rule. With the feature working and reviewed, read the code it touched for deepening
 opportunities: shallow modules, logic spread across callers, a seam in the wrong place.
 Make the ones inside the PR's own code, and keep each one checked the same way the feature
 was (tests, the smoke test, the served page). Anything wider becomes a note

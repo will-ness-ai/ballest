@@ -120,20 +120,30 @@ export function repoSlug(text) {
 export const skillName = (name) => String(name).split(":").pop();
 
 /* A merge that doesn't squash: the repo squash-merges (docs/agents/issue-tracker.md), and
-   GitHub's REST merge, like gh's prompt, makes a merge commit unless told otherwise. */
+   GitHub's REST merge, like gh's prompt, makes a merge commit unless told otherwise. Turning
+   auto-merge off, and a read of the merge route, merge nothing. The ccr/auto_merge route is
+   left to the review gate alone. */
 export function notSquash(tool, input) {
   if (tool === "mcp__github__merge_pull_request") return input.merge_method !== "squash";
+  if (tool === "mcp__github__enable_pr_auto_merge")
+    return String(input.mergeMethod).toUpperCase() !== "SQUASH";
   if (tool !== "Bash") return false;
   const command = flatten(String(input.command ?? ""));
+  const callAfter = (m) => command.slice(m.index + m[0].length).split(SEPARATOR)[0];
   const gh = [...command.matchAll(GH_PR)]
     .filter((m) => m[2] === "merge")
-    .map((m) => command.slice(m.index + m[0].length).split(SEPARATOR)[0]);
+    .map(callAfter)
+    .filter((args) => !/(?:^|\s)--disable-auto\b/.test(args));
   const api = [...command.matchAll(API)]
-    .map((m) => command.slice(m.index + m[0].length).split(SEPARATOR)[0])
-    .filter((call) => /\/pulls\/\d+\/merge\b/.test(call));
+    .filter((m) => {
+      const call = callAfter(m);
+      const writes = WRITES.test(call) || (m[1].startsWith("gh") && GH_FIELDS.test(call));
+      return writes && /\/pulls\/\d+\/merge\b/.test(call);
+    })
+    .map(callAfter);
   return (
-    gh.some((args) => !/(?:^|\s)(?:-s|--squash)\b/.test(args)) ||
-    api.some((call) => !/\bmerge_method=squash\b/.test(call))
+    gh.some((args) => !/(?:^|\s)(?:--squash|-[a-zA-Z]*s[a-zA-Z]*)\b/.test(args)) ||
+    api.some((call) => !/\bmerge_method"?\s*[:=]\s*"?squash\b/.test(call))
   );
 }
 

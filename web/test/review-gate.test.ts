@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  FOLLOW_UP_LINES,
   mergeTargets,
   notSquash,
   repoSlug,
   skillName,
-  FOLLOW_UP_LINES,
   unreviewed,
 } from "../../.claude/hooks/review-gate-rules.mjs";
 
@@ -131,6 +131,12 @@ describe("notSquash", () => {
     expect(bash("gh api -X PUT repos/o/r/pulls/5/merge")).toBe(true);
     expect(notSquash("mcp__github__merge_pull_request", { pullNumber: 5 })).toBe(true);
     expect(notSquash("mcp__github__merge_pull_request", { merge_method: "rebase" })).toBe(true);
+    expect(notSquash("mcp__github__enable_pr_auto_merge", { mergeMethod: "MERGE" })).toBe(true);
+    expect(
+      bash(
+        `curl -X PUT -d '{"merge_method":"rebase"}' https://api.github.com/repos/o/r/pulls/5/merge`,
+      ),
+    ).toBe(true);
   });
 
   test("lets squashes, mark-readies and other calls through", () => {
@@ -138,6 +144,15 @@ describe("notSquash", () => {
     expect(bash("gh pr merge --auto -s 5")).toBe(false);
     expect(bash("gh api -X PUT repos/o/r/pulls/5/merge -f merge_method=squash")).toBe(false);
     expect(bash("gh api -X PUT repos/o/r/pulls/5/merge -f 'merge_method=squash'")).toBe(false);
+    expect(bash("gh pr merge -sd 5")).toBe(false);
+    expect(bash("gh pr merge 5 --disable-auto")).toBe(false);
+    expect(bash("gh api repos/o/r/pulls/5/merge")).toBe(false);
+    expect(
+      bash(
+        `curl -X PUT -d '{"merge_method":"squash"}' https://api.github.com/repos/o/r/pulls/5/merge`,
+      ),
+    ).toBe(false);
+    expect(notSquash("mcp__github__enable_pr_auto_merge", { mergeMethod: "SQUASH" })).toBe(false);
     expect(bash("gh pr ready 5")).toBe(false);
     expect(bash("gh pr view 5")).toBe(false);
     expect(notSquash("mcp__github__merge_pull_request", { merge_method: "squash" })).toBe(false);
@@ -172,8 +187,10 @@ describe("unreviewed", () => {
       "code-review": [],
       "codebase-design": [],
     });
-    const huge: Record<string, number> = { b: 10, c: FOLLOW_UP_LINES - 10 };
-    expect(unreviewed(["a", "b", "c"], records, isAncestor, (c: string) => huge[c] ?? 0)).toEqual({
+    const atLimit: Record<string, number> = { b: 10, c: FOLLOW_UP_LINES - 10 };
+    expect(
+      unreviewed(["a", "b", "c"], records, isAncestor, (c: string) => atLimit[c] ?? 0),
+    ).toEqual({
       "code-review": ["b", "c"],
       "codebase-design": ["b", "c"],
     });

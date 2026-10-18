@@ -40,7 +40,9 @@ const stacked = readFileSync(0, "utf8")
       ),
     );
     return (merged ?? [])
-      .filter((pr) => isAncestor(pr.sha, sha) && !isAncestor(pr.sha, "origin/main"))
+      .filter(
+        (pr) => pr.sha !== sha && isAncestor(pr.sha, sha) && !isAncestor(pr.sha, "origin/main"),
+      )
       .map((pr) => ({ ...pr, branch }));
   });
 

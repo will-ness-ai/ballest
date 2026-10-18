@@ -36,7 +36,7 @@ which `pnpm --dir web exec next typegen` writes (CI runs it first).
 - `pnpm format` rewrites everything; `pnpm lint:fix` applies the safe lint fixes.
 - `pnpm check` is what CI runs: `format:check` then `lint`.
 - `git push` runs `pnpm check` first (`.githooks/pre-push`, about a minute) and stops on a
-  failure. A root `pnpm install` that installs anything turns it on (`prepare` sets
+  failure, or on a push stacked on a PR that is already merged (`.githooks/merged-pr.mjs`). A root `pnpm install` that installs anything turns it on (`prepare` sets
   `core.hooksPath`), and so does `session-start.sh`; in an older checkout, run
   `git config core.hooksPath .githooks` once. `git push --no-verify` skips it.
 - A database test that can't reach Postgres fails with a message naming

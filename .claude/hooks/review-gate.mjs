@@ -65,18 +65,26 @@ function landing(cwd, cd) {
   return existsSync(path) ? path : null;
 }
 
-/* Why the gate refuses to let `target` merge, or null when it may (or is another repo's).
-   Throws when it can't tell, which the caller turns into a warning. */
-function refusal(target, cwd) {
+/* The checkout a target's command runs in, this repo's slug, and whether the target is one
+   of this repo's PRs. Throws when a `cd` lands nowhere. */
+function locate(target, cwd) {
   const where = target.cd ? landing(cwd, target.cd) : cwd;
   if (target.cd && !where) throw new Error(`can't find ${target.cd}`);
   const dir = checkout(where);
   const slug = slugAt(HOME_REPO);
+  const ours = !target.opaque && (target.repo ? repoSlug(target.repo) : dir && slug) === slug;
+  return { dir, slug, ours };
+}
+
+/* Why the gate refuses to let `target` merge, or null when it may (or is another repo's).
+   Throws when it can't tell, which the caller turns into a warning. */
+function refusal(target, cwd) {
+  const { dir, slug, ours } = locate(target, cwd);
   if (target.opaque)
     return dir
       ? "A GraphQL mutation names its PR by node ID, so the review gate can't check it: merge with `gh pr merge <number>` instead."
       : null;
-  if ((target.repo ? repoSlug(target.repo) : dir && slug) !== slug) return null;
+  if (!ours) return null;
   const at = dir ?? HOME_REPO;
   const gh = (...args) => run("gh", ["api", ...args], at);
   const branch = target.branch ?? run("git", ["branch", "--show-current"], at);
@@ -110,11 +118,11 @@ function refusal(target, cwd) {
   const linesOf = (c) =>
     run("git", ["show", "--numstat", "--format=", c], at)
       .split("\n")
-      .reduce(
-        (sum, line) =>
-          sum + (Number(line.split("\t")[0]) || 0) + (Number(line.split("\t")[1]) || 0),
-        0,
-      );
+      .reduce((sum, line) => {
+        const [added, removed] = line.split("\t");
+        // git counts a binary file's lines as "-": no follow-up is small enough to skip it
+        return added === "-" ? Infinity : sum + (Number(added) || 0) + (Number(removed) || 0);
+      }, 0);
   const missing = Object.entries(unreviewed(commits, records, isAncestor, linesOf)).filter(
     ([, cs]) => cs.length,
   );
@@ -138,13 +146,16 @@ function refusal(target, cwd) {
 }
 
 function gate(input) {
-  if (notSquash(input.tool_name, input.tool_input ?? {}))
+  const targets = mergeTargets(input.tool_name, input.tool_input ?? {});
+  if (
+    notSquash(input.tool_name, input.tool_input ?? {}) &&
+    targets.some((t) => tries(() => locate(t, input.cwd).ours))
+  )
     return preToolUse({
       permissionDecision: "deny",
-      permissionDecisionReason:
-        "This repo squash-merges (docs/agents/issue-tracker.md): use `gh api -X PUT repos/will-ness-ai/ballest/pulls/<n>/merge -f merge_method=squash`, `gh pr merge --squash`, or merge_method squash.",
+      permissionDecisionReason: `This repo squash-merges (docs/agents/issue-tracker.md): use \`gh api -X PUT repos/${slugAt(HOME_REPO)}/pulls/<n>/merge -f merge_method=squash\`, \`gh pr merge --squash\`, or merge_method squash.`,
     });
-  for (const target of mergeTargets(input.tool_name, input.tool_input ?? {})) {
+  for (const target of targets) {
     const reason = refusal(target, input.cwd);
     if (reason) return preToolUse({ permissionDecision: "deny", permissionDecisionReason: reason });
   }
