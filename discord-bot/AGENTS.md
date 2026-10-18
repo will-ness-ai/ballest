@@ -219,8 +219,9 @@ for the Map (`GITHUB_DISPATCH_TOKEN`, as for new tracks), which stores the GIF i
 database's `map_spins` (`docs/data.md`). Each read, it looks there (`DATABASE_URL`, plain SQL) and
 edits the GIF in once one is drawn from the Map's current file or since it asked. A Map with no
 `map_files` row gets no GIF and no run, and one already drawn from the same file is used without
-a run. A run that can't be started, or no GIF an hour after asking, reaches ops once; the card
-stays without it. Without both settings the card has no GIF. An edit that attaches a file names
+a run. A run that fails tells ops itself at once, naming the Map (`daily-spin.yml`'s last step);
+a run that can't be started, or no GIF an hour after asking, reaches ops once from the bot. The
+card stays without it. Without both settings the card has no GIF. An edit that attaches a file names
 every picture the card keeps, read from its components (a Components V2 message lists none under
 `attachments`).
 

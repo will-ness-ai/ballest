@@ -3,7 +3,9 @@ name: Draw a Map's spinning GIF
 # Started by Multiballs when it posts a Daily whose Map has a file (discord-bot/src/dailyPost/,
 # spec #268), or by hand with a pfid: opens the Map's 3D view on ballestrecords.com in Chromium,
 # turns it one full turn and stores the GIF in map_spins (web/scripts/map-spin.ts), which the bot
-# reads and edits into the Daily Post. It reads the site and writes only that one row.
+# reads and edits into the Daily Post. It reads the site and writes only that one row. A failed
+# run tells the private ops channel at once, naming the Map; the bot's own note an hour after
+# asking stays as the fallback, for a run that never started.
 
 on:
   workflow_dispatch:
@@ -54,3 +56,18 @@ jobs:
           name: spin-${{ inputs.pfid }}
           path: web/spin.gif
           retention-days: 7
+      - name: Tell ops the drawing failed
+        if: failure()
+        env:
+          OPS_WEBHOOK_URL: ${{ secrets.OPS_WEBHOOK_URL }}
+          PFID: ${{ inputs.pfid }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [[ "$OPS_WEBHOOK_URL" == https://* ]] || { echo "::warning::OPS_WEBHOOK_URL is not set"; exit 0; }
+          # The Map's title from the Workshop, if Steam answers; its ID either way.
+          title=$(curl -sf --max-time 20 -d itemcount=1 -d "publishedfileids[0]=$PFID" \
+            https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/ \
+            | jq -r '.response.publishedfiledetails[0].title // empty' || true)
+          jq -n --arg title "${title:-Map $PFID}" --arg pfid "$PFID" --arg run "$RUN_URL" \
+            '{content: "daily-spin.yml couldn’t draw the spinning GIF for **\($title)** (<https://steamcommunity.com/sharedfiles/filedetails/?id=\($pfid)>), so the Daily Post stays without it: \($run)", allowed_mentions: {parse: []}}' \
+            | curl -sf --max-time 20 -H "Content-Type: application/json" -d @- "$OPS_WEBHOOK_URL"
