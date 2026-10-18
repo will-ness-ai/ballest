@@ -14,26 +14,26 @@ merging: read it first. This is the run, from a request to a live page; it takes
 
 From `web/`, run `pnpm --silent campaign draft` on what the request gave, the whole pasted post if
 there is one (its `--help` covers the rest). It finds the Maps, labels each as the rail will, and
-lists the problems. Done when it prints `problems: none`, the rows are in the maker's order (the
-post's for links, the collection's for a collection; a maker query lists oldest first, so check
-that against the series' titles), the count matches the request (a post saying "8 maps" lists
-eight), and every label reads cleanly (`01 Mercury`, or `01` for a title that is only its number).
+lists problems (what stops the entry) and notes (what to look at). Done when it prints `problems:
+none`, every note is settled below, the rows are in the maker's order (the post's for links, the
+collection's for a collection; a maker query lists oldest first, so check that against the series'
+titles), the count matches the request (a post saying "8 maps" lists eight), and the title and
+slug read well (it names the Campaign by the words its Maps' titles share; `--title` and `--slug`
+set them).
 
-Each problem has its own fix:
-
-- A Map by someone else, or already in a Campaign, is a question for Will, asked on a decision
-  card.
+- A Map already in a Campaign (a problem), or by someone else (a note), is a question for Will,
+  asked on a decision card.
 - A Map not on the site yet stays in: step 5's Refresh lists it.
 - A label that repeats its number (`01 1 of 8`) is a `mapName` change, test-first: call the Skill
   tool for 'tdd', with the new titles as cases in `web/test/campaigns.test.ts`, and add the
   pattern to the page paragraph of `docs/site.md`, "Campaigns".
-- No shared title, or a slug taken: pass `--title` (as the maker names the series) or `--slug`.
+- A maker of another Campaign gets a shared constant for their `creator` and `creatorId` at the
+  top of `web/lib/campaigns.ts`, as `HABIBAL` is, after step 2 writes the entry.
 
 ## 2. Write the entry
 
 Branch `claude/<slug>` from `main` and run the same `draft` with `--write`, which appends the entry
-to `CAMPAIGNS`. When it notes the maker made another Campaign, move their `creator` and
-`creatorId` into a shared constant at the top of `web/lib/campaigns.ts`, as `HABIBAL` is.
+to `CAMPAIGNS`.
 
 ## 3. Open and review the PR
 

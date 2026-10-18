@@ -45,13 +45,14 @@ describe("the draft's name", () => {
 
   test("makes a slug of lowercase words joined by -", () => {
     expect(slugOf("Stoxy's mini golf")).toBe("stoxys-mini-golf");
-    expect(slugOf("Limbo campaign")).toBe("limbo-campaign");
+    expect(slugOf("Limbo campaign")).toBe("limbo");
+    expect(slugOf("Tilted Campaign")).toBe("tilted");
     expect(slugOf("  AVG Circuit! ")).toBe("avg-circuit");
   });
 });
 
 describe("each Map's row", () => {
-  test("carries its label and only what is wrong", () => {
+  test("carries its label, what stops the entry and what to look at", () => {
     const maps = [
       found("1", "Solar Trials Mercury"),
       found("2", "Solar Trials Venus", { creator: "Other", cid: "7656119" }),
@@ -61,18 +62,18 @@ describe("each Map's row", () => {
       found("5", "Solar Trials 5 of 5"),
     ];
     const r = rows(draft("Solar Trials", maps), maps);
-    expect(r.map((x) => [x.no, x.label, x.flags])).toEqual([
-      ["01", "01 Mercury", []],
-      ["02", "02 Venus", ["by Other"]],
-      ["03", "03 Mars", ["not on the site yet"]],
-      ["04", "04 Pluto", ["in limbo"]],
-      ["05", "05", []],
+    expect(r.map((x) => [x.no, x.label, x.problems, x.notes])).toEqual([
+      ["01", "01 Mercury", [], []],
+      ["02", "02 Venus", [], ["by Other"]],
+      ["03", "03 Mars", [], ["not on the site yet"]],
+      ["04", "04 Pluto", ["in limbo"], []],
+      ["05", "05", [], []],
     ]);
   });
 
   test("flags a label that says its number twice", () => {
     const maps = [found("1", "Run 1st try"), found("2", "Run 2")];
-    expect(rows(draft("Run", maps), maps).map((x) => x.flags)).toEqual([
+    expect(rows(draft("Run", maps), maps).map((x) => x.notes)).toEqual([
       ["label repeats its number"],
       [],
     ]);

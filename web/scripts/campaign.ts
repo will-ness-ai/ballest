@@ -17,6 +17,7 @@ import {
   sharedTitle,
   slugOf,
 } from "./campaign/draft";
+import { campaignHref } from "../lib/routes";
 import { resolve } from "./qa/targets.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -164,16 +165,24 @@ function draft(args: Array<string>) {
     return;
   }
   const table = rows(c, maps);
-  const problems = [
+  const problems = table
+    .filter((r) => r.problems.length)
+    .map((r) => `${r.no} ${r.pfid}: ${r.problems.join(", ")}`);
+  const taken = CAMPAIGNS.find((x) => x.slug === slug);
+  if (taken) problems.push(`slug "${slug}" is ${taken.title}'s`);
+  const notes = [
     ...missing.map(
       (id) => `${id}: no Map (not this game's, not public, or newer than Steam's catalogue)`,
     ),
-    ...table.filter((r) => r.flags.length).map((r) => `${r.no} ${r.pfid}: ${r.flags.join(", ")}`),
+    ...table.filter((r) => r.notes.length).map((r) => `${r.no} ${r.pfid}: ${r.notes.join(", ")}`),
   ];
-  const taken = CAMPAIGNS.find((x) => x.slug === slug);
-  if (taken) problems.push(`slug "${slug}" is ${taken.title}'s: pass another --slug`);
   const elsewhere = CAMPAIGNS.find((x) => x.creatorId === cid);
+  if (elsewhere)
+    notes.push(
+      `${c.creator} also made ${elsewhere.slug}: share their creator fields as a constant`,
+    );
   const entry = entryText(c);
+  const query = pos.map((p) => JSON.stringify(p)).join(" ");
 
   const lines = [
     `campaign: ${title} (${slug}) by ${c.creator} (${cid}), ${String(maps.length)} Maps`,
@@ -181,37 +190,60 @@ function draft(args: Array<string>) {
     ...table.map((r) => [r.no, r.pfid, r.label, r.title].map(cell).join(",")),
     problems.length ? `problems[${String(problems.length)}]:` : "problems: none",
     ...problems.map((p) => `  ${p}`),
+    ...(notes.length ? [`notes[${String(notes.length)}]:`, ...notes.map((n) => `  ${n}`)] : []),
   ];
-  if (elsewhere)
-    lines.push(
-      `note: ${c.creator} also made ${elsewhere.slug}: share their creator fields as a constant`,
-    );
-  if (flags["--write"] && !problems.length) {
-    const next = insertEntry(readFileSync(CAMPAIGNS_TS, "utf8"), entry);
-    if (next === null)
-      fail("can't find the end of CAMPAIGNS in web/lib/campaigns.ts", [
-        "read web/lib/campaigns.ts",
-      ]);
-    writeFileSync(CAMPAIGNS_TS, next);
-    lines.push("entry: appended to CAMPAIGNS in web/lib/campaigns.ts");
+  if (problems.length) {
     out([
       ...lines,
+      flags["--write"]
+        ? "entry: not written while there are problems"
+        : "entry: none while there are problems",
       ...help([
-        "pnpm check",
-        "cd web && npx vitest run test/campaigns.test.ts",
-        `pnpm --silent campaign check ${slug} --at preview`,
+        ...(taken
+          ? [
+              `pnpm --silent campaign draft ${query} --title ${JSON.stringify(title)} --slug <another slug>`,
+            ]
+          : []),
+        ...(problems.length > (taken ? 1 : 0)
+          ? ['pnpm --silent campaign draft "<the links without Maps another Campaign has>"']
+          : []),
+      ]),
+    ]);
+    process.exit(1);
+  }
+  if (!flags["--write"]) {
+    out([
+      ...lines,
+      "entry:",
+      entry,
+      ...help([
+        `pnpm --silent campaign draft ${query} --title ${JSON.stringify(title)} --slug ${slug} --write`,
       ]),
     ]);
     return;
   }
-  lines.push(flags["--write"] ? "entry: not written while there are problems" : "entry:", entry);
+  const next = insertEntry(readFileSync(CAMPAIGNS_TS, "utf8"), entry);
+  if (next === null)
+    fail("can't find the end of CAMPAIGNS in web/lib/campaigns.ts", ["read web/lib/campaigns.ts"]);
+  writeFileSync(CAMPAIGNS_TS, next);
+  try {
+    // for what entryText's layout doesn't cover, such as a title holding a quote
+    execFileSync("pnpm", ["exec", "prettier", "--write", CAMPAIGNS_TS], {
+      cwd: ROOT,
+      stdio: "ignore",
+    });
+  } catch {
+    lines.push("prettier: couldn't run; pnpm check will say what to format");
+  }
   out([
     ...lines,
+    "entry: appended to CAMPAIGNS in web/lib/campaigns.ts",
     ...help([
-      `pnpm --silent campaign draft ${pos.map((p) => JSON.stringify(p)).join(" ")} --title ${JSON.stringify(title)} --slug ${slug} --write`,
+      "pnpm check",
+      "cd web && npx vitest run test/campaigns.test.ts",
+      `pnpm --silent campaign check ${slug} --at preview`,
     ]),
   ]);
-  if (problems.length) process.exit(1);
 }
 
 async function check(args: Array<string>) {
@@ -238,10 +270,10 @@ async function check(args: Array<string>) {
     ]);
   let html: string;
   try {
-    const res = await fetch(`${at.url}/campaign/${slug}`, { signal: AbortSignal.timeout(30_000) });
+    const res = await fetch(at.url + campaignHref(slug), { signal: AbortSignal.timeout(30_000) });
     if (!res.ok)
-      fail(`${at.name} answered ${String(res.status)} for /campaign/${slug}`, [
-        `pnpm --silent campaign check ${slug} --at preview`,
+      fail(`${at.name} answered ${String(res.status)} for ${campaignHref(slug)}`, [
+        `pnpm --silent campaign check ${slug} --at ${at.name}   # once a deploy carries the entry`,
       ]);
     html = await res.text();
   } catch (e) {
@@ -250,11 +282,11 @@ async function check(args: Array<string>) {
     ]);
   }
   const shown = new Set(
-    [...html.matchAll(new RegExp(`/campaign/${slug}/(\\d+)`, "g"))].map((m) => m[1]),
+    [...html.matchAll(new RegExp(`${campaignHref(slug)}/(\\d+)`, "g"))].map((m) => m[1]),
   );
   const absent = c.maps.filter((p) => !shown.has(p));
   const lines = [
-    `page: ${at.url}/campaign/${slug}`,
+    `page: ${at.url}${campaignHref(slug)}`,
     `shown: ${String(c.maps.length - absent.length)} of ${String(c.maps.length)} Maps`,
   ];
   if (!absent.length) return out(lines);

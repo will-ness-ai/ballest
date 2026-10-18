@@ -175,12 +175,11 @@ def main():
     try:
         found, missing, curated, site = find(" ".join(args))
     except (QueryError, OSError) as e:
-        if isinstance(e, OSError):
-            e = f"couldn't reach Steam: {e}"
+        message = f"couldn't reach Steam: {e}" if isinstance(e, OSError) else str(e)
         if as_json:
-            print(json.dumps({"error": str(e)}))
+            print(json.dumps({"error": message}))
             sys.exit(1)
-        sys.exit(str(e))
+        sys.exit(message)
     if as_json:
         print(json.dumps(report(found, site, missing)))
         return

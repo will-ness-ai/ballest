@@ -35,10 +35,12 @@ export function sharedTitle(titles: ReadonlyArray<string>): string | null {
   return shared.length ? shared.join(" ") : null;
 }
 
-/* a title as a path: lowercase words joined by - ("Stoxy's mini golf" is stoxys-mini-golf) */
+/* a title as a path: lowercase words joined by -, without a closing "campaign" (Stoxy's mini golf
+   is stoxys-mini-golf, Limbo campaign is limbo) */
 export const slugOf = (title: string) =>
   title
     .toLowerCase()
+    .replace(/\s+campaigns?\s*$/, "")
     .replaceAll("'", "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
@@ -48,27 +50,32 @@ export interface Row {
   pfid: string;
   label: string;
   title: string;
-  flags: Array<string>;
+  /* what stops the entry: a Map another Campaign has (campaignProblems would fail the tests) */
+  problems: Array<string>;
+  /* what to look at before writing it: another maker, a Map the site doesn't list yet (a
+     Refresh lists it), or a label that says its number twice ("01 1 of 8") */
+  notes: Array<string>;
 }
 
-/* each Map as the rail will label it, with what is wrong with it: by another maker, in a
-   Campaign already, not on the site yet, or a label that says its number twice ("01 1 of 8") */
+/* each Map as the rail will label it, with what stops the entry and what to look at */
 export function rows(c: Campaign, found: ReadonlyArray<Found>): Array<Row> {
   return found.map((m) => {
-    const flags: Array<string> = [];
-    if (m.cid !== c.creatorId) flags.push(`by ${m.creator}`);
+    const problems: Array<string> = [];
+    const notes: Array<string> = [];
     const home = campaignOfMap(m.pfid);
-    if (home) flags.push(`in ${home.campaign.slug}`);
-    if (m.on_site === false) flags.push("not on the site yet");
+    if (home) problems.push(`in ${home.campaign.slug}`);
+    if (m.cid !== c.creatorId) notes.push(`by ${m.creator}`);
+    if (m.on_site === false) notes.push("not on the site yet");
     const name = mapName(c, m.pfid, m.title);
     const lead = name === null ? null : /^[a-z]?0*(\d+)/i.exec(name);
-    if (lead && Number(lead[1]) === mapNumber(c, m.pfid)) flags.push("label repeats its number");
+    if (lead && Number(lead[1]) === mapNumber(c, m.pfid)) notes.push("label repeats its number");
     const label = mapLabel(c, m.pfid, m.title);
-    return { no: mapNo(c, m.pfid), pfid: m.pfid, label, title: m.title, flags };
+    return { no: mapNo(c, m.pfid), pfid: m.pfid, label, title: m.title, problems, notes };
   });
 }
 
-/* the entry as Prettier writes it, indented for CAMPAIGNS */
+/* the entry as Prettier writes it, indented for CAMPAIGNS (the tool runs Prettier after writing
+   it, for what this doesn't cover) */
 export function entryText(c: Campaign): string {
   const ids = c.maps.map((p) => `"${p}"`);
   const oneLine = `    maps: [${ids.join(", ")}],`;
