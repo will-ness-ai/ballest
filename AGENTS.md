@@ -1,6 +1,7 @@
 # Ballest community tools
 
-`CLAUDE.md` is a symlink to this file, so git sees an edit to either as `AGENTS.md`: stage that.
+`CLAUDE.md` is a symlink to this file, so git sees an edit to either as `AGENTS.md`:
+stage `AGENTS.md`.
 
 The public monorepo for **Ballest of Them All** (appid `3339810`) community tools. Its
 main tool is a static, read-only mirror of the game's Steam leaderboards, live at
