@@ -13,7 +13,6 @@ import {
   FOLLOW_UP_LINES,
   SKILLS,
   mergeTargets,
-  notSquash,
   repoSlug,
   skillName,
   unreviewed,
@@ -146,16 +145,13 @@ function refusal(target, cwd) {
 }
 
 function gate(input) {
-  const targets = mergeTargets(input.tool_name, input.tool_input ?? {});
-  if (
-    notSquash(input.tool_name, input.tool_input ?? {}) &&
-    targets.some((t) => tries(() => locate(t, input.cwd).ours))
-  )
-    return preToolUse({
-      permissionDecision: "deny",
-      permissionDecisionReason: `This repo squash-merges (docs/agents/issue-tracker.md): use \`gh api -X PUT repos/${slugAt(HOME_REPO)}/pulls/<n>/merge -f merge_method=squash\`, \`gh pr merge --squash\`, or merge_method squash.`,
-    });
-  for (const target of targets) {
+  for (const target of mergeTargets(input.tool_name, input.tool_input ?? {})) {
+    // a target that can't be placed counts as this repo's
+    if (target.unsquashed && tries(() => locate(target, input.cwd).ours) !== false)
+      return preToolUse({
+        permissionDecision: "deny",
+        permissionDecisionReason: `This repo squash-merges (docs/agents/issue-tracker.md): use \`gh api -X PUT repos/${slugAt(HOME_REPO)}/pulls/<n>/merge -f merge_method=squash\`, \`gh pr merge --squash\`, or merge_method squash.`,
+      });
     const reason = refusal(target, input.cwd);
     if (reason) return preToolUse({ permissionDecision: "deny", permissionDecisionReason: reason });
   }
