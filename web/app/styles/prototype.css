@@ -438,5 +438,8 @@
   box-shadow: 0 1px 0 var(--line2);
 }
 .pkA5-row {
+  inset-block-start: 0;
   background: color-mix(in oklch, var(--accent) 14%, var(--solid));
+  /* the dialog's own colour fills the gap above it, so the grid never shows there */
+  box-shadow: 0 -16px 0 4px var(--solid);
 }
