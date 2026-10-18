@@ -195,7 +195,7 @@ class Service:
             to_slot = (next_slot(self.now()) - self.now() - BACKLOG_MARGIN).total_seconds()
             budget = min(self.backlog_budget, int(to_slot))
             if budget <= 0:
-                print("Map file backlog: too close to the next slot; not logging in", flush=True)
+                print("Map file backlog: no time left before the slot; not logging in", flush=True)
                 return 0
             args, limit = ["--budget", str(budget)], budget + DOWNLOAD_GRACE
             return (await self._script(None, "map_files.py", args, limit=limit)).exit

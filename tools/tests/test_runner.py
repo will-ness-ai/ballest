@@ -198,6 +198,9 @@ def test_the_backlog_stops_starting_downloads_before_the_next_slot():
         await settle()
         # 45 minutes to the margin before 15:00, so the slot's Refresh needn't wait for it
         assert fake.log[-1] == ("start", "map_files.py", "--budget", "2700")
+        # and the last downloads end before the slot, which is the margin's whole point
+        assert fake.limits[-1] == 2700 + runner.DOWNLOAD_GRACE
+        assert runner.BACKLOG_MARGIN.total_seconds() > runner.DOWNLOAD_GRACE
         fake.gate("map_files.py").set()
         await settle()
 
