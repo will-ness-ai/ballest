@@ -304,8 +304,8 @@ def test_maps_naming_none_on_the_newest_page_never_logs_into_steam(monkeypatch, 
     monkeypatch.setattr(map_files.cc, "load_key", lambda: "key")
     monkeypatch.setattr(map_files.cc, "newest_maps", lambda _: [cat("1", "h1", 9)])
     monkeypatch.setattr(map_files.steam, "Client", None)  # calling it would raise
-    env = {"DEV_DATABASE_URL": "postgres://unused"}
-    monkeypatch.setattr(map_files.os, "environ", env)
+    monkeypatch.setenv("DEV_DATABASE_URL", "postgres://unused")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     assert map_files.main(["--maps", ",", "--dev"]) == 1
     assert map_files.main(["--maps", "2", "--dev"]) == 1
     assert "no Map to look at" in capsys.readouterr().out
