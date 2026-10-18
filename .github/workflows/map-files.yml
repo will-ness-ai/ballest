@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       budget:
-        description: Seconds to keep starting downloads
+        description: Seconds to keep starting downloads (at most 6000, inside the job's limit)
         default: "3600"
 
 # Never alongside a refresh: both log into Steam with the same account.
@@ -23,7 +23,7 @@ permissions:
 jobs:
   map-files:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 110
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:

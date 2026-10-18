@@ -171,7 +171,7 @@ async def record_map_files(catalogue, download, *, scratch=False, env=None, budg
     print(
         f"Map files: {len(todo)} due, {written} written, {n_failed} failed"
         + (f" ({why})" if why else "")
-        + (f", {left} left for the next Refresh" if left else "")
+        + (f", {left} left for the next run" if left else "")
     )
     if written:
         await asyncio.to_thread(db_writer.revalidate, env)
@@ -186,8 +186,8 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     token, key = cc.load_refresh_token(), cc.load_key()
-    if not (token and key):
-        print("ERROR: needs STEAM_REFRESH_TOKEN and STEAM_API_KEY")
+    if not (token and key and db_writer.database_url(os.environ, scratch=args.dev)):
+        print("ERROR: needs STEAM_REFRESH_TOKEN, STEAM_API_KEY and the database's URL")
         return 2
     catalogue = cc.workshop_catalogue(key)
     client = steam.Client()
@@ -195,6 +195,10 @@ def main(argv=None):
 
     @client.event
     async def on_ready():
+        # steam.py calls this again after a reconnect; the run is already under way
+        if "started" in result:
+            return
+        result["started"] = True
         try:
             result["written"] = await record_map_files(
                 catalogue, steam_download(client), scratch=args.dev, budget=args.budget
@@ -210,7 +214,13 @@ def main(argv=None):
         if "written" not in result:
             print(f"ERROR: Steam login/run failed: {e!r}")
             return 1
-    return 0 if result.get("written") is not None else 1
+    written = result.get("written")
+    if not written:
+        # this run's whole job is downloading, so one that wrote nothing shows red (nothing
+        # due, every download failed, or the step skipped); the line above says which
+        print("::error::Map files: no file written")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
