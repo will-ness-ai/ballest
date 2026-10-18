@@ -119,13 +119,40 @@ export function repoSlug(text) {
 /* "projectSettings:code-review" and "code-review" are the same skill */
 export const skillName = (name) => String(name).split(":").pop();
 
+/* A merge that doesn't squash: the repo squash-merges (docs/agents/issue-tracker.md), and
+   GitHub's REST merge, like gh's prompt, makes a merge commit unless told otherwise. */
+export function notSquash(tool, input) {
+  if (tool === "mcp__github__merge_pull_request") return input.merge_method !== "squash";
+  if (tool !== "Bash") return false;
+  const command = flatten(String(input.command ?? ""));
+  const gh = [...command.matchAll(GH_PR)]
+    .filter((m) => m[2] === "merge")
+    .map((m) => command.slice(m.index + m[0].length).split(SEPARATOR)[0]);
+  const api = [...command.matchAll(API)]
+    .map((m) => command.slice(m.index + m[0].length).split(SEPARATOR)[0])
+    .filter((call) => /\/pulls\/\d+\/merge\b/.test(call));
+  return (
+    gh.some((args) => !/(?:^|\s)(?:-s|--squash)\b/.test(args)) ||
+    api.some((call) => !/\bmerge_method=squash\b/.test(call))
+  );
+}
+
+// A follow-up this small, after both skills have run on the PR, needs no new run (Will,
+// 2026-10-18: each round of review fixes was costing a whole review round).
+export const FOLLOW_UP_LINES = 40;
+
 /* Each skill's commits that no run of it has seen: a run on a commit sees it and every
-   commit before it. `records` are { skill, sha }, `isAncestor(a, b)` is git's. */
-export function unreviewed(commits, records, isAncestor) {
+   commit before it, and once it has run on the PR, later commits that change fewer than
+   FOLLOW_UP_LINES lines in all pass too. `records` are { skill, sha }, `isAncestor(a, b)` is
+   git's, `linesOf(sha)` the lines a commit adds and removes. */
+export function unreviewed(commits, records, isAncestor, linesOf) {
   return Object.fromEntries(
     SKILLS.map((skill) => {
       const seen = records.filter((r) => r.skill === skill).map((r) => r.sha);
-      return [skill, commits.filter((c) => !seen.some((s) => isAncestor(c, s)))];
+      const missing = commits.filter((c) => !seen.some((s) => isAncestor(c, s)));
+      const lines = missing.reduce((sum, c) => sum + linesOf(c), 0);
+      const followUp = missing.length < commits.length && lines < FOLLOW_UP_LINES;
+      return [skill, followUp ? [] : missing];
     }),
   );
 }

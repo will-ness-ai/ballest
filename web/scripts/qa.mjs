@@ -3,7 +3,7 @@
 // exit code 1). `check` draws every page at several sizes on a target and a reference,
 // reports layout faults, errors and changed pixels, and writes one picture per changed view
 // to read in place of the screenshots. What it looks at: scripts/qa/catalogue.mjs.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { compare } from "./qa/compare.mjs";
@@ -480,7 +480,7 @@ async function check() {
   }
   const diffRows = [...shared.values()].map((d) => ({ ...d, alike: few(d.alike) }));
   const secs = Math.round((Date.now() - started) / 1000);
-  say([
+  const report = [
     `checked ${String(chosen.length - skipped.length - unsigned.length)} views of ${describe(at)}${ref ? ` against ${describe(ref)}` : ""} in ${String(secs)}s`,
     ...rows("faults", ["kind", "where", "detail", ...(ref ? ["ref"] : []), "views"], faultRows),
     ...(ref
@@ -505,6 +505,14 @@ async function check() {
       ? ["  pnpm --silent qa shot <view> --el <where>   # look at a fault"]
       : []),
     ...(!diffs.length && !found.length ? ["  nothing to look at"] : []),
-  ]);
+  ];
+  say(report);
+  // in CI, the job's summary too: a cloud session can read it from the check run
+  // (`gh api .../check-runs`, output.summary) but not the job's log
+  if (process.env.GITHUB_STEP_SUMMARY)
+    appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      `## qa check\n\n\`\`\`\n${report.join("\n")}\n\`\`\`\n`,
+    );
   if (flags.assert && found.length) process.exit(1);
 }

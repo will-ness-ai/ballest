@@ -2,8 +2,10 @@ import { describe, expect, test } from "vitest";
 
 import {
   mergeTargets,
+  notSquash,
   repoSlug,
   skillName,
+  FOLLOW_UP_LINES,
   unreviewed,
 } from "../../.claude/hooks/review-gate-rules.mjs";
 
@@ -119,24 +121,73 @@ test("a skill's name drops its source", () => {
   expect(skillName("projectSettings:code-review")).toBe("code-review");
 });
 
+describe("notSquash", () => {
+  const bash = (command: string): boolean => notSquash("Bash", { command });
+
+  test("finds merges that don't squash", () => {
+    expect(bash("gh pr merge 5")).toBe(true);
+    expect(bash("gh pr merge 5 --merge")).toBe(true);
+    expect(bash("gh api -X PUT repos/o/r/pulls/5/merge -f merge_method=merge")).toBe(true);
+    expect(bash("gh api -X PUT repos/o/r/pulls/5/merge")).toBe(true);
+    expect(notSquash("mcp__github__merge_pull_request", { pullNumber: 5 })).toBe(true);
+    expect(notSquash("mcp__github__merge_pull_request", { merge_method: "rebase" })).toBe(true);
+  });
+
+  test("lets squashes, mark-readies and other calls through", () => {
+    expect(bash("gh pr merge 5 --squash")).toBe(false);
+    expect(bash("gh pr merge --auto -s 5")).toBe(false);
+    expect(bash("gh api -X PUT repos/o/r/pulls/5/merge -f merge_method=squash")).toBe(false);
+    expect(bash("gh api -X PUT repos/o/r/pulls/5/merge -f 'merge_method=squash'")).toBe(false);
+    expect(bash("gh pr ready 5")).toBe(false);
+    expect(bash("gh pr view 5")).toBe(false);
+    expect(notSquash("mcp__github__merge_pull_request", { merge_method: "squash" })).toBe(false);
+    expect(notSquash("mcp__github__update_pull_request", { draft: false })).toBe(false);
+  });
+});
+
 describe("unreviewed", () => {
   // a line of history: a <- b <- c
   const order = ["a", "b", "c"];
   const isAncestor = (x: string, y: string) => order.indexOf(x) <= order.indexOf(y);
+  const big = () => Infinity;
 
   test("a commit is reviewed once both skills have run on it or a later commit", () => {
     const records = [
       { skill: "code-review", sha: "c" },
       { skill: "codebase-design", sha: "b" },
     ];
-    expect(unreviewed(["a", "b", "c"], records, isAncestor)).toEqual({
+    expect(unreviewed(["a", "b", "c"], records, isAncestor, big)).toEqual({
       "code-review": [],
       "codebase-design": ["c"],
     });
   });
 
+  test("a small follow-up after a review needs no new run", () => {
+    const records = [
+      { skill: "code-review", sha: "a" },
+      { skill: "codebase-design", sha: "a" },
+    ];
+    const small: Record<string, number> = { b: 10, c: FOLLOW_UP_LINES - 11 };
+    expect(unreviewed(["a", "b", "c"], records, isAncestor, (c: string) => small[c] ?? 0)).toEqual({
+      "code-review": [],
+      "codebase-design": [],
+    });
+    const huge: Record<string, number> = { b: 10, c: FOLLOW_UP_LINES - 10 };
+    expect(unreviewed(["a", "b", "c"], records, isAncestor, (c: string) => huge[c] ?? 0)).toEqual({
+      "code-review": ["b", "c"],
+      "codebase-design": ["b", "c"],
+    });
+  });
+
+  test("a small PR still needs its first run", () => {
+    expect(unreviewed(["a"], [], isAncestor, () => 1)).toEqual({
+      "code-review": ["a"],
+      "codebase-design": ["a"],
+    });
+  });
+
   test("with no records every commit is unreviewed", () => {
-    expect(unreviewed(["a"], [], isAncestor)).toEqual({
+    expect(unreviewed(["a"], [], isAncestor, big)).toEqual({
       "code-review": ["a"],
       "codebase-design": ["a"],
     });

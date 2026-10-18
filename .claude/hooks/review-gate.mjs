@@ -9,7 +9,15 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { SKILLS, mergeTargets, repoSlug, skillName, unreviewed } from "./review-gate-rules.mjs";
+import {
+  FOLLOW_UP_LINES,
+  SKILLS,
+  mergeTargets,
+  notSquash,
+  repoSlug,
+  skillName,
+  unreviewed,
+} from "./review-gate-rules.mjs";
 
 const HOME_REPO = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -99,7 +107,15 @@ function refusal(target, cwd) {
     });
   const isAncestor = (a, b) =>
     tries(() => run("git", ["merge-base", "--is-ancestor", a, b], at)) !== null;
-  const missing = Object.entries(unreviewed(commits, records, isAncestor)).filter(
+  const linesOf = (c) =>
+    run("git", ["show", "--numstat", "--format=", c], at)
+      .split("\n")
+      .reduce(
+        (sum, line) =>
+          sum + (Number(line.split("\t")[0]) || 0) + (Number(line.split("\t")[1]) || 0),
+        0,
+      );
+  const missing = Object.entries(unreviewed(commits, records, isAncestor, linesOf)).filter(
     ([, cs]) => cs.length,
   );
   if (!missing.length) return null;
@@ -114,6 +130,7 @@ function refusal(target, cwd) {
   return (
     `PR #${number} isn't reviewed to its head (docs/agents/feature-workflow.md, steps 5 and 6). ` +
     lines.join(". ") +
+    `. Commits after a run need no new one while they change fewer than ${FOLLOW_UP_LINES} lines in all` +
     `. Call the Skill tool for 'code-review' with fixed point ${since}, then for 'codebase-design', ` +
     "on the PR's head in this clone, fix what they find, push, and try again. " +
     "Runs in this clone count from any session or worktree; an ad-hoc review or a run on another machine doesn't."
@@ -121,6 +138,12 @@ function refusal(target, cwd) {
 }
 
 function gate(input) {
+  if (notSquash(input.tool_name, input.tool_input ?? {}))
+    return preToolUse({
+      permissionDecision: "deny",
+      permissionDecisionReason:
+        "This repo squash-merges (docs/agents/issue-tracker.md): use `gh api -X PUT repos/will-ness-ai/ballest/pulls/<n>/merge -f merge_method=squash`, `gh pr merge --squash`, or merge_method squash.",
+    });
   for (const target of mergeTargets(input.tool_name, input.tool_input ?? {})) {
     const reason = refusal(target, input.cwd);
     if (reason) return preToolUse({ permissionDecision: "deny", permissionDecisionReason: reason });
