@@ -362,10 +362,10 @@ describe("a Daily Post's card", () => {
   const links = (m: DailyMessage) =>
     JSON.stringify(m.components).match(/"label":"[^"]+","url":"[^"]+"/g);
 
-  it("links to the Daily's board on the site and the Map's Workshop page", () => {
+  it("links to the Map's Workshop page, then the Daily's board on the site", () => {
     expect(links(message)).toEqual([
-      '"label":"Today\'s board","url":"https://ballestrecords.com/daily/2026-10-18"',
       '"label":"Steam Workshop","url":"https://steamcommunity.com/sharedfiles/filedetails/?id=3796494598"',
+      '"label":"Today\'s board","url":"https://ballestrecords.com/daily/2026-10-18"',
     ]);
   });
 

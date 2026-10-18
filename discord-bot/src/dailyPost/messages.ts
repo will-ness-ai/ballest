@@ -64,14 +64,14 @@ export const dailyCardMessage = (
               {
                 type: ComponentType.Button,
                 style: ButtonStyle.Link,
-                label: "Today's board",
-                url: `${SITE_URL}/daily/${v.date}`,
+                label: "Steam Workshop",
+                url: workshopUrl(v.pfid),
               },
               {
                 type: ComponentType.Button,
                 style: ButtonStyle.Link,
-                label: "Steam Workshop",
-                url: workshopUrl(v.pfid),
+                label: "Today's board",
+                url: `${SITE_URL}/daily/${v.date}`,
               },
             ],
           },
