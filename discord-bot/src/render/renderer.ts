@@ -13,7 +13,9 @@ import { Worker } from "node:worker_threads";
 import { Data, Effect } from "effect";
 import satori, { type Font } from "satori";
 import type { Improvement, ProfilePreview } from "../ports.js";
-import { marbleSvg } from "./art.js";
+import { ChosenSkins } from "../chosenSkins.js";
+import { type Looks, marbleSvg } from "./art.js";
+import { loadSkinPictures } from "./skins.js";
 import {
   ACTIVITY_ART_SIZE,
   type ActivityArt,
@@ -184,22 +186,39 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
     });
     const footer = yield* Effect.cached(draw(footerScene(), FOOTER_WIDTH));
 
+    // Each player drawn in their Chosen Skin's picture, else their hue marble; a Skin with no
+    // picture (one a game update added before the list knew it) draws the marble.
+    const chosenSkins = yield* ChosenSkins;
+    const pictures = new Map(
+      [...(yield* loadSkinPictures)].map(([path, png]) => [
+        path,
+        `data:image/png;base64,${png.toString("base64")}`,
+      ]),
+    );
+    const withLooks = <A, E>(drawWith: (looks: Looks) => Effect.Effect<A, E>) =>
+      Effect.flatMap(chosenSkins.all, (chosen) =>
+        drawWith((steamId) => pictures.get(chosen.get(steamId) ?? "") ?? null),
+      );
+
     return {
       /** The Match Card, in any state. */
-      card: (card: CardImage) => draw(cardScene(card), CARD_WIDTH),
+      card: (card: CardImage) => withLooks((looks) => draw(cardScene(card, looks), CARD_WIDTH)),
       improvement: (improvement: Improvement, name: string) =>
-        draw(improvementScene(improvement, name), ROW_WIDTH),
+        withLooks((looks) => draw(improvementScene(improvement, name, looks), ROW_WIDTH)),
       footer,
-      link: (preview: ProfilePreview) => draw(linkScene(preview), LINK_WIDTH),
+      link: (preview: ProfilePreview) =>
+        withLooks((looks) => draw(linkScene(preview, looks), LINK_WIDTH)),
       /** After the Result: every PB of the Match over its clock. */
-      progression: (image: ProgressionImage) => draw(progressionScene(image), PROGRESSION_WIDTH),
+      progression: (image: ProgressionImage) =>
+        withLooks((looks) => draw(progressionScene(image, looks), PROGRESSION_WIDTH)),
       /** The Activity's art for the Developer Portal; `dev` tags it for the dev app. */
       activityArt: (art: ActivityArt, dev: boolean) =>
         draw(activityArtScene(art, dev), ACTIVITY_ART_SIZE[art][0]),
       /** A bare marble, for the lifecycle-line emojis. */
       marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
       /** The Daily Report's four boards. */
-      standings: (image: StandingsImage) => draw(standingsScene(image), STANDINGS_WIDTH),
+      standings: (image: StandingsImage) =>
+        withLooks((looks) => draw(standingsScene(image, looks), STANDINGS_WIDTH)),
     };
   }),
 }) {}

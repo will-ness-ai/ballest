@@ -3,6 +3,7 @@
 // a live Match can be pressed, and what the bot answered privately comes back in Discord's shape.
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Option, Stream } from "effect";
+import { NoChosenSkins } from "../src/chosenSkins.js";
 import { Discord } from "../src/discord/client.js";
 import { DriverInteractions, InteractionsLive } from "../src/discord/interactions.js";
 import { Engine } from "../src/engine.js";
@@ -36,7 +37,7 @@ describe("the sandbox driver", () => {
                 Layer.succeed(Engine, h.engine),
                 Layer.succeed(Store, h.store),
                 Layer.succeed(Pings, h.pings),
-                Renderer.Default,
+                Renderer.Default.pipe(Layer.provide(NoChosenSkins)),
               ),
             ),
           ),

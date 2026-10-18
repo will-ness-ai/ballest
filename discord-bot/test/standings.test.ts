@@ -1,6 +1,7 @@
 // The standings image's layout, read from the scene before it is drawn. How it looks is checked
 // by eye (`pnpm render:samples`); what each row says is something a test can hold it to.
 import { describe, expect, it } from "vitest";
+import { HUE_MARBLES } from "../src/render/art.js";
 import { type El, standingsScene } from "../src/render/scenes.js";
 
 const textsOf = (el: El): Array<string> =>
@@ -9,16 +10,16 @@ const textsOf = (el: El): Array<string> =>
   );
 
 const scene = (board: Parameters<typeof standingsScene>[0]["boards"][number]) =>
-  textsOf(standingsScene({ title: "Daily Report", subtitle: "", boards: [board] }));
+  textsOf(standingsScene({ title: "Daily Report", subtitle: "", boards: [board] }, HUE_MARBLES));
 
 describe("the standings image", () => {
   it("shows a row's move after its place and its gain before its number", () => {
     const texts = scene({
       title: "Most world records",
       rows: [
-        { name: "Amy", n: 4, place: 1, move: 2, gain: 3 },
-        { name: "Bob", n: 2, place: 2, move: "new", gain: -1 },
-        { name: "Cy", n: 2, place: 2, move: 0, gain: 0 },
+        { steamId: "s-Amy", name: "Amy", n: 4, place: 1, move: 2, gain: 3 },
+        { steamId: "s-Bob", name: "Bob", n: 2, place: 2, move: "new", gain: -1 },
+        { steamId: "s-Cy", name: "Cy", n: 2, place: 2, move: 0, gain: 0 },
       ],
       out: [],
     });

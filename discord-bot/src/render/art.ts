@@ -12,6 +12,15 @@ export const hueFor = (seed: string): number => {
   return Math.abs(h) % 360;
 };
 
+/**
+ * How an image draws each player: their Chosen Skin's picture as a data URI, or null for their
+ * hue marble. The Renderer makes one from the Chosen Skins for every draw (chosenSkins.ts).
+ */
+export type Looks = (steamId: string) => string | null;
+
+/** Every player in their hue marble. */
+export const HUE_MARBLES: Looks = () => null;
+
 /** The lime of the start line and the Multiballs logo's green marble. */
 export const START_HUE = 96;
 /** The warm marble that heads a Result. */

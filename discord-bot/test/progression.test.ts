@@ -1,6 +1,7 @@
 // The progression graph's layout, read from the scene before it is drawn. How it looks is checked
 // by eye (`pnpm render:samples`); where each name sits is something a test can hold it to.
 import { describe, expect, it } from "vitest";
+import { HUE_MARBLES } from "../src/render/art.js";
 import { type El, progressionScene } from "../src/render/scenes.js";
 import { ALICE, BOB, CARA, cardView, DAN, drawnMap, ticks } from "./harness.js";
 
@@ -49,7 +50,7 @@ describe("the progression graph", () => {
       [BOB.discordId, "Bob"],
       [CARA.discordId, "Cara"],
     ]);
-    const scene = progressionScene({ view, history, names });
+    const scene = progressionScene({ view, history, names }, HUE_MARBLES);
     const [bob, cara, alice] = ["Bob", "Cara", "Alice"].map((n) => topOf(scene, n) ?? NaN);
     expect(bob).toBeLessThan(cara ?? NaN);
     expect(cara).toBeLessThan(alice ?? NaN);
@@ -72,7 +73,7 @@ describe("the progression graph", () => {
       [ALICE.discordId, "Alice"],
       [DAN.discordId, "Dan"],
     ]);
-    const scene = progressionScene({ view, history, names });
+    const scene = progressionScene({ view, history, names }, HUE_MARBLES);
     expect(topOf(scene, "Dan")).toBeLessThan(topOf(scene, "Alice") ?? NaN);
     expect(textsOf(scene).filter((t) => t.startsWith("No time"))).toEqual([]);
   });
@@ -101,7 +102,7 @@ describe("the progression graph", () => {
       at: 10_000 * (i + 1),
     }));
     const names = new Map(players.map((p, i) => [p.discordId, `P${i}`]));
-    const scene = progressionScene({ view, history, names });
+    const scene = progressionScene({ view, history, names }, HUE_MARBLES);
     const tops = players.map((_, i) => topOf(scene, `P${i}`) ?? NaN);
     // Slowest highest, each lower than the one before, all between the title and the clock.
     tops.forEach((top, i) => {

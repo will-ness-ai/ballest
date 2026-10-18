@@ -139,6 +139,7 @@ export const standingsImage = (r: Report): StandingsImage => ({
   boards: r.boards.map((b) => ({
     title: BOARD_TITLE[b.stat],
     rows: b.rows.map((row) => ({
+      steamId: row.steamId,
       name: row.persona,
       n: row.n,
       place: row.place,
