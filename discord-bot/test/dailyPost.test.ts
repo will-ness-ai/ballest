@@ -8,7 +8,7 @@ import {
   type DailyView,
   threadName,
 } from "../src/dailyPost/card.js";
-import { type Lead, leadLine } from "../src/dailyPost/lead.js";
+import { type Lead, leadChanged, leadLine, leadOf } from "../src/dailyPost/lead.js";
 import { ticks } from "./harness.js";
 
 const ENDS = Date.UTC(2026, 9, 19, 1);
@@ -75,6 +75,21 @@ describe("a Daily Post's card", () => {
     expect(cardText(close).stats).toBe(
       "**1** player · fastest **0:08.532**\n🥇 **Water** 0:08.532",
     );
+  });
+
+  it("shares a place between times the site shows as equal, though Steam's ticks differ", () => {
+    const close = view({
+      board: {
+        players: 3,
+        top: [
+          { name: "snayK", ticks: 853_201 },
+          { name: "airman", ticks: 853_209 },
+          { name: "FEDUS", ticks: ticks(8.566) },
+        ],
+      },
+    });
+    expect(cardText(close).stats).toContain("🥇 **snayK** 0:08.532\n🥇 **airman** 0:08.532\n🥉");
+    expect(closedText(close).header).toContain("# 🏆 snayK & airman win\n");
   });
 
   it("names the thread after the Daily", () => {
@@ -179,6 +194,34 @@ describe("a Daily Post's thread lines", () => {
     expect(leadLine(history, lead(12.5, ["airman", "snayK"], 8.532))).toBe(
       "-# <t:1792330200:t> · 🤝 **snayK** ties **airman** for the lead: **0:08.532**",
     );
+  });
+
+  it("posts a tie when the leader's new best is matched in the same read", () => {
+    const history = [lead(8, ["airman"], 8.6)];
+    expect(leadLine(history, lead(9, ["airman", "snayK"], 8.532))).toBe(
+      "-# <t:1792317600:t> · 🤝 **snayK** ties **airman** for the lead: **0:08.532**",
+    );
+  });
+
+  it("decides a tie on the time as shown, so a steal never reads −0.000 s", () => {
+    const board = (top: ReadonlyArray<readonly [string, number]>) => ({
+      players: 5,
+      top: top.map(([name, t]) => ({ name, ticks: t })),
+    });
+    const before = leadOf(board([["airman", 853_209]]), OPEN + 8 * H);
+    const after = leadOf(
+      board([
+        ["snayK", 853_201],
+        ["airman", 853_209],
+      ]),
+      OPEN + 9 * H,
+    );
+    expect(after?.leaders).toEqual(["snayK", "airman"]);
+    expect(leadLine([before!], after!)).toBe(
+      "-# <t:1792317600:t> · 🤝 **snayK** ties **airman** for the lead: **0:08.532**",
+    );
+    // The leader shaving a tick off their own time changes nothing the card shows.
+    expect(leadChanged(before!, leadOf(board([["airman", 853_201]]), OPEN + 9 * H)!)).toBe(false);
   });
 
   it("takes a shared lead from everyone who shared it", () => {

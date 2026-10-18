@@ -6,7 +6,7 @@
 import { SqlClient } from "@effect/sql";
 import { PgClient } from "@effect/sql-pg";
 import { Config, Context, Data, Effect, Layer, Option, type Redacted, Schema } from "effect";
-import type { BoardRead, Challenge } from "./card.js";
+import { type BoardRead, type Challenge, sameTime } from "./card.js";
 import { type Lead, leadChanged } from "./lead.js";
 
 /**
@@ -75,7 +75,7 @@ const leadsOf = (held: ReadonlyArray<typeof HeldRow.Type>): Array<PastLead> => {
     if (best === undefined) continue;
     const lead = {
       at,
-      leaders: now.filter((s) => s.ticks === best.ticks).map((s) => s.name),
+      leaders: now.filter((s) => sameTime(s.ticks, best.ticks)).map((s) => s.name),
       ticks: best.ticks,
       exact: spans.some((s) => s.from === at && s.exact),
     };

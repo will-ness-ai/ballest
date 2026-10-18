@@ -4,7 +4,7 @@
 // that saw it start to the read that saw a faster time take it, through the holder's own faster
 // times, and a matched time does not start a new one.
 import { escape } from "../report/messages.js";
-import { type BoardRead, dailyTime, millis } from "./card.js";
+import { type BoardRead, dailyTime, millis, sameTime } from "./card.js";
 
 /** The lead as one read saw it: every name on the fastest time, in board order. */
 export interface Lead {
@@ -17,16 +17,17 @@ export interface Lead {
 export const leadOf = (board: BoardRead, at: number): Lead | null => {
   const first = board.top[0];
   if (first === undefined) return null;
-  const leaders = board.top.filter((e) => e.ticks === first.ticks).map((e) => e.name);
+  const leaders = board.top.filter((e) => sameTime(e.ticks, first.ticks)).map((e) => e.name);
   return { at, leaders, ticks: first.ticks };
 };
 
 /**
- * Whether `next` is worth recording after `last`: a new leading time or a new set of leaders
- * (Steam may list a tie in either order).
+ * Whether `next` is worth recording after `last`: a new leading time as shown, or a new set of
+ * leaders (Steam may list a tie in either order).
  */
 export const leadChanged = (last: Lead | undefined, next: Lead): boolean =>
-  last?.ticks !== next.ticks ||
+  last === undefined ||
+  !sameTime(last.ticks, next.ticks) ||
   last.leaders.length !== next.leaders.length ||
   last.leaders.some((name) => !next.leaders.includes(name));
 
@@ -72,14 +73,16 @@ export const leadLine = (
   if (last === undefined)
     return `${at}🏁 ${names(next.leaders)} ${next.leaders.length === 1 ? "sets" : "set"} the first time: ${bold(dailyTime(next.ticks))}`;
   const joined = next.leaders.filter((n) => !last.leaders.includes(n));
-  if (next.ticks === last.ticks) {
-    if (joined.length === 0) return null;
-    return `${at}🤝 ${names(joined)} ${joined.length === 1 ? "ties" : "tie"} ${names(last.leaders)} for the lead: ${bold(dailyTime(next.ticks))}`;
-  }
-  if (next.ticks > last.ticks) return null;
-  // A faster time: whoever led before and doesn't now has lost the lead to it.
+  const tie = () =>
+    joined.length === 0
+      ? null
+      : `${at}🤝 ${names(joined)} ${joined.length === 1 ? "ties" : "tie"} ${names(last.leaders)} for the lead: ${bold(dailyTime(next.ticks))}`;
+  if (sameTime(next.ticks, last.ticks)) return tie();
+  if (millis(next.ticks) > millis(last.ticks)) return null;
+  // A faster time: whoever led before and doesn't now has lost the lead to it. A leader who
+  // still leads on a new best, matched in the same read, is tied.
   const lost = last.leaders.filter((n) => !next.leaders.includes(n));
-  if (lost.length === 0) return null;
+  if (lost.length === 0) return tie();
   const takers = next.leaders.filter((n) => !lost.includes(n));
   return `${at}🏁 ${names(takers)} ${takers.length === 1 ? "takes" : "take"} the lead from ${names(lost)}, who held it for ${held(next.at - reignStart(history, lost))} · ${dailyTime(last.ticks)} → ${bold(dailyTime(next.ticks))} (−${gap(last.ticks, next.ticks)} s)`;
 };

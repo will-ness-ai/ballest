@@ -442,6 +442,21 @@ describe("the Daily Post's lead", () => {
     }),
   );
 
+  it.scoped("posts a tie when the leader's new best is matched in the same read", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* TestClock.setTime(OPENS);
+      yield* Ref.set(t.boardNow, topOf(["airman", 8.6]));
+      yield* t.runFor(20 * MINUTE);
+      yield* Ref.set(t.boardNow, topOf(["airman", 8.532], ["snayK", 8.532]));
+      yield* t.runFor(20 * MINUTE);
+      expect(yield* said(t)).toEqual([
+        "🏁 **airman** sets the first time: **0:08.600**",
+        "🤝 **snayK** ties **airman** for the lead: **0:08.532**",
+      ]);
+    }),
+  );
+
   it.scoped("posts several changes between two reads once, as the latest leader", () =>
     Effect.gen(function* () {
       const t = yield* setup;

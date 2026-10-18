@@ -87,6 +87,12 @@ const PLACES = ["🥇", "🥈", "🥉"];
 export const millis = (ticks: number) => Math.floor((ticks * 1000) / SCORE_TICKS_PER_SECOND);
 
 /**
+ * Whether two run times read the same as the site shows them: a tie is decided on the shown time,
+ * so two runs Steam tells apart by a tick still share a place, and no steal reads "−0.000 s".
+ */
+export const sameTime = (a: number, b: number) => millis(a) === millis(b);
+
+/**
  * A run time as the site shows it, 0:08.532: cut to the thousandth, never rounded, so the Daily
  * Post and the site's board agree. (Matches round, through `formatTime`.)
  */
@@ -98,7 +104,7 @@ export const dailyTime = (ticks: number): string => {
 /** The top 3, an equal time sharing the place above it: 🥇 🥇 🥉. */
 const podium = (top: BoardRead["top"]) =>
   top.slice(0, 3).map((e, i) => {
-    const place = top.findIndex((o) => o.ticks === e.ticks);
+    const place = top.findIndex((o) => sameTime(o.ticks, e.ticks));
     return `${PLACES[place < 0 ? i : place]} ${bold(e.name)} ${dailyTime(e.ticks)}`;
   });
 
@@ -143,7 +149,7 @@ export const closedText = (v: DailyView) => {
     header:
       first === undefined
         ? `${head}\n# No winner`
-        : `${head}\n# 🏆 ${winners(top.filter((e) => e.ticks === first.ticks).map((e) => e.name))}\n**${dailyTime(first.ticks)}**, out of **${players}** ${players === 1 ? "player" : "players"}`,
+        : `${head}\n# 🏆 ${winners(top.filter((e) => sameTime(e.ticks, first.ticks)).map((e) => e.name))}\n**${dailyTime(first.ticks)}**, out of **${players}** ${players === 1 ? "player" : "players"}`,
     stats: first === undefined ? "Nobody set a time" : podium(top).join("\n"),
     foot: `${medalsLine(v.medals)}\n-# Closed ${stamp(v.endsAt, "f")} · final`,
   };
