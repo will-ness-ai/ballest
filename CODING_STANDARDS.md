@@ -50,6 +50,13 @@ it breaks. Those files carry the reasons; this file carries the checks.
 - A change to when a board is read (`collect_workshop`'s trigger, `FULL_SWEEP_SECONDS`, the
   `refresh.yml` cron) updates the refresh dialog's copy (`components/Freshness.tsx`), which
   restates those rules for players.
+- Work spread across Refreshes (a rotating slice, a turn) is keyed on the Refresh count, not
+  on clock windows: GitHub starts the `refresh.yml` cron three to five times a day, not eight,
+  so a window a run skips is never caught up. Elapsed-time checks such as
+  `FULL_SWEEP_SECONDS` are fine.
+- Blocking work in `on_ready` (plain HTTP, `time.sleep`, the database) goes through
+  `asyncio.to_thread`: a long stall on the event loop starves steam.py's heartbeat and Steam
+  drops the connection.
 - A step that reads an outside service (Steam, its CDN, the Daily API) writes a final state
   only from a definite answer, such as Steam saying a file is gone. Every error, from any
   request, writes nothing, so the next Refresh retries it.
