@@ -18,6 +18,7 @@ import {
   mapBoard,
   mapPfidOf,
   ord,
+  ordSuffix,
   pctOf,
   personaOf,
   plural,
@@ -87,6 +88,8 @@ describe("words and numbers", () => {
       "101st",
       "111th",
     ]);
+    /* the suffix alone, for a number written another way */
+    expect([1840, 1841, 1811].map(ordSuffix)).toEqual(["th", "st", "th"]);
   });
 
   test("plurals and personas", () => {
@@ -293,6 +296,9 @@ describe("Steam IDs and URLs", () => {
     expect(tabOfPath("/")).toBe("Workshop");
     expect(tabOfPath("/map/42")).toBe("Workshop");
     expect(tabOfPath("/players/circuit/pod")).toBe("Players");
+    /* Where you stand is reached from the Players tab */
+    expect(tabOfPath("/you")).toBe("Players");
+    expect(tabOfPath("/young")).toBeNull();
     expect(tabOfPath("/daily")).toBe("Daily");
     expect(tabOfPath("/daily/2026-09-05")).toBe("Daily");
     expect(tabOfPath("/daily/standings")).toBe("Daily");

@@ -3,7 +3,13 @@
 // a second copy of the bot in. The bot's role needs View Channel, Send Messages, Attach Files,
 // Create Public Threads and Send Messages in Threads there; a missing one fails the post, which
 // the schedule reports to the ops channel.
-import { REST, type RequestData, Routes } from "discord.js";
+import {
+  type APIActionRowComponent,
+  type APIButtonComponentWithURL,
+  REST,
+  type RequestData,
+  Routes,
+} from "discord.js";
 import { Config, Context, Data, Effect, Layer, Redacted, Schema } from "effect";
 import { oneLine } from "../discord/client.js";
 
@@ -23,6 +29,8 @@ export interface ReportPost {
   /** The channel message, with the standings image attached. */
   readonly content: string;
   readonly image: Uint8Array;
+  /** The channel message's buttons, under the image: links only, so no press reaches the bot. */
+  readonly components: ReadonlyArray<APIActionRowComponent<APIButtonComponentWithURL>>;
   /** A thread on that message, holding these messages in order. */
   readonly threadName: string;
   readonly thread: ReadonlyArray<string>;
@@ -85,7 +93,7 @@ export const ReportChannelLive = Layer.effect(
     return ReportChannel.of({
       post: Effect.fn("ReportChannel.post")(function* (report) {
         const messageId = yield* create("post the report", Routes.channelMessages(channelId), {
-          body: message(report.content),
+          body: { ...message(report.content), components: report.components },
           files: [{ name: "standings.png", data: Buffer.from(report.image) }],
         });
         yield* postThread(messageId, report).pipe(

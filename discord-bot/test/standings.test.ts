@@ -12,23 +12,24 @@ const scene = (board: Parameters<typeof standingsScene>[0]["boards"][number]) =>
   textsOf(standingsScene({ title: "Daily Report", subtitle: "", boards: [board] }));
 
 describe("the standings image", () => {
-  it("shows a row's move after its rank and its gain before its number", () => {
+  it("shows a row's move after its place and its gain before its number", () => {
     const texts = scene({
       title: "Most world records",
       rows: [
-        { name: "Amy", n: 4, move: 2, gain: 3 },
-        { name: "Bob", n: 2, move: "new", gain: -1 },
-        { name: "Cy", n: 1, move: 0, gain: 0 },
+        { name: "Amy", n: 4, place: 1, move: 2, gain: 3 },
+        { name: "Bob", n: 2, place: 2, move: "new", gain: -1 },
+        { name: "Cy", n: 2, place: 2, move: 0, gain: 0 },
       ],
       out: [],
     });
+    // Bob and Cy are level, so they share second
     expect(texts).toEqual([
       "Daily Report",
       "",
       "Most world records",
       ...["1", "2", "Amy", "+3", "4"],
       ...["2", "NEW", "Bob", "−1", "2"],
-      ...["3", "Cy", "1"],
+      ...["2", "Cy", "2"],
     ]);
   });
 

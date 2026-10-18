@@ -671,7 +671,10 @@
   min-height: 58px;
   border-block-end: 1px solid var(--line2);
 }
-.skel span {
+/* a row's bars while it is read; /you holds its rows and header with the same */
+.skel span,
+.yl-hold span,
+.ys-hold {
   height: 9px;
   border-radius: 5px;
   background: var(--surface2);
@@ -679,7 +682,9 @@
 }
 /* a loop that never stops blinking is motion too, fade or not */
 @media (prefers-reduced-motion: no-preference) {
-  .skel span {
+  .skel span,
+  .yl-hold span,
+  .ys-hold {
     animation: pulse 1.2s ease-in-out infinite;
   }
 }
