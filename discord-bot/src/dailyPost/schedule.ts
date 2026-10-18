@@ -104,7 +104,10 @@ export class DailyChannel extends Context.Tag("multiballs/DailyChannel")<
       DailyPostFailed | DailyThreadFailed
     >;
     /** Redraw a card; its attachments stay. */
-    readonly edit: (messageId: string, message: DailyMessage) => Effect.Effect<void, DailyPostFailed>;
+    readonly edit: (
+      messageId: string,
+      message: DailyMessage,
+    ) => Effect.Effect<void, DailyPostFailed>;
   }
 >() {}
 

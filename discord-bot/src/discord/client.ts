@@ -197,6 +197,26 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       );
     });
 
+    /**
+     * Which of these permissions the bot lacks in another text channel of this server; it fails
+     * when that isn't a channel of this server the bot can see.
+     */
+    const missingIn = Effect.fn("missingIn")(function* (
+      otherId: string,
+      required: ReadonlyArray<readonly [string, bigint]>,
+    ) {
+      const other = yield* tryDiscord("fetch channel", () => client.channels.fetch(otherId));
+      if (other === null || other.isDMBased() || other.guildId !== guildId || me === null)
+        return yield* Effect.fail(
+          new DiscordError({
+            op: "fetch channel",
+            cause: `${otherId} is not a channel the bot can see in this server`,
+          }),
+        );
+      const perms = other.permissionsFor(me);
+      return required.filter(([, flag]) => !(perms?.has(flag) ?? false)).map(([name]) => name);
+    });
+
     const application = client.application;
     if (application === null) return yield* Effect.dieMessage("logged in without an application");
 
@@ -208,6 +228,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       pingRoleName: pingRole.name,
       interactions,
       postsIn,
+      missingIn,
       /** The application's own emojis (usable anywhere the bot posts), name to id. */
       appEmojis: tryDiscord("fetch app emojis", () => application.emojis.fetch()).pipe(
         Effect.map((all) => new Map(all.map((emoji) => [emoji.name, emoji.id]))),

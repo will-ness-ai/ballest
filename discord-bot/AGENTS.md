@@ -186,6 +186,29 @@ In production the bot's role needs View Channel, Send Messages, Attach Files, Cr
 Threads and Send Messages in Threads in #stats-by-will, and `fly secrets` needs `STATS_CHANNEL_ID`
 and `DATABASE_URL` (the collector's Neon URL).
 
+## The Daily Post
+
+`src/dailyPost/` posts each Daily's Daily Post (spec #268, design on branch
+`claude/prototype-daily-post`) in `DAILY_CHANNEL_ID` (in `fly.toml`). From 01:00 UTC it asks the
+developers' Daily API (`BALLEST_DAILY_URL` with the date appended, `BALLEST_API_KEY` in the
+`BallestAPIKey` header; both secrets, never logged) every minute until today's Daily answers, then
+posts its card, a Components V2 message with the Workshop screenshot attached, and a thread on it.
+Every 15 minutes it reads the Daily's own Steam board (ranks 1 to 3 and the entry count, one
+request through the bot's session) and edits the card only when what it shows changed; the first
+read at or after the Daily's end is its last. Each post is recorded in SQLite (`daily_posts`), so
+a restart resumes the live one and never posts a date twice. A failed read keeps the card; the API
+failing, no Daily an hour after 01:00, and a post, thread or edit refused each reach ops once until
+they clear. It is off unless all three settings are set and the bot has View Channel, Send
+Messages, Embed Links, Attach Files, Create Public Threads and Send Messages in Threads there; then
+it says why in the log and the bot runs on.
+
+What the card says is pure (`card.ts`, `test/dailyPost.test.ts`), its layout and buttons are in
+`messages.ts` (`test/messages.test.ts`), and the schedule in `schedule.ts` runs over ports on the
+TestClock (`test/dailyPostSchedule.test.ts`). The real adapters (`live.ts`) are checked by posting
+one: `pnpm daily-post <date>` posts that date's live card and thread into the sandbox channel (or
+`--channel <id>`, never the production one) with the bot account's Steam session, and records
+nothing. Read it back with `pnpm --silent axi show <id> --in <channel>`.
+
 ## New tracks
 
 `src/newTracks.ts` gets a new Workshop Map onto the site within minutes (spec #259). The game
