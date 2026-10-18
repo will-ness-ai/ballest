@@ -21,7 +21,7 @@ fmt = lambda t: f"0:0{t:.3f}"
 def frame(w, hgt, l=90, r=30, t=30, b=46, y0=8.50, y1=8.95, yticks=(8.55, 8.70, 8.85)):
     im = Image.new("RGB", (w, hgt), BG); d = ImageDraw.Draw(im)
     X = lambda x: l + x / 24 * (w - l - r)
-    Y = lambda y: t + (y - y0) / (y1 - y0) * (hgt - t - b)  # faster is higher
+    Y = lambda y: hgt - b - (y - y0) / (y1 - y0) * (hgt - t - b)  # round 4 verdict: faster is lower
     for y in yticks:
         d.line([(l, Y(y)), (w - r, Y(y))], fill=GRID, width=1)
         d.text((l - 10, Y(y)), fmt(y), font=font("ChakraPetch-Medium.ttf", 15), fill=DIM, anchor="rm")
@@ -50,12 +50,12 @@ def A():
         c = COL[who]
         d.line([(X(x), Y(t)), (X(nx), Y(t))], fill=c, width=3)
         d.ellipse([X(x) - 5, Y(t) - 5, X(x) + 5, Y(t) + 5], fill=c, outline=BG, width=2)
-        d.text((X(x) + 4, Y(t) - 10), who, font=font("ChakraPetch-SemiBold.ttf", 16), fill=TEXT, anchor="lb")
+        d.text((X(x) + 4, Y(t) + 22), who, font=font("ChakraPetch-SemiBold.ttf", 16), fill=TEXT, anchor="lb")
     for i, (x, who, t) in enumerate(LEAD[1:], 1):
         d.line([(X(x), Y(LEAD[i - 1][2])), (X(x), Y(t))], fill=COL[LEAD[i - 1][1]], width=2)
     x, who = TIE
     d.ellipse([X(x) - 5, Y(8.532) - 5, X(x) + 5, Y(8.532) + 5], fill=COL[who], outline=BG, width=2)
-    d.text((X(x) + 4, Y(8.532) + 12), "snayK ties", font=font("ChakraPetch-SemiBold.ttf", 16), fill=TEXT, anchor="lt")
+    d.text((X(x) + 4, Y(8.532) - 10), "snayK ties", font=font("ChakraPetch-SemiBold.ttf", 16), fill=TEXT, anchor="lb")
     d.text((X(NOW) + 10, Y(8.532)), "0:08.532", font=font("ChakraPetch-Bold.ttf", 18), fill=TEXT, anchor="lm")
     return im
 

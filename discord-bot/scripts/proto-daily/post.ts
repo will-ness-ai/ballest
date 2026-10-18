@@ -321,6 +321,44 @@ if (process.argv.includes("--round4")) {
   process.exit(0);
 }
 
+// Round 4 verdict: graph A with faster times lower; backfill the last 3 Dailies at launch.
+if (process.argv.includes("--final")) {
+  await say("**══ THE DESIGN: the live card, its thread, then the same Daily once it closes ══**");
+  const m = (await rest.post(Routes.channelMessages(channel), {
+    body: { ...withGraph("graph-A.png", "podium"), allowed_mentions: NO_PINGS },
+    files: [file("preview.jpg"), file("spin.gif"), file("graph-A.png")],
+  })) as { id: string };
+  const th = (await rest.post(Routes.threads(channel, m.id), {
+    body: { name: threadName, auto_archive_duration: 1440 },
+  })) as { id: string };
+  await say(`-# <t:1792286640:t> · 🏁 **MitchPlease** sets the first time: **0:08.912**`, th.id);
+  await say(
+    `-# <t:1792289400:t> · 🏁 **FEDUS** takes the lead from **MitchPlease**, who held it for 46m · 0:08.912 → **0:08.701** (−0.211 s)`,
+    th.id,
+  );
+  await say(
+    `-# <t:1792304700:t> · 🏁 **FEDUS** takes the lead from **MitchPlease**, who held it for 2h 25m · 0:08.640 → **0:08.566** (−0.074 s)`,
+    th.id,
+  );
+  await say(
+    `-# <t:1792315020:t> · 🏁 **airman** takes the lead from **FEDUS**, who held it for 3h 12m · 0:08.566 → **0:08.532** (−0.034 s)`,
+    th.id,
+  );
+  await say(`-# <t:1792331280:t> · 🤝 **snayK** ties **airman** for the lead: **0:08.532**`, th.id);
+  const closed = structuredClone(closedVariants[1]![1]) as {
+    components: { components: object[] }[];
+  };
+  closed.components[0]!.components.splice(3, 0, {
+    type: 12,
+    items: [{ media: { url: "attachment://graph-A.png" } }],
+  });
+  await rest.post(Routes.channelMessages(channel), {
+    body: { ...closed, allowed_mentions: NO_PINGS },
+    files: [file("preview.jpg"), file("spin.gif"), file("graph-A.png")],
+  });
+  process.exit(0);
+}
+
 const keys = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 for (const k of keys.length ? keys : Object.keys(V)) {
   const v = V[k]!;
