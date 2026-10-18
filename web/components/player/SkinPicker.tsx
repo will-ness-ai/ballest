@@ -12,14 +12,14 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { useChosenSkin, useSaveChosenSkin } from "../ChosenSkins";
-import { Ball, SkinBall } from "../Ball";
+import { PlayerBall } from "../Ball";
 import { Marble, type MarbleWho } from "../Marble";
 import { useDialog } from "../Modal";
 import { useMounted } from "../../hooks/client";
 import { useYou } from "../../hooks/me";
 import { chosenSkinApiHref } from "../../lib/routes";
-import { hueFor, personaOf } from "../../lib/rules";
-import { SKIN_GROUPS, skinName, skinPicture } from "../../lib/skins";
+import { personaOf } from "../../lib/rules";
+import { SKIN_GROUPS, skinName } from "../../lib/skins";
 
 /* opens the dialog; null where it isn't drawn (anyone else's page, or signed out) */
 const Opener = createContext<(() => void) | null>(null);
@@ -91,8 +91,11 @@ export function ChangeBall() {
 
 /* a ball as the picker draws it: the Skin's picture, or for none your own hue marble */
 function Pick({ id, skin }: { id: string; skin: string | null }) {
-  const src = skinPicture(skin);
-  return <span className="marble">{src ? <SkinBall src={src} /> : <Ball h={hueFor(id)} />}</span>;
+  return (
+    <span className="marble">
+      <PlayerBall steamId={id} skin={skin} />
+    </span>
+  );
 }
 
 const FAILED = "Your ball didn't save. Try again in a moment.";

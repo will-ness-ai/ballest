@@ -7,9 +7,7 @@
 // map, so your marbles draw it at once, before any page is read again.
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
-import { Ball, SkinBall } from "./Ball";
-import { hueFor } from "../lib/rules";
-import { skinPicture } from "../lib/skins";
+import { PlayerBall } from "./Ball";
 
 /* Steam ID -> their Chosen Skin's object path */
 export type ChosenSkinMap = Readonly<Record<string, string>>;
@@ -47,6 +45,5 @@ export function useSaveChosenSkin(): (steamId: string, skin: string | null) => v
 /* a marble's ball where no run Skin is known: the player's Chosen Skin, else their hue ball,
    which a Chosen Skin the site has no picture for draws too */
 export function ChosenBall({ steamId }: { steamId: string }) {
-  const picture = skinPicture(useChosenSkin(steamId));
-  return picture ? <SkinBall src={picture} /> : <Ball h={hueFor(steamId)} />;
+  return <PlayerBall steamId={steamId} skin={useChosenSkin(steamId)} />;
 }

@@ -3,6 +3,9 @@
 // ChosenSkins.tsx, the Chosen Skin picker); each glass ball's gradient gets its own id.
 import { useId } from "react";
 
+import { hueFor } from "../lib/rules";
+import { skinPicture } from "../lib/skins";
+
 export function Ball({ h }: { h: number }) {
   const id = useId();
   return (
@@ -51,4 +54,11 @@ export function Ball({ h }: { h: number }) {
 /* the ball as the game draws it: a picture of the skin, already round */
 export function SkinBall({ src }: { src: string }) {
   return <img className="ball skin" src={src} alt="" loading="lazy" decoding="async" />;
+}
+
+/* a player's ball in `skin` (an object path): its picture, else their hue ball, which a Skin
+   the site has no picture for, or none, draws too */
+export function PlayerBall({ steamId, skin }: { steamId: string; skin: string | null }) {
+  const src = skinPicture(skin);
+  return src ? <SkinBall src={src} /> : <Ball h={hueFor(steamId)} />;
 }
