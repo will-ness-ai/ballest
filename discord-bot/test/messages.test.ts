@@ -1,7 +1,15 @@
 // The Discord messages the bot sends, built from plain data: which buttons each one offers,
 // what they do, and who each one pings. No Discord needed; the payloads are checked as built.
-import { type ActionRowBuilder, type ButtonBuilder, ButtonStyle, ComponentType } from "discord.js";
+import {
+  type ActionRowBuilder,
+  type ButtonBuilder,
+  ButtonStyle,
+  ComponentType,
+  MessageFlags,
+} from "discord.js";
 import { describe, expect, it } from "vitest";
+import type { DailyView } from "../src/dailyPost/card.js";
+import { dailyCardMessage, type DailyMessage } from "../src/dailyPost/messages.js";
 import type { MatchState, MatchType } from "../src/domain.js";
 import { parseControl } from "../src/discord/controls.js";
 import type { MarbleEmojis } from "../src/discord/marbles.js";
@@ -336,5 +344,40 @@ describe("the Daily Report's channel message", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("a Daily Post's card", () => {
+  const view: DailyView = {
+    date: "2026-10-18",
+    pfid: "3796494598",
+    title: "the drop",
+    maker: "AvgRon",
+    endsAt: Date.UTC(2026, 9, 19, 1),
+    medals: { bronze: 14, silver: 11, gold: 9, author: 8.9 },
+    board: { players: 1, top: [{ name: "<@123>", ticks: ticks(9) }] },
+    readAt: Date.UTC(2026, 9, 18, 17),
+  };
+  const message = dailyCardMessage(view, { preview: true });
+  const links = (m: DailyMessage) =>
+    JSON.stringify(m.components).match(/"label":"[^"]+","url":"[^"]+"/g);
+
+  it("links to the Daily's board on the site and the Map's Workshop page", () => {
+    expect(links(message)).toEqual([
+      '"label":"Today\'s board","url":"https://ballestrecords.com/daily/2026-10-18"',
+      '"label":"Steam Workshop","url":"https://steamcommunity.com/sharedfiles/filedetails/?id=3796494598"',
+    ]);
+  });
+
+  it("pings nobody, whatever a name holds", () => {
+    expect(message.allowed_mentions).toEqual({ parse: [] });
+  });
+
+  it("is a Components V2 card that shows the screenshot only when it is attached", () => {
+    expect(message.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(JSON.stringify(message)).toContain("attachment://preview.jpg");
+    expect(JSON.stringify(dailyCardMessage(view, { preview: false }))).not.toContain(
+      "attachment://",
+    );
   });
 });

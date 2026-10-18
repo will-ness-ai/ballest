@@ -1,0 +1,69 @@
+// What a Daily Post's card says, as pure data (spec #268): the Daily's number, the header, the
+// podium with ties, the Medals line, and the thread's name. Real data: Daily #60, "the drop".
+import { describe, expect, it } from "vitest";
+import { cardText, dailyNumber, type DailyView, threadName } from "../src/dailyPost/card.js";
+import { ticks } from "./harness.js";
+
+const ENDS = Date.UTC(2026, 9, 19, 1);
+const NOW = Date.UTC(2026, 9, 18, 17);
+
+const view = (over: Partial<DailyView> = {}): DailyView => ({
+  date: "2026-10-18",
+  pfid: "3796494598",
+  title: "the drop",
+  maker: "AvgRon",
+  endsAt: ENDS,
+  medals: { bronze: 14, silver: 11, gold: 9, author: 8.9116315841674805 },
+  board: {
+    players: 145,
+    top: [
+      { name: "airman", ticks: ticks(8.532) },
+      { name: "snayK", ticks: ticks(8.532) },
+      { name: "FEDUS", ticks: ticks(8.566) },
+    ],
+  },
+  readAt: NOW,
+  ...over,
+});
+
+describe("a Daily Post's card", () => {
+  it("numbers Dailies by date from 20 August 2026", () => {
+    expect(dailyNumber("2026-08-20")).toBe(1);
+    expect(dailyNumber("2026-10-18")).toBe(60);
+    expect(dailyNumber("2027-01-01")).toBe(135);
+  });
+
+  it("heads the card with the number, the day, the Map and when it ends", () => {
+    expect(cardText(view()).header).toBe(
+      "-# DAILY #60 · SUN 18 OCT\n# the drop\nby **AvgRon** · ends <t:1792371600:R>",
+    );
+  });
+
+  it("shows the player count, the fastest time and the top 3, ties sharing a place", () => {
+    expect(cardText(view()).stats).toBe(
+      "**145** players · fastest **0:08.532**\n🥇 **airman** 0:08.532\n🥇 **snayK** 0:08.532\n🥉 **FEDUS** 0:08.566",
+    );
+  });
+
+  it("works with one time, and with none yet", () => {
+    const one = view({ board: { players: 1, top: [{ name: "Water", ticks: ticks(9.1) }] } });
+    expect(cardText(one).stats).toBe("**1** player · fastest **0:09.100**\n🥇 **Water** 0:09.100");
+    expect(cardText(view({ board: { players: 0, top: [] } })).stats).toBe("No times yet");
+    expect(cardText(view({ board: null })).stats).toBe("No times yet");
+  });
+
+  it("keeps names from pinging or breaking the markdown", () => {
+    const sly = view({ board: { players: 1, top: [{ name: "@everyone *x*", ticks: ticks(9) }] } });
+    expect(cardText(sly).stats).toContain("🥇 **@​everyone \\*x\\***");
+  });
+
+  it("ends with the Medal times and when it was updated", () => {
+    expect(cardText(view()).foot).toBe(
+      "Author 0:08.912 · Gold 0:09.000 · Silver 0:11.000 · Bronze 0:14.000\n-# Updated <t:1792342800:R>",
+    );
+  });
+
+  it("names the thread after the Daily", () => {
+    expect(threadName(view())).toBe("Daily #60 · the drop · Sun 18 Oct");
+  });
+});
