@@ -90,18 +90,17 @@ const loadPage = Effect.tryPromise({
 const DAY = "public, max-age=86400";
 
 /**
- * GET /skins/:file: each Skin's picture by the file the page asks for (skinPictureFile, from a
+ * Each Skin's picture by the file the page asks for at /skins/:file (skinPictureFile, from a
  * Player's Chosen Skin), and 404 for any other file.
  */
-export const skinPicture = (pngs: ReadonlyMap<string, Uint8Array>) => {
+export const skinPictureResponses = (pngs: ReadonlyMap<string, Uint8Array>) => {
   const byFile = new Map(
     [...pngs].flatMap(([path, png]) => {
       const file = skinPictureFile(path);
       return file === null ? [] : [[file, png] as const];
     }),
   );
-  return Effect.gen(function* () {
-    const { file = "" } = yield* HttpRouter.params;
+  return (file: string): HttpServerResponse.HttpServerResponse => {
     const body = byFile.get(file);
     return body === undefined
       ? HttpServerResponse.empty({ status: 404 })
@@ -109,7 +108,7 @@ export const skinPicture = (pngs: ReadonlyMap<string, Uint8Array>) => {
           contentType: "image/png",
           headers: { "cache-control": DAY },
         });
-  });
+  };
 };
 
 /** The whole app: page, script, fonts, previews, Skin pictures, config, API. `channelId` is where the links point. */
@@ -154,7 +153,8 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
         });
   });
 
-  const skin = skinPicture((yield* SkinPictures).pngs);
+  const skinPicture = skinPictureResponses((yield* SkinPictures).pngs);
+  const skin = Effect.map(HttpRouter.params, ({ file = "" }) => skinPicture(file));
 
   const pages = HttpRouter.empty.pipe(
     HttpRouter.get("/", Effect.succeed(HttpServerResponse.html(html))),
