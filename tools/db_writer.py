@@ -382,7 +382,7 @@ def write_refresh(conn, refresh):
     return rid
 
 
-def map_of(c):
+def workshop_map(c):
     """A catalogue Map (campaign_common.catalogue_map) as the writer takes it in a Refresh's
     `workshop`, without its board ID or counters, which each caller adds."""
     return {
@@ -418,7 +418,7 @@ def add_maps(conn, catalogue):
         new = list({c["pfid"]: c for c in catalogue if c["pfid"] not in held}.values())
         if not new:
             return []
-        maps = [map_of(c) | {"entry_count": 0, "sessions": None, "subs": None} for c in new]
+        maps = [workshop_map(c) | {"entry_count": 0, "sessions": None, "subs": None} for c in new]
         _copy(
             cur,
             "in_boards",

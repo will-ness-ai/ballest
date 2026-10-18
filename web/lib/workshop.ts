@@ -43,15 +43,19 @@ export const mapCard = (m: WorkshopMap): MapCard => ({
   authorBeaten: m.authorBeaten,
 });
 
-/* the Maps the Workshop views show: those with a time. A Map nobody has finished has no
-   board, so it shows only on its creator's Made tab */
+/* a Map someone has a time on. One nobody has finished has a page with an empty board (spec
+   #259), kept out of search results, and shows on no Workshop view */
+export const isTimed = (m: { top3: ReadonlyArray<unknown> }) => m.top3.length > 0;
+
+/* the Maps the Workshop views show: those with a time. A Map nobody has finished shows only on
+   its creator's Made tab */
 export const timed = <T extends { top3: ReadonlyArray<unknown> }>(maps: ReadonlyArray<T>) =>
-  maps.filter((m) => m.top3.length > 0);
+  maps.filter(isTimed);
 
 /* a timed Map's record, in ticks */
 export const recordOf = (m: { top3: MapCard["top3"] }) => m.top3[0][2];
 /* a Map's record, in ticks, or null for one nobody has a time on yet (spec #259) */
-export const recordIfAny = (m: { top3: MapCard["top3"] }) => (m.top3.length ? recordOf(m) : null);
+export const recordIfAny = (m: { top3: MapCard["top3"] }) => (isTimed(m) ? recordOf(m) : null);
 
 /* what a Map's 3D view (components/workshop/Map3D.tsx) shows of it: its file's version, the
    bar's name and maker, and the card's record and Medals */
@@ -66,8 +70,7 @@ export interface Map3DView {
   medals: Array<number>;
 }
 
-/* a timed Map's 3D view (MapView sends an untimed Map's page home first), or null for one
-   whose file the site doesn't hold, which has none */
+/* a Map's 3D view, or null for one whose file the site doesn't hold, which has none */
 export const map3dOf = (m: WorkshopMap): Map3DView | null =>
   m.fileVersion
     ? {

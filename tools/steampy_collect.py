@@ -100,7 +100,7 @@ async def collect_workshop(catalogue, all_ids, memory):
     maps, boards, finds, reads, failed, streak = [], {}, 0, 0, [], 0
     for c in catalogue:
         p = prev.get(c["pfid"], {})
-        m = db_writer.map_of(c) | {
+        m = db_writer.workshop_map(c) | {
             "handle": p.get("handle"),
             "entry_count": p.get("entry_count", 0),
             "rows": p.get("rows", 0),

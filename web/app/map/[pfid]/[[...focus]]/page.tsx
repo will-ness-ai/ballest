@@ -10,7 +10,7 @@ import { MapView } from "../../../../components/workshop/MapView";
 import { getMap, getWorkshop } from "../../../../db/data";
 import { pageMetadata } from "../../../../components/metadata";
 import { mapHref } from "../../../../lib/routes";
-import { timed } from "../../../../lib/workshop";
+import { isTimed, timed } from "../../../../lib/workshop";
 
 interface Props {
   params: Promise<{ pfid: string; focus?: Array<string> }>;
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const m = await getMap((await params).pfid);
   /* a Map that has left the Workshop is sent home, a soft 404 kept out of results */
   if (!m) return { robots: { index: false } };
-  const timed = m.top3.length > 0;
+  const timed = isTimed(m);
   const meta = await pageMetadata(
     {
       title: m.title,
@@ -39,7 +39,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       alt: `${m.title}, a Workshop map by ${m.creator}${timed ? ", and its record" : ""}.`,
     },
   );
-  /* a Map nobody has a time on yet has a page (spec #259), kept out of results like the sitemap */
   return timed ? meta : { ...meta, robots: { index: false } };
 }
 

@@ -10,13 +10,13 @@ export function MedalList({
 }: {
   /* [bronze, silver, gold, author], seconds */
   medals: ReadonlyArray<number>;
-  /* with it, a Record row first: the record in ticks (null on a Map nobody has a time on) */
-  record?: number | null;
+  /* a Record row first, the record in ticks; null for none (the panel, which has its own) */
+  record: number | null;
   className: string;
 }) {
   return (
     <dl className={className}>
-      {record != null && (
+      {record !== null && (
         <div>
           <dt>Record</dt>
           <dd>{fmtTime(record)}</dd>

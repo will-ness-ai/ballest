@@ -170,7 +170,7 @@ Map: a failed Map read keeps its Entries and its old counters (so the next run r
 Map the step skipped gets no `board_reads` row, and a catalogue that fails, comes back short of
 Steam's total, or shrinks by more than `WORKSHOP_SHRINK_LIMIT` counts no Map as read. Only a
 successful read moves `last_seen_refresh`, with one exception: `add_maps` writes a Map new since
-the last Refresh as that Refresh's catalogue saw it, so the site lists it (`docs/data.md`, "New Maps"). The whole Refresh is one transaction, so any error
+the last Refresh as if that Refresh's catalogue had seen it, so the site has its page (`docs/data.md`, "New Maps"). The whole Refresh is one transaction, so any error
 leaves the database as it was, and a failed write fails the run: the database is the only
 copy. Preserve that in any change to the write path. The pagination stop condition in
 `fetch_board` is deliberately conservative for the same reason — don't simplify it.

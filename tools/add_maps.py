@@ -3,10 +3,10 @@ Add the Workshop's newest Maps to the database between Refreshes: the step a pos
 game Discord's #new-tracks starts (Multiballs dispatches .github/workflows/add-maps.yml).
 
 Reads the newest page of the Workshop catalogue (one Steam Web API request, no Steam login)
-and writes each Map the database lacks with db_writer.add_maps, so its page and its place
-on the Maps lists appear within minutes instead of at the next Refresh. Its board, Ghosts
-and 3D file wait for that Refresh. Steam's list can lag the post, so while nothing is new it
-reads it again, TRIES reads in all, RETRY_SECONDS apart. Then it revalidates the site.
+and writes each Map the database lacks with db_writer.add_maps, so its page appears within
+minutes instead of at the next Refresh, with an empty board until it has times. Its board,
+Ghosts and 3D file wait for that Refresh. Steam's list can lag the post, so while nothing is
+new it reads it again, TRIES reads in all, RETRY_SECONDS apart. Then it revalidates the site.
 
 It writes DATABASE_URL, or with --dev only DEV_DATABASE_URL (db_writer.database_url):
   DEV_DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev \\

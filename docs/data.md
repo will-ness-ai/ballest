@@ -153,7 +153,8 @@ reads the newest page of the catalogue (`campaign_common.newest_maps`, one Steam
 no Steam login) and `db_writer.add_maps` writes each Map the database lacks in one transaction:
 its `boards` row with no board ID, `maps`, and one `map_history` row. It writes no Refresh and
 reads no board. The row's first and last seen are the newest catalogue's Refresh
-(`max(last_seen_refresh)`), so the site lists the Map beside that catalogue's Maps, and its
+(`max(last_seen_refresh)`), as if that catalogue had seen it, so the site counts the Map as
+listed and serves its page (with an empty board until it has times; `docs/site.md`, Routes), and its
 sessions and subscriptions are empty, so the next Refresh reads them as moved and looks its board
 up. Its 3D file and Ghosts come with that Refresh. While nothing is new it reads the page again, up to five
 reads a minute apart, since Steam's list can lag the post. Before any catalogue was written it

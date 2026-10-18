@@ -78,7 +78,7 @@ export function MapPanel({
           </div>
         )}
       </dl>
-      <MedalList className="mp-medals" medals={m.medals} />
+      <MedalList className="mp-medals" record={null} medals={m.medals} />
       <div className="mp-chart">
         <span className="eyebrow">Every run</span>
         <div id="spread">

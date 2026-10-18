@@ -148,7 +148,7 @@ def test_the_newest_page_is_one_request_read_as_the_catalogue_reads_it(monkeypat
 
     def urlopen(url, **_):
         urls.append(url)
-        page = {"response": {"total": 1525, "publishedfiledetails": [SLICK_SLIDE]}}
+        page = {"response": {"total": 1521, "publishedfiledetails": [SLICK_SLIDE]}}
         return contextlib.nullcontext(io.BytesIO(json.dumps(page).encode()))
 
     monkeypatch.setattr(cc.urllib.request, "urlopen", urlopen)
