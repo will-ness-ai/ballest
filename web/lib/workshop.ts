@@ -43,19 +43,23 @@ export const mapCard = (m: WorkshopMap): MapCard => ({
   authorBeaten: m.authorBeaten,
 });
 
+/* what the helpers below read of a Map: its board's top three */
+interface Podium {
+  top3: MapCard["top3"];
+}
+
 /* a Map someone has a time on. One nobody has finished has a page with an empty board (spec
    #259), kept out of search results, and shows on no Workshop view */
-export const isTimed = (m: { top3: ReadonlyArray<unknown> }) => m.top3.length > 0;
+export const isTimed = (m: Podium) => m.top3.length > 0;
 
 /* the Maps the Workshop views show: those with a time. A Map nobody has finished shows only on
    its creator's Made tab */
-export const timed = <T extends { top3: ReadonlyArray<unknown> }>(maps: ReadonlyArray<T>) =>
-  maps.filter(isTimed);
+export const timed = <T extends Podium>(maps: ReadonlyArray<T>) => maps.filter(isTimed);
 
 /* a timed Map's record, in ticks */
-export const recordOf = (m: { top3: MapCard["top3"] }) => m.top3[0][2];
+export const recordOf = (m: Podium) => m.top3[0][2];
 /* a Map's record, in ticks, or null for one nobody has a time on yet (spec #259) */
-export const recordIfAny = (m: { top3: MapCard["top3"] }) => (isTimed(m) ? recordOf(m) : null);
+export const recordIfAny = (m: Podium) => (isTimed(m) ? recordOf(m) : null);
 
 /* what a Map's 3D view (components/workshop/Map3D.tsx) shows of it: its file's version, the
    bar's name and maker, and the card's record and Medals */

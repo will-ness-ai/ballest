@@ -5,6 +5,7 @@ import { expect, test } from "vitest";
 
 import { MapPanel } from "../components/workshop/MapView";
 import type { WorkshopMap } from "../lib/rows";
+import { isTimed, timed } from "../lib/workshop";
 
 const fresh = (fileVersion: string | null = null): WorkshopMap => ({
   pfid: "3821808619",
@@ -44,4 +45,14 @@ test("a new Map's 3D card has the Medals and no Record row", () => {
   const html = renderToStaticMarkup(<MapPanel m={fresh("51010")} scores={[]} asOf={0} />);
   const card = /<dl class="m3d-card">.*?<\/dl>/.exec(html)?.[0] ?? "";
   expect(text(card)).toBe("|Author|0:35.000|Gold|0:40.000|Silver|0:45.000|Bronze|1:00.000|");
+});
+
+test("a new Map is not timed, so the lists and the sitemap leave it out until it has a time", () => {
+  const raced = {
+    ...fresh(),
+    pfid: "3821808620",
+    top3: [["76561199000000011", "Racer", 2_434_080]],
+  } satisfies WorkshopMap;
+  expect(isTimed(fresh())).toBe(false);
+  expect(timed([fresh(), raced]).map((m) => m.pfid)).toEqual(["3821808620"]);
 });
