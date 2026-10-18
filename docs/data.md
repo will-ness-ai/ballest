@@ -162,7 +162,8 @@ adds nothing.
 
 It runs in its own concurrency group, because a pending run in `refresh-leaderboards` would
 replace the scheduled Refresh waiting there. So a Refresh that read the catalogue before the Map
-was published and commits after `add_maps` leaves the Map unlisted until the next Refresh.
+was published and commits after `add_maps` leaves the Map unlisted, its link sending players home
+again, until the next Refresh.
 
 ### What the collector remembers
 

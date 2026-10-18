@@ -10,7 +10,7 @@ export function MedalList({
 }: {
   /* [bronze, silver, gold, author], seconds */
   medals: ReadonlyArray<number>;
-  /* a Record row first, the record in ticks; null for none (the panel, which has its own) */
+  /* a Record row first, the record in ticks; null for none */
   record: number | null;
   className: string;
 }) {

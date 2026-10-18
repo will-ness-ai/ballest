@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const m = await getMap((await params).pfid);
   /* a Map that has left the Workshop is sent home, a soft 404 kept out of results */
   if (!m) return { robots: { index: false } };
-  const timed = isTimed(m);
+  const hasTime = isTimed(m);
   const meta = await pageMetadata(
     {
       title: m.title,
@@ -36,10 +36,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     {
       kind: "map",
       id: m.pfid,
-      alt: `${m.title}, a Workshop map by ${m.creator}${timed ? ", and its record" : ""}.`,
+      alt: `${m.title}, a Workshop map by ${m.creator}${hasTime ? ", and its record" : ""}.`,
     },
   );
-  return timed ? meta : { ...meta, robots: { index: false } };
+  /* a Map nobody has a time on yet has a page, kept out of results as the sitemap keeps it */
+  return hasTime ? meta : { ...meta, robots: { index: false } };
 }
 
 async function MapPage({ params }: Props) {

@@ -78,6 +78,7 @@ export function MapPanel({
           </div>
         )}
       </dl>
+      {/* the record is in the facts above */}
       <MedalList className="mp-medals" record={null} medals={m.medals} />
       <div className="mp-chart">
         <span className="eyebrow">Every run</span>

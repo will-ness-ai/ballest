@@ -4,6 +4,7 @@
 // one place two records are paired up. Pure, so the server and the browser share it.
 import { COMPOSITE_BOARD, COMPOSITE_GROUP, S1_CURRENT_BOARD, TRACKS } from "./circuit";
 import type { PlayerData, WorkshopMap } from "./rows";
+import { timed } from "./workshop";
 import {
   SCORE_TICKS_PER_SECOND,
   MEDAL_KEYS,
@@ -157,9 +158,9 @@ export function playerRecord(
 ): PlayerRecord {
   const id = data.profile.steamId;
   const by = new Map(data.finishes.map((f) => [f.board, f]));
-  const timed = maps.filter((m) => m.top3.length);
+  const timedMaps = timed(maps);
   const finishes: Array<WorkshopFinish> = [];
-  for (const m of timed) {
+  for (const m of timedMaps) {
     const f = by.get(m.name);
     if (!f) continue;
     finishes.push({
@@ -182,7 +183,7 @@ export function playerRecord(
     MEDAL_KEYS.map(([k]) => [k, finishes.filter((f) => countsUnder(f, k)).length]),
   ) as Record<MedalKey, number>;
   /* every Map they published, timed or not; one with no time has no board to link to */
-  const timedNames = new Set(timed.map((m) => m.name));
+  const timedNames = new Set(timedMaps.map((m) => m.name));
   const made = maps
     .filter((m) => m.cid === id)
     .map((m) => {
