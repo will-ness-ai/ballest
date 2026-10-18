@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // Picking your Chosen Skin on your own player page (spec #276, A5): the pencil badge on your
-// marble and "Change your ball" beside Sign out open the dialog; a tap previews the ball in
+// marble and "Change your ball" beside Sign out open the dialog, while the marble itself still
+// turns over to your Steam avatar (user story 16); a tap previews the ball in
 // your board row, Save commits it through PUT or DELETE /api/me/skin, and anything else
 // discards it. Once saved, your marble on the page and your header card draw it at once.
 import { act } from "react";
@@ -13,6 +14,9 @@ import type { PlayerRecord } from "../lib/player";
 const ME = "76561199000000031";
 const THEM = "76561199000000032";
 const GOLD = "/Game/Art/M_GoldReal.M_GoldReal";
+const COSMIC =
+  "/Game/Packs/Vefects/Stylized_Galaxy_Shader/Galaxy/Materials/MI_VFX_Lush_Galaxy_Shader_02.MI_VFX_Lush_Galaxy_Shader_02";
+const AVATAR = "https://avatars.steamstatic.com/ada_full.jpg";
 
 const record = (id: string, persona: string) =>
   ({
@@ -59,7 +63,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/* a player page's head for `id`, with the header card, as You */
+/* a player page's head for `id`, with the header card, as You; `chosen` maps Steam IDs to
+   Chosen Skins */
 function draw(id: string, state: You, chosen: Record<string, string> = {}) {
   you = state;
   act(() => {
@@ -70,7 +75,7 @@ function draw(id: string, state: You, chosen: Record<string, string> = {}) {
         </header>
         <div className="pid">
           <SkinPicker id={id}>
-            <YourMarble who={{ steamId: id }} />
+            <YourMarble who={{ steamId: id, persona: "Ada", avatar: AVATAR }} />
             <SignOut id={id} />
           </SkinPicker>
         </div>
@@ -134,6 +139,17 @@ describe("who sees the picker", () => {
     tap(button("Change your ball", document.querySelector(".pme") ?? document));
     expect(dialog()?.open).toBe(true);
   });
+
+  test("on your own page, your marble still turns over to your avatar and opens nothing", () => {
+    draw(ME, signedIn);
+    const marble = document.querySelector<HTMLButtonElement>(".pid button.marble");
+    if (!marble) throw new Error("no marble button");
+    expect(marble.getAttribute("aria-label")).toBe("Show Ada's Steam avatar");
+    expect(marble.querySelector("img.face")?.getAttribute("src")).toBe(AVATAR);
+    expect(marble.querySelector(".skp-edit")).toBeNull();
+    tap(marble);
+    expect(dialog()?.open).toBe(false);
+  });
 });
 
 describe("the dialog", () => {
@@ -152,7 +168,7 @@ describe("the dialog", () => {
   });
 
   test("a tap previews the ball in your board row; Save waits until it differs", () => {
-    draw(ME, signedIn, { [ME]: "/skins/DA_Skin_Cosmic1.webp" });
+    draw(ME, signedIn, { [ME]: COSMIC });
     tap(button("Change your ball"));
     const save = button("Save");
     expect(previewName()).toBe("Cosmic");
@@ -171,7 +187,7 @@ describe("the dialog", () => {
   });
 
   test("Cancel discards the preview: nothing is sent, and it opens on your saved ball", () => {
-    draw(ME, signedIn, { [ME]: "/skins/DA_Skin_Cosmic1.webp" });
+    draw(ME, signedIn, { [ME]: COSMIC });
     tap(button("Change your ball"));
     tap(ball("Gold"));
     tap(button("Cancel"));
@@ -183,7 +199,7 @@ describe("the dialog", () => {
   });
 
   test("Save sends the pick, closes, and your marble and header card draw it at once", async () => {
-    draw(ME, signedIn, { [ME]: "/skins/DA_Skin_Cosmic1.webp" });
+    draw(ME, signedIn, { [ME]: COSMIC });
     tap(button("Change your ball"));
     tap(ball("Gold"));
     tap(button("Save"));
@@ -195,7 +211,7 @@ describe("the dialog", () => {
   });
 
   test("No skin clears the pick, and you are the hue marble again", async () => {
-    draw(ME, signedIn, { [ME]: "/skins/DA_Skin_Cosmic1.webp" });
+    draw(ME, signedIn, { [ME]: COSMIC });
     tap(button("Change your ball"));
     tap(ball("No skin"));
     expect(previewName()).toBe("No skin");

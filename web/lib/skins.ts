@@ -6,7 +6,9 @@
 // (components/player/SkinPicker.tsx). A path not listed here (a skin a game update added)
 // draws the marble. How the list and the pictures were made: prototype/skins/ on branch
 // claude/prototype-skins.
-export type SkinGroup = "Colours" | "Metals" | "Specials";
+/* the Chosen Skin picker's groups, in order */
+export const SKIN_GROUP_NAMES = ["Colours", "Metals", "Specials"] as const;
+export type SkinGroup = (typeof SKIN_GROUP_NAMES)[number];
 
 export interface SkinEntry {
   /* the object path a Ghost names it with, which a Chosen Skin is stored as */
@@ -239,9 +241,8 @@ const LIST: ReadonlyArray<SkinEntry> = [
 export const SKINS = new Map<string, string>(LIST.map((s) => [s.skin, s.asset]));
 
 /* the picker's groups, in order, each skin in its order */
-export const SKIN_GROUPS: ReadonlyArray<{ group: SkinGroup; skins: ReadonlyArray<SkinEntry> }> = (
-  ["Colours", "Metals", "Specials"] as const
-).map((group) => ({ group, skins: LIST.filter((s) => s.group === group) }));
+export const SKIN_GROUPS: ReadonlyArray<{ group: SkinGroup; skins: ReadonlyArray<SkinEntry> }> =
+  SKIN_GROUP_NAMES.map((group) => ({ group, skins: LIST.filter((s) => s.group === group) }));
 
 /* the picture for a Ghost's skin, or null for none or one the site doesn't know */
 export function skinPicture(skin: string | null | undefined): string | null {
@@ -252,9 +253,4 @@ export function skinPicture(skin: string | null | undefined): string | null {
 /* a skin's name, or "No skin" for none or one the site doesn't know */
 export function skinName(skin: string | null | undefined): string {
   return LIST.find((s) => s.skin === skin)?.name ?? "No skin";
-}
-
-/* the skin whose picture this is (a Chosen Skin as the marbles carry it), or null */
-export function skinOfPicture(picture: string | null): string | null {
-  return LIST.find((s) => skinPicture(s.skin) === picture)?.skin ?? null;
 }

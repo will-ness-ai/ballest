@@ -383,8 +383,11 @@ describe("a board's record history", () => {
 });
 
 describe("Chosen Skins", () => {
-  test("are every pick as its picture; one the site has no picture for draws the marble", async () => {
+  test("are every pick as its Skin; one the site has no picture for is left out", async () => {
     /* tiny: p1 chose Cosmic; p3 chose a Skin the site doesn't list */
-    expect(await chosenSkins(t.db)).toEqual({ [p(1)]: "/skins/DA_Skin_Cosmic1.webp" });
+    expect(await chosenSkins(t.db)).toEqual({
+      [p(1)]:
+        "/Game/Packs/Vefects/Stylized_Galaxy_Shader/Galaxy/Materials/MI_VFX_Lush_Galaxy_Shader_02.MI_VFX_Lush_Galaxy_Shader_02",
+    });
   });
 });

@@ -105,7 +105,7 @@ export async function getSite(): Promise<Site> {
   };
 }
 
-/* every player's Chosen Skin, as the picture each marble draws (components/ChosenSkins.tsx):
+/* every player's Chosen Skin, as its object path by Steam ID (components/ChosenSkins.tsx):
    read once per page by the root layout */
 export async function getChosenSkins(): Promise<Record<string, string>> {
   "use cache: remote";

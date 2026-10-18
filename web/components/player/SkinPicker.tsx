@@ -1,24 +1,25 @@
 "use client";
 // Picking your Chosen Skin (CONTEXT.md) on your own player page, as the grill-design rounds
 // settled it (spec #276: round 1 A, round 2 A5). Drawn only when You is the player on screen:
-// the pencil badge on your marble (YourMarble) and "Change your ball" beside Sign out
-// (ChangeBall, in Me.tsx) open the dialog. A mock board row stays pinned at its top with your
-// name and the ball you tapped, over a grid grouped Colours (No skin first), Metals and
-// Specials. A tap only previews; Save sends it to PUT or DELETE /api/me/skin and closes, and
-// Cancel, the close button, Escape or the backdrop discard it. A saved pick goes into
-// ChosenSkins straight away, so your marble here and in the header draw it before any page is
-// read again.
+// the pencil badge on your marble's corner (YourMarble) and "Change your ball" beside Sign out
+// (ChangeBall, in Me.tsx) open the dialog; the marble itself still turns over to your avatar.
+// A mock board row stays pinned at its top with your name and the ball you tapped, over a grid
+// grouped Colours (No skin first), Metals and Specials. A tap only previews; Save sends it to
+// PUT or DELETE /api/me/skin and closes, and Cancel, the close button, Escape or the backdrop
+// discard it. A saved pick goes into ChosenSkins straight away, so your marble here and in the
+// header draw it before any page is read again.
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { useChosenSkin, useSaveChosenSkin } from "../ChosenSkins";
-import { Ball, Marble, type MarbleWho } from "../Marble";
+import { Ball, SkinBall } from "../Ball";
+import { Marble, type MarbleWho } from "../Marble";
 import { useDialog } from "../Modal";
 import { useMounted } from "../../hooks/client";
 import { useYou } from "../../hooks/me";
 import { chosenSkinApiHref } from "../../lib/routes";
 import { hueFor, personaOf } from "../../lib/rules";
-import { SKIN_GROUPS, skinName, skinOfPicture, skinPicture } from "../../lib/skins";
+import { SKIN_GROUPS, skinName, skinPicture } from "../../lib/skins";
 
 /* opens the dialog; null where it isn't drawn (anyone else's page, or signed out) */
 const Opener = createContext<(() => void) | null>(null);
@@ -56,22 +57,24 @@ function Pencil() {
   );
 }
 
-/* the marble at the top of a player page: on your own, a button with a pencil badge that
-   opens the picker in place of turning over to your avatar */
+/* the marble at the top of a player page: on your own, a pencil badge on its corner opens the
+   picker, and the marble itself still turns over to your avatar, as everywhere else */
 export function YourMarble({ who }: { who: MarbleWho }) {
   const open = useContext(Opener);
   if (!open) return <Marble who={who} />;
   return (
-    <button
-      type="button"
-      className="skp-edit"
-      aria-label="Change your ball"
-      aria-haspopup="dialog"
-      onClick={open}
-    >
-      <Marble who={who} still />
-      <Pencil />
-    </button>
+    <span className="skp-mine">
+      <Marble who={who} />
+      <button
+        type="button"
+        className="skp-edit"
+        aria-label="Change your ball"
+        aria-haspopup="dialog"
+        onClick={open}
+      >
+        <Pencil />
+      </button>
+    </span>
   );
 }
 
@@ -89,11 +92,7 @@ export function ChangeBall() {
 /* a ball as the picker draws it: the Skin's picture, or for none your own hue marble */
 function Pick({ id, skin }: { id: string; skin: string | null }) {
   const src = skinPicture(skin);
-  return (
-    <span className="marble">
-      {src ? <img className="ball skin" src={src} alt="" /> : <Ball h={hueFor(id)} />}
-    </span>
-  );
+  return <span className="marble">{src ? <SkinBall src={src} /> : <Ball h={hueFor(id)} />}</span>;
 }
 
 const FAILED = "Your ball didn't save. Try again in a moment.";
@@ -110,7 +109,7 @@ function PickerDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const saved = skinOfPicture(useChosenSkin(id));
+  const saved = useChosenSkin(id);
   const record = useSaveChosenSkin();
   /* the ball tapped, undefined until one is: the saved one shows */
   const [draft, setDraft] = useState<string | null | undefined>(undefined);
@@ -141,7 +140,7 @@ function PickerDialog({
           : { method: "DELETE" },
       );
       if (r.ok) {
-        record(id, skinPicture(shown));
+        record(id, shown);
         close();
       } else setProblem(r.status === 429 ? LIMIT : FAILED);
     } catch {

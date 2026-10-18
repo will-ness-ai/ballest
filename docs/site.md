@@ -115,14 +115,17 @@ marble still turns over to the Steam avatar either way.
 
 Where no run's Skin is known, a player's Chosen Skin (CONTEXT.md) stands in for the marble.
 The root layout reads every pick once (`getChosenSkins`, cached under its own tag, which a
-save expires) and hands it down through `components/ChosenSkins.tsx`, and `Marble` resolves
-the run's Skin, then the Chosen Skin, then the hue: so every surface that draws a marble shows
-it, even one that knows a player only by Steam ID, and no query carries it.
+save expires), each as its object path with any Skin the site doesn't list left out, and hands
+it down through `components/ChosenSkins.tsx`. `Marble` stays a server component: it draws the
+run's Skin, and where there is none, `ChosenBall`, the one client piece, draws the Chosen
+Skin's picture (`skinPicture`, at draw time) or else the hue. So every surface that draws a
+marble shows it, even one that knows a player only by Steam ID, and no query carries it.
 
 A signed-in player picks theirs on their own player page (`components/player/SkinPicker.tsx`,
 grill-design rounds 1 A and 2 A5 in spec #276): drawn only when You is the player on screen,
-the pencil badge on their marble (which then opens the picker rather than turning over to
-the avatar) and "Change your ball" beside Sign out open a `useDialog` dialog. Its heading
+a pencil badge on their marble's corner (its own small button, with the 44px hit area of
+`base.css`) and "Change your ball" beside Sign out open a `useDialog` dialog; the marble itself
+still turns over to the avatar, as everywhere else. Its heading
 scrolls away with the grid, and a mock board row (rank, the ball, your name with the Skin's
 name under it, a time) stays pinned at the top with room above it; Cancel and Save sit under
 the scroller. The grid is `SKIN_GROUPS` from `lib/skins.ts` (Colours with No skin first,
@@ -132,8 +135,8 @@ previews; Save, disabled until the preview differs from the saved pick, sends `P
 (`db/chosen-skin-api.ts`), and a failed save says so in the dialog's foot and changes
 nothing. The API refuses no session (401), a cross-site request (403), a Skin `lib/skins.ts`
 has no picture for (400) and an 11th save, pick or clear, in a rolling hour (429, counted in
-`chosen_skin_saves`); a save expires only the Chosen Skin tag. The saved pick is laid over the
-layout's map in `ChosenSkins` (`useSaveChosenSkin`), so your marble on the page and in the
+`chosen_skin_saves`); a save expires only the Chosen Skin tag. The saved pick's object path is laid
+over the layout's map in `ChosenSkins` (`useSaveChosenSkin`), so your marble on the page and in the
 header draw it at once, before any page is read again. `qa`'s `player-own+skin-pick` state
 opens it, signed in as tiny's p1.
 

@@ -56,14 +56,14 @@ describe("saving a Chosen Skin", () => {
     const r = await pick(ADA, GOLD);
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ skin: GOLD });
-    expect(await chosenSkins(t.db)).toEqual({ [ADA]: "/skins/DA_Skin_MedalGold.webp" });
+    expect(await chosenSkins(t.db)).toEqual({ [ADA]: GOLD });
     expect(changes).toBe(1);
   });
 
   test("a second pick replaces the first", async () => {
     await pick(ADA, GOLD);
     await pick(ADA, MAGMA);
-    expect(await chosenSkins(t.db)).toEqual({ [ADA]: "/skins/DA_Skin_Magma.webp" });
+    expect(await chosenSkins(t.db)).toEqual({ [ADA]: MAGMA });
   });
 
   test("clearing it puts the hue marble back, for that player only", async () => {
@@ -72,7 +72,7 @@ describe("saving a Chosen Skin", () => {
     const r = await chooseSkin(sending("DELETE", await cookieOf(ADA)), deps());
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ skin: null });
-    expect(await chosenSkins(t.db)).toEqual({ [BO]: "/skins/DA_Skin_Magma.webp" });
+    expect(await chosenSkins(t.db)).toEqual({ [BO]: MAGMA });
     expect(changes).toBe(3);
   });
 });
@@ -92,7 +92,7 @@ describe("refusing a Chosen Skin", () => {
     expect((await pick(ADA, MAGMA, evil)).status).toBe(403);
     const cookie = await cookieOf(ADA);
     expect((await chooseSkin(sending("DELETE", cookie, undefined, evil), deps())).status).toBe(403);
-    expect(await chosenSkins(t.db)).toEqual({ [ADA]: "/skins/DA_Skin_MedalGold.webp" });
+    expect(await chosenSkins(t.db)).toEqual({ [ADA]: GOLD });
     expect(changes).toBe(1);
   });
 
@@ -140,7 +140,7 @@ describe("the hourly limit", () => {
     clock = NOW + 60 * MINUTE + 1;
     expect((await pick(ADA, GOLD)).status).toBe(200);
     expect((await pick(ADA, MAGMA)).status).toBe(429);
-    expect(await chosenSkins(t.db)).toEqual({ [ADA]: "/skins/DA_Skin_MedalGold.webp" });
+    expect(await chosenSkins(t.db)).toEqual({ [ADA]: GOLD });
   });
 
   test("a refused request doesn't count against it", async () => {
