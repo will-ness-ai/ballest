@@ -146,8 +146,8 @@ function refusal(target, cwd) {
 
 function gate(input) {
   for (const target of mergeTargets(input.tool_name, input.tool_input ?? {})) {
-    // a target that can't be placed counts as this repo's
-    if (target.unsquashed && tries(() => locate(target, input.cwd).ours) !== false)
+    // one that can't be placed falls to refusal, which warns
+    if (target.unsquashed && tries(() => locate(target, input.cwd).ours))
       return preToolUse({
         permissionDecision: "deny",
         permissionDecisionReason: `This repo squash-merges (docs/agents/issue-tracker.md): use \`gh api -X PUT repos/${slugAt(HOME_REPO)}/pulls/<n>/merge -f merge_method=squash\`, \`gh pr merge --squash\`, or merge_method squash.`,

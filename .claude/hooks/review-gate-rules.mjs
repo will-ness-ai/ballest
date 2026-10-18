@@ -28,7 +28,8 @@ const VALUED = /^(?:-[btFRA]|--(?:body|body-file|subject|repo|author-email|match
    which names its PR by node ID. A null repo is the checkout's (in `cd`, when the command
    moves there first); a null number is its branch's PR, or `branch`'s. `unsquashed` marks a
    merge that doesn't squash: GitHub's REST merge, like gh's prompt, makes a merge commit
-   unless told otherwise, and this repo squash-merges (docs/agents/issue-tracker.md). */
+   unless told otherwise, and this repo squash-merges (docs/agents/issue-tracker.md). The
+   ccr/auto_merge route's method isn't read, so it is never marked. */
 export function mergeTargets(tool, input) {
   const pr = { repo: `${input.owner}/${input.repo}`, number: input.pullNumber };
   if (tool === "mcp__github__merge_pull_request")
