@@ -96,6 +96,22 @@ What to check where: Match rules in `test/engine.test.ts`, what lands in the cha
 `test/surface.test.ts`, each message's buttons and pings in `test/messages.test.ts`, and the
 discord.js calls (what Discord actually renders, threads, pings, edits) in the sandbox.
 
+## Chosen Skins
+
+A player's Chosen Skin (CONTEXT.md, spec #276) replaces their hue marble in every image the
+Renderer draws and in Match Thread lines; the bot reads no Ghosts, so its order is Chosen Skin,
+then hue. `src/chosenSkins.ts` reads `chosen_skins` at `DATABASE_URL` at most once a minute;
+with no database (`pnpm dev`, the sandbox) or one it can't read, everyone keeps their hue. Run
+the sandbox with `DATABASE_URL` set to a local database to see picks. The Skin list and its
+pictures are copies of the site's (`src/render/skins.ts`, `assets/skins/`, made by
+`scripts/skin_pngs.py`), since resvg reads no WebP and the Fly image is built from
+`discord-bot/` alone; `test/skins.test.ts` holds them to `web/lib/skins.ts`. `Marbles` uploads
+one application emoji per Skin (`skin_<name>`) at startup beside the hue marbles.
+
+`test/chosenSkins.test.ts` reads a throwaway database on the Postgres at `TEST_DATABASE_URL`
+(default the local one), migrated by `web/scripts/migrate.mjs`, so `pnpm test` needs Postgres
+running and `pnpm install` in `web/` too; `bot.yml` gives CI both.
+
 ## The Activity
 
 `src/activity/` is a Discord Activity (spec #46): the same Matches in a page Discord shows in an

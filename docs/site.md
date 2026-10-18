@@ -119,7 +119,9 @@ save expires) and hands it down through `components/ChosenSkins.tsx`, and `Marbl
 the run's Skin, then the Chosen Skin, then the hue: so every surface that draws a marble shows
 it, even one that knows a player only by Steam ID, and no query carries it.
 
-A new skin takes a picture and a line in `lib/skins.ts`. The list and pictures were made
+A new skin takes a picture and a line in `lib/skins.ts`, and the same line in Multiballs' copy,
+`discord-bot/src/render/skins.ts`, with its PNG made by `discord-bot/scripts/skin_pngs.py`
+(the bot's `test/skins.test.ts` fails until both match). The list and pictures were made
 on 2026-10-08 (`prototype/skins/` on branch `claude/prototype-skins`, with the game's own
 tile icons and notes on which skins animate): the plain colours are shot with the texture
 slider at 0, which most players use, and an animated skin (Spirit, Disco, Magma) is one

@@ -141,7 +141,9 @@ row per player who picked a Chosen Skin (CONTEXT.md), the Skin as the object pat
 names (a key of `web/lib/skins.ts`) and when they chose it; clearing the pick deletes the row.
 `chosen_skin_saves` is one row per save, which the hourly limit counts. The site reads every
 pick in one cached read under its own tag, which only a save expires (`docs/site.md`, "Ball
-skins"). `tiny` seeds two, one the site has no picture for.
+skins"). `tiny` seeds two, one the site has no picture for. Multiballs reads `chosen_skins` too,
+at most once a minute, for its images and Match Thread emojis (`discord-bot/AGENTS.md`, "Chosen
+Skins").
 
 ### Prefabs
 
