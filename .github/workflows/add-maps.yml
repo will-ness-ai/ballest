@@ -2,7 +2,8 @@ name: Add new Workshop Maps
 
 # Started by Multiballs when the game Discord's #new-tracks gets a post (discord-bot/src/newTracks.ts):
 # writes the Workshop's newest Maps the database lacks (tools/add_maps.py), so they show on the
-# site within minutes, not at the next Refresh. One Steam Web API request a try; no Steam login.
+# site within minutes, not at the next Refresh (one Steam Web API request a try), then logs into
+# Steam for their files, so their 3D view comes within minutes too.
 
 on:
   workflow_dispatch: {}
@@ -20,7 +21,7 @@ permissions:
 jobs:
   add:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
@@ -33,11 +34,12 @@ jobs:
           python-version: "3.11"
 
       - name: Install deps
-        run: python -m pip install "psycopg[binary]==3.3.6" # as tools/requirements-steampy.txt pins it
+        run: python -m pip install -r tools/requirements-steampy.txt
 
       - name: Add new Workshop Maps
         env:
           STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+          STEAM_REFRESH_TOKEN: ${{ secrets.STEAM_REFRESH_TOKEN }}
           SITE_URL: https://ballestrecords.com
           REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
         run: python tools/add_maps.py

@@ -159,9 +159,11 @@ reads no board. The row's first and last seen are the newest catalogue's Refresh
 (`max(last_seen_refresh)`), as if that catalogue had seen it, so the site counts the Map as
 listed and serves its page (with an empty board until it has times; `docs/site.md`, Routes), and its
 sessions and subscriptions are empty, so the next Refresh reads them as moved and looks its board
-up. Its 3D file and Ghosts come with that Refresh. While nothing is new it reads the page again, up to five
-reads a minute apart, since Steam's list can lag the post. Before any catalogue was written it
-adds nothing.
+up. While nothing is new it reads the page again, up to five reads a minute apart, since Steam's
+list can lag the post. Before any catalogue was written it adds nothing. Once the pages are up it
+logs into Steam and runs the Map file step on the new Maps (`map_files.download`, two minutes at
+most), so their 3D view comes within minutes too; a failed download leaves the file to the next
+Refresh, as any due file is. Their Ghosts come with that Refresh.
 
 It runs in its own concurrency group, because a pending run in `refresh-leaderboards` would
 replace the scheduled Refresh waiting there. So a Refresh that read the catalogue before the Map

@@ -178,6 +178,35 @@ async def record_map_files(catalogue, download, *, scratch=False, env=None, budg
     return written
 
 
+def download(catalogue, token, *, scratch=False, budget=BUDGET):
+    """Log into Steam and run the step on `catalogue`: the files it wrote, or None when it
+    was skipped, failed, or never got past the login."""
+    client = steam.Client()
+    result = {}
+
+    @client.event
+    async def on_ready():
+        # steam.py calls this again after a reconnect; the run is already under way
+        if "started" in result:
+            return
+        result["started"] = True
+        try:
+            result["written"] = await record_map_files(
+                catalogue, steam_download(client), scratch=scratch, budget=budget
+            )
+        finally:
+            await client.close()
+
+    try:
+        client.run(refresh_token=token)
+    except Exception as e:
+        # steam.py often raises on the teardown after close(); only a run that never got
+        # to the step is a failure
+        if "written" not in result:
+            print(f"::warning::Map files: Steam login/run failed: {e!r}")
+    return result.get("written")
+
+
 def main(argv=None):
     """The step on its own: Steam login, the catalogue, every due Map within `--budget`."""
     ap = argparse.ArgumentParser(description="Download every due Workshop Map's file.")
@@ -190,34 +219,11 @@ def main(argv=None):
         print("ERROR: needs STEAM_REFRESH_TOKEN, STEAM_API_KEY and the database's URL")
         return 2
     catalogue = cc.workshop_catalogue(key)
-    client = steam.Client()
-    result = {}
-
-    @client.event
-    async def on_ready():
-        # steam.py calls this again after a reconnect; the run is already under way
-        if "started" in result:
-            return
-        result["started"] = True
-        try:
-            result["written"] = await record_map_files(
-                catalogue, steam_download(client), scratch=args.dev, budget=args.budget
-            )
-        finally:
-            await client.close()
-
-    try:
-        client.run(refresh_token=token)
-    except Exception as e:
-        # steam.py often raises on the teardown after close(); only a run that never got
-        # to the step is a failure
-        if "written" not in result:
-            print(f"ERROR: Steam login/run failed: {e!r}")
-            return 1
-    written = result.get("written")
+    written = download(catalogue, token, scratch=args.dev, budget=args.budget)
     if not written:
         # this run's whole job is downloading, so one that wrote nothing shows red (nothing
-        # due, every download failed, or the step skipped); the line above says which
+        # due, every download failed, the step skipped, or the login failed); the line above
+        # says which
         print("::error::Map files: no file written")
         return 1
     return 0
