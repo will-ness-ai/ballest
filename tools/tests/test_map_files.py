@@ -290,7 +290,6 @@ def test_the_step_takes_a_budget_for_a_backlog_run(db_url, capsys):
     assert "1 due, 0 written, 0 failed, 1 left" in capsys.readouterr().out
 
 
-def test_maps_narrows_the_catalogue_to_the_maps_named():
-    catalogue = [cat("1", "h1", 9), cat("2", "h2", 5), cat("3", "h3", 1)]
-    assert [m["pfid"] for m in map_files.only(catalogue, "3,1")] == ["1", "3"]
-    assert map_files.only(catalogue, None) == catalogue
+def test_maps_narrows_the_newest_page_to_the_maps_named():
+    newest = [cat("1", "h1", 9), cat("2", "h2", 5), cat("3", "h3", 1)]
+    assert [m["pfid"] for m in map_files.among(newest, {"3", "1"})] == ["1", "3"]

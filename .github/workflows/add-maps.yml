@@ -47,17 +47,19 @@ jobs:
 
       # The files come second and on their own: the pages are already up, so a failed or slow
       # download only leaves them to the next Refresh's Map file step, as any due file is. It
-      # skips while refresh.yml or map-files.yml runs, since a second Steam login on the same
-      # account can drop theirs.
+      # skips while refresh.yml or map-files.yml is queued or running, since a second Steam login
+      # on the same account can drop theirs; when this check fails, the download skips too.
       - name: Is a Refresh logged into Steam?
         id: steam
         if: steps.add.outputs.added != ''
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           busy=0
           for wf in refresh.yml map-files.yml; do
-            n=$(gh run list -R "$GITHUB_REPOSITORY" --workflow "$wf" --status in_progress --json databaseId --jq length)
+            n=$(gh run list -R "$GITHUB_REPOSITORY" --workflow "$wf" --json status \
+              --jq '[.[] | select(.status != "completed")] | length')
             busy=$((busy + n))
           done
           echo "busy=$busy" >> "$GITHUB_OUTPUT"

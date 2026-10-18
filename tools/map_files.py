@@ -179,28 +179,30 @@ async def record_map_files(catalogue, download, *, scratch=False, env=None, budg
     return written
 
 
-def only(catalogue, maps):
-    """The catalogue's Maps among `maps` (comma-separated pfids), or all of it for None."""
-    if maps is None:
-        return catalogue
-    wanted = set(maps.split(","))
-    return [m for m in catalogue if m["pfid"] in wanted]
+def among(maps, pfids):
+    """The Maps whose pfid is one of `pfids`."""
+    return [m for m in maps if m["pfid"] in pfids]
 
 
 def main(argv=None):
-    """The step on its own: Steam login, the catalogue (or the Maps `--maps` names), every
-    due Map within `--budget`."""
+    """The step on its own: Steam login, the catalogue (or just the new Maps `--maps` names),
+    every due Map within `--budget`."""
     ap = argparse.ArgumentParser(description="Download every due Workshop Map's file.")
     ap.add_argument("--budget", type=float, default=3600.0, help="seconds (default 3600)")
     ap.add_argument("--dev", action="store_true", help="write DEV_DATABASE_URL only")
-    ap.add_argument("--maps", help="only these Maps, comma-separated pfids (add-maps.yml)")
+    ap.add_argument(
+        "--maps",
+        type=lambda s: set(s.split(",")),
+        help="only these just-published Maps, comma-separated pfids, read from the newest page",
+    )
     args = ap.parse_args(argv)
 
     token, key = cc.load_refresh_token(), cc.load_key()
     if not (token and key and db_writer.database_url(os.environ, scratch=args.dev)):
         print("ERROR: needs STEAM_REFRESH_TOKEN, STEAM_API_KEY and the database's URL")
         return 2
-    catalogue = only(cc.workshop_catalogue(key), args.maps)
+    # Maps a #new-tracks post just added are on the newest page: one request, not every page
+    catalogue = among(cc.newest_maps(key), args.maps) if args.maps else cc.workshop_catalogue(key)
     client = steam.Client()
     result = {}
 

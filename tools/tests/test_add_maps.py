@@ -176,4 +176,4 @@ def test_the_added_maps_are_named_in_the_steps_output(tmp_path):
 
 
 def test_outside_actions_there_is_no_output_to_name_them_in():
-    add_maps.name_in_output([NEW], {})
+    add_maps.name_in_output([NEW], {})  # no GITHUB_OUTPUT: writes nothing, and doesn't raise

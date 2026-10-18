@@ -108,7 +108,7 @@ skipped without a catalogue or a database, and with `--dev` writes only `DEV_DAT
 To fill a backlog in one go, run `.github/workflows/map-files.yml` by hand: it runs the same
 step alone (`python tools/map_files.py --budget <seconds>`), an hour by default, in the
 refresh's concurrency group, so a Refresh due meanwhile waits for it, and it fails when it
-wrote no file. `add-maps.yml` runs it too, on just the Maps it added (`--maps`; "New Maps"). Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
+wrote no file. `add-maps.yml` runs it too, on just the Maps it added, read from the newest page (`--maps`; "New Maps"). Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
 file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
 `getWorkshop` carries each Map's stored version.
 
@@ -163,9 +163,10 @@ up. While nothing is new it reads the page again, up to five reads a minute apar
 list can lag the post. Before any catalogue was written it adds nothing. The workflow's next step
 downloads the added Maps' files (`map_files.py --maps`, two minutes of downloads, the step stopped
 at five), so their 3D view comes within minutes too. It skips while `refresh.yml` or
-`map-files.yml` runs, since a second Steam login on the same account can drop theirs, and a skipped
-or failed download leaves the file to the next Refresh, as any due file is. Ghosts come with that
-Refresh.
+`map-files.yml` is queued or running, since a second Steam login on the same account can drop
+theirs. That check can't stop a Refresh that starts during the download: its newer login ends the
+download's session, not its own. A skipped or failed download leaves the file to the next Refresh,
+as any due file is. Ghosts come with that Refresh.
 
 It runs in its own concurrency group, because a pending run in `refresh-leaderboards` would
 replace the scheduled Refresh waiting there. So a Refresh that read the catalogue before the Map

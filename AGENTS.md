@@ -47,8 +47,9 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   (`docs/data.md`, "Ghosts"; `docs/site.md`, "Ball skins").
 - `tools/map_files.py` — the collector's Map file step, after the Ghost step: downloads each
   Workshop Map's new or changed file into `map_files` for the 3D view (`docs/data.md`, "Map files").
-  `map-files.yml`, by hand, runs it alone for an hour to fill a backlog.
-- `tools/add_maps.py` — adds the Workshop's newest Maps between Refreshes (and then their files), run by
+  `map-files.yml`, by hand, runs it alone for an hour to fill a backlog, and `add-maps.yml` runs it
+  on just the Maps it added.
+- `tools/add_maps.py` — adds the Workshop's newest Maps between Refreshes, run by
   `add-maps.yml` when Multiballs hears a post in the game Discord's #new-tracks
   (`docs/data.md`, "New Maps").
 - `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
