@@ -44,102 +44,76 @@ const updated = `-# Updated <t:${Math.floor(Date.now() / 1000)}:R> · refreshes 
 const threadName = `Daily #${day.n} · ${day.title} · ${day.date}`;
 
 type Variant = { label: string; body: object; files: { name: string; data: Buffer }[] };
-const V: Record<string, Variant> = {
-  A: {
-    label: "A · Embed card",
-    files: [file("preview.jpg"), file("spin.gif")],
-    body: {
-      embeds: [
-        {
-          color: ACCENT,
-          author: { name: `Daily #${day.n} · ${day.date}` },
-          title: day.title,
-          url: site,
-          description: `by **${day.maker}** · ends <t:${day.ends}:R>`,
-          thumbnail: { url: "attachment://spin.gif" },
-          image: { url: "attachment://preview.jpg" },
-          fields: [
-            { name: "Fastest", value: `**${day.lead}**\n${day.leaders}`, inline: true },
-            { name: "Players", value: `**${day.players}**`, inline: true },
-            { name: "Medals", value: `Author ${day.author}\nGold ${day.gold}`, inline: true },
-          ],
-          footer: { text: "Updated every Refresh" },
-          timestamp: new Date().toISOString(),
-        },
-      ],
-      components: [buttons()],
-    },
-  },
-  B: {
-    label: "B · Text + two-up gallery",
-    files: [file("preview.jpg"), file("spin.gif")],
-    body: {
-      content: [
-        `## Daily #${day.n} · ${day.date}`,
-        `### [${day.title}](<${steam}>) by ${day.maker}`,
-        `Ends <t:${day.ends}:R> · **${day.players}** players so far`,
-        `Fastest **${day.lead}** · ${day.leaders}`,
-        `Author ${day.author} · Gold ${day.gold} · Silver ${day.silver} · Bronze ${day.bronze}`,
-        updated,
-      ].join("\n"),
-      components: [buttons()],
-    },
-  },
-  C: {
-    label: "C · Card (Components V2)",
-    files: [file("preview.jpg"), file("spin.gif")],
-    body: {
-      flags: 1 << 15,
+
+// Round 1 verdict: C, with the screenshot big and the spinning GIF beside the stats.
+// Round 2 asks what the stats beside the GIF say; `--still` swaps the screenshot for our 3D still.
+const hero = process.argv.includes("--still") ? "still.jpg" : "preview.jpg";
+const card = (stats: string, foot: string): Variant["body"] => ({
+  flags: 1 << 15,
+  components: [
+    {
+      type: 17,
+      accent_color: ACCENT,
       components: [
         {
-          type: 17,
-          accent_color: ACCENT,
-          components: [
-            {
-              type: 10,
-              content: `-# DAILY #${day.n} · ${day.date.toUpperCase()}\n# ${day.title}\nby **${day.maker}** · ends <t:${day.ends}:R>`,
-            },
-            { type: 12, items: [{ media: { url: "attachment://spin.gif" } }] },
-            {
-              type: 9,
-              components: [
-                {
-                  type: 10,
-                  content: `**${day.players}** players · fastest **${day.lead}**\n${day.podium.join("\n")}`,
-                },
-              ],
-              accessory: { type: 11, media: { url: "attachment://preview.jpg" } },
-            },
-            { type: 14, divider: true, spacing: 1 },
-            {
-              type: 10,
-              content: `Author ${day.author} · Gold ${day.gold} · Silver ${day.silver} · Bronze ${day.bronze}\n${updated}`,
-            },
-            buttons(),
-          ],
+          type: 10,
+          content: `-# DAILY #${day.n} · ${day.date.toUpperCase()}\n# ${day.title}\nby **${day.maker}** · ends <t:${day.ends}:R>`,
         },
+        { type: 12, items: [{ media: { url: `attachment://${hero}` } }] },
+        {
+          type: 9,
+          components: [{ type: 10, content: stats }],
+          accessory: { type: 11, media: { url: "attachment://spin.gif" } },
+        },
+        { type: 14, divider: true, spacing: 1 },
+        { type: 10, content: `${foot}\n${updated}` },
+        buttons(),
       ],
     },
+  ],
+});
+const files = () => [file(hero), file("spin.gif")];
+const medals = `Author ${day.author} · Gold ${day.gold} · Silver ${day.silver} · Bronze ${day.bronze}`;
+const V: Record<string, Variant> = {
+  A: {
+    label: "A · Podium",
+    files: files(),
+    body: card(
+      `**${day.players}** players · fastest **${day.lead}**\n${day.podium.join("\n")}`,
+      medals,
+    ),
+  },
+  B: {
+    label: "B · Leader and the chase",
+    files: files(),
+    body: card(
+      `### ${day.lead}\n**${day.leaders}** share the lead\n3rd **FEDUS** is 0.034 s back`,
+      `**${day.players}** players · **138** beat the Author time (${day.author})`,
+    ),
+  },
+  C: {
+    label: "C · Top 5 table",
+    files: files(),
+    body: card(
+      "```\n1  airman        0:08.532\n1  snayK         0:08.532\n3  FEDUS         0:08.566\n4  Borgmajster   0:08.578\n5  Water         0:08.583\n```",
+      `**${day.players}** players · ${medals}`,
+    ),
   },
   D: {
-    label: "D · Drawn banner + spin",
-    files: [file("banner.png"), file("spin.gif")],
-    body: {
-      content: `**Daily #${day.n}** is up: **${day.title}** by ${day.maker}. Ends <t:${day.ends}:R>.\n${updated}`,
-      components: [buttons()],
-    },
+    label: "D · Numbers only, no names",
+    files: files(),
+    body: card(
+      `**Players** ${day.players}\n**Fastest** ${day.lead}\n**Beat the Author** 138\n**Ends** <t:${day.ends}:t>`,
+      medals,
+    ),
   },
   E: {
-    label: "E · Spin first, minimal",
-    files: [file("spin.gif")],
-    body: {
-      content: [
-        `# ${day.title}`,
-        `Daily #${day.n} · ${day.date} · by ${day.maker} · ends <t:${day.ends}:R>`,
-        `-# ${day.players} players · fastest ${day.lead} (${day.leaders}) · updated <t:${Math.floor(Date.now() / 1000)}:R>`,
-      ].join("\n"),
-      components: [buttons()],
-    },
+    label: "E · Medal ladder",
+    files: files(),
+    body: card(
+      `🏁 **${day.lead}** by ${day.leaders}\n**Author** ${day.author} · 138 players\n**Gold** ${day.gold} · 0\n**Silver** ${day.silver} · 6\n**Bronze** ${day.bronze} · 0`,
+      `**${day.players}** players so far`,
+    ),
   },
 };
 
