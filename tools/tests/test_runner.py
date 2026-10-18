@@ -204,6 +204,36 @@ def test_the_backlog_stops_starting_downloads_before_the_next_slot():
     asyncio.run(go())
 
 
+def test_the_backlog_counts_its_budget_from_when_it_gets_steam():
+    async def go():
+        fake, clock = Fake(), [at("14:00")]
+        s = runner.Service(fake.run, fake.alert, now=lambda: clock[0])
+        s.refresh()
+        await settle()
+        s.map_file_backlog(3600)
+        await settle()
+        clock[0] = at("14:10")  # the Refresh held Steam for ten minutes
+        fake.gate("steampy_collect.py").set()
+        await settle()
+        assert fake.log[-1] == ("start", "map_files.py", "--budget", "2100")
+        fake.gate("map_files.py").set()
+        await settle()
+
+    asyncio.run(go())
+
+
+def test_a_backlog_asked_for_inside_the_margin_never_logs_in():
+    async def go():
+        fake = Fake()
+        s = service(fake, now="14:50")
+        s.map_file_backlog(3600)
+        await settle()
+        assert fake.log == []
+        assert s.status()["map-files"]["last"]["exit"] == 0
+
+    asyncio.run(go())
+
+
 def test_a_failed_map_add_reaches_the_ops_channel():
     async def go():
         fake = Fake(codes={"add_maps.py": 1})

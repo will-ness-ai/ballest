@@ -61,7 +61,7 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   the site's cached reads, and every other job that logs into Steam, one at a time, since two
   logins on one account drop each other. Its private HTTP door takes a Refresh, a Map add or a
   file backlog on request (`fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"`),
-  and a failure posts to the ops channel. The backlog stops 15 minutes before a slot. `tools/fly.toml` and `tools/Dockerfile` build it, and
+  and a failure posts to the ops channel. The backlog stops starting downloads `BACKLOG_MARGIN` before a slot. `tools/fly.toml` and `tools/Dockerfile` build it, and
   `collector.yml` deploys it on every push to `main` that touches `tools/*.py`. Logs: `fly logs -a ballest-collector`.
 - `.github/workflows/refresh.yml` — the Refresh by hand, only while the Fly service is down.
   `backfill.yml`, by hand only, runs the backfill against an empty production (cloud sessions

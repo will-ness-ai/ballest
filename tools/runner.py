@@ -39,7 +39,6 @@ so never with production's in the environment):
 
 import asyncio
 import collections
-import contextlib
 import json
 import os
 import sys
@@ -59,6 +58,9 @@ SLOT_SOON = timedelta(minutes=30)
 JOB_TIMEOUT = 60 * 60
 # the backlog stops starting downloads this long before the next slot
 BACKLOG_MARGIN = timedelta(minutes=15)
+# seconds a backlog's last downloads may run past its budget; inside BACKLOG_MARGIN, so the
+# slot's Refresh still starts on time
+DOWNLOAD_GRACE = 10 * 60
 # seconds to keep starting downloads of a new-tracks post's Maps, as add-maps.yml gave
 NEW_MAP_FILES_BUDGET = 120
 TAIL_LINES = 15
@@ -153,24 +155,25 @@ class Service:
         self.backlog_budget = budget
         return self.jobs["map-files"].request()
 
-    async def _script(self, what, script, args, *, steam, limit=JOB_TIMEOUT):
-        """Runs one script, on the Steam lock when it logs in, and alerts the ops channel when
-        it fails and `what` names it. A script that can't run at all fails with exit -1."""
-        async with self.steam if steam else contextlib.nullcontext():
-            try:
-                result = await self.run(script, args, limit)
-            except Exception as e:
-                result = Result(-1, [f"couldn't run {script}: {e!r}"])
+    async def _script(self, what, script, args, *, limit=JOB_TIMEOUT):
+        """Runs one script and alerts the ops channel when it fails and `what` names it. A
+        script that can't run at all fails with exit -1. A caller whose script logs into Steam
+        holds self.steam around the call."""
+        try:
+            result = await self.run(script, args, limit)
+        except Exception as e:
+            result = Result(-1, [f"couldn't run {script}: {e!r}"])
         if result.exit and what:
             lines = "\n".join(result.tail)[-1500:]
             await self.alert(f"Collector: {what} failed (exit {result.exit}).\n```\n{lines}\n```")
         return result
 
     async def _refresh(self):
-        return (await self._script("Refresh", "steampy_collect.py", [], steam=True)).exit
+        async with self.steam:
+            return (await self._script("Refresh", "steampy_collect.py", [])).exit
 
     async def _add_maps(self):
-        result = await self._script("Adding new Maps", "add_maps.py", [], steam=False)
+        result = await self._script("Adding new Maps", "add_maps.py", [])
         added = [p for p in result.outputs.get("added", "").split(",") if p]
         if added:
             self.new_maps.update(added)
@@ -182,15 +185,20 @@ class Service:
         async with self.steam:
             maps, self.new_maps = sorted(self.new_maps), set()
             args = ["--maps", ",".join(maps), "--budget", str(NEW_MAP_FILES_BUDGET)]
-            return (await self._script(None, "map_files.py", args, steam=False)).exit
+            return (await self._script(None, "map_files.py", args)).exit
 
     async def _map_file_backlog(self):
-        # stops starting downloads BACKLOG_MARGIN before the next slot, so the slot's Refresh
-        # isn't kept waiting on the Steam lock; the downloads under way finish within the limit
-        to_slot = (next_slot(self.now()) - self.now() - BACKLOG_MARGIN).total_seconds()
-        budget = max(0, min(self.backlog_budget, int(to_slot)))
-        args = ["--budget", str(budget)]
-        return (await self._script(None, "map_files.py", args, steam=True, limit=budget + 600)).exit
+        # stops starting downloads BACKLOG_MARGIN before the next slot, counted once it holds
+        # the lock, so the slot's Refresh isn't kept waiting on Steam; the downloads under way
+        # finish within DOWNLOAD_GRACE
+        async with self.steam:
+            to_slot = (next_slot(self.now()) - self.now() - BACKLOG_MARGIN).total_seconds()
+            budget = min(self.backlog_budget, int(to_slot))
+            if budget <= 0:
+                print("Map file backlog: too close to the next slot; not logging in", flush=True)
+                return 0
+            args, limit = ["--budget", str(budget)], budget + DOWNLOAD_GRACE
+            return (await self._script(None, "map_files.py", args, limit=limit)).exit
 
     def status(self):
         return {name: job.status() for name, job in self.jobs.items()}
