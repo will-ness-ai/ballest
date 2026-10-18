@@ -197,8 +197,9 @@ Every 15 minutes it reads the Daily's own Steam board (ranks 1 to 3 and the entr
 request through the bot's session) and edits the card only when what it shows changed; the first
 read at or after the Daily's end is its last, and always turns the card into the result: "🏆 X
 wins" (everyone on the fastest time shares it; a read sees only the top 3), the winning time and
-player count, the final podium, the pictures and the lead graph drawn without "now", and `Closed
-<t:f> · final`, or "No winner" when nobody set a time. A bot that was down at the close makes
+player count, the final podium, the pictures and the lead graph drawn without "now", `Closed
+<t:f> · final`, and the site button reading "Final board" for "Today's board", or "No winner"
+when nobody set a time. A bot that was down at the close makes
 that read as it starts. Each post is recorded in SQLite (`daily_posts`), so
 a restart resumes the live one and never posts a date twice. Each read that changes the lead (its
 time or who holds it) is recorded too (`daily_leads`, `lead.ts`): once the card shows it, with the

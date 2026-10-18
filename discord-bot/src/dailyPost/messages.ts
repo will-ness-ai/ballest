@@ -35,7 +35,8 @@ export interface DailyMessage {
  * The live card. `preview`: the Workshop screenshot is attached as PREVIEW_FILE; `spin`: the
  * Map's spinning GIF is attached as SPIN_FILE, beside the podium; `graph`: the lead graph is
  * attached as GRAPH_FILE, and shows under the podium. `closed`: the Daily is over, and the card
- * heads it with its winner, in the same layout with the same pictures and buttons.
+ * heads it with its winner, in the same layout with the same pictures, its site button reading
+ * "Final board".
  */
 export const dailyCardMessage = (
   v: DailyView,
@@ -106,7 +107,7 @@ export const dailyCardMessage = (
               {
                 type: ComponentType.Button,
                 style: ButtonStyle.Link,
-                label: "Today's board",
+                label: closed ? "Final board" : "Today's board",
                 url: `${SITE_URL}/daily/${v.date}`,
               },
             ],
