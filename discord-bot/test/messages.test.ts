@@ -9,7 +9,11 @@ import {
 } from "discord.js";
 import { describe, expect, it } from "vitest";
 import type { DailyView } from "../src/dailyPost/card.js";
-import { dailyCardMessage, type DailyMessage } from "../src/dailyPost/messages.js";
+import {
+  dailyCardMessage,
+  dailyLineMessage,
+  type DailyMessage,
+} from "../src/dailyPost/messages.js";
 import type { MatchState, MatchType } from "../src/domain.js";
 import { parseControl } from "../src/discord/controls.js";
 import type { MarbleEmojis } from "../src/discord/marbles.js";
@@ -379,5 +383,25 @@ describe("a Daily Post's card", () => {
     expect(JSON.stringify(dailyCardMessage(view, { preview: false }))).not.toContain(
       "attachment://",
     );
+  });
+
+  it("draws the lead graph under the podium only when it is attached", () => {
+    const parts = (m: DailyMessage) =>
+      JSON.stringify(m.components).match(/🥇|attachment:\/\/[a-z]+\.[a-z]+/g);
+    expect(parts(dailyCardMessage(view, { preview: true, graph: true }))).toEqual([
+      "attachment://preview.jpg",
+      "🥇",
+      "attachment://graph.png",
+    ]);
+    expect(JSON.stringify(message)).not.toContain("graph.png");
+  });
+});
+
+describe("a Daily Post's thread line", () => {
+  const line = dailyLineMessage("-# 🏁 **@everyone** sets the first time: **0:08.912**");
+
+  it("pings nobody and notifies nobody", () => {
+    expect(line.allowed_mentions).toEqual({ parse: [] });
+    expect(line.flags).toBe(MessageFlags.SuppressNotifications);
   });
 });

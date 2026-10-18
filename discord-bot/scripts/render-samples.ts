@@ -251,6 +251,29 @@ const program = Effect.gen(function* () {
       ],
     }),
   );
+  // A Daily Post's lead graph: the prototype's graph A (Daily #60, "the drop"), live and closed.
+  const opensAt = Date.UTC(2026, 9, 18, 1);
+  const hour = (h: number) => opensAt + h * 3_600_000;
+  const lead = (h: number, leaders: ReadonlyArray<string>, seconds: number) => ({
+    at: hour(h),
+    leaders,
+    ticks: Math.round(seconds * T),
+  });
+  const leads = [
+    lead(0.4, ["MitchPlease"], 8.912),
+    lead(1.17, ["FEDUS"], 8.701),
+    lead(2.67, ["MitchPlease"], 8.64),
+    lead(5.08, ["FEDUS"], 8.566),
+    lead(8.28, ["airman"], 8.532),
+    lead(12.8, ["airman", "snayK"], 8.532),
+  ];
+  const graph = { opensAt, closesAt: hour(24), leads };
+  yield* save("lead-graph", yield* renderer.leadGraph({ ...graph, now: hour(16.33) }));
+  yield* save("lead-graph-closed", yield* renderer.leadGraph({ ...graph, now: null }));
+  yield* save(
+    "lead-graph-first",
+    yield* renderer.leadGraph({ ...graph, leads: leads.slice(0, 1), now: hour(0.5) }),
+  );
   yield* Effect.log(`wrote samples to ${out}`);
 });
 

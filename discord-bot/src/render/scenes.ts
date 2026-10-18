@@ -10,6 +10,8 @@ import {
   progress,
   SCORE_TICKS_PER_SECOND,
 } from "../domain.js";
+import { dailyTime } from "../dailyPost/card.js";
+import type { Lead } from "../dailyPost/lead.js";
 import type { CardView, Improvement, ProfilePreview } from "../ports.js";
 import { boardRows, formatGap, mapTitle, matchDetails } from "../present.js";
 import { hueFor, MEDAL_BAR, marbleSvg, medalHeight, medalSvg, svgUri } from "./art.js";
@@ -594,13 +596,14 @@ const textAt = (
   text: string,
   style: Style,
   anchor: "start" | "end" | "middle" = "start",
+  width: number = PROGRESSION_WIDTH,
 ): El => {
   const size = typeof style.fontSize === "number" ? style.fontSize : 10;
   const place: Style =
     anchor === "start"
       ? { left: x }
       : anchor === "end"
-        ? { right: PROGRESSION_WIDTH - x }
+        ? { right: width - x }
         : { left: x - 60, width: 120, justifyContent: "center" };
   return box(
     {
@@ -1126,5 +1129,168 @@ export const standingsScene = ({ title, subtitle, boards }: StandingsImage): El 
       box({ color: C.dim, fontSize: 14 }, subtitle),
     ),
     ...pairs.map((pair) => box({ gap: 24 }, ...pair.map(column))),
+  );
+};
+
+// ---------------------------------------------------------------- the Daily Post's lead graph
+// Under the podium on a Daily Post (spec #268): the leading time through the Daily as a step
+// line, faster times lower, each step coloured by its leader and named under it. The settled
+// design is graph A (flipped) in the prototype on branch claude/prototype-daily-post. Laid out at
+// half size; the renderer draws it at twice that.
+
+export const LEAD_GRAPH_WIDTH = 500;
+
+export interface LeadGraphImage {
+  readonly opensAt: number;
+  readonly closesAt: number;
+  /** Each read that changed the lead, oldest first. */
+  readonly leads: ReadonlyArray<Lead>;
+  /** While the Daily is live, the moment marked "now"; null once it has closed. */
+  readonly now: number | null;
+}
+
+/** The graph's own ground, and the dataviz palette's dark categorical slots validated on it. */
+const G = { bg: "#121628", grid: "#262c46", dim: "#9aa3c7", text: "#eef0fb", faint: "#5b648a" };
+const LEADER_COLOURS = ["#3987e5", "#d95926", "#199e70", "#c98500"];
+
+/** A round step for the time axis's lines, about a third of `range` seconds. */
+const niceStep = (range: number) => {
+  const raw = range / 3;
+  const power = 10 ** Math.floor(Math.log10(raw));
+  return ([1, 2, 5, 10].find((m) => m * power >= raw) ?? 10) * power;
+};
+
+/** Roughly how wide a line of Chakra Petch is: for keeping labels apart. */
+const textWidth = (text: string, size: number) => text.length * size * 0.56;
+
+const clip = (name: string) => (name.length > 16 ? `${name.slice(0, 15)}…` : name);
+
+export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage): El => {
+  const W = LEAD_GRAPH_WIDTH,
+    H = 190,
+    L = 45,
+    R = 15,
+    T = 30,
+    B = 24;
+  const span = Math.max(closesAt - opensAt, 1);
+  const end = Math.min(now ?? closesAt, closesAt);
+  const x = (at: number) => L + (Math.min(Math.max(at - opensAt, 0), span) / span) * (W - L - R);
+  const secs = (ticks: number) => ticks / SCORE_TICKS_PER_SECOND;
+  const times = leads.map((l) => secs(l.ticks));
+  const fastest = times.length === 0 ? 0 : Math.min(...times);
+  const slowest = times.length === 0 ? 1 : Math.max(...times);
+  const range = Math.max(slowest - fastest, 0.05);
+  const lo = fastest - range * 0.12,
+    hi = slowest + range * 0.08;
+  // Faster is lower: the slowest time sits at the top.
+  const y = (s: number) => T + ((hi - s) / (hi - lo)) * (H - T - B);
+
+  // Each leader's colour, in the order they first led; a fifth on reuses no hue.
+  const order: Array<string> = [];
+  for (const lead of leads) for (const n of lead.leaders) if (!order.includes(n)) order.push(n);
+  const colourOf = (name: string) => LEADER_COLOURS[order.indexOf(name)] ?? G.dim;
+  /** Whose Reign a step is: of a tie, whoever led first. */
+  const holderOf = (lead: Lead) =>
+    [...lead.leaders].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] ?? "";
+
+  const hud = (size: number, weight: number, color: string): Style => ({
+    fontFamily: F.hud,
+    fontWeight: weight,
+    fontSize: size,
+    color,
+  });
+  let lines = "";
+  const overlays: Array<El> = [];
+
+  const step = niceStep(hi - lo);
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+    lines += `<line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" stroke="${G.grid}" stroke-width="0.5"/>`;
+    overlays.push(
+      textAt(
+        L - 5,
+        y(v) + 3,
+        dailyTime(Math.round(v * SCORE_TICKS_PER_SECOND)),
+        hud(7.5, 500, G.dim),
+        "end",
+        W,
+      ),
+    );
+  }
+
+  const axisY = H - B + 12;
+  const quarter = Math.round(span / 4 / 3_600_000);
+  (
+    [
+      [0, "opened", "start"],
+      [1, `+${quarter}h`, "middle"],
+      [2, `+${quarter * 2}h`, "middle"],
+      [3, `+${quarter * 3}h`, "middle"],
+      [4, "closes", "end"],
+    ] as const
+  ).forEach(([q, text, anchor]) =>
+    overlays.push(textAt(x(opensAt + (span * q) / 4), axisY, text, hud(7.5, 500, G.dim), anchor, W)),
+  );
+
+  if (now !== null) {
+    lines += `<line x1="${x(end)}" y1="${T - 5}" x2="${x(end)}" y2="${H - B}" stroke="${G.faint}" stroke-width="0.5" stroke-dasharray="2 2"/>`;
+    lines += `<line x1="${x(end)}" y1="${H - B + 1}" x2="${x(end)}" y2="${H - B + 4}" stroke="${G.text}" stroke-width="1"/>`;
+    overlays.push(textAt(x(end) + 3, T - 1, "now", hud(7, 600, G.dim), "start", W));
+  }
+
+  // The steps, then a dot where each began, and who led it named under it.
+  const labels: Array<{ x: number; y: number; text: string; width: number }> = [];
+  leads.forEach((lead, i) => {
+    const next = leads[i + 1];
+    const prev = leads[i - 1];
+    const colour = colourOf(holderOf(lead));
+    const [x0, x1, ly] = [x(lead.at), x(next?.at ?? end), y(secs(lead.ticks))];
+    lines += `<line x1="${x0}" y1="${ly}" x2="${x1}" y2="${ly}" stroke="${colour}" stroke-width="1.5"/>`;
+    if (next !== undefined)
+      lines += `<line x1="${x1}" y1="${ly}" x2="${x1}" y2="${y(secs(next.ticks))}" stroke="${colour}" stroke-width="1"/>`;
+    const joined = prev?.ticks === lead.ticks ? lead.leaders.filter((n) => !prev.leaders.includes(n)) : [];
+    const dot = joined[0] ?? holderOf(lead);
+    lines += `<circle cx="${x0}" cy="${ly}" r="2.5" fill="${colourOf(dot)}" stroke="${G.bg}" stroke-width="1"/>`;
+    if (joined.length > 0) {
+      const text = `${joined.map(clip).join(" & ")} ${joined.length === 1 ? "ties" : "tie"}`;
+      labels.push({ x: x0 + 2, y: ly - 5, text, width: textWidth(text, 8) });
+    } else if (prev === undefined || holderOf(prev) !== holderOf(lead)) {
+      const text = clip(holderOf(lead));
+      labels.push({ x: x0 + 2, y: ly + 11, text, width: textWidth(text, 8) });
+    }
+  });
+  // The latest labels win where two would overlap.
+  const kept: typeof labels = [];
+  for (const l of [...labels].reverse())
+    if (!kept.some((k) => Math.abs(k.y - l.y) < 9 && l.x < k.x + k.width && k.x < l.x + l.width))
+      kept.push(l);
+  for (const l of kept.reverse())
+    overlays.push(textAt(l.x, l.y, l.text, hud(8, 600, G.text), "start", W));
+
+  // The leading time now, at the end of the line: beside it while there is room and no name sits
+  // under it, else above it.
+  const last = leads.at(-1);
+  if (last !== undefined) {
+    const text = dailyTime(last.ticks);
+    const ly = y(secs(last.ticks));
+    const width = textWidth(text, 9);
+    const beside = x(end) + 5;
+    const fits =
+      beside + width <= W - 2 &&
+      !kept.some((k) => k.y > ly && k.y - ly < 14 && k.x < beside + width && beside < k.x + k.width);
+    overlays.push(
+      fits
+        ? textAt(beside, ly + 3.5, text, hud(9, 700, G.text), "start", W)
+        : beside + width <= W - 2
+          ? textAt(beside, ly - 5, text, hud(9, 700, G.text), "start", W)
+          : textAt(x(end), ly - 6, text, hud(9, 700, G.text), "end", W),
+    );
+  }
+
+  const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`;
+  return box(
+    { width: W, height: H, position: "relative", backgroundColor: G.bg, color: G.text },
+    img(svgUri(chart), W, H, { position: "absolute", left: 0, top: 0 }),
+    ...overlays,
+    textAt(12, 15, "THE LEAD THROUGH THE DAY", { ...hud(8.5, 600, G.dim), letterSpacing: 0.4 }, "start", W),
   );
 };

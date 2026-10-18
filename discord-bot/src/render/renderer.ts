@@ -24,6 +24,9 @@ import {
   type El,
   FOOTER_WIDTH,
   footerScene,
+  LEAD_GRAPH_WIDTH,
+  type LeadGraphImage,
+  leadGraphScene,
   improvementScene,
   LINK_WIDTH,
   linkScene,
@@ -200,6 +203,8 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
       marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
       /** The Daily Report's four boards. */
       standings: (image: StandingsImage) => draw(standingsScene(image), STANDINGS_WIDTH),
+      /** A Daily Post's lead through the day. */
+      leadGraph: (image: LeadGraphImage) => draw(leadGraphScene(image), LEAD_GRAPH_WIDTH),
     };
   }),
 }) {}

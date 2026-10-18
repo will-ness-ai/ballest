@@ -15,6 +15,8 @@ const SITE_URL = "https://ballestrecords.com";
 const ACCENT = 0x9ee34b;
 /** The Workshop screenshot's name as attached to the card. */
 export const PREVIEW_FILE = "preview.jpg";
+/** The lead graph's name as attached to the card: an edit replaces it with a fresh one. */
+export const GRAPH_FILE = "graph.png";
 
 export const workshopUrl = (pfid: string) =>
   `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
@@ -27,10 +29,13 @@ export interface DailyMessage {
   readonly allowed_mentions: { readonly parse: ReadonlyArray<never> };
 }
 
-/** The live card. `preview`: the Workshop screenshot is attached as PREVIEW_FILE. */
+/**
+ * The live card. `preview`: the Workshop screenshot is attached as PREVIEW_FILE; `graph`: the
+ * lead graph is attached as GRAPH_FILE, and shows under the podium.
+ */
 export const dailyCardMessage = (
   v: DailyView,
-  { preview }: { readonly preview: boolean },
+  { preview, graph = false }: { readonly preview: boolean; readonly graph?: boolean },
 ): DailyMessage => {
   const text = cardText(v);
   const textDisplay = (content: string) => ({ type: ComponentType.TextDisplay as const, content });
@@ -52,6 +57,14 @@ export const dailyCardMessage = (
               ]
             : []),
           textDisplay(text.stats),
+          ...(graph
+            ? [
+                {
+                  type: ComponentType.MediaGallery as const,
+                  items: [{ media: { url: `attachment://${GRAPH_FILE}` } }],
+                },
+              ]
+            : []),
           {
             type: ComponentType.Separator,
             divider: true,
@@ -80,3 +93,16 @@ export const dailyCardMessage = (
     ],
   };
 };
+
+/** A line in the Daily Post's thread: quiet, and pings nobody. */
+export interface DailyLine {
+  readonly content: string;
+  readonly flags: number;
+  readonly allowed_mentions: { readonly parse: ReadonlyArray<never> };
+}
+
+export const dailyLineMessage = (content: string): DailyLine => ({
+  content,
+  flags: MessageFlags.SuppressNotifications,
+  allowed_mentions: { parse: [] },
+});
