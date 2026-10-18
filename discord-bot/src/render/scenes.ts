@@ -10,7 +10,8 @@ import {
   progress,
   SCORE_TICKS_PER_SECOND,
 } from "../domain.js";
-import { dailyTime, sameTime } from "../dailyPost/card.js";
+import { dailyTime } from "../dailyPost/card.js";
+import { HOUR } from "../dailyPost/date.js";
 import type { Lead } from "../dailyPost/lead.js";
 import type { CardView, Improvement, ProfilePreview } from "../ports.js";
 import { boardRows, formatGap, mapTitle, matchDetails } from "../present.js";
@@ -1218,7 +1219,7 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
   }
 
   const axisY = H - B + 12;
-  const quarter = Math.round(span / 4 / 3_600_000);
+  const quarter = Math.round(span / 4 / HOUR);
   (
     [
       [0, "opened", "start"],
@@ -1251,8 +1252,10 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
     steps.push({ from: x0, to: x1, y: ly });
     if (next !== undefined)
       lines += `<line x1="${x1}" y1="${ly}" x2="${x1}" y2="${y(secs(next.ticks))}" stroke="${colour}" stroke-width="1"/>`;
+    // A tie, as the thread reads it: everyone who led before still leads (at the same shown time,
+    // or a leader's new best matched in the same read), with someone new beside them.
     const joined =
-      prev !== undefined && sameTime(prev.ticks, lead.ticks)
+      prev?.leaders.every((n) => lead.leaders.includes(n)) === true
         ? lead.leaders.filter((n) => !prev.leaders.includes(n))
         : [];
     const dot = joined[0] ?? holderOf(lead);

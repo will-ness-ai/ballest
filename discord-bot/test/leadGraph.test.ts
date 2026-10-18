@@ -87,6 +87,16 @@ describe("the Daily Post's lead graph", () => {
     expect(texts).not.toContain("B");
   });
 
+  it("reads the leader's new best matched in the same read as a tie, as the thread does", () => {
+    const scene = leadGraphScene({
+      opensAt: OPENS,
+      closesAt: OPENS + 24 * H,
+      leads: [lead(1, ["A"], 9.0), { at: OPENS + 2 * H, leaders: ["A", "B"], ticks: ticks(8.9) }],
+      now: OPENS + 3 * H,
+    });
+    expect(textsOf(scene)).toContain("B ties");
+  });
+
   it("colours leaders in the order they first led, a fifth in the neutral dim", () => {
     const five = ["A", "B", "C", "D", "E"].map((n, i) => lead(i + 1, [n], 9 - i * 0.1));
     const scene = leadGraphScene({

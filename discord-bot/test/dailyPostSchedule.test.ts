@@ -63,7 +63,7 @@ const words = (m: DailyMessage) =>
 /**
  * The schedule's world: the API answers each date from `opensAt` (or fails while `apiDown`),
  * the board answers `boardNow` (or fails while `steamDown`), and the channel records what it
- * posted and edited, and when (or refuses while `channelDown`).
+ * posted and edited, and when (or refuses while `channelDown`; a thread line while `lineDown`).
  */
 const setup = Effect.gen(function* () {
   const opensAt = yield* Ref.make(OPENS);
@@ -72,6 +72,7 @@ const setup = Effect.gen(function* () {
   const steamDown = yield* Ref.make(false);
   const channelDown = yield* Ref.make(false);
   const threadDown = yield* Ref.make(false);
+  const lineDown = yield* Ref.make(false);
   const posts = yield* Ref.make<
     Array<{ at: number; message: DailyMessage; files: number; thread: string }>
   >([]);
@@ -160,7 +161,7 @@ const setup = Effect.gen(function* () {
           }),
         say: (threadId, { content }) =>
           Effect.gen(function* () {
-            if (yield* Ref.get(channelDown))
+            if ((yield* Ref.get(channelDown)) || (yield* Ref.get(lineDown)))
               return yield* new DailyPostFailed({ reason: "Missing Permissions" });
             const at = yield* Clock.currentTimeMillis;
             yield* Ref.update(lines, (l) => [...l, { at, threadId, content }]);
@@ -220,6 +221,7 @@ const setup = Effect.gen(function* () {
     steamDown,
     channelDown,
     threadDown,
+    lineDown,
     posts,
     edits,
     lines,
@@ -328,6 +330,22 @@ describe("the Daily Post's schedule", () => {
       expect(yield* Ref.get(t.alerts)).toEqual([
         "Multiballs posted the Daily Post for 2026-10-18, but not its thread: Missing Create Threads",
       ]);
+    }),
+  );
+
+  it.scoped("keeps a post and its lead whose thread line was refused, across a restart", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* Ref.set(t.boardNow, topOf(["MitchPlease", 8.912]));
+      yield* Ref.set(t.lineDown, true);
+      yield* TestClock.setTime(OPENS);
+      yield* t.runFor(10 * MINUTE);
+      yield* Ref.set(t.lineDown, false);
+      yield* t.runFor(16 * MINUTE);
+      expect((yield* Ref.get(t.posts)).length).toBe(1);
+      // The lead the card showed was recorded: the next read draws it once, and adds no line.
+      expect((yield* Ref.get(t.graphs)).at(-1)?.leads.length).toBe(1);
+      expect(yield* Ref.get(t.lines)).toEqual([]);
     }),
   );
 
