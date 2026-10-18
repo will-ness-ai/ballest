@@ -4,9 +4,11 @@
 // emoji instead: the application carries one per Skin, from the same pictures the images draw.
 // Missing emojis are uploaded at startup, once.
 import { Effect } from "effect";
+import type { ChosenSkin } from "../ports.js";
 import { hueFor } from "../render/art.js";
 import { Renderer, type RenderError } from "../render/renderer.js";
-import { SkinPictures, skinEmojiName } from "../render/skins.js";
+import { skinEmojiName } from "../render/skinList.js";
+import { SkinPictures } from "../render/skins.js";
 import { Discord, describeDiscordError, oneLine } from "./client.js";
 
 const STEP = 15;
@@ -20,7 +22,7 @@ export interface MarbleEmojis {
    * A Player's line: the emoji of `skin`, the Chosen Skin their post carries, else their marble,
    * the same colour as on the Card and the site.
    */
-  readonly forPlayer: (steamId: string, skin: string | null) => string;
+  readonly forPlayer: (steamId: string, skin: ChosenSkin) => string;
 }
 
 const NONE: MarbleEmojis = { forHue: () => "", forPlayer: () => "" };

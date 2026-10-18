@@ -26,6 +26,7 @@ import {
   Surface,
   ThreadPost,
   cardView,
+  chosenSkinOf,
   type Entry,
   type Improvement,
   type ProfileNotFound,
@@ -132,7 +133,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     });
     /** A Player's Chosen Skin as it stands now, for a thread post about them. */
     const skinOf = Effect.fn("skinOf")(function* (player: Player) {
-      return (yield* chosenSkins.all).get(player.steamId) ?? null;
+      return chosenSkinOf(yield* chosenSkins.all, player.steamId);
     });
 
     /** Persist a Match and redraw its Card. */

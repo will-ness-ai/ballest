@@ -13,7 +13,7 @@ export const hueFor = (seed: string): number => {
 };
 
 /**
- * Each Skin's picture as a data URI, by the object path a Chosen Skin names (skins.ts). An image
+ * Each Skin's picture as a data URI, by the object path a Chosen Skin names (skinList.ts). An image
  * draws a player in the picture of the Chosen Skin its input carries for them, and in their hue
  * marble when it carries none or names a Skin with no picture here.
  */

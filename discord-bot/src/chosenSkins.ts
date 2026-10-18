@@ -8,7 +8,7 @@
 import { SqlClient } from "@effect/sql";
 import { PgClient } from "@effect/sql-pg";
 import { Config, Effect, Layer, Option, Schema } from "effect";
-import { ChosenSkins } from "./ports.js";
+import { ChosenSkins, type ChosenSkinPicks } from "./ports.js";
 
 /** A pick on the site reaches Discord within this long; a Card redraws far more often. */
 const FRESH_FOR = "1 minute";
@@ -20,15 +20,17 @@ const readAll = Effect.gen(function* () {
   const rows = yield* sql`select steam_id as "steamId", skin from chosen_skins`.pipe(
     Effect.flatMap(Schema.decodeUnknown(Schema.Array(Row))),
   );
-  const all: ReadonlyMap<string, string> = new Map(rows.map((r) => [r.steamId, r.skin]));
+  const all: ChosenSkinPicks = new Map(rows.map((r) => [r.steamId, r.skin]));
   return all;
 });
 
-const NONE: ReadonlyMap<string, string> = new Map();
+const NONE: ChosenSkinPicks = new Map();
 
 /** A read that failed: said in the log, and every player keeps their hue marble until the next. */
-const unreadable = (reason: string) =>
-  Effect.logWarning(`chosen skins unreadable, marbles only: ${reason}`).pipe(Effect.as(NONE));
+const unreadable = Effect.fn("unreadable")(function* (reason: string) {
+  yield* Effect.logWarning(`chosen skins unreadable, marbles only: ${reason}`);
+  return NONE;
+});
 
 /** No Chosen Skins: every player draws their hue marble. For tests and scripts without a database. */
 export const NoChosenSkins = Layer.succeed(

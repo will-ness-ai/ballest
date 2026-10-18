@@ -75,15 +75,28 @@ export class Steam extends Context.Tag("multiballs/Steam")<
 // ---------------------------------------------------------------- Chosen Skins
 
 /**
- * Each Player's Chosen Skin (CONTEXT.md, spec #276), read from the site's database: the object
- * path it stores, by SteamID. The engine reads it as it builds each Card view and thread post, so
+ * A Player's Chosen Skin (CONTEXT.md, spec #276): the object path chosen_skins.skin holds, or
+ * null for none, when they are drawn in their hue marble.
+ */
+export type ChosenSkin = string | null;
+
+/** Every Player's Chosen Skin, by SteamID; a Player with none is absent. */
+export type ChosenSkinPicks = ReadonlyMap<string, string>;
+
+/** A Player's Chosen Skin out of every pick. */
+export const chosenSkinOf = (chosen: ChosenSkinPicks, steamId: string): ChosenSkin =>
+  chosen.get(steamId) ?? null;
+
+/**
+ * Each Player's Chosen Skin, read from the site's database: the object path it stores, by
+ * SteamID. The engine reads it as it builds each Card view and thread post, so
  * the post carries the Skins its message shows (chosenSkins.ts has the adapters).
  */
 export class ChosenSkins extends Context.Tag("multiballs/ChosenSkins")<
   ChosenSkins,
   {
     /** Every Chosen Skin, as the object path chosen_skins.skin holds, by SteamID. */
-    readonly all: Effect.Effect<ReadonlyMap<string, string>>;
+    readonly all: Effect.Effect<ChosenSkinPicks>;
   }
 >() {}
 
@@ -117,14 +130,11 @@ export interface CardView {
 }
 
 /** The Chosen Skins, out of `chosen`, of the given Players. */
-export const shownSkins = (
-  chosen: ReadonlyMap<string, string>,
-  players: ReadonlyArray<Player>,
-): ShownSkins =>
+export const shownSkins = (chosen: ChosenSkinPicks, players: ReadonlyArray<Player>): ShownSkins =>
   Object.fromEntries(
     players.flatMap((p) => {
-      const skin = chosen.get(p.steamId);
-      return skin === undefined ? [] : [[p.steamId, skin] as const];
+      const skin = chosenSkinOf(chosen, p.steamId);
+      return skin === null ? [] : [[p.steamId, skin] as const];
     }),
   );
 
@@ -132,7 +142,7 @@ export const shownSkins = (
  * A Match as its Card shows it: the Map stays sealed while the Invite is open. `chosen` is every
  * Chosen Skin as it stands now; the view keeps its Players'.
  */
-export const cardView = (m: Match, chosen: ReadonlyMap<string, string>): CardView => ({
+export const cardView = (m: Match, chosen: ChosenSkinPicks): CardView => ({
   matchId: m.id,
   state: m.state,
   type: m.type,
@@ -167,21 +177,21 @@ export interface Improvement {
 export type ThreadPost = Data.TaggedEnum<{
   Opened: {
     readonly by: Player;
-    readonly skin: string | null;
+    readonly skin: ChosenSkin;
     readonly type: MatchType;
     readonly minutes: Minutes;
   };
   /** `expiresAt` is when the challenged Player must answer by. */
   Challenged: {
     readonly by: Player;
-    readonly skin: string | null;
+    readonly skin: ChosenSkin;
     readonly target: Player;
     readonly minutes: Minutes;
     readonly expiresAt: number;
   };
-  Accepted: { readonly player: Player; readonly skin: string | null };
-  Joined: { readonly player: Player; readonly skin: string | null };
-  Left: { readonly player: Player; readonly skin: string | null };
+  Accepted: { readonly player: Player; readonly skin: ChosenSkin };
+  Joined: { readonly player: Player; readonly skin: ChosenSkin };
+  Left: { readonly player: Player; readonly skin: ChosenSkin };
   /**
    * The start ping. `players` are the ones sent off, and pinged: everyone at the start, or
    * one Player joining a live Lobby. `card` is the live Card it shows.
@@ -192,7 +202,7 @@ export type ThreadPost = Data.TaggedEnum<{
     readonly endsAt: number;
     readonly card: CardView;
   };
-  Improved: { readonly improvement: Improvement; readonly skin: string | null };
+  Improved: { readonly improvement: Improvement; readonly skin: ChosenSkin };
   /** `card` is the finished Card the Result shows. */
   /** Players who had finished the drawn Map before: only a run faster than `ticks`, their PB, counts. */
   PlayedBefore: {

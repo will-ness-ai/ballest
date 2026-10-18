@@ -8,6 +8,7 @@ import {
   ComponentType,
 } from "discord.js";
 import { formatTime, SCORE_TICKS_PER_SECOND } from "../domain.js";
+import { type ChosenSkinPicks, chosenSkinOf } from "../ports.js";
 import type { StandingsImage } from "../render/scenes.js";
 import type { DatedRecord } from "./records.js";
 import {
@@ -136,14 +137,14 @@ export const reportButtons: ReadonlyArray<APIActionRowComponent<APIButtonCompone
  * What the standings image shows: the day, the counts and the four Workshop standings, each row
  * in its player's Chosen Skin out of `chosen` (every pick, as it stands when the report is built).
  */
-export const standingsImage = (r: Report, chosen: ReadonlyMap<string, string>): StandingsImage => ({
+export const standingsImage = (r: Report, chosen: ChosenSkinPicks): StandingsImage => ({
   title: dayTitle(r.at),
   subtitle: `Workshop standings · ${counts(r)}`,
   boards: r.boards.map((b) => ({
     title: BOARD_TITLE[b.stat],
     rows: b.rows.map((row) => ({
       steamId: row.steamId,
-      skin: chosen.get(row.steamId) ?? null,
+      skin: chosenSkinOf(chosen, row.steamId),
       name: row.persona,
       n: row.n,
       place: row.place,

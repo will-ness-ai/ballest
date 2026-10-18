@@ -1010,4 +1010,41 @@ describe("Chosen Skins", () => {
         });
       }),
   );
+
+  it.scoped("the Challenged, Accepted and Left posts carry their Player's Chosen Skin", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      yield* h.chosenSkins.pick(BOB.steamId, GOLD);
+      const id = yield* h.engine.openInvite(ALICE.discordId, {
+        type: "challenge",
+        minutes: 5,
+        target: BOB.discordId,
+      });
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.engine.leave(BOB.discordId, id);
+
+      const posts = yield* h.surface.posts(id);
+      const challenged = posts.find((p) => p._tag === "Challenged");
+      const accepted = posts.find((p) => p._tag === "Accepted");
+      const left = posts.find((p) => p._tag === "Left");
+      expect(challenged?._tag === "Challenged" && challenged.skin).toBe(PINK);
+      expect(accepted?._tag === "Accepted" && accepted.skin).toBe(GOLD);
+      expect(left?._tag === "Left" && left.skin).toBe(GOLD);
+    }),
+  );
+
+  it.scoped("a Player who leaves a Lobby Invite is posted in their Chosen Skin", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+      yield* h.engine.join(BOB.discordId, id);
+      yield* h.chosenSkins.pick(BOB.steamId, GOLD);
+      yield* h.engine.leave(BOB.discordId, id);
+      const left = (yield* h.surface.posts(id)).find((p) => p._tag === "Left");
+      if (left?._tag !== "Left") return expect.unreachable();
+      expect(left.skin).toBe(GOLD);
+    }),
+  );
 });

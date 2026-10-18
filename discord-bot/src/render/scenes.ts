@@ -10,7 +10,7 @@ import {
   progress,
   SCORE_TICKS_PER_SECOND,
 } from "../domain.js";
-import type { CardView, Improvement, ProfilePreview } from "../ports.js";
+import type { CardView, ChosenSkin, Improvement, ProfilePreview } from "../ports.js";
 import { boardRows, formatGap, mapTitle, matchDetails } from "../present.js";
 import {
   hueFor,
@@ -54,7 +54,7 @@ const marble = (hue: number, size: number, style: Style = {}) =>
  */
 const playerMarble = (
   pictures: SkinPictureUris,
-  skin: string | null,
+  skin: ChosenSkin,
   steamId: string,
   size: number,
   style: Style = {},
@@ -451,7 +451,7 @@ const worldRecordScene = (
   improvement: Improvement,
   name: string,
   beaten: number,
-  skin: string | null,
+  skin: ChosenSkin,
   pictures: SkinPictureUris,
 ): El =>
   box(
@@ -486,7 +486,7 @@ const worldRecordScene = (
 export const improvementScene = (
   improvement: Improvement,
   name: string,
-  skin: string | null,
+  skin: ChosenSkin,
   pictures: SkinPictureUris,
 ): El => {
   if (improvement.beatWorldRecord !== null)
@@ -596,7 +596,7 @@ export const LINK_WIDTH = 400;
 /** The Link confirmation; `skin` is the account's Chosen Skin. */
 export const linkScene = (
   preview: ProfilePreview,
-  skin: string | null,
+  skin: ChosenSkin,
   pictures: SkinPictureUris,
 ): El =>
   backdrop(
@@ -1062,7 +1062,7 @@ const STANDINGS_GAP = 24;
 /** A row's marble, and the gap between the things on a row. */
 const STANDINGS_MARBLE = 16;
 const STANDINGS_ROW_GAP = 8;
-/** What a board's row held before Chosen Skins: its place, move pill, name and counts. */
+/** A row's text part, beside its marble: its place, move pill, name and counts. */
 const STANDINGS_TEXT = 270;
 /** One board: its text, and a marble before each name. */
 const STANDINGS_COLUMN = STANDINGS_TEXT + STANDINGS_MARBLE + STANDINGS_ROW_GAP;
@@ -1074,7 +1074,7 @@ const STANDINGS_NAME = 17;
 export interface StandingsRow {
   readonly steamId: string;
   /** Their Chosen Skin when the report was built, or null for their hue marble. */
-  readonly skin: string | null;
+  readonly skin: ChosenSkin;
   readonly name: string;
   readonly n: number;
   /** The shared place: players on the same count show the same one. */

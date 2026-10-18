@@ -3,7 +3,8 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { SKINS as SITE_SKINS } from "../../web/lib/skins.js";
-import { SkinPictures, SKINS, skinEmojiName } from "../src/render/skins.js";
+import { SKINS, skinEmojiName } from "../src/render/skinList.js";
+import { SkinPictures } from "../src/render/skins.js";
 
 const PNG = [0x89, 0x50, 0x4e, 0x47];
 

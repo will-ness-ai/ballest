@@ -8,6 +8,8 @@ import { SqliteStoreInMemory } from "../src/sqliteStore.js";
 import { Pings } from "../src/pings.js";
 import {
   ChosenSkins,
+  type ChosenSkin,
+  type ChosenSkinPicks,
   PingRole,
   PingRoleUnavailable,
   ProfileNotFound,
@@ -165,17 +167,18 @@ export const makeFakeSurface = Effect.gen(function* () {
 
 /** Every player's Chosen Skin as the site holds it, changed by `pick` as a player would there. */
 export const makeFakeChosenSkins = Effect.gen(function* () {
-  const picks = yield* Ref.make<ReadonlyMap<string, string>>(new Map());
+  const picks = yield* Ref.make<ChosenSkinPicks>(new Map());
   return {
     port: ChosenSkins.of({ all: Ref.get(picks) }),
     /** Pick a Skin (an object path) for a player, or clear theirs with null. */
-    pick: (steamId: string, skin: string | null) =>
-      Ref.update(picks, (m) => {
+    pick: Effect.fn("pick")(function* (steamId: string, skin: ChosenSkin) {
+      yield* Ref.update(picks, (m) => {
         const next = new Map(m);
         if (skin === null) next.delete(steamId);
         else next.set(steamId, skin);
         return next;
-      }),
+      });
+    }),
   };
 });
 
@@ -327,6 +330,9 @@ export const makeHarness = (opts: {
         }),
     };
   });
+
+/** What `makeHarness` gives a test. */
+export type Harness = Effect.Effect.Success<ReturnType<typeof makeHarness>>;
 
 /** Move the TestClock and let forked work (polls, expiry, the end) run to completion. */
 export const advance = (duration: Duration.DurationInput) =>

@@ -12,7 +12,7 @@ import { createRequire } from "node:module";
 import { Worker } from "node:worker_threads";
 import { Data, Effect } from "effect";
 import satori, { type Font } from "satori";
-import type { Improvement, ProfilePreview } from "../ports.js";
+import type { ChosenSkin, Improvement, ProfilePreview } from "../ports.js";
 import { marbleSvg, type SkinPictureUris } from "./art.js";
 import { SkinPictures } from "./skins.js";
 import {
@@ -199,11 +199,11 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
       /** The Match Card, in any state, its Players in the Chosen Skins its view carries. */
       card: (card: CardImage) => draw(cardScene(card, pictures), CARD_WIDTH),
       /** An Improvement's row; `skin` is the Improver's Chosen Skin its post carries. */
-      improvement: (improvement: Improvement, name: string, skin: string | null) =>
+      improvement: (improvement: Improvement, name: string, skin: ChosenSkin) =>
         draw(improvementScene(improvement, name, skin, pictures), ROW_WIDTH),
       footer,
       /** The Link confirmation; `skin` is the account's Chosen Skin. */
-      link: (preview: ProfilePreview, skin: string | null) =>
+      link: (preview: ProfilePreview, skin: ChosenSkin) =>
         draw(linkScene(preview, skin, pictures), LINK_WIDTH),
       /** After the Result: every PB of the Match over its clock. */
       progression: (image: ProgressionImage) =>

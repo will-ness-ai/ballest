@@ -141,7 +141,7 @@ header draw it at once, before any page is read again. `qa`'s `player-own+skin-p
 opens it, signed in as tiny's p1.
 
 A new skin takes a picture and a line in `lib/skins.ts`, with its name and picker group, and
-its path and asset in Multiballs' copy, `discord-bot/src/render/skins.ts`, with its PNG made by
+its path and asset in Multiballs' copy, `discord-bot/src/render/skinList.ts`, with its PNG made by
 `discord-bot/scripts/skin_pngs.py` (the bot's `test/skins.test.ts` fails until they match).
 The list and pictures were made
 on 2026-10-08 (`prototype/skins/` on branch `claude/prototype-skins`, with the game's own
