@@ -222,7 +222,8 @@ logging in: it would have nowhere to write either.
 
 The collector's service on Fly (`tools/runner.py`, ADR 0012) runs a Refresh every three hours on
 the hour (UTC), and at once on start when the last slot passed with none, since a deploy stops a
-running one. Until 2026-10 GitHub Actions ran it, starting it three to five times a day, often an
+running one. One more slot a day, at 01:05 UTC (`DAILY_SLOT`), comes just after the Daily opens,
+so the site has the new Daily and the old one's final board within minutes rather than at 03:00. Until 2026-10 GitHub Actions ran it, starting it three to five times a day, often an
 hour or more late, so a three-hour window could pass with no run. Work spread across Refreshes
 counts Refreshes for that reason: a slice keyed on the clock window was skipped for weeks
 (PR #247), and a failed or killed run still skips a window now.

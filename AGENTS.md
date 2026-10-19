@@ -57,7 +57,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
   Workshop links) and prints the `maps:` line; `docs/site.md`, "Campaigns".
 - `tools/runner.py` — the collector's service on Fly.io (app `ballest-collector`, ADR 0012):
-  runs the Refresh every three hours on the hour (UTC), writing the database and revalidating
+  runs the Refresh every three hours on the hour (UTC) and at 01:05 UTC, just after the Daily
+  opens, writing the database and revalidating
   the site's cached reads, and every other job that logs into Steam, one at a time, since two
   logins on one account drop each other. Its private HTTP door takes a Refresh, a Map add or a
   file backlog on request (`fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"`),

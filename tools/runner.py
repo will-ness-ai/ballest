@@ -4,8 +4,9 @@ always-on process that runs the collector's scripts, each as its own child proce
 as a workflow step ran them.
 
 - The Refresh (steampy_collect.py) runs at every SLOT_HOURS slot, on the hour in UTC, and at
-  once on start when the last slot passed with no Refresh after it (a deploy or a crash
-  stopped it; the Refresh is one transaction, so a killed one wrote nothing).
+  DAILY_SLOT, just after the Daily opens; and at once on start when the last slot passed with
+  no Refresh after it (a deploy or a crash stopped it; the Refresh is one transaction, so a
+  killed one wrote nothing).
 - `POST /add-maps`, from Multiballs when the game Discord's #new-tracks gets a post, adds the
   Workshop's newest Maps (add_maps.py, no Steam login), then downloads their files
   (map_files.py --maps).
@@ -45,12 +46,16 @@ import sys
 import tempfile
 import urllib.request
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 from aiohttp import web
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 SLOT_HOURS = 3
+# One more slot a day, just after the Daily opens at 01:00 UTC (since 2026-09-05), so the
+# site has the new Daily and the old one's final board within minutes, not at 03:00. A
+# window that moves only delays the new Daily to the next SLOT_HOURS slot.
+DAILY_SLOT = time(1, 5)
 # a start this close to the next slot leaves the Refresh to that slot
 SLOT_SOON = timedelta(minutes=30)
 # a job still running after this is killed and counts as failed (a Refresh takes 2-6 minutes,
@@ -68,17 +73,31 @@ PORT = int(os.environ.get("PORT", "8080"))
 
 
 def next_slot(now):
-    """The first slot after `now`: the next whole SLOT_HOURS hour in UTC."""
+    """The first slot after `now`: the next whole SLOT_HOURS hour in UTC, or the Daily slot
+    if it comes first."""
     start = now.replace(minute=0, second=0, microsecond=0)
-    return start + timedelta(hours=SLOT_HOURS - start.hour % SLOT_HOURS)
+    hourly = start + timedelta(hours=SLOT_HOURS - start.hour % SLOT_HOURS)
+    daily = datetime.combine(now.date(), DAILY_SLOT, UTC)
+    if daily <= now:
+        daily += timedelta(days=1)
+    return min(hourly, daily)
+
+
+def last_slot(now):
+    """The last slot at or before `now`."""
+    start = now.replace(minute=0, second=0, microsecond=0)
+    hourly = start - timedelta(hours=start.hour % SLOT_HOURS)
+    daily = datetime.combine(now.date(), DAILY_SLOT, UTC)
+    if daily > now:
+        daily -= timedelta(days=1)
+    return max(hourly, daily)
 
 
 def due_on_start(last_refresh, now):
     """Whether a service starting at `now` runs a Refresh at once: the last slot passed with
     no Refresh after it, and the next one isn't about to come anyway."""
-    slot = next_slot(now)
-    missed = last_refresh is None or last_refresh < slot - timedelta(hours=SLOT_HOURS)
-    return missed and slot - now > SLOT_SOON
+    missed = last_refresh is None or last_refresh < last_slot(now)
+    return missed and next_slot(now) - now > SLOT_SOON
 
 
 @dataclass
@@ -317,7 +336,7 @@ async def schedule(service, *, now=lambda: datetime.now(UTC), sleep=asyncio.slee
         print(f"Next Refresh at {slot:%H:%M} UTC", flush=True)
         await sleep(max(0.0, (slot - now()).total_seconds()))
         service.refresh()
-        slot += timedelta(hours=SLOT_HOURS)
+        slot = next_slot(slot)
 
 
 async def serve():
