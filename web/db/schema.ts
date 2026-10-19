@@ -30,10 +30,12 @@ import {
 
 import type { PrefabAngle } from "../lib/prefabs";
 
-export const refreshSource = pgEnum("refresh_source", ["collector", "backfill"]);
+export const refreshSource = pgEnum("refresh_source", ["collector", "backfill", "daily"]);
 
 // One pass of the collector over Steam. A backfill Refresh is one snapshot of data/ from
-// git, dated at its commit, so what it first saw was first seen no later than that.
+// git, dated at its commit, so what it first saw was first seen no later than that. A
+// `daily` row is a Daily read (CONTEXT.md): the open Dailies only, between Refreshes, so
+// what counts Refreshes or says when the boards were refreshed leaves it out.
 export const refreshes = pgTable("refreshes", {
   id: serial("id").primaryKey(),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),

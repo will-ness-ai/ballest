@@ -513,3 +513,37 @@ def test_memory_knows_who_set_a_score_in_the_latest_refresh(conn):
         conn, refresh(1, [board(TRACK, ("1001", 1013307), ("1002", 1090000), ("1003", 1200000))])
     )
     assert db_writer.read_memory(conn).just_scored == {"1002", "1003"}
+
+
+# Daily reads (CONTEXT.md): the open Dailies only, every 15 minutes between Refreshes.
+
+
+def daily_only(n, *reads):
+    return db_writer.Refresh(
+        started_at=T0 + timedelta(hours=3 * n, minutes=15), dailies=reads, source="daily"
+    )
+
+
+def test_a_daily_read_writes_its_daily_marked_as_a_daily_read(conn):
+    live = DAY.starts_at + timedelta(hours=5)
+    rid = db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1001", 2931805))))
+    assert conn.execute("select source::text from refreshes where id = %s", (rid,)).fetchone() == (
+        "daily",
+    )
+    assert [d[0] for d in dailies(conn)] == [DAY.date]
+    assert open_entries(conn, DAY.board) == {"1001": 2931805}
+
+
+def test_memory_counts_only_refreshes_not_daily_reads(conn):
+    db_writer.write_refresh(conn, refresh(0, [board(TRACK, ("1001", 1013307))]))
+    live = DAY.starts_at + timedelta(hours=5)
+    db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1001", 2931805))))
+    db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1002", 2931806))))
+    assert db_writer.read_memory(conn).refreshes == 1
+
+
+def test_who_set_a_score_in_the_latest_refresh_skips_the_daily_reads_after_it(conn):
+    db_writer.write_refresh(conn, refresh(0, [board(TRACK, ("1001", 1013307))]))
+    live = DAY.starts_at + timedelta(hours=5)
+    db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1002", 2931805))))
+    assert db_writer.read_memory(conn).just_scored == {"1001"}
