@@ -1,0 +1,176 @@
+/* ===================== PROTOTYPE (grill-design, trending): never merged ===================== */
+.proto-pick {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  max-width: calc(100vw - 32px);
+  border-radius: 999px;
+  background: var(--warn);
+  color: var(--accent-ink);
+  box-shadow: 0 6px 24px oklch(0% 0 none / 0.5);
+  cursor: move;
+  user-select: none;
+  font-family: var(--f-hud);
+}
+.proto-pick button {
+  border: 0;
+  border-radius: 999px;
+  width: 2.2rem;
+  height: 2.2rem;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+}
+.proto-pick span {
+  display: grid;
+  line-height: 1.1;
+  min-width: 0;
+}
+.proto-pick small {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 16rem;
+}
+
+/* C: one hero, the week's chart beside it (under it on a phone) */
+.pt-hero {
+  display: grid;
+  gap: 12px;
+  margin-block-end: 26px;
+}
+.pt-big {
+  position: relative;
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: clip;
+  background: var(--solid);
+  color: inherit;
+  text-decoration: none;
+}
+.pt-big-im {
+  width: 100%;
+  aspect-ratio: 400/270;
+  object-fit: cover;
+}
+.pt-big-in {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+.pt-big-pod {
+  display: grid;
+  gap: 4px;
+}
+.pt-chart {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--solid);
+}
+.pt-chart-h {
+  padding: 4px 8px;
+  font-family: var(--f-hud);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+.pt-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.4rem 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+}
+.pt-row.on {
+  background: var(--accent-soft);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pt-row:hover {
+    background: var(--surface2);
+  }
+}
+.pt-n {
+  font-family: var(--f-marquee);
+  color: var(--dim);
+}
+.pt-row.on .pt-n {
+  color: var(--accent);
+}
+.pt-th {
+  width: 56px;
+  aspect-ratio: 400/270;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.pt-tt {
+  display: grid;
+  min-width: 0;
+}
+.pt-tt b,
+.pt-tt small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pt-tt small,
+.pt-w small {
+  color: var(--dim);
+  font-size: 0.75rem;
+}
+.pt-w {
+  display: grid;
+  justify-items: end;
+  font-family: var(--f-hud);
+  font-weight: 600;
+}
+@media (width >= 900px) {
+  .pt-hero {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}
+
+/* D: tabs over the carousel */
+.pt-tabs {
+  display: flex;
+  gap: 6px;
+  margin-block-end: 10px;
+}
+.pt-tabs button {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--dim);
+  font: 600 0.85rem var(--f-hud);
+  cursor: pointer;
+}
+.pt-tabs button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+/* ===================== end PROTOTYPE (grill-design, trending) ===================== */

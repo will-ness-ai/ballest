@@ -22,6 +22,7 @@ import {
   type MapCard,
   type Pick,
 } from "../../lib/workshop";
+import { ProtoCarousel, type Proto } from "../proto/Trending"; // PROTOTYPE (trending)
 
 export interface MapSearch {
   /* how many Maps match, of which `maps` is the first MAPS_CHUNK by runs */
@@ -182,11 +183,13 @@ function Results({ q, found, clear }: { q: string; found: MapSearch; clear: () =
 
 export function WorkshopHome({
   picks,
+  proto,
   campaigns,
   shelves,
   asOf,
 }: {
   picks: ReadonlyArray<Pick>;
+  proto?: Proto /* PROTOTYPE (trending) */;
   /* the Campaigns' carousel, under the picks' */
   campaigns: React.ReactNode;
   /* each of SHELVES' Maps, in order */
@@ -233,7 +236,11 @@ export function WorkshopHome({
           />
         ) : (
           <>
-            <Carousel picks={picks} now={now} />
+            {proto ? (
+              <ProtoCarousel proto={proto} now={now} />
+            ) : (
+              <Carousel picks={picks} now={now} />
+            )}
             {campaigns}
             <Shelves shelves={shelves} now={now} />
           </>

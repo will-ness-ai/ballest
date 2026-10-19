@@ -13,6 +13,7 @@ import { getCampaigns, getMapCards, getSite } from "../db/data";
 import { SITE_ORIGIN, homeHref } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE } from "../lib/rules";
 import { SHELVES, picks, shelfMaps } from "../lib/workshop";
+import { protoData } from "../components/proto/trending-data"; // PROTOTYPE (trending)
 
 /* The homepage is the one search result for the site's name, so its title says what the
    site is; the tab keeps the game's name first. */
@@ -39,6 +40,7 @@ export default async function Page() {
       <section className="ws" id="ws">
         <WorkshopHome
           picks={picks(maps)}
+          proto={protoData(maps)} /* PROTOTYPE (trending) */
           campaigns={
             <CampaignCarousel>
               {campaigns.map((k) => (
