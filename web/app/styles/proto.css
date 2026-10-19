@@ -383,4 +383,39 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/* round 3 */
+.pt-big-row .pt-n {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+.pt-mv {
+  font: 600 0.65rem var(--f-hud);
+  color: var(--faint);
+}
+.pt-mv.up {
+  color: var(--accent);
+}
+.pt-mv.down {
+  color: var(--a);
+}
+.pt-mv.new {
+  color: var(--gold);
+}
+.pt-big-row:has(.pt-bars) {
+  grid-template-columns: 1.6rem 96px minmax(0, 1fr) auto auto;
+}
+.pt-bars {
+  display: flex;
+  align-items: end;
+  gap: 2px;
+  block-size: 32px;
+  inline-size: 56px;
+}
+.pt-bars i {
+  flex: 1;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.8;
+}
 /* ===================== end PROTOTYPE (grill-design, trending) ===================== */

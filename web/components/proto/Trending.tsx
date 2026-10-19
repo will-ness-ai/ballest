@@ -1,43 +1,44 @@
 "use client";
 // ============================ PROTOTYPE (grill-design, trending) ============================
-// Never merged: claude/prototype-trending only. Round 2: what replaces the Workshop
-// homepage's carousel, showing many Maps at once (?variant=A..E). The Steam numbers
-// (plays this week, votes) are a snapshot taken 2026-10-19, joined on the server.
+// Never merged: claude/prototype-trending only. Round 3: what the Workshop homepage's
+// top 10 chart ranks by and shows on each row (?variant=A..E). The Steam numbers (plays,
+// votes) are snapshots taken 2026-10-19; new players come from the live boards.
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { PodLine } from "../workshop/Card";
 import { MapImage } from "../MapImage";
 import { mapHref } from "../../lib/routes";
-import { ageText, fmtN } from "../../lib/rules";
-import { type MapCard, type SortKey } from "../../lib/workshop";
+import { fmtN } from "../../lib/rules";
+import { type MapCard } from "../../lib/workshop";
 
 export const VARIANTS: Array<[string, string, string]> = [
-  [
-    "A",
-    "Top 10 chart",
-    "no carousel: this week's top 10 as a ranked chart, two columns on desktop",
-  ],
-  ["B", "Mosaic", "no carousel: #1 big, #2-#7 smaller tiles, all pictures, all at once"],
-  ["C", "Three charts", "no carousel: Trending, Top rated and Newest top 5s side by side"],
-  ["D", "Big strip", "no carousel: one row of 10 large cards to swipe, a plays bar on each"],
-  ["E", "Podium", "no carousel: the top 3 as a podium, #4-#10 listed under it"],
+  ["A", "Plays", "round 2's A as is: ranked by Workshop plays this week"],
+  ["B", "Players", "ranked by players who set their first time this week (our boards), not plays"],
+  ["C", "Movers", "ranked by plays; each row shows its move since last week (▲3, ▼2, NEW)"],
+  ["D", "Daily bars", "ranked by plays; each row shows the week's plays day by day"],
+  ["E", "Plays + votes", "ranked by plays lifted by rating; each row shows 👍/👎 beside its plays"],
 ];
 
-/* what Steam adds to a card, from the snapshot */
+/* what Steam and the boards add to a card */
 export interface ProtoCard extends MapCard {
+  /* Workshop plays this week, last week, and each of the last 7 days (oldest first) */
   week: number;
+  prev: number;
+  daily: Array<number>;
   up: number;
   down: number;
   score: number;
+  /* players whose first time was seen this week, and times seen this week */
+  players: number;
+  runs: number;
+  /* rank by plays last week, or null when it was new or unplayed */
+  prevRank: number | null;
 }
 export interface Proto {
-  /* today's picks: Newest, Barely played and Tightest top three, as the server chose them */
-  others: Array<{ label: string; sort: SortKey; m: ProtoCard }>;
   trending: Array<ProtoCard>;
-  rated: Array<ProtoCard>;
-  newest: Array<ProtoCard>;
-  hot: Array<ProtoCard>;
+  players: Array<ProtoCard>;
+  blend: Array<ProtoCard>;
 }
 
 export function useVariant() {
@@ -200,45 +201,49 @@ export function Picker() {
 
 const leaderOf = (m: ProtoCard) => m.top3[0];
 
-/* one ranked row: place, picture, title and maker, the figure its list is about */
-function Row({ m, n, fig, unit }: { m: ProtoCard; n: number; fig: string; unit: string }) {
+function Move({ m, n }: { m: ProtoCard; n: number }) {
+  if (m.prevRank == null) return <span className="pt-mv new">NEW</span>;
+  const d = m.prevRank - n;
+  if (d === 0) return <span className="pt-mv">=</span>;
+  return d > 0 ? <span className="pt-mv up">▲{d}</span> : <span className="pt-mv down">▼{-d}</span>;
+}
+
+function Bars({ daily }: { daily: ReadonlyArray<number> }) {
+  const max = Math.max(1, ...daily);
   return (
-    <li>
-      <Link className="pt-row" href={mapHref(m.pfid)}>
-        <span className="pt-n">{n}</span>
-        <MapImage preview={m.preview} className="pt-th" />
-        <span className="pt-tt">
-          <b>{m.title}</b>
-          <small>{m.creator}</small>
-        </span>
-        <span className="pt-w">
-          {fig}
-          <small>{unit}</small>
-        </span>
-      </Link>
-    </li>
+    <span className="pt-bars" aria-label="plays per day this week">
+      {daily.map((d, i) => (
+        <i key={i} style={{ blockSize: String(Math.max(4, (d / max) * 100)) + "%" }} />
+      ))}
+    </span>
   );
 }
 
-function Head({ title, note }: { title: string; note: string }) {
-  return (
-    <div className="shelf-h">
-      <h2>{title}</h2>
-      <span className="shelf-n">{note}</span>
-    </div>
-  );
-}
+const NOTES: Record<string, string> = {
+  A: "by Workshop plays in the last 7 days",
+  B: "by players who set their first time in the last 7 days",
+  C: "by Workshop plays in the last 7 days, against last week",
+  D: "by Workshop plays in the last 7 days",
+  E: "by Workshop plays in the last 7 days and votes",
+};
 
-/* A: the week's top ten */
-function TopTen({ proto }: { proto: Proto }) {
+export function ProtoCarousel({ proto }: { proto: Proto; now: number }) {
+  const v = useVariant();
+  const list = v === "B" ? proto.players : v === "E" ? proto.blend : proto.trending;
   return (
     <section className="pt-sec">
-      <Head title="Trending this week" note="by Workshop plays in the last 7 days" />
+      <div className="shelf-h">
+        <h2>Trending this week</h2>
+        <span className="shelf-n">{NOTES[v] ?? NOTES.A}</span>
+      </div>
       <ol className="pt-ten">
-        {proto.trending.slice(0, 10).map((m, i) => (
+        {list.map((m, i) => (
           <li key={m.pfid}>
             <Link className="pt-big-row" href={mapHref(m.pfid)}>
-              <span className="pt-n">{i + 1}</span>
+              <span className="pt-n">
+                {i + 1}
+                {v === "C" ? <Move m={m} n={i + 1} /> : null}
+              </span>
               <MapImage preview={m.preview} className="pt-th2" />
               <span className="pt-tt">
                 <b>{m.title}</b>
@@ -247,143 +252,30 @@ function TopTen({ proto }: { proto: Proto }) {
                   <PodLine p={leaderOf(m)} i={0} />
                 </span>
               </span>
-              <span className="pt-w">
-                {fmtN(m.week)}
-                <small>plays</small>
-              </span>
+              {v === "D" ? <Bars daily={m.daily} /> : null}
+              {v === "B" ? (
+                <span className="pt-w">
+                  +{fmtN(m.players)}
+                  <small>new players</small>
+                </span>
+              ) : v === "E" ? (
+                <span className="pt-w">
+                  {fmtN(m.week)}
+                  <small>
+                    👍 {fmtN(m.up)} · 👎 {fmtN(m.down)}
+                  </small>
+                </span>
+              ) : (
+                <span className="pt-w">
+                  {fmtN(m.week)}
+                  <small>plays</small>
+                </span>
+              )}
             </Link>
           </li>
         ))}
       </ol>
     </section>
   );
-}
-
-/* B: pictures first, #1 the biggest */
-function Mosaic({ proto }: { proto: Proto }) {
-  return (
-    <section className="pt-sec">
-      <Head title="Trending this week" note="by Workshop plays in the last 7 days" />
-      <div className="pt-mosaic">
-        {proto.trending.slice(0, 7).map((m, i) => (
-          <Link key={m.pfid} className="pt-tile" href={mapHref(m.pfid)}>
-            <MapImage preview={m.preview} />
-            <span className="pt-tile-in">
-              <span className="pt-rank">#{i + 1}</span>
-              <b>{m.title}</b>
-              <small>
-                {m.creator} &middot; {fmtN(m.week)} plays this week
-              </small>
-            </span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* C: three lists of five */
-function ThreeCharts({ proto, now }: { proto: Proto; now: number }) {
-  return (
-    <div className="pt-three">
-      <section className="pt-col">
-        <h2 className="pt-col-h">Trending</h2>
-        <ol className="pt-list">
-          {proto.trending.slice(0, 5).map((m, i) => (
-            <Row key={m.pfid} m={m} n={i + 1} fig={fmtN(m.week)} unit="plays this week" />
-          ))}
-        </ol>
-      </section>
-      <section className="pt-col">
-        <h2 className="pt-col-h">Top rated</h2>
-        <ol className="pt-list">
-          {proto.rated.slice(0, 5).map((m, i) => (
-            <Row
-              key={m.pfid}
-              m={m}
-              n={i + 1}
-              fig={"👍 " + fmtN(m.up)}
-              unit={"👎 " + fmtN(m.down)}
-            />
-          ))}
-        </ol>
-      </section>
-      <section className="pt-col">
-        <h2 className="pt-col-h">Newest</h2>
-        <ol className="pt-list">
-          {proto.newest.slice(0, 5).map((m, i) => (
-            <Row key={m.pfid} m={m} n={i + 1} fig={ageText(m.created, now)} unit="published" />
-          ))}
-        </ol>
-      </section>
-    </div>
-  );
-}
-
-/* D: one swipeable row of big cards */
-function BigStrip({ proto }: { proto: Proto }) {
-  const list = proto.trending.slice(0, 10);
-  const top = list[0]?.week || 1;
-  return (
-    <section className="pt-sec">
-      <Head title="Trending this week" note="by Workshop plays in the last 7 days" />
-      <div className="pt-strip">
-        {list.map((m, i) => (
-          <Link key={m.pfid} className="pt-scard" href={mapHref(m.pfid)}>
-            <span className="pt-scard-im">
-              <MapImage preview={m.preview} />
-              <span className="pt-rank">#{i + 1}</span>
-            </span>
-            <b>{m.title}</b>
-            <small>by {m.creator}</small>
-            <span className="pt-bar">
-              <i style={{ inlineSize: String((m.week / top) * 100) + "%" }} />
-            </span>
-            <small>{fmtN(m.week)} plays this week</small>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* E: the top three on a podium, the next seven under it */
-function Podium({ proto }: { proto: Proto }) {
-  const list = proto.trending.slice(0, 10);
-  return (
-    <section className="pt-sec">
-      <Head title="Trending this week" note="by Workshop plays in the last 7 days" />
-      <div className="pt-podium">
-        {list.slice(0, 3).map((m, i) => (
-          <Link key={m.pfid} className="pt-pcard" data-m={i + 1} href={mapHref(m.pfid)}>
-            <MapImage preview={m.preview} />
-            <span className="pt-pcard-in">
-              <span className="pt-rank">#{i + 1}</span>
-              <b>{m.title}</b>
-              <small>by {m.creator}</small>
-              <span className="pt-w">
-                {fmtN(m.week)}
-                <small>plays this week</small>
-              </span>
-            </span>
-          </Link>
-        ))}
-      </div>
-      <ol className="pt-list pt-rest" start={4}>
-        {list.slice(3).map((m, i) => (
-          <Row key={m.pfid} m={m} n={i + 4} fig={fmtN(m.week)} unit="plays" />
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-export function ProtoCarousel({ proto, now }: { proto: Proto; now: number }) {
-  const v = useVariant();
-  if (v === "B") return <Mosaic proto={proto} />;
-  if (v === "C") return <ThreeCharts proto={proto} now={now} />;
-  if (v === "D") return <BigStrip proto={proto} />;
-  if (v === "E") return <Podium proto={proto} />;
-  return <TopTen proto={proto} />;
 }
 // ========================== end PROTOTYPE (grill-design, trending) ==========================

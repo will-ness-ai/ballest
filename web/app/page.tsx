@@ -9,7 +9,7 @@ import { Shell } from "../components/Shell";
 import { CampaignBanner } from "../components/campaign/CampaignBanner";
 import { CampaignCarousel } from "../components/campaign/CampaignCarousel";
 import { WorkshopHome } from "../components/workshop/WorkshopHome";
-import { getCampaigns, getMapCards, getSite } from "../db/data";
+import { getCampaigns, getMapCards, getSite, getWeekActivity } from "../db/data";
 import { SITE_ORIGIN, homeHref } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE } from "../lib/rules";
 import { SHELVES, picks, shelfMaps } from "../lib/workshop";
@@ -33,14 +33,19 @@ const WEBSITE = JSON.stringify({
 });
 
 export default async function Page() {
-  const [{ asOf }, maps, campaigns] = await Promise.all([getSite(), getMapCards(), getCampaigns()]);
+  const [{ asOf }, maps, campaigns, week] = await Promise.all([
+    getSite(),
+    getMapCards(),
+    getCampaigns(),
+    getWeekActivity(), // PROTOTYPE (trending)
+  ]);
   return (
     <Shell view="workshop">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: WEBSITE }} />
       <section className="ws" id="ws">
         <WorkshopHome
           picks={picks(maps)}
-          proto={protoData(maps)} /* PROTOTYPE (trending) */
+          proto={protoData(maps, week)} /* PROTOTYPE (trending) */
           campaigns={
             <CampaignCarousel>
               {campaigns.map((k) => (

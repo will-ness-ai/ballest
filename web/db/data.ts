@@ -13,6 +13,7 @@
 // script walking made-up IDs or offsets can only add an empty answer per ID, never a
 // record. The check is per ID because a cache entry comes back whole on every read: a
 // list of every player or Map read to look up one costs its full size each time.
+import { sql } from "drizzle-orm"; // PROTOTYPE (trending)
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
 import {
@@ -573,3 +574,31 @@ export function prefabDeps(): PrefabDeps {
 export function chosenSkinDeps(): ChosenSkinDeps {
   return { db: db(), changed: () => revalidateTag(CHOSEN_SKIN_TAG, { expire: 0 }) };
 }
+
+// ============================ PROTOTYPE (grill-design, trending) ============================
+/* per Map, this week (the last 7 days): players whose first time on its board was seen,
+   and times seen at all (firsts and improvements) */
+export async function getWeekActivity(): Promise<Record<string, [number, number]>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  const res = await db().execute(sql`
+    with seen as (
+      select e.board, e.steam_id, min(r.started_at) as first_at,
+             count(*) filter (where r.started_at > now() - interval '7 days') as runs
+      from entries e
+      join refreshes r on r.id = e.first_seen_refresh
+      join boards b on b.name = e.board and b.kind = 'map'
+      group by e.board, e.steam_id
+    )
+    select m.pfid,
+           count(*) filter (where s.first_at > now() - interval '7 days')::int as players,
+           coalesce(sum(s.runs), 0)::int as runs
+    from seen s join maps m on m.board = s.board
+    group by m.pfid`);
+  const out: Record<string, [number, number]> = {};
+  for (const r of res.rows as Array<{ pfid: string; players: number; runs: number }>)
+    out[r.pfid] = [r.players, r.runs];
+  return out;
+}
+// ========================== end PROTOTYPE (grill-design, trending) ==========================
