@@ -137,6 +137,12 @@ class Job:
         return {"running": self.running, "waiting": self.waiting, "last": self.last}
 
 
+def _tail(result):
+    """A script's last lines as a code block for the ops channel, within Discord's limit."""
+    lines = "\n".join(result.tail)[-1500:]
+    return f"```\n{lines}\n```"
+
+
 class Service:
     """The jobs and the order they keep. `run(script, args, limit, stop)` runs one script to
     a Result, ended early when the `stop` event is set; `alert(text)` posts to the ops
@@ -201,10 +207,9 @@ class Service:
             if stopped:
                 continue
             if not told:
-                lines = "\n".join(result.tail)[-1500:]
                 await self.alert(
                     f"Collector: the Daily watcher stopped (exit {result.exit}); it starts"
-                    f" again every {WATCH_RETRY} s.\n```\n{lines}\n```"
+                    f" again every {WATCH_RETRY} s.\n{_tail(result)}"
                 )
                 told = True
             await sleep(WATCH_RETRY)
@@ -218,8 +223,7 @@ class Service:
         except Exception as e:
             result = Result(-1, [f"couldn't run {script}: {e!r}"])
         if result.exit and what:
-            lines = "\n".join(result.tail)[-1500:]
-            await self.alert(f"Collector: {what} failed (exit {result.exit}).\n```\n{lines}\n```")
+            await self.alert(f"Collector: {what} failed (exit {result.exit}).\n{_tail(result)}")
         return result
 
     async def _refresh(self):
