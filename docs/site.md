@@ -594,6 +594,12 @@ file's version (`fileVersion`), or null, and the button shows only with one: `ma
   approved in round 4, closer than a Prefab's default; on a screen taller than wide it
   starts 1.3x further back. "Building the map…" (`MapWait`) shows until the viewer has
   drawn.
+- **The water**: every Workshop Map is played in one level, whose water is a flat sheet at
+  z 126.71 cm (`MAP_WATER` in `lib/ballmap.ts`, read from the game's files; a `.ballmap`
+  doesn't hold it). The viewer draws it (`waterPlane` in `scene.ts`, in place of the ground
+  grid) only when some piece reaches through that height (`waterLevelOf`), reaching half the
+  framing's radius past the pieces, so a Map built high above the water isn't drawn over a
+  sea. A Prefab has no water.
 - **The file** comes from `/map/<pfid>/file?v=<version>` (`mapFileHref`,
   `app/map/[pfid]/file/route.ts`): the stored gzip bytes with `Content-Encoding: gzip`, read
   fresh (bytes don't belong in the JSON cache). Under the stored version the answer is cached

@@ -65,3 +65,50 @@ describe("a Prefab's scene", () => {
     expect(lines).toBeLessThanOrEqual(41);
   });
 });
+
+describe("a Map's water", () => {
+  /* a cube at height z spans z..z+1000 cm; the water's height is in cm too */
+  const waterOf = (scene: import("three").Scene) =>
+    scene.getObjectByName("water") as import("three").Mesh | undefined;
+
+  test("water a piece reaches through is drawn at its height, around every piece", () => {
+    const { scene } = buildScene(
+      three,
+      cubes([[0, 0, 0], LIME], [[9000, 0, 3000], LIME]),
+      true,
+      500,
+    );
+    const water = waterOf(scene);
+    if (!water) throw new Error("no water");
+    const box = new three.THREE.Box3().setFromObject(water);
+    expect(box.min.y).toBeCloseTo(5);
+    expect(box.max.y).toBeCloseTo(5);
+    /* the pieces cover x -5..95 m and z -5..5 m; the water reaches past them both ways */
+    expect(box.min.x).toBeLessThan(-5);
+    expect(box.max.x).toBeGreaterThan(95);
+    expect(box.min.z).toBeLessThan(-5);
+    expect(box.max.z).toBeGreaterThan(5);
+    /* it stands in for the ground grid, which would show through it */
+    expect(scene.children.some((o) => o instanceof three.THREE.GridHelper)).toBe(false);
+  });
+
+  test("water no piece reaches is not drawn", () => {
+    const above = buildScene(three, cubes([[0, 0, 600], LIME]), true, 500);
+    const below = buildScene(three, cubes([[0, 0, -2000], LIME]), true, 500);
+    expect(waterOf(above.scene)).toBeUndefined();
+    expect(waterOf(below.scene)).toBeUndefined();
+    /* and the ground grid stays */
+    expect(above.scene.children.some((o) => o instanceof three.THREE.GridHelper)).toBe(true);
+  });
+
+  test("a Prefab, which has no water, draws none", () => {
+    expect(waterOf(buildScene(three, cubes([[0, 0, -500], LIME])).scene)).toBeUndefined();
+  });
+
+  test("the water doesn't move the framing, which fits the pieces alone", () => {
+    const plain = buildScene(three, cubes([[0, 0, 0], LIME]), false);
+    const wet = buildScene(three, cubes([[0, 0, 0], LIME]), false, 500);
+    expect(wet.radius).toBeCloseTo(plain.radius);
+    expect(wet.centre.y).toBeCloseTo(plain.centre.y);
+  });
+});
