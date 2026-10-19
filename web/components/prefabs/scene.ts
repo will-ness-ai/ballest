@@ -136,8 +136,9 @@ function waterPlane(THREE: Three, box: import("three").Box3, radius: number, y: 
     new THREE.PlaneGeometry(size.x + 2 * reach, size.z + 2 * reach),
     new THREE.MeshStandardMaterial({
       color: WATER_COLOUR,
-      roughness: 0.3,
-      metalness: 0.1,
+      /* rough enough that the sun leaves no white glare across it */
+      roughness: 0.7,
+      metalness: 0,
       transparent: true,
       opacity: 0.6,
       side: THREE.DoubleSide,

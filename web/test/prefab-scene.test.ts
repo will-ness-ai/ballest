@@ -88,6 +88,8 @@ describe("a Map's water", () => {
     expect(box.max.x).toBeGreaterThan(95);
     expect(box.min.z).toBeLessThan(-5);
     expect(box.max.z).toBeGreaterThan(5);
+    /* it stands in for the ground grid, which would show through it */
+    expect(scene.children.some((o) => o instanceof three.THREE.GridHelper)).toBe(false);
   });
 
   test("water no piece reaches is not drawn", () => {
