@@ -4,12 +4,11 @@
   right: 16px;
   bottom: 16px;
   z-index: 9999;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  gap: 6px;
   padding: 6px;
   max-width: calc(100vw - 32px);
-  border-radius: 999px;
+  border-radius: 22px;
   background: var(--warn);
   color: var(--accent-ink);
   box-shadow: 0 6px 24px oklch(0% 0 none / 0.5);
@@ -26,6 +25,38 @@
   color: var(--text);
   font-size: 1rem;
   cursor: pointer;
+}
+.pp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pp-view button {
+  width: auto;
+  height: 1.8rem;
+  padding: 0 12px;
+  flex: 1;
+  font: 600 0.8rem var(--f-hud);
+}
+.pp-view button[aria-pressed="true"] {
+  background: var(--accent-ink);
+  color: var(--warn);
+}
+.proto-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: grid;
+  place-items: center;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+}
+.proto-frame iframe {
+  inline-size: 390px;
+  block-size: min(844px, calc(100dvh - 32px));
+  border: 3px solid var(--accent-ink);
+  border-radius: 28px;
+  background: var(--bg);
 }
 .proto-pick span {
   display: grid;

@@ -4,7 +4,7 @@
 // homepage's carousel, showing many Maps at once (?variant=A..E). The Steam numbers
 // (plays this week, votes) are a snapshot taken 2026-10-19, joined on the server.
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { PodLine } from "../workshop/Card";
 import { MapImage } from "../MapImage";
@@ -55,73 +55,146 @@ export function useVariant() {
   return v;
 }
 
+/* the URL, re-read whenever the picker changes it */
+const subscribe = (f: () => void) => {
+  addEventListener("proto-variant", f);
+  return () => {
+    removeEventListener("proto-variant", f);
+  };
+};
+const emit = () => dispatchEvent(new Event("proto-variant"));
+const setParams = (edit: (q: URLSearchParams) => void) => {
+  const u = new URL(location.href);
+  edit(u.searchParams);
+  history.replaceState(history.state, "", u);
+  emit();
+};
+
 export function Picker() {
   const v = useVariant();
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const href = useSyncExternalStore(
+    subscribe,
+    () => location.pathname + location.search,
+    () => "",
+  );
+  const framed = useSyncExternalStore(
+    subscribe,
+    () => window.top !== window || new URLSearchParams(location.search).has("framed"),
+    () => true,
+  );
   const go = (d: number) => {
     const i = VARIANTS.findIndex(([k]) => k === v);
     const next = VARIANTS[(i + d + VARIANTS.length) % VARIANTS.length][0];
-    const u = new URL(location.href);
-    u.searchParams.set("variant", next);
-    history.replaceState(history.state, "", u);
-    dispatchEvent(new Event("proto-variant"));
+    setParams((q) => {
+      q.set("variant", next);
+    });
   };
+  const goRef = useRef(go);
+  useEffect(() => {
+    goRef.current = go;
+  });
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable]")) return;
-      if (e.key === "ArrowLeft") go(-1);
-      if (e.key === "ArrowRight") go(1);
+      if (e.key === "ArrowLeft") goRef.current(-1);
+      if (e.key === "ArrowRight") goRef.current(1);
     };
     addEventListener("keydown", key);
     return () => {
       removeEventListener("keydown", key);
     };
-  });
+  }, []);
+  /* inside the phone frame the page draws no picker: the one outside drives it */
+  if (framed) return null;
+  const [path, query = ""] = href.split("?");
+  const q = new URLSearchParams(query);
+  const phone = q.get("view") === "phone";
+  q.delete("view");
+  q.set("framed", "1");
+  const inner = path + "?" + q.toString();
+  const setView = (to: "phone" | null) => {
+    setParams((p) => {
+      if (to) p.set("view", to);
+      else p.delete("view");
+    });
+  };
   const cur = VARIANTS.find(([k]) => k === v) ?? VARIANTS[0];
   return (
-    <div
-      className="proto-pick"
-      style={pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : undefined}
-      onPointerDown={(e) => {
-        if ((e.target as HTMLElement).closest("button")) return;
-        const r = e.currentTarget.getBoundingClientRect();
-        const dx = e.clientX - r.left;
-        const dy = e.clientY - r.top;
-        const move = (m: PointerEvent) => {
-          setPos({ x: m.clientX - dx, y: m.clientY - dy });
-        };
-        const up = () => {
-          removeEventListener("pointermove", move);
-          removeEventListener("pointerup", up);
-        };
-        addEventListener("pointermove", move);
-        addEventListener("pointerup", up);
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => {
-          go(-1);
+    <>
+      {phone ? (
+        <div className="proto-frame">
+          <iframe key={inner} src={inner} title="Phone view" />
+        </div>
+      ) : null}
+      <div
+        className="proto-pick"
+        style={pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : undefined}
+        onPointerDown={(e) => {
+          if ((e.target as HTMLElement).closest("button")) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          const dx = e.clientX - r.left;
+          const dy = e.clientY - r.top;
+          const move = (m: PointerEvent) => {
+            setPos({ x: m.clientX - dx, y: m.clientY - dy });
+          };
+          const up = () => {
+            removeEventListener("pointermove", move);
+            removeEventListener("pointerup", up);
+          };
+          addEventListener("pointermove", move);
+          addEventListener("pointerup", up);
         }}
       >
-        ←
-      </button>
-      <span title={cur[2]}>
-        <b>
-          {cur[0]} · {cur[1]}
-        </b>
-        <small>{cur[2]}</small>
-      </span>
-      <button
-        type="button"
-        onClick={() => {
-          go(1);
-        }}
-      >
-        →
-      </button>
-    </div>
+        <div className="pp-row">
+          <button
+            type="button"
+            aria-label="Previous variant"
+            onClick={() => {
+              go(-1);
+            }}
+          >
+            ←
+          </button>
+          <span title={cur[2]}>
+            <b>
+              {cur[0]} · {cur[1]}
+            </b>
+            <small>{cur[2]}</small>
+          </span>
+          <button
+            type="button"
+            aria-label="Next variant"
+            onClick={() => {
+              go(1);
+            }}
+          >
+            →
+          </button>
+        </div>
+        <div className="pp-row pp-view">
+          <button
+            type="button"
+            aria-pressed={!phone}
+            onClick={() => {
+              setView(null);
+            }}
+          >
+            Desktop
+          </button>
+          <button
+            type="button"
+            aria-pressed={phone}
+            onClick={() => {
+              setView("phone");
+            }}
+          >
+            Phone
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
 
