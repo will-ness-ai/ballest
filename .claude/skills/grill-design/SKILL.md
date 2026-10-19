@@ -33,8 +33,8 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
 3. Hand the user the URL with the route the feature lives on, e.g.
    `http://localhost:<port>/players?variant=A`. If the session runs in the cloud and the
    user cannot open its localhost, screenshot each variant and state with Playwright
-   (Chromium is preinstalled) and post the images instead, keeping the URL for when they
-   run it themselves. Shoot at `deviceScaleFactor: 1`, clipped to the feature's element,
+   (Chromium is preinstalled) and post the images instead, at phone (390px) and desktop
+   widths, keeping the URL for when they run it themselves. Shoot at `deviceScaleFactor: 1`, clipped to the feature's element,
    as JPEG (`quality: 80`) at most 1000px wide. Read one per round to check the shots came
    out and send the rest unread: every image read stays in context for the session.
 
@@ -58,6 +58,13 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
   player with and without Workshop times; an empty search), add picker buttons that
   toggle between them through a `?state=` parameter. The picker is plainly not part of
   the design: a high-contrast pill above everything else.
+- Every round's picker has **Desktop** and **Phone** buttons (Will asked, 2026-10-18), so
+  each variant is judged at both sizes. Phone sets `?view=phone` and lays a 390px-wide
+  frame over the page: an `<iframe>` of the same URL without `view`, keyed on that URL
+  so it follows the variant. Inside the frame (`window.top !== window`) the page draws no
+  picker, and the one outside keeps cycling variants. `ProtoPicker` in
+  `web/components/prototype/SkinPick.tsx` on `claude/prototype-skin-pick` is a working
+  copy to start from.
 - Put the picker and the variants in one clearly marked `PROTOTYPE` block so they are
   easy to find and never mistaken for production code. Reload the page after each edit
   (a hash change keeps the old script).
