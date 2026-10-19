@@ -228,10 +228,9 @@ a restart resumes the live one and never posts a date twice. Each read that chan
 time or who holds it) is recorded too (`daily_leads`, `lead.ts`): once the card shows it, with the
 lead graph under the podium redrawn by `src/render/` (`leadGraphScene`), the thread gets a quiet
 `-#` line for the first time, a steal (with how long the Reign it ended lasted), a tie, or the
-leader improving their own time; several
-changes between two reads are one line, the latest. A Components V2 message lists its files only
-in its components' `media` items, not under `attachments`, so an edit that replaces the graph
-reads them from there to keep the rest. A failed read keeps the card; the API
+leader improving their own time; several changes between two reads are one line, the latest. A
+Components V2 message lists its files only in its components' `media` items, not under
+`attachments`, so an edit that replaces the graph reads them from there to keep the rest. A failed read keeps the card; the API
 failing, no Daily an hour after 01:00, and a post, thread or edit refused each reach ops once until
 they clear. It is off unless all three settings are set and the bot has View Channel, Send
 Messages, Embed Links, Attach Files, Create Public Threads and Send Messages in Threads there; then

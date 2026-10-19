@@ -68,9 +68,9 @@ export const joinedLead = (last: Lead, next: Lead): ReadonlyArray<string> => {
 };
 
 /**
- * The thread line for the lead going from the last of `history` to `next`, or null when it
- * changed nothing the line could say (a slower lead: a tied leader left the board). Several changes between two
- * reads are seen as one: the line names only the latest leader. `byRefresh`: the lead was rebuilt
+ * The thread line for the lead going from the last of `history` to `next`, or null when there is
+ * nothing new to say (a slower lead, as when a tied leader leaves the board, or the same time with
+ * no one new beside it). Several changes between two reads are seen as one: the line names only the latest leader. `byRefresh`: the lead was rebuilt
  * from the leaderboard database (the backfill), so the line says which Refresh first saw it.
  */
 export const leadLine = (
