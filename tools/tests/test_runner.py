@@ -53,6 +53,12 @@ def test_a_start_after_the_daily_opened_with_no_refresh_since_refreshes_at_once(
     assert not runner.due_on_start(at("01:05"), at("01:30"))
 
 
+def test_yesterdays_daily_slot_is_not_a_missed_slot_after_midnight():
+    assert not runner.due_on_start(at("23:00", 17), at("23:40", 17))
+    assert runner.due_on_start(at("20:00", 17), at("00:20"))
+    assert not runner.due_on_start(at("00:00"), at("00:20"))
+
+
 class Fake:
     """Runs instead of the real scripts: each script's run waits on its own gate, so a test
     decides when it ends, and every start and end is logged in order."""

@@ -422,6 +422,19 @@ def test_a_failed_or_empty_daily_read_moves_nothing_and_never_makes_it_final(con
     assert final_refresh(conn) is None
 
 
+def test_a_daily_read_just_after_it_opens_with_no_times_yet_is_still_written(conn):
+    # the 01:05 Refresh (runner.DAILY_SLOT) reads a board nobody has finished yet: the site
+    # still gets the Daily's page, with no times
+    r1 = db_writer.write_refresh(
+        conn, refresh(0, [], dailies=[daily_read(DAY.starts_at + timedelta(minutes=5))])
+    )
+    assert dailies(conn) == [
+        ("2026-10-06", DAY.board, PFID, "Jungle islands", DAY.starts_at, DAY.ends_at, None)
+    ]
+    assert reads(conn, r1) == {DAY.board: False}
+    assert open_entries(conn, DAY.board) == {}
+
+
 def test_a_better_daily_time_closes_the_old_entry_and_opens_a_new_one(conn):
     live = DAY.starts_at + timedelta(hours=5)
     r1 = db_writer.write_refresh(

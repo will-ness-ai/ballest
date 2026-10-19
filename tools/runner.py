@@ -54,7 +54,7 @@ TOOLS = os.path.dirname(os.path.abspath(__file__))
 SLOT_HOURS = 3
 # One more slot a day, just after the Daily opens at 01:00 UTC (since 2026-09-05), so the
 # site has the new Daily and the old one's final board within minutes, not at 03:00. A
-# window that moves only delays the new Daily to the next SLOT_HOURS slot.
+# Daily that opens later than this waits for the next SLOT_HOURS slot, as before.
 DAILY_SLOT = time(1, 5)
 # a start this close to the next slot leaves the Refresh to that slot
 SLOT_SOON = timedelta(minutes=30)

@@ -35,7 +35,7 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `docs/data.md` — the database the collector writes and the site reads, table by table,
   and how a Refresh gets there. Read it before changing a table or the write path.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
-- `tools/steampy_collect.py` — the collector, run every three hours on Fly. **This is the live path.** It reads
+- `tools/steampy_collect.py` — the collector, run every three hours on Fly and just after the Daily opens. **This is the live path.** It reads
   the Circuit boards and keeps the Workshop boards current (`collect_workshop`).
 - `tools/steampy_common.py` — the steam.py leaderboard requests the collector and the
   Discord script share: read a board by ID, find a board by name.
