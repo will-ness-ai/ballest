@@ -68,9 +68,9 @@ export const joinedLead = (last: Lead, next: Lead): ReadonlyArray<string> => {
 };
 
 /**
- * The thread line for the lead going from the last of `history` to `next`, or null when no one
- * new leads (the leader beat their own time, or a tied leader left). Several changes between two
- * reads are seen as one: the line names only the latest leader. `byRefresh`: the lead was rebuilt
+ * The thread line for the lead going from the last of `history` to `next`, or null when there is
+ * nothing new to say (a slower lead, as when a tied leader leaves the board, or the same time with
+ * no one new beside it). Several changes between two reads are seen as one: the line names only the latest leader. `byRefresh`: the lead was rebuilt
  * from the leaderboard database (the backfill), so the line says which Refresh first saw it.
  */
 export const leadLine = (
@@ -89,7 +89,9 @@ export const leadLine = (
   if (sameTime(next.ticks, last.ticks) || millis(next.ticks) > millis(last.ticks)) return null;
   // A faster time: whoever led before and doesn't now has lost the lead to it.
   const lost = last.leaders.filter((n) => !next.leaders.includes(n));
-  if (lost.length === 0) return null;
+  const step = `${dailyTime(last.ticks)} → ${bold(dailyTime(next.ticks))} (−${gap(last.ticks, next.ticks)} s)`;
+  if (lost.length === 0)
+    return `${at}⏱️ ${names(next.leaders)} ${next.leaders.length === 1 ? "improves" : "improve"} the lead: ${step}`;
   const takers = next.leaders.filter((n) => !lost.includes(n));
-  return `${at}🏁 ${names(takers)} ${takers.length === 1 ? "takes" : "take"} the lead from ${names(lost)}, who held it for ${held(next.at - reignStart(history, lost))} · ${dailyTime(last.ticks)} → ${bold(dailyTime(next.ticks))} (−${gap(last.ticks, next.ticks)} s)`;
+  return `${at}🏁 ${names(takers)} ${takers.length === 1 ? "takes" : "take"} the lead from ${names(lost)}, who held it for ${held(next.at - reignStart(history, lost))} · ${step}`;
 };

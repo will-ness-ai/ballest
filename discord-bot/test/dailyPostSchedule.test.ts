@@ -437,6 +437,7 @@ describe("the Daily Post's lead", () => {
       yield* t.runFor(46 * MINUTE);
       expect(yield* said(t)).toEqual([
         "🏁 **MitchPlease** sets the first time: **0:08.912**",
+        "⏱️ **MitchPlease** improves the lead: 0:08.912 → **0:08.850** (−0.062 s)",
         "🏁 **FEDUS** takes the lead from **MitchPlease**, who held it for 2h 15m · 0:08.850 → **0:08.701** (−0.149 s)",
       ]);
       expect((yield* Ref.get(t.graphs)).at(-1)?.leads.map((l) => l.leaders)).toEqual([

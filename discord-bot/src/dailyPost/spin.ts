@@ -3,7 +3,7 @@
 // database's map_spins (docs/data.md); the bot starts that workflow when it posts a Daily whose
 // Map has a file (map_files), and edits the GIF in once it is there. The port is here, its real
 // adapter below: plain SQL over the schema `web/` owns (ADR 0006), and GitHub's API with
-// GITHUB_DISPATCH_TOKEN, as newTracks.ts starts add-maps.yml.
+// GITHUB_DISPATCH_TOKEN.
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "@effect/platform";
 import { SqlClient } from "@effect/sql";
 import { PgClient } from "@effect/sql-pg";

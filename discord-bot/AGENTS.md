@@ -227,10 +227,10 @@ that read as it starts. Each post is recorded in SQLite (`daily_posts`), so
 a restart resumes the live one and never posts a date twice. Each read that changes the lead (its
 time or who holds it) is recorded too (`daily_leads`, `lead.ts`): once the card shows it, with the
 lead graph under the podium redrawn by `src/render/` (`leadGraphScene`), the thread gets a quiet
-`-#` line for the first time, a steal (with how long the Reign it ended lasted) or a tie; several
-changes between two reads are one line, the latest. A Components V2 message lists its files only
-in its components' `media` items, not under `attachments`, so an edit that replaces the graph
-reads them from there to keep the rest. A failed read keeps the card; the API
+`-#` line for the first time, a steal (with how long the Reign it ended lasted), a tie, or the
+leader improving their own time; several changes between two reads are one line, the latest. A
+Components V2 message lists its files only in its components' `media` items, not under
+`attachments`, so an edit that replaces the graph reads them from there to keep the rest. A failed read keeps the card; the API
 failing, no Daily an hour after 01:00, and a post, thread or edit refused each reach ops once until
 they clear. It is off unless all three settings are set and the bot has View Channel, Send
 Messages, Embed Links, Attach Files, Create Public Threads and Send Messages in Threads there; then
@@ -238,7 +238,8 @@ it says why in the log and the bot runs on.
 
 The spinning 3D GIF beside the podium (`spin.ts`) is drawn in GitHub Actions, since it needs a
 browser with WebGL: as the card goes up, the bot starts the site repo's `daily-spin.yml` on `main`
-for the Map (`GITHUB_DISPATCH_TOKEN`, as for new tracks), which stores the GIF in the leaderboard
+for the Map (`GITHUB_DISPATCH_TOKEN`, a fine-grained token with Actions read and write on
+`will-ness-ai/ballest` only), which stores the GIF in the leaderboard
 database's `map_spins` (`docs/data.md`). Each read, it looks there (`DATABASE_URL`, plain SQL) and
 edits the GIF in once one is drawn from the Map's current file or since it asked. A Map with no
 `map_files` row gets no GIF and no run, and one already drawn from the same file is used without
@@ -280,11 +281,12 @@ lists and saves the files a Components V2 card shows.
 
 `src/newTracks.ts` gets a new Workshop Map onto the site within minutes (spec #259). The game
 Discord's #new-tracks (`NEW_TRACKS_CHANNEL_ID`, in `fly.toml`) gets a post from the HubUpdates app as each Map
-goes up; a minute after a post the bot starts the site repo's `add-maps.yml` on `main` through
-GitHub's API (`GITHUB_DISPATCH_TOKEN`, a fine-grained token with Actions read and write on
-`will-ness-ai/ballest` only), and posts within that minute share the run. It never reads a post's
-words: the GuildMessages intent only says one arrived, and the workflow finds what is new
-(`docs/data.md`, "New Maps"). A dispatch that fails goes to the ops channel. It is off unless both
+goes up; a minute after a post the bot asks the collector's service on Fly to add them
+(`POST /add-maps` at `COLLECTOR_URL`, in `fly.toml`: Fly's private network, no secret; ADR 0012),
+and posts within that minute share the request. It never reads a post's words: the GuildMessages
+intent only says one arrived, and the collector finds what is new (`docs/data.md`, "New Maps").
+A request the collector refuses or can't take goes to the ops channel; a failed add reaches it
+from the collector. It is off unless both
 settings are set and the bot can view that channel, and then says why in the log; the bot runs on.
 The batching is tested on the TestClock (`test/newTracks.test.ts`).
 
@@ -293,7 +295,8 @@ The batching is tested on the TestClock (`test/newTracks.test.ts`).
 Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,
 `Dockerfile`). `.github/workflows/bot.yml` tests every PR and deploys every push to `main` that
 touches `discord-bot/`; nothing else deploys, and no checkout holds production's secrets. They
-live in `fly secrets`, and the repo holds only `FLY_API_TOKEN`, a deploy token for the one app.
+live in `fly secrets`, and the repo holds only `FLY_API_TOKEN`, a deploy token for the one app
+(`FLY_COLLECTOR_TOKEN` is the collector's, ADR 0012).
 `.dockerignore` keeps `.env` and databases out of the image; keep it that way.
 
 A deploy stops the old copy before starting the new one (one volume, one machine), and the
@@ -301,7 +304,8 @@ engine's restart recovery resumes live Matches. `src/ops.ts` pings Healthchecks.
 (`HEALTHCHECK_URL`), which alerts the private `#multiballs-ops` channel when pings stop, and
 posts there daily (`OPS_WEBHOOK_URL`) once the Steam refresh token has 30 days left; renew it
 with `tools/steampy_mint.py` and `fly secrets set STEAM_REFRESH_TOKEN=...`. Logs: `fly logs`.
-`.github/workflows/bot-cost.yml` posts a weekly cost estimate there (`scripts/cost_report.py`;
+`.github/workflows/bot-cost.yml` posts a weekly cost estimate there for the bot and for the
+collector's app (`scripts/cost_report.py`, once per app with that app's deploy token;
 Fly has no billing API, so it prices what is provisioned with the rates in that script, and
 reads payment health, billing status and card on file, from Fly's undocumented GraphQL API).
 `.github/workflows/vercel-usage.yml` posts the site's Vercel plan and usage there on Mondays,

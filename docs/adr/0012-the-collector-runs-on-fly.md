@@ -16,10 +16,8 @@ The collector now runs as one always-on process on Fly.io, `tools/runner.py` in 
 hour every three hours, and every job that logs into Steam takes its turn on one lock in that
 process, so two logins can't happen. Each job is still the same script run as its own child
 process, as a workflow step ran it, so the collector's code and its tests did not change.
-Multiballs is to reach the service over Fly's private network (`POST /add-maps`), so it needs
-no GitHub token to start a job; until that bot change lands it still dispatches add-maps.yml,
-which adds the Maps and leaves their files to the next Refresh. The service has no public
-address and takes no secret. A failed
+Multiballs reaches the service over Fly's private network (`POST /add-maps`), so it needs
+no GitHub token to start a job. The service has no public address and takes no secret. A failed
 Refresh or Map add posts its last lines to the private ops channel, in place of Actions'
 failure emails, and the logs are `fly logs`.
 

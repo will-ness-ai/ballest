@@ -4,6 +4,7 @@ import {
   PROFILE_SCALE,
   prismOf,
   shapesOf,
+  waterLevelOf,
   type MeshProfile,
   type PrefabFile,
 } from "../../lib/prefab";
@@ -28,6 +29,8 @@ export function buildScene(
   { THREE, RoundedBoxGeometry }: Awaited<ReturnType<typeof loadThree>>,
   file: PrefabFile,
   grid = true,
+  /* the height of the water the pieces sit in, Unreal z in cm: a Map's, none for a Prefab */
+  water: number | null = null,
 ) {
   const scene = new THREE.Scene();
   /* a key light and a fill from the other side, so no face is left to the sky light alone,
@@ -68,7 +71,8 @@ export function buildScene(
       matrices: Array<Array<number>>;
     }
   >();
-  for (const s of shapesOf(file)) {
+  const shapes = shapesOf(file);
+  for (const s of shapes) {
     const g = s.profile ? prismGeometry(s.profile) : geometry[s.kind];
     const key = `${g.uuid}|${s.colour}|${s.glow}`;
     let batch = batches.get(key);
@@ -106,7 +110,10 @@ export function buildScene(
   const box = new THREE.Box3().setFromObject(group);
   const centre = box.getCenter(new THREE.Vector3());
   const radius = box.getSize(new THREE.Vector3()).length() / 2 || 1;
-  if (grid) {
+  /* the water is drawn after the framing, which fits the pieces alone */
+  const level = waterLevelOf(shapes, water);
+  if (level !== null) scene.add(waterPlane(THREE, box, centre, radius, level));
+  else if (grid) {
     const size = Math.max(2, Math.ceil(radius * 1.6));
     /* a line every unit, but no more than GRID_MAX squares across, where a whole Map would
        otherwise draw thousands */
@@ -118,6 +125,41 @@ export function buildScene(
 }
 
 const GRID_MAX = 40;
+
+/* the game's water as a flat sheet at height y (metres), reaching WATER_REACH of the framing's
+   radius past the pieces on every side; it stands in for the ground grid, which would show
+   through it */
+function waterPlane(
+  THREE: Three,
+  box: import("three").Box3,
+  centre: import("three").Vector3,
+  radius: number,
+  y: number,
+) {
+  const reach = radius * WATER_REACH;
+  const size = box.getSize(new THREE.Vector3());
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(size.x + 2 * reach, size.z + 2 * reach),
+    new THREE.MeshStandardMaterial({
+      color: WATER_COLOUR,
+      /* rough enough that the sun leaves no white glare across it */
+      roughness: 0.7,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide,
+      /* pieces under the surface still draw through it */
+      depthWrite: false,
+    }),
+  );
+  plane.name = "water";
+  plane.rotateX(-Math.PI / 2);
+  plane.position.set(centre.x, y, centre.z);
+  return plane;
+}
+
+const WATER_REACH = 0.5;
+const WATER_COLOUR = "#2f7fc0";
 
 /* where the camera sits and looks for `angle` (lib/prefabs.ts PrefabAngle): at zoom 1, just
    far enough back to fit the whole prefab */

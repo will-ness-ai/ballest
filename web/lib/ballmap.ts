@@ -32,6 +32,12 @@ export interface BallmapFile {
   items: Array<BallmapItem>;
 }
 
+/** the height of the water every Workshop Map is played in, Unreal z in cm: the level's own
+    water (Map_TrackUGCPlayback's Water_Plane, from BP_ArenaPieces, read from the game's files
+    2026-10-19), a flat sheet about 2 km across, the same in the editor. A .ballmap doesn't hold
+    it. The ball dies a little lower, at the kill zone's z of 100. */
+export const MAP_WATER = 126.71;
+
 const DEG = 180 / Math.PI;
 /* how close to straight up or down FQuat::Rotator treats as straight */
 const SINGULAR = 0.4999995;

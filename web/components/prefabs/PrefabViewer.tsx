@@ -16,6 +16,7 @@ export function PrefabViewer({
   spin = true,
   controls: interactive = true,
   angle = null,
+  water = null,
   attach,
   onTurn,
 }: {
@@ -24,6 +25,8 @@ export function PrefabViewer({
   spin?: boolean;
   controls?: boolean;
   angle?: PrefabAngle | null;
+  /* the height of the water a Map sits in (scene.ts buildScene) */
+  water?: number | null;
   attach?: (viewer: Viewer | null) => void;
   /* someone grabbed it to turn, zoom or pan */
   onTurn?: () => void;
@@ -61,7 +64,7 @@ export function PrefabViewer({
       });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       el.appendChild(renderer.domElement);
-      const { scene, centre, radius } = buildScene(three, file, interactive);
+      const { scene, centre, radius } = buildScene(three, file, interactive, water);
       /* a Prefab fits the fixed planes; a Workshop Map can be hundreds of metres across,
          and from as far back as the zoom goes (20 fits) on a tall screen it would fall past
          the far plane, so they grow with it */
@@ -121,7 +124,7 @@ export function PrefabViewer({
       run.cancelled = true;
       stop?.();
     };
-  }, [file, spin, interactive, attach]);
+  }, [file, spin, interactive, attach, water]);
 
   return <div ref={host} className={className ?? "pfv"} />;
 }
