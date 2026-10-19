@@ -11,7 +11,7 @@ import json
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 
 # The first Daily the API knows: 2026-08-13..19 are not found (probe of 2026-10-06).
@@ -187,3 +187,34 @@ async def collect(
         print(f"  [warn] Daily step stopped at its {budget:g} s budget; the rest waits")
         return out, missing, True
     return out, missing, False
+
+
+class Watch:
+    """What the Daily watcher (daily_watch.py) holds between its reads: the Dailies the
+    database holds, as `known` for plan, and each Daily's board as it last wrote it, so a
+    read that changed nothing writes nothing (the database is asleep until something moves).
+    A failed or empty read never writes: the next read, or the next Refresh, tries again."""
+
+    def __init__(self, known):
+        self.known = dict(known)
+        self._written = {}
+
+    @staticmethod
+    def _board(r):
+        return [(x["steam_id"], x["score_ms"]) for x in r.rows]
+
+    def to_write(self, reads):
+        """The reads worth writing: an ok read whose board moved since this watch last
+        wrote it, or that makes its Daily final."""
+        return [
+            r
+            for r in reads
+            if r.ok and (r.made_final or self._written.get(r.daily.date) != self._board(r))
+        ]
+
+    def wrote(self, reads):
+        """Note reads the database now holds."""
+        for r in reads:
+            self._written[r.daily.date] = self._board(r)
+            self.known[r.daily.date] = replace(r.daily, final=r.made_final)
+

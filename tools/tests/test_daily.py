@@ -272,3 +272,47 @@ def test_a_call_that_hangs_is_abandoned_at_the_budget():
     )
     assert time.monotonic() - started < 5
     assert (out, missing, cut) == ([], [], True)
+
+
+# The Daily watcher (daily_watch.py): what each read writes, and what it holds afterwards.
+
+OCT19 = a_daily("2026-10-19", "2026-10-19T01:00", "2026-10-20T01:00")
+
+
+def read_of(d, at_, *pairs):
+    rows = [{"steam_id": sid, "score_ms": score} for sid, score in pairs] or None
+    return daily.DailyRead(daily=d, rows=rows, read_at=at(at_))
+
+
+def test_the_watch_writes_a_daily_on_its_first_read_and_then_only_when_its_board_moved():
+    w = daily.Watch({})
+    first = read_of(OCT19, "2026-10-19T01:01", ("1", 900))
+    assert w.to_write([first]) == [first]
+    w.wrote([first])
+    same = read_of(OCT19, "2026-10-19T01:02", ("1", 900))
+    assert w.to_write([same]) == []
+    better = read_of(OCT19, "2026-10-19T01:03", ("1", 850), ("2", 990))
+    assert w.to_write([better]) == [better]
+
+
+def test_the_watch_never_writes_a_failed_read():
+    w = daily.Watch({})
+    assert w.to_write([read_of(OCT19, "2026-10-19T01:01")]) == []
+
+
+def test_a_read_after_the_close_is_written_even_unchanged_and_the_daily_is_then_final():
+    w = daily.Watch({})
+    live = read_of(OCT19, "2026-10-20T00:59", ("1", 900))
+    w.wrote([live])
+    assert not w.known[OCT19.date].final
+    last = read_of(OCT19, "2026-10-20T01:00", ("1", 900))
+    assert w.to_write([last]) == [last]
+    w.wrote([last])
+    assert w.known[OCT19.date].final
+
+
+def test_the_watch_holds_the_dailies_it_wrote_so_it_stops_looking_them_up():
+    w = daily.Watch({})
+    w.wrote([read_of(OCT19, "2026-10-19T01:01", ("1", 900))])
+    lookups, reads = daily.plan(w.known, at("2026-10-19T01:05"), first=date(2026, 10, 19))
+    assert (lookups, reads) == ([], [OCT19])

@@ -19,16 +19,13 @@ def at(hhmm, day=18):
 @pytest.mark.parametrize(
     ("now", "slot"),
     [
-        ("00:00", "01:05"),  # the Daily slot comes before 03:00
-        ("01:04", "01:05"),
-        ("01:05", "03:00"),  # a slot that is now has just been taken
+        ("00:00", "03:00"),  # a slot that is now has just been taken
         ("01:30", "03:00"),
-        ("03:00", "06:00"),
         ("20:59", "21:00"),
         ("21:00", "00:00+1"),
     ],
 )
-def test_the_next_slot_is_every_third_hour_and_just_after_the_daily_opens(now, slot):
+def test_the_next_slot_is_the_next_multiple_of_three_hours(now, slot):
     hhmm, _, plus = slot.partition("+")
     assert runner.next_slot(at(now)) == at(hhmm, 18 + int(plus or 0))
 
@@ -45,18 +42,6 @@ def test_a_start_after_a_kept_slot_waits_for_the_next():
 
 def test_a_start_just_before_a_slot_leaves_it_to_the_slot():
     assert not runner.due_on_start(at("12:01"), at("17:40"))
-
-
-def test_a_start_after_the_daily_opened_with_no_refresh_since_refreshes_at_once():
-    # the 00:00 Refresh came before the Daily opened at 01:00, so it doesn't hold it
-    assert runner.due_on_start(at("00:00"), at("01:30"))
-    assert not runner.due_on_start(at("01:05"), at("01:30"))
-
-
-def test_yesterdays_daily_slot_is_not_a_missed_slot_after_midnight():
-    assert not runner.due_on_start(at("23:00", 17), at("23:40", 17))
-    assert runner.due_on_start(at("20:00", 17), at("00:20"))
-    assert not runner.due_on_start(at("00:00"), at("00:20"))
 
 
 class Fake:
@@ -304,29 +289,6 @@ def test_each_slot_runs_one_refresh_even_when_the_timer_wakes_early():
                 Counting(), now=lambda: clock[0], sleep=sleep, last=lambda: at("12:00")
             )
         assert [r.hour for r in requests] == [14, 17, 20]
-
-    asyncio.run(go())
-
-
-def test_the_schedule_refreshes_just_after_the_daily_opens():
-    async def go():
-        clock = [at("22:10", 17)]
-        requests = []
-
-        class Counting:
-            def refresh(self):
-                requests.append(clock[0])
-
-        async def sleep(seconds):
-            if len(requests) >= 4:
-                raise asyncio.CancelledError
-            clock[0] += timedelta(seconds=seconds)
-
-        with pytest.raises(asyncio.CancelledError):
-            await runner.schedule(
-                Counting(), now=lambda: clock[0], sleep=sleep, last=lambda: at("21:00", 17)
-            )
-        assert [f"{r:%H:%M}" for r in requests] == ["00:00", "01:05", "03:00", "06:00"]
 
     asyncio.run(go())
 

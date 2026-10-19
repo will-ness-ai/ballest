@@ -9,7 +9,7 @@ and tells the site to read fresh (`POST /api/revalidate`). The site's pages are 
 No machine of yours has to be running: the refresh happens entirely on Fly.
 
 ```
-runner.py on Fly (every 3 hours, on the hour UTC, and at 01:05 UTC for the Daily)
+runner.py on Fly (every 3 hours, on the hour UTC)
   └─ steam.py logs in with STEAM_REFRESH_TOKEN (secret)
       └─ reads every campaign leaderboard (full) for appid 3339810
           └─ resolves names via STEAM_API_KEY (secret)
@@ -107,8 +107,7 @@ the Refresh to the database, and revalidates the site, which shows it at
 
 ## Ongoing
 
-- The service runs a Refresh **every 3 hours** (`SLOT_HOURS` in `tools/runner.py`)
-  and at 01:05 UTC, just after the Daily opens (`DAILY_SLOT`). Run one
+- The service runs a Refresh **every 3 hours** (`SLOT_HOURS` in `tools/runner.py`). Run one
   now with `fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"` and follow
   it with `fly logs -a ballest-collector`. `.github/workflows/refresh.yml` runs one by hand,
   only while the Fly service is down (two Steam logins on one account drop each other).

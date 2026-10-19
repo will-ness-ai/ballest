@@ -35,7 +35,7 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `docs/data.md` — the database the collector writes and the site reads, table by table,
   and how a Refresh gets there. Read it before changing a table or the write path.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
-- `tools/steampy_collect.py` — the collector, run every three hours on Fly and just after the Daily opens. **This is the live path.** It reads
+- `tools/steampy_collect.py` — the collector, run every three hours on Fly. **This is the live path.** It reads
   the Circuit boards and keeps the Workshop boards current (`collect_workshop`).
 - `tools/steampy_common.py` — the steam.py leaderboard requests the collector and the
   Discord script share: read a board by ID, find a board by name.
@@ -51,14 +51,13 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `tools/map_files.py` — the collector's Map file step, after the Ghost step: downloads each
   Workshop Map's new or changed file into `map_files` for the 3D view (`docs/data.md`, "Map files").
   The service asks it alone for an hour to fill a backlog (`ask map-files?budget=3600`).
-- `tools/add_maps.py` — adds the Workshop's newest Maps between Refreshes, run by
-  `add-maps.yml` when Multiballs hears a post in the game Discord's #new-tracks
+- `tools/add_maps.py` — adds the Workshop's newest Maps between Refreshes, run by the
+  collector's service when Multiballs hears a post in the game Discord's #new-tracks
   (`docs/data.md`, "New Maps").
 - `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
   Workshop links) and prints the `maps:` line; `docs/site.md`, "Campaigns".
 - `tools/runner.py` — the collector's service on Fly.io (app `ballest-collector`, ADR 0012):
-  runs the Refresh every three hours on the hour (UTC) and at 01:05 UTC, just after the Daily
-  opens, writing the database and revalidating
+  runs the Refresh every three hours on the hour (UTC), writing the database and revalidating
   the site's cached reads, and every other job that logs into Steam, one at a time, since two
   logins on one account drop each other. Its private HTTP door takes a Refresh, a Map add or a
   file backlog on request (`fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"`),

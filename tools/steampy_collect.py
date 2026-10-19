@@ -42,7 +42,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import warnings
 
 import campaign_common as cc
-import daily
 import db_writer
 import ghosts
 import map_files
@@ -50,7 +49,12 @@ import map_files
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
 
 import steam  # noqa: E402 (after the warnings filter)
-from steampy_common import board_rows, fetch_board, find_map_board_id  # noqa: E402
+from steampy_common import (  # noqa: E402
+    board_rows,
+    fetch_board,
+    find_map_board_id,
+)
+from steampy_common import collect_dailies as collect_daily_reads  # noqa: E402
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
@@ -152,58 +156,10 @@ async def collect_workshop(catalogue, all_ids, memory):
     }
 
 
-# Seconds between two calls to the developers' API: 60 a minute at most, well under the
-# API's limit. Only the first run's catch-up (one call per Daily since
-# FIRST_DAILY) makes more than a couple.
-DAILY_API_PACE = 1.0
-
-
 async def collect_dailies(all_ids, memory):
-    """Read the Dailies that are due (daily.plan): a list of daily.DailyRead for
-    db_writer, each with its rows or None for a read that failed. Returns [] when the step
-    is skipped for want of the API secrets. The Dailies already held are memory.dailies.
-
-    The due Dailies the database holds are read first, then each Daily it doesn't hold is
-    looked up, paced by DAILY_API_PACE, and read; a lookup that fails, or a date with no
-    Daily, is tried again next run. The whole step stops at daily.BUDGET with what it has
-    read (daily.collect), so it never holds up the Circuit and Workshop write. It never
-    prints the key or the URL."""
-    url, key = cc.load_secret("BALLEST_DAILY_URL"), cc.load_secret("BALLEST_API_KEY")
-    if not (url and key):
-        print("Daily: no BALLEST_API_KEY/BALLEST_DAILY_URL; skipping the Daily step")
-        return []
-    now = datetime.now(UTC)
-    lookups, reads = daily.plan(memory.dailies, now)
-
-    async def look_up(d):
-        return await asyncio.to_thread(daily.look_up, url, key, d)
-
-    async def read(d):
-        total, rows = None, None
-        try:
-            total, entries = await fetch_board(client, int(d.leaderboard_id))
-            rows = board_rows(entries)
-        except Exception as e:
-            print(f"  [warn] Daily {d.date} {d.title!r}: read failed: {e!r}")
-        return daily.DailyRead(
-            daily=d,
-            rows=rows,
-            read_at=datetime.now(UTC),
-            entry_count=int(total) if total else None,
-        )
-
-    out, missing, _ = await daily.collect(
-        lookups, reads, now, look_up=look_up, read=read, pace=DAILY_API_PACE
-    )
-    # only the reads handed on: one abandoned at the budget adds no player
-    for r in out:
-        all_ids.update(x["steam_id"] for x in r.rows or [])
-    ok = sum(1 for r in out if r.ok)
-    print(
-        f"  Daily: {len(lookups)} looked up ({len(missing)} with no Daily), "
-        f"{len(out)} read, {len(out) - ok} failed or empty"
-    )
-    return out
+    """The Daily step: steampy_common.collect_dailies over this run's client, planned from
+    the Dailies the database holds (memory.dailies)."""
+    return await collect_daily_reads(client, memory.dailies, all_ids)
 
 
 @client.event

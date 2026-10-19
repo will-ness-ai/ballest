@@ -106,10 +106,7 @@ export function Freshness({
                 </tr>
               </tbody>
             </table>
-            <p>
-              A refresh runs every three hours, on the hour, and once more just after the Daily
-              opens.
-            </p>
+            <p>A refresh runs every three hours, on the hour.</p>
             <p>
               Workshop boards are only read when Steam shows the map was played, which it can take a
               few hours to notice, plus a full read of every map once a day.
