@@ -140,7 +140,10 @@ describe("asking the collector to add new Maps", () => {
       const c = yield* collector(null);
       const addMaps = yield* AddMaps.pipe(Effect.provide(addMapsLive(c.url)));
       const fiber = yield* Effect.fork(Effect.either(addMaps.start));
-      yield* Effect.promise(() => new Promise((r) => setTimeout(r, 50)));
+      // once the request is in, the timeout is the only thing left to end it
+      while (c.requests.length === 0)
+        yield* Effect.promise(() => new Promise((r) => setTimeout(r, 5)));
+      expect(c.requests).toEqual(["POST /add-maps"]);
       yield* TestClock.adjust(ADD_MAPS_TIMEOUT);
       expect(yield* Fiber.join(fiber)).toEqual(
         Either.left(new AddMapsFailed({ reason: "the collector didn't answer" })),
