@@ -20,7 +20,7 @@ import sys
 import time
 import traceback
 import warnings
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import campaign_common as cc
@@ -57,10 +57,7 @@ async def watch(memory):
     key = cc.load_key()
     while True:
         started = time.monotonic()
-        # only today's Daily and yesterday's, which may still be open or not yet final: a
-        # date before them the API has no Daily for is left to the Refresh
-        first = datetime.now(UTC).date() - timedelta(days=1)
-        reads = await collect_dailies(client, w.known, set(), first)
+        reads = await collect_dailies(client, w.known, set(), daily.watch_since(datetime.now(UTC)))
         fresh = w.to_write(reads)
         if fresh:
             for r in fresh:

@@ -148,10 +148,13 @@ they ran 00:00 to 00:00 UTC through 2026-09-04, 25 hours on 09-05, and 01:00 to 
 since. The collector never prints the key or the URL.
 
 Between Refreshes the Daily watcher (`tools/daily_watch.py`) runs the same step every
-`DAILY_EVERY` seconds (a minute) on one Steam login, so today's Daily is on the site within a
+`DAILY_EVERY` seconds (a minute) on one Steam login, for today's and yesterday's dates only
+(`daily.watch_since`; older ones are the Refresh's), so today's Daily is on the site within a
 minute of opening and follows its board all day. It writes a Daily read (`source = 'daily'`,
-the Dailies only) when a Daily's board moved since it last wrote it or the read makes it final
-(`daily.Watch`), and nothing otherwise, so a quiet board leaves the database asleep. Its
+the Dailies only) for a Daily the database doesn't hold yet, even with no times, and then only
+when its board moved since it was last written or the read makes it final (`daily.Watch`), and
+nothing otherwise, so a quiet board leaves the database asleep. It starts from the open
+Entries of each Daily not yet final, so a restart rewrites nothing. Its
 revalidate names the Dailies it wrote (`?daily=<board>`), which expires only the reads tagged
 `dailies` and those boards' own tags. `runner.py` logs it off whenever another job needs Steam
 and starts it again after; one that dies starts again a minute later, and ops hears once.
@@ -220,7 +223,8 @@ The database is also the collector's only memory between runs. Before it logs in
   last good read, with how many open Entries its board holds;
 - how many Maps the latest catalogue listed, for the shrink guard;
 - when the latest Refresh with `full_sweep` started;
-- every Daily it holds, for the Daily step to plan from.
+- every Daily it holds, for the Daily step to plan from, and each open Daily's open Entries
+  (`daily_boards`), for the Daily watcher to compare its reads with.
 
 `collect_workshop` in `tools/steampy_collect.py` reads a Map's board only when its Workshop
 session or subscription count moved since its last read, plus every board once every

@@ -189,6 +189,12 @@ async def collect(
     return out, missing, False
 
 
+def watch_since(now):
+    """The earliest date the Daily watcher reads at `now`: yesterday (UTC), whose Daily is
+    open until 01:00 and is made final by the first read after; older ones are the Refresh's."""
+    return now.astimezone(UTC).date() - timedelta(days=1)
+
+
 class Watch:
     """What the Daily watcher (daily_watch.py) holds between its reads: the Dailies the
     database holds, as `known` for plan, and each Daily's board as it last wrote it, so a
