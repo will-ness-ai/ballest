@@ -1,4 +1,5 @@
-"""Weekly Fly.io cost estimate for Multiballs, posted to the ops channel.
+"""Weekly Fly.io cost estimate for one of our Fly apps (Multiballs, the collector), posted to the
+ops channel.
 
 Run weekly by .github/workflows/bot-cost.yml.
 
@@ -26,6 +27,8 @@ VOLUME_GB_MONTH = 0.15
 SNAPSHOT_GB_MONTH = 0.08
 SNAPSHOT_FREE_GB = 10
 BUDGET = 5.00
+# what the report calls each app it prices
+NAMES = {"multiballs": "Multiballs", "ballest-collector": "Collector"}
 FLY = os.environ.get("FLYCTL", "flyctl")
 
 
@@ -121,7 +124,7 @@ def report(app: str) -> str:
     flag = "" if total <= BUDGET else f" ⚠ over the ${BUDGET:.2f} budget"
     return "\n".join(
         [
-            f"**Multiballs weekly cost** · ≈ **${total:.2f}/mo**{flag}",
+            f"**{NAMES.get(app, app)} weekly cost** · ≈ **${total:.2f}/mo**{flag}",
             *lines,
             "Estimate from Fly's published rates. Actual bill: <https://fly.io/dashboard/personal/billing>",
         ]

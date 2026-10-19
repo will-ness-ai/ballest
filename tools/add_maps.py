@@ -1,7 +1,7 @@
 """
 Add the Workshop's newest Maps to the database between Refreshes: the step a post in the
-game Discord's #new-tracks starts (Multiballs dispatches .github/workflows/add-maps.yml; the
-collector's service, runner.py, runs it on POST /add-maps).
+game Discord's #new-tracks starts (Multiballs asks the collector's service, runner.py, which
+runs it on POST /add-maps).
 
 Reads the newest page of the Workshop catalogue (one Steam Web API request, no Steam login)
 and writes each Map the database lacks with db_writer.add_maps, so its page appears within

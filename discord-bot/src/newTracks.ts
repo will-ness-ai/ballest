@@ -1,66 +1,48 @@
 // New Workshop Maps on the site within minutes (spec #259). The game Discord's #new-tracks gets a
 // post from the HubUpdates app within seconds of each Map going up on the Workshop. A minute after
-// a post, the bot starts the site's add-maps workflow (.github/workflows/add-maps.yml), which
-// writes only the new Maps to the leaderboard database; posts in that minute share the run. The
-// bot never reads the posts: any message there counts, and the workflow finds what is new.
+// a post, the bot asks the collector's service on Fly (tools/runner.py, ADR 0012) to add them,
+// over Fly's private network; it writes only the new Maps to the leaderboard database, then
+// downloads their files. Posts in that minute share the request. The bot never reads the posts:
+// any message there counts, and the collector finds what is new.
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "@effect/platform";
-import {
-  Config,
-  Context,
-  Data,
-  Duration,
-  Effect,
-  Layer,
-  Option,
-  Redacted,
-  Ref,
-  Stream,
-} from "effect";
+import { Config, Context, Data, Duration, Effect, Layer, Option, Ref, Stream } from "effect";
 import { describeDiscordError, Discord } from "./discord/client.js";
 import { OpsAlerts } from "./ops.js";
 
 /** How long after a post the step starts, so a burst of posts makes one run. */
 export const WAIT_AFTER_POST = Duration.toMillis("1 minute");
 
-const WORKFLOW =
-  "https://api.github.com/repos/will-ness-ai/ballest/actions/workflows/add-maps.yml/dispatches";
-
 export class AddMapsFailed extends Data.TaggedError("AddMapsFailed")<{
   readonly reason: string;
 }> {}
 
-/** Starts the add-maps workflow. */
+/** Asks the collector to add the Workshop's new Maps. */
 export class AddMaps extends Context.Tag("multiballs/AddMaps")<
   AddMaps,
   { readonly start: Effect.Effect<void, AddMapsFailed> }
 >() {}
 
-/** The workflow on main, through GitHub's API, with a token that may run this repo's Actions. */
-const addMapsLive = (token: Redacted.Redacted) =>
+/** The collector's service at `url` (no secret: it has no public address). It queues the job
+ * and answers at once; a failed add reaches the ops channel from the collector itself. */
+export const addMapsLive = (url: string) =>
   Layer.effect(
     AddMaps,
     Effect.gen(function* () {
       const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
       return AddMaps.of({
-        start: http
-          .execute(
-            HttpClientRequest.post(WORKFLOW).pipe(
-              HttpClientRequest.bearerToken(Redacted.value(token)),
-              HttpClientRequest.setHeader("Accept", "application/vnd.github+json"),
-              HttpClientRequest.bodyUnsafeJson({ ref: "main" }),
-            ),
-          )
-          .pipe(
-            Effect.scoped,
-            Effect.asVoid,
-            Effect.mapError(
-              (e) =>
-                new AddMapsFailed({
-                  reason:
-                    e._tag === "ResponseError" ? `GitHub said ${e.response.status}` : e.message,
-                }),
-            ),
+        start: http.execute(HttpClientRequest.post(`${url}/add-maps`)).pipe(
+          Effect.scoped,
+          Effect.asVoid,
+          Effect.mapError(
+            (e) =>
+              new AddMapsFailed({
+                reason:
+                  e._tag === "ResponseError"
+                    ? `the collector said ${e.response.status}`
+                    : e.message,
+              }),
           ),
+        ),
       });
     }),
   ).pipe(Layer.provide(FetchHttpClient.layer));
@@ -86,16 +68,14 @@ export const newTracksLoop = Effect.fn("newTracksLoop")(function* (posts: Stream
   );
 }, Effect.scoped);
 
-/** The listener, on when NEW_TRACKS_CHANNEL_ID and GITHUB_DISPATCH_TOKEN are both set and the
- * bot can view that channel; otherwise it says why and the bot runs on without it. */
+/** The listener, on when NEW_TRACKS_CHANNEL_ID and COLLECTOR_URL are both set and the bot can
+ * view that channel; otherwise it says why and the bot runs on without it. */
 export const NewTracksLive = Layer.unwrapEffect(
   Effect.gen(function* () {
     const channel = yield* Config.option(Config.string("NEW_TRACKS_CHANNEL_ID"));
-    const token = yield* Config.option(Config.redacted("GITHUB_DISPATCH_TOKEN"));
-    if (Option.isNone(channel) || Option.isNone(token)) {
-      yield* Effect.logInfo(
-        "new tracks: off (NEW_TRACKS_CHANNEL_ID or GITHUB_DISPATCH_TOKEN not set)",
-      );
+    const collector = yield* Config.option(Config.string("COLLECTOR_URL"));
+    if (Option.isNone(channel) || Option.isNone(collector)) {
+      yield* Effect.logInfo("new tracks: off (NEW_TRACKS_CHANNEL_ID or COLLECTOR_URL not set)");
       return Layer.empty;
     }
     return Layer.scopedDiscard(
@@ -109,6 +89,6 @@ export const NewTracksLive = Layer.unwrapEffect(
           Effect.logWarning(`new tracks: off (${describeDiscordError(e)})`),
         ),
       ),
-    ).pipe(Layer.provide(Layer.mergeAll(addMapsLive(token.value), OpsAlerts.Default)));
+    ).pipe(Layer.provide(Layer.mergeAll(addMapsLive(collector.value), OpsAlerts.Default)));
   }),
 );

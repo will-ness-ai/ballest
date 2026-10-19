@@ -10,7 +10,7 @@ encodes a GIF with ffmpeg, a few minutes of work for about 4 MB.
 
 It runs in GitHub Actions, as `.github/workflows/daily-spin.yml`, not in the collector or the
 bot. Multiballs starts the workflow for the Map when it posts a Daily
-(`GITHUB_DISPATCH_TOKEN`, as it starts `add-maps.yml`), the workflow stores the GIF in
+(`GITHUB_DISPATCH_TOKEN`), the workflow stores the GIF in
 `map_spins` in the leaderboard database, and the bot reads it from there (ADR 0006) and edits
 it into the card. So `map_spins` is the one table written by neither the collector nor the
 site's pages: the workflow writes it with the collector's `DATABASE_URL`, and the bot only

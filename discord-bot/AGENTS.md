@@ -238,7 +238,8 @@ it says why in the log and the bot runs on.
 
 The spinning 3D GIF beside the podium (`spin.ts`) is drawn in GitHub Actions, since it needs a
 browser with WebGL: as the card goes up, the bot starts the site repo's `daily-spin.yml` on `main`
-for the Map (`GITHUB_DISPATCH_TOKEN`, as for new tracks), which stores the GIF in the leaderboard
+for the Map (`GITHUB_DISPATCH_TOKEN`, a fine-grained token with Actions read and write on
+`will-ness-ai/ballest` only), which stores the GIF in the leaderboard
 database's `map_spins` (`docs/data.md`). Each read, it looks there (`DATABASE_URL`, plain SQL) and
 edits the GIF in once one is drawn from the Map's current file or since it asked. A Map with no
 `map_files` row gets no GIF and no run, and one already drawn from the same file is used without
@@ -280,11 +281,12 @@ lists and saves the files a Components V2 card shows.
 
 `src/newTracks.ts` gets a new Workshop Map onto the site within minutes (spec #259). The game
 Discord's #new-tracks (`NEW_TRACKS_CHANNEL_ID`, in `fly.toml`) gets a post from the HubUpdates app as each Map
-goes up; a minute after a post the bot starts the site repo's `add-maps.yml` on `main` through
-GitHub's API (`GITHUB_DISPATCH_TOKEN`, a fine-grained token with Actions read and write on
-`will-ness-ai/ballest` only), and posts within that minute share the run. It never reads a post's
-words: the GuildMessages intent only says one arrived, and the workflow finds what is new
-(`docs/data.md`, "New Maps"). A dispatch that fails goes to the ops channel. It is off unless both
+goes up; a minute after a post the bot asks the collector's service on Fly to add them
+(`POST /add-maps` at `COLLECTOR_URL`, in `fly.toml`: Fly's private network, no secret; ADR 0012),
+and posts within that minute share the request. It never reads a post's words: the GuildMessages
+intent only says one arrived, and the collector finds what is new (`docs/data.md`, "New Maps").
+A request the collector refuses or can't take goes to the ops channel; a failed add reaches it
+from the collector. It is off unless both
 settings are set and the bot can view that channel, and then says why in the log; the bot runs on.
 The batching is tested on the TestClock (`test/newTracks.test.ts`).
 

@@ -176,8 +176,8 @@ from before uploads) to a database once, idempotently.
 ### New Maps
 
 A Map published since the last Refresh is added on its own, within minutes, when the game
-Discord's #new-tracks gets a post (spec #259): Multiballs starts `.github/workflows/add-maps.yml`
-a minute after the post (`discord-bot/src/newTracks.ts`), which runs `tools/add_maps.py`. That
+Discord's #new-tracks gets a post (spec #259): Multiballs asks the collector's service a minute
+after the post (`discord-bot/src/newTracks.ts`, `POST /add-maps`), which runs `tools/add_maps.py`. That
 reads the newest page of the catalogue (`campaign_common.newest_maps`, one Steam Web API request,
 no Steam login) and `db_writer.add_maps` writes each Map the database lacks in one transaction:
 its `boards` row with no board ID, `maps`, and one `map_history` row. It writes no Refresh and
@@ -186,14 +186,13 @@ reads no board. The row's first and last seen are the newest catalogue's Refresh
 listed and serves its page (with an empty board until it has times; `docs/site.md`, Routes), and its
 sessions and subscriptions are empty, so the next Refresh reads them as moved and looks its board
 up. While nothing is new it reads the page again, up to five reads a minute apart, since Steam's
-list can lag the post. Before any catalogue was written it adds nothing. Ghosts and, for now, the
-Map's file for the 3D view come with the next Refresh.
+list can lag the post. Before any catalogue was written it adds nothing. Ghosts come with the
+next Refresh.
 
-The collector's service on Fly (`tools/runner.py`, ADR 0012) does the same on `POST /add-maps`,
+The collector's service on Fly (`tools/runner.py`, ADR 0012) runs it on `POST /add-maps`,
 then downloads the added Maps' files (`map_files.py --maps`, two minutes of downloads) in its
 turn on the Steam login, so their 3D view comes within minutes too; a failed download leaves the
-file to the next Refresh, as any due file is. Once Multiballs asks it instead of starting the
-workflow, the workflow goes. Adding runs beside a Refresh, since it needs no Steam login, so a
+file to the next Refresh, as any due file is. Adding runs beside a Refresh, since it needs no Steam login, so a
 Refresh that read the catalogue before the Map was published and commits after `add_maps` leaves
 the Map unlisted, its link sending players home again, until the next Refresh.
 

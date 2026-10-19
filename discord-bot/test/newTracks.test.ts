@@ -1,6 +1,14 @@
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Fiber, Layer, Queue, Ref, Stream, TestClock } from "effect";
-import { AddMaps, AddMapsFailed, WAIT_AFTER_POST, newTracksLoop } from "../src/newTracks.js";
+import { Effect, Either, Fiber, Layer, Queue, Ref, Stream, TestClock } from "effect";
+import {
+  AddMaps,
+  AddMapsFailed,
+  WAIT_AFTER_POST,
+  addMapsLive,
+  newTracksLoop,
+} from "../src/newTracks.js";
 import { OpsAlerts } from "../src/ops.js";
 
 /** The loop over a #new-tracks channel fed by `post`, an AddMaps that counts its runs (or fails
@@ -79,6 +87,44 @@ describe("adding new Maps from #new-tracks", () => {
       yield* TestClock.adjust(WAIT_AFTER_POST);
       expect(yield* Ref.get(t.runs)).toBe(1);
       yield* Fiber.interrupt(t.fiber);
+    }),
+  );
+});
+
+/** A stand-in for the collector's service: records each request's method and path, and answers
+ * with `status`. */
+const collector = (status: number) =>
+  Effect.acquireRelease(
+    Effect.async<{ url: string; requests: Array<string>; server: Server }>((resume) => {
+      const requests: Array<string> = [];
+      const server = createServer((req, res) => {
+        requests.push(`${req.method} ${req.url}`);
+        res.writeHead(status, { "content-type": "application/json" }).end('{"queued":true}');
+      });
+      server.listen(0, "127.0.0.1", () => {
+        const { port } = server.address() as AddressInfo;
+        resume(Effect.succeed({ url: `http://127.0.0.1:${port}`, requests, server }));
+      });
+    }),
+    (c) => Effect.sync(() => c.server.close()),
+  );
+
+describe("asking the collector to add new Maps", () => {
+  it.scoped("posts to its /add-maps", () =>
+    Effect.gen(function* () {
+      const c = yield* collector(202);
+      const addMaps = yield* AddMaps.pipe(Effect.provide(addMapsLive(c.url)));
+      yield* addMaps.start;
+      expect(c.requests).toEqual(["POST /add-maps"]);
+    }),
+  );
+
+  it.scoped("fails with what the collector answered", () =>
+    Effect.gen(function* () {
+      const c = yield* collector(500);
+      const addMaps = yield* AddMaps.pipe(Effect.provide(addMapsLive(c.url)));
+      const result = yield* Effect.either(addMaps.start);
+      expect(result).toEqual(Either.left(new AddMapsFailed({ reason: "the collector said 500" })));
     }),
   );
 });
