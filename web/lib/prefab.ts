@@ -210,18 +210,40 @@ export function partsOf(file: PrefabFile): Array<{ piece: string; count: number 
   return [...counts].map(([piece, count]) => ({ piece, count })).sort((a, b) => b.count - a.count);
 }
 
+/* where a shape reaches along three's axis k (0 x, 1 up, 2 z), in metres, over its corners */
+function spanOf({ matrix: m }: Shape, k: number): [number, number] {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const x of [-0.5, 0.5])
+    for (const y of [-0.5, 0.5])
+      for (const z of [-0.5, 0.5]) {
+        const v = m[k] * x + m[4 + k] * y + m[8 + k] * z + m[12 + k];
+        lo = Math.min(lo, v);
+        hi = Math.max(hi, v);
+      }
+  return [lo, hi];
+}
+
 /* the prefab's size in metres: wide (x), deep (z) and tall (y), over every shape's corners */
 export function footprintOf(shapes: Array<Shape>): { w: number; d: number; h: number } {
-  const lo = [Infinity, Infinity, Infinity];
-  const hi = [-Infinity, -Infinity, -Infinity];
-  for (const { matrix: m } of shapes)
-    for (const x of [-0.5, 0.5])
-      for (const y of [-0.5, 0.5])
-        for (const z of [-0.5, 0.5])
-          for (let k = 0; k < 3; k++) {
-            const v = m[k] * x + m[4 + k] * y + m[8 + k] * z + m[12 + k];
-            lo[k] = Math.min(lo[k], v);
-            hi[k] = Math.max(hi[k], v);
-          }
-  return { w: hi[0] - lo[0], d: hi[2] - lo[2], h: hi[1] - lo[1] };
+  const size = (k: number) => {
+    const spans = shapes.map((s) => spanOf(s, k));
+    return Math.max(...spans.map((s) => s[1])) - Math.min(...spans.map((s) => s[0]));
+  };
+  return { w: size(0), d: size(2), h: size(1) };
+}
+
+/** the water's height in three's metres when some piece reaches through it, else null; `water`
+    is its Unreal z in cm (lib/ballmap.ts MAP_WATER). The game's water is everywhere at one
+    height, but the viewer draws it only where it meets the pieces, so a Map built high above it
+    isn't drawn floating over a sea */
+export function waterLevelOf(shapes: Array<Shape>, water: number | null): number | null {
+  if (water === null) return null;
+  const y = water / 100;
+  return shapes.some((s) => {
+    const [lo, hi] = spanOf(s, 1);
+    return lo < y && y < hi;
+  })
+    ? y
+    : null;
 }
