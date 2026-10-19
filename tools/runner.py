@@ -83,7 +83,7 @@ def next_slot(now):
     return min(hourly, daily)
 
 
-def last_slot(now):
+def _last_slot(now):
     """The last slot at or before `now`."""
     start = now.replace(minute=0, second=0, microsecond=0)
     hourly = start - timedelta(hours=start.hour % SLOT_HOURS)
@@ -96,7 +96,7 @@ def last_slot(now):
 def due_on_start(last_refresh, now):
     """Whether a service starting at `now` runs a Refresh at once: the last slot passed with
     no Refresh after it, and the next one isn't about to come anyway."""
-    missed = last_refresh is None or last_refresh < last_slot(now)
+    missed = last_refresh is None or last_refresh < _last_slot(now)
     return missed and next_slot(now) - now > SLOT_SOON
 
 
