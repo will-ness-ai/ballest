@@ -227,7 +227,8 @@ that read as it starts. Each post is recorded in SQLite (`daily_posts`), so
 a restart resumes the live one and never posts a date twice. Each read that changes the lead (its
 time or who holds it) is recorded too (`daily_leads`, `lead.ts`): once the card shows it, with the
 lead graph under the podium redrawn by `src/render/` (`leadGraphScene`), the thread gets a quiet
-`-#` line for the first time, a steal (with how long the Reign it ended lasted) or a tie; several
+`-#` line for the first time, a steal (with how long the Reign it ended lasted), a tie, or the
+leader improving their own time; several
 changes between two reads are one line, the latest. A Components V2 message lists its files only
 in its components' `media` items, not under `attachments`, so an edit that replaces the graph
 reads them from there to keep the rest. A failed read keeps the card; the API

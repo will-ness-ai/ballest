@@ -185,8 +185,10 @@ describe("a Daily Post's thread lines", () => {
     );
   });
 
-  it("says nothing when the leader only beats their own time", () => {
-    expect(leadLine([lead(1, ["FEDUS"], 8.701)], lead(2, ["FEDUS"], 8.65))).toBeNull();
+  it("marks the leader beating their own time, and by how much", () => {
+    expect(leadLine([lead(1, ["FEDUS"], 8.701)], lead(2, ["FEDUS"], 8.65))).toBe(
+      "-# <t:1792292400:t> · ⏱️ **FEDUS** improves the lead: 0:08.701 → **0:08.650** (−0.051 s)",
+    );
   });
 
   it("posts a matched time as a tie", () => {
