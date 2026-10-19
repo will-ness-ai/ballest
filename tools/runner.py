@@ -61,7 +61,7 @@ BACKLOG_MARGIN = timedelta(minutes=15)
 # seconds a backlog's last downloads may run past its budget; inside BACKLOG_MARGIN, so the
 # slot's Refresh still starts on time
 DOWNLOAD_GRACE = 10 * 60
-# seconds to keep starting downloads of a new-tracks post's Maps, as add-maps.yml gave
+# seconds to keep starting downloads of a new-tracks post's Maps
 NEW_MAP_FILES_BUDGET = 120
 TAIL_LINES = 15
 PORT = int(os.environ.get("PORT", "8080"))
