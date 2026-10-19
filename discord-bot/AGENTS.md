@@ -295,7 +295,8 @@ The batching is tested on the TestClock (`test/newTracks.test.ts`).
 Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,
 `Dockerfile`). `.github/workflows/bot.yml` tests every PR and deploys every push to `main` that
 touches `discord-bot/`; nothing else deploys, and no checkout holds production's secrets. They
-live in `fly secrets`, and the repo holds only `FLY_API_TOKEN`, a deploy token for the one app.
+live in `fly secrets`, and the repo holds only `FLY_API_TOKEN`, a deploy token for the one app
+(`FLY_COLLECTOR_TOKEN` is the collector's, ADR 0012).
 `.dockerignore` keeps `.env` and databases out of the image; keep it that way.
 
 A deploy stops the old copy before starting the new one (one volume, one machine), and the
@@ -303,7 +304,8 @@ engine's restart recovery resumes live Matches. `src/ops.ts` pings Healthchecks.
 (`HEALTHCHECK_URL`), which alerts the private `#multiballs-ops` channel when pings stop, and
 posts there daily (`OPS_WEBHOOK_URL`) once the Steam refresh token has 30 days left; renew it
 with `tools/steampy_mint.py` and `fly secrets set STEAM_REFRESH_TOKEN=...`. Logs: `fly logs`.
-`.github/workflows/bot-cost.yml` posts a weekly cost estimate there (`scripts/cost_report.py`;
+`.github/workflows/bot-cost.yml` posts a weekly cost estimate there for the bot and for the
+collector's app (`scripts/cost_report.py`, once per app with that app's deploy token;
 Fly has no billing API, so it prices what is provisioned with the rates in that script, and
 reads payment health, billing status and card on file, from Fly's undocumented GraphQL API).
 `.github/workflows/vercel-usage.yml` posts the site's Vercel plan and usage there on Mondays,

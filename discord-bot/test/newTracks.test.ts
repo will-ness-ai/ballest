@@ -4,6 +4,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Either, Fiber, Layer, Queue, Ref, Stream, TestClock } from "effect";
 import {
   AddMaps,
+  ADD_MAPS_TIMEOUT,
   AddMapsFailed,
   WAIT_AFTER_POST,
   addMapsLive,
@@ -92,13 +93,15 @@ describe("adding new Maps from #new-tracks", () => {
 });
 
 /** A stand-in for the collector's service: records each request's method and path, and answers
- * with `status`. */
-const collector = (status: number) =>
+ * with `status` and the body runner.py's queue handler sends (tools/runner.py, `app`), or never
+ * answers when `status` is null. */
+const collector = (status: number | null) =>
   Effect.acquireRelease(
     Effect.async<{ url: string; requests: Array<string>; server: Server }>((resume) => {
       const requests: Array<string> = [];
       const server = createServer((req, res) => {
         requests.push(`${req.method} ${req.url}`);
+        if (status === null) return;
         res.writeHead(status, { "content-type": "application/json" }).end('{"queued":true}');
       });
       server.listen(0, "127.0.0.1", () => {
@@ -106,7 +109,11 @@ const collector = (status: number) =>
         resume(Effect.succeed({ url: `http://127.0.0.1:${port}`, requests, server }));
       });
     }),
-    (c) => Effect.sync(() => c.server.close()),
+    (c) =>
+      Effect.sync(() => {
+        c.server.closeAllConnections(); // the one that never answers holds its socket open
+        c.server.close();
+      }),
   );
 
 describe("asking the collector to add new Maps", () => {
@@ -125,6 +132,19 @@ describe("asking the collector to add new Maps", () => {
       const addMaps = yield* AddMaps.pipe(Effect.provide(addMapsLive(c.url)));
       const result = yield* Effect.either(addMaps.start);
       expect(result).toEqual(Either.left(new AddMapsFailed({ reason: "the collector said 500" })));
+    }),
+  );
+
+  it.scoped("gives up on a collector that never answers", () =>
+    Effect.gen(function* () {
+      const c = yield* collector(null);
+      const addMaps = yield* AddMaps.pipe(Effect.provide(addMapsLive(c.url)));
+      const fiber = yield* Effect.fork(Effect.either(addMaps.start));
+      yield* Effect.promise(() => new Promise((r) => setTimeout(r, 50)));
+      yield* TestClock.adjust(ADD_MAPS_TIMEOUT);
+      expect(yield* Fiber.join(fiber)).toEqual(
+        Either.left(new AddMapsFailed({ reason: "the collector didn't answer" })),
+      );
     }),
   );
 });

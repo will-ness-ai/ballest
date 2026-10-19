@@ -12,6 +12,9 @@ import { OpsAlerts } from "./ops.js";
 /** How long after a post the step starts, so a burst of posts makes one run. */
 export const WAIT_AFTER_POST = Duration.toMillis("1 minute");
 
+/** How long the collector has to take a request: it queues the job and answers at once. */
+export const ADD_MAPS_TIMEOUT = Duration.toMillis("30 seconds");
+
 export class AddMapsFailed extends Data.TaggedError("AddMapsFailed")<{
   readonly reason: string;
 }> {}
@@ -42,6 +45,10 @@ export const addMapsLive = (url: string) =>
                     : e.message,
               }),
           ),
+          Effect.timeoutFail({
+            duration: ADD_MAPS_TIMEOUT,
+            onTimeout: () => new AddMapsFailed({ reason: "the collector didn't answer" }),
+          }),
         ),
       });
     }),
