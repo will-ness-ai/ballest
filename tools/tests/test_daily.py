@@ -295,9 +295,25 @@ def test_the_watch_writes_a_daily_on_its_first_read_and_then_only_when_its_board
     assert w.to_write([better]) == [better]
 
 
-def test_the_watch_never_writes_a_failed_read():
+def test_the_watch_writes_a_new_daily_on_its_first_read_even_before_anyone_has_a_time():
     w = daily.Watch({})
+    empty = read_of(OCT19, "2026-10-19T01:00")
+    assert w.to_write([empty]) == [empty]
+    w.wrote([empty])
     assert w.to_write([read_of(OCT19, "2026-10-19T01:01")]) == []
+
+
+def test_the_watch_never_writes_a_failed_read_of_a_daily_it_holds():
+    w = daily.Watch({OCT19.date: OCT19})
+    assert w.to_write([read_of(OCT19, "2026-10-19T01:01")]) == []
+
+
+def test_a_restarted_watch_writes_nothing_while_the_board_is_as_the_database_holds_it():
+    w = daily.Watch({OCT19.date: OCT19}, {OCT19.date: frozenset({("1", 900), ("2", 990)})})
+    # Steam's order is the board's, not the database's
+    assert w.to_write([read_of(OCT19, "2026-10-19T02:00", ("2", 990), ("1", 900))]) == []
+    moved = read_of(OCT19, "2026-10-19T02:01", ("1", 880), ("2", 990))
+    assert w.to_write([moved]) == [moved]
 
 
 def test_a_read_after_the_close_is_written_even_unchanged_and_the_daily_is_then_final():

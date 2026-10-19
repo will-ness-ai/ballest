@@ -193,23 +193,29 @@ class Watch:
     """What the Daily watcher (daily_watch.py) holds between its reads: the Dailies the
     database holds, as `known` for plan, and each Daily's board as it last wrote it, so a
     read that changed nothing writes nothing (the database is asleep until something moves).
-    A failed or empty read never writes: the next read, or the next Refresh, tries again."""
+    `boards` is {date: frozenset of (steam_id, score)}, each open Daily's board as the
+    database holds it (Memory.daily_boards), so a restarted watcher writes nothing new.
 
-    def __init__(self, known):
+    A Daily the database doesn't hold yet is written on its first read, even an empty one,
+    so the site has its page as soon as it opens. Otherwise a failed or empty read never
+    writes: the next read, or the next Refresh, tries again."""
+
+    def __init__(self, known, boards=None):
         self.known = dict(known)
-        self._written = {}
+        self._written = dict(boards or {})
 
     @staticmethod
     def _board(r):
-        return [(x["steam_id"], x["score_ms"]) for x in r.rows]
+        return frozenset((x["steam_id"], x["score_ms"]) for x in r.rows or ())
 
     def to_write(self, reads):
-        """The reads worth writing: an ok read whose board moved since this watch last
-        wrote it, or that makes its Daily final."""
+        """The reads worth writing: the first of a Daily the database doesn't hold, and an
+        ok read whose board moved since it was last written, or that makes its Daily final."""
         return [
             r
             for r in reads
-            if r.ok and (r.made_final or self._written.get(r.daily.date) != self._board(r))
+            if r.daily.date not in self.known
+            or (r.ok and (r.made_final or self._written.get(r.daily.date) != self._board(r)))
         ]
 
     def wrote(self, reads):

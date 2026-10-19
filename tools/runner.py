@@ -293,7 +293,7 @@ async def run_script(script, args, limit=JOB_TIMEOUT, stop=None):
         stopped = asyncio.ensure_future(until_stopped())
         try:
             await asyncio.wait_for(
-                asyncio.wait({done, stopped}, return_when="FIRST_COMPLETED"), limit
+                asyncio.wait({done, stopped}, return_when=asyncio.FIRST_COMPLETED), limit
             )
         except TimeoutError:
             tail.append(f"(killed after {limit // 60} minutes)")
@@ -398,9 +398,7 @@ async def serve():
     if os.environ.get("REFRESH_SCHEDULE") == "off":
         print("REFRESH_SCHEDULE=off: the Refresh runs only when asked", flush=True)
         await asyncio.Event().wait()
-    watcher = asyncio.create_task(service.watch_dailies())
-    await schedule(service)
-    watcher.cancel()
+    await asyncio.gather(schedule(service), service.watch_dailies())
 
 
 def status():

@@ -423,7 +423,7 @@ def test_a_failed_or_empty_daily_read_moves_nothing_and_never_makes_it_final(con
 
 
 def test_a_daily_read_just_after_it_opens_with_no_times_yet_is_still_written(conn):
-    # the 01:05 Refresh (runner.DAILY_SLOT) reads a board nobody has finished yet: the site
+    # a read just after the Daily opens finds a board nobody has finished yet: the site
     # still gets the Daily's page, with no times
     r1 = db_writer.write_refresh(
         conn, refresh(0, [], dailies=[daily_read(DAY.starts_at + timedelta(minutes=5))])
@@ -547,3 +547,14 @@ def test_who_set_a_score_in_the_latest_refresh_skips_the_daily_reads_after_it(co
     live = DAY.starts_at + timedelta(hours=5)
     db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1002", 2931805))))
     assert db_writer.read_memory(conn).just_scored == {"1001"}
+
+
+def test_memory_holds_each_open_dailys_board_and_none_once_it_is_final(conn):
+    live = DAY.starts_at + timedelta(hours=5)
+    db_writer.write_refresh(
+        conn, daily_only(0, daily_read(live, ("1001", 2931805), ("1002", 2931900)))
+    )
+    db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1001", 2931700))))
+    assert db_writer.read_memory(conn).daily_boards == {DAY.date: frozenset({("1001", 2931700)})}
+    db_writer.write_refresh(conn, daily_only(1, daily_read(DAY.ends_at, ("1001", 2931700))))
+    assert db_writer.read_memory(conn).daily_boards == {}

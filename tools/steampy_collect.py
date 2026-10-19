@@ -51,10 +51,10 @@ warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warni
 import steam  # noqa: E402 (after the warnings filter)
 from steampy_common import (  # noqa: E402
     board_rows,
+    collect_dailies,
     fetch_board,
     find_map_board_id,
 )
-from steampy_common import collect_dailies as collect_daily_reads  # noqa: E402
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
@@ -156,12 +156,6 @@ async def collect_workshop(catalogue, all_ids, memory):
     }
 
 
-async def collect_dailies(all_ids, memory):
-    """The Daily step: steampy_common.collect_dailies over this run's client, planned from
-    the Dailies the database holds (memory.dailies)."""
-    return await collect_daily_reads(client, memory.dailies, all_ids)
-
-
 @client.event
 async def on_ready():
     if _state["done"]:
@@ -213,7 +207,7 @@ async def on_ready():
                 print(f"  [warn] Workshop step failed: {e!r}")
         dailies = []
         try:
-            dailies = await collect_dailies(all_ids, memory)
+            dailies = await collect_dailies(client, memory.dailies, all_ids)
         except Exception as e:
             # Never blocks the Circuit or the Workshop: no Daily counts as read.
             print(f"  [warn] Daily step failed: {type(e).__name__}")

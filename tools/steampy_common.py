@@ -114,11 +114,12 @@ async def find_map_board_id(client, board):
 DAILY_API_PACE = 1.0
 
 
-async def collect_dailies(client, known, all_ids):
+async def collect_dailies(client, known, all_ids, first=daily.FIRST_DAILY):
     """Read the Dailies that are due (daily.plan) on the logged-in `client`: a list of
     daily.DailyRead for db_writer, each with its rows or None for a read that failed, and
     every player read added to `all_ids`. Returns [] when the step is skipped for want of
-    the API secrets. `known` is {date: daily.Daily} for the Dailies the database holds.
+    the API secrets. `known` is {date: daily.Daily} for the Dailies the database holds, and
+    `first` the earliest date in play (daily.plan).
 
     The due Dailies the database holds are read first, then each Daily it doesn't hold is
     looked up, paced by DAILY_API_PACE, and read; a lookup that fails, or a date with no
@@ -130,7 +131,7 @@ async def collect_dailies(client, known, all_ids):
         print("Daily: no BALLEST_API_KEY/BALLEST_DAILY_URL; skipping the Daily step")
         return []
     now = datetime.now(UTC)
-    lookups, reads = daily.plan(known, now)
+    lookups, reads = daily.plan(known, now, first)
 
     async def look_up(d):
         return await asyncio.to_thread(daily.look_up, url, key, d)

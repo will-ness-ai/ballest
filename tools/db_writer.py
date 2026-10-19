@@ -143,6 +143,8 @@ class Memory:
       whose names this run looks up whatever the slice.
     dailies: {date: daily.Daily} for every Daily held (known_dailies), what the Daily step
       plans from.
+    daily_boards: {date: frozenset of (steam_id, score)} for each Daily not yet final, its
+      open Entries: what the Daily watcher compares its first reads with (daily.Watch).
     """
 
     names: dict = field(default_factory=dict)
@@ -152,6 +154,7 @@ class Memory:
     refreshes: int = 0
     just_scored: set = field(default_factory=set)
     dailies: dict = field(default_factory=dict)
+    daily_boards: dict = field(default_factory=dict)
 
 
 def read_memory(conn):
@@ -201,6 +204,15 @@ def read_memory(conn):
             " (select max(id) from refreshes where source <> 'daily')"
         )
     }
+    daily_boards = {}
+    for day, sid, score in conn.execute(
+        """
+        select d.date::text, e.steam_id, e.score from dailies d
+        join entries e on e.board = d.board and e.closed_refresh is null
+        where d.final_refresh is null
+        """
+    ):
+        daily_boards.setdefault(day, set()).add((sid, score))
     return Memory(
         names=names,
         maps=maps,
@@ -209,6 +221,7 @@ def read_memory(conn):
         refreshes=refreshes,
         just_scored=just_scored,
         dailies=known_dailies(conn),
+        daily_boards={day: frozenset(b) for day, b in daily_boards.items()},
     )
 
 

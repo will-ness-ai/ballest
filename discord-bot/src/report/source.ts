@@ -123,9 +123,8 @@ const read = Effect.fn("ReportSource.read")(function* (at: number) {
     );
 
   const refreshed = sql`
-    select ${ms("max(coalesce(finished_at, started_at))")} as at from refreshes`.pipe(
-    Effect.flatMap(rows(RefreshedRow)),
-  );
+    select ${ms("max(coalesce(finished_at, started_at))")} as at from refreshes
+    where source <> 'daily'`.pipe(Effect.flatMap(rows(RefreshedRow)));
 
   const [mapRows, entryRows, trackRows, now, then, last] = yield* Effect.all(
     [maps, entries, tracks, records(new Date(at)), records(since), refreshed],

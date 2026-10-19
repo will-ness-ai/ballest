@@ -513,7 +513,10 @@ export async function historyInput(db: Db, name: string): Promise<HistoryInput |
     )
   ).at(0);
   if (!board || board.points) return null;
-  const [latest] = await rows<{ now: Date }>(db, sql`select max(started_at) as now from refreshes`);
+  const [latest] = await rows<{ now: Date }>(
+    db,
+    sql`select max(started_at) as now from refreshes where source <> 'daily'`,
+  );
   const found = await rows<{
     steamId: string;
     persona: string;

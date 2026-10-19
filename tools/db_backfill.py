@@ -149,16 +149,17 @@ def snapshot(files, prev, blobs, cache):
 
 def prepare(conn, *, rebuild, last):
     """Refuse a database that already holds Refreshes, unless rebuilding it, and never
-    rebuild one holding a collector Refresh from after last, the newest snapshot: git has
-    no copy of it (the collector stopped committing data/), so truncating would lose it."""
+    rebuild one holding a collector Refresh or Daily read from after last, the newest
+    snapshot: git has no copy of it (the collector stopped committing data/), so truncating
+    would lose it."""
     held = dict(conn.execute("select source, count(*) from refreshes group by source").fetchall())
     (newer,) = conn.execute(
-        "select count(*) from refreshes where source = 'collector'"
+        "select count(*) from refreshes where source <> 'backfill'"
         " and started_at > coalesce(%s::timestamptz, '-infinity')",
         (last,),
     ).fetchone()
     if newer:
-        print(f"ERROR: the database holds {newer} collector Refreshes newer than the last")
+        print(f"ERROR: the database holds {newer} collector writes newer than the last")
         print("snapshot of data/ in git, which a replay cannot bring back. Not touching it.")
         return False
     if held and not rebuild:

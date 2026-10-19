@@ -20,7 +20,7 @@ import sys
 import time
 import traceback
 import warnings
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import campaign_common as cc
@@ -40,7 +40,7 @@ DAILY_EVERY = 60
 DEV = "--dev" in sys.argv[1:]
 
 client = steam.Client()
-_state = {"started": False, "error": None, "memory": None}
+_state = {"started": False, "memory": None}
 
 
 def fill_names(rows, names, key):
@@ -52,12 +52,15 @@ def fill_names(rows, names, key):
 
 
 async def watch(memory):
-    w = daily.Watch(memory.dailies)
+    w = daily.Watch(memory.dailies, memory.daily_boards)
     names = {sid: dict(v) for sid, v in memory.names.items()}
     key = cc.load_key()
     while True:
         started = time.monotonic()
-        reads = await collect_dailies(client, w.known, set())
+        # only today's Daily and yesterday's, which may still be open or not yet final: a
+        # date before them the API has no Daily for is left to the Refresh
+        first = datetime.now(UTC).date() - timedelta(days=1)
+        reads = await collect_dailies(client, w.known, set(), first)
         fresh = w.to_write(reads)
         if fresh:
             for r in fresh:
@@ -83,8 +86,7 @@ async def on_ready():
     _state["started"] = True
     try:
         await watch(_state["memory"])
-    except Exception as e:
-        _state["error"] = e
+    except Exception:
         traceback.print_exc()
     finally:
         await client.close()
