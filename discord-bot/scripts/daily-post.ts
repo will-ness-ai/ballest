@@ -6,9 +6,10 @@
 // schedule does until the Daily's end, so a past date's card is closed at once by the schedule's
 // own final edit (the GIF and ops are off: ops warnings go to the log only). With DATABASE_URL
 // set to a local Postgres (it refuses any other) that holds the date's Daily, closed by now, it
-// posts it instead closed: the closed card and its thread, from that database.
+// posts it closed instead: the closed card and its thread, from that database.
 import { PlatformConfigProvider } from "@effect/platform";
 import { NodeContext, NodeRuntime } from "@effect/platform-node";
+import { PgClient } from "@effect/sql-pg";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { Effect, Layer, Option, Redacted } from "effect";
 import { DailyApiLive, DailyChannelLive, DailySteamLive } from "../src/dailyPost/live.js";
@@ -19,7 +20,7 @@ import {
   postDaily,
   postPast,
 } from "../src/dailyPost/schedule.js";
-import { DailyHistory, dailyHistoryAt } from "../src/dailyPost/history.js";
+import { pastDaily } from "../src/dailyPost/history.js";
 import { DailySpinsOff } from "../src/dailyPost/spin.js";
 import { OpsAlerts } from "../src/ops.js";
 import { MapPreviews, PreviewSourceLive } from "../src/previews.js";
@@ -64,7 +65,7 @@ if (
 /** A past Daily from a local leaderboard database, posted closed. */
 const postedPast = Effect.fn("postedPast")(
   function* (url: string) {
-    const found = yield* (yield* DailyHistory).find(date);
+    const found = yield* pastDaily(date);
     if (Option.isNone(found)) return false;
     if (found.value.daily.endsAt > Date.now()) return false;
     const { post, threadFailed } = yield* postPast(found.value);
@@ -73,7 +74,7 @@ const postedPast = Effect.fn("postedPast")(
     );
     return true;
   },
-  (effect, url) => effect.pipe(Effect.provide(dailyHistoryAt(Redacted.make(url)))),
+  (effect, url) => effect.pipe(Effect.provide(PgClient.layer({ url: Redacted.make(url) }))),
 );
 
 const program = Effect.gen(function* () {

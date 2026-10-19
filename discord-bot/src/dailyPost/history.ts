@@ -4,8 +4,7 @@
 // its Score history at each Refresh that read its board, so it is only as exact as the Refreshes
 // (every three hours): each Lead's `at` is when that Refresh started.
 import { SqlClient } from "@effect/sql";
-import { PgClient } from "@effect/sql-pg";
-import { Context, Data, Effect, Layer, Option, type Redacted, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { type BoardRead, type Daily, sameTime } from "./card.js";
 import { type Lead, leadChanged } from "./lead.js";
 
@@ -23,11 +22,6 @@ export interface PastDaily {
   readonly board: BoardRead;
   readonly leads: ReadonlyArray<PastLead>;
 }
-
-/** The leaderboard database couldn't be read. */
-export class DailyHistoryUnavailable extends Data.TaggedError("DailyHistoryUnavailable")<{
-  readonly reason: string;
-}> {}
 
 const Ms = Schema.Number;
 const DailyRow = Schema.Struct({
@@ -143,32 +137,3 @@ export const pastDaily = Effect.fn("pastDaily")(function* (date: string) {
     leads: leadsOf(held),
   });
 });
-
-/** Where `pnpm daily-post` reads a past Daily: a local leaderboard database. */
-export class DailyHistory extends Context.Tag("multiballs/DailyHistory")<
-  DailyHistory,
-  {
-    readonly find: (
-      date: string,
-    ) => Effect.Effect<Option.Option<PastDaily>, DailyHistoryUnavailable>;
-  }
->() {}
-
-/** The leaderboard database at `url`, each read on a connection of its own (as the Daily Report's). */
-export const dailyHistoryAt = (url: Redacted.Redacted) =>
-  Layer.succeed(
-    DailyHistory,
-    DailyHistory.of({
-      find: Effect.fn("DailyHistory.find")(function* (date: string) {
-        return yield* pastDaily(date).pipe(
-          Effect.provide(PgClient.layer({ url })),
-          Effect.mapError(
-            (e) =>
-              new DailyHistoryUnavailable({
-                reason: e instanceof Error ? e.message : "the database couldn't be read",
-              }),
-          ),
-        );
-      }),
-    }),
-  );

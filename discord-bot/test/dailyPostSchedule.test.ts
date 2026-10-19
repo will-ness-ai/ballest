@@ -773,6 +773,7 @@ describe("a past Daily, posted closed", () => {
       expect(JSON.stringify(edit?.message.components)).toContain("attachment://spin.gif");
       expect(words(edit!.message)).toContain("# 🏆 airman wins");
       yield* t.runFor(HOUR);
+      // Only the GIF edits it: a closed card is never read again.
       expect((yield* Ref.get(t.edits)).filter((e) => e.messageId === "m1")).toHaveLength(1);
     }),
   );

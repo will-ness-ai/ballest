@@ -269,8 +269,9 @@ one: `pnpm daily-post <date>` posts that date's live card and thread into the sa
 nothing. With `--close` it then keeps the card current as the schedule does until the Daily's
 end, so a past date is posted and at once closed by the schedule's own final edit (no GIF, ops
 warnings to the log only). With `DATABASE_URL` set to a local Postgres (it refuses any other)
-holding that date's Daily, a past date is posted instead closed, from that database. Read it back with `pnpm --silent axi show <id> --in <channel>`, which
-lists and saves the files a Components V2 card shows.
+holding that date's Daily, a past date is posted closed instead, from that database. Read it back
+with `pnpm --silent axi show <id> --in <channel>`, which lists and saves the files a Components V2
+card shows.
 
 ## New tracks
 
