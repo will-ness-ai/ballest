@@ -97,6 +97,8 @@ describe("a Map's water", () => {
     const below = buildScene(three, cubes([[0, 0, -2000], LIME]), true, 500);
     expect(waterOf(above.scene)).toBeUndefined();
     expect(waterOf(below.scene)).toBeUndefined();
+    /* and the ground grid stays */
+    expect(above.scene.children.some((o) => o instanceof three.THREE.GridHelper)).toBe(true);
   });
 
   test("a Prefab, which has no water, draws none", () => {

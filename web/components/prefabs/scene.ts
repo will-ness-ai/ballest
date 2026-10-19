@@ -112,7 +112,7 @@ export function buildScene(
   const radius = box.getSize(new THREE.Vector3()).length() / 2 || 1;
   /* the water is drawn after the framing, which fits the pieces alone */
   const level = waterLevelOf(shapes, water);
-  if (level !== null) scene.add(waterPlane(THREE, box, radius, level));
+  if (level !== null) scene.add(waterPlane(THREE, box, centre, radius, level));
   else if (grid) {
     const size = Math.max(2, Math.ceil(radius * 1.6));
     /* a line every unit, but no more than GRID_MAX squares across, where a whole Map would
@@ -129,7 +129,13 @@ const GRID_MAX = 40;
 /* the game's water as a flat sheet at height y (metres), reaching WATER_REACH of the framing's
    radius past the pieces on every side; it stands in for the ground grid, which would show
    through it */
-function waterPlane(THREE: Three, box: import("three").Box3, radius: number, y: number) {
+function waterPlane(
+  THREE: Three,
+  box: import("three").Box3,
+  centre: import("three").Vector3,
+  radius: number,
+  y: number,
+) {
   const reach = radius * WATER_REACH;
   const size = box.getSize(new THREE.Vector3());
   const plane = new THREE.Mesh(
@@ -148,7 +154,6 @@ function waterPlane(THREE: Three, box: import("three").Box3, radius: number, y: 
   );
   plane.name = "water";
   plane.rotateX(-Math.PI / 2);
-  const centre = box.getCenter(new THREE.Vector3());
   plane.position.set(centre.x, y, centre.z);
   return plane;
 }
