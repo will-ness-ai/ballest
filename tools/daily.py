@@ -217,4 +217,3 @@ class Watch:
         for r in reads:
             self._written[r.daily.date] = self._board(r)
             self.known[r.daily.date] = replace(r.daily, final=r.made_final)
-

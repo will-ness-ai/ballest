@@ -112,7 +112,7 @@ export function Freshness({
               few hours to notice, plus a full read of every map once a day.
             </p>
             <p>
-              Today&apos;s Daily is read every refresh, and each Daily once more after it closes;
+              Today&apos;s Daily is read every minute, and each Daily once more after it closes;
               from then on it is final.
             </p>
             {mapsReadBy && now != null && (
