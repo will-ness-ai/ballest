@@ -14,7 +14,9 @@ The site adds three checks of its own to `pnpm lint`, each one a `CODING_STANDAR
 `site/no-client-values` (`web/eslint/`) stops a server
 component importing a value from a `"use client"` module; `no-restricted-imports` keeps
 React, Next and `db/` out of `web/lib/`; and `web/scripts/check-styles.mjs` fails on a color
-literal outside `:root`.
+literal outside `:root`. The bot adds two Effect rules for `discord-bot/src/`: `bot/effect-fn`
+(`discord-bot/eslint/`) finds a function returning an Effect that isn't `Effect.fn`, and
+`no-restricted-properties` refuses `Effect.catchAll`.
 
 ## Running it
 

@@ -10,6 +10,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import effectFn from "./discord-bot/eslint/effect-fn.js";
 import noClientValues from "./web/eslint/no-client-values.js";
 
 export default defineConfig(
@@ -58,6 +59,23 @@ export default defineConfig(
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-return": "off",
+    },
+  },
+  {
+    // the bot's Effect rules that reviews kept finding broken (CODING_STANDARDS.md, "Discord bot")
+    files: ["discord-bot/src/**/*.ts"],
+    plugins: { bot: { rules: { "effect-fn": effectFn } } },
+    rules: {
+      "bot/effect-fn": "error",
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "Effect",
+          property: "catchAll",
+          message:
+            "Recover a failure by its tag: Effect.catchTag / catchTags (CODING_STANDARDS.md).",
+        },
+      ],
     },
   },
   {
