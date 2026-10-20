@@ -341,7 +341,7 @@ const make = Effect.gen(function* () {
   }
 
   const links = MatchLinks.of({
-    of: Effect.fn("of")(function* (matchId) {
+    of: Effect.fn("MatchLinks.of")(function* (matchId) {
       return yield* Ref.get(layout).pipe(
         Effect.map(({ cards, finished }) => {
           const card = cards.get(matchId);

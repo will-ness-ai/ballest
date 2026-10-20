@@ -357,12 +357,12 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         const entries = yield* readMatch(yield* getMatch(matchId));
         yield* applyIfLive(matchId, entries);
       },
-      (effect, matchId) => {
-        const failed = Effect.fn("pollFailed")(function* (e: { readonly _tag: string }) {
-          yield* Effect.logWarning(`poll ${matchId} failed: ${e._tag}`);
-        });
-        return Effect.catchTags(effect, { MatchNotFound: failed, SteamUnavailable: failed });
-      },
+      // Effect<void>: a failure the handlers don't name is a type error, not a stopped poll
+      (effect, matchId): Effect.Effect<void> =>
+        Effect.catchTags(effect, {
+          MatchNotFound: (e) => Effect.logWarning(`poll ${matchId} failed: ${e._tag}`),
+          SteamUnavailable: (e) => Effect.logWarning(`poll ${matchId} failed: ${e._tag}`),
+        }),
     );
 
     /**
@@ -432,7 +432,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           }),
         );
       },
-      (effect, matchId) =>
+      (effect, matchId): Effect.Effect<void> =>
         Effect.catchTag(effect, "MatchNotFound", (e) =>
           Effect.logError(`finish ${matchId} failed: ${e._tag}`),
         ),

@@ -88,9 +88,13 @@ test("an unapplied migration older than the newest applied one fails, naming bot
 
 test("an unapplied migration with the same `when` as the newest applied one fails too", async () => {
   await migrateDatabase(t.pool, real);
-  addLate(newest.when);
+  // listed first, so the applied one it shares a `when` with is still the one named
+  writeFileSync(join(folder, "0099_late.sql"), "create table late (id integer);");
+  withEntries([{ ...newest, tag: "0099_late" }, ...journal.entries]);
 
-  await expect(migrateDatabase(t.pool, folder)).rejects.toThrow(/0099_late/);
+  await expect(migrateDatabase(t.pool, folder)).rejects.toThrow(
+    new RegExp(`0099_late .* not newer than ${newest.tag} `),
+  );
 });
 
 test("an unapplied migration newer than the newest applied one applies", async () => {

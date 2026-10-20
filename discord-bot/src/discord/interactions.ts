@@ -346,7 +346,8 @@ export const InteractionsLive = Layer.scopedDiscard(
       onSome: (d) => Stream.merge(discord.interactions, d),
     });
     yield* all.pipe(
-      Stream.mapEffect((i) => handle(i), { concurrency: "unbounded" }),
+      // Effect<void>: a failure handle doesn't recover is a type error, not a stopped stream
+      Stream.mapEffect((i): Effect.Effect<void> => handle(i), { concurrency: "unbounded" }),
       Stream.runDrain,
       Effect.forkScoped,
     );

@@ -36,13 +36,17 @@ async function checkOrder(pool, folder) {
   /** @type {Array<{ tag: string; when: number }>} */
   const entries = JSON.parse(readFileSync(join(folder, "meta/_journal.json"), "utf8")).entries;
   const newestWhen = Math.max(...rows.map((r) => Number(r.created_at)));
+  // the hash Drizzle's readMigrationFiles records: sha256 of the .sql file's text
+  const isApplied = (e) =>
+    applied.has(
+      createHash("sha256")
+        .update(readFileSync(join(folder, `${e.tag}.sql`)).toString())
+        .digest("hex"),
+    );
   // the newest applied entry by name, when this journal still lists it
-  const newest = entries.find((e) => e.when === newestWhen)?.tag ?? "a migration";
+  const newest = entries.find((e) => e.when === newestWhen && isApplied(e))?.tag ?? "a migration";
   for (const e of entries) {
-    // the hash Drizzle's readMigrationFiles records: sha256 of the .sql file's text
-    const sql = readFileSync(join(folder, `${e.tag}.sql`)).toString();
-    const hash = createHash("sha256").update(sql).digest("hex");
-    if (applied.has(hash) || e.when > newestWhen) continue;
+    if (e.when > newestWhen || isApplied(e)) continue;
     throw new Error(
       `migrate: ${e.tag} (when ${String(e.when)}) is not applied, but it is not newer than ` +
         `${newest} (when ${String(newestWhen)}), the newest migration this database applied, ` +
