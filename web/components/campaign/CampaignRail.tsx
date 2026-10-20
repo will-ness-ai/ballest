@@ -3,6 +3,8 @@
 // record, short name and run count. A Map opens inside the Campaign's frame.
 import Link from "next/link";
 
+import { ProtoRailWs } from "../prototype/WsLinks";
+
 import { campaignBoard, mapName, mapNo, type Campaign } from "../../lib/campaigns";
 import { campaignHref } from "../../lib/routes";
 import { fmtTime, plural, safeImg } from "../../lib/rules";
@@ -35,26 +37,29 @@ export function CampaignRailItems({
         const pic = safeImg(m.preview);
         const named = mapName(c, m.pfid, m.title);
         return (
-          <Link
-            key={m.pfid}
-            className="tstrip"
-            href={campaignHref(c.slug, m.pfid)}
-            aria-current={current === m.name}
-          >
-            {pic && <img src={pic} alt="" loading="lazy" decoding="async" />}{" "}
-            <span className="lab">
-              <b>{mapNo(c, m.pfid)}</b>
-              <span className="rt">{m.top3[0] ? fmtTime(m.top3[0][2]) : " "}</span>{" "}
-              <small>
-                {named !== null && (
-                  <>
-                    <span className="mname">{named}</span> ·{" "}
-                  </>
-                )}
-                {plural(m.entryCount, "run", "runs")}
-              </small>
-            </span>
-          </Link>
+          /* PROTOTYPE: the wrapper and the rail button */
+          <div className="pws-wrap" key={m.pfid}>
+            <Link
+              className="tstrip"
+              href={campaignHref(c.slug, m.pfid)}
+              aria-current={current === m.name}
+            >
+              {pic && <img src={pic} alt="" loading="lazy" decoding="async" />}{" "}
+              <span className="lab">
+                <b>{mapNo(c, m.pfid)}</b>
+                <span className="rt">{m.top3[0] ? fmtTime(m.top3[0][2]) : " "}</span>{" "}
+                <small>
+                  {named !== null && (
+                    <>
+                      <span className="mname">{named}</span> ·{" "}
+                    </>
+                  )}
+                  {plural(m.entryCount, "run", "runs")}
+                </small>
+              </span>
+            </Link>
+            <ProtoRailWs pfid={m.pfid} />
+          </div>
         );
       })}
     </>

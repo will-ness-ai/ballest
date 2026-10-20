@@ -25,6 +25,7 @@ import "./styles/daily.css";
 import "./styles/you.css";
 import "./styles/prefabs.css";
 import "./styles/desktop.css";
+import "./styles/prototype.css";
 
 const DESCRIPTION =
   "Workshop, Circuit and Daily leaderboards for Ballest of Them All, with every world record and player, read straight from Steam.";

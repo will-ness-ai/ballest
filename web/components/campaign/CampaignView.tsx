@@ -6,6 +6,10 @@
 // podium order; or a Steam ID whose row to find and mark.
 import { notFound } from "next/navigation";
 
+import { ProtoPicker, ProtoRailHow, ProtoWsContent } from "../prototype/WsLinks";
+import { mapName, mapNo } from "../../lib/campaigns";
+import { safeImg } from "../../lib/rules";
+
 import { CampaignRailItems } from "./CampaignRail";
 import { CampaignChip } from "./CampaignSwitch";
 import { Remember } from "../BackLink";
@@ -86,6 +90,8 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
         <p className="railby">
           by <PlayerLink id={c.creatorId} text={c.creator} tab="made" />
         </p>
+        {/* PROTOTYPE */}
+        <ProtoRailHow />
         <nav className="boards" id="boards" aria-label="Leaderboard">
           {items}
         </nav>
@@ -105,6 +111,20 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
         ) : (
           <OverallCard b={b} rows={rows} tally={tally} tracks={maps.length} podiums={podiums} />
         )}
+
+        {/* PROTOTYPE */}
+        <ProtoWsContent
+          slug={c.slug}
+          title={c.title}
+          makerId={c.creatorId}
+          maps={maps.map((x) => ({
+            pfid: x.pfid,
+            no: mapNo(c, x.pfid),
+            name: mapName(c, x.pfid, x.title),
+            pic: safeImg(x.preview),
+          }))}
+        />
+        <ProtoPicker />
 
         {/* You on the points order only: the podium order ranks no one by score */}
         {!podiums && <YouBanner name={name} field={page.total} medals={m?.medals ?? null} />}
