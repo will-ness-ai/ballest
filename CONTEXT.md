@@ -98,8 +98,16 @@ _Avoid_: streak, hold, tenure
 The game's one-day challenge: one Map, played in a window (`starts_at` to `ends_at`, as
 the developers' API gives them) on its own Steam board, apart from the Map's all-time
 board. Named by its date. It is live while its window is open, and final once a Refresh
-has read its board after the window closed; a Daily's standings count final Dailies only.
+or a Daily read has read its board after the window closed; a Daily's standings count final
+Dailies only.
 _Avoid_: daily challenge board, Daily Report (that is Multiballs' post)
+
+**Daily read**:
+A pass of the collector's Daily watcher between Refreshes: it reads only the open Dailies,
+every minute, and writes one only when its board moved or the read makes it final. Stored
+beside the Refreshes (`source = 'daily'`) but counted as none, so "refreshed" and every count
+of Refreshes leave it out.
+_Avoid_: daily refresh, mini Refresh
 
 **Daily Post**:
 Multiballs' card for one Daily in the game Discord's daily challenge channel, with its thread:

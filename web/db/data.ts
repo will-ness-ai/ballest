@@ -49,8 +49,9 @@ import { connect, type Db } from "./client";
 import type { PrefabDeps } from "./prefab-api";
 import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
 import * as q from "./site";
+import { boardTag, DAILY_TAG, DATA_TAG } from "./tags";
 
-export const DATA_TAG = "data";
+export { DATA_TAG } from "./tags";
 /* the Prefab reads, expired by every write the site makes to them (and, since an uploader's
    persona comes from the boards, by a Refresh too) */
 export const PREFAB_TAG = "prefabs";
@@ -167,7 +168,7 @@ export async function getMapCards(): Promise<Array<MapCard>> {
 /* a slice of a board in rank order, unfiltered; for the fixed slices a page shows */
 export async function getBoardPage(name: string, from: number, count: number) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   return q.boardPage(db(), name, { from, count });
 }
@@ -178,7 +179,7 @@ const BLOCK = 1000;
 
 async function getBoardBlock(name: string, k: number) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   return q.boardPage(db(), name, { from: k * BLOCK, count: BLOCK });
 }
@@ -224,7 +225,7 @@ export async function getBoardRun(name: string, steamId: string) {
 
 async function boardRunOf(name: string, steamId: string) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   return q.boardRun(db(), name, steamId);
 }
@@ -238,7 +239,7 @@ export function searchBoard(name: string, query: string, from: number, count: nu
    board the page has already checked */
 export async function getBoardHistory(name: string): Promise<BoardHistory | null> {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   const input = await q.historyInput(db(), name);
   return input && boardHistory(input);
@@ -246,7 +247,7 @@ export async function getBoardHistory(name: string): Promise<BoardHistory | null
 
 export async function getBoardScores(name: string) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   return q.boardScores(db(), name);
 }
@@ -264,7 +265,7 @@ export async function getBoardPlaces(name: string, ids: ReadonlyArray<string>) {
 /* the same, for Steam IDs the database gave (a podium tally's), which need no check */
 export async function getPlacesOf(name: string, ids: ReadonlyArray<string>) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   return q.boardPlaces(db(), name, ids);
 }
@@ -280,7 +281,7 @@ async function getDerivedStandings() {
 /* whether the database has seen a Steam ID */
 async function isPlayer(steamId: string): Promise<boolean> {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.isPlayer(db(), steamId);
 }
@@ -321,7 +322,7 @@ export async function getWorkshopStandings(since: number): Promise<WorkshopStand
 /* every Daily's date, oldest first */
 export async function getDailyDates(): Promise<Array<string>> {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.dailyDates(db());
 }
@@ -329,7 +330,7 @@ export async function getDailyDates(): Promise<Array<string>> {
 /* every Daily as the calendar draws it, oldest first */
 export async function getDailies(): Promise<Array<DailyCell>> {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.dailies(db());
 }
@@ -341,7 +342,7 @@ export async function getDaily(date: string): Promise<DailyDay | null> {
 
 async function dailyOf(date: string) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.dailyDay(db(), date);
 }
@@ -349,7 +350,7 @@ async function dailyOf(date: string) {
 /* the all-time Daily standings, over final Dailies only */
 export async function getDailyStandings(): Promise<DailyStandings> {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.dailyStandings(db());
 }
@@ -362,7 +363,7 @@ export async function getPlayerDailies(steamId: string): Promise<PlayerDailies |
 
 async function playerDailiesOf(steamId: string) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.playerDailies(db(), steamId);
 }

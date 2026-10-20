@@ -2,13 +2,18 @@
 The steam.py leaderboard requests the headless tools share: reading a board by ID, and
 finding a board's ID from its name.
 
-Used by steampy_collect.py (CI). It goes through
+Used by steampy_collect.py and daily_watch.py on Fly, and the Daily step both run
+(collect_dailies). It goes through
 the logged-in client's websocket directly: steam.py's own leaderboard calls fail for this
 app (see find_board_id). Send these one at a time. With several in flight, the CM
 silently drops replies.
 """
 
+import asyncio
+from datetime import UTC, datetime
+
 import campaign_common as cc
+import daily
 import steam
 from steam.protobufs import leaderboards
 
@@ -101,3 +106,59 @@ async def find_map_board_id(client, board):
             if lid:
                 return lid
     return 0
+
+
+# Seconds between two calls to the developers' API: 60 a minute at most, well under the
+# API's limit. Only the first run's catch-up (one call per Daily since
+# FIRST_DAILY) makes more than a couple.
+DAILY_API_PACE = 1.0
+
+
+async def collect_dailies(client, known, all_ids, since=daily.FIRST_DAILY):
+    """Read the Dailies that are due (daily.plan) on the logged-in `client`: a list of
+    daily.DailyRead for db_writer, each with its rows or None for a read that failed, and
+    every player read added to `all_ids`. Returns [] when the step is skipped for want of
+    the API secrets. `known` is {date: daily.Daily} for the Dailies the database holds, and
+    `since` the earliest date in play (daily.plan).
+
+    The due Dailies the database holds are read first, then each Daily it doesn't hold is
+    looked up, paced by DAILY_API_PACE, and read; a lookup that fails, or a date with no
+    Daily, is tried again next run. The whole step stops at daily.BUDGET with what it has
+    read (daily.collect), so it never holds up the Circuit and Workshop write. It never
+    prints the key or the URL."""
+    url, key = cc.load_secret("BALLEST_DAILY_URL"), cc.load_secret("BALLEST_API_KEY")
+    if not (url and key):
+        print("Daily: no BALLEST_API_KEY/BALLEST_DAILY_URL; skipping the Daily step")
+        return []
+    now = datetime.now(UTC)
+    lookups, reads = daily.plan(known, now, since)
+
+    async def look_up(d):
+        return await asyncio.to_thread(daily.look_up, url, key, d)
+
+    async def read(d):
+        total, rows = None, None
+        try:
+            total, entries = await fetch_board(client, int(d.leaderboard_id))
+            rows = board_rows(entries)
+        except Exception as e:
+            print(f"  [warn] Daily {d.date} {d.title!r}: read failed: {e!r}")
+        return daily.DailyRead(
+            daily=d,
+            rows=rows,
+            read_at=datetime.now(UTC),
+            entry_count=int(total) if total else None,
+        )
+
+    out, missing, _ = await daily.collect(
+        lookups, reads, now, look_up=look_up, read=read, pace=DAILY_API_PACE
+    )
+    # only the reads handed on: one abandoned at the budget adds no player
+    for r in out:
+        all_ids.update(x["steam_id"] for x in r.rows or [])
+    ok = sum(1 for r in out if r.ok)
+    print(
+        f"  Daily: {len(lookups)} looked up ({len(missing)} with no Daily), "
+        f"{len(out)} read, {len(out) - ok} failed or empty"
+    )
+    return out

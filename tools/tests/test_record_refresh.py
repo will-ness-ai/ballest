@@ -5,6 +5,7 @@ import threading
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import daily
 import db_writer
 
 PROD = "postgres://prod.invalid/ballest"
@@ -55,7 +56,8 @@ def test_a_written_refresh_returns_its_id(db_url):
     assert db_writer.record_refresh(refresh(), env={"DATABASE_URL": db_url}) == 1
 
 
-def test_a_committed_refresh_revalidates_the_site_with_the_secret(db_url):
+def revalidations(db_url, refresh):
+    """The requests a site saw while record_refresh wrote `refresh`: (path, Authorization)."""
     seen = []
 
     class Site(BaseHTTPRequestHandler):
@@ -74,9 +76,32 @@ def test_a_committed_refresh_revalidates_the_site_with_the_secret(db_url):
         "SITE_URL": f"http://127.0.0.1:{server.server_port}",
         "REVALIDATE_SECRET": "s3cret",
     }
-    assert db_writer.record_refresh(refresh(), env=env) == 1
+    assert db_writer.record_refresh(refresh, env=env) == 1
     server.server_close()
-    assert seen == [("/api/revalidate", "Bearer s3cret")]
+    return seen
+
+
+def test_a_committed_refresh_revalidates_the_site_with_the_secret(db_url):
+    assert revalidations(db_url, refresh()) == [("/api/revalidate", "Bearer s3cret")]
+
+
+def test_a_daily_read_revalidates_only_the_dailies_it_read(db_url):
+    day = daily.Daily(
+        date="2026-10-06",
+        board="ballest_v0_1_Daily_20261006_0",
+        leaderboard_id="20900006",
+        pfid="1",
+        title="Jungle islands",
+        starts_at=datetime(2026, 10, 6, 1, tzinfo=UTC),
+        ends_at=datetime(2026, 10, 7, 1, tzinfo=UTC),
+    )
+    read = daily.DailyRead(daily=day, rows=None, read_at=datetime(2026, 10, 6, 2, tzinfo=UTC))
+    daily_read = db_writer.Refresh(
+        started_at=datetime(2026, 10, 6, 2, tzinfo=UTC), dailies=(read,), source="daily"
+    )
+    assert revalidations(db_url, daily_read) == [
+        ("/api/revalidate?daily=ballest_v0_1_Daily_20261006_0", "Bearer s3cret")
+    ]
 
 
 def test_a_failed_revalidate_is_only_a_warning(db_url, capsys):

@@ -63,7 +63,8 @@ const contains = (q: string) => "%" + literal(q) + "%";
 export async function freshness(db: Db): Promise<Freshness> {
   const [r] = await rows<{ refreshed: Date | null; maps: Date | null }>(
     db,
-    sql`select (select max(coalesce(finished_at, started_at)) from refreshes) as refreshed,
+    sql`select (select max(coalesce(finished_at, started_at)) from refreshes
+        where source <> 'daily') as refreshed,
       (select min(last) from (
         select max(r.started_at) as last
         from board_reads br join refreshes r on r.id = br.refresh_id
@@ -424,7 +425,8 @@ export async function workshopStandings(db: Db, since: number): Promise<Workshop
   const ms = (column: string) => sql.raw(`(extract(epoch from ${column}) * 1000)::float8`);
   const [last] = await rows<{ at: number | null }>(
     db,
-    sql`select ${ms("max(coalesce(finished_at, started_at))")} as at from refreshes`,
+    sql`select ${ms("max(coalesce(finished_at, started_at))")} as at from refreshes
+      where source <> 'daily'`,
   );
   /* medals are [bronze, silver, gold, author] in seconds */
   const maps = await rows<Omit<StandingsMap, "authorTicks"> & { author: number | null }>(
@@ -511,7 +513,10 @@ export async function historyInput(db: Db, name: string): Promise<HistoryInput |
     )
   ).at(0);
   if (!board || board.points) return null;
-  const [latest] = await rows<{ now: Date }>(db, sql`select max(started_at) as now from refreshes`);
+  const [latest] = await rows<{ now: Date }>(
+    db,
+    sql`select max(started_at) as now from refreshes where source <> 'daily'`,
+  );
   const found = await rows<{
     steamId: string;
     persona: string;

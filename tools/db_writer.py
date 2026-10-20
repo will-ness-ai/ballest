@@ -32,6 +32,7 @@ back from the same tables.
 """
 
 import os
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -54,6 +55,8 @@ class Refresh:
       Workshop step failed or its guards declined, and then no Map counts as read.
     dailies: a daily.DailyRead per Daily the Daily step read, ok or not. A Daily not read
       (final already, or not yet open) is left out, and its rows stay as they are.
+    source: "collector" for a Refresh, "daily" for a Daily read (dailies only), "backfill"
+      for a snapshot of data/ (db_backfill.py).
     """
 
     started_at: datetime
@@ -64,6 +67,11 @@ class Refresh:
     source: str = "collector"
     commit_sha: str | None = None
     finished_at: datetime | None = None
+
+    @property
+    def daily_read(self):
+        """Whether this is a Daily read (CONTEXT.md), the open Dailies only, not a Refresh."""
+        return self.source == "daily"
 
 
 def database_url(env, *, scratch=False):
@@ -94,7 +102,10 @@ def record_refresh(refresh, *, scratch=False, env=None):
         print(f"::error::Database write failed; this Refresh is lost: {e!r}")
         return None
     print(f"Database: wrote Refresh {rid}")
-    revalidate(env)
+    # a Daily read changes only its Dailies, so only their pages are read fresh
+    revalidate(
+        env, dailies=[r.daily.board for r in refresh.dailies] if refresh.daily_read else None
+    )
     return rid
 
 
@@ -132,6 +143,8 @@ class Memory:
       whose names this run looks up whatever the slice.
     dailies: {date: daily.Daily} for every Daily held (known_dailies), what the Daily step
       plans from.
+    daily_boards: {date: frozenset of (steam_id, score)} for each Daily not yet final, its
+      open Entries: what the Daily watcher compares its first reads with (daily.Watch).
     """
 
     names: dict = field(default_factory=dict)
@@ -141,6 +154,7 @@ class Memory:
     refreshes: int = 0
     just_scored: set = field(default_factory=set)
     dailies: dict = field(default_factory=dict)
+    daily_boards: dict = field(default_factory=dict)
 
 
 def read_memory(conn):
@@ -178,16 +192,27 @@ def read_memory(conn):
             "subs": subs,
         }
         listed += is_listed
+    # a Daily read is not a Refresh: it neither counts nor is the latest one
     swept, refreshes = conn.execute(
         "select max(started_at) filter (where full_sweep), count(*) from refreshes"
+        " where source <> 'daily'"
     ).fetchone()
     just_scored = {
         sid
         for (sid,) in conn.execute(
-            "select distinct steam_id from entries"
-            " where first_seen_refresh = (select max(id) from refreshes)"
+            "select distinct steam_id from entries where first_seen_refresh ="
+            " (select max(id) from refreshes where source <> 'daily')"
         )
     }
+    daily_boards = {}
+    for day, sid, score in conn.execute(
+        """
+        select d.date::text, e.steam_id, e.score from dailies d
+        join entries e on e.board = d.board and e.closed_refresh is null
+        where d.final_refresh is null
+        """
+    ):
+        daily_boards.setdefault(day, set()).add((sid, score))
     return Memory(
         names=names,
         maps=maps,
@@ -196,6 +221,7 @@ def read_memory(conn):
         refreshes=refreshes,
         just_scored=just_scored,
         dailies=known_dailies(conn),
+        daily_boards={day: frozenset(b) for day, b in daily_boards.items()},
     )
 
 
@@ -216,15 +242,17 @@ def load_memory(*, scratch=False, env=None):
         return None
 
 
-def revalidate(env):
-    """POST ${SITE_URL}/api/revalidate so the site's reads tagged "data" refetch. Skipped
-    without SITE_URL and REVALIDATE_SECRET; a failure is only a warning."""
+def revalidate(env, *, dailies=None):
+    """POST ${SITE_URL}/api/revalidate so the site's reads tagged "data" refetch, or with
+    `dailies` (Daily board names) only the Daily reads and those boards'. Skipped without
+    SITE_URL and REVALIDATE_SECRET; a failure is only a warning."""
     site, secret = env.get("SITE_URL"), (env.get("REVALIDATE_SECRET") or "").strip()
     if not (site and secret):
         print("Database: no SITE_URL/REVALIDATE_SECRET; not revalidating the site")
         return
+    query = "" if dailies is None else "?" + urllib.parse.urlencode([("daily", b) for b in dailies])
     req = urllib.request.Request(  # noqa: S310 (SITE_URL is ours, from the workflow)
-        site.rstrip("/") + "/api/revalidate",
+        site.rstrip("/") + "/api/revalidate" + query,
         method="POST",
         headers={"Authorization": "Bearer " + secret},
     )
