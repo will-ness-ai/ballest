@@ -144,6 +144,8 @@ def steam_download(session):
         if found is None:
             raise LookupError(pfid)
         manifest = await session.call(lambda _c: found.manifest())
+        # the bytes come from Steam's content servers over HTTP, not the CM, so they need no
+        # turn; a hung read is the job's own limit's to stop
         return map_file([await p.read_bytes() for p in manifest.paths if p.is_file()])
 
     return download

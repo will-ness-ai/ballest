@@ -271,6 +271,24 @@ def test_a_job_that_raises_alerts_and_frees_its_turn():
     asyncio.run(go())
 
 
+def test_a_job_whose_own_wait_times_out_fails_like_any_error():
+    async def go():
+        fake = Fake()
+        s = service(fake)
+
+        async def gave_up():
+            raise TimeoutError("Steam never answered")
+
+        fake.refresh = gave_up
+        s.refresh()
+        await settle()
+        assert "Refresh failed (exit -1)" in fake.alerts[0]
+        assert "Steam never answered" in fake.alerts[0]
+        assert not s.map_file_writers.locked()
+
+    asyncio.run(go())
+
+
 def test_a_job_past_its_time_is_stopped_and_fails(monkeypatch):
     monkeypatch.setattr(runner, "JOB_TIMEOUT", 0.05)
 

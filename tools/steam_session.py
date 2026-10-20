@@ -9,7 +9,7 @@ down) is tried again every RETRY seconds with a fresh client, and `on_down` hear
 until a login works. Leaderboard requests go through `send`, one at a time, since the CM
 silently drops replies with several in flight, and so do a file download's requests
 (`call`), each with REQUEST_TIMEOUT, so a request lost with its connection fails instead of
-hanging its job. While logging in is failing, a job asking for Steam fails at once.
+hanging its job. Once logging in has failed for READY_TIMEOUT, a job asking for Steam fails at once.
 
 A script run on its own (`python tools/steampy_collect.py`) uses `run_alone`, which logs off
 when its one job ends.
@@ -19,6 +19,7 @@ import asyncio
 import contextlib
 import contextvars
 import logging
+import time
 import warnings
 
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
@@ -45,15 +46,17 @@ class SteamSession:
         self.make_client = make_client or steam.Client
         self.client = None
         self.logins = 0
-        # why the last login failed, until one works
+        # why the last login failed, and since when (monotonic), until one works
         self.down = None
+        self._down_since = 0.0
         self._task = None
         self._closing = False
         self._one_at_a_time = asyncio.Lock()
 
     async def ready(self):
-        """The logged-in client, logging in first if nothing has yet. Raises ConnectionError
-        at once while logging in is failing, and TimeoutError after READY_TIMEOUT; a dropped
+        """The logged-in client, logging in first if nothing has yet. Raises TimeoutError
+        after READY_TIMEOUT, and ConnectionError at once once logging in has been failing for
+        that long (a bad token), so a failure or two still waits for the retry; a dropped
         connection's reconnect is waited out the same way."""
         if self._task is None:
             # its own context: what the login prints belongs to no job (runner.JobLog)
@@ -61,7 +64,7 @@ class SteamSession:
         async with asyncio.timeout(READY_TIMEOUT):
             # polled: a failed login swaps in a fresh client, and none has an event for that
             while not (self.client and self.client.is_ready()):
-                if self.down is not None:
+                if self.down is not None and time.monotonic() - self._down_since >= READY_TIMEOUT:
                     raise ConnectionError(f"Steam login failing: {self.down!r}")
                 await asyncio.sleep(0.2)
         return self.client
@@ -70,9 +73,10 @@ class SteamSession:
         """`await request(client)` on the logged-in client, after any request ahead of it
         has its reply, within REQUEST_TIMEOUT: every request to the CM goes through here, a
         leaderboard read's or a file download's alike."""
-        client = await self.ready()
-        async with self._one_at_a_time, asyncio.timeout(REQUEST_TIMEOUT):
-            return await request(client)
+        async with self._one_at_a_time:
+            client = await self.ready()
+            async with asyncio.timeout(REQUEST_TIMEOUT):
+                return await request(client)
 
     async def send(self, msg):
         """Sends one raw protobuf request and returns its reply (steampy_common's leaderboard
@@ -93,6 +97,8 @@ class SteamSession:
                     return  # steam.py often raises on the teardown after close()
                 print(f"Steam: logging in failed: {e!r}; trying again in {RETRY} s", flush=True)
                 was_down, self.down = self.down, e
+                if was_down is None:
+                    self._down_since = time.monotonic()
                 if was_down is None and self.on_down:
                     await self.on_down(
                         f"Collector: logging into Steam failed ({e!r}); trying again every"

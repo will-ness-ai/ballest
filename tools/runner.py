@@ -25,9 +25,8 @@ collector job inside itself on it, so no job ever logs another off.
 Every job is a Job: at most one running and one waiting, and a request while one waits
 folds into it, as an Actions concurrency group did. The Refresh and both kinds of file
 download also take turns (Service.map_file_writers), so two never download one Map's file at
-once. Each
-job's output goes to the log under its name (JobLog), and a job still running after its time
-is stopped and counts as failed.
+once. Each job's output goes to the log under its name (JobLog), and a job still running after
+its time is stopped and counts as failed.
 
 A failed Refresh or Map add posts its last lines to the private ops channel
 (OPS_WEBHOOK_URL), in place of Actions' failure emails, and so do a failed Steam login and
@@ -237,13 +236,11 @@ class Service:
             try:
                 async with stop:
                     code = await work()
-            except TimeoutError:
-                if not stop.expired():
-                    raise
-                print(f"(stopped after {limit / 60:g} minutes)")
-                code = -1
             except Exception:
-                traceback.print_exc(file=self.logs)
+                if stop.expired():
+                    print(f"(stopped after {limit / 60:g} minutes)")
+                else:  # a TimeoutError of the job's own lands here too
+                    traceback.print_exc(file=self.logs)
                 code = -1
             lines = list(tail)
         if code and what:

@@ -146,7 +146,10 @@ def test_a_script_on_its_own_with_no_token_stops_at_once(monkeypatch, capsys):
     assert FakeClient.made == []
 
 
-def test_a_job_waits_no_longer_once_a_login_has_failed():
+def test_once_logging_in_has_failed_for_a_while_jobs_stop_waiting(monkeypatch):
+    # a failure or two waits for the retry; a token that stays bad fails each job at once
+    monkeypatch.setattr(steam_session, "READY_TIMEOUT", 0.3)
+
     async def go():
         gate = asyncio.Event()
 
@@ -154,8 +157,10 @@ def test_a_job_waits_no_longer_once_a_login_has_failed():
             await gate.wait()  # the retry hasn't come yet
 
         s, _ = session(make=lambda: FakeClient(fail=True), sleep=sleep)
+        with pytest.raises((ConnectionError, TimeoutError)):
+            await s.send("a")
         with pytest.raises(ConnectionError, match="InvalidPassword"):
-            await asyncio.wait_for(s.send("a"), 5)
+            await asyncio.wait_for(s.send("b"), 0.1)
         gate.set()
         await s.close()
 
