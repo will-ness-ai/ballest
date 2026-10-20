@@ -56,7 +56,10 @@ export const isUnknown = (e: DiscordError) =>
   "code" in e.cause &&
   (e.cause.code === 10008 || e.cause.code === 10003);
 
-export const tryDiscord = Effect.fn("tryDiscord")(function* <A>(op: string, run: () => Promise<A>) {
+export const tryDiscord = Effect.fn("Discord.try")(function* <A>(
+  op: string,
+  run: () => Promise<A>,
+) {
   return yield* Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
 });
 

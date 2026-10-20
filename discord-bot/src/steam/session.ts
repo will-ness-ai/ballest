@@ -94,7 +94,7 @@ export const steamUserClient = (): SteamClient => {
 };
 
 /** The session over clients from `newClient`: steam-user's in production, a fake in tests. */
-export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
+export const makeSteamSession = Effect.fn("SteamSession.make")(function* (
   newClient: () => SteamClient,
 ) {
   const token = yield* Config.redacted("STEAM_REFRESH_TOKEN");

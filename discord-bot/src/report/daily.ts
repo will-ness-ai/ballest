@@ -77,7 +77,7 @@ export const ReportLogLive = Layer.effect(
  * thread's post, which runs separately so the day is recorded before it: a thread that fails
  * must not bring the whole report back the next day.
  */
-export const postReport = Effect.fn("postReport")(function* (report: Report) {
+export const postReport = Effect.fn("DailyReport.post")(function* (report: Report) {
   const channel = yield* ReportChannel;
   const renderer = yield* Renderer;
   const chosenSkins = yield* ChosenSkins;
@@ -94,7 +94,7 @@ export const postReport = Effect.fn("postReport")(function* (report: Report) {
 });
 
 /** The day's report, unless it was already posted or the data is too old (then ops hears). */
-export const runDay = Effect.fn("runDay")(function* (at: number) {
+export const runDay = Effect.fn("DailyReport.runDay")(function* (at: number) {
   const log = yield* ReportLog;
   const alerts = yield* OpsAlerts;
   const day = dayOf(at);

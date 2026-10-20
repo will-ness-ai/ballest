@@ -100,6 +100,15 @@ const retryUnlessGone = Effect.fn("Surface.retryUnlessGone")(function* <A, E ext
   return yield* effect.pipe(Effect.retry({ times: 2, while: (e: E) => e._tag !== "Gone" }));
 });
 
+/** A Channel call whose failure ends in the log, not in its caller. */
+const logFailures = Effect.fn("Surface.logFailures")(function* <A, R>(
+  effect: Effect.Effect<A, ChannelError, R>,
+) {
+  return yield* effect.pipe(
+    Effect.catchTag("DiscordError", "RenderError", "Gone", (e) => logFailure(e)),
+  );
+});
+
 /** Deleting or closing something already gone counts as done. */
 const unlessGone = Effect.fn("Surface.unlessGone")(function* (
   effect: Effect.Effect<void, ChannelError>,
@@ -278,7 +287,7 @@ const make = Effect.gen(function* () {
       yield* channel.redraw(card.messageId, Drawing.Card({ view }));
       yield* redrawClock(view.matchId, card, view);
     },
-    Effect.catchTag("DiscordError", "RenderError", "Gone", (e) => logFailure(e)),
+    (effect) => logFailures(effect),
     lock.withPermits(1),
   );
 
@@ -319,7 +328,7 @@ const make = Effect.gen(function* () {
         (post._tag === "Result" && post.standings.every((s) => s.ticks === null));
       if (last) yield* lock.withPermits(1)(forget(matchId, true));
     },
-    Effect.catchTag("DiscordError", "RenderError", "Gone", (e) => logFailure(e)),
+    (effect) => logFailures(effect),
   );
 
   // Startup: the Footer must be the channel's last message, with today's wording, and is edited
@@ -340,7 +349,7 @@ const make = Effect.gen(function* () {
       );
   } else {
     if (footerId !== null) yield* unlessGone(channel.deleteMessage(footerId));
-    yield* postFooter().pipe(Effect.catchTag("DiscordError", "RenderError", (e) => logFailure(e)));
+    yield* logFailures(postFooter());
   }
 
   const links = MatchLinks.of({

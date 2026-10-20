@@ -71,7 +71,7 @@ const ActivityLive = Layer.unwrapEffect(
       Effect.gen(function* () {
         const discord = yield* Discord;
         return DiscordMembers.of({
-          nameOf: Effect.fn("nameOf")(function* (discordId) {
+          nameOf: Effect.fn("DiscordMembers.nameOf")(function* (discordId) {
             return yield* discord
               .member(discordId)
               .pipe(

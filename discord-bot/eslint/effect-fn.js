@@ -20,11 +20,15 @@ function isEffect(type) {
 
 const calledWith = (call, arg) => call.type === "CallExpression" && call.arguments.includes(arg);
 
-/* A service is built by handing its methods to its Tag, `Tag.of({ ... })`, or to
-   `Layer.succeed(Tag, { ... })`; every service in src/ goes through one of the two. Matched by
-   the call's shape, not a list of bare names, so `Effect.succeed({ ... })` or a handler map
-   named like a constructor stays a callback. A new way to build a service (`Context.make`
-   with an inline object, say) needs adding here, or its methods pass as callbacks. */
+/* A service handed its methods inline is built by `Tag.of({ ... })` or
+   `Layer.succeed(Tag, { ... })`. An `Effect.Service` class (Engine, Discord, Renderer) builds
+   its methods in an `effect:` generator instead, so they are named consts or properties of a
+   returned object, never handed to a call, and are checked as functions anyway. Matched by the
+   call's shape, not a list of bare names, so `Effect.succeed({ ... })` or a handler map named
+   like a constructor stays a callback. `of` matches any `X.of`, `Chunk.of` included, so a
+   function inside one is checked as a service method. A new way to build a service
+   (`Context.make` with an inline object, say) needs adding here, or its methods pass as
+   callbacks. */
 function buildsService(call) {
   const callee = call.callee;
   if (callee.type !== "MemberExpression" || callee.property.type !== "Identifier") return false;

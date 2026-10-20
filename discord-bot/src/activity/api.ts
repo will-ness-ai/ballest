@@ -97,7 +97,7 @@ const OpenBody = Schema.Struct({
 });
 
 /** `where` is the server and channel the links point into. */
-export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
+export const makeActivityApi = Effect.fn("ActivityApi.make")(function* (where: {
   readonly guildId: string;
   readonly channelId: string;
 }) {

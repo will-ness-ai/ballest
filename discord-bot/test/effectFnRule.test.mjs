@@ -8,8 +8,9 @@ import { describe, it } from "vitest";
 import rule from "../eslint/effect-fn.js";
 
 RuleTester.describe = describe;
-RuleTester.it = it;
-RuleTester.itOnly = it.only;
+// The first case starts the TypeScript program, which outlasts vitest's 5 s under a full run.
+RuleTester.it = (name, fn) => it(name, fn, 30_000);
+RuleTester.itOnly = (name, fn) => it.only(name, fn, 30_000);
 
 const tester = new RuleTester({
   languageOptions: {
@@ -54,6 +55,8 @@ tester.run("bot/effect-fn", rule, {
       tag +
         `export const seven = Svc.of({ go: Effect.fn("Svc.go")(function* (n) { return n; }) });`,
     ),
+    // an object handed to Effect.succeed is not a service: its functions stay callbacks
+    at(`export const eight = Effect.succeed({ go: (n: number) => Effect.succeed(n) });`),
   ],
   invalid: [
     fails(`export const add = (n: number) => Effect.succeed(n + 1);`, "add"),

@@ -139,7 +139,7 @@ const race = pbs([
 const program = Effect.gen(function* () {
   const renderer = yield* Renderer;
   yield* Effect.tryPromise(() => mkdir(out, { recursive: true }));
-  const save = Effect.fn("save")(function* (name: string, png: Buffer) {
+  const save = Effect.fn("RenderSamples.save")(function* (name: string, png: Buffer) {
     yield* Effect.tryPromise(() => writeFile(join(out, `${name}.png`), png));
   });
   for (const [name, view] of Object.entries(cards))
