@@ -90,7 +90,7 @@ export const map3dOf = (m: WorkshopMap): Map3DView | null =>
 const underAuthor = (m: MapCard) => m.author * SCORE_TICKS_PER_SECOND - recordOf(m);
 const unbeaten = (m: MapCard) => m.authorBeaten === 0;
 const gapOrLast = (m: MapCard) => m.gap13 ?? Infinity;
-const runsStat = (m: MapCard) => plural(m.entryCount, "run", "runs");
+const runsStat = (m: MapCard) => plural(m.entryCount, "player with a time", "players with a time");
 
 /* Each sort carries the number a card shows while it is on: a shelf, or All maps sorted
    that way, shows the figure its order is about. */
@@ -100,9 +100,13 @@ export interface Sort {
   stat: (m: MapCard, now: number) => string;
 }
 const SORT_DEFS = {
-  runs: { label: "Most runs", cmp: (a, b) => b.entryCount - a.entryCount, stat: runsStat },
+  runs: {
+    label: "Most players with a time",
+    cmp: (a, b) => b.entryCount - a.entryCount,
+    stat: runsStat,
+  },
   fewest: {
-    label: "Fewest runs",
+    label: "Fewest players with a time",
     cmp: (a, b) => a.entryCount - b.entryCount || a.created - b.created,
     stat: runsStat,
   },
@@ -127,12 +131,12 @@ const SORT_DEFS = {
     stat: (m) => (m.gap13 == null ? "under 3 runs" : "1st to 3rd " + secs(m.gap13)),
   },
   crowd: {
-    label: "Most crowded",
+    label: "Most players within 1s of WR",
     cmp: (a, b) => b.crowd - a.crowd,
     stat: (m) => fmtN(m.crowd) + " within 1s",
   },
   under: {
-    label: "Author time crushed",
+    label: "Largest author-time improvement",
     cmp: (a, b) => underAuthor(b) / b.author - underAuthor(a) / a.author,
     stat: (m) => (underAuthor(m) > 0 ? secs(underAuthor(m)) + " under" : "not beaten"),
   },
@@ -198,7 +202,7 @@ export const NO_FILTER = (): Refine => ({
 export const VIEWS: ReadonlyArray<readonly [string, string, Partial<Refine>]> = [
   ["all", "All", {}],
   ["unbeaten", "Unbeaten", { author: "unbeaten" }],
-  ["new", "New this week", { age: "week", sort: "new" }],
+  ["new", "Most played new maps", { age: "week", sort: "plays" }],
   ["short", "Under 15s", { len: "short" }],
   ["tight", "Tight racing", { sort: "tight" }],
   ["plays", "Most played", { sort: "plays" }],
@@ -242,15 +246,15 @@ export interface Shelf {
 export const SHELVES: ReadonlyArray<Shelf> = [
   { title: "Most played", note: "by Workshop play sessions", sort: "plays", all: "plays" },
   {
-    title: "New this week",
-    note: "newest first",
-    sort: "new",
+    title: "Most played new maps",
+    note: "published in the last 7 days · most play sessions first",
+    sort: "plays",
     all: "new",
     week: true,
   },
   {
     title: "Unbeaten author time",
-    note: "nobody has beaten the creator",
+    note: "no time faster than the author target",
     sort: "runs",
     all: "unbeaten",
     keep: unbeaten,
@@ -263,18 +267,23 @@ export const SHELVES: ReadonlyArray<Shelf> = [
     keep: (m) => m.gap13 != null,
   },
   {
-    title: "Crowded at the top",
-    note: "most runs within a second of the record",
+    title: "Most players within 1s of WR",
+    note: "players within one second of the world record",
     sort: "crowd",
     all: "crowd",
   },
   {
-    title: "Author time crushed",
-    note: "record furthest under the author time",
+    title: "Largest author-time improvement",
+    note: "world record below author time, ranked by percentage",
     sort: "under",
     all: "under",
   },
-  { title: "Barely played", note: "fewest runs so far", sort: "fewest", all: "quiet" },
+  {
+    title: "Fewest players with a time",
+    note: "fewest leaderboard entries",
+    sort: "fewest",
+    all: "quiet",
+  },
 ];
 
 /* Maps kept off the homepage's carousel and shelves, by pfid, with the reason their page
@@ -297,13 +306,16 @@ export const reportHref = (m: { title: string; pfid: string }) =>
 const homeSorted = (maps: ReadonlyArray<MapCard>, sort: SortKey, keep?: (m: MapCard) => boolean) =>
   maps.filter((m) => !HIDDEN[m.pfid] && (!keep || keep(m))).sort(SORTS[sort].cmp);
 
-/* A shelf's Maps, before the week filter: New this week is sorted newest first, so its
-   first SHELF_SIZE hold every Map the filter can keep, and onShelf narrows them where the
-   clock is read. */
+/* Weekly candidates stay complete until the browser applies the current clock, then
+   takes twelve: filtering after a popularity limit would hide new Maps below old ones. */
 export const shelfMaps = (maps: ReadonlyArray<MapCard>, d: Shelf) =>
-  homeSorted(maps, d.sort, d.keep).slice(0, SHELF_SIZE);
+  d.week ? homeSorted(maps, d.sort, d.keep) : homeSorted(maps, d.sort, d.keep).slice(0, SHELF_SIZE);
 export const onShelf = (maps: ReadonlyArray<MapCard>, d: Shelf, now: number) =>
-  d.week ? maps.filter((m) => ageDays(m.created, now) <= 7) : maps;
+  d.week
+    ? maps
+        .filter((m) => ageDays(m.created, now) >= 0 && ageDays(m.created, now) <= 7)
+        .slice(0, SHELF_SIZE)
+    : maps;
 
 /* five different Maps, each up for a different reason; none depends on the clock */
 export interface Pick {
@@ -323,8 +335,8 @@ export function picks(maps: ReadonlyArray<MapCard>): Array<Pick> {
   return [
     pick("Most played", "plays"),
     pick("Newest", "new"),
-    pick("Most runs", "runs"),
-    pick("Barely played", "fewest"),
+    pick("Most players with a time", "runs"),
+    pick("Fewest players with a time", "fewest"),
     pick("Tightest top three", "tight", (m) => m.gap13 != null),
   ].filter((p) => p !== null);
 }

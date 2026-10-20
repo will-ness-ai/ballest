@@ -5,7 +5,8 @@
 // carousel's Maps and each shelf's; what reads the clock (the ages, New this week) is
 // counted here, so a cached page never freezes it.
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { HomePrototype } from "../prototype/HomePrototype";
 
 import { CreatorLink, MapCardLink, MapGrid, PodLine } from "./Card";
 import { MapImage } from "../MapImage";
@@ -233,7 +234,9 @@ export function WorkshopHome({
           />
         ) : (
           <>
-            <Carousel picks={picks} now={now} />
+            <Suspense fallback={<Carousel picks={picks} now={now} />}>
+              <HomePrototype picks={picks} now={now} />
+            </Suspense>
             {campaigns}
             <Shelves shelves={shelves} now={now} />
           </>

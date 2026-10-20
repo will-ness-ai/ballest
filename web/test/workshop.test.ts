@@ -59,8 +59,8 @@ describe("the homepage", () => {
     expect(p.map((x) => x.label)).toEqual([
       "Most played",
       "Newest",
-      "Most runs",
-      "Barely played",
+      "Most players with a time",
+      "Fewest players with a time",
       "Tightest top three",
     ]);
     expect(new Set(p.map((x) => x.m.pfid)).size).toBe(5);
@@ -74,6 +74,20 @@ describe("the homepage", () => {
     const shelf = shelfMaps(maps, week);
     expect(shelf).toHaveLength(2);
     expect(onShelf(shelf, week, NOW).map((m) => m.created)).toEqual([at(2)]);
+  });
+
+  test("weekly popularity filters all candidates before limiting, and its See all agrees", () => {
+    const week = SHELVES.find((d) => d.week);
+    if (!week) throw new Error("no weekly shelf");
+    const older = Array.from({ length: 20 }, () => map({ created: at(30), sessions: 1000 }));
+    const recent = Array.from({ length: 15 }, (_, i) => map({ created: at(2), sessions: i }));
+    const maps = [...older, ...recent, map({ created: at(-1), sessions: 2000 })];
+    const shown = onShelf(shelfMaps(maps, week), week, NOW);
+    expect(shown).toHaveLength(12);
+    expect(shown.map((m) => m.sessions)).toEqual([14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3]);
+    expect(filteredMaps([...older, ...recent], refineFor(week.all), NOW).slice(0, 12)).toEqual(
+      shown,
+    );
   });
 
   test("a shelf that is about a figure leaves out the Maps without it", () => {
@@ -91,7 +105,7 @@ describe("All maps", () => {
       age: "week",
       author: "any",
       runs: "any",
-      sort: "new",
+      sort: "plays",
     });
     expect(sameRefine(refineFor(null), refineFor("all"))).toBe(true);
     expect(sameRefine(refineFor("new"), refineFor("all"))).toBe(false);
