@@ -7,12 +7,13 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 export type ProtoMap = { pfid: string; no: string; name: string | null; pic: string | null };
 
+/* each variant is a pair: where a Campaign's Get button sits, and a Map page's how-to */
 const VARIANTS = [
-  ["A", "A · Get-the-Maps card under the board"],
-  ["B", "B · Workshop button on each rail Map"],
-  ["C", "C · Get button opens a checklist"],
-  ["D", "D · Stepper, one Map at a time"],
-  ["E", "E · One link for them all"],
+  ["A", "A · Button under the board card", "A · Steps under the button"],
+  ["B", "B · Button by the Campaign switch", "B · How-to link opens the steps"],
+  ["C", "C · A line above the board", "C · Renamed button + one line"],
+  ["D", "D · First strip in the Map list", "D · ⓘ next to the button"],
+  ["E", "E · Sticky button", "E · Button inside the steps"],
 ] as const;
 type V = (typeof VARIANTS)[number][0];
 
@@ -45,7 +46,6 @@ const COLLECTIONS: Record<string, string> = {
   "mind-trials": "3821607033",
 };
 const ws = (pfid: string) => `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
-const label = (m: ProtoMap) => (m.name ? `${m.no} · ${m.name}` : `Map ${m.no}`);
 
 /* which Maps this browser has opened, per Campaign */
 function useOpened(slug: string): [Set<string>, (pfid: string) => void, () => void] {
@@ -126,12 +126,81 @@ function MapRow({
   );
 }
 
+const OPEN = "pws-open";
+const openGet = () => dispatchEvent(new Event(OPEN));
+
+/* the checklist dialog, the same for every entry point */
+function GetDialog({ slug, title, maps }: { slug: string; title: string; maps: ProtoMap[] }) {
+  const [opened, open, reset] = useOpened(slug);
+  const dlg = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const show = () => dlg.current?.showModal();
+    addEventListener(OPEN, show);
+    return () => removeEventListener(OPEN, show);
+  }, []);
+  const col = COLLECTIONS[slug];
+  return (
+    <dialog
+      ref={dlg}
+      className="ptsx pws-dlg"
+      onClick={(e) => e.target === dlg.current && dlg.current?.close()}
+    >
+      <div className="dh">
+        <h2>Play {title} in Ballest</h2>
+        <button type="button" onClick={() => dlg.current?.close()} aria-label="Close">
+          ×
+        </button>
+      </div>
+      {col && (
+        <div className="pws-col">
+          <a className="go" href={ws(col)} target="_blank" rel="noopener">
+            Subscribe to all {maps.length} at once ↗
+          </a>
+          <small>Its Steam collection has a Subscribe to all button. Or one at a time:</small>
+        </div>
+      )}
+      {!col && (
+        <p className="pws-lead">
+          Subscribe to each Map in the Steam Workshop, then open the Hub in Ballest and press
+          Downloads.
+        </p>
+      )}
+      <div className="pws-prog">
+        <span>
+          {opened.size} of {maps.length} opened
+        </span>
+        <i style={{ "--p": opened.size / maps.length } as React.CSSProperties} />
+        {opened.size > 0 && (
+          <button type="button" className="linkbtn pws-reset" onClick={reset}>
+            Start over
+          </button>
+        )}
+      </div>
+      <ul className="pws-list">
+        {maps.map((m) => (
+          <MapRow key={m.pfid} m={m} tick opened={opened.has(m.pfid)} onOpen={() => open(m.pfid)} />
+        ))}
+      </ul>
+      <h3 className="eyebrow">Then in Ballest</h3>
+      <ol className="pws-steps compact">
+        <li>
+          <span className="pws-n">3</span>
+          <b>Go to the Hub</b>
+        </li>
+        <li>
+          <span className="pws-n">4</span>
+          <b>Press the Downloads button</b>
+        </li>
+      </ol>
+    </dialog>
+  );
+}
+
 /* ---------- the Campaign's content column ---------- */
 export function ProtoWsContent({
   slug,
   title,
   maps,
-  makerId,
 }: {
   slug: string;
   title: string;
@@ -139,28 +208,98 @@ export function ProtoWsContent({
   makerId: string;
 }) {
   const v = useVariant();
-  const [opened, open, reset] = useOpened(slug);
-  const dlg = useRef<HTMLDialogElement>(null);
   if (!v) return null;
+  const n = maps.length;
+  return (
+    <>
+      <GetDialog slug={slug} title={title} maps={maps} />
+      {v === "A" && (
+        <button type="button" className="go pws-getbtn" onClick={openGet}>
+          Get the {n} Maps
+        </button>
+      )}
+      {v === "E" && (
+        <button type="button" className="go pws-sticky" onClick={openGet}>
+          <SteamMark /> Get the {n} Maps
+        </button>
+      )}
+    </>
+  );
+}
 
+/* B: beside the Campaign switch in the board row (phone), C: a line above the board row */
+export function ProtoRowGet({ n, at }: { n: number; at: "row" | "above" }) {
+  const v = useVariant();
+  if (v === "B" && at === "row")
+    return (
+      <button type="button" className="pws-rowbtn" onClick={openGet}>
+        <SteamMark /> Get Maps
+      </button>
+    );
+  if (v === "C" && at === "above")
+    return (
+      <button type="button" className="pws-line" onClick={openGet}>
+        <span>
+          New to these Maps? <b>Get all {n} into Ballest</b>
+        </span>
+        <span aria-hidden>→</span>
+      </button>
+    );
+  return null;
+}
+
+/* B: under the maker at the rail's head (desktop) */
+export function ProtoRailHow({ n }: { n: number }) {
+  const v = useVariant();
+  if (v !== "B") return null;
+  return (
+    <button type="button" className="go pws-railget" onClick={openGet}>
+      <SteamMark /> Get the {n} Maps
+    </button>
+  );
+}
+
+/* D: the first strip of the Map list, in the rail and the phone sheet */
+export function ProtoRailGet({ n }: { n: number }) {
+  const v = useVariant();
+  if (v !== "D") return null;
+  return (
+    <button type="button" className="tstrip plain pws-strip" onClick={openGet}>
+      <span className="lab">
+        <b>Get</b> <small>all {n} Maps from the Steam Workshop</small>
+      </span>
+    </button>
+  );
+}
+
+/* ---------- a Map's own page: the how-to by its Workshop button ---------- */
+export function ProtoMapHow({ pfid }: { pfid: string }) {
+  const v = useVariant();
+  const dlg = useRef<HTMLDialogElement>(null);
+  const [tip, setTip] = useState(false);
+  if (!v) return null;
+  const btn = (text = "Open in Steam Workshop") => (
+    <a className="go mp-ws" href={ws(pfid)} target="_blank" rel="noopener">
+      {text}
+    </a>
+  );
   if (v === "A")
     return (
-      <section className="pws-card">
-        <h2 className="eyebrow">Play {title} in Ballest</h2>
+      <div className="pws-mapA">
+        {btn()}
         <Steps compact />
-        <ul className="pws-list">
-          {maps.map((m) => (
-            <MapRow key={m.pfid} m={m} opened={opened.has(m.pfid)} onOpen={() => open(m.pfid)} />
-          ))}
-        </ul>
-      </section>
+      </div>
     );
-
-  if (v === "C")
+  if (v === "B")
     return (
-      <>
-        <button type="button" className="go pws-getbtn" onClick={() => dlg.current?.showModal()}>
-          Get the {maps.length} Maps
+      <div className="pws-mapB">
+        {btn()}
+        <button
+          type="button"
+          className="linkbtn pws-reset"
+          onClick={() => dlg.current?.showModal()}
+        >
+          How do I play this in Ballest?
         </button>
         <dialog
           ref={dlg}
@@ -168,193 +307,70 @@ export function ProtoWsContent({
           onClick={(e) => e.target === dlg.current && dlg.current?.close()}
         >
           <div className="dh">
-            <h2>Play {title} in Ballest</h2>
-            <button
-              type="button"
-              className="pws-x"
-              onClick={() => dlg.current?.close()}
-              aria-label="Close"
-            >
+            <h2>Getting a Map into Ballest</h2>
+            <button type="button" onClick={() => dlg.current?.close()} aria-label="Close">
               ×
             </button>
           </div>
-          <p className="pws-lead">
-            Subscribe to each Map in the Steam Workshop, then open the Hub in Ballest and press
-            Downloads.
-          </p>
-          <div className="pws-prog">
-            <span>
-              {opened.size} of {maps.length} opened
-            </span>
-            <i style={{ "--p": opened.size / maps.length } as React.CSSProperties} />
-            {opened.size > 0 && (
-              <button type="button" className="linkbtn pws-reset" onClick={reset}>
-                Start over
-              </button>
-            )}
-          </div>
-          <ul className="pws-list">
-            {maps.map((m) => (
-              <MapRow
-                key={m.pfid}
-                m={m}
-                tick
-                opened={opened.has(m.pfid)}
-                onOpen={() => open(m.pfid)}
-              />
-            ))}
-          </ul>
-          <h3 className="eyebrow">Then in Ballest</h3>
-          <ol className="pws-steps compact" start={3}>
-            <li>
-              <span className="pws-n">3</span>
-              <b>Go to the Hub</b>
-            </li>
-            <li>
-              <span className="pws-n">4</span>
-              <b>Press the Downloads button</b>
-            </li>
-          </ol>
+          <Steps />
+          {btn()}
         </dialog>
-      </>
+      </div>
     );
-
-  if (v === "D") {
-    const next = maps.find((m) => !opened.has(m.pfid));
-    const done = !next;
+  if (v === "C")
     return (
-      <section className="pws-stepper">
-        <ol className="pws-track">
-          {["Workshop", "Subscribe", "Hub", "Downloads"].map((s, i) => (
-            <li key={s} data-on={done ? i >= 2 : i < 2 ? "" : undefined}>
-              <span className="pws-n">{i + 1}</span>
-              {s}
-            </li>
-          ))}
-        </ol>
-        {next ? (
-          <div className="pws-next">
-            <span className="pws-nextpic">{next.pic ? <img src={next.pic} alt="" /> : null}</span>
-            <span className="pws-nextlab">
-              <small>
-                Map {maps.indexOf(next) + 1} of {maps.length}
-              </small>
-              <b>{next.name ?? `Map ${next.no}`}</b>
-            </span>
-            <a
-              className="go"
-              href={ws(next.pfid)}
-              target="_blank"
-              rel="noopener"
-              onClick={() => open(next.pfid)}
-            >
-              {opened.size === 0 ? "Open in Workshop ↗" : "Next Map ↗"}
-            </a>
-          </div>
-        ) : (
-          <p className="pws-done">
-            All {maps.length} opened. In Ballest, go to the <b>Hub</b> and press <b>Downloads</b>.{" "}
-            <button type="button" className="linkbtn" onClick={reset}>
-              Start over
-            </button>
-          </p>
-        )}
-        <div className="pws-dots" aria-hidden>
-          {maps.map((m) => (
-            <i key={m.pfid} data-on={opened.has(m.pfid) ? "" : undefined} />
-          ))}
-        </div>
-        <p className="pws-hint">
-          Press Subscribe on each Steam page, then come back here for the next.
-        </p>
-      </section>
-    );
-  }
-
-  if (v === "E") {
-    const col = COLLECTIONS[slug];
-    return (
-      <section className="pws-one">
-        {col ? (
-          <a className="go" href={ws(col)} target="_blank" rel="noopener">
-            Subscribe to all {maps.length} on Steam ↗
-          </a>
-        ) : (
-          <a
-            className="go"
-            href={`https://steamcommunity.com/profiles/${makerId}/myworkshopfiles/?appid=3339810`}
-            target="_blank"
-            rel="noopener"
-          >
-            See all {maps.length} on the maker&apos;s Workshop page ↗
-          </a>
-        )}
-        <p>
-          {col ? "Press Subscribe to all on the collection, then" : "Subscribe to each there, then"}{" "}
-          in Ballest go to the <b>Hub</b> and press <b>Downloads</b>.
-        </p>
+      <div className="pws-mapC">
+        {btn("Get it in Ballest ↗")}
         <small>
-          {col
-            ? "This Campaign has a Steam collection, so one press subscribes to every Map."
-            : "No Steam collection for this Campaign (only 3 of 22 have one), so this falls back to the maker's page."}
+          Press <b>Subscribe</b> on Steam, then in Ballest go to the <b>Hub</b> and press{" "}
+          <b>Downloads</b>.
         </small>
-      </section>
+      </div>
     );
-  }
-
-  /* B: the rail carries the buttons; the content keeps only a line to the how-to */
-  return null;
-}
-
-/* ---------- B: on each rail Map, and a how-to under the maker ---------- */
-export function ProtoRailWs({ pfid }: { pfid: string }) {
-  const v = useVariant();
-  if (v !== "B") return null;
-  return (
-    <a
-      className="pws-railbtn"
-      href={ws(pfid)}
-      target="_blank"
-      rel="noopener"
-      aria-label="Open in Steam Workshop"
-      title="Open in Steam Workshop"
-    >
-      <SteamMark />
-    </a>
-  );
-}
-
-export function ProtoRailHow() {
-  const v = useVariant();
-  const dlg = useRef<HTMLDialogElement>(null);
-  if (v !== "B") return null;
-  return (
-    <>
-      <button type="button" className="pws-how" onClick={() => dlg.current?.showModal()}>
-        <SteamMark /> How to play these Maps
-      </button>
-      <dialog
-        ref={dlg}
-        className="ptsx pws-dlg"
-        onClick={(e) => e.target === dlg.current && dlg.current?.close()}
-      >
-        <div className="dh">
-          <h2>Getting a Map into Ballest</h2>
+  if (v === "D")
+    return (
+      <div className="pws-mapD">
+        <div className="pws-mapD-row">
+          {btn()}
           <button
             type="button"
-            className="pws-x"
-            onClick={() => dlg.current?.close()}
-            aria-label="Close"
+            className="pws-i"
+            aria-expanded={tip}
+            aria-label="How to play it"
+            onClick={() => setTip(!tip)}
           >
-            ×
+            i
           </button>
         </div>
-        <Steps />
-        <p className="pws-lead">
-          Each Map in the list has a <SteamMark /> button that opens it in the Workshop.
-        </p>
-      </dialog>
-    </>
+        {tip && (
+          <div className="pws-tip">
+            <Steps compact />
+          </div>
+        )}
+      </div>
+    );
+  return (
+    <div className="pws-mapE">
+      <h2 className="eyebrow">Play it in Ballest</h2>
+      <ol className="pws-steps">
+        <li>
+          <span className="pws-n">1</span>
+          {btn()}
+        </li>
+        <li>
+          <span className="pws-n">2</span>
+          <b>Press Subscribe</b>
+        </li>
+        <li>
+          <span className="pws-n">3</span>
+          <b>Go to the Hub in Ballest</b>
+        </li>
+        <li>
+          <span className="pws-n">4</span>
+          <b>Press Downloads</b>
+        </li>
+      </ol>
+    </div>
   );
 }
 
@@ -414,7 +430,8 @@ export function ProtoPicker() {
     () => "",
   );
   if (!v || framed) return null;
-  const name = VARIANTS.find((x) => x[0] === v)?.[1];
+  const row = VARIANTS.find((x) => x[0] === v);
+  const name = href.startsWith("/map/") ? row?.[2] : row?.[1];
   const phone = view === "phone";
   const toggle = () => {
     const q = new URLSearchParams(location.search);

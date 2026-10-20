@@ -3,6 +3,7 @@
 // no card. `focus` is a Steam ID whose row to find and mark.
 import { notFound, redirect } from "next/navigation";
 
+import { ProtoMapHow, ProtoPicker } from "../prototype/WsLinks";
 import { PartOf } from "./Campaign";
 import { CreatorLink } from "./Card";
 import { Age } from "./Age";
@@ -86,14 +87,9 @@ export function MapPanel({
           <YouSpread name={m.name} chart={spreadOf(scores, m.medals, false)} />
         </div>
       </div>
-      <a
-        className="go mp-ws"
-        href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${m.pfid}`}
-        target="_blank"
-        rel="noopener"
-      >
-        Open in Steam Workshop
-      </a>
+      {/* PROTOTYPE */}
+      <ProtoMapHow pfid={m.pfid} />
+      <ProtoPicker />
       {!reason && (
         <a className="mp-report" href={reportHref(m)} target="_blank" rel="noopener">
           Report a broken map

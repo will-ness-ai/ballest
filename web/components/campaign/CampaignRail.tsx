@@ -3,7 +3,7 @@
 // record, short name and run count. A Map opens inside the Campaign's frame.
 import Link from "next/link";
 
-import { ProtoRailWs } from "../prototype/WsLinks";
+import { ProtoRailGet } from "../prototype/WsLinks";
 
 import { campaignBoard, mapName, mapNo, type Campaign } from "../../lib/campaigns";
 import { campaignHref } from "../../lib/routes";
@@ -24,6 +24,8 @@ export function CampaignRailItems({
 }) {
   return (
     <>
+      {/* PROTOTYPE */}
+      <ProtoRailGet n={maps.length} />
       <Link
         className="tstrip plain"
         href={campaignHref(c.slug)}
@@ -58,7 +60,6 @@ export function CampaignRailItems({
                 </small>
               </span>
             </Link>
-            <ProtoRailWs pfid={m.pfid} />
           </div>
         );
       })}

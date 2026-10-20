@@ -6,7 +6,7 @@
 // podium order; or a Steam ID whose row to find and mark.
 import { notFound } from "next/navigation";
 
-import { ProtoPicker, ProtoRailHow, ProtoWsContent } from "../prototype/WsLinks";
+import { ProtoPicker, ProtoRailHow, ProtoRowGet, ProtoWsContent } from "../prototype/WsLinks";
 import { mapName, mapNo } from "../../lib/campaigns";
 import { safeImg } from "../../lib/rules";
 
@@ -91,7 +91,7 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
           by <PlayerLink id={c.creatorId} text={c.creator} tab="made" />
         </p>
         {/* PROTOTYPE */}
-        <ProtoRailHow />
+        <ProtoRailHow n={maps.length} />
         <nav className="boards" id="boards" aria-label="Leaderboard">
           {items}
         </nav>
@@ -99,11 +99,14 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
 
       <section className="content">
         <YouMarks name={name} />
+        {/* PROTOTYPE */}
+        <ProtoRowGet n={maps.length} at="above" />
         <div className="boardrow named">
           <CampaignChip list={list} on={c} board={name} />
           <BoardSheet img={m?.preview ?? null} name={title} count={countText(b)} group={c.title}>
             {items}
           </BoardSheet>
+          <ProtoRowGet n={maps.length} at="row" />
         </div>
 
         {m ? (

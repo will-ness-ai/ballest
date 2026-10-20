@@ -360,3 +360,157 @@
   border-radius: 28px;
   background: var(--bg);
 }
+
+/* round 2: where the Get button sits */
+.pws-col {
+  display: grid;
+  gap: 6px;
+}
+.pws-col .go {
+  font-family: var(--f-hud);
+}
+.pws-col small {
+  color: var(--faint);
+  font-size: calc(12.5rem / 16);
+}
+.pws-rowbtn {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  padding-inline: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 calc(13rem / 16) var(--f-hud);
+  cursor: pointer;
+}
+.pws-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  inline-size: calc(100% - 2 * var(--pad));
+  margin: 0 var(--pad) 10px;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: calc(13.5rem / 16);
+  text-align: start;
+  cursor: pointer;
+}
+.pws-line b {
+  color: var(--accent);
+}
+.pws-railget {
+  inline-size: 100%;
+  margin: 0 0 12px;
+  gap: 6px;
+  border: 0;
+  font-family: var(--f-hud);
+  cursor: pointer;
+}
+.pws-strip {
+  border-style: dashed;
+  border-color: color-mix(in oklch, var(--accent) 50%, transparent);
+  background: var(--accent-soft);
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.pws-strip b {
+  color: var(--accent);
+}
+.pws-sticky {
+  position: fixed;
+  inset-block-end: 16px;
+  inset-inline-start: 16px;
+  z-index: 40;
+  gap: 6px;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 8px 30px oklch(0% 0 none / 0.5);
+  font-family: var(--f-hud);
+  cursor: pointer;
+}
+@media (min-width: 51.25em) {
+  .pws-rowbtn {
+    display: none;
+  }
+  .pws-sticky {
+    inset-inline-start: 24px;
+  }
+}
+
+/* round 2: a Map page's how-to */
+.pws-mapA,
+.pws-mapB,
+.pws-mapC,
+.pws-mapD {
+  display: grid;
+  gap: 10px;
+}
+.pws-mapA .pws-steps.compact {
+  grid-template-columns: 1fr 1fr;
+}
+.pws-mapB .linkbtn {
+  justify-self: center;
+}
+.pws-mapC small {
+  color: var(--dim);
+  font-size: calc(12.5rem / 16);
+  text-align: center;
+}
+.pws-mapD-row {
+  display: flex;
+  gap: 8px;
+}
+.pws-mapD-row .go {
+  flex: 1;
+}
+.pws-i {
+  flex: none;
+  inline-size: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--dim);
+  font:
+    italic 700 calc(15rem / 16) Georgia,
+    serif;
+  cursor: pointer;
+}
+.pws-i[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pws-tip {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--solid);
+}
+.pws-tip .pws-steps.compact {
+  grid-template-columns: 1fr;
+}
+.pws-mapE {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.pws-mapE h2 {
+  margin: 0;
+}
+.pws-mapE li {
+  align-items: center;
+}
+.pws-mapE .go {
+  flex: 1;
+}
