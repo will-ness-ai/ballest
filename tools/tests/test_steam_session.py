@@ -202,3 +202,24 @@ def test_the_login_belongs_to_no_job():
         await s.close()
 
     asyncio.run(go())
+
+
+def test_waiting_for_the_login_holds_no_one_up():
+    class SlowLogin(FakeClient):
+        go_ahead = asyncio.Event()
+
+        async def login(self, refresh_token):
+            await self.go_ahead.wait()
+            await super().login(refresh_token)
+
+    async def go():
+        SlowLogin.go_ahead = asyncio.Event()
+        s, _ = session(SlowLogin)
+        waiting = [asyncio.create_task(s.send(n)) for n in range(2)]
+        await asyncio.sleep(0.05)
+        assert not s._one_at_a_time.locked()  # noqa: SLF001 (the queue the login must not hold)
+        SlowLogin.go_ahead.set()
+        assert await asyncio.gather(*waiting) == ["reply to 0", "reply to 1"]
+        await s.close()
+
+    asyncio.run(go())

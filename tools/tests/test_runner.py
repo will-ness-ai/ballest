@@ -304,6 +304,28 @@ def test_a_job_past_its_time_is_stopped_and_fails(monkeypatch):
     asyncio.run(go())
 
 
+def test_what_a_job_raises_while_being_stopped_stays_in_its_alert(monkeypatch):
+    monkeypatch.setattr(runner, "JOB_TIMEOUT", 0.05)
+
+    async def go():
+        fake = Fake()
+        s = service(fake)
+
+        async def stuck():
+            try:
+                await asyncio.sleep(10)
+            finally:
+                raise OSError("rollback failed")
+
+        fake.refresh = stuck
+        s.refresh()
+        await asyncio.sleep(0.2)
+        assert "stopped after" in fake.alerts[0]
+        assert "rollback failed" in fake.alerts[0]
+
+    asyncio.run(go())
+
+
 def test_each_slot_runs_one_refresh_even_when_the_timer_wakes_early():
     async def go():
         clock = [at("12:10")]

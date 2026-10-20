@@ -55,9 +55,9 @@ class SteamSession:
 
     async def ready(self):
         """The logged-in client, logging in first if nothing has yet. Raises TimeoutError
-        after READY_TIMEOUT, and ConnectionError at once once logging in has been failing for
-        that long (a bad token), so a failure or two still waits for the retry; a dropped
-        connection's reconnect is waited out the same way."""
+        after READY_TIMEOUT, or ConnectionError straight away when logging in has already been
+        failing for that long (a bad token), so a failure or two still waits for the retry; a
+        dropped connection's reconnect is waited out the same way."""
         if self._task is None:
             # its own context: what the login prints belongs to no job (runner.JobLog)
             self._task = asyncio.create_task(self._hold(), context=contextvars.Context())
@@ -71,10 +71,11 @@ class SteamSession:
 
     async def call(self, request):
         """`await request(client)` on the logged-in client, after any request ahead of it
-        has its reply, within REQUEST_TIMEOUT: every request to the CM goes through here, a
-        leaderboard read's or a file download's alike."""
+        has its reply, within REQUEST_TIMEOUT once sent: every request to the CM goes through
+        here, a leaderboard read's or a file download's alike."""
+        await self.ready()  # a login is waited out side by side, not one caller after another
         async with self._one_at_a_time:
-            client = await self.ready()
+            client = await self.ready()  # at once, unless the request ahead dropped the connection
             async with asyncio.timeout(REQUEST_TIMEOUT):
                 return await request(client)
 
