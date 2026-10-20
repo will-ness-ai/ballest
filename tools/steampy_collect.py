@@ -193,8 +193,8 @@ async def refresh(session, *, dev=False):
             print(f"  [warn] Workshop catalogue unavailable: {e!r}; no Map is read this run")
     try:
         await session.ready()
-    except TimeoutError:
-        print("ERROR: no Steam login (steam_session says why); not reading.")
+    except (ConnectionError, TimeoutError) as e:
+        print(f"ERROR: no Steam login ({e!r}); not reading.")
         print("If the token is invalid/expired, re-mint with tools/steampy_mint.py.")
         return 1
     all_ids = set()
@@ -230,8 +230,7 @@ async def refresh(session, *, dev=False):
     )
     if failed:
         print(f"NOTE: {len(failed)} board(s) not read, left as they were: {failed}")
-    rid = await asyncio.to_thread(
-        db_writer.record_refresh,
+    rid = await db_writer.record(
         db_writer.Refresh(
             started_at=started_at,
             boards=boards_out,

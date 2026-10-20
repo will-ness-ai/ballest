@@ -266,7 +266,7 @@ def test_a_job_that_raises_alerts_and_frees_its_turn():
         assert "Refresh failed" in fake.alerts[0]
         assert "no database" in fake.alerts[0]
         assert s.status()["refresh"]["last"]["exit"] != 0
-        assert not s.turn.locked()
+        assert not s.map_file_writers.locked()
 
     asyncio.run(go())
 
@@ -281,7 +281,7 @@ def test_a_job_past_its_time_is_stopped_and_fails(monkeypatch):
         await asyncio.sleep(0.2)
         assert "Refresh failed" in fake.alerts[0]
         assert "stopped after" in fake.alerts[0]
-        assert not s.turn.locked()
+        assert not s.map_file_writers.locked()
 
     asyncio.run(go())
 
@@ -502,5 +502,56 @@ def test_failing_daily_reads_reach_ops_once_until_one_works():
         await settle()
         assert len(fake.alerts) == 2
         task.cancel()
+
+    asyncio.run(go())
+
+
+# The real jobs (runner.Collector): what the Daily read holds is read again after a Refresh.
+
+
+def test_after_a_refresh_the_daily_read_starts_again_from_the_database(monkeypatch):
+    loads = []
+
+    class Loaded:
+        async def read(self, _session):
+            return 0
+
+    async def load():
+        loads.append(1)
+        return Loaded()
+
+    async def refresh(_session):
+        return 0
+
+    monkeypatch.setattr(runner.daily_watch.Watcher, "load", staticmethod(load))
+    monkeypatch.setattr(runner.steampy_collect, "refresh", refresh)
+
+    async def go():
+        c = runner.Collector(None)
+        await c.read_dailies()
+        await c.read_dailies()
+        assert len(loads) == 1
+        await c.refresh()
+        await c.read_dailies()
+        assert len(loads) == 2
+
+    asyncio.run(go())
+
+
+def test_the_status_shows_a_daily_read_under_way_while_a_refresh_waits():
+    async def go():
+        fake = Fake()
+        s = service(fake)
+        _, sleep = ticker()
+        task = await watching(s, sleep=sleep)
+        s.refresh()
+        await settle()
+        assert s.status()["daily"]["running"]
+        fake.gate("read_dailies").set()
+        await settle()
+        assert not s.status()["daily"]["running"]
+        task.cancel()
+        fake.gate("refresh").set()
+        await settle()
 
     asyncio.run(go())

@@ -24,7 +24,8 @@ collector job inside itself on it, so no job ever logs another off.
 
 Every job is a Job: at most one running and one waiting, and a request while one waits
 folds into it, as an Actions concurrency group did. The Refresh and both kinds of file
-download also take turns (Service.turn), so two never download one Map's file at once. Each
+download also take turns (Service.map_file_writers), so two never download one Map's file at
+once. Each
 job's output goes to the log under its name (JobLog), and a job still running after its time
 is stopped and counts as failed.
 
@@ -61,9 +62,10 @@ import map_files
 import steam_session
 import steampy_collect
 from aiohttp import web
-from daily_watch import DAILY_EVERY
 
 SLOT_HOURS = 3
+# seconds between two Daily reads, counted from each read's start
+DAILY_EVERY = 60
 # a start this close to the next slot leaves the Refresh to that slot
 SLOT_SOON = timedelta(minutes=30)
 # seconds a job may run before it is stopped and counts as failed (a Refresh takes 2-6
@@ -199,9 +201,11 @@ class Service:
     def __init__(self, jobs, alert, now=lambda: datetime.now(UTC)):
         self.jobs, self.alert, self.now = jobs, alert, now
         self.logs = JobLog.install()
-        # the Refresh and the file downloads take turns; the Refresh and the Daily read too
-        self.turn = asyncio.Lock()
-        self.dailies = asyncio.Lock()
+        # held by the Refresh and the file downloads, so two never download one Map's file
+        self.map_file_writers = asyncio.Lock()
+        # held by the Refresh and the Daily read, so one writes the Dailies at a time
+        self.daily_writers = asyncio.Lock()
+        self.daily_running = False
         self.daily_last = None
         self.new_maps = set()
         self.queue = {
@@ -229,9 +233,13 @@ class Service:
         ops channel when it fails and `what` names it."""
         limit = JOB_TIMEOUT if limit is None else limit
         with self.logs.job(name) as tail:
+            stop = asyncio.timeout(limit)
             try:
-                code = await asyncio.wait_for(work(), limit)
+                async with stop:
+                    code = await work()
             except TimeoutError:
+                if not stop.expired():
+                    raise
                 print(f"(stopped after {limit / 60:g} minutes)")
                 code = -1
             except Exception:
@@ -243,7 +251,7 @@ class Service:
         return code
 
     async def _refresh(self):
-        async with self.turn, self.dailies:
+        async with self.map_file_writers, self.daily_writers:
             return await self._job("Refresh", "refresh", self.jobs.refresh)
 
     async def _add_maps(self):
@@ -261,7 +269,7 @@ class Service:
 
     async def _new_map_files(self):
         # the Maps are taken once it is this job's turn, so Maps added while it waits come along
-        async with self.turn:
+        async with self.map_file_writers:
             maps, self.new_maps = sorted(self.new_maps), set()
             return await self._job(
                 None,
@@ -274,7 +282,7 @@ class Service:
         # stops starting downloads BACKLOG_MARGIN before the next slot, counted once it is
         # this job's turn, so the slot's Refresh isn't kept waiting; the downloads under way
         # finish within DOWNLOAD_GRACE
-        async with self.turn:
+        async with self.map_file_writers:
             to_slot = (next_slot(self.now()) - self.now() - BACKLOG_MARGIN).total_seconds()
             budget = min(self.backlog_budget, int(to_slot))
             if budget <= 0:
@@ -293,11 +301,15 @@ class Service:
         told = False
         while True:
             started = clock()
-            if not self.dailies.locked():
-                async with self.dailies:
-                    code = await self._job(
-                        None, "daily", self.jobs.read_dailies, limit=DAILY_TIMEOUT
-                    )
+            if not self.daily_writers.locked():
+                async with self.daily_writers:
+                    self.daily_running = True
+                    try:
+                        code = await self._job(
+                            None, "daily", self.jobs.read_dailies, limit=DAILY_TIMEOUT
+                        )
+                    finally:
+                        self.daily_running = False
                 self.daily_last = {"started": datetime.now(UTC).isoformat(), "exit": code}
                 if code and not told:
                     told = True
@@ -311,8 +323,8 @@ class Service:
 
     def status(self):
         jobs = {name: job.status() for name, job in self.queue.items()}
-        running = self.dailies.locked() and not self.queue["refresh"].running
-        return jobs | {"daily": {"running": running, "waiting": False, "last": self.daily_last}}
+        daily = {"running": self.daily_running, "waiting": False, "last": self.daily_last}
+        return jobs | {"daily": daily}
 
 
 class Collector:

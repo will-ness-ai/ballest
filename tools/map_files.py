@@ -136,15 +136,14 @@ def write(conn, m, data, read_at):
 
 def steam_download(session):
     """The download the collector uses: a Map's file through the Steam session's steam.py
-    client (its published file, its manifest, then each file's bytes from Steam's content
-    servers), as map_file picks it."""
+    client (its published file and its manifest, asked of the CM in turn with every other
+    request, then each file's bytes from Steam's content servers), as map_file picks it."""
 
     async def download(pfid):
-        client = await session.ready()
-        (found,) = await client.fetch_published_files(int(pfid)) or [None]
+        (found,) = await session.call(lambda c: c.fetch_published_files(int(pfid))) or [None]
         if found is None:
             raise LookupError(pfid)
-        manifest = await found.manifest()
+        manifest = await session.call(lambda _c: found.manifest())
         return map_file([await p.read_bytes() for p in manifest.paths if p.is_file()])
 
     return download

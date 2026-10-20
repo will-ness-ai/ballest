@@ -1,6 +1,6 @@
 """
 The Daily read (runner.py on Fly): the open Dailies read on the service's one Steam session
-every DAILY_EVERY seconds, so the site's Daily pages follow the board within a minute or so,
+every minute (runner.DAILY_EVERY), so the site's Daily pages follow the board within a minute or so,
 between Refreshes (CONTEXT.md, "Daily read").
 
 Each read that moved a Daily's board, or makes it final, is written as a Daily read
@@ -9,14 +9,13 @@ revalidates only the Daily pages. A read that changed nothing writes nothing. Th
 runs `Watcher.read` on its timer and loads a new Watcher after each Refresh, which reads and
 writes the Dailies itself.
 
-Run on its own, it logs into Steam and reads every DAILY_EVERY seconds until stopped. Same
-secrets as steampy_collect.py; --dev writes only DEV_DATABASE_URL.
+Run on its own, it logs into Steam for one read. Same secrets as steampy_collect.py; --dev
+writes only DEV_DATABASE_URL.
 """
 
 import asyncio
 import os
 import sys
-import time
 from datetime import UTC, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,9 +24,6 @@ import daily
 import db_writer
 import steam_session  # first: it silences steam.py's warnings before steampy_common's import
 from steampy_common import collect_dailies
-
-# seconds between two reads, counted from each read's start
-DAILY_EVERY = 60
 
 
 def fill_names(rows, names, key):
@@ -41,7 +37,7 @@ def fill_names(rows, names, key):
 class Watcher:
     """What the Daily read holds between reads (daily.Watch, and the players' names), from
     the collector's Memory. `collect` reads the Dailies from Steam (collect_dailies) and
-    `write` puts a Daily read in the database (db_writer.record_refresh)."""
+    `write` puts a Daily read in the database (db_writer.record)."""
 
     def __init__(
         self,
@@ -50,7 +46,7 @@ class Watcher:
         dev=False,
         key=None,
         collect=collect_dailies,
-        write=db_writer.record_refresh,
+        write=db_writer.record,
     ):
         self.watch = daily.Watch(memory.dailies, memory.daily_boards)
         self.names = {sid: dict(v) for sid, v in memory.names.items()}
@@ -77,25 +73,26 @@ class Watcher:
         refresh = db_writer.Refresh(
             started_at=datetime.now(UTC), dailies=tuple(fresh), source="daily"
         )
-        if await asyncio.to_thread(self.write, refresh, scratch=self.dev) is None:
+        if await self.write(refresh, scratch=self.dev) is None:
             return 1
         self.watch.wrote(fresh)
         return 0
 
 
 def main():
-    """Reads every DAILY_EVERY seconds until stopped, logged into Steam for the run."""
+    """One read, logged into Steam for it."""
+    token = cc.load_refresh_token()
+    if not token:
+        print("ERROR: STEAM_REFRESH_TOKEN not set. Mint one with tools/steampy_mint.py.")
+        return 2
     dev = "--dev" in sys.argv[1:]
 
     async def go():
         watcher = await Watcher.load(dev=dev)
-        async with steam_session.logged_in(cc.load_refresh_token()) as session:
-            while True:
-                started = time.monotonic()
-                await watcher.read(session)
-                await asyncio.sleep(max(0.0, DAILY_EVERY - (time.monotonic() - started)))
+        async with steam_session.logged_in(token) as session:
+            return await watcher.read(session)
 
-    asyncio.run(go())
+    return asyncio.run(go())
 
 
 if __name__ == "__main__":

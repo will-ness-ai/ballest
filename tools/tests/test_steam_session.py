@@ -2,6 +2,7 @@
 leaderboard requests one at a time, and a login that fails tried again."""
 
 import asyncio
+import contextvars
 import types
 from typing import ClassVar
 
@@ -20,10 +21,12 @@ class FakeClient:
         self.ready, self.closed = False, asyncio.Event()
         self.in_flight = self.most_in_flight = 0
         self.logins = 0
+        self.handlers = {}
         self._state = types.SimpleNamespace(ws=types.SimpleNamespace(send_proto_and_wait=self.send))
         FakeClient.made.append(self)
 
     def event(self, fn):
+        self.handlers[fn.__name__] = fn
         return fn
 
     def is_ready(self):
@@ -40,6 +43,8 @@ class FakeClient:
         if self.fail:
             raise RuntimeError("InvalidPassword")
         self.ready = True
+        if "on_ready" in self.handlers:
+            await self.handlers["on_ready"]()
         await self.closed.wait()
 
     async def close(self):
@@ -128,5 +133,58 @@ def test_a_session_on_its_own_logs_off_when_its_one_job_ends():
         async with steam_session.logged_in("token", make_client=FakeClient) as s:
             await s.send("a")
         assert FakeClient.made[0].closed.is_set()
+
+    asyncio.run(go())
+
+
+def test_a_job_waits_no_longer_once_a_login_has_failed():
+    async def go():
+        gate = asyncio.Event()
+
+        async def sleep(_seconds):
+            await gate.wait()  # the retry hasn't come yet
+
+        s, _ = session(make=lambda: FakeClient(fail=True), sleep=sleep)
+        with pytest.raises(ConnectionError, match="InvalidPassword"):
+            await asyncio.wait_for(s.send("a"), 5)
+        gate.set()
+        await s.close()
+
+    asyncio.run(go())
+
+
+def test_downloads_and_leaderboard_requests_never_overlap():
+    async def go():
+        s, _ = session()
+
+        async def fetch_file(client):
+            return await client.send("file")
+
+        replies = await asyncio.gather(s.send("board"), s.call(fetch_file), s.send("board"))
+        assert replies == ["reply to board", "reply to file", "reply to board"]
+        assert FakeClient.made[0].most_in_flight == 1
+        await s.close()
+
+    asyncio.run(go())
+
+
+JOB = contextvars.ContextVar("job", default=None)
+
+
+def test_the_login_belongs_to_no_job():
+    # the first job to need Steam starts the login; what the login prints isn't that job's
+    async def go():
+        seen = []
+
+        class Watching(FakeClient):
+            async def login(self, refresh_token):
+                seen.append(JOB.get())
+                await super().login(refresh_token)
+
+        s, _ = session(make=Watching)
+        JOB.set("daily")
+        await s.send("a")
+        assert seen == [None]
+        await s.close()
 
     asyncio.run(go())

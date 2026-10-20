@@ -13,8 +13,9 @@ The service now holds one Steam session (`tools/steam_session.py`) and runs ever
 its own process on it: the Refresh, the file downloads, the Map add and the Daily read are
 async functions, not scripts. It logs in when a job first needs Steam and stays logged in;
 steam.py reconnects a dropped connection by itself, and a login that fails is tried again a
-minute later, with one ops alert. The session sends leaderboard requests one at a time (the
-CM drops replies with several in flight), each with a timeout, so a Daily read slots in
+minute later, with one ops alert. The session sends every request to the CM one at a time, a
+leaderboard read's and a file download's alike (the CM drops replies with several in flight),
+each with a timeout, so a Daily read slots in
 between a Refresh's board reads, and a request lost with its connection fails its job instead
 of hanging it. The Daily read skips a minute only while a Refresh runs, since the Refresh
 writes the Dailies itself. The Refresh and the file downloads still take turns, so two never
@@ -22,9 +23,10 @@ download one Map's file at once. Each job's output still reaches `fly logs` unde
 and its last lines still reach the ops alert. Each script still runs on its own, logging in
 for that run, for local `--dev` runs and `refresh.yml`'s fallback.
 
-The cost is isolation: a job can no longer be killed outright, only cancelled, so a database
-write already in its thread runs to its end, and a job that leaks memory or blocks the event
-loop slows every job. The jobs run everything blocking in threads (as the Refresh already
+The cost is isolation: a job can no longer be killed outright, only cancelled. A database
+write already in its thread runs to its end, so a job stopped mid-write holds its turn until
+the write is done (`db_writer.record`), and a job that leaks memory or blocks the event loop
+slows every job. The jobs run everything blocking in threads (as the Refresh already
 did, to keep steam.py's heartbeat), and a full-sweep Refresh's ~260 MB fits the 512 MB
 machine as it did as a child.
 

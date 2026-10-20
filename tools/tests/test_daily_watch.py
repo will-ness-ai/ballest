@@ -17,11 +17,17 @@ class Fakes:
     async def collect(self, *_args):
         return [self.reads.pop(0)]
 
-    def write(self, refresh, **_kw):
+    async def write(self, refresh, **_kw):
         if self.fail:
             return None
         self.written.append(refresh)
         return len(self.written)
+
+
+def test_run_on_its_own_with_no_token_it_stops_at_once(monkeypatch, capsys):
+    monkeypatch.setattr(daily_watch.cc, "load_refresh_token", lambda: None)
+    assert daily_watch.main() == 2
+    assert "STEAM_REFRESH_TOKEN" in capsys.readouterr().out
 
 
 def watcher(fakes):

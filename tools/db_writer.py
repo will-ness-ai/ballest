@@ -31,6 +31,7 @@ way: what the collector remembers between Refreshes (names, Maps, sweeps, Dailie
 back from the same tables.
 """
 
+import asyncio
 import os
 import urllib.parse
 import urllib.request
@@ -82,6 +83,19 @@ def database_url(env, *, scratch=False):
         dev = env.get("DEV_DATABASE_URL")
         return dev if dev and dev != env.get("DATABASE_URL") else None
     return env.get("DATABASE_URL") or None
+
+
+async def record(refresh, *, scratch=False):
+    """record_refresh in a thread, for a job on the collector's service, run to its end even
+    when the job awaiting it is stopped meanwhile: a write under way in a thread can't be
+    stopped, so the job holds its turn until the write has committed or rolled back, and the
+    next job reads the database as it left it."""
+    write = asyncio.ensure_future(asyncio.to_thread(record_refresh, refresh, scratch=scratch))
+    try:
+        return await asyncio.shield(write)
+    except asyncio.CancelledError:
+        await write
+        raise
 
 
 def record_refresh(refresh, *, scratch=False, env=None):
