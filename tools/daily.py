@@ -57,17 +57,17 @@ class DailyRead:
         return self.ok and self.read_at >= self.daily.ends_at
 
 
-def plan(known, now, first=FIRST_DAILY):
+def plan(known, now, since=FIRST_DAILY):
     """(dates to look up, Dailies to read) for a Refresh at `now`.
 
-    known: {date: Daily} the database holds. Every date from `first` through today (UTC)
+    known: {date: Daily} the database holds. Every date from `since` through today (UTC)
     with no final Daily is in play: one the database doesn't hold is looked up (so a date
     the API had no Daily for is asked again next run), and one it holds is read if it
     is due."""
     today = now.astimezone(UTC).date()
     lookups, reads = [], []
-    for i in range((today - first).days + 1):
-        d = str(first + timedelta(days=i))
+    for i in range((today - since).days + 1):
+        d = str(since + timedelta(days=i))
         held = known.get(d)
         if held is None:
             lookups.append(d)

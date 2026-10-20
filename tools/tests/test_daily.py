@@ -330,11 +330,11 @@ def test_a_read_after_the_close_is_written_even_unchanged_and_the_daily_is_then_
 def test_the_watch_holds_the_dailies_it_wrote_so_it_stops_looking_them_up():
     w = daily.Watch({})
     w.wrote([read_of(OCT19, "2026-10-19T01:01", ("1", 900))])
-    lookups, reads = daily.plan(w.known, at("2026-10-19T01:05"), first=date(2026, 10, 19))
+    lookups, reads = daily.plan(w.known, at("2026-10-19T01:05"), since=date(2026, 10, 19))
     assert (lookups, reads) == ([], [OCT19])
 
 
-def test_the_watch_reads_yesterdays_daily_until_it_is_final_and_nothing_older():
+def test_the_watch_reads_yesterdays_daily_and_leaves_older_ones_to_the_refresh():
     oct18 = a_daily("2026-10-18", "2026-10-18T01:00", "2026-10-19T01:00")
     known = {"2026-10-17": a_daily("2026-10-17", "2026-10-17T01:00", "2026-10-18T01:00")}
     known |= {oct18.date: oct18, OCT19.date: OCT19}
