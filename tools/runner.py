@@ -97,6 +97,12 @@ class Result:
     # what the script named in $GITHUB_OUTPUT (add_maps.py's `added`)
     outputs: dict = field(default_factory=dict)
 
+    @property
+    def block(self):
+        """The last lines as a code block for the ops channel, within Discord's limit."""
+        lines = "\n".join(self.tail)[-1500:]
+        return f"```\n{lines}\n```"
+
 
 class Job:
     """One kind of job: at most one running and one waiting, the waiting one standing for
@@ -135,12 +141,6 @@ class Job:
 
     def status(self):
         return {"running": self.running, "waiting": self.waiting, "last": self.last}
-
-
-def _tail(result):
-    """A script's last lines as a code block for the ops channel, within Discord's limit."""
-    lines = "\n".join(result.tail)[-1500:]
-    return f"```\n{lines}\n```"
 
 
 class Service:
@@ -209,7 +209,7 @@ class Service:
             if not told:
                 await self.alert(
                     f"Collector: the Daily watcher stopped (exit {result.exit}); it starts"
-                    f" again every {WATCH_RETRY} s.\n{_tail(result)}"
+                    f" again every {WATCH_RETRY} s.\n{result.block}"
                 )
                 told = True
             await sleep(WATCH_RETRY)
@@ -223,7 +223,7 @@ class Service:
         except Exception as e:
             result = Result(-1, [f"couldn't run {script}: {e!r}"])
         if result.exit and what:
-            await self.alert(f"Collector: {what} failed (exit {result.exit}).\n{_tail(result)}")
+            await self.alert(f"Collector: {what} failed (exit {result.exit}).\n{result.block}")
         return result
 
     async def _refresh(self):
