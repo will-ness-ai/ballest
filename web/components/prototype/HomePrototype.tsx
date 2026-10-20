@@ -1,140 +1,66 @@
 "use client";
-// PROTOTYPE — round 1: five structures for the homepage's featured Maps.
+// PROTOTYPE — round 2: D's map selector, five recent-discovery policies.
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useMounted } from "../../hooks/client";
 import { MapImage } from "../MapImage";
 import { CreatorLink, PodLine } from "../workshop/Card";
 import { mapHref } from "../../lib/routes";
-import { fmtN, fmtTime } from "../../lib/rules";
-import { recordOf, whyOf, type Pick } from "../../lib/workshop";
+import { ageText, fmtN, fmtTime } from "../../lib/rules";
+import {
+  DISCOVERY_POLICIES,
+  discoveryPicks,
+  type DiscoveryKey,
+  type HomeActivity,
+} from "../../lib/discovery";
+import { recordOf, type MapCard } from "../../lib/workshop";
 
-const variants = [
-  {
-    key: "A",
-    name: "Focused feature",
-    note: "One map at a time, full podium and manual tabs. Smaller, uncropped image; removes auto-rotation.",
-  },
-  {
-    key: "B",
-    name: "Lead + four",
-    note: "Fixed lead with full podium; four picks keep their category metric and WR, omitting other stats and podiums. No auto-rotation.",
-  },
-  {
-    key: "C",
-    name: "Discovery cards",
-    note: "Five equal cards; swipe on phones. All three stats and the record holder stay; removes 2nd/3rd places and rotation.",
-  },
-  {
-    key: "D",
-    name: "Pick a reason",
-    note: "A list of five factual reasons selects one map. Full selected-map stats and podium, with a smaller picture; removes auto-rotation.",
-  },
-  {
-    key: "E",
-    name: "Records digest",
-    note: "A compact, image-light list of all five picks. Keeps all three stats and record holder; removes 2nd/3rd places and rotation.",
-  },
-] as const;
-
-function Facts({ p }: { p: Pick }) {
-  return (
-    <div className="hp-facts">
-      <span>
-        <b>{fmtN(p.m.entryCount)}</b>players with a time
-      </span>
-      <span>
-        <b>{fmtTime(recordOf(p.m))}</b>world record
-      </span>
-      <span>
-        <b>{fmtN(p.m.sessions)}</b>play sessions
-      </span>
-    </div>
-  );
-}
-
-function Detail({ p, now }: { p: Pick; now: number }) {
-  return (
-    <article className="hp-detail">
-      <div className="hp-picture">
-        <MapImage preview={p.m.preview} />
-      </div>
-      <div className="hp-copy">
-        <span className="hp-kicker">
-          {p.label} · {whyOf(p, now)}
-        </span>
-        <h2>{p.m.title}</h2>
-        <span className="hp-by">
-          by <CreatorLink m={p.m} />
-        </span>
-        <Facts p={p} />
-        <div className="hp-podium">
-          {p.m.top3.map((person, i) => (
-            <PodLine key={i} p={person} i={i} />
-          ))}
-        </div>
-        <Link className="go" href={mapHref(p.m.pfid)}>
-          View leaderboard &rarr;
-        </Link>
-      </div>
-    </article>
-  );
-}
-
-function Mini({ p, now }: { p: Pick; now: number }) {
-  return (
-    <article className="hp-mini">
-      <Link className="hp-mini-pic" href={mapHref(p.m.pfid)}>
-        <MapImage preview={p.m.preview} />
-      </Link>
-      <div>
-        <span className="hp-kicker">{p.label}</span>
-        <h3>
-          <Link href={mapHref(p.m.pfid)}>{p.m.title}</Link>
-        </h3>
-        <span className="hp-by">by {p.m.creator}</span>
-        <span className="hp-metric">{whyOf(p, now)}</span>
-        <span className="hp-small-record">WR {fmtTime(recordOf(p.m))}</span>
-      </div>
-    </article>
-  );
-}
-
-export function HomePrototype({ picks, now }: { picks: ReadonlyArray<Pick>; now: number }) {
+export function HomePrototype({
+  maps,
+  activity,
+  now,
+}: {
+  maps: ReadonlyArray<MapCard>;
+  activity: HomeActivity;
+  now: number;
+}) {
+  const mounted = useMounted();
   const params = useSearchParams();
-  const initial = params.get("variant") ?? "A";
-  const [key, setKey] = useState(variants.some((v) => v.key === initial) ? initial : "A");
+  const initial = params.get("variant") ?? "E";
+  const [key, setKey] = useState<DiscoveryKey>(
+    DISCOVERY_POLICIES.find((p) => p.key === initial)?.key ?? "E",
+  );
   const [phone, setPhone] = useState(params.get("view") === "phone");
   const [selected, setSelected] = useState(0);
   const picker = useRef<HTMLDivElement>(null);
-  const variant = variants.find((v) => v.key === key) ?? variants[0];
+  const variant = DISCOVERY_POLICIES.find((p) => p.key === key) ?? DISCOVERY_POLICIES[4];
   const framed = params.get("framed") === "1";
-  const choose = (next: string) => {
+  const choose = (next: DiscoveryKey) => {
     setKey(next);
+    setSelected(0);
     const url = new URL(window.location.href);
     url.searchParams.set("variant", next);
     window.history.replaceState(null, "", url);
   };
   const cycle = (delta: number) =>
-    choose(variants[(variants.indexOf(variant) + delta + variants.length) % variants.length].key);
+    choose(DISCOVERY_POLICIES[(DISCOVERY_POLICIES.indexOf(variant) + delta + 5) % 5].key);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (
         e.target instanceof HTMLElement &&
-        (e.target.matches("input, textarea, select") || e.target.isContentEditable)
+        (e.target.matches("input,textarea,select") || e.target.isContentEditable)
       )
         return;
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        e.preventDefault();
-        const idx = variants.findIndex((v) => v.key === key);
-        const next =
-          variants[(idx + (e.key === "ArrowRight" ? 1 : -1) + variants.length) % variants.length]
-            .key;
-        setKey(next);
-        const url = new URL(window.location.href);
-        url.searchParams.set("variant", next);
-        window.history.replaceState(null, "", url);
-      }
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      const index = DISCOVERY_POLICIES.findIndex((p) => p.key === key);
+      const next = DISCOVERY_POLICIES[(index + (e.key === "ArrowRight" ? 1 : -1) + 5) % 5].key;
+      setKey(next);
+      setSelected(0);
+      const url = new URL(window.location.href);
+      url.searchParams.set("variant", next);
+      window.history.replaceState(null, "", url);
     };
     if (!framed) window.addEventListener("keydown", onKey);
     return () => {
@@ -152,70 +78,30 @@ export function HomePrototype({ picks, now }: { picks: ReadonlyArray<Pick>; now:
   frameQuery.set("variant", key);
   frameQuery.set("framed", "1");
   frameQuery.delete("view");
-  const p = (picks[selected] ?? picks[0]) as Pick | undefined;
-  if (!p) return null;
+  const picks = discoveryPicks(maps, activity, key, now);
+  const pick = (picks[selected] ?? picks[0]) as (typeof picks)[number] | undefined;
+  const shortPolicy = {
+    A: "Published in the last 30 days · most reported sessions over 7 days",
+    B: "Published in the last 14 days · most reported sessions over 24 hours",
+    C: "Published in the last 7 days · most reported sessions since publication",
+    D: "Newest first · at least 5 players with a time",
+    E: "Recent Maps · five different picks each day, when the pool allows",
+  }[key];
+  const activityDate = activity.asOf ? new Date(activity.asOf).toISOString().slice(0, 10) : null;
   return (
     <>
-      <section className={"hp-feature hp-" + key} aria-label="Featured Workshop maps">
+      <section
+        className="hp-feature hp-D hp-round2"
+        data-hydrated={mounted}
+        aria-label="Discover recent Workshop maps"
+      >
         <div className="hp-heading">
-          <span className="hp-kicker">Explore the Workshop</span>
-          <span>Five maps. Five reasons to play.</span>
+          <span className="hp-kicker">{variant.title}</span>
+          <span>{shortPolicy}</span>
         </div>
-        {key === "A" && (
-          <>
-            <Detail p={p} now={now} />
-            <div className="hp-tabs">
-              {picks.map((x, i) => (
-                <button
-                  key={x.m.pfid}
-                  type="button"
-                  aria-pressed={selected === i}
-                  onClick={() => {
-                    setSelected(i);
-                  }}
-                >
-                  {x.label}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-        {key === "B" && (
-          <div className="hp-lead-grid">
-            <Detail p={picks[0]} now={now} />
-            <div className="hp-minis">
-              {picks.slice(1).map((x) => (
-                <Mini key={x.m.pfid} p={x} now={now} />
-              ))}
-            </div>
-          </div>
-        )}
-        {key === "C" && (
-          <div className="hp-cards">
-            {picks.map((x) => (
-              <article key={x.m.pfid} className="hp-discovery">
-                <span className="hp-kicker">{x.label}</span>
-                <Link href={mapHref(x.m.pfid)} className="hp-card-image">
-                  <MapImage preview={x.m.preview} />
-                </Link>
-                <div className="hp-copy">
-                  <h3>
-                    <Link href={mapHref(x.m.pfid)}>{x.m.title}</Link>
-                  </h3>
-                  <span className="hp-by">by {x.m.creator}</span>
-                  <Facts p={x} />
-                  <PodLine p={x.m.top3[0]} i={0} />
-                  <Link className="hp-more" href={mapHref(x.m.pfid)}>
-                    Leaderboard &rarr;
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-        {key === "D" && (
+        {pick ? (
           <div className="hp-selector">
-            <div className="hp-reasons">
+            <div className="hp-reasons" aria-label="Map picks">
               {picks.map((x, i) => (
                 <button
                   key={x.m.pfid}
@@ -227,41 +113,68 @@ export function HomePrototype({ picks, now }: { picks: ReadonlyArray<Pick>; now:
                 >
                   <MapImage preview={x.m.preview} />
                   <span>
-                    <b>{x.label}</b>
-                    <small>{whyOf(x, now)}</small>
+                    <b>{x.m.title}</b>
+                    <small>
+                      by {x.m.creator} · {ageText(x.m.created, now)}
+                    </small>
                   </span>
                   <span aria-hidden="true">&rarr;</span>
                 </button>
               ))}
             </div>
-            <Detail p={p} now={now} />
-          </div>
-        )}
-        {key === "E" && (
-          <div className="hp-digest">
-            {picks.map((x) => (
-              <article key={x.m.pfid} className="hp-digest-row">
-                <Link className="hp-digest-image" href={mapHref(x.m.pfid)}>
-                  <MapImage preview={x.m.preview} />
+            <article className="hp-detail">
+              <div className="hp-picture">
+                <MapImage preview={pick.m.preview} />
+              </div>
+              <div className="hp-copy">
+                <span className="hp-kicker">Published {ageText(pick.m.created, now)}</span>
+                <h2>{pick.m.title}</h2>
+                <span className="hp-by">
+                  by <CreatorLink m={pick.m} />
+                </span>
+                <div className="hp-facts">
+                  <span>
+                    <b>{fmtN(pick.m.entryCount)}</b>players with a time
+                  </span>
+                  <span>
+                    <b>{fmtTime(recordOf(pick.m))}</b>world record
+                  </span>
+                  <span>
+                    <b>{pick.recent == null ? "—" : fmtN(pick.recent)}</b>
+                    {pick.recent == null
+                      ? "recent sessions unavailable"
+                      : "reported sessions / " + pick.period}
+                  </span>
+                </div>
+                {pick.fallback && (
+                  <p className="hp-fallback">
+                    New release pick · not enough reported recent activity to rank.
+                  </p>
+                )}
+                <div className="hp-podium">
+                  {pick.m.top3.map((p, i) => (
+                    <PodLine key={i} p={p} i={i} />
+                  ))}
+                </div>
+                <Link className="go" href={mapHref(pick.m.pfid)}>
+                  View leaderboard &rarr;
                 </Link>
-                <div className="hp-digest-title">
-                  <span className="hp-kicker">{x.label}</span>
-                  <h3>
-                    <Link href={mapHref(x.m.pfid)}>{x.m.title}</Link>
-                  </h3>
-                  <span className="hp-by">by {x.m.creator}</span>
-                </div>
-                <Facts p={x} />
-                <div className="hp-digest-leader">
-                  <PodLine p={x.m.top3[0]} i={0} />
-                  <Link className="hp-more" href={mapHref(x.m.pfid)}>
-                    Leaderboard &rarr;
-                  </Link>
-                </div>
-              </article>
-            ))}
+              </div>
+            </article>
+          </div>
+        ) : (
+          <div className="empty">
+            <b>No eligible recent Maps yet.</b>
+            <p>New Maps will appear after a Refresh finds their times.</p>
           </div>
         )}
+        <p className="hp-activity-note">
+          {activityDate
+            ? "Activity through the latest Refresh · " + activityDate
+            : "Recent activity is unavailable."}
+          {key === "E" ? " · Daily picks change at 00:00 UTC." : ""} Steam's reported session counts
+          may omit some play sessions.
+        </p>
       </section>
       {!framed && (
         <>
@@ -281,8 +194,8 @@ export function HomePrototype({ picks, now }: { picks: ReadonlyArray<Pick>; now:
               onPointerDown={(e) => {
                 const el = picker.current;
                 if (!el) return;
-                const rect = el.getBoundingClientRect();
-                const startX = e.clientX,
+                const rect = el.getBoundingClientRect(),
+                  startX = e.clientX,
                   startY = e.clientY;
                 e.currentTarget.setPointerCapture(e.pointerId);
                 const move = (event: PointerEvent) => {
@@ -316,7 +229,7 @@ export function HomePrototype({ picks, now }: { picks: ReadonlyArray<Pick>; now:
                 window.addEventListener("pointerup", stop, { once: true });
               }}
             >
-              ⠿ PROTOTYPE · ROUND 1
+              ⠿ PROTOTYPE · ROUND 2 · D LAYOUT
             </span>
             <div className="hp-picker-controls">
               <button
@@ -343,7 +256,7 @@ export function HomePrototype({ picks, now }: { picks: ReadonlyArray<Pick>; now:
             </div>
             <p>{variant.note}</p>
             <div className="hp-picker-controls">
-              {variants.map((v) => (
+              {DISCOVERY_POLICIES.map((v) => (
                 <button
                   type="button"
                   key={v.key}

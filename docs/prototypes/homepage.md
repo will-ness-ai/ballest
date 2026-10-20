@@ -86,3 +86,42 @@ ignored `scratch/homepage-round1/shots/`. Desktop/Phone iframe switching, varian
 switching and the actual one-entry Demon 1 podium checked in the browser.
 TypeScript, changed-file ESLint and nine Workshop rules tests pass, including weekly
 filter-before-limit behavior. Repository-wide check results are recorded in the chat.
+
+## Round 1 verdict
+
+Will chose D's selector-and-detail layout, replacing the reason labels with Map names.
+The feature must surface recent Maps; the all-time most-played pick has been unchanged
+for more than a month. No automatic slideshow has been requested.
+
+## Round 2: which five Maps?
+
+All five variants now use D's layout and name each Map in the selector:
+
+- A: Maps published within 30 days, ranked by observed seven-day session growth.
+- B: Maps published within 14 days, ranked by observed 24-hour session growth.
+- C: Maps published within seven days, ranked by lifetime sessions since publication.
+- D: Five newest Maps with at least five players holding a time, within 30 days.
+- E (recommended): rotate five daily through up to twenty recent Maps, ordered by
+  seven-day activity. The pool is published within 30 days. The rotation uses UTC days;
+  a static twenty-Map pool appears entirely in four days without repeats within a day.
+
+These are different selection policies, not different structures. E is called
+"Today's map picks" because it is discovery, not a top-five popularity ranking.
+Recent popularity alone does not guarantee different Maps tomorrow.
+
+`db/home-activity.ts` reconstructs rolling session counters from change-only
+`map_history` using the first Refresh that observed a value. A row's last-seen Refresh
+moves while its value stays unchanged and cannot be used as its start date. The windows
+end at the latest catalogue Refresh, which also invalidates the cached read. A newly
+published Map within a window may use a zero baseline; a newly discovered old Map with
+no baseline remains unknown, as do negative counter changes and missing counters.
+Unknown/inactive candidates fill spare places by publication date, visibly marked as
+new-release fallback picks, never with fabricated recent counts.
+
+Steam's session counter is incomplete, so the UI says reported sessions. It does not
+equate sessions with players, attempts or finishes. The local snapshot has limited
+history; Vercel reads the stored production history through the normal cached read path.
+
+The intentionally floating review picker is masked in the prototype branch's QA
+catalogue, avoiding bogus overlap faults against page text. Its Desktop/Phone and
+variant controls are verified independently. Production design elements remain checked.

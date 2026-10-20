@@ -9,7 +9,7 @@ import { Shell } from "../components/Shell";
 import { CampaignBanner } from "../components/campaign/CampaignBanner";
 import { CampaignCarousel } from "../components/campaign/CampaignCarousel";
 import { WorkshopHome } from "../components/workshop/WorkshopHome";
-import { getCampaigns, getMapCards, getSite } from "../db/data";
+import { getCampaigns, getHomepageActivity, getMapCards, getSite } from "../db/data";
 import { SITE_ORIGIN, homeHref } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE } from "../lib/rules";
 import { SHELVES, picks, shelfMaps } from "../lib/workshop";
@@ -32,15 +32,22 @@ const WEBSITE = JSON.stringify({
 });
 
 export default async function Page() {
-  const [{ asOf }, maps, campaigns] = await Promise.all([getSite(), getMapCards(), getCampaigns()]);
+  const [{ asOf }, maps, campaigns, activity] = await Promise.all([
+    getSite(),
+    getMapCards(),
+    getCampaigns(),
+    getHomepageActivity(),
+  ]);
   return (
     <Shell view="workshop">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: WEBSITE }} />
       <section className="ws" id="ws">
         <WorkshopHome
           picks={picks(maps)}
+          discoveryMaps={maps}
+          activity={activity}
           campaigns={
-            <CampaignCarousel>
+            <CampaignCarousel key="campaigns">
               {campaigns.map((k) => (
                 <CampaignBanner key={k.c.slug} k={k} />
               ))}

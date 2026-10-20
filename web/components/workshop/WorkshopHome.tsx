@@ -6,6 +6,7 @@
 // counted here, so a cached page never freezes it.
 import Link from "next/link";
 import { Suspense, useState } from "react";
+import type { HomeActivity } from "../../lib/discovery";
 import { HomePrototype } from "../prototype/HomePrototype";
 
 import { CreatorLink, MapCardLink, MapGrid, PodLine } from "./Card";
@@ -183,11 +184,15 @@ function Results({ q, found, clear }: { q: string; found: MapSearch; clear: () =
 
 export function WorkshopHome({
   picks,
+  discoveryMaps,
+  activity,
   campaigns,
   shelves,
   asOf,
 }: {
   picks: ReadonlyArray<Pick>;
+  discoveryMaps: ReadonlyArray<MapCard>;
+  activity: HomeActivity;
   /* the Campaigns' carousel, under the picks' */
   campaigns: React.ReactNode;
   /* each of SHELVES' Maps, in order */
@@ -235,7 +240,7 @@ export function WorkshopHome({
         ) : (
           <>
             <Suspense fallback={<Carousel picks={picks} now={now} />}>
-              <HomePrototype picks={picks} now={now} />
+              <HomePrototype maps={discoveryMaps} activity={activity} now={now} />
             </Suspense>
             {campaigns}
             <Shelves shelves={shelves} now={now} />

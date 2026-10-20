@@ -348,3 +348,39 @@
   }
 }
 /* END PROTOTYPE */
+
+/* PROTOTYPE — round 2 retains D's layout; Map names replace reasons. */
+.hp-round2 .hp-heading {
+  align-items: baseline;
+}
+.hp-round2 .hp-heading .hp-kicker {
+  font-size: calc(18rem / 16);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+}
+.hp-round2 .hp-reasons button b {
+  display: block;
+  font-size: calc(14rem / 16);
+  overflow-wrap: anywhere;
+}
+.hp-round2 .hp-reasons button small {
+  font-size: calc(11rem / 16);
+  overflow-wrap: anywhere;
+}
+.hp-round2 .hp-reasons button img {
+  flex: none;
+}
+.hp-activity-note,
+.hp-fallback {
+  color: var(--dim);
+  font-size: calc(11rem / 16);
+  line-height: 1.5;
+}
+.hp-activity-note {
+  margin-block: 12px 0;
+}
+.hp-fallback {
+  margin: 0;
+}
+/* END PROTOTYPE */

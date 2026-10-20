@@ -49,6 +49,7 @@ import { connect, type Db } from "./client";
 import type { PrefabDeps } from "./prefab-api";
 import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
 import * as q from "./site";
+import { readHomepageActivity } from "./home-activity";
 
 export const DATA_TAG = "data";
 /* the Prefab reads, expired by every write the site makes to them (and, since an uploader's
@@ -572,4 +573,12 @@ export function prefabDeps(): PrefabDeps {
    after a save, so every page draws it on its next load without reading the boards again */
 export function chosenSkinDeps(): ChosenSkinDeps {
   return { db: db(), changed: () => revalidateTag(CHOSEN_SKIN_TAG, { expire: 0 }) };
+}
+
+/* The same observed window for all homepage variants; refreshed with the catalogue. */
+export async function getHomepageActivity() {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return readHomepageActivity(db());
 }

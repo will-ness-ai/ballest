@@ -113,7 +113,9 @@ export const STATES = [
 
 // Hidden before every screenshot on both sides: the refresh time differs between two
 // deployments whose caches filled at different moments.
-export const MASK = ["#freshness b"];
+// PROTOTYPE: the floating review picker intentionally overlays page content. Its
+// controls are checked separately; page layout probes should inspect the design.
+export const MASK = ["#freshness b", ".hp-picker"];
 
 // Third-party requests that only add noise: the preview toolbar and analytics are dropped;
 // Steam's images and avatars are answered with one fixed picture, so every run draws the same.
