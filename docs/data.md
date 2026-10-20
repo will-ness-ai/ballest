@@ -11,7 +11,11 @@ Postgres on Neon: the only copy of the scores, and what the site reads. It holds
 what Steam reports, as Score history: no ranks and no derived boards. The schema is
 `web/db/schema.ts` (Drizzle), and its migrations in `web/db/migrations/` are generated from
 it with `pnpm db:generate` and applied by `pnpm db:migrate`, which `pnpm build` runs first,
-so each Vercel deploy migrates the database it reads. Never edit a migration by hand. A
+so each Vercel deploy migrates the database it reads. Never edit a migration by hand.
+Drizzle applies only migrations newer than the newest one a database holds, so the step
+(`web/scripts/migrations.mjs`, which tests and CI use too) fails, changing nothing, on a
+migration that isn't applied but sorts at or before that one, as one merged after another
+branch's newer migration reached production would: regenerate it so it sorts last. A
 preview reads production for now (below), so its build skips the migration: a branch's
 schema reaches production when it merges, or earlier through `migrate.yml` (by hand, with
 Will's OK; `docs/agents/feature-workflow.md`), and until then its preview fails on any page
