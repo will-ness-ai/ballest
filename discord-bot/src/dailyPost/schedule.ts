@@ -240,13 +240,13 @@ const onceUntilCleared = Effect.gen(function* () {
   const told = yield* Ref.make(new Set<string>());
   const alerts = yield* OpsAlerts;
   return {
-    tell: Effect.fn("Ops.tell")(function* (kind: string, content: string) {
+    tell: Effect.fn("OpsAlerts.tell")(function* (kind: string, content: string) {
       const first = yield* Ref.modify(told, (s): [boolean, Set<string>] =>
         s.has(kind) ? [false, s] : [true, new Set(s).add(kind)],
       );
       if (first) yield* alerts.post(content);
     }),
-    clear: Effect.fn("Ops.clear")(function* (kind: string) {
+    clear: Effect.fn("OpsAlerts.clear")(function* (kind: string) {
       yield* Ref.update(told, (s) => {
         const next = new Set(s);
         next.delete(kind);

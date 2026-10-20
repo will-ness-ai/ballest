@@ -115,7 +115,7 @@ const unlessGone = Effect.fn("Surface.unlessGone")(function* (
 ) {
   return yield* effect.pipe(
     Effect.catchTag("Gone", () => Effect.void),
-    Effect.catchTag("DiscordError", "RenderError", (e) => logFailure(e)),
+    (rest) => logFailures(rest),
   );
 });
 
