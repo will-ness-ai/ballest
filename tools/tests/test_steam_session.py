@@ -128,13 +128,22 @@ def test_a_failed_login_is_tried_again_and_ops_hears_once():
     asyncio.run(go())
 
 
-def test_a_session_on_its_own_logs_off_when_its_one_job_ends():
-    async def go():
-        async with steam_session.logged_in("token", make_client=FakeClient) as s:
-            await s.send("a")
-        assert FakeClient.made[0].closed.is_set()
+def test_a_script_on_its_own_logs_in_for_its_one_job_and_off_after(monkeypatch):
+    monkeypatch.setattr(steam_session.cc, "load_refresh_token", lambda: "token")
 
-    asyncio.run(go())
+    async def job(s):
+        await s.send("a")
+        return 3
+
+    assert steam_session.run_alone(job, make_client=FakeClient) == 3
+    assert FakeClient.made[0].closed.is_set()
+
+
+def test_a_script_on_its_own_with_no_token_stops_at_once(monkeypatch, capsys):
+    monkeypatch.setattr(steam_session.cc, "load_refresh_token", lambda: None)
+    assert steam_session.run_alone(None, make_client=FakeClient) == 2
+    assert "STEAM_REFRESH_TOKEN" in capsys.readouterr().out
+    assert FakeClient.made == []
 
 
 def test_a_job_waits_no_longer_once_a_login_has_failed():

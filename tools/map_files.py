@@ -223,16 +223,9 @@ def main(argv=None):
         help="only these just-published Maps, comma-separated pfids, read from the newest page",
     )
     args = ap.parse_args(argv)
-    token = cc.load_refresh_token()
-    if not token:
-        print("ERROR: needs STEAM_REFRESH_TOKEN")
-        return 2
-
-    async def go():
-        async with steam_session.logged_in(token) as session:
-            return await download_due(session, maps=args.maps, budget=args.budget, dev=args.dev)
-
-    return asyncio.run(go())
+    return steam_session.run_alone(
+        lambda session: download_due(session, maps=args.maps, budget=args.budget, dev=args.dev)
+    )
 
 
 if __name__ == "__main__":

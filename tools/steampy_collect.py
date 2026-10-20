@@ -261,12 +261,7 @@ async def refresh(session, *, dev=False):
 def main():
     """A Refresh on its own: logs in for it and off after. --dev writes DEV_DATABASE_URL."""
     dev = "--dev" in sys.argv[1:]
-
-    async def go():
-        async with steam_session.logged_in(cc.load_refresh_token()) as session:
-            return await refresh(session, dev=dev)
-
-    code = asyncio.run(go())
+    code = steam_session.run_alone(lambda session: refresh(session, dev=dev))
     if code == 1:
         print("ERROR: collection did not complete (no data written).")
     return code

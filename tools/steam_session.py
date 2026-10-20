@@ -11,7 +11,7 @@ silently drops replies with several in flight, and so do a file download's reque
 (`call`), each with REQUEST_TIMEOUT, so a request lost with its connection fails instead of
 hanging its job. While logging in is failing, a job asking for Steam fails at once.
 
-A script run on its own (`python tools/steampy_collect.py`) uses `logged_in`, which logs off
+A script run on its own (`python tools/steampy_collect.py`) uses `run_alone`, which logs off
 when its one job ends.
 """
 
@@ -23,6 +23,7 @@ import warnings
 
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
 
+import campaign_common as cc  # noqa: E402
 import steam  # noqa: E402 (after the warnings filter)
 
 # seconds a leaderboard request may take, and a job may wait for a login
@@ -122,11 +123,19 @@ class SteamSession:
                 await asyncio.wait_for(self._task, 30)
 
 
-@contextlib.asynccontextmanager
-async def logged_in(token, **kw):
-    """A session for one script's run: logs in on first use, off at the end."""
-    session = SteamSession(token, **kw)
-    try:
-        yield session
-    finally:
-        await session.close()
+def run_alone(job, **kw):
+    """Runs `await job(session)` to its exit code as a script on its own: logged in for that
+    one job and off after, or exit 2 with no STEAM_REFRESH_TOKEN."""
+    token = cc.load_refresh_token()
+    if not token:
+        print("ERROR: STEAM_REFRESH_TOKEN not set. Mint one with tools/steampy_mint.py.")
+        return 2
+
+    async def go():
+        session = SteamSession(token, **kw)
+        try:
+            return await job(session)
+        finally:
+            await session.close()
+
+    return asyncio.run(go())

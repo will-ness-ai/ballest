@@ -81,18 +81,12 @@ class Watcher:
 
 def main():
     """One read, logged into Steam for it."""
-    token = cc.load_refresh_token()
-    if not token:
-        print("ERROR: STEAM_REFRESH_TOKEN not set. Mint one with tools/steampy_mint.py.")
-        return 2
     dev = "--dev" in sys.argv[1:]
 
-    async def go():
-        watcher = await Watcher.load(dev=dev)
-        async with steam_session.logged_in(token) as session:
-            return await watcher.read(session)
+    async def read(session):
+        return await (await Watcher.load(dev=dev)).read(session)
 
-    return asyncio.run(go())
+    return steam_session.run_alone(read)
 
 
 if __name__ == "__main__":
