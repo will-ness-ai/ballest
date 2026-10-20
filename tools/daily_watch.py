@@ -1,46 +1,33 @@
 """
-The Daily watcher (runner.py on Fly): logs into Steam once and reads the open Dailies every
-DAILY_EVERY seconds, so the site's Daily pages follow the board within a minute or so,
+The Daily read (runner.py on Fly): the open Dailies read on the service's one Steam session
+every DAILY_EVERY seconds, so the site's Daily pages follow the board within a minute or so,
 between Refreshes (CONTEXT.md, "Daily read").
 
 Each read that moved a Daily's board, or makes it final, is written as a Daily read
 (db_writer.Refresh with source "daily"): the Dailies only, which counts as no Refresh, and
-revalidates only the Daily pages. A read that changed nothing writes nothing. It runs until
-it is stopped: runner.py stops it whenever another job needs Steam (one login at a time on
-this account) and starts it again after. It exits 1 when Steam drops it or a read raises,
-and runner.py starts it again.
+revalidates only the Daily pages. A read that changed nothing writes nothing. The service
+runs `Watcher.read` on its timer and loads a new Watcher after each Refresh, which reads and
+writes the Dailies itself.
 
-Same secrets as steampy_collect.py; --dev writes only DEV_DATABASE_URL.
+Run on its own, it logs into Steam and reads every DAILY_EVERY seconds until stopped. Same
+secrets as steampy_collect.py; --dev writes only DEV_DATABASE_URL.
 """
 
 import asyncio
-import logging
 import os
 import sys
 import time
-import traceback
-import warnings
 from datetime import UTC, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import campaign_common as cc
 import daily
 import db_writer
-
-warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
-
-import steam  # noqa: E402 (after the warnings filter)
-from steampy_common import collect_dailies  # noqa: E402
-
-logging.basicConfig(level=logging.WARNING)
-logging.getLogger("asyncio").setLevel(logging.CRITICAL)
+import steam_session  # first: it silences steam.py's warnings before steampy_common's import
+from steampy_common import collect_dailies
 
 # seconds between two reads, counted from each read's start
 DAILY_EVERY = 60
-DEV = "--dev" in sys.argv[1:]
-
-client = steam.Client()
-_state = {"started": False, "memory": None}
 
 
 def fill_names(rows, names, key):
@@ -51,58 +38,64 @@ def fill_names(rows, names, key):
     cc.fill_names([rows], names)
 
 
-async def watch(memory):
-    w = daily.Watch(memory.dailies, memory.daily_boards)
-    names = {sid: dict(v) for sid, v in memory.names.items()}
-    key = cc.load_key()
-    while True:
-        started = time.monotonic()
-        reads = await collect_dailies(client, w.known, set(), daily.watch_since(datetime.now(UTC)))
-        fresh = w.to_write(reads)
-        if fresh:
-            for r in fresh:
-                await asyncio.to_thread(fill_names, r.rows, names, key)
-            rid = await asyncio.to_thread(
-                db_writer.record_refresh,
-                db_writer.Refresh(
-                    started_at=datetime.now(UTC), dailies=tuple(fresh), source="daily"
-                ),
-                scratch=DEV,
-            )
-            # a failed write is tried again by the next read, which still sees the change
-            if rid is not None:
-                w.wrote(fresh)
-        await asyncio.sleep(max(0.0, DAILY_EVERY - (time.monotonic() - started)))
+class Watcher:
+    """What the Daily read holds between reads (daily.Watch, and the players' names), from
+    the collector's Memory. `collect` reads the Dailies from Steam (collect_dailies) and
+    `write` puts a Daily read in the database (db_writer.record_refresh)."""
 
+    def __init__(
+        self,
+        memory,
+        *,
+        dev=False,
+        key=None,
+        collect=collect_dailies,
+        write=db_writer.record_refresh,
+    ):
+        self.watch = daily.Watch(memory.dailies, memory.daily_boards)
+        self.names = {sid: dict(v) for sid, v in memory.names.items()}
+        self.dev, self.key, self.collect, self.write = dev, key, collect, write
 
-@client.event
-async def on_ready():
-    # steam.py calls this again after it reconnects: the first call's loop goes on
-    if _state["started"]:
-        return
-    _state["started"] = True
-    try:
-        await watch(_state["memory"])
-    except Exception:
-        traceback.print_exc()
-    finally:
-        await client.close()
+    @classmethod
+    async def load(cls, *, dev=False):
+        """A Watcher from the database's Memory; raises when it can't be read."""
+        memory = await asyncio.to_thread(db_writer.load_memory, scratch=dev)
+        if memory is None:
+            raise RuntimeError("couldn't read the collector's memory")
+        return cls(memory, dev=dev, key=cc.load_key())
+
+    async def read(self, session):
+        """One read on the Steam `session`, writing what moved: 0, or 1 when the write failed
+        (the next read still sees the change and tries again)."""
+        since = daily.watch_since(datetime.now(UTC))
+        reads = await self.collect(session, self.watch.known, set(), since)
+        fresh = self.watch.to_write(reads)
+        if not fresh:
+            return 0
+        for r in fresh:
+            await asyncio.to_thread(fill_names, r.rows or [], self.names, self.key)
+        refresh = db_writer.Refresh(
+            started_at=datetime.now(UTC), dailies=tuple(fresh), source="daily"
+        )
+        if await asyncio.to_thread(self.write, refresh, scratch=self.dev) is None:
+            return 1
+        self.watch.wrote(fresh)
+        return 0
 
 
 def main():
-    token = cc.load_refresh_token()
-    if not token:
-        print("ERROR: STEAM_REFRESH_TOKEN not set. Mint one with tools/steampy_mint.py.")
-        return 2
-    _state["memory"] = db_writer.load_memory(scratch=DEV)
-    if _state["memory"] is None:
-        return 1
-    try:
-        client.run(refresh_token=token)
-    except Exception as e:
-        print(f"ERROR: Steam login/run failed: {e!r}")
-    # it only ever stops on an error: Steam closed the session, or a read raised
-    return 1
+    """Reads every DAILY_EVERY seconds until stopped, logged into Steam for the run."""
+    dev = "--dev" in sys.argv[1:]
+
+    async def go():
+        watcher = await Watcher.load(dev=dev)
+        async with steam_session.logged_in(cc.load_refresh_token()) as session:
+            while True:
+                started = time.monotonic()
+                await watcher.read(session)
+                await asyncio.sleep(max(0.0, DAILY_EVERY - (time.monotonic() - started)))
+
+    asyncio.run(go())
 
 
 if __name__ == "__main__":

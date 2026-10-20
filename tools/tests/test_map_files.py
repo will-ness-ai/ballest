@@ -169,14 +169,35 @@ class FakeClient:
         return [None if self.paths is None else PublishedFile() for _ in ids]
 
 
+class FakeSession:
+    """The one Steam session (steam_session.SteamSession), already logged in."""
+
+    def __init__(self, client):
+        self.client = client
+
+    async def ready(self):
+        return self.client
+
+
+class NoSession:
+    """A Steam session no job may use: logging in would raise."""
+
+    async def ready(self):
+        raise AssertionError("logged into Steam")
+
+
+def download(client):
+    return map_files.steam_download(FakeSession(client))
+
+
 def test_the_steam_download_reads_the_map_file_from_the_maps_manifest():
     client = FakeClient([FakePath(), FakePath(JPEG), FakePath(BALLMAP)])
-    assert asyncio.run(map_files.steam_download(client)("3821728582")) == BALLMAP
+    assert asyncio.run(download(client)("3821728582")) == BALLMAP
     assert client.asked == [3821728582]
     with pytest.raises(map_files.NoMapFileError):
-        asyncio.run(map_files.steam_download(FakeClient([FakePath(JPEG)]))("1"))
+        asyncio.run(download(FakeClient([FakePath(JPEG)]))("1"))
     with pytest.raises(LookupError):  # Steam has no such published file now
-        asyncio.run(map_files.steam_download(FakeClient(None))("1"))
+        asyncio.run(download(FakeClient(None))("1"))
 
 
 def fake_download(files, calls=None):
@@ -300,16 +321,18 @@ def test_maps_named_come_from_the_newest_page_and_none_from_the_whole_catalogue(
     assert map_files.catalogue_of("key", set()) == []  # --maps "," names nothing, not everything
 
 
-def test_with_no_map_to_look_at_the_step_never_logs_into_steam(monkeypatch, capsys):
-    monkeypatch.setattr(map_files.cc, "load_refresh_token", lambda: "token")
+def test_with_no_map_to_look_at_the_downloads_never_use_steam(monkeypatch, capsys):
     monkeypatch.setattr(map_files.cc, "load_key", lambda: "key")
     monkeypatch.setattr(map_files.cc, "newest_maps", lambda _: [cat("1", "h1", 9)])
-    monkeypatch.setattr(map_files.steam, "Client", None)  # calling it would raise
     monkeypatch.setenv("DEV_DATABASE_URL", "postgres://unused")
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setattr(map_files.cc, "workshop_catalogue", lambda _: [])
-    assert map_files.main(["--maps", ",", "--dev"]) == 1
-    assert map_files.main(["--maps", "2", "--dev"]) == 1
+
+    def due(maps):
+        return asyncio.run(map_files.download_due(NoSession(), maps=maps, budget=60, dev=True))
+
+    assert due(set()) == 1
+    assert due({"2"}) == 1
     assert capsys.readouterr().out.count("none of --maps is on the newest page") == 2
-    assert map_files.main(["--dev"]) == 1
+    assert due(None) == 1
     assert "(the Workshop lists none)" in capsys.readouterr().out

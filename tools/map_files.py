@@ -2,7 +2,7 @@
 The collector's Map file step: keeps every Workshop Map's file (its .ballmap) in the
 `map_files` table, which the site's 3D view draws (docs/data.md, "Map files"; ADR 0010).
 
-After the database write and the Ghost step, while the steam.py client is still connected,
+After the database write and the Ghost step, on the Refresh's Steam session,
 `record_map_files` picks every catalogue Map whose stored version (the catalogue's
 `hcontent_file`) differs or is missing, most subscribed first (`due`), downloads each
 through steam.py (`steam_download`: its published file, its manifest, and the file in it
@@ -12,10 +12,11 @@ download starts after BUDGET; the rest wait for the next Refresh. A failed downl
 manifest with no map file, writes nothing and is tried again next run. The step never
 raises: a failure is a warning, and the Refresh it follows is already written.
 
-Run on its own (`python tools/map_files.py [--budget SECONDS] [--maps PFIDS] [--dev]`), it
-logs into Steam and downloads every due Map within the budget. The collector's service
-(runner.py) runs it so for the whole catalogue's backlog when asked, and for the Maps a
-#new-tracks post just added, read from the Workshop's newest page (`--maps`).
+`download_due` downloads every due Map within a budget on the service's Steam session: the
+collector's service (runner.py) runs it for the whole catalogue's backlog when asked, and
+for the Maps a #new-tracks post just added, read from the Workshop's newest page. Run on its
+own (`python tools/map_files.py [--budget SECONDS] [--maps PFIDS] [--dev]`), it logs into
+Steam for that one run, and only when a Map is due.
 """
 
 import argparse
@@ -31,7 +32,7 @@ from datetime import UTC, datetime
 import campaign_common as cc
 import db_writer
 import psycopg
-import steam
+import steam_session
 
 # downloads at once, and the step's wall-clock limit; the backlog waits for the next Refresh
 WORKERS = 4
@@ -133,12 +134,13 @@ def write(conn, m, data, read_at):
     conn.commit()
 
 
-def steam_download(client):
-    """The download the collector uses: a Map's file through the connected steam.py client
-    (its published file, its manifest, then each file's bytes from Steam's content servers),
-    as map_file picks it."""
+def steam_download(session):
+    """The download the collector uses: a Map's file through the Steam session's steam.py
+    client (its published file, its manifest, then each file's bytes from Steam's content
+    servers), as map_file picks it."""
 
     async def download(pfid):
+        client = await session.ready()
         (found,) = await client.fetch_published_files(int(pfid)) or [None]
         if found is None:
             raise LookupError(pfid)
@@ -149,10 +151,10 @@ def steam_download(client):
 
 
 async def record_map_files(catalogue, download, *, scratch=False, env=None, budget=BUDGET):
-    """The Map file step, after the Refresh is in the database, while the Steam client is
-    still connected. Returns how many files it wrote, or None when it was skipped or failed.
-    Never raises. Revalidates the site when it wrote any, since the Map pages offer the 3D
-    view only for a Map whose file is held."""
+    """The Map file step, after the Refresh is in the database, on its Steam session.
+    Returns how many files it wrote, or None when it was skipped or failed. Never raises.
+    Revalidates the site when it wrote any, since the Map pages offer the 3D view only for a
+    Map whose file is held."""
     env = os.environ if env is None else env
     url = db_writer.database_url(env, scratch=scratch)
     if not (url and catalogue):
@@ -189,9 +191,30 @@ def catalogue_of(key, pfids=None):
     return cc.workshop_catalogue(key)
 
 
+async def download_due(session, *, maps=None, budget, dev=False):
+    """Every due Map's file within `budget` seconds on the Steam `session`: the whole
+    catalogue's, or with `maps` (pfids) just those, read from the newest page. 0 when it wrote
+    any; 1 when it wrote none (nothing due, every download failed, or the step skipped), the
+    line it prints says which. Uses Steam only when there is a Map to look at."""
+    key = cc.load_key()
+    if not (key and db_writer.database_url(os.environ, scratch=dev)):
+        print("ERROR: needs STEAM_API_KEY and the database's URL")
+        return 2
+    catalogue = await asyncio.to_thread(catalogue_of, key, maps)
+    if not catalogue:
+        why = "the Workshop lists none" if maps is None else "none of --maps is on the newest page"
+        print(f"::error::Map files: no Map to look at ({why})")
+        return 1
+    written = await record_map_files(catalogue, steam_download(session), scratch=dev, budget=budget)
+    if not written:
+        print("::error::Map files: no file written")
+        return 1
+    return 0
+
+
 def main(argv=None):
-    """The step on its own: Steam login, the catalogue (or just the new Maps `--maps` names),
-    every due Map within `--budget`."""
+    """The step on its own: the catalogue (or just the new Maps `--maps` names), every due
+    Map within `--budget`, logged into Steam for this run."""
     ap = argparse.ArgumentParser(description="Download every due Workshop Map's file.")
     ap.add_argument("--budget", type=float, default=3600.0, help="seconds (default 3600)")
     ap.add_argument("--dev", action="store_true", help="write DEV_DATABASE_URL only")
@@ -201,53 +224,16 @@ def main(argv=None):
         help="only these just-published Maps, comma-separated pfids, read from the newest page",
     )
     args = ap.parse_args(argv)
-
-    token, key = cc.load_refresh_token(), cc.load_key()
-    if not (token and key and db_writer.database_url(os.environ, scratch=args.dev)):
-        print("ERROR: needs STEAM_REFRESH_TOKEN, STEAM_API_KEY and the database's URL")
+    token = cc.load_refresh_token()
+    if not token:
+        print("ERROR: needs STEAM_REFRESH_TOKEN")
         return 2
-    catalogue = catalogue_of(key, args.maps)
-    if not catalogue:
-        # no Steam login when there is nothing to download: a second login on the account can
-        # end a running Refresh's session
-        why = (
-            "the Workshop lists none"
-            if args.maps is None
-            else "none of --maps is on the newest page"
-        )
-        print(f"::error::Map files: no Map to look at ({why})")
-        return 1
-    client = steam.Client()
-    result = {}
 
-    @client.event
-    async def on_ready():
-        # steam.py calls this again after a reconnect; the run is already under way
-        if "started" in result:
-            return
-        result["started"] = True
-        try:
-            result["written"] = await record_map_files(
-                catalogue, steam_download(client), scratch=args.dev, budget=args.budget
-            )
-        finally:
-            await client.close()
+    async def go():
+        async with steam_session.logged_in(token) as session:
+            return await download_due(session, maps=args.maps, budget=args.budget, dev=args.dev)
 
-    try:
-        client.run(refresh_token=token)
-    except Exception as e:
-        # steam.py often raises on the teardown after close(); only a run that never got
-        # to the step is a failure
-        if "written" not in result:
-            print(f"ERROR: Steam login/run failed: {e!r}")
-            return 1
-    written = result.get("written")
-    if not written:
-        # this run's whole job is downloading, so one that wrote nothing shows red (nothing
-        # due, every download failed, or the step skipped); the line above says which
-        print("::error::Map files: no file written")
-        return 1
-    return 0
+    return asyncio.run(go())
 
 
 if __name__ == "__main__":

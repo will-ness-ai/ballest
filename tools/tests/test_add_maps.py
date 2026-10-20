@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 import add_maps
 import campaign_common as cc
 import db_writer
+import pytest
 from test_map_files import SLICK_SLIDE
 
 T0 = datetime(2026, 10, 1, tzinfo=UTC)
@@ -164,16 +165,20 @@ def test_the_newest_page_is_one_request_read_as_the_catalogue_reads_it(monkeypat
     assert m["medals"] == [39.0, 30.0, 26.0, 24.340808868408203]
 
 
-# The workflow's next step downloads the added Maps' files (map_files.py --maps), so the step
-# names them in its output.
+# The service downloads the added Maps' files next (map_files.download_due), so the step
+# returns them.
 
 
-def test_the_added_maps_are_named_in_the_steps_output(tmp_path):
-    out = tmp_path / "github_output"
-    out.write_text("earlier=1\n")
-    add_maps.name_in_output([NEW, OLD], {"GITHUB_OUTPUT": str(out)})
-    assert out.read_text() == f"earlier=1\nadded={NEW},{OLD}\n"
+def test_the_step_returns_the_maps_it_added(conn, db_url, monkeypatch):
+    catalogue_refresh(conn, OLD)
+    monkeypatch.setattr(add_maps.cc, "load_key", lambda: "key")
+    monkeypatch.setattr(add_maps.cc, "newest_maps", lambda _: [item(NEW), item(OLD)])
+    monkeypatch.setattr(add_maps.db_writer, "revalidate", lambda _env: None)
+    assert add_maps.add_new(env={"DATABASE_URL": db_url}) == [NEW]
+    # Steam lists nothing new: it tries again, and returns nothing
+    assert add_maps.add_new(env={"DATABASE_URL": db_url}, sleep=lambda _: None) == []
 
 
-def test_outside_actions_there_is_no_output_to_name_them_in():
-    add_maps.name_in_output([NEW], {})  # no GITHUB_OUTPUT: writes nothing, and doesn't raise
+def test_with_no_database_the_step_raises():
+    with pytest.raises(RuntimeError, match="DATABASE_URL"):
+        add_maps.add_new(env={})

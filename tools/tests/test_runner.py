@@ -2,6 +2,7 @@
 for which, what reaches the ops channel, and the private HTTP door Multiballs knocks on."""
 
 import asyncio
+import io
 import socket
 from datetime import UTC, datetime, timedelta
 
@@ -45,33 +46,38 @@ def test_a_start_just_before_a_slot_leaves_it_to_the_slot():
 
 
 class Fake:
-    """Runs instead of the real scripts: each script's run waits on its own gate, so a test
-    decides when it ends, and every start and end is logged in order."""
+    """Stands in for the collector's jobs (runner.Collector): each run waits on its own gate,
+    so a test decides when it ends, and every start and end is logged in order."""
 
-    def __init__(self, outputs=None, codes=None):
-        self.log, self.gates, self.alerts, self.limits = [], {}, [], []
-        self.outputs, self.codes = outputs or {}, codes or {}
+    def __init__(self, added=(), codes=None):
+        self.log, self.gates, self.alerts = [], {}, []
+        self.added, self.codes = list(added), codes or {}
 
-    def gate(self, script):
-        return self.gates.setdefault(script, asyncio.Event())
+    def gate(self, job):
+        return self.gates.setdefault(job, asyncio.Event())
 
-    async def run(self, script, args, limit=runner.JOB_TIMEOUT, stop=None):
-        self.log.append(("start", script, *args))
-        self.limits.append(limit)
-        ends = [asyncio.ensure_future(self.gate(script).wait())]
-        if stop is not None:
-            ends.append(asyncio.ensure_future(stop.wait()))
-        await asyncio.wait(ends, return_when=asyncio.FIRST_COMPLETED)
-        for e in ends:
-            e.cancel()
-        self.gates.pop(script, None)
-        if stop is not None and stop.is_set():
-            self.log.append(("stopped", script))
-            return runner.Result(-15, [f"{script} stopped"])
-        self.log.append(("end", script))
-        return runner.Result(
-            self.codes.get(script, 0), [f"{script} said hi"], self.outputs.get(script, {})
-        )
+    async def _run(self, job, *args):
+        self.log.append(("start", job, *args))
+        print(f"{job} said hi")
+        await self.gate(job).wait()
+        self.gates.pop(job, None)
+        self.log.append(("end", job))
+        return self.codes.get(job, 0)
+
+    async def refresh(self):
+        return await self._run("refresh")
+
+    async def map_files(self, maps, budget):
+        return await self._run("map_files", *([",".join(sorted(maps))] if maps else []), budget)
+
+    async def add_maps(self):
+        code = await self._run("add_maps")
+        if code:
+            raise RuntimeError("the database said no")
+        return self.added
+
+    async def read_dailies(self):
+        return await self._run("read_dailies")
 
     async def alert(self, text):
         self.alerts.append(text)
@@ -83,7 +89,7 @@ async def settle():
 
 
 def service(fake, now="12:00"):
-    return runner.Service(fake.run, fake.alert, now=lambda: at(now))
+    return runner.Service(fake, fake.alert, now=lambda: at(now))
 
 
 def test_requests_while_one_waits_fold_into_it():
@@ -94,42 +100,32 @@ def test_requests_while_one_waits_fold_into_it():
         await settle()
         assert s.refresh()  # one more may wait behind the running one
         assert not s.refresh()  # and that one stands for any after it
-        fake.gate("steampy_collect.py").set()
+        fake.gate("refresh").set()
         await settle()
-        fake.gate("steampy_collect.py").set()
+        fake.gate("refresh").set()
         await settle()
-        assert [e[:2] for e in fake.log] == [
-            ("start", "steampy_collect.py"),
-            ("end", "steampy_collect.py"),
-        ] * 2
+        assert fake.log == [("start", "refresh"), ("end", "refresh")] * 2
 
     asyncio.run(go())
 
 
-def test_steam_jobs_never_overlap():
+def test_file_downloads_wait_for_the_refresh():
     async def go():
-        fake = Fake(outputs={"add_maps.py": {"added": "3822432182,3822400116"}})
+        fake = Fake(added=["3822432182", "3822400116"])
         s = service(fake)
         s.refresh()
         await settle()
         s.add_maps()
         await settle()
-        # adding needs no Steam login, so it runs beside the Refresh
-        assert ("start", "add_maps.py") in fake.log
-        fake.gate("add_maps.py").set()
+        # adding runs beside the Refresh
+        assert ("start", "add_maps") in fake.log
+        fake.gate("add_maps").set()
         await settle()
-        # but the new Maps' files need one, so they wait for the Refresh to log off
-        assert not any(e[1] == "map_files.py" for e in fake.log)
-        fake.gate("steampy_collect.py").set()
+        # but the new Maps' files wait for it, so two never download one Map's file at once
+        assert not any(e[1] == "map_files" for e in fake.log)
+        fake.gate("refresh").set()
         await settle()
-        assert fake.log[-1] == (
-            "start",
-            "map_files.py",
-            "--maps",
-            "3822400116,3822432182",
-            "--budget",
-            "120",
-        )
+        assert fake.log[-1] == ("start", "map_files", "3822400116,3822432182", 120)
 
     asyncio.run(go())
 
@@ -140,24 +136,24 @@ def test_nothing_added_downloads_nothing():
         s = service(fake)
         s.add_maps()
         await settle()
-        fake.gate("add_maps.py").set()
+        fake.gate("add_maps").set()
         await settle()
-        assert [e[1] for e in fake.log] == ["add_maps.py", "add_maps.py"]
+        assert [e[1] for e in fake.log] == ["add_maps", "add_maps"]
 
     asyncio.run(go())
 
 
 def test_a_failed_refresh_reaches_the_ops_channel_with_its_last_lines():
     async def go():
-        fake = Fake(codes={"steampy_collect.py": 1})
+        fake = Fake(codes={"refresh": 1})
         s = service(fake)
         s.refresh()
         await settle()
-        fake.gate("steampy_collect.py").set()
+        fake.gate("refresh").set()
         await settle()
         assert len(fake.alerts) == 1
         assert "Refresh failed (exit 1)" in fake.alerts[0]
-        assert "steampy_collect.py said hi" in fake.alerts[0]
+        assert "refresh said hi" in fake.alerts[0]
 
     asyncio.run(go())
 
@@ -165,20 +161,20 @@ def test_a_failed_refresh_reaches_the_ops_channel_with_its_last_lines():
 def test_a_failed_file_download_stays_in_the_log():
     # the next Refresh's Map file step downloads any file still due
     async def go():
-        fake = Fake(outputs={"add_maps.py": {"added": "1"}}, codes={"map_files.py": 1})
+        fake = Fake(added=["1"], codes={"map_files": 1})
         s = service(fake)
         s.add_maps()
         await settle()
-        fake.gate("add_maps.py").set()
+        fake.gate("add_maps").set()
         await settle()
-        fake.gate("map_files.py").set()
+        fake.gate("map_files").set()
         await settle()
         assert fake.alerts == []
 
     asyncio.run(go())
 
 
-def test_the_file_backlog_takes_its_turn_on_steam_with_its_own_budget():
+def test_the_file_backlog_takes_its_turn_with_its_own_budget():
     async def go():
         fake = Fake()
         s = service(fake)
@@ -186,13 +182,11 @@ def test_the_file_backlog_takes_its_turn_on_steam_with_its_own_budget():
         await settle()
         s.map_file_backlog(3600)  # at 12:00: the 15:00 slot is well clear of it
         await settle()
-        assert not any(e[1] == "map_files.py" for e in fake.log)
-        fake.gate("steampy_collect.py").set()
+        assert not any(e[1] == "map_files" for e in fake.log)
+        fake.gate("refresh").set()
         await settle()
-        assert fake.log[-1] == ("start", "map_files.py", "--budget", "3600")
-        # its downloads may run past the budget; the timeout leaves room for them
-        assert fake.limits[-1] > 3600
-        fake.gate("map_files.py").set()
+        assert fake.log[-1] == ("start", "map_files", 3600)
+        fake.gate("map_files").set()
         await settle()
 
     asyncio.run(go())
@@ -205,35 +199,34 @@ def test_the_backlog_stops_starting_downloads_before_the_next_slot():
         s.map_file_backlog(3600)
         await settle()
         # 45 minutes to the margin before 15:00, so the slot's Refresh needn't wait for it
-        assert fake.log[-1] == ("start", "map_files.py", "--budget", "2700")
+        assert fake.log[-1] == ("start", "map_files", 2700)
         # and the last downloads end before the slot, which is the margin's whole point
-        assert fake.limits[-1] == 2700 + runner.DOWNLOAD_GRACE
         assert runner.BACKLOG_MARGIN.total_seconds() > runner.DOWNLOAD_GRACE
-        fake.gate("map_files.py").set()
+        fake.gate("map_files").set()
         await settle()
 
     asyncio.run(go())
 
 
-def test_the_backlog_counts_its_budget_from_when_it_gets_steam():
+def test_the_backlog_counts_its_budget_from_its_turn():
     async def go():
         fake, clock = Fake(), [at("14:00")]
-        s = runner.Service(fake.run, fake.alert, now=lambda: clock[0])
+        s = runner.Service(fake, fake.alert, now=lambda: clock[0])
         s.refresh()
         await settle()
         s.map_file_backlog(3600)
         await settle()
-        clock[0] = at("14:10")  # the Refresh held Steam for ten minutes
-        fake.gate("steampy_collect.py").set()
+        clock[0] = at("14:10")  # the Refresh ran for ten minutes
+        fake.gate("refresh").set()
         await settle()
-        assert fake.log[-1] == ("start", "map_files.py", "--budget", "2100")
-        fake.gate("map_files.py").set()
+        assert fake.log[-1] == ("start", "map_files", 2100)
+        fake.gate("map_files").set()
         await settle()
 
     asyncio.run(go())
 
 
-def test_a_backlog_asked_for_inside_the_margin_never_logs_in():
+def test_a_backlog_asked_for_inside_the_margin_downloads_nothing():
     async def go():
         fake = Fake()
         s = service(fake, now="14:50")
@@ -247,32 +240,48 @@ def test_a_backlog_asked_for_inside_the_margin_never_logs_in():
 
 def test_a_failed_map_add_reaches_the_ops_channel():
     async def go():
-        fake = Fake(codes={"add_maps.py": 1})
+        fake = Fake(codes={"add_maps": 1})
         s = service(fake)
         s.add_maps()
         await settle()
-        fake.gate("add_maps.py").set()
+        fake.gate("add_maps").set()
         await settle()
-        assert "Adding new Maps failed (exit 1)" in fake.alerts[0]
+        assert "Adding new Maps failed (exit -1)" in fake.alerts[0]
+        assert "the database said no" in fake.alerts[0]
 
     asyncio.run(go())
 
 
-def test_a_script_that_cannot_run_alerts_and_frees_steam():
+def test_a_job_that_raises_alerts_and_frees_its_turn():
     async def go():
         fake = Fake()
         s = service(fake)
 
-        async def broken(*_args):
-            raise OSError("no python")
+        async def broken():
+            raise OSError("no database")
 
-        s.run = broken
+        fake.refresh = broken
         s.refresh()
         await settle()
         assert "Refresh failed" in fake.alerts[0]
-        assert "no python" in fake.alerts[0]
+        assert "no database" in fake.alerts[0]
         assert s.status()["refresh"]["last"]["exit"] != 0
-        assert not s.steam.locked()
+        assert not s.turn.locked()
+
+    asyncio.run(go())
+
+
+def test_a_job_past_its_time_is_stopped_and_fails(monkeypatch):
+    monkeypatch.setattr(runner, "JOB_TIMEOUT", 0.05)
+
+    async def go():
+        fake = Fake()
+        s = service(fake)
+        s.refresh()
+        await asyncio.sleep(0.2)
+        assert "Refresh failed" in fake.alerts[0]
+        assert "stopped after" in fake.alerts[0]
+        assert not s.turn.locked()
 
     asyncio.run(go())
 
@@ -310,48 +319,20 @@ def test_the_http_door_queues_jobs_and_reports_them():
             await settle()
             assert (await http.post("/refresh")).status == 202
             await settle()
-            fake.gate("add_maps.py").set()
+            fake.gate("add_maps").set()
             await settle()
             status = await (await http.get("/")).json()
             assert status["add-maps"]["last"]["exit"] == 0
             assert status["refresh"]["running"]
             assert (await http.post("/map-files?budget=600")).status == 202
-            fake.gate("steampy_collect.py").set()
+            fake.gate("refresh").set()
             await settle()
-            assert fake.log[-1] == ("start", "map_files.py", "--budget", "600")
+            assert fake.log[-1] == ("start", "map_files", 600)
             assert (await http.post("/map-files?budget=lots")).status == 400
-            fake.gate("map_files.py").set()
+            fake.gate("map_files").set()
             await settle()
 
     asyncio.run(go())
-
-
-def test_a_script_runs_as_a_workflow_step_ran_it(tmp_path, monkeypatch):
-    (tmp_path / "step.py").write_text(
-        "import os, sys\n"
-        "for n in range(20): print('line', n)\n"
-        "open(os.environ['GITHUB_OUTPUT'], 'a').write('added=1,2\\n')\n"
-        "sys.exit(3)\n"
-    )
-    monkeypatch.setattr(runner, "TOOLS", str(tmp_path))
-    result = asyncio.run(runner.run_script("step.py", []))
-    assert result.exit == 3
-    assert result.tail == [f"line {n}" for n in range(5, 20)]
-    assert result.outputs == {"added": "1,2"}
-
-
-def test_a_stopped_script_is_ended_at_once(tmp_path, monkeypatch):
-    (tmp_path / "forever.py").write_text("import time\nprint('up', flush=True)\ntime.sleep(60)\n")
-    monkeypatch.setattr(runner, "TOOLS", str(tmp_path))
-
-    async def go():
-        stop = asyncio.Event()
-        asyncio.get_running_loop().call_later(0.5, stop.set)
-        return await asyncio.wait_for(runner.run_script("forever.py", [], None, stop), 10)
-
-    result = asyncio.run(go())
-    assert result.exit != 0
-    assert result.tail[0] == "up"
 
 
 def test_the_commands_reach_the_service_where_it_listens(monkeypatch, capsys):
@@ -378,7 +359,37 @@ def test_the_commands_reach_the_service_where_it_listens(monkeypatch, capsys):
     assert "refresh idle last=none" in capsys.readouterr().out
 
 
-# The Daily watcher (daily_watch.py): logged into Steam whenever no other job needs it.
+# Each job's output, in the one process all of them share.
+
+
+def test_each_jobs_output_is_named_in_the_log_and_kept_for_its_alert():
+    async def go():
+        out = io.StringIO()
+        logs = runner.JobLog(out)
+
+        async def job(name):
+            with logs.job(name) as tail:
+                print("reading", end="", file=logs)
+                await asyncio.sleep(0)
+                print(" boards", file=logs)
+                await asyncio.to_thread(print, "names done", file=logs)
+                return list(tail)
+
+        tails = await asyncio.gather(job("refresh"), job("daily"))
+        assert tails == [["reading boards", "names done"]] * 2
+        assert sorted(out.getvalue().splitlines()) == sorted(
+            [
+                "[refresh] reading boards",
+                "[refresh] names done",
+                "[daily] reading boards",
+                "[daily] names done",
+            ]
+        )
+
+    asyncio.run(go())
+
+
+# The Daily read: every DAILY_EVERY seconds on the one Steam session.
 
 
 async def watching(s, **kw):
@@ -387,64 +398,109 @@ async def watching(s, **kw):
     return task
 
 
-def test_the_daily_watcher_runs_while_steam_is_free_and_steps_aside_for_a_refresh():
+def ticker():
+    """A sleep that returns at once and counts its calls, for the Daily loop."""
+    ticks = []
+
+    async def sleep(seconds):
+        ticks.append(seconds)
+        await asyncio.sleep(0)
+
+    return ticks, sleep
+
+
+def test_the_daily_read_goes_on_through_a_file_download():
     async def go():
         fake = Fake()
         s = service(fake)
-        task = await watching(s)
-        assert fake.log == [("start", "daily_watch.py")]
-        assert fake.limits == [None]  # it runs until it is stopped
-        s.refresh()
-        await settle()
-        assert fake.log[1:] == [("stopped", "daily_watch.py"), ("start", "steampy_collect.py")]
-        fake.gate("steampy_collect.py").set()
-        await settle()
-        assert fake.log[3:] == [("end", "steampy_collect.py"), ("start", "daily_watch.py")]
-        assert fake.alerts == []
-        task.cancel()
-
-    asyncio.run(go())
-
-
-def test_a_job_asked_for_while_the_watcher_waits_for_steam_still_goes_first():
-    async def go():
-        fake = Fake()
-        s = service(fake)
-        s.refresh()
-        await settle()
-        task = await watching(s)
         s.map_file_backlog(600)
         await settle()
-        fake.gate("steampy_collect.py").set()
+        _, sleep = ticker()
+        task = await watching(s, sleep=sleep)
+        for _ in range(3):
+            fake.gate("read_dailies").set()
+            await settle()
+        assert ("end", "map_files") not in fake.log
+        assert fake.log.count(("end", "read_dailies")) == 3
+        task.cancel()
+        fake.gate("map_files").set()
         await settle()
-        assert ("start", "map_files.py", "--budget", "600") in fake.log
-        assert ("start", "daily_watch.py") not in fake.log
-        fake.gate("map_files.py").set()
+
+    asyncio.run(go())
+
+
+def test_the_daily_read_skips_while_a_refresh_runs():
+    # the Refresh reads and writes the Dailies itself
+    async def go():
+        fake = Fake()
+        s = service(fake)
+        s.refresh()
         await settle()
-        assert fake.log[-1] == ("start", "daily_watch.py")
+        ticks, sleep = ticker()
+        task = await watching(s, sleep=sleep)
+        assert ("start", "read_dailies") not in fake.log
+        assert len(ticks) > 1  # it kept to its minute, reading nothing
+        fake.gate("refresh").set()
+        await settle()
+        assert fake.log[-1] == ("start", "read_dailies")
         task.cancel()
 
     asyncio.run(go())
 
 
-def test_a_watcher_that_dies_starts_again_after_a_pause_and_ops_hears_once():
+def test_a_refresh_waits_for_a_daily_read_under_way():
     async def go():
-        fake = Fake(codes={"daily_watch.py": 1})
+        fake = Fake()
         s = service(fake)
-        pauses = []
+        _, sleep = ticker()
+        task = await watching(s, sleep=sleep)
+        s.refresh()
+        await settle()
+        assert fake.log == [("start", "read_dailies")]
+        fake.gate("read_dailies").set()
+        await settle()
+        assert fake.log[-1] == ("start", "refresh")
+        task.cancel()
+        fake.gate("refresh").set()
+        await settle()
 
-        async def pause(seconds):
-            pauses.append(seconds)
-            await asyncio.sleep(0)
+    asyncio.run(go())
 
-        task = await watching(s, sleep=pause)
+
+def test_daily_reads_keep_to_their_minute():
+    async def go():
+        fake = Fake()
+        s = service(fake)
+        ticks, sleep = ticker()
+        clock = [0.0]
+        task = await watching(s, sleep=sleep, clock=lambda: clock[0])
+        clock[0] = 12.5  # the read took 12.5 s
+        fake.gate("read_dailies").set()
+        await settle()
+        assert ticks[0] == runner.DAILY_EVERY - 12.5
+        task.cancel()
+
+    asyncio.run(go())
+
+
+def test_failing_daily_reads_reach_ops_once_until_one_works():
+    async def go():
+        fake = Fake(codes={"read_dailies": 1})
+        s = service(fake)
+        _, sleep = ticker()
+        task = await watching(s, sleep=sleep)
         for _ in range(3):
-            fake.gate("daily_watch.py").set()
+            fake.gate("read_dailies").set()
             await settle()
-        assert pauses == [runner.WATCH_RETRY] * 3
-        assert [e for e in fake.log if e[0] == "start"] == [("start", "daily_watch.py")] * 4
         assert len(fake.alerts) == 1
-        assert "Daily watcher" in fake.alerts[0]
+        assert "Daily read failed" in fake.alerts[0]
+        fake.codes = {}
+        fake.gate("read_dailies").set()
+        await settle()
+        fake.codes = {"read_dailies": 1}
+        fake.gate("read_dailies").set()
+        await settle()
+        assert len(fake.alerts) == 2
         task.cancel()
 
     asyncio.run(go())
