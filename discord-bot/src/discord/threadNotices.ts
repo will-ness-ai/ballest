@@ -20,7 +20,7 @@ export const makeThreadNotices = (channel: TextChannel) => {
     (threadId === null || m.reference?.channelId === threadId);
 
   /** Delete one notice; one already gone counts as done. Whether it was deleted. */
-  const deleteNotice = Effect.fn("deleteNotice")(function* (m: Message) {
+  const deleteNotice = Effect.fn("ThreadNotices.deleteNotice")(function* (m: Message) {
     return yield* tryDiscord("delete thread notice", () => m.delete()).pipe(
       Effect.as(true),
       Effect.catchTag("DiscordError", (e) =>
@@ -35,7 +35,7 @@ export const makeThreadNotices = (channel: TextChannel) => {
 
   return {
     /** A new thread's notice, looked for a few times in case Discord hasn't posted it yet. */
-    deleteNoticeOf: Effect.fn("deleteNoticeOf")(
+    deleteNoticeOf: Effect.fn("ThreadNotices.deleteNoticeOf")(
       function* (threadId: string) {
         for (let attempt = 1; attempt <= NOTICE_TRIES; attempt++) {
           const recent = yield* tryDiscord("fetch recent messages", () =>
@@ -58,7 +58,7 @@ export const makeThreadNotices = (channel: TextChannel) => {
     ),
 
     /** Every notice in the channel's recent history: ones from before this fix, or a failed delete. */
-    sweep: Effect.fn("sweepThreadNotices")(
+    sweep: Effect.fn("ThreadNotices.sweep")(
       function* () {
         let before: string | undefined;
         let deleted = 0;

@@ -109,7 +109,7 @@ const make = Effect.gen(function* () {
 
   // A database error is a bug or a broken disk, not something a Player can act on: it dies.
   return Store.of({
-    getLink: Effect.fn("getLink")(function* (discordId) {
+    getLink: Effect.fn("SqliteStore.getLink")(function* (discordId) {
       return yield* findLink(discordId).pipe(
         Effect.map((row) => Option.map(row, (r) => linkOf(r))),
         Effect.orDie,
@@ -119,7 +119,7 @@ const make = Effect.gen(function* () {
       Effect.map((rows) => rows.map(linkOf)),
       Effect.orDie,
     ),
-    putLink: Effect.fn("putLink")(function* (link) {
+    putLink: Effect.fn("SqliteStore.putLink")(function* (link) {
       return yield* sql`INSERT INTO links ${sql.insert({ discord_id: link.discordId, steam_id: link.steamId, persona_name: link.personaName })}
           ON CONFLICT (discord_id) DO UPDATE SET steam_id = excluded.steam_id, persona_name = excluded.persona_name`.pipe(
         Effect.asVoid,
@@ -130,28 +130,28 @@ const make = Effect.gen(function* () {
       Effect.map((rows) => `m${rows[0]?.n ?? 0}`),
       Effect.orDie,
     ),
-    getMatch: Effect.fn("getMatch")(function* (id) {
+    getMatch: Effect.fn("SqliteStore.getMatch")(function* (id) {
       return yield* findMatch(id).pipe(Effect.map(Option.map((r) => r.data)), Effect.orDie);
     }),
-    putMatch: Effect.fn("putMatch")(function* (match) {
+    putMatch: Effect.fn("SqliteStore.putMatch")(function* (match) {
       const data = yield* encodeMatch(match);
       yield* sql`INSERT INTO matches ${sql.insert({ id: match.id, state: match.state, data })}
                  ON CONFLICT (id) DO UPDATE SET state = excluded.state, data = excluded.data`;
     }, Effect.orDie),
-    deleteMatch: Effect.fn("deleteMatch")(function* (id) {
+    deleteMatch: Effect.fn("SqliteStore.deleteMatch")(function* (id) {
       return yield* sql`DELETE FROM matches WHERE id = ${id}`.pipe(Effect.asVoid, Effect.orDie);
     }),
     activeMatches: findActive(undefined).pipe(
       Effect.map((rows) => rows.map((r) => r.data)),
       Effect.orDie,
     ),
-    hasAnsweredPingOffer: Effect.fn("hasAnsweredPingOffer")(function* (discordId) {
+    hasAnsweredPingOffer: Effect.fn("SqliteStore.hasAnsweredPingOffer")(function* (discordId) {
       return yield* sql`SELECT 1 FROM ping_offer_answers WHERE discord_id = ${discordId}`.pipe(
         Effect.map((rows) => rows.length > 0),
         Effect.orDie,
       );
     }),
-    answerPingOffer: Effect.fn("answerPingOffer")(function* (discordId) {
+    answerPingOffer: Effect.fn("SqliteStore.answerPingOffer")(function* (discordId) {
       return yield* sql`INSERT INTO ping_offer_answers ${sql.insert({ discord_id: discordId })} ON CONFLICT (discord_id) DO NOTHING`.pipe(
         Effect.asVoid,
         Effect.orDie,

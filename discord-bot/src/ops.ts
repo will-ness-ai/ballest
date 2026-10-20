@@ -13,13 +13,13 @@ import { Discord } from "./discord/client.js";
 const WARN_DAYS = 30;
 const DAY_MS = 86_400_000;
 
-/** Handlers for a failed request, which is only logged, by each of its tags. */
-const logFailed = (what: string) => {
-  const failed = Effect.fn("requestFailed")(function* (e: HttpClientError.HttpClientError) {
-    yield* Effect.logWarning(`${what} failed: ${e._tag}`);
-  });
-  return { RequestError: failed, ResponseError: failed };
-};
+/** A failed request, which is only logged. */
+const requestFailed = Effect.fn("Ops.requestFailed")(function* (
+  what: string,
+  e: HttpClientError.HttpClientError,
+) {
+  yield* Effect.logWarning(`${what} failed: ${e._tag}`);
+});
 
 const TokenClaims = Schema.parseJson(Schema.Struct({ exp: Schema.Number }));
 
@@ -51,7 +51,12 @@ export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts
               HttpClientRequest.bodyUnsafeJson({ content }),
             ),
           )
-          .pipe(Effect.scoped, Effect.catchTags(logFailed("ops webhook")));
+          .pipe(
+            Effect.scoped,
+            Effect.catchTag("RequestError", "ResponseError", (e) =>
+              requestFailed("ops webhook", e),
+            ),
+          );
       }),
     };
   }),
@@ -67,13 +72,15 @@ export const OpsLive = Layer.scopedDiscard(
     const steamToken = yield* Config.redacted("STEAM_REFRESH_TOKEN");
     const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
 
-    const send = Effect.fn("send")(function* (
+    const send = Effect.fn("Ops.send")(function* (
       what: string,
       request: HttpClientRequest.HttpClientRequest,
     ) {
-      return yield* http
-        .execute(request)
-        .pipe(Effect.scoped, Effect.asVoid, Effect.catchTags(logFailed(what)));
+      return yield* http.execute(request).pipe(
+        Effect.scoped,
+        Effect.asVoid,
+        Effect.catchTag("RequestError", "ResponseError", (e) => requestFailed(what, e)),
+      );
     });
 
     if (Option.isSome(heartbeatUrl)) {

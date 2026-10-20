@@ -99,7 +99,7 @@ export const runDay = Effect.fn("runDay")(function* (at: number) {
   const alerts = yield* OpsAlerts;
   const day = dayOf(at);
   if (yield* log.posted(day)) return;
-  const failed = Effect.fn("failed")(function* (why: string) {
+  const failed = Effect.fn("DailyReport.failed")(function* (why: string) {
     return yield* alerts.post(`Multiballs couldn't post the Daily Report for ${day}: ${why}`);
   });
   yield* Effect.gen(function* () {
@@ -132,7 +132,7 @@ export const runDay = Effect.fn("runDay")(function* (at: number) {
 });
 
 /** A day's report where even a bug is only that day's: ops hears, and the schedule goes on. */
-const safely = Effect.fn("safely")(function* (at: number) {
+const safely = Effect.fn("DailyReport.safely")(function* (at: number) {
   return yield* runDay(at).pipe(
     Effect.catchAllDefect((defect) =>
       Effect.flatMap(OpsAlerts, (alerts) =>

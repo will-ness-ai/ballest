@@ -136,7 +136,7 @@ export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
       HttpClient.filterStatusOk,
       HttpClient.retryTransient({ schedule: Schedule.exponential("500 millis"), times: 3 }),
     );
-    const getJson = Effect.fn("getJson")(function* <A, I>(
+    const getJson = Effect.fn("WebApi.getJson")(function* <A, I>(
       url: string,
       params: Record<string, string>,
       schema: Schema.Schema<A, I>,
@@ -149,7 +149,7 @@ export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
         ),
       );
     });
-    const steamApi = Effect.fn("steamApi")(function* <A, I>(
+    const steamApi = Effect.fn("WebApi.steamApi")(function* <A, I>(
       path: string,
       params: Record<string, string>,
       schema: Schema.Schema<A, I>,

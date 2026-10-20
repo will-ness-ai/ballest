@@ -61,7 +61,7 @@ const RefreshedRow = Schema.Struct({ at: Ms });
 
 const rows = <A, I>(schema: Schema.Schema<A, I>) => Schema.decodeUnknown(Schema.Array(schema));
 
-const read = Effect.fn("ReportSource.read")(function* (at: number) {
+const query = Effect.fn("ReportSource.query")(function* (at: number) {
   const sql = yield* SqlClient.SqlClient;
   const ms = (column: string) => sql.unsafe(`(extract(epoch from ${column}) * 1000)::float8`);
   const since = new Date(at - DAY_MS);
@@ -105,7 +105,7 @@ const read = Effect.fn("ReportSource.read")(function* (at: number) {
   );
 
   // Each Track's world record at a moment: its best Entry open then.
-  const records = Effect.fn("records")(function* (moment: Date) {
+  const records = Effect.fn("ReportSource.records")(function* (moment: Date) {
     return yield* sql`
     select distinct on (e.board) e.board, e.steam_id as "steamId", p.persona,
            e.score::float8 as score, e.ugc_id as "ugcId"
@@ -163,8 +163,8 @@ const read = Effect.fn("ReportSource.read")(function* (at: number) {
 export const ReportSourceLive = Layer.succeed(
   ReportSource,
   ReportSource.of({
-    read: Effect.fn("read")(function* (at) {
-      return yield* read(at).pipe(
+    read: Effect.fn("ReportSource.read")(function* (at) {
+      return yield* query(at).pipe(
         Effect.provide(PgClient.layerConfig({ url: Config.redacted("DATABASE_URL") })),
         Effect.catchTags({
           SqlError: (e) => Effect.fail(new ReportDataUnavailable({ reason: e.message })),

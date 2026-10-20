@@ -51,7 +51,7 @@ const holdsLock = (pid: number) => {
 };
 
 /** Create the lock file holding our pid; false if it already exists. */
-const create = Effect.fn("create")(function* (path: string) {
+const create = Effect.fn("InstanceLock.create")(function* (path: string) {
   return yield* Effect.try({
     try: () => {
       try {
@@ -68,7 +68,7 @@ const create = Effect.fn("create")(function* (path: string) {
   });
 });
 
-const holderOf = Effect.fn("holderOf")(function* (path: string) {
+const holderOf = Effect.fn("InstanceLock.holderOf")(function* (path: string) {
   return yield* Effect.try({
     try: () => Number.parseInt(readFileSync(path, "utf8"), 10),
     catch: (cause) => new LockFileError({ cause }),
@@ -80,7 +80,7 @@ const alreadyRunning = (pid: number, path: string) =>
     message: `Multiballs is already running for this channel (pid ${pid}); stop it first. Lock: ${path}`,
   });
 
-export const acquire = Effect.fn("acquireInstanceLock")(function* (path: string) {
+export const acquire = Effect.fn("InstanceLock.acquire")(function* (path: string) {
   if (yield* create(path)) return;
   const holder = yield* holderOf(path);
   if (Number.isInteger(holder) && holdsLock(holder)) return yield* alreadyRunning(holder, path);

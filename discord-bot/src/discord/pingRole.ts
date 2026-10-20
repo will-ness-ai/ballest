@@ -16,7 +16,7 @@ export const PingRoleLive = Layer.effect(
     );
     return PingRole.of({
       name: discord.pingRoleName,
-      has: Effect.fn("has")(function* (discordId) {
+      has: Effect.fn("PingRole.has")(function* (discordId) {
         return yield* tryDiscord("fetch member's roles", () =>
           guild.members.fetch({ user: discordId, force: true }),
         ).pipe(
@@ -24,12 +24,12 @@ export const PingRoleLive = Layer.effect(
           unavailable,
         );
       }),
-      add: Effect.fn("add")(function* (discordId) {
+      add: Effect.fn("PingRole.add")(function* (discordId) {
         return yield* tryDiscord("add ping role", () =>
           guild.members.addRole({ user: discordId, role, reason: "Lobby pings: on" }),
         ).pipe(Effect.asVoid, unavailable);
       }),
-      remove: Effect.fn("remove")(function* (discordId) {
+      remove: Effect.fn("PingRole.remove")(function* (discordId) {
         return yield* tryDiscord("remove ping role", () =>
           guild.members.removeRole({ user: discordId, role, reason: "Lobby pings: off" }),
         ).pipe(Effect.asVoid, unavailable);

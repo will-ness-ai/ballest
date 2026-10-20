@@ -155,7 +155,7 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
    * a reconnect. If the fresh log on fails, the next failure past FRESH_LOGON_AFTER_MS tries
    * again.
    */
-  const logOnAfresh = Effect.fn("logOnAfresh")(function* () {
+  const logOnAfresh = Effect.fn("SteamSession.logOnAfresh")(function* () {
     yield* Effect.logWarning("[steam] not answering; logging on again with a fresh client");
     const old = yield* Ref.get(current);
     yield* Effect.sync(() => {
@@ -201,7 +201,7 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
   );
 
   /** One leaderboard request: encoded, sent, decoded — alone in flight, with a timeout and retries. */
-  const call = Effect.fn("call")(function* <A, I>(
+  const call = Effect.fn("SteamSession.call")(function* <A, I>(
     emsg: number,
     request: string,
     response: string,
@@ -246,7 +246,7 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
       );
   });
 
-  const entries = Effect.fn("entries")(function* (
+  const entries = Effect.fn("SteamSession.entries")(function* (
     boardId: number,
     dataRequest: number,
     range: [number, number],
@@ -298,7 +298,7 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
         : Option.none();
     }),
     /** Rank 1, if the board has any entry. */
-    top: Effect.fn("top")(function* (boardId: number) {
+    top: Effect.fn("SteamSession.top")(function* (boardId: number) {
       return yield* entries(boardId, REQUEST_GLOBAL, [1, 1], []).pipe(
         Effect.map((r) => Option.fromNullable(r.entries[0])),
       );
@@ -308,7 +308,10 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
       return yield* entries(boardId, REQUEST_GLOBAL, [from, to], []);
     }),
     /** These Players' entries; a Player with no time is simply absent. */
-    players: Effect.fn("players")(function* (boardId: number, steamIds: ReadonlyArray<string>) {
+    players: Effect.fn("SteamSession.players")(function* (
+      boardId: number,
+      steamIds: ReadonlyArray<string>,
+    ) {
       return yield* steamIds.length === 0
         ? Effect.succeed<ReadonlyArray<BoardEntry>>([])
         : entries(boardId, REQUEST_USERS, [0, 0], steamIds).pipe(Effect.map((r) => r.entries));

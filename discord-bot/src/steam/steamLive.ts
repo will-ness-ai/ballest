@@ -51,7 +51,7 @@ const make = Effect.gen(function* () {
   });
 
   /** A Map's board id: from the cache, or found by name once and remembered. None: no board yet. */
-  const boardIdOf = Effect.fn("boardIdOf")(function* (map: MapInfo) {
+  const boardIdOf = Effect.fn("Steam.boardIdOf")(function* (map: MapInfo) {
     const hit = yield* cachedBoard(map.boardName).pipe(Effect.orDie);
     if (Option.isSome(hit)) return Option.some(hit.value.board_id);
     for (const name of boardNameVariants(map.boardName)) {
@@ -82,7 +82,7 @@ const make = Effect.gen(function* () {
       return maps;
     }),
 
-    check: Effect.fn("check")(function* (map, steamIds) {
+    check: Effect.fn("Steam.check")(function* (map, steamIds) {
       const boardId = yield* boardIdOf(map);
       if (Option.isNone(boardId)) return { boardId: null, worldRecordTicks: null, played: [] };
       const top = yield* session.top(boardId.value);
@@ -94,13 +94,13 @@ const make = Effect.gen(function* () {
       };
     }),
 
-    readPlayers: Effect.fn("readPlayers")(function* (boardId, steamIds) {
+    readPlayers: Effect.fn("Steam.readPlayers")(function* (boardId, steamIds) {
       return yield* session
         .players(boardId, steamIds)
         .pipe(Effect.map((es) => es.map((e) => ({ steamId: e.steamId, ticks: e.score }))));
     }),
 
-    resolveProfile: Effect.fn("resolveProfile")(function* (input) {
+    resolveProfile: Effect.fn("Steam.resolveProfile")(function* (input) {
       const parsed = parseProfileInput(input);
       if (Option.isNone(parsed))
         return yield* new ProfileNotFound({
