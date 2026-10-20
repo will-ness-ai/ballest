@@ -237,11 +237,12 @@ class Service:
                 async with stop:
                     code = await work()
             except Exception as e:
-                # the stop's own TimeoutError says nothing more; anything else does, a job's
-                # own TimeoutError or what it raised while being stopped
-                if not (stop.expired() and isinstance(e, TimeoutError)):
+                stopped = stop.expired()
+                # a TimeoutError once stopped is taken for the stop's own, which says no more;
+                # anything else does: one before the stop, or what the job raised on its way out
+                if not (stopped and isinstance(e, TimeoutError)):
                     traceback.print_exc(file=self.logs)
-                if stop.expired():
+                if stopped:
                     print(f"(stopped after {limit / 60:g} minutes)")
                 code = -1
             lines = list(tail)

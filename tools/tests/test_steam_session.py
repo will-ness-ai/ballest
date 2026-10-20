@@ -206,7 +206,7 @@ def test_the_login_belongs_to_no_job():
 
 def test_waiting_for_the_login_holds_no_one_up():
     class SlowLogin(FakeClient):
-        go_ahead = asyncio.Event()
+        go_ahead = None  # an asyncio.Event, made inside the test's loop
 
         async def login(self, refresh_token):
             await self.go_ahead.wait()
