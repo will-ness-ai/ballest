@@ -99,8 +99,9 @@ export const runDay = Effect.fn("runDay")(function* (at: number) {
   const alerts = yield* OpsAlerts;
   const day = dayOf(at);
   if (yield* log.posted(day)) return;
-  const failed = (why: string) =>
-    alerts.post(`Multiballs couldn't post the Daily Report for ${day}: ${why}`);
+  const failed = Effect.fn("failed")(function* (why: string) {
+    return yield* alerts.post(`Multiballs couldn't post the Daily Report for ${day}: ${why}`);
+  });
   yield* Effect.gen(function* () {
     const data = yield* (yield* ReportSource).read(at);
     const { refreshedAt } = data;
@@ -131,8 +132,8 @@ export const runDay = Effect.fn("runDay")(function* (at: number) {
 });
 
 /** A day's report where even a bug is only that day's: ops hears, and the schedule goes on. */
-const safely = (at: number) =>
-  runDay(at).pipe(
+const safely = Effect.fn("safely")(function* (at: number) {
+  return yield* runDay(at).pipe(
     Effect.catchAllDefect((defect) =>
       Effect.flatMap(OpsAlerts, (alerts) =>
         alerts.post(
@@ -141,6 +142,7 @@ const safely = (at: number) =>
       ),
     ),
   );
+});
 
 /** Catch up on today if it's past report time, then post at every report time after. */
 export const dailyLoop = Effect.gen(function* () {

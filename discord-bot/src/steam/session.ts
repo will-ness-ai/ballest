@@ -201,18 +201,18 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
   );
 
   /** One leaderboard request: encoded, sent, decoded — alone in flight, with a timeout and retries. */
-  const call = <A, I>(
+  const call = Effect.fn("call")(function* <A, I>(
     emsg: number,
     request: string,
     response: string,
     body: object,
     schema: Schema.Schema<A, I>,
     routed: boolean,
-  ) => {
+  ) {
     const req = Protos[request];
     const res = Protos[response];
     if (req === undefined || res === undefined)
-      return Effect.die(`steam-user has no protobuf ${request}/${response}`);
+      return yield* Effect.die(`steam-user has no protobuf ${request}/${response}`);
     const send = Ref.get(current).pipe(
       Effect.flatMap((client) =>
         Effect.async<Buffer, NoReply>((resume) => {
@@ -226,7 +226,7 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
       ),
       Effect.timeoutFail({ duration: REQUEST_TIMEOUT, onTimeout: () => new NoReply() }),
     );
-    return oneAtATime
+    return yield* oneAtATime
       .withPermits(1)(send)
       .pipe(
         Effect.retry({ times: REQUEST_RETRIES }),
@@ -244,15 +244,15 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
           Effect.fail(new SteamUnavailable({ reason: `bad ${response}: ${e.message}` })),
         ),
       );
-  };
+  });
 
-  const entries = (
+  const entries = Effect.fn("entries")(function* (
     boardId: number,
     dataRequest: number,
     range: [number, number],
     steamIds: ReadonlyArray<string>,
-  ) =>
-    call(
+  ) {
+    return yield* call(
       EMSG_GET_LB_ENTRIES,
       "CMsgClientLBSGetLBEntries",
       "CMsgClientLBSGetLBEntriesResponse",
@@ -280,6 +280,7 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
         })),
       })),
     );
+  });
 
   return {
     /** A board's id by its exact name; None when no board exists (nobody has finished the Map). */
@@ -297,22 +298,21 @@ export const makeSteamSession = Effect.fn("makeSteamSession")(function* (
         : Option.none();
     }),
     /** Rank 1, if the board has any entry. */
-    top: (boardId: number) =>
-      entries(boardId, REQUEST_GLOBAL, [1, 1], []).pipe(
+    top: Effect.fn("top")(function* (boardId: number) {
+      return yield* entries(boardId, REQUEST_GLOBAL, [1, 1], []).pipe(
         Effect.map((r) => Option.fromNullable(r.entries[0])),
-      ),
+      );
+    }),
     /** Ranks `from` to `to`, with how many entries the whole board holds: one request. */
     range: Effect.fn("SteamSession.range")(function* (boardId: number, from: number, to: number) {
       return yield* entries(boardId, REQUEST_GLOBAL, [from, to], []);
     }),
     /** These Players' entries; a Player with no time is simply absent. */
-    players: (
-      boardId: number,
-      steamIds: ReadonlyArray<string>,
-    ): Effect.Effect<ReadonlyArray<BoardEntry>, SteamUnavailable> =>
-      steamIds.length === 0
+    players: Effect.fn("players")(function* (boardId: number, steamIds: ReadonlyArray<string>) {
+      return yield* steamIds.length === 0
         ? Effect.succeed<ReadonlyArray<BoardEntry>>([])
-        : entries(boardId, REQUEST_USERS, [0, 0], steamIds).pipe(Effect.map((r) => r.entries)),
+        : entries(boardId, REQUEST_USERS, [0, 0], steamIds).pipe(Effect.map((r) => r.entries));
+    }),
   } as const;
 });
 

@@ -105,8 +105,8 @@ const read = Effect.fn("ReportSource.read")(function* (at: number) {
   );
 
   // Each Track's world record at a moment: its best Entry open then.
-  const records = (moment: Date) =>
-    sql`
+  const records = Effect.fn("records")(function* (moment: Date) {
+    return yield* sql`
     select distinct on (e.board) e.board, e.steam_id as "steamId", p.persona,
            e.score::float8 as score, e.ugc_id as "ugcId"
     from entries e
@@ -121,6 +121,7 @@ const read = Effect.fn("ReportSource.read")(function* (at: number) {
         (found) => new Map(found.map(({ board, ...r }): [string, TrackRecord] => [board, r])),
       ),
     );
+  });
 
   const refreshed = sql`
     select ${ms("max(coalesce(finished_at, started_at))")} as at from refreshes
@@ -162,8 +163,8 @@ const read = Effect.fn("ReportSource.read")(function* (at: number) {
 export const ReportSourceLive = Layer.succeed(
   ReportSource,
   ReportSource.of({
-    read: (at) =>
-      read(at).pipe(
+    read: Effect.fn("read")(function* (at) {
+      return yield* read(at).pipe(
         Effect.provide(PgClient.layerConfig({ url: Config.redacted("DATABASE_URL") })),
         Effect.catchTags({
           SqlError: (e) => Effect.fail(new ReportDataUnavailable({ reason: e.message })),
@@ -173,6 +174,7 @@ export const ReportSourceLive = Layer.succeed(
               new ReportDataUnavailable({ reason: "DATABASE_URL is missing or not a URL" }),
             ),
         }),
-      ),
+      );
+    }),
   }),
 );

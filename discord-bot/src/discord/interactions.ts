@@ -8,12 +8,12 @@ import {
   type UserSelectMenuInteraction,
 } from "discord.js";
 import { Context, Effect, Layer, Match, Option, Ref, Stream } from "effect";
-import { Engine } from "../engine.js";
+import { Engine, type Rejection } from "../engine.js";
 import { explain } from "../explain.js";
 import { Pings, warnPingRole } from "../pings.js";
 import { ChosenSkins, chosenSkinOf, Store, type ProfilePreview } from "../ports.js";
-import { Renderer, type RenderError } from "../render/renderer.js";
-import { describeDiscordError, Discord, type DiscordError, oneLine, tryDiscord } from "./client.js";
+import { Renderer } from "../render/renderer.js";
+import { describeDiscordError, Discord, oneLine, tryDiscord } from "./client.js";
 import { type Action, parseControl } from "./controls.js";
 import {
   confirmLeaveMessage,
@@ -81,11 +81,16 @@ export const InteractionsLive = Layer.scopedDiscard(
       return found;
     });
 
-    const showLinkForm = (i: ButtonInteraction) =>
-      tryDiscord("show link form", () => i.showModal(linkForm()));
+    const showLinkForm = Effect.fn("showLinkForm")(function* (i: ButtonInteraction) {
+      return yield* tryDiscord("show link form", () => i.showModal(linkForm()));
+    });
 
-    const runAction = (action: Action, discordId: string, matchId: string) =>
-      Match.value(action).pipe(
+    const runAction = Effect.fn("runAction")(function* (
+      action: Action,
+      discordId: string,
+      matchId: string,
+    ) {
+      return yield* Match.value(action).pipe(
         Match.when("accept", () => engine.accept(discordId, matchId)),
         Match.when("decline", () => engine.decline(discordId, matchId)),
         Match.when("join", () => engine.join(discordId, matchId)),
@@ -94,6 +99,7 @@ export const InteractionsLive = Layer.scopedDiscard(
         Match.when("cancel", () => engine.cancel(discordId, matchId)),
         Match.exhaustive,
       );
+    });
 
     /**
      * Discord refused a Get or Remove: say so on the same private reply, keeping its buttons to
@@ -113,15 +119,27 @@ export const InteractionsLive = Layer.scopedDiscard(
         );
     });
 
+    /** A rejection, explained privately to whoever clicked. */
+    const turnedDown = Effect.fn("turnedDown")(function* (i: Answerable, e: Rejection) {
+      yield* tryDiscord("follow up", () =>
+        i.followUp({ content: explain(e, i.user.id), ...ephemeral, ...quiet }),
+      );
+      return false;
+    });
+
     /** Run a Card action; a rejection is explained privately to whoever clicked. */
     const act = Effect.fn("act")(function* (i: Answerable, action: Action, matchId: string) {
       const done = yield* runAction(action, i.user.id, matchId).pipe(
         Effect.as(true),
-        Effect.catchAll((e) =>
-          tryDiscord("follow up", () =>
-            i.followUp({ content: explain(e, i.user.id), ...ephemeral, ...quiet }),
-          ).pipe(Effect.as(false)),
-        ),
+        Effect.catchTags({
+          MatchNotFound: (e) => turnedDown(i, e),
+          SteamUnavailable: (e) => turnedDown(i, e),
+          Busy: (e) => turnedDown(i, e),
+          NotAllowed: (e) => turnedDown(i, e),
+          NotLinked: (e) => turnedDown(i, e),
+          NotOpen: (e) => turnedDown(i, e),
+          NoEligibleMap: (e) => turnedDown(i, e),
+        }),
       );
       if (done) yield* offerPings(i, action);
     });
@@ -184,7 +202,11 @@ export const InteractionsLive = Layer.scopedDiscard(
           yield* tryDiscord("defer", () => i.deferUpdate());
           const text = yield* engine.openInvite(self, control.request).pipe(
             Effect.as("Invite opened. It's in the channel now."),
-            Effect.catchAll((e) => Effect.succeed(explain(e, self))),
+            Effect.catchTags({
+              Busy: (e) => Effect.succeed(explain(e, self)),
+              NotAllowed: (e) => Effect.succeed(explain(e, self)),
+              NotLinked: (e) => Effect.succeed(explain(e, self)),
+            }),
           );
           return yield* tryDiscord("edit reply", () =>
             i.editReply({ content: text, components: [], ...quiet }),
@@ -221,7 +243,12 @@ export const InteractionsLive = Layer.scopedDiscard(
           yield* tryDiscord("defer", () => i.deferUpdate());
           const text = yield* engine.leave(self, control.matchId).pipe(
             Effect.as(LEFT_TEXT),
-            Effect.catchAll((e) => Effect.succeed(explain(e, self))),
+            Effect.catchTags({
+              MatchNotFound: (e) => Effect.succeed(explain(e, self)),
+              SteamUnavailable: (e) => Effect.succeed(explain(e, self)),
+              NotAllowed: (e) => Effect.succeed(explain(e, self)),
+              NotOpen: (e) => Effect.succeed(explain(e, self)),
+            }),
           );
           return yield* tryDiscord("edit reply", () =>
             i.editReply({ content: text, components: [], ...quiet }),
@@ -288,29 +315,30 @@ export const InteractionsLive = Layer.scopedDiscard(
       yield* tryDiscord("edit reply", () => i.editReply(linkPreviewMessage(png)));
     });
 
-    const route = (i: Interaction): Effect.Effect<void, DiscordError | RenderError> => {
-      if (i.isButton()) return Effect.asVoid(onButton(i));
-      if (i.isUserSelectMenu() && parseControl(i.customId)?._tag === "PickTarget")
-        return onPickTarget(i);
-      if (i.isModalSubmit() && parseControl(i.customId)?._tag === "LinkForm")
-        return Effect.asVoid(onLinkForm(i));
-      return Effect.void;
-    };
+    const route = Effect.fn("route")(function* (i: Interaction) {
+      if (i.isButton()) yield* onButton(i);
+      else if (i.isUserSelectMenu() && parseControl(i.customId)?._tag === "PickTarget")
+        yield* onPickTarget(i);
+      else if (i.isModalSubmit() && parseControl(i.customId)?._tag === "LinkForm")
+        yield* onLinkForm(i);
+    });
 
     const label = (i: Interaction) => ("customId" in i ? i.customId : String(i.type));
 
-    const handle = (i: Interaction) =>
-      route(i).pipe(
+    const handle = Effect.fn("handle")(function* (i: Interaction) {
+      return yield* route(i).pipe(
         // A Discord or drawing failure is one line; a defect is a bug, so it keeps its stack.
-        Effect.catchAll((e) =>
-          Effect.logError(
-            `interaction ${label(i)} failed: ${e._tag === "DiscordError" ? describeDiscordError(e) : oneLine(e.cause)}`,
-          ),
-        ),
+        Effect.catchTags({
+          DiscordError: (e) =>
+            Effect.logError(`interaction ${label(i)} failed: ${describeDiscordError(e)}`),
+          RenderError: (e) =>
+            Effect.logError(`interaction ${label(i)} failed: ${oneLine(e.cause)}`),
+        }),
         Effect.catchAllDefect((defect) =>
           Effect.logError(`interaction ${label(i)} failed`, defect),
         ),
       );
+    });
 
     const driver = yield* Effect.serviceOption(DriverInteractions);
     const all = Option.match(driver, {

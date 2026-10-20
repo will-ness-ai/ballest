@@ -20,8 +20,8 @@ export const makeThreadNotices = (channel: TextChannel) => {
     (threadId === null || m.reference?.channelId === threadId);
 
   /** Delete one notice; one already gone counts as done. Whether it was deleted. */
-  const deleteNotice = (m: Message) =>
-    tryDiscord("delete thread notice", () => m.delete()).pipe(
+  const deleteNotice = Effect.fn("deleteNotice")(function* (m: Message) {
+    return yield* tryDiscord("delete thread notice", () => m.delete()).pipe(
       Effect.as(true),
       Effect.catchTag("DiscordError", (e) =>
         isUnknown(e)
@@ -31,6 +31,7 @@ export const makeThreadNotices = (channel: TextChannel) => {
             ),
       ),
     );
+  });
 
   return {
     /** A new thread's notice, looked for a few times in case Discord hasn't posted it yet. */

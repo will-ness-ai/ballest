@@ -196,18 +196,17 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
   });
 
   /** Run a member's action, answering a rejection with its status and words. */
-  const asMember = <E extends { readonly _tag: string }, R>(
+  const asMember = Effect.fn("asMember")(function* <E extends { readonly _tag: string }, R>(
     action: (discordId: string) => Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>,
-  ) =>
-    Effect.gen(function* () {
-      const discordId = yield* self;
-      return yield* action(discordId).pipe(
-        Effect.catchIf(
-          (e): e is Extract<E, Rejection> => isRejection(e),
-          (e) => rejected(e, discordId),
-        ),
-      );
-    });
+  ) {
+    const discordId = yield* self;
+    return yield* action(discordId).pipe(
+      Effect.catchIf(
+        (e): e is Extract<E, Rejection> => isRejection(e),
+        (e) => rejected(e, discordId),
+      ),
+    );
+  });
 
   const router = HttpRouter.empty.pipe(
     HttpRouter.post(

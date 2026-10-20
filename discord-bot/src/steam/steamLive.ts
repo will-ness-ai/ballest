@@ -82,63 +82,62 @@ const make = Effect.gen(function* () {
       return maps;
     }),
 
-    check: (map, steamIds) =>
-      Effect.gen(function* () {
-        const boardId = yield* boardIdOf(map);
-        if (Option.isNone(boardId)) return { boardId: null, worldRecordTicks: null, played: [] };
-        const top = yield* session.top(boardId.value);
-        const played = yield* session.players(boardId.value, steamIds);
-        return {
-          boardId: boardId.value,
-          worldRecordTicks: Option.match(top, { onNone: () => null, onSome: (e) => e.score }),
-          played: played.map((e) => ({ steamId: e.steamId, ticks: e.score })),
-        };
-      }),
+    check: Effect.fn("check")(function* (map, steamIds) {
+      const boardId = yield* boardIdOf(map);
+      if (Option.isNone(boardId)) return { boardId: null, worldRecordTicks: null, played: [] };
+      const top = yield* session.top(boardId.value);
+      const played = yield* session.players(boardId.value, steamIds);
+      return {
+        boardId: boardId.value,
+        worldRecordTicks: Option.match(top, { onNone: () => null, onSome: (e) => e.score }),
+        played: played.map((e) => ({ steamId: e.steamId, ticks: e.score })),
+      };
+    }),
 
-    readPlayers: (boardId, steamIds) =>
-      session
+    readPlayers: Effect.fn("readPlayers")(function* (boardId, steamIds) {
+      return yield* session
         .players(boardId, steamIds)
-        .pipe(Effect.map((es) => es.map((e) => ({ steamId: e.steamId, ticks: e.score })))),
+        .pipe(Effect.map((es) => es.map((e) => ({ steamId: e.steamId, ticks: e.score }))));
+    }),
 
-    resolveProfile: (input) =>
-      Effect.gen(function* () {
-        const parsed = parseProfileInput(input);
-        if (Option.isNone(parsed))
-          return yield* new ProfileNotFound({
-            input,
-            reason: "not a Steam profile link, custom URL name or SteamID64",
-          });
-        const steamId =
-          parsed.value._tag === "SteamId"
-            ? parsed.value.steamId
-            : yield* web.resolveVanity(parsed.value.name).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () =>
-                      Effect.fail(
-                        new ProfileNotFound({ input, reason: "no profile with that custom URL" }),
-                      ),
-                    onSome: (id) => Effect.succeed(id),
-                  }),
-                ),
-              );
-        const summary = (yield* web.summaries([steamId]))[0];
-        if (summary === undefined)
-          return yield* new ProfileNotFound({ input, reason: "no Steam account with that id" });
-        let campaignTracks = 0;
-        const tracks = yield* web.trackBoardIds();
-        for (const boardId of tracks) {
-          if ((yield* session.players(boardId, [steamId])).length > 0) campaignTracks++;
-        }
-        const preview: ProfilePreview = {
-          steamId,
-          personaName: summary.personaname,
-          avatarUrl: summary.avatarfull,
-          campaignTracks,
-          campaignTrackTotal: tracks.length,
-        };
-        return preview;
-      }),
+    resolveProfile: Effect.fn("resolveProfile")(function* (input) {
+      const parsed = parseProfileInput(input);
+      if (Option.isNone(parsed))
+        return yield* new ProfileNotFound({
+          input,
+          reason: "not a Steam profile link, custom URL name or SteamID64",
+        });
+      const steamId =
+        parsed.value._tag === "SteamId"
+          ? parsed.value.steamId
+          : yield* web.resolveVanity(parsed.value.name).pipe(
+              Effect.flatMap(
+                Option.match({
+                  onNone: () =>
+                    Effect.fail(
+                      new ProfileNotFound({ input, reason: "no profile with that custom URL" }),
+                    ),
+                  onSome: (id) => Effect.succeed(id),
+                }),
+              ),
+            );
+      const summary = (yield* web.summaries([steamId]))[0];
+      if (summary === undefined)
+        return yield* new ProfileNotFound({ input, reason: "no Steam account with that id" });
+      let campaignTracks = 0;
+      const tracks = yield* web.trackBoardIds();
+      for (const boardId of tracks) {
+        if ((yield* session.players(boardId, [steamId])).length > 0) campaignTracks++;
+      }
+      const preview: ProfilePreview = {
+        steamId,
+        personaName: summary.personaname,
+        avatarUrl: summary.avatarfull,
+        campaignTracks,
+        campaignTrackTotal: tracks.length,
+      };
+      return preview;
+    }),
   });
 });
 

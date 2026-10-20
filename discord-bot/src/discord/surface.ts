@@ -85,20 +85,28 @@ const LayoutJson = Schema.parseJson(
   }),
 );
 
-const logFailure = (e: ChannelError) =>
-  e._tag === "Gone"
+const logFailure = Effect.fn("logFailure")(function* (e: ChannelError) {
+  return yield* e._tag === "Gone"
     ? Effect.logWarning(`${e.id} is gone`)
     : e._tag === "RenderError"
       ? Effect.logError("drawing an image failed", e.cause)
       : Effect.logError(`discord ${describeDiscordError(e)}`);
+});
+
+/** Every Channel failure, logged by its tag, for a step whose failure ends there. */
+const logEach = { DiscordError: logFailure, RenderError: logFailure, Gone: logFailure };
 
 /** Try a Channel call up to twice more, unless what it acts on is gone. */
-const retryUnlessGone = <A, E extends ChannelError>(effect: Effect.Effect<A, E>) =>
-  effect.pipe(Effect.retry({ times: 2, while: (e: E) => e._tag !== "Gone" }));
+const retryUnlessGone = Effect.fn("retryUnlessGone")(function* <A, E extends ChannelError>(
+  effect: Effect.Effect<A, E>,
+) {
+  return yield* effect.pipe(Effect.retry({ times: 2, while: (e: E) => e._tag !== "Gone" }));
+});
 
 /** Deleting or closing something already gone counts as done. */
-const unlessGone = <E extends ChannelError>(effect: Effect.Effect<void, E>) =>
-  effect.pipe(Effect.catchAll((e) => (e._tag === "Gone" ? Effect.void : logFailure(e))));
+const unlessGone = Effect.fn("unlessGone")(function* (effect: Effect.Effect<void, ChannelError>) {
+  return yield* effect.pipe(Effect.catchTags({ ...logEach, Gone: () => Effect.void }));
+});
 
 const make = Effect.gen(function* () {
   const channel = yield* Channel;
@@ -136,10 +144,15 @@ const make = Effect.gen(function* () {
     });
     yield* sql`INSERT INTO discord_layout (id, data) VALUES (1, ${data}) ON CONFLICT (id) DO UPDATE SET data = excluded.data`;
   }, Effect.orDie);
-  const setCard = (matchId: string, card: CardRef) =>
-    setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }));
-  const setFooter = (footerId: string | null, footerFingerprint: string | null) =>
-    setLayout((l) => ({ ...l, footerId, footerFingerprint }));
+  const setCard = Effect.fn("setCard")(function* (matchId: string, card: CardRef) {
+    return yield* setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }));
+  });
+  const setFooter = Effect.fn("setFooter")(function* (
+    footerId: string | null,
+    footerFingerprint: string | null,
+  ) {
+    return yield* setLayout((l) => ({ ...l, footerId, footerFingerprint }));
+  });
 
   /** What this build's Footer looks like, or null if it can't be drawn (then it's redrawn next start). */
   const thisBuildsFooter = channel.fingerprint(Drawing.Footer()).pipe(
@@ -263,7 +276,7 @@ const make = Effect.gen(function* () {
       yield* channel.redraw(card.messageId, Drawing.Card({ view }));
       yield* redrawClock(view.matchId, card, view);
     },
-    Effect.catchAll((e) => logFailure(e)),
+    Effect.catchTags(logEach),
     lock.withPermits(1),
   );
 
@@ -292,20 +305,17 @@ const make = Effect.gen(function* () {
       : yield* startThread(matchId, card.messageId, view);
   }, lock.withPermits(1));
 
-  const post = Effect.fn("post")(
-    function* (matchId: string, post: ThreadPost) {
-      const threadId = yield* threadOf(matchId);
-      if (Option.isNone(threadId))
-        return yield* Effect.logWarning(`no thread for ${matchId}; dropped a ${post._tag} post`);
-      yield* channel.postInThread(threadId.value, matchId, post);
-      // The last thing a Match's thread gets: the graph after the Result, or the Result when nobody set a time.
-      const last =
-        post._tag === "Progression" ||
-        (post._tag === "Result" && post.standings.every((s) => s.ticks === null));
-      if (last) yield* lock.withPermits(1)(forget(matchId, true));
-    },
-    Effect.catchAll((e) => logFailure(e)),
-  );
+  const post = Effect.fn("post")(function* (matchId: string, post: ThreadPost) {
+    const threadId = yield* threadOf(matchId);
+    if (Option.isNone(threadId))
+      return yield* Effect.logWarning(`no thread for ${matchId}; dropped a ${post._tag} post`);
+    yield* channel.postInThread(threadId.value, matchId, post);
+    // The last thing a Match's thread gets: the graph after the Result, or the Result when nobody set a time.
+    const last =
+      post._tag === "Progression" ||
+      (post._tag === "Result" && post.standings.every((s) => s.ticks === null));
+    if (last) yield* lock.withPermits(1)(forget(matchId, true));
+  }, Effect.catchTags(logEach));
 
   // Startup: the Footer must be the channel's last message, with today's wording, and is edited
   // only if this build draws it differently.
@@ -325,12 +335,14 @@ const make = Effect.gen(function* () {
       );
   } else {
     if (footerId !== null) yield* unlessGone(channel.deleteMessage(footerId));
-    yield* postFooter().pipe(Effect.catchAll((e) => logFailure(e)));
+    yield* postFooter().pipe(
+      Effect.catchTags({ DiscordError: logFailure, RenderError: logFailure }),
+    );
   }
 
   const links = MatchLinks.of({
-    of: (matchId) =>
-      Ref.get(layout).pipe(
+    of: Effect.fn("of")(function* (matchId) {
+      return yield* Ref.get(layout).pipe(
         Effect.map(({ cards, finished }) => {
           const card = cards.get(matchId);
           return Option.fromNullable(
@@ -339,7 +351,8 @@ const make = Effect.gen(function* () {
               : { messageId: card.messageId, threadId: card.threadId },
           );
         }),
-      ),
+      );
+    }),
   });
 
   return Context.make(Surface, Surface.of({ showCard, remove, post })).pipe(

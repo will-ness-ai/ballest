@@ -1,12 +1,25 @@
 // Production health signals, each off unless configured: a heartbeat to Healthchecks.io, which
 // alerts the ops channel when pings stop, and a daily warning to the ops channel's webhook once
 // the Steam refresh token is close to expiring (the bot never renews it).
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "@effect/platform";
+import {
+  FetchHttpClient,
+  HttpClient,
+  type HttpClientError,
+  HttpClientRequest,
+} from "@effect/platform";
 import { Clock, Config, Effect, Layer, Option, Redacted, Schedule, Schema } from "effect";
 import { Discord } from "./discord/client.js";
 
 const WARN_DAYS = 30;
 const DAY_MS = 86_400_000;
+
+/** Handlers for a failed request, which is only logged, by each of its tags. */
+const logFailed = (what: string) => {
+  const failed = Effect.fn("requestFailed")(function* (e: HttpClientError.HttpClientError) {
+    yield* Effect.logWarning(`${what} failed: ${e._tag}`);
+  });
+  return { RequestError: failed, ResponseError: failed };
+};
 
 const TokenClaims = Schema.parseJson(Schema.Struct({ exp: Schema.Number }));
 
@@ -38,10 +51,7 @@ export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts
               HttpClientRequest.bodyUnsafeJson({ content }),
             ),
           )
-          .pipe(
-            Effect.scoped,
-            Effect.catchAll((e) => Effect.logWarning(`ops webhook failed: ${e._tag}`)),
-          );
+          .pipe(Effect.scoped, Effect.catchTags(logFailed("ops webhook")));
       }),
     };
   }),
@@ -57,12 +67,14 @@ export const OpsLive = Layer.scopedDiscard(
     const steamToken = yield* Config.redacted("STEAM_REFRESH_TOKEN");
     const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
 
-    const send = (what: string, request: HttpClientRequest.HttpClientRequest) =>
-      http.execute(request).pipe(
-        Effect.scoped,
-        Effect.asVoid,
-        Effect.catchAll((e) => Effect.logWarning(`${what} failed: ${e._tag}`)),
-      );
+    const send = Effect.fn("send")(function* (
+      what: string,
+      request: HttpClientRequest.HttpClientRequest,
+    ) {
+      return yield* http
+        .execute(request)
+        .pipe(Effect.scoped, Effect.asVoid, Effect.catchTags(logFailed(what)));
+    });
 
     if (Option.isSome(heartbeatUrl)) {
       const ping = send("heartbeat", HttpClientRequest.get(Redacted.value(heartbeatUrl.value)));

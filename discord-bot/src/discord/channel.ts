@@ -79,12 +79,6 @@ export class Channel extends Context.Tag("multiballs/Channel")<
   }
 >() {}
 
-/** Like goneIfUnknown, but passes a Gone from an earlier step through. */
-const goneIfUnknownOr =
-  (id: string) =>
-  (e: Gone | DiscordError): Effect.Effect<never, Gone | DiscordError> =>
-    e._tag === "Gone" ? Effect.fail(e) : goneIfUnknown(id)(e);
-
 const goneIfUnknown =
   (id: string) =>
   (e: DiscordError): Effect.Effect<never, Gone | DiscordError> =>
@@ -102,17 +96,19 @@ export const DiscordChannelLive = Layer.scoped(
     // In the background: startup doesn't wait on a few hundred message reads.
     yield* Effect.forkScoped(notices.sweep());
 
-    const fetchMessage = (id: string) =>
-      tryDiscord("fetch message", () => channel.messages.fetch(id)).pipe(
-        Effect.catchAll((e) => goneIfUnknown(id)(e)),
+    const fetchMessage = Effect.fn("fetchMessage")(function* (id: string) {
+      return yield* tryDiscord("fetch message", () => channel.messages.fetch(id)).pipe(
+        Effect.catchTag("DiscordError", goneIfUnknown(id)),
       );
-    const fetchThread = (id: string) =>
-      tryDiscord("fetch thread", () => channel.threads.fetch(id)).pipe(
-        Effect.catchAll((e) => goneIfUnknown(id)(e)),
+    });
+    const fetchThread = Effect.fn("fetchThread")(function* (id: string) {
+      return yield* tryDiscord("fetch thread", () => channel.threads.fetch(id)).pipe(
+        Effect.catchTag("DiscordError", goneIfUnknown(id)),
         Effect.flatMap((thread) =>
           thread === null ? Effect.fail(new Gone({ id })) : Effect.succeed(thread),
         ),
       );
+    });
 
     /** Every Player's name in this server, for the images. */
     const namesOf = Effect.fn("namesOf")(function* (view: CardView) {
@@ -143,8 +139,8 @@ export const DiscordChannelLive = Layer.scoped(
     });
 
     /** `announce`: this is the post that creates the message, so a Lobby's Card may ping the role. */
-    const render = (drawing: Drawing, announce: boolean) =>
-      Drawing.$match(drawing, {
+    const render = Effect.fn("render")(function* (drawing: Drawing, announce: boolean) {
+      return yield* Drawing.$match(drawing, {
         Footer: () => renderer.footer.pipe(Effect.map((png) => footerMessage(png))),
         Card: ({ view }) =>
           drawCard(view).pipe(
@@ -152,6 +148,7 @@ export const DiscordChannelLive = Layer.scoped(
           ),
         Closed: ({ reason }) => Effect.succeed(closedCardMessage(reason)),
       });
+    });
 
     /** The image a thread post carries, if any. */
     const threadPng = Effect.fn("threadPng")(function* (post: ThreadPost) {
@@ -172,34 +169,38 @@ export const DiscordChannelLive = Layer.scoped(
     });
 
     return Channel.of({
-      post: (drawing) =>
-        render(drawing, true).pipe(
+      post: Effect.fn("post")(function* (drawing) {
+        return yield* render(drawing, true).pipe(
           Effect.flatMap((message) => tryDiscord("post", () => channel.send(message))),
           Effect.map((m) => m.id),
-        ),
-      fingerprint: (drawing) =>
-        render(drawing, false).pipe(
+        );
+      }),
+      fingerprint: Effect.fn("fingerprint")(function* (drawing) {
+        return yield* render(drawing, false).pipe(
           Effect.flatMap((payload) =>
             Effect.try({
               try: () => fingerprint(payload),
               catch: (cause) => new RenderError({ cause }),
             }),
           ),
-        ),
-      redraw: (messageId, drawing) =>
-        fetchMessage(messageId).pipe(
+        );
+      }),
+      redraw: Effect.fn("redraw")(function* (messageId, drawing) {
+        return yield* fetchMessage(messageId).pipe(
           Effect.flatMap((m) =>
             render(drawing, false).pipe(
               Effect.flatMap((message) => tryDiscord("redraw", () => m.edit(message))),
             ),
           ),
           Effect.asVoid,
-        ),
-      deleteMessage: (messageId) =>
-        fetchMessage(messageId).pipe(
+        );
+      }),
+      deleteMessage: Effect.fn("deleteMessage")(function* (messageId) {
+        return yield* fetchMessage(messageId).pipe(
           Effect.flatMap((m) => tryDiscord("delete message", () => m.delete())),
           Effect.asVoid,
-        ),
+        );
+      }),
       startThread: Effect.fn("startThread")(function* (messageId: string, view: CardView) {
         const message = yield* fetchMessage(messageId);
         const name = threadName(view, yield* discord.displayName(view.creator.discordId));
@@ -207,30 +208,33 @@ export const DiscordChannelLive = Layer.scoped(
         yield* notices.deleteNoticeOf(thread.id);
         return thread.id;
       }),
-      deleteThread: (threadId) =>
-        fetchThread(threadId).pipe(
+      deleteThread: Effect.fn("deleteThread")(function* (threadId) {
+        return yield* fetchThread(threadId).pipe(
           Effect.flatMap((t) =>
             tryDiscord("delete thread", async () => {
               await t.delete();
             }),
           ),
-        ),
-      postClock: (threadId, view) =>
-        fetchThread(threadId).pipe(
+        );
+      }),
+      postClock: Effect.fn("postClock")(function* (threadId, view) {
+        return yield* fetchThread(threadId).pipe(
           Effect.flatMap((thread) =>
             tryDiscord("post clock", () => thread.send(clockMessage(view))),
           ),
           Effect.map((m) => m.id),
-        ),
-      redrawClock: (threadId, messageId, view) =>
-        fetchThread(threadId).pipe(
+        );
+      }),
+      redrawClock: Effect.fn("redrawClock")(function* (threadId, messageId, view) {
+        return yield* fetchThread(threadId).pipe(
           Effect.flatMap((thread) =>
             tryDiscord("fetch clock", () => thread.messages.fetch(messageId)),
           ),
-          Effect.catchAll((e) => goneIfUnknownOr(messageId)(e)),
+          Effect.catchTag("DiscordError", goneIfUnknown(messageId)),
           Effect.flatMap((m) => tryDiscord("redraw clock", () => m.edit(clockMessage(view)))),
           Effect.asVoid,
-        ),
+        );
+      }),
       postInThread: Effect.fn("postInThread")(function* (
         threadId: string,
         matchId: string,

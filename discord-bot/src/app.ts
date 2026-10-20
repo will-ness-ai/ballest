@@ -71,12 +71,13 @@ const ActivityLive = Layer.unwrapEffect(
       Effect.gen(function* () {
         const discord = yield* Discord;
         return DiscordMembers.of({
-          nameOf: (discordId) =>
-            discord
+          nameOf: Effect.fn("nameOf")(function* (discordId) {
+            return yield* discord
               .member(discordId)
               .pipe(
                 Effect.mapError((e) => new MembersUnavailable({ reason: describeDiscordError(e) })),
-              ),
+              );
+          }),
         });
       }),
     );

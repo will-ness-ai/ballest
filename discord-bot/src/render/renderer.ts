@@ -200,24 +200,38 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
 
     return {
       /** The Match Card, in any state, its Players in the Chosen Skins its view carries. */
-      card: (card: CardImage) => draw(cardScene(card, pictures), CARD_WIDTH),
+      card: Effect.fn("card")(function* (card: CardImage) {
+        return yield* draw(cardScene(card, pictures), CARD_WIDTH);
+      }),
       /** An Improvement's row; `skin` is the Improver's Chosen Skin its post carries. */
-      improvement: (improvement: Improvement, name: string, skin: ChosenSkin) =>
-        draw(improvementScene(improvement, name, skin, pictures), ROW_WIDTH),
+      improvement: Effect.fn("improvement")(function* (
+        improvement: Improvement,
+        name: string,
+        skin: ChosenSkin,
+      ) {
+        return yield* draw(improvementScene(improvement, name, skin, pictures), ROW_WIDTH);
+      }),
       footer,
       /** The Link confirmation; `skin` is the account's Chosen Skin. */
-      link: (preview: ProfilePreview, skin: ChosenSkin) =>
-        draw(linkScene(preview, skin, pictures), LINK_WIDTH),
+      link: Effect.fn("link")(function* (preview: ProfilePreview, skin: ChosenSkin) {
+        return yield* draw(linkScene(preview, skin, pictures), LINK_WIDTH);
+      }),
       /** After the Result: every PB of the Match over its clock. */
-      progression: (image: ProgressionImage) =>
-        draw(progressionScene(image, pictures), PROGRESSION_WIDTH),
+      progression: Effect.fn("progression")(function* (image: ProgressionImage) {
+        return yield* draw(progressionScene(image, pictures), PROGRESSION_WIDTH);
+      }),
       /** The Activity's art for the Developer Portal; `dev` tags it for the dev app. */
-      activityArt: (art: ActivityArt, dev: boolean) =>
-        draw(activityArtScene(art, dev), ACTIVITY_ART_SIZE[art][0]),
+      activityArt: Effect.fn("activityArt")(function* (art: ActivityArt, dev: boolean) {
+        return yield* draw(activityArtScene(art, dev), ACTIVITY_ART_SIZE[art][0]);
+      }),
       /** A bare marble, for the lifecycle-line emojis. */
-      marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
+      marble: Effect.fn("marble")(function* (hue: number) {
+        return yield* rasterise(marbleSvg(hue, 64));
+      }),
       /** The Daily Report's four boards, each row in the Chosen Skin it carries. */
-      standings: (image: StandingsImage) => draw(standingsScene(image, pictures), STANDINGS_WIDTH),
+      standings: Effect.fn("standings")(function* (image: StandingsImage) {
+        return yield* draw(standingsScene(image, pictures), STANDINGS_WIDTH);
+      }),
       /** A Daily Post's lead through the day. */
       leadGraph: Effect.fn("Renderer.leadGraph")(function* (image: LeadGraphImage) {
         return yield* draw(leadGraphScene(image), LEAD_GRAPH_WIDTH);

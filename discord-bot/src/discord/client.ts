@@ -56,8 +56,9 @@ export const isUnknown = (e: DiscordError) =>
   "code" in e.cause &&
   (e.cause.code === 10008 || e.cause.code === 10003);
 
-export const tryDiscord = <A>(op: string, run: () => Promise<A>) =>
-  Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
+export const tryDiscord = Effect.fn("tryDiscord")(function* <A>(op: string, run: () => Promise<A>) {
+  return yield* Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
+});
 
 export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
   scoped: Effect.gen(function* () {
@@ -234,10 +235,11 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
         Effect.map((all) => new Map(all.map((emoji) => [emoji.name, emoji.id]))),
       ),
       /** Upload an application emoji; its id. */
-      createAppEmoji: (name: string, png: Buffer) =>
-        tryDiscord("create app emoji", () =>
+      createAppEmoji: Effect.fn("createAppEmoji")(function* (name: string, png: Buffer) {
+        return yield* tryDiscord("create app emoji", () =>
           application.emojis.create({ name, attachment: png }),
-        ).pipe(Effect.map((emoji) => emoji.id)),
+        ).pipe(Effect.map((emoji) => emoji.id));
+      }),
       /** The member's name in this server, for thread titles. */
       displayName: Effect.fn("displayName")(function* (discordId: string) {
         return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(

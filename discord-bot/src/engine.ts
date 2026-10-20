@@ -142,8 +142,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       yield* surface.showCard(yield* viewOf(m));
     });
 
-    const orFail = <A, E>(found: Effect.Effect<Option.Option<A>>, missing: () => E) =>
-      found.pipe(
+    const orFail = Effect.fn("orFail")(function* <A, E>(
+      found: Effect.Effect<Option.Option<A>>,
+      missing: () => E,
+    ) {
+      return yield* found.pipe(
         Effect.flatMap(
           Option.match({
             onNone: () => Effect.fail(missing()),
@@ -151,14 +154,17 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           }),
         ),
       );
+    });
 
-    const playerOf = (discordId: string) =>
-      orFail(store.getLink(discordId), () => new NotLinked({ discordId })).pipe(
+    const playerOf = Effect.fn("playerOf")(function* (discordId: string) {
+      return yield* orFail(store.getLink(discordId), () => new NotLinked({ discordId })).pipe(
         Effect.map((l): Player => ({ discordId, steamId: l.steamId })),
       );
+    });
 
-    const getMatch = (matchId: string) =>
-      orFail(store.getMatch(matchId), () => new MatchNotFound({ matchId }));
+    const getMatch = Effect.fn("getMatch")(function* (matchId: string) {
+      return yield* orFail(store.getMatch(matchId), () => new MatchNotFound({ matchId }));
+    });
 
     /** An Invite that is still open and not already starting. */
     const getInvite = Effect.fn("getInvite")(function* (matchId: string) {
@@ -327,13 +333,14 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       return after;
     });
 
-    const readMatch = (m: Match) =>
-      m.map === null
+    const readMatch = Effect.fn("readMatch")(function* (m: Match) {
+      return yield* m.map === null
         ? Effect.succeed<ReadonlyArray<Entry>>([])
         : steam.readPlayers(
             m.map.boardId,
             racing(m).map((p) => p.steamId),
           );
+    });
 
     /** Apply a read to the Match if it is still live. */
     const applyIfLive = Effect.fn("applyIfLive")(function* (
@@ -350,8 +357,12 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         const entries = yield* readMatch(yield* getMatch(matchId));
         yield* applyIfLive(matchId, entries);
       },
-      (effect, matchId) =>
-        Effect.catchAll(effect, (e) => Effect.logWarning(`poll ${matchId} failed: ${e._tag}`)),
+      (effect, matchId) => {
+        const failed = Effect.fn("pollFailed")(function* (e: { readonly _tag: string }) {
+          yield* Effect.logWarning(`poll ${matchId} failed: ${e._tag}`);
+        });
+        return Effect.catchTags(effect, { MatchNotFound: failed, SteamUnavailable: failed });
+      },
     );
 
     /**
@@ -422,7 +433,9 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         );
       },
       (effect, matchId) =>
-        Effect.catchAll(effect, (e) => Effect.logError(`finish ${matchId} failed: ${e._tag}`)),
+        Effect.catchTag(effect, "MatchNotFound", (e) =>
+          Effect.logError(`finish ${matchId} failed: ${e._tag}`),
+        ),
     );
 
     /** Poll every 10 s until the duration runs out, then finish. Resumable after a restart. */
@@ -490,8 +503,9 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         ),
     );
 
-    const markStarting = (full: Match) =>
-      Ref.update(starting, (s) => new Map(s).set(full.id, full));
+    const markStarting = Effect.fn("markStarting")(function* (full: Match) {
+      return yield* Ref.update(starting, (s) => new Map(s).set(full.id, full));
+    });
 
     // ---------------------------------------------------------------- joining a Lobby
 

@@ -51,8 +51,8 @@ const holdsLock = (pid: number) => {
 };
 
 /** Create the lock file holding our pid; false if it already exists. */
-const create = (path: string) =>
-  Effect.try({
+const create = Effect.fn("create")(function* (path: string) {
+  return yield* Effect.try({
     try: () => {
       try {
         const fd = openSync(path, "wx");
@@ -66,12 +66,14 @@ const create = (path: string) =>
     },
     catch: (cause) => new LockFileError({ cause }),
   });
+});
 
-const holderOf = (path: string) =>
-  Effect.try({
+const holderOf = Effect.fn("holderOf")(function* (path: string) {
+  return yield* Effect.try({
     try: () => Number.parseInt(readFileSync(path, "utf8"), 10),
     catch: (cause) => new LockFileError({ cause }),
   }).pipe(Effect.orElseSucceed(() => Number.NaN));
+});
 
 const alreadyRunning = (pid: number, path: string) =>
   new AlreadyRunning({
