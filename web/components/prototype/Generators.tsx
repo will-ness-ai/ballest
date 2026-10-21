@@ -1,32 +1,40 @@
 "use client";
 /* eslint-disable -- PROTOTYPE, never merged */
 // PROTOTYPE: grill-design for the Prefab generators (claude/prototype-prefab-generators).
-// Never merged: the winner is rebuilt by /implement-spec. /prefabs/make draws the variant
-// ?variant= names; ProtoPicker (in the layout) cycles them and frames the phone view.
+// Never merged: the winner is rebuilt by /implement-spec. /prefabs/make is the gallery of
+// generators, drawn as ?variant= names it (round 2); ?gen=<key> opens one generator in round
+// 1's winning layout (A: controls left, model right). ProtoPicker (in the layout) cycles the
+// variants and frames the phone view.
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { PrefabViewer } from "../prefabs/PrefabViewer";
+import { stillOf } from "../prefabs/scene";
 import type { PrefabFile } from "../../lib/prefab";
-import { newPrefabHref, prefabsHref } from "../../lib/routes";
+import { prefabsHref } from "../../lib/routes";
 import {
   COLOURS,
   PIECE_LIMIT,
   SWATCH,
-  qrGrid,
-  textGrid,
-  wallOf,
+  bushFile,
+  qrFile,
+  signFile,
+  treeFile,
+  type BushSettings,
   type Colour,
-  type Grid,
+  type QrSettings,
+  type SignSettings,
+  type TreeSettings,
+  type TreeStyle,
 } from "./gen";
 
 /* ---------- the variant switch ---------- */
 const VARIANTS = [
-  ["A", "Tabs + side preview"],
-  ["B", "Pick a generator, then edit"],
-  ["C", "A source on the upload form"],
-  ["D", "Full-screen model, floating panel"],
-  ["E", "Flat pattern first"],
+  ["A", "Card grid"],
+  ["B", "Shelves by kind"],
+  ["C", "Tab beside the shared prefabs"],
+  ["D", "List with what you can change"],
+  ["E", "Showcase and thumbnails"],
 ] as const;
 type VariantKey = (typeof VARIANTS)[number][0];
 
@@ -48,7 +56,6 @@ const setParam = (k: string, v: string | null) => {
   history.replaceState(history.state, "", location.pathname + "?" + q.toString());
   emit();
 };
-
 function useParam(k: string) {
   return useSyncExternalStore(
     subscribe,
@@ -61,30 +68,69 @@ function useVariant(): VariantKey {
   return VARIANTS.find((x) => x[0] === v)?.[0] ?? "A";
 }
 
-/* ---------- the generators' shared state ---------- */
-type Kind = "qr" | "text";
-interface Gen {
-  kind: Kind;
-  setKind: (k: Kind) => void;
-  qr: string;
-  setQr: (s: string) => void;
-  text: string;
-  setText: (s: string) => void;
-  cols: number;
-  setCols: (n: number) => void;
-  rows: number;
-  setRows: (n: number) => void;
-  cell: number;
-  setCell: (n: number) => void;
-  back: Colour;
-  setBack: (c: Colour) => void;
-  front: Colour;
-  setFront: (c: Colour) => void;
-  grid: Grid | null;
-  file: PrefabFile | null;
-  fits: boolean;
-  pieces: number;
-  size: { w: number; h: number };
+/* ---------- the generators ---------- */
+type GenKey = "qr" | "sign" | "tree" | "bush";
+interface Settings {
+  qr: QrSettings;
+  sign: SignSettings;
+  tree: TreeSettings;
+  bush: BushSettings;
+}
+const DEFAULTS: Settings = {
+  qr: { text: "https://ballestrecords.com", size: 6, back: "White", front: "Dark" },
+  sign: {
+    text: "Welcome to my map",
+    width: 12,
+    height: 4,
+    wall: true,
+    back: "White",
+    front: "Dark",
+  },
+  tree: { style: "Round", height: 6, spread: 4, trunk: "Wine", leaves: "Lime", seed: 7 },
+  bush: { width: 2, height: 1.2, clumps: 5, colour: "Lime", seed: 3 },
+};
+const GENS: ReadonlyArray<{
+  key: GenKey;
+  name: string;
+  group: "Signs" | "Nature";
+  blurb: string;
+  changes: Array<string>;
+}> = [
+  {
+    key: "qr",
+    name: "QR code",
+    group: "Signs",
+    blurb: "A code players can scan, built from blocks.",
+    changes: ["Link or text", "Size", "Colours"],
+  },
+  {
+    key: "sign",
+    name: "Sign",
+    group: "Signs",
+    blurb: "Your words in block letters, on a wall or standing alone.",
+    changes: ["Text", "Width and height", "Wall", "Colours"],
+  },
+  {
+    key: "tree",
+    name: "Tree",
+    group: "Nature",
+    blurb: "A round, pine or blocky tree at any height.",
+    changes: ["Style", "Height and spread", "Colours", "Shuffle"],
+  },
+  {
+    key: "bush",
+    name: "Bush",
+    group: "Nature",
+    blurb: "A clump of leaves to dress a corner.",
+    changes: ["Size", "Clumps", "Colour", "Shuffle"],
+  },
+];
+
+function fileOf(key: GenKey, s: Settings): PrefabFile | null {
+  if (key === "qr") return qrFile(s.qr)?.file ?? null;
+  if (key === "sign") return signFile(s.sign)?.file ?? null;
+  if (key === "tree") return treeFile(s.tree);
+  return bushFile(s.bush);
 }
 
 function useDebounced<T>(v: T, ms = 250) {
@@ -96,145 +142,47 @@ function useDebounced<T>(v: T, ms = 250) {
   return d;
 }
 
-function useGen(): Gen {
-  const k = useParam("gen");
-  const kind: Kind = k === "text" ? "text" : "qr";
-  const setKind = (x: Kind) => setParam("gen", x);
-  const [qr, setQr] = useState("https://ballest.willness.dev");
-  const [text, setText] = useState("Welcome to my map");
-  const [cols, setCols] = useState(60);
-  const [rows, setRows] = useState(20);
-  const [cell, setCell] = useState(20);
-  const [back, setBack] = useState<Colour>("White");
-  const [front, setFront] = useState<Colour>("Dark");
-  const dq = useDebounced(qr);
-  const dt = useDebounced(text);
-  const layout = useMemo(() => {
-    if (kind === "qr") {
-      const g = qrGrid(dq);
-      return { grid: g, fits: !!g };
-    }
-    const t = textGrid(dt, cols, rows);
-    return { grid: t.grid, fits: t.fits };
-  }, [kind, dq, dt, cols, rows]);
-  const file = useMemo(
-    () => (layout.grid ? wallOf(layout.grid, cell, back, front) : null),
-    [layout.grid, cell, back, front],
-  );
-  const pieces = file?.items.length ?? 0;
-  const size = layout.grid
-    ? { w: (layout.grid.w * cell) / 100, h: (layout.grid.h * cell) / 100 }
-    : { w: 0, h: 0 };
-  return {
-    kind,
-    setKind,
-    qr,
-    setQr,
-    text,
-    setText,
-    cols,
-    setCols,
-    rows,
-    setRows,
-    cell,
-    setCell,
-    back,
-    setBack,
-    front,
-    setFront,
-    grid: layout.grid,
-    file,
-    fits: layout.fits,
-    pieces,
-    size,
-  };
-}
-
 const metres = (m: number) => (m >= 10 ? m.toFixed(0) : m.toFixed(1).replace(/\.0$/, "")) + " m";
 
-/* ---------- shared pieces ---------- */
-function download(g: Gen) {
-  if (!g.file) return;
-  const blob = new Blob([JSON.stringify(g.file, null, "\t")], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = g.kind === "qr" ? "qr_code.json" : "text_wall.json";
-  a.click();
-  URL.revokeObjectURL(a.href);
+/* the footprint of a file's pieces in metres (cubes and spheres only need their scale) */
+function sizeOf(file: PrefabFile) {
+  let x0 = Infinity,
+    x1 = -Infinity,
+    z1 = 0;
+  for (const it of file.items) {
+    const [x, , z] = it.transform.location;
+    const base = it.class.includes("Cube")
+      ? 1000
+      : it.class.includes("Sphere")
+        ? 400
+        : it.class.includes("Cone")
+          ? 300
+          : 1000;
+    const tall = it.class.includes("Cylinder") || it.class.includes("Cone") ? 200 : base;
+    const w = (it.transform.scale[0] * base) / 2;
+    x0 = Math.min(x0, x - w);
+    x1 = Math.max(x1, x + w);
+    z1 = Math.max(z1, z + it.transform.scale[2] * tall);
+  }
+  return { w: (x1 - x0) / 100, h: z1 / 100 };
 }
 
-function Preview({ g, className = "pg-view" }: { g: Gen; className?: string }) {
-  return (
-    <div className={className}>
-      {g.file ? (
-        <PrefabViewer key={JSON.stringify(g.grid?.w) + g.kind} file={g.file} spin={false} />
-      ) : (
-        <p className="pg-empty">
-          {g.kind === "qr" ? "Type something to encode." : "Type some text."}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Flat({ g, className = "pg-flat" }: { g: Gen; className?: string }) {
-  const ref = useRef<HTMLCanvasElement>(null);
+/* ---------- stills for the gallery ---------- */
+const stills = new Map<string, Promise<string>>();
+function Still({ gen, className = "pgs-still" }: { gen: GenKey; className?: string }) {
+  const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
-    const c = ref.current;
-    if (!c || !g.grid) return;
-    const { w, h, on } = g.grid;
-    const px = Math.max(1, Math.floor(900 / Math.max(w, h)));
-    c.width = w * px;
-    c.height = h * px;
-    const ctx = c.getContext("2d")!;
-    ctx.fillStyle = SWATCH[g.back];
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.fillStyle = SWATCH[g.front];
-    for (let y = 0; y < h; y++)
-      for (let x = 0; x < w; x++) if (on(x, y)) ctx.fillRect(x * px, y * px, px, px);
-  }, [g.grid, g.back, g.front]);
-  return (
-    <div className={className}>
-      {g.grid ? <canvas ref={ref} /> : <p className="pg-empty">Nothing to draw yet.</p>}
-    </div>
-  );
+    let live = true;
+    if (!stills.has(gen)) stills.set(gen, stillOf(fileOf(gen, DEFAULTS)!, 640, 400));
+    void stills.get(gen)!.then((s) => live && setSrc(s));
+    return () => {
+      live = false;
+    };
+  }, [gen]);
+  return <div className={className}>{src ? <img src={src} alt="" /> : null}</div>;
 }
 
-function Stats({ g }: { g: Gen }) {
-  const over = g.pieces > PIECE_LIMIT;
-  return (
-    <p className="pg-stats">
-      <span>
-        <b>{metres(g.size.w)}</b> × <b>{metres(g.size.h)}</b>
-      </span>
-      <span className={over ? "pg-bad" : undefined}>
-        <b>{g.pieces.toLocaleString()}</b> pieces{over ? ` (the game takes ${PIECE_LIMIT})` : ""}
-      </span>
-      {g.kind === "text" && !g.fits ? (
-        <span className="pg-bad">The text doesn&apos;t fit</span>
-      ) : null}
-    </p>
-  );
-}
-
-function Actions({ g }: { g: Gen }) {
-  const ok = !!g.file && g.pieces <= PIECE_LIMIT;
-  return (
-    <div className="pg-actions">
-      <button type="button" className="pf-dl" disabled={!ok} onClick={() => download(g)}>
-        Download
-      </button>
-      <Link
-        className="pg-ghost"
-        href={newPrefabHref()}
-        title="PROTOTYPE: would open the upload form with this file"
-      >
-        Upload to the gallery
-      </Link>
-    </div>
-  );
-}
-
+/* ---------- controls ---------- */
 function Swatches({
   label,
   value,
@@ -267,6 +215,7 @@ function Num({
   set,
   min,
   max,
+  step = 1,
   unit,
 }: {
   label: string;
@@ -274,6 +223,7 @@ function Num({
   set: (n: number) => void;
   min: number;
   max: number;
+  step?: number;
   unit?: string;
 }) {
   return (
@@ -283,10 +233,11 @@ function Num({
         type="number"
         min={min}
         max={max}
+        step={step}
         value={value}
         onChange={(e) => {
           const n = Number(e.target.value);
-          if (Number.isFinite(n)) set(Math.max(min, Math.min(max, Math.round(n))));
+          if (Number.isFinite(n) && e.target.value !== "") set(Math.max(min, Math.min(max, n)));
         }}
       />
       {unit ? <small>{unit}</small> : null}
@@ -294,285 +245,397 @@ function Num({
   );
 }
 
-function Fields({ g, compact = false }: { g: Gen; compact?: boolean }) {
+function Toggle({ label, on, set }: { label: string; on: boolean; set: (b: boolean) => void }) {
   return (
-    <div className={compact ? "pg-fields compact" : "pg-fields"}>
-      {g.kind === "qr" ? (
+    <label className="pg-toggle">
+      <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function Seg<T extends string>({
+  label,
+  value,
+  options,
+  set,
+}: {
+  label: string;
+  value: T;
+  options: ReadonlyArray<T>;
+  set: (v: T) => void;
+}) {
+  return (
+    <fieldset className="pg-seg">
+      <legend>{label}</legend>
+      <div>
+        {options.map((o) => (
+          <button key={o} type="button" aria-pressed={value === o} onClick={() => set(o)}>
+            {o}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+function Fields({ gen, s, set }: { gen: GenKey; s: Settings; set: (s: Settings) => void }) {
+  if (gen === "qr") {
+    const q = s.qr;
+    const up = (p: Partial<QrSettings>) => set({ ...s, qr: { ...q, ...p } });
+    return (
+      <div className="pg-fields">
         <label className="pg-txt">
           <span>Link or text</span>
-          <input value={g.qr} onChange={(e) => g.setQr(e.target.value)} placeholder="https://…" />
+          <input
+            value={q.text}
+            onChange={(e) => up({ text: e.target.value })}
+            placeholder="https://…"
+          />
         </label>
-      ) : (
-        <>
-          <label className="pg-txt">
-            <span>Text</span>
-            <textarea
-              rows={compact ? 2 : 3}
-              value={g.text}
-              onChange={(e) => g.setText(e.target.value)}
-            />
-          </label>
-          <div className="pg-row">
-            <Num label="Width" value={g.cols} set={g.setCols} min={8} max={400} unit="blocks" />
-            <Num label="Height" value={g.rows} set={g.setRows} min={9} max={200} unit="blocks" />
-          </div>
-        </>
-      )}
-      <div className="pg-row">
-        <Num label="Block size" value={g.cell} set={g.setCell} min={5} max={200} unit="cm" />
+        <Num label="Size" value={q.size} set={(n) => up({ size: n })} min={1} max={60} unit="m" />
+        <Swatches label="Background" value={q.back} set={(c) => up({ back: c })} />
+        <Swatches label="Code" value={q.front} set={(c) => up({ front: c })} />
       </div>
-      <Swatches label={g.kind === "qr" ? "Background" : "Wall"} value={g.back} set={g.setBack} />
-      <Swatches label={g.kind === "qr" ? "Code" : "Letters"} value={g.front} set={g.setFront} />
-    </div>
-  );
-}
-
-function KindTabs({ g, className = "pg-tabs" }: { g: Gen; className?: string }) {
-  return (
-    <div className={className} role="tablist">
-      {(
-        [
-          ["qr", "QR code"],
-          ["text", "Wall of text"],
-        ] as const
-      ).map(([k, name]) => (
+    );
+  }
+  if (gen === "sign") {
+    const t = s.sign;
+    const up = (p: Partial<SignSettings>) => set({ ...s, sign: { ...t, ...p } });
+    return (
+      <div className="pg-fields">
+        <label className="pg-txt">
+          <span>Text</span>
+          <textarea rows={3} value={t.text} onChange={(e) => up({ text: e.target.value })} />
+        </label>
+        <div className="pg-row">
+          <Num
+            label="Width"
+            value={t.width}
+            set={(n) => up({ width: n })}
+            min={1}
+            max={200}
+            step={0.5}
+            unit="m"
+          />
+          <Num
+            label="Height"
+            value={t.height}
+            set={(n) => up({ height: n })}
+            min={0.5}
+            max={100}
+            step={0.5}
+            unit="m"
+          />
+        </div>
+        <Toggle label="Wall behind the text" on={t.wall} set={(b) => up({ wall: b })} />
+        {t.wall ? <Swatches label="Wall" value={t.back} set={(c) => up({ back: c })} /> : null}
+        <Swatches label="Letters" value={t.front} set={(c) => up({ front: c })} />
+      </div>
+    );
+  }
+  if (gen === "tree") {
+    const t = s.tree;
+    const up = (p: Partial<TreeSettings>) => set({ ...s, tree: { ...t, ...p } });
+    return (
+      <div className="pg-fields">
+        <Seg<TreeStyle>
+          label="Style"
+          value={t.style}
+          options={["Round", "Pine", "Blocky"]}
+          set={(v) => up({ style: v })}
+        />
+        <div className="pg-row">
+          <Num
+            label="Height"
+            value={t.height}
+            set={(n) => up({ height: n })}
+            min={1}
+            max={40}
+            step={0.5}
+            unit="m"
+          />
+          <Num
+            label="Spread"
+            value={t.spread}
+            set={(n) => up({ spread: n })}
+            min={0.5}
+            max={30}
+            step={0.5}
+            unit="m"
+          />
+        </div>
+        <Swatches label="Trunk" value={t.trunk} set={(c) => up({ trunk: c })} />
+        <Swatches label="Leaves" value={t.leaves} set={(c) => up({ leaves: c })} />
         <button
-          key={k}
           type="button"
-          role="tab"
-          aria-selected={g.kind === k}
-          onClick={() => g.setKind(k)}
+          className="pg-ghost"
+          onClick={() => up({ seed: Math.floor(Math.random() * 1e9) })}
         >
-          {name}
+          Shuffle
         </button>
-      ))}
+      </div>
+    );
+  }
+  const b = s.bush;
+  const up = (p: Partial<BushSettings>) => set({ ...s, bush: { ...b, ...p } });
+  return (
+    <div className="pg-fields">
+      <div className="pg-row">
+        <Num
+          label="Width"
+          value={b.width}
+          set={(n) => up({ width: n })}
+          min={0.3}
+          max={20}
+          step={0.1}
+          unit="m"
+        />
+        <Num
+          label="Height"
+          value={b.height}
+          set={(n) => up({ height: n })}
+          min={0.2}
+          max={10}
+          step={0.1}
+          unit="m"
+        />
+      </div>
+      <Num
+        label="Clumps"
+        value={b.clumps}
+        set={(n) => up({ clumps: Math.round(n) })}
+        min={1}
+        max={30}
+      />
+      <Swatches label="Leaves" value={b.colour} set={(c) => up({ colour: c })} />
+      <button
+        type="button"
+        className="pg-ghost"
+        onClick={() => up({ seed: Math.floor(Math.random() * 1e9) })}
+      >
+        Shuffle
+      </button>
     </div>
   );
 }
 
-function Head({ title = "Make a prefab", sub }: { title?: string; sub?: string }) {
+function download(gen: GenKey, file: PrefabFile) {
+  const blob = new Blob([JSON.stringify(file, null, "\t")], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = { qr: "qr_code", sign: "sign", tree: "tree", bush: "bush" }[gen] + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------- one generator: round 1's A ---------- */
+function Editor({ gen, s, set }: { gen: GenKey; s: Settings; set: (s: Settings) => void }) {
+  const ds = useDebounced(s);
+  const file = useMemo(() => fileOf(gen, ds), [gen, ds]);
+  const g = GENS.find((x) => x.key === gen)!;
+  const size = file ? sizeOf(file) : null;
+  const pieces = file?.items.length ?? 0;
+  const over = pieces > PIECE_LIMIT;
+  return (
+    <section className="pg pgA">
+      <header className="pfl-head">
+        <div>
+          <button type="button" className="pgB-back" onClick={() => setParam("gen", null)}>
+            ← All generators
+          </button>
+          <h1>{g.name}</h1>
+          <p>{g.blurb}</p>
+        </div>
+      </header>
+      <div className="pgA-split">
+        <div className="pgA-form">
+          <Fields gen={gen} s={s} set={set} />
+        </div>
+        <div className="pgA-side">
+          <div className="pg-view">
+            {file ? (
+              <PrefabViewer file={file} spin={false} />
+            ) : (
+              <p className="pg-empty">Type something first.</p>
+            )}
+          </div>
+          {size ? (
+            <p className="pg-stats">
+              <span>
+                <b>{metres(size.w)}</b> wide × <b>{metres(size.h)}</b> tall
+              </span>
+              <span className={over ? "pg-bad" : undefined}>
+                <b>{pieces.toLocaleString()}</b> pieces
+                {over ? ` (the game takes ${PIECE_LIMIT})` : ""}
+              </span>
+            </p>
+          ) : null}
+          <div className="pg-actions">
+            <button
+              type="button"
+              className="pf-dl"
+              disabled={!file || over}
+              onClick={() => file && download(gen, file)}
+            >
+              Download
+            </button>
+          </div>
+          <small className="pg-note">Moves: Upload to the gallery is gone (round 1 verdict).</small>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- the gallery of generators: round 2 ---------- */
+const open = (k: GenKey) => setParam("gen", k);
+
+function Head() {
   return (
     <header className="pfl-head">
       <div>
-        <h1>{title}</h1>
-        <p>{sub ?? "Generate a prefab from a link or some text, then download it or share it."}</p>
+        <h1>Make a prefab</h1>
+        <p>Pick one, change it to suit your map, and download it.</p>
       </div>
       <Link className="pg-ghost" href={prefabsHref()}>
-        All prefabs
+        Shared prefabs
       </Link>
     </header>
   );
 }
 
-/* ---------- the variants ---------- */
-function VariantA({ g }: { g: Gen }) {
+function GalleryA() {
   return (
-    <section className="pg pgA">
+    <section className="pg">
       <Head />
-      <KindTabs g={g} />
-      <div className="pgA-split">
-        <div className="pgA-form">
-          <Fields g={g} />
-        </div>
-        <div className="pgA-side">
-          <Preview g={g} />
-          <Stats g={g} />
-          <Actions g={g} />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function VariantB({ g }: { g: Gen }) {
-  const open = useParam("open") === "1";
-  if (!open)
-    return (
-      <section className="pg pgB">
-        <Head
-          title="Prefab generators"
-          sub="Pick one to make a prefab you can download or share."
-        />
-        <div className="pgB-cards">
-          {(
-            [
-              ["qr", "QR code", "A scannable code from a link or text, built out of blocks."],
-              [
-                "text",
-                "Wall of text",
-                "Your words in block letters on a wall the size you choose.",
-              ],
-            ] as const
-          ).map(([k, name, blurb]) => (
-            <button
-              key={k}
-              type="button"
-              className="pgB-card"
-              onClick={() => {
-                g.setKind(k);
-                setParam("open", "1");
-              }}
-            >
-              <span className={"pgB-art " + k} aria-hidden />
-              <b>{name}</b>
-              <small>{blurb}</small>
-            </button>
-          ))}
-        </div>
-      </section>
-    );
-  return (
-    <section className="pg pgB">
-      <button type="button" className="pgB-back" onClick={() => setParam("open", null)}>
-        ← Generators
-      </button>
-      <h1 className="pgB-h">{g.kind === "qr" ? "QR code" : "Wall of text"}</h1>
-      <Preview g={g} className="pg-view wide" />
-      <div className="pgB-under">
-        <Fields g={g} />
-        <div className="pgB-act">
-          <Stats g={g} />
-          <Actions g={g} />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function VariantC({ g }: { g: Gen }) {
-  const [src, setSrc] = useState<"file" | Kind>(g.kind);
-  useEffect(() => {
-    if (src !== "file") g.setKind(src);
-  }, [src]);
-  return (
-    <section className="pfu pg pgC">
-      <header className="pfl-head">
-        <div>
-          <h1>Upload a prefab</h1>
-          <p>
-            Share a prefab you saved in the level editor, or make one here. It goes live as soon as
-            you publish.
-          </p>
-        </div>
-      </header>
-      <div className="pgC-src" role="radiogroup" aria-label="Where it comes from">
-        {(
-          [
-            ["file", "My file"],
-            ["qr", "Make a QR code"],
-            ["text", "Make a wall of text"],
-          ] as const
-        ).map(([k, name]) => (
-          <button
-            key={k}
-            type="button"
-            role="radio"
-            aria-checked={src === k}
-            onClick={() => setSrc(k)}
-          >
-            {name}
+      <div className="pgs-grid">
+        {GENS.map((g) => (
+          <button key={g.key} type="button" className="pgs-card" onClick={() => open(g.key)}>
+            <Still gen={g.key} />
+            <b>{g.name}</b>
+            <small>{g.blurb}</small>
           </button>
         ))}
       </div>
-      <div className="pgA-split">
-        <div className="pgA-form">
-          {src === "file" ? (
-            <div className="pfu-drop">
-              <b>Choose a prefab file</b>
-              <small>or drop it here (PROTOTYPE: the real form)</small>
-            </div>
-          ) : (
-            <Fields g={g} />
-          )}
-          <h2 className="pfu-h2">About it</h2>
-          <label className="pg-txt">
-            <span>Name</span>
-            <input defaultValue={g.kind === "qr" ? "QR code" : "Welcome sign"} />
-          </label>
-          <label className="pg-txt">
-            <span>Description</span>
-            <textarea rows={2} />
-          </label>
-          <button type="button" className="pf-dl" disabled>
-            Publish
-          </button>
-          <small className="pg-note">
-            Moves: the generated file's Download sits under the preview.
-          </small>
-        </div>
-        <div className="pgA-side">
-          {src === "file" ? <div className="pg-view" /> : <Preview g={g} />}
-          {src === "file" ? null : (
-            <>
-              <Stats g={g} />
-              <button type="button" className="pg-ghost" onClick={() => download(g)}>
-                Download instead
-              </button>
-            </>
-          )}
-        </div>
-      </div>
     </section>
   );
 }
 
-function VariantD({ g }: { g: Gen }) {
-  const [hide, setHide] = useState(false);
+function GalleryB() {
   return (
-    <section className="pg pgD">
-      <Preview g={g} className="pg-view full" />
-      <div className="pgD-top">
-        <KindTabs g={g} className="pg-tabs pill" />
-      </div>
-      <div className={hide ? "pgD-panel hidden" : "pgD-panel"}>
-        <div className="pgD-ph">
-          <b>{g.kind === "qr" ? "QR code" : "Wall of text"}</b>
-          <button type="button" className="pg-ghost" onClick={() => setHide(!hide)}>
-            {hide ? "Show" : "Hide"}
-          </button>
-        </div>
-        {hide ? null : (
-          <>
-            <Fields g={g} compact />
-            <Stats g={g} />
-            <Actions g={g} />
-          </>
-        )}
-      </div>
-      <small className="pg-note pgD-note">Moves: no page heading; the model is the page.</small>
-    </section>
-  );
-}
-
-function VariantE({ g }: { g: Gen }) {
-  const [three, setThree] = useState(false);
-  return (
-    <section className="pg pgE">
+    <section className="pg">
       <Head />
-      <div className="pgE-bar">
-        <KindTabs g={g} />
-        <Stats g={g} />
-        <Actions g={g} />
-      </div>
-      <div className="pgE-main">
-        <aside className="pgE-tools">
-          <Fields g={g} compact />
-        </aside>
-        <div className="pgE-stage">
-          {three ? (
-            <Preview g={g} className="pg-view tall" />
-          ) : (
-            <Flat g={g} className="pg-flat tall" />
-          )}
-          <div className="pgE-toggle" role="group" aria-label="View">
-            <button type="button" aria-pressed={!three} onClick={() => setThree(false)}>
-              Flat
-            </button>
-            <button type="button" aria-pressed={three} onClick={() => setThree(true)}>
-              3D
-            </button>
+      {(["Signs", "Nature"] as const).map((grp) => (
+        <div key={grp} className="pgs-shelf">
+          <h2 className="pfu-h2">{grp}</h2>
+          <div className="pgs-row">
+            {GENS.filter((g) => g.group === grp).map((g) => (
+              <button key={g.key} type="button" className="pgs-card" onClick={() => open(g.key)}>
+                <Still gen={g.key} />
+                <b>{g.name}</b>
+                <small>{g.blurb}</small>
+              </button>
+            ))}
           </div>
         </div>
+      ))}
+    </section>
+  );
+}
+
+function GalleryC() {
+  return (
+    <section className="pg">
+      <header className="pfl-head">
+        <div>
+          <h1>Prefabs</h1>
+          <p>
+            Ready-made pieces for the level editor. Download one, drop it in your Prefabs folder and
+            spawn it into your map.
+          </p>
+        </div>
+      </header>
+      <div className="pg-tabs" role="tablist">
+        <Link role="tab" aria-selected={false} href={prefabsHref()}>
+          Shared by players
+        </Link>
+        <button type="button" role="tab" aria-selected>
+          Make your own
+        </button>
+      </div>
+      <div className="pgs-grid small">
+        {GENS.map((g) => (
+          <button key={g.key} type="button" className="pgs-card" onClick={() => open(g.key)}>
+            <Still gen={g.key} />
+            <b>{g.name}</b>
+          </button>
+        ))}
+      </div>
+      <small className="pg-note">
+        Moves: the generators live on the Prefabs page under a second tab; this page reuses its
+        heading.
+      </small>
+    </section>
+  );
+}
+
+function GalleryD() {
+  return (
+    <section className="pg">
+      <Head />
+      <div className="pgs-list">
+        {GENS.map((g) => (
+          <button key={g.key} type="button" className="pgs-item" onClick={() => open(g.key)}>
+            <Still gen={g.key} className="pgs-still thumb" />
+            <span className="pgs-txt">
+              <b>{g.name}</b>
+              <small>{g.blurb}</small>
+              <span className="pgs-chips">
+                {g.changes.map((c) => (
+                  <span key={c}>{c}</span>
+                ))}
+              </span>
+            </span>
+            <span className="pgs-go" aria-hidden>
+              →
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function GalleryE() {
+  const [pick, setPick] = useState<GenKey>("tree");
+  const g = GENS.find((x) => x.key === pick)!;
+  const file = useMemo(() => fileOf(pick, DEFAULTS), [pick]);
+  return (
+    <section className="pg">
+      <Head />
+      <div className="pgs-show">
+        <div className="pg-view">{file ? <PrefabViewer key={pick} file={file} /> : null}</div>
+        <div className="pgs-showtxt">
+          <h2>{g.name}</h2>
+          <p>{g.blurb}</p>
+          <button type="button" className="pf-dl" onClick={() => open(pick)}>
+            Make one
+          </button>
+        </div>
+      </div>
+      <div className="pgs-strip">
+        {GENS.map((x) => (
+          <button
+            key={x.key}
+            type="button"
+            aria-pressed={pick === x.key}
+            onClick={() => setPick(x.key)}
+          >
+            <Still gen={x.key} className="pgs-still thumb" />
+            <span>{x.name}</span>
+          </button>
+        ))}
       </div>
     </section>
   );
@@ -580,23 +643,25 @@ function VariantE({ g }: { g: Gen }) {
 
 export function Generators() {
   const v = useVariant();
-  const g = useGen();
+  const gen = useParam("gen") as GenKey | null;
+  const [s, set] = useState<Settings>(DEFAULTS);
   const mounted = useSyncExternalStore(
     subscribe,
     () => true,
     () => false,
   );
   if (!mounted) return null;
+  if (gen && GENS.some((g) => g.key === gen)) return <Editor gen={gen} s={s} set={set} />;
   return v === "A" ? (
-    <VariantA g={g} />
+    <GalleryA />
   ) : v === "B" ? (
-    <VariantB g={g} />
+    <GalleryB />
   ) : v === "C" ? (
-    <VariantC g={g} />
+    <GalleryC />
   ) : v === "D" ? (
-    <VariantD g={g} />
+    <GalleryD />
   ) : (
-    <VariantE g={g} />
+    <GalleryE />
   );
 }
 
@@ -623,6 +688,7 @@ export function ProtoPicker() {
     return () => removeEventListener("keydown", key);
   }, []);
   const view = useParam("view");
+  const gen = useParam("gen");
   const framed = useSyncExternalStore(
     subscribe,
     () => window.top !== window || param("framed") === "1",
@@ -694,6 +760,13 @@ export function ProtoPicker() {
             Phone
           </button>
         </div>
+        {gen ? (
+          <div className="pp-row">
+            <button type="button" onClick={() => setParam("gen", null)}>
+              Back to the gallery
+            </button>
+          </div>
+        ) : null}
       </div>
     </>
   );

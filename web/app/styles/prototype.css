@@ -523,3 +523,218 @@ button.pf-dl:disabled {
     aspect-ratio: 16 / 9;
   }
 }
+
+/* ---------- round 2: the gallery of generators ---------- */
+.pg-tabs a {
+  padding: 0.6rem 1rem;
+  border-bottom: 3px solid transparent;
+  color: var(--dim);
+  font-weight: 700;
+  text-decoration: none;
+}
+.pg-toggle {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pg-toggle input {
+  inline-size: 1.2rem;
+  block-size: 1.2rem;
+  accent-color: var(--accent);
+}
+.pg-seg {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.pg-seg legend {
+  margin-bottom: 0.35rem;
+  padding: 0;
+  font-family: var(--f-hud);
+  font-size: calc(13rem / 16);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.pg-seg div {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.pg-seg button {
+  padding: 0.45rem 0.9rem;
+  border: 0;
+  background: var(--solid);
+  color: var(--dim);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pg-seg button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.pgs-still {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 40%, var(--surface2), var(--solid));
+  overflow: hidden;
+}
+.pgs-still img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.pgs-still.thumb {
+  width: 6rem;
+  flex: none;
+}
+.pgs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 1rem;
+}
+.pgs-grid.small {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+}
+.pgs-card {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+  align-content: start;
+  text-align: left;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.pgs-card:hover,
+.pgs-item:hover {
+  border-color: var(--accent);
+}
+.pgs-card b {
+  font-family: var(--f-hud);
+  font-size: calc(18rem / 16);
+  margin-top: 0.3rem;
+}
+.pgs-card small,
+.pgs-item small {
+  color: var(--dim);
+  font-size: calc(14rem / 16);
+}
+.pgs-shelf {
+  display: grid;
+  gap: 0.6rem;
+}
+.pgs-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: min(78%, 17rem);
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+}
+.pgs-list {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 44rem;
+}
+.pgs-item {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+.pgs-txt {
+  display: grid;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+.pgs-txt b {
+  font-family: var(--f-hud);
+  font-size: calc(17rem / 16);
+}
+.pgs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.pgs-chips span {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface2);
+  color: var(--dim);
+  font-size: calc(12rem / 16);
+}
+.pgs-go {
+  color: var(--faint);
+  font-size: 1.3rem;
+}
+.pgs-show {
+  display: grid;
+  gap: 1rem;
+}
+.pgs-showtxt {
+  display: grid;
+  gap: 0.6rem;
+  align-content: center;
+  justify-items: start;
+}
+.pgs-showtxt h2 {
+  font-family: var(--f-marquee);
+  font-weight: 400;
+  margin: 0;
+}
+.pgs-showtxt p {
+  margin: 0;
+  color: var(--dim);
+}
+.pgs-strip {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+}
+.pgs-strip button {
+  display: grid;
+  gap: 0.3rem;
+  justify-items: center;
+  padding: 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--dim);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pgs-strip button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--text);
+}
+@media (min-width: 900px) {
+  .pgs-show {
+    grid-template-columns: 2fr 1fr;
+  }
+  .pgs-still.thumb {
+    width: 8rem;
+  }
+}
