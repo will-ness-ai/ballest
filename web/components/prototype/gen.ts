@@ -299,6 +299,7 @@ export const FONTS = [
   ["Press Start", '"Press Start 2P"'],
   ["Rubik Mono", '"Rubik Mono One"'],
   ["Lobster", '"Lobster"'],
+  ["Handwritten", '700 "Caveat"'],
   ["Serif", '700 Georgia, "Times New Roman", serif'],
   ["Typewriter", '700 "Courier New", monospace'],
 ] as const;

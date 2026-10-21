@@ -17,7 +17,7 @@ export default function Page() {
       <link
         rel="stylesheet"
         precedence="default"
-        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lobster&family=Press+Start+2P&family=Rubik+Mono+One&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@700&family=Lobster&family=Press+Start+2P&family=Rubik+Mono+One&display=swap"
       />
       <Generators />
     </Shell>
