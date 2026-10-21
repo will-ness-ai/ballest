@@ -1,4 +1,3 @@
-/* eslint-disable -- PROTOTYPE, never merged */
 // PROTOTYPE: round 3, five ways to build a tree and a bush from the editor's primitives
 // (A Cloud, B Branches, C Tiers, D Faceted, E Voxel), each with its own settings. A style is
 // its controls (drawn generically by Generators.tsx), its defaults and its two builders.
@@ -332,7 +331,7 @@ const tiers: Style = {
       tiers: 4,
       taper: 70,
       overlap: 40,
-      stem: 1,
+      stem: 1.6,
       snow: false,
       bark: "Copper",
       green: "Lime",
