@@ -64,7 +64,7 @@ function box(
     properties: {},
     meshes: [{ tag: "SKGMapEditor", mesh: MESH, materials: [material(c)] }],
     paint: { categories: [SMOOTH], colors: [0] },
-  } as PrefabItem;
+  } as unknown as PrefabItem;
 }
 
 /* the "on" cells as rectangles: each row's runs, then runs stacked where the rows agree */
