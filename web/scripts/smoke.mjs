@@ -169,6 +169,10 @@ const ROUTES = [
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
   ["/prefabs/new", 200, null, "Upload a prefab"],
+  // the Generators: the Make your own tab, a Generator, and one that isn't
+  ["/prefabs/make", 200, null, "Make your own"],
+  ["/prefabs/make/qr", 200, null, "QR code"],
+  ["/prefabs/make/fence", 404],
   ["/api/prefabs", 200, null, '"signedIn":false'],
   ["/robots.txt", 200, null, "Disallow: /prefabs/new"],
   ["/prefab/twin-cubes", 200, null, "Twin cubes"],

@@ -92,6 +92,9 @@ export interface MeshShape {
   max: Vec3;
 }
 
+/* a piece whose material names no colour word */
+export const UNKNOWN_COLOUR = "#8a90a0";
+
 /* the material's own colour word, as the editor's swatches show it */
 const COLOURS: Array<[RegExp, string]> = [
   [/Lime/i, "#9be22d"],
@@ -108,6 +111,8 @@ const COLOURS: Array<[RegExp, string]> = [
   [/Black/i, "#202329"],
   [/Iron/i, "#2a2c31"],
   [/Aluminum/i, "#c9ccd2"],
+  [/Copper/i, "#b0683a"],
+  [/Wine/i, "#7a2a3a"],
 ];
 
 export interface Shape {
@@ -184,7 +189,7 @@ export function shapesOf(file: PrefabFile): Array<Shape> {
       profile,
       size: [ext[0] / 100, ext[2] / 100, ext[1] / 100],
       matrix: [...ax, 0, ...ay, 0, ...az, 0, ...o, 1],
-      colour: COLOURS.find(([re]) => re.test(material))?.[1] ?? "#8a90a0",
+      colour: COLOURS.find(([re]) => re.test(material))?.[1] ?? UNKNOWN_COLOUR,
       glow: /Emissive/i.test(material),
       piece,
       material,

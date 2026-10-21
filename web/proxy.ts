@@ -15,6 +15,7 @@ import {
   isPlSort,
   playerHref,
   playersHref,
+  isGeneratorKey,
 } from "./lib/routes";
 import { PFID, STEAM_ID } from "./lib/rules";
 import { isPreset } from "./lib/workshop";
@@ -40,6 +41,7 @@ import { isPreset } from "./lib/workshop";
 //   with no Daily is only known to the page, which sends the reader to /daily.
 // - A Prefab's path is /prefab/<a slug>; a slug nobody uploaded is only known to the page,
 //   which says the Prefab is gone.
+// - A Generator's path is /prefabs/make/<one of GENERATOR_KEYS>.
 // - A player's or a head to head's path that isn't shaped like one (no Steam ID, an
 //   unknown tab) is the same; one with a Steam ID nobody raced under can only be a soft
 //   404. A head to head of a player against themselves is just their page.
@@ -85,6 +87,8 @@ export function proxy(request: NextRequest) {
   }
   if (path.startsWith("/prefab/") && (path.length > 72 || !PREFAB_PATH.test(path)))
     return notFound(request);
+  const make = /^\/prefabs\/make\/(.*)$/.exec(path);
+  if (make && !isGeneratorKey(make[1])) return notFound(request);
   const vs = VS_PATH.exec(path);
   if (vs && vs[1] === vs[2]) return NextResponse.redirect(new URL(playerHref(vs[1]), request.url));
   if ((path.startsWith("/player/") && !PLAYER_PATH.test(path)) || (path.startsWith("/vs/") && !vs))
@@ -104,5 +108,6 @@ export const config = {
     "/vs/:path*",
     "/daily/:path*",
     "/prefab/:path*",
+    "/prefabs/make/:path*",
   ],
 };

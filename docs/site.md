@@ -267,7 +267,8 @@ fails to load, or that Satori can't read, draws without it.
   out of reach, holding their place, so a signed-out page doesn't jump when they show and
   a signed-in visitor never sees Sign in.
 - `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
-  upload form. The Prefabs tab comes last and is lit on all three. See "Prefabs".
+  upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators. The Prefabs
+  tab comes last and is lit on all of them. See "Prefabs" and "Generators".
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
 it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board, Map or
@@ -566,6 +567,33 @@ branch `claude/prototype-prefabs` (spec #213).
   can give the uploader their own hourly upload limit, or put them back on the 5
   (`/api/prefab-limits/<steam_id>`, the `prefab_limits` table); nothing cached reads it, as
   the upload form asks for its quota uncached.
+
+## Generators
+
+The Prefabs page's second tab, Make your own (spec #299; settled in four grill-design rounds
+on the never-merged `claude/prototype-prefab-generators`): a card per Generator, each with a
+still of what its defaults make, and a page per Generator at `/prefabs/make/<key>`
+(`proxy.ts` answers 404 for any other key; the keys are `GENERATOR_KEYS` in `lib/routes.ts`,
+kept apart from the Generators so a page that only links one never loads them).
+
+- **The Generators** (`lib/generators.ts`): each is its controls, its defaults and its
+  builder, and `generate(key, values)` returns its Prefab file (or null with nothing to
+  make). The page draws whatever `controls(values)` returns, so a switch can hide another
+  control (the sign's wall colour with the wall off), and a fifth Generator is one entry.
+  Pieces are the editor's cube, sphere, cylinder and cone, placed by their bottom centre;
+  grids of cells (QR modules, letters, voxels) are merged into as few boxes as they can be.
+- **Colours** (`COLOURS`): each names its material and the `paint` the editor saves beside
+  it, a MaterialCategory and an `EBallestMaterialColors` value read from the game's assets
+  (Smooth for the colours, Special for the metals). The swatches are `--gen-*` on `:root`.
+- **The sign's lettering** (`lib/generator-letters.ts`): the Pixel font is a 5x7 table there;
+  the others are drawn on a canvas by the browser (`components/prefabs/make/lettering.ts`)
+  behind the same `Lettering`, so `lib/` stays pure. The text wraps at whatever line length
+  makes the letters biggest inside the wall. Fonts the site doesn't load already come from
+  Google Fonts on the sign's page only.
+- **The page** (`GeneratorEditor.tsx`, grill-design rounds 1 and 4): the controls on the left,
+  main ones first and the rest under More options, every number a slider showing its value;
+  the model (`PrefabViewer`, held still), its size and piece count and Download on the right.
+  Over 4096 pieces Download is off and says why. The ? beside it is the Prefab page's how-to.
 
 ## Maps in 3D
 
