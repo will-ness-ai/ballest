@@ -108,6 +108,10 @@ const COLOURS: Array<[RegExp, string]> = [
   [/Black/i, "#202329"],
   [/Iron/i, "#2a2c31"],
   [/Aluminum/i, "#c9ccd2"],
+  /* PROTOTYPE: the generators' trunk colours */
+  [/Copper/i, "#b0683a"],
+  [/Wine/i, "#7a2a3a"],
+  [/Gold/i, "#d9b04a"],
 ];
 
 export interface Shape {

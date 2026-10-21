@@ -21,6 +21,9 @@ export const COLOURS = [
   ["Yellow", "Instances_2/MI_Env_Yellow_Smooth"],
   ["Sky blue", "Instances_2/MI_Env_SkyBlue_Smooth"],
   ["Purple", "Instances_2/MI_Env_Purple_Smooth"],
+  ["Copper", "Instances/MI_Env_Copper"],
+  ["Gold", "Instances/MI_Env_Gold"],
+  ["Iron", "Instances/MI_Env_Iron"],
 ] as const;
 export type Colour = (typeof COLOURS)[number][0];
 export const SWATCH: Record<Colour, string> = {
@@ -33,6 +36,9 @@ export const SWATCH: Record<Colour, string> = {
   Yellow: "#f2cc3a",
   "Sky blue": "#3f7fe0",
   Purple: "#9a5ae0",
+  Copper: "#b0683a",
+  Gold: "#d9b04a",
+  Iron: "#2a2c31",
 };
 
 const PIECES =
@@ -59,7 +65,7 @@ const KINDS = {
     size: [300, 300, 200],
   },
 } as const;
-type Kind = keyof typeof KINDS;
+export type Kind = keyof typeof KINDS;
 const SMOOTH =
   "/Game/Art/DataAssets/BallestMaterials/MaterialCategory_Smooth.MaterialCategory_Smooth";
 const material = (c: Colour) => {
@@ -68,20 +74,21 @@ const material = (c: Colour) => {
   return `/Game/Art/Materials/Environment/Materials/${mi}.${name}`;
 };
 
-/* a piece of the given size in cm, its bottom centre at (x, y, z), turned yaw degrees */
-function piece(
+/* a piece of the given size in cm, its bottom centre at (x, y, z), turned yaw degrees or by a
+   whole [pitch, yaw, roll] */
+export function piece(
   kind: Kind,
   [x, y, z]: [number, number, number],
   [sx, sy, sz]: [number, number, number],
   c: Colour,
-  yaw = 0,
+  yaw: number | [number, number, number] = 0,
 ): PrefabItem {
   const k = KINDS[kind];
   return {
     class: k.cls,
     transform: {
       location: [x, y, z],
-      rotation: [0, yaw, 0],
+      rotation: Array.isArray(yaw) ? yaw : [0, yaw, 0],
       scale: [sx / k.size[0], sy / k.size[1], sz / k.size[2]],
     },
     properties: {},
@@ -90,7 +97,7 @@ function piece(
   } as unknown as PrefabItem;
 }
 
-const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
+export const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
   format: "BallestPrefab",
   version: 1,
   group: { rotation: [0, 0, 0], scale: [1, 1, 1] },
@@ -305,7 +312,7 @@ export function signFile(s: SignSettings): { file: PrefabFile; grid: Grid; cell:
 
 /* ---------- nature ---------- */
 /* a small seeded random, so Shuffle gives a new shape and the same seed the same one */
-function rand(seed: number) {
+export function rand(seed: number) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
