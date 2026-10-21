@@ -23,6 +23,8 @@ export default defineConfig(
     "web/.next/",
     "web/public/",
     "web/next-env.d.ts",
+    // PROTOTYPE branch only: the ops pane mod is typed by its own engine tsconfig
+    "mods/",
   ]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,

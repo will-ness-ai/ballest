@@ -1,0 +1,6 @@
+{
+  "name": "ops-pane-prototype",
+  "version": "0.1.0",
+  "description": "PROTOTYPE: the Ballest ops pane, five variants for grill-design",
+  "types": "./types/index.d.ts"
+}
