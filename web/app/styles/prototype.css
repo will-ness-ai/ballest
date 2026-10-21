@@ -738,3 +738,38 @@ button.pf-dl:disabled {
     width: 8rem;
   }
 }
+
+/* ---------- the sign's fonts ---------- */
+.pg-fonts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.pg-fonts legend {
+  margin-bottom: 0.35rem;
+  padding: 0;
+  font-family: var(--f-hud);
+  font-size: calc(13rem / 16);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.pg-fonts button {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--solid);
+  color: var(--text);
+  cursor: pointer;
+}
+.pg-fonts button.pixel {
+  font: 700 1rem monospace;
+  letter-spacing: 0.08em;
+}
+.pg-fonts button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}

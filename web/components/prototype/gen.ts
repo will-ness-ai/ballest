@@ -233,9 +233,9 @@ const GLYPH_W = 5;
 const GLYPH_H = 7;
 
 /* the text wrapped at `per` letters a line */
-function wrapAt(text: string, per: number): Array<string> {
+function wrapAt(text: string, per: number, keepCase = false): Array<string> {
   const lines: Array<string> = [];
-  for (const para of text.toUpperCase().split("\n")) {
+  for (const para of (keepCase ? text : text.toUpperCase()).split("\n")) {
     let line = "";
     for (const word of para.split(/\s+/).filter(Boolean)) {
       for (let w = word; w;) {
@@ -288,6 +288,87 @@ export function fitText(text: string, w: number, h: number) {
   return best!;
 }
 
+/* the sign's fonts: Pixel is the 5x7 font above; every other one is drawn in the browser and
+   read back as blocks, `detail` blocks to a line of capitals */
+export const FONTS = [
+  ["Pixel", ""],
+  ["Bungee", '"Bungee"'],
+  ["Chakra Petch", '700 "Chakra Petch"'],
+  ["Archivo", '800 "Archivo"'],
+  ["Bebas Neue", '"Bebas Neue"'],
+  ["Press Start", '"Press Start 2P"'],
+  ["Rubik Mono", '"Rubik Mono One"'],
+  ["Lobster", '"Lobster"'],
+  ["Serif", '700 Georgia, "Times New Roman", serif'],
+  ["Typewriter", '700 "Courier New", monospace'],
+] as const;
+export type FontName = (typeof FONTS)[number][0];
+
+/* the text drawn in `css` and read back as a grid, `detail` cells to a capital's height, with
+   the line breaks that make it biggest inside w by h */
+function rasterFit(text: string, css: string, detail: number, w: number, h: number) {
+  const t = text.trim();
+  const words = t.split(/\s+/);
+  const longest = Math.max(1, ...words.map((x) => x.length));
+  const ctx = document.createElement("canvas").getContext("2d")!;
+  const px = 100;
+  const font = (size: number) =>
+    /^\d+ /.test(css) ? css.replace(/^(\d+) /, `$1 ${size}px `) : `${size}px ${css}`;
+  ctx.font = font(px);
+  const capH = ctx.measureText("H").actualBoundingBoxAscent || px * 0.7;
+  const lineH = px * 1.2;
+  let best: { lines: Array<string>; scale: number; lineW: number } | null = null;
+  for (let per = longest; per <= Math.max(longest, t.length); per++) {
+    const lines = wrapAt(t, per, true);
+    const lineW = Math.max(...lines.map((l) => ctx.measureText(l).width));
+    const scale = Math.min(w / lineW, h / (lines.length * lineH));
+    if (!best || scale > best.scale) best = { lines, scale, lineW };
+  }
+  const { lines, lineW } = best!;
+  /* one cell is capH / detail px at size px; draw 4x finer and read each cell's middle */
+  const unit = capH / detail;
+  const sup = 4;
+  const cols = Math.ceil(lineW / unit) + 2;
+  const rows = Math.ceil((lines.length * lineH) / unit) + 1;
+  const cv = document.createElement("canvas");
+  cv.width = cols * sup;
+  cv.height = rows * sup;
+  const g = cv.getContext("2d")!;
+  g.scale(sup / unit, sup / unit);
+  g.font = font(px);
+  g.fillStyle = "#000";
+  g.textAlign = "center";
+  g.textBaseline = "alphabetic";
+  lines.forEach((l, i) =>
+    g.fillText(l, (cols * unit) / 2, (i + 1) * lineH - (lineH - capH) / 2 - px * 0.05),
+  );
+  const data = g.getImageData(0, 0, cv.width, cv.height).data;
+  const on = (x: number, y: number) => {
+    let hit = 0;
+    for (let j = 1; j < sup; j += 2)
+      for (let i = 1; i < sup; i += 2)
+        hit += data[((y * sup + j) * cv.width + x * sup + i) * 4 + 3] > 127 ? 1 : 0;
+    return hit >= 2;
+  };
+  /* trim the empty rows and columns round the text */
+  let [x0, x1, y0, y1] = [cols, -1, rows, -1];
+  for (let y = 0; y < rows; y++)
+    for (let x = 0; x < cols; x++)
+      if (on(x, y)) {
+        x0 = Math.min(x0, x);
+        x1 = Math.max(x1, x);
+        y0 = Math.min(y0, y);
+        y1 = Math.max(y1, y);
+      }
+  if (x1 < 0) return null;
+  const cells = new Set<number>();
+  const gw = x1 - x0 + 1;
+  for (let y = y0; y <= y1; y++)
+    for (let x = x0; x <= x1; x++) if (on(x, y)) cells.add((y - y0) * gw + x - x0);
+  const grid: Grid = { w: gw, h: y1 - y0 + 1, on: (x, y) => cells.has(y * gw + x) };
+  return { grid, cell: Math.min(w / grid.w, h / grid.h) };
+}
+
 export interface SignSettings {
   text: string;
   width: number;
@@ -295,13 +376,20 @@ export interface SignSettings {
   wall: boolean;
   back: Colour;
   front: Colour;
+  font: FontName;
+  detail: number;
 }
 export function signFile(s: SignSettings): { file: PrefabFile; grid: Grid; cell: number } | null {
   if (!s.text.trim()) return null;
   const W = s.width * 100;
   const H = s.height * 100;
   const pad = s.wall ? 0.12 : 0;
-  const { grid, cell } = fitText(s.text, W * (1 - pad), H * (1 - pad));
+  const css = FONTS.find((f) => f[0] === s.font)?.[1] ?? "";
+  const fit = css
+    ? rasterFit(s.text, css, s.detail, W * (1 - pad), H * (1 - pad))
+    : fitText(s.text, W * (1 - pad), H * (1 - pad));
+  if (!fit) return null;
+  const { grid, cell } = fit;
   const textH = grid.h * cell;
   if (!s.wall) return { file: fileOf(cellsOf(grid, cell, textH, 0, cell, s.front)), grid, cell };
   const depth = Math.max(5, Math.min(W, H) * 0.03);

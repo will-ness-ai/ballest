@@ -17,6 +17,7 @@ import {
   COLOURS,
   PIECE_LIMIT,
   SWATCH,
+  FONTS,
   qrFile,
   signFile,
   type Colour,
@@ -81,6 +82,8 @@ const DEFAULTS: Settings = {
     wall: true,
     back: "White",
     front: "Dark",
+    font: "Pixel",
+    detail: 14,
   },
   nature: Object.fromEntries(
     VARIANTS.map(([k]) => [
@@ -308,6 +311,31 @@ function Fields({ gen, s, set }: { gen: GenKey; s: Settings; set: (s: Settings) 
             unit="m"
           />
         </div>
+        <fieldset className="pg-fonts">
+          <legend>Font</legend>
+          {FONTS.map(([name, css]) => (
+            <button
+              key={name}
+              type="button"
+              aria-pressed={t.font === name}
+              style={css ? { font: css.replace(/^(\d+ )?/, "$1" + "1rem ") } : undefined}
+              className={css ? undefined : "pixel"}
+              onClick={() => up({ font: name })}
+            >
+              {name}
+            </button>
+          ))}
+        </fieldset>
+        {t.font === "Pixel" ? null : (
+          <Num
+            label="Detail"
+            value={t.detail}
+            set={(n) => up({ detail: Math.round(n) })}
+            min={5}
+            max={40}
+            unit="blocks tall"
+          />
+        )}
         <Toggle label="Wall behind the text" on={t.wall} set={(b) => up({ wall: b })} />
         {t.wall ? <Swatches label="Wall" value={t.back} set={(c) => up({ back: c })} /> : null}
         <Swatches label="Letters" value={t.front} set={(c) => up({ front: c })} />
@@ -373,7 +401,19 @@ function download(gen: GenKey, file: PrefabFile) {
 function Editor({ gen, s, set }: { gen: GenKey; s: Settings; set: (s: Settings) => void }) {
   const v = useVariant();
   const ds = useDebounced(s);
-  const file = useMemo(() => fileOf(gen, ds, v), [gen, ds, v]);
+  /* web fonts arrive after the first draw; draw again once they have */
+  const [fonts, setFonts] = useState(0);
+  useEffect(() => {
+    const bump = () => setFonts((n) => n + 1);
+    document.fonts.addEventListener("loadingdone", bump);
+    void Promise.all(
+      FONTS.filter((f) => f[1]).map((f) =>
+        document.fonts.load(f[1].replace(/^(\d+ )?/, "$1" + "40px ")),
+      ),
+    ).then(bump);
+    return () => document.fonts.removeEventListener("loadingdone", bump);
+  }, []);
+  const file = useMemo(() => fileOf(gen, ds, v), [gen, ds, v, fonts]);
   const g = GENS.find((x) => x.key === gen)!;
   const size = file ? sizeOf(file) : null;
   const pieces = file?.items.length ?? 0;
