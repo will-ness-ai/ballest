@@ -773,3 +773,235 @@ button.pf-dl:disabled {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
+
+/* ---------- round 4: sliders and the five panels ---------- */
+.pg-slide {
+  display: grid;
+  gap: 0.3rem;
+}
+.pg-slide-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.pg-slide-top > span {
+  font-family: var(--f-hud);
+  font-size: calc(13rem / 16);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.pg-slide output {
+  font-family: var(--f-hud);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.pg-slide-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+.pg-slide input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  height: 1.6rem;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.pg-slide input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--accent) var(--pct), var(--surface2) var(--pct));
+}
+.pg-slide input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface2);
+}
+.pg-slide input[type="range"]::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.pg-slide input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-top: calc(3px - 0.6rem);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--text);
+}
+.pg-slide input[type="range"]::-moz-range-thumb {
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--text);
+}
+.pg-box {
+  position: relative;
+  width: 5.4rem;
+  flex: none;
+}
+.pg-box input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--solid);
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.pg-box small {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  translate: 0 -50%;
+  color: var(--faint);
+  pointer-events: none;
+  font-size: calc(12rem / 16);
+}
+.pg-box:has(small) input {
+  padding-right: 2.6rem;
+}
+.pg-shuffle {
+  justify-self: start;
+}
+/* B */
+.pg-group {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.pg-group-h {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-family: var(--f-hud);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.pg-group-b {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0 0.9rem 0.9rem;
+}
+/* C */
+.pg-two {
+  display: grid;
+  gap: 0.9rem 1.2rem;
+}
+.pg-cell {
+  min-width: 0;
+}
+/* D */
+.pg-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.pg-cards legend,
+.pg-pal legend {
+  margin-bottom: 0.35rem;
+  padding: 0;
+  font-family: var(--f-hud);
+  font-size: calc(13rem / 16);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.pg-cards button {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 0;
+}
+.pg-cards button[aria-pressed="true"],
+.pg-pal button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.pg-pal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.pg-pal button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--solid);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pg-pal button span {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+}
+.pg-pal button span + span {
+  margin-left: -0.5rem;
+  margin-right: 0.2rem;
+  outline: 2px solid var(--solid);
+}
+.pg-more {
+  display: grid;
+  gap: 0.8rem;
+}
+.pg-more summary {
+  color: var(--dim);
+  cursor: pointer;
+}
+/* E */
+.pg-morebtn {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (min-width: 900px) {
+  .pg-two {
+    grid-template-columns: 1fr 1fr;
+  }
+  .pgA-split:has(.pg-two) {
+    grid-template-columns: minmax(30rem, 36rem) 1fr;
+  }
+  .pg-cell.wide {
+    grid-column: 1 / -1;
+  }
+}
