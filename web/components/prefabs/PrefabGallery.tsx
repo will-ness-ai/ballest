@@ -105,9 +105,15 @@ export function PrefabGallery({ cards }: { cards: Array<PrefabCard> }) {
             spawn it into your map.
           </p>
         </div>
-        <Link className="pf-dl" href={newPrefabHref()}>
-          + Upload
-        </Link>
+        <div className="pg-headbtns">
+          {/* PROTOTYPE */}
+          <Link className="pg-ghost" href="/prefabs/make">
+            Make one
+          </Link>
+          <Link className="pf-dl" href={newPrefabHref()}>
+            + Upload
+          </Link>
+        </div>
       </header>
       <div className="pfl-bar">
         <div className="pfl-seg" role="group" aria-label="Sort">
