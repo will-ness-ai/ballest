@@ -1,4 +1,4 @@
-// The bot's channel, as the Surface sees it: messages and Match Threads to draw things in.
+// A Venue's Match channel, as the Surface sees it: messages and Match Threads to draw things in.
 // It speaks in what to draw, not how, so the Surface's rules run against an in-memory channel
 // in tests; this adapter draws each one with the renderer and runs it on discord.js.
 import { Context, Data, Effect, Layer, Option } from "effect";

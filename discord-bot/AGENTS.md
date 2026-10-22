@@ -40,22 +40,39 @@ with `fly status -a multiballs` and `fly logs -a multiballs`, and bring it back 
 click alongside Fly, so a checkout never holds production's token or starts production, not even
 to restore it while it is down.
 
-One copy runs per channel on a machine: a second start stops with "already running (pid N)".
-Stop the running copy by that pid before starting another. On Windows, stopping a background
+One copy runs per home channel on a machine: a second start stops with "already running (pid
+N)". Stop the running copy by that pid before starting another. On Windows, stopping a background
 shell leaves its Node process running.
 
-At startup the bot refuses to run without its channel permissions. The channel denies Send
-Messages to `@everyone` to stay read-only, so the bot's role needs an explicit Send Messages
-allow on that channel.
+## Venues
 
-It also refuses to run unless it can use the @Multiplayer ping role (Lobby pings, spec #87),
-whose id is `DISCORD_PING_ROLE_ID` (a different role for the dev app's test server and for
-production; set it in the main checkout's `.env` and in `fly secrets`). The role must exist, the
-bot needs Manage Roles with its own role above @Multiplayer ping, and the role must be
-mentionable or the bot allowed to Mention @everyone, @here and All Roles. That is the only
-role the bot ever adds or removes (`src/discord/pingRole.ts`, behind the `PingRole` port), and
-`src/pings.ts` is the one place both surfaces go through for it; its words are in
-`src/pingWords.ts`.
+One process plays in every Venue (CONTEXT.md, spec #315): a server, its Match channel and its
+@Multiplayer ping role. The home Venue, the game Discord, is `DISCORD_GUILD_ID`,
+`DISCORD_CHANNEL_ID` and `DISCORD_PING_ROLE_ID`; each other one is an entry of
+`DISCORD_VENUES`, a JSON list of `{ name, guildId, channelId, pingRoleId }` in `fly.toml`'s
+`[env]` (`src/venues.ts`). Absent, the bot plays in home alone, so `pnpm dev` and the sandbox
+need nothing new. A Venue's `name` is a short stable key stored on its Matches; don't rename one
+with Matches open.
+
+Each Venue has its own Footer, Cards and Match Threads (a `discord_layout` row each, behind the
+router in `src/discord/surface.ts`), its own queue (a Match's `venue`), its own ping role and its
+own ping-offer answers. Links, Chosen Skins, the Steam session and "one Match at a time" are
+shared. Clicks are handled in the Venue they came from; anywhere else they get "Multiballs only
+works in its own channel." The Daily Report, Daily Posts, #new-tracks and ops stay home's only.
+The Activity serves the home Venue only for now (#317).
+
+At startup each Venue is checked: its channel permissions, and its ping role. Home failing a
+check stops the bot, as before; another Venue failing is left out with a line to the ops channel
+while the bot runs on. Each channel denies Send Messages to `@everyone` to stay read-only, so the
+bot's role needs an explicit Send Messages allow on it.
+
+The ping role (Lobby pings, spec #87) is a different role for the dev app's test server and for
+production; set `DISCORD_PING_ROLE_ID` in the main checkout's `.env` and in `fly secrets`. In
+each Venue the role must exist, the bot needs Manage Roles with its own role above @Multiplayer
+ping, and the role must be mentionable or the bot allowed to Mention @everyone, @here and All
+Roles. That is the only role the bot ever adds or removes (`src/discord/pingRole.ts`, behind the
+`PingRole` port), and `src/pings.ts` is the one place both surfaces go through for it; its words
+are in `src/pingWords.ts`.
 
 ## The sandbox: driving the bot on the test server
 
