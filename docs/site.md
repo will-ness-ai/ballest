@@ -571,16 +571,22 @@ branch `claude/prototype-prefabs` (spec #213).
 ## Generators
 
 The Prefabs page's second tab, Make your own (spec #299; settled in four grill-design rounds
-on the never-merged `claude/prototype-prefab-generators`): a card per Generator, each with a
-still of what its defaults make, and a page per Generator at `/prefabs/make/<key>`
+on the never-merged `claude/prototype-prefab-generators`; categories and buildings, spec #310,
+on `claude/prototype-make-your-own`): a heading per category (Signs, Nature, Buildings,
+`CATEGORIES`) over a card per Generator, each with a still of what its defaults make, and a
+page per Generator at `/prefabs/make/<key>`
 (`proxy.ts` answers 404 for any other key; the keys are `GENERATOR_KEYS` in `lib/routes.ts`,
 kept apart from the Generators so a page that only links one never loads them).
 
-- **The Generators** (`lib/generators.ts`): each is its controls, its defaults and its
+- **The Generators** (`lib/generators/`: `index.ts` lists them and `generate()`s; `signs.ts`,
+  `nature.ts` and `buildings.ts` hold each category's, `pieces.ts` what they share): each is its
+  controls, its defaults and its
   builder, and `generate(key, values)` returns its Prefab file (or null with nothing to
   make). The page draws whatever `controls(values)` returns, so a switch can hide another
-  control (the sign's wall colour with the wall off), and a fifth Generator is one entry.
-  Pieces are the editor's cube, sphere, cylinder and cone, placed by their bottom centre;
+  control (the sign's wall colour with the wall off), and a new Generator is one entry.
+  Each kind of tree is a Generator of its own (Tree, Pine, Block tree). Pieces are the editor's
+  cube, sphere, cylinder, cone and pyramid, placed by their bottom centre (a box can also be
+  placed by its centre at any rotation);
   grids of cells (QR modules, letters, voxels) are merged into as few boxes as they can be.
 - **Colours** (`COLOURS`): each names its material and the `paint` the editor saves beside
   it, a MaterialCategory and an `EBallestMaterialColors` value read from the game's assets
@@ -592,6 +598,12 @@ kept apart from the Generators so a page that only links one never loads them).
   behind the same `Lettering`, so `lib/` stays pure. The text wraps at whatever line length
   makes the letters biggest inside the wall. Fonts the site doesn't load already come from
   Google Fonts on the sign's page only.
+- **Buildings** (House, Tower, Castle) face -X, like signs. A wall is the boxes round its
+  openings (`wall`: piers between windows, a piece under and over each). Roofs: gable as two
+  pitched slabs (`slopes`) with stepped gable ends kept under the roof line; hip as a ridge with
+  a pyramid at each end; flat as a slab inside a parapet. SM_Pyramid's corners sit at the middle
+  of its bounds' edges, so a pyramid roof is turned 45° and grown by √2 (`pyramid`). Each was
+  checked from four angles at six settings on the prototype's `/proto-collage` page.
 - **The page** (`GeneratorEditor.tsx`, grill-design rounds 1 and 4): the controls on the left,
   main ones first and the rest under More options, every number a slider showing its value;
   the model (`PrefabViewer`, held still), its size and piece count and Download on the right.

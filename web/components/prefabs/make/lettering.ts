@@ -1,6 +1,6 @@
-// A sign's fonts (lib/generators.ts letters a sign through a Lettering). Pixel is lib's own 5x7
-// table; every other font is drawn on a canvas by the browser and read back as cells, `detail`
-// cells to a capital's height, so this runs only in the browser.
+// A sign's fonts (lib/generators/signs.ts letters a sign through a Lettering). Pixel is lib's
+// own 5x7 table; every other font is drawn on a canvas by the browser and read back as cells,
+// `detail` cells to a capital's height, so this runs only in the browser.
 import { PIXEL_LETTERING, type Grid, type Lettering } from "../../../lib/generators";
 
 /* each font's name and the CSS font it is drawn in, without a size; the Google ones load on

@@ -1,4 +1,4 @@
-// A sign's lettering (lib/generators.ts): how wide a line is and how tall a line steps, in
+// A sign's lettering (lib/generators/signs.ts): how wide a line is and how tall a line steps, in
 // cells, and the grid of cells a set of lines makes. The Pixel font is a 5x7 table here; every
 // other font is drawn by the browser (components/prefabs/make/lettering.ts) behind the same
 // interface, so this stays pure and the tests letter in Pixel.

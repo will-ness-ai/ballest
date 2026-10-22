@@ -1,12 +1,13 @@
 "use client";
-// The Make your own tab: a card per Generator, each with a still of what its defaults make,
-// drawn in the browser by the gallery's shared renderer (scene.ts stillOf).
+// The Make your own tab (grill-design round 1 of #310, A · Sections): a heading per category,
+// in CATEGORIES' order, over a card per Generator, each with a still of what its defaults
+// make, drawn in the browser by the gallery's shared renderer (scene.ts stillOf).
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { PrefabTabs } from "../PrefabTabs";
 import { stillOf } from "../scene";
-import { GENERATORS, generate, type Generator } from "../../../lib/generators";
+import { CATEGORIES, GENERATORS, generate, type Generator } from "../../../lib/generators";
 import { generatorHref } from "../../../lib/routes";
 
 export function MakeGallery() {
@@ -19,11 +20,16 @@ export function MakeGallery() {
         </div>
       </header>
       <PrefabTabs on="make" />
-      <div className="gen-cards">
-        {GENERATORS.map((g) => (
-          <Card key={g.key} g={g} />
-        ))}
-      </div>
+      {CATEGORIES.map((c) => (
+        <section key={c} className="gen-group">
+          <h2 className="pfu-h2">{c}</h2>
+          <div className="gen-cards">
+            {GENERATORS.filter((g) => g.category === c).map((g) => (
+              <Card key={g.key} g={g} />
+            ))}
+          </div>
+        </section>
+      ))}
     </section>
   );
 }
