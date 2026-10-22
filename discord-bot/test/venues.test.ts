@@ -20,6 +20,7 @@ import {
   type VenueConfig,
   VenueRecords,
   VenueRecordsLive,
+  VENUES_SINCE,
   VenueSetupFailed,
 } from "../src/venues.js";
 
@@ -47,6 +48,8 @@ interface FakeRole {
 const makeFakeGuild = (
   opts: {
     readonly id?: string;
+    /** When the bot joined it (ms), or null when Discord can't say; long before Venues unless told. */
+    readonly joinedAt?: number | null;
     readonly channels?: ReadonlyArray<Omit<FakeChannel, "access">>;
     readonly roles?: ReadonlyArray<Omit<FakeRole, "mentionable">>;
     /** The position of the bot's highest role. */
@@ -62,6 +65,7 @@ const makeFakeGuild = (
   const made: Array<string> = [];
   const port: SetupGuild = {
     id: opts.id ?? "g-racing",
+    joinedAt: opts.joinedAt === undefined ? Date.parse("2026-01-01T00:00:00Z") : opts.joinedAt,
     name: "Ballest Racing",
     bot: Effect.sync(() => {
       botReads++;
@@ -335,6 +339,26 @@ describe("which servers become Venues", () => {
       yield* again.joins.retry(old.port);
       expect(yield* again.started).toEqual([]);
       expect(old.made()).toEqual([]);
+    }),
+  );
+
+  it.scoped("on this build's first start, a server the bot joined since Venues began", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      const racing = makeFakeGuild({ joinedAt: Date.parse("2026-10-22T09:30:00Z") });
+      const atCutoff = makeFakeGuild({ id: "g-cutoff", joinedAt: VENUES_SINCE });
+      const before = makeFakeGuild({ id: "g-before", joinedAt: VENUES_SINCE - 1 });
+      const unknown = makeFakeGuild({ id: "g-unknown", joinedAt: null });
+      yield* j.joins.startup([
+        homeGuild().port,
+        racing.port,
+        atCutoff.port,
+        before.port,
+        unknown.port,
+      ]);
+      expect(yield* j.started).toEqual(["g-racing", "g-cutoff"]);
+      expect(before.made()).toEqual([]);
+      expect(unknown.made()).toEqual([]);
     }),
   );
 

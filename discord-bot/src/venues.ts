@@ -5,8 +5,9 @@
 // `Multiplayer ping` role, each reused if the server has one, kept in the `venues` table, and set
 // up again at startup when one is gone. The prod app is private, so only Will can invite it.
 //
-// A server the bot was already in when this build first started is known but not wanted, so a
-// deploy never adds a channel to a server nobody asked for; any other is wanted, and kept so, so a
+// A server the bot joined before VENUES_SINCE, found when this build first starts, is known but
+// not wanted, so a deploy never adds a channel to a server nobody asked for; any other is wanted,
+// and kept so, so a
 // setup that fails (a missing permission, an outage) is tried again until it works.
 //
 // The setup rules run against a small port (SetupGuild) so they are tested on a fake server;
@@ -87,6 +88,13 @@ export class VenueCheckFailed extends Data.TaggedError("VenueCheckFailed")<{
   readonly reason: string;
 }> {}
 
+/**
+ * When Venues began setting themselves up: on this build's first start, a server the bot joined
+ * before this (or when it can't say when) is known but not wanted; one joined since is wanted, so
+ * a server invited with the old by-hand setup that day still becomes a Venue.
+ */
+export const VENUES_SINCE = Date.parse("2026-10-22T00:00:00Z");
+
 /** A server permission setup may need: Manage Channels to make a channel, Manage Roles to make a role or set a channel's overwrites. */
 export type ServerPermission = "Manage Channels" | "Manage Roles";
 
@@ -94,6 +102,8 @@ export type ServerPermission = "Manage Channels" | "Manage Roles";
 export interface SetupGuild {
   readonly id: string;
   readonly name: string;
+  /** When the bot joined the server (ms since the epoch), or null when Discord can't say. */
+  readonly joinedAt: number | null;
   /** The bot's member there: which server permissions setup may need it lacks, and its highest role's position. */
   readonly bot: Effect.Effect<
     { readonly missing: ReadonlyArray<ServerPermission>; readonly topRolePosition: number },
@@ -321,7 +331,9 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
     /** At startup, with every server the bot is in. */
     startup: Effect.fn("startup")(function* (guilds: ReadonlyArray<SetupGuild>) {
       const others = guilds.filter((g) => g.id !== homeGuildId);
-      yield* records.takeBaseline(others.map((g) => g.id));
+      yield* records.takeBaseline(
+        others.filter((g) => g.joinedAt === null || g.joinedAt < VENUES_SINCE).map((g) => g.id),
+      );
       for (const guild of others)
         if (Option.isNone(yield* records.wanted(guild.id))) yield* records.want(guild.id);
       for (const guild of others) yield* attempt(guild);

@@ -64,8 +64,9 @@ bot checks for, Mention @everyone, @here and All Roles, Manage Roles and Manage 
 
 Which servers are wanted (`makeVenueJoiner` in `src/venues.ts`, kept in SQLite's
 `known_servers`): on the first start of this build, every server the bot is already in (other
-than home) is recorded as known but not wanted, so a deploy never adds a channel to a server
-nobody invited it to. To make one of those a Venue, remove the bot there and invite it again.
+than home) and joined before `VENUES_SINCE` (2026-10-22 00:00 UTC, or at an unknown time) is
+recorded as known but not wanted, so a deploy never adds a channel to a server nobody invited it
+to; one it joined since then (invited by hand that day) is wanted. To make one of those a Venue, remove the bot there and invite it again.
 From then on any other server is wanted: one that invites it while it runs (the Guilds intent's
 guild create event), or one the bot finds at startup without knowing it (invited while it was
 down). A wanted server is stored before it is set up, so a setup that fails (a missing

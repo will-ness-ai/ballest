@@ -36,6 +36,7 @@ export const setupGuildOn = (client: Client<true>, guild: Guild): SetupGuild => 
   return {
     id: guild.id,
     name: guild.name,
+    joinedAt: Number.isFinite(guild.joinedTimestamp) ? guild.joinedTimestamp : null,
     bot: failed(tryDiscord("fetch the bot's member", () => guild.members.fetchMe())).pipe(
       Effect.map((self) => ({
         missing: SERVER_PERMISSIONS.filter(([, flag]) => !self.permissions.has(flag)).map(
