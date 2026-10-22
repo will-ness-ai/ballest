@@ -41,7 +41,8 @@ function lamp(style: string, at: V3, H: number, pole: Colour, light: Colour): Ar
     const bend = add(top, [-a * 0.55, 0, a * 0.22]);
     const end = add(top, [-a, 0, a * 0.12]);
     items.push(stick(add(top, [0, 0, -d]), bend, d * 0.8, pole), stick(bend, end, d * 0.8, pole));
-    items.push(hung(add(end, [0, 0, d * 0.4]), a * 0.42, a * 0.2, pole));
+    /* a shade over the bulb: wide at the bottom, its point up */
+    items.push(piece("cone", add(end, [0, 0, -a * 0.08]), [a * 0.42, a * 0.42, a * 0.2], pole));
     items.push(ball(add(end, [0, 0, -a * 0.16]), a * 0.18, light, 0.7));
   } else if (style === "Lantern") {
     const L = Math.max(30, H * 0.09);

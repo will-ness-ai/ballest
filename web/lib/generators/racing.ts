@@ -285,7 +285,11 @@ export const jump: Generator = {
         ...under(add(l0, [30, 0, -10]), l1),
         ...under(l1, add(l2, [-30, 0, 0])),
       ];
-      for (const f of feet)
+      /* the straights meet at the lip and the landing, so a leg is made once */
+      const once = feet.filter(
+        (f, i) => feet.findIndex((g) => Math.hypot(g[0] - f[0], g[2] - f[2]) < 40) === i,
+      );
+      for (const f of once)
         for (const s of [-1, 1]) {
           const h = f[2] + lift - THICK;
           if (h > 5)

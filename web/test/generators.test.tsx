@@ -515,6 +515,14 @@ describe("the decor", () => {
     }
   });
 
+  test("a street lamp's shade is a cone wide at the bottom, over its bulb", () => {
+    const items = make("lamp", { style: "Street" }).items;
+    const shade = items.find((it) => it.class.includes("MP_Cone"));
+    expect(shade?.transform.rotation).toEqual([0, 0, 0]);
+    const bulb = items.find((it) => it.class.includes("Sphere"));
+    expect(shade?.transform.location[2]).toBeGreaterThan(bulb?.transform.location[2] ?? 0);
+  });
+
   test("a fountain of one tier has no column, and more tiers stand taller", () => {
     expect(highest(make("fountain", { tiers: 3, jet: false }))).toBeGreaterThan(
       highest(make("fountain", { tiers: 1, jet: false })) + 100,
