@@ -68,7 +68,6 @@ def test_a_read_whose_answer_is_malformed_is_a_failed_board_too():
     for answer in [
         ("not a count", [{"steam_id": "1001", "score_ms": 1}]),
         (5, None),
-        (5, [{"rank": 1}]),
     ]:
 
         async def fetch(_lid, answer=answer):

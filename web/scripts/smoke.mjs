@@ -150,6 +150,12 @@ const ROUTES = [
   // canonical addresses (docs/site.md): a view names the page it views, and each Daily is
   // its own
   [
+    "/campaign/leth-trials/leth-trial-1",
+    200,
+    null,
+    '<link rel="canonical" href="https://ballestrecords.com/campaign/leth-trials"',
+  ],
+  [
     "/player/" + P1 + "/circuit",
     200,
     null,
