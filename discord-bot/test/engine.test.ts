@@ -1064,7 +1064,7 @@ describe("Play again", () => {
     Effect.gen(function* () {
       const { h, id } = yield* finishedMatch;
       const first = yield* h.engine.playAgain(BOB.discordId, id);
-      expect(first.opened).toBe(true);
+      expect(first).toMatchObject({ creator: true, joinedNow: true });
       expect(Option.getOrThrow(yield* h.surface.card(first.lobbyId))).toMatchObject({
         state: "invite",
         type: "lobby",
@@ -1074,8 +1074,8 @@ describe("Play again", () => {
       const second = yield* h.engine.playAgain(ALICE.discordId, id);
       const third = yield* h.engine.playAgain(CARA.discordId, id);
       expect([second, third]).toEqual([
-        { lobbyId: first.lobbyId, opened: false, alreadyIn: false },
-        { lobbyId: first.lobbyId, opened: false, alreadyIn: false },
+        { lobbyId: first.lobbyId, creator: false, joinedNow: true },
+        { lobbyId: first.lobbyId, creator: false, joinedNow: true },
       ]);
       expect(
         Option.getOrThrow(yield* h.surface.card(first.lobbyId)).players.map((p) => p.discordId),
@@ -1117,12 +1117,12 @@ describe("Play again", () => {
       yield* h.restart("1 minute");
       expect(yield* h.engine.playAgain(ALICE.discordId, id)).toEqual({
         lobbyId: first.lobbyId,
-        opened: false,
-        alreadyIn: false,
+        creator: false,
+        joinedNow: true,
       });
       yield* h.engine.cancel(BOB.discordId, first.lobbyId);
       const fresh = yield* h.engine.playAgain(ALICE.discordId, id);
-      expect(fresh.opened).toBe(true);
+      expect(fresh).toMatchObject({ creator: true, joinedNow: true });
       expect(fresh.lobbyId).not.toBe(first.lobbyId);
     }),
   );
@@ -1144,12 +1144,17 @@ describe("Play again", () => {
       const { h, id } = yield* finishedMatch;
       const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
       yield* h.engine.join(ALICE.discordId, lobbyId);
-      for (const p of [BOB, ALICE])
-        expect(yield* h.engine.playAgain(p.discordId, id)).toEqual({
-          lobbyId,
-          opened: false,
-          alreadyIn: true,
-        });
+      // Bob opened it, so the Start is still his to press.
+      expect(yield* h.engine.playAgain(BOB.discordId, id)).toEqual({
+        lobbyId,
+        creator: true,
+        joinedNow: false,
+      });
+      expect(yield* h.engine.playAgain(ALICE.discordId, id)).toEqual({
+        lobbyId,
+        creator: false,
+        joinedNow: false,
+      });
     }),
   );
 
@@ -1186,6 +1191,32 @@ describe("Play again", () => {
       });
       yield* advance("150 millis");
       yield* Fiber.join(starting);
+    }),
+  );
+
+  it.scoped("pings the finished Match's Players only the first time a Lobby opens", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.cancel(BOB.discordId, lobbyId);
+      yield* h.engine.playAgain(BOB.discordId, id);
+      const lines = (yield* h.surface.posts(id)).flatMap((p) =>
+        p._tag === "PlayingAgain" ? [p.others] : [],
+      );
+      expect(lines).toEqual([[ALICE], []]);
+    }),
+  );
+
+  it.scoped("opens a fresh Lobby once its Lobby's time is up", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const first = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.start(BOB.discordId, first.lobbyId);
+      yield* h.steam.failNextReads(100); // the end read waits for Steam: still live, time up
+      yield* advance("10 minutes");
+      const fresh = yield* h.engine.playAgain(CARA.discordId, id);
+      expect(fresh).toMatchObject({ creator: true, joinedNow: true });
+      expect(fresh.lobbyId).not.toBe(first.lobbyId);
     }),
   );
 });

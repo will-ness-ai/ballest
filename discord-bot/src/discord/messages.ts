@@ -407,9 +407,9 @@ export const pickDurationMessage = (
 // ---------------------------------------------------------------- Play again, privately
 
 /** The presser's answer: where the Lobby's thread is, and whether the Start is theirs. */
-export const playAgainText = (opened: boolean, threadId: string | null) => {
+export const playAgainText = (creator: boolean, threadId: string | null) => {
   const where = threadId === null ? "" : ` <#${threadId}>`;
-  return opened
+  return creator
     ? `You opened the Lobby${where}. Press **Start** on its Card once everyone's in.`
     : `You're in the Lobby${where}.`;
 };

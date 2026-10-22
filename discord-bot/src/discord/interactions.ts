@@ -142,7 +142,7 @@ export const InteractionsLive = Layer.scopedDiscard(
 
     /**
      * Play again on a finished Match: the presser is told privately where its Lobby's thread is,
-     * and, if their press opened it, that the Start is theirs.
+     * and, if they opened it, that the Start is theirs.
      */
     const playAgain = Effect.fn("playAgain")(function* (i: Answerable, matchId: string) {
       const done = yield* engine.playAgain(i.user.id, matchId).pipe(Effect.either);
@@ -150,16 +150,16 @@ export const InteractionsLive = Layer.scopedDiscard(
         return yield* tryDiscord("follow up", () =>
           i.followUp({ content: explain(done.left, i.user.id), ...ephemeral, ...quiet }),
         );
-      const { lobbyId, opened, alreadyIn } = done.right;
+      const { lobbyId, creator, joinedNow } = done.right;
       const thread = Option.flatMapNullable(yield* links.of(lobbyId), (p) => p.threadId);
       yield* tryDiscord("follow up", () =>
         i.followUp({
-          content: playAgainText(opened, Option.getOrNull(thread)),
+          content: playAgainText(creator, Option.getOrNull(thread)),
           ...ephemeral,
           ...quiet,
         }),
       );
-      if (!opened && !alreadyIn) yield* offerPings(i, "join");
+      if (joinedNow && !creator) yield* offerPings(i, "join");
     });
 
     const confirmLink = Effect.fn("confirmLink")(function* (i: ButtonInteraction) {

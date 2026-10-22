@@ -115,6 +115,8 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * with the Players they are about to start with. Nothing else may touch them meanwhile.
      */
     const starting = yield* Ref.make(new Map<string, Match>());
+    /** Finished Matches whose Players a Play again has pinged already, so a second Lobby can't ping them again. */
+    const pingedAgain = yield* Ref.make(new Set<string>());
     /** Why each recent Match ended without a Result, so everyone who was in it can be told. */
     const closed = yield* Ref.make(new Map<string, RemovalReason>());
     const noteClosed = Effect.fn("noteClosed")(function* (matchId: string, reason: RemovalReason) {
@@ -808,9 +810,10 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
 
       /**
        * Play again on a finished Match: the first press opens a Lobby of the same length, with
-       * the presser as its creator; every later press joins that Lobby while it is open or live,
-       * or just finds it for someone already in it (`alreadyIn`). Once it is gone, the next press opens a fresh
-       * one.
+       * the presser as its creator; every later press joins that Lobby while it can be joined, or
+       * just finds it for someone already in it. Once it is gone or its time is up, the next press
+       * opens a fresh one. The finished Match's Players are pinged only the first time.
+       * `creator`: the Start is the presser's; `joinedNow`: this press put them in it.
        */
       playAgain: Effect.fn("playAgain")(function* (discordId: string, matchId: string) {
         const found = yield* locked(
@@ -818,9 +821,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
             const finished = yield* getMatch(matchId);
             if (finished.state !== "finished")
               return yield* new NotAllowed({ reason: "That Match isn't over yet." });
-            const again = (yield* store.activeMatches).find((m) => m.playAgainOf === matchId);
-            if (again !== undefined)
-              return { lobbyId: again.id, opened: false, joined: involves(again, discordId) };
+            const now = yield* Clock.currentTimeMillis;
+            const again = (yield* store.activeMatches).find(
+              (m) => m.playAgainOf === matchId && !timeIsUp(m, now),
+            );
+            if (again !== undefined) return { lobby: again, opened: false };
             const creator = yield* playerOf(discordId);
             yield* assertFree(discordId);
             const lobby = yield* open(
@@ -829,30 +834,38 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
               null,
               matchId,
             );
+            const firstTime = !(yield* Ref.get(pingedAgain)).has(matchId);
+            yield* Ref.update(pingedAgain, (s) => new Set(s).add(matchId));
             yield* surface.post(
               matchId,
               ThreadPost.PlayingAgain({
                 by: creator,
                 skin: yield* skinOf(creator),
-                others: racing(finished).filter((p) => p.discordId !== discordId),
+                others: firstTime ? racing(finished).filter((p) => p.discordId !== discordId) : [],
                 minutes: finished.minutes,
               }),
             );
-            return { lobbyId: lobby.id, opened: true, joined: true };
+            return { lobby, opened: true };
           }),
         );
-        if (!found.joined) {
-          if ((yield* Ref.get(starting)).has(found.lobbyId))
-            return yield* new NotAllowed({
-              reason: "Its Lobby is drawing its Map. Press again in a moment.",
-            });
-          yield* join(discordId, found.lobbyId);
-        }
-        return {
-          lobbyId: found.lobbyId,
-          opened: found.opened,
-          alreadyIn: !found.opened && found.joined,
-        };
+        const answer = (joinedNow: boolean) => ({
+          lobbyId: found.lobby.id,
+          creator: found.lobby.creator.discordId === discordId,
+          joinedNow,
+        });
+        if (found.opened) return answer(true);
+        if (involves(found.lobby, discordId)) return answer(false);
+        // The Lobby may have moved on since it was found: a second press just landed the Player
+        // in it, or its Map is being drawn.
+        const joined = yield* join(discordId, found.lobby.id).pipe(Effect.either);
+        if (joined._tag === "Right") return answer(true);
+        const now = yield* store.getMatch(found.lobby.id);
+        if (Option.isSome(now) && involves(now.value, discordId)) return answer(false);
+        if ((yield* Ref.get(starting)).has(found.lobby.id))
+          return yield* new NotAllowed({
+            reason: "Its Lobby is drawing its Map. Press again in a moment.",
+          });
+        return yield* Effect.fail(joined.left);
       }),
     } as const;
   }),
