@@ -214,19 +214,22 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
         nameOf(who.venue, p.discordId).pipe(Effect.map((n) => [p.discordId, n] as const)),
       ),
     );
+    // Linked into the channel that holds its Card, in that Venue's server; none if it isn't running.
     const place = yield* places.of(m.id);
-    const channel = `https://discord.com/channels/${who.venue.guildId}`;
+    const links = Option.flatMap(place, (p) =>
+      Option.map(Option.fromNullable(venues.find((v) => v.name === p.venue)), (where) => {
+        const server = `https://discord.com/channels/${where.guildId}`;
+        return {
+          card: `${server}/${where.channelId}/${p.messageId}`,
+          thread: p.threadId === null ? null : `${server}/${p.threadId}`,
+        };
+      }),
+    );
     const view: MatchView = {
       ...card,
       names,
       history: m.history,
-      links: Option.match(place, {
-        onNone: () => null,
-        onSome: (p) => ({
-          card: `${channel}/${who.venue.channelId}/${p.messageId}`,
-          thread: p.threadId === null ? null : `${channel}/${p.threadId}`,
-        }),
-      }),
+      links: Option.getOrNull(links),
       actions: actionsFor(m, who.discordId),
       starting: yield* engine.isStarting(m.id),
     };
@@ -427,7 +430,8 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
         Effect.gen(function* () {
           const { id = "" } = yield* HttpRouter.params;
           const m = yield* matchIn(who.venue, id);
-          if (Option.isNone(m)) return yield* new NotFound({ closed: yield* engine.whyClosed(id) });
+          if (Option.isNone(m))
+            return yield* new NotFound({ closed: yield* engine.whyClosed(who.venue.name, id) });
           return yield* reply(m, who);
         }),
       ),
@@ -470,7 +474,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
           json(
             {
               error: "NotMember",
-              message: "Multiballs only runs in the Ballest server. Open it from a channel there.",
+              message: "Multiballs doesn't run in this server.",
             },
             403,
           ),

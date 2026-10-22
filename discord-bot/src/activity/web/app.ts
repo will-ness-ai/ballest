@@ -172,7 +172,7 @@ const signIn = async (): Promise<boolean> => {
   ui.pip = params.has("pip");
   if (config.devUsers.length === 0) {
     ui.phase = "failed";
-    ui.failure = "Open Multiballs from a channel in the Ballest server.";
+    ui.failure = "Open Multiballs in Discord, from a server it runs in.";
     return false;
   }
   // The demo's one Venue.

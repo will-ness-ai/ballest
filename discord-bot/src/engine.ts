@@ -116,11 +116,20 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * with the Players they are about to start with. Nothing else may touch them meanwhile.
      */
     const starting = yield* Ref.make(new Map<string, Match>());
-    /** Why each recent Match ended without a Result, so everyone who was in it can be told. */
-    const closed = yield* Ref.make(new Map<string, RemovalReason>());
+    /**
+     * Why each recent Match ended without a Result, and in which Venue, so everyone who was in it
+     * can be told there.
+     */
+    const closed = yield* Ref.make(
+      new Map<string, { readonly venue: VenueName; readonly reason: RemovalReason }>(),
+    );
+    /** Noted while the Match is still stored, for its Venue. */
     const noteClosed = Effect.fn("noteClosed")(function* (matchId: string, reason: RemovalReason) {
-      yield* Ref.update(closed, (m) => {
-        const next = new Map(m).set(matchId, reason);
+      const m = yield* store.getMatch(matchId);
+      if (Option.isNone(m)) return;
+      const { venue } = m.value;
+      yield* Ref.update(closed, (all) => {
+        const next = new Map(all).set(matchId, { venue, reason });
         for (const key of next.keys()) if (next.size > CLOSED_KEPT) next.delete(key);
         return next;
       });
@@ -764,9 +773,13 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         return (yield* Ref.get(starting)).has(matchId);
       }),
 
-      /** Why a Match that's gone ended without a Result, if it was recent; null otherwise. */
-      whyClosed: Effect.fn("whyClosed")(function* (matchId: string) {
-        return (yield* Ref.get(closed)).get(matchId) ?? null;
+      /**
+       * Why a Match of `venue` that's gone ended without a Result, if it was recent; null
+       * otherwise, and for another Venue's Match.
+       */
+      whyClosed: Effect.fn("whyClosed")(function* (venue: VenueName, matchId: string) {
+        const found = (yield* Ref.get(closed)).get(matchId);
+        return found?.venue === venue ? found.reason : null;
       }),
 
       /** Whether the Player may leave this live Match, asked before the confirm is shown. */

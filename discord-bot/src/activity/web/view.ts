@@ -370,7 +370,7 @@ export const signingIn = () =>
   `<div class="vE"><div class="emptyb" style="border:0">${logo()}<span class="note">Signing in…</span></div></div>`;
 
 export const wrongServer = () =>
-  `<div class="vE"><div class="emptyb">${logo()}<div class="mt" style="font-size:22px">Multiballs only runs in the Ballest server</div><div class="note">Open it from a channel there.</div></div></div>`;
+  `<div class="vE"><div class="emptyb">${logo()}<div class="mt" style="font-size:22px">Multiballs doesn't run in this server</div><div class="note">Open it from a server it runs in.</div></div></div>`;
 
 /** The demo's stand-in for Discord's sign-in. */
 export const demoSignIn = (users: ReadonlyArray<{ readonly id: string; readonly name: string }>) =>

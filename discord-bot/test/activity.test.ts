@@ -61,7 +61,12 @@ const MEMBERS_IN: Record<string, Record<string, string>> = {
   [RACING]: RACING_MEMBERS,
 };
 
-const setup = (opts: Parameters<typeof makeHarness>[0]) =>
+const setup = (
+  opts: Parameters<typeof makeHarness>[0] & {
+    /** Where MatchLinks says a Match's Card is, by id, when not in its own Venue's channel. */
+    readonly placedIn?: Readonly<Record<string, string>>;
+  },
+) =>
   Effect.gen(function* () {
     const h = yield* makeHarness(opts);
     /** Tokens Discord has since revoked. */
@@ -88,7 +93,7 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
         h.store.getMatch(matchId).pipe(
           Effect.map(
             Option.map((m) => ({
-              venue: m.venue,
+              venue: opts.placedIn?.[matchId] ?? m.venue,
               messageId: `msg-${matchId}`,
               threadId: `thread-${matchId}`,
             })),
@@ -179,7 +184,7 @@ describe("signing in", () => {
         status: 403,
         body: {
           error: "NotMember",
-          message: "Multiballs only runs in the Ballest server. Open it from a channel there.",
+          message: "Multiballs doesn't run in this server.",
         },
       });
       expect((yield* call("GET", "/api/matches", { as: OUTSIDER })).status).toBe(403);
@@ -928,6 +933,43 @@ describe("each Venue's Activity", () => {
     }),
   );
 
+  it.scoped("says why its own Match closed, and nothing of another Venue's", () =>
+    Effect.gen(function* () {
+      const { call, open } = yield* setup({ maps: [MAP] });
+      const racing = yield* open(ALICE.discordId, lobby, "g2");
+      yield* call("POST", `/api/matches/${racing}/cancel`, { as: ALICE.discordId, server: "g2" });
+      expect(
+        yield* call("GET", `/api/matches/${racing}`, { as: BOB.discordId, server: "g2" }),
+      ).toEqual({ status: 404, body: { error: "NotFound", closed: "cancelled" } });
+      expect(yield* call("GET", `/api/matches/${racing}`, { as: BOB.discordId })).toEqual({
+        status: 404,
+        body: { error: "NotFound", closed: null },
+      });
+    }),
+  );
+
+  it.scoped(
+    "links a Match into the channel its Card is in, and nowhere when that isn't running",
+    () =>
+      Effect.gen(function* () {
+        const { call, open } = yield* setup({
+          maps: [MAP],
+          placedIn: { m1: RACING, m2: "gone" },
+        });
+        const moved = yield* open(CARA.discordId, lobby);
+        const lost = yield* open(DAN.discordId, lobby);
+        expect([moved, lost]).toEqual(["m1", "m2"]);
+        const here = (yield* call("GET", "/api/matches", { as: BOB.discordId })).body.matches;
+        expect(here.map((m: any) => m.links)).toEqual([
+          {
+            card: `https://discord.com/channels/g2/c2/msg-${moved}`,
+            thread: `https://discord.com/channels/g2/thread-${moved}`,
+          },
+          null,
+        ]);
+      }),
+  );
+
   it.scoped("keeps a Player Busy in every Venue, while showing their Match only in its own", () =>
     Effect.gen(function* () {
       const { call, open } = yield* setup({ maps: [MAP] });
@@ -961,7 +1003,7 @@ describe("each Venue's Activity", () => {
         status: 403,
         body: {
           error: "NotMember",
-          message: "Multiballs only runs in the Ballest server. Open it from a channel there.",
+          message: "Multiballs doesn't run in this server.",
         },
       };
       expect(yield* call("GET", "/api/me", { as: ALICE.discordId, server: "g9" })).toEqual(refused);
