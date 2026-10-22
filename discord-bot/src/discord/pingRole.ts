@@ -3,7 +3,7 @@
 // moderator's change shows at once. The Discord service checked at startup that the bot can
 // manage each one.
 import type { Guild } from "discord.js";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Option } from "effect";
 import type { VenueName } from "../domain.js";
 import { PingRole, PingRoleUnavailable } from "../ports.js";
 import { Discord, type DiscordError, describeDiscordError, tryDiscord } from "./client.js";
@@ -20,10 +20,10 @@ export const PingRoleLive = Layer.effect(
       venue: VenueName,
       use: (guild: Guild, role: string) => Effect.Effect<A, DiscordError>,
     ) {
-      const found = discord.venueNamed(venue);
-      if (found === undefined)
+      const found = yield* discord.venueNamed(venue);
+      if (Option.isNone(found))
         return yield* new PingRoleUnavailable({ reason: `Venue ${venue} isn't running` });
-      return yield* use(found.channel.guild, found.pingRoleId).pipe(
+      return yield* use(found.value.channel.guild, found.value.pingRoleId).pipe(
         Effect.mapError((e) => new PingRoleUnavailable({ reason: describeDiscordError(e) })),
       );
     });

@@ -111,15 +111,17 @@ export const skinPictureResponses = (pngs: ReadonlyMap<string, Uint8Array>) => {
   };
 };
 
-/** What the Activity is started with: the running Venues, and the page's other settings. */
+/**
+ * What the Activity is started with: the running Venues, read as they are at each request (servers
+ * start and stop while the bot runs), and the page's other settings.
+ */
 export type ActivityConfig = Omit<PageConfig, "guildIds"> & {
-  readonly venues: ReadonlyArray<ActivityVenue>;
+  readonly venues: Effect.Effect<ReadonlyArray<ActivityVenue>>;
 };
 
 /** The whole app: page, script, fonts, previews, Skin pictures, config, API. */
 export const makeActivityApp = Effect.fn("makeActivityApp")(function* (config: ActivityConfig) {
   const { venues, ...rest } = config;
-  const page: PageConfig = { ...rest, guildIds: venues.map((v) => v.guildId) };
   const api = yield* makeActivityApi(venues);
   const store = yield* Store;
   const previews = yield* MapPreviews;
@@ -169,7 +171,13 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (config: A
     HttpRouter.get("/fonts/:file", font),
     HttpRouter.get("/previews/:id", preview),
     HttpRouter.get("/skins/:file", skin),
-    HttpRouter.get("/api/config", Effect.succeed(HttpServerResponse.unsafeJson(page))),
+    HttpRouter.get(
+      "/api/config",
+      Effect.map(venues, (now) => {
+        const page: PageConfig = { ...rest, guildIds: now.map((v) => v.guildId) };
+        return HttpServerResponse.unsafeJson(page);
+      }),
+    ),
   );
   return pages.pipe(Effect.catchTag("RouteNotFound", () => api));
 });

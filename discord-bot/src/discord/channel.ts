@@ -1,7 +1,7 @@
 // A Venue's Match channel, as the Surface sees it: messages and Match Threads to draw things in.
 // It speaks in what to draw, not how, so the Surface's rules run against an in-memory channel
 // in tests; this adapter draws each one with the renderer and runs it on discord.js.
-import { Context, Data, Effect, Layer, Option } from "effect";
+import { Context, Data, Effect, Layer, Option, type Scope, Stream } from "effect";
 import type { MapInfo, VenueName } from "../domain.js";
 import type { CardView, KeptReason, ThreadPost } from "../ports.js";
 import { MapPreviews } from "../previews.js";
@@ -77,10 +77,17 @@ export interface Channel {
   readonly lastMessageId: Effect.Effect<string | null, DiscordError>;
 }
 
-/** Every running Venue's channel by its Venue's name, home first. */
+/**
+ * Every running Venue's channel by its Venue's name, home first. Venues start and stop while the
+ * bot runs (a server invites or removes it), so this is the running set now and each change.
+ */
 export class VenueChannels extends Context.Tag("multiballs/VenueChannels")<
   VenueChannels,
-  ReadonlyMap<VenueName, Channel>
+  {
+    readonly now: Effect.Effect<ReadonlyMap<VenueName, Channel>>;
+    /** The running set now, then again each time a Venue starts or stops. */
+    readonly changes: Stream.Stream<ReadonlyMap<VenueName, Channel>>;
+  }
 >() {}
 
 /** Like goneIfUnknown, but passes a Gone from an earlier step through. */
@@ -244,13 +251,27 @@ const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenu
   } satisfies Channel;
 });
 
-/** Every running Venue's channel, as the Discord service started them. */
+/** Every running Venue's channel, following the Discord service's running Venues. */
 export const VenueChannelsLive = Layer.scoped(
   VenueChannels,
   Effect.gen(function* () {
     const discord = yield* Discord;
-    const channels = new Map<VenueName, Channel>();
-    for (const venue of discord.venues) channels.set(venue.name, yield* discordChannel(venue));
-    return channels;
+    const needs = yield* Effect.context<Renderer | MapPreviews | Marbles | Scope.Scope>();
+    /** Each Venue's Channel, made once each time it starts. */
+    const made = new WeakMap<DiscordVenue, Channel>();
+    const channelsOf = Effect.fn("channelsOf")(function* (venues: ReadonlyArray<DiscordVenue>) {
+      const channels = new Map<VenueName, Channel>();
+      for (const venue of venues) {
+        const channel =
+          made.get(venue) ?? (yield* discordChannel(venue).pipe(Effect.provide(needs)));
+        made.set(venue, channel);
+        channels.set(venue.name, channel);
+      }
+      return channels;
+    });
+    return VenueChannels.of({
+      now: Effect.flatMap(discord.running, (venues) => channelsOf(venues)),
+      changes: Stream.mapEffect(discord.changes, (venues) => channelsOf(venues)),
+    });
   }),
 );

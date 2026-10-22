@@ -29,7 +29,7 @@
 // - A Card is forgotten once it will never change again: after its Result, or once removed.
 //   A finished Match's place is still kept (the most recent ones), for the Activity's links.
 import { SqlClient, SqlSchema } from "@effect/sql";
-import { Context, Effect, Layer, Option, Ref, Schema } from "effect";
+import { Context, Effect, Layer, Option, Ref, Schema, Stream } from "effect";
 import { MigratorLive } from "../db.js";
 import type { VenueName } from "../domain.js";
 import {
@@ -354,21 +354,51 @@ const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, chan
 
 /**
  * Every running Venue's channel Surface behind the one Surface port: a Card goes to its view's
- * Venue, and a post or removal to the Venue whose channel holds that Match's Card.
+ * Venue, and a post or removal to the Venue whose channel holds that Match's Card. A Venue that
+ * starts while the bot runs gets its Footer at once; one that stops is drawn no more.
  */
 const make = Effect.gen(function* () {
   const channels = yield* VenueChannels;
-  const surfaces = new Map<VenueName, Effect.Effect.Success<ReturnType<typeof venueSurface>>>();
-  // In order, home first: each start's Footer check is a few Discord calls.
-  for (const [venue, channel] of channels) surfaces.set(venue, yield* venueSurface(venue, channel));
+  const running = new Map<
+    VenueName,
+    {
+      readonly channel: Channel;
+      readonly surface: Effect.Effect.Success<ReturnType<typeof venueSurface>>;
+    }
+  >();
+  const surfaces = () => [...running.values()].map((r) => r.surface);
+
+  /** Start the Surface of each Venue new to this set (or back in a new channel); drop the rest. */
+  const follow = Effect.fn("follow")(function* (now: ReadonlyMap<VenueName, Channel>) {
+    for (const venue of [...running.keys()])
+      if (!now.has(venue)) {
+        running.delete(venue);
+        yield* Effect.log(`Venue ${venue} stopped: its channel is drawn no more`);
+      }
+    // In order, home first: each start's Footer check is a few Discord calls.
+    for (const [venue, channel] of now)
+      if (running.get(venue)?.channel !== channel)
+        running.set(venue, { channel, surface: yield* venueSurface(venue, channel) });
+  });
+  yield* follow(yield* channels.now);
+  yield* channels.changes.pipe(
+    Stream.runForEach((now) =>
+      follow(now).pipe(
+        Effect.catchAllCause((cause) =>
+          Effect.logError("following the running Venues failed", cause),
+        ),
+      ),
+    ),
+    Effect.forkScoped,
+  );
 
   /** The Venue Surface holding a Match's Card, if any. */
   const holding = Effect.fn("holding")(function* (matchId: string) {
-    return yield* Effect.findFirst([...surfaces.values()], (s) => s.holds(matchId));
+    return yield* Effect.findFirst(surfaces(), (s) => s.holds(matchId));
   });
 
   const showCard = Effect.fn("Surface.showCard")(function* (view: CardView) {
-    const surface = surfaces.get(view.venue);
+    const surface = running.get(view.venue)?.surface;
     if (surface === undefined)
       return yield* Effect.logWarning(
         `Venue ${view.venue} isn't running; ${view.matchId}'s Card isn't drawn`,
@@ -388,12 +418,12 @@ const make = Effect.gen(function* () {
 
   const links = MatchLinks.of({
     of: Effect.fn("MatchLinks.of")(function* (venue: VenueName, matchId: string) {
-      const surface = surfaces.get(venue);
+      const surface = running.get(venue)?.surface;
       return surface === undefined ? Option.none<MatchPlace>() : yield* surface.placeOf(matchId);
     }),
   });
 
-  const runs = (venue: VenueName) => surfaces.has(venue);
+  const runs = (venue: VenueName) => running.has(venue);
 
   return Context.make(Surface, Surface.of({ runs, showCard, remove, post })).pipe(
     Context.add(MatchLinks, links),
@@ -404,4 +434,4 @@ const make = Effect.gen(function* () {
  * The Surface port on every running Venue's Channel, and where each put each Match. Needs the
  * VenueChannels and a SqlClient.
  */
-export const ChannelSurfaceLive = Layer.effectContext(make).pipe(Layer.provide(MigratorLive));
+export const ChannelSurfaceLive = Layer.scopedContext(make).pipe(Layer.provide(MigratorLive));

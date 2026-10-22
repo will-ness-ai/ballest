@@ -144,9 +144,9 @@ const Demo = Layer.unwrapScoped(
     return activityServer({
       clientId: "demo",
       // One Venue, home, in a server that isn't there.
-      venues: [
+      venues: Effect.succeed([
         { name: HOME_VENUE, guildId: "demo", channelId: "demo", pingRoleName: "Multiplayer ping" },
-      ],
+      ]),
       devUsers: USERS,
     }).pipe(
       Layer.provide(Engine.Default),

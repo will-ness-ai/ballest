@@ -26,6 +26,7 @@ import { MapPreviews, PreviewSourceLive } from "./previews.js";
 import { Renderer } from "./render/renderer.js";
 import { SkinPictures } from "./render/skins.js";
 import { SqliteStoreLive } from "./sqliteStore.js";
+import { VenueRecordsLive } from "./venues.js";
 
 /**
  * The real environment first, then .env for anything it leaves out. Read when the bot starts,
@@ -64,29 +65,29 @@ const ActivityLive = Layer.unwrapEffect(
     const secret = yield* Config.option(Config.redacted("DISCORD_CLIENT_SECRET"));
     if (Option.isNone(secret)) return Layer.empty;
     const clientId = yield* Config.string("DISCORD_APPLICATION_ID");
-    // Every running Venue's server: a Venue left out at startup is turned away like any server.
+    // Every running Venue's server as it is now: a server left out, or that removed the bot, is
+    // turned away like any server.
     const discord = yield* Discord;
-    const venues = discord.venues.map((v) => ({
-      name: v.name,
-      guildId: v.channel.guildId,
-      channelId: v.channel.id,
-      pingRoleName: v.pingRoleName,
-    }));
+    const venues = Effect.map(discord.running, (running) =>
+      running.map((v) => ({
+        name: v.name,
+        guildId: v.channel.guildId,
+        channelId: v.channel.id,
+        pingRoleName: v.pingRoleName,
+      })),
+    );
     const members = Layer.succeed(
       DiscordMembers,
       DiscordMembers.of({
-        nameOf: (venue, discordId) => {
-          const running = discord.venueNamed(venue);
-          return running === undefined
-            ? Effect.succeed(Option.none())
-            : running
-                .member(discordId)
-                .pipe(
-                  Effect.mapError(
-                    (e) => new MembersUnavailable({ reason: describeDiscordError(e) }),
-                  ),
-                );
-        },
+        nameOf: Effect.fn("nameOf")(function* (venue, discordId) {
+          const running = yield* discord.venueNamed(venue);
+          if (Option.isNone(running)) return Option.none<string>();
+          return yield* running.value
+            .member(discordId)
+            .pipe(
+              Effect.mapError((e) => new MembersUnavailable({ reason: describeDiscordError(e) })),
+            );
+        }),
       }),
     );
     return activityServer({ clientId, venues, devUsers: [] }).pipe(
@@ -117,8 +118,11 @@ const portsLive = <E, R>(steam: Layer.Layer<Steam, E, R>) =>
     // The same pictures the Renderer draws, for the Activity to serve.
     Layer.provideMerge(SkinPictures.Default),
     Layer.provideMerge(ChosenSkinsLive),
-    // An extra Venue that can't start is left out with a line to ops.
-    Layer.provideMerge(Discord.Default.pipe(Layer.provide(OpsAlerts.Default))),
+    // A server that can't be set up as a Venue is left out with a line to ops; the Venues the bot
+    // set up itself are kept in SQLite.
+    Layer.provideMerge(
+      Discord.Default.pipe(Layer.provide(OpsAlerts.Default), Layer.provide(VenueRecordsLive)),
+    ),
     Layer.provideMerge(SqlLive),
   );
 

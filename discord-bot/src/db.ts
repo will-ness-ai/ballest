@@ -75,6 +75,17 @@ const MIGRATIONS: Migrations = {
     yield* sql`CREATE TABLE venue_ping_offer_answers (venue TEXT NOT NULL, discord_id TEXT NOT NULL, PRIMARY KEY (venue, discord_id))`;
     yield* sql`INSERT INTO venue_ping_offer_answers (venue, discord_id) SELECT 'home', discord_id FROM ping_offer_answers`;
   }),
+  // Each server the bot set up as a Venue itself (spec #321): its name (the server's id), its
+  // Match channel and its ping role. The home Venue is never here: it is its three settings.
+  "0010_venues": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE venues (
+        name TEXT PRIMARY KEY,
+        guild_id TEXT NOT NULL UNIQUE,
+        channel_id TEXT NOT NULL,
+        ping_role_id TEXT NOT NULL
+      )`;
+  }),
 };
 
 /** The migrations a build had before the one with this id (`"0008"`): tests start a database from an older build. */

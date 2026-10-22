@@ -123,9 +123,12 @@ const isRejection = (e: { readonly _tag: string }): e is Rejection => e._tag in 
 const isPingRoleUnavailable = (e: { readonly _tag: string }): e is PingRoleUnavailable =>
   e._tag === "PingRoleUnavailable";
 
-/** `venues` are the running Venues: a page opened in any other server is turned away. */
+/**
+ * `venues` reads the running Venues as they are now, since servers start and stop while the bot
+ * runs: a page opened in any other server is turned away.
+ */
 export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
-  venues: ReadonlyArray<ActivityVenue>,
+  venues: Effect.Effect<ReadonlyArray<ActivityVenue>>,
 ) {
   const auth = yield* DiscordAuth;
   const members = yield* DiscordMembers;
@@ -141,10 +144,12 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
    * The Venue whose server the page names. A page that names none was loaded before there were
    * Venues (an Activity left open across the deploy), so it is home's, as it was then.
    */
-  const venueOf = (guildId: string | undefined) =>
-    guildId === undefined
-      ? venues.find((v) => v.name === HOME_VENUE)
-      : venues.find((v) => v.guildId === guildId);
+  const venueOf = Effect.fn("venueOf")(function* (guildId: string | undefined) {
+    const now = yield* venues;
+    return guildId === undefined
+      ? now.find((v) => v.name === HOME_VENUE)
+      : now.find((v) => v.guildId === guildId);
+  });
 
   /**
    * An access token in a Venue → Discord id, for members of that Venue's server. A refusal is
@@ -173,7 +178,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
     const token = header.startsWith("Bearer ") ? header.slice(7) : "";
     if (token === "") return yield* new Unauthorized();
     // A server that isn't a running Venue is turned away like a server the member isn't in.
-    const venue = venueOf(headers[GUILD_HEADER]);
+    const venue = yield* venueOf(headers[GUILD_HEADER]);
     if (venue === undefined) return yield* new NotMember();
     const discordId = yield* signIns.get(Data.struct({ venue: venue.name, token }));
     const member: Member = { discordId, venue };

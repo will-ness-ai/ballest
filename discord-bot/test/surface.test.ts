@@ -3,7 +3,7 @@
 import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
-import { Context, Effect, Layer, Option } from "effect";
+import { Context, Effect, Layer, Option, SubscriptionRef } from "effect";
 import { type Channel, Drawing, Gone, VenueChannels } from "../src/discord/channel.js";
 import { DiscordError } from "../src/discord/client.js";
 import { ChannelSurfaceLive } from "../src/discord/surface.js";
@@ -175,14 +175,35 @@ const setup = Effect.fn("setup")(function* (
     );
     yield* opts.beforeVenues.pipe(Effect.provide(sql), Effect.orDie);
   }
-  const channels = new Map([
-    [HOME, channel.port],
-    ...(opts.homeOnly === true ? [] : [[RACING, racing.port] as const]),
-  ]);
+  // The running Venues' channels, which a test can change as servers join and leave.
+  const channels = yield* SubscriptionRef.make<ReadonlyMap<string, Channel>>(
+    new Map([
+      [HOME, channel.port],
+      ...(opts.homeOnly === true ? [] : [[RACING, racing.port] as const]),
+    ]),
+  );
+  const running = VenueChannels.of({
+    now: SubscriptionRef.get(channels),
+    changes: channels.changes,
+  });
+  /** A Venue starts, as a server the bot was just invited to does, and the Surface takes it up. */
+  const startVenue = Effect.fn("startVenue")(function* (venue: string, port: Channel) {
+    yield* SubscriptionRef.update(channels, (all) => new Map(all).set(venue, port));
+    yield* settle;
+  });
+  /** A Venue stops, as one whose server removed the bot does. */
+  const stopVenue = Effect.fn("stopVenue")(function* (venue: string) {
+    yield* SubscriptionRef.update(channels, (all) => {
+      const next = new Map(all);
+      next.delete(venue);
+      return next;
+    });
+    yield* settle;
+  });
   let links = MatchLinks.of({ of: () => Effect.succeed(Option.none()) });
   const start = Effect.gen(function* () {
     const ctx = yield* Layer.build(ChannelSurfaceLive).pipe(
-      Effect.provide(Context.add(sql, VenueChannels, channels)),
+      Effect.provide(Context.add(sql, VenueChannels, running)),
     );
     links = Context.get(ctx, MatchLinks);
     return Context.get(ctx, Surface);
@@ -198,8 +219,20 @@ const setup = Effect.fn("setup")(function* (
   /** Run SQL on the database as some other build would, such as the one before Venues. */
   const onDatabase = <A>(query: Effect.Effect<A, unknown, SqlClient.SqlClient>) =>
     query.pipe(Effect.provide(sql), Effect.orDie);
-  return { channel, racing, start, placeOf, forgetFingerprint, onDatabase };
+  return {
+    channel,
+    racing,
+    start,
+    startVenue,
+    stopVenue,
+    placeOf,
+    forgetFingerprint,
+    onDatabase,
+  };
 });
+
+/** Let the Surface follow a change of the running Venues: its Footer check is a few channel calls. */
+const settle = Effect.repeatN(Effect.yieldNow(), 20);
 
 describe("the channel", () => {
   it.scoped("gets a Footer on first start", () =>
@@ -601,6 +634,40 @@ describe("Venues", () => {
       );
       expect(old.map((r) => JSON.parse(r.data).footerId)).toEqual(["msg1"]);
     }),
+  );
+
+  it.scoped("start a Venue that starts while the bot runs: its Footer, then its Cards", () =>
+    Effect.gen(function* () {
+      const { channel, start, startVenue } = yield* setup({ homeOnly: true });
+      const surface = yield* start;
+      expect(surface.runs(RACING)).toBe(false);
+      const racing = makeFakeChannel();
+      yield* startVenue(RACING, racing.port);
+      expect(surface.runs(RACING)).toBe(true);
+      expect(racing.order()).toEqual(["footer"]);
+      yield* surface.showCard(view("m1", { venue: RACING }));
+      expect(racing.order()).toEqual(["card m1", "footer"]);
+      expect(channel.order()).toEqual(["footer"]);
+    }),
+  );
+
+  it.scoped(
+    "stop drawing a Venue that stops, and draw it afresh in its new channel when it's back",
+    () =>
+      Effect.gen(function* () {
+        const { racing, start, startVenue, stopVenue } = yield* setup();
+        const surface = yield* start;
+        yield* surface.showCard(view("m1", { venue: RACING }));
+        yield* stopVenue(RACING);
+        expect(surface.runs(RACING)).toBe(false);
+        yield* surface.showCard(view("m2", { venue: RACING }));
+        expect(racing.order()).toEqual(["card m1", "footer"]);
+        // Invited back, it was set up again in a new channel.
+        const again = makeFakeChannel();
+        yield* startVenue(RACING, again.port);
+        expect(surface.runs(RACING)).toBe(true);
+        expect(again.order()).toEqual(["footer"]);
+      }),
   );
 
   it.scoped("draw nothing for a Venue that isn't running, and nothing in another's channel", () =>

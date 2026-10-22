@@ -3,7 +3,7 @@
 // server knows its members' display names, and the channel knows where each Match's Card is.
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Fiber, Option } from "effect";
+import { Effect, Fiber, Option, Ref } from "effect";
 import { makeActivityApi } from "../src/activity/api.js";
 import { GUILD_HEADER } from "../src/domain.js";
 import { skinPictureResponses } from "../src/activity/server.js";
@@ -97,7 +97,9 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
             ),
           ),
     });
-    const app = yield* makeActivityApi(VENUES).pipe(
+    /** The running Venues, which start and stop as servers invite and remove the bot. */
+    const running = yield* Ref.make<ReadonlyArray<(typeof VENUES)[number]>>(VENUES);
+    const app = yield* makeActivityApi(Ref.get(running)).pipe(
       Effect.provideService(Engine, h.engine),
       Effect.provideService(Store, h.store),
       Effect.provideService(Pings, h.pings),
@@ -144,7 +146,7 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
       call("POST", "/api/matches", { as: by, body, server }).pipe(
         Effect.map((r) => r.body.matchId as string),
       );
-    return { h, call, open, revoked };
+    return { h, call, open, revoked, running };
   });
 
 /** The Players on a view's board, by name. */
@@ -1000,6 +1002,16 @@ describe("each Venue's Activity", () => {
       expect(yield* call("GET", "/api/me", { as: ALICE.discordId, server: "g9" })).toEqual(refused);
       expect(yield* call("GET", "/api/me", { as: CARA.discordId, server: "g2" })).toEqual(refused);
       expect((yield* call("GET", "/api/me", { as: CARA.discordId })).status).toBe(200);
+    }),
+  );
+
+  it.scoped("serves a Venue from when it starts, and refuses it once it stops", () =>
+    Effect.gen(function* () {
+      const { call, running } = yield* setup({ maps: [MAP] });
+      yield* Ref.update(running, (all) => all.filter((v) => v.name !== RACING));
+      expect((yield* call("GET", "/api/me", { as: BOB.discordId, server: "g2" })).status).toBe(403);
+      yield* Ref.set(running, VENUES);
+      expect((yield* call("GET", "/api/me", { as: BOB.discordId, server: "g2" })).status).toBe(200);
     }),
   );
 

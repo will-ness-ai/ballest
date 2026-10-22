@@ -1,39 +1,46 @@
 // The logged-in Discord client and the Venues the bot plays in: each a server, its Match channel
 // and its @Multiplayer ping role (CONTEXT.md, src/venues.ts).
 //
-// The bot never creates or edits channels (spec #21, story 16): it is given each channel's id,
-// and at startup it checks it can do everything it needs there. The home Venue failing that
-// stops the bot; any other is left out, and ops told, while the bot runs on (spec #315).
+// The home Venue is given by its ids, and at startup the bot checks it can do everything it needs
+// there; failing that stops the bot. Every other server the bot is in, at startup or the moment it
+// is invited, it sets up as a Venue itself (spec #321): it makes or reuses the channel and the
+// ping role there, checks them the same way, and starts the Venue at once. One it can't set up or
+// that fails its check is left out, and ops told, while the bot runs on; one the bot is removed
+// from stops running.
 import {
   ChannelType,
   Client,
   Events,
   GatewayIntentBits,
+  type Guild,
   PermissionFlagsBits,
   type Interaction,
   type Message,
   type TextChannel,
 } from "discord.js";
-import { Config, Data, Effect, Option, Redacted, Stream } from "effect";
+import { Config, Data, Effect, Option, Redacted, Stream, SubscriptionRef } from "effect";
 import { HOME_VENUE, type VenueName } from "../domain.js";
 import { OpsAlerts } from "../ops.js";
-import { parseVenues, startVenues, VenueCheckFailed, type VenueConfig } from "../venues.js";
+import {
+  homeVenue,
+  joinVenue,
+  REQUIRED_PERMISSIONS as REQUIRED,
+  startHome,
+  VenueCheckFailed,
+  type VenueConfig,
+  venueNameOf,
+  VenueRecords,
+} from "../venues.js";
+import { setupGuildOn } from "./setupGuild.js";
 
 export class DiscordError extends Data.TaggedError("DiscordError")<{
   readonly op: string;
   readonly cause: unknown;
 }> {}
 
-const REQUIRED_PERMISSIONS: ReadonlyArray<[string, bigint]> = [
-  ["View Channel", PermissionFlagsBits.ViewChannel],
-  ["Send Messages", PermissionFlagsBits.SendMessages],
-  ["Embed Links", PermissionFlagsBits.EmbedLinks],
-  ["Attach Files", PermissionFlagsBits.AttachFiles],
-  ["Read Message History", PermissionFlagsBits.ReadMessageHistory],
-  ["Create Public Threads", PermissionFlagsBits.CreatePublicThreads],
-  ["Send Messages in Threads", PermissionFlagsBits.SendMessagesInThreads],
-  ["Manage Threads", PermissionFlagsBits.ManageThreads],
-];
+const REQUIRED_PERMISSIONS: ReadonlyArray<readonly [string, bigint]> = REQUIRED.map(
+  ([label, flag]) => [label, PermissionFlagsBits[flag]] as const,
+);
 
 /** A cause in one line: Discord's error code, if any, and its message. Stack traces stay out of the log. */
 export const oneLine = (cause: unknown): string => {
@@ -191,20 +198,21 @@ const isIn = (venue: DiscordVenue, i: Interaction) =>
 export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
   scoped: Effect.gen(function* () {
     const token = yield* Config.redacted("DISCORD_TOKEN");
-    const home = {
+    const home = homeVenue({
       guildId: yield* Config.string("DISCORD_GUILD_ID"),
       channelId: yield* Config.string("DISCORD_CHANNEL_ID"),
       /** The home Venue's @Multiplayer ping role. */
       pingRoleId: yield* Config.string("DISCORD_PING_ROLE_ID"),
-    };
-    const extra = yield* Config.option(Config.string("DISCORD_VENUES"));
+    });
     // The sandbox shares the dev app with `pnpm dev`, so clicks in the other copy's channel reach
     // it too: it leaves them to that copy rather than answering first.
     const sandbox = yield* Config.boolean("MULTIBALLS_SANDBOX").pipe(Config.withDefault(false));
     const alerts = yield* OpsAlerts;
+    const records = yield* VenueRecords;
 
     const client = yield* Effect.acquireRelease(
       // GuildMessages for postsIn: only that a message arrived, never its words (no Message Content).
+      // Guilds brings the server joins and removals that start and stop the other Venues.
       Effect.sync(
         () => new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] }),
       ),
@@ -226,37 +234,114 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     const me = ready.user;
     yield* Effect.log(`logged in as ${me.tag}`);
 
-    const configured = parseVenues(home, Option.getOrUndefined(extra));
-    for (const problem of configured.problems)
-      yield* alerts.post(`Multiballs left out a Venue: ${problem}`);
-    const venues = yield* startVenues(
-      configured.venues,
-      (venue) => checkVenue(ready, venue),
-      (message) => alerts.post(message),
-    );
-    const [homeVenue] = venues;
+    const homeRunning = yield* startHome(home, (venue) => checkVenue(ready, venue));
     const homeGuildId = home.guildId;
 
-    /** The running Venue by this name, if it runs. */
-    const venueNamed = (name: VenueName): DiscordVenue | undefined =>
-      venues.find((venue) => venue.name === name);
+    /** Every running Venue by name, home first: home always, the others as they start and stop. */
+    const running = yield* SubscriptionRef.make<ReadonlyMap<VenueName, DiscordVenue>>(
+      new Map([[HOME_VENUE, homeRunning]]),
+    );
 
-    const interactions = Stream.asyncPush<VenueInteraction>((emit) =>
+    /** The running Venue by this name, if it runs. */
+    const venueNamed = Effect.fn("venueNamed")(function* (name: VenueName) {
+      return Option.fromNullable((yield* SubscriptionRef.get(running)).get(name));
+    });
+
+    // One server at a time, so a server invited while the bot starts isn't set up twice.
+    const lock = yield* Effect.makeSemaphore(1);
+
+    /**
+     * Set up and start a server the bot is in, unless it is home's or already running. A bug in
+     * setting one up leaves that server out, with a line to ops, like a failed check: home and the
+     * other Venues run on.
+     */
+    const join = Effect.fn("join")(
+      function* (guild: Guild) {
+        const name = venueNameOf(guild.id);
+        if (guild.id === homeGuildId || (yield* SubscriptionRef.get(running)).has(name)) return;
+        const started = yield* joinVenue(
+          setupGuildOn(ready, guild),
+          (venue) => checkVenue(ready, venue),
+          (message) => alerts.post(message),
+        ).pipe(Effect.provideService(VenueRecords, records));
+        if (Option.isSome(started))
+          yield* SubscriptionRef.update(running, (all) => new Map(all).set(name, started.value));
+      },
+      (effect, guild) =>
+        effect.pipe(
+          Effect.catchAllDefect((defect) =>
+            Effect.logError(`setting up ${guild.id} failed`, defect).pipe(
+              Effect.zipRight(
+                alerts.post(
+                  `Multiballs left out the server ${guild.name} (${guild.id}): setting it up failed (see the log)`,
+                ),
+              ),
+            ),
+          ),
+        ),
+      lock.withPermits(1),
+    );
+
+    /** A server the bot was removed from stops running; its row stays, so a re-invite picks it up. */
+    const leave = Effect.fn("leave")(function* (guild: Guild) {
+      const name = venueNameOf(guild.id);
+      if (guild.id === homeGuildId || !(yield* SubscriptionRef.get(running)).has(name)) return;
+      yield* SubscriptionRef.update(running, (all) => {
+        const next = new Map(all);
+        next.delete(name);
+        return next;
+      });
+      yield* Effect.log(`Venue ${name}: the bot is no longer in ${guild.name}`);
+    }, lock.withPermits(1));
+
+    // Joins and removals while the bot runs. discord.js reports a server that is only unavailable
+    // (an outage) apart from one the bot was removed from, so an outage stops no Venue.
+    const guildEvents = Stream.asyncPush<{ readonly joined: boolean; readonly guild: Guild }>(
+      (emit) =>
+        Effect.acquireRelease(
+          Effect.sync(() => {
+            const onCreate = (guild: Guild) => emit.single({ joined: true, guild });
+            const onDelete = (guild: Guild) => emit.single({ joined: false, guild });
+            client.on(Events.GuildCreate, onCreate);
+            client.on(Events.GuildDelete, onDelete);
+            return { onCreate, onDelete };
+          }),
+          ({ onCreate, onDelete }) =>
+            Effect.sync(() => {
+              client.off(Events.GuildCreate, onCreate);
+              client.off(Events.GuildDelete, onDelete);
+            }),
+        ),
+    );
+    yield* guildEvents.pipe(
+      Stream.runForEach(({ joined, guild }) => (joined ? join(guild) : leave(guild))),
+      Effect.forkScoped,
+    );
+    // Every server the bot is in already, before the Surface draws any Footer.
+    for (const guild of ready.guilds.cache.values()) yield* join(guild);
+
+    const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
         Effect.sync(() => {
-          const onInteraction = (i: Interaction) => {
-            const venue = venues.find((v) => isIn(v, i));
-            if (venue !== undefined) emit.single({ interaction: i, venue });
-            else if (!sandbox && i.isRepliable())
-              void i
-                .reply({ content: "Multiballs only works in its own channel.", ephemeral: true })
-                .catch(() => undefined);
-          };
+          const onInteraction = (i: Interaction) => emit.single(i);
           client.on(Events.InteractionCreate, onInteraction);
           return onInteraction;
         }),
         (onInteraction) => Effect.sync(() => client.off(Events.InteractionCreate, onInteraction)),
       ),
+    ).pipe(
+      Stream.mapEffect((i) =>
+        Effect.gen(function* () {
+          const venue = [...(yield* SubscriptionRef.get(running)).values()].find((v) => isIn(v, i));
+          if (venue !== undefined) return Option.some<VenueInteraction>({ interaction: i, venue });
+          if (!sandbox && i.isRepliable())
+            yield* tryDiscord("reply", () =>
+              i.reply({ content: "Multiballs only works in its own channel.", ephemeral: true }),
+            ).pipe(Effect.ignore);
+          return Option.none<VenueInteraction>();
+        }),
+      ),
+      Stream.filterMap((clicked) => clicked),
     );
 
     /**
@@ -317,9 +402,11 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
 
     return {
       /** The game Discord's Venue: always running, or the bot wouldn't have started. */
-      home: homeVenue,
-      /** Every running Venue, home first. */
-      venues,
+      home: homeRunning,
+      /** Every running Venue now, home first. */
+      running: Effect.map(SubscriptionRef.get(running), (all) => [...all.values()]),
+      /** The running Venues now, then again each time one starts or stops. */
+      changes: Stream.map(running.changes, (all) => [...all.values()]),
       venueNamed,
       /** Clicks from every running Venue's channel and its Match Threads, each with its Venue. */
       interactions,
