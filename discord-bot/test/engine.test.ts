@@ -147,6 +147,22 @@ describe("Venues", () => {
     }),
   );
 
+  it.scoped("keeps nobody Busy in a Venue left out at startup, and still stores its Result", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(RACING, ALICE.discordId, public1v1);
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.steam.setTime(1, ALICE.steamId, 27);
+      h.surface.leaveOut(RACING);
+      yield* h.restart("1 minute");
+      const home = yield* h.engine.openInvite(HOME, ALICE.discordId, public1v1);
+      yield* h.engine.accept(BOB.discordId, home);
+      yield* advance("5 minutes");
+      expect(Option.getOrThrow(yield* h.store.getMatch(id)).state).toBe("finished");
+      expect(tags(yield* h.surface.posts(id))).toContain("Result");
+    }),
+  );
+
   it.scoped("offers each Venue's ping role once, whatever was answered in another", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness({ maps: [MAP] });

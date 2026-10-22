@@ -397,7 +397,9 @@ const make = Effect.gen(function* () {
       ),
   });
 
-  return Context.make(Surface, Surface.of({ showCard, remove, post })).pipe(
+  const runs = (venue: VenueName) => surfaces.has(venue);
+
+  return Context.make(Surface, Surface.of({ runs, showCard, remove, post })).pipe(
     Context.add(MatchLinks, links),
   );
 });

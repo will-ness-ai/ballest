@@ -241,6 +241,11 @@ export class Surface extends Context.Tag("multiballs/Surface")<
   Surface,
   {
     /**
+     * Whether this Venue's channel runs: false for one left out at startup, whose Matches no
+     * Player can see or leave.
+     */
+    readonly runs: (venue: VenueName) => boolean;
+    /**
      * Create or redraw a Match's Card in its Venue's channel (the adapter handles the Footer and
      * the Match Thread). Posts and removals go wherever the Card is.
      */

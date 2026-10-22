@@ -171,11 +171,13 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
 
     /**
      * One open Invite or live Match per Player in every Venue together, counting a Challenge that
-     * names them and Invites mid-start.
+     * names them and Invites mid-start. A Match in a Venue left out at startup doesn't count: no
+     * Player can see or leave it there, though its timers still run it to its Result.
      */
     const assertFree = Effect.fn("assertFree")(function* (discordId: string) {
       const active = [...(yield* store.activeMatches), ...(yield* Ref.get(starting)).values()];
-      if (active.some((m) => involves(m, discordId))) return yield* new Busy({ discordId });
+      if (active.some((m) => surface.runs(m.venue) && involves(m, discordId)))
+        return yield* new Busy({ discordId });
     });
 
     /** An Invite that never became a Match goes. Its expiry timer is left alone: it may be the caller. */

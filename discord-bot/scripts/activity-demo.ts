@@ -84,6 +84,7 @@ const NoPreviews = MapPreviews.Default.pipe(
 const LogSurface = Layer.succeed(
   Surface,
   Surface.of({
+    runs: () => true,
     showCard: (v) => Effect.log(`card ${v.matchId}: ${v.state}`),
     post: (id, p) => Effect.log(`thread ${id}: ${p._tag}`),
     remove: (id, reason) => Effect.log(`removed ${id}: ${reason}`),

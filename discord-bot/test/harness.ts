@@ -125,7 +125,10 @@ export type SurfaceEvent =
 export const makeFakeSurface = Effect.gen(function* () {
   const events = yield* Ref.make<ReadonlyArray<SurfaceEvent>>([]);
   const record = (e: SurfaceEvent) => Ref.update(events, (all) => [...all, e]);
+  /** The Venues left out, as if their check failed at startup; every other one runs. */
+  const leftOut = new Set<VenueName>();
   const port = Surface.of({
+    runs: (venue) => !leftOut.has(venue),
     showCard: (view) => record({ _tag: "Card", view }),
     post: (matchId, post) => record({ _tag: "Post", matchId, post }),
     remove: (matchId, reason) => record({ _tag: "Removed", matchId, reason }),
@@ -134,6 +137,10 @@ export const makeFakeSurface = Effect.gen(function* () {
   return {
     port,
     all,
+    /** Leave a Venue out from now on, as a restart whose check of it failed would. */
+    leaveOut: (venue: VenueName) => {
+      leftOut.add(venue);
+    },
     card: (matchId: string) =>
       all.pipe(
         Effect.map((es) =>

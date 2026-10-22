@@ -64,7 +64,8 @@ Venue's Matches only, linked into its channel (#317).
 
 At startup each Venue is checked: its channel permissions, and its ping role. Home failing a
 check stops the bot, as before; another Venue failing is left out with a line to the ops channel
-while the bot runs on. Each channel denies Send Messages to `@everyone` to stay read-only, so the
+while the bot runs on. A Match open there still runs to its Result and is stored, unseen, but keeps
+none of its Players Busy (the Surface port's `runs`). Each channel denies Send Messages to `@everyone` to stay read-only, so the
 bot's role needs an explicit Send Messages allow on it.
 
 The ping role (Lobby pings, spec #87) is a different role for the dev app's test server and for
