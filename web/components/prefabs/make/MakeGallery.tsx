@@ -1,5 +1,5 @@
 "use client";
-// The Make your own tab (grill-design round 1 of #310, A · Sections): a heading per category,
+// The Generate your own tab (grill-design round 1 of #310, A · Sections): a heading per category,
 // in CATEGORIES' order, over a card per Generator, each with a still of what its defaults
 // make, drawn in the browser by the gallery's shared renderer (scene.ts stillOf).
 import Link from "next/link";

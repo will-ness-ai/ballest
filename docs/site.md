@@ -589,7 +589,7 @@ branch `claude/prototype-prefabs` (spec #213).
 
 ## Generators
 
-The Prefabs page's second tab, Make your own (spec #299; settled in four grill-design rounds
+The Prefabs page's second tab, Generate your own (spec #299; settled in four grill-design rounds
 on the never-merged `claude/prototype-prefab-generators`; categories and buildings, spec #310,
 on `claude/prototype-make-your-own`): a heading per category (Signs, Nature, Buildings,
 `CATEGORIES`) over a card per Generator, each with a still of what its defaults make, and a

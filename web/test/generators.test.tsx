@@ -663,14 +663,14 @@ describe("the pages", () => {
     expect(generatorHref("windmill")).toBe("/prefabs/make");
   });
 
-  test("Make your own shows the tabs and a card per Generator", () => {
+  test("Generate your own shows the tabs and a card per Generator", () => {
     const html = renderToStaticMarkup(<MakeGallery />);
     expect(html).toContain('href="/prefabs"');
-    expect(html).toMatch(/<a aria-current="page" href="\/prefabs\/make">Make your own<\/a>/);
+    expect(html).toMatch(/<a aria-current="page" href="\/prefabs\/make">Generate your own<\/a>/);
     for (const g of GENERATORS) expect(html).toContain(`href="/prefabs/make/${g.key}"`);
   });
 
-  test("Make your own puts each Generator under its category's heading, in order", () => {
+  test("Generate your own puts each Generator under its category's heading, in order", () => {
     const html = renderToStaticMarkup(<MakeGallery />);
     const at = (s: string) => html.indexOf(s);
     expect(CATEGORIES.map((c) => at(`>${c}</h2>`))).toEqual(

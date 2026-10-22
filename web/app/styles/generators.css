@@ -1,5 +1,5 @@
 /* ==========================================================================
-   The Generators (spec #299): the Prefabs page's tabs, the Make your own cards, and a
+   The Generators (spec #299): the Prefabs page's tabs, the Generate your own cards, and a
    Generator's page. Desktop overrides are in desktop.css.
    ========================================================================== */
 
@@ -20,7 +20,7 @@
   --gen-aluminum: oklch(84.5% 0.009 264.5);
 }
 
-/* Shared by players / Make your own */
+/* Shared by players / Generate your own */
 .gen-tabs {
   display: flex;
   gap: 0.3rem;
@@ -41,13 +41,13 @@
   border-block-end-color: var(--accent);
 }
 
-/* the Make your own categories, a heading over each one's cards */
+/* the Generate your own categories, a heading over each one's cards */
 .gen-group {
   display: grid;
   gap: 0.6rem;
 }
 
-/* the Make your own cards */
+/* the Generate your own cards */
 .gen-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
