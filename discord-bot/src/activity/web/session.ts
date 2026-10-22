@@ -1,7 +1,7 @@
 // Who is using the page, and the token every API request carries. Inside Discord it signs in
-// through the Embedded App SDK: a token from an earlier visit is tried first (Discord's own
-// authorize round trip is the slowest part of opening the Activity), a new one is asked for when
-// that fails, and `renew` asks again when the bot turns a token away mid-session.
+// through the Embedded App SDK, and `renew` signs in again when the bot turns a token away
+// mid-session. No token outlives the page: storage is shared by every Discord account on the
+// device, so a kept one could sign the next account in as the last.
 
 /** The parts of the Embedded App SDK sign-in uses (discord.ts adapts the real one). */
 export interface DiscordClient {
@@ -12,12 +12,6 @@ export interface DiscordClient {
   readonly authorize: () => Promise<string>;
   /** Tell Discord who the page is acting for; rejects a token it no longer takes. */
   readonly authenticate: (accessToken: string) => Promise<void>;
-}
-
-/** Where the last token is kept between visits; never throws (storage can be off). */
-export interface SavedToken {
-  readonly read: () => string | null;
-  readonly write: (token: string | null) => void;
 }
 
 export interface SignedIn {
@@ -41,7 +35,6 @@ export const discordSession = async (
   deps: {
     /** The servers Multiballs runs in. */
     readonly guildIds: ReadonlyArray<string>;
-    readonly saved: SavedToken;
     /** The bot's /api/token: an OAuth code for an access token. */
     readonly exchange: (code: string) => Promise<string>;
   },
@@ -52,27 +45,15 @@ export const discordSession = async (
   const fresh = async () => {
     const token = await deps.exchange(await discord.authorize());
     await discord.authenticate(token);
-    deps.saved.write(token);
     return token;
   };
-  const reuse = async (token: string) => {
-    try {
-      await discord.authenticate(token);
-      return token;
-    } catch {
-      deps.saved.write(null);
-      return fresh();
-    }
-  };
 
-  const kept = deps.saved.read();
-  let token = kept === null ? await fresh() : await reuse(kept);
+  let token = await fresh();
   let renewing: Promise<void> | null = null;
   return {
     token: () => token,
     renew: () => {
       renewing ??= (async () => {
-        deps.saved.write(null);
         try {
           token = await fresh();
         } finally {
@@ -83,22 +64,3 @@ export const discordSession = async (
     },
   };
 };
-
-/** The token in localStorage, or nothing when the browser keeps none. */
-export const localToken = (key: string): SavedToken => ({
-  read: () => {
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  },
-  write: (token) => {
-    try {
-      if (token === null) localStorage.removeItem(key);
-      else localStorage.setItem(key, token);
-    } catch {
-      // Storage is off: the next visit authorizes again, which still works.
-    }
-  },
-});

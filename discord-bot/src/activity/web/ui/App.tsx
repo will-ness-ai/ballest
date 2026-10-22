@@ -103,13 +103,14 @@ export const App = ({
   const single = useQuery({
     queryKey: keys.match(id),
     queryFn: () => client.match(id ?? ""),
-    enabled: id !== null && board.data !== undefined && !listed,
+    enabled: id !== null && board.data !== undefined && !listed && !busy,
     refetchInterval: (q) => (q.state.data?.match?.state === "live" ? POLL_MS : false),
   });
   // Only an answer at least as new as the board can say where the Match went.
   const lookup =
     single.data !== undefined && single.dataUpdatedAt >= board.dataUpdatedAt ? single.data : null;
-  if (board.data !== undefined && (board.data !== seen.board || lookup !== seen.lookup))
+  // While an action is on its way the board is from before it; its answer is taken once it lands.
+  if (!busy && board.data !== undefined && (board.data !== seen.board || lookup !== seen.lookup))
     dispatch({ kind: "board", board: board.data, lookup, at: board.dataUpdatedAt });
 
   useEffect(() => {
@@ -246,7 +247,9 @@ export const App = ({
       open: (d) =>
         run(async () => {
           const { matchId } = await client.open(d);
-          dispatch({ kind: "entered", id: matchId, match: null, at: Date.now() });
+          // Read at once, so the new Invite shows without waiting for the board.
+          const { match } = await client.match(matchId);
+          dispatch({ kind: "entered", id: matchId, match, at: Date.now() });
         }),
       accept: (matchId) => linked({ verb: "accept", matchId }),
       decline: (matchId) =>

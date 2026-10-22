@@ -13,7 +13,7 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { brotliCompressSync, gzipSync } from "node:zlib";
+import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { NodeHttpServer } from "@effect/platform-node";
 import { build } from "esbuild";
@@ -100,23 +100,39 @@ const DAY = "public, max-age=86400";
 /** The script's URL carries its hash, so it never changes under a browser that kept it. */
 const FOREVER = "public, max-age=31536000, immutable";
 
+/** The script's version: its hash, which the page names it by. */
+const versionOf = (script: string) =>
+  createHash("sha256").update(script).digest("hex").slice(0, 12);
+
+/** The encodings a browser takes, from its Accept-Encoding; one it gives q=0 it refuses. */
+const accepted = (acceptEncoding: string) =>
+  acceptEncoding.split(",").flatMap((part) => {
+    const [name = "", ...params] = part.split(";").map((p) => p.trim());
+    const refused = params.some((p) => /^q=0(\.0*)?$/.test(p));
+    return name === "" || refused ? [] : [name];
+  });
+
 /**
  * The script, compressed once at start for each encoding a browser may take (React and the SDK
- * make it about 460 KB as is, a quarter of that compressed); the plain one for any other.
+ * make it about 460 KB as is, a quarter of that compressed); the plain one for any other. Kept
+ * for good only when asked for by this script's version: a page from before a deploy gets this
+ * script uncached rather than cached under its old name.
  */
 export const scriptResponses = (script: string) => {
   const plain = Buffer.from(script);
+  const version = versionOf(script);
   const encoded = [
-    ["br", brotliCompressSync(plain)],
+    // Quality 9 compresses nearly as well as the default 11 in a fraction of the time.
+    ["br", brotliCompressSync(plain, { params: { [constants.BROTLI_PARAM_QUALITY]: 9 } })],
     ["gzip", gzipSync(plain)],
   ] as const;
-  return (acceptEncoding: string): HttpServerResponse.HttpServerResponse => {
-    const accepted = acceptEncoding.split(",").map((e) => e.trim().split(";")[0]);
-    const pick = encoded.find(([name]) => accepted.includes(name));
+  return (acceptEncoding: string, asked: string): HttpServerResponse.HttpServerResponse => {
+    const takes = accepted(acceptEncoding);
+    const pick = encoded.find(([name]) => takes.includes(name));
     return HttpServerResponse.uint8Array(pick?.[1] ?? plain, {
       contentType: "text/javascript",
       headers: {
-        "cache-control": FOREVER,
+        "cache-control": asked === version ? FOREVER : "no-cache",
         vary: "accept-encoding",
         ...(pick === undefined ? {} : { "content-encoding": pick[0] }),
       },
@@ -125,17 +141,20 @@ export const scriptResponses = (script: string) => {
 };
 
 /**
- * The page as served: the script named by its hash, the config the page would otherwise ask
+ * The page as served: the script named by its version, the config the page would otherwise ask
  * for, and the signing-in screen, so something shows before the script has run.
  */
 export const servedPage = (html: string, script: string, config: PageConfig) => {
-  const hash = createHash("sha256").update(script).digest("hex").slice(0, 12);
   // `<` escaped, so nothing in the config can end the script element.
   const json = JSON.stringify(config).replace(/</g, "\\u003c");
+  // Replacer functions, so a `$` in what goes in is never read as a replacement pattern.
   return html
-    .replace("<!--script-->", `<script type="module" src="/app.js?v=${hash}"></script>`)
-    .replace("<!--config-->", `<script id="config" type="application/json">${json}</script>`)
-    .replace("<!--splash-->", renderToStaticMarkup(createElement(SigningIn)));
+    .replace(
+      "<!--script-->",
+      () => `<script type="module" src="/app.js?v=${versionOf(script)}"></script>`,
+    )
+    .replace("<!--config-->", () => `<script id="config" type="application/json">${json}</script>`)
+    .replace("<!--splash-->", () => renderToStaticMarkup(createElement(SigningIn)));
 };
 
 /**
@@ -219,7 +238,10 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
     HttpRouter.get(
       "/app.js",
       Effect.map(HttpServerRequest.HttpServerRequest, (req) =>
-        scriptFor(req.headers["accept-encoding"] ?? ""),
+        scriptFor(
+          req.headers["accept-encoding"] ?? "",
+          new URL(req.url, "http://page").searchParams.get("v") ?? "",
+        ),
       ),
     ),
     HttpRouter.get("/fonts/:file", font),

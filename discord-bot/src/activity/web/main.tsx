@@ -6,16 +6,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { PageConfig } from "../server.js";
-import { makeClient } from "./client.js";
+import { ApiError, makeClient } from "./client.js";
 import { discordClient, exchange } from "./discord.js";
 import { ClientProvider } from "./queries.js";
-import { discordSession, fixedSession, localToken, type SignedIn } from "./session.js";
+import { discordSession, fixedSession, type SignedIn } from "./session.js";
 import { App } from "./ui/App.js";
 import { Logo } from "./ui/art.js";
 import { Btn } from "./ui/controls.js";
 import { Notice, SigningIn } from "./ui/notice.js";
-
-const TOKEN_KEY = "multiballs.token";
 
 const readConfig = async (): Promise<PageConfig> => {
   const inline = document.getElementById("config")?.textContent;
@@ -49,7 +47,6 @@ const signIn = async (): Promise<Boot> => {
   if (discord !== null) {
     const session = await discordSession(discordClient(discord, config.clientId), {
       guildIds: [config.guildId],
-      saved: localToken(TOKEN_KEY),
       exchange,
     });
     return session === "wrongServer" ? { phase: "wrong" } : { phase: "ready", session };
@@ -69,7 +66,14 @@ const signIn = async (): Promise<Boot> => {
 const first = signIn();
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 2, staleTime: 1_000 } },
+  defaultOptions: {
+    queries: {
+      // A refusal (4xx) is the answer; only a server or network failure is worth asking again.
+      retry: (failures, e) =>
+        failures < 2 && !(e instanceof ApiError && e.status >= 400 && e.status < 500),
+      staleTime: 1_000,
+    },
+  },
 });
 
 const Root = () => {

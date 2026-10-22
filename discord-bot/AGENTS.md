@@ -131,7 +131,7 @@ each Skin's picture, because Discord's proxy blocks every other host. The page a
 config and the signing-in screen in it, and its script named by its hash and sent compressed.
 
 The page (`web/`) is React with TanStack Query, bundled by esbuild at startup from `main.tsx`.
-`session.ts` signs in, reusing the last visit's token and renewing it after a 401; `client.ts` is
+`session.ts` signs in and signs in again after a 401 (no token outlives the page); `client.ts` is
 the API; the board (`/api/me` with `/api/matches`) is one query polled every two seconds, and
 each member's action one mutation at a time, after which the board is read again. `nav.ts` turns
 each board and each press into which Match is on screen (the lock, watching, a Result staying

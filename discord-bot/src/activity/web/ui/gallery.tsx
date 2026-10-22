@@ -93,13 +93,7 @@ const Composer = ({
   const a = useActions();
   return (
     <div className="gt composing">
-      <form
-        className="form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          a.open(draft);
-        }}
-      >
+      <div className="form">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span className="label">New Match</span>
           <button className="link" type="button" onClick={a.closeNew}>
@@ -137,13 +131,13 @@ const Composer = ({
         <div>
           <Btn
             look="go"
-            type="submit"
+            onClick={() => a.open(draft)}
             disabled={draft.type === "challenge" && draft.target === null}
           >
             Open Invite
           </Btn>
         </div>
-      </form>
+      </div>
     </div>
   );
 };

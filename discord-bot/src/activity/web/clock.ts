@@ -22,11 +22,14 @@ export const serverClock = {
   heard: (serverNow: number) => {
     const next = serverNow - Date.now();
     if (offset === null || Math.abs(next - offset) > DRIFT_MS) offset = next;
+    current = Date.now() + offset;
   },
   /** The server's time at the last tick: stable between ticks, as useSyncExternalStore needs. */
   now: () => current,
   /** Ticks four times a second while anything is listening. */
   subscribe: (listener: () => void) => {
+    // Nothing ticked while nobody listened: start from now, not from the last tick.
+    if (listeners.size === 0) current = Date.now() + (offset ?? 0);
     listeners.add(listener);
     timer ??= setInterval(tick, TICK_MS);
     return () => {

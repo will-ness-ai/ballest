@@ -47,7 +47,13 @@ export const makeClient = (session: SignedIn) => {
   const call = async <A>(method: string, path: string, body?: unknown): Promise<A> => {
     let res = await send(method, path, body).catch(() => null);
     if (res?.status === 401) {
-      await session.renew();
+      await session.renew().catch(() => {
+        throw new ApiError(
+          "Couldn't sign you in again. Close Multiballs and open it again.",
+          "Unauthorized",
+          401,
+        );
+      });
       res = await send(method, path, body).catch(() => null);
     }
     if (res === null) throw new ApiError(UNREACHABLE, "Unreachable", 0);

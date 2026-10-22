@@ -961,15 +961,30 @@ describe("the page", () => {
         Effect.promise(() => HttpServerResponse.toWeb(r).arrayBuffer()).pipe(
           Effect.map((b) => Buffer.from(b)),
         );
-      const br = serve("gzip, deflate, br");
+      const br = serve("gzip, deflate, br", "");
       expect(br.headers["content-encoding"]).toBe("br");
       expect(brotliDecompressSync(yield* body(br)).toString()).toBe(script);
-      const gz = serve("gzip");
+      const gz = serve("br;q=0, gzip", "");
       expect(gz.headers["content-encoding"]).toBe("gzip");
       expect(gunzipSync(yield* body(gz)).toString()).toBe(script);
-      const plain = serve("");
+      const plain = serve("", "");
       expect(plain.headers["content-encoding"]).toBeUndefined();
       expect((yield* body(plain)).toString()).toBe(script);
     }),
   );
+
+  it("keeps the script for good only under its own version", () => {
+    const script = "console.log(1)";
+    const version = /\?v=([0-9a-f]+)/.exec(servedPage(PAGE, script, CONFIG))?.[1] ?? "";
+    const serve = scriptResponses(script);
+    expect(serve("", version).headers["cache-control"]).toContain("immutable");
+    expect(serve("", "an-old-version").headers["cache-control"]).toBe("no-cache");
+  });
+
+  it("puts a config holding replacement patterns in as it is", () => {
+    const config = { ...CONFIG, devUsers: [{ id: "x", name: "$' $& $$" }] };
+    const html = servedPage(PAGE, "", config);
+    const json = /<script id="config" type="application\/json">(.*?)<\/script>/.exec(html)?.[1];
+    expect(JSON.parse(json!)).toEqual(config);
+  });
 });
