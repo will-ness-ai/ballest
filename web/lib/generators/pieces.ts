@@ -11,12 +11,12 @@ export const PIECE_LIMIT = 4096;
 /* ---------- colours ---------- */
 /* each colour the Generators offer: its material and the paint the editor saves beside it,
    a MaterialCategory and an EBallestMaterialColors value (read from the game's assets) */
-export const SMOOTH = "MaterialCategory_Smooth";
-export const SPECIAL = "MaterialCategory_Special";
-export const ENV = "/Game/Art/Materials/Environment/Materials/";
-export const smooth = (name: string, index: number) =>
+const SMOOTH = "MaterialCategory_Smooth";
+const SPECIAL = "MaterialCategory_Special";
+const ENV = "/Game/Art/Materials/Environment/Materials/";
+const smooth = (name: string, index: number) =>
   ({ material: `${ENV}Instances_2/MI_Env_${name}_Smooth`, category: SMOOTH, index }) as const;
-export const special = (name: string, index: number) =>
+const special = (name: string, index: number) =>
   ({ material: `${ENV}Instances/MI_Env_${name}`, category: SPECIAL, index }) as const;
 export const COLOURS = {
   White: smooth("White", 1),
@@ -35,12 +35,12 @@ export const COLOURS = {
 } as const;
 export type Colour = keyof typeof COLOURS;
 export const COLOUR_NAMES = Object.keys(COLOURS) as Array<Colour>;
-export const isColour = (c: unknown): c is Colour => typeof c === "string" && c in COLOURS;
+const isColour = (c: unknown): c is Colour => typeof c === "string" && c in COLOURS;
 
 /* ---------- pieces ---------- */
-export const PIECES =
+const PIECES =
   "/Game/LevelEditor/PackageAssets/MultiplayerLevelEditor/ExampleObjects/BallestPieces";
-export const KINDS = {
+const KINDS = {
   cube: {
     cls: `${PIECES}/BP_Prim_Cube.BP_Prim_Cube_C`,
     mesh: "/Game/Art/GreyBoxing/_GENERATED/PC/Box_C559BEB3.Box_C559BEB3",
@@ -70,8 +70,8 @@ export const KINDS = {
 export type Kind = keyof typeof KINDS;
 export type V3 = [number, number, number];
 
-export const tail = (path: string) => path.split("/").at(-1) ?? path;
-export const full = (path: string) => `${path}.${tail(path)}`;
+const tail = (path: string) => path.split("/").at(-1) ?? path;
+const full = (path: string) => `${path}.${tail(path)}`;
 
 /* a piece `size` cm across its own axes, its bottom centre at `at`, turned by `rot` (or a yaw) */
 export function piece(
@@ -128,7 +128,7 @@ export const norm = (a: V3): V3 => mul(a, 1 / Math.hypot(...a));
 export const DEG = Math.PI / 180;
 
 /* the [pitch, yaw, roll] that turns a piece's up axis along d */
-export function aim(d: V3): V3 {
+function aim(d: V3): V3 {
   const [x, y, z] = norm(d);
   return [-Math.acos(Math.max(-1, Math.min(1, z))) / DEG, Math.atan2(y, x) / DEG, 0];
 }
@@ -211,7 +211,7 @@ export function turn(d: V3, angle: number, around: number): V3 {
 
 /* ---------- controls ---------- */
 export type Values = Record<string, string | number | boolean>;
-export interface Base {
+interface Base {
   key: string;
   label: string;
   /* shown only under More options */

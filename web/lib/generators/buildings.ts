@@ -86,7 +86,8 @@ const WINDOW = { width: 100, bottom: 90, top: 200 };
 /* up to `n` windows spread evenly along a wall `length` long, as many as fit with 40 cm of wall
    between them and at the ends */
 function windowsAlong(length: number, n: number): Array<Opening> {
-  const fit = Math.min(n, Math.floor((length - 40) / (WINDOW.width + 40)));
+  /* spaced at length / (fit + 1), so each needs its width and 40 cm of the wall */
+  const fit = Math.min(n, Math.floor(length / (WINDOW.width + 40)) - 1);
   return Array.from({ length: Math.max(0, fit) }, (_, i) => ({
     ...WINDOW,
     at: ((i + 1) * length) / (fit + 1),
@@ -166,15 +167,15 @@ export const house: Generator = {
     const glass = colourIn(v, "glass");
     const n = numberIn(v, "windows");
     const items: Array<PrefabItem> = [boxAt([0, 0, 10], [D, W, 20], trim)];
-    const DOOR = { at: W / 2, width: 110, bottom: 0, top: 220 };
+    const door = { at: W / 2, width: 110, bottom: 0, top: 220 };
     for (let f = 0; f < floors; f++) {
       const z = 20 + f * h;
       /* the front's windows, less any the door would meet */
       const front = windowsAlong(W, n).filter(
-        (o) => !(f === 0 && v.door) || Math.abs(o.at - DOOR.at) >= (o.width + DOOR.width) / 2 + 20,
+        (o) => !(f === 0 && v.door) || Math.abs(o.at - door.at) >= (o.width + door.width) / 2 + 20,
       );
       if (f === 0 && v.door) {
-        front.push(DOOR);
+        front.push(door);
         items.push(boxAt([-D / 2 + t / 2, 0, z + 110], [t / 2, 100, 210], trim));
       }
       /* front and back run across Y, out toward -X and +X */
@@ -343,7 +344,8 @@ export const tower: Generator = {
       const cols = numberIn(v, "columns");
       for (let c = 0; c < cols; c++) {
         if (round) {
-          const a = (c / cols) * Math.PI * 2;
+          /* as many round the drum as a square tower has on its four faces */
+          const a = (c / (4 * cols)) * Math.PI * 2;
           items.push(
             boxAt(
               [Math.cos(a) * (W / 2 - 15), Math.sin(a) * (W / 2 - 15), z + (n * h) / 2],
@@ -392,6 +394,17 @@ export const tower: Generator = {
   },
 };
 
+export /* a gate's towers, either side of it: 3.2 m, or three quarters of the gate, at most 12% of the
+   castle */
+const gateTowerOf = (size: number, gate: number) =>
+  Math.min(Math.max(320, gate * 0.75), size * 0.12);
+/* the widest gate, its towers and it within two thirds of the front wall, in whole half metres */
+const gateMost = (size: number) => {
+  let g = Math.min(1000, size * 0.66);
+  while (g > 0 && g + 2 * gateTowerOf(size, g) > size * 0.66) g -= 50;
+  return Math.max(0, Math.floor(g / 50) * 50);
+};
+
 export const castle: Generator = {
   key: "castle",
   name: "Castle",
@@ -415,7 +428,7 @@ export const castle: Generator = {
     num("height", "Wall height", 3, 20, 0.5, "m"),
     { key: "towers", label: "Corner towers", kind: "toggle" },
     { key: "keep", label: "Keep in the middle", kind: "toggle" },
-    num("gate", "Gate width", 0, 10, 0.5, "m", true),
+    num("gate", "Gate width", 0, gateMost(metresIn(v, "size")) / 100, 0.5, "m", true),
     num("merlons", "Battlement spacing", 0.5, 3, 0.1, "m", true),
     colour("stone", "Stone"),
     ...(v.towers || v.keep ? [colour("roofc", "Roofs")] : []),
@@ -429,8 +442,8 @@ export const castle: Generator = {
     const roofc = colourIn(v, "roofc");
     const items: Array<PrefabItem> = [];
     /* the gate and its two towers take at most two thirds of the front wall */
-    const gt = Math.min(Math.max(320, metresIn(v, "gate") * 0.75), S * 0.12);
-    const gate = Math.min(metresIn(v, "gate"), S * 0.66 - 2 * gt);
+    const gate = Math.min(metresIn(v, "gate"), gateMost(S));
+    const gateTower = gateTowerOf(S, gate);
     const step = metresIn(v, "merlons");
     /* each side: a wall, its battlements, and for the front a gate */
     const sides: Array<[V3, number]> = [
@@ -455,8 +468,10 @@ export const castle: Generator = {
       if (holes.length) {
         /* square towers either side of the gate, a little taller than the wall */
         for (const e of [-1, 1]) {
-          const gy = e * (gate / 2 + gt / 2);
-          items.push(boxAt([c[0], gy, (H * 1.4) / 2], [gt * 1.2, gt, H * 1.4], stone));
+          const gy = e * (gate / 2 + gateTower / 2);
+          items.push(
+            boxAt([c[0], gy, (H * 1.4) / 2], [gateTower * 1.2, gateTower, H * 1.4], stone),
+          );
           for (const [dx, dy] of [
             [-1, -1],
             [-1, 1],
@@ -465,8 +480,8 @@ export const castle: Generator = {
           ])
             items.push(
               boxAt(
-                [c[0] + dx * gt * 0.45, gy + dy * gt * 0.38, H * 1.4 + 40],
-                [gt * 0.3, gt * 0.24, 80],
+                [c[0] + dx * gateTower * 0.45, gy + dy * gateTower * 0.38, H * 1.4 + 40],
+                [gateTower * 0.3, gateTower * 0.24, 80],
                 stone,
               ),
             );
