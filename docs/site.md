@@ -199,6 +199,32 @@ of each `circuit/*.webp`. Regenerate those copies whenever a Track screenshot ch
 with a 3-second timeout, only as PNG, JPEG or GIF and up to 4 MB; a card whose picture
 fails to load, or that Satori can't read, draws without it.
 
+## Stat Card
+
+A player's Stat Card (CONTEXT.md) is the 720×1060 portrait card Multiballs's See my stats
+answers with in Discord (spec #323; grill-design K5 with its date as T1, prototype branch
+`claude/prototype-statcard`). No page names it: `/og/stats/<steam id>?v=<Refresh time>`
+(`app/og/stats/[id]/route.tsx`) serves it, through the player page's cached reads plus
+`getChosenSkins`, and answers with the same `s-maxage` as the share images, `v` being the
+cache key. A Steam ID that names nobody is a 404. `lib/stat-card.ts` decides what it says,
+`components/share/StatCard.tsx` draws it with `Card.tsx`'s colours, marble and fonts.
+
+- A frame and glow in the player's hue, and their ball at 400px: their Chosen Skin's
+  picture, else their hue marble, with their Steam avatar as a 130px badge on its lower
+  right (none without an avatar). Then their name.
+- The rows, in order: Season 1 Circuit and Season 2 Circuit (each season's Overall rank),
+  World records, Author, Gold, Silver and Bronze medals, Maps finished. The counts add the
+  Circuit and the Workshop as the player's share card does (an Author count includes world
+  records at the author time), and the Medals count what each finish's time earned. A
+  missing rank or a zero leaves its row out.
+- The Refresh's date in UTC (`22 OCT 2026`) bottom left, the brand bottom right.
+
+The Skin pictures are 192px WebP, which Satori can't read, so `assets/share/skins/` holds a
+PNG copy of each at the same size, drawn scaled up to the ball until larger shots are taken
+in the game. Run `python web/scripts/skin_pngs.py` (Pillow) after adding or changing a
+picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has its copy.
+`qa`'s `stat-card` page draws it at the widths it fits (`minWidth` in the catalogue).
+
 ## Routes
 
 - `/` — the Workshop homepage: the carousel, the Campaigns' carousel, the shelves and the
