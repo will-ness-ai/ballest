@@ -25,6 +25,7 @@ import {
   pingOfferMessage,
   pingsMessage,
   pingUnreadMessage,
+  statsAnswerMessage,
   threadMessage,
   withPingFailure,
 } from "../src/discord/messages.js";
@@ -103,6 +104,54 @@ describe("the My Stats panel", () => {
 
   it("draws the same every time, so a restart leaves it alone", () => {
     expect(fingerprint(myStatsPanelMessage())).toBe(fingerprint(panel));
+  });
+});
+
+describe("See my stats's private answer", () => {
+  const CARD_URL = "https://ballestrecords.com/player/76561198000000001";
+
+  it("shows the Stat Card with a Player page link and a quiet Pair again", () => {
+    const answer = statsAnswerMessage({
+      _tag: "Card",
+      steamId: "76561198000000001",
+      png: PNG,
+      url: CARD_URL,
+    });
+    expect(answer.files).toHaveLength(1);
+    expect(buttons(answer)).toEqual([
+      { label: "Player page", does: CARD_URL },
+      { label: "Not you? Pair again", does: { _tag: "PairAgain" } },
+    ]);
+    pingsNobody(answer);
+  });
+
+  it("sends a member with no Stats Link to sign in with Steam, dropping any card", () => {
+    const url = "https://ballestrecords.com/discord/link?t=abc";
+    const answer = statsAnswerMessage({ _tag: "SignIn", url });
+    expect(buttons(answer)).toEqual([{ label: "Sign in with Steam", does: url }]);
+    expect(answer.files).toEqual([]);
+    expect(answer.attachments).toEqual([]);
+    pingsNobody(answer);
+  });
+
+  it("lets a member paired with an account with no runs pair again", () => {
+    const answer = statsAnswerMessage({ _tag: "NoStats" });
+    expect(answer.content).toContain("No runs on the boards yet");
+    expect(buttons(answer)).toEqual([
+      { label: "Not you? Pair again", does: { _tag: "PairAgain" } },
+    ]);
+    expect(answer.files).toEqual([]);
+  });
+
+  it.each([
+    ["CardFailed", "Couldn't draw your card, try again."],
+    ["Unavailable", "Stats aren't available"],
+  ] as const)("says why there's no card (%s), with no buttons", (tag, text) => {
+    const answer = statsAnswerMessage({ _tag: tag });
+    expect(answer.content).toContain(text);
+    expect(buttons(answer)).toEqual([]);
+    expect(answer.files).toEqual([]);
+    pingsNobody(answer);
   });
 });
 

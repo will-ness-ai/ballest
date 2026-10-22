@@ -13,6 +13,7 @@ import { DriverInteractions, InteractionsLive } from "./discord/interactions.js"
 import { DiscordChannelLive } from "./discord/channel.js";
 import { Marbles } from "./discord/marbles.js";
 import { MyStatsLive } from "./discord/myStats.js";
+import { SeeMyStatsLive } from "./seeMyStats.js";
 import { NewTracksLive } from "./newTracks.js";
 import { PingRoleLive } from "./discord/pingRole.js";
 import { DailyReportLive } from "./report/daily.js";
@@ -127,7 +128,10 @@ export const app = <E, R, E2 = never>(
   sandbox?: SandboxParts<E2>,
 ) =>
   Layer.mergeAll(
-    sandbox === undefined ? InteractionsLive : InteractionsLive.pipe(Layer.provide(sandbox.feed)),
+    (sandbox === undefined
+      ? InteractionsLive
+      : InteractionsLive.pipe(Layer.provide(sandbox.feed))
+    ).pipe(Layer.provide(SeeMyStatsLive)),
     OpsLive,
     DailyReportLive,
     DailyPostLive,
