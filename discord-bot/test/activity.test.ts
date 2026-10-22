@@ -987,6 +987,22 @@ describe("each Venue's Activity", () => {
     }),
   );
 
+  it.scoped("marks nobody busy for a Match in a Venue left out, as the engine counts it", () =>
+    Effect.gen(function* () {
+      const { call, h, open } = yield* setup({ maps: [MAP] });
+      yield* open(ALICE.discordId, lobby, "g2");
+      const aliceBusy = call("GET", "/api/players", { as: BOB.discordId }).pipe(
+        Effect.map((r) => r.body.players.find((p: any) => p.discordId === ALICE.discordId).busy),
+      );
+      expect(yield* aliceBusy).toBe(true);
+      h.surface.leaveOut(RACING);
+      expect(yield* aliceBusy).toBe(false);
+      expect(
+        (yield* call("POST", "/api/matches", { as: ALICE.discordId, body: lobby })).status,
+      ).toBe(200);
+    }),
+  );
+
   it.scoped("lists only that server's members to challenge, by their names there", () =>
     Effect.gen(function* () {
       const { call } = yield* setup({ maps: [MAP] });

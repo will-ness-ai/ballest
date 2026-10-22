@@ -2,7 +2,7 @@
 // Every route but the token swap needs `Authorization: Bearer <Discord access token>`, from a
 // member of the Venue's server the page was opened in, which the page names in GUILD_HEADER.
 // Lists, opens, links, names and pings are that Venue's; Links, Chosen Skins and Busy are shared
-// by every Venue (spec #315).
+// by every running Venue (spec #315): a Match in a Venue left out at startup keeps nobody Busy.
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Cache, Clock, Data, Effect, Exit, Option, Ref, Schema } from "effect";
 import {
@@ -295,7 +295,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
         Effect.gen(function* () {
           const { discordId, venue } = who;
           const link = yield* store.getLink(discordId);
-          // Their Match in this Venue: one in another Venue still makes them Busy here.
+          // Their Match in this Venue: one in another running Venue still makes them Busy here.
           const active = (yield* store.activeMatches).find(
             (m) => m.venue === venue.name && involves(m, discordId),
           );
@@ -344,26 +344,30 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
       "/api/players",
       asMember((who) =>
         Effect.gen(function* () {
-          const active = yield* store.activeMatches;
           const chosen = yield* chosenSkins.all;
           const players = yield* Effect.forEach(
             (yield* store.links).filter((l) => l.discordId !== who.discordId),
             (l) =>
-              members.nameOf(who.venue.name, l.discordId).pipe(
-                // Someone Discord can't place just now is left out of the list, like a member who left.
-                Effect.catchTag("MembersUnavailable", () => Effect.succeed(Option.none<string>())),
-                Effect.map((name) =>
-                  Option.map(name, (n): Challengeable => ({
-                    discordId: l.discordId,
-                    steamId: l.steamId,
-                    name: n,
-                    steamName: l.personaName,
-                    // Busy in any Venue.
-                    busy: active.some((m) => involves(m, l.discordId)),
-                    skin: chosenSkinOf(chosen, l.steamId),
-                  })),
-                ),
-              ),
+              Effect.gen(function* () {
+                const name = yield* members
+                  .nameOf(who.venue.name, l.discordId)
+                  // Someone Discord can't place just now is left out of the list, like a member who left.
+                  .pipe(
+                    Effect.catchTag("MembersUnavailable", () =>
+                      Effect.succeed(Option.none<string>()),
+                    ),
+                  );
+                // Busy as the engine counts it, in any running Venue.
+                const busy = yield* engine.isBusy(l.discordId);
+                return Option.map(name, (n): Challengeable => ({
+                  discordId: l.discordId,
+                  steamId: l.steamId,
+                  name: n,
+                  steamName: l.personaName,
+                  busy,
+                  skin: chosenSkinOf(chosen, l.steamId),
+                }));
+              }),
           );
           // Only members of this Venue's server can be challenged.
           return json({ players: players.flatMap((p) => Option.toArray(p)) });

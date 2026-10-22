@@ -147,7 +147,8 @@ Venues' servers; the page refuses any other, and names its server in the `x-disc
 header of every request (`GUILD_HEADER`; one without it, from a page loaded before Venues, is
 home's). The API serves that Venue: it checks the member is in that server, names Players as
 that server does, and lists, opens, links and pings that Venue's only, answering another Venue's
-Match as not found. Links, Chosen Skins and Busy are shared. `auth.ts` swaps the SDK's OAuth code for an
+Match as not found. Links, Chosen Skins and Busy are shared (Busy by the engine's `isBusy`, which
+skips a Venue left out at startup). `auth.ts` swaps the SDK's OAuth code for an
 access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
 page (`web/`: `view.ts` is the markup, `app.ts` the state and actions, bundled by esbuild at
 startup), its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and

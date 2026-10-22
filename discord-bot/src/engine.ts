@@ -123,13 +123,9 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     const closed = yield* Ref.make(
       new Map<string, { readonly venue: VenueName; readonly reason: RemovalReason }>(),
     );
-    /** Noted while the Match is still stored, for its Venue. */
-    const noteClosed = Effect.fn("noteClosed")(function* (matchId: string, reason: RemovalReason) {
-      const m = yield* store.getMatch(matchId);
-      if (Option.isNone(m)) return;
-      const { venue } = m.value;
+    const noteClosed = Effect.fn("noteClosed")(function* (m: Match, reason: RemovalReason) {
       yield* Ref.update(closed, (all) => {
-        const next = new Map(all).set(matchId, { venue, reason });
+        const next = new Map(all).set(m.id, { venue: m.venue, reason });
         for (const key of next.keys()) if (next.size > CLOSED_KEPT) next.delete(key);
         return next;
       });
@@ -183,26 +179,25 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * names them and Invites mid-start. A Match in a Venue left out at startup doesn't count: no
      * Player can see or leave it there, though its timers still run it to its Result.
      */
-    const assertFree = Effect.fn("assertFree")(function* (discordId: string) {
+    const isBusy = Effect.fn("isBusy")(function* (discordId: string) {
       const active = [...(yield* store.activeMatches), ...(yield* Ref.get(starting)).values()];
-      if (active.some((m) => surface.runs(m.venue) && involves(m, discordId)))
-        return yield* new Busy({ discordId });
+      return active.some((m) => surface.runs(m.venue) && involves(m, discordId));
+    });
+    const assertFree = Effect.fn("assertFree")(function* (discordId: string) {
+      if (yield* isBusy(discordId)) return yield* new Busy({ discordId });
     });
 
     /** An Invite that never became a Match goes. Its expiry timer is left alone: it may be the caller. */
-    const dropInvite = Effect.fn("dropInvite")(function* (matchId: string, reason: RemovalReason) {
-      yield* noteClosed(matchId, reason);
-      yield* store.deleteMatch(matchId);
-      yield* surface.remove(matchId, reason);
+    const dropInvite = Effect.fn("dropInvite")(function* (m: Match, reason: RemovalReason) {
+      yield* noteClosed(m, reason);
+      yield* store.deleteMatch(m.id);
+      yield* surface.remove(m.id, reason);
     });
 
     /** Drop an Invite from outside its timer, stopping the timer too. */
-    const withdrawInvite = Effect.fn("withdrawInvite")(function* (
-      matchId: string,
-      reason: RemovalReason,
-    ) {
-      yield* FiberMap.remove(timers, matchId);
-      yield* dropInvite(matchId, reason);
+    const withdrawInvite = Effect.fn("withdrawInvite")(function* (m: Match, reason: RemovalReason) {
+      yield* FiberMap.remove(timers, m.id);
+      yield* dropInvite(m, reason);
     });
 
     // ---------------------------------------------------------------- Invite expiry
@@ -211,7 +206,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       const m = yield* store.getMatch(matchId);
       const isStarting = (yield* Ref.get(starting)).has(matchId);
       if (Option.isSome(m) && m.value.state === "invite" && !isStarting)
-        yield* dropInvite(matchId, "expired");
+        yield* dropInvite(m.value, "expired");
     }, locked);
 
     const scheduleExpiry = Effect.fn("scheduleExpiry")(function* (m: Match) {
@@ -393,7 +388,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     /** Cancelled: everyone left before anyone set a time. Its Card and thread stay, saying so. Called under the lock. */
     const abandon = Effect.fn("abandon")(function* (m: Match) {
       yield* surface.post(m.id, ThreadPost.Abandoned());
-      yield* noteClosed(m.id, "abandoned");
+      yield* noteClosed(m, "abandoned");
       yield* store.deleteMatch(m.id);
       yield* surface.remove(m.id, "abandoned");
     });
@@ -465,7 +460,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
             locked(
               Effect.gen(function* () {
                 yield* surface.post(full.id, ThreadPost.NoMap({ players: full.players }));
-                yield* withdrawInvite(full.id, "noEligibleMap");
+                yield* withdrawInvite(full, "noEligibleMap");
               }),
             ),
           ),
@@ -630,7 +625,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     for (const m of yield* store.activeMatches) {
       const now = yield* Clock.currentTimeMillis;
       if (m.state === "invite") {
-        if (now >= expiresAt(m)) yield* dropInvite(m.id, "expired");
+        if (now >= expiresAt(m)) yield* dropInvite(m, "expired");
         else yield* scheduleExpiry(m);
       } else {
         // Redrawn, so a Card drawn by an older build gets today's buttons.
@@ -745,7 +740,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         const m = yield* getInvite(matchId);
         if (m.type !== "challenge" || m.target?.discordId !== discordId)
           return yield* new NotAllowed({ reason: "Only the challenged Player can decline." });
-        yield* withdrawInvite(matchId, "declined");
+        yield* withdrawInvite(m, "declined");
       }, locked),
 
       /**
@@ -767,6 +762,9 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           .pipe(Effect.retry({ times: READ_RETRIES }))).at(0);
         return pb?.ticks ?? null;
       }),
+
+      /** Whether the Player is Busy (`assertFree`'s rule), so they can't open, join or be challenged. */
+      isBusy,
 
       /** Whether this Invite's Map is being drawn right now. */
       isStarting: Effect.fn("isStarting")(function* (matchId: string) {
@@ -813,7 +811,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         const m = yield* getInvite(matchId);
         if (m.creator.discordId !== discordId)
           return yield* new NotAllowed({ reason: "Only the creator can cancel." });
-        yield* withdrawInvite(matchId, "cancelled");
+        yield* withdrawInvite(m, "cancelled");
       }, locked),
     } as const;
   }),
