@@ -114,7 +114,8 @@ export const isPrefabSlug = (s: string | undefined): s is string =>
 export const prefabsHref = () => "/prefabs";
 export const newPrefabHref = () => "/prefabs/new";
 /* the Make your own tab and a Generator's page. GENERATORS in lib/generators/index.ts lists
-   the same keys in the same order; they are kept apart so a page that only links one never loads them */
+   the same keys in the same order; they are kept apart so a page that only links one never
+   loads them */
 export const GENERATOR_KEYS = [
   "qr",
   "sign",
