@@ -179,12 +179,13 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * names them and Invites mid-start. A Match in a Venue left out at startup doesn't count: no
      * Player can see or leave it there, though its timers still run it to its Result.
      */
-    const isBusy = Effect.fn("isBusy")(function* (discordId: string) {
+    const busyIn = Effect.fn("busyIn")(function* () {
       const active = [...(yield* store.activeMatches), ...(yield* Ref.get(starting)).values()];
-      return active.some((m) => surface.runs(m.venue) && involves(m, discordId));
+      return active.filter((m) => surface.runs(m.venue));
     });
     const assertFree = Effect.fn("assertFree")(function* (discordId: string) {
-      if (yield* isBusy(discordId)) return yield* new Busy({ discordId });
+      if ((yield* busyIn()).some((m) => involves(m, discordId)))
+        return yield* new Busy({ discordId });
     });
 
     /** An Invite that never became a Match goes. Its expiry timer is left alone: it may be the caller. */
@@ -763,8 +764,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         return pb?.ticks ?? null;
       }),
 
-      /** Whether the Player is Busy (`assertFree`'s rule), so they can't open, join or be challenged. */
-      isBusy,
+      /** Whether each Player is Busy (`assertFree`'s rule), so they can't open, join or be challenged; one read for them all. */
+      busyOf: Effect.fn("busyOf")(function* (discordIds: ReadonlyArray<string>) {
+        const active = yield* busyIn();
+        return new Set(discordIds.filter((id) => active.some((m) => involves(m, id))));
+      }),
 
       /** Whether this Invite's Map is being drawn right now. */
       isStarting: Effect.fn("isStarting")(function* (matchId: string) {

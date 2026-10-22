@@ -108,12 +108,12 @@ export const checkVenue = Effect.fn("checkVenue")(
       return yield* new VenueCheckFailed({
         reason: `channel ${venue.channelId} is in server ${channel.guildId}, not ${venue.name === HOME_VENUE ? "DISCORD_GUILD_ID " : ""}${venue.guildId}`,
       });
-    const guild = yield* readDiscord("read the channel's server", () => channel.guild);
+    const guild = channel.guild;
     const perms = yield* readDiscord("read the bot's permissions", () =>
       channel.permissionsFor(client.user),
     );
-    const missing = yield* readDiscord("read the bot's permissions", () =>
-      REQUIRED_PERMISSIONS.filter(([, flag]) => !perms?.has(flag)).map(([name]) => name),
+    const missing = REQUIRED_PERMISSIONS.filter(([, flag]) => !perms?.has(flag)).map(
+      ([name]) => name,
     );
     if (missing.length > 0)
       return yield* new VenueCheckFailed({

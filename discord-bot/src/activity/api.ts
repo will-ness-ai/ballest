@@ -218,7 +218,8 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
         nameOf(who.venue, p.discordId).pipe(Effect.map((n) => [p.discordId, n] as const)),
       ),
     );
-    // `m` is the member's Venue's (matchIn), so its Card is in that Venue's channel.
+    // Every caller passes only Matches of the member's Venue (matchIn, or a list filtered by Venue),
+    // and MatchLinks finds a Card only in the Venue it is asked about.
     const place = yield* places.of(who.venue.name, m.id);
     const channel = `https://discord.com/channels/${who.venue.guildId}`;
     const view: MatchView = {
@@ -352,29 +353,28 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
       asMember((who) =>
         Effect.gen(function* () {
           const chosen = yield* chosenSkins.all;
-          const players = yield* Effect.forEach(
-            (yield* store.links).filter((l) => l.discordId !== who.discordId),
-            (l) =>
-              Effect.gen(function* () {
-                const name = yield* members
-                  .nameOf(who.venue.name, l.discordId)
-                  // Someone Discord can't place just now is left out of the list, like a member who left.
-                  .pipe(
-                    Effect.catchTag("MembersUnavailable", () =>
-                      Effect.succeed(Option.none<string>()),
-                    ),
-                  );
-                // Busy as the engine counts it, in any running Venue.
-                const busy = yield* engine.isBusy(l.discordId);
-                return Option.map(name, (n): Challengeable => ({
-                  discordId: l.discordId,
-                  steamId: l.steamId,
-                  name: n,
-                  steamName: l.personaName,
-                  busy,
-                  skin: chosenSkinOf(chosen, l.steamId),
-                }));
-              }),
+          const others = (yield* store.links).filter((l) => l.discordId !== who.discordId);
+          // Busy as the engine counts it, in any running Venue.
+          const busy = yield* engine.busyOf(others.map((l) => l.discordId));
+          const players = yield* Effect.forEach(others, (l) =>
+            Effect.gen(function* () {
+              const name = yield* members
+                .nameOf(who.venue.name, l.discordId)
+                // Someone Discord can't place just now is left out of the list, like a member who left.
+                .pipe(
+                  Effect.catchTag("MembersUnavailable", () =>
+                    Effect.succeed(Option.none<string>()),
+                  ),
+                );
+              return Option.map(name, (n): Challengeable => ({
+                discordId: l.discordId,
+                steamId: l.steamId,
+                name: n,
+                steamName: l.personaName,
+                busy: busy.has(l.discordId),
+                skin: chosenSkinOf(chosen, l.steamId),
+              }));
+            }),
           );
           // Only members of this Venue's server can be challenged.
           return json({ players: players.flatMap((p) => Option.toArray(p)) });
