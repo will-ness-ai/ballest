@@ -4,14 +4,14 @@ import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Context, Effect, Layer, Option, SubscriptionRef, TestClock } from "effect";
-import { type Channel, Drawing, Gone, VenueChannels } from "../src/discord/channel.js";
+import { type Channel, ChannelGone, Drawing, Gone, VenueChannels } from "../src/discord/channel.js";
 import { DiscordError } from "../src/discord/client.js";
 import { ChannelSurfaceLive } from "../src/discord/surface.js";
 import { migrationsBefore, migratorFor } from "../src/db.js";
 import { MatchLinks, Surface, ThreadPost } from "../src/ports.js";
 import { ALICE, cardView as view, HOME, RACING } from "./harness.js";
 
-type Failable = "post" | "redraw" | "startThread";
+type Failable = "post" | "redraw" | "startThread" | "deleteMessage";
 
 /** A channel in memory: messages in order, threads with their posts, and failures on demand. */
 const makeFakeChannel = () => {
@@ -39,10 +39,15 @@ const makeFakeChannel = () => {
   const redrawn: Array<Drawing> = [];
   /** Stands for the bot's build: a new one may draw the same Drawing differently. */
   let build = 1;
+  /** The channel was deleted by hand: posts and reads find no channel. */
+  let deleted = false;
+  /** The next read of the newest message hits a bug. */
+  let crash = false;
 
   const port: Channel = {
     post: (drawing) =>
-      Effect.suspend(() => {
+      Effect.suspend((): Effect.Effect<string, ChannelGone | DiscordError> => {
+        if (deleted) return Effect.fail(new ChannelGone());
         if (fail("post")) return Effect.fail(broken("post"));
         const id = `msg${next++}`;
         messages.push({ id, drawing });
@@ -60,7 +65,8 @@ const makeFakeChannel = () => {
         return Effect.void;
       }),
     deleteMessage: (messageId) =>
-      Effect.suspend(() => {
+      Effect.suspend((): Effect.Effect<void, Gone | DiscordError> => {
+        if (fail("deleteMessage")) return Effect.fail(broken("deleteMessage"));
         const i = messages.findIndex((m) => m.id === messageId);
         if (i < 0) return Effect.fail(new Gone({ id: messageId }));
         messages.splice(i, 1);
@@ -102,7 +108,14 @@ const makeFakeChannel = () => {
         thread.posts.push(post);
         return Effect.void;
       }),
-    lastMessageId: Effect.sync(() => messages.at(-1)?.id ?? null),
+    lastMessageId: Effect.suspend((): Effect.Effect<string | null, ChannelGone> => {
+      if (crash) {
+        crash = false;
+        return Effect.dieMessage("a bug");
+      }
+      if (deleted) return Effect.fail(new ChannelGone());
+      return Effect.succeed(messages.at(-1)?.id ?? null);
+    }),
   };
 
   const label = (d: Drawing | null) =>
@@ -146,6 +159,15 @@ const makeFakeChannel = () => {
     /** What every thread's clock shows, whatever its Card became. */
     clocks: () => [...threads.values()].map((t) => t.clock?.shows ?? null),
     failNext: (op: Failable, n: number) => failures.set(op, n),
+    /** Delete the whole channel, as a moderator might. */
+    deleteChannel: () => {
+      deleted = true;
+      messages.splice(0);
+    },
+    /** The next start of this channel hits a bug. */
+    crashNext: () => {
+      crash = true;
+    },
     postByAnyone: () => messages.push({ id: `msg${next++}`, drawing: null }),
     deleteFooter: () => {
       const i = messages.findIndex((m) => m.drawing?._tag === "Footer");
@@ -182,9 +204,21 @@ const setup = Effect.fn("setup")(function* (
       ...(opts.homeOnly === true ? [] : [[RACING, racing.port] as const]),
     ]),
   );
+  /** The Venues the Surface said lost their channel, in order. */
+  const gone: Array<string> = [];
   const running = VenueChannels.of({
     now: SubscriptionRef.get(channels),
     changes: channels.changes,
+    // As Discord does: the Venue stops running until it is set up again.
+    gone: (venue) =>
+      Effect.suspend(() => {
+        gone.push(venue);
+        return SubscriptionRef.update(channels, (all) => {
+          const next = new Map(all);
+          next.delete(venue);
+          return next;
+        });
+      }),
   });
   /** Venues start, as servers the bot was just invited to do, and the Surface takes them up. */
   const startVenues = Effect.fn("startVenues")(function* (
@@ -230,6 +264,8 @@ const setup = Effect.fn("setup")(function* (
     startVenue,
     startVenues,
     stopVenue,
+    /** The Venues reported as having lost their channel. */
+    gone: () => [...gone],
     placeOf,
     forgetFingerprint,
     onDatabase,
@@ -718,6 +754,71 @@ describe("Venues", () => {
       expect(surface.runs(HOME)).toBe(true);
       expect(surface.runs(RACING)).toBe(false);
       expect(channel.order()).toEqual(["footer"]);
+    }),
+  );
+
+  it.scoped("still post home's Footer when the old one can't be deleted", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup({ homeOnly: true });
+      yield* start;
+      channel.postByAnyone();
+      channel.failNext("deleteMessage", 1);
+      yield* start;
+      expect(channel.order()).toEqual(["footer", "someone else", "footer"]);
+    }),
+  );
+
+  it.scoped("start the other Venues when one hits a bug starting, and try that one again", () =>
+    Effect.gen(function* () {
+      const { start, startVenues } = yield* setup({ homeOnly: true });
+      const surface = yield* start;
+      const racing = makeFakeChannel();
+      const third = makeFakeChannel();
+      racing.crashNext();
+      yield* startVenues([
+        [RACING, racing.port],
+        ["third", third.port],
+      ]);
+      expect(surface.runs(RACING)).toBe(false);
+      expect(surface.runs("third")).toBe(true);
+      yield* TestClock.adjust("1 minute");
+      yield* settle;
+      expect(surface.runs(RACING)).toBe(true);
+      expect(racing.order()).toEqual(["footer"]);
+    }),
+  );
+
+  it.scoped("start home when another Venue hits a bug starting with it", () =>
+    Effect.gen(function* () {
+      const { racing, start } = yield* setup();
+      racing.crashNext();
+      const surface = yield* start;
+      expect(surface.runs(HOME)).toBe(true);
+      expect(surface.runs(RACING)).toBe(false);
+    }),
+  );
+
+  it.scoped("give up a Venue whose channel was deleted, so it is set up again", () =>
+    Effect.gen(function* () {
+      const { racing, start, gone } = yield* setup();
+      const surface = yield* start;
+      racing.deleteChannel();
+      yield* surface.showCard(view("m1", { venue: RACING }));
+      yield* settle;
+      expect(gone()).toEqual([RACING]);
+      expect(surface.runs(RACING)).toBe(false);
+    }),
+  );
+
+  it.scoped("give up a Venue whose channel is gone when it starts", () =>
+    Effect.gen(function* () {
+      const { start, startVenue, gone } = yield* setup({ homeOnly: true });
+      const surface = yield* start;
+      const racing = makeFakeChannel();
+      racing.deleteChannel();
+      yield* startVenue(RACING, racing.port);
+      expect(gone()).toEqual([RACING]);
+      expect(surface.runs(RACING)).toBe(false);
     }),
   );
 

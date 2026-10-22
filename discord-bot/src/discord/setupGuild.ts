@@ -26,7 +26,11 @@ const SERVER_PERMISSIONS: ReadonlyArray<readonly [ServerPermission, bigint]> = [
 ];
 
 const failed = <A>(effect: Effect.Effect<A, DiscordError>) =>
-  effect.pipe(Effect.mapError((e) => new VenueSetupFailed({ reason: describeDiscordError(e) })));
+  effect.pipe(
+    Effect.mapError(
+      (e) => new VenueSetupFailed({ reason: describeDiscordError(e), kind: "discord" }),
+    ),
+  );
 
 /** Each flag set to `value`, as discord.js edits overwrites. */
 const flags = (names: ReadonlyArray<string>, value: boolean): PermissionOverwriteOptions =>

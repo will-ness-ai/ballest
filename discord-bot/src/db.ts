@@ -96,6 +96,11 @@ const MIGRATIONS: Migrations = {
     yield* sql`INSERT INTO known_servers (guild_id, wanted) SELECT guild_id, 1 FROM venues`;
     yield* sql`CREATE TABLE known_servers_baseline (id INTEGER PRIMARY KEY CHECK (id = 1))`;
   }),
+  // When the baseline was taken (ms), so a server the bot joined again since counts as invited.
+  "0012_known_servers_baseline_time": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE known_servers_baseline ADD COLUMN taken_at INTEGER`;
+  }),
 };
 
 /** The migrations a build had before the one with this id (`"0008"`): tests start a database from an older build. */

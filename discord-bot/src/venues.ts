@@ -13,7 +13,7 @@
 // The setup rules run against a small port (SetupGuild) so they are tested on a fake server;
 // src/discord/setupGuild.ts is the port on discord.js.
 import { SqlClient, SqlSchema } from "@effect/sql";
-import { Context, Data, Effect, Either, Layer, Option, Ref, Schema } from "effect";
+import { Cause, Clock, Context, Data, Effect, Exit, Layer, Option, Ref, Schema } from "effect";
 import { MigratorLive } from "./db.js";
 import { HOME_VENUE, type VenueName } from "./domain.js";
 
@@ -81,11 +81,17 @@ export const MATCH_CHANNEL_ACCESS: ChannelAccess = {
 /** What stopped the bot setting a server up as a Venue, in one line. */
 export class VenueSetupFailed extends Data.TaggedError("VenueSetupFailed")<{
   readonly reason: string;
+  /** What kind of failure it is, as VenueCheckFailed's. */
+  readonly kind?: string;
 }> {}
 
-/** What is wrong with a Venue the bot can't run, in one line. */
+/**
+ * What is wrong with a Venue the bot can't run, in one line. `kind`, when given, is what kind of
+ * failure it is, steadier than the words (Discord's change from one try to the next).
+ */
 export class VenueCheckFailed extends Data.TaggedError("VenueCheckFailed")<{
   readonly reason: string;
+  readonly kind?: string;
 }> {}
 
 /**
@@ -173,6 +179,7 @@ export const setUpVenue = Effect.fn("setUpVenue")(function* (
   const missing = bot.missing.filter((p) => needs.has(p));
   if (missing.length > 0)
     return yield* new VenueSetupFailed({
+      kind: `missing ${missing.join(", ")}`,
       reason: `the bot needs ${missing.join(", ")} there to set up its channel and ping role; give its role that, and it tries again within a few minutes`,
     });
 
@@ -198,10 +205,12 @@ export class VenueRecords extends Context.Tag("multiballs/VenueRecords")<
     /** Store a Venue, replacing what was stored for its server. */
     readonly put: (venue: VenueConfig) => Effect.Effect<void>;
     /**
-     * On this build's first start only: every server listed is known, but not wanted as a Venue.
-     * Later calls change nothing.
+     * On this build's first start only: every server listed is known, but not wanted as a Venue,
+     * as of `at` (ms). Later calls change nothing.
      */
-    readonly takeBaseline: (guildIds: ReadonlyArray<string>) => Effect.Effect<void>;
+    readonly takeBaseline: (guildIds: ReadonlyArray<string>, at: number) => Effect.Effect<void>;
+    /** When the baseline was taken (ms); none before it is, or for one taken without a time. */
+    readonly baselineTakenAt: Effect.Effect<Option.Option<number>>;
     /** Whether a server is wanted as a Venue; none for one the bot has never known. */
     readonly wanted: (guildId: string) => Effect.Effect<Option.Option<boolean>>;
     /** Want a server as a Venue from now on. */
@@ -232,7 +241,13 @@ export const VenueRecordsLive = Layer.effect(
       execute: (guildId) => sql`SELECT wanted FROM known_servers WHERE guild_id = ${guildId}`,
     });
     return VenueRecords.of({
-      takeBaseline: (guildIds) =>
+      baselineTakenAt: sql<{
+        readonly taken_at: number | null;
+      }>`SELECT taken_at FROM known_servers_baseline`.pipe(
+        Effect.map((rows) => Option.fromNullable(rows[0]?.taken_at)),
+        Effect.orDie,
+      ),
+      takeBaseline: (guildIds, at) =>
         sql
           .withTransaction(
             Effect.gen(function* () {
@@ -240,7 +255,7 @@ export const VenueRecordsLive = Layer.effect(
               if (taken.length > 0) return;
               for (const guildId of guildIds)
                 yield* sql`INSERT INTO known_servers (guild_id, wanted) VALUES (${guildId}, 0) ON CONFLICT (guild_id) DO NOTHING`;
-              yield* sql`INSERT INTO known_servers_baseline (id) VALUES (1)`;
+              yield* sql`INSERT INTO known_servers_baseline (id, taken_at) VALUES (1, ${at})`;
             }),
           )
           .pipe(Effect.orDie),
@@ -275,11 +290,19 @@ export const VenueRecordsLive = Layer.effect(
   }),
 ).pipe(Layer.provide(MigratorLive));
 
-/** Where the joiner starts a Venue, and asks whether one runs. */
+/** Where the joiner starts and stops a Venue, and asks whether one runs. */
 export interface RunningVenues<A> {
   readonly has: (name: VenueName) => Effect.Effect<boolean>;
   readonly start: (name: VenueName, venue: A) => Effect.Effect<void>;
+  readonly stop: (name: VenueName) => Effect.Effect<void>;
 }
+
+/** Why a server was left out, as ops reads it, and the kind it is told once for. */
+const leftOut = (cause: Cause.Cause<VenueSetupFailed | VenueCheckFailed>) =>
+  Option.match(Cause.failureOption(cause), {
+    onSome: (e) => ({ kind: e.kind ?? e.reason, reason: e.reason }),
+    onNone: () => ({ kind: "crashed", reason: "setting it up failed (see the log)" }),
+  });
 
 /**
  * Which servers become Venues, and setting them up. A server is wanted once it invites the bot
@@ -298,44 +321,78 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
   const records = yield* VenueRecords;
   // One server at a time, so a server invited while the bot starts isn't set up twice.
   const lock = yield* Effect.makeSemaphore(1);
-  /** Why each server was last left out, so ops hears a reason once rather than at every retry. */
+  /** What kind of reason each server was last left out for, so ops hears it once, not at every retry. */
   const leftOutFor = yield* Ref.make(new Map<string, string>());
+  const forget = (guildId: string) =>
+    Ref.update(leftOutFor, (all) => {
+      const next = new Map(all);
+      next.delete(guildId);
+      return next;
+    });
 
-  /** Set up and start a wanted server, unless it runs already. */
+  /**
+   * Set up and start a wanted server, unless it runs already. Each server is tried on its own: one
+   * that fails, or whose setup hits a bug (logged), is left out until the next try, and ops told.
+   */
   const attempt = Effect.fn("attempt")(function* (guild: SetupGuild) {
     const name = venueNameOf(guild.id);
-    if (guild.id === homeGuildId || (yield* running.has(name))) return;
-    if (!Option.getOrElse(yield* records.wanted(guild.id), () => false)) return;
-    const result = yield* Effect.gen(function* () {
-      const venue = yield* setUpVenue(guild, yield* records.byGuild(guild.id));
-      yield* records.put(venue);
-      return yield* check(venue);
-    }).pipe(Effect.either);
-    if (Either.isRight(result)) {
-      yield* Ref.update(leftOutFor, (all) => {
-        const next = new Map(all);
-        next.delete(guild.id);
-        return next;
-      });
-      return yield* running.start(name, result.right);
-    }
-    const { reason } = result.left;
-    if ((yield* Ref.get(leftOutFor)).get(guild.id) === reason) return;
-    yield* Ref.update(leftOutFor, (all) => new Map(all).set(guild.id, reason));
+    const tried = yield* Effect.exit(
+      Effect.gen(function* () {
+        if (guild.id === homeGuildId || (yield* running.has(name))) return;
+        if (!Option.getOrElse(yield* records.wanted(guild.id), () => false)) return;
+        const venue = yield* setUpVenue(guild, yield* records.byGuild(guild.id));
+        yield* records.put(venue);
+        yield* running.start(name, yield* check(venue));
+        yield* forget(guild.id);
+      }),
+    );
+    if (Exit.isSuccess(tried)) return;
+    if (Option.isNone(Cause.failureOption(tried.cause)))
+      yield* Effect.logError(`setting up ${guild.id} failed`, tried.cause);
+    const { kind, reason } = leftOut(tried.cause);
+    if ((yield* Ref.get(leftOutFor)).get(guild.id) === kind) return;
+    yield* Ref.update(leftOutFor, (all) => new Map(all).set(guild.id, kind));
     yield* alert(
       `Multiballs couldn't set up the server ${guild.name} (${guild.id}) as a Venue: ${reason}. It tries again every few minutes.`,
     );
   }, lock.withPermits(1));
 
+  /** Whether the baseline counts a server as wanted after all: the bot joined it since then. */
+  const rejoinedSince = (guild: SetupGuild, takenAt: Option.Option<number>) =>
+    guild.joinedAt !== null && Option.isSome(takenAt) && guild.joinedAt > takenAt.value;
+
   return {
     /** At startup, with every server the bot is in. */
     startup: Effect.fn("startup")(function* (guilds: ReadonlyArray<SetupGuild>) {
       const others = guilds.filter((g) => g.id !== homeGuildId);
-      yield* records.takeBaseline(
-        others.filter((g) => g.joinedAt === null || g.joinedAt < VENUES_SINCE).map((g) => g.id),
+      // Without a baseline every server would be wanted, so a bug taking it sets nobody up.
+      const baseline = yield* Effect.exit(
+        Effect.gen(function* () {
+          yield* records.takeBaseline(
+            others.filter((g) => g.joinedAt === null || g.joinedAt < VENUES_SINCE).map((g) => g.id),
+            yield* Clock.currentTimeMillis,
+          );
+          return yield* records.baselineTakenAt;
+        }),
       );
-      for (const guild of others)
-        if (Option.isNone(yield* records.wanted(guild.id))) yield* records.want(guild.id);
+      if (Exit.isFailure(baseline))
+        return yield* Effect.logError("listing the servers the bot is in failed", baseline.cause);
+      for (const guild of others) {
+        const listed = yield* Effect.exit(
+          Effect.gen(function* () {
+            const wanted = yield* records.wanted(guild.id);
+            // Unknown: invited while the bot was down. Not wanted, but joined since: removed and
+            // invited again while it was down.
+            const invited = Option.match(wanted, {
+              onNone: () => true,
+              onSome: (w) => !w && rejoinedSince(guild, baseline.value),
+            });
+            if (invited) yield* records.want(guild.id);
+          }),
+        );
+        if (Exit.isFailure(listed))
+          yield* Effect.logError(`reading what the bot knows of ${guild.id} failed`, listed.cause);
+      }
       for (const guild of others) yield* attempt(guild);
     }),
     /** A server just invited the bot. */
@@ -346,6 +403,14 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
     }),
     /** Try a server again: it came back from an outage, or its permissions may have changed. */
     retry: attempt,
+    /**
+     * A server removed the bot, or its Venue's channel is gone: it stops running, after any setup
+     * under way, so it never ends up running. Its row stays, so a re-invite or a retry repairs it.
+     */
+    removed: Effect.fn("removed")(function* (guildId: string) {
+      if (guildId === homeGuildId) return;
+      yield* running.stop(venueNameOf(guildId));
+    }, lock.withPermits(1)),
   };
 });
 

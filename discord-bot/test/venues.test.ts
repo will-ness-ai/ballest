@@ -5,7 +5,18 @@
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { ChannelType, type Client } from "discord.js";
-import { Cause, Context, Effect, Exit, Layer, Option, Ref } from "effect";
+import {
+  Cause,
+  Context,
+  Deferred,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  Option,
+  Ref,
+  TestClock,
+} from "effect";
 import { checkVenue } from "../src/discord/client.js";
 import {
   type ChannelAccess,
@@ -60,25 +71,42 @@ const makeFakeGuild = (
   let next = 1;
   let missing = opts.missing ?? [];
   let botReads = 0;
+  let joinedAt = opts.joinedAt === undefined ? Date.parse("2026-01-01T00:00:00Z") : opts.joinedAt;
+  /** What reading the server's channels does instead of answering: Discord failing, or a bug. */
+  let fault: VenueSetupFailed | "crash" | null = null;
+  /** While set, making the channel waits for it, as a slow Discord call would. */
+  let gate: Deferred.Deferred<undefined> | null = null;
   const channels: Array<FakeChannel> = (opts.channels ?? []).map((c) => ({ ...c, access: null }));
   const roles: Array<FakeRole> = (opts.roles ?? []).map((r) => ({ ...r, mentionable: false }));
   const made: Array<string> = [];
   const port: SetupGuild = {
     id: opts.id ?? "g-racing",
-    joinedAt: opts.joinedAt === undefined ? Date.parse("2026-01-01T00:00:00Z") : opts.joinedAt,
+    get joinedAt() {
+      return joinedAt;
+    },
     name: "Ballest Racing",
     bot: Effect.sync(() => {
       botReads++;
       return { missing, topRolePosition: opts.botTop ?? 10 };
     }),
-    textChannels: Effect.sync(() => channels.map(({ id, name }) => ({ id, name }))),
+    textChannels: Effect.suspend(() =>
+      fault === "crash"
+        ? Effect.dieMessage("a bug")
+        : fault !== null
+          ? Effect.fail(fault)
+          : Effect.succeed(channels.map(({ id, name }) => ({ id, name }))),
+    ),
     createTextChannel: (name, access) =>
-      Effect.sync(() => {
-        const id = `c-new${next++}`;
-        channels.push({ id, name, access });
-        made.push(`channel #${name}`);
-        return id;
-      }),
+      Effect.suspend(() => (gate === null ? Effect.void : Deferred.await(gate))).pipe(
+        Effect.zipRight(
+          Effect.sync(() => {
+            const id = `c-new${next++}`;
+            channels.push({ id, name, access });
+            made.push(`channel #${name}`);
+            return id;
+          }),
+        ),
+      ),
     setAccess: (channelId, access) =>
       Effect.suspend(() => {
         const channel = channels.find((c) => c.id === channelId);
@@ -106,6 +134,19 @@ const makeFakeGuild = (
     grantAll: () => {
       missing = [];
     },
+    /** The bot is removed and invited again at this time. */
+    rejoin: (at: number) => {
+      joinedAt = at;
+    },
+    setFault: (next: VenueSetupFailed | "crash" | null) => {
+      fault = next;
+    },
+    /** Hold making the channel until the gate it returns is opened. */
+    hold: Effect.fn("hold")(function* () {
+      const held = yield* Deferred.make<undefined>();
+      gate = held;
+      return held;
+    }),
     channel: (id: string) => channels.find((c) => c.id === id),
     role: (id: string) => roles.find((r) => r.id === id),
     deleteChannel: (id: string) => {
@@ -295,6 +336,8 @@ const joiner = Effect.fn("joiner")(function* (
     readonly failing?: Ref.Ref<string | null>;
   } = {},
 ) {
+  // A day after Venues began, so the baseline is taken then.
+  if (opts.store === undefined) yield* TestClock.setTime(NOW);
   const store = opts.store ?? (yield* records);
   const started = yield* Ref.make<ReadonlyMap<string, VenueConfig>>(new Map());
   const alerts = yield* Ref.make<ReadonlyArray<string>>([]);
@@ -309,6 +352,12 @@ const joiner = Effect.fn("joiner")(function* (
     {
       has: (name) => Effect.map(Ref.get(started), (all) => all.has(name)),
       start: (name, venue) => Ref.update(started, (all) => new Map(all).set(name, venue)),
+      stop: (name) =>
+        Ref.update(started, (all) => {
+          const next = new Map(all);
+          next.delete(name);
+          return next;
+        }),
     },
   ).pipe(Effect.provideService(VenueRecords, store));
   return {
@@ -324,6 +373,9 @@ const joiner = Effect.fn("joiner")(function* (
 });
 
 const homeGuild = () => makeFakeGuild({ id: HOME.guildId });
+
+/** When the tests' bot first starts this build. */
+const NOW = Date.parse("2026-10-23T00:00:00Z");
 
 describe("which servers become Venues", () => {
   it.scoped("on this build's first start, none the bot was already in, and nothing is made", () =>
@@ -402,6 +454,55 @@ describe("which servers become Venues", () => {
     }),
   );
 
+  it.scoped("a server it was in, removed and invited again while the bot was down", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      const old = makeFakeGuild({ id: "g-old" });
+      yield* j.joins.startup([homeGuild().port, old.port]);
+      yield* TestClock.adjust("2 hours");
+      old.rejoin(NOW + 3_600_000);
+      const again = yield* j.restart();
+      yield* again.joins.startup([homeGuild().port, old.port]);
+      expect(yield* again.started).toEqual(["g-old"]);
+    }),
+  );
+
+  it.scoped("not a server that removes the bot while it is being set up", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.joins.startup([homeGuild().port]);
+      const racing = makeFakeGuild();
+      const gate = yield* racing.hold();
+      const setUp = yield* Effect.fork(j.joins.invited(racing.port));
+      // Setting it up has reached making the channel, which waits.
+      yield* Effect.repeatN(Effect.yieldNow(), 50);
+      const removed = yield* Effect.fork(j.joins.removed(racing.port.id));
+      yield* Effect.repeatN(Effect.yieldNow(), 50);
+      yield* Deferred.succeed(gate, undefined);
+      yield* Fiber.join(setUp);
+      yield* Fiber.join(removed);
+      expect(yield* j.started).toEqual([]);
+    }),
+  );
+
+  it.scoped("each on its own: a bug setting one up is logged, ops told once, the next set up", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.joins.startup([homeGuild().port]);
+      const broken = makeFakeGuild({ id: "g-broken" });
+      broken.setFault("crash");
+      const racing = makeFakeGuild();
+      const again = yield* j.restart();
+      yield* again.joins.startup([homeGuild().port, broken.port, racing.port]);
+      yield* again.joins.retry(broken.port);
+      expect(yield* again.started).toEqual(["g-racing"]);
+      const said = yield* again.alerts;
+      expect(said).toHaveLength(1);
+      expect(said[0]).toContain("g-broken");
+      expect(said[0]).toContain("setting it up failed (see the log)");
+    }),
+  );
+
   it.scoped("never home", () =>
     Effect.gen(function* () {
       const j = yield* joiner();
@@ -438,6 +539,26 @@ describe("a server that can't be set up yet", () => {
       expect((yield* j.alerts)[1]).toContain("no access to its channel");
 
       yield* Ref.set(j.failing, null);
+      yield* j.joins.retry(racing.port);
+      expect(yield* j.started).toEqual(["g-racing"]);
+    }),
+  );
+
+  it.scoped("tells ops once for Discord failing, whatever Discord's words", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.joins.startup([homeGuild().port]);
+      const racing = makeFakeGuild();
+      racing.setFault(
+        new VenueSetupFailed({ reason: "fetch channels: [500] oops", kind: "discord" }),
+      );
+      yield* j.joins.invited(racing.port);
+      racing.setFault(
+        new VenueSetupFailed({ reason: "fetch channels: [502] bad gateway", kind: "discord" }),
+      );
+      yield* j.joins.retry(racing.port);
+      expect(yield* j.alerts).toHaveLength(1);
+      racing.setFault(null);
       yield* j.joins.retry(racing.port);
       expect(yield* j.started).toEqual(["g-racing"]);
     }),

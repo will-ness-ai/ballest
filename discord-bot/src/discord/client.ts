@@ -38,7 +38,6 @@ import {
   startHome,
   VenueCheckFailed,
   type VenueConfig,
-  venueNameOf,
   VenueRecords,
 } from "../venues.js";
 import { setupGuildOn } from "./setupGuild.js";
@@ -70,6 +69,10 @@ const isNotMember = (e: DiscordError) =>
   e.cause !== null &&
   "code" in e.cause &&
   (e.cause.code === 10007 || e.cause.code === 10013);
+
+/** Discord's "Unknown Channel" error: the channel was deleted. */
+export const isUnknownChannel = (e: DiscordError) =>
+  typeof e.cause === "object" && e.cause !== null && "code" in e.cause && e.cause.code === 10003;
 
 /** Discord's "Unknown Message" and "Unknown Channel" errors: the thing was already deleted. */
 export const isUnknown = (e: DiscordError) =>
@@ -196,7 +199,7 @@ export const checkVenue = Effect.fn("checkVenue")(
     return running;
   },
   Effect.catchTag("DiscordError", (e) =>
-    Effect.fail(new VenueCheckFailed({ reason: describeDiscordError(e) })),
+    Effect.fail(new VenueCheckFailed({ reason: describeDiscordError(e), kind: "discord" })),
   ),
 );
 
@@ -210,9 +213,10 @@ const RETRY_EVERY = "5 minutes";
 
 /**
  * Make Venues of the servers the bot is invited to (`makeVenueJoiner`), and stop those it is
- * removed from: at startup (before the Surface draws any Footer), on each join, when a server
- * comes back from an outage, and every few minutes, which also picks up a server whose
- * permissions were fixed (re-authorizing an invite fires no join). Runs in the caller's scope.
+ * removed from: at startup (in the background, so home comes up at once), on each join, when a
+ * server comes back from an outage, and every few minutes, which also picks up a server whose
+ * permissions were fixed (re-authorizing an invite fires no join). Runs in the caller's scope;
+ * returns how to stop a Venue whose channel is gone, so the next retry repairs it.
  */
 const followServers = Effect.fn("followServers")(function* (
   client: Client<true>,
@@ -224,23 +228,18 @@ const followServers = Effect.fn("followServers")(function* (
   const joiner = yield* makeVenueJoiner(homeGuildId, (venue) => checkVenue(client, venue), alert, {
     has: (name) => Effect.map(SubscriptionRef.get(running), (all) => all.has(name)),
     start: (name, venue) => SubscriptionRef.update(running, (all) => new Map(all).set(name, venue)),
+    stop: (name) =>
+      SubscriptionRef.update(running, (all) => {
+        if (!all.has(name)) return all;
+        const next = new Map(all);
+        next.delete(name);
+        return next;
+      }).pipe(Effect.zipRight(Effect.log(`Venue ${name} stopped`))),
   }).pipe(Effect.provideService(VenueRecords, records));
-  // A bug while setting up one server must not stop the bot, home included: it is logged, and the
-  // server is tried again at the next retry.
+  // The joiner tries each server on its own and logs a bug in one; this keeps a bug outside that
+  // (its database reads) from ending the event, startup and retry fibers.
   const guarded = (what: string, effect: Effect.Effect<void>) =>
     effect.pipe(Effect.catchAllDefect((defect) => Effect.logError(`${what} failed`, defect)));
-
-  /** A server the bot was removed from stops running; its row stays, so a re-invite picks it up. */
-  const leave = Effect.fn("leave")(function* (guild: Guild) {
-    const name = venueNameOf(guild.id);
-    if (guild.id === homeGuildId || !(yield* SubscriptionRef.get(running)).has(name)) return;
-    yield* SubscriptionRef.update(running, (all) => {
-      const next = new Map(all);
-      next.delete(name);
-      return next;
-    });
-    yield* Effect.log(`Venue ${name}: the bot is no longer in ${guild.name}`);
-  });
 
   interface ServerEvent {
     readonly _tag: "Invited" | "Available" | "Removed";
@@ -277,17 +276,20 @@ const followServers = Effect.fn("followServers")(function* (
           ? joiner.invited(setupGuildOn(client, guild))
           : _tag === "Available"
             ? joiner.retry(setupGuildOn(client, guild))
-            : leave(guild),
+            : joiner.removed(guild.id),
       ),
     ),
     Effect.forkScoped,
   );
   const everyServer = () => [...client.guilds.cache.values()].map((g) => setupGuildOn(client, g));
-  yield* guarded("setting up servers at startup", joiner.startup(everyServer()));
+  yield* guarded("setting up servers at startup", joiner.startup(everyServer())).pipe(
+    Effect.forkScoped,
+  );
   // The servers as they are at each retry.
   yield* Effect.suspend(() =>
     Effect.forEach(everyServer(), (guild) => guarded(`retrying ${guild.id}`, joiner.retry(guild))),
   ).pipe(Effect.delay(RETRY_EVERY), Effect.repeat(Schedule.spaced(RETRY_EVERY)), Effect.forkScoped);
+  return (name: VenueName) => joiner.removed(name);
 });
 
 export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
@@ -343,8 +345,11 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     });
 
     // The sandbox runs beside `pnpm dev` on the same app: only `pnpm dev` sets servers up.
-    if (!sandbox)
-      yield* followServers(ready, homeGuildId, running, records, (message) => alerts.post(message));
+    const stopVenue = sandbox
+      ? () => Effect.void
+      : yield* followServers(ready, homeGuildId, running, records, (message) =>
+          alerts.post(message),
+        );
 
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
@@ -440,6 +445,18 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       /** The running Venues now, then again each time one starts or stops. */
       changes: Stream.map(running.changes, (all) => [...all.values()]),
       venueNamed,
+      /**
+       * A running Venue's channel is gone (deleted by hand): it stops running, so clicks, pings and
+       * the Activity stop offering it, and the next retry sets it up again. Home runs on regardless.
+       */
+      channelGone: Effect.fn("channelGone")(function* (name: VenueName) {
+        if (name === HOME_VENUE)
+          return yield* Effect.logWarning("the home Venue's channel is gone");
+        yield* Effect.logWarning(
+          `Venue ${name}'s channel is gone; it stops until it is set up again`,
+        );
+        yield* stopVenue(name);
+      }),
       /** Clicks from every running Venue's channel and its Match Threads, each with its Venue. */
       interactions,
       postsIn,

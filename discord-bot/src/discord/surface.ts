@@ -29,7 +29,7 @@
 // - A Card is forgotten once it will never change again: after its Result, or once removed.
 //   A finished Match's place is still kept (the most recent ones), for the Activity's links.
 import { SqlClient, SqlSchema } from "@effect/sql";
-import { Context, Effect, Layer, Option, Ref, Schedule, Schema, Stream } from "effect";
+import { Cause, Context, Effect, Exit, Layer, Option, Ref, Schedule, Schema, Stream } from "effect";
 import { MigratorLive } from "../db.js";
 import { HOME_VENUE, type VenueName } from "../domain.js";
 import {
@@ -96,9 +96,11 @@ const LayoutJson = Schema.parseJson(
 const logFailure = (e: ChannelError) =>
   e._tag === "Gone"
     ? Effect.logWarning(`${e.id} is gone`)
-    : e._tag === "RenderError"
-      ? Effect.logError("drawing an image failed", e.cause)
-      : Effect.logError(`discord ${describeDiscordError(e)}`);
+    : e._tag === "ChannelGone"
+      ? Effect.logWarning("the channel is gone")
+      : e._tag === "RenderError"
+        ? Effect.logError("drawing an image failed", e.cause)
+        : Effect.logError(`discord ${describeDiscordError(e)}`);
 
 /** Try a Channel call up to twice more, unless what it acts on is gone. */
 const retryUnlessGone = <A, E extends ChannelError>(effect: Effect.Effect<A, E>) =>
@@ -117,9 +119,19 @@ const ignoreGone = <A, E extends ChannelError>(effect: Effect.Effect<A, E>) =>
 const unlessGone = <E extends ChannelError>(effect: Effect.Effect<void, E>) =>
   effect.pipe(Effect.catchAll((e) => (e._tag === "Gone" ? Effect.void : logFailure(e))));
 
-/** One Venue's channel as a Surface: its Footer, Cards and Match Threads, and its layout row. */
-const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, channel: Channel) {
+/**
+ * One Venue's channel as a Surface: its Footer, Cards and Match Threads, and its layout row.
+ * `channelGone` reports that the channel itself was deleted, so the Venue is set up again.
+ */
+const venueSurface = Effect.fn("venueSurface")(function* (
+  venue: VenueName,
+  channel: Channel,
+  channelGone: Effect.Effect<void>,
+) {
   const sql = yield* SqlClient.SqlClient;
+  /** Log a failure that ends a draw; a deleted channel is also reported. */
+  const failed = (e: ChannelError) =>
+    e._tag === "ChannelGone" ? logFailure(e).pipe(Effect.zipRight(channelGone)) : logFailure(e);
 
   const loadLayout = SqlSchema.findOne({
     Request: Schema.Void,
@@ -280,7 +292,7 @@ const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, chan
       yield* channel.redraw(card.messageId, Drawing.Card({ view }));
       yield* redrawClock(view.matchId, card, view);
     },
-    Effect.catchAll((e) => logFailure(e)),
+    Effect.catchAll((e) => failed(e)),
     lock.withPermits(1),
   );
 
@@ -321,17 +333,17 @@ const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, chan
         (post._tag === "Result" && post.standings.every((s) => s.ticks === null));
       if (last) yield* lock.withPermits(1)(forget(matchId, true));
     },
-    Effect.catchAll((e) => logFailure(e)),
+    Effect.catchAll((e) => failed(e)),
   );
 
   // Startup: the Footer must be the channel's last message, with today's wording, and is edited
   // only if this build draws it differently.
-  // If the newest message can't be read, the Footer is assumed still last rather than reposted.
+  // If the newest message can't be read, the Footer is assumed still last rather than reposted,
+  // unless the channel itself is gone.
   const startFooter = Effect.gen(function* () {
     const { footerId, footerFingerprint } = yield* Ref.get(layout);
     const last = yield* channel.lastMessageId.pipe(
-      Effect.tapError((e) => logFailure(e)),
-      Effect.orElseSucceed(() => footerId),
+      Effect.catchTag("DiscordError", (e) => logFailure(e).pipe(Effect.as(footerId))),
     );
     if (footerId !== null && footerId === last) {
       const fingerprint = yield* thisBuildsFooter;
@@ -340,12 +352,13 @@ const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, chan
           .redraw(footerId, Drawing.Footer())
           .pipe(Effect.andThen(setFooter(footerId, fingerprint)), ignoreGone);
     } else {
-      if (footerId !== null) yield* channel.deleteMessage(footerId).pipe(ignoreGone);
+      if (footerId !== null) yield* unlessGone(channel.deleteMessage(footerId));
       yield* postFooter();
     }
   });
   // Home runs whatever its channel says, as it always has; another Venue whose Footer can't be put
-  // right doesn't start (nobody could open a Match there), and is tried again.
+  // right doesn't start (nobody could open a Match there), and is tried again (or set up again, when
+  // its channel is gone).
   yield* venue === HOME_VENUE
     ? startFooter.pipe(Effect.catchAll((e) => logFailure(e)))
     : startFooter.pipe(Effect.tapError((e) => logFailure(e)));
@@ -405,8 +418,22 @@ const make = Effect.gen(function* () {
     for (const [venue, channel] of now)
       if (running.get(venue)?.channel !== channel) {
         running.delete(venue);
-        const started = yield* venueSurface(venue, channel).pipe(Effect.option);
-        if (Option.isSome(started)) running.set(venue, { channel, surface: started.value });
+        const gone = channels.gone(venue);
+        // Home starts as it always has: its start never fails, and a bug in it is the bot's.
+        if (venue === HOME_VENUE) {
+          running.set(venue, { channel, surface: yield* venueSurface(venue, channel, gone) });
+          continue;
+        }
+        // Any other Venue starts on its own, so a failure or a bug in it leaves the rest running.
+        const started = yield* Effect.exit(venueSurface(venue, channel, gone));
+        if (Exit.isSuccess(started)) {
+          running.set(venue, { channel, surface: started.value });
+          continue;
+        }
+        const failure = Cause.failureOption(started.cause);
+        if (Option.isNone(failure))
+          yield* Effect.logError(`Venue ${venue} hit a bug starting; trying again`, started.cause);
+        else if (failure.value._tag === "ChannelGone") yield* gone;
         else yield* Effect.logWarning(`Venue ${venue} can't start its channel yet; trying again`);
       }
   }, once.withPermits(1));
