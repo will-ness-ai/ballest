@@ -19,6 +19,7 @@ import {
 /* ---------- QR code ---------- */
 export const qr: Generator = {
   key: "qr",
+  loose: true,
   name: "QR code",
   category: "Useful",
   blurb: "A code players can scan, built from blocks.",
@@ -84,6 +85,7 @@ export function fitText(text: string, lettering: Lettering, w: number, h: number
 
 export const sign: Generator = {
   key: "sign",
+  loose: true,
   name: "Sign",
   category: "Useful",
   blurb: "Your words in blocks, on a wall or standing alone.",

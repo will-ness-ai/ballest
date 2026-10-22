@@ -276,6 +276,8 @@ export interface Generator {
   category: (typeof CATEGORIES)[number];
   /* the stem of the file Download saves, and so of the spawn command */
   file: string;
+  /* its pieces stand apart by design (letters, a row of lamps), so the checks don't count its parts */
+  loose?: boolean;
   /* it letters text, so its page loads the drawn fonts and hands build a Lettering */
   lettered?: boolean;
   /* the view its model and card start from; without one, the Prefabs' default */
