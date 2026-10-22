@@ -283,13 +283,16 @@ const make = Effect.gen(function* () {
   }, lock.withPermits(1));
 
   /**
-   * A Match's thread, started now if it couldn't be when its Card was drawn. A finished Match's
-   * is still there, for Play again.
+   * A Match's thread, started now if it couldn't be when its Card was drawn. Only Play again's
+   * post (`toFinished`) goes to a finished Match's thread; any other post for it is dropped.
    */
-  const threadOf = Effect.fn("threadOf")(function* (matchId: string) {
+  const threadOf = Effect.fn("threadOf")(function* (matchId: string, toFinished: boolean) {
     const { cards, finished } = yield* Ref.get(layout);
     const card = cards.get(matchId);
-    if (card === undefined) return Option.fromNullable(finished.get(matchId)?.threadId);
+    if (card === undefined)
+      return toFinished
+        ? Option.fromNullable(finished.get(matchId)?.threadId)
+        : Option.none<string>();
     if (card.threadId !== null) return Option.some(card.threadId);
     const view = (yield* Ref.get(views)).get(matchId);
     return view === undefined
@@ -299,7 +302,7 @@ const make = Effect.gen(function* () {
 
   const post = Effect.fn("post")(
     function* (matchId: string, post: ThreadPost) {
-      const threadId = yield* threadOf(matchId);
+      const threadId = yield* threadOf(matchId, post._tag === "PlayingAgain");
       if (Option.isNone(threadId))
         return yield* Effect.logWarning(`no thread for ${matchId}; dropped a ${post._tag} post`);
       yield* channel.postInThread(threadId.value, matchId, post);

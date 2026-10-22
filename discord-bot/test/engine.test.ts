@@ -1137,4 +1137,50 @@ describe("Play again", () => {
       expect(card.players.map((p) => p.discordId)).toEqual([BOB.discordId, ALICE.discordId]);
     }),
   );
+
+  it.scoped("a press from someone already in its Lobby just finds it again", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.join(ALICE.discordId, lobbyId);
+      for (const p of [BOB, ALICE])
+        expect(yield* h.engine.playAgain(p.discordId, id)).toEqual({ lobbyId, opened: false });
+    }),
+  );
+
+  it.scoped("doesn't ping a Player who left the finished Match", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(ALICE.discordId, {
+        type: "lobby",
+        minutes: 5,
+        target: null,
+      });
+      yield* h.engine.join(BOB.discordId, id);
+      yield* h.engine.join(CARA.discordId, id);
+      yield* h.engine.start(ALICE.discordId, id);
+      yield* h.engine.leave(CARA.discordId, id);
+      yield* advance("5 minutes");
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      const post = (yield* h.surface.posts(id)).at(-1);
+      if (post?._tag !== "PlayingAgain") return expect.unreachable();
+      expect(post.others).toEqual([BOB]);
+    }),
+  );
+
+  it.scoped("says so while its Lobby is drawing its Map", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.steam.setReadDelay("150 millis");
+      const starting = yield* Effect.fork(h.engine.start(BOB.discordId, lobbyId));
+      yield* Effect.yieldNow();
+      expect(yield* Effect.flip(h.engine.playAgain(ALICE.discordId, id))).toMatchObject({
+        _tag: "NotAllowed",
+        reason: "Its Lobby is drawing its Map. Press again in a moment.",
+      });
+      yield* advance("150 millis");
+      yield* Fiber.join(starting);
+    }),
+  );
 });

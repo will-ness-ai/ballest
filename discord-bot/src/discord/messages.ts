@@ -314,7 +314,10 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
       return {
         content: line(
           art.marbles.forPlayer(post.by.steamId, post.skin),
-          `${post.others.map((p) => who(p.discordId)).join(" ")} **${who(post.by.discordId)}** opened a ${post.minutes}-minute Lobby to play again`,
+          [
+            ...post.others.map((p) => who(p.discordId)),
+            `**${who(post.by.discordId)}** opened a ${post.minutes}-minute Lobby to play again`,
+          ].join(" "),
         ),
         components: [row(playAgainButton(matchId))],
         allowedMentions: { users: post.others.map((p) => p.discordId) },

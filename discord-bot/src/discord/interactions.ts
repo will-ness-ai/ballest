@@ -142,7 +142,11 @@ export const InteractionsLive = Layer.scopedDiscard(
       const { lobbyId, opened } = done.right;
       const thread = Option.flatMapNullable(yield* links.of(lobbyId), (p) => p.threadId);
       yield* tryDiscord("follow up", () =>
-        i.followUp({ content: playAgainText(opened, Option.getOrNull(thread)), ...ephemeral }),
+        i.followUp({
+          content: playAgainText(opened, Option.getOrNull(thread)),
+          ...ephemeral,
+          ...quiet,
+        }),
       );
       if (!opened) yield* offerPings(i, "join");
     });

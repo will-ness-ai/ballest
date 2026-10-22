@@ -237,7 +237,8 @@ minutes, the thread saying time's up), and failing that stands on the last times
 
 **Play again**:
 The button on a Result. The first Player to press it opens a Lobby of the finished Match's
-length, as its creator, and the finished Match's other Players are pinged in its thread; everyone
+length, as its creator, and the finished Match's other Players are pinged in the finished Match's
+thread; everyone
 who presses it after that joins the same Lobby, while it is open or live. Any Player may press
 it. Once that Lobby is gone, the next press opens a fresh one.
 _Avoid_: rematch, replay (a replay is a Ghost)

@@ -808,8 +808,9 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
 
       /**
        * Play again on a finished Match: the first press opens a Lobby of the same length, with
-       * the presser as its creator; every later press joins that Lobby while it is open or live.
-       * Once it is gone, the next press opens a fresh one.
+       * the presser as its creator; every later press joins that Lobby while it is open or live,
+       * or just finds it for someone already in it. Once it is gone, the next press opens a fresh
+       * one.
        */
       playAgain: Effect.fn("playAgain")(function* (discordId: string, matchId: string) {
         const found = yield* locked(
@@ -818,7 +819,8 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
             if (finished.state !== "finished")
               return yield* new NotAllowed({ reason: "That Match isn't over yet." });
             const again = (yield* store.activeMatches).find((m) => m.playAgainOf === matchId);
-            if (again !== undefined) return { lobbyId: again.id, opened: false };
+            if (again !== undefined)
+              return { lobbyId: again.id, opened: false, joined: involves(again, discordId) };
             const creator = yield* playerOf(discordId);
             yield* assertFree(discordId);
             const lobby = yield* open(
@@ -832,15 +834,21 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
               ThreadPost.PlayingAgain({
                 by: creator,
                 skin: yield* skinOf(creator),
-                others: finished.players.filter((p) => p.discordId !== discordId),
+                others: racing(finished).filter((p) => p.discordId !== discordId),
                 minutes: finished.minutes,
               }),
             );
-            return { lobbyId: lobby.id, opened: true };
+            return { lobbyId: lobby.id, opened: true, joined: true };
           }),
         );
-        if (!found.opened) yield* join(discordId, found.lobbyId);
-        return found;
+        if (!found.joined) {
+          if ((yield* Ref.get(starting)).has(found.lobbyId))
+            return yield* new NotAllowed({
+              reason: "Its Lobby is drawing its Map. Press again in a moment.",
+            });
+          yield* join(discordId, found.lobbyId);
+        }
+        return { lobbyId: found.lobbyId, opened: found.opened };
       }),
     } as const;
   }),
