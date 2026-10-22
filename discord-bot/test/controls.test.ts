@@ -22,6 +22,7 @@ const EVERY_KIND: ReadonlyArray<Control> = [
   { _tag: "SetPing", on: false },
   { _tag: "DeclinePing" },
   { _tag: "SeeMyStats" },
+  { _tag: "PairAgain" },
 ];
 
 describe("button and form ids", () => {
