@@ -3,10 +3,17 @@
 // across restarts and deletions, and a failure reported to ops rather than stopping the bot.
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
+import { PermissionFlagsBits, PermissionsBitField } from "discord.js";
 import { Context, Effect, Layer } from "effect";
 import { Gone } from "../src/discord/channel.js";
 import { DiscordError } from "../src/discord/client.js";
-import { MyStatsChannel, MyStatsPanelLive } from "../src/discord/myStats.js";
+import {
+  EVERYONE_DENIED,
+  missingFrom,
+  MyStatsChannel,
+  MyStatsPanelLive,
+  NEEDED_IN_SERVER,
+} from "../src/discord/myStats.js";
 import { OpsAlerts } from "../src/ops.js";
 
 /** A server in memory: its channels by id, each with its messages, and failures on demand. */
@@ -21,12 +28,14 @@ const makeFakeServer = () => {
   let build = 1;
   let canCreate = true;
   let discordDown = false;
+  let missing: ReadonlyArray<string> = [];
 
   const port = MyStatsChannel.of({
     exists: (channelId) =>
       discordDown
         ? Effect.fail(new DiscordError({ op: "fetch #my-stats", cause: "503" }))
         : Effect.sync(() => channels.has(channelId)),
+    missingPermissions: Effect.sync(() => missing),
     create: Effect.suspend(() => {
       if (!canCreate)
         return Effect.fail(
@@ -83,6 +92,9 @@ const makeFakeServer = () => {
     },
     discordDown: () => {
       discordDown = true;
+    },
+    lacking: (names: ReadonlyArray<string>) => {
+      missing = names;
     },
   };
 };
@@ -181,6 +193,29 @@ describe("the My Stats channel", () => {
     }),
   );
 
+  it.scoped("names every permission the bot lacks to ops, and makes no channel without them", () =>
+    Effect.gen(function* () {
+      const { server, start, alerts } = yield* setup;
+      server.lacking(["Manage Roles", "Embed Links"]);
+      yield* start;
+      expect(server.channels()).toEqual([]);
+      expect(alerts).toEqual([
+        "Multiballs lacks permissions #my-stats needs in the server: Manage Roles, Embed Links",
+      ]);
+    }),
+  );
+
+  it.scoped("keeps a channel it already made while saying what the bot lacks", () =>
+    Effect.gen(function* () {
+      const { server, start, alerts } = yield* setup;
+      yield* start;
+      server.lacking(["Manage Roles"]);
+      yield* start;
+      expect(server.channels()).toEqual([{ name: "my-stats", messages: ["panel 1"] }]);
+      expect(alerts).toHaveLength(1);
+    }),
+  );
+
   it.scoped("makes no second channel when Discord can't say whether the first is there", () =>
     Effect.gen(function* () {
       const { server, start, alerts } = yield* setup;
@@ -191,4 +226,33 @@ describe("the My Stats channel", () => {
       expect(alerts).toEqual(["Multiballs couldn't set up #my-stats: fetch #my-stats: 503"]);
     }),
   );
+});
+
+describe("the My Stats channel's permissions", () => {
+  it("denies @everyone messages, threads and reactions", () => {
+    expect(new PermissionsBitField(EVERYONE_DENIED).toArray().sort()).toEqual([
+      "AddReactions",
+      "CreatePrivateThreads",
+      "CreatePublicThreads",
+      "SendMessages",
+      "SendMessagesInThreads",
+    ]);
+  });
+
+  it("needs Manage Channels, Manage Roles and all it grants the bot, and names what's missing", () => {
+    expect(Object.keys(NEEDED_IN_SERVER)).toEqual([
+      "Manage Channels",
+      "Manage Roles",
+      "View Channel",
+      "Send Messages",
+      "Embed Links",
+      "Read Message History",
+    ]);
+    const all = Object.values(NEEDED_IN_SERVER).reduce((a, b) => a | b);
+    expect(missingFrom(all)).toEqual([]);
+    expect(missingFrom(PermissionsBitField.All)).toEqual([]);
+    expect(
+      missingFrom(all & ~PermissionFlagsBits.ManageRoles & ~PermissionFlagsBits.EmbedLinks),
+    ).toEqual(["Manage Roles", "Embed Links"]);
+  });
 });

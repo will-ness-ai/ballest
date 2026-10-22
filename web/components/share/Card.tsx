@@ -331,7 +331,12 @@ async function render(card: ShareCard, picture: SharePicture) {
 
 /* a drawing as the PNG response every card answers with. ImageResponse draws as its body
    streams, so it is read here, where a failure can still be caught */
-export async function pngOf(body: React.ReactElement, width: number, height: number) {
+export async function pngOf(
+  body: React.ReactElement,
+  width: number,
+  height: number,
+  cache = "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400",
+) {
   const png = await new ImageResponse(body, {
     width,
     height,
@@ -340,7 +345,7 @@ export async function pngOf(body: React.ReactElement, width: number, height: num
   return new Response(png, {
     headers: {
       "content-type": "image/png",
-      "cache-control": "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400",
+      "cache-control": cache,
     },
   });
 }

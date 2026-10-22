@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Option, Ref, TestClock } from "effect";
+import { OpsAlerts } from "../src/ops.js";
 import {
   CardFailed,
   makeSeeMyStats,
@@ -40,6 +41,7 @@ const setup = Effect.gen(function* () {
   const drawing = yield* Ref.make(true);
   const noStats = yield* Ref.make(new Set<string>());
   const drawn = yield* Ref.make<Array<string>>([]);
+  const alerts = yield* Ref.make<Array<string>>([]);
 
   const unreadable = new StatsUnavailable({ reason: "connection refused" });
   const read = <A>(effect: Effect.Effect<A>) =>
@@ -76,6 +78,13 @@ const setup = Effect.gen(function* () {
           }),
       }),
     ),
+    Layer.succeed(
+      OpsAlerts,
+      OpsAlerts.make({
+        configured: true,
+        post: (content) => Ref.update(alerts, (a) => [...a, content]),
+      }),
+    ),
   );
   const stats = yield* makeSeeMyStats.pipe(Effect.provide(fakes));
 
@@ -94,7 +103,7 @@ const setup = Effect.gen(function* () {
       Ref.update(links, (m) => new Map(m).set(discordId, steamId)),
       Ref.update(used, (u) => new Set(u).add(token)),
     ]);
-  return { stats, links, requests, readable, drawing, noStats, drawn, answers, confirm };
+  return { stats, links, requests, readable, drawing, noStats, drawn, alerts, answers, confirm };
 });
 
 const signIn = (token: string) => ({ _tag: "SignIn", url: `${SITE}/discord/link?t=${token}` });
@@ -191,6 +200,23 @@ describe("See my stats", () => {
       const a = yield* t.answers();
       yield* t.stats.see(ALICE, a.answer);
       expect(yield* a.shown).toEqual([{ _tag: "CardFailed" }]);
+    }),
+  );
+
+  it.scoped("tells the ops channel when the site can't draw, at most once an hour", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* Ref.set(t.links, new Map([[ALICE.id, ALICE_STEAM]]));
+      yield* Ref.set(t.drawing, false);
+      const a = yield* t.answers();
+      const alert = `Multiballs couldn't draw ${ALICE_STEAM}'s Stat Card: the site said 500`;
+      yield* t.stats.see(ALICE, a.answer);
+      yield* TestClock.adjust("59 minutes");
+      yield* t.stats.see(ALICE, a.answer);
+      expect(yield* Ref.get(t.alerts)).toEqual([alert]);
+      yield* TestClock.adjust("1 minute");
+      yield* t.stats.see(ALICE, a.answer);
+      expect(yield* Ref.get(t.alerts)).toEqual([alert, alert]);
     }),
   );
 

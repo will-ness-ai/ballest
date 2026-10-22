@@ -22,8 +22,12 @@ export interface StatsLinkDeps {
    its answer with, lasts as long */
 export const REQUEST_MS = 15 * 60_000;
 
-/* what the link page says: a token nobody wrote (or pruned), one too old or already used,
-   "done" to the reader whose confirm used it, and otherwise who is being paired */
+/* how long a request is kept: a day, so an expired link still says it has expired and a
+   reloaded Done page still says done, rather than reading as a link that never worked */
+export const KEEP_MS = 24 * 60 * 60_000;
+
+/* what the link page says: a token nobody wrote (or pruned after a day), one too old or
+   already used, "done" to the reader whose confirm used it, and otherwise who is being paired */
 export type LinkPage =
   | { state: "bad" | "expired" | "used" | "done" }
   | { state: "signed-out"; discord: string }
@@ -80,8 +84,8 @@ async function personaOf(deps: StatsLinkDeps, steamId: string): Promise<string> 
 
 /* POST /api/discord/link?t=<token>: the signed-in reader confirms. The request is marked used
    and the Stats Link written (replacing any) in one transaction, so a token pairs once; the
-   old requests are pruned. Refused from another site; otherwise the reader goes back to the
-   link page, which says what came of it (done, or why not) */
+   requests older than KEEP_MS are pruned. Refused from another site; otherwise the reader
+   goes back to the link page, which says what came of it (done, or why not) */
 export async function confirmLink(request: Request, deps: StatsLinkDeps): Promise<Response> {
   if (isCrossSite(request))
     return Response.json(
@@ -116,7 +120,9 @@ export async function confirmLink(request: Request, deps: StatsLinkDeps): Promis
             target: statsLinks.discordId,
             set: { steamId, linkedAt: sql`excluded.linked_at` },
           });
-      await tx.delete(statsLinkRequests).where(lte(statsLinkRequests.createdAt, oldest));
+      await tx
+        .delete(statsLinkRequests)
+        .where(lte(statsLinkRequests.createdAt, new Date(at.getTime() - KEEP_MS)));
     });
   }
   return new Response(null, {

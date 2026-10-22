@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 
 import type { PlayerRecord, TrackTile, WorkshopFinish } from "../lib/player";
 import type { MedalKey } from "../lib/rules";
+import { nameSize } from "../components/share/StatCard";
 import { cardDate, statCard } from "../lib/stat-card";
 
 const ID = "76561199000000001";
@@ -38,6 +39,7 @@ function record({ s1, s2, tracks = [], finishes = [] }: Shape): PlayerRecord {
     who: { steamId: ID, persona: "Rolling Rae" },
     medals: { gold: tracks.filter((t) => t.finish?.rank === 1).length, silver: 0, bronze: 0 },
     run: tracks.filter((t) => t.finish).length,
+    made: [],
     seasons: [season("Season 2", s2, tracks.slice(0, 2)), season("Season 1", s1, tracks.slice(2))],
     workshop: {
       finishes,
@@ -121,5 +123,19 @@ describe("the date", () => {
     expect(cardDate(Date.UTC(2026, 8, 3, 23, 59))).toBe("3 SEP 2026");
     // 00:30 on 1 Jan in UTC is still 31 Dec west of it; the card reads UTC
     expect(cardDate(Date.UTC(2027, 0, 1, 0, 30))).toBe("1 JAN 2027");
+  });
+});
+
+describe("a Stat Card's name", () => {
+  /* the line the name has (720 less the frame and padding), and Bungee's M in ems */
+  const LINE = 628;
+  const M = 0.849;
+
+  test("is drawn large while it is short, and steps down so 32 of the widest letters fit", () => {
+    expect(nameSize("Rae")).toBe(56);
+    for (let n = 1; n <= 32; n++) expect(n * M * nameSize("W".repeat(n))).toBeLessThanOrEqual(LINE);
+    expect(nameSize("W".repeat(32))).toBe(23);
+    /* longer than any Steam persona: drawn at the 32's size and cut */
+    expect(nameSize("W".repeat(40))).toBe(23);
   });
 });

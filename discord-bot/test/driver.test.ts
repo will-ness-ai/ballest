@@ -11,6 +11,7 @@ import { controlId } from "../src/discord/controls.js";
 import { PROFILE_FIELD } from "../src/discord/messages.js";
 import { ChosenSkins, type ChosenSkin, type ProfilePreview, Store } from "../src/ports.js";
 import { Renderer } from "../src/render/renderer.js";
+import { OpsAlerts } from "../src/ops.js";
 import { makeSeeMyStats, SeeMyStats, StatsLinks, StatsSite } from "../src/seeMyStats.js";
 import { controlsOf, fromPayload } from "../scripts/axi/describe.js";
 import { fakeInteraction, type Press } from "../scripts/sandbox/driver.js";
@@ -35,6 +36,7 @@ const seeMyStats = Layer.scoped(SeeMyStats, makeSeeMyStats).pipe(
         StatsSite,
         StatsSite.of({ url: SITE, card: () => Effect.succeed(Buffer.from("png")) }),
       ),
+      Layer.succeed(OpsAlerts, OpsAlerts.make({ configured: false, post: () => Effect.void })),
     ),
   ),
 );

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { SqlClient } from "@effect/sql";
 import { PgClient } from "@effect/sql-pg";
 import { afterAll, beforeAll, describe, expect, it } from "@effect/vitest";
-import { ConfigProvider, Effect, Layer, Option, Redacted } from "effect";
+import { ConfigProvider, Context, Effect, Layer, Option, Redacted } from "effect";
 import { StatsLinks, StatsLinksLive } from "../src/seeMyStats.js";
 
 const BASE =
@@ -55,19 +55,19 @@ afterAll(async () => {
   );
 });
 
-/** StatsLinksLive over the given settings, as the bot builds it from its environment. */
+/** StatsLinksLive over the given settings, as the bot builds it from its environment, kept for
+ * the rest of the test. */
 const links = (env: ReadonlyArray<readonly [string, string]> = [["DATABASE_URL", URL_]]) =>
-  Effect.provide(
-    StatsLinks,
+  Layer.build(
     StatsLinksLive.pipe(
       Layer.provide(Layer.setConfigProvider(ConfigProvider.fromMap(new Map(env)))),
     ),
-  );
+  ).pipe(Effect.map(Context.get(StatsLinks)));
 
 const STEAM = "76561198000000001";
 
 describe("Stats Links in the database", () => {
-  it.effect("a Discord account is paired with the Steam ID the site wrote, if any", () =>
+  it.scoped("a Discord account is paired with the Steam ID the site wrote, if any", () =>
     Effect.gen(function* () {
       const l = yield* links();
       expect(yield* l.pairedWith("d-pair")).toEqual(Option.none());
@@ -78,7 +78,7 @@ describe("Stats Links in the database", () => {
     }),
   );
 
-  it.effect("a request is one new row, by a 128-bit token, with the member's name", () =>
+  it.scoped("a request is one new row, by a 128-bit token, with the member's name", () =>
     Effect.gen(function* () {
       const l = yield* links();
       const token = yield* l.request("d-ask", "alice");
@@ -92,13 +92,13 @@ describe("Stats Links in the database", () => {
     }),
   );
 
-  it.effect("writing a request prunes those past their 15 minutes", () =>
+  it.scoped("writing a request prunes those past a day", () =>
     Effect.gen(function* () {
       const l = yield* links();
       yield* run(
         (sql) => sql`insert into stats_link_requests (token, discord_id, discord_name, created_at)
-          values ('old', 'd-old', 'old', now() - interval '16 minutes'),
-                 ('recent', 'd-old', 'old', now() - interval '14 minutes')`,
+          values ('old', 'd-old', 'old', now() - interval '25 hours'),
+                 ('recent', 'd-old', 'old', now() - interval '23 hours')`,
       );
       yield* l.request("d-new", "new");
       const left = yield* run(
@@ -108,7 +108,7 @@ describe("Stats Links in the database", () => {
     }),
   );
 
-  it.effect("a request reads as used once the link page's confirm has used it", () =>
+  it.scoped("a request reads as used once the link page's confirm has used it", () =>
     Effect.gen(function* () {
       const l = yield* links();
       const token = yield* l.request("d-use", "bob");
@@ -121,7 +121,21 @@ describe("Stats Links in the database", () => {
     }),
   );
 
-  it.effect("are unavailable without a database, or one that can't be read", () =>
+  it.scoped("share one pool across calls, rather than connecting for each", () =>
+    Effect.gen(function* () {
+      const l = yield* links();
+      yield* l.pairedWith("d-pool");
+      yield* l.used("no-such-token");
+      yield* l.request("d-pool", "pool");
+      const open = yield* run(
+        (sql) => sql`select count(*)::int as n from pg_stat_activity
+          where datname = ${NAME} and application_name = 'multiballs'`,
+      );
+      expect(open).toEqual([{ n: 1 }]);
+    }),
+  );
+
+  it.scoped("are unavailable without a database, or one that can't be read", () =>
     Effect.gen(function* () {
       const none = yield* links([]);
       expect((yield* Effect.flip(none.pairedWith("d-x")))._tag).toBe("StatsUnavailable");

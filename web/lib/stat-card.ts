@@ -4,6 +4,7 @@
 // prototype branch claude/prototype-statcard).
 import type { PlayerRecord } from "./player";
 import { fmtN, hueFor, personaOf } from "./rules";
+import { playerCounts } from "./share";
 import { SKINS } from "./skins";
 
 /* a row's mark: a season's, a Medal's, or the player's own marble for Maps finished */
@@ -35,33 +36,27 @@ export function cardDate(ms: number) {
 }
 
 /* A player's Stat Card, as of the Refresh at asOf. The ranks are each season's Overall
-   board's. Every count adds the Circuit's Tracks and the Workshop's Maps together, as
-   playerCard does: a world record is rank 1 on either, and the Medals count what each
-   finish's time earned, so an Author medal includes a world record at the author time. */
+   board's; the counts are playerCounts', as the player's share card has them. */
 export function statCard(
   rec: PlayerRecord,
   asOf: number,
   chosenSkin: string | undefined,
 ): StatCard {
-  const ws = rec.workshop;
-  const run = rec.seasons.flatMap((s) => s.tiers.flatMap((t) => t.tracks));
-  const earned = (k: "author" | "gold" | "silver" | "bronze") =>
-    run.filter((t) => t.finish?.earned === k).length +
-    ws.finishes.filter((f) => f.earned === k).length;
+  const n = playerCounts(rec);
   const rank = (group: string) => {
     const o = rec.seasons.find((s) => s.group === group)?.overall;
     return o ? "#" + fmtN(o.rank) : null;
   };
-  const count = (n: number) => (n > 0 ? fmtN(n) : null);
+  const count = (k: number) => (k > 0 ? fmtN(k) : null);
   const rows: Array<[StatRowKind, string, string | null]> = [
     ["s1", "Season 1 Circuit", rank("Season 1")],
     ["s2", "Season 2 Circuit", rank("Season 2")],
-    ["wr", "World records", count(rec.medals.gold + ws.medals.wr)],
-    ["author", "Author medals", count(earned("author"))],
-    ["gold", "Gold medals", count(earned("gold"))],
-    ["silver", "Silver medals", count(earned("silver"))],
-    ["bronze", "Bronze medals", count(earned("bronze"))],
-    ["finished", "Maps finished", count(rec.run + ws.finishes.length)],
+    ["wr", "World records", count(n.wr)],
+    ["author", "Author medals", count(n.author)],
+    ["gold", "Gold medals", count(n.gold)],
+    ["silver", "Silver medals", count(n.silver)],
+    ["bronze", "Bronze medals", count(n.bronze)],
+    ["finished", "Maps finished", count(n.finished)],
   ];
   return {
     name: personaOf(rec.who),

@@ -11,7 +11,9 @@ it breaks. Those files carry the reasons; this file carries the checks.
   React text, never through `dangerouslySetInnerHTML`. An image URL from Steam goes
   through `safeImg`, and every link inside the site is built by `lib/routes.ts`.
 - A page reads the database only through `db/data.ts`'s cached reads (a search through its
-  fresh ones), never `db/site.ts` directly, so every read is tagged and revalidated.
+  fresh ones), never `db/site.ts` directly, so every read is tagged and revalidated. The
+  one exception is the Stats Link's page, read per reader: its `getLinkPage` is never
+  cached (ADR 0014).
 - `lib/` is pure: nothing in it imports React, Next or `db/`, and its rules are tested in
   `web/test/`. A component is a client component only where it needs state, an effect, a
   browser API or an event handler; a server component imports no value from a client

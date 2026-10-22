@@ -51,7 +51,7 @@ import { connect, type Db } from "./client";
 import type { PrefabDeps } from "./prefab-api";
 import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
 import * as q from "./site";
-import type { StatsLinkDeps } from "./stats-link";
+import { linkPageOf, type LinkPage, type StatsLinkDeps } from "./stats-link";
 import { boardTag, DAILY_TAG, DATA_TAG } from "./tags";
 
 export { DATA_TAG } from "./tags";
@@ -616,4 +616,10 @@ export function chosenSkinDeps(): ChosenSkinDeps {
    since a link request lives minutes and the page is read once (ADR 0014) */
 export function statsLinkDeps(): StatsLinkDeps {
   return { db: db() };
+}
+
+/* the link page for `token`, as `steamId` (null signed out) reads it: per reader and changed
+   by the confirm, so read fresh, never cached (ADR 0014) */
+export function getLinkPage(token: string, steamId: string | null): Promise<LinkPage> {
+  return linkPageOf(statsLinkDeps(), token, steamId);
 }

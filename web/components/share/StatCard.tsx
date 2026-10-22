@@ -141,9 +141,16 @@ function BigBall({
   );
 }
 
-/* a long name steps down so it stays on one line */
-const nameSize = (t: string, big: number) =>
-  t.length > 18 ? big * 0.6 : t.length > 12 ? big * 0.78 : big;
+/* the name's line: the card inside its frame and padding */
+const NAME_WIDTH = W - 2 * 16 - 2 * 30;
+const NAME_SIZE = 56;
+/* Bungee's widest letters (M, W) in ems: a name sized for them fits whatever its letters */
+const BUNGEE_WIDEST = 0.85;
+
+/* A long name steps down so it stays on one line: up to 32 characters, Steam's longest
+   persona, fit at 23px; anything longer is cut with an ellipsis. */
+export const nameSize = (name: string) =>
+  Math.min(NAME_SIZE, Math.floor(NAME_WIDTH / (Math.min(name.length, 32) * BUNGEE_WIDEST)));
 
 function Portrait({
   card,
@@ -176,9 +183,13 @@ function Portrait({
       <div
         style={{
           display: "flex",
+          maxWidth: NAME_WIDTH,
           marginTop: 10,
           fontFamily: "Bungee",
-          fontSize: nameSize(card.name, 56),
+          fontSize: nameSize(card.name),
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
       >
         {card.name}
@@ -219,15 +230,31 @@ function Portrait({
   );
 }
 
-/* The card as a PNG response, cached as the share images are (pngOf). skin is the Chosen
-   Skin's picture and face the Steam avatar, as data: URLs or null; one Satori can't read
-   draws the card without either, rather than a 500 no CDN keeps. */
-export async function drawStatCard(card: StatCard, skin: string | null, face: string | null) {
+/* The Stat Card's CDN life: minutes, not the share images' year, since the Chosen Skin and
+   the Steam avatar on it change between Refreshes; a card drawn without a picture it should
+   have had is never kept, so the next press draws it again (docs/site.md, "Stat Card") */
+const CARD_CACHE = "public, max-age=300, s-maxage=300";
+const NO_STORE = "no-store";
+
+/* The card as a PNG response. skin is the Chosen Skin's picture and face the Steam avatar, as
+   data: URLs or null, and whole says neither that should be there failed to load. One Satori
+   can't read draws the card without either, rather than a 500. */
+export async function drawStatCard(
+  card: StatCard,
+  skin: string | null,
+  face: string | null,
+  whole: boolean,
+) {
   try {
-    return await pngOf(<Portrait card={card} skin={skin} face={face} />, W, H);
+    return await pngOf(
+      <Portrait card={card} skin={skin} face={face} />,
+      W,
+      H,
+      whole ? CARD_CACHE : NO_STORE,
+    );
   } catch (e) {
     if (!skin && !face) throw e;
     console.warn(`stat card "${card.name}": drawn without its pictures`, e);
-    return pngOf(<Portrait card={card} skin={null} face={null} />, W, H);
+    return pngOf(<Portrait card={card} skin={null} face={null} />, W, H, NO_STORE);
   }
 }

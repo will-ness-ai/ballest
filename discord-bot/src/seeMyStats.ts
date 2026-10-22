@@ -11,17 +11,31 @@ import {
   HttpClientResponse,
 } from "@effect/platform";
 import { SqlClient } from "@effect/sql";
+import type { SqlError } from "@effect/sql/SqlError";
 import { PgClient } from "@effect/sql-pg";
-import { Config, Context, Data, Duration, Effect, Layer, Option, Schema } from "effect";
+import {
+  Clock,
+  Config,
+  Context,
+  Data,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Ref,
+  Schema,
+  SynchronizedRef,
+} from "effect";
 import type { ParseError } from "effect/ParseResult";
 import type { DiscordError } from "./discord/client.js";
+import { OpsAlerts } from "./ops.js";
 
 /** How often the bot looks whether a member's request has been used. */
 export const WATCH_EVERY = Duration.toMillis("5 seconds");
 
 /**
- * How long it looks: a request lives 15 minutes, as does the interaction token the answer is
- * edited with, so a minute is left over for the edit.
+ * How long it looks: a request can be used for 15 minutes, and the interaction token the answer
+ * is edited with lasts as long, so a minute is left over for the edit.
  */
 export const WATCH_FOR = Duration.toMillis("14 minutes");
 
@@ -76,15 +90,35 @@ export interface Member {
   readonly name: string;
 }
 
+/** How often a failed draw may tell the ops channel: while the site is down, every press fails. */
+export const CARD_ALERT_EVERY = Duration.toMillis("1 hour");
+
 export const makeSeeMyStats = Effect.gen(function* () {
   const links = yield* StatsLinks;
   const site = yield* StatsSite;
+  const alerts = yield* OpsAlerts;
   // The watches outlive the press that started them, until the bot stops.
   const scope = yield* Effect.scope;
+  /** When ops last heard of a failed draw. */
+  const alerted = yield* Ref.make<number | null>(null);
 
-  /** The card, or why not; a failed draw is logged. */
-  const cardOf = (steamId: string) =>
-    site.card(steamId).pipe(
+  /** A failed draw: logged, and told to ops at most once an hour. */
+  const drawFailed = Effect.fn("SeeMyStats.drawFailed")(function* (
+    steamId: string,
+    reason: string,
+  ) {
+    const why = `couldn't draw ${steamId}'s Stat Card: ${reason}`;
+    const now = yield* Clock.currentTimeMillis;
+    const tell = yield* Ref.modify(alerted, (last) =>
+      last === null || now - last >= CARD_ALERT_EVERY ? [true, now] : [false, last],
+    );
+    if (tell) yield* alerts.post(`Multiballs ${why}`);
+    else yield* Effect.logWarning(`see my stats: ${why}`);
+  });
+
+  /** The card, or why not. */
+  const cardOf = Effect.fn("SeeMyStats.cardOf")(function* (steamId: string) {
+    return yield* site.card(steamId).pipe(
       Effect.map((png): StatsAnswer => ({
         _tag: "Card",
         steamId,
@@ -94,68 +128,72 @@ export const makeSeeMyStats = Effect.gen(function* () {
       Effect.catchTags({
         NoStats: (): Effect.Effect<StatsAnswer> => Effect.succeed({ _tag: "NoStats" }),
         CardFailed: (e): Effect.Effect<StatsAnswer> =>
-          Effect.logWarning(`see my stats: couldn't draw ${steamId}'s card: ${e.reason}`).pipe(
-            Effect.as({ _tag: "CardFailed" }),
-          ),
+          drawFailed(steamId, e.reason).pipe(Effect.as({ _tag: "CardFailed" })),
       }),
     );
+  });
 
   /** Every few seconds until the request is used, then the card in place of the sign-in link. */
-  const watch = (member: Member, token: string, answer: Answer) =>
-    links.used(token).pipe(
-      Effect.catchTag("StatsUnavailable", (e) =>
-        Effect.logWarning(`see my stats: couldn't read a request: ${e.reason}`).pipe(
-          Effect.as(false),
+  const watch = Effect.fn("SeeMyStats.watch")(
+    function* (member: Member, token: string, answer: Answer) {
+      const used = yield* links.used(token).pipe(
+        Effect.catchTag("StatsUnavailable", (e) =>
+          Effect.logWarning(`see my stats: couldn't read a request: ${e.reason}`).pipe(
+            Effect.as(false),
+          ),
         ),
-      ),
-      Effect.delay(WATCH_EVERY),
-      Effect.repeat({ until: (used) => used }),
-      Effect.timeoutOption(WATCH_FOR),
-      Effect.flatMap((used) =>
-        Option.isNone(used) ? Effect.succeed(Option.none()) : links.pairedWith(member.id),
-      ),
-      Effect.flatMap(
-        Option.match({
-          onNone: () => Effect.void,
-          onSome: (steamId) => Effect.flatMap(cardOf(steamId), answer),
-        }),
-      ),
-      Effect.catchAll((e) =>
+        Effect.delay(WATCH_EVERY),
+        Effect.repeat({ until: (u) => u }),
+        Effect.timeoutOption(WATCH_FOR),
+      );
+      if (Option.isNone(used)) return;
+      const steamId = yield* links.pairedWith(member.id);
+      if (Option.isNone(steamId)) return;
+      yield* answer(yield* cardOf(steamId.value));
+    },
+    (effect, member) =>
+      Effect.catchAll(effect, (e) =>
         Effect.logWarning(
           `see my stats: couldn't show ${member.id} their card after signing in: ${e._tag === "StatsUnavailable" ? e.reason : e._tag}`,
         ),
       ),
-    );
+  );
 
   /** A new link request, the sign-in link to it, and the watch for its use. */
-  const signIn = (member: Member, answer: Answer) =>
-    Effect.gen(function* () {
-      const token = yield* links.request(member.id, member.name);
-      yield* answer({ _tag: "SignIn", url: `${site.url}/discord/link?t=${token}` });
-      yield* Effect.forkIn(watch(member, token, answer), scope);
-    });
+  const signIn = Effect.fn("SeeMyStats.signIn")(function* (member: Member, answer: Answer) {
+    const token = yield* links.request(member.id, member.name);
+    yield* answer({ _tag: "SignIn", url: `${site.url}/discord/link?t=${token}` });
+    yield* Effect.forkIn(watch(member, token, answer), scope);
+  });
 
   /** The database couldn't be read or written: no card and no link, said privately. */
-  const unavailable = (answer: Answer) => (e: StatsUnavailable) =>
-    Effect.logWarning(`see my stats: unavailable: ${e.reason}`).pipe(
-      Effect.zipRight(answer({ _tag: "Unavailable" })),
-    );
+  const unavailable = Effect.fn("SeeMyStats.unavailable")(function* (
+    answer: Answer,
+    e: StatsUnavailable,
+  ) {
+    yield* Effect.logWarning(`see my stats: unavailable: ${e.reason}`);
+    yield* answer({ _tag: "Unavailable" });
+  });
 
   return {
     /** The panel's button: the member's card, or the way to pair first. */
-    see: (member: Member, answer: Answer) =>
-      links.pairedWith(member.id).pipe(
-        Effect.flatMap(
-          Option.match({
-            onNone: () => signIn(member, answer),
-            onSome: (steamId) => Effect.flatMap(cardOf(steamId), answer),
-          }),
-        ),
-        Effect.catchTag("StatsUnavailable", unavailable(answer)),
-      ),
+    see: Effect.fn("SeeMyStats.see")(
+      function* (member: Member, answer: Answer) {
+        const paired = yield* links.pairedWith(member.id);
+        if (Option.isNone(paired)) return yield* signIn(member, answer);
+        yield* answer(yield* cardOf(paired.value));
+      },
+      (effect, _member, answer) =>
+        Effect.catchTag(effect, "StatsUnavailable", (e) => unavailable(answer, e)),
+    ),
     /** Not you? Pair again: a fresh request, whatever the Stats Link is now. */
-    pairAgain: (member: Member, answer: Answer) =>
-      signIn(member, answer).pipe(Effect.catchTag("StatsUnavailable", unavailable(answer))),
+    pairAgain: Effect.fn("SeeMyStats.pairAgain")(
+      function* (member: Member, answer: Answer) {
+        yield* signIn(member, answer);
+      },
+      (effect, _member, answer) =>
+        Effect.catchTag(effect, "StatsUnavailable", (e) => unavailable(answer, e)),
+    ),
   };
 });
 
@@ -166,17 +204,22 @@ export class SeeMyStats extends Context.Tag("multiballs/SeeMyStats")<
 
 // ---------------------------------------------------------------- the database
 
-/** A request lives as long as the link page takes it (REQUEST_MS in web/db/stats-link.ts). */
-const REQUEST_LIFE = "15 minutes";
+/**
+ * How long a request is kept, as the site keeps it (KEEP_MS in web/db/stats-link.ts): a day, so
+ * the link page can still say it has expired. It can be used for 15 minutes (REQUEST_MS).
+ */
+const REQUEST_KEPT = "24 hours";
 
 const Paired = Schema.Struct({ steamId: Schema.String });
 
 /**
  * The Stats Links at DATABASE_URL: plain SQL over the tables web/ owns (docs/data.md, "Stats
- * Links"). Each call opens its own connection and closes it, like the Chosen Skins' reads, so
- * the bot holds none open between presses. Without a database, every call is unavailable.
+ * Links"). One pool serves every call, as the watches read every few seconds: made at the first
+ * call and kept until the bot stops, its connections closing when idle. A database that can't be
+ * reached leaves no pool made, so the next call tries again. Without a database, or while it
+ * can't be reached, every call is unavailable.
  */
-export const StatsLinksLive = Layer.effect(
+export const StatsLinksLive = Layer.scoped(
   StatsLinks,
   Effect.gen(function* () {
     const url = yield* Config.option(Config.redacted("DATABASE_URL"));
@@ -185,55 +228,54 @@ export const StatsLinksLive = Layer.effect(
       const off = Effect.fail(new StatsUnavailable({ reason: "DATABASE_URL not set" }));
       return StatsLinks.of({ pairedWith: () => off, request: () => off, used: () => off });
     }
-    const onDb = <A, E>(effect: Effect.Effect<A, E, SqlClient.SqlClient>) =>
-      effect.pipe(
-        Effect.provide(PgClient.layer({ url: url.value })),
-        Effect.scoped,
-        Effect.catchAll((e) =>
-          Effect.fail(new StatsUnavailable({ reason: e instanceof Error ? e.message : String(e) })),
-        ),
-      );
+    const scope = yield* Effect.scope;
+    const pool = yield* SynchronizedRef.make(Option.none<SqlClient.SqlClient>());
+    const pg = PgClient.layer({ url: url.value, applicationName: "multiballs" });
+    const db = SynchronizedRef.modifyEffect(
+      pool,
+      Option.match({
+        onSome: (sql) => Effect.succeed([sql, Option.some(sql)] as const),
+        onNone: () =>
+          Layer.buildWithScope(pg, scope).pipe(
+            Effect.map((ctx) => Context.get(ctx, SqlClient.SqlClient)),
+            Effect.map((sql) => [sql, Option.some(sql)] as const),
+          ),
+      }),
+    );
+    const unavailable = (e: SqlError | ParseError) => new StatsUnavailable({ reason: e.message });
+
     return StatsLinks.of({
-      pairedWith: (discordId) =>
-        onDb(
-          Effect.gen(function* () {
-            const sql = yield* SqlClient.SqlClient;
-            const rows = yield* sql`select steam_id as "steamId" from stats_links
-              where discord_id = ${discordId}`.pipe(
-              Effect.flatMap(Schema.decodeUnknown(Schema.Array(Paired))),
-            );
-            return Option.fromNullable(rows[0]?.steamId);
-          }),
-        ),
-      // The one write the bot makes here (ADR 0014): a request, and the old ones pruned.
-      request: (discordId, name) =>
-        onDb(
-          Effect.gen(function* () {
-            const sql = yield* SqlClient.SqlClient;
-            const token = randomBytes(16).toString("hex");
-            yield* sql.withTransaction(
-              Effect.all([
-                sql`delete from stats_link_requests
-                  where created_at <= now() - ${REQUEST_LIFE}::interval`,
-                sql`insert into stats_link_requests ${sql.insert({
-                  token,
-                  discord_id: discordId,
-                  discord_name: name,
-                })}`,
-              ]),
-            );
-            return token;
-          }),
-        ),
-      used: (token) =>
-        onDb(
-          Effect.gen(function* () {
-            const sql = yield* SqlClient.SqlClient;
-            const rows = yield* sql`select 1 from stats_link_requests
-              where token = ${token} and used_at is not null`;
-            return rows.length > 0;
-          }),
-        ),
+      pairedWith: Effect.fn("StatsLinks.pairedWith")(function* (discordId: string) {
+        const sql = yield* db;
+        const rows = yield* sql`select steam_id as "steamId" from stats_links
+          where discord_id = ${discordId}`.pipe(
+          Effect.flatMap(Schema.decodeUnknown(Schema.Array(Paired))),
+        );
+        return Option.fromNullable(rows[0]?.steamId);
+      }, Effect.mapError(unavailable)),
+      // The one write the bot makes here (ADR 0014): a request, and those past a day pruned.
+      request: Effect.fn("StatsLinks.request")(function* (discordId: string, name: string) {
+        const sql = yield* db;
+        const token = randomBytes(16).toString("hex");
+        yield* sql.withTransaction(
+          Effect.all([
+            sql`delete from stats_link_requests
+              where created_at <= now() - ${REQUEST_KEPT}::interval`,
+            sql`insert into stats_link_requests ${sql.insert({
+              token,
+              discord_id: discordId,
+              discord_name: name,
+            })}`,
+          ]),
+        );
+        return token;
+      }, Effect.mapError(unavailable)),
+      used: Effect.fn("StatsLinks.used")(function* (token: string) {
+        const sql = yield* db;
+        const rows = yield* sql`select 1 from stats_link_requests
+          where token = ${token} and used_at is not null`;
+        return rows.length > 0;
+      }, Effect.mapError(unavailable)),
     });
   }),
 );
@@ -303,5 +345,5 @@ const StatsSiteLive = Layer.unwrapEffect(
 
 /** See my stats over the database at DATABASE_URL and the site at SITE_URL. */
 export const SeeMyStatsLive = Layer.scoped(SeeMyStats, makeSeeMyStats).pipe(
-  Layer.provide(Layer.mergeAll(StatsLinksLive, StatsSiteLive)),
+  Layer.provide(Layer.mergeAll(StatsLinksLive, StatsSiteLive, OpsAlerts.Default)),
 );

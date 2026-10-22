@@ -206,13 +206,18 @@ A player's Stat Card (CONTEXT.md) is the 720×1060 portrait card Multiballs's Se
 answers with in Discord (spec #323; grill-design K5 with its date as T1, prototype branch
 `claude/prototype-statcard`). No page names it: `/og/stats/<steam id>?v=<Refresh time>`
 (`app/og/stats/[id]/route.tsx`) serves it, through the player page's cached reads plus
-`getChosenSkins`, and answers with the same `s-maxage` as the share images, `v` being the
-cache key. A Steam ID that names nobody is a 404. `lib/stat-card.ts` decides what it says,
+`getChosenSkins`, `v` being the cache key. Unlike a share image it is kept by the CDN for five
+minutes only (`s-maxage=300`), since the Chosen Skin and the Steam avatar on it change between
+Refreshes, and not at all (`no-store`) when it was drawn without a picture it should have had:
+the Skin's or the avatar's failed to load, so the next press draws it again. A Steam ID that
+names nobody is a 404. `lib/stat-card.ts` decides what it says,
 `components/share/StatCard.tsx` draws it with `Card.tsx`'s colours, marble and fonts.
 
 - A frame and glow in the player's hue, and their ball at 400px: their Chosen Skin's
   picture, else their hue marble, with their Steam avatar as a 130px badge on its lower
-  right (none without an avatar). Then their name.
+  right (none without an avatar). Then their name, on one line: it steps down from 56px so
+  that 32 characters (Steam's longest persona) of Bungee's widest letters fit, and anything
+  longer is cut with an ellipsis.
 - The rows, in order: Season 1 Circuit and Season 2 Circuit (each season's Overall rank),
   World records, Author, Gold, Silver and Bronze medals, Maps finished. The counts add the
   Circuit and the Workshop as the player's share card does (an Author count includes world

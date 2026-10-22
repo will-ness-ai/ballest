@@ -12,6 +12,7 @@ const BO = "76561199000000022";
 const DISCORD = "300000000000000001";
 const TOKEN = "0123456789abcdef0123456789abcdef";
 const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
 
 let t: Awaited<ReturnType<typeof freshDb>>;
 let clock: number;
@@ -91,10 +92,13 @@ describe("the link page", () => {
     expect(await linkPageOf(deps(), TOKEN, nobody)).toMatchObject({ persona: nobody });
   });
 
-  test("a request older than 15 minutes has expired", async () => {
+  test("a request older than 15 minutes has expired, and says so all day", async () => {
     await requested(TOKEN, 15 * MINUTE + 1);
     expect(await linkPageOf(deps(), TOKEN, ADA)).toEqual({ state: "expired" });
     expect(await linkPageOf(deps(), TOKEN, null)).toEqual({ state: "expired" });
+    clock += 23 * HOUR;
+    await confirm(TOKEN, ADA);
+    expect(await linkPageOf(deps(), TOKEN, ADA)).toEqual({ state: "expired" });
   });
 });
 
@@ -119,6 +123,15 @@ describe("confirming", () => {
     expect(r.status).toBe(303);
     expect(await links()).toEqual({ [DISCORD]: ADA });
     expect(await linkPageOf(deps(), TOKEN, BO)).toEqual({ state: "used" });
+  });
+
+  test("the Done page still reads done when it is reloaded later that day", async () => {
+    await requested();
+    await confirm(TOKEN, ADA);
+    clock += 20 * HOUR;
+    await requested("d".repeat(32), 0, "300000000000000004");
+    await confirm("d".repeat(32), BO);
+    expect(await linkPageOf(deps(), TOKEN, ADA)).toEqual({ state: "done" });
   });
 
   test("pairing again replaces the Stats Link", async () => {
@@ -153,9 +166,9 @@ describe("confirming", () => {
     expect(await links()).toEqual({});
   });
 
-  test("prunes the requests older than 15 minutes", async () => {
-    await requested("b".repeat(32), 15 * MINUTE + 1, "300000000000000002");
-    await requested("c".repeat(32), 14 * MINUTE, "300000000000000003");
+  test("prunes the requests older than a day", async () => {
+    await requested("b".repeat(32), 24 * HOUR + 1, "300000000000000002");
+    await requested("c".repeat(32), 23 * HOUR, "300000000000000003");
     await requested();
     await confirm(TOKEN, ADA);
     const { rows } = await t.db.$client.query<{ token: string }>(

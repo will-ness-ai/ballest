@@ -1,8 +1,8 @@
 // GET /og/stats/<steam id>?v=<Refresh time>: a player's Stat Card, the image Multiballs's See
 // my stats answers with (spec #323; docs/site.md, "Stat Card"). Read through the player
-// page's cached reads and the Chosen Skins, and kept by Vercel's CDN as the share images
-// are: v is only the cache key, so each Refresh is a new address. 404 for a Steam ID that
-// names nobody.
+// page's cached reads and the Chosen Skins, and kept by Vercel's CDN for five minutes, or not
+// at all when its Skin picture or avatar failed (drawStatCard): v is only the cache key, so
+// each Refresh is a new address. 404 for a Steam ID that names nobody.
 import { fullAvatar, remote, skinShot } from "../../../../components/share/pictures";
 import { drawStatCard } from "../../../../components/share/StatCard";
 import { getChosenSkins, getPlayer, getSite } from "../../../../db/data";
@@ -19,5 +19,6 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
     card.skin ? skinShot(card.skin) : null,
     remote(fullAvatar(rec.who.avatar)),
   ]);
-  return drawStatCard(card, skin, face);
+  const whole = (!card.skin || skin !== null) && (!rec.who.avatar || face !== null);
+  return drawStatCard(card, skin, face, whole);
 }

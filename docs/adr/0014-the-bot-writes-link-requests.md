@@ -13,7 +13,7 @@ database. A press of See my stats with no Stats Link makes Multiballs write a li
 to `stats_link_requests`: a random 128-bit token, the Discord account's ID and name, and when.
 That is the first row the bot writes in the leaderboard database, which ADR 0006 made
 read-only for it, and one insert per press is all it writes there (pruning the requests past
-their 15 minutes as it does). It sends the member to `/discord/link?t=<token>` on the site.
+a day as it does; one can be used for 15 minutes). It sends the member to `/discord/link?t=<token>` on the site.
 The site owns everything else: the page, the sign-in, and the confirm, a POST from the page
 that, signed in and from the site itself, marks the request used and writes the Stats Link
 to `stats_links` in one transaction, so a token pairs once. Multiballs reads `stats_links`
