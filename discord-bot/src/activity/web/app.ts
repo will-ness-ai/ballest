@@ -7,7 +7,7 @@
 // opened to watch, else the Map Gallery. A Match you were in stays on screen after its Result
 // until Back to Matches.
 import { Common, DiscordSDK } from "@discord/embedded-app-sdk";
-import type { MatchType, Minutes } from "../../domain.js";
+import { GUILD_HEADER, type MatchType, type Minutes } from "../../domain.js";
 import { DECLINE_PING, getPing, pingOffer, pingsHave, UNDO_PING } from "../../pingWords.js";
 import type { Challengeable, LinkPreview, MatchView } from "../api.js";
 import type { PageConfig } from "../server.js";
@@ -40,6 +40,8 @@ if (root === null) throw new Error("the page has no #app element");
 
 let sdk: DiscordSDK | null = null;
 let token = "";
+/** The Venue's server the page was opened in, sent with every request: the API serves that Venue. */
+let guild = "";
 /** Server clock minus ours, so countdowns agree with the bot. */
 let offset = 0;
 const serverNow = () => Date.now() + offset;
@@ -102,7 +104,11 @@ class ApiError extends Error {
 const api = async <A>(method: string, path: string, body?: unknown): Promise<A> => {
   const init: RequestInit = {
     method,
-    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${token}`,
+      [GUILD_HEADER]: guild,
+    },
   };
   if (body !== undefined) init.body = JSON.stringify(body);
   const res = await fetch(path, init);
@@ -133,10 +139,11 @@ const signIn = async (): Promise<boolean> => {
   if (params.has("frame_id")) {
     sdk = new DiscordSDK(config.clientId);
     await sdk.ready();
-    if (sdk.guildId !== config.guildId) {
+    if (sdk.guildId === null || !config.guildIds.includes(sdk.guildId)) {
       ui.phase = "wrong";
       return false;
     }
+    guild = sdk.guildId;
     const { code } = await sdk.commands.authorize({
       client_id: config.clientId,
       response_type: "code",
@@ -168,6 +175,8 @@ const signIn = async (): Promise<boolean> => {
     ui.failure = "Open Multiballs from a channel in the Ballest server.";
     return false;
   }
+  // The demo's one Venue.
+  guild = config.guildIds[0] ?? "";
   // The demo: pick who to be. `?as=<id>` skips the question, for a second tab.
   const as =
     params.get("as") ??

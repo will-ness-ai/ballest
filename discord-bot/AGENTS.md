@@ -59,7 +59,8 @@ router in `src/discord/surface.ts`), its own queue (a Match's `venue`), its own 
 own ping-offer answers. Links, Chosen Skins, the Steam session and "one Match at a time" are
 shared. Clicks are handled in the Venue they came from; anywhere else they get "Multiballs only
 works in its own channel." The Daily Report, Daily Posts, #new-tracks and ops stay home's only.
-The Activity serves the home Venue only for now (#317).
+The Activity serves every running Venue: opened in a Venue's server it shows and opens that
+Venue's Matches only, linked into its channel (#317).
 
 At startup each Venue is checked: its channel permissions, and its ping role. Home failing a
 check stops the bot, as before; another Venue failing is left out with a line to the ops channel
@@ -140,8 +141,12 @@ running and `pnpm install` in `web/` too; `bot.yml` gives CI both.
 
 `src/activity/` is a Discord Activity (spec #46): the same Matches in a page Discord shows in an
 iframe, from Link Steam to the live standings and the Result. `api.ts` is an HTTP API over the
-Engine, tested in `test/activity.test.ts` like the engine tests; it names Players as the server
-does and refuses anyone outside `DISCORD_GUILD_ID`. `auth.ts` swaps the SDK's OAuth code for an
+Engine, tested in `test/activity.test.ts` like the engine tests. `/api/config` lists the running
+Venues' servers; the page refuses any other, and names its server in the `x-discord-guild`
+header of every request (`GUILD_HEADER`; one without it, from a page loaded before Venues, is
+home's). The API serves that Venue: it checks the member is in that server, names Players as
+that server does, and lists, opens, links and pings that Venue's only, answering another Venue's
+Match as not found. Links, Chosen Skins and Busy are shared. `auth.ts` swaps the SDK's OAuth code for an
 access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
 page (`web/`: `view.ts` is the markup, `app.ts` the state and actions, bundled by esbuild at
 startup), its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and

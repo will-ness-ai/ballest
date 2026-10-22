@@ -64,24 +64,31 @@ const ActivityLive = Layer.unwrapEffect(
     const secret = yield* Config.option(Config.redacted("DISCORD_CLIENT_SECRET"));
     if (Option.isNone(secret)) return Layer.empty;
     const clientId = yield* Config.string("DISCORD_APPLICATION_ID");
-    const guildId = yield* Config.string("DISCORD_GUILD_ID");
-    const channelId = yield* Config.string("DISCORD_CHANNEL_ID");
-    // The Activity serves the home Venue's server for now.
-    const members = Layer.effect(
+    // Every running Venue's server: a Venue left out at startup is turned away like any server.
+    const discord = yield* Discord;
+    const venues = discord.venues.map((v) => ({
+      name: v.name,
+      guildId: v.channel.guildId,
+      channelId: v.channel.id,
+    }));
+    const members = Layer.succeed(
       DiscordMembers,
-      Effect.gen(function* () {
-        const discord = yield* Discord;
-        return DiscordMembers.of({
-          nameOf: (discordId) =>
-            discord.home
-              .member(discordId)
-              .pipe(
-                Effect.mapError((e) => new MembersUnavailable({ reason: describeDiscordError(e) })),
-              ),
-        });
+      DiscordMembers.of({
+        nameOf: (venue, discordId) => {
+          const running = discord.venues.find((v) => v.name === venue);
+          return running === undefined
+            ? Effect.succeed(Option.none())
+            : running
+                .member(discordId)
+                .pipe(
+                  Effect.mapError(
+                    (e) => new MembersUnavailable({ reason: describeDiscordError(e) }),
+                  ),
+                );
+        },
       }),
     );
-    return activityServer({ clientId, guildId, channelId, devUsers: [] }).pipe(
+    return activityServer({ clientId, venues, devUsers: [] }).pipe(
       Layer.provide(DiscordAuthLive),
       Layer.provide(members),
     );
