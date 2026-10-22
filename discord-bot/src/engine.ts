@@ -208,6 +208,61 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       );
     });
 
+    // ---------------------------------------------------------------- opening an Invite
+
+    /**
+     * A new Invite, checked already: its Card, its Opened post (and a Challenge's ping), and its
+     * expiry. Called under the lock.
+     */
+    const open = Effect.fn("open")(function* (
+      creator: Player,
+      request: InviteRequest,
+      target: Player | null,
+      playAgainOf: string | null,
+    ) {
+      const m: Match = {
+        id: yield* store.nextMatchId,
+        type: request.type,
+        minutes: request.minutes,
+        creator,
+        target,
+        players: [creator],
+        state: "invite",
+        createdAt: yield* Clock.currentTimeMillis,
+        startedAt: null,
+        endsAt: null,
+        map: null,
+        bestTicks: {},
+        history: [],
+        left: [],
+        waitingForSteam: false,
+        playAgainOf,
+      };
+      yield* save(m);
+      yield* surface.post(
+        m.id,
+        ThreadPost.Opened({
+          by: creator,
+          skin: yield* skinOf(creator),
+          type: m.type,
+          minutes: m.minutes,
+        }),
+      );
+      if (target !== null)
+        yield* surface.post(
+          m.id,
+          ThreadPost.Challenged({
+            by: creator,
+            skin: yield* skinOf(creator),
+            target,
+            minutes: m.minutes,
+            expiresAt: expiresAt(m),
+          }),
+        );
+      yield* scheduleExpiry(m);
+      return m;
+    });
+
     // ---------------------------------------------------------------- Map selection
 
     /**
@@ -557,6 +612,16 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       );
     });
 
+    /**
+     * A Lobby takes joins while it is an Invite and while it is live. One whose Map is still
+     * being drawn is neither, so a join then is turned down as not open.
+     */
+    const join = Effect.fn("join")(function* (discordId: string, matchId: string) {
+      yield* locked(joinInvite(discordId, matchId)).pipe(
+        Effect.catchTag("NotOpen", () => joinLive(discordId, matchId)),
+      );
+    });
+
     // ---------------------------------------------------------------- leaving
 
     /** A Lobby Invite: the Player is simply out of it. Its creator cancels instead. */
@@ -654,46 +719,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           target = yield* playerOf(request.target);
           yield* assertFree(request.target);
         }
-        const m: Match = {
-          id: yield* store.nextMatchId,
-          type: request.type,
-          minutes: request.minutes,
-          creator,
-          target,
-          players: [creator],
-          state: "invite",
-          createdAt: yield* Clock.currentTimeMillis,
-          startedAt: null,
-          endsAt: null,
-          map: null,
-          bestTicks: {},
-          history: [],
-          left: [],
-          waitingForSteam: false,
-        };
-        yield* save(m);
-        yield* surface.post(
-          m.id,
-          ThreadPost.Opened({
-            by: creator,
-            skin: yield* skinOf(creator),
-            type: m.type,
-            minutes: m.minutes,
-          }),
-        );
-        if (target !== null)
-          yield* surface.post(
-            m.id,
-            ThreadPost.Challenged({
-              by: creator,
-              skin: yield* skinOf(creator),
-              target,
-              minutes: m.minutes,
-              expiresAt: expiresAt(m),
-            }),
-          );
-        yield* scheduleExpiry(m);
-        return m.id;
+        return (yield* open(creator, request, target, null)).id;
       }, locked),
 
       /** Public 1v1: anyone but the creator. Challenge: only the named Player. Starts the Match. */
@@ -724,15 +750,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         yield* withdrawInvite(matchId, "declined");
       }, locked),
 
-      /**
-       * A Lobby takes joins while it is an Invite and while it is live. One whose Map is still
-       * being drawn is neither, so a join then is turned down as not open.
-       */
-      join: Effect.fn("join")(function* (discordId: string, matchId: string) {
-        yield* locked(joinInvite(discordId, matchId)).pipe(
-          Effect.catchTag("NotOpen", () => joinLive(discordId, matchId)),
-        );
-      }),
+      join,
 
       /** A member's PB on a live Match's Map, the time a late join would have to beat; null if they haven't Played it. */
       personalBest: Effect.fn("personalBest")(function* (discordId: string, matchId: string) {
@@ -787,6 +805,34 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           return yield* new NotAllowed({ reason: "Only the creator can cancel." });
         yield* withdrawInvite(matchId, "cancelled");
       }, locked),
+
+      /**
+       * Play again on a finished Match: the first press opens a Lobby of the same length, with
+       * the presser as its creator; every later press joins that Lobby while it is open or live.
+       * Once it is gone, the next press opens a fresh one.
+       */
+      playAgain: Effect.fn("playAgain")(function* (discordId: string, matchId: string) {
+        const found = yield* locked(
+          Effect.gen(function* () {
+            const finished = yield* getMatch(matchId);
+            if (finished.state !== "finished")
+              return yield* new NotAllowed({ reason: "That Match isn't over yet." });
+            const again = (yield* store.activeMatches).find((m) => m.playAgainOf === matchId);
+            if (again !== undefined) return { lobbyId: again.id, opened: false };
+            const creator = yield* playerOf(discordId);
+            yield* assertFree(discordId);
+            const lobby = yield* open(
+              creator,
+              { type: "lobby", minutes: finished.minutes, target: null },
+              null,
+              matchId,
+            );
+            return { lobbyId: lobby.id, opened: true };
+          }),
+        );
+        if (!found.opened) yield* join(discordId, found.lobbyId);
+        return found;
+      }),
     } as const;
   }),
 }) {}

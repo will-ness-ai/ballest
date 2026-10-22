@@ -1048,3 +1048,39 @@ describe("Chosen Skins", () => {
     }),
   );
 });
+
+describe("Play again", () => {
+  /** A finished Public 1v1 of Alice and Bob, 10 minutes long. */
+  const finishedMatch = Effect.gen(function* () {
+    const h = yield* makeHarness({ maps: [MAP] });
+    const id = yield* h.engine.openInvite(ALICE.discordId, { ...public1v1, minutes: 10 });
+    yield* h.engine.accept(BOB.discordId, id);
+    yield* h.steam.setTime(1, ALICE.steamId, 21);
+    yield* advance("10 minutes");
+    return { h, id };
+  });
+
+  it.scoped("the first press opens a Lobby of the same length; later presses join it", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const first = yield* h.engine.playAgain(BOB.discordId, id);
+      expect(first.opened).toBe(true);
+      expect(Option.getOrThrow(yield* h.surface.card(first.lobbyId))).toMatchObject({
+        state: "invite",
+        type: "lobby",
+        minutes: 10,
+        creator: BOB,
+      });
+      const second = yield* h.engine.playAgain(ALICE.discordId, id);
+      const third = yield* h.engine.playAgain(CARA.discordId, id);
+      expect([second, third]).toEqual([
+        { lobbyId: first.lobbyId, opened: false },
+        { lobbyId: first.lobbyId, opened: false },
+      ]);
+      expect(
+        Option.getOrThrow(yield* h.surface.card(first.lobbyId)).players.map((p) => p.discordId),
+      ).toEqual([BOB.discordId, ALICE.discordId, CARA.discordId]);
+      expect(tags(yield* h.surface.posts(first.lobbyId))).toEqual(["Opened", "Joined", "Joined"]);
+    }),
+  );
+});
