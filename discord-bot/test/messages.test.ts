@@ -19,6 +19,7 @@ import {
   confirmLeaveMessage,
   fingerprint,
   footerMessage,
+  myStatsPanelMessage,
   type Payload,
   pingDeclinedMessage,
   pingOfferMessage,
@@ -78,6 +79,30 @@ describe("the Footer", () => {
       { label: "Pings", does: { _tag: "Pings" } },
     ]);
     pingsNobody(footer);
+  });
+});
+
+describe("the My Stats panel", () => {
+  const panel = myStatsPanelMessage();
+  /** The panel's buttons: Components V2 puts its row inside the container. */
+  const panelButtons = () =>
+    JSON.stringify(panel.components).match(/"custom_id":"[^"]+"|"label":"[^"]+"/g);
+
+  it("is a Components V2 message with one See my stats button, and pings nobody", () => {
+    expect(panel.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(panelButtons()).toEqual(['"custom_id":"mb:stats"', '"label":"See my stats"']);
+    expect(parseControl("mb:stats")).toEqual({ _tag: "SeeMyStats" });
+    pingsNobody(panel);
+  });
+
+  it("says what the button shows and where it comes from", () => {
+    const text = JSON.stringify(panel.components);
+    expect(text).toContain("See your Circuit ranks, World records and Medals");
+    expect(text).toContain("ballestrecords.com");
+  });
+
+  it("draws the same every time, so a restart leaves it alone", () => {
+    expect(fingerprint(myStatsPanelMessage())).toBe(fingerprint(panel));
   });
 });
 

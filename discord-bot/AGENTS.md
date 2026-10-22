@@ -290,6 +290,21 @@ from the collector. It is off unless both
 settings are set and the bot can view that channel, and then says why in the log; the bot runs on.
 The batching is tested on the TestClock (`test/newTracks.test.ts`).
 
+## My stats
+
+`src/discord/myStats.ts` keeps `#my-stats` (spec #323): at startup the bot makes it in its server,
+beside the Match channel, when it holds none or the one it made is gone, with `@everyone` denied
+Send Messages and the bot allowed, and keeps one panel there with a **See my stats** button. Its id,
+the panel's and the panel's fingerprint are in SQLite (`my_stats_channel`), so it is found by id and
+admins may rename or move it; the panel is edited only when this build draws it differently, like
+the Footer, and posted again if deleted. Presses there reach `interactions.ts` through
+`Discord.answerIn`. Without Manage Channels (or on any other failure) it tells the ops channel and
+the bot runs on. It is off in the sandbox, whose fresh database would make a channel at every start;
+check the discord.js calls with `pnpm dev`, whose database lasts. The rules are tested over an
+in-memory server in `test/myStats.test.ts`, the panel in `test/messages.test.ts`.
+
+In production the bot's role needs Manage Channels on the server.
+
 ## Production
 
 Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,
