@@ -34,7 +34,7 @@ function Card({ g }: { g: Generator }) {
     const file = generate(g.key, g.defaults);
     if (!file) return;
     let live = true;
-    stillOf(file, 640, 400).then(
+    stillOf(file, 640, 400, undefined, g.angle ?? null).then(
       (s) => live && setSrc(s),
       () => undefined,
     );

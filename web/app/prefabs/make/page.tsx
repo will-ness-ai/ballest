@@ -11,7 +11,7 @@ export function generateMetadata(): Promise<Metadata> {
   return pageMetadata({
     title: "Make a prefab",
     description:
-      "Make a QR code, a sign, a tree or a bush for the Ballest of Them All level editor, and download it as a prefab.",
+      "Make a QR code, a sign, a tree or a bush for the Ballest of Them All editor, and download it as a prefab.",
     canonical: makePrefabHref(),
   });
 }

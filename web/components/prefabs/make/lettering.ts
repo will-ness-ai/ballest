@@ -44,35 +44,33 @@ export function letteringOf(font: string, detail: number): Lettering {
     keepsCase: true,
     width: (line) => ctx.measureText(line).width / unit,
     lineHeight: lineH / unit,
-    grid: (lines) => draw(lines, css, unit, lineH, capH),
+    grid: (lines) => draw(lines, ctx, unit, lineH, capH),
   };
 }
 
+/* the lines drawn in `measure`'s font, read back as cells `unit` px on a side */
 function draw(
   lines: Array<string>,
-  css: string,
+  measure: CanvasRenderingContext2D,
   unit: number,
   lineH: number,
   capH: number,
 ): Grid | null {
-  const probe = document.createElement("canvas").getContext("2d");
-  if (!probe) return null;
-  probe.font = fontAt(css, `${String(SIZE)}px`);
-  const wide = Math.max(...lines.map((l) => probe.measureText(l).width));
+  const wide = Math.max(...lines.map((l) => measure.measureText(l).width));
   const cols = Math.ceil(wide / unit) + 4;
   const rows = Math.ceil((lines.length * lineH) / unit) + 4;
   const canvas = document.createElement("canvas");
   canvas.width = cols * FINE;
   canvas.height = rows * FINE;
-  const g = canvas.getContext("2d", { willReadFrequently: true });
-  if (!g) return null;
-  g.scale(FINE / unit, FINE / unit);
-  g.font = fontAt(css, `${String(SIZE)}px`);
-  g.textAlign = "center";
+  const pen = canvas.getContext("2d", { willReadFrequently: true });
+  if (!pen) return null;
+  pen.scale(FINE / unit, FINE / unit);
+  pen.font = measure.font;
+  pen.textAlign = "center";
   lines.forEach((l, i) =>
-    g.fillText(l, (cols * unit) / 2, 2 * unit + i * lineH + (lineH + capH) / 2),
+    pen.fillText(l, (cols * unit) / 2, 2 * unit + i * lineH + (lineH + capH) / 2),
   );
-  const ink = g.getImageData(0, 0, canvas.width, canvas.height).data;
+  const ink = pen.getImageData(0, 0, canvas.width, canvas.height).data;
   const on = (x: number, y: number) => {
     let hits = 0;
     for (let j = 1; j < FINE; j += 2)

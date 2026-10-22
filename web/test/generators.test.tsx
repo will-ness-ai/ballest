@@ -56,12 +56,17 @@ describe("every Generator", () => {
 
   test.each(GENERATORS.map((g) => g.key))("%s's defaults sit inside its sliders", (key) => {
     const g = gen(key);
-    for (const c of g.controls(g.defaults))
-      if (c.kind === "number") {
-        const v = Number(g.defaults[c.key]);
-        expect(v, c.key).toBeGreaterThanOrEqual(c.min);
-        expect(v, c.key).toBeLessThanOrEqual(c.max);
-      }
+    /* every choice's controls: a tree style's sliders show only once it is picked */
+    const choices = g
+      .controls(g.defaults)
+      .flatMap((c) => (c.kind === "choice" ? c.options.map((o) => ({ [c.key]: o })) : []));
+    for (const pick of [{}, ...choices])
+      for (const c of g.controls({ ...g.defaults, ...pick }))
+        if (c.kind === "number") {
+          const v = Number(g.defaults[c.key]);
+          expect(v, c.key).toBeGreaterThanOrEqual(c.min);
+          expect(v, c.key).toBeLessThanOrEqual(c.max);
+        }
   });
 });
 
@@ -243,11 +248,10 @@ describe("colours", () => {
     });
   });
 
-  test("every colour is one the site's viewer draws in its own colour", () => {
-    for (const name of COLOUR_NAMES) {
-      const file = make("qr", { back: name });
-      expect(shapesOf(file)[0].colour, name).not.toBe(UNKNOWN_COLOUR);
-    }
+  test("the site's viewer draws every colour, each in a colour of its own", () => {
+    const drawn = COLOUR_NAMES.map((name) => shapesOf(make("qr", { back: name }))[0].colour);
+    expect(drawn).not.toContain(UNKNOWN_COLOUR);
+    expect(new Set(drawn).size).toBe(COLOUR_NAMES.length);
   });
 });
 

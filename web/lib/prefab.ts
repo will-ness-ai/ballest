@@ -102,6 +102,7 @@ const COLOURS: Array<[RegExp, string]> = [
   [/Dark/i, "#3a3f4b"],
   [/Concrete/i, "#9a9a96"],
   [/Red/i, "#d8433a"],
+  [/SkyBlue/i, "#5fb2ee"],
   [/Blue/i, "#3f7fe0"],
   [/Yellow/i, "#f2cc3a"],
   [/Orange/i, "#ef8a2f"],

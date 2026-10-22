@@ -12,6 +12,7 @@
 import qrcode from "qrcode-generator";
 
 import type { PrefabFile, PrefabItem } from "./prefab";
+import type { PrefabAngle } from "./prefabs";
 import { PIXEL_LETTERING, wrapAt, type Grid, type Lettering } from "./generator-letters";
 
 export type { Grid, Lettering } from "./generator-letters";
@@ -101,6 +102,9 @@ function piece(kind: Kind, at: V3, size: V3, colour: Colour, rot: V3 | number = 
   };
   return item;
 }
+
+/* a sign or code seen from in front (-X), a little from above and to the right, as it reads */
+const FRONT: PrefabAngle = { from: [-0.83, 0.35, 0.43], zoom: 1, pan: [0, 0, 0] };
 
 const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
   format: "BallestPrefab",
@@ -239,6 +243,8 @@ const colour = (key: string, label: string): Control => ({ key, label, kind: "co
 const SHUFFLE: Control = { key: "seed", label: "Shuffle", kind: "shuffle" };
 
 const numberIn = (v: Values, k: string) => Number(v[k]);
+/* a control in metres, in the centimetres pieces are placed in */
+const metresIn = (v: Values, k: string) => numberIn(v, k) * 100;
 const colourIn = (v: Values, k: string): Colour => (isColour(v[k]) ? v[k] : "White");
 
 export interface Generator {
@@ -249,6 +255,8 @@ export interface Generator {
   file: string;
   /* it letters text, so its page loads the drawn fonts and hands build a Lettering */
   lettered?: boolean;
+  /* the view its model and card start from; without one, the Prefabs' default */
+  angle?: PrefabAngle;
   defaults: Values;
   /* the controls to show for these values (a switch can hide another's) */
   controls: (v: Values) => Array<Control>;
@@ -261,6 +269,7 @@ const qr: Generator = {
   name: "QR code",
   blurb: "A code players can scan, built from blocks.",
   file: "qr_code",
+  angle: FRONT,
   defaults: { text: "https://ballestrecords.com", size: 6, back: "White", front: "Dark" },
   controls: () => [
     { key: "text", label: "Link or text", kind: "text" },
@@ -289,7 +298,7 @@ const qr: Generator = {
         return i >= 0 && j >= 0 && i < m && j < m && q.isDark(j, i);
       },
     };
-    const size = numberIn(v, "size") * 100;
+    const size = metresIn(v, "size");
     const cell = size / grid.w;
     return fileOf(
       facing([
@@ -325,6 +334,7 @@ const sign: Generator = {
   blurb: "Your words in blocks, on a wall or standing alone.",
   file: "sign",
   lettered: true,
+  angle: FRONT,
   defaults: {
     text: "Welcome to my map",
     font: "Pixel",
@@ -346,8 +356,8 @@ const sign: Generator = {
     colour("front", "Letters"),
   ],
   build: (v, lettering) => {
-    const W = numberIn(v, "width") * 100;
-    const H = numberIn(v, "height") * 100;
+    const W = metresIn(v, "width");
+    const H = metresIn(v, "height");
     const pad = v.wall ? 0.12 : 0;
     const fit = fitText(String(v.text), lettering, W * (1 - pad), H * (1 - pad));
     if (!fit) return null;
@@ -365,18 +375,27 @@ const sign: Generator = {
 };
 
 /* ---------- tree and bush ---------- */
-/* a stick from `at` along `dir`, forking `levels` times into `forks` branches `angle` degrees
-   out, each `ratio` as long; a clump of `balls` leaf balls `clump` cm across at every tip */
-interface Branching {
+/* a clump of `balls` leaf balls `clump` cm across, at the end of every stick */
+interface Tips {
+  clump: number;
+  balls: number;
+  leaves: Colour;
+}
+/* a stick forking `levels` times into `forks` branches `angle` degrees out, each `ratio`%
+   as long */
+interface Forks {
   levels: number;
   forks: number;
   angle: number;
   ratio: number;
-  clump: number;
-  balls: number;
-  bark: Colour;
-  leaves: Colour;
 }
+interface Branching {
+  bark: Colour;
+  tips: Tips;
+  /* none: the stick ends in its clump */
+  forks?: Forks;
+}
+/* a stick from `at` along `dir`, and whatever grows from its end */
 function grow(
   b: Branching,
   r: () => number,
@@ -389,23 +408,25 @@ function grow(
 ) {
   const end = add(at, mul(dir, len));
   items.push(stick(at, end, width, b.bark));
-  if (level >= b.levels) {
-    for (let i = 0; i < b.balls; i++)
+  const f = b.forks;
+  if (!f || level >= f.levels) {
+    const { clump, balls, leaves } = b.tips;
+    for (let i = 0; i < balls; i++)
       items.push(
-        ball(add(end, mul(inBall(r), b.clump * 0.45)), b.clump * (0.6 + r() * 0.5), b.leaves, 0.8),
+        ball(add(end, mul(inBall(r), clump * 0.45)), clump * (0.6 + r() * 0.5), leaves, 0.8),
       );
     return;
   }
   const spin = r() * Math.PI * 2;
-  for (let i = 0; i < b.forks; i++) {
-    const d = turn(dir, b.angle * DEG * (0.8 + r() * 0.4), spin + (i / b.forks) * Math.PI * 2);
+  for (let i = 0; i < f.forks; i++) {
+    const d = turn(dir, f.angle * DEG * (0.8 + r() * 0.4), spin + (i / f.forks) * Math.PI * 2);
     grow(
       b,
       r,
       items,
       end,
       norm(add(d, [0, 0, 0.35])),
-      (len * b.ratio) / 100,
+      (len * f.ratio) / 100,
       width * 0.62,
       level + 1,
     );
@@ -416,21 +437,25 @@ const branchesTree = (v: Values) => {
   const items: Array<PrefabItem> = [];
   grow(
     {
-      levels: numberIn(v, "b.levels"),
-      forks: numberIn(v, "b.forks"),
-      angle: numberIn(v, "b.angle"),
-      ratio: numberIn(v, "b.ratio"),
-      clump: numberIn(v, "b.clump") * 100,
-      balls: numberIn(v, "b.balls"),
       bark: colourIn(v, "bark"),
-      leaves: colourIn(v, "leaves"),
+      tips: {
+        clump: metresIn(v, "b.clump"),
+        balls: numberIn(v, "b.balls"),
+        leaves: colourIn(v, "leaves"),
+      },
+      forks: {
+        levels: numberIn(v, "b.levels"),
+        forks: numberIn(v, "b.forks"),
+        angle: numberIn(v, "b.angle"),
+        ratio: numberIn(v, "b.ratio"),
+      },
     },
     random(numberIn(v, "seed")),
     items,
     [0, 0, 0],
     [0, 0, 1],
-    numberIn(v, "b.trunk") * 100,
-    numberIn(v, "b.girth") * 100,
+    metresIn(v, "b.trunk"),
+    metresIn(v, "b.girth"),
     0,
   );
   return items;
@@ -438,9 +463,9 @@ const branchesTree = (v: Values) => {
 
 const tiersTree = (v: Values) => {
   const r = random(numberIn(v, "seed"));
-  const H = numberIn(v, "t.height") * 100;
-  const W = numberIn(v, "t.width") * 100;
-  const stem = Math.min(numberIn(v, "t.stem") * 100, H * 0.8);
+  const H = metresIn(v, "t.height");
+  const W = metresIn(v, "t.width");
+  const stem = Math.min(metresIn(v, "t.stem"), H * 0.8);
   const k = numberIn(v, "t.tiers");
   const ov = numberIn(v, "t.overlap") / 100;
   const th = (H - stem) / (k - (k - 1) * ov);
@@ -533,6 +558,53 @@ export function voxelTree(v: Values): Map<string, Colour> {
 }
 
 export const TREE_STYLES = ["Branches", "Tiers", "Voxel"] as const;
+type TreeStyle = (typeof TREE_STYLES)[number];
+/* each tree style's own controls (their keys prefixed, so each keeps its values when another
+   is picked) and the pieces it builds */
+const STYLES: Record<
+  TreeStyle,
+  { controls: Array<Control>; build: (v: Values) => Array<PrefabItem> }
+> = {
+  Branches: {
+    controls: [
+      num("b.trunk", "Trunk length", 0.5, 20, 0.5, "m"),
+      num("b.levels", "Forks deep", 1, 4, 1),
+      num("b.girth", "Trunk width", 0.1, 3, 0.05, "m", true),
+      num("b.forks", "Branches per fork", 2, 5, 1, undefined, true),
+      num("b.angle", "Branch angle", 10, 80, 1, "°", true),
+      num("b.ratio", "Branch length", 40, 95, 5, "%", true),
+      num("b.clump", "Leaf clump size", 0.3, 6, 0.1, "m", true),
+      num("b.balls", "Balls per clump", 1, 6, 1, undefined, true),
+    ],
+    build: branchesTree,
+  },
+  Tiers: {
+    controls: [
+      num("t.height", "Height", 1, 40, 0.5, "m"),
+      num("t.width", "Width", 0.5, 20, 0.5, "m"),
+      num("t.tiers", "Tiers", 1, 10, 1),
+      num("t.taper", "Taper", 0, 90, 5, "%", true),
+      num("t.overlap", "Overlap", 0, 80, 5, "%", true),
+      num("t.stem", "Bare trunk", 0, 10, 0.1, "m", true),
+      { key: "t.snow", label: "Snow on each tier", kind: "toggle", more: true },
+    ],
+    build: tiersTree,
+  },
+  Voxel: {
+    controls: [
+      { key: "v.kind", label: "Kind", kind: "choice", options: VOXEL_KINDS },
+      num("v.height", "Height", 4, 40, 1, "blocks"),
+      num("v.radius", "Canopy radius", 1, 10, 1, "blocks"),
+      num("v.cell", "Block size", 10, 200, 5, "cm", true),
+      num("v.holes", "Gaps in the leaves", 0, 60, 5, "%", true),
+    ],
+    build: (v) => voxelBoxes(voxelTree(v), numberIn(v, "v.cell")),
+  },
+};
+const styleOf = (v: Values) =>
+  (TREE_STYLES as ReadonlyArray<unknown>).includes(v.style)
+    ? STYLES[v.style as TreeStyle]
+    : STYLES.Branches;
 const tree: Generator = {
   key: "tree",
   name: "Tree",
@@ -566,46 +638,12 @@ const tree: Generator = {
   },
   controls: (v) => [
     { key: "style", label: "Style", kind: "choice", options: TREE_STYLES },
-    ...(v.style === "Tiers"
-      ? [
-          num("t.height", "Height", 1, 40, 0.5, "m"),
-          num("t.width", "Width", 0.5, 20, 0.5, "m"),
-          num("t.tiers", "Tiers", 1, 10, 1),
-          num("t.taper", "Taper", 0, 90, 5, "%", true),
-          num("t.overlap", "Overlap", 0, 80, 5, "%", true),
-          num("t.stem", "Bare trunk", 0, 10, 0.1, "m", true),
-          { key: "t.snow", label: "Snow on each tier", kind: "toggle", more: true } as Control,
-        ]
-      : v.style === "Voxel"
-        ? [
-            { key: "v.kind", label: "Kind", kind: "choice", options: VOXEL_KINDS } as Control,
-            num("v.height", "Height", 4, 40, 1, "blocks"),
-            num("v.radius", "Canopy radius", 1, 10, 1, "blocks"),
-            num("v.cell", "Block size", 10, 200, 5, "cm", true),
-            num("v.holes", "Gaps in the leaves", 0, 60, 5, "%", true),
-          ]
-        : [
-            num("b.trunk", "Trunk length", 0.5, 20, 0.5, "m"),
-            num("b.levels", "Forks deep", 1, 4, 1),
-            num("b.girth", "Trunk width", 0.1, 3, 0.05, "m", true),
-            num("b.forks", "Branches per fork", 2, 5, 1, undefined, true),
-            num("b.angle", "Branch angle", 10, 80, 1, "°", true),
-            num("b.ratio", "Branch length", 40, 95, 5, "%", true),
-            num("b.clump", "Leaf clump size", 0.3, 6, 0.1, "m", true),
-            num("b.balls", "Balls per clump", 1, 6, 1, undefined, true),
-          ]),
+    ...styleOf(v).controls,
     colour("bark", "Trunk"),
     colour("leaves", "Leaves"),
     SHUFFLE,
   ],
-  build: (v) =>
-    fileOf(
-      v.style === "Tiers"
-        ? tiersTree(v)
-        : v.style === "Voxel"
-          ? voxelBoxes(voxelTree(v), numberIn(v, "v.cell"))
-          : branchesTree(v),
-    ),
+  build: (v) => fileOf(styleOf(v).build(v)),
 };
 
 const bush: Generator = {
@@ -638,14 +676,12 @@ const bush: Generator = {
     const items: Array<PrefabItem> = [];
     const k = numberIn(v, "stems");
     const b: Branching = {
-      levels: 0,
-      forks: 0,
-      angle: 0,
-      ratio: 0,
-      clump: numberIn(v, "clump") * 100,
-      balls: numberIn(v, "balls"),
       bark: colourIn(v, "bark"),
-      leaves: colourIn(v, "leaves"),
+      tips: {
+        clump: metresIn(v, "clump"),
+        balls: numberIn(v, "balls"),
+        leaves: colourIn(v, "leaves"),
+      },
     };
     for (let i = 0; i < k; i++) {
       const d = turn(
@@ -659,8 +695,8 @@ const bush: Generator = {
         items,
         [0, 0, 0],
         d,
-        numberIn(v, "length") * 100 * (0.7 + r() * 0.5),
-        Math.max(4, b.clump * 0.12),
+        metresIn(v, "length") * (0.7 + r() * 0.5),
+        Math.max(4, b.tips.clump * 0.12),
         0,
       );
     }

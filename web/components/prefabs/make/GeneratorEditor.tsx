@@ -64,7 +64,9 @@ function Editor({ g }: { g: Generator }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fonts: draw again once they load
     [g, settled, fonts],
   );
-  const size = file ? footprintOf(shapesOf(file)) : null;
+  const box = file ? footprintOf(shapesOf(file)) : null;
+  /* wide is the longer way across, whichever way the Prefab faces */
+  const size = box && { w: Math.max(box.w, box.d), d: Math.min(box.w, box.d), h: box.h };
   const pieces = file?.items.length ?? 0;
   const over = pieces > PIECE_LIMIT;
   const download = () => {
@@ -97,7 +99,7 @@ function Editor({ g }: { g: Generator }) {
         <div className="gen-side">
           <div className="gen-view">
             {file ? (
-              <PrefabViewer file={file} spin={false} />
+              <PrefabViewer file={file} spin={false} angle={g.angle ?? null} />
             ) : (
               <p className="gen-empty">Type something to make it.</p>
             )}
