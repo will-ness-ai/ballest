@@ -48,11 +48,38 @@ shell leaves its Node process running.
 
 One process plays in every Venue (CONTEXT.md, spec #315): a server, its Match channel and its
 @Multiplayer ping role. The home Venue, the game Discord, is `DISCORD_GUILD_ID`,
-`DISCORD_CHANNEL_ID` and `DISCORD_PING_ROLE_ID`; each other one is an entry of
-`DISCORD_VENUES`, a JSON list of `{ name, guildId, channelId, pingRoleId }` in `fly.toml`'s
-`[env]` (`src/venues.ts`). Absent, the bot plays in home alone, so `pnpm dev` and the sandbox
-need nothing new. A Venue's `name` is a short stable key stored on its Matches; don't rename one
-with Matches open.
+`DISCORD_CHANNEL_ID` and `DISCORD_PING_ROLE_ID`, and its name is `home`. Every other server the
+bot is in is a Venue it set up itself (spec #321, `src/venues.ts`), named by the server's id,
+which is the key stored on its Matches.
+
+A server becomes a Venue by inviting the bot. The production app is private, so only Will can
+invite it, and any server it is in becomes a Venue. The invite link is
+
+```
+https://discord.com/oauth2/authorize?client_id=<DISCORD_APPLICATION_ID>&scope=bot%20applications.commands&permissions=326686198800
+```
+
+(scopes `bot applications.commands`; permissions `326686198800` are the channel permissions the
+bot checks for, Mention @everyone, @here and All Roles, Manage Roles and Manage Channels). The
+moment it joins (the Guilds intent's guild create event), or at startup for a server it is
+already in, the bot sets the server up:
+
+- **Channel:** a text channel named `multiballs`, reused if there is one, else created. @everyone
+  is denied Send Messages (members talk in Match Threads), and the bot's own member is allowed
+  every permission it checks for.
+- **Role:** a role named `Multiplayer ping`, reused if there is one below the bot's highest role,
+  else created, mentionable (Discord puts a new role below the bot's, so it can manage it).
+- **Stored:** the ids go in SQLite's `venues` table. At each start a stored Venue whose channel or
+  role is gone is set up again the same way; one with both still there is left as it is.
+
+Then it is checked as home is, and runs at once: its Footer goes up and its clicks, ping role
+and Activity work, with no restart (the running Venues are a live set, `Discord.changes`, that
+the Surface router, `interactions.ts`, `pingRole.ts` and the Activity read). A server that removes
+the bot stops being a running Venue; its row stays, so inviting it again picks it back up. The
+setup rules are tested on a fake server behind the `SetupGuild` port (`test/venues.test.ts`);
+`src/discord/setupGuild.ts` is the port on discord.js, checked live by inviting the dev app to a
+second server while `pnpm dev` runs. The dev app's home is the test server, so `pnpm dev` and
+the sandbox set nothing up there; any other server the dev app is in gets set up as a Venue too.
 
 Each Venue has its own Footer, Cards and Match Threads (a `venue_layouts` row each, behind the
 router in `src/discord/surface.ts`), its own queue (a Match's `venue`), its own ping role and its
@@ -62,18 +89,20 @@ works in its own channel." The Daily Report, Daily Posts, #new-tracks and ops st
 The Activity serves every running Venue: opened in a Venue's server it shows and opens that
 Venue's Matches only, linked into its channel (#317).
 
-At startup each Venue is checked: its channel permissions, and its ping role. Home failing a
-check stops the bot, as before; another Venue failing is left out with a line to the ops channel
-while the bot runs on. A Match open there still runs to its Result and is stored, unseen, but keeps
-none of its Players Busy (the Surface port's `runs`). Each channel denies Send Messages to `@everyone` to stay read-only, so the
-bot's role needs an explicit Send Messages allow on it.
+Each Venue is checked as it starts: its channel permissions, and its ping role. Home failing a
+check stops the bot, as before; a server the bot can't set up (it lacks Manage Channels or Manage
+Roles, say) or whose Venue fails a check is left out with a line to the ops channel while the bot
+runs on. A Match open in a Venue that isn't running still runs to its Result and is stored,
+unseen, but keeps none of its Players Busy (the Surface port's `runs`). Each channel denies Send
+Messages to `@everyone` to stay read-only, so the bot needs an explicit Send Messages allow on
+it: in a Venue it set up, its own overwrite; in home, set by hand on the bot's role.
 
 The ping role (Lobby pings, spec #87) is a different role for the dev app's test server and for
 production; set `DISCORD_PING_ROLE_ID` in the main checkout's `.env` and in `fly secrets`. In
 each Venue the role must exist, the bot needs Manage Roles with its own role above @Multiplayer
 ping, and the role must be mentionable or the bot allowed to Mention @everyone, @here and All
-Roles. That is the only role the bot ever adds or removes (`src/discord/pingRole.ts`, behind the
-`PingRole` port), and `src/pings.ts` is the one place both surfaces go through for it; its words
+Roles (a role the bot made is mentionable). That is the only role the bot ever adds or removes
+(`src/discord/pingRole.ts`, behind the `PingRole` port), and `src/pings.ts` is the one place both surfaces go through for it; its words
 are in `src/pingWords.ts`.
 
 ## The sandbox: driving the bot on the test server
@@ -148,7 +177,8 @@ header of every request (`GUILD_HEADER`; one without it, from a page loaded befo
 home's). The API serves that Venue: it checks the member is in that server, names Players as
 that server does, and lists, opens, links and pings that Venue's only, answering another Venue's
 Match as not found. Links, Chosen Skins and Busy are shared (Busy by the engine's `isBusy`, which
-skips a Venue left out at startup). `auth.ts` swaps the SDK's OAuth code for an
+skips a Venue that isn't running). The running Venues are read at each request, so a Venue that
+starts or stops while the bot runs is served or refused from then on. `auth.ts` swaps the SDK's OAuth code for an
 access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
 page (`web/`: `view.ts` is the markup, `app.ts` the state and actions, bundled by esbuild at
 startup), its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and

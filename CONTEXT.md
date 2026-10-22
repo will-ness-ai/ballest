@@ -226,9 +226,11 @@ _Avoid_: sticky, pinned message
 
 **Venue**:
 A Discord server the bot plays Matches in: its Match channel (Footer, Match Cards, Match
-Threads) and its @Multiplayer ping role. The game Discord is the home Venue. Each Venue
-has its own queue: an Invite opened in one is seen and joined only there. Links, Chosen
-Skins and the one-Match-at-a-time rule span every Venue.
+Threads) and its @Multiplayer ping role. The game Discord is the home Venue. Every other
+server the bot is invited to becomes a Venue by itself: the bot makes (or reuses) its
+`multiballs` channel and `Multiplayer ping` role there. Each Venue has its own queue: an
+Invite opened in one is seen and joined only there. Links, Chosen Skins and the
+one-Match-at-a-time rule span every Venue.
 _Avoid_: guild, instance (one bot serves every Venue)
 
 **Result**:

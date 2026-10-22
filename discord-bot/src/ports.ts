@@ -241,8 +241,8 @@ export class Surface extends Context.Tag("multiballs/Surface")<
   Surface,
   {
     /**
-     * Whether this Venue's channel runs: false for one left out at startup, whose Matches no
-     * Player can see or leave.
+     * Whether this Venue's channel runs: false for one left out (it failed its setup or checks)
+     * or whose server removed the bot, whose Matches no Player can see or leave.
      */
     readonly runs: (venue: VenueName) => boolean;
     /**

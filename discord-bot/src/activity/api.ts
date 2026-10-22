@@ -2,7 +2,7 @@
 // Every route but the token swap needs `Authorization: Bearer <Discord access token>`, from a
 // member of the Venue's server the page was opened in, which the page names in GUILD_HEADER.
 // Lists, opens, links, names and pings are that Venue's; Links, Chosen Skins and Busy are shared
-// by every running Venue (spec #315): a Match in a Venue left out at startup keeps nobody Busy.
+// by every running Venue (spec #315): a Match in a Venue that isn't running keeps nobody Busy.
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Cache, Clock, Data, Effect, Exit, Option, Ref, Schema } from "effect";
 import {

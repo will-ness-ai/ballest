@@ -176,7 +176,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
 
     /**
      * One open Invite or live Match per Player in every Venue together, counting a Challenge that
-     * names them and Invites mid-start. A Match in a Venue left out at startup doesn't count: no
+     * names them and Invites mid-start. A Match in a Venue that isn't running doesn't count: no
      * Player can see or leave it there, though its timers still run it to its Result.
      */
     const busyIn = Effect.fn("busyIn")(function* () {
