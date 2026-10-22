@@ -16,6 +16,11 @@ describe("skins", () => {
     expect(readdirSync(join(ROOT, "skins")).sort()).toEqual(assets.map((a) => a + ".webp").sort());
   });
 
+  test("every listed skin has the PNG copy the Stat Card draws (scripts/skin_pngs.py)", () => {
+    const copies = join(ROOT, "web", "assets", "share", "skins");
+    expect(readdirSync(copies).sort()).toEqual([...SKINS.values()].map((a) => a + ".png").sort());
+  });
+
   test("a Ghost's skin path draws its picture; none or an unknown one draws the marble", () => {
     expect(skinPicture("/Game/Art/M_GoldReal.M_GoldReal")).toBe("/skins/DA_Skin_MedalGold.webp");
     expect(skinPicture(null)).toBeNull();

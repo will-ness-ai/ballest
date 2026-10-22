@@ -331,7 +331,8 @@ async function check() {
   });
   const keep = flags.pages?.split(",");
   const views = [];
-  for (const { name } of PAGES) for (const s of sizes) views.push({ page: name, ...s });
+  for (const { name, minWidth = 0 } of PAGES)
+    for (const s of sizes) if (s.width >= minWidth) views.push({ page: name, ...s });
   if (!flags["no-states"])
     for (const { name, page } of STATES)
       for (const s of sizes) views.push({ page, state: name, ...s });
