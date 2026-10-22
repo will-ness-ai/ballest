@@ -83,6 +83,12 @@ export interface DiscordVenue {
   readonly member: (discordId: string) => Effect.Effect<Option.Option<string>, DiscordError>;
 }
 
+/** A click or form, with the running Venue it came from: its channel or one of its Match Threads. */
+export interface VenueInteraction {
+  readonly interaction: Interaction;
+  readonly venue: DiscordVenue;
+}
+
 /** NFKC turns "fancy text" (𝐁𝐨𝐥𝐝, Ｗｉｄｅ, ⓒⓘⓡⓒⓛⓔⓓ letters) into the plain letters the image fonts have. */
 const plainName = (name: string) => name.normalize("NFKC");
 
@@ -231,18 +237,16 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     const [homeVenue] = venues;
     const homeGuildId = home.guildId;
 
-    /** The running Venue a click came from, if any: its channel or one of its Match Threads. */
-    const venueOf = (i: Interaction): DiscordVenue | undefined =>
-      venues.find((venue) => isIn(venue, i));
     /** The running Venue by this name, if it runs. */
     const venueNamed = (name: VenueName): DiscordVenue | undefined =>
       venues.find((venue) => venue.name === name);
 
-    const interactions = Stream.asyncPush<Interaction>((emit) =>
+    const interactions = Stream.asyncPush<VenueInteraction>((emit) =>
       Effect.acquireRelease(
         Effect.sync(() => {
           const onInteraction = (i: Interaction) => {
-            if (venueOf(i) !== undefined) emit.single(i);
+            const venue = venues.find((v) => isIn(v, i));
+            if (venue !== undefined) emit.single({ interaction: i, venue });
             else if (!sandbox && i.isRepliable())
               void i
                 .reply({ content: "Multiballs only works in its own channel.", ephemeral: true })
@@ -316,9 +320,8 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       home: homeVenue,
       /** Every running Venue, home first. */
       venues,
-      venueOf,
       venueNamed,
-      /** Clicks from every running Venue's channel and its Match Threads. */
+      /** Clicks from every running Venue's channel and its Match Threads, each with its Venue. */
       interactions,
       postsIn,
       missingIn,

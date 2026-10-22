@@ -12,47 +12,39 @@ export const PingRoleLive = Layer.effect(
   PingRole,
   Effect.gen(function* () {
     const discord = yield* Discord;
-    const unavailable = Effect.mapError(
-      (e: DiscordError) => new PingRoleUnavailable({ reason: describeDiscordError(e) }),
-    );
-    /** A running Venue's server and role; a Venue that isn't running has none to change. */
-    const inVenue = Effect.fn("inVenue")(function* (venue: VenueName) {
+    /**
+     * Run `use` on a running Venue's server and role, a Discord failure as the role unavailable; a
+     * Venue that isn't running has no role to read or change.
+     */
+    const withRole = Effect.fn("withRole")(function* <A>(
+      venue: VenueName,
+      use: (guild: Guild, role: string) => Effect.Effect<A, DiscordError>,
+    ) {
       const found = discord.venueNamed(venue);
       if (found === undefined)
         return yield* new PingRoleUnavailable({ reason: `Venue ${venue} isn't running` });
-      const running: { readonly guild: Guild; readonly role: string } = {
-        guild: found.channel.guild,
-        role: found.pingRoleId,
-      };
-      return running;
+      return yield* use(found.channel.guild, found.pingRoleId).pipe(
+        Effect.mapError((e) => new PingRoleUnavailable({ reason: describeDiscordError(e) })),
+      );
     });
     return PingRole.of({
       has: (venue, discordId) =>
-        inVenue(venue).pipe(
-          Effect.flatMap(({ guild, role }) =>
-            tryDiscord("fetch member's roles", () =>
-              guild.members.fetch({ user: discordId, force: true }),
-            ).pipe(
-              Effect.map((member) => member.roles.cache.has(role)),
-              unavailable,
-            ),
-          ),
+        withRole(venue, (guild, role) =>
+          tryDiscord("fetch member's roles", () =>
+            guild.members.fetch({ user: discordId, force: true }),
+          ).pipe(Effect.map((member) => member.roles.cache.has(role))),
         ),
       add: (venue, discordId) =>
-        inVenue(venue).pipe(
-          Effect.flatMap(({ guild, role }) =>
-            tryDiscord("add ping role", () =>
-              guild.members.addRole({ user: discordId, role, reason: "Lobby pings: on" }),
-            ).pipe(Effect.asVoid, unavailable),
-          ),
+        withRole(venue, (guild, role) =>
+          tryDiscord("add ping role", () =>
+            guild.members.addRole({ user: discordId, role, reason: "Lobby pings: on" }),
+          ).pipe(Effect.asVoid),
         ),
       remove: (venue, discordId) =>
-        inVenue(venue).pipe(
-          Effect.flatMap(({ guild, role }) =>
-            tryDiscord("remove ping role", () =>
-              guild.members.removeRole({ user: discordId, role, reason: "Lobby pings: off" }),
-            ).pipe(Effect.asVoid, unavailable),
-          ),
+        withRole(venue, (guild, role) =>
+          tryDiscord("remove ping role", () =>
+            guild.members.removeRole({ user: discordId, role, reason: "Lobby pings: off" }),
+          ).pipe(Effect.asVoid),
         ),
     });
   }),

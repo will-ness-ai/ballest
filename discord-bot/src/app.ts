@@ -124,7 +124,7 @@ const portsLive = <E, R>(steam: Layer.Layer<Steam, E, R>) =>
 
 /** What the sandbox (scripts/sandbox.ts) adds: its driver's clicks, and its own server beside the bot. */
 export interface SandboxParts<E> {
-  readonly feed: Layer.Layer<DriverInteractions>;
+  readonly feed: Layer.Layer<DriverInteractions, never, Discord>;
   readonly server: Layer.Layer<never, E, Store>;
 }
 

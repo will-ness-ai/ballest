@@ -10,6 +10,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { posix } from "node:path";
 import type { Interaction } from "discord.js";
 import { Effect, Layer, Option, Queue, Runtime, Stream } from "effect";
+import { Discord } from "../../src/discord/client.js";
 import { DriverInteractions } from "../../src/discord/interactions.js";
 import { Store } from "../../src/ports.js";
 import type { FakeSteamControl } from "../../test/harness.js";
@@ -142,7 +143,15 @@ export const makeDriver = (opts: {
   readonly steam: FakeSteamControl;
 }) => {
   const queue = Effect.runSync(Queue.unbounded<Interaction>());
-  const feed = Layer.succeed(DriverInteractions, Stream.fromQueue(queue));
+  // Its clicks play in the home Venue: the sandbox channel is home's.
+  const feed = Layer.effect(
+    DriverInteractions,
+    Effect.map(Discord, (discord) =>
+      Stream.fromQueue(queue).pipe(
+        Stream.map((interaction) => ({ interaction, venue: discord.home })),
+      ),
+    ),
+  );
 
   const server = Layer.scopedDiscard(
     Effect.gen(function* () {

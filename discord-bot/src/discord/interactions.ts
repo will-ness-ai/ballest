@@ -22,6 +22,7 @@ import {
   type DiscordVenue,
   oneLine,
   tryDiscord,
+  type VenueInteraction,
 } from "./client.js";
 import { type Action, parseControl } from "./controls.js";
 import {
@@ -58,7 +59,7 @@ type Answerable = ButtonInteraction | ModalSubmitInteraction;
  */
 export class DriverInteractions extends Context.Tag("multiballs/DriverInteractions")<
   DriverInteractions,
-  Stream.Stream<Interaction>
+  Stream.Stream<VenueInteraction>
 >() {}
 
 export const InteractionsLive = Layer.scopedDiscard(
@@ -332,10 +333,10 @@ export const InteractionsLive = Layer.scopedDiscard(
 
     const label = (i: Interaction) => ("customId" in i ? i.customId : String(i.type));
 
-    // Discord's clicks all come from a running Venue's channel or its threads. The sandbox
-    // driver's stand-ins carry the sandbox channel's id and no channel, so they play in home.
-    const handle = (i: Interaction) =>
-      route(i, discord.venueOf(i) ?? discord.home).pipe(
+    // Each click comes with the Venue it plays in: Discord's from the channel it came from, the
+    // sandbox driver's from where its feed is built (home).
+    const handle = ({ interaction: i, venue }: VenueInteraction) =>
+      route(i, venue).pipe(
         // A Discord or drawing failure is one line; a defect is a bug, so it keeps its stack.
         Effect.catchAll((e) =>
           Effect.logError(
@@ -353,7 +354,7 @@ export const InteractionsLive = Layer.scopedDiscard(
       onSome: (d) => Stream.merge(discord.interactions, d),
     });
     yield* all.pipe(
-      Stream.mapEffect((i) => handle(i), { concurrency: "unbounded" }),
+      Stream.mapEffect((clicked) => handle(clicked), { concurrency: "unbounded" }),
       Stream.runDrain,
       Effect.forkScoped,
     );

@@ -197,17 +197,29 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
     return json({ error: e._tag, message: explain(e, who.discordId, () => other) }, STATUS[e._tag]);
   });
 
-  /** A Match by id if it is this Venue's: another Venue's Match isn't seen from here. */
-  const matchIn = Effect.fn("matchIn")(function* (venue: ActivityVenue, id: string) {
-    return Option.filter(yield* store.getMatch(id), (m) => m.venue === venue.name);
-  });
-
-  /** Fails as not found when the Match is another Venue's, so nothing here can act on it. */
-  const notElsewhere = Effect.fn("notElsewhere")(function* (venue: ActivityVenue, id: string) {
-    const m = yield* store.getMatch(id);
-    if (Option.isSome(m) && m.value.venue !== venue.name)
-      return yield* new NotFound({ closed: null });
-  });
+  /**
+   * The Store as one Venue's Activity sees it: only that Venue's Matches. Every route reads Matches
+   * through it, so another Venue's Match is never listed, shown or acted on from here.
+   */
+  const here = (venue: ActivityVenue) => {
+    const ours = (m: Match) => m.venue === venue.name;
+    return {
+      /** This Venue's open Invites and live Matches. */
+      active: Effect.map(store.activeMatches, (all) => all.filter(ours)),
+      /** A Match by id if it is this Venue's. */
+      get: Effect.fn("here.get")(function* (id: string) {
+        return Option.filter(yield* store.getMatch(id), ours);
+      }),
+      /**
+       * Fails as not found when the Match is another Venue's, so nothing here can act on it; one
+       * that doesn't exist is left to the engine to say so.
+       */
+      notElsewhere: Effect.fn("here.notElsewhere")(function* (id: string) {
+        const m = yield* store.getMatch(id);
+        if (Option.isSome(m) && !ours(m.value)) return yield* new NotFound({ closed: null });
+      }),
+    } as const;
+  };
 
   /** A Match of the member's Venue as they see it. */
   const viewOf = Effect.fn("viewOf")(function* (m: Match, who: Member) {
@@ -218,7 +230,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
         nameOf(who.venue, p.discordId).pipe(Effect.map((n) => [p.discordId, n] as const)),
       ),
     );
-    // Every caller passes only Matches of the member's Venue (matchIn, or a list filtered by Venue),
+    // Every caller passes only Matches of the member's Venue (read through `here`),
     // and MatchLinks finds a Card only in the Venue it is asked about.
     const place = yield* places.of(who.venue.name, m.id);
     const channel = `https://discord.com/channels/${who.venue.guildId}`;
@@ -304,9 +316,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
           const { discordId, venue } = who;
           const link = yield* store.getLink(discordId);
           // Their Match in this Venue: one in another running Venue still makes them Busy here.
-          const active = (yield* store.activeMatches).find(
-            (m) => m.venue === venue.name && involves(m, discordId),
-          );
+          const active = (yield* here(venue).active).find((m) => involves(m, discordId));
           const chosen = yield* chosenSkins.all;
           return json({
             discordId,
@@ -416,9 +426,8 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
       "/api/matches",
       asMember((who) =>
         Effect.gen(function* () {
-          const matches = yield* Effect.forEach(
-            (yield* store.activeMatches).filter((m) => m.venue === who.venue.name),
-            (m) => viewOf(m, who),
+          const matches = yield* Effect.forEach(yield* here(who.venue).active, (m) =>
+            viewOf(m, who),
           );
           return json({ now: yield* Clock.currentTimeMillis, matches });
         }),
@@ -440,7 +449,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
       asMember((who) =>
         Effect.gen(function* () {
           const { id = "" } = yield* HttpRouter.params;
-          const m = yield* matchIn(who.venue, id);
+          const m = yield* here(who.venue).get(id);
           if (Option.isNone(m))
             return yield* new NotFound({ closed: yield* engine.whyClosed(who.venue.name, id) });
           return yield* reply(m, who);
@@ -452,7 +461,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
       asMember((who) =>
         Effect.gen(function* () {
           const { id = "" } = yield* HttpRouter.params;
-          yield* notElsewhere(who.venue, id);
+          yield* here(who.venue).notElsewhere(id);
           return json({ ticks: yield* engine.personalBest(who.discordId, id) });
         }),
       ),
@@ -464,10 +473,11 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
           const { id = "", action = "" } = yield* HttpRouter.params;
           const known = ACTIONS.find((a) => a === action);
           if (known === undefined) return yield* new NotFound({ closed: null });
-          yield* notElsewhere(who.venue, id);
+          const venue = here(who.venue);
+          yield* venue.notElsewhere(id);
           yield* engine[known](who.discordId, id);
           return yield* reply(
-            yield* store.getMatch(id),
+            yield* venue.get(id),
             who,
             yield* pings.offerAfter(who.venue.name, known, who.discordId),
           );
