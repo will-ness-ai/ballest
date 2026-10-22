@@ -125,13 +125,16 @@ async def read_boards(fetch, boards):
         out.append(board)
         try:
             total, rows = await fetch(lid)
-            board.update(entry_count=int(total or len(rows)), rows=rows)
-            print(f"  {name:34s} total={int(total or 0):6d} pulled={len(rows)}")
+            # an answer the writer can't take fails here, as this board's own failure
+            for r in rows:
+                int(r["score_ms"]), r["steam_id"]
+            entry_count = int(total or len(rows))
         except Exception as e:
-            board["rows"] = []
-            board.pop("entry_count", None)
             failed.append(name)
             print(f"  [warn] read failed: {name}: {e!r}")
+        else:
+            board.update(entry_count=entry_count, rows=rows)
+            print(f"  {name:34s} total={entry_count:6d} pulled={len(rows)}")
     return out, failed
 
 

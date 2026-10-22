@@ -12,7 +12,7 @@ import { CampaignView } from "../../../../components/campaign/CampaignView";
 import { pageMetadata } from "../../../../components/metadata";
 import { getCampaign } from "../../../../db/data";
 import { CAMPAIGNS, eventOf, mapLabel, mapNumber } from "../../../../lib/campaigns";
-import { PODIUM_SORT, campaignHref, mapHref } from "../../../../lib/routes";
+import { PODIUM_SORT, campaignHref, campaignSlot, mapHref } from "../../../../lib/routes";
 import { isPfid } from "../../../../lib/rules";
 
 interface Props {
@@ -33,18 +33,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await getCampaign(slug);
   if (!data) return {};
   const { c, maps } = data;
-  /* one of its Maps, or an Event's with a row after it */
-  const m =
-    slot.length === 1 || (slot.length === 2 && eventOf(slot[0]))
-      ? maps.find((x) => x.pfid === slot[0])
-      : undefined;
-  /* an Event board has no page of its own, so this slot is the one to index (its times,
-     where the Campaign's page shows points), with the Campaign's card */
+  const at = slot.length <= 2 ? campaignSlot(c, slot[0], slot[1]) : null;
+  const m = at?.map ? maps.find((x) => x.pfid === at.map) : undefined;
+  /* an Event board has no page of its own, and robots.txt keeps crawlers off a Campaign's
+     slots, so the Campaign's page is the one to index, with its card */
   if (m && eventOf(m.pfid))
     return pageMetadata(
       {
         title: `${c.title} ${mapLabel(c, m.pfid, m.title)}`,
-        canonical: campaignHref(c.slug, m.pfid),
+        canonical: campaignHref(c.slug),
         description: `The leaderboard of ${m.title}, an event board of Ballest of Them All, read from Steam after the event ended.`,
       },
       {

@@ -30,9 +30,9 @@ import { isPreset } from "./lib/workshop";
 //   Circuit's boards are a fixed list, so this can tell before anything is sent.
 // - So is a Campaign path whose slug isn't a curated Campaign, or with anything after it
 //   but one of its Maps, a Steam ID, podiums, or an Event's id and a Steam ID
-//   (lib/campaigns.ts is a fixed list too). A
-//   curated Campaign none of whose Maps the Workshop lists, or one of its Maps it no longer
-//   lists, is only known to the page, which can only be a soft 404.
+//   (lib/campaigns.ts is a fixed list too). A curated Campaign none of whose Maps the
+//   Workshop lists, or one of its Maps it no longer lists, is only known to the page, which
+//   can only be a soft 404.
 // - So are the Players table's scopes and sorts: one that isn't is a 404, and a scope on
 //   its own, or the Circuit by Maps (it has no Maps column), goes to the scope's table.
 // - So are All maps' views, and a Map's path has a fixed shape: its page, a player's row

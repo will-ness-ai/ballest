@@ -343,7 +343,8 @@ collector's `EVENT_BOARDS`. The collector reads an Event board once (`docs/data.
 counts toward its Campaign once it holds open Entries, and until then it is left out like a
 Map the Workshop doesn't list. Inside the frame it is drawn as a Map with no Medals, its card
 links the ghost viewer, it has no `/map/` page (`boardHref` sends its board, and a row on it,
-to the slot), and its slot canonicals to itself with the Campaign's share card. Its runs are
+to the slot), and its slot canonicals to the Campaign, with its share card: robots.txt keeps
+crawlers off a Campaign's slots, so the Campaign's page is the one indexed. Its runs are
 its open Entries: the collector reads a board whole, so that is Steam's count give or take a
 run Steam dropped. The board API serves it by name; a player's own finishes leave it out, since their
 place there shows on their Campaigns shelf. A Campaign with `pinned` is listed first wherever

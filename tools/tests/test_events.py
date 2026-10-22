@@ -64,7 +64,14 @@ def test_the_circuit_read_keeps_each_boards_group_and_goes_on_past_a_failure():
 
 
 def test_a_read_whose_answer_is_malformed_is_a_failed_board_too():
-    async def fetch(_lid):
-        return "not a count", [{"steam_id": "1001", "score_ms": 1}]
+    failed_board = ([{"name": LETH, "group": None, "handle": "20899741", "rows": []}], [LETH])
+    for answer in [
+        ("not a count", [{"steam_id": "1001", "score_ms": 1}]),
+        (5, None),
+        (5, [{"rank": 1}]),
+    ]:
 
-    assert run(fetch) == ([{"name": LETH, "group": None, "handle": "20899741", "rows": []}], [LETH])
+        async def fetch(_lid, answer=answer):
+            return answer
+
+        assert run(fetch) == failed_board, answer
