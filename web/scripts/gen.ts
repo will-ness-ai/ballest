@@ -34,7 +34,8 @@ examples:
   pnpm --silent gen collage tower --only crown,shape --at http://localhost:3001`,
 };
 
-const [cmd, ...rest] = process.argv.slice(2);
+const cmd = process.argv.at(2);
+const rest = process.argv.slice(3);
 const flags = new Map<string, string>();
 const args: Array<string> = [];
 for (let i = 0; i < rest.length; i++)
