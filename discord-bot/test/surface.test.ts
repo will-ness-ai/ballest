@@ -3,7 +3,7 @@
 import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
-import { Context, Effect, Layer, Option, SubscriptionRef } from "effect";
+import { Context, Effect, Layer, Option, SubscriptionRef, TestClock } from "effect";
 import { type Channel, Drawing, Gone, VenueChannels } from "../src/discord/channel.js";
 import { DiscordError } from "../src/discord/client.js";
 import { ChannelSurfaceLive } from "../src/discord/surface.js";
@@ -186,11 +186,15 @@ const setup = Effect.fn("setup")(function* (
     now: SubscriptionRef.get(channels),
     changes: channels.changes,
   });
-  /** A Venue starts, as a server the bot was just invited to does, and the Surface takes it up. */
-  const startVenue = Effect.fn("startVenue")(function* (venue: string, port: Channel) {
-    yield* SubscriptionRef.update(channels, (all) => new Map(all).set(venue, port));
+  /** Venues start, as servers the bot was just invited to do, and the Surface takes them up. */
+  const startVenues = Effect.fn("startVenues")(function* (
+    started: ReadonlyArray<readonly [string, Channel]>,
+  ) {
+    yield* SubscriptionRef.update(channels, (all) => new Map([...all, ...started]));
     yield* settle;
   });
+  /** A Venue starts, as a server the bot was just invited to does, and the Surface takes it up. */
+  const startVenue = (venue: string, port: Channel) => startVenues([[venue, port]]);
   /** A Venue stops, as one whose server removed the bot does. */
   const stopVenue = Effect.fn("stopVenue")(function* (venue: string) {
     yield* SubscriptionRef.update(channels, (all) => {
@@ -224,6 +228,7 @@ const setup = Effect.fn("setup")(function* (
     racing,
     start,
     startVenue,
+    startVenues,
     stopVenue,
     placeOf,
     forgetFingerprint,
@@ -668,6 +673,63 @@ describe("Venues", () => {
         expect(surface.runs(RACING)).toBe(true);
         expect(again.order()).toEqual(["footer"]);
       }),
+  );
+
+  it.scoped(
+    "start each Venue on its own: one whose Footer can't go up waits, the next starts",
+    () =>
+      Effect.gen(function* () {
+        const { channel, start, startVenues } = yield* setup({ homeOnly: true });
+        const surface = yield* start;
+        const racing = makeFakeChannel();
+        const third = makeFakeChannel();
+        racing.failNext("post", 100);
+        yield* startVenues([
+          [RACING, racing.port],
+          ["third", third.port],
+        ]);
+        expect(surface.runs(RACING)).toBe(false);
+        expect(surface.runs("third")).toBe(true);
+        expect(third.order()).toEqual(["footer"]);
+        expect(channel.order()).toEqual(["footer"]);
+      }),
+  );
+
+  it.scoped("try a Venue whose Footer couldn't go up again shortly, until it runs", () =>
+    Effect.gen(function* () {
+      const { start, startVenue } = yield* setup({ homeOnly: true });
+      const surface = yield* start;
+      const racing = makeFakeChannel();
+      racing.failNext("post", 1);
+      yield* startVenue(RACING, racing.port);
+      expect(surface.runs(RACING)).toBe(false);
+      yield* TestClock.adjust("1 minute");
+      yield* settle;
+      expect(surface.runs(RACING)).toBe(true);
+      expect(racing.order()).toEqual(["footer"]);
+    }),
+  );
+
+  it.scoped("leave a Venue out at startup when its Footer can't go up, running home", () =>
+    Effect.gen(function* () {
+      const { channel, racing, start } = yield* setup();
+      racing.failNext("post", 1);
+      const surface = yield* start;
+      expect(surface.runs(HOME)).toBe(true);
+      expect(surface.runs(RACING)).toBe(false);
+      expect(channel.order()).toEqual(["footer"]);
+    }),
+  );
+
+  it.scoped("run home even when its Footer can't go up at startup, as before", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup({ homeOnly: true });
+      channel.failNext("post", 1);
+      const surface = yield* start;
+      expect(surface.runs(HOME)).toBe(true);
+      yield* surface.showCard(view("m1"));
+      expect(channel.order()).toEqual(["card m1", "footer"]);
+    }),
   );
 
   it.scoped("draw nothing for a Venue that isn't running, and nothing in another's channel", () =>

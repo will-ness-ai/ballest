@@ -1,7 +1,17 @@
 // A Venue's Match channel, as the Surface sees it: messages and Match Threads to draw things in.
 // It speaks in what to draw, not how, so the Surface's rules run against an in-memory channel
 // in tests; this adapter draws each one with the renderer and runs it on discord.js.
-import { Context, Data, Effect, Layer, Option, type Scope, Stream } from "effect";
+import {
+  Context,
+  Data,
+  Effect,
+  ExecutionStrategy,
+  Exit,
+  Layer,
+  Option,
+  Scope,
+  Stream,
+} from "effect";
 import type { MapInfo, VenueName } from "../domain.js";
 import type { CardView, KeptReason, ThreadPost } from "../ports.js";
 import { MapPreviews } from "../previews.js";
@@ -256,19 +266,39 @@ export const VenueChannelsLive = Layer.scoped(
   VenueChannels,
   Effect.gen(function* () {
     const discord = yield* Discord;
-    const needs = yield* Effect.context<Renderer | MapPreviews | Marbles | Scope.Scope>();
-    /** Each Venue's Channel, made once each time it starts. */
-    const made = new WeakMap<DiscordVenue, Channel>();
+    const needs = yield* Effect.context<Renderer | MapPreviews | Marbles>();
+    const layerScope = yield* Effect.scope;
+    /**
+     * Each running Venue's Channel, made once each time it starts, in a scope of its own that
+     * closes when it stops (ending its notices sweep).
+     */
+    const made = new Map<
+      DiscordVenue,
+      { readonly channel: Channel; readonly scope: Scope.CloseableScope }
+    >();
+    const lock = yield* Effect.makeSemaphore(1);
     const channelsOf = Effect.fn("channelsOf")(function* (venues: ReadonlyArray<DiscordVenue>) {
+      for (const [venue, { scope }] of [...made])
+        if (!venues.includes(venue)) {
+          made.delete(venue);
+          yield* Scope.close(scope, Exit.void);
+        }
       const channels = new Map<VenueName, Channel>();
       for (const venue of venues) {
-        const channel =
-          made.get(venue) ?? (yield* discordChannel(venue).pipe(Effect.provide(needs)));
-        made.set(venue, channel);
-        channels.set(venue.name, channel);
+        let entry = made.get(venue);
+        if (entry === undefined) {
+          const scope = yield* Scope.fork(layerScope, ExecutionStrategy.sequential);
+          const channel = yield* discordChannel(venue).pipe(
+            Scope.extend(scope),
+            Effect.provide(needs),
+          );
+          entry = { channel, scope };
+          made.set(venue, entry);
+        }
+        channels.set(venue.name, entry.channel);
       }
       return channels;
-    });
+    }, lock.withPermits(1));
     return VenueChannels.of({
       now: Effect.flatMap(discord.running, (venues) => channelsOf(venues)),
       changes: Stream.mapEffect(discord.changes, (venues) => channelsOf(venues)),

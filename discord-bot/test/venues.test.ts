@@ -1,7 +1,7 @@
-// Which Venues the bot plays in: home from its three settings, and every other server the bot is
-// in, which it sets up itself (spec #315, #321): a `multiballs` channel and a `Multiplayer ping`
+// Which Venues the bot plays in: home from its three settings, and every server it is invited
+// to, which it sets up itself (spec #315, #321): a `multiballs` channel and a `Multiplayer ping`
 // role, found or made, kept in SQLite and set up again when one is gone. Setup runs here against
-// a fake server; the discord.js calls behind it are tried in the sandbox.
+// a fake server; the discord.js calls behind it are tried live with the dev app.
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { ChannelType, type Client } from "discord.js";
@@ -9,9 +9,10 @@ import { Cause, Context, Effect, Exit, Layer, Option, Ref } from "effect";
 import { checkVenue } from "../src/discord/client.js";
 import {
   type ChannelAccess,
-  joinVenue,
+  makeVenueJoiner,
   MATCH_CHANNEL_ACCESS,
   REQUIRED_PERMISSIONS,
+  type ServerPermission,
   type SetupGuild,
   setUpVenue,
   startHome,
@@ -50,17 +51,22 @@ const makeFakeGuild = (
     readonly roles?: ReadonlyArray<Omit<FakeRole, "mentionable">>;
     /** The position of the bot's highest role. */
     readonly botTop?: number;
-    readonly missing?: ReadonlyArray<string>;
+    readonly missing?: ReadonlyArray<ServerPermission>;
   } = {},
 ) => {
   let next = 1;
+  let missing = opts.missing ?? [];
+  let botReads = 0;
   const channels: Array<FakeChannel> = (opts.channels ?? []).map((c) => ({ ...c, access: null }));
   const roles: Array<FakeRole> = (opts.roles ?? []).map((r) => ({ ...r, mentionable: false }));
   const made: Array<string> = [];
   const port: SetupGuild = {
     id: opts.id ?? "g-racing",
     name: "Ballest Racing",
-    missingServerPermissions: Effect.sync(() => opts.missing ?? []),
+    bot: Effect.sync(() => {
+      botReads++;
+      return { missing, topRolePosition: opts.botTop ?? 10 };
+    }),
     textChannels: Effect.sync(() => channels.map(({ id, name }) => ({ id, name }))),
     createTextChannel: (name, access) =>
       Effect.sync(() => {
@@ -78,7 +84,6 @@ const makeFakeGuild = (
         return Effect.void;
       }),
     roles: Effect.sync(() => roles.map(({ id, name, position }) => ({ id, name, position }))),
-    botTopRolePosition: Effect.sync(() => opts.botTop ?? 10),
     createRole: (name) =>
       Effect.sync(() => {
         const id = `r-new${next++}`;
@@ -91,6 +96,12 @@ const makeFakeGuild = (
   return {
     port,
     made: () => [...made],
+    /** How often setup read the bot's member. */
+    botReads: () => botReads,
+    /** A moderator gives the bot's role every permission it lacked. */
+    grantAll: () => {
+      missing = [];
+    },
     channel: (id: string) => channels.find((c) => c.id === id),
     role: (id: string) => roles.find((r) => r.id === id),
     deleteChannel: (id: string) => {
@@ -209,7 +220,57 @@ describe("setting up a server as a Venue", () => {
       const failed = yield* Effect.flip(setUpVenue(guild.port, Option.none()));
       expect(failed).toBeInstanceOf(VenueSetupFailed);
       expect(failed.reason).toContain("Manage Channels, Manage Roles");
+      expect(failed.reason).not.toContain("invite");
       expect(guild.made()).toEqual([]);
+    }),
+  );
+
+  it.effect("asks only for what it does: Manage Channels to make the channel", () =>
+    Effect.gen(function* () {
+      // The role is there; only the channel is made.
+      const guild = makeFakeGuild({
+        roles: [{ id: "r-ping", name: "Multiplayer ping", position: 2 }],
+        missing: ["Manage Roles"],
+      });
+      const venue = yield* setUpVenue(guild.port, Option.none());
+      expect(venue.pingRoleId).toBe("r-ping");
+      expect(guild.made()).toEqual(["channel #multiballs"]);
+      const noChannels = makeFakeGuild({
+        roles: [{ id: "r-ping", name: "Multiplayer ping", position: 2 }],
+        missing: ["Manage Channels"],
+      });
+      const failed = yield* Effect.flip(setUpVenue(noChannels.port, Option.none()));
+      expect(failed.reason).toContain("Manage Channels");
+      expect(failed.reason).not.toContain("Manage Roles");
+    }),
+  );
+
+  it.effect("asks only for what it does: Manage Roles to make the role or fix the channel", () =>
+    Effect.gen(function* () {
+      // Repairing only a lost role needs no Manage Channels.
+      const guild = makeFakeGuild({
+        channels: [{ id: "c-racing", name: "multiballs" }],
+        missing: ["Manage Channels"],
+      });
+      expect((yield* setUpVenue(guild.port, Option.some(RACING))).channelId).toBe("c-racing");
+      expect(guild.made()).toEqual(["role @Multiplayer ping"]);
+      // Reusing a multiballs channel sets its overwrites, which takes Manage Roles.
+      const noRoles = makeFakeGuild({
+        channels: [{ id: "c-mb", name: "multiballs" }],
+        roles: [{ id: "r-ping", name: "Multiplayer ping", position: 2 }],
+        missing: ["Manage Roles"],
+      });
+      const failed = yield* Effect.flip(setUpVenue(noRoles.port, Option.none()));
+      expect(failed.reason).toContain("Manage Roles");
+      expect(failed.reason).not.toContain("Manage Channels");
+    }),
+  );
+
+  it.effect("reads the bot's member once per setup", () =>
+    Effect.gen(function* () {
+      const guild = makeFakeGuild();
+      yield* setUpVenue(guild.port, Option.none());
+      expect(guild.botReads()).toBe(1);
     }),
   );
 });
@@ -220,72 +281,154 @@ const records = Effect.map(
   (ctx) => Context.get(ctx, VenueRecords),
 );
 
-describe("joining a server", () => {
-  const passing = (v: VenueConfig) => Effect.succeed(v);
+/**
+ * The joiner over a fresh database (or `store`), with home in server g-home, each Venue passing
+ * its check unless `failing` says why not, and what it started and told ops.
+ */
+const joiner = Effect.fn("joiner")(function* (
+  opts: {
+    readonly store?: Context.Tag.Service<typeof VenueRecords>;
+    readonly failing?: Ref.Ref<string | null>;
+  } = {},
+) {
+  const store = opts.store ?? (yield* records);
+  const started = yield* Ref.make<ReadonlyMap<string, VenueConfig>>(new Map());
+  const alerts = yield* Ref.make<ReadonlyArray<string>>([]);
+  const failing = opts.failing ?? (yield* Ref.make<string | null>(null));
+  const joins = yield* makeVenueJoiner(
+    HOME.guildId,
+    (venue: VenueConfig) =>
+      Effect.flatMap(Ref.get(failing), (reason) =>
+        reason === null ? Effect.succeed(venue) : Effect.fail(new VenueCheckFailed({ reason })),
+      ),
+    (message) => Ref.update(alerts, (all) => [...all, message]),
+    {
+      has: (name) => Effect.map(Ref.get(started), (all) => all.has(name)),
+      start: (name, venue) => Ref.update(started, (all) => new Map(all).set(name, venue)),
+    },
+  ).pipe(Effect.provideService(VenueRecords, store));
+  return {
+    joins,
+    store,
+    failing,
+    /** The names of the running Venues the joiner started. */
+    started: Effect.map(Ref.get(started), (all) => [...all.keys()]),
+    alerts: Ref.get(alerts),
+    /** The bot restarts: nothing is running, and ops' memory of what it said is gone. */
+    restart: () => joiner({ store, failing }),
+  };
+});
 
-  it.scoped("sets it up, stores it, and starts it", () =>
+const homeGuild = () => makeFakeGuild({ id: HOME.guildId });
+
+describe("which servers become Venues", () => {
+  it.scoped("on this build's first start, none the bot was already in, and nothing is made", () =>
     Effect.gen(function* () {
-      const store = yield* records;
-      const guild = makeFakeGuild();
-      const alerts = yield* Ref.make<ReadonlyArray<string>>([]);
-      const started = yield* joinVenue(guild.port, passing, (m) =>
-        Ref.update(alerts, (all) => [...all, m]),
-      ).pipe(Effect.provideService(VenueRecords, store));
-      expect(Option.map(started, (v) => v.name)).toEqual(Option.some("g-racing"));
-      expect(yield* store.byGuild("g-racing")).toEqual(started);
-      expect(yield* Ref.get(alerts)).toEqual([]);
+      const j = yield* joiner();
+      const old = makeFakeGuild({ id: "g-old" });
+      yield* j.joins.startup([homeGuild().port, old.port]);
+      expect(yield* j.started).toEqual([]);
+      expect(old.made()).toEqual([]);
+      // Nor on any later start, or retry.
+      const again = yield* j.restart();
+      yield* again.joins.startup([homeGuild().port, old.port]);
+      yield* again.joins.retry(old.port);
+      expect(yield* again.started).toEqual([]);
+      expect(old.made()).toEqual([]);
     }),
   );
 
-  it.scoped("picks a stored Venue back up, setting up again whatever is gone", () =>
+  it.scoped("a server that invites the bot, set up, stored and started at once", () =>
     Effect.gen(function* () {
-      const store = yield* records;
-      const guild = makeFakeGuild();
-      const first = yield* joinVenue(guild.port, passing, () => Effect.void).pipe(
-        Effect.provideService(VenueRecords, store),
-        Effect.map(Option.getOrThrow),
-      );
-      const again = yield* joinVenue(guild.port, passing, () => Effect.void).pipe(
-        Effect.provideService(VenueRecords, store),
-      );
-      expect(again).toEqual(Option.some(first));
-      expect(guild.made()).toEqual(["channel #multiballs", "role @Multiplayer ping"]);
+      const j = yield* joiner();
+      yield* j.joins.startup([homeGuild().port]);
+      const racing = makeFakeGuild();
+      yield* j.joins.invited(racing.port);
+      expect(yield* j.started).toEqual(["g-racing"]);
+      expect(racing.made()).toEqual(["channel #multiballs", "role @Multiplayer ping"]);
+      expect(Option.isSome(yield* j.store.byGuild("g-racing"))).toBe(true);
+      expect(yield* j.alerts).toEqual([]);
+    }),
+  );
 
-      guild.deleteChannel(first.channelId);
-      const repaired = yield* joinVenue(guild.port, passing, () => Effect.void).pipe(
-        Effect.provideService(VenueRecords, store),
-        Effect.map(Option.getOrThrow),
-      );
+  it.scoped("a server that invited the bot while it was down, at the next start", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.joins.startup([homeGuild().port]);
+      const again = yield* j.restart();
+      yield* again.joins.startup([homeGuild().port, makeFakeGuild().port]);
+      expect(yield* again.started).toEqual(["g-racing"]);
+    }),
+  );
+
+  it.scoped("a stored Venue, at each start, with whatever it lost set up again", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.joins.startup([homeGuild().port]);
+      const racing = makeFakeGuild();
+      yield* j.joins.invited(racing.port);
+      const first = Option.getOrThrow(yield* j.store.byGuild("g-racing"));
+      racing.deleteChannel(first.channelId);
+      const again = yield* j.restart();
+      yield* again.joins.startup([homeGuild().port, racing.port]);
+      expect(yield* again.started).toEqual(["g-racing"]);
+      const repaired = Option.getOrThrow(yield* j.store.byGuild("g-racing"));
       expect(repaired.channelId).not.toBe(first.channelId);
       expect(repaired.pingRoleId).toBe(first.pingRoleId);
-      expect(yield* store.byGuild("g-racing")).toEqual(Option.some(repaired));
     }),
   );
 
-  it.scoped("leaves out a server it can't set up or that fails its checks, telling ops", () =>
+  it.scoped("never home", () =>
     Effect.gen(function* () {
-      const store = yield* records;
-      const alerts = yield* Ref.make<ReadonlyArray<string>>([]);
-      const alert = (m: string) => Ref.update(alerts, (all) => [...all, m]);
-      const cantSetUp = yield* joinVenue(
-        makeFakeGuild({ missing: ["Manage Roles"] }).port,
-        passing,
-        alert,
-      ).pipe(Effect.provideService(VenueRecords, store));
-      expect(cantSetUp).toEqual(Option.none());
-      expect(yield* store.byGuild("g-racing")).toEqual(Option.none());
+      const j = yield* joiner();
+      yield* j.joins.startup([]);
+      const home = homeGuild();
+      yield* j.joins.invited(home.port);
+      expect(yield* j.started).toEqual([]);
+      expect(home.made()).toEqual([]);
+    }),
+  );
+});
 
-      const failsCheck = yield* joinVenue(
-        makeFakeGuild().port,
-        () => Effect.fail(new VenueCheckFailed({ reason: "no access to its channel" })),
-        alert,
-      ).pipe(Effect.provideService(VenueRecords, store));
-      expect(failsCheck).toEqual(Option.none());
-      const said = yield* Ref.get(alerts);
-      expect(said).toHaveLength(2);
+describe("a server that can't be set up yet", () => {
+  it.scoped("is kept as wanted, retried until it starts, and ops hears it once per reason", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.joins.startup([homeGuild().port]);
+      const racing = makeFakeGuild({ missing: ["Manage Channels", "Manage Roles"] });
+      yield* j.joins.invited(racing.port);
+      yield* j.joins.retry(racing.port);
+      yield* j.joins.retry(racing.port);
+      expect(yield* j.started).toEqual([]);
+      const said = yield* j.alerts;
+      expect(said).toHaveLength(1);
       expect(said[0]).toContain("Ballest Racing");
-      expect(said[0]).toContain("Manage Roles");
-      expect(said[1]).toContain("no access to its channel");
+      expect(said[0]).toContain("Manage Channels");
+
+      // Its check fails for a new reason: ops hears that once too.
+      racing.grantAll();
+      yield* Ref.set(j.failing, "no access to its channel");
+      yield* j.joins.retry(racing.port);
+      yield* j.joins.retry(racing.port);
+      expect(yield* j.alerts).toHaveLength(2);
+      expect((yield* j.alerts)[1]).toContain("no access to its channel");
+
+      yield* Ref.set(j.failing, null);
+      yield* j.joins.retry(racing.port);
+      expect(yield* j.started).toEqual(["g-racing"]);
+    }),
+  );
+
+  it.scoped("is retried at the next start too", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.joins.startup([homeGuild().port]);
+      const racing = makeFakeGuild({ missing: ["Manage Channels"] });
+      yield* j.joins.invited(racing.port);
+      racing.grantAll();
+      const again = yield* j.restart();
+      yield* again.joins.startup([homeGuild().port, racing.port]);
+      expect(yield* again.started).toEqual(["g-racing"]);
     }),
   );
 });

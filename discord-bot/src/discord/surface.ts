@@ -29,9 +29,9 @@
 // - A Card is forgotten once it will never change again: after its Result, or once removed.
 //   A finished Match's place is still kept (the most recent ones), for the Activity's links.
 import { SqlClient, SqlSchema } from "@effect/sql";
-import { Context, Effect, Layer, Option, Ref, Schema, Stream } from "effect";
+import { Context, Effect, Layer, Option, Ref, Schedule, Schema, Stream } from "effect";
 import { MigratorLive } from "../db.js";
-import type { VenueName } from "../domain.js";
+import { HOME_VENUE, type VenueName } from "../domain.js";
 import {
   type CardView,
   isKept,
@@ -60,6 +60,9 @@ interface Layout {
   /** Where finished Matches' Cards and threads are in this channel, oldest first. */
   readonly finished: ReadonlyMap<string, MatchPlace>;
 }
+
+/** How soon a Venue whose channel couldn't start is tried again. */
+const RETRY_EVERY = "1 minute";
 
 /** How many finished Matches' places are kept. */
 const FINISHED_KEPT = 100;
@@ -100,6 +103,15 @@ const logFailure = (e: ChannelError) =>
 /** Try a Channel call up to twice more, unless what it acts on is gone. */
 const retryUnlessGone = <A, E extends ChannelError>(effect: Effect.Effect<A, E>) =>
   effect.pipe(Effect.retry({ times: 2, while: (e: E) => e._tag !== "Gone" }));
+
+/** Something already gone counts as done, and any other failure is the caller's. */
+const ignoreGone = <A, E extends ChannelError>(effect: Effect.Effect<A, E>) =>
+  effect.pipe(
+    Effect.catchIf(
+      (e) => e._tag === "Gone",
+      () => Effect.void,
+    ),
+  );
 
 /** Deleting or closing something already gone counts as done. */
 const unlessGone = <E extends ChannelError>(effect: Effect.Effect<void, E>) =>
@@ -315,23 +327,28 @@ const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, chan
   // Startup: the Footer must be the channel's last message, with today's wording, and is edited
   // only if this build draws it differently.
   // If the newest message can't be read, the Footer is assumed still last rather than reposted.
-  const { footerId, footerFingerprint } = yield* Ref.get(layout);
-  const last = yield* channel.lastMessageId.pipe(
-    Effect.tapError((e) => logFailure(e)),
-    Effect.orElseSucceed(() => footerId),
-  );
-  if (footerId !== null && footerId === last) {
-    const fingerprint = yield* thisBuildsFooter;
-    if (fingerprint === null || fingerprint !== footerFingerprint)
-      yield* unlessGone(
-        channel
+  const startFooter = Effect.gen(function* () {
+    const { footerId, footerFingerprint } = yield* Ref.get(layout);
+    const last = yield* channel.lastMessageId.pipe(
+      Effect.tapError((e) => logFailure(e)),
+      Effect.orElseSucceed(() => footerId),
+    );
+    if (footerId !== null && footerId === last) {
+      const fingerprint = yield* thisBuildsFooter;
+      if (fingerprint === null || fingerprint !== footerFingerprint)
+        yield* channel
           .redraw(footerId, Drawing.Footer())
-          .pipe(Effect.andThen(setFooter(footerId, fingerprint))),
-      );
-  } else {
-    if (footerId !== null) yield* unlessGone(channel.deleteMessage(footerId));
-    yield* postFooter().pipe(Effect.catchAll((e) => logFailure(e)));
-  }
+          .pipe(Effect.andThen(setFooter(footerId, fingerprint)), ignoreGone);
+    } else {
+      if (footerId !== null) yield* channel.deleteMessage(footerId).pipe(ignoreGone);
+      yield* postFooter();
+    }
+  });
+  // Home runs whatever its channel says, as it always has; another Venue whose Footer can't be put
+  // right doesn't start (nobody could open a Match there), and is tried again.
+  yield* venue === HOME_VENUE
+    ? startFooter.pipe(Effect.catchAll((e) => logFailure(e)))
+    : startFooter.pipe(Effect.tapError((e) => logFailure(e)));
 
   /** Where this channel holds a Match's Card and thread, live or finished. */
   const placeOf = Effect.fn("placeOf")(function* (matchId: string) {
@@ -368,8 +385,17 @@ const make = Effect.gen(function* () {
   >();
   const surfaces = () => [...running.values()].map((r) => r.surface);
 
-  /** Start the Surface of each Venue new to this set (or back in a new channel); drop the rest. */
-  const follow = Effect.fn("follow")(function* (now: ReadonlyMap<VenueName, Channel>) {
+  /** The running Venues' channels as last heard, so a Venue that couldn't start is tried again. */
+  const latest = yield* Ref.make<ReadonlyMap<VenueName, Channel>>(new Map());
+  const once = yield* Effect.makeSemaphore(1);
+
+  /**
+   * Start the Surface of each Venue new to the set (or back in a new channel), and of any that
+   * couldn't start before; drop the rest. Each Venue starts on its own: one that can't leaves the
+   * others to start.
+   */
+  const follow = Effect.fn("follow")(function* () {
+    const now = yield* Ref.get(latest);
     for (const venue of [...running.keys()])
       if (!now.has(venue)) {
         running.delete(venue);
@@ -377,18 +403,22 @@ const make = Effect.gen(function* () {
       }
     // In order, home first: each start's Footer check is a few Discord calls.
     for (const [venue, channel] of now)
-      if (running.get(venue)?.channel !== channel)
-        running.set(venue, { channel, surface: yield* venueSurface(venue, channel) });
-  });
-  yield* follow(yield* channels.now);
+      if (running.get(venue)?.channel !== channel) {
+        running.delete(venue);
+        const started = yield* venueSurface(venue, channel).pipe(Effect.option);
+        if (Option.isSome(started)) running.set(venue, { channel, surface: started.value });
+        else yield* Effect.logWarning(`Venue ${venue} can't start its channel yet; trying again`);
+      }
+  }, once.withPermits(1));
+  yield* Ref.set(latest, yield* channels.now);
+  yield* follow();
   yield* channels.changes.pipe(
-    Stream.runForEach((now) =>
-      follow(now).pipe(
-        Effect.catchAllCause((cause) =>
-          Effect.logError("following the running Venues failed", cause),
-        ),
-      ),
-    ),
+    Stream.runForEach((now) => Ref.set(latest, now).pipe(Effect.zipRight(follow()))),
+    Effect.forkScoped,
+  );
+  yield* follow().pipe(
+    Effect.repeat(Schedule.spaced(RETRY_EVERY)),
+    Effect.delay(RETRY_EVERY),
     Effect.forkScoped,
   );
 

@@ -60,10 +60,22 @@ https://discord.com/oauth2/authorize?client_id=<DISCORD_APPLICATION_ID>&scope=bo
 ```
 
 (scopes `bot applications.commands`; permissions `326686198800` are the channel permissions the
-bot checks for, Mention @everyone, @here and All Roles, Manage Roles and Manage Channels). The
-moment it joins (the Guilds intent's guild create event) the bot sets the server up. At startup
-only servers already stored as Venues are picked up (and repaired): a server the bot was in
-before is set up only once it is invited again, so a deploy never adds a channel nobody asked for.
+bot checks for, Mention @everyone, @here and All Roles, Manage Roles and Manage Channels).
+
+Which servers are wanted (`makeVenueJoiner` in `src/venues.ts`, kept in SQLite's
+`known_servers`): on the first start of this build, every server the bot is already in (other
+than home) is recorded as known but not wanted, so a deploy never adds a channel to a server
+nobody invited it to. To make one of those a Venue, remove the bot there and invite it again.
+From then on any other server is wanted: one that invites it while it runs (the Guilds intent's
+guild create event), or one the bot finds at startup without knowing it (invited while it was
+down). A wanted server is stored before it is set up, so a setup that fails (a missing
+permission, an outage) is tried again: at startup, when Discord says the server is available
+again, and every five minutes while it isn't running. Re-authorizing an invite with more
+permissions fires no event; the five-minute retry picks it up. Ops hears each failure reason once
+per server, not at every retry. Each setup asks only for what it does: Manage Channels to make the
+channel, Manage Roles to make the role or set a reused channel's overwrites.
+
+The bot sets a wanted server up:
 
 - **Channel:** a text channel named `multiballs`, reused if there is one, else created. @everyone
   is denied Send Messages (members talk in Match Threads), and the bot's own member is allowed
@@ -74,13 +86,15 @@ before is set up only once it is invited again, so a deploy never adds a channel
   role is gone is set up again the same way; one with both still there is left as it is.
 
 Then it is checked as home is, and runs at once: its Footer goes up and its clicks, ping role
-and Activity work, with no restart (the running Venues are a live set, `Discord.changes`, that
+and Activity work, with no restart. If its Footer can't go up, its channel doesn't start (nobody
+could open a Match there) and the Surface tries it again every minute; the other Venues start
+regardless (the running Venues are a live set, `Discord.changes`, that
 the Surface router, `interactions.ts`, `pingRole.ts` and the Activity read). A server that removes
 the bot stops being a running Venue; its row stays, so inviting it again picks it back up. The
 setup rules are tested on a fake server behind the `SetupGuild` port (`test/venues.test.ts`);
 `src/discord/setupGuild.ts` is the port on discord.js, checked live by inviting the dev app to a
-second server while `pnpm dev` runs. The dev app's home is the test server, so `pnpm dev` and
-the sandbox set nothing up there.
+second server while `pnpm dev` runs. The sandbox sets no server up and ignores joins
+(`MULTIBALLS_SANDBOX`), so it and `pnpm dev` never both set one up.
 
 Each Venue has its own Footer, Cards and Match Threads (a `venue_layouts` row each, behind the
 router in `src/discord/surface.ts`), its own queue (a Match's `venue`), its own ping role and its
@@ -92,7 +106,7 @@ Venue's Matches only, linked into its channel (#317).
 
 Each Venue is checked as it starts: its channel permissions, and its ping role. Home failing a
 check stops the bot, as before; a server the bot can't set up (it lacks Manage Channels or Manage
-Roles, say) or whose Venue fails a check is left out with a line to the ops channel while the bot
+Roles, say) or whose Venue fails a check is left out, and tried again as above, while the bot
 runs on. A Match open in a Venue that isn't running still runs to its Result and is stored,
 unseen, but keeps none of its Players Busy (the Surface port's `runs`). Each channel denies Send
 Messages to `@everyone` to stay read-only, so the bot needs an explicit Send Messages allow on

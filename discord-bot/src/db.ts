@@ -86,6 +86,16 @@ const MIGRATIONS: Migrations = {
         ping_role_id TEXT NOT NULL
       )`;
   }),
+  // Every server the bot knows (spec #321): `wanted` 1 for a server that invited it (a Venue, or
+  // one whose setup is still to work), 0 for one it was already in when this build first started,
+  // which a deploy must never set up. `known_servers_baseline` has its one row once that first
+  // start has listed them.
+  "0011_known_servers": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE known_servers (guild_id TEXT PRIMARY KEY, wanted INTEGER NOT NULL)`;
+    yield* sql`INSERT INTO known_servers (guild_id, wanted) SELECT guild_id, 1 FROM venues`;
+    yield* sql`CREATE TABLE known_servers_baseline (id INTEGER PRIMARY KEY CHECK (id = 1))`;
+  }),
 };
 
 /** The migrations a build had before the one with this id (`"0008"`): tests start a database from an older build. */

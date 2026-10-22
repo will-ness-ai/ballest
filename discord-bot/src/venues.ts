@@ -1,14 +1,18 @@
 // The Venues (CONTEXT.md, spec #315): the Discord servers the bot plays Matches in. The home
 // Venue, the game Discord, is DISCORD_GUILD_ID, DISCORD_CHANNEL_ID and DISCORD_PING_ROLE_ID, as
-// it was before there were others. Every other server the bot is in it sets up as a Venue itself
+// it was before there were others. Every server that invites the bot it sets up as a Venue itself
 // (spec #321), named by the server's id: a `multiballs` channel only it posts in and a
 // `Multiplayer ping` role, each reused if the server has one, kept in the `venues` table, and set
 // up again at startup when one is gone. The prod app is private, so only Will can invite it.
 //
+// A server the bot was already in when this build first started is known but not wanted, so a
+// deploy never adds a channel to a server nobody asked for; any other is wanted, and kept so, so a
+// setup that fails (a missing permission, an outage) is tried again until it works.
+//
 // The setup rules run against a small port (SetupGuild) so they are tested on a fake server;
 // src/discord/setupGuild.ts is the port on discord.js.
 import { SqlClient, SqlSchema } from "@effect/sql";
-import { Context, Data, Effect, Layer, Option, Schema } from "effect";
+import { Context, Data, Effect, Either, Layer, Option, Ref, Schema } from "effect";
 import { MigratorLive } from "./db.js";
 import { HOME_VENUE, type VenueName } from "./domain.js";
 
@@ -83,12 +87,18 @@ export class VenueCheckFailed extends Data.TaggedError("VenueCheckFailed")<{
   readonly reason: string;
 }> {}
 
+/** A server permission setup may need: Manage Channels to make a channel, Manage Roles to make a role or set a channel's overwrites. */
+export type ServerPermission = "Manage Channels" | "Manage Roles";
+
 /** A server, as setting it up as a Venue needs it. Every call can fail with Discord's reason. */
 export interface SetupGuild {
   readonly id: string;
   readonly name: string;
-  /** Which of Manage Channels and Manage Roles the bot lacks on the server, by name. */
-  readonly missingServerPermissions: Effect.Effect<ReadonlyArray<string>, VenueSetupFailed>;
+  /** The bot's member there: which server permissions setup may need it lacks, and its highest role's position. */
+  readonly bot: Effect.Effect<
+    { readonly missing: ReadonlyArray<ServerPermission>; readonly topRolePosition: number },
+    VenueSetupFailed
+  >;
   readonly textChannels: Effect.Effect<
     ReadonlyArray<{ readonly id: string; readonly name: string }>,
     VenueSetupFailed
@@ -108,8 +118,6 @@ export interface SetupGuild {
     ReadonlyArray<{ readonly id: string; readonly name: string; readonly position: number }>,
     VenueSetupFailed
   >;
-  /** The position of the bot's highest role. */
-  readonly botTopRolePosition: Effect.Effect<number, VenueSetupFailed>;
   /** Make a mentionable role, below the bot's own; its id. */
   readonly createRole: (name: string) => Effect.Effect<string, VenueSetupFailed>;
 }
@@ -119,7 +127,8 @@ export interface SetupGuild {
  * there are kept as they are; whatever is gone, or everything for a new server, is set up. A
  * channel is the server's `multiballs` text channel, its overwrites set, or a new one; a role is
  * its `Multiplayer ping` role if the bot's own sits above it (so it can give and take it), or a
- * new mentionable one.
+ * new mentionable one. It asks only for the permissions what it does needs, and reads the bot's
+ * member once.
  */
 export const setUpVenue = Effect.fn("setUpVenue")(function* (
   guild: SetupGuild,
@@ -144,39 +153,49 @@ export const setUpVenue = Effect.fn("setUpVenue")(function* (
       pingRoleId: keptRole.value,
     } satisfies VenueConfig;
 
-  const missing = yield* guild.missingServerPermissions;
+  const bot = yield* guild.bot;
+  const found = channels.find((c) => c.name === MATCH_CHANNEL);
+  const foundRole = roles.find((r) => r.name === PING_ROLE && r.position < bot.topRolePosition);
+  const needs = new Set<ServerPermission>();
+  if (Option.isNone(keptChannel))
+    needs.add(found === undefined ? "Manage Channels" : "Manage Roles");
+  if (Option.isNone(keptRole) && foundRole === undefined) needs.add("Manage Roles");
+  const missing = bot.missing.filter((p) => needs.has(p));
   if (missing.length > 0)
     return yield* new VenueSetupFailed({
-      reason: `the bot needs ${missing.join(", ")} to set up its channel and ping role; invite it again with the link in discord-bot/AGENTS.md`,
+      reason: `the bot needs ${missing.join(", ")} there to set up its channel and ping role; give its role that, and it tries again within a few minutes`,
     });
 
   const channelId = Option.isSome(keptChannel)
     ? keptChannel.value
-    : yield* Effect.gen(function* () {
-        const found = channels.find((c) => c.name === MATCH_CHANNEL);
-        if (found === undefined)
-          return yield* guild.createTextChannel(MATCH_CHANNEL, MATCH_CHANNEL_ACCESS);
-        yield* guild.setAccess(found.id, MATCH_CHANNEL_ACCESS);
-        return found.id;
-      });
+    : found === undefined
+      ? yield* guild.createTextChannel(MATCH_CHANNEL, MATCH_CHANNEL_ACCESS)
+      : yield* guild.setAccess(found.id, MATCH_CHANNEL_ACCESS).pipe(Effect.as(found.id));
   const pingRoleId = Option.isSome(keptRole)
     ? keptRole.value
-    : yield* Effect.gen(function* () {
-        const top = yield* guild.botTopRolePosition;
-        const found = roles.find((r) => r.name === PING_ROLE && r.position < top);
-        return found === undefined ? yield* guild.createRole(PING_ROLE) : found.id;
-      });
+    : foundRole === undefined
+      ? yield* guild.createRole(PING_ROLE)
+      : foundRole.id;
   yield* Effect.log(`Venue ${name}: set up #${MATCH_CHANNEL} and @${PING_ROLE} in ${guild.name}`);
   return { name, guildId: guild.id, channelId, pingRoleId } satisfies VenueConfig;
 });
 
-/** The Venues the bot set up itself, by server; home is never among them. */
+/** The Venues the bot set up itself, and the servers it knows, by server; home is never among them. */
 export class VenueRecords extends Context.Tag("multiballs/VenueRecords")<
   VenueRecords,
   {
     readonly byGuild: (guildId: string) => Effect.Effect<Option.Option<VenueConfig>>;
     /** Store a Venue, replacing what was stored for its server. */
     readonly put: (venue: VenueConfig) => Effect.Effect<void>;
+    /**
+     * On this build's first start only: every server listed is known, but not wanted as a Venue.
+     * Later calls change nothing.
+     */
+    readonly takeBaseline: (guildIds: ReadonlyArray<string>) => Effect.Effect<void>;
+    /** Whether a server is wanted as a Venue; none for one the bot has never known. */
+    readonly wanted: (guildId: string) => Effect.Effect<Option.Option<boolean>>;
+    /** Want a server as a Venue from now on. */
+    readonly want: (guildId: string) => Effect.Effect<void>;
   }
 >() {}
 
@@ -197,7 +216,31 @@ export const VenueRecordsLive = Layer.effect(
       Result: VenueRow,
       execute: (guildId) => sql`SELECT * FROM venues WHERE guild_id = ${guildId}`,
     });
+    const findKnown = SqlSchema.findOne({
+      Request: Schema.String,
+      Result: Schema.Struct({ wanted: Schema.Number }),
+      execute: (guildId) => sql`SELECT wanted FROM known_servers WHERE guild_id = ${guildId}`,
+    });
     return VenueRecords.of({
+      takeBaseline: (guildIds) =>
+        sql
+          .withTransaction(
+            Effect.gen(function* () {
+              const taken = yield* sql`SELECT 1 FROM known_servers_baseline`;
+              if (taken.length > 0) return;
+              for (const guildId of guildIds)
+                yield* sql`INSERT INTO known_servers (guild_id, wanted) VALUES (${guildId}, 0) ON CONFLICT (guild_id) DO NOTHING`;
+              yield* sql`INSERT INTO known_servers_baseline (id) VALUES (1)`;
+            }),
+          )
+          .pipe(Effect.orDie),
+      wanted: (guildId) =>
+        findKnown(guildId).pipe(Effect.map(Option.map((row) => row.wanted === 1)), Effect.orDie),
+      want: (guildId) =>
+        sql`INSERT INTO known_servers (guild_id, wanted) VALUES (${guildId}, 1) ON CONFLICT (guild_id) DO UPDATE SET wanted = 1`.pipe(
+          Effect.asVoid,
+          Effect.orDie,
+        ),
       byGuild: (guildId) =>
         find(guildId).pipe(
           Effect.map(
@@ -222,26 +265,76 @@ export const VenueRecordsLive = Layer.effect(
   }),
 ).pipe(Layer.provide(MigratorLive));
 
+/** Where the joiner starts a Venue, and asks whether one runs. */
+export interface RunningVenues<A> {
+  readonly has: (name: VenueName) => Effect.Effect<boolean>;
+  readonly start: (name: VenueName, venue: A) => Effect.Effect<void>;
+}
+
 /**
- * Make a server the bot is in a running Venue: set it up (or repair what is stored for it), store
- * it, and start it with `check`. A server it can't set up or that fails its check is left out
- * with a line to `alert` (the ops channel), so a second server can never take the bot down.
+ * Which servers become Venues, and setting them up. A server is wanted once it invites the bot
+ * (`invited`), or when the bot finds it at startup without knowing it (invited while the bot was
+ * down); on this build's first start, every server the bot is already in is known as not wanted.
+ * A wanted server that isn't running is set up (or repaired) and started with `check` whenever
+ * the bot tries it: at startup, when invited, and at each `retry`. One that can't be set up yet or
+ * fails its check stays wanted, and `alert` (the ops channel) hears each reason once.
  */
-export const joinVenue = Effect.fn("joinVenue")(function* <A, R>(
-  guild: SetupGuild,
+export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
+  homeGuildId: string,
   check: (venue: VenueConfig) => Effect.Effect<A, VenueCheckFailed, R>,
   alert: (message: string) => Effect.Effect<void>,
+  running: RunningVenues<A>,
 ) {
   const records = yield* VenueRecords;
-  const leaveOut = (e: VenueSetupFailed | VenueCheckFailed) =>
-    alert(`Multiballs left out the server ${guild.name} (${guild.id}): ${e.reason}`).pipe(
-      Effect.as(Option.none<A>()),
+  // One server at a time, so a server invited while the bot starts isn't set up twice.
+  const lock = yield* Effect.makeSemaphore(1);
+  /** Why each server was last left out, so ops hears a reason once rather than at every retry. */
+  const leftOutFor = yield* Ref.make(new Map<string, string>());
+
+  /** Set up and start a wanted server, unless it runs already. */
+  const attempt = Effect.fn("attempt")(function* (guild: SetupGuild) {
+    const name = venueNameOf(guild.id);
+    if (guild.id === homeGuildId || (yield* running.has(name))) return;
+    if (!Option.getOrElse(yield* records.wanted(guild.id), () => false)) return;
+    const result = yield* Effect.gen(function* () {
+      const venue = yield* setUpVenue(guild, yield* records.byGuild(guild.id));
+      yield* records.put(venue);
+      return yield* check(venue);
+    }).pipe(Effect.either);
+    if (Either.isRight(result)) {
+      yield* Ref.update(leftOutFor, (all) => {
+        const next = new Map(all);
+        next.delete(guild.id);
+        return next;
+      });
+      return yield* running.start(name, result.right);
+    }
+    const { reason } = result.left;
+    if ((yield* Ref.get(leftOutFor)).get(guild.id) === reason) return;
+    yield* Ref.update(leftOutFor, (all) => new Map(all).set(guild.id, reason));
+    yield* alert(
+      `Multiballs couldn't set up the server ${guild.name} (${guild.id}) as a Venue: ${reason}. It tries again every few minutes.`,
     );
-  return yield* Effect.gen(function* () {
-    const venue = yield* setUpVenue(guild, yield* records.byGuild(guild.id));
-    yield* records.put(venue);
-    return Option.some(yield* check(venue));
-  }).pipe(Effect.catchTags({ VenueSetupFailed: leaveOut, VenueCheckFailed: leaveOut }));
+  }, lock.withPermits(1));
+
+  return {
+    /** At startup, with every server the bot is in. */
+    startup: Effect.fn("startup")(function* (guilds: ReadonlyArray<SetupGuild>) {
+      const others = guilds.filter((g) => g.id !== homeGuildId);
+      yield* records.takeBaseline(others.map((g) => g.id));
+      for (const guild of others)
+        if (Option.isNone(yield* records.wanted(guild.id))) yield* records.want(guild.id);
+      for (const guild of others) yield* attempt(guild);
+    }),
+    /** A server just invited the bot. */
+    invited: Effect.fn("invited")(function* (guild: SetupGuild) {
+      if (guild.id === homeGuildId) return;
+      yield* records.want(guild.id);
+      yield* attempt(guild);
+    }),
+    /** Try a server again: it came back from an outage, or its permissions may have changed. */
+    retry: attempt,
+  };
 });
 
 /**

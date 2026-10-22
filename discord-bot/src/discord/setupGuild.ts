@@ -9,13 +9,18 @@ import {
   type PermissionOverwriteOptions,
 } from "discord.js";
 import { Effect } from "effect";
-import { type ChannelAccess, type SetupGuild, VenueSetupFailed } from "../venues.js";
+import {
+  type ChannelAccess,
+  type ServerPermission,
+  type SetupGuild,
+  VenueSetupFailed,
+} from "../venues.js";
 import { type DiscordError, describeDiscordError, tryDiscord } from "./client.js";
 
 const REASON = "Multiballs: its Match channel and ping role";
 
-/** What setting a server up needs on the whole server: making the channel, the role and overwrites. */
-const SERVER_PERMISSIONS: ReadonlyArray<readonly [string, bigint]> = [
+/** What setting a server up may need on the whole server: making the channel, the role and overwrites. */
+const SERVER_PERMISSIONS: ReadonlyArray<readonly [ServerPermission, bigint]> = [
   ["Manage Channels", PermissionFlagsBits.ManageChannels],
   ["Manage Roles", PermissionFlagsBits.ManageRoles],
 ];
@@ -28,12 +33,16 @@ const flags = (names: ReadonlyArray<string>, value: boolean): PermissionOverwrit
   Object.fromEntries(names.map((name) => [name, value]));
 
 export const setupGuildOn = (client: Client<true>, guild: Guild): SetupGuild => {
-  const me = failed(tryDiscord("fetch the bot's member", () => guild.members.fetchMe()));
   return {
     id: guild.id,
     name: guild.name,
-    missingServerPermissions: Effect.map(me, (self) =>
-      SERVER_PERMISSIONS.filter(([, flag]) => !self.permissions.has(flag)).map(([name]) => name),
+    bot: failed(tryDiscord("fetch the bot's member", () => guild.members.fetchMe())).pipe(
+      Effect.map((self) => ({
+        missing: SERVER_PERMISSIONS.filter(([, flag]) => !self.permissions.has(flag)).map(
+          ([name]) => name,
+        ),
+        topRolePosition: self.roles.highest.position,
+      })),
     ),
     textChannels: failed(tryDiscord("fetch channels", () => guild.channels.fetch())).pipe(
       Effect.map((all) =>
@@ -85,7 +94,6 @@ export const setupGuildOn = (client: Client<true>, guild: Guild): SetupGuild => 
         [...all.values()].map((r) => ({ id: r.id, name: r.name, position: r.position })),
       ),
     ),
-    botTopRolePosition: Effect.map(me, (self) => self.roles.highest.position),
     // Discord puts a new role just above @everyone, so below the bot's own.
     createRole: (name: string) =>
       failed(
