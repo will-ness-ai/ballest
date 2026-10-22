@@ -57,5 +57,16 @@ export const MigratorLive = SqliteMigrator.layer({
       yield* sql`CREATE TABLE daily_leads (date TEXT NOT NULL, at INTEGER NOT NULL, leaders TEXT NOT NULL, ticks INTEGER NOT NULL)`;
       yield* sql`CREATE INDEX daily_leads_date ON daily_leads (date, at)`;
     }),
+    // The My Stats channel (spec #323) the bot made, and its panel with the fingerprint of what
+    // it shows: found by id at each start, so a renamed or moved channel is kept.
+    "0008_my_stats_channel": Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE my_stats_channel (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        channel_id TEXT NOT NULL,
+        panel_id TEXT,
+        panel_fingerprint TEXT
+      )`;
+    }),
   }),
 }).pipe(Layer.provide(NodeContext.layer));

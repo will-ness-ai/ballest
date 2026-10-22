@@ -49,8 +49,11 @@ export const IDS = {
 
 /**
  * A page drawn signed in names who as `as`, an ID above; a target with no secret to sign
- * with, or no such ID, skips it.
- * @type {ReadonlyArray<{ name: string, path: string, status?: number, as?: string }>}
+ * with, or no such ID, skips it. A picture of a fixed size, such as the Stat Card (720px
+ * wide, seen only in Discord), names the narrowest width it is checked at as `minWidth`.
+ * @type {ReadonlyArray<{
+ *   name: string, path: string, status?: number, as?: string, minWidth?: number
+ * }>}
  */
 export const PAGES = [
   { name: "home", path: "/" },
@@ -88,6 +91,7 @@ export const PAGES = [
   { name: "link-bad", path: "/discord/link?t=nope" },
   { name: "link", path: "/discord/link?t={LINK}" },
   { name: "link-confirm", path: "/discord/link?t={LINK}", as: "UPLOADER" },
+  { name: "stat-card", path: "/og/stats/{RANKED}?v=1", minWidth: 820 },
   { name: "notfound", path: "/no-such-page", status: 404 },
 ];
 

@@ -131,6 +131,10 @@ const ROUTES = [
   ["/og/daily/2026-08-30", 200, null, "PNG"],
   ["/og/daily/2026-07-01", 404],
   ["/og/nope/1", 404],
+  // a player's Stat Card (lib/stat-card.ts), which Multiballs fetches
+  ["/og/stats/" + P1 + "?v=1", 200, null, "PNG"],
+  ["/og/stats/76561199000000099", 404],
+  ["/og/stats/nope", 404],
   [
     "/player/" + P1 + "/circuit",
     200,
