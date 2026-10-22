@@ -16,11 +16,13 @@ if (!base || !out || !keys.length) {
 }
 const { chromium } = createRequire(resolve("web/package.json"))("playwright-core");
 mkdirSync(out, { recursive: true });
-/* Will's PC has Chrome and Edge but no Playwright browser; a cloud session has Playwright's */
+/* Will's PC has Chrome and Edge but no Playwright browser; a cloud session has Playwright's,
+   at /opt/pw-browsers/chromium when web's playwright-core wants a newer build than the image's */
 const browser = await chromium
   .launch({ channel: "chrome" })
   .catch(() => chromium.launch({ channel: "msedge" }))
-  .catch(() => chromium.launch());
+  .catch(() => chromium.launch())
+  .catch(() => chromium.launch({ executablePath: "/opt/pw-browsers/chromium" }));
 for (const arg of keys) {
   const [key, only] = arg.split(":");
   const page = await browser.newPage({ viewport: { width: 1200, height: 1000 }, deviceScaleFactor: 0.5 });

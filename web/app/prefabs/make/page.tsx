@@ -1,4 +1,4 @@
-// /prefabs/make: the Prefabs page's Make your own tab, a card per Generator
+// /prefabs/make: the Prefabs page's Generate your own tab, a card per Generator
 // (components/prefabs/make/MakeGallery).
 import type { Metadata } from "next";
 

@@ -117,6 +117,10 @@ const COLOURS: Array<[RegExp, string]> = [
   [/Wine/i, "#7a2a3a"],
 ];
 
+/** the colour the viewer draws a material in */
+export const colourOf = (material: string) =>
+  COLOURS.find(([re]) => re.test(material))?.[1] ?? UNKNOWN_COLOUR;
+
 export interface Shape {
   kind: ShapeKind;
   /** the stand-in's own size in metres, along three's x, y (up), z */
@@ -139,7 +143,7 @@ export function pieceName(item: PrefabItem) {
 }
 
 /* Unreal's FRotator [pitch, yaw, roll] in degrees, as the three axes it sends local x, y, z to */
-function rotationRows([pitch, yaw, roll]: Vec3): [Vec3, Vec3, Vec3] {
+export function rotationRows([pitch, yaw, roll]: Vec3): [Vec3, Vec3, Vec3] {
   const r = Math.PI / 180;
   const [sp, cp] = [Math.sin(pitch * r), Math.cos(pitch * r)];
   const [sy, cy] = [Math.sin(yaw * r), Math.cos(yaw * r)];
@@ -191,7 +195,7 @@ export function shapesOf(file: PrefabFile): Array<Shape> {
       profile,
       size: [ext[0] / 100, ext[2] / 100, ext[1] / 100],
       matrix: [...ax, 0, ...ay, 0, ...az, 0, ...o, 1],
-      colour: COLOURS.find(([re]) => re.test(material))?.[1] ?? UNKNOWN_COLOUR,
+      colour: colourOf(material),
       glow: /Emissive/i.test(material),
       piece,
       material,

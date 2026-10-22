@@ -1,6 +1,7 @@
-// The Generators (CONTEXT.md; specs #299 and #310): signs, trees and buildings, each making a
-// Prefab file from a few settings. A Generator is its category, controls, defaults and builder;
-// the page draws whatever controls() returns, so a new Generator is one entry in GENERATORS.
+// The Generators (CONTEXT.md; specs #299 and #310): useful things, course pieces, decor, trees
+// and buildings, each making a Prefab file from a few settings. A Generator is its category,
+// controls, defaults and builder; the page draws whatever controls() returns, so a new
+// Generator is one entry in GENERATORS.
 // Settled on the never-merged branches claude/prototype-prefab-generators and
 // claude/prototype-make-your-own.
 //
@@ -12,9 +13,12 @@
 // which looks along +X with +Y on its right, so it faces whoever spawned it (checked in game).
 import { PIXEL_LETTERING, type Lettering } from "../generator-letters";
 import { castle, house, tower } from "./buildings";
+import { fence, finishArch, fountain, lampPost, trophy } from "./decor";
 import { blockTree, bush, pine, tree } from "./nature";
 import type { Generator, Values } from "./pieces";
+import { jump, loop, plinko, rollers, spiral } from "./racing";
 import { qr, sign } from "./signs";
+import { arrowSign, bridge, floorTiles, pixelArt, stairs } from "./useful";
 
 export type { Grid, Lettering } from "../generator-letters";
 export { PIXEL_LETTERING } from "../generator-letters";
@@ -31,10 +35,27 @@ export {
 } from "./pieces";
 export { fitText } from "./signs";
 export { VOXEL_KINDS, voxelBoxes, voxelTree } from "./nature";
+export { MARBLE, PICTURE_MOST, pictureOf, readPicture } from "./useful";
+export { rotOf } from "./pieces";
 
 export const GENERATORS: ReadonlyArray<Generator> = [
   qr,
   sign,
+  arrowSign,
+  pixelArt,
+  stairs,
+  bridge,
+  floorTiles,
+  spiral,
+  loop,
+  jump,
+  plinko,
+  rollers,
+  lampPost,
+  fountain,
+  trophy,
+  fence,
+  finishArch,
   tree,
   pine,
   blockTree,
