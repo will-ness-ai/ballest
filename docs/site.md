@@ -73,7 +73,8 @@ then starts over from its new first rows. Nothing polls while a tab is open.
 Sign in with Steam (ADR 0008) never touches a page's cache: the session cookie is signed
 with `SESSION_SECRET` and only `/api/me` reads it, from the browser, which asks only when
 the readable `ballest-in` cookie says a session exists. Without `SESSION_SECRET` nobody can
-sign in and every page works as before.
+sign in and every page works as before. The one page that reads it while it draws is the
+link page (`/discord/link`, ADR 0014), which is never cached.
 
 Every Circuit board and every Players view is prerendered at build. A player, a Map or a
 head to head is prerendered for a handful of the busiest, and anyone else is served from
@@ -268,6 +269,17 @@ fails to load, or that Satori can't read, draws without it.
   whether anyone is signed in, the strip, those rows and the gains line are drawn unseen,
   out of reach, holding their place, so a signed-out page doesn't jump when they show and
   a signed-in visitor never sees Sign in.
+- `/discord/link?t=<token>`: the Stats Link's page (ADR 0014), where Multiballs sends a member
+  who pressed See my stats to pair their Discord account with their Steam sign-in
+  (`components/discord/LinkView.tsx` over `linkPageOf` in `db/stats-link.ts`). In the shell,
+  lighting no tab, with /you's heading and sign-in strip. A token nobody wrote, one over 15
+  minutes old and one already used each say so and send the reader back to See my stats.
+  Signed out, Sign in with Steam comes back to it; signed in, it asks "Pair Discord account
+  <name> with <persona>?", the persona from the boards, else the Steam profile, with Pair (a
+  POST to `/api/discord/link?t=`, so a link preview can't use the token) and "Not you? Sign in
+  as someone else", which signs out and comes back. Pair answers back to the page, which then
+  says it is done. The one page that reads the session while it draws, so it is never cached
+  and robots.txt keeps crawlers off it. `qa`'s `link` and `link-confirm` draw tiny's request.
 - `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
   upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators. The Prefabs
   tab comes last and is lit on all of them. See "Prefabs" and "Generators".
