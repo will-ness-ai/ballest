@@ -473,11 +473,11 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
           const { id = "", action = "" } = yield* HttpRouter.params;
           const known = ACTIONS.find((a) => a === action);
           if (known === undefined) return yield* new NotFound({ closed: null });
-          const venue = here(who.venue);
-          yield* venue.notElsewhere(id);
+          const ours = here(who.venue);
+          yield* ours.notElsewhere(id);
           yield* engine[known](who.discordId, id);
           return yield* reply(
-            yield* venue.get(id),
+            yield* ours.get(id),
             who,
             yield* pings.offerAfter(who.venue.name, known, who.discordId),
           );
