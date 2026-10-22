@@ -229,6 +229,12 @@ const ROUTES = [
   ["/api/prefabs/twin-cubes/favorite", 200, null, '"favorites":0'],
   ["/api/prefabs/nope/favorite", 404],
   ["/api/prefabs/twin-cubes", 405],
+  // the Stats Link's page (tiny's link request, signed out) and its confirm, which only POSTs
+  ["/discord/link?t=5eed0000000000000000000000000001", 200, null, "rae.disc"],
+  ["/discord/link?t=nope", 200, null, "This link doesn&#x27;t work"],
+  ["/discord/link", 200, null, "See my stats"],
+  ["/api/discord/link?t=nope", 405],
+  ["/robots.txt", 200, null, "Disallow: /discord/"],
   ["/no-such-page", 404],
 ];
 
