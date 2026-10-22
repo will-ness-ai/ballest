@@ -1,6 +1,6 @@
 // The PingRole port on discord.js: each running Venue's @Multiplayer ping role on its server, over
 // REST (the Gateway intents stay at Guilds). Every read fetches the member afresh, so a
-// moderator's change shows at once. The Discord service checked at startup that the bot can
+// moderator's change shows at once. The Discord service checked as each Venue started that the bot can
 // manage each one.
 import type { Guild } from "discord.js";
 import { Effect, Layer, Option } from "effect";

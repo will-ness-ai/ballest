@@ -75,14 +75,14 @@ export const tryDiscord = <A>(op: string, run: () => Promise<A>) =>
 const readDiscord = <A>(op: string, run: () => A) =>
   Effect.try({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
 
-/** A running Venue on discord.js: checked at startup, so the bot can do everything it needs there. */
+/** A running Venue on discord.js: checked as it started, so the bot can do everything it needs there. */
 export interface DiscordVenue {
   readonly name: VenueName;
   /** Its Match channel. */
   readonly channel: TextChannel;
   /** Its @Multiplayer ping role's id: the bot can give, take and mention it. */
   readonly pingRoleId: string;
-  /** That role's name on the server, as it was at startup: the words name the role by it. */
+  /** That role's name on the server, as it was when the Venue started: the words name the role by it. */
   readonly pingRoleName: string;
   /** The member's name in this Venue's server, for thread titles and images. */
   readonly displayName: (discordId: string) => Effect.Effect<string>;
@@ -330,16 +330,22 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
         (onInteraction) => Effect.sync(() => client.off(Events.InteractionCreate, onInteraction)),
       ),
     ).pipe(
-      Stream.mapEffect((i) =>
-        Effect.gen(function* () {
-          const venue = [...(yield* SubscriptionRef.get(running)).values()].find((v) => isIn(v, i));
-          if (venue !== undefined) return Option.some<VenueInteraction>({ interaction: i, venue });
-          if (!sandbox && i.isRepliable())
-            yield* tryDiscord("reply", () =>
-              i.reply({ content: "Multiballs only works in its own channel.", ephemeral: true }),
-            ).pipe(Effect.ignore);
-          return Option.none<VenueInteraction>();
-        }),
+      Stream.mapEffect(
+        (i) =>
+          Effect.gen(function* () {
+            const venue = [...(yield* SubscriptionRef.get(running)).values()].find((v) =>
+              isIn(v, i),
+            );
+            if (venue !== undefined)
+              return Option.some<VenueInteraction>({ interaction: i, venue });
+            if (!sandbox && i.isRepliable())
+              yield* tryDiscord("reply", () =>
+                i.reply({ content: "Multiballs only works in its own channel.", ephemeral: true }),
+              ).pipe(Effect.ignore);
+            return Option.none<VenueInteraction>();
+          }),
+        // A reply to a click from elsewhere never holds up the clicks behind it.
+        { concurrency: "unbounded", unordered: true },
       ),
       Stream.filterMap((clicked) => clicked),
     );
