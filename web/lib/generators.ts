@@ -748,6 +748,40 @@ const boxAt = (at: V3, size: V3, c: Colour, rot: V3 = [0, 0, 0]) => {
   return piece("cube", add(at, mul(up, -size[2] / 2)), size, c, rot);
 };
 
+/* a pyramid roof `side` cm square and `rise` tall: SM_Pyramid's corners sit at the middle of its
+   bounds' edges, so it is turned 45° and grown by √2 to cover the square */
+const pyramid = (at: V3, side: number, rise: number, c: Colour) =>
+  piece("pyramid", at, [side * Math.SQRT2, side * Math.SQRT2, rise], c, 45);
+
+/* the two slabs of a pitched roof over a building `span` cm across, its ridge `length` long
+   along Y (or along X), sloping at `pitch`° from the wall top at `top` out past an eave */
+function slopes(
+  span: number,
+  length: number,
+  alongY: boolean,
+  eave: number,
+  pitch: number,
+  top: number,
+  c: Colour,
+) {
+  const half = span / 2 + eave;
+  const tan = Math.tan(pitch * DEG);
+  const z = top + (tan * (span / 2)) / 2 - (tan * eave) / 2 + 8;
+  return [-1, 1].map((s) =>
+    alongY
+      ? boxAt([(s * half) / 2, 0, z], [half / Math.cos(pitch * DEG), length, 15], c, [
+          -s * pitch,
+          0,
+          0,
+        ])
+      : boxAt([0, (s * half) / 2, z], [length, half / Math.cos(pitch * DEG), 15], c, [
+          0,
+          0,
+          -s * pitch,
+        ]),
+  );
+}
+
 interface Opening {
   /* along the wall from its left end, its middle, and its width, bottom and top, in cm */
   at: number;
@@ -805,6 +839,7 @@ const house: Generator = {
     pitch: 35,
     windows: 3,
     door: true,
+    chimney: true,
     walls: "White",
     roofc: "Wine",
     trim: "Dark",
@@ -818,6 +853,7 @@ const house: Generator = {
     ...(v.roof === "Flat" ? [] : [num("pitch", "Roof slope", 15, 55, 1, "°", true)]),
     num("windows", "Windows a side", 0, 8, 1),
     { key: "door", label: "Front door", kind: "toggle" },
+    { key: "chimney", label: "Chimney", kind: "toggle", more: true },
     num("storey", "Floor height", 2.5, 5, 0.1, "m", true),
     colour("walls", "Walls"),
     colour("roofc", "Roof"),
@@ -857,6 +893,15 @@ const house: Generator = {
           if (o.bottom > 0)
             items.push(
               boxAt(
+                [x + (x < 0 ? -12 : 12), -W / 2 + o.at, z + o.bottom - 5],
+                [24, o.width + 20, 10],
+                colourIn(v, "trim"),
+              ),
+            );
+        for (const o of holes)
+          if (o.bottom > 0)
+            items.push(
+              boxAt(
                 [x, -W / 2 + o.at, z + (o.bottom + o.top) / 2],
                 [4, o.width, o.top - o.bottom],
                 colourIn(v, "glass"),
@@ -872,6 +917,14 @@ const house: Generator = {
         for (const o of holesSide)
           items.push(
             boxAt(
+              [-D / 2 + t + o.at, y + (y < 0 ? -12 : 12), z + o.bottom - 5],
+              [o.width + 20, 24, 10],
+              colourIn(v, "trim"),
+            ),
+          );
+        for (const o of holesSide)
+          items.push(
+            boxAt(
               [-D / 2 + t + o.at, y, z + (o.bottom + o.top) / 2],
               [o.width, 4, o.top - o.bottom],
               colourIn(v, "glass"),
@@ -883,7 +936,23 @@ const house: Generator = {
     const top = 20 + floors * h;
     const roofc = colourIn(v, "roofc");
     const eave = 40;
+    const p = numberIn(v, "pitch");
+    const tan = Math.tan(p * DEG);
+    if (v.chimney) {
+      /* through the back slope, a third of the way along, standing clear of the ridge */
+      const ridgeZ = v.roof === "Flat" ? top + 80 : top + tan * (Math.min(W, D) / 2);
+      const cx = D / 4;
+      const cz = v.roof === "Flat" ? top : top + tan * (D / 2 - cx);
+      items.push(
+        boxAt(
+          [cx, W / 4, (cz - 40 + ridgeZ + 60) / 2],
+          [60, 60, ridgeZ + 60 - (cz - 40)],
+          colourIn(v, "trim"),
+        ),
+      );
+    }
     if (v.roof === "Flat") {
+      items.push(boxAt([0, 0, top + 6], [D - 40, W - 40, 12], roofc));
       for (const [at, size] of [
         [
           [-D / 2 + 10, 0, top + 40],
@@ -904,29 +973,29 @@ const house: Generator = {
       ] as Array<[V3, V3]>)
         items.push(boxAt(at, size, roofc));
     } else if (v.roof === "Hip") {
-      const rise = Math.tan(numberIn(v, "pitch") * DEG) * (Math.min(W, D) / 2 + eave);
-      items.push(piece("pyramid", [0, 0, top], [D + 2 * eave, W + 2 * eave, rise], roofc));
+      /* a ridge along the longer side, ending in a pyramid at each end whose inner half sits
+         under the ridge's slabs */
+      const short = Math.min(W, D);
+      const ridge = Math.abs(W - D);
+      const alongY = W >= D;
+      const base = top - tan * eave - 3;
+      for (const e of ridge > 0 ? [-1, 1] : [0]) {
+        const at: V3 = alongY ? [0, (e * ridge) / 2, base] : [(e * ridge) / 2, 0, base];
+        items.push(pyramid(at, short + 2 * eave, tan * (short / 2 + eave), roofc));
+      }
+      if (ridge > 0) items.push(...slopes(short, ridge, alongY, eave, p, top, roofc));
     } else {
-      /* two slabs meeting over the ridge, which runs across the front; stepped gable ends */
-      const p = numberIn(v, "pitch");
-      const half = D / 2 + eave;
-      const slope = half / Math.cos(p * DEG);
-      const rise = Math.tan(p * DEG) * (D / 2);
-      for (const s of [-1, 1])
-        items.push(
-          boxAt(
-            [(s * half) / 2, 0, top + rise / 2 - (Math.tan(p * DEG) * eave) / 2 + 8],
-            [slope, W + 2 * eave, 15],
-            roofc,
-            [-s * p, 0, 0],
-          ),
-        );
-      const steps = Math.max(1, Math.round(rise / 40));
+      /* two slabs meeting over the ridge, which runs across the front; stepped gable ends kept
+         under the roof's line */
+      items.push(...slopes(D, W + 2 * eave, true, eave, p, top, roofc));
+      const rise = tan * (D / 2);
+      const steps = Math.max(1, Math.round(rise / 20));
+      const sh = rise / steps;
       for (let i = 0; i < steps; i++) {
-        const sh = rise / steps;
-        const sw = D * (1 - (i + 0.5) / steps);
-        for (const y of [-W / 2 + t / 2, W / 2 - t / 2])
-          items.push(boxAt([0, y, top + i * sh + sh / 2], [sw, t, sh], walls));
+        const sw = Math.max(0, (2 * (rise - (i + 1) * sh)) / tan);
+        if (sw > 5)
+          for (const y of [-W / 2 + t / 2, W / 2 - t / 2])
+            items.push(boxAt([0, y, top + i * sh + sh / 2], [sw, t, sh], walls));
       }
     }
     return fileOf(items);
@@ -942,6 +1011,7 @@ const tower: Generator = {
   file: "tower",
   angle: { from: [-0.7, 0.35, 0.62], zoom: 1, pan: [0, 0, 0] },
   defaults: {
+    shape: "Square",
     width: 14,
     floors: 24,
     storey: 3.5,
@@ -954,6 +1024,7 @@ const tower: Generator = {
     top: "Dark",
   },
   controls: () => [
+    { key: "shape", label: "Shape", kind: "choice", options: ["Square", "Round"] },
     num("width", "Width", 6, 60, 1, "m"),
     num("floors", "Floors", 3, 80, 1),
     num("setbacks", "Setbacks", 0, 4, 1),
@@ -971,17 +1042,39 @@ const tower: Generator = {
     const sections = numberIn(v, "setbacks") + 1;
     const per = Math.ceil(floors / sections);
     const frame = colourIn(v, "frame");
+    const glass = colourIn(v, "glass");
+    const top = colourIn(v, "top");
+    const round = v.shape === "Round";
+    /* a block, or a drum, `w` across and `ht` tall from z */
+    const mass = (w: number, ht: number, z: number, c: Colour) =>
+      round
+        ? piece("cylinder", [0, 0, z], [w, w, ht], c)
+        : boxAt([0, 0, z + ht / 2], [w, w, ht], c);
     const items: Array<PrefabItem> = [];
     let W = metresIn(v, "width");
-    let z = 0;
+    /* a lobby: the ground floor set back in the top colour, a canopy over the front door */
+    items.push(mass(W - 80, h, 0, top));
+    items.push(boxAt([-W / 2 - 40, 0, h * 0.75], [160, Math.min(600, W * 0.4), 20], frame));
+    let z = h;
     for (let s = 0; s < sections; s++) {
-      const n = Math.min(per, floors - s * per);
+      const n = Math.min(per, floors - 1 - s * per);
       if (n <= 0) break;
-      items.push(boxAt([0, 0, z + (n * h) / 2], [W - 30, W - 30, n * h], colourIn(v, "glass")));
-      for (let f = 0; f <= n; f++) items.push(boxAt([0, 0, z + f * h], [W, W, 40], frame));
+      items.push(mass(W - 30, n * h, z, glass));
+      for (let f = 0; f <= n; f++) items.push(mass(W, 40, z + f * h - 20, frame));
       const cols = numberIn(v, "columns");
-      for (let c = 0; c <= cols + 1 && cols > 0; c++) {
-        const u = -W / 2 + (c * W) / (cols + 1);
+      for (let c = 0; c <= cols && cols > 0; c++) {
+        if (round) {
+          const a = (c / (cols + 1)) * Math.PI * 2;
+          items.push(
+            boxAt(
+              [Math.cos(a) * (W / 2 - 15), Math.sin(a) * (W / 2 - 15), z + (n * h) / 2],
+              [30, 30, n * h],
+              frame,
+            ),
+          );
+          continue;
+        }
+        const u = -W / 2 + (c * W) / cols;
         for (const [x, y] of [
           [-W / 2 + 15, u],
           [W / 2 - 15, u],
@@ -991,15 +1084,29 @@ const tower: Generator = {
           items.push(boxAt([x, y, z + (n * h) / 2], [30, 30, n * h], frame));
       }
       z += n * h;
-      W *= 1 - numberIn(v, "step") / 100;
+      if (s < sections - 1) W *= 1 - numberIn(v, "step") / 100;
     }
-    const top = colourIn(v, "top");
-    if (v.crown === "Spire")
-      items.push(piece("cone", [0, 0, z + 20], [W * 0.5, W * 0.5, W * 1.4], top));
-    else if (v.crown === "Antenna") {
-      items.push(boxAt([0, 0, z + 80], [W * 0.4, W * 0.4, 160], top));
-      items.push(piece("cylinder", [0, 0, z + 160], [30, 30, W * 1.6], top));
-    } else items.push(boxAt([0, 0, z + 60], [W * 0.6, W * 0.6, 120], top));
+    const tall = z;
+    if (v.crown === "Spire") {
+      const sw = W * 0.45;
+      items.push(
+        piece(
+          round ? "cone" : "pyramid",
+          [0, 0, z + 20],
+          round
+            ? [sw, sw, Math.min(sw * 3, tall * 0.25)]
+            : [sw * Math.SQRT2, sw * Math.SQRT2, Math.min(sw * 3, tall * 0.25)],
+          top,
+          round ? 0 : 45,
+        ),
+      );
+    } else if (v.crown === "Antenna") {
+      items.push(mass(W * 0.4, 200, z, top));
+      const mast = Math.max(40, W * 0.05);
+      items.push(
+        piece("cylinder", [0, 0, z + 200], [mast, mast, Math.min(W * 2, tall * 0.2)], frame),
+      );
+    } else items.push(mass(W * 0.6, 120, z, top));
     return fileOf(items);
   },
 };
@@ -1018,7 +1125,7 @@ const castle: Generator = {
     keep: true,
     gate: 4,
     merlons: 1,
-    stone: "Iron",
+    stone: "Aluminum",
     roofc: "Wine",
     gatec: "Copper",
   },
@@ -1063,6 +1170,25 @@ const castle: Generator = {
         }),
       );
       if (holes.length) {
+        /* square towers either side of the gate, a little taller than the wall */
+        for (const e of [-1, 1]) {
+          const gt = Math.max(320, gate * 0.75);
+          const gy = e * (gate / 2 + gt / 2);
+          items.push(boxAt([c[0], gy, (H * 1.4) / 2], [gt * 1.2, gt, H * 1.4], stone));
+          for (const [dx, dy] of [
+            [-1, -1],
+            [-1, 1],
+            [1, -1],
+            [1, 1],
+          ])
+            items.push(
+              boxAt(
+                [c[0] + dx * gt * 0.45, gy + dy * gt * 0.38, H * 1.4 + 40],
+                [gt * 0.3, gt * 0.24, 80],
+                stone,
+              ),
+            );
+        }
         const m = along(0);
         items.push(
           boxAt(
@@ -1084,14 +1210,27 @@ const castle: Generator = {
         [S / 2, -S / 2],
         [S / 2, S / 2],
       ]) {
-        const d = Math.max(300, S * 0.18);
-        items.push(piece("cylinder", [x, y, 0], [d, d, H * 1.35], stone));
-        items.push(piece("cone", [x, y, H * 1.35], [d * 1.2, d * 1.2, d * 1.1], roofc));
+        const d = Math.min(700, Math.max(200, S * 0.16));
+        const th = H * 1.35;
+        items.push(piece("cylinder", [x, y, 0], [d, d, th], stone));
+        /* a ring of battlements round the top, under the roof's eaves */
+        for (let k = 0; k < 8; k++) {
+          const a = (k / 8) * Math.PI * 2;
+          items.push(
+            boxAt(
+              [x + Math.cos(a) * d * 0.5, y + Math.sin(a) * d * 0.5, th + 35],
+              [d * 0.22, d * 0.22, 70],
+              stone,
+              [0, a / DEG, 0],
+            ),
+          );
+        }
+        items.push(piece("cone", [x, y, th + 70], [d * 1.1, d * 1.1, d * 1.1], roofc));
       }
     if (v.keep) {
       const k = S * 0.32;
       items.push(boxAt([S * 0.1, 0, H * 0.9], [k, k, H * 1.8], stone));
-      items.push(piece("pyramid", [S * 0.1, 0, H * 1.8], [k * 1.1, k * 1.1, k * 0.6], roofc));
+      items.push(pyramid([S * 0.1, 0, H * 1.8], k * 1.05, k * 0.55, roofc));
     }
     return fileOf(items);
   },
