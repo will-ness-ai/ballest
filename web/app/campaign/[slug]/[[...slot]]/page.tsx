@@ -38,13 +38,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     slot.length === 1 || (slot.length === 2 && eventOf(slot[0]))
       ? maps.find((x) => x.pfid === slot[0])
       : undefined;
-  /* an Event board has no page of its own, so this slot is the one to index, with the
-     Campaign's card; in a Campaign of that one Map, the Campaign's page holds the same board */
+  /* an Event board has no page of its own, so this slot is the one to index (its times,
+     where the Campaign's page shows points), with the Campaign's card */
   if (m && eventOf(m.pfid))
     return pageMetadata(
       {
         title: `${c.title} ${mapLabel(c, m.pfid, m.title)}`,
-        canonical: c.maps.length === 1 ? campaignHref(c.slug) : campaignHref(c.slug, m.pfid),
+        canonical: campaignHref(c.slug, m.pfid),
         description: `The leaderboard of ${m.title}, an event board of Ballest of Them All, read from Steam after the event ended.`,
       },
       {

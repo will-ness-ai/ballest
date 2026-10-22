@@ -125,18 +125,22 @@ async def read_boards(fetch, boards):
         out.append(board)
         try:
             total, rows = await fetch(lid)
+            board.update(entry_count=int(total or len(rows)), rows=rows)
+            print(f"  {name:34s} total={int(total or 0):6d} pulled={len(rows)}")
         except Exception as e:
+            board["rows"] = []
+            board.pop("entry_count", None)
             failed.append(name)
             print(f"  [warn] read failed: {name}: {e!r}")
-            continue
-        board.update(entry_count=int(total or len(rows)), rows=rows)
-        print(f"  {name:34s} total={int(total or 0):6d} pulled={len(rows)}")
     return out, failed
 
 
 async def read_events(fetch, read_ok):
     """The Event step: read_boards over the Event boards events_due names."""
-    return await read_boards(fetch, [(name, lid, None) for name, lid in events_due(read_ok)])
+    due = events_due(read_ok)
+    if due:
+        print(f"Event boards with no good read yet: {', '.join(name for name, _ in due)}")
+    return await read_boards(fetch, [(name, lid, None) for name, lid in due])
 
 
 # Map_TheTower is parked, not deleted: it reports an internal metric rather than

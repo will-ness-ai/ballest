@@ -61,3 +61,10 @@ def test_the_circuit_read_keeps_each_boards_group_and_goes_on_past_a_failure():
         ("Map_Track15", "Season 1", 0),
     ]
     assert failed == ["Map_Track15"]
+
+
+def test_a_read_whose_answer_is_malformed_is_a_failed_board_too():
+    async def fetch(_lid):
+        return "not a count", [{"steam_id": "1001", "score_ms": 1}]
+
+    assert run(fetch) == ([{"name": LETH, "group": None, "handle": "20899741", "rows": []}], [LETH])

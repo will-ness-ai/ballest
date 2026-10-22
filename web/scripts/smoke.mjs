@@ -61,7 +61,8 @@ const ROUTES = [
   ["/campaign/leth-trials", 200, null, "Lethamyr"],
   ["/campaign/leth-trials/leth-trial-1", 200, null, "Ghost viewer"],
   ["/api/board/Map_LethTrial_01?from=0&count=3", 200, null, "Twizzle"],
-  ["/campaign/leth-trials/leth-trial-1/76561199000000004", 200, null, "Slowpoke"],
+  // a row after the Event's id is marked on the Event's board: Slowpoke's plate
+  ["/campaign/leth-trials/leth-trial-1/76561199000000004", 200, null, 'class="plate focus"'],
   ["/campaign/solar-trials/3805399883/76561199000000004", 404],
   ["/campaign/solar-trials/3805394429", 200, null, SOFT_404],
   ["/campaign/ajc", 200, null, SOFT_404],

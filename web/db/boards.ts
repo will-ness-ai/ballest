@@ -67,7 +67,7 @@ export function campaignListedSql(c: Campaign) {
     where board = any(${array(campaignMapBoards(c))})`;
   const events = c.maps.flatMap((id) => eventOf(id)?.board ?? []);
   if (!events.length) return listed;
-  return sql`${listed} union
+  return sql`${listed} union all
     select b.name from boards b
     where b.name = any(${array(events)}) and b.kind = 'event'
       and exists (select 1 from entries e where e.board = b.name and e.closed_refresh is null)`;
