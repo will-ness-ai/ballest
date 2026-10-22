@@ -33,7 +33,7 @@ import {
   getCampaigns,
   getPlacesOf,
 } from "../../db/data";
-import { campaignBoard, mapLabel } from "../../lib/campaigns";
+import { campaignBoard, eventOf, mapLabel } from "../../lib/campaigns";
 import type { IndexBoard } from "../../lib/player";
 import { podiumRows } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref, campaignHref, campaignSlot } from "../../lib/routes";
@@ -107,7 +107,13 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
         )}
 
         {/* You on the points order only: the podium order ranks no one by score */}
-        {!podiums && <YouBanner name={name} field={page.total} medals={m?.medals ?? null} />}
+        {!podiums && (
+          <YouBanner
+            name={name}
+            field={page.total}
+            medals={m && !eventOf(m.pfid) ? m.medals : null}
+          />
+        )}
 
         {podiums ? (
           <BoardBody

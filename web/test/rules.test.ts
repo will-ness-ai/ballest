@@ -23,6 +23,7 @@ import {
   personaOf,
   plural,
   relTime,
+  safeImg,
   shortGap,
   medalOf,
   timeMedal,
@@ -204,6 +205,15 @@ describe("a Daily", () => {
 });
 
 describe("Steam IDs and URLs", () => {
+  test("a picture is plain https or one of the site's own files, nothing else", () => {
+    expect(safeImg("https://images.steamusercontent.com/a.jpg")).toBe(
+      "https://images.steamusercontent.com/a.jpg",
+    );
+    expect(safeImg("/leth/preview.jpg")).toBe("/leth/preview.jpg");
+    for (const bad of ["http://x/a.jpg", "//evil.example/a.jpg", "javascript:alert(1)", null])
+      expect(safeImg(bad)).toBe("");
+  });
+
   test("only a plain Steam64 is an ID", () => {
     expect(isSteamId(ID)).toBe(true);
     expect(isSteamId("123")).toBe(false);

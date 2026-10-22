@@ -57,6 +57,10 @@ const ROUTES = [
   ["/campaign/solar-trials/" + P1, 200, null, "Rolling Rae"],
   ["/campaign/solar-trials/3805399883", 200, null, "01 Mercury"],
   ["/og/campaign/solar-trials", 200, null, "PNG"],
+  // the Leth Trials, pinned, of one Event board
+  ["/campaign/leth-trials", 200, null, "Lethamyr"],
+  ["/campaign/leth-trials/leth-trial-1", 200, null, "Ghost viewer"],
+  ["/api/board/Map_LethTrial_01?from=0&count=3", 200, null, "Twizzle"],
   ["/campaign/solar-trials/3805394429", 200, null, SOFT_404],
   ["/campaign/ajc", 200, null, SOFT_404],
   ["/campaign/ajc/podiums", 200, null, SOFT_404],

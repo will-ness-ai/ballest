@@ -17,7 +17,7 @@ import {
 } from "../../../../db/data";
 import { CAMPAIGN_MAX_PICTURES } from "../../../../lib/campaigns";
 import { circuitBoard } from "../../../../lib/circuit";
-import { isDailyDate } from "../../../../lib/routes";
+import { SITE_ORIGIN, isDailyDate } from "../../../../lib/routes";
 import { isSteamId, safeImg } from "../../../../lib/rules";
 import {
   campaignCard,
@@ -34,11 +34,12 @@ import {
 /* the largest picture a card takes; a Workshop preview is well under it */
 const MAX_PICTURE = 4 * 1024 * 1024;
 
-/* a picture from Steam's CDN as a data: URL; a slow, failed or oversized fetch draws the
-   fallback */
+/* a picture from Steam's CDN, or one of the site's own files as production serves it, as a
+   data: URL; a slow, failed or oversized fetch draws the fallback */
 async function remote(url: string | null | undefined) {
-  const u = safeImg(url);
-  if (!u) return null;
+  const safe = safeImg(url);
+  if (!safe) return null;
+  const u = safe.startsWith("/") ? SITE_ORIGIN + safe : safe;
   try {
     const r = await fetch(u, { signal: AbortSignal.timeout(3000) });
     const type = r.headers.get("content-type") ?? "";

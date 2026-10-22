@@ -332,12 +332,24 @@ off its Campaign's page until a Refresh lists it, so a preview can show fewer Ma
 one fixed Campaign, so look at the new one's page with
 `pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
+**Event boards and pinning.** A Campaign's `maps` may also name an Event board (CONTEXT.md)
+by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (committed under
+`leth/` and served from the site, since it has no Workshop preview) and the link its card
+gives in place of a Map page. The collector reads an Event board once (`docs/data.md`), so it
+counts toward its Campaign once it holds open Entries, and until then it is left out like a
+Map the Workshop doesn't list. Inside the frame it is drawn as a Map with no Medals, its card
+links the ghost viewer, it has no `/map/` page, and its slot's canonical and share card are the
+Campaign's. The board API serves it by name; a player's own finishes leave it out, since their
+place there shows on their Campaigns shelf. A Campaign with `pinned` is listed first wherever
+Campaigns are (`getCampaigns`), whatever its player count: the Leth Trials, Leth Trial #1's
+Campaign, is. `stress` reads its Event board, so its builds list it first.
+
 **The board.** A Campaign's standings are a derived board named `OverallCampaign_<slug>`
 (`campaignBoard`). The `Overall` prefix makes it a points board to `isPoints` and
 `board_kind` with no special case, so every board piece (paging, search, You, plates, the
 Podiums sort, a row's focus) takes it through `/api/board/<name>` unchanged. Like Season 1
 Current it is never stored: `boardSql` (`db/boards.ts`) adds it up on every read from the
-open Entries of its Maps the Workshop lists, each place paying the Circuit's track points,
+open Entries of its Maps the Workshop lists (and its Event boards read), each place paying the Circuit's track points,
 equal totals ordered by the first Map (in the Campaign's order) a player is on, then their
 place there. A player is ranked once they have a time on one Map.
 

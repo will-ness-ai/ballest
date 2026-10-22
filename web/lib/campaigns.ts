@@ -6,7 +6,7 @@
 // A Campaign's standings are a derived board, OverallCampaign_<slug>, worked out on every
 // read from its Maps' boards (db/boards.ts). The Overall prefix makes it a points board to
 // isPoints and board_kind with no special case.
-import { isPfid } from "./rules";
+import { isPfid, mapBoard } from "./rules";
 
 export interface Campaign {
   /* its path, /campaign/<slug>: lowercase words joined by - */
@@ -16,9 +16,40 @@ export interface Campaign {
   creator: string;
   /* the maker's Steam ID */
   creatorId: string;
-  /* the Maps by Workshop ID, in the maker's order */
+  /* the Maps by Workshop ID, or an Event board by its id (EVENTS), in the maker's order */
   maps: ReadonlyArray<string>;
+  /* listed first wherever Campaigns are, whatever its player count */
+  pinned?: boolean;
 }
+
+/* An Event board (CONTEXT.md) a Campaign can hold as one of its Maps: a one-off event's
+   Steam board, which the collector reads once (EVENT_BOARDS in tools/campaign_common.py). */
+export interface EventBoard {
+  /* how a Campaign's maps and its paths name it: lowercase words joined by - */
+  id: string;
+  /* its Steam board */
+  board: string;
+  title: string;
+  /* its picture, one of the site's own files, in place of a Map's Workshop preview */
+  picture: string | null;
+  /* where its card links in place of a Map page */
+  link: string;
+}
+
+export const EVENTS: ReadonlyArray<EventBoard> = [
+  {
+    id: "leth-trial-1",
+    board: "Map_LethTrial_01",
+    title: "Leth Trial #1",
+    picture: "/leth/preview.jpg",
+    link: "/leth/",
+  },
+];
+
+export const eventOf = (id: string) => EVENTS.find((e) => e.id === id) ?? null;
+
+/* the board of one of a Campaign's Maps: an Event's own, else the Workshop Map's */
+export const campaignMapBoard = (id: string) => eventOf(id)?.board ?? mapBoard(id);
 
 /* makers of more than one Campaign, each written once */
 const HABIBAL = { creator: "habibal223366977", creatorId: "76561199154600151" };
@@ -239,6 +270,14 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
       "3821808619",
     ],
   },
+  {
+    slug: "leth-trials",
+    title: "Leth Trials",
+    creator: "Lethamyr",
+    creatorId: "76561198184322235",
+    maps: ["leth-trial-1"],
+    pinned: true,
+  },
 ];
 
 /* what is wrong with a list of Campaigns, in words; empty when it holds together */
@@ -253,7 +292,8 @@ export function campaignProblems(list: ReadonlyArray<Campaign>): Array<string> {
       out.push(`slug "${c.slug}" is not lowercase words joined by -`);
     if (!c.maps.length) out.push(`"${c.slug}" has no Maps`);
     for (const pfid of c.maps) {
-      if (!isPfid(pfid)) out.push(`"${c.slug}" lists "${pfid}", which is not a Workshop ID`);
+      if (!isPfid(pfid) && !eventOf(pfid))
+        out.push(`"${c.slug}" lists "${pfid}", which is not a Workshop ID or an Event`);
       const home = homes.get(pfid);
       if (home !== undefined) out.push(`Map ${pfid} is in "${home}" and "${c.slug}"`);
       homes.set(pfid, c.slug);

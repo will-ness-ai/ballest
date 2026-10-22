@@ -11,7 +11,7 @@ import { BoardSkeleton } from "../../../../components/Skeleton";
 import { CampaignView } from "../../../../components/campaign/CampaignView";
 import { pageMetadata } from "../../../../components/metadata";
 import { getCampaign } from "../../../../db/data";
-import { CAMPAIGNS, mapLabel, mapNumber } from "../../../../lib/campaigns";
+import { CAMPAIGNS, eventOf, mapLabel, mapNumber } from "../../../../lib/campaigns";
 import { PODIUM_SORT, campaignHref, mapHref } from "../../../../lib/routes";
 
 interface Props {
@@ -33,6 +33,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!data) return {};
   const { c, maps } = data;
   const m = slot.length === 1 ? maps.find((x) => x.pfid === slot[0]) : undefined;
+  /* an Event board has no page of its own, so this one is indexed, with the Campaign's card */
+  if (m && eventOf(m.pfid))
+    return pageMetadata(
+      {
+        title: `${c.title} ${mapLabel(c, m.pfid, m.title)}`,
+        canonical: campaignHref(c.slug, m.pfid),
+        description: `The leaderboard of ${m.title}, an event board of Ballest of Them All, read from Steam after the event ended.`,
+      },
+      {
+        kind: "campaign",
+        id: c.slug,
+        alt: `${c.title}, a Campaign by ${c.creator}, and its leader.`,
+      },
+    );
   if (m) {
     const title = `${c.title} ${mapLabel(c, m.pfid, m.title)}`;
     /* the same board as the Map's own page, which is the one to index */

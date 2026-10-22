@@ -311,6 +311,29 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
   return found;
 }
 
+/* What a Map card shows of each read Event board's (readEventsSql) board: its runs and top
+   three, as [board, runs, top3, gap13]; a board with no open Entries is left out */
+export async function eventBoards(
+  db: Db,
+  names: ReadonlyArray<string>,
+): Promise<
+  Array<{ board: string; runs: number; top3: WorkshopMap["top3"]; gap13: number | null }>
+> {
+  if (!names.length) return [];
+  return rows(
+    db,
+    sql`select r.board, count(*)::int as runs,
+        jsonb_agg(jsonb_build_array(r.steam_id, coalesce(p.persona, ''), r.score)
+          order by r.rank) filter (where r.rank <= 3) as top3,
+        (min(r.score) filter (where r.rank = 3) - min(r.score) filter (where r.rank = 1))::float8
+          as gap13
+      from (${rankedSql(sql`e.board = any(${array(names)})`)}) r
+      join players p on p.steam_id = r.steam_id
+      join boards b on b.name = r.board and b.kind = 'event'
+      group by r.board`,
+  );
+}
+
 /* A Map's file as the collector stored it (gzip-compressed) and its version, or null when
    the site holds none */
 export async function mapFile(
@@ -361,10 +384,11 @@ export async function playerData(
     )
   ).at(0);
   if (!profile) return null;
-  /* a Daily's board is the player's Daily record, read on its own */
+  /* a Daily's board is the player's Daily record, read on its own; an Event board's place
+     shows in their Campaigns */
   const theirs = sql`e.board in (select board from entries
     where steam_id = ${steamId} and closed_refresh is null)
-    and b.kind <> 'daily'`;
+    and b.kind not in ('daily', 'event')`;
   const finishes = await rows<PlayerFinish>(
     db,
     sql`select board, rank, score::float8 as score, lead::float8 as lead, field::int as field from (

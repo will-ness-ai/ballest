@@ -194,8 +194,11 @@ export function ageText(created: number, now = Date.now()) {
         : String(Math.round(d / 30)) + " months ago";
 }
 
-/* preview pictures come from Steam's CDN; anything that isn't plain https is dropped */
-export const safeImg = (u: string | null | undefined) => (u?.startsWith("https://") ? u : "");
+/* preview pictures come from Steam's CDN, an Event's from the site's own files (a path from
+   its root, never one that starts // or /\, which a browser reads as another host); anything
+   else is dropped */
+export const safeImg = (u: string | null | undefined) =>
+  u && (u.startsWith("https://") || /^\/[^/\\]/.test(u)) ? u : "";
 /* the link out to a Steam profile, likewise only plain http(s) */
 export const safeUrl = (u: string | null | undefined) => (u && /^https?:\/\//i.test(u) ? u : "");
 
