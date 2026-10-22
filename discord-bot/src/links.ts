@@ -19,6 +19,13 @@ export const escape = (s: string) =>
 /** A masked link to a page on the site; the <> stop Discord unfurling an embed. */
 export const siteLink = (text: string, path: string) => `[${escape(text)}](<${SITE_URL}${path}>)`;
 
+interface NamedMap {
+  readonly pfid: string;
+  readonly title: string;
+}
+
+/** What a Map is called: its Workshop title, or its ID when it has none. */
+export const mapName = (m: NamedMap) => m.title || m.pfid;
+
 /** The Map's name, linked to its page on the site. */
-export const mapLink = (m: { readonly pfid: string; readonly title: string }) =>
-  siteLink(m.title || m.pfid, `/map/${m.pfid}`);
+export const mapLink = (m: NamedMap) => siteLink(mapName(m), `/map/${m.pfid}`);

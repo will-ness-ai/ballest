@@ -28,7 +28,7 @@ import {
   pingsState,
   removePing,
 } from "../pingWords.js";
-import { mapLink, mapUrl, workshopUrl } from "../links.js";
+import { escape, mapLink, mapName, mapUrl, workshopUrl } from "../links.js";
 import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js";
 import { RESULT_HUE, START_HUE } from "../render/art.js";
 import type { CardView, KeptReason, ThreadPost } from "../ports.js";
@@ -158,7 +158,7 @@ const clockText = (v: CardView): string | null =>
         ? `**Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
         : null;
 
-const INVITE_GREY = 0x4e5058;
+const QUIET_GREY = 0x4e5058;
 const LIVE_LIME = 0x8be03c;
 
 /**
@@ -182,8 +182,8 @@ const lobbyLine = (v: CardView, roleId: string) =>
  */
 export const cardMessage = (v: CardView, png: Buffer, ping: CardPing): Payload => {
   const text = clockText(v);
-  const below = new EmbedBuilder().setColor(v.state === "live" ? LIVE_LIME : INVITE_GREY);
-  if (v.map !== null) below.setTitle(v.map.title || v.map.pfid).setURL(mapUrl(v.map.pfid));
+  const below = new EmbedBuilder().setColor(v.state === "live" ? LIVE_LIME : QUIET_GREY);
+  if (v.map !== null) below.setTitle(escape(mapName(v.map))).setURL(mapUrl(v.map.pfid));
   if (text !== null) below.setDescription(text);
   const lobby = v.type === "lobby";
   return {

@@ -247,7 +247,9 @@ describe("the Card", () => {
     const waiting = cardMessage({ ...card("live", "lobby"), waitingForSteam: true }, PNG, redrawn);
     expect(embeds(waiting)[0]?.url).toBe("https://ballestrecords.com/map/pf1");
     // The Invite keeps its Map sealed
-    expect(embeds(cardMessage(card("invite", "lobby"), PNG, redrawn))[0]?.url).toBeUndefined();
+    const [invite] = embeds(cardMessage(card("invite", "lobby"), PNG, redrawn));
+    expect(invite?.title).toBeUndefined();
+    expect(invite?.url).toBeUndefined();
   });
 
   it("keeps each row within Discord's five buttons", () => {
