@@ -53,20 +53,15 @@ const RACING_MEMBERS: Record<string, string> = {
 
 /** The home Venue's server and channel, and Ballest Racing's. */
 const VENUES = [
-  { name: HOME, guildId: "g1", channelId: "c1" },
-  { name: RACING, guildId: "g2", channelId: "c2" },
+  { name: HOME, guildId: "g1", channelId: "c1", pingRoleName: "Multiplayer ping" },
+  { name: RACING, guildId: "g2", channelId: "c2", pingRoleName: "ballest-racing ping" },
 ];
 const MEMBERS_IN: Record<string, Record<string, string>> = {
   [HOME]: MEMBERS,
   [RACING]: RACING_MEMBERS,
 };
 
-const setup = (
-  opts: Parameters<typeof makeHarness>[0] & {
-    /** Where MatchLinks says a Match's Card is, by id, when not in its own Venue's channel. */
-    readonly placedIn?: Readonly<Record<string, string>>;
-  },
-) =>
+const setup = (opts: Parameters<typeof makeHarness>[0]) =>
   Effect.gen(function* () {
     const h = yield* makeHarness(opts);
     /** Tokens Discord has since revoked. */
@@ -89,16 +84,18 @@ const setup = (
     });
     /** Every Match's Card is message `msg-<id>` in its Venue's channel, and its thread `thread-<id>`. */
     const links = MatchLinks.of({
-      of: (matchId) =>
-        h.store.getMatch(matchId).pipe(
-          Effect.map(
-            Option.map((m) => ({
-              venue: opts.placedIn?.[matchId] ?? m.venue,
-              messageId: `msg-${matchId}`,
-              threadId: `thread-${matchId}`,
-            })),
+      of: (venue, matchId) =>
+        h.store
+          .getMatch(matchId)
+          .pipe(
+            Effect.map(
+              Option.flatMap((m) =>
+                m.venue === venue
+                  ? Option.some({ messageId: `msg-${matchId}`, threadId: `thread-${matchId}` })
+                  : Option.none(),
+              ),
+            ),
           ),
-        ),
     });
     const app = yield* makeActivityApi(VENUES).pipe(
       Effect.provideService(Engine, h.engine),
@@ -946,28 +943,6 @@ describe("each Venue's Activity", () => {
         body: { error: "NotFound", closed: null },
       });
     }),
-  );
-
-  it.scoped(
-    "links a Match into the channel its Card is in, and nowhere when that isn't running",
-    () =>
-      Effect.gen(function* () {
-        const { call, open } = yield* setup({
-          maps: [MAP],
-          placedIn: { m1: RACING, m2: "gone" },
-        });
-        const moved = yield* open(CARA.discordId, lobby);
-        const lost = yield* open(DAN.discordId, lobby);
-        expect([moved, lost]).toEqual(["m1", "m2"]);
-        const here = (yield* call("GET", "/api/matches", { as: BOB.discordId })).body.matches;
-        expect(here.map((m: any) => m.links)).toEqual([
-          {
-            card: `https://discord.com/channels/g2/c2/msg-${moved}`,
-            thread: `https://discord.com/channels/g2/thread-${moved}`,
-          },
-          null,
-        ]);
-      }),
   );
 
   it.scoped("keeps a Player Busy in every Venue, while showing their Match only in its own", () =>

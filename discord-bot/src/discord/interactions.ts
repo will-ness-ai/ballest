@@ -12,6 +12,7 @@ import { Context, Effect, Layer, Match, Option, Ref, Stream } from "effect";
 import { Engine } from "../engine.js";
 import { explain } from "../explain.js";
 import { Pings, warnPingRole } from "../pings.js";
+import { roleNamed } from "../pingWords.js";
 import { ChosenSkins, chosenSkinOf, Store, type ProfilePreview } from "../ports.js";
 import { Renderer, type RenderError } from "../render/renderer.js";
 import {
@@ -69,8 +70,9 @@ export const InteractionsLive = Layer.scopedDiscard(
     const chosenSkins = yield* ChosenSkins;
     const pings = yield* Pings;
     /** A Venue's @Multiplayer ping role, as the words mention and name it. */
-    const pingRoleIn = Effect.fn("pingRoleIn")(function* (venue: DiscordVenue) {
-      return { id: venue.pingRoleId, name: yield* pings.role(venue.name) };
+    const pingRoleIn = (venue: DiscordVenue) => ({
+      id: venue.pingRoleId,
+      name: roleNamed(venue.pingRoleName),
     });
     const previews = yield* Ref.make(new Map<string, ProfilePreview>());
     const pending = yield* Ref.make(new Map<string, Pending>());
@@ -114,9 +116,8 @@ export const InteractionsLive = Layer.scopedDiscard(
       i: ButtonInteraction,
       venue: DiscordVenue,
     ) {
-      const role = yield* pingRoleIn(venue);
       yield* tryDiscord("edit reply", () =>
-        i.editReply({ content: withPingFailure(i.message.content, role), ...quiet }),
+        i.editReply({ content: withPingFailure(i.message.content, pingRoleIn(venue)), ...quiet }),
       );
     });
 
@@ -126,12 +127,10 @@ export const InteractionsLive = Layer.scopedDiscard(
       venue: DiscordVenue,
       action: Action,
     ) {
-      if (yield* pings.offerAfter(venue.name, action, i.user.id)) {
-        const role = yield* pingRoleIn(venue);
+      if (yield* pings.offerAfter(venue.name, action, i.user.id))
         yield* tryDiscord("follow up", () =>
-          i.followUp({ ...pingOfferMessage(role), ...ephemeral }),
+          i.followUp({ ...pingOfferMessage(pingRoleIn(venue)), ...ephemeral }),
         );
-      }
     });
 
     /** Run a Card action; a rejection is explained privately to whoever clicked. */
@@ -187,7 +186,7 @@ export const InteractionsLive = Layer.scopedDiscard(
 
     /** A button pressed in `venue`'s channel or one of its Match Threads: it acts there. */
     const onButton = Effect.fn("onButton")(function* (i: ButtonInteraction, venue: DiscordVenue) {
-      const pingRole = yield* pingRoleIn(venue);
+      const pingRole = pingRoleIn(venue);
       const control = parseControl(i.customId);
       const self = i.user.id;
       if (control === null) return;

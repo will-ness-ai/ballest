@@ -62,6 +62,7 @@ const MIGRATIONS: Migrations = {
   // Venues (spec #315): each Venue's channel has its own Footer and Cards, so the layout is kept
   // per Venue. The one row there was is the home Venue's, so a deploy finds its Footer in place.
   // `discord_layout` stays as it was, so a rollback to the build before Venues still starts.
+  // The copy runs once: a redeploy after a rollback picks up the layout from before the rollback.
   "0008_venue_layouts": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE venue_layouts (venue TEXT PRIMARY KEY, data TEXT NOT NULL)`;

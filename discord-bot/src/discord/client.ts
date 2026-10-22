@@ -64,6 +64,10 @@ export const isUnknown = (e: DiscordError) =>
 export const tryDiscord = <A>(op: string, run: () => Promise<A>) =>
   Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
 
+/** A synchronous discord.js read that can throw (a cache it expects isn't there). */
+const readDiscord = <A>(op: string, run: () => A) =>
+  Effect.try({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
+
 /** A running Venue on discord.js: checked at startup, so the bot can do everything it needs there. */
 export interface DiscordVenue {
   readonly name: VenueName;
@@ -86,9 +90,9 @@ const plainName = (name: string) => name.normalize("NFKC");
  * Check one Venue as the bot needs it, or say in one line what is wrong: its channel is a text
  * channel in its server with every permission the bot uses, and its ping role can be given,
  * taken and mentioned (Lobby pings would otherwise go silently missing). Roles are read over
- * REST: the Gateway intents stay at Guilds.
+ * REST: the Gateway intents stay at Guilds. A discord.js call that throws fails the check too.
  */
-const checkVenue = Effect.fn("checkVenue")(
+export const checkVenue = Effect.fn("checkVenue")(
   function* (client: Client<true>, venue: VenueConfig) {
     const where =
       venue.name === HOME_VENUE ? "DISCORD_CHANNEL_ID" : `Venue "${venue.name}"'s channel`;
@@ -104,9 +108,12 @@ const checkVenue = Effect.fn("checkVenue")(
       return yield* new VenueCheckFailed({
         reason: `channel ${venue.channelId} is in server ${channel.guildId}, not ${venue.name === HOME_VENUE ? "DISCORD_GUILD_ID " : ""}${venue.guildId}`,
       });
-    const perms = channel.permissionsFor(client.user);
-    const missing = REQUIRED_PERMISSIONS.filter(([, flag]) => !perms?.has(flag)).map(
-      ([name]) => name,
+    const guild = yield* readDiscord("read the channel's server", () => channel.guild);
+    const perms = yield* readDiscord("read the bot's permissions", () =>
+      channel.permissionsFor(client.user),
+    );
+    const missing = yield* readDiscord("read the bot's permissions", () =>
+      REQUIRED_PERMISSIONS.filter(([, flag]) => !perms?.has(flag)).map(([name]) => name),
     );
     if (missing.length > 0)
       return yield* new VenueCheckFailed({
@@ -114,14 +121,14 @@ const checkVenue = Effect.fn("checkVenue")(
       });
 
     const pingRole = yield* tryDiscord("fetch ping role", () =>
-      channel.guild.roles.fetch(venue.pingRoleId),
+      guild.roles.fetch(venue.pingRoleId),
     );
     if (pingRole === null)
       return yield* new VenueCheckFailed({
-        reason: `${venue.name === HOME_VENUE ? "DISCORD_PING_ROLE_ID" : "ping role"} ${venue.pingRoleId} is not a role in ${channel.guild.name}`,
+        reason: `${venue.name === HOME_VENUE ? "DISCORD_PING_ROLE_ID" : "ping role"} ${venue.pingRoleId} is not a role in ${guild.name}`,
       });
-    const self = yield* tryDiscord("fetch the bot's member", () => channel.guild.members.fetchMe());
-    const roleProblems = [
+    const self = yield* tryDiscord("fetch the bot's member", () => guild.members.fetchMe());
+    const roleProblems = yield* readDiscord("read the bot's roles", () => [
       ...(self.permissions.has(PermissionFlagsBits.ManageRoles)
         ? []
         : ["the Manage Roles permission"]),
@@ -133,17 +140,17 @@ const checkVenue = Effect.fn("checkVenue")(
         : [
             `a way to mention @${pingRole.name} (make the role mentionable, or allow Mention @everyone, @here and All Roles in #${channel.name})`,
           ]),
-    ];
+    ]);
     if (roleProblems.length > 0)
       return yield* new VenueCheckFailed({
         reason: `the bot can't use the ping role @${pingRole.name}: it needs ${roleProblems.join("; ")}`,
       });
     yield* Effect.log(
-      `Venue ${venue.name}: posting in #${channel.name} (${channel.guild.name}); pinging @${pingRole.name}`,
+      `Venue ${venue.name}: posting in #${channel.name} (${guild.name}); pinging @${pingRole.name}`,
     );
 
     const fetchMember = (discordId: string) =>
-      tryDiscord("fetch member", () => channel.guild.members.fetch(discordId));
+      tryDiscord("fetch member", () => guild.members.fetch(discordId));
     const running: DiscordVenue = {
       name: venue.name,
       channel,

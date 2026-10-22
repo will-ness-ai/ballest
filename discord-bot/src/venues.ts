@@ -3,7 +3,7 @@
 // it was before there were others; each other Venue is one entry of DISCORD_VENUES, a JSON list
 // of { name, guildId, channelId, pingRoleId } (ids, not secrets: it is set in fly.toml). Absent,
 // the bot plays in home alone, so `pnpm dev` and the sandbox need nothing new.
-import { Cause, Data, Effect, Either, Option, Schema } from "effect";
+import { Data, Effect, Either, Option, Schema } from "effect";
 import { HOME_VENUE, type VenueName } from "./domain.js";
 
 export interface VenueConfig {
@@ -70,7 +70,7 @@ export class VenueCheckFailed extends Data.TaggedError("VenueCheckFailed")<{
  * Start each Venue with `check`, which says what is wrong with one it can't run; the running
  * ones, home first. The home Venue failing stops the bot, as a broken production setup should;
  * any other is left out with a line to `alert` (the ops channel), so a second server can never
- * take the game Discord's bot down: not even a check that crashes there.
+ * take the game Discord's bot down. A check turns whatever discord.js throws into its failure.
  */
 export const startVenues = Effect.fn("startVenues")(function* <A, R>(
   [home, ...others]: Venues<VenueConfig>,
@@ -83,22 +83,12 @@ export const startVenues = Effect.fn("startVenues")(function* <A, R>(
     ),
   ];
   for (const venue of others) {
-    const leaveOut = (reason: string) =>
-      alert(`Multiballs left out the Venue "${venue.name}" (server ${venue.guildId}): ${reason}`);
     const started = yield* check(venue).pipe(
       Effect.map((a) => Option.some(a)),
       Effect.catchTag("VenueCheckFailed", (e) =>
-        leaveOut(e.reason).pipe(Effect.as(Option.none<A>())),
-      ),
-      Effect.catchAllDefect((defect) =>
-        Effect.logError(`checking the Venue ${venue.name} crashed`, Cause.die(defect)).pipe(
-          Effect.andThen(
-            leaveOut(
-              `its check crashed: ${defect instanceof Error ? defect.message : String(defect)}`,
-            ),
-          ),
-          Effect.as(Option.none<A>()),
-        ),
+        alert(
+          `Multiballs left out the Venue "${venue.name}" (server ${venue.guildId}): ${e.reason}`,
+        ).pipe(Effect.as(Option.none<A>())),
       ),
     );
     if (Option.isSome(started)) running.push(started.value);

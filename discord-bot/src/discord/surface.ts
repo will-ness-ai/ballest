@@ -58,7 +58,7 @@ interface Layout {
   readonly footerFingerprint: string | null;
   readonly cards: ReadonlyMap<string, CardRef>;
   /** Where finished Matches' Cards and threads are in this channel, oldest first. */
-  readonly finished: ReadonlyMap<string, Omit<MatchPlace, "venue">>;
+  readonly finished: ReadonlyMap<string, MatchPlace>;
 }
 
 /** How many finished Matches' places are kept. */
@@ -341,7 +341,7 @@ const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, chan
       card === undefined
         ? finished.get(matchId)
         : { messageId: card.messageId, threadId: card.threadId };
-    return Option.map(Option.fromNullable(spot), (s): MatchPlace => ({ venue, ...s }));
+    return Option.fromNullable(spot);
   });
 
   /** Whether this channel holds the Match's Card now, so its posts and removal come here. */
@@ -387,12 +387,9 @@ const make = Effect.gen(function* () {
   });
 
   const links = MatchLinks.of({
-    of: Effect.fn("MatchLinks.of")(function* (matchId: string) {
-      for (const s of surfaces.values()) {
-        const place = yield* s.placeOf(matchId);
-        if (Option.isSome(place)) return place;
-      }
-      return Option.none<MatchPlace>();
+    of: Effect.fn("MatchLinks.of")(function* (venue: VenueName, matchId: string) {
+      const surface = surfaces.get(venue);
+      return surface === undefined ? Option.none<MatchPlace>() : yield* surface.placeOf(matchId);
     }),
   });
 

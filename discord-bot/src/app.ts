@@ -70,6 +70,7 @@ const ActivityLive = Layer.unwrapEffect(
       name: v.name,
       guildId: v.channel.guildId,
       channelId: v.channel.id,
+      pingRoleName: v.pingRoleName,
     }));
     const members = Layer.succeed(
       DiscordMembers,

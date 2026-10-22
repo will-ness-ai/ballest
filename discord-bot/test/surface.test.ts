@@ -187,9 +187,9 @@ const setup = Effect.fn("setup")(function* (
     links = Context.get(ctx, MatchLinks);
     return Context.get(ctx, Surface);
   });
-  /** Where the latest start says a Match's Card and thread are. */
-  const placeOf = (matchId: string) =>
-    Effect.suspend(() => links.of(matchId)).pipe(Effect.map(Option.getOrNull));
+  /** Where the latest start says a Venue's channel (home's unless told) holds a Match's Card and thread. */
+  const placeOf = (matchId: string, venue: string = HOME) =>
+    Effect.suspend(() => links.of(venue, matchId)).pipe(Effect.map(Option.getOrNull));
   /** Make the saved layout one written before Footer fingerprints were kept. */
   const forgetFingerprint = Effect.gen(function* () {
     const db = yield* SqlClient.SqlClient;
@@ -411,14 +411,14 @@ describe("the end of a Match", () => {
         const finished = view("m1", { state: "finished" });
         yield* surface.showCard(view("m1"));
         yield* surface.showCard(view("m2"));
-        expect(yield* placeOf("m1")).toEqual({ venue: HOME, messageId: "msg1", threadId: "thr2" });
+        expect(yield* placeOf("m1")).toEqual({ messageId: "msg1", threadId: "thr2" });
         yield* surface.post(
           "m1",
           ThreadPost.Result({ standings: [], card: finished, steamDown: false }),
         );
         yield* surface.remove("m2", "expired");
         yield* start;
-        expect(yield* placeOf("m1")).toEqual({ venue: HOME, messageId: "msg1", threadId: "thr2" });
+        expect(yield* placeOf("m1")).toEqual({ messageId: "msg1", threadId: "thr2" });
         expect(yield* placeOf("m2")).toBeNull();
       }),
   );
@@ -543,7 +543,8 @@ describe("Venues", () => {
       );
       expect(racing.threadPosts("m2")).toEqual(["Opened"]);
       expect(channel.threadPosts("m1")).toEqual([]);
-      expect(yield* placeOf("m2")).toMatchObject({ venue: RACING });
+      expect(yield* placeOf("m2", RACING)).not.toBeNull();
+      expect(yield* placeOf("m2")).toBeNull();
       yield* surface.remove("m2", "expired");
       expect(racing.order()).toEqual(["footer"]);
       expect(channel.order()).toEqual(["card m1", "footer"]);
@@ -562,8 +563,9 @@ describe("Venues", () => {
       expect(racing.redrawn()).toEqual(["card m2", "card m2"]);
       expect(channel.order()).toEqual(["card m1", "footer"]);
       expect(racing.order()).toEqual(["card m2", "footer"]);
-      expect(yield* placeOf("m1")).toMatchObject({ venue: HOME });
-      expect(yield* placeOf("m2")).toMatchObject({ venue: RACING });
+      expect(yield* placeOf("m1")).not.toBeNull();
+      expect(yield* placeOf("m2", RACING)).not.toBeNull();
+      expect(yield* placeOf("m2")).toBeNull();
     }),
   );
 

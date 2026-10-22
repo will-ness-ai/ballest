@@ -19,7 +19,7 @@ import {
 } from "../domain.js";
 import { Engine, type Rejection } from "../engine.js";
 import { explain } from "../explain.js";
-import { pingFailed } from "../pingWords.js";
+import { pingFailed, roleNamed } from "../pingWords.js";
 import { Pings, warnPingRole } from "../pings.js";
 import {
   type CardView,
@@ -58,11 +58,15 @@ const STATUS: Record<Rejection["_tag"], number> = {
 /** How long a sign-in is trusted before Discord is asked about the token again. */
 const SIGN_IN_TTL = "10 minutes";
 
-/** A running Venue as the Activity serves it: its server, and the channel its links point into. */
+/**
+ * A running Venue as the Activity serves it: its server, the channel its links point into, and
+ * its ping role's name there.
+ */
 export interface ActivityVenue {
   readonly name: VenueName;
   readonly guildId: string;
   readonly channelId: string;
+  readonly pingRoleName: string;
 }
 
 /** Who is asking, and in which Venue's server. */
@@ -214,22 +218,20 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
         nameOf(who.venue, p.discordId).pipe(Effect.map((n) => [p.discordId, n] as const)),
       ),
     );
-    // Linked into the channel that holds its Card, in that Venue's server; none if it isn't running.
-    const place = yield* places.of(m.id);
-    const links = Option.flatMap(place, (p) =>
-      Option.map(Option.fromNullable(venues.find((v) => v.name === p.venue)), (where) => {
-        const server = `https://discord.com/channels/${where.guildId}`;
-        return {
-          card: `${server}/${where.channelId}/${p.messageId}`,
-          thread: p.threadId === null ? null : `${server}/${p.threadId}`,
-        };
-      }),
-    );
+    // `m` is the member's Venue's (matchIn), so its Card is in that Venue's channel.
+    const place = yield* places.of(who.venue.name, m.id);
+    const channel = `https://discord.com/channels/${who.venue.guildId}`;
     const view: MatchView = {
       ...card,
       names,
       history: m.history,
-      links: Option.getOrNull(links),
+      links: Option.match(place, {
+        onNone: () => null,
+        onSome: (p) => ({
+          card: `${channel}/${who.venue.channelId}/${p.messageId}`,
+          thread: p.threadId === null ? null : `${channel}/${p.threadId}`,
+        }),
+      }),
       actions: actionsFor(m, who.discordId),
       starting: yield* engine.isStarting(m.id),
     };
@@ -269,9 +271,14 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
             isRejection(e)
               ? rejected(e, who)
               : warnPingRole(e).pipe(
-                  Effect.andThen(pings.role(who.venue.name)),
-                  Effect.map((role) =>
-                    json({ error: "PingRoleUnavailable", message: pingFailed(role) }, 503),
+                  Effect.as(
+                    json(
+                      {
+                        error: "PingRoleUnavailable",
+                        message: pingFailed(roleNamed(who.venue.pingRoleName)),
+                      },
+                      503,
+                    ),
                   ),
                 ),
         ),
@@ -316,7 +323,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
               .status(venue.name, discordId)
               .pipe(Effect.catchTag("PingRoleUnavailable", () => Effect.succeed(null))),
             // The role as the server names it, for the bell's toasts and the offer.
-            pingRole: yield* pings.role(venue.name),
+            pingRole: roleNamed(venue.pingRoleName),
           });
         }),
       ),

@@ -1,9 +1,12 @@
 // What Lobby pings say, on both surfaces: the channel's Pings reply and offer
 // (discord/messages.ts) and the Activity's bell, toasts and offer (activity/web/). Each text that
 // names the role takes it as `role`: the channel passes a real role mention (`<@&id>`) where it
-// can, the Activity passes the role's name (`Pings.role`, "@Multiplayer ping", read from the
-// server so a renamed role reads right). Buttons can't hold a mention, so their labels use the name.
+// can, the Activity passes the role's name (`roleNamed`, "@Multiplayer ping", read from the
+// server at startup so a renamed role reads right). Buttons can't hold a mention, so their labels use the name.
 // Pure, and free of Node, so the page's bundle uses it as it is.
+
+/** A role as members see it, "@Multiplayer ping": what the words call it where a mention can't go. */
+export const roleNamed = (name: string) => `@${name}`;
 
 /** The Footer button's label, which the texts send members back to. */
 export const PINGS_LABEL = "Pings";

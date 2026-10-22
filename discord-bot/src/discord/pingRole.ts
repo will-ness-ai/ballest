@@ -8,9 +8,6 @@ import type { VenueName } from "../domain.js";
 import { PingRole, PingRoleUnavailable } from "../ports.js";
 import { Discord, type DiscordError, describeDiscordError, tryDiscord } from "./client.js";
 
-/** What the role is called everywhere it was set up as spec #87 says. */
-const USUAL_NAME = "Multiplayer ping";
-
 export const PingRoleLive = Layer.effect(
   PingRole,
   Effect.gen(function* () {
@@ -30,16 +27,6 @@ export const PingRoleLive = Layer.effect(
       return running;
     });
     return PingRole.of({
-      // Every caller names the Venue a member is in, which runs. Were one not to, the words fall
-      // back to the usual name, said in the log, rather than failing a reply over a label.
-      nameIn: Effect.fn("PingRole.nameIn")(function* (venue: VenueName) {
-        const found = discord.venueNamed(venue);
-        if (found !== undefined) return found.pingRoleName;
-        yield* Effect.logWarning(
-          `ping role: Venue ${venue} isn't running; naming it ${USUAL_NAME}`,
-        );
-        return USUAL_NAME;
-      }),
       has: (venue, discordId) =>
         inVenue(venue).pipe(
           Effect.flatMap(({ guild, role }) =>

@@ -200,7 +200,7 @@ export interface FakePingRoleControl {
   readonly setFailing: (failing: boolean) => Effect.Effect<void>;
 }
 
-/** Each Venue's role; the home Venue's is "Multiplayer ping", any other's is named after it. */
+/** Each Venue's role, held by whoever was given it there. */
 export const makeFakePingRole = Effect.gen(function* () {
   const holders = yield* Ref.make(new Set<string>());
   const failing = yield* Ref.make(false);
@@ -219,7 +219,6 @@ export const makeFakePingRole = Effect.gen(function* () {
   const holds = (venue: VenueName, discordId: string) =>
     Ref.get(holders).pipe(Effect.map((all) => all.has(key(venue, discordId))));
   const port = PingRole.of({
-    nameIn: (venue) => Effect.succeed(venue === HOME ? "Multiplayer ping" : `${venue} ping`),
     has: (venue, discordId) => discord(holds(venue, discordId)),
     add: (venue, discordId) => discord(update(venue, discordId, true)),
     remove: (venue, discordId) => discord(update(venue, discordId, false)),

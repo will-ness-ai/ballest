@@ -1,8 +1,11 @@
 // Which Venues the bot plays in: DISCORD_VENUES read beside the three home settings, and the
 // rule that a Venue failing its startup checks is left out (and ops told), except home's, which
-// stops the bot. The checks themselves are discord.js calls, tried in the sandbox.
+// stops the bot. The checks themselves are discord.js calls, tried in the sandbox; here only that
+// one of them throwing is a failure of that Venue's check.
 import { describe, expect, it } from "@effect/vitest";
+import { ChannelType, type Client } from "discord.js";
 import { Cause, Effect, Exit, Ref } from "effect";
+import { checkVenue } from "../src/discord/client.js";
 import {
   parseVenues,
   startVenues,
@@ -67,9 +70,6 @@ describe("starting the Venues", () => {
     failing.has(v.name)
       ? Effect.fail(new VenueCheckFailed({ reason: `no access to ${v.channelId}` }))
       : Effect.succeed(v.name);
-  /** A check that throws for these Venues, as a discord.js bug would. */
-  const crashing = (crashes: ReadonlySet<string>) => (v: VenueConfig) =>
-    crashes.has(v.name) ? Effect.die(new Error(`boom in ${v.channelId}`)) : Effect.succeed(v.name);
   const venues: Venues<VenueConfig> = [{ name: "home", ...HOME }, RACING];
 
   it.effect("runs every Venue that passes its checks", () =>
@@ -97,31 +97,6 @@ describe("starting the Venues", () => {
     }),
   );
 
-  it.effect("leaves out another Venue whose check crashes, telling ops, and runs on", () =>
-    Effect.gen(function* () {
-      const alerts = yield* Ref.make<ReadonlyArray<string>>([]);
-      const running = yield* startVenues(venues, crashing(new Set(["ballest-racing"])), (m) =>
-        Ref.update(alerts, (all) => [...all, m]),
-      );
-      expect(running).toEqual(["home"]);
-      const said = yield* Ref.get(alerts);
-      expect(said).toHaveLength(1);
-      expect(said[0]).toContain("ballest-racing");
-      expect(said[0]).toContain("boom in c-racing");
-    }),
-  );
-
-  it.effect("stops the bot when the home Venue's check crashes", () =>
-    Effect.gen(function* () {
-      const exit = yield* Effect.exit(
-        startVenues(venues, crashing(new Set(["home"])), () => Effect.void),
-      );
-      if (Exit.isSuccess(exit)) return expect.unreachable();
-      expect(Cause.isDie(exit.cause)).toBe(true);
-      expect(Cause.pretty(exit.cause)).toContain("boom in c-home");
-    }),
-  );
-
   it.effect("stops the bot when the home Venue fails", () =>
     Effect.gen(function* () {
       const exit = yield* Effect.exit(
@@ -130,6 +105,30 @@ describe("starting the Venues", () => {
       if (Exit.isSuccess(exit)) return expect.unreachable();
       expect(Cause.isDie(exit.cause)).toBe(true);
       expect(Cause.pretty(exit.cause)).toContain("no access to c-home");
+    }),
+  );
+});
+
+describe("checking a Venue", () => {
+  it.effect("turns a discord.js call that throws into that Venue's check failing", () =>
+    Effect.gen(function* () {
+      // A text channel in the Venue's server whose permissions discord.js can't work out.
+      const channel = {
+        type: ChannelType.GuildText,
+        id: RACING.channelId,
+        guildId: RACING.guildId,
+        name: "multiplayer",
+        permissionsFor: () => {
+          throw new Error("no cached member");
+        },
+      };
+      const client = {
+        user: { id: "bot" },
+        channels: { fetch: () => Promise.resolve(channel) },
+      } as unknown as Client<true>;
+      const failed = yield* Effect.flip(checkVenue(client, RACING));
+      expect(failed).toBeInstanceOf(VenueCheckFailed);
+      expect(failed.reason).toContain("no cached member");
     }),
   );
 });

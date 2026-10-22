@@ -260,12 +260,8 @@ export class Surface extends Context.Tag("multiballs/Surface")<
   }
 >() {}
 
-/**
- * Where a Match sits: the Venue whose channel holds its Card, the Card's message, and its Match
- * Thread once started.
- */
+/** Where a Match sits in its Venue's channel: its Card's message, and its Match Thread once started. */
 export interface MatchPlace {
-  readonly venue: VenueName;
   readonly messageId: string;
   readonly threadId: string | null;
 }
@@ -274,8 +270,11 @@ export interface MatchPlace {
 export class MatchLinks extends Context.Tag("multiballs/MatchLinks")<
   MatchLinks,
   {
-    /** None when the channel holds no Card for it (yet, or any more). */
-    readonly of: (matchId: string) => Effect.Effect<Option.Option<MatchPlace>>;
+    /**
+     * Where `venue`'s channel holds a Match's Card; none when it holds none (yet, or any more), or
+     * the Venue isn't running.
+     */
+    readonly of: (venue: VenueName, matchId: string) => Effect.Effect<Option.Option<MatchPlace>>;
   }
 >() {}
 
@@ -293,11 +292,6 @@ export class PingRoleUnavailable extends Data.TaggedError("PingRoleUnavailable")
 export class PingRole extends Context.Tag("multiballs/PingRole")<
   PingRole,
   {
-    /**
-     * The Venue's role's name on its server ("Multiplayer ping"), read when the bot starts. Only
-     * words use it, so a Venue that isn't running gets the usual name, never another server's.
-     */
-    readonly nameIn: (venue: VenueName) => Effect.Effect<string>;
     readonly has: (
       venue: VenueName,
       discordId: string,
