@@ -582,5 +582,7 @@ export async function drawStat(s: Stat, v: VariantKey) {
     height: h,
     fonts: await fonts(),
   }).arrayBuffer();
-  return new Response(png, { headers: { "content-type": "image/png", "cache-control": "no-store" } });
+  return new Response(png, {
+    headers: { "content-type": "image/png", "cache-control": "no-store" },
+  });
 }
