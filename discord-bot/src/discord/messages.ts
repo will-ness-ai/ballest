@@ -401,6 +401,16 @@ export const pickDurationMessage = (
   };
 };
 
+// ---------------------------------------------------------------- Play again, privately
+
+/** The presser's answer: where the Lobby's thread is, and whether the Start is theirs. */
+export const playAgainText = (opened: boolean, threadId: string | null) => {
+  const where = threadId === null ? "" : ` <#${threadId}>`;
+  return opened
+    ? `You opened the Lobby${where}. Press **Start** on its Card once everyone's in.`
+    : `You're in the Lobby${where}.`;
+};
+
 // ---------------------------------------------------------------- Leave a live Match, privately
 
 export const LEFT_TEXT = "You left the Match. Your best time so far stands.";

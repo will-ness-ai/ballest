@@ -1101,9 +1101,7 @@ describe("Play again", () => {
     Effect.gen(function* () {
       const { h, id } = yield* finishedMatch;
       const live = yield* h.engine.openInvite(CARA.discordId, public1v1);
-      expect((yield* Effect.flip(h.engine.playAgain(DAN.discordId, live)))._tag).toBe(
-        "NotAllowed",
-      );
+      expect((yield* Effect.flip(h.engine.playAgain(DAN.discordId, live)))._tag).toBe("NotAllowed");
       // Cara is in her own Invite: she can neither open the Lobby nor join it.
       expect((yield* Effect.flip(h.engine.playAgain(CARA.discordId, id)))._tag).toBe("Busy");
       yield* h.engine.playAgain(ALICE.discordId, id);

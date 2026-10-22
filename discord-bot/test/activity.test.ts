@@ -327,7 +327,6 @@ describe("opening a Match", () => {
             expiresAt: 5 * 60_000,
             endsAt: null,
             waitingForSteam: false,
-            playAgainOf: null,
             map: null,
             standings: [{ player: ALICE, ticks: null, rank: null, medal: null }],
             skins: {},

@@ -234,3 +234,10 @@ _Avoid_: sticky, pinned message
 Each Player's best time on the Match's Map, read the moment the Match ends, ranked. A
 Player with no time did not finish. If Steam is down then, the Result waits for it (up to 30
 minutes, the thread saying time's up), and failing that stands on the last times polled.
+
+**Play again**:
+The button on a Result. The first Player to press it opens a Lobby of the finished Match's
+length, as its creator, and the finished Match's other Players are pinged in its thread; everyone
+who presses it after that joins the same Lobby, while it is open or live. Any Player may press
+it. Once that Lobby is gone, the next press opens a fresh one.
+_Avoid_: rematch, replay (a replay is a Ghost)
