@@ -202,7 +202,7 @@ export async function uploadPrefab(request: Request, deps: PrefabDeps): Promise<
 }
 
 /* a Steam ID's persona from its public community profile, or null */
-async function steamPersona(steamId: string): Promise<string | null> {
+export async function steamPersona(steamId: string): Promise<string | null> {
   const r = await fetch(`https://steamcommunity.com/profiles/${steamId}/?xml=1`, {
     signal: AbortSignal.timeout(3000),
   });

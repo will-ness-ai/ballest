@@ -92,6 +92,13 @@
       "when": 1792640989544,
       "tag": "0012_board_kind_event",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792690233837,
+      "tag": "0013_stats_links",
+      "breakpoints": true
     }
   ]
 }

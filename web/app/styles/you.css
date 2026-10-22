@@ -309,3 +309,39 @@ h1 .ys-hold {
 .yl-sign[data-wait] {
   visibility: hidden;
 }
+
+/* ---------- The link page (/discord/link) ----------
+   /you's heading and sign-in strip, kept to a line's reading width; under the confirm,
+   "Not you?" is a quiet text button that signs out. */
+.sl {
+  max-inline-size: 40rem;
+}
+.sl h1 {
+  margin: 0 0 2px;
+  font: 600 calc((22rem + 4 * var(--ramp)) / 16) var(--f-hud);
+}
+.sl form {
+  margin: 0;
+}
+.sl .ys-go {
+  border: 0;
+  cursor: pointer;
+}
+.sl-not {
+  min-block-size: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: calc(14rem / 16);
+  cursor: pointer;
+}
+.sl-not:focus-visible {
+  outline: 2px solid var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sl-not:hover {
+    text-decoration: underline;
+  }
+}

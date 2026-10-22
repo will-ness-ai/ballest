@@ -51,6 +51,7 @@ import { connect, type Db } from "./client";
 import type { PrefabDeps } from "./prefab-api";
 import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
 import * as q from "./site";
+import type { StatsLinkDeps } from "./stats-link";
 import { boardTag, DAILY_TAG, DATA_TAG } from "./tags";
 
 export { DATA_TAG } from "./tags";
@@ -609,4 +610,10 @@ export function prefabDeps(): PrefabDeps {
    after a save, so every page draws it on its next load without reading the boards again */
 export function chosenSkinDeps(): ChosenSkinDeps {
   return { db: db(), changed: () => revalidateTag(CHOSEN_SKIN_TAG, { expire: 0 }) };
+}
+
+/* what the link page and its confirm read and write with: this server's database, uncached,
+   since a link request lives minutes and the page is read once (ADR 0014) */
+export function statsLinkDeps(): StatsLinkDeps {
+  return { db: db() };
 }
