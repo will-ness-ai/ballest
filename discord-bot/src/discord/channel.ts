@@ -100,7 +100,6 @@ const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenu
   const previews = yield* MapPreviews;
   const marbles = yield* Marbles;
   const { channel } = venue;
-  const discord = venue;
   const notices = makeThreadNotices(channel);
   // In the background: startup doesn't wait on a few hundred message reads.
   yield* Effect.forkScoped(notices.sweep());
@@ -121,7 +120,7 @@ const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenu
   const namesOf = Effect.fn("namesOf")(function* (view: CardView) {
     const players = view.target === null ? view.players : [...view.players, view.target];
     const names = new Map<string, string>();
-    for (const p of players) names.set(p.discordId, yield* discord.displayName(p.discordId));
+    for (const p of players) names.set(p.discordId, yield* venue.displayName(p.discordId));
     return names;
   });
 
@@ -148,7 +147,7 @@ const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenu
       Footer: () => renderer.footer.pipe(Effect.map((png) => footerMessage(png))),
       Card: ({ view }) =>
         drawCard(view).pipe(
-          Effect.map((png) => cardMessage(view, png, { roleId: discord.pingRoleId, announce })),
+          Effect.map((png) => cardMessage(view, png, { roleId: venue.pingRoleId, announce })),
         ),
       Closed: ({ reason }) => Effect.succeed(closedCardMessage(reason)),
     });
@@ -158,7 +157,7 @@ const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenu
     if (post._tag === "Improved")
       return yield* renderer.improvement(
         post.improvement,
-        yield* discord.displayName(post.improvement.player.discordId),
+        yield* venue.displayName(post.improvement.player.discordId),
         post.skin,
       );
     if (post._tag === "Started" || post._tag === "Result") return yield* drawCard(post.card);
@@ -202,7 +201,7 @@ const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenu
       ),
     startThread: Effect.fn("startThread")(function* (messageId: string, view: CardView) {
       const message = yield* fetchMessage(messageId);
-      const name = threadName(view, yield* discord.displayName(view.creator.discordId));
+      const name = threadName(view, yield* venue.displayName(view.creator.discordId));
       const thread = yield* tryDiscord("start thread", () => message.startThread({ name }));
       yield* notices.deleteNoticeOf(thread.id);
       return thread.id;
