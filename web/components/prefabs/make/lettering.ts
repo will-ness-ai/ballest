@@ -48,7 +48,9 @@ export function letteringOf(font: string, detail: number): Lettering {
   };
 }
 
-/* the lines drawn in `measure`'s font, read back as cells `unit` px on a side */
+/* the lines drawn in `measure`'s font, read back as cells `unit` px on a side. The font is the
+   one `measure` was set to when its Lettering was made, so a Lettering is made again once the
+   web fonts arrive (GeneratorEditor) */
 function draw(
   lines: Array<string>,
   measure: CanvasRenderingContext2D,

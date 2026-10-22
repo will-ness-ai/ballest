@@ -381,11 +381,11 @@ interface Tips {
   balls: number;
   leaves: Colour;
 }
-/* a stick forking `levels` times into `forks` branches `angle` degrees out, each `ratio`%
+/* a stick forking `levels` times into `branches` branches `angle` degrees out, each `ratio`%
    as long */
 interface Forks {
   levels: number;
-  forks: number;
+  branches: number;
   angle: number;
   ratio: number;
 }
@@ -418,8 +418,8 @@ function grow(
     return;
   }
   const spin = r() * Math.PI * 2;
-  for (let i = 0; i < f.forks; i++) {
-    const d = turn(dir, f.angle * DEG * (0.8 + r() * 0.4), spin + (i / f.forks) * Math.PI * 2);
+  for (let i = 0; i < f.branches; i++) {
+    const d = turn(dir, f.angle * DEG * (0.8 + r() * 0.4), spin + (i / f.branches) * Math.PI * 2);
     grow(
       b,
       r,
@@ -445,7 +445,7 @@ const branchesTree = (v: Values) => {
       },
       forks: {
         levels: numberIn(v, "b.levels"),
-        forks: numberIn(v, "b.forks"),
+        branches: numberIn(v, "b.forks"),
         angle: numberIn(v, "b.angle"),
         ratio: numberIn(v, "b.ratio"),
       },
