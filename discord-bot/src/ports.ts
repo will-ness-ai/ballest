@@ -14,6 +14,7 @@ import type {
   PbEvent,
   Player,
   Standing,
+  VenueName,
 } from "./domain.js";
 
 // ---------------------------------------------------------------- Steam
@@ -111,6 +112,8 @@ export type ShownSkins = Readonly<Record<string, string>>;
 /** Everything the Match Card image and its embed are drawn from. */
 export interface CardView {
   readonly matchId: string;
+  /** The Venue whose channel holds the Card. */
+  readonly venue: VenueName;
   readonly state: MatchState;
   readonly type: MatchType;
   readonly minutes: Minutes;
@@ -144,6 +147,7 @@ export const shownSkins = (chosen: ChosenSkinPicks, players: ReadonlyArray<Playe
  */
 export const cardView = (m: Match, chosen: ChosenSkinPicks): CardView => ({
   matchId: m.id,
+  venue: m.venue,
   state: m.state,
   type: m.type,
   minutes: m.minutes,
@@ -236,7 +240,10 @@ export const isKept = (reason: RemovalReason): reason is KeptReason =>
 export class Surface extends Context.Tag("multiballs/Surface")<
   Surface,
   {
-    /** Create or redraw a Match's Card (the adapter handles the Footer and the Match Thread). */
+    /**
+     * Create or redraw a Match's Card in its Venue's channel (the adapter handles the Footer and
+     * the Match Thread). Posts and removals go wherever the Card is.
+     */
     readonly showCard: (view: CardView) => Effect.Effect<void>;
     readonly post: (matchId: string, post: ThreadPost) => Effect.Effect<void>;
     /**
@@ -248,8 +255,12 @@ export class Surface extends Context.Tag("multiballs/Surface")<
   }
 >() {}
 
-/** Where a Match sits in the channel: its Card's message, and its Match Thread once started. */
+/**
+ * Where a Match sits: the Venue whose channel holds its Card, the Card's message, and its Match
+ * Thread once started.
+ */
 export interface MatchPlace {
+  readonly venue: VenueName;
   readonly messageId: string;
   readonly threadId: string | null;
 }
@@ -271,17 +282,23 @@ export class PingRoleUnavailable extends Data.TaggedError("PingRoleUnavailable")
 }> {}
 
 /**
- * The @Multiplayer ping role on the server: the one role the bot ever adds or removes. Every
- * read asks Discord, so a moderator's change shows at once.
+ * Each Venue's @Multiplayer ping role on its server: the one role the bot ever adds or removes
+ * there. Every read asks Discord, so a moderator's change shows at once.
  */
 export class PingRole extends Context.Tag("multiballs/PingRole")<
   PingRole,
   {
-    /** The role's name on the server ("Multiplayer ping"), read when the bot starts. */
-    readonly name: string;
-    readonly has: (discordId: string) => Effect.Effect<boolean, PingRoleUnavailable>;
-    readonly add: (discordId: string) => Effect.Effect<void, PingRoleUnavailable>;
-    readonly remove: (discordId: string) => Effect.Effect<void, PingRoleUnavailable>;
+    /** The Venue's role's name on its server ("Multiplayer ping"), read when the bot starts. */
+    readonly nameIn: (venue: VenueName) => string;
+    readonly has: (
+      venue: VenueName,
+      discordId: string,
+    ) => Effect.Effect<boolean, PingRoleUnavailable>;
+    readonly add: (venue: VenueName, discordId: string) => Effect.Effect<void, PingRoleUnavailable>;
+    readonly remove: (
+      venue: VenueName,
+      discordId: string,
+    ) => Effect.Effect<void, PingRoleUnavailable>;
   }
 >() {}
 
@@ -300,9 +317,9 @@ export class Store extends Context.Tag("multiballs/Store")<
     readonly deleteMatch: (id: string) => Effect.Effect<void>;
     /** Matches still open as an Invite or live. */
     readonly activeMatches: Effect.Effect<ReadonlyArray<Match>>;
-    /** Whether this member has answered the @Multiplayer ping offer, either way. */
-    readonly hasAnsweredPingOffer: (discordId: string) => Effect.Effect<boolean>;
-    /** Remember that this member has answered the offer; answering again changes nothing. */
-    readonly answerPingOffer: (discordId: string) => Effect.Effect<void>;
+    /** Whether this member has answered this Venue's @Multiplayer ping offer, either way. */
+    readonly hasAnsweredPingOffer: (venue: VenueName, discordId: string) => Effect.Effect<boolean>;
+    /** Remember that this member has answered the Venue's offer; answering again changes nothing. */
+    readonly answerPingOffer: (venue: VenueName, discordId: string) => Effect.Effect<void>;
   }
 >() {}

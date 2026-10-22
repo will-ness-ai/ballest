@@ -4,11 +4,12 @@ import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Context, Effect, Layer, Option } from "effect";
-import { Channel, Drawing, Gone } from "../src/discord/channel.js";
+import { type Channel, Drawing, Gone, VenueChannels } from "../src/discord/channel.js";
 import { DiscordError } from "../src/discord/client.js";
 import { ChannelSurfaceLive } from "../src/discord/surface.js";
+import { migrationsBefore, migratorFor } from "../src/db.js";
 import { MatchLinks, Surface, ThreadPost } from "../src/ports.js";
-import { ALICE, cardView as view } from "./harness.js";
+import { ALICE, cardView as view, HOME, RACING } from "./harness.js";
 
 type Failable = "post" | "redraw" | "startThread";
 
@@ -39,7 +40,7 @@ const makeFakeChannel = () => {
   /** Stands for the bot's build: a new one may draw the same Drawing differently. */
   let build = 1;
 
-  const port = Channel.of({
+  const port: Channel = {
     post: (drawing) =>
       Effect.suspend(() => {
         if (fail("post")) return Effect.fail(broken("post"));
@@ -102,7 +103,7 @@ const makeFakeChannel = () => {
         return Effect.void;
       }),
     lastMessageId: Effect.sync(() => messages.at(-1)?.id ?? null),
-  });
+  };
 
   const label = (d: Drawing | null) =>
     d === null
@@ -153,14 +154,35 @@ const makeFakeChannel = () => {
   };
 };
 
-/** A channel and a database that outlive any one Surface, so a test can restart the bot. */
-const setup = Effect.gen(function* () {
+/**
+ * A channel per Venue (home's, and RACING's unless `homeOnly`) and a database that outlive any
+ * one Surface, so a test can restart the bot. `beforeVenues` writes into a database as a build
+ * from before Venues left it, before the first start migrates it.
+ */
+const setup = Effect.fn("setup")(function* (
+  opts: {
+    readonly homeOnly?: boolean;
+    readonly beforeVenues?: Effect.Effect<void, unknown, SqlClient.SqlClient>;
+  } = {},
+) {
   const channel = makeFakeChannel();
+  const racing = makeFakeChannel();
   const sql = yield* Layer.build(SqliteClient.layer({ filename: ":memory:" }));
+  if (opts.beforeVenues !== undefined) {
+    yield* Effect.scoped(Layer.build(migratorFor(migrationsBefore("0008")))).pipe(
+      Effect.provide(sql),
+      Effect.orDie,
+    );
+    yield* opts.beforeVenues.pipe(Effect.provide(sql), Effect.orDie);
+  }
+  const channels = new Map([
+    [HOME, channel.port],
+    ...(opts.homeOnly === true ? [] : [[RACING, racing.port] as const]),
+  ]);
   let links = MatchLinks.of({ of: () => Effect.succeed(Option.none()) });
   const start = Effect.gen(function* () {
     const ctx = yield* Layer.build(ChannelSurfaceLive).pipe(
-      Effect.provide(Context.add(sql, Channel, channel.port)),
+      Effect.provide(Context.add(sql, VenueChannels, channels)),
     );
     links = Context.get(ctx, MatchLinks);
     return Context.get(ctx, Surface);
@@ -173,13 +195,13 @@ const setup = Effect.gen(function* () {
     const db = yield* SqlClient.SqlClient;
     yield* db`UPDATE discord_layout SET data = json_remove(data, '$.footerFingerprint')`;
   }).pipe(Effect.provide(sql), Effect.orDie);
-  return { channel, start, placeOf, forgetFingerprint };
+  return { channel, racing, start, placeOf, forgetFingerprint };
 });
 
 describe("the channel", () => {
   it.scoped("gets a Footer on first start", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       yield* start;
       expect(channel.order()).toEqual(["footer"]);
     }),
@@ -189,7 +211,7 @@ describe("the channel", () => {
     "turns the Footer into each new Card, each with a thread, and keeps one Footer last",
     () =>
       Effect.gen(function* () {
-        const { channel, start } = yield* setup;
+        const { channel, start } = yield* setup();
         const surface = yield* start;
         yield* surface.showCard(view("m1"));
         yield* surface.showCard(view("m2"));
@@ -203,7 +225,7 @@ describe("the channel", () => {
     "posts a Lobby's Card fresh, so its ping notifies, then deletes the old Footer and posts a new one last",
     () =>
       Effect.gen(function* () {
-        const { channel, start } = yield* setup;
+        const { channel, start } = yield* setup();
         const surface = yield* start;
         yield* surface.showCard(view("m1"));
         yield* surface.showCard(view("m2", { type: "lobby" }));
@@ -215,7 +237,7 @@ describe("the channel", () => {
 
   it.scoped("still turns the Footer into a Public 1v1's Card", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       const surface = yield* start;
       yield* surface.showCard(view("m1", { type: "public" }));
       expect(channel.order()).toEqual(["card m1", "footer"]);
@@ -225,7 +247,7 @@ describe("the channel", () => {
 
   it.scoped("posts a Lobby's Card only once: later draws are redraws, which notify nobody", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       const surface = yield* start;
       yield* surface.showCard(view("m1", { type: "lobby" }));
       yield* surface.showCard(view("m1", { type: "lobby", players: [ALICE, ALICE] }));
@@ -237,7 +259,7 @@ describe("the channel", () => {
 
   it.scoped("posts a Lobby's Card and a Footer when the Footer was deleted by hand", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       const surface = yield* start;
       channel.deleteFooter();
       yield* surface.showCard(view("m1", { type: "lobby" }));
@@ -249,7 +271,7 @@ describe("the channel", () => {
     "leaves the Footer in place when a Lobby's Card can't be posted, and posts it next time",
     () =>
       Effect.gen(function* () {
-        const { channel, start } = yield* setup;
+        const { channel, start } = yield* setup();
         const surface = yield* start;
         channel.failNext("post", 1);
         yield* surface.showCard(view("m1", { type: "lobby" }));
@@ -261,7 +283,7 @@ describe("the channel", () => {
 
   it.scoped("opens each Match Thread with a clock, redrawn only when the Match moves on", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       const surface = yield* start;
       yield* surface.showCard(view("m1", { expiresAt: 300_000 }));
       expect(channel.clock("m1")).toBe("invite");
@@ -276,7 +298,7 @@ describe("the channel", () => {
 
   it.scoped("deletes an expired, cancelled or declined Invite's Card and thread", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       const surface = yield* start;
       yield* surface.showCard(view("m1"));
       yield* surface.showCard(view("m2"));
@@ -288,7 +310,7 @@ describe("the channel", () => {
 
   it.scoped("keeps a Card cancelled for want of a Map, saying why, with its thread", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       const surface = yield* start;
       yield* surface.showCard(view("m1"));
       yield* surface.post("m1", ThreadPost.NoMap({ players: [ALICE] }));
@@ -300,7 +322,7 @@ describe("the channel", () => {
 
   it.scoped("keeps the Card of a Match everyone left, saying why, with its thread", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       const surface = yield* start;
       yield* surface.showCard(view("m1", { state: "live" }));
       yield* surface.post("m1", ThreadPost.Abandoned());
@@ -313,7 +335,7 @@ describe("the channel", () => {
 
   it.scoped("posts the Card fresh when the Footer was deleted by hand", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       const surface = yield* start;
       channel.deleteFooter();
       yield* surface.showCard(view("m1"));
@@ -324,7 +346,7 @@ describe("the channel", () => {
 
   it.scoped("posts no Footer above a Card that couldn't be drawn, and draws it next time", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       const surface = yield* start;
       channel.failNext("redraw", 1);
       yield* surface.showCard(view("m1"));
@@ -338,7 +360,7 @@ describe("the channel", () => {
     "starts a thread that failed to start on the Match's next post, so nothing is dropped",
     () =>
       Effect.gen(function* () {
-        const { channel, start } = yield* setup;
+        const { channel, start } = yield* setup();
         const surface = yield* start;
         channel.failNext("startThread", 3);
         yield* surface.showCard(view("m1"));
@@ -355,7 +377,7 @@ describe("the channel", () => {
 describe("the end of a Match", () => {
   it.scoped("posts the progression graph after the Result, in the same thread", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       const surface = yield* start;
       const finished = view("m1", {
         state: "finished",
@@ -381,19 +403,19 @@ describe("the end of a Match", () => {
     "still knows where a finished Match's Card and thread are, across a restart, for the Activity's links",
     () =>
       Effect.gen(function* () {
-        const { start, placeOf } = yield* setup;
+        const { start, placeOf } = yield* setup();
         const surface = yield* start;
         const finished = view("m1", { state: "finished" });
         yield* surface.showCard(view("m1"));
         yield* surface.showCard(view("m2"));
-        expect(yield* placeOf("m1")).toEqual({ messageId: "msg1", threadId: "thr2" });
+        expect(yield* placeOf("m1")).toEqual({ venue: HOME, messageId: "msg1", threadId: "thr2" });
         yield* surface.post(
           "m1",
           ThreadPost.Result({ standings: [], card: finished, steamDown: false }),
         );
         yield* surface.remove("m2", "expired");
         yield* start;
-        expect(yield* placeOf("m1")).toEqual({ messageId: "msg1", threadId: "thr2" });
+        expect(yield* placeOf("m1")).toEqual({ venue: HOME, messageId: "msg1", threadId: "thr2" });
         expect(yield* placeOf("m2")).toBeNull();
       }),
   );
@@ -402,7 +424,7 @@ describe("the end of a Match", () => {
 describe("after a restart", () => {
   it.scoped("leaves the Footer alone when it's still last, and keeps drawing Cards in place", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       yield* (yield* start).showCard(view("m1"));
       const surface = yield* start;
       expect(channel.order()).toEqual(["card m1", "footer"]);
@@ -422,7 +444,7 @@ describe("after a restart", () => {
 
   it.scoped("replaces the Footer if something was posted after it", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       yield* (yield* start).showCard(view("m1"));
       channel.postByAnyone();
       yield* start;
@@ -434,7 +456,7 @@ describe("after a restart", () => {
     "leaves an unchanged Footer unedited, so a deploy doesn't look like channel activity",
     () =>
       Effect.gen(function* () {
-        const { channel, start } = yield* setup;
+        const { channel, start } = yield* setup();
         yield* start;
         yield* start;
         expect(channel.redrawn()).toEqual([]);
@@ -444,7 +466,7 @@ describe("after a restart", () => {
 
   it.scoped("leaves alone a Footer posted below a new Card, too", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       yield* (yield* start).showCard(view("m1"));
       const before = channel.redrawn().length;
       yield* start;
@@ -454,7 +476,7 @@ describe("after a restart", () => {
 
   it.scoped("redraws the Footer once when a new build draws it differently", () =>
     Effect.gen(function* () {
-      const { channel, start } = yield* setup;
+      const { channel, start } = yield* setup();
       yield* start;
       channel.newBuild();
       yield* start;
@@ -466,7 +488,7 @@ describe("after a restart", () => {
 
   it.scoped("redraws the Footer once after a layout saved before fingerprints were kept", () =>
     Effect.gen(function* () {
-      const { channel, start, forgetFingerprint } = yield* setup;
+      const { channel, start, forgetFingerprint } = yield* setup();
       yield* start;
       yield* forgetFingerprint;
       yield* start;
@@ -479,7 +501,7 @@ describe("after a restart", () => {
     "redraws the Footer after a Card that was being drawn over it didn't get recorded",
     () =>
       Effect.gen(function* () {
-        const { channel, start } = yield* setup;
+        const { channel, start } = yield* setup();
         const surface = yield* start;
         channel.failNext("redraw", 1);
         yield* surface.showCard(view("m1"));
@@ -487,5 +509,96 @@ describe("after a restart", () => {
         expect(channel.redrawn()).toEqual(["footer"]);
         expect(channel.order()).toEqual(["footer"]);
       }),
+  );
+});
+
+describe("Venues", () => {
+  it.scoped("give each Venue's channel its own Footer, and each Card goes to its Venue's", () =>
+    Effect.gen(function* () {
+      const { channel, racing, start } = yield* setup();
+      const surface = yield* start;
+      expect(racing.order()).toEqual(["footer"]);
+      yield* surface.showCard(view("m1"));
+      yield* surface.showCard(view("m2", { venue: RACING }));
+      yield* surface.showCard(view("m3", { venue: RACING, type: "lobby" }));
+      expect(channel.order()).toEqual(["card m1", "footer"]);
+      expect(racing.order()).toEqual(["card m2", "card m3", "footer"]);
+      expect(channel.threadCount()).toBe(1);
+      expect(racing.threadCount()).toBe(2);
+    }),
+  );
+
+  it.scoped("post in and remove from the Venue whose channel holds the Card", () =>
+    Effect.gen(function* () {
+      const { channel, racing, start, placeOf } = yield* setup();
+      const surface = yield* start;
+      yield* surface.showCard(view("m1"));
+      yield* surface.showCard(view("m2", { venue: RACING }));
+      yield* surface.post(
+        "m2",
+        ThreadPost.Opened({ by: ALICE, skin: null, type: "public", minutes: 10 }),
+      );
+      expect(racing.threadPosts("m2")).toEqual(["Opened"]);
+      expect(channel.threadPosts("m1")).toEqual([]);
+      expect(yield* placeOf("m2")).toMatchObject({ venue: RACING });
+      yield* surface.remove("m2", "expired");
+      expect(racing.order()).toEqual(["footer"]);
+      expect(channel.order()).toEqual(["card m1", "footer"]);
+    }),
+  );
+
+  it.scoped("keep each Venue's Footer and Cards in place across a restart", () =>
+    Effect.gen(function* () {
+      const { channel, racing, start, placeOf } = yield* setup();
+      const first = yield* start;
+      yield* first.showCard(view("m1"));
+      yield* first.showCard(view("m2", { venue: RACING }));
+      const surface = yield* start;
+      yield* surface.showCard(view("m2", { venue: RACING, state: "live" }));
+      expect(channel.redrawn()).toEqual(["card m1"]);
+      expect(racing.redrawn()).toEqual(["card m2", "card m2"]);
+      expect(channel.order()).toEqual(["card m1", "footer"]);
+      expect(racing.order()).toEqual(["card m2", "footer"]);
+      expect(yield* placeOf("m1")).toMatchObject({ venue: HOME });
+      expect(yield* placeOf("m2")).toMatchObject({ venue: RACING });
+    }),
+  );
+
+  it.scoped("find the home Venue's Footer from the layout saved before Venues, unedited", () =>
+    Effect.gen(function* () {
+      const footer = Drawing.Footer();
+      // What the build before Venues left: its Footer as the channel's last message, recorded
+      // in the one layout row with what it showed.
+      const homeOnly = yield* setup({
+        homeOnly: true,
+        beforeVenues: Effect.gen(function* () {
+          const db = yield* SqlClient.SqlClient;
+          const data = JSON.stringify({
+            footerId: "msg1",
+            footerFingerprint: "build 1: footer",
+            cards: [],
+            finished: [],
+          });
+          yield* db`INSERT INTO discord_layout (id, data) VALUES (1, ${data})`;
+        }),
+      });
+      yield* homeOnly.channel.port.post(footer);
+      yield* homeOnly.start;
+      expect(homeOnly.channel.order()).toEqual(["footer"]);
+      expect(homeOnly.channel.posted()).toEqual(["footer"]);
+      expect(homeOnly.channel.redrawn()).toEqual([]);
+    }),
+  );
+
+  it.scoped("draw nothing for a Venue that isn't running, and nothing in another's channel", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup({ homeOnly: true });
+      const surface = yield* start;
+      yield* surface.showCard(view("m1", { venue: RACING }));
+      yield* surface.post("m1", ThreadPost.Abandoned());
+      yield* surface.remove("m1", "expired");
+      expect(channel.order()).toEqual(["footer"]);
+      expect(channel.threadCount()).toBe(0);
+    }),
   );
 });

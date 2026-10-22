@@ -18,6 +18,7 @@ import {
   type MatchType,
   type Minutes,
   type Player,
+  type VenueName,
 } from "./domain.js";
 import {
   ChosenSkins,
@@ -168,7 +169,10 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       return m;
     });
 
-    /** One open Invite or live Match per Player, counting a Challenge that names them and Invites mid-start. */
+    /**
+     * One open Invite or live Match per Player in every Venue together, counting a Challenge that
+     * names them and Invites mid-start.
+     */
     const assertFree = Effect.fn("assertFree")(function* (discordId: string) {
       const active = [...(yield* store.activeMatches), ...(yield* Ref.get(starting)).values()];
       if (active.some((m) => involves(m, discordId))) return yield* new Busy({ discordId });
@@ -642,7 +646,15 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         });
       }, locked),
 
-      openInvite: Effect.fn("openInvite")(function* (discordId: string, request: InviteRequest) {
+      /**
+       * An Invite in `venue`, seen and joined only there. The Player must be free in every
+       * Venue, as must a Challenge's opponent.
+       */
+      openInvite: Effect.fn("openInvite")(function* (
+        venue: VenueName,
+        discordId: string,
+        request: InviteRequest,
+      ) {
         const creator = yield* playerOf(discordId);
         yield* assertFree(discordId);
         let target: Player | null = null;
@@ -656,6 +668,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         }
         const m: Match = {
           id: yield* store.nextMatchId,
+          venue,
           type: request.type,
           minutes: request.minutes,
           creator,

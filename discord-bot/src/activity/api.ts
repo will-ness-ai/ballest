@@ -8,6 +8,7 @@ import {
   ACTIONS,
   actionsFor,
   DURATIONS,
+  HOME_VENUE,
   involves,
   type Match,
   type PbEvent,
@@ -110,6 +111,8 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
   const engine = yield* Engine;
   const chosenSkins = yield* ChosenSkins;
   const pings = yield* Pings;
+  /** The Venue the Activity serves: the home Venue's server and channel, which `where` names. */
+  const venue = HOME_VENUE;
   /** Each member's last previewed profile, waiting for them to confirm it. */
   const previews = yield* Ref.make(new Map<string, ProfilePreview>());
 
@@ -240,10 +243,10 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
             matchId: active?.id ?? null,
             // Null when Discord can't say just now: the rest of the page still works.
             pings: yield* pings
-              .status(discordId)
+              .status(venue, discordId)
               .pipe(Effect.catchTag("PingRoleUnavailable", () => Effect.succeed(null))),
             // The role as the server names it, for the bell's toasts and the offer.
-            pingRole: pings.role,
+            pingRole: pings.role(venue),
           });
         }),
       ),
@@ -253,7 +256,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
       asMember((discordId) =>
         Effect.gen(function* () {
           const { on } = yield* HttpServerRequest.schemaBodyJson(PingsBody);
-          yield* pings.set(discordId, on);
+          yield* pings.set(venue, discordId, on);
           return json({ pings: on });
         }),
       ),
@@ -262,7 +265,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
       "/api/pings/decline",
       asMember((discordId) =>
         Effect.gen(function* () {
-          yield* pings.decline(discordId);
+          yield* pings.decline(venue, discordId);
           return HttpServerResponse.empty({ status: 204 });
         }),
       ),
@@ -343,7 +346,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
       asMember((discordId) =>
         Effect.gen(function* () {
           const request = yield* HttpServerRequest.schemaBodyJson(OpenBody);
-          return json({ matchId: yield* engine.openInvite(discordId, request) });
+          return json({ matchId: yield* engine.openInvite(venue, discordId, request) });
         }),
       ),
     ),
@@ -378,7 +381,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
           return yield* reply(
             yield* store.getMatch(id),
             discordId,
-            yield* pings.offerAfter(known, discordId),
+            yield* pings.offerAfter(venue, known, discordId),
           );
         }),
       ),
@@ -401,7 +404,9 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
         ),
       PingRoleUnavailable: (e) =>
         warnPingRole(e).pipe(
-          Effect.as(json({ error: "PingRoleUnavailable", message: pingFailed(pings.role) }, 503)),
+          Effect.as(
+            json({ error: "PingRoleUnavailable", message: pingFailed(pings.role(venue)) }, 503),
+          ),
         ),
       DiscordUnavailable: () =>
         Effect.succeed(

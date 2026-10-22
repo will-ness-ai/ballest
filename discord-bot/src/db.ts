@@ -6,56 +6,87 @@ import { Migrator, SqlClient } from "@effect/sql";
 import { SqliteMigrator } from "@effect/sql-sqlite-node";
 import { Effect, Layer } from "effect";
 
-export const MigratorLive = SqliteMigrator.layer({
-  loader: Migrator.fromRecord({
-    "0001_links_and_matches": Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* sql`CREATE TABLE links (
+type Migrations = Record<string, Effect.Effect<void, unknown, SqlClient.SqlClient>>;
+
+/** Every migration by its id and name, applied in order; never edit one that has shipped. */
+const MIGRATIONS: Migrations = {
+  "0001_links_and_matches": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE links (
         discord_id TEXT PRIMARY KEY,
         steam_id TEXT NOT NULL,
         persona_name TEXT NOT NULL
       )`;
-      yield* sql`CREATE TABLE matches (
+    yield* sql`CREATE TABLE matches (
         id TEXT PRIMARY KEY,
         state TEXT NOT NULL,
         data TEXT NOT NULL
       )`;
-      yield* sql`CREATE INDEX matches_state ON matches (state)`;
-      yield* sql`CREATE TABLE match_ids (n INTEGER PRIMARY KEY AUTOINCREMENT)`;
-    }),
-    // A board's id never changes, and finding one by name costs a Steam round trip.
-    "0002_board_ids": Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* sql`CREATE TABLE board_ids (board_name TEXT PRIMARY KEY, board_id INTEGER NOT NULL)`;
-    }),
-    // Where the Footer and each Match's Card and Match Thread are, so a restart can find them.
-    "0003_discord_layout": Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* sql`CREATE TABLE discord_layout (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)`;
-    }),
-    // Members who answered the @Multiplayer ping offer (Get or No), so it is never made again.
-    // Keyed by Discord id, not by Link: a member without a Link can answer it too.
-    "0004_ping_offer_answers": Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* sql`CREATE TABLE ping_offer_answers (discord_id TEXT PRIMARY KEY)`;
-    }),
-    // Each day the Daily Report was posted (UTC, "2026-10-04"), so it is never posted twice.
-    "0005_daily_reports": Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* sql`CREATE TABLE daily_reports (day TEXT PRIMARY KEY, message_id TEXT NOT NULL)`;
-    }),
-    // Each Daily Post (spec #268) by its Daily's date, so a restart resumes the live one and
-    // never posts a date twice. `data` is the record as JSON (dailyPost/schedule.ts).
-    "0006_daily_posts": Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* sql`CREATE TABLE daily_posts (date TEXT PRIMARY KEY, state TEXT NOT NULL, data TEXT NOT NULL)`;
-    }),
-    // Each read of a Daily that changed its lead (spec #268): its leaders (a JSON array of names)
-    // and leading time. It draws the Daily Post's lead graph and its thread's lines.
-    "0007_daily_leads": Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* sql`CREATE TABLE daily_leads (date TEXT NOT NULL, at INTEGER NOT NULL, leaders TEXT NOT NULL, ticks INTEGER NOT NULL)`;
-      yield* sql`CREATE INDEX daily_leads_date ON daily_leads (date, at)`;
-    }),
+    yield* sql`CREATE INDEX matches_state ON matches (state)`;
+    yield* sql`CREATE TABLE match_ids (n INTEGER PRIMARY KEY AUTOINCREMENT)`;
   }),
-}).pipe(Layer.provide(NodeContext.layer));
+  // A board's id never changes, and finding one by name costs a Steam round trip.
+  "0002_board_ids": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE board_ids (board_name TEXT PRIMARY KEY, board_id INTEGER NOT NULL)`;
+  }),
+  // Where the Footer and each Match's Card and Match Thread are, so a restart can find them.
+  "0003_discord_layout": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE discord_layout (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)`;
+  }),
+  // Members who answered the @Multiplayer ping offer (Get or No), so it is never made again.
+  // Keyed by Discord id, not by Link: a member without a Link can answer it too.
+  "0004_ping_offer_answers": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE ping_offer_answers (discord_id TEXT PRIMARY KEY)`;
+  }),
+  // Each day the Daily Report was posted (UTC, "2026-10-04"), so it is never posted twice.
+  "0005_daily_reports": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE daily_reports (day TEXT PRIMARY KEY, message_id TEXT NOT NULL)`;
+  }),
+  // Each Daily Post (spec #268) by its Daily's date, so a restart resumes the live one and
+  // never posts a date twice. `data` is the record as JSON (dailyPost/schedule.ts).
+  "0006_daily_posts": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE daily_posts (date TEXT PRIMARY KEY, state TEXT NOT NULL, data TEXT NOT NULL)`;
+  }),
+  // Each read of a Daily that changed its lead (spec #268): its leaders (a JSON array of names)
+  // and leading time. It draws the Daily Post's lead graph and its thread's lines.
+  "0007_daily_leads": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE daily_leads (date TEXT NOT NULL, at INTEGER NOT NULL, leaders TEXT NOT NULL, ticks INTEGER NOT NULL)`;
+    yield* sql`CREATE INDEX daily_leads_date ON daily_leads (date, at)`;
+  }),
+  // Venues (spec #315): each Venue's channel has its own Footer and Cards, so the layout is kept
+  // per Venue. The one row there was is the home Venue's, so a deploy finds its Footer in place.
+  "0008_venue_layouts": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE discord_layout_by_venue (venue TEXT PRIMARY KEY, data TEXT NOT NULL)`;
+    yield* sql`INSERT INTO discord_layout_by_venue (venue, data) SELECT 'home', data FROM discord_layout WHERE id = 1`;
+    yield* sql`DROP TABLE discord_layout`;
+    yield* sql`ALTER TABLE discord_layout_by_venue RENAME TO discord_layout`;
+  }),
+  // Each Venue offers its own @Multiplayer ping role, so an answer is kept per Venue; the
+  // answers given before were all to the home Venue's offer.
+  "0009_ping_offer_answers_by_venue": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE ping_offer_answers_by_venue (venue TEXT NOT NULL, discord_id TEXT NOT NULL, PRIMARY KEY (venue, discord_id))`;
+    yield* sql`INSERT INTO ping_offer_answers_by_venue (venue, discord_id) SELECT 'home', discord_id FROM ping_offer_answers`;
+    yield* sql`DROP TABLE ping_offer_answers`;
+    yield* sql`ALTER TABLE ping_offer_answers_by_venue RENAME TO ping_offer_answers`;
+  }),
+};
+
+/** The migrations a build had before the one with this id (`"0008"`): tests start a database from an older build. */
+export const migrationsBefore = (id: string): Migrations =>
+  Object.fromEntries(Object.entries(MIGRATIONS).filter(([name]) => name < id));
+
+/** Run these migrations on the provided SqlClient. */
+export const migratorFor = (migrations: Migrations) =>
+  SqliteMigrator.layer({ loader: Migrator.fromRecord(migrations) }).pipe(
+    Layer.provide(NodeContext.layer),
+  );
+
+export const MigratorLive = migratorFor(MIGRATIONS);

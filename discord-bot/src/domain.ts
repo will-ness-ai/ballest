@@ -62,8 +62,19 @@ export interface Link {
 
 export type MatchState = "invite" | "live" | "finished";
 
+/**
+ * A Venue's name (CONTEXT.md): the short stable key of a Discord server the bot plays Matches in,
+ * stored on each Match.
+ */
+export type VenueName = string;
+
+/** The game Discord, the Venue every Match was in before there were others. */
+export const HOME_VENUE: VenueName = "home";
+
 export interface Match {
   readonly id: string;
+  /** The Venue its Invite was opened in: its Card, Match Thread and queue are there. */
+  readonly venue: VenueName;
   readonly type: MatchType;
   readonly minutes: Minutes;
   readonly creator: Player;

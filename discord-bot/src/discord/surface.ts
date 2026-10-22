@@ -1,6 +1,10 @@
-// The Surface port on a Channel: where each Card, its Match Thread and the Footer sit, kept in
-// SQLite so a restart picks up where it left off. Channel failures are logged, never thrown at
-// the engine: a Card that fails to redraw must not stop a Match.
+// The Surface port on each Venue's Channel: where each Card, its Match Thread and the Footer sit,
+// kept in SQLite (a layout row per Venue) so a restart picks up where it left off. Channel
+// failures are logged, never thrown at the engine: a Card that fails to redraw must not stop a
+// Match.
+//
+// Each Venue's channel follows the same rules on its own (spec #315): a Card goes to its Match's
+// Venue, and everything after it to wherever that Card is.
 //
 // The rules (spec #21, stories 19-22, 31, 38):
 // - The Footer is always the channel's last message.
@@ -27,6 +31,7 @@
 import { SqlClient, SqlSchema } from "@effect/sql";
 import { Context, Effect, Layer, Option, Ref, Schema } from "effect";
 import { MigratorLive } from "../db.js";
+import type { VenueName } from "../domain.js";
 import {
   type CardView,
   isKept,
@@ -36,7 +41,7 @@ import {
   Surface,
   type ThreadPost,
 } from "../ports.js";
-import { Channel, type ChannelError, Drawing } from "./channel.js";
+import { type Channel, type ChannelError, Drawing, VenueChannels } from "./channel.js";
 import { describeDiscordError } from "./client.js";
 
 interface CardRef {
@@ -52,8 +57,8 @@ interface Layout {
   /** The fingerprint of what the Footer shows; null when unknown, so the next start redraws it. */
   readonly footerFingerprint: string | null;
   readonly cards: ReadonlyMap<string, CardRef>;
-  /** Where finished Matches' Cards and threads are, oldest first. */
-  readonly finished: ReadonlyMap<string, MatchPlace>;
+  /** Where finished Matches' Cards and threads are in this channel, oldest first. */
+  readonly finished: ReadonlyMap<string, Omit<MatchPlace, "venue">>;
 }
 
 /** How many finished Matches' places are kept. */
@@ -100,14 +105,14 @@ const retryUnlessGone = <A, E extends ChannelError>(effect: Effect.Effect<A, E>)
 const unlessGone = <E extends ChannelError>(effect: Effect.Effect<void, E>) =>
   effect.pipe(Effect.catchAll((e) => (e._tag === "Gone" ? Effect.void : logFailure(e))));
 
-const make = Effect.gen(function* () {
-  const channel = yield* Channel;
+/** One Venue's channel as a Surface: its Footer, Cards and Match Threads, and its layout row. */
+const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, channel: Channel) {
   const sql = yield* SqlClient.SqlClient;
 
   const loadLayout = SqlSchema.findOne({
     Request: Schema.Void,
     Result: Schema.Struct({ data: LayoutJson }),
-    execute: () => sql`SELECT data FROM discord_layout WHERE id = 1`,
+    execute: () => sql`SELECT data FROM discord_layout WHERE venue = ${venue}`,
   });
   const saved = yield* loadLayout(undefined).pipe(Effect.orDie);
   const layout = yield* Ref.make<Layout>(
@@ -134,7 +139,7 @@ const make = Effect.gen(function* () {
       cards: [...next.cards],
       finished: [...next.finished],
     });
-    yield* sql`INSERT INTO discord_layout (id, data) VALUES (1, ${data}) ON CONFLICT (id) DO UPDATE SET data = excluded.data`;
+    yield* sql`INSERT INTO discord_layout (venue, data) VALUES (${venue}, ${data}) ON CONFLICT (venue) DO UPDATE SET data = excluded.data`;
   }, Effect.orDie);
   const setCard = (matchId: string, card: CardRef) =>
     setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }));
@@ -328,17 +333,67 @@ const make = Effect.gen(function* () {
     yield* postFooter().pipe(Effect.catchAll((e) => logFailure(e)));
   }
 
+  /** Where this channel holds a Match's Card and thread, live or finished. */
+  const placeOf = (matchId: string) =>
+    Ref.get(layout).pipe(
+      Effect.map(({ cards, finished }): Option.Option<MatchPlace> => {
+        const card = cards.get(matchId);
+        const spot =
+          card === undefined
+            ? finished.get(matchId)
+            : { messageId: card.messageId, threadId: card.threadId };
+        return Option.map(Option.fromNullable(spot), (s) => ({ venue, ...s }));
+      }),
+    );
+
+  /** Whether this channel holds the Match's Card now, so its posts and removal come here. */
+  const holds = (matchId: string) =>
+    Ref.get(layout).pipe(Effect.map(({ cards }) => cards.has(matchId)));
+
+  return { showCard, remove, post, placeOf, holds };
+});
+
+/**
+ * Every running Venue's channel Surface behind the one Surface port: a Card goes to its view's
+ * Venue, and a post or removal to the Venue whose channel holds that Match's Card.
+ */
+const make = Effect.gen(function* () {
+  const channels = yield* VenueChannels;
+  const surfaces = new Map<VenueName, Effect.Effect.Success<ReturnType<typeof venueSurface>>>();
+  // In order, home first: each start's Footer check is a few Discord calls.
+  for (const [venue, channel] of channels) surfaces.set(venue, yield* venueSurface(venue, channel));
+
+  /** The Venue Surface holding a Match's Card, if any. */
+  const holding = (matchId: string) =>
+    Effect.findFirst([...surfaces.values()], (s) => s.holds(matchId));
+
+  const showCard = (view: CardView) => {
+    const surface = surfaces.get(view.venue);
+    return surface === undefined
+      ? Effect.logWarning(`Venue ${view.venue} isn't running; ${view.matchId}'s Card isn't drawn`)
+      : surface.showCard(view);
+  };
+  const post = (matchId: string, threadPost: ThreadPost) =>
+    holding(matchId).pipe(
+      Effect.flatMap(
+        Option.match({
+          onNone: () =>
+            Effect.logWarning(`no Card for ${matchId}; dropped a ${threadPost._tag} post`),
+          onSome: (s) => s.post(matchId, threadPost),
+        }),
+      ),
+    );
+  const remove = (matchId: string, reason: RemovalReason) =>
+    holding(matchId).pipe(
+      Effect.flatMap(
+        Option.match({ onNone: () => Effect.void, onSome: (s) => s.remove(matchId, reason) }),
+      ),
+    );
+
   const links = MatchLinks.of({
     of: (matchId) =>
-      Ref.get(layout).pipe(
-        Effect.map(({ cards, finished }) => {
-          const card = cards.get(matchId);
-          return Option.fromNullable(
-            card === undefined
-              ? finished.get(matchId)
-              : { messageId: card.messageId, threadId: card.threadId },
-          );
-        }),
+      Effect.reduce(surfaces.values(), Option.none<MatchPlace>(), (found, s) =>
+        Option.isSome(found) ? Effect.succeed(found) : s.placeOf(matchId),
       ),
   });
 
@@ -347,5 +402,8 @@ const make = Effect.gen(function* () {
   );
 });
 
-/** The Surface port on a Channel, and where it put each Match. Needs the Channel and a SqlClient. */
+/**
+ * The Surface port on every running Venue's Channel, and where each put each Match. Needs the
+ * VenueChannels and a SqlClient.
+ */
 export const ChannelSurfaceLive = Layer.effectContext(make).pipe(Layer.provide(MigratorLive));

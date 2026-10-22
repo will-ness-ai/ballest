@@ -25,7 +25,12 @@ const driven = (h: Harness, renderer: Layer.Layer<Renderer> = Renderer.Default) 
     const feed = Stream.async<never>(
       (emit) => void queue.push((i) => void emit.single(i as never)),
     );
-    const discord = Layer.succeed(Discord, Discord.make({ interactions: Stream.empty } as never));
+    // The driver's clicks play in the home Venue, as in the sandbox.
+    const home = { name: "home", pingRoleId: "r-ping", pingRoleName: "Multiplayer ping" };
+    const discord = Layer.succeed(
+      Discord,
+      Discord.make({ interactions: Stream.empty, home, venueOf: () => undefined } as never),
+    );
     yield* Layer.build(
       InteractionsLive.pipe(
         Layer.provide(Layer.succeed(DriverInteractions, feed)),

@@ -68,7 +68,13 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
     /** Every Match's Card is message `msg-<id>`, and its thread `thread-<id>`. */
     const links = MatchLinks.of({
       of: (matchId) =>
-        Effect.succeed(Option.some({ messageId: `msg-${matchId}`, threadId: `thread-${matchId}` })),
+        Effect.succeed(
+          Option.some({
+            venue: "home",
+            messageId: `msg-${matchId}`,
+            threadId: `thread-${matchId}`,
+          }),
+        ),
     });
     const app = yield* makeActivityApi(WHERE).pipe(
       Effect.provideService(Engine, h.engine),
@@ -318,6 +324,7 @@ describe("opening a Match", () => {
         matches: [
           {
             matchId,
+            venue: "home",
             state: "invite",
             type: "lobby",
             minutes: 5,

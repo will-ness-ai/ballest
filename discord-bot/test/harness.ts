@@ -1,8 +1,8 @@
 // Fakes for the engine's ports, and a harness that builds the whole engine the way the bot
 // does. Tests drive Player actions and the TestClock, and assert on what reached Surface.
 import { Context, type Duration, Effect, Exit, Layer, Option, Ref, Scope, TestClock } from "effect";
-import type { DrawnMap, Link, MapInfo, Medals } from "../src/domain.js";
-import { SCORE_TICKS_PER_SECOND } from "../src/domain.js";
+import type { DrawnMap, Link, MapInfo, Medals, VenueName } from "../src/domain.js";
+import { HOME_VENUE, SCORE_TICKS_PER_SECOND } from "../src/domain.js";
 import { Engine } from "../src/engine.js";
 import { SqliteStoreInMemory } from "../src/sqliteStore.js";
 import { Pings } from "../src/pings.js";
@@ -185,43 +185,51 @@ export const makeFakeChosenSkins = Effect.gen(function* () {
 // ---------------------------------------------------------------- the ping role
 
 export interface FakePingRoleControl {
-  /** Give a member the role from outside the bot, as a moderator would in Discord. */
-  readonly give: (discordId: string) => Effect.Effect<void>;
-  /** Whether the member has the role right now. */
-  readonly has: (discordId: string) => Effect.Effect<boolean>;
+  /** Give a member a Venue's role from outside the bot, as a moderator would in Discord. */
+  readonly give: (discordId: string, venue?: VenueName) => Effect.Effect<void>;
+  /** Whether the member has the Venue's role right now. */
+  readonly has: (discordId: string, venue?: VenueName) => Effect.Effect<boolean>;
   /** While true, every read and change fails as if Discord refused it. */
   readonly setFailing: (failing: boolean) => Effect.Effect<void>;
 }
 
+/** Each Venue's role; the home Venue's is "Multiplayer ping", any other's is named after it. */
 export const makeFakePingRole = Effect.gen(function* () {
   const holders = yield* Ref.make(new Set<string>());
   const failing = yield* Ref.make(false);
+  const key = (venue: VenueName, discordId: string) => `${venue}/${discordId}`;
   const discord = <A>(run: Effect.Effect<A>) =>
     Effect.flatMap(Ref.get(failing), (f) =>
       f ? Effect.fail(new PingRoleUnavailable({ reason: "Discord said no" })) : run,
     );
-  const update = (discordId: string, on: boolean) =>
+  const update = (venue: VenueName, discordId: string, on: boolean) =>
     Ref.update(holders, (all) => {
       const next = new Set(all);
-      if (on) next.add(discordId);
-      else next.delete(discordId);
+      if (on) next.add(key(venue, discordId));
+      else next.delete(key(venue, discordId));
       return next;
     });
+  const holds = (venue: VenueName, discordId: string) =>
+    Ref.get(holders).pipe(Effect.map((all) => all.has(key(venue, discordId))));
   const port = PingRole.of({
-    name: "Multiplayer ping",
-    has: (discordId) => discord(Ref.get(holders).pipe(Effect.map((all) => all.has(discordId)))),
-    add: (discordId) => discord(update(discordId, true)),
-    remove: (discordId) => discord(update(discordId, false)),
+    nameIn: (venue) => (venue === HOME ? "Multiplayer ping" : `${venue} ping`),
+    has: (venue, discordId) => discord(holds(venue, discordId)),
+    add: (venue, discordId) => discord(update(venue, discordId, true)),
+    remove: (venue, discordId) => discord(update(venue, discordId, false)),
   });
   const control: FakePingRoleControl = {
-    give: (discordId) => update(discordId, true),
-    has: (discordId) => Ref.get(holders).pipe(Effect.map((all) => all.has(discordId))),
+    give: (discordId, venue = HOME) => update(venue, discordId, true),
+    has: (discordId, venue = HOME) => holds(venue, discordId),
     setFailing: (f) => Ref.set(failing, f),
   };
   return { port, control };
 });
 
 // ---------------------------------------------------------------- the harness
+
+/** The game Discord's Venue, and a second server's. */
+export const HOME = HOME_VENUE;
+export const RACING = "ballest-racing";
 
 export const ALICE = { discordId: "d-alice", steamId: "s-alice" };
 export const BOB = { discordId: "d-bob", steamId: "s-bob" };
@@ -240,6 +248,7 @@ export const drawnMap = (map: FakeMap = makeMap(1)): DrawnMap => ({
 /** A Card view: a Public 1v1 Invite by Alice unless told otherwise. */
 export const cardView = (matchId: string, over: Partial<CardView> = {}): CardView => ({
   matchId,
+  venue: HOME,
   state: "invite",
   type: "public",
   minutes: 10,

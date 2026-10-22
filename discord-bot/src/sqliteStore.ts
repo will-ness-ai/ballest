@@ -3,7 +3,7 @@
 import { SqlClient, SqlSchema } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { Effect, Layer, Option, Schema } from "effect";
-import { DURATIONS, type Link, type Match } from "./domain.js";
+import { DURATIONS, HOME_VENUE, type Link, type Match } from "./domain.js";
 import { MigratorLive } from "./db.js";
 import { Store } from "./ports.js";
 
@@ -32,6 +32,8 @@ const DrawnMapSchema = Schema.Struct({
 
 const MatchSchema = Schema.Struct({
   id: Schema.String,
+  // A Match stored before Venues was in the home Venue.
+  venue: Schema.optionalWith(Schema.String, { default: () => HOME_VENUE }),
   type: Schema.Literal("public", "challenge", "lobby"),
   minutes: Schema.Literal(...DURATIONS),
   creator: PlayerSchema,
@@ -141,13 +143,13 @@ const make = Effect.gen(function* () {
       Effect.map((rows) => rows.map((r) => r.data)),
       Effect.orDie,
     ),
-    hasAnsweredPingOffer: (discordId) =>
-      sql`SELECT 1 FROM ping_offer_answers WHERE discord_id = ${discordId}`.pipe(
+    hasAnsweredPingOffer: (venue, discordId) =>
+      sql`SELECT 1 FROM ping_offer_answers WHERE venue = ${venue} AND discord_id = ${discordId}`.pipe(
         Effect.map((rows) => rows.length > 0),
         Effect.orDie,
       ),
-    answerPingOffer: (discordId) =>
-      sql`INSERT INTO ping_offer_answers ${sql.insert({ discord_id: discordId })} ON CONFLICT (discord_id) DO NOTHING`.pipe(
+    answerPingOffer: (venue, discordId) =>
+      sql`INSERT INTO ping_offer_answers ${sql.insert({ venue, discord_id: discordId })} ON CONFLICT (venue, discord_id) DO NOTHING`.pipe(
         Effect.asVoid,
         Effect.orDie,
       ),

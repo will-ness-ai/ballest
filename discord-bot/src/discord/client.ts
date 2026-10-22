@@ -1,7 +1,9 @@
-// The logged-in Discord client and the one channel the bot lives in.
+// The logged-in Discord client and the Venues the bot plays in: each a server, its Match channel
+// and its @Multiplayer ping role (CONTEXT.md, src/venues.ts).
 //
-// The bot never creates or edits channels (spec #21, story 16): it is given the channel's id,
-// and at startup it checks it can do everything it needs there, or refuses to start.
+// The bot never creates or edits channels (spec #21, story 16): it is given each channel's id,
+// and at startup it checks it can do everything it needs there. The home Venue failing that
+// stops the bot; any other is left out, and ops told, while the bot runs on (spec #315).
 import {
   ChannelType,
   Client,
@@ -13,6 +15,9 @@ import {
   type TextChannel,
 } from "discord.js";
 import { Config, Data, Effect, Option, Redacted, Stream } from "effect";
+import { HOME_VENUE, type VenueName } from "../domain.js";
+import { OpsAlerts } from "../ops.js";
+import { parseVenues, startVenues, type VenueConfig } from "../venues.js";
 
 export class DiscordError extends Data.TaggedError("DiscordError")<{
   readonly op: string;
@@ -59,66 +64,61 @@ export const isUnknown = (e: DiscordError) =>
 export const tryDiscord = <A>(op: string, run: () => Promise<A>) =>
   Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
 
-export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
-  scoped: Effect.gen(function* () {
-    const token = yield* Config.redacted("DISCORD_TOKEN");
-    const guildId = yield* Config.string("DISCORD_GUILD_ID");
-    const channelId = yield* Config.string("DISCORD_CHANNEL_ID");
-    /** The @Multiplayer ping role: the one role the bot adds, removes and mentions. */
-    const pingRoleId = yield* Config.string("DISCORD_PING_ROLE_ID");
-    // The sandbox shares the dev app with `pnpm dev`, so clicks in the other copy's channel reach
-    // it too: it leaves them to that copy rather than answering first.
-    const sandbox = yield* Config.boolean("MULTIBALLS_SANDBOX").pipe(Config.withDefault(false));
+/** A running Venue on discord.js: checked at startup, so the bot can do everything it needs there. */
+export interface DiscordVenue {
+  readonly name: VenueName;
+  /** Its Match channel. */
+  readonly channel: TextChannel;
+  /** Its @Multiplayer ping role's id: the bot can give, take and mention it. */
+  readonly pingRoleId: string;
+  /** That role's name on the server, as it was at startup: the words name the role by it. */
+  readonly pingRoleName: string;
+  /** The member's name in this Venue's server, for thread titles and images. */
+  readonly displayName: (discordId: string) => Effect.Effect<string>;
+  /** The member's name in this Venue's server, or None if they aren't in it; any other failure is Discord's. */
+  readonly member: (discordId: string) => Effect.Effect<Option.Option<string>, DiscordError>;
+}
 
-    const client = yield* Effect.acquireRelease(
-      // GuildMessages for postsIn: only that a message arrived, never its words (no Message Content).
-      Effect.sync(
-        () => new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] }),
-      ),
-      (c) => Effect.promise(() => c.destroy()),
-    );
-    yield* Effect.async<undefined, DiscordError>((resume) => {
-      const onReady = () => resume(Effect.succeed(undefined));
-      client.once(Events.ClientReady, onReady);
-      client
-        .login(Redacted.value(token))
-        .catch((cause: unknown) => resume(Effect.fail(new DiscordError({ op: "login", cause }))));
-      return Effect.sync(() => client.off(Events.ClientReady, onReady));
-    }).pipe(
-      Effect.timeoutFail({
-        duration: "30 seconds",
-        onTimeout: () => new DiscordError({ op: "login", cause: "timed out" }),
-      }),
-    );
+/** NFKC turns "fancy text" (𝐁𝐨𝐥𝐝, Ｗｉｄｅ, ⓒⓘⓡⓒⓛⓔⓓ letters) into the plain letters the image fonts have. */
+const plainName = (name: string) => name.normalize("NFKC");
 
-    const fetched = yield* tryDiscord("fetch channel", () => client.channels.fetch(channelId));
+/**
+ * Check one Venue as the bot needs it, or say in one line what is wrong: its channel is a text
+ * channel in its server with every permission the bot uses, and its ping role can be given,
+ * taken and mentioned (Lobby pings would otherwise go silently missing). Roles are read over
+ * REST: the Gateway intents stay at Guilds.
+ */
+const checkVenue = (client: Client<true>, venue: VenueConfig) =>
+  Effect.gen(function* () {
+    const where =
+      venue.name === HOME_VENUE ? "DISCORD_CHANNEL_ID" : `Venue "${venue.name}"'s channel`;
+    const fetched = yield* tryDiscord("fetch channel", () =>
+      client.channels.fetch(venue.channelId),
+    );
     if (fetched?.type !== ChannelType.GuildText)
-      return yield* Effect.dieMessage(
-        `DISCORD_CHANNEL_ID ${channelId} is not a server text channel the bot can see`,
+      return yield* Effect.fail(
+        `${where} ${venue.channelId} is not a server text channel the bot can see`,
       );
     const channel: TextChannel = fetched;
-    if (channel.guildId !== guildId)
-      return yield* Effect.dieMessage(
-        `channel ${channelId} is in server ${channel.guildId}, not DISCORD_GUILD_ID ${guildId}`,
+    if (channel.guildId !== venue.guildId)
+      return yield* Effect.fail(
+        `channel ${venue.channelId} is in server ${channel.guildId}, not ${venue.name === HOME_VENUE ? "DISCORD_GUILD_ID " : ""}${venue.guildId}`,
       );
-    const me = client.user;
-    const perms = me === null ? null : channel.permissionsFor(me);
+    const perms = channel.permissionsFor(client.user);
     const missing = REQUIRED_PERMISSIONS.filter(([, flag]) => !perms?.has(flag)).map(
       ([name]) => name,
     );
     if (missing.length > 0)
-      return yield* Effect.dieMessage(
+      return yield* Effect.fail(
         `the bot is missing permissions in #${channel.name}: ${missing.join(", ")}`,
       );
 
-    // Lobby pings: the bot must be able to give, take and mention the role, or a Lobby's ping
-    // would go silently missing. Roles are read over REST: the Gateway intents stay at Guilds.
     const pingRole = yield* tryDiscord("fetch ping role", () =>
-      channel.guild.roles.fetch(pingRoleId),
+      channel.guild.roles.fetch(venue.pingRoleId),
     );
     if (pingRole === null)
-      return yield* Effect.dieMessage(
-        `DISCORD_PING_ROLE_ID ${pingRoleId} is not a role in ${channel.guild.name}`,
+      return yield* Effect.fail(
+        `${venue.name === HOME_VENUE ? "DISCORD_PING_ROLE_ID" : "ping role"} ${venue.pingRoleId} is not a role in ${channel.guild.name}`,
       );
     const self = yield* tryDiscord("fetch the bot's member", () => channel.guild.members.fetchMe());
     const roleProblems = [
@@ -135,22 +135,102 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
           ]),
     ];
     if (roleProblems.length > 0)
-      return yield* Effect.dieMessage(
+      return yield* Effect.fail(
         `the bot can't use the ping role @${pingRole.name}: it needs ${roleProblems.join("; ")}`,
       );
     yield* Effect.log(
-      `logged in as ${me?.tag}; posting in #${channel.name} (${channel.guild.name}); pinging @${pingRole.name}`,
+      `Venue ${venue.name}: posting in #${channel.name} (${channel.guild.name}); pinging @${pingRole.name}`,
     );
+
+    const fetchMember = (discordId: string) =>
+      tryDiscord("fetch member", () => channel.guild.members.fetch(discordId));
+    const running: DiscordVenue = {
+      name: venue.name,
+      channel,
+      pingRoleId: venue.pingRoleId,
+      pingRoleName: pingRole.name,
+      displayName: (discordId) =>
+        fetchMember(discordId).pipe(
+          Effect.map((member) => plainName(member.displayName)),
+          Effect.orElseSucceed(() => "Someone"),
+        ),
+      member: (discordId) =>
+        fetchMember(discordId).pipe(
+          Effect.map((member) => Option.some(plainName(member.displayName))),
+          Effect.catchIf(
+            (e) => isNotMember(e),
+            () => Effect.succeed(Option.none<string>()),
+          ),
+        ),
+    };
+    return running;
+  }).pipe(Effect.catchTag("DiscordError", (e) => Effect.fail(describeDiscordError(e))));
+
+/** Whether a click came from this Venue's channel or one of its Match Threads. */
+const isIn = (venue: DiscordVenue, i: Interaction) =>
+  i.channelId === venue.channel.id ||
+  (i.channel?.isThread() === true && i.channel.parentId === venue.channel.id);
+
+export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
+  scoped: Effect.gen(function* () {
+    const token = yield* Config.redacted("DISCORD_TOKEN");
+    const home = {
+      guildId: yield* Config.string("DISCORD_GUILD_ID"),
+      channelId: yield* Config.string("DISCORD_CHANNEL_ID"),
+      /** The home Venue's @Multiplayer ping role. */
+      pingRoleId: yield* Config.string("DISCORD_PING_ROLE_ID"),
+    };
+    const extra = yield* Config.option(Config.string("DISCORD_VENUES"));
+    // The sandbox shares the dev app with `pnpm dev`, so clicks in the other copy's channel reach
+    // it too: it leaves them to that copy rather than answering first.
+    const sandbox = yield* Config.boolean("MULTIBALLS_SANDBOX").pipe(Config.withDefault(false));
+    const alerts = yield* OpsAlerts;
+
+    const client = yield* Effect.acquireRelease(
+      // GuildMessages for postsIn: only that a message arrived, never its words (no Message Content).
+      Effect.sync(
+        () => new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] }),
+      ),
+      (c) => Effect.promise(() => c.destroy()),
+    );
+    const ready = yield* Effect.async<Client<true>, DiscordError>((resume) => {
+      const onReady = (c: Client<true>) => resume(Effect.succeed(c));
+      client.once(Events.ClientReady, onReady);
+      client
+        .login(Redacted.value(token))
+        .catch((cause: unknown) => resume(Effect.fail(new DiscordError({ op: "login", cause }))));
+      return Effect.sync(() => client.off(Events.ClientReady, onReady));
+    }).pipe(
+      Effect.timeoutFail({
+        duration: "30 seconds",
+        onTimeout: () => new DiscordError({ op: "login", cause: "timed out" }),
+      }),
+    );
+    const me = ready.user;
+    yield* Effect.log(`logged in as ${me.tag}`);
+
+    const configured = parseVenues(home, Option.getOrUndefined(extra));
+    for (const problem of configured.problems)
+      yield* alerts.post(`Multiballs left out a Venue: ${problem}`);
+    const venues = yield* startVenues(
+      configured.venues,
+      (venue) => checkVenue(ready, venue),
+      (message) => alerts.post(message),
+    );
+    const homeVenue = venues[0];
+    if (homeVenue?.name !== HOME_VENUE)
+      return yield* Effect.dieMessage("the home Venue didn't start");
+    const homeGuildId = home.guildId;
+
+    /** The running Venue a click came from, if any: its channel or one of its Match Threads. */
+    const venueOf = (i: Interaction): DiscordVenue | undefined =>
+      venues.find((venue) => isIn(venue, i));
 
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
         Effect.sync(() => {
           const onInteraction = (i: Interaction) => {
-            if (
-              i.channelId === channelId ||
-              (i.channel?.isThread() && i.channel.parentId === channelId)
-            )
-              emit.single(i);
+            if (venueOf(i) !== undefined) emit.single(i);
             else if (!sandbox && i.isRepliable())
               void i
                 .reply({ content: "Multiballs only works in its own channel.", ephemeral: true })
@@ -164,17 +244,16 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     );
 
     /**
-     * A stream of the id of each message posted in another channel of this server, from
-     * anyone. It fails at once if that channel isn't one the bot can view, so a listener can say
-     * so and stay off.
+     * A stream of the id of each message posted in another channel of the home Venue's server,
+     * from anyone. It fails at once if that channel isn't one the bot can view, so a listener can
+     * say so and stay off.
      */
     const postsIn = Effect.fn("postsIn")(function* (otherId: string) {
       const other = yield* tryDiscord("fetch channel", () => client.channels.fetch(otherId));
       const viewable =
         other !== null &&
         !other.isDMBased() &&
-        other.guildId === guildId &&
-        me !== null &&
+        other.guildId === homeGuildId &&
         (other.permissionsFor(me)?.has(PermissionFlagsBits.ViewChannel) ?? false);
       if (!viewable)
         return yield* Effect.fail(
@@ -198,15 +277,15 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     });
 
     /**
-     * Which of these permissions the bot lacks in another text channel of this server; it fails
-     * when that isn't a channel of this server the bot can see.
+     * Which of these permissions the bot lacks in another text channel of the home Venue's
+     * server; it fails when that isn't a channel of that server the bot can see.
      */
     const missingIn = Effect.fn("missingIn")(function* (
       otherId: string,
       required: ReadonlyArray<readonly [string, bigint]>,
     ) {
       const other = yield* tryDiscord("fetch channel", () => client.channels.fetch(otherId));
-      if (other === null || other.isDMBased() || other.guildId !== guildId || me === null)
+      if (other === null || other.isDMBased() || other.guildId !== homeGuildId)
         return yield* Effect.fail(
           new DiscordError({
             op: "fetch channel",
@@ -221,11 +300,12 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     if (application === null) return yield* Effect.dieMessage("logged in without an application");
 
     return {
-      channel,
-      /** The @Multiplayer ping role's id, checked at startup: the bot can give, take and mention it. */
-      pingRoleId,
-      /** That role's name on the server, as it was at startup: the words name the role by it. */
-      pingRoleName: pingRole.name,
+      /** The game Discord's Venue: always running, or the bot wouldn't have started. */
+      home: homeVenue,
+      /** Every running Venue, home first. */
+      venues,
+      venueOf,
+      /** Clicks from every running Venue's channel and its Match Threads. */
       interactions,
       postsIn,
       missingIn,
@@ -238,24 +318,6 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
         tryDiscord("create app emoji", () =>
           application.emojis.create({ name, attachment: png }),
         ).pipe(Effect.map((emoji) => emoji.id)),
-      /** The member's name in this server, for thread titles. */
-      displayName: Effect.fn("displayName")(function* (discordId: string) {
-        return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(
-          // NFKC turns "fancy text" (𝐁𝐨𝐥𝐝, Ｗｉｄｅ, ⓒⓘⓡⓒⓛⓔⓓ letters) into the plain letters the image fonts have.
-          Effect.map((member) => member.displayName.normalize("NFKC")),
-          Effect.orElseSucceed(() => "Someone"),
-        );
-      }),
-      /** The member's name in this server, or None if they aren't in it; any other failure is Discord's. */
-      member: Effect.fn("member")(function* (discordId: string) {
-        return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(
-          Effect.map((member) => Option.some(member.displayName.normalize("NFKC"))),
-          Effect.catchIf(
-            (e) => isNotMember(e),
-            () => Effect.succeed(Option.none<string>()),
-          ),
-        );
-      }),
     } as const;
   }),
 }) {}
