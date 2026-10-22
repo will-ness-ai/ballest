@@ -257,6 +257,11 @@ export const InteractionsLive = Layer.scopedDiscard(
         case "DeclinePing":
           yield* pings.decline(self);
           return yield* tryDiscord("update", () => i.update(pingDeclinedMessage()));
+        case "SeeMyStats":
+          // The Stat Card comes with ticket #327.
+          return yield* tryDiscord("reply", () =>
+            i.reply({ content: "Coming soon.", ...ephemeral, ...quiet }),
+          );
         default:
           return;
       }
