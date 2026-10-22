@@ -152,6 +152,11 @@ The view of a Prefab its uploader picked: its gallery card is drawn from it, and
 starts there. Without one, three-quarters from above with the whole Prefab in view.
 _Avoid_: thumbnail angle, camera, pose
 
+**Generator**:
+A page that makes a Prefab file from a few settings: QR code, Sign, Tree or Bush. What it
+makes is downloaded, never uploaded, so the gallery stays Prefabs players built.
+_Avoid_: maker, builder, template
+
 ### Matches
 
 **Player**:
