@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import { MakeGallery } from "../components/prefabs/make/MakeGallery";
 
 import {
+  CATEGORIES,
   COLOUR_NAMES,
   GENERATORS,
   PIECE_LIMIT,
@@ -18,7 +19,13 @@ import {
   VOXEL_KINDS,
   type Values,
 } from "../lib/generators";
-import { UNKNOWN_COLOUR, shapesOf, type PrefabFile, type PrefabItem } from "../lib/prefab";
+import {
+  UNKNOWN_COLOUR,
+  footprintOf,
+  shapesOf,
+  type PrefabFile,
+  type PrefabItem,
+} from "../lib/prefab";
 import { checkPrefab } from "../lib/prefab-check";
 import { GENERATOR_KEYS, generatorHref } from "../lib/routes";
 
@@ -180,12 +187,12 @@ describe("the sign", () => {
 
 describe("the tree and the bush", () => {
   const cases: Array<[string, Values]> = [
-    ["tree", { style: "Branches" }],
-    ["tree", { style: "Tiers", "t.snow": true }],
-    ["tree", { style: "Voxel", "v.kind": "Oak" }],
-    ["tree", { style: "Voxel", "v.kind": "Birch" }],
-    ["tree", { style: "Voxel", "v.kind": "Spruce" }],
-    ["tree", { style: "Voxel", "v.kind": "Jungle" }],
+    ["tree", {}],
+    ["pine", { "t.snow": true }],
+    ["block-tree", { "v.kind": "Oak" }],
+    ["block-tree", { "v.kind": "Birch" }],
+    ["block-tree", { "v.kind": "Spruce" }],
+    ["block-tree", { "v.kind": "Jungle" }],
     ["bush", {}],
   ];
 
@@ -203,7 +210,7 @@ describe("the tree and the bush", () => {
   });
 
   test.each(VOXEL_KINDS)("a voxel %s's boxes cover exactly its voxels", (kind) => {
-    const values = valuesOf("tree", { style: "Voxel", "v.kind": kind, "v.cell": 100 });
+    const values = valuesOf("block-tree", { "v.kind": kind, "v.cell": 100 });
     const vox = voxelTree(values);
     const covered = new Map<string, string>();
     for (const it of voxelBoxes(vox, 100)) {
@@ -222,15 +229,76 @@ describe("the tree and the bush", () => {
     expect([...covered.keys()].sort()).toEqual([...vox.keys()].sort());
   });
 
-  test("keeps each style's settings when the style changes", () => {
-    const keys = (style: string) =>
-      gen("tree")
-        .controls(valuesOf("tree", { style }))
+  test("each kind of tree is its own Generator, under Nature", () => {
+    const keys = (key: string) =>
+      gen(key)
+        .controls(gen(key).defaults)
         .map((ctl) => ctl.key);
-    expect(keys("Tiers")).toContain("t.tiers");
-    expect(keys("Tiers")).not.toContain("b.levels");
-    expect(keys("Branches")).toContain("b.levels");
+    expect(keys("tree")).toContain("b.levels");
+    expect(keys("pine")).toContain("t.tiers");
+    expect(keys("block-tree")).toContain("v.kind");
+    for (const key of ["tree", "pine", "block-tree", "bush"])
+      expect(gen(key).category).toBe("Nature");
   });
+});
+
+describe("buildings", () => {
+  const tall = (key: string, change: Values) => footprintOf(shapesOf(make(key, change))).h;
+  const isRound = (it: PrefabItem) => /BP_Prim_Cylinder|MP_Cone/.test(it.class);
+
+  test("are House, Tower and Castle, under Buildings", () => {
+    expect(GENERATORS.filter((g) => g.category === "Buildings").map((g) => g.key)).toEqual([
+      "house",
+      "tower",
+      "castle",
+    ]);
+  });
+
+  test("a house with more floors is taller, and a tower with more floors taller still", () => {
+    expect(tall("house", { floors: 3 })).toBeGreaterThan(tall("house", { floors: 1 }) + 5);
+    expect(tall("tower", { floors: 40 })).toBeGreaterThan(tall("tower", { floors: 10 }) + 50);
+  });
+
+  test("a castle without towers or a keep has no round pieces and no roofs", () => {
+    const items = make("castle", { towers: false, keep: false, gate: 0 }).items;
+    expect(items.filter(isRound)).toEqual([]);
+    expect(items.filter((it) => it.class.includes("MP_Pyramid"))).toEqual([]);
+  });
+
+  test("a hip roof's pyramids are turned to the walls and cover the house", () => {
+    const pyramids = make("house", { roof: "Hip", width: 12, depth: 8 }).items.filter((it) =>
+      it.class.includes("MP_Pyramid"),
+    );
+    expect(pyramids).toHaveLength(2);
+    for (const p of pyramids) {
+      expect(p.transform.rotation[1]).toBe(45);
+      /* SM_Pyramid is 500 cm across its corners; turned, its square side is that over √2 */
+      expect((p.transform.scale[0] * 500) / Math.SQRT2).toBeGreaterThanOrEqual(800);
+    }
+  });
+
+  test.each(["house", "tower", "castle"])(
+    "%s stays within the game's limit at its largest",
+    (key) => {
+      const g = gen(key);
+      const most: Values = { ...g.defaults };
+      for (const pick of [
+        {},
+        ...g
+          .controls(g.defaults)
+          .flatMap((c) => (c.kind === "choice" ? c.options.map((o) => ({ [c.key]: o })) : [])),
+      ])
+        for (const c of g.controls({ ...g.defaults, ...pick }))
+          if (c.kind === "number") most[c.key] = c.max;
+      for (const pick of [
+        {},
+        ...g
+          .controls(most)
+          .flatMap((c) => (c.kind === "choice" ? c.options.map((o) => ({ [c.key]: o })) : [])),
+      ])
+        expect(make(key, { ...most, ...pick }).items.length).toBeLessThanOrEqual(PIECE_LIMIT);
+    },
+  );
 });
 
 describe("colours", () => {
@@ -271,5 +339,23 @@ describe("the pages", () => {
     expect(html).toContain('href="/prefabs"');
     expect(html).toMatch(/<a aria-current="page" href="\/prefabs\/make">Make your own<\/a>/);
     for (const g of GENERATORS) expect(html).toContain(`href="/prefabs/make/${g.key}"`);
+  });
+
+  test("Make your own puts each Generator under its category's heading, in order", () => {
+    const html = renderToStaticMarkup(<MakeGallery />);
+    const at = (s: string) => html.indexOf(s);
+    expect(CATEGORIES.map((c) => at(`>${c}</h2>`))).toEqual(
+      [...CATEGORIES.map((c) => at(`>${c}</h2>`))].sort((a, b) => a - b),
+    );
+    CATEGORIES.forEach((c, i) => {
+      const from = at(`>${c}</h2>`);
+      const to = i + 1 < CATEGORIES.length ? at(`>${CATEGORIES[i + 1]}</h2>`) : html.length;
+      expect(from).toBeGreaterThan(0);
+      for (const g of GENERATORS.filter((x) => x.category === c)) {
+        const card = at(`href="/prefabs/make/${g.key}"`);
+        expect(card, g.key).toBeGreaterThan(from);
+        expect(card, g.key).toBeLessThan(to);
+      }
+    });
   });
 });

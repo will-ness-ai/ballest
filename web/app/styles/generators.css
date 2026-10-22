@@ -41,6 +41,12 @@
   border-block-end-color: var(--accent);
 }
 
+/* the Make your own categories, a heading over each one's cards */
+.gen-group {
+  display: grid;
+  gap: 0.6rem;
+}
+
 /* the Make your own cards */
 .gen-cards {
   display: grid;

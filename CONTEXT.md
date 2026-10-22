@@ -153,8 +153,9 @@ starts there. Without one, three-quarters from above with the whole Prefab in vi
 _Avoid_: thumbnail angle, camera, pose
 
 **Generator**:
-A page that makes a Prefab file from a few settings: QR code, Sign, Tree or Bush. What it
-makes is downloaded, never uploaded, so the gallery stays Prefabs players built.
+A page that makes a Prefab file from a few settings: a sign (QR code, Sign), a tree or bush,
+or a building (House, Tower, Castle). What it makes is downloaded, never uploaded, so the
+gallery stays Prefabs players built.
 _Avoid_: maker, builder, template
 
 ### Matches
