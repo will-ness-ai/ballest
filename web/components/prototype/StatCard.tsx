@@ -548,12 +548,480 @@ function E({ s }: { s: Stat }) {
   );
 }
 
+/* ---------- Round 2: the ball card (round 1's C won) ---------- */
+
+/* a prototype tier, by Author medals (WRs lift it to the top): the rule itself is a later
+   question */
+type Tier = { name: string; from: string; to: string; ink: string };
+function tierOf(s: Stat): Tier {
+  if (s.wr >= 25) return { name: "RECORD HOLDER", from: "#d8ff6a", to: "#3c7d12", ink: "#14200a" };
+  if (s.author >= 100) return { name: "AUTHOR", from: "#5ef0f5", to: "#8a4fd0", ink: "#0a1020" };
+  if (s.author >= 20) return { name: "GOLD", from: "#fff7b0", to: "#c99a00", ink: "#2a2000" };
+  if (s.finished >= 20) return { name: "SILVER", from: "#ffffff", to: "#7a7a7a", ink: "#1a1a1a" };
+  return { name: "BRONZE", from: "#f9cb85", to: "#8a5a17", ink: "#2a1800" };
+}
+
+const CW = 720;
+const CH = 1000;
+
+function Plate({ children, bg }: { children: React.ReactNode; bg: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        padding: "10px 0",
+        borderRadius: 14,
+        backgroundColor: bg,
+        fontFamily: "Bungee",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Row({ k, label, n, hue }: { k: MedalKind | null; label: string; n: number; hue: number }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        padding: "5px 14px",
+        borderBottom: `2px solid ${C.line}`,
+        opacity: n ? 1 : 0.4,
+      }}
+    >
+      <div style={{ display: "flex", width: 40, justifyContent: "center" }}>
+        {k ? <Medal k={k} size={28} /> : <Ball hue={hue} size={28} />}
+      </div>
+      <div style={{ fontSize: 30, color: C.dim, fontWeight: 600, flex: 1 }}>{label}</div>
+      <div style={{ fontFamily: "Bungee", fontSize: 38, color: k ? MEDAL_COLOUR[k] : C.text }}>
+        {fmtN(n)}
+      </div>
+    </div>
+  );
+}
+
+/* R1 · Rarity frame: round 1's card, its frame coloured by the player's tier (named on a
+   ribbon) instead of their marble's hue, every Medal on its own row */
+function R1({ s }: { s: Stat }) {
+  const t = tierOf(s);
+  return (
+    <div
+      style={{
+        ...frame(CW, CH),
+        padding: 22,
+        backgroundImage: `linear-gradient(150deg, ${t.from}, ${t.to})`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          borderRadius: 28,
+          backgroundColor: C.bg,
+          padding: "24px 30px",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Brand size={20} />
+          <div
+            style={{
+              display: "flex",
+              padding: "4px 16px",
+              borderRadius: 30,
+              fontFamily: "Bungee",
+              fontSize: 22,
+              color: t.ink,
+              backgroundImage: `linear-gradient(90deg, ${t.from}, ${t.to})`,
+            }}
+          >
+            {t.name}
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
+          <Face s={s} size={290} ring={10} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", marginTop: 16 }}>
+          <Plate bg="rgba(255,255,255,0.08)">
+            <div style={{ fontSize: nameSize(s.name, 50) }}>{s.name}</div>
+          </Plate>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 14 }}>
+          {MEDALS.map(([k, l, n]) => (
+            <Row key={k} k={k} label={l} n={n(s)} hue={s.hue} />
+          ))}
+          <Row k={null} label="Maps finished" n={s.finished} hue={s.hue} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* R2 · Footballer: one big number top left (Season 2 rank) over the player's face, the name
+   on a band, and six short stats two columns wide, as on a football card */
+function R2({ s }: { s: Stat }) {
+  const t = tierOf(s);
+  const grid: Array<[string, number, string]> = [
+    ["WR", s.wr, C.accent],
+    ["AUT", s.author, "#8fa2f0"],
+    ["GLD", s.gold, "#ffe600"],
+    ["SLV", s.silver, "#c9c9c9"],
+    ["BRZ", s.bronze, "#e0a650"],
+    ["MAP", s.finished, C.text],
+  ];
+  return (
+    <div
+      style={{
+        ...frame(CW, CH),
+        flexDirection: "column",
+        padding: 40,
+        borderRadius: 0,
+        backgroundImage: `linear-gradient(170deg, ${t.from} 0%, ${t.to} 55%, #0a1020 100%)`,
+      }}
+    >
+      <div style={{ display: "flex", height: 420 }}>
+        <div style={{ display: "flex", flexDirection: "column", width: 200, color: t.ink }}>
+          <div
+            style={{
+              fontFamily: "Bungee",
+              fontSize: s.s2 && s.s2.rank > 999 ? 66 : 96,
+              lineHeight: 1,
+            }}
+          >
+            {s.s2 ? `#${fmtN(s.s2.rank)}` : "—"}
+          </div>
+          <div style={{ fontFamily: "Bungee", fontSize: 30 }}>SEASON 2</div>
+          <div style={{ display: "flex", marginTop: 24 }}>
+            <Ball hue={s.hue} size={70} />
+          </div>
+        </div>
+        <div style={{ display: "flex", flex: 1, justifyContent: "flex-end" }}>
+          <Face s={s} size={400} ring={0} />
+        </div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: 26,
+          paddingBottom: 14,
+          borderBottom: `3px solid rgba(255,255,255,0.35)`,
+          fontFamily: "Bungee",
+          fontSize: nameSize(s.name, 60),
+        }}
+      >
+        {s.name}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", marginTop: 22, rowGap: 14 }}>
+        {grid.map(([l, n, c]) => (
+          <div key={l} style={{ display: "flex", width: 320, alignItems: "baseline", gap: 16 }}>
+            <div
+              style={{
+                fontFamily: "Bungee",
+                fontSize: 54,
+                color: c,
+                width: 170,
+                justifyContent: "flex-end",
+                display: "flex",
+              }}
+            >
+              {fmtN(n)}
+            </div>
+            <div style={{ fontFamily: "Bungee", fontSize: 34, color: C.dim }}>{l}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", marginTop: "auto", justifyContent: "center" }}>
+        <Brand size={20} />
+      </div>
+    </div>
+  );
+}
+
+/* R3 · Art window: the face as a big square picture, name on a bar across its foot, then
+   round 1's Medal cabinet as one shelf, and a single line of totals */
+function R3({ s }: { s: Stat }) {
+  const hue = String(s.hue);
+  return (
+    <div
+      style={{
+        ...frame(CW, CH),
+        padding: 22,
+        backgroundImage: `linear-gradient(160deg, hsl(${hue} 70% 55%), hsl(${hue} 60% 22%))`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          borderRadius: 28,
+          backgroundColor: C.bg,
+          padding: 22,
+        }}
+      >
+        <div style={{ display: "flex", position: "relative", width: 632, height: 520 }}>
+          {s.face ? (
+            <img
+              src={s.face}
+              width={632}
+              height={520}
+              alt=""
+              style={{ borderRadius: 18, objectFit: "cover" }}
+            />
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                width: 632,
+                height: 520,
+                justifyContent: "center",
+                alignItems: "center",
+                borderRadius: 18,
+                backgroundColor: C.tile,
+              }}
+            >
+              <Ball hue={s.hue} size={360} />
+            </div>
+          )}
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "14px 22px",
+              borderRadius: "0 0 18px 18px",
+              backgroundColor: "rgba(10,16,32,0.82)",
+            }}
+          >
+            <div style={{ fontFamily: "Bungee", fontSize: nameSize(s.name, 46) }}>{s.name}</div>
+            {s.s2 ? (
+              <div style={{ fontFamily: "Bungee", fontSize: 30, color: C.gold }}>
+                {`#${fmtN(s.s2.rank)}`}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: 26,
+            padding: "0 6px",
+          }}
+        >
+          {MEDALS.map(([k, , n]) => (
+            <div
+              key={k}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                width: 118,
+                opacity: n(s) ? 1 : 0.35,
+              }}
+            >
+              <Medal k={k} size={64} />
+              <div
+                style={{
+                  fontFamily: "Bungee",
+                  fontSize: n(s) > 999 ? 34 : 44,
+                  color: MEDAL_COLOUR[k],
+                }}
+              >
+                {fmtN(n(s))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: 14,
+            fontSize: 28,
+            color: C.dim,
+            fontWeight: 600,
+          }}
+        >
+          {`${fmtN(s.finished)} Maps finished · ${fmtN(s.made)} made`}
+        </div>
+        <div style={{ display: "flex", marginTop: "auto", justifyContent: "center" }}>
+          <Brand size={18} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* R4 · Two heroes: the player's marble huge with their face as a badge on it, then World
+   records and Author medals as two big numbers, and Gold, Silver and Bronze small beneath */
+function R4({ s }: { s: Stat }) {
+  const hue = String(s.hue);
+  const hero = (k: MedalKind, n: number, l: string) => (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <Medal k={k} size={46} />
+        <div
+          style={{
+            fontFamily: "Bungee",
+            fontSize: n > 999 ? 72 : 88,
+            color: MEDAL_COLOUR[k],
+            lineHeight: 1,
+          }}
+        >
+          {fmtN(n)}
+        </div>
+      </div>
+      <div style={{ fontSize: 28, color: C.dim, fontWeight: 600 }}>{l}</div>
+    </div>
+  );
+  return (
+    <div
+      style={{
+        ...frame(CW, CH),
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "34px 34px 28px",
+        border: `16px solid hsl(${hue} 70% 50%)`,
+        backgroundImage: `radial-gradient(circle at 50% 28%, hsl(${hue} 60% 30%) 0%, ${C.bg} 60%)`,
+      }}
+    >
+      <div style={{ display: "flex", position: "relative", width: 380, height: 380 }}>
+        <Ball hue={s.hue} size={380} />
+        <div style={{ display: "flex", position: "absolute", right: -20, bottom: -10 }}>
+          {s.face ? (
+            <img
+              src={s.face}
+              width={140}
+              height={140}
+              alt=""
+              style={{ borderRadius: 140, border: `8px solid ${C.bg}` }}
+            />
+          ) : null}
+        </div>
+      </div>
+      <div style={{ fontFamily: "Bungee", fontSize: nameSize(s.name, 58), marginTop: 18 }}>
+        {s.name}
+      </div>
+      <div style={{ fontSize: 28, color: C.dim, fontWeight: 600 }}>
+        {`${fmtN(s.finished)} Maps finished${s.s2 ? ` · #${fmtN(s.s2.rank)} Season 2` : ""}`}
+      </div>
+      <div style={{ display: "flex", width: "100%", marginTop: 30 }}>
+        {hero("wr", s.wr, "World records")}
+        {hero("author", s.author, "Author medals")}
+      </div>
+      <div style={{ display: "flex", gap: 40, marginTop: 30 }}>
+        {(["gold", "silver", "bronze"] as const).map((k) => (
+          <div
+            key={k}
+            style={{ display: "flex", alignItems: "center", gap: 10, opacity: s[k] ? 1 : 0.4 }}
+          >
+            <Medal k={k} size={30} />
+            <div style={{ fontFamily: "Bungee", fontSize: 40, color: MEDAL_COLOUR[k] }}>
+              {fmtN(s[k])}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", marginTop: "auto" }}>
+        <Brand size={18} />
+      </div>
+    </div>
+  );
+}
+
+/* R5 · Front and back: the card's face beside its back in one landscape picture, which
+   Discord shows about twice as big as a tall one. Front: face, name, rank. Back: every
+   count as rows. */
+function R5({ s }: { s: Stat }) {
+  const hue = String(s.hue);
+  const card = (children: React.ReactNode, back?: boolean) => (
+    <div
+      style={{
+        display: "flex",
+        width: 560,
+        height: 780,
+        padding: 18,
+        borderRadius: 30,
+        backgroundImage: back
+          ? `linear-gradient(160deg, hsl(${hue} 40% 30%), hsl(${hue} 50% 14%))`
+          : `linear-gradient(160deg, hsl(${hue} 70% 55%), hsl(${hue} 60% 22%))`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          borderRadius: 22,
+          backgroundColor: C.bg,
+          padding: 26,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+  return (
+    <div style={{ ...frame(1240, 860), alignItems: "center", justifyContent: "center", gap: 40 }}>
+      {card(
+        <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <Brand size={18} />
+            {s.s2 ? (
+              <div
+                style={{ fontFamily: "Bungee", fontSize: 30, color: C.gold }}
+              >{`#${fmtN(s.s2.rank)}`}</div>
+            ) : null}
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 40 }}>
+            <Face s={s} size={360} ring={12} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", marginTop: "auto" }}>
+            <Plate bg={`hsl(${hue} 60% 30%)`}>
+              <div style={{ fontSize: nameSize(s.name, 50) }}>{s.name}</div>
+            </Plate>
+          </div>
+        </div>,
+      )}
+      {card(
+        <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+          <div style={{ fontFamily: "Bungee", fontSize: 30, color: C.dim, marginBottom: 12 }}>
+            STATS
+          </div>
+          {MEDALS.map(([k, l, n]) => (
+            <Row key={k} k={k} label={l} n={n(s)} hue={s.hue} />
+          ))}
+          <Row k={null} label="Maps finished" n={s.finished} hue={s.hue} />
+          <Row k={null} label="Podiums" n={s.podiums} hue={s.hue} />
+          <Row k={null} label="Maps made" n={s.made} hue={s.hue} />
+        </div>,
+        true,
+      )}
+    </div>
+  );
+}
+
 export const VARIANTS = {
   A: { label: "Share card, six tiles", draw: A, w: 1200, h: 630 },
   B: { label: "Medal cabinet", draw: B, w: 1200, h: 560 },
   C: { label: "Ball card (portrait)", draw: C3, w: 720, h: 1000 },
   D: { label: "Your places", draw: D, w: 1200, h: 630 },
   E: { label: "Collection bar", draw: E, w: 1200, h: 630 },
+  C1: { label: "Rarity frame", draw: R1, w: CW, h: CH },
+  C2: { label: "Footballer", draw: R2, w: CW, h: CH },
+  C3: { label: "Art window", draw: R3, w: CW, h: CH },
+  C4: { label: "Two heroes", draw: R4, w: CW, h: CH },
+  C5: { label: "Front and back", draw: R5, w: 1240, h: 860 },
 } as const;
 export type VariantKey = keyof typeof VARIANTS;
 export const isVariant = (k: string): k is VariantKey => k in VARIANTS;
