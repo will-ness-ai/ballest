@@ -809,7 +809,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       /**
        * Play again on a finished Match: the first press opens a Lobby of the same length, with
        * the presser as its creator; every later press joins that Lobby while it is open or live,
-       * or just finds it for someone already in it. Once it is gone, the next press opens a fresh
+       * or just finds it for someone already in it (`alreadyIn`). Once it is gone, the next press opens a fresh
        * one.
        */
       playAgain: Effect.fn("playAgain")(function* (discordId: string, matchId: string) {
@@ -848,7 +848,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
             });
           yield* join(discordId, found.lobbyId);
         }
-        return { lobbyId: found.lobbyId, opened: found.opened };
+        return {
+          lobbyId: found.lobbyId,
+          opened: found.opened,
+          alreadyIn: !found.opened && found.joined,
+        };
       }),
     } as const;
   }),

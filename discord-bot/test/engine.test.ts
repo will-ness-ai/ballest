@@ -1074,8 +1074,8 @@ describe("Play again", () => {
       const second = yield* h.engine.playAgain(ALICE.discordId, id);
       const third = yield* h.engine.playAgain(CARA.discordId, id);
       expect([second, third]).toEqual([
-        { lobbyId: first.lobbyId, opened: false },
-        { lobbyId: first.lobbyId, opened: false },
+        { lobbyId: first.lobbyId, opened: false, alreadyIn: false },
+        { lobbyId: first.lobbyId, opened: false, alreadyIn: false },
       ]);
       expect(
         Option.getOrThrow(yield* h.surface.card(first.lobbyId)).players.map((p) => p.discordId),
@@ -1118,6 +1118,7 @@ describe("Play again", () => {
       expect(yield* h.engine.playAgain(ALICE.discordId, id)).toEqual({
         lobbyId: first.lobbyId,
         opened: false,
+        alreadyIn: false,
       });
       yield* h.engine.cancel(BOB.discordId, first.lobbyId);
       const fresh = yield* h.engine.playAgain(ALICE.discordId, id);
@@ -1144,7 +1145,11 @@ describe("Play again", () => {
       const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
       yield* h.engine.join(ALICE.discordId, lobbyId);
       for (const p of [BOB, ALICE])
-        expect(yield* h.engine.playAgain(p.discordId, id)).toEqual({ lobbyId, opened: false });
+        expect(yield* h.engine.playAgain(p.discordId, id)).toEqual({
+          lobbyId,
+          opened: false,
+          alreadyIn: true,
+        });
     }),
   );
 

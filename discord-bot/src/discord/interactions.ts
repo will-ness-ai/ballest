@@ -150,7 +150,7 @@ export const InteractionsLive = Layer.scopedDiscard(
         return yield* tryDiscord("follow up", () =>
           i.followUp({ content: explain(done.left, i.user.id), ...ephemeral, ...quiet }),
         );
-      const { lobbyId, opened } = done.right;
+      const { lobbyId, opened, alreadyIn } = done.right;
       const thread = Option.flatMapNullable(yield* links.of(lobbyId), (p) => p.threadId);
       yield* tryDiscord("follow up", () =>
         i.followUp({
@@ -159,7 +159,7 @@ export const InteractionsLive = Layer.scopedDiscard(
           ...quiet,
         }),
       );
-      if (!opened) yield* offerPings(i, "join");
+      if (!opened && !alreadyIn) yield* offerPings(i, "join");
     });
 
     const confirmLink = Effect.fn("confirmLink")(function* (i: ButtonInteraction) {
