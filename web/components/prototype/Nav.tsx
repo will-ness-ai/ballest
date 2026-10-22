@@ -34,28 +34,28 @@ interface Section {
 const VARIANTS = [
   [
     "1",
-    "Top hit + groups",
-    "The best match as a big card on top (picture, numbers, a button), then the rest grouped by kind, groups ordered by their best match.",
+    "Breadcrumb + marquee",
+    "Every page opens the same way: a breadcrumb (Maps › All Maps › Sway n So), the title in the big Bungee marquee, and what kind of page it is. Each page's own title and ← back link go.",
   ],
   [
     "2",
-    "Filter chips",
-    "A row of chips with counts (All, Players, Maps, Campaigns, Circuit, Dailies, Prefabs). All shows three of each kind; a chip shows every hit of that kind.",
+    "HUD eyebrow",
+    "A small lime eyebrow naming the kind of page (WORKSHOP MAP, PLAYER, CAMPAIGN), then the title in Chakra Petch. No breadcrumb: the section and sub-tabs above already say where you are. Own titles and back links go.",
   ],
   [
     "3",
-    "List + preview",
-    "Desktop: a wide panel, the hits on the left and a preview of the highlighted one on the right (picture, record, players). Arrow keys and hover move it. Phone: the list only.",
+    "Title in the bar",
+    "No title block: one slim breadcrumb line under the sub-tabs, ending in the page's name, and the page starts straight away. Own titles and back links go.",
   ],
   [
     "4",
-    "Visual cards",
-    "Players as a row of marbles, Maps and Campaigns as picture cards in a grid, the rest as a compact list.",
+    "Hero band",
+    "A band across the page with its own picture blurred behind (the Map's screenshot, the Campaign's, a glow where there is none), with the breadcrumb, kind and title on it. Own titles and back links go.",
   ],
   [
     "5",
-    "One ranked list",
-    "No groups: every hit in one list, best match first (name match, then how popular), each with its kind tag.",
+    "Keep each page's own",
+    "Pages keep their own titles where they are today, but every one is drawn in one style (the Bungee marquee), and every ← back link becomes the same breadcrumb chip.",
   ],
 ] as const;
 const BRANDS = [
@@ -134,8 +134,9 @@ function brandStored() {
     return null;
   }
 }
+/* round 2 verdict: the two-tone wordmark */
 function useBrand(): string {
-  return useSyncExternalStore(subscribe, readBrand, () => "1");
+  return "2";
 }
 
 /* ---------- which section a path is in ---------- */
@@ -314,15 +315,10 @@ function ResultList(props: {
   sel: number;
   onGo: () => void;
 }) {
-  const v = useVariant() ?? "1";
   const { q, res } = props;
+  /* round 2 verdict: the filter chips */
   if (!q.trim() || !res || isEmpty(res)) return <Grouped {...props} />;
-  const items = itemsOf(res, q);
-  if (v === "1") return <TopHit {...props} items={items} />;
-  if (v === "2") return <Chips {...props} items={items} />;
-  if (v === "3") return <Preview {...props} items={items} />;
-  if (v === "4") return <Visual {...props} items={items} />;
-  return <Ranked {...props} items={items} />;
+  return <Chips {...props} items={itemsOf(res, q)} />;
 }
 
 function Grouped({
@@ -1259,9 +1255,114 @@ export function ProtoNav({ original, ...slots }: Slots & { original: React.React
   const v = useVariant();
   if (!v) return <>{original}</>;
   return (
-    <div className={"pn pn-D pn-r" + v}>
+    <div className={"pn pn-D pn-h" + v}>
       <VariantD {...slots} />
+      <PageHead d={slots.d} v={v} />
       <ProtoPicker v={v} />
+    </div>
+  );
+}
+
+/* ---------- round 3: how a page opens ---------- */
+const KINDS: Array<[RegExp, string]> = [
+  [/^\/map\//, "Workshop Map"],
+  [/^\/maps/, "Workshop"],
+  [/^\/$/, "Workshop"],
+  [/^\/campaigns/, "Campaigns"],
+  [/^\/campaign\/[^/]+\/\d/, "Campaign Map"],
+  [/^\/campaign\//, "Campaign"],
+  [/^\/daily\/standings/, "Daily"],
+  [/^\/daily/, "Daily"],
+  [/^\/board\/Overall/, "Circuit standings"],
+  [/^\/board\//, "Circuit Track"],
+  [/^\/player\//, "Player"],
+  [/^\/vs\//, "Head to head"],
+  [/^\/players/, "Rankings"],
+  [/^\/you/, "Where you stand"],
+  [/^\/prefabs\/make/, "Make your own"],
+  [/^\/prefabs?/, "Prefabs"],
+];
+function crumbsOf(
+  d: NavData,
+  path: string,
+  title: string,
+): Array<{ label: string; href?: string }> {
+  const sec = sectionOf(path);
+  const top = sectionsOf(d).find((s) => s.key === sec);
+  const out: Array<{ label: string; href?: string }> = top
+    ? [{ label: top.label, href: top.href }]
+    : [];
+  if (path.startsWith("/map/")) out.push({ label: "All Maps", href: "/maps" });
+  if (path.startsWith("/prefab/")) out.push({ label: "Shared", href: "/prefabs" });
+  if (path.startsWith("/prefabs/make/"))
+    out.push({ label: "Make your own", href: "/prefabs/make" });
+  if (!out.some((c) => c.label.toLowerCase() === title.toLowerCase())) out.push({ label: title });
+  return out;
+}
+function readPage(path: string) {
+  const t = document.title.split(" · ")[0];
+  const title = path === "/" ? "Featured Maps" : t;
+  const pics = Array.from(document.querySelectorAll<HTMLImageElement>(".app img")).filter(
+    (i) =>
+      !i.closest(".pn, .marble, .rack, .youcard") &&
+      i.getBoundingClientRect().width >= 160 &&
+      i.offsetParent !== null,
+  );
+  return { title, img: pics[0]?.currentSrc || pics[0]?.src || null };
+}
+function PageHead({ d, v }: { d: NavData; v: string }) {
+  const path = usePathname();
+  const [page, setPage] = useState<{ title: string; img: string | null } | null>(null);
+  useEffect(() => {
+    document.documentElement.dataset.ph = v;
+    return () => {
+      delete document.documentElement.dataset.ph;
+    };
+  }, [v]);
+  useEffect(() => {
+    let t = 0;
+    const read = () => {
+      clearTimeout(t);
+      t = window.setTimeout(() => setPage(readPage(path)), 80);
+    };
+    read();
+    const o = new MutationObserver(read);
+    o.observe(document.body, { childList: true, subtree: true });
+    const stop = setTimeout(() => o.disconnect(), 4000);
+    return () => {
+      o.disconnect();
+      clearTimeout(stop);
+      clearTimeout(t);
+    };
+  }, [path]);
+  if (!page || v === "5") return null;
+  const kind = KINDS.find(([re]) => re.test(path))?.[1] ?? "";
+  const crumbs = crumbsOf(d, path, page.title);
+  const trail = (
+    <nav className="ph-crumbs" aria-label="Breadcrumb">
+      {crumbs.map((c, i) => (
+        <span key={c.label + String(i)}>
+          {i ? <span className="ph-sep">›</span> : null}
+          {c.href && i < crumbs.length - 1 ? (
+            <Link href={c.href}>{c.label}</Link>
+          ) : (
+            <b>{c.label}</b>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+  if (v === "3") return <div className="ph ph3">{trail}</div>;
+  return (
+    <div className={"ph ph" + v}>
+      {v === "4" ? (
+        <span className="ph-bg" aria-hidden="true">
+          {page.img ? <img src={page.img} alt="" /> : null}
+        </span>
+      ) : null}
+      {v === "2" ? null : trail}
+      <p className="ph-kind">{kind}</p>
+      <p className="ph-title">{page.title}</p>
     </div>
   );
 }
@@ -1405,20 +1506,6 @@ function ProtoPicker({ v }: { v: VariantKey }) {
               }}
             >
               “{t}”
-            </button>
-          ))}
-        </div>
-        <div className="pp-row">
-          <span>Name</span>
-          {BRANDS.map(([k, label]) => (
-            <button
-              key={k}
-              type="button"
-              title={label}
-              aria-pressed={brand === k}
-              onClick={() => set("brand", k)}
-            >
-              {k} {label}
             </button>
           ))}
         </div>
