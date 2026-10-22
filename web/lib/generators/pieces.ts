@@ -1,7 +1,7 @@
 // The pieces every Generator builds from (lib/generators/index.ts): the colours and their paint,
 // the editor's primitives placed by their bottom centre (or a box by its centre), the grid merge,
 // the seeded random, the controls' shapes and the Generator interface itself.
-import type { PrefabFile, PrefabItem } from "../prefab";
+import { rotationRows, shapesOf, type PrefabFile, type PrefabItem } from "../prefab";
 import type { PrefabAngle } from "../prefabs";
 import type { Grid, Lettering } from "../generator-letters";
 
@@ -110,6 +110,22 @@ export const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
   group: { rotation: [0, 0, 0], scale: [1, 1, 1] },
   items,
 });
+
+/* the pieces moved up or down so the lowest corner of any of them sits on the floor, z = 0 */
+export function grounded(items: Array<PrefabItem>): Array<PrefabItem> {
+  /* a shape's matrix takes a unit shape centred on the origin, so a corner is half each column */
+  const low = Math.min(
+    ...shapesOf(fileOf(items)).map(
+      (sh) =>
+        sh.matrix[13] -
+        (Math.abs(sh.matrix[1]) + Math.abs(sh.matrix[5]) + Math.abs(sh.matrix[9])) / 2,
+    ),
+  );
+  return items.map((it) => {
+    const [x, y, z] = it.transform.location;
+    return { ...it, transform: { ...it.transform, location: [x, y, z - low * 100] as V3 } };
+  });
+}
 
 /* a sign or code laid out across x and standing out toward +y, turned to face -X */
 export const facing = (items: Array<PrefabItem>) =>
@@ -226,6 +242,8 @@ export type Control = Base &
     | { kind: "text"; lines?: number }
     | { kind: "font" }
     | { kind: "shuffle" }
+    /* an image the page turns into a picture string (lib/generators/useful.ts) */
+    | { kind: "picture" }
   );
 
 export const num = (
@@ -263,22 +281,48 @@ export interface Generator {
 }
 
 /* a box `size` cm across centred at `at`, turned by `rot` */
-export const boxAt = (at: V3, size: V3, c: Colour, rot: V3 = [0, 0, 0]) => {
-  const P = rot[0] * DEG;
-  const Y = rot[1] * DEG;
-  const R = rot[2] * DEG;
-  /* where the box's up axis points: pitch about Y, roll about X, then yaw about Z */
-  const up: V3 = [
-    -Math.sin(P) * Math.cos(R) * Math.cos(Y) + Math.sin(R) * Math.sin(Y),
-    -Math.sin(P) * Math.cos(R) * Math.sin(Y) - Math.sin(R) * Math.cos(Y),
-    Math.cos(P) * Math.cos(R),
-  ];
-  return piece("cube", add(at, mul(up, -size[2] / 2)), size, c, rot);
-};
+export const boxAt = (at: V3, size: V3, c: Colour, rot: V3 = [0, 0, 0]) =>
+  piece("cube", add(at, mul(rotationRows(rot)[2], -size[2] / 2)), size, c, rot);
+
+const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+export const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+export const cross = (a: V3, b: V3): V3 => [
+  a[1] * b[2] - a[2] * b[1],
+  a[2] * b[0] - a[0] * b[2],
+  a[0] * b[1] - a[1] * b[0],
+];
+
+/* the [pitch, yaw, roll] that sends a piece's x axis along `forward` and its up axis as near
+   `up` as it can go square to it (Unreal's FMatrix::Rotator, so rotationRows undoes it) */
+export function rotOf(forward: V3, up: V3): V3 {
+  const f = norm(forward);
+  const u = norm(sub(up, mul(f, dot(up, f))));
+  const pitch = Math.atan2(f[2], Math.hypot(f[0], f[1])) / DEG;
+  const yaw = Math.atan2(f[1], f[0]) / DEG;
+  const [, y0] = rotationRows([pitch, yaw, 0]);
+  const y = cross(u, f);
+  return [pitch, yaw, Math.atan2(dot(u, y0), dot(y, y0)) / DEG];
+}
+
+/* a slab `width` across and `thick` deep whose top runs from a to b, its top facing `up`;
+   `over` cm longer at each end so a chain of them leaves no gaps */
+export function slab(a: V3, b: V3, up: V3, width: number, thick: number, c: Colour, over = 0) {
+  const d = sub(b, a);
+  const rot = rotOf(d, up);
+  const top = rotationRows(rot)[2];
+  const mid = mul(add(a, b), 0.5);
+  return piece(
+    "cube",
+    add(mid, mul(top, -thick)),
+    [Math.hypot(...d) + 2 * over, width, thick],
+    c,
+    rot,
+  );
+}
 
 /* a pyramid roof `side` cm square and `rise` tall: SM_Pyramid's corners sit at the middle of its
    bounds' edges, so it is turned 45° and grown by √2 to cover the square */
 export const pyramid = (at: V3, side: number, rise: number, c: Colour) =>
   piece("pyramid", at, [side * Math.SQRT2, side * Math.SQRT2, rise], c, 45);
 
-export const CATEGORIES = ["Signs", "Nature", "Buildings"] as const;
+export const CATEGORIES = ["Useful", "Racing", "Decor", "Nature", "Buildings"] as const;

@@ -351,6 +351,36 @@
 .gen-shuffle:hover {
   background: var(--surface2);
 }
+/* Pixel art's picture: a button-like label over a hidden file input */
+.gen-picture {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+.gen-picture small {
+  color: var(--dim);
+}
+.gen-file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.gen-file span {
+  display: inline-block;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+.gen-file:hover span {
+  background: var(--surface2);
+}
+.gen-file:focus-within span {
+  outline: 2px solid var(--accent);
+}
 .gen-more {
   justify-self: start;
   padding: 0;

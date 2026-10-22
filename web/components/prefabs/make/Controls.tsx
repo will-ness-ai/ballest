@@ -6,6 +6,9 @@ import { useState } from "react";
 import { FONTS, fontAt } from "./lettering";
 import {
   COLOUR_NAMES,
+  MARBLE,
+  PICTURE_MOST,
+  pictureOf,
   unitOf,
   type Colour,
   type Control,
@@ -180,6 +183,8 @@ function Field({
           ))}
         </fieldset>
       );
+    case "picture":
+      return <PictureField c={c} value={String(value ?? "")} set={set} />;
     case "shuffle":
       return (
         <button
@@ -191,4 +196,63 @@ function Field({
         </button>
       );
   }
+}
+
+/* an image file, drawn at most PICTURE_MOST pixels the longer way and read as a picture in the
+   Generators' colours (pictureOf) */
+async function pictureFrom(file: File) {
+  const img = await createImageBitmap(file);
+  const k = Math.min(1, PICTURE_MOST / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * k));
+  const h = Math.max(1, Math.round(img.height * k));
+  const canvas = document.createElement("canvas");
+  [canvas.width, canvas.height] = [w, h];
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("no canvas");
+  ctx.drawImage(img, 0, 0, w, h);
+  return pictureOf(ctx.getImageData(0, 0, w, h).data, w, h);
+}
+
+function PictureField({
+  c,
+  value,
+  set,
+}: {
+  c: Control;
+  value: string;
+  set: (change: Values) => void;
+}) {
+  const [problem, setProblem] = useState<string | null>(null);
+  const own = value !== MARBLE;
+  return (
+    <div className="gen-picture">
+      <span className="gen-label">{c.label}</span>
+      <label className="gen-file">
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            pictureFrom(file).then(
+              (p) => {
+                setProblem(null);
+                set({ [c.key]: p });
+              },
+              () => setProblem("That file isn't a picture this browser can read."),
+            );
+          }}
+        />
+        <span>{own ? "Choose another picture" : "Choose a picture"}</span>
+      </label>
+      {own ? (
+        <button type="button" className="gen-more" onClick={() => set({ [c.key]: MARBLE })}>
+          Back to the marble
+        </button>
+      ) : (
+        <small>Until you choose one, it draws the site's marble.</small>
+      )}
+      {problem && <small className="gen-over">{problem}</small>}
+    </div>
+  );
 }

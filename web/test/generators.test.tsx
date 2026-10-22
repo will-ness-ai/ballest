@@ -11,9 +11,13 @@ import {
   COLOUR_NAMES,
   GENERATORS,
   PIECE_LIMIT,
+  MARBLE,
   PIXEL_LETTERING,
   generate,
   generatorOf,
+  pictureOf,
+  readPicture,
+  rotOf,
   variationsOf,
   voxelBoxes,
   voxelTree,
@@ -23,6 +27,7 @@ import {
 import {
   UNKNOWN_COLOUR,
   footprintOf,
+  rotationRows,
   shapesOf,
   type PrefabFile,
   type PrefabItem,
@@ -30,6 +35,7 @@ import {
 import { checkPrefab } from "../lib/prefab-check";
 import { GENERATOR_KEYS, generatorHref } from "../lib/routes";
 
+type V3 = [number, number, number];
 const CUBE = 1000;
 function gen(key: string) {
   const g = generatorOf(key);
@@ -53,8 +59,33 @@ const extent = (it: PrefabItem) => {
   const [, sy, sz] = it.transform.scale;
   return { x0: y - (sy * CUBE) / 2, x1: y + (sy * CUBE) / 2, z0: z, z1: z + sz * CUBE };
 };
+/* the lowest any piece reaches, in cm: each shape's centre less its corners' reach downward
+   (the matrix takes a unit shape centred on the origin, so a corner is half each column) */
+const lowest = (file: PrefabFile) =>
+  Math.min(
+    ...shapesOf(file).map(
+      (sh) =>
+        sh.matrix[13] -
+        (Math.abs(sh.matrix[1]) + Math.abs(sh.matrix[5]) + Math.abs(sh.matrix[9])) / 2,
+    ),
+  ) * 100;
+const highest = (file: PrefabFile) =>
+  Math.max(
+    ...shapesOf(file).map(
+      (sh) =>
+        sh.matrix[13] +
+        (Math.abs(sh.matrix[1]) + Math.abs(sh.matrix[5]) + Math.abs(sh.matrix[9])) / 2,
+    ),
+  ) * 100;
+const count = (file: PrefabFile, piece: string) =>
+  file.items.filter((it) => it.class.includes(piece)).length;
+
 /* how far a cube stands out of a sign toward the camera (-X), in cm */
 const proud = (it: PrefabItem) => -(it.transform.location[0] - (it.transform.scale[0] * CUBE) / 2);
+
+/* every Generator but the trees and the bush: their sticks dip a little under the floor where
+   they start, and a Tree with every slider at its most is 4,531 pieces, over the limit */
+const BUILT = GENERATORS.filter((g) => g.category !== "Nature").map((g) => g.key);
 
 describe("every Generator", () => {
   test.each(GENERATORS.map((g) => g.key))("%s's defaults make a file the game takes", (key) => {
@@ -75,6 +106,29 @@ describe("every Generator", () => {
           expect(v, c.key).toBeGreaterThanOrEqual(c.min);
           expect(v, c.key).toBeLessThanOrEqual(c.max);
         }
+  });
+  test.each(BUILT)("%s stays within the game's limit at its largest", (key) => {
+    const g = gen(key);
+    /* no pick, then each option of each choice these values show */
+    const picksOf = (values: Values): Array<Values> => [
+      {},
+      ...g
+        .controls(values)
+        .flatMap((c) => (c.kind === "choice" ? c.options.map((o) => ({ [c.key]: o })) : [])),
+    ];
+    const most: Values = { ...g.defaults };
+    for (const pick of picksOf(g.defaults))
+      for (const c of g.controls({ ...g.defaults, ...pick }))
+        if (c.kind === "number") most[c.key] = c.max;
+    for (const pick of picksOf(most))
+      expect(make(key, { ...most, ...pick }).items.length).toBeLessThanOrEqual(PIECE_LIMIT);
+  });
+
+  test.each(BUILT)("%s never reaches under the floor", (key) => {
+    for (const { label, values } of variationsOf(gen(key))) {
+      const file = generate(key, values);
+      if (file) expect(lowest(file), `${key} ${label}`).toBeGreaterThanOrEqual(-1);
+    }
   });
 });
 
@@ -357,26 +411,215 @@ describe("buildings", () => {
       }
     }
   });
+});
 
-  test.each(["house", "tower", "castle"])(
-    "%s stays within the game's limit at its largest",
-    (key) => {
-      const g = gen(key);
-      /* no pick, then each option of each choice these values show */
-      const picksOf = (values: Values): Array<Values> => [
-        {},
-        ...g
-          .controls(values)
-          .flatMap((c) => (c.kind === "choice" ? c.options.map((o) => ({ [c.key]: o })) : [])),
-      ];
-      const most: Values = { ...g.defaults };
-      for (const pick of picksOf(g.defaults))
-        for (const c of g.controls({ ...g.defaults, ...pick }))
-          if (c.kind === "number") most[c.key] = c.max;
-      for (const pick of picksOf(most))
-        expect(make(key, { ...most, ...pick }).items.length).toBeLessThanOrEqual(PIECE_LIMIT);
-    },
-  );
+describe("the pieces", () => {
+  test.each([
+    [
+      [1, 0, 0],
+      [0, 0, 1],
+    ],
+    [
+      [0, 1, 0.3],
+      [0, 0, 1],
+    ],
+    [
+      [-1, 0, 0],
+      [0, 0, -1],
+    ],
+    [
+      [0.2, -0.7, -0.4],
+      [0.5, 0.2, 0.8],
+    ],
+  ] as Array<[V3, V3]>)("rotOf(%o, %o) turns a piece's x and up that way", (f, u) => {
+    const [x, , z] = rotationRows(rotOf(f, u));
+    const n = (v: V3) => v.map((k) => k / Math.hypot(...v));
+    n(f).forEach((k, i) => expect(x[i]).toBeCloseTo(k));
+    /* up as near as it goes square to forward */
+    const fu = n(f).reduce((a, k, i) => a + k * u[i], 0);
+    const square = n(u.map((k, i) => k - fu * n(f)[i]) as V3);
+    square.forEach((k, i) => expect(z[i]).toBeCloseTo(k));
+  });
+});
+
+describe("the categories", () => {
+  test("hold the Useful ones, then Racing, then Decor, each of the new five", () => {
+    const under = (c: string) => GENERATORS.filter((g) => g.category === c).map((g) => g.key);
+    expect(under("Useful")).toEqual([
+      "qr",
+      "sign",
+      "arrow",
+      "pixel-art",
+      "stairs",
+      "bridge",
+      "floor-tiles",
+    ]);
+    expect(under("Racing")).toEqual(["spiral", "loop", "jump", "plinko", "rollers"]);
+    expect(under("Decor")).toEqual(["lamp", "fountain", "trophy", "fence", "finish-arch"]);
+  });
+});
+
+describe("the racing pieces", () => {
+  test("a spiral with more turns is taller, and without walls is a third the pieces", () => {
+    expect(highest(make("spiral", { turns: 4 }))).toBeGreaterThan(
+      highest(make("spiral", { turns: 2 })) + 700,
+    );
+    const on = make("spiral", { walls: true, column: false });
+    const off = make("spiral", { walls: false, column: false });
+    expect(off.items.length * 3).toBe(on.items.length);
+  });
+
+  test("a loop's top is its diameter up, its surface there facing down", () => {
+    const file = make("loop", { radius: 5, walls: false, lead: 0 });
+    const top = file.items.reduce((a, b) =>
+      b.transform.location[2] > a.transform.location[2] ? b : a,
+    );
+    expect(rotationRows(top.transform.rotation)[2][2]).toBeLessThan(-0.9);
+    expect(highest(file)).toBeGreaterThan(1000);
+    expect(highest(file)).toBeLessThan(1000 + 100);
+  });
+
+  test("a jump with a wider gap is longer", () => {
+    const long = (change: Values) => footprintOf(shapesOf(make("jump", change))).w;
+    expect(long({ gap: 12 })).toBeCloseTo(long({ gap: 6 }) + 6, 0);
+  });
+
+  test("a plinko board's pegs grow in number as they close up, and stay on the board", () => {
+    expect(count(make("plinko", { spacing: 0.8 }), "Cylinder")).toBeGreaterThan(
+      count(make("plinko", { spacing: 1.6 }), "Cylinder") * 3,
+    );
+    for (const it of make("plinko", { width: 5, spacing: 0.7 }).items)
+      if (it.class.includes("Cylinder"))
+        expect(Math.abs(it.transform.location[1])).toBeLessThan(250);
+  });
+
+  test("rollers rise to their bump height and have a piece more for each bump", () => {
+    const file = make("rollers", { height: 2, bumps: 2, walls: false });
+    /* the bumps over the track's 30 cm slab, its pieces' ends a little proud at the crests */
+    expect(highest(file)).toBeGreaterThan(200 + 30);
+    expect(highest(file)).toBeLessThan(200 + 30 + 30);
+    expect(make("rollers", { bumps: 6, walls: false }).items.length).toBe(
+      make("rollers", { bumps: 5, walls: false }).items.length + 10,
+    );
+  });
+});
+
+describe("the decor", () => {
+  test("lamps come one post each", () => {
+    for (const style of ["Street", "Lantern", "Globe", "Double"]) {
+      const posts = (n: number) =>
+        make("lamp", { style, count: n }).items.filter(
+          (it) => it.class.includes("Cylinder") && it.transform.scale[2] * 200 >= 490,
+        ).length;
+      expect(posts(4), style).toBe(4);
+    }
+  });
+
+  test("a fountain of one tier has no column, and more tiers stand taller", () => {
+    expect(highest(make("fountain", { tiers: 3, jet: false }))).toBeGreaterThan(
+      highest(make("fountain", { tiers: 1, jet: false })) + 100,
+    );
+    expect(
+      make("fountain", { tiers: 1, jet: false }).items.some((it) => it.class.includes("Cone")),
+    ).toBe(false);
+  });
+
+  test("a trophy is as tall as asked, a ball on top has no cup, and no handles is fewer sticks", () => {
+    expect(highest(make("trophy", { height: 5 }))).toBeCloseTo(500, -1);
+    expect(count(make("trophy", { top: "Ball" }), "MP_Cone")).toBe(0);
+    expect(count(make("trophy", { handles: false }), "Cylinder")).toBe(
+      count(make("trophy", { handles: true }), "Cylinder") - 12,
+    );
+  });
+
+  test("a pen is four sides, with a gate gap in the front's middle", () => {
+    const pen = make("fence", { shape: "Pen", style: "Wall", length: 10, gate: true });
+    const front = pen.items.filter((it) => it.transform.location[0] < -400);
+    for (const it of front) {
+      const [, y] = it.transform.location;
+      const half = (it.transform.scale[1] * CUBE) / 2;
+      expect(Math.abs(y) - half, "a piece in the gateway").toBeGreaterThanOrEqual(99);
+    }
+    expect(footprintOf(shapesOf(pen)).d).toBeGreaterThan(10);
+  });
+
+  test("an arch's banner has every other check, on both faces", () => {
+    const file = make("finish-arch", { width: 8, banner: 1, rows: 2, flags: false });
+    const checks = file.items.filter((it) => Math.abs(it.transform.scale[0] * CUBE - 4) < 0.01);
+    expect(checks).toHaveLength(2 * 16);
+  });
+});
+
+describe("the useful ones", () => {
+  /* a sign's raised cells, as their spans across it */
+  const across = (file: PrefabFile) =>
+    file.items
+      .slice(1)
+      .map((it) => extent(it))
+      .map((e) => [Math.round(e.x0), Math.round(e.x1), Math.round(e.z0)].join());
+  const mirrored = (file: PrefabFile) =>
+    file.items
+      .slice(1)
+      .map((it) => extent(it))
+      .map((e) => [Math.round(-e.x1), Math.round(-e.x0), Math.round(e.z0)].join());
+
+  test("an arrow pointing left is one pointing right, mirrored", () => {
+    for (const shape of ["Arrow", "Turn", "U-turn", "Chevrons"])
+      expect(new Set(across(make("arrow", { shape, points: "Left", detail: 20 }))), shape).toEqual(
+        new Set(mirrored(make("arrow", { shape, points: "Right", detail: 20 }))),
+      );
+  });
+
+  test("a picture reads back as it was written, each colour the nearest", () => {
+    const rgba = [255, 255, 255, 255, 0, 0, 0, 0, 216, 67, 58, 255, 155, 226, 45, 255];
+    const pic = readPicture(pictureOf(rgba, 2, 2));
+    expect(pic && [pic.at(0, 0), pic.at(1, 0), pic.at(0, 1), pic.at(1, 1)]).toEqual([
+      "White",
+      null,
+      "Red",
+      "Lime",
+    ]);
+    expect(readPicture("3x3:abc")).toBeNull();
+  });
+
+  test("pixel art's blocks cover the picture's cells, and only those", () => {
+    const pic = readPicture(MARBLE);
+    if (!pic) throw new Error("no marble");
+    let cells = 0;
+    for (let y = 0; y < pic.h; y++) for (let x = 0; x < pic.w; x++) if (pic.at(x, y)) cells++;
+    const area = make("pixel-art", { across: 16, block: 10 })
+      .items.map((it) => extent(it))
+      .reduce((a, e) => a + ((e.x1 - e.x0) * (e.z1 - e.z0)) / 100, 0);
+    expect(area).toBeCloseTo(cells);
+  });
+
+  test("pixel art laid on the floor lies flat, a block deep", () => {
+    expect(highest(make("pixel-art", { lay: "On the floor", block: 20 }))).toBeCloseTo(20);
+  });
+
+  test("stairs climb to their height in steps of about their step height", () => {
+    for (const shape of ["Straight", "Spiral"]) {
+      const file = make("stairs", { shape, height: 3, rise: 20, rails: false });
+      expect(count(file, "Cube"), shape).toBe(15);
+      expect(highest(file), shape).toBeCloseTo(300, -1);
+    }
+  });
+
+  test("an arched bridge rises to its arch height in the middle", () => {
+    const file = make("bridge", { style: "Arch", span: 20, rise: 3, rails: false });
+    expect(highest(file)).toBeGreaterThan(300);
+    expect(highest(file)).toBeLessThan(300 + 40);
+    expect(Math.max(footprintOf(shapesOf(file)).w, footprintOf(shapesOf(file)).d)).toBeGreaterThan(
+      19.9,
+    );
+  });
+
+  test("a checker is a tile each, stripes a strip a row", () => {
+    expect(make("floor-tiles", { pattern: "Checker", across: 6, deep: 5 }).items).toHaveLength(30);
+    expect(make("floor-tiles", { pattern: "Stripes", across: 6, deep: 5 }).items).toHaveLength(5);
+    const box = footprintOf(shapesOf(make("floor-tiles", { across: 8, deep: 4, tile: 2 })));
+    expect([box.w, box.d].sort((a, b) => a - b)).toEqual([8, 16]);
+  });
 });
 
 describe("colours", () => {
@@ -409,7 +652,7 @@ describe("the pages", () => {
   test("link every Generator, in GENERATORS' order", () => {
     expect(GENERATORS.map((g) => g.key)).toEqual([...GENERATOR_KEYS]);
     expect(generatorHref("tree")).toBe("/prefabs/make/tree");
-    expect(generatorHref("fence")).toBe("/prefabs/make");
+    expect(generatorHref("windmill")).toBe("/prefabs/make");
   });
 
   test("Make your own shows the tabs and a card per Generator", () => {
