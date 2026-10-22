@@ -11,7 +11,7 @@ export function PrefabTabs({ on }: { on: "shared" | "make" }) {
         Shared by players
       </Link>
       <Link href={makePrefabHref()} aria-current={on === "make" ? "page" : undefined}>
-        Make your own
+        Generate your own
       </Link>
     </nav>
   );

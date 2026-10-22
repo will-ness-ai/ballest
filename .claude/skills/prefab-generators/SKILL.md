@@ -1,6 +1,6 @@
 ---
 name: prefab-generators
-description: Add or rework Generators on the Prefabs page's Make your own tab (a sign, a tree, a building, any Prefab made from settings). Use when asked for a new generator or to improve how one looks.
+description: Add or rework Generators on the Prefabs page's Generate your own tab (a sign, a tree, a building, any Prefab made from settings). Use when asked for a new generator or to improve how one looks.
 ---
 
 # Prefab generators
