@@ -361,3 +361,34 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+/* the Generators' collage (/prefabs/collage), read by agents rather than players */
+.gen-collage {
+  display: grid;
+  gap: 4px;
+  width: max-content;
+  padding: 4px;
+  background: var(--bg);
+  font: 600 calc(12rem / 16) var(--f-body);
+  color: var(--text);
+}
+.gen-collage-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.gen-collage-row > b {
+  width: 9rem;
+}
+.gen-collage-tile {
+  position: relative;
+  width: 280px;
+  height: 190px;
+  background: var(--solid);
+}
+.gen-collage-tile small {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  color: var(--faint);
+}

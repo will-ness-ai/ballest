@@ -45,6 +45,35 @@ export const GENERATORS: ReadonlyArray<Generator> = [
 ];
 export const generatorOf = (key: string) => GENERATORS.find((g) => g.key === key) ?? null;
 
+/* a control's unit as its value is shown: ° and % close up, the rest after a space */
+export const unitOf = (unit?: string) =>
+  !unit ? "" : unit === "°" || unit === "%" ? unit : " " + unit;
+
+/* the variations the collage (/prefabs/collage) draws a Generator in, each a label and its
+   whole values, one change from its defaults: the defaults, then every number at its least and
+   its most, every choice's options and every switch flipped, for the controls the defaults show
+   (or only those in `only`) */
+export function variationsOf(
+  g: Generator,
+  only?: Array<string>,
+): Array<{ label: string; values: Values }> {
+  const changes: Array<[string, Values]> = [["defaults", {}]];
+  for (const c of g.controls(g.defaults)) {
+    if (only && !only.includes(c.key)) continue;
+    if (c.kind === "number")
+      for (const n of [c.min, c.max])
+        changes.push([`${c.label} ${String(n)}${unitOf(c.unit)}`, { [c.key]: n }]);
+    else if (c.kind === "choice")
+      for (const o of c.options) changes.push([`${c.label} ${o}`, { [c.key]: o }]);
+    else if (c.kind === "toggle")
+      changes.push([
+        `${c.label} ${g.defaults[c.key] ? "off" : "on"}`,
+        { [c.key]: !g.defaults[c.key] },
+      ]);
+  }
+  return changes.map(([label, change]) => ({ label, values: { ...g.defaults, ...change } }));
+}
+
 /* the Prefab file `key` makes from these values, or null when there is nothing to make (no
    text); a sign in a drawn font takes the lettering that draws it, else the Pixel font's */
 export function generate(key: string, values: Values, lettering: Lettering = PIXEL_LETTERING) {

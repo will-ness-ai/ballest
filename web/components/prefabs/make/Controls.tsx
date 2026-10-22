@@ -4,7 +4,13 @@
 import { useState } from "react";
 
 import { FONTS, fontAt } from "./lettering";
-import { COLOUR_NAMES, type Colour, type Control, type Values } from "../../../lib/generators";
+import {
+  COLOUR_NAMES,
+  unitOf,
+  type Colour,
+  type Control,
+  type Values,
+} from "../../../lib/generators";
 
 /* the swatch each colour shows: the same words the viewer colours pieces by (lib/prefab.ts) */
 const SWATCH: Record<Colour, string> = {
@@ -57,7 +63,6 @@ export function Controls({
 
 const shown = (n: number, step: number) =>
   step < 1 ? String(Number(n.toFixed(step < 0.1 ? 2 : 1))) : String(Math.round(n));
-const unitOf = (unit?: string) => (!unit ? "" : unit === "°" || unit === "%" ? unit : " " + unit);
 
 function Field({
   c,

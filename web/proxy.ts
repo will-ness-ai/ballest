@@ -42,7 +42,8 @@ import { isPreset } from "./lib/workshop";
 //   with no Daily is only known to the page, which sends the reader to /daily.
 // - A Prefab's path is /prefab/<a slug>; a slug nobody uploaded is only known to the page,
 //   which says the Prefab is gone.
-// - A Generator's path is /prefabs/make/<one of GENERATOR_KEYS>.
+// - A Generator's path is /prefabs/make/<one of GENERATOR_KEYS>; /prefabs/collage, the
+//   Generators' review page, is not in production.
 // - A player's or a head to head's path that isn't shaped like one (no Steam ID, an
 //   unknown tab) is the same; one with a Steam ID nobody raced under can only be a soft
 //   404. A head to head of a player against themselves is just their page.
@@ -88,6 +89,9 @@ export function proxy(request: NextRequest) {
   }
   if (path.startsWith("/prefab/") && (path.length > 72 || !PREFAB_PATH.test(path)))
     return notFound(request);
+  /* the Generators' collage is for agents on previews and dev servers, not players */
+  if (path === "/prefabs/collage" && process.env.VERCEL_ENV === "production")
+    return notFound(request);
   const make = /^\/prefabs\/make\/(.*)$/.exec(path);
   if (make && !isGeneratorKey(make[1])) return notFound(request);
   const vs = VS_PATH.exec(path);
@@ -110,5 +114,6 @@ export const config = {
     "/daily/:path*",
     "/prefab/:path*",
     "/prefabs/make/:path*",
+    "/prefabs/collage",
   ],
 };
