@@ -6,6 +6,7 @@ import {
   add,
   ball,
   boxAt,
+  choice,
   colour,
   colourIn,
   fileOf,
@@ -24,14 +25,6 @@ import {
 /* a cone hanging point down from `at`, its wide end there */
 const hung = (at: V3, d: number, h: number, c: Colour) =>
   piece("cone", at, [d, d, h], c, [180, 0, 0]);
-const choice = (key: string, label: string, options: ReadonlyArray<string>, more = false) => ({
-  key,
-  label,
-  kind: "choice" as const,
-  options,
-  more,
-});
-
 /* ---------- lamp post ---------- */
 const LAMPS = ["Street", "Lantern", "Globe", "Double"] as const;
 /* one lamp `H` cm tall standing at `at` */

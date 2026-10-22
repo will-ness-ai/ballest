@@ -10,6 +10,7 @@ import {
   SHUFFLE,
   add,
   boxAt,
+  choice,
   colour,
   colourIn,
   facing,
@@ -27,14 +28,6 @@ import {
   type Generator,
   type V3,
 } from "./pieces";
-
-const choice = (key: string, label: string, options: ReadonlyArray<string>, more = false) => ({
-  key,
-  label,
-  kind: "choice" as const,
-  options,
-  more,
-});
 
 /* each colour's own cells of a grid as boxes `cw` by `ch` cm, laid out across x (row 0 at the
    top, `top` cm up) and `depth` thick out toward +y from y0, as `facing` turns a sign */

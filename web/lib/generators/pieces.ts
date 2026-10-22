@@ -256,6 +256,12 @@ export const num = (
   more = false,
 ): Control => ({ key, label, kind: "number", min, max, step, unit, more });
 export const colour = (key: string, label: string): Control => ({ key, label, kind: "colour" });
+export const choice = (
+  key: string,
+  label: string,
+  options: ReadonlyArray<string>,
+  more = false,
+): Control => ({ key, label, kind: "choice", options, more });
 export const SHUFFLE: Control = { key: "seed", label: "Shuffle", kind: "shuffle" };
 
 export const numberIn = (v: Values, k: string) => Number(v[k]);
