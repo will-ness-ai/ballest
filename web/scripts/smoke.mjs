@@ -208,7 +208,7 @@ const ROUTES = [
   ["/prefabs/make/trophy", 200, null, "Trophy"],
   ["/prefabs/make/fence", 200, null, "Fence"],
   ["/prefabs/make/finish-arch", 200, null, "Finish arch"],
-  ["/prefabs/make/fence", 404],
+  ["/prefabs/make/windmill", 404],
   // the Generators' collage, for agents: a 404 only in production on Vercel
   ["/prefabs/collage?g=house", 200, null, "Generator collage"],
   ["/api/prefabs", 200, null, '"signedIn":false'],
