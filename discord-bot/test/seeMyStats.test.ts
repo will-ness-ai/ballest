@@ -82,7 +82,9 @@ const setup = Effect.gen(function* () {
       OpsAlerts,
       OpsAlerts.make({
         configured: true,
-        post: (content) => Ref.update(alerts, (a) => [...a, content]),
+        // The webhook never answers: nothing the member sees may wait on it.
+        post: (content) =>
+          Ref.update(alerts, (a) => [...a, content]).pipe(Effect.zipRight(Effect.never)),
       }),
     ),
   );
@@ -203,21 +205,29 @@ describe("See my stats", () => {
     }),
   );
 
-  it.scoped("tells the ops channel when the site can't draw, at most once an hour", () =>
-    Effect.gen(function* () {
-      const t = yield* setup;
-      yield* Ref.set(t.links, new Map([[ALICE.id, ALICE_STEAM]]));
-      yield* Ref.set(t.drawing, false);
-      const a = yield* t.answers();
-      const alert = `Multiballs couldn't draw ${ALICE_STEAM}'s Stat Card: the site said 500`;
-      yield* t.stats.see(ALICE, a.answer);
-      yield* TestClock.adjust("59 minutes");
-      yield* t.stats.see(ALICE, a.answer);
-      expect(yield* Ref.get(t.alerts)).toEqual([alert]);
-      yield* TestClock.adjust("1 minute");
-      yield* t.stats.see(ALICE, a.answer);
-      expect(yield* Ref.get(t.alerts)).toEqual([alert, alert]);
-    }),
+  it.scoped(
+    "tells the ops channel when the site can't draw, at most once an hour, without the answer waiting",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* setup;
+        yield* Ref.set(t.links, new Map([[ALICE.id, ALICE_STEAM]]));
+        yield* Ref.set(t.drawing, false);
+        const a = yield* t.answers();
+        const alert = `Multiballs couldn't draw ${ALICE_STEAM}'s Stat Card: the site said 500`;
+        yield* t.stats.see(ALICE, a.answer);
+        yield* TestClock.adjust("59 minutes");
+        yield* t.stats.see(ALICE, a.answer);
+        expect(yield* Ref.get(t.alerts)).toEqual([alert]);
+        yield* TestClock.adjust("1 minute");
+        yield* t.stats.see(ALICE, a.answer);
+        yield* TestClock.adjust("1 second");
+        expect(yield* Ref.get(t.alerts)).toEqual([alert, alert]);
+        expect(yield* a.shown).toEqual([
+          { _tag: "CardFailed" },
+          { _tag: "CardFailed" },
+          { _tag: "CardFailed" },
+        ]);
+      }),
   );
 
   it.scoped("says so when the paired account has no runs on the boards", () =>

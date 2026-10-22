@@ -299,9 +299,11 @@ what the panel needs, and keeps one panel there with a **See my stats** button. 
 the panel's and the panel's fingerprint are in SQLite (`my_stats_channel`), so it is found by id and
 admins may rename or move it; the panel is edited only when this build draws it differently, like
 the Footer, and posted again if deleted. Presses there reach `interactions.ts` through
-`Discord.answerIn`. Each start it first checks the bot holds, server-wide, every permission in
-`NEEDED_IN_SERVER` (Discord lets no one grant in an overwrite what they lack): any missing is named
-to the ops channel, and no channel is made without them, though one already made is kept. On any
+`Discord.answerIn`. Before making the channel it checks the bot holds every permission in
+`NEEDED_TO_CREATE` where the channel will be, the Match channel's category or else the server
+(Discord refuses an overwrite, allow or deny, naming a permission the bot lacks): any missing is
+named to the ops channel, and no channel is made without them. A channel already there needs
+none of them, so it raises no alert. On any
 other failure it tells the ops channel too, and the bot runs on. It is off in the sandbox, whose fresh database would make a channel at every start;
 check the discord.js calls with `pnpm dev`, whose database lasts. The rules are tested over an
 in-memory server in `test/myStats.test.ts`, the panel in `test/messages.test.ts`.
@@ -317,16 +319,18 @@ been used, and once it has, edits that answer into the card through the interact
 (which lasts 15). A card the site can't draw answers "Couldn't draw your card, try again" and tells
 the ops channel, at most once an hour (`CARD_ALERT_EVERY`), since a site outage fails every press;
 with no `DATABASE_URL` (or one it can't read) the answer says stats aren't available. The Stats
-Links share one Postgres pool, made at the first press and made again at the next if the database
-couldn't be reached. The site and
+Links share one `pg` pool, made at start, which connects only when a call needs it (giving up
+after 5 seconds), so a database that can't be reached fails that press alone. The ops alert of a
+failed draw is posted in the background, never holding up the member's answer. The site and
 the database must be the same one's: for `pnpm dev` against a local database, set `SITE_URL` to a
 local `pnpm dev` of `web/` on it. The rules run over fake ports on the TestClock in
 `test/seeMyStats.test.ts`, the SQL against Postgres in `test/statsLinks.test.ts`, the answers'
 buttons in `test/messages.test.ts`, and the clicks through `interactions.ts` in
 `test/driver.test.ts`.
 
-In production the bot's role needs, on the server, Manage Channels, Manage Roles, View Channel,
-Send Messages, Embed Links and Read Message History (`NEEDED_IN_SERVER`).
+In production the bot's role needs, where #my-stats is made (the Match channel's category, or the
+server), Manage Channels, Manage Roles, View Channel, Send Messages, Embed Links, Read Message
+History, both Create Threads, Send Messages in Threads and Add Reactions (`NEEDED_TO_CREATE`).
 
 ## Production
 

@@ -12,7 +12,7 @@ import {
   missingFrom,
   MyStatsChannel,
   MyStatsPanelLive,
-  NEEDED_IN_SERVER,
+  NEEDED_TO_CREATE,
 } from "../src/discord/myStats.js";
 import { OpsAlerts } from "../src/ops.js";
 
@@ -35,7 +35,7 @@ const makeFakeServer = () => {
       discordDown
         ? Effect.fail(new DiscordError({ op: "fetch #my-stats", cause: "503" }))
         : Effect.sync(() => channels.has(channelId)),
-    missingPermissions: Effect.sync(() => missing),
+    missingToCreate: Effect.sync(() => missing),
     create: Effect.suspend(() => {
       if (!canCreate)
         return Effect.fail(
@@ -200,19 +200,22 @@ describe("the My Stats channel", () => {
       yield* start;
       expect(server.channels()).toEqual([]);
       expect(alerts).toEqual([
-        "Multiballs lacks permissions #my-stats needs in the server: Manage Roles, Embed Links",
+        "Multiballs lacks permissions it needs to make #my-stats: Manage Roles, Embed Links",
       ]);
     }),
   );
 
-  it.scoped("keeps a channel it already made while saying what the bot lacks", () =>
+  it.scoped("keeps a channel it already made without alerting: only making one needs them", () =>
     Effect.gen(function* () {
       const { server, start, alerts } = yield* setup;
       yield* start;
-      server.lacking(["Manage Roles"]);
+      server.lacking(["Manage Roles", "Create Public Threads"]);
+      server.newBuild();
       yield* start;
-      expect(server.channels()).toEqual([{ name: "my-stats", messages: ["panel 1"] }]);
-      expect(alerts).toHaveLength(1);
+      server.deletePanel();
+      yield* start;
+      expect(server.channels()).toEqual([{ name: "my-stats", messages: ["panel 2"] }]);
+      expect(alerts).toEqual([]);
     }),
   );
 
@@ -239,16 +242,21 @@ describe("the My Stats channel's permissions", () => {
     ]);
   });
 
-  it("needs Manage Channels, Manage Roles and all it grants the bot, and names what's missing", () => {
-    expect(Object.keys(NEEDED_IN_SERVER)).toEqual([
+  it("needs Manage Channels, Manage Roles and every permission its overwrites name, and names what's missing", () => {
+    expect(Object.keys(NEEDED_TO_CREATE)).toEqual([
       "Manage Channels",
       "Manage Roles",
       "View Channel",
       "Send Messages",
       "Embed Links",
       "Read Message History",
+      "Create Public Threads",
+      "Create Private Threads",
+      "Send Messages in Threads",
+      "Add Reactions",
     ]);
-    const all = Object.values(NEEDED_IN_SERVER).reduce((a, b) => a | b);
+    const all = Object.values(NEEDED_TO_CREATE).reduce((a, b) => a | b);
+    for (const denied of EVERYONE_DENIED) expect(all & denied).toBe(denied);
     expect(missingFrom(all)).toEqual([]);
     expect(missingFrom(PermissionsBitField.All)).toEqual([]);
     expect(

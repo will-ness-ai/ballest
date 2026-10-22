@@ -208,8 +208,10 @@ answers with in Discord (spec #323; grill-design K5 with its date as T1, prototy
 (`app/og/stats/[id]/route.tsx`) serves it, through the player page's cached reads plus
 `getChosenSkins`, `v` being the cache key. Unlike a share image it is kept by the CDN for five
 minutes only (`s-maxage=300`), since the Chosen Skin and the Steam avatar on it change between
-Refreshes, and not at all (`no-store`) when it was drawn without a picture it should have had:
-the Skin's or the avatar's failed to load, so the next press draws it again. A Steam ID that
+Refreshes, and not at all (`no-store`) when its avatar failed to load only for now (timed out,
+a 5xx or the network failing), so the next press draws it again. A picture that will never
+load (no PNG for the Skin, an avatar address `safeImg` refuses, a 404) leaves the card drawn
+without it and kept as usual. A Steam ID that
 names nobody is a 404. `lib/stat-card.ts` decides what it says, and
 `components/share/StatCard.tsx` loads its pictures and draws it with `Card.tsx`'s colours,
 marble and fonts.
@@ -217,8 +219,9 @@ marble and fonts.
 - A frame and glow in the player's hue, and their ball at 400px: their Chosen Skin's
   picture, else their hue marble, with their Steam avatar as a 130px badge on its lower
   right (none without an avatar). Then their name, on one line: it steps down from 56px so
-  that 32 characters (Steam's longest persona) of Bungee's widest letters fit, and anything
-  longer is cut with an ellipsis.
+  that 32 characters (Steam's longest persona, counted as graphemes) fit, each at Bungee's
+  widest letter or, for an emoji, CJK or any other script Bungee lacks, at 1.25em, and
+  anything longer is cut with an ellipsis.
 - The rows, in order: Season 1 Circuit and Season 2 Circuit (each season's Overall rank),
   World records, Author, Gold, Silver and Bronze medals, Maps finished. The counts add the
   Circuit and the Workshop as the player's share card does (an Author count includes world

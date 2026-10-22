@@ -147,4 +147,21 @@ describe("a Stat Card's name", () => {
     /* longer than any Steam persona: drawn at the 32's size and cut */
     expect(nameSize("W".repeat(40))).toBe(23);
   });
+
+  test("counts an emoji as one wide glyph, and CJK and other scripts as wide, so they fit too", () => {
+    const WIDE = 1.25;
+    const family = "👨‍👩‍👧";
+    // five code points joined: one emoji, as wide as one CJK character
+    expect(nameSize(family.repeat(20))).toBe(nameSize("球".repeat(20)));
+    for (const glyph of [family, "🔥", "球", "ボ", "Ж"])
+      for (let n = 1; n <= 32; n++)
+        expect(n * WIDE * nameSize(glyph.repeat(n))).toBeLessThanOrEqual(LINE);
+    // accented Latin is Bungee's own, as narrow as plain
+    expect(nameSize("É".repeat(32))).toBe(23);
+    expect(nameSize("E\u0301".repeat(32))).toBe(23);
+    // a mixed name: 10 Latin and 10 wide
+    expect(nameSize("W".repeat(10) + "球".repeat(10))).toBe(
+      Math.floor(LINE / (10 * 0.85 + 10 * WIDE)),
+    );
+  });
 });

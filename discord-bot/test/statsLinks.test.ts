@@ -2,12 +2,13 @@
 // throwaway database on the Postgres at TEST_DATABASE_URL, migrated by the site's own
 // migrations, as chosenSkins.test.ts does.
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { SqlClient } from "@effect/sql";
 import { PgClient } from "@effect/sql-pg";
 import { afterAll, beforeAll, describe, expect, it } from "@effect/vitest";
-import { ConfigProvider, Context, Effect, Layer, Option, Redacted } from "effect";
-import { StatsLinks, StatsLinksLive } from "../src/seeMyStats.js";
+import { ConfigProvider, Context, Duration, Effect, Layer, Option, Redacted } from "effect";
+import { REQUEST_FOR, REQUEST_KEPT, StatsLinks, StatsLinksLive } from "../src/seeMyStats.js";
 
 const BASE =
   process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/postgres";
@@ -145,4 +146,20 @@ describe("Stats Links in the database", () => {
       expect((yield* Effect.flip(broken.request("d-x", "x")))._tag).toBe("StatsUnavailable");
     }),
   );
+
+  it("are used and kept as long as the site allows, read from web/db/stats-link.ts", () => {
+    const site = readFileSync(
+      fileURLToPath(new URL("../../web/db/stats-link.ts", import.meta.url)),
+      "utf8",
+    );
+    /** A constant there, written as a product of plain numbers. */
+    const constant = (name: string) => {
+      const m = new RegExp(`export const ${name} = ([\\d_ *]+);`).exec(site);
+      const product = m?.[1];
+      if (product === undefined) throw new Error(`no ${name} in web/db/stats-link.ts`);
+      return product.split("*").reduce((p, n) => p * Number(n.replaceAll("_", "")), 1);
+    };
+    expect(REQUEST_FOR).toBe(constant("REQUEST_MS"));
+    expect(Duration.toMillis(REQUEST_KEPT)).toBe(constant("KEEP_MS"));
+  });
 });

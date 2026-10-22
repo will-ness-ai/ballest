@@ -3,12 +3,13 @@
 // is found by id at each start and an admin may rename or move it.
 //
 // The rules, at each start:
-// - The bot must hold, server-wide, every permission the channel's overwrites grant it plus
-//   Manage Channels and Manage Roles: Discord lets no one grant what they lack. Any missing goes
-//   to the ops channel by name, and no channel is made without them.
 // - No channel stored, or the stored one is gone: make #my-stats, read-only to @everyone (no
 //   messages, threads or reactions), and keep its id at once, so a crash after it never makes a
-//   second one.
+//   second one. To make it, the bot must hold Manage Channels, Manage Roles and every permission
+//   the channel's overwrites name, allowed or denied, where the channel will be (the Match
+//   channel's category, else the server): Discord refuses an overwrite naming one the bot lacks.
+//   Any missing goes to the ops channel by name, and no channel is made without them. A channel
+//   that is already there needs none of them, so it raises no alert.
 // - The panel is edited only when this build draws it differently (like the Footer, PR #151):
 //   an edit shows as activity in the channel. A deleted panel is posted again.
 // - Anything that fails (most likely the bot lacking Manage Channels) goes to the ops channel and
@@ -29,8 +30,11 @@ export class MyStatsChannel extends Context.Tag("multiballs/MyStatsChannel")<
   {
     /** Whether the channel is still a text channel in this server. */
     readonly exists: (channelId: string) => Effect.Effect<boolean, DiscordError>;
-    /** The permissions making #my-stats needs (NEEDED_IN_SERVER) that the bot lacks, by name. */
-    readonly missingPermissions: Effect.Effect<ReadonlyArray<string>, DiscordError>;
+    /**
+     * The permissions making #my-stats needs (NEEDED_TO_CREATE) that the bot lacks where it will
+     * be made, by name.
+     */
+    readonly missingToCreate: Effect.Effect<ReadonlyArray<string>, DiscordError>;
     /** Make #my-stats, read-only to everyone but the bot; its id. */
     readonly create: Effect.Effect<string, DiscordError>;
     /** Whether the message is still in the channel. */
@@ -75,16 +79,15 @@ const make = Effect.gen(function* () {
   });
 
   const keep = Effect.gen(function* () {
-    const missing = yield* channel.missingPermissions;
-    if (missing.length > 0)
-      yield* alerts.post(
-        `Multiballs lacks permissions #${MY_STATS_NAME} needs in the server: ${missing.join(", ")}`,
-      );
     const saved = Option.getOrNull(yield* load(undefined).pipe(Effect.orDie));
     let kept = saved !== null && (yield* channel.exists(saved.channel_id)) ? saved : null;
     if (kept === null) {
-      // Discord would refuse it, or make it without its overwrites; ops already heard why.
-      if (missing.length > 0) return;
+      // Discord would refuse it, or make it without its overwrites.
+      const missing = yield* channel.missingToCreate;
+      if (missing.length > 0)
+        return yield* alerts.post(
+          `Multiballs lacks permissions it needs to make #${MY_STATS_NAME}: ${missing.join(", ")}`,
+        );
       kept = { channel_id: yield* channel.create, panel_id: null, panel_fingerprint: null };
       yield* save(kept);
       yield* Effect.logInfo(`my stats: made #${MY_STATS_NAME} (${kept.channel_id})`);
@@ -117,14 +120,15 @@ const make = Effect.gen(function* () {
 /** Keeps the channel and its panel at startup. Needs the MyStatsChannel, OpsAlerts and a SqlClient. */
 export const MyStatsPanelLive = Layer.effectDiscard(make).pipe(Layer.provide(MigratorLive));
 
-/** What #my-stats denies @everyone: it is read-only, threads and reactions included. */
-export const EVERYONE_DENIED = [
-  PermissionFlagsBits.SendMessages,
-  PermissionFlagsBits.CreatePublicThreads,
-  PermissionFlagsBits.CreatePrivateThreads,
-  PermissionFlagsBits.SendMessagesInThreads,
-  PermissionFlagsBits.AddReactions,
-];
+/** What #my-stats denies @everyone, by name: it is read-only, threads and reactions included. */
+const EVERYONE_DENIED_NAMED = {
+  "Send Messages": PermissionFlagsBits.SendMessages,
+  "Create Public Threads": PermissionFlagsBits.CreatePublicThreads,
+  "Create Private Threads": PermissionFlagsBits.CreatePrivateThreads,
+  "Send Messages in Threads": PermissionFlagsBits.SendMessagesInThreads,
+  "Add Reactions": PermissionFlagsBits.AddReactions,
+};
+export const EVERYONE_DENIED = Object.values(EVERYONE_DENIED_NAMED);
 
 /** What #my-stats allows the bot, by name: the panel needs nothing more (no files). */
 const BOT_ALLOWED = {
@@ -135,18 +139,20 @@ const BOT_ALLOWED = {
 };
 
 /**
- * What the bot must hold in the server to make #my-stats: the channel itself, its overwrites,
- * and every permission they allow it, since Discord lets no one grant what they lack.
+ * What the bot must hold where #my-stats will be to make it: the channel itself, its overwrites,
+ * and every permission they name, allowed or denied, since Discord refuses an overwrite naming
+ * one the bot lacks.
  */
-export const NEEDED_IN_SERVER = {
+export const NEEDED_TO_CREATE = {
   "Manage Channels": PermissionFlagsBits.ManageChannels,
   "Manage Roles": PermissionFlagsBits.ManageRoles,
   ...BOT_ALLOWED,
+  ...EVERYONE_DENIED_NAMED,
 };
 
-/** The NEEDED_IN_SERVER permissions missing from `held`, by name. */
+/** The NEEDED_TO_CREATE permissions missing from `held`, by name. */
 export const missingFrom = (held: bigint) =>
-  Object.entries(NEEDED_IN_SERVER).flatMap(([name, bit]) => ((held & bit) === bit ? [] : [name]));
+  Object.entries(NEEDED_TO_CREATE).flatMap(([name, bit]) => ((held & bit) === bit ? [] : [name]));
 
 /** The MyStatsChannel port on discord.js, in the Match channel's server. */
 export const MyStatsChannelLive = Layer.effect(
@@ -183,9 +189,17 @@ export const MyStatsChannelLive = Layer.effect(
 
     return MyStatsChannel.of({
       exists: (channelId) => find(channelId).pipe(Effect.map((c) => c !== null)),
-      missingPermissions: fetchMe.pipe(
-        Effect.map((self) => missingFrom(self.permissions.bitfield)),
-      ),
+      // Beside the Match channel, so in its category if it has one: the category's overwrites
+      // for the bot count there, not only its roles in the server.
+      missingToCreate: Effect.gen(function* () {
+        const self = yield* fetchMe;
+        const parentId = discord.channel.parentId;
+        if (parentId === null) return missingFrom(self.permissions.bitfield);
+        const parent = yield* tryDiscord("fetch the Match channel's category", () =>
+          guild.channels.fetch(parentId),
+        );
+        return missingFrom((parent?.permissionsFor(self) ?? self.permissions).bitfield);
+      }),
       create: Effect.gen(function* () {
         const self = yield* fetchMe;
         // Beside the Match channel; admins may move it anywhere.

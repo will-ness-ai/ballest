@@ -184,7 +184,9 @@ no Stats Link (or of Pair again), by `token` (128 random bits, 32 hex characters
 Discord account's ID and name (the name only for the link page to ask about), `created_at` and
 `used_at`, null until the page's confirm uses it. A request can be used for 15 minutes
 (`REQUEST_MS` in `web/db/stats-link.ts`), and once; it is kept a day (`KEEP_MS`), so an expired
-link still says it has expired and a reloaded Done page still says done. The bot prunes the
+link still says it has expired and a reloaded Done page still says done. The bot keeps its own
+copy of both, `REQUEST_FOR` and `REQUEST_KEPT` in `discord-bot/src/seeMyStats.ts`: change them
+together (`discord-bot/test/statsLinks.test.ts` fails while they differ). The bot prunes the
 requests older than a day as it writes, and so does the confirm. `stats_links` is one row per Discord account paired (CONTEXT.md, Stats Link):
 the Steam ID it signed in as and when, written only by the confirm
 (`POST /api/discord/link?t=<token>`), which marks the request used in the same transaction;

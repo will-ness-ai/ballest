@@ -7,7 +7,7 @@
 import type { StatCard, StatRowKind } from "../../lib/stat-card";
 import { SITE_NAME } from "../../lib/rules";
 import { Ball, C, pngOf } from "./Card";
-import { fullAvatar, remote, skinShot } from "./pictures";
+import { fetchPicture, fullAvatar, skinShot } from "./pictures";
 
 const W = 720;
 const H = 1060;
@@ -148,11 +148,22 @@ const NAME_WIDTH = W - 2 * 16 - 2 * 30;
 const NAME_SIZE = 56;
 /* Bungee's widest letters (M, W) in ems: a name sized for them fits whatever its letters */
 const BUNGEE_WIDEST = 0.85;
+/* what Bungee doesn't have (an emoji, a CJK character, any other script) falls back to a
+   wider face: a square glyph and some, in ems */
+const WIDE = 1.25;
+/* Latin letters, their accents, digits and punctuation: what Bungee draws itself */
+const LATIN = /^[\u0020-\u024f\u1e00-\u1eff\u2000-\u206f\p{M}]+$/u;
+const graphemes = new Intl.Segmenter("en", { granularity: "grapheme" });
 
-/* A long name steps down so it stays on one line: up to 32 characters, Steam's longest
-   persona, fit at 23px; anything longer is cut with an ellipsis. */
-export const nameSize = (name: string) =>
-  Math.min(NAME_SIZE, Math.floor(NAME_WIDTH / (Math.min(name.length, 32) * BUNGEE_WIDEST)));
+/* A long name steps down so it stays on one line: up to 32 characters (as a reader counts
+   them, so an emoji of several code points is one), Steam's longest persona, fit at 23px in
+   Latin and smaller in wide glyphs; anything longer is cut with an ellipsis. */
+export function nameSize(name: string) {
+  const ems = [...graphemes.segment(name)]
+    .slice(0, 32)
+    .reduce((sum, { segment }) => sum + (LATIN.test(segment) ? BUNGEE_WIDEST : WIDE), 0);
+  return Math.min(NAME_SIZE, Math.floor(NAME_WIDTH / ems));
+}
 
 function Portrait({
   card,
@@ -233,31 +244,28 @@ function Portrait({
 }
 
 /* The Stat Card's CDN life: minutes, not the share images' year, since the Chosen Skin and
-   the Steam avatar on it change between Refreshes; a card drawn without a picture it should
-   have had is never kept, so the next press draws it again (docs/site.md, "Stat Card") */
+   the Steam avatar on it change between Refreshes; a card drawn without an avatar that failed
+   only for now is never kept, so the next press draws it again (docs/site.md, "Stat Card") */
 const CARD_CACHE = "public, max-age=300, s-maxage=300";
 const NO_STORE = "no-store";
 
 /* The card as a PNG response, drawn with the pictures it names: its Skin's and its Steam
-   avatar, each left off when it fails to load. A card drawn without one it should have had
-   is never kept (NO_STORE), and one Satori can't read draws the card without either, rather
-   than a 500. */
+   avatar, each left off when it fails to load. Only an avatar that failed for now (timed out,
+   a 5xx, the network) keeps the card from the CDN (NO_STORE); a picture that will never load
+   (no PNG for the Skin, an address safeImg refuses, a 404) is kept as drawn. One Satori can't
+   read draws the card without either, rather than a 500. */
 export async function drawStatCard(card: StatCard) {
-  const [skin, face] = await Promise.all([
+  const [skin, avatar] = await Promise.all([
     card.skin ? skinShot(card.skin) : null,
-    remote(fullAvatar(card.avatar)),
+    fetchPicture(fullAvatar(card.avatar)),
   ]);
-  const whole = (!card.skin || skin !== null) && (!card.avatar || face !== null);
+  const face = avatar.src;
+  const cache = avatar.temporary ? NO_STORE : CARD_CACHE;
   try {
-    return await pngOf(
-      <Portrait card={card} skin={skin} face={face} />,
-      W,
-      H,
-      whole ? CARD_CACHE : NO_STORE,
-    );
+    return await pngOf(<Portrait card={card} skin={skin} face={face} />, W, H, cache);
   } catch (e) {
     if (!skin && !face) throw e;
     console.warn(`stat card "${card.name}": drawn without its pictures`, e);
-    return pngOf(<Portrait card={card} skin={null} face={null} />, W, H, NO_STORE);
+    return pngOf(<Portrait card={card} skin={null} face={null} />, W, H, cache);
   }
 }
