@@ -217,6 +217,8 @@ const setup = Effect.fn("setup")(function* (
   }
   /** The Venues the Surface said broke, in order. */
   const broken: Array<string> = [];
+  /** The guest Venues the Surface said are up, to be offered, in order. */
+  const up: Array<string> = [];
   // The running Venues' channels, fixed for each start, as they are for the bot's process.
   const running = VenueChannels.of({
     all: new Map([
@@ -225,6 +227,7 @@ const setup = Effect.fn("setup")(function* (
       ...(opts.others ?? []),
     ]),
     broke: (venue) => Effect.sync(() => broken.push(venue)),
+    up: (venue) => Effect.sync(() => up.push(venue)),
   });
   /** What ops was told, in order. */
   const alerts: Array<string> = [];
@@ -259,6 +262,8 @@ const setup = Effect.fn("setup")(function* (
     alerts: () => [...alerts],
     /** The Venues reported broken, for the bot to repair. */
     broken: () => [...broken],
+    /** The guest Venues reported up, to be offered. */
+    up: () => [...up],
     placeOf,
     forgetFingerprint,
     onDatabase,
@@ -819,6 +824,53 @@ describe("Venues", () => {
         yield* Effect.repeatN(Effect.yieldNow(), 20);
         expect(racing.order()).toEqual(["footer"]);
         expect(surface.runs(RACING)).toBe(true);
+        expect(broken()).toEqual([]);
+      }),
+  );
+
+  it.scoped("offer a guest Venue only once its Footer is up, failing or slow until then", () =>
+    Effect.gen(function* () {
+      const third = makeFakeChannel();
+      const { racing, start, up } = yield* setup({ others: [["third", third.port]] });
+      racing.failNext("post", 1);
+      third.stall();
+      const starting = yield* Effect.fork(start);
+      yield* TestClock.adjust("30 seconds");
+      yield* Fiber.join(starting);
+      expect(up()).toEqual([]);
+      third.unstall();
+      yield* Effect.repeatN(Effect.yieldNow(), 20);
+      expect(up()).toEqual(["third"]);
+      yield* TestClock.adjust("5 minutes");
+      yield* Effect.repeatN(Effect.yieldNow(), 20);
+      expect(up()).toEqual(["third", RACING]);
+    }),
+  );
+
+  it.scoped(
+    "give up on a start Discord doesn't finish in a minute, tell ops, and try again in five",
+    () =>
+      Effect.gen(function* () {
+        const { racing, start, alerts, broken } = yield* setup();
+        racing.stall();
+        const starting = yield* Effect.fork(start);
+        yield* TestClock.adjust("30 seconds");
+        const surface = yield* Fiber.join(starting);
+        yield* TestClock.adjust("30 seconds");
+        yield* Effect.repeatN(Effect.yieldNow(), 20);
+        expect(alerts()).toHaveLength(1);
+        expect(alerts()[0]).toContain(RACING);
+        expect(alerts()[0]).toContain("timed out");
+        expect(surface.runs(RACING)).toBe(false);
+        // The start it gave up on still finishes what it was doing, and the next one runs it.
+        racing.unstall();
+        yield* Effect.repeatN(Effect.yieldNow(), 20);
+        expect(racing.order()).toEqual(["footer"]);
+        yield* TestClock.adjust("5 minutes");
+        yield* Effect.repeatN(Effect.yieldNow(), 20);
+        expect(surface.runs(RACING)).toBe(true);
+        expect(racing.order()).toEqual(["footer"]);
+        expect(alerts()).toHaveLength(1);
         expect(broken()).toEqual([]);
       }),
   );

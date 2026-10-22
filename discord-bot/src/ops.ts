@@ -2,7 +2,18 @@
 // alerts the ops channel when pings stop, and a daily warning to the ops channel's webhook once
 // the Steam refresh token is close to expiring (the bot never renews it).
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "@effect/platform";
-import { Clock, Config, Effect, Layer, Option, Queue, Redacted, Schedule, Schema } from "effect";
+import {
+  Clock,
+  Config,
+  Effect,
+  Fiber,
+  Layer,
+  Option,
+  Queue,
+  Redacted,
+  Schedule,
+  Schema,
+} from "effect";
 import { Discord } from "./discord/client.js";
 
 const WARN_DAYS = 30;
@@ -50,11 +61,14 @@ export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts
           Effect.ignore,
         ),
       );
-      yield* Queue.take(queue).pipe(
-        Effect.flatMap((content) => send(url, content)),
-        Effect.forever,
-        Effect.forkScoped,
-      );
+      // A post under way is finished (within its time limit) before the drain stops: it runs
+      // in a fiber of its own, which the drain waits on without being interrupted.
+      yield* Effect.uninterruptibleMask((restore) =>
+        restore(Queue.take(queue)).pipe(
+          Effect.flatMap((content) => Effect.forkDaemon(Effect.interruptible(send(url, content)))),
+          Effect.flatMap(Fiber.await),
+        ),
+      ).pipe(Effect.forever, Effect.forkScoped);
     }
     return {
       configured: Option.isSome(webhookUrl),

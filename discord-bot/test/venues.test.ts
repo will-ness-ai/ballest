@@ -10,6 +10,7 @@ import {
   Cause,
   Context,
   Deferred,
+  Duration,
   Effect,
   Exit,
   Fiber,
@@ -23,8 +24,11 @@ import {
   DiscordError,
   type DiscordVenue,
   discordKind,
+  makeOffer,
+  retryPasses,
   routeClick,
 } from "../src/discord/client.js";
+import { RestartFailed } from "../src/restart.js";
 import {
   type ChannelAccess,
   makeVenueJoiner,
@@ -352,6 +356,7 @@ const joiner = Effect.fn("joiner")(function* (
   opts: {
     readonly store?: Context.Tag.Service<typeof VenueRecords>;
     readonly failing?: Ref.Ref<string | null>;
+    readonly restartFails?: Ref.Ref<boolean>;
   } = {},
 ) {
   // A day after Venues began, so the baseline is taken then.
@@ -361,6 +366,7 @@ const joiner = Effect.fn("joiner")(function* (
   const restarts = yield* Ref.make<ReadonlyArray<string>>([]);
   const checks = yield* Ref.make<ReadonlyArray<"cache" | "api">>([]);
   const failing = opts.failing ?? (yield* Ref.make<string | null>(null));
+  const restartFails = opts.restartFails ?? (yield* Ref.make(false));
   const joins = yield* makeVenueJoiner(
     HOME.guildId,
     (venue: VenueConfig, cached: boolean) =>
@@ -371,7 +377,11 @@ const joiner = Effect.fn("joiner")(function* (
         ),
       ),
     (message) => Ref.update(alerts, (all) => [...all, message]),
-    (why) => Ref.update(restarts, (all) => [...all, why]),
+    (why) =>
+      Ref.update(restarts, (all) => [...all, why]).pipe(
+        Effect.zipRight(Ref.get(restartFails)),
+        Effect.flatMap((fails) => (fails ? Effect.fail(new RestartFailed({ why })) : Effect.void)),
+      ),
   ).pipe(Effect.provideService(VenueRecords, store));
   return {
     joins,
@@ -386,12 +396,14 @@ const joiner = Effect.fn("joiner")(function* (
     background: (guilds: ReadonlyArray<SetupGuild>) =>
       Effect.forEach(guilds, (g) => joins.retry(g), { discard: true }),
     alerts: Ref.get(alerts),
-    /** Why the bot asked to restart, each time. */
-    restarts: Ref.get(restarts),
+    /** Why the bot asked to restart, each time (once each ask, in the background, is made). */
+    restarts: Effect.repeatN(Effect.yieldNow(), 10).pipe(Effect.zipRight(Ref.get(restarts))),
+    /** Each restart asked for from now on fails, as one whose history can't be read. */
+    failRestarts: Ref.set(restartFails, true),
     /** How each check read the server: from the cache, or over the API. */
     checks: Ref.get(checks),
     /** The bot restarts: nothing is running, and ops' memory of what it said is gone. */
-    restart: () => joiner({ store, failing }),
+    restart: () => joiner({ store, failing, restartFails }),
   };
 });
 
@@ -586,6 +598,23 @@ describe("which servers become Venues", () => {
   );
 
   it.scoped(
+    "a setup past its time limit isn't cut off: it makes its channel when Discord answers",
+    () =>
+      Effect.gen(function* () {
+        const j = yield* joiner();
+        yield* j.startup([]);
+        const slow = makeFakeGuild({ id: "g-slow", joinedAt: NOW });
+        const gate = yield* slow.hold();
+        const first = yield* Effect.fork(j.joins.retry(slow.port));
+        yield* TestClock.adjust("30 seconds");
+        yield* Fiber.join(first);
+        yield* Deferred.succeed(gate, undefined);
+        yield* Effect.repeatN(Effect.yieldNow(), 50);
+        expect(slow.made()).toEqual(["channel #multiballs", "role @Multiplayer ping"]);
+      }),
+  );
+
+  it.scoped(
     "one setup at a time per server: a retry waits for a slow one, making nothing twice",
     () =>
       Effect.gen(function* () {
@@ -636,6 +665,33 @@ describe("which servers become Venues", () => {
       yield* j.background([racing.port]);
       expect(racing.apiCalls()).toBe(calls);
       expect(yield* j.restarts).toHaveLength(1);
+    }),
+  );
+
+  it.scoped("a server set up whose restart fails: tried again, rather than left waiting", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.startup([]);
+      yield* j.failRestarts;
+      const racing = makeFakeGuild();
+      yield* j.joins.invited(racing.port);
+      expect(yield* j.restarts).toHaveLength(1);
+      yield* j.joins.retry(racing.port);
+      expect(yield* j.restarts).toHaveLength(2);
+    }),
+  );
+
+  it.scoped("a running Venue that broke, whose server removes the bot: restarts all the same", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.startup([]);
+      const racing = makeFakeGuild();
+      yield* j.joins.invited(racing.port);
+      const again = yield* j.restart();
+      yield* again.startup([racing.port]);
+      yield* again.joins.broke("g-racing");
+      yield* again.joins.removed("g-racing");
+      expect(yield* again.restarts).toHaveLength(1);
     }),
   );
 
@@ -793,6 +849,44 @@ describe("a click", () => {
     expect(routeClick(running, repairing, click("c-racing"))._tag).toBe("Repairing");
     expect(routeClick(running, repairing, click("c-home"))._tag).toBe("Venue");
   });
+});
+
+describe("the running Venues on offer", () => {
+  const venue = (name: string) => ({ name }) as unknown as DiscordVenue;
+  const names = (offer: ReturnType<typeof makeOffer>) => offer.available().map((v) => v.name);
+
+  it("are home, and each guest once its channel is up, until it breaks", () => {
+    const offer = makeOffer([venue("home"), venue("g-racing"), venue("g-third")]);
+    expect(names(offer)).toEqual(["home"]);
+    expect(offer.unavailable("g-racing")).toBe(true);
+    offer.up("g-racing");
+    expect(names(offer)).toEqual(["home", "g-racing"]);
+    offer.broke("g-racing");
+    expect(names(offer)).toEqual(["home"]);
+    // Broken until the restart, whatever its channel does meanwhile.
+    offer.up("g-racing");
+    expect(offer.unavailable("g-racing")).toBe(true);
+    offer.broke("home");
+    expect(names(offer)).toEqual(["home"]);
+  });
+});
+
+describe("the retries", () => {
+  it.scoped("first come 20 seconds after startup, then every five minutes", () =>
+    Effect.gen(function* () {
+      const passes = yield* Ref.make(0);
+      yield* Effect.forkScoped(retryPasses(Ref.update(passes, (n) => n + 1)));
+      const at = Effect.fn("at")(function* (wait: Duration.DurationInput) {
+        yield* TestClock.adjust(wait);
+        yield* Effect.repeatN(Effect.yieldNow(), 5);
+        return yield* Ref.get(passes);
+      });
+      expect(yield* at("19 seconds")).toBe(0);
+      expect(yield* at("1 second")).toBe(1);
+      expect(yield* at("5 minutes")).toBe(2);
+      expect(yield* at("5 minutes")).toBe(3);
+    }),
+  );
 });
 
 describe("starting home", () => {

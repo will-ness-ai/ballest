@@ -32,7 +32,7 @@ import {
 } from "effect";
 import { HOME_VENUE, type VenueName } from "../domain.js";
 import { OpsAlerts } from "../ops.js";
-import { Restart } from "../restart.js";
+import { Restart, type RestartFailed } from "../restart.js";
 import {
   homeVenue,
   makeVenueJoiner,
@@ -240,7 +240,8 @@ const isIn = (venue: DiscordVenue, i: Interaction) =>
 
 /**
  * Where a click goes: to the running Venue whose channel or Match Thread it came from; told the
- * Venue is being repaired, opening nothing, when that Venue is; or turned away from anywhere else.
+ * Venue is being repaired, opening nothing, when that Venue isn't on offer (not up yet, or
+ * broken); or turned away from anywhere else.
  */
 export const routeClick = (
   running: ReadonlyArray<DiscordVenue>,
@@ -255,7 +256,27 @@ export const routeClick = (
   return repairing(venue.name) ? { _tag: "Repairing" } : { _tag: "Venue", venue };
 };
 
-/** What a click in a Venue being repaired is told. */
+/**
+ * Which running Venues are on offer (clicks, the Activity): home always; a guest once its channel
+ * is up (its Footer posted), and not once it broke (its channel or role deleted), until the restart.
+ */
+export const makeOffer = (running: ReadonlyArray<DiscordVenue>) => {
+  const starting = new Set(running.filter((v) => v.name !== HOME_VENUE).map((v) => v.name));
+  const broken = new Set<VenueName>();
+  const unavailable = (name: VenueName) => starting.has(name) || broken.has(name);
+  return {
+    unavailable,
+    available: () => running.filter((v) => !unavailable(v.name)),
+    up: (name: VenueName) => {
+      starting.delete(name);
+    },
+    broke: (name: VenueName) => {
+      if (name !== HOME_VENUE) broken.add(name);
+    },
+  };
+};
+
+/** What a click in a Venue not on offer (being repaired, or not up yet) is told. */
 const REPAIRING = "Multiballs is being repaired in this server, try again in a few minutes.";
 
 /** How soon after startup the servers that didn't start from the cache are first set up. */
@@ -263,6 +284,12 @@ const FIRST_RETRY = "20 seconds";
 
 /** How often a wanted server that isn't running is tried again. */
 const RETRY_EVERY = "5 minutes";
+
+/** Run a retry pass FIRST_RETRY after startup, then every RETRY_EVERY. */
+export const retryPasses = <E, R>(pass: Effect.Effect<unknown, E, R>) =>
+  Effect.sleep(FIRST_RETRY).pipe(
+    Effect.zipRight(pass.pipe(Effect.repeat(Schedule.spaced(RETRY_EVERY)))),
+  );
 
 /**
  * The Venues of the servers the bot is invited to (`makeVenueJoiner`): those that start from the
@@ -277,7 +304,7 @@ const followServers = Effect.fn("followServers")(function* (
   homeGuildId: string,
   records: Context.Tag.Service<typeof VenueRecords>,
   alert: (message: string) => Effect.Effect<void>,
-  restart: (why: string) => Effect.Effect<void>,
+  restart: (why: string) => Effect.Effect<void, RestartFailed>,
 ) {
   const joiner = yield* makeVenueJoiner(
     homeGuildId,
@@ -339,9 +366,13 @@ const followServers = Effect.fn("followServers")(function* (
     Effect.forkScoped,
   );
   // The servers as they are at each retry: the first shortly after startup, in the background.
-  yield* Effect.suspend(() =>
-    Effect.forEach(everyServer(), (guild) => guarded(`retrying ${guild.id}`, joiner.retry(guild))),
-  ).pipe(Effect.delay(FIRST_RETRY), Effect.repeat(Schedule.spaced(RETRY_EVERY)), Effect.forkScoped);
+  yield* retryPasses(
+    Effect.suspend(() =>
+      Effect.forEach(everyServer(), (guild) =>
+        guarded(`retrying ${guild.id}`, joiner.retry(guild)),
+      ),
+    ),
+  ).pipe(Effect.forkScoped);
   return { venues, broke: (guildId: string) => joiner.broke(guildId) };
 });
 
@@ -404,8 +435,8 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
 
     /** The running Venue by this name, if it runs. */
     const venueNamed = (name: VenueName) => Effect.succeed(Option.fromNullable(byName.get(name)));
-    /** The guest Venues whose channel is gone, being repaired: they open nothing until the restart. */
-    const repairing = new Set<VenueName>();
+    /** The running Venues on offer: guests not yet up, or broken and being repaired, open nothing. */
+    const offer = makeOffer(running);
 
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
@@ -420,7 +451,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       Stream.mapEffect(
         (i) =>
           Effect.gen(function* () {
-            const route = routeClick(running, (name) => repairing.has(name), i);
+            const route = routeClick(running, offer.unavailable, i);
             if (route._tag === "Venue")
               return Option.some<VenueInteraction>({ interaction: i, venue: route.venue });
             const content =
@@ -498,19 +529,22 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       home: homeRunning,
       /** Every running Venue, home first: fixed until the bot restarts. */
       running,
-      /** The running Venues that can open Matches now: all but those being repaired. */
-      available: Effect.sync(() => running.filter((v) => !repairing.has(v.name))),
+      /** The running Venues that can open Matches now: home, and each guest up and not broken. */
+      available: Effect.sync(() => offer.available()),
       venueNamed,
       /**
-       * A running Venue broke: its Footer couldn't go up, or its channel is gone. It counts as not
-       * running for the retry, which repairs it and restarts the bot to run it. Home never does.
+       * A running guest Venue broke: its channel or role was deleted. It is no longer offered, and
+       * counts as not running for the retry, which repairs it and restarts the bot to run it. Home
+       * never breaks.
        */
       venueBroke: (name: VenueName) =>
         name === HOME_VENUE
           ? Effect.void
-          : Effect.sync(() => repairing.add(name)).pipe(
+          : Effect.sync(() => offer.broke(name)).pipe(
               Effect.zipRight(guests.broke(venueGuildId(name))),
             ),
+      /** A running guest Venue's channel started, its Footer up: it is offered from now on. */
+      venueUp: (name: VenueName) => Effect.sync(() => offer.up(name)),
       /** Clicks from every running Venue's channel and its Match Threads, each with its Venue. */
       interactions,
       postsIn,

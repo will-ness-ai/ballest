@@ -90,10 +90,12 @@ export class VenueChannels extends Context.Tag("multiballs/VenueChannels")<
   {
     readonly all: ReadonlyMap<VenueName, Channel>;
     /**
-     * A Venue's channel broke (its Footer couldn't go up, or the channel is gone): the bot repairs
-     * it within a few minutes and restarts to run it. Home's never counts as broken.
+     * A Venue's channel is gone (deleted): the bot repairs it within a few minutes and restarts to
+     * run it. Only a deleted channel or role breaks a Venue, and home's never counts as broken.
      */
     readonly broke: (venue: VenueName) => Effect.Effect<void>;
+    /** A guest Venue's channel started, its Footer up: from now on it is offered. */
+    readonly up: (venue: VenueName) => Effect.Effect<void>;
   }
 >() {}
 
@@ -276,6 +278,10 @@ export const VenueChannelsLive = Layer.scoped(
         yield* discordChannel(venue).pipe(Scope.extend(scope), Effect.provide(needs)),
       );
     }
-    return VenueChannels.of({ all, broke: (venue) => discord.venueBroke(venue) });
+    return VenueChannels.of({
+      all,
+      broke: (venue) => discord.venueBroke(venue),
+      up: (venue) => discord.venueUp(venue),
+    });
   }),
 );

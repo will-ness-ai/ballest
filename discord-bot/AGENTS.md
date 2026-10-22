@@ -78,16 +78,20 @@ later rejoin counts.
 others.** At startup home is checked; then each wanted server with a stored Venue whose channel
 and role are in discord.js's cache is checked from the cache alone (no Discord calls), and those
 are the guests that run. Home's Surface starts first, then the guests' side by side, each in the
-background: the engine waits on one at most 30 seconds, and a slower one runs once it is up
-(nothing interrupts its Footer's post). One whose Footer can't be put right (it can't be posted,
-or an old one can't be deleted) is left out, ops told once, and tried again in place every five
-minutes, with no setup and no restart. Everything that needs Discord calls runs in the background
+background: the engine waits on one at most 30 seconds, and a slower one runs once it is up.
+Each try may take a minute; past that it counts as failed, though what it was doing (its Footer's
+post, the write of its id) runs on, never interrupted. One whose Footer can't be put right (it
+can't be posted, or an old one can't be deleted) or that takes too long is left out, ops told
+once, and tried again in place every five minutes, with no setup and no restart. A guest is
+offered (clicks answered, listed in the Activity) only once its Footer is up; until then a click
+there gets "Multiballs is being repaired in this server, try again in a few minutes." Everything that needs Discord calls runs in the background
 once that is under way: setting up a new server, or repairing one (a deleted channel or role, a
 channel deleted while the bot runs), one server at a time with a 30-second limit (a setup past it
-runs on holding its server's lock, so a retry can't make a second channel). It runs 20 seconds
+runs on, never interrupted, holding its server's lock, so a retry can't make a second channel). It runs 20 seconds
 after startup, every five minutes, and when Discord says a server is available again. Once a
-server sets up, and when a running Venue's server removes the bot, the bot restarts
-(`src/restart.ts`); a server set up and waiting on that restart is left alone by every retry. The
+server sets up, and when a running Venue's server (broken or not) removes the bot, the bot
+restarts (`src/restart.ts`); a server set up and waiting on that restart is left alone by every
+retry, unless the restart hits a bug, when it is tried again. The
 restart waits until the app is fully up (home's Footer, recovery, interactions) and has run a
 minute; then its scope closes, every finalizer running, and it exits 0 (after 20 seconds it exits
 anyway); Fly's `[[restart]] policy = "always"` brings it back, and `pnpm dev` just exits. So an
@@ -102,7 +106,8 @@ Ops hears each kind of failure once per server, not at every retry: a missing pe
 Discord error by its code (50001 Missing Access), Discord down (any 5xx), a timeout, a bug
 ("setting it up failed (see the log)"); a server that removes the bot is forgotten, so its next
 failure is news. No ops alert is ever waited on: posts queue up and one background fiber sends
-them in order, each with a time limit; what is still queued when the bot stops gets five seconds. Each setup asks only for what it does: Manage Channels to make the channel, Manage
+them in order, each with a 10-second limit; when the bot stops, the post under way is finished
+and what is still queued gets five seconds. Each setup asks only for what it does: Manage Channels to make the channel, Manage
 Roles to make the role or set a reused channel's overwrites.
 
 The bot sets a wanted server up:
@@ -116,8 +121,8 @@ The bot sets a wanted server up:
   role is gone is set up again the same way; one with both still there is left as it is.
 
 Then it is checked as home is. A guest Venue whose channel is deleted while the bot runs
-(Discord's Unknown Channel, told to ops once) is broken: clicks there get "Multiballs is being
-repaired in this server, try again in a few minutes.", the Activity treats it as not running, and
+(Discord's Unknown Channel, told to ops once) is broken, the only way one breaks: it is no longer
+offered (as above), and
 the retry, which no longer counts it as running, repairs it within five minutes and restarts the
 bot to run it, under the brake. Home logs the same and runs, as it always has. A server that removes the
 bot keeps its row, so inviting it again picks it back up.

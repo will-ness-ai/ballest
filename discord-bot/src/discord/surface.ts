@@ -68,6 +68,9 @@ const START_TIMEOUT = "30 seconds";
 /** How soon a guest Venue whose Footer couldn't be put right is tried again, in place. */
 const RETRY_FOOTER = "5 minutes";
 
+/** How long one try at starting a guest Venue's channel may take before it counts as failed. */
+const ATTEMPT_LIMIT = "60 seconds";
+
 /** How many finished Matches' places are kept. */
 const FINISHED_KEPT = 100;
 
@@ -428,21 +431,32 @@ const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
   /**
-   * Start a guest Venue on its own, in the background, so nothing interrupts its Footer's post or
-   * the write of its id; the engine waits on it at most START_TIMEOUT, and it runs whenever its
-   * start finishes. One whose Footer can't be put right (or that hits a bug) is told to ops once
-   * and tried again in place every RETRY_FOOTER: setup has nothing to repair there, so it is not
+   * Start a guest Venue on its own, in the background; the engine waits on it at most
+   * START_TIMEOUT, and it runs, and is offered (`channels.up`), whenever its start succeeds. Each
+   * try may take ATTEMPT_LIMIT: past it the try counts as failed, though what it was doing (its
+   * Footer's post, the write of its id) runs on, never interrupted, and the next try waits for it.
+   * One whose Footer can't be put right, that takes too long or hits a bug is told to ops once and
+   * tried again in place every RETRY_FOOTER: setup has nothing to repair there, so it is not
    * broken and the bot doesn't restart. One whose channel is gone is broken, for setup to repair.
    */
   const startGuest = Effect.fn("startGuest")(function* (venue: VenueName, channel: Channel) {
     const gone = yield* channelGoneIn(venue);
+    const oneAtATime = yield* Effect.makeSemaphore(1);
     let told = false;
     const attempt = (): Effect.Effect<void> =>
       Effect.gen(function* () {
-        const started = yield* Effect.exit(venueSurface(venue, channel, gone));
+        const started = yield* Effect.exit(
+          venueSurface(venue, channel, gone).pipe(
+            oneAtATime.withPermits(1),
+            // Never interrupted: past the limit it runs on in the background.
+            Effect.uninterruptible,
+            Effect.disconnect,
+            Effect.timeout(ATTEMPT_LIMIT),
+          ),
+        );
         if (Exit.isSuccess(started)) {
           running.set(venue, started.value);
-          return;
+          return yield* channels.up(venue);
         }
         const failure = Cause.failureOption(started.cause);
         if (Option.isNone(failure))
@@ -453,7 +467,10 @@ const make = Effect.gen(function* () {
           told = true;
           const why = Option.match(failure, {
             onNone: () => "a bug, see the log",
-            onSome: describeFailure,
+            onSome: (e) =>
+              e._tag === "TimeoutException"
+                ? `timed out after ${ATTEMPT_LIMIT}`
+                : describeFailure(e),
           });
           yield* alerts.post(
             `Multiballs left the Venue ${venue} out: its Footer couldn't be put right (${why}). It tries again every five minutes.`,

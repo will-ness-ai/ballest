@@ -48,10 +48,11 @@ describe("telling ops", () => {
       );
       yield* Effect.repeatN(Effect.yieldNow(), 20);
       expect(yield* Ref.get(posted)).toBe(true);
-      // Stopping sends what is left, within a few seconds even if Discord never answers.
+      // Stopping finishes the post under way and sends what is left, within about 15 seconds
+      // even if Discord never answers.
       yield* Effect.repeatN(
         TestClock.adjust("1 second").pipe(Effect.zipRight(Effect.repeatN(Effect.yieldNow(), 5))),
-        15,
+        20,
       );
       expect(Option.isSome(yield* Fiber.poll(bot))).toBe(true);
     }),
@@ -81,5 +82,40 @@ describe("telling ops", () => {
         ConfigProvider.fromMap(new Map([["OPS_WEBHOOK_URL", "https://example.invalid/hook"]])),
       ),
     );
+  });
+
+  it.effect("finishes the post under way when the bot stops, then sends the rest", () => {
+    const delivered: Array<string> = [];
+    const webhook = HttpClient.make((request) => {
+      const body = request.body as unknown as { readonly body: Uint8Array };
+      const { content } = JSON.parse(new TextDecoder().decode(body.body)) as { content: string };
+      return Effect.sleep("3 seconds").pipe(
+        Effect.zipRight(Effect.sync(() => delivered.push(content))),
+        Effect.as(HttpClientResponse.fromWeb(request, new Response("ok"))),
+      );
+    });
+    return Effect.gen(function* () {
+      const bot = yield* Effect.fork(
+        Effect.gen(function* () {
+          const alerts = yield* OpsAlerts;
+          yield* alerts.post("under way");
+          // The drain takes it and starts posting; then the bot stops.
+          yield* Effect.repeatN(Effect.yieldNow(), 20);
+          yield* alerts.post("left");
+        }).pipe(
+          Effect.provide(OpsAlerts.DefaultWithoutDependencies),
+          Effect.provide(Layer.succeed(HttpClient.HttpClient, webhook)),
+          Effect.withConfigProvider(
+            ConfigProvider.fromMap(new Map([["OPS_WEBHOOK_URL", "https://example.invalid/hook"]])),
+          ),
+        ),
+      );
+      yield* Effect.repeatN(
+        TestClock.adjust("1 second").pipe(Effect.zipRight(Effect.repeatN(Effect.yieldNow(), 5))),
+        10,
+      );
+      yield* Fiber.join(bot);
+      expect(delivered).toEqual(["under way", "left"]);
+    });
   });
 });
