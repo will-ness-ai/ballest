@@ -26,12 +26,13 @@ const STOPS: Record<Exclude<MedalKind, "wr">, [string, string, string]> = {
   author: ["#b86ae6", "#8fa2f0", "#5ef0f5"],
 };
 
-/* a Medal on its ribbon, a world record as a lime 1 */
+/* a Medal on its ribbon, a world record as a lime 1. The 1 is a path: Resvg draws an SVG
+   picture with no fonts on Vercel, where a <text> comes out as a box */
 function medalSrc(k: MedalKind) {
   const ribbon = `<path d="M4 0h5l3 9H7z" fill="#1c2a4a"/><path d="M11 0h5l-3 9H8z" fill="#2d4476"/>`;
   if (k === "wr")
     return uri(
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 26">${ribbon}<circle cx="10" cy="16.5" r="8.4" fill="${ACCENT}" stroke="#ffd447" stroke-width="1.6"/><text x="10" y="20.6" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="11" fill="#14200a">1</text></svg>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 26">${ribbon}<circle cx="10" cy="16.5" r="8.4" fill="${ACCENT}" stroke="#ffd447" stroke-width="1.6"/><path d="M7.9 14.2l2.9-1.9h1.6v8.3h-2v-5.6l-1.6 1z" fill="#14200a"/></svg>`,
     );
   const [dark, mid, light] = STOPS[k];
   return uri(
