@@ -21,7 +21,8 @@ export const tokenDaysLeft = (token: string, nowMs: number): Option.Option<numbe
 
 /**
  * A message to the private ops channel through its webhook (OPS_WEBHOOK_URL), and always a
- * warning in the log. A failed post is only logged: nothing waits on ops hearing.
+ * warning in the log. The post runs in the background with a time limit, and a failed one is
+ * only logged: nothing waits on ops hearing.
  */
 export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts", {
   effect: Effect.gen(function* () {
@@ -40,7 +41,10 @@ export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts
           )
           .pipe(
             Effect.scoped,
+            Effect.timeout("10 seconds"),
             Effect.catchAll((e) => Effect.logWarning(`ops webhook failed: ${e._tag}`)),
+            // In the background: no caller, startup included, waits on ops hearing.
+            Effect.forkDaemon,
           );
       }),
     };

@@ -87,7 +87,14 @@ export interface Channel {
 /** Every running Venue's channel by its Venue's name, home first; fixed until the bot restarts. */
 export class VenueChannels extends Context.Tag("multiballs/VenueChannels")<
   VenueChannels,
-  { readonly all: ReadonlyMap<VenueName, Channel> }
+  {
+    readonly all: ReadonlyMap<VenueName, Channel>;
+    /**
+     * A Venue's channel broke (its Footer couldn't go up, or the channel is gone): the bot repairs
+     * it within a few minutes and restarts to run it. Home's never counts as broken.
+     */
+    readonly broke: (venue: VenueName) => Effect.Effect<void>;
+  }
 >() {}
 
 /** Like goneIfUnknown, but passes a Gone from an earlier step through. */
@@ -269,6 +276,6 @@ export const VenueChannelsLive = Layer.scoped(
         yield* discordChannel(venue).pipe(Scope.extend(scope), Effect.provide(needs)),
       );
     }
-    return VenueChannels.of({ all });
+    return VenueChannels.of({ all, broke: (venue) => discord.venueBroke(venue) });
   }),
 );

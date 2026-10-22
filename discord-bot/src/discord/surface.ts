@@ -62,6 +62,9 @@ interface Layout {
   readonly finished: ReadonlyMap<string, MatchPlace>;
 }
 
+/** How long a guest Venue's channel may take to start before it is left out. */
+const START_TIMEOUT = "30 seconds";
+
 /** How many finished Matches' places are kept. */
 const FINISHED_KEPT = 100;
 
@@ -125,8 +128,8 @@ const unlessGone = <E extends ChannelError>(effect: Effect.Effect<void, E>) =>
 
 /**
  * One Venue's channel as a Surface: its Footer, Cards and Match Threads, and its layout row.
- * `channelGone` tells ops the channel itself was deleted (Discord's Unknown Channel); the Venue is
- * set up again, with a new channel, at the bot's next start.
+ * `channelGone` reports the channel itself was deleted (Discord's Unknown Channel): ops is told,
+ * and a guest Venue is set up again with a new channel, the bot restarting to run it.
  */
 const venueSurface = Effect.fn("venueSurface")(function* (
   venue: VenueName,
@@ -369,7 +372,7 @@ const venueSurface = Effect.fn("venueSurface")(function* (
     }
   });
   // Home runs whatever its channel says, as it always has; another Venue whose Footer can't be put
-  // right doesn't start (nobody could open a Match there) until the bot's next start.
+  // right doesn't start (nobody could open a Match there) until it is repaired.
   yield* venue === HOME_VENUE
     ? startFooter.pipe(Effect.catchAll((e) => logFailure(e)))
     : startFooter.pipe(Effect.tapError((e) => logFailure(e)));
@@ -404,36 +407,56 @@ const make = Effect.gen(function* () {
   const running = new Map<VenueName, Effect.Effect.Success<ReturnType<typeof venueSurface>>>();
   const surfaces = () => [...running.values()];
 
-  for (const [venue, channel] of channels.all) {
-    const where = venue === HOME_VENUE ? "its home channel" : `the Venue ${venue}'s channel`;
-    /** Ops hears once that the channel is gone. */
+  /** Ops hears once that a Venue's channel is gone; a guest's is repaired. */
+  const channelGoneIn = Effect.fn("channelGoneIn")(function* (venue: VenueName) {
     const told = yield* Ref.make(false);
-    const channelGone = Effect.flatMap(Ref.getAndSet(told, true), (said) =>
-      said
-        ? Effect.void
-        : alerts.post(
-            `Multiballs can't find ${where} (deleted?). ${venue === HOME_VENUE ? "Check DISCORD_CHANNEL_ID." : "It makes a new one when it next starts."}`,
-          ),
+    return Effect.gen(function* () {
+      if (yield* Ref.getAndSet(told, true)) return;
+      yield* alerts.post(
+        venue === HOME_VENUE
+          ? "Multiballs can't find its home channel (deleted?). Check DISCORD_CHANNEL_ID."
+          : `Multiballs can't find the Venue ${venue}'s channel (deleted?). It makes a new one within a few minutes and restarts to run it.`,
+      );
+      yield* channels.broke(venue);
+    });
+  });
+
+  /**
+   * Start a guest Venue on its own, within START_TIMEOUT: one whose Footer can't be put right in
+   * time, or that hits a bug, is left out, ops told, and marked broken so the bot repairs it.
+   */
+  const startGuest = Effect.fn("startGuest")(function* (venue: VenueName, channel: Channel) {
+    const started = yield* Effect.exit(
+      venueSurface(venue, channel, yield* channelGoneIn(venue)).pipe(Effect.timeout(START_TIMEOUT)),
     );
-    // Home starts as it always has: its start never fails, and a bug in it is the bot's.
-    if (venue === HOME_VENUE) {
-      running.set(venue, yield* venueSurface(venue, channel, channelGone));
-      continue;
-    }
-    // Any other Venue starts on its own: one whose Footer can't be put right, or that hits a bug,
-    // is left out until the next start, and the others start regardless.
-    const started = yield* Effect.exit(venueSurface(venue, channel, channelGone));
-    if (Exit.isSuccess(started)) {
-      running.set(venue, started.value);
-      continue;
-    }
+    if (Exit.isSuccess(started)) return running.set(venue, started.value);
     const failure = Cause.failureOption(started.cause);
     if (Option.isNone(failure))
       yield* Effect.logError(`Venue ${venue} hit a bug starting`, started.cause);
+    const why = Option.match(failure, {
+      onNone: () => "a bug, see the log",
+      onSome: (e) =>
+        e._tag === "TimeoutException" ? `Discord took over ${START_TIMEOUT}` : describeFailure(e),
+    });
     yield* alerts.post(
-      `Multiballs left the Venue ${venue} out: its Footer couldn't be put right (${Option.match(failure, { onNone: () => "a bug, see the log", onSome: describeFailure })}). It tries again when it next starts.`,
+      `Multiballs left the Venue ${venue} out: its Footer couldn't be put right (${why}). It tries again within a few minutes and restarts to run it.`,
     );
-  }
+    yield* channels.broke(venue);
+  });
+
+  // Home first, as it always has: its start never fails, and a bug in it is the bot's. The guests
+  // then start side by side, so the engine waits at most START_TIMEOUT on them.
+  const home = channels.all.get(HOME_VENUE);
+  if (home !== undefined)
+    running.set(
+      HOME_VENUE,
+      yield* venueSurface(HOME_VENUE, home, yield* channelGoneIn(HOME_VENUE)),
+    );
+  yield* Effect.forEach(
+    [...channels.all].filter(([venue]) => venue !== HOME_VENUE),
+    ([venue, channel]) => startGuest(venue, channel),
+    { concurrency: "unbounded", discard: true },
+  );
 
   /** The Venue Surface holding a Match's Card, if any. */
   const holding = Effect.fn("holding")(function* (matchId: string) {

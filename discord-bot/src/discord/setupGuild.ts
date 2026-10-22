@@ -1,5 +1,6 @@
-// The SetupGuild port (src/venues.ts) on discord.js: a server's channels and roles over REST, and
-// the channel and role the bot makes there. Every Discord failure is the setup's, in one line.
+// The SetupGuild port (src/venues.ts) on discord.js: a server's channels and roles over REST (or
+// from the cache, for `holds`), and the channel and role the bot makes there. Every Discord
+// failure is the setup's, in one line.
 import {
   ChannelType,
   type Client,
@@ -41,6 +42,8 @@ export const setupGuildOn = (client: Client<true>, guild: Guild): SetupGuild => 
     id: guild.id,
     name: guild.name,
     joinedAt: Number.isFinite(guild.joinedTimestamp) ? guild.joinedTimestamp : null,
+    holds: (venue) =>
+      guild.channels.cache.has(venue.channelId) && guild.roles.cache.has(venue.pingRoleId),
     bot: failed(tryDiscord("fetch the bot's member", () => guild.members.fetchMe())).pipe(
       Effect.map((self) => ({
         missing: SERVER_PERMISSIONS.filter(([, flag]) => !self.permissions.has(flag)).map(

@@ -3,13 +3,13 @@
 // it was before there were others. Every server that invites the bot it sets up as a Venue itself
 // (spec #321), named by the server's id: a `multiballs` channel only it posts in and a
 // `Multiplayer ping` role, each reused if the server has one, kept in the `venues` table, and set
-// up again at startup when one is gone. The prod app is private, so only Will can invite it.
+// up again when one is gone. The prod app is private, so only Will can invite it.
 //
 // A server the bot joined before VENUES_SINCE, found when this build first starts, is known but
 // not wanted, so a deploy never adds a channel to a server nobody asked for; any other is wanted,
 // and kept so, so a setup that fails (a missing permission, an outage) is tried again until it
-// works. Which Venues run is settled at startup and fixed until the bot restarts: anything that
-// would change it restarts the bot (src/restart.ts).
+// works. Which Venues run is settled at startup, from the cache, and fixed until the bot
+// restarts: anything that would change it restarts the bot (src/restart.ts, with its brake).
 //
 // The setup rules run against a small port (SetupGuild) so they are tested on a fake server;
 // src/discord/setupGuild.ts is the port on discord.js.
@@ -31,6 +31,8 @@ export interface VenueConfig {
 
 /** The name of a Venue the bot set up itself: its server's id, which can never be `home`. */
 export const venueNameOf = (guildId: string): VenueName => guildId;
+/** The server of a Venue the bot set up itself, from its name. */
+export const venueGuildId = (name: VenueName): string => name;
 
 /** The Match channel the bot looks for, or makes, in a server it sets up. */
 export const MATCH_CHANNEL = "multiballs";
@@ -111,6 +113,8 @@ export interface SetupGuild {
   readonly name: string;
   /** When the bot joined the server (ms since the epoch), or null when Discord can't say. */
   readonly joinedAt: number | null;
+  /** Whether a stored Venue's channel and role are in the cache: no Discord call. */
+  readonly holds: (venue: VenueConfig) => boolean;
   /** The bot's member there: which server permissions setup may need it lacks, and its highest role's position. */
   readonly bot: Effect.Effect<
     { readonly missing: ReadonlyArray<ServerPermission>; readonly topRolePosition: number },
@@ -210,7 +214,10 @@ export class VenueRecords extends Context.Tag("multiballs/VenueRecords")<
      * as of `at` (ms). Later calls change nothing.
      */
     readonly takeBaseline: (guildIds: ReadonlyArray<string>, at: number) => Effect.Effect<void>;
-    /** When the baseline was taken (ms); none before it is, or for one taken without a time. */
+    /**
+     * When the baseline was taken (ms); none before it is. One taken by a build that kept no time
+     * counts as taken at VENUES_SINCE.
+     */
     readonly baselineTakenAt: Effect.Effect<Option.Option<number>>;
     /** Whether a server is wanted as a Venue; none for one the bot has never known. */
     readonly wanted: (guildId: string) => Effect.Effect<Option.Option<boolean>>;
@@ -245,7 +252,9 @@ export const VenueRecordsLive = Layer.effect(
       baselineTakenAt: sql<{
         readonly taken_at: number | null;
       }>`SELECT taken_at FROM known_servers_baseline`.pipe(
-        Effect.map((rows) => Option.fromNullable(rows[0]?.taken_at)),
+        Effect.map((rows) =>
+          Option.map(Option.fromNullable(rows[0]), (row) => row.taken_at ?? VENUES_SINCE),
+        ),
         Effect.orDie,
       ),
       takeBaseline: (guildIds, at) =>
@@ -298,49 +307,69 @@ const leftOut = (cause: Cause.Cause<VenueSetupFailed | VenueCheckFailed>) =>
     onNone: () => ({ kind: "crashed", reason: "setting it up failed (see the log)" }),
   });
 
-/** How long setting up and checking one server may take before it is left out. */
+/** How long setting up and checking one server may take before it is left out for now. */
 const SETUP_TIMEOUT = "30 seconds";
 
 /**
- * Which servers are Venues, set up at startup; the set is then fixed until the bot restarts.
+ * Which servers are Venues. The running set is settled at startup and fixed until the bot
+ * restarts; home is never part of it, and never waits on it.
  *
  * A server is wanted once it invites the bot, or when the bot finds it without knowing it (invited
- * while the bot was down); on this build's first start, every server the bot is already in is
- * known as not wanted. At `startup` each wanted server is set up (or repaired) and checked with
- * `check`, one at a time, each on its own: one that fails, takes too long or hits a bug is left
- * out, and `alert` (the ops channel) hears each kind of reason once per server.
+ * while the bot was down or starting); on this build's first start, every server the bot is
+ * already in is known as not wanted.
  *
- * After that, anything that would change the set asks `restart` instead: a server that invites
- * the bot, or a left-out one that now sets up (`retry`), once it is set up and stored; a running
- * Venue's server that removes the bot.
+ * `startup` makes no Discord calls: a wanted server with a stored Venue whose channel and role are
+ * in the cache is checked from the cache (`check(venue, true)`), and those run. Everything else
+ * is `retry`'s, in the background, again every few minutes and when Discord says a server is
+ * available: set up (or repaired), stored and checked over the API, one server at a time with a
+ * time limit, and once that works `restart` is asked to run it. A server that fails, takes too
+ * long or hits a bug is left out, and `alert` (the ops channel) hears each kind of reason once per
+ * server. A running Venue's server that removes the bot asks `restart` too; one that `broke`
+ * (its Footer couldn't go up, or its channel was deleted) counts as not running, so the retry
+ * repairs it.
  */
 export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
   homeGuildId: string,
-  check: (venue: VenueConfig) => Effect.Effect<A, VenueCheckFailed, R>,
+  check: (venue: VenueConfig, cached: boolean) => Effect.Effect<A, VenueCheckFailed, R>,
   alert: (message: string) => Effect.Effect<void>,
   restart: (why: string) => Effect.Effect<void>,
 ) {
   const records = yield* VenueRecords;
-  // One server at a time: a server invited during a retry isn't set up twice.
+  // One server at a time: a server invited during a retry isn't tried twice at once.
   const lock = yield* Effect.makeSemaphore(1);
-  /** The servers whose Venues run, from startup on. */
+  /** The servers whose Venues run, from startup on, less any that broke. */
   const running = new Set<string>();
-  /** Whether a restart was asked for: then nothing more is set up in this process. */
-  let restarting = false;
+  /** When the baseline was taken, read once at startup; none if it couldn't be. */
+  let takenAt = Option.none<number>();
   /** What kind of reason each server was last left out for, so ops hears it once, not at every retry. */
   const leftOutFor = new Map<string, string>();
+  /**
+   * One setup at a time per server, held for as long as the setup runs, even past its time limit,
+   * so a retry can't race a channel or role still being made.
+   */
+  const setups = new Map<string, Effect.Semaphore>();
+  const setupLock = (guildId: string) => {
+    const found = setups.get(guildId);
+    if (found !== undefined) return found;
+    const made = Effect.unsafeMakeSemaphore(1);
+    setups.set(guildId, made);
+    return made;
+  };
 
   /**
-   * Set up, store and check a wanted server; its Venue, or none when it is left out (ops told).
-   * A bug in it is logged and leaves it out like any failure.
+   * Set up, store and check a wanted server over the API; its Venue, or none when it is left out
+   * (ops told). A bug in it is logged and leaves it out like any failure.
    */
   const setUp = Effect.fn("setUp")(function* (guild: SetupGuild) {
     const tried = yield* Effect.exit(
       Effect.gen(function* () {
         const venue = yield* setUpVenue(guild, yield* records.byGuild(guild.id));
         yield* records.put(venue);
-        return yield* check(venue);
+        return yield* check(venue, false);
       }).pipe(
+        setupLock(guild.id).withPermits(1),
+        // Past the limit the setup runs on in the background, still holding its server's lock.
+        Effect.disconnect,
         Effect.timeoutFail({
           duration: SETUP_TIMEOUT,
           onTimeout: () =>
@@ -361,52 +390,43 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
     if (leftOutFor.get(guild.id) !== kind) {
       leftOutFor.set(guild.id, kind);
       yield* alert(
-        `Multiballs couldn't set up the server ${guild.name} (${guild.id}) as a Venue: ${reason}. It tries again every few minutes.`,
+        `Multiballs couldn't set up the server ${guild.name} (${guild.id}) as a Venue: ${reason}. It tries again every five minutes.`,
       );
     }
     return Option.none<A>();
   });
 
-  const restartFor = Effect.fn("restartFor")(function* (why: string) {
-    if (restarting) return;
-    restarting = true;
-    yield* restart(why);
-  });
-
-  /** Whether the bot was invited to a server again since the baseline, which counted it out. */
-  const rejoinedSince = (guild: SetupGuild, takenAt: Option.Option<number>) =>
-    guild.joinedAt !== null && Option.isSome(takenAt) && guild.joinedAt > takenAt.value;
-
   /**
    * Whether a server is wanted, wanting it first when the bot was invited to it unseen: one it
-   * doesn't know, or one the baseline counted out that it joined again since.
+   * doesn't know, or one the baseline counted out that it joined again since. Without a baseline
+   * only a server already wanted is.
    */
-  const isWanted = Effect.fn("isWanted")(function* (
-    guild: SetupGuild,
-    takenAt: Option.Option<number>,
-  ) {
+  const isWanted = Effect.fn("isWanted")(function* (guild: SetupGuild) {
     const wanted = yield* records.wanted(guild.id);
+    if (Option.isNone(takenAt)) return Option.getOrElse(wanted, () => false);
+    const since = takenAt.value;
     const invited = Option.match(wanted, {
       onNone: () => true,
-      onSome: (w) => !w && rejoinedSince(guild, takenAt),
+      onSome: (w) => !w && guild.joinedAt !== null && guild.joinedAt > since,
     });
     if (invited) yield* records.want(guild.id);
     return invited || Option.getOrElse(wanted, () => false);
   });
 
   /** Try a wanted server that isn't running; when it sets up now, restart to run it. */
-  const tryAgain = Effect.fn("tryAgain")(function* (guild: SetupGuild) {
-    if (guild.id === homeGuildId || running.has(guild.id) || restarting) return;
-    // Without a baseline (it failed at startup) every server would be wanted.
-    const takenAt = yield* records.baselineTakenAt;
-    if (Option.isNone(takenAt) || !(yield* isWanted(guild, takenAt))) return;
+  const retry = Effect.fn("retry")(function* (guild: SetupGuild) {
+    if (guild.id === homeGuildId || running.has(guild.id)) return;
+    if (!(yield* isWanted(guild))) return;
     const venue = yield* setUp(guild);
     if (Option.isSome(venue))
-      yield* restartFor(`the server ${guild.name} (${guild.id}) is set up as a Venue`);
+      yield* restart(`the server ${guild.name} (${guild.id}) is set up as a Venue`);
   }, lock.withPermits(1));
 
   return {
-    /** At startup, with every server the bot is in: the Venues to run, apart from home. */
+    /**
+     * At startup, with every server the bot is in: the Venues to run, apart from home, checked
+     * from the cache with no Discord calls. The rest are left to `retry`.
+     */
     startup: Effect.fn("startup")(function* (guilds: ReadonlyArray<SetupGuild>) {
       const others = guilds.filter((g) => g.id !== homeGuildId);
       // Without a baseline every server would be wanted, so a bug taking it sets nobody up.
@@ -419,38 +439,52 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
           return yield* records.baselineTakenAt;
         }),
       );
-      if (Exit.isFailure(baseline)) {
+      if (Exit.isFailure(baseline))
         yield* Effect.logError("listing the servers the bot is in failed", baseline.cause);
-        return [];
-      }
+      else takenAt = baseline.value;
       const venues: Array<A> = [];
       for (const guild of others) {
-        const wanted = yield* Effect.exit(isWanted(guild, baseline.value));
-        if (Exit.isFailure(wanted)) {
-          yield* Effect.logError(`reading what the bot knows of ${guild.id} failed`, wanted.cause);
-          continue;
-        }
-        if (!wanted.value) continue;
-        const venue = yield* setUp(guild);
-        if (Option.isNone(venue)) continue;
-        running.add(guild.id);
-        venues.push(venue.value);
+        const ready = yield* Effect.exit(
+          Effect.gen(function* () {
+            if (!(yield* isWanted(guild))) return Option.none<A>();
+            const stored = yield* records.byGuild(guild.id);
+            if (Option.isNone(stored) || !guild.holds(stored.value)) return Option.none<A>();
+            return Option.some(yield* check(stored.value, true));
+          }),
+        );
+        if (Exit.isSuccess(ready)) {
+          if (Option.isNone(ready.value)) continue;
+          running.add(guild.id);
+          venues.push(ready.value.value);
+        } else if (Option.isNone(Cause.failureOption(ready.cause)))
+          yield* Effect.logError(`starting the Venue ${guild.id} failed`, ready.cause);
+        else
+          yield* Effect.logWarning(
+            `the Venue ${guild.id} doesn't start from the cache; it is set up in the background`,
+          );
       }
       return venues;
     }, lock.withPermits(1)),
     /** A server just invited the bot: it is wanted, and set up then run after a restart. */
     invited: Effect.fn("invited")(function* (guild: SetupGuild) {
-      if (guild.id === homeGuildId || running.has(guild.id)) return;
+      if (guild.id === homeGuildId) return;
       yield* records.want(guild.id);
-      yield* tryAgain(guild);
+      yield* retry(guild);
     }),
-    /** Try a server again: it came back from an outage, or its permissions may have changed. */
-    retry: tryAgain,
+    /** Try a server again: in the background after startup, every few minutes, and when it is available again. */
+    retry,
     /** A server removed the bot: if its Venue runs, restart without it. Its row stays, for a re-invite. */
     removed: Effect.fn("removed")(function* (guildId: string) {
       leftOutFor.delete(guildId);
-      if (running.has(guildId)) yield* restartFor(`the bot was removed from the server ${guildId}`);
+      if (running.has(guildId)) yield* restart(`the bot was removed from the server ${guildId}`);
     }, lock.withPermits(1)),
+    /** A running Venue broke (its Footer couldn't go up, or its channel is gone): the retry repairs it. */
+    broke: (guildId: string) =>
+      lock.withPermits(1)(
+        Effect.sync(() => {
+          running.delete(guildId);
+        }),
+      ),
   };
 });
 

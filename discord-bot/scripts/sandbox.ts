@@ -11,6 +11,7 @@ import { app } from "../src/app.js";
 import { Steam } from "../src/ports.js";
 import { makeFakeSteam, makeMap } from "../test/harness.js";
 import { devEnvFile } from "./devEnv.js";
+import { launchUntilShutdown } from "../src/restart.js";
 import { makeDriver } from "./sandbox/driver.js";
 import { DRIVER_PORT, LOGS, readSandbox, SANDBOX_HTTP_PORT } from "./sandbox/config.js";
 
@@ -64,4 +65,4 @@ const driver = makeDriver({
   steam: steam.control,
 });
 
-Layer.launch(app(AnyProfileSteam, driver)).pipe(NodeRuntime.runMain);
+launchUntilShutdown(app(AnyProfileSteam, driver)).pipe(NodeRuntime.runMain);

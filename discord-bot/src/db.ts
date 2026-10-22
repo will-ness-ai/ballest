@@ -101,6 +101,11 @@ const MIGRATIONS: Migrations = {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE known_servers_baseline ADD COLUMN taken_at INTEGER`;
   }),
+  // When the bot restarted to change its Venues (ms), so a brake holds across restarts.
+  "0013_venue_restarts": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE venue_restarts (at INTEGER NOT NULL)`;
+  }),
 };
 
 /** The migrations a build had before the one with this id (`"0008"`): tests start a database from an older build. */

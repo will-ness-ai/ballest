@@ -72,22 +72,32 @@ guild create event), one the bot finds at startup or at a retry without knowing 
 while it was down or starting), or a not-wanted one it joined after the baseline was taken
 (removed and invited again while it was down).
 
-**The running Venues are fixed for the life of the process.** At startup home is checked, then
-each wanted server is set up and checked one at a time, each on its own with a 30-second limit,
-before the Surface and the engine are built, so restart recovery sees every Venue that runs. A
-server that fails, takes too long or hits a bug is left out. Anything that would change the set
-restarts the bot instead (`src/restart.ts`: it ends as SIGTERM does, after at least three minutes
-up, and Fly's `[[restart]] policy = "always"` brings it back; `pnpm dev` just exits): a server
-that invites the bot, a left-out one that now sets up (tried when Discord says it is available
-again and every five minutes), each once it is set up and stored, and a running Venue's server
-that removes the bot. So an invite or a fixed permission means a quick restart, about 30 s, and
-live Matches carry on through the engine's restart recovery. Re-authorizing an invite with more
-permissions fires no event; the five-minute retry picks it up. Ops hears each kind of failure
-once per server, not at every retry: a missing permission, a Discord error by its code (50001
-Missing Access apart from a 500), a timeout, a bug ("setting it up failed (see the log)"); a
-server that removes the bot is forgotten, so its next failure is news. Each setup asks only for
-what it does: Manage Channels to make the channel, Manage Roles to make the role or set a reused
-channel's overwrites.
+**The running Venues are fixed for the life of the process, and home never waits on the
+others.** At startup home is checked; then each wanted server with a stored Venue whose channel
+and role are in discord.js's cache is checked from the cache alone (no Discord calls), and those
+are the guests that run. Home's Surface starts first, then the guests' side by side, each within
+30 seconds: one whose Footer can't be put right (it can't be posted, or an old one can't be
+deleted) or that takes longer is left out and ops told. Everything that needs Discord calls runs
+in the background once that is under way: setting up a new server, or repairing one (a deleted
+channel or role, a Venue left out, a channel deleted while the bot runs), one server at a time
+with a 30-second limit (a setup past it runs on holding its server's lock, so a retry can't make
+a second channel). It runs right after startup, every five minutes, and when Discord says a
+server is available again. Once a server sets up, and when a running Venue's server removes the
+bot, the bot restarts (`src/restart.ts`): its scope closes, every finalizer running, and it exits
+0; Fly's `[[restart]] policy = "always"` brings it back, and `pnpm dev` just exits. So an invite
+or a fixed permission means a quick restart, about 30 s, and live Matches carry on through the
+engine's restart recovery. A brake kept in SQLite (`venue_restarts`) allows at most three such
+restarts in any hour; one beyond that is logged and waits for the hour's first to age out, so a
+server whose availability flaps can't keep the bot restarting. Re-authorizing an invite with more
+permissions fires no event; the five-minute retry picks it up. The bot listens for invites,
+removals and outages before startup, so none is missed while it starts.
+
+Ops hears each kind of failure once per server, not at every retry: a missing permission, a
+Discord error by its code (50001 Missing Access), Discord down (any 5xx), a timeout, a bug
+("setting it up failed (see the log)"); a server that removes the bot is forgotten, so its next
+failure is news. No ops alert is ever waited on: the webhook post runs in the background with a
+time limit. Each setup asks only for what it does: Manage Channels to make the channel, Manage
+Roles to make the role or set a reused channel's overwrites.
 
 The bot sets a wanted server up:
 
@@ -99,12 +109,11 @@ The bot sets a wanted server up:
 - **Stored:** the ids go in SQLite's `venues` table. At each start a stored Venue whose channel or
   role is gone is set up again the same way; one with both still there is left as it is.
 
-Then it is checked as home is. If its Footer can't be put right at startup (it can't be posted,
-or an old one can't be deleted), its channel doesn't start (nobody could open a Match there) and
-ops is told; the other Venues start regardless, and it is tried at the next start. Home logs
-the same and runs, as it always has. A server that removes the bot keeps its row, so inviting it
-again picks it back up. A Venue whose channel is deleted while the bot runs (Discord's Unknown
-Channel) is logged and told to ops once, and set up again with a new channel at the next start.
+Then it is checked as home is. A guest Venue left out at startup, or whose channel is deleted
+while the bot runs (Discord's Unknown Channel, told to ops once), counts as broken: it stops
+counting as running for the retry, which repairs it within five minutes and restarts the bot to
+run it, under the brake. Home logs the same and runs, as it always has. A server that removes the
+bot keeps its row, so inviting it again picks it back up.
 The setup rules are tested on a fake server behind the `SetupGuild` port (`test/venues.test.ts`);
 `src/discord/setupGuild.ts` is the port on discord.js, checked live by inviting the dev app to a
 second server while `pnpm dev` runs. The sandbox sets no server up and ignores joins

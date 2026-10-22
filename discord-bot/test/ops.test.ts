@@ -1,6 +1,7 @@
+import { HttpClient } from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
-import { Option } from "effect";
-import { tokenDaysLeft } from "../src/ops.js";
+import { ConfigProvider, Effect, Layer, Option } from "effect";
+import { OpsAlerts, tokenDaysLeft } from "../src/ops.js";
 
 const DAY_MS = 86_400_000;
 const jwt = (claims: object) =>
@@ -20,4 +21,25 @@ describe("the Steam refresh token's expiry", () => {
   it.each(["not-a-jwt", "a.b.c", jwt({ sub: "no exp" })])("can't read %j", (token) => {
     expect(Option.isNone(tokenDaysLeft(token, now))).toBe(true);
   });
+});
+
+describe("telling ops", () => {
+  it.effect("never waits on the webhook, which may never answer", () =>
+    Effect.gen(function* () {
+      const alerts = yield* OpsAlerts;
+      yield* alerts.post("Multiballs couldn't set up a server");
+      expect(alerts.configured).toBe(true);
+    }).pipe(
+      Effect.provide(OpsAlerts.DefaultWithoutDependencies),
+      Effect.provide(
+        Layer.succeed(
+          HttpClient.HttpClient,
+          HttpClient.make(() => Effect.never),
+        ),
+      ),
+      Effect.withConfigProvider(
+        ConfigProvider.fromMap(new Map([["OPS_WEBHOOK_URL", "https://example.invalid/hook"]])),
+      ),
+    ),
+  );
 });

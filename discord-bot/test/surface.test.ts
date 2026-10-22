@@ -3,7 +3,7 @@
 import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
-import { Context, Effect, Layer, Option } from "effect";
+import { Context, Effect, Fiber, Layer, Option, TestClock } from "effect";
 import { type Channel, Drawing, Gone, VenueChannels } from "../src/discord/channel.js";
 import { DiscordError } from "../src/discord/client.js";
 import { OpsAlerts } from "../src/ops.js";
@@ -46,6 +46,8 @@ const makeFakeChannel = () => {
   let deleted = false;
   /** The next read of the newest message hits a bug. */
   let crash = false;
+  /** Reads of the newest message never answer, as when Discord holds the bot back. */
+  let stalled = false;
 
   const port: Channel = {
     post: (drawing) =>
@@ -117,6 +119,7 @@ const makeFakeChannel = () => {
         crash = false;
         return Effect.dieMessage("a bug");
       }
+      if (stalled) return Effect.never;
       if (deleted) return Effect.fail(noChannel("fetch last message"));
       return Effect.succeed(messages.at(-1)?.id ?? null);
     }),
@@ -172,6 +175,10 @@ const makeFakeChannel = () => {
     crashNext: () => {
       crash = true;
     },
+    /** Discord stops answering this channel's reads. */
+    stall: () => {
+      stalled = true;
+    },
     postByAnyone: () => messages.push({ id: `msg${next++}`, drawing: null }),
     deleteFooter: () => {
       const i = messages.findIndex((m) => m.drawing?._tag === "Footer");
@@ -202,6 +209,8 @@ const setup = Effect.fn("setup")(function* (
     );
     yield* opts.beforeVenues.pipe(Effect.provide(sql), Effect.orDie);
   }
+  /** The Venues the Surface said broke, in order. */
+  const broken: Array<string> = [];
   // The running Venues' channels, fixed for each start, as they are for the bot's process.
   const running = VenueChannels.of({
     all: new Map([
@@ -209,6 +218,7 @@ const setup = Effect.fn("setup")(function* (
       ...(opts.homeOnly === true ? [] : [[RACING, racing.port] as const]),
       ...(opts.others ?? []),
     ]),
+    broke: (venue) => Effect.sync(() => broken.push(venue)),
   });
   /** What ops was told, in order. */
   const alerts: Array<string> = [];
@@ -241,6 +251,8 @@ const setup = Effect.fn("setup")(function* (
     start,
     /** What ops was told, in order. */
     alerts: () => [...alerts],
+    /** The Venues reported broken, for the bot to repair. */
+    broken: () => [...broken],
     placeOf,
     forgetFingerprint,
     onDatabase,
@@ -655,7 +667,7 @@ describe("Venues", () => {
       Effect.gen(function* () {
         const racing = makeFakeChannel();
         const third = makeFakeChannel();
-        const { channel, start, alerts } = yield* setup({
+        const { channel, start, alerts, broken } = yield* setup({
           homeOnly: true,
           others: [
             [RACING, racing.port],
@@ -670,6 +682,9 @@ describe("Venues", () => {
         expect(channel.order()).toEqual(["footer"]);
         expect(alerts()).toHaveLength(1);
         expect(alerts()[0]).toContain(RACING);
+        expect(alerts()[0]).toContain("within a few minutes");
+        // Broken, so the bot repairs it and restarts to run it.
+        expect(broken()).toEqual([RACING]);
       }),
   );
 
@@ -699,7 +714,7 @@ describe("Venues", () => {
     "leave out another Venue whose old Footer can't be deleted, with no second Footer",
     () =>
       Effect.gen(function* () {
-        const { racing, start, alerts } = yield* setup();
+        const { racing, start, alerts, broken } = yield* setup();
         yield* start;
         racing.postByAnyone();
         racing.failNext("deleteMessage", 1);
@@ -707,6 +722,7 @@ describe("Venues", () => {
         expect(racing.order()).toEqual(["footer", "someone else"]);
         expect(surface.runs(RACING)).toBe(false);
         expect(alerts()).toHaveLength(1);
+        expect(broken()).toEqual([RACING]);
       }),
   );
 
@@ -740,18 +756,45 @@ describe("Venues", () => {
     }),
   );
 
-  it.scoped("tell ops once that a Venue's channel was deleted, for the next start to repair", () =>
-    Effect.gen(function* () {
-      const { racing, start, alerts } = yield* setup();
-      const surface = yield* start;
-      yield* surface.showCard(view("m1", { venue: RACING }));
-      racing.deleteChannel();
-      yield* surface.showCard(view("m1", { venue: RACING, state: "live" }));
-      yield* surface.showCard(view("m2", { venue: RACING }));
-      expect(alerts()).toHaveLength(1);
-      expect(alerts()[0]).toContain(RACING);
-      expect(alerts()[0]).toContain("next starts");
-    }),
+  it.scoped(
+    "tell ops once that a Venue's channel was deleted, and report it broken to repair",
+    () =>
+      Effect.gen(function* () {
+        const { racing, start, alerts, broken } = yield* setup();
+        const surface = yield* start;
+        yield* surface.showCard(view("m1", { venue: RACING }));
+        racing.deleteChannel();
+        yield* surface.showCard(view("m1", { venue: RACING, state: "live" }));
+        yield* surface.showCard(view("m2", { venue: RACING }));
+        expect(alerts()).toHaveLength(1);
+        expect(alerts()[0]).toContain(RACING);
+        expect(alerts()[0]).toContain("makes a new one");
+        expect(broken()).toEqual([RACING]);
+      }),
+  );
+
+  it.scoped(
+    "leave out a Venue Discord doesn't answer for within 30 seconds, the rest running",
+    () =>
+      Effect.gen(function* () {
+        const racing = makeFakeChannel();
+        const third = makeFakeChannel();
+        racing.stall();
+        const { start, broken } = yield* setup({
+          homeOnly: true,
+          others: [
+            [RACING, racing.port],
+            ["third", third.port],
+          ],
+        });
+        const starting = yield* Effect.fork(start);
+        yield* TestClock.adjust("30 seconds");
+        const surface = yield* Fiber.join(starting);
+        expect(surface.runs(HOME)).toBe(true);
+        expect(surface.runs("third")).toBe(true);
+        expect(surface.runs(RACING)).toBe(false);
+        expect(broken()).toEqual([RACING]);
+      }),
   );
 
   it.scoped("run home even when its Footer can't go up at startup, as before", () =>
