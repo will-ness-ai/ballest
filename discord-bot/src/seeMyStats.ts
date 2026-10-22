@@ -288,13 +288,19 @@ export const StatsLinksLive = Layer.unwrapEffect(
           connectionString: Redacted.value(url.value),
           application_name: "multiballs",
           connectionTimeoutMillis: CONNECT_TIMEOUT,
-          max: 2,
+          max: 4,
         });
         // A connection dropped while idle; the next call connects again.
         made.on("error", () => undefined);
         return made;
       }),
-      (made) => Effect.promise(() => made.end()),
+      // Never holds up shutdown: pg's end() waits for every checked-out client.
+      (made) =>
+        Effect.tryPromise(() => made.end()).pipe(
+          Effect.interruptible,
+          Effect.timeoutOption(1000),
+          Effect.ignore,
+        ),
     );
     return Layer.effect(StatsLinks, makeStatsLinks).pipe(
       Layer.provide(PgClient.layerFromPool({ acquire: pool, applicationName: "multiballs" })),

@@ -152,7 +152,7 @@ const BUNGEE_WIDEST = 0.85;
    wider face: a square glyph and some, in ems */
 const WIDE = 1.25;
 /* Latin letters, their accents, digits and punctuation: what Bungee draws itself */
-const LATIN = /^[\u0020-\u024f\u1e00-\u1eff\u2000-\u206f\p{M}]+$/u;
+const LATIN = /^[\u0020-\u024f\u1e00-\u1eff\u2010-\u2027\u2030\u2032-\u205e\p{M}]+$/u;
 const graphemes = new Intl.Segmenter("en", { granularity: "grapheme" });
 
 /* A long name steps down so it stays on one line: up to 32 characters (as a reader counts

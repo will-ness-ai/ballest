@@ -15,7 +15,7 @@
 // - Anything that fails (most likely the bot lacking Manage Channels) goes to the ops channel and
 //   the bot runs on without it: the Matches never depend on it.
 import { SqlClient, SqlSchema } from "@effect/sql";
-import { ChannelType, PermissionFlagsBits } from "discord.js";
+import { ChannelType, PermissionFlagsBits, PermissionsBitField } from "discord.js";
 import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 import { MigratorLive } from "../db.js";
 import { OpsAlerts } from "../ops.js";
@@ -194,11 +194,15 @@ export const MyStatsChannelLive = Layer.effect(
       missingToCreate: Effect.gen(function* () {
         const self = yield* fetchMe;
         const parentId = discord.channel.parentId;
-        if (parentId === null) return missingFrom(self.permissions.bitfield);
+        // GuildMember.permissions holds the roles' raw bits; an Administrator holds them all.
+        const own = self.permissions.has(PermissionFlagsBits.Administrator)
+          ? PermissionsBitField.All
+          : self.permissions.bitfield;
+        if (parentId === null) return missingFrom(own);
         const parent = yield* tryDiscord("fetch the Match channel's category", () =>
           guild.channels.fetch(parentId),
         );
-        return missingFrom((parent?.permissionsFor(self) ?? self.permissions).bitfield);
+        return missingFrom(parent?.permissionsFor(self)?.bitfield ?? own);
       }),
       create: Effect.gen(function* () {
         const self = yield* fetchMe;

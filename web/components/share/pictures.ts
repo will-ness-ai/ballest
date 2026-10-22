@@ -11,8 +11,9 @@ import { SHARE_ASSETS } from "./Card";
 const MAX_PICTURE = 4 * 1024 * 1024;
 
 /* a picture fetched for a card: its data: URL, or null and whether that was only for now
-   (`temporary`: the fetch timed out, hit the network's failure or a 5xx, so it may load next
-   time) rather than for good (no address safeImg takes, a 4xx, not a picture, too large) */
+   (`temporary`: the fetch timed out, hit the network's failure, a 5xx, 408 or 429, so it may
+   load next time) rather than for good (no address safeImg takes, a 4xx, not a picture, too
+   large) */
 export interface Fetched {
   src: string | null;
   temporary: boolean;
@@ -26,11 +27,12 @@ export async function fetchPicture(url: string | null | undefined): Promise<Fetc
   const u = safe.startsWith("/") ? SITE_ORIGIN + safe : safe;
   try {
     const r = await fetch(u, { signal: AbortSignal.timeout(3000) });
-    if (r.status >= 500) return { src: null, temporary: true };
     const type = r.headers.get("content-type") ?? "";
     const size = Number(r.headers.get("content-length") ?? 0);
-    if (!r.ok || !/^image\/(png|jpeg|gif)/.test(type) || size > MAX_PICTURE)
-      return { src: null, temporary: false };
+    if (!r.ok || !/^image\/(png|jpeg|gif)/.test(type) || size > MAX_PICTURE) {
+      await r.body?.cancel();
+      return { src: null, temporary: r.status >= 500 || r.status === 408 || r.status === 429 };
+    }
     const body = Buffer.from(await r.arrayBuffer());
     if (body.length > MAX_PICTURE) return { src: null, temporary: false };
     return { src: `data:${type};base64,${body.toString("base64")}`, temporary: false };
