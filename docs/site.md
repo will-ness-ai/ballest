@@ -581,7 +581,7 @@ kept apart from the Generators so a page that only links one never loads them).
 - **The Generators** (`lib/generators.ts`): each is its controls, its defaults and its
   builder, and `generate(key, values)` returns its Prefab file (or null with nothing to
   make). The page draws whatever `controls(values)` returns, so a switch can hide another
-  control (the sign's wall colour with the wall off), and a fifth Generator is one entry.
+  control (the sign's wall colour with the wall off), and a new Generator is one entry.
   Each kind of tree is a Generator of its own (Tree, Pine, Block tree). Pieces are the editor's
   cube, sphere, cylinder, cone and pyramid, placed by their bottom centre (a box can also be
   placed by its centre at any rotation);

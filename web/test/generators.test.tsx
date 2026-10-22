@@ -277,25 +277,103 @@ describe("buildings", () => {
     }
   });
 
+  /* a cube's span along each axis, in cm */
+  const span = (it: PrefabItem) => {
+    const [x, y, z] = it.transform.location;
+    const [sx, sy, sz] = it.transform.scale.map((k) => k * CUBE);
+    return { x0: x - sx / 2, x1: x + sx / 2, y0: y - sy / 2, y1: y + sy / 2, z0: z, z1: z + sz };
+  };
+  const coloured = (file: PrefabFile, material: string) =>
+    file.items.filter(
+      (it) => it.class.includes("BP_Prim_Cube") && it.meshes[0].materials[0].includes(material),
+    );
+
+  test.each([
+    [4, 8, true],
+    [4, 2, true],
+    [9, 3, true],
+    [30, 8, false],
+  ])(
+    "a %s m house's %s windows a side never overlap, and the door never meets one",
+    (width, windows, door) => {
+      const file = make("house", { width, depth: 4, windows, door, floors: 1 });
+      const panes = coloured(file, "SkyBlue").map(span);
+      const doorPanel = coloured(file, "Dark").find(
+        (it) => span(it).z1 - span(it).z0 > 150 && span(it).z0 < 60,
+      );
+      expect(!!doorPanel).toBe(door);
+      const W = width * 100;
+      for (const [i, a] of panes.entries()) {
+        expect(a.y0).toBeGreaterThanOrEqual(-W / 2);
+        expect(a.y1).toBeLessThanOrEqual(W / 2);
+        for (const b of panes.slice(i + 1))
+          expect(
+            a.x1 <= b.x0 || b.x1 <= a.x0 || a.y1 <= b.y0 || b.y1 <= a.y0,
+            "panes overlap",
+          ).toBe(true);
+        const doorway = doorPanel && span(doorPanel);
+        if (doorway && a.x0 < -150)
+          expect(a.y1 <= doorway.y0 || doorway.y1 <= a.y0, "a pane in the doorway").toBe(true);
+      }
+    },
+  );
+
+  test.each(["Gable", "Hip"])("a %s-roofed house's chimney stands above its roof", (roof) => {
+    for (const [width, depth] of [
+      [4, 30],
+      [30, 4],
+      [9, 7],
+    ]) {
+      const file = make("house", { roof, width, depth, chimney: true });
+      const chimney = coloured(file, "Dark")
+        .map(span)
+        .find((b) => Math.abs(b.x1 - b.x0 - 60) < 1 && Math.abs(b.y1 - b.y0 - 60) < 1);
+      /* the roof's highest point: each shape's centre plus its corners' reach upward */
+      const roofShapes = shapesOf({
+        ...file,
+        items: file.items.filter((it) => it.meshes[0].materials[0].includes("Wine")),
+      });
+      /* the matrix takes a unit shape centred on the origin, so a corner is half each column */
+      const reach = (m: Array<number>) => (Math.abs(m[1]) + Math.abs(m[5]) + Math.abs(m[9])) / 2;
+      const ridge = Math.max(...roofShapes.map((sh) => sh.matrix[13] + reach(sh.matrix))) * 100;
+      expect(chimney, `${roof} ${width}x${depth}`).toBeDefined();
+      expect(chimney!.z1, `${roof} ${width}x${depth}`).toBeGreaterThan(ridge);
+    }
+  });
+
+  test("a castle's gate towers and battlements stay within its walls at any gate", () => {
+    for (const [size, gate, merlons] of [
+      [10, 10, 3],
+      [10, 4, 0.7],
+      [24, 4, 1],
+    ]) {
+      const S = size * 100;
+      const file = make("castle", { size, gate, merlons, towers: false });
+      for (const b of file.items.filter((it) => it.class.includes("BP_Prim_Cube")).map(span)) {
+        expect(Math.max(-b.x0, b.x1, -b.y0, b.y1), `${size} m, gate ${gate} m`).toBeLessThanOrEqual(
+          S / 2 + S * 0.15 + 1,
+        );
+        expect(Math.max(-b.y0, b.y1), `${size} m, gate ${gate} m`).toBeLessThanOrEqual(S / 2 + 60);
+      }
+    }
+  });
+
   test.each(["house", "tower", "castle"])(
     "%s stays within the game's limit at its largest",
     (key) => {
       const g = gen(key);
-      const most: Values = { ...g.defaults };
-      for (const pick of [
+      /* no pick, then each option of each choice these values show */
+      const picksOf = (values: Values): Array<Values> => [
         {},
         ...g
-          .controls(g.defaults)
+          .controls(values)
           .flatMap((c) => (c.kind === "choice" ? c.options.map((o) => ({ [c.key]: o })) : [])),
-      ])
+      ];
+      const most: Values = { ...g.defaults };
+      for (const pick of picksOf(g.defaults))
         for (const c of g.controls({ ...g.defaults, ...pick }))
           if (c.kind === "number") most[c.key] = c.max;
-      for (const pick of [
-        {},
-        ...g
-          .controls(most)
-          .flatMap((c) => (c.kind === "choice" ? c.options.map((o) => ({ [c.key]: o })) : [])),
-      ])
+      for (const pick of picksOf(most))
         expect(make(key, { ...most, ...pick }).items.length).toBeLessThanOrEqual(PIECE_LIMIT);
     },
   );
