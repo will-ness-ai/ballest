@@ -336,8 +336,7 @@ describe("buildings", () => {
       /* the matrix takes a unit shape centred on the origin, so a corner is half each column */
       const reach = (m: Array<number>) => (Math.abs(m[1]) + Math.abs(m[5]) + Math.abs(m[9])) / 2;
       const ridge = Math.max(...roofShapes.map((sh) => sh.matrix[13] + reach(sh.matrix))) * 100;
-      expect(chimney, `${roof} ${width}x${depth}`).toBeDefined();
-      expect(chimney!.z1, `${roof} ${width}x${depth}`).toBeGreaterThan(ridge);
+      expect(chimney?.z1 ?? 0, `${roof} ${width}x${depth}`).toBeGreaterThan(ridge);
     }
   });
 
