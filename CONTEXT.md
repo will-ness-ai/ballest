@@ -23,6 +23,12 @@ player's total is the sum over the Maps they hold a time on. The Workshop's coun
 Circuit season, made by players; the game itself knows nothing of it, so the list is ours.
 _Avoid_: playlist, series, collection (a Steam Workshop collection is a different thing)
 
+**Event board**:
+The Steam board of a one-off event the game ran, such as Leth Trial #1: neither a Track nor a
+Map. The board stops moving once the event ends, so the collector reads it once, and a
+Campaign can hold it as one of its Maps.
+_Avoid_: event map, trial board
+
 **Medal**:
 One of a Map's four time targets, Bronze, Silver, Gold and Author (fastest), set by its
 creator. A Track has the same four, set by the game. A time earns the best Medal whose target it meets. A player's page sorts their

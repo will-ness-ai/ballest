@@ -56,6 +56,7 @@ export const PAGES = [
   { name: "campaign", path: "/campaign/{CAMPAIGN}" },
   { name: "campaign-pods", path: "/campaign/{CAMPAIGN}/podiums" },
   { name: "campaign-map", path: "/campaign/{CAMPAIGN}/{CAMPAIGN_MAP}" },
+  { name: "campaign-event", path: "/campaign/leth-trials/leth-trial-1" },
   { name: "map", path: "/map/{MAP}" },
   { name: "map-3d", path: "/map/{MAP3D}" },
   { name: "board", path: "/board/Map_Track13" },

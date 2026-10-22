@@ -180,7 +180,8 @@ been switched over.
 same: a failed read in `board_reads`, its Entries untouched. A run that reads no Circuit board
 at all writes nothing and fails. The Workshop step never blocks the Circuit and never wipes a
 Map: a failed Map read keeps its Entries and its old counters (so the next run retries it), a
-Map the step skipped gets no `board_reads` row, and a catalogue that fails, comes back short of
+Map the step skipped gets no `board_reads` row, an Event board is read until one read
+succeeds and then never again (so its Entries stay open; a failed one never fails the run), and a catalogue that fails, comes back short of
 Steam's total, or shrinks by more than `WORKSHOP_SHRINK_LIMIT` counts no Map as read. Only a
 successful read moves `last_seen_refresh`, with one exception: `add_maps` writes a Map new since
 the last Refresh as if that Refresh's catalogue had seen it, so the site has its page (`docs/data.md`, "New Maps"). The whole Refresh is one transaction, so any error
