@@ -1368,6 +1368,94 @@ function K5({ s }: { s: Stat }) {
   );
 }
 
+/* ---------- Round 4: K5 with its date ---------- */
+const today = () =>
+  new Date().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
+type DateAt = "foot" | "corner" | "name";
+function K5Dated({ s, at }: { s: Stat; at: DateAt }) {
+  const hue = String(s.hue);
+  const d = today();
+  return (
+    <div
+      style={{
+        ...frame(720, 1060),
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "24px 30px 22px",
+        border: `16px solid hsl(${hue} 70% 50%)`,
+        backgroundImage: `radial-gradient(circle at 50% 24%, hsl(${hue} 60% 30%) 0%, ${C.bg} 58%)`,
+      }}
+    >
+      {at === "corner" ? (
+        <div
+          style={{
+            position: "absolute",
+            top: 18,
+            left: 18,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "8px 14px",
+            borderRadius: 14,
+            backgroundColor: "rgba(10,16,32,0.75)",
+            border: `2px solid hsl(${hue} 70% 50%)`,
+          }}
+        >
+          <div style={{ fontFamily: "Bungee", fontSize: 34, lineHeight: 1 }}>{d.split(" ")[0]}</div>
+          <div style={{ fontFamily: "Bungee", fontSize: 18, color: C.dim }}>
+            {d.split(" ").slice(1).join(" ").toUpperCase()}
+          </div>
+        </div>
+      ) : null}
+      <BigBall s={s} size={400} badge={130} />
+      <div style={{ display: "flex", marginTop: 10 }}>
+        <Name s={s} size={56} />
+      </div>
+      {at === "name" ? (
+        <div
+          style={{ display: "flex", fontSize: 26, color: C.dim, fontWeight: 600 }}
+        >{`as of ${d}`}</div>
+      ) : null}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignSelf: "stretch",
+          gap: 2,
+          marginTop: 10,
+        }}
+      >
+        {linesOf(s, 27).map((l) => (
+          <LineRow key={l.label} l={l} font={27} hideZero />
+        ))}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          marginTop: "auto",
+          alignSelf: "stretch",
+          justifyContent: at === "foot" ? "space-between" : "center",
+          alignItems: "center",
+        }}
+      >
+        {at === "foot" ? (
+          <div style={{ fontFamily: "Bungee", fontSize: 22, color: C.text }}>{d.toUpperCase()}</div>
+        ) : null}
+        <Brand size={18} />
+      </div>
+    </div>
+  );
+}
+const T1 = ({ s }: { s: Stat }) => <K5Dated s={s} at="foot" />;
+const T2 = ({ s }: { s: Stat }) => <K5Dated s={s} at="corner" />;
+const T3 = ({ s }: { s: Stat }) => <K5Dated s={s} at="name" />;
+
 export const VARIANTS = {
   A: { label: "Share card, six tiles", draw: A, w: 1200, h: 630 },
   B: { label: "Medal cabinet", draw: B, w: 1200, h: 560 },
@@ -1384,6 +1472,9 @@ export const VARIANTS = {
   K3: { label: "Breaking out", draw: K3, w: 720, h: 1060 },
   K4: { label: "Ranks by the ball", draw: K4, w: 760, h: 900 },
   K5: { label: "Huge ball, zeros hidden", draw: K5, w: 720, h: 1060 },
+  T1: { label: "Date in the footer", draw: T1, w: 720, h: 1060 },
+  T2: { label: "Date stamp in the corner", draw: T2, w: 720, h: 1060 },
+  T3: { label: "Date under the name", draw: T3, w: 720, h: 1060 },
 } as const;
 export type VariantKey = keyof typeof VARIANTS;
 export const isVariant = (k: string): k is VariantKey => k in VARIANTS;
