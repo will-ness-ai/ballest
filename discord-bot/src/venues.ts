@@ -3,7 +3,7 @@
 // it was before there were others; each other Venue is one entry of DISCORD_VENUES, a JSON list
 // of { name, guildId, channelId, pingRoleId } (ids, not secrets: it is set in fly.toml). Absent,
 // the bot plays in home alone, so `pnpm dev` and the sandbox need nothing new.
-import { Effect, Either, Schema } from "effect";
+import { Cause, Data, Effect, Either, Option, Schema } from "effect";
 import { HOME_VENUE, type VenueName } from "./domain.js";
 
 export interface VenueConfig {
@@ -25,6 +25,9 @@ const VenueList = Schema.parseJson(
 /** A name that reads as a key in logs and the database. */
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
 
+/** Every configured Venue: home first, then the others. */
+export type Venues<V> = readonly [home: V, ...others: ReadonlyArray<V>];
+
 /**
  * Every configured Venue, home first, and why any listed one was left out. A setting that isn't a
  * list of Venues leaves out every extra one: home is never at stake.
@@ -32,8 +35,8 @@ const NAME = /^[a-z0-9][a-z0-9-]*$/;
 export const parseVenues = (
   home: Omit<VenueConfig, "name">,
   setting: string | undefined,
-): { readonly venues: ReadonlyArray<VenueConfig>; readonly problems: ReadonlyArray<string> } => {
-  const venues: Array<VenueConfig> = [{ name: HOME_VENUE, ...home }];
+): { readonly venues: Venues<VenueConfig>; readonly problems: ReadonlyArray<string> } => {
+  const venues: [VenueConfig, ...Array<VenueConfig>] = [{ name: HOME_VENUE, ...home }];
   if (setting === undefined || setting.trim() === "") return { venues, problems: [] };
   const listed = Schema.decodeUnknownEither(VenueList)(setting);
   if (Either.isLeft(listed))
@@ -58,26 +61,48 @@ export const parseVenues = (
   return { venues, problems };
 };
 
+/** What is wrong with a Venue the bot can't run, in one line. */
+export class VenueCheckFailed extends Data.TaggedError("VenueCheckFailed")<{
+  readonly reason: string;
+}> {}
+
 /**
- * Start each Venue with `check`, which says what is wrong with one it can't run. The home Venue
- * failing stops the bot, as a broken production setup should; any other is left out with a line
- * to `alert` (the ops channel), so a second server can never take the game Discord's bot down.
+ * Start each Venue with `check`, which says what is wrong with one it can't run; the running
+ * ones, home first. The home Venue failing stops the bot, as a broken production setup should;
+ * any other is left out with a line to `alert` (the ops channel), so a second server can never
+ * take the game Discord's bot down: not even a check that crashes there.
  */
-export const startVenues = <A, R>(
-  venues: ReadonlyArray<VenueConfig>,
-  check: (venue: VenueConfig) => Effect.Effect<A, string, R>,
+export const startVenues = Effect.fn("startVenues")(function* <A, R>(
+  [home, ...others]: Venues<VenueConfig>,
+  check: (venue: VenueConfig) => Effect.Effect<A, VenueCheckFailed, R>,
   alert: (message: string) => Effect.Effect<void>,
-) =>
-  Effect.gen(function* () {
-    const running: Array<A> = [];
-    for (const venue of venues) {
-      const started = yield* Effect.either(check(venue));
-      if (Either.isRight(started)) running.push(started.right);
-      else if (venue.name === HOME_VENUE) return yield* Effect.dieMessage(started.left);
-      else
-        yield* alert(
-          `Multiballs left out the Venue "${venue.name}" (server ${venue.guildId}): ${started.left}`,
-        );
-    }
-    return running;
-  });
+) {
+  const running: [A, ...Array<A>] = [
+    yield* check(home).pipe(
+      Effect.catchTag("VenueCheckFailed", (e) => Effect.dieMessage(e.reason)),
+    ),
+  ];
+  for (const venue of others) {
+    const leaveOut = (reason: string) =>
+      alert(`Multiballs left out the Venue "${venue.name}" (server ${venue.guildId}): ${reason}`);
+    const started = yield* check(venue).pipe(
+      Effect.map((a) => Option.some(a)),
+      Effect.catchTag("VenueCheckFailed", (e) =>
+        leaveOut(e.reason).pipe(Effect.as(Option.none<A>())),
+      ),
+      Effect.catchAllDefect((defect) =>
+        Effect.logError(`checking the Venue ${venue.name} crashed`, Cause.die(defect)).pipe(
+          Effect.andThen(
+            leaveOut(
+              `its check crashed: ${defect instanceof Error ? defect.message : String(defect)}`,
+            ),
+          ),
+          Effect.as(Option.none<A>()),
+        ),
+      ),
+    );
+    if (Option.isSome(started)) running.push(started.value);
+  }
+  const result: Venues<A> = running;
+  return result;
+});

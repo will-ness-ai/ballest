@@ -69,9 +69,8 @@ export const InteractionsLive = Layer.scopedDiscard(
     const chosenSkins = yield* ChosenSkins;
     const pings = yield* Pings;
     /** A Venue's @Multiplayer ping role, as the words mention and name it. */
-    const pingRoleIn = (venue: DiscordVenue) => ({
-      id: venue.pingRoleId,
-      name: pings.role(venue.name),
+    const pingRoleIn = Effect.fn("pingRoleIn")(function* (venue: DiscordVenue) {
+      return { id: venue.pingRoleId, name: yield* pings.role(venue.name) };
     });
     const previews = yield* Ref.make(new Map<string, ProfilePreview>());
     const pending = yield* Ref.make(new Map<string, Pending>());
@@ -115,8 +114,9 @@ export const InteractionsLive = Layer.scopedDiscard(
       i: ButtonInteraction,
       venue: DiscordVenue,
     ) {
+      const role = yield* pingRoleIn(venue);
       yield* tryDiscord("edit reply", () =>
-        i.editReply({ content: withPingFailure(i.message.content, pingRoleIn(venue)), ...quiet }),
+        i.editReply({ content: withPingFailure(i.message.content, role), ...quiet }),
       );
     });
 
@@ -126,10 +126,12 @@ export const InteractionsLive = Layer.scopedDiscard(
       venue: DiscordVenue,
       action: Action,
     ) {
-      if (yield* pings.offerAfter(venue.name, action, i.user.id))
+      if (yield* pings.offerAfter(venue.name, action, i.user.id)) {
+        const role = yield* pingRoleIn(venue);
         yield* tryDiscord("follow up", () =>
-          i.followUp({ ...pingOfferMessage(pingRoleIn(venue)), ...ephemeral }),
+          i.followUp({ ...pingOfferMessage(role), ...ephemeral }),
         );
+      }
     });
 
     /** Run a Card action; a rejection is explained privately to whoever clicked. */
@@ -185,7 +187,7 @@ export const InteractionsLive = Layer.scopedDiscard(
 
     /** A button pressed in `venue`'s channel or one of its Match Threads: it acts there. */
     const onButton = Effect.fn("onButton")(function* (i: ButtonInteraction, venue: DiscordVenue) {
-      const pingRole = pingRoleIn(venue);
+      const pingRole = yield* pingRoleIn(venue);
       const control = parseControl(i.customId);
       const self = i.user.id;
       if (control === null) return;

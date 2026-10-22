@@ -75,7 +75,7 @@ const ActivityLive = Layer.unwrapEffect(
       DiscordMembers,
       DiscordMembers.of({
         nameOf: (venue, discordId) => {
-          const running = discord.venues.find((v) => v.name === venue);
+          const running = discord.venueNamed(venue);
           return running === undefined
             ? Effect.succeed(Option.none())
             : running

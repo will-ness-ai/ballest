@@ -174,7 +174,7 @@ describe("Venues", () => {
       expect(yield* h.role.has(BOB.discordId, RACING)).toBe(true);
       expect(yield* h.role.has(BOB.discordId, HOME)).toBe(false);
       expect(yield* h.pings.offerAfter(RACING, "join", BOB.discordId)).toBe(false);
-      expect(h.pings.role(RACING)).toBe(`@${RACING} ping`);
+      expect(yield* h.pings.role(RACING)).toBe(`@${RACING} ping`);
     }),
   );
 });

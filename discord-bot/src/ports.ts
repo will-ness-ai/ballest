@@ -293,8 +293,11 @@ export class PingRoleUnavailable extends Data.TaggedError("PingRoleUnavailable")
 export class PingRole extends Context.Tag("multiballs/PingRole")<
   PingRole,
   {
-    /** The Venue's role's name on its server ("Multiplayer ping"), read when the bot starts. */
-    readonly nameIn: (venue: VenueName) => string;
+    /**
+     * The Venue's role's name on its server ("Multiplayer ping"), read when the bot starts. Only
+     * words use it, so a Venue that isn't running gets the usual name, never another server's.
+     */
+    readonly nameIn: (venue: VenueName) => Effect.Effect<string>;
     readonly has: (
       venue: VenueName,
       discordId: string,

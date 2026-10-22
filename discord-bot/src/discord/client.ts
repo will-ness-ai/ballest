@@ -17,7 +17,7 @@ import {
 import { Config, Data, Effect, Option, Redacted, Stream } from "effect";
 import { HOME_VENUE, type VenueName } from "../domain.js";
 import { OpsAlerts } from "../ops.js";
-import { parseVenues, startVenues, type VenueConfig } from "../venues.js";
+import { parseVenues, startVenues, VenueCheckFailed, type VenueConfig } from "../venues.js";
 
 export class DiscordError extends Data.TaggedError("DiscordError")<{
   readonly op: string;
@@ -88,38 +88,38 @@ const plainName = (name: string) => name.normalize("NFKC");
  * taken and mentioned (Lobby pings would otherwise go silently missing). Roles are read over
  * REST: the Gateway intents stay at Guilds.
  */
-const checkVenue = (client: Client<true>, venue: VenueConfig) =>
-  Effect.gen(function* () {
+const checkVenue = Effect.fn("checkVenue")(
+  function* (client: Client<true>, venue: VenueConfig) {
     const where =
       venue.name === HOME_VENUE ? "DISCORD_CHANNEL_ID" : `Venue "${venue.name}"'s channel`;
     const fetched = yield* tryDiscord("fetch channel", () =>
       client.channels.fetch(venue.channelId),
     );
     if (fetched?.type !== ChannelType.GuildText)
-      return yield* Effect.fail(
-        `${where} ${venue.channelId} is not a server text channel the bot can see`,
-      );
+      return yield* new VenueCheckFailed({
+        reason: `${where} ${venue.channelId} is not a server text channel the bot can see`,
+      });
     const channel: TextChannel = fetched;
     if (channel.guildId !== venue.guildId)
-      return yield* Effect.fail(
-        `channel ${venue.channelId} is in server ${channel.guildId}, not ${venue.name === HOME_VENUE ? "DISCORD_GUILD_ID " : ""}${venue.guildId}`,
-      );
+      return yield* new VenueCheckFailed({
+        reason: `channel ${venue.channelId} is in server ${channel.guildId}, not ${venue.name === HOME_VENUE ? "DISCORD_GUILD_ID " : ""}${venue.guildId}`,
+      });
     const perms = channel.permissionsFor(client.user);
     const missing = REQUIRED_PERMISSIONS.filter(([, flag]) => !perms?.has(flag)).map(
       ([name]) => name,
     );
     if (missing.length > 0)
-      return yield* Effect.fail(
-        `the bot is missing permissions in #${channel.name}: ${missing.join(", ")}`,
-      );
+      return yield* new VenueCheckFailed({
+        reason: `the bot is missing permissions in #${channel.name}: ${missing.join(", ")}`,
+      });
 
     const pingRole = yield* tryDiscord("fetch ping role", () =>
       channel.guild.roles.fetch(venue.pingRoleId),
     );
     if (pingRole === null)
-      return yield* Effect.fail(
-        `${venue.name === HOME_VENUE ? "DISCORD_PING_ROLE_ID" : "ping role"} ${venue.pingRoleId} is not a role in ${channel.guild.name}`,
-      );
+      return yield* new VenueCheckFailed({
+        reason: `${venue.name === HOME_VENUE ? "DISCORD_PING_ROLE_ID" : "ping role"} ${venue.pingRoleId} is not a role in ${channel.guild.name}`,
+      });
     const self = yield* tryDiscord("fetch the bot's member", () => channel.guild.members.fetchMe());
     const roleProblems = [
       ...(self.permissions.has(PermissionFlagsBits.ManageRoles)
@@ -135,9 +135,9 @@ const checkVenue = (client: Client<true>, venue: VenueConfig) =>
           ]),
     ];
     if (roleProblems.length > 0)
-      return yield* Effect.fail(
-        `the bot can't use the ping role @${pingRole.name}: it needs ${roleProblems.join("; ")}`,
-      );
+      return yield* new VenueCheckFailed({
+        reason: `the bot can't use the ping role @${pingRole.name}: it needs ${roleProblems.join("; ")}`,
+      });
     yield* Effect.log(
       `Venue ${venue.name}: posting in #${channel.name} (${channel.guild.name}); pinging @${pingRole.name}`,
     );
@@ -164,7 +164,11 @@ const checkVenue = (client: Client<true>, venue: VenueConfig) =>
         ),
     };
     return running;
-  }).pipe(Effect.catchTag("DiscordError", (e) => Effect.fail(describeDiscordError(e))));
+  },
+  Effect.catchTag("DiscordError", (e) =>
+    Effect.fail(new VenueCheckFailed({ reason: describeDiscordError(e) })),
+  ),
+);
 
 /** Whether a click came from this Venue's channel or one of its Match Threads. */
 const isIn = (venue: DiscordVenue, i: Interaction) =>
@@ -217,14 +221,15 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       (venue) => checkVenue(ready, venue),
       (message) => alerts.post(message),
     );
-    const homeVenue = venues[0];
-    if (homeVenue?.name !== HOME_VENUE)
-      return yield* Effect.dieMessage("the home Venue didn't start");
+    const [homeVenue] = venues;
     const homeGuildId = home.guildId;
 
     /** The running Venue a click came from, if any: its channel or one of its Match Threads. */
     const venueOf = (i: Interaction): DiscordVenue | undefined =>
       venues.find((venue) => isIn(venue, i));
+    /** The running Venue by this name, if it runs. */
+    const venueNamed = (name: VenueName): DiscordVenue | undefined =>
+      venues.find((venue) => venue.name === name);
 
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
@@ -305,6 +310,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       /** Every running Venue, home first. */
       venues,
       venueOf,
+      venueNamed,
       /** Clicks from every running Venue's channel and its Match Threads. */
       interactions,
       postsIn,

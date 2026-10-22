@@ -3,7 +3,13 @@
 // stops the bot. The checks themselves are discord.js calls, tried in the sandbox.
 import { describe, expect, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Ref } from "effect";
-import { parseVenues, startVenues, type VenueConfig } from "../src/venues.js";
+import {
+  parseVenues,
+  startVenues,
+  VenueCheckFailed,
+  type VenueConfig,
+  type Venues,
+} from "../src/venues.js";
 
 const HOME = { guildId: "g-home", channelId: "c-home", pingRoleId: "r-home" };
 const RACING = {
@@ -58,8 +64,13 @@ describe("DISCORD_VENUES", () => {
 
 describe("starting the Venues", () => {
   const check = (failing: ReadonlySet<string>) => (v: VenueConfig) =>
-    failing.has(v.name) ? Effect.fail(`no access to ${v.channelId}`) : Effect.succeed(v.name);
-  const venues: ReadonlyArray<VenueConfig> = [{ name: "home", ...HOME }, RACING];
+    failing.has(v.name)
+      ? Effect.fail(new VenueCheckFailed({ reason: `no access to ${v.channelId}` }))
+      : Effect.succeed(v.name);
+  /** A check that throws for these Venues, as a discord.js bug would. */
+  const crashing = (crashes: ReadonlySet<string>) => (v: VenueConfig) =>
+    crashes.has(v.name) ? Effect.die(new Error(`boom in ${v.channelId}`)) : Effect.succeed(v.name);
+  const venues: Venues<VenueConfig> = [{ name: "home", ...HOME }, RACING];
 
   it.effect("runs every Venue that passes its checks", () =>
     Effect.gen(function* () {
@@ -83,6 +94,31 @@ describe("starting the Venues", () => {
       expect(said).toHaveLength(1);
       expect(said[0]).toContain("ballest-racing");
       expect(said[0]).toContain("no access to c-racing");
+    }),
+  );
+
+  it.effect("leaves out another Venue whose check crashes, telling ops, and runs on", () =>
+    Effect.gen(function* () {
+      const alerts = yield* Ref.make<ReadonlyArray<string>>([]);
+      const running = yield* startVenues(venues, crashing(new Set(["ballest-racing"])), (m) =>
+        Ref.update(alerts, (all) => [...all, m]),
+      );
+      expect(running).toEqual(["home"]);
+      const said = yield* Ref.get(alerts);
+      expect(said).toHaveLength(1);
+      expect(said[0]).toContain("ballest-racing");
+      expect(said[0]).toContain("boom in c-racing");
+    }),
+  );
+
+  it.effect("stops the bot when the home Venue's check crashes", () =>
+    Effect.gen(function* () {
+      const exit = yield* Effect.exit(
+        startVenues(venues, crashing(new Set(["home"])), () => Effect.void),
+      );
+      if (Exit.isSuccess(exit)) return expect.unreachable();
+      expect(Cause.isDie(exit.cause)).toBe(true);
+      expect(Cause.pretty(exit.cause)).toContain("boom in c-home");
     }),
   );
 

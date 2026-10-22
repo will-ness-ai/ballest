@@ -8,6 +8,9 @@ import type { VenueName } from "../domain.js";
 import { PingRole, PingRoleUnavailable } from "../ports.js";
 import { Discord, type DiscordError, describeDiscordError, tryDiscord } from "./client.js";
 
+/** What the role is called everywhere it was set up as spec #87 says. */
+const USUAL_NAME = "Multiplayer ping";
+
 export const PingRoleLive = Layer.effect(
   PingRole,
   Effect.gen(function* () {
@@ -16,17 +19,27 @@ export const PingRoleLive = Layer.effect(
       (e: DiscordError) => new PingRoleUnavailable({ reason: describeDiscordError(e) }),
     );
     /** A running Venue's server and role; a Venue that isn't running has none to change. */
-    const inVenue = (
-      venue: VenueName,
-    ): Effect.Effect<{ readonly guild: Guild; readonly role: string }, PingRoleUnavailable> => {
-      const found = discord.venues.find((v) => v.name === venue);
-      return found === undefined
-        ? Effect.fail(new PingRoleUnavailable({ reason: `Venue ${venue} isn't running` }))
-        : Effect.succeed({ guild: found.channel.guild, role: found.pingRoleId });
-    };
+    const inVenue = Effect.fn("inVenue")(function* (venue: VenueName) {
+      const found = discord.venueNamed(venue);
+      if (found === undefined)
+        return yield* new PingRoleUnavailable({ reason: `Venue ${venue} isn't running` });
+      const running: { readonly guild: Guild; readonly role: string } = {
+        guild: found.channel.guild,
+        role: found.pingRoleId,
+      };
+      return running;
+    });
     return PingRole.of({
-      nameIn: (venue) =>
-        discord.venues.find((v) => v.name === venue)?.pingRoleName ?? discord.home.pingRoleName,
+      // Every caller names the Venue a member is in, which runs. Were one not to, the words fall
+      // back to the usual name, said in the log, rather than failing a reply over a label.
+      nameIn: Effect.fn("PingRole.nameIn")(function* (venue: VenueName) {
+        const found = discord.venueNamed(venue);
+        if (found !== undefined) return found.pingRoleName;
+        yield* Effect.logWarning(
+          `ping role: Venue ${venue} isn't running; naming it ${USUAL_NAME}`,
+        );
+        return USUAL_NAME;
+      }),
       has: (venue, discordId) =>
         inVenue(venue).pipe(
           Effect.flatMap(({ guild, role }) =>

@@ -219,7 +219,7 @@ export const makeFakePingRole = Effect.gen(function* () {
   const holds = (venue: VenueName, discordId: string) =>
     Ref.get(holders).pipe(Effect.map((all) => all.has(key(venue, discordId))));
   const port = PingRole.of({
-    nameIn: (venue) => (venue === HOME ? "Multiplayer ping" : `${venue} ping`),
+    nameIn: (venue) => Effect.succeed(venue === HOME ? "Multiplayer ping" : `${venue} ping`),
     has: (venue, discordId) => discord(holds(venue, discordId)),
     add: (venue, discordId) => discord(update(venue, discordId, true)),
     remove: (venue, discordId) => discord(update(venue, discordId, false)),

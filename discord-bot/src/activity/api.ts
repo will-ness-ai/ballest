@@ -194,8 +194,9 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
   });
 
   /** A Match by id if it is this Venue's: another Venue's Match isn't seen from here. */
-  const matchIn = (venue: ActivityVenue, id: string) =>
-    store.getMatch(id).pipe(Effect.map(Option.filter((m) => m.venue === venue.name)));
+  const matchIn = Effect.fn("matchIn")(function* (venue: ActivityVenue, id: string) {
+    return Option.filter(yield* store.getMatch(id), (m) => m.venue === venue.name);
+  });
 
   /** Fails as not found when the Match is another Venue's, so nothing here can act on it. */
   const notElsewhere = Effect.fn("notElsewhere")(function* (venue: ActivityVenue, id: string) {
@@ -265,14 +266,9 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
             isRejection(e)
               ? rejected(e, who)
               : warnPingRole(e).pipe(
-                  Effect.as(
-                    json(
-                      {
-                        error: "PingRoleUnavailable",
-                        message: pingFailed(pings.role(who.venue.name)),
-                      },
-                      503,
-                    ),
+                  Effect.andThen(pings.role(who.venue.name)),
+                  Effect.map((role) =>
+                    json({ error: "PingRoleUnavailable", message: pingFailed(role) }, 503),
                   ),
                 ),
         ),
@@ -317,7 +313,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
               .status(venue.name, discordId)
               .pipe(Effect.catchTag("PingRoleUnavailable", () => Effect.succeed(null))),
             // The role as the server names it, for the bell's toasts and the offer.
-            pingRole: pings.role(venue.name),
+            pingRole: yield* pings.role(venue.name),
           });
         }),
       ),

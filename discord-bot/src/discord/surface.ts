@@ -334,21 +334,20 @@ const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, chan
   }
 
   /** Where this channel holds a Match's Card and thread, live or finished. */
-  const placeOf = (matchId: string) =>
-    Ref.get(layout).pipe(
-      Effect.map(({ cards, finished }): Option.Option<MatchPlace> => {
-        const card = cards.get(matchId);
-        const spot =
-          card === undefined
-            ? finished.get(matchId)
-            : { messageId: card.messageId, threadId: card.threadId };
-        return Option.map(Option.fromNullable(spot), (s) => ({ venue, ...s }));
-      }),
-    );
+  const placeOf = Effect.fn("placeOf")(function* (matchId: string) {
+    const { cards, finished } = yield* Ref.get(layout);
+    const card = cards.get(matchId);
+    const spot =
+      card === undefined
+        ? finished.get(matchId)
+        : { messageId: card.messageId, threadId: card.threadId };
+    return Option.map(Option.fromNullable(spot), (s): MatchPlace => ({ venue, ...s }));
+  });
 
   /** Whether this channel holds the Match's Card now, so its posts and removal come here. */
-  const holds = (matchId: string) =>
-    Ref.get(layout).pipe(Effect.map(({ cards }) => cards.has(matchId)));
+  const holds = Effect.fn("holds")(function* (matchId: string) {
+    return (yield* Ref.get(layout)).cards.has(matchId);
+  });
 
   return { showCard, remove, post, placeOf, holds };
 });
@@ -364,37 +363,37 @@ const make = Effect.gen(function* () {
   for (const [venue, channel] of channels) surfaces.set(venue, yield* venueSurface(venue, channel));
 
   /** The Venue Surface holding a Match's Card, if any. */
-  const holding = (matchId: string) =>
-    Effect.findFirst([...surfaces.values()], (s) => s.holds(matchId));
+  const holding = Effect.fn("holding")(function* (matchId: string) {
+    return yield* Effect.findFirst([...surfaces.values()], (s) => s.holds(matchId));
+  });
 
-  const showCard = (view: CardView) => {
+  const showCard = Effect.fn("Surface.showCard")(function* (view: CardView) {
     const surface = surfaces.get(view.venue);
-    return surface === undefined
-      ? Effect.logWarning(`Venue ${view.venue} isn't running; ${view.matchId}'s Card isn't drawn`)
-      : surface.showCard(view);
-  };
-  const post = (matchId: string, threadPost: ThreadPost) =>
-    holding(matchId).pipe(
-      Effect.flatMap(
-        Option.match({
-          onNone: () =>
-            Effect.logWarning(`no Card for ${matchId}; dropped a ${threadPost._tag} post`),
-          onSome: (s) => s.post(matchId, threadPost),
-        }),
-      ),
-    );
-  const remove = (matchId: string, reason: RemovalReason) =>
-    holding(matchId).pipe(
-      Effect.flatMap(
-        Option.match({ onNone: () => Effect.void, onSome: (s) => s.remove(matchId, reason) }),
-      ),
-    );
+    if (surface === undefined)
+      return yield* Effect.logWarning(
+        `Venue ${view.venue} isn't running; ${view.matchId}'s Card isn't drawn`,
+      );
+    yield* surface.showCard(view);
+  });
+  const post = Effect.fn("Surface.post")(function* (matchId: string, threadPost: ThreadPost) {
+    const surface = yield* holding(matchId);
+    if (Option.isNone(surface))
+      return yield* Effect.logWarning(`no Card for ${matchId}; dropped a ${threadPost._tag} post`);
+    yield* surface.value.post(matchId, threadPost);
+  });
+  const remove = Effect.fn("Surface.remove")(function* (matchId: string, reason: RemovalReason) {
+    const surface = yield* holding(matchId);
+    if (Option.isSome(surface)) yield* surface.value.remove(matchId, reason);
+  });
 
   const links = MatchLinks.of({
-    of: (matchId) =>
-      Effect.reduce(surfaces.values(), Option.none<MatchPlace>(), (found, s) =>
-        Option.isSome(found) ? Effect.succeed(found) : s.placeOf(matchId),
-      ),
+    of: Effect.fn("MatchLinks.of")(function* (matchId: string) {
+      for (const s of surfaces.values()) {
+        const place = yield* s.placeOf(matchId);
+        if (Option.isSome(place)) return place;
+      }
+      return Option.none<MatchPlace>();
+    }),
   });
 
   const runs = (venue: VenueName) => surfaces.has(venue);
