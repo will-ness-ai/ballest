@@ -578,7 +578,9 @@ page per Generator at `/prefabs/make/<key>`
 (`proxy.ts` answers 404 for any other key; the keys are `GENERATOR_KEYS` in `lib/routes.ts`,
 kept apart from the Generators so a page that only links one never loads them).
 
-- **The Generators** (`lib/generators.ts`): each is its controls, its defaults and its
+- **The Generators** (`lib/generators/`: `index.ts` lists them and `generate()`s; `signs.ts`,
+  `nature.ts` and `buildings.ts` hold each category's, `pieces.ts` what they share): each is its
+  controls, its defaults and its
   builder, and `generate(key, values)` returns its Prefab file (or null with nothing to
   make). The page draws whatever `controls(values)` returns, so a switch can hide another
   control (the sign's wall colour with the wall off), and a new Generator is one entry.
