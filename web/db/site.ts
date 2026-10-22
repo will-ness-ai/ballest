@@ -314,8 +314,9 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
   return found;
 }
 
-/* What a Map card shows of each Event board in `names` with open Entries: its runs (Steam's
-   count, as its last good read gave it), its top three and the gap from 1st to 3rd */
+/* What a Map card shows of each Event board in `names` with open Entries: its runs (the
+   collector reads a board whole, so its open Entries are Steam's count, give or take a run
+   Steam dropped), its top three and the gap from 1st to 3rd */
 export async function eventBoards(
   db: Db,
   names: ReadonlyArray<string>,
@@ -323,17 +324,11 @@ export async function eventBoards(
   Array<{ board: string; runs: number; top3: WorkshopMap["top3"]; gap13: number | null }>
 > {
   if (!names.length) return [];
-  /* kind as text: a database from before the event kind (a preview reading production ahead
-     of its migration) then finds none rather than failing the build */
   return rows(
     db,
-    sql`with stats as (${boardStatsSql(sql`e.board = any(${array(names)})`)})
-      select s.board, coalesce(rd.entry_count, s.runs)::int as runs, s.top3,
-        s.gap13::float8 as gap13
-      from stats s
-      join boards b on b.name = s.board and b.kind::text = 'event'
-      left join lateral (select entry_count from board_reads
-        where board = s.board and ok order by refresh_id desc limit 1) rd on true`,
+    sql`select s.board, s.runs, s.top3, s.gap13::float8 as gap13
+      from (${boardStatsSql(sql`e.board = any(${array(names)})`)}) s
+      join boards b on b.name = s.board and b.kind = 'event'`,
   );
 }
 
@@ -388,10 +383,10 @@ export async function playerData(
   ).at(0);
   if (!profile) return null;
   /* a Daily's board is the player's Daily record, read on its own; an Event board's place
-     shows in their Campaigns (kind as text, as eventBoards reads it) */
+     shows in their Campaigns */
   const theirs = sql`e.board in (select board from entries
     where steam_id = ${steamId} and closed_refresh is null)
-    and b.kind::text not in ('daily', 'event')`;
+    and b.kind not in ('daily', 'event')`;
   const finishes = await rows<PlayerFinish>(
     db,
     sql`select board, rank, score::float8 as score, lead::float8 as lead, field::int as field from (

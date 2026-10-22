@@ -239,7 +239,6 @@ describe("Steam IDs and URLs", () => {
     expect(boardHref("OverallLeaderboard", "podiums")).toBe("/board/OverallLeaderboard/podiums");
     expect(boardHref("Workshop_3623648768", ID)).toBe(`/map/3623648768/${ID}`);
     // an Event board has no page of its own: its Campaign's slot for it is its page
-    expect(boardHref("Map_LethTrial_01", ID)).toBe("/campaign/leth-trials/leth-trial-1");
     expect(boardHref("Map_LethTrial_01")).toBe("/campaign/leth-trials/leth-trial-1");
     expect(viewerHref("leth")).toBe("/leth/");
     expect(mapPfidOf("Workshop_42")).toBe("42");
@@ -297,6 +296,20 @@ describe("Steam IDs and URLs", () => {
       ...none,
       map: "3805391903",
     });
+  });
+
+  test("an Event's slot takes a row to mark, as a Map's own page does", () => {
+    const leth = CAMPAIGNS.find((c) => c.slug === "leth-trials");
+    expect(campaignPath(`/campaign/leth-trials/leth-trial-1/${ID}`)).toEqual({
+      c: leth,
+      map: "leth-trial-1",
+      focus: ID,
+      podiums: false,
+    });
+    // a Workshop Map's row is on its own page, /map/<pfid>/<steam id>
+    expect(campaignPath(`/campaign/solar-trials/3805391903/${ID}`)).toBeNull();
+    expect(campaignPath("/campaign/leth-trials/leth-trial-1/x")).toBeNull();
+    expect(boardHref("Map_LethTrial_01", ID)).toBe(`/campaign/leth-trials/leth-trial-1/${ID}`);
   });
 
   test("a Daily's date is a real day, written YYYY-MM-DD", () => {
@@ -372,10 +385,15 @@ describe("the Circuit table", () => {
   });
 
   test("knows the collector's Event boards, by the names and titles it writes", () => {
-    // EVENT_BOARDS = {"<board>": (<leaderboard id>, "<title>"), ...}
-    const table = /^EVENT_BOARDS = \{([^}]*)\}/m.exec(py)?.[1] ?? "";
-    const events = [...table.matchAll(/"(\w+)": \(\d+, "([^"]+)"\)/g)].map((m) => [m[1], m[2]]);
-    expect(events.length).toBeGreaterThan(0);
+    // EVENT_BOARDS = {\n    "<board>": (<leaderboard id>, "<title>"),\n ...\n}: the lines
+    // between its opening line and the closing brace at the start of a line
+    const start = py.indexOf("\nEVENT_BOARDS = {\n");
+    const table = py.slice(start, py.indexOf("\n}\n", start));
+    const events = [...table.matchAll(/^ {4}"(\w+)": \(\d+, "([^"]+)"\),$/gm)].map((m) => [
+      m[1],
+      m[2],
+    ]);
+    expect(start, "EVENT_BOARDS not found in campaign_common.py").toBeGreaterThan(0);
     expect(EVENTS.map((e) => [e.board, e.title])).toEqual(events);
   });
 

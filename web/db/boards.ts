@@ -67,10 +67,10 @@ export function campaignListedSql(c: Campaign) {
     where board = any(${array(campaignMapBoards(c))})`;
   const events = c.maps.flatMap((id) => eventOf(id)?.board ?? []);
   if (!events.length) return listed;
-  return sql`${listed} union all
-    select v.board from unnest(${array(events)}) as v(board)
-    where exists (select 1 from entries e
-      where e.board = v.board and e.closed_refresh is null)`;
+  return sql`${listed} union
+    select b.name from boards b
+    where b.name = any(${array(events)}) and b.kind = 'event'
+      and exists (select 1 from entries e where e.board = b.name and e.closed_refresh is null)`;
 }
 
 /* Season 1 as it stands: each player's points for their place on every Season 1 Track,

@@ -113,26 +113,30 @@ def events_due(read_ok):
     return [(name, lid) for name, (lid, _) in EVENT_BOARDS.items() if name not in read_ok]
 
 
-async def read_events(fetch, read_ok):
-    """The Event step: reads each Event board events_due names with fetch(leaderboard ID),
-    which returns (Steam's entry count, board rows), and returns (boards, failed) as the
-    Circuit read hands them to the database writer. A read that raises is a failed board and
-    never escapes, so an Event board never decides a Refresh; an empty one the writer treats
-    as failed (db_writer)."""
-    boards, failed = [], []
-    for name, lid in events_due(read_ok):
+async def read_boards(fetch, boards):
+    """Reads each (name, leaderboard ID, group) in boards with fetch(leaderboard ID), which
+    returns (Steam's entry count, board rows), and returns (boards, failed) as the database
+    writer takes them: {"name", "group", "handle", "entry_count", "rows"} for a read, and for
+    one that raised, no rows and its name in failed. A read that raises never escapes, so one
+    board's read never decides a Refresh; an empty one the writer treats as failed (db_writer)."""
+    out, failed = [], []
+    for name, lid, group in boards:
+        board = {"name": name, "group": group, "handle": str(lid), "rows": []}
+        out.append(board)
         try:
             total, rows = await fetch(lid)
         except Exception as e:
-            boards.append({"name": name, "handle": str(lid), "rows": []})
             failed.append(name)
             print(f"  [warn] read failed: {name}: {e!r}")
             continue
-        boards.append(
-            {"name": name, "handle": str(lid), "entry_count": int(total or len(rows)), "rows": rows}
-        )
-        print(f"  {name:34s} total={int(total or 0):6d} pulled={len(rows)} (Event)")
-    return boards, failed
+        board.update(entry_count=int(total or len(rows)), rows=rows)
+        print(f"  {name:34s} total={int(total or 0):6d} pulled={len(rows)}")
+    return out, failed
+
+
+async def read_events(fetch, read_ok):
+    """The Event step: read_boards over the Event boards events_due names."""
+    return await read_boards(fetch, [(name, lid, None) for name, lid in events_due(read_ok)])
 
 
 # Map_TheTower is parked, not deleted: it reports an internal metric rather than
