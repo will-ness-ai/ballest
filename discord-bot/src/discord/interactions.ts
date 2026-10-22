@@ -87,6 +87,17 @@ export const InteractionsLive = Layer.scopedDiscard(
     const showLinkForm = (i: ButtonInteraction) =>
       tryDiscord("show link form", () => i.showModal(linkForm()));
 
+    /**
+     * An unlinked member is shown the link form, and `next` runs once they've linked: true when
+     * that happened, so the click is answered already.
+     */
+    const linkFirst = Effect.fn("linkFirst")(function* (i: ButtonInteraction, next: Pending) {
+      if (yield* isLinked(i.user.id)) return false;
+      yield* remember(i.user.id, next);
+      yield* showLinkForm(i);
+      return true;
+    });
+
     const runAction = (action: Action, discordId: string, matchId: string) =>
       Match.value(action).pipe(
         Match.when("accept", () => engine.accept(discordId, matchId)),
@@ -188,10 +199,7 @@ export const InteractionsLive = Layer.scopedDiscard(
       if (control === null) return;
       switch (control._tag) {
         case "NewMatch":
-          if (!(yield* isLinked(self))) {
-            yield* remember(self, { _tag: "NewMatch" });
-            return yield* showLinkForm(i);
-          }
+          if (yield* linkFirst(i, { _tag: "NewMatch" })) return;
           return yield* tryDiscord("reply", () => i.reply({ ...pickTypeMessage(), ...ephemeral }));
         case "PickType":
           return yield* tryDiscord("update", () =>
@@ -218,22 +226,12 @@ export const InteractionsLive = Layer.scopedDiscard(
         }
         case "Act": {
           const needsLink = control.action === "accept" || control.action === "join";
-          if (needsLink && !(yield* isLinked(self))) {
-            yield* remember(self, {
-              _tag: "Act",
-              action: control.action,
-              matchId: control.matchId,
-            });
-            return yield* showLinkForm(i);
-          }
+          if (needsLink && (yield* linkFirst(i, control))) return;
           yield* tryDiscord("defer", () => i.deferUpdate());
           return yield* act(i, control.action, control.matchId);
         }
         case "PlayAgain":
-          if (!(yield* isLinked(self))) {
-            yield* remember(self, { _tag: "PlayAgain", matchId: control.matchId });
-            return yield* showLinkForm(i);
-          }
+          if (yield* linkFirst(i, control)) return;
           yield* tryDiscord("defer", () => i.deferUpdate());
           return yield* playAgain(i, control.matchId);
         case "LinkSteam":
