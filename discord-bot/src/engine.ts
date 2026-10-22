@@ -827,6 +827,15 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
               null,
               matchId,
             );
+            yield* surface.post(
+              matchId,
+              ThreadPost.PlayingAgain({
+                by: creator,
+                skin: yield* skinOf(creator),
+                others: finished.players.filter((p) => p.discordId !== discordId),
+                minutes: finished.minutes,
+              }),
+            );
             return { lobbyId: lobby.id, opened: true };
           }),
         );

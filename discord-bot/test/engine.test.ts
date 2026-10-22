@@ -1083,4 +1083,60 @@ describe("Play again", () => {
       expect(tags(yield* h.surface.posts(first.lobbyId))).toEqual(["Opened", "Joined", "Joined"]);
     }),
   );
+
+  it.scoped("tells the finished Match's thread who opened it, pinging its other Players", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const before = (yield* h.surface.posts(id)).length;
+      yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      const after = (yield* h.surface.posts(id)).slice(before);
+      expect(after).toEqual([
+        ThreadPost.PlayingAgain({ by: BOB, skin: null, others: [ALICE], minutes: 10 }),
+      ]);
+    }),
+  );
+
+  it.scoped("is for a finished Match only, and for a Player free to play", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const live = yield* h.engine.openInvite(CARA.discordId, public1v1);
+      expect((yield* Effect.flip(h.engine.playAgain(DAN.discordId, live)))._tag).toBe(
+        "NotAllowed",
+      );
+      // Cara is in her own Invite: she can neither open the Lobby nor join it.
+      expect((yield* Effect.flip(h.engine.playAgain(CARA.discordId, id)))._tag).toBe("Busy");
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      expect((yield* Effect.flip(h.engine.playAgain(CARA.discordId, id)))._tag).toBe("Busy");
+      expect((yield* Effect.flip(h.engine.playAgain(UNLINKED, id)))._tag).toBe("NotLinked");
+    }),
+  );
+
+  it.scoped("finds its Lobby again after a restart, and opens a fresh one once that is gone", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const first = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.restart("1 minute");
+      expect(yield* h.engine.playAgain(ALICE.discordId, id)).toEqual({
+        lobbyId: first.lobbyId,
+        opened: false,
+      });
+      yield* h.engine.cancel(BOB.discordId, first.lobbyId);
+      const fresh = yield* h.engine.playAgain(ALICE.discordId, id);
+      expect(fresh.opened).toBe(true);
+      expect(fresh.lobbyId).not.toBe(first.lobbyId);
+    }),
+  );
+
+  it.scoped("joins its Lobby once live, as a late join", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.start(BOB.discordId, lobbyId);
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      const card = Option.getOrThrow(yield* h.surface.card(lobbyId));
+      expect(card.state).toBe("live");
+      expect(card.players.map((p) => p.discordId)).toEqual([BOB.discordId, ALICE.discordId]);
+    }),
+  );
 });
