@@ -53,7 +53,7 @@ bot is in is a Venue it set up itself (spec #321, `src/venues.ts`), named by the
 which is the key stored on its Matches.
 
 A server becomes a Venue by inviting the bot. The production app is private, so only Will can
-invite it, and any server it is in becomes a Venue. The invite link is
+invite it, and any server it is invited to becomes a Venue. The invite link is
 
 ```
 https://discord.com/oauth2/authorize?client_id=<DISCORD_APPLICATION_ID>&scope=bot%20applications.commands&permissions=326686198800
@@ -61,8 +61,9 @@ https://discord.com/oauth2/authorize?client_id=<DISCORD_APPLICATION_ID>&scope=bo
 
 (scopes `bot applications.commands`; permissions `326686198800` are the channel permissions the
 bot checks for, Mention @everyone, @here and All Roles, Manage Roles and Manage Channels). The
-moment it joins (the Guilds intent's guild create event), or at startup for a server it is
-already in, the bot sets the server up:
+moment it joins (the Guilds intent's guild create event) the bot sets the server up. At startup
+only servers already stored as Venues are picked up (and repaired): a server the bot was in
+before is set up only once it is invited again, so a deploy never adds a channel nobody asked for.
 
 - **Channel:** a text channel named `multiballs`, reused if there is one, else created. @everyone
   is denied Send Messages (members talk in Match Threads), and the bot's own member is allowed
@@ -79,7 +80,7 @@ the bot stops being a running Venue; its row stays, so inviting it again picks i
 setup rules are tested on a fake server behind the `SetupGuild` port (`test/venues.test.ts`);
 `src/discord/setupGuild.ts` is the port on discord.js, checked live by inviting the dev app to a
 second server while `pnpm dev` runs. The dev app's home is the test server, so `pnpm dev` and
-the sandbox set nothing up there; any other server the dev app is in gets set up as a Venue too.
+the sandbox set nothing up there.
 
 Each Venue has its own Footer, Cards and Match Threads (a `venue_layouts` row each, behind the
 router in `src/discord/surface.ts`), its own queue (a Match's `venue`), its own ping role and its

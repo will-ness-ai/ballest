@@ -317,8 +317,11 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       Stream.runForEach(({ joined, guild }) => (joined ? join(guild) : leave(guild))),
       Effect.forkScoped,
     );
-    // Every server the bot is in already, before the Surface draws any Footer.
-    for (const guild of ready.guilds.cache.values()) yield* join(guild);
+    // Every server already a Venue, before the Surface draws any Footer. A server the bot was in
+    // before Venues set themselves up becomes one only when it is invited again, so a deploy never
+    // adds a channel to a server nobody asked for.
+    for (const guild of ready.guilds.cache.values())
+      if (Option.isSome(yield* records.byGuild(guild.id))) yield* join(guild);
 
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
