@@ -456,12 +456,7 @@ describe("the collage's variations", () => {
 
   test("can be narrowed to some controls", () => {
     const rows = variationsOf(gen("house"), ["roof"]);
-    expect(rows.map((r) => r.label)).toEqual([
-      "defaults",
-      "Roof Gable",
-      "Roof Hip",
-      "Roof Flat",
-    ]);
+    expect(rows.map((r) => r.label)).toEqual(["defaults", "Roof Gable", "Roof Hip", "Roof Flat"]);
   });
 
   test("each make a file within the game's limit, for every Generator", () => {
