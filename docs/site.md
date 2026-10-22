@@ -210,8 +210,9 @@ answers with in Discord (spec #323; grill-design K5 with its date as T1, prototy
 minutes only (`s-maxage=300`), since the Chosen Skin and the Steam avatar on it change between
 Refreshes, and not at all (`no-store`) when it was drawn without a picture it should have had:
 the Skin's or the avatar's failed to load, so the next press draws it again. A Steam ID that
-names nobody is a 404. `lib/stat-card.ts` decides what it says,
-`components/share/StatCard.tsx` draws it with `Card.tsx`'s colours, marble and fonts.
+names nobody is a 404. `lib/stat-card.ts` decides what it says, and
+`components/share/StatCard.tsx` loads its pictures and draws it with `Card.tsx`'s colours,
+marble and fonts.
 
 - A frame and glow in the player's hue, and their ball at 400px: their Chosen Skin's
   picture, else their hue marble, with their Steam avatar as a 130px badge on its lower

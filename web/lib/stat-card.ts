@@ -22,6 +22,8 @@ export interface StatCard {
   hue: number;
   /* the Chosen Skin's asset, whose picture the ball wears, or null for the hue marble */
   skin: string | null;
+  /* the Steam avatar's address, as the boards have it, badged on the ball; null for none */
+  avatar: string | null;
   /* only the rows the player has: a missing rank or a count of zero is left out */
   rows: Array<StatRow>;
   /* the Refresh the numbers are from, "22 OCT 2026" */
@@ -62,6 +64,7 @@ export function statCard(
     name: personaOf(rec.who),
     hue: hueFor(rec.id),
     skin: (chosenSkin ? SKINS.get(chosenSkin) : undefined) ?? null,
+    avatar: rec.who.avatar ?? null,
     rows: rows.flatMap(([kind, label, value]) => (value ? [{ kind, label, value }] : [])),
     date: cardDate(asOf),
   };

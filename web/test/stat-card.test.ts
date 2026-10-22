@@ -113,6 +113,15 @@ describe("a Stat Card", () => {
     expect(statCard(record({}), ASOF, "/Game/Nope.Nope").skin).toBeNull();
   });
 
+  test("badges the player's Steam avatar, and none for a player without one", () => {
+    const rae = record({});
+    expect(statCard(rae, ASOF, undefined).avatar).toBeNull();
+    rae.who.avatar = "https://avatars.steamstatic.com/rae_medium.jpg";
+    expect(statCard(rae, ASOF, undefined).avatar).toBe(
+      "https://avatars.steamstatic.com/rae_medium.jpg",
+    );
+  });
+
   test("is dated with the Refresh's day in UTC", () => {
     expect(statCard(record({}), ASOF, undefined).date).toBe("22 OCT 2026");
   });

@@ -1,11 +1,13 @@
-// Draws a StatCard (lib/stat-card.ts) as the 720×1060 portrait PNG See my stats answers
-// with, through next/og like Card.tsx and under the same limits (no WebP, no oklch). The
-// grill-design winner K5 with its date as T1 (prototype branch claude/prototype-statcard):
-// a frame and glow in the player's hue, their ball huge with their Steam avatar as a badge,
-// their name, the rows they have, and the date and the brand along the foot.
+// Draws a StatCard (lib/stat-card.ts), with the pictures it names, as the 720×1060 portrait
+// PNG See my stats answers with, through next/og like Card.tsx and under the same limits (no
+// WebP, no oklch). The grill-design winner K5 with its date as T1 (prototype branch
+// claude/prototype-statcard): a frame and glow in the player's hue, their ball huge with their
+// Steam avatar as a badge, their name, the rows they have, and the date and the brand along the
+// foot.
 import type { StatCard, StatRowKind } from "../../lib/stat-card";
 import { SITE_NAME } from "../../lib/rules";
 import { Ball, C, pngOf } from "./Card";
+import { fullAvatar, remote, skinShot } from "./pictures";
 
 const W = 720;
 const H = 1060;
@@ -236,15 +238,16 @@ function Portrait({
 const CARD_CACHE = "public, max-age=300, s-maxage=300";
 const NO_STORE = "no-store";
 
-/* The card as a PNG response. skin is the Chosen Skin's picture and face the Steam avatar, as
-   data: URLs or null, and whole says neither that should be there failed to load. One Satori
-   can't read draws the card without either, rather than a 500. */
-export async function drawStatCard(
-  card: StatCard,
-  skin: string | null,
-  face: string | null,
-  whole: boolean,
-) {
+/* The card as a PNG response, drawn with the pictures it names: its Skin's and its Steam
+   avatar, each left off when it fails to load. A card drawn without one it should have had
+   is never kept (NO_STORE), and one Satori can't read draws the card without either, rather
+   than a 500. */
+export async function drawStatCard(card: StatCard) {
+  const [skin, face] = await Promise.all([
+    card.skin ? skinShot(card.skin) : null,
+    remote(fullAvatar(card.avatar)),
+  ]);
+  const whole = (!card.skin || skin !== null) && (!card.avatar || face !== null);
   try {
     return await pngOf(
       <Portrait card={card} skin={skin} face={face} />,
