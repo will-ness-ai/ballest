@@ -35,7 +35,8 @@ export type View =
   | "daily"
   | "prefab"
   | "prefabs"
-  | "you";
+  | "you"
+  | "link";
 
 /* the Workshop is the homepage, so its tab leads and the Daily, a Map a day, follows it;
    the Circuit opens on its newest season's Overall board, and Players, over every board,

@@ -16,7 +16,9 @@
 // wide floor); in stress tiny's Marble Run. UPLOADER is PREFAB's uploader, whose own player
 // page opens the Chosen Skin picker (tiny's p1, who chose Cosmic), and ADMIN the Prefab
 // admin (ADMIN_STEAM_ID in lib/prefabs.ts), whom a row's `as` signs in as: only a local build's
-// secret is known (scripts/qa/session.mjs), so `real` has neither.
+// secret is known (scripts/qa/session.mjs), so `real` has neither. LINK is a link request's
+// token for the link page (tiny's, dated far ahead); production's live only minutes, so `real`
+// has none and draws the page as a link that doesn't work.
 export const IDS = {
   real: {
     RANKED: "76561198259485267",
@@ -41,6 +43,7 @@ export const IDS = {
     MAP3D: "9000000001",
     UPLOADER: "76561199000000001",
     ADMIN: "76561198047685844",
+    LINK: "5eed0000000000000000000000000001",
   },
 };
 
@@ -85,6 +88,9 @@ export const PAGES = [
   { name: "prefab-owner", path: "/prefab/{PREFAB}", as: "UPLOADER" },
   { name: "prefab-admin", path: "/prefab/{PREFAB}", as: "ADMIN" },
   { name: "player-own", path: "/player/{UPLOADER}", as: "UPLOADER" },
+  { name: "link-bad", path: "/discord/link?t=nope" },
+  { name: "link", path: "/discord/link?t={LINK}" },
+  { name: "link-confirm", path: "/discord/link?t={LINK}", as: "UPLOADER" },
   { name: "stat-card", path: "/og/stats/{RANKED}?v=1", minWidth: 820 },
   { name: "notfound", path: "/no-such-page", status: 404 },
 ];

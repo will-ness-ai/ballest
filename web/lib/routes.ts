@@ -225,6 +225,11 @@ export const signInHref = (next: string) => "/api/auth/steam?next=" + encodeURIC
 /* sign out (a POST), coming back to the path `next` */
 export const signOutHref = (next: string) => "/api/auth/signout?next=" + encodeURIComponent(next);
 
+/* the link page for a link request Multiballs wrote (ADR 0014), and its confirm (a POST) */
+export const statsLinkHref = (token: string) => "/discord/link?t=" + encodeURIComponent(token);
+export const statsLinkConfirmHref = (token: string) =>
+  "/api/discord/link?t=" + encodeURIComponent(token);
+
 /* The single-page site's #/ routes, each to the path that replaces it, or null for a hash
    that named nothing (the page then stays where it is). */
 const ID = STEAM_ID.source;
