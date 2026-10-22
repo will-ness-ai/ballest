@@ -9,25 +9,27 @@ import { stillOf } from "../scene";
 import { generate, generatorOf, variationsOf, type Values } from "../../../lib/generators";
 import type { PrefabAngle } from "../../../lib/prefabs";
 
+/* where each column's camera looks from, the whole Prefab in view */
+const view = (from: PrefabAngle["from"]): PrefabAngle => ({ from, zoom: 1, pan: [0, 0, 0] });
 const ANGLES: ReadonlyArray<[string, PrefabAngle]> = [
-  ["front", { from: [-0.75, 0.45, 0.5], zoom: 1, pan: [0, 0, 0] }],
-  ["back", { from: [0.7, 0.4, -0.6], zoom: 1, pan: [0, 0, 0] }],
-  ["above", { from: [-0.15, 0.98, 0.1], zoom: 1, pan: [0, 0, 0] }],
+  ["front", view([-0.75, 0.45, 0.5])],
+  ["back", view([0.7, 0.4, -0.6])],
+  ["above", view([-0.15, 0.98, 0.1])],
 ];
 
 function Tile({
-  g,
+  generator,
   values,
   angle,
   done,
 }: {
-  g: string;
+  generator: string;
   values: Values;
   angle: PrefabAngle;
   done: () => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
-  const file = useMemo(() => generate(g, values), [g, values]);
+  const file = useMemo(() => generate(generator, values), [generator, values]);
   useEffect(() => {
     if (!file) {
       done();
@@ -65,26 +67,17 @@ export function GeneratorCollage() {
   const [drawn, setDrawn] = useState(0);
   const gen = query ? generatorOf(query.g) : null;
   /* each row's values made once, so a tile draws once */
-  const rows = useMemo(
-    () =>
-      gen
-        ? variationsOf(gen, query?.only).map(([label, change]): [string, Values] => [
-            label,
-            { ...gen.defaults, ...change },
-          ])
-        : [],
-    [gen, query],
-  );
+  const rows = useMemo(() => (gen ? variationsOf(gen, query?.only) : []), [gen, query]);
   const done = useCallback(() => setDrawn((n) => n + 1), []);
   if (!query) return null;
   if (!gen) return <p className="gen-collage">?g= one of the Generators&apos; keys</p>;
   return (
     <div className="gen-collage" data-ready={drawn >= rows.length * ANGLES.length || undefined}>
-      {rows.map(([label, values]) => (
+      {rows.map(({ label, values }) => (
         <div key={label} className="gen-collage-row">
           <b>{label}</b>
           {ANGLES.map(([name, angle]) => (
-            <Tile key={name} g={gen.key} values={values} angle={angle} done={done} />
+            <Tile key={name} generator={gen.key} values={values} angle={angle} done={done} />
           ))}
         </div>
       ))}

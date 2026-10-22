@@ -441,13 +441,17 @@ describe("the pages", () => {
 describe("the collage's variations", () => {
   test("are the defaults, then each control pushed to each end, each option and each switch", () => {
     const rows = variationsOf(gen("castle"));
-    const labels = rows.map(([label]) => label);
+    const labels = rows.map((r) => r.label);
     expect(labels[0]).toBe("defaults");
     expect(labels).toContain("Size 10 m");
     expect(labels).toContain("Size 80 m");
     expect(labels).toContain("Corner towers off");
     expect(labels).not.toContain("Stone");
-    for (const [, change] of rows) expect(Object.keys(change).length).toBeLessThanOrEqual(1);
+    const defaults = gen("castle").defaults;
+    for (const { values } of rows)
+      expect(
+        Object.keys(values).filter((k) => values[k] !== defaults[k]).length,
+      ).toBeLessThanOrEqual(1);
   });
 
   test("can be narrowed to some controls", () => {
@@ -462,8 +466,8 @@ describe("the collage's variations", () => {
 
   test("each make a file within the game's limit, for every Generator", () => {
     for (const g of GENERATORS)
-      for (const [label, change] of variationsOf(g)) {
-        const file = generate(g.key, { ...g.defaults, ...change });
+      for (const { label, values } of variationsOf(g)) {
+        const file = generate(g.key, values);
         if (file) expect(file.items.length, `${g.key} ${label}`).toBeLessThanOrEqual(PIECE_LIMIT);
       }
   });

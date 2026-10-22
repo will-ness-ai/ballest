@@ -26,18 +26,20 @@ ap = argparse.ArgumentParser()
 ap.add_argument("slot", type=int)
 ap.add_argument("key")
 ap.add_argument("change", nargs="?", default="{}")
+# sandbox.py lives on the plugin manager fork's sandbox-tools branches (docs/agents/plugins.md)
+CHECKOUTS = ["../bpm-sandbox-tools/tools/sandbox.py", "../ballest-plugin-manager/tools/sandbox.py"]
 ap.add_argument(
     "--sandbox",
-    default="../ballest-plugin-manager/tools/sandbox.py",
-    help="sandbox.py (docs/agents/plugins.md says which checkout has it)",
+    default=next((p for p in CHECKOUTS if Path(p).is_file()), CHECKOUTS[0]),
+    help="sandbox.py; the first of " + ", ".join(CHECKOUTS) + " that exists",
 )
-a = ap.parse_args()
+args = ap.parse_args()
 
 # a name the console can type: letters and digits only (an underscore needs shift)
-name = "gen" + re.sub(r"[^a-z0-9]", "", a.key.lower())
+name = "gen" + re.sub(r"[^a-z0-9]", "", args.key.lower())
 folder = (
     Path(os.environ["LOCALAPPDATA"])
-    / f"BallestTest{a.slot}"
+    / f"BallestTest{args.slot}"
     / "UserDir"
     / "Saved"
     / "SaveGames"
@@ -49,8 +51,8 @@ subprocess.run(  # noqa: S603 (web's tsx with our own arguments)
     [
         str(tsx),
         ".claude/skills/prefab-generators/write-prefab.ts",
-        a.key,
-        a.change,
+        args.key,
+        args.change,
         str(folder / f"{name}.json"),
     ],
     check=True,
@@ -75,11 +77,11 @@ lines = [
 with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
     f.write("\n".join(lines) + "\n")
 run = subprocess.run(  # noqa: S603 (sandbox.py with our own arguments)
-    [sys.executable, a.sandbox, "run", str(a.slot), "--file", f.name],
+    [sys.executable, args.sandbox, "run", str(args.slot), "--file", f.name],
     capture_output=True,
     text=True,
     check=False,
 )
 os.unlink(f.name)
-m = re.search(r'"?([A-Za-z]:\\[^"\n]*' + re.escape(shot) + r"\.png)", run.stdout)
-print(m.group(1).replace("\\\\", "\\") if m else run.stdout + run.stderr)
+found = re.search(r'"?([A-Za-z]:\\[^"\n]*' + re.escape(shot) + r"\.png)", run.stdout)
+print(found.group(1).replace("\\\\", "\\") if found else run.stdout + run.stderr)
