@@ -112,8 +112,8 @@ export const skinPictureResponses = (pngs: ReadonlyMap<string, Uint8Array>) => {
 };
 
 /**
- * What the Activity is started with: the running Venues, read as they are at each request (servers
- * start and stop while the bot runs), and the page's other settings.
+ * What the Activity is started with: the running Venues, read at each request, and the page's
+ * other settings.
  */
 export type ActivityConfig = Omit<PageConfig, "guildIds"> & {
   readonly venues: Effect.Effect<ReadonlyArray<ActivityVenue>>;

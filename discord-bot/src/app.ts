@@ -24,6 +24,7 @@ import { OpsAlerts, OpsLive } from "./ops.js";
 import { Pings } from "./pings.js";
 import { MapPreviews, PreviewSourceLive } from "./previews.js";
 import { Renderer } from "./render/renderer.js";
+import { RestartLive } from "./restart.js";
 import { SkinPictures } from "./render/skins.js";
 import { SqliteStoreLive } from "./sqliteStore.js";
 import { VenueRecordsLive } from "./venues.js";
@@ -65,11 +66,10 @@ const ActivityLive = Layer.unwrapEffect(
     const secret = yield* Config.option(Config.redacted("DISCORD_CLIENT_SECRET"));
     if (Option.isNone(secret)) return Layer.empty;
     const clientId = yield* Config.string("DISCORD_APPLICATION_ID");
-    // Every running Venue's server as it is now: a server left out, or that removed the bot, is
-    // turned away like any server.
+    // Every running Venue's server: a server left out is turned away like any server.
     const discord = yield* Discord;
-    const venues = Effect.map(discord.running, (running) =>
-      running.map((v) => ({
+    const venues = Effect.succeed(
+      discord.running.map((v) => ({
         name: v.name,
         guildId: v.channel.guildId,
         channelId: v.channel.id,
@@ -106,6 +106,7 @@ const SqlLive = SqliteClient.layerConfig({
 const SurfaceLive = ChannelSurfaceLive.pipe(
   Layer.provide(VenueChannelsLive),
   Layer.provide(Marbles.Default),
+  Layer.provide(OpsAlerts.Default),
 );
 
 // One preview cache for both surfaces: the Card and the Activity show the same Workshop art.
@@ -119,9 +120,13 @@ const portsLive = <E, R>(steam: Layer.Layer<Steam, E, R>) =>
     Layer.provideMerge(SkinPictures.Default),
     Layer.provideMerge(ChosenSkinsLive),
     // A server that can't be set up as a Venue is left out with a line to ops; the Venues the bot
-    // set up itself are kept in SQLite.
+    // set up itself are kept in SQLite, and a change to them restarts the bot.
     Layer.provideMerge(
-      Discord.Default.pipe(Layer.provide(OpsAlerts.Default), Layer.provide(VenueRecordsLive)),
+      Discord.Default.pipe(
+        Layer.provide(OpsAlerts.Default),
+        Layer.provide(VenueRecordsLive),
+        Layer.provide(RestartLive),
+      ),
     ),
     Layer.provideMerge(SqlLive),
   );

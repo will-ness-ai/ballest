@@ -1,17 +1,7 @@
 // A Venue's Match channel, as the Surface sees it: messages and Match Threads to draw things in.
 // It speaks in what to draw, not how, so the Surface's rules run against an in-memory channel
 // in tests; this adapter draws each one with the renderer and runs it on discord.js.
-import {
-  Context,
-  Data,
-  Effect,
-  ExecutionStrategy,
-  Exit,
-  Layer,
-  Option,
-  Scope,
-  Stream,
-} from "effect";
+import { Context, Data, Effect, ExecutionStrategy, Layer, Option, Scope } from "effect";
 import type { MapInfo, VenueName } from "../domain.js";
 import type { CardView, KeptReason, ThreadPost } from "../ports.js";
 import { MapPreviews } from "../previews.js";
@@ -21,7 +11,7 @@ import {
   type DiscordError,
   type DiscordVenue,
   isUnknown,
-  isUnknownChannel,
+  isUnknownMessage,
   tryDiscord,
 } from "./client.js";
 import { Marbles } from "./marbles.js";
@@ -50,11 +40,8 @@ export const Drawing = Data.taggedEnum<Drawing>();
 /** The message or thread was deleted (by hand, or before a restart). */
 export class Gone extends Data.TaggedError("Gone")<{ readonly id: string }> {}
 
-/** The Venue's channel itself was deleted (by hand): nothing can be drawn there until it is set up again. */
-export class ChannelGone extends Data.TaggedError("ChannelGone") {}
-
 /** Anything a channel operation can fail with. */
-export type ChannelError = Gone | ChannelGone | DiscordError | RenderError;
+export type ChannelError = Gone | DiscordError | RenderError;
 
 /** One Venue's channel. */
 export interface Channel {
@@ -62,9 +49,7 @@ export interface Channel {
    * Post a message; its id. A posted Lobby Card is the one draw that pings @Multiplayer ping,
    * since Discord only notifies a mention on the post that creates a message.
    */
-  readonly post: (
-    drawing: Drawing,
-  ) => Effect.Effect<string, ChannelGone | DiscordError | RenderError>;
+  readonly post: (drawing: Drawing) => Effect.Effect<string, DiscordError | RenderError>;
   /**
    * What a drawing looks like as a hash of the message it becomes, so a message already showing
    * it is left alone: equal fingerprints draw the same message.
@@ -96,25 +81,13 @@ export interface Channel {
     post: ThreadPost,
   ) => Effect.Effect<void, ChannelError>;
   /** The id of the channel's newest message, whoever posted it. */
-  readonly lastMessageId: Effect.Effect<string | null, ChannelGone | DiscordError>;
+  readonly lastMessageId: Effect.Effect<string | null, DiscordError>;
 }
 
-/**
- * Every running Venue's channel by its Venue's name, home first. Venues start and stop while the
- * bot runs (a server invites or removes it), so this is the running set now and each change.
- */
+/** Every running Venue's channel by its Venue's name, home first; fixed until the bot restarts. */
 export class VenueChannels extends Context.Tag("multiballs/VenueChannels")<
   VenueChannels,
-  {
-    readonly now: Effect.Effect<ReadonlyMap<VenueName, Channel>>;
-    /** The running set now, then again each time a Venue starts or stops. */
-    readonly changes: Stream.Stream<ReadonlyMap<VenueName, Channel>>;
-    /**
-     * The Venue's channel is gone: it stops running, so the bot sets it up again (a new channel)
-     * on its next retry. The home Venue runs on regardless.
-     */
-    readonly gone: (venue: VenueName) => Effect.Effect<void>;
-  }
+  { readonly all: ReadonlyMap<VenueName, Channel> }
 >() {}
 
 /** Like goneIfUnknown, but passes a Gone from an earlier step through. */
@@ -128,10 +101,6 @@ const goneIfUnknown =
   (e: DiscordError): Effect.Effect<never, Gone | DiscordError> =>
     isUnknown(e) ? Effect.fail(new Gone({ id })) : Effect.fail(e);
 
-/** Discord's "Unknown Channel" error, on a call to the channel itself: the channel was deleted. */
-const channelGoneIfUnknown = (e: DiscordError): Effect.Effect<never, ChannelGone | DiscordError> =>
-  isUnknownChannel(e) ? Effect.fail(new ChannelGone()) : Effect.fail(e);
-
 /** A Venue's channel on discord.js: its Players named as in its server, its ping role in Lobby Cards. */
 const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenue) {
   const renderer = yield* Renderer;
@@ -142,9 +111,12 @@ const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenu
   // In the background: startup doesn't wait on a few hundred message reads.
   yield* Effect.forkScoped(notices.sweep());
 
+  // Only Unknown Message: Unknown Channel means the channel itself is gone, which the Surface tells ops.
   const fetchMessage = (id: string) =>
     tryDiscord("fetch message", () => channel.messages.fetch(id)).pipe(
-      Effect.catchAll((e) => goneIfUnknown(id)(e)),
+      Effect.catchAll((e): Effect.Effect<never, Gone | DiscordError> =>
+        isUnknownMessage(e) ? Effect.fail(new Gone({ id })) : Effect.fail(e),
+      ),
     );
   const fetchThread = (id: string) =>
     tryDiscord("fetch thread", () => channel.threads.fetch(id)).pipe(
@@ -211,11 +183,7 @@ const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenu
   return {
     post: (drawing) =>
       render(drawing, true).pipe(
-        Effect.flatMap((message) =>
-          tryDiscord("post", () => channel.send(message)).pipe(
-            Effect.catchAll((e) => channelGoneIfUnknown(e)),
-          ),
-        ),
+        Effect.flatMap((message) => tryDiscord("post", () => channel.send(message))),
         Effect.map((m) => m.id),
       ),
     fingerprint: (drawing) =>
@@ -282,55 +250,25 @@ const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenu
     }),
     lastMessageId: tryDiscord("fetch last message", () =>
       channel.messages.fetch({ limit: 1 }),
-    ).pipe(
-      Effect.catchAll((e) => channelGoneIfUnknown(e)),
-      Effect.map((ms) => ms.first()?.id ?? null),
-    ),
+    ).pipe(Effect.map((ms) => ms.first()?.id ?? null)),
   } satisfies Channel;
 });
 
-/** Every running Venue's channel, following the Discord service's running Venues. */
+/** Every running Venue's channel, each made once in a scope of its own (its notices sweep's). */
 export const VenueChannelsLive = Layer.scoped(
   VenueChannels,
   Effect.gen(function* () {
     const discord = yield* Discord;
     const needs = yield* Effect.context<Renderer | MapPreviews | Marbles>();
     const layerScope = yield* Effect.scope;
-    /**
-     * Each running Venue's Channel, made once each time it starts, in a scope of its own that
-     * closes when it stops (ending its notices sweep).
-     */
-    const made = new Map<
-      DiscordVenue,
-      { readonly channel: Channel; readonly scope: Scope.CloseableScope }
-    >();
-    const lock = yield* Effect.makeSemaphore(1);
-    const channelsOf = Effect.fn("channelsOf")(function* (venues: ReadonlyArray<DiscordVenue>) {
-      for (const [venue, { scope }] of [...made])
-        if (!venues.includes(venue)) {
-          made.delete(venue);
-          yield* Scope.close(scope, Exit.void);
-        }
-      const channels = new Map<VenueName, Channel>();
-      for (const venue of venues) {
-        let entry = made.get(venue);
-        if (entry === undefined) {
-          const scope = yield* Scope.fork(layerScope, ExecutionStrategy.sequential);
-          const channel = yield* discordChannel(venue).pipe(
-            Scope.extend(scope),
-            Effect.provide(needs),
-          );
-          entry = { channel, scope };
-          made.set(venue, entry);
-        }
-        channels.set(venue.name, entry.channel);
-      }
-      return channels;
-    }, lock.withPermits(1));
-    return VenueChannels.of({
-      now: Effect.flatMap(discord.running, (venues) => channelsOf(venues)),
-      changes: Stream.mapEffect(discord.changes, (venues) => channelsOf(venues)),
-      gone: (venue) => discord.channelGone(venue),
-    });
+    const all = new Map<VenueName, Channel>();
+    for (const venue of discord.running) {
+      const scope = yield* Scope.fork(layerScope, ExecutionStrategy.sequential);
+      all.set(
+        venue.name,
+        yield* discordChannel(venue).pipe(Scope.extend(scope), Effect.provide(needs)),
+      );
+    }
+    return VenueChannels.of({ all });
   }),
 );

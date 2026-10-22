@@ -3,10 +3,10 @@
 //
 // The home Venue is given by its ids, and at startup the bot checks it can do everything it needs
 // there; failing that stops the bot. Every server that invites the bot it sets up as a Venue itself
-// (spec #321, the rules in src/venues.ts): it makes or reuses the channel and the ping role there,
-// checks them the same way, and starts the Venue at once. One it can't set up yet, or that fails
-// its check, is tried again every few minutes (ops told once per reason) while the bot runs on;
-// one the bot is removed from stops running. The sandbox sets up nothing: `pnpm dev` does that.
+// (spec #321, the rules in src/venues.ts): it makes or reuses the channel and the ping role there
+// and checks them the same way, at startup, one server at a time. The running Venues are then
+// fixed: an invite, a left-out server that now sets up (tried every few minutes, ops told once per
+// kind of reason), or a removal restarts the bot. The sandbox sets up nothing: `pnpm dev` does that.
 import {
   ChannelType,
   Client,
@@ -18,19 +18,10 @@ import {
   type Message,
   type TextChannel,
 } from "discord.js";
-import {
-  Config,
-  type Context,
-  Data,
-  Effect,
-  Option,
-  Redacted,
-  Schedule,
-  Stream,
-  SubscriptionRef,
-} from "effect";
+import { Config, type Context, Data, Effect, Option, Redacted, Schedule, Stream } from "effect";
 import { HOME_VENUE, type VenueName } from "../domain.js";
 import { OpsAlerts } from "../ops.js";
+import { Restart } from "../restart.js";
 import {
   homeVenue,
   makeVenueJoiner,
@@ -63,6 +54,19 @@ export const oneLine = (cause: unknown): string => {
 /** A Discord failure in one line: what the bot was doing, and what Discord said. */
 export const describeDiscordError = (e: DiscordError) => `${e.op}: ${oneLine(e.cause)}`;
 
+/**
+ * What kind of Discord failure it is, steadier than its words: Discord's error code (50001 is
+ * Missing Access), else the HTTP status, so ops hears a different lasting failure apart.
+ */
+export const discordKind = (e: DiscordError) => {
+  const { cause } = e;
+  if (typeof cause !== "object" || cause === null) return "discord";
+  const plain = (v: unknown) => (typeof v === "number" || typeof v === "string" ? v : undefined);
+  const code = "code" in cause ? plain(cause.code) : undefined;
+  const status = "status" in cause ? plain(cause.status) : undefined;
+  return `discord ${code ?? status ?? ""}`.trim();
+};
+
 /** Discord's "Unknown Member" and "Unknown User" errors: nobody by that id is in the server. */
 const isNotMember = (e: DiscordError) =>
   typeof e.cause === "object" &&
@@ -73,6 +77,10 @@ const isNotMember = (e: DiscordError) =>
 /** Discord's "Unknown Channel" error: the channel was deleted. */
 export const isUnknownChannel = (e: DiscordError) =>
   typeof e.cause === "object" && e.cause !== null && "code" in e.cause && e.cause.code === 10003;
+
+/** Discord's "Unknown Message" error: the message was deleted. */
+export const isUnknownMessage = (e: DiscordError) =>
+  typeof e.cause === "object" && e.cause !== null && "code" in e.cause && e.cause.code === 10008;
 
 /** Discord's "Unknown Message" and "Unknown Channel" errors: the thing was already deleted. */
 export const isUnknown = (e: DiscordError) =>
@@ -199,7 +207,7 @@ export const checkVenue = Effect.fn("checkVenue")(
     return running;
   },
   Effect.catchTag("DiscordError", (e) =>
-    Effect.fail(new VenueCheckFailed({ reason: describeDiscordError(e), kind: "discord" })),
+    Effect.fail(new VenueCheckFailed({ reason: describeDiscordError(e), kind: discordKind(e) })),
   ),
 );
 
@@ -212,41 +220,38 @@ const isIn = (venue: DiscordVenue, i: Interaction) =>
 const RETRY_EVERY = "5 minutes";
 
 /**
- * Make Venues of the servers the bot is invited to (`makeVenueJoiner`), and stop those it is
- * removed from: at startup (in the background, so home comes up at once), on each join, when a
- * server comes back from an outage, and every few minutes, which also picks up a server whose
- * permissions were fixed (re-authorizing an invite fires no join). Runs in the caller's scope;
- * returns how to stop a Venue whose channel is gone, so the next retry repairs it.
+ * Set up the Venues of the servers the bot is invited to (`makeVenueJoiner`), one at a time, and
+ * return them; then follow each join, each server back from an outage, and every few minutes
+ * (which picks up a server whose permissions were fixed: re-authorizing an invite fires no join),
+ * restarting the bot when one would change the running Venues. Runs in the caller's scope.
  */
 const followServers = Effect.fn("followServers")(function* (
   client: Client<true>,
   homeGuildId: string,
-  running: SubscriptionRef.SubscriptionRef<ReadonlyMap<VenueName, DiscordVenue>>,
   records: Context.Tag.Service<typeof VenueRecords>,
   alert: (message: string) => Effect.Effect<void>,
+  restart: (why: string) => Effect.Effect<void>,
 ) {
-  const joiner = yield* makeVenueJoiner(homeGuildId, (venue) => checkVenue(client, venue), alert, {
-    has: (name) => Effect.map(SubscriptionRef.get(running), (all) => all.has(name)),
-    start: (name, venue) => SubscriptionRef.update(running, (all) => new Map(all).set(name, venue)),
-    stop: (name) =>
-      SubscriptionRef.update(running, (all) => {
-        if (!all.has(name)) return all;
-        const next = new Map(all);
-        next.delete(name);
-        return next;
-      }).pipe(Effect.zipRight(Effect.log(`Venue ${name} stopped`))),
-  }).pipe(Effect.provideService(VenueRecords, records));
+  const joiner = yield* makeVenueJoiner(
+    homeGuildId,
+    (venue) => checkVenue(client, venue),
+    alert,
+    restart,
+  ).pipe(Effect.provideService(VenueRecords, records));
   // The joiner tries each server on its own and logs a bug in one; this keeps a bug outside that
-  // (its database reads) from ending the event, startup and retry fibers.
+  // (its database reads) from ending the event and retry fibers.
   const guarded = (what: string, effect: Effect.Effect<void>) =>
     effect.pipe(Effect.catchAllDefect((defect) => Effect.logError(`${what} failed`, defect)));
+
+  const everyServer = () => [...client.guilds.cache.values()].map((g) => setupGuildOn(client, g));
+  const venues = yield* joiner.startup(everyServer());
 
   interface ServerEvent {
     readonly _tag: "Invited" | "Available" | "Removed";
     readonly guild: Guild;
   }
   // discord.js reports a server that is only unavailable (an outage) apart from one the bot was
-  // removed from, so an outage stops no Venue.
+  // removed from, so an outage restarts nothing.
   const events = Stream.asyncPush<ServerEvent>((emit) =>
     Effect.acquireRelease(
       Effect.sync(() => {
@@ -281,15 +286,11 @@ const followServers = Effect.fn("followServers")(function* (
     ),
     Effect.forkScoped,
   );
-  const everyServer = () => [...client.guilds.cache.values()].map((g) => setupGuildOn(client, g));
-  yield* guarded("setting up servers at startup", joiner.startup(everyServer())).pipe(
-    Effect.forkScoped,
-  );
   // The servers as they are at each retry.
   yield* Effect.suspend(() =>
     Effect.forEach(everyServer(), (guild) => guarded(`retrying ${guild.id}`, joiner.retry(guild))),
   ).pipe(Effect.delay(RETRY_EVERY), Effect.repeat(Schedule.spaced(RETRY_EVERY)), Effect.forkScoped);
-  return (name: VenueName) => joiner.removed(name);
+  return venues;
 });
 
 export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
@@ -306,10 +307,11 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     const sandbox = yield* Config.boolean("MULTIBALLS_SANDBOX").pipe(Config.withDefault(false));
     const alerts = yield* OpsAlerts;
     const records = yield* VenueRecords;
+    const restart = yield* Restart;
 
     const client = yield* Effect.acquireRelease(
       // GuildMessages for postsIn: only that a message arrived, never its words (no Message Content).
-      // Guilds brings the server joins and removals that start and stop the other Venues.
+      // Guilds brings the server joins and removals that restart the bot with the Venues changed.
       Effect.sync(
         () => new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] }),
       ),
@@ -334,22 +336,22 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     const homeRunning = yield* startHome(home, (venue) => checkVenue(ready, venue));
     const homeGuildId = home.guildId;
 
-    /** Every running Venue by name, home first: home always, the others as they start and stop. */
-    const running = yield* SubscriptionRef.make<ReadonlyMap<VenueName, DiscordVenue>>(
-      new Map([[HOME_VENUE, homeRunning]]),
-    );
+    // The sandbox runs beside `pnpm dev` on the same app: only `pnpm dev` sets servers up.
+    const others = sandbox
+      ? []
+      : yield* followServers(
+          ready,
+          homeGuildId,
+          records,
+          (message) => alerts.post(message),
+          (why) => restart.request(why),
+        );
+    /** Every running Venue, home first: fixed until the bot restarts. */
+    const running: ReadonlyArray<DiscordVenue> = [homeRunning, ...others];
+    const byName = new Map(running.map((v) => [v.name, v]));
 
     /** The running Venue by this name, if it runs. */
-    const venueNamed = Effect.fn("venueNamed")(function* (name: VenueName) {
-      return Option.fromNullable((yield* SubscriptionRef.get(running)).get(name));
-    });
-
-    // The sandbox runs beside `pnpm dev` on the same app: only `pnpm dev` sets servers up.
-    const stopVenue = sandbox
-      ? () => Effect.void
-      : yield* followServers(ready, homeGuildId, running, records, (message) =>
-          alerts.post(message),
-        );
+    const venueNamed = (name: VenueName) => Effect.succeed(Option.fromNullable(byName.get(name)));
 
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
@@ -364,9 +366,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       Stream.mapEffect(
         (i) =>
           Effect.gen(function* () {
-            const venue = [...(yield* SubscriptionRef.get(running)).values()].find((v) =>
-              isIn(v, i),
-            );
+            const venue = running.find((v) => isIn(v, i));
             if (venue !== undefined)
               return Option.some<VenueInteraction>({ interaction: i, venue });
             if (!sandbox && i.isRepliable())
@@ -440,23 +440,9 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     return {
       /** The game Discord's Venue: always running, or the bot wouldn't have started. */
       home: homeRunning,
-      /** Every running Venue now, home first. */
-      running: Effect.map(SubscriptionRef.get(running), (all) => [...all.values()]),
-      /** The running Venues now, then again each time one starts or stops. */
-      changes: Stream.map(running.changes, (all) => [...all.values()]),
+      /** Every running Venue, home first: fixed until the bot restarts. */
+      running,
       venueNamed,
-      /**
-       * A running Venue's channel is gone (deleted by hand): it stops running, so clicks, pings and
-       * the Activity stop offering it, and the next retry sets it up again. Home runs on regardless.
-       */
-      channelGone: Effect.fn("channelGone")(function* (name: VenueName) {
-        if (name === HOME_VENUE)
-          return yield* Effect.logWarning("the home Venue's channel is gone");
-        yield* Effect.logWarning(
-          `Venue ${name}'s channel is gone; it stops until it is set up again`,
-        );
-        yield* stopVenue(name);
-      }),
       /** Clicks from every running Venue's channel and its Match Threads, each with its Venue. */
       interactions,
       postsIn,

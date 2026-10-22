@@ -68,17 +68,26 @@ than home) and joined before `VENUES_SINCE` (2026-10-22 00:00 UTC, or at an unkn
 recorded as known but not wanted, so a deploy never adds a channel to a server nobody invited it
 to; one it joined since then (invited by hand that day) is wanted. To make one of those a Venue, remove the bot there and invite it again.
 From then on any other server is wanted: one that invites it while it runs (the Guilds intent's
-guild create event), one the bot finds at startup without knowing it (invited while it was
-down), or a not-wanted one it joined after the baseline was taken (removed and invited again
-while it was down). Startup sets servers up in the background, after home is up, so home's
-Footer and clicks never wait on another server. A wanted server is stored before it is set up, so a setup that fails (a missing
-permission, an outage) is tried again: at startup, when Discord says the server is available
-again, and every five minutes while it isn't running. Re-authorizing an invite with more
+guild create event), one the bot finds at startup or at a retry without knowing it (invited
+while it was down or starting), or a not-wanted one it joined after the baseline was taken
+(removed and invited again while it was down).
+
+**The running Venues are fixed for the life of the process.** At startup home is checked, then
+each wanted server is set up and checked one at a time, each on its own with a 30-second limit,
+before the Surface and the engine are built, so restart recovery sees every Venue that runs. A
+server that fails, takes too long or hits a bug is left out. Anything that would change the set
+restarts the bot instead (`src/restart.ts`: it ends as SIGTERM does, after at least three minutes
+up, and Fly's `[[restart]] policy = "always"` brings it back; `pnpm dev` just exits): a server
+that invites the bot, a left-out one that now sets up (tried when Discord says it is available
+again and every five minutes), each once it is set up and stored, and a running Venue's server
+that removes the bot. So an invite or a fixed permission means a quick restart, about 30 s, and
+live Matches carry on through the engine's restart recovery. Re-authorizing an invite with more
 permissions fires no event; the five-minute retry picks it up. Ops hears each kind of failure
-(a missing permission, Discord failing, a bug: "setting it up failed (see the log)") once per
-server, not at every retry. Setting servers up and removing them take one lock, so a server that
-removes the bot mid-setup never ends up running. Each setup asks only for what it does: Manage Channels to make the
-channel, Manage Roles to make the role or set a reused channel's overwrites.
+once per server, not at every retry: a missing permission, a Discord error by its code (50001
+Missing Access apart from a 500), a timeout, a bug ("setting it up failed (see the log)"); a
+server that removes the bot is forgotten, so its next failure is news. Each setup asks only for
+what it does: Manage Channels to make the channel, Manage Roles to make the role or set a reused
+channel's overwrites.
 
 The bot sets a wanted server up:
 
@@ -90,16 +99,13 @@ The bot sets a wanted server up:
 - **Stored:** the ids go in SQLite's `venues` table. At each start a stored Venue whose channel or
   role is gone is set up again the same way; one with both still there is left as it is.
 
-Then it is checked as home is, and runs at once: its Footer goes up and its clicks, ping role
-and Activity work, with no restart. If its Footer can't go up, its channel doesn't start (nobody
-could open a Match there) and the Surface tries it again every minute, as it does one that hits
-a bug starting; the other Venues start regardless (the running Venues are a live set,
-`Discord.changes`, that the Surface router, `interactions.ts`, `pingRole.ts` and the Activity
-read). A server that removes the bot stops being a running Venue; its row stays, so inviting it
-again picks it back up. A Venue whose channel is deleted while it runs (Discord's Unknown Channel
-on a post, `ChannelGone`) stops running (`VenueChannels.gone`), and the next five-minute retry
-sets it up again with a new channel; home only logs it. The
-setup rules are tested on a fake server behind the `SetupGuild` port (`test/venues.test.ts`);
+Then it is checked as home is. If its Footer can't be put right at startup (it can't be posted,
+or an old one can't be deleted), its channel doesn't start (nobody could open a Match there) and
+ops is told; the other Venues start regardless, and it is tried at the next start. Home logs
+the same and runs, as it always has. A server that removes the bot keeps its row, so inviting it
+again picks it back up. A Venue whose channel is deleted while the bot runs (Discord's Unknown
+Channel) is logged and told to ops once, and set up again with a new channel at the next start.
+The setup rules are tested on a fake server behind the `SetupGuild` port (`test/venues.test.ts`);
 `src/discord/setupGuild.ts` is the port on discord.js, checked live by inviting the dev app to a
 second server while `pnpm dev` runs. The sandbox sets no server up and ignores joins
 (`MULTIBALLS_SANDBOX`), so it and `pnpm dev` never both set one up.
@@ -114,8 +120,7 @@ Venue's Matches only, linked into its channel (#317).
 
 Each Venue is checked as it starts: its channel permissions, and its ping role. Home failing a
 check stops the bot, as before; a server the bot can't set up (it lacks Manage Channels or Manage
-Roles, say) or whose Venue fails a check is left out, and tried again as above, while the bot
-runs on. A Match open in a Venue that isn't running still runs to its Result and is stored,
+Roles, say) or whose Venue fails a check is left out, and tried again as above. A Match open in a Venue that isn't running still runs to its Result and is stored,
 unseen, but keeps none of its Players Busy (the Surface port's `runs`). Each channel denies Send
 Messages to `@everyone` to stay read-only, so the bot needs an explicit Send Messages allow on
 it: in a Venue it set up, its own overwrite; in home, set by hand on the bot's role.
@@ -200,8 +205,7 @@ header of every request (`GUILD_HEADER`; one without it, from a page loaded befo
 home's). The API serves that Venue: it checks the member is in that server, names Players as
 that server does, and lists, opens, links and pings that Venue's only, answering another Venue's
 Match as not found. Links, Chosen Skins and Busy are shared (Busy by the engine's `isBusy`, which
-skips a Venue that isn't running). The running Venues are read at each request, so a Venue that
-starts or stops while the bot runs is served or refused from then on. `auth.ts` swaps the SDK's OAuth code for an
+skips a Venue that isn't running). `auth.ts` swaps the SDK's OAuth code for an
 access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
 page (`web/`: `view.ts` is the markup, `app.ts` the state and actions, bundled by esbuild at
 startup), its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and

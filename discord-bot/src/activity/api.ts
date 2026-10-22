@@ -124,8 +124,8 @@ const isPingRoleUnavailable = (e: { readonly _tag: string }): e is PingRoleUnava
   e._tag === "PingRoleUnavailable";
 
 /**
- * `venues` reads the running Venues as they are now, since servers start and stop while the bot
- * runs: a page opened in any other server is turned away.
+ * `venues` reads the running Venues (fixed until the bot restarts): a page opened in any other
+ * server is turned away.
  */
 export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
   venues: Effect.Effect<ReadonlyArray<ActivityVenue>>,

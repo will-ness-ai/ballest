@@ -15,7 +15,7 @@ import {
   type SetupGuild,
   VenueSetupFailed,
 } from "../venues.js";
-import { type DiscordError, describeDiscordError, tryDiscord } from "./client.js";
+import { type DiscordError, describeDiscordError, discordKind, tryDiscord } from "./client.js";
 
 const REASON = "Multiballs: its Match channel and ping role";
 
@@ -28,7 +28,7 @@ const SERVER_PERMISSIONS: ReadonlyArray<readonly [ServerPermission, bigint]> = [
 const failed = <A>(effect: Effect.Effect<A, DiscordError>) =>
   effect.pipe(
     Effect.mapError(
-      (e) => new VenueSetupFailed({ reason: describeDiscordError(e), kind: "discord" }),
+      (e) => new VenueSetupFailed({ reason: describeDiscordError(e), kind: discordKind(e) }),
     ),
   );
 
