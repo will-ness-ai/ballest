@@ -978,3 +978,319 @@ body:has(.pnC-bar) {
 .pnE[data-searching] .pnE-you {
   visibility: hidden;
 }
+
+/* ==========================================================================
+   round 2: the results' layout (?variant=1..5) and the name (?brand=1..5)
+   ========================================================================== */
+.pn-brand em {
+  font-style: normal;
+}
+.pn-brand2 em {
+  color: var(--accent);
+}
+.pn-dotcom {
+  font-family: var(--f-hud);
+  font-weight: 700;
+  font-size: calc(16rem / 16);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.pn-dotcom em {
+  color: var(--faint);
+  font-weight: 500;
+}
+.pn-stack {
+  display: grid;
+  line-height: 1;
+}
+.pn-stack em {
+  color: var(--accent);
+  font: 700 calc(9rem / 16) var(--f-hud);
+  letter-spacing: 0.62em;
+}
+.pn-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pn-badge em {
+  padding: 3px 6px 2px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 calc(10rem / 16) var(--f-hud);
+  letter-spacing: 0.16em;
+}
+
+/* 1: the top hit */
+.pn-top {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 10px;
+  margin-block-end: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+.pn-top:hover,
+.pn-top[data-sel] {
+  border-color: color-mix(in oklch, var(--accent) 50%, transparent);
+}
+.pn-thumb-big {
+  inline-size: 120px;
+  block-size: 76px;
+  border-radius: 10px;
+}
+.pn-thumb-big .marble {
+  inline-size: 56px;
+  block-size: 56px;
+}
+.pn-top-text {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  min-inline-size: 0;
+}
+.pn-top-text > b {
+  font: 700 calc(18rem / 16) var(--f-hud);
+}
+.pn-top-text > small {
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+}
+.pn-top mark,
+.pn-person mark,
+.pn-card mark {
+  background: none;
+  color: var(--accent);
+}
+.pn-facts {
+  display: flex;
+  gap: 16px;
+  margin-block-start: 2px;
+  font: 600 calc(14rem / 16) var(--f-hud);
+}
+.pn-facts span {
+  display: grid;
+}
+.pn-facts small {
+  color: var(--faint);
+  font: 600 calc(10rem / 16) var(--f-hud);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* 2: the chips */
+.pn-chips {
+  display: flex;
+  gap: 6px;
+  padding: 2px 2px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pn-chips button {
+  flex: none;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+  font-weight: 600;
+}
+.pn-chips button small {
+  color: var(--faint);
+  font-weight: 500;
+}
+.pn-chips button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* 3: the list and its preview */
+.pn-pane {
+  display: none;
+}
+
+/* 4: pictures */
+.pn-people {
+  display: flex;
+  gap: 6px;
+  padding: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pn-person {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  inline-size: 84px;
+  flex: none;
+  padding: 8px 4px;
+  border-radius: 10px;
+  color: var(--text);
+  text-align: center;
+  text-decoration: none;
+}
+.pn-person:hover,
+.pn-person[data-sel],
+.pn-card:hover,
+.pn-card[data-sel] {
+  background: var(--surface2);
+}
+.pn-person .pn-thumb {
+  inline-size: 44px;
+  block-size: 44px;
+}
+.pn-person .pn-thumb .marble {
+  inline-size: 40px;
+  block-size: 40px;
+}
+.pn-person b {
+  inline-size: 100%;
+  overflow: hidden;
+  font-size: calc(12.5rem / 16);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pn-person small {
+  color: var(--faint);
+  font-size: calc(11rem / 16);
+}
+.pn-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 2px;
+}
+.pn-card {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  color: var(--text);
+  text-decoration: none;
+}
+.pn-card img,
+.pn-card > .pn-icon {
+  inline-size: 100%;
+  aspect-ratio: 16 / 8;
+  object-fit: cover;
+}
+.pn-card > span {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  padding: 7px 9px 9px;
+  min-inline-size: 0;
+}
+.pn-card b {
+  max-inline-size: 100%;
+  overflow: hidden;
+  font-size: calc(13.5rem / 16);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pn-card small {
+  max-inline-size: 100%;
+  overflow: hidden;
+  color: var(--faint);
+  font-size: calc(11.5rem / 16);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 51.25em) {
+  .pn-r3 .pn-search:not(.pn-insheet) .pn-results.pn-r3,
+  .pn-search:not(.pn-insheet) .pn-r3 {
+    inline-size: 780px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 10px;
+  }
+  .pn-search:not(.pn-insheet) .pn-r4 {
+    inline-size: 680px;
+  }
+  .pn-search:not(.pn-insheet) .pn-r1,
+  .pn-search:not(.pn-insheet) .pn-r2,
+  .pn-search:not(.pn-insheet) .pn-r5 {
+    inline-size: 600px;
+  }
+  .pnD-search .pn-results {
+    inset-inline: 50% auto;
+    translate: -50% 0;
+  }
+  .pn-pane {
+    position: sticky;
+    inset-block-start: 0;
+    display: grid;
+    align-content: start;
+    justify-items: start;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  .pn-pane .pn-thumb-big {
+    inline-size: 100%;
+    block-size: 130px;
+  }
+  .pn-pane .pn-thumb-big .marble {
+    inline-size: 84px;
+    block-size: 84px;
+  }
+  .pn-pane > b {
+    font: 700 calc(17rem / 16) var(--f-hud);
+  }
+  .pn-pane dl {
+    display: grid;
+    gap: 4px;
+    inline-size: 100%;
+    margin: 0;
+  }
+  .pn-pane dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: calc(13rem / 16);
+  }
+  .pn-pane dt {
+    color: var(--faint);
+  }
+  .pn-pane dd {
+    margin: 0;
+    font-weight: 600;
+  }
+  .pn-open {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    padding: 7px 12px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .pn-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .pn-brand2 .pn-word,
+  .pn-brand1 .pn-word,
+  .pn-brand5 .pn-word {
+    font-size: calc(19rem / 16);
+  }
+  .pn-stack {
+    font-size: calc(20rem / 16);
+  }
+  .pn-stack em {
+    font-size: calc(10.5rem / 16);
+    letter-spacing: 0.72em;
+  }
+  .pn-dotcom {
+    font-size: calc(21rem / 16);
+  }
+}

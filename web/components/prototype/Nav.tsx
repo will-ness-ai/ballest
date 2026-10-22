@@ -10,7 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Marble, Rack } from "../Marble";
-import { SITE_TITLE, plural } from "../../lib/rules";
+import { plural } from "../../lib/rules";
 
 export interface NavData {
   workshop: string | null;
@@ -33,30 +33,37 @@ interface Section {
 
 const VARIANTS = [
   [
-    "A",
-    "Top bar",
-    "One slim sticky bar: brand, every section, an inline search with a dropdown, You. Phone: brand + search + menu drawer. Campaigns become a top-level section; the tagline goes, Refreshed moves under the bar.",
+    "1",
+    "Top hit + groups",
+    "The best match as a big card on top (picture, numbers, a button), then the rest grouped by kind, groups ordered by their best match.",
   ],
   [
-    "B",
-    "Command palette",
-    "Header keeps today's shape, with one wide search button in the middle (Ctrl K or /) that opens a palette over the page. Tabs stay as pills, plus Campaigns. Phone: a full-width search pill above the tabs.",
+    "2",
+    "Filter chips",
+    "A row of chips with counts (All, Players, Maps, Campaigns, Circuit, Dailies, Prefabs). All shows three of each kind; a chip shows every hit of that kind.",
   ],
   [
-    "C",
-    "Sidebar + bottom bar",
-    "Desktop: a fixed left sidebar with search, sections with icons, Refreshed and You at its foot. Phone: a slim top bar and an app-style bottom tab bar (Maps, Daily, Search, Circuit, More).",
+    "3",
+    "List + preview",
+    "Desktop: a wide panel, the hits on the left and a preview of the highlighted one on the right (picture, record, players). Arrow keys and hover move it. Phone: the list only.",
   ],
   [
-    "D",
-    "Two-tier hub",
-    "A top utility bar (brand, wide search, You), then big section tabs, then the section's own sub-tabs (Featured / All Maps / Campaigns, Today / Standings, seasons...). The pages' own sub-tabs would move up into it later.",
+    "4",
+    "Visual cards",
+    "Players as a row of marbles, Maps and Campaigns as picture cards in a grid, the rest as a compact list.",
   ],
   [
-    "E",
-    "Mega menu",
-    "Three grouped menus (Leaderboards, Players, Prefabs) that open wide panels with previews (today's Daily, top Campaigns). Search is an icon that expands across the whole bar. Phone: a full-screen menu.",
+    "5",
+    "One ranked list",
+    "No groups: every hit in one list, best match first (name match, then how popular), each with its kind tag.",
   ],
+] as const;
+const BRANDS = [
+  ["1", "One word"],
+  ["2", "Two-tone"],
+  ["3", ".com"],
+  ["4", "Stacked"],
+  ["5", "Badge"],
 ] as const;
 type VariantKey = (typeof VARIANTS)[number][0];
 
@@ -72,7 +79,7 @@ const subscribe = (l: () => void) => {
   };
 };
 const param = (k: string) => new URLSearchParams(location.search).get(k);
-const KEY = "proto-nav";
+const KEY = "proto-nav2";
 function stored(): string | null {
   try {
     return sessionStorage.getItem(KEY);
@@ -81,8 +88,8 @@ function stored(): string | null {
   }
 }
 function readVariant(): VariantKey {
-  const v = param("variant") ?? stored() ?? "A";
-  const hit = VARIANTS.find((x) => x[0] === v)?.[0] ?? "A";
+  const v = param("variant") ?? stored() ?? "1";
+  const hit = VARIANTS.find((x) => x[0] === v)?.[0] ?? "1";
   try {
     sessionStorage.setItem(KEY, hit);
   } catch {
@@ -103,7 +110,33 @@ function useStateParam(): string | null {
     () => null,
   );
 }
-const TYPED = "sol";
+const TERMS = ["sol", "leth", "habibal", "08"];
+function useTyped(): string {
+  return useSyncExternalStore(
+    subscribe,
+    () => param("q") ?? "sol",
+    () => "sol",
+  );
+}
+function readBrand(): string {
+  const b = param("brand") ?? brandStored() ?? "1";
+  try {
+    sessionStorage.setItem(KEY + "-brand", b);
+  } catch {
+    /* the URL carries it */
+  }
+  return b;
+}
+function brandStored() {
+  try {
+    return sessionStorage.getItem(KEY + "-brand");
+  } catch {
+    return null;
+  }
+}
+function useBrand(): string {
+  return useSyncExternalStore(subscribe, readBrand, () => "1");
+}
 
 /* ---------- which section a path is in ---------- */
 function sectionOf(path: string): SectionKey | null {
@@ -273,7 +306,26 @@ function Pic({ src }: { src: string | null }) {
   );
 }
 
-function ResultList({
+function ResultList(props: {
+  q: string;
+  res: Results | null;
+  busy: boolean;
+  d: NavData;
+  sel: number;
+  onGo: () => void;
+}) {
+  const v = useVariant() ?? "1";
+  const { q, res } = props;
+  if (!q.trim() || !res || isEmpty(res)) return <Grouped {...props} />;
+  const items = itemsOf(res, q);
+  if (v === "1") return <TopHit {...props} items={items} />;
+  if (v === "2") return <Chips {...props} items={items} />;
+  if (v === "3") return <Preview {...props} items={items} />;
+  if (v === "4") return <Visual {...props} items={items} />;
+  return <Ranked {...props} items={items} />;
+}
+
+function Grouped({
   q,
   res,
   busy,
@@ -442,6 +494,413 @@ function ResultList({
   );
 }
 
+/* ---------- round 2: five ways to lay the results out ---------- */
+type Kind = "people" | "campaigns" | "maps" | "tracks" | "dailies" | "prefabs";
+const KIND_NAME: Record<Kind, string> = {
+  people: "Players and makers",
+  campaigns: "Campaigns",
+  maps: "Maps",
+  tracks: "Circuit",
+  dailies: "Dailies",
+  prefabs: "Prefabs",
+};
+const CHIP_NAME: Record<Kind, string> = {
+  people: "Players",
+  campaigns: "Campaigns",
+  maps: "Maps",
+  tracks: "Circuit",
+  dailies: "Dailies",
+  prefabs: "Prefabs",
+};
+interface Item {
+  key: string;
+  kind: Kind;
+  tag: string;
+  href: string;
+  title: string;
+  meta: string;
+  img: string | null;
+  who: { steamId: string; persona: string; avatar: string | null } | null;
+  icon: string;
+  score: number;
+  facts: Array<[string, string]>;
+}
+
+function isEmpty(r: Results) {
+  return (
+    !r.people.length &&
+    !r.maps.length &&
+    !r.campaigns.length &&
+    !r.tracks.length &&
+    !r.prefabs.length &&
+    !r.dailies.length
+  );
+}
+
+function match(name: string, q: string) {
+  const n = name.toLowerCase();
+  if (n === q) return 100;
+  if (n.startsWith(q)) return 60;
+  if (n.split(/[\s_-]+/).some((w) => w.startsWith(q))) return 40;
+  return n.includes(q) ? 20 : 0;
+}
+const pop = (n: number) => Math.log10(1 + n) * 8;
+
+function itemsOf(r: Results, q: string): Array<Item> {
+  const t = q.trim().toLowerCase();
+  const out: Array<Item> = [];
+  for (const p of r.people)
+    out.push({
+      key: "p" + p.id,
+      kind: "people",
+      tag: p.made ? "Maker" : "Player",
+      href: "/player/" + p.id + (p.plays ? "" : "/made"),
+      title: p.name,
+      meta:
+        [p.plays ? "Player" : null, p.made ? "made " + plural(p.made, "Map", "Maps") : null]
+          .filter(Boolean)
+          .join(" · ") || "Player",
+      img: null,
+      who: { steamId: p.id, persona: p.name, avatar: p.avatar },
+      icon: "players",
+      score: match(p.name, t) + p.made * 2,
+      facts: p.made ? [["Maps made", String(p.made)]] : [],
+        ["Maps made", String(p.made)],
+      ],
+    });
+  for (const c of r.campaigns)
+    out.push({
+      key: "c" + c.slug,
+      kind: "campaigns",
+      tag: "Campaign",
+      href: "/campaign/" + c.slug,
+      title: c.title,
+      meta: `by ${c.creator} · ${plural(c.maps, "Map", "Maps")} · ${plural(c.players, "player", "players")}`,
+      img: c.preview,
+      who: null,
+      icon: "campaigns",
+      score: match(c.title, t) + pop(c.players) + 10,
+      facts: [
+        ["Maps", String(c.maps)],
+        ["Players", String(c.players)],
+        ["By", c.creator],
+      ],
+    });
+  for (const m of r.maps)
+    out.push({
+      key: "m" + m.pfid,
+      kind: "maps",
+      tag: "Map",
+      href: "/map/" + m.pfid,
+      title: m.title,
+      meta:
+        `by ${m.creator} · ${plural(m.runs, "run", "runs")}` +
+        (m.record ? " · record " + fmtTime(m.record[2]) : ""),
+      img: m.preview,
+      who: null,
+      icon: "map",
+      score: match(m.title, t) + pop(m.runs),
+      facts: [
+        ["Runs", String(m.runs)],
+        ["Record", m.record ? fmtTime(m.record[2]) : "None yet"],
+        ["Holder", m.record ? m.record[1] : "-"],
+        ["By", m.creator],
+      ],
+    });
+  for (const x of r.tracks)
+    out.push({
+      key: "t" + x.name,
+      kind: "tracks",
+      tag: "Circuit",
+      href: "/board/" + x.name,
+      title: x.group + " · " + x.display,
+      meta: plural(x.players, "player", "players"),
+      img: x.img,
+      who: null,
+      icon: "circuit",
+      score: Math.max(match(x.display, t), 20) + pop(x.players) + 5,
+      facts: [
+        ["Season", x.group],
+        ["Players", String(x.players)],
+      ],
+    });
+  for (const x of r.dailies)
+    out.push({
+      key: "d" + x.date,
+      kind: "dailies",
+      tag: "Daily",
+      href: "/daily/" + x.date,
+      title: x.title,
+      meta: x.date + " · " + plural(x.players, "player", "players"),
+      img: x.preview,
+      who: null,
+      icon: "daily",
+      score: match(x.title, t) + pop(x.players) - 5,
+      facts: [
+        ["Day", x.date],
+        ["Players", String(x.players)],
+      ],
+    });
+  for (const x of r.prefabs)
+    out.push({
+      key: "f" + x.slug,
+      kind: "prefabs",
+      tag: "Prefab",
+      href: "/prefab/" + x.slug,
+      title: x.name,
+      meta: `by ${x.by} · ${plural(x.pieces, "piece", "pieces")}`,
+      img: null,
+      who: null,
+      icon: "prefabs",
+      score: match(x.name, t) - 5,
+      facts: [
+        ["Pieces", String(x.pieces)],
+        ["By", x.by],
+      ],
+    });
+  return out;
+}
+
+function Thumb({ it, big }: { it: Item; big?: boolean }) {
+  return (
+    <span className={big ? "pn-thumb pn-thumb-big" : "pn-thumb"}>
+      {it.who ? (
+        <Marble who={it.who} still />
+      ) : it.img ? (
+        <Pic src={it.img} />
+      ) : (
+        <Icon k={it.icon} />
+      )}
+    </span>
+  );
+}
+
+function Row({
+  it,
+  q,
+  onGo,
+  onHover,
+}: {
+  it: Item;
+  q: string;
+  onGo: () => void;
+  onHover?: () => void;
+}) {
+  return (
+    <Link className="pn-hit" href={it.href} data-hit onClick={onGo} onPointerEnter={onHover}>
+      <Thumb it={it} />
+      <span className="pn-hit-text">
+        <b>
+          <Hi text={it.title} q={q} />
+        </b>
+        <small>{it.meta}</small>
+      </span>
+      <span className="pn-kind">{it.tag}</span>
+    </Link>
+  );
+}
+
+function byGroup(items: Array<Item>) {
+  const groups = new Map<Kind, Array<Item>>();
+  for (const it of items) groups.set(it.kind, [...(groups.get(it.kind) ?? []), it]);
+  return [...groups.entries()].sort(
+    (a, b) => Math.max(...b[1].map((i) => i.score)) - Math.max(...a[1].map((i) => i.score)),
+  );
+}
+
+interface RProps {
+  q: string;
+  res: Results | null;
+  busy: boolean;
+  sel: number;
+  onGo: () => void;
+  items: Array<Item>;
+}
+
+function MoreMaps({ res, q, onGo }: { res: Results | null; q: string; onGo: () => void }) {
+  if (!res || res.mapTotal <= res.maps.length) return null;
+  return (
+    <Link className="pn-all" href={"/maps?q=" + encodeURIComponent(q)} onClick={onGo} data-hit>
+      All {res.mapTotal} Maps matching “{q}” <Icon k="arrow" />
+    </Link>
+  );
+}
+
+/* 1: the best match as a card, then the rest grouped */
+function TopHit({ q, res, busy, onGo, items }: RProps) {
+  const top = [...items].sort((a, b) => b.score - a.score)[0];
+  const rest = items.filter((i) => i !== top);
+  return (
+    <div className="pn-results pn-r1" data-busy={busy || undefined}>
+      <p className="pn-group">Top hit</p>
+      <Link className="pn-top" href={top.href} data-hit onClick={onGo}>
+        <Thumb it={top} big />
+        <span className="pn-top-text">
+          <span className="pn-kind">{top.tag}</span>
+          <b>
+            <Hi text={top.title} q={q} />
+          </b>
+          <small>{top.meta}</small>
+          <span className="pn-facts">
+            {top.facts.slice(0, 3).map(([k, v]) => (
+              <span key={k}>
+                <small>{k}</small>
+                {v}
+              </span>
+            ))}
+          </span>
+        </span>
+      </Link>
+      {byGroup(rest).map(([k, list]) => (
+        <div key={k} className="pn-grp">
+          <p className="pn-group">{KIND_NAME[k]}</p>
+          {list.map((it) => (
+            <Row key={it.key} it={it} q={q} onGo={onGo} />
+          ))}
+          {k === "maps" ? <MoreMaps res={res} q={q} onGo={onGo} /> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* 2: chips filter the kinds */
+function Chips({ q, res, busy, onGo, items }: RProps) {
+  const [only, setOnly] = useState<Kind | null>(null);
+  const groups = byGroup(items);
+  const counts = (k: Kind) =>
+    k === "maps" && res ? res.mapTotal : (groups.find((g) => g[0] === k)?.[1].length ?? 0);
+  return (
+    <div className="pn-results pn-r2" data-busy={busy || undefined}>
+      <div className="pn-chips" role="tablist">
+        <button type="button" aria-pressed={only === null} onClick={() => setOnly(null)}>
+          All
+        </button>
+        {groups.map(([k]) => (
+          <button key={k} type="button" aria-pressed={only === k} onClick={() => setOnly(k)}>
+            {CHIP_NAME[k]} <small>{counts(k)}</small>
+          </button>
+        ))}
+      </div>
+      {groups
+        .filter(([k]) => only === null || only === k)
+        .map(([k, list]) => (
+          <div key={k} className="pn-grp">
+            {only === null ? <p className="pn-group">{KIND_NAME[k]}</p> : null}
+            {(only === null ? list.slice(0, 3) : list).map((it) => (
+              <Row key={it.key} it={it} q={q} onGo={onGo} />
+            ))}
+            {k === "maps" && only === "maps" ? <MoreMaps res={res} q={q} onGo={onGo} /> : null}
+          </div>
+        ))}
+    </div>
+  );
+}
+
+/* 3: a list with a preview of the highlighted hit */
+function Preview({ q, busy, sel, onGo, items }: RProps) {
+  const order = byGroup(items).flatMap(([, l]) => l);
+  const [hover, setHover] = useState<number | null>(null);
+  useEffect(() => setHover(null), [sel]);
+  const it = order[hover ?? (sel < 0 ? 0 : Math.min(sel, order.length - 1))];
+  let last: Kind | null = null;
+  return (
+    <div className="pn-results pn-r3" data-busy={busy || undefined}>
+      <div className="pn-r3-list">
+        {order.map((x, i) => {
+          const head = x.kind !== last ? <p className="pn-group">{KIND_NAME[x.kind]}</p> : null;
+          last = x.kind;
+          return (
+            <div key={x.key}>
+              {head}
+              <Row it={x} q={q} onGo={onGo} onHover={() => setHover(i)} />
+            </div>
+          );
+        })}
+      </div>
+      {it ? (
+        <aside className="pn-pane">
+          <Thumb it={it} big />
+          <span className="pn-kind">{it.tag}</span>
+          <b>{it.title}</b>
+          <dl>
+            {it.facts.map(([k, v]) => (
+              <div key={k}>
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <Link className="pn-open" href={it.href} onClick={onGo}>
+            Open <Icon k="arrow" />
+          </Link>
+        </aside>
+      ) : null}
+    </div>
+  );
+}
+
+/* 4: pictures first */
+function Visual({ q, res, busy, onGo, items }: RProps) {
+  const people = items.filter((i) => i.kind === "people");
+  const cards = items.filter((i) => i.kind === "campaigns" || i.kind === "maps");
+  const rest = items.filter((i) => !people.includes(i) && !cards.includes(i));
+  return (
+    <div className="pn-results pn-r4" data-busy={busy || undefined}>
+      {people.length ? <p className="pn-group">Players and makers</p> : null}
+      {people.length ? (
+        <div className="pn-people">
+          {people.map((it) => (
+            <Link key={it.key} className="pn-person" href={it.href} data-hit onClick={onGo}>
+              <Thumb it={it} />
+              <b>
+                <Hi text={it.title} q={q} />
+              </b>
+              <small>{it.tag}</small>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+      {cards.length ? <p className="pn-group">Campaigns and Maps</p> : null}
+      {cards.length ? (
+        <div className="pn-cards">
+          {cards.map((it) => (
+            <Link key={it.key} className="pn-card" href={it.href} data-hit onClick={onGo}>
+              <Pic src={it.img} />
+              <span>
+                <span className="pn-kind">{it.tag}</span>
+                <b>
+                  <Hi text={it.title} q={q} />
+                </b>
+                <small>{it.meta}</small>
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+      <MoreMaps res={res} q={q} onGo={onGo} />
+      {rest.length ? <p className="pn-group">More</p> : null}
+      {rest.map((it) => (
+        <Row key={it.key} it={it} q={q} onGo={onGo} />
+      ))}
+    </div>
+  );
+}
+
+/* 5: one list, best first */
+function Ranked({ q, res, busy, onGo, items }: RProps) {
+  return (
+    <div className="pn-results pn-r5" data-busy={busy || undefined}>
+      {[...items]
+        .sort((a, b) => b.score - a.score)
+        .map((it) => (
+          <Row key={it.key} it={it} q={q} onGo={onGo} />
+        ))}
+      <MoreMaps res={res} q={q} onGo={onGo} />
+    </div>
+  );
+}
+
 /* the field and its results; arrow keys move through the hits, Enter opens one */
 function SearchPanel({
   d,
@@ -459,7 +918,8 @@ function SearchPanel({
   inline?: boolean;
 }) {
   const state = useStateParam();
-  const [q, setQ] = useState(state === "typed" ? TYPED : "");
+  const typed = useTyped();
+  const [q, setQ] = useState(state === "typed" ? typed : "");
   const { res, busy } = useSearch(q);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -467,8 +927,8 @@ function SearchPanel({
   const [sel, setSel] = useState(-1);
   useEffect(() => setSel(-1), [res, q]);
   useEffect(() => {
-    if (state === "typed") setQ(TYPED);
-  }, [state]);
+    if (state === "typed") setQ(typed);
+  }, [state, typed]);
   useEffect(() => {
     if (open && autoFocus) input.current?.focus();
   }, [open, autoFocus]);
@@ -529,6 +989,7 @@ function SearchPanel({
           res={res}
           busy={busy}
           d={d}
+          sel={sel}
           onGo={() => {
             setOpen(false);
           }}
@@ -601,10 +1062,32 @@ function useOpenFromState(): [boolean, (o: boolean) => void] {
 }
 
 function Brand() {
+  const b = useBrand();
   return (
-    <Link className="pn-brand" href="/">
-      <Rack />
-      <span className="pn-word">{SITE_TITLE}</span>
+    <Link className={"pn-brand pn-brand" + b} href="/" aria-label="Ballest Records">
+      {b === "5" ? null : <Rack />}
+      {b === "1" ? <span className="pn-word">BALLESTRECORDS</span> : null}
+      {b === "2" ? (
+        <span className="pn-word">
+          BALLEST<em>RECORDS</em>
+        </span>
+      ) : null}
+      {b === "3" ? (
+        <span className="pn-word pn-dotcom">
+          ballestrecords<em>.com</em>
+        </span>
+      ) : null}
+      {b === "4" ? (
+        <span className="pn-word pn-stack">
+          BALLEST<em>RECORDS</em>
+        </span>
+      ) : null}
+      {b === "5" ? (
+        <span className="pn-word pn-badge">
+          <Rack />
+          BALLEST<em>RECORDS</em>
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -639,246 +1122,20 @@ function SectionLinks({
   );
 }
 
-/* ---------- A: the top bar ---------- */
-function VariantA({ d, you, fresh }: Slots) {
-  const on = sectionOf(usePathname());
-  const [open, setOpen] = useOpenFromState();
-  const [drawer, setDrawer] = useState(false);
-  const [sheet, setSheet] = useState(false);
-  const phone = usePhone();
-  useHotkey(() => (phone ? setSheet(true) : setOpen(true)));
-  useEffect(() => {
-    if (phone && open) {
-      setSheet(true);
-      setOpen(false);
-    }
-  }, [phone, open, setOpen]);
-  const list = sectionsOf(d);
-  return (
-    <>
-      <header className="pnA">
-        <Brand />
-        <SectionLinks list={list} on={on} className="pnA-links pn-desk" />
-        <SearchPanel d={d} open={open} setOpen={setOpen} className="pnA-search pn-desk" inline />
-        <button
-          type="button"
-          className="pn-iconbtn pn-phone"
-          aria-label="Search"
-          onClick={() => setSheet(true)}
-        >
-          <Icon k="search" />
-        </button>
-        <div className="pnA-you">{you}</div>
-        <button
-          type="button"
-          className="pn-iconbtn pn-phone"
-          aria-label="Menu"
-          onClick={() => setDrawer(true)}
-        >
-          <Icon k="menu" />
-        </button>
-      </header>
-      <div className="pn-fresh">{fresh}</div>
-      <Layer open={drawer} onClose={() => setDrawer(false)} className="pnA-drawer">
-        <div className="pn-sheet">
-          <div className="pn-sheet-head">
-            <Brand />
-            <button
-              type="button"
-              className="pn-iconbtn"
-              aria-label="Close"
-              onClick={() => setDrawer(false)}
-            >
-              <Icon k="close" />
-            </button>
-          </div>
-          <SectionLinks
-            list={list}
-            on={on}
-            className="pn-biglinks"
-            icons
-            onGo={() => setDrawer(false)}
-          />
-        </div>
-      </Layer>
-      <Layer open={sheet} onClose={() => setSheet(false)} className="pn-full">
-        <div className="pn-sheet">
-          <div className="pn-sheet-head">
-            <b>Search</b>
-            <button
-              type="button"
-              className="pn-iconbtn"
-              aria-label="Close"
-              onClick={() => setSheet(false)}
-            >
-              <Icon k="close" />
-            </button>
-          </div>
-          <SearchPanel
-            d={d}
-            open
-            setOpen={(o) => !o && setSheet(false)}
-            className="pn-insheet"
-            autoFocus
-          />
-        </div>
-      </Layer>
-    </>
-  );
-}
-
-/* ---------- B: the command palette ---------- */
-function VariantB({ d, you, fresh }: Slots) {
-  const on = sectionOf(usePathname());
-  const [open, setOpen] = useOpenFromState();
-  useHotkey(() => setOpen(true));
-  return (
-    <>
-      <header className="pnB">
-        <div className="pnB-top">
-          <Brand />
-          <div className="pnB-you">{you}</div>
-        </div>
-        <button type="button" className="pnB-trigger" onClick={() => setOpen(true)}>
-          <Icon k="search" />
-          <span>Search players, Maps, Campaigns…</span>
-          <kbd>Ctrl K</kbd>
-        </button>
-        <div className="pnB-fresh">{fresh}</div>
-      </header>
-      <SectionLinks list={sectionsOf(d)} on={on} className="pnB-tabs" />
-      <Layer open={open} onClose={() => setOpen(false)} className="pnB-palette">
-        <div className="pn-sheet">
-          <SearchPanel
-            d={d}
-            open
-            setOpen={(o) => !o && setOpen(false)}
-            className="pn-insheet"
-            autoFocus
-          />
-          <p className="pnB-keys">
-            <kbd>↑</kbd>
-            <kbd>↓</kbd> to move · <kbd>Enter</kbd> to open · <kbd>Esc</kbd> to close
-          </p>
-        </div>
-      </Layer>
-    </>
-  );
-}
-
-/* ---------- C: the sidebar, and a bottom bar on a phone ---------- */
-function VariantC({ d, you, fresh }: Slots) {
-  const on = sectionOf(usePathname());
-  const [open, setOpen] = useOpenFromState();
-  const [sheet, setSheet] = useState(false);
-  const [more, setMore] = useState(false);
-  const phone = usePhone();
-  useHotkey(() => (phone ? setSheet(true) : setOpen(true)));
-  useEffect(() => {
-    if (phone && open) {
-      setSheet(true);
-      setOpen(false);
-    }
-  }, [phone, open, setOpen]);
-  const list = sectionsOf(d);
-  const bottom = list.filter(
-    (s) => s.key === "workshop" || s.key === "daily" || s.key === "circuit",
-  );
-  const rest = list.filter((s) => !bottom.includes(s));
-  return (
-    <>
-      <aside className="pnC-side pn-desk">
-        <Brand />
-        <SearchPanel d={d} open={open} setOpen={setOpen} className="pnC-search" inline />
-        <SectionLinks list={list} on={on} className="pnC-links" icons />
-        <div className="pnC-foot">
-          {fresh}
-          {you}
-        </div>
-      </aside>
-      <header className="pnC-top pn-phone">
-        <Brand />
-        {you}
-      </header>
-      <nav className="pnC-bar pn-phone" aria-label="Sections">
-        {bottom.slice(0, 2).map((s) => (
-          <Link key={s.key} href={s.href} aria-current={s.key === on ? "page" : undefined}>
-            <Icon k={s.key} />
-            <span>{s.label}</span>
-          </Link>
-        ))}
-        <button type="button" className="pnC-find" onClick={() => setSheet(true)}>
-          <Icon k="search" />
-          <span>Search</span>
-        </button>
-        {bottom.slice(2).map((s) => (
-          <Link key={s.key} href={s.href} aria-current={s.key === on ? "page" : undefined}>
-            <Icon k={s.key} />
-            <span>{s.label}</span>
-          </Link>
-        ))}
-        <button
-          type="button"
-          aria-current={rest.some((s) => s.key === on) ? "page" : undefined}
-          onClick={() => setMore(true)}
-        >
-          <Icon k="more" />
-          <span>More</span>
-        </button>
-      </nav>
-      <Layer open={more} onClose={() => setMore(false)} className="pnC-more">
-        <div className="pn-sheet">
-          <SectionLinks
-            list={rest}
-            on={on}
-            className="pn-biglinks"
-            icons
-            onGo={() => setMore(false)}
-          />
-          <div className="pnC-morefresh">{fresh}</div>
-        </div>
-      </Layer>
-      <Layer open={sheet} onClose={() => setSheet(false)} className="pn-full">
-        <div className="pn-sheet">
-          <div className="pn-sheet-head">
-            <b>Search</b>
-            <button
-              type="button"
-              className="pn-iconbtn"
-              aria-label="Close"
-              onClick={() => setSheet(false)}
-            >
-              <Icon k="close" />
-            </button>
-          </div>
-          <SearchPanel
-            d={d}
-            open
-            setOpen={(o) => !o && setSheet(false)}
-            className="pn-insheet"
-            autoFocus
-          />
-        </div>
-      </Layer>
-    </>
-  );
-}
-
 /* ---------- D: the two-tier hub ---------- */
 function subsOf(d: NavData, sec: SectionKey | null, path: string) {
   const at = (href: string, exact = false) =>
     exact ? path === href : path === href || path.startsWith(href + "/");
   switch (sec) {
     case "workshop":
-    case "campaigns":
       return [
         { label: "Featured", href: "/", on: path === "/" },
         { label: "All Maps", href: "/maps", on: at("/maps") || path.startsWith("/map/") },
-        {
-          label: "Campaigns",
-          href: d.campaigns,
-          on: at("/campaigns") || path.startsWith("/campaign/"),
-        },
+      ];
+    case "campaigns":
+      return [
+        { label: "All Campaigns", href: d.campaigns, on: at("/campaigns") },
+        ...d.topCampaigns.map((c) => ({ label: c.title, href: c.href, on: at(c.href) })),
       ];
     case "daily":
       return [
@@ -912,8 +1169,7 @@ function subsOf(d: NavData, sec: SectionKey | null, path: string) {
 }
 function VariantD({ d, you, fresh }: Slots) {
   const path = usePathname();
-  const raw = sectionOf(path);
-  const on = raw === "campaigns" ? "workshop" : raw;
+  const on = sectionOf(path);
   const [open, setOpen] = useOpenFromState();
   const [sheet, setSheet] = useState(false);
   const phone = usePhone();
@@ -941,7 +1197,7 @@ function VariantD({ d, you, fresh }: Slots) {
           </button>
           {you}
         </div>
-        <SectionLinks list={sectionsOf(d, false)} on={on} className="pnD-sections" icons />
+        <SectionLinks list={sectionsOf(d)} on={on} className="pnD-sections" icons />
         {subs.length ? (
           <nav className="pnD-subs" aria-label="In this section">
             {subs.map((s) => (
@@ -981,200 +1237,6 @@ function VariantD({ d, you, fresh }: Slots) {
   );
 }
 
-/* ---------- E: the mega menu ---------- */
-function MegaPanel({ which, d, onGo }: { which: string; d: NavData; onGo: () => void }) {
-  const L = ({ href, t, s }: { href: string; t: string; s: string }) => (
-    <Link className="pnE-link" href={href} onClick={onGo}>
-      <b>{t}</b>
-      <small>{s}</small>
-    </Link>
-  );
-  if (which === "boards")
-    return (
-      <div className="pnE-panel">
-        <div className="pnE-col">
-          <p className="pn-group">Workshop</p>
-          {d.workshop ? (
-            <L href={d.workshop} t="Featured Maps" s="Most played, newest, closest races" />
-          ) : null}
-          <L href="/maps" t="All Maps" s="Every player-made Map with a time" />
-          <L
-            href={d.campaigns}
-            t="Campaigns"
-            s="Curated runs of player Maps, scored like the Circuit"
-          />
-        </div>
-        <div className="pnE-col">
-          <p className="pn-group">Circuit</p>
-          {d.seasons.map((s) => (
-            <L key={s.href} href={s.href} t={s.label} s={plural(s.players, "player", "players")} />
-          ))}
-        </div>
-        <div className="pnE-col">
-          <p className="pn-group">Daily</p>
-          {d.today ? (
-            <Link className="pnE-feature" href={d.today.href} onClick={onGo}>
-              <Pic src={d.today.preview} />
-              <span>
-                <small>Today&apos;s Daily</small>
-                <b>{d.today.title}</b>
-                <small>{plural(d.today.players, "player", "players")} so far</small>
-              </span>
-            </Link>
-          ) : null}
-          <L href="/daily/standings" t="Daily standings" s="Every Daily, all time" />
-        </div>
-      </div>
-    );
-  if (which === "players")
-    return (
-      <div className="pnE-panel">
-        <div className="pnE-col">
-          <L href={d.players} t="Player rankings" s="World records, podiums, top fives, Maps" />
-          <L href="/you" t="Where you stand" s="You on every standing" />
-        </div>
-        <div className="pnE-col">
-          <p className="pn-group">Top Campaigns</p>
-          <div className="pnE-camps">
-            {d.topCampaigns.map((c) => (
-              <Link key={c.href} className="pnE-camp" href={c.href} onClick={onGo}>
-                <Pic src={c.preview} />
-                <b>{c.title}</b>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  return (
-    <div className="pnE-panel">
-      <div className="pnE-col">
-        <L href="/prefabs" t="Shared Prefabs" s="Ready-made pieces for the level editor" />
-        <L href="/prefabs/make" t="Make your own" s="QR codes, signs, trees and bushes" />
-        <L href="/prefabs/new" t="Upload a Prefab" s="Share one you built" />
-      </div>
-    </div>
-  );
-}
-function VariantE({ d, you, fresh }: Slots) {
-  const path = usePathname();
-  const sec = sectionOf(path);
-  const [open, setOpen] = useOpenFromState();
-  const [mega, setMega] = useState<string | null>(null);
-  const [menu, setMenu] = useState(false);
-  const [sheet, setSheet] = useState(false);
-  const phone = usePhone();
-  useHotkey(() => (phone ? setSheet(true) : setOpen(true)));
-  useEffect(() => {
-    if (phone && open) {
-      setSheet(true);
-      setOpen(false);
-    }
-  }, [phone, open, setOpen]);
-  useEffect(() => setMega(null), [path]);
-  const groups = [
-    {
-      k: "boards",
-      label: "Leaderboards",
-      on: sec === "workshop" || sec === "campaigns" || sec === "daily" || sec === "circuit",
-    },
-    { k: "players", label: "Players", on: sec === "players" },
-    { k: "prefabs", label: "Prefabs", on: sec === "prefabs" },
-  ];
-  return (
-    <>
-      <header
-        className="pnE"
-        data-searching={open || undefined}
-        onPointerLeave={() => setMega(null)}
-      >
-        <Brand />
-        <nav className="pnE-groups pn-desk" aria-label="Sections">
-          {groups.map((g) => (
-            <button
-              key={g.k}
-              type="button"
-              aria-expanded={mega === g.k}
-              aria-current={g.on ? "page" : undefined}
-              onPointerEnter={() => setMega(g.k)}
-              onClick={() => setMega(mega === g.k ? null : g.k)}
-            >
-              {g.label}
-              <Icon k="chev" />
-            </button>
-          ))}
-        </nav>
-        {open ? (
-          <SearchPanel d={d} open setOpen={setOpen} className="pnE-search" autoFocus inline />
-        ) : (
-          <button
-            type="button"
-            className="pn-iconbtn pnE-find"
-            aria-label="Search"
-            onClick={() => (phone ? setSheet(true) : setOpen(true))}
-          >
-            <Icon k="search" />
-          </button>
-        )}
-        <div className="pnE-you">{you}</div>
-        <button
-          type="button"
-          className="pn-iconbtn pn-phone"
-          aria-label="Menu"
-          onClick={() => setMenu(true)}
-        >
-          <Icon k="menu" />
-        </button>
-        {mega ? <MegaPanel which={mega} d={d} onGo={() => setMega(null)} /> : null}
-      </header>
-      <div className="pn-fresh">{fresh}</div>
-      <Layer open={sheet} onClose={() => setSheet(false)} className="pn-full">
-        <div className="pn-sheet">
-          <div className="pn-sheet-head">
-            <b>Search</b>
-            <button
-              type="button"
-              className="pn-iconbtn"
-              aria-label="Close"
-              onClick={() => setSheet(false)}
-            >
-              <Icon k="close" />
-            </button>
-          </div>
-          <SearchPanel
-            d={d}
-            open
-            setOpen={(o) => !o && setSheet(false)}
-            className="pn-insheet"
-            autoFocus
-          />
-        </div>
-      </Layer>
-      <Layer open={menu} onClose={() => setMenu(false)} className="pnE-menu">
-        <div className="pn-sheet">
-          <div className="pn-sheet-head">
-            <Brand />
-            <button
-              type="button"
-              className="pn-iconbtn"
-              aria-label="Close"
-              onClick={() => setMenu(false)}
-            >
-              <Icon k="close" />
-            </button>
-          </div>
-          {groups.map((g) => (
-            <details key={g.k} open={g.on || g.k === "boards"}>
-              <summary>{g.label}</summary>
-              <MegaPanel which={g.k} d={d} onGo={() => setMenu(false)} />
-            </details>
-          ))}
-        </div>
-      </Layer>
-    </>
-  );
-}
-
 /* ---------- the phone test ---------- */
 function usePhone() {
   return useSyncExternalStore(
@@ -1198,10 +1260,9 @@ interface Slots {
 export function ProtoNav({ original, ...slots }: Slots & { original: React.ReactNode }) {
   const v = useVariant();
   if (!v) return <>{original}</>;
-  const V = { A: VariantA, B: VariantB, C: VariantC, D: VariantD, E: VariantE }[v];
   return (
-    <div className={"pn pn-" + v}>
-      <V {...slots} />
+    <div className={"pn pn-D pn-r" + v}>
+      <VariantD {...slots} />
       <ProtoPicker v={v} />
     </div>
   );
@@ -1248,6 +1309,8 @@ function ProtoPicker({ v }: { v: VariantKey }) {
     () => null,
   );
   const state = useStateParam();
+  const typed = useTyped();
+  const brand = useBrand();
   const framed = useSyncExternalStore(
     subscribe,
     () => window.top !== window || param("framed") === "1",
@@ -1321,8 +1384,7 @@ function ProtoPicker({ v }: { v: VariantKey }) {
           {(
             [
               [null, "Closed"],
-              ["open", "Search open"],
-              ["typed", `“${TYPED}”`],
+              ["open", "Open"],
             ] as const
           ).map(([k, label]) => (
             <button
@@ -1332,6 +1394,33 @@ function ProtoPicker({ v }: { v: VariantKey }) {
               onClick={() => set("state", k)}
             >
               {label}
+            </button>
+          ))}
+          {TERMS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              aria-pressed={state === "typed" && typed === t}
+              onClick={() => {
+                set("q", t);
+                set("state", "typed");
+              }}
+            >
+              “{t}”
+            </button>
+          ))}
+        </div>
+        <div className="pp-row">
+          <span>Name</span>
+          {BRANDS.map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              title={label}
+              aria-pressed={brand === k}
+              onClick={() => set("brand", k)}
+            >
+              {k} {label}
             </button>
           ))}
         </div>
