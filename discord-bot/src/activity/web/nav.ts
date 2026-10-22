@@ -64,8 +64,8 @@ export type NavEvent =
   /** The viewer left or cancelled `id`; a live Match they left is watched. */
   | { readonly kind: "left"; readonly id: string; readonly watch: boolean }
   | { readonly kind: "noMap"; readonly match: MatchView }
-  /** The Map was opened in the Workshop: Go! has done its job. */
-  | { readonly kind: "workshop" };
+  /** Go! has done its job: its time is up, or the Map was opened in the Workshop. */
+  | { readonly kind: "goDone" };
 
 /** One of the Match's Players (who may have left it since). */
 export const isRacer = (m: MatchView, discordId: string) =>
@@ -136,7 +136,7 @@ export const navigate = (nav: Nav, event: NavEvent): Nav => {
       };
     case "noMap":
       return { ...nav, noMap: event.match, mine: null, shown: null };
-    case "workshop":
+    case "goDone":
       return { ...nav, go: null };
   }
 };

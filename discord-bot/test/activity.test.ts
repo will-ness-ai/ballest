@@ -1,12 +1,15 @@
 // The Activity's HTTP API, driven with real Requests over the same engine, fakes and TestClock
 // as the engine tests. Discord is faked too: OAuth knows a few codes and access tokens, the
 // server knows its members' display names, and the channel knows where each Match's Card is.
+import { brotliDecompressSync, gunzipSync } from "node:zlib";
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Option } from "effect";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { makeActivityApi } from "../src/activity/api.js";
-import { skinPictureResponses } from "../src/activity/server.js";
-import { marble } from "../src/activity/web/view.js";
+import { scriptResponses, servedPage, skinPictureResponses } from "../src/activity/server.js";
+import { Marble } from "../src/activity/web/ui/art.js";
 import {
   AuthFailed,
   DiscordAuth,
@@ -15,7 +18,7 @@ import {
 } from "../src/activity/auth.js";
 import { Engine } from "../src/engine.js";
 import { Pings } from "../src/pings.js";
-import { ChosenSkins, MatchLinks, Store } from "../src/ports.js";
+import { type ChosenSkin, ChosenSkins, MatchLinks, Store } from "../src/ports.js";
 import {
   ALICE,
   advance,
@@ -894,20 +897,24 @@ describe("Chosen Skins", () => {
   );
 });
 
+/** A Player's marble as the page draws it. */
+const marble = (steamId: string, skin: ChosenSkin) =>
+  renderToStaticMarkup(createElement(Marble, { steamId, size: 24, skin }));
+
 describe("Skin pictures", () => {
   const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
   const UNKNOWN_SKIN = "/Game/Art/Some/Future/Skin.Skin";
   const STEAM_ID = "76561198000000001";
 
   it("draw a Player's Chosen Skin as its picture, served by the Activity", () => {
-    const html = marble(STEAM_ID, 24, PINK);
+    const html = marble(STEAM_ID, PINK);
     expect(html).toContain('<img src="/skins/DA_Skin_Pink.png"');
     expect(html).not.toContain("<svg");
   });
 
   it("draw the hue marble with no Chosen Skin, or one the list doesn't know", () => {
     for (const skin of [null, UNKNOWN_SKIN]) {
-      const html = marble(STEAM_ID, 24, skin);
+      const html = marble(STEAM_ID, skin);
       expect(html).toContain("<svg");
       expect(html).not.toContain("<img");
     }
@@ -923,6 +930,46 @@ describe("Skin pictures", () => {
       expect(new Uint8Array(yield* Effect.promise(() => found.arrayBuffer()))).toEqual(png);
       expect(serve("DA_Skin_Brick.png").status).toBe(404);
       expect(serve("../package.json").status).toBe(404);
+    }),
+  );
+});
+
+describe("the page", () => {
+  const CONFIG = { clientId: "app", guildId: "g1", devUsers: [{ id: "x", name: "</script>" }] };
+  const PAGE = "<head><!--script--></head><main id=app><!--splash--></main><!--config-->";
+
+  it("arrives with the signing-in screen and its config, so nothing waits on a request", () => {
+    const html = servedPage(PAGE, "console.log(1)", CONFIG);
+    expect(html).toContain("Signing in…");
+    const json = /<script id="config" type="application\/json">(.*?)<\/script>/.exec(html)?.[1];
+    expect(JSON.parse(json!)).toEqual(CONFIG);
+  });
+
+  it("names its script by the script's hash, so a deploy is never served from a stale cache", () => {
+    const a = servedPage(PAGE, "console.log(1)", CONFIG);
+    const b = servedPage(PAGE, "console.log(2)", CONFIG);
+    const src = (html: string) => /src="(\/app\.js\?v=[0-9a-f]+)"/.exec(html)?.[1];
+    expect(src(a)).toBeDefined();
+    expect(src(a)).not.toBe(src(b));
+  });
+
+  it.effect("sends the script compressed when the browser takes it, and plain when not", () =>
+    Effect.gen(function* () {
+      const script = "const marbles = 'roll';".repeat(200);
+      const serve = scriptResponses(script);
+      const body = (r: HttpServerResponse.HttpServerResponse) =>
+        Effect.promise(() => HttpServerResponse.toWeb(r).arrayBuffer()).pipe(
+          Effect.map((b) => Buffer.from(b)),
+        );
+      const br = serve("gzip, deflate, br");
+      expect(br.headers["content-encoding"]).toBe("br");
+      expect(brotliDecompressSync(yield* body(br)).toString()).toBe(script);
+      const gz = serve("gzip");
+      expect(gz.headers["content-encoding"]).toBe("gzip");
+      expect(gunzipSync(yield* body(gz)).toString()).toBe(script);
+      const plain = serve("");
+      expect(plain.headers["content-encoding"]).toBeUndefined();
+      expect((yield* body(plain)).toString()).toBe(script);
     }),
   );
 });

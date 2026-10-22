@@ -28,7 +28,10 @@ const step = (nav: Nav, b: Board, lookup: Lookup = NOTHING) =>
 
 describe("the lock", () => {
   it("shows your own Match the moment the board says you're racing in it", () => {
-    const nav = step({ ...NO_NAV, composing: true, watching: "w" }, board("m1", [match("m1", "invite")]));
+    const nav = step(
+      { ...NO_NAV, composing: true, watching: "w" },
+      board("m1", [match("m1", "invite")]),
+    );
     expect(nav.mine).toBe("m1");
     expect(nav.watching).toBeNull();
     expect(nav.composing).toBe(false);
@@ -43,7 +46,11 @@ describe("the lock", () => {
 
   it("keeps your Result on screen after the Match ends, until Back", () => {
     const live = step(NO_NAV, board("m1", [match("m1", "live")]));
-    const ended = step(live, board(null, []), { id: "m1", match: match("m1", "finished"), closed: null });
+    const ended = step(live, board(null, []), {
+      id: "m1",
+      match: match("m1", "finished"),
+      closed: null,
+    });
     expect(ended.mine).toBe("m1");
     expect(ended.shown?.state).toBe("finished");
     const back = navigate(ended, { kind: "back" });
@@ -123,7 +130,7 @@ describe("Go!", () => {
 
   it("comes down when the Map is opened in the Workshop", () => {
     const nav = navigate(NO_NAV, { kind: "entered", id: "m1", match: match("m1", "live"), at });
-    expect(navigate(nav, { kind: "workshop" }).go).toBeNull();
+    expect(navigate(nav, { kind: "goDone" }).go).toBeNull();
   });
 });
 

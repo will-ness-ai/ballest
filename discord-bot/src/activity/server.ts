@@ -1,25 +1,31 @@
 // The Activity's web server: the page Discord shows in its iframe, the page's script (bundled
-// from web/app.ts with the Embedded App SDK when the server starts), its fonts, the Map
-// previews, and the API.
+// from web/main.tsx with React and the Embedded App SDK when the server starts), its fonts, the
+// Map previews, and the API. The page arrives with its config and the signing-in screen already
+// in it, and names the script by its hash, so a browser keeps the script until a deploy changes it.
 //
 // Discord reaches it through the Activity's URL Mapping (`/` → this server's public host), so
 // the page and the API share one origin and every path the page fetches is relative. Nothing
 // loads from any other host: Discord's proxy blocks it. So the fonts come from the @fontsource
 // packages, each Map's Workshop preview is fetched here and passed on, and each Skin's picture
 // (for a Player's Chosen Skin) is the bot's own copy, from SkinPictures.
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform";
+import { brotliCompressSync, gzipSync } from "node:zlib";
+import { HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { NodeHttpServer } from "@effect/platform-node";
 import { build } from "esbuild";
 import { Config, Data, Effect, Layer, Option } from "effect";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { Store } from "../ports.js";
 import { MapPreviews } from "../previews.js";
 import { skinPictureFile } from "../render/skinList.js";
 import { SkinPictures } from "../render/skins.js";
 import { makeActivityApi } from "./api.js";
+import { SigningIn } from "./web/ui/notice.js";
 
 const WEB = fileURLToPath(new URL("./web/", import.meta.url));
 const require = createRequire(import.meta.url);
@@ -67,10 +73,13 @@ const loadFonts = Effect.tryPromise({
 const bundle = Effect.tryPromise({
   try: async () => {
     const result = await build({
-      entryPoints: [`${WEB}app.ts`],
+      entryPoints: [`${WEB}main.tsx`],
       bundle: true,
       format: "esm",
       target: "es2022",
+      jsx: "automatic",
+      // React's production build
+      define: { "process.env.NODE_ENV": '"production"' },
       minify: true,
       write: false,
       logLevel: "silent",
@@ -88,6 +97,46 @@ const loadPage = Effect.tryPromise({
 });
 
 const DAY = "public, max-age=86400";
+/** The script's URL carries its hash, so it never changes under a browser that kept it. */
+const FOREVER = "public, max-age=31536000, immutable";
+
+/**
+ * The script, compressed once at start for each encoding a browser may take (React and the SDK
+ * make it about 460 KB as is, a quarter of that compressed); the plain one for any other.
+ */
+export const scriptResponses = (script: string) => {
+  const plain = Buffer.from(script);
+  const encoded = [
+    ["br", brotliCompressSync(plain)],
+    ["gzip", gzipSync(plain)],
+  ] as const;
+  return (acceptEncoding: string): HttpServerResponse.HttpServerResponse => {
+    const accepted = acceptEncoding.split(",").map((e) => e.trim().split(";")[0]);
+    const pick = encoded.find(([name]) => accepted.includes(name));
+    return HttpServerResponse.uint8Array(pick?.[1] ?? plain, {
+      contentType: "text/javascript",
+      headers: {
+        "cache-control": FOREVER,
+        vary: "accept-encoding",
+        ...(pick === undefined ? {} : { "content-encoding": pick[0] }),
+      },
+    });
+  };
+};
+
+/**
+ * The page as served: the script named by its hash, the config the page would otherwise ask
+ * for, and the signing-in screen, so something shows before the script has run.
+ */
+export const servedPage = (html: string, script: string, config: PageConfig) => {
+  const hash = createHash("sha256").update(script).digest("hex").slice(0, 12);
+  // `<` escaped, so nothing in the config can end the script element.
+  const json = JSON.stringify(config).replace(/</g, "\\u003c");
+  return html
+    .replace("<!--script-->", `<script type="module" src="/app.js?v=${hash}"></script>`)
+    .replace("<!--config-->", `<script id="config" type="application/json">${json}</script>`)
+    .replace("<!--splash-->", renderToStaticMarkup(createElement(SigningIn)));
+};
 
 /**
  * Each Skin's picture by the file the page asks for at /skins/:file (skinPictureFile, from a
@@ -120,7 +169,8 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
   const store = yield* Store;
   const previews = yield* MapPreviews;
   const script = yield* bundle;
-  const html = yield* loadPage;
+  const html = servedPage(yield* loadPage, script, page);
+  const scriptFor = scriptResponses(script);
   const fonts = yield* loadFonts;
   /** A Match's Map preview, only for a Match the bot has drawn a Map for: this is no open proxy. */
   const preview = Effect.gen(function* () {
@@ -157,10 +207,20 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
   const skin = Effect.map(HttpRouter.params, ({ file = "" }) => skinPicture(file));
 
   const pages = HttpRouter.empty.pipe(
-    HttpRouter.get("/", Effect.succeed(HttpServerResponse.html(html))),
+    HttpRouter.get(
+      "/",
+      Effect.succeed(
+        HttpServerResponse.text(html, {
+          contentType: "text/html",
+          headers: { "cache-control": "no-cache" },
+        }),
+      ),
+    ),
     HttpRouter.get(
       "/app.js",
-      Effect.succeed(HttpServerResponse.text(script, { contentType: "text/javascript" })),
+      Effect.map(HttpServerRequest.HttpServerRequest, (req) =>
+        scriptFor(req.headers["accept-encoding"] ?? ""),
+      ),
     ),
     HttpRouter.get("/fonts/:file", font),
     HttpRouter.get("/previews/:id", preview),
