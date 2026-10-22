@@ -61,21 +61,18 @@ const MIGRATIONS: Migrations = {
   }),
   // Venues (spec #315): each Venue's channel has its own Footer and Cards, so the layout is kept
   // per Venue. The one row there was is the home Venue's, so a deploy finds its Footer in place.
+  // `discord_layout` stays as it was, so a rollback to the build before Venues still starts.
   "0008_venue_layouts": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    yield* sql`CREATE TABLE discord_layout_by_venue (venue TEXT PRIMARY KEY, data TEXT NOT NULL)`;
-    yield* sql`INSERT INTO discord_layout_by_venue (venue, data) SELECT 'home', data FROM discord_layout WHERE id = 1`;
-    yield* sql`DROP TABLE discord_layout`;
-    yield* sql`ALTER TABLE discord_layout_by_venue RENAME TO discord_layout`;
+    yield* sql`CREATE TABLE venue_layouts (venue TEXT PRIMARY KEY, data TEXT NOT NULL)`;
+    yield* sql`INSERT INTO venue_layouts (venue, data) SELECT 'home', data FROM discord_layout WHERE id = 1`;
   }),
   // Each Venue offers its own @Multiplayer ping role, so an answer is kept per Venue; the
-  // answers given before were all to the home Venue's offer.
-  "0009_ping_offer_answers_by_venue": Effect.gen(function* () {
+  // answers given before were all to the home Venue's offer. `ping_offer_answers` stays, as above.
+  "0009_venue_ping_offer_answers": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    yield* sql`CREATE TABLE ping_offer_answers_by_venue (venue TEXT NOT NULL, discord_id TEXT NOT NULL, PRIMARY KEY (venue, discord_id))`;
-    yield* sql`INSERT INTO ping_offer_answers_by_venue (venue, discord_id) SELECT 'home', discord_id FROM ping_offer_answers`;
-    yield* sql`DROP TABLE ping_offer_answers`;
-    yield* sql`ALTER TABLE ping_offer_answers_by_venue RENAME TO ping_offer_answers`;
+    yield* sql`CREATE TABLE venue_ping_offer_answers (venue TEXT NOT NULL, discord_id TEXT NOT NULL, PRIMARY KEY (venue, discord_id))`;
+    yield* sql`INSERT INTO venue_ping_offer_answers (venue, discord_id) SELECT 'home', discord_id FROM ping_offer_answers`;
   }),
 };
 

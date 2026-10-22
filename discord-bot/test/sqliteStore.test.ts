@@ -161,8 +161,22 @@ it.scoped("keeps the ping-offer answers given before Venues as the home Venue's"
         yield* sql`INSERT INTO ping_offer_answers ${sql.insert({ discord_id: "d-old" })}`;
       }),
     );
-    const store = yield* openStore(file);
-    expect(yield* store.hasAnsweredPingOffer("home", "d-old")).toBe(true);
-    expect(yield* store.hasAnsweredPingOffer("ballest-racing", "d-old")).toBe(false);
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        const store = yield* openStore(file);
+        expect(yield* store.hasAnsweredPingOffer("home", "d-old")).toBe(true);
+        expect(yield* store.hasAnsweredPingOffer("ballest-racing", "d-old")).toBe(false);
+      }),
+    );
+    // Rolled back to the build before Venues, the bot still reads and writes its own table.
+    yield* beforeVenues(
+      file,
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const rows = yield* sql`SELECT 1 FROM ping_offer_answers WHERE discord_id = ${"d-old"}`;
+        expect(rows).toHaveLength(1);
+        yield* sql`INSERT INTO ping_offer_answers ${sql.insert({ discord_id: "d-new" })} ON CONFLICT (discord_id) DO NOTHING`;
+      }),
+    );
   }),
 );

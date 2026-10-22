@@ -54,7 +54,7 @@ One process plays in every Venue (CONTEXT.md, spec #315): a server, its Match ch
 need nothing new. A Venue's `name` is a short stable key stored on its Matches; don't rename one
 with Matches open.
 
-Each Venue has its own Footer, Cards and Match Threads (a `discord_layout` row each, behind the
+Each Venue has its own Footer, Cards and Match Threads (a `venue_layouts` row each, behind the
 router in `src/discord/surface.ts`), its own queue (a Match's `venue`), its own ping role and its
 own ping-offer answers. Links, Chosen Skins, the Steam session and "one Match at a time" are
 shared. Clicks are handled in the Venue they came from; anywhere else they get "Multiballs only

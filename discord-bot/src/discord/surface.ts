@@ -112,7 +112,7 @@ const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, chan
   const loadLayout = SqlSchema.findOne({
     Request: Schema.Void,
     Result: Schema.Struct({ data: LayoutJson }),
-    execute: () => sql`SELECT data FROM discord_layout WHERE venue = ${venue}`,
+    execute: () => sql`SELECT data FROM venue_layouts WHERE venue = ${venue}`,
   });
   const saved = yield* loadLayout(undefined).pipe(Effect.orDie);
   const layout = yield* Ref.make<Layout>(
@@ -139,7 +139,7 @@ const venueSurface = Effect.fn("venueSurface")(function* (venue: VenueName, chan
       cards: [...next.cards],
       finished: [...next.finished],
     });
-    yield* sql`INSERT INTO discord_layout (venue, data) VALUES (${venue}, ${data}) ON CONFLICT (venue) DO UPDATE SET data = excluded.data`;
+    yield* sql`INSERT INTO venue_layouts (venue, data) VALUES (${venue}, ${data}) ON CONFLICT (venue) DO UPDATE SET data = excluded.data`;
   }, Effect.orDie);
   const setCard = (matchId: string, card: CardRef) =>
     setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }));

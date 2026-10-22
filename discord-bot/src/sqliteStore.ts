@@ -144,12 +144,12 @@ const make = Effect.gen(function* () {
       Effect.orDie,
     ),
     hasAnsweredPingOffer: (venue, discordId) =>
-      sql`SELECT 1 FROM ping_offer_answers WHERE venue = ${venue} AND discord_id = ${discordId}`.pipe(
+      sql`SELECT 1 FROM venue_ping_offer_answers WHERE venue = ${venue} AND discord_id = ${discordId}`.pipe(
         Effect.map((rows) => rows.length > 0),
         Effect.orDie,
       ),
     answerPingOffer: (venue, discordId) =>
-      sql`INSERT INTO ping_offer_answers ${sql.insert({ venue, discord_id: discordId })} ON CONFLICT (venue, discord_id) DO NOTHING`.pipe(
+      sql`INSERT INTO venue_ping_offer_answers ${sql.insert({ venue, discord_id: discordId })} ON CONFLICT (venue, discord_id) DO NOTHING`.pipe(
         Effect.asVoid,
         Effect.orDie,
       ),

@@ -193,9 +193,12 @@ const setup = Effect.fn("setup")(function* (
   /** Make the saved layout one written before Footer fingerprints were kept. */
   const forgetFingerprint = Effect.gen(function* () {
     const db = yield* SqlClient.SqlClient;
-    yield* db`UPDATE discord_layout SET data = json_remove(data, '$.footerFingerprint')`;
+    yield* db`UPDATE venue_layouts SET data = json_remove(data, '$.footerFingerprint')`;
   }).pipe(Effect.provide(sql), Effect.orDie);
-  return { channel, racing, start, placeOf, forgetFingerprint };
+  /** Run SQL on the database as some other build would, such as the one before Venues. */
+  const onDatabase = <A>(query: Effect.Effect<A, unknown, SqlClient.SqlClient>) =>
+    query.pipe(Effect.provide(sql), Effect.orDie);
+  return { channel, racing, start, placeOf, forgetFingerprint, onDatabase };
 });
 
 describe("the channel", () => {
@@ -587,6 +590,14 @@ describe("Venues", () => {
       expect(homeOnly.channel.order()).toEqual(["footer"]);
       expect(homeOnly.channel.posted()).toEqual(["footer"]);
       expect(homeOnly.channel.redrawn()).toEqual([]);
+      // The build before Venues, rolled back to, still finds its own row where it left it.
+      const old = yield* homeOnly.onDatabase(
+        Effect.gen(function* () {
+          const db = yield* SqlClient.SqlClient;
+          return yield* db<{ data: string }>`SELECT data FROM discord_layout WHERE id = 1`;
+        }),
+      );
+      expect(old.map((r) => JSON.parse(r.data).footerId)).toEqual(["msg1"]);
     }),
   );
 
@@ -594,6 +605,8 @@ describe("Venues", () => {
     Effect.gen(function* () {
       const { channel, start } = yield* setup({ homeOnly: true });
       const surface = yield* start;
+      expect(surface.runs(HOME)).toBe(true);
+      expect(surface.runs(RACING)).toBe(false);
       yield* surface.showCard(view("m1", { venue: RACING }));
       yield* surface.post("m1", ThreadPost.Abandoned());
       yield* surface.remove("m1", "expired");
