@@ -238,6 +238,29 @@ const isIn = (venue: DiscordVenue, i: Interaction) =>
   i.channelId === venue.channel.id ||
   (i.channel?.isThread() === true && i.channel.parentId === venue.channel.id);
 
+/**
+ * Where a click goes: to the running Venue whose channel or Match Thread it came from; told the
+ * Venue is being repaired, opening nothing, when that Venue is; or turned away from anywhere else.
+ */
+export const routeClick = (
+  running: ReadonlyArray<DiscordVenue>,
+  repairing: (name: VenueName) => boolean,
+  i: Interaction,
+):
+  | { readonly _tag: "Venue"; readonly venue: DiscordVenue }
+  | { readonly _tag: "Repairing" }
+  | { readonly _tag: "Elsewhere" } => {
+  const venue = running.find((v) => isIn(v, i));
+  if (venue === undefined) return { _tag: "Elsewhere" };
+  return repairing(venue.name) ? { _tag: "Repairing" } : { _tag: "Venue", venue };
+};
+
+/** What a click in a Venue being repaired is told. */
+const REPAIRING = "Multiballs is being repaired in this server, try again in a few minutes.";
+
+/** How soon after startup the servers that didn't start from the cache are first set up. */
+const FIRST_RETRY = "20 seconds";
+
 /** How often a wanted server that isn't running is tried again. */
 const RETRY_EVERY = "5 minutes";
 
@@ -315,10 +338,10 @@ const followServers = Effect.fn("followServers")(function* (
     Effect.forever,
     Effect.forkScoped,
   );
-  // The servers as they are at each retry: the first right away, in the background.
+  // The servers as they are at each retry: the first shortly after startup, in the background.
   yield* Effect.suspend(() =>
     Effect.forEach(everyServer(), (guild) => guarded(`retrying ${guild.id}`, joiner.retry(guild))),
-  ).pipe(Effect.repeat(Schedule.spaced(RETRY_EVERY)), Effect.forkScoped);
+  ).pipe(Effect.delay(FIRST_RETRY), Effect.repeat(Schedule.spaced(RETRY_EVERY)), Effect.forkScoped);
   return { venues, broke: (guildId: string) => joiner.broke(guildId) };
 });
 
@@ -381,6 +404,8 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
 
     /** The running Venue by this name, if it runs. */
     const venueNamed = (name: VenueName) => Effect.succeed(Option.fromNullable(byName.get(name)));
+    /** The guest Venues whose channel is gone, being repaired: they open nothing until the restart. */
+    const repairing = new Set<VenueName>();
 
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
@@ -395,13 +420,15 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       Stream.mapEffect(
         (i) =>
           Effect.gen(function* () {
-            const venue = running.find((v) => isIn(v, i));
-            if (venue !== undefined)
-              return Option.some<VenueInteraction>({ interaction: i, venue });
+            const route = routeClick(running, (name) => repairing.has(name), i);
+            if (route._tag === "Venue")
+              return Option.some<VenueInteraction>({ interaction: i, venue: route.venue });
+            const content =
+              route._tag === "Repairing" ? REPAIRING : "Multiballs only works in its own channel.";
             if (!sandbox && i.isRepliable())
-              yield* tryDiscord("reply", () =>
-                i.reply({ content: "Multiballs only works in its own channel.", ephemeral: true }),
-              ).pipe(Effect.ignore);
+              yield* tryDiscord("reply", () => i.reply({ content, ephemeral: true })).pipe(
+                Effect.ignore,
+              );
             return Option.none<VenueInteraction>();
           }),
         // A reply to a click from elsewhere never holds up the clicks behind it.
@@ -471,13 +498,19 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       home: homeRunning,
       /** Every running Venue, home first: fixed until the bot restarts. */
       running,
+      /** The running Venues that can open Matches now: all but those being repaired. */
+      available: Effect.sync(() => running.filter((v) => !repairing.has(v.name))),
       venueNamed,
       /**
        * A running Venue broke: its Footer couldn't go up, or its channel is gone. It counts as not
        * running for the retry, which repairs it and restarts the bot to run it. Home never does.
        */
       venueBroke: (name: VenueName) =>
-        name === HOME_VENUE ? Effect.void : guests.broke(venueGuildId(name)),
+        name === HOME_VENUE
+          ? Effect.void
+          : Effect.sync(() => repairing.add(name)).pipe(
+              Effect.zipRight(guests.broke(venueGuildId(name))),
+            ),
       /** Clicks from every running Venue's channel and its Match Threads, each with its Venue. */
       interactions,
       postsIn,

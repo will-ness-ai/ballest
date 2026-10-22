@@ -3,7 +3,7 @@
 import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
-import { Context, Effect, Fiber, Layer, Option, TestClock } from "effect";
+import { Context, Deferred, Effect, Fiber, FiberId, Layer, Option, TestClock } from "effect";
 import { type Channel, Drawing, Gone, VenueChannels } from "../src/discord/channel.js";
 import { DiscordError } from "../src/discord/client.js";
 import { OpsAlerts } from "../src/ops.js";
@@ -46,8 +46,8 @@ const makeFakeChannel = () => {
   let deleted = false;
   /** The next read of the newest message hits a bug. */
   let crash = false;
-  /** Reads of the newest message never answer, as when Discord holds the bot back. */
-  let stalled = false;
+  /** While set, reads of the newest message wait for it, as when Discord holds the bot back. */
+  let stalled: Deferred.Deferred<undefined> | null = null;
 
   const port: Channel = {
     post: (drawing) =>
@@ -119,7 +119,8 @@ const makeFakeChannel = () => {
         crash = false;
         return Effect.dieMessage("a bug");
       }
-      if (stalled) return Effect.never;
+      if (stalled !== null)
+        return Deferred.await(stalled).pipe(Effect.as(messages.at(-1)?.id ?? null));
       if (deleted) return Effect.fail(noChannel("fetch last message"));
       return Effect.succeed(messages.at(-1)?.id ?? null);
     }),
@@ -177,7 +178,12 @@ const makeFakeChannel = () => {
     },
     /** Discord stops answering this channel's reads. */
     stall: () => {
-      stalled = true;
+      stalled = Deferred.unsafeMake<undefined>(FiberId.none);
+    },
+    /** Discord answers again. */
+    unstall: () => {
+      if (stalled !== null) Effect.runSync(Deferred.succeed(stalled, undefined));
+      stalled = null;
     },
     postByAnyone: () => messages.push({ id: `msg${next++}`, drawing: null }),
     deleteFooter: () => {
@@ -682,10 +688,25 @@ describe("Venues", () => {
         expect(channel.order()).toEqual(["footer"]);
         expect(alerts()).toHaveLength(1);
         expect(alerts()[0]).toContain(RACING);
-        expect(alerts()[0]).toContain("within a few minutes");
-        // Broken, so the bot repairs it and restarts to run it.
-        expect(broken()).toEqual([RACING]);
+        expect(alerts()[0]).toContain("every five minutes");
+        // Not broken: setup has nothing to repair, and the bot doesn't restart for it.
+        expect(broken()).toEqual([]);
       }),
+  );
+
+  it.scoped("try a Venue whose Footer couldn't go up again in place, every five minutes", () =>
+    Effect.gen(function* () {
+      const { racing, start, alerts, broken } = yield* setup();
+      racing.failNext("post", 1);
+      const surface = yield* start;
+      expect(surface.runs(RACING)).toBe(false);
+      yield* TestClock.adjust("5 minutes");
+      yield* Effect.repeatN(Effect.yieldNow(), 20);
+      expect(surface.runs(RACING)).toBe(true);
+      expect(racing.order()).toEqual(["footer"]);
+      expect(alerts()).toHaveLength(1);
+      expect(broken()).toEqual([]);
+    }),
   );
 
   it.scoped("leave a Venue out at startup when its Footer can't go up, running home", () =>
@@ -722,7 +743,7 @@ describe("Venues", () => {
         expect(racing.order()).toEqual(["footer", "someone else"]);
         expect(surface.runs(RACING)).toBe(false);
         expect(alerts()).toHaveLength(1);
-        expect(broken()).toEqual([RACING]);
+        expect(broken()).toEqual([]);
       }),
   );
 
@@ -774,7 +795,7 @@ describe("Venues", () => {
   );
 
   it.scoped(
-    "leave out a Venue Discord doesn't answer for within 30 seconds, the rest running",
+    "stop waiting on a Venue Discord is slow for after 30 seconds, and run it once it's up",
     () =>
       Effect.gen(function* () {
         const racing = makeFakeChannel();
@@ -793,7 +814,12 @@ describe("Venues", () => {
         expect(surface.runs(HOME)).toBe(true);
         expect(surface.runs("third")).toBe(true);
         expect(surface.runs(RACING)).toBe(false);
-        expect(broken()).toEqual([RACING]);
+        // Its start ran on: its Footer goes up and is recorded, and it runs.
+        racing.unstall();
+        yield* Effect.repeatN(Effect.yieldNow(), 20);
+        expect(racing.order()).toEqual(["footer"]);
+        expect(surface.runs(RACING)).toBe(true);
+        expect(broken()).toEqual([]);
       }),
   );
 

@@ -5,7 +5,7 @@
 import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
-import { ChannelType, type Client } from "discord.js";
+import { ChannelType, type Client, type Interaction } from "discord.js";
 import {
   Cause,
   Context,
@@ -18,7 +18,13 @@ import {
   Ref,
   TestClock,
 } from "effect";
-import { checkVenue, DiscordError, discordKind } from "../src/discord/client.js";
+import {
+  checkVenue,
+  DiscordError,
+  type DiscordVenue,
+  discordKind,
+  routeClick,
+} from "../src/discord/client.js";
 import {
   type ChannelAccess,
   makeVenueJoiner,
@@ -600,6 +606,39 @@ describe("which servers become Venues", () => {
       }),
   );
 
+  it.scoped("a running Venue that broke: marked at once, even while a setup holds the lock", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.startup([]);
+      const racing = makeFakeGuild();
+      yield* j.joins.invited(racing.port);
+      const again = yield* j.restart();
+      yield* again.startup([racing.port]);
+      const slow = makeFakeGuild({ id: "g-slow", joinedAt: NOW });
+      const gate = yield* slow.hold();
+      yield* Effect.fork(again.joins.retry(slow.port));
+      yield* Effect.repeatN(Effect.yieldNow(), 50);
+      const marking = yield* Effect.fork(again.joins.broke("g-racing"));
+      yield* Effect.repeatN(Effect.yieldNow(), 50);
+      expect(Option.isSome(yield* Fiber.poll(marking))).toBe(true);
+      yield* Deferred.succeed(gate, undefined);
+    }),
+  );
+
+  it.scoped("a server set up and waiting for its restart: left alone until then", () =>
+    Effect.gen(function* () {
+      const j = yield* joiner();
+      yield* j.startup([]);
+      const racing = makeFakeGuild();
+      yield* j.joins.invited(racing.port);
+      const calls = racing.apiCalls();
+      yield* j.joins.retry(racing.port);
+      yield* j.background([racing.port]);
+      expect(racing.apiCalls()).toBe(calls);
+      expect(yield* j.restarts).toHaveLength(1);
+    }),
+  );
+
   it.scoped("never home", () =>
     Effect.gen(function* () {
       const j = yield* joiner();
@@ -696,21 +735,64 @@ describe("a server that can't be set up yet", () => {
 });
 
 describe("a baseline taken by a build that kept no time", () => {
-  it.scoped("counts as taken when Venues began", () =>
+  it.scoped("keeps a server it counted out unwanted, and takes its time as the next start's", () =>
     Effect.gen(function* () {
       const sql = yield* Layer.build(SqliteClient.layer({ filename: ":memory:" }));
       const store = Context.get(
         yield* Layer.build(VenueRecordsLive.pipe(Layer.provide(Layer.succeedContext(sql)))),
         VenueRecords,
       );
-      // What the build before 0012 wrote: the row, with no time.
-      yield* Effect.flatMap(
-        SqlClient.SqlClient,
-        (db) => db`INSERT INTO known_servers_baseline (id) VALUES (1)`,
+      // What the build before 0012 wrote: the row with no time, and the server it counted out,
+      // which the bot joined after Venues began.
+      yield* Effect.flatMap(SqlClient.SqlClient, (db) =>
+        Effect.all([
+          db`INSERT INTO known_servers_baseline (id) VALUES (1)`,
+          db`INSERT INTO known_servers (guild_id, wanted) VALUES ('g-old', 0)`,
+        ]),
       ).pipe(Effect.provide(sql), Effect.orDie);
-      expect(yield* store.baselineTakenAt).toEqual(Option.some(VENUES_SINCE));
+      yield* TestClock.setTime(NOW);
+      const j = yield* joiner({ store });
+      const old = makeFakeGuild({ id: "g-old", joinedAt: Date.parse("2026-10-22T09:00:00Z") });
+      yield* j.startup([old.port]);
+      yield* j.background([old.port]);
+      expect(old.made()).toEqual([]);
+      expect(yield* j.restarts).toEqual([]);
+      expect(yield* store.baselineTakenAt).toEqual(Option.some(NOW));
+      // Only a later rejoin wants it.
+      old.rejoin(NOW + 60_000);
+      yield* j.joins.retry(old.port);
+      expect(yield* j.restarts).toHaveLength(1);
     }),
   );
+});
+
+describe("a click", () => {
+  const venue = (name: string, channelId: string) =>
+    ({ name, channel: { id: channelId } }) as unknown as DiscordVenue;
+  const click = (channelId: string, parentId: string | null = null) =>
+    ({
+      channelId,
+      channel: { isThread: () => parentId !== null, parentId },
+    }) as unknown as Interaction;
+  const running = [venue("home", "c-home"), venue("g-racing", "c-racing")];
+
+  it("goes to the Venue whose channel or Match Thread it came from", () => {
+    expect(routeClick(running, () => false, click("c-racing"))).toMatchObject({
+      _tag: "Venue",
+      venue: { name: "g-racing" },
+    });
+    expect(routeClick(running, () => false, click("t-1", "c-home"))).toMatchObject({
+      _tag: "Venue",
+      venue: { name: "home" },
+    });
+    expect(routeClick(running, () => false, click("c-general"))._tag).toBe("Elsewhere");
+  });
+
+  it("in a Venue being repaired, is told so and opens nothing", () => {
+    const repairing = (name: string) => name === "g-racing";
+    expect(routeClick(running, repairing, click("c-racing"))._tag).toBe("Repairing");
+    expect(routeClick(running, repairing, click("c-home"))._tag).toBe("Venue");
+  });
 });
 
 describe("starting home", () => {

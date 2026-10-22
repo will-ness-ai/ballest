@@ -211,13 +211,11 @@ export class VenueRecords extends Context.Tag("multiballs/VenueRecords")<
     readonly put: (venue: VenueConfig) => Effect.Effect<void>;
     /**
      * On this build's first start only: every server listed is known, but not wanted as a Venue,
-     * as of `at` (ms). Later calls change nothing.
+     * as of `at` (ms). Later calls change nothing, except to give a baseline taken without a time
+     * (by the build before 0012) this one, so only a rejoin after now counts.
      */
     readonly takeBaseline: (guildIds: ReadonlyArray<string>, at: number) => Effect.Effect<void>;
-    /**
-     * When the baseline was taken (ms); none before it is. One taken by a build that kept no time
-     * counts as taken at VENUES_SINCE.
-     */
+    /** When the baseline was taken (ms); none before it is. */
     readonly baselineTakenAt: Effect.Effect<Option.Option<number>>;
     /** Whether a server is wanted as a Venue; none for one the bot has never known. */
     readonly wanted: (guildId: string) => Effect.Effect<Option.Option<boolean>>;
@@ -252,9 +250,7 @@ export const VenueRecordsLive = Layer.effect(
       baselineTakenAt: sql<{
         readonly taken_at: number | null;
       }>`SELECT taken_at FROM known_servers_baseline`.pipe(
-        Effect.map((rows) =>
-          Option.map(Option.fromNullable(rows[0]), (row) => row.taken_at ?? VENUES_SINCE),
-        ),
+        Effect.map((rows) => Option.fromNullable(rows[0]?.taken_at)),
         Effect.orDie,
       ),
       takeBaseline: (guildIds, at) =>
@@ -262,7 +258,10 @@ export const VenueRecordsLive = Layer.effect(
           .withTransaction(
             Effect.gen(function* () {
               const taken = yield* sql`SELECT 1 FROM known_servers_baseline`;
-              if (taken.length > 0) return;
+              if (taken.length > 0) {
+                yield* sql`UPDATE known_servers_baseline SET taken_at = ${at} WHERE taken_at IS NULL`;
+                return;
+              }
               for (const guildId of guildIds)
                 yield* sql`INSERT INTO known_servers (guild_id, wanted) VALUES (${guildId}, 0) ON CONFLICT (guild_id) DO NOTHING`;
               yield* sql`INSERT INTO known_servers_baseline (id, taken_at) VALUES (1, ${at})`;
@@ -324,9 +323,9 @@ const SETUP_TIMEOUT = "30 seconds";
  * available: set up (or repaired), stored and checked over the API, one server at a time with a
  * time limit, and once that works `restart` is asked to run it. A server that fails, takes too
  * long or hits a bug is left out, and `alert` (the ops channel) hears each kind of reason once per
- * server. A running Venue's server that removes the bot asks `restart` too; one that `broke`
- * (its Footer couldn't go up, or its channel was deleted) counts as not running, so the retry
- * repairs it.
+ * server. Once one sets up it is pending, left alone until the restart. A running Venue's
+ * server that removes the bot asks `restart` too; one that `broke` (its channel was deleted)
+ * counts as not running, so the retry repairs it.
  */
 export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
   homeGuildId: string,
@@ -339,6 +338,8 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
   const lock = yield* Effect.makeSemaphore(1);
   /** The servers whose Venues run, from startup on, less any that broke. */
   const running = new Set<string>();
+  /** The servers set up since startup, waiting for the restart that runs them: left alone till then. */
+  const pending = new Set<string>();
   /** When the baseline was taken, read once at startup; none if it couldn't be. */
   let takenAt = Option.none<number>();
   /** What kind of reason each server was last left out for, so ops hears it once, not at every retry. */
@@ -415,11 +416,12 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
 
   /** Try a wanted server that isn't running; when it sets up now, restart to run it. */
   const retry = Effect.fn("retry")(function* (guild: SetupGuild) {
-    if (guild.id === homeGuildId || running.has(guild.id)) return;
+    if (guild.id === homeGuildId || running.has(guild.id) || pending.has(guild.id)) return;
     if (!(yield* isWanted(guild))) return;
     const venue = yield* setUp(guild);
-    if (Option.isSome(venue))
-      yield* restart(`the server ${guild.name} (${guild.id}) is set up as a Venue`);
+    if (Option.isNone(venue)) return;
+    pending.add(guild.id);
+    yield* restart(`the server ${guild.name} (${guild.id}) is set up as a Venue`);
   }, lock.withPermits(1));
 
   return {
@@ -478,13 +480,11 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
       leftOutFor.delete(guildId);
       if (running.has(guildId)) yield* restart(`the bot was removed from the server ${guildId}`);
     }, lock.withPermits(1)),
-    /** A running Venue broke (its Footer couldn't go up, or its channel is gone): the retry repairs it. */
+    /** A running Venue's channel is gone: it counts as not running, so the retry repairs it. */
     broke: (guildId: string) =>
-      lock.withPermits(1)(
-        Effect.sync(() => {
-          running.delete(guildId);
-        }),
-      ),
+      Effect.sync(() => {
+        running.delete(guildId);
+      }),
   };
 });
 

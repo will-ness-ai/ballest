@@ -15,8 +15,13 @@ import { MigratorLive } from "./db.js";
 export class Restart extends Context.Tag("multiballs/Restart")<
   Restart,
   {
-    /** Restart as soon as the brake allows, saying why; later asks in this process change nothing. */
+    /**
+     * Restart as soon as the bot is fully up (`ready`), has run MIN_UPTIME and the brake allows,
+     * saying why; later asks in this process change nothing, unless that restart hit a bug.
+     */
     readonly request: (why: string) => Effect.Effect<void>;
+    /** The bot is fully up: home's Footer posted, restart recovery done, clicks answered. */
+    readonly ready: Effect.Effect<void>;
   }
 >() {}
 
@@ -38,33 +43,50 @@ export class RestartHistory extends Context.Tag("multiballs/RestartHistory")<
 export const RESTARTS_PER_HOUR = 3;
 const HOUR = Duration.toMillis("1 hour");
 
-/** The Restart port over a history and a shutdown; a restart waiting on the brake runs in the caller's scope. */
+/** A restart never comes sooner than this after the process started. */
+const MIN_UPTIME = Duration.toMillis("1 minute");
+
+/** The Restart port over a history and a shutdown; a restart waiting its turn runs in the caller's scope. */
 export const makeRestart = Effect.gen(function* () {
   const history = yield* RestartHistory;
   const shutdown = yield* Shutdown;
+  const startedAt = yield* Clock.currentTimeMillis;
+  const up = yield* Deferred.make<undefined>();
   const asked = yield* Ref.make(false);
   const scope = yield* Effect.scope;
+
+  const restart = Effect.fn("restart")(function* (why: string) {
+    yield* Deferred.await(up);
+    const now = yield* Clock.currentTimeMillis;
+    const recent = [...(yield* history.since(now - HOUR))].sort((a, b) => a - b);
+    // The restart that, once an hour old, leaves room for this one.
+    const blocking = recent.at(-RESTARTS_PER_HOUR);
+    const braked =
+      recent.length < RESTARTS_PER_HOUR || blocking === undefined ? 0 : blocking + HOUR - now;
+    const wait = Math.max(0, braked, startedAt + MIN_UPTIME - now);
+    if (braked > 0)
+      yield* Effect.logWarning(
+        `restart deferred ${Duration.format(Duration.millis(wait))} (already ${recent.length} this hour): ${why}`,
+      );
+    else yield* Effect.log(`restarting: ${why}`);
+    yield* Effect.sleep(Duration.millis(wait));
+    yield* history.add(yield* Clock.currentTimeMillis);
+    yield* shutdown.now;
+  });
+
   return Restart.of({
     request: Effect.fn("Restart.request")(function* (why: string) {
       if (yield* Ref.getAndSet(asked, true)) return;
-      const now = yield* Clock.currentTimeMillis;
-      const recent = [...(yield* history.since(now - HOUR))].sort((a, b) => a - b);
-      // The restart that, once an hour old, leaves room for this one.
-      const blocking = recent.at(-RESTARTS_PER_HOUR);
-      const wait =
-        recent.length < RESTARTS_PER_HOUR || blocking === undefined ? 0 : blocking + HOUR - now;
-      if (wait > 0)
-        yield* Effect.logWarning(
-          `restart deferred ${Duration.format(Duration.millis(wait))} (already ${recent.length} this hour): ${why}`,
-        );
-      else yield* Effect.log(`restarting: ${why}`);
-      yield* Effect.sleep(Duration.millis(Math.max(0, wait))).pipe(
-        Effect.zipRight(Clock.currentTimeMillis),
-        Effect.flatMap((at) => history.add(at)),
-        Effect.zipRight(shutdown.now),
+      yield* Effect.log(`restart asked: ${why}`);
+      // A bug on the way (its history unreadable) leaves the next ask free to try again.
+      yield* restart(why).pipe(
+        Effect.catchAllCause((cause) =>
+          Effect.logError("restarting failed", cause).pipe(Effect.zipRight(Ref.set(asked, false))),
+        ),
         Effect.forkIn(scope),
       );
     }),
+    ready: Deferred.succeed(up, undefined).pipe(Effect.asVoid),
   });
 });
 
@@ -94,16 +116,32 @@ export const RestartLive = Layer.scoped(Restart, makeRestart).pipe(
   Layer.provide(RestartHistoryLive),
 );
 
+/** How long closing the app may take before the process exits anyway. */
+const CLOSE_LIMIT = "20 seconds";
+
 /**
  * Run the app until a restart asks it to end: then its scope closes, every finalizer running
- * (Discord logs out, the Activity's server closes), and the program returns, so the process exits
- * cleanly on every platform.
+ * (Discord logs out, the Activity's server closes), and the process exits 0, even if a socket or
+ * timer is still open, or if closing takes over CLOSE_LIMIT. Fly's `always` policy restarts it.
  */
-export const launchUntilShutdown = <ROut, E, RIn>(app: Layer.Layer<ROut, E, RIn>) =>
+export const launchUntilShutdown = <ROut, E, RIn>(
+  app: Layer.Layer<ROut, E, RIn>,
+  exit: (code: number) => void = (code) => process.exit(code),
+) =>
   Effect.gen(function* () {
     const stop = yield* Deferred.make<undefined>();
     const shutdown = Layer.succeed(Shutdown, {
       now: Deferred.succeed(stop, undefined).pipe(Effect.asVoid),
     });
-    yield* Effect.raceFirst(Layer.launch(app.pipe(Layer.provide(shutdown))), Deferred.await(stop));
+    const ending = Deferred.await(stop).pipe(
+      Effect.zipRight(
+        Effect.sleep(CLOSE_LIMIT).pipe(
+          Effect.zipRight(Effect.logError(`closing took over ${CLOSE_LIMIT}; exiting anyway`)),
+          Effect.zipRight(Effect.sync(() => exit(0))),
+          Effect.forkDaemon,
+        ),
+      ),
+    );
+    yield* Effect.raceFirst(Layer.launch(app.pipe(Layer.provide(shutdown))), ending);
+    yield* Effect.sync(() => exit(0));
   });

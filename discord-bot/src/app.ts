@@ -4,7 +4,7 @@ import { appendFileSync } from "node:fs";
 import { PlatformConfigProvider } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
 import { SqliteClient } from "@effect/sql-sqlite-node";
-import { Config, Effect, Layer, Logger, Option } from "effect";
+import { Config, Context, Effect, Layer, Logger, Option } from "effect";
 import { DiscordAuthLive, DiscordMembers, MembersUnavailable } from "./activity/auth.js";
 import { ChosenSkinsLive } from "./chosenSkins.js";
 import { activityServer } from "./activity/server.js";
@@ -24,7 +24,7 @@ import { OpsAlerts, OpsLive } from "./ops.js";
 import { Pings } from "./pings.js";
 import { MapPreviews, PreviewSourceLive } from "./previews.js";
 import { Renderer } from "./render/renderer.js";
-import { RestartLive } from "./restart.js";
+import { Restart, RestartLive } from "./restart.js";
 import { SkinPictures } from "./render/skins.js";
 import { SqliteStoreLive } from "./sqliteStore.js";
 import { VenueRecordsLive } from "./venues.js";
@@ -66,10 +66,11 @@ const ActivityLive = Layer.unwrapEffect(
     const secret = yield* Config.option(Config.redacted("DISCORD_CLIENT_SECRET"));
     if (Option.isNone(secret)) return Layer.empty;
     const clientId = yield* Config.string("DISCORD_APPLICATION_ID");
-    // Every running Venue's server: a server left out is turned away like any server.
+    // Every running Venue's server: a server left out, or being repaired, is turned away like any
+    // other.
     const discord = yield* Discord;
-    const venues = Effect.succeed(
-      discord.running.map((v) => ({
+    const venues = Effect.map(discord.available, (available) =>
+      available.map((v) => ({
         name: v.name,
         guildId: v.channel.guildId,
         channelId: v.channel.id,
@@ -122,12 +123,9 @@ const portsLive = <E, R>(steam: Layer.Layer<Steam, E, R>) =>
     // A server that can't be set up as a Venue is left out with a line to ops; the Venues the bot
     // set up itself are kept in SQLite, and a change to them restarts the bot.
     Layer.provideMerge(
-      Discord.Default.pipe(
-        Layer.provide(OpsAlerts.Default),
-        Layer.provide(VenueRecordsLive),
-        Layer.provide(RestartLive),
-      ),
+      Discord.Default.pipe(Layer.provide(OpsAlerts.Default), Layer.provide(VenueRecordsLive)),
     ),
+    Layer.provideMerge(RestartLive),
     Layer.provideMerge(SqlLive),
   );
 
@@ -157,6 +155,9 @@ export const app = <E, R, E2 = never>(
     Layer.provide(Engine.Default),
     Layer.provide(Pings.Default),
     Layer.provideMerge(portsLive(steam)),
+    // Everything is up (Footers posted, restart recovery done, clicks answered): a restart for
+    // the Venues may go ahead from now on.
+    Layer.tap((ports) => Context.get(ports, Restart).ready),
     Layer.provide(InstanceLockLive),
     Layer.provide(FileLogLive),
     Layer.provide(ConfigLive),

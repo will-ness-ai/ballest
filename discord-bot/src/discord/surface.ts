@@ -29,7 +29,7 @@
 // - A Card is forgotten once it will never change again: after its Result, or once removed.
 //   A finished Match's place is still kept (the most recent ones), for the Activity's links.
 import { SqlClient, SqlSchema } from "@effect/sql";
-import { Cause, Context, Effect, Exit, Layer, Option, Ref, Schema } from "effect";
+import { Cause, Context, Effect, Exit, Fiber, Layer, Option, Ref, Schema } from "effect";
 import { MigratorLive } from "../db.js";
 import { HOME_VENUE, type VenueName } from "../domain.js";
 import {
@@ -62,8 +62,11 @@ interface Layout {
   readonly finished: ReadonlyMap<string, MatchPlace>;
 }
 
-/** How long a guest Venue's channel may take to start before it is left out. */
+/** How long the engine waits on a guest Venue's channel starting; it runs whenever it does. */
 const START_TIMEOUT = "30 seconds";
+
+/** How soon a guest Venue whose Footer couldn't be put right is tried again, in place. */
+const RETRY_FOOTER = "5 minutes";
 
 /** How many finished Matches' places are kept. */
 const FINISHED_KEPT = 100;
@@ -421,27 +424,47 @@ const make = Effect.gen(function* () {
     });
   });
 
+  const scope = yield* Effect.scope;
+  const sql = yield* SqlClient.SqlClient;
+
   /**
-   * Start a guest Venue on its own, within START_TIMEOUT: one whose Footer can't be put right in
-   * time, or that hits a bug, is left out, ops told, and marked broken so the bot repairs it.
+   * Start a guest Venue on its own, in the background, so nothing interrupts its Footer's post or
+   * the write of its id; the engine waits on it at most START_TIMEOUT, and it runs whenever its
+   * start finishes. One whose Footer can't be put right (or that hits a bug) is told to ops once
+   * and tried again in place every RETRY_FOOTER: setup has nothing to repair there, so it is not
+   * broken and the bot doesn't restart. One whose channel is gone is broken, for setup to repair.
    */
   const startGuest = Effect.fn("startGuest")(function* (venue: VenueName, channel: Channel) {
-    const started = yield* Effect.exit(
-      venueSurface(venue, channel, yield* channelGoneIn(venue)).pipe(Effect.timeout(START_TIMEOUT)),
-    );
-    if (Exit.isSuccess(started)) return running.set(venue, started.value);
-    const failure = Cause.failureOption(started.cause);
-    if (Option.isNone(failure))
-      yield* Effect.logError(`Venue ${venue} hit a bug starting`, started.cause);
-    const why = Option.match(failure, {
-      onNone: () => "a bug, see the log",
-      onSome: (e) =>
-        e._tag === "TimeoutException" ? `Discord took over ${START_TIMEOUT}` : describeFailure(e),
-    });
-    yield* alerts.post(
-      `Multiballs left the Venue ${venue} out: its Footer couldn't be put right (${why}). It tries again within a few minutes and restarts to run it.`,
-    );
-    yield* channels.broke(venue);
+    const gone = yield* channelGoneIn(venue);
+    let told = false;
+    const attempt = (): Effect.Effect<void> =>
+      Effect.gen(function* () {
+        const started = yield* Effect.exit(venueSurface(venue, channel, gone));
+        if (Exit.isSuccess(started)) {
+          running.set(venue, started.value);
+          return;
+        }
+        const failure = Cause.failureOption(started.cause);
+        if (Option.isNone(failure))
+          yield* Effect.logError(`Venue ${venue} hit a bug starting`, started.cause);
+        else if (failure.value._tag === "DiscordError" && isUnknownChannel(failure.value))
+          return yield* gone;
+        if (!told) {
+          told = true;
+          const why = Option.match(failure, {
+            onNone: () => "a bug, see the log",
+            onSome: describeFailure,
+          });
+          yield* alerts.post(
+            `Multiballs left the Venue ${venue} out: its Footer couldn't be put right (${why}). It tries again every five minutes.`,
+          );
+        }
+        yield* Effect.suspend(attempt).pipe(Effect.delay(RETRY_FOOTER), Effect.forkIn(scope));
+      }).pipe(Effect.provideService(SqlClient.SqlClient, sql));
+    const first = yield* Effect.forkIn(attempt(), scope);
+    const settled = yield* Fiber.await(first).pipe(Effect.timeout(START_TIMEOUT), Effect.option);
+    if (Option.isNone(settled))
+      yield* Effect.logWarning(`Venue ${venue}'s channel is slow to start; it runs once it does`);
   });
 
   // Home first, as it always has: its start never fails, and a bug in it is the bot's. The guests

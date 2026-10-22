@@ -2,7 +2,7 @@
 // alerts the ops channel when pings stop, and a daily warning to the ops channel's webhook once
 // the Steam refresh token is close to expiring (the bot never renews it).
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "@effect/platform";
-import { Clock, Config, Effect, Layer, Option, Redacted, Schedule, Schema } from "effect";
+import { Clock, Config, Effect, Layer, Option, Queue, Redacted, Schedule, Schema } from "effect";
 import { Discord } from "./discord/client.js";
 
 const WARN_DAYS = 30;
@@ -21,31 +21,46 @@ export const tokenDaysLeft = (token: string, nowMs: number): Option.Option<numbe
 
 /**
  * A message to the private ops channel through its webhook (OPS_WEBHOOK_URL), and always a
- * warning in the log. The post runs in the background with a time limit, and a failed one is
- * only logged: nothing waits on ops hearing.
+ * warning in the log. Posts go out in the order told, one at a time, from a queue a background
+ * fiber drains, each with a time limit; a failed one is only logged. Nothing waits on ops hearing,
+ * and what is still queued when the bot stops is sent within a few seconds.
  */
 export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts", {
-  effect: Effect.gen(function* () {
+  scoped: Effect.gen(function* () {
     const webhookUrl = yield* Config.option(Config.redacted("OPS_WEBHOOK_URL"));
     const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
+    const queue = yield* Queue.unbounded<string>();
+    const send = (url: string, content: string) =>
+      http
+        .execute(HttpClientRequest.post(url).pipe(HttpClientRequest.bodyUnsafeJson({ content })))
+        .pipe(
+          Effect.scoped,
+          Effect.timeout("10 seconds"),
+          Effect.catchAll((e) => Effect.logWarning(`ops webhook failed: ${e._tag}`)),
+        );
+    if (Option.isSome(webhookUrl)) {
+      const url = Redacted.value(webhookUrl.value);
+      // Added before the drain is forked, so it runs after the drain stops: what is left is sent.
+      yield* Effect.addFinalizer(() =>
+        Queue.takeAll(queue).pipe(
+          Effect.flatMap((left) => Effect.forEach(left, (content) => send(url, content))),
+          // A finalizer can't be interrupted, so its time limit needs the sends to be.
+          Effect.interruptible,
+          Effect.timeout("5 seconds"),
+          Effect.ignore,
+        ),
+      );
+      yield* Queue.take(queue).pipe(
+        Effect.flatMap((content) => send(url, content)),
+        Effect.forever,
+        Effect.forkScoped,
+      );
+    }
     return {
       configured: Option.isSome(webhookUrl),
       post: Effect.fn("OpsAlerts.post")(function* (content: string) {
         yield* Effect.logWarning(`ops: ${content}`);
-        if (Option.isNone(webhookUrl)) return;
-        yield* http
-          .execute(
-            HttpClientRequest.post(Redacted.value(webhookUrl.value)).pipe(
-              HttpClientRequest.bodyUnsafeJson({ content }),
-            ),
-          )
-          .pipe(
-            Effect.scoped,
-            Effect.timeout("10 seconds"),
-            Effect.catchAll((e) => Effect.logWarning(`ops webhook failed: ${e._tag}`)),
-            // In the background: no caller, startup included, waits on ops hearing.
-            Effect.forkDaemon,
-          );
+        if (Option.isSome(webhookUrl)) yield* Queue.offer(queue, content);
       }),
     };
   }),
