@@ -456,7 +456,7 @@ describe("the collage's variations", () => {
 
   test("can be narrowed to some controls", () => {
     const rows = variationsOf(gen("house"), ["roof"]);
-    expect(rows.map(([label]) => label)).toEqual([
+    expect(rows.map((r) => r.label)).toEqual([
       "defaults",
       "Roof Gable",
       "Roof Hip",
