@@ -69,6 +69,11 @@ const KINDS = {
     mesh: "/Game/Maps/_GENERATED/PC/SM_Start_Fixed.SM_Start_Fixed",
     size: [1000, 1000, 200],
   },
+  pyramid: {
+    cls: "/Game/LevelEditor/PackageAssets/BallestAssets/MapPieces/MP_Pyramid.MP_Pyramid_C",
+    mesh: "/Game/LevelEditor/PackageAssets/BallestAssets/MapPieces/Meshes/SM_Pyramid.SM_Pyramid",
+    size: [500, 500, 200],
+  },
   cone: {
     cls: "/Game/LevelEditor/PackageAssets/BallestAssets/MapPieces/MP_Cone.MP_Cone_C",
     mesh: "/Game/LevelEditor/PackageAssets/BallestAssets/MapPieces/Meshes/SM_Cone.SM_Cone",
@@ -251,6 +256,7 @@ export interface Generator {
   key: string;
   name: string;
   blurb: string;
+  category: (typeof CATEGORIES)[number];
   /* the stem of the file Download saves, and so of the spawn command */
   file: string;
   /* it letters text, so its page loads the drawn fonts and hands build a Lettering */
@@ -267,6 +273,7 @@ export interface Generator {
 const qr: Generator = {
   key: "qr",
   name: "QR code",
+  category: "Signs",
   blurb: "A code players can scan, built from blocks.",
   file: "qr_code",
   angle: FRONT,
@@ -331,6 +338,7 @@ export function fitText(text: string, lettering: Lettering, w: number, h: number
 const sign: Generator = {
   key: "sign",
   name: "Sign",
+  category: "Signs",
   blurb: "Your words in blocks, on a wall or standing alone.",
   file: "sign",
   lettered: true,
@@ -601,20 +609,35 @@ const STYLES: Record<
     build: (v) => voxelBoxes(voxelTree(v), numberIn(v, "v.cell")),
   },
 };
-const styleOf = (v: Values) =>
-  (TREE_STYLES as ReadonlyArray<unknown>).includes(v.style)
-    ? STYLES[v.style as TreeStyle]
-    : STYLES.Branches;
-const tree: Generator = {
-  key: "tree",
-  name: "Tree",
-  blurb: "A branching tree, a tiered pine or a block-game tree.",
-  file: "tree",
-  defaults: {
-    style: "Branches",
-    bark: "Copper",
-    leaves: "Lime",
-    seed: 5,
+/* PROTOTYPE (claude/prototype-make-your-own): each tree style is its own Generator, and three
+   buildings. Never merged as is: /implement-spec rebuilds the winner. */
+const treeOf = (
+  key: string,
+  name: string,
+  blurb: string,
+  style: TreeStyle,
+  defaults: Values,
+): Generator => ({
+  key,
+  name,
+  blurb,
+  category: "Nature",
+  file: key.replace(/-/g, "_"),
+  defaults: { style, bark: "Copper", leaves: "Lime", seed: 5, ...defaults },
+  controls: () => [
+    ...STYLES[style].controls,
+    colour("bark", "Trunk"),
+    colour("leaves", "Leaves"),
+    SHUFFLE,
+  ],
+  build: (v) => fileOf(STYLES[style].build(v)),
+});
+const tree = treeOf(
+  "tree",
+  "Tree",
+  "A trunk that forks into branches, leaves at every tip.",
+  "Branches",
+  {
     "b.trunk": 3,
     "b.girth": 0.45,
     "b.levels": 2,
@@ -623,6 +646,14 @@ const tree: Generator = {
     "b.ratio": 70,
     "b.clump": 1.8,
     "b.balls": 3,
+  },
+);
+const pine = treeOf(
+  "pine",
+  "Pine",
+  "Stacked cones over a bare trunk, with snow if you like.",
+  "Tiers",
+  {
     "t.height": 8,
     "t.width": 4,
     "t.tiers": 4,
@@ -630,26 +661,21 @@ const tree: Generator = {
     "t.overlap": 40,
     "t.stem": 1.6,
     "t.snow": false,
-    "v.kind": "Oak",
-    "v.cell": 50,
-    "v.height": 11,
-    "v.radius": 3,
-    "v.holes": 15,
   },
-  controls: (v) => [
-    { key: "style", label: "Style", kind: "choice", options: TREE_STYLES },
-    ...styleOf(v).controls,
-    colour("bark", "Trunk"),
-    colour("leaves", "Leaves"),
-    SHUFFLE,
-  ],
-  build: (v) => fileOf(styleOf(v).build(v)),
-};
+);
+const blockTree = treeOf(
+  "block-tree",
+  "Block tree",
+  "An oak, birch, spruce or jungle tree out of blocks.",
+  "Voxel",
+  { "v.kind": "Oak", "v.cell": 50, "v.height": 11, "v.radius": 3, "v.holes": 15 },
+);
 
 const bush: Generator = {
   key: "bush",
   name: "Bush",
   blurb: "A shrub of stems with clumps of leaves.",
+  category: "Nature",
   file: "bush",
   defaults: {
     stems: 7,
@@ -704,7 +730,385 @@ const bush: Generator = {
   },
 };
 
-export const GENERATORS: ReadonlyArray<Generator> = [qr, sign, tree, bush];
+/* ---------- buildings ---------- */
+/* A building's front faces -X, like a sign, so it faces the camera that spawns it; its width
+   runs along Y and its depth along X, its ground floor on z = 0. */
+
+/* a box `size` cm across centred at `at`, turned by `rot` */
+const boxAt = (at: V3, size: V3, c: Colour, rot: V3 = [0, 0, 0]) => {
+  const P = rot[0] * DEG;
+  const Y = rot[1] * DEG;
+  const R = rot[2] * DEG;
+  /* where the box's up axis points: pitch about Y, roll about X, then yaw about Z */
+  const up: V3 = [
+    -Math.sin(P) * Math.cos(R) * Math.cos(Y) + Math.sin(R) * Math.sin(Y),
+    -Math.sin(P) * Math.cos(R) * Math.sin(Y) - Math.sin(R) * Math.cos(Y),
+    Math.cos(P) * Math.cos(R),
+  ];
+  return piece("cube", add(at, mul(up, -size[2] / 2)), size, c, rot);
+};
+
+interface Opening {
+  /* along the wall from its left end, its middle, and its width, bottom and top, in cm */
+  at: number;
+  width: number;
+  bottom: number;
+  top: number;
+}
+/* a wall `length` long and `height` tall with holes, as the boxes around them: a pier between
+   each pair of holes, and a piece under and over each one. `place` turns a box given in the
+   wall's own frame (u along it, from its left end; z up) into the world */
+function wall(
+  length: number,
+  height: number,
+  holes: Array<Opening>,
+  place: (u0: number, u1: number, z0: number, z1: number) => PrefabItem,
+) {
+  const items: Array<PrefabItem> = [];
+  const sorted = [...holes].sort((a, b) => a.at - b.at);
+  let u = 0;
+  for (const h of sorted) {
+    const l = h.at - h.width / 2;
+    const r = h.at + h.width / 2;
+    if (l > u + 1) items.push(place(u, l, 0, height));
+    if (h.bottom > 1) items.push(place(l, r, 0, h.bottom));
+    if (h.top < height - 1) items.push(place(l, r, h.top, height));
+    u = r;
+  }
+  if (length > u + 1) items.push(place(u, length, 0, height));
+  return items;
+}
+
+/* `n` windows `w` wide spread evenly along a wall `length` long, from sill to head */
+const windowsAlong = (length: number, n: number, w: number, sill: number, head: number) =>
+  Array.from({ length: n }, (_, i) => ({
+    at: ((i + 1) * length) / (n + 1),
+    width: w,
+    bottom: sill,
+    top: head,
+  }));
+
+const ROOFS = ["Gable", "Hip", "Flat"] as const;
+const house: Generator = {
+  key: "house",
+  name: "House",
+  blurb: "Walls with windows and a door, one floor or several, under a roof.",
+  category: "Buildings",
+  file: "house",
+  angle: { from: [-0.75, 0.45, 0.5], zoom: 1, pan: [0, 0, 0] },
+  defaults: {
+    width: 9,
+    depth: 7,
+    floors: 2,
+    storey: 3,
+    roof: "Gable",
+    pitch: 35,
+    windows: 3,
+    door: true,
+    walls: "White",
+    roofc: "Wine",
+    trim: "Dark",
+    glass: "Sky blue",
+  },
+  controls: (v) => [
+    num("width", "Width", 4, 30, 0.5, "m"),
+    num("depth", "Depth", 4, 30, 0.5, "m"),
+    num("floors", "Floors", 1, 5, 1),
+    { key: "roof", label: "Roof", kind: "choice", options: ROOFS },
+    ...(v.roof === "Flat" ? [] : [num("pitch", "Roof slope", 15, 55, 1, "°", true)]),
+    num("windows", "Windows a side", 0, 8, 1),
+    { key: "door", label: "Front door", kind: "toggle" },
+    num("storey", "Floor height", 2.5, 5, 0.1, "m", true),
+    colour("walls", "Walls"),
+    colour("roofc", "Roof"),
+    colour("trim", "Door and trim"),
+    colour("glass", "Windows"),
+  ],
+  build: (v) => {
+    const W = metresIn(v, "width");
+    const D = metresIn(v, "depth");
+    const h = metresIn(v, "storey");
+    const floors = numberIn(v, "floors");
+    const t = 20;
+    const walls = colourIn(v, "walls");
+    const items: Array<PrefabItem> = [boxAt([0, 0, 10], [D, W, 20], colourIn(v, "trim"))];
+    const n = numberIn(v, "windows");
+    for (let f = 0; f < floors; f++) {
+      const z = 20 + f * h;
+      const holesFront = windowsAlong(W, n, 100, 90, 200);
+      const holesSide = windowsAlong(D - 2 * t, Math.max(0, Math.round((n * D) / W)), 100, 90, 200);
+      if (f === 0 && v.door) {
+        /* the door takes the middle window's place */
+        const mid = holesFront.findIndex((o) => Math.abs(o.at - W / 2) < W / (2 * (n + 1)));
+        if (mid >= 0) holesFront.splice(mid, 1);
+        holesFront.push({ at: W / 2, width: 110, bottom: 0, top: 220 });
+        items.push(boxAt([-D / 2 + t / 2, 0, z + 110], [t / 2, 100, 210], colourIn(v, "trim")));
+      }
+      for (const [x, holes] of [
+        [-D / 2 + t / 2, holesFront],
+        [D / 2 - t / 2, windowsAlong(W, n, 100, 90, 200)],
+      ] as const) {
+        items.push(
+          ...wall(W, h, holes, (u0, u1, z0, z1) =>
+            boxAt([x, -W / 2 + (u0 + u1) / 2, z + (z0 + z1) / 2], [t, u1 - u0, z1 - z0], walls),
+          ),
+        );
+        for (const o of holes)
+          if (o.bottom > 0)
+            items.push(
+              boxAt(
+                [x, -W / 2 + o.at, z + (o.bottom + o.top) / 2],
+                [4, o.width, o.top - o.bottom],
+                colourIn(v, "glass"),
+              ),
+            );
+      }
+      for (const y of [-W / 2 + t / 2, W / 2 - t / 2]) {
+        items.push(
+          ...wall(D - 2 * t, h, holesSide, (u0, u1, z0, z1) =>
+            boxAt([-D / 2 + t + (u0 + u1) / 2, y, z + (z0 + z1) / 2], [u1 - u0, t, z1 - z0], walls),
+          ),
+        );
+        for (const o of holesSide)
+          items.push(
+            boxAt(
+              [-D / 2 + t + o.at, y, z + (o.bottom + o.top) / 2],
+              [o.width, 4, o.top - o.bottom],
+              colourIn(v, "glass"),
+            ),
+          );
+      }
+      items.push(boxAt([0, 0, z + h - 10], [D, W, 20], walls));
+    }
+    const top = 20 + floors * h;
+    const roofc = colourIn(v, "roofc");
+    const eave = 40;
+    if (v.roof === "Flat") {
+      for (const [at, size] of [
+        [
+          [-D / 2 + 10, 0, top + 40],
+          [20, W, 80],
+        ],
+        [
+          [D / 2 - 10, 0, top + 40],
+          [20, W, 80],
+        ],
+        [
+          [0, -W / 2 + 10, top + 40],
+          [D, 20, 80],
+        ],
+        [
+          [0, W / 2 - 10, top + 40],
+          [D, 20, 80],
+        ],
+      ] as Array<[V3, V3]>)
+        items.push(boxAt(at, size, roofc));
+    } else if (v.roof === "Hip") {
+      const rise = Math.tan(numberIn(v, "pitch") * DEG) * (Math.min(W, D) / 2 + eave);
+      items.push(piece("pyramid", [0, 0, top], [D + 2 * eave, W + 2 * eave, rise], roofc));
+    } else {
+      /* two slabs meeting over the ridge, which runs across the front; stepped gable ends */
+      const p = numberIn(v, "pitch");
+      const half = D / 2 + eave;
+      const slope = half / Math.cos(p * DEG);
+      const rise = Math.tan(p * DEG) * (D / 2);
+      for (const s of [-1, 1])
+        items.push(
+          boxAt(
+            [(s * half) / 2, 0, top + rise / 2 - (Math.tan(p * DEG) * eave) / 2 + 8],
+            [slope, W + 2 * eave, 15],
+            roofc,
+            [-s * p, 0, 0],
+          ),
+        );
+      const steps = Math.max(1, Math.round(rise / 40));
+      for (let i = 0; i < steps; i++) {
+        const sh = rise / steps;
+        const sw = D * (1 - (i + 0.5) / steps);
+        for (const y of [-W / 2 + t / 2, W / 2 - t / 2])
+          items.push(boxAt([0, y, top + i * sh + sh / 2], [sw, t, sh], walls));
+      }
+    }
+    return fileOf(items);
+  },
+};
+
+const CROWNS = ["Flat", "Spire", "Antenna"] as const;
+const tower: Generator = {
+  key: "tower",
+  name: "Tower",
+  blurb: "A glass tower with a band at every floor, stepping in as it rises.",
+  category: "Buildings",
+  file: "tower",
+  angle: { from: [-0.7, 0.35, 0.62], zoom: 1, pan: [0, 0, 0] },
+  defaults: {
+    width: 14,
+    floors: 24,
+    storey: 3.5,
+    setbacks: 2,
+    step: 18,
+    columns: 6,
+    crown: "Spire",
+    frame: "Aluminum",
+    glass: "Sky blue",
+    top: "Dark",
+  },
+  controls: () => [
+    num("width", "Width", 6, 60, 1, "m"),
+    num("floors", "Floors", 3, 80, 1),
+    num("setbacks", "Setbacks", 0, 4, 1),
+    { key: "crown", label: "Top", kind: "choice", options: CROWNS },
+    num("columns", "Columns a side", 0, 12, 1, undefined, true),
+    num("step", "Step in", 5, 35, 1, "%", true),
+    num("storey", "Floor height", 3, 6, 0.1, "m", true),
+    colour("frame", "Frame"),
+    colour("glass", "Glass"),
+    colour("top", "Top"),
+  ],
+  build: (v) => {
+    const floors = numberIn(v, "floors");
+    const h = metresIn(v, "storey");
+    const sections = numberIn(v, "setbacks") + 1;
+    const per = Math.ceil(floors / sections);
+    const frame = colourIn(v, "frame");
+    const items: Array<PrefabItem> = [];
+    let W = metresIn(v, "width");
+    let z = 0;
+    for (let s = 0; s < sections; s++) {
+      const n = Math.min(per, floors - s * per);
+      if (n <= 0) break;
+      items.push(boxAt([0, 0, z + (n * h) / 2], [W - 30, W - 30, n * h], colourIn(v, "glass")));
+      for (let f = 0; f <= n; f++) items.push(boxAt([0, 0, z + f * h], [W, W, 40], frame));
+      const cols = numberIn(v, "columns");
+      for (let c = 0; c <= cols + 1 && cols > 0; c++) {
+        const u = -W / 2 + (c * W) / (cols + 1);
+        for (const [x, y] of [
+          [-W / 2 + 15, u],
+          [W / 2 - 15, u],
+          [u, -W / 2 + 15],
+          [u, W / 2 - 15],
+        ])
+          items.push(boxAt([x, y, z + (n * h) / 2], [30, 30, n * h], frame));
+      }
+      z += n * h;
+      W *= 1 - numberIn(v, "step") / 100;
+    }
+    const top = colourIn(v, "top");
+    if (v.crown === "Spire")
+      items.push(piece("cone", [0, 0, z + 20], [W * 0.5, W * 0.5, W * 1.4], top));
+    else if (v.crown === "Antenna") {
+      items.push(boxAt([0, 0, z + 80], [W * 0.4, W * 0.4, 160], top));
+      items.push(piece("cylinder", [0, 0, z + 160], [30, 30, W * 1.6], top));
+    } else items.push(boxAt([0, 0, z + 60], [W * 0.6, W * 0.6, 120], top));
+    return fileOf(items);
+  },
+};
+
+const castle: Generator = {
+  key: "castle",
+  name: "Castle",
+  blurb: "Battlemented walls round a keep, a round tower at each corner and a gate.",
+  category: "Buildings",
+  file: "castle",
+  angle: { from: [-0.75, 0.5, 0.45], zoom: 1, pan: [0, 0, 0] },
+  defaults: {
+    size: 24,
+    height: 6,
+    towers: true,
+    keep: true,
+    gate: 4,
+    merlons: 1,
+    stone: "Iron",
+    roofc: "Wine",
+    gatec: "Copper",
+  },
+  controls: (v) => [
+    num("size", "Size", 10, 80, 1, "m"),
+    num("height", "Wall height", 3, 20, 0.5, "m"),
+    { key: "towers", label: "Corner towers", kind: "toggle" },
+    { key: "keep", label: "Keep in the middle", kind: "toggle" },
+    num("gate", "Gate width", 0, 10, 0.5, "m", true),
+    num("merlons", "Battlement spacing", 0.5, 3, 0.1, "m", true),
+    colour("stone", "Stone"),
+    ...(v.towers || v.keep ? [colour("roofc", "Roofs")] : []),
+    colour("gatec", "Gate"),
+  ],
+  build: (v) => {
+    const S = metresIn(v, "size");
+    const H = metresIn(v, "height");
+    const t = Math.max(60, S * 0.03);
+    const stone = colourIn(v, "stone");
+    const roofc = colourIn(v, "roofc");
+    const items: Array<PrefabItem> = [];
+    const gate = metresIn(v, "gate");
+    const step = metresIn(v, "merlons");
+    /* each side: a wall, its battlements, and for the front a gate */
+    const sides: Array<[V3, number]> = [
+      [[-S / 2, 0, 0], 0],
+      [[S / 2, 0, 0], 0],
+      [[0, -S / 2, 0], 90],
+      [[0, S / 2, 0], 90],
+    ];
+    sides.forEach(([c, yaw], i) => {
+      const along = (u: number): V3 => (yaw ? [c[0] + u, c[1], 0] : [c[0], c[1] + u, 0]);
+      const size = (len: number, ht: number): V3 => (yaw ? [len, t, ht] : [t, len, ht]);
+      const holes =
+        i === 0 && gate > 0
+          ? [{ at: S / 2, width: gate, bottom: 0, top: Math.min(H - 80, gate * 1.3) }]
+          : [];
+      items.push(
+        ...wall(S, H, holes, (u0, u1, z0, z1) => {
+          const m = along(-S / 2 + (u0 + u1) / 2);
+          return boxAt([m[0], m[1], (z0 + z1) / 2], size(u1 - u0, z1 - z0), stone);
+        }),
+      );
+      if (holes.length) {
+        const m = along(0);
+        items.push(
+          boxAt(
+            [m[0] - t / 2 - 5, m[1], holes[0].top / 2],
+            [10, gate, holes[0].top],
+            colourIn(v, "gatec"),
+          ),
+        );
+      }
+      for (let u = -S / 2 + step / 2; u < S / 2; u += step * 2) {
+        const m = along(u + step / 2);
+        items.push(boxAt([m[0], m[1], H + 45], size(step, 90), stone));
+      }
+    });
+    if (v.towers)
+      for (const [x, y] of [
+        [-S / 2, -S / 2],
+        [-S / 2, S / 2],
+        [S / 2, -S / 2],
+        [S / 2, S / 2],
+      ]) {
+        const d = Math.max(300, S * 0.18);
+        items.push(piece("cylinder", [x, y, 0], [d, d, H * 1.35], stone));
+        items.push(piece("cone", [x, y, H * 1.35], [d * 1.2, d * 1.2, d * 1.1], roofc));
+      }
+    if (v.keep) {
+      const k = S * 0.32;
+      items.push(boxAt([S * 0.1, 0, H * 0.9], [k, k, H * 1.8], stone));
+      items.push(piece("pyramid", [S * 0.1, 0, H * 1.8], [k * 1.1, k * 1.1, k * 0.6], roofc));
+    }
+    return fileOf(items);
+  },
+};
+
+export const CATEGORIES = ["Signs", "Nature", "Buildings"] as const;
+export const GENERATORS: ReadonlyArray<Generator> = [
+  qr,
+  sign,
+  tree,
+  pine,
+  blockTree,
+  bush,
+  house,
+  tower,
+  castle,
+];
 export const generatorOf = (key: string) => GENERATORS.find((g) => g.key === key) ?? null;
 
 /* the Prefab file `key` makes from these values, or null when there is nothing to make (no

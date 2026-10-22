@@ -115,7 +115,17 @@ export const prefabsHref = () => "/prefabs";
 export const newPrefabHref = () => "/prefabs/new";
 /* the Make your own tab and a Generator's page. GENERATORS in lib/generators.ts lists the same
    keys in the same order; they are kept apart so a page that only links one never loads them */
-export const GENERATOR_KEYS = ["qr", "sign", "tree", "bush"] as const;
+export const GENERATOR_KEYS = [
+  "qr",
+  "sign",
+  "tree",
+  "pine",
+  "block-tree",
+  "bush",
+  "house",
+  "tower",
+  "castle",
+] as const;
 export const isGeneratorKey = (k: string): k is (typeof GENERATOR_KEYS)[number] =>
   (GENERATOR_KEYS as ReadonlyArray<string>).includes(k);
 export const makePrefabHref = () => "/prefabs/make";

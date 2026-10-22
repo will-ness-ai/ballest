@@ -25,6 +25,8 @@ import "./styles/daily.css";
 import "./styles/you.css";
 import "./styles/prefabs.css";
 import "./styles/generators.css";
+import { ProtoPicker } from "../components/prototype/Picker"; // PROTOTYPE
+import "./styles/prototype.css"; // PROTOTYPE
 import "./styles/desktop.css";
 
 const DESCRIPTION =
@@ -88,6 +90,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ChosenSkins value={await getChosenSkins()}>{children}</ChosenSkins>
         <LegacyHash />
         <MarbleFlip />
+        <ProtoPicker /> {/* PROTOTYPE */}
       </body>
     </html>
   );
