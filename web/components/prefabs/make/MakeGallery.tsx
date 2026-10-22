@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { PrefabTabs } from "./PrefabTabs";
+import { PrefabTabs } from "../PrefabTabs";
 import { stillOf } from "../scene";
 import { GENERATORS, generate, type Generator } from "../../../lib/generators";
 import { generatorHref } from "../../../lib/routes";

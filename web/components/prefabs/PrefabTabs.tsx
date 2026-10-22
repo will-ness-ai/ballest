@@ -2,7 +2,7 @@
 // Generators that make your own.
 import Link from "next/link";
 
-import { makePrefabHref, prefabsHref } from "../../../lib/routes";
+import { makePrefabHref, prefabsHref } from "../../lib/routes";
 
 export function PrefabTabs({ on }: { on: "shared" | "make" }) {
   return (

@@ -6,7 +6,9 @@
 // Pieces are the editor's primitives, placed by their bottom centre (lib/prefab-meshes.ts has
 // their bounds): a cube 1000 cm, a sphere 400 cm, a cylinder 1000 cm across and 200 tall, a
 // cone 300 across and 200 tall. Rotations are Unreal's [pitch, yaw, roll] in degrees. A sign
-// or a QR code reads from +Y, so x runs left to right for someone standing there.
+// or a QR code faces -X and reads left to right along +Y: spawnprefab puts a Prefab in front
+// of the editor's camera, which looks along +X with +Y on its right, so it faces whoever
+// spawned it (checked in the game).
 import qrcode from "qrcode-generator";
 
 import type { PrefabFile, PrefabItem } from "./prefab";
@@ -106,6 +108,17 @@ const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
   group: { rotation: [0, 0, 0], scale: [1, 1, 1] },
   items,
 });
+
+/* a sign or code laid out across x and standing out toward +y, turned to face -X */
+const facing = (items: Array<PrefabItem>) =>
+  items.map((it) => {
+    const [x, y, z] = it.transform.location;
+    const [sx, sy, sz] = it.transform.scale;
+    return {
+      ...it,
+      transform: { ...it.transform, location: [-y, x, z] as V3, scale: [sy, sx, sz] as V3 },
+    };
+  });
 
 const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a: V3, s: number): V3 => [a[0] * s, a[1] * s, a[2] * s];
@@ -225,8 +238,8 @@ const num = (
 const colour = (key: string, label: string): Control => ({ key, label, kind: "colour" });
 const SHUFFLE: Control = { key: "seed", label: "Shuffle", kind: "shuffle" };
 
-const n = (v: Values, k: string) => Number(v[k]);
-const c = (v: Values, k: string): Colour => (isColour(v[k]) ? v[k] : "White");
+const numberIn = (v: Values, k: string) => Number(v[k]);
+const colourIn = (v: Values, k: string): Colour => (isColour(v[k]) ? v[k] : "White");
 
 export interface Generator {
   key: string;
@@ -234,6 +247,8 @@ export interface Generator {
   blurb: string;
   /* the stem of the file Download saves, and so of the spawn command */
   file: string;
+  /* it letters text, so its page loads the drawn fonts and hands build a Lettering */
+  lettered?: boolean;
   defaults: Values;
   /* the controls to show for these values (a switch can hide another's) */
   controls: (v: Values) => Array<Control>;
@@ -274,12 +289,14 @@ const qr: Generator = {
         return i >= 0 && j >= 0 && i < m && j < m && q.isDark(j, i);
       },
     };
-    const size = n(v, "size") * 100;
+    const size = numberIn(v, "size") * 100;
     const cell = size / grid.w;
-    return fileOf([
-      piece("cube", [0, 0, 0], [size, cell / 2, size], c(v, "back")),
-      ...cellsOf(grid, cell, size, cell / 4, cell / 2, c(v, "front")),
-    ]);
+    return fileOf(
+      facing([
+        piece("cube", [0, 0, 0], [size, cell / 2, size], colourIn(v, "back")),
+        ...cellsOf(grid, cell, size, cell / 4, cell / 4, colourIn(v, "front")),
+      ]),
+    );
   },
 };
 
@@ -307,6 +324,7 @@ const sign: Generator = {
   name: "Sign",
   blurb: "Your words in blocks, on a wall or standing alone.",
   file: "sign",
+  lettered: true,
   defaults: {
     text: "Welcome to my map",
     font: "Pixel",
@@ -328,19 +346,21 @@ const sign: Generator = {
     colour("front", "Letters"),
   ],
   build: (v, lettering) => {
-    const W = n(v, "width") * 100;
-    const H = n(v, "height") * 100;
+    const W = numberIn(v, "width") * 100;
+    const H = numberIn(v, "height") * 100;
     const pad = v.wall ? 0.12 : 0;
     const fit = fitText(String(v.text), lettering, W * (1 - pad), H * (1 - pad));
     if (!fit) return null;
     const { grid, cell } = fit;
     const textH = grid.h * cell;
-    if (!v.wall) return fileOf(cellsOf(grid, cell, textH, 0, cell, c(v, "front")));
+    if (!v.wall) return fileOf(facing(cellsOf(grid, cell, textH, 0, cell, colourIn(v, "front"))));
     const depth = Math.max(5, Math.min(W, H) * 0.03);
-    return fileOf([
-      piece("cube", [0, 0, 0], [W, depth, H], c(v, "back")),
-      ...cellsOf(grid, cell, H - (H - textH) / 2, depth / 2, cell / 2, c(v, "front")),
-    ]);
+    return fileOf(
+      facing([
+        piece("cube", [0, 0, 0], [W, depth, H], colourIn(v, "back")),
+        ...cellsOf(grid, cell, H - (H - textH) / 2, depth / 2, cell / 2, colourIn(v, "front")),
+      ]),
+    );
   },
 };
 
@@ -396,39 +416,42 @@ const branchesTree = (v: Values) => {
   const items: Array<PrefabItem> = [];
   grow(
     {
-      levels: n(v, "b.levels"),
-      forks: n(v, "b.forks"),
-      angle: n(v, "b.angle"),
-      ratio: n(v, "b.ratio"),
-      clump: n(v, "b.clump") * 100,
-      balls: n(v, "b.balls"),
-      bark: c(v, "bark"),
-      leaves: c(v, "leaves"),
+      levels: numberIn(v, "b.levels"),
+      forks: numberIn(v, "b.forks"),
+      angle: numberIn(v, "b.angle"),
+      ratio: numberIn(v, "b.ratio"),
+      clump: numberIn(v, "b.clump") * 100,
+      balls: numberIn(v, "b.balls"),
+      bark: colourIn(v, "bark"),
+      leaves: colourIn(v, "leaves"),
     },
-    random(n(v, "seed")),
+    random(numberIn(v, "seed")),
     items,
     [0, 0, 0],
     [0, 0, 1],
-    n(v, "b.trunk") * 100,
-    n(v, "b.girth") * 100,
+    numberIn(v, "b.trunk") * 100,
+    numberIn(v, "b.girth") * 100,
     0,
   );
   return items;
 };
 
 const tiersTree = (v: Values) => {
-  const r = random(n(v, "seed"));
-  const H = n(v, "t.height") * 100;
-  const W = n(v, "t.width") * 100;
-  const stem = Math.min(n(v, "t.stem") * 100, H * 0.8);
-  const k = n(v, "t.tiers");
-  const ov = n(v, "t.overlap") / 100;
+  const r = random(numberIn(v, "seed"));
+  const H = numberIn(v, "t.height") * 100;
+  const W = numberIn(v, "t.width") * 100;
+  const stem = Math.min(numberIn(v, "t.stem") * 100, H * 0.8);
+  const k = numberIn(v, "t.tiers");
+  const ov = numberIn(v, "t.overlap") / 100;
   const th = (H - stem) / (k - (k - 1) * ov);
-  const items = [stick([0, 0, 0], [0, 0, stem + th * 0.5], W * 0.08, c(v, "bark"))];
+  const items = [stick([0, 0, 0], [0, 0, stem + th * 0.5], W * 0.08, colourIn(v, "bark"))];
   for (let i = 0; i < k; i++) {
-    const w = W * (1 - ((n(v, "t.taper") / 100) * i) / Math.max(1, k - 1));
+    const w =
+      W * (1 - ((numberIn(v, "t.taper") / 100) * i) / Math.max(1, k - 1)) * (0.9 + r() * 0.2);
     const z = stem + i * th * (1 - ov);
-    items.push(piece("cone", [0, 0, z], [w, w, th], c(v, "leaves"), r() * 360));
+    items.push(
+      piece("cone", [0, 0, z], [w, w, th * (0.92 + r() * 0.16)], colourIn(v, "leaves"), r() * 360),
+    );
     if (v["t.snow"])
       items.push(
         piece("cone", [0, 0, z + th * 0.62], [w * 0.4, w * 0.4, th * 0.4], "White", r() * 360),
@@ -464,14 +487,14 @@ export const VOXEL_KINDS = ["Oak", "Birch", "Spruce", "Jungle"] as const;
 /* a block-game tree's voxels: `height` blocks, a canopy `radius` blocks out, `holes` per cent
    of the leaves' outer shell missing */
 export function voxelTree(v: Values): Map<string, Colour> {
-  const r = random(n(v, "seed"));
-  const H = n(v, "v.height");
-  const R = n(v, "v.radius");
+  const r = random(numberIn(v, "seed"));
+  const H = numberIn(v, "v.height");
+  const R = numberIn(v, "v.radius");
   const kind = String(v["v.kind"]);
   const vox = new Map<string, Colour>();
   const leaf = (x: number, y: number, z: number, edge: boolean) => {
-    if (edge && r() * 100 < n(v, "v.holes")) return;
-    vox.set(`${x},${y},${z}`, c(v, "leaves"));
+    if (edge && r() * 100 < numberIn(v, "v.holes")) return;
+    vox.set(`${x},${y},${z}`, colourIn(v, "leaves"));
   };
   if (kind === "Spruce")
     for (let z = 2; z <= H; z++) {
@@ -505,7 +528,7 @@ export function voxelTree(v: Values): Map<string, Colour> {
   const top = kind === "Spruce" ? H - 1 : H - R;
   for (let z = 0; z < top; z++)
     for (let x = 0; x < thick; x++)
-      for (let y = 0; y < thick; y++) vox.set(`${x},${y},${z}`, c(v, "bark"));
+      for (let y = 0; y < thick; y++) vox.set(`${x},${y},${z}`, colourIn(v, "bark"));
   return vox;
 }
 
@@ -580,7 +603,7 @@ const tree: Generator = {
       v.style === "Tiers"
         ? tiersTree(v)
         : v.style === "Voxel"
-          ? voxelBoxes(voxelTree(v), n(v, "v.cell"))
+          ? voxelBoxes(voxelTree(v), numberIn(v, "v.cell"))
           : branchesTree(v),
     ),
 };
@@ -611,23 +634,23 @@ const bush: Generator = {
     SHUFFLE,
   ],
   build: (v) => {
-    const r = random(n(v, "seed"));
+    const r = random(numberIn(v, "seed"));
     const items: Array<PrefabItem> = [];
-    const k = n(v, "stems");
+    const k = numberIn(v, "stems");
     const b: Branching = {
       levels: 0,
       forks: 0,
       angle: 0,
       ratio: 0,
-      clump: n(v, "clump") * 100,
-      balls: n(v, "balls"),
-      bark: c(v, "bark"),
-      leaves: c(v, "leaves"),
+      clump: numberIn(v, "clump") * 100,
+      balls: numberIn(v, "balls"),
+      bark: colourIn(v, "bark"),
+      leaves: colourIn(v, "leaves"),
     };
     for (let i = 0; i < k; i++) {
       const d = turn(
         [0, 0, 1],
-        n(v, "spread") * DEG * (0.4 + r() * 0.6),
+        numberIn(v, "spread") * DEG * (0.4 + r() * 0.6),
         (i / k) * Math.PI * 2 + r(),
       );
       grow(
@@ -636,7 +659,7 @@ const bush: Generator = {
         items,
         [0, 0, 0],
         d,
-        n(v, "length") * 100 * (0.7 + r() * 0.5),
+        numberIn(v, "length") * 100 * (0.7 + r() * 0.5),
         Math.max(4, b.clump * 0.12),
         0,
       );

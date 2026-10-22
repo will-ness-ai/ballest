@@ -17,6 +17,7 @@ import {
   type Values,
 } from "../../../lib/generators";
 import { footprintOf, shapesOf } from "../../../lib/prefab";
+import { fileNameOf } from "../../../lib/prefab-check";
 import { makePrefabHref } from "../../../lib/routes";
 
 function useSettled<T>(value: T, ms = 200) {
@@ -52,11 +53,16 @@ function Editor({ g }: { g: Generator }) {
   const generator = g.key;
   const [values, setValues] = useState<Values>(g.defaults);
   const settled = useSettled(values);
-  const fonts = useFontsLoaded(generator === "sign");
+  const fonts = useFontsLoaded(!!g.lettered);
   const file = useMemo(
-    () => generate(generator, settled, letteringOf(String(settled.font), Number(settled.detail))),
+    () =>
+      generate(
+        generator,
+        settled,
+        g.lettered ? letteringOf(String(settled.font), Number(settled.detail)) : undefined,
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fonts: draw again once they load
-    [generator, settled, fonts],
+    [g, settled, fonts],
   );
   const size = file ? footprintOf(shapesOf(file)) : null;
   const pieces = file?.items.length ?? 0;
@@ -67,7 +73,7 @@ function Editor({ g }: { g: Generator }) {
     a.href = URL.createObjectURL(
       new Blob([JSON.stringify(file, null, "\t")], { type: "application/json" }),
     );
-    a.download = g.file + ".json";
+    a.download = fileNameOf(g.file);
     a.click();
     URL.revokeObjectURL(a.href);
   };

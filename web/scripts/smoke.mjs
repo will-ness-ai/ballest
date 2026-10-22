@@ -172,6 +172,9 @@ const ROUTES = [
   // the Generators: the Make your own tab, a Generator, and one that isn't
   ["/prefabs/make", 200, null, "Make your own"],
   ["/prefabs/make/qr", 200, null, "QR code"],
+  ["/prefabs/make/sign", 200, null, "Sign"],
+  ["/prefabs/make/tree", 200, null, "Tree"],
+  ["/prefabs/make/bush", 200, null, "Bush"],
   ["/prefabs/make/fence", 404],
   ["/api/prefabs", 200, null, '"signedIn":false'],
   ["/robots.txt", 200, null, "Disallow: /prefabs/new"],

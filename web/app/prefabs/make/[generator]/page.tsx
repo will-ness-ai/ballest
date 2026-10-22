@@ -32,8 +32,8 @@ async function Body({ params }: Props) {
   const { generator } = await params;
   return (
     <>
-      {generator === "sign" && (
-        // only the sign draws in these, so only its page loads them
+      {generatorOf(generator)?.lettered && (
+        // only a Generator that letters draws in these, so only its page loads them
         <link rel="stylesheet" precedence="default" href={FONTS_HREF} />
       )}
       <GeneratorEditor generator={generator} />

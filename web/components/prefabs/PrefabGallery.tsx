@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { fetchPrefabFile } from "./file";
 import { Heart } from "./Heart";
-import { PrefabTabs } from "./make/PrefabTabs";
+import { PrefabTabs } from "./PrefabTabs";
 import { stillOf } from "./scene";
 import type { PrefabCard } from "../../db/prefabs";
 import type { PrefabFile } from "../../lib/prefab";

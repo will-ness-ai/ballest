@@ -15,6 +15,7 @@ import {
   generatorOf,
   voxelBoxes,
   voxelTree,
+  VOXEL_KINDS,
   type Values,
 } from "../lib/generators";
 import { UNKNOWN_COLOUR, shapesOf, type PrefabFile, type PrefabItem } from "../lib/prefab";
@@ -37,12 +38,15 @@ function make(key: string, change: Values = {}) {
   return file;
 }
 
-/* a cube's extent along x (width) and z (height), in cm */
+/* a cube's extent across a sign or code (+Y, left to right for the camera that spawned it)
+   and up it (z), in cm */
 const extent = (it: PrefabItem) => {
-  const [x, , z] = it.transform.location;
-  const [sx, , sz] = it.transform.scale;
-  return { x0: x - (sx * CUBE) / 2, x1: x + (sx * CUBE) / 2, z0: z, z1: z + sz * CUBE };
+  const [, y, z] = it.transform.location;
+  const [, sy, sz] = it.transform.scale;
+  return { x0: y - (sy * CUBE) / 2, x1: y + (sy * CUBE) / 2, z0: z, z1: z + sz * CUBE };
 };
+/* how far a cube stands out of a sign toward the camera (-X), in cm */
+const proud = (it: PrefabItem) => -(it.transform.location[0] - (it.transform.scale[0] * CUBE) / 2);
 
 describe("every Generator", () => {
   test.each(GENERATORS.map((g) => g.key))("%s's defaults make a file the game takes", (key) => {
@@ -94,6 +98,12 @@ describe("the QR code", () => {
     const e = extent(make("qr", { size: 9 }).items[0]);
     expect(e.x1 - e.x0).toBeCloseTo(900);
     expect(e.z1 - e.z0).toBeCloseTo(900);
+  });
+
+  test("faces the camera it spawns in front of, its modules a quarter of one proud", () => {
+    const [plate, ...modules] = make("qr", { size: 5 }).items;
+    const side = (extent(plate).x1 - extent(plate).x0) / 29; /* 25 modules and the margin */
+    for (const m of modules) expect(proud(m) - proud(plate)).toBeCloseTo(side / 4);
   });
 
   test("defaults to the site's address", () => {
@@ -168,6 +178,7 @@ describe("the tree and the bush", () => {
     ["tree", { style: "Branches" }],
     ["tree", { style: "Tiers", "t.snow": true }],
     ["tree", { style: "Voxel", "v.kind": "Oak" }],
+    ["tree", { style: "Voxel", "v.kind": "Birch" }],
     ["tree", { style: "Voxel", "v.kind": "Spruce" }],
     ["tree", { style: "Voxel", "v.kind": "Jungle" }],
     ["bush", {}],
@@ -182,15 +193,12 @@ describe("the tree and the bush", () => {
     },
   );
 
-  test.each(cases.filter(([, ch]) => ch.style !== "Tiers"))(
-    "%s %o changes with Shuffle",
-    (key, change) => {
-      expect(make(key, { ...change, seed: 1 })).not.toEqual(make(key, { ...change, seed: 2 }));
-    },
-  );
+  test.each(cases)("%s %o changes with Shuffle", (key, change) => {
+    expect(make(key, { ...change, seed: 1 })).not.toEqual(make(key, { ...change, seed: 2 }));
+  });
 
-  test("a voxel tree's boxes cover exactly its voxels", () => {
-    const values = valuesOf("tree", { style: "Voxel", "v.cell": 100 });
+  test.each(VOXEL_KINDS)("a voxel %s's boxes cover exactly its voxels", (kind) => {
+    const values = valuesOf("tree", { style: "Voxel", "v.kind": kind, "v.cell": 100 });
     const vox = voxelTree(values);
     const covered = new Map<string, string>();
     for (const it of voxelBoxes(vox, 100)) {
@@ -244,6 +252,10 @@ describe("colours", () => {
 });
 
 describe("the pages", () => {
+  test("only the sign letters, so only its page loads the fonts", () => {
+    expect(GENERATORS.filter((g) => g.lettered).map((g) => g.key)).toEqual(["sign"]);
+  });
+
   test("link every Generator, in GENERATORS' order", () => {
     expect(GENERATORS.map((g) => g.key)).toEqual([...GENERATOR_KEYS]);
     expect(generatorHref("tree")).toBe("/prefabs/make/tree");
