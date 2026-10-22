@@ -1,6 +1,8 @@
 // See my stats (spec #323) through its ports: the Stats Links in the leaderboard database and
 // the site that draws the Stat Card, faked here, and the member's private answer, recorded. The
 // watch for a sign-in runs on the TestClock.
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Option, Ref, TestClock } from "effect";
 import {
@@ -10,6 +12,7 @@ import {
   type StatsAnswer,
   StatsLinks,
   StatsSite,
+  statsSiteLive,
   StatsUnavailable,
   WATCH_EVERY,
   WATCH_FOR,
@@ -210,6 +213,71 @@ describe("See my stats", () => {
       yield* t.stats.see(ALICE, a.answer);
       yield* t.stats.pairAgain(ALICE, a.answer);
       expect(yield* a.shown).toEqual([{ _tag: "Unavailable" }, { _tag: "Unavailable" }]);
+    }),
+  );
+});
+
+/**
+ * A stand-in for the site: /api/refreshed answers `refreshedAt`, and /og/stats/<id> a PNG for
+ * `steamId`, 404 for any other, or `status` for every one when it's set. Records each path.
+ */
+const fakeSite = (refreshedAt: string | null, steamId: string, status?: number) =>
+  Effect.acquireRelease(
+    Effect.async<{ url: string; paths: Array<string>; close: () => void }>((resume) => {
+      const paths: Array<string> = [];
+      const server = createServer((req, res) => {
+        paths.push(req.url ?? "");
+        if (req.url === "/api/refreshed")
+          return res
+            .writeHead(200, { "content-type": "application/json" })
+            .end(JSON.stringify({ refreshedAt }));
+        if (status !== undefined) return res.writeHead(status).end("no");
+        if (req.url?.startsWith(`/og/stats/${steamId}?`))
+          return res.writeHead(200, { "content-type": "image/png" }).end(PNG);
+        res.writeHead(404).end("no such player");
+      });
+      server.listen(0, "127.0.0.1", () => {
+        const { port } = server.address() as AddressInfo;
+        resume(
+          Effect.succeed({ url: `http://127.0.0.1:${port}`, paths, close: () => server.close() }),
+        );
+      });
+    }),
+    (site) => Effect.sync(site.close),
+  );
+
+describe("the site's Stat Card", () => {
+  const REFRESHED = "2026-10-22T15:00:00.000Z";
+
+  it.scoped("is fetched with the latest Refresh's time, so each Refresh is a new card", () =>
+    Effect.gen(function* () {
+      const fake = yield* fakeSite(REFRESHED, ALICE_STEAM);
+      const site = yield* StatsSite.pipe(Effect.provide(statsSiteLive(fake.url)));
+      expect(site.url).toBe(fake.url);
+      expect(yield* site.card(ALICE_STEAM)).toEqual(PNG);
+      expect(fake.paths).toEqual([
+        "/api/refreshed",
+        `/og/stats/${ALICE_STEAM}?v=${String(Date.parse(REFRESHED))}`,
+      ]);
+    }),
+  );
+
+  it.scoped("is no stats for a Steam ID the site names nobody by", () =>
+    Effect.gen(function* () {
+      const fake = yield* fakeSite(REFRESHED, ALICE_STEAM);
+      const site = yield* StatsSite.pipe(Effect.provide(statsSiteLive(fake.url)));
+      expect(yield* Effect.flip(site.card("76561198000000009"))).toEqual(new NoStats());
+    }),
+  );
+
+  it.scoped("fails with what the site answered when it can't draw", () =>
+    Effect.gen(function* () {
+      const fake = yield* fakeSite(null, ALICE_STEAM, 500);
+      const site = yield* StatsSite.pipe(Effect.provide(statsSiteLive(fake.url)));
+      expect(yield* Effect.flip(site.card(ALICE_STEAM))).toEqual(
+        new CardFailed({ reason: "the card: the site said 500" }),
+      );
+      expect(fake.paths[1]).toBe(`/og/stats/${ALICE_STEAM}?v=0`);
     }),
   );
 });

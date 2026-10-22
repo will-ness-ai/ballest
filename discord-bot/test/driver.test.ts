@@ -11,9 +11,33 @@ import { controlId } from "../src/discord/controls.js";
 import { PROFILE_FIELD } from "../src/discord/messages.js";
 import { ChosenSkins, type ChosenSkin, type ProfilePreview, Store } from "../src/ports.js";
 import { Renderer } from "../src/render/renderer.js";
+import { makeSeeMyStats, SeeMyStats, StatsLinks, StatsSite } from "../src/seeMyStats.js";
 import { controlsOf, fromPayload } from "../scripts/axi/describe.js";
 import { fakeInteraction, type Press } from "../scripts/sandbox/driver.js";
 import { ALICE, BOB, type Harness, makeHarness, makeMap } from "./harness.js";
+
+const SITE = "https://ballestrecords.test";
+
+/** See my stats over a database where only Alice is paired, and a site that draws every card. */
+const seeMyStats = Layer.scoped(SeeMyStats, makeSeeMyStats).pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      Layer.succeed(
+        StatsLinks,
+        StatsLinks.of({
+          pairedWith: (id) =>
+            Effect.succeed(id === ALICE.discordId ? Option.some(ALICE.steamId) : Option.none()),
+          request: () => Effect.succeed("token1"),
+          used: () => Effect.succeed(false),
+        }),
+      ),
+      Layer.succeed(
+        StatsSite,
+        StatsSite.of({ url: SITE, card: () => Effect.succeed(Buffer.from("png")) }),
+      ),
+    ),
+  ),
+);
 
 /**
  * InteractionsLive over the harness's engine, fed by the driver: `press` clicks or submits as a
@@ -37,6 +61,7 @@ const driven = (h: Harness, renderer: Layer.Layer<Renderer> = Renderer.Default) 
             Layer.succeed(Pings, h.pings),
             Layer.succeed(ChosenSkins, h.chosenSkins.port),
             renderer,
+            seeMyStats,
           ),
         ),
       ),
@@ -124,6 +149,40 @@ describe("the sandbox driver", () => {
         });
         expect(answers.map((a) => a.method)).toEqual(["deferReply", "editReply"]);
         expect(drawn).toEqual([{ steamId: ALICE.steamId, skin: PINK }]);
+      }).pipe(Effect.scoped),
+    30_000,
+  );
+
+  it.live(
+    "answers See my stats privately: the card, and Pair again turns it into a sign-in link",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ maps: [makeMap(1)] });
+        const press = yield* driven(h);
+        const controls = (answers: ReadonlyArray<{ message: unknown }>) =>
+          controlsOf((answers.at(-1)?.message as { components?: [] }).components).map((c) => [
+            c.label,
+            c.target,
+          ]);
+
+        const seen = yield* press({
+          kind: "button",
+          customId: controlId({ _tag: "SeeMyStats" }),
+          as: ALICE.discordId,
+        });
+        expect(seen.map((a) => a.method)).toEqual(["deferReply", "editReply"]);
+        expect(controls(seen)).toEqual([
+          ["Player page", `${SITE}/player/${ALICE.steamId}`],
+          ["Not you? Pair again", "mb:statsagain"],
+        ]);
+
+        const again = yield* press({
+          kind: "button",
+          customId: "mb:statsagain",
+          as: ALICE.discordId,
+        });
+        expect(again.map((a) => a.method)).toEqual(["deferUpdate", "editReply"]);
+        expect(controls(again)).toEqual([["Sign in with Steam", `${SITE}/discord/link?t=token1`]]);
       }).pipe(Effect.scoped),
     30_000,
   );
