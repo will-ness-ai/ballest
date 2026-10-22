@@ -8,7 +8,8 @@ import { Freshness } from "./Freshness";
 import { GroupTabs, Tabs, type GroupTab } from "./GroupTabs";
 import { Rack } from "./Marble";
 import { YouCard } from "./YouCard";
-import { getDailyDates, getSite, hasWorkshop } from "../db/data";
+import { ProtoNav, type NavData } from "./prototype/Nav";
+import { getCampaigns, getDailies, getDailyDates, getSite, hasWorkshop } from "../db/data";
 import { seasonsOf } from "../lib/player";
 import {
   CIRCUIT_TAB,
@@ -17,6 +18,8 @@ import {
   PREFABS_TAB,
   WORKSHOP_GROUP,
   boardHref,
+  campaignHref,
+  campaignsHref,
   dailyHref,
   homeHref,
   playersHref,
@@ -52,23 +55,67 @@ async function tabs(): Promise<Array<GroupTab>> {
   ];
 }
 
+/* PROTOTYPE (claude/prototype-nav): what every variant's navigation needs */
+async function navData(): Promise<NavData> {
+  const [site, workshop, dailies, campaigns] = await Promise.all([
+    getSite(),
+    hasWorkshop(),
+    getDailies().catch(() => []),
+    getCampaigns(),
+  ]);
+  const seasons = seasonsOf(site.boards);
+  const last = dailies.at(-1);
+  return {
+    workshop: workshop ? homeHref() : null,
+    daily: dailies.length ? dailyHref() : null,
+    circuit: seasons.at(0) ? boardHref(seasons[0].overall) : null,
+    players: playersHref("all", "wr"),
+    prefabs: prefabsHref(),
+    campaigns: campaignsHref(),
+    seasons: seasons.map((s) => ({
+      label: s.group,
+      href: boardHref(s.overall),
+      players: s.players,
+    })),
+    today: last
+      ? { title: last.title, preview: last.preview, players: last.entryCount, href: dailyHref() }
+      : null,
+    topCampaigns: campaigns.slice(0, 4).map((c) => ({
+      title: c.c.title,
+      preview: c.previews.find(Boolean) ?? null,
+      players: c.players,
+      href: campaignHref(c.c.slug),
+    })),
+  };
+}
+
 export async function Shell({ view, children }: { view: View; children: React.ReactNode }) {
-  const [site, list] = await Promise.all([getSite(), tabs()]);
+  const [site, list, nav] = await Promise.all([getSite(), tabs(), navData()]);
+  const fresh = <Freshness refreshedAt={site.refreshedAt} mapsReadBy={site.mapsReadBy} />;
   return (
     <div className="app" id="app" data-view={view}>
-      <header className="hdr">
-        <Link className="brand" href={homeHref()}>
-          <Rack />
-          <span className="wordmark">{SITE_TITLE}</span>
-        </Link>
-        <p className="tagline">Circuit and Workshop leaderboards</p>
-        <Freshness refreshedAt={site.refreshedAt} mapsReadBy={site.mapsReadBy} />
-        <YouCard />
-      </header>
+      <ProtoNav
+        d={nav}
+        you={<YouCard />}
+        fresh={fresh}
+        original={
+          <>
+            <header className="hdr">
+              <Link className="brand" href={homeHref()}>
+                <Rack />
+                <span className="wordmark">{SITE_TITLE}</span>
+              </Link>
+              <p className="tagline">Circuit and Workshop leaderboards</p>
+              {fresh}
+              <YouCard />
+            </header>
 
-      <Suspense fallback={<Tabs tabs={list} on={null} />}>
-        <GroupTabs tabs={list} />
-      </Suspense>
+            <Suspense fallback={<Tabs tabs={list} on={null} />}>
+              <GroupTabs tabs={list} />
+            </Suspense>
+          </>
+        }
+      />
 
       {children}
 
