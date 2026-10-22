@@ -565,8 +565,6 @@ function itemsOf(r: Results, q: string): Array<Item> {
       icon: "players",
       score: match(p.name, t) + p.made * 2,
       facts: p.made ? [["Maps made", String(p.made)]] : [],
-        ["Maps made", String(p.made)],
-      ],
     });
   for (const c of r.campaigns)
     out.push({
