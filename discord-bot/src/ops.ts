@@ -30,6 +30,47 @@ export const tokenDaysLeft = (token: string, nowMs: number): Option.Option<numbe
     Option.map(({ exp }) => Math.floor((exp * 1000 - nowMs) / DAY_MS)),
   );
 
+/** Which failure a post is about: told once per `key` and `kind`, until the key is forgotten. */
+export interface Once {
+  readonly key: string;
+  readonly kind: string;
+}
+
+/** What OpsAlerts offers. */
+export interface Alerts {
+  /** Whether the webhook is set: otherwise a post only reaches the log. */
+  readonly configured: boolean;
+  readonly post: (content: string, once?: Once) => Effect.Effect<void>;
+  readonly forget: (key: string) => Effect.Effect<void>;
+}
+
+/**
+ * Alerts over a plain post: one with `once` is told only when its kind differs from the last told
+ * for its key, so ops hears a lasting failure once, not at every retry; `forget` makes the key's
+ * next failure news.
+ */
+export const opsAlertsOf = (opts: {
+  readonly configured: boolean;
+  readonly post: (content: string) => Effect.Effect<void>;
+}): Alerts => {
+  const told = new Map<string, string>();
+  return {
+    configured: opts.configured,
+    post: (content: string, once?: Once) =>
+      Effect.suspend(() => {
+        if (once !== undefined) {
+          if (told.get(once.key) === once.kind) return Effect.void;
+          told.set(once.key, once.kind);
+        }
+        return opts.post(content);
+      }),
+    forget: (key: string) =>
+      Effect.sync(() => {
+        told.delete(key);
+      }),
+  };
+};
+
 /**
  * A message to the private ops channel through its webhook (OPS_WEBHOOK_URL), and always a
  * warning in the log. Posts go out in the order told, one at a time, from a queue a background
@@ -70,13 +111,13 @@ export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts
         ),
       ).pipe(Effect.forever, Effect.forkScoped);
     }
-    return {
-      configured: Option.isSome(webhookUrl),
-      post: Effect.fn("OpsAlerts.post")(function* (content: string) {
-        yield* Effect.logWarning(`ops: ${content}`);
-        if (Option.isSome(webhookUrl)) yield* Queue.offer(queue, content);
-      }),
-    };
+    const configured = Option.isSome(webhookUrl);
+    const post = (content: string) =>
+      Effect.logWarning(`ops: ${content}`).pipe(
+        Effect.zipRight(configured ? Queue.offer(queue, content) : Effect.void),
+        Effect.asVoid,
+      );
+    return opsAlertsOf({ configured, post });
   }),
   dependencies: [FetchHttpClient.layer],
 }) {}

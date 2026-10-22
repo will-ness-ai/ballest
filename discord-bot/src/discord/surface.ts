@@ -30,6 +30,7 @@
 //   A finished Match's place is still kept (the most recent ones), for the Activity's links.
 import { SqlClient, SqlSchema } from "@effect/sql";
 import { Cause, Context, Effect, Exit, Fiber, Layer, Option, Ref, Schema } from "effect";
+import { attempt } from "../attempt.js";
 import { MigratorLive } from "../db.js";
 import { HOME_VENUE, type VenueName } from "../domain.js";
 import {
@@ -41,9 +42,10 @@ import {
   Surface,
   type ThreadPost,
 } from "../ports.js";
+import { Guests } from "../guests.js";
 import { OpsAlerts } from "../ops.js";
 import { type Channel, type ChannelError, Drawing, VenueChannels } from "./channel.js";
-import { describeDiscordError, isUnknownChannel } from "./client.js";
+import { describeDiscordError, DiscordError, hasCode, UNKNOWN_CHANNEL } from "./client.js";
 
 interface CardRef {
   readonly messageId: string;
@@ -145,7 +147,7 @@ const venueSurface = Effect.fn("venueSurface")(function* (
   const sql = yield* SqlClient.SqlClient;
   /** Log a failure that ends a draw, and tell ops when the channel is gone. */
   const failed = (e: ChannelError) =>
-    e._tag === "DiscordError" && isUnknownChannel(e)
+    e._tag === "DiscordError" && hasCode(e, UNKNOWN_CHANNEL)
       ? logFailure(e).pipe(Effect.zipRight(channelGone))
       : logFailure(e);
 
@@ -410,75 +412,80 @@ const venueSurface = Effect.fn("venueSurface")(function* (
 const make = Effect.gen(function* () {
   const channels = yield* VenueChannels;
   const alerts = yield* OpsAlerts;
+  const guests = yield* Guests;
   const running = new Map<VenueName, Effect.Effect.Success<ReturnType<typeof venueSurface>>>();
   const surfaces = () => [...running.values()];
 
-  /** Ops hears once that a Venue's channel is gone; a guest's is repaired. */
-  const channelGoneIn = Effect.fn("channelGoneIn")(function* (venue: VenueName) {
-    const told = yield* Ref.make(false);
-    return Effect.gen(function* () {
-      if (yield* Ref.getAndSet(told, true)) return;
-      yield* alerts.post(
+  /** Ops hears once that a Venue's channel is gone; a guest's breaks, to be repaired. */
+  const channelGone = (venue: VenueName) =>
+    alerts
+      .post(
         venue === HOME_VENUE
           ? "Multiballs can't find its home channel (deleted?). Check DISCORD_CHANNEL_ID."
           : `Multiballs can't find the Venue ${venue}'s channel (deleted?). It makes a new one within a few minutes and restarts to run it.`,
-      );
-      yield* channels.broke(venue);
-    });
-  });
+        { key: `channel ${venue}`, kind: "gone" },
+      )
+      .pipe(Effect.zipRight(guests.broke(venue)));
 
   const scope = yield* Effect.scope;
   const sql = yield* SqlClient.SqlClient;
+  /** The guest Venues with a start running, even one past its time limit: a retry waits its turn. */
+  const busy = new Set<string>();
 
   /**
    * Start a guest Venue on its own, in the background; the engine waits on it at most
-   * START_TIMEOUT, and it runs, and is offered (`channels.up`), whenever its start succeeds. Each
+   * START_TIMEOUT, and it runs, and is offered (`Guests.up`), whenever its start succeeds. Each
    * try may take ATTEMPT_LIMIT: past it the try counts as failed, though what it was doing (its
-   * Footer's post, the write of its id) runs on, never interrupted, and the next try waits for it.
-   * One whose Footer can't be put right, that takes too long or hits a bug is told to ops once and
-   * tried again in place every RETRY_FOOTER: setup has nothing to repair there, so it is not
-   * broken and the bot doesn't restart. One whose channel is gone is broken, for setup to repair.
+   * Footer's post, the write of its id) runs on, never interrupted, and no other try starts till
+   * it ends. One whose Footer can't be put right, that takes too long or hits a bug is told to ops
+   * once and tried again in place every RETRY_FOOTER: setup has nothing to repair there, so it is
+   * not broken and the bot doesn't restart. One whose channel is gone is broken, for setup to
+   * repair.
    */
   const startGuest = Effect.fn("startGuest")(function* (venue: VenueName, channel: Channel) {
-    const gone = yield* channelGoneIn(venue);
-    const oneAtATime = yield* Effect.makeSemaphore(1);
-    let told = false;
-    const attempt = (): Effect.Effect<void> =>
+    const gone = channelGone(venue);
+    const again = (): Effect.Effect<void> =>
+      Effect.suspend(tryOnce).pipe(Effect.delay(RETRY_FOOTER), Effect.forkIn(scope), Effect.asVoid);
+    const tryOnce = (): Effect.Effect<void> =>
       Effect.gen(function* () {
-        const started = yield* Effect.exit(
-          venueSurface(venue, channel, gone).pipe(
-            oneAtATime.withPermits(1),
-            // Never interrupted: past the limit it runs on in the background.
-            Effect.uninterruptible,
-            Effect.disconnect,
-            Effect.timeout(ATTEMPT_LIMIT),
-          ),
-        );
+        const tried = yield* attempt(venueSurface(venue, channel, gone), {
+          key: venue,
+          busy,
+          limit: ATTEMPT_LIMIT,
+          onTimeout: () =>
+            new DiscordError({ op: "start", cause: `timed out after ${ATTEMPT_LIMIT}` }),
+          alerts,
+          tell: (cause) =>
+            Option.match(Cause.failureOption(cause), {
+              onNone: () => Option.some("a bug, see the log"),
+              onSome: (e) =>
+                e._tag === "DiscordError" && hasCode(e, UNKNOWN_CHANNEL)
+                  ? Option.none()
+                  : Option.some(describeFailure(e)),
+            }).pipe(
+              Option.map((why) => ({
+                kind: "footer",
+                message: `Multiballs left the Venue ${venue} out: its Footer couldn't be put right (${why}). It tries again every five minutes.`,
+              })),
+            ),
+        });
+        // A try still running: wait for the next turn.
+        if (Option.isNone(tried)) return yield* again();
+        const started = tried.value;
         if (Exit.isSuccess(started)) {
           running.set(venue, started.value);
-          return yield* channels.up(venue);
+          return yield* guests.up(venue);
         }
         const failure = Cause.failureOption(started.cause);
-        if (Option.isNone(failure))
-          yield* Effect.logError(`Venue ${venue} hit a bug starting`, started.cause);
-        else if (failure.value._tag === "DiscordError" && isUnknownChannel(failure.value))
+        if (
+          Option.isSome(failure) &&
+          failure.value._tag === "DiscordError" &&
+          hasCode(failure.value, UNKNOWN_CHANNEL)
+        )
           return yield* gone;
-        if (!told) {
-          told = true;
-          const why = Option.match(failure, {
-            onNone: () => "a bug, see the log",
-            onSome: (e) =>
-              e._tag === "TimeoutException"
-                ? `timed out after ${ATTEMPT_LIMIT}`
-                : describeFailure(e),
-          });
-          yield* alerts.post(
-            `Multiballs left the Venue ${venue} out: its Footer couldn't be put right (${why}). It tries again every five minutes.`,
-          );
-        }
-        yield* Effect.suspend(attempt).pipe(Effect.delay(RETRY_FOOTER), Effect.forkIn(scope));
+        yield* again();
       }).pipe(Effect.provideService(SqlClient.SqlClient, sql));
-    const first = yield* Effect.forkIn(attempt(), scope);
+    const first = yield* Effect.forkIn(tryOnce(), scope);
     const settled = yield* Fiber.await(first).pipe(Effect.timeout(START_TIMEOUT), Effect.option);
     if (Option.isNone(settled))
       yield* Effect.logWarning(`Venue ${venue}'s channel is slow to start; it runs once it does`);
@@ -488,10 +495,7 @@ const make = Effect.gen(function* () {
   // then start side by side, so the engine waits at most START_TIMEOUT on them.
   const home = channels.all.get(HOME_VENUE);
   if (home !== undefined)
-    running.set(
-      HOME_VENUE,
-      yield* venueSurface(HOME_VENUE, home, yield* channelGoneIn(HOME_VENUE)),
-    );
+    running.set(HOME_VENUE, yield* venueSurface(HOME_VENUE, home, channelGone(HOME_VENUE)));
   yield* Effect.forEach(
     [...channels.all].filter(([venue]) => venue !== HOME_VENUE),
     ([venue, channel]) => startGuest(venue, channel),
@@ -538,6 +542,6 @@ const make = Effect.gen(function* () {
 
 /**
  * The Surface port on every running Venue's Channel, and where each put each Match. Needs the
- * VenueChannels, OpsAlerts and a SqlClient.
+ * VenueChannels, Guests, OpsAlerts and a SqlClient.
  */
 export const ChannelSurfaceLive = Layer.scopedContext(make).pipe(Layer.provide(MigratorLive));

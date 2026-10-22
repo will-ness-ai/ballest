@@ -4,7 +4,7 @@
 // for sure.
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
-import { Context, Effect, Exit, Fiber, Layer, Ref, TestClock } from "effect";
+import { Context, Effect, Layer, Ref, TestClock } from "effect";
 import {
   launchUntilShutdown,
   makeRestart,
@@ -51,8 +51,8 @@ describe("restarting for the Venues", () => {
       const { process } = yield* setup();
       const bot = yield* process;
       yield* bot.restart.ready;
-      yield* Effect.fork(bot.restart.request("invited"));
-      yield* Effect.fork(bot.restart.request("removed"));
+      yield* bot.restart.request("invited");
+      yield* bot.restart.request("removed");
       yield* TestClock.adjust("59 seconds");
       yield* settle;
       expect(yield* bot.ended).toBe(false);
@@ -66,7 +66,7 @@ describe("restarting for the Venues", () => {
     Effect.gen(function* () {
       const { process } = yield* setup();
       const bot = yield* process;
-      yield* Effect.fork(bot.restart.request("invited"));
+      yield* bot.restart.request("invited");
       yield* TestClock.adjust("5 minutes");
       yield* settle;
       expect(yield* bot.ended).toBe(false);
@@ -76,24 +76,19 @@ describe("restarting for the Venues", () => {
     }),
   );
 
-  it.scoped(
-    "fails each ask after a bug reading its history, so the asker can undo; the next tries again",
-    () =>
-      Effect.gen(function* () {
-        const { process } = yield* setup({ brokenReads: 1 });
-        const bot = yield* process;
-        yield* bot.restart.ready;
-        yield* TestClock.adjust("1 minute");
-        const first = yield* Effect.fork(bot.restart.request("invited"));
-        const second = yield* Effect.fork(bot.restart.request("removed"));
-        yield* settle;
-        expect(yield* bot.ended).toBe(false);
-        expect(Exit.isFailure(yield* Fiber.await(first))).toBe(true);
-        expect(Exit.isFailure(yield* Fiber.await(second))).toBe(true);
-        yield* Effect.fork(bot.restart.request("invited"));
-        yield* settle;
-        expect(yield* bot.ended).toBe(true);
-      }),
+  it.scoped("still restarts after a bug reading its history: the next ask tries again", () =>
+    Effect.gen(function* () {
+      const { process } = yield* setup({ brokenReads: 1 });
+      const bot = yield* process;
+      yield* bot.restart.ready;
+      yield* TestClock.adjust("1 minute");
+      yield* bot.restart.request("invited");
+      yield* settle;
+      expect(yield* bot.ended).toBe(false);
+      yield* bot.restart.request("invited");
+      yield* settle;
+      expect(yield* bot.ended).toBe(true);
+    }),
   );
 
   it.scoped(
@@ -106,14 +101,14 @@ describe("restarting for the Venues", () => {
           const bot = yield* process;
           yield* bot.restart.ready;
           yield* TestClock.adjust("1 minute");
-          yield* Effect.fork(bot.restart.request("the server is set up as a Venue"));
+          yield* bot.restart.request("the server is set up as a Venue");
           yield* settle;
           expect(yield* bot.ended).toBe(true);
         }
         const held = yield* process;
         yield* held.restart.ready;
         yield* TestClock.adjust("1 minute");
-        yield* Effect.fork(held.restart.request("the server is set up as a Venue"));
+        yield* held.restart.request("the server is set up as a Venue");
         yield* settle;
         expect(yield* held.ended).toBe(false);
         // Deferred, not dropped: an hour after the first of the three.

@@ -16,7 +16,10 @@
 import { SqlClient, SqlSchema } from "@effect/sql";
 import { Cause, Clock, Context, Data, Effect, Exit, Layer, Option, Schema } from "effect";
 import { MigratorLive } from "./db.js";
+import { attempt } from "./attempt.js";
 import { HOME_VENUE, type VenueName } from "./domain.js";
+import { Guests } from "./guests.js";
+import type { Alerts } from "./ops.js";
 
 export interface VenueConfig {
   /** The Venue's short stable key, stored on its Matches: `home`, or its server's id. */
@@ -31,8 +34,6 @@ export interface VenueConfig {
 
 /** The name of a Venue the bot set up itself: its server's id, which can never be `home`. */
 export const venueNameOf = (guildId: string): VenueName => guildId;
-/** The server of a Venue the bot set up itself, from its name. */
-export const venueGuildId = (name: VenueName): string => name;
 
 /** The Match channel the bot looks for, or makes, in a server it sets up. */
 export const MATCH_CHANNEL = "multiballs";
@@ -311,9 +312,12 @@ const leftOut = (cause: Cause.Cause<VenueSetupFailed | VenueCheckFailed>) =>
 /** How long setting up and checking one server may take before it is left out for now. */
 const SETUP_TIMEOUT = "30 seconds";
 
+/** The key ops hears a server's setup failures under. */
+const setupKey = (guildId: string) => `setup ${guildId}`;
+
 /**
- * Which servers are Venues. The running set is settled at startup and fixed until the bot
- * restarts; home is never part of it, and never waits on it.
+ * Which servers are Venues, among the servers other than home (the caller leaves home out). The
+ * guests that run are settled at startup (`Guests.start`) and fixed until the bot restarts.
  *
  * A server is wanted once it invites the bot, or when the bot finds it without knowing it (invited
  * while the bot was down or starting); on this build's first start, every server the bot is
@@ -322,87 +326,59 @@ const SETUP_TIMEOUT = "30 seconds";
  * `startup` makes no Discord calls: a wanted server with a stored Venue whose channel and role are
  * in the cache is checked from the cache (`check(venue, true)`), and those run. Everything else
  * is `retry`'s, in the background, again every few minutes and when Discord says a server is
- * available: set up (or repaired), stored and checked over the API, one server at a time with a
- * time limit, and once that works `restart` is asked to run it. A server that fails, takes too
- * long or hits a bug is left out, and `alert` (the ops channel) hears each kind of reason once per
- * server. Once one sets up it is pending, left alone until the restart; if that restart fails it
- * is tried again. A server whose Venue runs (since startup, broken or not) that removes the bot
- * asks `restart` too; one that `broke` (its channel or role was deleted) counts as not running,
- * so the retry repairs it. Each ask waits in the background, in the caller's scope.
+ * available: set up (or repaired), stored and checked over the API, with a time limit and never
+ * two at once for one server, and once that works `restart` is asked to run it (asking again
+ * joins the restart already asked for). A server that fails, takes too long or hits a bug is left
+ * out, and ops hears each kind of reason once per server. A guest that started (broken or not)
+ * whose server removes the bot asks `restart` too; one that broke (its channel or role was
+ * deleted) counts as not running, so the retry repairs it.
  */
-export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R, E>(
-  homeGuildId: string,
+export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R>(
   check: (venue: VenueConfig, cached: boolean) => Effect.Effect<A, VenueCheckFailed, R>,
-  alert: (message: string) => Effect.Effect<void>,
-  restart: (why: string) => Effect.Effect<void, E>,
+  alerts: Alerts,
+  restart: (why: string) => Effect.Effect<void>,
 ) {
   const records = yield* VenueRecords;
-  const scope = yield* Effect.scope;
-  // One server at a time: a server invited during a retry isn't tried twice at once.
-  const lock = yield* Effect.makeSemaphore(1);
-  /** The servers whose Venues started, fixed from startup on, as the bot's running list is. */
-  const started = new Set<string>();
-  /** The servers whose Venues run, from startup on, less any that broke. */
-  const running = new Set<string>();
-  /** The servers set up since startup, waiting for the restart that runs them: left alone till then. */
-  const pending = new Set<string>();
+  const guests = yield* Guests;
   /** When the baseline was taken, read once at startup; none if it couldn't be. */
   let takenAt = Option.none<number>();
-  /** What kind of reason each server was last left out for, so ops hears it once, not at every retry. */
-  const leftOutFor = new Map<string, string>();
-  /**
-   * One setup at a time per server, held for as long as the setup runs, even past its time limit,
-   * so a retry can't race a channel or role still being made.
-   */
-  const setups = new Map<string, Effect.Semaphore>();
-  const setupLock = (guildId: string) => {
-    const found = setups.get(guildId);
-    if (found !== undefined) return found;
-    const made = Effect.unsafeMakeSemaphore(1);
-    setups.set(guildId, made);
-    return made;
-  };
+  /** The servers with a setup running, even one past its time limit: a retry skips them. */
+  const busy = new Set<string>();
 
   /**
    * Set up, store and check a wanted server over the API; its Venue, or none when it is left out
-   * (ops told). A bug in it is logged and leaves it out like any failure.
+   * (ops told) or a setup for it is still running.
    */
   const setUp = Effect.fn("setUp")(function* (guild: SetupGuild) {
-    const tried = yield* Effect.exit(
+    const key = setupKey(guild.id);
+    const tried = yield* attempt(
       Effect.gen(function* () {
         const venue = yield* setUpVenue(guild, yield* records.byGuild(guild.id));
         yield* records.put(venue);
         return yield* check(venue, false);
-      }).pipe(
-        setupLock(guild.id).withPermits(1),
-        // Never interrupted: past the limit the setup runs on in the background, still holding its
-        // server's lock.
-        Effect.uninterruptible,
-        Effect.disconnect,
-        Effect.timeoutFail({
-          duration: SETUP_TIMEOUT,
-          onTimeout: () =>
-            new VenueSetupFailed({
-              kind: "timed out",
-              reason: `Discord took over ${SETUP_TIMEOUT} to answer`,
-            }),
-        }),
-      ),
+      }),
+      {
+        key,
+        busy,
+        limit: SETUP_TIMEOUT,
+        onTimeout: () =>
+          new VenueSetupFailed({
+            kind: "timed out",
+            reason: `Discord took over ${SETUP_TIMEOUT} to answer`,
+          }),
+        alerts,
+        tell: (cause) => {
+          const { kind, reason } = leftOut(cause);
+          return Option.some({
+            kind,
+            message: `Multiballs couldn't set up the server ${guild.name} (${guild.id}) as a Venue: ${reason}. It tries again every five minutes.`,
+          });
+        },
+      },
     );
-    if (Exit.isSuccess(tried)) {
-      leftOutFor.delete(guild.id);
-      return Option.some(tried.value);
-    }
-    if (Option.isNone(Cause.failureOption(tried.cause)))
-      yield* Effect.logError(`setting up ${guild.id} failed`, tried.cause);
-    const { kind, reason } = leftOut(tried.cause);
-    if (leftOutFor.get(guild.id) !== kind) {
-      leftOutFor.set(guild.id, kind);
-      yield* alert(
-        `Multiballs couldn't set up the server ${guild.name} (${guild.id}) as a Venue: ${reason}. It tries again every five minutes.`,
-      );
-    }
-    return Option.none<A>();
+    if (Option.isNone(tried) || Exit.isFailure(tried.value)) return Option.none<A>();
+    yield* alerts.forget(key);
+    return Option.some(tried.value.value);
   });
 
   /**
@@ -422,40 +398,27 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R, E>(
     return invited || Option.getOrElse(wanted, () => false);
   });
 
-  /** Ask for a restart in the background; `failed` runs if it won't happen. */
-  const askRestart = (why: string, failed: Effect.Effect<void> = Effect.void) =>
-    restart(why).pipe(
-      Effect.catchAll(() => failed),
-      Effect.forkIn(scope),
-      Effect.asVoid,
-    );
-
   /** Try a wanted server that isn't running; when it sets up now, restart to run it. */
   const retry = Effect.fn("retry")(function* (guild: SetupGuild) {
-    if (guild.id === homeGuildId || running.has(guild.id) || pending.has(guild.id)) return;
+    const state = guests.state(venueNameOf(guild.id));
+    if (state === "starting" || state === "up") return;
     if (!(yield* isWanted(guild))) return;
     const venue = yield* setUp(guild);
-    if (Option.isNone(venue)) return;
-    pending.add(guild.id);
-    // A restart that won't happen leaves it for the next retry, rather than waiting forever.
-    yield* askRestart(
-      `the server ${guild.name} (${guild.id}) is set up as a Venue`,
-      Effect.sync(() => pending.delete(guild.id)),
-    );
-  }, lock.withPermits(1));
+    if (Option.isSome(venue))
+      yield* restart(`the server ${guild.name} (${guild.id}) is set up as a Venue`);
+  });
 
   return {
     /**
-     * At startup, with every server the bot is in: the Venues to run, apart from home, checked
-     * from the cache with no Discord calls. The rest are left to `retry`.
+     * At startup, with every server the bot is in but home, before any other call: the Venues
+     * to run, checked from the cache with no Discord calls. The rest are left to `retry`.
      */
     startup: Effect.fn("startup")(function* (guilds: ReadonlyArray<SetupGuild>) {
-      const others = guilds.filter((g) => g.id !== homeGuildId);
       // Without a baseline every server would be wanted, so a bug taking it sets nobody up.
       const baseline = yield* Effect.exit(
         Effect.gen(function* () {
           yield* records.takeBaseline(
-            others.filter((g) => g.joinedAt === null || g.joinedAt < VENUES_SINCE).map((g) => g.id),
+            guilds.filter((g) => g.joinedAt === null || g.joinedAt < VENUES_SINCE).map((g) => g.id),
             yield* Clock.currentTimeMillis,
           );
           return yield* records.baselineTakenAt;
@@ -465,7 +428,7 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R, E>(
         yield* Effect.logError("listing the servers the bot is in failed", baseline.cause);
       else takenAt = baseline.value;
       const venues: Array<A> = [];
-      for (const guild of others) {
+      for (const guild of guilds) {
         const ready = yield* Effect.exit(
           Effect.gen(function* () {
             if (!(yield* isWanted(guild))) return Option.none<A>();
@@ -476,8 +439,7 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R, E>(
         );
         if (Exit.isSuccess(ready)) {
           if (Option.isNone(ready.value)) continue;
-          started.add(guild.id);
-          running.add(guild.id);
+          yield* guests.start(venueNameOf(guild.id));
           venues.push(ready.value.value);
         } else if (Option.isNone(Cause.failureOption(ready.cause)))
           yield* Effect.logError(`starting the Venue ${guild.id} failed`, ready.cause);
@@ -487,10 +449,9 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R, E>(
           );
       }
       return venues;
-    }, lock.withPermits(1)),
+    }),
     /** A server just invited the bot: it is wanted, and set up then run after a restart. */
     invited: Effect.fn("invited")(function* (guild: SetupGuild) {
-      if (guild.id === homeGuildId) return;
       yield* records.want(guild.id);
       yield* retry(guild);
     }),
@@ -498,17 +459,13 @@ export const makeVenueJoiner = Effect.fn("makeVenueJoiner")(function* <A, R, E>(
     retry,
     /**
      * A server removed the bot: if its Venue started (broken or not), restart without it. Its row
-     * stays, for a re-invite.
+     * stays, for a re-invite, and its next failure is news to ops.
      */
     removed: Effect.fn("removed")(function* (guildId: string) {
-      leftOutFor.delete(guildId);
-      if (started.has(guildId)) yield* askRestart(`the bot was removed from the server ${guildId}`);
-    }, lock.withPermits(1)),
-    /** A running Venue's channel or role is gone: it counts as not running, so the retry repairs it. */
-    broke: (guildId: string) =>
-      Effect.sync(() => {
-        running.delete(guildId);
-      }),
+      yield* alerts.forget(setupKey(guildId));
+      if (guests.started(venueNameOf(guildId)))
+        yield* restart(`the bot was removed from the server ${guildId}`);
+    }),
   };
 });
 

@@ -20,6 +20,7 @@ import { ChannelSurfaceLive } from "./discord/surface.js";
 import { Engine } from "./engine.js";
 import type { Steam, Store } from "./ports.js";
 import { InstanceLockLive } from "./instanceLock.js";
+import { GuestsLive } from "./guests.js";
 import { OpsAlerts, OpsLive } from "./ops.js";
 import { Pings } from "./pings.js";
 import { MapPreviews, PreviewSourceLive } from "./previews.js";
@@ -125,6 +126,8 @@ const portsLive = <E, R>(steam: Layer.Layer<Steam, E, R>) =>
     Layer.provideMerge(
       Discord.Default.pipe(Layer.provide(OpsAlerts.Default), Layer.provide(VenueRecordsLive)),
     ),
+    // Where each guest Venue stands, shared by Discord's clicks and setup and the Surface.
+    Layer.provideMerge(GuestsLive),
     Layer.provideMerge(RestartLive),
     Layer.provideMerge(SqlLive),
   );

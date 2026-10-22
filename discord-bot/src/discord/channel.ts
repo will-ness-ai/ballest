@@ -10,9 +10,10 @@ import {
   Discord,
   type DiscordError,
   type DiscordVenue,
-  isUnknown,
-  isUnknownMessage,
+  hasCode,
   tryDiscord,
+  UNKNOWN_CHANNEL,
+  UNKNOWN_MESSAGE,
 } from "./client.js";
 import { Marbles } from "./marbles.js";
 import { makeThreadNotices } from "./threadNotices.js";
@@ -89,13 +90,6 @@ export class VenueChannels extends Context.Tag("multiballs/VenueChannels")<
   VenueChannels,
   {
     readonly all: ReadonlyMap<VenueName, Channel>;
-    /**
-     * A Venue's channel is gone (deleted): the bot repairs it within a few minutes and restarts to
-     * run it. Only a deleted channel or role breaks a Venue, and home's never counts as broken.
-     */
-    readonly broke: (venue: VenueName) => Effect.Effect<void>;
-    /** A guest Venue's channel started, its Footer up: from now on it is offered. */
-    readonly up: (venue: VenueName) => Effect.Effect<void>;
   }
 >() {}
 
@@ -108,7 +102,7 @@ const goneIfUnknownOr =
 const goneIfUnknown =
   (id: string) =>
   (e: DiscordError): Effect.Effect<never, Gone | DiscordError> =>
-    isUnknown(e) ? Effect.fail(new Gone({ id })) : Effect.fail(e);
+    hasCode(e, UNKNOWN_MESSAGE, UNKNOWN_CHANNEL) ? Effect.fail(new Gone({ id })) : Effect.fail(e);
 
 /** A Venue's channel on discord.js: its Players named as in its server, its ping role in Lobby Cards. */
 const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenue) {
@@ -124,7 +118,7 @@ const discordChannel = Effect.fn("discordChannel")(function* (venue: DiscordVenu
   const fetchMessage = (id: string) =>
     tryDiscord("fetch message", () => channel.messages.fetch(id)).pipe(
       Effect.catchAll((e): Effect.Effect<never, Gone | DiscordError> =>
-        isUnknownMessage(e) ? Effect.fail(new Gone({ id })) : Effect.fail(e),
+        hasCode(e, UNKNOWN_MESSAGE) ? Effect.fail(new Gone({ id })) : Effect.fail(e),
       ),
     );
   const fetchThread = (id: string) =>
@@ -278,10 +272,6 @@ export const VenueChannelsLive = Layer.scoped(
         yield* discordChannel(venue).pipe(Scope.extend(scope), Effect.provide(needs)),
       );
     }
-    return VenueChannels.of({
-      all,
-      broke: (venue) => discord.venueBroke(venue),
-      up: (venue) => discord.venueUp(venue),
-    });
+    return VenueChannels.of({ all });
   }),
 );

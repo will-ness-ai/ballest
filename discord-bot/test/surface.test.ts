@@ -6,7 +6,8 @@ import { describe, expect, it } from "@effect/vitest";
 import { Context, Deferred, Effect, Fiber, FiberId, Layer, Option, TestClock } from "effect";
 import { type Channel, Drawing, Gone, VenueChannels } from "../src/discord/channel.js";
 import { DiscordError } from "../src/discord/client.js";
-import { OpsAlerts } from "../src/ops.js";
+import { type GuestState, Guests, makeGuests } from "../src/guests.js";
+import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { ChannelSurfaceLive } from "../src/discord/surface.js";
 import { migrationsBefore, migratorFor } from "../src/db.js";
 import { MatchLinks, Surface, ThreadPost } from "../src/ports.js";
@@ -215,10 +216,6 @@ const setup = Effect.fn("setup")(function* (
     );
     yield* opts.beforeVenues.pipe(Effect.provide(sql), Effect.orDie);
   }
-  /** The Venues the Surface said broke, in order. */
-  const broken: Array<string> = [];
-  /** The guest Venues the Surface said are up, to be offered, in order. */
-  const up: Array<string> = [];
   // The running Venues' channels, fixed for each start, as they are for the bot's process.
   const running = VenueChannels.of({
     all: new Map([
@@ -226,19 +223,31 @@ const setup = Effect.fn("setup")(function* (
       ...(opts.homeOnly === true ? [] : [[RACING, racing.port] as const]),
       ...(opts.others ?? []),
     ]),
-    broke: (venue) => Effect.sync(() => broken.push(venue)),
-    up: (venue) => Effect.sync(() => up.push(venue)),
   });
+  const guestNames = [...running.all.keys()].filter((v) => v !== HOME);
+  /** Where each guest stands; each start of the bot starts them afresh, as the joiner does. */
+  let guests = makeGuests();
+  const inState = (state: GuestState) => guestNames.filter((v) => guests.state(v) === state);
   /** What ops was told, in order. */
   const alerts: Array<string> = [];
-  const ops = OpsAlerts.make({
-    configured: true,
-    post: (content) => Effect.sync(() => alerts.push(content)),
-  });
+  const ops = OpsAlerts.make(
+    opsAlertsOf({
+      configured: true,
+      post: (content) => Effect.sync(() => alerts.push(content)),
+    }),
+  );
   let links = MatchLinks.of({ of: () => Effect.succeed(Option.none()) });
   const start = Effect.gen(function* () {
+    guests = makeGuests();
+    yield* Effect.forEach(guestNames, (v) => guests.start(v));
     const ctx = yield* Layer.build(ChannelSurfaceLive).pipe(
-      Effect.provide(Context.add(Context.add(sql, VenueChannels, running), OpsAlerts, ops)),
+      Effect.provide(
+        Context.add(
+          Context.add(Context.add(sql, VenueChannels, running), OpsAlerts, ops),
+          Guests,
+          guests,
+        ),
+      ),
     );
     links = Context.get(ctx, MatchLinks);
     return Context.get(ctx, Surface);
@@ -260,10 +269,10 @@ const setup = Effect.fn("setup")(function* (
     start,
     /** What ops was told, in order. */
     alerts: () => [...alerts],
-    /** The Venues reported broken, for the bot to repair. */
-    broken: () => [...broken],
-    /** The guest Venues reported up, to be offered. */
-    up: () => [...up],
+    /** The guest Venues broken, for the bot to repair. */
+    broken: () => inState("broken"),
+    /** The guest Venues up, offered. */
+    up: () => inState("up"),
     placeOf,
     forgetFingerprint,
     onDatabase,
@@ -843,7 +852,7 @@ describe("Venues", () => {
       expect(up()).toEqual(["third"]);
       yield* TestClock.adjust("5 minutes");
       yield* Effect.repeatN(Effect.yieldNow(), 20);
-      expect(up()).toEqual(["third", RACING]);
+      expect(up()).toEqual([RACING, "third"]);
     }),
   );
 

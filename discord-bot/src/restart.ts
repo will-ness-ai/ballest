@@ -8,11 +8,8 @@
 // beyond that waits until the hour's first falls out, so a server whose availability flaps can't
 // keep the bot restarting.
 import { SqlClient } from "@effect/sql";
-import { Clock, Context, Data, Deferred, Duration, Effect, Layer, Option, Ref } from "effect";
+import { Clock, Context, Deferred, Duration, Effect, Layer, Ref } from "effect";
 import { MigratorLive } from "./db.js";
-
-/** A restart asked for hit a bug on its way (its history unreadable): it won't happen. */
-export class RestartFailed extends Data.TaggedError("RestartFailed")<{ readonly why: string }> {}
 
 /** Asks for the bot to restart. */
 export class Restart extends Context.Tag("multiballs/Restart")<
@@ -20,10 +17,9 @@ export class Restart extends Context.Tag("multiballs/Restart")<
   {
     /**
      * Restart as soon as the bot is fully up (`ready`), has run MIN_UPTIME and the brake allows,
-     * saying why. Every ask waits on that one restart (so an asker forks it), and fails if it hits
-     * a bug, so the asker can undo what it counted on; the next ask then tries again.
+     * saying why; later asks in this process change nothing, unless that restart hit a bug.
      */
-    readonly request: (why: string) => Effect.Effect<void, RestartFailed>;
+    readonly request: (why: string) => Effect.Effect<void>;
     /** The bot is fully up: home's Footer posted, restart recovery done, clicks answered. */
     readonly ready: Effect.Effect<void>;
   }
@@ -56,8 +52,7 @@ export const makeRestart = Effect.gen(function* () {
   const shutdown = yield* Shutdown;
   const startedAt = yield* Clock.currentTimeMillis;
   const up = yield* Deferred.make<undefined>();
-  /** The restart asked for, if any: what every ask waits on. */
-  const asked = yield* Ref.make(Option.none<Deferred.Deferred<undefined, RestartFailed>>());
+  const asked = yield* Ref.make(false);
   const scope = yield* Effect.scope;
 
   const restart = Effect.fn("restart")(function* (why: string) {
@@ -81,25 +76,15 @@ export const makeRestart = Effect.gen(function* () {
 
   return Restart.of({
     request: Effect.fn("Restart.request")(function* (why: string) {
-      const mine = yield* Deferred.make<undefined, RestartFailed>();
-      const current = yield* Ref.modify(asked, (o) =>
-        Option.isSome(o) ? [o.value, o] : [mine, Option.some(mine)],
+      if (yield* Ref.getAndSet(asked, true)) return;
+      yield* Effect.log(`restart asked: ${why}`);
+      // A bug on the way (its history unreadable) leaves the next ask free to try again.
+      yield* restart(why).pipe(
+        Effect.catchAllCause((cause) =>
+          Effect.logError("restarting failed", cause).pipe(Effect.zipRight(Ref.set(asked, false))),
+        ),
+        Effect.forkIn(scope),
       );
-      if (current === mine) {
-        yield* Effect.log(`restart asked: ${why}`);
-        // A bug on the way (its history unreadable) fails every ask, and leaves the next free.
-        yield* restart(why).pipe(
-          Effect.zipRight(Deferred.succeed(mine, undefined)),
-          Effect.catchAllCause((cause) =>
-            Effect.logError("restarting failed", cause).pipe(
-              Effect.zipRight(Ref.set(asked, Option.none())),
-              Effect.zipRight(Deferred.fail(mine, new RestartFailed({ why }))),
-            ),
-          ),
-          Effect.forkIn(scope),
-        );
-      }
-      return yield* Deferred.await(current);
     }),
     ready: Deferred.succeed(up, undefined).pipe(Effect.asVoid),
   });

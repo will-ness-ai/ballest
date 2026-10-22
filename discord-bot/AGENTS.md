@@ -86,12 +86,12 @@ once, and tried again in place every five minutes, with no setup and no restart.
 offered (clicks answered, listed in the Activity) only once its Footer is up; until then a click
 there gets "Multiballs is being repaired in this server, try again in a few minutes." Everything that needs Discord calls runs in the background
 once that is under way: setting up a new server, or repairing one (a deleted channel or role, a
-channel deleted while the bot runs), one server at a time with a 30-second limit (a setup past it
-runs on, never interrupted, holding its server's lock, so a retry can't make a second channel). It runs 20 seconds
+channel deleted while the bot runs), each with a 30-second limit (a setup past it runs on, never
+interrupted, and a retry skips its server till it ends, so it can't make a second channel). It runs 20 seconds
 after startup, every five minutes, and when Discord says a server is available again. Once a
 server sets up, and when a running Venue's server (broken or not) removes the bot, the bot
-restarts (`src/restart.ts`); a server set up and waiting on that restart is left alone by every
-retry, unless the restart hits a bug, when it is tried again. The
+restarts (`src/restart.ts`); a retry before that restart sets the server up again, which
+changes nothing, and asking again joins the restart already asked for. The
 restart waits until the app is fully up (home's Footer, recovery, interactions) and has run a
 minute; then its scope closes, every finalizer running, and it exits 0 (after 20 seconds it exits
 anyway); Fly's `[[restart]] policy = "always"` brings it back, and `pnpm dev` just exits. So an
@@ -120,7 +120,8 @@ The bot sets a wanted server up:
 - **Stored:** the ids go in SQLite's `venues` table. At each start a stored Venue whose channel or
   role is gone is set up again the same way; one with both still there is left as it is.
 
-Then it is checked as home is. A guest Venue whose channel is deleted while the bot runs
+Where each guest stands (starting, up, or broken) is kept in one place, `src/guests.ts`, which
+clicks, the Activity and the retry all read. Then it is checked as home is. A guest Venue whose channel is deleted while the bot runs
 (Discord's Unknown Channel, told to ops once) is broken, the only way one breaks: it is no longer
 offered (as above), and
 the retry, which no longer counts it as running, repairs it within five minutes and restarts the
