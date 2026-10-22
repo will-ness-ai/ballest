@@ -604,6 +604,10 @@ kept apart from the Generators so a page that only links one never loads them).
   a pyramid at each end; flat as a slab inside a parapet. SM_Pyramid's corners sit at the middle
   of its bounds' edges, so a pyramid roof is turned 45° and grown by √2 (`pyramid`). Each was
   checked from four angles at six settings on the prototype's `/proto-collage` page.
+- **The collage** (`/prefabs/collage?g=<key>[&only=<control,…>]`, `GeneratorCollage.tsx`): one
+  Generator in every variation `variationsOf` lists, from three angles, for an agent to read in
+  one screenshot (`.claude/skills/prefab-generators/collage.mjs`). `proxy.ts` answers 404 for it
+  in production.
 - **The page** (`GeneratorEditor.tsx`, grill-design rounds 1 and 4): the controls on the left,
   main ones first and the rest under More options, every number a slider showing its value;
   the model (`PrefabViewer`, held still), its size and piece count and Download on the right.

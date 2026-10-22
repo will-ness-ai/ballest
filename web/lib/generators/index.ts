@@ -45,6 +45,32 @@ export const GENERATORS: ReadonlyArray<Generator> = [
 ];
 export const generatorOf = (key: string) => GENERATORS.find((g) => g.key === key) ?? null;
 
+/* the variations the collage (/prefabs/collage) draws a Generator in, each a label and the one
+   change from its defaults: the defaults, then every number at its least and its most, every
+   choice's options and every switch flipped, for the controls the defaults show (or `only`) */
+export function variationsOf(g: Generator, only?: Array<string>): Array<[string, Values]> {
+  const rows: Array<[string, Values]> = [["defaults", {}]];
+  for (const c of g.controls(g.defaults)) {
+    if (only && !only.includes(c.key)) continue;
+    const unit =
+      c.kind === "number" && c.unit
+        ? c.unit === "°" || c.unit === "%"
+          ? c.unit
+          : " " + c.unit
+        : "";
+    if (c.kind === "number")
+      for (const n of [c.min, c.max]) rows.push([`${c.label} ${String(n)}${unit}`, { [c.key]: n }]);
+    else if (c.kind === "choice")
+      for (const o of c.options) rows.push([`${c.label} ${o}`, { [c.key]: o }]);
+    else if (c.kind === "toggle")
+      rows.push([
+        `${c.label} ${g.defaults[c.key] ? "off" : "on"}`,
+        { [c.key]: !g.defaults[c.key] },
+      ]);
+  }
+  return rows;
+}
+
 /* the Prefab file `key` makes from these values, or null when there is nothing to make (no
    text); a sign in a drawn font takes the lettering that draws it, else the Pixel font's */
 export function generate(key: string, values: Values, lettering: Lettering = PIXEL_LETTERING) {
