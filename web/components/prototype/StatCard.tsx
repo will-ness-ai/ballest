@@ -46,6 +46,9 @@ export interface Stat {
   made: number;
   s2: { rank: number } | null;
   places: Record<"played" | "author" | "wr" | "top5", Place>;
+  s1: { rank: number } | null;
+  /* the Chosen Skin's picture (prototype: ?skin=<asset>), or null for the hue marble */
+  skin: string | null;
 }
 
 async function dataUrl(u: string | null | undefined) {
@@ -102,6 +105,8 @@ export async function statOf(id: string): Promise<Stat | null> {
     podiums: ws.podiums + rec.medals.gold + rec.medals.silver + rec.medals.bronze,
     made: rec.made.length,
     s2: rec.seasons.find((s) => s.group === "Season 2")?.overall ?? null,
+    s1: rec.seasons.find((s) => s.group === "Season 1")?.overall ?? null,
+    skin: null,
     places: {
       played: place("played"),
       author: place("author"),
@@ -1011,6 +1016,358 @@ function R5({ s }: { s: Stat }) {
   );
 }
 
+/* ---------- Round 3: C4's ball over C1's rows, Circuit ranks first ---------- */
+
+export async function skinOf(asset: string | null) {
+  if (!asset || !/^DA_[A-Za-z0-9_]+$/.test(asset)) return null;
+  try {
+    const png = await readFile(join(ASSETS, "proto-skins", asset + ".png"));
+    return "data:image/png;base64," + png.toString("base64");
+  } catch {
+    return null;
+  }
+}
+
+/* the big ball: the Chosen Skin's picture, else the hue marble, with the Steam avatar as a
+   badge on its lower right */
+function BigBall({ s, size, badge }: { s: Stat; size: number; badge: number }) {
+  return (
+    <div style={{ display: "flex", position: "relative", width: size, height: size }}>
+      {s.skin ? (
+        <img src={s.skin} width={size} height={size} alt="" />
+      ) : (
+        <Ball hue={s.hue} size={size} />
+      )}
+      {s.face ? (
+        <div
+          style={{
+            display: "flex",
+            position: "absolute",
+            right: -badge * 0.12,
+            bottom: -badge * 0.05,
+          }}
+        >
+          <img
+            src={s.face}
+            width={badge}
+            height={badge}
+            alt=""
+            style={{
+              borderRadius: badge,
+              border: `${String(Math.round(badge / 18))}px solid ${C.bg}`,
+            }}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* a season's mark in place of a Medal on a rank row */
+function Season({ n, size }: { n: 1 | 2; size: number }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        width: size,
+        height: size,
+        borderRadius: size * 0.28,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: n === 2 ? C.accent : "#7d8fbf",
+        color: C.bg,
+        fontFamily: "Bungee",
+        fontSize: size * 0.42,
+      }}
+    >
+      {`S${String(n)}`}
+    </div>
+  );
+}
+
+type Line = { icon: React.ReactNode; label: string; value: string; colour: string; zero: boolean };
+function linesOf(s: Stat, size: number): Array<Line> {
+  const rank = (r: { rank: number } | null) => (r ? `#${fmtN(r.rank)}` : "—");
+  return [
+    {
+      icon: <Season n={1} size={size} />,
+      label: "Season 1 Circuit",
+      value: rank(s.s1),
+      colour: C.gold,
+      zero: !s.s1,
+    },
+    {
+      icon: <Season n={2} size={size} />,
+      label: "Season 2 Circuit",
+      value: rank(s.s2),
+      colour: C.gold,
+      zero: !s.s2,
+    },
+    ...MEDALS.map(([k, l, n]) => ({
+      icon: <Medal k={k} size={size} />,
+      label: k === "author" ? "Author medals" : k === "wr" ? l : `${l} medals`,
+      value: fmtN(n(s)),
+      colour: MEDAL_COLOUR[k],
+      zero: n(s) === 0,
+    })),
+    {
+      icon: <Ball hue={s.hue} size={size} />,
+      label: "Maps finished",
+      value: fmtN(s.finished),
+      colour: C.text,
+      zero: s.finished === 0,
+    },
+  ];
+}
+
+function LineRow({ l, font, hideZero }: { l: Line; font: number; hideZero?: boolean }) {
+  if (hideZero && l.zero) return null;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        padding: "4px 12px",
+        borderBottom: `2px solid ${C.line}`,
+        opacity: l.zero ? 0.4 : 1,
+      }}
+    >
+      <div style={{ display: "flex", width: font * 1.3, justifyContent: "center" }}>{l.icon}</div>
+      <div style={{ fontSize: font, color: C.dim, fontWeight: 600, flex: 1 }}>{l.label}</div>
+      <div style={{ fontFamily: "Bungee", fontSize: font * 1.25, color: l.colour }}>{l.value}</div>
+    </div>
+  );
+}
+
+const Name = ({ s, size }: { s: Stat; size: number }) => (
+  <div style={{ display: "flex", fontFamily: "Bungee", fontSize: nameSize(s.name, size) }}>
+    {s.name}
+  </div>
+);
+
+/* K1 · Straight merge: C4 as it was (solid frame in the player's colour, glow behind the
+   ball), its numbers swapped for C1's eight rows */
+function K1({ s }: { s: Stat }) {
+  const hue = String(s.hue);
+  return (
+    <div
+      style={{
+        ...frame(720, 1040),
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "28px 30px 22px",
+        border: `16px solid hsl(${hue} 70% 50%)`,
+        backgroundImage: `radial-gradient(circle at 50% 22%, hsl(${hue} 60% 30%) 0%, ${C.bg} 55%)`,
+      }}
+    >
+      <BigBall s={s} size={300} badge={116} />
+      <div style={{ display: "flex", marginTop: 12 }}>
+        <Name s={s} size={54} />
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignSelf: "stretch",
+          gap: 2,
+          marginTop: 14,
+        }}
+      >
+        {linesOf(s, 28).map((l) => (
+          <LineRow key={l.label} l={l} font={28} />
+        ))}
+      </div>
+      <div style={{ display: "flex", marginTop: "auto" }}>
+        <Brand size={18} />
+      </div>
+    </div>
+  );
+}
+
+/* K2 · Two shelves: C1's gradient frame round a dark card; the rows split under two small
+   headings, Circuit (the two ranks) and Medals */
+function K2({ s }: { s: Stat }) {
+  const hue = String(s.hue);
+  const lines = linesOf(s, 28);
+  const head = (t: string) => (
+    <div
+      style={{
+        display: "flex",
+        fontFamily: "Bungee",
+        fontSize: 20,
+        color: C.dim,
+        letterSpacing: 2,
+        marginTop: 12,
+        marginBottom: 2,
+      }}
+    >
+      {t}
+    </div>
+  );
+  return (
+    <div
+      style={{
+        ...frame(720, 1060),
+        padding: 22,
+        backgroundImage: `linear-gradient(160deg, hsl(${hue} 70% 55%), hsl(${hue} 60% 22%))`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          borderRadius: 28,
+          backgroundColor: C.bg,
+          padding: "22px 28px",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <BigBall s={s} size={270} badge={104} />
+          <div style={{ display: "flex", marginTop: 10 }}>
+            <Name s={s} size={50} />
+          </div>
+        </div>
+        {head("CIRCUIT")}
+        {lines.slice(0, 2).map((l) => (
+          <LineRow key={l.label} l={l} font={28} />
+        ))}
+        {head("MEDALS & MAPS")}
+        {lines.slice(2).map((l) => (
+          <LineRow key={l.label} l={l} font={28} />
+        ))}
+        <div style={{ display: "flex", marginTop: "auto", justifyContent: "center" }}>
+          <Brand size={18} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* K3 · Breaking out: the ball overlaps the top of a lighter stats panel, the name in the
+   gap; the rows sit on the panel */
+function K3({ s }: { s: Stat }) {
+  const hue = String(s.hue);
+  return (
+    <div
+      style={{
+        ...frame(720, 1060),
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "30px 30px 22px",
+        backgroundImage: `linear-gradient(180deg, hsl(${hue} 55% 34%) 0%, ${C.bg} 46%)`,
+        border: `10px solid hsl(${hue} 70% 50%)`,
+      }}
+    >
+      <Name s={s} size={56} />
+      <div style={{ display: "flex", marginTop: 14, marginBottom: -110, zIndex: 1 }}>
+        <BigBall s={s} size={310} badge={112} />
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignSelf: "stretch",
+          padding: "124px 8px 12px",
+          borderRadius: 26,
+          backgroundColor: "rgba(255,255,255,0.06)",
+          border: `2px solid ${C.line}`,
+        }}
+      >
+        {linesOf(s, 27).map((l) => (
+          <LineRow key={l.label} l={l} font={27} />
+        ))}
+      </div>
+      <div style={{ display: "flex", marginTop: "auto" }}>
+        <Brand size={18} />
+      </div>
+    </div>
+  );
+}
+
+/* K4 · Ranks by the ball: the ball top left, the name and the two Circuit ranks big beside
+   it, then the Medal rows full width; shorter, so Discord draws it larger */
+function K4({ s }: { s: Stat }) {
+  const hue = String(s.hue);
+  const lines = linesOf(s, 30);
+  return (
+    <div
+      style={{
+        ...frame(760, 900),
+        flexDirection: "column",
+        padding: "30px 32px 22px",
+        border: `16px solid hsl(${hue} 70% 50%)`,
+        backgroundImage: `radial-gradient(circle at 25% 20%, hsl(${hue} 60% 30%) 0%, ${C.bg} 50%)`,
+      }}
+    >
+      <div style={{ display: "flex", gap: 26, alignItems: "center" }}>
+        <BigBall s={s} size={270} badge={100} />
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 12 }}>
+          <Name s={s} size={46} />
+          {lines.slice(0, 2).map((l) => (
+            <div
+              key={l.label}
+              style={{ display: "flex", alignItems: "center", gap: 14, opacity: l.zero ? 0.4 : 1 }}
+            >
+              {l.icon}
+              <div style={{ fontFamily: "Bungee", fontSize: 46, color: l.colour }}>{l.value}</div>
+              <div style={{ fontSize: 22, color: C.dim, fontWeight: 600 }}>Circuit</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 22 }}>
+        {lines.slice(2).map((l) => (
+          <LineRow key={l.label} l={l} font={30} />
+        ))}
+      </div>
+      <div style={{ display: "flex", marginTop: "auto", justifyContent: "center" }}>
+        <Brand size={18} />
+      </div>
+    </div>
+  );
+}
+
+/* K5 · Huge ball, zeros hidden: the ball as big as the card allows and only the rows a
+   player has (a missing rank or a count of zero leaves its row out) */
+function K5({ s }: { s: Stat }) {
+  const hue = String(s.hue);
+  return (
+    <div
+      style={{
+        ...frame(720, 1060),
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "24px 30px 22px",
+        border: `16px solid hsl(${hue} 70% 50%)`,
+        backgroundImage: `radial-gradient(circle at 50% 24%, hsl(${hue} 60% 30%) 0%, ${C.bg} 58%)`,
+      }}
+    >
+      <BigBall s={s} size={400} badge={130} />
+      <div style={{ display: "flex", marginTop: 10 }}>
+        <Name s={s} size={56} />
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignSelf: "stretch",
+          gap: 2,
+          marginTop: 10,
+        }}
+      >
+        {linesOf(s, 27).map((l) => (
+          <LineRow key={l.label} l={l} font={27} hideZero />
+        ))}
+      </div>
+      <div style={{ display: "flex", marginTop: "auto" }}>
+        <Brand size={18} />
+      </div>
+    </div>
+  );
+}
+
 export const VARIANTS = {
   A: { label: "Share card, six tiles", draw: A, w: 1200, h: 630 },
   B: { label: "Medal cabinet", draw: B, w: 1200, h: 560 },
@@ -1022,6 +1379,11 @@ export const VARIANTS = {
   C3: { label: "Art window", draw: R3, w: CW, h: CH },
   C4: { label: "Two heroes", draw: R4, w: CW, h: CH },
   C5: { label: "Front and back", draw: R5, w: 1240, h: 860 },
+  K1: { label: "Straight merge", draw: K1, w: 720, h: 1040 },
+  K2: { label: "Two shelves", draw: K2, w: 720, h: 1060 },
+  K3: { label: "Breaking out", draw: K3, w: 720, h: 1060 },
+  K4: { label: "Ranks by the ball", draw: K4, w: 760, h: 900 },
+  K5: { label: "Huge ball, zeros hidden", draw: K5, w: 720, h: 1060 },
 } as const;
 export type VariantKey = keyof typeof VARIANTS;
 export const isVariant = (k: string): k is VariantKey => k in VARIANTS;
