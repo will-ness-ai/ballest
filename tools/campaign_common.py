@@ -98,6 +98,21 @@ BOARDS = (
     + [(t, "Season 2") for t in S2_TRACKS]
     + []
 )
+# Event boards (CONTEXT.md): a one-off event's board, neither a Track nor a Workshop Map,
+# by name, with its leaderboard ID and what the site calls it. Each Refresh reads only those
+# with no successful read yet (events_due), so an event's board, frozen once it ends, is
+# read once and its Entries are never closed. A Campaign on the site can hold one.
+EVENT_BOARDS = {
+    "Map_LethTrial_01": (20899741, "Leth Trial #1"),
+}
+
+
+def events_due(read_ok):
+    """(name, leaderboard ID) of each Event board not in read_ok, the names with a
+    successful read (Memory.events_read): the ones this Refresh reads."""
+    return [(name, lid) for name, (lid, _) in EVENT_BOARDS.items() if name not in read_ok]
+
+
 # Map_TheTower is parked, not deleted: it reports an internal metric rather than
 # run times, so the site never had anything trustworthy to show. Its ID is kept
 # above so it can be put back by re-adding it to BOARDS.
@@ -145,6 +160,8 @@ def display_name(name):
         return "Final"
     if name == "Map_TheTower":
         return "The Tower"
+    if name in EVENT_BOARDS:
+        return EVENT_BOARDS[name][1]
     n = track_number(name)
     if name.startswith("Map_Track_S2_"):
         nick = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name[len("Map_Track_S2_") :])
