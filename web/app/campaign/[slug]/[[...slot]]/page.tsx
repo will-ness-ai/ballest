@@ -33,12 +33,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!data) return {};
   const { c, maps } = data;
   const m = slot.length === 1 ? maps.find((x) => x.pfid === slot[0]) : undefined;
-  /* an Event board has no page of its own, so this one is indexed, with the Campaign's card */
+  /* an Event board has no page of its own, and this slot is its one-Map Campaign's board
+     again, so the Campaign's page is the one to index, with its card */
   if (m && eventOf(m.pfid))
     return pageMetadata(
       {
         title: `${c.title} ${mapLabel(c, m.pfid, m.title)}`,
-        canonical: campaignHref(c.slug, m.pfid),
+        canonical: campaignHref(c.slug),
         description: `The leaderboard of ${m.title}, an event board of Ballest of Them All, read from Steam after the event ended.`,
       },
       {
@@ -67,7 +68,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     {
       title: c.title,
       canonical: campaignHref(c.slug),
-      description: `${c.title}, a Ballest of Them All Campaign of Workshop maps by ${c.creator}, ranked by points for every map the way the Circuit ranks a season.`,
+      description: `${c.title}, a Ballest of Them All Campaign of ${c.maps.some((id) => eventOf(id)) ? "event maps" : "Workshop maps"} by ${c.creator}, ranked by points for every map the way the Circuit ranks a season.`,
     },
     {
       kind: "campaign",

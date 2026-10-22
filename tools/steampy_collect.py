@@ -197,26 +197,18 @@ async def on_ready():
             _state["error"] = RuntimeError("no board data collected")
             print("ERROR: no board data collected; not writing.")
             return
+
         # Each Event board with no good read yet: after the guard, so it never decides the
         # run. A failed or empty read is a failed read (db_writer); the next Refresh retries.
-        for name, lid in cc.events_due(memory.events_read):
-            try:
-                total, entries = await fetch_board(client, lid)
-                rows = board_rows(entries)
-                all_ids.update(r["steam_id"] for r in rows)
-                boards_out.append(
-                    {
-                        "name": name,
-                        "handle": str(lid),
-                        "entry_count": int(total or len(rows)),
-                        "rows": rows,
-                    }
-                )
-                print(f"  {name:34s} total={int(total):6d} pulled={len(rows)} (Event)")
-            except Exception as e:
-                boards_out.append({"name": name, "handle": str(lid), "rows": []})
-                failed.append(name)
-                print(f"  [warn] read failed: {name}: {e!r}")
+        async def fetch_rows(lid):
+            total, entries = await fetch_board(client, lid)
+            return total, board_rows(entries)
+
+        events, events_failed = await cc.read_events(fetch_rows, memory.events_read)
+        for b in events:
+            all_ids.update(r["steam_id"] for r in b["rows"])
+        boards_out += events
+        failed += events_failed
 
         workshop = None
         if _state["catalogue"]:

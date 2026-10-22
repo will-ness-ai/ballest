@@ -32,8 +32,9 @@ export interface EventBoard {
   title: string;
   /* its picture, one of the site's own files, in place of a Map's Workshop preview */
   picture: string | null;
-  /* where its card links in place of a Map page */
-  link: string;
+  /* the folder of its own static page beside the site, which its card links in place of a
+     Map page (viewerHref) */
+  viewer: string;
 }
 
 export const EVENTS: ReadonlyArray<EventBoard> = [
@@ -42,11 +43,13 @@ export const EVENTS: ReadonlyArray<EventBoard> = [
     board: "Map_LethTrial_01",
     title: "Leth Trial #1",
     picture: "/leth/preview.jpg",
-    link: "/leth/",
+    viewer: "leth",
   },
 ];
 
 export const eventOf = (id: string) => EVENTS.find((e) => e.id === id) ?? null;
+
+export const eventOfBoard = (board: string) => EVENTS.find((e) => e.board === board) ?? null;
 
 /* the board of one of a Campaign's Maps: an Event's own, else the Workshop Map's */
 export const campaignMapBoard = (id: string) => eventOf(id)?.board ?? mapBoard(id);

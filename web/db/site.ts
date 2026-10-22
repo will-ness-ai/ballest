@@ -268,6 +268,19 @@ export async function finishedEveryMap(db: Db, c: Campaign): Promise<number> {
   return r.n;
 }
 
+/* What a Map card shows of each board `where` picks (a condition on entries `e`), as a query:
+   (board, top3 as [steam ID, persona, score], gap13 from 1st to 3rd, runs, lead, and every
+   score and Steam ID for the counts made from them) */
+const boardStatsSql = (where: SQL) => sql`select r.board,
+    jsonb_agg(jsonb_build_array(r.steam_id, coalesce(p.persona, ''), r.score)
+      order by r.rank) filter (where r.rank <= 3) as top3,
+    min(r.score) filter (where r.rank = 3) - min(r.score) filter (where r.rank = 1) as gap13,
+    count(*)::int as runs,
+    min(r.score) filter (where r.rank = 1) as lead,
+    array_agg(r.score) as scores, array_agg(r.steam_id) as ids
+  from (${rankedSql(where)}) r join players p on p.steam_id = r.steam_id
+  group by r.board`;
+
 /* Every Workshop Map with its latest details and what the Workshop pages show of its board
    without reading it. Newest first. */
 export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
@@ -276,18 +289,8 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
     sql`with latest as (
         select distinct on (pfid) * from map_history
         order by pfid, last_seen_refresh desc, id desc
-      ), ranked as (
-        ${rankedSql(sql`e.board in (${listedMapsSql})`)}
       ), stats as (
-        select r.board,
-          jsonb_agg(jsonb_build_array(r.steam_id, coalesce(p.persona, ''), r.score)
-            order by r.rank) filter (where r.rank <= 3) as top3,
-          min(r.score) filter (where r.rank = 3) - min(r.score) filter (where r.rank = 1) as gap13,
-          count(*)::int as runs,
-          min(r.score) filter (where r.rank = 1) as lead,
-          array_agg(r.score) as scores, array_agg(r.steam_id) as ids
-        from ranked r join players p on p.steam_id = r.steam_id
-        group by r.board
+        ${boardStatsSql(sql`e.board in (${listedMapsSql})`)}
       )
       select m.pfid, m.board as name, l.title, coalesce(l.creator, '') as creator,
         m.creator_steam_id as cid, l.preview,
@@ -311,8 +314,8 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
   return found;
 }
 
-/* What a Map card shows of each read Event board's (readEventsSql) board: its runs and top
-   three, as [board, runs, top3, gap13]; a board with no open Entries is left out */
+/* What a Map card shows of each Event board in `names` with open Entries: its runs (Steam's
+   count, as its last good read gave it), its top three and the gap from 1st to 3rd */
 export async function eventBoards(
   db: Db,
   names: ReadonlyArray<string>,
@@ -322,15 +325,13 @@ export async function eventBoards(
   if (!names.length) return [];
   return rows(
     db,
-    sql`select r.board, count(*)::int as runs,
-        jsonb_agg(jsonb_build_array(r.steam_id, coalesce(p.persona, ''), r.score)
-          order by r.rank) filter (where r.rank <= 3) as top3,
-        (min(r.score) filter (where r.rank = 3) - min(r.score) filter (where r.rank = 1))::float8
-          as gap13
-      from (${rankedSql(sql`e.board = any(${array(names)})`)}) r
-      join players p on p.steam_id = r.steam_id
-      join boards b on b.name = r.board and b.kind = 'event'
-      group by r.board`,
+    sql`with stats as (${boardStatsSql(sql`e.board = any(${array(names)})`)})
+      select s.board, coalesce(rd.entry_count, s.runs)::int as runs, s.top3,
+        s.gap13::float8 as gap13
+      from stats s
+      join boards b on b.name = s.board and b.kind = 'event'
+      left join lateral (select entry_count from board_reads
+        where board = s.board and ok order by refresh_id desc limit 1) rd on true`,
   );
 }
 

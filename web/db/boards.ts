@@ -9,7 +9,13 @@
 // (7,288 of them, 2026-10-04) reads that way, so the ranks here are Steam's.
 import { sql, type SQL } from "drizzle-orm";
 
-import { campaignBoard, campaignMapBoard, campaignOfBoard, type Campaign } from "../lib/campaigns";
+import {
+  campaignBoard,
+  campaignMapBoard,
+  campaignOfBoard,
+  eventOf,
+  type Campaign,
+} from "../lib/campaigns";
 import { COMPOSITE_BOARD, S1_CURRENT_BOARD, S1_TRACKS, S2_OVERALL_BOARD } from "../lib/circuit";
 
 /* The open Entries of the boards `where` picks, each with its rank on its board:
@@ -52,18 +58,20 @@ export const listedMapsSql = sql`select m.board from maps m join (
 /* A Campaign's Maps' boards, in its order */
 const campaignMapBoards = (c: Campaign) => c.maps.map(campaignMapBoard);
 
-/* The Event boards a Refresh has read: those with open Entries, which no later Refresh
-   closes (docs/data.md) */
-const readEventsSql = sql`select distinct e.board from entries e
-  join boards b on b.name = e.board
-  where b.kind = 'event' and e.closed_refresh is null`;
-
-/* The boards of a Campaign's Maps the Workshop lists now and its Event boards read, as a
+/* The boards of a Campaign's Maps the Workshop lists now and of its Event boards a Refresh
+   has read (those with open Entries, which no later Refresh closes: docs/data.md), as a
    query of one column, board: the Maps its board adds up, and those a player's Maps
    finished and "finished every map" count */
-export const campaignListedSql = (c: Campaign) =>
-  sql`select board from (${listedMapsSql} union ${readEventsSql}) l
+export function campaignListedSql(c: Campaign) {
+  const listed = sql`select board from (${listedMapsSql}) l
     where board = any(${array(campaignMapBoards(c))})`;
+  const events = c.maps.flatMap((id) => eventOf(id)?.board ?? []);
+  if (!events.length) return listed;
+  return sql`${listed} union all
+    select v.board from unnest(${array(events)}) as v(board)
+    where exists (select 1 from entries e
+      where e.board = v.board and e.closed_refresh is null)`;
+}
 
 /* Season 1 as it stands: each player's points for their place on every Season 1 Track,
    added up, highest first. Equal totals keep the order the collector met them in: by the

@@ -28,7 +28,8 @@ Open in Neon.
 - `boards`: every Steam board, Tracks, Overall boards, each Map's, each Daily's and each
   Event board's, with its kind, Season, display name, leaderboard ID and whether it scores
   points. An Event board (`kind = 'event'`, `EVENT_BOARDS` in `tools/campaign_common.py`) is
-  read by the Refreshes until one reads it ok (`events_due`, from the collector's memory), and
+  read by the Refreshes until one reads it ok (`read_events` over `events_due`, from the
+  collector's memory), and
   never again, so its Entries are never closed. A failed one never fails the Refresh.
 - `board_reads`: which boards each Refresh read and whether the read succeeded. A Map not
   read in a Refresh has no row, and that says nothing about play.

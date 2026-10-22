@@ -113,6 +113,28 @@ def events_due(read_ok):
     return [(name, lid) for name, (lid, _) in EVENT_BOARDS.items() if name not in read_ok]
 
 
+async def read_events(fetch, read_ok):
+    """The Event step: reads each Event board events_due names with fetch(leaderboard ID),
+    which returns (Steam's entry count, board rows), and returns (boards, failed) as the
+    Circuit read hands them to the database writer. A read that raises is a failed board and
+    never escapes, so an Event board never decides a Refresh; an empty one the writer treats
+    as failed (db_writer)."""
+    boards, failed = [], []
+    for name, lid in events_due(read_ok):
+        try:
+            total, rows = await fetch(lid)
+        except Exception as e:
+            boards.append({"name": name, "handle": str(lid), "rows": []})
+            failed.append(name)
+            print(f"  [warn] read failed: {name}: {e!r}")
+            continue
+        boards.append(
+            {"name": name, "handle": str(lid), "entry_count": int(total or len(rows)), "rows": rows}
+        )
+        print(f"  {name:34s} total={int(total or 0):6d} pulled={len(rows)} (Event)")
+    return boards, failed
+
+
 # Map_TheTower is parked, not deleted: it reports an internal metric rather than
 # run times, so the site never had anything trustworthy to show. Its ID is kept
 # above so it can be put back by re-adding it to BOARDS.

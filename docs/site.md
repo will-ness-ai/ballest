@@ -334,12 +334,15 @@ one fixed Campaign, so look at the new one's page with
 
 **Event boards and pinning.** A Campaign's `maps` may also name an Event board (CONTEXT.md)
 by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (committed under
-`leth/` and served from the site, since it has no Workshop preview) and the link its card
-gives in place of a Map page. The collector reads an Event board once (`docs/data.md`), so it
+`leth/` and served from the site, since it has no Workshop preview; `safeImg` takes a path
+from the site's root, and the share card fetches it from production) and the folder of the
+static page its card links in place of a Map page (`viewerHref`). A test holds `EVENTS` to the
+collector's `EVENT_BOARDS`. The collector reads an Event board once (`docs/data.md`), so it
 counts toward its Campaign once it holds open Entries, and until then it is left out like a
 Map the Workshop doesn't list. Inside the frame it is drawn as a Map with no Medals, its card
-links the ghost viewer, it has no `/map/` page, and its slot's canonical and share card are the
-Campaign's. The board API serves it by name; a player's own finishes leave it out, since their
+links the ghost viewer, it has no `/map/` page (`boardHref` sends its board to the slot), and
+its slot's canonical and share card are the Campaign's. Its runs are Steam's count from its
+read. The board API serves it by name; a player's own finishes leave it out, since their
 place there shows on their Campaigns shelf. A Campaign with `pinned` is listed first wherever
 Campaigns are (`getCampaigns`), whatever its player count: the Leth Trials, Leth Trial #1's
 Campaign, is. `stress` reads its Event board, so its builds list it first.

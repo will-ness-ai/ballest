@@ -90,7 +90,7 @@ describe("Event boards in a Campaign", () => {
       maps: ["leth-trial-1"],
       pinned: true,
     });
-    expect(eventOf("leth-trial-1")).toMatchObject({ board: "Map_LethTrial_01", link: "/leth/" });
+    expect(eventOf("leth-trial-1")).toMatchObject({ board: "Map_LethTrial_01", viewer: "leth" });
     expect(mapLabel(leth, "leth-trial-1", "Leth Trial #1")).toBe("01 Leth Trial #1");
   });
 });

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
-import { CAMPAIGNS } from "../lib/campaigns";
+import { CAMPAIGNS, EVENTS } from "../lib/campaigns";
 import { CIRCUIT, TRACKS } from "../lib/circuit";
 import { calendarOf, dayLabel, isLive, timeLeft, todayOf } from "../lib/daily";
 import {
@@ -32,6 +32,7 @@ import {
 } from "../lib/rules";
 import {
   boardHref,
+  viewerHref,
   campaignHref,
   campaignsHref,
   dailyHref,
@@ -237,6 +238,10 @@ describe("Steam IDs and URLs", () => {
     expect(boardHref("Map_Track13", ID)).toBe(`/board/Map_Track13/${ID}`);
     expect(boardHref("OverallLeaderboard", "podiums")).toBe("/board/OverallLeaderboard/podiums");
     expect(boardHref("Workshop_3623648768", ID)).toBe(`/map/3623648768/${ID}`);
+    // an Event board has no page of its own: its Campaign's slot for it is its page
+    expect(boardHref("Map_LethTrial_01", ID)).toBe("/campaign/leth-trials/leth-trial-1");
+    expect(boardHref("Map_LethTrial_01")).toBe("/campaign/leth-trials/leth-trial-1");
+    expect(viewerHref("leth")).toBe("/leth/");
     expect(mapPfidOf("Workshop_42")).toBe("42");
     expect(mapPfidOf("Map_Track13")).toBeNull();
     expect(mapBoard("42")).toBe("Workshop_42");
@@ -364,6 +369,14 @@ describe("the Circuit table", () => {
       list("S2_TRACKS"),
     );
     expect(Object.keys(TRACKS).sort()).toEqual(tracks.map((b) => b.name).sort());
+  });
+
+  test("knows the collector's Event boards, by the names and titles it writes", () => {
+    // EVENT_BOARDS = {"<board>": (<leaderboard id>, "<title>"), ...}
+    const table = /^EVENT_BOARDS = \{([^}]*)\}/m.exec(py)?.[1] ?? "";
+    const events = [...table.matchAll(/"(\w+)": \(\d+, "([^"]+)"\)/g)].map((m) => [m[1], m[2]]);
+    expect(events.length).toBeGreaterThan(0);
+    expect(EVENTS.map((e) => [e.board, e.title])).toEqual(events);
   });
 
   test("names them as the collector does (display_name, track_tier)", () => {

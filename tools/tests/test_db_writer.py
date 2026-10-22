@@ -593,3 +593,12 @@ def test_an_event_board_left_out_of_later_refreshes_keeps_its_entries_open(conn)
     )
     db_writer.write_refresh(conn, refresh(1, [board(TRACK, ("1001", 1013307))]))
     assert history(conn, EVENT, "1001") == [(2373600, r1, r1, None)]
+
+
+def test_an_empty_event_read_is_a_failed_read_and_leaves_its_entries(conn):
+    r1 = db_writer.write_refresh(
+        conn, refresh(0, [board(TRACK, ("1001", 1013307)), board(EVENT, ("1001", 2373600))])
+    )
+    r2 = db_writer.write_refresh(conn, refresh(1, [board(TRACK, ("1001", 1013307)), board(EVENT)]))
+    assert reads(conn, r2)[EVENT] is False
+    assert history(conn, EVENT, "1001") == [(2373600, r1, r1, None)]

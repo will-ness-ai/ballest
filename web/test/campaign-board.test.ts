@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { GET } from "../app/api/board/[name]/route";
 import { GET as OG } from "../app/og/[kind]/[id]/route";
 import type { Db } from "../db/client";
-import { boards, entries, refreshes } from "../db/schema";
+import { boardReads, boards, entries, refreshes } from "../db/schema";
 import { seed } from "../db/seed/harness";
 import { getCampaign, getCampaigns, getPlayerCampaigns } from "../db/data";
 import { boardPage, mapPodiums, playerData } from "../db/site";
@@ -36,7 +36,7 @@ vi.mock("../lib/campaigns", async (original) => {
     board: "Map_TestEvent",
     title: "Test Event",
     picture: null,
-    link: "/leth/",
+    viewer: "leth",
   });
   (m.CAMPAIGNS as Array<Campaign>).push(
     one("test-gone", ["9000000003"]),
@@ -78,7 +78,7 @@ beforeAll(async () => {
     firstSeenRefresh: id,
     lastSeenRefresh: id,
   });
-  // Leth Trial #1, read once: p4 first, Tenpin (p10) second
+  // Leth Trial #1, read once: p4 first, Tenpin (p10) second, of the 1,628 runs Steam counts
   await t.db.insert(boards).values({
     name: LETH,
     kind: "event",
@@ -86,6 +86,7 @@ beforeAll(async () => {
     leaderboardId: 20899741,
     scoresPoints: false,
   });
+  await t.db.insert(boardReads).values({ refreshId: id, board: LETH, ok: true, entryCount: 1628 });
   await t.db.insert(entries).values(
     [
       [p(4), 2_373_600],
@@ -239,10 +240,10 @@ describe("a Campaign of an Event board", () => {
     ]);
   });
 
-  test("shows the Event as one of its Maps, with its picture, runs and record", async () => {
+  test("shows the Event as one of its Maps, with its picture, Steam's run count and record", async () => {
     const data = await getCampaign("leth-trials");
     expect(data?.maps.map((m) => [m.pfid, m.name, m.title, m.entryCount, m.top3[0]])).toEqual([
-      ["leth-trial-1", LETH, "Leth Trial #1", 2, [p(4), "Slowpoke", 2_373_600]],
+      ["leth-trial-1", LETH, "Leth Trial #1", 1628, [p(4), "Slowpoke", 2_373_600]],
     ]);
     expect((await getCampaigns())[0].previews).toEqual(["/leth/preview.jpg"]);
   });

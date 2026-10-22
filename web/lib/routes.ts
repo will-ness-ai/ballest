@@ -1,6 +1,12 @@
 // Every URL the site links to, and how an old #/ link from the single-page site maps onto
 // one. A Steam ID only ever reaches a path through isSteamId: one can arrive from the URL.
-import { campaignOf, campaignOfBoard, campaignOfMap, type Campaign } from "./campaigns";
+import {
+  campaignOf,
+  campaignOfBoard,
+  campaignOfMap,
+  eventOfBoard,
+  type Campaign,
+} from "./campaigns";
 import { circuitBoard } from "./circuit";
 import { PFID, STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
@@ -68,12 +74,19 @@ export function boardHref(name: string, slot?: string | null) {
   const tail = slot && (slot === PODIUM_SORT || isSteamId(slot)) ? "/" + slot : "";
   const campaign = campaignOfBoard(name);
   if (campaign) return campaignHref(campaign.slug) + tail;
+  /* an Event board's page is its Campaign's slot for it, which takes nothing after it */
+  const event = eventOfBoard(name);
+  const home = event && campaignOfMap(event.id);
+  if (home) return campaignHref(home.campaign.slug, event.id);
   return "/board/" + name + tail;
 }
 
 /* a Campaign's page: its Overall board, or one of its Maps inside its frame */
 export const campaignHref = (slug: string, pfid?: string | null) =>
   "/campaign/" + slug + (pfid ? "/" + pfid : "");
+
+/* an Event's own static page beside the site (EventBoard's viewer), such as /leth/ */
+export const viewerHref = (folder: string) => "/" + folder + "/";
 
 /* every Campaign, as banners */
 export const campaignsHref = () => "/campaigns";

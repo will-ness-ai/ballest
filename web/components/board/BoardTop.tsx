@@ -14,7 +14,7 @@ import { eventOf, unitOf } from "../../lib/campaigns";
 import { TRACKS, trackNo } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podiums";
-import { PODIUM_SORT, boardHref, mapHref } from "../../lib/routes";
+import { PODIUM_SORT, boardHref, mapHref, viewerHref } from "../../lib/routes";
 import { fmtN, fmtTime, hueFor, isPoints, personaOf, safeImg, value } from "../../lib/rules";
 import type { BoardRow, WorkshopMap } from "../../lib/rows";
 import { spreadOf } from "../../lib/spread";
@@ -170,7 +170,7 @@ export function CampaignMapCard({
             <span className="bc-by">
               {group} · by {m.creator} ·{" "}
               {event ? (
-                <a href={event.link}>Ghost viewer</a>
+                <a href={viewerHref(event.viewer)}>Ghost viewer</a>
               ) : (
                 <Link href={mapHref(m.pfid)}>Map page</Link>
               )}
