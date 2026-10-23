@@ -18,11 +18,11 @@ import {
   type Values,
 } from "../../../lib/generators";
 import { footprintOf, shapesOf } from "../../../lib/prefab";
-import { fileNameOf } from "../../../lib/prefab-check";
+import { fileNameOf, stemOf } from "../../../lib/prefab-check";
 import { makePrefabHref } from "../../../lib/routes";
 
 /* the name the game spawns a file by */
-const stemOf = (name: string) => fileNameOf(name).replace(/\.json$/, "");
+const spawnName = (name: string) => stemOf(fileNameOf(name));
 
 function useSettled<T>(value: T, ms = 200) {
   const [settled, setSettled] = useState(value);
@@ -139,14 +139,15 @@ function Editor({ g }: { g: Generator }) {
                 Download
               </button>
             )}
-            <HelpDialog name={stemOf(partName(0))} auto={false} />
+            <HelpDialog name={spawnName(partName(0))} auto={false} />
           </div>
           {parts.length > 1 && (
             <p className="gen-parts">
               Too many pieces for the game to spawn at once, so it comes in {parts.length} parts.
-              Spawn them in order without moving the camera ({stemOf(partName(0))}, then{" "}
-              {stemOf(partName(1))} and so on), and they meet. Then delete the small white cubes at
-              the near corner: they only line the parts up.
+              Spawn them in order without moving the camera ({spawnName(partName(0))}, then{" "}
+              {spawnName(partName(1))}
+              {parts.length > 2 ? " and so on" : ""}), and they meet. Then delete the small white
+              cubes at the near corner: they only line the parts up.
             </p>
           )}
         </div>

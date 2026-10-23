@@ -599,6 +599,29 @@ describe("the track pieces", () => {
     expect(Math.min(...bottoms)).toBeLessThan(530);
     expect(count(make("corner", { raised: 0 }), "Cylinder")).toBe(0);
   });
+
+  test("the Legs colour shows whenever the piece grows legs", () => {
+    const cases: Array<[string, Values]> = [
+      ["straight", {}],
+      ["straight", { rise: 2 }],
+      ["corner", {}],
+      ["corner", { raised: 1 }],
+      ["banked", {}],
+      ["banked", { rise: -1 }],
+      ["s-bend", {}],
+      ["t-junction", { post: false }],
+      ["t-junction", { post: false, raised: 2 }],
+    ];
+    for (const [key, change] of cases) {
+      const v = valuesOf(key, change);
+      const shown = gen(key)
+        .controls(v)
+        .some((c) => c.key === "legc");
+      expect(shown, `${key} ${JSON.stringify(change)}`).toBe(
+        count(make(key, change), "Cylinder") > 0,
+      );
+    }
+  });
 });
 
 describe("a big Prefab in parts", () => {
@@ -627,9 +650,9 @@ describe("a big Prefab in parts", () => {
   test("a big one splits into parts the game can spawn, each reaching as near and as low", () => {
     const file = make("course");
     const parts = partsOf(file);
-    expect(parts.length).toBe(Math.ceil(file.items.length / SPAWN_MOST));
+    expect(parts.length).toBe(Math.ceil(file.items.length / (SPAWN_MOST - 1)));
     for (const p of parts) {
-      expect(p.items.length).toBeLessThanOrEqual(SPAWN_MOST + 1);
+      expect(p.items.length).toBeLessThanOrEqual(SPAWN_MOST);
       expect(nearest(p)).toBeCloseTo(nearest(file), 2);
       expect(lowest(p)).toBeCloseTo(lowest(file), 0);
       expect(checkPrefab(JSON.stringify(p)).ok).toBe(true);

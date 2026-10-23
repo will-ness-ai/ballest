@@ -69,8 +69,10 @@ const raisedControls = (v: Values, extra: Array<Control> = []): Array<Control> =
   ...extra,
   colour("track", "Track"),
   ...(v.walls ? [colour("wallc", "Walls")] : []),
-  /* legs stand under whatever is off the floor */
-  ...(numberIn(v, "raised") > 0 || ("rise" in v && Number(v.rise) !== 0)
+  /* legs stand under whatever is off the floor: raised, rising, or a banked outer edge */
+  ...(numberIn(v, "raised") > 0 ||
+  ("rise" in v && Number(v.rise) !== 0) ||
+  ("bank" in v && Number(v.bank) !== 0)
     ? [colour("legc", "Legs")]
     : []),
 ];

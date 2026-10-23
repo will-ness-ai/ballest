@@ -118,8 +118,8 @@ export const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
    the origin, in metres, so a corner is half each column */
 export const lowestOf = (items: Array<PrefabItem>) => edgeOf(items, 1, -1);
 
-/* a big Prefab as parts of at most SPAWN_MOST pieces, to spawn one after another without
-   moving the camera. spawnprefab keeps a file's origin across and up but slides it along X so
+/* a big Prefab as parts of at most SPAWN_MOST pieces, marker included, to spawn one after
+   another without moving the camera. spawnprefab keeps a file's origin across and up but slides it along X so
    its nearest face sits a set way in front of the camera, so a part that doesn't reach as near
    or as low as the whole gets a small marker cube at the whole's near, low corner, and the parts
    land where they meet (checked in a sandbox game) */
@@ -129,8 +129,10 @@ export function partsOf(file: PrefabFile): Array<PrefabFile> {
   const [x, y, z] = [near(file.items), edgeOf(file.items, 2, -1), lowestOf(file.items)];
   const marker = piece("cube", [x + 10, y + 10, z], [20, 20, 20], "White");
   const parts: Array<PrefabFile> = [];
-  for (let i = 0; i < file.items.length; i += SPAWN_MOST) {
-    const items = file.items.slice(i, i + SPAWN_MOST);
+  /* one short of SPAWN_MOST, room for the marker */
+  const most = SPAWN_MOST - 1;
+  for (let i = 0; i < file.items.length; i += most) {
+    const items = file.items.slice(i, i + most);
     /* and a part of one piece needs a second: the game spawns nothing from one */
     const reaches = items.length > 1 && near(items) - x < 1 && lowestOf(items) - z < 1;
     parts.push({ ...file, items: reaches ? items : [...items, marker] });

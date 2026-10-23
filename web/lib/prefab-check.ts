@@ -91,3 +91,6 @@ export function fileNameOf(name: string) {
     .slice(0, 64);
   return (stem || "prefab") + ".json";
 }
+
+/* a file name without its .json, as spawnprefab takes it */
+export const stemOf = (fileName: string) => fileName.replace(/\.json$/, "");
