@@ -96,14 +96,15 @@ const key = (k: string, init: KeyboardEventInit = {}, at: EventTarget = field())
   act(() => {
     at.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, ...init }));
   });
-async function type(text: string) {
+/* `settle` false types without waiting for the answer */
+async function type(text: string, settle = true) {
   await act(async () => {
     field().focus();
     /* React tracks the value it set; the native setter is what a keystroke goes through */
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(field(), text);
     field().dispatchEvent(new Event("input", { bubbles: true }));
     /* the read waits for typing to settle */
-    await new Promise((r) => setTimeout(r, 200));
+    if (settle) await new Promise((r) => setTimeout(r, 200));
   });
 }
 
@@ -165,6 +166,30 @@ describe("the site search", () => {
     key("Enter");
     expect(push).toHaveBeenCalledWith("/campaign/solar-trials");
     expect(field().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  test("Enter opens the answer to what is typed now, once it comes, not the one on screen", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        Promise.resolve(
+          Response.json(
+            url.endsWith("=mar")
+              ? { q: "mar", hits: [hit({ href: "/map/9", title: "Marble Run" })], mapTotal: 1 }
+              : ANSWER,
+          ),
+        ),
+      ),
+    );
+    await type("sol");
+    await type("mar", false);
+    // the hits on screen still answer "sol", and their marks say so
+    expect(options()[0]?.getAttribute("href")).toBe("/campaign/solar-trials");
+    expect(el.querySelector(".srch-bar mark")?.textContent).toBe("Sol");
+    key("Enter");
+    expect(push).not.toHaveBeenCalled();
+    await act(() => new Promise((r) => setTimeout(r, 200)));
+    expect(push).toHaveBeenCalledWith("/map/9");
   });
 
   test("closes on Escape and on a click outside", async () => {

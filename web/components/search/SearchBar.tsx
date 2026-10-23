@@ -183,6 +183,8 @@ function Search({
   const [sel, setSel] = useState({ at: "", i: -1 });
   const selected = sel.at === at ? sel.i : -1;
   const optionId = (i: number) => `${id}-${String(i)}`;
+  /* what the marks pick out: the term the hits on screen answer */
+  const marks = answer?.key ?? "";
 
   /* leaving the page closes it: a new path, not a new render or a new `setOpen` */
   const was = useRef(path);
@@ -211,6 +213,22 @@ function Search({
   const go = () => {
     setOpen(false);
   };
+  /* the term an Enter pressed while its answer was on its way waits for: that answer's first
+     hit opens once it comes, unless the reader has typed on */
+  const enterFor = useRef<string | null>(null);
+  useEffect(() => {
+    const want = enterFor.current;
+    if (want === null || answer?.key !== want) {
+      if (want !== term) enterFor.current = null;
+      return;
+    }
+    enterFor.current = null;
+    const to = links.at(0);
+    if (to && open) {
+      router.push(to.href);
+      setOpen(false);
+    }
+  });
   const keyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const n = links.length;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -220,8 +238,15 @@ function Search({
       const down = e.key === "ArrowDown";
       setSel({ at, i: down ? (selected + 1) % n : selected <= 0 ? n - 1 : selected - 1 });
     } else if (e.key === "Enter") {
+      if (!open) return;
+      /* nothing picked and the hits on screen answer an older term: wait for this one's */
+      if (busy && selected < 0) {
+        e.preventDefault();
+        enterFor.current = term;
+        return;
+      }
       const to = links[selected < 0 ? 0 : selected] as { href: string } | undefined;
-      if (!to || !open) return;
+      if (!to) return;
       e.preventDefault();
       router.push(to.href);
       go();
@@ -256,7 +281,7 @@ function Search({
         </span>
         <span className="srch-text">
           <b>
-            <Marked text={h.title} q={term} />
+            <Marked text={h.title} q={marks} />
           </b>
           <small>{h.meta}</small>
         </span>
