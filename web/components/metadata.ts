@@ -18,7 +18,9 @@ import type { ShareKind } from "../lib/share";
    for a page production lacks). */
 export async function pageMetadata(
   m: { title: string; description: string; canonical: string },
-  card?: { kind: ShareKind; id: string; alt: string },
+  /* `at`, when the page itself last changed (ms), names the card anew if that is after the
+     latest Refresh: a Prefab's edit */
+  card?: { kind: ShareKind; id: string; alt: string; at?: number },
 ): Promise<Metadata> {
   const { title, description, canonical } = m;
   const page = { title, description, alternates: { canonical } };
@@ -28,7 +30,8 @@ export async function pageMetadata(
       ? (process.env.VERCEL_BRANCH_URL ?? process.env.VERCEL_URL)
       : undefined;
   const url =
-    (host ? "https://" + host : "") + shareHref(card.kind, card.id, (await getSite()).asOf);
+    (host ? "https://" + host : "") +
+    shareHref(card.kind, card.id, Math.max((await getSite()).asOf, card.at ?? 0));
   return {
     ...page,
     openGraph: {

@@ -1,8 +1,9 @@
 // Drawing a share image (components/share/Card.tsx): a picture Satori can't read still
-// draws the card, without it, rather than failing the route.
+// draws the card, without it, rather than failing the route; a Prefab draws itself in 3D.
 import { expect, test, vi } from "vitest";
 
 import { drawShare } from "../components/share/Card";
+import { prefabShot } from "../components/share/prefab";
 import type { ShareCard } from "../lib/share";
 
 const card: ShareCard = {
@@ -47,5 +48,41 @@ test("a Campaign draws its band of Map pictures, a missing one as a blank slice"
   expect(warn).not.toHaveBeenCalled();
   const png = Buffer.from(await res.arrayBuffer());
   expect(png.subarray(1, 4).toString()).toBe("PNG");
+  warn.mockRestore();
+});
+
+test("a Prefab draws its 3D picture across the card", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  const file = {
+    format: "BallestPrefab",
+    version: 1,
+    group: { rotation: [0, 0, 0], scale: [1, 1, 1] },
+    items: [
+      {
+        class: "/Game/Blueprints/Editor/BP_Prim_Cube.BP_Prim_Cube_C",
+        transform: { location: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1] },
+        meshes: [
+          {
+            mesh: "/Game/Art/GreyBoxing/_GENERATED/PC/Box_C559BEB3.Box_C559BEB3",
+            materials: ["/Game/M/MI_Env_Red.MI_Env_Red"],
+          },
+        ],
+      },
+    ],
+  };
+  const picture = await prefabShot(JSON.stringify(file), null);
+  expect(picture).toMatch(/^data:image\/png;base64,/);
+  const prefab: ShareCard = {
+    kind: "prefab",
+    kicker: "Prefab · by Tenpin",
+    title: "Twin cubes",
+    headline: null,
+    tiles: [{ value: "2", label: "Pieces" }],
+    hue: 30,
+  };
+  const res = await drawShare(prefab, picture);
+  expect(res.status).toBe(200);
+  expect(warn).not.toHaveBeenCalled();
+  expect(await prefabShot("not a prefab", null)).toBeNull();
   warn.mockRestore();
 });
