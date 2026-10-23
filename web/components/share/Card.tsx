@@ -54,7 +54,9 @@ function Brand({ size = 24 }: { size?: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
       <Ball hue={96} size={size} />
-      <div style={{ display: "flex", fontFamily: "Bungee", fontSize: size * 0.85, letterSpacing: 1 }}>
+      <div
+        style={{ display: "flex", fontFamily: "Bungee", fontSize: size * 0.85, letterSpacing: 1 }}
+      >
         <span style={{ color: C.text }}>{SITE_WORDMARK[0]}</span>
         <span style={{ color: C.accent }}>{SITE_WORDMARK[1]}</span>
       </div>
