@@ -140,7 +140,9 @@
 }
 .pf-dialog form {
   display: flex;
-  justify-content: end;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
   margin-top: 1rem;
 }
 .pf-dialog h2 {
@@ -170,7 +172,7 @@
   white-space: nowrap;
   min-width: 0;
 }
-.pf .pf-copy {
+.pf-code .pf-copy {
   font-size: calc(12rem / 16);
   padding: 0.2rem 0.5rem;
   flex: none;
@@ -679,4 +681,37 @@ button.pf-dl {
   border-radius: 10px;
   color: var(--bronze);
   font-size: calc(13rem / 16);
+}
+
+/* the How to tab: a column of sections, each a heading over steps or a paragraph */
+.pfg {
+  display: grid;
+  gap: 1.6rem;
+  max-width: 44rem;
+  min-width: 0;
+}
+.pfg section {
+  display: grid;
+  gap: 0.7rem;
+  min-width: 0;
+}
+.pfg p {
+  margin: 0;
+}
+.pfg .pfg-note {
+  color: var(--dim);
+}
+.pfg li > code,
+.pfg p > code,
+.pf-dialog kbd,
+.pfg kbd {
+  font-family: ui-monospace, monospace;
+  font-size: calc(13rem / 16);
+}
+.pf-dialog kbd,
+.pfg kbd {
+  border: 1px solid var(--line2);
+  border-block-end-width: 2px;
+  border-radius: 4px;
+  padding: 0 0.3rem;
 }

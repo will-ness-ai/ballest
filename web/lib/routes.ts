@@ -135,6 +135,8 @@ export const isPrefabSlug = (s: string | undefined): s is string =>
   !!s && s.length <= 64 && WHOLE_PREFAB_SLUG.test(s);
 export const prefabsHref = () => "/prefabs";
 export const newPrefabHref = () => "/prefabs/new";
+/* the How to tab: saving, spawning and sharing a Prefab, and Decals */
+export const prefabGuideHref = () => "/prefabs/guide";
 /* the Generate your own tab and a Generator's page. GENERATORS in lib/generators/index.ts lists
    the same keys in the same order; they are kept apart so a page that only links one never
    loads them */

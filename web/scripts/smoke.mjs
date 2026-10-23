@@ -184,6 +184,8 @@ const ROUTES = [
   ["/prefabs/new", 200, null, "Upload a prefab"],
   // the Generators: the Generate your own tab, a Generator, and one that isn't
   ["/prefabs/make", 200, null, "Generate your own"],
+  ["/prefabs/guide", 200, null, "ballest.editor.saveprefab my_prefab"],
+  ["/prefabs/guide", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs/guide"'],
   ["/prefabs/make/qr", 200, null, "QR code"],
   ["/prefabs/make/sign", 200, null, "Sign"],
   ["/prefabs/make/tree", 200, null, "Tree"],

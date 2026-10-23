@@ -2,14 +2,17 @@
 // A Prefab's viewer on its page: the file fetched from its download URL and drawn from its
 // angle, the ? that opens the how-to (open on its own on a first visit), and Reset view, back
 // to the angle (its uploader picks the angle in Edit).
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { Code } from "./Code";
 import { fetchPrefabFile } from "./file";
 import { PrefabViewer, useViewer } from "./PrefabViewer";
 import type { PrefabFile } from "../../lib/prefab";
+import { FOLDER, SPAWN } from "../../lib/prefab-console";
 import type { PrefabAngle } from "../../lib/prefabs";
+import { prefabGuideHref } from "../../lib/routes";
 
-const FOLDER = "%LOCALAPPDATA%\\Ballest\\Saved\\SaveGames\\Prefabs";
 const SEEN = "prefab-howto-seen";
 
 export function PrefabModel({
@@ -53,24 +56,6 @@ export function PrefabModel({
   );
 }
 
-function Copy({ text }: { text: string }) {
-  const [done, setDone] = useState(false);
-  return (
-    <button
-      type="button"
-      className="pf-copy"
-      onClick={() => {
-        void navigator.clipboard.writeText(text).then(() => {
-          setDone(true);
-          setTimeout(() => setDone(false), 1200);
-        });
-      }}
-    >
-      {done ? "Copied" : "Copy"}
-    </button>
-  );
-}
-
 function seen() {
   try {
     return localStorage.getItem(SEEN) === "1";
@@ -93,7 +78,7 @@ export function HelpDialog({ name, auto = true }: { name: string; auto?: boolean
       // storage blocked: the how-to opens on its own again next visit
     }
   };
-  const cmd = "ballest.editor.spawnprefab " + name;
+  const cmd = SPAWN + " " + name;
   return (
     <>
       <button
@@ -112,21 +97,18 @@ export function HelpDialog({ name, auto = true }: { name: string; auto?: boolean
           </li>
           <li>
             <b>Put it in</b> your Prefabs folder:
-            <span className="pf-code">
-              <code>{FOLDER}</code>
-              <Copy text={FOLDER} />
-            </span>
+            <Code text={FOLDER} />
           </li>
           <li>
-            <b>In the level editor</b>, open the console and run:
-            <span className="pf-code">
-              <code>{cmd}</code>
-              <Copy text={cmd} />
-            </span>
+            <b>In the level editor</b>, open the console with the <kbd>`</kbd> key and type:
+            <Code text={cmd} />
             It appears in front of the camera as one group.
           </li>
         </ol>
         <form method="dialog">
+          <Link href={prefabGuideHref()} onClick={close}>
+            Making and sharing your own
+          </Link>
           <button className="pf-x">Got it</button>
         </form>
       </dialog>

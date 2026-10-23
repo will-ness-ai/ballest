@@ -1,18 +1,23 @@
-// The Prefabs page's two tabs (grill-design round 2, C): the Prefabs players shared, and the
-// Generators that generate your own.
+// The Prefabs page's tabs (grill-design round 2, C): the Prefabs players shared, the
+// Generators that generate your own, and How to, the guide to saving, spawning and sharing one.
 import Link from "next/link";
 
-import { makePrefabHref, prefabsHref } from "../../lib/routes";
+import { makePrefabHref, prefabGuideHref, prefabsHref } from "../../lib/routes";
 
-export function PrefabTabs({ on }: { on: "shared" | "make" }) {
+const TABS = [
+  { on: "shared", href: prefabsHref(), label: "Shared by players" },
+  { on: "make", href: makePrefabHref(), label: "Generate your own" },
+  { on: "guide", href: prefabGuideHref(), label: "How to" },
+] as const;
+
+export function PrefabTabs({ on }: { on: (typeof TABS)[number]["on"] }) {
   return (
     <nav className="gen-tabs" aria-label="Prefabs">
-      <Link href={prefabsHref()} aria-current={on === "shared" ? "page" : undefined}>
-        Shared by players
-      </Link>
-      <Link href={makePrefabHref()} aria-current={on === "make" ? "page" : undefined}>
-        Generate your own
-      </Link>
+      {TABS.map((t) => (
+        <Link key={t.on} href={t.href} aria-current={on === t.on ? "page" : undefined}>
+          {t.label}
+        </Link>
+      ))}
     </nav>
   );
 }
