@@ -203,6 +203,20 @@ describe("the site search", () => {
     expect(sheet()?.open).toBe(true);
   });
 
+  test('"/" reaches the field in a browser without checkVisibility (Safari before 17.4)', () => {
+    const rects = HTMLElement.prototype.getClientRects;
+    try {
+      (HTMLElement.prototype as { checkVisibility?: unknown }).checkVisibility = undefined;
+      HTMLElement.prototype.getClientRects = function (this: HTMLElement) {
+        return (this.classList.contains("srch-btn") ? [] : [{}]) as unknown as DOMRectList;
+      };
+      key("/", {}, document.body);
+      expect(document.activeElement).toBe(field());
+    } finally {
+      HTMLElement.prototype.getClientRects = rects;
+    }
+  });
+
   test('"/" and Ctrl K put the keyboard in the field', () => {
     key("/", {}, document.body);
     expect(document.activeElement).toBe(field());

@@ -30,6 +30,11 @@ const readSearch = async (q: string) => {
   return (await r.json()) as SearchAnswer | null;
 };
 
+/* whether the page draws it: checkVisibility where the browser has it (not Safari before
+   17.4), else whether it has a box at all, which display: none takes away */
+const shown = (el: HTMLElement | null) =>
+  !!el && (typeof el.checkVisibility === "function" ? el.checkVisibility() : el.getClientRects().length > 0);
+
 /* the Section whose mark stands in for a hit's picture */
 const MARK: Record<SearchKind, SectionKey> = {
   people: "players",
@@ -56,8 +61,8 @@ export function SearchBar({ jumps, you }: { jumps: ReadonlyArray<Hit>; you?: Rea
     const k = (e: KeyboardEvent) => {
       const typing = (e.target as HTMLElement | null)?.closest("input, textarea, select");
       if (!((e.key === "k" && (e.ctrlKey || e.metaKey)) || (e.key === "/" && !typing))) return;
-      if (field.current?.checkVisibility()) field.current.focus();
-      else if (button.current?.checkVisibility()) setSheet(true);
+      if (shown(field.current)) field.current?.focus();
+      else if (shown(button.current)) setSheet(true);
       else return;
       e.preventDefault();
     };
