@@ -566,6 +566,32 @@ they pick an item, not a page. A card that names its board, player, Daily or Pre
 the page (a Track's big number, the player card, the day's panel, a Prefab's name beside its
 viewer) keeps that name, as an `h2`.
 
+## The control kit
+
+Every control inside a page is drawn from one kit (spec #339, round 4's variant 1, pills):
+`components/Controls.tsx` for the markup and `app/styles/controls.css` for the look, with no
+other stylesheet restyling them; a page's own stylesheet only places them (a margin, a flex
+basis, which end of a row).
+
+- **A choice** is a pill (`PillLink` for a link to another view, marked
+  `aria-current="page"` when lit; `PillButton` for a button, `aria-pressed`) in a row of them,
+  `Pills`, a labelled `nav` for links or a labelled group for buttons. A pill is a rounded
+  outline, lime outline and tint when lit, and a row wraps rather than scrolls, so a long one
+  (the Prefab tags) stays tappable at 320px with 20px text. A count rides in a `<small>`
+  (a player's tabs). The board's Points / Podiums, the history card's Everything / Records only,
+  All maps' views and the Refine drawer's choices, the Players and head to head's Where to
+  count, a player's tabs, the head to head's filter, the Prefabs sort and tags, the upload
+  form's tags and a Generator's choices are all pills. The header's sub-tabs (`.subs`,
+  `SectionNav`) match them but keep the header's own rules.
+- **A search box** is `SearchBox`: a rounded `field` with a magnifier, the one look for Find a
+  player on a board and the Players table, Search maps, a player's map search and the Compare
+  dialog. A select (a player's and a head to head's sort) is a `select.field`.
+- **An action** is a lime pill, the `btn` class on a link or button: All maps, Where you stand,
+  Refine, Upload, Download, Publish, Save and Sign in with Steam on the Prefab pages. `big` is a
+  page's one main action (a Prefab's Download, Publish), `more` the Show more under a list.
+
+A new control takes one of these rather than a style of its own.
+
 ## A board
 
 A board's first rows are rendered on the server, with the plates and the card
