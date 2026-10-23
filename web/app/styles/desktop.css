@@ -38,6 +38,16 @@
     flex: 1;
     max-inline-size: 560px;
     margin-inline: auto;
+    container-type: inline-size;
+  }
+  /* the "/" hint gives its room to the placeholder in a bar that You's unfolded card squeezes */
+  .srch-field kbd {
+    display: none;
+  }
+  @container (min-width: 17.5rem) {
+    .srch-field kbd {
+      display: inline;
+    }
   }
   .srch-btn {
     display: none;
