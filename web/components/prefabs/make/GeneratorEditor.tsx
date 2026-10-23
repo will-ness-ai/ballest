@@ -21,8 +21,6 @@ import { footprintOf, shapesOf } from "../../../lib/prefab";
 import { fileNameOf, spawnNameOf } from "../../../lib/prefab-check";
 import { makePrefabHref } from "../../../lib/routes";
 
-/* the name the game spawns a file by */
-
 function useSettled<T>(value: T, ms = 200) {
   const [settled, setSettled] = useState(value);
   useEffect(() => {

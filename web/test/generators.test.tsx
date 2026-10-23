@@ -663,7 +663,8 @@ describe("a big Prefab in parts", () => {
   test("a big one splits into parts the game can spawn, each reaching as near and as low", () => {
     const file = make("course");
     const parts = partsOf(file);
-    expect(parts.length).toBeGreaterThan(1);
+    /* no more parts than a marker in every one takes */
+    expect(parts.length).toBe(Math.ceil(file.items.length / (SPAWN_MOST - 1)));
     for (const p of parts) {
       expect(p.items.length).toBeLessThanOrEqual(SPAWN_MOST);
       expect(nearest(p)).toBeCloseTo(nearest(file), 2);
