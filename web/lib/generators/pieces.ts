@@ -119,10 +119,10 @@ export const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
 export const lowestOf = (items: Array<PrefabItem>) => edgeOf(items, 1, -1);
 
 /* a big Prefab as parts of at most SPAWN_MOST pieces, marker included, to spawn one after
-   another without moving the camera. spawnprefab keeps a file's origin across and up but slides it along X so
-   its nearest face sits a set way in front of the camera, so a part that doesn't reach as near
-   or as low as the whole gets a small marker cube at the whole's near, low corner, and the parts
-   land where they meet (checked in a sandbox game) */
+   another without moving the camera. spawnprefab keeps a file's origin across and up but slides
+   it along X so its nearest face sits a set way in front of the camera, so a part that doesn't
+   reach as near or as low as the whole gets a small marker cube at the whole's near, low corner,
+   and the parts land where they meet (checked in a sandbox game) */
 export function partsOf(file: PrefabFile): Array<PrefabFile> {
   if (file.items.length <= SPAWN_MOST) return [file];
   const near = (items: Array<PrefabItem>) => edgeOf(items, 0, -1);

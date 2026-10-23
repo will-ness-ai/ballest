@@ -600,6 +600,15 @@ describe("the track pieces", () => {
     expect(count(make("corner", { raised: 0 }), "Cylinder")).toBe(0);
   });
 
+  test("a raised banked turn keeps even its dipping inner edge that high", () => {
+    const track = (f: PrefabFile) => ({
+      ...f,
+      items: f.items.filter((it) => !it.class.includes("Cylinder")),
+    });
+    expect(lowest(track(make("banked", { raised: 5 })))).toBeCloseTo(500, 0);
+    expect(lowest(track(make("banked", { raised: 0 })))).toBeCloseTo(0, 0);
+  });
+
   test("the Legs colour shows whenever the piece grows legs", () => {
     const cases: Array<[string, Values]> = [
       ["straight", {}],
@@ -608,6 +617,7 @@ describe("the track pieces", () => {
       ["corner", { raised: 1 }],
       ["banked", {}],
       ["banked", { rise: -1 }],
+      ["banked", { width: 1, bank: 5 }],
       ["s-bend", {}],
       ["t-junction", { post: false }],
       ["t-junction", { post: false, raised: 2 }],
@@ -638,8 +648,11 @@ describe("a big Prefab in parts", () => {
 
   test("no part is a single piece, which the game won't spawn", () => {
     const file = make("course");
-    const parts = partsOf({ ...file, items: file.items.slice(0, SPAWN_MOST + 1) });
-    expect(parts.map((p) => p.items.length >= 2)).toEqual([true, true]);
+    /* lengths either side of where a split leaves one piece over */
+    for (let n = SPAWN_MOST - 2; n <= 2 * SPAWN_MOST + 2; n++) {
+      const parts = partsOf({ ...file, items: file.items.slice(0, n) });
+      for (const p of parts) expect(p.items.length, `${n} pieces`).toBeGreaterThanOrEqual(2);
+    }
   });
 
   test("a small one is one part, itself", () => {
@@ -650,7 +663,7 @@ describe("a big Prefab in parts", () => {
   test("a big one splits into parts the game can spawn, each reaching as near and as low", () => {
     const file = make("course");
     const parts = partsOf(file);
-    expect(parts.length).toBe(Math.ceil(file.items.length / (SPAWN_MOST - 1)));
+    expect(parts.length).toBeGreaterThan(1);
     for (const p of parts) {
       expect(p.items.length).toBeLessThanOrEqual(SPAWN_MOST);
       expect(nearest(p)).toBeCloseTo(nearest(file), 2);

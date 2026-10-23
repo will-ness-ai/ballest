@@ -55,26 +55,24 @@ export const trackIn = (v: Values, key = "track"): Track => ({
 });
 const radiusIn = (v: Values) => bendRadius(metresIn(v, "width"), metresIn(v, "radius"));
 
-/* a piece on its own, its lowest stretch of track `raised` up, legs under whatever is off the
-   floor */
+/* a piece on its own, its lowest stretch of track `raised` up, and the legs under whatever is
+   off the floor */
+const raisedIn = (s: Section, v: Values) => setDown(s, metresIn(v, "raised"));
+const legsOf = (p: Section, v: Values) => supportsOf(p, colourIn(v, "legc"));
 function standing(s: Section, v: Values) {
-  const p = setDown(s, metresIn(v, "raised"));
-  return fileOf([...itemsOf(p), ...supportsOf(p, colourIn(v, "legc"))]);
+  const p = raisedIn(s, v);
+  return fileOf([...itemsOf(p), ...legsOf(p, v)]);
 }
-/* the controls every piece that can be raised ends with */
-const raisedControls = (v: Values, extra: Array<Control> = []): Array<Control> => [
+/* the controls every piece that can be raised ends with, the Legs colour only when the piece `s`
+   these values make has legs */
+const raisedControls = (v: Values, s: Section, extra: Array<Control> = []): Array<Control> => [
   num("width", "Track width", 1, 8, 0.5, "m"),
   num("raised", "Raised on legs", 0, 20, 0.5, "m"),
   { key: "walls", label: "Walls", kind: "toggle" },
   ...extra,
   colour("track", "Track"),
   ...(v.walls ? [colour("wallc", "Walls")] : []),
-  /* legs stand under whatever is off the floor: raised, rising, or a banked outer edge */
-  ...(numberIn(v, "raised") > 0 ||
-  ("rise" in v && Number(v.rise) !== 0) ||
-  ("bank" in v && Number(v.bank) !== 0)
-    ? [colour("legc", "Legs")]
-    : []),
+  ...(legsOf(raisedIn(s, v), v).length > 0 ? [colour("legc", "Legs")] : []),
 ];
 const RAISED = { width: 3, raised: 0, walls: true, wallc: "White", legc: "Dark" };
 /* a rise either way up to `most` cm (no steeper than 45°), and the rise these values ask for
@@ -88,17 +86,30 @@ const riseIn = (v: Values, most: number) => Math.max(-most, Math.min(most, metre
 const bendLength = (v: Values) => radiusIn(v) * numberIn(v, "angle") * DEG;
 /* a Corner, or with banking a Banked turn */
 const bendIn = (v: Values, bank?: number) =>
-  standing(
-    bend(trackIn(v), {
-      radius: radiusIn(v),
-      angle: (v.turn === "Left" ? -1 : 1) * numberIn(v, "angle") * DEG,
-      rise: riseIn(v, mostRise(bendLength(v))),
-      bank,
-      ease: true,
-      steps: numberIn(v, "steps"),
-    }),
-    v,
-  );
+  bend(trackIn(v), {
+    radius: radiusIn(v),
+    angle: (v.turn === "Left" ? -1 : 1) * numberIn(v, "angle") * DEG,
+    rise: riseIn(v, mostRise(bendLength(v))),
+    bank,
+    ease: true,
+    steps: numberIn(v, "steps"),
+  });
+const bankIn = (v: Values) => numberIn(v, "bank") * DEG;
+const straightIn = (v: Values) => {
+  const length = metresIn(v, "length");
+  return straightSection(trackIn(v), length, riseIn(v, mostRise(length)));
+};
+const sBendIn = (v: Values) => {
+  const length = metresIn(v, "length");
+  const shift = Math.max(-length, Math.min(length, metresIn(v, "shift")));
+  return sBend(trackIn(v), length, shift, numberIn(v, "steps"));
+};
+const teeIn = (v: Values) =>
+  tee(trackIn(v), {
+    arm: metresIn(v, "arm"),
+    stem: metresIn(v, "stem"),
+    post: v.post ? colourIn(v, "postc") : undefined,
+  });
 
 /* ---------- straight ---------- */
 export const straight: Generator = {
@@ -112,12 +123,9 @@ export const straight: Generator = {
   controls: (v) => [
     num("length", "Length", 2, 40, 1, "m"),
     riseControl(mostRise(metresIn(v, "length"))),
-    ...raisedControls(v),
+    ...raisedControls(v, straightIn(v)),
   ],
-  build: (v) => {
-    const length = metresIn(v, "length");
-    return standing(straightSection(trackIn(v), length, riseIn(v, mostRise(length))), v);
-  },
+  build: (v) => standing(straightIn(v), v),
 };
 
 /* ---------- corner ---------- */
@@ -135,9 +143,9 @@ export const corner: Generator = {
     choice("turn", "Turn", ["Left", "Right"]),
     riseControl(mostRise(bendLength(v)), true),
     num("steps", "Pieces a turn", 8, 64, 1, undefined, true),
-    ...raisedControls(v),
+    ...raisedControls(v, bendIn(v)),
   ],
-  build: (v) => bendIn(v),
+  build: (v) => standing(bendIn(v), v),
 };
 
 /* ---------- banked turn ---------- */
@@ -166,9 +174,9 @@ export const banked: Generator = {
     choice("turn", "Turn", ["Left", "Right"]),
     riseControl(mostRise(bendLength(v)), true),
     num("steps", "Pieces a turn", 12, 64, 1, undefined, true),
-    ...raisedControls(v),
+    ...raisedControls(v, bendIn(v, bankIn(v))),
   ],
-  build: (v) => bendIn(v, numberIn(v, "bank") * DEG),
+  build: (v) => standing(bendIn(v, bankIn(v)), v),
 };
 
 /* ---------- s-bend ---------- */
@@ -186,14 +194,10 @@ export const sBendGen: Generator = {
       num("length", "Length", 4, 40, 1, "m"),
       num("shift", "Shift to the right (below 0 left)", -most, most, 0.5, "m"),
       num("steps", "Pieces a turn", 12, 64, 1, undefined, true),
-      ...raisedControls(v),
+      ...raisedControls(v, sBendIn(v)),
     ];
   },
-  build: (v) => {
-    const length = metresIn(v, "length");
-    const shift = Math.max(-length, Math.min(length, metresIn(v, "shift")));
-    return standing(sBend(trackIn(v), length, shift, numberIn(v, "steps")), v);
-  },
+  build: (v) => standing(sBendIn(v), v),
 };
 
 /* ---------- t junction ---------- */
@@ -209,17 +213,9 @@ export const tJunction: Generator = {
     num("arm", "Arm length", 2, 20, 0.5, "m"),
     num("stem", "Stem length", 0, 20, 0.5, "m"),
     { key: "post", label: "Post to split the way", kind: "toggle" },
-    ...raisedControls(v, v.post ? [colour("postc", "Post")] : []),
+    ...raisedControls(v, teeIn(v), v.post ? [colour("postc", "Post")] : []),
   ],
-  build: (v) =>
-    standing(
-      tee(trackIn(v), {
-        arm: metresIn(v, "arm"),
-        stem: metresIn(v, "stem"),
-        post: v.post ? colourIn(v, "postc") : undefined,
-      }),
-      v,
-    ),
+  build: (v) => standing(teeIn(v), v),
 };
 
 /* ---------- spiral ramp ---------- */
