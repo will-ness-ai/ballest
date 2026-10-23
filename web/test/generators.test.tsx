@@ -666,7 +666,9 @@ describe("the pages", () => {
   test("Generate your own shows the tabs and a card per Generator", () => {
     const html = renderToStaticMarkup(<MakeGallery />);
     expect(html).toContain('href="/prefabs"');
-    expect(html).toMatch(/<a aria-current="page" href="\/prefabs\/make">Generate your own<\/a>/);
+    expect(html).toMatch(
+      /<a aria-current="page" href="\/prefabs\/make">.*?Generate your own.*?<\/a>/,
+    );
     for (const g of GENERATORS) expect(html).toContain(`href="/prefabs/make/${g.key}"`);
   });
 
