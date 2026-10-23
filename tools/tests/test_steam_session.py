@@ -215,3 +215,36 @@ def test_waiting_for_the_login_holds_no_one_up():
         await s.close()
 
     asyncio.run(go())
+
+
+def test_a_dropped_connection_holds_requests_until_steam_py_reconnects():
+    # steam.py reconnects inside login() and leaves is_ready() True: on_disconnect is the sign
+    async def go():
+        s = session()
+        assert await s.send("a") == "reply to a"
+        client = FakeClient.made[0]
+        await client.handlers["on_disconnect"]()
+        waiting = asyncio.create_task(s.send("b"))
+        await asyncio.sleep(0.3)
+        assert not waiting.done()
+        await client.handlers["on_ready"]()  # reconnected
+        assert await waiting == "reply to b"
+        await s.close()
+
+    asyncio.run(go())
+
+
+def test_a_connection_down_for_a_while_fails_jobs_at_once(monkeypatch):
+    monkeypatch.setattr(steam_session, "READY_TIMEOUT", 0.3)
+
+    async def go():
+        s = session()
+        await s.send("a")
+        await FakeClient.made[0].handlers["on_disconnect"]()
+        with pytest.raises((ConnectionError, TimeoutError)):
+            await s.send("b")
+        with pytest.raises(ConnectionError, match="connection dropped"):
+            await asyncio.wait_for(s.send("c"), 0.1)
+        await s.close()
+
+    asyncio.run(go())

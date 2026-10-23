@@ -537,6 +537,7 @@ def test_a_turn_skipped_after_a_good_read_starts_no_outage():
         await settle()
         fake.gate("read_dailies").set()  # the first failure after the Refresh: no outage yet
         await settle()
+        assert s.daily_last["exit"] == 1
         assert fake.alerts == []
         task.cancel()
 

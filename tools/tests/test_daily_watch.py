@@ -7,7 +7,9 @@ import dataclasses
 import daily_watch
 import db_writer
 import pytest
-from test_daily import OCT19, read_of
+from test_daily import OCT19, a_daily, read_of
+
+OCT20 = a_daily("2026-10-20", "2026-10-20T01:00", "2026-10-21T01:00")
 
 
 class Fakes:
@@ -17,7 +19,8 @@ class Fakes:
         self.reads, self.written, self.fail = list(reads), [], False
 
     async def collect(self, *_args):
-        return [self.reads.pop(0)]
+        due = self.reads.pop(0)
+        return due if isinstance(due, list) else [due]
 
     async def write(self, refresh, **_kw):
         if self.fail:
@@ -75,7 +78,7 @@ class Steam:
 
     async def ready(self):
         if not self.up:
-            raise ConnectionError("Steam login failing: InvalidPassword")
+            raise ConnectionError("Steam down: InvalidPassword")
 
 
 def test_every_read_checks_the_login_even_with_nothing_due():
@@ -86,7 +89,21 @@ def test_every_read_checks_the_login_even_with_nothing_due():
         asyncio.run(watcher(fakes).read(Steam(up=False)))
 
 
-def test_one_board_that_fails_is_no_outage():
-    # a Daily whose board won't read (a wrong ID) waits for the next read; Steam is up
-    fakes = Fakes(read_of(OCT19, "2026-10-19T01:01"))
-    assert asyncio.run(watcher(fakes).read(Steam())) == 0
+def test_one_board_that_fails_is_no_outage_but_all_failing_is():
+    # a Daily whose board won't read (a wrong ID) waits for the next read; when every board
+    # fails, Steam is answering nothing, logged in or not
+    w = watcher(Fakes())
+    w.watch.wrote(
+        [
+            read_of(OCT19, "2026-10-19T01:00", ("1", 900)),
+            read_of(OCT20, "2026-10-20T01:00", ("1", 900)),
+        ]
+    )
+    failed, still = (
+        read_of(OCT19, "2026-10-20T02:00"),
+        read_of(OCT20, "2026-10-20T02:00", ("1", 900)),
+    )
+    w.collect = Fakes([failed, still]).collect
+    assert asyncio.run(w.read(Steam())) == 0
+    w.collect = Fakes([failed, read_of(OCT20, "2026-10-20T02:01")]).collect
+    assert asyncio.run(w.read(Steam())) == 1

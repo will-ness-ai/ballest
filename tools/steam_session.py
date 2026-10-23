@@ -46,7 +46,10 @@ class SteamSession:
         self.make_client = make_client or steam.Client
         self.client = None
         self.logins = 0
-        # why the last login failed, and since when (monotonic), until one works
+        # logged in and connected: steam.py's is_ready() stays True through a reconnect
+        self.up = False
+        # why Steam went down (a failed login, a dropped connection), and since when
+        # (monotonic), until a login works
         self.down = None
         self._down_since = 0.0
         self._task = None
@@ -54,18 +57,18 @@ class SteamSession:
         self._one_at_a_time = asyncio.Lock()
 
     async def ready(self):
-        """The logged-in client, logging in first if nothing has yet. Raises TimeoutError
-        after READY_TIMEOUT, or ConnectionError straight away when logging in has already been
-        failing for that long (a bad token), so a failure or two still waits for the retry; a
-        dropped connection's reconnect is waited out the same way."""
+        """The logged-in, connected client, logging in first if nothing has yet. A failed
+        login's retry and a dropped connection's reconnect are waited out, up to
+        READY_TIMEOUT (TimeoutError); once Steam has been down that long, it raises
+        ConnectionError straight away, so a short drop still waits."""
         if self._task is None:
             # its own context: what the login prints belongs to no job (runner.JobLog)
             self._task = asyncio.create_task(self._hold(), context=contextvars.Context())
         async with asyncio.timeout(READY_TIMEOUT):
             # polled: a failed login swaps in a fresh client, and none has an event for that
-            while not (self.client and self.client.is_ready()):
+            while not (self.up and self.client.is_ready()):
                 if self.down is not None and time.monotonic() - self._down_since >= READY_TIMEOUT:
-                    raise ConnectionError(f"Steam login failing: {self.down!r}")
+                    raise ConnectionError(f"Steam down: {self.down!r}")
                 await asyncio.sleep(0.2)
         return self.client
 
@@ -97,21 +100,31 @@ class SteamSession:
                 if self._closing:
                     return  # steam.py often raises on the teardown after close()
                 print(f"Steam: logging in failed: {e!r}; trying again in {RETRY} s", flush=True)
-                if self.down is None:
-                    self._down_since = time.monotonic()
-                self.down = e
+                self._went_down(e)
             else:
                 if self._closing:
                     return
             await self.sleep(RETRY)
+
+    def _went_down(self, why):
+        self.up = False
+        if self.down is None:
+            self._down_since = time.monotonic()
+        self.down = why
 
     def _on_ready(self, client):
         @client.event
         async def on_ready():
             # steam.py calls this after each reconnect too
             self.logins += 1
-            self.down = None
+            self.up, self.down = True, None
             print(f"Steam: logged in (login {self.logins} since the service started)", flush=True)
+
+        @client.event
+        async def on_disconnect():
+            # steam.py reconnects by itself, inside login()
+            self._went_down("connection dropped")
+            print("Steam: connection dropped; steam.py is reconnecting", flush=True)
 
     async def close(self):
         """Logs off and stops logging in again."""
