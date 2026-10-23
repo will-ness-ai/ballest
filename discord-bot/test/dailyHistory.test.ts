@@ -1,5 +1,5 @@
-// A past Daily as the leaderboard database holds it (spec #268's backfill): its final board from
-// `entries`, and its lead rebuilt Refresh by Refresh from the Score history. Against the `tiny`
+// A past Daily as the leaderboard database holds it (spec #268, for `pnpm daily-post`): its
+// final board from `entries`, and its lead rebuilt Refresh by Refresh from the Score history. Against the `tiny`
 // dataset in a throwaway database on the Postgres at TEST_DATABASE_URL, migrated and seeded by
 // web/'s own scripts (so `pnpm install` in web/ first), with more of its Daily 09-01 written here.
 import { execFileSync } from "node:child_process";

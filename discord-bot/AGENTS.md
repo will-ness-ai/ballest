@@ -249,21 +249,17 @@ card stays without it. Without both settings the card has no GIF. An edit that a
 every picture the card keeps, read from its components (a Components V2 message lists none under
 `attachments`).
 
-On its first run with no Daily Posts recorded the bot backfills (`backfill` in `schedule.ts`): it
-posts the three Dailies before the one open now (before 01:00 UTC that is yesterday's, still
-live), oldest first, as closed cards with threads, then the open one as usual, and records them,
-so it happens once. Their data comes from the leaderboard database
-(`history.ts`, plain SQL at `DATABASE_URL`): the final board is the Daily's open Entries, and the
-lead is rebuilt from its Score history, every score the board held (closed ones included) from
-when its Ghost says it was set (`ghosts.set_at`, used only when it falls after the last read
-before the Refresh that first saw it, and before that Refresh ended) or else from that Refresh,
-until the same player's next score. A line timed by a Ghost reads like a live one; one timed by
-a Refresh says `by the <t:…:t> Refresh`. The graph steps at those times, clamped to the close.
-Their GIFs are asked for as a live one's, and edited into the closed card when they come (as is
-a live card's that the close came before). Without `DATABASE_URL` there is no backfill, and the
-log says so; a database that can't be read reaches ops. The SQL is tested against web/'s `tiny`
-dataset with more Daily rows (`test/dailyHistory.test.ts`, the Postgres at `TEST_DATABASE_URL`,
-after `pnpm install` in `web/`).
+A Daily already over can be posted closed from the leaderboard database (`postPast` in
+`schedule.ts`, used by `pnpm daily-post` below; at launch the bot backfilled the three Dailies
+before its first this way, once). Its data is read by `history.ts` (plain SQL): the final board is
+the Daily's open Entries, and the lead is rebuilt from its Score history, every score the board
+held (closed ones included) from when its Ghost says it was set (`ghosts.set_at`, used only when it
+falls after the last read before the Refresh that first saw it, and before that Refresh ended) or
+else from that Refresh, until the same player's next score. A line timed by a Ghost reads like a
+live one; one timed by a Refresh says `by the <t:…:t> Refresh`. The graph steps at those times,
+clamped to the close. The SQL is tested against web/'s `tiny` dataset with more Daily rows
+(`test/dailyHistory.test.ts`, the Postgres at `TEST_DATABASE_URL`, after `pnpm install` in
+`web/`).
 
 What the card says is pure (`card.ts`, `test/dailyPost.test.ts`), its layout and buttons are in
 `messages.ts` (`test/messages.test.ts`), and the schedule in `schedule.ts` runs over ports on the
@@ -273,9 +269,9 @@ one: `pnpm daily-post <date>` posts that date's live card and thread into the sa
 nothing. With `--close` it then keeps the card current as the schedule does until the Daily's
 end, so a past date is posted and at once closed by the schedule's own final edit (no GIF, ops
 warnings to the log only). With `DATABASE_URL` set to a local Postgres (it refuses any other)
-holding that date's Daily, a past date is posted instead as the backfill posts it, closed, from
-that database. Read it back with `pnpm --silent axi show <id> --in <channel>`, which
-lists and saves the files a Components V2 card shows.
+holding that date's Daily, a past date is posted closed instead, from that database. Read it back
+with `pnpm --silent axi show <id> --in <channel>`, which lists and saves the files a Components V2
+card shows.
 
 ## New tracks
 

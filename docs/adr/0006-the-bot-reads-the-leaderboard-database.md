@@ -13,9 +13,10 @@ reads below, each on a connection of its own, so a database that can't be reache
 read and never the bot's startup.
 
 The Daily Post (spec #268) reads the same database with the same plain SQL and `DATABASE_URL`,
-from two more files. `discord-bot/src/dailyPost/history.ts` reads a past Daily for the backfill:
+from two more files. `discord-bot/src/dailyPost/history.ts` reads a past Daily (for the one-time
+backfill of the three Dailies before launch, removed after it ran, and now for `pnpm daily-post`):
 `dailies`, `boards`, `entries`, `refreshes`, `players`, `ghosts` (a Ghost's `set_at` times a
-backfilled lead) and `board_reads`. `discord-bot/src/dailyPost/spin.ts` reads a Map's file
+rebuilt lead) and `board_reads`. `discord-bot/src/dailyPost/spin.ts` reads a Map's file
 version from `map_files` and its spinning GIF from `map_spins` (ADR 0013). Neither writes.
 
 A migration that renames or reshapes a table the bot reads must update the file that reads it:

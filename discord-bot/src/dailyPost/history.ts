@@ -1,11 +1,10 @@
-// A past Daily as the leaderboard database holds it (spec #268): what the backfill posts for the
-// Dailies before the bot's first. Plain SQL over the schema `web/` owns (ADR 0006), like the
+// A past Daily as the leaderboard database holds it (spec #268): what `pnpm daily-post` posts,
+// closed, for a date already over. Plain SQL over the schema `web/` owns (ADR 0006), like the
 // Daily Report's source. The final board is the Daily's open Entries; the lead is rebuilt from
 // its Score history at each Refresh that read its board, so it is only as exact as the Refreshes
 // (every three hours): each Lead's `at` is when that Refresh started.
 import { SqlClient } from "@effect/sql";
-import { PgClient } from "@effect/sql-pg";
-import { Config, Context, Data, Effect, Layer, Option, type Redacted, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { type BoardRead, type Daily, sameTime } from "./card.js";
 import { type Lead, leadChanged } from "./lead.js";
 
@@ -23,11 +22,6 @@ export interface PastDaily {
   readonly board: BoardRead;
   readonly leads: ReadonlyArray<PastLead>;
 }
-
-/** The leaderboard database couldn't be read. */
-export class DailyHistoryUnavailable extends Data.TaggedError("DailyHistoryUnavailable")<{
-  readonly reason: string;
-}> {}
 
 const Ms = Schema.Number;
 const DailyRow = Schema.Struct({
@@ -143,48 +137,3 @@ export const pastDaily = Effect.fn("pastDaily")(function* (date: string) {
     leads: leadsOf(held),
   });
 });
-
-/** Where the backfill reads past Dailies: the leaderboard database, when there is one. */
-export class DailyHistory extends Context.Tag("multiballs/DailyHistory")<
-  DailyHistory,
-  {
-    /** Whether there is a database to read: without one there is no backfill. */
-    readonly available: boolean;
-    readonly find: (
-      date: string,
-    ) => Effect.Effect<Option.Option<PastDaily>, DailyHistoryUnavailable>;
-  }
->() {}
-
-/** No DATABASE_URL: nothing to backfill from. */
-export const DailyHistoryOff = Layer.succeed(
-  DailyHistory,
-  DailyHistory.of({ available: false, find: () => Effect.succeedNone }),
-);
-
-/** The leaderboard database at `url`, each read on a connection of its own (as the Daily Report's). */
-export const dailyHistoryAt = (url: Redacted.Redacted) =>
-  Layer.succeed(
-    DailyHistory,
-    DailyHistory.of({
-      available: true,
-      find: Effect.fn("DailyHistory.find")(function* (date: string) {
-        return yield* pastDaily(date).pipe(
-          Effect.provide(PgClient.layer({ url })),
-          Effect.mapError(
-            (e) =>
-              new DailyHistoryUnavailable({
-                reason: e instanceof Error ? e.message : "the database couldn't be read",
-              }),
-          ),
-        );
-      }),
-    }),
-  );
-
-/** The leaderboard database at DATABASE_URL, or off without one. */
-export const DailyHistoryLive = Layer.unwrapEffect(
-  Effect.map(Config.option(Config.redacted("DATABASE_URL")), (database) =>
-    Option.match(database, { onNone: () => DailyHistoryOff, onSome: dailyHistoryAt }),
-  ),
-);

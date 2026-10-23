@@ -178,14 +178,14 @@ describe("a Daily Post's thread lines", () => {
     );
   });
 
-  it("says a backfilled line was seen by a Refresh, not when it happened", () => {
+  it("says a rebuilt line was seen by a Refresh, not when it happened", () => {
     const history = [lead(0.4, ["MitchPlease"], 8.912)];
     expect(leadLine(history, lead(2, ["FEDUS"], 8.701), "byRefresh")).toBe(
       "-# by the <t:1792292400:t> Refresh · 🏁 **FEDUS** takes the lead from **MitchPlease**, who held it for 1h 36m · 0:08.912 → **0:08.701** (−0.211 s)",
     );
   });
 
-  it("marks joint leaders improving together, and a backfilled improvement's Refresh", () => {
+  it("marks joint leaders improving together, and a rebuilt improvement's Refresh", () => {
     const history = [lead(1, ["FEDUS", "airman"], 8.701)];
     expect(leadLine(history, lead(2, ["FEDUS", "airman"], 8.65), "byRefresh")).toBe(
       "-# by the <t:1792292400:t> Refresh · ⏱️ **FEDUS** & **airman** improve the lead: 0:08.701 → **0:08.650** (−0.051 s)",
