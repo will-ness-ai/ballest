@@ -32,6 +32,16 @@
     font-size: calc(20rem / 16);
     line-height: 1.25;
   }
+  /* the site search is a wide field between the brand and You, its button gone */
+  .srch-bar {
+    display: block;
+    flex: 1;
+    max-inline-size: 560px;
+    margin-inline: auto;
+  }
+  .srch-btn {
+    display: none;
+  }
   .freshness {
     align-self: end;
     padding: 0 0 7px;
