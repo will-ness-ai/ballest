@@ -9,7 +9,13 @@ import { Engine } from "../src/engine.js";
 import { Pings } from "../src/pings.js";
 import { controlId } from "../src/discord/controls.js";
 import { PROFILE_FIELD } from "../src/discord/messages.js";
-import { ChosenSkins, type ChosenSkin, type ProfilePreview, Store } from "../src/ports.js";
+import {
+  ChosenSkins,
+  type ChosenSkin,
+  MatchLinks,
+  type ProfilePreview,
+  Store,
+} from "../src/ports.js";
 import { Renderer } from "../src/render/renderer.js";
 import { controlsOf, fromPayload } from "../scripts/axi/describe.js";
 import { fakeInteraction, type Press } from "../scripts/sandbox/driver.js";
@@ -36,6 +42,7 @@ const driven = (h: Harness, renderer: Layer.Layer<Renderer> = Renderer.Default) 
             Layer.succeed(Store, h.store),
             Layer.succeed(Pings, h.pings),
             Layer.succeed(ChosenSkins, h.chosenSkins.port),
+            Layer.succeed(MatchLinks, MatchLinks.of({ of: () => Effect.succeed(Option.none()) })),
             renderer,
           ),
         ),

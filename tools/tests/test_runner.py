@@ -55,11 +55,19 @@ class Fake:
     def gate(self, script):
         return self.gates.setdefault(script, asyncio.Event())
 
-    async def run(self, script, args, limit=runner.JOB_TIMEOUT):
+    async def run(self, script, args, limit=runner.JOB_TIMEOUT, stop=None):
         self.log.append(("start", script, *args))
         self.limits.append(limit)
-        await self.gate(script).wait()
-        self.gates.pop(script)
+        ends = [asyncio.ensure_future(self.gate(script).wait())]
+        if stop is not None:
+            ends.append(asyncio.ensure_future(stop.wait()))
+        await asyncio.wait(ends, return_when=asyncio.FIRST_COMPLETED)
+        for e in ends:
+            e.cancel()
+        self.gates.pop(script, None)
+        if stop is not None and stop.is_set():
+            self.log.append(("stopped", script))
+            return runner.Result(-15, [f"{script} stopped"])
         self.log.append(("end", script))
         return runner.Result(
             self.codes.get(script, 0), [f"{script} said hi"], self.outputs.get(script, {})
@@ -332,6 +340,20 @@ def test_a_script_runs_as_a_workflow_step_ran_it(tmp_path, monkeypatch):
     assert result.outputs == {"added": "1,2"}
 
 
+def test_a_stopped_script_is_ended_at_once(tmp_path, monkeypatch):
+    (tmp_path / "forever.py").write_text("import time\nprint('up', flush=True)\ntime.sleep(60)\n")
+    monkeypatch.setattr(runner, "TOOLS", str(tmp_path))
+
+    async def go():
+        stop = asyncio.Event()
+        asyncio.get_running_loop().call_later(0.5, stop.set)
+        return await asyncio.wait_for(runner.run_script("forever.py", [], None, stop), 10)
+
+    result = asyncio.run(go())
+    assert result.exit != 0
+    assert result.tail[0] == "up"
+
+
 def test_the_commands_reach_the_service_where_it_listens(monkeypatch, capsys):
     # it binds "::" for Fly's private network, which takes no IPv4, so localhost's 127.0.0.1
     # in the image's /etc/hosts would find nothing (the first production deploy, 2026-10-18)
@@ -354,3 +376,127 @@ def test_the_commands_reach_the_service_where_it_listens(monkeypatch, capsys):
 
     asyncio.run(go())
     assert "refresh idle last=none" in capsys.readouterr().out
+
+
+# The Daily watcher (daily_watch.py): logged into Steam whenever no other job needs it.
+
+
+async def watching(s, **kw):
+    task = asyncio.create_task(s.watch_dailies(**kw))
+    await settle()
+    return task
+
+
+def test_the_daily_watcher_runs_while_steam_is_free_and_steps_aside_for_a_refresh():
+    async def go():
+        fake = Fake()
+        s = service(fake)
+        task = await watching(s)
+        assert fake.log == [("start", "daily_watch.py")]
+        assert fake.limits == [None]  # it runs until it is stopped
+        s.refresh()
+        await settle()
+        assert fake.log[1:] == [("stopped", "daily_watch.py"), ("start", "steampy_collect.py")]
+        fake.gate("steampy_collect.py").set()
+        await settle()
+        assert fake.log[3:] == [("end", "steampy_collect.py"), ("start", "daily_watch.py")]
+        assert fake.alerts == []
+        task.cancel()
+
+    asyncio.run(go())
+
+
+def test_a_job_asked_for_while_the_watcher_waits_for_steam_still_goes_first():
+    async def go():
+        fake = Fake()
+        s = service(fake)
+        s.refresh()
+        await settle()
+        task = await watching(s)
+        s.map_file_backlog(600)
+        await settle()
+        fake.gate("steampy_collect.py").set()
+        await settle()
+        assert ("start", "map_files.py", "--budget", "600") in fake.log
+        assert ("start", "daily_watch.py") not in fake.log
+        fake.gate("map_files.py").set()
+        await settle()
+        assert fake.log[-1] == ("start", "daily_watch.py")
+        task.cancel()
+
+    asyncio.run(go())
+
+
+class Clock:
+    """The watcher's clock and pause: a pause moves the clock on by its length."""
+
+    def __init__(self):
+        self.now, self.pauses = 0.0, []
+
+    def __call__(self):
+        return self.now
+
+    async def sleep(self, seconds):
+        self.pauses.append(seconds)
+        self.now += seconds
+        await asyncio.sleep(0)
+
+
+async def dies(fake, clock, after=0):
+    """The running watcher ends `after` seconds after it started."""
+    clock.now += after
+    fake.gate("daily_watch.py").set()
+    await settle()
+
+
+def test_a_watcher_that_dies_on_a_steam_blip_starts_again_without_telling_ops():
+    async def go():
+        fake = Fake(codes={"daily_watch.py": 1})
+        s = service(fake)
+        clock = Clock()
+        task = await watching(s, sleep=clock.sleep, clock=clock)
+        for _ in range(runner.WATCH_OUTAGE // runner.WATCH_RETRY - 1):
+            await dies(fake, clock)
+        await dies(fake, clock, after=runner.WATCH_HEALTHY)  # back, and then a new blip
+        await dies(fake, clock)
+        assert set(clock.pauses) == {runner.WATCH_RETRY}
+        assert fake.alerts == []
+        task.cancel()
+
+    asyncio.run(go())
+
+
+def test_a_job_that_stops_a_watcher_still_down_leaves_its_outage_running():
+    async def go():
+        fake = Fake(codes={"daily_watch.py": 1})
+        s = service(fake)
+        clock = Clock()
+        task = await watching(s, sleep=clock.sleep, clock=clock)
+        for _ in range(runner.WATCH_OUTAGE // runner.WATCH_RETRY - 2):
+            await dies(fake, clock)
+        s.refresh()  # stops the watcher mid-login
+        await settle()
+        fake.gate("steampy_collect.py").set()
+        await settle()
+        for _ in range(3):
+            await dies(fake, clock)
+        assert len(fake.alerts) == 1
+        task.cancel()
+
+    asyncio.run(go())
+
+
+def test_ops_hears_once_when_the_watcher_stays_down():
+    async def go():
+        fake = Fake(codes={"daily_watch.py": 1})
+        s = service(fake)
+        clock = Clock()
+        task = await watching(s, sleep=clock.sleep, clock=clock)
+        for _ in range(3 * runner.WATCH_OUTAGE // runner.WATCH_RETRY):
+            await dies(fake, clock, after=5)
+        assert len(fake.alerts) == 1
+        assert "Daily watcher" in fake.alerts[0]
+        assert f"{runner.WATCH_OUTAGE // 60} minutes" in fake.alerts[0]
+        task.cancel()
+
+    asyncio.run(go())

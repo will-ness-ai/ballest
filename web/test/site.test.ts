@@ -1,6 +1,6 @@
 // The site's queries (db/site.ts) against the tiny dataset; every expected value is worked
 // out by hand from the comments in db/seed/datasets/tiny.ts.
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { entries, ghosts, refreshes } from "../db/schema";
@@ -302,6 +302,18 @@ describe("the Workshop", () => {
       refreshedAt: "2026-09-01T06:05:00.000Z",
       mapsReadBy: "2026-09-01T00:00:00.000Z",
     });
+  });
+
+  test("a Daily read since the last Refresh doesn't make the boards fresher", async () => {
+    const [read] = await t.db
+      .insert(refreshes)
+      .values({ startedAt: new Date("2026-09-01T07:00:00Z"), source: "daily" })
+      .returning({ id: refreshes.id });
+    try {
+      expect((await freshness(t.db)).refreshedAt).toBe("2026-09-01T06:05:00.000Z");
+    } finally {
+      await t.db.delete(refreshes).where(eq(refreshes.id, read.id));
+    }
   });
 });
 
