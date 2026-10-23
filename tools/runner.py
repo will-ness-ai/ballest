@@ -193,7 +193,7 @@ class Service:
         """Keeps the Daily watcher (daily_watch.py) logged into Steam whenever no other job
         needs it: stopped when one asks for Steam (steam_turn), started again once Steam is
         free. One that dies is started again WATCH_RETRY seconds later, and ops hears once it
-        has stayed down WATCH_OUTAGE, until one runs WATCH_HEALTHY or is stopped for a job."""
+        has stayed down WATCH_OUTAGE, until one runs WATCH_HEALTHY."""
         down_since, told = None, False
         while True:
             async with self.steam:
@@ -205,10 +205,10 @@ class Service:
                     None, "daily_watch.py", [], limit=None, stop=self.watch_stop
                 )
                 stopped, self.watch_stop = self.watch_stop.is_set(), None
-            if stopped or clock() - started >= WATCH_HEALTHY:
+            if clock() - started >= WATCH_HEALTHY:
                 down_since, told = None, False
             if stopped:
-                continue
+                continue  # a job's turn neither starts an outage nor ends one
             if down_since is None:
                 down_since = clock()
             if not told and clock() - down_since >= WATCH_OUTAGE:

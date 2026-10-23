@@ -466,6 +466,26 @@ def test_a_watcher_that_dies_on_a_steam_blip_starts_again_without_telling_ops():
     asyncio.run(go())
 
 
+def test_a_job_that_stops_a_watcher_still_down_leaves_its_outage_running():
+    async def go():
+        fake = Fake(codes={"daily_watch.py": 1})
+        s = service(fake)
+        clock = Clock()
+        task = await watching(s, sleep=clock.sleep, clock=clock)
+        for _ in range(runner.WATCH_OUTAGE // runner.WATCH_RETRY - 2):
+            await dies(fake, clock)
+        s.refresh()  # stops the watcher mid-login
+        await settle()
+        fake.gate("steampy_collect.py").set()
+        await settle()
+        for _ in range(3):
+            await dies(fake, clock)
+        assert len(fake.alerts) == 1
+        task.cancel()
+
+    asyncio.run(go())
+
+
 def test_ops_hears_once_when_the_watcher_stays_down():
     async def go():
         fake = Fake(codes={"daily_watch.py": 1})
