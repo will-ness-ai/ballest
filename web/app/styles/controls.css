@@ -1,0 +1,138 @@
+/* ---------- the control kit (components/Controls.tsx; spec #339, round 4's variant 1) ----------
+   Every control inside a page is drawn from these four, and a page's own stylesheet only
+   places them:
+     .pills       a row of choices, wrapping onto more lines rather than scrolling
+     .pill        one choice, a rounded outline, lime outline and tint when it is the current
+                  page (a link) or pressed (a button)
+     .field       a rounded box to type in or pick from (an input, a select); inside
+     .searchbox   it carries a magnifier
+     .btn         an action, a lime pill; .big for a page's one main action, .more for the
+                  "Show more" under a list */
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 6px;
+  min-inline-size: 0;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--dim);
+  font: 600 calc(13rem / 16) / 1.5 var(--f-body);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+.pill small {
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+  font-variant-numeric: tabular-nums;
+}
+.pill:is([aria-current="page"], [aria-pressed="true"]) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.pill:is([aria-current="page"], [aria-pressed="true"]) small {
+  color: inherit;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pill:not([aria-current="page"], [aria-pressed="true"]):hover {
+    border-color: color-mix(in oklch, var(--accent) 45%, transparent);
+    color: var(--text);
+  }
+}
+
+.field {
+  min-inline-size: 0;
+  block-size: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+}
+.field::placeholder {
+  color: var(--faint);
+}
+/* a select's list is drawn by the system, on its own background */
+select.field {
+  background: var(--solid);
+}
+.searchbox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+}
+.searchbox .field {
+  inline-size: 100%;
+  padding-inline-start: 38px;
+}
+.searchbox svg {
+  position: absolute;
+  inset-inline-start: 13px;
+  inline-size: 17px;
+  block-size: 17px;
+  fill: none;
+  stroke: var(--faint);
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.searchbox:focus-within svg {
+  stroke: var(--dim);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  max-inline-size: 100%;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 calc(13rem / 16) / 1.5 var(--f-body);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn:enabled:hover,
+  a.btn:hover {
+    background: var(--accent-hover);
+  }
+}
+.btn svg {
+  inline-size: 1.2em;
+  block-size: 1.2em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.btn.big {
+  padding: 0.75rem 1.3rem;
+  font-size: calc(17rem / 16);
+}
+.btn.more {
+  display: flex;
+  inline-size: fit-content;
+  margin: 18px auto 0;
+}

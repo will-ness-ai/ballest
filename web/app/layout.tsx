@@ -12,6 +12,7 @@ import { SITE_ORIGIN } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE, pageTitle } from "../lib/rules";
 
 import "./styles/base.css";
+import "./styles/controls.css";
 import "./styles/board.css";
 import "./styles/player.css";
 import "./styles/vs.css";

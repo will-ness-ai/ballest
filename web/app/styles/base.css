@@ -153,7 +153,8 @@ textarea {
   .mcard,
   .vmid,
   .go,
-  .alllink,
+  a.pill,
+  a.btn,
   .youcard
 ):active {
   scale: 0.97;
@@ -173,7 +174,8 @@ textarea {
     .mcard,
     .vmid,
     .go,
-    .alllink,
+    a.pill,
+    a.btn,
     .youcard
   ) {
     transition: scale 160ms var(--ease-out);
