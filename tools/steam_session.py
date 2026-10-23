@@ -54,7 +54,7 @@ class SteamSession:
         self.logins = 0
         # logins given up on (a dropped connection, an unanswered request, a stuck login)
         self.drops = 0
-        self._up_since = 0.0
+        self._up_since = self._down_at = 0.0
         # logged in on the current client; down since (monotonic) it last wasn't, and why
         self.up = False
         self.down = None
@@ -114,8 +114,7 @@ class SteamSession:
                 print(f"Steam: the login loop failed: {e!r}", flush=True)
                 self._went_down(e)
                 if client is not None:
-                    with contextlib.suppress(Exception):
-                        await client.close()
+                    await _close(client)
             if self._closing:
                 return
             # a login that held a while comes back at once; one kicked straight off (another
@@ -137,13 +136,14 @@ class SteamSession:
         dropped.cancel()
         deadline.cancel()
         if not login.done():  # dropped: this client's socket is dead to us
-            with contextlib.suppress(Exception):
-                await client.close()
+            await _close(client)
             await asyncio.wait({login}, timeout=30)
             if not login.done():
                 login.cancel()  # never waited on: a wedged steam.py may not let go
         worked = self.logins > logins
-        lasted = time.monotonic() - self._up_since if worked else 0.0
+        if worked and self.up:
+            self._went_down("connection dropped")
+        lasted = self._down_at - self._up_since if worked else 0.0
         if self._closing:
             return lasted
         failed = login.exception() if login.done() and not login.cancelled() else None
@@ -151,8 +151,9 @@ class SteamSession:
             # what steam.py raises as a working login's connection closes is no login failure
             self._went_down(self.down or "connection dropped")
         else:
-            print(f"Steam: logging in failed: {failed!r}", flush=True)
-            self._went_down(failed or "the login ended")
+            why = failed or self.down or "the login ended"
+            print(f"Steam: logging in failed: {why!r}", flush=True)
+            self._went_down(why)
         return lasted
 
     async def _login_deadline(self, client, logins):
@@ -166,7 +167,7 @@ class SteamSession:
 
     def _went_down(self, why):
         if self.up:
-            self._down_since = time.monotonic()
+            self._down_since = self._down_at = time.monotonic()
         self.up, self.down = False, why
 
     def _drop(self, client, why):
@@ -203,6 +204,12 @@ class SteamSession:
         if self._task is not None:
             with contextlib.suppress(Exception, asyncio.CancelledError):
                 await asyncio.wait_for(self._task, 30)
+
+
+async def _close(client):
+    """Closes a steam.py client, within a limit: its socket may be wedged."""
+    with contextlib.suppress(Exception, TimeoutError):
+        await asyncio.wait_for(client.close(), 10)
 
 
 def run_alone(job, **kw):
