@@ -628,7 +628,10 @@ kept apart from the Generators so a page that only links one never loads them).
   centreline stops whose slabs make the surface (walls stand on their edges), and names its
   ways out, so `chain` lays one after another and any two pieces of the same width meet. A
   Corner, Banked turn and the Spiral are one `bend` (a banked one eases from flat at its ends);
-  a rise is held to 45°. Legs come last, once the floor is known (`supportsOf`): pairs at each
+  a rise is held to 45°. Where a run twists between two stops (a bank easing in or out), one
+  slab rolled about the centreline would stand its edges proud of the next, so that stretch is
+  laid as strips across the track, each from the stops' own edges, enough of them that no edge
+  is more than 3 cm off its neighbour's (`slabsOf`). Legs come last, once the floor is known (`supportsOf`): pairs at each
   end of a run and every 4 m, never where other track runs underneath, and a spiral stands on
   its column. The Full course is a fixed layout of every piece, set down so its lowest stretch
   lies on the floor; `test/track.test.ts` checks it never passes within 2.5 m of itself but

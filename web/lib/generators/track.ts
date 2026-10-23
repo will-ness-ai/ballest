@@ -7,6 +7,7 @@ import {
   DEG,
   add,
   cross,
+  dot,
   lowestOf,
   mul,
   norm,
@@ -131,15 +132,56 @@ export const together = (parts: Array<Section>): Section => ({
 });
 
 /* ---------- pieces ---------- */
-/* the slabs along a run of stops, and with walls each side's wall standing on the slab's edge */
+/* across the track at each stop: its surface's own sideways, square to the way it runs */
+function sidesOf(stops: Array<Stop>): Array<V3> {
+  return stops.map((x, i) => {
+    const along = sub(stops[Math.min(i + 1, stops.length - 1)].p, stops[Math.max(i - 1, 0)].p);
+    return norm(cross(x.up, along));
+  });
+}
+/* how far one slab's edge would stand off the next where a stretch twists (a bank easing in or
+   out), in cm, before it is cut into strips */
+const TWIST_STEP = 3;
+/* the slabs along a run of stops, and with walls each side's wall standing on the slab's edge.
+   Where the surface twists between two stops, one slab rolled about the centreline leaves its
+   edges standing proud of the next one's, so that stretch is laid as strips across the track
+   instead, each from the stops' own edges, and every edge meets the next stretch's */
 function slabsOf(r: Run): Array<PrefabItem> {
   const items: Array<PrefabItem> = [];
+  const sides = sidesOf(r.stops);
+  const w = r.t.width;
   for (let i = 0; i + 1 < r.stops.length; i++) {
     const a = r.stops[i].p;
     const b = r.stops[i + 1].p;
     const up = norm(add(r.stops[i].up, r.stops[i + 1].up));
-    items.push(slab(a, b, up, r.t.width, THICK, r.t.track, r.over));
+    const twist = (w / 2) * Math.abs(dot(sub(sides[i], sides[i + 1]), up));
+    if (twist < TWIST_STEP) items.push(slab(a, b, up, w, THICK, r.t.track, r.over));
+    else {
+      const k = Math.ceil(twist / TWIST_STEP);
+      const edge = (j: number, s: number) => add(r.stops[j].p, mul(sides[j], s));
+      for (let n = 0; n < k; n++) {
+        const [s0, s1] = [-w / 2 + (w * n) / k, -w / 2 + (w * (n + 1)) / k];
+        const [a0, a1, b0, b1] = [edge(i, s0), edge(i, s1), edge(i + 1, s0), edge(i + 1, s1)];
+        const lead = mul(add(a0, a1), 0.5);
+        const trail = mul(add(b0, b1), 0.5);
+        const across = sub(add(a1, b1), add(a0, b0));
+        const top = norm(cross(sub(trail, lead), across));
+        /* only as much longer as its longer edge is than its middle, to close the gap there */
+        const len = (p: V3, q: V3) => Math.hypot(...sub(q, p));
+        const over = (Math.max(len(a0, b0), len(a1, b1)) - len(lead, trail)) / 2 + 1;
+        items.push(slab(lead, trail, top, w / k + 2, THICK, r.t.track, over));
+      }
+    }
     if (!r.walls || !r.t.walls) continue;
+    if (twist >= TWIST_STEP) {
+      /* each wall from one stop's edge to the next's, so it bends with the track */
+      for (const s of [-1, 1]) {
+        const at = (j: number) =>
+          add(r.stops[j].p, add(mul(sides[j], s * (w / 2 + WALL_T / 2)), mul(r.stops[j].up, WALL)));
+        items.push(slab(at(i), at(i + 1), up, WALL_T, WALL + THICK, r.t.walls, r.over + WALL_T));
+      }
+      continue;
+    }
     const side = norm(cross(up, sub(b, a)));
     for (const s of [-1, 1]) {
       const shift = add(mul(side, s * (r.t.width / 2 + WALL_T / 2)), mul(up, WALL));

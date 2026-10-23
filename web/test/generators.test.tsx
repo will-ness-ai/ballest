@@ -568,11 +568,41 @@ describe("the track pieces", () => {
     expect(Math.min(...ys("Left"))).toBeLessThan(-500);
   });
 
+  /* the track's surface pieces: every cube 30 cm deep, whole slabs and the strips a twisting
+     stretch is cut into */
+  const deck = (file: PrefabFile) =>
+    file.items.filter(
+      (it) => it.class.includes("Cube") && Math.abs(it.transform.scale[2] * CUBE - 30) < 1,
+    );
   test("a banked turn tips in toward its middle, and lies flat where it starts and ends", () => {
-    const s = slabs(make("banked", { walls: false, bank: 40 }));
+    const s = deck(make("banked", { walls: false, bank: 40 }));
     expect(upOf(s[0])[2]).toBeGreaterThan(0.97);
     expect(upOf(s[s.length - 1])[2]).toBeGreaterThan(0.97);
     expect(upOf(s[Math.floor(s.length / 2)])[2]).toBeCloseTo(Math.cos((40 * Math.PI) / 180), 1);
+  });
+
+  test("a banked turn's outer edge climbs as its bank eases in without a step between pieces", () => {
+    const pieces = deck(make("banked", { walls: false, bank: 45, turn: "Left", radius: 8 }));
+    /* the heights of every piece's top over a point on the ground */
+    const topsOver = (x: number, y: number) =>
+      pieces.flatMap((it) => {
+        const [X, Y, Z] = rotationRows(it.transform.rotation);
+        const [l, w, h] = it.transform.scale.map((s) => s * CUBE);
+        const o = it.transform.location.map((p, k) => p + h * Z[k]);
+        /* the top as o + u X + v Y: solve for the u, v over (x, y) */
+        const det = X[0] * Y[1] - X[1] * Y[0];
+        const [dx, dy] = [x - o[0], y - o[1]];
+        const u = (dx * Y[1] - dy * Y[0]) / det;
+        const v = (X[0] * dy - X[1] * dx) / det;
+        return Math.abs(u) <= l / 2 && Math.abs(v) <= w / 2 ? [o[2] + u * X[2] + v * Y[2]] : [];
+      });
+    /* a left turn 8 m round turns about (0, -8 m); near its outer edge all the way round (a
+       45° bank draws its 1.5 m half in to a little over a metre across the ground) */
+    for (let a = Math.PI / 180; a < (Math.PI * 179) / 180; a += Math.PI / 360) {
+      const tops = topsOver(890 * Math.sin(a), -800 + 890 * Math.cos(a));
+      expect(tops.length).toBeGreaterThan(0);
+      expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(5);
+    }
   });
 
   test("an S-bend comes out to the side by its shift", () => {

@@ -87,7 +87,7 @@ export function course(t: Track, other: Track, post: Colour, column: Colour, ste
     (u) => jump(u, { runup: 200, kick: 12 * DEG, gap: 1500, drop: 50, landing: 800 }),
     (u) => straight(u, 1840, 140),
     (u) =>
-      fork(u, other, t, { arm: 300, stem: 110, radius: 330, middle: 800, fall: -60, post }, steps),
+      fork(u, other, t, { arm: 300, stem: 110, radius: 330, middle: 2000, fall: -60, post }, steps),
     (u) => bend(u, { radius: 400, angle: LEFT, steps }),
     (u) =>
       spiral(u, { radius: 500, turns: 1.5, drop: 790, bank: 45 * DEG, ease: true, steps, column }),
