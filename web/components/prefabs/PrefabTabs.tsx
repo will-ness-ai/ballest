@@ -5,10 +5,11 @@ import type { ReactNode } from "react";
 
 import { makePrefabHref, prefabGuideHref, prefabsHref } from "../../lib/routes";
 
+/* each with a shorter label for a phone, where the three full ones don't fit */
 const TABS = [
-  { on: "shared", href: prefabsHref(), label: "Shared by players" },
-  { on: "make", href: makePrefabHref(), label: "Generate your own" },
-  { on: "guide", href: prefabGuideHref(), label: "How to" },
+  { on: "shared", href: prefabsHref(), label: "Shared by players", short: "Shared" },
+  { on: "make", href: makePrefabHref(), label: "Generate your own", short: "Generate" },
+  { on: "guide", href: prefabGuideHref(), label: "How to", short: "How to" },
 ] as const;
 
 type Tab = (typeof TABS)[number]["on"];
@@ -42,7 +43,14 @@ function PrefabTabs({ on }: { on: Tab }) {
     <nav className="gen-tabs" aria-label="Prefabs">
       {TABS.map((t) => (
         <Link key={t.on} href={t.href} aria-current={on === t.on ? "page" : undefined}>
-          {t.label}
+          {t.label === t.short ? (
+            t.label
+          ) : (
+            <>
+              <span className="gen-tab-short">{t.short}</span>
+              <span className="gen-tab-long">{t.label}</span>
+            </>
+          )}
         </Link>
       ))}
     </nav>

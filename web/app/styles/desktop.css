@@ -772,6 +772,12 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
   /* a Generator's controls beside its model, which fills the height */
+  .gen-tab-short {
+    display: none;
+  }
+  .gen-tab-long {
+    display: inline;
+  }
   .gen-split {
     grid-template-columns: minmax(18rem, 26rem) minmax(0, 1fr);
     align-items: start;
