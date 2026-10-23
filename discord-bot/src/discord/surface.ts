@@ -23,7 +23,8 @@
 //   Discord timestamp, redrawn as the Match moves on.
 // - A Match Thread that fails to start is started on the Match's next thread post.
 // - A Card is forgotten once it will never change again: after its Result, or once removed.
-//   A finished Match's place is still kept (the most recent ones), for the Activity's links.
+//   A finished Match's place is still kept (the most recent ones), for the Activity's links and
+//   for Play again's post in its thread.
 import { SqlClient, SqlSchema } from "@effect/sql";
 import { Context, Effect, Layer, Option, Ref, Schema } from "effect";
 import { MigratorLive } from "../db.js";
@@ -305,10 +306,17 @@ const make = Effect.gen(function* () {
     yield* forget(matchId);
   }, lock.withPermits(1));
 
-  /** A Match's thread, started now if it couldn't be when its Card was drawn. */
-  const threadOf = Effect.fn("Surface.threadOf")(function* (matchId: string) {
-    const card = (yield* Ref.get(layout)).cards.get(matchId);
-    if (card === undefined) return Option.none<string>();
+  /**
+   * A Match's thread, started now if it couldn't be when its Card was drawn. Only Play again's
+   * post (`toFinished`) goes to a finished Match's thread; any other post for it is dropped.
+   */
+  const threadOf = Effect.fn("Surface.threadOf")(function* (matchId: string, toFinished: boolean) {
+    const { cards, finished } = yield* Ref.get(layout);
+    const card = cards.get(matchId);
+    if (card === undefined)
+      return toFinished
+        ? Option.fromNullable(finished.get(matchId)?.threadId)
+        : Option.none<string>();
     if (card.threadId !== null) return Option.some(card.threadId);
     const view = (yield* Ref.get(views)).get(matchId);
     return view === undefined
@@ -318,7 +326,7 @@ const make = Effect.gen(function* () {
 
   const post = Effect.fn("Surface.post")(
     function* (matchId: string, post: ThreadPost) {
-      const threadId = yield* threadOf(matchId);
+      const threadId = yield* threadOf(matchId, post._tag === "PlayingAgain");
       if (Option.isNone(threadId))
         return yield* Effect.logWarning(`no thread for ${matchId}; dropped a ${post._tag} post`);
       yield* channel.postInThread(threadId.value, matchId, post);

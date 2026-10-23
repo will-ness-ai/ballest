@@ -80,12 +80,12 @@ function seen() {
 }
 
 /* the ? on the viewer and the how-to it opens; `name` is the download's name without .json,
-   which is what spawnprefab takes */
-function HelpDialog({ name }: { name: string }) {
+   which is what spawnprefab takes. With `auto` it opens on its own once per browser */
+export function HelpDialog({ name, auto = true }: { name: string; auto?: boolean }) {
   const dlg = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    if (!seen()) dlg.current?.showModal();
-  }, []);
+    if (auto && !seen()) dlg.current?.showModal();
+  }, [auto]);
   const close = () => {
     try {
       localStorage.setItem(SEEN, "1");

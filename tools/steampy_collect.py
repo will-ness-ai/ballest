@@ -163,40 +163,38 @@ async def on_ready():
     _state["done"] = True
     try:
         memory = _state["memory"]
-        boards_out = []
         all_ids = set()
-        failed = []  # boards whose read failed: their Entries stay as they were
+
+        async def fetch_rows(lid):
+            total, entries = await fetch_board(client, lid)
+            return total, board_rows(entries)
+
+        circuit = []
         for name, group in cc.BOARDS:
             lid = cc.LEADERBOARD_IDS.get(name)
-            if not lid:
+            if lid:
+                circuit.append((name, lid, group))
+            else:
                 print(f"  [skip] no leaderboard ID for {name}")
-                continue
-            try:
-                total, entries = await fetch_board(client, lid)
-                rows = board_rows(entries)
-                all_ids.update(r["steam_id"] for r in rows)
-                boards_out.append(
-                    {
-                        "name": name,
-                        "group": group,
-                        "handle": str(lid),
-                        "entry_count": int(total or len(rows)),
-                        "rows": rows,
-                    }
-                )
-                print(f"  {name:34s} total={int(total):6d} pulled={len(rows)}")
-            except Exception as e:
-                # A failed read changes nothing: the board's Entries stay as the last
-                # good read left them (db_writer counts it as a failed read).
-                boards_out.append({"name": name, "group": group, "handle": str(lid), "rows": []})
-                failed.append(name)
-                print(f"  [warn] read failed: {name}: {e!r}")
+        # A failed read changes nothing: the board's Entries stay as the last good read left
+        # them (db_writer counts it as a failed read).
+        boards_out, failed = await cc.read_boards(fetch_rows, circuit)
+        for b in boards_out:
+            all_ids.update(r["steam_id"] for r in b["rows"])
 
         # Refuse a Refresh that read nothing: Steam is down, or this login is broken.
         if not any(b["rows"] for b in boards_out):
             _state["error"] = RuntimeError("no board data collected")
             print("ERROR: no board data collected; not writing.")
             return
+
+        # Each Event board with no good read yet: after the guard, so it never decides the
+        # run. A failed or empty read is a failed read (db_writer); the next Refresh retries.
+        events, events_failed = await cc.read_events(fetch_rows, memory.events_read)
+        for b in events:
+            all_ids.update(r["steam_id"] for r in b["rows"])
+        boards_out += events
+        failed += events_failed
 
         workshop = None
         if _state["catalogue"]:

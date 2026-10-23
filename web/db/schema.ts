@@ -47,10 +47,10 @@ export const refreshes = pgTable("refreshes", {
   fullSweep: boolean("full_sweep").notNull().default(false),
 });
 
-export const boardKind = pgEnum("board_kind", ["track", "overall", "map", "daily"]);
+export const boardKind = pgEnum("board_kind", ["track", "overall", "map", "daily", "event"]);
 
-// Every board Steam holds: the Circuit's Tracks and Overall boards, each Map's, and each
-// Daily's.
+// Every board Steam holds: the Circuit's Tracks and Overall boards, each Map's, each
+// Daily's, and each Event board's (read once).
 export const boards = pgTable("boards", {
   name: text("name").primaryKey(),
   kind: boardKind("kind").notNull(),
