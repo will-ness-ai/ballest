@@ -279,6 +279,21 @@ export interface Bend {
 }
 /* a bend's centreline radius, at least far enough out that its inner edge clears the middle */
 export const bendRadius = (width: number, radius: number) => Math.max(radius, width / 2 + 50);
+/* the most a bank may turn from one piece to the next: each piece is a flat slab, so where two
+   meet their outer edges step by half the width times the change, 6.5 cm on a 3 m track */
+const TWIST = 2.5 * DEG;
+
+/* how far round a bend each stop is, 0 to 1: `n` evenly, but where an eased bank comes in and
+   goes out (its first and last thirds) close enough that it turns at most TWIST a piece */
+function bendStops(n: number, bank: number, ease: boolean): Array<number> {
+  if (!ease || bank === 0) return Array.from({ length: n + 1 }, (_, i) => i / n);
+  const ramp = Math.max(Math.ceil(n / 3), Math.ceil(Math.abs(bank) / TWIST));
+  const middle = Math.max(1, n - 2 * Math.ceil(n / 3));
+  const ins = Array.from({ length: ramp }, (_, k) => k / ramp / 3);
+  const mids = Array.from({ length: middle }, (_, k) => (1 + k / middle) / 3);
+  return [...ins, ...mids, ...ins.map((u) => 1 - u).reverse()];
+}
+
 /* a bend round a circle `radius` out to its centreline, rising evenly as it goes (or eased) */
 export function bend(t: Track, b: Bend): Section {
   const R = bendRadius(t.width, b.radius);
@@ -286,27 +301,28 @@ export function bend(t: Track, b: Bend): Section {
   const A = Math.abs(b.angle);
   const rise = b.rise ?? 0;
   const n = Math.max(2, Math.ceil((A / (Math.PI * 2)) * (b.steps ?? 24)));
-  const step = A / n;
-  const stops: Array<Stop> = Array.from({ length: n + 1 }, (_, i) => {
-    const a = i * step;
+  const us = bendStops(n, b.bank ?? 0, b.ease ?? false);
+  const stops: Array<Stop> = us.map((u) => {
+    const a = u * A;
     const inward: V3 = [-Math.sin(a), s * Math.cos(a), 0];
-    const ramp = b.ease ? Math.min(1, 3 * Math.min(i / n, 1 - i / n)) : 1;
+    const ramp = b.ease ? Math.min(1, 3 * Math.min(u, 1 - u)) : 1;
     const k = (b.bank ?? 0) * ramp;
     /* the rise's slope here, so the surface also tips back as it climbs, as a Straight's does */
     const slope = b.ease
-      ? ((rise * Math.PI) / (2 * R * A)) * Math.sin((Math.PI * i) / n)
+      ? ((rise * Math.PI) / (2 * R * A)) * Math.sin(Math.PI * u)
       : rise / (R * A);
     const ahead: V3 = [Math.cos(a), s * Math.sin(a), 0];
     return {
       p: [
         R * Math.sin(a),
         s * R * (1 - Math.cos(a)),
-        b.ease ? (rise * (1 - Math.cos((Math.PI * i) / n))) / 2 : (rise * i) / n,
+        b.ease ? (rise * (1 - Math.cos(Math.PI * u))) / 2 : rise * u,
       ],
       up: norm(add(add([0, 0, Math.cos(k)], mul(inward, Math.sin(k))), mul(ahead, -slope))),
     };
   });
   /* the outer edge's chord is longer than the centreline's by (R + w/2) / R */
+  const step = Math.max(...us.slice(1).map((u, i) => u - us[i])) * A;
   const chord = 2 * R * Math.sin(step / 2);
   const over = (chord * (t.width / 2 + WALL_T)) / (2 * R) + 5;
   return {

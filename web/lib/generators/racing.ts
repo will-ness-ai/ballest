@@ -470,8 +470,8 @@ export const rollers: Generator = {
   file: "rollers",
   angle: { from: [-0.3, 0.9, 0.3], zoom: 1, pan: [0, 0, 0] },
   defaults: {
-    length: 20,
-    bumps: 4,
+    length: 30,
+    bumps: 3,
     height: 1.2,
     width: 3,
     steps: 10,

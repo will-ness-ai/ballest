@@ -18,6 +18,30 @@ import {
 
 type V3 = [number, number, number];
 const T: Track = { width: 300, track: "White", walls: "Dark" };
+const DEG = Math.PI / 180;
+/* the most two slabs' tops differ in height where they meet, at the track's edges, in cm: each
+   slab is flat through its two stops, tipped to their average up, so its edge stands
+   `side`·z × half the width off the centreline (where a slab is near level, not round a loop) */
+function edgeStep(s: Section) {
+  let most = 0;
+  for (const r of s.runs) {
+    const sides = r.stops.slice(1).map((x, i) => {
+      const u = r.stops[i].up.map((c, k) => c + x.up[k]);
+      const d = x.p.map((c, k) => c - r.stops[i].p[k]);
+      const side = [
+        u[1] * d[2] - u[2] * d[1],
+        u[2] * d[0] - u[0] * d[2],
+        u[0] * d[1] - u[1] * d[0],
+      ];
+      const level = u[2] / Math.hypot(...u) > 0.5;
+      return { z: side[2] / Math.hypot(...side), level };
+    });
+    for (let i = 0; i + 1 < sides.length; i++)
+      if (sides[i].level && sides[i + 1].level)
+        most = Math.max(most, (Math.abs(sides[i].z - sides[i + 1].z) * r.t.width) / 2);
+  }
+  return most;
+}
 const near = (a: V3, b: V3) => a.forEach((x, i) => expect(x).toBeCloseTo(b[i], 3));
 
 describe("the sections", () => {
@@ -49,6 +73,19 @@ describe("the sections", () => {
     const mid = stops[Math.floor(stops.length / 2)];
     const ahead = [Math.cos(Math.PI / 4), Math.sin(Math.PI / 4)];
     expect(mid.up[0] * ahead[0] + mid.up[1] * ahead[1]).toBeLessThan(-0.3);
+  });
+
+  test("a banked turn twists in a little a piece, so the slabs' edges meet", () => {
+    for (const bank of [10, 45, 60]) {
+      const b = bend(T, {
+        radius: 800,
+        angle: Math.PI / 2,
+        bank: bank * DEG,
+        ease: true,
+        steps: 32,
+      });
+      expect(edgeStep(b), `${bank}°`).toBeLessThan(8);
+    }
   });
 
   test("one after another start each where the last came out", () => {
@@ -170,6 +207,10 @@ describe("the Full course", () => {
           );
     }
     expect(clashes.slice(0, 5)).toEqual([]);
+  });
+
+  test("has no step over 8 cm where one slab meets the next", () => {
+    expect(edgeStep(c)).toBeLessThan(8);
   });
 
   test("has no leg or column standing where track runs underneath its top", () => {
