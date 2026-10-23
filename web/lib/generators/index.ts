@@ -39,6 +39,8 @@ export {
   COLOURS,
   COLOUR_NAMES,
   PIECE_LIMIT,
+  SPAWN_MOST,
+  partsOf,
   rects,
   type Colour,
   type Control,

@@ -7,6 +7,9 @@ import type { Grid, Lettering } from "../generator-letters";
 
 /* the most pieces spawnprefab takes (lib/prefab-check.ts) */
 export const PIECE_LIMIT = 4096;
+/* the most pieces one spawn can hold without running out the game's objects: its cost grows
+   with the square of the pieces, and 289 spawned in a sandbox game where 400 crashed it */
+export const SPAWN_MOST = 240;
 
 /* ---------- colours ---------- */
 /* each colour the Generators offer: its material and the paint the editor saves beside it,
@@ -113,14 +116,39 @@ export const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
 
 /* the lowest corner of any of the pieces, in cm: a shape's matrix takes a unit shape centred on
    the origin, in metres, so a corner is half each column */
-export const lowestOf = (items: Array<PrefabItem>) =>
-  Math.min(
+export const lowestOf = (items: Array<PrefabItem>) => edgeOf(items, 1, -1);
+
+/* a big Prefab as parts of at most SPAWN_MOST pieces, to spawn one after another without
+   moving the camera. spawnprefab keeps a file's origin across and up but slides it along X so
+   its nearest face sits a set way in front of the camera, so a part that doesn't reach as near
+   or as low as the whole gets a small marker cube at the whole's near, low corner, and the parts
+   land where they meet (checked in a sandbox game) */
+export function partsOf(file: PrefabFile): Array<PrefabFile> {
+  if (file.items.length <= SPAWN_MOST) return [file];
+  const near = (items: Array<PrefabItem>) => edgeOf(items, 0, -1);
+  const [x, y, z] = [near(file.items), edgeOf(file.items, 2, -1), lowestOf(file.items)];
+  const marker = piece("cube", [x + 10, y + 10, z], [20, 20, 20], "White");
+  const parts: Array<PrefabFile> = [];
+  for (let i = 0; i < file.items.length; i += SPAWN_MOST) {
+    const items = file.items.slice(i, i + SPAWN_MOST);
+    const reaches = near(items) - x < 1 && lowestOf(items) - z < 1;
+    parts.push({ ...file, items: reaches ? items : [...items, marker] });
+  }
+  return parts;
+}
+
+/* how far the pieces reach along three's axis `k` (0 x, 1 up, 2 Unreal's y), at their least
+   (-1) or most (1), in cm */
+const edgeOf = (items: Array<PrefabItem>, k: number, sign: -1 | 1) =>
+  sign *
+  Math.max(
     ...shapesOf(fileOf(items)).map(
       (sh) =>
-        sh.matrix[13] -
-        (Math.abs(sh.matrix[1]) + Math.abs(sh.matrix[5]) + Math.abs(sh.matrix[9])) / 2,
+        sign * sh.matrix[12 + k] +
+        (Math.abs(sh.matrix[k]) + Math.abs(sh.matrix[4 + k]) + Math.abs(sh.matrix[8 + k])) / 2,
     ),
-  ) * 100;
+  ) *
+  100;
 
 /* the pieces moved up or down so the lowest corner of any of them sits on the floor, z = 0 */
 export function grounded(items: Array<PrefabItem>): Array<PrefabItem> {

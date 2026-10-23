@@ -241,7 +241,8 @@ export function setDown(s: Section, raised = 0, x = 0): Section {
 /* a straight `length` long, rising by `rise` (falling when it's below 0) along a smooth S, flat
    at both ends so it meets a flat piece without a kink */
 export function straight(t: Track, length: number, rise = 0, n = 8): Section {
-  const steps = rise === 0 ? 1 : n;
+  /* two slabs even when flat: the game spawns nothing from a Prefab of one piece */
+  const steps = rise === 0 ? 2 : n;
   const stops: Array<Stop> = Array.from({ length: steps + 1 }, (_, i) => {
     const x = (i / steps) * length;
     const slope = ((rise * Math.PI) / (2 * length)) * Math.sin((Math.PI * x) / length);
