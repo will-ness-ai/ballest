@@ -7,13 +7,13 @@ import {
   colour,
   colourIn,
   fileOf,
-  metresIn,
   num,
   numberIn,
   type Colour,
   type Generator,
   type Values,
 } from "./pieces";
+import { trackIn } from "./racing";
 import {
   START,
   THICK,
@@ -55,9 +55,9 @@ function fork(t: Track, flat: Track, bumpy: Track, f: Fork, steps: number): Sect
   const split = tee(t, { arm: f.arm, stem: f.stem, post: f.post });
   const way = (out: number, middle: Section, tw: Track) =>
     chain(split.exits[out === LEFT ? 0 : 1], [
-      bend(tw, { radius: f.radius, angle: -out, rise: -f.fall / 2, steps }),
+      bend(tw, { radius: f.radius, angle: -out, rise: -f.fall / 2, ease: true, steps }),
       middle,
-      bend(tw, { radius: f.radius, angle: -out, rise: -f.fall / 2, steps }),
+      bend(tw, { radius: f.radius, angle: -out, rise: -f.fall / 2, ease: true, steps }),
     ]);
   const left = way(LEFT, straight(flat, f.middle), flat);
   const right = way(RIGHT, rollers(bumpy, f.middle, 2, 80), bumpy);
@@ -80,13 +80,14 @@ export function course(t: Track, other: Track, post: Colour, column: Colour, ste
     (u) => straight(u, 1400, -400),
     (u) => bend(u, { radius: 800, angle: -Math.PI, rise: -100, bank: 30 * DEG, ease: true, steps }),
     (u) => rollers(u, 1800, 3, 100),
-    (u) => bend(u, { radius: 600, angle: LEFT, rise: -50, steps }),
+    (u) => bend(u, { radius: 600, angle: LEFT, rise: -50, ease: true, steps }),
     (u) => jump(u, { runup: 400, kick: 20 * DEG, gap: 500, drop: 150, landing: 1000 }),
     (u) => straight(u, 1000, 150),
     (u) =>
       fork(u, other, t, { arm: 300, stem: 200, radius: 400, middle: 800, fall: 100, post }, steps),
     (u) => bend(u, { radius: 600, angle: RIGHT, steps }),
-    (u) => spiral(u, { radius: 600, turns: 1.5, drop: 400, bank: 10 * DEG, steps, column }),
+    (u) =>
+      spiral(u, { radius: 600, turns: 1.5, drop: 400, bank: 10 * DEG, ease: true, steps, column }),
     (u) => straight(u, 1200, -200),
     (u) => straight(u, 600),
     (u) => loop(u, 400, 32),
@@ -104,14 +105,9 @@ export function course(t: Track, other: Track, post: Colour, column: Colour, ste
 /* the course these values make, set down so its lowest stretch lies on the floor, as any piece
    on the floor would */
 export function courseIn(v: Values): Section {
-  const track = (k: string): Track => ({
-    width: metresIn(v, "width"),
-    track: colourIn(v, k),
-    walls: v.walls ? colourIn(v, "wallc") : undefined,
-  });
   const c = course(
-    track("track"),
-    track("other"),
+    trackIn(v),
+    trackIn(v, "other"),
     colourIn(v, "postc"),
     colourIn(v, "legc"),
     numberIn(v, "steps"),

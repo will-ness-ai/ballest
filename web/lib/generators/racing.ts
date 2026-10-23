@@ -29,6 +29,7 @@ import {
   WALL_T,
   START,
   bend,
+  bendRadius,
   chain,
   itemsOf,
   jump as jumpSection,
@@ -46,13 +47,13 @@ import {
   type Track,
 } from "./track";
 
-const trackIn = (v: Values): Track => ({
+/* the track these values ask for, its surface in the colour `key` names */
+export const trackIn = (v: Values, key = "track"): Track => ({
   width: metresIn(v, "width"),
-  track: colourIn(v, "track"),
+  track: colourIn(v, key),
   walls: v.walls ? colourIn(v, "wallc") : undefined,
 });
-/* a bend's centreline at least far enough out that its inner edge clears the middle */
-const radiusIn = (v: Values) => Math.max(metresIn(v, "radius"), metresIn(v, "width") / 2 + 50);
+const radiusIn = (v: Values) => bendRadius(trackIn(v), metresIn(v, "radius"));
 
 /* a piece on its own, its lowest stretch of track `raised` up on legs, or on the floor */
 function standing(s: Section, v: Values) {
@@ -79,7 +80,7 @@ const riseControl = (most: number, more = false) => {
   return num("rise", "Rise (below 0 falls)", -m, m, 0.5, "m", more);
 };
 const riseIn = (v: Values, most: number) => Math.max(-most, Math.min(most, metresIn(v, "rise")));
-/* a bend rises evenly, so no more than its length */
+/* a bend's centreline length: an eased rise is held to 45° as a Straight's is */
 const bendLength = (v: Values) => radiusIn(v) * numberIn(v, "angle") * DEG;
 /* a Corner, or with banking a Banked turn */
 const bendIn = (v: Values, bank?: number) =>
@@ -87,7 +88,7 @@ const bendIn = (v: Values, bank?: number) =>
     bend(trackIn(v), {
       radius: radiusIn(v),
       angle: (v.turn === "Right" ? -1 : 1) * numberIn(v, "angle") * DEG,
-      rise: riseIn(v, bendLength(v)),
+      rise: riseIn(v, mostRise(bendLength(v))),
       bank,
       ease: true,
       steps: numberIn(v, "steps"),
@@ -128,7 +129,7 @@ export const corner: Generator = {
     num("angle", "Angle", 15, 180, 15, "°"),
     num("radius", "Radius", 2, 30, 0.5, "m"),
     choice("turn", "Turn", ["Left", "Right"]),
-    riseControl(bendLength(v), true),
+    riseControl(mostRise(bendLength(v)), true),
     num("steps", "Pieces a turn", 8, 64, 1, undefined, true),
     ...raisedControls(v),
   ],
@@ -154,11 +155,12 @@ export const banked: Generator = {
     track: "Red",
   },
   controls: (v) => [
-    num("angle", "Angle", 30, 360, 15, "°"),
+    /* past three quarters of a turn a flat one would come back round into its own start */
+    num("angle", "Angle", 30, 270, 15, "°"),
     num("radius", "Radius", 3, 30, 0.5, "m"),
     num("bank", "Banking", 5, 60, 1, "°"),
     choice("turn", "Turn", ["Left", "Right"]),
-    riseControl(bendLength(v), true),
+    riseControl(mostRise(bendLength(v)), true),
     num("steps", "Pieces a turn", 12, 64, 1, undefined, true),
     ...raisedControls(v),
   ],

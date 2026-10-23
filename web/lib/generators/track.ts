@@ -151,22 +151,32 @@ function slabsOf(r: Run): Array<PrefabItem> {
 }
 export const itemsOf = (s: Section) => [...s.runs.flatMap(slabsOf), ...s.extras];
 
-/* the centreline every 50 cm, to tell what lies under a leg */
-function samplesOf(runs: Array<Run>): Array<V3> {
-  const out: Array<V3> = [];
-  for (const r of runs)
+/* the centreline every 50 cm, to tell what lies under a leg: each point, its run and how far
+   along it */
+function samplesOf(runs: Array<Run>) {
+  const out: Array<{ p: V3; run: Run; along: number }> = [];
+  for (const r of runs) {
+    let along = 0;
     for (let i = 0; i + 1 < r.stops.length; i++) {
       const a = r.stops[i].p;
       const d = sub(r.stops[i + 1].p, a);
-      const n = Math.max(1, Math.ceil(Math.hypot(...d) / 50));
-      for (let j = 0; j <= n; j++) out.push(add(a, mul(d, j / n)));
+      const len = Math.hypot(...d);
+      const n = Math.max(1, Math.ceil(len / 50));
+      for (let j = 0; j <= n; j++)
+        out.push({ p: add(a, mul(d, j / n)), run: r, along: along + (len * j) / n });
+      along += len;
     }
+  }
   return out;
 }
+/* along its own run, the track this near a leg is the stretch it holds up, sloping or banked
+   past it, not track underneath */
+const OWN = 1000;
 
 /* what holds a section up off the floor (z = 0): its pillars, and pairs of legs to the slabs'
-   undersides, one pair near each end of a run and at least every 4 m between, where the surface
-   faces up and no track runs underneath */
+   undersides, one pair near each end of a run and at least every 4 m between, wherever the
+   surface faces more up than sideways (not round a loop's top) and no other track runs
+   underneath */
 export function supportsOf(s: Section, c: Colour): Array<PrefabItem> {
   const under = samplesOf(s.runs);
   const feet: Array<V3> = [];
@@ -182,7 +192,8 @@ export function supportsOf(s: Section, c: Colour): Array<PrefabItem> {
     const n = Math.max(1, Math.ceil((total - 2 * inset) / LEG_EVERY));
     for (let k = 0; k <= n; k++) {
       /* the stop pair this far along, and how far between them */
-      let d = inset + ((total - 2 * inset) * k) / n;
+      const along = inset + ((total - 2 * inset) * k) / n;
+      let d = along;
       let i = 0;
       while (i < lens.length - 1 && d > lens[i]) d -= lens[i++];
       const a = r.stops[i];
@@ -190,15 +201,18 @@ export function supportsOf(s: Section, c: Colour): Array<PrefabItem> {
       const f = Math.min(1, d / lens[i]);
       const p = add(a.p, mul(sub(b.p, a.p), f));
       const up = norm(add(mul(a.up, 1 - f), mul(b.up, f)));
-      if (up[2] < 0.8) continue;
+      if (up[2] < 0.3) continue;
       const side = norm(cross(up, sub(b.p, a.p)));
       for (const e of [-1, 1]) {
         const edge = add(p, mul(side, e * (r.t.width / 2 - LEG / 2 - 5)));
-        const top = edge[2] - THICK / up[2];
+        /* under the slab's underside, short of it by as much as the slab tips across the leg */
+        const tilt = Math.sqrt(1 - up[2] * up[2]) / up[2];
+        const top = edge[2] - THICK / up[2] - (LEG / 2) * tilt;
         const clear = under.every(
           (q) =>
-            q[2] > top - 20 ||
-            Math.hypot(q[0] - edge[0], q[1] - edge[1]) > r.t.width / 2 + WALL_T + LEG,
+            (q.run === r && Math.abs(q.along - along) < OWN) ||
+            q.p[2] > top - 20 ||
+            Math.hypot(q.p[0] - edge[0], q.p[1] - edge[1]) > r.t.width / 2 + WALL_T + LEG,
         );
         /* where two runs meet, their end legs would stand in one another */
         const apart = feet.every((g) => Math.hypot(g[0] - edge[0], g[1] - edge[1]) > LEG * 2);
@@ -246,14 +260,17 @@ export interface Bend {
   rise?: number;
   /* radians, the surface tipped toward the middle of the bend */
   bank?: number;
-  /* bank from flat at either end, full through its middle third, to meet flat pieces */
+  /* bank from flat at either end, full through its middle third, and rise along a smooth S,
+     to meet flat pieces without a kink */
   ease?: boolean;
   /* pieces a whole turn */
   steps?: number;
 }
-/* a bend round a circle `radius` out to its centreline, rising evenly as it goes */
+/* a bend's centreline radius, at least far enough out that its inner edge clears the middle */
+export const bendRadius = (t: Track, radius: number) => Math.max(radius, t.width / 2 + 50);
+/* a bend round a circle `radius` out to its centreline, rising evenly as it goes (or eased) */
 export function bend(t: Track, b: Bend): Section {
-  const R = b.radius;
+  const R = bendRadius(t, b.radius);
   const s = Math.sign(b.angle) || 1;
   const A = Math.abs(b.angle);
   const rise = b.rise ?? 0;
@@ -265,7 +282,11 @@ export function bend(t: Track, b: Bend): Section {
     const ramp = b.ease ? Math.min(1, 3 * Math.min(i / n, 1 - i / n)) : 1;
     const k = (b.bank ?? 0) * ramp;
     return {
-      p: [R * Math.sin(a), s * R * (1 - Math.cos(a)), (rise * i) / n],
+      p: [
+        R * Math.sin(a),
+        s * R * (1 - Math.cos(a)),
+        b.ease ? (rise * (1 - Math.cos((Math.PI * i) / n))) / 2 : (rise * i) / n,
+      ],
       up: norm(add([0, 0, Math.cos(k)], mul(inward, Math.sin(k)))),
     };
   });
@@ -284,7 +305,7 @@ export function bend(t: Track, b: Bend): Section {
 export function sBend(t: Track, length: number, shift: number, steps = 24): Section {
   if (Math.abs(shift) < 1) return straight(t, length);
   const angle = 2 * Math.atan(Math.abs(shift) / length);
-  const radius = length / (2 * Math.sin(angle));
+  const radius = bendRadius(t, length / (2 * Math.sin(angle)));
   const s = Math.sign(shift);
   return chain(START, [
     bend(t, { radius, angle: s * angle, steps }),
@@ -302,6 +323,8 @@ export interface Spiral {
   steps: number;
   /* a column up the middle to a wall's height over the top */
   column?: Colour;
+  /* from flat and level at either end, to meet flat pieces */
+  ease?: boolean;
 }
 /* a bend winding down to the left round and round, too tight for legs, so on its column */
 export function spiral(t: Track, x: Spiral): Section {
@@ -310,13 +333,15 @@ export function spiral(t: Track, x: Spiral): Section {
     angle: x.turns * Math.PI * 2,
     rise: -x.drop * x.turns,
     bank: x.bank,
+    ease: x.ease,
     steps: x.steps,
   });
-  const d = Math.max(40, 2 * (x.radius - t.width / 2) - 60);
+  const R = bendRadius(t, x.radius);
+  const d = Math.max(40, 2 * (R - t.width / 2) - 60);
   return {
     ...s,
     runs: s.runs.map((r) => ({ ...r, legs: false })),
-    pillars: x.column ? [{ top: [0, x.radius, WALL], d, c: x.column }] : [],
+    pillars: x.column ? [{ top: [0, R, WALL], d, c: x.column }] : [],
   };
 }
 
@@ -333,7 +358,7 @@ export function loop(t: Track, R: number, n = 32): Section {
   });
   const chord = 2 * R * Math.sin(Math.PI / n);
   return {
-    runs: [run(ring, t, (chord * (THICK + WALL)) / (2 * R) + 3, false)],
+    runs: [run(ring, t, (chord * (THICK + WALL)) / (2 * R) + 3)],
     extras: [],
     exits: [{ p: [0, off, 0], yaw: 0 }],
   };
@@ -462,7 +487,8 @@ export function tee(t: Track, j: Tee): Section {
   }
   if (j.post) {
     const d = Math.min(100, w / 3);
-    extras.push(piece("cylinder", [mid + w / 2, 0, -THICK], [d, d, THICK + WALL], j.post));
+    /* standing on the track against the far wall */
+    extras.push(piece("cylinder", [mid + w / 2 - d / 2, 0, -THICK], [d, d, THICK + WALL], j.post));
   }
   return {
     runs,
