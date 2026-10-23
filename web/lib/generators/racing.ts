@@ -63,17 +63,26 @@ function standing(s: Section, v: Values) {
   const p = raisedIn(s, v);
   return fileOf([...itemsOf(p), ...legsOf(p, v)]);
 }
-/* the controls every piece that can be raised ends with, the Legs colour only when the piece `s`
-   these values make has legs */
-const raisedControls = (v: Values, s: Section, extra: Array<Control> = []): Array<Control> => [
-  num("width", "Track width", 1, 8, 0.5, "m"),
-  num("raised", "Raised on legs", 0, 20, 0.5, "m"),
-  { key: "walls", label: "Walls", kind: "toggle" },
-  ...extra,
-  colour("track", "Track"),
-  ...(v.walls ? [colour("wallc", "Walls")] : []),
-  ...(legsOf(raisedIn(s, v), v).length > 0 ? [colour("legc", "Legs")] : []),
-];
+/* a piece that can be raised: the section `sectionOf` makes from the values, its own controls,
+   then the ones every raised piece ends with (`extra` among them), the Legs colour only when
+   the piece has legs, and the build */
+const raisedPiece = (
+  sectionOf: (v: Values) => Section,
+  own: (v: Values) => Array<Control>,
+  extra: (v: Values) => Array<Control> = () => [],
+): Pick<Generator, "controls" | "build"> => ({
+  controls: (v) => [
+    ...own(v),
+    num("width", "Track width", 1, 8, 0.5, "m"),
+    num("raised", "Raised on legs", 0, 20, 0.5, "m"),
+    { key: "walls", label: "Walls", kind: "toggle" },
+    ...extra(v),
+    colour("track", "Track"),
+    ...(v.walls ? [colour("wallc", "Walls")] : []),
+    ...(legsOf(raisedIn(sectionOf(v), v), v).length > 0 ? [colour("legc", "Legs")] : []),
+  ],
+  build: (v) => standing(sectionOf(v), v),
+});
 const RAISED = { width: 3, raised: 0, walls: true, wallc: "White", legc: "Dark" };
 /* a rise either way up to `most` cm (no steeper than 45°), and the rise these values ask for
    kept within it */
@@ -94,7 +103,6 @@ const bendIn = (v: Values, bank?: number) =>
     ease: true,
     steps: numberIn(v, "steps"),
   });
-const bankIn = (v: Values) => numberIn(v, "bank") * DEG;
 const straightIn = (v: Values) => {
   const length = metresIn(v, "length");
   return straightSection(trackIn(v), length, riseIn(v, mostRise(length)));
@@ -120,12 +128,10 @@ export const straight: Generator = {
   file: "straight",
   angle: { from: [-0.4, 0.85, 0.35], zoom: 1, pan: [0, 0, 0] },
   defaults: { ...RAISED, length: 10, rise: 0, track: "Sky blue" },
-  controls: (v) => [
+  ...raisedPiece(straightIn, (v) => [
     num("length", "Length", 2, 40, 1, "m"),
     riseControl(mostRise(metresIn(v, "length"))),
-    ...raisedControls(v, straightIn(v)),
-  ],
-  build: (v) => standing(straightIn(v), v),
+  ]),
 };
 
 /* ---------- corner ---------- */
@@ -137,15 +143,16 @@ export const corner: Generator = {
   file: "corner",
   angle: { from: [-0.6, 0.5, -0.6], zoom: 1, pan: [0, 0, 0] },
   defaults: { ...RAISED, angle: 90, radius: 6, turn: "Left", rise: 0, steps: 24, track: "Yellow" },
-  controls: (v) => [
-    num("angle", "Angle", 15, 180, 15, "°"),
-    num("radius", "Radius", 2, 30, 0.5, "m"),
-    choice("turn", "Turn", ["Left", "Right"]),
-    riseControl(mostRise(bendLength(v)), true),
-    num("steps", "Pieces a turn", 8, 64, 1, undefined, true),
-    ...raisedControls(v, bendIn(v)),
-  ],
-  build: (v) => standing(bendIn(v), v),
+  ...raisedPiece(
+    (v) => bendIn(v),
+    (v) => [
+      num("angle", "Angle", 15, 180, 15, "°"),
+      num("radius", "Radius", 2, 30, 0.5, "m"),
+      choice("turn", "Turn", ["Left", "Right"]),
+      riseControl(mostRise(bendLength(v)), true),
+      num("steps", "Pieces a turn", 8, 64, 1, undefined, true),
+    ],
+  ),
 };
 
 /* ---------- banked turn ---------- */
@@ -166,17 +173,18 @@ export const banked: Generator = {
     steps: 32,
     track: "Red",
   },
-  controls: (v) => [
-    /* past three quarters of a turn a flat one would come back round into its own start */
-    num("angle", "Angle", 30, 270, 15, "°"),
-    num("radius", "Radius", 3, 30, 0.5, "m"),
-    num("bank", "Banking", 5, 60, 1, "°"),
-    choice("turn", "Turn", ["Left", "Right"]),
-    riseControl(mostRise(bendLength(v)), true),
-    num("steps", "Pieces a turn", 12, 64, 1, undefined, true),
-    ...raisedControls(v, bendIn(v, bankIn(v))),
-  ],
-  build: (v) => standing(bendIn(v, bankIn(v)), v),
+  ...raisedPiece(
+    (v) => bendIn(v, numberIn(v, "bank") * DEG),
+    (v) => [
+      /* past three quarters of a turn a flat one would come back round into its own start */
+      num("angle", "Angle", 30, 270, 15, "°"),
+      num("radius", "Radius", 3, 30, 0.5, "m"),
+      num("bank", "Banking", 5, 60, 1, "°"),
+      choice("turn", "Turn", ["Left", "Right"]),
+      riseControl(mostRise(bendLength(v)), true),
+      num("steps", "Pieces a turn", 12, 64, 1, undefined, true),
+    ],
+  ),
 };
 
 /* ---------- s-bend ---------- */
@@ -188,16 +196,14 @@ export const sBendGen: Generator = {
   file: "s_bend",
   angle: { from: [-0.5, 0.3, 0.8], zoom: 1, pan: [0, 0, 0] },
   defaults: { ...RAISED, length: 12, shift: 4, steps: 32, track: "Purple" },
-  controls: (v) => {
+  ...raisedPiece(sBendIn, (v) => {
     const most = Math.min(10, numberIn(v, "length"));
     return [
       num("length", "Length", 4, 40, 1, "m"),
       num("shift", "Shift to the right (below 0 left)", -most, most, 0.5, "m"),
       num("steps", "Pieces a turn", 12, 64, 1, undefined, true),
-      ...raisedControls(v, sBendIn(v)),
     ];
-  },
-  build: (v) => standing(sBendIn(v), v),
+  }),
 };
 
 /* ---------- t junction ---------- */
@@ -209,13 +215,15 @@ export const tJunction: Generator = {
   file: "t_junction",
   angle: { from: [-0.6, 0.45, 0.65], zoom: 1, pan: [0, 0, 0] },
   defaults: { ...RAISED, arm: 4, stem: 3, post: true, track: "Lime", postc: "Red" },
-  controls: (v) => [
-    num("arm", "Arm length", 2, 20, 0.5, "m"),
-    num("stem", "Stem length", 0, 20, 0.5, "m"),
-    { key: "post", label: "Post to split the way", kind: "toggle" },
-    ...raisedControls(v, teeIn(v), v.post ? [colour("postc", "Post")] : []),
-  ],
-  build: (v) => standing(teeIn(v), v),
+  ...raisedPiece(
+    teeIn,
+    () => [
+      num("arm", "Arm length", 2, 20, 0.5, "m"),
+      num("stem", "Stem length", 0, 20, 0.5, "m"),
+      { key: "post", label: "Post to split the way", kind: "toggle" },
+    ],
+    (v) => (v.post ? [colour("postc", "Post")] : []),
+  ),
 };
 
 /* ---------- spiral ramp ---------- */
