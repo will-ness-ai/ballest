@@ -54,14 +54,7 @@ const draw = (node: React.ReactNode) => {
     root.render(node);
   });
 };
-const mapCrumbs = () => (
-  <Crumbs
-    path={MAP}
-    title="Sway n So"
-    facts={FACTS}
-    trail="maps"
-  />
-);
+const mapCrumbs = () => <Crumbs path={MAP} title="Sway n So" facts={FACTS} trail="maps" />;
 const links = () =>
   [...el.querySelectorAll(".ph-crumbs a")].map((a) => [a.textContent, a.getAttribute("href")]);
 

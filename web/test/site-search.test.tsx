@@ -237,16 +237,17 @@ describe("the site search", () => {
   });
 
   test('"/" reaches the field in a browser without checkVisibility (Safari before 17.4)', () => {
-    const rects = HTMLElement.prototype.getClientRects;
+    const rects = vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return (this.classList.contains("srch-btn") ? [] : [{}]) as unknown as DOMRectList;
+    });
     try {
       (HTMLElement.prototype as { checkVisibility?: unknown }).checkVisibility = undefined;
-      HTMLElement.prototype.getClientRects = function (this: HTMLElement) {
-        return (this.classList.contains("srch-btn") ? [] : [{}]) as unknown as DOMRectList;
-      };
       key("/", {}, document.body);
       expect(document.activeElement).toBe(field());
     } finally {
-      HTMLElement.prototype.getClientRects = rects;
+      rects.mockRestore();
     }
   });
 

@@ -34,7 +34,10 @@ const readSearch = async (q: string) => {
 /* whether the page draws it: checkVisibility where the browser has it (not Safari before
    17.4), else whether it has a box at all, which display: none takes away */
 const shown = (el: HTMLElement | null) =>
-  !!el && (typeof el.checkVisibility === "function" ? el.checkVisibility() : el.getClientRects().length > 0);
+  !!el &&
+  (typeof el.checkVisibility === "function"
+    ? el.checkVisibility()
+    : el.getClientRects().length > 0);
 
 /* the Section whose mark stands in for a hit's picture */
 const MARK: Record<SearchKind, SectionKey> = {
