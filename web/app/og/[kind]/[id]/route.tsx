@@ -1,4 +1,4 @@
-// GET /og/<player|map|track|daily|campaign>/<id>: the share image a page names as its
+// GET /og/<player|map|track|daily|campaign|prefab>/<id>: the share image a page names as its
 // og:image (docs/site.md, "Share images"). Read through the same cached reads as the
 // pages, so a card for a page someone just opened costs no database read; drawn on the
 // first request and then kept by Vercel's CDN. 404 for an id that names nothing, so no
@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { SHARE_ASSETS, drawShare, type SharePicture } from "../../../../components/share/Card";
+import { prefabShot } from "../../../../components/share/prefab";
 import {
   getBoardPage,
   getBoardScores,
@@ -14,6 +15,8 @@ import {
   getDaily,
   getPlayer,
   getMap,
+  getPrefab,
+  getPrefabFile,
 } from "../../../../db/data";
 import { CAMPAIGN_MAX_PICTURES } from "../../../../lib/campaigns";
 import { circuitBoard } from "../../../../lib/circuit";
@@ -25,6 +28,7 @@ import {
   isShareKind,
   mapCard,
   playerCard,
+  prefabCard,
   trackCard,
   type BoardTop,
   type ShareCard,
@@ -106,6 +110,13 @@ async function shareOf(
         s.data.maps.slice(0, CAMPAIGN_MAX_PICTURES).map((m) => remote(m.preview)),
       );
       return { card: campaignCard(s.data.c, s.standing), picture: band };
+    }
+    case "prefab": {
+      /* a Prefab that isn't live is gone from its page, so it has no card either */
+      const p = await getPrefab(id);
+      const f = p?.state === "live" ? await getPrefabFile(id) : null;
+      if (!p || !f) return null;
+      return { card: prefabCard(p), picture: await prefabShot(f.file, p.angle) };
     }
   }
 }
