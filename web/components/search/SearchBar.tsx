@@ -6,7 +6,7 @@
 // ↑/↓ move through the hits, Enter opens one, Esc or a click outside closes it.
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type RefObject } from "react";
 
 import { Marble } from "../Marble";
 import { useDialog } from "../Modal";
@@ -114,12 +114,14 @@ function Sheet({
   from: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
 }) {
-  const { props, close } = useDialog({
-    open: true,
-    onClose,
-    from,
-    focus: (d) => d.querySelector("input"),
-  });
+  const { props, close } = useDialog({ open: true, onClose, from, focus: fieldOf });
+  /* stable, as useDialog's `focus` is: a new one on every render would close and reopen it */
+  const setOpen = useCallback(
+    (o: boolean) => {
+      if (!o) close();
+    },
+    [close],
+  );
   return (
     <dialog className="srch-sheet" aria-label="Search the site" {...props}>
       <div className="srch-head">
@@ -128,10 +130,12 @@ function Sheet({
           &times;
         </button>
       </div>
-      <Search className="srch srch-in" jumps={jumps} open setOpen={(o) => !o && close()} />
+      <Search className="srch srch-in" jumps={jumps} open setOpen={setOpen} />
     </dialog>
   );
 }
+
+const fieldOf = (d: HTMLDialogElement) => d.querySelector("input");
 
 /* the field and its results, in the bar (`inline`, which a click outside closes) or the sheet */
 function Search({
@@ -175,8 +179,11 @@ function Search({
   const selected = sel.at === at ? sel.i : -1;
   const optionId = (i: number) => `${id}-${String(i)}`;
 
-  /* leaving the page closes it */
+  /* leaving the page closes it: a new path, not a new render or a new `setOpen` */
+  const was = useRef(path);
   useEffect(() => {
+    if (was.current === path) return;
+    was.current = path;
     setOpen(false);
   }, [path, setOpen]);
   /* a press anywhere outside the bar's search closes it */

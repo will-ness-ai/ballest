@@ -190,6 +190,19 @@ describe("the site search", () => {
     expect(el.textContent).toContain("Nothing called “zzz”");
   });
 
+  test("the phone's sheet stays open while the header around it draws again", () => {
+    HTMLElement.prototype.checkVisibility = function (this: HTMLElement) {
+      return this.classList.contains("srch-btn");
+    };
+    key("/", {}, document.body);
+    const sheet = () => el.querySelector<HTMLDialogElement>("dialog.srch-sheet");
+    expect(sheet()?.open).toBe(true);
+    act(() => {
+      root.render(<SearchBar jumps={[...JUMPS]} />);
+    });
+    expect(sheet()?.open).toBe(true);
+  });
+
   test('"/" and Ctrl K put the keyboard in the field', () => {
     key("/", {}, document.body);
     expect(document.activeElement).toBe(field());
