@@ -4,7 +4,7 @@
 import Link from "next/link";
 
 import { Code } from "./Code";
-import { PrefabTabs } from "./PrefabTabs";
+import { PrefabsHead } from "./PrefabTabs";
 import { DELETE, FOLDER, LIST, SAVE, SPAWN } from "../../lib/prefab-console";
 import { HOURLY_UPLOADS } from "../../lib/prefabs";
 import { makePrefabHref, newPrefabHref, prefabsHref } from "../../lib/routes";
@@ -12,16 +12,10 @@ import { makePrefabHref, newPrefabHref, prefabsHref } from "../../lib/routes";
 export function PrefabGuide() {
   return (
     <section className="pfl">
-      <header className="pfl-head">
-        <div>
-          <h1>Prefabs</h1>
-          <p>
-            How to save pieces of your map as a prefab, spawn one into another map, and share it
-            here.
-          </p>
-        </div>
-      </header>
-      <PrefabTabs on="guide" />
+      <PrefabsHead
+        on="guide"
+        blurb="How to save pieces of your map as a prefab, spawn one into another map, and share it here."
+      />
       <div className="pfg">
         <section>
           <h2 className="pfu-h2">Save a prefab</h2>

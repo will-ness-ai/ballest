@@ -715,3 +715,9 @@ button.pf-dl {
   border-radius: 4px;
   padding: 0 0.3rem;
 }
+.pfg a,
+.pf-dialog form a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}

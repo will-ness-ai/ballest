@@ -21,13 +21,18 @@
 }
 
 /* Shared by players / Generate your own */
+/* three tabs outgrow a phone: there the strip scrolls sideways, with narrower tabs */
 .gen-tabs {
   display: flex;
   gap: 0.3rem;
   border-block-end: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .gen-tabs a {
-  padding: 0.6rem 1rem;
+  flex: none;
+  white-space: nowrap;
+  padding: 0.6rem calc((10rem + 6 * var(--ramp)) / 16);
   border-block-end: 3px solid transparent;
   color: var(--dim);
   font-weight: 700;

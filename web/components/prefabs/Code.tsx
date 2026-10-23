@@ -10,10 +10,13 @@ function Copy({ text }: { text: string }) {
       type="button"
       className="pf-copy"
       onClick={() => {
-        void navigator.clipboard.writeText(text).then(() => {
-          setDone(true);
-          setTimeout(() => setDone(false), 1200);
-        });
+        navigator.clipboard.writeText(text).then(
+          () => {
+            setDone(true);
+            setTimeout(() => setDone(false), 1200);
+          },
+          () => undefined, // clipboard blocked: the text is there to select by hand
+        );
       }}
     >
       {done ? "Copied" : "Copy"}

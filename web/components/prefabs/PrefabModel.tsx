@@ -106,7 +106,7 @@ export function HelpDialog({ name, auto = true }: { name: string; auto?: boolean
           </li>
         </ol>
         <form method="dialog">
-          <Link href={prefabGuideHref()} onClick={close}>
+          <Link href={prefabGuideHref()} onClick={() => dlg.current?.close()}>
             Making and sharing your own
           </Link>
           <button className="pf-x">Got it</button>

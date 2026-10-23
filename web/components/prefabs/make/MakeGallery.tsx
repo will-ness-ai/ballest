@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { PrefabTabs } from "../PrefabTabs";
+import { PrefabsHead } from "../PrefabTabs";
 import { stillOf } from "../scene";
 import { CATEGORIES, GENERATORS, generate, type Generator } from "../../../lib/generators";
 import { generatorHref } from "../../../lib/routes";
@@ -13,13 +13,10 @@ import { generatorHref } from "../../../lib/routes";
 export function MakeGallery() {
   return (
     <section className="pfl">
-      <header className="pfl-head">
-        <div>
-          <h1>Prefabs</h1>
-          <p>Make a prefab from a few settings, then download it and spawn it into your map.</p>
-        </div>
-      </header>
-      <PrefabTabs on="make" />
+      <PrefabsHead
+        on="make"
+        blurb="Make a prefab from a few settings, then download it and spawn it into your map."
+      />
       {CATEGORIES.map((c) => (
         <section key={c} className="gen-group">
           <h2 className="pfu-h2">{c}</h2>
