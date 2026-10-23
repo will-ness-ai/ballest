@@ -1,6 +1,7 @@
 // A three.js scene drawn without a GPU, for a picture a server makes: the share image of a
 // Prefab (docs/site.md, "Share images"). A function has no WebGL, so this walks the scene's
-// instanced meshes (components/prefabs/scene.ts builds nothing else) and fills triangles into
+// instanced meshes, all a Prefab's scene draws (components/prefabs/scene.ts; a Map's water
+// sheet and the ground grid are plain meshes, left out), and fills triangles into
 // a depth buffer itself, lit as MeshStandardMaterial lights them (diffuse only: the pieces
 // are rough enough that the highlights hardly show), drawn SUPERSAMPLE times larger and
 // shrunk so the edges are smooth, and returned as a PNG whose empty pixels are clear.
@@ -132,9 +133,14 @@ export function rasterize(THREE: Three, scene: Object3D, camera: Camera, w: numb
         const i = y * W + x;
         if (z >= depth[i] || z > 1) continue;
         depth[i] = z;
-        colour[3 * i] = l0 * a[4] + l1 * b[4] + l2 * c[4];
-        colour[3 * i + 1] = l0 * a[5] + l1 * b[5] + l2 * c[5];
-        colour[3 * i + 2] = l0 * a[6] + l1 * b[6] + l2 * c[6];
+        /* the colour across the triangle in 3D, not on the screen, as a GPU blends it */
+        const p0 = l0 / a[3],
+          p1 = l1 / b[3],
+          p2 = l2 / c[3];
+        const sum = p0 + p1 + p2;
+        colour[3 * i] = (p0 * a[4] + p1 * b[4] + p2 * c[4]) / sum;
+        colour[3 * i + 1] = (p0 * a[5] + p1 * b[5] + p2 * c[5]) / sum;
+        colour[3 * i + 2] = (p0 * a[6] + p1 * b[6] + p2 * c[6]) / sum;
       }
     }
   };

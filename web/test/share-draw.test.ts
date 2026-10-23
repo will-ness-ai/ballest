@@ -86,3 +86,20 @@ test("a Prefab draws its 3D picture across the card", async () => {
   expect(await prefabShot("not a prefab", null)).toBeNull();
   warn.mockRestore();
 });
+
+test("a Prefab's long name keeps to its column, and its card is kept an hour", async () => {
+  const prefab: ShareCard = {
+    kind: "prefab",
+    kicker: "Prefab · by Tenpin",
+    title: "A very long prefab name that goes on and on for sixty-four chars",
+    headline: null,
+    tiles: [
+      { value: "4,096", label: "Pieces" },
+      { value: "1,234", label: "Favorites" },
+    ],
+    hue: 30,
+  };
+  const res = await drawShare(prefab, null);
+  expect(res.status).toBe(200);
+  expect(res.headers.get("cache-control")).toBe("public, max-age=3600, s-maxage=3600");
+});

@@ -196,9 +196,11 @@ Overall board included, keeps the site-wide `og.png`.
   page is gone.
 
 The page names its card with the latest Refresh in the URL (`?v=`, `shareHref`), so each
-Refresh is a new address for crawlers that keep a picture by URL (a Prefab's, the later of
-that and its last edit, so a new name or angle shows at once), and the route answers
-with `s-maxage` for a year: Vercel's CDN renders each card once per Refresh at most. On a
+Refresh is a new address for crawlers that keep a picture by URL, and the route answers
+with `s-maxage` for a year: Vercel's CDN renders each card once per Refresh at most. A
+Prefab's card is named by its last edit instead, so a new name or angle shows at once, and
+is kept an hour only: a Prefab taken down or deleted leaves no picture on the CDN for
+longer, and its favorites and uploader's name catch up within the hour. On a
 preview the card's URL is the branch's own address, since `metadataBase` is production.
 
 Satori reads no WebP, no variable font and no `oklch`, so `assets/share/` holds what it

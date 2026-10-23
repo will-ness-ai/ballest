@@ -329,8 +329,11 @@ function Showcase({ card, picture }: { card: ShareCard; picture: string | null }
             gap: 24,
           }}
         >
-          <Heading card={card} size={70} tight />
-          <div style={{ display: "flex", gap: 12, fontSize: 30, fontWeight: 700 }}>
+          {/* a long name wraps in its own column, never over the pills */}
+          <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
+            <Heading card={card} size={70} tight />
+          </div>
+          <div style={{ display: "flex", flexShrink: 0, gap: 12, fontSize: 30, fontWeight: 700 }}>
             {card.tiles.map((s) => (
               <Pill key={s.label}>
                 <span style={{ color: C.text }}>{s.value}</span>
@@ -381,6 +384,11 @@ export async function drawShare(card: ShareCard, picture: SharePicture) {
   }
 }
 
+const CACHE = "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400";
+/* a Prefab can be taken down or deleted, and nothing purges the CDN then, so its card is kept
+   an hour at most */
+const PREFAB_CACHE = "public, max-age=3600, s-maxage=3600";
+
 async function render(card: ShareCard, picture: SharePicture) {
   const one = typeof picture === "string" ? picture : null;
   const body =
@@ -401,7 +409,7 @@ async function render(card: ShareCard, picture: SharePicture) {
   return new Response(png, {
     headers: {
       "content-type": "image/png",
-      "cache-control": "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400",
+      "cache-control": card.kind === "prefab" ? PREFAB_CACHE : CACHE,
     },
   });
 }
