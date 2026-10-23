@@ -1,75 +1,220 @@
-// Racing (lib/generators/index.ts): course pieces a ball rolls along, Spiral ramp, Loop, Jump,
-// Plinko board and Rollers, each a chain of slabs (`slab`) whose tops make the track, walls on
-// either side if you like. A track starts on the camera's side and heads away from it (+X).
+// Racing (lib/generators/index.ts): course pieces a ball rolls along, each a section of track
+// (lib/generators/track.ts) whose slabs' tops make the surface, walls on either side if you
+// like. A track starts on the camera's side and heads away from it (+X). The pieces share a
+// width and their ends, so a Straight, Corner, Banked turn, S-bend or T junction meets the next
+// wherever it's put, raised on legs to the same height; the Full course (course.ts) lays them
+// all out as one.
 import type { PrefabItem } from "../prefab";
 import {
-  add,
   boxAt,
+  choice,
   colour,
   colourIn,
-  cross,
   fileOf,
   grounded,
   metresIn,
   mul,
-  norm,
+  add,
   num,
   numberIn,
   piece,
-  slab,
-  sub,
-  type Colour,
+  DEG,
+  type Control,
   type Generator,
   type V3,
+  type Values,
 } from "./pieces";
+import {
+  THICK,
+  WALL_T,
+  START,
+  bend,
+  chain,
+  itemsOf,
+  jump as jumpSection,
+  supportsOf,
+  spiral as spiralSection,
+  loop as loopSection,
+  lowStop,
+  mostRise,
+  placed,
+  rollers as rollerSection,
+  sBend,
+  straight as straightSection,
+  tee,
+  type Section,
+  type Track,
+} from "./track";
 
-/* a track slab's depth, and its walls' height and thickness, in cm */
-const THICK = 30;
-const WALL = 60;
-const WALL_T = 15;
+const trackIn = (v: Values): Track => ({
+  width: metresIn(v, "width"),
+  track: colourIn(v, "track"),
+  walls: v.walls ? colourIn(v, "wallc") : undefined,
+});
+/* a bend's centreline at least far enough out that its inner edge clears the middle */
+const radiusIn = (v: Values) => Math.max(metresIn(v, "radius"), metresIn(v, "width") / 2 + 50);
 
-/* a point on a track's centreline, its surface facing `up` */
-interface Stop {
-  p: V3;
-  up: V3;
+/* a piece on its own, its lowest stretch of track `raised` up on legs, or on the floor */
+function standing(s: Section, v: Values) {
+  const raised = metresIn(v, "raised");
+  const p = placed(s, { ...START, p: [0, 0, THICK + raised - lowStop(s)] });
+  const items = itemsOf(p);
+  return fileOf(raised > 0 ? [...items, ...supportsOf(p, colourIn(v, "legc"))] : grounded(items));
 }
-interface Track {
-  width: number;
-  track: Colour;
-  /* none: no walls */
-  walls?: Colour;
-}
-/* the slabs from each stop to the next, `over` cm longer at each end (a bend's outer edge needs
-   it), and with walls each side's wall standing on the slab's edge */
-function trackOf(
-  stops: Array<Stop>,
-  t: Track,
-  over: (i: number) => number = () => 2,
-): Array<PrefabItem> {
-  const items: Array<PrefabItem> = [];
-  for (let i = 0; i + 1 < stops.length; i++) {
-    const a = stops[i].p;
-    const b = stops[i + 1].p;
-    const up = norm(add(stops[i].up, stops[i + 1].up));
-    items.push(slab(a, b, up, t.width, THICK, t.track, over(i)));
-    if (!t.walls) continue;
-    const side = norm(cross(up, sub(b, a)));
-    for (const s of [-1, 1]) {
-      const shift = add(mul(side, s * (t.width / 2 + WALL_T / 2)), mul(up, WALL));
-      items.push(
-        slab(add(a, shift), add(b, shift), up, WALL_T, WALL + THICK, t.walls, over(i) + WALL_T),
-      );
-    }
-  }
-  return items;
-}
-
-/* a straight run from a to b, its surface facing up */
-const straight = (a: V3, b: V3): Array<Stop> => [
-  { p: a, up: [0, 0, 1] },
-  { p: b, up: [0, 0, 1] },
+/* the controls every piece that can be raised ends with */
+const raisedControls = (v: Values, extra: Array<Control> = []): Array<Control> => [
+  num("width", "Track width", 1, 8, 0.5, "m"),
+  num("raised", "Raised on legs", 0, 20, 0.5, "m"),
+  { key: "walls", label: "Walls", kind: "toggle" },
+  ...extra,
+  colour("track", "Track"),
+  ...(v.walls ? [colour("wallc", "Walls")] : []),
+  ...(numberIn(v, "raised") > 0 ? [colour("legc", "Legs")] : []),
 ];
-const wallsIn = (v: Record<string, unknown>, key: string, c: Colour) => (v[key] ? c : undefined);
+const RAISED = { width: 3, raised: 0, walls: true, wallc: "White", legc: "Dark" };
+/* a rise either way up to `most` cm (no steeper than 45°), and the rise these values ask for
+   kept within it */
+const riseControl = (most: number, more = false) => {
+  const m = Math.min(10, Math.floor(most / 50) / 2);
+  return num("rise", "Rise (below 0 falls)", -m, m, 0.5, "m", more);
+};
+const riseIn = (v: Values, most: number) => Math.max(-most, Math.min(most, metresIn(v, "rise")));
+/* a bend rises evenly, so no more than its length */
+const bendLength = (v: Values) => radiusIn(v) * numberIn(v, "angle") * DEG;
+/* a Corner, or with banking a Banked turn */
+const bendIn = (v: Values, bank?: number) =>
+  standing(
+    bend(trackIn(v), {
+      radius: radiusIn(v),
+      angle: (v.turn === "Right" ? -1 : 1) * numberIn(v, "angle") * DEG,
+      rise: riseIn(v, bendLength(v)),
+      bank,
+      ease: true,
+      steps: numberIn(v, "steps"),
+    }),
+    v,
+  );
+
+/* ---------- straight ---------- */
+export const straight: Generator = {
+  key: "straight",
+  name: "Straight",
+  category: "Racing",
+  blurb: "A straight run of track, flat or rising and falling along a smooth ramp.",
+  file: "straight",
+  angle: { from: [-0.4, 0.85, 0.35], zoom: 1, pan: [0, 0, 0] },
+  defaults: { ...RAISED, length: 10, rise: 0, track: "Sky blue" },
+  controls: (v) => [
+    num("length", "Length", 2, 40, 1, "m"),
+    riseControl(mostRise(metresIn(v, "length"))),
+    ...raisedControls(v),
+  ],
+  build: (v) => {
+    const length = metresIn(v, "length");
+    return standing(straightSection(trackIn(v), length, riseIn(v, mostRise(length))), v);
+  },
+};
+
+/* ---------- corner ---------- */
+export const corner: Generator = {
+  key: "corner",
+  name: "Corner",
+  category: "Racing",
+  blurb: "A flat turn left or right, rising or falling round it if you like.",
+  file: "corner",
+  angle: { from: [-0.6, 0.5, 0.6], zoom: 1, pan: [0, 0, 0] },
+  defaults: { ...RAISED, angle: 90, radius: 6, turn: "Left", rise: 0, steps: 24, track: "Yellow" },
+  controls: (v) => [
+    num("angle", "Angle", 15, 180, 15, "°"),
+    num("radius", "Radius", 2, 30, 0.5, "m"),
+    choice("turn", "Turn", ["Left", "Right"]),
+    riseControl(bendLength(v), true),
+    num("steps", "Pieces a turn", 8, 64, 1, undefined, true),
+    ...raisedControls(v),
+  ],
+  build: (v) => bendIn(v),
+};
+
+/* ---------- banked turn ---------- */
+export const banked: Generator = {
+  key: "banked",
+  name: "Banked turn",
+  category: "Racing",
+  blurb: "A turn tipped in toward its middle, flat where it starts and ends so it meets the rest.",
+  file: "banked_turn",
+  angle: { from: [-0.75, 0.3, 0.6], zoom: 1, pan: [0, 0, 0] },
+  defaults: {
+    ...RAISED,
+    angle: 180,
+    radius: 8,
+    bank: 30,
+    turn: "Left",
+    rise: 0,
+    steps: 32,
+    track: "Red",
+  },
+  controls: (v) => [
+    num("angle", "Angle", 30, 360, 15, "°"),
+    num("radius", "Radius", 3, 30, 0.5, "m"),
+    num("bank", "Banking", 5, 60, 1, "°"),
+    choice("turn", "Turn", ["Left", "Right"]),
+    riseControl(bendLength(v), true),
+    num("steps", "Pieces a turn", 12, 64, 1, undefined, true),
+    ...raisedControls(v),
+  ],
+  build: (v) => bendIn(v, numberIn(v, "bank") * DEG),
+};
+
+/* ---------- s-bend ---------- */
+export const sBendGen: Generator = {
+  key: "s-bend",
+  name: "S-bend",
+  category: "Racing",
+  blurb: "A bend one way and back, coming out beside where it went in and heading the same way.",
+  file: "s_bend",
+  angle: { from: [-0.5, 0.3, 0.8], zoom: 1, pan: [0, 0, 0] },
+  defaults: { ...RAISED, length: 12, shift: 4, steps: 32, track: "Purple" },
+  controls: (v) => {
+    const most = Math.min(10, numberIn(v, "length"));
+    return [
+      num("length", "Length", 4, 40, 1, "m"),
+      num("shift", "Shift to the left (below 0 right)", -most, most, 0.5, "m"),
+      num("steps", "Pieces a turn", 12, 64, 1, undefined, true),
+      ...raisedControls(v),
+    ];
+  },
+  build: (v) => {
+    const length = metresIn(v, "length");
+    const shift = Math.max(-length, Math.min(length, metresIn(v, "shift")));
+    return standing(sBend(trackIn(v), length, shift, numberIn(v, "steps")), v);
+  },
+};
+
+/* ---------- t junction ---------- */
+export const tJunction: Generator = {
+  key: "t-junction",
+  name: "T junction",
+  category: "Racing",
+  blurb: "A track that meets a crossing one and splits left and right, a post to pick the way.",
+  file: "t_junction",
+  angle: { from: [-0.6, 0.45, 0.65], zoom: 1, pan: [0, 0, 0] },
+  defaults: { ...RAISED, arm: 4, stem: 3, post: true, track: "Lime", postc: "Red" },
+  controls: (v) => [
+    num("arm", "Arm length", 2, 20, 0.5, "m"),
+    num("stem", "Stem length", 0, 20, 0.5, "m"),
+    { key: "post", label: "Post to split the way", kind: "toggle" },
+    ...raisedControls(v, v.post ? [colour("postc", "Post")] : []),
+  ],
+  build: (v) =>
+    standing(
+      tee(trackIn(v), {
+        arm: metresIn(v, "arm"),
+        stem: metresIn(v, "stem"),
+        post: v.post ? colourIn(v, "postc") : undefined,
+      }),
+      v,
+    ),
+};
 
 /* ---------- spiral ramp ---------- */
 export const spiral: Generator = {
@@ -106,36 +251,22 @@ export const spiral: Generator = {
     ...(v.column ? [colour("columnc", "Column")] : []),
   ],
   build: (v) => {
-    const w = metresIn(v, "width");
-    /* the centreline's radius, at least far enough out that the inner edge clears the middle */
-    const r = Math.max(metresIn(v, "radius"), w / 2 + 50);
+    const r = radiusIn(v);
     const turns = numberIn(v, "turns");
-    const drop = metresIn(v, "drop");
-    const n = Math.max(2, Math.ceil(turns * numberIn(v, "steps")));
-    const step = (turns * Math.PI * 2) / n;
-    const bank = numberIn(v, "bank") * (Math.PI / 180);
-    const top = THICK + drop * turns;
+    const top = THICK + metresIn(v, "drop") * turns;
     /* it starts on the camera's side (-X) and winds anticlockwise seen from above */
-    const stops: Array<Stop> = Array.from({ length: n + 1 }, (_, i) => {
-      const a = Math.PI + i * step;
-      const inward: V3 = [-Math.cos(a), -Math.sin(a), 0];
-      return {
-        p: [r * Math.cos(a), r * Math.sin(a), top - (drop * i * step) / (Math.PI * 2)],
-        up: norm(add([0, 0, Math.cos(bank)], mul(inward, Math.sin(bank)))),
-      };
-    });
-    /* the outer edge's chord is longer than the centreline's by (r + w/2) / r */
-    const chord = 2 * r * Math.sin(step / 2);
-    const items = trackOf(
-      stops,
-      { width: w, track: colourIn(v, "track"), walls: wallsIn(v, "walls", colourIn(v, "wallc")) },
-      () => (chord * (w / 2 + WALL_T)) / (2 * r) + 5,
+    const p = placed(
+      spiralSection(trackIn(v), {
+        radius: r,
+        turns,
+        drop: metresIn(v, "drop"),
+        bank: numberIn(v, "bank") * DEG,
+        steps: numberIn(v, "steps"),
+        column: v.column ? colourIn(v, "columnc") : undefined,
+      }),
+      { p: [-r, 0, top], yaw: -Math.PI / 2 },
     );
-    if (v.column) {
-      const d = Math.max(40, 2 * (r - w / 2) - 60);
-      items.push(piece("cylinder", [0, 0, 0], [d, d, top + WALL], colourIn(v, "columnc")));
-    }
-    return fileOf(grounded(items));
+    return fileOf(grounded([...itemsOf(p), ...supportsOf(p, "White")]));
   },
 };
 
@@ -166,33 +297,19 @@ export const loop: Generator = {
     ...(v.walls ? [colour("wallc", "Walls")] : []),
   ],
   build: (v) => {
-    const R = metresIn(v, "radius");
-    const w = metresIn(v, "width");
+    const t = trackIn(v);
     const lead = metresIn(v, "lead");
-    const n = numberIn(v, "steps");
-    /* the way out runs beside the way in, a wall's gap apart */
-    const off = w + 2 * WALL_T + 40;
-    const z0 = THICK;
-    const t: Track = {
-      width: w,
-      track: colourIn(v, "track"),
-      walls: wallsIn(v, "walls", colourIn(v, "wallc")),
-    };
-    /* round the loop the surface faces its middle, drifting sideways smoothly by `off` */
-    const ring: Array<Stop> = Array.from({ length: n + 1 }, (_, i) => {
-      const s = i / n;
-      const a = s * Math.PI * 2;
-      const y = off * (s - Math.sin(a) / (Math.PI * 2));
-      const p: V3 = [R * Math.sin(a), y, z0 + R * (1 - Math.cos(a))];
-      return { p, up: norm(sub([0, y, z0 + R], p)) };
-    });
-    const chord = 2 * R * Math.sin(Math.PI / n);
+    const leads = lead > 0 ? [straightSection(t, lead)] : [];
     return fileOf(
-      grounded([
-        ...(lead > 0 ? trackOf(straight([-lead, 0, z0], [0, 0, z0]), t) : []),
-        ...trackOf(ring, t, () => (chord * (THICK + WALL)) / (2 * R) + 3),
-        ...(lead > 0 ? trackOf(straight([0, off, z0], [lead, off, z0]), t) : []),
-      ]),
+      grounded(
+        itemsOf(
+          chain({ ...START, p: [-lead, 0, THICK] }, [
+            ...leads,
+            loopSection(t, metresIn(v, "radius"), numberIn(v, "steps")),
+            ...leads,
+          ]),
+        ),
+      ),
     );
   },
 };
@@ -232,73 +349,17 @@ export const jump: Generator = {
     ...(v.legs ? [colour("legc", "Legs")] : []),
   ],
   build: (v) => {
-    const w = metresIn(v, "width");
-    const kick = (numberIn(v, "kick") * Math.PI) / 180;
     const runup = metresIn(v, "runup");
-    const landing = metresIn(v, "landing");
-    /* the kicker is an arc 4 m long, in six pieces, curving up from flat to the kick */
-    const rk = 400 / kick;
-    const K = 6;
-    const arc: Array<Stop> = Array.from({ length: K + 1 }, (_, i) => {
-      const a = (i / K) * kick;
-      return {
-        p: [rk * Math.sin(a), 0, rk * (1 - Math.cos(a))],
-        up: [-Math.sin(a), 0, Math.cos(a)],
-      };
+    const s = jumpSection(trackIn(v), {
+      runup,
+      kick: numberIn(v, "kick") * DEG,
+      gap: metresIn(v, "gap"),
+      drop: metresIn(v, "drop"),
+      landing: metresIn(v, "landing"),
     });
-    const lip = arc[K].p;
-    /* the landing slopes down at half the kick (5° to 25°) for half its length, then runs flat */
-    const fall = Math.min(25, Math.max(5, (kick * 90) / Math.PI)) * (Math.PI / 180);
-    const l0: V3 = [lip[0] + metresIn(v, "gap"), 0, lip[2] - metresIn(v, "drop")];
-    const l1: V3 = add(l0, [(landing / 2) * Math.cos(fall), 0, (-landing / 2) * Math.sin(fall)]);
-    const l2: V3 = add(l1, [landing / 2, 0, 0]);
     /* raised so the lowest of it sits a metre up, off the floor */
-    const lift = 100 + THICK - Math.min(0, l2[2]);
-    const up = (s: Array<Stop>) => s.map((x) => ({ ...x, p: add(x.p, [0, 0, lift]) }));
-    const t: Track = {
-      width: w,
-      track: colourIn(v, "track"),
-      walls: wallsIn(v, "walls", colourIn(v, "wallc")),
-    };
-    const landUp: V3 = [Math.sin(fall), 0, Math.cos(fall)];
-    const items = [
-      ...trackOf(up(straight([-runup, 0, 0], [0, 0, 0])), t),
-      ...trackOf(up(arc), t, () => 4),
-      ...trackOf(
-        up([
-          { p: l0, up: landUp },
-          { p: l1, up: landUp },
-        ]),
-        t,
-      ),
-      ...trackOf(up(straight(l1, l2)), t, () => 10),
-    ];
-    if (v.legs) {
-      /* a pair of legs at least every 4 m under each straight run, and under the kicker's lip */
-      const under = (a: V3, b: V3) => {
-        const n = Math.max(1, Math.ceil(Math.hypot(...sub(b, a)) / 400));
-        return Array.from({ length: n + 1 }, (_, i) => add(a, mul(sub(b, a), i / n)));
-      };
-      const feet = [
-        ...under([-runup + 30, 0, 0], [0, 0, 0]),
-        [lip[0] - 30, 0, lip[2] - 10] as V3,
-        ...under(add(l0, [30, 0, -10]), l1),
-        ...under(l1, add(l2, [-30, 0, 0])),
-      ];
-      /* the straights meet at the lip and the landing, so a leg is made once */
-      const once = feet.filter(
-        (f, i) => feet.findIndex((g) => Math.hypot(g[0] - f[0], g[2] - f[2]) < 40) === i,
-      );
-      for (const f of once)
-        for (const s of [-1, 1]) {
-          const h = f[2] + lift - THICK;
-          if (h > 5)
-            items.push(
-              piece("cylinder", [f[0], s * (w / 2 - 25), 0], [40, 40, h], colourIn(v, "legc")),
-            );
-        }
-    }
-    return fileOf(items);
+    const p = placed(s, { ...START, p: [-runup, 0, 100 + THICK - lowStop(s)] });
+    return fileOf([...itemsOf(p), ...(v.legs ? supportsOf(p, colourIn(v, "legc")) : [])]);
   },
 };
 
@@ -422,29 +483,13 @@ export const rollers: Generator = {
   ],
   build: (v) => {
     const L = metresIn(v, "length");
-    const k = numberIn(v, "bumps");
-    /* bumps no steeper than 45°: a cosine's steepest slope is its height times π over its length */
-    const A = Math.min(metresIn(v, "height"), L / (Math.PI * k));
-    const n = k * numberIn(v, "steps");
-    const z = (x: number) => THICK + (A * (1 - Math.cos((Math.PI * 2 * k * x) / L))) / 2;
-    const slope = (x: number) => ((A * Math.PI * k) / L) * Math.sin((Math.PI * 2 * k * x) / L);
-    const stops: Array<Stop> = Array.from({ length: n + 1 }, (_, i) => {
-      const x = (i / n) * L;
-      return { p: [x - L / 2, 0, z(x)], up: norm([-slope(x), 0, 1]) };
-    });
-    return fileOf(
-      grounded(
-        trackOf(
-          stops,
-          {
-            width: metresIn(v, "width"),
-            track: colourIn(v, "track"),
-            walls: wallsIn(v, "walls", colourIn(v, "wallc")),
-          },
-          /* only a little longer: over a crest a longer piece would stand proud of the next */
-          () => 3,
-        ),
-      ),
+    const s = rollerSection(
+      trackIn(v),
+      L,
+      numberIn(v, "bumps"),
+      metresIn(v, "height"),
+      numberIn(v, "steps"),
     );
+    return fileOf(grounded(itemsOf(placed(s, { ...START, p: [-L / 2, 0, THICK] }))));
   },
 };

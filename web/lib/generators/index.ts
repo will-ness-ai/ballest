@@ -16,7 +16,19 @@ import { castle, house, tower } from "./buildings";
 import { fence, finishArch, fountain, lampPost, trophy } from "./decor";
 import { blockTree, bush, pine, tree } from "./nature";
 import type { Generator, Values } from "./pieces";
-import { jump, loop, plinko, rollers, spiral } from "./racing";
+import { fullCourse } from "./course";
+import {
+  banked,
+  corner,
+  jump,
+  loop,
+  plinko,
+  rollers,
+  sBendGen,
+  spiral,
+  straight,
+  tJunction,
+} from "./racing";
 import { qr, sign } from "./signs";
 import { arrowSign, bridge, floorTiles, pixelArt, stairs } from "./useful";
 
@@ -46,11 +58,17 @@ export const GENERATORS: ReadonlyArray<Generator> = [
   stairs,
   bridge,
   floorTiles,
+  straight,
+  corner,
+  banked,
+  sBendGen,
+  tJunction,
   spiral,
   loop,
   jump,
-  plinko,
   rollers,
+  fullCourse,
+  plinko,
   lampPost,
   fountain,
   trophy,

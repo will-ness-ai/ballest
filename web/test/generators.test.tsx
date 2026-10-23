@@ -454,7 +454,19 @@ describe("the categories", () => {
       "bridge",
       "floor-tiles",
     ]);
-    expect(under("Racing")).toEqual(["spiral", "loop", "jump", "plinko", "rollers"]);
+    expect(under("Racing")).toEqual([
+      "straight",
+      "corner",
+      "banked",
+      "s-bend",
+      "t-junction",
+      "spiral",
+      "loop",
+      "jump",
+      "rollers",
+      "course",
+      "plinko",
+    ]);
     expect(under("Decor")).toEqual(["lamp", "fountain", "trophy", "fence", "finish-arch"]);
   });
 });
@@ -501,6 +513,84 @@ describe("the racing pieces", () => {
     expect(make("rollers", { bumps: 6, walls: false }).items.length).toBe(
       make("rollers", { bumps: 5, walls: false }).items.length + 10,
     );
+  });
+});
+
+describe("the track pieces", () => {
+  /* the track's slabs: the cubes as wide as the track, 30 cm deep */
+  const slabs = (file: PrefabFile, width = 300) =>
+    file.items.filter(
+      (it) =>
+        it.class.includes("Cube") &&
+        Math.abs(it.transform.scale[1] * CUBE - width) < 1 &&
+        Math.abs(it.transform.scale[2] * CUBE - 30) < 1,
+    );
+  const upOf = (it: PrefabItem) => rotationRows(it.transform.rotation)[2];
+
+  test("a straight that rises stands its far end that much higher, flat at both ends", () => {
+    const flat = make("straight", { walls: false });
+    const ramp = make("straight", { walls: false, rise: 4 });
+    expect(highest(ramp) - highest(flat)).toBeCloseTo(400, -1);
+    const s = slabs(ramp);
+    for (const end of [s[0], s[s.length - 1]]) expect(upOf(end)[2]).toBeGreaterThan(0.95);
+  });
+
+  test("a rise stays within 45° however short the piece", () => {
+    const most = (key: string, change: Values) => {
+      const c = gen(key)
+        .controls(valuesOf(key, change))
+        .find((x) => x.key === "rise");
+      return c?.kind === "number" ? c.max : NaN;
+    };
+    expect(most("straight", { length: 2 })).toBeLessThanOrEqual((2 * 2) / Math.PI);
+    /* a bend rises evenly round its centreline, 2 m out a quarter turn */
+    expect(most("corner", { radius: 2, angle: 90 })).toBeLessThanOrEqual(Math.PI);
+    expect(most("banked", { radius: 3, angle: 30 })).toBeLessThanOrEqual(Math.PI / 2);
+    const steep = make("corner", { radius: 2, angle: 15, rise: 10, walls: false });
+    expect(highest(steep)).toBeLessThan(100);
+  });
+
+  test("a corner to the right is a corner to the left seen in a mirror", () => {
+    const box = (turn: string) => footprintOf(shapesOf(make("corner", { turn })));
+    const [l, r] = [box("Left"), box("Right")];
+    expect(r.w).toBeCloseTo(l.w);
+    expect(r.d).toBeCloseTo(l.d);
+    const ys = (turn: string) =>
+      slabs(make("corner", { turn, walls: false })).map((it) => it.transform.location[1]);
+    expect(Math.max(...ys("Left"))).toBeGreaterThan(500);
+    expect(Math.min(...ys("Right"))).toBeLessThan(-500);
+  });
+
+  test("a banked turn tips in toward its middle, and lies flat where it starts and ends", () => {
+    const s = slabs(make("banked", { walls: false, bank: 40 }));
+    expect(upOf(s[0])[2]).toBeGreaterThan(0.97);
+    expect(upOf(s[s.length - 1])[2]).toBeGreaterThan(0.97);
+    expect(upOf(s[Math.floor(s.length / 2)])[2]).toBeCloseTo(Math.cos((40 * Math.PI) / 180), 1);
+  });
+
+  test("an S-bend comes out to the side by its shift", () => {
+    const ys = (shift: number) =>
+      slabs(make("s-bend", { walls: false, shift })).map((it) => it.transform.location[1]);
+    /* a slab stands at its middle, so the first and last stand a little in from the ends */
+    expect(Math.max(...ys(5)) - Math.min(...ys(5))).toBeGreaterThan(470);
+    expect(Math.max(...ys(5)) - Math.min(...ys(5))).toBeLessThan(500);
+    expect(Math.min(...ys(-5))).toBeLessThan(-450);
+  });
+
+  test("a T junction has a post only when asked, and its arms reach out both ways", () => {
+    expect(count(make("t-junction", { post: true }), "Cylinder")).toBe(1);
+    expect(count(make("t-junction", { post: false }), "Cylinder")).toBe(0);
+    const d = footprintOf(shapesOf(make("t-junction", { arm: 8 }))).d;
+    expect(d).toBeGreaterThan(16);
+  });
+
+  test("a raised piece stands on legs with its lowest track that high", () => {
+    const file = make("corner", { raised: 5, rise: -2, walls: false });
+    expect(count(file, "Cylinder")).toBeGreaterThan(2);
+    const bottoms = slabs(file).map((it) => it.transform.location[2]);
+    expect(Math.min(...bottoms)).toBeGreaterThan(495);
+    expect(Math.min(...bottoms)).toBeLessThan(530);
+    expect(count(make("corner", { raised: 0 }), "Cylinder")).toBe(0);
   });
 });
 

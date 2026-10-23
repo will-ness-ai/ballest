@@ -111,19 +111,23 @@ export const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
   items,
 });
 
-/* the pieces moved up or down so the lowest corner of any of them sits on the floor, z = 0 */
-export function grounded(items: Array<PrefabItem>): Array<PrefabItem> {
-  /* a shape's matrix takes a unit shape centred on the origin, so a corner is half each column */
-  const low = Math.min(
+/* the lowest corner of any of the pieces, in cm: a shape's matrix takes a unit shape centred on
+   the origin, in metres, so a corner is half each column */
+export const lowestOf = (items: Array<PrefabItem>) =>
+  Math.min(
     ...shapesOf(fileOf(items)).map(
       (sh) =>
         sh.matrix[13] -
         (Math.abs(sh.matrix[1]) + Math.abs(sh.matrix[5]) + Math.abs(sh.matrix[9])) / 2,
     ),
-  );
+  ) * 100;
+
+/* the pieces moved up or down so the lowest corner of any of them sits on the floor, z = 0 */
+export function grounded(items: Array<PrefabItem>): Array<PrefabItem> {
+  const low = lowestOf(items);
   return items.map((it) => {
     const [x, y, z] = it.transform.location;
-    return { ...it, transform: { ...it.transform, location: [x, y, z - low * 100] as V3 } };
+    return { ...it, transform: { ...it.transform, location: [x, y, z - low] as V3 } };
   });
 }
 
