@@ -2,7 +2,7 @@
 // sub-tabs with the lit one, the kind of page, and the breadcrumb trail above its title.
 import { describe, expect, test } from "vitest";
 
-import { navCampaigns, navOf, type NavFacts } from "../lib/nav";
+import { crumbsOf, navCampaigns, navOf, type NavFacts } from "../lib/nav";
 import { legacyPath } from "../lib/routes";
 
 const ID = "76561198259485267";
@@ -295,5 +295,75 @@ describe("the breadcrumb trail", () => {
   test("a player's page and a head to head sit under Players", () => {
     for (const path of [`/player/${ID}`, `/player/${ID}/workshop`, `/vs/${ID}/${RIVAL}`])
       expect(trail(path), path).toEqual(["Players", "Rankings"]);
+  });
+});
+
+describe("the breadcrumbs a page draws above its title", () => {
+  const crumbs = (path: string, title: string, back: { label: string; href: string } | null) =>
+    crumbsOf(path, FACTS, title, back).map((c) => c.label);
+
+  test("with nothing remembered, the trail less any crumb that names the page's title", () => {
+    expect(crumbsOf("/map/3800958793", FACTS, "Sway n So", null)).toEqual([
+      { label: "Maps", href: "/" },
+      { label: "All Maps", href: "/maps" },
+    ]);
+    expect(crumbs("/maps/unbeaten", "All maps", null)).toEqual(["Maps"]);
+    expect(crumbs("/campaign/solar-trials/podiums", "Solar Trials", null)).toEqual(["Campaigns"]);
+    expect(crumbs("/daily", "Sway n So", null)).toEqual([]);
+  });
+
+  test("coming to a Map from a player's page, the parent goes back there, under Players", () => {
+    expect(
+      crumbsOf("/map/3800958793", FACTS, "Sway n So", { label: "Will", href: `/player/${ID}` }),
+    ).toEqual([
+      { label: "Players", href: "/players" },
+      { label: "Will", href: `/player/${ID}` },
+    ]);
+  });
+
+  test("coming from a board, the parent is that board, under its Section", () => {
+    expect(
+      crumbs(`/player/${ID}`, "Will", { label: "Season 1 13", href: "/board/Map_Track13" }),
+    ).toEqual(["Circuit", "Season 1 13"]);
+    expect(
+      crumbs(`/player/${ID}`, "Will", { label: "Sway n So", href: "/map/3800958793" }),
+    ).toEqual(["Maps", "Sway n So"]);
+    expect(
+      crumbs("/map/3800958793", "Sway n So", {
+        label: "Solar Trials 01 Ignition",
+        href: "/campaign/solar-trials/3805413302",
+      }),
+    ).toEqual(["Campaigns", "Solar Trials 01 Ignition"]);
+  });
+
+  test("a remembered list a sub-tab names goes by the sub-tab's name", () => {
+    expect(crumbs("/map/3800958793", "Sway n So", { label: "Workshop", href: "/" })).toEqual([
+      "Maps",
+      "Featured",
+    ]);
+    expect(crumbs(`/player/${ID}`, "Will", { label: "Players", href: "/players" })).toEqual([
+      "Players",
+      "Rankings",
+    ]);
+    expect(
+      crumbs("/map/3800958793", "Sway n So", {
+        label: "Solar Trials Overall",
+        href: "/campaign/solar-trials",
+      }),
+    ).toEqual(["Campaigns", "Solar Trials"]);
+    /* a view of All maps keeps the name it was remembered by */
+    expect(
+      crumbs("/map/3800958793", "Sway n So", { label: "All maps", href: "/maps/unbeaten" }),
+    ).toEqual(["Maps", "All maps"]);
+  });
+
+  test("a remembered page that is this page, or in no Section, is passed over", () => {
+    expect(
+      crumbs("/map/3800958793", "Sway n So", { label: "Sway n So", href: "/map/3800958793" }),
+    ).toEqual(["Maps", "All Maps"]);
+    expect(crumbs("/map/3800958793", "Sway n So", { label: "Leth", href: "/leth/" })).toEqual([
+      "Maps",
+      "All Maps",
+    ]);
   });
 });

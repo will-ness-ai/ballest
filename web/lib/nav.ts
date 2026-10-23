@@ -223,3 +223,29 @@ export function navOf(path: string, facts: NavFacts): Nav {
     trail,
   };
 }
+
+/* the breadcrumbs a page draws above its title (components/PageHead.tsx). Its parent is
+   `back`, the board, list or player the reader came from (components/Trail.tsx), under that
+   page's own Section and by its sub-tab's name where one names it; with nothing remembered,
+   or only this page or one in no Section, it is navOf's trail. A crumb that names the
+   page's own title goes, as the title follows it. */
+export function crumbsOf(
+  path: string,
+  facts: NavFacts,
+  title: string,
+  back: Crumb | null,
+): Array<Crumb> {
+  const at = (p: string) => p.replace(/(.)\/$/, "$1");
+  const from = back && at(back.href) !== at(path) ? navOf(back.href, facts) : null;
+  let trail = navOf(path, facts).trail;
+  if (back && from?.section) {
+    const home = from.sections.find((s) => s.on);
+    const sub = from.subs.find((s) => s.on && s.href === at(back.href));
+    trail = [
+      ...(home ? [{ label: home.label, href: home.href }] : []),
+      { label: sub?.label ?? back.label, href: back.href },
+    ];
+  }
+  const own = title.trim().toLowerCase();
+  return trail.filter((c) => c.label.toLowerCase() !== own);
+}
