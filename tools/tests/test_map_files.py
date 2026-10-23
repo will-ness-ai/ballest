@@ -175,14 +175,14 @@ class FakeSession:
     def __init__(self, client):
         self.client = client
 
-    async def call(self, request):
+    async def call(self, request, **_kw):
         return await request(self.client)
 
 
 class NoSession:
     """A Steam session no job may use: logging in would raise."""
 
-    async def call(self, _request):
+    async def call(self, _request, **_kw):
         raise AssertionError("logged into Steam")
 
 

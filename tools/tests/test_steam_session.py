@@ -275,43 +275,56 @@ def test_steam_down_for_a_while_fails_jobs_at_once(monkeypatch):
     asyncio.run(go())
 
 
-def test_a_slow_file_request_keeps_the_login(monkeypatch):
+def test_a_slow_manifest_keeps_the_login_but_a_slow_cm_request_drops_it(monkeypatch):
     # a manifest waits on Steam's content servers, not the CM
     monkeypatch.setattr(steam_session, "REQUEST_TIMEOUT", 0.05)
 
     async def go():
-        s = session()
+        s = session(sleep=soon)
+        with pytest.raises(TimeoutError):
+            await s.call(lambda _c: asyncio.sleep(10), cm=False)
+        assert s.up
         with pytest.raises(TimeoutError):
             await s.call(lambda _c: asyncio.sleep(10))
-        assert s.up
-        assert len(FakeClient.made) == 1
+        assert s.drops == 1
         await s.close()
 
     asyncio.run(go())
 
 
-def test_a_working_login_that_ends_is_a_drop_and_comes_back_quickly():
+def test_a_login_kicked_straight_off_waits_before_the_next(monkeypatch):
+    # another login on the account kicks this one: no trading blows every few seconds
     class Dies(FakeClient):
         async def login(self, refresh_token):  # noqa: ARG002 (steam.Client's signature)
             self.ready = True
             await self.handlers["on_ready"]()
-            raise RuntimeError("ConnectionClosed")  # how steam.py's login ends on a dead socket
+            await asyncio.sleep(self.lasts)
+            raise RuntimeError("LoggedInElsewhere")  # how steam.py's login ends on a dead socket
 
-    async def go():
+    async def go(lasts):
         clients = iter([Dies(), FakeClient()])
+        clients_made = []
         slept = []
+
+        def make():
+            c = next(clients)
+            c.lasts = lasts
+            clients_made.append(c)
+            return c
 
         async def sleep(seconds):
             slept.append(seconds)
 
-        s = session(make=lambda: next(clients), sleep=sleep)
-        await s.ready()  # the first, which dies
+        s = session(make=make, sleep=sleep)
+        await s.ready()
         while s.logins < 2:  # noqa: ASYNC110 (the session has no event for a login)
             await asyncio.sleep(0.01)
-        assert slept == [steam_session.RELOGIN]
         await s.close()
+        return slept
 
-    asyncio.run(go())
+    assert asyncio.run(go(0)) == [steam_session.RETRY]
+    monkeypatch.setattr(steam_session, "RETRY", 0.05)  # a login that held a while
+    assert asyncio.run(go(0.1)) == [steam_session.RELOGIN]
 
 
 def test_a_login_that_never_comes_is_dropped_for_a_fresh_one(monkeypatch):

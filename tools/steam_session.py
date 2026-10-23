@@ -52,6 +52,9 @@ class SteamSession:
         self.make_client = make_client or steam.Client
         self.client = None
         self.logins = 0
+        # logins given up on (a dropped connection, an unanswered request, a stuck login)
+        self.drops = 0
+        self._up_since = 0.0
         # logged in on the current client; down since (monotonic) it last wasn't, and why
         self.up = False
         self.down = None
@@ -77,51 +80,53 @@ class SteamSession:
                 await asyncio.sleep(0.2)
         return self.client
 
-    async def call(self, request):
+    async def call(self, request, *, cm=True):
         """`await request(client)` on the logged-in client, after any request ahead of it
         has its reply, within REQUEST_TIMEOUT once sent: every request to the CM goes through
-        here, a leaderboard read's or a file download's alike."""
+        here, a leaderboard read's or a file download's alike. A CM request left unanswered
+        drops the client for a fresh login; `cm=False` is for one that waits on something
+        else (a manifest, from Steam's content servers)."""
         await self.ready()  # a login is waited out side by side, not one caller after another
         async with self._one_at_a_time:
             client = await self.ready()  # at once, unless the request ahead dropped the client
-            async with asyncio.timeout(REQUEST_TIMEOUT):
-                return await request(client)
+            try:
+                async with asyncio.timeout(REQUEST_TIMEOUT):
+                    return await request(client)
+            except TimeoutError:
+                if cm:
+                    self._drop(client, "a request went unanswered")
+                raise
 
     async def send(self, msg):
         """Sends one raw protobuf request to the CM and returns its reply (steampy_common's
-        leaderboard requests). One left unanswered drops the client for a fresh login."""
-        client = None
-
-        def raw(c):
-            nonlocal client
-            client = c
-            return c._state.ws.send_proto_and_wait(msg)  # noqa: SLF001 (steam.py has no public raw-protobuf call)
-
-        try:
-            return await self.call(raw)
-        except TimeoutError:
-            if client is not None:  # sent, never answered (not a wait for the login)
-                self._drop(client, "a request went unanswered")
-            raise
+        leaderboard requests)."""
+        return await self.call(
+            lambda client: client._state.ws.send_proto_and_wait(msg)  # noqa: SLF001 (steam.py has no public raw-protobuf call)
+        )
 
     async def _hold(self):
         while not self._closing:
+            client, lasted = None, 0.0
             try:
-                worked = await self._one_login()
+                client = self.client = self.make_client()
+                lasted = await self._one_login(client)
             except Exception as e:  # never let the session stop logging in
                 print(f"Steam: the login loop failed: {e!r}", flush=True)
                 self._went_down(e)
-                worked = False
+                if client is not None:
+                    with contextlib.suppress(Exception):
+                        await client.close()
             if self._closing:
                 return
-            wait = RELOGIN if worked else RETRY
+            # a login that held a while comes back at once; one kicked straight off (another
+            # login on the account) or refused waits, so two logins don't trade blows
+            wait = RELOGIN if lasted >= RETRY else RETRY
             print(f"Steam: logging in again in {wait} s", flush=True)
             await self.sleep(wait)
 
-    async def _one_login(self):
-        """One client, from its login until it is dropped or its login ends: whether it
-        logged in."""
-        client = self.client = self.make_client()
+    async def _one_login(self, client):
+        """`client`, from its login until it is dropped or its login ends: how many seconds
+        it stayed logged in (0 when it never did)."""
         self._dropped.clear()
         logins = self.logins
         self._on_events(client)
@@ -134,19 +139,21 @@ class SteamSession:
         if not login.done():  # dropped: this client's socket is dead to us
             with contextlib.suppress(Exception):
                 await client.close()
-            with contextlib.suppress(Exception, asyncio.CancelledError, TimeoutError):
-                await asyncio.wait_for(login, 30)
+            await asyncio.wait({login}, timeout=30)
+            if not login.done():
+                login.cancel()  # never waited on: a wedged steam.py may not let go
         worked = self.logins > logins
+        lasted = time.monotonic() - self._up_since if worked else 0.0
         if self._closing:
-            return worked  # steam.py often raises on the teardown after close()
-        failed = None if login.cancelled() else login.exception()
+            return lasted
+        failed = login.exception() if login.done() and not login.cancelled() else None
         if worked:
             # what steam.py raises as a working login's connection closes is no login failure
             self._went_down(self.down or "connection dropped")
         else:
             print(f"Steam: logging in failed: {failed!r}", flush=True)
             self._went_down(failed or "the login ended")
-        return worked
+        return lasted
 
     async def _login_deadline(self, client, logins):
         await asyncio.sleep(LOGIN_DEADLINE)
@@ -166,6 +173,7 @@ class SteamSession:
         """Gives up on `client` (its connection dropped, or a request went unanswered): it is
         closed and replaced with a fresh login."""
         if client is self.client and not self._dropped.is_set():
+            self.drops += 1
             print(f"Steam: {why}; dropping this login", flush=True)
             self._went_down(why)
             self._dropped.set()
@@ -176,7 +184,7 @@ class SteamSession:
             # steam.py calls this twice a login, and early on its own reconnect, never used
             if client is self.client and not self.up and not self._dropped.is_set():
                 self.logins += 1
-                self.up, self.down = True, None
+                self.up, self.down, self._up_since = True, None, time.monotonic()
                 print(
                     f"Steam: logged in (login {self.logins} since the service started)", flush=True
                 )

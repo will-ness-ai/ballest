@@ -67,11 +67,12 @@ class Watcher:
         every read and reaches ops (runner.DAILY_OUTAGE); a board that fails on its own (a
         wrong ID) waits for the next read."""
         await session.ready()
+        drops = session.drops
         since = daily.watch_since(datetime.now(UTC))
         reads = await self.collect(session, self.watch.known, set(), since)
-        if not session.up:
-            # a request went unanswered and dropped the login: Steam isn't answering
-            raise ConnectionError(f"Steam dropped during the read: {session.down}")
+        if session.drops > drops:
+            # a request went unanswered, or the connection dropped: Steam isn't answering
+            raise ConnectionError(f"Steam dropped the login during the read: {session.down}")
         fresh = self.watch.to_write(reads)
         if not fresh:
             return 0

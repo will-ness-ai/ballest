@@ -72,7 +72,7 @@ class Steam:
     """The session: logged in, or not (ready raises as SteamSession.ready does)."""
 
     def __init__(self, *, up=True):
-        self.up, self.down = up, None
+        self.up, self.down, self.drops = up, None, 0
 
     async def ready(self):
         if not self.up:
@@ -101,7 +101,7 @@ def test_a_read_that_dropped_the_login_fails():
     collect = fakes.collect
 
     async def unanswered(*args):
-        steam.up, steam.down = False, "a request went unanswered"
+        steam.drops, steam.down = steam.drops + 1, "a request went unanswered"
         return await collect(*args)
 
     fakes.collect = unanswered
