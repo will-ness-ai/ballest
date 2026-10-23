@@ -229,12 +229,7 @@
   } /* the standalone meta line is a phone affordance */
   .search {
     padding: 0;
-    flex: 0 0 auto;
-  }
-  .search input {
-    width: 230px;
-    border-radius: 9px;
-    padding: 8px 12px;
+    flex: 0 0 230px;
   }
 
   /* podium, full size */

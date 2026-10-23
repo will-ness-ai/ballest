@@ -109,7 +109,7 @@ function Editor({ g }: { g: Generator }) {
             </p>
           )}
           <div className="gen-actions">
-            <button type="button" className="pf-dl" disabled={!file || over} onClick={download}>
+            <button type="button" className="btn" disabled={!file || over} onClick={download}>
               Download
             </button>
             <HelpDialog name={g.file} auto={false} />

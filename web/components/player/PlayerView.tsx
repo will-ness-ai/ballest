@@ -11,6 +11,7 @@ import { MadeTab } from "./MadeTab";
 import { ScoreCard, SignOut } from "./Me";
 import { SkinPicker, YourMarble } from "./SkinPicker";
 import { WorkshopTab } from "./WorkshopTab";
+import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { SteamMark } from "../SteamMark";
 import type { PlayerCampaign } from "../../db/data";
@@ -210,19 +211,19 @@ export function PlayerView({
             </SkinPicker>
           </div>{" "}
           <ScoreCard rec={rec} />{" "}
-          <nav className="ptabs">
+          <Pills label="Tabs" nav className="ptabs">
             {tabsOf(rec).map((t) => (
-              <Link
+              <PillLink
                 key={t.key}
                 href={playerHref(rec.id, t.key)}
                 scroll={false}
-                aria-current={t.key === tab ? "page" : undefined}
+                on={t.key === tab}
               >
                 {t.label}
                 <small>{fmtN(t.count(rec, daily.mine))}</small>
-              </Link>
+              </PillLink>
             ))}
-          </nav>{" "}
+          </Pills>{" "}
           {tab === "circuit" ? (
             <CircuitTab rec={rec} />
           ) : tab === "workshop" ? (

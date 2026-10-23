@@ -492,17 +492,6 @@
 .search {
   padding: 0 var(--pad) 12px;
 }
-.search input {
-  width: 100%;
-  padding: 10px 13px;
-  border-radius: 11px;
-  background: var(--surface2);
-  border: 1px solid var(--line);
-  color: var(--text);
-}
-.search input::placeholder {
-  color: var(--faint);
-}
 
 /* podium. The plates stay 1st, 2nd, 3rd in the markup, for screen readers and keyboard
    order, and stand 2nd, 1st, 3rd on screen, as the link-preview image does */
@@ -909,35 +898,6 @@
 .sortsw[hidden] {
   display: none;
 }
-.sw {
-  display: inline-grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px;
-  padding: 3px;
-  border-radius: 9px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-}
-.sw a {
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-family: var(--f-hud);
-  font-size: calc(12.5rem / 16);
-  font-weight: 600;
-  color: var(--dim);
-  text-align: center;
-  text-decoration: none;
-}
-@media (hover: hover) and (pointer: fine) {
-  .sw a:hover {
-    color: var(--text);
-  }
-}
-.sw a[aria-current="page"] {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-
 /* the header card: a track's screenshot, or the Overall board's standings, on
    top of (on the desktop layout, beside) its facts */
 .bcard {

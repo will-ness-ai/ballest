@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { CreatorLink, MapCardLink, MapGrid, PodLine } from "./Card";
+import { SearchBox } from "../Controls";
 import { MapImage } from "../MapImage";
 import { useClock, useDebouncedFetch } from "../../hooks/client";
 import { mapHref, mapsHref } from "../../lib/routes";
@@ -204,13 +205,11 @@ export function WorkshopHome({
     <>
       <div className="ws-head">
         <span className="ws-tools">
-          <Link className="alllink" href={mapsHref()}>
+          <Link className="btn" href={mapsHref()}>
             All maps &rarr;
           </Link>
-          <input
-            className="ws-q"
+          <SearchBox
             id="wsq"
-            type="search"
             placeholder="Search maps"
             aria-label="Search maps by title or creator"
             autoComplete="off"

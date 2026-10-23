@@ -420,43 +420,9 @@
   white-space: nowrap;
 }
 
-/* the page's tabs: Circuit, Workshop, Made for a map maker, and Daily. Each is a link */
+/* the page's tabs, as pills: Circuit, Workshop, Made for a map maker, and Daily. Each is a link */
 .ptabs {
-  display: flex;
-  gap: 2px;
   margin: 0 var(--pad) 16px;
-  border-block-end: 1px solid var(--line);
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-.ptabs a {
-  padding: 9px 13px;
-  margin-block-end: -1px;
-  border-block-end: 2px solid transparent;
-  white-space: nowrap;
-  font-family: var(--f-hud);
-  font-size: calc(13.5rem / 16);
-  font-weight: 600;
-  color: var(--dim);
-  text-decoration: none;
-}
-@media (hover: hover) and (pointer: fine) {
-  .ptabs a:hover {
-    color: var(--text);
-  }
-}
-/* the strip scrolls, so it clips anything drawn outside it: keep the ring inside */
-.ptabs a:focus-visible {
-  outline-offset: -2px;
-}
-.ptabs a[aria-current="page"] {
-  color: var(--text);
-  border-block-end-color: var(--accent);
-}
-.ptabs small {
-  margin-inline-start: 6px;
-  color: var(--faint);
-  font-variant-numeric: tabular-nums;
 }
 .pws {
   margin: 0 var(--pad);
@@ -806,15 +772,8 @@
 }
 /* wide enough for its whole placeholder: on a phone the sort select drops to the next
    line rather than cut it short */
-.pwtools .ws-q {
+.pwtools .searchbox {
   flex: 1 1 12.5em;
-}
-.pwsort {
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--solid);
-  border: 1px solid var(--line);
-  color: var(--text);
 }
 .pwbar {
   display: flex;

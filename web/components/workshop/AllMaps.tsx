@@ -2,10 +2,10 @@
 // All maps: every Map with a time, in one of the ready-made views (each its own link,
 // /maps/<view>) or narrowed further in the Refine panel, sixty at a time. The panel's
 // choices live in this page only; a view's link starts it over from its preset.
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { MapGrid } from "./Card";
+import { PillButton, PillLink, Pills } from "../Controls";
 import { useDialog } from "../Modal";
 import { useClock } from "../../hooks/client";
 import { mapsHref } from "../../lib/routes";
@@ -42,16 +42,15 @@ function Drawer({
   /* the panel opens with the keyboard on its close button, the first thing in it */
   const { props, close } = useDialog({ open: true, onClose });
   const opt = (k: keyof Refine, v: string, label: string) => (
-    <button
+    <PillButton
       key={v}
-      type="button"
-      className={f[k] === v ? "opt on" : "opt"}
+      on={f[k] === v}
       onClick={() => {
         set(k, v);
       }}
     >
       {label}
-    </button>
+    </PillButton>
   );
   return (
     <dialog className="drawer" aria-label="Refine maps" {...props}>
@@ -66,18 +65,18 @@ function Drawer({
         return (
           <div className="fg" key={k}>
             <span className="eyebrow">{g.label}</span>
-            <div className="opts">
+            <Pills label={g.label}>
               {opt(k, "any", g.any)}
               {Object.entries(g.opts).map(([v, [label]]) => opt(k, v, label))}
-            </div>
+            </Pills>
           </div>
         );
       })}
       <div className="fg">
         <span className="eyebrow">Sort</span>
-        <div className="opts">
+        <Pills label="Sort">
           {(Object.keys(SORTS) as Array<SortKey>).map((k) => opt("sort", k, SORTS[k].label))}
-        </div>
+        </Pills>
       </div>
       <div className="dfoot">
         <button type="button" className="linkbtn" onClick={reset}>
@@ -126,19 +125,16 @@ export function AllMaps({
         <span className="ws-count">{plural(maps.length, "map", "maps")} with a time</span>
       </div>
       <div className="views">
-        {VIEWS.map(([k, label, p]) => (
-          <Link
-            key={k}
-            href={mapsHref(k)}
-            className={sameRefine(f, { ...NO_FILTER(), ...p }) ? "on" : ""}
-          >
-            {label}
-          </Link>
-        ))}
-        <span className="sp"></span>
+        <Pills label="Views" nav>
+          {VIEWS.map(([k, label, p]) => (
+            <PillLink key={k} href={mapsHref(k)} on={sameRefine(f, { ...NO_FILTER(), ...p })}>
+              {label}
+            </PillLink>
+          ))}
+        </Pills>
         <button
           type="button"
-          className={n ? "refine on" : "refine"}
+          className="btn"
           onClick={() => {
             setOpen((o) => !o);
           }}
@@ -155,7 +151,7 @@ export function AllMaps({
           {list.length > shown && (
             <button
               type="button"
-              className="more-btn"
+              className="btn more"
               onClick={() => {
                 setShown((s) => s + MAPS_CHUNK);
               }}

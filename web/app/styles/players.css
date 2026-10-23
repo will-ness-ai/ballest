@@ -12,7 +12,7 @@
   margin: 0 var(--pad);
   --prw: 38px;
 }
-.pls .ptabs {
+.pl-scope {
   margin: 0 0 10px;
 }
 .plwrap {
@@ -226,34 +226,9 @@
   flex-wrap: wrap;
   row-gap: 10px;
 }
-.ws-tools .ws-q {
-  flex-basis: 10em;
-}
-.alllink {
-  font-family: var(--f-hud);
-  font-size: calc(12.5rem / 16);
-  font-weight: 600;
-  color: var(--accent);
-  text-decoration: none;
-  white-space: nowrap;
-}
-@media (hover: hover) and (pointer: fine) {
-  .alllink:hover {
-    text-decoration: underline;
-  }
-}
-.ws-q {
-  flex: 1;
-  max-width: 280px;
-  min-width: 0;
-  padding: 9px 12px;
-  border-radius: 10px;
-  background: var(--surface2);
-  border: 1px solid var(--line);
-  color: var(--text);
-}
-.ws-q::placeholder {
-  color: var(--faint);
+.ws-tools .searchbox {
+  flex: 1 1 10em;
+  max-inline-size: 280px;
 }
 .ws-count,
 .ws-note {

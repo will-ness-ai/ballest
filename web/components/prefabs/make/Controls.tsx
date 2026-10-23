@@ -4,6 +4,7 @@
 import { useState } from "react";
 
 import { FONTS, fontAt } from "./lettering";
+import { PillButton, Pills } from "../../Controls";
 import {
   COLOUR_NAMES,
   MARBLE,
@@ -125,18 +126,13 @@ function Field({
       return (
         <fieldset className="gen-choice">
           <legend className="gen-label">{c.label}</legend>
-          <div>
+          <Pills label={c.label}>
             {c.options.map((o) => (
-              <button
-                key={o}
-                type="button"
-                aria-pressed={value === o}
-                onClick={() => set({ [c.key]: o })}
-              >
+              <PillButton key={o} on={value === o} onClick={() => set({ [c.key]: o })}>
                 {o}
-              </button>
+              </PillButton>
             ))}
-          </div>
+          </Pills>
         </fieldset>
       );
     case "toggle":

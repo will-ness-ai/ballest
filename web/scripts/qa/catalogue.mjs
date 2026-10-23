@@ -102,7 +102,7 @@ export const STATES = [
   { name: "fresh", page: "home", click: "#freshness" },
   { name: "compare", page: "player", click: "button:has-text('Compare')" },
   { name: "change", page: "vs", click: "[data-change=b]" },
-  { name: "refine", page: "maps", click: "button.refine" },
+  { name: "refine", page: "maps", click: ".views > button" },
   { name: "race", page: "board", click: ".row .c-race" },
   { name: "howto", page: "prefab", click: ".pf-q" },
   { name: "edit", page: "prefab-owner", click: ".pf-own button:has-text('Edit')" },

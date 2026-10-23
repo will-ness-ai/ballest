@@ -68,7 +68,7 @@ export function PrefabPage({ p }: { p: Prefab }) {
             </ul>
           )}
           <div className="pf-actions">
-            <a className="pf-dl big" href={prefabFileHref(p.slug)} download={p.fileName}>
+            <a className="btn big" href={prefabFileHref(p.slug)} download={p.fileName}>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16" />
               </svg>
