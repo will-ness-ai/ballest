@@ -44,8 +44,8 @@ interface Fork {
   radius: number;
   /* the length of each way's middle stretch, one flat, the other over rollers */
   middle: number;
-  /* how far each way falls over its two corners */
-  fall: number;
+  /* how far each way climbs over its two corners (falls below 0) */
+  rise: number;
   post: Colour;
 }
 /* a T junction splitting the track right and left, each way turning back to run ahead, then
@@ -54,9 +54,9 @@ function fork(t: Track, flat: Track, bumpy: Track, f: Fork, steps: number): Sect
   const split = tee(t, { arm: f.arm, stem: f.stem, post: f.post });
   const way = (out: number, middle: Section, tw: Track) =>
     chain(split.exits[out === RIGHT ? 0 : 1], [
-      bend(tw, { radius: f.radius, angle: -out, rise: -f.fall / 2, ease: true, steps }),
+      bend(tw, { radius: f.radius, angle: -out, rise: f.rise / 2, ease: true, steps }),
       middle,
-      bend(tw, { radius: f.radius, angle: -out, rise: -f.fall / 2, ease: true, steps }),
+      bend(tw, { radius: f.radius, angle: -out, rise: f.rise / 2, ease: true, steps }),
     ]);
   const right = way(RIGHT, straight(flat, f.middle), flat);
   const left = way(LEFT, rollers(bumpy, f.middle, 2, 40), bumpy);
@@ -87,7 +87,7 @@ export function course(t: Track, other: Track, post: Colour, column: Colour, ste
     (u) => jump(u, { runup: 200, kick: 12 * DEG, gap: 1500, drop: 50, landing: 800 }),
     (u) => straight(u, 1840, 140),
     (u) =>
-      fork(u, other, t, { arm: 300, stem: 110, radius: 330, middle: 800, fall: -60, post }, steps),
+      fork(u, other, t, { arm: 300, stem: 110, radius: 330, middle: 800, rise: 60, post }, steps),
     (u) => bend(u, { radius: 400, angle: LEFT, steps }),
     (u) =>
       spiral(u, { radius: 500, turns: 1.5, drop: 790, bank: 45 * DEG, ease: true, steps, column }),

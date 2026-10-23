@@ -69,7 +69,10 @@ const raisedControls = (v: Values, extra: Array<Control> = []): Array<Control> =
   ...extra,
   colour("track", "Track"),
   ...(v.walls ? [colour("wallc", "Walls")] : []),
-  colour("legc", "Legs"),
+  /* legs stand under whatever is off the floor */
+  ...(numberIn(v, "raised") > 0 || ("rise" in v && Number(v.rise) !== 0)
+    ? [colour("legc", "Legs")]
+    : []),
 ];
 const RAISED = { width: 3, raised: 0, walls: true, wallc: "White", legc: "Dark" };
 /* a rise either way up to `most` cm (no steeper than 45°), and the rise these values ask for
@@ -122,7 +125,7 @@ export const corner: Generator = {
   category: "Racing",
   blurb: "A flat turn left or right, rising or falling round it if you like.",
   file: "corner",
-  angle: { from: [-0.6, 0.5, 0.6], zoom: 1, pan: [0, 0, 0] },
+  angle: { from: [-0.6, 0.5, -0.6], zoom: 1, pan: [0, 0, 0] },
   defaults: { ...RAISED, angle: 90, radius: 6, turn: "Left", rise: 0, steps: 24, track: "Yellow" },
   controls: (v) => [
     num("angle", "Angle", 15, 180, 15, "°"),
@@ -142,7 +145,7 @@ export const banked: Generator = {
   category: "Racing",
   blurb: "A turn tipped in toward its middle, flat where it starts and ends so it meets the rest.",
   file: "banked_turn",
-  angle: { from: [-0.75, 0.3, 0.6], zoom: 1, pan: [0, 0, 0] },
+  angle: { from: [-0.75, 0.3, -0.6], zoom: 1, pan: [0, 0, 0] },
   defaults: {
     ...RAISED,
     angle: 180,
@@ -254,20 +257,21 @@ export const spiral: Generator = {
   build: (v) => {
     const r = radiusIn(v);
     const turns = numberIn(v, "turns");
-    const top = THICK + metresIn(v, "drop") * turns;
     /* it starts on the camera's side (-X) and winds to the right */
-    const p = placed(
-      spiralSection(trackIn(v), {
-        radius: r,
-        turns,
-        drop: metresIn(v, "drop"),
-        bank: numberIn(v, "bank") * DEG,
-        steps: numberIn(v, "steps"),
-        column: v.column ? colourIn(v, "columnc") : undefined,
-      }),
-      { p: [-r, 0, top], yaw: -Math.PI / 2 },
+    const p = setDown(
+      placed(
+        spiralSection(trackIn(v), {
+          radius: r,
+          turns,
+          drop: metresIn(v, "drop"),
+          bank: numberIn(v, "bank") * DEG,
+          steps: numberIn(v, "steps"),
+          column: v.column ? colourIn(v, "columnc") : undefined,
+        }),
+        { p: [-r, 0, 0], yaw: -Math.PI / 2 },
+      ),
     );
-    return fileOf(grounded([...itemsOf(p), ...supportsOf(p, "White")]));
+    return fileOf([...itemsOf(p), ...supportsOf(p, "White")]);
   },
 };
 

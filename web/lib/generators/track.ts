@@ -232,11 +232,11 @@ export function supportsOf(s: Section, c: Colour): Array<PrefabItem> {
 const lowStop = (s: Section) => Math.min(...s.runs.flatMap((r) => r.stops.map((x) => x.p[2])));
 const lowPiece = (s: Section) => lowestOf(itemsOf(s));
 
-/* the section moved up or down so its lowest stretch of track is `raised` cm off the floor (none
-   of it below the floor when that is 0), and `x` along */
+/* the section moved up or down so its lowest stretch of track is `raised` cm off the floor,
+   none of it below the floor (a banked edge dips under the centreline), and `x` along */
 export function setDown(s: Section, raised = 0, x = 0): Section {
-  const low = Math.min(lowStop(s) - THICK, raised > 0 ? Infinity : lowPiece(s));
-  return placed(s, { ...START, p: [x, 0, raised - low] });
+  const up = Math.max(raised + THICK - lowStop(s), -lowPiece(s));
+  return placed(s, { ...START, p: [x, 0, up] });
 }
 
 /* ---------- sections ---------- */

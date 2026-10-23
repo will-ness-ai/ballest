@@ -613,6 +613,12 @@ describe("a big Prefab in parts", () => {
       ),
     );
 
+  test("no part is a single piece, which the game won't spawn", () => {
+    const file = make("course");
+    const parts = partsOf({ ...file, items: file.items.slice(0, SPAWN_MOST + 1) });
+    expect(parts.map((p) => p.items.length >= 2)).toEqual([true, true]);
+  });
+
   test("a small one is one part, itself", () => {
     const file = make("corner");
     expect(partsOf(file)).toEqual([file]);

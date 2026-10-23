@@ -131,7 +131,8 @@ export function partsOf(file: PrefabFile): Array<PrefabFile> {
   const parts: Array<PrefabFile> = [];
   for (let i = 0; i < file.items.length; i += SPAWN_MOST) {
     const items = file.items.slice(i, i + SPAWN_MOST);
-    const reaches = near(items) - x < 1 && lowestOf(items) - z < 1;
+    /* and a part of one piece needs a second: the game spawns nothing from one */
+    const reaches = items.length > 1 && near(items) - x < 1 && lowestOf(items) - z < 1;
     parts.push({ ...file, items: reaches ? items : [...items, marker] });
   }
   return parts;

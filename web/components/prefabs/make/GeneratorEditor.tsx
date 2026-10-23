@@ -21,6 +21,9 @@ import { footprintOf, shapesOf } from "../../../lib/prefab";
 import { fileNameOf } from "../../../lib/prefab-check";
 import { makePrefabHref } from "../../../lib/routes";
 
+/* the name the game spawns a file by */
+const stemOf = (name: string) => fileNameOf(name).replace(/\.json$/, "");
+
 function useSettled<T>(value: T, ms = 200) {
   const [settled, setSettled] = useState(value);
   useEffect(() => {
@@ -72,12 +75,13 @@ function Editor({ g }: { g: Generator }) {
   const over = pieces > PIECE_LIMIT;
   /* more pieces than one spawn holds come in parts, spawned one after another */
   const parts = useMemo(() => (file && !over ? partsOf(file) : []), [file, over]);
+  const partName = (part: number) => (parts.length > 1 ? `${g.file}_${String(part + 1)}` : g.file);
   const download = (part: number) => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(
       new Blob([JSON.stringify(parts[part], null, "\t")], { type: "application/json" }),
     );
-    a.download = fileNameOf(parts.length > 1 ? `${g.file}_${String(part + 1)}` : g.file);
+    a.download = fileNameOf(partName(part));
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -135,13 +139,14 @@ function Editor({ g }: { g: Generator }) {
                 Download
               </button>
             )}
-            <HelpDialog name={parts.length > 1 ? `${g.file}_1` : g.file} auto={false} />
+            <HelpDialog name={stemOf(partName(0))} auto={false} />
           </div>
           {parts.length > 1 && (
             <p className="gen-parts">
               Too many pieces for the game to spawn at once, so it comes in {parts.length} parts.
-              Spawn them in order without moving the camera, and they meet. Then delete the small
-              white cubes at the near corner: they only line the parts up.
+              Spawn them in order without moving the camera ({stemOf(partName(0))}, then{" "}
+              {stemOf(partName(1))} and so on), and they meet. Then delete the small white cubes at
+              the near corner: they only line the parts up.
             </p>
           )}
         </div>
