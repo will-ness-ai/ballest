@@ -4,16 +4,16 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 
-import { HelpDialog } from "../components/prefabs/PrefabModel";
+import { HelpDialog } from "../components/prefabs/HowTo";
 import { PrefabGuide } from "../components/prefabs/PrefabGuide";
-import { PrefabTabs } from "../components/prefabs/PrefabTabs";
+import { PrefabsHead } from "../components/prefabs/PrefabTabs";
 import { prefabGuideHref } from "../lib/routes";
 
 /* the markup's text, tags dropped */
 const text = (html: string) => html.replace(/<!--.*?-->/g, "").replace(/<[^>]+>/g, " ");
 
 test("the tabs offer the guide, lit on its own page", () => {
-  const html = renderToStaticMarkup(<PrefabTabs on="guide" />);
+  const html = renderToStaticMarkup(<PrefabsHead on="guide" blurb="" />);
   const lit = /<a [^>]*aria-current="page"[^>]*>/.exec(html)?.[0] ?? "";
   expect(lit).toContain(`href="${prefabGuideHref()}"`);
   expect(text(html)).toContain("How to");

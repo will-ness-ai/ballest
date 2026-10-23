@@ -3,7 +3,7 @@
 // Discord, each step checked against the game.
 import Link from "next/link";
 
-import { Code } from "./Code";
+import { Code } from "./HowTo";
 import { PrefabsHead } from "./PrefabTabs";
 import { DELETE, FOLDER, LIST, SAVE, SPAWN } from "../../lib/prefab-console";
 import { HOURLY_UPLOADS } from "../../lib/prefabs";

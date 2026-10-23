@@ -37,7 +37,7 @@ export function PrefabsHead({
   );
 }
 
-export function PrefabTabs({ on }: { on: Tab }) {
+function PrefabTabs({ on }: { on: Tab }) {
   return (
     <nav className="gen-tabs" aria-label="Prefabs">
       {TABS.map((t) => (
