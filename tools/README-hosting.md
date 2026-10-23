@@ -115,8 +115,8 @@ the Refresh to the database, and revalidates the site, which shows it at
   `fly logs` shows `Steam: logged in (login N since the service started)` at each login or
   reconnect, and each job's lines under its name (`[refresh]`, `[daily]`, ...). The Daily read
   (`tools/daily_watch.py`) reads the open Dailies every minute and pauses only while a Refresh
-  runs; `status` shows it as `daily`. A login that fails is tried every minute. A Steam
-  outage of any kind fails the Daily read meanwhile, and the ops channel hears once Daily reads
+  runs; `status` shows it as `daily`. A login that fails is tried every minute. Each Daily
+  read checks the login first, so a Steam outage of any kind fails it meanwhile, and the ops channel hears once Daily reads
   have failed for half an hour, with the last read's lines.
 - To change which boards appear, edit `tools/campaign_common.py` (`BOARDS`).
 - If a refresh fails with a login/token error, re-mint (step 1) and update the

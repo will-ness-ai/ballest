@@ -516,6 +516,33 @@ def test_a_turn_skipped_for_a_refresh_neither_starts_nor_ends_an_outage():
     asyncio.run(go())
 
 
+def test_a_turn_skipped_after_a_good_read_starts_no_outage():
+    async def go():
+        fake = Fake()
+        s = service(fake)
+        now = [0.0]
+
+        async def sleep(_seconds):
+            now[0] += runner.DAILY_EVERY
+            await asyncio.sleep(0)
+
+        task = await watching(s, sleep=sleep, clock=lambda: now[0])
+        s.refresh()  # waits for the read under way, which works
+        fake.gate("read_dailies").set()
+        await settle()
+        while now[0] < runner.DAILY_OUTAGE:
+            await settle()
+        fake.codes = {"read_dailies": 1}
+        fake.gate("refresh").set()
+        await settle()
+        fake.gate("read_dailies").set()  # the first failure after the Refresh: no outage yet
+        await settle()
+        assert fake.alerts == []
+        task.cancel()
+
+    asyncio.run(go())
+
+
 def test_a_refresh_waits_for_a_daily_read_under_way():
     async def go():
         fake = Fake()

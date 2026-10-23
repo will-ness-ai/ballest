@@ -305,7 +305,7 @@ class Service:
 
     async def watch_dailies(self, *, sleep=asyncio.sleep, clock=time.monotonic):
         """Reads the open Dailies every DAILY_EVERY seconds, counted from each read's start,
-        skipping a turn while a Refresh runs. A read fails when Steam couldn't be read
+        skipping a turn while a Refresh runs. Each read checks the login first
         (daily_watch.Watcher.read), so this is where a Steam outage of any kind reaches ops:
         once reads have failed for DAILY_OUTAGE, with the last one's lines, and again only
         after one has worked. A skipped turn neither starts an outage nor ends one."""
@@ -330,10 +330,9 @@ class Service:
                     told = True
                     await self.alert(
                         f"Collector: Daily reads have failed for {DAILY_OUTAGE // 60} minutes"
-                        f" (exit {code}): Steam is down or the login is refused (a bad token"
-                        " needs a new STEAM_REFRESH_TOKEN, tools/steampy_mint.py). They go on"
-                        f" every {DAILY_EVERY} s; ops hears nothing more until one works.\n"
-                        f"{_tail(lines)}"
+                        f" (exit {code}); they go on every {DAILY_EVERY} s, and ops hears"
+                        " nothing more until one works. A Steam login error below needs a new"
+                        f" STEAM_REFRESH_TOKEN (tools/steampy_mint.py).\n{_tail(lines)}"
                     )
             await sleep(max(0.0, DAILY_EVERY - (clock() - started)))
 

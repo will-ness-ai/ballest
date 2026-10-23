@@ -61,15 +61,17 @@ class Watcher:
         return cls(memory, dev=dev, key=cc.load_key())
 
     async def read(self, session):
-        """One read on the Steam `session`, writing what moved: 0, or 1 when a Daily's board
-        couldn't be read from Steam (the service counts those toward an outage) or the write
-        failed (the next read still sees the change and tries again)."""
+        """One read on the Steam `session`, writing what moved: 0, or 1 when the write failed
+        (the next read still sees the change and tries again). It checks the login first,
+        whatever is due, and raises with none (SteamSession.ready), so a Steam outage fails
+        every read and reaches ops (runner.DAILY_OUTAGE); a board that fails on its own waits
+        for the next read."""
+        await session.ready()
         since = daily.watch_since(datetime.now(UTC))
         reads = await self.collect(session, self.watch.known, set(), since)
-        steam_failed = any(r.rows is None for r in reads)
         fresh = self.watch.to_write(reads)
         if not fresh:
-            return int(steam_failed)
+            return 0
         for r in fresh:
             await asyncio.to_thread(fill_names, r.rows or [], self.names, self.key)
         refresh = db_writer.Refresh(
@@ -78,7 +80,7 @@ class Watcher:
         if await self.write(refresh, scratch=self.dev) is None:
             return 1
         self.watch.wrote(fresh)
-        return int(steam_failed)
+        return 0
 
 
 def main():

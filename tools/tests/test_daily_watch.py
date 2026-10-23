@@ -6,6 +6,7 @@ import dataclasses
 
 import daily_watch
 import db_writer
+import pytest
 from test_daily import OCT19, read_of
 
 
@@ -47,7 +48,7 @@ def test_a_read_writes_a_new_daily_as_a_daily_read_and_then_only_what_moved():
         read_of(OCT19, "2026-10-19T01:02", ("1", 900)),
     )
     w = watcher(fakes)
-    assert [asyncio.run(w.read(None)) for _ in range(3)] == [0, 0, 0]
+    assert [asyncio.run(w.read(Steam())) for _ in range(3)] == [0, 0, 0]
     assert len(fakes.written) == 2
     assert {r.source for r in fakes.written} == {"daily"}
     assert fakes.written[1].dailies[0].rows[0]["persona"] == ""
@@ -60,17 +61,32 @@ def test_a_failed_write_fails_the_read_and_the_next_read_writes_it():
     )
     w = watcher(fakes)
     fakes.fail = True
-    assert asyncio.run(w.read(None)) == 1
+    assert asyncio.run(w.read(Steam())) == 1
     fakes.fail = False
-    assert asyncio.run(w.read(None)) == 0
+    assert asyncio.run(w.read(Steam())) == 0
     assert len(fakes.written) == 1
 
 
-def test_a_read_that_steam_failed_fails_the_daily_read():
-    # what the service counts toward a Steam outage (runner.DAILY_OUTAGE)
-    failed = read_of(OCT19, "2026-10-19T01:01")
-    assert failed.rows is None
-    fakes = Fakes(failed, opened(read_of(OCT19, "2026-10-19T01:02")))
-    w = watcher(fakes)
-    assert asyncio.run(w.read(None)) == 1
-    assert asyncio.run(w.read(None)) == 0
+class Steam:
+    """The session: logged in, or not (ready raises as SteamSession.ready does)."""
+
+    def __init__(self, *, up=True):
+        self.up = up
+
+    async def ready(self):
+        if not self.up:
+            raise ConnectionError("Steam login failing: InvalidPassword")
+
+
+def test_every_read_checks_the_login_even_with_nothing_due():
+    # how a Steam outage reaches ops (runner.DAILY_OUTAGE), whatever is due
+    fakes = Fakes()
+    fakes.collect = lambda *_a: pytest.fail("read with no login")
+    with pytest.raises(ConnectionError):
+        asyncio.run(watcher(fakes).read(Steam(up=False)))
+
+
+def test_one_board_that_fails_is_no_outage():
+    # a Daily whose board won't read (a wrong ID) waits for the next read; Steam is up
+    fakes = Fakes(read_of(OCT19, "2026-10-19T01:01"))
+    assert asyncio.run(watcher(fakes).read(Steam())) == 0
