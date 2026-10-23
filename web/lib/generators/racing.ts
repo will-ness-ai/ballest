@@ -143,16 +143,13 @@ export const corner: Generator = {
   file: "corner",
   angle: { from: [-0.6, 0.5, -0.6], zoom: 1, pan: [0, 0, 0] },
   defaults: { ...RAISED, angle: 90, radius: 6, turn: "Left", rise: 0, steps: 24, track: "Yellow" },
-  ...raisedPiece(
-    (v) => bendIn(v),
-    (v) => [
-      num("angle", "Angle", 15, 180, 15, "°"),
-      num("radius", "Radius", 2, 30, 0.5, "m"),
-      choice("turn", "Turn", ["Left", "Right"]),
-      riseControl(mostRise(bendLength(v)), true),
-      num("steps", "Pieces a turn", 8, 64, 1, undefined, true),
-    ],
-  ),
+  ...raisedPiece(bendIn, (v) => [
+    num("angle", "Angle", 15, 180, 15, "°"),
+    num("radius", "Radius", 2, 30, 0.5, "m"),
+    choice("turn", "Turn", ["Left", "Right"]),
+    riseControl(mostRise(bendLength(v)), true),
+    num("steps", "Pieces a turn", 8, 64, 1, undefined, true),
+  ]),
 };
 
 /* ---------- banked turn ---------- */
