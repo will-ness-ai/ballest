@@ -164,7 +164,7 @@ revalidate names the Dailies it wrote (`?daily=<board>`), which expires only the
 `dailies` and those boards' own tags. `runner.py` reads through file downloads too, and skips a
 minute only while a Refresh runs, since the Refresh reads and writes the Dailies itself; after
 each Refresh it starts again from what the database holds. Each read checks the Steam login
-first, whatever is due, and fails without one, or when every board it read failed; the next minute's read rides out Steam's short
+first, whatever is due, and fails without one; the next minute's read rides out Steam's short
 drops, so ops hears only once reads have failed for half an hour.
 
 ### Chosen Skins

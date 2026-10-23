@@ -92,13 +92,22 @@ def test_every_request_shares_one_login_and_none_overlap():
     asyncio.run(go())
 
 
-def test_a_request_that_hangs_times_out(monkeypatch):
+async def soon(_seconds):
+    """The retry's sleep, cut short."""
+    await asyncio.sleep(0.01)
+
+
+def test_an_unanswered_request_times_out_and_the_next_gets_a_fresh_login(monkeypatch):
+    # a CM that stops answering is as good as a dropped connection
     monkeypatch.setattr(steam_session, "REQUEST_TIMEOUT", 0.05)
 
     async def go():
-        s = session(make=lambda: FakeClient(delay=10))
+        clients = iter([FakeClient(delay=10), FakeClient()])
+        s = session(make=lambda: next(clients), sleep=soon)
         with pytest.raises(TimeoutError):
             await s.send("a")
+        assert await s.send("b") == "reply to b"
+        assert FakeClient.made[0].closed.is_set()
         await s.close()
 
     asyncio.run(go())
@@ -217,28 +226,44 @@ def test_waiting_for_the_login_holds_no_one_up():
     asyncio.run(go())
 
 
-def test_a_dropped_connection_holds_requests_until_steam_py_reconnects():
-    # steam.py reconnects inside login() and leaves is_ready() True: on_disconnect is the sign
+def test_a_dropped_connection_gets_a_fresh_login():
+    # steam.py's own reconnect keeps its cached socket on the dead connection
     async def go():
-        s = session()
+        s = session(sleep=soon)
         assert await s.send("a") == "reply to a"
-        client = FakeClient.made[0]
-        await client.handlers["on_disconnect"]()
-        waiting = asyncio.create_task(s.send("b"))
-        await asyncio.sleep(0.3)
-        assert not waiting.done()
-        await client.handlers["on_ready"]()  # reconnected
-        assert await waiting == "reply to b"
+        first = FakeClient.made[0]
+        await first.handlers["on_disconnect"]()
+        assert await s.send("b") == "reply to b"
+        assert first.closed.is_set()
+        assert len(FakeClient.made) == 2
+        assert s.logins == 2
         await s.close()
 
     asyncio.run(go())
 
 
-def test_a_connection_down_for_a_while_fails_jobs_at_once(monkeypatch):
-    monkeypatch.setattr(steam_session, "READY_TIMEOUT", 0.3)
-
+def test_on_ready_twice_a_login_counts_once():
     async def go():
         s = session()
+        await s.send("a")
+        await FakeClient.made[0].handlers["on_ready"]()
+        assert s.logins == 1
+        await s.close()
+
+    asyncio.run(go())
+
+
+def test_steam_down_for_a_while_fails_jobs_at_once(monkeypatch):
+    # a refused login is one steam.py retries itself without raising: never logged in
+    monkeypatch.setattr(steam_session, "READY_TIMEOUT", 0.3)
+
+    class NeverIn(FakeClient):
+        async def login(self, refresh_token):  # noqa: ARG002 (steam.Client's signature)
+            await self.closed.wait()
+
+    async def go():
+        clients = iter([FakeClient(), NeverIn(), NeverIn()])
+        s = session(make=lambda: next(clients), sleep=soon)
         await s.send("a")
         await FakeClient.made[0].handlers["on_disconnect"]()
         with pytest.raises((ConnectionError, TimeoutError)):

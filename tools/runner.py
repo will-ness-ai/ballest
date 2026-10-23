@@ -71,9 +71,8 @@ SLOT_SOON = timedelta(minutes=30)
 # seconds a job may run before it is stopped and counts as failed (a Refresh takes 2-6
 # minutes, a first one on an empty database ~12)
 JOB_TIMEOUT = 60 * 60
-# seconds a Daily read may take (one with a lookup at the developers' API takes a few): past
-# the session's own wait for Steam (READY_TIMEOUT), so its error, not a stop, is in the lines
-DAILY_TIMEOUT = 10 * 60
+# seconds a Daily read may take (one with a lookup at the developers' API takes a few)
+DAILY_TIMEOUT = 5 * 60
 # seconds Daily reads may keep failing before ops hears: Steam drops logins for a few minutes
 # often, and for longer on Tuesdays' maintenance, and the next minute's read rides those out
 DAILY_OUTAGE = 30 * 60
@@ -332,9 +331,9 @@ class Service:
                     await self.alert(
                         f"Collector: Daily reads have failed for {DAILY_OUTAGE // 60} minutes"
                         f" (exit {code}); they go on every {DAILY_EVERY} s, and ops hears"
-                        " nothing more until one works. A login refused below (InvalidPassword,"
-                        " AccessDenied) needs a new STEAM_REFRESH_TOKEN (tools/steampy_mint.py);"
-                        f" a dropped connection or a timeout is Steam's own.\n{_tail(lines)}"
+                        " nothing more until one works. If Steam itself is up and the lines"
+                        " below say 'not logged in yet' or show a login error, the token needs"
+                        f" re-minting (tools/steampy_mint.py).\n{_tail(lines)}"
                     )
             await sleep(max(0.0, DAILY_EVERY - (clock() - started)))
 

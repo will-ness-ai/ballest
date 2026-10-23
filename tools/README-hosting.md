@@ -112,8 +112,8 @@ the Refresh to the database, and revalidates the site, which shows it at
   it with `fly logs -a ballest-collector`. `.github/workflows/refresh.yml` runs one by hand,
   only while the Fly service is down (two Steam logins on one account drop each other).
 - Every job runs inside the service on its one Steam login, which it keeps between jobs:
-  `fly logs` shows `Steam: logged in (login N since the service started)` at each login or
-  reconnect, and each job's lines under its name (`[refresh]`, `[daily]`, ...). The Daily read
+  `fly logs` shows `Steam: logged in (login N since the service started)` at each login (a
+  fresh one after any drop), and each job's lines under its name (`[refresh]`, `[daily]`, ...). The Daily read
   (`tools/daily_watch.py`) reads the open Dailies every minute and pauses only while a Refresh
   runs; `status` shows it as `daily`. A login that fails is tried every minute. Each Daily
   read checks the login first, so a Steam outage of any kind fails it meanwhile, and the ops channel hears once Daily reads

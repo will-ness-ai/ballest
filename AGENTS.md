@@ -38,7 +38,7 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `tools/steampy_collect.py` — the collector's Refresh (`refresh`), run every three hours on Fly. **This is the live path.** It reads
   the Circuit boards and keeps the Workshop boards current (`collect_workshop`).
 - `tools/steam_session.py` — the collector's one Steam login (ADR 0014): every job on Fly shares
-  it, it reconnects by itself, and it sends leaderboard requests one at a time with a timeout.
+  it, it logs in afresh after any drop, and it sends leaderboard requests one at a time with a timeout.
 - `tools/steampy_common.py` — the steam.py leaderboard requests the collector and the
   Discord script share, sent through the session: read a board by ID, find a board by name.
 - `tools/db_writer.py` — the collector's database write (ADR 0005): `write_refresh` puts
