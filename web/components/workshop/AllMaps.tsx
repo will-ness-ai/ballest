@@ -108,16 +108,14 @@ export function AllMaps({
   maps,
   view,
   asOf,
-  query: initial = "",
 }: {
   maps: ReadonlyArray<MapCard>;
   view: string | null;
   asOf: number;
-  /* the query the address names, until ReadQuery has read it */
-  query?: string;
 }) {
   const now = useClock(asOf);
-  const [query, setQuery] = useState(initial);
+  /* the address's ?q=, once ReadQuery has read it */
+  const [query, setQuery] = useState("");
   const [f, setF] = useState(() => refineFor(view));
   const [shown, setShown] = useState(MAPS_CHUNK);
   const [open, setOpen] = useState(false);
@@ -192,7 +190,14 @@ export function AllMaps({
         </>
       ) : (
         <div className="empty">
-          <b>No map fits all of these filters.</b>
+          {/* the query found nothing among the Maps the filters leave, or the filters left none */}
+          {query && refined.length ? (
+            <b>
+              No map matches &ldquo;{query}&rdquo;{n ? " with these filters" : ""}.
+            </b>
+          ) : (
+            <b>No map fits all of these filters.</b>
+          )}
         </div>
       )}
       {open && (
