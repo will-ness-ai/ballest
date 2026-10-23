@@ -6,13 +6,7 @@
 // shrunk so the edges are smooth, and returned as a PNG whose empty pixels are clear.
 import { crc32, deflateSync } from "node:zlib";
 
-import type {
-  Camera,
-  Color,
-  InstancedMesh,
-  MeshStandardMaterial,
-  Object3D,
-} from "three";
+import type { Camera, Color, InstancedMesh, MeshStandardMaterial, Object3D } from "three";
 
 type Three = typeof import("three");
 
