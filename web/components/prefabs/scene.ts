@@ -206,6 +206,21 @@ function fitDistance(camera: import("three").PerspectiveCamera, radius: number) 
   return (radius / Math.sin(Math.min(v, h))) * 1.05;
 }
 
+/* the camera a still picture is taken with, at `angle` (the browser's and the share image's) */
+export function stillCamera(
+  THREE: Three,
+  aspect: number,
+  centre: import("three").Vector3,
+  radius: number,
+  angle: PrefabAngle | null,
+) {
+  const camera = new THREE.PerspectiveCamera(40, aspect, 0.05, 2000);
+  const view = framing(THREE, camera, centre, radius, angle);
+  camera.position.copy(view.position);
+  camera.lookAt(view.target);
+  return camera;
+}
+
 /* one shared renderer draws every still, so a long list costs one WebGL context */
 let shared: Promise<{
   three: Awaited<ReturnType<typeof loadThree>>;
@@ -230,10 +245,7 @@ export async function stillOf(
   });
   const { three, renderer } = await shared;
   const { scene, centre, radius } = buildScene(three, file, false);
-  const camera = new three.THREE.PerspectiveCamera(40, w / h, 0.05, 2000);
-  const view = framing(three.THREE, camera, centre, radius, angle);
-  camera.position.copy(view.position);
-  camera.lookAt(view.target);
+  const camera = stillCamera(three.THREE, w / h, centre, radius, angle);
   renderer.setSize(w, h, false);
   if (background) renderer.setClearColor(background, 1);
   renderer.render(scene, camera);

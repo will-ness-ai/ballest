@@ -1,8 +1,9 @@
-// A Prefab drawn for its share image: the scene its viewer draws (components/prefabs/scene.ts),
-// from the angle its uploader picked, through the GPU-free rasterizer.
+// A Prefab drawn for its share image: the scene and camera the gallery's stills use
+// (components/prefabs/scene.ts), from the angle its uploader picked, through the GPU-free
+// rasterizer.
 import { PREFAB_PICTURE } from "./Card";
 import { rasterize } from "./raster";
-import { buildScene, framing, loadThree } from "../prefabs/scene";
+import { buildScene, loadThree, stillCamera } from "../prefabs/scene";
 import type { PrefabFile } from "../../lib/prefab";
 import type { PrefabAngle } from "../../lib/prefabs";
 
@@ -28,10 +29,6 @@ export async function prefabPicture(
 ) {
   const three = await loadThree();
   const { scene, centre, radius } = buildScene(three, file, false);
-  /* the field of view the page's viewer and the gallery's stills use */
-  const camera = new three.THREE.PerspectiveCamera(40, w / h, 0.05, 2000);
-  const view = framing(three.THREE, camera, centre, radius, angle);
-  camera.position.copy(view.position);
-  camera.lookAt(view.target);
+  const camera = stillCamera(three.THREE, w / h, centre, radius, angle);
   return rasterize(three.THREE, scene, camera, w, h);
 }
