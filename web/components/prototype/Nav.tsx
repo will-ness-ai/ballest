@@ -34,28 +34,28 @@ interface Section {
 const VARIANTS = [
   [
     "1",
-    "Breadcrumb + marquee",
-    "Every page opens the same way: a breadcrumb (Maps › All Maps › Sway n So), the title in the big Bungee marquee, and what kind of page it is. Each page's own title and ← back link go.",
+    "Pills",
+    "Every choice is a rounded pill (like the search's filter chips): lime outline and tint when on. Search boxes are rounded with a magnifier. Buttons are lime pills.",
   ],
   [
     "2",
-    "HUD eyebrow",
-    "A small lime eyebrow naming the kind of page (WORKSHOP MAP, PLAYER, CAMPAIGN), then the title in Chakra Petch. No breadcrumb: the section and sub-tabs above already say where you are. Own titles and back links go.",
+    "Segmented",
+    "Every set of choices sits in one bordered track with the chosen one filled lime (today's sort switch, everywhere). Search boxes are rounded rectangles with a magnifier.",
   ],
   [
     "3",
-    "Title in the bar",
-    "No title block: one slim breadcrumb line under the sub-tabs, ending in the page's name, and the page starts straight away. Own titles and back links go.",
+    "Underline tabs",
+    "Choices are plain words with a lime underline when on, like the section tabs above. Search boxes are a single underline, no box. Buttons are text links with an arrow.",
   ],
   [
     "4",
-    "Hero band",
-    "A band across the page with its own picture blurred behind (the Map's screenshot, the Campaign's, a glow where there is none), with the breadcrumb, kind and title on it. Own titles and back links go.",
+    "HUD",
+    "Square-cornered, small uppercase Chakra Petch buttons with a lime frame when on, like a game menu. Search boxes are square with a ⌕ mark.",
   ],
   [
     "5",
-    "Keep each page's own",
-    "Pages keep their own titles where they are today, but every one is drawn in one style (the Bungee marquee), and every ← back link becomes the same breadcrumb chip.",
+    "Toolbar",
+    "Each page's controls sit together in one panel bar: the search box on the left, choices on the right as quiet buttons that turn lime when on.",
   ],
 ] as const;
 const BRANDS = [
@@ -1257,7 +1257,8 @@ export function ProtoNav({ original, ...slots }: Slots & { original: React.React
   return (
     <div className={"pn pn-D pn-h" + v}>
       <VariantD {...slots} />
-      <PageHead d={slots.d} v={v} />
+      <PageHead d={slots.d} v="1" />
+      <ControlKit v={v} />
       <ProtoPicker v={v} />
     </div>
   );
@@ -1360,11 +1361,22 @@ function PageHead({ d, v }: { d: NavData; v: string }) {
           {page.img ? <img src={page.img} alt="" /> : null}
         </span>
       ) : null}
-      {v === "2" ? null : trail}
+      {v === "2" || crumbs.length < 2 ? null : trail}
       <p className="ph-kind">{kind}</p>
       <p className="ph-title">{page.title}</p>
     </div>
   );
+}
+
+/* ---------- round 4: one kit for the controls inside pages ---------- */
+function ControlKit({ v }: { v: string }) {
+  useEffect(() => {
+    document.documentElement.dataset.ck = v;
+    return () => {
+      delete document.documentElement.dataset.ck;
+    };
+  }, [v]);
+  return null;
 }
 
 /* ---------- the variant picker ---------- */

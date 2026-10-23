@@ -1435,3 +1435,297 @@ body:has(.pnC-bar) {
     padding: 24px 28px;
   }
 }
+
+/* ==========================================================================
+   round 4: one kit for the controls inside pages (?variant=1..5), on top of the
+   round 3 verdict (breadcrumb + marquee) and with the pages' own tabs gone
+   ========================================================================== */
+.ds-switch,
+.gen-tabs {
+  display: none !important;
+}
+:root[data-ck="1"] :is(.sortsw .sw, .ptabs, .pfl-seg, .pfl-tags, .views, .hi-seg) {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 6px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+:root[data-ck="1"]
+  :is(.sortsw .sw a, .ptabs a, .pfl-seg button, .pfl-tag, .views a, .hi-seg button) {
+  padding: 6px 13px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 999px !important;
+  background: none !important;
+  color: var(--dim) !important;
+  font: 600 calc(13rem / 16) var(--f-body) !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+}
+:root[data-ck="1"]
+  :is(
+    .sortsw .sw a[aria-current="page"],
+    .ptabs a[aria-current="page"],
+    .pfl-seg button[aria-pressed="true"],
+    .pfl-tag[aria-pressed="true"],
+    .views a.on,
+    .hi-seg button[aria-pressed="true"]
+  ) {
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+}
+:root[data-ck="1"] :is(.search input, .ws-q, .pwsort) {
+  block-size: 40px !important;
+  padding-inline: 38px 12px !important;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93b8' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='7'/%3E%3Cpath d='M16 16l5 5'/%3E%3C/svg%3E")
+      no-repeat 12px 50% / 17px,
+    var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 999px !important;
+}
+:root[data-ck="1"] :is(.refine, .alllink, .pf-dl, .more-btn) {
+  padding: 7px 14px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--accent) !important;
+  color: var(--accent-ink) !important;
+  font: 700 calc(13rem / 16) var(--f-body) !important;
+  text-decoration: none !important;
+}
+:root[data-ck="2"] :is(.sortsw .sw, .ptabs, .pfl-seg, .pfl-tags, .views, .hi-seg) {
+  display: inline-flex !important;
+  flex-wrap: wrap;
+  gap: 2px !important;
+  padding: 3px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 11px !important;
+  background: var(--surface) !important;
+}
+:root[data-ck="2"]
+  :is(.sortsw .sw a, .ptabs a, .pfl-seg button, .pfl-tag, .views a, .hi-seg button) {
+  padding: 6px 12px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: none !important;
+  color: var(--dim) !important;
+  font: 600 calc(13rem / 16) var(--f-hud) !important;
+  letter-spacing: 0.01em !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+}
+:root[data-ck="2"]
+  :is(
+    .sortsw .sw a[aria-current="page"],
+    .ptabs a[aria-current="page"],
+    .pfl-seg button[aria-pressed="true"],
+    .pfl-tag[aria-pressed="true"],
+    .views a.on,
+    .hi-seg button[aria-pressed="true"]
+  ) {
+  background: var(--accent) !important;
+  color: var(--accent-ink) !important;
+}
+:root[data-ck="2"] :is(.search input, .ws-q, .pwsort) {
+  block-size: 40px !important;
+  padding-inline: 38px 12px !important;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93b8' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='7'/%3E%3Cpath d='M16 16l5 5'/%3E%3C/svg%3E")
+      no-repeat 12px 50% / 17px,
+    var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 11px !important;
+}
+:root[data-ck="2"] :is(.refine, .alllink, .pf-dl, .more-btn) {
+  padding: 7px 14px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  background: var(--surface2) !important;
+  color: var(--text) !important;
+  font: 600 calc(13rem / 16) var(--f-hud) !important;
+  text-decoration: none !important;
+}
+:root[data-ck="3"] :is(.sortsw .sw, .ptabs, .pfl-seg, .pfl-tags, .views, .hi-seg) {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 14px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+:root[data-ck="3"]
+  :is(.sortsw .sw a, .ptabs a, .pfl-seg button, .pfl-tag, .views a, .hi-seg button) {
+  padding: 6px 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: inset 0 -2px 0 transparent !important;
+  color: var(--dim) !important;
+  font: 600 calc(13.5rem / 16) var(--f-hud) !important;
+  text-transform: none !important;
+}
+:root[data-ck="3"]
+  :is(
+    .sortsw .sw a[aria-current="page"],
+    .ptabs a[aria-current="page"],
+    .pfl-seg button[aria-pressed="true"],
+    .pfl-tag[aria-pressed="true"],
+    .views a.on,
+    .hi-seg button[aria-pressed="true"]
+  ) {
+  color: var(--text) !important;
+  box-shadow: inset 0 -2px 0 var(--accent) !important;
+}
+:root[data-ck="3"] :is(.search input, .ws-q, .pwsort) {
+  block-size: 40px !important;
+  padding-inline: 38px 12px !important;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93b8' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='7'/%3E%3Cpath d='M16 16l5 5'/%3E%3C/svg%3E")
+      no-repeat 12px 50% / 17px,
+    transparent !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+  border-width: 0 0 1px !important;
+  border-radius: 0 !important;
+  padding-inline-start: 30px !important;
+  background-position: 4px 50% !important;
+}
+:root[data-ck="3"] :is(.refine, .alllink, .pf-dl, .more-btn) {
+  padding: 4px 0 !important;
+  border: 0 !important;
+  background: none !important;
+  color: var(--accent) !important;
+  font: 600 calc(13.5rem / 16) var(--f-hud) !important;
+  text-decoration: none !important;
+}
+:root[data-ck="3"] :is(.refine, .pf-dl, .more-btn)::after {
+  content: " →";
+}
+:root[data-ck="4"] :is(.sortsw .sw, .ptabs, .pfl-seg, .pfl-tags, .views, .hi-seg) {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 4px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+:root[data-ck="4"]
+  :is(.sortsw .sw a, .ptabs a, .pfl-seg button, .pfl-tag, .views a, .hi-seg button) {
+  padding: 5px 10px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 3px !important;
+  background: oklch(0% 0 none / 0.2) !important;
+  color: var(--dim) !important;
+  font: 700 calc(11rem / 16) var(--f-hud) !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  box-shadow: none !important;
+}
+:root[data-ck="4"]
+  :is(
+    .sortsw .sw a[aria-current="page"],
+    .ptabs a[aria-current="page"],
+    .pfl-seg button[aria-pressed="true"],
+    .pfl-tag[aria-pressed="true"],
+    .views a.on,
+    .hi-seg button[aria-pressed="true"]
+  ) {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  box-shadow:
+    inset 0 0 12px var(--glow-lime),
+    0 0 0 1px var(--accent) !important;
+}
+:root[data-ck="4"] :is(.search input, .ws-q, .pwsort) {
+  block-size: 40px !important;
+  padding-inline: 38px 12px !important;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93b8' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='7'/%3E%3Cpath d='M16 16l5 5'/%3E%3C/svg%3E")
+      no-repeat 12px 50% / 17px,
+    var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 3px !important;
+  font-family: var(--f-hud) !important;
+  background-color: oklch(0% 0 none / 0.25) !important;
+}
+:root[data-ck="4"] :is(.refine, .alllink, .pf-dl, .more-btn) {
+  padding: 7px 12px !important;
+  border: 1px solid var(--accent) !important;
+  border-radius: 3px !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+  font: 700 calc(11.5rem / 16) var(--f-hud) !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  text-decoration: none !important;
+}
+:root[data-ck="5"] :is(.boardbar, .ws-tools, .pfl-bar, .pwtools, .views) {
+  padding: 8px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 14px !important;
+  background: var(--surface) !important;
+}
+:root[data-ck="5"] :is(.sortsw .sw, .ptabs, .pfl-seg, .pfl-tags, .views, .hi-seg) {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 2px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+:root[data-ck="5"]
+  :is(.sortsw .sw a, .ptabs a, .pfl-seg button, .pfl-tag, .views a, .hi-seg button) {
+  padding: 7px 11px !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: none !important;
+  color: var(--dim) !important;
+  font: 600 calc(13rem / 16) var(--f-body) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+}
+:root[data-ck="5"]
+  :is(
+    .sortsw .sw a[aria-current="page"],
+    .ptabs a[aria-current="page"],
+    .pfl-seg button[aria-pressed="true"],
+    .pfl-tag[aria-pressed="true"],
+    .views a.on,
+    .hi-seg button[aria-pressed="true"]
+  ) {
+  background: var(--surface2) !important;
+  color: var(--accent) !important;
+}
+:root[data-ck="5"] :is(.search input, .ws-q, .pwsort) {
+  block-size: 40px !important;
+  padding-inline: 38px 12px !important;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b93b8' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='7'/%3E%3Cpath d='M16 16l5 5'/%3E%3C/svg%3E")
+      no-repeat 12px 50% / 17px,
+    var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  background-color: oklch(0% 0 none / 0.2) !important;
+}
+:root[data-ck="5"] :is(.refine, .alllink, .pf-dl, .more-btn) {
+  padding: 7px 12px !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: var(--accent) !important;
+  color: var(--accent-ink) !important;
+  font: 700 calc(13rem / 16) var(--f-body) !important;
+  text-decoration: none !important;
+}
