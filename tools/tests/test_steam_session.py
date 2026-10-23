@@ -2,6 +2,7 @@
 leaderboard requests one at a time, and a login that fails tried again."""
 
 import asyncio
+import contextlib
 import contextvars
 import types
 from typing import ClassVar
@@ -110,17 +111,39 @@ def test_a_request_that_hangs_times_out(monkeypatch):
     asyncio.run(go())
 
 
-def test_a_failed_login_is_tried_again_and_ops_hears_once():
+def failing_then_working(failures):
+    """Clients whose first `failures` logins fail, and a sleep that moves the clock on."""
+    clients = iter([FakeClient(fail=True)] * failures + [FakeClient()])
+    now, slept = [0.0], []
+
+    async def sleep(seconds):
+        slept.append(seconds)
+        now[0] += seconds
+
+    return (lambda: next(clients)), sleep, (lambda: now[0]), slept
+
+
+def test_a_failed_login_is_tried_again_and_ops_hears_nothing_of_a_short_drop():
     async def go():
-        clients = iter([FakeClient(fail=True), FakeClient(fail=True), FakeClient()])
-        slept = []
-
-        async def sleep(seconds):
-            slept.append(seconds)
-
-        s, alerts = session(make=lambda: next(clients), sleep=sleep)
+        make, sleep, clock, slept = failing_then_working(2)
+        s, alerts = session(make=make, sleep=sleep, clock=clock)
         assert await s.send("a") == "reply to a"
         assert slept == [steam_session.RETRY] * 2
+        assert alerts == []
+        await s.close()
+
+    asyncio.run(go())
+
+
+def test_ops_hears_once_when_logging_in_has_failed_half_an_hour():
+    async def go():
+        tries = steam_session.LOGIN_OUTAGE // steam_session.RETRY + 3
+        make, sleep, clock, _ = failing_then_working(tries)
+        s, alerts = session(make=make, sleep=sleep, clock=clock)
+        with contextlib.suppress(ConnectionError):  # a job may have stopped waiting first
+            await s.send("a")
+        while not s.logins:  # noqa: ASYNC110 (the session has no event for a login)
+            await asyncio.sleep(0.01)
         assert len(alerts) == 1
         assert "InvalidPassword" in alerts[0]
         await s.close()

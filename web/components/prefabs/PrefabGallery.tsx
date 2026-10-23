@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { fetchPrefabFile } from "./file";
 import { Heart } from "./Heart";
+import { PrefabTabs } from "./PrefabTabs";
 import { stillOf } from "./scene";
 import type { PrefabCard } from "../../db/prefabs";
 import type { PrefabFile } from "../../lib/prefab";
@@ -109,6 +110,7 @@ export function PrefabGallery({ cards }: { cards: Array<PrefabCard> }) {
           + Upload
         </Link>
       </header>
+      <PrefabTabs on="shared" />
       <div className="pfl-bar">
         <div className="pfl-seg" role="group" aria-label="Sort">
           {(["popular", "newest"] as const).map((s) => (

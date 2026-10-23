@@ -159,6 +159,8 @@ class Memory:
       plans from.
     daily_boards: {date: frozenset of (steam_id, score)} for each Daily not yet final, its
       open Entries: what the Daily watcher compares its first reads with (daily.Watch).
+    events_read: the Event boards with a successful read, which no Refresh reads again
+      (cc.events_due).
     """
 
     names: dict = field(default_factory=dict)
@@ -169,6 +171,7 @@ class Memory:
     just_scored: set = field(default_factory=set)
     dailies: dict = field(default_factory=dict)
     daily_boards: dict = field(default_factory=dict)
+    events_read: set = field(default_factory=set)
 
 
 def read_memory(conn):
@@ -236,6 +239,13 @@ def read_memory(conn):
         just_scored=just_scored,
         dailies=known_dailies(conn),
         daily_boards={day: frozenset(b) for day, b in daily_boards.items()},
+        events_read={
+            board
+            for (board,) in conn.execute(
+                "select distinct r.board from board_reads r join boards b on b.name = r.board"
+                " where r.ok and b.kind = 'event'"
+            )
+        },
     )
 
 
@@ -278,7 +288,10 @@ def revalidate(env, *, dailies=None):
 
 
 def board_kind(name):
-    """The board's kind from its name, as isPoints in web/lib/rules.ts reads it."""
+    """The board's kind from its name, as isPoints in web/lib/rules.ts reads it, or `event`
+    for an Event board (cc.EVENT_BOARDS)."""
+    if name in cc.EVENT_BOARDS:
+        return "event"
     return "overall" if name.startswith("Overall") else "track"
 
 

@@ -115,8 +115,8 @@ the Refresh to the database, and revalidates the site, which shows it at
   `fly logs` shows `Steam: logged in (login N since the service started)` at each login or
   reconnect, and each job's lines under its name (`[refresh]`, `[daily]`, ...). The Daily read
   (`tools/daily_watch.py`) reads the open Dailies every minute and pauses only while a Refresh
-  runs; `status` shows it as `daily`. A login that fails is tried every minute, and the ops
-  channel hears once.
+  runs; `status` shows it as `daily`. A login that fails is tried every minute; the ops
+  channel hears once logins, or Daily reads, have failed for half an hour.
 - To change which boards appear, edit `tools/campaign_common.py` (`BOARDS`).
 - If a refresh fails with a login/token error, re-mint (step 1) and update the
   `STEAM_REFRESH_TOKEN` secret on Fly (`fly secrets set -a ballest-collector ...`) and in

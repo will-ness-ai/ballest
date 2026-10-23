@@ -6,7 +6,7 @@
 // and angleNow() reads the view it shows now.
 import { useCallback, useEffect, useRef } from "react";
 
-import { angleNow, buildScene, framing, loadThree } from "./scene";
+import { VIEW_FOV, angleNow, buildScene, framing, loadThree, planesFor } from "./scene";
 import type { PrefabFile } from "../../lib/prefab";
 import type { PrefabAngle } from "../../lib/prefabs";
 
@@ -65,15 +65,7 @@ export function PrefabViewer({
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       el.appendChild(renderer.domElement);
       const { scene, centre, radius } = buildScene(three, file, interactive, water);
-      /* a Prefab fits the fixed planes; a Workshop Map can be hundreds of metres across,
-         and from as far back as the zoom goes (20 fits) on a tall screen it would fall past
-         the far plane, so they grow with it */
-      const camera = new THREE.PerspectiveCamera(
-        40,
-        1,
-        Math.max(0.05, radius / 2000),
-        Math.max(2000, radius * 200),
-      );
+      const camera = new THREE.PerspectiveCamera(VIEW_FOV, 1, ...planesFor(radius));
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enabled = interactive;
       controls.enableDamping = true;

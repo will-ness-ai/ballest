@@ -523,23 +523,34 @@ def test_daily_reads_keep_to_their_minute():
     asyncio.run(go())
 
 
-def test_failing_daily_reads_reach_ops_once_until_one_works():
+def test_ops_hears_of_failing_daily_reads_once_they_have_failed_half_an_hour():
     async def go():
         fake = Fake(codes={"read_dailies": 1})
         s = service(fake)
-        _, sleep = ticker()
-        task = await watching(s, sleep=sleep)
-        for _ in range(3):
-            fake.gate("read_dailies").set()
-            await settle()
+        now = [0.0]
+
+        async def sleep(_seconds):
+            now[0] += runner.DAILY_EVERY
+            await asyncio.sleep(0)
+
+        task = await watching(s, sleep=sleep, clock=lambda: now[0])
+
+        async def read_for(minutes):
+            for _ in range(minutes):
+                fake.gate("read_dailies").set()
+                await settle()
+
+        await read_for(runner.DAILY_OUTAGE // 60)  # Steam's usual short drop: ops hears nothing
+        assert fake.alerts == []
+        await read_for(5)
         assert len(fake.alerts) == 1
-        assert "Daily read failed" in fake.alerts[0]
+        assert "Daily reads have failed for 30 minutes" in fake.alerts[0]
         fake.codes = {}
-        fake.gate("read_dailies").set()
-        await settle()
+        await read_for(1)  # one works: the next outage is counted afresh
         fake.codes = {"read_dailies": 1}
-        fake.gate("read_dailies").set()
-        await settle()
+        await read_for(runner.DAILY_OUTAGE // 60)
+        assert len(fake.alerts) == 1
+        await read_for(2)
         assert len(fake.alerts) == 2
         task.cancel()
 

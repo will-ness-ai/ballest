@@ -139,36 +139,16 @@ async def collect_workshop(session, catalogue, all_ids, memory):
     }
 
 
-async def read_circuit(session, all_ids):
-    """Every Circuit board: (boards, failed), a failed read's board with no rows."""
-    boards_out = []
-    failed = []  # boards whose read failed: their Entries stay as they were
+def circuit_boards():
+    """Every Circuit board with a leaderboard ID: (name, ID, group)."""
+    circuit = []
     for name, group in cc.BOARDS:
         lid = cc.LEADERBOARD_IDS.get(name)
-        if not lid:
+        if lid:
+            circuit.append((name, lid, group))
+        else:
             print(f"  [skip] no leaderboard ID for {name}")
-            continue
-        try:
-            total, entries = await fetch_board(session, lid)
-            rows = board_rows(entries)
-            all_ids.update(r["steam_id"] for r in rows)
-            boards_out.append(
-                {
-                    "name": name,
-                    "group": group,
-                    "handle": str(lid),
-                    "entry_count": int(total or len(rows)),
-                    "rows": rows,
-                }
-            )
-            print(f"  {name:34s} total={int(total):6d} pulled={len(rows)}")
-        except Exception as e:
-            # A failed read changes nothing: the board's Entries stay as the last
-            # good read left them (db_writer counts it as a failed read).
-            boards_out.append({"name": name, "group": group, "handle": str(lid), "rows": []})
-            failed.append(name)
-            print(f"  [warn] read failed: {name}: {e!r}")
-    return boards_out, failed
+    return circuit
 
 
 async def refresh(session, *, dev=False):
@@ -198,11 +178,28 @@ async def refresh(session, *, dev=False):
         print("If the token is invalid/expired, re-mint with tools/steampy_mint.py.")
         return 1
     all_ids = set()
-    boards_out, failed = await read_circuit(session, all_ids)
+
+    async def fetch_rows(lid):
+        total, entries = await fetch_board(session, lid)
+        return total, board_rows(entries)
+
+    # A failed read changes nothing: the board's Entries stay as the last good read left
+    # them (db_writer counts it as a failed read).
+    boards_out, failed = await cc.read_boards(fetch_rows, circuit_boards())
+    for b in boards_out:
+        all_ids.update(r["steam_id"] for r in b["rows"])
     # Refuse a Refresh that read nothing: Steam is down, or this login is broken.
     if not any(b["rows"] for b in boards_out):
         print("ERROR: no board data collected; not writing.")
         return 1
+
+    # Each Event board with no good read yet: after the guard, so it never decides the
+    # run. A failed or empty read is a failed read (db_writer); the next Refresh retries.
+    events, events_failed = await cc.read_events(fetch_rows, memory.events_read)
+    for b in events:
+        all_ids.update(r["steam_id"] for r in b["rows"])
+    boards_out += events
+    failed += events_failed
 
     workshop = None
     if catalogue:

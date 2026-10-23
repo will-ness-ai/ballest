@@ -1,7 +1,8 @@
 // tiny, plus the data that strains a layout: a player with a long name holding a five-digit
-// rank, a Map with a long title, and one Map of a curated Campaign (Solar Trials' first,
+// rank, a Map with a long title, one Map of a curated Campaign (Solar Trials' first,
 // lib/campaigns.ts), so that Campaign is listed with one of its nine Maps and its pages,
-// the carousel and the long-named player's Campaigns shelf have something to draw. `pnpm qa`
+// the carousel and the long-named player's Campaigns shelf have something to draw, and the
+// Leth Trials' Event board, read, so the pinned Campaign is listed first. `pnpm qa`
 // checks a local build seeded with it (scripts/qa/catalogue.mjs names these IDs); tiny's
 // own rows are untouched, so every page tiny's comments describe still reads the same, with
 // more players below on the Overall board.
@@ -28,11 +29,13 @@ const TITLE = "Rocky Alpine but backwards or something like that";
 /* Solar Trials' first Map: p11 1st, p1 2nd, p2 3rd */
 const CAMPAIGN_PFID = "3805399883";
 const CAMPAIGN_MAP = "Workshop_" + CAMPAIGN_PFID;
+/* the Leth Trials' Event board (lib/campaigns.ts, EVENTS): p11 1st, p4 2nd, p10 3rd */
+const EVENT = "Map_LethTrial_01";
 
 const id = (n: number) => `7656119900${String(n).padStart(7, "0")}`;
 
 export const stress: Dataset = {
-  description: `tiny, plus ${String(FILLERS)} Overall players, a long name at a five-digit rank, a long Map title and a Campaign's Map`,
+  description: `tiny, plus ${String(FILLERS)} Overall players, a long name at a five-digit rank, a long Map title, a Campaign's Map and an Event board`,
   seed: async (tx) => {
     await tiny.seed(tx);
     const r3 = 3;
@@ -85,10 +88,18 @@ export const stress: Dataset = {
         leaderboardId: 90000006,
         scoresPoints: false,
       },
+      {
+        name: EVENT,
+        kind: "event",
+        display: "Leth Trial #1",
+        leaderboardId: 20899741,
+        scoresPoints: false,
+      },
     ]);
     await tx.insert(boardReads).values([
       { refreshId: r3, board: MAP, ok: true, entryCount: 2 },
       { refreshId: r3, board: CAMPAIGN_MAP, ok: true, entryCount: 3 },
+      { refreshId: r3, board: EVENT, ok: true, entryCount: 3 },
     ]);
     await tx.insert(entries).values([
       {
@@ -114,6 +125,15 @@ export const stress: Dataset = {
         steamId,
         score: 5_100_000 + i * 150_000,
         ugcId: `920000001${String(i)}`,
+        firstSeenRefresh: r3,
+        lastSeenRefresh: r3,
+        closedRefresh: null,
+      })),
+      ...[p11, id(4), id(10)].map((steamId, i) => ({
+        board: EVENT,
+        steamId,
+        score: 2_373_600 + i * 8_200,
+        ugcId: `920000002${String(i)}`,
         firstSeenRefresh: r3,
         lastSeenRefresh: r3,
         closedRefresh: null,

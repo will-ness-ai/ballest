@@ -72,6 +72,9 @@ SLOT_SOON = timedelta(minutes=30)
 JOB_TIMEOUT = 60 * 60
 # seconds a Daily read may take (one with a lookup at the developers' API takes a few)
 DAILY_TIMEOUT = 5 * 60
+# seconds Daily reads may keep failing before ops hears: Steam drops logins for a few minutes
+# often, and for longer on Tuesdays' maintenance, and the next minute's read rides those out
+DAILY_OUTAGE = 30 * 60
 # the backlog stops starting downloads this long before the next slot
 BACKLOG_MARGIN = timedelta(minutes=15)
 # seconds a backlog's last downloads may run past its budget; inside BACKLOG_MARGIN, so the
@@ -297,8 +300,9 @@ class Service:
 
     async def watch_dailies(self, *, sleep=asyncio.sleep, clock=time.monotonic):
         """Reads the open Dailies every DAILY_EVERY seconds, counted from each read's start,
-        skipping a turn while a Refresh runs. Failing reads reach ops once until one works."""
-        told = False
+        skipping a turn while a Refresh runs. Ops hears once reads have failed for
+        DAILY_OUTAGE, and again only after one has worked."""
+        failing_since, told = None, False
         while True:
             started = clock()
             if not self.daily_writers.locked():
@@ -311,14 +315,17 @@ class Service:
                     finally:
                         self.daily_running = False
                 self.daily_last = {"started": datetime.now(UTC).isoformat(), "exit": code}
-                if code and not told:
+                if not code:
+                    failing_since, told = None, False
+                elif failing_since is None:
+                    failing_since = started
+                if code and not told and clock() - failing_since >= DAILY_OUTAGE:
                     told = True
                     await self.alert(
-                        f"Collector: a Daily read failed (exit {code}); it tries again every"
-                        f" {DAILY_EVERY} s and says nothing more until one works."
+                        f"Collector: Daily reads have failed for {DAILY_OUTAGE // 60} minutes"
+                        f" (exit {code}); they go on every {DAILY_EVERY} s, and ops hears"
+                        " nothing more until one works."
                     )
-                elif not code:
-                    told = False
             await sleep(max(0.0, DAILY_EVERY - (clock() - started)))
 
     def status(self):
