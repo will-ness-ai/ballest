@@ -22,7 +22,7 @@ import {
   playersHref,
   prefabsHref,
 } from "../lib/routes";
-import { SITE_TITLE } from "../lib/rules";
+import { SITE_TITLE, SITE_WORDMARK } from "../lib/rules";
 
 export type View =
   | "board"
@@ -59,7 +59,10 @@ export async function Shell({ view, children }: { view: View; children: React.Re
       <header className="hdr">
         <Link className="brand" href={homeHref()}>
           <Rack />
-          <span className="wordmark">{SITE_TITLE}</span>
+          <span className="wordmark">
+            {SITE_WORDMARK[0]}
+            <em>{SITE_WORDMARK[1]}</em>
+          </span>
         </Link>
         <p className="tagline">Circuit and Workshop leaderboards</p>
         <Freshness refreshedAt={site.refreshedAt} mapsReadBy={site.mapsReadBy} />
@@ -74,8 +77,8 @@ export async function Shell({ view, children }: { view: View; children: React.Re
 
       <footer>
         <p>
-          Read straight from the Steam leaderboards for app 3339810, refreshed every few hours. A
-          fan project, not affiliated with the developer.
+          {SITE_TITLE} is read straight from the Steam leaderboards for Ballest of Them All (app
+          3339810), refreshed every few hours. A fan project, not affiliated with the developer.
         </p>
         <p>
           A top run shows the ball it was rolled with, read from its ghost. Any other marble takes

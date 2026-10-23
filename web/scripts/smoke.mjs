@@ -177,7 +177,7 @@ const ROUTES = [
   ["/players/circuit/pod", 200, null, '<link rel="canonical" href="' + ORIGIN + '/players"'],
   ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
   ["/", 200, null, '"@type":"WebSite"'],
-  ["/", 200, null, "<title>Ballest of Them All Records: "],
+  ["/", 200, null, "<title>BALLESTRECORDS: Ballest of Them All "],
   // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],

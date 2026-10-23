@@ -47,11 +47,18 @@
 .rack .marble + .marble {
   margin-inline-start: -7px;
 }
+/* one word in two tones: BALLEST in the text colour, RECORDS in lime; it never wraps, so the
+   brand's row gives way to it rather than splitting the name */
 .wordmark {
   font-family: var(--f-marquee);
   font-size: calc(13.5rem / 16);
   letter-spacing: 0.02em;
   line-height: 1.2;
+  white-space: nowrap;
+}
+.wordmark em {
+  font-style: normal;
+  color: var(--accent);
 }
 .tagline {
   display: none;

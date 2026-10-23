@@ -19,6 +19,7 @@ import {
   mapPfidOf,
   ord,
   ordSuffix,
+  pageTitle,
   pctOf,
   personaOf,
   plural,
@@ -50,6 +51,12 @@ import {
 } from "../lib/routes";
 
 const ID = "76561198259485267";
+
+describe("the site's name", () => {
+  test("ends every page's tab title", () => {
+    expect(pageTitle("Marble Run")).toBe("Marble Run · BALLESTRECORDS");
+  });
+});
 
 describe("a score's unit", () => {
   test("a run time is hundred-thousandths of a second, not milliseconds", () => {

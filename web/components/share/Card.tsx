@@ -10,7 +10,7 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
-import { SITE_NAME } from "../../lib/rules";
+import { SITE_WORDMARK } from "../../lib/rules";
 import type { ShareCard, ShareStat, Tone } from "../../lib/share";
 
 export const SHARE_ASSETS = join(process.cwd(), "assets", "share");
@@ -25,6 +25,7 @@ const C = {
   text: "#eaf0ff",
   dim: "#93a2c8",
   gold: "#ffd447",
+  accent: "#8be03c",
   author: "#5fd4ff",
   line: "rgba(150,175,245,0.18)",
   tile: "rgba(255,255,255,0.05)",
@@ -48,13 +49,14 @@ function Ball({ hue, size }: { hue: number; size: number }) {
   return <img src={ballSrc(hue)} width={size} height={size} alt="" />;
 }
 
-/* the brand's lime marble and the address */
+/* the brand's lime marble and the site's two-tone name, as the header draws it */
 function Brand({ size = 24 }: { size?: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
       <Ball hue={96} size={size} />
-      <div style={{ fontFamily: "Bungee", fontSize: size * 0.85, color: C.text, letterSpacing: 1 }}>
-        {SITE_NAME}
+      <div style={{ display: "flex", fontFamily: "Bungee", fontSize: size * 0.85, letterSpacing: 1 }}>
+        <span style={{ color: C.text }}>{SITE_WORDMARK[0]}</span>
+        <span style={{ color: C.accent }}>{SITE_WORDMARK[1]}</span>
       </div>
     </div>
   );

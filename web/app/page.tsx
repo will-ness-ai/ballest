@@ -15,9 +15,11 @@ import { SITE_NAME, SITE_TITLE } from "../lib/rules";
 import { SHELVES, picks, shelfMaps } from "../lib/workshop";
 
 /* The homepage is the one search result for the site's name, so its title says what the
-   site is; the tab keeps the game's name first. */
+   site is: the site's name, then the game whose boards it mirrors. */
 export const metadata: Metadata = {
-  title: { absolute: SITE_TITLE + " Records: Workshop, Circuit and Daily leaderboards" },
+  title: {
+    absolute: SITE_TITLE + ": Ballest of Them All Workshop, Circuit and Daily leaderboards",
+  },
   alternates: { canonical: homeHref() },
 };
 
@@ -26,8 +28,8 @@ export const metadata: Metadata = {
 const WEBSITE = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: "Ballest Records",
-  alternateName: SITE_NAME,
+  name: SITE_TITLE,
+  alternateName: ["Ballest Records", SITE_NAME],
   url: SITE_ORIGIN + homeHref(),
 });
 

@@ -51,7 +51,7 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Ballest of Them All: three marbles on a gold, silver and bronze podium.",
+        alt: "BALLESTRECORDS, leaderboards for Ballest of Them All: three marbles on a gold, silver and bronze podium.",
       },
     ],
   },
