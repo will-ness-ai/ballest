@@ -334,9 +334,12 @@ export const whyOf = (p: Pick, now: number) =>
 
 /* the homepage search: every Map with a time whose title or creator contains q, most runs
    first */
-export const searchMaps = (maps: ReadonlyArray<MapCard>, q: string) => {
+export const searchMaps = (maps: ReadonlyArray<MapCard>, q: string) =>
+  maps.filter(mapMatches(q)).sort(SORTS.runs.cmp);
+
+/* whether a Map's title or creator contains q: the homepage search's test, and All maps' when
+   the site search's link narrows it (/maps?q=) */
+export function mapMatches(q: string): (m: MapCard) => boolean {
   const t = q.trim().toLowerCase();
-  return maps
-    .filter((m) => (m.title + " " + m.creator).toLowerCase().includes(t))
-    .sort(SORTS.runs.cmp);
-};
+  return (m) => (m.title + " " + m.creator).toLowerCase().includes(t);
+}

@@ -8,6 +8,7 @@ import { Freshness } from "./Freshness";
 import { Rack } from "./Marble";
 import { SectionNav, SectionRows } from "./SectionNav";
 import { YouCard } from "./YouCard";
+import { SiteSearch } from "./search/SiteSearch";
 import { getCampaigns, getDailyDates, getSite, hasWorkshop } from "../db/data";
 import { navCampaigns, navOf, type NavFacts } from "../lib/nav";
 import { seasonsOf } from "../lib/player";
@@ -50,8 +51,8 @@ export async function Shell({ view, children }: { view: View; children: React.Re
   return (
     <div className="app" id="app" data-view={view}>
       {/* the bar, then Refreshed, then the two rows of links: a grid that puts Refreshed
-          under the bar on a phone and at the sub-tabs' end on a desktop. The bar leaves room
-          between the brand and You for the site search */}
+          under the bar on a phone and at the sub-tabs' end on a desktop. The site search sits
+          between the brand and You */}
       <header className="hdr">
         <div className="bar">
           <Link className="brand" href={homeHref()}>
@@ -61,7 +62,7 @@ export async function Shell({ view, children }: { view: View; children: React.Re
               <em>{SITE_WORDMARK[1]}</em>
             </span>
           </Link>
-          <YouCard />
+          <SiteSearch you={<YouCard />} />
         </div>
         <Freshness refreshedAt={site.refreshedAt} mapsReadBy={site.mapsReadBy} />
         <Suspense fallback={<SectionRows nav={navOf("", facts)} />}>

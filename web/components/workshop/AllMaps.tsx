@@ -2,13 +2,15 @@
 // All maps: every Map with a time, in one of the ready-made views (each its own link,
 // /maps/<view>) or narrowed further in the Refine panel, sixty at a time. The panel's
 // choices live in this page only; a view's link starts it over from its preset.
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useState } from "react";
 
 import { MapGrid } from "./Card";
 import { PillButton, PillLink, Pills } from "../Controls";
 import { useDialog } from "../Modal";
 import { useClock } from "../../hooks/client";
-import { mapsHref } from "../../lib/routes";
+import { MAPS_QUERY, mapsHref } from "../../lib/routes";
 import { plural } from "../../lib/rules";
 import {
   FILTERS,
@@ -19,6 +21,7 @@ import {
   VIEWS,
   activeFilters,
   filteredMaps,
+  mapMatches,
   refineFor,
   sameRefine,
   type MapCard,
@@ -90,16 +93,31 @@ function Drawer({
   );
 }
 
+/* the address's ?q= (the site search's "All N Maps matching"), handed up as it changes. The
+   page is prerendered without it, so only this reads it, inside its own Suspense: the grid
+   renders on the server whole, and narrows once the browser has the address */
+function ReadQuery({ set }: { set: (q: string) => void }) {
+  const q = useSearchParams().get(MAPS_QUERY) ?? "";
+  useLayoutEffect(() => {
+    set(q.trim());
+  }, [q, set]);
+  return null;
+}
+
 export function AllMaps({
   maps,
   view,
   asOf,
+  query: initial = "",
 }: {
   maps: ReadonlyArray<MapCard>;
   view: string | null;
   asOf: number;
+  /* the query the address names, until ReadQuery has read it */
+  query?: string;
 }) {
   const now = useClock(asOf);
+  const [query, setQuery] = useState(initial);
   const [f, setF] = useState(() => refineFor(view));
   const [shown, setShown] = useState(MAPS_CHUNK);
   const [open, setOpen] = useState(false);
@@ -116,11 +134,15 @@ export function AllMaps({
     },
     [view],
   );
-  const list = filteredMaps(maps, f, now),
+  const refined = filteredMaps(maps, f, now),
+    list = query ? refined.filter(mapMatches(query)) : refined,
     n = activeFilters(f).length;
   const stat = (m: MapCard) => SORTS[f.sort].stat(m, now);
   return (
     <>
+      <Suspense>
+        <ReadQuery set={setQuery} />
+      </Suspense>
       <div className="ws-head">
         <span className="ws-count">{plural(maps.length, "map", "maps")} with a time</span>
       </div>
@@ -143,7 +165,15 @@ export function AllMaps({
         </button>
       </div>
       <p className="ws-note">
-        {plural(list.length, "map", "maps")} &middot; {SORTS[f.sort].label.toLowerCase()} first
+        {plural(list.length, "map", "maps")}
+        {query ? <> matching &ldquo;{query}&rdquo;</> : null} &middot;{" "}
+        {SORTS[f.sort].label.toLowerCase()} first
+        {query ? (
+          <>
+            {" "}
+            &middot; <Link href={mapsHref(view)}>Show every map</Link>
+          </>
+        ) : null}
       </p>
       {list.length ? (
         <>

@@ -173,6 +173,14 @@ export const prefabLimitHref = (id: string) => (isSteamId(id) ? "/api/prefab-lim
 export const chosenSkinApiHref = () => "/api/me/skin";
 
 export const mapsHref = (view?: string | null) => "/maps" + (view ? "/" + view : "");
+/* All maps narrowed to the Maps whose title or maker contains `q` (the site search's "All N
+   Maps matching") */
+export const MAPS_QUERY = "q";
+export const mapsSearchHref = (q: string) =>
+  mapsHref() + "?" + new URLSearchParams({ [MAPS_QUERY]: q }).toString();
+
+/* the site search's read (app/api/search) */
+export const searchApiHref = (q: string) => "/api/search?" + new URLSearchParams({ q }).toString();
 
 /* a Daily's date as its path names it: a real day, YYYY-MM-DD */
 export const DAILY_DATE = /\d{4}-\d{2}-\d{2}/;

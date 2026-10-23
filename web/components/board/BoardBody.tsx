@@ -107,7 +107,7 @@ const PodRow = memo(function PodRow({ p }: { p: PodiumRow }) {
       </span>
       <span className="c-score">
         <span>{podiumTotal(p)}</span>
-        <i className="pill"></i>
+        <i className="hue-pill"></i>
       </span>
     </div>
   );

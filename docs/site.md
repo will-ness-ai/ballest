@@ -25,6 +25,8 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     the Section it is in, that Section's sub-tabs with the lit one, the kind of page and its
     breadcrumb trail ("The header"), and `crumbsOf`, the breadcrumb a page draws with the
     page the reader came from as its parent ("How a page opens").
+  - `search.ts`, the site search: what a query finds, how each hit scores, and how the
+    results are grouped under the filter chips ("Search").
   - `circuit.ts`, the Circuit's fixed facts: the board order (the in-game numbering), the
     Season 2 tiers, each Track's screenshot and Medal times.
   - `campaigns.ts`, the curated Campaigns and their lookups (below, "Campaigns").
@@ -226,7 +228,9 @@ fails to load, or that Satori can't read, draws without it.
 - `/` — the Workshop homepage: the carousel, the Campaigns' carousel, the shelves and the
   search.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
-  (`lib/workshop.ts`).
+  (`lib/workshop.ts`). `?q=` narrows it to the Maps whose title or maker contains the query
+  (the site search's "All N Maps matching", `mapsSearchHref`); the page is prerendered
+  without it and narrows once the browser reads the address.
 - `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row, and
   `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D"). A Map nobody has a
   time on yet, such as one added from #new-tracks since the last Refresh (`docs/data.md`,
@@ -454,7 +458,7 @@ site's name first, then the game it mirrors.
 
 The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's variant D), one grid:
 
-- **The bar**: the wordmark and You's card, with room between them for the site search.
+- **The bar**: the wordmark and You's card, with the site search between them ("Search").
 - **The Sections** (`CONTEXT.md`), as tabs with icons, the current one underlined in lime:
   Maps (the homepage), Campaigns, Daily, Circuit (its newest season's Overall board),
   Players and Prefabs. One with nothing in it yet (no Workshop, no Daily, no seasons) is left
@@ -491,6 +495,48 @@ that player has no page to sign out from (everyone else signs out on their own p
 reads You from `useYou` (`hooks/me.ts`), which asks `/api/me` and reads your record once
 per page load and shares them with every view of You, and it draws nothing until the
 browser can tell, so a signed-in visitor never sees Sign in first.
+
+## Search
+
+One field in the bar finds players and Map makers, Maps, Campaigns, Circuit Tracks, Dailies
+and Prefabs (spec #339, round 2's filter chips; ticket #342).
+
+- **The read**: `GET /api/search?q=` (`app/api/search/route.ts`). The query is trimmed,
+  lowercased and cut to 64 characters (`searchTerm`), and an empty one answers `null`. Players
+  come from the fresh player search (`searchPlayers`, the Compare dialog's), and everything else
+  from the cached lists the pages already read: makers and Maps from the Map cards (Maps through
+  `searchMaps`, title or maker), Campaigns from `getCampaigns`, Tracks from the Circuit boards,
+  Dailies and Prefabs from their lists. So a search costs one query plus cached reads.
+- **What it finds, and in what order** is pure, `searchAll` in `lib/search.ts`: within each
+  kind an exact name first, then a name that starts with the query, a word that does, then a
+  contains, with popularity (runs, players, Maps made, favorites) breaking a tie. A Map found
+  by its maker's name, a Prefab by a tag or a Track by its season's name rank lower than one
+  found by its own. A maker every Map card names gets a hit with how many Maps they made, and
+  one on no board links to their Made tab. The answer carries ten of each kind (`PER_KIND`)
+  and `mapTotal`, every Map that matched.
+- **The results** drop down under the field (`components/search/SearchBar.tsx`, a client
+  island that `SiteSearch` gives the jump-to links). `resultsOf` lays an answer out: chips for
+  All and each kind found, the kind whose best hit matches best first, each with its count (the
+  Maps chip counts `mapTotal`); All shows three of each kind under a heading, a chip every hit
+  of its kind; "All N Maps matching …" links to All maps narrowed by the query whenever more
+  Maps matched than are shown. Each hit shows its picture (a Map's preview, a player's marble,
+  or its Section's mark), its name with the part typed in lime (`marked`), a line about it and
+  its kind. With nothing typed it offers jump-to links (`jumpsOf`): the newest Daily ("Today's"
+  while it is open), the newest Circuit season, and the two most played Campaigns. No hits
+  says "Nothing called …".
+- **Keys**: "/" (outside a text field) or Ctrl/Cmd K puts the keyboard in the field, or opens
+  the sheet where the field is hidden; a page Next keeps hidden after leaving it shows neither,
+  so its header ignores the keys. ↑/↓ move through the hits (round the ends), Enter opens the
+  selected one or the first, Esc closes, and so does a press outside the field and its
+  results, or leaving the page. The field is a labelled combobox whose results are a listbox of
+  options, the selected one its active descendant, and a status line says how many hits there
+  are.
+- **A phone** gets a search button beside You's card instead of the field (the two wrap as
+  one when the bar is too narrow for the brand beside them), which opens the same search as a
+  full-screen sheet: a native `<dialog>` through `useDialog`, the field focused at its top.
+- `qa`'s `search-empty`, `search` (typing "sol") and `search-sheet` states draw it; the two
+  on the desktop's field are `wide`, as the field shows only there. The dropdown carries
+  `data-layer`, so qa's overlap probe reads only the text inside it while it is open.
 
 ## How a page opens
 

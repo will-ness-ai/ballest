@@ -27,6 +27,9 @@ const ROUTES = [
   ["/maps/new", 200],
   ["/maps/nope", 404],
   ["/api/maps?q=marble", 200, null, "Marble Run"],
+  // the site search: a player and their Map, and nothing for an empty query
+  ["/api/search?q=tenpin", 200, null, "Marble Run"],
+  ["/api/search?q=", 200, null, "null"],
   ["/board/Map_Track13", 200, null, "Rolling Rae"],
   ["/board/Map_Track13/" + P1, 200],
   ["/board/OverallLeaderboard_EASeason2", 200],

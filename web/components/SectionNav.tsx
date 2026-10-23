@@ -63,7 +63,7 @@ function useLitInView(on: string | null) {
   return row;
 }
 
-/* each Section's mark, drawn in the text colour */
+/* each Section's mark, drawn in the text colour; the site search marks its hits with them */
 const ICONS: Record<SectionKey, string> = {
   maps: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
   campaigns: "M5 21V4M5 4h11l-2 4 2 4H5",
@@ -74,7 +74,7 @@ const ICONS: Record<SectionKey, string> = {
     "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14a5.5 5.5 0 0 1 3.5 6",
   prefabs: "M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5",
 };
-function SectionIcon({ k }: { k: SectionKey }) {
+export function SectionIcon({ k }: { k: SectionKey }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d={ICONS[k]} />
