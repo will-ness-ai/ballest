@@ -557,8 +557,9 @@ describe("the track pieces", () => {
     expect(r.d).toBeCloseTo(l.d);
     const ys = (turn: string) =>
       slabs(make("corner", { turn, walls: false })).map((it) => it.transform.location[1]);
-    expect(Math.max(...ys("Left"))).toBeGreaterThan(500);
-    expect(Math.min(...ys("Right"))).toBeLessThan(-500);
+    /* the editor's camera looks along +X with +Y on its right */
+    expect(Math.max(...ys("Right"))).toBeGreaterThan(500);
+    expect(Math.min(...ys("Left"))).toBeLessThan(-500);
   });
 
   test("a banked turn tips in toward its middle, and lies flat where it starts and ends", () => {

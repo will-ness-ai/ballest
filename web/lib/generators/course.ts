@@ -36,8 +36,9 @@ import {
   type Track,
 } from "./track";
 
-const LEFT = Math.PI / 2;
-const RIGHT = -Math.PI / 2;
+/* to the right is toward +Y (lib/generators/track.ts, Frame) */
+const RIGHT = Math.PI / 2;
+const LEFT = -Math.PI / 2;
 
 interface Fork {
   arm: number;
@@ -49,20 +50,20 @@ interface Fork {
   fall: number;
   post: Colour;
 }
-/* a T junction splitting the track left and right, each way turning back to run ahead, then
+/* a T junction splitting the track right and left, each way turning back to run ahead, then
    in again to a second T that joins them and carries on the way the first came in */
 function fork(t: Track, flat: Track, bumpy: Track, f: Fork, steps: number): Section {
   const split = tee(t, { arm: f.arm, stem: f.stem, post: f.post });
   const way = (out: number, middle: Section, tw: Track) =>
-    chain(split.exits[out === LEFT ? 0 : 1], [
+    chain(split.exits[out === RIGHT ? 0 : 1], [
       bend(tw, { radius: f.radius, angle: -out, rise: -f.fall / 2, ease: true, steps }),
       middle,
       bend(tw, { radius: f.radius, angle: -out, rise: -f.fall / 2, ease: true, steps }),
     ]);
-  const left = way(LEFT, straight(flat, f.middle), flat);
-  const right = way(RIGHT, rollers(bumpy, f.middle, 2, 80), bumpy);
+  const right = way(RIGHT, straight(flat, f.middle), flat);
+  const left = way(LEFT, rollers(bumpy, f.middle, 2, 80), bumpy);
   /* the second T, turned round: its arms take the two ways in, its stem leads on */
-  const crossing = left.exits[0].p;
+  const crossing = right.exits[0].p;
   const out = {
     p: [crossing[0] + f.stem + t.width / 2, 0, crossing[2]] as typeof crossing,
     yaw: 0,
@@ -80,19 +81,19 @@ export function course(t: Track, other: Track, post: Colour, column: Colour, ste
     (u) => straight(u, 1400, -400),
     (u) => bend(u, { radius: 800, angle: -Math.PI, rise: -100, bank: 30 * DEG, ease: true, steps }),
     (u) => rollers(u, 1800, 3, 100),
-    (u) => bend(u, { radius: 600, angle: LEFT, rise: -50, ease: true, steps }),
+    (u) => bend(u, { radius: 600, angle: RIGHT, rise: -50, ease: true, steps }),
     (u) => jump(u, { runup: 400, kick: 20 * DEG, gap: 500, drop: 150, landing: 1000 }),
     (u) => straight(u, 1000, 150),
     (u) =>
       fork(u, other, t, { arm: 300, stem: 200, radius: 400, middle: 800, fall: 100, post }, steps),
-    (u) => bend(u, { radius: 600, angle: RIGHT, steps }),
+    (u) => bend(u, { radius: 600, angle: LEFT, steps }),
     (u) =>
       spiral(u, { radius: 600, turns: 1.5, drop: 400, bank: 10 * DEG, ease: true, steps, column }),
     (u) => straight(u, 1200, -200),
     (u) => straight(u, 600),
     (u) => loop(u, 400, 32),
     (u) => sBend(u, 1000, 400, steps),
-    (u) => bend(u, { radius: 600, angle: LEFT, bank: 20 * DEG, ease: true, steps }),
+    (u) => bend(u, { radius: 600, angle: RIGHT, bank: 20 * DEG, ease: true, steps }),
     /* the run to the finish passes under the first banked turn */
     (u) => straight(u, 9200),
   ];

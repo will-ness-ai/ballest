@@ -87,7 +87,7 @@ const bendIn = (v: Values, bank?: number) =>
   standing(
     bend(trackIn(v), {
       radius: radiusIn(v),
-      angle: (v.turn === "Right" ? -1 : 1) * numberIn(v, "angle") * DEG,
+      angle: (v.turn === "Left" ? -1 : 1) * numberIn(v, "angle") * DEG,
       rise: riseIn(v, mostRise(bendLength(v))),
       bank,
       ease: true,
@@ -180,7 +180,7 @@ export const sBendGen: Generator = {
     const most = Math.min(10, numberIn(v, "length"));
     return [
       num("length", "Length", 4, 40, 1, "m"),
-      num("shift", "Shift to the left (below 0 right)", -most, most, 0.5, "m"),
+      num("shift", "Shift to the right (below 0 left)", -most, most, 0.5, "m"),
       num("steps", "Pieces a turn", 12, 64, 1, undefined, true),
       ...raisedControls(v),
     ];
@@ -256,7 +256,7 @@ export const spiral: Generator = {
     const r = radiusIn(v);
     const turns = numberIn(v, "turns");
     const top = THICK + metresIn(v, "drop") * turns;
-    /* it starts on the camera's side (-X) and winds anticlockwise seen from above */
+    /* it starts on the camera's side (-X) and winds to the right */
     const p = placed(
       spiralSection(trackIn(v), {
         radius: r,

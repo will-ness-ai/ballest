@@ -25,14 +25,14 @@ describe("the sections", () => {
     const corner = bend(T, { radius: 600, angle: Math.PI / 2 }).exits[0];
     near(corner.p, [600, 600, 0]);
     expect(corner.yaw).toBeCloseTo(Math.PI / 2);
-    const right = bend(T, { radius: 600, angle: -Math.PI / 2, rise: 100 }).exits[0];
-    near(right.p, [600, -600, 100]);
+    const left = bend(T, { radius: 600, angle: -Math.PI / 2, rise: 100 }).exits[0];
+    near(left.p, [600, -600, 100]);
     const s = sBend(T, 1200, -400).exits[0];
     near(s.p, [1200, -400, 0]);
     expect(s.yaw).toBeCloseTo(0);
-    const [left, rightArm] = tee(T, { arm: 400, stem: 300 }).exits;
-    near(left.p, [450, 400, 0]);
-    near(rightArm.p, [450, -400, 0]);
+    const [right, leftArm] = tee(T, { arm: 400, stem: 300 }).exits;
+    near(right.p, [450, 400, 0]);
+    near(leftArm.p, [450, -400, 0]);
   });
 
   test("one after another start each where the last came out", () => {

@@ -37,7 +37,8 @@ export interface Track {
   walls?: Colour;
 }
 /* where a section starts, or a way out of one: a point on the surface and the heading, in
-   radians anticlockwise from +X seen from above */
+   radians from +X toward +Y. Unreal's axes are left-handed: the editor's camera looks along +X
+   with +Y on its right, so a heading growing from 0 turns right */
 export interface Frame {
   p: V3;
   yaw: number;
@@ -255,7 +256,7 @@ export const mostRise = (length: number) => (2 * length) / Math.PI;
 
 export interface Bend {
   radius: number;
-  /* radians, anticlockwise (to the left) above 0 and clockwise below; past a whole turn it winds */
+  /* radians, to the right (toward +Y) above 0 and to the left below; past a whole turn it winds */
   angle: number;
   rise?: number;
   /* radians, the surface tipped toward the middle of the bend */
@@ -300,7 +301,7 @@ export function bend(t: Track, b: Bend): Section {
   };
 }
 
-/* an S: a bend one way and the same bend back, `shift` to the left (right below 0) over
+/* an S: a bend one way and the same bend back, `shift` to the right (left below 0) over
    `length`, so it comes out heading the way it went in */
 export function sBend(t: Track, length: number, shift: number, steps = 24): Section {
   if (Math.abs(shift) < 1) return straight(t, length);
@@ -326,7 +327,7 @@ export interface Spiral {
   /* from flat and level at either end, to meet flat pieces */
   ease?: boolean;
 }
-/* a bend winding down to the left round and round, too tight for legs, so on its column */
+/* a bend winding down to the right round and round, too tight for legs, so on its column */
 export function spiral(t: Track, x: Spiral): Section {
   const s = bend(t, {
     radius: x.radius,
@@ -346,7 +347,7 @@ export function spiral(t: Track, x: Spiral): Section {
 }
 
 /* a loop-the-loop of radius R: once round, its surface facing the middle, drifting smoothly to
-   the left so it comes out beside where it went in, a wall's gap over */
+   the right so it comes out beside where it went in, a wall's gap over */
 export function loop(t: Track, R: number, n = 32): Section {
   const off = t.width + 2 * WALL_T + 40;
   const ring: Array<Stop> = Array.from({ length: n + 1 }, (_, i) => {
@@ -450,8 +451,9 @@ export interface Tee {
   /* a post where the stem meets the far wall, to send a ball left or right */
   post?: Colour;
 }
-/* a T: a stem from the start into the middle of a crossing track, its arms going off left and
-   right, a wall all along the far side and on the near side either side of the stem */
+/* a T: a stem from the start into the middle of a crossing track, its arms going off right and
+   left (the first way out the right), a wall all along the far side and on the near side
+   either side of the stem */
 export function tee(t: Track, j: Tee): Section {
   const w = t.width;
   const mid = j.stem + w / 2;
