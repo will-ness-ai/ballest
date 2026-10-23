@@ -26,7 +26,9 @@
   background: none;
   color: var(--dim);
   font: 600 calc(13rem / 16) / 1.5 var(--f-body);
-  white-space: nowrap;
+  /* a row wraps whole pills first; only one wider than the row (a long name) wraps inside */
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
   text-decoration: none;
   cursor: pointer;
 }
