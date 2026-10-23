@@ -53,7 +53,7 @@ export const trackIn = (v: Values, key = "track"): Track => ({
   track: colourIn(v, key),
   walls: v.walls ? colourIn(v, "wallc") : undefined,
 });
-const radiusIn = (v: Values) => bendRadius(trackIn(v), metresIn(v, "radius"));
+const radiusIn = (v: Values) => bendRadius(metresIn(v, "width"), metresIn(v, "radius"));
 
 /* a piece on its own, its lowest stretch of track `raised` up, legs under whatever is off the
    floor */
@@ -79,7 +79,7 @@ const riseControl = (most: number, more = false) => {
   return num("rise", "Rise (below 0 falls)", -m, m, 0.5, "m", more);
 };
 const riseIn = (v: Values, most: number) => Math.max(-most, Math.min(most, metresIn(v, "rise")));
-/* a bend's centreline length: an eased rise is held to 45° as a Straight's is */
+/* a bend's centreline length, for the most it may rise (mostRise, as a Straight's) */
 const bendLength = (v: Values) => radiusIn(v) * numberIn(v, "angle") * DEG;
 /* a Corner, or with banking a Banked turn */
 const bendIn = (v: Values, bank?: number) =>

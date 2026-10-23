@@ -35,6 +35,22 @@ describe("the sections", () => {
     near(leftArm.p, [450, -400, 0]);
   });
 
+  test("an S-bend too tight for its track keeps its length and shifts less", () => {
+    const wide: Track = { ...T, width: 800 };
+    const out = sBend(wide, 400, 400).exits[0];
+    expect(out.p[0]).toBeCloseTo(400, 3);
+    expect(out.p[1]).toBeGreaterThan(0);
+    expect(out.p[1]).toBeLessThan(400);
+    expect(out.yaw).toBeCloseTo(0);
+  });
+
+  test("a rising bend tips back as it climbs, as a straight does", () => {
+    const stops = bend(T, { radius: 600, angle: Math.PI / 2, rise: 400, ease: true }).runs[0].stops;
+    const mid = stops[Math.floor(stops.length / 2)];
+    const ahead = [Math.cos(Math.PI / 4), Math.sin(Math.PI / 4)];
+    expect(mid.up[0] * ahead[0] + mid.up[1] * ahead[1]).toBeLessThan(-0.3);
+  });
+
   test("one after another start each where the last came out", () => {
     const c = chain(START, [straight(T, 1000, -200), bend(T, { radius: 500, angle: Math.PI })]);
     const [a, b] = c.runs;

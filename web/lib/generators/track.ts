@@ -50,7 +50,7 @@ interface Run {
   over: number;
   /* walls along both sides (a junction builds its own round its openings) */
   walls: boolean;
-  /* legs can stand under it (not round a loop, nor a spiral, which has its column) */
+  /* legs can stand under it (not a spiral, which has its column) */
   legs: boolean;
 }
 /* a column from the floor up to `top`, `d` across */
@@ -68,12 +68,12 @@ export interface Section {
   /* the ways out, the first the one a course carries on along */
   exits: Array<Frame>;
 }
-const run = (stops: Array<Stop>, t: Track, over = 2, legs = true): Run => ({
+const run = (stops: Array<Stop>, t: Track, over = 2): Run => ({
   stops,
   t,
   over,
   walls: true,
-  legs,
+  legs: true,
 });
 const UP: V3 = [0, 0, 1];
 export const START: Frame = { p: [0, 0, 0], yaw: 0 };
@@ -170,14 +170,14 @@ function samplesOf(runs: Array<Run>) {
   }
   return out;
 }
-/* along its own run, the track this near a leg is the stretch it holds up, sloping or banked
-   past it, not track underneath */
+/* along its own run, the track this near a leg and in the plane of the slab over it is the
+   stretch it holds up, sloping or banked past it, not track underneath */
 const OWN = 1000;
+const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
 /* what holds a section up off the floor (z = 0): its pillars, and pairs of legs to the slabs'
    undersides, one pair near each end of a run and at least every 4 m between, wherever the
-   surface faces more up than sideways (not round a loop's top) and no other track runs
-   underneath */
+   surface is within 60° of level (not round a loop's top) and no other track runs underneath */
 export function supportsOf(s: Section, c: Colour): Array<PrefabItem> {
   const under = samplesOf(s.runs);
   const feet: Array<V3> = [];
@@ -202,7 +202,7 @@ export function supportsOf(s: Section, c: Colour): Array<PrefabItem> {
       const f = Math.min(1, d / lens[i]);
       const p = add(a.p, mul(sub(b.p, a.p), f));
       const up = norm(add(mul(a.up, 1 - f), mul(b.up, f)));
-      if (up[2] < 0.3) continue;
+      if (up[2] < 0.5) continue;
       const side = norm(cross(up, sub(b.p, a.p)));
       for (const e of [-1, 1]) {
         const edge = add(p, mul(side, e * (r.t.width / 2 - LEG / 2 - 5)));
@@ -211,7 +211,9 @@ export function supportsOf(s: Section, c: Colour): Array<PrefabItem> {
         const top = edge[2] - THICK / up[2] - (LEG / 2) * tilt;
         const clear = under.every(
           (q) =>
-            (q.run === r && Math.abs(q.along - along) < OWN) ||
+            (q.run === r &&
+              Math.abs(q.along - along) < OWN &&
+              Math.abs(dot(sub(q.p, p), up)) < THICK + WALL) ||
             q.p[2] > top - 20 ||
             Math.hypot(q.p[0] - edge[0], q.p[1] - edge[1]) > r.t.width / 2 + WALL_T + LEG,
         );
@@ -275,10 +277,10 @@ export interface Bend {
   steps?: number;
 }
 /* a bend's centreline radius, at least far enough out that its inner edge clears the middle */
-export const bendRadius = (t: Track, radius: number) => Math.max(radius, t.width / 2 + 50);
+export const bendRadius = (width: number, radius: number) => Math.max(radius, width / 2 + 50);
 /* a bend round a circle `radius` out to its centreline, rising evenly as it goes (or eased) */
 export function bend(t: Track, b: Bend): Section {
-  const R = bendRadius(t, b.radius);
+  const R = bendRadius(t.width, b.radius);
   const s = Math.sign(b.angle) || 1;
   const A = Math.abs(b.angle);
   const rise = b.rise ?? 0;
@@ -289,13 +291,18 @@ export function bend(t: Track, b: Bend): Section {
     const inward: V3 = [-Math.sin(a), s * Math.cos(a), 0];
     const ramp = b.ease ? Math.min(1, 3 * Math.min(i / n, 1 - i / n)) : 1;
     const k = (b.bank ?? 0) * ramp;
+    /* the rise's slope here, so the surface also tips back as it climbs, as a Straight's does */
+    const slope = b.ease
+      ? ((rise * Math.PI) / (2 * R * A)) * Math.sin((Math.PI * i) / n)
+      : rise / (R * A);
+    const ahead: V3 = [Math.cos(a), s * Math.sin(a), 0];
     return {
       p: [
         R * Math.sin(a),
         s * R * (1 - Math.cos(a)),
         b.ease ? (rise * (1 - Math.cos((Math.PI * i) / n))) / 2 : (rise * i) / n,
       ],
-      up: norm(add([0, 0, Math.cos(k)], mul(inward, Math.sin(k)))),
+      up: norm(add(add([0, 0, Math.cos(k)], mul(inward, Math.sin(k))), mul(ahead, -slope))),
     };
   });
   /* the outer edge's chord is longer than the centreline's by (R + w/2) / R */
@@ -309,11 +316,14 @@ export function bend(t: Track, b: Bend): Section {
 }
 
 /* an S: a bend one way and the same bend back, `shift` to the right (left below 0) over
-   `length`, so it comes out heading the way it went in */
+   `length`, so it comes out heading the way it went in; a shift that would bend tighter than the
+   track's width allows shifts only as far as the tightest bend does */
 export function sBend(t: Track, length: number, shift: number, steps = 24): Section {
   if (Math.abs(shift) < 1) return straight(t, length);
-  const angle = 2 * Math.atan(Math.abs(shift) / length);
-  const radius = bendRadius(t, length / (2 * Math.sin(angle)));
+  const tight = bendRadius(t.width, 0);
+  let angle = 2 * Math.atan(Math.abs(shift) / length);
+  if (length / (2 * Math.sin(angle)) < tight) angle = Math.asin(Math.min(1, length / (2 * tight)));
+  const radius = Math.max(tight, length / (2 * Math.sin(angle)));
   const s = Math.sign(shift);
   return chain(START, [
     bend(t, { radius, angle: s * angle, steps }),
@@ -344,7 +354,7 @@ export function spiral(t: Track, x: Spiral): Section {
     ease: x.ease,
     steps: x.steps,
   });
-  const R = bendRadius(t, x.radius);
+  const R = bendRadius(t.width, x.radius);
   const d = Math.max(40, 2 * (R - t.width / 2) - 60);
   return {
     ...s,
