@@ -6,7 +6,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
 
 ## Where things live
 
-- `web/app/` — the routes. Each page renders `<Shell view>` (the header, the tabs and the
+- `web/app/` — the routes. Each page renders `<Shell view>` (the header and the
   footer) around a `<Suspense>` whose fallback is that view's skeleton, and reads its
   params inside the boundary, so a page whose params weren't prerendered is served from
   its static shell at once. `app/api/` holds the few reads a page makes after it has
@@ -19,8 +19,11 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `rules.ts`, the page's invariants and formatting: score units (`SCORE_TICKS_PER_SECOND`),
     `isPoints`, `isSteamId`, Medal tiers, times and ages.
   - `routes.ts`, every URL the site links to, what each path segment may be (the proxy and
-    the pages check a path with the same predicates), which tab a path lights, and how an
+    the pages check a path with the same predicates) and how an
     old `#/` link maps onto one.
+  - `nav.ts`, the navigation model (`navOf`): from a path and a few facts from the database,
+    the Section it is in, that Section's sub-tabs with the lit one, the kind of page and its
+    breadcrumb trail ("The header").
   - `circuit.ts`, the Circuit's fixed facts: the board order (the in-game numbering), the
     Season 2 tiers, each Track's screenshot and Medal times.
   - `campaigns.ts`, the curated Campaigns and their lookups (below, "Campaigns").
@@ -230,20 +233,20 @@ fails to load, or that Satori can't read, draws without it.
   show only Maps with times. A Map the Workshop doesn't list sends the link home.
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
-  cannot collide. Every Circuit board lights the one Circuit tab, which opens the newest
-  season's Overall board. The seasons, newest first then All Seasons (`seasonsOf` in
-  `lib/player.ts`), are a row of sub-tabs under the tabs on a desktop and a chip beside
+  cannot collide. Every Circuit board lights the Circuit Section, which opens the newest
+  season's Overall board, and its own season among the sub-tabs. The seasons, newest first then All Seasons (`seasonsOf` in
+  `lib/player.ts`), are also a row of sub-tabs above the board on a desktop and a chip beside
   the board button on a phone, whose menu gives each season's Tracks and field. Each
   season opens its Overall board.
 - `/campaign/<slug>`: a Campaign's Overall board, with the same optional `/<steam_id>` or
   `/podiums`, or `/campaign/<slug>/<pfid>` for one of its Maps inside the Campaign's frame,
   as a Track opens inside its season, or `/campaign/<slug>/<event>[/<steam_id>]` for one of
   its Event boards, the only Map slot that takes a row (a Workshop Map's row is on its own
-  page). Lights the Workshop tab. The proxy 404s a slug that
+  page). Lights the Campaigns Section. The proxy 404s a slug that
   isn't curated, or anything after it but those; how the page is built is under
   "Campaigns".
 - `/campaigns`: every Campaign as a banner, most players first, two across on a desktop
-  and one on a phone. Prerendered; lights the Workshop tab.
+  and one on a phone. Prerendered; lights the Campaigns Section.
 - `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/circuit`, `/workshop`,
   `/made`). Without one the page opens on Workshop for anyone with a Workshop time, else
   Circuit.
@@ -258,8 +261,8 @@ fails to load, or that Satori can't read, draws without it.
   Every day links to its own page: on a desktop the calendar of months (`calendarOf`)
   sits beside the day's panel and stays put while the board scrolls; on a phone a strip
   of days under the tabs, newest at the right and opened on the picked day, stands over
-  the panel, and its Calendar button opens the same months over the page. The Daily tab
-  follows the Workshop's and is lit on every `/daily` path.
+  the panel, and its Calendar button opens the same months over the page. The Daily
+  Section is lit on every `/daily` path.
 - `/daily/standings`: the all-time Daily standings, behind the Days | Standings switch at
   the top of the Daily page, over final Dailies only (`standingsOf` in `lib/daily.ts`), so
   the live Daily joins once it closes. A card per record (most wins, podiums and Dailies
@@ -269,7 +272,7 @@ fails to load, or that Satori can't read, draws without it.
   "Show all". A phone drops its Podiums and Top 10 columns. Names link to the player's
   Daily tab.
 - `/you`: Where you stand, You on the four Workshop standings (spec #221), linked from the
-  Players table and the Daily Report's button, and lighting the Players tab. A ladder card
+  Players table and the Daily Report's button, and lighting the Players Section. A ladder card
   per list, stacked on a phone, two by two and then four across on the desktop layout: the
   top 3, a gap, two above You, You, one below (unbroken in or near the top 5), each row
   with +N since the baseline and its places moved, then "N more to pass X" (the nearest player with a strictly higher count) or "You
@@ -288,7 +291,7 @@ fails to load, or that Satori can't read, draws without it.
   a signed-in visitor never sees Sign in.
 - `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
   upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators. The Prefabs
-  tab comes last and is lit on all of them. See "Prefabs" and "Generators".
+  Section comes last and is lit on all of them. See "Prefabs" and "Generators".
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
 it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board, Map or
@@ -446,18 +449,43 @@ is the game's name and stays wherever it means the game (descriptions, the foote
 wordmark beside the marble rack is that name as one word in Bungee, BALLEST in the text colour
 and RECORDS in lime (`SITE_WORDMARK`), and never wraps. It links home. Every tab title ends
 "· BALLESTRECORDS" (`pageTitle`), and the homepage's title and its `WebSite` JSON-LD say the
-site's name first, then the game it mirrors. The refresh time under it is a button that opens a dialog on how
-the boards refresh: a static table of how long a change takes to show on Circuit and
-Workshop boards, and when every Map was last read in full. The table restates
-`collect_workshop`'s rules, so a change to when the collector reads a board changes that
-copy too (`components/Freshness.tsx`). Ages are worked out in the browser, so a page cached
-hours ago still says how old the boards are now.
+site's name first, then the game it mirrors.
 
-You's card sits at the top right (`components/YouCard.tsx`): your marble and name, with your
+The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's variant D), one grid:
+
+- **The bar**: the wordmark and You's card, with room between them for the site search.
+- **The Sections** (`CONTEXT.md`), as tabs with icons, the current one underlined in lime:
+  Maps (the homepage), Campaigns, Daily, Circuit (its newest season's Overall board),
+  Players and Prefabs. One with nothing in it yet (no Workshop, no Daily, no seasons) is left
+  out.
+- **The Section's sub-tabs**, as pills, the current one lit: Featured / All Maps; All
+  Campaigns and the four most-played Campaigns (`navCampaigns`); Today / Standings; each
+  season; Rankings / Where you stand; Shared / Make your own / Upload. Every page of a
+  Section lights one: a Map lights All Maps, a Campaign's Map its Campaign (or All Campaigns
+  when the sub-tabs don't name it), a Circuit board its own season, a player's page and a
+  head to head the Rankings.
+
+What each row holds and which link is lit come from one pure model, `navOf` in `lib/nav.ts`,
+read from the path and `NavFacts` (the four the database knows); it also gives the kind of
+page and its breadcrumb trail (the Section, the lit sub-tab, then a Campaign Map's Campaign,
+without the page itself), which the page heading draws. Both rows are links marked
+`aria-current="page"` inside labelled `nav` landmarks, drawn by `components/SectionNav.tsx`
+from `usePathname`; until the path is known the Sections show unlit and the sub-tabs' row
+keeps its height. On a phone each row scrolls sideways rather than wrap, fading out on the
+side with more links and keeping the lit one in view; on a desktop every link fits.
+
+The refresh time sits under the bar on a phone and at the sub-tabs' end on a desktop. It is a
+button that opens a dialog on how the boards refresh: a static table of how long a change
+takes to show on Circuit and Workshop boards, and when every Map was last read in full. The
+table restates `collect_workshop`'s rules, so a change to when the collector reads a board
+changes that copy too (`components/Freshness.tsx`). Ages are worked out in the browser, so a
+page cached hours ago still says how old the boards are now.
+
+You's card sits at the bar's end (`components/YouCard.tsx`): your marble and name, with your
 All Seasons place and Maps finished on a desktop, linking to your page. On a phone it folds to
-marble and name and takes the refresh time's place, which is hidden there (a blank card
-holds that place while your record is read). Signed out, it is Sign in with Steam, coming
-back to the page you were on; signed in as a Steam ID on no board yet, it is Sign out, since
+your marble, the name kept for a screen reader (a blank card holds that place while your
+record is read). Signed out, it is Sign in with Steam, coming back to the page you were on
+(Steam's mark alone on a phone); signed in as a Steam ID on no board yet, it is Sign out, since
 that player has no page to sign out from (everyone else signs out on their own page). It
 reads You from `useYou` (`hooks/me.ts`), which asks `/api/me` and reads your record once
 per page load and shares them with every view of You, and it draws nothing until the
@@ -544,8 +572,8 @@ your own row, once you are signed in, shown at the foot while the row is out of 
 far the next rank up and the top 10 are, and a click scrolls to the row. "Where you stand"
 beside the search goes to `/you`, which counts differently (the Workshop standings).
 
-The Players tab sits last in the tab bar, and like every tab it is lit from the path
-(`tabOfPath`).
+The Players Section is lit from the path (`navOf` in `lib/nav.ts`) on the table, /you, a
+player's page and a head to head.
 
 ## Prefabs
 

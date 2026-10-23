@@ -136,6 +136,16 @@ Map whose board was first read after the baseline counts as it stands on both si
 _Avoid_: rankings, the report's boards (the Players table is not these lists: it counts the
 Circuit too, and podiums)
 
+### The site
+
+**Section**:
+One of the top-level areas the site's navigation names: Maps, Campaigns, Daily, Circuit,
+Players and Prefabs. Each has its own sub-tabs (Featured / All Maps, each Circuit season, ...),
+and every page belongs to one: a Campaign's Map to Campaigns, a player's page and a head to
+head to Players. "Workshop" stays the game's word for player-made Maps; the Section is
+labelled Maps.
+_Avoid_: tab, group, category
+
 ### Prefabs
 
 **Prefab**:
