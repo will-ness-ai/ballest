@@ -182,8 +182,8 @@ const ROUTES = [
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
   ["/prefabs/new", 200, null, "Upload a prefab"],
-  // the Generators: the Generate your own tab, a Generator, and one that isn't
-  ["/prefabs/make", 200, null, "Generate your own"],
+  // the Generators: Make your own, a Generator, and one that isn't
+  ["/prefabs/make", 200, null, '<h1 class="ph-title">Make a prefab</h1>'],
   ["/prefabs/make/qr", 200, null, "QR code"],
   ["/prefabs/make/sign", 200, null, "Sign"],
   ["/prefabs/make/tree", 200, null, "Tree"],

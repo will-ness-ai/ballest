@@ -23,7 +23,8 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
     old `#/` link maps onto one.
   - `nav.ts`, the navigation model (`navOf`): from a path and a few facts from the database,
     the Section it is in, that Section's sub-tabs with the lit one, the kind of page and its
-    breadcrumb trail ("The header").
+    breadcrumb trail ("The header"), and `crumbsOf`, the breadcrumb a page draws with the
+    page the reader came from as its parent ("How a page opens").
   - `circuit.ts`, the Circuit's fixed facts: the board order (the in-game numbering), the
     Season 2 tiers, each Track's screenshot and Medal times.
   - `campaigns.ts`, the curated Campaigns and their lookups (below, "Campaigns").
@@ -260,11 +261,11 @@ fails to load, or that Satori can't read, draws without it.
   a timer at the close (`useNowPast`) flips it on time rather than at the next minute.
   Every day links to its own page: on a desktop the calendar of months (`calendarOf`)
   sits beside the day's panel and stays put while the board scrolls; on a phone a strip
-  of days under the tabs, newest at the right and opened on the picked day, stands over
+  of days under the page head, newest at the right and opened on the picked day, stands over
   the panel, and its Calendar button opens the same months over the page. The Daily
   Section is lit on every `/daily` path.
-- `/daily/standings`: the all-time Daily standings, behind the Days | Standings switch at
-  the top of the Daily page, over final Dailies only (`standingsOf` in `lib/daily.ts`), so
+- `/daily/standings`: the all-time Daily standings, the Daily Section's Standings sub-tab,
+  over final Dailies only (`standingsOf` in `lib/daily.ts`), so
   the live Daily joins once it closes. A card per record (most wins, podiums and Dailies
   played, the longest runs of days played and of wins), each the record's top three as
   small plates with equal values sharing a place, then "Every player": a medal table sorted
@@ -324,8 +325,8 @@ The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash`
 one with its path on load (`legacyPath` in `lib/routes.ts`). Every player name links to a
 player page (`PlayerLink`), and the link out to Steam lives on that page. A Map's creator
 links to their player page's Made tab, except inside a card or row that is itself a link.
-A player or Map page's back link returns to the board or list you came from, remembered
-for the tab in `sessionStorage`.
+A player or Map page's breadcrumb leads back to the board, list or player you came from,
+remembered for the tab in `sessionStorage` ("How a page opens").
 
 ## Campaigns
 
@@ -468,7 +469,7 @@ The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's vari
 What each row holds and which link is lit come from one pure model, `navOf` in `lib/nav.ts`,
 read from the path and `NavFacts` (the four the database knows); it also gives the kind of
 page and its breadcrumb trail (the Section, the lit sub-tab, then a Campaign Map's Campaign,
-without the page itself), which the page heading draws. Both rows are links marked
+without the page itself), which the page head draws (below). Both rows are links marked
 `aria-current="page"` inside labelled `nav` landmarks, drawn by `components/SectionNav.tsx`
 from `usePathname`; until the path is known the Sections show unlit and the sub-tabs' row
 keeps its height. On a phone each row scrolls sideways rather than wrap, fading out on the
@@ -490,6 +491,34 @@ that player has no page to sign out from (everyone else signs out on their own p
 reads You from `useYou` (`hooks/me.ts`), which asks `/api/me` and reads your record once
 per page load and shares them with every view of You, and it draws nothing until the
 browser can tell, so a signed-in visitor never sees Sign in first.
+
+## How a page opens
+
+Every page opens the same way under the header (spec #339, round 3's variant 1):
+`PageHead` (`components/PageHead.tsx`) draws the breadcrumb, the kind of page in small
+capitals, then the page's title in the Bungee marquee, its one `h1`. Each page renders it
+first, from its own server data, just under the header (inside the page's `Suspense`
+where the title waits on params, whose skeleton holds its place). The kind comes from
+`navOf`; the breadcrumb is `crumbsOf` (`lib/nav.ts`): navOf's trail, less a crumb naming the
+title, then the title itself, in a labelled `nav` with the title marked `aria-current`, and
+not drawn at all when the title would stand alone (a Section's own first page).
+
+A Map's page and a player's page name a trail (`components/Trail.tsx`, the memory the old
+back links kept): the board, list or player this tab last looked at, which becomes the
+breadcrumb's parent, under its own Section and by its sub-tab's name where one names it.
+A Map remembers the homepage, All maps, a Campaign, the Daily and a player's page
+(`<Remember trail="maps">`); a player remembers a Circuit board, a Campaign, a Map, the
+Daily, its standings, /you and the Players table (`<Remember trail="board">`). With nothing
+kept, only the page itself, or storage blocked, the breadcrumb is the Section's own (Maps ›
+All Maps, Players › Rankings). The server draws that one, so the remembered parent swaps in
+once the browser reads it. A head to head leads back to its first player.
+
+No page draws its own title or a back link any more, and the page-level tabs the header's
+sub-tabs carry are gone (the Daily's Days / Standings, the Prefabs' Shared / Make your own).
+The Campaign switch, the Circuit rail, the season sheet and the seasons above a board stay:
+they pick an item, not a page. A card that names its board, player, Daily or Prefab inside
+the page (a Track's big number, the player card, the day's panel, a Prefab's name beside its
+viewer) keeps that name, as an `h2`.
 
 ## A board
 
@@ -640,7 +669,7 @@ branch `claude/prototype-prefabs` (spec #213).
 
 ## Generators
 
-The Prefabs page's second tab, Generate your own (spec #299; settled in four grill-design rounds
+Make your own, the Prefabs Section's second sub-tab (spec #299; settled in four grill-design rounds
 on the never-merged `claude/prototype-prefab-generators`; categories and buildings, spec #310,
 on `claude/prototype-make-your-own`): a heading per category (Signs, Nature, Buildings,
 `CATEGORIES`) over a card per Generator, each with a still of what its defaults make, and a
