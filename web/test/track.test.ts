@@ -88,6 +88,15 @@ describe("the sections", () => {
     }
   });
 
+  test("a banked turn eases out as it eased in, stop for stop", () => {
+    const R = 800;
+    const { stops } = bend(T, { radius: R, angle: Math.PI / 2, bank: 45 * DEG, ease: true })
+      .runs[0];
+    const round = (i: number) => Math.atan2(stops[i].p[0], R - stops[i].p[1]);
+    for (let i = 0; i < stops.length; i++)
+      expect(round(i) + round(stops.length - 1 - i)).toBeCloseTo(Math.PI / 2, 6);
+  });
+
   test("one after another start each where the last came out", () => {
     const c = chain(START, [straight(T, 1000, -200), bend(T, { radius: 500, angle: Math.PI })]);
     const [a, b] = c.runs;

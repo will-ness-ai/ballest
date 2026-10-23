@@ -290,7 +290,7 @@ function bendStops(n: number, bank: number, ease: boolean): Array<number> {
   const ramp = Math.max(Math.ceil(n / 3), Math.ceil(Math.abs(bank) / TWIST));
   const middle = Math.max(1, n - 2 * Math.ceil(n / 3));
   const ins = Array.from({ length: ramp }, (_, k) => k / ramp / 3);
-  const mids = Array.from({ length: middle }, (_, k) => (1 + k / middle) / 3);
+  const mids = Array.from({ length: middle + 1 }, (_, k) => (1 + k / middle) / 3);
   return [...ins, ...mids, ...ins.map((u) => 1 - u).reverse()];
 }
 
