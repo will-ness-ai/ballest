@@ -1,6 +1,6 @@
 # The collector runs on Fly
 
-Status: accepted (2026-10-18).
+Status: accepted (2026-10-18). Its jobs as child processes, each with its own Steam login, are superseded by ADR 0014.
 
 GitHub Actions ran the Refresh from a `0 */3 * * *` cron, and the jobs around it as their own
 workflows: the Map file backlog by hand, and adding a #new-tracks post's Maps when Multiballs

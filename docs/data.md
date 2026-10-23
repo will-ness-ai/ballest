@@ -105,8 +105,8 @@ before about 2026-01 have no `?SpecialSkinClass`, and from before about 2026-07 
 
 ### Map files
 
-The Map file step (`tools/map_files.py`, ADR 0010) runs after the Ghost step, while the
-Steam client is still connected, into the same database, and never blocks or fails the run:
+The Map file step (`tools/map_files.py`, ADR 0010) runs after the Ghost step, on the
+Refresh's Steam session, into the same database, and never blocks or fails the run:
 an error is a warning. The Workshop catalogue gives each Map's `hcontent_file` and
 `file_size` but no `file_url` for this app, so the file comes through steam.py's content
 servers: the Map's published file, its manifest, and the one file in it whose bytes start
@@ -123,9 +123,10 @@ and it costs one download a run. When it wrote any file it revalidates the site.
 skipped without a catalogue or a database, and with `--dev` writes only `DEV_DATABASE_URL`.
 To fill a backlog in one go, ask the collector's service (`tools/runner.py`):
 `fly ssh console -a ballest-collector -C "python /app/runner.py ask map-files?budget=3600"` runs the same
-step alone (`python tools/map_files.py --budget <seconds>`) in its turn on the Steam login, so a
-Refresh due meanwhile waits for it, and it fails when it wrote no file. The service runs it too on
-just the Maps a #new-tracks post added, read from the newest page (`--maps`; "New Maps"). Only Fly
+step alone (`map_files.download_due`, or `python tools/map_files.py --budget <seconds>` on its
+own) on the service's one Steam login. The Refresh and the downloads take turns, so a Refresh due
+meanwhile waits for it, and it fails when it wrote no file. The service runs it too on just the Maps
+a #new-tracks post added, read from the newest page (`--maps`; "New Maps"). Only Fly
 and Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
 file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
 `getWorkshop` carries each Map's stored version.
@@ -152,7 +153,7 @@ they ran 00:00 to 00:00 UTC through 2026-09-04, 25 hours on 09-05, and 01:00 to 
 since. The collector never prints the key or the URL.
 
 Between Refreshes the Daily watcher (`tools/daily_watch.py`) runs the same step every
-`DAILY_EVERY` seconds (a minute) on one Steam login, for today's and yesterday's dates only
+`DAILY_EVERY` seconds (a minute) on the service's one Steam login (ADR 0014), for today's and yesterday's dates only
 (`daily.watch_since`; older ones are the Refresh's), so today's Daily is on the site within a
 minute of opening and follows its board all day. It writes a Daily read (`source = 'daily'`,
 the Dailies only) for a Daily the database doesn't hold yet, even with no times, and then only
@@ -160,9 +161,11 @@ when its board moved since it was last written or the read makes it final (`dail
 nothing otherwise, so a quiet board leaves the database asleep. It starts from the open
 Entries of each Daily not yet final, so a restart rewrites nothing. Its
 revalidate names the Dailies it wrote (`?daily=<board>`), which expires only the reads tagged
-`dailies` and those boards' own tags. `runner.py` logs it off whenever another job needs Steam
-and starts it again after; one that dies starts again a minute later, which rides out Steam's
-short drops, and ops hears once only when it has stayed down half an hour.
+`dailies` and those boards' own tags. `runner.py` reads through file downloads too, and skips a
+minute only while a Refresh runs, since the Refresh reads and writes the Dailies itself; after
+each Refresh it starts again from what the database holds. Each read checks the Steam login
+first, whatever is due, and fails without one; the next minute's read rides out Steam's short
+drops, so ops hears only once reads have failed for half an hour.
 
 ### Chosen Skins
 
@@ -195,7 +198,7 @@ from before uploads) to a database once, idempotently.
 
 A Map published since the last Refresh is added on its own, within minutes, when the game
 Discord's #new-tracks gets a post (spec #259): Multiballs asks the collector's service a minute
-after the post (`discord-bot/src/newTracks.ts`, `POST /add-maps`), which runs `tools/add_maps.py`. That
+after the post (`discord-bot/src/newTracks.ts`, `POST /add-maps`), which runs `tools/add_maps.py` (`add_new`). That
 reads the newest page of the catalogue (`campaign_common.newest_maps`, one Steam Web API request,
 no Steam login) and `db_writer.add_maps` writes each Map the database lacks in one transaction:
 its `boards` row with no board ID, `maps`, and one `map_history` row. It writes no Refresh and
@@ -208,9 +211,9 @@ list can lag the post. Before any catalogue was written it adds nothing. Ghosts 
 next Refresh.
 
 The collector's service on Fly (`tools/runner.py`, ADR 0012) runs it on `POST /add-maps`,
-then downloads the added Maps' files (`map_files.py --maps`, two minutes of downloads) in its
-turn on the Steam login, so their 3D view comes within minutes too; a failed download leaves the
-file to the next Refresh, as any due file is. Adding runs beside a Refresh, since it needs no Steam login, so a
+then downloads the added Maps' files (`map_files.download_due`, two minutes of downloads) in its
+turn after any Refresh, so their 3D view comes within minutes too; a failed download leaves the
+file to the next Refresh, as any due file is. Adding runs beside a Refresh, since it reads no board, so a
 Refresh that read the catalogue before the Map was published and commits after `add_maps` leaves
 the Map unlisted, its link sending players home again, until the next Refresh.
 

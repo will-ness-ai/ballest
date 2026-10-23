@@ -2,8 +2,8 @@
 
 The site is the Next.js app in `web/`, served by **Vercel** (ADR 0004) and reading a
 Postgres database on Neon (ADR 0005). The data is refreshed by the collector's service on
-**Fly.io** (`tools/runner.py`, app `ballest-collector`, ADR 0012), which logs into Steam with a
-**refresh token** (via `steam.py`), reads the full leaderboards, writes them to the database,
+**Fly.io** (`tools/runner.py`, app `ballest-collector`, ADR 0012), which logs into Steam once with a
+**refresh token** (via `steam.py`, `tools/steam_session.py`, ADR 0014) and stays logged in, reads the full leaderboards, writes them to the database,
 and tells the site to read fresh (`POST /api/revalidate`). The site's pages are cached until then.
 
 No machine of yours has to be running: the refresh happens entirely on Fly.
@@ -111,9 +111,13 @@ the Refresh to the database, and revalidates the site, which shows it at
   now with `fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"` and follow
   it with `fly logs -a ballest-collector`. `.github/workflows/refresh.yml` runs one by hand,
   only while the Fly service is down (two Steam logins on one account drop each other).
-- Between jobs the service keeps the Daily watcher (`tools/daily_watch.py`) logged in, reading
-  the open Dailies every minute; any job that needs Steam logs it off first. `status` shows it
-  as `daily-watch`.
+- Every job runs inside the service on its one Steam login, which it keeps between jobs:
+  `fly logs` shows `Steam: logged in (login N since the service started)` at each login (a
+  fresh one after any drop), and each job's lines under its name (`[refresh]`, `[daily]`, ...). The Daily read
+  (`tools/daily_watch.py`) reads the open Dailies every minute and pauses only while a Refresh
+  runs; `status` shows it as `daily`. A login that fails is tried every minute. Each Daily
+  read checks the login first, so a Steam outage of any kind fails it meanwhile, and the ops channel hears once Daily reads
+  have failed for half an hour, with the last read's lines.
 - To change which boards appear, edit `tools/campaign_common.py` (`BOARDS`).
 - If a refresh fails with a login/token error, re-mint (step 1) and update the
   `STEAM_REFRESH_TOKEN` secret on Fly (`fly secrets set -a ballest-collector ...`) and in

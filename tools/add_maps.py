@@ -1,15 +1,14 @@
 """
 Add the Workshop's newest Maps to the database between Refreshes: the step a post in the
 game Discord's #new-tracks starts (Multiballs asks the collector's service, runner.py, which
-runs it on POST /add-maps).
+runs `add_new` on POST /add-maps).
 
 Reads the newest page of the Workshop catalogue (one Steam Web API request, no Steam login)
 and writes each Map the database lacks with db_writer.add_maps, so its page appears within
 minutes instead of at the next Refresh, with an empty board until it has times. Its board
 and Ghosts wait for that Refresh. Steam's list can lag the post, so while nothing is new it
 reads it again, TRIES reads in all, RETRY_SECONDS apart. Then it revalidates the site and
-names the Maps it added in $GITHUB_OUTPUT, for the service to download their files
-(map_files.py --maps).
+returns the Maps it added, for the service to download their files (map_files.download_due).
 
 It writes DATABASE_URL, or with --dev only DEV_DATABASE_URL (db_writer.database_url):
   DEV_DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev \\
@@ -47,34 +46,26 @@ def add_when_listed(newest, add, sleep):
     return []
 
 
-def name_in_output(pfids, env):
-    """Names the added Maps in the step's output, as `added=<pfid>,<pfid>`: the Actions
-    step's, or the file runner.py reads."""
-    path = env.get("GITHUB_OUTPUT")
-    if path:
-        with open(path, "a") as f:
-            f.write(f"added={','.join(pfids)}\n")
-
-
-def main():
-    dev = "--dev" in sys.argv[1:]
-    url = db_writer.database_url(os.environ, scratch=dev)
+def add_new(*, dev=False, env=None, sleep=time.sleep):
+    """The step: the pfids of the newest Maps it added to DATABASE_URL (with `dev`, only
+    DEV_DATABASE_URL), [] when Steam listed none new. Blocking, so the service runs it in a
+    thread. Raises when there is no database or the write fails."""
+    env = os.environ if env is None else env
+    url = db_writer.database_url(env, scratch=dev)
     if not url:
-        print(f"::error::No {'DEV_DATABASE_URL' if dev else 'DATABASE_URL'} to write to")
-        return 1
+        raise RuntimeError(f"No {'DEV_DATABASE_URL' if dev else 'DATABASE_URL'} to write to")
     key = cc.load_key()
     with psycopg.connect(url, autocommit=True, connect_timeout=30) as conn:
         added = add_when_listed(
-            lambda: cc.newest_maps(key), lambda c: db_writer.add_maps(conn, c), time.sleep
+            lambda: cc.newest_maps(key), lambda c: db_writer.add_maps(conn, c), sleep
         )
     if not added:
         print("No new Workshop Map to add; the next Refresh lists any Steam was slow to show")
-        return 0
+        return []
     print(f"Added {len(added)} Workshop Map(s): {', '.join(added)}")
-    db_writer.revalidate(os.environ)
-    name_in_output(added, os.environ)
-    return 0
+    db_writer.revalidate(env)
+    return added
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    add_new(dev="--dev" in sys.argv[1:])
