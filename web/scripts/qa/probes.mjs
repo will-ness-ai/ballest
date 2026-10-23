@@ -117,10 +117,10 @@ export function probe() {
     if (over > 1) add(clipped, el, Math.round(over));
   }
   /* lines of text drawn over other text. Each line is cut to the boxes
-     that clip it (an ellipsis hides the rest), and only the open dialog or popover menu counts
-     while one is. */
+     that clip it (an ellipsis hides the rest), and only the open dialog, popover menu or
+     dropdown drawn over the page (`data-layer`, the site search's results) counts while one is. */
   function overlaps() {
-    const modal = document.querySelector("dialog[open]:modal, :popover-open");
+    const modal = document.querySelector("dialog[open]:modal, :popover-open, [data-layer]");
     const clips = new Map();
     const clipOf = (el) => {
       if (!el || el === document.body) return null;

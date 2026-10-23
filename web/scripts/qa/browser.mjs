@@ -34,7 +34,8 @@ export const viewName = ({ page, state, width, text }) =>
   `${page}${state ? "+" + state : ""}@${String(width)}${text === 16 ? "" : "/" + String(text)}`;
 
 /**
- * Loads `url` at the view's size, opens its state by clicking `control`, and returns the
+ * Loads `url` at the view's size, opens its state by clicking `control` (then typing `typed`
+ * into whatever has the keyboard, for a search), and returns the
  * page's status, its screenshot, what the layout probes found and the errors it raised,
  * plus the boxes of the elements `boxes` selects and the value of the expression `script`.
  * `prefab` is a Prefab file's text, served in place of every Prefab's file, so a Prefab's
@@ -44,14 +45,14 @@ export const viewName = ({ page, state, width, text }) =>
  * @param {import("playwright-core").Browser} browser
  * @param {string} url
  * @param {{ width: number, text: number }} view
- * @param {{ control?: string, now: number, full?: boolean, element?: string, boxes?: string,
- *   script?: string, prefab?: string, cookies?: Array<object> }} options
+ * @param {{ control?: string, typed?: string, now: number, full?: boolean, element?: string,
+ *   boxes?: string, script?: string, prefab?: string, cookies?: Array<object> }} options
  */
 export async function render(
   browser,
   url,
   view,
-  { control, now, full = false, element, boxes, script, prefab, cookies },
+  { control, typed, now, full = false, element, boxes, script, prefab, cookies },
 ) {
   const phone = view.width < 600;
   const ctx = await browser.newContext({
@@ -145,6 +146,7 @@ export async function render(
       if (!(await el.isVisible().catch(() => false)))
         return { status, me, skipped: "control hidden", errors };
       await el.click();
+      if (typed) await page.keyboard.type(typed);
       await quiet(page, () => pending);
       await settle(page);
     }

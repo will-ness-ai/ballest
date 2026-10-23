@@ -181,6 +181,7 @@ async function shot() {
   try {
     const r = await render(browser, t.url + path, view, {
       control: state?.click,
+      typed: state?.type,
       now,
       cookies: signed.cookies,
       full: !!flags.full,
@@ -363,6 +364,7 @@ async function check() {
       const draw = (t, signed) =>
         render(browser, t.url + pageOf(v.page, t.ids).path, v, {
           control,
+          typed: v.state ? stateOf(v.state).type : undefined,
           now: started,
           cookies: signed.cookies,
         })
@@ -448,21 +450,26 @@ async function check() {
   }
 
   // a state whose control no size showed: the selector no longer finds it. Every control
-  // shows on a phone (some only there), so a run with no phone width can't tell
-  if (sizes.some((s) => s.width < 600))
-    for (const st of STATES) {
-      const names = chosen
-        .filter((v) => v.state === st.name)
-        .map(viewName)
-        .filter((n) => !unsigned.includes(n));
-      if (names.length && names.every((n) => skipped.includes(n)))
-        found.push({
-          view: names[0],
-          kind: "missing",
-          where: `${st.page}+${st.name}`,
-          detail: `no ${st.click} at any size`,
-        });
-    }
+  // shows on a phone (some only there) but a `wide` one (the search field), which shows on
+  // a desktop only, so a run without such a width can't tell
+  const widths = {
+    phone: sizes.some((s) => s.width < 600),
+    wide: sizes.some((s) => s.width >= 820),
+  };
+  for (const st of STATES) {
+    if (!widths[st.wide ? "wide" : "phone"]) continue;
+    const names = chosen
+      .filter((v) => v.state === st.name)
+      .map(viewName)
+      .filter((n) => !unsigned.includes(n));
+    if (names.length && names.every((n) => skipped.includes(n)))
+      found.push({
+        view: names[0],
+        kind: "missing",
+        where: `${st.page}+${st.name}`,
+        detail: `no ${st.click} at any size`,
+      });
+  }
 
   // one row per fault, with every view it shows in: a header fault is on every page
   const grouped = new Map();
