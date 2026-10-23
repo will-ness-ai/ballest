@@ -282,8 +282,9 @@ fails to load, or that Satori can't read, draws without it.
   out of reach, holding their place, so a signed-out page doesn't jump when they show and
   a signed-in visitor never sees Sign in.
 - `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
-  upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators. The Prefabs
-  tab comes last and is lit on all of them. See "Prefabs" and "Generators".
+  upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators;
+  `/prefabs/guide`: the How to tab. The Prefabs tab comes last and is lit on all of them. See
+  "Prefabs" and "Generators".
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
 it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board, Map or
@@ -549,8 +550,8 @@ branch `claude/prototype-prefabs` (spec #213).
   `/api/prefabs/<slug>/file`, the same URL Download saves, and loads three.js from npm only
   there. It starts from the Prefab's angle and turns slowly until it is grabbed, and not at
   all under reduced motion; Reset view goes back to the angle. The ?
-  opens the how-to, with the Prefabs folder and the exact spawn command; it opens on its
-  own once per browser (`localStorage`). A slug nobody uploaded, or a Prefab deleted, taken
+  opens the how-to, with the Prefabs folder and the exact spawn command, and a link to the
+  How to tab; it opens on its own once per browser (`localStorage`). A slug nobody uploaded, or a Prefab deleted, taken
   down or hidden, reads as gone.
 - **Stand-in shapes**: the file names meshes but carries no geometry, and the game's
   meshes stay off the repo (ADR 0001), so `lib/prefab.ts` draws each known mesh as a box,
@@ -563,6 +564,12 @@ branch `claude/prototype-prefabs` (spec #213).
   material glows, as the game's lamps do. A fill light opposite
   the key keeps every side's colours true, so a sign seen from the front isn't greyed. Rotations are Unreal's [pitch, yaw, roll] in
   degrees; swapping y and z turns Unreal's left-handed z-up into three's right-handed y-up.
+- **How to** (`PrefabGuide.tsx`, `/prefabs/guide`): the Prefabs page's third tab, written from
+  what players asked in the game's Discord: selecting and saving (`saveprefab`), spawning, why a
+  Prefab comes back as one flat group (the editor has no nested groups), uploading here, and
+  the decal. Every game fact on it was checked against the game's own command help on
+  2026-10-23, except the decal's Style tab, taken from players. The folder and commands come
+  from `lib/prefab-console.ts`, as the how-to's do.
 - **The gallery** (`PrefabGallery.tsx`): a card per live Prefab, Popular (favorites, newest
   breaking a tie) or Newest, filtered by one Tag (`galleryOf` in `lib/prefabs.ts`). Each
   card's picture is drawn in the browser from the file by one shared renderer once the card

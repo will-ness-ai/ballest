@@ -771,6 +771,16 @@
   .pfu-split {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
+  /* the Prefabs tabs' full labels, and room for them without a scroll */
+  .gen-tabs {
+    overflow-x: visible;
+  }
+  .gen-tab-short {
+    display: none;
+  }
+  .gen-tab-long {
+    display: inline;
+  }
   /* a Generator's controls beside its model, which fills the height */
   .gen-split {
     grid-template-columns: minmax(18rem, 26rem) minmax(0, 1fr);

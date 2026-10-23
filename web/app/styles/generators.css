@@ -21,17 +21,26 @@
 }
 
 /* Shared by players / Generate your own */
+/* three tabs outgrow a phone: there they take their short labels, narrower, and the strip
+   scrolls sideways if even those don't fit (big text) */
 .gen-tabs {
   display: flex;
   gap: 0.3rem;
   border-block-end: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .gen-tabs a {
-  padding: 0.6rem 1rem;
+  flex: none;
+  white-space: nowrap;
+  padding: 0.6rem calc((10rem + 6 * var(--ramp)) / 16);
   border-block-end: 3px solid transparent;
   color: var(--dim);
   font-weight: 700;
   text-decoration: none;
+}
+.gen-tab-long {
+  display: none;
 }
 .gen-tabs a:hover {
   color: var(--text);

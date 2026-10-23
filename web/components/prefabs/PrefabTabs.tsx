@@ -1,18 +1,58 @@
-// The Prefabs page's two tabs (grill-design round 2, C): the Prefabs players shared, and the
-// Generators that generate your own.
+// The Prefabs page's heading and tabs (grill-design round 2, C): the Prefabs players shared,
+// the Generators that generate your own, and How to, the guide to saving, spawning and sharing.
 import Link from "next/link";
+import type { ReactNode } from "react";
 
-import { makePrefabHref, prefabsHref } from "../../lib/routes";
+import { makePrefabHref, prefabGuideHref, prefabsHref } from "../../lib/routes";
 
-export function PrefabTabs({ on }: { on: "shared" | "make" }) {
+/* each with a shorter label for a phone, where the three full ones don't fit */
+const TABS = [
+  { on: "shared", href: prefabsHref(), label: "Shared by players", short: "Shared" },
+  { on: "make", href: makePrefabHref(), label: "Generate your own", short: "Generate" },
+  { on: "guide", href: prefabGuideHref(), label: "How to", short: "How to" },
+] as const;
+
+type Tab = (typeof TABS)[number]["on"];
+
+/* the heading every tab shares, its own line under it, an action beside it, then the tabs */
+export function PrefabsHead({
+  on,
+  blurb,
+  action,
+}: {
+  on: Tab;
+  blurb: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <>
+      <header className="pfl-head">
+        <div>
+          <h1>Prefabs</h1>
+          <p>{blurb}</p>
+        </div>
+        {action}
+      </header>
+      <PrefabTabs on={on} />
+    </>
+  );
+}
+
+function PrefabTabs({ on }: { on: Tab }) {
   return (
     <nav className="gen-tabs" aria-label="Prefabs">
-      <Link href={prefabsHref()} aria-current={on === "shared" ? "page" : undefined}>
-        Shared by players
-      </Link>
-      <Link href={makePrefabHref()} aria-current={on === "make" ? "page" : undefined}>
-        Generate your own
-      </Link>
+      {TABS.map((t) => (
+        <Link key={t.on} href={t.href} aria-current={on === t.on ? "page" : undefined}>
+          {t.label === t.short ? (
+            t.label
+          ) : (
+            <>
+              <span className="gen-tab-short">{t.short}</span>
+              <span className="gen-tab-long">{t.label}</span>
+            </>
+          )}
+        </Link>
+      ))}
     </nav>
   );
 }
