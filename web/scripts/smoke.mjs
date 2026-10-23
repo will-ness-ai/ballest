@@ -182,7 +182,8 @@ const ROUTES = [
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
   ["/prefabs/new", 200, null, "Upload a prefab"],
-  // the Generators: the Generate your own tab, a Generator, and one that isn't
+  // the Generators: the Generate your own tab, a Generator, and one that isn't (a key no
+  // Generator will ever take: a real word fails here the day a Generator is named it)
   ["/prefabs/make", 200, null, "Generate your own"],
   ["/prefabs/make/qr", 200, null, "QR code"],
   ["/prefabs/make/sign", 200, null, "Sign"],
@@ -208,7 +209,7 @@ const ROUTES = [
   ["/prefabs/make/trophy", 200, null, "Trophy"],
   ["/prefabs/make/fence", 200, null, "Fence"],
   ["/prefabs/make/finish-arch", 200, null, "Finish arch"],
-  ["/prefabs/make/windmill", 404],
+  ["/prefabs/make/no-such-generator", 404],
   // the Generators' collage, for agents: a 404 only in production on Vercel
   ["/prefabs/collage?g=house", 200, null, "Generator collage"],
   ["/api/prefabs", 200, null, '"signedIn":false'],

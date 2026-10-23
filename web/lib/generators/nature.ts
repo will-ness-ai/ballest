@@ -64,10 +64,12 @@ function grow(
   const f = b.forks;
   if (!f || level >= f.levels) {
     const { clump, balls, leaves } = b.tips;
-    for (let i = 0; i < balls; i++)
-      items.push(
-        ball(add(end, mul(inBall(r), clump * 0.45)), clump * (0.6 + r() * 0.5), leaves, 0.8),
-      );
+    for (let i = 0; i < balls; i++) {
+      const size = clump * (0.6 + r() * 0.5);
+      const at = add(end, mul(inBall(r), clump * 0.45));
+      /* a leaf ball sits on the ground at the lowest, not sunk into it */
+      items.push(ball([at[0], at[1], Math.max(at[2], size * 0.4)], size, leaves, 0.8));
+    }
     return;
   }
   const spin = r() * Math.PI * 2;
@@ -128,7 +130,7 @@ const tiersTree = (v: Values) => {
       W * (1 - ((numberIn(v, "t.taper") / 100) * i) / Math.max(1, k - 1)) * (0.9 + r() * 0.2);
     const z = stem + i * th * (1 - ov);
     items.push(
-      piece("cone", [0, 0, z], [w, w, th * (0.92 + r() * 0.16)], colourIn(v, "leaves"), r() * 360),
+      piece("cone", [0, 0, z], [w, w, th * (1 + r() * 0.08)], colourIn(v, "leaves"), r() * 360),
     );
     if (v["t.snow"])
       items.push(
@@ -171,7 +173,8 @@ export function voxelTree(v: Values): Map<string, Colour> {
   const kind = String(v["v.kind"]);
   const vox = new Map<string, Colour>();
   const leaf = (x: number, y: number, z: number, edge: boolean) => {
-    if (edge && r() * 100 < numberIn(v, "v.holes")) return;
+    /* a short tree's canopy stops at the ground */
+    if (z < 0 || (edge && r() * 100 < numberIn(v, "v.holes"))) return;
     vox.set(`${x},${y},${z}`, colourIn(v, "leaves"));
   };
   if (kind === "Spruce")

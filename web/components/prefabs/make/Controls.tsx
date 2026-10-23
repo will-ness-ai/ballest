@@ -233,6 +233,8 @@ function PictureField({
           accept="image/*"
           onChange={(e) => {
             const file = e.target.files?.[0];
+            /* cleared so choosing the same file again still fires */
+            e.target.value = "";
             if (!file) return;
             pictureFrom(file).then(
               (p) => {
