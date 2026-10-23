@@ -32,6 +32,7 @@ const card = (o: Partial<MapCard> = {}): MapCard => ({
 
 const none: SearchSources = {
   players: [],
+  playing: [],
   cards: [],
   campaigns: [],
   boards: [],
@@ -100,6 +101,17 @@ describe("players and makers", () => {
     });
     expect(hits.filter((h) => h.kind === "people")).toEqual([
       expect.objectContaining({ href: `/player/${P2}/made`, meta: "Made 1 Map", tag: "Maker" }),
+    ]);
+  });
+
+  test("a maker with times whom the player search cut off is still a player", () => {
+    const { hits } = searchAll("wright", {
+      ...none,
+      cards: [card({ creator: "Mapwright", cid: P2 })],
+      playing: [P2],
+    });
+    expect(hits.filter((h) => h.kind === "people")).toEqual([
+      expect.objectContaining({ href: `/player/${P2}`, meta: "Player · made 1 Map" }),
     ]);
   });
 

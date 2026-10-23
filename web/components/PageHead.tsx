@@ -5,8 +5,8 @@
 // gives a parent the server knows (a head to head's first player). Rendered by each page
 // just under the header, so a client view's page renders it above the view.
 import { Crumbs } from "./Crumbs";
-import { navFacts } from "./Shell";
 import type { Trail } from "./Trail";
+import { frameOf } from "./frame";
 import { crumbsOf, navOf, type Crumb } from "../lib/nav";
 
 export async function PageHead({
@@ -20,7 +20,8 @@ export async function PageHead({
   trail?: Trail;
   back?: Crumb | null;
 }) {
-  const facts = await navFacts();
+  /* the header's facts, read once for both */
+  const { facts } = await frameOf();
   const kind = navOf(path, facts).kind;
   return (
     <div className="ph">

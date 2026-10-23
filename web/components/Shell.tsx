@@ -8,10 +8,9 @@ import { Freshness } from "./Freshness";
 import { Rack } from "./Marble";
 import { SectionNav, SectionRows } from "./SectionNav";
 import { YouCard } from "./YouCard";
-import { SiteSearch } from "./search/SiteSearch";
-import { getCampaigns, getDailyDates, getSite, hasWorkshop } from "../db/data";
-import { navCampaigns, navOf, type NavFacts } from "../lib/nav";
-import { seasonsOf } from "../lib/player";
+import { frameOf } from "./frame";
+import { SearchBar } from "./search/SearchBar";
+import { navOf } from "../lib/nav";
 import { homeHref } from "../lib/routes";
 import { SITE_TITLE, SITE_WORDMARK } from "../lib/rules";
 
@@ -28,26 +27,8 @@ export type View =
   | "prefabs"
   | "you";
 
-/* what the navigation needs from the database (lib/nav.ts), for the header and PageHead */
-export async function navFacts(): Promise<NavFacts> {
-  const [site, workshop, dailies, campaigns] = await Promise.all([
-    getSite(),
-    hasWorkshop(),
-    getDailyDates(),
-    getCampaigns(),
-  ]);
-  return {
-    workshop,
-    daily: dailies.length > 0,
-    seasons: seasonsOf(site.boards).map(({ group, overall }) => ({ group, overall })),
-    campaigns: navCampaigns(
-      campaigns.map(({ c, players }) => ({ slug: c.slug, title: c.title, players })),
-    ),
-  };
-}
-
 export async function Shell({ view, children }: { view: View; children: React.ReactNode }) {
-  const [site, facts] = await Promise.all([getSite(), navFacts()]);
+  const { site, facts, jumps } = await frameOf();
   return (
     <div className="app" id="app" data-view={view}>
       {/* the bar, then Refreshed, then the two rows of links: a grid that puts Refreshed
@@ -62,7 +43,8 @@ export async function Shell({ view, children }: { view: View; children: React.Re
               <em>{SITE_WORDMARK[1]}</em>
             </span>
           </Link>
-          <SiteSearch you={<YouCard />} />
+          {/* You's card goes in with it, so a phone keeps the search button beside it */}
+          <SearchBar jumps={jumps} you={<YouCard />} />
         </div>
         <Freshness refreshedAt={site.refreshedAt} mapsReadBy={site.mapsReadBy} />
         <Suspense fallback={<SectionRows nav={navOf("", facts)} />}>

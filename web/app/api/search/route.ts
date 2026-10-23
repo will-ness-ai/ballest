@@ -9,12 +9,21 @@ import {
   getPrefabCards,
   getSite,
   searchPlayers,
+  withTimes,
 } from "../../../db/data";
-import { searchAll, searchTerm } from "../../../lib/search";
+import { campaignSummary } from "../../../lib/campaigns";
+import { searchAll, searchedMakers, searchTerm } from "../../../lib/search";
+
+/* An answer changes only when a Refresh lands (every three hours) or a Map, a Daily or a
+   Prefab is added between them, so the CDN keeps each query's for ten minutes and serves it
+   stale for a Refresh's length while it reads it again: a word typed letter by letter, or
+   searched by many, reads the database once. The browser keeps it a minute, for the reader
+   who deletes back over what they typed. */
+const SEARCH_CACHE = "public, max-age=60, s-maxage=600, stale-while-revalidate=10800";
 
 export async function GET(request: Request) {
   const q = searchTerm(new URL(request.url).searchParams.get("q"));
-  if (!q) return Response.json(null);
+  if (!q) return Response.json(null, { headers: { "Cache-Control": SEARCH_CACHE } });
   const [players, cards, campaigns, site, dailies, prefabs] = await Promise.all([
     searchPlayers(q, ""),
     getMapCards(),
@@ -23,21 +32,17 @@ export async function GET(request: Request) {
     getDailies(),
     getPrefabCards(),
   ]);
+  const playing = await withTimes(searchedMakers(q, cards));
   return Response.json(
     searchAll(q, {
       players,
+      playing,
       cards,
-      campaigns: campaigns.map(({ c, players, previews }) => ({
-        slug: c.slug,
-        title: c.title,
-        creator: c.creator,
-        maps: c.maps.length,
-        players,
-        preview: previews.find(Boolean) ?? null,
-      })),
+      campaigns: campaigns.map(campaignSummary),
       boards: site.boards,
       dailies,
       prefabs,
     }),
+    { headers: { "Cache-Control": SEARCH_CACHE } },
   );
 }

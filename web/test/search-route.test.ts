@@ -133,6 +133,13 @@ describe("GET /api/search", () => {
     ]);
   });
 
+  test("lets the CDN keep an answer for ten minutes, and serve it stale for a Refresh's length", async () => {
+    const res = await GET(new Request("http://site.invalid/api/search?q=rae"));
+    expect(res.headers.get("cache-control")).toBe(
+      "public, max-age=60, s-maxage=600, stale-while-revalidate=10800",
+    );
+  });
+
   test("answers an empty query with null, and reads only the first 64 characters", async () => {
     expect(await search("")).toEqual({ status: 200, body: null });
     expect(await search("   ")).toEqual({ status: 200, body: null });
