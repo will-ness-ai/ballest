@@ -59,10 +59,7 @@ export function UploadForm() {
   return (
     <section className="pfu">
       <header className="pfl-head">
-        <div>
-          <h1>Upload a prefab</h1>
-          <p>Share a prefab you saved in the level editor. It goes live as soon as you publish.</p>
-        </div>
+        <p>Share a prefab you saved in the level editor. It goes live as soon as you publish.</p>
       </header>
       {!quota ? null : !quota.signedIn ? (
         <div className="pfu-gate">

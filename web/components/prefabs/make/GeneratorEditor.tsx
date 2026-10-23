@@ -2,7 +2,6 @@
 // A Generator's page (grill-design round 1, A): its controls on the left; the model, its size and
 // piece count and Download on the right. The model is rebuilt from the values a moment after
 // they stop changing, and a sign in a drawn font again once the web fonts have arrived.
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { Controls } from "./Controls";
@@ -18,7 +17,6 @@ import {
 } from "../../../lib/generators";
 import { footprintOf, shapesOf } from "../../../lib/prefab";
 import { fileNameOf } from "../../../lib/prefab-check";
-import { makePrefabHref } from "../../../lib/routes";
 
 function useSettled<T>(value: T, ms = 200) {
   const [settled, setSettled] = useState(value);
@@ -82,13 +80,7 @@ function Editor({ g }: { g: Generator }) {
   return (
     <section className="gen">
       <header className="pfl-head">
-        <div>
-          <Link className="gen-back" href={makePrefabHref()}>
-            ← All generators
-          </Link>
-          <h1>{g.name}</h1>
-          <p>{g.blurb}</p>
-        </div>
+        <p>{g.blurb}</p>
       </header>
       <div className="gen-split">
         <Controls

@@ -16,19 +16,21 @@
 .pf-steps li {
   min-width: 0;
 }
-.pf h1 {
-  font-family: var(--f-marquee);
-  font-size: calc((26rem + 10 * var(--ramp)) / 16);
-  font-weight: 400;
-  line-height: 1.1;
-  margin: 0;
-}
 .pf h2 {
   font-family: var(--f-hud);
   font-size: calc(15rem / 16);
   margin: 0;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+/* the Prefab's name over its details, as a board card names its board */
+.pf .pf-name {
+  font-size: calc((22rem + 2 * var(--ramp)) / 16);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.1;
+  text-transform: none;
+  overflow-wrap: anywhere;
 }
 .pf-by {
   color: var(--dim);
@@ -309,15 +311,9 @@
   justify-content: space-between;
   flex-wrap: wrap;
 }
-.pfl-head h1 {
-  font-family: var(--f-marquee);
-  font-weight: 400;
-  font-size: calc((26rem + 10 * var(--ramp)) / 16);
-  margin: 0;
-}
 .pfl-head p {
   color: var(--dim);
-  margin: 0.3rem 0 0;
+  margin: 0;
   max-width: 60ch;
 }
 .pfl .pf-dl {

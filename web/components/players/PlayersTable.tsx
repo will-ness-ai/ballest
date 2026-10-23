@@ -320,7 +320,6 @@ export function PlayersTable({
   return (
     <>
       <div className="ws-head">
-        <h1 className="ws-h1">Players</h1>
         <span className="ws-tools">
           <Link className="alllink" href={youHref()}>
             Where you stand

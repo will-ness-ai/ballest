@@ -7,10 +7,9 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useState } from "react";
 
 import { MapGrid } from "./Card";
-import { BackLink } from "../BackLink";
 import { useDialog } from "../Modal";
 import { useClock } from "../../hooks/client";
-import { MAPS_QUERY, homeHref, mapsHref } from "../../lib/routes";
+import { MAPS_QUERY, mapsHref } from "../../lib/routes";
 import { plural } from "../../lib/rules";
 import {
   FILTERS,
@@ -144,9 +143,7 @@ export function AllMaps({
       <Suspense>
         <ReadQuery set={setQuery} />
       </Suspense>
-      <BackLink href={homeHref()} label="Workshop" />
       <div className="ws-head">
-        <h1 className="ws-h1">All maps</h1>
         <span className="ws-count">{plural(maps.length, "map", "maps")} with a time</span>
       </div>
       <div className="views">

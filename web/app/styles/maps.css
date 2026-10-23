@@ -501,23 +501,12 @@
   align-content: start;
   min-width: 0;
 }
-.mpanel .back {
-  margin: 0;
-}
 .mp-img {
   width: 100%;
   aspect-ratio: 400/270;
   object-fit: cover;
   border-radius: 12px;
   border: 1px solid var(--line);
-}
-.mp-t {
-  margin: 0;
-  font-family: var(--f-hud);
-  font-size: calc(22rem / 16);
-  font-weight: 700;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
 }
 .mp-by {
   font-size: calc(13rem / 16);
@@ -899,11 +888,11 @@ html:has(.m3d:modal) {
   scroll-snap-align: start;
 }
 .call-h {
-  margin-block: 14px 18px;
+  margin-block: 0 18px;
 }
 .call-h p {
   max-width: 60ch;
-  margin-block: 10px 0;
+  margin: 0;
   color: var(--dim);
 }
 .call {

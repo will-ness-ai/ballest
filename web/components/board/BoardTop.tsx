@@ -117,7 +117,7 @@ export function TrackCard({
       <div className="bc-body">
         <div className="bc-top">
           <div>
-            <h1>{trackNo(b.display)}</h1>
+            <h2>{trackNo(b.display)}</h2>
             <span className="bc-by">
               {b.group}
               {b.tier ? " · " + b.tier : ""}
@@ -166,7 +166,7 @@ export function CampaignMapCard({
       <div className="bc-body">
         <div className="bc-top">
           <div>
-            <h1>{title}</h1>
+            <h2>{title}</h2>
             <span className="bc-by">
               {group} · by {m.creator} ·{" "}
               {event ? (
@@ -278,7 +278,7 @@ export function OverallCard({
       <div className="bc-body">
         <div className="bc-top">
           <div>
-            <h1>{b.display}</h1>
+            <h2>{b.display}</h2>
             <span className="bc-by">
               {b.group} · points{tally ? " and podiums" : ""}{" "}
               {tracks === 1

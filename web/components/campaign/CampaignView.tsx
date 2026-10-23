@@ -8,8 +8,9 @@ import { notFound } from "next/navigation";
 
 import { CampaignRailItems } from "./CampaignRail";
 import { CampaignChip } from "./CampaignSwitch";
-import { Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
+import { PageHead } from "../PageHead";
+import { Remember } from "../Trail";
 import { PlayerLink } from "../PlayerLink";
 import { BoardBody } from "../board/BoardBody";
 import { BoardSheet } from "../board/BoardSheet";
@@ -85,90 +86,91 @@ export async function CampaignView({
     entryCount: m ? m.entryCount : page.total,
   };
   const items = <CampaignRailItems c={c} maps={maps} current={name} players={players} />;
+  const here = m ? campaignHref(c.slug, m.pfid) : boardHref(name, podiums ? PODIUM_SORT : null);
 
   return (
-    <div className="main">
-      <DocTitle title={`${c.title} ${title}`} />
-      <aside className="rail">
-        <h2 id="railhead">Campaign</h2>
-        <CampaignChip list={list} on={c} board={`rail-${name}`} />
-        <p className="railby">
-          by <PlayerLink id={c.creatorId} text={c.creator} tab="made" />
-        </p>
-        <nav className="boards" id="boards" aria-label="Leaderboard">
-          {items}
-        </nav>
-      </aside>
-
-      <section className="content">
-        <YouMarks name={name} />
-        <div className="boardrow named">
-          <CampaignChip list={list} on={c} board={name} />
-          <BoardSheet img={m?.preview ?? null} name={title} count={countText(b)} group={c.title}>
+    <>
+      <PageHead path={here} title={m ? title : c.title} />
+      <div className="main">
+        <DocTitle title={`${c.title} ${title}`} />
+        <aside className="rail">
+          <h2 id="railhead">Campaign</h2>
+          <CampaignChip list={list} on={c} board={`rail-${name}`} />
+          <p className="railby">
+            by <PlayerLink id={c.creatorId} text={c.creator} tab="made" />
+          </p>
+          <nav className="boards" id="boards" aria-label="Leaderboard">
             {items}
-          </BoardSheet>
-        </div>
+          </nav>
+        </aside>
 
-        {m ? (
-          <CampaignMapCard m={m} title={title} group={c.title} rows={rows} scores={scores} />
-        ) : (
-          <OverallCard b={b} rows={rows} tally={tally} tracks={maps.length} podiums={podiums} />
-        )}
+        <section className="content">
+          <YouMarks name={name} />
+          <div className="boardrow named">
+            <CampaignChip list={list} on={c} board={name} />
+            <BoardSheet img={m?.preview ?? null} name={title} count={countText(b)} group={c.title}>
+              {items}
+            </BoardSheet>
+          </div>
 
-        {/* You on the points order only: the podium order ranks no one by score */}
-        {!podiums && (
-          <YouBanner
-            name={name}
-            field={page.total}
-            medals={m && !eventOf(m.pfid) ? m.medals : null}
-          />
-        )}
+          {m ? (
+            <CampaignMapCard m={m} title={title} group={c.title} rows={rows} scores={scores} />
+          ) : (
+            <OverallCard b={b} rows={rows} tally={tally} tracks={maps.length} podiums={podiums} />
+          )}
 
-        {podiums ? (
-          <BoardBody
-            order="podiums"
-            name={name}
-            points
-            where={c.title}
-            count={page.total}
-            sortsw={<SortSwitch name={name} podiums />}
-            leaders={<PodiumPlates tally={tally} />}
-            players={podiumRows(tally, places)}
-            tracks={tally.tracks}
-            group={c.title}
-          />
-        ) : (
-          <BoardBody
-            order="score"
-            name={name}
-            points={!m}
-            where={c.title}
-            count={page.total}
-            sortsw={m ? undefined : <SortSwitch name={name} podiums={false} />}
-            history={history && <HistoryCard h={history} />}
-            leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
-            initial={page.total >= 3 ? rows.slice(3) : rows}
-            lead={rows[0]?.score ?? null}
-            pods={
-              m
-                ? null
-                : Object.fromEntries(
-                    tally.players.map((p) => [
-                      p.steamId,
-                      { gold: p.gold, silver: p.silver, bronze: p.bronze },
-                    ]),
-                  )
-            }
-            focus={focusId && focusAt ? { id: focusId, rank: focusAt.rank } : null}
-          />
-        )}
-      </section>
-      {!m && <PointsDialog board={name} tracks={maps.length} />}
-      <Remember
-        trail="board"
-        href={m ? campaignHref(c.slug, m.pfid) : boardHref(name, podiums ? PODIUM_SORT : null)}
-        label={c.title + " " + title}
-      />
-    </div>
+          {/* You on the points order only: the podium order ranks no one by score */}
+          {!podiums && (
+            <YouBanner
+              name={name}
+              field={page.total}
+              medals={m && !eventOf(m.pfid) ? m.medals : null}
+            />
+          )}
+
+          {podiums ? (
+            <BoardBody
+              order="podiums"
+              name={name}
+              points
+              where={c.title}
+              count={page.total}
+              sortsw={<SortSwitch name={name} podiums />}
+              leaders={<PodiumPlates tally={tally} />}
+              players={podiumRows(tally, places)}
+              tracks={tally.tracks}
+              group={c.title}
+            />
+          ) : (
+            <BoardBody
+              order="score"
+              name={name}
+              points={!m}
+              where={c.title}
+              count={page.total}
+              sortsw={m ? undefined : <SortSwitch name={name} podiums={false} />}
+              history={history && <HistoryCard h={history} />}
+              leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
+              initial={page.total >= 3 ? rows.slice(3) : rows}
+              lead={rows[0]?.score ?? null}
+              pods={
+                m
+                  ? null
+                  : Object.fromEntries(
+                      tally.players.map((p) => [
+                        p.steamId,
+                        { gold: p.gold, silver: p.silver, bronze: p.bronze },
+                      ]),
+                    )
+              }
+              focus={focusId && focusAt ? { id: focusId, rank: focusAt.rank } : null}
+            />
+          )}
+        </section>
+        {!m && <PointsDialog board={name} tracks={maps.length} />}
+        <Remember trail="board" href={here} label={c.title + " " + title} />
+        <Remember trail="maps" href={here} label={c.title + " " + title} />
+      </div>
+    </>
   );
 }

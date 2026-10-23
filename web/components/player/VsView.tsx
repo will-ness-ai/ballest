@@ -132,9 +132,6 @@ export function VsView({ A, B }: { A: PlayerRecord; B: PlayerRecord }) {
     <div className="main">
       <section className="content">
         <div className="pp vsp" id="vs">
-          <Link className="back" href={playerHref(A.id)}>
-            &larr; {nA}
-          </Link>{" "}
           <div className="vshead">
             <Side rec={A} side="a" change={change("a")} />{" "}
             <div className="vsmid">

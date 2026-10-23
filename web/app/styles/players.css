@@ -214,13 +214,6 @@
   flex-wrap: wrap;
   margin-block-end: 14px;
 }
-.ws-h1 {
-  margin: 0;
-  font-family: var(--f-marquee);
-  font-weight: 400;
-  font-size: calc((21rem + 5 * var(--ramp)) / 16);
-  letter-spacing: 0.01em;
-}
 .ws-tools {
   display: flex;
   align-items: center;
