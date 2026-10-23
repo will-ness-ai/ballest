@@ -1,7 +1,7 @@
 // GET /api/board/<name>?from=&count=&q=: a slice of a board in rank order, for the list
 // that grows as the reader scrolls (components/board/BoardBody). With q, only the rows
 // whose persona or Steam ID contains it, each keeping its real rank and interval. A
-// Circuit board or a listed Map's; anything else is a 404.
+// Circuit board, a Campaign's, a listed Map's or an Event board's; anything else is a 404.
 //
 // GET /api/board/<name>?player=<steam id>: that player's { rank, score } on the board, or
 // null when they hold no Entry on it (or nobody raced under the ID), for You's banner

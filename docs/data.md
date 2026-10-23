@@ -25,8 +25,12 @@ Open in Neon.
   or per git snapshot replayed by the backfill (`source`, and `commit_sha` for a backfill),
   and `full_sweep`, whether its Workshop step read every Map's board. Everything that counts
   Refreshes or says when the boards were refreshed leaves the Daily reads out.
-- `boards`: every Steam board, Tracks, Overall boards, each Map's and each Daily's, with
-  its kind, Season, display name, leaderboard ID and whether it scores points.
+- `boards`: every Steam board, Tracks, Overall boards, each Map's, each Daily's and each
+  Event board's, with its kind, Season, display name, leaderboard ID and whether it scores
+  points. An Event board (`kind = 'event'`, `EVENT_BOARDS` in `tools/campaign_common.py`) is
+  read by the Refreshes until one reads it ok (`read_events` over `events_due`, from the
+  collector's memory), and
+  never again, so its Entries are never closed. A failed one never fails the Refresh.
 - `board_reads`: which boards each Refresh read and whether the read succeeded. A Map not
   read in a Refresh has no row, and that says nothing about play.
 - `players` and `persona_history`: the current profile, and every persona with the first
@@ -157,7 +161,8 @@ nothing otherwise, so a quiet board leaves the database asleep. It starts from t
 Entries of each Daily not yet final, so a restart rewrites nothing. Its
 revalidate names the Dailies it wrote (`?daily=<board>`), which expires only the reads tagged
 `dailies` and those boards' own tags. `runner.py` logs it off whenever another job needs Steam
-and starts it again after; one that dies starts again a minute later, and ops hears once.
+and starts it again after; one that dies starts again a minute later, which rides out Steam's
+short drops, and ops hears once only when it has stayed down half an hour.
 
 ### Chosen Skins
 

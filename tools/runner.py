@@ -70,8 +70,11 @@ DOWNLOAD_GRACE = 10 * 60
 NEW_MAP_FILES_BUDGET = 120
 # seconds before a Daily watcher that died is started again
 WATCH_RETRY = 60
-# a watcher that ran this long before dying was working: ops hears again if it dies again
+# a watcher that ran this long before dying was working: its outage starts again from that death
 WATCH_HEALTHY = 10 * 60
+# seconds the watcher may stay down before ops hears: Steam drops logins for a few minutes
+# often, and for longer on Tuesdays' maintenance, and a restart rides those out
+WATCH_OUTAGE = 30 * 60
 TAIL_LINES = 15
 PORT = int(os.environ.get("PORT", "8080"))
 
@@ -189,9 +192,9 @@ class Service:
     async def watch_dailies(self, *, sleep=asyncio.sleep, clock=time.monotonic):
         """Keeps the Daily watcher (daily_watch.py) logged into Steam whenever no other job
         needs it: stopped when one asks for Steam (steam_turn), started again once Steam is
-        free. One that dies is started again WATCH_RETRY seconds later, and ops hears once
-        until one runs WATCH_HEALTHY or is stopped for a job."""
-        told = False
+        free. One that dies is started again WATCH_RETRY seconds later, and ops hears once it
+        has stayed down WATCH_OUTAGE, until one runs WATCH_HEALTHY."""
+        down_since, told = None, False
         while True:
             async with self.steam:
                 if self.wanted:
@@ -202,14 +205,16 @@ class Service:
                     None, "daily_watch.py", [], limit=None, stop=self.watch_stop
                 )
                 stopped, self.watch_stop = self.watch_stop.is_set(), None
-            if stopped or clock() - started >= WATCH_HEALTHY:
-                told = False
+            if clock() - started >= WATCH_HEALTHY:
+                down_since, told = None, False
             if stopped:
-                continue
-            if not told:
+                continue  # a job's turn neither starts an outage nor ends one
+            if down_since is None:
+                down_since = clock()
+            if not told and clock() - down_since >= WATCH_OUTAGE:
                 await self.alert(
-                    f"Collector: the Daily watcher stopped (exit {result.exit}); it starts"
-                    f" again every {WATCH_RETRY} s.\n{result.block}"
+                    f"Collector: the Daily watcher has been down for {WATCH_OUTAGE // 60} minutes"
+                    f" (exit {result.exit}); it starts again every {WATCH_RETRY} s.\n{result.block}"
                 )
                 told = True
             await sleep(WATCH_RETRY)

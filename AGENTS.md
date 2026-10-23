@@ -180,7 +180,8 @@ been switched over.
 same: a failed read in `board_reads`, its Entries untouched. A run that reads no Circuit board
 at all writes nothing and fails. The Workshop step never blocks the Circuit and never wipes a
 Map: a failed Map read keeps its Entries and its old counters (so the next run retries it), a
-Map the step skipped gets no `board_reads` row, and a catalogue that fails, comes back short of
+Map the step skipped gets no `board_reads` row, an Event board is read until one read
+succeeds and then never again (so its Entries stay open; a failed one never fails the run), and a catalogue that fails, comes back short of
 Steam's total, or shrinks by more than `WORKSHOP_SHRINK_LIMIT` counts no Map as read. Only a
 successful read moves `last_seen_refresh`, with one exception: `add_maps` writes a Map new since
 the last Refresh as if that Refresh's catalogue had seen it, so the site has its page (`docs/data.md`, "New Maps"). The whole Refresh is one transaction, so any error
@@ -221,7 +222,8 @@ Matt Pocock's `grill-with-docs` (with the `grilling` and `domain-modeling` it ca
 at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. Their
 `code-review` replaces the built-in `/code-review` here. `grill-design` comes from
 `will-ness-ai/skills`, adapted to prototype in the running app on a worktree, and is
-maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `wizard` (also `mattpocock/skills`) is adapted the
+maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `prefab-generators` (ours) adds
+Generators to Generate your own, with scripts that render a collage and spawn one in a sandbox game. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
 `writing-for-agents` (also `mattpocock/skills`) is adapted too: its `SKILL-MECHANICS.md` says how to word a call to another skill, and the vendored skills' calls follow it.
 `agent-tools` (ours) builds commands for agents; `retro` hands it the call chains it finds.

@@ -3,7 +3,7 @@
 // Maps down the rail where the Tracks are, the Overall card in maps with the podium tally,
 // the plates and the list. `slot` is what follows the slug in the path: one of its Maps,
 // opened inside the Campaign's frame as a Track opens inside its season; "podiums" for the
-// podium order; or a Steam ID whose row to find and mark.
+// podium order; or a Steam ID whose row to find and mark, on its own or after an Event's id.
 import { notFound } from "next/navigation";
 
 import { CampaignRailItems } from "./CampaignRail";
@@ -33,17 +33,26 @@ import {
   getCampaigns,
   getPlacesOf,
 } from "../../db/data";
-import { campaignBoard, mapLabel } from "../../lib/campaigns";
+import { campaignBoard, eventOf, mapLabel } from "../../lib/campaigns";
 import type { IndexBoard } from "../../lib/player";
 import { podiumRows } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref, campaignHref, campaignSlot } from "../../lib/routes";
 import { BOARD_CHUNK, countText } from "../../lib/rules";
 
-export async function CampaignView({ slug, slot }: { slug: string; slot: string | null }) {
+export async function CampaignView({
+  slug,
+  slot,
+  row = null,
+}: {
+  slug: string;
+  slot: string | null;
+  /* a Steam ID after an Event's id: the row to mark on the Event's board */
+  row?: string | null;
+}) {
   const [data, list] = await Promise.all([getCampaign(slug), getCampaigns()]);
   if (!data) notFound();
   const { c, maps, players, tally } = data;
-  const at = campaignSlot(c, slot);
+  const at = campaignSlot(c, slot, row);
   if (!at) notFound();
   const { focus: focusId, podiums } = at;
   /* one of its Maps the Workshop no longer lists is no page */
@@ -107,7 +116,13 @@ export async function CampaignView({ slug, slot }: { slug: string; slot: string 
         )}
 
         {/* You on the points order only: the podium order ranks no one by score */}
-        {!podiums && <YouBanner name={name} field={page.total} medals={m?.medals ?? null} />}
+        {!podiums && (
+          <YouBanner
+            name={name}
+            field={page.total}
+            medals={m && !eventOf(m.pfid) ? m.medals : null}
+          />
+        )}
 
         {podiums ? (
           <BoardBody

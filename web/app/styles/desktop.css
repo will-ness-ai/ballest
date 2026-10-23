@@ -771,6 +771,19 @@
   .pfu-split {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
+  /* a Generator's controls beside its model, which fills the height */
+  .gen-split {
+    grid-template-columns: minmax(18rem, 26rem) minmax(0, 1fr);
+    align-items: start;
+  }
+  .gen-side {
+    position: sticky;
+    inset-block-start: 1rem;
+  }
+  .gen-view .pfv {
+    aspect-ratio: auto;
+    height: min(36rem, calc(100svh - 14rem));
+  }
 
   footer {
     margin: 30px 0 0;

@@ -24,6 +24,7 @@ import "./styles/history.css";
 import "./styles/daily.css";
 import "./styles/you.css";
 import "./styles/prefabs.css";
+import "./styles/generators.css";
 import "./styles/desktop.css";
 
 const DESCRIPTION =

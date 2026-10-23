@@ -18,6 +18,8 @@ export type Control =
   /** Leave on a live Card: asks first, privately. */
   | { readonly _tag: "AskLeave"; readonly matchId: string }
   | { readonly _tag: "ConfirmLeave"; readonly matchId: string }
+  /** Play again on a finished Match: opens its Lobby, or joins the one already opened. */
+  | { readonly _tag: "PlayAgain"; readonly matchId: string }
   | { readonly _tag: "Stay" }
   | { readonly _tag: "ConfirmLink" }
   | { readonly _tag: "LinkForm" }
@@ -64,7 +66,7 @@ const bare = <K extends Tag>(prefix: string, control: Of<K>): Codec<K> => ({
 const matchIdOf = (s: string | undefined) => (s === undefined || s === "" ? null : s);
 
 /** A Control that carries only a Match id. */
-const forMatch = <K extends "AskLeave" | "ConfirmLeave">(
+const forMatch = <K extends "AskLeave" | "ConfirmLeave" | "PlayAgain">(
   prefix: string,
   make: (matchId: string) => Of<K>,
 ): Codec<K> => ({
@@ -97,6 +99,7 @@ const CODECS: { readonly [K in Tag]: Codec<K> } = {
   },
   AskLeave: forMatch("quit", (matchId) => ({ _tag: "AskLeave", matchId })),
   ConfirmLeave: forMatch("quityes", (matchId) => ({ _tag: "ConfirmLeave", matchId })),
+  PlayAgain: forMatch("again", (matchId) => ({ _tag: "PlayAgain", matchId })),
   PickType: {
     prefix: "type",
     write: (c) => [c.type],
