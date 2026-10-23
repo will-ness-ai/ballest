@@ -52,6 +52,23 @@ describe("a Prefab's share picture", () => {
     expect(px(119, 62)[3]).toBe(0);
   });
 
+  test("the uploader's angle frames it", async () => {
+    /* straight down from far above: a small square in the middle, the edges of the default
+       view's cube clear */
+    const above = decode(
+      await prefabPicture(
+        cubes({ at: [0, 0, 0] }),
+        { from: [0, 1, 0.001], zoom: 3, pan: [0, 0, 0] },
+        120,
+        63,
+      ),
+    );
+    expect(above.px(60, 31)[3]).toBe(255);
+    expect(above.px(42, 31)[3]).toBe(0);
+    const plain = decode(await prefabPicture(cubes({ at: [0, 0, 0] }), null, 120, 63));
+    expect(plain.px(42, 31)[3]).toBe(255);
+  });
+
   test("a mirrored piece is lit as the same piece unmirrored, not from inside", async () => {
     const plain = decode(await prefabPicture(cubes({ at: [0, 0, 0] }), null, 120, 63));
     const mirrored = decode(

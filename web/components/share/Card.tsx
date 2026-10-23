@@ -29,6 +29,10 @@ const C = {
   line: "rgba(150,175,245,0.18)",
   tile: "rgba(255,255,255,0.05)",
   pill: "rgba(10,16,32,0.72)",
+  /* the light behind a Prefab, and bg clear and nearly whole for the fade under its name */
+  glow: "#1d2a50",
+  bgClear: "rgba(10,16,32,0)",
+  bgFade: "rgba(10,16,32,0.9)",
 };
 const TONE: Record<Tone, string> = { gold: C.gold, author: C.author };
 const toneOf = (s: ShareStat) => (s.tone ? TONE[s.tone] : C.text);
@@ -293,7 +297,7 @@ function Showcase({ card, picture }: { card: ShareCard; picture: string | null }
     <div
       style={{
         ...frame,
-        backgroundImage: `radial-gradient(circle at 50% 42%, #1d2a50 0%, ${C.bg} 70%)`,
+        backgroundImage: `radial-gradient(circle at 50% 42%, ${C.glow} 0%, ${C.bg} 70%)`,
       }}
     >
       {picture ? <img src={picture} width={W} height={H} alt="" style={whole} /> : null}
@@ -301,7 +305,7 @@ function Showcase({ card, picture }: { card: ShareCard; picture: string | null }
         style={{
           ...whole,
           display: "flex",
-          backgroundImage: "linear-gradient(180deg, rgba(10,16,32,0) 55%, rgba(10,16,32,0.9) 100%)",
+          backgroundImage: `linear-gradient(180deg, ${C.bgClear} 55%, ${C.bgFade} 100%)`,
         }}
       />
       <div
@@ -390,12 +394,12 @@ const CACHE = "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=8
 const PREFAB_CACHE = "public, max-age=3600, s-maxage=3600";
 
 async function render(card: ShareCard, picture: SharePicture) {
-  const one = typeof picture === "string" ? picture : null;
+  const single = typeof picture === "string" ? picture : null;
   const body =
     card.kind === "player" ? (
-      <Split card={card} face={one} />
+      <Split card={card} face={single} />
     ) : card.kind === "prefab" ? (
-      <Showcase card={card} picture={one} />
+      <Showcase card={card} picture={single} />
     ) : (
       <Banner card={card} banner={picture} />
     );

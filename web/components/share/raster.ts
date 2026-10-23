@@ -161,7 +161,7 @@ export function rasterize(THREE: Three, scene: Object3D, camera: Camera, w: numb
     const index = mesh.geometry.getIndex()?.array ?? Array.from({ length: verts }, (_, i) => i);
     const clip = new Float64Array(verts * 4);
     const lit = new Float64Array(verts * 3);
-    const lit2 = new Float64Array(verts * 3);
+    const litBack = new Float64Array(verts * 3);
     const wpos = new Float64Array(verts * 3);
     for (let k = 0; k < mesh.count; k++) {
       mesh.getMatrixAt(k, instance);
@@ -196,7 +196,7 @@ export function rasterize(THREE: Three, scene: Object3D, camera: Camera, w: numb
         nz /= len;
         /* both sides are drawn (DoubleSide), each lit from its own side */
         shade(lights, albedo, glow, nx, ny, nz, lit, 3 * v);
-        shade(lights, albedo, glow, -nx, -ny, -nz, lit2, 3 * v);
+        shade(lights, albedo, glow, -nx, -ny, -nz, litBack, 3 * v);
       }
       for (let t = 0; t < index.length; t += 3) {
         const i0 = 3 * index[t],
@@ -214,7 +214,7 @@ export function rasterize(THREE: Three, scene: Object3D, camera: Camera, w: numb
           fz = ux * vy - uy * vx;
         const toEye =
           fx * (eye.x - wpos[i0]) + fy * (eye.y - wpos[i0 + 1]) + fz * (eye.z - wpos[i0 + 2]);
-        const src = toEye >= 0 !== mirrored ? lit : lit2;
+        const src = toEye >= 0 !== mirrored ? lit : litBack;
         for (let j = 0; j < 3; j++) {
           const i = index[t + j];
           tri[j] = [

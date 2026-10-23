@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: `${p.name}, a Ballest of Them All editor prefab by ${p.uploader.name}: ${String(p.pieces)} pieces to view in 3D and download.`,
       canonical: prefabHref(p.slug),
     },
-    { kind: "prefab", id: p.slug, alt: `${p.name} in 3D`, v: Date.parse(p.updatedAt) },
+    { kind: "prefab", id: p.slug, alt: `${p.name} in 3D`, version: Date.parse(p.updatedAt) },
   );
 }
 

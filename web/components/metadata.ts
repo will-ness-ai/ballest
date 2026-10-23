@@ -18,9 +18,9 @@ import type { ShareKind } from "../lib/share";
    for a page production lacks). */
 export async function pageMetadata(
   m: { title: string; description: string; canonical: string },
-  /* `v` names the card by what it shows instead of by the latest Refresh: a Prefab's,
+  /* `version` names the card by what it shows instead of by the latest Refresh: a Prefab's,
      by its last edit, since a Refresh changes nothing on it */
-  card?: { kind: ShareKind; id: string; alt: string; v?: number },
+  card?: { kind: ShareKind; id: string; alt: string; version?: number },
 ): Promise<Metadata> {
   const { title, description, canonical } = m;
   const page = { title, description, alternates: { canonical } };
@@ -31,7 +31,7 @@ export async function pageMetadata(
       : undefined;
   const url =
     (host ? "https://" + host : "") +
-    shareHref(card.kind, card.id, card.v ?? (await getSite()).asOf);
+    shareHref(card.kind, card.id, card.version ?? (await getSite()).asOf);
   return {
     ...page,
     openGraph: {

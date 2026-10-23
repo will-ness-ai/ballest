@@ -187,8 +187,9 @@ Overall board included, keeps the site-wide `og.png`.
   inside its season. A slug that isn't curated, or none of whose Maps is listed, is a 404.
 - A Prefab (`/og/prefab/<slug>`) is the Showcase (picked by Will from three layouts,
   2026-10-23): the Prefab itself across the whole card, drawn from its angle with the
-  viewer's stand-in shapes, "Prefab · by <uploader>" and its name at the bottom left, and
-  Pieces and Favorites (none left out) as pills beside them. A function has no GPU, so
+  viewer's stand-in shapes, "Prefab · by <uploader>" over its name at the bottom left,
+  Pieces and Favorites (none left out) as pills at the bottom right, and the brand pill at
+  the top right. A function has no GPU, so
   `components/share/raster.ts` draws the viewer's scene (`buildScene`) itself: a depth
   buffer, the viewer's lights in three's units, three times supersampled, and a PNG clear
   where no piece is (about 0.3 s for a typical Prefab, under 2 s for 4,096 pieces). A file
