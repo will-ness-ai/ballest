@@ -32,8 +32,13 @@ import steam  # noqa: E402 (after the warnings filter)
 # seconds a leaderboard request may take, and a job may wait for a login
 REQUEST_TIMEOUT = 60
 READY_TIMEOUT = 5 * 60
-# seconds between a failed login and the next try
+# seconds between a failed login and the next try, and between a login that worked and
+# dropped and its fresh one
 RETRY = 60
+RELOGIN = 5
+# seconds a fresh client may take to log in before it is dropped for another: steam.py's own
+# CM retries can wedge (seen live, 2026-10-23)
+LOGIN_DEADLINE = 90
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
@@ -75,47 +80,78 @@ class SteamSession:
     async def call(self, request):
         """`await request(client)` on the logged-in client, after any request ahead of it
         has its reply, within REQUEST_TIMEOUT once sent: every request to the CM goes through
-        here, a leaderboard read's or a file download's alike. One unanswered drops the
-        client for a fresh login."""
+        here, a leaderboard read's or a file download's alike."""
         await self.ready()  # a login is waited out side by side, not one caller after another
         async with self._one_at_a_time:
             client = await self.ready()  # at once, unless the request ahead dropped the client
-            try:
-                async with asyncio.timeout(REQUEST_TIMEOUT):
-                    return await request(client)
-            except TimeoutError:
-                self._drop(client, "a request went unanswered")
-                raise
+            async with asyncio.timeout(REQUEST_TIMEOUT):
+                return await request(client)
 
     async def send(self, msg):
-        """Sends one raw protobuf request and returns its reply (steampy_common's leaderboard
-        requests)."""
-        return await self.call(
-            lambda client: client._state.ws.send_proto_and_wait(msg)  # noqa: SLF001 (steam.py has no public raw-protobuf call)
-        )
+        """Sends one raw protobuf request to the CM and returns its reply (steampy_common's
+        leaderboard requests). One left unanswered drops the client for a fresh login."""
+        client = None
+
+        def raw(c):
+            nonlocal client
+            client = c
+            return c._state.ws.send_proto_and_wait(msg)  # noqa: SLF001 (steam.py has no public raw-protobuf call)
+
+        try:
+            return await self.call(raw)
+        except TimeoutError:
+            if client is not None:  # sent, never answered (not a wait for the login)
+                self._drop(client, "a request went unanswered")
+            raise
 
     async def _hold(self):
         while not self._closing:
-            client = self.client = self.make_client()
-            self._dropped.clear()
-            self._on_events(client)
-            login = asyncio.create_task(self._login(client))
-            dropped = asyncio.create_task(self._dropped.wait())
-            await asyncio.wait({login, dropped}, return_when=asyncio.FIRST_COMPLETED)
-            dropped.cancel()
-            if not login.done():  # dropped: this client's socket is dead to us
-                with contextlib.suppress(Exception):
-                    await client.close()
-                with contextlib.suppress(Exception, asyncio.CancelledError, TimeoutError):
-                    await asyncio.wait_for(login, 30)
+            try:
+                worked = await self._one_login()
+            except Exception as e:  # never let the session stop logging in
+                print(f"Steam: the login loop failed: {e!r}", flush=True)
+                self._went_down(e)
+                worked = False
             if self._closing:
-                return  # steam.py often raises on the teardown after close()
-            failed = None if login.cancelled() else login.exception()
-            if failed is not None:
-                print(f"Steam: logging in failed: {failed!r}", flush=True)
-                self._went_down(failed)
-            print(f"Steam: logging in again in {RETRY} s", flush=True)
-            await self.sleep(RETRY)
+                return
+            wait = RELOGIN if worked else RETRY
+            print(f"Steam: logging in again in {wait} s", flush=True)
+            await self.sleep(wait)
+
+    async def _one_login(self):
+        """One client, from its login until it is dropped or its login ends: whether it
+        logged in."""
+        client = self.client = self.make_client()
+        self._dropped.clear()
+        logins = self.logins
+        self._on_events(client)
+        login = asyncio.create_task(self._login(client))
+        dropped = asyncio.create_task(self._dropped.wait())
+        deadline = asyncio.create_task(self._login_deadline(client, logins))
+        await asyncio.wait({login, dropped}, return_when=asyncio.FIRST_COMPLETED)
+        dropped.cancel()
+        deadline.cancel()
+        if not login.done():  # dropped: this client's socket is dead to us
+            with contextlib.suppress(Exception):
+                await client.close()
+            with contextlib.suppress(Exception, asyncio.CancelledError, TimeoutError):
+                await asyncio.wait_for(login, 30)
+        worked = self.logins > logins
+        if self._closing:
+            return worked  # steam.py often raises on the teardown after close()
+        failed = None if login.cancelled() else login.exception()
+        if worked:
+            # what steam.py raises as a working login's connection closes is no login failure
+            self._went_down(self.down or "connection dropped")
+        else:
+            print(f"Steam: logging in failed: {failed!r}", flush=True)
+            self._went_down(failed or "the login ended")
+        return worked
+
+    async def _login_deadline(self, client, logins):
+        await asyncio.sleep(LOGIN_DEADLINE)
+        if self.logins == logins:
+            self._drop(client, f"no login within {LOGIN_DEADLINE} s")
 
     async def _login(self, client):
         async with client:

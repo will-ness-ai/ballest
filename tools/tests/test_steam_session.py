@@ -273,3 +273,59 @@ def test_steam_down_for_a_while_fails_jobs_at_once(monkeypatch):
         await s.close()
 
     asyncio.run(go())
+
+
+def test_a_slow_file_request_keeps_the_login(monkeypatch):
+    # a manifest waits on Steam's content servers, not the CM
+    monkeypatch.setattr(steam_session, "REQUEST_TIMEOUT", 0.05)
+
+    async def go():
+        s = session()
+        with pytest.raises(TimeoutError):
+            await s.call(lambda _c: asyncio.sleep(10))
+        assert s.up
+        assert len(FakeClient.made) == 1
+        await s.close()
+
+    asyncio.run(go())
+
+
+def test_a_working_login_that_ends_is_a_drop_and_comes_back_quickly():
+    class Dies(FakeClient):
+        async def login(self, refresh_token):  # noqa: ARG002 (steam.Client's signature)
+            self.ready = True
+            await self.handlers["on_ready"]()
+            raise RuntimeError("ConnectionClosed")  # how steam.py's login ends on a dead socket
+
+    async def go():
+        clients = iter([Dies(), FakeClient()])
+        slept = []
+
+        async def sleep(seconds):
+            slept.append(seconds)
+
+        s = session(make=lambda: next(clients), sleep=sleep)
+        await s.ready()  # the first, which dies
+        while s.logins < 2:  # noqa: ASYNC110 (the session has no event for a login)
+            await asyncio.sleep(0.01)
+        assert slept == [steam_session.RELOGIN]
+        await s.close()
+
+    asyncio.run(go())
+
+
+def test_a_login_that_never_comes_is_dropped_for_a_fresh_one(monkeypatch):
+    monkeypatch.setattr(steam_session, "LOGIN_DEADLINE", 0.1)
+
+    class Wedged(FakeClient):
+        async def login(self, refresh_token):  # noqa: ARG002 (steam.Client's signature)
+            await self.closed.wait()
+
+    async def go():
+        clients = iter([Wedged(), FakeClient()])
+        s = session(make=lambda: next(clients), sleep=soon)
+        assert await s.send("a") == "reply to a"
+        assert FakeClient.made[0].closed.is_set()
+        await s.close()
+
+    asyncio.run(go())

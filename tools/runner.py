@@ -331,9 +331,9 @@ class Service:
                     await self.alert(
                         f"Collector: Daily reads have failed for {DAILY_OUTAGE // 60} minutes"
                         f" (exit {code}); they go on every {DAILY_EVERY} s, and ops hears"
-                        " nothing more until one works. If Steam itself is up and the lines"
-                        " below say 'not logged in yet' or show a login error, the token needs"
-                        f" re-minting (tools/steampy_mint.py).\n{_tail(lines)}"
+                        " nothing more until one works. If Steam itself is up, the login is"
+                        " being refused and the token needs re-minting (tools/steampy_mint.py)."
+                        f"\n{_tail(lines)}"
                     )
             await sleep(max(0.0, DAILY_EVERY - (clock() - started)))
 

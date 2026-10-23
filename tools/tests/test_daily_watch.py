@@ -72,7 +72,7 @@ class Steam:
     """The session: logged in, or not (ready raises as SteamSession.ready does)."""
 
     def __init__(self, *, up=True):
-        self.up = up
+        self.up, self.down = up, None
 
     async def ready(self):
         if not self.up:
@@ -92,3 +92,18 @@ def test_a_board_that_fails_on_its_own_is_no_outage():
     w = watcher(Fakes(read_of(OCT19, "2026-10-19T02:00")))
     w.watch.wrote([read_of(OCT19, "2026-10-19T01:00", ("1", 900))])
     assert asyncio.run(w.read(Steam())) == 0
+
+
+def test_a_read_that_dropped_the_login_fails():
+    # a request Steam left unanswered drops the login (SteamSession.send)
+    steam = Steam()
+    fakes = Fakes(read_of(OCT19, "2026-10-19T02:00"))
+    collect = fakes.collect
+
+    async def unanswered(*args):
+        steam.up, steam.down = False, "a request went unanswered"
+        return await collect(*args)
+
+    fakes.collect = unanswered
+    with pytest.raises(ConnectionError, match="unanswered"):
+        asyncio.run(watcher(fakes).read(steam))
