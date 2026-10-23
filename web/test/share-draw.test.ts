@@ -101,5 +101,7 @@ test("a Prefab's long name keeps to its column, and its card is kept an hour", a
   };
   const res = await drawShare(prefab, null);
   expect(res.status).toBe(200);
-  expect(res.headers.get("cache-control")).toBe("public, max-age=3600, s-maxage=3600");
+  expect(res.headers.get("cache-control")).toBe(
+    "public, max-age=3600, s-maxage=3600, stale-while-revalidate=60",
+  );
 });

@@ -11,16 +11,17 @@ import type { ShareKind } from "../lib/share";
    player's tab, a focused row), resolved against metadataBase. A page with no card keeps
    the layout's og.png.
 
-   A card is named by the latest Refresh so each Refresh is a new URL to crawlers. Next
+   A card is named by the latest Refresh so each Refresh is a new URL to crawlers (a
+   Prefab's by its last edit too, if that is later). Next
    replaces the layout's openGraph rather than merging into it, so the site name and type
    are restated here. metadataBase is the production address, so a preview deploy names
    its own card with an absolute URL, or its links would unfurl production's (or nothing,
    for a page production lacks). */
 export async function pageMetadata(
   m: { title: string; description: string; canonical: string },
-  /* `version` names the card by what it shows instead of by the latest Refresh: a Prefab's,
-     by its last edit, since a Refresh changes nothing on it */
-  card?: { kind: ShareKind; id: string; alt: string; version?: number },
+  /* `at`, when the page itself last changed (ms), names the card anew when that is after
+     the latest Refresh: a Prefab's edit */
+  card?: { kind: ShareKind; id: string; alt: string; at?: number },
 ): Promise<Metadata> {
   const { title, description, canonical } = m;
   const page = { title, description, alternates: { canonical } };
@@ -31,7 +32,7 @@ export async function pageMetadata(
       : undefined;
   const url =
     (host ? "https://" + host : "") +
-    shareHref(card.kind, card.id, card.version ?? (await getSite()).asOf);
+    shareHref(card.kind, card.id, Math.max((await getSite()).asOf, card.at ?? 0));
   return {
     ...page,
     openGraph: {

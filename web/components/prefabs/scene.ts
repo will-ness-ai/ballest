@@ -206,6 +206,16 @@ function fitDistance(camera: import("three").PerspectiveCamera, radius: number) 
   return (radius / Math.sin(Math.min(v, h))) * 1.05;
 }
 
+/* the viewer's field of view, which the angle's zoom is measured against, so every picture of
+   a Prefab frames as its uploader saw it */
+export const VIEW_FOV = 40;
+
+/* the camera's near and far planes: fixed for a Prefab, growing with a Workshop Map, which can
+   be hundreds of metres across and, from as far back as the zoom goes (20 fits) on a tall
+   screen, would otherwise fall past the far plane */
+export const planesFor = (radius: number) =>
+  [Math.max(0.05, radius / 2000), Math.max(2000, radius * 200)] as const;
+
 /* the camera a still picture is taken with, at `angle` (the browser's and the share image's) */
 export function stillCamera(
   THREE: Three,
@@ -214,7 +224,7 @@ export function stillCamera(
   radius: number,
   angle: PrefabAngle | null,
 ) {
-  const camera = new THREE.PerspectiveCamera(40, aspect, 0.05, 2000);
+  const camera = new THREE.PerspectiveCamera(VIEW_FOV, aspect, ...planesFor(radius));
   const view = framing(THREE, camera, centre, radius, angle);
   camera.position.copy(view.position);
   camera.lookAt(view.target);

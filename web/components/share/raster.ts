@@ -114,6 +114,9 @@ export function rasterize(THREE: Three, scene: Object3D, camera: Camera, w: numb
       y2 = (1 - c[1] / c[3]) * 0.5 * H;
     const area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
     if (area === 0 || !isFinite(area)) return;
+    const w0 = 1 / a[3],
+      w1 = 1 / b[3],
+      w2 = 1 / c[3];
     const z0 = a[2] / a[3],
       z1 = b[2] / b[3],
       z2 = c[2] / c[3];
@@ -134,13 +137,13 @@ export function rasterize(THREE: Three, scene: Object3D, camera: Camera, w: numb
         if (z >= depth[i] || z > 1) continue;
         depth[i] = z;
         /* the colour across the triangle in 3D, not on the screen, as a GPU blends it */
-        const p0 = l0 / a[3],
-          p1 = l1 / b[3],
-          p2 = l2 / c[3];
-        const sum = p0 + p1 + p2;
-        colour[3 * i] = (p0 * a[4] + p1 * b[4] + p2 * c[4]) / sum;
-        colour[3 * i + 1] = (p0 * a[5] + p1 * b[5] + p2 * c[5]) / sum;
-        colour[3 * i + 2] = (p0 * a[6] + p1 * b[6] + p2 * c[6]) / sum;
+        const inv = 1 / (l0 * w0 + l1 * w1 + l2 * w2);
+        const p0 = l0 * w0 * inv,
+          p1 = l1 * w1 * inv,
+          p2 = l2 * w2 * inv;
+        colour[3 * i] = p0 * a[4] + p1 * b[4] + p2 * c[4];
+        colour[3 * i + 1] = p0 * a[5] + p1 * b[5] + p2 * c[5];
+        colour[3 * i + 2] = p0 * a[6] + p1 * b[6] + p2 * c[6];
       }
     }
   };

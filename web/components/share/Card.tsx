@@ -373,7 +373,8 @@ function loadFonts() {
 
 /* The card as a PNG response. Vercel's CDN keeps a function's answer only under s-maxage,
    which ImageResponse's own header lacks; the page names the card with the latest Refresh
-   in its URL, so a cached copy is never older than the link that asks for it. The picture
+   (or a Prefab's later edit) in its URL, so a cached copy is never older than the link
+   that asks for it. The picture
    is a player's Steam avatar, a place's Workshop preview or Track screenshot, a
    Campaign's Map previews, or a Prefab drawn in 3D (SharePicture). A picture Satori
    can't read draws the card without any, rather than a 500 no CDN keeps. */
@@ -391,7 +392,7 @@ export async function drawShare(card: ShareCard, picture: SharePicture) {
 const CACHE = "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400";
 /* a Prefab can be taken down or deleted, and nothing purges the CDN then, so its card is kept
    an hour at most */
-const PREFAB_CACHE = "public, max-age=3600, s-maxage=3600";
+const PREFAB_CACHE = "public, max-age=3600, s-maxage=3600, stale-while-revalidate=60";
 
 async function render(card: ShareCard, picture: SharePicture) {
   const single = typeof picture === "string" ? picture : null;
