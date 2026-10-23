@@ -623,6 +623,16 @@ kept apart from the Generators so a page that only links one never loads them).
   a pyramid at each end; flat as a slab inside a parapet. SM_Pyramid's corners sit at the middle
   of its bounds' edges, so a pyramid roof is turned 45° and grown by √2 (`pyramid`). Each was
   checked from four angles at six settings on the prototype's `/proto-collage` page.
+- **Racing pieces** (`racing.ts`, the Full course in `course.ts`) are sections of track
+  (`track.ts`): each is built where it starts, heading +X with its surface at z = 0, as runs of
+  centreline stops whose slabs make the surface (walls stand on their edges), and names its
+  ways out, so `chain` lays one after another and any two pieces of the same width meet. A
+  Corner, Banked turn and the Spiral are one `bend` (a banked one eases from flat at its ends);
+  a rise is held to 45°. Legs come last, once the floor is known (`supportsOf`): pairs at each
+  end of a run and every 4 m, never where other track runs underneath, and a spiral stands on
+  its column. The Full course is a fixed layout of every piece, set down so its lowest stretch
+  lies on the floor; `test/track.test.ts` checks it never passes within 2.5 m of itself but
+  where it runs on, and that no leg stands in track below.
 - **The collage** (`/prefabs/collage?g=<key>[&only=<control,…>]`, `GeneratorCollage.tsx`): one
   Generator in every variation `variationsOf` lists, from three angles, for an agent to read in
   one screenshot (`.claude/skills/prefab-generators/collage.mjs`). `proxy.ts` answers 404 for it
