@@ -171,6 +171,11 @@ card says, `components/share/` draws it through `next/og`, `pageMetadata`
 `campaign`, `prefab`) serves the PNG, or a 404 when there is no such page. Any other page, an
 Overall board included, keeps the site-wide `og.png`.
 
+Every card carries the brand: the lime marble and the site's name, BALLESTRECORDS, in the
+header's two tones (`SITE_WORDMARK`, `lib/rules.ts`; lime restated in sRGB). `og.png` bakes the
+same name in with "Leaderboards for Ballest of Them All" under it, so renaming the site means
+rendering it again (it was last drawn from a small page in Chromium at 1200×630, spec #339).
+
 - A player gets their marble turned over to their Steam avatar, the Season 2 Overall rank
   if they have one, and up to four tiles: World records, Author medals, Maps finished,
   Maps made. Each counts the Circuit and the Workshop together, and a count of zero is
@@ -436,7 +441,12 @@ still shows them.
 
 ## The header
 
-The wordmark links home. The refresh time under it is a button that opens a dialog on how
+The site is BALLESTRECORDS (spec #339), the name its address carries; "Ballest of Them All"
+is the game's name and stays wherever it means the game (descriptions, the footer). The
+wordmark beside the marble rack is that name as one word in Bungee, BALLEST in the text colour
+and RECORDS in lime (`SITE_WORDMARK`), and never wraps. It links home. Every tab title ends
+"· BALLESTRECORDS" (`pageTitle`), and the homepage's title and its `WebSite` JSON-LD say the
+site's name first, then the game it mirrors. The refresh time under it is a button that opens a dialog on how
 the boards refresh: a static table of how long a change takes to show on Circuit and
 Workshop boards, and when every Map was last read in full. The table restates
 `collect_workshop`'s rules, so a change to when the collector reads a board changes that
