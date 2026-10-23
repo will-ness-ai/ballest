@@ -101,7 +101,8 @@ export function PrefabGuide() {
             </li>
           </ol>
           <p className="pfg-note">
-            You can upload {HOURLY_UPLOADS} an hour, and edit or delete yours from its page.
+            Most players can upload {HOURLY_UPLOADS} an hour, and edit or delete yours from its
+            page.
           </p>
         </section>
         <section>

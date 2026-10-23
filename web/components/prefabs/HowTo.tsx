@@ -17,13 +17,16 @@ function Copy({ text }: { text: string }) {
       type="button"
       className="pf-copy"
       onClick={() => {
-        navigator.clipboard.writeText(text).then(
-          () => {
-            setDone(true);
-            setTimeout(() => setDone(false), 1200);
-          },
-          () => undefined, // clipboard blocked: the text is there to select by hand
-        );
+        // no clipboard at all (an http page) rejects like a blocked one
+        Promise.resolve()
+          .then(() => navigator.clipboard.writeText(text))
+          .then(
+            () => {
+              setDone(true);
+              setTimeout(() => setDone(false), 1200);
+            },
+            () => undefined, // clipboard blocked: the text is there to select by hand
+          );
       }}
     >
       {done ? "Copied" : "Copy"}
