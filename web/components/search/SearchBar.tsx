@@ -40,7 +40,9 @@ const MARK: Record<SearchKind, SectionKey> = {
   prefabs: "prefabs",
 };
 
-const PLACEHOLDER = "Search players, Maps, Campaigns…";
+/* short enough for the field at 820px, between the brand and Sign in with Steam; the empty
+   field's tip names every kind it finds */
+const PLACEHOLDER = "Search players, Maps…";
 
 /* `you` is You's card, which the phone's button keeps beside it: the bar wraps the two as one */
 export function SearchBar({ jumps, you }: { jumps: ReadonlyArray<Hit>; you?: React.ReactNode }) {
