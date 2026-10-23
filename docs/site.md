@@ -163,12 +163,12 @@ from another skin's alpha so every edge matches.
 
 ## Share images
 
-A player, a Workshop Map, a Circuit Track, a Daily and a Campaign each unfurl with their
-own 1200×630 card (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
+A player, a Workshop Map, a Circuit Track, a Daily, a Campaign and a Prefab each unfurl
+with their own 1200×630 card (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
 card says, `components/share/` draws it through `next/og`, `pageMetadata`
 (`components/metadata.ts`) names it in the page's metadata, and `/og/<kind>/<id>`
 (`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`, `map`, `track`, `daily`,
-`campaign`) serves the PNG, or a 404 when there is no such page. Any other page, an
+`campaign`, `prefab`) serves the PNG, or a 404 when there is no such page. Any other page, an
 Overall board included, keeps the site-wide `og.png`.
 
 - A player gets their marble turned over to their Steam avatar, the Season 2 Overall rank
@@ -185,10 +185,23 @@ Overall board included, keeps the site-wide `og.png`.
   (`finishedEveryMap`). Its Overall, podiums and a focused row name it; a Map inside its
   frame (`/campaign/<slug>/<pfid>`) names that Map's own card, as a Track names its own
   inside its season. A slug that isn't curated, or none of whose Maps is listed, is a 404.
+- A Prefab (`/og/prefab/<slug>`) is the Showcase (picked by Will from three layouts,
+  2026-10-23): the Prefab itself across the whole card, drawn from its angle with the
+  viewer's stand-in shapes, "Prefab · by <uploader>" over its name at the bottom left,
+  Pieces and Favorites (none left out) as pills at the bottom right, and the brand pill at
+  the top right. A function has no GPU, so
+  `components/share/raster.ts` draws the viewer's scene (`buildScene`) itself: a depth
+  buffer, the viewer's lights in three's units, three times supersampled, and a PNG clear
+  where no piece is (about 0.3 s for a typical Prefab, under 2 s for 4,096 pieces). A file
+  it can't draw leaves the card without its picture. A Prefab not live is a 404, as its
+  page is gone.
 
 The page names its card with the latest Refresh in the URL (`?v=`, `shareHref`), so each
 Refresh is a new address for crawlers that keep a picture by URL, and the route answers
-with `s-maxage` for a year: Vercel's CDN renders each card once per Refresh at most. On a
+with `s-maxage` for a year: Vercel's CDN renders each card once per Refresh at most. A
+Prefab's card is named by its last edit when that is later, so a new name or angle shows at
+once, and is kept an hour only: a Prefab taken down or deleted leaves no picture on the CDN
+for longer. On a
 preview the card's URL is the branch's own address, since `metadataBase` is production.
 
 Satori reads no WebP, no variable font and no `oklch`, so `assets/share/` holds what it
@@ -562,7 +575,7 @@ branch `claude/prototype-prefabs` (spec #213).
   card's picture is drawn in the browser from the file by one shared renderer once the card
   scrolls near, so no image is stored.
 - **The angle** (`PrefabAngle` in `lib/prefabs.ts`, the `angle` column): the view its uploader
-  picked, which the card, the upload ping's still and the page's viewer start from; none is
+  picked, which the card, the share image, the upload ping's still and the page's viewer start from; none is
   three-quarters from above with the whole Prefab in view. It is stored relative to the
   Prefab's bounds (the camera's direction, its distance over the fitting one, and where it
   looks in radii), so it frames the same at any picture size. The uploader picks it in

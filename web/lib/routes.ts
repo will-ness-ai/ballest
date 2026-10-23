@@ -258,7 +258,7 @@ export function legacyPath(hash: string): string | null {
   return null;
 }
 
-/* a page's share image (lib/share.ts); v is the latest Refresh, so each Refresh is a new URL
-   for crawlers that keep a picture by its URL (Discord, Slack, X) */
-export const shareHref = (kind: ShareKind, id: string, asOf: number) =>
-  `/og/${kind}/${id}?v=${String(asOf)}`;
+/* a page's share image (lib/share.ts); v is the latest Refresh (or a Prefab's later edit), so
+   each is a new URL for crawlers that keep a picture by its URL (Discord, Slack, X) */
+export const shareHref = (kind: ShareKind, id: string, version: number) =>
+  `/og/${kind}/${id}?v=${String(version)}`;

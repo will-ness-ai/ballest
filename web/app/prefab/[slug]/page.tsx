@@ -23,11 +23,14 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await getPrefab((await params).slug);
   if (p?.state !== "live") return { title: "Prefab not found", robots: { index: false } };
-  return pageMetadata({
-    title: p.name,
-    description: `${p.name}, a Ballest of Them All editor prefab by ${p.uploader.name}: ${String(p.pieces)} pieces to view in 3D and download.`,
-    canonical: prefabHref(p.slug),
-  });
+  return pageMetadata(
+    {
+      title: p.name,
+      description: `${p.name}, a Ballest of Them All editor prefab by ${p.uploader.name}: ${String(p.pieces)} pieces to view in 3D and download.`,
+      canonical: prefabHref(p.slug),
+    },
+    { kind: "prefab", id: p.slug, alt: `${p.name} in 3D`, at: Date.parse(p.updatedAt) },
+  );
 }
 
 async function Body({ params }: Props) {

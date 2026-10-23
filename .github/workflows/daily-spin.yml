@@ -4,8 +4,10 @@ name: Draw a Map's spinning GIF
 # spec #268), or by hand with a pfid: opens the Map's 3D view on ballestrecords.com in Chromium,
 # turns it one full turn and stores the GIF in map_spins (web/scripts/map-spin.ts), which the bot
 # reads and edits into the Daily Post. It reads the site and writes only that one row. A failed
-# run tells the private ops channel at once, naming the Map; the bot's own note an hour after
-# asking stays as the fallback, for a run that never started.
+# or timed-out run tells the private ops channel at once, naming the Map; the bot's own note an
+# hour after asking stays as the fallback, for a run that never started. Nothing comes from apt:
+# its mirrors have stalled for a quarter of an hour (2026-10-23), so Chromium uses the libraries
+# the runner's own Chrome brought and ffmpeg is a static build from npm.
 
 on:
   workflow_dispatch:
@@ -26,7 +28,8 @@ permissions:
 jobs:
   draw:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # a big Map's drawing has taken 16 minutes; the bot waits an hour
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: web
@@ -41,9 +44,14 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright-core install --with-deps chromium
+      - run: pnpm exec playwright-core install chromium
+        timeout-minutes: 5
       - name: Install ffmpeg
-        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg)
+        timeout-minutes: 5
+        run: |
+          command -v ffmpeg && exit 0
+          npm install --no-save --prefix "$RUNNER_TEMP/ffmpeg" ffmpeg-static@5.2.0
+          echo "$RUNNER_TEMP/ffmpeg/node_modules/ffmpeg-static" >> "$GITHUB_PATH"
       - name: Draw and store the GIF
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -57,7 +65,7 @@ jobs:
           path: web/spin.gif
           retention-days: 7
       - name: Tell ops the drawing failed
-        if: failure()
+        if: failure() || cancelled()
         env:
           OPS_WEBHOOK_URL: ${{ secrets.OPS_WEBHOOK_URL }}
           PFID: ${{ inputs.pfid }}
