@@ -161,7 +161,8 @@ nothing otherwise, so a quiet board leaves the database asleep. It starts from t
 Entries of each Daily not yet final, so a restart rewrites nothing. Its
 revalidate names the Dailies it wrote (`?daily=<board>`), which expires only the reads tagged
 `dailies` and those boards' own tags. `runner.py` logs it off whenever another job needs Steam
-and starts it again after; one that dies starts again a minute later, and ops hears once.
+and starts it again after; one that dies starts again a minute later, which rides out Steam's
+short drops, and ops hears once only when it has stayed down half an hour.
 
 ### Chosen Skins
 
