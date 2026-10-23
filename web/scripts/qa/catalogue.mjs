@@ -79,7 +79,8 @@ export const PAGES = [
   { name: "prefab", path: "/prefab/{PREFAB}" },
   { name: "prefab-new", path: "/prefabs/new" },
   { name: "make", path: "/prefabs/make" },
-  { name: "make-course", path: "/prefabs/make/course" },
+  /* a Generator page; the Full course draws too many pieces for CI's software WebGL */
+  { name: "make-banked", path: "/prefabs/make/banked" },
   { name: "prefab-upload", path: "/prefabs/new", as: "UPLOADER" },
   { name: "prefab-owner", path: "/prefab/{PREFAB}", as: "UPLOADER" },
   { name: "prefab-admin", path: "/prefab/{PREFAB}", as: "ADMIN" },
