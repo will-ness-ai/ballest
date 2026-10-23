@@ -13,8 +13,9 @@ The service now holds one Steam session (`tools/steam_session.py`) and runs ever
 its own process on it: the Refresh, the file downloads, the Map add and the Daily read are
 async functions, not scripts. It logs in when a job first needs Steam and stays logged in;
 steam.py reconnects a dropped connection by itself, and a login that fails is tried again a
-minute later, with one ops alert once it has failed for half an hour (Steam's short drops
-pass unremarked). The session sends every request to the CM one at a time, a
+minute later. Ops hears of a Steam outage, a dropped connection or a refused login alike,
+through the Daily read: a read that couldn't reach Steam fails, and once they have failed for
+half an hour ops gets one alert (Steam's short drops pass unremarked). The session sends every request to the CM one at a time, a
 leaderboard read's and a file download's alike (the CM drops replies with several in flight),
 each with a timeout, so a Daily read slots in
 between a Refresh's board reads, and a request lost with its connection fails its job instead

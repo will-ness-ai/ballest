@@ -29,8 +29,9 @@ once. Each job's output goes to the log under its name (JobLog), and a job still
 its time is stopped and counts as failed.
 
 A failed Refresh or Map add posts its last lines to the private ops channel
-(OPS_WEBHOOK_URL), in place of Actions' failure emails, and so do a failed Steam login and
-failing Daily reads, once each until they work again; a failed download only logs, since the
+(OPS_WEBHOOK_URL), in place of Actions' failure emails. A Steam outage, a dropped connection
+or a refused login alike, reaches it through the Daily read, once reads have failed for
+DAILY_OUTAGE (Steam's short drops pass unremarked); a failed download only logs, since the
 next Refresh's Map file step downloads any file still due. The HTTP door listens on Fly's
 private network only (no public address), so it takes no secret.
 
@@ -230,9 +231,16 @@ class Service:
         return self.queue["map-files"].request()
 
     async def _job(self, what, name, work, *, limit=None):
-        """Runs `work()` to an exit code under the log name `name`, stopped after `limit`
-        seconds (JOB_TIMEOUT by default); one that raises or is stopped exits -1. Alerts the
-        ops channel when it fails and `what` names it."""
+        """`_run`'s exit code, alerting the ops channel with the job's last lines when it
+        fails and `what` names it."""
+        code, lines = await self._run(name, work, limit=limit)
+        if code and what:
+            await self.alert(f"Collector: {what} failed (exit {code}).\n{_tail(lines)}")
+        return code
+
+    async def _run(self, name, work, *, limit=None):
+        """Runs `work()` under the log name `name`, stopped after `limit` seconds (JOB_TIMEOUT
+        by default): its exit code, -1 when it raises or is stopped, and its last lines."""
         limit = JOB_TIMEOUT if limit is None else limit
         with self.logs.job(name) as tail:
             stop = asyncio.timeout(limit)
@@ -248,10 +256,7 @@ class Service:
                 if stopped:
                     print(f"(stopped after {limit / 60:g} minutes)")
                 code = -1
-            lines = list(tail)
-        if code and what:
-            await self.alert(f"Collector: {what} failed (exit {code}).\n{_tail(lines)}")
-        return code
+            return code, list(tail)
 
     async def _refresh(self):
         async with self.map_file_writers, self.daily_writers:
@@ -300,8 +305,10 @@ class Service:
 
     async def watch_dailies(self, *, sleep=asyncio.sleep, clock=time.monotonic):
         """Reads the open Dailies every DAILY_EVERY seconds, counted from each read's start,
-        skipping a turn while a Refresh runs. Ops hears once reads have failed for
-        DAILY_OUTAGE, and again only after one has worked."""
+        skipping a turn while a Refresh runs. A read fails when Steam couldn't be read
+        (daily_watch.Watcher.read), so this is where a Steam outage of any kind reaches ops:
+        once reads have failed for DAILY_OUTAGE, with the last one's lines, and again only
+        after one has worked. A skipped turn neither starts an outage nor ends one."""
         failing_since, told = None, False
         while True:
             started = clock()
@@ -309,8 +316,8 @@ class Service:
                 async with self.daily_writers:
                     self.daily_running = True
                     try:
-                        code = await self._job(
-                            None, "daily", self.jobs.read_dailies, limit=DAILY_TIMEOUT
+                        code, lines = await self._run(
+                            "daily", self.jobs.read_dailies, limit=DAILY_TIMEOUT
                         )
                     finally:
                         self.daily_running = False
@@ -323,8 +330,10 @@ class Service:
                     told = True
                     await self.alert(
                         f"Collector: Daily reads have failed for {DAILY_OUTAGE // 60} minutes"
-                        f" (exit {code}); they go on every {DAILY_EVERY} s, and ops hears"
-                        " nothing more until one works."
+                        f" (exit {code}): Steam is down or the login is refused (a bad token"
+                        " needs a new STEAM_REFRESH_TOKEN, tools/steampy_mint.py). They go on"
+                        f" every {DAILY_EVERY} s; ops hears nothing more until one works.\n"
+                        f"{_tail(lines)}"
                     )
             await sleep(max(0.0, DAILY_EVERY - (clock() - started)))
 
@@ -441,7 +450,7 @@ async def schedule(service, *, now=lambda: datetime.now(UTC), sleep=asyncio.slee
 
 
 async def serve():
-    session = steam_session.SteamSession(cc.load_refresh_token(), on_down=post_ops)
+    session = steam_session.SteamSession(cc.load_refresh_token())
     service = Service(Collector(session), post_ops)
     site_runner = web.AppRunner(app(service))
     await site_runner.setup()

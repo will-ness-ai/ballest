@@ -2,6 +2,7 @@
 writes, and what it does when the write fails."""
 
 import asyncio
+import dataclasses
 
 import daily_watch
 import db_writer
@@ -30,14 +31,19 @@ def test_run_on_its_own_with_no_token_it_stops_at_once(monkeypatch, capsys):
     assert "STEAM_REFRESH_TOKEN" in capsys.readouterr().out
 
 
+def opened(r):
+    """A read of a Daily just opened: Steam answered with no rows (a failed read has None)."""
+    return dataclasses.replace(r, rows=[])
+
+
 def watcher(fakes):
     return daily_watch.Watcher(db_writer.Memory(), collect=fakes.collect, write=fakes.write)
 
 
 def test_a_read_writes_a_new_daily_as_a_daily_read_and_then_only_what_moved():
     fakes = Fakes(
-        read_of(OCT19, "2026-10-19T01:00"),  # just opened: nobody has a time yet
-        read_of(OCT19, "2026-10-19T01:01"),
+        opened(read_of(OCT19, "2026-10-19T01:00")),  # nobody has a time yet
+        opened(read_of(OCT19, "2026-10-19T01:01")),
         read_of(OCT19, "2026-10-19T01:02", ("1", 900)),
     )
     w = watcher(fakes)
@@ -58,3 +64,13 @@ def test_a_failed_write_fails_the_read_and_the_next_read_writes_it():
     fakes.fail = False
     assert asyncio.run(w.read(None)) == 0
     assert len(fakes.written) == 1
+
+
+def test_a_read_that_steam_failed_fails_the_daily_read():
+    # what the service counts toward a Steam outage (runner.DAILY_OUTAGE)
+    failed = read_of(OCT19, "2026-10-19T01:01")
+    assert failed.rows is None
+    fakes = Fakes(failed, opened(read_of(OCT19, "2026-10-19T01:02")))
+    w = watcher(fakes)
+    assert asyncio.run(w.read(None)) == 1
+    assert asyncio.run(w.read(None)) == 0

@@ -163,8 +163,9 @@ Entries of each Daily not yet final, so a restart rewrites nothing. Its
 revalidate names the Dailies it wrote (`?daily=<board>`), which expires only the reads tagged
 `dailies` and those boards' own tags. `runner.py` reads through file downloads too, and skips a
 minute only while a Refresh runs, since the Refresh reads and writes the Dailies itself; after
-each Refresh it starts again from what the database holds. The next minute's read rides out
-Steam's short drops, so ops hears only once reads have failed for half an hour.
+each Refresh it starts again from what the database holds. A read fails when a Daily's board
+couldn't be read from Steam, and the next minute's read rides out Steam's short drops, so ops
+hears only once reads have failed for half an hour.
 
 ### Chosen Skins
 

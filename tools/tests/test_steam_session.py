@@ -2,7 +2,6 @@
 leaderboard requests one at a time, and a login that fails tried again."""
 
 import asyncio
-import contextlib
 import contextvars
 import types
 from typing import ClassVar
@@ -66,18 +65,12 @@ def fresh():
 
 
 def session(make=FakeClient, **kw):
-    alerts = []
-
-    async def alert(text):
-        alerts.append(text)
-
-    s = steam_session.SteamSession("token", make_client=make, on_down=alert, **kw)
-    return s, alerts
+    return steam_session.SteamSession("token", make_client=make, **kw)
 
 
 def test_nothing_logs_in_until_a_job_needs_steam():
     async def go():
-        s, _ = session()
+        s = session()
         await asyncio.sleep(0.05)
         assert FakeClient.made == []
         assert await s.send("a") == "reply to a"
@@ -88,7 +81,7 @@ def test_nothing_logs_in_until_a_job_needs_steam():
 
 def test_every_request_shares_one_login_and_none_overlap():
     async def go():
-        s, _ = session()
+        s = session()
         replies = await asyncio.gather(*(s.send(n) for n in range(5)))
         assert replies == [f"reply to {n}" for n in range(5)]
         (client,) = FakeClient.made
@@ -103,7 +96,7 @@ def test_a_request_that_hangs_times_out(monkeypatch):
     monkeypatch.setattr(steam_session, "REQUEST_TIMEOUT", 0.05)
 
     async def go():
-        s, _ = session(make=lambda: FakeClient(delay=10))
+        s = session(make=lambda: FakeClient(delay=10))
         with pytest.raises(TimeoutError):
             await s.send("a")
         await s.close()
@@ -111,41 +104,17 @@ def test_a_request_that_hangs_times_out(monkeypatch):
     asyncio.run(go())
 
 
-def failing_then_working(failures):
-    """Clients whose first `failures` logins fail, and a sleep that moves the clock on."""
-    clients = iter([FakeClient(fail=True)] * failures + [FakeClient()])
-    now, slept = [0.0], []
-
-    async def sleep(seconds):
-        slept.append(seconds)
-        now[0] += seconds
-
-    return (lambda: next(clients)), sleep, (lambda: now[0]), slept
-
-
-def test_a_failed_login_is_tried_again_and_ops_hears_nothing_of_a_short_drop():
+def test_a_failed_login_is_tried_again():
     async def go():
-        make, sleep, clock, slept = failing_then_working(2)
-        s, alerts = session(make=make, sleep=sleep, clock=clock)
+        clients = iter([FakeClient(fail=True), FakeClient(fail=True), FakeClient()])
+        slept = []
+
+        async def sleep(seconds):
+            slept.append(seconds)
+
+        s = session(make=lambda: next(clients), sleep=sleep)
         assert await s.send("a") == "reply to a"
         assert slept == [steam_session.RETRY] * 2
-        assert alerts == []
-        await s.close()
-
-    asyncio.run(go())
-
-
-def test_ops_hears_once_when_logging_in_has_failed_half_an_hour():
-    async def go():
-        tries = steam_session.LOGIN_OUTAGE // steam_session.RETRY + 3
-        make, sleep, clock, _ = failing_then_working(tries)
-        s, alerts = session(make=make, sleep=sleep, clock=clock)
-        with contextlib.suppress(ConnectionError):  # a job may have stopped waiting first
-            await s.send("a")
-        while not s.logins:  # noqa: ASYNC110 (the session has no event for a login)
-            await asyncio.sleep(0.01)
-        assert len(alerts) == 1
-        assert "InvalidPassword" in alerts[0]
         await s.close()
 
     asyncio.run(go())
@@ -179,7 +148,7 @@ def test_once_logging_in_has_failed_for_a_while_jobs_stop_waiting(monkeypatch):
         async def sleep(_seconds):
             await gate.wait()  # the retry hasn't come yet
 
-        s, _ = session(make=lambda: FakeClient(fail=True), sleep=sleep)
+        s = session(make=lambda: FakeClient(fail=True), sleep=sleep)
         with pytest.raises((ConnectionError, TimeoutError)):
             await s.send("a")
         with pytest.raises(ConnectionError, match="InvalidPassword"):
@@ -192,7 +161,7 @@ def test_once_logging_in_has_failed_for_a_while_jobs_stop_waiting(monkeypatch):
 
 def test_downloads_and_leaderboard_requests_never_overlap():
     async def go():
-        s, _ = session()
+        s = session()
 
         async def fetch_file(client):
             return await client.send("file")
@@ -218,7 +187,7 @@ def test_the_login_belongs_to_no_job():
                 seen.append(JOB.get())
                 await super().login(refresh_token)
 
-        s, _ = session(make=Watching)
+        s = session(make=Watching)
         JOB.set("daily")
         await s.send("a")
         assert seen == [None]
@@ -237,7 +206,7 @@ def test_waiting_for_the_login_holds_no_one_up():
 
     async def go():
         SlowLogin.go_ahead = asyncio.Event()
-        s, _ = session(SlowLogin)
+        s = session(SlowLogin)
         waiting = [asyncio.create_task(s.send(n)) for n in range(2)]
         await asyncio.sleep(0.05)
         assert not s._one_at_a_time.locked()  # noqa: SLF001 (the queue the login must not hold)

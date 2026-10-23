@@ -488,6 +488,34 @@ def test_the_daily_read_skips_while_a_refresh_runs():
     asyncio.run(go())
 
 
+def test_a_turn_skipped_for_a_refresh_neither_starts_nor_ends_an_outage():
+    async def go():
+        fake = Fake(codes={"read_dailies": 1})
+        s = service(fake)
+        now = [0.0]
+
+        async def sleep(_seconds):
+            now[0] += runner.DAILY_EVERY
+            await asyncio.sleep(0)
+
+        task = await watching(s, sleep=sleep, clock=lambda: now[0])
+        s.refresh()  # waits for the read under way, which fails: the outage starts
+        fake.gate("read_dailies").set()
+        await settle()
+        assert s.daily_writers.locked()  # the Refresh's turns pass half an hour with no read
+        while now[0] < runner.DAILY_OUTAGE:
+            await settle()
+        assert fake.alerts == []
+        fake.gate("refresh").set()
+        await settle()
+        fake.gate("read_dailies").set()  # the next read fails: it has been down half an hour
+        await settle()
+        assert len(fake.alerts) == 1
+        task.cancel()
+
+    asyncio.run(go())
+
+
 def test_a_refresh_waits_for_a_daily_read_under_way():
     async def go():
         fake = Fake()
@@ -545,6 +573,7 @@ def test_ops_hears_of_failing_daily_reads_once_they_have_failed_half_an_hour():
         await read_for(5)
         assert len(fake.alerts) == 1
         assert "Daily reads have failed for 30 minutes" in fake.alerts[0]
+        assert "read_dailies said hi" in fake.alerts[0]  # the last read's lines, for the cause
         fake.codes = {}
         await read_for(1)  # one works: the next outage is counted afresh
         fake.codes = {"read_dailies": 1}

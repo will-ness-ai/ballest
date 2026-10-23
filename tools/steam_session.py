@@ -5,8 +5,8 @@ account drops the first, so the service never makes one.
 
 It logs in when a job first needs Steam (`ready`, `send`) and stays logged in. steam.py
 reconnects a dropped connection by itself; a login that fails outright (a bad token, Steam
-down) is tried again every RETRY seconds with a fresh client, and `on_down` hears of it once
-logging in has failed for LOGIN_OUTAGE, and again only after a login has worked.
+down) is tried again every RETRY seconds with a fresh client. It tells no one: a Steam outage
+reaches ops through the Daily read that fails every minute meanwhile (runner.py).
 Leaderboard requests go through `send`, one at a time, since the CM silently drops replies
 with several in flight, and so do a file download's requests (`call`), each with
 REQUEST_TIMEOUT, so a request lost with its connection fails instead of hanging its job.
@@ -33,29 +33,22 @@ REQUEST_TIMEOUT = 60
 READY_TIMEOUT = 5 * 60
 # seconds between a failed login and the next try
 RETRY = 60
-# seconds logging in may keep failing before `on_down` hears: Steam drops logins for a few
-# minutes often, and for longer on Tuesdays' maintenance, and the retries ride those out
-LOGIN_OUTAGE = 30 * 60
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
 
 
 class SteamSession:
-    """One logged-in steam.py client, shared. `make_client()` makes a steam.Client;
-    `on_down(text)` is told, once, that logging in has kept failing."""
+    """One logged-in steam.py client, shared. `make_client()` makes a steam.Client."""
 
-    def __init__(
-        self, token, *, make_client=None, on_down=None, sleep=asyncio.sleep, clock=time.monotonic
-    ):
-        self.token, self.on_down, self.sleep, self.clock = token, on_down, sleep, clock
+    def __init__(self, token, *, make_client=None, sleep=asyncio.sleep):
+        self.token, self.sleep = token, sleep
         self.make_client = make_client or steam.Client
         self.client = None
         self.logins = 0
-        # why the last login failed, since when (`clock`) and whether on_down heard, until one works
+        # why the last login failed, and since when (monotonic), until one works
         self.down = None
         self._down_since = 0.0
-        self._told = False
         self._task = None
         self._closing = False
         self._one_at_a_time = asyncio.Lock()
@@ -71,7 +64,7 @@ class SteamSession:
         async with asyncio.timeout(READY_TIMEOUT):
             # polled: a failed login swaps in a fresh client, and none has an event for that
             while not (self.client and self.client.is_ready()):
-                if self.down is not None and self.clock() - self._down_since >= READY_TIMEOUT:
+                if self.down is not None and time.monotonic() - self._down_since >= READY_TIMEOUT:
                     raise ConnectionError(f"Steam login failing: {self.down!r}")
                 await asyncio.sleep(0.2)
         return self.client
@@ -105,16 +98,8 @@ class SteamSession:
                     return  # steam.py often raises on the teardown after close()
                 print(f"Steam: logging in failed: {e!r}; trying again in {RETRY} s", flush=True)
                 if self.down is None:
-                    self._down_since, self._told = self.clock(), False
+                    self._down_since = time.monotonic()
                 self.down = e
-                outage = self.clock() - self._down_since
-                if self.on_down and not self._told and outage >= LOGIN_OUTAGE:
-                    self._told = True
-                    await self.on_down(
-                        f"Collector: logging into Steam has failed for {LOGIN_OUTAGE // 60}"
-                        f" minutes ({e!r}); trying again every {RETRY} s. A bad token needs"
-                        " a new STEAM_REFRESH_TOKEN (tools/steampy_mint.py)."
-                    )
             else:
                 if self._closing:
                     return
