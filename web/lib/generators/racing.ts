@@ -36,7 +36,7 @@ import {
   supportsOf,
   spiral as spiralSection,
   loop as loopSection,
-  lowStop,
+  setDown,
   mostRise,
   placed,
   rollers as rollerSection,
@@ -55,12 +55,11 @@ export const trackIn = (v: Values, key = "track"): Track => ({
 });
 const radiusIn = (v: Values) => bendRadius(trackIn(v), metresIn(v, "radius"));
 
-/* a piece on its own, its lowest stretch of track `raised` up on legs, or on the floor */
+/* a piece on its own, its lowest stretch of track `raised` up, legs under whatever is off the
+   floor */
 function standing(s: Section, v: Values) {
-  const raised = metresIn(v, "raised");
-  const p = placed(s, { ...START, p: [0, 0, THICK + raised - lowStop(s)] });
-  const items = itemsOf(p);
-  return fileOf(raised > 0 ? [...items, ...supportsOf(p, colourIn(v, "legc"))] : grounded(items));
+  const p = setDown(s, metresIn(v, "raised"));
+  return fileOf([...itemsOf(p), ...supportsOf(p, colourIn(v, "legc"))]);
 }
 /* the controls every piece that can be raised ends with */
 const raisedControls = (v: Values, extra: Array<Control> = []): Array<Control> => [
@@ -70,7 +69,7 @@ const raisedControls = (v: Values, extra: Array<Control> = []): Array<Control> =
   ...extra,
   colour("track", "Track"),
   ...(v.walls ? [colour("wallc", "Walls")] : []),
-  ...(numberIn(v, "raised") > 0 ? [colour("legc", "Legs")] : []),
+  colour("legc", "Legs"),
 ];
 const RAISED = { width: 3, raised: 0, walls: true, wallc: "White", legc: "Dark" };
 /* a rise either way up to `most` cm (no steeper than 45°), and the rise these values ask for
@@ -360,7 +359,7 @@ export const jump: Generator = {
       landing: metresIn(v, "landing"),
     });
     /* raised so the lowest of it sits a metre up, off the floor */
-    const p = placed(s, { ...START, p: [-runup, 0, 100 + THICK - lowStop(s)] });
+    const p = setDown(s, 100, -runup);
     return fileOf([...itemsOf(p), ...(v.legs ? supportsOf(p, colourIn(v, "legc")) : [])]);
   },
 };

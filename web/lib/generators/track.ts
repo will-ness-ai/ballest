@@ -85,7 +85,7 @@ const turned = (v: V3, yaw: number): V3 => [
   v[2],
 ];
 /* a point of a section placed at f */
-export const at = (f: Frame, v: V3): V3 => add(f.p, turned(v, f.yaw));
+const at = (f: Frame, v: V3): V3 => add(f.p, turned(v, f.yaw));
 /* a piece turned about the vertical: an Unreal rotator turns by yaw last, so the yaw adds */
 function moved(it: PrefabItem, f: Frame): PrefabItem {
   const [pitch, yaw, roll] = it.transform.rotation;
@@ -227,9 +227,15 @@ export function supportsOf(s: Section, c: Colour): Array<PrefabItem> {
 }
 
 /* the lowest centreline stop and the lowest piece, so a section can be set on the floor */
-export const lowStop = (s: Section) =>
-  Math.min(...s.runs.flatMap((r) => r.stops.map((x) => x.p[2])));
-export const lowPiece = (s: Section) => lowestOf(itemsOf(s));
+const lowStop = (s: Section) => Math.min(...s.runs.flatMap((r) => r.stops.map((x) => x.p[2])));
+const lowPiece = (s: Section) => lowestOf(itemsOf(s));
+
+/* the section moved up or down so its lowest stretch of track is `raised` cm off the floor (none
+   of it below the floor when that is 0), and `x` along */
+export function setDown(s: Section, raised = 0, x = 0): Section {
+  const low = Math.min(lowStop(s) - THICK, raised > 0 ? Infinity : lowPiece(s));
+  return placed(s, { ...START, p: [x, 0, raised - low] });
+}
 
 /* ---------- sections ---------- */
 /* a straight `length` long, rising by `rise` (falling when it's below 0) along a smooth S, flat

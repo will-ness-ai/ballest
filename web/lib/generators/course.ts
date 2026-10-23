@@ -16,14 +16,12 @@ import {
 import { trackIn } from "./racing";
 import {
   START,
-  THICK,
   bend,
   chain,
   itemsOf,
   jump,
   loop,
-  lowPiece,
-  lowStop,
+  setDown,
   placed,
   rollers,
   sBend,
@@ -113,8 +111,7 @@ export function courseIn(v: Values): Section {
     colourIn(v, "legc"),
     numberIn(v, "steps"),
   );
-  const low = Math.min(lowStop(c) - THICK, lowPiece(c));
-  return placed(c, { ...START, p: [0, 0, -low] });
+  return setDown(c);
 }
 
 export const fullCourse: Generator = {
