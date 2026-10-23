@@ -11,6 +11,7 @@ import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 
 import { Marble } from "../Marble";
 import { useDialog } from "../Modal";
 import { SectionIcon } from "../SectionNav";
+import { forgetTrails } from "../Trail";
 import { useDebouncedFetch } from "../../hooks/client";
 import type { SectionKey } from "../../lib/nav";
 import { searchApiHref } from "../../lib/routes";
@@ -210,7 +211,9 @@ function Search({
       document.getElementById(optionId(selected))?.scrollIntoView({ block: "nearest" });
   });
 
+  /* a hit opened: the search closes, and the breadcrumbs forget the page it was opened on */
   const go = () => {
+    forgetTrails();
     setOpen(false);
   };
   /* the term an Enter pressed while its answer was on its way waits for: that answer's first
@@ -226,7 +229,7 @@ function Search({
     const to = links.at(0);
     if (to && open) {
       router.push(to.href);
-      setOpen(false);
+      go();
     }
   });
   const keyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

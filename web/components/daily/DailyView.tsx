@@ -13,7 +13,7 @@ import { DayPanel } from "./DayPanel";
 import { DayPicker } from "./DayPicker";
 import { getDailies, getDaily, readBoard } from "../../db/data";
 import { dayLabel } from "../../lib/daily";
-import { dailyHref } from "../../lib/routes";
+import { dailyHref, mapHref } from "../../lib/routes";
 
 /* the most rows a Daily's board is read to */
 const MAX_ROWS = 20_000;
@@ -49,7 +49,7 @@ export async function DailyView({ date }: { date: string | null }) {
           <DayPanel key={d.date} d={d} rows={board.rows} />
         </section>
         <Remember trail="board" href={here} label={label} />
-        <Remember trail="maps" href={here} label={label} />
+        <Remember trail="maps" href={here} label={label} leads={[mapHref(d.pfid)]} />
       </div>
     </>
   );

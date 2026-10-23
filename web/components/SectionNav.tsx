@@ -1,11 +1,13 @@
 "use client";
 // The header's two rows of links: the Sections, with their icons, and the current
 // Section's sub-tabs as pills. What each row holds and which link is lit is the navigation
-// model's (lib/nav.ts), read from the path, so every page's frame can share them.
+// model's (lib/nav.ts), read from the path, so every page's frame can share them. Following
+// one forgets where the breadcrumbs lead back to (Trail.tsx).
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
+import { forgetTrails } from "./Trail";
 import { navOf, type Nav, type NavFacts, type SectionKey } from "../lib/nav";
 
 export function SectionNav({ facts }: { facts: NavFacts }) {
@@ -21,7 +23,12 @@ export function SectionRows({ nav }: { nav: Nav }) {
     <>
       <nav className="sections" aria-label="Sections" ref={sections}>
         {nav.sections.map((s) => (
-          <Link key={s.key} href={s.href} aria-current={s.on ? "page" : undefined}>
+          <Link
+            key={s.key}
+            href={s.href}
+            aria-current={s.on ? "page" : undefined}
+            onClick={forgetTrails}
+          >
             <SectionIcon k={s.key} />
             {s.label}
           </Link>
@@ -29,7 +36,12 @@ export function SectionRows({ nav }: { nav: Nav }) {
       </nav>
       <nav className="subs" aria-label="In this Section" ref={subs}>
         {nav.subs.map((s) => (
-          <Link key={s.href} href={s.href} aria-current={s.on ? "page" : undefined}>
+          <Link
+            key={s.href}
+            href={s.href}
+            aria-current={s.on ? "page" : undefined}
+            onClick={forgetTrails}
+          >
             {s.label}
           </Link>
         ))}

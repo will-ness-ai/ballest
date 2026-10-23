@@ -192,6 +192,14 @@ describe("the site search", () => {
     expect(push).toHaveBeenCalledWith("/map/9");
   });
 
+  test("a hit opened forgets where the breadcrumbs led back to", async () => {
+    sessionStorage.setItem("ballest-ws-list", JSON.stringify({ href: "/daily", label: "Daily" }));
+    await type("sol");
+    key("Enter");
+    expect(push).toHaveBeenCalled();
+    expect(sessionStorage.getItem("ballest-ws-list")).toBeNull();
+  });
+
   test("closes on Escape and on a click outside", async () => {
     await type("sol");
     key("Escape");

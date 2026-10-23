@@ -37,7 +37,7 @@ import {
 import { campaignBoard, eventOf, mapLabel } from "../../lib/campaigns";
 import type { IndexBoard } from "../../lib/player";
 import { podiumRows } from "../../lib/podiums";
-import { PODIUM_SORT, boardHref, campaignHref, campaignSlot } from "../../lib/routes";
+import { PODIUM_SORT, boardHref, campaignHref, campaignSlot, mapHref } from "../../lib/routes";
 import { BOARD_CHUNK, countText } from "../../lib/rules";
 
 export async function CampaignView({
@@ -169,7 +169,12 @@ export async function CampaignView({
         </section>
         {!m && <PointsDialog board={name} tracks={maps.length} />}
         <Remember trail="board" href={here} label={c.title + " " + title} />
-        <Remember trail="maps" href={here} label={c.title + " " + title} />
+        <Remember
+          trail="maps"
+          href={here}
+          label={c.title + " " + title}
+          leads={maps.map((x) => mapHref(x.pfid))}
+        />
       </div>
     </>
   );

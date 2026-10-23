@@ -20,7 +20,7 @@ export function Crumbs({
   /* the trail whose page is the parent, and what crumbsOf needs to name it */
   trail?: { name: Trail; facts: NavFacts };
 }) {
-  const back = useTrail(trail?.name ?? null);
+  const back = useTrail(trail?.name ?? null, path);
   const list = back && trail ? crumbsOf(path, trail.facts, title, back) : crumbs;
   if (!list.length) return null;
   return (
