@@ -632,7 +632,10 @@ kept apart from the Generators so a page that only links one never loads them).
   end of a run and every 4 m, never where other track runs underneath, and a spiral stands on
   its column. The Full course is a fixed layout of every piece, set down so its lowest stretch
   lies on the floor; `test/track.test.ts` checks it never passes within 2.5 m of itself but
-  where it runs on, and that no leg stands in track below.
+  where it runs on, and that no leg stands in track below. Its lengths, radii, banks and drops
+  were tuned with a ball model fitted to the top runs' Ghosts (their push, braking, turning and
+  gravity) driven along its centreline: as little braking as the layout allows, no lift-off but
+  the jump, and the jump landing on its slope.
 - **The collage** (`/prefabs/collage?g=<key>[&only=<control,…>]`, `GeneratorCollage.tsx`): one
   Generator in every variation `variationsOf` lists, from three angles, for an agent to read in
   one screenshot (`.claude/skills/prefab-generators/collage.mjs`). `proxy.ts` answers 404 for it

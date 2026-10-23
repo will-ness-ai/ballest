@@ -59,7 +59,7 @@ function fork(t: Track, flat: Track, bumpy: Track, f: Fork, steps: number): Sect
       bend(tw, { radius: f.radius, angle: -out, rise: -f.fall / 2, ease: true, steps }),
     ]);
   const right = way(RIGHT, straight(flat, f.middle), flat);
-  const left = way(LEFT, rollers(bumpy, f.middle, 2, 80), bumpy);
+  const left = way(LEFT, rollers(bumpy, f.middle, 2, 40), bumpy);
   /* the second T, turned round: its arms take the two ways in, its stem leads on */
   const crossing = right.exits[0].p;
   const out = {
@@ -74,26 +74,30 @@ function fork(t: Track, flat: Track, bumpy: Track, f: Fork, steps: number): Sect
    one of two colours by turns, so a player can tell where one ends */
 export function course(t: Track, other: Track, post: Colour, column: Colour, steps: number) {
   const by = (i: number) => (i % 2 ? other : t);
+  /* tuned with a ball model fitted to the top runs' ghosts and driven round the course: each
+     bend banked and wide enough to take at the speed the ball arrives, the rollers and crests
+     gentle enough to keep it on the track, the jump's gap sized for its speed off the kicker, and
+     the finish run falling a little so it stays the lowest stretch under the banked turns */
   const parts: Array<(t: Track) => Section> = [
-    (u) => straight(u, 1000),
-    (u) => straight(u, 1400, -400),
-    (u) => bend(u, { radius: 800, angle: -Math.PI, rise: -100, bank: 30 * DEG, ease: true, steps }),
-    (u) => rollers(u, 1800, 3, 100),
-    (u) => bend(u, { radius: 600, angle: RIGHT, rise: -50, ease: true, steps }),
-    (u) => jump(u, { runup: 400, kick: 20 * DEG, gap: 500, drop: 150, landing: 1000 }),
-    (u) => straight(u, 1000, 150),
+    (u) => straight(u, 800),
+    (u) => straight(u, 1500, -310),
+    (u) => bend(u, { radius: 1280, angle: -Math.PI, rise: -90, bank: 45 * DEG, ease: true, steps }),
+    (u) => rollers(u, 3760, 2, 40),
+    (u) => bend(u, { radius: 1200, angle: RIGHT, rise: 20, bank: 45 * DEG, ease: true, steps }),
+    (u) => jump(u, { runup: 200, kick: 12 * DEG, gap: 1500, drop: 50, landing: 800 }),
+    (u) => straight(u, 1840, 140),
     (u) =>
-      fork(u, other, t, { arm: 300, stem: 200, radius: 400, middle: 800, fall: 100, post }, steps),
-    (u) => bend(u, { radius: 600, angle: LEFT, steps }),
+      fork(u, other, t, { arm: 300, stem: 110, radius: 330, middle: 800, fall: -60, post }, steps),
+    (u) => bend(u, { radius: 400, angle: LEFT, steps }),
     (u) =>
-      spiral(u, { radius: 600, turns: 1.5, drop: 400, bank: 10 * DEG, ease: true, steps, column }),
-    (u) => straight(u, 1200, -200),
-    (u) => straight(u, 600),
-    (u) => loop(u, 400, 32),
-    (u) => sBend(u, 1000, 400, steps),
-    (u) => bend(u, { radius: 600, angle: RIGHT, bank: 20 * DEG, ease: true, steps }),
+      spiral(u, { radius: 500, turns: 1.5, drop: 790, bank: 45 * DEG, ease: true, steps, column }),
+    (u) => straight(u, 860, -100),
+    (u) => straight(u, 670),
+    (u) => loop(u, 520, 32),
+    (u) => sBend(u, 2660, 300, steps),
+    (u) => bend(u, { radius: 2490, angle: RIGHT, bank: 45 * DEG, ease: true, steps }),
     /* the run to the finish passes under the first banked turn */
-    (u) => straight(u, 9200),
+    (u) => straight(u, 9220, -150),
   ];
   return chain(
     START,
