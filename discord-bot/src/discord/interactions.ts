@@ -8,12 +8,12 @@ import {
   type UserSelectMenuInteraction,
 } from "discord.js";
 import { Context, Effect, Layer, Match, Option, Ref, Stream } from "effect";
-import { Engine } from "../engine.js";
+import { Engine, isRejection, type Rejection } from "../engine.js";
 import { explain } from "../explain.js";
 import { Pings, warnPingRole } from "../pings.js";
 import { ChosenSkins, chosenSkinOf, MatchLinks, Store, type ProfilePreview } from "../ports.js";
-import { Renderer, type RenderError } from "../render/renderer.js";
-import { describeDiscordError, Discord, type DiscordError, oneLine, tryDiscord } from "./client.js";
+import { Renderer } from "../render/renderer.js";
+import { describeDiscordError, Discord, oneLine, tryDiscord } from "./client.js";
 import { type Action, parseControl } from "./controls.js";
 import {
   confirmLeaveMessage,
@@ -67,10 +67,13 @@ export const InteractionsLive = Layer.scopedDiscard(
     const previews = yield* Ref.make(new Map<string, ProfilePreview>());
     const pending = yield* Ref.make(new Map<string, Pending>());
 
-    const isLinked = Effect.fn("isLinked")(function* (discordId: string) {
+    const isLinked = Effect.fn("Interactions.isLinked")(function* (discordId: string) {
       return Option.isSome(yield* store.getLink(discordId));
     });
-    const remember = Effect.fn("remember")(function* (discordId: string, next: Pending | null) {
+    const remember = Effect.fn("Interactions.remember")(function* (
+      discordId: string,
+      next: Pending | null,
+    ) {
       yield* Ref.update(pending, (m) => {
         const updated = new Map(m);
         if (next === null) updated.delete(discordId);
@@ -78,28 +81,36 @@ export const InteractionsLive = Layer.scopedDiscard(
         return updated;
       });
     });
-    const takePending = Effect.fn("takePending")(function* (discordId: string) {
+    const takePending = Effect.fn("Interactions.takePending")(function* (discordId: string) {
       const found = Option.fromNullable((yield* Ref.get(pending)).get(discordId));
       yield* remember(discordId, null);
       return found;
     });
 
-    const showLinkForm = (i: ButtonInteraction) =>
-      tryDiscord("show link form", () => i.showModal(linkForm()));
+    const showLinkForm = Effect.fn("Interactions.showLinkForm")(function* (i: ButtonInteraction) {
+      return yield* tryDiscord("show link form", () => i.showModal(linkForm()));
+    });
 
     /**
      * An unlinked member is shown the link form, and `next` runs once they've linked: true when
      * that happened, so the click is answered already.
      */
-    const linkFirst = Effect.fn("linkFirst")(function* (i: ButtonInteraction, next: Pending) {
+    const linkFirst = Effect.fn("Interactions.linkFirst")(function* (
+      i: ButtonInteraction,
+      next: Pending,
+    ) {
       if (yield* isLinked(i.user.id)) return false;
       yield* remember(i.user.id, next);
       yield* showLinkForm(i);
       return true;
     });
 
-    const runAction = (action: Action, discordId: string, matchId: string) =>
-      Match.value(action).pipe(
+    const runAction = Effect.fn("Interactions.runAction")(function* (
+      action: Action,
+      discordId: string,
+      matchId: string,
+    ) {
+      return yield* Match.value(action).pipe(
         Match.when("accept", () => engine.accept(discordId, matchId)),
         Match.when("decline", () => engine.decline(discordId, matchId)),
         Match.when("join", () => engine.join(discordId, matchId)),
@@ -108,34 +119,49 @@ export const InteractionsLive = Layer.scopedDiscard(
         Match.when("cancel", () => engine.cancel(discordId, matchId)),
         Match.exhaustive,
       );
+    });
 
     /**
      * Discord refused a Get or Remove: say so on the same private reply, keeping its buttons to
      * try again, rather than in a new message.
      */
-    const pingFailed = Effect.fn("pingFailed")(function* (i: ButtonInteraction) {
+    const pingFailed = Effect.fn("Interactions.pingFailed")(function* (i: ButtonInteraction) {
       yield* tryDiscord("edit reply", () =>
         i.editReply({ content: withPingFailure(i.message.content, pingRole), ...quiet }),
       );
     });
 
     /** After an action went through: offer the ping role, if this action and member are due it. */
-    const offerPings = Effect.fn("offerPings")(function* (i: Answerable, action: Action) {
+    const offerPings = Effect.fn("Interactions.offerPings")(function* (
+      i: Answerable,
+      action: Action,
+    ) {
       if (yield* pings.offerAfter(action, i.user.id))
         yield* tryDiscord("follow up", () =>
           i.followUp({ ...pingOfferMessage(pingRole), ...ephemeral }),
         );
     });
 
+    /** A rejection, explained privately to whoever clicked. */
+    const turnedDown = Effect.fn("Interactions.turnedDown")(function* (
+      i: Answerable,
+      e: Rejection,
+    ) {
+      yield* tryDiscord("follow up", () =>
+        i.followUp({ content: explain(e, i.user.id), ...ephemeral, ...quiet }),
+      );
+      return false;
+    });
+
     /** Run a Card action; a rejection is explained privately to whoever clicked. */
-    const act = Effect.fn("act")(function* (i: Answerable, action: Action, matchId: string) {
+    const act = Effect.fn("Interactions.act")(function* (
+      i: Answerable,
+      action: Action,
+      matchId: string,
+    ) {
       const done = yield* runAction(action, i.user.id, matchId).pipe(
         Effect.as(true),
-        Effect.catchAll((e) =>
-          tryDiscord("follow up", () =>
-            i.followUp({ content: explain(e, i.user.id), ...ephemeral, ...quiet }),
-          ).pipe(Effect.as(false)),
-        ),
+        Effect.catchIf(isRejection, (e) => turnedDown(i, e)),
       );
       if (done) yield* offerPings(i, action);
     });
@@ -144,7 +170,10 @@ export const InteractionsLive = Layer.scopedDiscard(
      * Play again on a finished Match: the presser is told privately where its Lobby's thread is,
      * and, if they opened it, that the Start is theirs.
      */
-    const playAgain = Effect.fn("playAgain")(function* (i: Answerable, matchId: string) {
+    const playAgain = Effect.fn("Interactions.playAgain")(function* (
+      i: Answerable,
+      matchId: string,
+    ) {
       const done = yield* engine.playAgain(i.user.id, matchId).pipe(Effect.either);
       if (done._tag === "Left")
         return yield* tryDiscord("follow up", () =>
@@ -162,7 +191,7 @@ export const InteractionsLive = Layer.scopedDiscard(
       if (joinedNow && !creator) yield* offerPings(i, "join");
     });
 
-    const confirmLink = Effect.fn("confirmLink")(function* (i: ButtonInteraction) {
+    const confirmLink = Effect.fn("Interactions.confirmLink")(function* (i: ButtonInteraction) {
       const self = i.user.id;
       yield* tryDiscord("defer", () => i.deferUpdate());
       const preview = (yield* Ref.get(previews)).get(self);
@@ -193,7 +222,7 @@ export const InteractionsLive = Layer.scopedDiscard(
       yield* act(i, next.value.action, next.value.matchId);
     });
 
-    const onButton = Effect.fn("onButton")(function* (i: ButtonInteraction) {
+    const onButton = Effect.fn("Interactions.onButton")(function* (i: ButtonInteraction) {
       const control = parseControl(i.customId);
       const self = i.user.id;
       if (control === null) return;
@@ -218,7 +247,7 @@ export const InteractionsLive = Layer.scopedDiscard(
           yield* tryDiscord("defer", () => i.deferUpdate());
           const text = yield* engine.openInvite(self, control.request).pipe(
             Effect.as("Invite opened. It's in the channel now."),
-            Effect.catchAll((e) => Effect.succeed(explain(e, self))),
+            Effect.catchIf(isRejection, (e) => Effect.succeed(explain(e, self))),
           );
           return yield* tryDiscord("edit reply", () =>
             i.editReply({ content: text, components: [], ...quiet }),
@@ -252,7 +281,7 @@ export const InteractionsLive = Layer.scopedDiscard(
           yield* tryDiscord("defer", () => i.deferUpdate());
           const text = yield* engine.leave(self, control.matchId).pipe(
             Effect.as(LEFT_TEXT),
-            Effect.catchAll((e) => Effect.succeed(explain(e, self))),
+            Effect.catchIf(isRejection, (e) => Effect.succeed(explain(e, self))),
           );
           return yield* tryDiscord("edit reply", () =>
             i.editReply({ content: text, components: [], ...quiet }),
@@ -293,7 +322,9 @@ export const InteractionsLive = Layer.scopedDiscard(
       }
     });
 
-    const onPickTarget = Effect.fn("onPickTarget")(function* (i: UserSelectMenuInteraction) {
+    const onPickTarget = Effect.fn("Interactions.onPickTarget")(function* (
+      i: UserSelectMenuInteraction,
+    ) {
       const target = i.values[0];
       if (target === undefined) return;
       if (target === i.user.id)
@@ -303,7 +334,7 @@ export const InteractionsLive = Layer.scopedDiscard(
       yield* tryDiscord("update", () => i.update(pickDurationMessage("challenge", target, null)));
     });
 
-    const onLinkForm = Effect.fn("onLinkForm")(function* (i: ModalSubmitInteraction) {
+    const onLinkForm = Effect.fn("Interactions.onLinkForm")(function* (i: ModalSubmitInteraction) {
       yield* tryDiscord("defer", () => i.deferReply(ephemeral));
       const input = i.fields.getTextInputValue(PROFILE_FIELD);
       const found = yield* engine.previewLink(input).pipe(Effect.either);
@@ -319,29 +350,30 @@ export const InteractionsLive = Layer.scopedDiscard(
       yield* tryDiscord("edit reply", () => i.editReply(linkPreviewMessage(png)));
     });
 
-    const route = (i: Interaction): Effect.Effect<void, DiscordError | RenderError> => {
-      if (i.isButton()) return Effect.asVoid(onButton(i));
-      if (i.isUserSelectMenu() && parseControl(i.customId)?._tag === "PickTarget")
-        return onPickTarget(i);
-      if (i.isModalSubmit() && parseControl(i.customId)?._tag === "LinkForm")
-        return Effect.asVoid(onLinkForm(i));
-      return Effect.void;
-    };
+    const route = Effect.fn("Interactions.route")(function* (i: Interaction) {
+      if (i.isButton()) yield* onButton(i);
+      else if (i.isUserSelectMenu() && parseControl(i.customId)?._tag === "PickTarget")
+        yield* onPickTarget(i);
+      else if (i.isModalSubmit() && parseControl(i.customId)?._tag === "LinkForm")
+        yield* onLinkForm(i);
+    });
 
     const label = (i: Interaction) => ("customId" in i ? i.customId : String(i.type));
 
-    const handle = (i: Interaction) =>
-      route(i).pipe(
+    const handle = Effect.fn("Interactions.handle")(function* (i: Interaction) {
+      return yield* route(i).pipe(
         // A Discord or drawing failure is one line; a defect is a bug, so it keeps its stack.
-        Effect.catchAll((e) =>
-          Effect.logError(
-            `interaction ${label(i)} failed: ${e._tag === "DiscordError" ? describeDiscordError(e) : oneLine(e.cause)}`,
-          ),
-        ),
+        Effect.catchTags({
+          DiscordError: (e) =>
+            Effect.logError(`interaction ${label(i)} failed: ${describeDiscordError(e)}`),
+          RenderError: (e) =>
+            Effect.logError(`interaction ${label(i)} failed: ${oneLine(e.cause)}`),
+        }),
         Effect.catchAllDefect((defect) =>
           Effect.logError(`interaction ${label(i)} failed`, defect),
         ),
       );
+    });
 
     const driver = yield* Effect.serviceOption(DriverInteractions);
     const all = Option.match(driver, {
@@ -349,7 +381,8 @@ export const InteractionsLive = Layer.scopedDiscard(
       onSome: (d) => Stream.merge(discord.interactions, d),
     });
     yield* all.pipe(
-      Stream.mapEffect((i) => handle(i), { concurrency: "unbounded" }),
+      // Effect<void>: a failure handle doesn't recover is a type error, not a stopped stream
+      Stream.mapEffect((i): Effect.Effect<void> => handle(i), { concurrency: "unbounded" }),
       Stream.runDrain,
       Effect.forkScoped,
     );

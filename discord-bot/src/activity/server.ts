@@ -112,7 +112,7 @@ export const skinPictureResponses = (pngs: ReadonlyMap<string, Uint8Array>) => {
 };
 
 /** The whole app: page, script, fonts, previews, Skin pictures, config, API. `channelId` is where the links point. */
-export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
+export const makeActivityApp = Effect.fn("ActivityApp.make")(function* (
   config: PageConfig & { readonly channelId: string },
 ) {
   const { channelId, ...page } = config;

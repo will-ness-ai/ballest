@@ -79,16 +79,9 @@ export class Channel extends Context.Tag("multiballs/Channel")<
   }
 >() {}
 
-/** Like goneIfUnknown, but passes a Gone from an earlier step through. */
-const goneIfUnknownOr =
-  (id: string) =>
-  (e: Gone | DiscordError): Effect.Effect<never, Gone | DiscordError> =>
-    e._tag === "Gone" ? Effect.fail(e) : goneIfUnknown(id)(e);
-
-const goneIfUnknown =
-  (id: string) =>
-  (e: DiscordError): Effect.Effect<never, Gone | DiscordError> =>
-    isUnknown(e) ? Effect.fail(new Gone({ id })) : Effect.fail(e);
+const goneIfUnknown = Effect.fn("Channel.goneIfUnknown")(function* (id: string, e: DiscordError) {
+  return yield* isUnknown(e) ? Effect.fail(new Gone({ id })) : Effect.fail(e);
+});
 
 export const DiscordChannelLive = Layer.scoped(
   Channel,
@@ -102,20 +95,22 @@ export const DiscordChannelLive = Layer.scoped(
     // In the background: startup doesn't wait on a few hundred message reads.
     yield* Effect.forkScoped(notices.sweep());
 
-    const fetchMessage = (id: string) =>
-      tryDiscord("fetch message", () => channel.messages.fetch(id)).pipe(
-        Effect.catchAll((e) => goneIfUnknown(id)(e)),
+    const fetchMessage = Effect.fn("Channel.fetchMessage")(function* (id: string) {
+      return yield* tryDiscord("fetch message", () => channel.messages.fetch(id)).pipe(
+        Effect.catchTag("DiscordError", (e) => goneIfUnknown(id, e)),
       );
-    const fetchThread = (id: string) =>
-      tryDiscord("fetch thread", () => channel.threads.fetch(id)).pipe(
-        Effect.catchAll((e) => goneIfUnknown(id)(e)),
+    });
+    const fetchThread = Effect.fn("Channel.fetchThread")(function* (id: string) {
+      return yield* tryDiscord("fetch thread", () => channel.threads.fetch(id)).pipe(
+        Effect.catchTag("DiscordError", (e) => goneIfUnknown(id, e)),
         Effect.flatMap((thread) =>
           thread === null ? Effect.fail(new Gone({ id })) : Effect.succeed(thread),
         ),
       );
+    });
 
     /** Every Player's name in this server, for the images. */
-    const namesOf = Effect.fn("namesOf")(function* (view: CardView) {
+    const namesOf = Effect.fn("Channel.namesOf")(function* (view: CardView) {
       const players = view.target === null ? view.players : [...view.players, view.target];
       const names = new Map<string, string>();
       for (const p of players) names.set(p.discordId, yield* discord.displayName(p.discordId));
@@ -123,7 +118,7 @@ export const DiscordChannelLive = Layer.scoped(
     });
 
     /** The Map's preview as the renderer takes it, or null to draw the stand-in. */
-    const previewOf = Effect.fn("previewOf")(function* (map: MapInfo | null) {
+    const previewOf = Effect.fn("Channel.previewOf")(function* (map: MapInfo | null) {
       if (map === null) return null;
       const preview = yield* previews.of(map.previewUrl);
       return Option.getOrNull(
@@ -134,7 +129,7 @@ export const DiscordChannelLive = Layer.scoped(
       );
     });
 
-    const drawCard = Effect.fn("drawCard")(function* (view: CardView) {
+    const drawCard = Effect.fn("Channel.drawCard")(function* (view: CardView) {
       return yield* renderer.card({
         view,
         names: yield* namesOf(view),
@@ -143,8 +138,8 @@ export const DiscordChannelLive = Layer.scoped(
     });
 
     /** `announce`: this is the post that creates the message, so a Lobby's Card may ping the role. */
-    const render = (drawing: Drawing, announce: boolean) =>
-      Drawing.$match(drawing, {
+    const render = Effect.fn("Channel.render")(function* (drawing: Drawing, announce: boolean) {
+      return yield* Drawing.$match(drawing, {
         Footer: () => renderer.footer.pipe(Effect.map((png) => footerMessage(png))),
         Card: ({ view }) =>
           drawCard(view).pipe(
@@ -152,9 +147,10 @@ export const DiscordChannelLive = Layer.scoped(
           ),
         Closed: ({ reason }) => Effect.succeed(closedCardMessage(reason)),
       });
+    });
 
     /** The image a thread post carries, if any. */
-    const threadPng = Effect.fn("threadPng")(function* (post: ThreadPost) {
+    const threadPng = Effect.fn("Channel.threadPng")(function* (post: ThreadPost) {
       if (post._tag === "Improved")
         return yield* renderer.improvement(
           post.improvement,
@@ -172,66 +168,73 @@ export const DiscordChannelLive = Layer.scoped(
     });
 
     return Channel.of({
-      post: (drawing) =>
-        render(drawing, true).pipe(
+      post: Effect.fn("Channel.post")(function* (drawing) {
+        return yield* render(drawing, true).pipe(
           Effect.flatMap((message) => tryDiscord("post", () => channel.send(message))),
           Effect.map((m) => m.id),
-        ),
-      fingerprint: (drawing) =>
-        render(drawing, false).pipe(
+        );
+      }),
+      fingerprint: Effect.fn("Channel.fingerprint")(function* (drawing) {
+        return yield* render(drawing, false).pipe(
           Effect.flatMap((payload) =>
             Effect.try({
               try: () => fingerprint(payload),
               catch: (cause) => new RenderError({ cause }),
             }),
           ),
-        ),
-      redraw: (messageId, drawing) =>
-        fetchMessage(messageId).pipe(
+        );
+      }),
+      redraw: Effect.fn("Channel.redraw")(function* (messageId, drawing) {
+        return yield* fetchMessage(messageId).pipe(
           Effect.flatMap((m) =>
             render(drawing, false).pipe(
               Effect.flatMap((message) => tryDiscord("redraw", () => m.edit(message))),
             ),
           ),
           Effect.asVoid,
-        ),
-      deleteMessage: (messageId) =>
-        fetchMessage(messageId).pipe(
+        );
+      }),
+      deleteMessage: Effect.fn("Channel.deleteMessage")(function* (messageId) {
+        return yield* fetchMessage(messageId).pipe(
           Effect.flatMap((m) => tryDiscord("delete message", () => m.delete())),
           Effect.asVoid,
-        ),
-      startThread: Effect.fn("startThread")(function* (messageId: string, view: CardView) {
+        );
+      }),
+      startThread: Effect.fn("Channel.startThread")(function* (messageId: string, view: CardView) {
         const message = yield* fetchMessage(messageId);
         const name = threadName(view, yield* discord.displayName(view.creator.discordId));
         const thread = yield* tryDiscord("start thread", () => message.startThread({ name }));
         yield* notices.deleteNoticeOf(thread.id);
         return thread.id;
       }),
-      deleteThread: (threadId) =>
-        fetchThread(threadId).pipe(
+      deleteThread: Effect.fn("Channel.deleteThread")(function* (threadId) {
+        return yield* fetchThread(threadId).pipe(
           Effect.flatMap((t) =>
             tryDiscord("delete thread", async () => {
               await t.delete();
             }),
           ),
-        ),
-      postClock: (threadId, view) =>
-        fetchThread(threadId).pipe(
+        );
+      }),
+      postClock: Effect.fn("Channel.postClock")(function* (threadId, view) {
+        return yield* fetchThread(threadId).pipe(
           Effect.flatMap((thread) =>
             tryDiscord("post clock", () => thread.send(clockMessage(view))),
           ),
           Effect.map((m) => m.id),
-        ),
-      redrawClock: (threadId, messageId, view) =>
-        fetchThread(threadId).pipe(
+        );
+      }),
+      redrawClock: Effect.fn("Channel.redrawClock")(function* (threadId, messageId, view) {
+        return yield* fetchThread(threadId).pipe(
           Effect.flatMap((thread) =>
             tryDiscord("fetch clock", () => thread.messages.fetch(messageId)),
           ),
-          Effect.catchAll((e) => goneIfUnknownOr(messageId)(e)),
+          Effect.catchTag("DiscordError", (e) => goneIfUnknown(messageId, e)),
           Effect.flatMap((m) => tryDiscord("redraw clock", () => m.edit(clockMessage(view)))),
           Effect.asVoid,
-        ),
-      postInThread: Effect.fn("postInThread")(function* (
+        );
+      }),
+      postInThread: Effect.fn("Channel.postInThread")(function* (
         threadId: string,
         matchId: string,
         post: ThreadPost,

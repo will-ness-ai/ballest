@@ -86,20 +86,39 @@ const LayoutJson = Schema.parseJson(
   }),
 );
 
-const logFailure = (e: ChannelError) =>
-  e._tag === "Gone"
+const logFailure = Effect.fn("Surface.logFailure")(function* (e: ChannelError) {
+  return yield* e._tag === "Gone"
     ? Effect.logWarning(`${e.id} is gone`)
     : e._tag === "RenderError"
       ? Effect.logError("drawing an image failed", e.cause)
       : Effect.logError(`discord ${describeDiscordError(e)}`);
+});
 
 /** Try a Channel call up to twice more, unless what it acts on is gone. */
-const retryUnlessGone = <A, E extends ChannelError>(effect: Effect.Effect<A, E>) =>
-  effect.pipe(Effect.retry({ times: 2, while: (e: E) => e._tag !== "Gone" }));
+const retryUnlessGone = Effect.fn("Surface.retryUnlessGone")(function* <A, E extends ChannelError>(
+  effect: Effect.Effect<A, E>,
+) {
+  return yield* effect.pipe(Effect.retry({ times: 2, while: (e: E) => e._tag !== "Gone" }));
+});
+
+/** A Channel call whose failure ends in the log, not in its caller. */
+const logFailures = Effect.fn("Surface.logFailures")(function* <A, R>(
+  effect: Effect.Effect<A, ChannelError, R>,
+) {
+  return yield* effect.pipe(
+    Effect.catchTag("DiscordError", "RenderError", "Gone", (e) => logFailure(e)),
+  );
+});
 
 /** Deleting or closing something already gone counts as done. */
-const unlessGone = <E extends ChannelError>(effect: Effect.Effect<void, E>) =>
-  effect.pipe(Effect.catchAll((e) => (e._tag === "Gone" ? Effect.void : logFailure(e))));
+const unlessGone = Effect.fn("Surface.unlessGone")(function* (
+  effect: Effect.Effect<void, ChannelError>,
+) {
+  return yield* effect.pipe(
+    Effect.catchTag("Gone", () => Effect.void),
+    (rest) => logFailures(rest),
+  );
+});
 
 const make = Effect.gen(function* () {
   const channel = yield* Channel;
@@ -127,7 +146,7 @@ const make = Effect.gen(function* () {
       }),
     }),
   );
-  const setLayout = Effect.fn("setLayout")(function* (change: (current: Layout) => Layout) {
+  const setLayout = Effect.fn("Surface.setLayout")(function* (change: (current: Layout) => Layout) {
     const next = yield* Ref.updateAndGet(layout, (current) => change(current));
     const data = yield* Schema.encode(LayoutJson)({
       footerId: next.footerId,
@@ -137,17 +156,22 @@ const make = Effect.gen(function* () {
     });
     yield* sql`INSERT INTO discord_layout (id, data) VALUES (1, ${data}) ON CONFLICT (id) DO UPDATE SET data = excluded.data`;
   }, Effect.orDie);
-  const setCard = (matchId: string, card: CardRef) =>
-    setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }));
-  const setFooter = (footerId: string | null, footerFingerprint: string | null) =>
-    setLayout((l) => ({ ...l, footerId, footerFingerprint }));
+  const setCard = Effect.fn("Surface.setCard")(function* (matchId: string, card: CardRef) {
+    return yield* setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }));
+  });
+  const setFooter = Effect.fn("Surface.setFooter")(function* (
+    footerId: string | null,
+    footerFingerprint: string | null,
+  ) {
+    return yield* setLayout((l) => ({ ...l, footerId, footerFingerprint }));
+  });
 
   /** What this build's Footer looks like, or null if it can't be drawn (then it's redrawn next start). */
   const thisBuildsFooter = channel.fingerprint(Drawing.Footer()).pipe(
     Effect.tapError((e) => logFailure(e)),
     Effect.orElseSucceed(() => null),
   );
-  const postFooter = Effect.fn("postFooter")(function* () {
+  const postFooter = Effect.fn("Surface.postFooter")(function* () {
     const fingerprint = yield* thisBuildsFooter;
     yield* setFooter(yield* channel.post(Drawing.Footer()), fingerprint);
   });
@@ -158,7 +182,7 @@ const make = Effect.gen(function* () {
   const clocks = yield* Ref.make(new Map<string, string>());
 
   /** Stop tracking a Card; `finished` keeps where it was, for links. */
-  const forget = Effect.fn("forget")(function* (matchId: string, finished = false) {
+  const forget = Effect.fn("Surface.forget")(function* (matchId: string, finished = false) {
     const without = <V>(m: Map<string, V>) => {
       const next = new Map(m);
       next.delete(matchId);
@@ -185,7 +209,7 @@ const make = Effect.gen(function* () {
   const clockKey = (view: CardView) => `${view.state}:${view.expiresAt}:${view.endsAt}`;
 
   /** Start a Card's Match Thread, retrying twice, and open it with the clock. None if it won't start. */
-  const startThread = Effect.fn("startThread")(function* (
+  const startThread = Effect.fn("Surface.startThread")(function* (
     matchId: string,
     messageId: string,
     view: CardView,
@@ -210,7 +234,7 @@ const make = Effect.gen(function* () {
   });
 
   /** Redraw a thread's clock when the Match has moved on, or post it if that failed before. */
-  const redrawClock = Effect.fn("redrawClock")(function* (
+  const redrawClock = Effect.fn("Surface.redrawClock")(function* (
     matchId: string,
     card: CardRef,
     view: CardView,
@@ -235,7 +259,7 @@ const make = Effect.gen(function* () {
    * and the old Footer is deleted; any other Card takes the Footer's place (or is posted fresh if
    * the Footer is gone).
    */
-  const createCard = Effect.fn("createCard")(function* (view: CardView) {
+  const createCard = Effect.fn("Surface.createCard")(function* (view: CardView) {
     const { footerId } = yield* Ref.get(layout);
     // Forget what the Footer shows before drawing over it: if the bot stops before this Card is
     // recorded, the next start redraws the Footer rather than trusting a fingerprint it no longer has.
@@ -256,7 +280,7 @@ const make = Effect.gen(function* () {
     yield* postFooter();
   });
 
-  const showCard = Effect.fn("showCard")(
+  const showCard = Effect.fn("Surface.showCard")(
     function* (view: CardView) {
       yield* Ref.update(views, (m) => new Map(m).set(view.matchId, view));
       const card = (yield* Ref.get(layout)).cards.get(view.matchId);
@@ -264,11 +288,11 @@ const make = Effect.gen(function* () {
       yield* channel.redraw(card.messageId, Drawing.Card({ view }));
       yield* redrawClock(view.matchId, card, view);
     },
-    Effect.catchAll((e) => logFailure(e)),
+    (effect) => logFailures(effect),
     lock.withPermits(1),
   );
 
-  const remove = Effect.fn("remove")(function* (matchId: string, reason: RemovalReason) {
+  const remove = Effect.fn("Surface.remove")(function* (matchId: string, reason: RemovalReason) {
     const card = (yield* Ref.get(layout)).cards.get(matchId);
     if (card === undefined) return;
     if (isKept(reason)) {
@@ -286,7 +310,7 @@ const make = Effect.gen(function* () {
    * A Match's thread, started now if it couldn't be when its Card was drawn. Only Play again's
    * post (`toFinished`) goes to a finished Match's thread; any other post for it is dropped.
    */
-  const threadOf = Effect.fn("threadOf")(function* (matchId: string, toFinished: boolean) {
+  const threadOf = Effect.fn("Surface.threadOf")(function* (matchId: string, toFinished: boolean) {
     const { cards, finished } = yield* Ref.get(layout);
     const card = cards.get(matchId);
     if (card === undefined)
@@ -300,7 +324,7 @@ const make = Effect.gen(function* () {
       : yield* startThread(matchId, card.messageId, view);
   }, lock.withPermits(1));
 
-  const post = Effect.fn("post")(
+  const post = Effect.fn("Surface.post")(
     function* (matchId: string, post: ThreadPost) {
       const threadId = yield* threadOf(matchId, post._tag === "PlayingAgain");
       if (Option.isNone(threadId))
@@ -312,7 +336,7 @@ const make = Effect.gen(function* () {
         (post._tag === "Result" && post.standings.every((s) => s.ticks === null));
       if (last) yield* lock.withPermits(1)(forget(matchId, true));
     },
-    Effect.catchAll((e) => logFailure(e)),
+    (effect) => logFailures(effect),
   );
 
   // Startup: the Footer must be the channel's last message, with today's wording, and is edited
@@ -333,12 +357,12 @@ const make = Effect.gen(function* () {
       );
   } else {
     if (footerId !== null) yield* unlessGone(channel.deleteMessage(footerId));
-    yield* postFooter().pipe(Effect.catchAll((e) => logFailure(e)));
+    yield* logFailures(postFooter());
   }
 
   const links = MatchLinks.of({
-    of: (matchId) =>
-      Ref.get(layout).pipe(
+    of: Effect.fn("MatchLinks.of")(function* (matchId) {
+      return yield* Ref.get(layout).pipe(
         Effect.map(({ cards, finished }) => {
           const card = cards.get(matchId);
           return Option.fromNullable(
@@ -347,7 +371,8 @@ const make = Effect.gen(function* () {
               : { messageId: card.messageId, threadId: card.threadId },
           );
         }),
-      ),
+      );
+    }),
   });
 
   return Context.make(Surface, Surface.of({ showCard, remove, post })).pipe(

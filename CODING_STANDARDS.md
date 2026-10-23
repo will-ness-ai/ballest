@@ -68,8 +68,11 @@ it breaks. Those files carry the reasons; this file carries the checks.
   - A Promise or a call that can throw is wrapped with `Effect.tryPromise` / `Effect.try` into a
     tagged error; `Effect.promise` and `Effect.sync` wrap only calls that cannot fail.
   - A function that returns an Effect is `Effect.fn("name")(function* ...)`, and a callback is
-    an explicit lambda.
-  - A failure is recovered by its tag; a defect stays a defect.
+    an explicit lambda. Lint checks it (`bot/effect-fn`). The name is `Service.method`
+    (`Surface.post`, `DailyReport.runDay`): the service or module it belongs to, then the
+    function, and no two spans share one.
+  - A failure is recovered by its tag (`catchTag` / `catchTags`, or `Effect.catchIf(isRejection, …)`
+    for a set of tags; lint refuses `Effect.catchAll`); a defect stays a defect.
 - Run times convert through `SCORE_TICKS_PER_SECOND`, never a bare `100_000`.
 - User-facing text (messages, cards, the Activity) uses `CONTEXT.md`'s terms, and a word on
   an _Avoid_ line is a finding.

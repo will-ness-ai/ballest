@@ -8,12 +8,15 @@ name: Multiballs
 on:
   push:
     branches: [main]
-    paths: ["discord-bot/**", ".github/workflows/bot.yml"]
-  # A PR changing the site's Skins or its schema checks the bot too: its tests read both.
+    paths: ["discord-bot/**", ".github/workflows/bot.yml", "package.json", "pnpm-lock.yaml"]
+  # A PR changing the site's Skins or its schema checks the bot too: its tests read both. So does
+  # one changing the root install, where the lint rule's test gets ESLint.
   pull_request:
     paths:
       - "discord-bot/**"
       - ".github/workflows/bot.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
       - "web/db/**"
       - "web/lib/skins.ts"
       - "skins/**"
@@ -51,10 +54,13 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: |
+            pnpm-lock.yaml
             discord-bot/pnpm-lock.yaml
             web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir ../web install --frozen-lockfile
+      # ESLint and typescript-eslint, for the bot/effect-fn rule's test
+      - run: pnpm --dir .. install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
 

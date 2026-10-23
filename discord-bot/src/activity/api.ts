@@ -12,7 +12,7 @@ import {
   type Match,
   type PbEvent,
 } from "../domain.js";
-import { Engine, type Rejection } from "../engine.js";
+import { Engine, isRejection, type Rejection } from "../engine.js";
 import { explain } from "../explain.js";
 import { pingFailed } from "../pingWords.js";
 import { Pings, warnPingRole } from "../pings.js";
@@ -96,10 +96,8 @@ const OpenBody = Schema.Struct({
   target: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
 });
 
-const isRejection = (e: { readonly _tag: string }): e is Rejection => e._tag in STATUS;
-
 /** `where` is the server and channel the links point into. */
-export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
+export const makeActivityApi = Effect.fn("ActivityApi.make")(function* (where: {
   readonly guildId: string;
   readonly channelId: string;
 }) {
@@ -137,7 +135,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
   });
 
   /** A member's name in the server, or "Someone" when Discord can't say. */
-  const nameOf = Effect.fn("nameOf")(function* (discordId: string) {
+  const nameOf = Effect.fn("ActivityApi.nameOf")(function* (discordId: string) {
     const name = yield* members
       .nameOf(discordId)
       .pipe(Effect.catchTag("MembersUnavailable", () => Effect.succeed(Option.none<string>())));
@@ -145,14 +143,14 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
   });
 
   /** A rejection as the member who was turned down reads it; another member is named as in the server. */
-  const rejected = Effect.fn("rejected")(function* (e: Rejection, discordId: string) {
+  const rejected = Effect.fn("ActivityApi.rejected")(function* (e: Rejection, discordId: string) {
     const other =
       "discordId" in e && e.discordId !== discordId ? yield* nameOf(e.discordId) : "That member";
     return json({ error: e._tag, message: explain(e, discordId, () => other) }, STATUS[e._tag]);
   });
 
   /** A Match as `discordId` sees it. */
-  const viewOf = Effect.fn("viewOf")(function* (m: Match, discordId: string) {
+  const viewOf = Effect.fn("ActivityApi.viewOf")(function* (m: Match, discordId: string) {
     const card = cardView(m, yield* chosenSkins.all);
     const people = card.target === null ? card.players : [...card.players, card.target];
     const names = Object.fromEntries(
@@ -183,7 +181,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
    * A Match as it stands (null once it's gone), with the server's clock for the countdowns, and,
    * after a member's own action on it, whether to offer them the ping role.
    */
-  const reply = Effect.fn("reply")(function* (
+  const reply = Effect.fn("ActivityApi.reply")(function* (
     m: Option.Option<Match>,
     discordId: string,
     pingOffer?: boolean,
@@ -196,18 +194,15 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
   });
 
   /** Run a member's action, answering a rejection with its status and words. */
-  const asMember = <E extends { readonly _tag: string }, R>(
-    action: (discordId: string) => Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>,
-  ) =>
-    Effect.gen(function* () {
-      const discordId = yield* self;
-      return yield* action(discordId).pipe(
-        Effect.catchIf(
-          (e): e is Extract<E, Rejection> => isRejection(e),
-          (e) => rejected(e, discordId),
-        ),
-      );
-    });
+  const asMember = Effect.fn("ActivityApi.asMember")(function* <
+    E extends { readonly _tag: string },
+    R,
+  >(action: (discordId: string) => Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>) {
+    const discordId = yield* self;
+    return yield* action(discordId).pipe(
+      Effect.catchIf(isRejection, (e) => rejected(e, discordId)),
+    );
+  });
 
   const router = HttpRouter.empty.pipe(
     HttpRouter.post(

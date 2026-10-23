@@ -117,7 +117,9 @@ one application emoji per Skin (`skin_<name>`) at startup beside the hue marbles
 
 `test/chosenSkins.test.ts` reads a throwaway database on the Postgres at `TEST_DATABASE_URL`
 (default the local one), migrated by `web/scripts/migrate.mjs`, so `pnpm test` needs Postgres
-running and `pnpm install` in `web/` too; `bot.yml` gives CI both.
+running and `pnpm install` in `web/` too. `test/effectFnRule.test.mjs` runs the lint rule
+`bot/effect-fn` through ESLint's RuleTester, whose ESLint and typescript-eslint come from the
+repo root, so it needs `pnpm install` at the root as well; `bot.yml` gives CI all three.
 
 ## The Activity
 

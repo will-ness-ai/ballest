@@ -56,8 +56,12 @@ export const isUnknown = (e: DiscordError) =>
   "code" in e.cause &&
   (e.cause.code === 10008 || e.cause.code === 10003);
 
-export const tryDiscord = <A>(op: string, run: () => Promise<A>) =>
-  Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
+export const tryDiscord = Effect.fn("Discord.try")(function* <A>(
+  op: string,
+  run: () => Promise<A>,
+) {
+  return yield* Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
+});
 
 export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
   scoped: Effect.gen(function* () {
@@ -168,7 +172,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
      * anyone. It fails at once if that channel isn't one the bot can view, so a listener can say
      * so and stay off.
      */
-    const postsIn = Effect.fn("postsIn")(function* (otherId: string) {
+    const postsIn = Effect.fn("Discord.postsIn")(function* (otherId: string) {
       const other = yield* tryDiscord("fetch channel", () => client.channels.fetch(otherId));
       const viewable =
         other !== null &&
@@ -201,7 +205,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
      * Which of these permissions the bot lacks in another text channel of this server; it fails
      * when that isn't a channel of this server the bot can see.
      */
-    const missingIn = Effect.fn("missingIn")(function* (
+    const missingIn = Effect.fn("Discord.missingIn")(function* (
       otherId: string,
       required: ReadonlyArray<readonly [string, bigint]>,
     ) {
@@ -234,12 +238,13 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
         Effect.map((all) => new Map(all.map((emoji) => [emoji.name, emoji.id]))),
       ),
       /** Upload an application emoji; its id. */
-      createAppEmoji: (name: string, png: Buffer) =>
-        tryDiscord("create app emoji", () =>
+      createAppEmoji: Effect.fn("Discord.createAppEmoji")(function* (name: string, png: Buffer) {
+        return yield* tryDiscord("create app emoji", () =>
           application.emojis.create({ name, attachment: png }),
-        ).pipe(Effect.map((emoji) => emoji.id)),
+        ).pipe(Effect.map((emoji) => emoji.id));
+      }),
       /** The member's name in this server, for thread titles. */
-      displayName: Effect.fn("displayName")(function* (discordId: string) {
+      displayName: Effect.fn("Discord.displayName")(function* (discordId: string) {
         return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(
           // NFKC turns "fancy text" (𝐁𝐨𝐥𝐝, Ｗｉｄｅ, ⓒⓘⓡⓒⓛⓔⓓ letters) into the plain letters the image fonts have.
           Effect.map((member) => member.displayName.normalize("NFKC")),
@@ -247,7 +252,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
         );
       }),
       /** The member's name in this server, or None if they aren't in it; any other failure is Discord's. */
-      member: Effect.fn("member")(function* (discordId: string) {
+      member: Effect.fn("Discord.member")(function* (discordId: string) {
         return yield* tryDiscord("fetch member", () => channel.guild.members.fetch(discordId)).pipe(
           Effect.map((member) => Option.some(member.displayName.normalize("NFKC"))),
           Effect.catchIf(

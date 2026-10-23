@@ -64,7 +64,7 @@ const FACES: ReadonlyArray<readonly [name: string, pkg: string, weight: Weight]>
   ["Bungee", "bungee", 400],
 ];
 
-const loadFonts = Effect.fn("loadFonts")(function* () {
+const loadFonts = Effect.fn("Renderer.loadFonts")(function* () {
   const require = createRequire(import.meta.url);
   const fonts: Array<Font> = [];
   for (const [name, pkg, weight] of FACES)
@@ -148,7 +148,7 @@ const makeRasteriser = Effect.gen(function* () {
     await worker?.terminate();
   });
   yield* Effect.addFinalizer(() => stop);
-  return Effect.fn("rasterise")(function* (svg: string) {
+  return Effect.fn("Renderer.rasterise")(function* (svg: string) {
     return yield* Effect.async<Buffer, RenderError>((resume) => {
       const id = next++;
       try {
@@ -179,7 +179,7 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
     // Without its fonts or its rasteriser the bot can draw nothing: that stops it at startup.
     const fonts = yield* loadFonts().pipe(Effect.orDie);
     yield* rasterise(marbleSvg(0, 8)).pipe(Effect.orDie);
-    const draw = Effect.fn("draw")(function* (scene: El, width: number) {
+    const draw = Effect.fn("Renderer.draw")(function* (scene: El, width: number) {
       const svg = yield* Effect.tryPromise({
         try: () => satori(scene, { width, fonts }),
         catch: (cause) => new RenderError({ cause }),
@@ -200,24 +200,38 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
 
     return {
       /** The Match Card, in any state, its Players in the Chosen Skins its view carries. */
-      card: (card: CardImage) => draw(cardScene(card, pictures), CARD_WIDTH),
+      card: Effect.fn("Renderer.card")(function* (card: CardImage) {
+        return yield* draw(cardScene(card, pictures), CARD_WIDTH);
+      }),
       /** An Improvement's row; `skin` is the Improver's Chosen Skin its post carries. */
-      improvement: (improvement: Improvement, name: string, skin: ChosenSkin) =>
-        draw(improvementScene(improvement, name, skin, pictures), ROW_WIDTH),
+      improvement: Effect.fn("Renderer.improvement")(function* (
+        improvement: Improvement,
+        name: string,
+        skin: ChosenSkin,
+      ) {
+        return yield* draw(improvementScene(improvement, name, skin, pictures), ROW_WIDTH);
+      }),
       footer,
       /** The Link confirmation; `skin` is the account's Chosen Skin. */
-      link: (preview: ProfilePreview, skin: ChosenSkin) =>
-        draw(linkScene(preview, skin, pictures), LINK_WIDTH),
+      link: Effect.fn("Renderer.link")(function* (preview: ProfilePreview, skin: ChosenSkin) {
+        return yield* draw(linkScene(preview, skin, pictures), LINK_WIDTH);
+      }),
       /** After the Result: every PB of the Match over its clock. */
-      progression: (image: ProgressionImage) =>
-        draw(progressionScene(image, pictures), PROGRESSION_WIDTH),
+      progression: Effect.fn("Renderer.progression")(function* (image: ProgressionImage) {
+        return yield* draw(progressionScene(image, pictures), PROGRESSION_WIDTH);
+      }),
       /** The Activity's art for the Developer Portal; `dev` tags it for the dev app. */
-      activityArt: (art: ActivityArt, dev: boolean) =>
-        draw(activityArtScene(art, dev), ACTIVITY_ART_SIZE[art][0]),
+      activityArt: Effect.fn("Renderer.activityArt")(function* (art: ActivityArt, dev: boolean) {
+        return yield* draw(activityArtScene(art, dev), ACTIVITY_ART_SIZE[art][0]);
+      }),
       /** A bare marble, for the lifecycle-line emojis. */
-      marble: (hue: number) => rasterise(marbleSvg(hue, 64)),
+      marble: Effect.fn("Renderer.marble")(function* (hue: number) {
+        return yield* rasterise(marbleSvg(hue, 64));
+      }),
       /** The Daily Report's four boards, each row in the Chosen Skin it carries. */
-      standings: (image: StandingsImage) => draw(standingsScene(image, pictures), STANDINGS_WIDTH),
+      standings: Effect.fn("Renderer.standings")(function* (image: StandingsImage) {
+        return yield* draw(standingsScene(image, pictures), STANDINGS_WIDTH);
+      }),
       /** A Daily Post's lead through the day. */
       leadGraph: Effect.fn("Renderer.leadGraph")(function* (image: LeadGraphImage) {
         return yield* draw(leadGraphScene(image), LEAD_GRAPH_WIDTH);
