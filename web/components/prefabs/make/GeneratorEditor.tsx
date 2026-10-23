@@ -12,6 +12,7 @@ import { PrefabViewer } from "../PrefabViewer";
 import {
   PIECE_LIMIT,
   generate,
+  partsOf,
   generatorOf,
   type Generator,
   type Values,
@@ -69,13 +70,14 @@ function Editor({ g }: { g: Generator }) {
   const size = box && { w: Math.max(box.w, box.d), d: Math.min(box.w, box.d), h: box.h };
   const pieces = file?.items.length ?? 0;
   const over = pieces > PIECE_LIMIT;
-  const download = () => {
-    if (!file) return;
+  /* more pieces than one spawn holds come in parts, spawned one after another */
+  const parts = useMemo(() => (file && !over ? partsOf(file) : []), [file, over]);
+  const download = (part: number) => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(
-      new Blob([JSON.stringify(file, null, "\t")], { type: "application/json" }),
+      new Blob([JSON.stringify(parts[part], null, "\t")], { type: "application/json" }),
     );
-    a.download = fileNameOf(g.file);
+    a.download = fileNameOf(parts.length > 1 ? `${g.file}_${String(part + 1)}` : g.file);
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -117,11 +119,31 @@ function Editor({ g }: { g: Generator }) {
             </p>
           )}
           <div className="gen-actions">
-            <button type="button" className="pf-dl" disabled={!file || over} onClick={download}>
-              Download
-            </button>
-            <HelpDialog name={g.file} auto={false} />
+            {parts.length > 1 ? (
+              parts.map((_, i) => (
+                <button key={i} type="button" className="pf-dl" onClick={() => download(i)}>
+                  Part {i + 1}
+                </button>
+              ))
+            ) : (
+              <button
+                type="button"
+                className="pf-dl"
+                disabled={!parts.length}
+                onClick={() => download(0)}
+              >
+                Download
+              </button>
+            )}
+            <HelpDialog name={parts.length > 1 ? `${g.file}_1` : g.file} auto={false} />
           </div>
+          {parts.length > 1 && (
+            <p className="gen-parts">
+              Too many pieces for the game to spawn at once, so it comes in {parts.length} parts.
+              Spawn them in order without moving the camera, and they meet. Then delete the small
+              white cubes at the near corner: they only line the parts up.
+            </p>
+          )}
         </div>
       </div>
     </section>

@@ -11,6 +11,8 @@ import {
   COLOUR_NAMES,
   GENERATORS,
   PIECE_LIMIT,
+  SPAWN_MOST,
+  partsOf,
   MARBLE,
   PIXEL_LETTERING,
   generate,
@@ -535,6 +537,10 @@ describe("the track pieces", () => {
     for (const end of [s[0], s[s.length - 1]]) expect(upOf(end)[2]).toBeGreaterThan(0.95);
   });
 
+  test("a flat straight without walls is still two pieces, as the game spawns no fewer", () => {
+    expect(make("straight", { walls: false }).items.length).toBe(2);
+  });
+
   test("a rise stays within 45° however short the piece", () => {
     const most = (key: string, change: Values) => {
       const c = gen(key)
@@ -592,6 +598,40 @@ describe("the track pieces", () => {
     expect(Math.min(...bottoms)).toBeGreaterThan(495);
     expect(Math.min(...bottoms)).toBeLessThan(530);
     expect(count(make("corner", { raised: 0 }), "Cylinder")).toBe(0);
+  });
+});
+
+describe("a big Prefab in parts", () => {
+  /* the game slides each spawned Prefab along X so its nearest face lands a set way in front of
+     the camera, so every part must reach as near as the whole does */
+  const nearest = (file: PrefabFile) =>
+    Math.min(
+      ...shapesOf(file).map(
+        (sh) =>
+          sh.matrix[12] -
+          (Math.abs(sh.matrix[0]) + Math.abs(sh.matrix[4]) + Math.abs(sh.matrix[8])) / 2,
+      ),
+    );
+
+  test("a small one is one part, itself", () => {
+    const file = make("corner");
+    expect(partsOf(file)).toEqual([file]);
+  });
+
+  test("a big one splits into parts the game can spawn, each reaching as near and as low", () => {
+    const file = make("course");
+    const parts = partsOf(file);
+    expect(parts.length).toBe(Math.ceil(file.items.length / SPAWN_MOST));
+    for (const p of parts) {
+      expect(p.items.length).toBeLessThanOrEqual(SPAWN_MOST + 1);
+      expect(nearest(p)).toBeCloseTo(nearest(file), 2);
+      expect(lowest(p)).toBeCloseTo(lowest(file), 0);
+      expect(checkPrefab(JSON.stringify(p)).ok).toBe(true);
+    }
+    /* every piece once, and at most a marker more in each part */
+    const all = parts.flatMap((p) => p.items);
+    for (const it of file.items) expect(all).toContain(it);
+    expect(all.length).toBeLessThanOrEqual(file.items.length + parts.length);
   });
 });
 
