@@ -119,14 +119,10 @@ button {
   padding: 0;
   cursor: pointer;
 }
-/* the tabs and the rail's strips were buttons on the single-page site; as links
-   they are drawn the same */
-:where(a.gtab, a.tstrip) {
+/* the rail's strips were buttons on the single-page site; as links they are drawn the same */
+:where(a.tstrip) {
   color: inherit;
   text-decoration: none;
-}
-:where(a.gtab) {
-  text-align: center;
 }
 input {
   font: inherit;
@@ -145,7 +141,8 @@ textarea {
 /* press feedback: on a touch screen a tap otherwise shows nothing */
 :where(
   button:enabled,
-  a.gtab,
+  .sections a,
+  .subs a,
   a.tstrip,
   .seasontabs a,
   .seasonmenu a,
@@ -164,7 +161,8 @@ textarea {
 @media (prefers-reduced-motion: no-preference) {
   :where(
     button,
-    a.gtab,
+    .sections a,
+    .subs a,
     a.tstrip,
     .seasontabs a,
     .seasonmenu a,

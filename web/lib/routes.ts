@@ -8,7 +8,6 @@ import {
   eventOfBoard,
   type Campaign,
 } from "./campaigns";
-import { circuitBoard } from "./circuit";
 import { PFID, STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
 
@@ -34,25 +33,6 @@ const oneOf =
 export const isPlayerTab = oneOf(PLAYER_TABS);
 export const isPlScope = oneOf(PL_SCOPES);
 export const isPlSort = oneOf(PL_SORTS);
-
-/* the tabs across the top: the Workshop leads, the Daily follows it, then the Circuit and
-   Players, and the Prefabs come last */
-export const WORKSHOP_GROUP = "Workshop";
-/* every season's boards sit under the one Circuit tab, with the seasons as a switch inside */
-export const CIRCUIT_TAB = "Circuit";
-export const DAILY_TAB = "Daily";
-export const PLAYERS_TAB = "Players";
-export const PREFABS_TAB = "Prefabs";
-
-/* the tab a path belongs to; a player's page and a head to head belong to none */
-export function tabOfPath(path: string): string | null {
-  if (path === "/" || /^\/(maps?|campaigns?)(\/|$)/.test(path)) return WORKSHOP_GROUP;
-  if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
-  if (/^\/(players|you)(\/|$)/.test(path)) return PLAYERS_TAB;
-  if (/^\/prefabs?(\/|$)/.test(path)) return PREFABS_TAB;
-  const board = /^\/board\/([^/]+)/.exec(path);
-  return board && circuitBoard(decodeURIComponent(board[1])) ? CIRCUIT_TAB : null;
-}
 
 export const homeHref = () => "/";
 

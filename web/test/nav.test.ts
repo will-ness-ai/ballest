@@ -2,7 +2,8 @@
 // sub-tabs with the lit one, the kind of page, and the breadcrumb trail above its title.
 import { describe, expect, test } from "vitest";
 
-import { navOf, type NavFacts } from "../lib/nav";
+import { navCampaigns, navOf, type NavFacts } from "../lib/nav";
+import { legacyPath } from "../lib/routes";
 
 const ID = "76561198259485267";
 const RIVAL = "76561198078361919";
@@ -58,8 +59,22 @@ describe("the Section a path is in", () => {
       "/prefabs/make/qr": "prefabs",
       "/no-such-page": null,
     };
-    for (const [path, section] of Object.entries(at))
-      expect(nav(path).section, path).toBe(section);
+    for (const [path, section] of Object.entries(at)) expect(nav(path).section, path).toBe(section);
+  });
+
+  test("an old #/ link lands in its Section", () => {
+    const at: Record<string, string> = {
+      "#/workshop": "maps",
+      "#/maps/unbeaten": "maps",
+      "#/map/3623648768": "maps",
+      "#/board/Map_Track13": "circuit",
+      "#/board/OverallLeaderboard_EASeason2/podiums": "circuit",
+      [`#/player/${ID}/workshop`]: "players",
+      [`#/vs/${ID}/${RIVAL}`]: "players",
+      "#/players/circuit/pod": "players",
+    };
+    for (const [hash, section] of Object.entries(at))
+      expect(nav(legacyPath(hash) ?? "").section, hash).toBe(section);
   });
 
   test("a near miss is in none", () => {
@@ -90,7 +105,10 @@ describe("the Sections across the top", () => {
 
 describe("a Section's sub-tabs", () => {
   const subs = (path: string) => nav(path).subs.map((s) => [s.label, s.href]);
-  const lit = (path: string) => nav(path).subs.filter((s) => s.on).map((s) => s.label);
+  const lit = (path: string) =>
+    nav(path)
+      .subs.filter((s) => s.on)
+      .map((s) => s.label);
 
   test("each Section's own, in order", () => {
     expect(subs("/")).toEqual([
@@ -167,5 +185,115 @@ describe("a Section's sub-tabs", () => {
       "/no-such-page": [],
     };
     for (const [path, on] of Object.entries(at)) expect(lit(path), path).toEqual(on);
+  });
+});
+
+describe("the Campaigns the sub-tabs name", () => {
+  test("the four most played, whichever are pinned on the list", () => {
+    const c = (slug: string, players: number) => ({ slug, title: slug.toUpperCase(), players });
+    expect(
+      navCampaigns([c("pinned", 3), c("b", 40), c("c", 90), c("d", 12), c("e", 40), c("f", 7)]),
+    ).toEqual([
+      { slug: "c", title: "C" },
+      { slug: "b", title: "B" },
+      { slug: "e", title: "E" },
+      { slug: "d", title: "D" },
+    ]);
+  });
+});
+
+describe("the kind of page", () => {
+  test("every page in the qa catalogue", () => {
+    const at: Record<string, string | null> = {
+      "/": "Workshop",
+      "/maps": "Workshop",
+      "/map/3800958793": "Workshop Map",
+      [`/map/3800958793/${ID}`]: "Workshop Map",
+      "/campaigns": "Campaigns",
+      "/campaign/solar-trials": "Campaign",
+      "/campaign/solar-trials/podiums": "Campaign",
+      [`/campaign/solar-trials/${ID}`]: "Campaign",
+      "/campaign/solar-trials/3805413302": "Campaign Map",
+      "/campaign/leth-trials/leth-trial-1": "Event board",
+      "/daily": "Daily",
+      "/daily/2026-09-05": "Daily",
+      "/daily/standings": "Daily standings",
+      "/board/Map_Track13": "Circuit Track",
+      [`/board/Map_Track13/${ID}`]: "Circuit Track",
+      "/board/OverallLeaderboard_S1Current": "Circuit standings",
+      "/board/OverallLeaderboard_EASeason2/podiums": "Circuit standings",
+      [`/player/${ID}`]: "Player",
+      [`/player/${ID}/circuit`]: "Player",
+      [`/vs/${ID}/${RIVAL}`]: "Head to head",
+      "/players": "Rankings",
+      "/players/workshop/maps": "Rankings",
+      "/you": "Where you stand",
+      "/prefabs": "Prefabs",
+      "/prefab/wrongwaysign": "Prefab",
+      "/prefabs/new": "Upload",
+      "/prefabs/make": "Generators",
+      "/prefabs/make/qr": "Generator",
+      "/no-such-page": null,
+    };
+    for (const [path, kind] of Object.entries(at)) expect(nav(path).kind, path).toBe(kind);
+  });
+});
+
+describe("the breadcrumb trail", () => {
+  /* the crumbs above the page's own title, which the page adds */
+  const trail = (path: string) => nav(path).trail.map((c) => c.label);
+
+  test("the Section, then the lit sub-tab, never the page itself", () => {
+    expect(nav("/map/3800958793").trail).toEqual([
+      { label: "Maps", href: "/" },
+      { label: "All Maps", href: "/maps" },
+    ]);
+    const at: Record<string, Array<string>> = {
+      "/": [],
+      "/maps": ["Maps"],
+      "/maps/unbeaten": ["Maps", "All Maps"],
+      [`/map/3800958793/${ID}`]: ["Maps", "All Maps"],
+      "/campaigns": [],
+      "/campaign/solar-trials": ["Campaigns"],
+      "/campaign/solar-trials/podiums": ["Campaigns", "Solar Trials"],
+      "/daily": [],
+      "/daily/2026-09-05": ["Daily", "Today"],
+      "/daily/standings": ["Daily"],
+      "/board/OverallLeaderboard_EASeason2": [],
+      "/board/OverallLeaderboard_EASeason2/podiums": ["Circuit", "Season 2"],
+      "/board/OverallLeaderboard_S1Current": ["Circuit"],
+      "/board/Map_Track13": ["Circuit", "Season 1"],
+      [`/board/Map_Track13/${ID}`]: ["Circuit", "Season 1"],
+      "/board/OverallLeaderboard_AllSeasons": ["Circuit"],
+      "/players": [],
+      "/players/workshop/maps": ["Players", "Rankings"],
+      "/you": ["Players"],
+      "/prefabs": [],
+      "/prefab/wrongwaysign": ["Prefabs", "Shared"],
+      "/prefabs/new": ["Prefabs"],
+      "/prefabs/make": ["Prefabs"],
+      "/prefabs/make/qr": ["Prefabs", "Make your own"],
+      "/no-such-page": [],
+    };
+    for (const [path, crumbs] of Object.entries(at)) expect(trail(path), path).toEqual(crumbs);
+  });
+
+  test("a Campaign Map sits under its Campaign", () => {
+    expect(nav("/campaign/solar-trials/3805413302").trail).toEqual([
+      { label: "Campaigns", href: "/campaigns" },
+      { label: "Solar Trials", href: "/campaign/solar-trials" },
+    ]);
+    expect(trail("/campaign/leth-trials/leth-trial-1")).toEqual(["Campaigns", "Leth Trials"]);
+    /* one the sub-tabs don't name sits under All Campaigns */
+    expect(trail("/campaign/miniblack")).toEqual(["Campaigns", "All Campaigns"]);
+    expect(nav("/campaign/miniblack/3811078255").trail.at(-1)).toEqual({
+      label: "Miniblack",
+      href: "/campaign/miniblack",
+    });
+  });
+
+  test("a player's page and a head to head sit under Players", () => {
+    for (const path of [`/player/${ID}`, `/player/${ID}/workshop`, `/vs/${ID}/${RIVAL}`])
+      expect(trail(path), path).toEqual(["Players", "Rankings"]);
   });
 });

@@ -1,27 +1,17 @@
-// Every page's frame: the header with the brand, when the boards were read and You's card,
-// the tabs, the page itself, and the footer. `view` is the .app's data-view, which the stylesheet
-// keys each view's layout off.
+// Every page's frame: the header (the bar with the brand and You's card, when the boards were
+// read, the Sections and the current Section's sub-tabs), the page itself, and the footer.
+// `view` is the .app's data-view, which the stylesheet keys each view's layout off.
 import Link from "next/link";
 import { Suspense } from "react";
 
 import { Freshness } from "./Freshness";
-import { GroupTabs, Tabs, type GroupTab } from "./GroupTabs";
 import { Rack } from "./Marble";
+import { SectionNav, SectionRows } from "./SectionNav";
 import { YouCard } from "./YouCard";
-import { getDailyDates, getSite, hasWorkshop } from "../db/data";
+import { getCampaigns, getDailyDates, getSite, hasWorkshop } from "../db/data";
+import { navCampaigns, navOf, type NavFacts } from "../lib/nav";
 import { seasonsOf } from "../lib/player";
-import {
-  CIRCUIT_TAB,
-  DAILY_TAB,
-  PLAYERS_TAB,
-  PREFABS_TAB,
-  WORKSHOP_GROUP,
-  boardHref,
-  dailyHref,
-  homeHref,
-  playersHref,
-  prefabsHref,
-} from "../lib/routes";
+import { homeHref } from "../lib/routes";
 import { SITE_TITLE, SITE_WORDMARK } from "../lib/rules";
 
 export type View =
@@ -37,41 +27,47 @@ export type View =
   | "prefabs"
   | "you";
 
-/* the Workshop is the homepage, so its tab leads and the Daily, a Map a day, follows it;
-   the Circuit opens on its newest season's Overall board, and Players, over every board,
-   comes next, then the Prefabs for the level editor */
-async function tabs(): Promise<Array<GroupTab>> {
-  const [site, workshop, dailies] = await Promise.all([getSite(), hasWorkshop(), getDailyDates()]);
-  const newest = seasonsOf(site.boards).at(0);
-  return [
-    ...(workshop ? [{ group: WORKSHOP_GROUP, href: homeHref() }] : []),
-    ...(dailies.length ? [{ group: DAILY_TAB, href: dailyHref() }] : []),
-    ...(newest ? [{ group: CIRCUIT_TAB, href: boardHref(newest.overall) }] : []),
-    { group: PLAYERS_TAB, href: playersHref("all", "wr") },
-    { group: PREFABS_TAB, href: prefabsHref() },
-  ];
+/* what the navigation needs from the database (lib/nav.ts) */
+async function navFacts(): Promise<NavFacts> {
+  const [site, workshop, dailies, campaigns] = await Promise.all([
+    getSite(),
+    hasWorkshop(),
+    getDailyDates(),
+    getCampaigns(),
+  ]);
+  return {
+    workshop,
+    daily: dailies.length > 0,
+    seasons: seasonsOf(site.boards).map(({ group, overall }) => ({ group, overall })),
+    campaigns: navCampaigns(
+      campaigns.map(({ c, players }) => ({ slug: c.slug, title: c.title, players })),
+    ),
+  };
 }
 
 export async function Shell({ view, children }: { view: View; children: React.ReactNode }) {
-  const [site, list] = await Promise.all([getSite(), tabs()]);
+  const [site, facts] = await Promise.all([getSite(), navFacts()]);
   return (
     <div className="app" id="app" data-view={view}>
+      {/* the bar, then Refreshed, then the two rows of links: a grid that puts Refreshed
+          under the bar on a phone and at the sub-tabs' end on a desktop. The bar leaves room
+          between the brand and You for the site search */}
       <header className="hdr">
-        <Link className="brand" href={homeHref()}>
-          <Rack />
-          <span className="wordmark">
-            {SITE_WORDMARK[0]}
-            <em>{SITE_WORDMARK[1]}</em>
-          </span>
-        </Link>
-        <p className="tagline">Circuit and Workshop leaderboards</p>
+        <div className="bar">
+          <Link className="brand" href={homeHref()}>
+            <Rack />
+            <span className="wordmark">
+              {SITE_WORDMARK[0]}
+              <em>{SITE_WORDMARK[1]}</em>
+            </span>
+          </Link>
+          <YouCard />
+        </div>
         <Freshness refreshedAt={site.refreshedAt} mapsReadBy={site.mapsReadBy} />
-        <YouCard />
+        <Suspense fallback={<SectionRows nav={navOf("", facts)} />}>
+          <SectionNav facts={facts} />
+        </Suspense>
       </header>
-
-      <Suspense fallback={<Tabs tabs={list} on={null} />}>
-        <GroupTabs tabs={list} />
-      </Suspense>
 
       {children}
 

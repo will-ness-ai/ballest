@@ -9,22 +9,29 @@
   z-index: 1;
 }
 
-/* the freshness line drops under the brand when both no longer fit side by side (a narrow
-   phone with big text), rather than the wordmark running under it */
+/* the header (Shell.tsx) is a grid: the bar, Refreshed under it, then the Sections and the
+   current Section's sub-tabs; desktop.css moves Refreshed to the sub-tabs' end */
 .hdr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "bar" "fresh" "sections" "subs";
+  margin-block-end: 14px;
+}
+/* the brand and You's card, with room between them for the site search. It wraps before
+   the wordmark would run under You (a narrow phone with big text), and holds the height of
+   You's card, which lands once the browser runs, so the page below doesn't drop */
+.bar {
+  grid-area: bar;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  /* room for You's card (YouCard), which takes the Refreshed line's place once the browser
-     runs, so the page below doesn't drop when it lands */
-  min-block-size: calc(38px + 22px);
-  padding: 10px var(--pad) 12px;
+  gap: 8px 12px;
+  min-block-size: calc(38px + 16px);
+  padding: 8px var(--pad);
 }
 .brand {
   display: flex;
-  flex: 1 1 10rem;
   align-items: center;
   gap: 9px;
   min-width: 0;
@@ -48,7 +55,7 @@
   margin-inline-start: -7px;
 }
 /* one word in two tones: BALLEST in the text colour, RECORDS in lime; it never wraps, so the
-   brand's row gives way to it rather than splitting the name */
+   bar gives way to it rather than splitting the name */
 .wordmark {
   font-family: var(--f-marquee);
   font-size: calc(13.5rem / 16);
@@ -60,17 +67,14 @@
   font-style: normal;
   color: var(--accent);
 }
-.tagline {
-  display: none;
-}
 .freshness {
+  grid-area: fresh;
   margin: 0;
+  padding: 0 var(--pad) 4px;
   font-size: calc(11rem / 16);
   color: var(--faint);
   text-align: end;
   line-height: 1.3;
-  flex: none;
-  margin-inline-start: auto;
 }
 .freshness b {
   color: var(--dim);
@@ -97,19 +101,16 @@
   vertical-align: 1px;
 }
 
-/* You's card (YouCard.tsx). On a phone it folds to marble and name and takes the
-   Refreshed line's place; the desktop's card adds your place and Maps under the name */
-.hdr:has(.youcard) .freshness {
-  display: none;
-}
+/* You's card (YouCard.tsx). On a phone it folds to its marble (or Steam's mark), its name
+   kept for a screen reader; the desktop's card adds the name, your place and Maps */
 .youcard {
   text-align: start;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   flex: none;
-  max-inline-size: 170px;
-  padding: 4px 12px 4px 4px;
+  max-inline-size: 290px;
+  padding: 4px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
@@ -129,9 +130,12 @@
   block-size: 28px;
 }
 .youcard > span:last-child {
-  display: flex;
-  flex-direction: column;
-  min-inline-size: 0;
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: clip;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .youcard b {
   overflow: clip;
@@ -139,7 +143,6 @@
   white-space: nowrap;
 }
 .youcard small {
-  display: none;
   color: var(--dim);
   font-size: calc(11rem / 16);
   font-weight: 400;
@@ -164,18 +167,15 @@
   fill: currentColor;
 }
 /* the blank card that holds the place while your record is read */
-.yc-wait {
-  inline-size: 8em;
-}
 .yc-wait .q {
   border: 0;
   background: var(--surface2);
 }
 
-/* the tabs are a squeeze on a narrow phone, so the bar scrolls sideways before a label
-   wraps onto two lines. The side with more tabs fades out over --edge, so the bar reads
-   as one that scrolls (good-css, "Styles that apply only when a scroller overflows"),
-   and the lit tab is scrolled clear of the fade (scroll-padding, GroupTabs.tsx) */
+/* the Sections and the sub-tabs are a squeeze on a phone, so each row scrolls sideways
+   rather than wrap. The side with more links fades out over --edge, so the row reads as one
+   that scrolls (good-css, "Styles that apply only when a scroller overflows"), and the lit
+   link is scrolled clear of the fade (scroll-padding, SectionNav.tsx) */
 @property --fade-start {
   syntax: "<length>";
   inherits: false;
@@ -186,7 +186,7 @@
   inherits: false;
   initial-value: 0px;
 }
-@keyframes groups-edges {
+@keyframes row-edges {
   from {
     --fade-start: 0px;
     --fade-end: var(--edge);
@@ -201,19 +201,16 @@
     --fade-end: 0px;
   }
 }
-.groups {
+.sections,
+.subs {
   display: flex;
-  gap: 2px;
-  margin: 0 var(--pad) 12px;
-  padding: 3px;
-  border-radius: 11px;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  align-items: center;
+  padding-inline: var(--pad);
   overflow-x: auto;
   scrollbar-width: none;
   --edge: 2rem;
   scroll-padding-inline: var(--edge);
-  animation: groups-edges linear;
+  animation: row-edges linear;
   animation-timeline: scroll(self inline);
   mask-image: linear-gradient(
     to right,
@@ -223,21 +220,77 @@
     transparent
   );
 }
-.gtab {
-  flex: 1 0 auto;
-  padding: 8px 5px;
-  border-radius: 8px;
-  font-family: var(--f-hud);
-  font-size: calc(12.5rem / 16);
-  font-weight: 600;
-  color: var(--dim);
-  letter-spacing: 0.01em;
-  white-space: nowrap;
+/* the Sections are tabs with icons over one line, the lit one underlined in lime */
+.sections {
+  grid-area: sections;
+  gap: 2px;
+  border-block-end: 1px solid var(--line);
 }
-.gtab[aria-selected="true"] {
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 700;
+.sections a {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 10px 11px;
+  margin-block-end: -1px;
+  border-block-end: 2px solid transparent;
+  color: var(--dim);
+  font-family: var(--f-hud);
+  font-size: calc((14rem + 1 * var(--ramp)) / 16);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.sections svg {
+  inline-size: 1.2em;
+  block-size: 1.2em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sections a[aria-current="page"] {
+  border-block-end-color: var(--accent);
+  color: var(--text);
+}
+.sections a[aria-current="page"] svg {
+  color: var(--accent);
+}
+/* the Section's own sub-tabs, as pills; the row keeps its height while it is empty (before
+   the path is known, or off every Section) */
+.subs {
+  grid-area: subs;
+  gap: 6px;
+  min-block-size: calc(10px + 14px + 1.5 * 13rem / 16);
+  padding-block-start: 10px;
+}
+.subs a {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.subs a[aria-current="page"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sections a:hover {
+    color: var(--text);
+  }
+  .subs a:not([aria-current="page"]):hover {
+    border-color: color-mix(in oklch, var(--accent) 45%, transparent);
+    color: var(--text);
+  }
 }
 
 /* the rail is a sheet down here */

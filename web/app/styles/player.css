@@ -1,7 +1,6 @@
 /* ---------- a player's page ----------
    A player is not inside any one board, so their page takes the whole content
    column: no season tabs, no rail, none of the board furniture. */
-.app[data-view="player"] .groups,
 .app[data-view="player"] .rail,
 .app[data-view="player"] .boardbtn,
 .app[data-view="player"] .boardbar,
@@ -9,7 +8,6 @@
 .app[data-view="player"] .leaders,
 .app[data-view="player"] .board,
 .app[data-view="player"] #bmetaM,
-.app[data-view="vs"] .groups,
 .app[data-view="vs"] .rail,
 .app[data-view="vs"] .boardbtn,
 .app[data-view="vs"] .boardbar,

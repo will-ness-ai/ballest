@@ -10,15 +10,16 @@
     padding: 30px 24px 90px;
   }
 
+  /* Refreshed moves to the sub-tabs' row, at its end */
   .hdr {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 7px;
-    padding: 0 0 22px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "bar bar" "sections sections" "subs fresh";
+    column-gap: 16px;
+    margin-block-end: 22px;
   }
-  /* the phone's row basis would be a height in this column */
-  .brand {
-    flex: none;
+  .bar {
+    gap: 24px;
+    padding: 0 0 14px;
   }
   .rack .marble {
     width: 24px;
@@ -31,39 +32,28 @@
     font-size: calc(20rem / 16);
     line-height: 1.25;
   }
-  .tagline {
-    display: block;
-    margin: 0;
-    font-family: var(--f-hud);
-    font-size: calc(11rem / 16);
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: var(--dim);
-    font-weight: 600;
-  }
   .freshness {
-    margin-inline-start: 0;
-    text-align: start;
+    align-self: end;
+    padding: 0 0 7px;
     font-size: calc(12.5rem / 16);
   }
-  /* You's card sits top right, beside the brand, and Refreshed stays where it is */
-  .hdr {
-    position: relative;
-  }
-  .hdr:has(.youcard) .freshness {
-    display: block;
-  }
+  /* You's card unfolds: your name, then your place and Maps under it */
   .youcard {
-    position: absolute;
-    inset-block-start: 0;
-    inset-inline-end: 0;
-    max-inline-size: 290px;
     padding: 6px 14px 6px 6px;
   }
   .youcard .marble,
   .youcard .q {
     inline-size: 34px;
     block-size: 34px;
+  }
+  .youcard > span:last-child {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    inline-size: auto;
+    block-size: auto;
+    min-inline-size: 0;
+    clip-path: none;
   }
   .youcard .yc-wide {
     display: inline;
@@ -74,31 +64,27 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .yc-wait {
+    inline-size: 8em;
+  }
 
-  .groups {
-    gap: 2px;
-    margin: 0 0 20px;
-    padding: 0;
-    background: none;
-    border: 0;
-    border-block-end: 1px solid var(--line);
+  /* every link fits here, and the fade's mask would cut off the lit Section's underline */
+  .sections,
+  .subs {
+    padding-inline: 0;
     overflow: visible;
-    /* every tab fits here, and the fade's mask would cut off the lit tab's underline */
     animation: none;
     mask-image: none;
   }
-  .gtab {
-    flex: 0 0 auto;
-    padding: 10px 15px;
-    border-radius: 0;
-    border-block-end: 2px solid transparent;
-    margin-block-end: -1px;
+  .sections {
+    gap: 6px;
   }
-  .gtab[aria-selected="true"] {
-    background: none;
-    color: var(--accent);
-    border-block-end-color: var(--accent);
-    font-weight: 600;
+  .sections a {
+    padding: 12px 16px 13px;
+  }
+  .subs {
+    flex-wrap: wrap;
+    padding-block-start: 12px;
   }
 
   .main {
