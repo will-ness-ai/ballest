@@ -471,7 +471,9 @@ The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's vari
   head to head the Rankings.
 
 What each row holds and which link is lit come from one pure model, `navOf` in `lib/nav.ts`,
-read from the path and `NavFacts` (the four the database knows); it also gives the kind of
+read from the path and `NavFacts` (the four the database knows, read with the refresh time and
+the search's jump-to links by `frameOf` in `components/frame.ts`, once per request under
+React's `cache()`, so the page head reuses the header's read); it also gives the kind of
 page and its breadcrumb trail (the Section, the lit sub-tab, then a Campaign Map's Campaign,
 without the page itself), which the page head draws (below). Both rows are links marked
 `aria-current="page"` inside labelled `nav` landmarks, drawn by `components/SectionNav.tsx`
@@ -503,10 +505,14 @@ and Prefabs (spec #339, round 2's filter chips; ticket #342).
 
 - **The read**: `GET /api/search?q=` (`app/api/search/route.ts`). The query is trimmed,
   lowercased and cut to 64 characters (`searchTerm`), and an empty one answers `null`. Players
-  come from the fresh player search (`searchPlayers`, the Compare dialog's), and everything else
-  from the cached lists the pages already read: makers and Maps from the Map cards (Maps through
-  `searchMaps`, title or maker), Campaigns from `getCampaigns`, Tracks from the Circuit boards,
-  Dailies and Prefabs from their lists. So a search costs one query plus cached reads.
+  come from the fresh player search (`searchPlayers`, the Compare dialog's, an exact name
+  first), and everything else from the cached lists the pages already read: makers and Maps
+  from the Map cards (Maps through `searchMaps`, title or maker), Campaigns from `getCampaigns`
+  (as `campaignSummary` lines), Tracks from the Circuit boards, Dailies and Prefabs from their
+  lists. Whether a maker the player search's ten names left out plays is asked fresh too
+  (`withTimes` over `searchedMakers`), never guessed from the cut. So a search costs two small
+  queries plus cached reads, and the answer carries `s-maxage=600` with a Refresh's length of
+  `stale-while-revalidate`, so the CDN answers a query many type, or one typed again.
 - **What it finds, and in what order** is pure, `searchAll` in `lib/search.ts`: within each
   kind an exact name first, then a name that starts with the query, a word that does, then a
   contains, with popularity (runs, players, Maps made, favorites) breaking a tie. A Map found
@@ -515,7 +521,7 @@ and Prefabs (spec #339, round 2's filter chips; ticket #342).
   one on no board links to their Made tab. The answer carries ten of each kind (`PER_KIND`)
   and `mapTotal`, every Map that matched.
 - **The results** drop down under the field (`components/search/SearchBar.tsx`, a client
-  island that `SiteSearch` gives the jump-to links). `resultsOf` lays an answer out: chips for
+  island the header gives the jump-to links). `resultsOf` lays an answer out: chips for
   All and each kind found, the kind whose best hit matches best first, each with its count (the
   Maps chip counts `mapTotal`); All shows three of each kind under a heading, a chip every hit
   of its kind; "All N Maps matching …" links to All maps narrowed by the query whenever more
@@ -527,7 +533,8 @@ and Prefabs (spec #339, round 2's filter chips; ticket #342).
 - **Keys**: "/" (outside a text field) or Ctrl/Cmd K puts the keyboard in the field, or opens
   the sheet where the field is hidden; a page Next keeps hidden after leaving it shows neither,
   so its header ignores the keys. ↑/↓ move through the hits (round the ends), Enter opens the
-  selected one or the first, Esc closes, and so does a press outside the field and its
+  selected one or the first (with none selected while a newer term's answer is on its way, the
+  first of that answer once it comes), Esc closes, and so does a press outside the field and its
   results, or leaving the page. The field is a labelled combobox whose results are a listbox of
   options, the selected one its active descendant, and a status line says how many hits there
   are.
@@ -554,9 +561,13 @@ back links kept): the board, list or player this tab last looked at, which becom
 breadcrumb's parent, under its own Section and by its sub-tab's name where one names it.
 A Map remembers the homepage, All maps, a Campaign, the Daily and a player's page
 (`<Remember trail="maps">`); a player remembers a Circuit board, a Campaign, a Map, the
-Daily, its standings, /you and the Players table (`<Remember trail="board">`). With nothing
-kept, only the page itself, or storage blocked, the breadcrumb is the Section's own (Maps ›
-All Maps, Players › Rankings). The server draws that one, so the remembered parent swaps in
+Daily, its standings, /you and the Players table (`<Remember trail="board">`). A page that
+leads to only some Maps names them (`leads`: a Campaign its Maps, a Daily its Map, a player
+the Maps they made or have a time on), and is the parent of those alone, so a Map reached
+some other way never sits under an unrelated Daily. A Section's link (either row) or a search
+hit forgets both trails (`forgetTrails`): the reader has set off somewhere new. With nothing
+kept, a remembered page that doesn't lead here, only the page itself, or storage blocked, the
+breadcrumb is the Section's own (Maps › All Maps, Players › Rankings). The server draws that one, so the remembered parent swaps in
 once the browser reads it. A head to head leads back to its first player.
 
 No page draws its own title or a back link any more, and the page-level tabs the header's
@@ -585,7 +596,8 @@ basis, which end of a row).
   `SectionNav`) match them but keep the header's own rules.
 - **A search box** is `SearchBox`: a rounded `field` with a magnifier, the one look for Find a
   player on a board and the Players table, Search maps, a player's map search and the Compare
-  dialog. A select (a player's and a head to head's sort) is a `select.field`.
+  dialog. The header's site search is the header's own, as its sub-tabs are: a squarer box
+  that carries the "/" hint and stays lit while its results are open. A select (a player's and a head to head's sort) is a `select.field`.
 - **An action** is a lime pill, the `btn` class on a link or button: All maps, Where you stand,
   Refine, Upload, Download, Publish, Save and Sign in with Steam on the Prefab pages. `big` is a
   page's one main action (a Prefab's Download, Publish), `more` the Show more under a list.

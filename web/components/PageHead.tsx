@@ -7,7 +7,7 @@
 import { Crumbs } from "./Crumbs";
 import type { Trail } from "./Trail";
 import { frameOf } from "./frame";
-import { crumbsOf, navOf, type Crumb } from "../lib/nav";
+import { navOf, type Crumb } from "../lib/nav";
 
 export async function PageHead({
   path,
@@ -25,12 +25,7 @@ export async function PageHead({
   const kind = navOf(path, facts).kind;
   return (
     <div className="ph">
-      <Crumbs
-        path={path}
-        title={title}
-        crumbs={crumbsOf(path, facts, title, back)}
-        trail={trail && { name: trail, facts }}
-      />
+      <Crumbs path={path} title={title} facts={facts} trail={trail} back={back} />
       {kind && <p className="ph-kind">{kind}</p>}
       <h1 className="ph-title">{title}</h1>
     </div>

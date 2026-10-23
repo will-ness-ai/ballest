@@ -195,6 +195,9 @@ function kindOf(section: SectionKey | null, path: string): string | null {
   }
 }
 
+/* a path without its trailing slash, as the links name it */
+const bare = (path: string) => path.replace(/(.)\/$/, "$1");
+
 export function navOf(path: string, facts: NavFacts): Nav {
   const section = sectionOf(path);
   const all = sectionsOf(facts);
@@ -205,7 +208,7 @@ export function navOf(path: string, facts: NavFacts): Nav {
      title */
   const home = all.find((s) => s.key === section && s.shown);
   const c = section === "campaigns" ? campaignPath(path)?.c : null;
-  const here = path.replace(/(.)\/$/, "$1");
+  const here = bare(path);
   const trail = [
     ...(home ? [{ label: home.label, href: home.href }] : []),
     ...(sub ? [sub] : []),
@@ -235,12 +238,11 @@ export function crumbsOf(
   title: string,
   back: Crumb | null,
 ): Array<Crumb> {
-  const at = (p: string) => p.replace(/(.)\/$/, "$1");
-  const from = back && at(back.href) !== at(path) ? navOf(back.href, facts) : null;
+  const from = back && bare(back.href) !== bare(path) ? navOf(back.href, facts) : null;
   let trail = navOf(path, facts).trail;
   if (back && from?.section) {
     const home = from.sections.find((s) => s.on);
-    const sub = from.subs.find((s) => s.on && s.href === at(back.href));
+    const sub = from.subs.find((s) => s.on && s.href === bare(back.href));
     trail = [
       ...(home ? [{ label: home.label, href: home.href }] : []),
       { label: sub?.label ?? back.label, href: back.href },

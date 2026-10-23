@@ -9,7 +9,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { Crumbs } from "../components/Crumbs";
 import { SectionRows } from "../components/SectionNav";
 import { Remember } from "../components/Trail";
-import { crumbsOf, navOf, type NavFacts } from "../lib/nav";
+import { navOf, type NavFacts } from "../lib/nav";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -58,8 +58,8 @@ const mapCrumbs = () => (
   <Crumbs
     path={MAP}
     title="Sway n So"
-    crumbs={crumbsOf(MAP, FACTS, "Sway n So", null)}
-    trail={{ name: "maps", facts: FACTS }}
+    facts={FACTS}
+    trail="maps"
   />
 );
 const links = () =>
@@ -137,6 +137,6 @@ test("with nothing remembered, a Map sits under All Maps", () => {
 });
 
 test("a breadcrumb that would be the title alone is not drawn", () => {
-  draw(<Crumbs path="/daily" title="Sway n So" crumbs={[]} />);
+  draw(<Crumbs path="/daily" title="Sway n So" facts={FACTS} />);
   expect(el.querySelector(".ph-crumbs")).toBeNull();
 });

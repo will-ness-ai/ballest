@@ -1,7 +1,8 @@
 "use client";
-// A page's breadcrumb (PageHead): the trail the server worked out, or, where the page names a
-// trail and this tab remembers where the reader came from (Trail.tsx), that page as the
-// parent. The page's own title ends it. Drawn only when there is a crumb before the title.
+// A page's breadcrumb (PageHead): crumbsOf (lib/nav.ts) over the page's path, its parent the
+// page this tab remembers the reader came from where the page names a trail and that page
+// leads to it (Trail.tsx), else `back`, the parent the server knows, else the Section's own.
+// The page's own title ends it. Drawn only when there is a crumb before the title.
 import Link from "next/link";
 
 import { useTrail, type Trail } from "./Trail";
@@ -10,18 +11,18 @@ import { crumbsOf, type Crumb, type NavFacts } from "../lib/nav";
 export function Crumbs({
   path,
   title,
-  crumbs,
-  trail,
+  facts,
+  trail = null,
+  back = null,
 }: {
   path: string;
   title: string;
-  /* the trail with nothing remembered */
-  crumbs: Array<Crumb>;
-  /* the trail whose page is the parent, and what crumbsOf needs to name it */
-  trail?: { name: Trail; facts: NavFacts };
+  facts: NavFacts;
+  trail?: Trail | null;
+  back?: Crumb | null;
 }) {
-  const back = useTrail(trail?.name ?? null, path);
-  const list = back && trail ? crumbsOf(path, trail.facts, title, back) : crumbs;
+  const remembered = useTrail(trail, path);
+  const list = crumbsOf(path, facts, title, remembered ?? back);
   if (!list.length) return null;
   return (
     <nav className="ph-crumbs" aria-label="Breadcrumb">
