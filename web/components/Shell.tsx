@@ -27,8 +27,8 @@ export type View =
   | "prefabs"
   | "you";
 
-/* what the navigation needs from the database (lib/nav.ts) */
-async function navFacts(): Promise<NavFacts> {
+/* what the navigation needs from the database (lib/nav.ts), for the header and PageHead */
+export async function navFacts(): Promise<NavFacts> {
   const [site, workshop, dailies, campaigns] = await Promise.all([
     getSite(),
     hasWorkshop(),

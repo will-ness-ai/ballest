@@ -4,8 +4,9 @@
 // (components/workshop/WorkshopHome).
 import type { Metadata } from "next";
 
-import { Remember } from "../components/BackLink";
+import { PageHead } from "../components/PageHead";
 import { Shell } from "../components/Shell";
+import { Remember } from "../components/Trail";
 import { CampaignBanner } from "../components/campaign/CampaignBanner";
 import { CampaignCarousel } from "../components/campaign/CampaignCarousel";
 import { WorkshopHome } from "../components/workshop/WorkshopHome";
@@ -38,6 +39,7 @@ export default async function Page() {
   return (
     <Shell view="workshop">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: WEBSITE }} />
+      <PageHead path={homeHref()} title="Featured Maps" />
       <section className="ws" id="ws">
         <WorkshopHome
           picks={picks(maps)}
@@ -52,7 +54,7 @@ export default async function Page() {
           asOf={asOf}
         />
       </section>
-      <Remember trail="maps" href={homeHref()} />
+      <Remember trail="maps" href={homeHref()} label="Featured" />
     </Shell>
   );
 }

@@ -293,6 +293,62 @@
   }
 }
 
+/* how every page opens (PageHead.tsx): the breadcrumb, the kind of page, then the title in
+   the marquee */
+.ph {
+  display: grid;
+  gap: 4px;
+  margin: 0 var(--pad) 16px;
+}
+.ph-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--faint);
+  font-size: calc(12.5rem / 16);
+}
+.ph-crumbs li {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.ph-crumbs li + li::before {
+  content: "›" / "";
+  margin-inline-end: 6px;
+  color: var(--faint);
+}
+.ph-crumbs a {
+  color: var(--dim);
+  text-decoration: none;
+}
+.ph-crumbs [aria-current="page"] {
+  color: var(--text);
+  font-weight: 600;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ph-crumbs a:hover {
+    color: var(--accent);
+  }
+}
+.ph-kind {
+  margin: 4px 0 0;
+  color: var(--faint);
+  font: 600 calc(11rem / 16) var(--f-hud);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.ph-title {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--f-marquee);
+  font-size: calc((26rem + 10 * var(--ramp)) / 16);
+  font-weight: 400;
+  line-height: 1.1;
+}
+
 /* the rail is a sheet down here */
 .rail {
   display: none;
@@ -916,7 +972,7 @@
   gap: 10px 18px;
   flex-wrap: wrap;
 }
-.bc-top h1 {
+.bc-top h2 {
   margin: 0;
   font-family: var(--f-hud);
   font-size: calc((26rem + 4 * var(--ramp)) / 16);

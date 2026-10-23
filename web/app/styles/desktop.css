@@ -87,6 +87,10 @@
     padding-block-start: 12px;
   }
 
+  .ph {
+    margin: 0 0 22px;
+  }
+
   .main {
     display: grid;
     grid-template-columns: 242px minmax(0, 1fr);
@@ -403,7 +407,6 @@
   .app[data-view="vs"] .main {
     grid-template-columns: minmax(0, 1fr);
   }
-  .back,
   .pid,
   .pstats,
   .pseason {
@@ -602,10 +605,6 @@
   .app[data-view="daily"] .content {
     grid-column: 2;
   }
-  .app[data-view="daily"] .ds-switch {
-    grid-column: 1 / -1;
-    margin: 0;
-  }
   /* the standings are one column: the record cards three across over the medal table */
   .app[data-view="daily"] .main.ds {
     grid-template-columns: minmax(0, 1fr);
@@ -667,7 +666,7 @@
   .dp-more {
     margin: 0;
   }
-  .dp-podhead h1 {
+  .dp-podhead h2 {
     font-size: calc(30rem / 16);
   }
   .dp-steps {

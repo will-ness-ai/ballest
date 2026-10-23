@@ -203,7 +203,6 @@ export function WorkshopHome({
   return (
     <>
       <div className="ws-head">
-        <h1 className="ws-h1">Workshop</h1>
         <span className="ws-tools">
           <Link className="alllink" href={mapsHref()}>
             All maps &rarr;

@@ -6,8 +6,10 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { DocTitle } from "../../../../components/Behaviours";
+import { PageHead } from "../../../../components/PageHead";
 import { Shell } from "../../../../components/Shell";
 import { PlayerSkeleton } from "../../../../components/Skeleton";
+import { Remember } from "../../../../components/Trail";
 import { PlayerView, tabFor } from "../../../../components/player/PlayerView";
 import {
   getBoardPage,
@@ -62,9 +64,12 @@ async function Player({ params }: Pick<Props, "params">) {
     getPlayerCampaigns(p.id),
   ]);
   if (!rec || !mine) notFound();
+  const name = personaOf(rec.who);
   return (
     <>
-      <DocTitle title={personaOf(rec.who)} />
+      <PageHead path={playerHref(rec.id)} title={name} trail="board" />
+      <DocTitle title={name} />
+      <Remember trail="maps" href={playerHref(rec.id)} label={name} />
       <PlayerView
         rec={rec}
         tab={tabFor(rec, p.tab?.[0] ?? null)}

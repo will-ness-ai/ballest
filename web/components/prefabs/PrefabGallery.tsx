@@ -8,7 +8,6 @@ import { useEffect, useRef, useState } from "react";
 
 import { fetchPrefabFile } from "./file";
 import { Heart } from "./Heart";
-import { PrefabTabs } from "./PrefabTabs";
 import { stillOf } from "./scene";
 import type { PrefabCard } from "../../db/prefabs";
 import type { PrefabFile } from "../../lib/prefab";
@@ -99,18 +98,14 @@ export function PrefabGallery({ cards }: { cards: Array<PrefabCard> }) {
   return (
     <section className="pfl">
       <header className="pfl-head">
-        <div>
-          <h1>Prefabs</h1>
-          <p>
-            Ready-made pieces for the level editor. Download one, drop it in your Prefabs folder and
-            spawn it into your map.
-          </p>
-        </div>
+        <p>
+          Ready-made pieces for the level editor. Download one, drop it in your Prefabs folder and
+          spawn it into your map.
+        </p>
         <Link className="pf-dl" href={newPrefabHref()}>
           + Upload
         </Link>
       </header>
-      <PrefabTabs on="shared" />
       <div className="pfl-bar">
         <div className="pfl-seg" role="group" aria-label="Sort">
           {(["popular", "newest"] as const).map((s) => (

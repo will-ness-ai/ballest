@@ -25,7 +25,7 @@ export function PrefabPage({ p }: { p: Prefab }) {
           angle={p.angle}
         />
         <aside className="pf-side">
-          <h1>{p.name}</h1>
+          <h2 className="pf-name">{p.name}</h2>
           <p className="pf-by">
             by{" "}
             {p.uploader.isPlayer ? (
@@ -87,7 +87,6 @@ export function PrefabPage({ p }: { p: Prefab }) {
 export function PrefabGone({ p }: { p: Prefab | null }) {
   return (
     <div className="pf pf-gone">
-      <h1>This prefab is gone</h1>
       <p>
         It was deleted or taken down, or the link is wrong.{" "}
         <Link href={prefabsHref()}>See every prefab</Link>.
