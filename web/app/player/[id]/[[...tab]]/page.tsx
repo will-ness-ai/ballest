@@ -19,9 +19,8 @@ import {
   getPlayerDailies,
 } from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
-import type { PlayerRecord } from "../../../../lib/player";
-import { isPlayerTab, mapHref, playerHref } from "../../../../lib/routes";
-import { isSteamId, mapPfidOf, personaOf } from "../../../../lib/rules";
+import { isPlayerTab, playerHref } from "../../../../lib/routes";
+import { isSteamId, personaOf } from "../../../../lib/rules";
 import { pageMetadata } from "../../../../components/metadata";
 
 interface Props {
@@ -56,17 +55,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   );
 }
 
-/* the Maps a player's page leads to: those they made and those they have a time on */
-const mapsOf = (rec: PlayerRecord) => [
-  ...new Set([
-    ...rec.made.flatMap((m) => {
-      const pfid = mapPfidOf(m.name);
-      return pfid ? [mapHref(pfid)] : [];
-    }),
-    ...rec.workshop.finishes.map((f) => mapHref(f.pfid)),
-  ]),
-];
-
 async function Player({ params }: Pick<Props, "params">) {
   const p = await params;
   const [rec, mine, days, campaigns] = await Promise.all([
@@ -81,7 +69,7 @@ async function Player({ params }: Pick<Props, "params">) {
     <>
       <PageHead path={playerHref(rec.id)} title={name} trail="board" />
       <DocTitle title={name} />
-      <Remember trail="maps" href={playerHref(rec.id)} label={name} leads={mapsOf(rec)} />
+      <Remember trail="maps" href={playerHref(rec.id)} label={name} player={rec.id} />
       <PlayerView
         rec={rec}
         tab={tabFor(rec, p.tab?.[0] ?? null)}

@@ -118,7 +118,12 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
   const at = focus ? places?.[focus] : undefined;
   return (
     <>
-      <PageHead path={mapHref(m.pfid)} title={m.title} trail="maps" />
+      <PageHead
+        path={mapHref(m.pfid)}
+        title={m.title}
+        trail="maps"
+        page={{ board: name, maker: m.cid }}
+      />
       <div className="main">
         <DocTitle title={m.title} />
         <MapPanel m={m} scores={scores} asOf={site.asOf} />

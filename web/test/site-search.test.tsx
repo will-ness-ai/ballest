@@ -200,6 +200,67 @@ describe("the site search", () => {
     expect(sessionStorage.getItem("ballest-ws-list")).toBeNull();
   });
 
+  test("a hit opened in a new tab forgets nothing", async () => {
+    const trail = JSON.stringify({ href: "/daily", label: "Daily" });
+    sessionStorage.setItem("ballest-ws-list", trail);
+    await type("sol");
+    const stay = (e: Event) => {
+      e.preventDefault();
+    };
+    document.addEventListener("click", stay);
+    try {
+      act(() => {
+        options()[0]?.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true, ctrlKey: true }),
+        );
+      });
+    } finally {
+      document.removeEventListener("click", stay);
+    }
+    expect(sessionStorage.getItem("ballest-ws-list")).toBe(trail);
+  });
+
+  test("Enter waiting on a read that fails opens the first hit on screen", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        url.endsWith("=mar")
+          ? Promise.resolve(new Response("", { status: 500 }))
+          : Promise.resolve(Response.json(ANSWER)),
+      ),
+    );
+    await type("sol");
+    await type("mar", false);
+    key("Enter");
+    expect(push).not.toHaveBeenCalled();
+    await act(() => new Promise((r) => setTimeout(r, 200)));
+    expect(push).toHaveBeenCalledWith("/campaign/solar-trials");
+  });
+
+  test("Enter waiting on an answer is dropped when the search closes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        Promise.resolve(
+          Response.json(
+            url.endsWith("=mar")
+              ? { q: "mar", hits: [hit({ href: "/map/9", title: "Marble Run" })], mapTotal: 1 }
+              : ANSWER,
+          ),
+        ),
+      ),
+    );
+    await type("sol");
+    await type("mar", false);
+    key("Enter");
+    key("Escape");
+    act(() => {
+      field().focus();
+    });
+    await act(() => new Promise((r) => setTimeout(r, 200)));
+    expect(push).not.toHaveBeenCalled();
+  });
+
   test("closes on Escape and on a click outside", async () => {
     await type("sol");
     key("Escape");

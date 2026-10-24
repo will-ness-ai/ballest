@@ -27,7 +27,9 @@ export function SectionRows({ nav }: { nav: Nav }) {
             key={s.key}
             href={s.href}
             aria-current={s.on ? "page" : undefined}
-            onClick={forgetTrails}
+            onClick={(e) => {
+              forgetTrails(s.href, e);
+            }}
           >
             <SectionIcon k={s.key} />
             {s.label}
@@ -40,7 +42,9 @@ export function SectionRows({ nav }: { nav: Nav }) {
             key={s.href}
             href={s.href}
             aria-current={s.on ? "page" : undefined}
-            onClick={forgetTrails}
+            onClick={(e) => {
+              forgetTrails(s.href, e);
+            }}
           >
             {s.label}
           </Link>

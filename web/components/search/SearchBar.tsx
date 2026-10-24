@@ -53,6 +53,9 @@ const MARK: Record<SearchKind, SectionKey> = {
    field's tip names every kind it finds */
 const PLACEHOLDER = "Search players, Maps…";
 
+/* how long an Enter waits for its term's answer before it is dropped, ms */
+const ENTER_WAIT = 3000;
+
 /* `you` is You's card, which the phone's button keeps beside it: the bar wraps the two as one */
 export function SearchBar({ jumps, you }: { jumps: ReadonlyArray<Hit>; you?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -214,25 +217,29 @@ function Search({
       document.getElementById(optionId(selected))?.scrollIntoView({ block: "nearest" });
   });
 
-  /* a hit opened: the search closes, and the breadcrumbs forget the page it was opened on */
-  const go = () => {
-    forgetTrails();
+  /* a hit opened (by `e`, a click, or by Enter): the search closes, and the breadcrumbs forget
+     the page it was opened on, unless it opened in another tab */
+  const go = (href: string, e?: React.MouseEvent<HTMLAnchorElement>) => {
+    forgetTrails(href, e);
     setOpen(false);
   };
-  /* the term an Enter pressed while its answer was on its way waits for: that answer's first
-     hit opens once it comes, unless the reader has typed on */
-  const enterFor = useRef<string | null>(null);
+  /* the term an Enter pressed while its answer was on its way waits for, and when: that
+     answer's first hit opens once it comes, or, if its read fails, the first hit on screen.
+     Typing on, closing the search or ENTER_WAIT passing drops it */
+  const enterFor = useRef<{ term: string; at: number } | null>(null);
   useEffect(() => {
     const want = enterFor.current;
-    if (want === null || answer?.key !== want) {
-      if (want !== term) enterFor.current = null;
+    if (!want) return;
+    if (!open || want.term !== term || Date.now() - want.at > ENTER_WAIT) {
+      enterFor.current = null;
       return;
     }
+    if (answer?.key !== want.term && found.failedFor !== want.term) return;
     enterFor.current = null;
     const to = links.at(0);
-    if (to && open) {
+    if (to) {
       router.push(to.href);
-      go();
+      go(to.href);
     }
   });
   const keyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -248,14 +255,14 @@ function Search({
       /* nothing picked and the hits on screen answer an older term: wait for this one's */
       if (busy && selected < 0) {
         e.preventDefault();
-        enterFor.current = term;
+        enterFor.current = { term, at: Date.now() };
         return;
       }
       const to = links[selected < 0 ? 0 : selected] as { href: string } | undefined;
       if (!to) return;
       e.preventDefault();
       router.push(to.href);
-      go();
+      go(to.href);
     } else if (e.key === "Escape") {
       e.preventDefault();
       setOpen(false);
@@ -274,7 +281,9 @@ function Search({
         aria-selected={n === selected}
         className="srch-hit"
         href={h.href}
-        onClick={go}
+        onClick={(e) => {
+          go(h.href, e);
+        }}
       >
         <span className="srch-pic">
           {h.who ? (
@@ -345,7 +354,7 @@ function Search({
         )}
         {g.hits.map(row)}
         {g.more &&
-          (() => {
+          ((more) => {
             const n = i++;
             return (
               <Link
@@ -353,13 +362,15 @@ function Search({
                 role="option"
                 aria-selected={n === selected}
                 className="srch-all"
-                href={g.more.href}
-                onClick={go}
+                href={more.href}
+                onClick={(e) => {
+                  go(more.href, e);
+                }}
               >
-                All {g.more.total} Maps matching &ldquo;{answer?.key}&rdquo; &rarr;
+                All {more.total} Maps matching &ldquo;{answer?.key}&rdquo; &rarr;
               </Link>
             );
-          })()}
+          })(g.more)}
       </div>
     ));
   }

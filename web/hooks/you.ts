@@ -20,8 +20,11 @@ export type YouOnBoard =
   | { kind: "unplayed"; who: PlayerRecord["who"] }
   | { kind: "played"; who: PlayerRecord["who"]; row: YourRow };
 
-/* the key is the request's path, so a board and a player are read once together */
-const readRow = readOnce(async (path): Promise<YourRow | null> => {
+/* a player's row on a board, by the request's path (boardRowHref), so a board and a player are
+   read once together; the breadcrumb's check of a remembered player (Trail.tsx) shares it */
+export const boardRowHref = (board: string, player: string) =>
+  `/api/board/${encodeURIComponent(board)}?player=${encodeURIComponent(player)}`;
+export const readRow = readOnce(async (path): Promise<YourRow | null> => {
   const r = await fetch(path);
   if (!r.ok) throw new Error(String(r.status));
   return (await r.json()) as YourRow | null;
@@ -29,10 +32,7 @@ const readRow = readOnce(async (path): Promise<YourRow | null> => {
 
 export function useYouOnBoard(name: string): YouOnBoard {
   const you = useYou();
-  const path =
-    you.state === "ready"
-      ? `/api/board/${encodeURIComponent(name)}?player=${encodeURIComponent(you.id)}`
-      : null;
+  const path = you.state === "ready" ? boardRowHref(name, you.id) : null;
   const got = useRead(readRow, path);
   if (you.state === "none") return { kind: "none" };
   if (you.state === "unknown") return { kind: "unknown" };

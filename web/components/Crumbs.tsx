@@ -5,7 +5,7 @@
 // The page's own title ends it. Drawn only when there is a crumb before the title.
 import Link from "next/link";
 
-import { useTrail, type Trail } from "./Trail";
+import { useTrail, type Trail, type TrailPage } from "./Trail";
 import { crumbsOf, type Crumb, type NavFacts } from "../lib/nav";
 
 export function Crumbs({
@@ -13,15 +13,18 @@ export function Crumbs({
   title,
   facts,
   trail = null,
+  page,
   back = null,
 }: {
   path: string;
   title: string;
   facts: NavFacts;
   trail?: Trail | null;
+  /* the board this page is and who made it, which a remembered player is checked against */
+  page?: TrailPage;
   back?: Crumb | null;
 }) {
-  const remembered = useTrail(trail, path);
+  const remembered = useTrail(trail, path, page);
   const list = crumbsOf(path, facts, title, remembered ?? back);
   if (!list.length) return null;
   return (
