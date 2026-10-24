@@ -42,7 +42,7 @@ export const EVENTS: ReadonlyArray<EventBoard> = [
     id: "leth-trial-1",
     board: "Map_LethTrial_01",
     title: "Leth Trial #1",
-    picture: "/leth/preview.jpg",
+    picture: "/leth/screenshot.jpg",
     viewer: "leth",
   },
 ];

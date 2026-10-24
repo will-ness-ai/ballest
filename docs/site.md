@@ -361,8 +361,9 @@ one fixed Campaign, so look at the new one's page with
 `pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
 **Event boards and pinning.** A Campaign's `maps` may also name an Event board (CONTEXT.md)
-by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (committed under
-`leth/` and served from the site, since it has no Workshop preview; `safeImg` takes a path
+by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (the level's own
+screenshot from the game files, committed as `leth/screenshot.jpg` and served from the site,
+since it has no Workshop preview; a JPEG, as the share card can't read WebP; `safeImg` takes a path
 from the site's root, and the share card fetches it from production) and the folder of the
 static page its card links in place of a Map page (`viewerHref`). A test holds `EVENTS` to the
 collector's `EVENT_BOARDS`. The collector reads an Event board once (`docs/data.md`), so it

@@ -216,7 +216,7 @@ describe("Steam IDs and URLs", () => {
     expect(safeImg("https://images.steamusercontent.com/a.jpg")).toBe(
       "https://images.steamusercontent.com/a.jpg",
     );
-    expect(safeImg("/leth/preview.jpg")).toBe("/leth/preview.jpg");
+    expect(safeImg("/leth/screenshot.jpg")).toBe("/leth/screenshot.jpg");
     for (const bad of ["http://x/a.jpg", "//evil.example/a.jpg", "javascript:alert(1)", null])
       expect(safeImg(bad)).toBe("");
   });
