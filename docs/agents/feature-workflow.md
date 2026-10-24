@@ -55,6 +55,9 @@ Each implementer's brief says:
 - **One plain command per call.** The worktree guard refuses a compound command (`&&`, a
   pipe, `cd` then a command) as too complex to check, so run `git -C <worktree> ...` and
   tools with absolute paths, one per call.
+- **Never check out in the main checkout.** Switch branches only in your own worktree: a
+  checkout in `/home/user/ballest` leaves the session that owns it on someone else's branch or
+  a detached HEAD (#346). The pre-push hook refuses a push from a detached HEAD.
 - **Look at a page** with `qa check` (step 7), or `pnpm --silent qa shot <view> --el <selector>`
   for one element at one width: every image read stays in context for the session.
 
