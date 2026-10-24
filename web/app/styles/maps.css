@@ -546,8 +546,24 @@
   font-size: calc(11.5rem / 16);
   color: var(--faint);
 }
-.mp-ws {
-  width: 100%;
+/* under the picture: "Get it in Ballest", the Map's Workshop page, beside "See it in 3D"
+   when the Map has a 3D view (whose closed dialog takes no column), and the line saying what
+   to do after subscribing under them */
+.mp-get {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 8px;
+}
+.mp-get .m3d-open {
+  background: var(--surface2);
+  color: var(--text);
+}
+.mp-how {
+  margin: -6px 0 0;
+  font-size: calc(12.5rem / 16);
+  color: var(--dim);
+  text-align: center;
 }
 /* "See it in 3D" under the picture, and the full screen it opens over the page
    (components/workshop/Map3D.tsx): the Map fills it, with its bar, the desktop's facts card
@@ -555,8 +571,13 @@
 .m3d-open {
   inline-size: 100%;
 }
-.m3d-open:active {
-  background: var(--accent-hover);
+.mp-get .m3d-open:active {
+  background: var(--line);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mp-get .m3d-open:hover {
+    background: var(--line);
+  }
 }
 /* the page is hidden under it, so it gives up the scrollbar's gutter (base.css keeps it
    for the other dialogs), which nothing in the top layer can cover */
