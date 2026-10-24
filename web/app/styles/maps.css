@@ -5,6 +5,7 @@
   margin-block-end: 26px;
 }
 .trend ol {
+  container-type: inline-size;
   list-style: none;
   margin: 0;
   padding: 6px;
@@ -66,6 +67,18 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+.tr-votes {
+  display: flex;
+  gap: 0.5em;
+}
+/* a narrow phone, or big text, stacks the votes so the record holder's time keeps its room */
+@container (width < 20rem) {
+  .tr-votes {
+    flex-direction: column;
+    align-items: end;
+    gap: 0;
+  }
 }
 
 /* the Campaigns' arrows */

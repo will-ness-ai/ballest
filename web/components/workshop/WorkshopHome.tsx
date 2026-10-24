@@ -51,8 +51,9 @@ function Trending({ maps }: { maps: ReadonlyArray<TrendCard> }) {
               <span className="tr-fig">
                 {fmtN(m.weekPlays)}
                 <small>{m.weekPlays === 1 ? "play" : "plays"}</small>
-                <small>
-                  👍 {fmtN(m.votesUp)} · 👎 {fmtN(m.votesDown)}
+                <small className="tr-votes">
+                  <span>👍 {fmtN(m.votesUp)}</span>
+                  <span>👎 {fmtN(m.votesDown)}</span>
                 </small>
               </span>
             </Link>
