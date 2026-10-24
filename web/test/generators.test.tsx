@@ -157,13 +157,13 @@ describe("spawning in parts", () => {
 
   test("a small one is one part, itself", () => {
     const file = make("pixel-art");
-    expect(spawnsOf(file)).toEqual([file]);
+    expect(spawnsOf(file)).toEqual({ parts: [file], marked: false });
   });
 
   test("a big one splits into parts the game can spawn, each reaching as near and as low", () => {
     for (const lay of ["Standing", "On the floor"]) {
       const file = big(lay);
-      const parts = spawnsOf(file);
+      const { parts } = spawnsOf(file);
       expect(parts.length, lay).toBe(Math.ceil(file.items.length / (SPAWN_MOST - 1)));
       for (const p of parts) {
         expect(p.items.length, lay).toBeLessThanOrEqual(SPAWN_MOST);
@@ -182,7 +182,7 @@ describe("spawning in parts", () => {
     const file = big();
     /* lengths either side of where a split leaves one piece over */
     for (let n = SPAWN_MOST - 2; n <= 2 * SPAWN_MOST + 2; n++)
-      for (const p of spawnsOf({ ...file, items: file.items.slice(0, n) }))
+      for (const p of spawnsOf({ ...file, items: file.items.slice(0, n) }).parts)
         expect(p.items.length, `${String(n)} pieces`).toBeGreaterThanOrEqual(2);
   });
 });

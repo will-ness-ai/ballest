@@ -222,7 +222,7 @@ export function partsOf(file: PrefabFile): Array<{ piece: string; count: number 
 }
 
 /* where a shape reaches along three's axis k (0 x, 1 up, 2 z), in metres, over its corners */
-function spanOf({ matrix: m }: Shape, k: number): [number, number] {
+export function spanOf({ matrix: m }: Shape, k: number): [number, number] {
   let lo = Infinity;
   let hi = -Infinity;
   for (const x of [-0.5, 0.5])

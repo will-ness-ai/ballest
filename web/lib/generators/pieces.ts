@@ -1,7 +1,7 @@
 // The pieces every Generator builds from (lib/generators/index.ts): the colours and their paint,
 // the editor's primitives placed by their bottom centre (or a box by its centre), the grid merge,
 // the seeded random, the controls' shapes and the Generator interface itself.
-import { rotationRows, shapesOf, type PrefabFile, type PrefabItem } from "../prefab";
+import { rotationRows, shapesOf, spanOf, type PrefabFile, type PrefabItem } from "../prefab";
 import type { PrefabAngle } from "../prefabs";
 import type { Grid, Lettering } from "../generator-letters";
 
@@ -118,17 +118,10 @@ export const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
 export const lowestOf = (items: Array<PrefabItem>) => edgeOf(items, 1, -1);
 
 /* how far the pieces reach along three's axis `k` (0 x, 1 up, 2 Unreal's y), at their least
-   (-1) or most (1), in cm: a shape's matrix takes a unit shape centred on the origin, in metres,
-   so a corner is half each column */
+   (-1) or most (1), in cm */
 const edgeOf = (items: Array<PrefabItem>, k: number, sign: -1 | 1) =>
   sign *
-  Math.max(
-    ...shapesOf(fileOf(items)).map(
-      (sh) =>
-        sign * sh.matrix[12 + k] +
-        (Math.abs(sh.matrix[k]) + Math.abs(sh.matrix[4 + k]) + Math.abs(sh.matrix[8 + k])) / 2,
-    ),
-  ) *
+  Math.max(...shapesOf(fileOf(items)).map((sh) => sign * spanOf(sh, k)[sign < 0 ? 0 : 1])) *
   100;
 
 /* the pieces moved up or down so the lowest corner of any of them sits on the floor, z = 0 */
@@ -144,22 +137,25 @@ export function grounded(items: Array<PrefabItem>): Array<PrefabItem> {
    another without moving the camera. spawnprefab keeps a file's origin across and up but slides
    it along X so its nearest face sits a set way in front of the camera, so a part that doesn't
    reach as near or as low as the whole gets a small marker cube at the whole's near, low corner,
-   and the parts land where they meet (checked in a sandbox game, 2026-10-23) */
-export function spawnsOf(file: PrefabFile): Array<PrefabFile> {
-  if (file.items.length <= SPAWN_MOST) return [file];
+   and the parts land where they meet (checked in a sandbox game, 2026-10-23); `marked` says
+   whether any part carries one */
+export function spawnsOf(file: PrefabFile): { parts: Array<PrefabFile>; marked: boolean } {
+  if (file.items.length <= SPAWN_MOST) return { parts: [file], marked: false };
   const near = (items: Array<PrefabItem>) => edgeOf(items, 0, -1);
   const [x, y, z] = [near(file.items), edgeOf(file.items, 2, -1), lowestOf(file.items)];
   const marker = piece("cube", [x + 10, y + 10, z], [20, 20, 20], "White");
   const parts: Array<PrefabFile> = [];
+  let marked = false;
   /* one short of SPAWN_MOST, room for the marker */
   const most = SPAWN_MOST - 1;
   for (let i = 0; i < file.items.length; i += most) {
     const items = file.items.slice(i, i + most);
     /* and a part of one piece needs a second: the game spawns nothing from one */
     const reaches = items.length > 1 && near(items) - x < 0.01 && lowestOf(items) - z < 0.01;
+    marked ||= !reaches;
     parts.push({ ...file, items: reaches ? items : [...items, marker] });
   }
-  return parts;
+  return { parts, marked };
 }
 
 /* a sign or code laid out across x and standing out toward +y, turned to face -X */

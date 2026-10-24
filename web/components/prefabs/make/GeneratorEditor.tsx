@@ -69,9 +69,10 @@ function Editor({ g }: { g: Generator }) {
   const pieces = file?.items.length ?? 0;
   const over = pieces > PIECE_LIMIT;
   /* more pieces than one spawn holds come in parts, spawned one after another */
-  const parts = useMemo(() => (file && !over ? spawnsOf(file) : []), [file, over]);
-  /* a part that didn't reach the whole's near, low corner carries a marker cube there */
-  const marked = parts.reduce((n, p) => n + p.items.length, 0) > pieces;
+  const { parts, marked } = useMemo(
+    () => (file && !over ? spawnsOf(file) : { parts: [], marked: false }),
+    [file, over],
+  );
   const partName = (part: number) => (parts.length > 1 ? `${g.file}_${String(part + 1)}` : g.file);
   const download = (part: number) => {
     const a = document.createElement("a");
