@@ -891,12 +891,18 @@ only visible ones.
   parallel queries, not the code: `npx vercel redeploy <deployment>` once.
 - **Looking at it**: `pnpm --silent qa` from `web/`, run bare, lists the targets (production,
   this branch's preview with its deploy state, a local build) and what it checks. `qa check`
-  draws every page and dialog in `scripts/qa/catalogue.mjs` at 320px with 20px text, 390,
-  820 and 1280, on the preview and on production, and prints only what is wrong: sideways
+  draws the pages and dialogs in `scripts/qa/catalogue.mjs` that the branch's changes from
+  `main` reach, at 320px with 20px text, 390, 820 and 1280, on the preview and on production, and prints only what is wrong: sideways
   scroll, an element past the edge (with the one holding it open), text cut off or drawn
   over other text, page errors, and changed pixels, with one picture per change to read
   (reference | target | changes in red) in `scratch/qa/`. Read those pictures, not
-  screenshots of your own. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
+  screenshots of your own. Which pages a change reaches is `scripts/qa/reach.mjs`: those whose
+  page file or layouts import a changed file, through relative imports. A site file no page
+  imports (the proxy, an API route, a migration, a picture) or one every page does (the root
+  layout, the CSS, `lib/rules.ts`) draws every page; docs, tests, scripts and the other
+  packages draw none, and it names any page a change reaches that the catalogue lacks. The
+  whole catalogue is 176 views and takes 13 minutes from a cloud session, so pass `--all` only
+  for a change that shows everywhere and wasn't caught as one. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
   place of a throwaway Playwright script. `qa shot prefab@1280 --prefab <file.json>` has the
   Prefab page's viewer draw any file. To work on a stand-in shape, run `qa piece <mesh>`
@@ -909,7 +915,7 @@ only visible ones.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel
   address. A page or dialog with no row in the catalogue is not checked: add it. Locally,
   serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank, a long
-  Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
+  Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --all --against none --assert` on
   one, and its report is a notice on the build job (`gh api repos/will-ness-ai/ballest/check-runs/<id>/annotations`). A catalogue row with `as` is drawn signed in as that player (the Prefab upload form, an
   owner's Edit and Delete, the admin box): qa signs the cookie itself with the target's
   `SESSION_SECRET` (`scripts/qa/session.mjs`), which it knows only for a local build (from the

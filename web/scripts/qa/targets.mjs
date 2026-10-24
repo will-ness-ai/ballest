@@ -50,6 +50,7 @@ export function preview(branch = sh("git", ["rev-parse", "--abbrev-ref", "HEAD"]
     ids: "real",
     branch,
     sha: dep.sha.slice(0, 7),
+    commit: dep.sha,
     behind: dep.sha !== commits[0],
     state: status?.state ?? "pending",
   };
