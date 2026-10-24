@@ -60,7 +60,7 @@ describe("the players qa signs in as", () => {
 });
 
 describe("a local build's secret", () => {
-  const dirs: string[] = [];
+  const dirs: Array<string> = [];
   /* a web/ folder holding these .env files */
   const web = (files: Record<string, string> = {}) => {
     const dir = mkdtempSync(join(tmpdir(), "qa-secret-"));
