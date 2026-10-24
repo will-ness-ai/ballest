@@ -289,6 +289,23 @@ export function ProtoMapGet({ pfid, at }: { pfid: string; at: At }) {
     b?.classList.toggle("pws-half", v === "A");
     return () => b?.classList.remove("pws-half");
   }, [v, at]);
+  /* D: the sidebar ends at the screen's foot, so its pinned foot is always in view */
+  useEffect(() => {
+    if (at !== "foot" || v !== "D") return;
+    const p = document.getElementById("mpanel");
+    if (!p || !matchMedia("(min-width: 51.25em)").matches) return;
+    const fit = () => {
+      p.style.maxHeight = `${innerHeight - Math.max(16, p.getBoundingClientRect().top) - 16}px`;
+    };
+    fit();
+    addEventListener("scroll", fit, { passive: true });
+    addEventListener("resize", fit);
+    return () => {
+      removeEventListener("scroll", fit);
+      removeEventListener("resize", fit);
+      p.style.maxHeight = "";
+    };
+  }, [v, at]);
   if (!v || PLACE[v] !== at) return null;
   const btn = (
     <a className="go pws-get" href={ws(pfid)} target="_blank" rel="noopener">
