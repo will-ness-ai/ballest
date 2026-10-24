@@ -125,8 +125,9 @@ To fill a backlog in one go, ask the collector's service (`tools/runner.py`):
 `fly ssh console -a ballest-collector -C "python /app/runner.py ask map-files?budget=3600"` runs the same
 step alone (`python tools/map_files.py --budget <seconds>`) in its turn on the Steam login, so a
 Refresh due meanwhile waits for it, and it fails when it wrote no file. The service runs it too on
-just the Maps a #new-tracks post added, read from the newest page (`--maps`; "New Maps"). Only Fly
-and Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
+just the Maps a #new-tracks post added, read from the newest page (`--maps`; "New Maps"). A cloud
+session downloads too (`--dev`): `*.steamcontent.com` is in its Allowed domains, and
+`steam_download` has steam.py's session use the session's proxy, which it otherwise skips. The site serves each
 file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
 `getWorkshop` carries each Map's stored version.
 

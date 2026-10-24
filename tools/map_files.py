@@ -133,12 +133,18 @@ def write(conn, m, data, read_at):
     conn.commit()
 
 
-def steam_download(client):
+def steam_download(client, env=None):
     """The download the collector uses: a Map's file through the connected steam.py client
     (its published file, its manifest, then each file's bytes from Steam's content servers),
     as map_file picks it."""
+    env = os.environ if env is None else env
 
     async def download(pfid):
+        if env.get("HTTPS_PROXY"):
+            # steam.py fetches the content servers on its session without its proxy, so
+            # behind one (a cloud agent session) that session must read it from the
+            # environment; set on every Map, since a reconnect builds a new session
+            client.http._session._trust_env = True  # noqa: SLF001 (steam.py has no option for it)
         (found,) = await client.fetch_published_files(int(pfid)) or [None]
         if found is None:
             raise LookupError(pfid)
@@ -226,9 +232,6 @@ def main(argv=None):
         if "started" in result:
             return
         result["started"] = True
-        # the Workshop CDN is fetched on steam.py's bare session, which ignores HTTPS_PROXY
-        # unless told; a cloud agent session reaches the CDN only through that proxy
-        client.http._session._trust_env = True  # noqa: SLF001 (steam.py has no proxy option for it)
         try:
             result["written"] = await record_map_files(
                 catalogue, steam_download(client), scratch=args.dev, budget=args.budget
