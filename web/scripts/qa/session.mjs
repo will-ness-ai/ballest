@@ -4,6 +4,8 @@
 // test/qa-session.test.ts keeps the two cookies the same.
 import { createHmac } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { IDS, PAGES } from "./catalogue.mjs";
 
@@ -36,16 +38,22 @@ export function sessionCookie(id, secret, now) {
   return `${body}.${createHmac("sha256", secret.trim()).update(body).digest("base64url")}`;
 }
 
-/* the secret a local build signs sessions with: SESSION_SECRET, or else the first of
-   web/.env.local and web/.env that sets it, the order Next reads them in */
-export function localSecret() {
-  if (process.env.SESSION_SECRET?.trim()) return process.env.SESSION_SECRET;
+// the secret `pnpm serve` builds with when none is set, the one CI's qa run uses (web.yml)
+export const QA_SECRET = "qa-only";
+
+/* the secret a local build signs sessions with: SESSION_SECRET, else the first of
+   web/.env.local and web/.env that sets it (the order Next reads them in), else qa-only */
+export function localSecret(
+  env = process.env,
+  dir = fileURLToPath(new URL("../..", import.meta.url)),
+) {
+  if (env.SESSION_SECRET?.trim()) return env.SESSION_SECRET;
   for (const name of [".env.local", ".env"]) {
-    const file = new URL("../../" + name, import.meta.url);
+    const file = join(dir, name);
     if (!existsSync(file)) continue;
     const m = /^SESSION_SECRET=(.*)$/m.exec(readFileSync(file, "utf8"));
     const secret = m?.[1].trim().replace(/^["']|["']$/g, "");
     if (secret) return secret;
   }
-  return null;
+  return QA_SECRET;
 }

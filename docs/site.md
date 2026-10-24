@@ -896,6 +896,8 @@ only visible ones.
   one, and its report is a notice on the build job (`gh api repos/will-ness-ai/ballest/check-runs/<id>/annotations`). A catalogue row with `as` is drawn signed in as that player (the Prefab upload form, an
   owner's Edit and Delete, the admin box): qa signs the cookie itself with the target's
   `SESSION_SECRET` (`scripts/qa/session.mjs`), which it knows only for a local build (from the
-  environment, `web/.env.local` or `web/.env`), so `check` lists those views as `unsigned`
-  elsewhere, and as `uncompared` when only the reference can't sign in. A `signed-out` fault
-  means the site refused qa's session: qa read a different secret from the server's.
+  environment, `web/.env.local` or `web/.env`, or else `qa-only`, the secret CI's run uses and
+  `pnpm serve` and `pnpm dev:up` build with when none is set), so a local `check` is drawn
+  signed in, and `check` lists those views as `unsigned` elsewhere, and as `uncompared` when
+  only the reference can't sign in. A `signed-out` fault means the site refused qa's session:
+  qa read a different secret from the server's (a `pnpm dev` started without one, say).

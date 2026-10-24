@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -52,6 +56,26 @@ describe("the players qa signs in as", () => {
       .from(prefabs)
       .where(eq(prefabs.slug, IDS.stress.PREFAB));
     expect(prefab.uploader).toBe(IDS.stress.UPLOADER);
+  });
+});
+
+describe("a local build's secret", () => {
+  let dir: string;
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), "qa-secret-"));
+  });
+  afterAll(() => rmSync(dir, { recursive: true }));
+
+  it("is qa-only, the one pnpm serve and CI build with, when nothing sets one", () => {
+    expect(qa.localSecret({}, dir)).toBe("qa-only");
+  });
+
+  it("is the environment's, then web/.env.local's, then web/.env's", () => {
+    writeFileSync(join(dir, ".env"), "SESSION_SECRET=from-env-file\n");
+    expect(qa.localSecret({}, dir)).toBe("from-env-file");
+    writeFileSync(join(dir, ".env.local"), 'SESSION_SECRET="from-local"\n');
+    expect(qa.localSecret({}, dir)).toBe("from-local");
+    expect(qa.localSecret({ SESSION_SECRET: "from-shell" }, dir)).toBe("from-shell");
   });
 });
 

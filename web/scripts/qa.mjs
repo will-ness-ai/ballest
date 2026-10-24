@@ -120,7 +120,7 @@ const pageOf = (page, ids = "real") => {
 };
 const stateOf = (name) => STATES.find((x) => x.name === name);
 const UNSIGNED =
-  "signed in: only a local target whose SESSION_SECRET qa knows (env, web/.env.local or web/.env)";
+  "signed in: only a local target, under SESSION_SECRET (env, web/.env.local or web/.env) or else qa-only, as pnpm serve and CI build";
 const pageNames = `pages: ${PAGES.map((p) => p.name).join(", ")}`;
 /* a list cut to its first three once it runs past four */
 const few = (list) =>
