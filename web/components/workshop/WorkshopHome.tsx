@@ -1,27 +1,18 @@
 "use client";
-// The Workshop homepage's body: the search box in the head, then either the carousel of
-// five picks, the Campaigns (drawn on the server and passed in) and the shelves, or, while
+// The Workshop homepage's body: the search box in the head, then either Trending this
+// week, the Campaigns (drawn on the server and passed in) and the shelves, or, while
 // there is a search, the Maps that match it, read from /api/maps. The server picked the
-// carousel's Maps and each shelf's; what reads the clock (the ages, New this week) is
+// chart's Maps and each shelf's; what reads the clock (the ages, New this week) is
 // counted here, so a cached page never freezes it.
 import Link from "next/link";
 import { useState } from "react";
 
-import { CreatorLink, MapCardLink, MapGrid, PodLine } from "./Card";
+import { MapCardLink, MapGrid, PodLine } from "./Card";
 import { MapImage } from "../MapImage";
 import { useClock, useDebouncedFetch } from "../../hooks/client";
 import { mapHref, mapsHref } from "../../lib/routes";
-import { fmtN, fmtTime, plural } from "../../lib/rules";
-import {
-  MAPS_CHUNK,
-  SHELVES,
-  SORTS,
-  onShelf,
-  recordOf,
-  whyOf,
-  type MapCard,
-  type Pick,
-} from "../../lib/workshop";
+import { fmtN, plural } from "../../lib/rules";
+import { MAPS_CHUNK, SHELVES, SORTS, onShelf, type MapCard } from "../../lib/workshop";
 
 export interface MapSearch {
   /* how many Maps match, of which `maps` is the first MAPS_CHUNK by runs */
@@ -29,93 +20,38 @@ export interface MapSearch {
   maps: Array<MapCard>;
 }
 
-function Carousel({ picks, now }: { picks: ReadonlyArray<Pick>; now: number }) {
-  const [slide, setSlide] = useState(0);
-  if (!picks.length) return null;
-  const step = (d: number) => {
-    setSlide((s) => (s + d + picks.length) % picks.length);
-  };
-  const p = picks[slide],
-    m = p.m;
+/* Trending this week (spec #348): the top ten, ranks running down two columns on a desktop */
+function Trending({ maps }: { maps: ReadonlyArray<MapCard> }) {
+  if (!maps.length) return null;
   return (
-    <div
-      className="car"
-      id="car"
-      /* the timer is the progress line itself: when it finishes filling, move on */
-      onAnimationEnd={(e) => {
-        if (e.animationName === "carfill") step(1);
-      }}
-    >
-      <div className="car-pic">
-        {picks.map((x, i) => (
-          <MapImage
-            key={x.m.pfid}
-            preview={x.m.preview}
-            className={"sl" + (i === slide ? " on" : "")}
-          />
-        ))}
+    <section className="trend" aria-labelledby="trend-h">
+      <div className="shelf-h">
+        <h2 id="trend-h">Trending this week</h2>
+        <span className="shelf-n">by Workshop plays in the last 7 days and votes</span>
       </div>
-      <div id="carInfo">
-        {/* keyed by the slide, so the copy slides in (fades, with less motion) and the
-            progress line restarts */}
-        <div className="car-in" key={slide}>
-          <span className="eyebrow">
-            {p.label} <span className="why">&middot; {whyOf(p, now)}</span>
-          </span>
-          <h2 className="car-t">{m.title}</h2>
-          <span className="car-by">
-            by <CreatorLink m={m} />
-          </span>
-          <div className="car-stats">
-            <span>
-              <b>{fmtN(m.entryCount)}</b>runs
-            </span>
-            <span>
-              <b>{fmtTime(recordOf(m))}</b>record
-            </span>
-            <span>
-              <b>{fmtN(m.sessions)}</b>plays
-            </span>
-          </div>
-          <div className="car-pod">
-            {m.top3.map((x, i) => (
-              <PodLine key={i} p={x} i={i} />
-            ))}
-          </div>
-          <div className="car-acts">
-            <Link className="go" href={mapHref(m.pfid)}>
-              See the leaderboard
-            </Link>
-            <span className="car-nav">
-              <button
-                type="button"
-                aria-label="Previous pick"
-                onClick={() => {
-                  step(-1);
-                }}
-              >
-                &larr;
-              </button>
-              <span>
-                {slide + 1} / {picks.length}
+      <ol>
+        {maps.map((m, i) => (
+          <li key={m.pfid}>
+            <Link href={mapHref(m.pfid)}>
+              <span className="tr-n">{i + 1}</span>
+              <MapImage preview={m.preview} className="tr-pic" />
+              <span className="tr-in">
+                <b>{m.title}</b>
+                <span className="tr-by">by {m.creator}</span>
+                <PodLine p={m.top3[0]} i={0} />
               </span>
-              <button
-                type="button"
-                aria-label="Next pick"
-                onClick={() => {
-                  step(1);
-                }}
-              >
-                &rarr;
-              </button>
-            </span>
-          </div>
-          <div className="car-line">
-            <i className="prog"></i>
-          </div>
-        </div>
-      </div>
-    </div>
+              <span className="tr-fig">
+                {fmtN(m.weekPlays)}
+                <small>{m.weekPlays === 1 ? "play" : "plays"}</small>
+                <small>
+                  👍 {fmtN(m.votesUp)} · 👎 {fmtN(m.votesDown)}
+                </small>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -181,13 +117,14 @@ function Results({ q, found, clear }: { q: string; found: MapSearch; clear: () =
 }
 
 export function WorkshopHome({
-  picks,
+  trend,
   campaigns,
   shelves,
   asOf,
 }: {
-  picks: ReadonlyArray<Pick>;
-  /* the Campaigns' carousel, under the picks' */
+  /* Trending this week's Maps, in order */
+  trend: ReadonlyArray<MapCard>;
+  /* the Campaigns' carousel, under the chart */
   campaigns: React.ReactNode;
   /* each of SHELVES' Maps, in order */
   shelves: ReadonlyArray<ReadonlyArray<MapCard>>;
@@ -233,7 +170,7 @@ export function WorkshopHome({
           />
         ) : (
           <>
-            <Carousel picks={picks} now={now} />
+            <Trending maps={trend} />
             {campaigns}
             <Shelves shelves={shelves} now={now} />
           </>

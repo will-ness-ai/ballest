@@ -1,5 +1,5 @@
-// /: the Workshop homepage, a carousel of five picks, the Campaigns' carousel and the
-// shelves, with a search over every Map with a time (/api/maps). The picks and each
+// /: the Workshop homepage, Trending this week, the Campaigns' carousel and the
+// shelves, with a search over every Map with a time (/api/maps). The chart's and each
 // shelf's Maps are chosen here; the browser counts what reads the clock
 // (components/workshop/WorkshopHome).
 import type { Metadata } from "next";
@@ -12,7 +12,7 @@ import { WorkshopHome } from "../components/workshop/WorkshopHome";
 import { getCampaigns, getMapCards, getSite } from "../db/data";
 import { SITE_ORIGIN, homeHref } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE } from "../lib/rules";
-import { SHELVES, picks, shelfMaps } from "../lib/workshop";
+import { SHELVES, shelfMaps, trending } from "../lib/workshop";
 
 /* The homepage is the one search result for the site's name, so its title says what the
    site is; the tab keeps the game's name first. */
@@ -38,7 +38,7 @@ export default async function Page() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: WEBSITE }} />
       <section className="ws" id="ws">
         <WorkshopHome
-          picks={picks(maps)}
+          trend={trending(maps)}
           campaigns={
             <CampaignCarousel>
               {campaigns.map((k) => (

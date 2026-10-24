@@ -30,6 +30,10 @@ const card = (pfid: string, title: string): MapCard => ({
   gap13: null,
   crowd: 0,
   authorBeaten: 0,
+  weekPlays: 0,
+  votesUp: 0,
+  votesDown: 0,
+  voteScore: 0,
 });
 
 /* the markup's text, each element's edge a | */

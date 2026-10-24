@@ -94,6 +94,12 @@ export interface WorkshopMap {
   /* the version of the Map's file the site holds (map_files), or null before the collector
      has read it: the 3D view shows only with one */
   fileVersion: string | null;
+  /* Workshop plays over the last 7 days and the Workshop's votes (Steam's score, discounted
+     for few votes: 0 with none), as of the latest catalogue; all 0 before one recorded them */
+  weekPlays: number;
+  votesUp: number;
+  votesDown: number;
+  voteScore: number;
 }
 
 export interface PlayerProfile {

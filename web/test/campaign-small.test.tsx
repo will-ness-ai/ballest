@@ -174,6 +174,10 @@ describe("an Event board inside a Campaign's frame", () => {
     crowd: 0,
     authorBeaten: 0,
     fileVersion: null,
+    weekPlays: 0,
+    votesUp: 0,
+    votesDown: 0,
+    voteScore: 0,
   };
 
   test("links its ghost viewer, not a Map page it doesn't have", () => {

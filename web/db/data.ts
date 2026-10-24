@@ -446,6 +446,10 @@ async function eventMaps(c: Campaign): Promise<Array<WorkshopMap>> {
         crowd: 0,
         authorBeaten: 0,
         fileVersion: null,
+        weekPlays: 0,
+        votesUp: 0,
+        votesDown: 0,
+        voteScore: 0,
       })),
   );
 }

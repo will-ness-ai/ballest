@@ -1,5 +1,5 @@
 // The Workshop views' rules (lib/workshop.ts): which Maps the homepage leaves out, the
-// shelves and picks, the Refine panel's filters, and the search.
+// shelves and Trending this week, the Refine panel's filters, and the search.
 import { describe, expect, test } from "vitest";
 
 import {
@@ -8,13 +8,12 @@ import {
   SORTS,
   filteredMaps,
   onShelf,
-  picks,
   refineFor,
   reportHref,
   sameRefine,
   searchMaps,
   shelfMaps,
-  whyOf,
+  trending,
   type MapCard,
 } from "../lib/workshop";
 
@@ -37,34 +36,49 @@ const map = (o: Partial<MapCard> = {}): MapCard => ({
   gap13: null,
   crowd: 1,
   authorBeaten: 0,
+  weekPlays: 0,
+  votesUp: 0,
+  votesDown: 0,
+  voteScore: 0,
   ...o,
 });
 
 const hiddenPfid = Object.keys(HIDDEN)[0];
 
 describe("the homepage", () => {
-  test("leaves a reported Map off the shelves and the carousel, but not the search", () => {
-    const hidden = map({ pfid: hiddenPfid, title: "Broken", sessions: 999 });
-    const maps = [hidden, map({ sessions: 5 })];
+  test("leaves a reported Map off the shelves and Trending this week, but not the search", () => {
+    const hidden = map({ pfid: hiddenPfid, title: "Broken", sessions: 999, weekPlays: 999 });
+    const maps = [hidden, map({ sessions: 5, weekPlays: 5 })];
     expect(shelfMaps(maps, SHELVES[0]).map((m) => m.pfid)).not.toContain(hiddenPfid);
-    expect(picks(maps).map((p) => p.m.pfid)).not.toContain(hiddenPfid);
+    expect(trending(maps).map((m) => m.pfid)).not.toContain(hiddenPfid);
     expect(searchMaps(maps, "broken").map((m) => m.pfid)).toEqual([hiddenPfid]);
   });
 
-  test("picks five different Maps, each for its own reason", () => {
-    const maps = Array.from({ length: 8 }, (_, i) =>
-      map({ sessions: i, entryCount: 8 - i, created: at(i), gap13: i === 3 ? 5 : null }),
-    );
-    const p = picks(maps);
-    expect(p.map((x) => x.label)).toEqual([
-      "Most played",
-      "Newest",
-      "Most runs",
-      "Barely played",
-      "Tightest top three",
+  test("Trending this week ranks by plays this week, lifted by the Workshop's votes", () => {
+    const busy = map({ title: "Busy", weekPlays: 100, voteScore: 0 });
+    const loved = map({ title: "Loved", weekPlays: 80, voteScore: 0.6 });
+    const quiet = map({ title: "Quiet", weekPlays: 0, voteScore: 0.65 });
+    expect(trending([busy, quiet, loved]).map((m) => m.title)).toEqual(["Loved", "Busy"]);
+  });
+
+  test("Trending this week breaks a tie on more plays, then the newer Map", () => {
+    const rated = map({ title: "Rated", weekPlays: 50, voteScore: 0.5 });
+    const busier = map({ title: "Busier", weekPlays: 100, voteScore: 0 });
+    const older = map({ title: "Older", weekPlays: 40, voteScore: 0, created: at(9) });
+    const newer = map({ title: "Newer", weekPlays: 40, voteScore: 0, created: at(2) });
+    expect(trending([rated, older, newer, busier]).map((m) => m.title)).toEqual([
+      "Busier",
+      "Rated",
+      "Newer",
+      "Older",
     ]);
-    expect(new Set(p.map((x) => x.m.pfid)).size).toBe(5);
-    expect(whyOf(p[1], NOW)).toBe("published today");
+  });
+
+  test("Trending this week holds ten Maps at most, and none before plays were recorded", () => {
+    const busy = Array.from({ length: 12 }, (_, i) => map({ weekPlays: i + 1 }));
+    expect(trending(busy)).toHaveLength(10);
+    expect(trending(busy)[0].weekPlays).toBe(12);
+    expect(trending([map(), map()])).toEqual([]);
   });
 
   test("New this week keeps only the Maps published in the last seven days", () => {

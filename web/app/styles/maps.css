@@ -1,112 +1,74 @@
-/* the carousel: picture on one side, the pick on the other. The progress line under
-   the pick is the timer; pointing at the carousel pauses it */
-.car {
-  display: grid;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  overflow: clip;
-  background: var(--solid);
+/* Trending this week (spec #348): the homepage's top ten as a ranked chart, one row a Map,
+   each one link: rank, picture, title and maker over the record holder, then the plays this
+   week over the votes. One column on a phone; two of five on a desktop (desktop.css) */
+.trend {
   margin-block-end: 26px;
 }
-.car-pic {
-  position: relative;
-  aspect-ratio: 400/270;
-  max-height: 340px;
-}
-.car-pic .sl {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.7s var(--ease-out);
-}
-.car-pic .sl.on {
-  opacity: 1;
-}
-.car-in {
-  padding: 16px;
-  display: grid;
-  gap: 10px;
-  animation: fadein 0.3s var(--ease-out);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .car-in {
-    animation: carin 0.3s var(--ease-out);
-  }
-}
-/* the fade on its own, for those who asked for less motion */
-@keyframes fadein {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes carin {
-  from {
-    opacity: 0;
-    transform: translateX(18px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.car-in .why {
-  color: var(--faint);
-  letter-spacing: 0.04em;
-  text-transform: none;
-  font-weight: 500;
-}
-.car-t {
+.trend ol {
+  list-style: none;
   margin: 0;
-  font-family: var(--f-marquee);
-  font-weight: 400;
-  font-size: calc((24rem + 6 * var(--ramp)) / 16);
-  line-height: 1.08;
-  overflow-wrap: anywhere;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--solid);
 }
-.car-by {
-  font-size: calc(13rem / 16);
-  color: var(--dim);
-  margin-block-start: -6px;
-}
-.car-by a {
+.trend a {
+  display: grid;
+  grid-template-columns: 1.2rem 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 10px;
   color: inherit;
   text-decoration: none;
 }
 @media (hover: hover) and (pointer: fine) {
-  .car-by a:hover {
-    color: var(--accent);
+  .trend a:hover {
+    background: var(--surface2);
   }
 }
-.car-stats {
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
-  font-size: calc(12.5rem / 16);
+.tr-n {
+  font-family: var(--f-marquee);
+  color: var(--dim);
+  text-align: center;
+}
+.tr-pic {
+  width: 100%;
+  aspect-ratio: 400/270;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.tr-in {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.tr-in b,
+.tr-by {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tr-by,
+.tr-fig small {
+  font-size: calc(12rem / 16);
   color: var(--dim);
 }
-.car-stats b {
-  display: block;
-  color: var(--text);
-  font-family: var(--f-hud);
-  font-size: calc(17rem / 16);
-  font-variant-numeric: tabular-nums;
+.tr-in .p3 {
+  font-size: calc(12rem / 16);
 }
-.car-pod {
+.tr-fig {
   display: grid;
-  gap: 3px;
-  border-block-start: 1px solid var(--line2);
-  padding-block-start: 9px;
+  justify-items: end;
+  font-family: var(--f-hud);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.car-acts {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+
+/* the Campaigns' arrows */
 .car-nav {
   display: flex;
   align-items: center;
@@ -127,43 +89,8 @@
     border-color: var(--accent);
   }
 }
-.car-line {
-  height: 2px;
-  background: var(--line2);
-  border-radius: 2px;
-  overflow: clip;
-}
-.car-line .prog {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-}
-/* the line is the autoplay timer, so with reduced motion there is no autoplay: the
-   arrows still work */
-@media (prefers-reduced-motion: no-preference) {
-  .car-line .prog {
-    animation: carfill 6s linear forwards;
-  }
-}
-@keyframes carfill {
-  to {
-    transform: scaleX(1);
-  }
-}
-/* :focus-visible, not :focus-within: Chrome on Android focuses a tapped arrow,
-   and that would pause the carousel for good */
-.car:has(:focus-visible) .prog {
-  animation-play-state: paused;
-}
-@media (hover: hover) and (pointer: fine) {
-  .car:hover .prog {
-    animation-play-state: paused;
-  }
-}
 
-/* one podium line: place, marble, name, time. The carousel and the cards share it */
+/* one podium line: place, marble, name, time. Trending this week and the cards share it */
 .p3 {
   display: grid;
   grid-template-columns: 14px 22px minmax(0, 1fr) auto;

@@ -24,6 +24,10 @@ const fresh = (fileVersion: string | null = null): WorkshopMap => ({
   crowd: 0,
   authorBeaten: 0,
   fileVersion,
+  weekPlays: 0,
+  votesUp: 0,
+  votesDown: 0,
+  voteScore: 0,
 });
 
 const text = (html: string) =>

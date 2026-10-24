@@ -51,6 +51,8 @@ const ROUTES = [
      list, is only known to the page: a soft 404, the not-found page with a 200 */
   ["/campaigns", 200, null, "Solar Trials"],
   ["/", 200, null, "Solar Trials"],
+  /* Trending this week: stress records plays for Rocky Alpine, Mercury and tiny's Marble Run */
+  ["/", 200, null, "Trending this week"],
   ["/campaign/solar-trials", 200, null, "Twizzle"],
   ["/campaign/solar-trials", 200, null, "/og/campaign/solar-trials?v="],
   ["/campaign/solar-trials/podiums", 200, null, "Twizzle"],

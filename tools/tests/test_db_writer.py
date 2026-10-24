@@ -289,6 +289,46 @@ def test_map_history_appends_only_on_change(conn):
     ]
 
 
+# Each Map's plays this week and Workshop votes: as of the latest catalogue, not history.
+
+
+def activity(conn):
+    return {
+        p: rest
+        for p, *rest in conn.execute(
+            "select pfid, week_plays, votes_up, votes_down, vote_score, refresh_id"
+            " from map_activity"
+        )
+    }
+
+
+def test_a_refresh_keeps_each_maps_plays_this_week_and_votes(conn):
+    m = a_map(week_plays=40, votes_up=7, votes_down=1, vote_score=0.5625)
+    r1 = db_writer.write_refresh(conn, refresh(0, [], workshop=ws(m)))
+    assert activity(conn) == {PFID: [40, 7, 1, 0.5625, r1]}
+
+
+def test_the_next_catalogue_overwrites_them(conn):
+    db_writer.write_refresh(conn, refresh(0, [], workshop=ws(a_map(week_plays=40))))
+    r2 = db_writer.write_refresh(
+        conn,
+        refresh(1, [], workshop=ws(a_map(week_plays=12, votes_up=3, votes_down=0, vote_score=0.4))),
+    )
+    assert activity(conn) == {PFID: [12, 3, 0, 0.4, r2]}
+
+
+def test_a_refresh_with_no_workshop_result_leaves_them(conn):
+    r1 = db_writer.write_refresh(conn, refresh(0, [], workshop=ws(a_map(week_plays=40))))
+    db_writer.write_refresh(conn, refresh(1, [board(TRACK, ("1001", 1013307))]))
+    assert activity(conn) == {PFID: [40, 0, 0, 0.0, r1]}
+
+
+def test_a_map_with_no_plays_figure_writes_none(conn):
+    # the backfill's Maps come from git snapshots, which never held these figures
+    db_writer.write_refresh(conn, refresh(0, [], workshop=ws(a_map())))
+    assert activity(conn) == {}
+
+
 # The collector's memory (db_writer.load_memory): what the next run reads back.
 
 
