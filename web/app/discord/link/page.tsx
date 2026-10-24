@@ -4,6 +4,7 @@
 // out of search results.
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { Shell } from "../../../components/Shell";
@@ -22,6 +23,8 @@ export const metadata: Metadata = {
 };
 
 async function Link({ searchParams }: Props) {
+  // the session's age is read against the clock, which must wait for the request
+  await connection();
   const { t } = await searchParams;
   const token = typeof t === "string" ? t : "";
   const steamId = sessionOfCookie((await cookies()).get(SESSION_COOKIE)?.value);
