@@ -150,11 +150,13 @@ function refusal(target, cwd) {
   return {
     warn:
       reason +
-      " This session's Skill tool can't find every one of them, so the gate lets this through: follow each missing skill's .claude/skills/<name>/SKILL.md by hand first, and say so in the PR's Checked section.",
+      " This session's Skill tool can't find every one of them, so the gate let this call through. Make sure each missing skill's .claude/skills/<name>/SKILL.md was followed by hand, and that the PR's Checked section says so.",
   };
 }
 
 function gate(input) {
+  // a warning lets this target through, but a later one may still be refused
+  const warnings = [];
   for (const target of mergeTargets(input.tool_name, input.tool_input ?? {})) {
     // one that can't be placed falls to refusal, which warns
     if (target.unsquashed && tries(() => locate(target, input.cwd).ours))
@@ -165,8 +167,9 @@ function gate(input) {
     const refused = refusal(target, input.cwd);
     if (refused?.deny)
       return preToolUse({ permissionDecision: "deny", permissionDecisionReason: refused.deny });
-    if (refused?.warn) return preToolUse({ additionalContext: refused.warn });
+    if (refused?.warn) warnings.push(refused.warn);
   }
+  if (warnings.length) return preToolUse({ additionalContext: warnings.join("\n") });
 }
 
 const mode = process.argv[2];
