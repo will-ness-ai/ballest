@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
-import { CAMPAIGNS } from "../lib/campaigns";
+import { CAMPAIGNS, EVENTS } from "../lib/campaigns";
 import { CIRCUIT, TRACKS } from "../lib/circuit";
 import { calendarOf, dayLabel, isLive, timeLeft, todayOf } from "../lib/daily";
 import {
@@ -19,10 +19,12 @@ import {
   mapPfidOf,
   ord,
   ordSuffix,
+  pageTitle,
   pctOf,
   personaOf,
   plural,
   relTime,
+  safeImg,
   shortGap,
   medalOf,
   timeMedal,
@@ -31,12 +33,12 @@ import {
 } from "../lib/rules";
 import {
   boardHref,
+  viewerHref,
   campaignHref,
   campaignsHref,
   dailyHref,
   campaignPath,
   dailyStandingsHref,
-  tabOfPath,
   isDailyDate,
   legacyPath,
   mapHref,
@@ -48,6 +50,12 @@ import {
 } from "../lib/routes";
 
 const ID = "76561198259485267";
+
+describe("the site's name", () => {
+  test("ends every page's tab title", () => {
+    expect(pageTitle("Marble Run")).toBe("Marble Run · BALLESTRECORDS");
+  });
+});
 
 describe("a score's unit", () => {
   test("a run time is hundred-thousandths of a second, not milliseconds", () => {
@@ -204,6 +212,15 @@ describe("a Daily", () => {
 });
 
 describe("Steam IDs and URLs", () => {
+  test("a picture is plain https or one of the site's own files, nothing else", () => {
+    expect(safeImg("https://images.steamusercontent.com/a.jpg")).toBe(
+      "https://images.steamusercontent.com/a.jpg",
+    );
+    expect(safeImg("/leth/screenshot.jpg")).toBe("/leth/screenshot.jpg");
+    for (const bad of ["http://x/a.jpg", "//evil.example/a.jpg", "javascript:alert(1)", null])
+      expect(safeImg(bad)).toBe("");
+  });
+
   test("only a plain Steam64 is an ID", () => {
     expect(isSteamId(ID)).toBe(true);
     expect(isSteamId("123")).toBe(false);
@@ -227,6 +244,9 @@ describe("Steam IDs and URLs", () => {
     expect(boardHref("Map_Track13", ID)).toBe(`/board/Map_Track13/${ID}`);
     expect(boardHref("OverallLeaderboard", "podiums")).toBe("/board/OverallLeaderboard/podiums");
     expect(boardHref("Workshop_3623648768", ID)).toBe(`/map/3623648768/${ID}`);
+    // an Event board has no page of its own: its Campaign's slot for it is its page
+    expect(boardHref("Map_LethTrial_01")).toBe("/campaign/leth-trials/leth-trial-1");
+    expect(viewerHref("leth")).toBe("/leth/");
     expect(mapPfidOf("Workshop_42")).toBe("42");
     expect(mapPfidOf("Map_Track13")).toBeNull();
     expect(mapBoard("42")).toBe("Workshop_42");
@@ -284,41 +304,26 @@ describe("Steam IDs and URLs", () => {
     });
   });
 
+  test("an Event's slot takes a row to mark, as a Map's own page does", () => {
+    const leth = CAMPAIGNS.find((c) => c.slug === "leth-trials");
+    expect(campaignPath(`/campaign/leth-trials/leth-trial-1/${ID}`)).toEqual({
+      c: leth,
+      map: "leth-trial-1",
+      focus: ID,
+      podiums: false,
+    });
+    // a Workshop Map's row is on its own page, /map/<pfid>/<steam id>
+    expect(campaignPath(`/campaign/solar-trials/3805391903/${ID}`)).toBeNull();
+    expect(campaignPath("/campaign/leth-trials/leth-trial-1/x")).toBeNull();
+    expect(boardHref("Map_LethTrial_01", ID)).toBe(`/campaign/leth-trials/leth-trial-1/${ID}`);
+  });
+
   test("a Daily's date is a real day, written YYYY-MM-DD", () => {
     expect(isDailyDate("2026-09-05")).toBe(true);
     expect(isDailyDate("2026-02-30")).toBe(false);
     expect(isDailyDate("2026-9-5")).toBe(false);
     expect(isDailyDate("standings")).toBe(false);
     expect(isDailyDate(undefined)).toBe(false);
-  });
-
-  test("which tab a path lights", () => {
-    expect(tabOfPath("/")).toBe("Workshop");
-    expect(tabOfPath("/map/42")).toBe("Workshop");
-    expect(tabOfPath("/players/circuit/pod")).toBe("Players");
-    /* Where you stand is reached from the Players tab */
-    expect(tabOfPath("/you")).toBe("Players");
-    expect(tabOfPath("/young")).toBeNull();
-    expect(tabOfPath("/daily")).toBe("Daily");
-    expect(tabOfPath("/daily/2026-09-05")).toBe("Daily");
-    expect(tabOfPath("/daily/standings")).toBe("Daily");
-    expect(tabOfPath("/dailyish")).toBeNull();
-    expect(tabOfPath("/prefabs")).toBe("Prefabs");
-    expect(tabOfPath("/prefabs/new")).toBe("Prefabs");
-    expect(tabOfPath("/prefab/park-bench")).toBe("Prefabs");
-    expect(tabOfPath("/prefabsy")).toBeNull();
-    /* every Circuit board, whatever its season, lights the one Circuit tab */
-    expect(tabOfPath("/board/OverallLeaderboard_EASeason2")).toBe("Circuit");
-    expect(tabOfPath("/board/OverallLeaderboard")).toBe("Circuit");
-    expect(tabOfPath("/board/OverallLeaderboard_AllSeasons/podiums")).toBe("Circuit");
-    expect(tabOfPath("/board/Map_Track13")).toBe("Circuit");
-    expect(tabOfPath("/board/Nope")).toBeNull();
-    /* a Campaign is the Workshop's */
-    expect(tabOfPath("/campaign/solar-trials")).toBe("Workshop");
-    expect(tabOfPath("/campaign/solar-trials/3805391903")).toBe("Workshop");
-    expect(tabOfPath("/campaigns")).toBe("Workshop");
-    expect(tabOfPath("/campaignsy")).toBeNull();
-    expect(tabOfPath(`/player/${ID}`)).toBeNull();
   });
 
   test("every old #/ link lands on its path", () => {
@@ -354,6 +359,19 @@ describe("the Circuit table", () => {
       list("S2_TRACKS"),
     );
     expect(Object.keys(TRACKS).sort()).toEqual(tracks.map((b) => b.name).sort());
+  });
+
+  test("knows the collector's Event boards, by the names and titles it writes", () => {
+    // EVENT_BOARDS = {\n    "<board>": (<leaderboard id>, "<title>"),\n ...\n}: the lines
+    // between its opening line and the closing brace at the start of a line
+    const start = py.indexOf("\nEVENT_BOARDS = {\n");
+    const table = py.slice(start, py.indexOf("\n}\n", start));
+    const events = [...table.matchAll(/^ {4}"(\w+)": \(\d+, "([^"]+)"\),$/gm)].map((m) => [
+      m[1],
+      m[2],
+    ]);
+    expect(start, "EVENT_BOARDS not found in campaign_common.py").toBeGreaterThan(0);
+    expect(EVENTS.map((e) => [e.board, e.title])).toEqual(events);
   });
 
   test("names them as the collector does (display_name, track_tier)", () => {

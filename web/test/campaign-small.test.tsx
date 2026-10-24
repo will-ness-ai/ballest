@@ -7,12 +7,18 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 
 import { BoardBody } from "../components/board/BoardBody";
-import { OverallCard, PodiumPlates, ScorePlates } from "../components/board/BoardTop";
+import {
+  CampaignMapCard,
+  OverallCard,
+  PodiumPlates,
+  ScorePlates,
+} from "../components/board/BoardTop";
 import { entries } from "../db/schema";
 import { seed } from "../db/seed/harness";
 import { boardPage, mapPodiums } from "../db/site";
 import type { Campaign } from "../lib/campaigns";
 import type { IndexBoard } from "../lib/player";
+import type { WorkshopMap } from "../lib/rows";
 import { podiumRows, tally } from "../lib/podiums";
 import { freshDb } from "./pg";
 
@@ -111,7 +117,7 @@ describe("a Campaign's board with few rows", () => {
     expect(d.card).toContain("width:100.0%");
     expect(d.card).toContain("width:50.0%");
     expect(text(d.card)).toContain("Players||2");
-    expect(text(d.card)).toContain("across all 1 maps");
+    expect(text(d.card)).toContain("across its one map");
     expect(d.tal.players.map((x) => [x.steamId, x.gold, x.silver])).toEqual([
       [p(10), 1, 0],
       [p(2), 0, 1],
@@ -147,5 +153,42 @@ describe("a Campaign's board with few rows", () => {
     }
     expect(text(d.score)).toContain("No runs on this board yet.");
     expect(text(d.podiums)).toContain("No runs on this board yet.");
+  });
+});
+
+describe("an Event board inside a Campaign's frame", () => {
+  const leth: WorkshopMap = {
+    pfid: "leth-trial-1",
+    name: "Map_LethTrial_01",
+    title: "Leth Trial #1",
+    creator: "Lethamyr",
+    cid: "76561198184322235",
+    preview: "https://ballestrecords.com/leth/screenshot.jpg",
+    created: 0,
+    medals: [],
+    entryCount: 2,
+    sessions: 0,
+    subs: 0,
+    top3: [],
+    gap13: null,
+    crowd: 0,
+    authorBeaten: 0,
+    fileVersion: null,
+  };
+
+  test("links its ghost viewer, not a Map page it doesn't have", () => {
+    const html = renderToStaticMarkup(
+      <CampaignMapCard
+        m={leth}
+        title="01 Leth Trial #1"
+        group="Leth Trials"
+        rows={[]}
+        scores={[]}
+      />,
+    );
+    expect(html).toContain('href="/leth/"');
+    expect(text(html)).toContain("Ghost viewer");
+    expect(html).not.toContain("/map/leth-trial-1");
+    expect(text(html)).not.toContain("Workshop preview picture");
   });
 });

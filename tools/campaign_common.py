@@ -98,6 +98,52 @@ BOARDS = (
     + [(t, "Season 2") for t in S2_TRACKS]
     + []
 )
+# Event boards (CONTEXT.md): a one-off event's board, neither a Track nor a Workshop Map,
+# by name, with its leaderboard ID and what the site calls it. Each Refresh reads only those
+# with no successful read yet (events_due), so an event's board, frozen once it ends, is
+# read once and its Entries are never closed. A Campaign on the site can hold one.
+EVENT_BOARDS = {
+    "Map_LethTrial_01": (20899741, "Leth Trial #1"),
+}
+
+
+def events_due(read_ok):
+    """(name, leaderboard ID) of each Event board not in read_ok, the names with a
+    successful read (Memory.events_read): the ones this Refresh reads."""
+    return [(name, lid) for name, (lid, _) in EVENT_BOARDS.items() if name not in read_ok]
+
+
+async def read_boards(fetch, boards):
+    """Reads each (name, leaderboard ID, group) in boards with fetch(leaderboard ID), which
+    returns (Steam's entry count, board rows), and returns (boards, failed) as the database
+    writer takes them: {"name", "group", "handle", "entry_count", "rows"} for a read, and for
+    one that raised, no rows and its name in failed. A read that raises never escapes, so one
+    board's read never decides a Refresh; an empty one the writer treats as failed (db_writer)."""
+    out, failed = [], []
+    for name, lid, group in boards:
+        board = {"name": name, "group": group, "handle": str(lid), "rows": []}
+        out.append(board)
+        try:
+            total, rows = await fetch(lid)
+            pulled = len(rows)
+            entry_count = int(total or pulled)
+        except Exception as e:
+            failed.append(name)
+            print(f"  [warn] read failed: {name}: {e!r}")
+        else:
+            board.update(entry_count=entry_count, rows=rows)
+            print(f"  {name:34s} total={entry_count:6d} pulled={pulled}")
+    return out, failed
+
+
+async def read_events(fetch, read_ok):
+    """The Event step: read_boards over the Event boards events_due names."""
+    due = events_due(read_ok)
+    if due:
+        print(f"Event boards with no good read yet: {', '.join(name for name, _ in due)}")
+    return await read_boards(fetch, [(name, lid, None) for name, lid in due])
+
+
 # Map_TheTower is parked, not deleted: it reports an internal metric rather than
 # run times, so the site never had anything trustworthy to show. Its ID is kept
 # above so it can be put back by re-adding it to BOARDS.
@@ -145,6 +191,8 @@ def display_name(name):
         return "Final"
     if name == "Map_TheTower":
         return "The Tower"
+    if name in EVENT_BOARDS:
+        return EVENT_BOARDS[name][1]
     n = track_number(name)
     if name.startswith("Map_Track_S2_"):
         nick = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name[len("Map_Track_S2_") :])

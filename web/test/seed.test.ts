@@ -93,11 +93,11 @@ describe("seeding", () => {
   test("stress is tiny plus its own rows", async () => {
     await seed(t.db, "stress");
     const extra = {
-      boards: 2,
-      boardReads: 2,
+      boards: 3,
+      boardReads: 3,
       players: 12_001,
       personaHistory: 12_001,
-      entries: 12_008,
+      entries: 12_011,
       maps: 2,
       mapHistory: 2,
     };

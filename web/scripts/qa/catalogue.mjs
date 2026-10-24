@@ -56,6 +56,7 @@ export const PAGES = [
   { name: "campaign", path: "/campaign/{CAMPAIGN}" },
   { name: "campaign-pods", path: "/campaign/{CAMPAIGN}/podiums" },
   { name: "campaign-map", path: "/campaign/{CAMPAIGN}/{CAMPAIGN_MAP}" },
+  { name: "campaign-event", path: "/campaign/leth-trials/leth-trial-1" },
   { name: "map", path: "/map/{MAP}" },
   { name: "map-3d", path: "/map/{MAP3D}" },
   { name: "board", path: "/board/Map_Track13" },
@@ -77,6 +78,7 @@ export const PAGES = [
   { name: "prefabs", path: "/prefabs" },
   { name: "prefab", path: "/prefab/{PREFAB}" },
   { name: "prefab-new", path: "/prefabs/new" },
+  { name: "prefabs-make", path: "/prefabs/make" },
   { name: "prefab-upload", path: "/prefabs/new", as: "UPLOADER" },
   { name: "prefab-owner", path: "/prefab/{PREFAB}", as: "UPLOADER" },
   { name: "prefab-admin", path: "/prefab/{PREFAB}", as: "ADMIN" },
@@ -85,10 +87,13 @@ export const PAGES = [
 ];
 
 /**
- * A state is what clicking `click` opens on `page`. One whose control is hidden at a width
- * (the board sheet is phone-only) is skipped there; one whose control shows at no width
- * checked is a fault, since the control has gone or moved.
- * @type {ReadonlyArray<{ name: string, page: string, click: string }>}
+ * A state is what clicking `click` opens on `page`, then typing `type` where the keyboard
+ * landed (a search). One whose control is hidden at a width (the board sheet is phone-only)
+ * is skipped there; one whose control shows at no width checked is a fault, since the
+ * control has gone or moved. Every control shows on a phone but a `wide` one, which shows on
+ * a desktop only (the search field).
+ * @type {ReadonlyArray<{ name: string, page: string, click: string, type?: string,
+ *   wide?: boolean }>}
  */
 export const STATES = [
   { name: "sheet", page: "overall", click: "#boardBtn" },
@@ -100,7 +105,7 @@ export const STATES = [
   { name: "fresh", page: "home", click: "#freshness" },
   { name: "compare", page: "player", click: "button:has-text('Compare')" },
   { name: "change", page: "vs", click: "[data-change=b]" },
-  { name: "refine", page: "maps", click: "button.refine" },
+  { name: "refine", page: "maps", click: ".views > button" },
   { name: "race", page: "board", click: ".row .c-race" },
   { name: "howto", page: "prefab", click: ".pf-q" },
   { name: "edit", page: "prefab-owner", click: ".pf-own button:has-text('Edit')" },
@@ -109,6 +114,11 @@ export const STATES = [
   { name: "you-all", page: "you", click: ".yl-more" },
   { name: "map3d", page: "map-3d", click: ".m3d-open" },
   { name: "skin-pick", page: "player-own", click: ".skp-edit" },
+  // the site search: the desktop's field with nothing typed (the jump-to links) and with hits
+  // under its chips ("sol" finds Solar Trials and its Maps on both ID sets), and the phone's sheet
+  { name: "search-empty", page: "home", click: ".srch-bar input", wide: true },
+  { name: "search", page: "home", click: ".srch-bar input", type: "sol", wide: true },
+  { name: "search-sheet", page: "home", click: ".srch-btn", type: "sol" },
 ];
 
 // Hidden before every screenshot on both sides: the refresh time differs between two

@@ -29,9 +29,10 @@ import { isPreset } from "./lib/workshop";
 //   first, so a notFound() in the page itself could only answer 200 (a soft 404); the
 //   Circuit's boards are a fixed list, so this can tell before anything is sent.
 // - So is a Campaign path whose slug isn't a curated Campaign, or with anything after it
-//   but one of its Maps, a Steam ID or podiums (lib/campaigns.ts is a fixed list too). A
-//   curated Campaign none of whose Maps the Workshop lists, or one of its Maps it no longer
-//   lists, is only known to the page, which can only be a soft 404.
+//   but one of its Maps, a Steam ID, podiums, or an Event's id and a Steam ID
+//   (lib/campaigns.ts is a fixed list too). A curated Campaign none of whose Maps the
+//   Workshop lists, or one of its Maps it no longer lists, is only known to the page, which
+//   can only be a soft 404.
 // - So are the Players table's scopes and sorts: one that isn't is a 404, and a scope on
 //   its own, or the Circuit by Maps (it has no Maps column), goes to the scope's table.
 // - So are All maps' views, and a Map's path has a fixed shape: its page, a player's row
@@ -41,7 +42,8 @@ import { isPreset } from "./lib/workshop";
 //   with no Daily is only known to the page, which sends the reader to /daily.
 // - A Prefab's path is /prefab/<a slug>; a slug nobody uploaded is only known to the page,
 //   which says the Prefab is gone.
-// - A Generator's path is /prefabs/make/<one of GENERATOR_KEYS>.
+// - A Generator's path is /prefabs/make/<one of GENERATOR_KEYS>; /prefabs/collage, the
+//   Generators' review page, is not in production.
 // - A player's or a head to head's path that isn't shaped like one (no Steam ID, an
 //   unknown tab) is the same; one with a Steam ID nobody raced under can only be a soft
 //   404. A head to head of a player against themselves is just their page.
@@ -87,6 +89,9 @@ export function proxy(request: NextRequest) {
   }
   if (path.startsWith("/prefab/") && (path.length > 72 || !PREFAB_PATH.test(path)))
     return notFound(request);
+  /* the Generators' collage is for agents on previews and dev servers, not players */
+  if (path === "/prefabs/collage" && process.env.VERCEL_ENV === "production")
+    return notFound(request);
   const make = /^\/prefabs\/make\/(.*)$/.exec(path);
   if (make && !isGeneratorKey(make[1])) return notFound(request);
   const vs = VS_PATH.exec(path);
@@ -109,5 +114,6 @@ export const config = {
     "/daily/:path*",
     "/prefab/:path*",
     "/prefabs/make/:path*",
+    "/prefabs/collage",
   ],
 };

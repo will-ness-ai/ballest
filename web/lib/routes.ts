@@ -1,7 +1,13 @@
 // Every URL the site links to, and how an old #/ link from the single-page site maps onto
 // one. A Steam ID only ever reaches a path through isSteamId: one can arrive from the URL.
-import { campaignOf, campaignOfBoard, campaignOfMap, type Campaign } from "./campaigns";
-import { circuitBoard } from "./circuit";
+import {
+  campaignOf,
+  campaignOfBoard,
+  campaignOfMap,
+  eventOf,
+  eventOfBoard,
+  type Campaign,
+} from "./campaigns";
 import { PFID, STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
 
@@ -28,25 +34,6 @@ export const isPlayerTab = oneOf(PLAYER_TABS);
 export const isPlScope = oneOf(PL_SCOPES);
 export const isPlSort = oneOf(PL_SORTS);
 
-/* the tabs across the top: the Workshop leads, the Daily follows it, then the Circuit and
-   Players, and the Prefabs come last */
-export const WORKSHOP_GROUP = "Workshop";
-/* every season's boards sit under the one Circuit tab, with the seasons as a switch inside */
-export const CIRCUIT_TAB = "Circuit";
-export const DAILY_TAB = "Daily";
-export const PLAYERS_TAB = "Players";
-export const PREFABS_TAB = "Prefabs";
-
-/* the tab a path belongs to; a player's page and a head to head belong to none */
-export function tabOfPath(path: string): string | null {
-  if (path === "/" || /^\/(maps?|campaigns?)(\/|$)/.test(path)) return WORKSHOP_GROUP;
-  if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
-  if (/^\/(players|you)(\/|$)/.test(path)) return PLAYERS_TAB;
-  if (/^\/prefabs?(\/|$)/.test(path)) return PREFABS_TAB;
-  const board = /^\/board\/([^/]+)/.exec(path);
-  return board && circuitBoard(decodeURIComponent(board[1])) ? CIRCUIT_TAB : null;
-}
-
 export const homeHref = () => "/";
 
 export const playerHref = (id: string, tab?: string | null) =>
@@ -68,6 +55,11 @@ export function boardHref(name: string, slot?: string | null) {
   const tail = slot && (slot === PODIUM_SORT || isSteamId(slot)) ? "/" + slot : "";
   const campaign = campaignOfBoard(name);
   if (campaign) return campaignHref(campaign.slug) + tail;
+  /* an Event board's page is its Campaign's slot for it, which takes a row after it */
+  const event = eventOfBoard(name);
+  const home = event && campaignOfMap(event.id);
+  if (home)
+    return campaignHref(home.campaign.slug, event.id) + (slot && isSteamId(slot) ? "/" + slot : "");
   return "/board/" + name + tail;
 }
 
@@ -75,18 +67,28 @@ export function boardHref(name: string, slot?: string | null) {
 export const campaignHref = (slug: string, pfid?: string | null) =>
   "/campaign/" + slug + (pfid ? "/" + pfid : "");
 
+/* an Event's own static page beside the site (EventBoard's viewer), such as /leth/ */
+export const viewerHref = (folder: string) => "/" + folder + "/";
+
 /* every Campaign, as banners */
 export const campaignsHref = () => "/campaigns";
 
 /* what follows a Campaign's slug in its path, or null for what can't: nothing (its Overall
    board), podiums (its podium order), one of its Maps (`map`, inside its frame) or a Steam
-   ID whose row to mark (`focus`). Another Campaign's Map is shaped like a Steam ID, and is
-   none. The proxy and the page both read a path through it. */
+   ID whose row to mark (`focus`), on its board or, after an Event's id, on the Event's.
+   Another Campaign's Map is shaped like a Steam ID, and is none. The proxy and the page both
+   read a path through it. */
 export function campaignSlot(
   c: Campaign,
   slot: string | null | undefined,
+  row?: string | null,
 ): { map: string | null; focus: string | null; podiums: boolean } | null {
   const none = { map: null, focus: null, podiums: false };
+  /* only an Event's slot takes a row after it: a Workshop Map's row is on its own page */
+  if (row)
+    return slot && c.maps.includes(slot) && eventOf(slot) && isSteamId(row)
+      ? { ...none, map: slot, focus: row }
+      : null;
   if (!slot) return none;
   if (slot === PODIUM_SORT) return { ...none, podiums: true };
   if (c.maps.includes(slot)) return { ...none, map: slot };
@@ -96,9 +98,9 @@ export function campaignSlot(
 /* the Campaign a path under /campaign/ names and what follows its slug (campaignSlot), or
    null for a path that is no Campaign's page */
 export function campaignPath(path: string) {
-  const m = /^\/campaign\/([^/]+)(?:\/([^/]+))?\/?$/.exec(path);
+  const m = /^\/campaign\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?\/?$/.exec(path);
   const c = m && campaignOf(m[1]);
-  const at = c && campaignSlot(c, m[2]);
+  const at = c && campaignSlot(c, m[2], m[3]);
   return c && at ? { c, ...at } : null;
 }
 
@@ -113,12 +115,27 @@ export const isPrefabSlug = (s: string | undefined): s is string =>
   !!s && s.length <= 64 && WHOLE_PREFAB_SLUG.test(s);
 export const prefabsHref = () => "/prefabs";
 export const newPrefabHref = () => "/prefabs/new";
-/* the Make your own tab and a Generator's page. GENERATORS in lib/generators/index.ts lists
+/* Make your own and a Generator's page. GENERATORS in lib/generators/index.ts lists
    the same keys in the same order; they are kept apart so a page that only links one never
    loads them */
 export const GENERATOR_KEYS = [
   "qr",
   "sign",
+  "arrow",
+  "pixel-art",
+  "stairs",
+  "bridge",
+  "floor-tiles",
+  "spiral",
+  "loop",
+  "jump",
+  "plinko",
+  "rollers",
+  "lamp",
+  "fountain",
+  "trophy",
+  "fence",
+  "finish-arch",
   "tree",
   "pine",
   "block-tree",
@@ -156,6 +173,14 @@ export const prefabLimitHref = (id: string) => (isSteamId(id) ? "/api/prefab-lim
 export const chosenSkinApiHref = () => "/api/me/skin";
 
 export const mapsHref = (view?: string | null) => "/maps" + (view ? "/" + view : "");
+/* All maps narrowed to the Maps whose title or maker contains `q` (the site search's "All N
+   Maps matching") */
+export const MAPS_QUERY = "q";
+export const mapsSearchHref = (q: string) =>
+  mapsHref() + "?" + new URLSearchParams({ [MAPS_QUERY]: q }).toString();
+
+/* the site search's read (app/api/search) */
+export const searchApiHref = (q: string) => "/api/search?" + new URLSearchParams({ q }).toString();
 
 /* a Daily's date as its path names it: a real day, YYYY-MM-DD */
 export const DAILY_DATE = /\d{4}-\d{2}-\d{2}/;
@@ -219,7 +244,7 @@ export function legacyPath(hash: string): string | null {
   return null;
 }
 
-/* a page's share image (lib/share.ts); v is the latest Refresh, so each Refresh is a new URL
-   for crawlers that keep a picture by its URL (Discord, Slack, X) */
-export const shareHref = (kind: ShareKind, id: string, asOf: number) =>
-  `/og/${kind}/${id}?v=${String(asOf)}`;
+/* a page's share image (lib/share.ts); v is the latest Refresh (or a Prefab's later edit), so
+   each is a new URL for crawlers that keep a picture by its URL (Discord, Slack, X) */
+export const shareHref = (kind: ShareKind, id: string, version: number) =>
+  `/og/${kind}/${id}?v=${String(version)}`;

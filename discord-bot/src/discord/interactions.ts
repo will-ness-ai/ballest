@@ -13,7 +13,7 @@ import { Engine } from "../engine.js";
 import { explain } from "../explain.js";
 import { Pings, warnPingRole } from "../pings.js";
 import { roleNamed } from "../pingWords.js";
-import { ChosenSkins, chosenSkinOf, Store, type ProfilePreview } from "../ports.js";
+import { ChosenSkins, chosenSkinOf, MatchLinks, Store, type ProfilePreview } from "../ports.js";
 import { Renderer, type RenderError } from "../render/renderer.js";
 import {
   describeDiscordError,
@@ -37,6 +37,7 @@ import {
   pingOfferMessage,
   pingsMessage,
   pingUnreadMessage,
+  playAgainText,
   PROFILE_FIELD,
   quiet,
   tryAgainMessage,
@@ -46,7 +47,8 @@ import {
 /** What a member was doing when they had to link Steam first; it runs once they've linked. */
 type Pending =
   | { readonly _tag: "NewMatch" }
-  | { readonly _tag: "Act"; readonly action: Action; readonly matchId: string };
+  | { readonly _tag: "Act"; readonly action: Action; readonly matchId: string }
+  | { readonly _tag: "PlayAgain"; readonly matchId: string };
 
 const ephemeral = { flags: MessageFlags.Ephemeral } as const;
 
@@ -69,6 +71,7 @@ export const InteractionsLive = Layer.scopedDiscard(
     const store = yield* Store;
     const renderer = yield* Renderer;
     const chosenSkins = yield* ChosenSkins;
+    const links = yield* MatchLinks;
     const pings = yield* Pings;
     /** A Venue's @Multiplayer ping role, as the words mention and name it. */
     const pingRoleIn = (venue: DiscordVenue) => ({
@@ -97,6 +100,17 @@ export const InteractionsLive = Layer.scopedDiscard(
 
     const showLinkForm = (i: ButtonInteraction) =>
       tryDiscord("show link form", () => i.showModal(linkForm()));
+
+    /**
+     * An unlinked member is shown the link form, and `next` runs once they've linked: true when
+     * that happened, so the click is answered already.
+     */
+    const linkFirst = Effect.fn("linkFirst")(function* (i: ButtonInteraction, next: Pending) {
+      if (yield* isLinked(i.user.id)) return false;
+      yield* remember(i.user.id, next);
+      yield* showLinkForm(i);
+      return true;
+    });
 
     const runAction = (action: Action, discordId: string, matchId: string) =>
       Match.value(action).pipe(
@@ -152,6 +166,35 @@ export const InteractionsLive = Layer.scopedDiscard(
       if (done) yield* offerPings(i, venue, action);
     });
 
+    /**
+     * Play again on a finished Match, pressed in `venue` (the finished Match's): the presser is
+     * told privately where its Lobby's thread is, and, if they opened it, that the Start is theirs.
+     */
+    const playAgain = Effect.fn("playAgain")(function* (
+      i: Answerable,
+      venue: DiscordVenue,
+      matchId: string,
+    ) {
+      const done = yield* engine.playAgain(i.user.id, matchId).pipe(Effect.either);
+      if (done._tag === "Left")
+        return yield* tryDiscord("follow up", () =>
+          i.followUp({ content: explain(done.left, i.user.id), ...ephemeral, ...quiet }),
+        );
+      const { lobbyId, creator, joinedNow } = done.right;
+      const thread = Option.flatMapNullable(
+        yield* links.of(venue.name, lobbyId),
+        (p) => p.threadId,
+      );
+      yield* tryDiscord("follow up", () =>
+        i.followUp({
+          content: playAgainText(creator, Option.getOrNull(thread)),
+          ...ephemeral,
+          ...quiet,
+        }),
+      );
+      if (joinedNow && !creator) yield* offerPings(i, venue, "join");
+    });
+
     const confirmLink = Effect.fn("confirmLink")(function* (
       i: ButtonInteraction,
       venue: DiscordVenue,
@@ -182,6 +225,7 @@ export const InteractionsLive = Layer.scopedDiscard(
         return yield* tryDiscord("follow up", () =>
           i.followUp({ ...pickTypeMessage(), ...ephemeral }),
         );
+      if (next.value._tag === "PlayAgain") return yield* playAgain(i, venue, next.value.matchId);
       yield* act(i, venue, next.value.action, next.value.matchId);
     });
 
@@ -193,10 +237,7 @@ export const InteractionsLive = Layer.scopedDiscard(
       if (control === null) return;
       switch (control._tag) {
         case "NewMatch":
-          if (!(yield* isLinked(self))) {
-            yield* remember(self, { _tag: "NewMatch" });
-            return yield* showLinkForm(i);
-          }
+          if (yield* linkFirst(i, { _tag: "NewMatch" })) return;
           return yield* tryDiscord("reply", () => i.reply({ ...pickTypeMessage(), ...ephemeral }));
         case "PickType":
           return yield* tryDiscord("update", () =>
@@ -223,17 +264,14 @@ export const InteractionsLive = Layer.scopedDiscard(
         }
         case "Act": {
           const needsLink = control.action === "accept" || control.action === "join";
-          if (needsLink && !(yield* isLinked(self))) {
-            yield* remember(self, {
-              _tag: "Act",
-              action: control.action,
-              matchId: control.matchId,
-            });
-            return yield* showLinkForm(i);
-          }
+          if (needsLink && (yield* linkFirst(i, control))) return;
           yield* tryDiscord("defer", () => i.deferUpdate());
           return yield* act(i, venue, control.action, control.matchId);
         }
+        case "PlayAgain":
+          if (yield* linkFirst(i, control)) return;
+          yield* tryDiscord("defer", () => i.deferUpdate());
+          return yield* playAgain(i, venue, control.matchId);
         case "LinkSteam":
           // Linking on its own, so nothing asked for earlier (and abandoned) runs afterwards.
           yield* remember(self, null);

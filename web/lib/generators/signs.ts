@@ -1,5 +1,5 @@
-// Signs (lib/generators/index.ts): a QR code and a Sign, both facing the camera that spawns
-// them; a sign letters its text through a Lettering (lib/generator-letters.ts).
+// Signs, under Useful (lib/generators/index.ts): a QR code and a Sign, both facing the camera
+// that spawns them; a sign letters its text through a Lettering (lib/generator-letters.ts).
 import qrcode from "qrcode-generator";
 
 import { wrapAt, type Grid, type Lettering } from "../generator-letters";
@@ -20,7 +20,7 @@ import {
 export const qr: Generator = {
   key: "qr",
   name: "QR code",
-  category: "Signs",
+  category: "Useful",
   blurb: "A code players can scan, built from blocks.",
   file: "qr_code",
   angle: FRONT,
@@ -85,7 +85,7 @@ export function fitText(text: string, lettering: Lettering, w: number, h: number
 export const sign: Generator = {
   key: "sign",
   name: "Sign",
-  category: "Signs",
+  category: "Useful",
   blurb: "Your words in blocks, on a wall or standing alone.",
   file: "sign",
   lettered: true,

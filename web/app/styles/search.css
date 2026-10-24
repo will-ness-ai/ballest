@@ -1,0 +1,331 @@
+/* ==========================================================================
+   THE SITE SEARCH (components/search/SearchBar.tsx), in the header's bar.
+   A phone gets a button beside You's card that opens the search as a full-screen sheet;
+   desktop.css swaps it for the field, whose results drop down under it.
+   ========================================================================== */
+.srch-bar {
+  display: none;
+  position: relative;
+  min-inline-size: 0;
+}
+/* the search button and You's card, kept together at the bar's end: a bar too narrow for the
+   brand beside them (320px with big text) wraps them as one */
+.srch-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+}
+.srch-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 38px;
+  block-size: 38px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--dim);
+}
+@media (hover: hover) and (pointer: fine) {
+  .srch-btn:hover {
+    border-color: color-mix(in oklch, var(--accent) 45%, transparent);
+    color: var(--text);
+  }
+}
+.srch-mark {
+  inline-size: 20px;
+  block-size: 20px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* the field: a magnifier, the input, and the "/" that reaches it */
+.srch-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  block-size: 40px;
+  padding-inline: 12px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--faint);
+  cursor: text;
+}
+.srch[data-open] .srch-field,
+.srch-field:focus-within {
+  border-color: color-mix(in oklch, var(--accent) 55%, transparent);
+  background: var(--surface2);
+}
+.srch-field input {
+  flex: 1;
+  min-inline-size: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+}
+/* the field's own box shows where it is; the outline would draw a second one inside it */
+.srch-field input:focus-visible {
+  outline: 0;
+}
+.srch-field:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.srch-field input::placeholder {
+  color: var(--faint);
+}
+.srch-field input::-webkit-search-cancel-button {
+  display: none;
+}
+.srch-field kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--faint);
+  font: 600 calc(11rem / 16) var(--f-hud);
+}
+
+/* the results: in the bar they drop down under the field, in the sheet they fill it */
+/* one column no wider than the box, so a long name ends in an ellipsis rather than pushing
+   the row's kind out of view */
+.srch-drop,
+.srch-list,
+.srch-list > [role="group"],
+.srch-in {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 2px;
+}
+.srch-drop {
+  padding: 8px;
+}
+.srch-drop[data-busy] {
+  opacity: 0.7;
+}
+.srch-bar .srch-drop {
+  position: absolute;
+  inset-block-start: calc(100% + 8px);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  z-index: 60;
+  inline-size: max(100%, min(600px, 100vw - 48px));
+  max-block-size: min(72dvh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--solid);
+  box-shadow: 0 24px 60px oklch(0% 0 none / 0.55);
+}
+.srch-group {
+  margin: 8px 8px 4px;
+  color: var(--faint);
+  font: 600 calc(11rem / 16) var(--f-hud);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.srch-list > :first-child .srch-group {
+  margin-block-start: 2px;
+}
+
+/* a hit: its picture (a Map's preview, a player's marble or its Section's mark), its name
+   with the part typed in lime, a line about it, and its kind */
+.srch-hit,
+.srch-all {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-block-size: 44px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  color: var(--text);
+  text-decoration: none;
+}
+.srch-hit[aria-selected="true"],
+.srch-all[aria-selected="true"] {
+  background: var(--surface2);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .srch-hit:hover,
+  .srch-all:hover {
+    background: var(--surface2);
+  }
+}
+.srch-hit:active,
+.srch-all:active {
+  background: var(--surface2);
+}
+.srch-pic {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 44px;
+  block-size: 32px;
+  overflow: clip;
+  border-radius: 7px;
+  background: var(--surface2);
+  color: var(--dim);
+}
+.srch-pic img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+.srch-pic .marble {
+  inline-size: 28px;
+  block-size: 28px;
+}
+.srch-pic:has(.marble) {
+  background: none;
+}
+.srch-pic svg:not(.ball) {
+  inline-size: 20px;
+  block-size: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.srch-text {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1;
+  min-inline-size: 0;
+}
+.srch-text b,
+.srch-text small {
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.srch-text b {
+  font-size: calc(14rem / 16);
+  font-weight: 600;
+}
+.srch-text small {
+  color: var(--faint);
+  font-size: calc(12rem / 16);
+}
+.srch-text mark {
+  background: none;
+  color: var(--accent);
+}
+.srch-tag {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--dim);
+  font: 600 calc(10.5rem / 16) var(--f-hud);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.srch-all {
+  justify-content: space-between;
+  color: var(--accent);
+  font-size: calc(13rem / 16);
+  font-weight: 600;
+}
+.srch-note {
+  margin: 8px;
+  color: var(--faint);
+  font-size: calc(12.5rem / 16);
+}
+/* what a screen reader hears as the results change; nothing to see */
+.srch-said {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: 0;
+  overflow: clip;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* the filter chips: All, then one per kind found with its count, the picked one lit */
+.srch-chips {
+  display: flex;
+  gap: 6px;
+  padding: 2px 2px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.srch-chips button {
+  flex: none;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+  font-weight: 600;
+}
+.srch-chips small {
+  margin-inline-start: 5px;
+  color: var(--faint);
+  font-size: inherit;
+  font-weight: 500;
+}
+.srch-chips button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .srch-chips button[aria-pressed="false"]:hover {
+    color: var(--text);
+  }
+}
+
+/* the phone's sheet: the whole screen, the field at the top and the results scrolling under it */
+.srch-sheet {
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100dvh;
+  background: var(--bg);
+}
+.srch-sheet[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.srch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-block-size: 44px;
+  padding: 8px var(--pad) 0;
+}
+.srch-head b {
+  font: calc(18rem / 16) var(--f-marquee);
+}
+.srch-head button {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  margin-inline-end: -10px;
+  color: var(--dim);
+  font-size: calc(26rem / 16);
+  line-height: 1;
+}
+.srch-in {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  min-block-size: 0;
+  padding: 8px var(--pad) 0;
+}
+.srch-in .srch-drop {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 0 24px;
+}

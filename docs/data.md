@@ -25,8 +25,12 @@ Open in Neon.
   or per git snapshot replayed by the backfill (`source`, and `commit_sha` for a backfill),
   and `full_sweep`, whether its Workshop step read every Map's board. Everything that counts
   Refreshes or says when the boards were refreshed leaves the Daily reads out.
-- `boards`: every Steam board, Tracks, Overall boards, each Map's and each Daily's, with
-  its kind, Season, display name, leaderboard ID and whether it scores points.
+- `boards`: every Steam board, Tracks, Overall boards, each Map's, each Daily's and each
+  Event board's, with its kind, Season, display name, leaderboard ID and whether it scores
+  points. An Event board (`kind = 'event'`, `EVENT_BOARDS` in `tools/campaign_common.py`) is
+  read by the Refreshes until one reads it ok (`read_events` over `events_due`, from the
+  collector's memory), and
+  never again, so its Entries are never closed. A failed one never fails the Refresh.
 - `board_reads`: which boards each Refresh read and whether the read succeeded. A Map not
   read in a Refresh has no row, and that says nothing about play.
 - `players` and `persona_history`: the current profile, and every persona with the first
@@ -121,8 +125,9 @@ To fill a backlog in one go, ask the collector's service (`tools/runner.py`):
 `fly ssh console -a ballest-collector -C "python /app/runner.py ask map-files?budget=3600"` runs the same
 step alone (`python tools/map_files.py --budget <seconds>`) in its turn on the Steam login, so a
 Refresh due meanwhile waits for it, and it fails when it wrote no file. The service runs it too on
-just the Maps a #new-tracks post added, read from the newest page (`--maps`; "New Maps"). Only Fly
-and Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
+just the Maps a #new-tracks post added, read from the newest page (`--maps`; "New Maps"). A cloud
+session downloads too (`--dev`): `*.steamcontent.com` is in its Allowed domains, and
+`steam_download` has steam.py's session use the session's proxy, which it otherwise skips. The site serves each
 file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
 `getWorkshop` carries each Map's stored version.
 
@@ -157,7 +162,8 @@ nothing otherwise, so a quiet board leaves the database asleep. It starts from t
 Entries of each Daily not yet final, so a restart rewrites nothing. Its
 revalidate names the Dailies it wrote (`?daily=<board>`), which expires only the reads tagged
 `dailies` and those boards' own tags. `runner.py` logs it off whenever another job needs Steam
-and starts it again after; one that dies starts again a minute later, and ops hears once.
+and starts it again after; one that dies starts again a minute later, which rides out Steam's
+short drops, and ops hears once only when it has stayed down half an hour.
 
 ### Chosen Skins
 

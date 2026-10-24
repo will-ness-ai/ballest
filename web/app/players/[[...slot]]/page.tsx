@@ -4,8 +4,10 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { PageHead } from "../../../components/PageHead";
 import { Shell } from "../../../components/Shell";
 import { PlayersSkeleton } from "../../../components/Skeleton";
+import { Remember } from "../../../components/Trail";
 import { PlayersTable } from "../../../components/players/PlayersTable";
 import { getStandings } from "../../../db/data";
 import { plValid } from "../../../lib/players";
@@ -40,18 +42,22 @@ async function Table({ params }: Pick<Props, "params">) {
   if (!plValid(scope, sort) || slot.length === 1)
     redirect(playersHref(scope, plValid(scope, sort) ? sort : "wr"));
   return (
-    <PlayersTable
-      key={scope + "/" + sort}
-      standings={await getStandings()}
-      scope={scope}
-      sort={sort}
-    />
+    <>
+      <PlayersTable
+        key={scope + "/" + sort}
+        standings={await getStandings()}
+        scope={scope}
+        sort={sort}
+      />
+      <Remember trail="board" href={playersHref(scope, sort)} label="Rankings" />
+    </>
   );
 }
 
 export default function Page({ params }: Props) {
   return (
     <Shell view="players">
+      <PageHead path={playersHref("all", "wr")} title="Players" />
       <section className="pls" id="pls">
         <Suspense fallback={<PlayersSkeleton />}>
           <Table params={params} />

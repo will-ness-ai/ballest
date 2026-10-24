@@ -55,6 +55,9 @@ Each implementer's brief says:
 - **One plain command per call.** The worktree guard refuses a compound command (`&&`, a
   pipe, `cd` then a command) as too complex to check, so run `git -C <worktree> ...` and
   tools with absolute paths, one per call.
+- **Never check out in the main checkout.** Switch branches only in your own worktree: a
+  checkout in `/home/user/ballest` leaves the session that owns it on someone else's branch or
+  a detached HEAD (#346). The pre-push hook refuses a push from a detached HEAD.
 - **Look at a page** with `qa check` (step 7), or `pnpm --silent qa shot <view> --el <selector>`
   for one element at one width: every image read stays in context for the session.
 
@@ -79,7 +82,9 @@ A hook holds both steps (`.claude/hooks/review-gate.mjs`): it notes the commit e
 `/code-review` and `/codebase-design` runs on, and refuses an agent's merge, auto-merge or
 mark-ready while the PR has a commit either hasn't seen, unless every such commit together is a
 small follow-up (`FOLLOW_UP_LINES` in `review-gate-rules.mjs`). A commit that changes only
-binary pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. It
+binary pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. When
+the session's Skill tool can't find a missing skill (no `SKILL.md` in the project's or
+`~/.claude/skills`), it only warns: follow that `SKILL.md` by hand and say so in the PR. It
 also refuses a merge of this repo's PRs that doesn't squash (`docs/agents/issue-tracker.md`).
 Its record is the clone's (`.git/claude-reviews`, shared by worktrees and sessions), so run them
 in the clone that merges. When it can't check (gh offline, say) it lets the call through with a
@@ -105,6 +110,10 @@ against production with `pnpm --silent qa check` (`docs/site.md`, "Checking a ch
 QA brief for a subagent says the same: run `qa check` first, read only the pictures it
 writes, and add a catalogue row for any page or dialog it does not draw. A gap left unchecked goes in the
 PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` left one.
+
+A red check on the PR: run `pnpm --silent pr why <n>` at the root first. It prints each failed
+check's failed step and its annotations, qa's report among them, in one call, where a cloud
+session can't download the job log.
 
 A PR that adds a table can't get a working preview: previews read the production
 database and skip migrations, so a page that reads the table fails to build until production

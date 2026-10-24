@@ -55,6 +55,7 @@ const MatchSchema = Schema.Struct({
   ),
   left: Schema.optionalWith(Schema.Array(Schema.String), { default: () => [] }),
   waitingForSteam: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+  playAgainOf: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
 });
 
 /** Fails to compile if the stored shape and the domain's Match drift apart, in either direction. */

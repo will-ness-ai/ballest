@@ -427,24 +427,76 @@ def test_a_job_asked_for_while_the_watcher_waits_for_steam_still_goes_first():
     asyncio.run(go())
 
 
-def test_a_watcher_that_dies_starts_again_after_a_pause_and_ops_hears_once():
+class Clock:
+    """The watcher's clock and pause: a pause moves the clock on by its length."""
+
+    def __init__(self):
+        self.now, self.pauses = 0.0, []
+
+    def __call__(self):
+        return self.now
+
+    async def sleep(self, seconds):
+        self.pauses.append(seconds)
+        self.now += seconds
+        await asyncio.sleep(0)
+
+
+async def dies(fake, clock, after=0):
+    """The running watcher ends `after` seconds after it started."""
+    clock.now += after
+    fake.gate("daily_watch.py").set()
+    await settle()
+
+
+def test_a_watcher_that_dies_on_a_steam_blip_starts_again_without_telling_ops():
     async def go():
         fake = Fake(codes={"daily_watch.py": 1})
         s = service(fake)
-        pauses = []
+        clock = Clock()
+        task = await watching(s, sleep=clock.sleep, clock=clock)
+        for _ in range(runner.WATCH_OUTAGE // runner.WATCH_RETRY - 1):
+            await dies(fake, clock)
+        await dies(fake, clock, after=runner.WATCH_HEALTHY)  # back, and then a new blip
+        await dies(fake, clock)
+        assert set(clock.pauses) == {runner.WATCH_RETRY}
+        assert fake.alerts == []
+        task.cancel()
 
-        async def pause(seconds):
-            pauses.append(seconds)
-            await asyncio.sleep(0)
+    asyncio.run(go())
 
-        task = await watching(s, sleep=pause)
+
+def test_a_job_that_stops_a_watcher_still_down_leaves_its_outage_running():
+    async def go():
+        fake = Fake(codes={"daily_watch.py": 1})
+        s = service(fake)
+        clock = Clock()
+        task = await watching(s, sleep=clock.sleep, clock=clock)
+        for _ in range(runner.WATCH_OUTAGE // runner.WATCH_RETRY - 2):
+            await dies(fake, clock)
+        s.refresh()  # stops the watcher mid-login
+        await settle()
+        fake.gate("steampy_collect.py").set()
+        await settle()
         for _ in range(3):
-            fake.gate("daily_watch.py").set()
-            await settle()
-        assert pauses == [runner.WATCH_RETRY] * 3
-        assert [e for e in fake.log if e[0] == "start"] == [("start", "daily_watch.py")] * 4
+            await dies(fake, clock)
+        assert len(fake.alerts) == 1
+        task.cancel()
+
+    asyncio.run(go())
+
+
+def test_ops_hears_once_when_the_watcher_stays_down():
+    async def go():
+        fake = Fake(codes={"daily_watch.py": 1})
+        s = service(fake)
+        clock = Clock()
+        task = await watching(s, sleep=clock.sleep, clock=clock)
+        for _ in range(3 * runner.WATCH_OUTAGE // runner.WATCH_RETRY):
+            await dies(fake, clock, after=5)
         assert len(fake.alerts) == 1
         assert "Daily watcher" in fake.alerts[0]
+        assert f"{runner.WATCH_OUTAGE // 60} minutes" in fake.alerts[0]
         task.cancel()
 
     asyncio.run(go())

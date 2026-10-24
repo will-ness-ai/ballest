@@ -1,5 +1,5 @@
 /* ==========================================================================
-   The Generators (spec #299): the Prefabs page's tabs, the Make your own cards, and a
+   The Generators (spec #299): the Generate your own cards, and a
    Generator's page. Desktop overrides are in desktop.css.
    ========================================================================== */
 
@@ -20,34 +20,13 @@
   --gen-aluminum: oklch(84.5% 0.009 264.5);
 }
 
-/* Shared by players / Make your own */
-.gen-tabs {
-  display: flex;
-  gap: 0.3rem;
-  border-block-end: 1px solid var(--line);
-}
-.gen-tabs a {
-  padding: 0.6rem 1rem;
-  border-block-end: 3px solid transparent;
-  color: var(--dim);
-  font-weight: 700;
-  text-decoration: none;
-}
-.gen-tabs a:hover {
-  color: var(--text);
-}
-.gen-tabs a[aria-current="page"] {
-  color: var(--text);
-  border-block-end-color: var(--accent);
-}
-
-/* the Make your own categories, a heading over each one's cards */
+/* the Generate your own categories, a heading over each one's cards */
 .gen-group {
   display: grid;
   gap: 0.6rem;
 }
 
-/* the Make your own cards */
+/* the Generate your own cards */
 .gen-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
@@ -101,13 +80,6 @@
 .gen > * {
   min-width: 0;
 }
-.gen-back {
-  color: var(--dim);
-  text-decoration: none;
-}
-.gen-back:hover {
-  color: var(--text);
-}
 .gen-split {
   display: grid;
   gap: 1.5rem;
@@ -150,16 +122,6 @@
   display: flex;
   gap: 0.6rem;
   align-items: center;
-}
-.gen-actions .pf-dl {
-  border: 0;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-.gen-actions .pf-dl:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 .gen-actions .pf-q {
   width: 2.4rem;
@@ -284,26 +246,6 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.gen-choice div {
-  display: inline-flex;
-  flex-wrap: wrap;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.gen-choice button {
-  padding: 0.45rem 0.9rem;
-  border: 0;
-  background: var(--solid);
-  color: var(--dim);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-.gen-choice button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
 .gen-toggle {
   display: flex;
   gap: 0.6rem;
@@ -351,6 +293,36 @@
 .gen-shuffle:hover {
   background: var(--surface2);
 }
+/* Pixel art's picture: a button-like label over a hidden file input */
+.gen-picture {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+.gen-picture small {
+  color: var(--dim);
+}
+.gen-file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.gen-file span {
+  display: inline-block;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+.gen-file:hover span {
+  background: var(--surface2);
+}
+.gen-file:focus-within span {
+  outline: 2px solid var(--accent);
+}
 .gen-more {
   justify-self: start;
   padding: 0;
@@ -360,4 +332,35 @@
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* the Generators' collage (/prefabs/collage), read by agents rather than players */
+.gen-collage {
+  display: grid;
+  gap: 4px;
+  width: max-content;
+  padding: 4px;
+  background: var(--bg);
+  font: 600 calc(12rem / 16) var(--f-body);
+  color: var(--text);
+}
+.gen-collage-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.gen-collage-row > b {
+  width: 9rem;
+}
+.gen-collage-tile {
+  position: relative;
+  width: 280px;
+  height: 190px;
+  background: var(--solid);
+}
+.gen-collage-tile small {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  color: var(--faint);
 }

@@ -103,7 +103,7 @@ export const ScoreRow = memo(function ScoreRow({
           open={open}
           onRace={r.race ? onRace : undefined}
         />
-        {mark ?? <i className="pill"></i>}
+        {mark ?? <i className="hue-pill"></i>}
       </span>
     </div>
   );

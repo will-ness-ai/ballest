@@ -23,6 +23,12 @@ player's total is the sum over the Maps they hold a time on. The Workshop's coun
 Circuit season, made by players; the game itself knows nothing of it, so the list is ours.
 _Avoid_: playlist, series, collection (a Steam Workshop collection is a different thing)
 
+**Event board**:
+The Steam board of a one-off event the game ran, such as Leth Trial #1: neither a Track nor a
+Map. The board stops moving once the event ends, so the collector reads it once, and a
+Campaign can hold it as one of its Maps.
+_Avoid_: event map, trial board
+
 **Medal**:
 One of a Map's four time targets, Bronze, Silver, Gold and Author (fastest), set by its
 creator. A Track has the same four, set by the game. A time earns the best Medal whose target it meets. A player's page sorts their
@@ -129,6 +135,16 @@ Players level on a count share its place: 1 + the players with a strictly higher
 Map whose board was first read after the baseline counts as it stands on both sides.
 _Avoid_: rankings, the report's boards (the Players table is not these lists: it counts the
 Circuit too, and podiums)
+
+### The site
+
+**Section**:
+One of the top-level areas the site's navigation names: Maps, Campaigns, Daily, Circuit,
+Players and Prefabs. Each has its own sub-tabs (Featured / All Maps, each Circuit season, ...),
+and every page belongs to one: a Campaign's Map to Campaigns, a player's page and a head to
+head to Players. "Workshop" stays the game's word for player-made Maps; the Section is
+labelled Maps.
+_Avoid_: tab, group, category
 
 ### Prefabs
 
@@ -237,3 +253,10 @@ _Avoid_: guild, instance (one bot serves every Venue)
 Each Player's best time on the Match's Map, read the moment the Match ends, ranked. A
 Player with no time did not finish. If Steam is down then, the Result waits for it (up to 30
 minutes, the thread saying time's up), and failing that stands on the last times polled.
+
+**Play again**:
+The button on a Result. The first Player to press it opens a Lobby of the finished Match's
+length, as its creator, and the finished Match's other Players who didn't leave it are pinged in
+the finished Match's thread, once. Everyone who presses it after that joins the same Lobby until
+its time is up. Any Player may press it. Once that Lobby is gone, the next press opens a fresh one.
+_Avoid_: rematch, replay (a replay is a Ghost)

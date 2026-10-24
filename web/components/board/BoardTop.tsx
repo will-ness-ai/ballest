@@ -8,13 +8,14 @@ import { QMark } from "./PointsDialog";
 import { Plates } from "./Plates";
 import { RacePlates } from "./RacePlates";
 import { YouSpread } from "./YouSpread";
+import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
-import { unitOf } from "../../lib/campaigns";
+import { eventOf, unitOf } from "../../lib/campaigns";
 import { TRACKS, trackNo } from "../../lib/circuit";
 import type { IndexBoard } from "../../lib/player";
 import { podiumTotal, type PodiumPlayer, type PodiumTally } from "../../lib/podiums";
-import { PODIUM_SORT, boardHref, mapHref } from "../../lib/routes";
+import { PODIUM_SORT, boardHref, mapHref, viewerHref } from "../../lib/routes";
 import { fmtN, fmtTime, hueFor, isPoints, personaOf, safeImg, value } from "../../lib/rules";
 import type { BoardRow, WorkshopMap } from "../../lib/rows";
 import { spreadOf } from "../../lib/spread";
@@ -86,17 +87,17 @@ export function PodiumPlates({ tally }: { tally: PodiumTally }) {
 
 export function SortSwitch({ name, podiums }: { name: string; podiums: boolean }) {
   return (
-    <span className="sortsw" id="sortsw">
+    <div className="sortsw" id="sortsw">
       <span className="eyebrow">Sort by</span>
-      <span className="sw">
-        <Link href={boardHref(name)} aria-current={podiums ? undefined : "page"}>
+      <Pills label="Sort" nav>
+        <PillLink href={boardHref(name)} on={!podiums}>
           Points
-        </Link>
-        <Link href={boardHref(name, PODIUM_SORT)} aria-current={podiums ? "page" : undefined}>
+        </PillLink>
+        <PillLink href={boardHref(name, PODIUM_SORT)} on={podiums}>
           Podiums
-        </Link>
-      </span>
-    </span>
+        </PillLink>
+      </Pills>
+    </div>
   );
 }
 
@@ -117,7 +118,7 @@ export function TrackCard({
       <div className="bc-body">
         <div className="bc-top">
           <div>
-            <h1>{trackNo(b.display)}</h1>
+            <h2>{trackNo(b.display)}</h2>
             <span className="bc-by">
               {b.group}
               {b.tier ? " · " + b.tier : ""}
@@ -158,15 +159,22 @@ export function CampaignMapCard({
 }) {
   const lead = rows[0] as BoardRow | undefined;
   const pic = safeImg(m.preview);
+  /* an Event board has no Map page; its card links where the Event says instead */
+  const event = eventOf(m.pfid);
   return (
     <div className={pic ? "bcard" : "bcard nopic"} id="bcard">
       {pic && <img className="bc-pic" src={pic} alt="" />}
       <div className="bc-body">
         <div className="bc-top">
           <div>
-            <h1>{title}</h1>
+            <h2>{title}</h2>
             <span className="bc-by">
-              {group} · by {m.creator} · <Link href={mapHref(m.pfid)}>Map page</Link>
+              {group} · by {m.creator} ·{" "}
+              {event ? (
+                <a href={viewerHref(event.viewer)}>Ghost viewer</a>
+              ) : (
+                <Link href={mapHref(m.pfid)}>Map page</Link>
+              )}
             </span>
           </div>
           <Facts
@@ -181,7 +189,7 @@ export function CampaignMapCard({
           />
         </div>
         <YouSpread name={m.name} chart={spreadOf(scores, m.medals, false)} />
-        {pic && <p className="bc-cap">Workshop preview picture.</p>}
+        {pic && !event && <p className="bc-cap">Workshop preview picture.</p>}
       </div>
     </div>
   );
@@ -271,10 +279,12 @@ export function OverallCard({
       <div className="bc-body">
         <div className="bc-top">
           <div>
-            <h1>{b.display}</h1>
+            <h2>{b.display}</h2>
             <span className="bc-by">
-              {b.group} · points{tally ? " and podiums" : ""} across all {fmtN(tracks)}{" "}
-              {unitOf(b.name)}s
+              {b.group} · points{tally ? " and podiums" : ""}{" "}
+              {tracks === 1
+                ? `across its one ${unitOf(b.name)}`
+                : `across all ${fmtN(tracks)} ${unitOf(b.name)}s`}
               <QMark always={podiums} />
             </span>
           </div>

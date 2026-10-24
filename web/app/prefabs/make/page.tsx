@@ -1,7 +1,7 @@
-// /prefabs/make: the Prefabs page's Make your own tab, a card per Generator
-// (components/prefabs/make/MakeGallery).
+// /prefabs/make: Make your own, a card per Generator (components/prefabs/make/MakeGallery).
 import type { Metadata } from "next";
 
+import { PageHead } from "../../../components/PageHead";
 import { Shell } from "../../../components/Shell";
 import { MakeGallery } from "../../../components/prefabs/make/MakeGallery";
 import { pageMetadata } from "../../../components/metadata";
@@ -19,6 +19,7 @@ export function generateMetadata(): Promise<Metadata> {
 export default function Page() {
   return (
     <Shell view="prefabs">
+      <PageHead path={makePrefabHref()} title="Make a prefab" />
       <MakeGallery />
     </Shell>
   );

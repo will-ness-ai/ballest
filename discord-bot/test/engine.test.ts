@@ -1142,3 +1142,190 @@ describe("Chosen Skins", () => {
     }),
   );
 });
+
+describe("Play again", () => {
+  /** A finished Public 1v1 of Alice and Bob in `venue`, 10 minutes long. */
+  const finishedMatchIn = (venue: string) =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(venue, ALICE.discordId, { ...public1v1, minutes: 10 });
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.steam.setTime(1, ALICE.steamId, 21);
+      yield* advance("10 minutes");
+      return { h, id };
+    });
+  const finishedMatch = finishedMatchIn(HOME);
+
+  it.scoped("the first press opens a Lobby of the same length; later presses join it", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const first = yield* h.engine.playAgain(BOB.discordId, id);
+      expect(first).toMatchObject({ creator: true, joinedNow: true });
+      expect(Option.getOrThrow(yield* h.surface.card(first.lobbyId))).toMatchObject({
+        state: "invite",
+        type: "lobby",
+        minutes: 10,
+        creator: BOB,
+      });
+      const second = yield* h.engine.playAgain(ALICE.discordId, id);
+      const third = yield* h.engine.playAgain(CARA.discordId, id);
+      expect([second, third]).toEqual([
+        { lobbyId: first.lobbyId, creator: false, joinedNow: true },
+        { lobbyId: first.lobbyId, creator: false, joinedNow: true },
+      ]);
+      expect(
+        Option.getOrThrow(yield* h.surface.card(first.lobbyId)).players.map((p) => p.discordId),
+      ).toEqual([BOB.discordId, ALICE.discordId, CARA.discordId]);
+      expect(tags(yield* h.surface.posts(first.lobbyId))).toEqual(["Opened", "Joined", "Joined"]);
+    }),
+  );
+
+  it.scoped("in a guest Venue opens the Lobby in that Venue, Busy counting it there too", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatchIn(RACING);
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      expect(Option.getOrThrow(yield* h.surface.card(lobbyId)).venue).toBe(RACING);
+      expect(Option.getOrThrow(yield* h.store.getMatch(lobbyId)).venue).toBe(RACING);
+      // Bob is in it now: he can't open another Invite in any Venue.
+      expect((yield* Effect.flip(h.engine.openInvite(HOME, BOB.discordId, public1v1)))._tag).toBe(
+        "Busy",
+      );
+    }),
+  );
+
+  it.scoped("tells the finished Match's thread who opened it, pinging its other Players", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const before = (yield* h.surface.posts(id)).length;
+      yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      const after = (yield* h.surface.posts(id)).slice(before);
+      expect(after).toEqual([
+        ThreadPost.PlayingAgain({ by: BOB, skin: null, others: [ALICE], minutes: 10 }),
+      ]);
+    }),
+  );
+
+  it.scoped("is for a finished Match only, and for a Player free to play", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const live = yield* h.engine.openInvite(HOME, CARA.discordId, public1v1);
+      expect((yield* Effect.flip(h.engine.playAgain(DAN.discordId, live)))._tag).toBe("NotAllowed");
+      // Cara is in her own Invite: she can neither open the Lobby nor join it.
+      expect((yield* Effect.flip(h.engine.playAgain(CARA.discordId, id)))._tag).toBe("Busy");
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      expect((yield* Effect.flip(h.engine.playAgain(CARA.discordId, id)))._tag).toBe("Busy");
+      expect((yield* Effect.flip(h.engine.playAgain(UNLINKED, id)))._tag).toBe("NotLinked");
+    }),
+  );
+
+  it.scoped("finds its Lobby again after a restart, and opens a fresh one once that is gone", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const first = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.restart("1 minute");
+      expect(yield* h.engine.playAgain(ALICE.discordId, id)).toEqual({
+        lobbyId: first.lobbyId,
+        creator: false,
+        joinedNow: true,
+      });
+      yield* h.engine.cancel(BOB.discordId, first.lobbyId);
+      const fresh = yield* h.engine.playAgain(ALICE.discordId, id);
+      expect(fresh).toMatchObject({ creator: true, joinedNow: true });
+      expect(fresh.lobbyId).not.toBe(first.lobbyId);
+    }),
+  );
+
+  it.scoped("joins its Lobby once live, as a late join", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.start(BOB.discordId, lobbyId);
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      const card = Option.getOrThrow(yield* h.surface.card(lobbyId));
+      expect(card.state).toBe("live");
+      expect(card.players.map((p) => p.discordId)).toEqual([BOB.discordId, ALICE.discordId]);
+    }),
+  );
+
+  it.scoped("a press from someone already in its Lobby just finds it again", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.join(ALICE.discordId, lobbyId);
+      // Bob opened it, so the Start is still his to press.
+      expect(yield* h.engine.playAgain(BOB.discordId, id)).toEqual({
+        lobbyId,
+        creator: true,
+        joinedNow: false,
+      });
+      expect(yield* h.engine.playAgain(ALICE.discordId, id)).toEqual({
+        lobbyId,
+        creator: false,
+        joinedNow: false,
+      });
+    }),
+  );
+
+  it.scoped("doesn't ping a Player who left the finished Match", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(HOME, ALICE.discordId, {
+        type: "lobby",
+        minutes: 5,
+        target: null,
+      });
+      yield* h.engine.join(BOB.discordId, id);
+      yield* h.engine.join(CARA.discordId, id);
+      yield* h.engine.start(ALICE.discordId, id);
+      yield* h.engine.leave(CARA.discordId, id);
+      yield* advance("5 minutes");
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      const post = (yield* h.surface.posts(id)).at(-1);
+      if (post?._tag !== "PlayingAgain") return expect.unreachable();
+      expect(post.others).toEqual([BOB]);
+    }),
+  );
+
+  it.scoped("says so while its Lobby is drawing its Map", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.steam.setReadDelay("150 millis");
+      const starting = yield* Effect.fork(h.engine.start(BOB.discordId, lobbyId));
+      yield* Effect.yieldNow();
+      expect(yield* Effect.flip(h.engine.playAgain(ALICE.discordId, id))).toMatchObject({
+        _tag: "NotAllowed",
+        reason: "Its Lobby is drawing its Map. Press again in a moment.",
+      });
+      yield* advance("150 millis");
+      yield* Fiber.join(starting);
+    }),
+  );
+
+  it.scoped("pings the finished Match's Players only the first time a Lobby opens", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.cancel(BOB.discordId, lobbyId);
+      yield* h.engine.playAgain(BOB.discordId, id);
+      const lines = (yield* h.surface.posts(id)).flatMap((p) =>
+        p._tag === "PlayingAgain" ? [p.others] : [],
+      );
+      expect(lines).toEqual([[ALICE], []]);
+    }),
+  );
+
+  it.scoped("opens a fresh Lobby once its Lobby's time is up", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const first = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.start(BOB.discordId, first.lobbyId);
+      yield* h.steam.failNextReads(100); // the end read waits for Steam: still live, time up
+      yield* advance("10 minutes");
+      const fresh = yield* h.engine.playAgain(CARA.discordId, id);
+      expect(fresh).toMatchObject({ creator: true, joinedNow: true });
+      expect(fresh.lobbyId).not.toBe(first.lobbyId);
+    }),
+  );
+});

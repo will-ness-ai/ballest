@@ -97,7 +97,7 @@ const medal = (kind: MedalKind | null, w = 16) =>
     : `<span role="img" aria-label="${kind} Medal" style="display:inline-flex;flex:none">${medalSvg(kind, w, `d${uid++}`)}</span>`;
 
 export const logo = () =>
-  `<span class="logo"><span class="rack">${marble(null, 18, null, 212)}${marble(null, 18, null, 332)}${marble(null, 18, null, 96)}</span><span class="wordmark">Multi<b>balls</b></span></span>`;
+  `<span class="logo"><span class="rack">${marble(null, 18, null, 212)}${marble(null, 18, null, 332)}${marble(null, 18, null, 96)}</span><span class="wordmark">MULTI<b>BALLS</b></span> <span class="byline">by <span class="site">BALLEST<b>RECORDS</b></span></span></span>`;
 
 /** Matches whose preview didn't load: they keep the stand-in art rather than asking again at every redraw. */
 export const noPreview = new Set<string>();

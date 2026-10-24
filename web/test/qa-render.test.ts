@@ -26,6 +26,15 @@ const FIELDS = `<!doctype html><body style="margin:0;font:16px sans-serif">
   placeholder="What it is and where it fits in a map, and why it looks the way it does"></textarea>
 <input id="long" style="width:200px;padding:0" placeholder="What it is and where it fits in a map">`;
 
+// An entry page in miniature: a head, rows, and the focus row scrolled to on load, as
+// BoardBody does.
+const LANDS = `<!doctype html><body style="margin:0">
+<header style="height:300px"></header>
+<script>
+for (let i = 0; i < 60; i++) document.body.append(Object.assign(document.createElement("div"), { className: i === 40 ? "row focus" : "row", style: "height:50px" }));
+document.querySelector(".focus").scrollIntoView({ block: "center" });
+</script>`;
+
 let server: Server;
 let base: string;
 let browser: Browser;
@@ -46,6 +55,7 @@ beforeAll(async () => {
         }),
       );
     else if (req.url === "/fields") res.setHeader("content-type", "text/html").end(FIELDS);
+    else if (req.url === "/lands") res.setHeader("content-type", "text/html").end(LANDS);
     else res.setHeader("content-type", "text/html").end(PAGE);
   });
   await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
@@ -89,6 +99,13 @@ describe("signing in", () => {
 });
 
 describe("probes", () => {
+  it("finds where the row a page scrolls to on load sits in the viewport", async () => {
+    const r = await render(browser, base + "/lands", { width: 820, text: 16 }, { now: 0 });
+    // the 50px row centred in the 900px window
+    expect(r.probes?.landed).toBe(425);
+    expect(r.probes?.scrolled).toBeGreaterThan(0);
+  }, 60_000);
+
   it("finds a placeholder cut off, not one its textarea wraps", async () => {
     const r = await render(browser, base + "/fields", { width: 820, text: 16 }, { now: 0 });
     expect(r.probes?.clipped.map(([where]: [string, number]) => where)).toEqual(["#cut", "#long"]);

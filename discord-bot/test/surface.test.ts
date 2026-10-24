@@ -500,6 +500,43 @@ describe("the end of a Match", () => {
         expect(yield* placeOf("m2")).toBeNull();
       }),
   );
+  it.scoped("posts Play again in a guest Venue's finished Match's thread, after a restart", () =>
+    Effect.gen(function* () {
+      const { racing, start } = yield* setup();
+      const surface = yield* start;
+      const finished = view("m1", { venue: RACING, state: "finished" });
+      yield* surface.showCard(view("m1", { venue: RACING }));
+      yield* surface.post(
+        "m1",
+        ThreadPost.Result({ standings: [], card: finished, steamDown: false }),
+      );
+      const again = yield* start;
+      yield* again.post(
+        "m1",
+        ThreadPost.PlayingAgain({ by: ALICE, skin: null, others: [], minutes: 5 }),
+      );
+      expect(racing.threadPosts("m1")).toEqual(["Result", "PlayingAgain"]);
+    }),
+  );
+
+  it.scoped("posts Play again in a finished Match's thread, even after a restart", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup();
+      const surface = yield* start;
+      const finished = view("m1", { state: "finished" });
+      yield* surface.showCard(view("m1"));
+      yield* surface.post(
+        "m1",
+        ThreadPost.Result({ standings: [], card: finished, steamDown: false }),
+      );
+      const again = yield* start;
+      yield* again.post(
+        "m1",
+        ThreadPost.PlayingAgain({ by: ALICE, skin: null, others: [], minutes: 5 }),
+      );
+      expect(channel.threadPosts("m1")).toEqual(["Result", "PlayingAgain"]);
+    }),
+  );
 });
 
 describe("after a restart", () => {
