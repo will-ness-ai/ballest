@@ -53,11 +53,15 @@ node .claude/hooks/install-user-hooks.mjs "$HOME/.claude/settings.json"
 # and its Skill tool can't see the repo's skills, so the gate's /codebase-design (and tdd...) were
 # "Unknown skill" there (PR #331, #336, #363). Links in ~/.claude/skills (#338) never reached a
 # thread's Skill tool, which sees the skills synced from the account there. The thread's project is
-# the repo's parent (/home/user), so link them into its .claude/skills, never over one of the same
-# name. Every start does it: whether a session starts in the repo or above it isn't known here.
-skills="$(dirname "$PWD")/.claude/skills"
+# the main checkout's parent (/home/user), so link them into its .claude/skills, replacing a link
+# left dangling and never one of the same name. Every start does it, as the setup script can't
+# tell whether the next session starts in the repo or above it.
+main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+skills="$(dirname "$main")/.claude/skills"
 mkdir -p "$skills"
-for skill in .claude/skills/*/; do
+for skill in "$main"/.claude/skills/*/; do
+  [ -d "$skill" ] || continue
   link="$skills/$(basename "$skill")"
-  [ -e "$link" ] || [ -L "$link" ] || ln -s "$PWD/$skill" "$link"
+  [ -L "$link" ] && [ ! -e "$link" ] && rm "$link"
+  [ -e "$link" ] || ln -s "${skill%/}" "$link"
 done
