@@ -743,6 +743,10 @@ html:has(.m3d:modal) {
   font-family: var(--f-hud);
   cursor: pointer;
 }
+/* room under the page for it, so the last rows scroll clear of it */
+.main:has(.getmaps-open) {
+  padding-block-end: 64px;
+}
 .ptsx.getmaps {
   inset-block-start: 8dvh;
   inline-size: min(520px, calc(100% - 32px));
@@ -758,8 +762,7 @@ html:has(.m3d:modal) {
 .gm-all .go {
   font-family: var(--f-hud);
 }
-.gm-all p,
-.gm-lead {
+.gm-all p {
   margin: 0;
   font-size: calc(13rem / 16);
   color: var(--dim);

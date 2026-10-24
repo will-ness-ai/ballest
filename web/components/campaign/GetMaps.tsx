@@ -3,7 +3,8 @@
 // bottom left that opens a checklist of its Workshop Maps. Steam has no link that subscribes
 // for you, so each row links the Map's Workshop page, and ticks once opened, in this browser
 // only; a Campaign with a Steam collection also gets its Subscribe to all, the one way Steam
-// subscribes to several Maps at once. Under the list, what to do in the game.
+// subscribes to several Maps at once. The steps are numbered through: Subscribe above the
+// list, what to do in the game under it.
 import { useRef, useState, useSyncExternalStore } from "react";
 
 import { useDialog } from "../Modal";
@@ -11,38 +12,61 @@ import type { GetMapRow } from "../../lib/campaigns";
 import { workshopHref } from "../../lib/workshop";
 
 /* the Maps opened from the checklist, per Campaign, in localStorage: a convenience, so the
-   page works the same without it */
+   page works the same without it. Another tab's ticks arrive by the storage event */
 const listeners = new Set<() => void>();
 const subscribe = (l: () => void) => {
   listeners.add(l);
+  addEventListener("storage", l);
   return () => {
     listeners.delete(l);
+    removeEventListener("storage", l);
   };
 };
-function useOpened(slug: string): [Set<string>, (opened: Set<string>) => void] {
+const read = (key: string) => {
+  try {
+    return localStorage.getItem(key) ?? "";
+  } catch {
+    return "";
+  }
+};
+const idsOf = (raw: string) => new Set(raw ? raw.split(",") : []);
+/* the opened Maps, and tick (more Maps, read afresh so another tab's stay) or clear them */
+function useOpened(slug: string) {
   const key = "getmaps-" + slug;
   const raw = useSyncExternalStore(
     subscribe,
-    () => {
-      try {
-        return localStorage.getItem(key) ?? "";
-      } catch {
-        return "";
-      }
-    },
+    () => read(key),
     () => "",
   );
-  const save = (opened: Set<string>) => {
+  const write = (opened: Set<string>) => {
     try {
       localStorage.setItem(key, [...opened].join(","));
     } catch {
-      // storage blocked: the ticks last until the page is left
+      // storage blocked: nothing ticks
     }
     listeners.forEach((l) => {
       l();
     });
   };
-  return [new Set(raw ? raw.split(",") : []), save];
+  return {
+    opened: idsOf(raw),
+    tick: (ids: ReadonlyArray<string>) => {
+      write(new Set([...idsOf(read(key)), ...ids]));
+    },
+    clear: () => {
+      write(new Set());
+    },
+  };
+}
+
+/* the steps, numbered through: Subscribe on Steam above the list, the game's under it */
+function Step({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <li>
+      <span>{n}</span>
+      <b>{children}</b>
+    </li>
+  );
 }
 
 export function GetMaps({
@@ -59,13 +83,10 @@ export function GetMaps({
   const [open, setOpen] = useState(false);
   const from = useRef<HTMLButtonElement>(null);
   const { props, close } = useDialog({ open, onClose: () => setOpen(false), from });
-  const [opened, save] = useOpened(slug);
+  const { opened, tick, clear } = useOpened(slug);
   if (!rows.length) return null;
   const n = rows.length;
   const done = rows.filter((r) => opened.has(r.pfid)).length;
-  const tick = (pfid: string) => {
-    save(new Set(opened).add(pfid));
-  };
   return (
     <>
       <button ref={from} type="button" className="go getmaps-open" onClick={() => setOpen(true)}>
@@ -78,18 +99,23 @@ export function GetMaps({
             &times;
           </button>
         </div>
-        {collection ? (
+        <ol className="gm-steps">
+          <Step n={1}>Open each Map in the Steam Workshop</Step>
+          <Step n={2}>Press Subscribe</Step>
+        </ol>
+        {collection && (
           <div className="gm-all">
-            <a className="go" href={workshopHref(collection)} target="_blank" rel="noopener">
+            <a
+              className="go"
+              href={workshopHref(collection)}
+              target="_blank"
+              rel="noopener"
+              onClick={() => tick(rows.map((r) => r.pfid))}
+            >
               Subscribe to all {n} at once ↗
             </a>
             <p>Its Steam collection subscribes to every Map in one press. Or one at a time:</p>
           </div>
-        ) : (
-          <p className="gm-lead">
-            Subscribe to each Map in the Steam Workshop, then open the Hub in Ballest and press
-            Downloads.
-          </p>
         )}
         <div className="gm-prog">
           <span>
@@ -99,7 +125,7 @@ export function GetMaps({
             <i style={{ inlineSize: `${(100 * done) / n}%` }} />
           </span>
           {done > 0 && (
-            <button type="button" className="linkbtn" onClick={() => save(new Set())}>
+            <button type="button" className="linkbtn" onClick={clear}>
               Start over
             </button>
           )}
@@ -118,7 +144,9 @@ export function GetMaps({
                   href={workshopHref(r.pfid)}
                   target="_blank"
                   rel="noopener"
-                  onClick={() => tick(r.pfid)}
+                  onClick={() => tick([r.pfid])}
+                  /* a middle-click opens it in a tab too, with no click event */
+                  onAuxClick={(e) => e.button === 1 && tick([r.pfid])}
                 >
                   {seen ? "✓ Opened" : "Subscribe ↗"}
                 </a>
@@ -127,15 +155,9 @@ export function GetMaps({
           })}
         </ul>
         <h3 className="eyebrow">Then in Ballest</h3>
-        <ol className="gm-steps">
-          <li>
-            <span>3</span>
-            <b>Go to the Hub</b>
-          </li>
-          <li>
-            <span>4</span>
-            <b>Press the Downloads button</b>
-          </li>
+        <ol className="gm-steps" start={3}>
+          <Step n={3}>Go to the Hub</Step>
+          <Step n={4}>Press the Downloads button</Step>
         </ol>
       </dialog>
     </>

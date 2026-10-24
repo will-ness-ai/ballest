@@ -84,6 +84,7 @@ describe("the checklist", () => {
     expect(t).toContain("|Play Marble Run in Ballest|");
     expect(t).toContain("|0 of 2 opened|");
     expect(t).toContain("|01|Hills|Subscribe ↗|03|Map 03|Subscribe ↗|");
+    expect(t).toContain("|1|Open each Map in the Steam Workshop|2|Press Subscribe|");
     expect(t).toContain("|Then in Ballest|3|Go to the Hub|4|Press the Downloads button|");
   });
 
