@@ -121,7 +121,7 @@ const pageOf = (page, ids = "real") => {
 };
 const stateOf = (name) => STATES.find((x) => x.name === name);
 const UNSIGNED =
-  "signed in: only a local target, under SESSION_SECRET (env, web/.env.local or web/.env) or else qa-only, as pnpm serve and CI build";
+  "signed in: only a local target, under its SESSION_SECRET (env or web/.env*) or else qa-only, which pnpm serve, pnpm dev:up and CI serve under";
 const pageNames = `pages: ${PAGES.map((p) => p.name).join(", ")}`;
 /* a list cut to its first three once it runs past four */
 const few = (list) =>
@@ -193,7 +193,12 @@ async function shot() {
     });
     // a refused session is the first thing wrong: the page was drawn signed out
     if (r.me !== signed.as)
-      fail(`${t.url} didn't take the browser as signed in`, "give qa the server's SESSION_SECRET");
+      fail(
+        `${t.url} didn't take the browser as signed in`,
+        t.fallback
+          ? "serve it with pnpm serve or pnpm dev:up, or give it and qa a SESSION_SECRET"
+          : "give qa the server's SESSION_SECRET",
+      );
     if (r.skipped) fail(`${viewName(view)}: ${r.skipped} at this width`);
     if (r.status !== status) fail(`${t.url + path} answered ${String(r.status)}`);
     if (gone(r, status))
@@ -386,6 +391,9 @@ async function check() {
           });
         else if (gone(r, expect))
           found.push({ view: name, kind: "gone", where: t.name, detail: r.title });
+        // refused under qa's fallback secret: a server started without pnpm serve or dev:up
+        // and no secret of its own, which can't sign anyone in; unsigned, not a fault
+        else if (r.me !== r.as && t.fallback) (t === at ? unsigned : uncompared).push(name);
         else if (r.me !== r.as)
           found.push({ view: name, kind: "signed-out", where: t.name, detail: "session refused" });
         else return false;
