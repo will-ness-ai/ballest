@@ -510,9 +510,10 @@ and Prefabs (spec #339, round 2's filter chips; ticket #342).
   from the Map cards (Maps through `searchMaps`, title or maker), Campaigns from `getCampaigns`
   (as `campaignSummary` lines), Tracks from the Circuit boards, Dailies and Prefabs from their
   lists. Whether a maker the player search's ten names left out plays is asked fresh too
-  (`withTimes` over `searchedMakers`), never guessed from the cut. So a search costs two small
-  queries plus cached reads, and the answer carries `s-maxage=600` with a Refresh's length of
-  `stale-while-revalidate`, so the CDN answers a query many type, or one typed again.
+  (`withTimes` over `searchedMakers`, beside the player search), never guessed from the cut. So
+  a search costs two small queries plus cached reads, and the answer carries `s-maxage=60` and
+  `stale-while-revalidate=300`: the CDN answers a query many type, or one typed again, and a
+  Map, player or Prefab new since shows in the search within about six minutes.
 - **What it finds, and in what order** is pure, `searchAll` in `lib/search.ts`: within each
   kind an exact name first, then a name that starts with the query, a word that does, then a
   contains, with popularity (runs, players, Maps made, favorites) breaking a tie. A Map found

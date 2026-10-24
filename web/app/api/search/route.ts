@@ -12,37 +12,43 @@ import {
   withTimes,
 } from "../../../db/data";
 import { campaignSummary } from "../../../lib/campaigns";
-import { searchAll, searchedMakers, searchTerm } from "../../../lib/search";
+import { makersOf, searchAll, searchedMakers, searchTerm } from "../../../lib/search";
 
-/* An answer changes only when a Refresh lands (every three hours) or a Map, a Daily or a
-   Prefab is added between them, so the CDN keeps each query's for ten minutes and serves it
-   stale for a Refresh's length while it reads it again: a word typed letter by letter, or
-   searched by many, reads the database once. The browser keeps it a minute, for the reader
-   who deletes back over what they typed. */
-const SEARCH_CACHE = "public, max-age=60, s-maxage=600, stale-while-revalidate=10800";
+/* The CDN keeps each query's answer a minute, so a word typed letter by letter, or searched by
+   many at once, reads the database once, and serves it stale five minutes more while it reads
+   it again: a Map, a player or a Prefab new since then shows within a few minutes. The browser
+   keeps it a minute too, for the reader who deletes back over what they typed. */
+const SEARCH_CACHE = "public, max-age=60, s-maxage=60, stale-while-revalidate=300";
 
 export async function GET(request: Request) {
   const q = searchTerm(new URL(request.url).searchParams.get("q"));
   if (!q) return Response.json(null, { headers: { "Cache-Control": SEARCH_CACHE } });
-  const [players, cards, campaigns, site, dailies, prefabs] = await Promise.all([
-    searchPlayers(q, ""),
-    getMapCards(),
-    getCampaigns(),
-    getSite(),
-    getDailies(),
-    getPrefabCards(),
-  ]);
-  const playing = await withTimes(searchedMakers(q, cards));
+  /* which matching makers play is asked as soon as the cards are in, beside the player search */
+  const made = getMapCards().then((cards) => ({ cards, makers: makersOf(cards) }));
+  const [players, { cards, makers }, playing, campaigns, site, dailies, prefabs] =
+    await Promise.all([
+      searchPlayers(q, ""),
+      made,
+      made.then(({ makers }) => withTimes(searchedMakers(q, makers))),
+      getCampaigns(),
+      getSite(),
+      getDailies(),
+      getPrefabCards(),
+    ]);
   return Response.json(
-    searchAll(q, {
-      players,
-      playing,
-      cards,
-      campaigns: campaigns.map(campaignSummary),
-      boards: site.boards,
-      dailies,
-      prefabs,
-    }),
+    searchAll(
+      q,
+      {
+        players,
+        playing: new Set(playing),
+        cards,
+        campaigns: campaigns.map(campaignSummary),
+        boards: site.boards,
+        dailies,
+        prefabs,
+      },
+      makers,
+    ),
     { headers: { "Cache-Control": SEARCH_CACHE } },
   );
 }

@@ -133,10 +133,10 @@ describe("GET /api/search", () => {
     ]);
   });
 
-  test("lets the CDN keep an answer for ten minutes, and serve it stale for a Refresh's length", async () => {
+  test("lets the CDN keep an answer a minute, and serve it stale five more while it reads again", async () => {
     const res = await GET(new Request("http://site.invalid/api/search?q=rae"));
     expect(res.headers.get("cache-control")).toBe(
-      "public, max-age=60, s-maxage=600, stale-while-revalidate=10800",
+      "public, max-age=60, s-maxage=60, stale-while-revalidate=300",
     );
   });
 

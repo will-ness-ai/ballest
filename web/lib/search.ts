@@ -45,7 +45,7 @@ export interface SearchSources {
   players: ReadonlyArray<NameHit>;
   /* of the makers whose name matches (searchedMakers), those with a time on a board, read
      fresh: the player search stops at a few names, so missing from it says nothing */
-  playing: ReadonlyArray<string>;
+  playing: ReadonlySet<string>;
   cards: ReadonlyArray<MapCard>;
   campaigns: ReadonlyArray<CampaignSummary>;
   boards: ReadonlyArray<IndexBoard>;
@@ -74,8 +74,11 @@ function tierOf(name: string, q: string): number {
 const scoreOf = (tier: number, popularity: number) =>
   tier * 100 + Math.min(99, Math.log10(1 + popularity) * 20);
 
-/* every maker the Map cards name with a Steam ID, with how many Maps they made */
-function makersOf(cards: ReadonlyArray<MapCard>) {
+/* every maker the Map cards name with a Steam ID, by it, with how many Maps they made: built
+   once per search (makersOf) and handed to searchedMakers and searchAll */
+export type Makers = ReadonlyMap<string, { name: string; maps: number }>;
+
+export function makersOf(cards: ReadonlyArray<MapCard>): Makers {
   const made = new Map<string, { name: string; maps: number }>();
   for (const m of cards) {
     if (!m.cid) continue;
@@ -88,13 +91,12 @@ function makersOf(cards: ReadonlyArray<MapCard>) {
 
 /* the Steam IDs of the makers whose name matches the query: whom the route asks the boards
    about, for SearchSources' `playing` */
-export const searchedMakers = (q: string, cards: ReadonlyArray<MapCard>) =>
-  [...makersOf(cards)].flatMap(([id, m]) => (tierOf(m.name, q) ? [id] : []));
+export const searchedMakers = (q: string, makers: Makers) =>
+  [...makers].flatMap(([id, m]) => (tierOf(m.name, q) ? [id] : []));
 
 /* players the search found by name, and every maker whose name matches with the Maps they
    made; a maker who is on no board links to their Made tab */
-function people(q: string, s: SearchSources): Array<Hit> {
-  const made = makersOf(s.cards);
+function people(q: string, s: SearchSources, made: Makers): Array<Hit> {
   const found = new Map<string, { who: NameHit; maps: number; plays: boolean }>();
   for (const p of s.players)
     found.set(p.steamId, { who: p, maps: made.get(p.steamId)?.maps ?? 0, plays: true });
@@ -103,7 +105,7 @@ function people(q: string, s: SearchSources): Array<Hit> {
       found.set(id, {
         who: { steamId: id, persona: m.name, avatar: null },
         maps: m.maps,
-        plays: s.playing.includes(id),
+        plays: s.playing.has(id),
       });
   return [...found.values()].flatMap(({ who, maps, plays }) => {
     /* found by Steam ID rather than name, it still counts as a match */
@@ -326,11 +328,16 @@ export function resultsOf(
   return { chips, groups };
 }
 
-/* every hit of the query (trimmed, lowercased: searchTerm), best first within each kind */
-export function searchAll(q: string, s: SearchSources): SearchAnswer {
+/* every hit of the query (trimmed, lowercased: searchTerm), best first within each kind;
+   `makers`, makersOf(s.cards) where the caller has built it already */
+export function searchAll(
+  q: string,
+  s: SearchSources,
+  makers: Makers = makersOf(s.cards),
+): SearchAnswer {
   const found = searchMaps(s.cards, q);
   const hits = [
-    people(q, s),
+    people(q, s, makers),
     campaigns(q, s.campaigns),
     maps(q, found),
     tracks(q, s.boards),
