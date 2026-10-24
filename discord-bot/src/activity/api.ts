@@ -19,6 +19,9 @@ import { Pings, warnPingRole } from "../pings.js";
 import {
   type CardView,
   cardView,
+  type ChosenSkin,
+  ChosenSkins,
+  chosenSkinOf,
   MatchLinks,
   type ProfilePreview,
   type RemovalReason,
@@ -74,6 +77,12 @@ export interface Challengeable {
   readonly steamName: string;
   /** In an open Invite or a live Match, so they can't be challenged now. */
   readonly busy: boolean;
+  readonly skin: ChosenSkin;
+}
+
+/** A profile pasted to link, with the account's Chosen Skin for its marble. */
+export interface LinkPreview extends ProfilePreview {
+  readonly skin: ChosenSkin;
 }
 
 const json = (body: unknown, status = 200) => HttpServerResponse.unsafeJson(body, { status });
@@ -99,6 +108,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
   const places = yield* MatchLinks;
   const store = yield* Store;
   const engine = yield* Engine;
+  const chosenSkins = yield* ChosenSkins;
   const pings = yield* Pings;
   /** Each member's last previewed profile, waiting for them to confirm it. */
   const previews = yield* Ref.make(new Map<string, ProfilePreview>());
@@ -143,7 +153,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
 
   /** A Match as `discordId` sees it. */
   const viewOf = Effect.fn("viewOf")(function* (m: Match, discordId: string) {
-    const card = cardView(m);
+    const card = cardView(m, yield* chosenSkins.all);
     const people = card.target === null ? card.players : [...card.players, card.target];
     const names = Object.fromEntries(
       yield* Effect.forEach(people, (p) =>
@@ -216,11 +226,16 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
         Effect.gen(function* () {
           const link = yield* store.getLink(discordId);
           const active = (yield* store.activeMatches).find((m) => involves(m, discordId));
+          const chosen = yield* chosenSkins.all;
           return json({
             discordId,
             link: Option.match(link, {
               onNone: () => null,
-              onSome: (l) => ({ steamId: l.steamId, personaName: l.personaName }),
+              onSome: (l) => ({
+                steamId: l.steamId,
+                personaName: l.personaName,
+                skin: chosenSkinOf(chosen, l.steamId),
+              }),
             }),
             matchId: active?.id ?? null,
             // Null when Discord can't say just now: the rest of the page still works.
@@ -257,6 +272,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
       asMember((discordId) =>
         Effect.gen(function* () {
           const active = yield* store.activeMatches;
+          const chosen = yield* chosenSkins.all;
           const players = yield* Effect.forEach(
             (yield* store.links).filter((l) => l.discordId !== discordId),
             (l) =>
@@ -270,6 +286,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
                     name: n,
                     steamName: l.personaName,
                     busy: active.some((m) => involves(m, l.discordId)),
+                    skin: chosenSkinOf(chosen, l.steamId),
                   })),
                 ),
               ),
@@ -286,7 +303,11 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (where: {
           const { profile } = yield* HttpServerRequest.schemaBodyJson(PreviewBody);
           const preview = yield* engine.previewLink(profile);
           yield* Ref.update(previews, (m) => new Map(m).set(discordId, preview));
-          return json(preview);
+          const shown: LinkPreview = {
+            ...preview,
+            skin: chosenSkinOf(yield* chosenSkins.all, preview.steamId),
+          };
+          return json(shown);
         }),
       ),
     ),

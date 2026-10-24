@@ -422,6 +422,19 @@ def test_a_failed_or_empty_daily_read_moves_nothing_and_never_makes_it_final(con
     assert final_refresh(conn) is None
 
 
+def test_a_daily_read_just_after_it_opens_with_no_times_yet_is_still_written(conn):
+    # a read just after the Daily opens finds a board nobody has finished yet: the site
+    # still gets the Daily's page, with no times
+    r1 = db_writer.write_refresh(
+        conn, refresh(0, [], dailies=[daily_read(DAY.starts_at + timedelta(minutes=5))])
+    )
+    assert dailies(conn) == [
+        ("2026-10-06", DAY.board, PFID, "Jungle islands", DAY.starts_at, DAY.ends_at, None)
+    ]
+    assert reads(conn, r1) == {DAY.board: False}
+    assert open_entries(conn, DAY.board) == {}
+
+
 def test_a_better_daily_time_closes_the_old_entry_and_opens_a_new_one(conn):
     live = DAY.starts_at + timedelta(hours=5)
     r1 = db_writer.write_refresh(
@@ -500,3 +513,92 @@ def test_memory_knows_who_set_a_score_in_the_latest_refresh(conn):
         conn, refresh(1, [board(TRACK, ("1001", 1013307), ("1002", 1090000), ("1003", 1200000))])
     )
     assert db_writer.read_memory(conn).just_scored == {"1002", "1003"}
+
+
+# Daily reads (CONTEXT.md): the open Dailies only, every 15 minutes between Refreshes.
+
+
+def daily_only(n, *reads):
+    return db_writer.Refresh(
+        started_at=T0 + timedelta(hours=3 * n, minutes=15), dailies=reads, source="daily"
+    )
+
+
+def test_a_daily_read_writes_its_daily_marked_as_a_daily_read(conn):
+    live = DAY.starts_at + timedelta(hours=5)
+    rid = db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1001", 2931805))))
+    assert conn.execute("select source::text from refreshes where id = %s", (rid,)).fetchone() == (
+        "daily",
+    )
+    assert [d[0] for d in dailies(conn)] == [DAY.date]
+    assert open_entries(conn, DAY.board) == {"1001": 2931805}
+
+
+def test_memory_counts_only_refreshes_not_daily_reads(conn):
+    db_writer.write_refresh(conn, refresh(0, [board(TRACK, ("1001", 1013307))]))
+    live = DAY.starts_at + timedelta(hours=5)
+    db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1001", 2931805))))
+    db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1002", 2931806))))
+    assert db_writer.read_memory(conn).refreshes == 1
+
+
+def test_who_set_a_score_in_the_latest_refresh_skips_the_daily_reads_after_it(conn):
+    db_writer.write_refresh(conn, refresh(0, [board(TRACK, ("1001", 1013307))]))
+    live = DAY.starts_at + timedelta(hours=5)
+    db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1002", 2931805))))
+    assert db_writer.read_memory(conn).just_scored == {"1001"}
+
+
+def test_memory_holds_each_open_dailys_board_and_none_once_it_is_final(conn):
+    live = DAY.starts_at + timedelta(hours=5)
+    db_writer.write_refresh(
+        conn, daily_only(0, daily_read(live, ("1001", 2931805), ("1002", 2931900)))
+    )
+    db_writer.write_refresh(conn, daily_only(0, daily_read(live, ("1001", 2931700))))
+    assert db_writer.read_memory(conn).daily_boards == {DAY.date: frozenset({("1001", 2931700)})}
+    db_writer.write_refresh(conn, daily_only(1, daily_read(DAY.ends_at, ("1001", 2931700))))
+    assert db_writer.read_memory(conn).daily_boards == {}
+
+
+EVENT = "Map_LethTrial_01"  # Leth Trial #1, an Event board (campaign_common.EVENT_BOARDS)
+
+
+def test_an_event_board_is_written_as_its_own_kind_and_a_time_board(conn):
+    rid = db_writer.write_refresh(
+        conn,
+        refresh(0, [board(TRACK, ("1001", 1013307)), board(EVENT, ("1001", 2373600))]),
+    )
+    assert conn.execute(
+        "select kind, scores_points, display from boards where name = %s", (EVENT,)
+    ).fetchone() == ("event", False, "Leth Trial #1")
+    assert reads(conn, rid)[EVENT] is True
+    assert open_entries(conn, EVENT) == {"1001": 2373600}
+
+
+def test_memory_knows_the_event_boards_read_ok(conn):
+    assert db_writer.read_memory(conn).events_read == set()
+    db_writer.write_refresh(
+        conn, refresh(0, [board(TRACK, ("1001", 1013307)), board(EVENT)], failed=(EVENT,))
+    )
+    assert db_writer.read_memory(conn).events_read == set()
+    db_writer.write_refresh(
+        conn, refresh(1, [board(TRACK, ("1001", 1013307)), board(EVENT, ("1001", 2373600))])
+    )
+    assert db_writer.read_memory(conn).events_read == {EVENT}
+
+
+def test_an_event_board_left_out_of_later_refreshes_keeps_its_entries_open(conn):
+    r1 = db_writer.write_refresh(
+        conn, refresh(0, [board(TRACK, ("1001", 1013307)), board(EVENT, ("1001", 2373600))])
+    )
+    db_writer.write_refresh(conn, refresh(1, [board(TRACK, ("1001", 1013307))]))
+    assert history(conn, EVENT, "1001") == [(2373600, r1, r1, None)]
+
+
+def test_an_empty_event_read_is_a_failed_read_and_leaves_its_entries(conn):
+    r1 = db_writer.write_refresh(
+        conn, refresh(0, [board(TRACK, ("1001", 1013307)), board(EVENT, ("1001", 2373600))])
+    )
+    r2 = db_writer.write_refresh(conn, refresh(1, [board(TRACK, ("1001", 1013307)), board(EVENT)]))
+    assert reads(conn, r2)[EVENT] is False
+    assert history(conn, EVENT, "1001") == [(2373600, r1, r1, None)]

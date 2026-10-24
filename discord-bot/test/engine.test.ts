@@ -965,3 +965,258 @@ describe("restart", () => {
     }),
   );
 });
+
+describe("Chosen Skins", () => {
+  const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
+  const GOLD = "/Game/Art/M_GoldReal.M_GoldReal";
+  const lobby = { type: "lobby", minutes: 5, target: null } as const;
+
+  it.scoped(
+    "each Card view and thread post carries its Players' Chosen Skins as they stood when it was built",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ maps: [MAP] });
+        yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+        yield* h.chosenSkins.pick(DAN.steamId, GOLD);
+        const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+        yield* h.engine.join(BOB.discordId, id);
+        expect(Option.getOrThrow(yield* h.surface.card(id)).skins).toEqual({
+          [ALICE.steamId]: PINK,
+        });
+
+        // Picks made later reach later posts and views, never the ones already built.
+        yield* h.chosenSkins.pick(ALICE.steamId, GOLD);
+        yield* h.chosenSkins.pick(BOB.steamId, PINK);
+        yield* h.engine.start(ALICE.discordId, id);
+        yield* h.steam.setTime(1, BOB.steamId, 19);
+        yield* advance("10 seconds");
+        yield* h.engine.join(CARA.discordId, id);
+
+        const posts = yield* h.surface.posts(id);
+        const skinOf = (tag: ThreadPost["_tag"]) => {
+          const post = posts.find((p) => p._tag === tag);
+          return post !== undefined && "skin" in post ? post.skin : "no such post";
+        };
+        expect(skinOf("Opened")).toBe(PINK);
+        expect(skinOf("Joined")).toBeNull();
+        expect(skinOf("Improved")).toBe(PINK);
+        const started = posts.find((p) => p._tag === "Started");
+        if (started?._tag !== "Started") return expect.unreachable();
+        expect(started.card.skins).toEqual({ [ALICE.steamId]: GOLD, [BOB.steamId]: PINK });
+        // Cara has no Chosen Skin, and players outside the Match are never carried.
+        expect(Option.getOrThrow(yield* h.surface.card(id)).skins).toEqual({
+          [ALICE.steamId]: GOLD,
+          [BOB.steamId]: PINK,
+        });
+      }),
+  );
+
+  it.scoped("the Challenged, Accepted and Left posts carry their Player's Chosen Skin", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      yield* h.chosenSkins.pick(BOB.steamId, GOLD);
+      const id = yield* h.engine.openInvite(ALICE.discordId, {
+        type: "challenge",
+        minutes: 5,
+        target: BOB.discordId,
+      });
+      yield* h.engine.accept(BOB.discordId, id);
+      yield* h.engine.leave(BOB.discordId, id);
+
+      const posts = yield* h.surface.posts(id);
+      const challenged = posts.find((p) => p._tag === "Challenged");
+      const accepted = posts.find((p) => p._tag === "Accepted");
+      const left = posts.find((p) => p._tag === "Left");
+      expect(challenged?._tag === "Challenged" && challenged.skin).toBe(PINK);
+      expect(accepted?._tag === "Accepted" && accepted.skin).toBe(GOLD);
+      expect(left?._tag === "Left" && left.skin).toBe(GOLD);
+    }),
+  );
+
+  it.scoped("a Player who leaves a Lobby Invite is posted in their Chosen Skin", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      yield* h.chosenSkins.pick(ALICE.steamId, PINK);
+      const id = yield* h.engine.openInvite(ALICE.discordId, lobby);
+      yield* h.engine.join(BOB.discordId, id);
+      yield* h.chosenSkins.pick(BOB.steamId, GOLD);
+      yield* h.engine.leave(BOB.discordId, id);
+      const left = (yield* h.surface.posts(id)).find((p) => p._tag === "Left");
+      if (left?._tag !== "Left") return expect.unreachable();
+      expect(left.skin).toBe(GOLD);
+    }),
+  );
+});
+
+describe("Play again", () => {
+  /** A finished Public 1v1 of Alice and Bob, 10 minutes long. */
+  const finishedMatch = Effect.gen(function* () {
+    const h = yield* makeHarness({ maps: [MAP] });
+    const id = yield* h.engine.openInvite(ALICE.discordId, { ...public1v1, minutes: 10 });
+    yield* h.engine.accept(BOB.discordId, id);
+    yield* h.steam.setTime(1, ALICE.steamId, 21);
+    yield* advance("10 minutes");
+    return { h, id };
+  });
+
+  it.scoped("the first press opens a Lobby of the same length; later presses join it", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const first = yield* h.engine.playAgain(BOB.discordId, id);
+      expect(first).toMatchObject({ creator: true, joinedNow: true });
+      expect(Option.getOrThrow(yield* h.surface.card(first.lobbyId))).toMatchObject({
+        state: "invite",
+        type: "lobby",
+        minutes: 10,
+        creator: BOB,
+      });
+      const second = yield* h.engine.playAgain(ALICE.discordId, id);
+      const third = yield* h.engine.playAgain(CARA.discordId, id);
+      expect([second, third]).toEqual([
+        { lobbyId: first.lobbyId, creator: false, joinedNow: true },
+        { lobbyId: first.lobbyId, creator: false, joinedNow: true },
+      ]);
+      expect(
+        Option.getOrThrow(yield* h.surface.card(first.lobbyId)).players.map((p) => p.discordId),
+      ).toEqual([BOB.discordId, ALICE.discordId, CARA.discordId]);
+      expect(tags(yield* h.surface.posts(first.lobbyId))).toEqual(["Opened", "Joined", "Joined"]);
+    }),
+  );
+
+  it.scoped("tells the finished Match's thread who opened it, pinging its other Players", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const before = (yield* h.surface.posts(id)).length;
+      yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      const after = (yield* h.surface.posts(id)).slice(before);
+      expect(after).toEqual([
+        ThreadPost.PlayingAgain({ by: BOB, skin: null, others: [ALICE], minutes: 10 }),
+      ]);
+    }),
+  );
+
+  it.scoped("is for a finished Match only, and for a Player free to play", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const live = yield* h.engine.openInvite(CARA.discordId, public1v1);
+      expect((yield* Effect.flip(h.engine.playAgain(DAN.discordId, live)))._tag).toBe("NotAllowed");
+      // Cara is in her own Invite: she can neither open the Lobby nor join it.
+      expect((yield* Effect.flip(h.engine.playAgain(CARA.discordId, id)))._tag).toBe("Busy");
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      expect((yield* Effect.flip(h.engine.playAgain(CARA.discordId, id)))._tag).toBe("Busy");
+      expect((yield* Effect.flip(h.engine.playAgain(UNLINKED, id)))._tag).toBe("NotLinked");
+    }),
+  );
+
+  it.scoped("finds its Lobby again after a restart, and opens a fresh one once that is gone", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const first = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.restart("1 minute");
+      expect(yield* h.engine.playAgain(ALICE.discordId, id)).toEqual({
+        lobbyId: first.lobbyId,
+        creator: false,
+        joinedNow: true,
+      });
+      yield* h.engine.cancel(BOB.discordId, first.lobbyId);
+      const fresh = yield* h.engine.playAgain(ALICE.discordId, id);
+      expect(fresh).toMatchObject({ creator: true, joinedNow: true });
+      expect(fresh.lobbyId).not.toBe(first.lobbyId);
+    }),
+  );
+
+  it.scoped("joins its Lobby once live, as a late join", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.start(BOB.discordId, lobbyId);
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      const card = Option.getOrThrow(yield* h.surface.card(lobbyId));
+      expect(card.state).toBe("live");
+      expect(card.players.map((p) => p.discordId)).toEqual([BOB.discordId, ALICE.discordId]);
+    }),
+  );
+
+  it.scoped("a press from someone already in its Lobby just finds it again", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.join(ALICE.discordId, lobbyId);
+      // Bob opened it, so the Start is still his to press.
+      expect(yield* h.engine.playAgain(BOB.discordId, id)).toEqual({
+        lobbyId,
+        creator: true,
+        joinedNow: false,
+      });
+      expect(yield* h.engine.playAgain(ALICE.discordId, id)).toEqual({
+        lobbyId,
+        creator: false,
+        joinedNow: false,
+      });
+    }),
+  );
+
+  it.scoped("doesn't ping a Player who left the finished Match", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ maps: [MAP] });
+      const id = yield* h.engine.openInvite(ALICE.discordId, {
+        type: "lobby",
+        minutes: 5,
+        target: null,
+      });
+      yield* h.engine.join(BOB.discordId, id);
+      yield* h.engine.join(CARA.discordId, id);
+      yield* h.engine.start(ALICE.discordId, id);
+      yield* h.engine.leave(CARA.discordId, id);
+      yield* advance("5 minutes");
+      yield* h.engine.playAgain(ALICE.discordId, id);
+      const post = (yield* h.surface.posts(id)).at(-1);
+      if (post?._tag !== "PlayingAgain") return expect.unreachable();
+      expect(post.others).toEqual([BOB]);
+    }),
+  );
+
+  it.scoped("says so while its Lobby is drawing its Map", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.steam.setReadDelay("150 millis");
+      const starting = yield* Effect.fork(h.engine.start(BOB.discordId, lobbyId));
+      yield* Effect.yieldNow();
+      expect(yield* Effect.flip(h.engine.playAgain(ALICE.discordId, id))).toMatchObject({
+        _tag: "NotAllowed",
+        reason: "Its Lobby is drawing its Map. Press again in a moment.",
+      });
+      yield* advance("150 millis");
+      yield* Fiber.join(starting);
+    }),
+  );
+
+  it.scoped("pings the finished Match's Players only the first time a Lobby opens", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const { lobbyId } = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.cancel(BOB.discordId, lobbyId);
+      yield* h.engine.playAgain(BOB.discordId, id);
+      const lines = (yield* h.surface.posts(id)).flatMap((p) =>
+        p._tag === "PlayingAgain" ? [p.others] : [],
+      );
+      expect(lines).toEqual([[ALICE], []]);
+    }),
+  );
+
+  it.scoped("opens a fresh Lobby once its Lobby's time is up", () =>
+    Effect.gen(function* () {
+      const { h, id } = yield* finishedMatch;
+      const first = yield* h.engine.playAgain(BOB.discordId, id);
+      yield* h.engine.start(BOB.discordId, first.lobbyId);
+      yield* h.steam.failNextReads(100); // the end read waits for Steam: still live, time up
+      yield* advance("10 minutes");
+      const fresh = yield* h.engine.playAgain(CARA.discordId, id);
+      expect(fresh).toMatchObject({ creator: true, joinedNow: true });
+      expect(fresh.lobbyId).not.toBe(first.lobbyId);
+    }),
+  );
+});

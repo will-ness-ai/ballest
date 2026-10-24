@@ -7,6 +7,9 @@ import { Engine } from "../src/engine.js";
 import { SqliteStoreInMemory } from "../src/sqliteStore.js";
 import { Pings } from "../src/pings.js";
 import {
+  ChosenSkins,
+  type ChosenSkin,
+  type ChosenSkinPicks,
   PingRole,
   PingRoleUnavailable,
   ProfileNotFound,
@@ -160,6 +163,25 @@ export const makeFakeSurface = Effect.gen(function* () {
   };
 });
 
+// ---------------------------------------------------------------- Chosen Skins
+
+/** Every player's Chosen Skin as the site holds it, changed by `pick` as a player would there. */
+export const makeFakeChosenSkins = Effect.gen(function* () {
+  const picks = yield* Ref.make<ChosenSkinPicks>(new Map());
+  return {
+    port: ChosenSkins.of({ all: Ref.get(picks) }),
+    /** Pick a Skin (an object path) for a player, or clear theirs with null. */
+    pick: Effect.fn("pick")(function* (steamId: string, skin: ChosenSkin) {
+      yield* Ref.update(picks, (m) => {
+        const next = new Map(m);
+        if (skin === null) next.delete(steamId);
+        else next.set(steamId, skin);
+        return next;
+      });
+    }),
+  };
+});
+
 // ---------------------------------------------------------------- the ping role
 
 export interface FakePingRoleControl {
@@ -229,6 +251,7 @@ export const cardView = (matchId: string, over: Partial<CardView> = {}): CardVie
   expiresAt: null,
   endsAt: null,
   waitingForSteam: false,
+  skins: {},
   ...over,
 });
 
@@ -263,6 +286,7 @@ export const makeHarness = (opts: {
     const steam = yield* makeFakeSteam(PROFILES);
     yield* steam.control.setCatalogue(opts.maps);
     const surface = yield* makeFakeSurface;
+    const chosenSkins = yield* makeFakeChosenSkins;
     const role = yield* makeFakePingRole;
     const pings = Context.get(
       yield* Layer.build(
@@ -277,6 +301,7 @@ export const makeHarness = (opts: {
       Layer.succeed(Steam, steam.port),
       Layer.succeed(Surface, surface.port),
       Layer.succeed(Store, store),
+      Layer.succeed(ChosenSkins, chosenSkins.port),
     );
     const boot = Effect.gen(function* () {
       const scope = yield* Scope.make();
@@ -291,6 +316,8 @@ export const makeHarness = (opts: {
       steam: steam.control,
       surface,
       store,
+      /** Players' Chosen Skins on the site. */
+      chosenSkins,
       /** The @Multiplayer ping role, as Discord has it. */
       role: role.control,
       pings,
@@ -303,6 +330,9 @@ export const makeHarness = (opts: {
         }),
     };
   });
+
+/** What `makeHarness` gives a test. */
+export type Harness = Effect.Effect.Success<ReturnType<typeof makeHarness>>;
 
 /** Move the TestClock and let forked work (polls, expiry, the end) run to completion. */
 export const advance = (duration: Duration.DurationInput) =>

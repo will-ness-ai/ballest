@@ -33,7 +33,35 @@ const names = new Map([
   [BOB.discordId, "Bob"],
 ]);
 
+/** Alice's Link confirmation, carrying `skin` as her Chosen Skin. */
+const aliceLink = (skin: string | null) =>
+  Effect.flatMap(Renderer, (r) =>
+    r.link(
+      {
+        steamId: ALICE.steamId,
+        personaName: "Alice",
+        avatarUrl: "",
+        campaignTracks: 3,
+        campaignTrackTotal: 23,
+      },
+      skin,
+    ),
+  );
+
 describe("the Renderer", () => {
+  it.effect(
+    "draws the Chosen Skin an image carries, and the marble for a Skin it has no picture of",
+    () =>
+      Effect.gen(function* () {
+        const marble = yield* aliceLink(null);
+        const pink = yield* aliceLink("/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink");
+        const unknown = yield* aliceLink("/Game/Art/Some/Future/Skin.Skin");
+        expect(pink.equals(marble)).toBe(false);
+        expect(unknown.equals(marble)).toBe(true);
+      }).pipe(Effect.provide(Renderer.Default)),
+    60_000,
+  );
+
   it.effect(
     "lets go of every image it draws",
     () =>

@@ -41,6 +41,7 @@ class FakeClient extends EventEmitter {
     const res = Protos.CMsgClientLBSGetLBEntriesResponse!;
     const reply = res.fromObject({
       eresult: 1,
+      leaderboard_entry_count: 145,
       entries: [{ steam_id_user: "76561198000000001", global_rank: 1, score: 1_234_567 }],
     });
     callback(Buffer.from(res.encode(reply).finish()));
@@ -77,6 +78,16 @@ describe("the Steam session", () => {
       const { s } = yield* session;
       const entries = yield* s.players(1, ["76561198000000001"]);
       expect(entries).toEqual([{ steamId: "76561198000000001", globalRank: 1, score: 1_234_567 }]);
+    }).pipe(Effect.provide(config)),
+  );
+
+  it.scoped("reads a board's top ranks with how many entries it holds", () =>
+    Effect.gen(function* () {
+      const { s } = yield* session;
+      expect(yield* s.range(1, 1, 3)).toEqual({
+        count: 145,
+        entries: [{ steamId: "76561198000000001", globalRank: 1, score: 1_234_567 }],
+      });
     }).pipe(Effect.provide(config)),
   );
 

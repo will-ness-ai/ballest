@@ -6,7 +6,15 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { posix } from "node:path";
 import { ChannelType, OverwriteType, PermissionFlagsBits, REST, Routes } from "discord.js";
-import { type ApiMessage, cell, controlsOf, detail, summary, table } from "./axi/describe.js";
+import {
+  type ApiMessage,
+  attachmentsOf,
+  cell,
+  controlsOf,
+  detail,
+  summary,
+  table,
+} from "./axi/describe.js";
 import { devEnvFile } from "./devEnv.js";
 import type { Answer } from "./sandbox/driver.js";
 import { DRIVER_PORT, LOGS, readSandbox, writeSandbox } from "./sandbox/config.js";
@@ -175,12 +183,12 @@ const health = async (): Promise<Health | null> => {
 /** Save a message's attachments under .logs/axi; name to path. */
 const saveFiles = async (m: ApiMessage) => {
   const files = new Map<string, string>();
-  for (const a of m.attachments ?? []) {
+  for (const a of attachmentsOf(m)) {
     if (a.url === undefined) continue;
     mkdirSync(AXI_DIR, { recursive: true });
     const path = posix.join(AXI_DIR, `${m.id}-${a.filename}`);
-    if (!existsSync(path))
-      writeFileSync(path, Buffer.from(await (await fetch(a.url)).arrayBuffer()));
+    // Always fetched: an edited Card keeps its message id and file name but not its picture.
+    writeFileSync(path, Buffer.from(await (await fetch(a.url)).arrayBuffer()));
     files.set(a.filename, path);
   }
   return files;

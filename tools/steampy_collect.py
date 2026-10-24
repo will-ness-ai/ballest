@@ -1,5 +1,5 @@
 """
-Ballest campaign leaderboard collector — HEADLESS (GitHub Actions path).
+Ballest campaign leaderboard collector — HEADLESS (the live path, run by runner.py on Fly).
 
 Logs into Steam with a refresh token (no Steam client, no password at runtime),
 reads every Circuit leaderboard over the Steam CM via steam.py, keeps the Workshop
@@ -15,7 +15,7 @@ Map's board ID and Workshop counters, when it last read every Map, and every pla
 name are read back from it first (db_writer.load_memory). It writes DATABASE_URL, or with
 --dev only DEV_DATABASE_URL, and without one it stops before logging in.
 
-Auth (secrets, provided as env vars in CI; locally they fall back to the files
+Auth (secrets, provided as env vars on Fly; locally they fall back to the files
 steampy_mint.py and .env hold, in this checkout or the main one if this is a
 worktree):
   STEAM_REFRESH_TOKEN  — minted once locally with steampy_mint.py
@@ -42,7 +42,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import warnings
 
 import campaign_common as cc
-import daily
 import db_writer
 import ghosts
 import map_files
@@ -50,7 +49,12 @@ import map_files
 warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
 
 import steam  # noqa: E402 (after the warnings filter)
-from steampy_common import board_rows, fetch_board, find_map_board_id  # noqa: E402
+from steampy_common import (  # noqa: E402
+    board_rows,
+    collect_dailies,
+    fetch_board,
+    find_map_board_id,
+)
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
@@ -152,60 +156,6 @@ async def collect_workshop(catalogue, all_ids, memory):
     }
 
 
-# Seconds between two calls to the developers' API: 60 a minute at most, well under the
-# API's limit. Only the first run's catch-up (one call per Daily since
-# FIRST_DAILY) makes more than a couple.
-DAILY_API_PACE = 1.0
-
-
-async def collect_dailies(all_ids, memory):
-    """Read the Dailies that are due (daily.plan): a list of daily.DailyRead for
-    db_writer, each with its rows or None for a read that failed. Returns [] when the step
-    is skipped for want of the API secrets. The Dailies already held are memory.dailies.
-
-    The due Dailies the database holds are read first, then each Daily it doesn't hold is
-    looked up, paced by DAILY_API_PACE, and read; a lookup that fails, or a date with no
-    Daily, is tried again next run. The whole step stops at daily.BUDGET with what it has
-    read (daily.collect), so it never holds up the Circuit and Workshop write. It never
-    prints the key or the URL."""
-    url, key = cc.load_secret("BALLEST_DAILY_URL"), cc.load_secret("BALLEST_API_KEY")
-    if not (url and key):
-        print("Daily: no BALLEST_API_KEY/BALLEST_DAILY_URL; skipping the Daily step")
-        return []
-    now = datetime.now(UTC)
-    lookups, reads = daily.plan(memory.dailies, now)
-
-    async def look_up(d):
-        return await asyncio.to_thread(daily.look_up, url, key, d)
-
-    async def read(d):
-        total, rows = None, None
-        try:
-            total, entries = await fetch_board(client, int(d.leaderboard_id))
-            rows = board_rows(entries)
-        except Exception as e:
-            print(f"  [warn] Daily {d.date} {d.title!r}: read failed: {e!r}")
-        return daily.DailyRead(
-            daily=d,
-            rows=rows,
-            read_at=datetime.now(UTC),
-            entry_count=int(total) if total else None,
-        )
-
-    out, missing, _ = await daily.collect(
-        lookups, reads, now, look_up=look_up, read=read, pace=DAILY_API_PACE
-    )
-    # only the reads handed on: one abandoned at the budget adds no player
-    for r in out:
-        all_ids.update(x["steam_id"] for x in r.rows or [])
-    ok = sum(1 for r in out if r.ok)
-    print(
-        f"  Daily: {len(lookups)} looked up ({len(missing)} with no Daily), "
-        f"{len(out)} read, {len(out) - ok} failed or empty"
-    )
-    return out
-
-
 @client.event
 async def on_ready():
     if _state["done"]:
@@ -213,40 +163,38 @@ async def on_ready():
     _state["done"] = True
     try:
         memory = _state["memory"]
-        boards_out = []
         all_ids = set()
-        failed = []  # boards whose read failed: their Entries stay as they were
+
+        async def fetch_rows(lid):
+            total, entries = await fetch_board(client, lid)
+            return total, board_rows(entries)
+
+        circuit = []
         for name, group in cc.BOARDS:
             lid = cc.LEADERBOARD_IDS.get(name)
-            if not lid:
+            if lid:
+                circuit.append((name, lid, group))
+            else:
                 print(f"  [skip] no leaderboard ID for {name}")
-                continue
-            try:
-                total, entries = await fetch_board(client, lid)
-                rows = board_rows(entries)
-                all_ids.update(r["steam_id"] for r in rows)
-                boards_out.append(
-                    {
-                        "name": name,
-                        "group": group,
-                        "handle": str(lid),
-                        "entry_count": int(total or len(rows)),
-                        "rows": rows,
-                    }
-                )
-                print(f"  {name:34s} total={int(total):6d} pulled={len(rows)}")
-            except Exception as e:
-                # A failed read changes nothing: the board's Entries stay as the last
-                # good read left them (db_writer counts it as a failed read).
-                boards_out.append({"name": name, "group": group, "handle": str(lid), "rows": []})
-                failed.append(name)
-                print(f"  [warn] read failed: {name}: {e!r}")
+        # A failed read changes nothing: the board's Entries stay as the last good read left
+        # them (db_writer counts it as a failed read).
+        boards_out, failed = await cc.read_boards(fetch_rows, circuit)
+        for b in boards_out:
+            all_ids.update(r["steam_id"] for r in b["rows"])
 
         # Refuse a Refresh that read nothing: Steam is down, or this login is broken.
         if not any(b["rows"] for b in boards_out):
             _state["error"] = RuntimeError("no board data collected")
             print("ERROR: no board data collected; not writing.")
             return
+
+        # Each Event board with no good read yet: after the guard, so it never decides the
+        # run. A failed or empty read is a failed read (db_writer); the next Refresh retries.
+        events, events_failed = await cc.read_events(fetch_rows, memory.events_read)
+        for b in events:
+            all_ids.update(r["steam_id"] for r in b["rows"])
+        boards_out += events
+        failed += events_failed
 
         workshop = None
         if _state["catalogue"]:
@@ -257,7 +205,7 @@ async def on_ready():
                 print(f"  [warn] Workshop step failed: {e!r}")
         dailies = []
         try:
-            dailies = await collect_dailies(all_ids, memory)
+            dailies = await collect_dailies(client, memory.dailies, all_ids)
         except Exception as e:
             # Never blocks the Circuit or the Workshop: no Daily counts as read.
             print(f"  [warn] Daily step failed: {type(e).__name__}")

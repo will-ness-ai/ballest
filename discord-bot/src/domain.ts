@@ -84,6 +84,8 @@ export interface Match {
   readonly left: ReadonlyArray<string>;
   /** Time is up but Steam hasn't answered the end read, so the Result is waiting for it. */
   readonly waitingForSteam: boolean;
+  /** The finished Match whose Play again opened this Lobby; null for any other Match. */
+  readonly playAgainOf: string | null;
 }
 
 /** Whether a live Match's time has run out: from then on only the end read counts. */

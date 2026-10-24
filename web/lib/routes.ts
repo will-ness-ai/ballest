@@ -1,6 +1,13 @@
 // Every URL the site links to, and how an old #/ link from the single-page site maps onto
 // one. A Steam ID only ever reaches a path through isSteamId: one can arrive from the URL.
-import { campaignOf, campaignOfBoard, campaignOfMap, type Campaign } from "./campaigns";
+import {
+  campaignOf,
+  campaignOfBoard,
+  campaignOfMap,
+  eventOf,
+  eventOfBoard,
+  type Campaign,
+} from "./campaigns";
 import { circuitBoard } from "./circuit";
 import { PFID, STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
@@ -68,6 +75,11 @@ export function boardHref(name: string, slot?: string | null) {
   const tail = slot && (slot === PODIUM_SORT || isSteamId(slot)) ? "/" + slot : "";
   const campaign = campaignOfBoard(name);
   if (campaign) return campaignHref(campaign.slug) + tail;
+  /* an Event board's page is its Campaign's slot for it, which takes a row after it */
+  const event = eventOfBoard(name);
+  const home = event && campaignOfMap(event.id);
+  if (home)
+    return campaignHref(home.campaign.slug, event.id) + (slot && isSteamId(slot) ? "/" + slot : "");
   return "/board/" + name + tail;
 }
 
@@ -75,18 +87,28 @@ export function boardHref(name: string, slot?: string | null) {
 export const campaignHref = (slug: string, pfid?: string | null) =>
   "/campaign/" + slug + (pfid ? "/" + pfid : "");
 
+/* an Event's own static page beside the site (EventBoard's viewer), such as /leth/ */
+export const viewerHref = (folder: string) => "/" + folder + "/";
+
 /* every Campaign, as banners */
 export const campaignsHref = () => "/campaigns";
 
 /* what follows a Campaign's slug in its path, or null for what can't: nothing (its Overall
    board), podiums (its podium order), one of its Maps (`map`, inside its frame) or a Steam
-   ID whose row to mark (`focus`). Another Campaign's Map is shaped like a Steam ID, and is
-   none. The proxy and the page both read a path through it. */
+   ID whose row to mark (`focus`), on its board or, after an Event's id, on the Event's.
+   Another Campaign's Map is shaped like a Steam ID, and is none. The proxy and the page both
+   read a path through it. */
 export function campaignSlot(
   c: Campaign,
   slot: string | null | undefined,
+  row?: string | null,
 ): { map: string | null; focus: string | null; podiums: boolean } | null {
   const none = { map: null, focus: null, podiums: false };
+  /* only an Event's slot takes a row after it: a Workshop Map's row is on its own page */
+  if (row)
+    return slot && c.maps.includes(slot) && eventOf(slot) && isSteamId(row)
+      ? { ...none, map: slot, focus: row }
+      : null;
   if (!slot) return none;
   if (slot === PODIUM_SORT) return { ...none, podiums: true };
   if (c.maps.includes(slot)) return { ...none, map: slot };
@@ -96,9 +118,9 @@ export function campaignSlot(
 /* the Campaign a path under /campaign/ names and what follows its slug (campaignSlot), or
    null for a path that is no Campaign's page */
 export function campaignPath(path: string) {
-  const m = /^\/campaign\/([^/]+)(?:\/([^/]+))?\/?$/.exec(path);
+  const m = /^\/campaign\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?\/?$/.exec(path);
   const c = m && campaignOf(m[1]);
-  const at = c && campaignSlot(c, m[2]);
+  const at = c && campaignSlot(c, m[2], m[3]);
   return c && at ? { c, ...at } : null;
 }
 
@@ -113,6 +135,40 @@ export const isPrefabSlug = (s: string | undefined): s is string =>
   !!s && s.length <= 64 && WHOLE_PREFAB_SLUG.test(s);
 export const prefabsHref = () => "/prefabs";
 export const newPrefabHref = () => "/prefabs/new";
+/* the Generate your own tab and a Generator's page. GENERATORS in lib/generators/index.ts lists
+   the same keys in the same order; they are kept apart so a page that only links one never
+   loads them */
+export const GENERATOR_KEYS = [
+  "qr",
+  "sign",
+  "arrow",
+  "pixel-art",
+  "stairs",
+  "bridge",
+  "floor-tiles",
+  "spiral",
+  "loop",
+  "jump",
+  "plinko",
+  "rollers",
+  "lamp",
+  "fountain",
+  "trophy",
+  "fence",
+  "finish-arch",
+  "tree",
+  "pine",
+  "block-tree",
+  "bush",
+  "house",
+  "tower",
+  "castle",
+] as const;
+export const isGeneratorKey = (k: string): k is (typeof GENERATOR_KEYS)[number] =>
+  (GENERATOR_KEYS as ReadonlyArray<string>).includes(k);
+export const makePrefabHref = () => "/prefabs/make";
+export const generatorHref = (key: string) =>
+  isGeneratorKey(key) ? "/prefabs/make/" + key : makePrefabHref();
 export const prefabHref = (slug: string) => (isPrefabSlug(slug) ? "/prefab/" + slug : "/prefabs");
 
 /* what the upload ping's admin buttons ask a Prefab's page to confirm (`?admin=`) */
@@ -133,6 +189,8 @@ export const prefabFavoriteHref = (slug: string) => prefabApiHref(slug) + "/favo
 export const prefabTakeDownHref = (slug: string) => prefabApiHref(slug) + "/takedown";
 export const prefabBanHref = (id: string) => (isSteamId(id) ? "/api/prefab-bans/" + id : null);
 export const prefabLimitHref = (id: string) => (isSteamId(id) ? "/api/prefab-limits/" + id : null);
+/* the Chosen Skin API (db/chosen-skin-api.ts): saving or clearing your own pick */
+export const chosenSkinApiHref = () => "/api/me/skin";
 
 export const mapsHref = (view?: string | null) => "/maps" + (view ? "/" + view : "");
 
@@ -198,7 +256,7 @@ export function legacyPath(hash: string): string | null {
   return null;
 }
 
-/* a page's share image (lib/share.ts); v is the latest Refresh, so each Refresh is a new URL
-   for crawlers that keep a picture by its URL (Discord, Slack, X) */
-export const shareHref = (kind: ShareKind, id: string, asOf: number) =>
-  `/og/${kind}/${id}?v=${String(asOf)}`;
+/* a page's share image (lib/share.ts); v is the latest Refresh (or a Prefab's later edit), so
+   each is a new URL for crawlers that keep a picture by its URL (Discord, Slack, X) */
+export const shareHref = (kind: ShareKind, id: string, version: number) =>
+  `/og/${kind}/${id}?v=${String(version)}`;

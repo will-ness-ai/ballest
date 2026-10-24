@@ -20,7 +20,8 @@ on:
         default: false
 
 # Never alongside a refresh: both write the same tables, and the refresh's commit is a
-# snapshot this replay should see.
+# snapshot this replay should see. The Refresh runs on Fly (ADR 0012), out of this group's
+# sight, so stop it first (`fly scale count 0 -a ballest-collector`, and back to 1 after).
 concurrency:
   group: refresh-leaderboards
   cancel-in-progress: false

@@ -23,6 +23,12 @@ player's total is the sum over the Maps they hold a time on. The Workshop's coun
 Circuit season, made by players; the game itself knows nothing of it, so the list is ours.
 _Avoid_: playlist, series, collection (a Steam Workshop collection is a different thing)
 
+**Event board**:
+The Steam board of a one-off event the game ran, such as Leth Trial #1: neither a Track nor a
+Map. The board stops moving once the event ends, so the collector reads it once, and a
+Campaign can hold it as one of its Maps.
+_Avoid_: event map, trial board
+
 **Medal**:
 One of a Map's four time targets, Bronze, Silver, Gold and Author (fastest), set by its
 creator. A Track has the same four, set by the game. A time earns the best Medal whose target it meets. A player's page sorts their
@@ -42,6 +48,12 @@ _Avoid_: replay file, UGC (for the Ghost itself)
 The ball a run was rolled with, one of the game's 36, named in the run's Ghost. A board
 draws it in place of the player's marble.
 _Avoid_: ball colour, cosmetic
+
+**Chosen Skin**:
+The Skin a signed-in player picked to stand for them wherever no run's Skin is known: a
+run's own Skin first, then their Chosen Skin, then the marble in their hue. Multiballs draws
+it too.
+_Avoid_: avatar, icon, profile ball
 
 **Race**:
 Two runs' Ghosts played against each other on the site, a run against the leader (the
@@ -92,8 +104,22 @@ _Avoid_: streak, hold, tenure
 The game's one-day challenge: one Map, played in a window (`starts_at` to `ends_at`, as
 the developers' API gives them) on its own Steam board, apart from the Map's all-time
 board. Named by its date. It is live while its window is open, and final once a Refresh
-has read its board after the window closed; a Daily's standings count final Dailies only.
+or a Daily read has read its board after the window closed; a Daily's standings count final
+Dailies only.
 _Avoid_: daily challenge board, Daily Report (that is Multiballs' post)
+
+**Daily read**:
+A pass of the collector's Daily watcher between Refreshes: it reads only the open Dailies,
+every minute, and writes one only when its board moved or the read makes it final. Stored
+beside the Refreshes (`source = 'daily'`) but counted as none, so "refreshed" and every count
+of Refreshes leave it out.
+_Avoid_: daily refresh, mini Refresh
+
+**Daily Post**:
+Multiballs' card for one Daily in the game Discord's daily challenge channel, with its thread:
+posted when the Daily opens, kept current while it is live, and turned into the result once it
+closes. A lead held by one player on it is a Reign, as on the site.
+_Avoid_: daily challenge post, Daily Report (that is the stats post)
 
 **Daily Report**:
 Multiballs' once-a-day post of the Workshop standings (Maps played, Author Medals, world
@@ -131,6 +157,12 @@ _Avoid_: category, label
 The view of a Prefab its uploader picked: its gallery card is drawn from it, and its viewer
 starts there. Without one, three-quarters from above with the whole Prefab in view.
 _Avoid_: thumbnail angle, camera, pose
+
+**Generator**:
+A page that makes a Prefab file from a few settings: a sign (QR code, Sign), a tree or bush,
+or a building (House, Tower, Castle). What it makes is downloaded, never uploaded, so the
+gallery stays Prefabs players built.
+_Avoid_: maker, builder, template
 
 ### Matches
 
@@ -202,3 +234,10 @@ _Avoid_: sticky, pinned message
 Each Player's best time on the Match's Map, read the moment the Match ends, ranked. A
 Player with no time did not finish. If Steam is down then, the Result waits for it (up to 30
 minutes, the thread saying time's up), and failing that stands on the last times polled.
+
+**Play again**:
+The button on a Result. The first Player to press it opens a Lobby of the finished Match's
+length, as its creator, and the finished Match's other Players who didn't leave it are pinged in
+the finished Match's thread, once. Everyone who presses it after that joins the same Lobby until
+its time is up. Any Player may press it. Once that Lobby is gone, the next press opens a fresh one.
+_Avoid_: rematch, replay (a replay is a Ghost)

@@ -92,6 +92,9 @@ export interface MeshShape {
   max: Vec3;
 }
 
+/* a piece whose material names no colour word */
+export const UNKNOWN_COLOUR = "#8a90a0";
+
 /* the material's own colour word, as the editor's swatches show it */
 const COLOURS: Array<[RegExp, string]> = [
   [/Lime/i, "#9be22d"],
@@ -99,6 +102,8 @@ const COLOURS: Array<[RegExp, string]> = [
   [/Dark/i, "#3a3f4b"],
   [/Concrete/i, "#9a9a96"],
   [/Red/i, "#d8433a"],
+  /* before Blue: the first word that matches wins */
+  [/SkyBlue/i, "#5fb2ee"],
   [/Blue/i, "#3f7fe0"],
   [/Yellow/i, "#f2cc3a"],
   [/Orange/i, "#ef8a2f"],
@@ -108,7 +113,13 @@ const COLOURS: Array<[RegExp, string]> = [
   [/Black/i, "#202329"],
   [/Iron/i, "#2a2c31"],
   [/Aluminum/i, "#c9ccd2"],
+  [/Copper/i, "#b0683a"],
+  [/Wine/i, "#7a2a3a"],
 ];
+
+/** the colour the viewer draws a material in */
+export const colourOf = (material: string) =>
+  COLOURS.find(([re]) => re.test(material))?.[1] ?? UNKNOWN_COLOUR;
 
 export interface Shape {
   kind: ShapeKind;
@@ -132,7 +143,7 @@ export function pieceName(item: PrefabItem) {
 }
 
 /* Unreal's FRotator [pitch, yaw, roll] in degrees, as the three axes it sends local x, y, z to */
-function rotationRows([pitch, yaw, roll]: Vec3): [Vec3, Vec3, Vec3] {
+export function rotationRows([pitch, yaw, roll]: Vec3): [Vec3, Vec3, Vec3] {
   const r = Math.PI / 180;
   const [sp, cp] = [Math.sin(pitch * r), Math.cos(pitch * r)];
   const [sy, cy] = [Math.sin(yaw * r), Math.cos(yaw * r)];
@@ -184,7 +195,7 @@ export function shapesOf(file: PrefabFile): Array<Shape> {
       profile,
       size: [ext[0] / 100, ext[2] / 100, ext[1] / 100],
       matrix: [...ax, 0, ...ay, 0, ...az, 0, ...o, 1],
-      colour: COLOURS.find(([re]) => re.test(material))?.[1] ?? "#8a90a0",
+      colour: colourOf(material),
       glow: /Emissive/i.test(material),
       piece,
       material,
@@ -210,18 +221,40 @@ export function partsOf(file: PrefabFile): Array<{ piece: string; count: number 
   return [...counts].map(([piece, count]) => ({ piece, count })).sort((a, b) => b.count - a.count);
 }
 
+/* where a shape reaches along three's axis k (0 x, 1 up, 2 z), in metres, over its corners */
+function spanOf({ matrix: m }: Shape, k: number): [number, number] {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const x of [-0.5, 0.5])
+    for (const y of [-0.5, 0.5])
+      for (const z of [-0.5, 0.5]) {
+        const v = m[k] * x + m[4 + k] * y + m[8 + k] * z + m[12 + k];
+        lo = Math.min(lo, v);
+        hi = Math.max(hi, v);
+      }
+  return [lo, hi];
+}
+
 /* the prefab's size in metres: wide (x), deep (z) and tall (y), over every shape's corners */
 export function footprintOf(shapes: Array<Shape>): { w: number; d: number; h: number } {
-  const lo = [Infinity, Infinity, Infinity];
-  const hi = [-Infinity, -Infinity, -Infinity];
-  for (const { matrix: m } of shapes)
-    for (const x of [-0.5, 0.5])
-      for (const y of [-0.5, 0.5])
-        for (const z of [-0.5, 0.5])
-          for (let k = 0; k < 3; k++) {
-            const v = m[k] * x + m[4 + k] * y + m[8 + k] * z + m[12 + k];
-            lo[k] = Math.min(lo[k], v);
-            hi[k] = Math.max(hi[k], v);
-          }
-  return { w: hi[0] - lo[0], d: hi[2] - lo[2], h: hi[1] - lo[1] };
+  const size = (k: number) => {
+    const spans = shapes.map((s) => spanOf(s, k));
+    return Math.max(...spans.map((s) => s[1])) - Math.min(...spans.map((s) => s[0]));
+  };
+  return { w: size(0), d: size(2), h: size(1) };
+}
+
+/** the water's height in three's metres when some piece reaches through it, else null; `water`
+    is its Unreal z in cm (lib/ballmap.ts MAP_WATER). The game's water is everywhere at one
+    height, but the viewer draws it only where it meets the pieces, so a Map built high above it
+    isn't drawn floating over a sea */
+export function waterLevelOf(shapes: Array<Shape>, water: number | null): number | null {
+  if (water === null) return null;
+  const y = water / 100;
+  return shapes.some((s) => {
+    const [lo, hi] = spanOf(s, 1);
+    return lo < y && y < hi;
+  })
+    ? y
+    : null;
 }

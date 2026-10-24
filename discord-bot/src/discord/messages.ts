@@ -118,6 +118,9 @@ const acceptButton = (matchId: string) =>
   button("Accept", act("accept", matchId), ButtonStyle.Success);
 const declineButton = (matchId: string) =>
   button("Decline", act("decline", matchId), ButtonStyle.Danger);
+/** On a finished Match's thread: everyone who presses it lands in the same new Lobby. */
+const playAgainButton = (matchId: string) =>
+  button("Play again", { _tag: "PlayAgain", matchId }, ButtonStyle.Success);
 
 const cardButtons = (v: CardView) => {
   const join = () =>
@@ -234,7 +237,7 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
     case "Opened":
       return {
         content: line(
-          art.marbles.forPlayer(post.by.steamId),
+          art.marbles.forPlayer(post.by.steamId, post.skin),
           `**${who(post.by.discordId)}** opened a ${post.minutes}-minute ${MATCH_TYPE_NAME[post.type]}`,
         ),
         ...quiet,
@@ -242,7 +245,7 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
     case "Challenged": {
       return {
         content: line(
-          art.marbles.forPlayer(post.by.steamId),
+          art.marbles.forPlayer(post.by.steamId, post.skin),
           `${who(post.target.discordId)} **${who(post.by.discordId)}** challenges you · ${post.minutes} min · answer <t:${unix(post.expiresAt)}:R>`,
         ),
         components: [row(acceptButton(matchId), declineButton(matchId))],
@@ -252,7 +255,7 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
     case "Accepted":
       return {
         content: line(
-          art.marbles.forPlayer(post.player.steamId),
+          art.marbles.forPlayer(post.player.steamId, post.skin),
           `**${who(post.player.discordId)}** accepted`,
         ),
         ...quiet,
@@ -260,14 +263,14 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
     case "Joined":
       return {
         content: line(
-          art.marbles.forPlayer(post.player.steamId),
+          art.marbles.forPlayer(post.player.steamId, post.skin),
           `**${who(post.player.discordId)}** joined`,
         ),
         ...quiet,
       };
     case "Left":
       return {
-        content: `-# ${line(art.marbles.forPlayer(post.player.steamId), `**${who(post.player.discordId)}** left`)}`,
+        content: `-# ${line(art.marbles.forPlayer(post.player.steamId, post.skin), `**${who(post.player.discordId)}** left`)}`,
         ...quiet,
       };
     case "Started":
@@ -304,7 +307,20 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
               : ""),
         ),
         ...pic,
+        components: [row(playAgainButton(matchId))],
         ...quiet,
+      };
+    case "PlayingAgain":
+      return {
+        content: line(
+          art.marbles.forPlayer(post.by.steamId, post.skin),
+          [
+            ...post.others.map((p) => who(p.discordId)),
+            `**${who(post.by.discordId)}** opened a ${post.minutes}-minute Lobby to play again`,
+          ].join(" "),
+        ),
+        components: [row(playAgainButton(matchId))],
+        allowedMentions: { users: post.others.map((p) => p.discordId) },
       };
     case "WaitingForSteam":
       return {
@@ -386,6 +402,16 @@ export const pickDurationMessage = (
     ],
     ...quiet,
   };
+};
+
+// ---------------------------------------------------------------- Play again, privately
+
+/** The presser's answer: where the Lobby's thread is, and whether the Start is theirs. */
+export const playAgainText = (creator: boolean, threadId: string | null) => {
+  const where = threadId === null ? "" : ` <#${threadId}>`;
+  return creator
+    ? `You opened the Lobby${where}. Press **Start** on its Card once everyone's in.`
+    : `You're in the Lobby${where}.`;
 };
 
 // ---------------------------------------------------------------- Leave a live Match, privately

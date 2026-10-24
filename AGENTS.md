@@ -35,7 +35,7 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `docs/data.md` — the database the collector writes and the site reads, table by table,
   and how a Refresh gets there. Read it before changing a table or the write path.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
-- `tools/steampy_collect.py` — the collector CI runs. **This is the live path.** It reads
+- `tools/steampy_collect.py` — the collector, run every three hours on Fly. **This is the live path.** It reads
   the Circuit boards and keeps the Workshop boards current (`collect_workshop`).
 - `tools/steampy_common.py` — the steam.py leaderboard requests the collector and the
   Discord script share: read a board by ID, find a board by name.
@@ -50,18 +50,24 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   (`docs/data.md`, "Ghosts"; `docs/site.md`, "Ball skins").
 - `tools/map_files.py` — the collector's Map file step, after the Ghost step: downloads each
   Workshop Map's new or changed file into `map_files` for the 3D view (`docs/data.md`, "Map files").
-  `map-files.yml`, by hand, runs it alone for an hour to fill a backlog, and `add-maps.yml` runs it
-  on just the Maps it added.
-- `tools/add_maps.py` — adds the Workshop's newest Maps between Refreshes, run by
-  `add-maps.yml` when Multiballs hears a post in the game Discord's #new-tracks
+  The service asks it alone for an hour to fill a backlog (`ask map-files?budget=3600`).
+- `tools/add_maps.py` — adds the Workshop's newest Maps between Refreshes, run by the
+  collector's service when Multiballs hears a post in the game Discord's #new-tracks
   (`docs/data.md`, "New Maps").
 - `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
   Workshop links) and prints the `maps:` line; `docs/site.md`, "Campaigns".
-- `.github/workflows/refresh.yml` — cron `0 */3 * * *`, writes the Refresh to the database
-  and revalidates the site's cached reads; it commits nothing. `backfill.yml`, by hand only,
-  runs the backfill against an empty production (cloud sessions can't reach Neon) in the
-  same concurrency group. `migrate.yml`, by hand with Will's OK, applies a branch's
-  migrations to production before it merges.
+- `tools/runner.py` — the collector's service on Fly.io (app `ballest-collector`, ADR 0012):
+  runs the Refresh every three hours on the hour (UTC), writing the database and revalidating
+  the site's cached reads, and every other job that logs into Steam, one at a time, since two
+  logins on one account drop each other. Between them the Daily watcher (`tools/daily_watch.py`)
+  stays logged in and reads the open Dailies every minute (`docs/data.md`, "Dailies"). Its private HTTP door takes a Refresh, a Map add or a
+  file backlog on request (`fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"`),
+  and a failure posts to the ops channel. The backlog stops starting downloads `BACKLOG_MARGIN` before a slot. `tools/fly.toml` and `tools/Dockerfile` build it, and
+  `collector.yml` deploys it on every push to `main` that touches `tools/*.py`. Logs: `fly logs -a ballest-collector`.
+- `.github/workflows/refresh.yml` — the Refresh by hand, only while the Fly service is down.
+  `backfill.yml`, by hand only, runs the backfill against an empty production (cloud sessions
+  can't reach Neon). `migrate.yml`, by hand with Will's OK, applies a branch's migrations to
+  production before it merges.
 - `.github/workflows/vercel-usage.yml` — daily, runs `tools/vercel_usage.py`, which reports the
   Vercel team's plan and renewal, this cycle against Pro's Flat Rate CDN tier, and whether the
   last 30 days would fit Hobby, to the private ops channel (`OPS_WEBHOOK_URL`). It posts on
@@ -116,7 +122,7 @@ secrets (`.env`, `tools/refresh_token.txt`) live in the main checkout and are fo
 a worktree.
 
 The collector writes only the database, and reads its memory from it first, so it never
-runs without one. A run writes `DATABASE_URL` (production, set only in CI). From a feature
+runs without one. A run writes `DATABASE_URL` (production, set only on Fly and in Actions secrets). From a feature
 branch, run it with `--dev`, which ignores `DATABASE_URL` and writes only
 `DEV_DATABASE_URL`, a local Postgres for now, not a Neon branch. Create a database and
 migrate it with
@@ -175,7 +181,8 @@ been switched over.
 same: a failed read in `board_reads`, its Entries untouched. A run that reads no Circuit board
 at all writes nothing and fails. The Workshop step never blocks the Circuit and never wipes a
 Map: a failed Map read keeps its Entries and its old counters (so the next run retries it), a
-Map the step skipped gets no `board_reads` row, and a catalogue that fails, comes back short of
+Map the step skipped gets no `board_reads` row, an Event board is read until one read
+succeeds and then never again (so its Entries stay open; a failed one never fails the run), and a catalogue that fails, comes back short of
 Steam's total, or shrinks by more than `WORKSHOP_SHRINK_LIMIT` counts no Map as read. Only a
 successful read moves `last_seen_refresh`, with one exception: `add_maps` writes a Map new since
 the last Refresh as if that Refresh's catalogue had seen it, so the site has its page (`docs/data.md`, "New Maps"). The whole Refresh is one transaction, so any error
@@ -216,7 +223,8 @@ Matt Pocock's `grill-with-docs` (with the `grilling` and `domain-modeling` it ca
 at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. Their
 `code-review` replaces the built-in `/code-review` here. `grill-design` comes from
 `will-ness-ai/skills`, adapted to prototype in the running app on a worktree, and is
-maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `wizard` (also `mattpocock/skills`) is adapted the
+maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `prefab-generators` (ours) adds
+Generators to Generate your own, with scripts that render a collage and spawn one in a sandbox game. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
 `writing-for-agents` (also `mattpocock/skills`) is adapted too: its `SKILL-MECHANICS.md` says how to word a call to another skill, and the vendored skills' calls follow it.
 `agent-tools` (ours) builds commands for agents; `retro` hands it the call chains it finds.
@@ -271,4 +279,4 @@ contents into a committed file, a commit message, or a PR description. The agree
 for this project is read-only, sourced from Steam rather than the developers' servers, at
 a modest cadence. The one exception is the public API the developers gave us for the
 Daily (ADR 0007): the collector asks it which Steam board is each day's Daily, with its
-endpoint and key in GitHub secrets only, and still reads the scores from Steam.
+endpoint and key in GitHub and Fly secrets only, and still reads the scores from Steam.

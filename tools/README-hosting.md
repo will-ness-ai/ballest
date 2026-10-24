@@ -1,14 +1,15 @@
 # Hosting Ballest leaderboards on `ballestrecords.com`
 
 The site is the Next.js app in `web/`, served by **Vercel** (ADR 0004) and reading a
-Postgres database on Neon (ADR 0005). The data is refreshed by a **GitHub Actions** job
-that logs into Steam with a **refresh token** (via `steam.py`), reads the full
-leaderboards, writes them to the database, and tells the site to read fresh (`POST /api/revalidate`). The site's pages are cached until then.
+Postgres database on Neon (ADR 0005). The data is refreshed by the collector's service on
+**Fly.io** (`tools/runner.py`, app `ballest-collector`, ADR 0012), which logs into Steam with a
+**refresh token** (via `steam.py`), reads the full leaderboards, writes them to the database,
+and tells the site to read fresh (`POST /api/revalidate`). The site's pages are cached until then.
 
-No machine of yours has to be running — the refresh happens entirely in CI.
+No machine of yours has to be running: the refresh happens entirely on Fly.
 
 ```
-GitHub Actions (every 3 hours)
+runner.py on Fly (every 3 hours, on the hour UTC)
   └─ steam.py logs in with STEAM_REFRESH_TOKEN (secret)
       └─ reads every campaign leaderboard (full) for appid 3339810
           └─ resolves names via STEAM_API_KEY (secret)
@@ -85,21 +86,38 @@ one so links already shared keep working; it is still a CNAME at Porkbun (where
 
 Vercel issues the certificates once the records resolve.
 
-### 6. Populate the data
+### 6. Start the collector on Fly
 
-Repo → **Actions → "Refresh leaderboards" → Run workflow**. It logs in, writes the Refresh
-to the database, and revalidates the site, which shows it at
-`https://ballestrecords.com` on the next request.
+From `tools/`, with `flyctl` logged in to the org that holds Multiballs (its private network is
+how the bot reaches the service):
+
+```bash
+fly apps create ballest-collector
+fly secrets set -a ballest-collector --stage DATABASE_URL=... STEAM_REFRESH_TOKEN=... \
+  STEAM_API_KEY=... BALLEST_API_KEY=... BALLEST_DAILY_URL=... REVALIDATE_SECRET=... OPS_WEBHOOK_URL=...
+fly deploy --ha=false
+fly tokens create deploy -a ballest-collector   # the GitHub secret FLY_COLLECTOR_TOKEN
+```
+
+Its first start finds no Refresh since the last slot and runs one at once: it logs in, writes
+the Refresh to the database, and revalidates the site, which shows it at
+`https://ballestrecords.com` on the next request. From then on `collector.yml` deploys it.
 
 ---
 
 ## Ongoing
 
-- The cron in `.github/workflows/refresh.yml` runs **every 3 hours**. Change the
-  `cron:` line to adjust cadence, or trigger manually anytime via **Run workflow**.
+- The service runs a Refresh **every 3 hours** (`SLOT_HOURS` in `tools/runner.py`). Run one
+  now with `fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"` and follow
+  it with `fly logs -a ballest-collector`. `.github/workflows/refresh.yml` runs one by hand,
+  only while the Fly service is down (two Steam logins on one account drop each other).
+- Between jobs the service keeps the Daily watcher (`tools/daily_watch.py`) logged in, reading
+  the open Dailies every minute; any job that needs Steam logs it off first. `status` shows it
+  as `daily-watch`.
 - To change which boards appear, edit `tools/campaign_common.py` (`BOARDS`).
 - If a refresh fails with a login/token error, re-mint (step 1) and update the
-  `STEAM_REFRESH_TOKEN` secret.
+  `STEAM_REFRESH_TOKEN` secret on Fly (`fly secrets set -a ballest-collector ...`) and in
+  GitHub.
 
 ## Local testing (optional)
 

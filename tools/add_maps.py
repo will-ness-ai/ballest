@@ -1,14 +1,15 @@
 """
 Add the Workshop's newest Maps to the database between Refreshes: the step a post in the
-game Discord's #new-tracks starts (Multiballs dispatches .github/workflows/add-maps.yml).
+game Discord's #new-tracks starts (Multiballs asks the collector's service, runner.py, which
+runs it on POST /add-maps).
 
 Reads the newest page of the Workshop catalogue (one Steam Web API request, no Steam login)
 and writes each Map the database lacks with db_writer.add_maps, so its page appears within
 minutes instead of at the next Refresh, with an empty board until it has times. Its board
 and Ghosts wait for that Refresh. Steam's list can lag the post, so while nothing is new it
 reads it again, TRIES reads in all, RETRY_SECONDS apart. Then it revalidates the site and
-names the Maps it added in the step's output, for the workflow's next step to download their
-files (map_files.py --maps).
+names the Maps it added in $GITHUB_OUTPUT, for the service to download their files
+(map_files.py --maps).
 
 It writes DATABASE_URL, or with --dev only DEV_DATABASE_URL (db_writer.database_url):
   DEV_DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev \\
@@ -47,7 +48,8 @@ def add_when_listed(newest, add, sleep):
 
 
 def name_in_output(pfids, env):
-    """Names the added Maps in the Actions step's output, as `added=<pfid>,<pfid>`."""
+    """Names the added Maps in the step's output, as `added=<pfid>,<pfid>`: the Actions
+    step's, or the file runner.py reads."""
     path = env.get("GITHUB_OUTPUT")
     if path:
         with open(path, "a") as f:

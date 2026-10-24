@@ -26,6 +26,7 @@ import {
   dailyCard,
   mapCard,
   playerCard,
+  prefabCard,
   shortAge,
   trackCard,
   type BoardTop,
@@ -187,6 +188,38 @@ describe("a Campaign's card", () => {
     const c = campaignCard(TEST, { players: 0, leader: null, finishedEveryMap: 0 });
     expect(c.headline).toEqual({ value: "—", label: "No times yet" });
     expect(c.tiles.map((s) => s.value)).toEqual(["3", "0", "0"]);
+  });
+});
+
+describe("a Prefab's card", () => {
+  const bench = {
+    slug: "bench",
+    name: "Bench",
+    uploader: { name: "Tenpin" },
+    pieces: 1234,
+    favorites: 3,
+  };
+
+  test("its uploader, then Pieces and Favorites", () => {
+    const c = prefabCard(bench);
+    expect(c.kind).toBe("prefab");
+    expect(c.kicker).toBe("Prefab · by Tenpin");
+    expect(c.title).toBe("Bench");
+    expect(c.headline).toBeNull();
+    expect(c.tiles).toEqual([
+      { value: "1,234", label: "Pieces" },
+      { value: "3", label: "Favorites" },
+    ]);
+  });
+
+  test("one favorite reads singular, and none is left out", () => {
+    expect(prefabCard({ ...bench, favorites: 1 }).tiles[1]).toEqual({
+      value: "1",
+      label: "Favorite",
+    });
+    expect(prefabCard({ ...bench, favorites: 0 }).tiles).toEqual([
+      { value: "1,234", label: "Pieces" },
+    ]);
   });
 });
 

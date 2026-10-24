@@ -5,7 +5,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
-import { SKINS, skinPicture } from "../lib/skins";
+import { SKIN_GROUPS, SKINS, skinName, skinPicture } from "../lib/skins";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 
@@ -20,5 +20,36 @@ describe("skins", () => {
     expect(skinPicture("/Game/Art/M_GoldReal.M_GoldReal")).toBe("/skins/DA_Skin_MedalGold.webp");
     expect(skinPicture(null)).toBeNull();
     expect(skinPicture("/Game/Art/New/MI_NewSkin.MI_NewSkin")).toBeNull();
+  });
+
+  test("the picker's groups hold every skin once, each named, colours first", () => {
+    const named = (group: string) =>
+      SKIN_GROUPS.find((g) => g.group === group)?.skins.map((s) => s.name);
+    expect(SKIN_GROUPS.map((g) => g.group)).toEqual(["Colours", "Metals", "Specials"]);
+    expect(named("Metals")).toEqual(["Gold", "Silver", "Bronze", "Pearl"]);
+    expect(named("Specials")).toEqual([
+      "Brick",
+      "Eyeball",
+      "Ice",
+      "Cosmic",
+      "Magma",
+      "Leth",
+      "Snow Globe",
+      "Disco",
+      "Spirit",
+      "Spooky",
+    ]);
+    expect(named("Colours")?.slice(0, 3)).toEqual(["Pink", "Light Pink", "Red"]);
+    const all = SKIN_GROUPS.flatMap((g) => g.skins.map((s) => s.skin));
+    expect(all.sort()).toEqual([...SKINS.keys()].sort());
+  });
+
+  test("a skin's name, or No skin for none or one the site doesn't know", () => {
+    expect(skinName("/Game/Art/M_GoldReal.M_GoldReal")).toBe("Gold");
+    expect(skinName("/Game/Art/Materials/Instances/Ball/MI_BallTurquiose.MI_BallTurquiose")).toBe(
+      "Turquoise",
+    );
+    expect(skinName(null)).toBe("No skin");
+    expect(skinName("/Game/Art/New/MI_NewSkin.MI_NewSkin")).toBe("No skin");
   });
 });

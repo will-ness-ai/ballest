@@ -1,6 +1,6 @@
 // The site's queries (db/site.ts) against the tiny dataset; every expected value is worked
 // out by hand from the comments in db/seed/datasets/tiny.ts.
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { entries, ghosts, refreshes } from "../db/schema";
@@ -10,6 +10,7 @@ import {
   boardPage,
   boardPlaces,
   boardScores,
+  chosenSkins,
   circuitCounts,
   freshness,
   derivedStandings,
@@ -302,6 +303,18 @@ describe("the Workshop", () => {
       mapsReadBy: "2026-09-01T00:00:00.000Z",
     });
   });
+
+  test("a Daily read since the last Refresh doesn't make the boards fresher", async () => {
+    const [read] = await t.db
+      .insert(refreshes)
+      .values({ startedAt: new Date("2026-09-01T07:00:00Z"), source: "daily" })
+      .returning({ id: refreshes.id });
+    try {
+      expect((await freshness(t.db)).refreshedAt).toBe("2026-09-01T06:05:00.000Z");
+    } finally {
+      await t.db.delete(refreshes).where(eq(refreshes.id, read.id));
+    }
+  });
 });
 
 describe("a player", () => {
@@ -378,5 +391,15 @@ describe("a board's record history", () => {
   test("an Overall board and an unknown board have none", async () => {
     expect(await historyInput(t.db, "OverallLeaderboard_EASeason2")).toBeNull();
     expect(await historyInput(t.db, "Map_Nope")).toBeNull();
+  });
+});
+
+describe("Chosen Skins", () => {
+  test("are every pick as its Skin; one the site has no picture for is left out", async () => {
+    /* tiny: p1 chose Cosmic; p3 chose a Skin the site doesn't list */
+    expect(await chosenSkins(t.db)).toEqual({
+      [p(1)]:
+        "/Game/Packs/Vefects/Stylized_Galaxy_Shader/Galaxy/Materials/MI_VFX_Lush_Galaxy_Shader_02.MI_VFX_Lush_Galaxy_Shader_02",
+    });
   });
 });

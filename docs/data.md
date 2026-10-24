@@ -21,11 +21,16 @@ The database sits in a Neon organization that Vercel manages, not in anyone's ow
 account, so it opens from Vercel: the `ballest` project's Storage tab, the database, then
 Open in Neon.
 
-- `refreshes`: one per collector Refresh, or per git snapshot replayed by the backfill
-  (`source`, and `commit_sha` for a backfill), and `full_sweep`, whether its Workshop step
-  read every Map's board.
-- `boards`: every Steam board, Tracks, Overall boards, each Map's and each Daily's, with
-  its kind, Season, display name, leaderboard ID and whether it scores points.
+- `refreshes`: one per collector Refresh, per Daily read (`CONTEXT.md`; `source = 'daily'`),
+  or per git snapshot replayed by the backfill (`source`, and `commit_sha` for a backfill),
+  and `full_sweep`, whether its Workshop step read every Map's board. Everything that counts
+  Refreshes or says when the boards were refreshed leaves the Daily reads out.
+- `boards`: every Steam board, Tracks, Overall boards, each Map's, each Daily's and each
+  Event board's, with its kind, Season, display name, leaderboard ID and whether it scores
+  points. An Event board (`kind = 'event'`, `EVENT_BOARDS` in `tools/campaign_common.py`) is
+  read by the Refreshes until one reads it ok (`read_events` over `events_due`, from the
+  collector's memory), and
+  never again, so its Entries are never closed. A failed one never fails the Refresh.
 - `board_reads`: which boards each Refresh read and whether the read succeeded. A Map not
   read in a Refresh has no row, and that says nothing about play.
 - `players` and `persona_history`: the current profile, and every persona with the first
@@ -58,6 +63,16 @@ Open in Neon.
   `hcontent_file`, which changes with each update), its size before compression
   (`raw_size`), the file gzip-compressed (`gzipped`, bytes) and when it was read. Only the
   current version is kept (ADR 0010).
+- `map_spins`: one per Map whose spinning GIF has been drawn for a Daily Post (spec #268), by
+  pfid (no foreign key): the `map_files` version it was drawn from, the GIF (`gif`, bytes,
+  about 4 MB) and when (`drawn_at`). Only the latest drawing is kept. Not the collector but
+  `daily-spin.yml` writes it (ADR 0013: drawing it needs a browser with WebGL), started by
+  Multiballs with a pfid (or by hand): `web/scripts/map-spin.ts` opens the Map's
+  3D view on ballestrecords.com in Chromium with software WebGL, drags it one full turn in 160
+  frames and encodes a 360 px GIF at 12.8 frames a second with ffmpeg. It refuses a Map with
+  no `map_files` row. The bot only reads it (`discord-bot/AGENTS.md`, "The Daily Post"). To
+  look at one without a database: `pnpm exec tsx scripts/map-spin.ts <pfid> --no-db --out
+spin.gif` in `web/`.
 
 ### Ghosts
 
@@ -106,10 +121,12 @@ the log counts the failures by error. So a Map whose manifest holds no map file 
 is downloaded again every run. That is deliberate: its creator's next update may add one,
 and it costs one download a run. When it wrote any file it revalidates the site. It is
 skipped without a catalogue or a database, and with `--dev` writes only `DEV_DATABASE_URL`.
-To fill a backlog in one go, run `.github/workflows/map-files.yml` by hand: it runs the same
-step alone (`python tools/map_files.py --budget <seconds>`), an hour by default, in the
-refresh's concurrency group, so a Refresh due meanwhile waits for it, and it fails when it
-wrote no file. `add-maps.yml` runs it too, on just the Maps it added, read from the newest page (`--maps`; "New Maps"). Only Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
+To fill a backlog in one go, ask the collector's service (`tools/runner.py`):
+`fly ssh console -a ballest-collector -C "python /app/runner.py ask map-files?budget=3600"` runs the same
+step alone (`python tools/map_files.py --budget <seconds>`) in its turn on the Steam login, so a
+Refresh due meanwhile waits for it, and it fails when it wrote no file. The service runs it too on
+just the Maps a #new-tracks post added, read from the newest page (`--maps`; "New Maps"). Only Fly
+and Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
 file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
 `getWorkshop` carries each Map's stored version.
 
@@ -118,7 +135,7 @@ file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps i
 A Daily's read follows the same rule as any board's: a failed or empty read is a
 `board_reads` row with `ok = false`, and its Entries stay as they were.
 
-The Daily step (`collect_dailies` in `tools/steampy_collect.py`) runs after the Workshop
+The Daily step (`collect_dailies` in `tools/steampy_common.py`) runs after the Workshop
 step and never blocks it or the Circuit. Without `BALLEST_API_KEY` and
 `BALLEST_DAILY_URL` (GitHub secrets, given to the collector step only; the URL is a prefix
 the collector appends the date to) it is skipped with a log line. It plans from the
@@ -134,9 +151,35 @@ holds up the Circuit and Workshop write; the rest waits for the next run. Nothin
 they ran 00:00 to 00:00 UTC through 2026-09-04, 25 hours on 09-05, and 01:00 to 01:00
 since. The collector never prints the key or the URL.
 
+Between Refreshes the Daily watcher (`tools/daily_watch.py`) runs the same step every
+`DAILY_EVERY` seconds (a minute) on one Steam login, for today's and yesterday's dates only
+(`daily.watch_since`; older ones are the Refresh's), so today's Daily is on the site within a
+minute of opening and follows its board all day. It writes a Daily read (`source = 'daily'`,
+the Dailies only) for a Daily the database doesn't hold yet, even with no times, and then only
+when its board moved since it was last written or the read makes it final (`daily.Watch`), and
+nothing otherwise, so a quiet board leaves the database asleep. It starts from the open
+Entries of each Daily not yet final, so a restart rewrites nothing. Its
+revalidate names the Dailies it wrote (`?daily=<board>`), which expires only the reads tagged
+`dailies` and those boards' own tags. `runner.py` logs it off whenever another job needs Steam
+and starts it again after; one that dies starts again a minute later, which rides out Steam's
+short drops, and ops hears once only when it has stayed down half an hour.
+
+### Chosen Skins
+
+A table the site writes (ADR 0009), which the collector never touches: `chosen_skins` is one
+row per player who picked a Chosen Skin (CONTEXT.md), the Skin as the object path a Ghost
+names (a key of `web/lib/skins.ts`) and when they chose it; clearing the pick deletes the row.
+`chosen_skin_saves` is one row per save, pick or clear, which the limit of 10 in a rolling hour
+counts (`PUT` and `DELETE /api/me/skin`, `web/db/chosen-skin-api.ts`); each save prunes the rows
+older than an hour. The site reads every
+pick, as its object path, in one cached read under its own tag, which only a save expires (`docs/site.md`, "Ball
+skins"). `tiny` seeds two, one the site has no picture for. Multiballs reads `chosen_skins` too,
+at most once a minute, for its images and Match Thread emojis (`discord-bot/AGENTS.md`, "Chosen
+Skins").
+
 ### Prefabs
 
-The only tables the site writes (ADR 0009); the collector never touches them. `prefabs`
+The other tables the site writes (ADR 0009); the collector never touches them. `prefabs`
 holds each upload: a slug from its first name that never changes, the name, description,
 Tags, the uploader's Steam ID and their Steam persona when they uploaded, the file's text
 exactly as sent, its piece count and size, the `angle` its picture is drawn from (null for the
@@ -151,8 +194,8 @@ from before uploads) to a database once, idempotently.
 ### New Maps
 
 A Map published since the last Refresh is added on its own, within minutes, when the game
-Discord's #new-tracks gets a post (spec #259): Multiballs starts `.github/workflows/add-maps.yml`
-a minute after the post (`discord-bot/src/newTracks.ts`), which runs `tools/add_maps.py`. That
+Discord's #new-tracks gets a post (spec #259): Multiballs asks the collector's service a minute
+after the post (`discord-bot/src/newTracks.ts`, `POST /add-maps`), which runs `tools/add_maps.py`. That
 reads the newest page of the catalogue (`campaign_common.newest_maps`, one Steam Web API request,
 no Steam login) and `db_writer.add_maps` writes each Map the database lacks in one transaction:
 its `boards` row with no board ID, `maps`, and one `map_history` row. It writes no Refresh and
@@ -161,18 +204,15 @@ reads no board. The row's first and last seen are the newest catalogue's Refresh
 listed and serves its page (with an empty board until it has times; `docs/site.md`, Routes), and its
 sessions and subscriptions are empty, so the next Refresh reads them as moved and looks its board
 up. While nothing is new it reads the page again, up to five reads a minute apart, since Steam's
-list can lag the post. Before any catalogue was written it adds nothing. The workflow's next step
-downloads the added Maps' files (`map_files.py --maps`, two minutes of downloads, the step stopped
-at five), so their 3D view comes within minutes too. It skips while `refresh.yml` or
-`map-files.yml` is queued or running, since a second Steam login on the same account can drop
-theirs. That check can't stop a Refresh that starts during the download: its newer login ends the
-download's session, not its own. A skipped or failed download leaves the file to the next Refresh,
-as any due file is. Ghosts come with that Refresh.
+list can lag the post. Before any catalogue was written it adds nothing. Ghosts come with the
+next Refresh.
 
-It runs in its own concurrency group, because a pending run in `refresh-leaderboards` would
-replace the scheduled Refresh waiting there. So a Refresh that read the catalogue before the Map
-was published and commits after `add_maps` leaves the Map unlisted, its link sending players home
-again, until the next Refresh.
+The collector's service on Fly (`tools/runner.py`, ADR 0012) runs it on `POST /add-maps`,
+then downloads the added Maps' files (`map_files.py --maps`, two minutes of downloads) in its
+turn on the Steam login, so their 3D view comes within minutes too; a failed download leaves the
+file to the next Refresh, as any due file is. Adding runs beside a Refresh, since it needs no Steam login, so a
+Refresh that read the catalogue before the Map was published and commits after `add_maps` leaves
+the Map unlisted, its link sending players home again, until the next Refresh.
 
 ### What the collector remembers
 
@@ -188,7 +228,8 @@ The database is also the collector's only memory between runs. Before it logs in
   last good read, with how many open Entries its board holds;
 - how many Maps the latest catalogue listed, for the shrink guard;
 - when the latest Refresh with `full_sweep` started;
-- every Daily it holds, for the Daily step to plan from.
+- every Daily it holds, for the Daily step to plan from, and each open Daily's open Entries
+  (`daily_boards`), for the Daily watcher to compare its reads with.
 
 `collect_workshop` in `tools/steampy_collect.py` reads a Map's board only when its Workshop
 session or subscription count moved since its last read, plus every board once every
@@ -197,10 +238,12 @@ logging in: it would have nowhere to write either.
 
 ### How a Refresh gets there
 
-`refresh.yml` asks for a Refresh every three hours, but GitHub starts it three to five times a
-day, often an hour or more late (measured over October 2026), so a three-hour window can pass
-with no run. Work spread across Refreshes counts Refreshes for that reason: a slice keyed on
-the clock window was skipped for weeks (PR #247).
+The collector's service on Fly (`tools/runner.py`, ADR 0012) runs a Refresh every three hours on
+the hour (UTC), and at once on start when the last slot passed with none, since a deploy stops a
+running one. Until 2026-10 GitHub Actions ran it, starting it three to five times a day, often an
+hour or more late, so a three-hour window could pass with no run. Work spread across Refreshes
+counts Refreshes for that reason: a slice keyed on the clock window was skipped for weeks
+(PR #247), and a failed or killed run still skips a window now.
 
 `record_refresh` in `tools/db_writer.py` is the collector's database step, called from
 `on_ready` with what that run read: the Circuit boards, the names of those whose read
@@ -262,7 +305,8 @@ copy of a template database `web/scripts/migrate.mjs` builds, and run in `check.
 ### The read layer
 
 The app reads the database only through `web/db/data.ts`, whose functions are
-`"use cache: remote"` (shared by every server instance), tagged `data`, with the `max` lifetime: what every page's frame needs
+`"use cache: remote"` (shared by every server instance), tagged `data` (`web/db/tags.ts`; the
+Daily reads also `dailies`, and a board's reads `board:<name>`, for a Daily read to expire), with the `max` lifetime: what every page's frame needs
 (`getSite`: when the boards were read, every Circuit board's count, the podium tallies), the
 Workshop's Maps with their figures (`getWorkshop`), a slice of a board (`getBoardPage`), a
 player's record (`getPlayer`) and the Players counts (`getStandings`), the Workshop standings
@@ -284,8 +328,8 @@ a Map gone from it keeps its Entries but leaves the Workshop pages and the count
 Score history (`scoreHistory` in `web/db/reads.ts`) is there for the history features.
 
 `POST /api/revalidate` with `Authorization: Bearer $REVALIDATE_SECRET` expires the `data`
-tag; anything else, including a deploy with no secret set, gets a 401. The collector calls
-it once a Refresh has committed.
+tag, or with `?daily=<board>` for each Daily a Daily read wrote only `dailies` and those
+boards' tags (`tagsToExpire`); anything else, including a deploy with no secret set, gets a 401. The collector calls it once a Refresh or a Daily read has committed.
 
 ### Seeding a branch
 

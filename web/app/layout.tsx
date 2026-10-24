@@ -1,9 +1,12 @@
 // Every page's document: the head the single-page site had (fonts, analytics, the link
 // preview), the drifting marbles behind everything, and the two page-wide behaviours,
-// the marble flip and the old #/ links. Each route's own frame is components/Shell.tsx.
+// the marble flip and the old #/ links, and every Chosen Skin for the marbles. Each route's own
+// frame is components/Shell.tsx.
 import type { Metadata, Viewport } from "next";
 
+import { ChosenSkins } from "../components/ChosenSkins";
 import { Ambient } from "../components/Marble";
+import { getChosenSkins } from "../db/data";
 import { LegacyHash, MarbleFlip } from "../components/Behaviours";
 import { SITE_ORIGIN } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE, pageTitle } from "../lib/rules";
@@ -21,6 +24,7 @@ import "./styles/history.css";
 import "./styles/daily.css";
 import "./styles/you.css";
 import "./styles/prefabs.css";
+import "./styles/generators.css";
 import "./styles/desktop.css";
 
 const DESCRIPTION =
@@ -61,7 +65,7 @@ export const viewport: Viewport = {
   themeColor: "#ffd447",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
@@ -81,7 +85,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Ambient />
-        {children}
+        <ChosenSkins value={await getChosenSkins()}>{children}</ChosenSkins>
         <LegacyHash />
         <MarbleFlip />
       </body>

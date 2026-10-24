@@ -4,6 +4,7 @@ import {
   PROFILE_SCALE,
   prismOf,
   shapesOf,
+  waterLevelOf,
   type MeshProfile,
   type PrefabFile,
 } from "../../lib/prefab";
@@ -28,6 +29,8 @@ export function buildScene(
   { THREE, RoundedBoxGeometry }: Awaited<ReturnType<typeof loadThree>>,
   file: PrefabFile,
   grid = true,
+  /* the height of the water the pieces sit in, Unreal z in cm: a Map's, none for a Prefab */
+  water: number | null = null,
 ) {
   const scene = new THREE.Scene();
   /* a key light and a fill from the other side, so no face is left to the sky light alone,
@@ -68,7 +71,8 @@ export function buildScene(
       matrices: Array<Array<number>>;
     }
   >();
-  for (const s of shapesOf(file)) {
+  const shapes = shapesOf(file);
+  for (const s of shapes) {
     const g = s.profile ? prismGeometry(s.profile) : geometry[s.kind];
     const key = `${g.uuid}|${s.colour}|${s.glow}`;
     let batch = batches.get(key);
@@ -106,7 +110,10 @@ export function buildScene(
   const box = new THREE.Box3().setFromObject(group);
   const centre = box.getCenter(new THREE.Vector3());
   const radius = box.getSize(new THREE.Vector3()).length() / 2 || 1;
-  if (grid) {
+  /* the water is drawn after the framing, which fits the pieces alone */
+  const level = waterLevelOf(shapes, water);
+  if (level !== null) scene.add(waterPlane(THREE, box, centre, radius, level));
+  else if (grid) {
     const size = Math.max(2, Math.ceil(radius * 1.6));
     /* a line every unit, but no more than GRID_MAX squares across, where a whole Map would
        otherwise draw thousands */
@@ -118,6 +125,41 @@ export function buildScene(
 }
 
 const GRID_MAX = 40;
+
+/* the game's water as a flat sheet at height y (metres), reaching WATER_REACH of the framing's
+   radius past the pieces on every side; it stands in for the ground grid, which would show
+   through it */
+function waterPlane(
+  THREE: Three,
+  box: import("three").Box3,
+  centre: import("three").Vector3,
+  radius: number,
+  y: number,
+) {
+  const reach = radius * WATER_REACH;
+  const size = box.getSize(new THREE.Vector3());
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(size.x + 2 * reach, size.z + 2 * reach),
+    new THREE.MeshStandardMaterial({
+      color: WATER_COLOUR,
+      /* rough enough that the sun leaves no white glare across it */
+      roughness: 0.7,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide,
+      /* pieces under the surface still draw through it */
+      depthWrite: false,
+    }),
+  );
+  plane.name = "water";
+  plane.rotateX(-Math.PI / 2);
+  plane.position.set(centre.x, y, centre.z);
+  return plane;
+}
+
+const WATER_REACH = 0.5;
+const WATER_COLOUR = "#2f7fc0";
 
 /* where the camera sits and looks for `angle` (lib/prefabs.ts PrefabAngle): at zoom 1, just
    far enough back to fit the whole prefab */
@@ -164,6 +206,31 @@ function fitDistance(camera: import("three").PerspectiveCamera, radius: number) 
   return (radius / Math.sin(Math.min(v, h))) * 1.05;
 }
 
+/* the viewer's field of view, which the angle's zoom is measured against, so every picture of
+   a Prefab frames as its uploader saw it */
+export const VIEW_FOV = 40;
+
+/* the camera's near and far planes: fixed for a Prefab, growing with a Workshop Map, which can
+   be hundreds of metres across and, from as far back as the zoom goes (20 fits) on a tall
+   screen, would otherwise fall past the far plane */
+export const planesFor = (radius: number) =>
+  [Math.max(0.05, radius / 2000), Math.max(2000, radius * 200)] as const;
+
+/* the camera a still picture is taken with, at `angle` (the browser's and the share image's) */
+export function stillCamera(
+  THREE: Three,
+  aspect: number,
+  centre: import("three").Vector3,
+  radius: number,
+  angle: PrefabAngle | null,
+) {
+  const camera = new THREE.PerspectiveCamera(VIEW_FOV, aspect, ...planesFor(radius));
+  const view = framing(THREE, camera, centre, radius, angle);
+  camera.position.copy(view.position);
+  camera.lookAt(view.target);
+  return camera;
+}
+
 /* one shared renderer draws every still, so a long list costs one WebGL context */
 let shared: Promise<{
   three: Awaited<ReturnType<typeof loadThree>>;
@@ -188,10 +255,7 @@ export async function stillOf(
   });
   const { three, renderer } = await shared;
   const { scene, centre, radius } = buildScene(three, file, false);
-  const camera = new three.THREE.PerspectiveCamera(40, w / h, 0.05, 2000);
-  const view = framing(three.THREE, camera, centre, radius, angle);
-  camera.position.copy(view.position);
-  camera.lookAt(view.target);
+  const camera = stillCamera(three.THREE, w / h, centre, radius, angle);
   renderer.setSize(w, h, false);
   if (background) renderer.setClearColor(background, 1);
   renderer.render(scene, camera);

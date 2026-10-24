@@ -13,10 +13,9 @@ manifest with no map file, writes nothing and is tried again next run. The step 
 raises: a failure is a warning, and the Refresh it follows is already written.
 
 Run on its own (`python tools/map_files.py [--budget SECONDS] [--maps PFIDS] [--dev]`), it
-logs into Steam and downloads every due Map within the budget: by hand through
-`.github/workflows/map-files.yml` for the whole catalogue's backlog, and from
-`.github/workflows/add-maps.yml` for the Maps a #new-tracks post just added, read from the
-Workshop's newest page (`--maps`).
+logs into Steam and downloads every due Map within the budget. The collector's service
+(runner.py) runs it so for the whole catalogue's backlog when asked, and for the Maps a
+#new-tracks post just added, read from the Workshop's newest page (`--maps`).
 """
 
 import argparse

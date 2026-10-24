@@ -30,10 +30,12 @@ import {
 
 import type { PrefabAngle } from "../lib/prefabs";
 
-export const refreshSource = pgEnum("refresh_source", ["collector", "backfill"]);
+export const refreshSource = pgEnum("refresh_source", ["collector", "backfill", "daily"]);
 
 // One pass of the collector over Steam. A backfill Refresh is one snapshot of data/ from
-// git, dated at its commit, so what it first saw was first seen no later than that.
+// git, dated at its commit, so what it first saw was first seen no later than that. A
+// `daily` row is a Daily read (CONTEXT.md): the open Dailies only, between Refreshes, so
+// what counts Refreshes or says when the boards were refreshed leaves it out.
 export const refreshes = pgTable("refreshes", {
   id: serial("id").primaryKey(),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
@@ -45,10 +47,10 @@ export const refreshes = pgTable("refreshes", {
   fullSweep: boolean("full_sweep").notNull().default(false),
 });
 
-export const boardKind = pgEnum("board_kind", ["track", "overall", "map", "daily"]);
+export const boardKind = pgEnum("board_kind", ["track", "overall", "map", "daily", "event"]);
 
-// Every board Steam holds: the Circuit's Tracks and Overall boards, each Map's, and each
-// Daily's.
+// Every board Steam holds: the Circuit's Tracks and Overall boards, each Map's, each
+// Daily's, and each Event board's (read once).
 export const boards = pgTable("boards", {
   name: text("name").primaryKey(),
   kind: boardKind("kind").notNull(),
@@ -229,6 +231,17 @@ export const mapFiles = pgTable("map_files", {
   readAt: timestamp("read_at", { withTimezone: true }).notNull(),
 });
 
+// A Map's spinning 3D GIF for its Daily Post (spec #268): one full turn of the Map's 3D view on
+// the site, drawn by daily-spin.yml (scripts/map-spin.ts) when Multiballs asks, and read by the
+// bot. Only the latest drawing is kept; `version` is the map_files version it was drawn from,
+// so a Map whose file changed since is drawn again. No foreign key, as map_files has none.
+export const mapSpins = pgTable("map_spins", {
+  pfid: text("pfid").primaryKey(),
+  version: text("version").notNull(),
+  gif: bytea("gif").notNull(),
+  drawnAt: timestamp("drawn_at", { withTimezone: true }).notNull(),
+});
+
 // A Prefab (CONTEXT.md): a group of editor pieces a player uploaded, with the file exactly as
 // they sent it (ADR 0009, the first table the site itself writes). The slug comes from the
 // first name and never changes, so a link survives a rename. A deleted or taken-down Prefab
@@ -293,3 +306,24 @@ export const prefabLimits = pgTable("prefab_limits", {
   setAt: timestamp("set_at", { withTimezone: true }).notNull().defaultNow(),
   setBy: text("set_by").notNull(),
 });
+
+// A player's Chosen Skin (CONTEXT.md): the Skin a signed-in player picked to stand for them
+// wherever no run's Skin is known, written only by the site (PUT /api/me/skin). The Skin is
+// the object path a Ghost names (a key of lib/skins.ts), so every Skin is named one way. No
+// row is no pick: the hue marble.
+export const chosenSkins = pgTable("chosen_skins", {
+  steamId: text("steam_id").primaryKey(),
+  skin: text("skin").notNull(),
+  chosenAt: timestamp("chosen_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Every save of a Chosen Skin, a pick or a clear, which the hourly limit counts
+// (db/chosen-skin-api.ts). Older ones are pruned as new ones land.
+export const chosenSkinSaves = pgTable(
+  "chosen_skin_saves",
+  {
+    steamId: text("steam_id").notNull(),
+    savedAt: timestamp("saved_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("chosen_skin_saves_player").on(t.steamId, t.savedAt)],
+);

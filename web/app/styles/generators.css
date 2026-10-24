@@ -1,0 +1,424 @@
+/* ==========================================================================
+   The Generators (spec #299): the Prefabs page's tabs, the Generate your own cards, and a
+   Generator's page. Desktop overrides are in desktop.css.
+   ========================================================================== */
+
+/* the swatch colours, the same words the viewer paints pieces by (lib/prefab.ts) */
+:root {
+  --gen-white: oklch(93.8% 0.008 264.5);
+  --gen-dark: oklch(36.5% 0.022 268.3);
+  --gen-red: oklch(60.4% 0.18 28.3);
+  --gen-orange: oklch(71.6% 0.16 55.6);
+  --gen-yellow: oklch(85.4% 0.155 91);
+  --gen-lime: oklch(83.3% 0.208 131.6);
+  --gen-blue: oklch(60.2% 0.165 259.1);
+  --gen-sky: oklch(74.2% 0.115 237);
+  --gen-purple: oklch(60.6% 0.19 299.4);
+  --gen-wine: oklch(40.4% 0.105 7.7);
+  --gen-iron: oklch(28% 0.008 264.4);
+  --gen-copper: oklch(59.6% 0.12 49.5);
+  --gen-aluminum: oklch(84.5% 0.009 264.5);
+}
+
+/* Shared by players / Generate your own */
+.gen-tabs {
+  display: flex;
+  gap: 0.3rem;
+  border-block-end: 1px solid var(--line);
+}
+.gen-tabs a {
+  padding: 0.6rem 1rem;
+  border-block-end: 3px solid transparent;
+  color: var(--dim);
+  font-weight: 700;
+  text-decoration: none;
+}
+.gen-tabs a:hover {
+  color: var(--text);
+}
+.gen-tabs a[aria-current="page"] {
+  color: var(--text);
+  border-block-end-color: var(--accent);
+}
+
+/* the Generate your own categories, a heading over each one's cards */
+.gen-group {
+  display: grid;
+  gap: 0.6rem;
+}
+
+/* the Generate your own cards */
+.gen-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  gap: 1rem;
+}
+.gen-card {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  min-width: 0;
+}
+.gen-card:hover,
+.gen-card:focus-visible {
+  border-color: var(--accent);
+}
+.gen-card b {
+  margin-block-start: 0.3rem;
+  font-family: var(--f-hud);
+  font-size: calc(18rem / 16);
+}
+.gen-card small {
+  color: var(--dim);
+  font-size: calc(14rem / 16);
+}
+.gen-still {
+  display: block;
+  aspect-ratio: 16 / 10;
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 40%, var(--surface2), var(--solid));
+  overflow: hidden;
+}
+.gen-still img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* a Generator's page */
+.gen {
+  margin: 0 var(--pad);
+  display: grid;
+  gap: 1rem;
+  padding-block: 0.5rem 2rem;
+  min-width: 0;
+}
+.gen > * {
+  min-width: 0;
+}
+.gen-back {
+  color: var(--dim);
+  text-decoration: none;
+}
+.gen-back:hover {
+  color: var(--text);
+}
+.gen-split {
+  display: grid;
+  gap: 1.5rem;
+}
+.gen-side {
+  display: grid;
+  gap: 0.8rem;
+  align-content: start;
+  min-width: 0;
+}
+.gen-view {
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.gen-empty {
+  margin: 0;
+  padding: 4rem 1rem;
+  text-align: center;
+  color: var(--faint);
+}
+.gen-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  margin: 0;
+  color: var(--dim);
+  font-family: var(--f-hud);
+}
+.gen-stats b {
+  color: var(--text);
+}
+.gen-over,
+.gen-over b {
+  color: var(--warn);
+}
+.gen-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+.gen-actions .pf-dl {
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.gen-actions .pf-dl:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.gen-actions .pf-q {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+/* the controls (grill-design round 4, E) */
+.gen-controls {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  min-width: 0;
+}
+.gen-label,
+.gen-controls legend {
+  font-family: var(--f-hud);
+  font-size: calc(13rem / 16);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.gen-controls fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.gen-controls legend {
+  margin-block-end: 0.4rem;
+  padding: 0;
+}
+.gen-text {
+  display: grid;
+  gap: 0.35rem;
+}
+.gen-text input,
+.gen-text textarea {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--solid);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+.gen-slider {
+  display: grid;
+  gap: 0.25rem;
+}
+.gen-slider .gen-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.gen-slider output {
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.gen-slider input {
+  width: 100%;
+  height: 1.8rem;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.gen-slider input::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--accent) var(--fill), var(--surface2) var(--fill));
+}
+.gen-slider input::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface2);
+}
+.gen-slider input::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.gen-slider input::-webkit-slider-thumb {
+  appearance: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-block-start: calc(3px - 0.6rem);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--text);
+}
+.gen-slider input::-moz-range-thumb {
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--text);
+}
+.gen-slider input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+.gen-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.gen-swatches button {
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.gen-swatches button[aria-pressed="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.gen-choice div {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.gen-choice button {
+  padding: 0.45rem 0.9rem;
+  border: 0;
+  background: var(--solid);
+  color: var(--dim);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.gen-choice button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.gen-toggle {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gen-toggle input {
+  inline-size: 1.2rem;
+  block-size: 1.2rem;
+  accent-color: var(--accent);
+}
+.gen-fonts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.gen-fonts button {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--solid);
+  color: var(--text);
+  cursor: pointer;
+}
+.gen-fonts button.pixel {
+  font: 700 1rem monospace;
+  letter-spacing: 0.08em;
+}
+.gen-fonts button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.gen-shuffle {
+  justify-self: start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gen-shuffle:hover {
+  background: var(--surface2);
+}
+/* Pixel art's picture: a button-like label over a hidden file input */
+.gen-picture {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+.gen-picture small {
+  color: var(--dim);
+}
+.gen-file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.gen-file span {
+  display: inline-block;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+.gen-file:hover span {
+  background: var(--surface2);
+}
+.gen-file:focus-within span {
+  outline: 2px solid var(--accent);
+}
+.gen-more {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* the Generators' collage (/prefabs/collage), read by agents rather than players */
+.gen-collage {
+  display: grid;
+  gap: 4px;
+  width: max-content;
+  padding: 4px;
+  background: var(--bg);
+  font: 600 calc(12rem / 16) var(--f-body);
+  color: var(--text);
+}
+.gen-collage-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.gen-collage-row > b {
+  width: 9rem;
+}
+.gen-collage-tile {
+  position: relative;
+  width: 280px;
+  height: 190px;
+  background: var(--solid);
+}
+.gen-collage-tile small {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  color: var(--faint);
+}

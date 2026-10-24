@@ -20,11 +20,13 @@ import {
   type Player,
 } from "./domain.js";
 import {
+  ChosenSkins,
   Steam,
   Store,
   Surface,
   ThreadPost,
   cardView,
+  chosenSkinOf,
   type Entry,
   type Improvement,
   type ProfileNotFound,
@@ -103,6 +105,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     const steam = yield* Steam;
     const surface = yield* Surface;
     const store = yield* Store;
+    const chosenSkins = yield* ChosenSkins;
     const lock = yield* Effect.makeSemaphore(1);
     /** Engine state changes happen one at a time. Steam reads are kept outside it. */
     const locked = lock.withPermits(1);
@@ -112,6 +115,8 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * with the Players they are about to start with. Nothing else may touch them meanwhile.
      */
     const starting = yield* Ref.make(new Map<string, Match>());
+    /** Finished Matches whose Players a Play again has pinged already, so a second Lobby can't ping them again. */
+    const pingedAgain = yield* Ref.make(new Set<string>());
     /** Why each recent Match ended without a Result, so everyone who was in it can be told. */
     const closed = yield* Ref.make(new Map<string, RemovalReason>());
     const noteClosed = Effect.fn("noteClosed")(function* (matchId: string, reason: RemovalReason) {
@@ -124,10 +129,19 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
 
     // ---------------------------------------------------------------- helpers
 
+    /** A Match's Card view, with its Players' Chosen Skins as they stand now. */
+    const viewOf = Effect.fn("viewOf")(function* (m: Match) {
+      return cardView(m, yield* chosenSkins.all);
+    });
+    /** A Player's Chosen Skin as it stands now, for a thread post about them. */
+    const skinOf = Effect.fn("skinOf")(function* (player: Player) {
+      return chosenSkinOf(yield* chosenSkins.all, player.steamId);
+    });
+
     /** Persist a Match and redraw its Card. */
     const save = Effect.fn("save")(function* (m: Match) {
       yield* store.putMatch(m);
-      yield* surface.showCard(cardView(m));
+      yield* surface.showCard(yield* viewOf(m));
     });
 
     const orFail = <A, E>(found: Effect.Effect<Option.Option<A>>, missing: () => E) =>
@@ -196,6 +210,61 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       );
     });
 
+    // ---------------------------------------------------------------- opening an Invite
+
+    /**
+     * A new Invite, checked already: its Card, its Opened post (and a Challenge's ping), and its
+     * expiry. Called under the lock.
+     */
+    const open = Effect.fn("open")(function* (
+      creator: Player,
+      request: InviteRequest,
+      target: Player | null,
+      playAgainOf: string | null,
+    ) {
+      const m: Match = {
+        id: yield* store.nextMatchId,
+        type: request.type,
+        minutes: request.minutes,
+        creator,
+        target,
+        players: [creator],
+        state: "invite",
+        createdAt: yield* Clock.currentTimeMillis,
+        startedAt: null,
+        endsAt: null,
+        map: null,
+        bestTicks: {},
+        history: [],
+        left: [],
+        waitingForSteam: false,
+        playAgainOf,
+      };
+      yield* save(m);
+      yield* surface.post(
+        m.id,
+        ThreadPost.Opened({
+          by: creator,
+          skin: yield* skinOf(creator),
+          type: m.type,
+          minutes: m.minutes,
+        }),
+      );
+      if (target !== null)
+        yield* surface.post(
+          m.id,
+          ThreadPost.Challenged({
+            by: creator,
+            skin: yield* skinOf(creator),
+            target,
+            minutes: m.minutes,
+            expiresAt: expiresAt(m),
+          }),
+        );
+      yield* scheduleExpiry(m);
+      return m;
+    });
+
     // ---------------------------------------------------------------- Map selection
 
     /**
@@ -243,7 +312,10 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       endsAt: number,
       players: ReadonlyArray<Player>,
     ) {
-      yield* surface.post(m.id, ThreadPost.Started({ players, map, endsAt, card: cardView(m) }));
+      yield* surface.post(
+        m.id,
+        ThreadPost.Started({ players, map, endsAt, card: yield* viewOf(m) }),
+      );
       const bars = barsOf(players, map);
       if (bars.length > 0) yield* surface.post(m.id, ThreadPost.PlayedBefore({ bars }));
     });
@@ -304,8 +376,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         });
       yield* store.putMatch(after);
       for (const improvement of improvements)
-        yield* surface.post(after.id, ThreadPost.Improved({ improvement }));
-      yield* surface.showCard(cardView(after));
+        yield* surface.post(
+          after.id,
+          ThreadPost.Improved({ improvement, skin: yield* skinOf(improvement.player) }),
+        );
+      yield* surface.showCard(yield* viewOf(after));
       return after;
     });
 
@@ -348,12 +423,12 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       yield* save(done);
       yield* surface.post(
         done.id,
-        ThreadPost.Result({ standings: standings(done), card: cardView(done), steamDown }),
+        ThreadPost.Result({ standings: standings(done), card: yield* viewOf(done), steamDown }),
       );
       if (done.history.length > 0)
         yield* surface.post(
           done.id,
-          ThreadPost.Progression({ card: cardView(done), history: done.history }),
+          ThreadPost.Progression({ card: yield* viewOf(done), history: done.history }),
         );
     });
 
@@ -440,7 +515,10 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         yield* locked(
           Effect.gen(function* () {
             if (accepted !== null)
-              yield* surface.post(full.id, ThreadPost.Accepted({ player: accepted }));
+              yield* surface.post(
+                full.id,
+                ThreadPost.Accepted({ player: accepted, skin: yield* skinOf(accepted) }),
+              );
             const startedAt = yield* Clock.currentTimeMillis;
             const endsAt = startedAt + full.minutes * 60_000;
             const live: Match = {
@@ -494,7 +572,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       const m = yield* getInvite(matchId);
       const player = yield* joiner(m, discordId);
       yield* save({ ...m, players: [...m.players, player] });
-      yield* surface.post(matchId, ThreadPost.Joined({ player }));
+      yield* surface.post(matchId, ThreadPost.Joined({ player, skin: yield* skinOf(player) }));
     });
 
     /** A live Match, with the Map and end it always has once live. Closed once its time is up. */
@@ -530,9 +608,19 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           const withPb = pb === undefined ? map : withPersonalBest(map, pb);
           const joined: Match = { ...m, map: withPb, players: [...m.players, player] };
           yield* save(joined);
-          yield* surface.post(matchId, ThreadPost.Joined({ player }));
+          yield* surface.post(matchId, ThreadPost.Joined({ player, skin: yield* skinOf(player) }));
           yield* announceStart(joined, withPb, endsAt, [player]);
         }),
+      );
+    });
+
+    /**
+     * A Lobby takes joins while it is an Invite and while it is live. One whose Map is still
+     * being drawn is neither, so a join then is turned down as not open.
+     */
+    const join = Effect.fn("join")(function* (discordId: string, matchId: string) {
+      yield* locked(joinInvite(discordId, matchId)).pipe(
+        Effect.catchTag("NotOpen", () => joinLive(discordId, matchId)),
       );
     });
 
@@ -547,7 +635,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       if (m.creator.discordId === discordId)
         return yield* new NotAllowed({ reason: "Cancel the Lobby instead." });
       yield* save({ ...m, players: m.players.filter((p) => p.discordId !== discordId) });
-      yield* surface.post(matchId, ThreadPost.Left({ player }));
+      yield* surface.post(matchId, ThreadPost.Left({ player, skin: yield* skinOf(player) }));
     }, locked);
 
     /** Who may leave: a Player still racing in a live Match. */
@@ -581,7 +669,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           const { m: current } = yield* liveRacer(matchId, discordId);
           const read = yield* applyEntries(current, entries);
           const after: Match = { ...read, left: [...read.left, player.steamId] };
-          yield* surface.post(after.id, ThreadPost.Left({ player }));
+          yield* surface.post(after.id, ThreadPost.Left({ player, skin: yield* skinOf(player) }));
           if (racing(after).length > 0) return yield* save(after);
           yield* FiberMap.remove(timers, after.id);
           yield* after.history.length > 0 ? conclude(after, { steamDown: false }) : abandon(after);
@@ -598,7 +686,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         else yield* scheduleExpiry(m);
       } else {
         // Redrawn, so a Card drawn by an older build gets today's buttons.
-        yield* surface.showCard(cardView(m));
+        yield* surface.showCard(yield* viewOf(m));
         yield* FiberMap.run(timers, m.id, runLive(m.id));
       }
     }
@@ -633,40 +721,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           target = yield* playerOf(request.target);
           yield* assertFree(request.target);
         }
-        const m: Match = {
-          id: yield* store.nextMatchId,
-          type: request.type,
-          minutes: request.minutes,
-          creator,
-          target,
-          players: [creator],
-          state: "invite",
-          createdAt: yield* Clock.currentTimeMillis,
-          startedAt: null,
-          endsAt: null,
-          map: null,
-          bestTicks: {},
-          history: [],
-          left: [],
-          waitingForSteam: false,
-        };
-        yield* save(m);
-        yield* surface.post(
-          m.id,
-          ThreadPost.Opened({ by: creator, type: m.type, minutes: m.minutes }),
-        );
-        if (target !== null)
-          yield* surface.post(
-            m.id,
-            ThreadPost.Challenged({
-              by: creator,
-              target,
-              minutes: m.minutes,
-              expiresAt: expiresAt(m),
-            }),
-          );
-        yield* scheduleExpiry(m);
-        return m.id;
+        return (yield* open(creator, request, target, null)).id;
       }, locked),
 
       /** Public 1v1: anyone but the creator. Challenge: only the named Player. Starts the Match. */
@@ -697,15 +752,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         yield* withdrawInvite(matchId, "declined");
       }, locked),
 
-      /**
-       * A Lobby takes joins while it is an Invite and while it is live. One whose Map is still
-       * being drawn is neither, so a join then is turned down as not open.
-       */
-      join: Effect.fn("join")(function* (discordId: string, matchId: string) {
-        yield* locked(joinInvite(discordId, matchId)).pipe(
-          Effect.catchTag("NotOpen", () => joinLive(discordId, matchId)),
-        );
-      }),
+      join,
 
       /** A member's PB on a live Match's Map, the time a late join would have to beat; null if they haven't Played it. */
       personalBest: Effect.fn("personalBest")(function* (discordId: string, matchId: string) {
@@ -760,6 +807,66 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           return yield* new NotAllowed({ reason: "Only the creator can cancel." });
         yield* withdrawInvite(matchId, "cancelled");
       }, locked),
+
+      /**
+       * Play again on a finished Match: the first press opens a Lobby of the same length, with
+       * the presser as its creator; every later press joins that Lobby while it can be joined, or
+       * just finds it for someone already in it. Once it is gone or its time is up, the next press
+       * opens a fresh one. The finished Match's Players are pinged only the first time.
+       * `creator`: the Start is the presser's; `joinedNow`: this press put them in it.
+       */
+      playAgain: Effect.fn("playAgain")(function* (discordId: string, matchId: string) {
+        const found = yield* locked(
+          Effect.gen(function* () {
+            const finished = yield* getMatch(matchId);
+            if (finished.state !== "finished")
+              return yield* new NotAllowed({ reason: "That Match isn't over yet." });
+            const now = yield* Clock.currentTimeMillis;
+            const again = (yield* store.activeMatches).find(
+              (m) => m.playAgainOf === matchId && !timeIsUp(m, now),
+            );
+            if (again !== undefined) return { lobby: again, opened: false };
+            const creator = yield* playerOf(discordId);
+            yield* assertFree(discordId);
+            const lobby = yield* open(
+              creator,
+              { type: "lobby", minutes: finished.minutes, target: null },
+              null,
+              matchId,
+            );
+            const firstTime = !(yield* Ref.get(pingedAgain)).has(matchId);
+            yield* Ref.update(pingedAgain, (s) => new Set(s).add(matchId));
+            yield* surface.post(
+              matchId,
+              ThreadPost.PlayingAgain({
+                by: creator,
+                skin: yield* skinOf(creator),
+                others: firstTime ? racing(finished).filter((p) => p.discordId !== discordId) : [],
+                minutes: finished.minutes,
+              }),
+            );
+            return { lobby, opened: true };
+          }),
+        );
+        const answer = (joinedNow: boolean) => ({
+          lobbyId: found.lobby.id,
+          creator: found.lobby.creator.discordId === discordId,
+          joinedNow,
+        });
+        if (found.opened) return answer(true);
+        if (involves(found.lobby, discordId)) return answer(false);
+        // The Lobby may have moved on since it was found: a second press just landed the Player
+        // in it, or its Map is being drawn.
+        const joined = yield* join(discordId, found.lobby.id).pipe(Effect.either);
+        if (joined._tag === "Right") return answer(true);
+        const now = yield* store.getMatch(found.lobby.id);
+        if (Option.isSome(now) && involves(now.value, discordId)) return answer(false);
+        if ((yield* Ref.get(starting)).has(found.lobby.id))
+          return yield* new NotAllowed({
+            reason: "Its Lobby is drawing its Map. Press again in a moment.",
+          });
+        return yield* Effect.fail(joined.left);
+      }),
     } as const;
   }),
 }) {}

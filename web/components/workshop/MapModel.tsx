@@ -1,13 +1,13 @@
 "use client";
 // The Map in 3D inside its full screen (Map3D): its file read from /map/<pfid>/file at the
 // version the page holds, turned into a Prefab file (lib/ballmap.ts) and drawn by the Prefab
-// viewer from MAP_ANGLE. Its own chunk, loaded when the button is pressed, with three.js
-// behind it.
+// viewer from MAP_ANGLE, with the level's water where the Map reaches it. Its own chunk,
+// loaded when the button is pressed, with three.js behind it.
 import { useEffect, useState } from "react";
 
 import { MapWait } from "./MapWait";
 import { PrefabViewer } from "../prefabs/PrefabViewer";
-import { prefabOfBallmap, type BallmapFile } from "../../lib/ballmap";
+import { MAP_WATER, prefabOfBallmap, type BallmapFile } from "../../lib/ballmap";
 import type { PrefabFile } from "../../lib/prefab";
 import type { PrefabAngle } from "../../lib/prefabs";
 import { mapFileHref } from "../../lib/routes";
@@ -56,7 +56,7 @@ export default function MapModel({ pfid, version }: { pfid: string; version: str
      Map takes a moment to build after its file arrives */
   return (
     <>
-      {file && <PrefabViewer file={file} className="m3d-view" angle={angle} />}
+      {file && <PrefabViewer file={file} className="m3d-view" angle={angle} water={MAP_WATER} />}
       <MapWait failed={failed} />
     </>
   );

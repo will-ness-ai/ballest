@@ -43,6 +43,7 @@ import type {
   WorkshopMap,
   WorkshopStandings,
 } from "../lib/rows";
+import { SKINS } from "../lib/skins";
 import { countStandings, type StandingsEntry, type StandingsMap } from "../lib/workshop-standings";
 
 const TRACKS = [...S1_TRACKS, ...S2_TRACKS];
@@ -62,7 +63,8 @@ const contains = (q: string) => "%" + literal(q) + "%";
 export async function freshness(db: Db): Promise<Freshness> {
   const [r] = await rows<{ refreshed: Date | null; maps: Date | null }>(
     db,
-    sql`select (select max(coalesce(finished_at, started_at)) from refreshes) as refreshed,
+    sql`select (select max(coalesce(finished_at, started_at)) from refreshes
+        where source <> 'daily') as refreshed,
       (select min(last) from (
         select max(r.started_at) as last
         from board_reads br join refreshes r on r.id = br.refresh_id
@@ -266,6 +268,19 @@ export async function finishedEveryMap(db: Db, c: Campaign): Promise<number> {
   return r.n;
 }
 
+/* What a Map card shows of each board `where` picks (a condition on entries `e`), as a query:
+   (board, top3 as [steam ID, persona, score], gap13 from 1st to 3rd, runs, lead, and every
+   score and Steam ID for the counts made from them) */
+const boardStatsSql = (where: SQL) => sql`select r.board,
+    jsonb_agg(jsonb_build_array(r.steam_id, coalesce(p.persona, ''), r.score)
+      order by r.rank) filter (where r.rank <= 3) as top3,
+    min(r.score) filter (where r.rank = 3) - min(r.score) filter (where r.rank = 1) as gap13,
+    count(*)::int as runs,
+    min(r.score) filter (where r.rank = 1) as lead,
+    array_agg(r.score) as scores, array_agg(r.steam_id) as ids
+  from (${rankedSql(where)}) r join players p on p.steam_id = r.steam_id
+  group by r.board`;
+
 /* Every Workshop Map with its latest details and what the Workshop pages show of its board
    without reading it. Newest first. */
 export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
@@ -274,18 +289,8 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
     sql`with latest as (
         select distinct on (pfid) * from map_history
         order by pfid, last_seen_refresh desc, id desc
-      ), ranked as (
-        ${rankedSql(sql`e.board in (${listedMapsSql})`)}
       ), stats as (
-        select r.board,
-          jsonb_agg(jsonb_build_array(r.steam_id, coalesce(p.persona, ''), r.score)
-            order by r.rank) filter (where r.rank <= 3) as top3,
-          min(r.score) filter (where r.rank = 3) - min(r.score) filter (where r.rank = 1) as gap13,
-          count(*)::int as runs,
-          min(r.score) filter (where r.rank = 1) as lead,
-          array_agg(r.score) as scores, array_agg(r.steam_id) as ids
-        from ranked r join players p on p.steam_id = r.steam_id
-        group by r.board
+        ${boardStatsSql(sql`e.board in (${listedMapsSql})`)}
       )
       select m.pfid, m.board as name, l.title, coalesce(l.creator, '') as creator,
         m.creator_steam_id as cid, l.preview,
@@ -307,6 +312,24 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
       order by m.created_at desc nulls last, m.pfid`,
   );
   return found;
+}
+
+/* What a Map card shows of each Event board in `names` with open Entries: its runs (the
+   collector reads a board whole, so its open Entries are Steam's count, give or take a run
+   Steam dropped), its top three and the gap from 1st to 3rd */
+export async function eventBoards(
+  db: Db,
+  names: ReadonlyArray<string>,
+): Promise<
+  Array<{ board: string; runs: number; top3: WorkshopMap["top3"]; gap13: number | null }>
+> {
+  if (!names.length) return [];
+  return rows(
+    db,
+    sql`select s.board, s.runs, s.top3, s.gap13::float8 as gap13
+      from (${boardStatsSql(sql`e.board = any(${array(names)})`)}) s
+      join boards b on b.name = s.board and b.kind = 'event'`,
+  );
 }
 
 /* A Map's file as the collector stored it (gzip-compressed) and its version, or null when
@@ -359,10 +382,11 @@ export async function playerData(
     )
   ).at(0);
   if (!profile) return null;
-  /* a Daily's board is the player's Daily record, read on its own */
+  /* a Daily's board is the player's Daily record, read on its own; an Event board's place
+     shows in their Campaigns */
   const theirs = sql`e.board in (select board from entries
     where steam_id = ${steamId} and closed_refresh is null)
-    and b.kind <> 'daily'`;
+    and b.kind not in ('daily', 'event')`;
   const finishes = await rows<PlayerFinish>(
     db,
     sql`select board, rank, score::float8 as score, lead::float8 as lead, field::int as field from (
@@ -423,7 +447,8 @@ export async function workshopStandings(db: Db, since: number): Promise<Workshop
   const ms = (column: string) => sql.raw(`(extract(epoch from ${column}) * 1000)::float8`);
   const [last] = await rows<{ at: number | null }>(
     db,
-    sql`select ${ms("max(coalesce(finished_at, started_at))")} as at from refreshes`,
+    sql`select ${ms("max(coalesce(finished_at, started_at))")} as at from refreshes
+      where source <> 'daily'`,
   );
   /* medals are [bronze, silver, gold, author] in seconds */
   const maps = await rows<Omit<StandingsMap, "authorTicks"> & { author: number | null }>(
@@ -465,6 +490,18 @@ export async function workshopStandings(db: Db, since: number): Promise<Workshop
   };
 }
 
+/* Every player's Chosen Skin as its object path, by Steam ID; a Skin the site doesn't list
+   (one a game update renamed) is left out, so that player keeps the hue marble */
+export async function chosenSkins(db: Db): Promise<Record<string, string>> {
+  const found = await rows<{ steamId: string; skin: string }>(
+    db,
+    sql`select steam_id as "steamId", skin from chosen_skins`,
+  );
+  return Object.fromEntries(
+    found.flatMap(({ steamId, skin }) => (SKINS.has(skin) ? [[steamId, skin]] : [])),
+  );
+}
+
 /* Up to `limit` players on any board whose persona or Steam ID contains q, the names that
    start with it first: the Compare dialog's search */
 export async function searchPlayers(
@@ -498,7 +535,10 @@ export async function historyInput(db: Db, name: string): Promise<HistoryInput |
     )
   ).at(0);
   if (!board || board.points) return null;
-  const [latest] = await rows<{ now: Date }>(db, sql`select max(started_at) as now from refreshes`);
+  const [latest] = await rows<{ now: Date }>(
+    db,
+    sql`select max(started_at) as now from refreshes where source <> 'daily'`,
+  );
   const found = await rows<{
     steamId: string;
     persona: string;

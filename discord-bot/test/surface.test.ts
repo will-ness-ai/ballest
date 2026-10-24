@@ -343,7 +343,10 @@ describe("the channel", () => {
         channel.failNext("startThread", 3);
         yield* surface.showCard(view("m1"));
         expect(channel.threadCount()).toBe(0);
-        yield* surface.post("m1", ThreadPost.Opened({ by: ALICE, type: "public", minutes: 10 }));
+        yield* surface.post(
+          "m1",
+          ThreadPost.Opened({ by: ALICE, skin: null, type: "public", minutes: 10 }),
+        );
         expect(channel.threadPosts("m1")).toEqual(["Opened"]);
       }),
   );
@@ -393,6 +396,24 @@ describe("the end of a Match", () => {
         expect(yield* placeOf("m1")).toEqual({ messageId: "msg1", threadId: "thr2" });
         expect(yield* placeOf("m2")).toBeNull();
       }),
+  );
+  it.scoped("posts Play again in a finished Match's thread, even after a restart", () =>
+    Effect.gen(function* () {
+      const { channel, start } = yield* setup;
+      const surface = yield* start;
+      const finished = view("m1", { state: "finished" });
+      yield* surface.showCard(view("m1"));
+      yield* surface.post(
+        "m1",
+        ThreadPost.Result({ standings: [], card: finished, steamDown: false }),
+      );
+      const again = yield* start;
+      yield* again.post(
+        "m1",
+        ThreadPost.PlayingAgain({ by: ALICE, skin: null, others: [], minutes: 5 }),
+      );
+      expect(channel.threadPosts("m1")).toEqual(["Result", "PlayingAgain"]);
+    }),
   );
 });
 

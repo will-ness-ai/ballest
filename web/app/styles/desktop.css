@@ -430,6 +430,10 @@
     width: 64px;
     height: 64px;
   }
+  /* your ball's picker has room for more balls a row */
+  .skp {
+    inline-size: min(560px, calc(100% - 32px));
+  }
   .pstats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
@@ -766,6 +770,19 @@
   /* the upload form beside the preview and card it will make */
   .pfu-split {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  /* a Generator's controls beside its model, which fills the height */
+  .gen-split {
+    grid-template-columns: minmax(18rem, 26rem) minmax(0, 1fr);
+    align-items: start;
+  }
+  .gen-side {
+    position: sticky;
+    inset-block-start: 1rem;
+  }
+  .gen-view .pfv {
+    aspect-ratio: auto;
+    height: min(36rem, calc(100svh - 14rem));
   }
 
   footer {

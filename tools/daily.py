@@ -11,7 +11,7 @@ import json
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 
 # The first Daily the API knows: 2026-08-13..19 are not found (probe of 2026-10-06).
@@ -57,17 +57,17 @@ class DailyRead:
         return self.ok and self.read_at >= self.daily.ends_at
 
 
-def plan(known, now, first=FIRST_DAILY):
+def plan(known, now, since=FIRST_DAILY):
     """(dates to look up, Dailies to read) for a Refresh at `now`.
 
-    known: {date: Daily} the database holds. Every date from `first` through today (UTC)
+    known: {date: Daily} the database holds. Every date from `since` through today (UTC)
     with no final Daily is in play: one the database doesn't hold is looked up (so a date
     the API had no Daily for is asked again next run), and one it holds is read if it
     is due."""
     today = now.astimezone(UTC).date()
     lookups, reads = [], []
-    for i in range((today - first).days + 1):
-        d = str(first + timedelta(days=i))
+    for i in range((today - since).days + 1):
+        d = str(since + timedelta(days=i))
         held = known.get(d)
         if held is None:
             lookups.append(d)
@@ -187,3 +187,45 @@ async def collect(
         print(f"  [warn] Daily step stopped at its {budget:g} s budget; the rest waits")
         return out, missing, True
     return out, missing, False
+
+
+def watch_since(now):
+    """The earliest date the Daily watcher reads at `now`: yesterday (UTC), whose Daily is
+    open until 01:00 and is made final by the first read after; older ones are the Refresh's."""
+    return now.astimezone(UTC).date() - timedelta(days=1)
+
+
+class Watch:
+    """What the Daily watcher (daily_watch.py) holds between its reads: the Dailies the
+    database holds, as `known` for plan, and each Daily's board as it last wrote it, so a
+    read that changed nothing writes nothing (the database is asleep until something moves).
+    `boards` is {date: frozenset of (steam_id, score)}, each open Daily's board as the
+    database holds it (Memory.daily_boards), so a restarted watcher writes nothing new.
+
+    A Daily the database doesn't hold yet is written on its first read, even an empty one,
+    so the site has its page as soon as it opens. Otherwise a failed or empty read never
+    writes: the next read, or the next Refresh, tries again."""
+
+    def __init__(self, known, boards=None):
+        self.known = dict(known)
+        self._written = dict(boards or {})
+
+    @staticmethod
+    def _board(r):
+        return frozenset((x["steam_id"], x["score_ms"]) for x in r.rows or ())
+
+    def to_write(self, reads):
+        """The reads worth writing: the first of a Daily the database doesn't hold, and an
+        ok read whose board moved since it was last written, or that makes its Daily final."""
+        return [
+            r
+            for r in reads
+            if r.daily.date not in self.known
+            or (r.ok and (r.made_final or self._written.get(r.daily.date) != self._board(r)))
+        ]
+
+    def wrote(self, reads):
+        """Note reads the database now holds."""
+        for r in reads:
+            self._written[r.daily.date] = self._board(r)
+            self.known[r.daily.date] = replace(r.daily, final=r.made_final)

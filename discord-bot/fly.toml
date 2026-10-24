@@ -14,6 +14,12 @@ kill_timeout = 30
   PORT = "8080"
   # the game Discord's #new-tracks, where HubUpdates posts each new Workshop Map (src/newTracks.ts)
   NEW_TRACKS_CHANNEL_ID = "1539225431998341160"
+  # the collector's service (tools/runner.py, app ballest-collector), which adds them: Fly's
+  # private network, so it needs no secret
+  COLLECTOR_URL = "http://ballest-collector.internal:8080"
+  # the game Discord's daily challenge channel, where each Daily Post goes (src/dailyPost/); off
+  # until BALLEST_API_KEY and BALLEST_DAILY_URL are in fly secrets
+  DAILY_CHANNEL_ID = "1541802743205990460"
   # the site's Plausible, which the Traffic Report reads (src/traffic/); its key is a secret
   PLAUSIBLE_URL = "https://plausible-analytics-ce-production-d9c9.up.railway.app"
 

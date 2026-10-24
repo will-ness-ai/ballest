@@ -96,6 +96,29 @@ What to check where: Match rules in `test/engine.test.ts`, what lands in the cha
 `test/surface.test.ts`, each message's buttons and pings in `test/messages.test.ts`, and the
 discord.js calls (what Discord actually renders, threads, pings, edits) in the sandbox.
 
+## Chosen Skins
+
+A player's Chosen Skin (CONTEXT.md, spec #276) replaces their hue marble in every image the
+Renderer draws and in Match Thread lines; the bot reads no Ghosts, so its order is Chosen Skin,
+then hue. `src/chosenSkins.ts` reads `chosen_skins` at `DATABASE_URL` at most once a minute;
+with no database (`pnpm dev`, the sandbox) or one it can't read, everyone keeps their hue. Run
+the sandbox with `DATABASE_URL` set to a local database to see picks. The engine reads the
+`ChosenSkins` port as it builds each Card view and thread post, which carry their Players' Skins
+(`skins` on a `CardView`, `skin` on a post about one Player), so a redraw draws exactly what the
+post brought; the Link confirmation and the Daily Report read them as they build their image.
+`SkinPictures` (`src/render/skins.ts`) reads the pictures once at startup for the Renderer,
+`Marbles` and the Activity, which serves them at `/skins/` beside its fonts and draws a Player's
+Chosen Skin from what its API sends (`skins` on a Match view, `skin` on the viewer's Link, the
+Challenge picker and the Link preview). The Skin list and its
+pictures are copies of the site's (`src/render/skinList.ts`, `assets/skins/`, made by
+`scripts/skin_pngs.py`), since resvg reads no WebP and the Fly image is built from
+`discord-bot/` alone; `test/skins.test.ts` holds them to `web/lib/skins.ts`. `Marbles` uploads
+one application emoji per Skin (`skin_<name>`) at startup beside the hue marbles.
+
+`test/chosenSkins.test.ts` reads a throwaway database on the Postgres at `TEST_DATABASE_URL`
+(default the local one), migrated by `web/scripts/migrate.mjs`, so `pnpm test` needs Postgres
+running and `pnpm install` in `web/` too; `bot.yml` gives CI both.
+
 ## The Activity
 
 `src/activity/` is a Discord Activity (spec #46): the same Matches in a page Discord shows in an
@@ -104,8 +127,8 @@ Engine, tested in `test/activity.test.ts` like the engine tests; it names Player
 does and refuses anyone outside `DISCORD_GUILD_ID`. `auth.ts` swaps the SDK's OAuth code for an
 access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
 page (`web/`: `view.ts` is the markup, `app.ts` the state and actions, bundled by esbuild at
-startup), its fonts from `@fontsource`, and each Map's Workshop preview (from `src/previews.ts`),
-because Discord's proxy blocks every other host. The page polls every two seconds. The visual reference
+startup), its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and
+each Skin's picture, because Discord's proxy blocks every other host. The page polls every two seconds. The visual reference
 is the prototype on branch `claude/prototype-activity-surfaces`.
 
 The Activity's art in the Developer Portal (the app icon, and the cover and grid-view background
@@ -186,6 +209,74 @@ In production the bot's role needs View Channel, Send Messages, Attach Files, Cr
 Threads and Send Messages in Threads in #stats-by-will, and `fly secrets` needs `STATS_CHANNEL_ID`
 and `DATABASE_URL` (the collector's Neon URL).
 
+## The Daily Post
+
+`src/dailyPost/` posts each Daily's Daily Post (spec #268, design on branch
+`claude/prototype-daily-post`) in `DAILY_CHANNEL_ID` (in `fly.toml`). From 01:00 UTC it asks the
+developers' Daily API (`BALLEST_DAILY_URL` with the date appended, `BALLEST_API_KEY` in the
+`BallestAPIKey` header; both secrets, never logged) every minute until today's Daily answers, then
+posts its card, a Components V2 message with the Workshop screenshot attached, and a thread on it.
+Every 15 minutes it reads the Daily's own Steam board (ranks 1 to 3 and the entry count, one
+request through the bot's session) and edits the card only when what it shows changed; the first
+read at or after the Daily's end is its last, and always turns the card into the result: "🏆 X
+wins" (everyone on the fastest time shares it; a read sees only the top 3), the winning time and
+player count, the final podium, the pictures and the lead graph drawn without "now", `Closed
+<t:f> · final`, and the site button reading "Final board" for "Today's board", or "No winner"
+when nobody set a time. A bot that was down at the close makes
+that read as it starts. Each post is recorded in SQLite (`daily_posts`), so
+a restart resumes the live one and never posts a date twice. Each read that changes the lead (its
+time or who holds it) is recorded too (`daily_leads`, `lead.ts`): once the card shows it, with the
+lead graph under the podium redrawn by `src/render/` (`leadGraphScene`), the thread gets a quiet
+`-#` line for the first time, a steal (with how long the Reign it ended lasted), a tie, or the
+leader improving their own time; several changes between two reads are one line, the latest. A
+Components V2 message lists its files only in its components' `media` items, not under
+`attachments`, so an edit that replaces the graph reads them from there to keep the rest. A failed read keeps the card; the API
+failing, no Daily an hour after 01:00, and a post, thread or edit refused each reach ops once until
+they clear. It is off unless all three settings are set and the bot has View Channel, Send
+Messages, Embed Links, Attach Files, Create Public Threads and Send Messages in Threads there; then
+it says why in the log and the bot runs on.
+
+The spinning 3D GIF beside the podium (`spin.ts`) is drawn in GitHub Actions, since it needs a
+browser with WebGL: as the card goes up, the bot starts the site repo's `daily-spin.yml` on `main`
+for the Map (`GITHUB_DISPATCH_TOKEN`, a fine-grained token with Actions read and write on
+`will-ness-ai/ballest` only), which stores the GIF in the leaderboard
+database's `map_spins` (`docs/data.md`). Each read, it looks there (`DATABASE_URL`, plain SQL) and
+edits the GIF in once one is drawn from the Map's current file or since it asked. A Map with no
+`map_files` row gets no GIF and no run, and one already drawn from the same file is used without
+a run. A run that fails tells ops itself at once, naming the Map (`daily-spin.yml`'s last step);
+a run that can't be started, or no GIF an hour after asking, reaches ops once from the bot. The
+card stays without it. Without both settings the card has no GIF. An edit that attaches a file names
+every picture the card keeps, read from its components (a Components V2 message lists none under
+`attachments`).
+
+On its first run with no Daily Posts recorded the bot backfills (`backfill` in `schedule.ts`): it
+posts the three Dailies before the one open now (before 01:00 UTC that is yesterday's, still
+live), oldest first, as closed cards with threads, then the open one as usual, and records them,
+so it happens once. Their data comes from the leaderboard database
+(`history.ts`, plain SQL at `DATABASE_URL`): the final board is the Daily's open Entries, and the
+lead is rebuilt from its Score history, every score the board held (closed ones included) from
+when its Ghost says it was set (`ghosts.set_at`, used only when it falls after the last read
+before the Refresh that first saw it, and before that Refresh ended) or else from that Refresh,
+until the same player's next score. A line timed by a Ghost reads like a live one; one timed by
+a Refresh says `by the <t:…:t> Refresh`. The graph steps at those times, clamped to the close.
+Their GIFs are asked for as a live one's, and edited into the closed card when they come (as is
+a live card's that the close came before). Without `DATABASE_URL` there is no backfill, and the
+log says so; a database that can't be read reaches ops. The SQL is tested against web/'s `tiny`
+dataset with more Daily rows (`test/dailyHistory.test.ts`, the Postgres at `TEST_DATABASE_URL`,
+after `pnpm install` in `web/`).
+
+What the card says is pure (`card.ts`, `test/dailyPost.test.ts`), its layout and buttons are in
+`messages.ts` (`test/messages.test.ts`), and the schedule in `schedule.ts` runs over ports on the
+TestClock (`test/dailyPostSchedule.test.ts`). The real adapters (`live.ts`) are checked by posting
+one: `pnpm daily-post <date>` posts that date's live card and thread into the sandbox channel (or
+`--channel <id>`, never the production one) with the bot account's Steam session, and records
+nothing. With `--close` it then keeps the card current as the schedule does until the Daily's
+end, so a past date is posted and at once closed by the schedule's own final edit (no GIF, ops
+warnings to the log only). With `DATABASE_URL` set to a local Postgres (it refuses any other)
+holding that date's Daily, a past date is posted instead as the backfill posts it, closed, from
+that database. Read it back with `pnpm --silent axi show <id> --in <channel>`, which
+lists and saves the files a Components V2 card shows.
+
 ## The Traffic Report
 
 `src/traffic/` posts the Traffic Report in the dev server's #search-analytics at 13:00 UTC, through
@@ -215,11 +306,12 @@ recording nothing. Plausible's host answers Fly but not a cloud session.
 
 `src/newTracks.ts` gets a new Workshop Map onto the site within minutes (spec #259). The game
 Discord's #new-tracks (`NEW_TRACKS_CHANNEL_ID`, in `fly.toml`) gets a post from the HubUpdates app as each Map
-goes up; a minute after a post the bot starts the site repo's `add-maps.yml` on `main` through
-GitHub's API (`GITHUB_DISPATCH_TOKEN`, a fine-grained token with Actions read and write on
-`will-ness-ai/ballest` only), and posts within that minute share the run. It never reads a post's
-words: the GuildMessages intent only says one arrived, and the workflow finds what is new
-(`docs/data.md`, "New Maps"). A dispatch that fails goes to the ops channel. It is off unless both
+goes up; a minute after a post the bot asks the collector's service on Fly to add them
+(`POST /add-maps` at `COLLECTOR_URL`, in `fly.toml`: Fly's private network, no secret; ADR 0012),
+and posts within that minute share the request. It never reads a post's words: the GuildMessages
+intent only says one arrived, and the collector finds what is new (`docs/data.md`, "New Maps").
+A request the collector refuses or can't take goes to the ops channel; a failed add reaches it
+from the collector. It is off unless both
 settings are set and the bot can view that channel, and then says why in the log; the bot runs on.
 The batching is tested on the TestClock (`test/newTracks.test.ts`).
 
@@ -228,7 +320,8 @@ The batching is tested on the TestClock (`test/newTracks.test.ts`).
 Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,
 `Dockerfile`). `.github/workflows/bot.yml` tests every PR and deploys every push to `main` that
 touches `discord-bot/`; nothing else deploys, and no checkout holds production's secrets. They
-live in `fly secrets`, and the repo holds only `FLY_API_TOKEN`, a deploy token for the one app.
+live in `fly secrets`, and the repo holds only `FLY_API_TOKEN`, a deploy token for the one app
+(`FLY_COLLECTOR_TOKEN` is the collector's, ADR 0012).
 `.dockerignore` keeps `.env` and databases out of the image; keep it that way.
 
 A deploy stops the old copy before starting the new one (one volume, one machine), and the
@@ -237,7 +330,8 @@ engine's restart recovery resumes live Matches. `src/ops.ts` pings Healthchecks.
 posts there daily (`OPS_WEBHOOK_URL`) once the Steam refresh token has 30 days left (the Traffic
 Report has its own channel, above); renew it
 with `tools/steampy_mint.py` and `fly secrets set STEAM_REFRESH_TOKEN=...`. Logs: `fly logs`.
-`.github/workflows/bot-cost.yml` posts a weekly cost estimate there (`scripts/cost_report.py`;
+`.github/workflows/bot-cost.yml` posts a weekly cost estimate there for the bot and for the
+collector's app (`scripts/cost_report.py`, once per app with that app's deploy token;
 Fly has no billing API, so it prices what is provisioned with the rates in that script, and
 reads payment health, billing status and card on file, from Fly's undocumented GraphQL API).
 `.github/workflows/vercel-usage.yml` posts the site's Vercel plan and usage there on Mondays,

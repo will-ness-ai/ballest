@@ -20,6 +20,8 @@ import {
   campaignBoard,
   campaignOf,
   campaignOfBoard,
+  EVENTS,
+  eventOf,
   mapLabel,
   type Campaign,
 } from "../lib/campaigns";
@@ -44,15 +46,20 @@ import { mapCard, timed, type MapCard } from "../lib/workshop";
 import { footprintOf, partsOf, shapesOf, type PrefabFile } from "../lib/prefab";
 import { fileNameOf } from "../lib/prefab-check";
 import { isPrefabSlug } from "../lib/routes";
+import type { ChosenSkinDeps } from "./chosen-skin-api";
 import { connect, type Db } from "./client";
 import type { PrefabDeps } from "./prefab-api";
 import { prefabList, prefabOf, type PrefabCard, type PrefabView } from "./prefabs";
 import * as q from "./site";
+import { boardTag, DAILY_TAG, DATA_TAG } from "./tags";
 
-export const DATA_TAG = "data";
+export { DATA_TAG } from "./tags";
 /* the Prefab reads, expired by every write the site makes to them (and, since an uploader's
    persona comes from the boards, by a Refresh too) */
 export const PREFAB_TAG = "prefabs";
+
+/* every player's Chosen Skin, expired only by a save (PUT or DELETE /api/me/skin) */
+export const CHOSEN_SKIN_TAG = "chosen-skins";
 
 let client: Db | undefined;
 
@@ -99,6 +106,15 @@ export async function getSite(): Promise<Site> {
     })),
     podiums: podiumTallies(placings),
   };
+}
+
+/* every player's Chosen Skin, as its object path by Steam ID (components/ChosenSkins.tsx):
+   read once per page by the root layout */
+export async function getChosenSkins(): Promise<Record<string, string>> {
+  "use cache: remote";
+  cacheTag(CHOSEN_SKIN_TAG);
+  cacheLife("max");
+  return q.chosenSkins(db());
 }
 
 /* every Circuit Track's Steam leaderboard ID, in the site's order (GET /api/tracks) */
@@ -154,7 +170,7 @@ export async function getMapCards(): Promise<Array<MapCard>> {
 /* a slice of a board in rank order, unfiltered; for the fixed slices a page shows */
 export async function getBoardPage(name: string, from: number, count: number) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   return q.boardPage(db(), name, { from, count });
 }
@@ -165,7 +181,7 @@ const BLOCK = 1000;
 
 async function getBoardBlock(name: string, k: number) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   return q.boardPage(db(), name, { from: k * BLOCK, count: BLOCK });
 }
@@ -192,6 +208,7 @@ export async function isBoard(name: string): Promise<boolean> {
   return (
     !!circuitBoard(name) ||
     !!campaignOfBoard(name) ||
+    EVENTS.some((e) => e.board === name) ||
     (pfid !== null && (await getMap(pfid)) !== null)
   );
 }
@@ -211,7 +228,7 @@ export async function getBoardRun(name: string, steamId: string) {
 
 async function boardRunOf(name: string, steamId: string) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   return q.boardRun(db(), name, steamId);
 }
@@ -225,7 +242,7 @@ export function searchBoard(name: string, query: string, from: number, count: nu
    board the page has already checked */
 export async function getBoardHistory(name: string): Promise<BoardHistory | null> {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   const input = await q.historyInput(db(), name);
   return input && boardHistory(input);
@@ -233,7 +250,7 @@ export async function getBoardHistory(name: string): Promise<BoardHistory | null
 
 export async function getBoardScores(name: string) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   return q.boardScores(db(), name);
 }
@@ -251,7 +268,7 @@ export async function getBoardPlaces(name: string, ids: ReadonlyArray<string>) {
 /* the same, for Steam IDs the database gave (a podium tally's), which need no check */
 export async function getPlacesOf(name: string, ids: ReadonlyArray<string>) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, boardTag(name));
   cacheLife("max");
   return q.boardPlaces(db(), name, ids);
 }
@@ -267,7 +284,7 @@ async function getDerivedStandings() {
 /* whether the database has seen a Steam ID */
 async function isPlayer(steamId: string): Promise<boolean> {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.isPlayer(db(), steamId);
 }
@@ -308,7 +325,7 @@ export async function getWorkshopStandings(since: number): Promise<WorkshopStand
 /* every Daily's date, oldest first */
 export async function getDailyDates(): Promise<Array<string>> {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.dailyDates(db());
 }
@@ -316,7 +333,7 @@ export async function getDailyDates(): Promise<Array<string>> {
 /* every Daily as the calendar draws it, oldest first */
 export async function getDailies(): Promise<Array<DailyCell>> {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.dailies(db());
 }
@@ -328,7 +345,7 @@ export async function getDaily(date: string): Promise<DailyDay | null> {
 
 async function dailyOf(date: string) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.dailyDay(db(), date);
 }
@@ -336,7 +353,7 @@ async function dailyOf(date: string) {
 /* the all-time Daily standings, over final Dailies only */
 export async function getDailyStandings(): Promise<DailyStandings> {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.dailyStandings(db());
 }
@@ -349,7 +366,7 @@ export async function getPlayerDailies(steamId: string): Promise<PlayerDailies |
 
 async function playerDailiesOf(steamId: string) {
   "use cache: remote";
-  cacheTag(DATA_TAG);
+  cacheTag(DATA_TAG, DAILY_TAG);
   cacheLife("max");
   return q.playerDailies(db(), steamId);
 }
@@ -380,8 +397,8 @@ async function campaignData(slug: string): Promise<CampaignData | null> {
   cacheLife("max");
   const c = campaignOf(slug);
   if (!c) return null;
-  const workshop = await getWorkshop();
-  const maps = c.maps.flatMap((pfid) => workshop.filter((m) => m.pfid === pfid));
+  const [workshop, events] = await Promise.all([getWorkshop(), eventMaps(c)]);
+  const maps = c.maps.flatMap((id) => [...workshop, ...events].filter((m) => m.pfid === id));
   if (!maps.length) return null;
   const boards = maps.map((m) => m.name);
   const label = (name: string) => {
@@ -401,6 +418,38 @@ async function campaignData(slug: string): Promise<CampaignData | null> {
   };
 }
 
+/* a Campaign's Event boards as its Maps, each read one (with open Entries) drawn as a Map
+   card draws a Workshop Map: its picture for the preview, Medals and Workshop counters none */
+async function eventMaps(c: Campaign): Promise<Array<WorkshopMap>> {
+  const events = c.maps.flatMap((id) => eventOf(id) ?? []);
+  const read = await q.eventBoards(
+    db(),
+    events.map((e) => e.board),
+  );
+  return events.flatMap((e) =>
+    read
+      .filter((b) => b.board === e.board)
+      .map((b) => ({
+        pfid: e.id,
+        name: e.board,
+        title: e.title,
+        creator: c.creator,
+        cid: c.creatorId,
+        preview: e.picture,
+        created: 0,
+        medals: [],
+        entryCount: b.runs,
+        sessions: 0,
+        subs: 0,
+        top3: b.top3,
+        gap13: b.gap13,
+        crowd: 0,
+        authorBeaten: 0,
+        fileVersion: null,
+      })),
+  );
+}
+
 /* a Campaign as the lists draw it: the Campaign switch, the banners, a player's cards */
 export interface ListedCampaign {
   c: Campaign;
@@ -410,7 +459,8 @@ export interface ListedCampaign {
   leader: BoardRow | null;
 }
 
-/* every Campaign getCampaign finds, most players first, equal counts in the curated order:
+/* every Campaign getCampaign finds, pinned ones first, then most players, equal counts in the
+   curated order:
    what the Campaign switch, the homepage's carousel and /campaigns list; one none of whose
    Maps the Workshop lists is shown nowhere */
 export async function getCampaigns(): Promise<Array<ListedCampaign>> {
@@ -424,7 +474,7 @@ export async function getCampaigns(): Promise<Array<ListedCampaign>> {
         ? [{ c: d.c, players: d.players, previews: d.maps.map((m) => m.preview), leader: d.leader }]
         : [],
     )
-    .sort((a, b) => b.players - a.players);
+    .sort((a, b) => Number(!!b.c.pinned) - Number(!!a.c.pinned) || b.players - a.players);
 }
 
 export interface PlayerCampaign extends Omit<PlayerCampaignRow, "slug"> {
@@ -553,4 +603,10 @@ async function prefabFileOf(slug: string) {
    read expired after a write so the change shows at once */
 export function prefabDeps(): PrefabDeps {
   return { db: db(), changed: () => revalidateTag(PREFAB_TAG, { expire: 0 }) };
+}
+
+/* what the Chosen Skin API writes with: this server's database, and the cached picks expired
+   after a save, so every page draws it on its next load without reading the boards again */
+export function chosenSkinDeps(): ChosenSkinDeps {
+  return { db: db(), changed: () => revalidateTag(CHOSEN_SKIN_TAG, { expire: 0 }) };
 }

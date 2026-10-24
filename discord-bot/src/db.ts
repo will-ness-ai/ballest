@@ -44,8 +44,21 @@ export const MigratorLive = SqliteMigrator.layer({
       const sql = yield* SqlClient.SqlClient;
       yield* sql`CREATE TABLE daily_reports (day TEXT PRIMARY KEY, message_id TEXT NOT NULL)`;
     }),
+    // Each Daily Post (spec #268) by its Daily's date, so a restart resumes the live one and
+    // never posts a date twice. `data` is the record as JSON (dailyPost/schedule.ts).
+    "0006_daily_posts": Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE daily_posts (date TEXT PRIMARY KEY, state TEXT NOT NULL, data TEXT NOT NULL)`;
+    }),
+    // Each read of a Daily that changed its lead (spec #268): its leaders (a JSON array of names)
+    // and leading time. It draws the Daily Post's lead graph and its thread's lines.
+    "0007_daily_leads": Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE daily_leads (date TEXT NOT NULL, at INTEGER NOT NULL, leaders TEXT NOT NULL, ticks INTEGER NOT NULL)`;
+      yield* sql`CREATE INDEX daily_leads_date ON daily_leads (date, at)`;
+    }),
     // Each day the Traffic Report was posted (UTC), so it is never posted twice.
-    "0006_traffic_reports": Effect.gen(function* () {
+    "0008_traffic_reports": Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       yield* sql`CREATE TABLE traffic_reports (day TEXT PRIMARY KEY)`;
     }),

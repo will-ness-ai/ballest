@@ -21,6 +21,15 @@ const [chkn, tilt, grav, maxx] = [
   p("シドニー"),
 ] as const;
 const names = new Map([chkn, tilt, grav, maxx].map((x) => [x.discordId, x.discordId]));
+// A few players with a Chosen Skin, to check the pictures by eye beside the hue marbles.
+const chosen: Readonly<Record<string, string>> = {
+  [grav.steamId]: "/Game/Art/Materials/Masters/M_LavaBall.M_LavaBall",
+  [tilt.steamId]: "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink",
+  "s-Slati Jnr": "/Game/Art/M_GoldReal.M_GoldReal",
+  "s-Chaos":
+    "/Game/Packs/Vefects/Stylized_Galaxy_Shader/Galaxy/Materials/MI_VFX_Lush_Galaxy_Shader_02.MI_VFX_Lush_Galaxy_Shader_02",
+};
+const skinOf = (steamId: string) => chosen[steamId] ?? null;
 const map = {
   pfid: "3791550212",
   title: "Gutter Run",
@@ -56,6 +65,7 @@ const base: CardView = {
   expiresAt: null,
   endsAt: null,
   waitingForSteam: false,
+  skins: chosen,
 };
 const cards: Record<string, CardView> = {
   "card-invite-lobby": base,
@@ -147,6 +157,7 @@ const program = Effect.gen(function* () {
         beatWorldRecord: null,
       },
       "gravwell",
+      skinOf(grav.steamId),
     ),
   );
   yield* save(
@@ -162,6 +173,7 @@ const program = Effect.gen(function* () {
         beatWorldRecord: null,
       },
       "tilt_queen",
+      skinOf(tilt.steamId),
     ),
   );
   yield* save(
@@ -177,6 +189,7 @@ const program = Effect.gen(function* () {
         beatWorldRecord: 12.981 * T,
       },
       "gravwell",
+      skinOf(grav.steamId),
     ),
   );
   const finalWr = cards["card-final-wr"];
@@ -195,16 +208,21 @@ const program = Effect.gen(function* () {
   yield* save("footer", yield* renderer.footer);
   yield* save(
     "link",
-    yield* renderer.link({
-      steamId: "76561198012345678",
-      personaName: "ChknThugget",
-      avatarUrl: "",
-      campaignTracks: 21,
-      campaignTrackTotal: 23,
-    }),
+    yield* renderer.link(
+      {
+        steamId: "76561198012345678",
+        personaName: "ChknThugget",
+        avatarUrl: "",
+        campaignTracks: 21,
+        campaignTrackTotal: 23,
+      },
+      null,
+    ),
   );
   yield* save("marble", yield* renderer.marble(96));
   const row = (name: string, n: number, place: number, move: number | "new", gain = 0) => ({
+    steamId: `s-${name}`,
+    skin: skinOf(`s-${name}`),
     name,
     n,
     place,
@@ -250,6 +268,43 @@ const program = Effect.gen(function* () {
         },
       ],
     }),
+  );
+  // A Daily Post's lead graph: the prototype's graph A (Daily #60, "the drop"), live and closed.
+  const opensAt = Date.UTC(2026, 9, 18, 1);
+  const hour = (h: number) => opensAt + h * 3_600_000;
+  const lead = (h: number, leaders: ReadonlyArray<string>, seconds: number) => ({
+    at: hour(h),
+    leaders,
+    ticks: Math.round(seconds * T),
+  });
+  const leads = [
+    lead(0.4, ["MitchPlease"], 8.912),
+    lead(1.17, ["FEDUS"], 8.701),
+    lead(2.67, ["MitchPlease"], 8.64),
+    lead(5.08, ["FEDUS"], 8.566),
+    lead(8.28, ["airman"], 8.532),
+    lead(12.8, ["airman", "snayK"], 8.532),
+  ];
+  const graph = { opensAt, closesAt: hour(24), leads };
+  yield* save("lead-graph", yield* renderer.leadGraph({ ...graph, now: hour(16.33) }));
+  yield* save("lead-graph-closed", yield* renderer.leadGraph({ ...graph, now: null }));
+  yield* save("lead-graph-tie-now", yield* renderer.leadGraph({ ...graph, now: hour(12.8) }));
+  yield* save(
+    "lead-graph-first",
+    yield* renderer.leadGraph({ ...graph, leads: leads.slice(0, 1), now: hour(0.5) }),
+  );
+  // A steal minutes before the close, and a lead first seen at it: names stay inside the image.
+  yield* save(
+    "lead-graph-late-steal",
+    yield* renderer.leadGraph({
+      ...graph,
+      leads: [...leads, lead(23.8, ["MitchPleaseAgain"], 8.5)],
+      now: null,
+    }),
+  );
+  yield* save(
+    "lead-graph-at-close",
+    yield* renderer.leadGraph({ ...graph, leads: [lead(24, ["snayK"], 17.585)], now: null }),
   );
   yield* Effect.log(`wrote samples to ${out}`);
 });
