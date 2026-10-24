@@ -65,6 +65,24 @@ describe("pr why", () => {
     expect(out).toContain("  notice (qa check): checked 306 views");
   });
 
+  it("keeps both runs' annotations, each once", () => {
+    const again = { ...build(8), annotations: [EXIT, { ...QA, message: "checked 2 views" }] };
+    const out = whyReport(HEAD, [build(7), again]).split("\n");
+    expect(out).toContain("  notice (qa check): checked 2 views");
+    expect(out.filter((l) => l === "  failure: Process completed with exit code 1.")).toHaveLength(
+      1,
+    );
+  });
+
+  it("names any conclusion but success or skipped, so it never reads as all green", () => {
+    for (const conclusion of ["action_required", "stale", "neutral"]) {
+      const run = { id: 3, name: "deploy", status: "completed", conclusion, steps: [] };
+      expect(whyReport(HEAD, [ok("lint"), run])).toBe(`head: ${HEAD}\ndeploy: ${conclusion}`);
+    }
+    const skipped = { id: 4, name: "deploy", status: "completed", conclusion: "skipped" };
+    expect(whyReport(HEAD, [skipped])).toBe(`head: ${HEAD}\nall green`);
+  });
+
   it("names a cancelled check, and a failed one that isn't an Actions job by its link", () => {
     const vercel = {
       id: 9,

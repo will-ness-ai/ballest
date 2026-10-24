@@ -2,8 +2,13 @@
 // them): each failed check of a PR's head, with its failed steps and its failure and notice
 // annotations, and nothing else. For agents; follows the agent-tools skill.
 
-/* the conclusions that make a check red */
-export const RED = new Set(["failure", "cancelled", "timed_out", "startup_failure"]);
+/* the conclusions that make a step red */
+const RED = new Set(["failure", "cancelled", "timed_out", "startup_failure"]);
+/* the only conclusions a finished check passes with */
+const GREEN = new Set(["success", "skipped"]);
+
+/* a finished check that didn't pass: failed, cancelled, action_required, stale, neutral... */
+export const notGreen = (run) => run.status === "completed" && !GREEN.has(run.conclusion);
 const LEVELS = new Set(["failure", "notice"]);
 // the runner's own notices on every job, which never say why one failed
 const NOISE = [/^Node\.js 20 is deprecated/, /ubuntu-latest label will migrate/];
@@ -36,16 +41,23 @@ function block(run, full) {
  * The report for head `sha` from its check runs ({ name, status, conclusion, detailsUrl,
  * steps: the Actions job's steps, or undefined for another app's check, annotations }).
  * A check red at the same steps on both the push and the pull_request event prints once,
- * from its first run (GitHub lists the newest first): the two differ only in timings.
+ * with both runs' annotations, each once.
  */
 export function whyReport(sha, runs, { full = false } = {}) {
   const out = [`head: ${sha}`];
   const seen = new Map();
-  for (const run of runs.filter((r) => RED.has(r.conclusion))) {
+  const same = (a, b) =>
+    a.annotation_level === b.annotation_level && a.title === b.title && a.message === b.message;
+  for (const run of runs.filter(notGreen)) {
     const key = [run.name, run.conclusion, ...failedSteps(run).map((s) => s.name)].join("\n");
     const prior = seen.get(key);
-    if (prior) prior.count += 1;
-    else seen.set(key, { run, count: 1 });
+    if (!prior) {
+      seen.set(key, { run: { ...run, annotations: [...(run.annotations ?? [])] }, count: 1 });
+      continue;
+    }
+    prior.count += 1;
+    const notes = prior.run.annotations;
+    for (const a of run.annotations ?? []) if (!notes.some((b) => same(a, b))) notes.push(a);
   }
   for (const { run, count } of seen.values()) {
     const times = count > 1 ? ` (${String(count)} runs)` : "";
