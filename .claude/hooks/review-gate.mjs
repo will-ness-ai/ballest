@@ -13,6 +13,7 @@ import {
   FOLLOW_UP_LINES,
   SKILLS,
   linesChanged,
+  loadable,
   mergeTargets,
   repoSlug,
   skillName,
@@ -76,13 +77,23 @@ function locate(target, cwd) {
   return { dir, slug, ours };
 }
 
-/* Why the gate refuses to let `target` merge, or null when it may (or is another repo's).
-   Throws when it can't tell, which the caller turns into a warning. */
+/* The skill folders this session read at its start: its project's and the user's. */
+const skillDirs = () =>
+  [process.env.CLAUDE_PROJECT_DIR, homedir()]
+    .filter(Boolean)
+    .map((d) => join(d, ".claude", "skills"));
+
+/* Why the gate refuses to let `target` merge, or null when it may (or is another repo's):
+   { deny } when this session can run every missing skill, and { warn } when it can't (Will,
+   2026-10-24, after a thread outside the repo left #336's merge to him). Throws when it can't
+   tell, which the caller turns into a warning. */
 function refusal(target, cwd) {
   const { dir, slug, ours } = locate(target, cwd);
   if (target.opaque)
     return dir
-      ? "A GraphQL mutation names its PR by node ID, so the review gate can't check it: merge with `gh pr merge <number>` instead."
+      ? {
+          deny: "A GraphQL mutation names its PR by node ID, so the review gate can't check it: merge with `gh pr merge <number>` instead.",
+        }
       : null;
   if (!ours) return null;
   const at = dir ?? HOME_REPO;
@@ -128,14 +139,19 @@ function refusal(target, cwd) {
       `/${skill} hasn't seen: ` +
       cs.map((c) => run("git", ["log", "-1", "--format=%h %s", c], at)).join("; "),
   );
-  return (
+  const reason =
     `PR #${number} isn't reviewed to its head (docs/agents/feature-workflow.md, steps 5 and 6). ` +
     lines.join(". ") +
     `. Commits after a run need no new one while they change fewer than ${FOLLOW_UP_LINES} lines in all` +
     `. Call the Skill tool for 'code-review' with fixed point ${since}, then for 'codebase-design', ` +
     "on the PR's head in this clone, fix what they find, push, and try again. " +
-    "Runs in this clone count from any session or worktree; an ad-hoc review or a run on another machine doesn't."
-  );
+    "Runs in this clone count from any session or worktree; an ad-hoc review or a run on another machine doesn't.";
+  if (missing.every(([skill]) => loadable(skill, skillDirs(), existsSync))) return { deny: reason };
+  return {
+    warn:
+      reason +
+      " This session's Skill tool can't find every one of them, so the gate lets this through: follow each missing skill's .claude/skills/<name>/SKILL.md by hand first, and say so in the PR's Checked section.",
+  };
 }
 
 function gate(input) {
@@ -146,8 +162,10 @@ function gate(input) {
         permissionDecision: "deny",
         permissionDecisionReason: `This repo squash-merges (docs/agents/issue-tracker.md): use \`gh api -X PUT repos/${slugAt(HOME_REPO)}/pulls/<n>/merge -f merge_method=squash\`, \`gh pr merge --squash\`, or merge_method squash.`,
       });
-    const reason = refusal(target, input.cwd);
-    if (reason) return preToolUse({ permissionDecision: "deny", permissionDecisionReason: reason });
+    const refused = refusal(target, input.cwd);
+    if (refused?.deny)
+      return preToolUse({ permissionDecision: "deny", permissionDecisionReason: refused.deny });
+    if (refused?.warn) return preToolUse({ additionalContext: refused.warn });
   }
 }
 
