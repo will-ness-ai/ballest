@@ -119,7 +119,6 @@ export const newPrefabHref = () => "/prefabs/new";
    the same keys in the same order; they are kept apart so a page that only links one never
    loads them */
 export const GENERATOR_KEYS = [
-  "qr",
   "sign",
   "arrow",
   "pixel-art",

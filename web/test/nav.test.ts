@@ -56,7 +56,7 @@ describe("the Section a path is in", () => {
       "/prefab/wrongwaysign": "prefabs",
       "/prefabs/new": "prefabs",
       "/prefabs/make": "prefabs",
-      "/prefabs/make/qr": "prefabs",
+      "/prefabs/make/sign": "prefabs",
       "/no-such-page": null,
     };
     for (const [path, section] of Object.entries(at)) expect(nav(path).section, path).toBe(section);
@@ -181,7 +181,7 @@ describe("a Section's sub-tabs", () => {
       "/prefab/wrongwaysign": ["Shared"],
       "/prefabs/new": ["Upload"],
       "/prefabs/make": ["Make your own"],
-      "/prefabs/make/qr": ["Make your own"],
+      "/prefabs/make/sign": ["Make your own"],
       "/no-such-page": [],
     };
     for (const [path, on] of Object.entries(at)) expect(lit(path), path).toEqual(on);
@@ -228,7 +228,7 @@ describe("the kind of page", () => {
       "/prefab/wrongwaysign": "Prefab",
       "/prefabs/new": "Upload",
       "/prefabs/make": "Generators",
-      "/prefabs/make/qr": "Generator",
+      "/prefabs/make/sign": "Generator",
       "/no-such-page": null,
     };
     for (const [path, kind] of Object.entries(at)) expect(nav(path).kind, path).toBe(kind);
@@ -268,7 +268,7 @@ describe("the breadcrumb trail", () => {
       "/prefab/wrongwaysign": ["Prefabs", "Shared"],
       "/prefabs/new": ["Prefabs"],
       "/prefabs/make": ["Prefabs"],
-      "/prefabs/make/qr": ["Prefabs", "Make your own"],
+      "/prefabs/make/sign": ["Prefabs", "Make your own"],
       "/no-such-page": [],
     };
     for (const [path, crumbs] of Object.entries(at)) expect(trail(path), path).toEqual(crumbs);
