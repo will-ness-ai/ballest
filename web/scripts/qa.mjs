@@ -349,8 +349,8 @@ async function check() {
   if ((at.name === "preview" || at.ids === "stress") && !flags.pages && !flags.all) {
     let changed;
     try {
-      /* a preview holds only pushed commits; a local build may hold the working tree too */
-      changed = changedFiles(ROOT, { committed: at.name === "preview" });
+      /* a preview holds the commit it was built from; a local build may hold the working tree */
+      changed = changedFiles(ROOT, { at: at.name === "preview" ? at.sha : undefined });
     } catch (e) {
       fail(
         `git can't tell what this branch changes: ${String(e instanceof Error ? e.message : e).split("\n")[0]}`,

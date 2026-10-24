@@ -86,7 +86,7 @@ describe("changedFiles", () => {
     change(git, dir);
     git("commit", "-qam", "topic");
     try {
-      return changedFiles(dir, { committed: true }).sort();
+      return { upTo: changedFiles(dir, { at: "HEAD" }).sort(), tree: changedFiles(dir).sort() };
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -96,7 +96,7 @@ describe("changedFiles", () => {
     const moved = branch({ "web/app/maps/page.tsx": "export default 1;\n" }, (git) => {
       git("mv", "web/app/maps", "web/app/workshop");
     });
-    expect(moved).toEqual(["web/app/maps/page.tsx", "web/app/workshop/page.tsx"]);
+    expect(moved.upTo).toEqual(["web/app/maps/page.tsx", "web/app/workshop/page.tsx"]);
   });
 
   it("leaves out a deleted module whose importer changed, but keeps one nothing imported", () => {
@@ -109,6 +109,15 @@ describe("changedFiles", () => {
       writeFileSync(join(dir, "web/lib/a.ts"), "export const a = 1;\n");
       git("rm", "-q", "web/lib/b.ts", "web/proxy.ts");
     });
-    expect(gone).toEqual(["web/lib/a.ts", "web/proxy.ts"]);
+    expect(gone.upTo).toEqual(["web/lib/a.ts", "web/proxy.ts"]);
+  });
+
+  it("holds a new file only up to the working tree, as a commit can't", () => {
+    const made = branch({ "web/lib/a.ts": "export const a = 1;\n" }, (git, dir) => {
+      writeFileSync(join(dir, "web/lib/a.ts"), "export const a = 2;\n");
+      writeFileSync(join(dir, "web/lib/new.ts"), "export const n = 1;\n");
+    });
+    expect(made.upTo).toEqual(["web/lib/a.ts"]);
+    expect(made.tree).toEqual(["web/lib/a.ts", "web/lib/new.ts"]);
   });
 });

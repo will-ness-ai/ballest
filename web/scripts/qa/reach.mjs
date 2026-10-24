@@ -34,6 +34,13 @@ const UNDRAWN = [
 ];
 const CODE = /\.(ts|tsx|mjs|js|css)$/;
 const EXTENSIONS = ["", ".ts", ".tsx", ".mjs", ".js", ".css", "/index.ts", "/index.tsx"];
+/* the paths a file's relative imports name, from the repo's root, before an extension is
+   looked for: ./a/b from web/lib/x.ts is web/lib/a/b */
+const specsOf = (file, text) =>
+  [...text.matchAll(IMPORT)]
+    .map(([, spec]) => spec)
+    .filter((spec) => spec.startsWith("."))
+    .map((spec) => posix.join(posix.dirname(file), spec).replace(/\/$/, ""));
 const IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*|@import\s+)["']([^"']+)["']/g;
 
 /* a page file's route segments, past web/app and any (group) */
@@ -96,13 +103,8 @@ export function reach(changed, root) {
     if (!edges.has(file))
       edges.set(
         file,
-        [...readFileSync(join(root, file), "utf8").matchAll(IMPORT)]
-          .map(([, spec]) => spec)
-          .filter((spec) => spec.startsWith("."))
-          .map((spec) => {
-            const base = posix.join(posix.dirname(file), spec);
-            return EXTENSIONS.map((e) => base + e).find(isFile);
-          })
+        specsOf(file, readFileSync(join(root, file), "utf8"))
+          .map((base) => EXTENSIONS.map((e) => base + e).find(isFile))
           .filter(Boolean),
       );
     return edges.get(file);
@@ -173,11 +175,11 @@ export function reach(changed, root) {
   return { all: null, pages, routes: [...reached].sort() };
 }
 
-/* the files this branch changes against main: its commits (and, unless `committed`, the
-   working tree and new files), a rename as its old path and its new, and a deleted file
-   unless a changed file imported it on main, as that importer is in the diff already.
-   Throws when git can't find main. */
-export function changedFiles(root, { committed = false } = {}) {
+/* the files this branch changes against main: its commits up to `at` (a commit, such as
+   the one a preview holds), or else up to the working tree with its new files; a rename as
+   its old path and its new, and a deleted file unless a changed file imported it on main,
+   as that importer is in the diff already. Throws when git can't find main. */
+export function changedFiles(root, { at } = {}) {
   const run = (...args) =>
     execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: "pipe" });
   const git = (...args) =>
@@ -192,7 +194,7 @@ export function changedFiles(root, { committed = false } = {}) {
       "--no-renames",
       `--diff-filter=${filter}`,
       base,
-      ...(committed ? ["HEAD"] : []),
+      ...(at ? [at] : []),
     );
   const kept = diff("d");
   const deleted = diff("D");
@@ -206,16 +208,16 @@ export function changedFiles(root, { committed = false } = {}) {
       } catch {
         continue; // new on this branch
       }
-      for (const [, spec] of text.matchAll(IMPORT))
-        if (spec.startsWith(".")) importedOnMain.add(posix.join(posix.dirname(f), spec));
+      for (const spec of specsOf(f, text)) importedOnMain.add(spec);
     }
   const imported = (file) =>
-    EXTENSIONS.some((e) => e && file.endsWith(e) && importedOnMain.has(file.slice(0, -e.length))) ||
-    importedOnMain.has(file);
+    EXTENSIONS.some(
+      (e) => file.endsWith(e) && importedOnMain.has(file.slice(0, file.length - e.length)),
+    );
   return [
     ...new Set([
       ...kept,
-      ...(committed ? [] : git("ls-files", "--others", "--exclude-standard")),
+      ...(at ? [] : git("ls-files", "--others", "--exclude-standard")),
       ...deleted.filter((f) => !imported(f)),
     ]),
   ];
