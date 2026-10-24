@@ -314,7 +314,7 @@ export const onShelf = (maps: ReadonlyArray<MapCard>, d: Shelf, now: number) =>
    and the plays decide most of the order. A tie goes to more plays, then the newer Map. A
    Map with no plays this week isn't trending, so before a Refresh recorded them the chart
    is empty. Ranked on the server: only the ten carry their figures to the page. */
-export const TRENDING_SIZE = 10;
+const TRENDING_SIZE = 10;
 type Heat = Pick<WorkshopMap, "pfid" | "created" | "weekPlays" | "voteScore">;
 const heatOf = (m: Heat) => m.weekPlays * (0.5 + m.voteScore);
 export const trending = <T extends Heat>(maps: ReadonlyArray<T>) =>
