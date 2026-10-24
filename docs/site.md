@@ -791,12 +791,12 @@ kept apart from the Generators so a page that only links one never loads them).
   Each kind of tree is a Generator of its own (Tree, Pine, Block tree). Pieces are the editor's
   cube, sphere, cylinder, cone and pyramid, placed by their bottom centre (a box can also be
   placed by its centre at any rotation);
-  grids of cells (QR modules, letters, voxels) are merged into as few boxes as they can be.
+  grids of cells (letters, voxels) are merged into as few boxes as they can be.
 - **Colours** (`COLOURS`): each names its material and the `paint` the editor saves beside
   it, a MaterialCategory and an `EBallestMaterialColors` value read from the game's assets
   (Smooth for the colours, Special for the metals). The editor paints nothing gold, so
   there is no Gold. A spawned file was checked in a sandbox game: every colour lands as named, and
-  signs and codes face the camera that spawned them. The swatches are `--gen-*` on `:root`.
+  signs face the camera that spawned them. The swatches are `--gen-*` on `:root`.
 - **The sign's lettering** (`lib/generator-letters.ts`): the Pixel font is a 5x7 table there;
   the others are drawn on a canvas by the browser (`components/prefabs/make/lettering.ts`)
   behind the same `Lettering`, so `lib/` stays pure. The text wraps at whatever line length
