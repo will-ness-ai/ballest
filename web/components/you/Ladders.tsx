@@ -420,7 +420,7 @@ export function Ladders({ tops }: { tops: YouLadders }) {
           naming && <span className="marble ys-hold" aria-hidden="true" />
         )}
         <div>
-          <h1>
+          <h2>
             {who ? (
               personaOf(who)
             ) : naming ? (
@@ -431,7 +431,7 @@ export function Ladders({ tops }: { tops: YouLadders }) {
             ) : (
               "Where you stand"
             )}
-          </h1>
+          </h2>
           <p className="ys-line">
             {claimed
               ? "Where you stand on the Daily Report's four lists"

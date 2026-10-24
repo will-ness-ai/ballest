@@ -19,6 +19,7 @@ import {
   mapPfidOf,
   ord,
   ordSuffix,
+  pageTitle,
   pctOf,
   personaOf,
   plural,
@@ -38,7 +39,6 @@ import {
   dailyHref,
   campaignPath,
   dailyStandingsHref,
-  tabOfPath,
   isDailyDate,
   legacyPath,
   mapHref,
@@ -50,6 +50,12 @@ import {
 } from "../lib/routes";
 
 const ID = "76561198259485267";
+
+describe("the site's name", () => {
+  test("ends every page's tab title", () => {
+    expect(pageTitle("Marble Run")).toBe("Marble Run · BALLESTRECORDS");
+  });
+});
 
 describe("a score's unit", () => {
   test("a run time is hundred-thousandths of a second, not milliseconds", () => {
@@ -318,35 +324,6 @@ describe("Steam IDs and URLs", () => {
     expect(isDailyDate("2026-9-5")).toBe(false);
     expect(isDailyDate("standings")).toBe(false);
     expect(isDailyDate(undefined)).toBe(false);
-  });
-
-  test("which tab a path lights", () => {
-    expect(tabOfPath("/")).toBe("Workshop");
-    expect(tabOfPath("/map/42")).toBe("Workshop");
-    expect(tabOfPath("/players/circuit/pod")).toBe("Players");
-    /* Where you stand is reached from the Players tab */
-    expect(tabOfPath("/you")).toBe("Players");
-    expect(tabOfPath("/young")).toBeNull();
-    expect(tabOfPath("/daily")).toBe("Daily");
-    expect(tabOfPath("/daily/2026-09-05")).toBe("Daily");
-    expect(tabOfPath("/daily/standings")).toBe("Daily");
-    expect(tabOfPath("/dailyish")).toBeNull();
-    expect(tabOfPath("/prefabs")).toBe("Prefabs");
-    expect(tabOfPath("/prefabs/new")).toBe("Prefabs");
-    expect(tabOfPath("/prefab/park-bench")).toBe("Prefabs");
-    expect(tabOfPath("/prefabsy")).toBeNull();
-    /* every Circuit board, whatever its season, lights the one Circuit tab */
-    expect(tabOfPath("/board/OverallLeaderboard_EASeason2")).toBe("Circuit");
-    expect(tabOfPath("/board/OverallLeaderboard")).toBe("Circuit");
-    expect(tabOfPath("/board/OverallLeaderboard_AllSeasons/podiums")).toBe("Circuit");
-    expect(tabOfPath("/board/Map_Track13")).toBe("Circuit");
-    expect(tabOfPath("/board/Nope")).toBeNull();
-    /* a Campaign is the Workshop's */
-    expect(tabOfPath("/campaign/solar-trials")).toBe("Workshop");
-    expect(tabOfPath("/campaign/solar-trials/3805391903")).toBe("Workshop");
-    expect(tabOfPath("/campaigns")).toBe("Workshop");
-    expect(tabOfPath("/campaignsy")).toBeNull();
-    expect(tabOfPath(`/player/${ID}`)).toBeNull();
   });
 
   test("every old #/ link lands on its path", () => {

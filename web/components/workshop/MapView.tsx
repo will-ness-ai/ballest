@@ -8,8 +8,9 @@ import { CreatorLink } from "./Card";
 import { Age } from "./Age";
 import { Map3D } from "./Map3D";
 import { MedalList } from "./Medals";
-import { BackLink, Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
+import { PageHead } from "../PageHead";
+import { Remember } from "../Trail";
 import { BoardBody } from "../board/BoardBody";
 import { HistoryCard } from "../board/HistoryCard";
 import { MapImage } from "../MapImage";
@@ -45,15 +46,11 @@ export function MapPanel({
   const record = recordIfAny(m);
   return (
     <aside className="mpanel" id="mpanel">
-      <BackLink trail="maps" />
       <MapImage preview={m.preview} className="mp-img" />
       {view && <Map3D m={view} />}
-      <div>
-        <h1 className="mp-t">{m.title}</h1>
-        <span className="mp-by">
-          by <CreatorLink m={m} />
-        </span>
-      </div>
+      <span className="mp-by">
+        by <CreatorLink m={m} />
+      </span>
       {reason && <p className="mp-flag">Reported broken: {reason}</p>}
       <PartOf pfid={m.pfid} />
       <dl className="mp-facts">
@@ -120,27 +117,35 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
   const rows = page.rows;
   const at = focus ? places?.[focus] : undefined;
   return (
-    <div className="main">
-      <DocTitle title={m.title} />
-      <MapPanel m={m} scores={scores} asOf={site.asOf} />
-      <section className="content">
-        <YouMarks name={name} />
-        <YouBanner name={name} field={page.total} medals={m.medals} />
-        <BoardBody
-          order="score"
-          name={name}
-          points={false}
-          where={"by " + m.creator}
-          count={page.total}
-          history={history && <HistoryCard h={history} />}
-          leaders={<ScorePlates name={name} rows={rows} focus={focus} />}
-          initial={page.total >= 3 ? rows.slice(3) : rows}
-          lead={rows[0]?.score ?? null}
-          pods={null}
-          focus={focus && at ? { id: focus, rank: at.rank } : null}
-        />
-      </section>
-      <Remember trail="board" href={mapHref(m.pfid)} label={m.title} />
-    </div>
+    <>
+      <PageHead
+        path={mapHref(m.pfid)}
+        title={m.title}
+        trail="maps"
+        page={{ board: name, maker: m.cid }}
+      />
+      <div className="main">
+        <DocTitle title={m.title} />
+        <MapPanel m={m} scores={scores} asOf={site.asOf} />
+        <section className="content">
+          <YouMarks name={name} />
+          <YouBanner name={name} field={page.total} medals={m.medals} />
+          <BoardBody
+            order="score"
+            name={name}
+            points={false}
+            where={"by " + m.creator}
+            count={page.total}
+            history={history && <HistoryCard h={history} />}
+            leaders={<ScorePlates name={name} rows={rows} focus={focus} />}
+            initial={page.total >= 3 ? rows.slice(3) : rows}
+            lead={rows[0]?.score ?? null}
+            pods={null}
+            focus={focus && at ? { id: focus, rank: at.rank } : null}
+          />
+        </section>
+        <Remember trail="board" href={mapHref(m.pfid)} label={m.title} />
+      </div>
+    </>
   );
 }

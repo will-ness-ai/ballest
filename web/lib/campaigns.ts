@@ -310,6 +310,37 @@ export function campaignProblems(list: ReadonlyArray<Campaign>): Array<string> {
    for each */
 export const CAMPAIGN_MAX_PICTURES = 5;
 
+/* a listed Campaign as a line names it (the header's sub-tabs, the site search and its jump-to
+   links): its slug, title and maker, how many Maps it curates, how many players its board
+   ranks, its first Map's picture, and whether the list pins it */
+export interface CampaignSummary {
+  slug: string;
+  title: string;
+  creator: string;
+  maps: number;
+  players: number;
+  preview: string | null;
+  pinned: boolean;
+}
+
+export const campaignSummary = ({
+  c,
+  players,
+  previews,
+}: {
+  c: Campaign;
+  players: number;
+  previews: ReadonlyArray<string | null>;
+}): CampaignSummary => ({
+  slug: c.slug,
+  title: c.title,
+  creator: c.creator,
+  maps: c.maps.length,
+  players,
+  preview: previews.find(Boolean) ?? null,
+  pinned: !!c.pinned,
+});
+
 const PREFIX = "OverallCampaign_";
 
 /* a Campaign's standings, as a board name */

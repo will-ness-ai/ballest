@@ -8,6 +8,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { CompareDialog, type CompareAsk } from "./Compare";
 import { Score } from "./Score";
+import { PillButton, Pills } from "../Controls";
 import { MapImage } from "../MapImage";
 import { Marble } from "../Marble";
 import { matchup, type BandStat, type MatchRow, type PlayerRecord } from "../../lib/player";
@@ -132,9 +133,6 @@ export function VsView({ A, B }: { A: PlayerRecord; B: PlayerRecord }) {
     <div className="main">
       <section className="content">
         <div className="pp vsp" id="vs">
-          <Link className="back" href={playerHref(A.id)}>
-            &larr; {nA}
-          </Link>{" "}
           <div className="vshead">
             <Side rec={A} side="a" change={change("a")} />{" "}
             <div className="vsmid">
@@ -155,23 +153,21 @@ export function VsView({ A, B }: { A: PlayerRecord; B: PlayerRecord }) {
             ))}
           </div>{" "}
           <div className="vstools">
-            <span className="seg">
+            <Pills label="Where to count">
               {SCOPES.map(([k, label]) => (
-                <button
+                <PillButton
                   key={k}
-                  type="button"
-                  data-scope={k}
-                  aria-pressed={scope === k}
+                  on={scope === k}
                   onClick={() => {
                     setScope(k);
                     setShown(VS_CHUNK);
                   }}
                 >
                   {label}
-                </button>
+                </PillButton>
               ))}
-            </span>{" "}
-            <span className="opts">
+            </Pills>{" "}
+            <Pills label="Show" className="vs-show">
               {(
                 [
                   ["all", "All"],
@@ -179,23 +175,20 @@ export function VsView({ A, B }: { A: PlayerRecord; B: PlayerRecord }) {
                   ["b", nB + " faster"],
                 ] as const
               ).map(([k, label]) => (
-                <button
+                <PillButton
                   key={k}
-                  type="button"
-                  className={filter === k ? "opt on" : "opt"}
-                  data-filter={k}
-                  aria-pressed={filter === k}
+                  on={filter === k}
                   onClick={() => {
                     setFilter(k);
                     setShown(VS_CHUNK);
                   }}
                 >
                   {label}
-                </button>
+                </PillButton>
               ))}
-            </span>{" "}
+            </Pills>{" "}
             <select
-              className="pwsort"
+              className="field"
               id="vssort"
               aria-label="Sort"
               value={sort}
@@ -236,7 +229,7 @@ export function VsView({ A, B }: { A: PlayerRecord; B: PlayerRecord }) {
               {rows.length > shown ? (
                 <button
                   type="button"
-                  className="more-btn"
+                  className="btn more"
                   data-vsmore=""
                   onClick={() => {
                     setShown(shown + VS_CHUNK);

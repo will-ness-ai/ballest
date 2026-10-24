@@ -131,9 +131,11 @@ export interface Search<T> {
   last: { key: string; data: T } | null;
   /* the latest read failed, so `last` answers an older search */
   failed: boolean;
+  /* the search whose read failed, while `failed` */
+  failedFor: string | null;
 }
 
-const NO_SEARCH = { last: null, failed: false };
+const NO_SEARCH = { last: null, failed: false, failedFor: null };
 
 /* A search read from the server: `read(key)` once `key` has stayed put for `ms`. An answer
    that comes back after the reader has typed something else is dropped, so a slow answer
@@ -157,10 +159,11 @@ export function useDebouncedFetch<T>(
       }
       read(key).then(
         (data) => {
-          if (want.current === key) setSearch({ last: { key, data }, failed: false });
+          if (want.current === key)
+            setSearch({ last: { key, data }, failed: false, failedFor: null });
         },
         () => {
-          if (want.current === key) setSearch((s) => ({ ...s, failed: true }));
+          if (want.current === key) setSearch((s) => ({ ...s, failed: true, failedFor: key }));
         },
       );
     }, ms);

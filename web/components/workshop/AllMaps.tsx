@@ -3,13 +3,14 @@
 // /maps/<view>) or narrowed further in the Refine panel, sixty at a time. The panel's
 // choices live in this page only; a view's link starts it over from its preset.
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useState } from "react";
 
 import { MapGrid } from "./Card";
-import { BackLink } from "../BackLink";
+import { PillButton, PillLink, Pills } from "../Controls";
 import { useDialog } from "../Modal";
 import { useClock } from "../../hooks/client";
-import { homeHref, mapsHref } from "../../lib/routes";
+import { MAPS_QUERY, mapsHref } from "../../lib/routes";
 import { plural } from "../../lib/rules";
 import {
   FILTERS,
@@ -19,7 +20,9 @@ import {
   SORTS,
   VIEWS,
   activeFilters,
+  addedFilters,
   filteredMaps,
+  mapMatches,
   refineFor,
   sameRefine,
   type MapCard,
@@ -43,16 +46,15 @@ function Drawer({
   /* the panel opens with the keyboard on its close button, the first thing in it */
   const { props, close } = useDialog({ open: true, onClose });
   const opt = (k: keyof Refine, v: string, label: string) => (
-    <button
+    <PillButton
       key={v}
-      type="button"
-      className={f[k] === v ? "opt on" : "opt"}
+      on={f[k] === v}
       onClick={() => {
         set(k, v);
       }}
     >
       {label}
-    </button>
+    </PillButton>
   );
   return (
     <dialog className="drawer" aria-label="Refine maps" {...props}>
@@ -67,18 +69,18 @@ function Drawer({
         return (
           <div className="fg" key={k}>
             <span className="eyebrow">{g.label}</span>
-            <div className="opts">
+            <Pills label={g.label}>
               {opt(k, "any", g.any)}
               {Object.entries(g.opts).map(([v, [label]]) => opt(k, v, label))}
-            </div>
+            </Pills>
           </div>
         );
       })}
       <div className="fg">
         <span className="eyebrow">Sort</span>
-        <div className="opts">
+        <Pills label="Sort">
           {(Object.keys(SORTS) as Array<SortKey>).map((k) => opt("sort", k, SORTS[k].label))}
-        </div>
+        </Pills>
       </div>
       <div className="dfoot">
         <button type="button" className="linkbtn" onClick={reset}>
@@ -92,6 +94,17 @@ function Drawer({
   );
 }
 
+/* the address's ?q= (the site search's "All N Maps matching"), handed up as it changes. The
+   page is prerendered without it, so only this reads it, inside its own Suspense: the grid
+   renders on the server whole, and narrows once the browser has the address */
+function ReadQuery({ set }: { set: (q: string) => void }) {
+  const q = useSearchParams().get(MAPS_QUERY) ?? "";
+  useLayoutEffect(() => {
+    set(q.trim());
+  }, [q, set]);
+  return null;
+}
+
 export function AllMaps({
   maps,
   view,
@@ -102,6 +115,8 @@ export function AllMaps({
   asOf: number;
 }) {
   const now = useClock(asOf);
+  /* the address's ?q=, once ReadQuery has read it */
+  const [query, setQuery] = useState("");
   const [f, setF] = useState(() => refineFor(view));
   const [shown, setShown] = useState(MAPS_CHUNK);
   const [open, setOpen] = useState(false);
@@ -118,30 +133,29 @@ export function AllMaps({
     },
     [view],
   );
-  const list = filteredMaps(maps, f, now),
+  const refined = filteredMaps(maps, f, now),
+    list = query ? refined.filter(mapMatches(query)) : refined,
     n = activeFilters(f).length;
   const stat = (m: MapCard) => SORTS[f.sort].stat(m, now);
   return (
     <>
-      <BackLink href={homeHref()} label="Workshop" />
+      <Suspense>
+        <ReadQuery set={setQuery} />
+      </Suspense>
       <div className="ws-head">
-        <h1 className="ws-h1">All maps</h1>
         <span className="ws-count">{plural(maps.length, "map", "maps")} with a time</span>
       </div>
       <div className="views">
-        {VIEWS.map(([k, label, p]) => (
-          <Link
-            key={k}
-            href={mapsHref(k)}
-            className={sameRefine(f, { ...NO_FILTER(), ...p }) ? "on" : ""}
-          >
-            {label}
-          </Link>
-        ))}
-        <span className="sp"></span>
+        <Pills label="Views" nav>
+          {VIEWS.map(([k, label, p]) => (
+            <PillLink key={k} href={mapsHref(k)} on={sameRefine(f, { ...NO_FILTER(), ...p })}>
+              {label}
+            </PillLink>
+          ))}
+        </Pills>
         <button
           type="button"
-          className={n ? "refine on" : "refine"}
+          className="btn"
           onClick={() => {
             setOpen((o) => !o);
           }}
@@ -150,7 +164,15 @@ export function AllMaps({
         </button>
       </div>
       <p className="ws-note">
-        {plural(list.length, "map", "maps")} &middot; {SORTS[f.sort].label.toLowerCase()} first
+        {plural(list.length, "map", "maps")}
+        {query ? <> matching &ldquo;{query}&rdquo;</> : null} &middot;{" "}
+        {SORTS[f.sort].label.toLowerCase()} first
+        {query ? (
+          <>
+            {" "}
+            &middot; <Link href={mapsHref(view)}>Show every map</Link>
+          </>
+        ) : null}
       </p>
       {list.length ? (
         <>
@@ -158,7 +180,7 @@ export function AllMaps({
           {list.length > shown && (
             <button
               type="button"
-              className="more-btn"
+              className="btn more"
               onClick={() => {
                 setShown((s) => s + MAPS_CHUNK);
               }}
@@ -169,7 +191,15 @@ export function AllMaps({
         </>
       ) : (
         <div className="empty">
-          <b>No map fits all of these filters.</b>
+          {/* the query found nothing among the Maps the filters leave, or the filters left none */}
+          {query && refined.length ? (
+            <b>
+              No map matches &ldquo;{query}&rdquo;
+              {addedFilters(f, view).length ? " with these filters" : ""}.
+            </b>
+          ) : (
+            <b>No map fits all of these filters.</b>
+          )}
         </div>
       )}
       {open && (
