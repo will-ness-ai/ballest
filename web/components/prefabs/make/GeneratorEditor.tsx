@@ -70,6 +70,8 @@ function Editor({ g }: { g: Generator }) {
   const over = pieces > PIECE_LIMIT;
   /* more pieces than one spawn holds come in parts, spawned one after another */
   const parts = useMemo(() => (file && !over ? spawnsOf(file) : []), [file, over]);
+  /* a part that didn't reach the whole's near, low corner carries a marker cube there */
+  const marked = parts.reduce((n, p) => n + p.items.length, 0) > pieces;
   const partName = (part: number) => (parts.length > 1 ? `${g.file}_${String(part + 1)}` : g.file);
   const download = (part: number) => {
     const a = document.createElement("a");
@@ -134,8 +136,9 @@ function Editor({ g }: { g: Generator }) {
             <p className="gen-parts">
               Too many pieces for the game to spawn at once, so it comes in {parts.length} parts.
               Spawn them in order without moving the camera ({partName(0)}, then {partName(1)}
-              {parts.length > 2 ? " and so on" : ""}), and they meet. Then delete the small white
-              cubes at the near corner: they only line the parts up.
+              {parts.length > 2 ? " and so on" : ""}), and they meet.
+              {marked &&
+                " Then delete the small white cubes at the near corner: they only line the parts up."}
             </p>
           )}
         </div>

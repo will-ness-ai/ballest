@@ -274,8 +274,12 @@ export const pixelArt: Generator = {
   build: (v) => {
     const pic = readPicture(String(v.picture));
     if (!pic) return null;
-    /* resampled to `across` cells, each the picture's cell under its middle */
-    const w = Math.max(1, Math.min(numberIn(v, "across"), PICTURE_MOST));
+    /* resampled to `across` cells, each the picture's cell under its middle, and no more than
+       PICTURE_MOST the longer way */
+    const w = Math.max(
+      1,
+      Math.min(numberIn(v, "across"), PICTURE_MOST, Math.floor((PICTURE_MOST * pic.w) / pic.h)),
+    );
     const h = Math.max(1, Math.round((w * pic.h) / pic.w));
     const at = (x: number, y: number) =>
       pic.at(Math.floor(((x + 0.5) * pic.w) / w), Math.floor(((y + 0.5) * pic.h) / h));

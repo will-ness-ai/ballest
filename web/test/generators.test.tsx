@@ -613,6 +613,14 @@ describe("the useful ones", () => {
     expect(make("pixel-art", { picture, across: 128 }).items).toHaveLength(128);
   });
 
+  test("a tall picture is held to 128 blocks the longer way", () => {
+    /* two columns, red and white, four times as tall as wide */
+    const picture = "2x8:" + "ca".repeat(8);
+    const file = make("pixel-art", { picture, across: 128, block: 10 });
+    expect(file.items).toHaveLength(2);
+    expect(highest(file)).toBeCloseTo(1280);
+  });
+
   test("pixel art laid on the floor lies flat, a block deep", () => {
     expect(highest(make("pixel-art", { lay: "On the floor", block: 20 }))).toBeCloseTo(20);
   });

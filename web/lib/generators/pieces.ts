@@ -156,7 +156,7 @@ export function spawnsOf(file: PrefabFile): Array<PrefabFile> {
   for (let i = 0; i < file.items.length; i += most) {
     const items = file.items.slice(i, i + most);
     /* and a part of one piece needs a second: the game spawns nothing from one */
-    const reaches = items.length > 1 && near(items) - x < 1 && lowestOf(items) - z < 1;
+    const reaches = items.length > 1 && near(items) - x < 0.01 && lowestOf(items) - z < 0.01;
     parts.push({ ...file, items: reaches ? items : [...items, marker] });
   }
   return parts;
