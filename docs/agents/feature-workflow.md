@@ -108,6 +108,10 @@ QA brief for a subagent says the same: run `qa check` first, read only the pictu
 writes, and add a catalogue row for any page or dialog it does not draw. A gap left unchecked goes in the
 PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` left one.
 
+A red check on the PR: run `pnpm --silent pr why <n>` at the root first. It prints each failed
+check's failed step and its annotations, qa's report among them, in one call, where a cloud
+session can't download the job log.
+
 A PR that adds a table can't get a working preview: previews read the production
 database and skip migrations, so a page that reads the table fails to build until production
 has it. To check it there before the merge, ask Will in the thread for a typed OK to apply that
