@@ -51,7 +51,7 @@ function make(key: string, change: Values = {}) {
   return file;
 }
 
-/* a cube's extent across a sign or code (+Y, left to right for the camera that spawned it)
+/* a cube's extent across a sign (+Y, left to right for the camera that spawned it)
    and up it (z), in cm */
 const extent = (it: PrefabItem) => {
   const [, y, z] = it.transform.location;
@@ -78,6 +78,9 @@ const highest = (file: PrefabFile) =>
   ) * 100;
 const count = (file: PrefabFile, piece: string) =>
   file.items.filter((it) => it.class.includes(piece)).length;
+
+/* how far a cube stands out of a sign toward the camera (-X), in cm */
+const proud = (it: PrefabItem) => -(it.transform.location[0] - (it.transform.scale[0] * CUBE) / 2);
 
 /* every Generator but the trees and the bush: their sticks dip a little under the floor where
    they start, and a Tree with every slider at its most is 4,531 pieces, over the limit */
@@ -120,6 +123,14 @@ describe("every Generator", () => {
       expect(make(key, { ...most, ...pick }).items.length).toBeLessThanOrEqual(PIECE_LIMIT);
   });
 
+  test("a tree at its largest is too big for the game, and says so", () => {
+    const most: Values = { ...gen("tree").defaults };
+    for (const c of gen("tree").controls(most)) if (c.kind === "number") most[c.key] = c.max;
+    const file = make("tree", most);
+    expect(file.items.length).toBeGreaterThan(PIECE_LIMIT);
+    expect(checkPrefab(JSON.stringify(file)).ok).toBe(false);
+  });
+
   test.each(BUILT)("%s never reaches under the floor", (key) => {
     for (const { label, values } of variationsOf(gen(key))) {
       const file = generate(key, values);
@@ -147,6 +158,11 @@ describe("the sign", () => {
       expect(l.z0).toBeGreaterThanOrEqual(wall.z0 - 0.01);
       expect(l.z1).toBeLessThanOrEqual(wall.z1 + 0.01);
     }
+  });
+
+  test("faces the camera it spawns in front of, its letters standing out of the wall", () => {
+    const [wall, ...letters] = make("sign", { wall: true }).items;
+    for (const l of letters) expect(proud(l)).toBeGreaterThan(proud(wall));
   });
 
   test("with the wall off is letters standing on the ground, no plate", () => {
@@ -395,10 +411,6 @@ describe("the categories", () => {
     ]);
     expect(under("Racing")).toEqual(["spiral", "loop", "jump", "plinko", "rollers"]);
     expect(under("Decor")).toEqual(["lamp", "fountain", "trophy", "fence", "finish-arch"]);
-  });
-
-  test("have no QR code", () => {
-    expect(generatorOf("qr")).toBeNull();
   });
 });
 
