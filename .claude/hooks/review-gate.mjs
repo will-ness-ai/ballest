@@ -10,7 +10,6 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  FOLLOW_UP_SHARE,
   SKILLS,
   linesChanged,
   loadable,
@@ -142,7 +141,7 @@ function refusal(target, cwd) {
   const reason =
     `PR #${number} isn't reviewed to its head (docs/agents/feature-workflow.md, steps 5 and 6). ` +
     lines.join(". ") +
-    `. Commits after a run need no new one until they are ${String(FOLLOW_UP_SHARE * 100)}% of the PR's changed lines` +
+    ". Commits after a run need no new one until they change as many lines as the commits it saw" +
     `. Call the Skill tool for 'code-review' with fixed point ${since}, then for 'codebase-design', ` +
     "on the PR's head in this clone, fix what they find, push, and try again. " +
     "Runs in this clone count from any session or worktree; an ad-hoc review or a run on another machine doesn't.";

@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  FOLLOW_UP_SHARE,
   linesChanged,
   loadable,
   mergeTargets,
@@ -219,7 +218,12 @@ describe("unreviewed", () => {
     };
     expect(run(100, 199)).toEqual({ "code-review": [], "codebase-design": [] });
     expect(run(100, 200)).toEqual({ "code-review": ["b", "c"], "codebase-design": ["b", "c"] });
-    expect(FOLLOW_UP_SHARE).toBe(0.5);
+    /* a binary file the run saw makes no follow-up small */
+    const binary: Record<string, number> = { a: Infinity, b: 5000, c: 0 };
+    expect(unreviewed(["a", "b", "c"], records, isAncestor, (x: string) => binary[x])).toEqual({
+      "code-review": ["b", "c"],
+      "codebase-design": ["b", "c"],
+    });
   });
 
   test("a small PR still needs its first run", () => {

@@ -140,10 +140,9 @@ const BUILT_IN = ["code-review"];
 export const loadable = (skill, dirs, exists) =>
   BUILT_IN.includes(skill) || dirs.some((d) => exists(`${d}/${skill}/SKILL.md`));
 
-// Follow-ups after both skills have run on the PR need no new run until they are this share of
-// all the lines the PR changes: a significant part of it (Will, 2026-10-24, after #366's review
-// fixes ran four rounds under a fixed 40 lines; 2026-10-18, each round was costing a whole one).
-export const FOLLOW_UP_SHARE = 0.5;
+// Follow-ups after a skill has run on the PR need no new run until they change as many lines
+// as the commits it saw, half the PR: a significant part of it (Will, 2026-10-24, after #366's
+// review fixes ran four rounds under a fixed 40 lines; 2026-10-18, each round cost a whole one).
 
 // A picture (a skin, a screenshot) has no lines to review (Will, 2026-10-18, after PR #275
 // ran both skills on one .webp). Any other binary file can't be read, so it is never small.
@@ -167,8 +166,8 @@ export function linesChanged(numstat) {
 }
 
 /* Each skill's commits that no run of it has seen: a run on a commit sees it and every
-   commit before it, and once it has run on the PR, later commits pass too while their lines
-   stay under FOLLOW_UP_SHARE of all the PR's lines. A commit of only pictures needs no run. `records`
+   commit before it, and once it has run on the PR, later commits pass too while they change
+   fewer lines than the commits it saw (a binary file it saw counts none). A commit of only pictures needs no run. `records`
    are { skill, sha }, `isAncestor(a, b)` is git's, `linesOf(sha)` is linesChanged's. */
 export function unreviewed(commits, records, isAncestor, linesOf) {
   const linesIn = new Map(commits.map((c) => [c, linesOf(c)]));
@@ -179,9 +178,9 @@ export function unreviewed(commits, records, isAncestor, linesOf) {
       const sees = (c) => seen.some((s) => isAncestor(c, s));
       const missing = reviewable.filter((c) => !sees(c));
       const sum = (cs) => cs.reduce((n, c) => n + linesIn.get(c), 0);
-      const lines = sum(missing);
+      const seenLines = sum(reviewable.filter(sees).filter((c) => linesIn.get(c) !== Infinity));
       // a run that saw only pictures has reviewed nothing yet
-      const followUp = reviewable.some(sees) && lines < FOLLOW_UP_SHARE * sum(reviewable);
+      const followUp = seenLines > 0 && sum(missing) < seenLines;
       return [skill, followUp ? [] : missing];
     }),
   );

@@ -69,8 +69,8 @@ final review, so it isn't repeated. Fix every finding before moving on, checking
 asks for something the spec never named against `CODING_STANDARDS.md` first: #212 built a
 real 404 the standards rule out, then deleted it. Commits that land
 after it (a fix found while testing, dev tooling) get `/code-review` since the last reviewed
-commit before the merge only when they change a significant part of the PR: commits since both
-skills last ran that make up half or more of all the lines the PR changes (`FOLLOW_UP_SHARE`).
+commit before the merge only when they change a significant part of the PR: as many lines, or
+more, as the commits each skill last saw (half the PR, counted per commit).
 Anything less, the fixes for a review's own findings included, needs no new round (Will,
 2026-10-24: #366's fixes for each round's findings set off three more under a fixed 40 lines).
 Batch a round's fixes into one commit; findings a fix's own new code raises are a judgement
@@ -83,7 +83,7 @@ review, and a brief asking for a light workflow trims the planning steps, never 
 A hook holds both steps (`.claude/hooks/review-gate.mjs`): it notes the commit each Skill-tool
 `/code-review` and `/codebase-design` runs on, and refuses an agent's merge, auto-merge or
 mark-ready while the PR has a commit either hasn't seen, unless every such commit together is a
-follow-up under that share (`FOLLOW_UP_SHARE` in `review-gate-rules.mjs`). A commit that changes only
+follow-up under that half (`unreviewed` in `review-gate-rules.mjs`). A commit that changes only
 binary pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. When
 the session's Skill tool can't find a missing skill (no `SKILL.md` in the project's or
 `~/.claude/skills`; a project thread's project is `/home/user`, where `session-start.sh` links
