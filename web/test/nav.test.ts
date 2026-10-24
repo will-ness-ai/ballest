@@ -189,15 +189,11 @@ describe("a Section's sub-tabs", () => {
 });
 
 describe("the Campaigns the sub-tabs name", () => {
-  test("the four most played, whichever are pinned on the list", () => {
-    const c = (slug: string, players: number) => ({ slug, title: slug.toUpperCase(), players });
-    expect(
-      navCampaigns([c("pinned", 3), c("b", 40), c("c", 90), c("d", 12), c("e", 40), c("f", 7)]),
-    ).toEqual([
-      { slug: "c", title: "C" },
-      { slug: "b", title: "B" },
-      { slug: "e", title: "E" },
-      { slug: "d", title: "D" },
+  test("only the pinned ones, in the list's order", () => {
+    const c = (slug: string, pinned = false) => ({ slug, title: slug.toUpperCase(), pinned });
+    expect(navCampaigns([c("leth", true), c("b"), c("c"), c("other", true), c("d")])).toEqual([
+      { slug: "leth", title: "LETH" },
+      { slug: "other", title: "OTHER" },
     ]);
   });
 });

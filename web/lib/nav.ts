@@ -32,18 +32,11 @@ export interface NavFacts {
   campaigns: ReadonlyArray<{ slug: string; title: string }>;
 }
 
-/* how many Campaigns the Campaigns Section's sub-tabs name after All Campaigns */
-const NAV_CAMPAIGNS = 4;
-
-/* the Campaigns the sub-tabs name: the most played, whether or not the list pins them;
-   level ones keep the list's order */
+/* the Campaigns the sub-tabs name after All Campaigns: the pinned ones, in the list's order */
 export function navCampaigns(
-  listed: ReadonlyArray<{ slug: string; title: string; players: number }>,
+  listed: ReadonlyArray<{ slug: string; title: string; pinned: boolean }>,
 ): NavFacts["campaigns"] {
-  return [...listed]
-    .sort((a, b) => b.players - a.players)
-    .slice(0, NAV_CAMPAIGNS)
-    .map(({ slug, title }) => ({ slug, title }));
+  return listed.filter((c) => c.pinned).map(({ slug, title }) => ({ slug, title }));
 }
 
 /* a link in the header; `on` is the one the page is at or under */

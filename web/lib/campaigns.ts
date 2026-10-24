@@ -312,7 +312,7 @@ export const CAMPAIGN_MAX_PICTURES = 5;
 
 /* a listed Campaign as a line names it (the header's sub-tabs, the site search and its jump-to
    links): its slug, title and maker, how many Maps it curates, how many players its board
-   ranks, and its first Map's picture */
+   ranks, its first Map's picture, and whether the list pins it */
 export interface CampaignSummary {
   slug: string;
   title: string;
@@ -320,6 +320,7 @@ export interface CampaignSummary {
   maps: number;
   players: number;
   preview: string | null;
+  pinned: boolean;
 }
 
 export const campaignSummary = ({
@@ -337,6 +338,7 @@ export const campaignSummary = ({
   maps: c.maps.length,
   players,
   preview: previews.find(Boolean) ?? null,
+  pinned: !!c.pinned,
 });
 
 const PREFIX = "OverallCampaign_";

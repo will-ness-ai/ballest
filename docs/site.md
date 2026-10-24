@@ -464,7 +464,7 @@ The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's vari
   Players and Prefabs. One with nothing in it yet (no Workshop, no Daily, no seasons) is left
   out.
 - **The Section's sub-tabs**, as pills, the current one lit: Featured / All Maps; All
-  Campaigns and the four most-played Campaigns (`navCampaigns`); Today / Standings; each
+  Campaigns and the pinned Campaigns (`navCampaigns`); Today / Standings; each
   season; Rankings / Where you stand; Shared / Make your own / Upload. Every page of a
   Section lights one: a Map lights All Maps, a Campaign's Map its Campaign (or All Campaigns
   when the sub-tabs don't name it), a Circuit board its own season, a player's page and a

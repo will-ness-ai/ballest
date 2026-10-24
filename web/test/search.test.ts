@@ -158,6 +158,7 @@ describe("the other kinds", () => {
     maps: 9,
     players: 3,
     preview: "https://images.example.invalid/mercury.jpg",
+    pinned: false,
   };
 
   test("a Campaign by its name or its maker", () => {
@@ -279,6 +280,7 @@ describe("the results under the chips", () => {
         maps: 9,
         players: 3,
         preview: null,
+        pinned: false,
       },
     ],
   });
