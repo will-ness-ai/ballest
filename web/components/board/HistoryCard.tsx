@@ -5,6 +5,7 @@
 // Everything it shows is the BoardHistory the server worked out (lib/history.ts).
 import { useState } from "react";
 
+import { PillButton, Pills } from "../Controls";
 import { PlayerLink } from "../PlayerLink";
 import {
   changesText,
@@ -169,14 +170,14 @@ function Changed({ h }: { h: BoardHistory }) {
   const shown = recordsOnly ? h.days.filter((d) => d.records.length) : h.days;
   return (
     <>
-      <div className="hi-seg" role="group" aria-label="Show">
-        <button type="button" aria-pressed={!recordsOnly} onClick={() => setRecordsOnly(false)}>
+      <Pills label="Show" className="hi-show">
+        <PillButton on={!recordsOnly} onClick={() => setRecordsOnly(false)}>
           Everything
-        </button>
-        <button type="button" aria-pressed={recordsOnly} onClick={() => setRecordsOnly(true)}>
+        </PillButton>
+        <PillButton on={recordsOnly} onClick={() => setRecordsOnly(true)}>
           Records only
-        </button>
-      </div>
+        </PillButton>
+      </Pills>
       {!shown.length && (
         <p className="hi-none">
           {recordsOnly ? "No new records" : "Nothing has changed on this board"} since{" "}

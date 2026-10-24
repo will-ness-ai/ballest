@@ -85,7 +85,13 @@ export const Logo = () => (
       <Marble steamId={null} size={18} hue={96} />
     </span>
     <span className="wordmark">
-      Multi<b>balls</b>
+      MULTI<b>BALLS</b>
+    </span>{" "}
+    <span className="byline">
+      by{" "}
+      <span className="site">
+        BALLEST<b>RECORDS</b>
+      </span>
     </span>
   </span>
 );

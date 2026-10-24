@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import { PillLink, Pills, SearchBox } from "../Controls";
 import { Marble } from "../Marble";
 import { PlayerLink } from "../PlayerLink";
 import type { Standings } from "../../lib/rows";
@@ -320,15 +321,12 @@ export function PlayersTable({
   return (
     <>
       <div className="ws-head">
-        <h1 className="ws-h1">Players</h1>
         <span className="ws-tools">
-          <Link className="alllink" href={youHref()}>
+          <Link className="btn" href={youHref()}>
             Where you stand
           </Link>
-          <input
-            className="ws-q"
+          <SearchBox
             id="plq"
-            type="search"
             placeholder="Find a player"
             aria-label="Find a player"
             autoComplete="off"
@@ -339,18 +337,18 @@ export function PlayersTable({
           />
         </span>
       </div>
-      <nav className="ptabs" aria-label="Where to count">
+      <Pills label="Where to count" nav className="pl-scope">
         {PL_SCOPE_LABELS.map(([k, label]) => (
-          <Link
+          <PillLink
             key={k}
             href={playersHref(k, k === "circuit" && sort === "maps" ? "wr" : sort)}
             scroll={false}
-            aria-current={k === scope ? "page" : undefined}
+            on={k === scope}
           >
             {label}
-          </Link>
+          </PillLink>
         ))}
-      </nav>
+      </Pills>
       <p className="ws-note" id="plnote">
         {note}
       </p>

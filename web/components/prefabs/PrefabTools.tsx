@@ -246,7 +246,7 @@ function OwnerTools({ p }: { p: PrefabPage }) {
           </button>
           <button
             type="button"
-            className="pf-dl"
+            className="btn"
             disabled={busy || !fields.name.trim()}
             onClick={() => void send("PATCH")}
           >

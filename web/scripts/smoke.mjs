@@ -27,6 +27,9 @@ const ROUTES = [
   ["/maps/new", 200],
   ["/maps/nope", 404],
   ["/api/maps?q=marble", 200, null, "Marble Run"],
+  // the site search: a player and their Map, and nothing for an empty query
+  ["/api/search?q=tenpin", 200, null, "Marble Run"],
+  ["/api/search?q=", 200, null, "null"],
   ["/board/Map_Track13", 200, null, "Rolling Rae"],
   ["/board/Map_Track13/" + P1, 200],
   ["/board/OverallLeaderboard_EASeason2", 200],
@@ -177,14 +180,13 @@ const ROUTES = [
   ["/players/circuit/pod", 200, null, '<link rel="canonical" href="' + ORIGIN + '/players"'],
   ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
   ["/", 200, null, '"@type":"WebSite"'],
-  ["/", 200, null, "<title>Ballest of Them All Records: "],
+  ["/", 200, null, "<title>BALLESTRECORDS: Ballest of Them All "],
   // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
   ["/prefabs/new", 200, null, "Upload a prefab"],
-  // the Generators: the Generate your own tab, a Generator, and one that isn't
-  ["/prefabs/make", 200, null, "Generate your own"],
-  ["/prefabs/make/qr", 200, null, "QR code"],
+  // the Generators: Make your own, a Generator, and one that isn't
+  ["/prefabs/make", 200, null, '<h1 class="ph-title">Make a prefab</h1>'],
   ["/prefabs/make/sign", 200, null, "Sign"],
   ["/prefabs/make/tree", 200, null, "Tree"],
   ["/prefabs/make/bush", 200, null, "Bush"],
@@ -209,6 +211,7 @@ const ROUTES = [
   ["/prefabs/make/fence", 200, null, "Fence"],
   ["/prefabs/make/finish-arch", 200, null, "Finish arch"],
   ["/prefabs/make/windmill", 404],
+  ["/prefabs/make/qr", 308, "/prefabs/make"],
   // the Generators' collage, for agents: a 404 only in production on Vercel
   ["/prefabs/collage?g=house", 200, null, "Generator collage"],
   ["/api/prefabs", 200, null, '"signedIn":false'],
@@ -221,6 +224,9 @@ const ROUTES = [
     '<link rel="canonical" href="' + ORIGIN + '/prefab/twin-cubes"',
   ],
   ["/prefab/cube-row", 200, null, "Newcomer"],
+  ["/prefab/twin-cubes", 200, null, "/og/prefab/twin-cubes?v="],
+  ["/og/prefab/twin-cubes", 200, null, "PNG"],
+  ["/og/prefab/nope", 404],
   ["/prefab/nope", 200, null, "This prefab is gone"],
   ["/prefab/Not_A_Slug", 404],
   ["/prefab/twin-cubes/x", 404],

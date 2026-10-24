@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { PageHead } from "../../../components/PageHead";
 import { Shell } from "../../../components/Shell";
 import { PrefabGone, PrefabPage } from "../../../components/prefabs/PrefabPage";
 import { pageMetadata } from "../../../components/metadata";
@@ -23,16 +24,26 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await getPrefab((await params).slug);
   if (p?.state !== "live") return { title: "Prefab not found", robots: { index: false } };
-  return pageMetadata({
-    title: p.name,
-    description: `${p.name}, a Ballest of Them All editor prefab by ${p.uploader.name}: ${String(p.pieces)} pieces to view in 3D and download.`,
-    canonical: prefabHref(p.slug),
-  });
+  return pageMetadata(
+    {
+      title: p.name,
+      description: `${p.name}, a Ballest of Them All editor prefab by ${p.uploader.name}: ${String(p.pieces)} pieces to view in 3D and download.`,
+      canonical: prefabHref(p.slug),
+    },
+    { kind: "prefab", id: p.slug, alt: `${p.name} in 3D`, at: Date.parse(p.updatedAt) },
+  );
 }
 
 async function Body({ params }: Props) {
-  const p = await getPrefab((await params).slug);
-  return p?.state === "live" ? <PrefabPage p={p} /> : <PrefabGone p={p} />;
+  const { slug } = await params;
+  const p = await getPrefab(slug);
+  const live = p?.state === "live";
+  return (
+    <>
+      <PageHead path={prefabHref(slug)} title={live ? p.name : "This prefab is gone"} />
+      {live ? <PrefabPage p={p} /> : <PrefabGone p={p} />}
+    </>
+  );
 }
 
 export default function Page({ params }: Props) {

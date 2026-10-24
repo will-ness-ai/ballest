@@ -9,7 +9,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { makeActivityApi } from "../src/activity/api.js";
 import { scriptResponses, servedPage, skinPictureResponses } from "../src/activity/server.js";
-import { Marble } from "../src/activity/web/ui/art.js";
+import { Logo, Marble } from "../src/activity/web/ui/art.js";
 import {
   AuthFailed,
   DiscordAuth,
@@ -900,6 +900,17 @@ describe("Chosen Skins", () => {
 /** A Player's marble as the page draws it. */
 const marble = (steamId: string, skin: ChosenSkin) =>
   renderToStaticMarkup(createElement(Marble, { steamId, size: 24, skin }));
+
+describe("the logo", () => {
+  it("presents the Activity as MULTIBALLS by BALLESTRECORDS", () => {
+    const words = renderToStaticMarkup(createElement(Logo))
+      .replace(/<svg[\s\S]*?<\/svg>/g, "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    expect(words).toBe("MULTIBALLS by BALLESTRECORDS");
+  });
+});
 
 describe("Skin pictures", () => {
   const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";

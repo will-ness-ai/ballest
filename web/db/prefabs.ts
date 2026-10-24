@@ -37,6 +37,8 @@ export interface PrefabView {
   bytes: number;
   favorites: number;
   createdAt: string;
+  /* when it was uploaded or last edited, which names its share image anew */
+  updatedAt: string;
   /* the view its uploader picked for its picture, or null for the default */
   angle: PrefabAngle | null;
 }
@@ -95,6 +97,7 @@ const VIEW = sql`
   end as state,
   p.slug, p.name, p.description, p.tags, p.pieces, p.bytes, p.angle,
   to_char(p.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "createdAt",
+  to_char(p.updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "updatedAt",
   json_build_object(
     'steamId', p.uploader,
     'name', coalesce(pl.persona, p.uploader_name, p.uploader),

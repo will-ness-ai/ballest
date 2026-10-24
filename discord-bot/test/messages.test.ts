@@ -321,6 +321,32 @@ describe("thread posts", () => {
   });
 });
 
+describe("Play again", () => {
+  const finished = card("finished", "public");
+  const playAgain = { label: "Play again", does: { _tag: "PlayAgain", matchId: "7" } };
+
+  it("the Result offers it, whether or not anyone finished", () => {
+    for (const steamDown of [false, true])
+      expect(
+        buttons(
+          threadMessage("7", ThreadPost.Result({ standings: [], card: finished, steamDown }), art),
+        ),
+      ).toEqual([playAgain]);
+  });
+
+  it("the post that it opened pings the finished Match's other Players, and offers it again", () => {
+    const post = ThreadPost.PlayingAgain({
+      by: ALICE,
+      skin: null,
+      others: [BOB, CARA],
+      minutes: 10,
+    });
+    const message = threadMessage("7", post, art);
+    expect(pinged(message)).toEqual([BOB.discordId, CARA.discordId]);
+    expect(buttons(message)).toEqual([playAgain]);
+  });
+});
+
 describe("fingerprint", () => {
   it("is the same for two payloads that draw the same message", () => {
     expect(fingerprint(footerMessage(Buffer.from([1, 2])))).toBe(

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Multiballs</title>
+    <title>MULTIBALLS by BALLESTRECORDS</title>
     <!--script-->
     <style>
       /* The settled design: branch claude/prototype-activity-surfaces, discord-bot/prototype/activity.prototype.html.
@@ -306,8 +306,24 @@
       }
       .logo {
         display: inline-flex;
+        flex-wrap: wrap;
         align-items: center;
-        gap: 9px;
+        gap: 4px 9px;
+      }
+      /* "by BALLESTRECORDS": the site's two-tone name, smaller, after the bot's */
+      .byline {
+        font: 600 12px/1 var(--f-hud);
+        color: var(--faint);
+        white-space: nowrap;
+      }
+      .byline .site {
+        font: 400 11px/1 var(--f-marquee);
+        letter-spacing: 0.02em;
+        color: var(--text);
+      }
+      .byline .site b {
+        font-weight: 400;
+        color: var(--accent);
       }
       .me-link {
         font: 500 12px var(--f-hud);

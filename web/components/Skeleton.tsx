@@ -13,59 +13,78 @@ function Bars({ n }: { n: number }) {
   ));
 }
 
-/* a board's page: the rail and the bar over the list */
-/* the Daily page: the day's panel, then its board */
-export function DailySkeleton() {
+/* the page head's place (PageHead.tsx): its kind and title lines */
+function Head() {
   return (
-    <div className="main">
-      <section className="content daily">
-        <section className="dp-podium">
-          <div className="dp-podhead">
-            <span className="eyebrow">&nbsp;</span>
-            <h1>&nbsp;</h1>
-          </div>
-        </section>
-        <div className="board">
-          <Bars n={8} />
-        </div>
-      </section>
+    <div className="ph" aria-hidden="true">
+      <p className="ph-kind">&nbsp;</p>
+      <p className="ph-title">&nbsp;</p>
     </div>
   );
 }
 
+/* the Daily page: the day's panel, then its board */
+export function DailySkeleton() {
+  return (
+    <>
+      <Head />
+      <div className="main">
+        <section className="content daily">
+          <section className="dp-podium">
+            <div className="dp-podhead">
+              <span className="eyebrow">&nbsp;</span>
+              <h2>&nbsp;</h2>
+            </div>
+          </section>
+          <div className="board">
+            <Bars n={8} />
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+
+/* a board's page: the rail and the bar over the list */
 export function BoardSkeleton() {
   return (
-    <div className="main">
-      <aside className="rail">
-        <h2 id="railhead">&nbsp;</h2>
-        <nav className="boards" id="boards" aria-label="Leaderboard"></nav>
-      </aside>
-      <section className="content">
-        <div className="boardbar">
-          <div className="boardtitle">
-            <p className="bmeta">&nbsp;</p>
+    <>
+      <Head />
+      <div className="main">
+        <aside className="rail">
+          <h2 id="railhead">&nbsp;</h2>
+          <nav className="boards" id="boards" aria-label="Leaderboard"></nav>
+        </aside>
+        <section className="content">
+          <div className="boardbar">
+            <div className="boardtitle">
+              <p className="bmeta">&nbsp;</p>
+            </div>
           </div>
-        </div>
-        <div className="board" id="board">
-          <Bars n={8} />
-        </div>
-      </section>
-    </div>
+          <div className="board" id="board">
+            <Bars n={8} />
+          </div>
+        </section>
+      </div>
+    </>
   );
 }
 
 /* a player's page (id "player") and a head to head (id "vs") */
 export function PlayerSkeleton({ id, className }: { id: string; className: string }) {
   return (
-    <div className="main">
-      <section className="content">
-        <div className={className} id={id}>
-          <div className="pseason">
-            <Bars n={3} />
+    <>
+      <Head />
+      <div className="main">
+        <section className="content">
+          <div className={className} id={id}>
+            <div className="pseason">
+              <Bars n={3} />
+            </div>
           </div>
-        </div>
-      </section>
-    </div>
+        </section>
+      </div>
+    </>
   );
 }
 
@@ -74,7 +93,7 @@ export function YouSkeleton() {
   return (
     <section className="ys">
       <header className="ys-top">
-        <h1>&nbsp;</h1>
+        <h2>&nbsp;</h2>
         <p className="ys-line">&nbsp;</p>
       </header>
       <div className="ys-cards">

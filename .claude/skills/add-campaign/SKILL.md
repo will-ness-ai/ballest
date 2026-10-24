@@ -27,6 +27,8 @@ set them).
 - A label that repeats its number (`01 1 of 8`) is a `mapName` change, test-first: call the Skill
   tool for 'tdd', with the new titles as cases in `web/test/campaigns.test.ts`, and add the
   pattern to the page paragraph of `docs/site.md`, "Campaigns".
+- A Campaign that came from a public Steam collection gets its ID as `collection` in the entry,
+  so its Get the Maps checklist offers Subscribe to all.
 - A maker of another Campaign gets a shared constant for their `creator` and `creatorId` at the
   top of `web/lib/campaigns.ts`, as `HABIBAL` is, after step 2 writes the entry.
 

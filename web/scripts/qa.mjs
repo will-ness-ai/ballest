@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { compare } from "./qa/compare.mjs";
 import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
+import { landsElsewhere } from "./qa/landing.mjs";
 import { REFS, pieces } from "./qa/piece.mjs";
 import { fmt, matching, pagesOf, rankRows } from "./qa/piece-math.mjs";
 import { signIn } from "./qa/session.mjs";
@@ -120,7 +121,7 @@ const pageOf = (page, ids = "real") => {
 };
 const stateOf = (name) => STATES.find((x) => x.name === name);
 const UNSIGNED =
-  "signed in: only a local target whose SESSION_SECRET qa knows (env, web/.env.local or web/.env)";
+  "signed in: only a local target, under its SESSION_SECRET (env or web/.env*) or else qa-only, which pnpm serve, pnpm dev:up and CI serve under";
 const pageNames = `pages: ${PAGES.map((p) => p.name).join(", ")}`;
 /* a list cut to its first three once it runs past four */
 const few = (list) =>
@@ -181,6 +182,7 @@ async function shot() {
   try {
     const r = await render(browser, t.url + path, view, {
       control: state?.click,
+      typed: state?.type,
       now,
       cookies: signed.cookies,
       full: !!flags.full,
@@ -191,7 +193,12 @@ async function shot() {
     });
     // a refused session is the first thing wrong: the page was drawn signed out
     if (r.me !== signed.as)
-      fail(`${t.url} didn't take the browser as signed in`, "give qa the server's SESSION_SECRET");
+      fail(
+        `${t.url} didn't take the browser as signed in`,
+        t.fallback
+          ? "serve it with pnpm serve or pnpm dev:up, or give it and qa a SESSION_SECRET"
+          : "give qa the server's SESSION_SECRET",
+      );
     if (r.skipped) fail(`${viewName(view)}: ${r.skipped} at this width`);
     if (r.status !== status) fail(`${t.url + path} answered ${String(r.status)}`);
     if (gone(r, status))
@@ -363,6 +370,7 @@ async function check() {
       const draw = (t, signed) =>
         render(browser, t.url + pageOf(v.page, t.ids).path, v, {
           control,
+          typed: v.state ? stateOf(v.state).type : undefined,
           now: started,
           cookies: signed.cookies,
         })
@@ -383,6 +391,9 @@ async function check() {
           });
         else if (gone(r, expect))
           found.push({ view: name, kind: "gone", where: t.name, detail: r.title });
+        // refused under qa's fallback secret: a server started without pnpm serve or dev:up
+        // and no secret of its own, which can't sign anyone in; unsigned, not a fault
+        else if (r.me !== r.as && t.fallback) (t === at ? unsigned : uncompared).push(name);
         else if (r.me !== r.as)
           found.push({ view: name, kind: "signed-out", where: t.name, detail: "session refused" });
         else return false;
@@ -416,17 +427,9 @@ async function check() {
         });
       }
       if (!before) return;
-      // the page lands somewhere else on load, which the screenshot from the top can't show;
-      // a few rows either way is the content above it changing height
-      const [was, is] = [before.probes.scrolled, a.probes.scrolled];
-      if (Math.abs(was - is) > 40)
-        found.push({
-          view: name,
-          kind: "scroll",
-          where: "page",
-          detail: `lands at ${String(is)}px, was ${String(was)}px`,
-          ref: "new",
-        });
+      const landed = landsElsewhere(before.probes, a.probes);
+      if (landed)
+        found.push({ view: name, kind: "scroll", where: "page", detail: landed, ref: "new" });
       const d = await compare(browser, before.shot, a.shot, [ref.name, at.name, "changed"]);
       if (!d.changed) return;
       const file = OUT + name.replaceAll("/", "-") + ".png";
@@ -448,21 +451,26 @@ async function check() {
   }
 
   // a state whose control no size showed: the selector no longer finds it. Every control
-  // shows on a phone (some only there), so a run with no phone width can't tell
-  if (sizes.some((s) => s.width < 600))
-    for (const st of STATES) {
-      const names = chosen
-        .filter((v) => v.state === st.name)
-        .map(viewName)
-        .filter((n) => !unsigned.includes(n));
-      if (names.length && names.every((n) => skipped.includes(n)))
-        found.push({
-          view: names[0],
-          kind: "missing",
-          where: `${st.page}+${st.name}`,
-          detail: `no ${st.click} at any size`,
-        });
-    }
+  // shows on a phone (some only there) but a `wide` one (the search field), which shows on
+  // a desktop only, so a run without such a width can't tell
+  const widths = {
+    phone: sizes.some((s) => s.width < 600),
+    wide: sizes.some((s) => s.width >= 820),
+  };
+  for (const st of STATES) {
+    if (!widths[st.wide ? "wide" : "phone"]) continue;
+    const names = chosen
+      .filter((v) => v.state === st.name)
+      .map(viewName)
+      .filter((n) => !unsigned.includes(n));
+    if (names.length && names.every((n) => skipped.includes(n)))
+      found.push({
+        view: names[0],
+        kind: "missing",
+        where: `${st.page}+${st.name}`,
+        detail: `no ${st.click} at any size`,
+      });
+  }
 
   // one row per fault, with every view it shows in: a header fault is on every page
   const grouped = new Map();

@@ -64,7 +64,7 @@ export function resolve(spec) {
   const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(url);
   // a local build's secret is the one qa can sign its pages' signed-in rows with
   return isLocal
-    ? { name: local ? spec : url, url, ids: "stress", secret: localSecret() }
+    ? { name: local ? spec : url, url, ids: "stress", ...localSecret() }
     : { name: url, url, ids: "real" };
 }
 
