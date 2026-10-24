@@ -129,7 +129,7 @@ describe("the lookups", () => {
     expect(name("Solar Trials")).toBe("Solar Trials");
     expect(name("Mercury Solar Trials")).toBe("Mercury Solar Trials");
     expect(mapName(make("a.b", ["5"]), "5", "axb 2")).toBe("axb 2");
-    /* only as a whole word: "Ember" leaves "Embers Edge" and "Ember's Fury" whole */
+    /* only as a whole word */
     const ember = (title: string) => mapName(make("Ember", ["5"]), "5", title);
     expect(ember("Ember Run")).toBe("Run");
     expect(ember("Embers Edge")).toBe("Embers Edge");

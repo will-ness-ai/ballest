@@ -352,12 +352,12 @@ export const mapNo = (c: Campaign, pfid: string) => String(mapNumber(c, pfid)).p
    only its number ("Miniblack 01", "AJC1", or "Limbo campaign 1 of 8", which counts the Maps,
    even with one letter before the number, as in the maker's "A08 of 8"), which its label
    already gives. When what is left starts with a number that isn't its place ("Ninja0",
-   "AJ26"), it stays whole, so the label doesn't read "01 0" */
+   "AJ26"), it stays whole, so the label doesn't read "01 0", and so does one where the
+   Campaign's name runs on into a longer word ("Embers Edge", "Ember's Fury") */
 export function mapName(c: Campaign, pfid: string, title: string): string | null {
   const prefix = c.title.toLowerCase();
   if (!title.toLowerCase().startsWith(prefix)) return title;
   const rest = title.slice(prefix.length);
-  /* only as a whole word: "Ember" keeps "Embers Edge" and "Ember's Fury" whole */
   if (/^[\p{L}'’]/u.test(rest)) return title;
   const name = rest.trim() || title;
   const counted = /^[a-z]?(\d+) of (\d+)$/i.exec(name);
