@@ -57,5 +57,10 @@ export const MigratorLive = SqliteMigrator.layer({
       yield* sql`CREATE TABLE daily_leads (date TEXT NOT NULL, at INTEGER NOT NULL, leaders TEXT NOT NULL, ticks INTEGER NOT NULL)`;
       yield* sql`CREATE INDEX daily_leads_date ON daily_leads (date, at)`;
     }),
+    // Each day the Traffic Report was posted (UTC), so it is never posted twice.
+    "0008_traffic_reports": Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`CREATE TABLE traffic_reports (day TEXT PRIMARY KEY)`;
+    }),
   }),
 }).pipe(Layer.provide(NodeContext.layer));

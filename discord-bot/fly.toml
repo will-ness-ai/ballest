@@ -20,6 +20,8 @@ kill_timeout = 30
   # the game Discord's daily challenge channel, where each Daily Post goes (src/dailyPost/); off
   # until BALLEST_API_KEY and BALLEST_DAILY_URL are in fly secrets
   DAILY_CHANNEL_ID = "1541802743205990460"
+  # the site's Plausible, which the Traffic Report reads (src/traffic/); its key is a secret
+  PLAUSIBLE_URL = "https://plausible-analytics-ce-production-d9c9.up.railway.app"
 
 # The Discord Activity: Discord's URL Mapping sends the page's requests to multiballs.fly.dev,
 # and Fly's proxy passes them to the bot. The bot only listens once DISCORD_CLIENT_SECRET is

@@ -16,6 +16,7 @@ import { NewTracksLive } from "./newTracks.js";
 import { PingRoleLive } from "./discord/pingRole.js";
 import { DailyReportLive } from "./report/daily.js";
 import { DailyPostLive } from "./dailyPost/live.js";
+import { TrafficReportLive } from "./traffic/daily.js";
 import { ChannelSurfaceLive } from "./discord/surface.js";
 import { Engine } from "./engine.js";
 import type { Steam, Store } from "./ports.js";
@@ -130,6 +131,7 @@ export const app = <E, R, E2 = never>(
     OpsLive,
     DailyReportLive,
     DailyPostLive,
+    TrafficReportLive,
     NewTracksLive,
     ActivityLive,
     sandbox?.server ?? Layer.empty,
