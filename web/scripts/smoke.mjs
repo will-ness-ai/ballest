@@ -27,6 +27,9 @@ const ROUTES = [
   ["/maps/new", 200],
   ["/maps/nope", 404],
   ["/api/maps?q=marble", 200, null, "Marble Run"],
+  // the site search: a player and their Map, and nothing for an empty query
+  ["/api/search?q=tenpin", 200, null, "Marble Run"],
+  ["/api/search?q=", 200, null, "null"],
   ["/board/Map_Track13", 200, null, "Rolling Rae"],
   ["/board/Map_Track13/" + P1, 200],
   ["/board/OverallLeaderboard_EASeason2", 200],
@@ -177,13 +180,13 @@ const ROUTES = [
   ["/players/circuit/pod", 200, null, '<link rel="canonical" href="' + ORIGIN + '/players"'],
   ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
   ["/", 200, null, '"@type":"WebSite"'],
-  ["/", 200, null, "<title>Ballest of Them All Records: "],
+  ["/", 200, null, "<title>BALLESTRECORDS: Ballest of Them All "],
   // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
   ["/prefabs/new", 200, null, "Upload a prefab"],
-  // the Generators: the Generate your own tab, a Generator, and one that isn't
-  ["/prefabs/make", 200, null, "Generate your own"],
+  // the Generators: Make your own, a Generator, and one that isn't
+  ["/prefabs/make", 200, null, '<h1 class="ph-title">Make a prefab</h1>'],
   ["/prefabs/make/qr", 200, null, "QR code"],
   ["/prefabs/make/sign", 200, null, "Sign"],
   ["/prefabs/make/tree", 200, null, "Tree"],

@@ -121,7 +121,7 @@ export function DayPanel({ d, rows }: { d: DailyDay; rows: ReadonlyArray<BoardRo
           <span className="eyebrow">
             {live ? "Today's Daily · " + dayLabel(d.date) : "Daily · " + dayLabel(d.date, true)}
           </span>
-          <h1>{d.title}</h1>
+          <h2>{d.title}</h2>
           <span className="dp-facts">
             <span>
               <b>{fmtN(d.entryCount)}</b> {d.entryCount === 1 ? "player" : "players"}

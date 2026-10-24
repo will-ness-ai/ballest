@@ -12,7 +12,9 @@ import { SITE_ORIGIN } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE, pageTitle } from "../lib/rules";
 
 import "./styles/base.css";
+import "./styles/controls.css";
 import "./styles/board.css";
+import "./styles/search.css";
 import "./styles/player.css";
 import "./styles/vs.css";
 import "./styles/dialogs.css";
@@ -51,7 +53,7 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Ballest of Them All: three marbles on a gold, silver and bronze podium.",
+        alt: "BALLESTRECORDS, leaderboards for Ballest of Them All: three marbles on a gold, silver and bronze podium.",
       },
     ],
   },

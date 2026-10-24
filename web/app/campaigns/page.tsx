@@ -3,11 +3,11 @@
 // Prerendered; it lights the Workshop tab.
 import type { Metadata } from "next";
 
-import { BackLink } from "../../components/BackLink";
+import { PageHead } from "../../components/PageHead";
 import { Shell } from "../../components/Shell";
 import { CampaignBanner } from "../../components/campaign/CampaignBanner";
 import { getCampaigns } from "../../db/data";
-import { campaignsHref, homeHref } from "../../lib/routes";
+import { campaignsHref } from "../../lib/routes";
 
 export const metadata: Metadata = {
   title: "Campaigns",
@@ -20,10 +20,9 @@ export default async function Page() {
   const campaigns = await getCampaigns();
   return (
     <Shell view="maps">
+      <PageHead path={campaignsHref()} title="Campaigns" />
       <section className="ws" id="ws">
-        <BackLink href={homeHref()} label="Workshop" />
         <div className="call-h">
-          <h1 className="ws-h1">Campaigns</h1>
           <p>
             Runs of Workshop maps their makers built to be played in order. Each one scores like a
             Circuit season: points for your place on every map, added up.
