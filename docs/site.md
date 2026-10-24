@@ -563,10 +563,13 @@ breadcrumb's parent, under its own Section and by its sub-tab's name where one n
 A Map remembers the homepage, All maps, a Campaign, the Daily and a player's page
 (`<Remember trail="maps">`); a player remembers a Circuit board, a Campaign, a Map, the
 Daily, its standings, /you and the Players table (`<Remember trail="board">`). A page that
-leads to only some Maps names them (`leads`: a Campaign its Maps, a Daily its Map, a player
-the Maps they made or have a time on), and is the parent of those alone, so a Map reached
-some other way never sits under an unrelated Daily. A Section's link (either row) or a search
-hit forgets both trails (`forgetTrails`): the reader has set off somewhere new. With nothing
+leads to only some Maps says so, and is the parent of those alone, so a Map reached some
+other way never sits under an unrelated Daily: a Campaign or a Daily names its Maps (`leads`),
+and a player's page names the player (`player`), whom a Map's page leads back to when they
+made it or its board has their row (`/api/board/<name>?player=`, the read You's banner makes).
+A plain click on a Section's link (either row) or a search hit that leaves the page forgets
+both trails (`forgetTrails`): the reader has set off somewhere new. A click that opens a new
+tab, or a link to the page already open, keeps them. With nothing
 kept, a remembered page that doesn't lead here, only the page itself, or storage blocked, the
 breadcrumb is the Section's own (Maps › All Maps, Players › Rankings). The server draws that one, so the remembered parent swaps in
 once the browser reads it. A head to head leads back to its first player.

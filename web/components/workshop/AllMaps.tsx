@@ -20,6 +20,7 @@ import {
   SORTS,
   VIEWS,
   activeFilters,
+  addedFilters,
   filteredMaps,
   mapMatches,
   refineFor,
@@ -193,7 +194,8 @@ export function AllMaps({
           {/* the query found nothing among the Maps the filters leave, or the filters left none */}
           {query && refined.length ? (
             <b>
-              No map matches &ldquo;{query}&rdquo;{n ? " with these filters" : ""}.
+              No map matches &ldquo;{query}&rdquo;
+              {addedFilters(f, view).length ? " with these filters" : ""}.
             </b>
           ) : (
             <b>No map fits all of these filters.</b>

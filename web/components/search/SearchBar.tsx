@@ -226,15 +226,16 @@ function Search({
   /* the term an Enter pressed while its answer was on its way waits for, and when: that
      answer's first hit opens once it comes, or, if its read fails, the first hit on screen.
      Typing on, closing the search or ENTER_WAIT passing drops it */
-  const enterFor = useRef<{ term: string; at: number } | null>(null);
+  const enterFor = useRef<string | null>(null);
+  const enterTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     const want = enterFor.current;
-    if (!want) return;
-    if (!open || want.term !== term || Date.now() - want.at > ENTER_WAIT) {
+    if (want === null) return;
+    if (!open || want !== term) {
       enterFor.current = null;
       return;
     }
-    if (answer?.key !== want.term && found.failedFor !== want.term) return;
+    if (answer?.key !== want && found.failedFor !== want) return;
     enterFor.current = null;
     const to = links.at(0);
     if (to) {
@@ -255,7 +256,11 @@ function Search({
       /* nothing picked and the hits on screen answer an older term: wait for this one's */
       if (busy && selected < 0) {
         e.preventDefault();
-        enterFor.current = { term, at: Date.now() };
+        enterFor.current = term;
+        clearTimeout(enterTimer.current);
+        enterTimer.current = setTimeout(() => {
+          if (enterFor.current === term) enterFor.current = null;
+        }, ENTER_WAIT);
         return;
       }
       const to = links[selected < 0 ? 0 : selected] as { href: string } | undefined;

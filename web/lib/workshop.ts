@@ -221,6 +221,11 @@ export const sameRefine = (a: Refine, b: Refine) =>
 const optKeep = (k: FilterKey, v: string): Keep =>
   (FILTERS[k].opts as Record<string, readonly [string, Keep]>)[v][1];
 export const activeFilters = (f: Refine) => FILTER_KEYS.filter((k) => f[k] !== "any");
+/* the filters the reader set in Refine on top of `view`'s preset */
+export const addedFilters = (f: Refine, view: string | null) => {
+  const preset = refineFor(view);
+  return activeFilters(f).filter((k) => f[k] !== preset[k]);
+};
 export const filteredMaps = (maps: ReadonlyArray<MapCard>, f: Refine, now: number) => {
   const on = activeFilters(f).map((k) => optKeep(k, f[k]));
   return maps.filter((m) => on.every((keep) => keep(m, now))).sort(SORTS[f.sort].cmp);

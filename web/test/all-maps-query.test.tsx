@@ -84,6 +84,29 @@ describe("All maps with a query in the address", () => {
     expect(html).not.toContain("filters");
   });
 
+  test("blames no filters a view's preset set", () => {
+    address.search = "?q=zzz";
+    act(() => {
+      root.render(<AllMaps maps={maps} view="unbeaten" asOf={0} />);
+    });
+    expect(el.querySelector(".empty")?.textContent).toBe("No map matches “zzz”.");
+  });
+
+  test("says the reader's own filters may hide a match", () => {
+    at("?q=zzz");
+    const button = (text: string) =>
+      [...el.querySelectorAll("button")].find((b) => b.textContent === text);
+    act(() => {
+      button("Refine")?.click();
+    });
+    act(() => {
+      button("15 to 40s")?.click();
+    });
+    expect(el.querySelector(".empty")?.textContent).toBe(
+      "No map matches “zzz” with these filters.",
+    );
+  });
+
   test("without one, lists every Map", () => {
     const html = at("");
     expect(html).toContain("Marble Run");
