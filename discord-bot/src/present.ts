@@ -1,6 +1,6 @@
 // The words both surfaces share, and what a Match looks like in words and rows: the channel
 // (the Card image in render/scenes.ts, the forms in discord/messages.ts) and the Activity page
-// (activity/web/view.ts) only lay these out.
+// (activity/web/ui/) only lay these out.
 // Pure, and free of Node, so the page's bundle uses it as it is.
 import { formatTime, MATCH_TYPE_NAME, SCORE_TICKS_PER_SECOND, type MedalKind } from "./domain.js";
 import type { CardView } from "./ports.js";
