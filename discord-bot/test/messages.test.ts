@@ -53,6 +53,9 @@ const buttons = (p: Payload) =>
 
 const labels = (p: Payload) => buttons(p).map((b) => b.label);
 
+/** Each embed on a message, as Discord gets it. */
+const embeds = (p: Payload) => (p.embeds ?? []).map((e) => ("toJSON" in e ? e.toJSON() : e));
+
 /** Who a message pings: the user ids it lets Discord mention. */
 const pinged = (p: Payload) => p.allowedMentions?.users ?? [];
 
@@ -235,6 +238,20 @@ describe("the Card", () => {
     }
   });
 
+  it("names its Map, linked to the Map's page on the site, once the Map is drawn", () => {
+    for (const state of ["live", "finished"] as const) {
+      const [embed] = embeds(cardMessage(card(state, "public"), PNG, redrawn));
+      expect(embed?.title).toBe("Map 1");
+      expect(embed?.url).toBe("https://ballestrecords.com/map/pf1");
+    }
+    const waiting = cardMessage({ ...card("live", "lobby"), waitingForSteam: true }, PNG, redrawn);
+    expect(embeds(waiting)[0]?.url).toBe("https://ballestrecords.com/map/pf1");
+    // The Invite keeps its Map sealed
+    const [invite] = embeds(cardMessage(card("invite", "lobby"), PNG, redrawn));
+    expect(invite?.title).toBeUndefined();
+    expect(invite?.url).toBeUndefined();
+  });
+
   it("keeps each row within Discord's five buttons", () => {
     for (const state of ["invite", "live", "finished"] as const)
       for (const type of ["public", "challenge", "lobby"] as const)
@@ -291,6 +308,25 @@ describe("thread posts", () => {
     );
     expect(pinged(lateJoin)).toEqual([CARA.discordId]);
     expect(labels(lateJoin)).toEqual([WORKSHOP]);
+  });
+
+  it("the start ping and the Result name the Map, linked to its page on the site", () => {
+    const link = "[Map 1](<https://ballestrecords.com/map/pf1>)";
+    const go = ThreadPost.Started({ players: [ALICE], map: MAP, endsAt: 1, card: live });
+    expect(threadMessage("7", go, art).content).toContain(`**Go!** on ${link}`);
+    const finished = card("finished", "public");
+    for (const standings of [[], [{ player: ALICE, ticks: ticks(20), rank: 1, medal: null }]]) {
+      const result = ThreadPost.Result({ standings, card: finished, steamDown: false });
+      expect(threadMessage("7", result, art).content).toContain(`on ${link}`);
+    }
+  });
+
+  it("escapes a Map title's markdown and mentions in its link", () => {
+    const sly = { ...MAP, title: "*@everyone* [x]" };
+    const go = ThreadPost.Started({ players: [ALICE], map: sly, endsAt: 1, card: live });
+    expect(threadMessage("7", go, art).content).toContain(
+      "[\\*@\u200beveryone\\* \\[x\\]](<https://ballestrecords.com/map/pf1>)",
+    );
   });
 
   it("a Challenge pings only its target, who can answer from the post", () => {
