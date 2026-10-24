@@ -187,6 +187,12 @@ export function probe() {
     height: doc.scrollHeight,
     // where the page put itself on load (an entry page scrolls to its row)
     scrolled: Math.round(scrollY),
+    // and where the row it scrolled to sits in the window: the first .focus, the one
+    // BoardBody scrolls to (a plate or a row); null on a page with none
+    landed: (() => {
+      const row = document.querySelector(".focus");
+      return row ? Math.round(row.getBoundingClientRect().top) : null;
+    })(),
     overflow: Math.max(0, doc.scrollWidth - vw),
     offscreen: [...offscreen],
     clipped: [...clipped],
