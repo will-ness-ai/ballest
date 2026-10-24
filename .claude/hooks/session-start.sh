@@ -50,13 +50,14 @@ fi
 # the review gate (.claude/hooks/review-gate.mjs): a project thread starts outside the repo, so
 # it never reads .claude/settings.json; give it the same hooks as user settings
 node .claude/hooks/install-user-hooks.mjs "$HOME/.claude/settings.json"
-# and its Skill tool reads only the user's skills, so the gate's /codebase-design (and tdd...)
-# were "Unknown skill" there (PR #331, #336): link each of the repo's skills in, never over one
-# of the same name. A session in the repo reads them as its project's already.
-if [ "$(realpath "${CLAUDE_PROJECT_DIR:-/}")" != "$(realpath .)" ]; then
-  mkdir -p "$HOME/.claude/skills"
-  for skill in .claude/skills/*/; do
-    link="$HOME/.claude/skills/$(basename "$skill")"
-    [ -e "$link" ] || [ -L "$link" ] || ln -s "$PWD/$skill" "$link"
-  done
-fi
+# and its Skill tool can't see the repo's skills, so the gate's /codebase-design (and tdd...) were
+# "Unknown skill" there (PR #331, #336, #363). Links in ~/.claude/skills (#338) never reached a
+# thread's Skill tool, which sees the skills synced from the account there. The thread's project is
+# the repo's parent (/home/user), so link them into its .claude/skills, never over one of the same
+# name. Every start does it: whether a session starts in the repo or above it isn't known here.
+skills="$(dirname "$PWD")/.claude/skills"
+mkdir -p "$skills"
+for skill in .claude/skills/*/; do
+  link="$skills/$(basename "$skill")"
+  [ -e "$link" ] || [ -L "$link" ] || ln -s "$PWD/$skill" "$link"
+done
