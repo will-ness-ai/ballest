@@ -118,7 +118,9 @@ export function probe() {
   }
   /* lines of text drawn over other text. Each line is cut to the boxes
      that clip it (an ellipsis hides the rest), and only the open dialog, popover menu or
-     dropdown drawn over the page (`data-layer`, the site search's results) counts while one is. */
+     dropdown drawn over the page (`data-layer`, the site search's results) counts while one is.
+     A control floating over the page on purpose (`data-float`, Get the Maps) is left out: the
+     page scrolls under it by design. */
   function overlaps() {
     const modal = document.querySelector("dialog[open]:modal, :popover-open, [data-layer]");
     const clips = new Map();
@@ -146,7 +148,10 @@ export function probe() {
     for (let n = walk.nextNode(); n; n = walk.nextNode()) {
       const el = n.parentElement;
       if (!n.textContent.trim() || !el) continue;
-      if (el.closest("[hidden], [aria-hidden=true], dialog:not([open]), script, style")) continue;
+      if (
+        el.closest("[hidden], [aria-hidden=true], [data-float], dialog:not([open]), script, style")
+      )
+        continue;
       if (modal && !modal.contains(el)) continue;
       const cs = getComputedStyle(el);
       if (cs.visibility === "hidden" || Number(cs.opacity) === 0) continue;

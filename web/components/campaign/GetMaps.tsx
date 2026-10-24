@@ -83,7 +83,14 @@ export function GetMaps({ c, rows }: { c: Campaign; rows: ReadonlyArray<GetMapRo
   const done = rows.filter((r) => opened.has(r.pfid)).length;
   return (
     <>
-      <button ref={from} type="button" className="go getmaps-open" onClick={() => setOpen(true)}>
+      {/* data-float: qa's overlap probe leaves out what floats over the page by design */}
+      <button
+        ref={from}
+        type="button"
+        className="go getmaps-open"
+        data-float=""
+        onClick={() => setOpen(true)}
+      >
         {n === 1 ? "Get the Map" : `Get the ${n} Maps`}
       </button>
       <dialog className="ptsx getmaps" aria-labelledby="getmapsHead" {...props}>

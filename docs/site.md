@@ -431,7 +431,8 @@ share card's) is its curated total, as its Maps are numbered out of it.
 `claude/prototype-ws-links`). Steam has no link that subscribes for a player, and only a
 collection's Subscribe to all subscribes to several Maps at once. So every page of a
 Campaign's frame floats a "Get the N Maps" button at the bottom left (`GetMaps.tsx`), which
-opens a checklist dialog of its Workshop Maps (`getMapRows`: the page's Maps less its Event
+opens a checklist dialog of its Workshop Maps; it carries `data-float`, so qa's overlap probe
+leaves it out of the text it checks, since the page scrolls under it by design. The dialog lists them (`getMapRows`: the page's Maps less its Event
 boards, numbered and named as the rail does): each row links its Map's Workshop page in a
 new tab and ticks "Opened" once clicked, with a count, a bar and Start over, kept per Campaign
 in this browser's `localStorage`. A Campaign with a `collection` gets its Subscribe to all at
