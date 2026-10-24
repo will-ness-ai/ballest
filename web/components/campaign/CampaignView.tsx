@@ -170,12 +170,7 @@ export async function CampaignView({
           )}
         </section>
         {!m && <PointsDialog board={name} tracks={maps.length} />}
-        <GetMaps
-          slug={c.slug}
-          title={c.title}
-          collection={c.collection ?? null}
-          rows={getMapRows(c, maps)}
-        />
+        <GetMaps c={c} rows={getMapRows(c, maps)} />
         <Remember trail="board" href={here} label={c.title + " " + title} />
         <Remember
           trail="maps"

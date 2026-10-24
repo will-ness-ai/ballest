@@ -50,15 +50,7 @@ const text = (html: string) =>
     .replace(/<!--.*?-->/g, "")
     .replace(/<[^>]+>/g, "|")
     .replace(/\|+/g, "|");
-const draw = (c: Campaign) =>
-  renderToStaticMarkup(
-    <GetMaps
-      slug={c.slug}
-      title={c.title}
-      collection={c.collection ?? null}
-      rows={getMapRows(c, MAPS)}
-    />,
-  );
+const draw = (c: Campaign) => renderToStaticMarkup(<GetMaps c={c} rows={getMapRows(c, MAPS)} />);
 const ws = (id: string) => `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`;
 
 describe("the rows", () => {
@@ -97,7 +89,7 @@ describe("the checklist", () => {
 
   test("is nothing for a Campaign with no Workshop Map", () => {
     const html = renderToStaticMarkup(
-      <GetMaps slug="leth-trials" title="Leth Trials" collection={null} rows={[]} />,
+      <GetMaps c={{ ...RUN, slug: "leth-trials", maps: ["leth-trial-1"] }} rows={[]} />,
     );
     expect(html).toBe("");
   });

@@ -8,7 +8,7 @@
 import { useRef, useState, useSyncExternalStore } from "react";
 
 import { useDialog } from "../Modal";
-import type { GetMapRow } from "../../lib/campaigns";
+import type { Campaign, GetMapRow } from "../../lib/campaigns";
 import { workshopHref } from "../../lib/workshop";
 
 /* the Maps opened from the checklist, per Campaign, in localStorage: a convenience, so the
@@ -69,17 +69,11 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
   );
 }
 
-export function GetMaps({
-  slug,
-  title,
-  collection,
-  rows,
-}: {
-  slug: string;
-  title: string;
-  collection: string | null;
-  rows: ReadonlyArray<GetMapRow>;
-}) {
+/* `rows` are getMapRows(c, the page's Maps): the server picks them, so the page sends this
+   only what the checklist draws */
+export function GetMaps({ c, rows }: { c: Campaign; rows: ReadonlyArray<GetMapRow> }) {
+  const { slug, title } = c;
+  const collection = c.collection ?? null;
   const [open, setOpen] = useState(false);
   const from = useRef<HTMLButtonElement>(null);
   const { props, close } = useDialog({ open, onClose: () => setOpen(false), from });
