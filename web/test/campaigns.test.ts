@@ -46,6 +46,13 @@ describe("the curated list", () => {
     ]);
   });
 
+  test("a collection that isn't a Workshop ID is a problem", () => {
+    expect(campaignProblems([{ ...make("a", ["1"]), collection: "x12" }])).toEqual([
+      '"a" names collection "x12", which is not a Workshop ID',
+    ]);
+    expect(campaignProblems([{ ...make("a", ["1"]), collection: "12" }])).toEqual([]);
+  });
+
   test("a repeated slug is a problem", () => {
     expect(campaignProblems([make("a", ["1"]), make("a", ["2"])])).toEqual([
       'slug "a" is used twice',
