@@ -293,7 +293,8 @@ The batching is tested on the TestClock (`test/newTracks.test.ts`).
 ## My stats
 
 `src/discord/myStats.ts` keeps `#my-stats` (spec #323): at startup the bot makes it in its server,
-beside the Match channel, when it holds none or the one it made is gone, with `@everyone` denied
+beside the Match channel, or at the top of the server `MY_STATS_GUILD_ID` names (production: Ballest
+Racing, `fly.toml`), when it holds none or the one it made is gone, with `@everyone` denied
 Send Messages, both Create Threads, Send Messages in Threads and Add Reactions, and the bot allowed
 what the panel needs, and keeps one panel there with a **See my stats** button. Its id,
 the panel's and the panel's fingerprint are in SQLite (`my_stats_channel`), so it is found by id and
@@ -301,6 +302,7 @@ admins may rename or move it; the panel is edited only when this build draws it 
 the Footer, and posted again if deleted. Presses there reach `interactions.ts` through
 `Discord.answerIn`. Before making the channel it checks the bot holds every permission in
 `NEEDED_TO_CREATE` where the channel will be, the Match channel's category or else the server
+(in Ballest Racing, Add Reactions and Create Private Threads are beyond its invite's permissions)
 (Discord refuses an overwrite, allow or deny, naming a permission the bot lacks): any missing is
 named to the ops channel, and no channel is made without them. A channel already there needs
 none of them, so it raises no alert. On any

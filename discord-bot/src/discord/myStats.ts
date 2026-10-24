@@ -159,8 +159,17 @@ export const MyStatsChannelLive = Layer.effect(
   MyStatsChannel,
   Effect.gen(function* () {
     const discord = yield* Discord;
-    const guild = discord.channel.guild;
     const client = discord.channel.client;
+    // MY_STATS_GUILD_ID puts it in another server the bot is in (Ballest Racing, fly.toml);
+    // unset, it is the Match channel's server, beside the Match channel.
+    const elsewhere = yield* Config.option(Config.string("MY_STATS_GUILD_ID")).pipe(Effect.orDie);
+    const home = discord.channel.guild;
+    const away = Option.filter(elsewhere, (id) => id !== home.id);
+    const guild = Option.isSome(away)
+      ? yield* tryDiscord("fetch #my-stats's server", () => client.guilds.fetch(away.value))
+      : home;
+    /** The Match channel's category, where #my-stats is made in its server; none elsewhere. */
+    const parentId = Option.isSome(away) ? null : discord.channel.parentId;
 
     /** The channel if it is still a text channel in this server, else null. */
     const find = Effect.fn("MyStats.find")(function* (channelId: string) {
@@ -189,11 +198,10 @@ export const MyStatsChannelLive = Layer.effect(
 
     return MyStatsChannel.of({
       exists: (channelId) => find(channelId).pipe(Effect.map((c) => c !== null)),
-      // Beside the Match channel, so in its category if it has one: the category's overwrites
-      // for the bot count there, not only its roles in the server.
+      // In the Match channel's category if it is made there: the category's overwrites for the
+      // bot count there, not only its roles in the server.
       missingToCreate: Effect.gen(function* () {
         const self = yield* fetchMe;
-        const parentId = discord.channel.parentId;
         // GuildMember.permissions holds the roles' raw bits; an Administrator holds them all.
         const own = self.permissions.has(PermissionFlagsBits.Administrator)
           ? PermissionsBitField.All
@@ -206,12 +214,12 @@ export const MyStatsChannelLive = Layer.effect(
       }),
       create: Effect.gen(function* () {
         const self = yield* fetchMe;
-        // Beside the Match channel; admins may move it anywhere.
+        // Beside the Match channel, or at the top of another server; admins may move it anywhere.
         const made = yield* tryDiscord(`create #${MY_STATS_NAME}`, () =>
           guild.channels.create({
             name: MY_STATS_NAME,
             type: ChannelType.GuildText,
-            parent: discord.channel.parentId,
+            parent: parentId,
             topic: "Press See my stats for your ranks and Medals. Only you see them.",
             permissionOverwrites: [
               { id: guild.roles.everyone.id, deny: EVERYONE_DENIED },
@@ -257,6 +265,16 @@ export const MyStatsLive = Layer.unwrapEffect(
     }
     return MyStatsPanelLive.pipe(
       Layer.provide(MyStatsChannelLive),
+      // the bot isn't in MY_STATS_GUILD_ID's server, or can't see it: the bot runs on without it
+      Layer.catchAll((e) =>
+        Layer.effectDiscard(
+          Effect.flatMap(OpsAlerts, (alerts) =>
+            alerts.post(
+              `Multiballs couldn't set up #${MY_STATS_NAME}: ${e._tag === "DiscordError" ? describeDiscordError(e) : e.message}`,
+            ),
+          ),
+        ),
+      ),
       Layer.provide(OpsAlerts.Default),
     );
   }),
