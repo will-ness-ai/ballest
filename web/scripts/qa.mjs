@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { compare } from "./qa/compare.mjs";
 import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
+import { landsElsewhere } from "./qa/landing.mjs";
 import { REFS, pieces } from "./qa/piece.mjs";
 import { fmt, matching, pagesOf, rankRows } from "./qa/piece-math.mjs";
 import { signIn } from "./qa/session.mjs";
@@ -418,17 +419,9 @@ async function check() {
         });
       }
       if (!before) return;
-      // the page lands somewhere else on load, which the screenshot from the top can't show;
-      // a few rows either way is the content above it changing height
-      const [was, is] = [before.probes.scrolled, a.probes.scrolled];
-      if (Math.abs(was - is) > 40)
-        found.push({
-          view: name,
-          kind: "scroll",
-          where: "page",
-          detail: `lands at ${String(is)}px, was ${String(was)}px`,
-          ref: "new",
-        });
+      const landed = landsElsewhere(before.probes, a.probes);
+      if (landed)
+        found.push({ view: name, kind: "scroll", where: "page", detail: landed, ref: "new" });
       const d = await compare(browser, before.shot, a.shot, [ref.name, at.name, "changed"]);
       if (!d.changed) return;
       const file = OUT + name.replaceAll("/", "-") + ".png";
