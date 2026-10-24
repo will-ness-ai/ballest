@@ -9,6 +9,7 @@ import { useState } from "react";
 import { CampaignCards } from "./CampaignCards";
 import { Shelf, glide } from "./Shelf";
 import { PW_CHUNK, usePlayerView, type PwSort } from "./usePlayerView";
+import { SearchBox } from "../Controls";
 import { MapImage } from "../MapImage";
 import { Medal } from "../Medal";
 import type { PlayerCampaign } from "../../db/data";
@@ -193,10 +194,8 @@ export function WorkshopTab({
         {"All " + plural(w.finishes.length, "map", "maps")}
       </h2>{" "}
       <div className="pwtools">
-        <input
-          className="ws-q"
+        <SearchBox
           id="pwq"
-          type="search"
           placeholder="Search maps or makers"
           aria-label="Search this player's maps by title or maker"
           autoComplete="off"
@@ -206,7 +205,7 @@ export function WorkshopTab({
           }}
         />{" "}
         <select
-          className="pwsort"
+          className="field"
           id="pwsort"
           aria-label="Sort maps"
           value={pw.sort}
@@ -251,7 +250,7 @@ export function WorkshopTab({
             {rows.length > pw.shown ? (
               <button
                 type="button"
-                className="more-btn"
+                className="btn more"
                 data-pwmore=""
                 onClick={() => {
                   setPw({ ...pw, shown: pw.shown + PW_CHUNK });

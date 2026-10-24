@@ -13,6 +13,7 @@ import { Fragment, memo, useCallback, useEffect, useRef, useState } from "react"
 import { QMark } from "./PointsDialog";
 import { RaceDrawer, useRaceOpen } from "./RaceDrawer";
 import { ScoreRow } from "./ScoreRow";
+import { SearchBox } from "../Controls";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
@@ -106,7 +107,7 @@ const PodRow = memo(function PodRow({ p }: { p: PodiumRow }) {
       </span>
       <span className="c-score">
         <span>{podiumTotal(p)}</span>
-        <i className="pill"></i>
+        <i className="hue-pill"></i>
       </span>
     </div>
   );
@@ -163,9 +164,8 @@ function Frame({
         </div>
         {props.sortsw}
         <div className="search">
-          <input
+          <SearchBox
             id="q"
-            type="search"
             placeholder="Find a player"
             aria-label="Find a player"
             value={query}

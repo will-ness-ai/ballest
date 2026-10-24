@@ -79,7 +79,9 @@ A hook holds both steps (`.claude/hooks/review-gate.mjs`): it notes the commit e
 `/code-review` and `/codebase-design` runs on, and refuses an agent's merge, auto-merge or
 mark-ready while the PR has a commit either hasn't seen, unless every such commit together is a
 small follow-up (`FOLLOW_UP_LINES` in `review-gate-rules.mjs`). A commit that changes only
-binary pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. It
+binary pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. When
+the session's Skill tool can't find a missing skill (no `SKILL.md` in the project's or
+`~/.claude/skills`), it only warns: follow that `SKILL.md` by hand and say so in the PR. It
 also refuses a merge of this repo's PRs that doesn't squash (`docs/agents/issue-tracker.md`).
 Its record is the clone's (`.git/claude-reviews`, shared by worktrees and sessions), so run them
 in the clone that merges. When it can't check (gh offline, say) it lets the call through with a

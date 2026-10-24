@@ -6,8 +6,9 @@
 import { notFound } from "next/navigation";
 
 import { BoardBody } from "./BoardBody";
-import { Remember } from "../BackLink";
 import { DocTitle } from "../Behaviours";
+import { PageHead } from "../PageHead";
+import { Remember } from "../Trail";
 import { BoardSheet } from "./BoardSheet";
 import { OverallCard, PodiumPlates, ScorePlates, SortSwitch, TrackCard } from "./BoardTop";
 import { HistoryCard } from "./HistoryCard";
@@ -62,86 +63,88 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
   const focusAt = focusId ? focus[focusId] : undefined;
   const t = TRACKS[name] as (typeof TRACKS)[string] | undefined;
   const items = <RailItems boards={own} current={name} podiums={site.podiums} />;
+  /* the page's title: a season's standings by name, a Track by its in-game number */
+  const title = points ? `${b.group} ${b.display}` : `Track ${b.display}`;
+  const here = boardHref(name, podiums ? PODIUM_SORT : null);
 
   return (
-    <div className="main">
-      <DocTitle title={`${b.group} ${b.display}`} />
-      <SeasonTabs seasons={seasons} on={b.group} />
-      <aside className="rail">
-        <h2 id="railhead">{b.group}</h2>
-        <nav className="boards" id="boards" aria-label="Leaderboard">
-          {items}
-        </nav>
-      </aside>
-
-      <section className="content">
-        <YouMarks name={name} />
-        <div className="boardrow">
-          <SeasonChip seasons={seasons} on={b.group} board={name} />
-          <BoardSheet
-            img={t?.img ?? null}
-            name={points ? b.display : trackNo(b.display)}
-            count={countText(b)}
-            group={b.group}
-          >
+    <>
+      <PageHead path={here} title={title} />
+      <div className="main">
+        <DocTitle title={`${b.group} ${b.display}`} />
+        <SeasonTabs seasons={seasons} on={b.group} />
+        <aside className="rail">
+          <h2 id="railhead">{b.group}</h2>
+          <nav className="boards" id="boards" aria-label="Leaderboard">
             {items}
-          </BoardSheet>
-        </div>
+          </nav>
+        </aside>
 
-        {points ? (
-          <OverallCard b={b} rows={rows} tally={tally} tracks={tracks} podiums={podiums} />
-        ) : (
-          <TrackCard b={b} rows={rows} scores={scores} />
-        )}
+        <section className="content">
+          <YouMarks name={name} />
+          <div className="boardrow">
+            <SeasonChip seasons={seasons} on={b.group} board={name} />
+            <BoardSheet
+              img={t?.img ?? null}
+              name={points ? b.display : trackNo(b.display)}
+              count={countText(b)}
+              group={b.group}
+            >
+              {items}
+            </BoardSheet>
+          </div>
 
-        {/* You on the points order only: the podium order ranks no one by score */}
-        {!podiums && <YouBanner name={name} field={page.total} medals={t?.medals ?? null} />}
+          {points ? (
+            <OverallCard b={b} rows={rows} tally={tally} tracks={tracks} podiums={podiums} />
+          ) : (
+            <TrackCard b={b} rows={rows} scores={scores} />
+          )}
 
-        {podiums ? (
-          <BoardBody
-            order="podiums"
-            name={name}
-            points
-            where={b.group}
-            count={b.entryCount}
-            sortsw={<SortSwitch name={name} podiums />}
-            leaders={<PodiumPlates tally={tally} />}
-            players={podiumRows(tally, places)}
-            tracks={tally.tracks}
-            group={b.group}
-          />
-        ) : (
-          <BoardBody
-            order="score"
-            name={name}
-            points={points}
-            where={b.group}
-            count={page.total}
-            sortsw={tally ? <SortSwitch name={name} podiums={false} /> : undefined}
-            history={history && <HistoryCard h={history} />}
-            leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
-            initial={page.total >= 3 ? rows.slice(3) : rows}
-            lead={rows[0]?.score ?? null}
-            pods={
-              tally
-                ? Object.fromEntries(
-                    tally.players.map((p) => [
-                      p.steamId,
-                      { gold: p.gold, silver: p.silver, bronze: p.bronze },
-                    ]),
-                  )
-                : null
-            }
-            focus={focusId && focusAt ? { id: focusId, rank: focusAt.rank } : null}
-          />
-        )}
-      </section>
-      {points && <PointsDialog board={name} tracks={tracks} />}
-      <Remember
-        trail="board"
-        href={boardHref(name, podiums ? PODIUM_SORT : null)}
-        label={b.display}
-      />
-    </div>
+          {/* You on the points order only: the podium order ranks no one by score */}
+          {!podiums && <YouBanner name={name} field={page.total} medals={t?.medals ?? null} />}
+
+          {podiums ? (
+            <BoardBody
+              order="podiums"
+              name={name}
+              points
+              where={b.group}
+              count={b.entryCount}
+              sortsw={<SortSwitch name={name} podiums />}
+              leaders={<PodiumPlates tally={tally} />}
+              players={podiumRows(tally, places)}
+              tracks={tally.tracks}
+              group={b.group}
+            />
+          ) : (
+            <BoardBody
+              order="score"
+              name={name}
+              points={points}
+              where={b.group}
+              count={page.total}
+              sortsw={tally ? <SortSwitch name={name} podiums={false} /> : undefined}
+              history={history && <HistoryCard h={history} />}
+              leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
+              initial={page.total >= 3 ? rows.slice(3) : rows}
+              lead={rows[0]?.score ?? null}
+              pods={
+                tally
+                  ? Object.fromEntries(
+                      tally.players.map((p) => [
+                        p.steamId,
+                        { gold: p.gold, silver: p.silver, bronze: p.bronze },
+                      ]),
+                    )
+                  : null
+              }
+              focus={focusId && focusAt ? { id: focusId, rank: focusAt.rank } : null}
+            />
+          )}
+        </section>
+        {points && <PointsDialog board={name} tracks={tracks} />}
+        <Remember trail="board" href={here} label={points ? title : `${b.group} ${title}`} />
+      </div>
+    </>
   );
 }

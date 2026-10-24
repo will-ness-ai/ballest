@@ -6,6 +6,7 @@ import {
   HIDDEN,
   SHELVES,
   SORTS,
+  addedFilters,
   filteredMaps,
   onShelf,
   refineFor,
@@ -139,4 +140,12 @@ test("the report link names the Map and links its page", () => {
   const u = new URL(reportHref({ title: "Loop & Drop", pfid: "123" }));
   expect(u.searchParams.get("title")).toBe("Hide map: Loop & Drop (123)");
   expect(u.searchParams.get("body")).toContain("https://ballestrecords.com/map/123");
+});
+
+describe("the filters the reader added", () => {
+  test("leave out what the view's preset set, and count what the reader set on top", () => {
+    expect(addedFilters(refineFor("unbeaten"), "unbeaten")).toEqual([]);
+    expect(addedFilters({ ...refineFor("unbeaten"), len: "mid" }, "unbeaten")).toEqual(["len"]);
+    expect(addedFilters({ ...refineFor(null), author: "unbeaten" }, null)).toEqual(["author"]);
+  });
 });

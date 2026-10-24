@@ -1,9 +1,9 @@
 // The site's queries (db/site.ts) against the tiny dataset; every expected value is worked
 // out by hand from the comments in db/seed/datasets/tiny.ts.
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, TransactionRollbackError } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { entries, ghosts, refreshes } from "../db/schema";
+import { entries, ghosts, players, refreshes } from "../db/schema";
 import { SKIN } from "../db/seed/datasets/tiny";
 import { seed } from "../db/seed/harness";
 import {
@@ -20,6 +20,7 @@ import {
   standings,
   trackBoards,
   trackPodiums,
+  withTimes,
   workshopMaps,
 } from "../db/site";
 import { boardHistory } from "../lib/history";
@@ -372,6 +373,40 @@ describe("the player search", () => {
   test("names that start with the text come first", async () => {
     const hits = await searchPlayers(t.db, "Po");
     expect(hits.map((h) => h.persona)).toEqual(["Points Pat", "Slowpoke"]);
+  });
+
+  test("an exact name comes first, so the limit never cuts it", async () => {
+    await t.db
+      .transaction(async (tx) => {
+        const db = tx as unknown as typeof t.db;
+        await db.insert(players).values(
+          [
+            [p(50), "Pablo"],
+            [p(51), "Pa"],
+          ].map(([steamId, persona]) => ({ steamId, persona, avatar: null, profileUrl: null })),
+        );
+        await db.insert(entries).values(
+          [p(50), p(51)].map((steamId) => ({
+            board: "Map_Track13",
+            steamId,
+            score: 2_000_000,
+            ugcId: null,
+            firstSeenRefresh: 1,
+            lastSeenRefresh: 1,
+            closedRefresh: null,
+          })),
+        );
+        expect((await searchPlayers(db, "pa", { limit: 1 })).map((h) => h.persona)).toEqual(["Pa"]);
+        tx.rollback();
+      })
+      .catch((e: unknown) => {
+        if (!(e instanceof TransactionRollbackError)) throw e;
+      });
+  });
+
+  test("tells which of some Steam IDs have a time on a board", async () => {
+    expect((await withTimes(t.db, [p(10), p(99), p(3)])).sort()).toEqual([p(3), p(10)]);
+    expect(await withTimes(t.db, [])).toEqual([]);
   });
 
   test("leaves out the player being compared against", async () => {

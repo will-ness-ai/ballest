@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { PageHead } from "../../../components/PageHead";
 import { Shell } from "../../../components/Shell";
 import { PrefabGone, PrefabPage } from "../../../components/prefabs/PrefabPage";
 import { pageMetadata } from "../../../components/metadata";
@@ -34,8 +35,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 async function Body({ params }: Props) {
-  const p = await getPrefab((await params).slug);
-  return p?.state === "live" ? <PrefabPage p={p} /> : <PrefabGone p={p} />;
+  const { slug } = await params;
+  const p = await getPrefab(slug);
+  const live = p?.state === "live";
+  return (
+    <>
+      <PageHead path={prefabHref(slug)} title={live ? p.name : "This prefab is gone"} />
+      {live ? <PrefabPage p={p} /> : <PrefabGone p={p} />}
+    </>
+  );
 }
 
 export default function Page({ params }: Props) {

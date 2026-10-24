@@ -550,6 +550,11 @@ export function searchPlayers(query: string, except: string) {
   return q.searchPlayers(db(), query, { except });
 }
 
+/* which of the site search's makers have a time on a board, read fresh with it */
+export function withTimes(ids: ReadonlyArray<string>) {
+  return q.withTimes(db(), ids);
+}
+
 /* every live Prefab as the gallery's cards, newest first */
 export async function getPrefabCards(): Promise<Array<PrefabCard>> {
   "use cache: remote";

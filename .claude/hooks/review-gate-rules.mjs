@@ -132,6 +132,14 @@ export function repoSlug(text) {
 /* "projectSettings:code-review" and "code-review" are the same skill */
 export const skillName = (name) => String(name).split(":").pop();
 
+// Claude Code's own skills of the same name: the Skill tool always finds these
+const BUILT_IN = ["code-review"];
+
+/* Whether this session's Skill tool can find `skill`: built in, or a SKILL.md in one of the
+   skill folders it read at its start (`dirs`). `exists(path)` is the file system's. */
+export const loadable = (skill, dirs, exists) =>
+  BUILT_IN.includes(skill) || dirs.some((d) => exists(`${d}/${skill}/SKILL.md`));
+
 // A follow-up this small, after both skills have run on the PR, needs no new run (Will,
 // 2026-10-18: each round of review fixes was costing a whole review round).
 export const FOLLOW_UP_LINES = 40;

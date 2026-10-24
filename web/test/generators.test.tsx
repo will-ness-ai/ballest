@@ -663,10 +663,10 @@ describe("the pages", () => {
     expect(generatorHref("windmill")).toBe("/prefabs/make");
   });
 
-  test("Generate your own shows the tabs and a card per Generator", () => {
+  test("Make your own shows a card per Generator, and no tabs of its own (the header has them)", () => {
     const html = renderToStaticMarkup(<MakeGallery />);
-    expect(html).toContain('href="/prefabs"');
-    expect(html).toMatch(/<a aria-current="page" href="\/prefabs\/make">Generate your own<\/a>/);
+    expect(html).not.toContain('href="/prefabs"');
+    expect(html).not.toContain("aria-current");
     for (const g of GENERATORS) expect(html).toContain(`href="/prefabs/make/${g.key}"`);
   });
 
