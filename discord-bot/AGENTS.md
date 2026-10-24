@@ -229,10 +229,18 @@ that server does, and lists, opens, links and pings that Venue's only, answering
 Match as not found. Links, Chosen Skins and Busy are shared (Busy by the engine's `isBusy`, which
 skips a Venue that isn't running). `auth.ts` swaps the SDK's OAuth code for an
 access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
-page (`web/`: `view.ts` is the markup, `app.ts` the state and actions, bundled by esbuild at
-startup), its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and
-each Skin's picture, because Discord's proxy blocks every other host. The page polls every two seconds. The visual reference
-is the prototype on branch `claude/prototype-activity-surfaces`.
+page, its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and
+each Skin's picture, because Discord's proxy blocks every other host. The page arrives with its
+config and the signing-in screen in it, and its script named by its hash and sent compressed.
+
+The page (`web/`) is React with TanStack Query, bundled by esbuild at startup from `main.tsx`.
+`session.ts` signs in and signs in again after a 401 (no token outlives the page); `client.ts` is
+the API; the board (`/api/me` with `/api/matches`) is one query polled every two seconds, and
+each member's action one mutation at a time, after which the board is read again. `nav.ts` turns
+each board and each press into which Match is on screen (the lock, watching, a Result staying
+up, Go!), and is pure and tested (`test/activityNav.test.ts`, `test/activitySession.test.ts`);
+`ui/` only draws it. The visual reference is the prototype on branch
+`claude/prototype-activity-surfaces`.
 
 The Activity's art in the Developer Portal (the app icon, and the cover and grid-view background
 under Activities -> Art Assets) is drawn by `src/render/` too: `pnpm render:activity-art` writes it

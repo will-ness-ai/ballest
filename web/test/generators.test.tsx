@@ -1,6 +1,5 @@
 // The Generators (spec #299): each makes a Prefab file from a few settings. Tested through
 // generate() and each Generator's controls, the way the page drives them.
-import qrcode from "qrcode-generator";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 
@@ -52,7 +51,7 @@ function make(key: string, change: Values = {}) {
   return file;
 }
 
-/* a cube's extent across a sign or code (+Y, left to right for the camera that spawned it)
+/* a cube's extent across a sign (+Y, left to right for the camera that spawned it)
    and up it (z), in cm */
 const extent = (it: PrefabItem) => {
   const [, y, z] = it.transform.location;
@@ -124,67 +123,19 @@ describe("every Generator", () => {
       expect(make(key, { ...most, ...pick }).items.length).toBeLessThanOrEqual(PIECE_LIMIT);
   });
 
+  test("a tree at its largest is too big for the game, and says so", () => {
+    const most: Values = { ...gen("tree").defaults };
+    for (const c of gen("tree").controls(most)) if (c.kind === "number") most[c.key] = c.max;
+    const file = make("tree", most);
+    expect(file.items.length).toBeGreaterThan(PIECE_LIMIT);
+    expect(checkPrefab(JSON.stringify(file)).ok).toBe(false);
+  });
+
   test.each(BUILT)("%s never reaches under the floor", (key) => {
     for (const { label, values } of variationsOf(gen(key))) {
       const file = generate(key, values);
       if (file) expect(lowest(file), `${key} ${label}`).toBeGreaterThanOrEqual(-1);
     }
-  });
-});
-
-describe("the QR code", () => {
-  /* which of the code's cells a file raises, read back from its boxes: the plate is the first
-     piece, every other box covers whole cells */
-  function raised(file: PrefabFile, cells: number) {
-    const [plate, ...boxes] = file.items;
-    const p = extent(plate);
-    const cell = (p.x1 - p.x0) / cells;
-    const on = new Set<string>();
-    for (const b of boxes) {
-      const e = extent(b);
-      for (let x = Math.round((e.x0 - p.x0) / cell); x < Math.round((e.x1 - p.x0) / cell); x++)
-        for (let y = Math.round((p.z1 - e.z1) / cell); y < Math.round((p.z1 - e.z0) / cell); y++)
-          on.add(`${x},${y}`);
-    }
-    return on;
-  }
-
-  test("raises exactly the dark modules, inside a two-module margin", () => {
-    const text = "https://ballestrecords.com";
-    const q = qrcode(0, "M");
-    q.addData(text);
-    q.make();
-    const n = q.getModuleCount();
-    const dark = new Set<string>();
-    for (let r = 0; r < n; r++)
-      for (let c = 0; c < n; c++) if (q.isDark(r, c)) dark.add(`${c + 2},${r + 2}`);
-    expect(raised(make("qr", { text }), n + 4)).toEqual(dark);
-  });
-
-  test("is as wide and as tall as its size", () => {
-    const e = extent(make("qr", { size: 9 }).items[0]);
-    expect(e.x1 - e.x0).toBeCloseTo(900);
-    expect(e.z1 - e.z0).toBeCloseTo(900);
-  });
-
-  test("faces the camera it spawns in front of, its modules a quarter of one proud", () => {
-    const [plate, ...modules] = make("qr", { size: 5 }).items;
-    const side = (extent(plate).x1 - extent(plate).x0) / 29; /* 25 modules and the margin */
-    for (const m of modules) expect(proud(m) - proud(plate)).toBeCloseTo(side / 4);
-  });
-
-  test("defaults to the site's address", () => {
-    expect(gen("qr").defaults.text).toBe("https://ballestrecords.com");
-  });
-
-  test("makes nothing from no text", () => {
-    expect(generate("qr", valuesOf("qr", { text: "" }))).toBeNull();
-  });
-
-  test("a code too big for the game says so", () => {
-    const file = make("qr", { text: "x".repeat(2000) });
-    expect(file.items.length).toBeGreaterThan(PIECE_LIMIT);
-    expect(checkPrefab(JSON.stringify(file)).ok).toBe(false);
   });
 });
 
@@ -207,6 +158,11 @@ describe("the sign", () => {
       expect(l.z0).toBeGreaterThanOrEqual(wall.z0 - 0.01);
       expect(l.z1).toBeLessThanOrEqual(wall.z1 + 0.01);
     }
+  });
+
+  test("faces the camera it spawns in front of, its letters standing out of the wall", () => {
+    const [wall, ...letters] = make("sign", { wall: true }).items;
+    for (const l of letters) expect(proud(l)).toBeGreaterThan(proud(wall));
   });
 
   test("with the wall off is letters standing on the ground, no plate", () => {
@@ -446,7 +402,6 @@ describe("the categories", () => {
   test("hold the Useful ones, then Racing, then Decor, each of the new five", () => {
     const under = (c: string) => GENERATORS.filter((g) => g.category === c).map((g) => g.key);
     expect(under("Useful")).toEqual([
-      "qr",
       "sign",
       "arrow",
       "pixel-art",
@@ -637,7 +592,7 @@ describe("colours", () => {
     ["White", "MI_Env_White_Smooth", "MaterialCategory_Smooth", 1],
     ["Lime", "MI_Env_Lime_Smooth", "MaterialCategory_Smooth", 6],
   ])("%s is painted as the editor saves it", (colour, material, category, index) => {
-    const item = make("qr", { back: colour }).items[0];
+    const item = make("sign", { back: colour }).items[0];
     expect(item.meshes[0].materials[0]).toMatch(new RegExp(`/${material}[.]${material}$`));
     expect(item.paint).toEqual({
       categories: [`/Game/Art/DataAssets/BallestMaterials/${category}.${category}`],
@@ -646,7 +601,7 @@ describe("colours", () => {
   });
 
   test("the site's viewer draws every colour, each in a colour of its own", () => {
-    const drawn = COLOUR_NAMES.map((name) => shapesOf(make("qr", { back: name }))[0].colour);
+    const drawn = COLOUR_NAMES.map((name) => shapesOf(make("sign", { back: name }))[0].colour);
     expect(drawn).not.toContain(UNKNOWN_COLOUR);
     expect(new Set(drawn).size).toBe(COLOUR_NAMES.length);
   });

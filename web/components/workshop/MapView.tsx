@@ -29,7 +29,7 @@ import type { WorkshopMap } from "../../lib/rows";
 import { homeHref, mapHref } from "../../lib/routes";
 import { BOARD_CHUNK, fmtN, fmtTime, isSteamId } from "../../lib/rules";
 import { spreadOf } from "../../lib/spread";
-import { HIDDEN, map3dOf, recordIfAny, reportHref } from "../../lib/workshop";
+import { HIDDEN, map3dOf, recordIfAny, reportHref, workshopHref } from "../../lib/workshop";
 
 /* exported for its test (test/map-3d-button.test.tsx) */
 export function MapPanel({
@@ -47,7 +47,17 @@ export function MapPanel({
   return (
     <aside className="mpanel" id="mpanel">
       <MapImage preview={m.preview} className="mp-img" />
-      {view && <Map3D m={view} />}
+      {/* getting the Map into the game: its Workshop page, and what to do after subscribing */}
+      <div className="mp-get">
+        {view && <Map3D m={view} />}
+        <a className="go mp-ws" href={workshopHref(m.pfid)} target="_blank" rel="noopener">
+          Get it in Ballest ↗
+        </a>
+      </div>
+      <p className="mp-how">
+        Press <b>Subscribe</b> on Steam, then in Ballest go to the <b>Hub</b> and press{" "}
+        <b>Downloads</b>.
+      </p>
       <span className="mp-by">
         by <CreatorLink m={m} />
       </span>
@@ -83,14 +93,6 @@ export function MapPanel({
           <YouSpread name={m.name} chart={spreadOf(scores, m.medals, false)} />
         </div>
       </div>
-      <a
-        className="go mp-ws"
-        href={`https://steamcommunity.com/sharedfiles/filedetails/?id=${m.pfid}`}
-        target="_blank"
-        rel="noopener"
-      >
-        Open in Steam Workshop
-      </a>
       {!reason && (
         <a className="mp-report" href={reportHref(m)} target="_blank" rel="noopener">
           Report a broken map

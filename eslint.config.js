@@ -83,6 +83,11 @@ export default defineConfig(
     },
   },
   {
+    // the Activity's page (React, bundled by the bot's server)
+    files: ["discord-bot/src/activity/web/**/*.{ts,tsx}"],
+    extends: [reactHooks.configs.flat.recommended],
+  },
+  {
     // lib/ is pure: no React, no Next and no database (CODING_STANDARDS.md, "Site")
     files: ["web/lib/**"],
     rules: {

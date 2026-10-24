@@ -1,4 +1,4 @@
-// Useful (lib/generators/index.ts), beside the QR code and the Sign: Arrow sign, Pixel art,
+// Useful (lib/generators/index.ts), beside the Sign: Arrow sign, Pixel art,
 // Stairs, Bridge and Floor tiles. A sign or a picture faces -X like the Sign; stairs climb away
 // from the camera (+X) and a bridge spans across its view (along Y).
 import { colourOf, type PrefabItem } from "../prefab";

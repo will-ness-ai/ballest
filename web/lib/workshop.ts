@@ -289,6 +289,10 @@ export const HIDDEN: Record<string, string | undefined> = {
   3623648768: "Can't be finished on the current version of the game.",
 };
 
+/* a Map's, or a Steam collection's, own page on the Steam Workshop, where a player subscribes */
+export const workshopHref = (pfid: string) =>
+  `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
+
 const REPORT_URL = "https://github.com/will-ness-ai/ballest/issues/new";
 export const reportHref = (m: { title: string; pfid: string }) =>
   REPORT_URL +
