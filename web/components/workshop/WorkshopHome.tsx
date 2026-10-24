@@ -12,7 +12,14 @@ import { MapImage } from "../MapImage";
 import { useClock, useDebouncedFetch } from "../../hooks/client";
 import { mapHref, mapsHref } from "../../lib/routes";
 import { fmtN, plural } from "../../lib/rules";
-import { MAPS_CHUNK, SHELVES, SORTS, onShelf, type MapCard } from "../../lib/workshop";
+import {
+  MAPS_CHUNK,
+  SHELVES,
+  SORTS,
+  onShelf,
+  type MapCard,
+  type TrendCard,
+} from "../../lib/workshop";
 
 export interface MapSearch {
   /* how many Maps match, of which `maps` is the first MAPS_CHUNK by runs */
@@ -21,7 +28,7 @@ export interface MapSearch {
 }
 
 /* Trending this week (spec #348): the top ten, ranks running down two columns on a desktop */
-function Trending({ maps }: { maps: ReadonlyArray<MapCard> }) {
+function Trending({ maps }: { maps: ReadonlyArray<TrendCard> }) {
   if (!maps.length) return null;
   return (
     <section className="trend" aria-labelledby="trend-h">
@@ -123,7 +130,7 @@ export function WorkshopHome({
   asOf,
 }: {
   /* Trending this week's Maps, in order */
-  trend: ReadonlyArray<MapCard>;
+  trend: ReadonlyArray<TrendCard>;
   /* the Campaigns' carousel, under the chart */
   campaigns: React.ReactNode;
   /* each of SHELVES' Maps, in order */

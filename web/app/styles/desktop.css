@@ -575,8 +575,8 @@
     width: 34px;
     height: 34px;
   }
-  /* Trending this week: two columns of five, ranks running down each */
-  .trend ol {
+  /* Trending this week: two columns of five, ranks running down each, once it has a sixth */
+  .trend ol:has(> li:nth-child(6)) {
     grid-auto-flow: column;
     grid-template-rows: repeat(5, auto);
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -25,11 +25,6 @@ export interface MapCard {
   gap13: number | null;
   crowd: number;
   authorBeaten: number;
-  /* Workshop plays over the last 7 days, and the Workshop's votes with Steam's score */
-  weekPlays: number;
-  votesUp: number;
-  votesDown: number;
-  voteScore: number;
 }
 
 export const mapCard = (m: WorkshopMap): MapCard => ({
@@ -46,10 +41,6 @@ export const mapCard = (m: WorkshopMap): MapCard => ({
   gap13: m.gap13,
   crowd: m.crowd,
   authorBeaten: m.authorBeaten,
-  weekPlays: m.weekPlays,
-  votesUp: m.votesUp,
-  votesDown: m.votesDown,
-  voteScore: m.voteScore,
 });
 
 /* what the helpers below read of a Map: its board's top three */
@@ -302,9 +293,12 @@ export const reportHref = (m: { title: string; pfid: string }) =>
     body: `Map: ${SITE_ORIGIN}${mapHref(m.pfid)}\n\nWhat's wrong with it:\n`,
   }).toString();
 
+/* a Map the homepage may show: one not kept off it */
+const onHome = (m: { pfid: string }) => !HIDDEN[m.pfid];
+
 /* the homepage's shelves draw from this */
 const homeSorted = (maps: ReadonlyArray<MapCard>, sort: SortKey, keep?: (m: MapCard) => boolean) =>
-  maps.filter((m) => !HIDDEN[m.pfid] && (!keep || keep(m))).sort(SORTS[sort].cmp);
+  maps.filter((m) => onHome(m) && (!keep || keep(m))).sort(SORTS[sort].cmp);
 
 /* A shelf's Maps, before the week filter: New this week is sorted newest first, so its
    first SHELF_SIZE hold every Map the filter can keep, and onShelf narrows them where the
@@ -319,14 +313,28 @@ export const onShelf = (maps: ReadonlyArray<MapCard>, d: Shelf, now: number) =>
    already discounted for few votes (0 with none), so the lift runs from 0.5 to about 1.15
    and the plays decide most of the order. A tie goes to more plays, then the newer Map. A
    Map with no plays this week isn't trending, so before a Refresh recorded them the chart
-   is empty. */
+   is empty. Ranked on the server: only the ten carry their figures to the page. */
 export const TRENDING_SIZE = 10;
-const heatOf = (m: MapCard) => m.weekPlays * (0.5 + m.voteScore);
-export const trending = (maps: ReadonlyArray<MapCard>) =>
+type Heat = Pick<WorkshopMap, "pfid" | "created" | "weekPlays" | "voteScore">;
+const heatOf = (m: Heat) => m.weekPlays * (0.5 + m.voteScore);
+export const trending = <T extends Heat>(maps: ReadonlyArray<T>) =>
   maps
-    .filter((m) => !HIDDEN[m.pfid] && m.weekPlays > 0)
+    .filter((m) => onHome(m) && m.weekPlays > 0)
     .sort((a, b) => heatOf(b) - heatOf(a) || b.weekPlays - a.weekPlays || b.created - a.created)
     .slice(0, TRENDING_SIZE);
+
+/* a row of Trending this week: a card, with the plays and votes it shows */
+export interface TrendCard extends MapCard {
+  weekPlays: number;
+  votesUp: number;
+  votesDown: number;
+}
+export const trendCard = (m: WorkshopMap): TrendCard => ({
+  ...mapCard(m),
+  weekPlays: m.weekPlays,
+  votesUp: m.votesUp,
+  votesDown: m.votesDown,
+});
 
 /* the homepage search: every Map with a time whose title or creator contains q, most runs
    first */

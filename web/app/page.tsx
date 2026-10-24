@@ -9,10 +9,10 @@ import { Shell } from "../components/Shell";
 import { CampaignBanner } from "../components/campaign/CampaignBanner";
 import { CampaignCarousel } from "../components/campaign/CampaignCarousel";
 import { WorkshopHome } from "../components/workshop/WorkshopHome";
-import { getCampaigns, getMapCards, getSite } from "../db/data";
+import { getCampaigns, getMapCards, getSite, getTrending } from "../db/data";
 import { SITE_ORIGIN, homeHref } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE } from "../lib/rules";
-import { SHELVES, shelfMaps, trending } from "../lib/workshop";
+import { SHELVES, shelfMaps } from "../lib/workshop";
 
 /* The homepage is the one search result for the site's name, so its title says what the
    site is; the tab keeps the game's name first. */
@@ -32,13 +32,18 @@ const WEBSITE = JSON.stringify({
 });
 
 export default async function Page() {
-  const [{ asOf }, maps, campaigns] = await Promise.all([getSite(), getMapCards(), getCampaigns()]);
+  const [{ asOf }, maps, trend, campaigns] = await Promise.all([
+    getSite(),
+    getMapCards(),
+    getTrending(),
+    getCampaigns(),
+  ]);
   return (
     <Shell view="workshop">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: WEBSITE }} />
       <section className="ws" id="ws">
         <WorkshopHome
-          trend={trending(maps)}
+          trend={trend}
           campaigns={
             <CampaignCarousel>
               {campaigns.map((k) => (

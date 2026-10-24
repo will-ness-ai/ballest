@@ -63,11 +63,11 @@ Open in Neon.
   `hcontent_file`, which changes with each update), its size before compression
   (`raw_size`), the file gzip-compressed (`gzipped`, bytes) and when it was read. Only the
   current version is kept (ADR 0010).
-- `map_activity`: one per Workshop Map, by pfid (no foreign key, as `map_files`): its
+- `map_activity`: one per Workshop Map, by pfid (no foreign key to `maps`, as `map_files`): its
   Workshop plays over the last 7 days (`week_plays`, Steam's `playtime_stats` with
   `return_playtime_stats=7`) and its votes (`votes_up`, `votes_down`, and `vote_score`,
   Steam's own score, discounted for few votes: 0 with none), with the Refresh that wrote
-  them (`refresh_id`). Each Refresh whose Workshop result is written overwrites the rows for
+  them (`refresh_id`), as of the latest catalogue that listed the Map. Each Refresh whose Workshop result is written overwrites the rows for
   the Maps its catalogue listed, and `add_maps` writes the ones it adds; a Refresh with no
   Workshop result leaves them. Not history: the plays move every Refresh, which would add a
   `map_history` row per Map each time. The homepage's Trending this week ranks by them

@@ -22,7 +22,9 @@ const NOW = 1_800_000_000 * 1000;
 const at = (daysAgo: number) => NOW / 1000 - daysAgo * DAY;
 
 let n = 0;
-const map = (o: Partial<MapCard> = {}): MapCard => ({
+/* a card, with the figures Trending this week ranks by */
+type Card = MapCard & { weekPlays: number; voteScore: number };
+const map = (o: Partial<Card> = {}): Card => ({
   pfid: String(1000 + n++),
   title: "Map " + String(n),
   creator: "Maker",
@@ -37,8 +39,6 @@ const map = (o: Partial<MapCard> = {}): MapCard => ({
   crowd: 1,
   authorBeaten: 0,
   weekPlays: 0,
-  votesUp: 0,
-  votesDown: 0,
   voteScore: 0,
   ...o,
 });

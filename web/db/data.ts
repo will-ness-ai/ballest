@@ -42,7 +42,7 @@ import type {
   WorkshopStandings,
 } from "../lib/rows";
 import type { CampaignStanding } from "../lib/share";
-import { mapCard, timed, type MapCard } from "../lib/workshop";
+import { mapCard, timed, trendCard, trending, type MapCard, type TrendCard } from "../lib/workshop";
 import { footprintOf, partsOf, shapesOf, type PrefabFile } from "../lib/prefab";
 import { fileNameOf } from "../lib/prefab-check";
 import { isPrefabSlug } from "../lib/routes";
@@ -165,6 +165,14 @@ export async function getMapCards(): Promise<Array<MapCard>> {
   cacheTag(DATA_TAG);
   cacheLife("max");
   return timed(await getWorkshop()).map(mapCard);
+}
+
+/* Trending this week's rows, in order (spec #348) */
+export async function getTrending(): Promise<Array<TrendCard>> {
+  "use cache: remote";
+  cacheTag(DATA_TAG);
+  cacheLife("max");
+  return trending(timed(await getWorkshop())).map(trendCard);
 }
 
 /* a slice of a board in rank order, unfiltered; for the fixed slices a page shows */

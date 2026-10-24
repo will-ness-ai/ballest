@@ -30,10 +30,6 @@ const card = (pfid: string, title: string): MapCard => ({
   gap13: null,
   crowd: 0,
   authorBeaten: 0,
-  weekPlays: 0,
-  votesUp: 0,
-  votesDown: 0,
-  voteScore: 0,
 });
 
 /* the markup's text, each element's edge a | */
@@ -102,6 +98,10 @@ const railMap = (pfid: string, title: string): WorkshopMap => ({
   medals: [],
   subs: 0,
   fileVersion: null,
+  weekPlays: 0,
+  votesUp: 0,
+  votesDown: 0,
+  voteScore: 0,
 });
 
 test("the rail names a Map by its number, then its name when it has one besides", () => {
