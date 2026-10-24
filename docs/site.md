@@ -163,12 +163,12 @@ from another skin's alpha so every edge matches.
 
 ## Share images
 
-A player, a Workshop Map, a Circuit Track, a Daily and a Campaign each unfurl with their
-own 1200×630 card (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
+A player, a Workshop Map, a Circuit Track, a Daily, a Campaign and a Prefab each unfurl
+with their own 1200×630 card (spec #179; the Campaign's, spec #206). `lib/share.ts` decides what a
 card says, `components/share/` draws it through `next/og`, `pageMetadata`
 (`components/metadata.ts`) names it in the page's metadata, and `/og/<kind>/<id>`
 (`app/og/[kind]/[id]/route.tsx`, `kind` one of `player`, `map`, `track`, `daily`,
-`campaign`) serves the PNG, or a 404 when there is no such page. Any other page, an
+`campaign`, `prefab`) serves the PNG, or a 404 when there is no such page. Any other page, an
 Overall board included, keeps the site-wide `og.png`.
 
 - A player gets their marble turned over to their Steam avatar, the Season 2 Overall rank
@@ -185,10 +185,23 @@ Overall board included, keeps the site-wide `og.png`.
   (`finishedEveryMap`). Its Overall, podiums and a focused row name it; a Map inside its
   frame (`/campaign/<slug>/<pfid>`) names that Map's own card, as a Track names its own
   inside its season. A slug that isn't curated, or none of whose Maps is listed, is a 404.
+- A Prefab (`/og/prefab/<slug>`) is the Showcase (picked by Will from three layouts,
+  2026-10-23): the Prefab itself across the whole card, drawn from its angle with the
+  viewer's stand-in shapes, "Prefab · by <uploader>" over its name at the bottom left,
+  Pieces and Favorites (none left out) as pills at the bottom right, and the brand pill at
+  the top right. A function has no GPU, so
+  `components/share/raster.ts` draws the viewer's scene (`buildScene`) itself: a depth
+  buffer, the viewer's lights in three's units, three times supersampled, and a PNG clear
+  where no piece is (about 0.3 s for a typical Prefab, under 2 s for 4,096 pieces). A file
+  it can't draw leaves the card without its picture. A Prefab not live is a 404, as its
+  page is gone.
 
 The page names its card with the latest Refresh in the URL (`?v=`, `shareHref`), so each
 Refresh is a new address for crawlers that keep a picture by URL, and the route answers
-with `s-maxage` for a year: Vercel's CDN renders each card once per Refresh at most. On a
+with `s-maxage` for a year: Vercel's CDN renders each card once per Refresh at most. A
+Prefab's card is named by its last edit when that is later, so a new name or angle shows at
+once, and is kept an hour only: a Prefab taken down or deleted leaves no picture on the CDN
+for longer. On a
 preview the card's URL is the branch's own address, since `metadataBase` is production.
 
 Satori reads no WebP, no variable font and no `oklch`, so `assets/share/` holds what it
@@ -219,7 +232,9 @@ fails to load, or that Satori can't read, draws without it.
   season opens its Overall board.
 - `/campaign/<slug>`: a Campaign's Overall board, with the same optional `/<steam_id>` or
   `/podiums`, or `/campaign/<slug>/<pfid>` for one of its Maps inside the Campaign's frame,
-  as a Track opens inside its season. Lights the Workshop tab. The proxy 404s a slug that
+  as a Track opens inside its season, or `/campaign/<slug>/<event>[/<steam_id>]` for one of
+  its Event boards, the only Map slot that takes a row (a Workshop Map's row is on its own
+  page). Lights the Workshop tab. The proxy 404s a slug that
   isn't curated, or anything after it but those; how the page is built is under
   "Campaigns".
 - `/campaigns`: every Campaign as a banner, most players first, two across on a desktop
@@ -267,7 +282,8 @@ fails to load, or that Satori can't read, draws without it.
   out of reach, holding their place, so a signed-out page doesn't jump when they show and
   a signed-in visitor never sees Sign in.
 - `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
-  upload form. The Prefabs tab comes last and is lit on all three. See "Prefabs".
+  upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators. The Prefabs
+  tab comes last and is lit on all of them. See "Prefabs" and "Generators".
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
 it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board, Map or
@@ -331,12 +347,29 @@ off its Campaign's page until a Refresh lists it, so a preview can show fewer Ma
 one fixed Campaign, so look at the new one's page with
 `pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
+**Event boards and pinning.** A Campaign's `maps` may also name an Event board (CONTEXT.md)
+by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (committed under
+`leth/` and served from the site, since it has no Workshop preview; `safeImg` takes a path
+from the site's root, and the share card fetches it from production) and the folder of the
+static page its card links in place of a Map page (`viewerHref`). A test holds `EVENTS` to the
+collector's `EVENT_BOARDS`. The collector reads an Event board once (`docs/data.md`), so it
+counts toward its Campaign once it holds open Entries, and until then it is left out like a
+Map the Workshop doesn't list. Inside the frame it is drawn as a Map with no Medals, its card
+links the ghost viewer, it has no `/map/` page (`boardHref` sends its board, and a row on it,
+to the slot), and its slot canonicals to the Campaign, with its share card: robots.txt keeps
+crawlers off a Campaign's slots, so the Campaign's page is the one indexed. Its runs are
+its open Entries: the collector reads a board whole, so that is Steam's count give or take a
+run Steam dropped. The board API serves it by name; a player's own finishes leave it out, since their
+place there shows on their Campaigns shelf. A Campaign with `pinned` is listed first wherever
+Campaigns are (`getCampaigns`), whatever its player count: the Leth Trials, Leth Trial #1's
+Campaign, is. `stress` reads its Event board, so its builds list it first.
+
 **The board.** A Campaign's standings are a derived board named `OverallCampaign_<slug>`
 (`campaignBoard`). The `Overall` prefix makes it a points board to `isPoints` and
 `board_kind` with no special case, so every board piece (paging, search, You, plates, the
 Podiums sort, a row's focus) takes it through `/api/board/<name>` unchanged. Like Season 1
 Current it is never stored: `boardSql` (`db/boards.ts`) adds it up on every read from the
-open Entries of its Maps the Workshop lists, each place paying the Circuit's track points,
+open Entries of its Maps the Workshop lists (and its Event boards read), each place paying the Circuit's track points,
 equal totals ordered by the first Map (in the Campaign's order) a player is on, then their
 place there. A player is ranked once they have a time on one Map.
 
@@ -535,7 +568,7 @@ branch `claude/prototype-prefabs` (spec #213).
   card's picture is drawn in the browser from the file by one shared renderer once the card
   scrolls near, so no image is stored.
 - **The angle** (`PrefabAngle` in `lib/prefabs.ts`, the `angle` column): the view its uploader
-  picked, which the card, the upload ping's still and the page's viewer start from; none is
+  picked, which the card, the share image, the upload ping's still and the page's viewer start from; none is
   three-quarters from above with the whole Prefab in view. It is stored relative to the
   Prefab's bounds (the camera's direction, its distance over the fitting one, and where it
   looks in radii), so it frames the same at any picture size. The uploader picks it in
@@ -566,6 +599,51 @@ branch `claude/prototype-prefabs` (spec #213).
   can give the uploader their own hourly upload limit, or put them back on the 5
   (`/api/prefab-limits/<steam_id>`, the `prefab_limits` table); nothing cached reads it, as
   the upload form asks for its quota uncached.
+
+## Generators
+
+The Prefabs page's second tab, Generate your own (spec #299; settled in four grill-design rounds
+on the never-merged `claude/prototype-prefab-generators`; categories and buildings, spec #310,
+on `claude/prototype-make-your-own`): a heading per category (Signs, Nature, Buildings,
+`CATEGORIES`) over a card per Generator, each with a still of what its defaults make, and a
+page per Generator at `/prefabs/make/<key>`
+(`proxy.ts` answers 404 for any other key; the keys are `GENERATOR_KEYS` in `lib/routes.ts`,
+kept apart from the Generators so a page that only links one never loads them).
+
+- **The Generators** (`lib/generators/`: `index.ts` lists them and `generate()`s; `signs.ts`,
+  `nature.ts` and `buildings.ts` hold each category's, `pieces.ts` what they share): each is its
+  controls, its defaults and its
+  builder, and `generate(key, values)` returns its Prefab file (or null with nothing to
+  make). The page draws whatever `controls(values)` returns, so a switch can hide another
+  control (the sign's wall colour with the wall off), and a new Generator is one entry.
+  Each kind of tree is a Generator of its own (Tree, Pine, Block tree). Pieces are the editor's
+  cube, sphere, cylinder, cone and pyramid, placed by their bottom centre (a box can also be
+  placed by its centre at any rotation);
+  grids of cells (QR modules, letters, voxels) are merged into as few boxes as they can be.
+- **Colours** (`COLOURS`): each names its material and the `paint` the editor saves beside
+  it, a MaterialCategory and an `EBallestMaterialColors` value read from the game's assets
+  (Smooth for the colours, Special for the metals). The editor paints nothing gold, so
+  there is no Gold. A spawned file was checked in a sandbox game: every colour lands as named, and
+  signs and codes face the camera that spawned them. The swatches are `--gen-*` on `:root`.
+- **The sign's lettering** (`lib/generator-letters.ts`): the Pixel font is a 5x7 table there;
+  the others are drawn on a canvas by the browser (`components/prefabs/make/lettering.ts`)
+  behind the same `Lettering`, so `lib/` stays pure. The text wraps at whatever line length
+  makes the letters biggest inside the wall. Fonts the site doesn't load already come from
+  Google Fonts on the sign's page only.
+- **Buildings** (House, Tower, Castle) face -X, like signs. A wall is the boxes round its
+  openings (`wall`: piers between windows, a piece under and over each). Roofs: gable as two
+  pitched slabs (`slopes`) with stepped gable ends kept under the roof line; hip as a ridge with
+  a pyramid at each end; flat as a slab inside a parapet. SM_Pyramid's corners sit at the middle
+  of its bounds' edges, so a pyramid roof is turned 45° and grown by √2 (`pyramid`). Each was
+  checked from four angles at six settings on the prototype's `/proto-collage` page.
+- **The collage** (`/prefabs/collage?g=<key>[&only=<control,…>]`, `GeneratorCollage.tsx`): one
+  Generator in every variation `variationsOf` lists, from three angles, for an agent to read in
+  one screenshot (`.claude/skills/prefab-generators/collage.mjs`). `proxy.ts` answers 404 for it
+  in production.
+- **The page** (`GeneratorEditor.tsx`, grill-design rounds 1 and 4): the controls on the left,
+  main ones first and the rest under More options, every number a slider showing its value;
+  the model (`PrefabViewer`, held still), its size and piece count and Download on the right.
+  Over 4096 pieces Download is off and says why. The ? beside it is the Prefab page's how-to.
 
 ## Maps in 3D
 

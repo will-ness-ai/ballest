@@ -92,6 +92,9 @@ export interface MeshShape {
   max: Vec3;
 }
 
+/* a piece whose material names no colour word */
+export const UNKNOWN_COLOUR = "#8a90a0";
+
 /* the material's own colour word, as the editor's swatches show it */
 const COLOURS: Array<[RegExp, string]> = [
   [/Lime/i, "#9be22d"],
@@ -99,6 +102,8 @@ const COLOURS: Array<[RegExp, string]> = [
   [/Dark/i, "#3a3f4b"],
   [/Concrete/i, "#9a9a96"],
   [/Red/i, "#d8433a"],
+  /* before Blue: the first word that matches wins */
+  [/SkyBlue/i, "#5fb2ee"],
   [/Blue/i, "#3f7fe0"],
   [/Yellow/i, "#f2cc3a"],
   [/Orange/i, "#ef8a2f"],
@@ -108,7 +113,13 @@ const COLOURS: Array<[RegExp, string]> = [
   [/Black/i, "#202329"],
   [/Iron/i, "#2a2c31"],
   [/Aluminum/i, "#c9ccd2"],
+  [/Copper/i, "#b0683a"],
+  [/Wine/i, "#7a2a3a"],
 ];
+
+/** the colour the viewer draws a material in */
+export const colourOf = (material: string) =>
+  COLOURS.find(([re]) => re.test(material))?.[1] ?? UNKNOWN_COLOUR;
 
 export interface Shape {
   kind: ShapeKind;
@@ -132,7 +143,7 @@ export function pieceName(item: PrefabItem) {
 }
 
 /* Unreal's FRotator [pitch, yaw, roll] in degrees, as the three axes it sends local x, y, z to */
-function rotationRows([pitch, yaw, roll]: Vec3): [Vec3, Vec3, Vec3] {
+export function rotationRows([pitch, yaw, roll]: Vec3): [Vec3, Vec3, Vec3] {
   const r = Math.PI / 180;
   const [sp, cp] = [Math.sin(pitch * r), Math.cos(pitch * r)];
   const [sy, cy] = [Math.sin(yaw * r), Math.cos(yaw * r)];
@@ -184,7 +195,7 @@ export function shapesOf(file: PrefabFile): Array<Shape> {
       profile,
       size: [ext[0] / 100, ext[2] / 100, ext[1] / 100],
       matrix: [...ax, 0, ...ay, 0, ...az, 0, ...o, 1],
-      colour: COLOURS.find(([re]) => re.test(material))?.[1] ?? "#8a90a0",
+      colour: colourOf(material),
       glow: /Emissive/i.test(material),
       piece,
       material,

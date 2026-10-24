@@ -111,6 +111,9 @@ the Refresh to the database, and revalidates the site, which shows it at
   now with `fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"` and follow
   it with `fly logs -a ballest-collector`. `.github/workflows/refresh.yml` runs one by hand,
   only while the Fly service is down (two Steam logins on one account drop each other).
+- Between jobs the service keeps the Daily watcher (`tools/daily_watch.py`) logged in, reading
+  the open Dailies every minute; any job that needs Steam logs it off first. `status` shows it
+  as `daily-watch`.
 - To change which boards appear, edit `tools/campaign_common.py` (`BOARDS`).
 - If a refresh fails with a login/token error, re-mint (step 1) and update the
   `STEAM_REFRESH_TOKEN` secret on Fly (`fly secrets set -a ballest-collector ...`) and in

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."refresh_source" ADD VALUE 'daily';

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."board_kind" ADD VALUE 'event';

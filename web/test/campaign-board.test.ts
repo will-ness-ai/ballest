@@ -8,17 +8,19 @@ import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { GET } from "../app/api/board/[name]/route";
 import { GET as OG } from "../app/og/[kind]/[id]/route";
 import type { Db } from "../db/client";
-import { entries, refreshes } from "../db/schema";
+import { boards, entries, refreshes } from "../db/schema";
 import { seed } from "../db/seed/harness";
-import { getCampaigns, getPlayerCampaigns } from "../db/data";
-import { boardPage, mapPodiums } from "../db/site";
-import type { Campaign } from "../lib/campaigns";
+import { getCampaign, getCampaigns, getPlayerCampaigns } from "../db/data";
+import { boardPage, mapPodiums, playerData } from "../db/site";
+import type { Campaign, EventBoard } from "../lib/campaigns";
 import { tally } from "../lib/podiums";
 import { freshDb } from "./pg";
 
 /* Map A (Marble Run), then Map B (Loop de Loop), then Map C (Gone Gully), which has left the
    Workshop. Added to the curated list for this file only, so the board resolves by name,
-   with three more for the lists: Map B alone twice, and Map C alone. */
+   with three more for the lists: Map B alone twice, and Map C alone; and one of an Event
+   board no Refresh has read yet. The curated Leth Trials, pinned, is read for real: this
+   file gives its Event board two Entries. */
 const TEST = vi.hoisted((): Campaign => ({
   slug: "test-run",
   title: "Test Run",
@@ -29,11 +31,19 @@ const TEST = vi.hoisted((): Campaign => ({
 vi.mock("../lib/campaigns", async (original) => {
   const m = await original<typeof import("../lib/campaigns")>();
   const one = (slug: string, maps: Array<string>): Campaign => ({ ...TEST, slug, maps });
+  (m.EVENTS as Array<EventBoard>).push({
+    id: "test-event",
+    board: "Map_TestEvent",
+    title: "Test Event",
+    picture: null,
+    viewer: "leth",
+  });
   (m.CAMPAIGNS as Array<Campaign>).push(
     one("test-gone", ["9000000003"]),
     one("test-small", ["9000000002"]),
     TEST,
     one("test-same", ["9000000002"]),
+    one("test-unread", ["test-event"]),
   );
   return m;
 });
@@ -48,6 +58,7 @@ vi.mock("../db/client", async (original) => {
 
 const p = (n: number) => `765611990000000${String(n).padStart(2, "0")}`;
 const BOARD = "OverallCampaign_test-run";
+const LETH = "Map_LethTrial_01";
 
 let t: Awaited<ReturnType<typeof freshDb>>;
 beforeAll(async () => {
@@ -67,6 +78,27 @@ beforeAll(async () => {
     firstSeenRefresh: id,
     lastSeenRefresh: id,
   });
+  // Leth Trial #1, read once: p4 first, Tenpin (p10) second
+  await t.db.insert(boards).values({
+    name: LETH,
+    kind: "event",
+    display: "Leth Trial #1",
+    leaderboardId: 20899741,
+    scoresPoints: false,
+  });
+  await t.db.insert(entries).values(
+    [
+      [p(4), 2_373_600],
+      [p(10), 2_381_800],
+    ].map(([steamId, score]) => ({
+      board: LETH,
+      steamId: String(steamId),
+      score: Number(score),
+      ugcId: null,
+      firstSeenRefresh: id,
+      lastSeenRefresh: id,
+    })),
+  );
   testDb.db = t.db;
   process.env.DATABASE_URL = t.url;
 });
@@ -144,7 +176,9 @@ describe("the Campaigns to list", () => {
     // The curated Campaigns' Maps are none of tiny's, and Map C alone has left the
     // Workshop, so "test-gone" is left out with them. Map B alone has p10, p5 and p2; the
     // test Campaign has those and Map A's p9 and p1.
+    // The Leth Trials is pinned, so it leads with its 2 players.
     expect((await getCampaigns()).map((k) => [k.c.slug, k.players])).toEqual([
+      ["leth-trials", 2],
       ["test-run", 5],
       ["test-small", 3],
       ["test-same", 3],
@@ -154,7 +188,7 @@ describe("the Campaigns to list", () => {
   test("each with its listed Maps' pictures in order and the leader of its board", async () => {
     // Map A has a picture and Map B none; Map C has left the Workshop, so it draws nothing.
     // Tenpin (p10) leads both: 60000 over Maps A and B, 40000 over Map B alone.
-    const [run, small] = await getCampaigns();
+    const [, run, small] = await getCampaigns();
     expect(run.previews).toEqual(["https://images.example.invalid/marble-run.jpg", null]);
     expect(run.leader).toMatchObject({ steamId: p(10), persona: "Tenpin", score: 60000 });
     expect(small.previews).toEqual([null]);
@@ -176,6 +210,7 @@ describe("a player's Campaigns", () => {
         k.players,
       ]),
     ).toEqual([
+      ["leth-trials", 2, 20000, 1, 2],
       ["test-run", 1, 60000, 2, 5],
       ["test-small", 1, 40000, 1, 3],
       ["test-same", 1, 40000, 1, 3],
@@ -192,6 +227,44 @@ describe("a player's Campaigns", () => {
   test("a time on a Map gone from the Workshop places no one", async () => {
     // p3's only Campaign time is on Map C
     expect(await getPlayerCampaigns(p(3))).toEqual([]);
+  });
+});
+
+describe("a Campaign of an Event board", () => {
+  test("ranks the Event board's Entries by the Circuit's place points", async () => {
+    const page = await boardPage(t.db, "OverallCampaign_leth-trials", { count: 100 });
+    expect(page.rows.map((r) => [r.rank, r.steamId, r.score])).toEqual([
+      [1, p(4), 40000],
+      [2, p(10), 20000],
+    ]);
+  });
+
+  test("shows the Event as one of its Maps, with its picture, runs and record", async () => {
+    const data = await getCampaign("leth-trials");
+    expect(data?.maps.map((m) => [m.pfid, m.name, m.title, m.entryCount, m.top3[0]])).toEqual([
+      ["leth-trial-1", LETH, "Leth Trial #1", 2, [p(4), "Slowpoke", 2_373_600]],
+    ]);
+    expect((await getCampaigns())[0].previews).toEqual(["/leth/preview.jpg"]);
+  });
+
+  test("serves the Event board itself through the board API, as a Map's", async () => {
+    const res = await GET(new Request(`http://site.invalid/api/board/${LETH}?from=0&count=5`), {
+      params: Promise.resolve({ name: LETH }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      total: 2,
+      rows: [{ steamId: p(4) }, { steamId: p(10) }],
+    });
+  });
+
+  test("is not found while its Event board holds no Entries", async () => {
+    expect(await getCampaign("test-unread")).toBeNull();
+  });
+
+  test("leaves the Event board off a player's own finishes, where it has no home", async () => {
+    const data = await playerData(t.db, p(4), {});
+    expect(data?.finishes.map((f) => f.board)).not.toContain(LETH);
   });
 });
 
