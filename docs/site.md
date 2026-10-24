@@ -79,7 +79,8 @@ then starts over from its new first rows. Nothing polls while a tab is open.
 Sign in with Steam (ADR 0008) never touches a page's cache: the session cookie is signed
 with `SESSION_SECRET` and only `/api/me` reads it, from the browser, which asks only when
 the readable `ballest-in` cookie says a session exists. Without `SESSION_SECRET` nobody can
-sign in and every page works as before.
+sign in and every page works as before. The one page that reads it while it draws is the
+link page (`/discord/link`, ADR 0014), which is never cached.
 
 Every Circuit board and every Players view is prerendered at build. A player, a Map or a
 head to head is prerendered for a handful of the busiest, and anyone else is served from
@@ -223,6 +224,41 @@ of each `circuit/*.webp`. Regenerate those copies whenever a Track screenshot ch
 with a 3-second timeout, only as PNG, JPEG or GIF and up to 4 MB; a card whose picture
 fails to load, or that Satori can't read, draws without it.
 
+## Stat Card
+
+A player's Stat Card (CONTEXT.md) is the 720×1060 portrait card Multiballs's See my stats
+answers with in Discord (spec #323; grill-design K5 with its date as T1, prototype branch
+`claude/prototype-statcard`). No page names it: `/og/stats/<steam id>?v=<Refresh time>`
+(`app/og/stats/[id]/route.tsx`) serves it, through the player page's cached reads plus
+`getChosenSkins`, `v` being the cache key. Unlike a share image it is kept by the CDN for five
+minutes only (`s-maxage=300`), since the Chosen Skin and the Steam avatar on it change between
+Refreshes, and not at all (`no-store`) when its avatar failed to load only for now (timed out,
+a 5xx or the network failing), so the next press draws it again. A picture that will never
+load (no PNG for the Skin, an avatar address `safeImg` refuses, a 404) leaves the card drawn
+without it and kept as usual. A Steam ID that
+names nobody is a 404. `lib/stat-card.ts` decides what it says, and
+`components/share/StatCard.tsx` loads its pictures and draws it with `Card.tsx`'s colours,
+marble and fonts.
+
+- A frame and glow in the player's hue, and their ball at 400px: their Chosen Skin's
+  picture, else their hue marble, with their Steam avatar as a 130px badge on its lower
+  right (none without an avatar). Then their name, on one line: it steps down from 56px so
+  that 32 characters (Steam's longest persona, counted as graphemes) fit, each at Bungee's
+  widest letter or, for an emoji, CJK or any other script Bungee lacks, at 1.25em, and
+  anything longer is cut with an ellipsis.
+- The rows, in order: Season 1 Circuit and Season 2 Circuit (each season's Overall rank),
+  World records, Author, Gold, Silver and Bronze medals, Maps finished. The counts add the
+  Circuit and the Workshop as the player's share card does (an Author count includes world
+  records at the author time), and the Medals count what each finish's time earned. A
+  missing rank or a zero leaves its row out.
+- The Refresh's date in UTC (`22 OCT 2026`) bottom left, the brand bottom right.
+
+The Skin pictures are 192px WebP, which Satori can't read, so `assets/share/skins/` holds a
+PNG copy of each at the same size, drawn scaled up to the ball until larger shots are taken
+in the game. Run `python web/scripts/skin_pngs.py` (Pillow) after adding or changing a
+picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has its copy.
+`qa`'s `stat-card` page draws it at the widths it fits (`minWidth` in the catalogue).
+
 ## Routes
 
 - `/` — the Workshop homepage: the carousel, the Campaigns' carousel, the shelves and the
@@ -294,6 +330,17 @@ fails to load, or that Satori can't read, draws without it.
   whether anyone is signed in, the strip, those rows and the gains line are drawn unseen,
   out of reach, holding their place, so a signed-out page doesn't jump when they show and
   a signed-in visitor never sees Sign in.
+- `/discord/link?t=<token>`: the Stats Link's page (ADR 0014), where Multiballs sends a member
+  who pressed See my stats to pair their Discord account with their Steam sign-in
+  (`components/discord/LinkView.tsx` over `linkPageOf` in `db/stats-link.ts`). In the shell,
+  lighting no tab, with /you's heading and sign-in strip. A token nobody wrote, one over 15
+  minutes old and one already used each say so and send the reader back to See my stats.
+  Signed out, Sign in with Steam comes back to it; signed in, it asks "Pair Discord account
+  <name> with <persona>?", the persona from the boards, else the Steam profile, with Pair (a
+  POST to `/api/discord/link?t=`, so a link preview can't use the token) and "Not you? Sign in
+  as someone else", which signs out and comes back. Pair answers back to the page, which then
+  says it is done. The one page that reads the session while it draws, so it is never cached
+  and robots.txt keeps crawlers off it. `qa`'s `link` and `link-confirm` draw tiny's request.
 - `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
   upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators. The Prefabs
   Section comes last and is lit on all of them. See "Prefabs" and "Generators".

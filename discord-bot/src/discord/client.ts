@@ -1,7 +1,9 @@
 // The logged-in Discord client and the one channel the bot lives in.
 //
-// The bot never creates or edits channels (spec #21, story 16): it is given the channel's id,
-// and at startup it checks it can do everything it needs there, or refuses to start.
+// The bot never creates or edits its Match channel (spec #21, story 16): it is given the
+// channel's id, and at startup it checks it can do everything it needs there, or refuses to
+// start. The one channel it makes itself is #my-stats (spec #323, myStats.ts), whose panel's
+// presses reach the bot once `answerIn` names it.
 import {
   ChannelType,
   Client,
@@ -142,12 +144,16 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       `logged in as ${me?.tag}; posting in #${channel.name} (${channel.guild.name}); pinging @${pingRole.name}`,
     );
 
+    /** Other channels whose presses are the bot's too: #my-stats, once it is found or made. */
+    const alsoAnswered = new Set<string>();
+
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
         Effect.sync(() => {
           const onInteraction = (i: Interaction) => {
             if (
               i.channelId === channelId ||
+              (i.channelId !== null && alsoAnswered.has(i.channelId)) ||
               (i.channel?.isThread() && i.channel.parentId === channelId)
             )
               emit.single(i);
@@ -227,6 +233,8 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       /** That role's name on the server, as it was at startup: the words name the role by it. */
       pingRoleName: pingRole.name,
       interactions,
+      /** Take presses in another channel of this server too, as in the bot's own. */
+      answerIn: (otherId: string) => Effect.sync(() => void alsoAnswered.add(otherId)),
       postsIn,
       missingIn,
       /** The application's own emojis (usable anywhere the bot posts), name to id. */

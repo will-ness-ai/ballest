@@ -19,7 +19,7 @@ const W = 1200;
 const H = 630;
 
 /* base.css's tokens in sRGB */
-const C = {
+export const C = {
   bg: "#0a1020",
   bg2: "#16244a",
   text: "#eaf0ff",
@@ -45,7 +45,7 @@ function ballSrc(h: number) {
   return "data:image/svg+xml;base64," + Buffer.from(svg).toString("base64");
 }
 
-function Ball({ hue, size }: { hue: number; size: number }) {
+export function Ball({ hue, size }: { hue: number; size: number }) {
   return <img src={ballSrc(hue)} width={size} height={size} alt="" />;
 }
 
@@ -408,17 +408,26 @@ async function render(card: ShareCard, picture: SharePicture) {
     ) : (
       <Banner card={card} banner={picture} />
     );
-  /* ImageResponse draws as its body streams, so it is read here, where a failure can
-     still be caught */
+  return pngOf(body, W, H, card.kind === "prefab" ? PREFAB_CACHE : CACHE);
+}
+
+/* a drawing as the PNG response every card answers with. ImageResponse draws as its body
+   streams, so it is read here, where a failure can still be caught */
+export async function pngOf(
+  body: React.ReactElement,
+  width: number,
+  height: number,
+  cache = CACHE,
+) {
   const png = await new ImageResponse(body, {
-    width: W,
-    height: H,
+    width,
+    height,
     fonts: await loadFonts(),
   }).arrayBuffer();
   return new Response(png, {
     headers: {
       "content-type": "image/png",
-      "cache-control": card.kind === "prefab" ? PREFAB_CACHE : CACHE,
+      "cache-control": cache,
     },
   });
 }

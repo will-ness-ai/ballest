@@ -5,7 +5,7 @@
 // - signOut: clears the session, from this site's own pages only;
 // - whoIs: the signed-in Steam ID, for the browser's You (hooks/me.ts);
 // - sessionOf and isCrossSite: who sent a request that writes (the Prefab API, ADR 0009),
-//   and whether another site sent it.
+//   and whether another site sent it; sessionOfCookie, who reads the link page (ADR 0014).
 // The session is an httpOnly cookie holding the Steam ID, when it was issued and an HMAC of
 // both under SESSION_SECRET, beside a readable hint cookie (lib/cookies.ts). Nothing else
 // about the reader is kept. `env` lets tests pass their own secret, clock and Steam.
@@ -72,8 +72,14 @@ export function isCrossSite(request: Request): boolean {
 
 /* the Steam ID a request's session was signed for, or null */
 export function sessionOf(request: Request, env: AuthEnv = {}): string | null {
+  return sessionOfCookie(cookieOf(request, SESSION_COOKIE), env);
+}
+
+/* the Steam ID a session cookie's value was signed for, or null: for the one page that reads
+   the session while it draws, the link page, which is never cached (ADR 0014) */
+export function sessionOfCookie(value: string | null | undefined, env: AuthEnv = {}) {
   const { secret, now } = envOf(env);
-  return verify(cookieOf(request, SESSION_COOKIE), secret, now);
+  return verify(value ?? null, secret, now);
 }
 
 /* GET /api/me: { id } or { id: null }, never cached. A session that doesn't verify under a
