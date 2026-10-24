@@ -92,6 +92,8 @@ function Editor({ g }: { g: Generator }) {
           <div className="gen-view">
             {file ? (
               <PrefabViewer file={file} spin={false} angle={g.angle ?? null} />
+            ) : g.refuses?.(settled) ? (
+              <p className="gen-empty">Keep it friendly: try different words.</p>
             ) : (
               <p className="gen-empty">Type something to make it.</p>
             )}
