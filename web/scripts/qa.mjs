@@ -345,13 +345,12 @@ async function check() {
   if (flags.pages && flags.all)
     fail("--pages and --all choose the pages two ways: pass one", HELP.check);
   /* this branch's own build is narrowed to what its changes reach; any other target is all */
-  if (at.name === "preview" && at.behind && !flags.pages && !flags.all)
-    fail("the preview is behind HEAD", "push and wait for Vercel, or pass --all or --pages");
   let scope = null;
   if ((at.name === "preview" || at.ids === "stress") && !flags.pages && !flags.all) {
     let changed;
     try {
-      changed = changedFiles(ROOT);
+      /* a preview holds only pushed commits; a local build may hold the working tree too */
+      changed = changedFiles(ROOT, { committed: at.name === "preview" });
     } catch (e) {
       fail(
         `git can't tell what this branch changes: ${String(e instanceof Error ? e.message : e).split("\n")[0]}`,

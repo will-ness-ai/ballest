@@ -70,9 +70,9 @@ describe("changedFiles", () => {
   ) {
     const dir = mkdtempSync(join(tmpdir(), "qa-reach-"));
     const git = (...a: Array<string>) => {
-      execFileSync("git", ["-C", dir, ...a], { stdio: "pipe" });
+      execFileSync("git", ["-C", dir, "-c", "commit.gpgsign=false", ...a], { stdio: "pipe" });
     };
-    git("init", "-q", "-b", "main");
+    git("-c", "init.defaultBranch=main", "init", "-q");
     git("config", "user.email", "qa@example.invalid");
     git("config", "user.name", "qa");
     for (const [f, text] of Object.entries(files)) {
@@ -86,7 +86,7 @@ describe("changedFiles", () => {
     change(git, dir);
     git("commit", "-qam", "topic");
     try {
-      return changedFiles(dir).sort();
+      return changedFiles(dir, { committed: true }).sort();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
