@@ -120,8 +120,14 @@
 }
 .gen-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
   align-items: center;
+}
+.gen-parts {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--dim);
 }
 .gen-actions .pf-q {
   width: 2.4rem;
