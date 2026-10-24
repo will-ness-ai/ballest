@@ -556,6 +556,15 @@ describe("the useful ones", () => {
     expect(area).toBeCloseTo(cells);
   });
 
+  test("pixel art goes up to 128 blocks across", () => {
+    /* a row of 128 cells, red and white by turns: one block each, none merged */
+    const picture = "128x1:" + "ca".repeat(64);
+    expect(gen("pixel-art").controls(valuesOf("pixel-art"))).toContainEqual(
+      expect.objectContaining({ key: "across", max: 128 }),
+    );
+    expect(make("pixel-art", { picture, across: 128 }).items).toHaveLength(128);
+  });
+
   test("pixel art laid on the floor lies flat, a block deep", () => {
     expect(highest(make("pixel-art", { lay: "On the floor", block: 20 }))).toBeCloseTo(20);
   });

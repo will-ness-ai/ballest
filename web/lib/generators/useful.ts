@@ -179,7 +179,7 @@ export const arrowSign: Generator = {
 /* A picture is "<w>x<h>:" and a character a cell, row by row from the top: "." is empty and
    "a", "b", ... the colours in COLOUR_NAMES' order. The page turns an uploaded image into one
    (pictureOf), at most PICTURE_MOST cells the longer way. */
-export const PICTURE_MOST = 48;
+export const PICTURE_MOST = 128;
 const PALETTE = COLOUR_NAMES.map((n) => {
   const hex = colourOf(COLOURS[n].material.split("/").at(-1) ?? "");
   return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
