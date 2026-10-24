@@ -50,3 +50,13 @@ fi
 # the review gate (.claude/hooks/review-gate.mjs): a project thread starts outside the repo, so
 # it never reads .claude/settings.json; give it the same hooks as user settings
 node .claude/hooks/install-user-hooks.mjs "$HOME/.claude/settings.json"
+# and its Skill tool reads only the user's skills, so the gate's /codebase-design (and tdd...)
+# were "Unknown skill" there (PR #331, #336): link each of the repo's skills in, never over one
+# of the same name. A session in the repo reads them as its project's already.
+if [ "$(realpath "${CLAUDE_PROJECT_DIR:-/}")" != "$(realpath .)" ]; then
+  mkdir -p "$HOME/.claude/skills"
+  for skill in .claude/skills/*/; do
+    link="$HOME/.claude/skills/$(basename "$skill")"
+    [ -e "$link" ] || [ -L "$link" ] || ln -s "$PWD/$skill" "$link"
+  done
+fi

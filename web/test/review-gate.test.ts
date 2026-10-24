@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   FOLLOW_UP_LINES,
   linesChanged,
+  loadable,
   mergeTargets,
   repoSlug,
   skillName,
@@ -123,6 +124,21 @@ test("a repo is named the way gh and GitHub's URLs do, in any case", () => {
 test("a skill's name drops its source", () => {
   expect(skillName("code-review")).toBe("code-review");
   expect(skillName("projectSettings:code-review")).toBe("code-review");
+});
+
+test("a skill is loadable from the project's or the user's skills, or built in", () => {
+  const dirs = ["/repo/.claude/skills", "/root/.claude/skills"];
+  const has =
+    (...files: Array<string>) =>
+    (path: string) =>
+      files.includes(path);
+  const design = "codebase-design";
+  expect(loadable(design, dirs, has(`/root/.claude/skills/${design}/SKILL.md`))).toBe(true);
+  expect(loadable(design, dirs, has(`/repo/.claude/skills/${design}/SKILL.md`))).toBe(true);
+  // a thread that started outside the repo, before its skills were linked (PR #336)
+  expect(loadable(design, dirs, has())).toBe(false);
+  // Claude Code has its own /code-review
+  expect(loadable("code-review", dirs, has())).toBe(true);
 });
 
 describe("unsquashed merges", () => {
