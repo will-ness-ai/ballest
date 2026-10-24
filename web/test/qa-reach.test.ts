@@ -86,7 +86,11 @@ describe("changedFiles", () => {
     change(git, dir);
     git("commit", "-qam", "topic");
     try {
-      return { upTo: changedFiles(dir, { at: "HEAD" }).sort(), tree: changedFiles(dir).sort() };
+      return {
+        before: changedFiles(dir, { at: "HEAD~1" }).sort(),
+        upTo: changedFiles(dir, { at: "HEAD" }).sort(),
+        tree: changedFiles(dir).sort(),
+      };
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -110,6 +114,20 @@ describe("changedFiles", () => {
       git("rm", "-q", "web/lib/b.ts", "web/proxy.ts");
     });
     expect(gone.upTo).toEqual(["web/lib/a.ts", "web/proxy.ts"]);
+  });
+
+  it("stops at the commit a preview holds, before the ones after it", () => {
+    const dir = {
+      "web/lib/a.ts": "export const a = 1;\n",
+      "web/lib/b.ts": "export const b = 1;\n",
+    };
+    const later = branch(dir, (git, root) => {
+      writeFileSync(join(root, "web/lib/a.ts"), "export const a = 2;\n");
+      git("commit", "-qam", "a");
+      writeFileSync(join(root, "web/lib/b.ts"), "export const b = 2;\n");
+    });
+    expect(later.before).toEqual(["web/lib/a.ts"]);
+    expect(later.upTo).toEqual(["web/lib/a.ts", "web/lib/b.ts"]);
   });
 
   it("holds a new file only up to the working tree, as a commit can't", () => {

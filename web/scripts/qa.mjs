@@ -350,7 +350,7 @@ async function check() {
     let changed;
     try {
       /* a preview holds the commit it was built from; a local build may hold the working tree */
-      changed = changedFiles(ROOT, { at: at.name === "preview" ? at.sha : undefined });
+      changed = changedFiles(ROOT, { at: at.name === "preview" ? at.commit : undefined });
     } catch (e) {
       fail(
         `git can't tell what this branch changes: ${String(e instanceof Error ? e.message : e).split("\n")[0]}`,

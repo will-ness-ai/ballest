@@ -186,7 +186,7 @@ export function changedFiles(root, { at } = {}) {
     run(...args)
       .split("\n")
       .filter(Boolean);
-  const [base] = git("merge-base", "origin/main", "HEAD");
+  const [base] = git("merge-base", "origin/main", at ?? "HEAD");
   const diff = (filter) =>
     git(
       "diff",
