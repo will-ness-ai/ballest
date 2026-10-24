@@ -223,16 +223,8 @@ export function partsOf(file: PrefabFile): Array<{ piece: string; count: number 
 
 /* where a shape reaches along three's axis k (0 x, 1 up, 2 z), in metres, over its corners */
 export function spanOf({ matrix: m }: Shape, k: number): [number, number] {
-  let lo = Infinity;
-  let hi = -Infinity;
-  for (const x of [-0.5, 0.5])
-    for (const y of [-0.5, 0.5])
-      for (const z of [-0.5, 0.5]) {
-        const v = m[k] * x + m[4 + k] * y + m[8 + k] * z + m[12 + k];
-        lo = Math.min(lo, v);
-        hi = Math.max(hi, v);
-      }
-  return [lo, hi];
+  const half = (Math.abs(m[k]) + Math.abs(m[4 + k]) + Math.abs(m[8 + k])) / 2;
+  return [m[12 + k] - half, m[12 + k] + half];
 }
 
 /* the prefab's size in metres: wide (x), deep (z) and tall (y), over every shape's corners */

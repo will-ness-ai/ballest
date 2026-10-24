@@ -844,8 +844,8 @@ kept apart from the Generators so a page that only links one never loads them).
   as Part 1..N, to spawn one after another without moving the camera. spawnprefab keeps a
   file's origin across and up but slides it along X to sit its nearest face a set way ahead, so
   a part that doesn't reach the whole's near, low corner gets a 20 cm white marker cube there,
-  and the parts meet. Pixel art goes up to 128 blocks across (`PICTURE_MOST`) on the strength
-  of it.
+  and the parts meet. Pixel art goes up to 128 blocks the longer way (`PICTURE_MOST`; a tall
+  picture's Blocks across stops short of 128) on the strength of it.
 - **Colours** (`COLOURS`): each names its material and the `paint` the editor saves beside
   it, a MaterialCategory and an `EBallestMaterialColors` value read from the game's assets
   (Smooth for the colours, Special for the metals). The editor paints nothing gold, so

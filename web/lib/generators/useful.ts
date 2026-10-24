@@ -224,6 +224,15 @@ export function readPicture(s: string) {
   };
 }
 
+/* the most blocks across a picture can be resampled to and stay within PICTURE_MOST the longer
+   way */
+function acrossMost(pic: { w: number; h: number } | null) {
+  if (!pic || pic.h <= pic.w) return PICTURE_MOST;
+  let w = Math.ceil(((PICTURE_MOST + 0.5) * pic.w) / pic.h);
+  while (w > 1 && Math.round((w * pic.h) / pic.w) > PICTURE_MOST) w--;
+  return w;
+}
+
 /* the picture it starts with: the site's lime marble, 16 cells across */
 export const MARBLE = (() => {
   const n = 16;
@@ -265,7 +274,7 @@ export const pixelArt: Generator = {
   },
   controls: (v) => [
     { key: "picture", label: "Picture", kind: "picture" },
-    num("across", "Blocks across", 4, PICTURE_MOST, 1),
+    num("across", "Blocks across", 4, Math.max(4, acrossMost(readPicture(String(v.picture)))), 1),
     num("block", "Block size", 5, 100, 5, "cm"),
     choice("lay", "Stand", ["Standing", "On the floor"]),
     { key: "backing", label: "Backing behind it", kind: "toggle" },
@@ -276,11 +285,8 @@ export const pixelArt: Generator = {
     if (!pic) return null;
     /* resampled to `across` cells, each the picture's cell under its middle, and no more than
        PICTURE_MOST the longer way */
-    const w = Math.max(
-      1,
-      Math.min(numberIn(v, "across"), PICTURE_MOST, Math.floor((PICTURE_MOST * pic.w) / pic.h)),
-    );
-    const h = Math.max(1, Math.round((w * pic.h) / pic.w));
+    const w = Math.max(1, Math.min(numberIn(v, "across"), acrossMost(pic)));
+    const h = Math.max(1, Math.min(Math.round((w * pic.h) / pic.w), PICTURE_MOST));
     const at = (x: number, y: number) =>
       pic.at(Math.floor(((x + 0.5) * pic.w) / w), Math.floor(((y + 0.5) * pic.h) / h));
     const cell = numberIn(v, "block");

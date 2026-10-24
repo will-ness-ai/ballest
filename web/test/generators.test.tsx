@@ -621,6 +621,18 @@ describe("the useful ones", () => {
     expect(highest(file)).toBeCloseTo(1280);
   });
 
+  test("a tall picture's slider stops where it reaches 128 blocks tall", () => {
+    /* 3 by 7: 55 across makes 128 tall (54 would make 126) */
+    const picture = "3x7:" + "cac".repeat(7);
+    expect(gen("pixel-art").controls(valuesOf("pixel-art", { picture }))).toContainEqual(
+      expect.objectContaining({ key: "across", max: 55 }),
+    );
+    expect(highest(make("pixel-art", { picture, across: 128, block: 10 }))).toBeCloseTo(1280);
+    /* two cells across, 300 tall, red and white by rows: still no more than 128 */
+    const thin = "2x300:" + "ccaa".repeat(150);
+    expect(highest(make("pixel-art", { picture: thin, across: 128, block: 10 }))).toBeCloseTo(1280);
+  });
+
   test("pixel art laid on the floor lies flat, a block deep", () => {
     expect(highest(make("pixel-art", { lay: "On the floor", block: 20 }))).toBeCloseTo(20);
   });
