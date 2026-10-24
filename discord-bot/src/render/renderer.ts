@@ -11,6 +11,7 @@ import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
 import { Worker } from "node:worker_threads";
 import { Data, Effect } from "effect";
+import type { ReactNode } from "react";
 import satori, { type Font } from "satori";
 import type { ChosenSkin, Improvement, ProfilePreview } from "../ports.js";
 import { marbleSvg, type SkinPictureUris } from "./art.js";
@@ -181,7 +182,8 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
     yield* rasterise(marbleSvg(0, 8)).pipe(Effect.orDie);
     const draw = Effect.fn("draw")(function* (scene: El, width: number) {
       const svg = yield* Effect.tryPromise({
-        try: () => satori(scene, { width, fonts }),
+        // A scene is the plain { type, props } shape satori reads, which React's types don't name.
+        try: () => satori(scene as unknown as ReactNode, { width, fonts }),
         catch: (cause) => new RenderError({ cause }),
       });
       return yield* rasterise(svg);
