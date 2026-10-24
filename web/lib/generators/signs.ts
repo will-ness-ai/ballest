@@ -1,8 +1,6 @@
-// Signs, under Useful (lib/generators/index.ts): a QR code and a Sign, both facing the camera
-// that spawns them; a sign letters its text through a Lettering (lib/generator-letters.ts).
-import qrcode from "qrcode-generator";
-
-import { wrapAt, type Grid, type Lettering } from "../generator-letters";
+// The Sign, under Useful (lib/generators/index.ts), facing the camera that spawns it; it
+// letters its text through a Lettering (lib/generator-letters.ts).
+import { wrapAt, type Lettering } from "../generator-letters";
 import {
   FRONT,
   cellsOf,
@@ -15,53 +13,6 @@ import {
   piece,
   type Generator,
 } from "./pieces";
-
-/* ---------- QR code ---------- */
-export const qr: Generator = {
-  key: "qr",
-  name: "QR code",
-  category: "Useful",
-  blurb: "A code players can scan, built from blocks.",
-  file: "qr_code",
-  angle: FRONT,
-  defaults: { text: "https://ballestrecords.com", size: 6, back: "White", front: "Dark" },
-  controls: () => [
-    { key: "text", label: "Link or text", kind: "text" },
-    num("size", "Size", 1, 60, 0.5, "m"),
-    colour("back", "Background"),
-    colour("front", "Code"),
-  ],
-  build: (v) => {
-    const text = String(v.text);
-    if (!text) return null;
-    let q: ReturnType<typeof qrcode>;
-    try {
-      q = qrcode(0, "M");
-      q.addData(text);
-      q.make();
-    } catch {
-      return null;
-    }
-    const m = q.getModuleCount();
-    const margin = 2;
-    const grid: Grid = {
-      w: m + margin * 2,
-      h: m + margin * 2,
-      on: (x, y) => {
-        const [i, j] = [x - margin, y - margin];
-        return i >= 0 && j >= 0 && i < m && j < m && q.isDark(j, i);
-      },
-    };
-    const size = metresIn(v, "size");
-    const cell = size / grid.w;
-    return fileOf(
-      facing([
-        piece("cube", [0, 0, 0], [size, cell / 2, size], colourIn(v, "back")),
-        ...cellsOf(grid, cell, size, cell / 4, cell / 4, colourIn(v, "front")),
-      ]),
-    );
-  },
-};
 
 /* ---------- sign ---------- */
 /* the wrap of the text that makes its letters biggest inside w by h, and its grid's cell */

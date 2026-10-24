@@ -30,6 +30,7 @@ import {
   pingsState,
   removePing,
 } from "../pingWords.js";
+import { escape, mapLink, mapName, mapUrl, workshopUrl } from "../links.js";
 import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js";
 import { RESULT_HUE, START_HUE } from "../render/art.js";
 import type { CardView, KeptReason, ThreadPost } from "../ports.js";
@@ -65,8 +66,6 @@ export const PROFILE_FIELD = "profile";
 
 const unix = (ms: number) => Math.floor(ms / 1000);
 const who = (discordId: string) => `<@${discordId}>`;
-const workshopUrl = (pfid: string) =>
-  `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
 
 /** Mentions shown as names without pinging anyone. */
 export const quiet = { allowedMentions: { parse: [] } } as const;
@@ -196,6 +195,9 @@ const acceptButton = (matchId: string) =>
   button("Accept", act("accept", matchId), ButtonStyle.Success);
 const declineButton = (matchId: string) =>
   button("Decline", act("decline", matchId), ButtonStyle.Danger);
+/** On a finished Match's thread: everyone who presses it lands in the same new Lobby. */
+const playAgainButton = (matchId: string) =>
+  button("Play again", { _tag: "PlayAgain", matchId }, ButtonStyle.Success);
 
 const cardButtons = (v: CardView) => {
   const join = () =>
@@ -234,7 +236,7 @@ const clockText = (v: CardView): string | null =>
         ? `**Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
         : null;
 
-const INVITE_GREY = 0x4e5058;
+const QUIET_GREY = 0x4e5058;
 const LIVE_LIME = 0x8be03c;
 
 /**
@@ -251,22 +253,20 @@ const lobbyLine = (v: CardView, roleId: string) =>
   `<@&${roleId}> **${who(v.creator.discordId)}** opened a ${v.minutes}-minute Lobby`;
 
 /**
- * The Card image, with the clock in an embed below it: the image never shows one. A Lobby's Card
+ * The Card image, with an embed below it: the drawn Map's name, linked to its page on the site,
+ * over the clock, which the image never shows. A Lobby's Card
  * keeps its ping line through live and finished, but only its first post lets the role be
  * mentioned. Public 1v1 and Challenge Cards have no line.
  */
 export const cardMessage = (v: CardView, png: Buffer, ping: CardPing): Payload => {
   const text = clockText(v);
-  const clock =
-    text === null
-      ? null
-      : new EmbedBuilder()
-          .setColor(v.state === "live" ? LIVE_LIME : INVITE_GREY)
-          .setDescription(text);
+  const below = new EmbedBuilder().setColor(v.state === "live" ? LIVE_LIME : QUIET_GREY);
+  if (v.map !== null) below.setTitle(escape(mapName(v.map))).setURL(mapUrl(v.map.pfid));
+  if (text !== null) below.setDescription(text);
   const lobby = v.type === "lobby";
   return {
     content: lobby ? lobbyLine(v, ping.roleId) : "",
-    embeds: clock === null ? [] : [clock],
+    embeds: v.map === null && text === null ? [] : [below],
     ...image(png, `match-${v.matchId}.png`),
     components: cardButtons(v),
     ...(lobby && ping.announce ? { allowedMentions: { parse: [], roles: [ping.roleId] } } : quiet),
@@ -352,7 +352,7 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
       return {
         content: line(
           art.marbles.forHue(START_HUE),
-          `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** Ends <t:${unix(post.endsAt)}:R>`,
+          `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** on ${mapLink(post.map)} · ends <t:${unix(post.endsAt)}:R>`,
         ),
         ...pic,
         components: [workshopButton(post.map.pfid)],
@@ -374,15 +374,28 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
       return {
         content: line(
           art.marbles.forHue(RESULT_HUE),
-          (post.standings.every((s) => s.rank === null)
-            ? "**Final result** · no finishers"
-            : "**Final result**") +
+          "**Final result**" +
+            (post.card.map === null ? "" : ` on ${mapLink(post.card.map)}`) +
+            (post.standings.every((s) => s.rank === null) ? " · no finishers" : "") +
             (post.steamDown
               ? "\n-# Steam never gave the end-of-Match read, so these are the last times read before the end."
               : ""),
         ),
         ...pic,
+        components: [row(playAgainButton(matchId))],
         ...quiet,
+      };
+    case "PlayingAgain":
+      return {
+        content: line(
+          art.marbles.forPlayer(post.by.steamId, post.skin),
+          [
+            ...post.others.map((p) => who(p.discordId)),
+            `**${who(post.by.discordId)}** opened a ${post.minutes}-minute Lobby to play again`,
+          ].join(" "),
+        ),
+        components: [row(playAgainButton(matchId))],
+        allowedMentions: { users: post.others.map((p) => p.discordId) },
       };
     case "WaitingForSteam":
       return {
@@ -464,6 +477,16 @@ export const pickDurationMessage = (
     ],
     ...quiet,
   };
+};
+
+// ---------------------------------------------------------------- Play again, privately
+
+/** The presser's answer: where the Lobby's thread is, and whether the Start is theirs. */
+export const playAgainText = (creator: boolean, threadId: string | null) => {
+  const where = threadId === null ? "" : ` <#${threadId}>`;
+  return creator
+    ? `You opened the Lobby${where}. Press **Start** on its Card once everyone's in.`
+    : `You're in the Lobby${where}.`;
 };
 
 // ---------------------------------------------------------------- Leave a live Match, privately

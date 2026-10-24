@@ -26,8 +26,8 @@
       "Bash(python -m py_compile *)",
       "Bash(curl -s https://ballestrecords.com/*)",
       "Bash(curl -sI https://ballestrecords.com/*)",
-      "Bash(curl -s https://ballest.willness.dev/*)",
-      "Bash(curl -sI https://ballest.willness.dev/*)",
+      "Bash(curl -s https://ballestrecords.com/*)",
+      "Bash(curl -sI https://ballestrecords.com/*)",
       "Bash(~/.fly/bin/flyctl.exe status *)",
       "Bash(~/.fly/bin/flyctl.exe logs *)",
       "Bash(nslookup *)"

@@ -6,7 +6,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Option } from "effect";
 import { makeActivityApi } from "../src/activity/api.js";
 import { skinPictureResponses } from "../src/activity/server.js";
-import { marble } from "../src/activity/web/view.js";
+import { logo, marble } from "../src/activity/web/view.js";
 import {
   AuthFailed,
   DiscordAuth,
@@ -892,6 +892,17 @@ describe("Chosen Skins", () => {
       expect(preview.body).toMatchObject({ steamId: ALICE.steamId, skin: PINK });
     }),
   );
+});
+
+describe("the logo", () => {
+  it("presents the Activity as MULTIBALLS by BALLESTRECORDS", () => {
+    const words = logo()
+      .replace(/<svg[\s\S]*?<\/svg>/g, "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    expect(words).toBe("MULTIBALLS by BALLESTRECORDS");
+  });
 });
 
 describe("Skin pictures", () => {

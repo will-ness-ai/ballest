@@ -21,7 +21,7 @@
   width: 44px;
   height: 44px;
 }
-.ys-top h1 {
+.ys-top h2 {
   margin: 0 0 2px;
   font: 600 calc((22rem + 4 * var(--ramp)) / 16) var(--f-hud);
 }
@@ -170,7 +170,7 @@
   background: var(--accent-soft);
 }
 /* the header's name, until You's record is read */
-h1 .ys-hold {
+h2 .ys-hold {
   display: inline-block;
   vertical-align: middle;
   inline-size: 9em;

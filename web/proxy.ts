@@ -16,6 +16,7 @@ import {
   playerHref,
   playersHref,
   isGeneratorKey,
+  makePrefabHref,
 } from "./lib/routes";
 import { PFID, STEAM_ID } from "./lib/rules";
 import { isPreset } from "./lib/workshop";
@@ -92,6 +93,9 @@ export function proxy(request: NextRequest) {
   /* the Generators' collage is for agents on previews and dev servers, not players */
   if (path === "/prefabs/collage" && process.env.VERCEL_ENV === "production")
     return notFound(request);
+  /* the QR code was a Generator until 2026-10-24: its old links land on Make your own */
+  if (path === "/prefabs/make/qr")
+    return NextResponse.redirect(new URL(makePrefabHref(), request.url), 308);
   const make = /^\/prefabs\/make\/(.*)$/.exec(path);
   if (make && !isGeneratorKey(make[1])) return notFound(request);
   const vs = VS_PATH.exec(path);

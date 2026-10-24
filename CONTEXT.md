@@ -148,6 +148,16 @@ Map whose board was first read after the baseline counts as it stands on both si
 _Avoid_: rankings, the report's boards (the Players table is not these lists: it counts the
 Circuit too, and podiums)
 
+### The site
+
+**Section**:
+One of the top-level areas the site's navigation names: Maps, Campaigns, Daily, Circuit,
+Players and Prefabs. Each has its own sub-tabs (Featured / All Maps, each Circuit season, ...),
+and every page belongs to one: a Campaign's Map to Campaigns, a player's page and a head to
+head to Players. "Workshop" stays the game's word for player-made Maps; the Section is
+labelled Maps.
+_Avoid_: tab, group, category
+
 ### Prefabs
 
 **Prefab**:
@@ -171,7 +181,7 @@ starts there. Without one, three-quarters from above with the whole Prefab in vi
 _Avoid_: thumbnail angle, camera, pose
 
 **Generator**:
-A page that makes a Prefab file from a few settings: a sign (QR code, Sign), a tree or bush,
+A page that makes a Prefab file from a few settings: a Sign, a tree or bush,
 or a building (House, Tower, Castle). What it makes is downloaded, never uploaded, so the
 gallery stays Prefabs players built.
 _Avoid_: maker, builder, template
@@ -246,3 +256,10 @@ _Avoid_: sticky, pinned message
 Each Player's best time on the Match's Map, read the moment the Match ends, ranked. A
 Player with no time did not finish. If Steam is down then, the Result waits for it (up to 30
 minutes, the thread saying time's up), and failing that stands on the last times polled.
+
+**Play again**:
+The button on a Result. The first Player to press it opens a Lobby of the finished Match's
+length, as its creator, and the finished Match's other Players who didn't leave it are pinged in
+the finished Match's thread, once. Everyone who presses it after that joins the same Lobby until
+its time is up. Any Player may press it. Once that Lobby is gone, the next press opens a fresh one.
+_Avoid_: rematch, replay (a replay is a Ghost)

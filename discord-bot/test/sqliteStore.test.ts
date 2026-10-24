@@ -50,6 +50,7 @@ it.scoped("keeps Links and Matches across a reopen of the database file", () =>
       history: [{ steamId: "s-a", ticks: 2_100_000, at: 42_000 }],
       left: ["s-b"],
       waitingForSteam: false,
+      playAgainOf: null,
     };
 
     yield* Effect.scoped(

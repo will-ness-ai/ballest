@@ -3,14 +3,14 @@
 // or SVG pictures (no WebP), and knows no oklch, so the theme's colours are restated here
 // in sRGB and the fonts are TTF copies in assets/share/. A player gets the Split layout,
 // their marble turned over to their avatar; a Map, Track or Daily gets the Banner, its
-// picture across the top, and a Campaign the Banner with its Maps' pictures side by side
-// (docs/site.md, "Share images").
+// picture across the top, a Campaign the Banner with its Maps' pictures side by side, and a
+// Prefab the Showcase, its 3D picture filling the card (docs/site.md, "Share images").
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
-import { SITE_NAME } from "../../lib/rules";
+import { SITE_WORDMARK } from "../../lib/rules";
 import type { ShareCard, ShareStat, Tone } from "../../lib/share";
 
 export const SHARE_ASSETS = join(process.cwd(), "assets", "share");
@@ -25,10 +25,15 @@ export const C = {
   text: "#eaf0ff",
   dim: "#93a2c8",
   gold: "#ffd447",
+  accent: "#8be03c",
   author: "#5fd4ff",
   line: "rgba(150,175,245,0.18)",
   tile: "rgba(255,255,255,0.05)",
   pill: "rgba(10,16,32,0.72)",
+  /* the light behind a Prefab, and bg clear and nearly whole for the fade under its name */
+  glow: "#1d2a50",
+  bgClear: "rgba(10,16,32,0)",
+  bgFade: "rgba(10,16,32,0.9)",
 };
 const TONE: Record<Tone, string> = { gold: C.gold, author: C.author };
 const toneOf = (s: ShareStat) => (s.tone ? TONE[s.tone] : C.text);
@@ -44,13 +49,16 @@ export function Ball({ hue, size }: { hue: number; size: number }) {
   return <img src={ballSrc(hue)} width={size} height={size} alt="" />;
 }
 
-/* the brand's lime marble and the address */
+/* the brand's lime marble and the site's two-tone name, as the header draws it */
 function Brand({ size = 24 }: { size?: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
       <Ball hue={96} size={size} />
-      <div style={{ fontFamily: "Bungee", fontSize: size * 0.85, color: C.text, letterSpacing: 1 }}>
-        {SITE_NAME}
+      <div
+        style={{ display: "flex", fontFamily: "Bungee", fontSize: size * 0.85, letterSpacing: 1 }}
+      >
+        <span style={{ color: C.text }}>{SITE_WORDMARK[0]}</span>
+        <span style={{ color: C.accent }}>{SITE_WORDMARK[1]}</span>
       </div>
     </div>
   );
@@ -194,8 +202,8 @@ function Split({ card, face }: { card: ShareCard; face: string | null }) {
   );
 }
 
-/* what a card is drawn with: a player's avatar or a place's picture, as a data: URL; a
-   Campaign's Map pictures, in its order; or null to draw without one */
+/* what a card is drawn with: a player's avatar, a place's picture or a Prefab drawn in 3D, as a
+   data: URL; a Campaign's Map pictures, in its order; or null to draw without one */
 export type SharePicture = string | null | ReadonlyArray<string | null>;
 
 const BAND = 380;
@@ -282,6 +290,71 @@ function Banner({ card, banner }: { card: ShareCard; banner: SharePicture }) {
   );
 }
 
+/* the size of a Prefab's picture: the whole card */
+export const PREFAB_PICTURE = [W, H] as const;
+
+/* a Prefab: its picture (components/share/prefab.ts) across the whole card on a glow, its
+   name at the bottom left and its counts as pills at the bottom right */
+function Showcase({ card, picture }: { card: ShareCard; picture: string | null }) {
+  const whole = { position: "absolute", left: 0, top: 0, width: W, height: H } as const;
+  return (
+    <div
+      style={{
+        ...frame,
+        backgroundImage: `radial-gradient(circle at 50% 42%, ${C.glow} 0%, ${C.bg} 70%)`,
+      }}
+    >
+      {picture ? <img src={picture} width={W} height={H} alt="" style={whole} /> : null}
+      <div
+        style={{
+          ...whole,
+          display: "flex",
+          backgroundImage: `linear-gradient(180deg, ${C.bgClear} 55%, ${C.bgFade} 100%)`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: 56,
+          right: 56,
+          top: 36,
+          bottom: 40,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Pill>
+            <Brand size={22} />
+          </Pill>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            marginTop: "auto",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: 24,
+          }}
+        >
+          {/* a long name wraps in its own column, never over the pills */}
+          <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
+            <Heading card={card} size={70} tight />
+          </div>
+          <div style={{ display: "flex", flexShrink: 0, gap: 12, fontSize: 30, fontWeight: 700 }}>
+            {card.tiles.map((s) => (
+              <Pill key={s.label}>
+                <span style={{ color: C.text }}>{s.value}</span>
+                <span style={{ color: C.dim, marginLeft: 10, fontWeight: 600 }}>{s.label}</span>
+              </Pill>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type Fonts = NonNullable<ConstructorParameters<typeof ImageResponse>[1]>["fonts"];
 let fonts: Promise<Fonts> | undefined;
 
@@ -304,10 +377,11 @@ function loadFonts() {
 
 /* The card as a PNG response. Vercel's CDN keeps a function's answer only under s-maxage,
    which ImageResponse's own header lacks; the page names the card with the latest Refresh
-   in its URL, so a cached copy is never older than the link that asks for it. The picture
-   is a player's Steam avatar, a place's Workshop preview or Track screenshot, or a
-   Campaign's Map previews (SharePicture). A picture Satori can't read draws the card
-   without any, rather than a 500 no CDN keeps. */
+   (or a Prefab's later edit) in its URL, so a cached copy is never older than the link
+   that asks for it. The picture
+   is a player's Steam avatar, a place's Workshop preview or Track screenshot, a
+   Campaign's Map previews, or a Prefab drawn in 3D (SharePicture). A picture Satori
+   can't read draws the card without any, rather than a 500 no CDN keeps. */
 export async function drawShare(card: ShareCard, picture: SharePicture) {
   try {
     return await render(card, picture);
@@ -319,14 +393,22 @@ export async function drawShare(card: ShareCard, picture: SharePicture) {
   }
 }
 
+const CACHE = "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400";
+/* a Prefab can be taken down or deleted, and nothing purges the CDN then, so its card is kept
+   an hour at most */
+const PREFAB_CACHE = "public, max-age=3600, s-maxage=3600, stale-while-revalidate=60";
+
 async function render(card: ShareCard, picture: SharePicture) {
+  const single = typeof picture === "string" ? picture : null;
   const body =
     card.kind === "player" ? (
-      <Split card={card} face={typeof picture === "string" ? picture : null} />
+      <Split card={card} face={single} />
+    ) : card.kind === "prefab" ? (
+      <Showcase card={card} picture={single} />
     ) : (
       <Banner card={card} banner={picture} />
     );
-  return pngOf(body, W, H);
+  return pngOf(body, W, H, card.kind === "prefab" ? PREFAB_CACHE : CACHE);
 }
 
 /* a drawing as the PNG response every card answers with. ImageResponse draws as its body
@@ -335,7 +417,7 @@ export async function pngOf(
   body: React.ReactElement,
   width: number,
   height: number,
-  cache = "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400",
+  cache = CACHE,
 ) {
   const png = await new ImageResponse(body, {
     width,

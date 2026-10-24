@@ -1,5 +1,5 @@
 // What a page's share image says (docs/site.md, "Share images"): the link-preview card a
-// player, a Map, a Circuit Track, a Daily or a Campaign unfurls with in Discord and
+// player, a Map, a Circuit Track, a Daily, a Campaign or a Prefab unfurls with in Discord and
 // elsewhere. Pure, so the rules a card follows are tested here; components/share draws a
 // ShareCard and app/og serves it. The design was settled in grill-design (spec #179,
 // prototype branch claude/prototype-og; the Campaign's in spec #206).
@@ -11,7 +11,7 @@ import type { PlayerRecord } from "./player";
 import type { BoardRow, DailyDay, WorkshopMap } from "./rows";
 import { fmtN, fmtSec, fmtTime, hueFor, personaOf, timeMedal } from "./rules";
 
-export const SHARE_KINDS = ["player", "map", "track", "daily", "campaign"] as const;
+export const SHARE_KINDS = ["player", "map", "track", "daily", "campaign", "prefab"] as const;
 export type ShareKind = (typeof SHARE_KINDS)[number];
 export const isShareKind = (k: string): k is ShareKind => SHARE_KINDS.some((x) => x === k);
 
@@ -33,7 +33,7 @@ export interface ShareCard {
      Season 2's Overall board has none */
   headline: ShareStat | null;
   /* a player's tiles leave out a count of zero, so there are one to four; a place's are
-     always four, a Campaign's three */
+     always four, a Campaign's three, a Prefab's one or two */
   tiles: Array<ShareStat>;
   /* the marble's hue, for a player */
   hue: number;
@@ -218,5 +218,30 @@ export function campaignCard(c: Campaign, s: CampaignStanding): ShareCard {
       { value: fmtN(s.finishedEveryMap), label: "Finished every map", tone: "author" },
     ],
     hue: hueFor(c.slug),
+  };
+}
+
+/* A Prefab's card (Showcase, picked by Will from three layouts on 2026-10-23): the Prefab
+   itself, drawn from its angle, fills it, with its uploader, Pieces and Favorites over the
+   bottom; no favorites yet is left out */
+export interface PrefabFacts {
+  slug: string;
+  name: string;
+  uploader: { name: string };
+  pieces: number;
+  favorites: number;
+}
+
+export function prefabCard(p: PrefabFacts): ShareCard {
+  const tiles: Array<ShareStat> = [{ value: fmtN(p.pieces), label: "Pieces" }];
+  if (p.favorites)
+    tiles.push({ value: fmtN(p.favorites), label: p.favorites === 1 ? "Favorite" : "Favorites" });
+  return {
+    kind: "prefab",
+    kicker: "Prefab · by " + p.uploader.name,
+    title: p.name,
+    headline: null,
+    tiles,
+    hue: hueFor(p.slug),
   };
 }

@@ -219,7 +219,7 @@
   display: grid;
   gap: 4px;
 }
-.dp-podhead h1 {
+.dp-podhead h2 {
   font-family: var(--f-marquee);
   font-size: calc(24rem / 16);
   margin: 2px 0;
@@ -342,30 +342,6 @@
   cursor: pointer;
 }
 
-/* the Days | Standings switch, at the top of both */
-.ds-switch {
-  justify-self: start;
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  margin: 0 var(--pad) 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-}
-.ds-switch a {
-  padding: 6px 16px;
-  border-radius: 999px;
-  color: var(--dim);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: calc(14rem / 16);
-}
-.ds-switch a[aria-current="page"] {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-
 /* the standings: the record cards, then every player's medal table */
 /* one column each, down to the cards, so long names and big text shrink the podium plates
    (their names ellipsize) rather than widen the page */
@@ -382,10 +358,6 @@
 }
 .ds-top {
   padding: 0 var(--pad);
-}
-.ds-top h1 {
-  margin: 0 0 4px;
-  font: 600 calc(26rem / 16) var(--f-hud);
 }
 .ds-line {
   margin: 0;
