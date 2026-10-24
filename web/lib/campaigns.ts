@@ -6,7 +6,8 @@
 // A Campaign's standings are a derived board, OverallCampaign_<slug>, worked out on every
 // read from its Maps' boards (db/boards.ts). The Overall prefix makes it a points board to
 // isPoints and board_kind with no special case.
-import { isPfid, mapBoard } from "./rules";
+import type { WorkshopMap } from "./rows";
+import { isPfid, mapBoard, safeImg } from "./rules";
 
 export interface Campaign {
   /* its path, /campaign/<slug>: lowercase words joined by - */
@@ -20,6 +21,9 @@ export interface Campaign {
   maps: ReadonlyArray<string>;
   /* listed first wherever Campaigns are, whatever its player count */
   pinned?: boolean;
+  /* the Workshop ID of a public Steam collection holding its Maps, whose Subscribe to all is
+     the one way Steam subscribes to several Maps at once */
+  collection?: string;
 }
 
 /* An Event board (CONTEXT.md) a Campaign can hold as one of its Maps: a one-off event's
@@ -63,6 +67,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     slug: "solar-trials",
     title: "Solar Trials",
     ...HABIBAL,
+    collection: "3805419594",
     maps: [
       "3805399883",
       "3805394429",
@@ -79,6 +84,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     slug: "velocity-trials",
     title: "Velocity Trials",
     ...HABIBAL,
+    collection: "3803939147",
     maps: ["3803908791", "3803910868", "3803919944", "3803929459", "3803937353"],
   },
   {
@@ -238,6 +244,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     slug: "mind-trials",
     title: "Mind Trials",
     ...HABIBAL,
+    collection: "3821607033",
     maps: ["3821602774", "3821588330", "3821590642", "3821598041", "3821600974"],
   },
   {
@@ -294,6 +301,8 @@ export function campaignProblems(list: ReadonlyArray<Campaign>): Array<string> {
     if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.slug))
       out.push(`slug "${c.slug}" is not lowercase words joined by -`);
     if (!c.maps.length) out.push(`"${c.slug}" has no Maps`);
+    if (c.collection !== undefined && !isPfid(c.collection))
+      out.push(`"${c.slug}" names collection "${c.collection}", which is not a Workshop ID`);
     for (const pfid of c.maps) {
       if (!isPfid(pfid) && !eventOf(pfid))
         out.push(`"${c.slug}" lists "${pfid}", which is not a Workshop ID or an Event`);
@@ -396,3 +405,24 @@ export function mapLabel(c: Campaign, pfid: string, title: string) {
   const name = mapName(c, pfid, title);
   return name === null ? mapNo(c, pfid) : `${mapNo(c, pfid)} ${name}`;
 }
+
+/* a row of a Campaign's Get the Maps checklist (components/campaign/GetMaps.tsx) */
+export interface GetMapRow {
+  pfid: string;
+  /* its number and name as the rail gives them */
+  no: string;
+  name: string | null;
+  pic: string;
+}
+
+/* the rows of the checklist: the page's Maps (getCampaign's, in the Campaign's order) that
+   are on the Workshop, since an Event board has no Workshop page to subscribe on */
+export const getMapRows = (c: Campaign, maps: ReadonlyArray<WorkshopMap>): Array<GetMapRow> =>
+  maps
+    .filter((m) => !eventOf(m.pfid))
+    .map((m) => ({
+      pfid: m.pfid,
+      no: mapNo(c, m.pfid),
+      name: mapName(c, m.pfid, m.title),
+      pic: safeImg(m.preview),
+    }));

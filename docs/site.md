@@ -340,7 +340,8 @@ the game ranks a Circuit season. The game knows nothing of them, so the list in
 
 **Adding one** is one entry in `CAMPAIGNS` (the run, request to live page: the `add-campaign` skill): its `slug` (the path, lowercase words joined by
 `-`), `title`, `creator` (the maker's Workshop name), `creatorId` (the maker's Steam ID) and
-`maps`, the Maps' Workshop IDs in the maker's order. That order numbers the Maps 01, 02 and
+`maps`, the Maps' Workshop IDs in the maker's order, and `collection`, the Workshop ID of a
+public Steam collection holding them, when there is one. That order numbers the Maps 01, 02 and
 so on, so append a Map rather than insert one. `campaignProblems` fails the tests on a
 repeated slug, a Map in two Campaigns (or twice in one), an empty Campaign or an ID that
 isn't one. Nothing else changes: the pages are prerendered from the list.
@@ -425,6 +426,20 @@ fits. Its heading's See all opens `/campaigns`. With no Campaign listed (a `tiny
 the homepage leaves the carousel out and `/campaigns` says there are none. Every count of a
 Campaign's Maps that is shown (a banner's, the switch's, a player's card's "n/N maps", the
 share card's) is its curated total, as its Maps are numbered out of it.
+
+**Getting its Maps into the game** (spec #359; three grill-design rounds on the never-merged
+`claude/prototype-ws-links`). Steam has no link that subscribes for a player, and only a
+collection's Subscribe to all subscribes to several Maps at once. So every page of a
+Campaign's frame floats a "Get the N Maps" button at the bottom left (`GetMaps.tsx`), which
+opens a checklist dialog of its Workshop Maps (`getMapRows`: the page's Maps less its Event
+boards, numbered and named as the rail does): each row links its Map's Workshop page in a
+new tab and ticks "Opened" once clicked, with a count, a bar and Start over, kept per Campaign
+in this browser's `localStorage`. A Campaign with a `collection` gets its Subscribe to all at
+the top; one with no Workshop Map gets no button. Under the list, the two steps in the game:
+go to the Hub, press Downloads. A Map's own page says the same in one line under its "Get it
+in Ballest" link, which sits under the picture beside "See it in 3D" (alone in the row
+without a 3D view). On a desktop the Map page's panel scrolls with the page: a scroll of its
+own hid its foot on a short screen.
 
 **A Campaign Map elsewhere** says so (`components/workshop/Campaign.tsx`, both reading
 `campaignOfMap`). Its card, wherever `MapCardLink` draws it (the homepage shelves, All maps,

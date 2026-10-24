@@ -4,10 +4,12 @@
 // the plates and the list. `slot` is what follows the slug in the path: one of its Maps,
 // opened inside the Campaign's frame as a Track opens inside its season; "podiums" for the
 // podium order; or a Steam ID whose row to find and mark, on its own or after an Event's id.
+// Every slot floats Get the Maps (GetMaps), the checklist of its Workshop Maps.
 import { notFound } from "next/navigation";
 
 import { CampaignRailItems } from "./CampaignRail";
 import { CampaignChip } from "./CampaignSwitch";
+import { GetMaps } from "./GetMaps";
 import { DocTitle } from "../Behaviours";
 import { PageHead } from "../PageHead";
 import { Remember } from "../Trail";
@@ -34,7 +36,7 @@ import {
   getCampaigns,
   getPlacesOf,
 } from "../../db/data";
-import { campaignBoard, eventOf, mapLabel } from "../../lib/campaigns";
+import { campaignBoard, eventOf, getMapRows, mapLabel } from "../../lib/campaigns";
 import type { IndexBoard } from "../../lib/player";
 import { podiumRows } from "../../lib/podiums";
 import { PODIUM_SORT, boardHref, campaignHref, campaignSlot, mapHref } from "../../lib/routes";
@@ -168,6 +170,12 @@ export async function CampaignView({
           )}
         </section>
         {!m && <PointsDialog board={name} tracks={maps.length} />}
+        <GetMaps
+          slug={c.slug}
+          title={c.title}
+          collection={c.collection ?? null}
+          rows={getMapRows(c, maps)}
+        />
         <Remember trail="board" href={here} label={c.title + " " + title} />
         <Remember
           trail="maps"

@@ -730,6 +730,141 @@ html:has(.m3d:modal) {
   color: var(--faint);
 }
 
+/* Get the Maps (components/campaign/GetMaps.tsx): the button floats at the bottom left of
+   a Campaign's every page, above the board, and opens the checklist in the centred dialog */
+.getmaps-open {
+  position: fixed;
+  inset-block-end: 16px;
+  inset-inline-start: 16px;
+  z-index: 40;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 8px 30px oklch(0% 0 none / 0.5);
+  font-family: var(--f-hud);
+  cursor: pointer;
+}
+.ptsx.getmaps {
+  inset-block-start: 8dvh;
+  inline-size: min(520px, calc(100% - 32px));
+  max-block-size: calc(92dvh - 16px);
+}
+.getmaps h3 {
+  margin: 4px 0 0;
+}
+.gm-all {
+  display: grid;
+  gap: 6px;
+}
+.gm-all .go {
+  font-family: var(--f-hud);
+}
+.gm-all p,
+.gm-lead {
+  margin: 0;
+  font-size: calc(13rem / 16);
+  color: var(--dim);
+}
+.gm-prog {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 600 calc(13rem / 16) var(--f-hud);
+}
+.gm-bar {
+  flex: 1;
+  block-size: 6px;
+  border-radius: 3px;
+  background: var(--surface2);
+  overflow: clip;
+}
+.gm-bar i {
+  display: block;
+  block-size: 100%;
+  background: var(--accent);
+}
+.gm-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gm-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border: 1px solid var(--line2);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.gm-list img,
+.gm-nopic {
+  flex: none;
+  inline-size: 64px;
+  block-size: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--surface2);
+}
+.gm-lab {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 8px;
+  min-inline-size: 0;
+}
+.gm-lab b {
+  font: 700 calc(18rem / 16) var(--f-hud);
+}
+.gm-lab span {
+  overflow: hidden;
+  font-size: calc(13.5rem / 16);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gm-list a {
+  flex: none;
+  padding: 7px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: var(--accent);
+  font: 600 calc(13rem / 16) var(--f-hud);
+  text-decoration: none;
+}
+.gm-list li[data-opened] {
+  opacity: 0.6;
+}
+.gm-list li[data-opened] a {
+  border-color: var(--line);
+  color: var(--dim);
+}
+.gm-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: calc(13rem / 16);
+}
+.gm-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gm-steps span {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 22px;
+  block-size: 22px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: 700 calc(12rem / 16) var(--f-hud);
+}
+
 /* Campaigns. A Campaign's picture is its first Maps' previews side by side with a hairline
    between (CampaignPics); a banner sets it at full strength behind the name, maker,
    counts and leader, with the fade, full height, only behind the text. The homepage's carousel is a
