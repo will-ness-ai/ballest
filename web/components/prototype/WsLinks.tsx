@@ -7,13 +7,14 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 export type ProtoMap = { pfid: string; no: string; name: string | null; pic: string | null };
 
-/* each variant is a pair: where a Campaign's Get button sits, and a Map page's how-to */
+/* round 3: the Campaign keeps E (sticky button, picked); each variant is where a Map page's
+   "Get it in Ballest" sits, and how its sidebar scrolls */
 const VARIANTS = [
-  ["A", "A · Button under the board card", "A · Steps under the button"],
-  ["B", "B · Button by the Campaign switch", "B · How-to link opens the steps"],
-  ["C", "C · A line above the board", "C · Renamed button + one line"],
-  ["D", "D · First strip in the Map list", "D · ⓘ next to the button"],
-  ["E", "E · Sticky button", "E · Button inside the steps"],
+  ["A", "E · Sticky button (picked)", "A · Beside See it in 3D"],
+  ["B", "E · Sticky button (picked)", "B · Under the title"],
+  ["C", "E · Sticky button (picked)", "C · Sidebar scrolls with the page"],
+  ["D", "E · Sticky button (picked)", "D · Pinned to the sidebar's foot"],
+  ["E", "E · Sticky button (picked)", "E · Top of the board column"],
 ] as const;
 type V = (typeof VARIANTS)[number][0];
 
@@ -213,23 +214,19 @@ export function ProtoWsContent({
   return (
     <>
       <GetDialog slug={slug} title={title} maps={maps} />
-      {v === "A" && (
-        <button type="button" className="go pws-getbtn" onClick={openGet}>
-          Get the {n} Maps
-        </button>
-      )}
-      {v === "E" && (
+      {
+        /* round 3: E, the sticky button, on every variant */
         <button type="button" className="go pws-sticky" onClick={openGet}>
           <SteamMark /> Get the {n} Maps
         </button>
-      )}
+      }
     </>
   );
 }
 
 /* B: beside the Campaign switch in the board row (phone), C: a line above the board row */
 export function ProtoRowGet({ n, at }: { n: number; at: "row" | "above" }) {
-  const v = useVariant();
+  const v = useVariant() && null;
   if (v === "B" && at === "row")
     return (
       <button type="button" className="pws-rowbtn" onClick={openGet}>
@@ -250,7 +247,7 @@ export function ProtoRowGet({ n, at }: { n: number; at: "row" | "above" }) {
 
 /* B: under the maker at the rail's head (desktop) */
 export function ProtoRailHow({ n }: { n: number }) {
-  const v = useVariant();
+  const v = useVariant() && null;
   if (v !== "B") return null;
   return (
     <button type="button" className="go pws-railget" onClick={openGet}>
@@ -261,7 +258,7 @@ export function ProtoRailHow({ n }: { n: number }) {
 
 /* D: the first strip of the Map list, in the rail and the phone sheet */
 export function ProtoRailGet({ n }: { n: number }) {
-  const v = useVariant();
+  const v = useVariant() && null;
   if (v !== "D") return null;
   return (
     <button type="button" className="tstrip plain pws-strip" onClick={openGet}>
@@ -272,104 +269,74 @@ export function ProtoRailGet({ n }: { n: number }) {
   );
 }
 
-/* ---------- a Map's own page: the how-to by its Workshop button ---------- */
-export function ProtoMapHow({ pfid }: { pfid: string }) {
+/* ---------- a Map's own page: "Get it in Ballest" (round 2's C), placed per variant ---------- */
+type At = "3d" | "title" | "facts" | "foot" | "content";
+const PLACE: Record<string, At> = { A: "3d", B: "title", C: "facts", D: "foot", E: "content" };
+
+export function ProtoMapGet({ pfid, at }: { pfid: string; at: At }) {
   const v = useVariant();
-  const dlg = useRef<HTMLDialogElement>(null);
-  const [tip, setTip] = useState(false);
-  if (!v) return null;
-  const btn = (text = "Open in Steam Workshop") => (
-    <a className="go mp-ws" href={ws(pfid)} target="_blank" rel="noopener">
-      {text}
+  /* C: the sidebar stops scrolling on its own and moves with the page */
+  useEffect(() => {
+    if (at !== "facts") return;
+    const p = document.getElementById("mpanel");
+    p?.classList.toggle("pws-flow", v === "C");
+    return () => p?.classList.remove("pws-flow");
+  }, [v, at]);
+  /* A: sits beside See it in 3D, so it joins that button's row */
+  useEffect(() => {
+    if (at !== "3d") return;
+    const b = document.querySelector("#mpanel .m3d-open");
+    b?.classList.toggle("pws-half", v === "A");
+    return () => b?.classList.remove("pws-half");
+  }, [v, at]);
+  if (!v || PLACE[v] !== at) return null;
+  const btn = (
+    <a className="go pws-get" href={ws(pfid)} target="_blank" rel="noopener">
+      Get it in Ballest ↗
     </a>
   );
-  if (v === "A")
+  const line = (
+    <small>
+      Press <b>Subscribe</b> on Steam, then in Ballest go to the <b>Hub</b> and press{" "}
+      <b>Downloads</b>.
+    </small>
+  );
+  if (at === "3d") {
+    const has3d = typeof document !== "undefined" && !!document.querySelector("#mpanel .m3d-open");
     return (
-      <div className="pws-mapA">
-        {btn()}
-        <Steps compact />
-      </div>
-    );
-  if (v === "B")
-    return (
-      <div className="pws-mapB">
-        {btn()}
-        <button
-          type="button"
-          className="linkbtn pws-reset"
-          onClick={() => dlg.current?.showModal()}
-        >
-          How do I play this in Ballest?
-        </button>
-        <dialog
-          ref={dlg}
-          className="ptsx pws-dlg"
-          onClick={(e) => e.target === dlg.current && dlg.current?.close()}
-        >
-          <div className="dh">
-            <h2>Getting a Map into Ballest</h2>
-            <button type="button" onClick={() => dlg.current?.close()} aria-label="Close">
-              ×
+      <div className="pws-mapC pws-at-3d">
+        <div className="pws-pair">
+          {has3d && (
+            <button
+              type="button"
+              className="go pws-3d"
+              onClick={() =>
+                document.querySelector<HTMLButtonElement>("#mpanel .m3d-open")?.click()
+              }
+            >
+              See it in 3D
             </button>
-          </div>
-          <Steps />
-          {btn()}
-        </dialog>
-      </div>
-    );
-  if (v === "C")
-    return (
-      <div className="pws-mapC">
-        {btn("Get it in Ballest ↗")}
-        <small>
-          Press <b>Subscribe</b> on Steam, then in Ballest go to the <b>Hub</b> and press{" "}
-          <b>Downloads</b>.
-        </small>
-      </div>
-    );
-  if (v === "D")
-    return (
-      <div className="pws-mapD">
-        <div className="pws-mapD-row">
-          {btn()}
-          <button
-            type="button"
-            className="pws-i"
-            aria-expanded={tip}
-            aria-label="How to play it"
-            onClick={() => setTip(!tip)}
-          >
-            i
-          </button>
+          )}
+          {btn}
         </div>
-        {tip && (
-          <div className="pws-tip">
-            <Steps compact />
-          </div>
-        )}
+        {line}
       </div>
+    );
+  }
+  if (at === "content")
+    return (
+      <section className="pws-mapTop">
+        <span>
+          <b>Play this Map in Ballest</b>
+          {line}
+        </span>
+        {btn}
+      </section>
     );
   return (
-    <div className="pws-mapE">
-      <h2 className="eyebrow">Play it in Ballest</h2>
-      <ol className="pws-steps">
-        <li>
-          <span className="pws-n">1</span>
-          {btn()}
-        </li>
-        <li>
-          <span className="pws-n">2</span>
-          <b>Press Subscribe</b>
-        </li>
-        <li>
-          <span className="pws-n">3</span>
-          <b>Go to the Hub in Ballest</b>
-        </li>
-        <li>
-          <span className="pws-n">4</span>
-          <b>Press Downloads</b>
-        </li>
-      </ol>
+    <div className={"pws-mapC pws-at-" + at}>
+      {btn}
+      {line}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 // no card. `focus` is a Steam ID whose row to find and mark.
 import { notFound, redirect } from "next/navigation";
 
-import { ProtoMapHow, ProtoPicker } from "../prototype/WsLinks";
+import { ProtoMapGet, ProtoPicker } from "../prototype/WsLinks";
 import { PartOf } from "./Campaign";
 import { CreatorLink } from "./Card";
 import { Age } from "./Age";
@@ -49,12 +49,15 @@ export function MapPanel({
       <BackLink trail="maps" />
       <MapImage preview={m.preview} className="mp-img" />
       {view && <Map3D m={view} />}
+      {/* PROTOTYPE */}
+      <ProtoMapGet pfid={m.pfid} at="3d" />
       <div>
         <h1 className="mp-t">{m.title}</h1>
         <span className="mp-by">
           by <CreatorLink m={m} />
         </span>
       </div>
+      <ProtoMapGet pfid={m.pfid} at="title" />
       {reason && <p className="mp-flag">Reported broken: {reason}</p>}
       <PartOf pfid={m.pfid} />
       <dl className="mp-facts">
@@ -79,6 +82,7 @@ export function MapPanel({
           </div>
         )}
       </dl>
+      <ProtoMapGet pfid={m.pfid} at="facts" />
       {/* the record is in the facts above */}
       <MedalList className="mp-medals" record={null} medals={m.medals} />
       <div className="mp-chart">
@@ -88,7 +92,7 @@ export function MapPanel({
         </div>
       </div>
       {/* PROTOTYPE */}
-      <ProtoMapHow pfid={m.pfid} />
+      <ProtoMapGet pfid={m.pfid} at="foot" />
       <ProtoPicker />
       {!reason && (
         <a className="mp-report" href={reportHref(m)} target="_blank" rel="noopener">
@@ -120,6 +124,8 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
       <DocTitle title={m.title} />
       <MapPanel m={m} scores={scores} asOf={site.asOf} />
       <section className="content">
+        {/* PROTOTYPE */}
+        <ProtoMapGet pfid={m.pfid} at="content" />
         <YouMarks name={name} />
         <YouBanner name={name} field={page.total} medals={m.medals} />
         <BoardBody
