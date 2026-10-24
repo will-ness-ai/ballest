@@ -1,6 +1,7 @@
 // The Sign, under Useful (lib/generators/index.ts), facing the camera that spawns it; it
 // letters its text through a Lettering (lib/generator-letters.ts).
 import { wrapAt, type Lettering } from "../generator-letters";
+import { isRude } from "../rude-text";
 import {
   FRONT,
   cellsOf,
@@ -61,6 +62,7 @@ export const sign: Generator = {
     ...(v.wall ? [colour("back", "Wall")] : []),
     colour("front", "Letters"),
   ],
+  refuses: (v) => isRude(String(v.text)),
   build: (v, lettering) => {
     const W = metresIn(v, "width");
     const H = metresIn(v, "height");
