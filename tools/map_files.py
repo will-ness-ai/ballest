@@ -226,6 +226,9 @@ def main(argv=None):
         if "started" in result:
             return
         result["started"] = True
+        # the Workshop CDN is fetched on steam.py's bare session, which ignores HTTPS_PROXY
+        # unless told; a cloud agent session reaches the CDN only through that proxy
+        client.http._session._trust_env = True  # noqa: SLF001 (steam.py has no proxy option for it)
         try:
             result["written"] = await record_map_files(
                 catalogue, steam_download(client), scratch=args.dev, budget=args.budget
