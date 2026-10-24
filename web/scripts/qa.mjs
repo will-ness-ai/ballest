@@ -344,15 +344,26 @@ async function check() {
   });
   if (flags.pages && flags.all)
     fail("--pages and --all choose the pages two ways: pass one", HELP.check);
-  const scope = flags.pages || flags.all ? null : reach(changedFiles(ROOT), ROOT);
+  /* this branch's own build is narrowed to what its changes reach; any other target is all */
+  let scope = null;
+  if ((at.name === "preview" || at.name.startsWith("local")) && !flags.pages && !flags.all)
+    try {
+      scope = reach(changedFiles(ROOT), ROOT);
+    } catch (e) {
+      fail(
+        `can't tell what this branch changes: ${String(e.message).split("\n")[0]}`,
+        "git fetch origin main, or pass --all or --pages",
+      );
+    }
+  const gaps = scope?.routes.length
+    ? [
+        `uncatalogued[${String(scope.routes.length)}] pages it reaches, not checked: ${scope.routes.join(", ")}`,
+      ]
+    : [];
   if (scope && !scope.all && !scope.pages.length) {
     say([
       "checked 0 views: nothing this branch changes from main shows on a catalogue page",
-      ...(scope.routes.length
-        ? [
-            `uncatalogued[${String(scope.routes.length)}] pages it reaches, not checked: ${scope.routes.join(", ")}`,
-          ]
-        : []),
+      ...gaps,
       "next:",
       "  pnpm --silent qa check --all   # every page anyway",
     ]);
@@ -519,11 +530,7 @@ async function check() {
           `pages[${String(scope.pages.length)}] this branch reaches (--all for every page): ${few(scope.pages.map((p) => p.name))}`,
         ]
       : []),
-    ...(scope?.routes.length
-      ? [
-          `uncatalogued[${String(scope.routes.length)}] pages it reaches, not checked: ${scope.routes.join(", ")}`,
-        ]
-      : []),
+    ...gaps,
     ...rows("faults", ["kind", "where", "detail", ...(ref ? ["ref"] : []), "views"], faultRows),
     ...(ref
       ? rows("changed", ["view", "px", "box", "height", "shows", "image", "alike"], diffRows)

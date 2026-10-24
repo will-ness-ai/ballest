@@ -17,6 +17,14 @@ describe("reach", () => {
     });
   });
 
+  it("draws nothing for tooling: lint and test config", () => {
+    expect(of(["eslint.config.js", "web/vitest.config.ts", ".gitignore"]).all).toBeNull();
+  });
+
+  it("draws everything for qa's own catalogue, which decides what is drawn", () => {
+    expect(of(["web/scripts/qa/catalogue.mjs"]).all).toBe("web/scripts/qa/catalogue.mjs");
+  });
+
   it("follows a library file's imports up to the pages that use it", () => {
     const r = of(["web/lib/generators/signs.ts"]);
     expect(r.all).toBeNull();
