@@ -23,18 +23,15 @@ const UNDRAWN = [
   /^\.claude\//,
   /^\.githooks\//,
   /^web\/test\//,
-  /* qa's catalogue chooses what is drawn and sync-site what is published: those draw all */
-  /^web\/scripts\/(?!qa\/catalogue\.mjs$|sync-site\.mjs$)/,
+  /* but qa's own drawing (what it draws and how it measures) and what sync-site publishes
+     show on every page */
+  /^web\/scripts\/(?!qa\/(catalogue|browser|probes|compare|landing|session|targets)\.mjs$|sync-site\.mjs$)/,
   /^web\/db\/seed\//,
   /^web\/eslint\//,
   /^web\/(vitest|drizzle)\.config\.ts$/,
-  /^(eslint\.config\.js|ruff\.toml|skills-lock\.json|CODING_STANDARDS\.md)$/,
+  /^(eslint\.config\.js|ruff\.toml|skills-lock\.json)$/,
   /(^|\/)\.(gitignore|prettierignore|prettierrc[^/]*)$/,
 ];
-/* a deleted file's importers changed too, so it is left out, but a page, a layout or a file
-   a page loads by its URL (a picture) has none */
-const IMPORTED = /\.(ts|tsx|mjs|js|css)$/;
-const ENTRY = /\/(page|layout|route)\.(ts|tsx|js)$/;
 const EXTENSIONS = ["", ".ts", ".tsx", ".mjs", ".js", ".css", "/index.ts", "/index.tsx"];
 const IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*|@import\s+)["']([^"']+)["']/g;
 
@@ -127,6 +124,11 @@ export function reach(changed, root) {
     if (!reachedFrom.has(key)) reachedFrom.set(key, closure(entries));
     return reachedFrom.get(key);
   };
+  const routes = pageFiles.map((file) => ({
+    file,
+    pattern: routeOf(file),
+    loose: segmentsOf(file).map(looseness),
+  }));
   /* a catalogue page's page file: a static segment wins over a dynamic one */
   const fileOfPage = (page) => {
     const path = page.path.replace(/\{(\w+)\}/g, (_, k) => IDS.real[k] ?? "x");
@@ -138,11 +140,6 @@ export function reach(changed, root) {
     });
     return hits[0]?.file ?? null;
   };
-  const routes = pageFiles.map((file) => ({
-    file,
-    pattern: routeOf(file),
-    loose: segmentsOf(file).map(looseness),
-  }));
   const drawn = PAGES.map((p) => {
     const file = fileOfPage(p);
     /* a path no page file serves (the 404) draws the root layout alone */
@@ -175,22 +172,38 @@ export function reach(changed, root) {
   return { all: null, pages, routes: [...reached].sort() };
 }
 
-/* the files this branch changes against main: its commits, the working tree, new files, and
-   the deleted files nothing imports (IMPORTED, ENTRY). Throws when git can't find main. */
+/* the files this branch changes against main: its commits, the working tree and new files,
+   a rename as its old path and its new, and a deleted file unless a changed file imported it
+   on main (that importer is in the diff already). Throws when git can't find main. */
 export function changedFiles(root) {
+  const run = (...args) =>
+    execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: "pipe" });
   const git = (...args) =>
-    execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: "pipe" })
+    run(...args)
       .split("\n")
       .filter(Boolean);
   const [base] = git("merge-base", "origin/main", "HEAD");
-  const deleted = git("diff", "--name-only", "--diff-filter=D", base).filter(
-    (f) => !IMPORTED.test(f) || ENTRY.test(f),
-  );
+  const kept = git("diff", "--name-only", "--no-renames", "--diff-filter=d", base);
+  const deleted = git("diff", "--name-only", "--no-renames", "--diff-filter=D", base);
+  const before = kept.map((f) => {
+    try {
+      return run("show", `${base}:${f}`);
+    } catch {
+      return ""; // new on this branch
+    }
+  });
+  const imported = (file) => {
+    const stem = posix.basename(file).replace(/\.[^.]+$/, "");
+    const named = new RegExp(
+      `["'][^"']*/${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\.\\w+)?["']`,
+    );
+    return before.some((text) => named.test(text));
+  };
   return [
     ...new Set([
-      ...git("diff", "--name-only", "--diff-filter=d", base),
+      ...kept,
       ...git("ls-files", "--others", "--exclude-standard"),
-      ...deleted,
+      ...deleted.filter((f) => !imported(f)),
     ]),
   ];
 }

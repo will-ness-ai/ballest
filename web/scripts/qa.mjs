@@ -345,16 +345,21 @@ async function check() {
   if (flags.pages && flags.all)
     fail("--pages and --all choose the pages two ways: pass one", HELP.check);
   /* this branch's own build is narrowed to what its changes reach; any other target is all */
+  if (at.name === "preview" && at.behind && !flags.pages && !flags.all)
+    fail("the preview is behind HEAD", "push and wait for Vercel, or pass --all or --pages");
   let scope = null;
-  if ((at.name === "preview" || at.name.startsWith("local")) && !flags.pages && !flags.all)
+  if ((at.name === "preview" || at.ids === "stress") && !flags.pages && !flags.all) {
+    let changed;
     try {
-      scope = reach(changedFiles(ROOT), ROOT);
+      changed = changedFiles(ROOT);
     } catch (e) {
       fail(
-        `can't tell what this branch changes: ${String(e.message).split("\n")[0]}`,
+        `git can't tell what this branch changes: ${String(e instanceof Error ? e.message : e).split("\n")[0]}`,
         "git fetch origin main, or pass --all or --pages",
       );
     }
+    scope = reach(changed, ROOT);
+  }
   const gaps = scope?.routes.length
     ? [
         `uncatalogued[${String(scope.routes.length)}] pages it reaches, not checked: ${scope.routes.join(", ")}`,

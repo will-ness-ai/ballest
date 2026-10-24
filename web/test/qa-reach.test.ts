@@ -1,7 +1,11 @@
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { reach } from "../scripts/qa/reach.mjs";
+import { changedFiles, reach } from "../scripts/qa/reach.mjs";
 
 // qa check's default: the catalogue pages a branch's changed files can reach, read from the
 // repo's own files, so a page that stops importing a file stops being drawn for it.
@@ -18,7 +22,11 @@ describe("reach", () => {
   });
 
   it("draws nothing for tooling: lint and test config", () => {
-    expect(of(["eslint.config.js", "web/vitest.config.ts", ".gitignore"]).all).toBeNull();
+    expect(of(["eslint.config.js", "web/vitest.config.ts", ".gitignore"])).toEqual({
+      all: null,
+      pages: [],
+      routes: [],
+    });
   });
 
   it("draws everything for qa's own catalogue, which decides what is drawn", () => {
@@ -51,5 +59,56 @@ describe("reach", () => {
 
   it("draws everything for a site file no page imports, such as an API route", () => {
     expect(of(["web/app/api/me/route.ts"]).all).toBe("web/app/api/me/route.ts");
+  });
+});
+
+describe("changedFiles", () => {
+  /* a repo whose main holds `files`, with `change` run on a branch from it */
+  function branch(
+    files: Record<string, string>,
+    change: (git: (...a: Array<string>) => void, dir: string) => void,
+  ) {
+    const dir = mkdtempSync(join(tmpdir(), "qa-reach-"));
+    const git = (...a: Array<string>) => {
+      execFileSync("git", ["-C", dir, ...a], { stdio: "pipe" });
+    };
+    git("init", "-q", "-b", "main");
+    git("config", "user.email", "qa@example.invalid");
+    git("config", "user.name", "qa");
+    for (const [f, text] of Object.entries(files)) {
+      mkdirSync(join(dir, f, ".."), { recursive: true });
+      writeFileSync(join(dir, f), text);
+    }
+    git("add", "-A");
+    git("commit", "-qm", "main");
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+    git("checkout", "-qb", "topic");
+    change(git, dir);
+    git("commit", "-qam", "topic");
+    try {
+      return changedFiles(dir).sort();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("gives a renamed page's old path too, which now answers 404", () => {
+    const moved = branch({ "web/app/maps/page.tsx": "export default 1;\n" }, (git) => {
+      git("mv", "web/app/maps", "web/app/workshop");
+    });
+    expect(moved).toEqual(["web/app/maps/page.tsx", "web/app/workshop/page.tsx"]);
+  });
+
+  it("leaves out a deleted module whose importer changed, but keeps one nothing imported", () => {
+    const files = {
+      "web/lib/a.ts": 'import { b } from "./b";\nexport const a = b;\n',
+      "web/lib/b.ts": "export const b = 1;\n",
+      "web/proxy.ts": "export function proxy() {}\n",
+    };
+    const gone = branch(files, (git, dir) => {
+      writeFileSync(join(dir, "web/lib/a.ts"), "export const a = 1;\n");
+      git("rm", "-q", "web/lib/b.ts", "web/proxy.ts");
+    });
+    expect(gone).toEqual(["web/lib/a.ts", "web/proxy.ts"]);
   });
 });
