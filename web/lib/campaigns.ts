@@ -281,6 +281,13 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     maps: ["leth-trial-1"],
     pinned: true,
   },
+  {
+    slug: "ember",
+    title: "Ember",
+    creator: "It’s RushiN",
+    creatorId: "76561198787399085",
+    maps: ["3822796847", "3823858008", "3824394514", "3825066883"],
+  },
 ];
 
 /* what is wrong with a list of Campaigns, in words; empty when it holds together */
@@ -349,7 +356,10 @@ export const mapNo = (c: Campaign, pfid: string) => String(mapNumber(c, pfid)).p
 export function mapName(c: Campaign, pfid: string, title: string): string | null {
   const prefix = c.title.toLowerCase();
   if (!title.toLowerCase().startsWith(prefix)) return title;
-  const name = title.slice(prefix.length).trim() || title;
+  const rest = title.slice(prefix.length);
+  /* only as a whole word: "Ember" keeps "Embers Edge" and "Ember's Fury" whole */
+  if (/^[\p{L}'’]/u.test(rest)) return title;
+  const name = rest.trim() || title;
   const counted = /^[a-z]?(\d+) of (\d+)$/i.exec(name);
   if (counted && Number(counted[1]) === mapNumber(c, pfid) && Number(counted[2]) === c.maps.length)
     return null;
