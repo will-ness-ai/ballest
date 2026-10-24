@@ -36,12 +36,15 @@ describe("reach", () => {
   it("follows a library file's imports up to the pages that use it", () => {
     const r = of(["web/lib/generators/signs.ts"]);
     expect(r.all).toBeNull();
-    expect(r.pages).toEqual([{ name: "prefabs-make", via: "web/lib/generators/signs.ts" }]);
+    expect(r.pages).toEqual([
+      { name: "prefabs-make", via: "web/lib/generators/signs.ts" },
+      { name: "pixel-art", via: "web/lib/generators/signs.ts" },
+    ]);
   });
 
   it("names a page the catalogue doesn't draw, as a gap", () => {
     expect(of(["web/lib/generators/signs.ts"]).routes).toContain(
-      "web/app/prefabs/make/[generator]/page.tsx",
+      "web/app/prefabs/collage/page.tsx",
     );
   });
 
