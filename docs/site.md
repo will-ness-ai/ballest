@@ -380,7 +380,7 @@ never a row of tabs, since the list keeps growing; on a desktop it heads the rai
 (`getCampaigns`); the rail lists Overall, then each Map as a strip of its preview picture with its number, record and the part of
 its title after the Campaign's name (`mapName`), left out when that is only its number
 ("Miniblack 01", "AJC1", or "Limbo campaign 1 of 8" and its "A08 of 8", which count the Maps), and the whole title when what is left starts with a number that
-isn't the Map's place ("Ninja0", "AJ26"). Everywhere the frame names a Map (the rail's sheet, the podium
+isn't the Map's place ("Ninja0", "AJ26") or the Campaign's name runs on into a longer word ("Embers Edge", "Ember's Fury"). Everywhere the frame names a Map (the rail's sheet, the podium
 tally, the page's title) it is `mapLabel`: the number, then that name. On a phone the
 switch's chip and the board button share a row while they fit, and the button takes a line
 of its own when they don't (`.boardrow.named`), since a Campaign's title and Map names run
