@@ -10,6 +10,7 @@ import {
   COLOUR_NAMES,
   GENERATORS,
   PIECE_LIMIT,
+  SPAWN_MOST,
   MARBLE,
   PIXEL_LETTERING,
   generate,
@@ -17,6 +18,7 @@ import {
   pictureOf,
   readPicture,
   rotOf,
+  spawnsOf,
   variationsOf,
   voxelBoxes,
   voxelTree,
@@ -74,6 +76,15 @@ const highest = (file: PrefabFile) =>
       (sh) =>
         sh.matrix[13] +
         (Math.abs(sh.matrix[1]) + Math.abs(sh.matrix[5]) + Math.abs(sh.matrix[9])) / 2,
+    ),
+  ) * 100;
+/* the nearest any piece reaches toward the camera that spawns it (-X), in cm */
+const nearest = (file: PrefabFile) =>
+  Math.min(
+    ...shapesOf(file).map(
+      (sh) =>
+        sh.matrix[12] -
+        (Math.abs(sh.matrix[0]) + Math.abs(sh.matrix[4]) + Math.abs(sh.matrix[8])) / 2,
     ),
   ) * 100;
 const count = (file: PrefabFile, piece: string) =>
@@ -136,6 +147,43 @@ describe("every Generator", () => {
       const file = generate(key, values);
       if (file) expect(lowest(file), `${key} ${label}`).toBeGreaterThanOrEqual(-1);
     }
+  });
+});
+
+describe("spawning in parts", () => {
+  /* 128 by 8 cells, red and white like a chessboard: 1,024 blocks, none merged */
+  const chess = "128x8:" + ("ca".repeat(64) + "ac".repeat(64)).repeat(4);
+  const big = (lay = "Standing") => make("pixel-art", { picture: chess, across: 128, lay });
+
+  test("a small one is one part, itself", () => {
+    const file = make("pixel-art");
+    expect(spawnsOf(file)).toEqual([file]);
+  });
+
+  test("a big one splits into parts the game can spawn, each reaching as near and as low", () => {
+    for (const lay of ["Standing", "On the floor"]) {
+      const file = big(lay);
+      const parts = spawnsOf(file);
+      expect(parts.length, lay).toBe(Math.ceil(file.items.length / (SPAWN_MOST - 1)));
+      for (const p of parts) {
+        expect(p.items.length, lay).toBeLessThanOrEqual(SPAWN_MOST);
+        expect(nearest(p), lay).toBeCloseTo(nearest(file), 0);
+        expect(lowest(p), lay).toBeCloseTo(lowest(file), 0);
+        expect(checkPrefab(JSON.stringify(p)).ok, lay).toBe(true);
+      }
+      /* every piece once, and at most a marker more in each part */
+      const all = parts.flatMap((p) => p.items);
+      for (const it of file.items) expect(all).toContain(it);
+      expect(all.length, lay).toBeLessThanOrEqual(file.items.length + parts.length);
+    }
+  });
+
+  test("no part is a single piece, which the game won't spawn", () => {
+    const file = big();
+    /* lengths either side of where a split leaves one piece over */
+    for (let n = SPAWN_MOST - 2; n <= 2 * SPAWN_MOST + 2; n++)
+      for (const p of spawnsOf({ ...file, items: file.items.slice(0, n) }))
+        expect(p.items.length, `${String(n)} pieces`).toBeGreaterThanOrEqual(2);
   });
 });
 
