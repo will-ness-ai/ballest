@@ -63,4 +63,11 @@ describe("signing in through Discord", () => {
     await Promise.all([s.renew(), s.renew(), s.renew()]);
     expect(authorizes() - before).toBe(1);
   });
+
+  it("is accepted in any running Venue's server, and keeps that server for every request", async () => {
+    const d = discord(["token-for-code-2"], "g2");
+    const s = await discordSession(d.client, { guildIds: [GUILD, "g2"], exchange });
+    if (s === "wrongServer") throw new Error("expected a session");
+    expect(s.guild).toBe("g2");
+  });
 });

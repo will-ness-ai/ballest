@@ -3,7 +3,8 @@
 // a live Match can be pressed, and what the bot answered privately comes back in Discord's shape.
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Option, Stream } from "effect";
-import { Discord } from "../src/discord/client.js";
+import type { Interaction } from "discord.js";
+import { Discord, type DiscordVenue, type VenueInteraction } from "../src/discord/client.js";
 import { DriverInteractions, InteractionsLive } from "../src/discord/interactions.js";
 import { Engine } from "../src/engine.js";
 import { Pings } from "../src/pings.js";
@@ -28,10 +29,20 @@ import { ALICE, BOB, type Harness, makeHarness, makeMap } from "./harness.js";
 const driven = (h: Harness, renderer: Layer.Layer<Renderer> = Renderer.Default) =>
   Effect.gen(function* () {
     const queue: Array<(i: unknown) => void> = [];
-    const feed = Stream.async<never>(
-      (emit) => void queue.push((i) => void emit.single(i as never)),
+    // The driver's clicks play in the home Venue, as in the sandbox.
+    const home = {
+      name: "home",
+      pingRoleId: "r-ping",
+      pingRoleName: "Multiplayer ping",
+    } as unknown as DiscordVenue;
+    const feed = Stream.async<VenueInteraction>(
+      (emit) =>
+        void queue.push((i) => void emit.single({ interaction: i as Interaction, venue: home })),
     );
-    const discord = Layer.succeed(Discord, Discord.make({ interactions: Stream.empty } as never));
+    const discord = Layer.succeed(
+      Discord,
+      Discord.make({ interactions: Stream.empty, home } as never),
+    );
     yield* Layer.build(
       InteractionsLive.pipe(
         Layer.provide(Layer.succeed(DriverInteractions, feed)),

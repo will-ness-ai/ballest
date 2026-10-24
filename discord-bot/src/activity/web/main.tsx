@@ -30,7 +30,7 @@ const describe = (e: unknown): string => {
 
 type Boot =
   | { readonly phase: "signing-in" }
-  | { readonly phase: "demo"; readonly users: PageConfig["devUsers"] }
+  | { readonly phase: "demo"; readonly users: PageConfig["devUsers"]; readonly guild: string }
   | { readonly phase: "wrong" }
   | { readonly phase: "failed"; readonly why: string; readonly retry: boolean }
   | { readonly phase: "ready"; readonly session: SignedIn };
@@ -41,12 +41,15 @@ const configured = readConfig();
 /** One SDK for the page's life: constructing it starts the handshake with Discord. */
 const sdk = configured.then((c) => (inDiscord ? new DiscordSDK(c.clientId) : null));
 
+/** The demo's one Venue. */
+const demoGuild = (config: PageConfig) => config.guildIds[0] ?? "";
+
 const signIn = async (): Promise<Boot> => {
   const config = await configured;
   const discord = await sdk;
   if (discord !== null) {
     const session = await discordSession(discordClient(discord, config.clientId), {
-      guildIds: [config.guildId],
+      guildIds: config.guildIds,
       exchange,
     });
     return session === "wrongServer" ? { phase: "wrong" } : { phase: "ready", session };
@@ -54,14 +57,14 @@ const signIn = async (): Promise<Boot> => {
   if (config.devUsers.length === 0)
     return {
       phase: "failed",
-      why: "Open Multiballs from a channel in the Ballest server.",
+      why: "Open Multiballs in Discord, from a server it runs in.",
       retry: false,
     };
   // The demo: pick who to be. `?as=<id>` skips the question, for a second tab.
   const as = params.get("as");
   return as === null
-    ? { phase: "demo", users: config.devUsers }
-    : { phase: "ready", session: fixedSession(`dev-${as}`) };
+    ? { phase: "demo", users: config.devUsers, guild: demoGuild(config) }
+    : { phase: "ready", session: fixedSession(`dev-${as}`, demoGuild(config)) };
 };
 const first = signIn();
 
@@ -108,9 +111,9 @@ const Root = () => {
       ) : boot.phase === "wrong" ? (
         <Notice>
           <div className="mt" style={{ fontSize: 22 }}>
-            Multiballs only runs in the Ballest server
+            Multiballs doesn't run in this server
           </div>
-          <div className="note">Open it from a channel there.</div>
+          <div className="note">Open it from a server it runs in.</div>
         </Notice>
       ) : boot.phase === "demo" ? (
         <div className="vE">
@@ -121,7 +124,9 @@ const Root = () => {
               {boot.users.map((u) => (
                 <Btn
                   key={u.id}
-                  onClick={() => setBoot({ phase: "ready", session: fixedSession(`dev-${u.id}`) })}
+                  onClick={() =>
+                    setBoot({ phase: "ready", session: fixedSession(`dev-${u.id}`, boot.guild) })
+                  }
                 >
                   {u.name}
                 </Btn>

@@ -54,6 +54,7 @@ const standing = (
 });
 const base: CardView = {
   matchId: "1",
+  venue: "home",
   state: "invite",
   type: "lobby",
   minutes: 15,

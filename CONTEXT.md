@@ -240,6 +240,15 @@ is posted below; a Lobby's Card is posted as a new message instead, so its menti
 @Multiplayer ping notifies, and the old Footer is deleted.
 _Avoid_: sticky, pinned message
 
+**Venue**:
+A Discord server the bot plays Matches in: its Match channel (Footer, Match Cards, Match
+Threads) and its @Multiplayer ping role. The game Discord is the home Venue. Every other
+server the bot is invited to becomes a Venue by itself: the bot makes (or reuses) its
+`multiballs` channel and `Multiplayer ping` role there. Each Venue has its own queue: an
+Invite opened in one is seen and joined only there. Links, Chosen Skins and the
+one-Match-at-a-time rule span every Venue.
+_Avoid_: guild, instance (one bot serves every Venue)
+
 **Result**:
 Each Player's best time on the Match's Map, read the moment the Match ends, ranked. A
 Player with no time did not finish. If Steam is down then, the Result waits for it (up to 30

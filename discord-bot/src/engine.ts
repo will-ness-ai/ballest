@@ -18,6 +18,7 @@ import {
   type MatchType,
   type Minutes,
   type Player,
+  type VenueName,
 } from "./domain.js";
 import {
   ChosenSkins,
@@ -117,11 +118,16 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     const starting = yield* Ref.make(new Map<string, Match>());
     /** Finished Matches whose Players a Play again has pinged already, so a second Lobby can't ping them again. */
     const pingedAgain = yield* Ref.make(new Set<string>());
-    /** Why each recent Match ended without a Result, so everyone who was in it can be told. */
-    const closed = yield* Ref.make(new Map<string, RemovalReason>());
-    const noteClosed = Effect.fn("noteClosed")(function* (matchId: string, reason: RemovalReason) {
-      yield* Ref.update(closed, (m) => {
-        const next = new Map(m).set(matchId, reason);
+    /**
+     * Why each recent Match ended without a Result, and in which Venue, so everyone who was in it
+     * can be told there.
+     */
+    const closed = yield* Ref.make(
+      new Map<string, { readonly venue: VenueName; readonly reason: RemovalReason }>(),
+    );
+    const noteClosed = Effect.fn("noteClosed")(function* (m: Match, reason: RemovalReason) {
+      yield* Ref.update(closed, (all) => {
+        const next = new Map(all).set(m.id, { venue: m.venue, reason });
         for (const key of next.keys()) if (next.size > CLOSED_KEPT) next.delete(key);
         return next;
       });
@@ -170,26 +176,31 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       return m;
     });
 
-    /** One open Invite or live Match per Player, counting a Challenge that names them and Invites mid-start. */
-    const assertFree = Effect.fn("assertFree")(function* (discordId: string) {
+    /**
+     * One open Invite or live Match per Player in every Venue together, counting a Challenge that
+     * names them and Invites mid-start. A Match in a Venue that isn't running doesn't count: no
+     * Player can see or leave it there, though its timers still run it to its Result.
+     */
+    const busyIn = Effect.fn("busyIn")(function* () {
       const active = [...(yield* store.activeMatches), ...(yield* Ref.get(starting)).values()];
-      if (active.some((m) => involves(m, discordId))) return yield* new Busy({ discordId });
+      return active.filter((m) => surface.runs(m.venue));
+    });
+    const assertFree = Effect.fn("assertFree")(function* (discordId: string) {
+      if ((yield* busyIn()).some((m) => involves(m, discordId)))
+        return yield* new Busy({ discordId });
     });
 
     /** An Invite that never became a Match goes. Its expiry timer is left alone: it may be the caller. */
-    const dropInvite = Effect.fn("dropInvite")(function* (matchId: string, reason: RemovalReason) {
-      yield* noteClosed(matchId, reason);
-      yield* store.deleteMatch(matchId);
-      yield* surface.remove(matchId, reason);
+    const dropInvite = Effect.fn("dropInvite")(function* (m: Match, reason: RemovalReason) {
+      yield* noteClosed(m, reason);
+      yield* store.deleteMatch(m.id);
+      yield* surface.remove(m.id, reason);
     });
 
     /** Drop an Invite from outside its timer, stopping the timer too. */
-    const withdrawInvite = Effect.fn("withdrawInvite")(function* (
-      matchId: string,
-      reason: RemovalReason,
-    ) {
-      yield* FiberMap.remove(timers, matchId);
-      yield* dropInvite(matchId, reason);
+    const withdrawInvite = Effect.fn("withdrawInvite")(function* (m: Match, reason: RemovalReason) {
+      yield* FiberMap.remove(timers, m.id);
+      yield* dropInvite(m, reason);
     });
 
     // ---------------------------------------------------------------- Invite expiry
@@ -198,7 +209,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       const m = yield* store.getMatch(matchId);
       const isStarting = (yield* Ref.get(starting)).has(matchId);
       if (Option.isSome(m) && m.value.state === "invite" && !isStarting)
-        yield* dropInvite(matchId, "expired");
+        yield* dropInvite(m.value, "expired");
     }, locked);
 
     const scheduleExpiry = Effect.fn("scheduleExpiry")(function* (m: Match) {
@@ -213,10 +224,11 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     // ---------------------------------------------------------------- opening an Invite
 
     /**
-     * A new Invite, checked already: its Card, its Opened post (and a Challenge's ping), and its
-     * expiry. Called under the lock.
+     * A new Invite in `venue`, checked already: its Card, its Opened post (and a Challenge's
+     * ping), and its expiry. Called under the lock.
      */
     const open = Effect.fn("open")(function* (
+      venue: VenueName,
       creator: Player,
       request: InviteRequest,
       target: Player | null,
@@ -224,6 +236,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     ) {
       const m: Match = {
         id: yield* store.nextMatchId,
+        venue,
         type: request.type,
         minutes: request.minutes,
         creator,
@@ -435,7 +448,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     /** Cancelled: everyone left before anyone set a time. Its Card and thread stay, saying so. Called under the lock. */
     const abandon = Effect.fn("abandon")(function* (m: Match) {
       yield* surface.post(m.id, ThreadPost.Abandoned());
-      yield* noteClosed(m.id, "abandoned");
+      yield* noteClosed(m, "abandoned");
       yield* store.deleteMatch(m.id);
       yield* surface.remove(m.id, "abandoned");
     });
@@ -507,7 +520,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
             locked(
               Effect.gen(function* () {
                 yield* surface.post(full.id, ThreadPost.NoMap({ players: full.players }));
-                yield* withdrawInvite(full.id, "noEligibleMap");
+                yield* withdrawInvite(full, "noEligibleMap");
               }),
             ),
           ),
@@ -682,7 +695,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     for (const m of yield* store.activeMatches) {
       const now = yield* Clock.currentTimeMillis;
       if (m.state === "invite") {
-        if (now >= expiresAt(m)) yield* dropInvite(m.id, "expired");
+        if (now >= expiresAt(m)) yield* dropInvite(m, "expired");
         else yield* scheduleExpiry(m);
       } else {
         // Redrawn, so a Card drawn by an older build gets today's buttons.
@@ -709,7 +722,15 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         });
       }, locked),
 
-      openInvite: Effect.fn("openInvite")(function* (discordId: string, request: InviteRequest) {
+      /**
+       * An Invite in `venue`, seen and joined only there. The Player must be free in every
+       * Venue, as must a Challenge's opponent.
+       */
+      openInvite: Effect.fn("openInvite")(function* (
+        venue: VenueName,
+        discordId: string,
+        request: InviteRequest,
+      ) {
         const creator = yield* playerOf(discordId);
         yield* assertFree(discordId);
         let target: Player | null = null;
@@ -721,7 +742,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           target = yield* playerOf(request.target);
           yield* assertFree(request.target);
         }
-        return (yield* open(creator, request, target, null)).id;
+        return (yield* open(venue, creator, request, target, null)).id;
       }, locked),
 
       /** Public 1v1: anyone but the creator. Challenge: only the named Player. Starts the Match. */
@@ -749,7 +770,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         const m = yield* getInvite(matchId);
         if (m.type !== "challenge" || m.target?.discordId !== discordId)
           return yield* new NotAllowed({ reason: "Only the challenged Player can decline." });
-        yield* withdrawInvite(matchId, "declined");
+        yield* withdrawInvite(m, "declined");
       }, locked),
 
       join,
@@ -764,14 +785,24 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         return pb?.ticks ?? null;
       }),
 
+      /** Whether each Player is Busy (`assertFree`'s rule), so they can't open, join or be challenged; one read for them all. */
+      busyOf: Effect.fn("busyOf")(function* (discordIds: ReadonlyArray<string>) {
+        const active = yield* busyIn();
+        return new Set(discordIds.filter((id) => active.some((m) => involves(m, id))));
+      }),
+
       /** Whether this Invite's Map is being drawn right now. */
       isStarting: Effect.fn("isStarting")(function* (matchId: string) {
         return (yield* Ref.get(starting)).has(matchId);
       }),
 
-      /** Why a Match that's gone ended without a Result, if it was recent; null otherwise. */
-      whyClosed: Effect.fn("whyClosed")(function* (matchId: string) {
-        return (yield* Ref.get(closed)).get(matchId) ?? null;
+      /**
+       * Why a Match of `venue` that's gone ended without a Result, if it was recent; null
+       * otherwise, and for another Venue's Match.
+       */
+      whyClosed: Effect.fn("whyClosed")(function* (venue: VenueName, matchId: string) {
+        const found = (yield* Ref.get(closed)).get(matchId);
+        return found?.venue === venue ? found.reason : null;
       }),
 
       /** Whether the Player may leave this live Match, asked before the confirm is shown. */
@@ -805,7 +836,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         const m = yield* getInvite(matchId);
         if (m.creator.discordId !== discordId)
           return yield* new NotAllowed({ reason: "Only the creator can cancel." });
-        yield* withdrawInvite(matchId, "cancelled");
+        yield* withdrawInvite(m, "cancelled");
       }, locked),
 
       /**
@@ -828,7 +859,9 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
             if (again !== undefined) return { lobby: again, opened: false };
             const creator = yield* playerOf(discordId);
             yield* assertFree(discordId);
+            // In the finished Match's Venue, as any Lobby the presser opened there.
             const lobby = yield* open(
+              finished.venue,
               creator,
               { type: "lobby", minutes: finished.minutes, target: null },
               null,

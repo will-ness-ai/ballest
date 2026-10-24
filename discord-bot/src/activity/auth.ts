@@ -8,6 +8,7 @@ import {
   HttpClientResponse,
 } from "@effect/platform";
 import { Config, Context, Data, Effect, Layer, type Option, Redacted, Schema } from "effect";
+import type { VenueName } from "../domain.js";
 
 export class AuthFailed extends Data.TaggedError("AuthFailed")<{ readonly reason: string }> {}
 /** Discord couldn't say who is in the server just now. */
@@ -25,12 +26,13 @@ export class DiscordAuth extends Context.Tag("multiballs/DiscordAuth")<
   }
 >() {}
 
-/** Who is in the Ballest server, and what they're called there. */
+/** Who is in each Venue's server, and what they're called there. */
 export class DiscordMembers extends Context.Tag("multiballs/DiscordMembers")<
   DiscordMembers,
   {
-    /** A member's display name in the server; None if they aren't in it. */
+    /** A member's display name in the Venue's server; None if they aren't in it. */
     readonly nameOf: (
+      venue: VenueName,
       discordId: string,
     ) => Effect.Effect<Option.Option<string>, MembersUnavailable>;
   }

@@ -1,28 +1,50 @@
+import { SqlClient } from "@effect/sql";
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { expect, it } from "@effect/vitest";
 import { Context, Effect, Layer, Option } from "effect";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { migrationsBefore, migratorFor } from "../src/db.js";
 import type { Match } from "../src/domain.js";
 import { Store } from "../src/ports.js";
 import { SqliteStoreLive } from "../src/sqliteStore.js";
+
+/** A throwaway directory for one test's database file, removed when the test ends. */
+const tempFile = Effect.gen(function* () {
+  const dir = mkdtempSync(join(tmpdir(), "multiballs-"));
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
+  );
+  return join(dir, "bot.sqlite");
+});
+
+/** The Store on a database file; it closes with whichever scope it's opened in. */
+const openStore = (file: string) =>
+  Layer.build(SqliteStoreLive.pipe(Layer.provide(SqliteClient.layer({ filename: file })))).pipe(
+    Effect.map((ctx) => Context.get(ctx, Store)),
+  );
+
+/** A database file migrated only as far as a build from before Venues, holding what it wrote. */
+const beforeVenues = (file: string, write: Effect.Effect<unknown, unknown, SqlClient.SqlClient>) =>
+  Effect.scoped(
+    write.pipe(
+      Effect.provide(
+        migratorFor(migrationsBefore("0008")).pipe(
+          Layer.provideMerge(SqliteClient.layer({ filename: file })),
+        ),
+      ),
+    ),
+  ).pipe(Effect.orDie);
 
 // The engine tests already run on SQLite in memory. This covers what memory can't: a
 // database file closed and opened again, as across a real restart, with migrations re-run.
 it.scoped("keeps Links and Matches across a reopen of the database file", () =>
   Effect.gen(function* () {
-    const dir = mkdtempSync(join(tmpdir(), "multiballs-"));
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
-    );
-    const open = Layer.build(
-      SqliteStoreLive.pipe(
-        Layer.provide(SqliteClient.layer({ filename: join(dir, "bot.sqlite") })),
-      ),
-    ).pipe(Effect.map((ctx) => Context.get(ctx, Store))); // closes with whichever scope it's opened in
+    const file = yield* tempFile;
     const live: Match = {
       id: "m1",
+      venue: "ballest-racing",
       type: "public",
       minutes: 5,
       creator: { discordId: "d-a", steamId: "s-a" },
@@ -55,14 +77,14 @@ it.scoped("keeps Links and Matches across a reopen of the database file", () =>
 
     yield* Effect.scoped(
       Effect.gen(function* () {
-        const store = yield* open;
+        const store = yield* openStore(file);
         yield* store.putLink({ discordId: "d-a", steamId: "s-a", personaName: "a" });
         expect(yield* store.nextMatchId).toBe("m1");
         yield* store.putMatch(live);
       }),
     );
 
-    const reopened = yield* open;
+    const reopened = yield* openStore(file);
     expect(Option.getOrThrow(yield* reopened.getLink("d-a")).steamId).toBe("s-a");
     expect(yield* reopened.activeMatches).toEqual([live]);
     expect(yield* reopened.nextMatchId).toBe("m2");
@@ -72,28 +94,90 @@ it.scoped("keeps Links and Matches across a reopen of the database file", () =>
   }),
 );
 
-it.scoped("remembers who has answered the ping offer, by Discord id, across a reopen", () =>
+it.scoped("reads a Match stored before Venues as the home Venue's", () =>
   Effect.gen(function* () {
-    const dir = mkdtempSync(join(tmpdir(), "multiballs-"));
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => rmSync(dir, { recursive: true, force: true })),
-    );
-    const open = Layer.build(
-      SqliteStoreLive.pipe(
-        Layer.provide(SqliteClient.layer({ filename: join(dir, "bot.sqlite") })),
-      ),
-    ).pipe(Effect.map((ctx) => Context.get(ctx, Store)));
-    yield* Effect.scoped(
+    const file = yield* tempFile;
+    // An Invite exactly as the build before Venues stored it: no `venue` in its JSON.
+    const old = {
+      id: "m1",
+      type: "public",
+      minutes: 5,
+      creator: { discordId: "d-a", steamId: "s-a" },
+      target: null,
+      players: [{ discordId: "d-a", steamId: "s-a" }],
+      state: "invite",
+      createdAt: 0,
+      startedAt: null,
+      endsAt: null,
+      map: null,
+      bestTicks: {},
+      history: [],
+      left: [],
+      waitingForSteam: false,
+    };
+    yield* beforeVenues(
+      file,
       Effect.gen(function* () {
-        const store = yield* open;
-        expect(yield* store.hasAnsweredPingOffer("d-unlinked")).toBe(false);
-        // A member without a Link can answer it too, and answering twice is harmless.
-        yield* store.answerPingOffer("d-unlinked");
-        yield* store.answerPingOffer("d-unlinked");
+        const sql = yield* SqlClient.SqlClient;
+        yield* sql`INSERT INTO matches ${sql.insert({ id: "m1", state: "invite", data: JSON.stringify(old) })}`;
       }),
     );
-    const reopened = yield* open;
-    expect(yield* reopened.hasAnsweredPingOffer("d-unlinked")).toBe(true);
-    expect(yield* reopened.hasAnsweredPingOffer("d-someone-else")).toBe(false);
+    const store = yield* openStore(file);
+    expect(Option.getOrThrow(yield* store.getMatch("m1")).venue).toBe("home");
+    expect((yield* store.activeMatches).map((m) => m.venue)).toEqual(["home"]);
+  }),
+);
+
+it.scoped(
+  "remembers who has answered the ping offer, by Venue and Discord id, across a reopen",
+  () =>
+    Effect.gen(function* () {
+      const file = yield* tempFile;
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const store = yield* openStore(file);
+          expect(yield* store.hasAnsweredPingOffer("home", "d-unlinked")).toBe(false);
+          // A member without a Link can answer it too, and answering twice is harmless.
+          yield* store.answerPingOffer("home", "d-unlinked");
+          yield* store.answerPingOffer("home", "d-unlinked");
+        }),
+      );
+      const reopened = yield* openStore(file);
+      expect(yield* reopened.hasAnsweredPingOffer("home", "d-unlinked")).toBe(true);
+      expect(yield* reopened.hasAnsweredPingOffer("home", "d-someone-else")).toBe(false);
+      // Each Venue offers its own role, so an answer in one isn't one in another.
+      expect(yield* reopened.hasAnsweredPingOffer("ballest-racing", "d-unlinked")).toBe(false);
+      yield* reopened.answerPingOffer("ballest-racing", "d-unlinked");
+      expect(yield* reopened.hasAnsweredPingOffer("ballest-racing", "d-unlinked")).toBe(true);
+    }),
+);
+
+it.scoped("keeps the ping-offer answers given before Venues as the home Venue's", () =>
+  Effect.gen(function* () {
+    const file = yield* tempFile;
+    yield* beforeVenues(
+      file,
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        yield* sql`INSERT INTO ping_offer_answers ${sql.insert({ discord_id: "d-old" })}`;
+      }),
+    );
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        const store = yield* openStore(file);
+        expect(yield* store.hasAnsweredPingOffer("home", "d-old")).toBe(true);
+        expect(yield* store.hasAnsweredPingOffer("ballest-racing", "d-old")).toBe(false);
+      }),
+    );
+    // Rolled back to the build before Venues, the bot still reads and writes its own table.
+    yield* beforeVenues(
+      file,
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const rows = yield* sql`SELECT 1 FROM ping_offer_answers WHERE discord_id = ${"d-old"}`;
+        expect(rows).toHaveLength(1);
+        yield* sql`INSERT INTO ping_offer_answers ${sql.insert({ discord_id: "d-new" })} ON CONFLICT (discord_id) DO NOTHING`;
+      }),
+    );
   }),
 );
