@@ -41,8 +41,11 @@ export function sessionCookie(id, secret, now) {
 // the secret `pnpm serve` builds with when none is set, the one CI's qa run uses (web.yml)
 export const QA_SECRET = "qa-only";
 
-/* the secret a local build signs sessions with: SESSION_SECRET, else the first of
-   web/.env.local and web/.env that sets it (the order Next reads them in), else qa-only */
+/**
+ * The secret a local build signs sessions with: SESSION_SECRET, else the first of
+ * web/.env.local and web/.env that sets it (the order Next reads them in), else qa-only.
+ * @param {{ SESSION_SECRET?: string }} [env]
+ */
 export function localSecret(
   env = process.env,
   dir = fileURLToPath(new URL("../..", import.meta.url)),
