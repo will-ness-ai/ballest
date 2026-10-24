@@ -17,6 +17,7 @@ import {
   entries,
   chosenSkins,
   ghosts,
+  mapActivity,
   mapFiles,
   mapHistory,
   maps,
@@ -531,6 +532,17 @@ export const tiny: Dataset = {
       rawSize: TINY_MAP_FILE.length,
       gzipped: gzipSync(TINY_MAP_FILE),
       readAt: new Date("2026-09-01T06:10:00Z"),
+    });
+
+    // R3's catalogue: Marble Run's plays this week and votes; Loop de Loop has none, so
+    // Trending this week holds Marble Run alone
+    await tx.insert(mapActivity).values({
+      pfid: "9000000001",
+      weekPlays: 12,
+      votesUp: 5,
+      votesDown: 1,
+      voteScore: 0.5,
+      refreshId: r3,
     });
 
     // p1 chose Cosmic, which shows wherever p1 has no read Ghost (their Track 01 run keeps
