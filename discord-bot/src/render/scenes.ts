@@ -1169,11 +1169,10 @@ const movePill = (move: StandingsRow["move"]) =>
 const clipName = (name: string) =>
   name.length > STANDINGS_NAME ? `${name.slice(0, STANDINGS_NAME - 1)}…` : name;
 
-export const standingsScene = (
-  { title, subtitle, boards }: StandingsImage,
+export const standingsColumn = (
+  board: StandingsImage["boards"][number],
   pictures: SkinPictureUris,
-): El => {
-  const column = (board: StandingsImage["boards"][number]) =>
+): El =>
     box(
       { flexDirection: "column", width: STANDINGS_COLUMN, gap: 4 },
       label(board.title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 }),
@@ -1226,6 +1225,12 @@ export const standingsScene = (
         ? box({ color: C.faint, fontSize: 14 }, "Nobody yet")
         : null,
     );
+
+export const standingsScene = (
+  { title, subtitle, boards }: StandingsImage,
+  pictures: SkinPictureUris,
+): El => {
+  const column = (b: StandingsImage["boards"][number]) => standingsColumn(b, pictures);
   const pairs = [boards.slice(0, 2), boards.slice(2, 4)].filter((p) => p.length > 0);
   return backdrop(
     { padding: STANDINGS_PADDING, gap: 20 },
@@ -1425,3 +1430,300 @@ export const leadGraphScene = ({ opensAt, closesAt, leads, now }: LeadGraphImage
     ),
   );
 };
+
+// ================================================================ PROTOTYPE (never merge)
+// Round 1 of grill-design for the overall score (branch claude/prototype-overall-score).
+
+export interface ProtoOverallRow {
+  readonly steamId: string;
+  readonly skin: ChosenSkin;
+  readonly name: string;
+  readonly points: number;
+  readonly place: number;
+  readonly move: number | "new";
+  /** Place on each of the four standings (played, author, wr, top5), null outside the top 10. */
+  readonly places: ReadonlyArray<number | null>;
+}
+
+const PROTO_SHORT = ["MP", "AM", "WR", "T5"];
+
+const placeChip = (place: number | null, i: number) =>
+  box(
+    {
+      width: 38,
+      justifyContent: "center",
+      gap: 2,
+      fontFamily: F.hud,
+      fontWeight: 700,
+      fontSize: 10,
+      padding: "1px 0",
+      borderRadius: 4,
+      color: place === null ? C.faint : place <= 3 ? C.bg : C.text,
+      backgroundColor:
+        place === null
+          ? "transparent"
+          : place === 1
+            ? C.gold
+            : place === 2
+              ? C.silver
+              : place === 3
+                ? C.bronze
+                : C.surface,
+      border: place === null ? `1px dashed ${C.line}` : "1px solid transparent",
+    },
+    box({ opacity: 0.7 }, PROTO_SHORT[i] ?? ""),
+    place === null ? "–" : String(place),
+  );
+
+const overallRow = (row: ProtoOverallRow, i: number, pictures: SkinPictureUris, chips: boolean) =>
+  box(
+    {
+      alignItems: "center",
+      gap: STANDINGS_ROW_GAP,
+      fontSize: 15,
+      padding: "3px 8px",
+      borderRadius: 6,
+      backgroundColor: i === 0 ? C.upTint : C.surface,
+    },
+    box(
+      { width: 18, color: row.place <= 3 ? C.gold : C.faint, fontFamily: F.hud, fontWeight: 700 },
+      String(row.place),
+    ),
+    box({ width: 30 }, movePill(row.move)),
+    playerMarble(pictures, row.skin, row.steamId, STANDINGS_MARBLE),
+    box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
+    chips ? box({ gap: 4 }, ...row.places.map(placeChip)) : null,
+    box(
+      { width: 58, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700, color: C.text },
+      `${row.points}`,
+      box({ color: C.faint, fontSize: 11, marginLeft: 3, marginTop: 3 }, "pts"),
+    ),
+  );
+
+const head = (title: string, subtitle: string) =>
+  box(
+    { flexDirection: "column", gap: 4 },
+    box({ fontFamily: F.marquee, fontSize: 28 }, title),
+    box({ color: C.dim, fontSize: 14 }, subtitle),
+  );
+
+const grid = (boards: StandingsImage["boards"], pictures: SkinPictureUris) =>
+  [boards.slice(0, 2), boards.slice(2, 4)].map((pair) =>
+    box({ gap: STANDINGS_GAP }, ...pair.map((b) => standingsColumn(b, pictures))),
+  );
+
+const OVERALL_NOTE = "10 points for 1st on a standing down to 1 for 10th, added across all four";
+
+/** A: Overall as a fifth board, full width above the four, each row with its four places. */
+export const protoA = (
+  image: StandingsImage,
+  overall: ReadonlyArray<ProtoOverallRow>,
+  pictures: SkinPictureUris,
+): El =>
+  backdrop(
+    { padding: STANDINGS_PADDING, gap: 20 },
+    head(image.title, image.subtitle),
+    box(
+      { flexDirection: "column", gap: 4 },
+      box(
+        { justifyContent: "space-between", alignItems: "flex-end", marginBottom: 6 },
+        label("Overall", { fontSize: 13, letterSpacing: 1.4 }),
+        box({ color: C.faint, fontSize: 11 }, OVERALL_NOTE),
+      ),
+      ...overall.map((r, i) => overallRow(r, i, pictures, true)),
+    ),
+    ...grid(image.boards, pictures),
+  );
+
+/** B: an Overall podium across the top, 4th to 10th on one line under it, the four boards as today. */
+export const protoB = (
+  image: StandingsImage,
+  overall: ReadonlyArray<ProtoOverallRow>,
+  pictures: SkinPictureUris,
+): El => {
+  const step = (row: ProtoOverallRow | undefined, height: number, size: number) =>
+    row === undefined
+      ? box({ flexGrow: 1 })
+      : box(
+          {
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            flexGrow: 1,
+            flexBasis: 0,
+            gap: 4,
+          },
+          playerMarble(pictures, row.skin, row.steamId, size),
+          box({ fontSize: 15, fontWeight: 700 }, clipName(row.name)),
+          box(
+            {
+              width: "100%",
+              height,
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "6px 6px 0 0",
+              backgroundColor: row.place === 1 ? C.upTint : C.surface,
+            },
+            box(
+              {
+                fontFamily: F.hud,
+                fontWeight: 700,
+                fontSize: 22,
+                color: row.place === 1 ? C.gold : row.place === 2 ? C.silver : C.bronze,
+              },
+              String(row.place),
+            ),
+            box({ fontFamily: F.hud, fontWeight: 700, fontSize: 13, color: C.dim }, `${row.points} pts`),
+          ),
+        );
+  const rest = overall.slice(3);
+  return backdrop(
+    { padding: STANDINGS_PADDING, gap: 20 },
+    head(image.title, image.subtitle),
+    box(
+      { flexDirection: "column", gap: 8 },
+      box(
+        { justifyContent: "space-between", alignItems: "flex-end" },
+        label("Overall", { fontSize: 13, letterSpacing: 1.4 }),
+        box({ color: C.faint, fontSize: 11 }, OVERALL_NOTE),
+      ),
+      box(
+        { alignItems: "flex-end", gap: 10, borderBottom: `1px solid ${C.line}` },
+        step(overall[1], 54, 34),
+        step(overall[0], 76, 44),
+        step(overall[2], 40, 30),
+      ),
+      box(
+        { flexWrap: "wrap", gap: "4px 14px", color: C.dim, fontSize: 13 },
+        ...rest.map((r) =>
+          box(
+            { gap: 5, alignItems: "center" },
+            box({ fontFamily: F.hud, fontWeight: 700, color: C.faint }, String(r.place)),
+            playerMarble(pictures, r.skin, r.steamId, 12),
+            box({ color: C.text }, r.name),
+            box({ fontFamily: F.hud, fontWeight: 700 }, String(r.points)),
+          ),
+        ),
+      ),
+    ),
+    ...grid(image.boards, pictures),
+  );
+};
+
+export const PROTO_C_WIDTH = STANDINGS_PADDING * 2 + STANDINGS_COLUMN * 3 + STANDINGS_GAP * 2;
+
+/** C: Overall as a tall column on the left, the four boards two by two beside it (a wider image). */
+export const protoC = (
+  image: StandingsImage,
+  overall: ReadonlyArray<ProtoOverallRow>,
+  pictures: SkinPictureUris,
+): El =>
+  backdrop(
+    { padding: STANDINGS_PADDING, gap: 20 },
+    head(image.title, image.subtitle),
+    box(
+      { gap: STANDINGS_GAP },
+      box(
+        {
+          flexDirection: "column",
+          width: STANDINGS_COLUMN,
+          gap: 4,
+          padding: 10,
+          margin: -10,
+          borderRadius: 8,
+          border: `1px solid ${C.line}`,
+        },
+        label("Overall", { fontSize: 13, letterSpacing: 1.4, marginBottom: 2 }),
+        box({ color: C.faint, fontSize: 11, marginBottom: 6 }, "10 points for 1st down to 1 for 10th, on all four"),
+        ...overall.map((r, i) =>
+          box(
+            { flexDirection: "column", gap: 2 },
+            overallRow(r, i, pictures, false),
+            box({ gap: 4, paddingLeft: 64 }, ...r.places.map(placeChip)),
+          ),
+        ),
+      ),
+      box({ flexDirection: "column", gap: 20 }, ...grid(image.boards, pictures)),
+    ),
+  );
+
+export const PROTO_E_WIDTH = STANDINGS_WIDTH;
+
+/** E: a second image under today's: the overall top 10 as a table of their four places and total. */
+export const protoE = (
+  image: StandingsImage,
+  overall: ReadonlyArray<ProtoOverallRow>,
+  pictures: SkinPictureUris,
+): El => {
+  const cell = (place: number | null) =>
+    box(
+      {
+        width: 74,
+        height: 26,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 5,
+        fontFamily: F.hud,
+        fontWeight: 700,
+        fontSize: 14,
+        color: place === null ? C.faint : place <= 3 ? C.bg : C.text,
+        backgroundColor:
+          place === null
+            ? "transparent"
+            : place === 1
+              ? C.gold
+              : place === 2
+                ? C.silver
+                : place === 3
+                  ? C.bronze
+                  : C.surface,
+      },
+      place === null ? "–" : place <= 3 ? `${place}${["st", "nd", "rd"][place - 1]}` : `${place}th`,
+    );
+  const titles = ["Maps played", "Author", "World rec.", "Top 5s"];
+  return backdrop(
+    { padding: STANDINGS_PADDING, gap: 14 },
+    box(
+      { flexDirection: "column", gap: 4 },
+      box({ fontFamily: F.marquee, fontSize: 22 }, "Overall"),
+      box({ color: C.dim, fontSize: 13 }, OVERALL_NOTE),
+    ),
+    box(
+      { flexDirection: "column", gap: 4 },
+      box(
+        { gap: 6, paddingLeft: 8, color: C.faint, fontFamily: F.hud, fontSize: 10, letterSpacing: 1.2 },
+        box({ width: 18 }),
+        box({ width: 30 }),
+        box({ flexGrow: 1 }, "PLAYER"),
+        ...titles.map((t) => box({ width: 74, justifyContent: "center" }, t.toUpperCase())),
+        box({ width: 50, justifyContent: "flex-end" }, "PTS"),
+      ),
+      ...overall.map((r, i) =>
+        box(
+          {
+            alignItems: "center",
+            gap: 6,
+            fontSize: 15,
+            padding: "3px 8px",
+            borderRadius: 6,
+            backgroundColor: i === 0 ? C.upTint : C.surface,
+          },
+          box(
+            { width: 18, color: r.place <= 3 ? C.gold : C.faint, fontFamily: F.hud, fontWeight: 700 },
+            String(r.place),
+          ),
+          box({ width: 30 }, movePill(r.move)),
+          playerMarble(pictures, r.skin, r.steamId, STANDINGS_MARBLE),
+          box({ flexGrow: 1, overflow: "hidden" }, clipName(r.name)),
+          ...r.places.map(cell),
+          box(
+            { width: 50, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700, fontSize: 17 },
+            String(r.points),
+          ),
+        ),
+      ),
+    ),
+  );
+};
+// ================================================================ /PROTOTYPE
