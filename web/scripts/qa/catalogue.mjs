@@ -86,6 +86,7 @@ export const PAGES = [
   { name: "prefab-new", path: "/prefabs/new" },
   { name: "prefabs-make", path: "/prefabs/make" },
   { name: "pixel-art", path: "/prefabs/make/pixel-art" },
+  { name: "prefab-sign", path: "/prefabs/make/sign" },
   { name: "prefab-upload", path: "/prefabs/new", as: "UPLOADER" },
   { name: "prefab-owner", path: "/prefab/{PREFAB}", as: "UPLOADER" },
   { name: "prefab-admin", path: "/prefab/{PREFAB}", as: "ADMIN" },
@@ -125,6 +126,8 @@ export const STATES = [
   { name: "you-all", page: "you", click: ".yl-more" },
   { name: "map3d", page: "map-3d", click: ".m3d-open" },
   { name: "skin-pick", page: "player-own", click: ".skp-edit" },
+  // the Sign in R23's first piece font, its credit under the fonts
+  { name: "piece-font", page: "prefab-sign", click: ".gen-fonts button.built" },
   // the site search: the desktop's field with nothing typed (the jump-to links) and with hits
   // under its chips ("sol" finds Solar Trials and its Maps on both ID sets), and the phone's sheet
   { name: "search-empty", page: "home", click: ".srch-bar input", wide: true },
