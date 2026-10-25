@@ -10,6 +10,7 @@ import {
   MARBLE,
   PIECE_FONT_INFO,
   isPieceFont,
+  type PieceFontName,
   PICTURE_MOST,
   pictureOf,
   unitOf,
@@ -210,7 +211,7 @@ function Field({
 }
 
 /* who built a piece font, from the editor's own track pieces, and the Prefabs it comes from */
-function BuiltBy({ font }: { font: (typeof PIECE_FONT_INFO)[keyof typeof PIECE_FONT_INFO] }) {
+function BuiltBy({ font }: { font: (typeof PIECE_FONT_INFO)[PieceFontName] }) {
   return (
     <p className="gen-built">
       Built by hand from track pieces by {font.by}: see{" "}

@@ -7,7 +7,7 @@
 // y 0, its baseline at z 0 and its front at x 0, in the cm R23 built it at.
 import type { PrefabItem } from "../prefab";
 import type { Measure } from "../generator-letters";
-import { COLOURS, full, type Colour, type V3 } from "./pieces";
+import { placed, type Colour } from "./pieces";
 import DATA from "./piece-fonts.json";
 
 /* a piece: its class's and mesh's places in the font's lists, its mesh's material slots, then
@@ -21,8 +21,6 @@ export interface Glyph {
   pieces: Array<Piece>;
 }
 export interface PieceFont {
-  /* how deep its letters stand out, in cm */
-  deep: number;
   classes: Array<string>;
   meshes: Array<string>;
   glyphs: Record<string, Glyph>;
@@ -67,18 +65,20 @@ export interface PieceLettering extends Measure {
 export function pieceLettering(name: PieceFontName): PieceLettering {
   const font = PIECE_FONTS[name];
   const { glyphs } = font;
-  const cap = glyphs[name === "Graduate" ? "H" : "h"].top;
+  const { letterCase } = PIECE_FONT_INFO[name];
+  const cap = glyphs[letterCase === "upper" ? "H" : "h"].top;
   const ascent = Math.max(...Object.values(glyphs).map((g) => g.top));
   const descent = Math.max(...Object.values(glyphs).map((g) => g.low));
   const lineHeight = (ascent + descent) * LEADING;
   const gap = cap * TRACKING;
 
-  /* the glyph each character is drawn with (null for a space): straight double quotes open a
-     word and close one, and a character it has no glyph for is a ? */
+  /* the glyph each character is drawn with (null for a space): a straight double quote opens
+     after a space, a bracket or another opening quote and closes otherwise, and a character it
+     has no glyph for is a ? */
   const glyphsOf = (line: string) =>
     Array.from(line).map((ch, i, all) => {
       if (/\s/.test(ch)) return null;
-      const quote = ch === '"' ? (i === 0 || /\s/.test(all[i - 1]) ? "“" : "”") : ch;
+      const quote = ch === '"' ? (i === 0 || /[\s([“]/.test(all[i - 1]) ? "“" : "”") : ch;
       return glyphs[quote] ?? glyphs["?"];
     });
   /* where each glyph starts, and the line's width */
@@ -94,45 +94,26 @@ export function pieceLettering(name: PieceFontName): PieceLettering {
   };
 
   return {
-    letterCase: PIECE_FONT_INFO[name].letterCase,
+    letterCase,
     width: (line) => layout(line).width,
     lineHeight,
-    pieces: (lines, scale, colour) => {
-      const c = COLOURS[colour];
-      const material = full(c.material);
-      const category = full(`/Game/Art/DataAssets/BallestMaterials/${c.category}`);
-      return lines.flatMap((line, li) => {
+    pieces: (lines, scale, colour) =>
+      lines.flatMap((line, li) => {
         const { gs, at, width } = layout(line);
         const base = descent + (lines.length - 1 - li) * lineHeight;
         return gs.flatMap((g, gi) =>
-          (g?.pieces ?? []).map(([cls, mesh, slots, x, y, z, ...rest]): PrefabItem => {
-            const location: V3 = [x * scale, (at[gi] + y - width / 2) * scale, (base + z) * scale];
-            const [pitch, yaw, roll, sx, sy, sz] = rest;
-            /* the keys the editor saves; PrefabItem names only the ones the viewer reads */
-            const item = {
-              class: font.classes[cls],
-              transform: {
-                location,
-                rotation: [pitch, yaw, roll] as V3,
-                scale: [sx * scale, sy * scale, sz * scale] as V3,
-              },
-              properties: {},
-              meshes: [
-                {
-                  tag: "SKGMapEditor",
-                  mesh: font.meshes[mesh],
-                  materials: Array<string>(slots).fill(material),
-                },
-              ],
-              paint: {
-                categories: Array<string>(slots).fill(category),
-                colors: Array<number>(slots).fill(c.index),
-              },
-            };
-            return item;
-          }),
+          (g?.pieces ?? []).map(([cls, mesh, slots, x, y, z, pitch, yaw, roll, sx, sy, sz]) =>
+            placed(
+              font.classes[cls],
+              font.meshes[mesh],
+              slots,
+              colour,
+              [x * scale, (at[gi] + y - width / 2) * scale, (base + z) * scale],
+              [pitch, yaw, roll],
+              [sx * scale, sy * scale, sz * scale],
+            ),
+          ),
         );
-      });
-    },
+      }),
   };
 }

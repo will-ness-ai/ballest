@@ -227,7 +227,6 @@ const out: Record<string, unknown> = {};
 for (const font of FONTS) {
   const glyphs: Record<string, { w: number; top: number; low: number; pieces: Array<unknown> }> =
     {};
-  let deep = 0;
   const classes: Array<string> = [];
   const meshes: Array<string> = [];
   const indexIn = (list: Array<string>, s: string) =>
@@ -250,7 +249,6 @@ for (const font of FONTS) {
         const items = places.map((i) => file.items[i]);
         const b = boundsOf(items);
         const origin: V3 = [b.x[0], baseline, b.z[1]];
-        deep = Math.max(deep, b.z[1] - b.z[0]);
         glyphs[ch] = {
           w: round(b.x[1] - b.x[0], 1),
           top: round(baseline - b.y[0], 1),
@@ -276,7 +274,7 @@ for (const font of FONTS) {
     if (used.size !== file.items.length)
       throw new Error(`${sheet.slug}: ${String(file.items.length - used.size)} pieces in no glyph`);
   }
-  out[font.name] = { deep: round(deep, 1), classes, meshes, glyphs };
+  out[font.name] = { classes, meshes, glyphs };
 }
 
 const json = JSON.stringify(out)

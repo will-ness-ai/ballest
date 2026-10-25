@@ -24,6 +24,10 @@ export interface Lettering extends Measure {
   grid: (lines: Array<string>) => Grid | null;
 }
 
+/* the text in the one case a font letters in, or as typed */
+export const cased = (text: string, letterCase: Measure["letterCase"]) =>
+  letterCase === "upper" ? text.toUpperCase() : letterCase === "lower" ? text.toLowerCase() : text;
+
 /* the text broken into lines of at most `per` letters, at spaces where it can be; a word longer
    than a line is split */
 export function wrapAt(

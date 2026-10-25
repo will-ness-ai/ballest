@@ -32,6 +32,7 @@ import {
   footprintOf,
   rotationRows,
   shapesOf,
+  spanOf,
   type PrefabFile,
   type PrefabItem,
 } from "../lib/prefab";
@@ -250,12 +251,9 @@ describe("the sign in R23's piece fonts", () => {
   /* where the pieces reach, in cm, along three's axis k: 0 Unreal's x (toward the camera at
      its least), 1 up, 2 across the sign (Unreal's y) */
   const reach = (items: Array<PrefabItem>, k: number) => {
-    const file: PrefabFile = { format: "BallestPrefab", version: 1, group: GROUP, items };
-    const spans = shapesOf(file).map((sh) => {
-      const half =
-        (Math.abs(sh.matrix[k]) + Math.abs(sh.matrix[4 + k]) + Math.abs(sh.matrix[8 + k])) / 2;
-      return [sh.matrix[12 + k] - half, sh.matrix[12 + k] + half];
-    });
+    const spans = shapesOf({ format: "BallestPrefab", version: 1, group: GROUP, items }).map((sh) =>
+      spanOf(sh, k),
+    );
     return [Math.min(...spans.map((s) => s[0])) * 100, Math.max(...spans.map((s) => s[1])) * 100];
   };
   const GROUP = { rotation: [0, 0, 0] as V3, scale: [1, 1, 1] as V3 };
@@ -324,10 +322,11 @@ describe("the sign in R23's piece fonts", () => {
   test("stands its letters up, reading left to right for the camera at -X", () => {
     const file = make("sign", { font: "Graduate", text: "L", wall: false, height: 10 });
     const [across, up, out] = [reach(file.items, 2), reach(file.items, 1), reach(file.items, 0)];
-    /* an L is taller than it is wide, and as deep as R23 built it, in proportion */
+    /* an L is taller than it is wide, and about half as deep as tall, as R23 built it */
     const L = glyphs("Graduate").L;
     expect((up[1] - up[0]) / (across[1] - across[0])).toBeCloseTo(L.top / L.w, 1);
-    expect((out[1] - out[0]) / (up[1] - up[0])).toBeCloseTo(PIECE_FONTS.Graduate.deep / L.top, 1);
+    expect((out[1] - out[0]) / (up[1] - up[0])).toBeGreaterThan(0.5);
+    expect((out[1] - out[0]) / (up[1] - up[0])).toBeLessThan(0.6);
     expect(up[0]).toBeCloseTo(0);
     expect(out[1]).toBeCloseTo(0);
     /* its foot runs right from its stem: the stem's at the left (-Y) */
@@ -336,6 +335,18 @@ describe("the sign in R23's piece fonts", () => {
     );
     expect(stem.length).toBeGreaterThan(0);
     for (const s of stem) expect(reach([s], 2)[0]).toBeLessThan((across[0] + across[1]) / 2);
+  });
+
+  test("opens a straight quote after a space or a bracket and closes it after a word", () => {
+    expect(make("sign", { font: "Leker", text: '("hi")' })).toEqual(
+      make("sign", { font: "Leker", text: "(“hi”)" }),
+    );
+  });
+
+  test("wraps text that grows in capitals (ß is SS) without splitting a word", () => {
+    expect(make("sign", { font: "Graduate", text: "straße", width: 1, height: 10 })).toEqual(
+      make("sign", { font: "Graduate", text: "STRASSE", width: 1, height: 10 }),
+    );
   });
 
   test("paints every piece in the Letters colour", () => {
