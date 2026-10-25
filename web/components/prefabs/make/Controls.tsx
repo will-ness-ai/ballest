@@ -8,6 +8,8 @@ import { PillButton, Pills } from "../../Controls";
 import {
   COLOUR_NAMES,
   MARBLE,
+  PIECE_FONT_INFO,
+  isPieceFont,
   PICTURE_MOST,
   pictureOf,
   unitOf,
@@ -15,6 +17,7 @@ import {
   type Control,
   type Values,
 } from "../../../lib/generators";
+import { prefabHref } from "../../../lib/routes";
 
 /* the swatch each colour shows: the same words the viewer colours pieces by (lib/prefab.ts) */
 const SWATCH: Record<Colour, string> = {
@@ -177,6 +180,18 @@ function Field({
               {name}
             </button>
           ))}
+          {Object.entries(PIECE_FONT_INFO).map(([name, f]) => (
+            <button
+              key={name}
+              type="button"
+              aria-pressed={value === name}
+              className="built"
+              onClick={() => set({ [c.key]: name })}
+            >
+              {f.letterCase === "upper" ? name.toUpperCase() : name.toLowerCase()}
+            </button>
+          ))}
+          {isPieceFont(value) && <BuiltBy font={PIECE_FONT_INFO[value]} />}
         </fieldset>
       );
     case "picture":
@@ -192,6 +207,22 @@ function Field({
         </button>
       );
   }
+}
+
+/* who built a piece font, from the editor's own track pieces, and the Prefabs it comes from */
+function BuiltBy({ font }: { font: (typeof PIECE_FONT_INFO)[keyof typeof PIECE_FONT_INFO] }) {
+  return (
+    <p className="gen-built">
+      Built by hand from track pieces by {font.by}: see{" "}
+      {font.prefabs.map((p, i) => (
+        <span key={p.slug}>
+          {i > 0 && " and "}
+          <a href={prefabHref(p.slug)}>{p.name}</a>
+        </span>
+      ))}
+      . {font.letterCase === "upper" ? "Capitals" : "Lower case"} only.
+    </p>
+  );
 }
 
 /* an image file, drawn at most PICTURE_MOST pixels the longer way and read as a picture in the

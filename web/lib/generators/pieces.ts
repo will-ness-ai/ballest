@@ -74,7 +74,7 @@ export type Kind = keyof typeof KINDS;
 export type V3 = [number, number, number];
 
 const tail = (path: string) => path.split("/").at(-1) ?? path;
-const full = (path: string) => `${path}.${tail(path)}`;
+export const full = (path: string) => `${path}.${tail(path)}`;
 
 /* a piece `size` cm across its own axes, its bottom centre at `at`, turned by `rot` (or a yaw) */
 export function piece(
@@ -119,7 +119,7 @@ export const lowestOf = (items: Array<PrefabItem>) => edgeOf(items, 1, -1);
 
 /* how far the pieces reach along three's axis `k` (0 x, 1 up, 2 Unreal's y), at their least
    (-1) or most (1), in cm */
-const edgeOf = (items: Array<PrefabItem>, k: number, sign: -1 | 1) =>
+export const edgeOf = (items: Array<PrefabItem>, k: number, sign: -1 | 1) =>
   sign *
   Math.max(...shapesOf(fileOf(items)).map((sh) => sign * spanOf(sh, k)[sign < 0 ? 0 : 1])) *
   100;

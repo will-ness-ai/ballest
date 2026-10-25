@@ -10,21 +10,35 @@ export interface Grid {
   on: (x: number, y: number) => boolean;
 }
 
-export interface Lettering {
-  /* whether it draws lower case (Pixel has capitals only) */
-  keepsCase: boolean;
-  /* a line's width and a line's step down, in cells */
+/* how a font measures text: the one case it letters in, if it has only one (Pixel has capitals
+   only), and a line's width and a line's step down, in its own units */
+export interface Measure {
+  letterCase?: "upper" | "lower";
   width: (line: string) => number;
   lineHeight: number;
+}
+
+/* a font lettered in cells, its units */
+export interface Lettering extends Measure {
   /* the lines centred one under another, trimmed to their ink; null when there is none */
   grid: (lines: Array<string>) => Grid | null;
 }
 
 /* the text broken into lines of at most `per` letters, at spaces where it can be; a word longer
    than a line is split */
-export function wrapAt(text: string, per: number, keepCase: boolean): Array<string> {
+export function wrapAt(
+  text: string,
+  per: number,
+  letterCase?: Measure["letterCase"],
+): Array<string> {
+  const cased =
+    letterCase === "upper"
+      ? text.toUpperCase()
+      : letterCase === "lower"
+        ? text.toLowerCase()
+        : text;
   const lines: Array<string> = [];
-  for (const para of (keepCase ? text : text.toUpperCase()).split("\n")) {
+  for (const para of cased.split("\n")) {
     let line = "";
     for (const word of para.split(/\s+/).filter(Boolean))
       for (let w = word; w;) {
@@ -104,7 +118,7 @@ const GLYPH_H = 7;
 const glyph = (ch: string) => (PIXEL[ch] ?? PIXEL["?"]).split(" ");
 
 export const PIXEL_LETTERING: Lettering = {
-  keepsCase: false,
+  letterCase: "upper",
   width: (line) => line.length * (GLYPH_W + 1) - 1,
   lineHeight: GLYPH_H + 1,
   grid: (lines) => {

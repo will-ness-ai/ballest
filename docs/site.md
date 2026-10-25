@@ -856,6 +856,14 @@ kept apart from the Generators so a page that only links one never loads them).
   behind the same `Lettering`, so `lib/` stays pure. The text wraps at whatever line length
   makes the letters biggest inside the wall. Fonts the site doesn't load already come from
   Google Fonts on the sign's page only.
+- **Piece fonts** (`lib/generators/piece-fonts.ts`, R23 asked): Graduate (capitals) and Leker
+  (lower case) are alphabets R23 built by hand from track pieces and uploaded as Prefabs. Each
+  glyph is its own pieces, stood up and scaled to fit, not cells, so there is no Detail. Their
+  glyphs live in `piece-fonts.json`, written from the four Prefabs by
+  `scripts/piece-fonts.ts`, whose table says which pieces make each character; run it again if
+  R23 changes them. A character they lack is a `?`; `.`, `:` and `'` reuse the `!`, `÷` and `”`
+  pieces. The letters are as deep as built, about half a capital's height. The font picker
+  credits R23 and links the Prefabs.
 - **Buildings** (House, Tower, Castle) face -X, like signs. A wall is the boxes round its
   openings (`wall`: piers between windows, a piece under and over each). Roofs: gable as two
   pitched slabs (`slopes`) with stepped gable ends kept under the roof line; hip as a ridge with

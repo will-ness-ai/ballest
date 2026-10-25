@@ -12,6 +12,7 @@ import {
   PIECE_LIMIT,
   SPAWN_MOST,
   MARBLE,
+  PIECE_FONTS,
   PIXEL_LETTERING,
   generate,
   generatorOf,
@@ -23,6 +24,7 @@ import {
   voxelBoxes,
   voxelTree,
   VOXEL_KINDS,
+  type PieceFontName,
   type Values,
 } from "../lib/generators";
 import {
@@ -241,6 +243,114 @@ describe("the sign", () => {
 
   test("makes nothing from no text", () => {
     expect(generate("sign", valuesOf("sign", { text: "   " }))).toBeNull();
+  });
+});
+
+describe("the sign in R23's piece fonts", () => {
+  /* where the pieces reach, in cm, along three's axis k: 0 Unreal's x (toward the camera at
+     its least), 1 up, 2 across the sign (Unreal's y) */
+  const reach = (items: Array<PrefabItem>, k: number) => {
+    const file: PrefabFile = { format: "BallestPrefab", version: 1, group: GROUP, items };
+    const spans = shapesOf(file).map((sh) => {
+      const half =
+        (Math.abs(sh.matrix[k]) + Math.abs(sh.matrix[4 + k]) + Math.abs(sh.matrix[8 + k])) / 2;
+      return [sh.matrix[12 + k] - half, sh.matrix[12 + k] + half];
+    });
+    return [Math.min(...spans.map((s) => s[0])) * 100, Math.max(...spans.map((s) => s[1])) * 100];
+  };
+  const GROUP = { rotation: [0, 0, 0] as V3, scale: [1, 1, 1] as V3 };
+  const glyphs = (font: PieceFontName) => PIECE_FONTS[font].glyphs;
+  const sizeOf = (ch: string, font: PieceFontName) => glyphs(font)[ch].pieces.length;
+
+  test.each(["Graduate", "Leker"] as const)(
+    "%s letters with the pieces its Prefabs are built from",
+    (font) => {
+      const text = font === "Graduate" ? "AB" : "ab";
+      const file = make("sign", { font, text, wall: false });
+      expect(file.items.length).toBe(sizeOf(text[0], font) + sizeOf(text[1], font));
+      expect(file.items.every((it) => /BP_(Track|Ramp)|Cylinder|CornerScoop/.test(it.class))).toBe(
+        true,
+      );
+      expect(checkPrefab(JSON.stringify(file))).toEqual({ ok: true, pieces: file.items.length });
+    },
+  );
+
+  test("Graduate letters in capitals and Leker in lower case, whichever is typed", () => {
+    expect(make("sign", { font: "Graduate", text: "Ab" })).toEqual(
+      make("sign", { font: "Graduate", text: "AB" }),
+    );
+    expect(make("sign", { font: "Leker", text: "Ab" })).toEqual(
+      make("sign", { font: "Leker", text: "ab" }),
+    );
+  });
+
+  test("letters a character neither font has as a ?, and ' . : from the pieces it has", () => {
+    expect(make("sign", { font: "Graduate", text: "A&" })).toEqual(
+      make("sign", { font: "Graduate", text: "A?" }),
+    );
+    for (const ch of [".", ":", "'", '"'])
+      expect(make("sign", { font: "Leker", text: `a${ch}` })).not.toEqual(
+        make("sign", { font: "Leker", text: "a?" }),
+      );
+  });
+
+  test.each([
+    ["Graduate", 12, 4],
+    ["Leker", 3, 10],
+    ["Graduate", 40, 1],
+    ["Leker", 1, 0.5],
+  ])("in %s fits inside a %s m by %s m wall and stands out of its face", (font, width, height) => {
+    const [wall, ...letters] = make("sign", {
+      font,
+      text: "Welcome to my map, friend!",
+      width,
+      height,
+      wall: true,
+    }).items;
+    const [across, up, out] = [reach(letters, 2), reach(letters, 1), reach(letters, 0)];
+    const w = width * 100;
+    const h = height * 100;
+    expect(across[0]).toBeGreaterThanOrEqual(-w / 2 - 0.01);
+    expect(across[1]).toBeLessThanOrEqual(w / 2 + 0.01);
+    expect(up[0]).toBeGreaterThanOrEqual(-0.01);
+    expect(up[1]).toBeLessThanOrEqual(h + 0.01);
+    /* centred across and up the wall */
+    expect(across[0] + across[1]).toBeCloseTo(0, 0);
+    expect(up[0] + up[1]).toBeCloseTo(h, 0);
+    /* on the wall's face, toward the camera at -X */
+    expect(out[1]).toBeCloseTo(reach([wall], 0)[0], 0);
+  });
+
+  test("stands its letters up, reading left to right for the camera at -X", () => {
+    const file = make("sign", { font: "Graduate", text: "L", wall: false, height: 10 });
+    const [across, up, out] = [reach(file.items, 2), reach(file.items, 1), reach(file.items, 0)];
+    /* an L is taller than it is wide, and as deep as R23 built it, in proportion */
+    const L = glyphs("Graduate").L;
+    expect((up[1] - up[0]) / (across[1] - across[0])).toBeCloseTo(L.top / L.w, 1);
+    expect((out[1] - out[0]) / (up[1] - up[0])).toBeCloseTo(PIECE_FONTS.Graduate.deep / L.top, 1);
+    expect(up[0]).toBeCloseTo(0);
+    expect(out[1]).toBeCloseTo(0);
+    /* its foot runs right from its stem: the stem's at the left (-Y) */
+    const stem = file.items.filter(
+      (it) => reach([it], 1)[1] - reach([it], 1)[0] > (up[1] - up[0]) / 2,
+    );
+    expect(stem.length).toBeGreaterThan(0);
+    for (const s of stem) expect(reach([s], 2)[0]).toBeLessThan((across[0] + across[1]) / 2);
+  });
+
+  test("paints every piece in the Letters colour", () => {
+    const file = make("sign", { font: "Leker", text: "hi", front: "Red", wall: false });
+    for (const it of file.items) {
+      for (const m of it.meshes[0].materials) expect(m).toMatch(/MI_Env_Red_Smooth/);
+      expect(it.paint?.colors.every((c) => c === 3)).toBe(true);
+    }
+  });
+
+  test("shows no Detail, which a built font doesn't have", () => {
+    const keys = gen("sign")
+      .controls(valuesOf("sign", { font: "Leker" }))
+      .map((ctl) => ctl.key);
+    expect(keys).not.toContain("detail");
   });
 });
 
