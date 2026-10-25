@@ -44,9 +44,7 @@ const boards = STATS.map((stat) => {
         move: wasTop(r) ? r[4] - r[3] : ("new" as const),
         gain: r[1] - r[2],
       })),
-    out: list
-      .filter((r) => wasTop(r) && (r[1] === 0 || r[3] > TOP))
-      .map((r) => P[r[0]]![1]),
+    out: list.filter((r) => wasTop(r) && (r[1] === 0 || r[3] > TOP)).map((r) => P[r[0]]![1]),
   };
 });
 const players = payload.lists.played!.filter((r) => r[1] > 0).length;
@@ -109,7 +107,8 @@ console.log(text);
 NodeRuntime.runMain(
   Effect.gen(function* () {
     const r = yield* Renderer;
-    const save = (name: string, png: Buffer) => Effect.sync(() => writeFileSync(`.logs/proto/${name}.png`, png));
+    const save = (name: string, png: Buffer) =>
+      Effect.sync(() => writeFileSync(`.logs/proto/${name}.png`, png));
     yield* save("today", yield* r.standings(image));
     yield* save("A", yield* r.proto((pics) => protoA(image, overall, pics), STANDINGS_WIDTH));
     yield* save("B", yield* r.proto((pics) => protoB(image, overall, pics), STANDINGS_WIDTH));

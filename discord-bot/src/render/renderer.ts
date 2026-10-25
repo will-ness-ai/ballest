@@ -221,7 +221,8 @@ export class Renderer extends Effect.Service<Renderer>()("multiballs/Renderer", 
       /** The Daily Report's four boards, each row in the Chosen Skin it carries. */
       standings: (image: StandingsImage) => draw(standingsScene(image, pictures), STANDINGS_WIDTH),
       /** PROTOTYPE: any scene at any width. */
-      proto: (scene: (pictures: SkinPictureUris) => El, width: number) => draw(scene(pictures), width),
+      proto: (scene: (pictures: SkinPictureUris) => El, width: number) =>
+        draw(scene(pictures), width),
       /** A Daily Post's lead through the day. */
       leadGraph: Effect.fn("Renderer.leadGraph")(function* (image: LeadGraphImage) {
         return yield* draw(leadGraphScene(image), LEAD_GRAPH_WIDTH);

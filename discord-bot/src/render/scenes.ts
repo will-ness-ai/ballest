@@ -1173,58 +1173,58 @@ export const standingsColumn = (
   board: StandingsImage["boards"][number],
   pictures: SkinPictureUris,
 ): El =>
-    box(
-      { flexDirection: "column", width: STANDINGS_COLUMN, gap: 4 },
-      label(board.title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 }),
-      ...board.rows.map((row, i) =>
+  box(
+    { flexDirection: "column", width: STANDINGS_COLUMN, gap: 4 },
+    label(board.title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 }),
+    ...board.rows.map((row, i) =>
+      box(
+        {
+          alignItems: "center",
+          gap: STANDINGS_ROW_GAP,
+          fontSize: 15,
+          padding: "3px 8px",
+          borderRadius: 6,
+          backgroundColor: i === 0 ? C.upTint : C.surface,
+        },
         box(
           {
-            alignItems: "center",
-            gap: STANDINGS_ROW_GAP,
-            fontSize: 15,
-            padding: "3px 8px",
-            borderRadius: 6,
-            backgroundColor: i === 0 ? C.upTint : C.surface,
+            width: 18,
+            color: row.place <= 3 ? C.gold : C.faint,
+            fontFamily: F.hud,
+            fontWeight: 700,
           },
-          box(
-            {
-              width: 18,
-              color: row.place <= 3 ? C.gold : C.faint,
-              fontFamily: F.hud,
-              fontWeight: 700,
-            },
-            String(row.place),
-          ),
-          box({ width: 30 }, movePill(row.move)),
-          playerMarble(pictures, row.skin, row.steamId, STANDINGS_MARBLE),
-          box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
-          row.gain === 0
-            ? null
-            : pill(row.gain > 0, `${row.gain > 0 ? "+" : "−"}${Math.abs(row.gain)}`),
-          box({ fontFamily: F.hud, fontWeight: 700, color: C.text }, String(row.n)),
+          String(row.place),
         ),
+        box({ width: 30 }, movePill(row.move)),
+        playerMarble(pictures, row.skin, row.steamId, STANDINGS_MARBLE),
+        box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
+        row.gain === 0
+          ? null
+          : pill(row.gain > 0, `${row.gain > 0 ? "+" : "−"}${Math.abs(row.gain)}`),
+        box({ fontFamily: F.hud, fontWeight: 700, color: C.text }, String(row.n)),
       ),
-      ...board.out.map((name) =>
-        box(
-          {
-            alignItems: "center",
-            gap: 8,
-            fontSize: 15,
-            padding: "2px 7px",
-            borderRadius: 6,
-            border: `1px dashed ${C.line}`,
-            color: C.dim,
-            opacity: 0.75,
-          },
-          box({ width: 18, color: C.faint, fontFamily: F.hud, fontWeight: 700 }, "–"),
-          box({ width: 46 }, pill(false, triangle(false), "OUT")),
-          box({ flexGrow: 1, overflow: "hidden" }, clipName(name)),
-        ),
+    ),
+    ...board.out.map((name) =>
+      box(
+        {
+          alignItems: "center",
+          gap: 8,
+          fontSize: 15,
+          padding: "2px 7px",
+          borderRadius: 6,
+          border: `1px dashed ${C.line}`,
+          color: C.dim,
+          opacity: 0.75,
+        },
+        box({ width: 18, color: C.faint, fontFamily: F.hud, fontWeight: 700 }, "–"),
+        box({ width: 46 }, pill(false, triangle(false), "OUT")),
+        box({ flexGrow: 1, overflow: "hidden" }, clipName(name)),
       ),
-      board.rows.length + board.out.length === 0
-        ? box({ color: C.faint, fontSize: 14 }, "Nobody yet")
-        : null,
-    );
+    ),
+    board.rows.length + board.out.length === 0
+      ? box({ color: C.faint, fontSize: 14 }, "Nobody yet")
+      : null,
+  );
 
 export const standingsScene = (
   { title, subtitle, boards }: StandingsImage,
@@ -1574,7 +1574,10 @@ export const protoB = (
               },
               String(row.place),
             ),
-            box({ fontFamily: F.hud, fontWeight: 700, fontSize: 13, color: C.dim }, `${row.points} pts`),
+            box(
+              { fontFamily: F.hud, fontWeight: 700, fontSize: 13, color: C.dim },
+              `${row.points} pts`,
+            ),
           ),
         );
   const rest = overall.slice(3);
@@ -1635,7 +1638,10 @@ export const protoC = (
           border: `1px solid ${C.line}`,
         },
         label("Overall", { fontSize: 13, letterSpacing: 1.4, marginBottom: 2 }),
-        box({ color: C.faint, fontSize: 11, marginBottom: 6 }, "10 points for 1st down to 1 for 10th, on all four"),
+        box(
+          { color: C.faint, fontSize: 11, marginBottom: 6 },
+          "10 points for 1st down to 1 for 10th, on all four",
+        ),
         ...overall.map((r, i) =>
           box(
             { flexDirection: "column", gap: 2 },
@@ -1692,7 +1698,14 @@ export const protoE = (
     box(
       { flexDirection: "column", gap: 4 },
       box(
-        { gap: 6, paddingLeft: 8, color: C.faint, fontFamily: F.hud, fontSize: 10, letterSpacing: 1.2 },
+        {
+          gap: 6,
+          paddingLeft: 8,
+          color: C.faint,
+          fontFamily: F.hud,
+          fontSize: 10,
+          letterSpacing: 1.2,
+        },
         box({ width: 18 }),
         box({ width: 30 }),
         box({ flexGrow: 1 }, "PLAYER"),
@@ -1710,7 +1723,12 @@ export const protoE = (
             backgroundColor: i === 0 ? C.upTint : C.surface,
           },
           box(
-            { width: 18, color: r.place <= 3 ? C.gold : C.faint, fontFamily: F.hud, fontWeight: 700 },
+            {
+              width: 18,
+              color: r.place <= 3 ? C.gold : C.faint,
+              fontFamily: F.hud,
+              fontWeight: 700,
+            },
             String(r.place),
           ),
           box({ width: 30 }, movePill(r.move)),
@@ -1718,7 +1736,13 @@ export const protoE = (
           box({ flexGrow: 1, overflow: "hidden" }, clipName(r.name)),
           ...r.places.map(cell),
           box(
-            { width: 50, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700, fontSize: 17 },
+            {
+              width: 50,
+              justifyContent: "flex-end",
+              fontFamily: F.hud,
+              fontWeight: 700,
+              fontSize: 17,
+            },
             String(r.points),
           ),
         ),
