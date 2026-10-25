@@ -288,6 +288,13 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     maps: ["leth-trial-1"],
     pinned: true,
   },
+  {
+    slug: "ball-heaven-hell",
+    title: "Ball Heaven and Hell",
+    creator: "Mountain Dude",
+    creatorId: "76561198143330287",
+    maps: ["3826632790", "3826634012"],
+  },
 ];
 
 /* what is wrong with a list of Campaigns, in words; empty when it holds together */
