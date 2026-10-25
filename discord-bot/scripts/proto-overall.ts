@@ -1,3 +1,4 @@
+/* eslint-disable -- PROTOTYPE, never merged */
 // PROTOTYPE (never merge): renders round N of the overall-score variants from a saved
 // GET /api/standings payload (.logs/proto/st.json) into .logs/proto/.
 import { readFileSync, writeFileSync } from "node:fs";
