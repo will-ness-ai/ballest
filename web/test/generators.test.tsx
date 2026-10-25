@@ -10,6 +10,7 @@ import {
   COLOUR_NAMES,
   GENERATORS,
   PIECE_LIMIT,
+  SPAWN_MOST,
   MARBLE,
   PIXEL_LETTERING,
   generate,
@@ -17,6 +18,7 @@ import {
   pictureOf,
   readPicture,
   rotOf,
+  spawnsOf,
   variationsOf,
   voxelBoxes,
   voxelTree,
@@ -74,6 +76,15 @@ const highest = (file: PrefabFile) =>
       (sh) =>
         sh.matrix[13] +
         (Math.abs(sh.matrix[1]) + Math.abs(sh.matrix[5]) + Math.abs(sh.matrix[9])) / 2,
+    ),
+  ) * 100;
+/* the nearest any piece reaches toward the camera that spawns it (-X), in cm */
+const nearest = (file: PrefabFile) =>
+  Math.min(
+    ...shapesOf(file).map(
+      (sh) =>
+        sh.matrix[12] -
+        (Math.abs(sh.matrix[0]) + Math.abs(sh.matrix[4]) + Math.abs(sh.matrix[8])) / 2,
     ),
   ) * 100;
 const count = (file: PrefabFile, piece: string) =>
@@ -136,6 +147,43 @@ describe("every Generator", () => {
       const file = generate(key, values);
       if (file) expect(lowest(file), `${key} ${label}`).toBeGreaterThanOrEqual(-1);
     }
+  });
+});
+
+describe("spawning in parts", () => {
+  /* 128 by 8 cells, red and white like a chessboard: 1,024 blocks, none merged */
+  const chess = "128x8:" + ("ca".repeat(64) + "ac".repeat(64)).repeat(4);
+  const big = (lay = "Standing") => make("pixel-art", { picture: chess, across: 128, lay });
+
+  test("a small one is one part, itself", () => {
+    const file = make("pixel-art");
+    expect(spawnsOf(file)).toEqual({ parts: [file], marked: false });
+  });
+
+  test("a big one splits into parts the game can spawn, each reaching as near and as low", () => {
+    for (const lay of ["Standing", "On the floor"]) {
+      const file = big(lay);
+      const { parts } = spawnsOf(file);
+      expect(parts.length, lay).toBe(Math.ceil(file.items.length / (SPAWN_MOST - 1)));
+      for (const p of parts) {
+        expect(p.items.length, lay).toBeLessThanOrEqual(SPAWN_MOST);
+        expect(nearest(p), lay).toBeCloseTo(nearest(file), 0);
+        expect(lowest(p), lay).toBeCloseTo(lowest(file), 0);
+        expect(checkPrefab(JSON.stringify(p)).ok, lay).toBe(true);
+      }
+      /* every piece once, and at most a marker more in each part */
+      const all = parts.flatMap((p) => p.items);
+      for (const it of file.items) expect(all).toContain(it);
+      expect(all.length, lay).toBeLessThanOrEqual(file.items.length + parts.length);
+    }
+  });
+
+  test("no part is a single piece, which the game won't spawn", () => {
+    const file = big();
+    /* lengths either side of where a split leaves one piece over */
+    for (let n = SPAWN_MOST - 2; n <= 2 * SPAWN_MOST + 2; n++)
+      for (const p of spawnsOf({ ...file, items: file.items.slice(0, n) }).parts)
+        expect(p.items.length, `${String(n)} pieces`).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -554,6 +602,35 @@ describe("the useful ones", () => {
       .items.map((it) => extent(it))
       .reduce((a, e) => a + ((e.x1 - e.x0) * (e.z1 - e.z0)) / 100, 0);
     expect(area).toBeCloseTo(cells);
+  });
+
+  test("pixel art goes up to 128 blocks across", () => {
+    /* a row of 128 cells, red and white by turns: one block each, none merged */
+    const picture = "128x1:" + "ca".repeat(64);
+    expect(gen("pixel-art").controls(valuesOf("pixel-art"))).toContainEqual(
+      expect.objectContaining({ key: "across", max: 128 }),
+    );
+    expect(make("pixel-art", { picture, across: 128 }).items).toHaveLength(128);
+  });
+
+  test("a tall picture is held to 128 blocks the longer way", () => {
+    /* two columns, red and white, four times as tall as wide */
+    const picture = "2x8:" + "ca".repeat(8);
+    const file = make("pixel-art", { picture, across: 128, block: 10 });
+    expect(file.items).toHaveLength(2);
+    expect(highest(file)).toBeCloseTo(1280);
+  });
+
+  test("a tall picture's slider stops where it reaches 128 blocks tall", () => {
+    /* 3 by 7: 55 across makes 128 tall (54 would make 126) */
+    const picture = "3x7:" + "cac".repeat(7);
+    expect(gen("pixel-art").controls(valuesOf("pixel-art", { picture }))).toContainEqual(
+      expect.objectContaining({ key: "across", max: 55 }),
+    );
+    expect(highest(make("pixel-art", { picture, across: 128, block: 10 }))).toBeCloseTo(1280);
+    /* two cells across, 300 tall, red and white by rows: still no more than 128 */
+    const thin = "2x300:" + "ccaa".repeat(150);
+    expect(highest(make("pixel-art", { picture: thin, across: 128, block: 10 }))).toBeCloseTo(1280);
   });
 
   test("pixel art laid on the floor lies flat, a block deep", () => {

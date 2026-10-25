@@ -839,6 +839,13 @@ kept apart from the Generators so a page that only links one never loads them).
   cube, sphere, cylinder, cone and pyramid, placed by their bottom centre (a box can also be
   placed by its centre at any rotation);
   grids of cells (letters, voxels) are merged into as few boxes as they can be.
+- **Parts** (`spawnsOf`): one spawn of 400 pieces crashed a sandbox game where 289 didn't
+  (its cost grows with the square of the pieces), so a Prefab over `SPAWN_MOST` (240) downloads
+  as Part 1..N, to spawn one after another without moving the camera. spawnprefab keeps a
+  file's origin across and up but slides it along X to sit its nearest face a set way ahead, so
+  a part that doesn't reach the whole's near, low corner gets a 20 cm white marker cube there,
+  and the parts meet. Pixel art goes up to 128 blocks the longer way (`PICTURE_MOST`; a tall
+  picture's Blocks across stops short of 128) on the strength of it.
 - **Colours** (`COLOURS`): each names its material and the `paint` the editor saves beside
   it, a MaterialCategory and an `EBallestMaterialColors` value read from the game's assets
   (Smooth for the colours, Special for the metals). The editor paints nothing gold, so
