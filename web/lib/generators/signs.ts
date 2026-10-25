@@ -2,7 +2,6 @@
 // letters its text in cells through a Lettering (lib/generator-letters.ts), or in one of R23's
 // piece fonts with their own pieces (lib/generators/piece-fonts.ts).
 import { cased, wrapAt, type Lettering, type Measure } from "../generator-letters";
-import type { PrefabItem } from "../prefab";
 import { isPieceFont, pieceLettering } from "./piece-fonts";
 import {
   FRONT,
@@ -81,39 +80,37 @@ export const sign: Generator = {
     const W = metresIn(v, "width");
     const H = metresIn(v, "height");
     const pad = v.wall ? 0.12 : 0;
-    const letters = lettersOf(v, lettering, W * (1 - pad), H * (1 - pad), !!v.wall);
-    if (!letters) return null;
-    if (!v.wall) return fileOf(moved(letters, 0, 0));
+    const text = lettersOf(v, lettering, W * (1 - pad), H * (1 - pad), !!v.wall);
+    if (!text) return null;
+    if (!v.wall) return fileOf(text.letters);
     const depth = Math.max(5, Math.min(W, H) * 0.03);
     return fileOf([
       ...facing([piece("cube", [0, 0, 0], [W, depth, H], colourIn(v, "back"))]),
-      ...moved(letters, -depth / 2, H / 2, true),
+      ...shifted(text.letters, [-depth / 2, 0, (H - text.high) / 2]),
     ]);
   },
 };
 
-/* the sign's text as big as fits inside w by h, facing -X: in one of R23's piece fonts, or in
-   blocks a cell deep (half a cell on a wall) through the Lettering */
+/* the sign's text as big as fits inside w by h, facing -X, centred across y = 0 with its back
+   at x = 0 and its foot at z = 0, and how high it stands: in one of R23's piece fonts, its
+   pieces' reach, or in blocks a cell deep (half a cell on a wall) through the Lettering, its
+   grid's whole height, so a line of punctuation keeps its place in it */
 function lettersOf(v: Values, lettering: Lettering, w: number, h: number, wall: boolean) {
   const colour = colourIn(v, "front");
   if (isPieceFont(v.font)) {
     const font = pieceLettering(v.font);
     const best = wrapToFit(String(v.text), font, w, h);
-    return best ? font.pieces(best.lines, best.scale, colour) : null;
+    if (!best) return null;
+    const pieces = font.pieces(best.lines, best.scale, colour);
+    const [lo, hi] = reachOf(pieces);
+    return {
+      letters: shifted(pieces, [-hi[0], -(lo[1] + hi[1]) / 2, -lo[2]]),
+      high: hi[2] - lo[2],
+    };
   }
   const fit = fitText(String(v.text), lettering, w, h);
   if (!fit) return null;
   const { grid, cell } = fit;
-  return facing(cellsOf(grid, cell, 0, 0, wall ? cell / 2 : cell, colour));
-}
-
-/* the letters centred across y = 0, their back at x = `face`, and their foot at z = `at` or
-   (`middle`) their middle there */
-function moved(letters: Array<PrefabItem>, face: number, at: number, middle = false) {
-  const [lo, hi] = reachOf(letters);
-  return shifted(letters, [
-    face - hi[0],
-    -(lo[1] + hi[1]) / 2,
-    at - (middle ? (lo[2] + hi[2]) / 2 : lo[2]),
-  ]);
+  const high = grid.h * cell;
+  return { letters: facing(cellsOf(grid, cell, high, 0, wall ? cell / 2 : cell, colour)), high };
 }

@@ -37,6 +37,7 @@ import {
   type PrefabItem,
 } from "../lib/prefab";
 import { checkPrefab } from "../lib/prefab-check";
+import { pieceLettering } from "../lib/generators/piece-fonts";
 import { GENERATOR_KEYS, generatorHref } from "../lib/routes";
 
 type V3 = [number, number, number];
@@ -234,6 +235,11 @@ describe("the sign", () => {
     expect(keys({ font: "Bungee" })).toContain("detail");
   });
 
+  test("keeps a dash at its height in its line, not on the ground", () => {
+    const dash = make("sign", { text: "-", wall: false });
+    expect(Math.min(...dash.items.map((it) => it.transform.location[2]))).toBeGreaterThan(0);
+  });
+
   test("letters an A in Pixel as its table draws it", () => {
     const grid = PIXEL_LETTERING.grid(["A"]) ?? { w: 0, h: 0, on: () => false };
     const rows = Array.from({ length: grid.h }, (_, y) =>
@@ -322,11 +328,15 @@ describe("the sign in R23's piece fonts", () => {
   test("stands its letters up, reading left to right for the camera at -X", () => {
     const file = make("sign", { font: "Graduate", text: "L", wall: false, height: 10 });
     const [across, up, out] = [reach(file.items, 2), reach(file.items, 1), reach(file.items, 0)];
-    /* an L is taller than it is wide, and about half as deep as tall, as R23 built it */
+    /* an L is taller than it is wide, and as deep as R23 built it, in proportion */
     const L = glyphs("Graduate").L;
+    const built = pieceLettering("Graduate").pieces(["L"], 1, "Dark");
+    const [bOut, bUp] = [reach(built, 0), reach(built, 1)];
     expect((up[1] - up[0]) / (across[1] - across[0])).toBeCloseTo(L.top / L.w, 1);
-    expect((out[1] - out[0]) / (up[1] - up[0])).toBeGreaterThan(0.5);
-    expect((out[1] - out[0]) / (up[1] - up[0])).toBeLessThan(0.6);
+    expect((out[1] - out[0]) / (up[1] - up[0])).toBeCloseTo(
+      (bOut[1] - bOut[0]) / (bUp[1] - bUp[0]),
+      2,
+    );
     expect(up[0]).toBeCloseTo(0);
     expect(out[1]).toBeCloseTo(0);
     /* its foot runs right from its stem: the stem's at the left (-Y) */

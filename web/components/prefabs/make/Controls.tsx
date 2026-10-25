@@ -18,6 +18,7 @@ import {
   type Control,
   type Values,
 } from "../../../lib/generators";
+import { cased } from "../../../lib/generator-letters";
 import { prefabHref } from "../../../lib/routes";
 
 /* the swatch each colour shows: the same words the viewer colours pieces by (lib/prefab.ts) */
@@ -189,7 +190,7 @@ function Field({
               className="built"
               onClick={() => set({ [c.key]: name })}
             >
-              {f.letterCase === "upper" ? name.toUpperCase() : name.toLowerCase()}
+              {cased(name, f.letterCase)}
             </button>
           ))}
           {isPieceFont(value) && <BuiltBy font={PIECE_FONT_INFO[value]} />}

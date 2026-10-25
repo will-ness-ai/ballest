@@ -50,6 +50,9 @@ export const PIECE_FONTS = DATA as Record<PieceFontName, PieceFont>;
 export const isPieceFont = (font: unknown): font is PieceFontName =>
   typeof font === "string" && Object.hasOwn(PIECE_FONT_INFO, font);
 
+/* what a straight double quote closes after */
+const CLOSES = /[\p{L}\p{N}.,;:!?)\]}”'’]/u;
+
 /* the gap between letters and a space's width, as parts of a capital's height */
 const TRACKING = 0.12;
 const SPACE = 0.4;
@@ -72,13 +75,13 @@ export function pieceLettering(name: PieceFontName): PieceLettering {
   const lineHeight = (ascent + descent) * LEADING;
   const gap = cap * TRACKING;
 
-  /* the glyph each character is drawn with (null for a space): a straight double quote opens
-     after a space, a bracket or another opening quote and closes otherwise, and a character it
-     has no glyph for is a ? */
+  /* the glyph each character is drawn with (null for a space): a straight double quote closes
+     after a letter, a digit or closing punctuation and opens otherwise, and a character it has
+     no glyph for is a ? */
   const glyphsOf = (line: string) =>
     Array.from(line).map((ch, i, all) => {
       if (/\s/.test(ch)) return null;
-      const quote = ch === '"' ? (i === 0 || /[\s([“]/.test(all[i - 1]) ? "“" : "”") : ch;
+      const quote = ch === '"' ? (i > 0 && CLOSES.test(all[i - 1]) ? "”" : "“") : ch;
       return glyphs[quote] ?? glyphs["?"];
     });
   /* where each glyph starts, and the line's width */

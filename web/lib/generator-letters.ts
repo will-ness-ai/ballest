@@ -35,14 +35,8 @@ export function wrapAt(
   per: number,
   letterCase?: Measure["letterCase"],
 ): Array<string> {
-  const cased =
-    letterCase === "upper"
-      ? text.toUpperCase()
-      : letterCase === "lower"
-        ? text.toLowerCase()
-        : text;
   const lines: Array<string> = [];
-  for (const para of cased.split("\n")) {
+  for (const para of cased(text, letterCase).split("\n")) {
     let line = "";
     for (const word of para.split(/\s+/).filter(Boolean))
       for (let w = word; w;) {
