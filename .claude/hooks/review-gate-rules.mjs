@@ -136,9 +136,16 @@ export const skillName = (name) => String(name).split(":").pop();
 const BUILT_IN = ["code-review"];
 
 /* Whether this session's Skill tool can find `skill`: built in, or a SKILL.md in one of the
-   skill folders it read at its start (`dirs`). `exists(path)` is the file system's. */
-export const loadable = (skill, dirs, exists) =>
-  BUILT_IN.includes(skill) || dirs.some((d) => exists(`${d}/${skill}/SKILL.md`));
+   skill folders it read at its start (`dirs`), unless the tool has already called it unknown
+   (`refused`): a project thread's linked skills can still be missing from it (PR #368).
+   `exists(path)` is the file system's. */
+export const loadable = (skill, dirs, exists, refused = new Set()) =>
+  !refused.has(skill) &&
+  (BUILT_IN.includes(skill) || dirs.some((d) => exists(`${d}/${skill}/SKILL.md`)));
+
+/* the skills a session's transcript shows its Skill tool calling unknown */
+export const refusedSkills = (transcript) =>
+  new Set([...transcript.matchAll(/Unknown skill: ([\w:-]+)/g)].map((m) => skillName(m[1])));
 
 // A follow-up this small, after both skills have run on the PR, needs no new run (Will,
 // 2026-10-18: each round of review fixes was costing a whole review round).

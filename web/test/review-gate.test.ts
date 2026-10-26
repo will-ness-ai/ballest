@@ -4,6 +4,7 @@ import {
   FOLLOW_UP_LINES,
   linesChanged,
   loadable,
+  refusedSkills,
   mergeTargets,
   repoSlug,
   skillName,
@@ -139,6 +140,21 @@ test("a skill is loadable from the project's or the user's skills, or built in",
   expect(loadable(design, dirs, has())).toBe(false);
   // Claude Code has its own /code-review
   expect(loadable("code-review", dirs, has())).toBe(true);
+});
+
+test("a skill this session's Skill tool called unknown isn't loadable, whatever the files say", () => {
+  // a project thread whose skills were linked, yet its Skill tool never read them (PR #368)
+  const transcript = [
+    '{"type":"user","message":{"content":[{"type":"tool_result","content":"<tool_use_error>Unknown skill: tdd. Did you mean cd?</tool_use_error>","is_error":true}]}}',
+    '{"type":"user","message":{"content":[{"type":"tool_result","content":"<tool_use_error>Unknown skill: codebase-design</tool_use_error>","is_error":true}]}}',
+  ].join("\n");
+  const refused = refusedSkills(transcript);
+  expect([...refused].sort()).toEqual(["codebase-design", "tdd"]);
+  const dirs = ["/home/user/.claude/skills"];
+  const all = () => true;
+  expect(loadable("codebase-design", dirs, all, refused)).toBe(false);
+  expect(loadable("grill-design", dirs, all, refused)).toBe(true);
+  expect(refusedSkills("")).toEqual(new Set());
 });
 
 describe("unsquashed merges", () => {

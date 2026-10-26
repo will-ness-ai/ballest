@@ -15,6 +15,7 @@ import {
   linesChanged,
   loadable,
   mergeTargets,
+  refusedSkills,
   repoSlug,
   skillName,
   unreviewed,
@@ -87,7 +88,7 @@ const skillDirs = () =>
    { deny } when this session can run every missing skill, and { warn } when it can't (Will,
    2026-10-24, after a thread outside the repo left #336's merge to him). Throws when it can't
    tell, which the caller turns into a warning. */
-function refusal(target, cwd) {
+function refusal(target, cwd, transcript) {
   const { dir, slug, ours } = locate(target, cwd);
   if (target.opaque)
     return dir
@@ -146,7 +147,11 @@ function refusal(target, cwd) {
     `. Call the Skill tool for 'code-review' with fixed point ${since}, then for 'codebase-design', ` +
     "on the PR's head in this clone, fix what they find, push, and try again. " +
     "Runs in this clone count from any session or worktree; an ad-hoc review or a run on another machine doesn't.";
-  if (missing.every(([skill]) => loadable(skill, skillDirs(), existsSync))) return { deny: reason };
+  const refused = refusedSkills(
+    (transcript && tries(() => readFileSync(transcript, "utf8"))) ?? "",
+  );
+  if (missing.every(([skill]) => loadable(skill, skillDirs(), existsSync, refused)))
+    return { deny: reason };
   return {
     warn:
       reason +
@@ -164,7 +169,7 @@ function gate(input) {
         permissionDecision: "deny",
         permissionDecisionReason: `This repo squash-merges (docs/agents/issue-tracker.md): use \`gh api -X PUT repos/${slugAt(HOME_REPO)}/pulls/<n>/merge -f merge_method=squash\`, \`gh pr merge --squash\`, or merge_method squash.`,
       });
-    const refused = refusal(target, input.cwd);
+    const refused = refusal(target, input.cwd, input.transcript_path);
     if (refused?.deny)
       return preToolUse({ permissionDecision: "deny", permissionDecisionReason: refused.deny });
     if (refused?.warn) warnings.push(refused.warn);
