@@ -23,6 +23,8 @@ export default defineConfig(
     "web/.next/",
     "web/public/",
     "web/next-env.d.ts",
+    // throwaway pages and scripts, gitignored
+    "scratch/",
   ]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
