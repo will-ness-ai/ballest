@@ -4,7 +4,7 @@
 // either skill hasn't seen. Wired in .claude/settings.json, and for cloud threads, which
 // start outside the repo, in the user settings install-user-hooks.mjs writes (`--user`).
 import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -88,7 +88,7 @@ const skillDirs = () =>
    { deny } when this session can run every missing skill, and { warn } when it can't (Will,
    2026-10-24, after a thread outside the repo left #336's merge to him). Throws when it can't
    tell, which the caller turns into a warning. */
-function refusal(target, cwd, refused) {
+function refusal(target, cwd, refusedHere) {
   const { dir, slug, ours } = locate(target, cwd);
   if (target.opaque)
     return dir
@@ -147,7 +147,7 @@ function refusal(target, cwd, refused) {
     `. Call the Skill tool for 'code-review' with fixed point ${since}, then for 'codebase-design', ` +
     "on the PR's head in this clone, fix what they find, push, and try again. " +
     "Runs in this clone count from any session or worktree; an ad-hoc review or a run on another machine doesn't.";
-  if (missing.every(([skill]) => loadable(skill, skillDirs(), existsSync, refused)))
+  if (missing.every(([skill]) => loadable(skill, skillDirs(), existsSync, refusedHere())))
     return { deny: reason };
   return {
     warn:
@@ -156,24 +156,15 @@ function refusal(target, cwd, refused) {
   };
 }
 
-/* the Skill calls this session and its subagents saw refused (subagents write theirs beside the
-   session's transcript, in <session>/subagents/) */
-function sessionRefusals(transcript) {
-  if (!transcript) return new Set();
-  const sub = join(transcript.replace(/\.jsonl$/, ""), "subagents");
-  const files = [
-    transcript,
-    ...(tries(() => readdirSync(sub)) ?? [])
-      .filter((f) => f.endsWith(".jsonl"))
-      .map((f) => join(sub, f)),
-  ];
-  return refusedSkills(files.map((f) => tries(() => readFileSync(f, "utf8")) ?? "").join("\n"));
-}
-
 function gate(input) {
   // a warning lets this target through, but a later one may still be refused
   const warnings = [];
-  const unknown = sessionRefusals(input.transcript_path);
+  /* the skills this session's Skill tool refused, read only once a merge needs them */
+  let unknown;
+  const refusedHere = () =>
+    (unknown ??= refusedSkills(
+      (input.transcript_path && tries(() => readFileSync(input.transcript_path, "utf8"))) ?? "",
+    ));
   for (const target of mergeTargets(input.tool_name, input.tool_input ?? {})) {
     // one that can't be placed falls to refusal, which warns
     if (target.unsquashed && tries(() => locate(target, input.cwd).ours))
@@ -181,7 +172,7 @@ function gate(input) {
         permissionDecision: "deny",
         permissionDecisionReason: `This repo squash-merges (docs/agents/issue-tracker.md): use \`gh api -X PUT repos/${slugAt(HOME_REPO)}/pulls/<n>/merge -f merge_method=squash\`, \`gh pr merge --squash\`, or merge_method squash.`,
       });
-    const refused = refusal(target, input.cwd, unknown);
+    const refused = refusal(target, input.cwd, refusedHere);
     if (refused?.deny)
       return preToolUse({ permissionDecision: "deny", permissionDecisionReason: refused.deny });
     if (refused?.warn) warnings.push(refused.warn);
