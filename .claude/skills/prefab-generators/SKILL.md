@@ -73,8 +73,9 @@ viewer shows. A cloud session skips this and says so in the PR.
 ## 5. Code review
 
 Call the Skill tool for 'code-review' with `origin/main` as the fixed point. Fix every finding,
-with a test where it is a behaviour. When the fixes come to 40 changed lines or more, call it
-again from the last reviewed commit. Done when a round finds nothing left to fix.
+with a test where it is a behaviour. Call it again from the last reviewed commit only when the
+commits since make up half or more of the PR's changed lines (`docs/agents/feature-workflow.md`,
+step 5); otherwise list what is left in the PR.
 
 ## 6. The PR
 
