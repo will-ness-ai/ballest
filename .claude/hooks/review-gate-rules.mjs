@@ -7,6 +7,8 @@ export const SKILLS = ["code-review", "codebase-design"];
 // `timeout` or `bash -c` included), so one that only mentions a merge is checked too.
 const GH_PR = /(?<![\w./-])gh\s+(?:(?:-R|--repo)[\s=]+(\S+)\s+)?pr\s+(merge|ready)\b/g;
 const API = /(?<![\w./-])(gh\s+api|curl)\b/g;
+// `pnpm pr land <n>` (web/scripts/pr.mjs) marks ready and squash-merges from inside the script
+const PNPM_LAND = /(?<![\w./-])pnpm\s+(?:(?:--silent|-s)\s+)?pr\s+land\s+['"]?#?(\d+)\b/g;
 const ROUTE =
   /repos\/([^/\s'"]+\/[^/\s'"]+)\/pulls\/(\d+)\/(?:merge|ccr\/ready_for_review|ccr\/auto_merge)\b/;
 const MUTATION =
@@ -44,6 +46,7 @@ export function mergeTargets(tool, input) {
   const found = [
     ...[...command.matchAll(GH_PR)].map((m) => [m.index, ghPr(command, m)]),
     ...[...command.matchAll(API)].map((m) => [m.index, apiCall(command, m)]),
+    ...[...command.matchAll(PNPM_LAND)].map((m) => [m.index, { repo: null, number: Number(m[1]) }]),
   ];
   return found
     .filter(([, t]) => t)
