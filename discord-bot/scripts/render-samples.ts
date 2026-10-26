@@ -7,6 +7,8 @@ import { Effect } from "effect";
 import { type Player, SCORE_TICKS_PER_SECOND, type Standing } from "../src/domain.js";
 import type { CardView } from "../src/ports.js";
 import { Renderer } from "../src/render/renderer.js";
+import { BOARD_SHORT } from "../src/report/messages.js";
+import { STATS } from "../src/report/report.js";
 
 const out = process.argv[2] ?? ".logs/samples";
 const T = SCORE_TICKS_PER_SECOND;
@@ -242,7 +244,7 @@ const program = Effect.gen(function* () {
     points,
     place,
     move,
-    places: places.map((p, i) => ({ board: ["MP", "AM", "WR", "T5"][i] ?? "", place: p })),
+    places: STATS.map((stat, i) => ({ board: BOARD_SHORT[stat], place: places[i] ?? null })),
   });
   yield* save(
     "standings",

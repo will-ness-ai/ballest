@@ -250,6 +250,23 @@ describe("the Daily Report's standings", () => {
     );
   });
 
+  it("scores a shared place that runs past tenth on a standing for everyone on it", () => {
+    // three share 9th on Maps played: the eleventh row still holds 9th, and scores 2
+    const eight = Array.from({ length: 8 }, (_, i): Row => [
+      player(i),
+      20 - i,
+      20 - i,
+      i + 1,
+      i + 1,
+    ]);
+    const tied = ["amy", "bob", "cat"].map((id): Row => [id, 5, 5, 9, 9]);
+    const r = build(data({}), { played: [...eight, ...tied, ["dan", 4, 4, 12, 12]] });
+    const points = new Map(r.overall.rows.map((x) => [x.steamId, x.points]));
+    expect(points.get("amy")).toBe(2);
+    expect(r.overall.rows.map((x) => x.steamId)).toEqual([...eight.map((x) => x[0]), "amy", "bob"]);
+    expect(r.overall.rows.at(-1)?.place).toBe(9);
+  });
+
   it("moves Overall rows by yesterday's points, marks newcomers, and names who fell out", () => {
     const nine = Array.from({ length: 9 }, (_, i): Row => [
       player(i),

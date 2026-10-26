@@ -1107,7 +1107,7 @@ export interface StandingsRow {
   readonly gain: number;
 }
 
-/** A row on the Overall board: points from the player's places on the four boards. */
+/** A row of the overall standing: points from the player's places on the four standings. */
 export interface OverallRow {
   readonly steamId: string;
   readonly skin: ChosenSkin;
@@ -1189,7 +1189,7 @@ const movePill = (move: StandingsRow["move"]) =>
 const clipName = (name: string) =>
   name.length > STANDINGS_NAME ? `${name.slice(0, STANDINGS_NAME - 1)}…` : name;
 
-/** The Overall board's rule, under its heading. */
+/** The overall standing's rule, under its heading. */
 export const OVERALL_RULE =
   "10 points for 1st on a standing down to 1 for 10th, added across all four";
 

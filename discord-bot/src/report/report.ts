@@ -110,7 +110,7 @@ export interface Board {
 export interface OverallStanding {
   readonly steamId: string;
   readonly persona: string;
-  /** OVERALL_TOP + 1 - place on each standing where they are in its top TOP places, added up. */
+  /** TOP + 1 - place on each standing where they are in its top TOP places, added up. */
   readonly points: number;
   /** The shared place on Overall now: 1 + the players with more points. */
   readonly place: number;
@@ -259,10 +259,12 @@ const board = (stat: Stat, list: ReadonlyArray<SiteStanding>): Board => {
 
 /** A shared place in the top TOP on a standing, or null outside it. */
 const scoringPlace = (n: number, place: number) => (n > 0 && place <= TOP ? place : null);
+/** A standing's points for a place in its top TOP: 10 for 1st down to 1 for 10th. */
+const pointsFor = (place: number) => TOP + 1 - place;
 
 /**
- * The overall standing (CONTEXT.md): each player scores TOP + 1 - their shared place on each standing where it is
- * in the top TOP (10 for 1st, 1 for 10th), added up, now and 24 hours before. Counted from the
+ * The overall standing (CONTEXT.md): each player scores `pointsFor` their shared place on each
+ * standing where it is in the top TOP, added up, now and 24 hours before. Counted from the
  * places the site serves, so it never disagrees with the four boards. Exactly TOP rows, by points
  * then name.
  */
@@ -287,8 +289,8 @@ const overallStandings = (standings: Standings): OverallStandings => {
         pointsBefore: 0,
         places: { played: null, author: null, wr: null, top5: null },
       };
-      if (place !== null) p.points += TOP + 1 - place;
-      if (before !== null) p.pointsBefore += TOP + 1 - before;
+      if (place !== null) p.points += pointsFor(place);
+      if (before !== null) p.pointsBefore += pointsFor(before);
       p.places[stat] = place;
       players.set(s.steamId, p);
     }
@@ -319,7 +321,7 @@ const overallStandings = (standings: Standings): OverallStandings => {
           steamId: p.steamId,
           persona: p.persona,
           points: p.points,
-          place: now.get(p.steamId) ?? 0,
+          place: 1 + all.filter((o) => o.points > p.points).length,
           placeBefore: inTop(before) ? before : null,
           places: p.places,
         };

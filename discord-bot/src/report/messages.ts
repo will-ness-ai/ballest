@@ -130,6 +130,10 @@ export const reportButtons: ReadonlyArray<APIActionRowComponent<APIButtonCompone
   },
 ];
 
+/** Places climbed since yesterday (negative: fallen), or "new" to a top 10. */
+const moveOf = (row: { readonly place: number; readonly placeBefore: number | null }) =>
+  row.placeBefore === null ? ("new" as const) : row.placeBefore - row.place;
+
 /**
  * What the standings image shows: the day, the counts and the four Workshop standings, each row
  * in its player's Chosen Skin out of `chosen` (every pick, as it stands when the report is built).
@@ -145,7 +149,7 @@ export const standingsImage = (r: Report, chosen: ChosenSkinPicks): StandingsIma
       name: row.persona,
       n: row.n,
       place: row.place,
-      move: row.placeBefore === null ? "new" : row.placeBefore - row.place,
+      move: moveOf(row),
       gain: row.gain,
     })),
     out: b.out.map((o) => o.persona),
@@ -157,7 +161,7 @@ export const standingsImage = (r: Report, chosen: ChosenSkinPicks): StandingsIma
       name: row.persona,
       points: row.points,
       place: row.place,
-      move: row.placeBefore === null ? "new" : row.placeBefore - row.place,
+      move: moveOf(row),
       places: STATS.map((stat) => ({ board: BOARD_SHORT[stat], place: row.places[stat] })),
     })),
     out: r.overall.out.map((o) => o.persona),
