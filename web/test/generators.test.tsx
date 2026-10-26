@@ -1,5 +1,6 @@
 // The Generators (spec #299): each makes a Prefab file from a few settings. Tested through
 // generate() and each Generator's controls, the way the page drives them.
+import { englishDataset } from "obscenity";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 
@@ -17,6 +18,7 @@ import {
   generate,
   generatorOf,
   pictureOf,
+  refuses,
   readPicture,
   rotOf,
   spawnsOf,
@@ -250,6 +252,58 @@ describe("the sign", () => {
 
   test("makes nothing from no text", () => {
     expect(generate("sign", valuesOf("sign", { text: "   " }))).toBeNull();
+  });
+
+  /* players spawn it into Maps others race on, so it won't letter a word from obscenity's
+     English list however it is disguised, nor a hate symbol or code. The words come from the
+     list, so none are written here; it keeps them in private metadata, with no public getter */
+  const phrases = (
+    englishDataset as unknown as { containers: Array<{ metadata?: { originalWord?: string } }> }
+  ).containers;
+  const listed = [...new Set(phrases.map((c) => c.metadata?.originalWord ?? ""))]
+    .filter(Boolean)
+    .filter((w) => refuses("sign", valuesOf("sign", { text: w })));
+  /* one word a character at a time (a phrase's words would run together, so it stays as typed) */
+  const spell = (sep: string) => (w: string) => (w.includes(" ") ? w : w.split("").join(sep)); // the list is ASCII;
+  const leet = (w: string) =>
+    w.replace(/[aeios]/g, (ch) => ({ a: "4", e: "3", i: "1", o: "0", s: "5" })[ch] ?? ch);
+  test("refuses obscenity's list, so the test has words to refuse", () => {
+    expect(listed.length).toBeGreaterThan(50);
+  });
+  test.each([
+    ["in capitals", (w: string) => w.toUpperCase()],
+    ["inside a sentence", (w: string) => `my ${w} map`],
+    ["spelled out", spell(" ")],
+    ["spelled out with dots", spell(".")],
+    ["spelled out with wide gaps", spell("    ")],
+    ["in l33t", leet],
+  ])("refuses every listed word %s, and makes nothing from it", (_, disguise) => {
+    const letters = listed.filter((w) => !refuses("sign", valuesOf("sign", { text: disguise(w) })));
+    expect(letters).toEqual([]);
+    expect(generate("sign", valuesOf("sign", { text: disguise(listed[0]) }))).toBeNull();
+  });
+
+  test.each(["1488", "1.4.8.8", "KKK rally", "\u5350", "\u534D", "\u0FD5"])(
+    "refuses the hate code or symbol %j",
+    (text) => {
+      expect(refuses("sign", valuesOf("sign", { text }))).toBe(true);
+    },
+  );
+
+  test.each([
+    "Welcome to my map",
+    "Scunthorpe",
+    "Bass Shop",
+    "assassin",
+    "Grape Escape",
+    "U S A",
+    "Ashkenazi",
+    "Room 14880",
+    "Cockpit view",
+    "Shiitake",
+  ])("letters clean text like %j, rude words inside a word included", (text) => {
+    expect(refuses("sign", valuesOf("sign", { text }))).toBe(false);
+    expect(generate("sign", valuesOf("sign", { text }))).not.toBeNull();
   });
 });
 

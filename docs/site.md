@@ -833,7 +833,7 @@ kept apart from the Generators so a page that only links one never loads them).
   `nature.ts` and `buildings.ts` hold each category's, `pieces.ts` what they share): each is its
   controls, its defaults and its
   builder, and `generate(key, values)` returns its Prefab file (or null with nothing to
-  make). The page draws whatever `controls(values)` returns, so a switch can hide another
+  make, or values it refuses). The page draws whatever `controls(values)` returns, so a switch can hide another
   control (the sign's wall colour with the wall off), and a new Generator is one entry.
   Each kind of tree is a Generator of its own (Tree, Pine, Block tree). Pieces are the editor's
   cube, sphere, cylinder, cone and pyramid, placed by their bottom centre (a box can also be
@@ -856,6 +856,14 @@ kept apart from the Generators so a page that only links one never loads them).
   behind the same `Lettering`, so `lib/` stays pure. The text wraps at whatever line length
   makes the letters biggest inside the wall. Fonts the site doesn't load already come from
   Google Fonts on the sign's page only.
+- **Text the sign won't letter** (`lib/rude-text.ts`, Will asked): the words on `obscenity`'s
+  English list, which reads through l33t, repeated letters and look-alike characters and lets a
+  clean word holding a rude one through (Scunthorpe, assassin, and our Cockpit); the same words
+  spelled out a letter at a time; and swastikas, 1488 and KKK. No rude word is written in our
+  code or tests (Will, 2026-10-24): a missing one goes upstream to `obscenity`, and the tests
+  draw their words from its list. The sign `refuses` such text, so `generate` returns null and
+  the page says "Keep it friendly" with Download off. Signs are download-only, so a list is the
+  whole check: no moderation service. It adds about 16 KB gzipped to the Make your own pages.
 - **Piece fonts** (`lib/generators/piece-fonts.ts`, R23 asked): Graduate (capitals) and Leker
   (lower case) are alphabets R23 built by hand from track pieces and uploaded as Prefabs. Each
   glyph is its own pieces, stood up and scaled to fit, not cells, so there is no Detail. Their

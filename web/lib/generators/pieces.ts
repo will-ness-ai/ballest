@@ -341,6 +341,8 @@ export interface Generator {
   defaults: Values;
   /* the controls to show for these values (a switch can hide another's) */
   controls: (v: Values) => Array<Control>;
+  /* true when these values would letter text it won't (lib/rude-text.ts): generate returns null */
+  refuses?: (v: Values) => boolean;
   build: (v: Values, lettering: Lettering) => PrefabFile | null;
 }
 

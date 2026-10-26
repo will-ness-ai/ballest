@@ -3,6 +3,7 @@
 // piece fonts with their own pieces (lib/generators/piece-fonts.ts).
 import { cased, wrapAt, type Lettering, type Measure } from "../generator-letters";
 import { isPieceFont, pieceLettering } from "./piece-fonts";
+import { isRude } from "../rude-text";
 import {
   FRONT,
   cellsOf,
@@ -76,6 +77,7 @@ export const sign: Generator = {
     ...(v.wall ? [colour("back", "Wall")] : []),
     colour("front", "Letters"),
   ],
+  refuses: (v) => isRude(String(v.text)),
   build: (v, lettering) => {
     const W = metresIn(v, "width");
     const H = metresIn(v, "height");

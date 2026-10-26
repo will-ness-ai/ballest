@@ -126,6 +126,8 @@ export const STATES = [
   { name: "you-all", page: "you", click: ".yl-more" },
   { name: "map3d", page: "map-3d", click: ".m3d-open" },
   { name: "skin-pick", page: "player-own", click: ".skp-edit" },
+  // a Sign whose text it won't letter: its note in place of the model
+  { name: "refused", page: "prefab-sign", click: ".gen textarea", type: " 1488" },
   // the Sign in R23's first piece font, its credit under the fonts
   { name: "piece-font", page: "prefab-sign", click: ".gen-fonts button.built" },
   // the site search: the desktop's field with nothing typed (the jump-to links) and with hits
