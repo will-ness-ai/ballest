@@ -8,7 +8,7 @@ export const SKILLS = ["code-review", "codebase-design"];
 const GH_PR = /(?<![\w./-])gh\s+(?:(?:-R|--repo)[\s=]+(\S+)\s+)?pr\s+(merge|ready)\b/g;
 const API = /(?<![\w./-])(gh\s+api|curl)\b/g;
 // `pnpm pr land <n>` (web/scripts/pr.mjs) marks ready and squash-merges from inside the script
-const PNPM_LAND = /(?<![\w./-])pnpm\s+(?:(?:--silent|-s)\s+)?pr\s+land\s+['"]?#?(\d+)\b/g;
+const LAND = /(?<![\w./-])(pnpm|node)\s/g;
 const ROUTE =
   /repos\/([^/\s'"]+\/[^/\s'"]+)\/pulls\/(\d+)\/(?:merge|ccr\/ready_for_review|ccr\/auto_merge)\b/;
 const MUTATION =
@@ -46,12 +46,13 @@ export function mergeTargets(tool, input) {
   const found = [
     ...[...command.matchAll(GH_PR)].map((m) => [m.index, ghPr(command, m)]),
     ...[...command.matchAll(API)].map((m) => [m.index, apiCall(command, m)]),
-    ...[...command.matchAll(PNPM_LAND)].map((m) => [m.index, { repo: null, number: Number(m[1]) }]),
+    ...[...command.matchAll(LAND)].map((m) => [m.index, landCall(command, m)]),
   ];
   return found
     .filter(([, t]) => t)
     .sort(([a], [b]) => a - b)
-    .map(([at, t]) => (t.repo ? t : withCd(t, command, at)));
+    .map(([at, t]) => (t.repo ? t : withCd(t, command, at)))
+    .map(({ dir, ...t }) => (dir ? { ...t, cd: joinCd(t.cd ?? "", dir) } : t));
 }
 
 /* the text with each quoted string as one bare word, so its spaces and separators don't split it */
@@ -104,6 +105,31 @@ function apiCall(command, m) {
   const squash = /merge_method[\\"'_\s]*[:=][\\"'_\s]*squash\b/.test(call);
   const marked = /\/pulls\/\d+\/merge\b/.test(call) && !squash ? { unsquashed: true } : {};
   return { repo: placeholder ? null : route[1], number: Number(route[2]), ...marked };
+}
+
+/* `pnpm [--silent|-s|run|--dir <d>] pr land <n>` or `node <..>/scripts/pr.mjs land <n>`: the
+   PR it lands, with `dir` for a --dir or -C (pr.mjs squash-merges, so never unsquashed) */
+function landCall(command, m) {
+  const call = flatten(command.slice(m.index + m[0].length)).split(SEPARATOR)[0];
+  const tokens = call.trim().split(/\s+/).map(unquote).filter(Boolean);
+  let dir = null;
+  let i = 0;
+  if (m[1] === "node") {
+    if (!/(?:^|\/)scripts\/pr\.mjs$/.test(tokens[0] ?? "")) return null;
+    i = 1;
+  } else {
+    for (; i < tokens.length && tokens[i] !== "pr"; i++) {
+      if (/^(?:--dir|-C)$/.test(tokens[i])) dir = tokens[++i];
+      else if (!/^(?:--silent|-s|run|--dir=.*)$/.test(tokens[i])) return null;
+      else if (tokens[i].startsWith("--dir=")) dir = tokens[i].slice(6);
+    }
+    i++;
+  }
+  if (tokens[i] !== "land" || tokens.includes("--help")) return null;
+  const rest = tokens.slice(i + 1).filter((t, j, all) => all[j - 1] !== "--timeout");
+  const n = rest.find((t) => /^#?\d+$/.test(t));
+  if (n === undefined) return null;
+  return { repo: null, number: Number(n.replace("#", "")), ...(dir ? { dir } : {}) };
 }
 
 /* where `cd to` lands from `from`: an absolute path (or ~, $HOME) starts again */

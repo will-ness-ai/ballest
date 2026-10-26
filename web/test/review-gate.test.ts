@@ -40,6 +40,11 @@ describe("mergeTargets", () => {
     expect(bash("pnpm --silent pr land 287")).toEqual(pr(287));
     expect(bash("pnpm pr land 287 --timeout 300")).toEqual(pr(287));
     expect(bash("cd /w/ballest && pnpm -s pr land 9")).toEqual(pr(9, { cd: "/w/ballest" }));
+    expect(bash("pnpm --silent pr land --timeout 300 287")).toEqual(pr(287));
+    expect(bash("pnpm run pr land 287")).toEqual(pr(287));
+    expect(bash("pnpm --dir /w/ballest pr land 287")).toEqual(pr(287, { cd: "/w/ballest" }));
+    expect(bash("cd /w && pnpm -C ballest pr land 287")).toEqual(pr(287, { cd: "/w/ballest" }));
+    expect(bash("node web/scripts/pr.mjs land 287")).toEqual(pr(287));
     expect(bash("pnpm --silent pr land --help")).toEqual([]);
     expect(bash("pnpm --silent pr wait 287")).toEqual([]);
   });

@@ -154,20 +154,31 @@ const pull = (slug, n) =>
       : e;
   });
 
-/* the latest status of the preview Vercel deployed for `sha` ({ state, url }), or null */
+/* `sha`'s Vercel preview ({ state, url }) from Vercel's commit status, which a build that
+   vercel.json's ignoreCommand skips gets too (success, "Canceled by Ignored Build Step"), or
+   null before Vercel has posted one; the URL is the deployment's once it has one */
 async function preview(slug, sha) {
+  const statuses = await api(`repos/${slug}/commits/${sha}/statuses?per_page=100`);
+  const status = statuses.find((x) => x.context === "Vercel");
+  if (!status) return null;
+  if (/Ignored Build Step/i.test(status.description ?? ""))
+    return { state: status.state, url: "(skipped: no site file changed)" };
+  if (status.state !== "success") return { state: status.state, url: status.target_url };
   const [dep] = await api(`repos/${slug}/deployments?sha=${sha}&per_page=1`);
-  if (!dep) return null;
-  const [status] = await api(`repos/${slug}/deployments/${String(dep.id)}/statuses?per_page=1`);
-  return { state: status?.state ?? "pending", url: status?.environment_url || status?.target_url };
+  const [done] = dep
+    ? await api(`repos/${slug}/deployments/${String(dep.id)}/statuses?per_page=1`)
+    : [];
+  return { state: "success", url: done?.environment_url || status.target_url };
 }
 
 /* `sha`'s CI by ciState, with its preview; a green head is asked twice, POLL apart, and counts
    only when nothing new started in between */
 async function headCi(slug, sha) {
   const look = async () => {
-    const pages = await api(`repos/${slug}/commits/${sha}/check-runs?per_page=100`, { all: true });
-    const pre = await preview(slug, sha);
+    const [pages, pre] = await Promise.all([
+      api(`repos/${slug}/commits/${sha}/check-runs?per_page=100`, { all: true }),
+      preview(slug, sha),
+    ]);
     return {
       ci: ciState(
         pages.flatMap((p) => p.check_runs),
@@ -214,21 +225,25 @@ function usage(command, message) {
   process.exit(2);
 }
 
-/* this branch's open PR's number, or a Fail */
+/* this checkout's branch and the PR open from it, if any */
 async function branchPr(slug) {
   const branch = await currentBranch();
   const [pr] = branch
     ? await api(`repos/${slug}/pulls?head=${slug.split("/")[0]}:${branch}&state=open`)
     : [];
-  if (!pr)
-    throw new Fail(`no PR open from ${branch || "a detached HEAD"}`, "pnpm --silent pr wait <n>");
-  return String(pr.number);
+  return { branch, pr };
 }
+const noneFrom = (branch) => `none open from ${branch || "a detached HEAD"}`;
 
 async function wait(args) {
   const { n: given, timeout } = parse("wait", args);
   const slug = repo();
-  const n = given ?? (await branchPr(slug));
+  let n = given;
+  if (n === undefined) {
+    const { branch, pr } = await branchPr(slug);
+    if (!pr) throw new Fail(`no PR ${noneFrom(branch)}`, "pnpm --silent pr wait <n>");
+    n = String(pr.number);
+  }
   const deadline = Date.now() + timeout * 1000;
   for (;;) {
     const pr = await pull(slug, n);
@@ -253,12 +268,15 @@ async function wait(args) {
   }
 }
 
-/* marks `n` ready: gh's GraphQL where it works, else the cloud proxy's REST route */
+/* marks `n` ready: gh's GraphQL where it works, else the cloud proxy's REST route; when
+   neither does, the Fail carries both errors */
 async function markReady(slug, n) {
   try {
     await run("gh", ["pr", "ready", n, "-R", slug]);
-  } catch {
-    await write("POST", `repos/${slug}/pulls/${n}/ccr/ready_for_review`);
+  } catch (e) {
+    await write("POST", `repos/${slug}/pulls/${n}/ccr/ready_for_review`).catch((f) => {
+      throw new Fail(`can't mark #${n} ready: gh pr ready: ${firstLine(e)}; ${f.message}`);
+    });
   }
 }
 
@@ -268,67 +286,95 @@ async function land(args) {
   const slug = repo();
   const deadline = Date.now() + timeout * 1000;
   const did = [];
+  const asked = {};
+  /* what landing did and why it stopped, then the commands that come next; exits 1 */
+  const stop = (sha, lines, next) => {
+    say(
+      [
+        `head: ${sha.slice(0, 7)} (#${n})`,
+        ...(did.length ? [`did: ${did.join(", ")}`] : []),
+        ...lines,
+        ...help(next),
+      ].join("\n"),
+    );
+    process.exit(1);
+  };
   for (;;) {
     const pr = await pull(slug, n);
-    const sha = pr.head.sha;
-    const { behind_by: behind } = await api(`repos/${slug}/compare/${pr.base.ref}...${sha}`);
-    const { ci, preview: pre } = pr.merged ? { ci: { state: "green" } } : await headCi(slug, sha);
-    const next = landStep(pr, behind, ci);
+    const { sha, ref } = pr.head;
+    const base = pr.base.ref;
+    const resolve = [
+      `git fetch origin ${base} && git merge origin/${base}   # on ${ref}; resolve, push`,
+      `pnpm --silent pr land ${n}`,
+    ];
+    const [{ behind_by: behind }, { ci, preview: pre }] = pr.merged
+      ? [{ behind_by: 0 }, { ci: { state: "green" } }]
+      : await Promise.all([api(`repos/${slug}/compare/${base}...${sha}`), headCi(slug, sha)]);
+    const next = landStep(pr, behind, ci, asked);
     if (next.do === "done") {
       say(`pr: #${n} merged${did.length ? "" : " (no-op)"}`);
       return;
     }
-    if (next.do === "stop") {
-      say(`head: ${sha.slice(0, 7)} (#${n})`);
-      if (did.length) say(`did: ${did.join(", ")}`);
-      say(`error: ${next.why}`);
-      say(
-        next.why.startsWith("red")
-          ? `help[1]:\n  pnpm --silent pr why ${n}`
-          : next.why.startsWith("conflicts")
-            ? `help[2]:\n  git fetch origin ${pr.base.ref} && git merge origin/${pr.base.ref}   # on ${pr.head.ref}; resolve, push\n  pnpm --silent pr land ${n}`
-            : `help[1]:\n  pnpm --silent pr why ${n}`,
+    if (next.do === "stop")
+      stop(
+        sha,
+        [`error: ${next.why}`],
+        {
+          conflict: resolve,
+          red: [`pnpm --silent pr why ${n}`],
+          closed: ["pnpm --silent pr   # this branch's PR"],
+        }[next.on],
       );
-      process.exit(1);
-    }
+    if (next.do !== "merge" && Date.now() >= deadline)
+      stop(
+        sha,
+        [`${ciLine(ci)} (still, after ${String(timeout)}s)`, previewLine(pre)],
+        [`pnpm --silent pr land ${n}`],
+      );
     if (next.do === "wait") {
-      if (Date.now() >= deadline) {
-        say(`head: ${sha.slice(0, 7)} (#${n})`);
-        if (did.length) say(`did: ${did.join(", ")}`);
-        say(`${ciLine(ci)} (still, after ${String(timeout)}s)`);
-        say(previewLine(pre));
-        say(`help[1]:\n  pnpm --silent pr land ${n}`);
-        process.exit(1);
-      }
       note(ciLine(ci));
       await sleep(POLL);
-      continue;
-    }
-    if (next.do === "update") {
-      note(`bringing ${pr.base.ref} in (${String(behind)} behind)`);
-      await write("PUT", `repos/${slug}/pulls/${n}/update-branch`, { expected_head_sha: sha });
-      did.push(`merged ${pr.base.ref} in`);
+    } else if (next.do === "update") {
+      note(`bringing ${base} in (${String(behind)} behind)`);
+      await write("PUT", `repos/${slug}/pulls/${n}/update-branch`, {
+        expected_head_sha: sha,
+      }).catch((e) =>
+        stop(sha, [`error: GitHub couldn't bring ${base} in: ${e.message}`], resolve),
+      );
+      asked.updated = sha;
+      did.push(`merged ${base} in`);
       await sleep(POLL);
-      continue;
-    }
-    if (next.do === "ready") {
+    } else if (next.do === "ready") {
       await markReady(slug, n);
+      asked.readied = true;
       did.push("marked ready");
-      continue;
+    } else {
+      const merged = await write("PUT", `repos/${slug}/pulls/${n}/merge`, {
+        merge_method: "squash",
+        sha,
+      }).catch((e) =>
+        stop(
+          sha,
+          [`error: GitHub refused the merge: ${e.message}`],
+          [`pnpm --silent pr wait ${n}`, `pnpm --silent pr land ${n}`],
+        ),
+      );
+      say(
+        [
+          `pr: #${n} merged as ${String(merged.sha).slice(0, 7)}`,
+          `did: ${[...did, "squash-merged"].join(", ")}`,
+          previewLine(pre),
+          ...help([
+            `git fetch origin ${base} && git checkout -B ${ref} origin/${base}   # follow-up work starts from ${base}`,
+          ]),
+        ].join("\n"),
+      );
+      return;
     }
-    const merged = await write("PUT", `repos/${slug}/pulls/${n}/merge`, {
-      merge_method: "squash",
-      sha,
-    });
-    say(`pr: #${n} merged as ${String(merged.sha).slice(0, 7)}`);
-    say(`did: ${[...did, "squash-merged"].join(", ")}`);
-    say(previewLine(pre));
-    say(
-      `help[1]:\n  git fetch origin ${pr.base.ref} && git checkout -B ${pr.head.ref} origin/${pr.base.ref}   # follow-up work starts from ${pr.base.ref}`,
-    );
-    return;
   }
 }
+
+const help = (cmds) => [`help[${String(cmds.length)}]:`, ...cmds.map((c) => `  ${c}`)];
 
 async function currentBranch() {
   return run("git", ["branch", "--show-current"]).then(
@@ -341,20 +387,21 @@ async function currentBranch() {
 
 async function home() {
   const slug = repo();
-  const branch = await currentBranch();
-  const prs = branch
-    ? await api(`repos/${slug}/pulls?head=${slug.split("/")[0]}:${branch}&state=open`)
-    : [];
+  const { branch, pr } = await branchPr(slug);
   say(
-    prs.length
-      ? `pr: #${String(prs[0].number)} ${prs[0].draft ? "draft" : "open"} (${branch})`
-      : `pr: none open from ${branch || "a detached HEAD"}`,
+    pr
+      ? `pr: #${String(pr.number)} ${pr.draft ? "draft" : "open"} (${branch})`
+      : `pr: ${noneFrom(branch)}`,
   );
   say(HELP[""]);
-  if (prs.length) {
-    const n = String(prs[0].number);
+  if (pr) {
+    const n = String(pr.number);
     say(
-      `help[3]:\n  pnpm --silent pr wait ${n}\n  pnpm --silent pr why ${n}\n  pnpm --silent pr land ${n}`,
+      help([
+        `pnpm --silent pr wait ${n}`,
+        `pnpm --silent pr why ${n}`,
+        `pnpm --silent pr land ${n}`,
+      ]).join("\n"),
     );
   }
 }

@@ -29,16 +29,20 @@ export function ciState(runs, preview) {
 
 /**
  * Landing's next move for a PR (as `pulls/<n>` gives it), `behind` commits behind its base, with
- * its head's CI from ciState: "done" once merged, "stop" with why on what only a fix clears,
- * "update" to bring the base in, "wait" for CI, "ready" to mark a draft ready, then "merge".
+ * its head's CI from ciState: "done" once merged; "stop" on what only a fix clears, with `on`
+ * (red, conflict or closed) and `why`; "update" to bring the base in; "wait" for CI; "ready" to
+ * mark a draft ready; then "merge".
+ * `asked` is what landing already asked GitHub for (`updated`: the head it asked update-branch
+ * about, `readied`: marked ready), so it waits for that to show rather than asking again.
  */
-export function landStep(pr, behind, ci) {
+export function landStep(pr, behind, ci, asked = {}) {
   if (pr.merged) return { do: "done" };
-  if (pr.state !== "open") return { do: "stop", why: "closed unmerged" };
+  if (pr.state !== "open") return { do: "stop", on: "closed", why: "closed unmerged" };
   if (pr.mergeable_state === "dirty")
-    return { do: "stop", why: `conflicts with ${pr.base?.ref ?? "main"}` };
-  if (behind > 0) return { do: "update" };
-  if (ci.state === "red") return { do: "stop", why: `red: ${ci.names.join(", ")}` };
+    return { do: "stop", on: "conflict", why: `conflicts with ${pr.base?.ref ?? "main"}` };
+  if (behind > 0) return { do: asked.updated === pr.head.sha ? "wait" : "update" };
+  if (ci.state === "red") return { do: "stop", on: "red", why: `red: ${ci.names.join(", ")}` };
   if (ci.state !== "green") return { do: "wait" };
-  return { do: pr.draft ? "ready" : "merge" };
+  if (pr.draft) return { do: asked.readied ? "wait" : "ready" };
+  return { do: "merge" };
 }

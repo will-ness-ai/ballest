@@ -45,8 +45,8 @@ describe("a head's CI", () => {
 describe("landing a PR", () => {
   const open = { state: "open", merged: false, draft: false, mergeable_state: "clean" };
   const green = { state: "green", checks: 9 };
-  const step = (pr: object, behind: number, ci: object) =>
-    landStep({ ...open, ...pr }, behind, ci) as { do: string };
+  const step = (pr: object, behind: number, ci: object, asked = {}) =>
+    landStep({ ...open, head: { sha: "abc" }, ...pr }, behind, ci, asked) as { do: string };
 
   test("merges a green, up-to-date PR, marking it ready first when it's a draft", () => {
     expect(step({}, 0, green).do).toBe("merge");
@@ -59,16 +59,29 @@ describe("landing a PR", () => {
     expect(step({}, 0, { state: "none" }).do).toBe("wait");
   });
 
+  test("waits instead of asking GitHub twice for the same move", () => {
+    // update-branch answers 202 and merges later; a ready draft can still read as a draft
+    expect(step({}, 3, green, { updated: "abc" }).do).toBe("wait");
+    expect(step({}, 3, green, { updated: "old" }).do).toBe("update");
+    expect(step({ draft: true }, 0, green, { readied: true }).do).toBe("wait");
+  });
+
   test("stops on what only a fix can clear", () => {
     expect(step({}, 0, { state: "red", names: ["build"] })).toEqual({
       do: "stop",
+      on: "red",
       why: "red: build",
     });
     expect(step({ mergeable_state: "dirty" }, 2, green)).toEqual({
       do: "stop",
+      on: "conflict",
       why: "conflicts with main",
     });
-    expect(step({ state: "closed" }, 0, green)).toEqual({ do: "stop", why: "closed unmerged" });
+    expect(step({ state: "closed" }, 0, green)).toEqual({
+      do: "stop",
+      on: "closed",
+      why: "closed unmerged",
+    });
   });
 
   test("is a no-op once merged", () => {
