@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  FOLLOW_UP_LINES,
   linesChanged,
   loadable,
   mergeTargets,
@@ -207,20 +206,21 @@ describe("unreviewed", () => {
     });
   });
 
-  test("a small follow-up after a review needs no new run", () => {
+  test("follow-ups need no new run until they are half the PR's lines", () => {
     const records = [
       { skill: "code-review", sha: "a" },
       { skill: "codebase-design", sha: "a" },
     ];
-    const small: Record<string, number> = { b: 10, c: FOLLOW_UP_LINES - 11 };
-    expect(unreviewed(["a", "b", "c"], records, isAncestor, (c: string) => small[c] ?? 0)).toEqual({
-      "code-review": [],
-      "codebase-design": [],
-    });
-    const atLimit: Record<string, number> = { b: 10, c: FOLLOW_UP_LINES - 10 };
-    expect(
-      unreviewed(["a", "b", "c"], records, isAncestor, (c: string) => atLimit[c] ?? 0),
-    ).toEqual({
+    /* a reviewed 300-line commit, then fixes */
+    const run = (b: number, c: number) => {
+      const lines: Record<string, number> = { a: 300, b, c };
+      return unreviewed(["a", "b", "c"], records, isAncestor, (x: string) => lines[x]);
+    };
+    expect(run(100, 199)).toEqual({ "code-review": [], "codebase-design": [] });
+    expect(run(100, 200)).toEqual({ "code-review": ["b", "c"], "codebase-design": ["b", "c"] });
+    /* a binary file the run saw makes no follow-up small */
+    const binary: Record<string, number> = { a: Infinity, b: 5000, c: 0 };
+    expect(unreviewed(["a", "b", "c"], records, isAncestor, (x: string) => binary[x])).toEqual({
       "code-review": ["b", "c"],
       "codebase-design": ["b", "c"],
     });
