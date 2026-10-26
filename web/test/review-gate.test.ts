@@ -142,19 +142,74 @@ test("a skill is loadable from the project's or the user's skills, or built in",
   expect(loadable("code-review", dirs, has())).toBe(true);
 });
 
-test("a skill this session's Skill tool called unknown isn't loadable, whatever the files say", () => {
-  // a project thread whose skills were linked, yet its Skill tool never read them (PR #368)
-  const transcript = [
-    '{"type":"user","message":{"content":[{"type":"tool_result","content":"<tool_use_error>Unknown skill: tdd. Did you mean cd?</tool_use_error>","is_error":true}]}}',
-    '{"type":"user","message":{"content":[{"type":"tool_result","content":"<tool_use_error>Unknown skill: codebase-design</tool_use_error>","is_error":true}]}}',
-  ].join("\n");
-  const refused = refusedSkills(transcript);
-  expect([...refused].sort()).toEqual(["codebase-design", "tdd"]);
+describe("a skill this session's Skill tool called unknown", () => {
+  /* a transcript's lines: the Skill tool asked for `skill` (id `id`), and its result */
+  const asked = (id: string, skill: string) =>
+    JSON.stringify({
+      type: "assistant",
+      message: { content: [{ type: "tool_use", id, name: "Skill", input: { skill } }] },
+    });
+  const answered = (id: string, text: string, error = true) =>
+    JSON.stringify({
+      type: "user",
+      message: {
+        content: [{ type: "tool_result", tool_use_id: id, content: text, is_error: error }],
+      },
+    });
+  const unknown = (id: string, skill: string) =>
+    answered(id, `<tool_use_error>Unknown skill: ${skill}</tool_use_error>`);
   const dirs = ["/home/user/.claude/skills"];
   const all = () => true;
-  expect(loadable("codebase-design", dirs, all, refused)).toBe(false);
-  expect(loadable("grill-design", dirs, all, refused)).toBe(true);
-  expect(refusedSkills("")).toEqual(new Set());
+
+  test("isn't loadable, whatever the files say", () => {
+    // a project thread whose skills were linked, yet its Skill tool never read them (PR #368)
+    const refused = refusedSkills(
+      [
+        asked("a", "tdd"),
+        unknown("a", "tdd"),
+        asked("b", "codebase-design"),
+        unknown("b", "codebase-design"),
+      ].join("\n"),
+    );
+    expect([...refused].sort()).toEqual(["codebase-design", "tdd"]);
+    expect(loadable("codebase-design", dirs, all, refused)).toBe(false);
+    expect(loadable("grill-design", dirs, all, refused)).toBe(true);
+    expect(refusedSkills("")).toEqual(new Set());
+  });
+
+  test("only by the Skill tool's own answer, not text that quotes it", () => {
+    const quoted = JSON.stringify({
+      type: "user",
+      message: {
+        content: [
+          { type: "tool_result", tool_use_id: "r", content: "Unknown skill: codebase-design" },
+        ],
+      },
+    });
+    expect(refusedSkills([quoted, "Unknown skill: codebase-design"].join("\n"))).toEqual(new Set());
+  });
+
+  test("by the name it was called with, and not once it has run since", () => {
+    const refused = refusedSkills(
+      [
+        asked("a", "foo:codebase-design"),
+        unknown("a", "foo:codebase-design"),
+        asked("b", "tdd"),
+        unknown("b", "tdd"),
+        asked("c", "tdd"),
+        answered("c", "Launching skill: tdd", false),
+      ].join("\n"),
+    );
+    expect(loadable("codebase-design", dirs, all, refused)).toBe(true);
+    expect(loadable("tdd", dirs, all, refused)).toBe(true);
+  });
+
+  test("the built-in code-review stays loadable", () => {
+    const refused = refusedSkills(
+      [asked("a", "code-review"), unknown("a", "code-review")].join("\n"),
+    );
+    expect(loadable("code-review", dirs, () => false, refused)).toBe(true);
+  });
 });
 
 describe("unsquashed merges", () => {

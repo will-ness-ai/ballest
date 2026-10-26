@@ -136,16 +136,41 @@ export const skillName = (name) => String(name).split(":").pop();
 const BUILT_IN = ["code-review"];
 
 /* Whether this session's Skill tool can find `skill`: built in, or a SKILL.md in one of the
-   skill folders it read at its start (`dirs`), unless the tool has already called it unknown
+   skill folders it read at its start (`dirs`), unless the tool has called it unknown
    (`refused`): a project thread's linked skills can still be missing from it (PR #368).
    `exists(path)` is the file system's. */
 export const loadable = (skill, dirs, exists, refused = new Set()) =>
-  !refused.has(skill) &&
-  (BUILT_IN.includes(skill) || dirs.some((d) => exists(`${d}/${skill}/SKILL.md`)));
+  BUILT_IN.includes(skill) ||
+  (!refused.has(skill) && dirs.some((d) => exists(`${d}/${skill}/SKILL.md`)));
 
-/* the skills a session's transcript shows its Skill tool calling unknown */
-export const refusedSkills = (transcript) =>
-  new Set([...transcript.matchAll(/Unknown skill: ([\w:-]+)/g)].map((m) => skillName(m[1])));
+/* The skills a session's transcript (JSONL) shows its Skill tool refusing as unknown, by the
+   name it was called with, and not run since. Only the Skill tool's own results count, so a
+   file or a command's output that quotes the error doesn't. */
+export function refusedSkills(transcript) {
+  const asked = new Map();
+  const refused = new Set();
+  for (const line of transcript.split("\n")) {
+    if (!line.includes('"Skill"') && !line.includes("tool_result")) continue;
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const content = entry?.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content)
+      if (part?.type === "tool_use" && part.name === "Skill")
+        asked.set(part.id, String(part.input?.skill ?? ""));
+      else if (part?.type === "tool_result" && asked.has(part.tool_use_id)) {
+        const skill = asked.get(part.tool_use_id);
+        const text = typeof part.content === "string" ? part.content : JSON.stringify(part.content);
+        if (part.is_error && text.includes(`Unknown skill: ${skill}`)) refused.add(skill);
+        else if (!part.is_error) refused.delete(skill);
+      }
+  }
+  return refused;
+}
 
 // A follow-up this small, after both skills have run on the PR, needs no new run (Will,
 // 2026-10-18: each round of review fixes was costing a whole review round).
