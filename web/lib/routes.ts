@@ -8,7 +8,6 @@ import {
   eventOfBoard,
   type Campaign,
 } from "./campaigns";
-import { circuitBoard } from "./circuit";
 import { PFID, STEAM_ID, isSteamId, mapPfidOf } from "./rules";
 import type { ShareKind } from "./share";
 
@@ -34,25 +33,6 @@ const oneOf =
 export const isPlayerTab = oneOf(PLAYER_TABS);
 export const isPlScope = oneOf(PL_SCOPES);
 export const isPlSort = oneOf(PL_SORTS);
-
-/* the tabs across the top: the Workshop leads, the Daily follows it, then the Circuit and
-   Players, and the Prefabs come last */
-export const WORKSHOP_GROUP = "Workshop";
-/* every season's boards sit under the one Circuit tab, with the seasons as a switch inside */
-export const CIRCUIT_TAB = "Circuit";
-export const DAILY_TAB = "Daily";
-export const PLAYERS_TAB = "Players";
-export const PREFABS_TAB = "Prefabs";
-
-/* the tab a path belongs to; a player's page and a head to head belong to none */
-export function tabOfPath(path: string): string | null {
-  if (path === "/" || /^\/(maps?|campaigns?)(\/|$)/.test(path)) return WORKSHOP_GROUP;
-  if (/^\/daily(\/|$)/.test(path)) return DAILY_TAB;
-  if (/^\/(players|you)(\/|$)/.test(path)) return PLAYERS_TAB;
-  if (/^\/prefabs?(\/|$)/.test(path)) return PREFABS_TAB;
-  const board = /^\/board\/([^/]+)/.exec(path);
-  return board && circuitBoard(decodeURIComponent(board[1])) ? CIRCUIT_TAB : null;
-}
 
 export const homeHref = () => "/";
 
@@ -135,11 +115,10 @@ export const isPrefabSlug = (s: string | undefined): s is string =>
   !!s && s.length <= 64 && WHOLE_PREFAB_SLUG.test(s);
 export const prefabsHref = () => "/prefabs";
 export const newPrefabHref = () => "/prefabs/new";
-/* the Generate your own tab and a Generator's page. GENERATORS in lib/generators/index.ts lists
+/* Make your own and a Generator's page. GENERATORS in lib/generators/index.ts lists
    the same keys in the same order; they are kept apart so a page that only links one never
    loads them */
 export const GENERATOR_KEYS = [
-  "qr",
   "sign",
   "arrow",
   "pixel-art",
@@ -193,6 +172,14 @@ export const prefabLimitHref = (id: string) => (isSteamId(id) ? "/api/prefab-lim
 export const chosenSkinApiHref = () => "/api/me/skin";
 
 export const mapsHref = (view?: string | null) => "/maps" + (view ? "/" + view : "");
+/* All maps narrowed to the Maps whose title or maker contains `q` (the site search's "All N
+   Maps matching") */
+export const MAPS_QUERY = "q";
+export const mapsSearchHref = (q: string) =>
+  mapsHref() + "?" + new URLSearchParams({ [MAPS_QUERY]: q }).toString();
+
+/* the site search's read (app/api/search) */
+export const searchApiHref = (q: string) => "/api/search?" + new URLSearchParams({ q }).toString();
 
 /* a Daily's date as its path names it: a real day, YYYY-MM-DD */
 export const DAILY_DATE = /\d{4}-\d{2}-\d{2}/;
@@ -224,6 +211,11 @@ export const sitemapHref = () => "/sitemap.xml";
 export const signInHref = (next: string) => "/api/auth/steam?next=" + encodeURIComponent(next);
 /* sign out (a POST), coming back to the path `next` */
 export const signOutHref = (next: string) => "/api/auth/signout?next=" + encodeURIComponent(next);
+
+/* the link page for a link request Multiballs wrote (ADR 0014), and its confirm (a POST) */
+export const statsLinkHref = (token: string) => "/discord/link?t=" + encodeURIComponent(token);
+export const statsLinkConfirmHref = (token: string) =>
+  "/api/discord/link?t=" + encodeURIComponent(token);
 
 /* The single-page site's #/ routes, each to the path that replaces it, or null for a hash
    that named nothing (the page then stays where it is). */

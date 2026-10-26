@@ -221,6 +221,11 @@ export const sameRefine = (a: Refine, b: Refine) =>
 const optKeep = (k: FilterKey, v: string): Keep =>
   (FILTERS[k].opts as Record<string, readonly [string, Keep]>)[v][1];
 export const activeFilters = (f: Refine) => FILTER_KEYS.filter((k) => f[k] !== "any");
+/* the filters the reader set in Refine on top of `view`'s preset */
+export const addedFilters = (f: Refine, view: string | null) => {
+  const preset = refineFor(view);
+  return activeFilters(f).filter((k) => f[k] !== preset[k]);
+};
 export const filteredMaps = (maps: ReadonlyArray<MapCard>, f: Refine, now: number) => {
   const on = activeFilters(f).map((k) => optKeep(k, f[k]));
   return maps.filter((m) => on.every((keep) => keep(m, now))).sort(SORTS[f.sort].cmp);
@@ -284,6 +289,10 @@ export const HIDDEN: Record<string, string | undefined> = {
   3623648768: "Can't be finished on the current version of the game.",
 };
 
+/* a Map's, or a Steam collection's, own page on the Steam Workshop, where a player subscribes */
+export const workshopHref = (pfid: string) =>
+  `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
+
 const REPORT_URL = "https://github.com/will-ness-ai/ballest/issues/new";
 export const reportHref = (m: { title: string; pfid: string }) =>
   REPORT_URL +
@@ -334,9 +343,12 @@ export const whyOf = (p: Pick, now: number) =>
 
 /* the homepage search: every Map with a time whose title or creator contains q, most runs
    first */
-export const searchMaps = (maps: ReadonlyArray<MapCard>, q: string) => {
+export const searchMaps = (maps: ReadonlyArray<MapCard>, q: string) =>
+  maps.filter(mapMatches(q)).sort(SORTS.runs.cmp);
+
+/* whether a Map's title or creator contains q: the homepage search's test, and All maps' when
+   the site search's link narrows it (/maps?q=) */
+export function mapMatches(q: string): (m: MapCard) => boolean {
   const t = q.trim().toLowerCase();
-  return maps
-    .filter((m) => (m.title + " " + m.creator).toLowerCase().includes(t))
-    .sort(SORTS.runs.cmp);
-};
+  return (m) => (m.title + " " + m.creator).toLowerCase().includes(t);
+}

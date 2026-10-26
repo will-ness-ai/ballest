@@ -8,10 +8,9 @@ import {
   MessageFlags,
   SeparatorSpacingSize,
 } from "discord.js";
+import { SITE_URL, workshopUrl } from "../links.js";
 import { cardText, closedText, type DailyView } from "./card.js";
 
-/** The site and the Workshop: links only, so no press ever reaches the bot. */
-const SITE_URL = "https://ballestrecords.com";
 const ACCENT = 0x9ee34b;
 /** The Workshop screenshot's name as attached to the card. */
 const PREVIEW_FILE = "preview.jpg";
@@ -19,9 +18,6 @@ const PREVIEW_FILE = "preview.jpg";
 const GRAPH_FILE = "graph.png";
 /** The Map's spinning 3D GIF's name as attached to the card (map_spins, spin.ts). */
 const SPIN_FILE = "spin.gif";
-
-export const workshopUrl = (pfid: string) =>
-  `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
 
 /** A Daily Post's message body: post it as it is, or send it as an edit. */
 export interface DailyMessage {

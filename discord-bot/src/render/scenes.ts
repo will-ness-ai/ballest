@@ -139,7 +139,16 @@ const label = (text: string, style: Style = {}) =>
     text,
   );
 
-const logo = () =>
+/** The site's two-tone name (`SITE_WORDMARK` in web/lib/rules.ts): BALLEST, then RECORDS in lime. */
+const siteWordmark = (fontSize: number) =>
+  box(
+    { fontFamily: F.marquee, fontSize, letterSpacing: 0.3 },
+    box({}, "BALLEST"),
+    box({ color: C.accent }, "RECORDS"),
+  );
+
+/** The rack and the name; `byline` adds "by BALLESTRECORDS", where the bot presents itself. */
+const logo = (byline = false) =>
   box(
     { alignItems: "center", gap: 8 },
     box(
@@ -148,7 +157,16 @@ const logo = () =>
       marble(332, 16, { marginLeft: -6 }),
       marble(96, 16, { marginLeft: -6 }),
     ),
-    box({ fontFamily: F.marquee, fontSize: 12, letterSpacing: 0.3 }, "Multiballs"),
+    box({ fontFamily: F.marquee, fontSize: 12, letterSpacing: 0.3 }, "MULTIBALLS"),
+    ...(byline
+      ? [
+          box(
+            { alignItems: "baseline", gap: 5 },
+            box({ fontFamily: F.hud, fontWeight: 600, fontSize: 11, color: C.faint }, "by"),
+            siteWordmark(10),
+          ),
+        ]
+      : []),
   );
 
 const chip = (text: string, style: Style = {}, lead: El | null = null) =>
@@ -559,7 +577,7 @@ const STEPS = [
 export const footerScene = (): El =>
   backdrop(
     { width: FOOTER_WIDTH, padding: "14px 16px" },
-    box({ alignItems: "center", justifyContent: "space-between" }, logo(), chip("5–60 min")),
+    box({ alignItems: "center", justifyContent: "space-between" }, logo(true), chip("5–60 min")),
     box(
       { gap: 8, marginTop: 10 },
       ...STEPS.map(([n, title, detail]) =>

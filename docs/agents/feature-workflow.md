@@ -55,6 +55,9 @@ Each implementer's brief says:
 - **One plain command per call.** The worktree guard refuses a compound command (`&&`, a
   pipe, `cd` then a command) as too complex to check, so run `git -C <worktree> ...` and
   tools with absolute paths, one per call.
+- **Never check out in the main checkout.** Switch branches only in your own worktree: a
+  checkout in `/home/user/ballest` leaves the session that owns it on someone else's branch or
+  a detached HEAD (#346). The pre-push hook refuses a push from a detached HEAD.
 - **Look at a page** with `qa check` (step 7), or `pnpm --silent qa shot <view> --el <selector>`
   for one element at one width: every image read stays in context for the session.
 
@@ -66,10 +69,12 @@ final review, so it isn't repeated. Fix every finding before moving on, checking
 asks for something the spec never named against `CODING_STANDARDS.md` first: #212 built a
 real 404 the standards rule out, then deleted it. Commits that land
 after it (a fix found while testing, dev tooling) get `/code-review` since the last reviewed
-commit before the merge, unless they are a small follow-up: fewer than `FOLLOW_UP_LINES` (40) changed lines in
-all since both skills last ran, such as the fixes for their own findings, need no new round
-(Will, 2026-10-18). Batch a round's fixes into one commit, and re-run both skills when the
-follow-ups grow past that.
+commit before the merge only when they change a significant part of the PR: as many lines, or
+more, as the commits each skill last saw (half the PR, counted per commit).
+Anything less, the fixes for a review's own findings included, needs no new round (Will,
+2026-10-24: #366's fixes for each round's findings set off three more under a fixed 40 lines).
+Batch a round's fixes into one commit; findings a fix's own new code raises are a judgement
+call to list in the PR, not a reason for another round.
 
 A one-line PR gets the same first review: call the Skill tool for 'code-review', which runs its
 two reviewers as subagents on the diff. Your own read of the diff is implementation, not
@@ -78,9 +83,13 @@ review, and a brief asking for a light workflow trims the planning steps, never 
 A hook holds both steps (`.claude/hooks/review-gate.mjs`): it notes the commit each Skill-tool
 `/code-review` and `/codebase-design` runs on, and refuses an agent's merge, auto-merge or
 mark-ready while the PR has a commit either hasn't seen, unless every such commit together is a
-small follow-up (`FOLLOW_UP_LINES` in `review-gate-rules.mjs`). A commit that changes only
-binary pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. It
-also refuses a merge of this repo's PRs that doesn't squash (`docs/agents/issue-tracker.md`).
+follow-up under that half (`unreviewed` in `review-gate-rules.mjs`). A commit that changes only
+binary pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. When
+the session's Skill tool can't find a missing skill (no `SKILL.md` in the project's or
+`~/.claude/skills`; a project thread's project is `/home/user`, where `session-start.sh` links
+the repo's skills; or its transcript shows the Skill tool calling it unknown, as a project
+thread's linked skills can still be), it only warns: follow that `SKILL.md` by hand and say so
+in the PR. It also refuses a merge of this repo's PRs that doesn't squash (`docs/agents/issue-tracker.md`).
 Its record is the clone's (`.git/claude-reviews`, shared by worktrees and sessions), so run them
 in the clone that merges. When it can't check (gh offline, say) it lets the call through with a
 warning, and it never sees a merge pressed on GitHub.
@@ -105,6 +114,10 @@ against production with `pnpm --silent qa check` (`docs/site.md`, "Checking a ch
 QA brief for a subagent says the same: run `qa check` first, read only the pictures it
 writes, and add a catalogue row for any page or dialog it does not draw. A gap left unchecked goes in the
 PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` left one.
+
+A red check on the PR: run `pnpm --silent pr why <n>` at the root first. It prints each failed
+check's failed step and its annotations, qa's report among them, in one call, where a cloud
+session can't download the job log.
 
 A PR that adds a table can't get a working preview: previews read the production
 database and skip migrations, so a page that reads the table fails to build until production

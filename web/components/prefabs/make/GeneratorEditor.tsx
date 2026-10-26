@@ -2,7 +2,6 @@
 // A Generator's page (grill-design round 1, A): its controls on the left; the model, its size and
 // piece count and Download on the right. The model is rebuilt from the values a moment after
 // they stop changing, and a sign in a drawn font again once the web fonts have arrived.
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { Controls } from "./Controls";
@@ -13,12 +12,12 @@ import {
   PIECE_LIMIT,
   generate,
   generatorOf,
+  spawnsOf,
   type Generator,
   type Values,
 } from "../../../lib/generators";
 import { footprintOf, shapesOf } from "../../../lib/prefab";
 import { fileNameOf } from "../../../lib/prefab-check";
-import { makePrefabHref } from "../../../lib/routes";
 
 function useSettled<T>(value: T, ms = 200) {
   const [settled, setSettled] = useState(value);
@@ -69,26 +68,25 @@ function Editor({ g }: { g: Generator }) {
   const size = box && { w: Math.max(box.w, box.d), d: Math.min(box.w, box.d), h: box.h };
   const pieces = file?.items.length ?? 0;
   const over = pieces > PIECE_LIMIT;
-  const download = () => {
-    if (!file) return;
+  /* more pieces than one spawn holds come in parts, spawned one after another */
+  const { parts, marked } = useMemo(
+    () => (file && !over ? spawnsOf(file) : { parts: [], marked: false }),
+    [file, over],
+  );
+  const partName = (part: number) => (parts.length > 1 ? `${g.file}_${String(part + 1)}` : g.file);
+  const download = (part: number) => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(
-      new Blob([JSON.stringify(file, null, "\t")], { type: "application/json" }),
+      new Blob([JSON.stringify(parts[part], null, "\t")], { type: "application/json" }),
     );
-    a.download = fileNameOf(g.file);
+    a.download = fileNameOf(partName(part));
     a.click();
     URL.revokeObjectURL(a.href);
   };
   return (
     <section className="gen">
       <header className="pfl-head">
-        <div>
-          <Link className="gen-back" href={makePrefabHref()}>
-            ← All generators
-          </Link>
-          <h1>{g.name}</h1>
-          <p>{g.blurb}</p>
-        </div>
+        <p>{g.blurb}</p>
       </header>
       <div className="gen-split">
         <Controls
@@ -117,11 +115,33 @@ function Editor({ g }: { g: Generator }) {
             </p>
           )}
           <div className="gen-actions">
-            <button type="button" className="pf-dl" disabled={!file || over} onClick={download}>
-              Download
-            </button>
-            <HelpDialog name={g.file} auto={false} />
+            {parts.length > 1 ? (
+              parts.map((_, i) => (
+                <button key={i} type="button" className="btn" onClick={() => download(i)}>
+                  Part {i + 1}
+                </button>
+              ))
+            ) : (
+              <button
+                type="button"
+                className="btn"
+                disabled={!parts.length}
+                onClick={() => download(0)}
+              >
+                Download
+              </button>
+            )}
+            <HelpDialog name={partName(0)} auto={false} />
           </div>
+          {parts.length > 1 && (
+            <p className="gen-parts">
+              Too many pieces for the game to spawn at once, so it comes in {parts.length} parts.
+              Spawn them in order without moving the camera ({partName(0)}, then {partName(1)}
+              {parts.length > 2 ? " and so on" : ""}), and they meet.
+              {marked &&
+                " Then delete the small white cubes at the near corner: they only line the parts up."}
+            </p>
+          )}
         </div>
       </div>
     </section>

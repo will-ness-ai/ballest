@@ -132,9 +132,51 @@ export function repoSlug(text) {
 /* "projectSettings:code-review" and "code-review" are the same skill */
 export const skillName = (name) => String(name).split(":").pop();
 
-// A follow-up this small, after both skills have run on the PR, needs no new run (Will,
-// 2026-10-18: each round of review fixes was costing a whole review round).
-export const FOLLOW_UP_LINES = 40;
+// Claude Code's own skills of the same name: the Skill tool always finds these
+const BUILT_IN = ["code-review"];
+
+/* Whether this session's Skill tool can find `skill`: built in, or a SKILL.md in one of the
+   skill folders it read at its start (`dirs`), unless the tool has called it unknown
+   (`refused`): a project thread's linked skills can still be missing from it (PR #368).
+   `exists(path)` is the file system's. */
+export const loadable = (skill, dirs, exists, refused = new Set()) =>
+  BUILT_IN.includes(skill) ||
+  (!refused.has(skill) && dirs.some((d) => exists(`${d}/${skill}/SKILL.md`)));
+
+/* The skills a session's transcript (JSONL) shows its Skill tool refusing as unknown, and not
+   run since. Only the Skill tool's own results count, so a file or a command's output that
+   quotes the error doesn't; a refusal counts by the bare name the error gives (a prefixed one,
+   "foo:codebase-design", says nothing of the bare one), and any call that runs it clears it. */
+export function refusedSkills(transcript) {
+  const asked = new Map();
+  const refused = new Set();
+  for (const line of transcript.split("\n")) {
+    if (!line.includes('"Skill"') && ![...asked.keys()].some((id) => line.includes(id))) continue;
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const content = entry?.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content)
+      if (part?.type === "tool_use" && part.name === "Skill")
+        asked.set(part.id, skillName(String(part.input?.skill ?? "").replace(/^\//, "")));
+      else if (part?.type === "tool_result" && asked.has(part.tool_use_id)) {
+        const text = typeof part.content === "string" ? part.content : JSON.stringify(part.content);
+        const named = part.is_error && /Unknown skill: \/?([\w-]+)(?![\w:-])/.exec(text)?.[1];
+        if (named) refused.add(named);
+        else if (!part.is_error) refused.delete(asked.get(part.tool_use_id));
+        asked.delete(part.tool_use_id);
+      }
+  }
+  return refused;
+}
+
+// Follow-ups after a skill has run on the PR need no new run until they change as many lines
+// as the commits it saw, half the PR: a significant part of it (Will, 2026-10-24, after #366's
+// review fixes ran four rounds under a fixed 40 lines; 2026-10-18, each round cost a whole one).
 
 // A picture (a skin, a screenshot) has no lines to review (Will, 2026-10-18, after PR #275
 // ran both skills on one .webp). Any other binary file can't be read, so it is never small.
@@ -158,8 +200,8 @@ export function linesChanged(numstat) {
 }
 
 /* Each skill's commits that no run of it has seen: a run on a commit sees it and every
-   commit before it, and once it has run on the PR, later commits that change fewer than
-   FOLLOW_UP_LINES lines in all pass too. A commit of only pictures needs no run. `records`
+   commit before it, and once it has run on the PR, later commits pass too while they change
+   fewer lines than the commits it saw (a binary file it saw counts none). A commit of only pictures needs no run. `records`
    are { skill, sha }, `isAncestor(a, b)` is git's, `linesOf(sha)` is linesChanged's. */
 export function unreviewed(commits, records, isAncestor, linesOf) {
   const linesIn = new Map(commits.map((c) => [c, linesOf(c)]));
@@ -169,9 +211,10 @@ export function unreviewed(commits, records, isAncestor, linesOf) {
       const seen = records.filter((r) => r.skill === skill).map((r) => r.sha);
       const sees = (c) => seen.some((s) => isAncestor(c, s));
       const missing = reviewable.filter((c) => !sees(c));
-      const lines = missing.reduce((sum, c) => sum + linesIn.get(c), 0);
+      const sum = (cs) => cs.reduce((n, c) => n + linesIn.get(c), 0);
+      const seenLines = sum(reviewable.filter(sees).filter((c) => linesIn.get(c) !== Infinity));
       // a run that saw only pictures has reviewed nothing yet
-      const followUp = reviewable.some(sees) && lines < FOLLOW_UP_LINES;
+      const followUp = seenLines > 0 && sum(missing) < seenLines;
       return [skill, followUp ? [] : missing];
     }),
   );

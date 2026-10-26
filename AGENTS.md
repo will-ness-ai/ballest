@@ -87,7 +87,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site: it runs on
   Fly.io, deployed by `.github/workflows/bot.yml`; its own `AGENTS.md` covers running it
   locally (dev app only) and production. It also posts the Daily Report in #stats-by-will
-  every day, read from the database (ADR 0006, spec #126).
+  every day, read from the database (ADR 0006, spec #126), and the Traffic Report (the
+  site's Plausible visits and Google search) in the dev server's #search-analytics.
 - `multiballs/` — the bot's Terms of Service and Privacy Policy, published with the site at
   `/multiballs/` because the Discord Developer Portal links to them.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
@@ -140,7 +141,7 @@ The site's checks are in `web/`: `npx tsc --noEmit`, `pnpm test` (vitest, agains
 local Postgres; each test file builds its own database, and qa's own test needs
 Chromium: the cloud image has one, elsewhere `npx playwright-core install chromium`), and `pnpm smoke <url>` against a
 build seeded with `stress` (as CI does; it holds all of `tiny`). Verify front-end changes
-with `pnpm --silent qa check` (preview against production, every page at phone and desktop sizes; `docs/site.md`), and test a board's
+with `pnpm --silent qa check` (preview against production, the pages the branch reaches at phone and desktop sizes; `docs/site.md`), and test a board's
 infinite scroll with a real wheel scroll: a scripted `scrollTo` does not trigger it in
 the preview pane. Verify collector changes with `python -m pytest tools/tests` (no Steam
 needed), then a live `--dev` run if the read or write path changed.

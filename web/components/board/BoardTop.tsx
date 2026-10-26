@@ -8,6 +8,7 @@ import { QMark } from "./PointsDialog";
 import { Plates } from "./Plates";
 import { RacePlates } from "./RacePlates";
 import { YouSpread } from "./YouSpread";
+import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
 import { eventOf, unitOf } from "../../lib/campaigns";
@@ -86,17 +87,17 @@ export function PodiumPlates({ tally }: { tally: PodiumTally }) {
 
 export function SortSwitch({ name, podiums }: { name: string; podiums: boolean }) {
   return (
-    <span className="sortsw" id="sortsw">
+    <div className="sortsw" id="sortsw">
       <span className="eyebrow">Sort by</span>
-      <span className="sw">
-        <Link href={boardHref(name)} aria-current={podiums ? undefined : "page"}>
+      <Pills label="Sort" nav>
+        <PillLink href={boardHref(name)} on={!podiums}>
           Points
-        </Link>
-        <Link href={boardHref(name, PODIUM_SORT)} aria-current={podiums ? "page" : undefined}>
+        </PillLink>
+        <PillLink href={boardHref(name, PODIUM_SORT)} on={podiums}>
           Podiums
-        </Link>
-      </span>
-    </span>
+        </PillLink>
+      </Pills>
+    </div>
   );
 }
 
@@ -117,7 +118,7 @@ export function TrackCard({
       <div className="bc-body">
         <div className="bc-top">
           <div>
-            <h1>{trackNo(b.display)}</h1>
+            <h2>{trackNo(b.display)}</h2>
             <span className="bc-by">
               {b.group}
               {b.tier ? " · " + b.tier : ""}
@@ -166,7 +167,7 @@ export function CampaignMapCard({
       <div className="bc-body">
         <div className="bc-top">
           <div>
-            <h1>{title}</h1>
+            <h2>{title}</h2>
             <span className="bc-by">
               {group} · by {m.creator} ·{" "}
               {event ? (
@@ -278,7 +279,7 @@ export function OverallCard({
       <div className="bc-body">
         <div className="bc-top">
           <div>
-            <h1>{b.display}</h1>
+            <h2>{b.display}</h2>
             <span className="bc-by">
               {b.group} · points{tally ? " and podiums" : ""}{" "}
               {tracks === 1

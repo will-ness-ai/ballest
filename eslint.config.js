@@ -23,6 +23,8 @@ export default defineConfig(
     "web/.next/",
     "web/public/",
     "web/next-env.d.ts",
+    // throwaway pages and scripts, gitignored
+    "scratch/",
   ]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
@@ -81,6 +83,11 @@ export default defineConfig(
       // sized by the stylesheet the single-page site had; next/image would change the markup
       "@next/next/no-img-element": "off",
     },
+  },
+  {
+    // the Activity's page (React, bundled by the bot's server)
+    files: ["discord-bot/src/activity/web/**/*.{ts,tsx}"],
+    extends: [reactHooks.configs.flat.recommended],
   },
   {
     // lib/ is pure: no React, no Next and no database (CODING_STANDARDS.md, "Site")

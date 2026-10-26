@@ -1,8 +1,8 @@
-// Signs, under Useful (lib/generators/index.ts): a QR code and a Sign, both facing the camera
-// that spawns them; a sign letters its text through a Lettering (lib/generator-letters.ts).
-import qrcode from "qrcode-generator";
-
-import { wrapAt, type Grid, type Lettering } from "../generator-letters";
+// The Sign, under Useful (lib/generators/index.ts), facing the camera that spawns it; it
+// letters its text in cells through a Lettering (lib/generator-letters.ts), or in one of R23's
+// piece fonts with their own pieces (lib/generators/piece-fonts.ts).
+import { cased, wrapAt, type Lettering, type Measure } from "../generator-letters";
+import { isPieceFont, pieceLettering } from "./piece-fonts";
 import {
   FRONT,
   cellsOf,
@@ -13,70 +13,33 @@ import {
   metresIn,
   num,
   piece,
+  reachOf,
+  shifted,
   type Generator,
+  type Values,
 } from "./pieces";
 
-/* ---------- QR code ---------- */
-export const qr: Generator = {
-  key: "qr",
-  loose: true,
-  name: "QR code",
-  category: "Useful",
-  blurb: "A code players can scan, built from blocks.",
-  file: "qr_code",
-  angle: FRONT,
-  defaults: { text: "https://ballestrecords.com", size: 6, back: "White", front: "Dark" },
-  controls: () => [
-    { key: "text", label: "Link or text", kind: "text" },
-    num("size", "Size", 1, 60, 0.5, "m"),
-    colour("back", "Background"),
-    colour("front", "Code"),
-  ],
-  build: (v) => {
-    const text = String(v.text);
-    if (!text) return null;
-    let q: ReturnType<typeof qrcode>;
-    try {
-      q = qrcode(0, "M");
-      q.addData(text);
-      q.make();
-    } catch {
-      return null;
-    }
-    const m = q.getModuleCount();
-    const margin = 2;
-    const grid: Grid = {
-      w: m + margin * 2,
-      h: m + margin * 2,
-      on: (x, y) => {
-        const [i, j] = [x - margin, y - margin];
-        return i >= 0 && j >= 0 && i < m && j < m && q.isDark(j, i);
-      },
-    };
-    const size = metresIn(v, "size");
-    const cell = size / grid.w;
-    return fileOf(
-      facing([
-        piece("cube", [0, 0, 0], [size, cell / 2, size], colourIn(v, "back")),
-        ...cellsOf(grid, cell, size, cell / 4, cell / 4, colourIn(v, "front")),
-      ]),
-    );
-  },
-};
-
 /* ---------- sign ---------- */
-/* the wrap of the text that makes its letters biggest inside w by h, and its grid's cell */
-export function fitText(text: string, lettering: Lettering, w: number, h: number) {
-  const t = text.trim();
+/* the wrap of the text that makes its letters biggest inside w by h, and how many cm to a unit
+   of the font's */
+function wrapToFit(text: string, measure: Measure, w: number, h: number) {
+  /* cased first: a letter can change length in another case (ß is SS) */
+  const t = cased(text, measure.letterCase).trim();
   if (!t) return null;
   const longest = Math.max(...t.split(/\s+/).map((x) => x.length));
   let best: { lines: Array<string>; scale: number } | null = null;
   for (let per = longest; per <= Math.max(longest, t.length); per++) {
-    const lines = wrapAt(t, per, lettering.keepsCase);
-    const wide = Math.max(...lines.map((l) => lettering.width(l)));
-    const scale = Math.min(w / wide, h / (lines.length * lettering.lineHeight));
+    const lines = wrapAt(t, per, measure.letterCase);
+    const wide = Math.max(...lines.map((l) => measure.width(l)));
+    const scale = Math.min(w / wide, h / (lines.length * measure.lineHeight));
     if (!best || scale > best.scale) best = { lines, scale };
   }
+  return best;
+}
+
+/* the wrap of the text that makes its letters biggest inside w by h, and its grid's cell */
+export function fitText(text: string, lettering: Lettering, w: number, h: number) {
+  const best = wrapToFit(text, lettering, w, h);
   if (!best) return null;
   const grid = lettering.grid(best.lines);
   if (!grid) return null;
@@ -105,7 +68,9 @@ export const sign: Generator = {
   controls: (v) => [
     { key: "text", label: "Text", kind: "text", lines: 3 },
     { key: "font", label: "Font", kind: "font" },
-    ...(v.font === "Pixel" ? [] : [num("detail", "Detail", 5, 40, 1, "blocks", true)]),
+    ...(v.font === "Pixel" || isPieceFont(v.font)
+      ? []
+      : [num("detail", "Detail", 5, 40, 1, "blocks", true)]),
     num("width", "Width", 1, 100, 0.5, "m"),
     num("height", "Height", 0.5, 50, 0.5, "m"),
     { key: "wall", label: "Wall behind the text", kind: "toggle" },
@@ -116,17 +81,37 @@ export const sign: Generator = {
     const W = metresIn(v, "width");
     const H = metresIn(v, "height");
     const pad = v.wall ? 0.12 : 0;
-    const fit = fitText(String(v.text), lettering, W * (1 - pad), H * (1 - pad));
-    if (!fit) return null;
-    const { grid, cell } = fit;
-    const textH = grid.h * cell;
-    if (!v.wall) return fileOf(facing(cellsOf(grid, cell, textH, 0, cell, colourIn(v, "front"))));
+    const text = lettersOf(v, lettering, W * (1 - pad), H * (1 - pad), !!v.wall);
+    if (!text) return null;
+    if (!v.wall) return fileOf(text.letters);
     const depth = Math.max(5, Math.min(W, H) * 0.03);
-    return fileOf(
-      facing([
-        piece("cube", [0, 0, 0], [W, depth, H], colourIn(v, "back")),
-        ...cellsOf(grid, cell, H - (H - textH) / 2, depth / 2, cell / 2, colourIn(v, "front")),
-      ]),
-    );
+    return fileOf([
+      ...facing([piece("cube", [0, 0, 0], [W, depth, H], colourIn(v, "back"))]),
+      ...shifted(text.letters, [-depth / 2, 0, (H - text.high) / 2]),
+    ]);
   },
 };
+
+/* the sign's text as big as fits inside w by h, facing -X, centred across y = 0 with its back
+   at x = 0 and its foot at z = 0, and how high it stands: in one of R23's piece fonts, its
+   pieces' reach, or in blocks a cell deep (half a cell on a wall) through the Lettering, its
+   grid's whole height, so a line of punctuation keeps its place in it */
+function lettersOf(v: Values, lettering: Lettering, w: number, h: number, wall: boolean) {
+  const colour = colourIn(v, "front");
+  if (isPieceFont(v.font)) {
+    const font = pieceLettering(v.font);
+    const best = wrapToFit(String(v.text), font, w, h);
+    if (!best) return null;
+    const pieces = font.pieces(best.lines, best.scale, colour);
+    const [lo, hi] = reachOf(pieces);
+    return {
+      letters: shifted(pieces, [-hi[0], -(lo[1] + hi[1]) / 2, -lo[2]]),
+      high: hi[2] - lo[2],
+    };
+  }
+  const fit = fitText(String(v.text), lettering, w, h);
+  if (!fit) return null;
+  const { grid, cell } = fit;
+  const high = grid.h * cell;
+  return { letters: facing(cellsOf(grid, cell, high, 0, wall ? cell / 2 : cell, colour)), high };
+}

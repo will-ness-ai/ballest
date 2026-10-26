@@ -55,6 +55,18 @@ run's own Skin first, then their Chosen Skin, then the marble in their hue. Mult
 it too.
 _Avoid_: avatar, icon, profile ball
 
+**Stat Card**:
+The image of one player's standing that Multiballs's See my stats answers with, drawn by the
+site: their ball, their Season 1 and Season 2 Circuit ranks, World records, Medals and Maps
+finished, dated with the Refresh it reads.
+_Avoid_: profile card, share card (a share card is a page's link preview)
+
+**Stats Link**:
+The pairing of one Discord account with the Steam ID it signed in as on the site, made from
+the link Multiballs gives a member who presses See my stats. Verified, unlike the Match bot's
+Link (pasted, unchecked), and kept apart from it. Pairing again replaces it.
+_Avoid_: link (alone, which is the Match bot's), verification, connection
+
 **Race**:
 Two runs' Ghosts played against each other on the site, a run against the leader (the
 leader against 2nd), to show where along the course one gained on the other. A board's
@@ -136,6 +148,16 @@ Map whose board was first read after the baseline counts as it stands on both si
 _Avoid_: rankings, the report's boards (the Players table is not these lists: it counts the
 Circuit too, and podiums)
 
+### The site
+
+**Section**:
+One of the top-level areas the site's navigation names: Maps, Campaigns, Daily, Circuit,
+Players and Prefabs. Each has its own sub-tabs (Featured / All Maps, each Circuit season, ...),
+and every page belongs to one: a Campaign's Map to Campaigns, a player's page and a head to
+head to Players. "Workshop" stays the game's word for player-made Maps; the Section is
+labelled Maps.
+_Avoid_: tab, group, category
+
 ### Prefabs
 
 **Prefab**:
@@ -159,7 +181,7 @@ starts there. Without one, three-quarters from above with the whole Prefab in vi
 _Avoid_: thumbnail angle, camera, pose
 
 **Generator**:
-A page that makes a Prefab file from a few settings: a sign (QR code, Sign), a tree or bush,
+A page that makes a Prefab file from a few settings: a Sign, a tree or bush,
 or a building (House, Tower, Castle). What it makes is downloaded, never uploaded, so the
 gallery stays Prefabs players built.
 _Avoid_: maker, builder, template

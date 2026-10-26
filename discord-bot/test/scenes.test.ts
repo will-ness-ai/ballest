@@ -9,6 +9,7 @@ import type { Improvement, ProfilePreview } from "../src/ports.js";
 import {
   cardScene,
   type El,
+  footerScene,
   improvementScene,
   linkScene,
   progressionScene,
@@ -160,5 +161,19 @@ describe("a player's marble", () => {
     expect(pictures(scene)).toBe(2);
     expect(drawsHueMarble(scene, ALICE.steamId)).toBe(false);
     expect(drawsHueMarble(scene, BOB.steamId)).toBe(true);
+  });
+});
+
+/** Every string a scene draws, in order, joined by spaces. */
+const text = (el: El): string =>
+  (el.props.children ?? [])
+    .map((c) => (c === null ? "" : typeof c === "string" ? c : text(c)))
+    .filter((s) => s !== "")
+    .join(" ");
+
+describe("the Footer", () => {
+  it("presents the bot as MULTIBALLS by BALLESTRECORDS", () => {
+    // the site's name is two-tone, so its halves are drawn apart
+    expect(text(footerScene())).toMatch(/^MULTIBALLS by BALLEST ?RECORDS /);
   });
 });

@@ -64,7 +64,7 @@ export function MadeTab({
       {list.length < made.length ? (
         <button
           type="button"
-          className="more-btn"
+          className="btn more"
           data-madeall=""
           onClick={() => {
             setView({ ...view, allMade: true });

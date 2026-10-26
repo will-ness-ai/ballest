@@ -125,8 +125,9 @@ To fill a backlog in one go, ask the collector's service (`tools/runner.py`):
 `fly ssh console -a ballest-collector -C "python /app/runner.py ask map-files?budget=3600"` runs the same
 step alone (`python tools/map_files.py --budget <seconds>`) in its turn on the Steam login, so a
 Refresh due meanwhile waits for it, and it fails when it wrote no file. The service runs it too on
-just the Maps a #new-tracks post added, read from the newest page (`--maps`; "New Maps"). Only Fly
-and Actions can download: a cloud session can't reach `*.steamcontent.com`. The site serves each
+just the Maps a #new-tracks post added, read from the newest page (`--maps`; "New Maps"). A cloud
+session downloads too (`--dev`): `*.steamcontent.com` is in its Allowed domains, and
+`steam_download` has steam.py's session use the session's proxy, which it otherwise skips. The site serves each
 file from `/map/<pfid>/file` for the Map page's 3D view (`docs/site.md`, "Maps in 3D"), and
 `getWorkshop` carries each Map's stored version.
 
@@ -176,6 +177,23 @@ pick, as its object path, in one cached read under its own tag, which only a sav
 skins"). `tiny` seeds two, one the site has no picture for. Multiballs reads `chosen_skins` too,
 at most once a minute, for its images and Match Thread emojis (`discord-bot/AGENTS.md`, "Chosen
 Skins").
+
+### Stats Links
+
+Two tables for See my stats (spec #323, ADR 0014), which the collector never touches.
+`stats_link_requests` is the one table Multiballs writes: a row per press of See my stats with
+no Stats Link (or of Pair again), by `token` (128 random bits, 32 hex characters), with the
+Discord account's ID and name (the name only for the link page to ask about), `created_at` and
+`used_at`, null until the page's confirm uses it. A request can be used for 15 minutes
+(`REQUEST_MS` in `web/db/stats-link.ts`), and once; it is kept a day (`KEEP_MS`), so an expired
+link still says it has expired and a reloaded Done page still says done. The bot keeps its own
+copy of both, `REQUEST_FOR` and `REQUEST_KEPT` in `discord-bot/src/seeMyStats.ts`: change them
+together (`discord-bot/test/statsLinks.test.ts` fails while they differ). The bot prunes the
+requests older than a day as it writes, and so does the confirm. `stats_links` is one row per Discord account paired (CONTEXT.md, Stats Link):
+the Steam ID it signed in as and when, written only by the confirm
+(`POST /api/discord/link?t=<token>`), which marks the request used in the same transaction;
+pairing again replaces the row. Multiballs reads it, and watches its request's `used_at`. `tiny`
+seeds one request, dated far ahead so it never expires, for the link page's smoke and qa views.
 
 ### Prefabs
 

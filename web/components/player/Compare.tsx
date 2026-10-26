@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { SearchBox } from "../Controls";
 import { useDialog } from "../Modal";
 import { Marble } from "../Marble";
 import type { NameHit } from "../../lib/rows";
@@ -59,10 +60,8 @@ function Open({ ask, onClose }: { ask: CompareAsk; onClose: () => void }) {
           &times;
         </button>
       </div>
-      <input
-        className="ws-q"
+      <SearchBox
         id="cmpq"
-        type="search"
         placeholder="Type a player's name"
         aria-label="Find a player"
         autoComplete="off"
