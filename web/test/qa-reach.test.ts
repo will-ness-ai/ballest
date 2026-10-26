@@ -33,19 +33,23 @@ describe("reach", () => {
     expect(of(["web/scripts/qa/catalogue.mjs"]).all).toBe("web/scripts/qa/catalogue.mjs");
   });
 
+  /* a catalogue pinned here, so a row added to the real one changes neither test (PR #368); two
+     pages, as a file every catalogue page reaches draws everything */
+  const MAKE = [
+    { name: "prefabs-make", path: "/prefabs/make" },
+    { name: "daily", path: "/daily" },
+  ];
+  const pinned = (changed: Array<string>) => reach(changed, ROOT, MAKE);
+
   it("follows a library file's imports up to the pages that use it", () => {
-    const r = of(["web/lib/generators/signs.ts"]);
+    const r = pinned(["web/lib/generators/signs.ts"]);
     expect(r.all).toBeNull();
-    expect(r.pages).toEqual([
-      { name: "prefabs-make", via: "web/lib/generators/signs.ts" },
-      { name: "pixel-art", via: "web/lib/generators/signs.ts" },
-      { name: "prefab-sign", via: "web/lib/generators/signs.ts" },
-    ]);
+    expect(r.pages).toEqual([{ name: "prefabs-make", via: "web/lib/generators/signs.ts" }]);
   });
 
   it("names a page the catalogue doesn't draw, as a gap", () => {
-    expect(of(["web/lib/generators/signs.ts"]).routes).toContain(
-      "web/app/prefabs/collage/page.tsx",
+    expect(pinned(["web/lib/generators/signs.ts"]).routes).toContain(
+      "web/app/prefabs/make/[generator]/page.tsx",
     );
   });
 

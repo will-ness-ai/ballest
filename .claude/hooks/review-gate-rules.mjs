@@ -136,9 +136,43 @@ export const skillName = (name) => String(name).split(":").pop();
 const BUILT_IN = ["code-review"];
 
 /* Whether this session's Skill tool can find `skill`: built in, or a SKILL.md in one of the
-   skill folders it read at its start (`dirs`). `exists(path)` is the file system's. */
-export const loadable = (skill, dirs, exists) =>
-  BUILT_IN.includes(skill) || dirs.some((d) => exists(`${d}/${skill}/SKILL.md`));
+   skill folders it read at its start (`dirs`), unless the tool has called it unknown
+   (`refused`): a project thread's linked skills can still be missing from it (PR #368).
+   `exists(path)` is the file system's. */
+export const loadable = (skill, dirs, exists, refused = new Set()) =>
+  BUILT_IN.includes(skill) ||
+  (!refused.has(skill) && dirs.some((d) => exists(`${d}/${skill}/SKILL.md`)));
+
+/* The skills a session's transcript (JSONL) shows its Skill tool refusing as unknown, and not
+   run since. Only the Skill tool's own results count, so a file or a command's output that
+   quotes the error doesn't; a refusal counts by the bare name the error gives (a prefixed one,
+   "foo:codebase-design", says nothing of the bare one), and any call that runs it clears it. */
+export function refusedSkills(transcript) {
+  const asked = new Map();
+  const refused = new Set();
+  for (const line of transcript.split("\n")) {
+    if (!line.includes('"Skill"') && ![...asked.keys()].some((id) => line.includes(id))) continue;
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const content = entry?.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content)
+      if (part?.type === "tool_use" && part.name === "Skill")
+        asked.set(part.id, skillName(String(part.input?.skill ?? "").replace(/^\//, "")));
+      else if (part?.type === "tool_result" && asked.has(part.tool_use_id)) {
+        const text = typeof part.content === "string" ? part.content : JSON.stringify(part.content);
+        const named = part.is_error && /Unknown skill: \/?([\w-]+)(?![\w:-])/.exec(text)?.[1];
+        if (named) refused.add(named);
+        else if (!part.is_error) refused.delete(asked.get(part.tool_use_id));
+        asked.delete(part.tool_use_id);
+      }
+  }
+  return refused;
+}
 
 // Follow-ups after a skill has run on the PR need no new run until they change as many lines
 // as the commits it saw, half the PR: a significant part of it (Will, 2026-10-24, after #366's
