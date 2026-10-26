@@ -120,8 +120,14 @@
 }
 .gen-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
   align-items: center;
+}
+.gen-parts {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--dim);
 }
 .gen-actions .pf-q {
   width: 2.4rem;
@@ -363,4 +369,18 @@
   right: 4px;
   bottom: 2px;
   color: var(--faint);
+}
+.gen-fonts button.built {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+/* who built the piece font picked, under the fonts */
+.gen-built {
+  flex-basis: 100%;
+  margin: 0.2rem 0 0;
+  color: var(--dim);
+  font-size: 0.85rem;
+}
+.gen-built a {
+  color: var(--accent);
 }

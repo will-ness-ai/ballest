@@ -178,6 +178,23 @@ skins"). `tiny` seeds two, one the site has no picture for. Multiballs reads `ch
 at most once a minute, for its images and Match Thread emojis (`discord-bot/AGENTS.md`, "Chosen
 Skins").
 
+### Stats Links
+
+Two tables for See my stats (spec #323, ADR 0014), which the collector never touches.
+`stats_link_requests` is the one table Multiballs writes: a row per press of See my stats with
+no Stats Link (or of Pair again), by `token` (128 random bits, 32 hex characters), with the
+Discord account's ID and name (the name only for the link page to ask about), `created_at` and
+`used_at`, null until the page's confirm uses it. A request can be used for 15 minutes
+(`REQUEST_MS` in `web/db/stats-link.ts`), and once; it is kept a day (`KEEP_MS`), so an expired
+link still says it has expired and a reloaded Done page still says done. The bot keeps its own
+copy of both, `REQUEST_FOR` and `REQUEST_KEPT` in `discord-bot/src/seeMyStats.ts`: change them
+together (`discord-bot/test/statsLinks.test.ts` fails while they differ). The bot prunes the
+requests older than a day as it writes, and so does the confirm. `stats_links` is one row per Discord account paired (CONTEXT.md, Stats Link):
+the Steam ID it signed in as and when, written only by the confirm
+(`POST /api/discord/link?t=<token>`), which marks the request used in the same transaction;
+pairing again replaces the row. Multiballs reads it, and watches its request's `used_at`. `tiny`
+seeds one request, dated far ahead so it never expires, for the link page's smoke and qa views.
+
 ### Prefabs
 
 The other tables the site writes (ADR 0009); the collector never touches them. `prefabs`

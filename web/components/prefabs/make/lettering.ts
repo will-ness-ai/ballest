@@ -41,7 +41,6 @@ export function letteringOf(font: string, detail: number): Lettering {
   const unit = capH / detail;
   const lineH = SIZE * 1.2;
   return {
-    keepsCase: true,
     width: (line) => ctx.measureText(line).width / unit,
     lineHeight: lineH / unit,
     grid: (lines) => draw(lines, ctx, unit, lineH, capH),

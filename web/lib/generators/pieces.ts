@@ -1,12 +1,15 @@
 // The pieces every Generator builds from (lib/generators/index.ts): the colours and their paint,
 // the editor's primitives placed by their bottom centre (or a box by its centre), the grid merge,
 // the seeded random, the controls' shapes and the Generator interface itself.
-import { rotationRows, shapesOf, type PrefabFile, type PrefabItem } from "../prefab";
+import { rotationRows, shapesOf, spanOf, type PrefabFile, type PrefabItem } from "../prefab";
 import type { PrefabAngle } from "../prefabs";
 import type { Grid, Lettering } from "../generator-letters";
 
 /* the most pieces spawnprefab takes (lib/prefab-check.ts) */
 export const PIECE_LIMIT = 4096;
+/* the most pieces one spawn can hold without running out the game's objects: its cost grows
+   with the square of the pieces, and 289 spawned in a sandbox game where 400 crashed it */
+export const SPAWN_MOST = 240;
 
 /* ---------- colours ---------- */
 /* each colour the Generators offer: its material and the paint the editor saves beside it,
@@ -82,20 +85,35 @@ export function piece(
   rot: V3 | number = 0,
 ): PrefabItem {
   const k = KINDS[kind];
+  return placed(k.cls, k.mesh, 1, colour, at, typeof rot === "number" ? [0, rot, 0] : rot, [
+    size[0] / k.size[0],
+    size[1] / k.size[1],
+    size[2] / k.size[2],
+  ]);
+}
+
+/* a piece of class `cls` drawn with `mesh`, every one of its `slots` materials `colour`, as
+   the editor saves it */
+export function placed(
+  cls: string,
+  mesh: string,
+  slots: number,
+  colour: Colour,
+  location: V3,
+  rotation: V3,
+  scale: V3,
+): PrefabItem {
   const c = COLOURS[colour];
+  const each = <T>(v: T) => Array<T>(slots).fill(v);
   /* the keys the editor saves; PrefabItem names only the ones the viewer reads */
   const item = {
-    class: k.cls,
-    transform: {
-      location: at,
-      rotation: typeof rot === "number" ? ([0, rot, 0] as V3) : rot,
-      scale: [size[0] / k.size[0], size[1] / k.size[1], size[2] / k.size[2]] as V3,
-    },
+    class: cls,
+    transform: { location, rotation, scale },
     properties: {},
-    meshes: [{ tag: "SKGMapEditor", mesh: k.mesh, materials: [full(c.material)] }],
+    meshes: [{ tag: "SKGMapEditor", mesh, materials: each(full(c.material)) }],
     paint: {
-      categories: [full(`/Game/Art/DataAssets/BallestMaterials/${c.category}`)],
-      colors: [c.index],
+      categories: each(full(`/Game/Art/DataAssets/BallestMaterials/${c.category}`)),
+      colors: each(c.index),
     },
   };
   return item;
@@ -111,20 +129,60 @@ export const fileOf = (items: Array<PrefabItem>): PrefabFile => ({
   items,
 });
 
+/* the lowest corner of any of the pieces, in cm */
+export const lowestOf = (items: Array<PrefabItem>) => edgeOf(items, 1, -1);
+
+/* how far the pieces reach along three's axis `k` (0 x, 1 up, 2 Unreal's y), at their least
+   (-1) or most (1), in cm */
+const edgeOf = (items: Array<PrefabItem>, k: number, sign: -1 | 1) =>
+  sign *
+  Math.max(...shapesOf(fileOf(items)).map((sh) => sign * spanOf(sh, k)[sign < 0 ? 0 : 1])) *
+  100;
+
+/* where the pieces reach along Unreal's x, y and z, least and most, in cm */
+export function reachOf(items: Array<PrefabItem>): [V3, V3] {
+  const shapes = shapesOf(fileOf(items));
+  /* three's axis for each of Unreal's: x is x, y is three's z, z is three's y (up) */
+  const along = [0, 2, 1].map((k) => shapes.map((sh) => spanOf(sh, k)));
+  return [
+    along.map((spans) => Math.min(...spans.map((s) => s[0])) * 100) as V3,
+    along.map((spans) => Math.max(...spans.map((s) => s[1])) * 100) as V3,
+  ];
+}
+
+/* the pieces moved by `by` cm */
+export const shifted = (items: Array<PrefabItem>, by: V3): Array<PrefabItem> =>
+  items.map((it) => ({
+    ...it,
+    transform: { ...it.transform, location: add(it.transform.location, by) },
+  }));
+
 /* the pieces moved up or down so the lowest corner of any of them sits on the floor, z = 0 */
-export function grounded(items: Array<PrefabItem>): Array<PrefabItem> {
-  /* a shape's matrix takes a unit shape centred on the origin, so a corner is half each column */
-  const low = Math.min(
-    ...shapesOf(fileOf(items)).map(
-      (sh) =>
-        sh.matrix[13] -
-        (Math.abs(sh.matrix[1]) + Math.abs(sh.matrix[5]) + Math.abs(sh.matrix[9])) / 2,
-    ),
-  );
-  return items.map((it) => {
-    const [x, y, z] = it.transform.location;
-    return { ...it, transform: { ...it.transform, location: [x, y, z - low * 100] as V3 } };
-  });
+export const grounded = (items: Array<PrefabItem>) => shifted(items, [0, 0, -lowestOf(items)]);
+
+/* a big Prefab as parts of at most SPAWN_MOST pieces, marker included, to spawn one after
+   another without moving the camera. spawnprefab keeps a file's origin across and up but slides
+   it along X so its nearest face sits a set way in front of the camera, so a part that doesn't
+   reach as near or as low as the whole gets a small marker cube at the whole's near, low corner,
+   and the parts land where they meet (checked in a sandbox game, 2026-10-23); `marked` says
+   whether any part carries one */
+export function spawnsOf(file: PrefabFile): { parts: Array<PrefabFile>; marked: boolean } {
+  if (file.items.length <= SPAWN_MOST) return { parts: [file], marked: false };
+  const near = (items: Array<PrefabItem>) => edgeOf(items, 0, -1);
+  const [x, y, z] = [near(file.items), edgeOf(file.items, 2, -1), lowestOf(file.items)];
+  const marker = piece("cube", [x + 10, y + 10, z], [20, 20, 20], "White");
+  const parts: Array<PrefabFile> = [];
+  let marked = false;
+  /* one short of SPAWN_MOST, room for the marker */
+  const most = SPAWN_MOST - 1;
+  for (let i = 0; i < file.items.length; i += most) {
+    const items = file.items.slice(i, i + most);
+    /* and a part of one piece needs a second: the game spawns nothing from one */
+    const reaches = items.length > 1 && near(items) <= x && lowestOf(items) <= z;
+    marked ||= !reaches;
+    parts.push({ ...file, items: reaches ? items : [...items, marker] });
+  }
+  return { parts, marked };
 }
 
 /* a sign or code laid out across x and standing out toward +y, turned to face -X */

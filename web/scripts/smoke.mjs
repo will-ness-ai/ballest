@@ -134,6 +134,10 @@ const ROUTES = [
   ["/og/daily/2026-08-30", 200, null, "PNG"],
   ["/og/daily/2026-07-01", 404],
   ["/og/nope/1", 404],
+  // a player's Stat Card (lib/stat-card.ts), which Multiballs fetches
+  ["/og/stats/" + P1 + "?v=1", 200, null, "PNG"],
+  ["/og/stats/76561199000000099", 404],
+  ["/og/stats/nope", 404],
   [
     "/player/" + P1 + "/circuit",
     200,
@@ -235,6 +239,12 @@ const ROUTES = [
   ["/api/prefabs/twin-cubes/favorite", 200, null, '"favorites":0'],
   ["/api/prefabs/nope/favorite", 404],
   ["/api/prefabs/twin-cubes", 405],
+  // the Stats Link's page (tiny's link request, signed out) and its confirm, which only POSTs
+  ["/discord/link?t=5eed0000000000000000000000000001", 200, null, "rae.disc"],
+  ["/discord/link?t=nope", 200, null, "This link doesn&#x27;t work"],
+  ["/discord/link", 200, null, "See my stats"],
+  ["/api/discord/link?t=nope", 405],
+  ["/robots.txt", 200, null, "Disallow: /discord/"],
   ["/no-such-page", 404],
 ];
 

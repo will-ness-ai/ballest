@@ -6,8 +6,10 @@ import {
   AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ContainerBuilder,
   EmbedBuilder,
   LabelBuilder,
+  MessageFlags,
   ModalBuilder,
   TextDisplayBuilder,
   TextInputBuilder,
@@ -32,6 +34,7 @@ import { escape, mapLink, mapName, mapUrl, workshopUrl } from "../links.js";
 import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js";
 import { RESULT_HUE, START_HUE } from "../render/art.js";
 import type { CardView, KeptReason, ThreadPost } from "../ports.js";
+import type { StatsAnswer } from "../seeMyStats.js";
 import { type Action, type Control, controlId } from "./controls.js";
 import type { MarbleEmojis } from "./marbles.js";
 
@@ -106,6 +109,81 @@ export const footerMessage = (png: Buffer): Payload => ({
   ],
   ...quiet,
 });
+
+// ---------------------------------------------------------------- the My Stats panel
+
+/** A Components V2 message: its text lives in its components, and it has no `content`. */
+export type V2Payload = Payload & { readonly flags: MessageFlags.IsComponentsV2 };
+
+/** The one message in #my-stats (spec #323): what the button shows, and the button. */
+export const myStatsPanelMessage = (): V2Payload => ({
+  flags: MessageFlags.IsComponentsV2,
+  components: [
+    new ContainerBuilder()
+      .setAccentColor(LIVE_LIME)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          "## My stats\nSee your Circuit ranks, World records and Medals, drawn from ballestrecords.com.",
+        ),
+      )
+      .addActionRowComponents(
+        row(button("See my stats", { _tag: "SeeMyStats" }, ButtonStyle.Primary)),
+      ),
+  ],
+  ...quiet,
+});
+
+// ---------------------------------------------------------------- See my stats, privately
+
+const linkButton = (label: string, url: string) =>
+  new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(label).setURL(url);
+
+const pairAgain = () => button("Not you? Pair again", { _tag: "PairAgain" });
+
+/** Why there's no card: text alone, replacing whatever the answer showed before. */
+const statsText = (content: string): Payload => ({
+  content,
+  embeds: [],
+  files: [],
+  attachments: [],
+  components: [],
+  ...quiet,
+});
+
+/** A member's private answer to See my stats, and each later version of it. */
+export const statsAnswerMessage = (answer: StatsAnswer): Payload => {
+  switch (answer._tag) {
+    case "Card":
+      return {
+        content: "",
+        embeds: [],
+        ...image(answer.png, "stat-card.png"),
+        components: [row(linkButton("Player page", answer.url), pairAgain())],
+        ...quiet,
+      };
+    case "SignIn":
+      return {
+        content:
+          "**Sign in with Steam** on ballestrecords.com to pair this Discord account with your Steam account. " +
+          "Your card shows up here once you have. The link works once, for 15 minutes.",
+        embeds: [],
+        files: [],
+        attachments: [],
+        components: [row(linkButton("Sign in with Steam", answer.url))],
+        ...quiet,
+      };
+    case "NoStats":
+      // Still a way out for a member who paired the wrong account.
+      return {
+        ...statsText("No runs on the boards yet for the Steam account you paired."),
+        components: [row(pairAgain())],
+      };
+    case "CardFailed":
+      return statsText("Couldn't draw your card, try again.");
+    case "Unavailable":
+      return statsText("Stats aren't available right now. Try again in a while.");
+  }
+};
 
 // ---------------------------------------------------------------- the Match Card
 

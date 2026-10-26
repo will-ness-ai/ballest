@@ -11,7 +11,9 @@ import {
   COLOUR_NAMES,
   GENERATORS,
   PIECE_LIMIT,
+  SPAWN_MOST,
   MARBLE,
+  PIECE_FONTS,
   PIXEL_LETTERING,
   generate,
   generatorOf,
@@ -19,10 +21,12 @@ import {
   refuses,
   readPicture,
   rotOf,
+  spawnsOf,
   variationsOf,
   voxelBoxes,
   voxelTree,
   VOXEL_KINDS,
+  type PieceFontName,
   type Values,
 } from "../lib/generators";
 import {
@@ -30,10 +34,12 @@ import {
   footprintOf,
   rotationRows,
   shapesOf,
+  spanOf,
   type PrefabFile,
   type PrefabItem,
 } from "../lib/prefab";
 import { checkPrefab } from "../lib/prefab-check";
+import { pieceLettering } from "../lib/generators/piece-fonts";
 import { GENERATOR_KEYS, generatorHref } from "../lib/routes";
 
 type V3 = [number, number, number];
@@ -76,6 +82,15 @@ const highest = (file: PrefabFile) =>
       (sh) =>
         sh.matrix[13] +
         (Math.abs(sh.matrix[1]) + Math.abs(sh.matrix[5]) + Math.abs(sh.matrix[9])) / 2,
+    ),
+  ) * 100;
+/* the nearest any piece reaches toward the camera that spawns it (-X), in cm */
+const nearest = (file: PrefabFile) =>
+  Math.min(
+    ...shapesOf(file).map(
+      (sh) =>
+        sh.matrix[12] -
+        (Math.abs(sh.matrix[0]) + Math.abs(sh.matrix[4]) + Math.abs(sh.matrix[8])) / 2,
     ),
   ) * 100;
 const count = (file: PrefabFile, piece: string) =>
@@ -141,6 +156,43 @@ describe("every Generator", () => {
   });
 });
 
+describe("spawning in parts", () => {
+  /* 128 by 8 cells, red and white like a chessboard: 1,024 blocks, none merged */
+  const chess = "128x8:" + ("ca".repeat(64) + "ac".repeat(64)).repeat(4);
+  const big = (lay = "Standing") => make("pixel-art", { picture: chess, across: 128, lay });
+
+  test("a small one is one part, itself", () => {
+    const file = make("pixel-art");
+    expect(spawnsOf(file)).toEqual({ parts: [file], marked: false });
+  });
+
+  test("a big one splits into parts the game can spawn, each reaching as near and as low", () => {
+    for (const lay of ["Standing", "On the floor"]) {
+      const file = big(lay);
+      const { parts } = spawnsOf(file);
+      expect(parts.length, lay).toBe(Math.ceil(file.items.length / (SPAWN_MOST - 1)));
+      for (const p of parts) {
+        expect(p.items.length, lay).toBeLessThanOrEqual(SPAWN_MOST);
+        expect(nearest(p), lay).toBeCloseTo(nearest(file), 0);
+        expect(lowest(p), lay).toBeCloseTo(lowest(file), 0);
+        expect(checkPrefab(JSON.stringify(p)).ok, lay).toBe(true);
+      }
+      /* every piece once, and at most a marker more in each part */
+      const all = parts.flatMap((p) => p.items);
+      for (const it of file.items) expect(all).toContain(it);
+      expect(all.length, lay).toBeLessThanOrEqual(file.items.length + parts.length);
+    }
+  });
+
+  test("no part is a single piece, which the game won't spawn", () => {
+    const file = big();
+    /* lengths either side of where a split leaves one piece over */
+    for (let n = SPAWN_MOST - 2; n <= 2 * SPAWN_MOST + 2; n++)
+      for (const p of spawnsOf({ ...file, items: file.items.slice(0, n) }).parts)
+        expect(p.items.length, `${String(n)} pieces`).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe("the sign", () => {
   /* the boxes in front of the wall (or every box with none), as extents */
   const letters = (file: PrefabFile, wall: boolean) =>
@@ -183,6 +235,11 @@ describe("the sign", () => {
     expect(keys({ wall: true })).toContain("back");
     expect(keys({ font: "Pixel" })).not.toContain("detail");
     expect(keys({ font: "Bungee" })).toContain("detail");
+  });
+
+  test("keeps a dash at its height in its line, not on the ground", () => {
+    const dash = make("sign", { text: "-", wall: false });
+    expect(Math.min(...dash.items.map((it) => it.transform.location[2]))).toBeGreaterThan(0);
   });
 
   test("letters an A in Pixel as its table draws it", () => {
@@ -247,6 +304,128 @@ describe("the sign", () => {
   ])("letters clean text like %j, rude words inside a word included", (text) => {
     expect(refuses("sign", valuesOf("sign", { text }))).toBe(false);
     expect(generate("sign", valuesOf("sign", { text }))).not.toBeNull();
+  });
+});
+
+describe("the sign in R23's piece fonts", () => {
+  /* where the pieces reach, in cm, along three's axis k: 0 Unreal's x (toward the camera at
+     its least), 1 up, 2 across the sign (Unreal's y) */
+  const reach = (items: Array<PrefabItem>, k: number) => {
+    const spans = shapesOf({ format: "BallestPrefab", version: 1, group: GROUP, items }).map((sh) =>
+      spanOf(sh, k),
+    );
+    return [Math.min(...spans.map((s) => s[0])) * 100, Math.max(...spans.map((s) => s[1])) * 100];
+  };
+  const GROUP = { rotation: [0, 0, 0] as V3, scale: [1, 1, 1] as V3 };
+  const glyphs = (font: PieceFontName) => PIECE_FONTS[font].glyphs;
+  const sizeOf = (ch: string, font: PieceFontName) => glyphs(font)[ch].pieces.length;
+
+  test.each(["Graduate", "Leker"] as const)(
+    "%s letters with the pieces its Prefabs are built from",
+    (font) => {
+      const text = font === "Graduate" ? "AB" : "ab";
+      const file = make("sign", { font, text, wall: false });
+      expect(file.items.length).toBe(sizeOf(text[0], font) + sizeOf(text[1], font));
+      expect(file.items.every((it) => /BP_(Track|Ramp)|Cylinder|CornerScoop/.test(it.class))).toBe(
+        true,
+      );
+      expect(checkPrefab(JSON.stringify(file))).toEqual({ ok: true, pieces: file.items.length });
+    },
+  );
+
+  test("Graduate letters in capitals and Leker in lower case, whichever is typed", () => {
+    expect(make("sign", { font: "Graduate", text: "Ab" })).toEqual(
+      make("sign", { font: "Graduate", text: "AB" }),
+    );
+    expect(make("sign", { font: "Leker", text: "Ab" })).toEqual(
+      make("sign", { font: "Leker", text: "ab" }),
+    );
+  });
+
+  test("letters a character neither font has as a ?, and ' . : from the pieces it has", () => {
+    expect(make("sign", { font: "Graduate", text: "A&" })).toEqual(
+      make("sign", { font: "Graduate", text: "A?" }),
+    );
+    for (const ch of [".", ":", "'", '"'])
+      expect(make("sign", { font: "Leker", text: `a${ch}` })).not.toEqual(
+        make("sign", { font: "Leker", text: "a?" }),
+      );
+  });
+
+  test.each([
+    ["Graduate", 12, 4],
+    ["Leker", 3, 10],
+    ["Graduate", 40, 1],
+    ["Leker", 1, 0.5],
+  ])("in %s fits inside a %s m by %s m wall and stands out of its face", (font, width, height) => {
+    const [wall, ...letters] = make("sign", {
+      font,
+      text: "Welcome to my map, friend!",
+      width,
+      height,
+      wall: true,
+    }).items;
+    const [across, up, out] = [reach(letters, 2), reach(letters, 1), reach(letters, 0)];
+    const w = width * 100;
+    const h = height * 100;
+    expect(across[0]).toBeGreaterThanOrEqual(-w / 2 - 0.01);
+    expect(across[1]).toBeLessThanOrEqual(w / 2 + 0.01);
+    expect(up[0]).toBeGreaterThanOrEqual(-0.01);
+    expect(up[1]).toBeLessThanOrEqual(h + 0.01);
+    /* centred across and up the wall */
+    expect(across[0] + across[1]).toBeCloseTo(0, 0);
+    expect(up[0] + up[1]).toBeCloseTo(h, 0);
+    /* on the wall's face, toward the camera at -X */
+    expect(out[1]).toBeCloseTo(reach([wall], 0)[0], 0);
+  });
+
+  test("stands its letters up, reading left to right for the camera at -X", () => {
+    const file = make("sign", { font: "Graduate", text: "L", wall: false, height: 10 });
+    const [across, up, out] = [reach(file.items, 2), reach(file.items, 1), reach(file.items, 0)];
+    /* an L is taller than it is wide, and as deep as R23 built it, in proportion */
+    const L = glyphs("Graduate").L;
+    const built = pieceLettering("Graduate").pieces(["L"], 1, "Dark");
+    const [bOut, bUp] = [reach(built, 0), reach(built, 1)];
+    expect((up[1] - up[0]) / (across[1] - across[0])).toBeCloseTo(L.top / L.w, 1);
+    expect((out[1] - out[0]) / (up[1] - up[0])).toBeCloseTo(
+      (bOut[1] - bOut[0]) / (bUp[1] - bUp[0]),
+      2,
+    );
+    expect(up[0]).toBeCloseTo(0);
+    expect(out[1]).toBeCloseTo(0);
+    /* its foot runs right from its stem: the stem's at the left (-Y) */
+    const stem = file.items.filter(
+      (it) => reach([it], 1)[1] - reach([it], 1)[0] > (up[1] - up[0]) / 2,
+    );
+    expect(stem.length).toBeGreaterThan(0);
+    for (const s of stem) expect(reach([s], 2)[0]).toBeLessThan((across[0] + across[1]) / 2);
+  });
+
+  test("opens a straight quote after a space or a bracket and closes it after a word", () => {
+    expect(make("sign", { font: "Leker", text: '("hi")' })).toEqual(
+      make("sign", { font: "Leker", text: "(“hi”)" }),
+    );
+  });
+
+  test("wraps text that grows in capitals (ß is SS) without splitting a word", () => {
+    expect(make("sign", { font: "Graduate", text: "straße", width: 1, height: 10 })).toEqual(
+      make("sign", { font: "Graduate", text: "STRASSE", width: 1, height: 10 }),
+    );
+  });
+
+  test("paints every piece in the Letters colour", () => {
+    const file = make("sign", { font: "Leker", text: "hi", front: "Red", wall: false });
+    for (const it of file.items) {
+      for (const m of it.meshes[0].materials) expect(m).toMatch(/MI_Env_Red_Smooth/);
+      expect(it.paint?.colors.every((c) => c === 3)).toBe(true);
+    }
+  });
+
+  test("shows no Detail, which a built font doesn't have", () => {
+    const keys = gen("sign")
+      .controls(valuesOf("sign", { font: "Leker" }))
+      .map((ctl) => ctl.key);
+    expect(keys).not.toContain("detail");
   });
 });
 
@@ -608,6 +787,35 @@ describe("the useful ones", () => {
       .items.map((it) => extent(it))
       .reduce((a, e) => a + ((e.x1 - e.x0) * (e.z1 - e.z0)) / 100, 0);
     expect(area).toBeCloseTo(cells);
+  });
+
+  test("pixel art goes up to 128 blocks across", () => {
+    /* a row of 128 cells, red and white by turns: one block each, none merged */
+    const picture = "128x1:" + "ca".repeat(64);
+    expect(gen("pixel-art").controls(valuesOf("pixel-art"))).toContainEqual(
+      expect.objectContaining({ key: "across", max: 128 }),
+    );
+    expect(make("pixel-art", { picture, across: 128 }).items).toHaveLength(128);
+  });
+
+  test("a tall picture is held to 128 blocks the longer way", () => {
+    /* two columns, red and white, four times as tall as wide */
+    const picture = "2x8:" + "ca".repeat(8);
+    const file = make("pixel-art", { picture, across: 128, block: 10 });
+    expect(file.items).toHaveLength(2);
+    expect(highest(file)).toBeCloseTo(1280);
+  });
+
+  test("a tall picture's slider stops where it reaches 128 blocks tall", () => {
+    /* 3 by 7: 55 across makes 128 tall (54 would make 126) */
+    const picture = "3x7:" + "cac".repeat(7);
+    expect(gen("pixel-art").controls(valuesOf("pixel-art", { picture }))).toContainEqual(
+      expect.objectContaining({ key: "across", max: 55 }),
+    );
+    expect(highest(make("pixel-art", { picture, across: 128, block: 10 }))).toBeCloseTo(1280);
+    /* two cells across, 300 tall, red and white by rows: still no more than 128 */
+    const thin = "2x300:" + "ccaa".repeat(150);
+    expect(highest(make("pixel-art", { picture: thin, across: 128, block: 10 }))).toBeCloseTo(1280);
   });
 
   test("pixel art laid on the floor lies flat, a block deep", () => {
