@@ -39,6 +39,7 @@ describe("reach", () => {
     expect(r.pages).toEqual([
       { name: "prefabs-make", via: "web/lib/generators/signs.ts" },
       { name: "pixel-art", via: "web/lib/generators/signs.ts" },
+      { name: "prefab-sign", via: "web/lib/generators/signs.ts" },
     ]);
   });
 

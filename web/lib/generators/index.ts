@@ -36,6 +36,7 @@ export {
   type Values,
 } from "./pieces";
 export { fitText } from "./signs";
+export { PIECE_FONTS, PIECE_FONT_INFO, isPieceFont, type PieceFontName } from "./piece-fonts";
 export { VOXEL_KINDS, voxelBoxes, voxelTree } from "./nature";
 export { MARBLE, PICTURE_MOST, pictureOf, readPicture } from "./useful";
 export { rotOf } from "./pieces";

@@ -85,20 +85,35 @@ export function piece(
   rot: V3 | number = 0,
 ): PrefabItem {
   const k = KINDS[kind];
+  return placed(k.cls, k.mesh, 1, colour, at, typeof rot === "number" ? [0, rot, 0] : rot, [
+    size[0] / k.size[0],
+    size[1] / k.size[1],
+    size[2] / k.size[2],
+  ]);
+}
+
+/* a piece of class `cls` drawn with `mesh`, every one of its `slots` materials `colour`, as
+   the editor saves it */
+export function placed(
+  cls: string,
+  mesh: string,
+  slots: number,
+  colour: Colour,
+  location: V3,
+  rotation: V3,
+  scale: V3,
+): PrefabItem {
   const c = COLOURS[colour];
+  const each = <T>(v: T) => Array<T>(slots).fill(v);
   /* the keys the editor saves; PrefabItem names only the ones the viewer reads */
   const item = {
-    class: k.cls,
-    transform: {
-      location: at,
-      rotation: typeof rot === "number" ? ([0, rot, 0] as V3) : rot,
-      scale: [size[0] / k.size[0], size[1] / k.size[1], size[2] / k.size[2]] as V3,
-    },
+    class: cls,
+    transform: { location, rotation, scale },
     properties: {},
-    meshes: [{ tag: "SKGMapEditor", mesh: k.mesh, materials: [full(c.material)] }],
+    meshes: [{ tag: "SKGMapEditor", mesh, materials: each(full(c.material)) }],
     paint: {
-      categories: [full(`/Game/Art/DataAssets/BallestMaterials/${c.category}`)],
-      colors: [c.index],
+      categories: each(full(`/Game/Art/DataAssets/BallestMaterials/${c.category}`)),
+      colors: each(c.index),
     },
   };
   return item;
@@ -124,14 +139,26 @@ const edgeOf = (items: Array<PrefabItem>, k: number, sign: -1 | 1) =>
   Math.max(...shapesOf(fileOf(items)).map((sh) => sign * spanOf(sh, k)[sign < 0 ? 0 : 1])) *
   100;
 
-/* the pieces moved up or down so the lowest corner of any of them sits on the floor, z = 0 */
-export function grounded(items: Array<PrefabItem>): Array<PrefabItem> {
-  const low = lowestOf(items);
-  return items.map((it) => {
-    const [x, y, z] = it.transform.location;
-    return { ...it, transform: { ...it.transform, location: [x, y, z - low] as V3 } };
-  });
+/* where the pieces reach along Unreal's x, y and z, least and most, in cm */
+export function reachOf(items: Array<PrefabItem>): [V3, V3] {
+  const shapes = shapesOf(fileOf(items));
+  /* three's axis for each of Unreal's: x is x, y is three's z, z is three's y (up) */
+  const along = [0, 2, 1].map((k) => shapes.map((sh) => spanOf(sh, k)));
+  return [
+    along.map((spans) => Math.min(...spans.map((s) => s[0])) * 100) as V3,
+    along.map((spans) => Math.max(...spans.map((s) => s[1])) * 100) as V3,
+  ];
 }
+
+/* the pieces moved by `by` cm */
+export const shifted = (items: Array<PrefabItem>, by: V3): Array<PrefabItem> =>
+  items.map((it) => ({
+    ...it,
+    transform: { ...it.transform, location: add(it.transform.location, by) },
+  }));
+
+/* the pieces moved up or down so the lowest corner of any of them sits on the floor, z = 0 */
+export const grounded = (items: Array<PrefabItem>) => shifted(items, [0, 0, -lowestOf(items)]);
 
 /* a big Prefab as parts of at most SPAWN_MOST pieces, marker included, to spawn one after
    another without moving the camera. spawnprefab keeps a file's origin across and up but slides
