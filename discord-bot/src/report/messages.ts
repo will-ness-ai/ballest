@@ -19,6 +19,7 @@ import {
   type ListedTrack,
   type Report,
   type Stat,
+  STATS,
 } from "./report.js";
 
 /** Discord's cap on a bot message's text. */
@@ -30,6 +31,14 @@ export const BOARD_TITLE: Record<Stat, string> = {
   author: "Most Author Medals",
   wr: "Most world records",
   top5: "Most top 5s",
+};
+
+/** The four standings' short names, on each Overall row's chips. */
+export const BOARD_SHORT: Record<Stat, string> = {
+  played: "MP",
+  author: "AM",
+  wr: "WR",
+  top5: "T5",
 };
 
 /** The Track's board on the site. */
@@ -141,6 +150,18 @@ export const standingsImage = (r: Report, chosen: ChosenSkinPicks): StandingsIma
     })),
     out: b.out.map((o) => o.persona),
   })),
+  overall: {
+    rows: r.overall.rows.map((row) => ({
+      steamId: row.steamId,
+      skin: chosenSkinOf(chosen, row.steamId),
+      name: row.persona,
+      points: row.points,
+      place: row.place,
+      move: row.placeBefore === null ? "new" : row.placeBefore - row.place,
+      places: STATS.map((stat) => ({ board: BOARD_SHORT[stat], place: row.places[stat] })),
+    })),
+    out: r.overall.out.map((o) => o.persona),
+  },
 });
 
 export const threadName = (r: Report) => `Maps and records · ${shortDate(r.at)}`;

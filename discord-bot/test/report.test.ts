@@ -183,6 +183,12 @@ describe("the Daily Report's standings", () => {
       ["AMY", pink],
       ["BOB", null],
     ]);
+    expect(
+      standingsImage(r, new Map([["amy", pink]])).overall.rows.map((x) => [x.name, x.skin]),
+    ).toEqual([
+      ["AMY", pink],
+      ["BOB", null],
+    ]);
   });
 
   it("keeps exactly ten rows in the site's order when a tie runs past tenth", () => {
@@ -209,6 +215,79 @@ describe("the Daily Report's standings", () => {
     const bad = payload({ played: [["amy", 1, 1, 1, 1]] });
     const wr: (typeof SiteStandings.Encoded)["lists"]["wr"] = [[5, 1, 1, 1, 1]];
     expect(Either.isLeft(fromSite({ ...bad, lists: { ...bad.lists, wr } }))).toBe(true);
+  });
+
+  it("scores Overall 10 for 1st down to 1 for 10th on each standing, nothing outside a top 10", () => {
+    const r = build(data({}), {
+      played: [
+        ["slati", 9, 9, 1, 1],
+        ["amy", 1, 1, 11, 11],
+      ],
+      author: [["slati", 9, 9, 1, 1]],
+      wr: [
+        ["amy", 5, 5, 1, 1],
+        ["slati", 4, 4, 2, 2],
+      ],
+      top5: [
+        ["slati", 9, 9, 1, 1],
+        ["bob", 1, 1, 10, 10],
+      ],
+    });
+    expect(r.overall.rows.map((x) => [x.persona, x.points, x.place, x.places])).toEqual([
+      ["SLATI", 39, 1, { played: 1, author: 1, wr: 2, top5: 1 }],
+      ["AMY", 10, 2, { played: null, author: null, wr: 1, top5: null }],
+      ["BOB", 1, 3, { played: null, author: null, wr: null, top5: 10 }],
+    ]);
+  });
+
+  it("scores everyone tied on a standing, and shares Overall places over exactly ten rows", () => {
+    // twelve tied for 1st on world records: all twelve score 10, and share 1st Overall
+    const twelve = Array.from({ length: 12 }, (_, i): Row => [player(i), 1, 1, 1, 1]);
+    const r = build(data({}), { wr: twelve, top5: [["zed", 1, 1, 1, 1]] });
+    expect(r.overall.rows).toHaveLength(10);
+    expect(r.overall.rows.map((x) => [x.steamId, x.points, x.place])).toEqual(
+      twelve.slice(0, 10).map((x) => [x[0], 10, 1]),
+    );
+  });
+
+  it("moves Overall rows by yesterday's points, marks newcomers, and names who fell out", () => {
+    const nine = Array.from({ length: 9 }, (_, i): Row => [
+      player(i),
+      20 - i,
+      20 - i,
+      i + 1,
+      i + 1,
+    ]);
+    const r = build(data({}), {
+      // p09 slips from 10th to 11th on Maps played; zoe takes amy's world-record lead
+      played: [...nine, ["p09", 10, 10, 11, 10]],
+      wr: [
+        ["zoe", 3, 0, 1, 3],
+        ["amy", 2, 2, 2, 1],
+      ],
+    });
+    const image = standingsImage(r, new Map()).overall;
+    // yesterday: P00 and AMY 10, P01 9 ... P08 2, P09 1 (11th)
+    expect(image.rows.map((x) => [x.name, x.points, x.place, x.move])).toEqual([
+      ["P00", 10, 1, 0],
+      ["ZOE", 10, 1, "new"],
+      ["AMY", 9, 3, -2],
+      ["P01", 9, 3, 0],
+      ["P02", 8, 5, -1],
+      ["P03", 7, 6, -1],
+      ["P04", 6, 7, -1],
+      ["P05", 5, 8, -1],
+      ["P06", 4, 9, -1],
+      ["P07", 3, 10, -1],
+    ]);
+    expect(image.rows[1]?.places).toEqual([
+      { board: "MP", place: null },
+      { board: "AM", place: null },
+      { board: "WR", place: 1 },
+      { board: "T5", place: null },
+    ]);
+    // P08 is 11th Overall now; P09 was 11th yesterday too, so never in the top 10
+    expect(image.out).toEqual(["P08"]);
   });
 
   it("lists unfinished and unclaimed Maps only once they are a day old", () => {

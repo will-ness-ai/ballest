@@ -106,6 +106,25 @@ export interface Board {
   readonly out: ReadonlyArray<Pick<Standing, "steamId" | "persona">>;
 }
 
+/** One player on the overall standing: points from their places on the four Workshop standings. */
+export interface OverallStanding {
+  readonly steamId: string;
+  readonly persona: string;
+  /** OVERALL_TOP + 1 - place on each standing where they are in its top TOP places, added up. */
+  readonly points: number;
+  /** The shared place on Overall now: 1 + the players with more points. */
+  readonly place: number;
+  /** The shared place 24 hours before, or null if it was outside the top TOP places then. */
+  readonly placeBefore: number | null;
+  /** Their shared place on each standing, or null outside its top TOP places. */
+  readonly places: Readonly<Record<Stat, number | null>>;
+}
+export interface OverallStandings {
+  readonly rows: ReadonlyArray<OverallStanding>;
+  /** Players in Overall's top TOP places 24 hours before who are outside them now. */
+  readonly out: ReadonlyArray<Pick<OverallStanding, "steamId" | "persona">>;
+}
+
 /** A Track as the report names and links it. */
 export interface ListedTrack {
   readonly board: string;
@@ -169,6 +188,8 @@ export interface Report {
   readonly maps: number;
   readonly players: number;
   readonly boards: ReadonlyArray<Board>;
+  /** The four standings' places as points, added up (spec #373). */
+  readonly overall: OverallStandings;
   readonly unfinished: ReadonlyArray<ListedMap>;
   readonly unclaimed: ReadonlyArray<ListedMap>;
   /** Circuit world records that changed hands, in Track order. */
@@ -233,6 +254,83 @@ const board = (stat: Stat, list: ReadonlyArray<SiteStanding>): Board => {
       .filter((s) => wasTop(s) && (s.n === 0 || s.place > TOP))
       .sort((a, b) => a.placeBefore - b.placeBefore)
       .map((s) => ({ steamId: s.steamId, persona: s.persona })),
+  };
+};
+
+/** A shared place in the top TOP on a standing, or null outside it. */
+const scoringPlace = (n: number, place: number) => (n > 0 && place <= TOP ? place : null);
+
+/**
+ * The overall standing (CONTEXT.md): each player scores TOP + 1 - their shared place on each standing where it is
+ * in the top TOP (10 for 1st, 1 for 10th), added up, now and 24 hours before. Counted from the
+ * places the site serves, so it never disagrees with the four boards. Exactly TOP rows, by points
+ * then name.
+ */
+const overallStandings = (standings: Standings): OverallStandings => {
+  interface Tally {
+    steamId: string;
+    persona: string;
+    points: number;
+    pointsBefore: number;
+    places: Record<Stat, number | null>;
+  }
+  const players = new Map<string, Tally>();
+  for (const stat of STATS)
+    for (const s of standings[stat]) {
+      const place = scoringPlace(s.n, s.place);
+      const before = scoringPlace(s.nBefore, s.placeBefore);
+      if (place === null && before === null) continue;
+      const p = players.get(s.steamId) ?? {
+        steamId: s.steamId,
+        persona: s.persona,
+        points: 0,
+        pointsBefore: 0,
+        places: { played: null, author: null, wr: null, top5: null },
+      };
+      if (place !== null) p.points += TOP + 1 - place;
+      if (before !== null) p.pointsBefore += TOP + 1 - before;
+      p.places[stat] = place;
+      players.set(s.steamId, p);
+    }
+  const all = [...players.values()];
+  /** Each scoring player's shared place: 1 + the players with more points. */
+  const places = (points: (p: Tally) => number) =>
+    new Map(
+      all
+        .filter((p) => points(p) > 0)
+        .map((p) => [p.steamId, 1 + all.filter((o) => points(o) > points(p)).length]),
+    );
+  const now = places((p) => p.points);
+  const then = places((p) => p.pointsBefore);
+  const inTop = (place: number | undefined): place is number => place !== undefined && place <= TOP;
+  return {
+    rows: all
+      .filter((p) => p.points > 0)
+      .sort(
+        (a, b) =>
+          b.points - a.points ||
+          a.persona.localeCompare(b.persona) ||
+          bySteamId(a.steamId, b.steamId),
+      )
+      .slice(0, TOP)
+      .map((p) => {
+        const before = then.get(p.steamId);
+        return {
+          steamId: p.steamId,
+          persona: p.persona,
+          points: p.points,
+          place: now.get(p.steamId) ?? 0,
+          placeBefore: inTop(before) ? before : null,
+          places: p.places,
+        };
+      }),
+    out: all
+      .flatMap((p) => {
+        const before = then.get(p.steamId);
+        return inTop(before) && !inTop(now.get(p.steamId)) ? [{ p, before }] : [];
+      })
+      .sort((a, b) => a.before - b.before)
+      .map(({ p }) => ({ steamId: p.steamId, persona: p.persona })),
   };
 };
 
@@ -338,6 +436,7 @@ export const buildReport = (data: ReportData, standings: Standings, at: number):
     maps: data.maps.length,
     players: standings.played.filter((s) => s.n > 0).length,
     boards: STATS.map((stat) => board(stat, standings[stat])),
+    overall: overallStandings(standings),
     unfinished: unfinished.sort((a, b) => title(a).localeCompare(title(b))),
     unclaimed: unclaimed.sort(
       (a, b) => b.finishers - a.finishers || title(a).localeCompare(title(b)),

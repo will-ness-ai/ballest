@@ -229,6 +229,21 @@ const program = Effect.gen(function* () {
     move,
     gain,
   });
+  const overall = (
+    name: string,
+    points: number,
+    place: number,
+    move: number | "new",
+    places: ReadonlyArray<number | null>,
+  ) => ({
+    steamId: `s-${name}`,
+    skin: skinOf(`s-${name}`),
+    name,
+    points,
+    place,
+    move,
+    places: places.map((p, i) => ({ board: ["MP", "AM", "WR", "T5"][i] ?? "", place: p })),
+  });
   yield* save(
     "standings",
     yield* renderer.standings({
@@ -267,6 +282,21 @@ const program = Effect.gen(function* () {
           out: ["purple", "Skylar <3"],
         },
       ],
+      overall: {
+        rows: [
+          overall("Slati Jnr", 39, 1, 0, [1, 1, 2, 1]),
+          overall("Chaos", 35, 2, 0, [2, 2, 3, 2]),
+          overall("123JLaney123", 31, 3, 1, [6, 3, 1, 3]),
+          overall("Pamzei", 21, 4, -1, [8, 6, 5, 4]),
+          overall("a_name_far_too_long_for_its_row", 14, 5, "new", [3, 5, null, null]),
+          overall("alepa", 14, 5, 2, [null, 10, 4, 5]),
+          overall("warzone1320", 10, 7, 0, [5, 7, null, null]),
+          overall("snayK", 9, 8, -1, [null, null, 6, 7]),
+          overall("Bill Lumbergh", 8, 9, -2, [null, null, 8, 6]),
+          overall("シドニー", 1, 10, "new", [null, null, null, 10]),
+        ],
+        out: ["Skylar <3"],
+      },
     }),
   );
   // A Daily Post's lead graph: the prototype's graph A (Daily #60, "the drop"), live and closed.

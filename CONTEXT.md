@@ -135,7 +135,7 @@ _Avoid_: daily challenge post, Daily Report (that is the stats post)
 
 **Daily Report**:
 Multiballs' once-a-day post of the Workshop standings (Maps played, Author Medals, world
-records, top 5s), what changed since the day before, Maps nobody has finished, unclaimed
+records, top 5s) and the overall standing over them, what changed since the day before, Maps nobody has finished, unclaimed
 Author Medals and the longest-standing records. A creator counts on their own Map only by
 beating its Author Medal, since the Author time is their publishing run.
 _Avoid_: daily stats, stat report
@@ -147,6 +147,12 @@ Players level on a count share its place: 1 + the players with a strictly higher
 Map whose board was first read after the baseline counts as it stands on both sides.
 _Avoid_: rankings, the report's boards (the Players table is not these lists: it counts the
 Circuit too, and podiums)
+
+**Overall standing**:
+The Daily Report's list over the four Workshop standings, drawn as "Overall" above them: a
+player scores 10 points for 1st on a standing down to 1 for 10th, nothing outside a top 10,
+added across the four (40 at most). Players level on points share a place, as on the four.
+_Avoid_: Overall board (that is Steam's Circuit points board), overall score
 
 ### The site
 
