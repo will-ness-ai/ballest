@@ -49,6 +49,7 @@ export function fitText(text: string, lettering: Lettering, w: number, h: number
 
 export const sign: Generator = {
   key: "sign",
+  loose: true,
   name: "Sign",
   category: "Useful",
   blurb: "Your words in blocks, on a wall or standing alone.",

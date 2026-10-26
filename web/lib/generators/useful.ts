@@ -133,7 +133,9 @@ export const arrowSign: Generator = {
     const cw = W / cols;
     const ch = H / rows;
     const shape = SHAPES[ARROWS.find((a) => a === v.shape) ?? "Arrow"];
-    const pts = String(v.points);
+    /* a Turn or U-turn can only point sideways, whatever an earlier shape left in "points" */
+    const sideways = v.shape !== "Arrow" && v.shape !== "Chevrons";
+    const pts = sideways && v.points !== "Left" ? "Right" : String(v.points);
     /* the drawing keeps to a box inside the board: a turn in a square, an arrow or chevrons
        stretched along the way they point to at most three times as long as they are wide */
     const along = pts === "Up" || pts === "Down" ? H / W : W / H;
@@ -292,13 +294,14 @@ export const pixelArt: Generator = {
     const cell = numberIn(v, "block");
     const depth = cell;
     const back = v.backing ? Math.max(5, cell / 2) : 0;
+    const cells = cellBoxes(at, w, h, cell, cell, h * cell, back, depth);
+    if (!cells.length) return null;
     const items = [
       ...(v.backing
         ? [piece("cube", [0, back / 2, 0], [w * cell, back, h * cell], colourIn(v, "back"))]
         : []),
-      ...cellBoxes(at, w, h, cell, cell, h * cell, back, depth),
+      ...cells,
     ];
-    if (items.length < 2) return null;
     if (v.lay === "Standing") return fileOf(facing(items));
     /* laid face up: its top row away from the camera (+X), its depth going up */
     return fileOf(

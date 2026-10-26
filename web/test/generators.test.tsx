@@ -38,6 +38,8 @@ import {
   type PrefabFile,
   type PrefabItem,
 } from "../lib/prefab";
+import { faultsOf, parts } from "../lib/generators/checks";
+import { fileOf, piece } from "../lib/generators/pieces";
 import { checkPrefab } from "../lib/prefab-check";
 import { pieceLettering } from "../lib/generators/piece-fonts";
 import { GENERATOR_KEYS, generatorHref } from "../lib/routes";
@@ -631,6 +633,34 @@ describe("the pieces", () => {
   });
 });
 
+describe("the checks", () => {
+  test("no Generator has a fault in any variation the collage draws", () => {
+    for (const g of GENERATORS) {
+      const base = generate(g.key, g.defaults);
+      for (const { label, values } of variationsOf(g))
+        expect(
+          faultsOf(generate(g.key, values), g.loose || !base ? Infinity : parts(base)),
+          `${g.key} ${label}`,
+        ).toEqual([]);
+    }
+  });
+
+  test("a gap between pieces is two parts, a touching pair is one, and a piece under the floor is a fault", () => {
+    const cube = (at: V3) => piece("cube", at, [100, 100, 100], "White");
+    expect(parts(fileOf([cube([0, 0, 0]), cube([100, 0, 0])]))).toBe(1);
+    expect(parts(fileOf([cube([0, 0, 0]), cube([300, 0, 0])]))).toBe(2);
+    expect(faultsOf(fileOf([cube([0, 0, -100]), cube([0, 0, 0])]), 1).map((f) => f.kind)).toEqual([
+      "floor",
+    ]);
+    expect(faultsOf(null, 1).map((f) => f.kind)).toEqual(["empty"]);
+  });
+
+  test("a block tree's canopy never reaches the ground's far side, and a pine's tiers touch", () => {
+    expect(lowest(make("block-tree", { "v.height": 4, "v.radius": 3 }))).toBeGreaterThanOrEqual(-1);
+    expect(parts(make("pine", { "t.overlap": 0, seed: 7 }))).toBe(1);
+  });
+});
+
 describe("the categories", () => {
   test("hold the Useful ones, then Racing, then Decor, each of the new five", () => {
     const under = (c: string) => GENERATORS.filter((g) => g.category === c).map((g) => g.key);
@@ -877,7 +907,7 @@ describe("the pages", () => {
   test("link every Generator, in GENERATORS' order", () => {
     expect(GENERATORS.map((g) => g.key)).toEqual([...GENERATOR_KEYS]);
     expect(generatorHref("tree")).toBe("/prefabs/make/tree");
-    expect(generatorHref("windmill")).toBe("/prefabs/make");
+    expect(generatorHref("no-such-generator")).toBe("/prefabs/make");
   });
 
   test("Make your own shows a card per Generator, and no tabs of its own (the header has them)", () => {
