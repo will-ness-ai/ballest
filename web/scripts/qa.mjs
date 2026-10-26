@@ -4,8 +4,16 @@
 // page, at several sizes on a target and a reference,
 // reports layout faults, errors and changed pixels, and writes one picture per changed view
 // to read in place of the screenshots. What it looks at: scripts/qa/catalogue.mjs.
-import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
+import { basename, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { compare } from "./qa/compare.mjs";
@@ -329,21 +337,35 @@ function renderFile() {
   const what = positional[0];
   if (!what) fail("name a Prefab file or a Generator", HELP.render);
   mkdirSync(OUT, { recursive: true });
-  const name = (what.split("/").at(-1) ?? what).replace(/\.json$/, "");
-  const out = `${OUT}render-${name}${flags.from ? "-" + flags.from.replace(/,/g, "_") : ""}.png`;
+  const variant = [flags.from, flags.items]
+    .filter(Boolean)
+    .join("-")
+    .replace(/[^\w-]/g, "_");
+  const out = `${OUT}render-${basename(what, ".json")}${variant ? "-" + variant : ""}.png`;
+  /* node itself with tsx's loader, which runs the same on Windows as anywhere */
   const run = spawnSync(
-    fileURLToPath(new URL("../node_modules/.bin/tsx", import.meta.url)),
+    process.execPath,
     [
+      "--import",
+      "tsx",
       fileURLToPath(new URL("./qa/render.ts", import.meta.url)),
-      JSON.stringify({ ...flags, set: flags.set ?? [], what, out }),
+      JSON.stringify({
+        ...flags,
+        set: flags.set ?? [],
+        what: existsSync(what) ? resolvePath(what) : what,
+        out,
+      }),
     ],
-    { encoding: "utf8" },
+    { encoding: "utf8", cwd: fileURLToPath(new URL("../", import.meta.url)) },
   );
+  if (run.error) fail(`the render didn't start: ${run.error.message}`);
   let r;
   try {
     r = JSON.parse(run.stdout.trim().split("\n").at(-1) ?? "");
   } catch {
-    return fail(`the render failed: ${(run.stderr || run.stdout).trim().split("\n")[0]}`);
+    /* an exception's own line, not the source line tsx prints over it */
+    const lines = `${run.stderr}\n${run.stdout}`.split("\n");
+    return fail(`the render failed: ${lines.find((l) => /Error\b/.test(l)) ?? lines[0]}`);
   }
   if (r.error) fail(r.error, HELP.render);
   const [x, y, z] = r.reach.map(([lo, hi]) => `${String(lo)}..${String(hi)}`);
