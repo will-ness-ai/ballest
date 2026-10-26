@@ -126,10 +126,18 @@ iframe, from Link Steam to the live standings and the Result. `api.ts` is an HTT
 Engine, tested in `test/activity.test.ts` like the engine tests; it names Players as the server
 does and refuses anyone outside `DISCORD_GUILD_ID`. `auth.ts` swaps the SDK's OAuth code for an
 access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
-page (`web/`: `view.ts` is the markup, `app.ts` the state and actions, bundled by esbuild at
-startup), its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and
-each Skin's picture, because Discord's proxy blocks every other host. The page polls every two seconds. The visual reference
-is the prototype on branch `claude/prototype-activity-surfaces`.
+page, its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and
+each Skin's picture, because Discord's proxy blocks every other host. The page arrives with its
+config and the signing-in screen in it, and its script named by its hash and sent compressed.
+
+The page (`web/`) is React with TanStack Query, bundled by esbuild at startup from `main.tsx`.
+`session.ts` signs in and signs in again after a 401 (no token outlives the page); `client.ts` is
+the API; the board (`/api/me` with `/api/matches`) is one query polled every two seconds, and
+each member's action one mutation at a time, after which the board is read again. `nav.ts` turns
+each board and each press into which Match is on screen (the lock, watching, a Result staying
+up, Go!), and is pure and tested (`test/activityNav.test.ts`, `test/activitySession.test.ts`);
+`ui/` only draws it. The visual reference is the prototype on branch
+`claude/prototype-activity-surfaces`.
 
 The Activity's art in the Developer Portal (the app icon, and the cover and grid-view background
 under Activities -> Art Assets) is drawn by `src/render/` too: `pnpm render:activity-art` writes it
@@ -314,6 +322,50 @@ A request the collector refuses or can't take goes to the ops channel; a failed 
 from the collector. It is off unless both
 settings are set and the bot can view that channel, and then says why in the log; the bot runs on.
 The batching is tested on the TestClock (`test/newTracks.test.ts`).
+
+## My stats
+
+`src/discord/myStats.ts` keeps `#my-stats` (spec #323): at startup the bot makes it in its server,
+beside the Match channel, or at the top of the server `MY_STATS_GUILD_ID` names (production: Ballest
+Racing, `fly.toml`), when it holds none or the one it made is gone, with `@everyone` denied
+Send Messages, both Create Threads, Send Messages in Threads and Add Reactions, and the bot allowed
+what the panel needs, and keeps one panel there with a **See my stats** button. Its id,
+the panel's and the panel's fingerprint are in SQLite (`my_stats_channel`), so it is found by id and
+admins may rename or move it; the panel is edited only when this build draws it differently, like
+the Footer, and posted again if deleted. Presses there reach `interactions.ts` through
+`Discord.answerIn`. Before making the channel it checks the bot holds every permission in
+`NEEDED_TO_CREATE` where the channel will be, the Match channel's category or else the server
+(in Ballest Racing, Add Reactions and Create Private Threads are beyond its invite's permissions)
+(Discord refuses an overwrite, allow or deny, naming a permission the bot lacks): any missing is
+named to the ops channel, and no channel is made without them. A channel already there needs
+none of them, so it raises no alert. On any
+other failure it tells the ops channel too, and the bot runs on. It is off in the sandbox, whose fresh database would make a channel at every start;
+check the discord.js calls with `pnpm dev`, whose database lasts. The rules are tested over an
+in-memory server in `test/myStats.test.ts`, the panel in `test/messages.test.ts`.
+
+A press of See my stats is `src/seeMyStats.ts`. With a Stats Link in `stats_links` (CONTEXT.md,
+ADR 0014) the private answer is the Stat Card, fetched from the site at `SITE_URL` (default the
+live site) as `/og/stats/<steamid>?v=<the site's /api/refreshed>`, with a Player page link and
+"Not you? Pair again". Without one, or on Pair again, the bot writes a link request to
+`stats_link_requests` (one insert, pruning those past a day: the only rows it writes in the
+leaderboard database) and answers with a Sign in with Steam link to the site's
+`/discord/link?t=<token>`; then it looks every 5 seconds for 14 minutes whether the request has
+been used, and once it has, edits that answer into the card through the interaction's own token
+(which lasts 15). A card the site can't draw answers "Couldn't draw your card, try again" and tells
+the ops channel, at most once an hour (`CARD_ALERT_EVERY`), since a site outage fails every press;
+with no `DATABASE_URL` (or one it can't read) the answer says stats aren't available. The Stats
+Links share one `pg` pool, made at start, which connects only when a call needs it (giving up
+after 5 seconds), so a database that can't be reached fails that press alone. The ops alert of a
+failed draw is posted in the background, never holding up the member's answer. The site and
+the database must be the same one's: for `pnpm dev` against a local database, set `SITE_URL` to a
+local `pnpm dev` of `web/` on it. The rules run over fake ports on the TestClock in
+`test/seeMyStats.test.ts`, the SQL against Postgres in `test/statsLinks.test.ts`, the answers'
+buttons in `test/messages.test.ts`, and the clicks through `interactions.ts` in
+`test/driver.test.ts`.
+
+In production the bot's role needs, where #my-stats is made (the Match channel's category, or the
+server), Manage Channels, Manage Roles, View Channel, Send Messages, Embed Links, Read Message
+History, both Create Threads, Send Messages in Threads and Add Reactions (`NEEDED_TO_CREATE`).
 
 ## Production
 

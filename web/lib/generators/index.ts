@@ -8,7 +8,7 @@
 // Pieces are the editor's primitives, placed by their bottom centre (lib/prefab-meshes.ts has
 // their bounds): a cube 1000 cm, a sphere 400 cm, a cylinder 1000 cm across and 200 tall, a
 // cone 300 across and 200 tall, a pyramid 500 across its corners and 200 tall. Rotations are
-// Unreal's [pitch, yaw, roll] in degrees. A sign, a QR code or a building faces -X (a sign
+// Unreal's [pitch, yaw, roll] in degrees. A sign or a building faces -X (a sign
 // reads left to right along +Y): spawnprefab puts a Prefab in front of the editor's camera,
 // which looks along +X with +Y on its right, so it faces whoever spawned it (checked in game).
 import { PIXEL_LETTERING, type Lettering } from "../generator-letters";
@@ -17,7 +17,7 @@ import { fence, finishArch, fountain, lampPost, trophy } from "./decor";
 import { blockTree, bush, pine, tree } from "./nature";
 import type { Generator, Values } from "./pieces";
 import { jump, loop, plinko, rollers, spiral } from "./racing";
-import { qr, sign } from "./signs";
+import { sign } from "./signs";
 import { arrowSign, bridge, floorTiles, pixelArt, stairs } from "./useful";
 
 export type { Grid, Lettering } from "../generator-letters";
@@ -27,6 +27,8 @@ export {
   COLOURS,
   COLOUR_NAMES,
   PIECE_LIMIT,
+  SPAWN_MOST,
+  spawnsOf,
   rects,
   type Colour,
   type Control,
@@ -39,7 +41,6 @@ export { MARBLE, PICTURE_MOST, pictureOf, readPicture } from "./useful";
 export { rotOf } from "./pieces";
 
 export const GENERATORS: ReadonlyArray<Generator> = [
-  qr,
   sign,
   arrowSign,
   pixelArt,

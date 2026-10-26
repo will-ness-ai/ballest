@@ -1,4 +1,4 @@
-// Useful (lib/generators/index.ts), beside the QR code and the Sign: Arrow sign, Pixel art,
+// Useful (lib/generators/index.ts), beside the Sign: Arrow sign, Pixel art,
 // Stairs, Bridge and Floor tiles. A sign or a picture faces -X like the Sign; stairs climb away
 // from the camera (+X) and a bridge spans across its view (along Y).
 import { colourOf, type PrefabItem } from "../prefab";
@@ -179,7 +179,7 @@ export const arrowSign: Generator = {
 /* A picture is "<w>x<h>:" and a character a cell, row by row from the top: "." is empty and
    "a", "b", ... the colours in COLOUR_NAMES' order. The page turns an uploaded image into one
    (pictureOf), at most PICTURE_MOST cells the longer way. */
-export const PICTURE_MOST = 48;
+export const PICTURE_MOST = 128;
 const PALETTE = COLOUR_NAMES.map((n) => {
   const hex = colourOf(COLOURS[n].material.split("/").at(-1) ?? "");
   return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -224,6 +224,15 @@ export function readPicture(s: string) {
   };
 }
 
+/* the most blocks across a picture can be resampled to and stay within PICTURE_MOST the longer
+   way */
+function acrossMost(pic: { w: number; h: number } | null) {
+  if (!pic || pic.h <= pic.w) return PICTURE_MOST;
+  let w = Math.ceil(((PICTURE_MOST + 0.5) * pic.w) / pic.h);
+  while (w > 1 && Math.round((w * pic.h) / pic.w) > PICTURE_MOST) w--;
+  return w;
+}
+
 /* the picture it starts with: the site's lime marble, 16 cells across */
 export const MARBLE = (() => {
   const n = 16;
@@ -265,7 +274,7 @@ export const pixelArt: Generator = {
   },
   controls: (v) => [
     { key: "picture", label: "Picture", kind: "picture" },
-    num("across", "Blocks across", 4, PICTURE_MOST, 1),
+    num("across", "Blocks across", 4, Math.max(4, acrossMost(readPicture(String(v.picture)))), 1),
     num("block", "Block size", 5, 100, 5, "cm"),
     choice("lay", "Stand", ["Standing", "On the floor"]),
     { key: "backing", label: "Backing behind it", kind: "toggle" },
@@ -274,9 +283,10 @@ export const pixelArt: Generator = {
   build: (v) => {
     const pic = readPicture(String(v.picture));
     if (!pic) return null;
-    /* resampled to `across` cells, each the picture's cell under its middle */
-    const w = Math.max(1, Math.min(numberIn(v, "across"), PICTURE_MOST));
-    const h = Math.max(1, Math.round((w * pic.h) / pic.w));
+    /* resampled to `across` cells, each the picture's cell under its middle, and no more than
+       PICTURE_MOST the longer way */
+    const w = Math.max(1, Math.min(numberIn(v, "across"), acrossMost(pic)));
+    const h = Math.max(1, Math.min(Math.round((w * pic.h) / pic.w), PICTURE_MOST));
     const at = (x: number, y: number) =>
       pic.at(Math.floor(((x + 0.5) * pic.w) / w), Math.floor(((y + 0.5) * pic.h) / h));
     const cell = numberIn(v, "block");

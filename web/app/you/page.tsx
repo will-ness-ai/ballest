@@ -3,8 +3,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { PageHead } from "../../components/PageHead";
 import { Shell } from "../../components/Shell";
 import { YouSkeleton } from "../../components/Skeleton";
+import { Remember } from "../../components/Trail";
 import { YouView } from "../../components/you/YouView";
 import { youHref } from "../../lib/routes";
 
@@ -18,6 +20,8 @@ export const metadata: Metadata = {
 export default function Page() {
   return (
     <Shell view="you">
+      <PageHead path={youHref()} title="Where you stand" />
+      <Remember trail="board" href={youHref()} label="Where you stand" />
       <Suspense fallback={<YouSkeleton />}>
         <YouView />
       </Suspense>

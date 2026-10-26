@@ -1,5 +1,5 @@
 /* ==========================================================================
-   The Generators (spec #299): the Prefabs page's tabs, the Generate your own cards, and a
+   The Generators (spec #299): the Generate your own cards, and a
    Generator's page. Desktop overrides are in desktop.css.
    ========================================================================== */
 
@@ -18,27 +18,6 @@
   --gen-iron: oklch(28% 0.008 264.4);
   --gen-copper: oklch(59.6% 0.12 49.5);
   --gen-aluminum: oklch(84.5% 0.009 264.5);
-}
-
-/* Shared by players / Generate your own */
-.gen-tabs {
-  display: flex;
-  gap: 0.3rem;
-  border-block-end: 1px solid var(--line);
-}
-.gen-tabs a {
-  padding: 0.6rem 1rem;
-  border-block-end: 3px solid transparent;
-  color: var(--dim);
-  font-weight: 700;
-  text-decoration: none;
-}
-.gen-tabs a:hover {
-  color: var(--text);
-}
-.gen-tabs a[aria-current="page"] {
-  color: var(--text);
-  border-block-end-color: var(--accent);
 }
 
 /* the Generate your own categories, a heading over each one's cards */
@@ -101,13 +80,6 @@
 .gen > * {
   min-width: 0;
 }
-.gen-back {
-  color: var(--dim);
-  text-decoration: none;
-}
-.gen-back:hover {
-  color: var(--text);
-}
 .gen-split {
   display: grid;
   gap: 1.5rem;
@@ -148,18 +120,14 @@
 }
 .gen-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
   align-items: center;
 }
-.gen-actions .pf-dl {
-  border: 0;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-.gen-actions .pf-dl:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.gen-parts {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--dim);
 }
 .gen-actions .pf-q {
   width: 2.4rem;
@@ -283,26 +251,6 @@
 .gen-swatches button[aria-pressed="true"] {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-.gen-choice div {
-  display: inline-flex;
-  flex-wrap: wrap;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.gen-choice button {
-  padding: 0.45rem 0.9rem;
-  border: 0;
-  background: var(--solid);
-  color: var(--dim);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-.gen-choice button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--accent-ink);
 }
 .gen-toggle {
   display: flex;

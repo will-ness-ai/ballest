@@ -163,7 +163,7 @@ describe("an Event board inside a Campaign's frame", () => {
     title: "Leth Trial #1",
     creator: "Lethamyr",
     cid: "76561198184322235",
-    preview: "https://ballestrecords.com/leth/preview.jpg",
+    preview: "https://ballestrecords.com/leth/screenshot.jpg",
     created: 0,
     medals: [],
     entryCount: 2,

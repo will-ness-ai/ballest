@@ -6,7 +6,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
 
 ## Where things live
 
-- `web/app/` — the routes. Each page renders `<Shell view>` (the header, the tabs and the
+- `web/app/` — the routes. Each page renders `<Shell view>` (the header and the
   footer) around a `<Suspense>` whose fallback is that view's skeleton, and reads its
   params inside the boundary, so a page whose params weren't prerendered is served from
   its static shell at once. `app/api/` holds the few reads a page makes after it has
@@ -19,8 +19,14 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `rules.ts`, the page's invariants and formatting: score units (`SCORE_TICKS_PER_SECOND`),
     `isPoints`, `isSteamId`, Medal tiers, times and ages.
   - `routes.ts`, every URL the site links to, what each path segment may be (the proxy and
-    the pages check a path with the same predicates), which tab a path lights, and how an
+    the pages check a path with the same predicates) and how an
     old `#/` link maps onto one.
+  - `nav.ts`, the navigation model (`navOf`): from a path and a few facts from the database,
+    the Section it is in, that Section's sub-tabs with the lit one, the kind of page and its
+    breadcrumb trail ("The header"), and `crumbsOf`, the breadcrumb a page draws with the
+    page the reader came from as its parent ("How a page opens").
+  - `search.ts`, the site search: what a query finds, how each hit scores, and how the
+    results are grouped under the filter chips ("Search").
   - `circuit.ts`, the Circuit's fixed facts: the board order (the in-game numbering), the
     Season 2 tiers, each Track's screenshot and Medal times.
   - `campaigns.ts`, the curated Campaigns and their lookups (below, "Campaigns").
@@ -73,7 +79,8 @@ then starts over from its new first rows. Nothing polls while a tab is open.
 Sign in with Steam (ADR 0008) never touches a page's cache: the session cookie is signed
 with `SESSION_SECRET` and only `/api/me` reads it, from the browser, which asks only when
 the readable `ballest-in` cookie says a session exists. Without `SESSION_SECRET` nobody can
-sign in and every page works as before.
+sign in and every page works as before. The one page that reads it while it draws is the
+link page (`/discord/link`, ADR 0014), which is never cached.
 
 Every Circuit board and every Players view is prerendered at build. A player, a Map or a
 head to head is prerendered for a handful of the busiest, and anyone else is served from
@@ -171,6 +178,11 @@ card says, `components/share/` draws it through `next/og`, `pageMetadata`
 `campaign`, `prefab`) serves the PNG, or a 404 when there is no such page. Any other page, an
 Overall board included, keeps the site-wide `og.png`.
 
+Every card carries the brand: the lime marble and the site's name, BALLESTRECORDS, in the
+header's two tones (`SITE_WORDMARK`, `lib/rules.ts`; lime restated in sRGB). `og.png` bakes the
+same name in with "Leaderboards for Ballest of Them All" under it, so renaming the site means
+rendering it again (it was last drawn from a small page in Chromium at 1200×630, spec #339).
+
 - A player gets their marble turned over to their Steam avatar, the Season 2 Overall rank
   if they have one, and up to four tiles: World records, Author medals, Maps finished,
   Maps made. Each counts the Circuit and the Workshop together, and a count of zero is
@@ -212,12 +224,49 @@ of each `circuit/*.webp`. Regenerate those copies whenever a Track screenshot ch
 with a 3-second timeout, only as PNG, JPEG or GIF and up to 4 MB; a card whose picture
 fails to load, or that Satori can't read, draws without it.
 
+## Stat Card
+
+A player's Stat Card (CONTEXT.md) is the 720×1060 portrait card Multiballs's See my stats
+answers with in Discord (spec #323; grill-design K5 with its date as T1, prototype branch
+`claude/prototype-statcard`). No page names it: `/og/stats/<steam id>?v=<Refresh time>`
+(`app/og/stats/[id]/route.tsx`) serves it, through the player page's cached reads plus
+`getChosenSkins`, `v` being the cache key. Unlike a share image it is kept by the CDN for five
+minutes only (`s-maxage=300`), since the Chosen Skin and the Steam avatar on it change between
+Refreshes, and not at all (`no-store`) when its avatar failed to load only for now (timed out,
+a 5xx or the network failing), so the next press draws it again. A picture that will never
+load (no PNG for the Skin, an avatar address `safeImg` refuses, a 404) leaves the card drawn
+without it and kept as usual. A Steam ID that
+names nobody is a 404. `lib/stat-card.ts` decides what it says, and
+`components/share/StatCard.tsx` loads its pictures and draws it with `Card.tsx`'s colours,
+marble and fonts.
+
+- A frame and glow in the player's hue, and their ball at 400px: their Chosen Skin's
+  picture, else their hue marble, with their Steam avatar as a 130px badge on its lower
+  right (none without an avatar). Then their name, on one line: it steps down from 56px so
+  that 32 characters (Steam's longest persona, counted as graphemes) fit, each at Bungee's
+  widest letter or, for an emoji, CJK or any other script Bungee lacks, at 1.25em, and
+  anything longer is cut with an ellipsis.
+- The rows, in order: Season 1 Circuit and Season 2 Circuit (each season's Overall rank),
+  World records, Author, Gold, Silver and Bronze medals, Maps finished. The counts add the
+  Circuit and the Workshop as the player's share card does (an Author count includes world
+  records at the author time), and the Medals count what each finish's time earned. A
+  missing rank or a zero leaves its row out.
+- The Refresh's date in UTC (`22 OCT 2026`) bottom left, the brand bottom right.
+
+The Skin pictures are 192px WebP, which Satori can't read, so `assets/share/skins/` holds a
+PNG copy of each at the same size, drawn scaled up to the ball until larger shots are taken
+in the game. Run `python web/scripts/skin_pngs.py` (Pillow) after adding or changing a
+picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has its copy.
+`qa`'s `stat-card` page draws it at the widths it fits (`minWidth` in the catalogue).
+
 ## Routes
 
 - `/` — the Workshop homepage: the carousel, the Campaigns' carousel, the shelves and the
   search.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
-  (`lib/workshop.ts`).
+  (`lib/workshop.ts`). `?q=` narrows it to the Maps whose title or maker contains the query
+  (the site search's "All N Maps matching", `mapsSearchHref`); the page is prerendered
+  without it and narrows once the browser reads the address.
 - `/map/<pfid>`, with an optional `/<steam_id>` that marks that player's row, and
   `/map/<pfid>/file`, the Map's file for its 3D view ("Maps in 3D"). A Map nobody has a
   time on yet, such as one added from #new-tracks since the last Refresh (`docs/data.md`,
@@ -225,20 +274,20 @@ fails to load, or that Satori can't read, draws without it.
   show only Maps with times. A Map the Workshop doesn't list sends the link home.
 - `/board/<board name>`, with the same optional `/<steam_id>`, or on an Overall board
   `/podiums`, which lists it in its podium order. A Steam ID is all digits, so the two
-  cannot collide. Every Circuit board lights the one Circuit tab, which opens the newest
-  season's Overall board. The seasons, newest first then All Seasons (`seasonsOf` in
-  `lib/player.ts`), are a row of sub-tabs under the tabs on a desktop and a chip beside
+  cannot collide. Every Circuit board lights the Circuit Section, which opens the newest
+  season's Overall board, and its own season among the sub-tabs. The seasons, newest first then All Seasons (`seasonsOf` in
+  `lib/player.ts`), are also a row of sub-tabs above the board on a desktop and a chip beside
   the board button on a phone, whose menu gives each season's Tracks and field. Each
   season opens its Overall board.
 - `/campaign/<slug>`: a Campaign's Overall board, with the same optional `/<steam_id>` or
   `/podiums`, or `/campaign/<slug>/<pfid>` for one of its Maps inside the Campaign's frame,
   as a Track opens inside its season, or `/campaign/<slug>/<event>[/<steam_id>]` for one of
   its Event boards, the only Map slot that takes a row (a Workshop Map's row is on its own
-  page). Lights the Workshop tab. The proxy 404s a slug that
+  page). Lights the Campaigns Section. The proxy 404s a slug that
   isn't curated, or anything after it but those; how the page is built is under
   "Campaigns".
 - `/campaigns`: every Campaign as a banner, most players first, two across on a desktop
-  and one on a phone. Prerendered; lights the Workshop tab.
+  and one on a phone. Prerendered; lights the Campaigns Section.
 - `/player/<steam_id>`, with an optional tab from `PLAYER_TABS` (`/circuit`, `/workshop`,
   `/made`). Without one the page opens on Workshop for anyone with a Workshop time, else
   Circuit.
@@ -252,11 +301,11 @@ fails to load, or that Satori can't read, draws without it.
   a timer at the close (`useNowPast`) flips it on time rather than at the next minute.
   Every day links to its own page: on a desktop the calendar of months (`calendarOf`)
   sits beside the day's panel and stays put while the board scrolls; on a phone a strip
-  of days under the tabs, newest at the right and opened on the picked day, stands over
-  the panel, and its Calendar button opens the same months over the page. The Daily tab
-  follows the Workshop's and is lit on every `/daily` path.
-- `/daily/standings`: the all-time Daily standings, behind the Days | Standings switch at
-  the top of the Daily page, over final Dailies only (`standingsOf` in `lib/daily.ts`), so
+  of days under the page head, newest at the right and opened on the picked day, stands over
+  the panel, and its Calendar button opens the same months over the page. The Daily
+  Section is lit on every `/daily` path.
+- `/daily/standings`: the all-time Daily standings, the Daily Section's Standings sub-tab,
+  over final Dailies only (`standingsOf` in `lib/daily.ts`), so
   the live Daily joins once it closes. A card per record (most wins, podiums and Dailies
   played, the longest runs of days played and of wins), each the record's top three as
   small plates with equal values sharing a place, then "Every player": a medal table sorted
@@ -264,7 +313,7 @@ fails to load, or that Satori can't read, draws without it.
   "Show all". A phone drops its Podiums and Top 10 columns. Names link to the player's
   Daily tab.
 - `/you`: Where you stand, You on the four Workshop standings (spec #221), linked from the
-  Players table and the Daily Report's button, and lighting the Players tab. A ladder card
+  Players table and the Daily Report's button, and lighting the Players Section. A ladder card
   per list, stacked on a phone, two by two and then four across on the desktop layout: the
   top 3, a gap, two above You, You, one below (unbroken in or near the top 5), each row
   with +N since the baseline and its places moved, then "N more to pass X" (the nearest player with a strictly higher count) or "You
@@ -281,9 +330,20 @@ fails to load, or that Satori can't read, draws without it.
   whether anyone is signed in, the strip, those rows and the gains line are drawn unseen,
   out of reach, holding their place, so a signed-out page doesn't jump when they show and
   a signed-in visitor never sees Sign in.
+- `/discord/link?t=<token>`: the Stats Link's page (ADR 0014), where Multiballs sends a member
+  who pressed See my stats to pair their Discord account with their Steam sign-in
+  (`components/discord/LinkView.tsx` over `linkPageOf` in `db/stats-link.ts`). In the shell,
+  lighting no tab, with /you's heading and sign-in strip. A token nobody wrote, one over 15
+  minutes old and one already used each say so and send the reader back to See my stats.
+  Signed out, Sign in with Steam comes back to it; signed in, it asks "Pair Discord account
+  <name> with <persona>?", the persona from the boards, else the Steam profile, with Pair (a
+  POST to `/api/discord/link?t=`, so a link preview can't use the token) and "Not you? Sign in
+  as someone else", which signs out and comes back. Pair answers back to the page, which then
+  says it is done. The one page that reads the session while it draws, so it is never cached
+  and robots.txt keeps crawlers off it. `qa`'s `link` and `link-confirm` draw tiny's request.
 - `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
   upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators. The Prefabs
-  tab comes last and is lit on all of them. See "Prefabs" and "Generators".
+  Section comes last and is lit on all of them. See "Prefabs" and "Generators".
 
 `/robots.txt` (`app/robots.ts`) keeps crawlers to the pages above that stand on their own:
 it disallows a player's tabs, the `/<steam_id>` and `/podiums` views of a board, Map or
@@ -316,8 +376,8 @@ The single-page site's `#/` links live on in Discord and bookmarks: `LegacyHash`
 one with its path on load (`legacyPath` in `lib/routes.ts`). Every player name links to a
 player page (`PlayerLink`), and the link out to Steam lives on that page. A Map's creator
 links to their player page's Made tab, except inside a card or row that is itself a link.
-A player or Map page's back link returns to the board or list you came from, remembered
-for the tab in `sessionStorage`.
+A player or Map page's breadcrumb leads back to the board, list or player you came from,
+remembered for the tab in `sessionStorage` ("How a page opens").
 
 ## Campaigns
 
@@ -327,7 +387,8 @@ the game ranks a Circuit season. The game knows nothing of them, so the list in
 
 **Adding one** is one entry in `CAMPAIGNS` (the run, request to live page: the `add-campaign` skill): its `slug` (the path, lowercase words joined by
 `-`), `title`, `creator` (the maker's Workshop name), `creatorId` (the maker's Steam ID) and
-`maps`, the Maps' Workshop IDs in the maker's order. That order numbers the Maps 01, 02 and
+`maps`, the Maps' Workshop IDs in the maker's order, and `collection`, the Workshop ID of a
+public Steam collection holding them, when there is one. That order numbers the Maps 01, 02 and
 so on, so append a Map rather than insert one. `campaignProblems` fails the tests on a
 repeated slug, a Map in two Campaigns (or twice in one), an empty Campaign or an ID that
 isn't one. Nothing else changes: the pages are prerendered from the list.
@@ -348,8 +409,9 @@ one fixed Campaign, so look at the new one's page with
 `pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
 **Event boards and pinning.** A Campaign's `maps` may also name an Event board (CONTEXT.md)
-by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (committed under
-`leth/` and served from the site, since it has no Workshop preview; `safeImg` takes a path
+by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (the level's own
+screenshot from the game files, committed as `leth/screenshot.jpg` and served from the site,
+since it has no Workshop preview; a JPEG, as the share card can't read WebP; `safeImg` takes a path
 from the site's root, and the share card fetches it from production) and the folder of the
 static page its card links in place of a Map page (`viewerHref`). A test holds `EVENTS` to the
 collector's `EVENT_BOARDS`. The collector reads an Event board once (`docs/data.md`), so it
@@ -412,6 +474,21 @@ the homepage leaves the carousel out and `/campaigns` says there are none. Every
 Campaign's Maps that is shown (a banner's, the switch's, a player's card's "n/N maps", the
 share card's) is its curated total, as its Maps are numbered out of it.
 
+**Getting its Maps into the game** (spec #359; three grill-design rounds on the never-merged
+`claude/prototype-ws-links`). Steam has no link that subscribes for a player, and only a
+collection's Subscribe to all subscribes to several Maps at once. So every page of a
+Campaign's frame floats a "Get the N Maps" button at the bottom left (`GetMaps.tsx`), which
+opens a checklist dialog of its Workshop Maps; it carries `data-float`, so qa's overlap probe
+leaves it out of the text it checks, since the page scrolls under it by design. The dialog lists them (`getMapRows`: the page's Maps less its Event
+boards, numbered and named as the rail does): each row links its Map's Workshop page in a
+new tab and ticks "Opened" once clicked, with a count, a bar and Start over, kept per Campaign
+in this browser's `localStorage`. A Campaign with a `collection` gets its Subscribe to all at
+the top; one with no Workshop Map gets no button. Under the list, the two steps in the game:
+go to the Hub, press Downloads. A Map's own page says the same in one line under its "Get it
+in Ballest" link, which sits under the picture beside "See it in 3D" (alone in the row
+without a 3D view). On a desktop the Map page's panel scrolls with the page: a scroll of its
+own hid its foot on a short screen.
+
 **A Campaign Map elsewhere** says so (`components/workshop/Campaign.tsx`, both reading
 `campaignOfMap`). Its card, wherever `MapCardLink` draws it (the homepage shelves, All maps,
 the search), carries a strip along the bottom of its picture: the Campaign's name on the
@@ -436,22 +513,164 @@ still shows them.
 
 ## The header
 
-The wordmark links home. The refresh time under it is a button that opens a dialog on how
-the boards refresh: a static table of how long a change takes to show on Circuit and
-Workshop boards, and when every Map was last read in full. The table restates
-`collect_workshop`'s rules, so a change to when the collector reads a board changes that
-copy too (`components/Freshness.tsx`). Ages are worked out in the browser, so a page cached
-hours ago still says how old the boards are now.
+The site is BALLESTRECORDS (spec #339), the name its address carries; "Ballest of Them All"
+is the game's name and stays wherever it means the game (descriptions, the footer). The
+wordmark beside the marble rack is that name as one word in Bungee, BALLEST in the text colour
+and RECORDS in lime (`SITE_WORDMARK`), and never wraps. It links home. Every tab title ends
+"· BALLESTRECORDS" (`pageTitle`), and the homepage's title and its `WebSite` JSON-LD say the
+site's name first, then the game it mirrors.
 
-You's card sits at the top right (`components/YouCard.tsx`): your marble and name, with your
+The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's variant D), one grid:
+
+- **The bar**: the wordmark and You's card, with the site search between them ("Search").
+- **The Sections** (`CONTEXT.md`), as tabs with icons, the current one underlined in lime:
+  Maps (the homepage), Campaigns, Daily, Circuit (its newest season's Overall board),
+  Players and Prefabs. One with nothing in it yet (no Workshop, no Daily, no seasons) is left
+  out.
+- **The Section's sub-tabs**, as pills, the current one lit: Featured / All Maps; All
+  Campaigns and the pinned Campaigns (`navCampaigns`); Today / Standings; each
+  season; Rankings / Where you stand; Shared / Make your own / Upload. Every page of a
+  Section lights one: a Map lights All Maps, a Campaign's Map its Campaign (or All Campaigns
+  when the sub-tabs don't name it), a Circuit board its own season, a player's page and a
+  head to head the Rankings.
+
+What each row holds and which link is lit come from one pure model, `navOf` in `lib/nav.ts`,
+read from the path and `NavFacts` (the four the database knows, read with the refresh time and
+the search's jump-to links by `frameOf` in `components/frame.ts`, once per request under
+React's `cache()`, so the page head reuses the header's read); it also gives the kind of
+page and its breadcrumb trail (the Section, the lit sub-tab, then a Campaign Map's Campaign,
+without the page itself), which the page head draws (below). Both rows are links marked
+`aria-current="page"` inside labelled `nav` landmarks, drawn by `components/SectionNav.tsx`
+from `usePathname`; until the path is known the Sections show unlit and the sub-tabs' row
+keeps its height. On a phone each row scrolls sideways rather than wrap, fading out on the
+side with more links and keeping the lit one in view; on a desktop every link fits.
+
+The refresh time sits under the bar on a phone and at the sub-tabs' end on a desktop. It is a
+button that opens a dialog on how the boards refresh: a static table of how long a change
+takes to show on Circuit and Workshop boards, and when every Map was last read in full. The
+table restates `collect_workshop`'s rules, so a change to when the collector reads a board
+changes that copy too (`components/Freshness.tsx`). Ages are worked out in the browser, so a
+page cached hours ago still says how old the boards are now.
+
+You's card sits at the bar's end (`components/YouCard.tsx`): your marble and name, with your
 All Seasons place and Maps finished on a desktop, linking to your page. On a phone it folds to
-marble and name and takes the refresh time's place, which is hidden there (a blank card
-holds that place while your record is read). Signed out, it is Sign in with Steam, coming
-back to the page you were on; signed in as a Steam ID on no board yet, it is Sign out, since
+your marble, the name kept for a screen reader (a blank card holds that place while your
+record is read). Signed out, it is Sign in with Steam, coming back to the page you were on
+(Steam's mark alone on a phone); signed in as a Steam ID on no board yet, it is Sign out, since
 that player has no page to sign out from (everyone else signs out on their own page). It
 reads You from `useYou` (`hooks/me.ts`), which asks `/api/me` and reads your record once
 per page load and shares them with every view of You, and it draws nothing until the
 browser can tell, so a signed-in visitor never sees Sign in first.
+
+## Search
+
+One field in the bar finds players and Map makers, Maps, Campaigns, Circuit Tracks, Dailies
+and Prefabs (spec #339, round 2's filter chips; ticket #342).
+
+- **The read**: `GET /api/search?q=` (`app/api/search/route.ts`). The query is trimmed,
+  lowercased and cut to 64 characters (`searchTerm`), and an empty one answers `null`. Players
+  come from the fresh player search (`searchPlayers`, the Compare dialog's, an exact name
+  first), and everything else from the cached lists the pages already read: makers and Maps
+  from the Map cards (Maps through `searchMaps`, title or maker), Campaigns from `getCampaigns`
+  (as `campaignSummary` lines), Tracks from the Circuit boards, Dailies and Prefabs from their
+  lists. Whether a maker the player search's ten names left out plays is asked fresh too
+  (`withTimes` over `searchedMakers`, beside the player search), never guessed from the cut. So
+  a search costs two small queries plus cached reads, and the answer carries `s-maxage=60` and
+  `stale-while-revalidate=300`: the CDN answers a query many type, or one typed again, and a
+  Map, player or Prefab new since shows in the search within about six minutes.
+- **What it finds, and in what order** is pure, `searchAll` in `lib/search.ts`: within each
+  kind an exact name first, then a name that starts with the query, a word that does, then a
+  contains, with popularity (runs, players, Maps made, favorites) breaking a tie. A Map found
+  by its maker's name, a Prefab by a tag or a Track by its season's name rank lower than one
+  found by its own. A maker every Map card names gets a hit with how many Maps they made, and
+  one on no board links to their Made tab. The answer carries ten of each kind (`PER_KIND`)
+  and `mapTotal`, every Map that matched.
+- **The results** drop down under the field (`components/search/SearchBar.tsx`, a client
+  island the header gives the jump-to links). `resultsOf` lays an answer out: chips for
+  All and each kind found, the kind whose best hit matches best first, each with its count (the
+  Maps chip counts `mapTotal`); All shows three of each kind under a heading, a chip every hit
+  of its kind; "All N Maps matching …" links to All maps narrowed by the query whenever more
+  Maps matched than are shown. Each hit shows its picture (a Map's preview, a player's marble,
+  or its Section's mark), its name with the part typed in lime (`marked`), a line about it and
+  its kind. With nothing typed it offers jump-to links (`jumpsOf`): the newest Daily ("Today's"
+  while it is open), the newest Circuit season, and the two most played Campaigns. No hits
+  says "Nothing called …".
+- **Keys**: "/" (outside a text field) or Ctrl/Cmd K puts the keyboard in the field, or opens
+  the sheet where the field is hidden; a page Next keeps hidden after leaving it shows neither,
+  so its header ignores the keys. ↑/↓ move through the hits (round the ends), Enter opens the
+  selected one or the first (with none selected while a newer term's answer is on its way, the
+  first of that answer once it comes), Esc closes, and so does a press outside the field and its
+  results, or leaving the page. The field is a labelled combobox whose results are a listbox of
+  options, the selected one its active descendant, and a status line says how many hits there
+  are.
+- **A phone** gets a search button beside You's card instead of the field (the two wrap as
+  one when the bar is too narrow for the brand beside them), which opens the same search as a
+  full-screen sheet: a native `<dialog>` through `useDialog`, the field focused at its top.
+- `qa`'s `search-empty`, `search` (typing "sol") and `search-sheet` states draw it; the two
+  on the desktop's field are `wide`, as the field shows only there. The dropdown carries
+  `data-layer`, so qa's overlap probe reads only the text inside it while it is open.
+
+## How a page opens
+
+Every page opens the same way under the header (spec #339, round 3's variant 1):
+`PageHead` (`components/PageHead.tsx`) draws the breadcrumb, the kind of page in small
+capitals, then the page's title in the Bungee marquee, its one `h1`. Each page renders it
+first, from its own server data, just under the header (inside the page's `Suspense`
+where the title waits on params, whose skeleton holds its place). The kind comes from
+`navOf`; the breadcrumb is `crumbsOf` (`lib/nav.ts`): navOf's trail, less a crumb naming the
+title, then the title itself, in a labelled `nav` with the title marked `aria-current`, and
+not drawn at all when the title would stand alone (a Section's own first page).
+
+A Map's page and a player's page name a trail (`components/Trail.tsx`, the memory the old
+back links kept): the board, list or player this tab last looked at, which becomes the
+breadcrumb's parent, under its own Section and by its sub-tab's name where one names it.
+A Map remembers the homepage, All maps, a Campaign, the Daily and a player's page
+(`<Remember trail="maps">`); a player remembers a Circuit board, a Campaign, a Map, the
+Daily, its standings, /you and the Players table (`<Remember trail="board">`). A page that
+leads to only some Maps says so, and is the parent of those alone, so a Map reached some
+other way never sits under an unrelated Daily: a Campaign or a Daily names its Maps (`leads`),
+and a player's page names the player (`player`), whom a Map's page leads back to when they
+made it or its board has their row (`/api/board/<name>?player=`, the read You's banner makes).
+A plain click on a Section's link (either row) or a search hit that leaves the page forgets
+both trails (`forgetTrails`): the reader has set off somewhere new. A click that opens a new
+tab, or a link to the page already open, keeps them. With nothing
+kept, a remembered page that doesn't lead here, only the page itself, or storage blocked, the
+breadcrumb is the Section's own (Maps › All Maps, Players › Rankings). The server draws that one, so the remembered parent swaps in
+once the browser reads it. A head to head leads back to its first player.
+
+No page draws its own title or a back link any more, and the page-level tabs the header's
+sub-tabs carry are gone (the Daily's Days / Standings, the Prefabs' Shared / Make your own).
+The Campaign switch, the Circuit rail, the season sheet and the seasons above a board stay:
+they pick an item, not a page. A card that names its board, player, Daily or Prefab inside
+the page (a Track's big number, the player card, the day's panel, a Prefab's name beside its
+viewer) keeps that name, as an `h2`.
+
+## The control kit
+
+Every control inside a page is drawn from one kit (spec #339, round 4's variant 1, pills):
+`components/Controls.tsx` for the markup and `app/styles/controls.css` for the look, with no
+other stylesheet restyling them; a page's own stylesheet only places them (a margin, a flex
+basis, which end of a row).
+
+- **A choice** is a pill (`PillLink` for a link to another view, marked
+  `aria-current="page"` when lit; `PillButton` for a button, `aria-pressed`) in a row of them,
+  `Pills`, a labelled `nav` for links or a labelled group for buttons. A pill is a rounded
+  outline, lime outline and tint when lit, and a row wraps rather than scrolls, so a long one
+  (the Prefab tags) stays tappable at 320px with 20px text. A count rides in a `<small>`
+  (a player's tabs). The board's Points / Podiums, the history card's Everything / Records only,
+  All maps' views and the Refine drawer's choices, the Players and head to head's Where to
+  count, a player's tabs, the head to head's filter, the Prefabs sort and tags, the upload
+  form's tags and a Generator's choices are all pills. The header's sub-tabs (`.subs`,
+  `SectionNav`) match them but keep the header's own rules.
+- **A search box** is `SearchBox`: a rounded `field` with a magnifier, the one look for Find a
+  player on a board and the Players table, Search maps, a player's map search and the Compare
+  dialog. The header's site search is the header's own, as its sub-tabs are: a squarer box
+  that carries the "/" hint and stays lit while its results are open. A select (a player's and a head to head's sort) is a `select.field`.
+- **An action** is a lime pill, the `btn` class on a link or button: All maps, Where you stand,
+  Refine, Upload, Download, Publish, Save and Sign in with Steam on the Prefab pages. `big` is a
+  page's one main action (a Prefab's Download, Publish), `more` the Show more under a list.
+
+A new control takes one of these rather than a style of its own.
 
 ## A board
 
@@ -534,8 +753,8 @@ your own row, once you are signed in, shown at the foot while the row is out of 
 far the next rank up and the top 10 are, and a click scrolls to the row. "Where you stand"
 beside the search goes to `/you`, which counts differently (the Workshop standings).
 
-The Players tab sits last in the tab bar, and like every tab it is lit from the path
-(`tabOfPath`).
+The Players Section is lit from the path (`navOf` in `lib/nav.ts`) on the table, /you, a
+player's page and a head to head.
 
 ## Prefabs
 
@@ -602,7 +821,7 @@ branch `claude/prototype-prefabs` (spec #213).
 
 ## Generators
 
-The Prefabs page's second tab, Generate your own (spec #299; settled in four grill-design rounds
+Make your own, the Prefabs Section's second sub-tab (spec #299; settled in four grill-design rounds
 on the never-merged `claude/prototype-prefab-generators`; categories and buildings, spec #310,
 on `claude/prototype-make-your-own`): a heading per category (Signs, Nature, Buildings,
 `CATEGORIES`) over a card per Generator, each with a still of what its defaults make, and a
@@ -619,12 +838,19 @@ kept apart from the Generators so a page that only links one never loads them).
   Each kind of tree is a Generator of its own (Tree, Pine, Block tree). Pieces are the editor's
   cube, sphere, cylinder, cone and pyramid, placed by their bottom centre (a box can also be
   placed by its centre at any rotation);
-  grids of cells (QR modules, letters, voxels) are merged into as few boxes as they can be.
+  grids of cells (letters, voxels) are merged into as few boxes as they can be.
+- **Parts** (`spawnsOf`): one spawn of 400 pieces crashed a sandbox game where 289 didn't
+  (its cost grows with the square of the pieces), so a Prefab over `SPAWN_MOST` (240) downloads
+  as Part 1..N, to spawn one after another without moving the camera. spawnprefab keeps a
+  file's origin across and up but slides it along X to sit its nearest face a set way ahead, so
+  a part that doesn't reach the whole's near, low corner gets a 20 cm white marker cube there,
+  and the parts meet. Pixel art goes up to 128 blocks the longer way (`PICTURE_MOST`; a tall
+  picture's Blocks across stops short of 128) on the strength of it.
 - **Colours** (`COLOURS`): each names its material and the `paint` the editor saves beside
   it, a MaterialCategory and an `EBallestMaterialColors` value read from the game's assets
   (Smooth for the colours, Special for the metals). The editor paints nothing gold, so
   there is no Gold. A spawned file was checked in a sandbox game: every colour lands as named, and
-  signs and codes face the camera that spawned them. The swatches are `--gen-*` on `:root`.
+  signs face the camera that spawned them. The swatches are `--gen-*` on `:root`.
 - **The sign's lettering** (`lib/generator-letters.ts`): the Pixel font is a 5x7 table there;
   the others are drawn on a canvas by the browser (`components/prefabs/make/lettering.ts`)
   behind the same `Lettering`, so `lib/` stays pure. The text wraps at whatever line length
@@ -719,12 +945,18 @@ only visible ones.
   parallel queries, not the code: `npx vercel redeploy <deployment>` once.
 - **Looking at it**: `pnpm --silent qa` from `web/`, run bare, lists the targets (production,
   this branch's preview with its deploy state, a local build) and what it checks. `qa check`
-  draws every page and dialog in `scripts/qa/catalogue.mjs` at 320px with 20px text, 390,
-  820 and 1280, on the preview and on production, and prints only what is wrong: sideways
+  draws the pages and dialogs in `scripts/qa/catalogue.mjs` that the branch's changes from
+  `main` reach, at 320px with 20px text, 390, 820 and 1280, on the preview and on production, and prints only what is wrong: sideways
   scroll, an element past the edge (with the one holding it open), text cut off or drawn
   over other text, page errors, and changed pixels, with one picture per change to read
   (reference | target | changes in red) in `scratch/qa/`. Read those pictures, not
-  screenshots of your own. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
+  screenshots of your own. Which pages a change reaches is `scripts/qa/reach.mjs`: those whose
+  page file or layouts import a changed file, through relative imports. A site file no page
+  imports (the proxy, an API route, a migration, a picture) or one every page does (the root
+  layout, the CSS, `lib/rules.ts`) draws every page; docs, tests, scripts and the other
+  packages draw none, and it names any page a change reaches that the catalogue lacks. The
+  whole catalogue is 176 views and takes 13 minutes from a cloud session, so pass `--all` only
+  for a change that shows everywhere and wasn't caught as one. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
   place of a throwaway Playwright script. `qa shot prefab@1280 --prefab <file.json>` has the
   Prefab page's viewer draw any file. To work on a stand-in shape, run `qa piece <mesh>`
@@ -737,10 +969,13 @@ only visible ones.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel
   address. A page or dialog with no row in the catalogue is not checked: add it. Locally,
   serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank, a long
-  Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
+  Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --all --against none --assert` on
   one, and its report is a notice on the build job (`gh api repos/will-ness-ai/ballest/check-runs/<id>/annotations`). A catalogue row with `as` is drawn signed in as that player (the Prefab upload form, an
   owner's Edit and Delete, the admin box): qa signs the cookie itself with the target's
   `SESSION_SECRET` (`scripts/qa/session.mjs`), which it knows only for a local build (from the
-  environment, `web/.env.local` or `web/.env`), so `check` lists those views as `unsigned`
-  elsewhere, and as `uncompared` when only the reference can't sign in. A `signed-out` fault
-  means the site refused qa's session: qa read a different secret from the server's.
+  environment or a `web/.env*` file, or else `qa-only`, the secret CI's run uses and
+  `pnpm serve` and `pnpm dev:up` serve under when none is configured), so a local `check` is
+  drawn signed in. It lists those views as `unsigned` elsewhere and on a server that refuses
+  `qa-only` (a plain `pnpm dev` with no secret), and as `uncompared` when only the reference
+  can't sign in. A `signed-out` fault means the site refused a secret qa read from the
+  environment or a `.env` file: the server runs under a different one.

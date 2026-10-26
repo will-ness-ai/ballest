@@ -8,6 +8,7 @@ import {
   ComponentType,
 } from "discord.js";
 import { formatTime, SCORE_TICKS_PER_SECOND } from "../domain.js";
+import { escape, mapLink, SITE_URL, siteLink } from "../links.js";
 import { type ChosenSkinPicks, chosenSkinOf } from "../ports.js";
 import type { StandingsImage } from "../render/scenes.js";
 import type { DatedRecord } from "./records.js";
@@ -15,7 +16,6 @@ import {
   CHANGES_SHOWN,
   DAY_MS,
   type Change,
-  type ListedMap,
   type ListedTrack,
   type Report,
   type Stat,
@@ -23,8 +23,6 @@ import {
 
 /** Discord's cap on a bot message's text. */
 export const MESSAGE_LIMIT = 2000;
-/** Where the links go: each Map's and Track's page on the site, and the button's /you. */
-const SITE_URL = "https://ballestrecords.com";
 
 /** The four Workshop standings' headings, in the image. */
 export const BOARD_TITLE: Record<Stat, string> = {
@@ -34,17 +32,6 @@ export const BOARD_TITLE: Record<Stat, string> = {
   top5: "Most top 5s",
 };
 
-/** Neutralise Discord markdown and mentions in a persona or Map title. */
-export const escape = (s: string) =>
-  s
-    .replace(/[\\*_~`|>[\]]/g, (c) => `\\${c}`)
-    .replaceAll("@", "@​")
-    .replaceAll("<", "<​");
-
-/** A masked link; the <> stop Discord unfurling an embed. */
-const siteLink = (text: string, path: string) => `[${escape(text)}](<${SITE_URL}${path}>)`;
-/** The Map's page on the site. */
-const mapLink = (m: ListedMap) => siteLink(m.title || m.pfid, `/map/${m.pfid}`);
 /** The Track's board on the site. */
 const trackLink = (t: ListedTrack) => siteLink(t.label, `/board/${t.board}`);
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

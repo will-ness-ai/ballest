@@ -5,7 +5,8 @@
 // Dailies (three final, one live, a tie on a podium, a player who missed a day mid-run and
 // a failed read), a few runs' Ghosts read for their Skins, some with a profile, and two
 // Prefabs, one by a player and one by someone the boards haven't seen, and Marble Run's
-// file for its 3D view (Loop de Loop's hasn't been read). The
+// file for its 3D view (Loop de Loop's hasn't been read), and one link request for the link
+// page. The
 // read layer's tests (test/site.test.ts, test/reads.test.ts, test/board-route.test.ts) take
 // their expected values from the comments here. Every player and Map is made up.
 import { gzipSync } from "node:zlib";
@@ -24,6 +25,7 @@ import {
   players,
   prefabs,
   refreshes,
+  statsLinkRequests,
 } from "../../schema";
 import type { Dataset } from "./types";
 
@@ -154,13 +156,16 @@ export const TINY_MAP_ITEMS = 4;
 /* Steam's content handle for that file */
 export const TINY_MAP_VERSION = "5101012345678901234";
 
+/* the link request's token: /discord/link?t=<this> asks to pair "rae.disc" */
+export const TINY_LINK_TOKEN = "5eed0000000000000000000000000001";
+
 /* a Ghost's profile for a run of `seconds`: below 1, `bend` puts the run ahead early */
 export const profile = (seconds: number, bend: number) =>
   Array.from({ length: 80 }, (_, i) => Math.round(seconds * ((i + 1) / 80) ** bend * 1000) / 1000);
 
 export const tiny: Dataset = {
   description:
-    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts, 2 Chosen Skins, 2 Prefabs, 1 Map file",
+    "6 boards (2 Tracks, an Overall board, 3 Maps), 4 Dailies, 10 players, 3 Refreshes, 9 Ghosts, 2 Chosen Skins, 2 Prefabs, 1 Map file, 1 link request",
   seed: async (tx) => {
     const [r1, r2, r3] = (
       await tx
@@ -543,6 +548,15 @@ export const tiny: Dataset = {
         chosenAt: new Date("2026-09-01T04:00:00Z"),
       },
     ]);
+
+    // a press of See my stats, dated far ahead so it never expires (a real one lives 15
+    // minutes): the link page draws it signed out and, signed in, its confirm
+    await tx.insert(statsLinkRequests).values({
+      token: TINY_LINK_TOKEN,
+      discordId: "300000000000000001",
+      discordName: "rae.disc",
+      createdAt: new Date("2999-01-01T00:00:00Z"),
+    });
 
     const twin = cubesFile(2);
     const row = cubesFile(5);
