@@ -967,7 +967,9 @@ only visible ones.
   for a change that shows everywhere and wasn't caught as one. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
   place of a throwaway Playwright script. `qa shot prefab@1280 --prefab <file.json>` has the
-  Prefab page's viewer draw any file. To work on a stand-in shape, run `qa piece <mesh>`
+  Prefab page's viewer draw any file. `qa render <file.json | generator>` draws a Prefab file, or
+  what a Generator makes (`--set font=Leker`), locally with the share images' rasterizer: no
+  page, no deploy; `--items 0-5` and `--from top` show which pieces make what. To work on a stand-in shape, run `qa piece <mesh>`
   instead: it scores the stand-in's top, front and side outlines against the game mesh's
   renders in `ballest-map-making/references/pieces/` (1.00 is the same outline) and writes a
   game | viewer | outlines sheet; `qa piece --all` lists every mesh, worst first, and
