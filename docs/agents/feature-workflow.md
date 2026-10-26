@@ -85,7 +85,8 @@ small follow-up (`FOLLOW_UP_LINES` in `review-gate-rules.mjs`). A commit that ch
 binary pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. When
 the session's Skill tool can't find a missing skill (no `SKILL.md` in the project's or
 `~/.claude/skills`; a project thread's project is `/home/user`, where `session-start.sh` links
-the repo's skills), it only warns: follow that `SKILL.md` by hand and say so in the PR. It
+the repo's skills; or the session's transcript shows the tool calling it unknown, which linked
+skills can still be in a project thread), it only warns: follow that `SKILL.md` by hand and say so in the PR. It
 also refuses a merge of this repo's PRs that doesn't squash (`docs/agents/issue-tracker.md`).
 Its record is the clone's (`.git/claude-reviews`, shared by worktrees and sessions), so run them
 in the clone that merges. When it can't check (gh offline, say) it lets the call through with a

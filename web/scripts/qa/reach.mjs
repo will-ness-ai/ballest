@@ -86,8 +86,10 @@ function walk(root, dir, found = []) {
  * and `routes` the page files reached that no catalogue row draws.
  * @param {ReadonlyArray<string>} changed
  * @param {string} root the repo's root
+ * @param {ReadonlyArray<{ name: string, path: string }>} [catalogue] the pages qa draws: the
+ *   catalogue's, or a fixed list a test pins
  */
-export function reach(changed, root) {
+export function reach(changed, root, catalogue = PAGES) {
   const pageFiles = walk(root, "web/app").filter((f) => /\/page\.(tsx|ts|jsx|js)$/.test(f));
   const isFile = (p) => existsSync(join(root, p)) && statSync(join(root, p)).isFile();
   const layoutsOf = (file) => {
@@ -143,7 +145,7 @@ export function reach(changed, root) {
     });
     return hits[0]?.file ?? null;
   };
-  const drawn = PAGES.map((p) => {
+  const drawn = catalogue.map((p) => {
     const file = fileOfPage(p);
     /* a path no page file serves (the 404) draws the root layout alone */
     return {
@@ -170,7 +172,8 @@ export function reach(changed, root) {
     for (const u of others) reached.add(u.file);
   }
   pages.sort(
-    (a, b) => PAGES.findIndex((p) => p.name === a.name) - PAGES.findIndex((p) => p.name === b.name),
+    (a, b) =>
+      catalogue.findIndex((p) => p.name === a.name) - catalogue.findIndex((p) => p.name === b.name),
   );
   return { all: null, pages, routes: [...reached].sort() };
 }
