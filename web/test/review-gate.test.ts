@@ -189,19 +189,22 @@ describe("a skill this session's Skill tool called unknown", () => {
     expect(refusedSkills([quoted, "Unknown skill: codebase-design"].join("\n"))).toEqual(new Set());
   });
 
-  test("by the name it was called with, and not once it has run since", () => {
+  test("by the bare name the error gives, and not once it has run since", () => {
     const refused = refusedSkills(
       [
         asked("a", "foo:codebase-design"),
         unknown("a", "foo:codebase-design"),
         asked("b", "tdd"),
         unknown("b", "tdd"),
-        asked("c", "tdd"),
+        asked("c", "ballest:tdd"),
         answered("c", "Launching skill: tdd", false),
+        asked("d", "/grill-design"),
+        unknown("d", "grill-design"),
       ].join("\n"),
     );
     expect(loadable("codebase-design", dirs, all, refused)).toBe(true);
     expect(loadable("tdd", dirs, all, refused)).toBe(true);
+    expect(loadable("grill-design", dirs, all, refused)).toBe(false);
   });
 
   test("the built-in code-review stays loadable", () => {
