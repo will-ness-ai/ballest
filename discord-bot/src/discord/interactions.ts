@@ -395,6 +395,8 @@ export const InteractionsLive = Layer.scopedDiscard(
         case "CupWithdraw":
           return yield* cupReply(i, control.guildId, (cup) => cup.withdraw(control.week, self));
         case "CupSkip": {
+          // Deferred first: the Cup's lock may be held by a step reading Steam.
+          yield* tryDiscord("defer", () => i.deferReply(ephemeral));
           const answer = yield* cupAnswer(control.guildId, (cup) =>
             cup.askSkip(control.week, self, managesServer(i)),
           );
@@ -402,7 +404,7 @@ export const InteractionsLive = Layer.scopedDiscard(
             answer._tag === "ConfirmSkip"
               ? cupConfirmSkipMessage(control.guildId, answer.week)
               : { content: answer.text, ...quiet };
-          return yield* tryDiscord("reply", () => i.reply({ ...message, ...ephemeral }));
+          return yield* tryDiscord("edit reply", () => i.editReply(message));
         }
         case "CupConfirmSkip": {
           // The confirmation becomes the answer.

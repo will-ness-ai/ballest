@@ -318,6 +318,8 @@ describe("the Weekly Cup's buttons", () => {
         const press = yield* driven(h, Renderer.Default, cup.cups);
         const skip = controlId({ _tag: "CupSkip", ...CUP });
         const member = yield* press({ kind: "button", customId: skip, as: BOB.discordId });
+        // Deferred before the Cup's lock is waited on, as every Cup press is.
+        expect(member.map((a) => a.method)).toEqual(["deferReply", "editReply"]);
         expect(contentOf(member)).toBe("admins only");
         const admin = yield* press({
           kind: "button",
