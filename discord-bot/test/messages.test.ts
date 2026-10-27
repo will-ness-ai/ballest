@@ -19,7 +19,8 @@ import {
   confirmLeaveMessage,
   cupConfirmSkipMessage,
   cupNoticeMessage,
-  cupStandingsMessage,
+  cupStandingsMessages,
+  sentOnce,
   shortlistMessage,
   weeklyCupMessage,
   fingerprint,
@@ -759,8 +760,8 @@ describe("the Weekly Cup's post", () => {
     expect(text).not.toContain("Vote for up to");
   });
 
-  const standingsOf = (final: boolean, lateReads: StandingsView["lateReads"] = []) =>
-    cupStandingsMessage({
+  const standingsOf = (final: boolean, lateReads: StandingsView["lateReads"] = []) => {
+    const parts = cupStandingsMessages({
       guildId: cup.guildId,
       week,
       maps: [cupMap(3), cupMap(1)],
@@ -772,6 +773,10 @@ describe("the Weekly Cup's post", () => {
         pf1: { "111": ticks(40) },
       }),
     });
+    // Three Entrants fit one message.
+    expect(parts).toHaveLength(1);
+    return parts[0] ?? {};
+  };
 
   it("shows the live standings as plain text: overall, then each Cup Map, pinging nobody", () => {
     const live = standingsOf(false);
@@ -808,6 +813,68 @@ describe("the Weekly Cup's post", () => {
     expect(text).toContain(`Map 3 was read late, at <t:${late / 1000}:t>`);
     expect(text).toContain("Map 1 couldn't be read at the end");
     expect(standingsOf(true).content).not.toContain("read late");
+  });
+
+  describe("with 60 Entrants", () => {
+    const entrants = Array.from({ length: 60 }, (_, i) =>
+      String(100_000_000_000_000_000n + BigInt(i)),
+    );
+    const maps = [cupMap(1), cupMap(2), cupMap(3)];
+    const times = Object.fromEntries(
+      maps.map((m, k) => [
+        m.pfid,
+        Object.fromEntries(entrants.slice(0, 20 + 10 * k).map((id, i) => [id, ticks(20 + i)])),
+      ]),
+    );
+    const partsOf = (final: boolean) =>
+      cupStandingsMessages({
+        guildId: cup.guildId,
+        week,
+        maps,
+        readAt: week.voteClosesAt,
+        final,
+        lateReads: [],
+        standings: cupStandings(maps, entrants, times),
+      });
+    const linesOf = (parts: ReadonlyArray<Payload>) =>
+      parts.flatMap((p) => (p.content ?? "").split("\n"));
+
+    it("splits the standings across messages under 2,000 characters, at line breaks", () => {
+      const parts = partsOf(false);
+      expect(parts.length).toBeGreaterThan(1);
+      for (const p of parts) {
+        const text = p.content ?? "";
+        expect(text.length).toBeLessThanOrEqual(2000);
+        // Every mention whole within its message.
+        expect(text.split("<@").length - 1).toBe([...text.matchAll(/<@\d+>/g)].length);
+        pingsNobody(p);
+      }
+      const lines = linesOf(parts);
+      // Every Entrant's overall line, once.
+      const overall = lines.filter((l) => /^\d+\. <@\d+> · [\d,]+ pts/.test(l));
+      expect(overall.map((l) => /<@(\d+)>/.exec(l)?.[1]).sort()).toEqual([...entrants].sort());
+    });
+
+    it("pings each Entrant once across the results' messages", () => {
+      const parts = partsOf(true);
+      expect(parts.length).toBeGreaterThan(1);
+      const pings = parts.flatMap((p) => pinged(p));
+      expect([...pings].sort()).toEqual([...entrants].sort());
+      for (const p of parts) expect((p.content ?? "").length).toBeLessThanOrEqual(2000);
+    });
+  });
+
+  it("sends each one-time Cup post with a nonce of its week and kind, which Discord enforces", () => {
+    const kinds = ["post", "shortlist", "cupmaps", "results-1", "results-10"];
+    const nonces = kinds.map((kind) => sentOnce(post("open"), cup.week, kind).nonce);
+    expect(nonces[0]).toBe("cup-2026-10-26-post");
+    for (const n of nonces) expect(n.length).toBeLessThanOrEqual(25);
+    expect(new Set(nonces).size).toBe(kinds.length);
+    expect(sentOnce(post("open"), cup.week, "post")).toMatchObject({
+      nonce: "cup-2026-10-26-post",
+      enforceNonce: true,
+    });
+    expect(sentOnce(post("open"), "2026-11-02", "post").nonce).not.toBe(nonces[0]);
   });
 
   it("asks a server admin to confirm a skip, privately", () => {

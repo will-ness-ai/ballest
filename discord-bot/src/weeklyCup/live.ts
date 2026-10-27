@@ -6,13 +6,22 @@
 // its Cup until the next start. Off in the sandbox, whose fresh database each start would run a
 // second Cup beside `pnpm dev`'s.
 import { SqlClient } from "@effect/sql";
-import { ChannelType, type Client, type TextChannel } from "discord.js";
+import { ChannelType, type Client, type MessageCreateOptions, type TextChannel } from "discord.js";
 import { Cause, Config, Effect, Layer, Option, Ref, Schema } from "effect";
 import { MigratorLive } from "../db.js";
-import { describeDiscordError, Discord, type DiscordError, tryDiscord } from "../discord/client.js";
+import {
+  describeDiscordError,
+  Discord,
+  type DiscordError,
+  hasCode,
+  tryDiscord,
+  UNKNOWN_MESSAGE,
+} from "../discord/client.js";
 import {
   cupNoticeMessage,
-  cupStandingsMessage,
+  cupStandingsMessages,
+  type Payload,
+  sentOnce,
   shortlistMessage,
   weeklyCupMessage,
 } from "../discord/messages.js";
@@ -26,17 +35,26 @@ import {
   CupLinks,
   CupLog,
   CupLogLive,
+  type CupNotice,
   CupPostFailed,
+  type CupPostView,
+  type ShortlistView,
+  type StandingsView,
   type CupPresses,
   makeWeeklyCup,
   pressesOf,
   WeeklyCups,
 } from "./schedule.js";
 
-/** The CupChannel port on one text channel. */
+/**
+ * The CupChannel port on one text channel. Each one-time post goes with its nonce (`sentOnce`);
+ * an edit of a message someone deleted fails as `gone` (Unknown Message), for the schedule to
+ * post it afresh.
+ */
 const cupChannelOn = (client: Client<true>, channelId: string) => {
   const failed = Effect.mapError(
-    (e: DiscordError) => new CupPostFailed({ reason: describeDiscordError(e) }),
+    (e: DiscordError) =>
+      new CupPostFailed({ reason: describeDiscordError(e), gone: hasCode(e, UNKNOWN_MESSAGE) }),
   );
   const channel = tryDiscord("fetch #weekly-cup", () => client.channels.fetch(channelId)).pipe(
     failed,
@@ -46,74 +64,95 @@ const cupChannelOn = (client: Client<true>, channelId: string) => {
         : Effect.fail(new CupPostFailed({ reason: `${channelId} is not a text channel` })),
     ),
   );
+  const send = Effect.fn("cupChannel.send")(function* (op: string, payload: MessageCreateOptions) {
+    const c = yield* channel;
+    return (yield* tryDiscord(op, () => c.send(payload)).pipe(failed)).id;
+  });
+  const editOne = Effect.fn("cupChannel.edit")(function* (
+    op: string,
+    messageId: string,
+    payload: Payload,
+  ) {
+    const c = yield* channel;
+    yield* tryDiscord(op, async () => {
+      const m = await c.messages.fetch(messageId);
+      await m.edit(payload);
+    }).pipe(failed);
+  });
+  const dropOne = Effect.fn("cupChannel.drop")(function* (messageId: string) {
+    const c = yield* channel;
+    yield* tryDiscord("drop a Weekly Cup standings message", async () => {
+      const m = await c.messages.fetch(messageId);
+      await m.delete();
+    }).pipe(
+      failed,
+      Effect.catchIf(
+        (e) => e.gone === true,
+        () => Effect.void,
+      ),
+    );
+  });
   return CupChannel.of({
-    post: (view) =>
-      channel.pipe(
-        Effect.flatMap((c) =>
-          tryDiscord("post the Weekly Cup", () => c.send(weeklyCupMessage(view))).pipe(failed),
-        ),
-        Effect.map((m) => m.id),
-      ),
-    edit: (messageId, view) =>
-      channel.pipe(
-        Effect.flatMap((c) =>
-          tryDiscord("update the Weekly Cup", async () => {
-            const m = await c.messages.fetch(messageId);
-            await m.edit(weeklyCupMessage(view));
-          }).pipe(failed),
-        ),
-      ),
-    say: (notice) =>
-      channel.pipe(
-        Effect.flatMap((c) =>
-          tryDiscord("post in #weekly-cup", () => c.send(cupNoticeMessage(notice))).pipe(failed),
-        ),
-        Effect.asVoid,
-      ),
-    postShortlist: (view) =>
-      channel.pipe(
-        Effect.flatMap((c) =>
-          tryDiscord("post the Shortlist", () => c.send(shortlistMessage(view))).pipe(failed),
-        ),
-        Effect.map((m) => m.id),
-      ),
+    post: Effect.fn("cupChannel.post")(function* (view: CupPostView, replaces: string | null) {
+      const message = weeklyCupMessage(view);
+      return yield* send(
+        "post the Weekly Cup",
+        replaces === null ? sentOnce(message, view.week.week, "post") : message,
+      );
+    }),
+    edit: Effect.fn("cupChannel.editPost")(function* (messageId: string, view: CupPostView) {
+      yield* editOne("update the Weekly Cup", messageId, weeklyCupMessage(view));
+    }),
+    say: Effect.fn("cupChannel.say")(function* (notice: CupNotice) {
+      const message = cupNoticeMessage(notice);
+      yield* send(
+        "post in #weekly-cup",
+        notice._tag === "CupMaps" ? sentOnce(message, notice.week.week, "cupmaps") : message,
+      );
+    }),
+    postShortlist: Effect.fn("cupChannel.postShortlist")(function* (view: ShortlistView) {
+      return yield* send(
+        "post the Shortlist",
+        sentOnce(shortlistMessage(view), view.week.week, "shortlist"),
+      );
+    }),
     // The pictures go up again in place of the old ones (`attachments: []`).
-    editShortlist: (messageId, view) =>
-      channel.pipe(
-        Effect.flatMap((c) =>
-          tryDiscord("close the Shortlist's vote", async () => {
-            const m = await c.messages.fetch(messageId);
-            await m.edit({ ...shortlistMessage(view), attachments: [] });
-          }).pipe(failed),
-        ),
-      ),
-    postStandings: (view) =>
-      channel.pipe(
-        Effect.flatMap((c) =>
-          tryDiscord("post the Weekly Cup's standings", () =>
-            c.send(cupStandingsMessage(view)),
-          ).pipe(failed),
-        ),
-        Effect.map((m) => m.id),
-      ),
-    editStandings: (messageId, view) =>
-      channel.pipe(
-        Effect.flatMap((c) =>
-          tryDiscord("update the Weekly Cup's standings", async () => {
-            const m = await c.messages.fetch(messageId);
-            await m.edit(cupStandingsMessage(view));
-          }).pipe(failed),
-        ),
-      ),
-    postResults: (view) =>
-      channel.pipe(
-        Effect.flatMap((c) =>
-          tryDiscord("post the Weekly Cup's results", () => c.send(cupStandingsMessage(view))).pipe(
-            failed,
-          ),
-        ),
-        Effect.map((m) => m.id),
-      ),
+    editShortlist: Effect.fn("cupChannel.editShortlist")(function* (
+      messageId: string,
+      view: ShortlistView,
+    ) {
+      yield* editOne("close the Shortlist's vote", messageId, {
+        ...shortlistMessage(view),
+        attachments: [],
+      });
+    }),
+    postStandings: Effect.fn("cupChannel.postStandings")(function* (view: StandingsView) {
+      return yield* Effect.forEach(cupStandingsMessages(view), (part) =>
+        send("post the Weekly Cup's standings", part),
+      );
+    }),
+    // Each part over the message it had; one more part is posted, one fewer drops a message.
+    editStandings: Effect.fn("cupChannel.editStandings")(function* (
+      messageIds: ReadonlyArray<string>,
+      view: StandingsView,
+    ) {
+      const ids: Array<string> = [];
+      for (const [i, part] of cupStandingsMessages(view).entries()) {
+        const id = messageIds[i];
+        if (id === undefined) ids.push(yield* send("post the Weekly Cup's standings", part));
+        else {
+          yield* editOne("update the Weekly Cup's standings", id, part);
+          ids.push(id);
+        }
+      }
+      for (const id of messageIds.slice(ids.length)) yield* dropOne(id);
+      return ids;
+    }),
+    postResults: Effect.fn("cupChannel.postResults")(function* (view: StandingsView) {
+      return yield* Effect.forEach(cupStandingsMessages(view), (part, i) =>
+        send("post the Weekly Cup's results", sentOnce(part, view.week.week, `results-${i + 1}`)),
+      );
+    }),
   });
 };
 
@@ -153,12 +192,14 @@ const make = Effect.gen(function* () {
       ),
   });
 
-  const storedChannel = (guildId: string) =>
-    sql`SELECT channel_id FROM weekly_cup_channels WHERE guild_id = ${guildId}`.pipe(
-      Effect.flatMap(Schema.decodeUnknown(Schema.Array(ChannelRow))),
-      Effect.map((rows) => Option.fromNullable(rows[0]?.channel_id)),
-      Effect.orDie,
-    );
+  const storedChannel = Effect.fn("weeklyCup.storedChannel")(function* (guildId: string) {
+    const rows =
+      yield* sql`SELECT channel_id FROM weekly_cup_channels WHERE guild_id = ${guildId}`.pipe(
+        Effect.flatMap(Schema.decodeUnknown(Schema.Array(ChannelRow))),
+        Effect.orDie,
+      );
+    return Option.fromNullable(rows[0]?.channel_id);
+  });
 
   const start = Effect.fn("weeklyCup.start")(function* (guildId: string) {
     const guild = yield* tryDiscord("fetch the server", () => client.guilds.fetch(guildId));
@@ -171,17 +212,20 @@ const make = Effect.gen(function* () {
       yield* Effect.logInfo(`weekly cup: #weekly-cup in ${guild.name} is ${channelId}`);
     }
     yield* discord.answerIn(channelId);
-    const ports = <A, E>(
+    const channel = cupChannelOn(client, channelId);
+    const ports = Effect.fn("weeklyCup.ports")(function* <A, E>(
       effect: Effect.Effect<A, E, CupChannel | CupLog | OpsAlerts | CupLinks | Steam | MapPreviews>,
-    ) =>
-      effect.pipe(
-        Effect.provideService(CupChannel, cupChannelOn(client, channelId)),
+    ) {
+      return yield* effect.pipe(
+        Effect.provideService(CupChannel, channel),
         Effect.provideService(CupLog, log),
         Effect.provideService(OpsAlerts, alerts),
         Effect.provideService(CupLinks, links),
         Effect.provideService(Steam, steam),
         Effect.provideService(MapPreviews, previews),
       );
+    });
+
     const cup = yield* ports(makeWeeklyCup(guildId));
     const presses = yield* ports(pressesOf(cup));
     yield* Ref.update(running, (m) => new Map(m).set(guildId, presses));

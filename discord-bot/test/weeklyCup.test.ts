@@ -65,11 +65,20 @@ const setup = Effect.gen(function* () {
   const refused = Effect.flatMap(Ref.get(channelDown), (down) =>
     down ? Effect.fail(new CupPostFailed({ reason: "Missing Permissions" })) : Effect.void,
   );
+  /** Messages someone deleted from the channel: an edit of one fails as Unknown Message. */
+  const deleted = new Set<string>();
+  const there = (messageId: string) =>
+    deleted.has(messageId)
+      ? Effect.fail(new CupPostFailed({ reason: "Unknown Message", gone: true }))
+      : Effect.void;
+  /** Each post's `replacing`, in order: the message it stands in for, if any. */
+  const replacing: Array<string | null> = [];
   // The Workshop: 12 Eligible Maps unless a test sets its own; every member linked as s-<id>.
   const steam = yield* makeFakeSteam({});
   yield* steam.control.setCatalogue(ELIGIBLE);
   const unlinked = new Set<string>();
   const steamDown = yield* Ref.make(false);
+  let standingsPosted = 0;
   const fakes = Layer.mergeAll(
     Layer.succeed(Steam, {
       ...steam.port,
@@ -104,9 +113,10 @@ const setup = Effect.gen(function* () {
             yield* Ref.update(shortlists, (s) => [...s, { at, view }]);
             return `s${(yield* Ref.get(shortlists)).length}`;
           }),
-        post: (view) =>
+        post: (view, replaces) =>
           Effect.gen(function* () {
             yield* refused;
+            replacing.push(replaces);
             const at = yield* Clock.currentTimeMillis;
             yield* Ref.update(posts, (p) => [...p, { at, view }]);
             return `m${(yield* Ref.get(posts)).length}`;
@@ -114,6 +124,7 @@ const setup = Effect.gen(function* () {
         edit: (messageId, view) =>
           Effect.gen(function* () {
             yield* refused;
+            yield* there(messageId);
             const at = yield* Clock.currentTimeMillis;
             yield* Ref.update(edits, (e) => [...e, { at, messageId, view }]);
           }),
@@ -133,21 +144,25 @@ const setup = Effect.gen(function* () {
           Effect.gen(function* () {
             yield* refused;
             const at = yield* Clock.currentTimeMillis;
-            yield* Ref.update(standings, (s) => [...s, { at, messageId: "st1", view }]);
-            return "st1";
+            const messageId = `st${++standingsPosted}`;
+            yield* Ref.update(standings, (s) => [...s, { at, messageId, view }]);
+            return [messageId];
           }),
-        editStandings: (messageId, view) =>
+        editStandings: (messageIds, view) =>
           Effect.gen(function* () {
             yield* refused;
+            const messageId = messageIds[0] ?? "";
+            yield* there(messageId);
             const at = yield* Clock.currentTimeMillis;
             yield* Ref.update(standings, (s) => [...s, { at, messageId, view }]);
+            return messageIds;
           }),
         postResults: (view) =>
           Effect.gen(function* () {
             yield* refused;
             const at = yield* Clock.currentTimeMillis;
             yield* Ref.update(results, (r) => [...r, { at, view }]);
-            return `r${(yield* Ref.get(results)).length}`;
+            return [`r${(yield* Ref.get(results)).length}`];
           }),
       }),
     ),
@@ -203,6 +218,8 @@ const setup = Effect.gen(function* () {
   });
   return {
     channelDown,
+    deleted,
+    replacing,
     steamDown,
     steam: steam.control,
     unlinked,
@@ -492,6 +509,28 @@ describe("the Weekly Cup's schedule", () => {
     }),
   );
 
+  it.scoped("posts the Cup afresh when its post was deleted, and keeps the new one", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* TestClock.setTime(MONDAY);
+      const bot = yield* t.start;
+      t.deleted.add("m1");
+      yield* bot.signUp("alice");
+      yield* bot.signUp("bob");
+      expect((yield* Ref.get(t.posts)).map((p) => p.view.entrants)).toEqual([[], ["alice"]]);
+      expect(t.replacing).toEqual([null, "m1"]);
+      expect((yield* Ref.get(t.edits)).map((e) => [e.messageId, e.view.entrants])).toEqual([
+        ["m2", ["alice", "bob"]],
+      ]);
+      // A restart keeps the new post.
+      yield* bot.stop;
+      const again = yield* t.start;
+      yield* again.withdraw("bob");
+      expect((yield* Ref.get(t.edits)).at(-1)?.messageId).toBe("m2");
+      yield* again.stop;
+    }),
+  );
+
   it.scoped("signs up even when the post can't be redrawn", () =>
     Effect.gen(function* () {
       const t = yield* setup;
@@ -764,6 +803,23 @@ describe("the Weekly Cup's racing and results", () => {
         overall: view?.standings.overall.map((o) => [o.discordId, o.total]),
       };
     });
+
+  it.scoped("posts the standings afresh when their message was deleted", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      t.deleted.add("st1");
+      yield* t.steam.setTime(boards[0], steamIdOf("alice"), 12);
+      yield* TestClock.adjust(5 * MINUTE);
+      yield* t.steam.setTime(boards[0], steamIdOf("bob"), 13);
+      yield* TestClock.adjust(5 * MINUTE);
+      expect((yield* Ref.get(t.standings)).map((s) => [s.at, s.messageId])).toEqual([
+        [FRIDAY_NINE, "st1"],
+        [FRIDAY_NINE + 5 * MINUTE, "st2"],
+        [FRIDAY_NINE + 10 * MINUTE, "st2"],
+      ]);
+      yield* bot.stop;
+    }),
+  );
 
   it.scoped("reads each Cup Map every 5 minutes, one read each, for the Entrants", () =>
     Effect.gen(function* () {

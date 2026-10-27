@@ -331,11 +331,12 @@ const points = (n: number) => n.toLocaleString("en-US");
 
 /**
  * The Cup's standings as plain text (spec #353, #358), live while racing and the results at the
- * end: overall by points, then each Cup Map's times. The one place their look lives, so the look
- * the organisers choose replaces this alone. Live standings ping nobody; the results ping the
- * Entrants.
+ * end: overall by points, then each Cup Map's times, as one message or, past Discord's 2,000
+ * characters, several in order, split between sections or lines (never inside a mention). The
+ * one place their look lives, so the look the organisers choose replaces this alone. Live
+ * standings ping nobody; the results ping each Entrant once, in the first message naming them.
  */
-export const cupStandingsMessage = (v: StandingsView): Payload => {
+export const cupStandingsMessages = (v: StandingsView): ReadonlyArray<Payload> => {
   const { overall, maps } = v.standings;
   const head = v.final
     ? [
@@ -361,21 +362,20 @@ export const cupStandingsMessage = (v: StandingsView): Payload => {
         `## Live standings · Weekly Cup, week of ${shortDate(v.week.opensAt)}`,
         `Read every 5 minutes until <t:${unix(v.week.endsAt)}:F>. Last change <t:${unix(v.readAt)}:R>.`,
       ];
-  const table = [
+  const overallLines = [
     "**Overall**",
     ...overall.map(
       (o) =>
         `${o.place}. ${who(o.discordId)} · ${points(o.total)} pts${o.wins > 0 ? ` · ${o.wins} ${o.wins === 1 ? "win" : "wins"}` : ""}`,
     ),
   ];
-  const perMap = maps.flatMap((m, i) => {
+  const perMap = maps.map((m, i) => {
     const map = v.maps.find((c) => c.pfid === m.pfid);
     const timed = m.rows.flatMap((r) =>
       r.ticks === null || r.rank === null ? [] : [{ ...r, ticks: r.ticks, rank: r.rank }],
     );
     const untimed = m.rows.filter((r) => r.ticks === null).map((r) => who(r.discordId));
     return [
-      "",
       `**${i + 1}. ${map === undefined ? escape(m.title) : mapLink(map)}**`,
       ...timed
         .slice(0, MAP_ROWS)
@@ -383,16 +383,72 @@ export const cupStandingsMessage = (v: StandingsView): Payload => {
           (r) => `${r.rank}. ${who(r.discordId)} **${formatTime(r.ticks)}** · ${points(r.points)}`,
         ),
       ...(timed.length > MAP_ROWS ? [`and ${timed.length - MAP_ROWS} more`] : []),
-      ...(untimed.length > 0 ? [`No time yet: ${untimed.join(", ")}`] : []),
+      ...listLines("No time yet: ", untimed),
     ];
   });
-  const lines = [...head, "", ...table, ...perMap];
-  let content = lines.join("\n");
-  if (content.length > CONTENT_LIMIT) content = `${content.slice(0, CONTENT_LIMIT - 2)}\n…`;
-  return v.final
-    ? { content, components: [], allowedMentions: { users: overall.map((o) => o.discordId) } }
-    : { content, components: [], ...quiet };
+  const parts = packed([head, overallLines, ...perMap]);
+  if (!v.final) return parts.map((content) => ({ content, components: [], ...quiet }));
+  const pinged = new Set<string>();
+  return parts.map((content) => {
+    const named = [...content.matchAll(/<@(\d+)>/g)].flatMap(([, id]) =>
+      id === undefined || pinged.has(id) ? [] : [id],
+    );
+    for (const id of named) pinged.add(id);
+    return { content, components: [], allowedMentions: { users: [...new Set(named)] } };
+  });
 };
+
+/** A list as lines that start `prefix`, each well under a message, split between items. */
+const listLines = (prefix: string, items: ReadonlyArray<string>): Array<string> => {
+  const lines: Array<string> = [];
+  let line = "";
+  for (const item of items) {
+    if (line !== "" && line.length + item.length + 2 > CONTENT_LIMIT / 2) {
+      lines.push(line);
+      line = "";
+    }
+    line = line === "" ? `${prefix}${item}` : `${line}, ${item}`;
+  }
+  if (line !== "") lines.push(line);
+  return lines;
+};
+
+/**
+ * Sections (each a list of lines) packed into messages of at most 2,000 characters: a section
+ * goes whole into the current message if it fits, else starts the next, and one too long for any
+ * message is split between its lines. Sections are a blank line apart.
+ */
+const packed = (sections: ReadonlyArray<ReadonlyArray<string>>): Array<string> => {
+  const parts: Array<string> = [];
+  let part = "";
+  const add = (text: string, gap: string) => {
+    if (part === "") part = text;
+    else if (part.length + gap.length + text.length <= CONTENT_LIMIT) part += gap + text;
+    else {
+      parts.push(part);
+      part = text;
+    }
+  };
+  for (const section of sections) {
+    const block = section.join("\n");
+    if (block.length <= CONTENT_LIMIT) add(block, "\n\n");
+    else section.forEach((line, i) => add(line, i === 0 ? "\n\n" : "\n"));
+  }
+  if (part !== "") parts.push(part);
+  return parts;
+};
+
+/**
+ * A one-time Cup post (the week's post, the Shortlist, the Cup Maps, each part of the results)
+ * with a nonce of its week and kind that Discord enforces: sent again within a few minutes, as a
+ * restart between the send and its record would, Discord returns the first message instead of
+ * posting a second. At most 25 characters, Discord's limit, for any kind up to "results-10".
+ */
+export const sentOnce = <P extends Payload>(payload: P, week: string, kind: string) => ({
+  ...payload,
+  nonce: `cup-${week}-${kind}`,
+  enforceNonce: true,
+});
 
 /** A server admin's private Skip: asks first. */
 

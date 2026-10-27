@@ -154,17 +154,28 @@ export type CupAnswer =
 
 // ---------------------------------------------------------------- ports
 
-/** Discord refused a post or an edit. */
+/** Discord refused a post or an edit; `gone` when the message to edit was deleted. */
 export class CupPostFailed extends Data.TaggedError("CupPostFailed")<{
   readonly reason: string;
+  readonly gone?: boolean;
 }> {}
 
-/** One server's #weekly-cup. */
+/**
+ * One server's #weekly-cup. Each one-time post (the week's post, the Shortlist, the Cup Maps'
+ * announcement, the results) goes with a nonce of its week and kind, so Discord drops a second
+ * send of it after a restart.
+ */
 export class CupChannel extends Context.Tag("multiballs/CupChannel")<
   CupChannel,
   {
-    /** Post a week's Cup; its message id. */
-    readonly post: (view: CupPostView) => Effect.Effect<string, CupPostFailed>;
+    /**
+     * Post a week's Cup, or a new one `replaces` a deleted post (sent without the nonce, which
+     * would find the old); its message id.
+     */
+    readonly post: (
+      view: CupPostView,
+      replaces: string | null,
+    ) => Effect.Effect<string, CupPostFailed>;
     readonly edit: (messageId: string, view: CupPostView) => Effect.Effect<void, CupPostFailed>;
     readonly say: (notice: CupNotice) => Effect.Effect<void, CupPostFailed>;
     /** Post the Shortlist with its vote; its message id. */
@@ -173,14 +184,19 @@ export class CupChannel extends Context.Tag("multiballs/CupChannel")<
       messageId: string,
       view: ShortlistView,
     ) => Effect.Effect<void, CupPostFailed>;
-    /** Post the live standings; its message id. */
-    readonly postStandings: (view: StandingsView) => Effect.Effect<string, CupPostFailed>;
-    readonly editStandings: (
-      messageId: string,
+    /** Post the live standings, in as many messages as they take; their ids. */
+    readonly postStandings: (
       view: StandingsView,
-    ) => Effect.Effect<void, CupPostFailed>;
-    /** Post the results; its message id. */
-    readonly postResults: (view: StandingsView) => Effect.Effect<string, CupPostFailed>;
+    ) => Effect.Effect<ReadonlyArray<string>, CupPostFailed>;
+    /** Redraw them over these messages, adding or removing some as needed; their ids now. */
+    readonly editStandings: (
+      messageIds: ReadonlyArray<string>,
+      view: StandingsView,
+    ) => Effect.Effect<ReadonlyArray<string>, CupPostFailed>;
+    /** Post the results, in as many messages as they take; their ids. */
+    readonly postResults: (
+      view: StandingsView,
+    ) => Effect.Effect<ReadonlyArray<string>, CupPostFailed>;
   }
 >() {}
 
@@ -197,6 +213,7 @@ const CupRow = Schema.Struct({
   message_id: Schema.String,
   shortlist_message_id: Schema.NullOr(Schema.String),
   standings_message_id: Schema.NullOr(Schema.String),
+  standings_message_ids: Schema.NullOr(Schema.parseJson(Schema.Array(Schema.String))),
   standings_shown: Schema.NullOr(Schema.String),
   results_message_id: Schema.NullOr(Schema.String),
   baselines_at: Schema.NullOr(Schema.Number),
@@ -234,7 +251,7 @@ export interface CupRecord {
   /** The Shortlist's post, once it is up. */
   readonly shortlistMessageId: string | null;
   /** The live standings' message, once it is up, and the standings it last showed (JSON). */
-  readonly standingsMessageId: string | null;
+  readonly standingsMessageIds: ReadonlyArray<string>;
   readonly standingsShown: string | null;
   /** The results' message, once they are up: they go up once. */
   readonly resultsMessageId: string | null;
@@ -249,7 +266,7 @@ const freshCup = (messageId: string): CupRecord => ({
   state: "open",
   messageId,
   shortlistMessageId: null,
-  standingsMessageId: null,
+  standingsMessageIds: [],
   standingsShown: null,
   resultsMessageId: null,
   baselinesAt: null,
@@ -351,7 +368,7 @@ export const CupLogLive = Layer.effect(
     return CupLog.of({
       get: Effect.fn("CupLog.get")(function* (guildId: string, week: string) {
         const rows =
-          yield* sql`SELECT state, message_id, shortlist_message_id, standings_message_id, standings_shown, results_message_id, baselines_at, final_reads FROM weekly_cups WHERE guild_id = ${guildId} AND week = ${week}`.pipe(
+          yield* sql`SELECT state, message_id, shortlist_message_id, standings_message_id, standings_message_ids, standings_shown, results_message_id, baselines_at, final_reads FROM weekly_cups WHERE guild_id = ${guildId} AND week = ${week}`.pipe(
             Effect.flatMap(Schema.decodeUnknown(Schema.Array(CupRow))),
             Effect.orDie,
           );
@@ -359,7 +376,9 @@ export const CupLogLive = Layer.effect(
           state: r.state,
           messageId: r.message_id,
           shortlistMessageId: r.shortlist_message_id,
-          standingsMessageId: r.standings_message_id,
+          standingsMessageIds:
+            r.standings_message_ids ??
+            (r.standings_message_id === null ? [] : [r.standings_message_id]),
           standingsShown: r.standings_shown,
           resultsMessageId: r.results_message_id,
           baselinesAt: r.baselines_at,
@@ -367,7 +386,7 @@ export const CupLogLive = Layer.effect(
         }));
       }),
       put: Effect.fn("CupLog.put")(function* (guildId: string, week: string, cup: CupRecord) {
-        yield* sql`INSERT OR REPLACE INTO weekly_cups (guild_id, week, state, message_id, shortlist_message_id, standings_message_id, standings_shown, results_message_id, baselines_at, final_reads) VALUES (${guildId}, ${week}, ${cup.state}, ${cup.messageId}, ${cup.shortlistMessageId}, ${cup.standingsMessageId}, ${cup.standingsShown}, ${cup.resultsMessageId}, ${cup.baselinesAt}, ${JSON.stringify(cup.finalReads)})`.pipe(
+        yield* sql`INSERT OR REPLACE INTO weekly_cups (guild_id, week, state, message_id, shortlist_message_id, standings_message_ids, standings_shown, results_message_id, baselines_at, final_reads) VALUES (${guildId}, ${week}, ${cup.state}, ${cup.messageId}, ${cup.shortlistMessageId}, ${JSON.stringify(cup.standingsMessageIds)}, ${cup.standingsShown}, ${cup.resultsMessageId}, ${cup.baselinesAt}, ${JSON.stringify(cup.finalReads)})`.pipe(
           Effect.orDie,
         );
       }),
@@ -573,12 +592,25 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
     return { guildId, week, state, entrants: yield* entrantIds(week.week) };
   });
 
-  /** Redraw the post as the week stands; a refused edit reaches ops once until one lands. */
+  /**
+   * Redraw the post as the week stands, or post it afresh (and keep the new one) if someone
+   * deleted it; a refused edit reaches ops once until one lands.
+   */
   const redraw = Effect.fn("cup.redraw")(function* (week: CupWeek, cup: CupRecord) {
     const channel = yield* CupChannel;
+    const view = yield* viewOf(week, cup.state);
     const edited = yield* Effect.either(
-      channel.edit(cup.messageId, yield* viewOf(week, cup.state)),
+      channel.edit(cup.messageId, view).pipe(
+        Effect.catchIf(
+          (e) => e.gone === true,
+          () =>
+            Effect.flatMap(channel.post(view, cup.messageId), (messageId) =>
+              log.put(guildId, week.week, { ...cup, messageId }),
+            ),
+        ),
+      ),
     );
+
     if (edited._tag === "Left")
       return yield* tell(
         "edit",
@@ -676,8 +708,8 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
       );
       return now + RETRY_EVERY;
     }
-    yield* clear("shortlist");
     yield* enter(week, { ...cup, shortlistMessageId: posted.right }, "voting");
+    yield* clear("shortlist");
     return week.voteClosesAt;
   });
 
@@ -829,12 +861,18 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
     view: StandingsView,
   ) {
     const shown = JSON.stringify(view.standings);
-    if (cup.standingsMessageId !== null && cup.standingsShown === shown) return cup;
+    if (cup.standingsMessageIds.length > 0 && cup.standingsShown === shown) return cup;
     const channel = yield* CupChannel;
     const sent = yield* Effect.either(
-      cup.standingsMessageId === null
+      cup.standingsMessageIds.length === 0
         ? channel.postStandings(view)
-        : Effect.as(channel.editStandings(cup.standingsMessageId, view), cup.standingsMessageId),
+        : channel.editStandings(cup.standingsMessageIds, view).pipe(
+            // Someone deleted them: post them afresh.
+            Effect.catchIf(
+              (e) => e.gone === true,
+              () => channel.postStandings(view),
+            ),
+          ),
     );
     if (sent._tag === "Left") {
       yield* tell(
@@ -844,7 +882,7 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
       return cup;
     }
     yield* clear("standings");
-    const next = { ...cup, standingsMessageId: sent.right, standingsShown: shown };
+    const next = { ...cup, standingsMessageIds: sent.right, standingsShown: shown };
     yield* log.put(guildId, week.week, next);
     return next;
   });
@@ -887,9 +925,9 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
         );
         return now + RETRY_EVERY;
       }
-      yield* clear("results");
-      current = { ...current, resultsMessageId: posted.right };
+      current = { ...current, resultsMessageId: posted.right[0] ?? "" };
       yield* log.put(guildId, week.week, current);
+      yield* clear("results");
     }
     yield* enter(week, current, "final");
     return week.nextOpensAt;
@@ -954,8 +992,8 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
       );
       return now + RETRY_EVERY;
     }
-    yield* clear("announce");
     yield* enter(week, current, "racing");
+    yield* clear("announce");
     if (current.shortlistMessageId !== null) {
       const view = yield* shortlistView(
         week,
@@ -997,7 +1035,7 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
     if (Option.isNone(found)) {
       if (now >= week.shortlistAt) return week.nextOpensAt;
       const posted = yield* Effect.either(
-        (yield* CupChannel).post({ guildId, week, state: "open", entrants: [] }),
+        (yield* CupChannel).post({ guildId, week, state: "open", entrants: [] }, null),
       );
       if (posted._tag === "Left") {
         yield* tell(
@@ -1006,8 +1044,8 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
         );
         return now + RETRY_EVERY;
       }
-      yield* clear("post");
       yield* log.put(guildId, week.week, freshCup(posted.right));
+      yield* clear("post");
 
       yield* Effect.logInfo(`weekly cup: posted ${week.week} in ${guildId}`);
       return week.shortlistAt;
@@ -1220,7 +1258,11 @@ export interface CupPresses {
 /** A Cup's presses, with the channel and ops it runs with. */
 export const pressesOf = Effect.fn("pressesOf")(function* (cup: WeeklyCup) {
   const context = yield* Effect.context<CupPorts>();
-  const within = <A>(effect: Effect.Effect<A, never, CupPorts>) => Effect.provide(effect, context);
+  const within = Effect.fn("pressesOf.within")(function* <A>(
+    effect: Effect.Effect<A, never, CupPorts>,
+  ) {
+    return yield* Effect.provide(effect, context);
+  });
   return {
     signUp: (week, who) => within(cup.signUp(week, who)),
     withdraw: (week, who) => within(cup.withdraw(week, who)),
