@@ -1442,8 +1442,11 @@ export interface CupStandingsImage {
     readonly name: string;
     readonly total: number;
     readonly wins: number;
-    /** Each Cup Map's time and place, or null for no time. */
-    readonly cells: ReadonlyArray<{ readonly time: string; readonly rank: number } | null>;
+    /**
+     * Each Cup Map's place, with its time once the Cup is over (null while live: times stay
+     * secret until the end), or null for no time.
+     */
+    readonly cells: ReadonlyArray<{ readonly time: string | null; readonly rank: number } | null>;
   }>;
 }
 
@@ -1522,11 +1525,21 @@ export const cupStandingsScene = ({ title, subtitle, maps, rows }: CupStandingsI
               { width: COL.map, justifyContent: "flex-end", alignItems: "center", gap: 6 },
               c === null
                 ? box({ color: C.faint }, "—")
-                : box(
-                    { alignItems: "center", gap: 6 },
-                    box({ fontFamily: F.hud, fontWeight: 600, color: C.text }, c.time),
-                    rankBadge(c.rank),
-                  ),
+                : c.time === null
+                  ? box(
+                      {
+                        fontFamily: F.hud,
+                        fontWeight: 700,
+                        fontSize: 16,
+                        color: c.rank <= 3 ? placeColour(c.rank) : C.text,
+                      },
+                      `#${c.rank}`,
+                    )
+                  : box(
+                      { alignItems: "center", gap: 6 },
+                      box({ fontFamily: F.hud, fontWeight: 600, color: C.text }, c.time),
+                      rankBadge(c.rank),
+                    ),
             ),
           ),
         ),

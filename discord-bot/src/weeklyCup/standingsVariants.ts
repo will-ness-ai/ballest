@@ -298,9 +298,9 @@ export const variantC = ({ maps, standings }: Sample): ReadonlyArray<Payload> =>
 // ---------------------------------------------------------------- D: an image
 
 /** D's picture's input: the total and each Map's top rows, drawn by the Renderer. */
-export const variantDImage = ({ maps, standings }: Sample): CupStandingsImage => ({
+export const variantDImage = ({ maps, standings }: Sample, final: boolean): CupStandingsImage => ({
   title: "Weekly Cup",
-  subtitle: "Week of Mon, Oct 26 · live standings",
+  subtitle: `Week of Mon, Oct 26 · ${final ? "results" : "live standings"}`,
   maps: maps.map((m) => m.title),
   rows: standings.overall.map((o) => ({
     place: o.place,
@@ -311,17 +311,26 @@ export const variantDImage = ({ maps, standings }: Sample): CupStandingsImage =>
       const r = m.rows.find((x) => x.discordId === o.discordId);
       return r?.ticks == null || r.rank === null
         ? null
-        : { time: formatTime(r.ticks).replace(/^0:/, ""), rank: r.rank };
+        : { time: final ? formatTime(r.ticks).replace(/^0:/, "") : null, rank: r.rank };
     }),
   })),
 });
 
 /** D: the image, with the Maps' links under it. */
-export const variantD = (sampled: Sample, png: Uint8Array): ReadonlyArray<Payload> => [
+export const variantD = (
+  sampled: Sample,
+  png: Uint8Array,
+  final: boolean,
+): ReadonlyArray<Payload> => [
   {
     content: [
-      tag("D", "an image drawn by the Renderer"),
-      `${READ}. Maps: ${sampled.maps.map((m) => mapLink(m)).join(" · ")}`,
+      tag(
+        "D",
+        final
+          ? "the results, with every time"
+          : "live: each Map's place only, the times kept secret until the Cup ends",
+      ),
+      `${final ? "Final." : `${READ}.`} Maps: ${sampled.maps.map((m) => mapLink(m)).join(" · ")}`,
     ].join("\n"),
     files: [new AttachmentBuilder(Buffer.from(png), { name: "cup-standings.png" })],
     components: [],

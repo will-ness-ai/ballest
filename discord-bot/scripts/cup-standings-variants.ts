@@ -32,12 +32,16 @@ const program = Effect.gen(function* () {
   if (sandbox === null)
     return yield* Effect.dieMessage("no sandbox channel: pnpm axi sandbox create");
   const s = sample();
-  const png = yield* (yield* Renderer).cupStandings(variantDImage(s));
+  const renderer = yield* Renderer;
+  const live = yield* renderer.cupStandings(variantDImage(s, false));
+  const results = yield* renderer.cupStandings(variantDImage(s, true));
+  // `ONLY=D` posts just those variants (D is posted live and as the results).
+  const only = process.env.ONLY?.split(",");
   const posts = [
     ["A", variantA(s)],
     ["B", variantB(s)],
     ["C", variantC(s)],
-    ["D", variantD(s, png)],
+    ["D", [...variantD(s, live, false), ...variantD(s, results, true)]],
     ["E", variantE(s)],
   ] as const;
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -45,7 +49,7 @@ const program = Effect.gen(function* () {
   const channel = (yield* Effect.promise(() =>
     client.channels.fetch(sandbox.channelId),
   )) as TextChannel;
-  for (const [letter, payloads] of posts)
+  for (const [letter, payloads] of posts.filter(([l]) => only?.includes(l) ?? true))
     for (const payload of payloads) {
       const m = yield* Effect.tryPromise(() => channel.send(payload));
       console.log(`${letter}: ${m.url}`);
