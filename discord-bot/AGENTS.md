@@ -491,8 +491,14 @@ Every press is answered privately, for the week its button names: an earlier wee
 it's over. Each week (`weekly_cups`) and its Entrants (`weekly_cup_entrants`, with when each
 signed up) are in SQLite, and each step works from that and the clock, so a restart resumes
 without posting again and acts at once on a boundary passed while it was down; a week the bot
-first starts in after Thursday 12:00 gets no post. A failed post is retried every minute and a
-failed edit at the next change, each told to ops once until it lands.
+first starts in after Thursday 12:00 gets no post, and an earlier week still racing (the bot was
+down over its close) is finished as the bot starts. A failed post is retried every minute and a
+failed edit at the next change, each told to ops once until it lands (OpsAlerts' `post` with a
+key, and `forget`). Each one-time post (the week's post, the Shortlist, the Cup Maps, each part of
+the results) goes with a nonce of its week and kind that Discord enforces (`sentOnce`), so a send
+repeated after a restart is dropped, and its record is written straight after it. An edit of the
+post or the standings that Discord answers with Unknown Message posts a fresh one and keeps its
+id. Sign up and Withdraw close at Sunday 20:00.
 
 The Shortlist (Thursday 12:00) is the engine's Eligible Map search (`src/eligibleMaps.ts`, shared
 with a Match's draw) with an author limit of 3:00, drawing until 10 Maps none of the Entrants
@@ -511,22 +517,25 @@ each minute with the same Maps. Once it is out, the Shortlist's post is edited t
 closed", without its select (best effort, ops told if refused).
 
 Racing (Friday 09:00 to Sunday 20:00) reads each Cup Map every 5 minutes, one `readPlayers` call
-per Map for the current Entrants' Links. A late Entrant has a bar (`weekly_cup_baselines`): one who
-signed up after Thursday 12:00 and before the vote closed gets their PBs at Friday 09:00 (read
-once, before the announcement; `weekly_cups.baselines_at`), and one who signs up after that gets
-their PBs as they sign up (read before they are added; Steam down refuses the sign-up, to try
-again). A time counts once it beats the bar. Each counted best is kept (`weekly_cup_times`) with
-when the Entrant's first counted time on that Map was seen; a PB seen more than 30 minutes after
-that is a Flag, told to ops once per Entrant per Map (`flagged`), and still counts. A failed read
-keeps that Map's last times, ops told once until the reads land, and the next tick reads again.
+per Map for the current Entrants' Links. Every Entrant has a bar (`weekly_cup_baselines`): their
+PBs on the Cup Maps as racing opens (read once, before the announcement;
+`weekly_cups.baselines_at`), or, for one who signs up later, as they sign up (read before they are
+added; Steam down refuses the sign-up, to try again). A time counts once it beats the bar, so
+practice on the Shortlist during the vote counts not. Each counted best is kept
+(`weekly_cup_times`) with when the Entrant's first counted time on that Map was seen; a PB seen
+more than 30 minutes after that is a Flag (approximate: both are measured between reads), told
+to ops once per Entrant per Map (`flagged`), and still counts. A failed read keeps that Map's
+last times, ops told once until the reads land, and the next tick reads again.
 `points.ts` ranks each Map (equal times share a place), pays the site's `trackPoints` (pinned by
 `test/weeklyCupPoints.test.ts`, which imports `web/lib/rules.ts`), totals them and breaks a tie
-on more Map wins. The live standings are one plain-text message, posted at the first read and
-edited only when the standings change (`standings_message_id`, `standings_shown`). At Sunday
-20:00 a final read is tried each minute while Steam fails, up to 20:30, when the results stand on
-the last reads; the results are posted once (`results_message_id`, recorded as they go up) and
-ping the Entrants. Both texts come from `cupStandingsMessage` in `src/discord/messages.ts`, the one
-place their look lives.
+on more Map wins. The live standings are plain text, posted at the first read and edited only
+when the standings change (`standings_message_ids`, `standings_shown`). At Sunday 20:00 each Cup
+Map's final read is recorded as it lands (`final_reads`), and a retry each minute while Steam
+fails reads only the Maps still missing, up to 20:30, when those stand on their last reads; the
+results, which say which Maps were read late or not at all, are posted once (`results_message_id`,
+recorded as they go up) and ping each Entrant once. Both texts come from `cupStandingsMessages` in
+`src/discord/messages.ts`, the one place their look lives, split across messages past 2,000
+characters between sections or lines.
 
 The schedule runs over ports on the TestClock (`test/weeklyCup.test.ts`), the week in
 `test/weeklyCupWeek.test.ts`, the channel over a fake server (`test/weeklyCupChannel.test.ts`),
