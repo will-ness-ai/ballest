@@ -4,7 +4,8 @@
 // presses there as the home Venue's (as #my-stats's, `Discord.answerIn`), and runs that server's
 // schedule (schedule.ts) over the channel's messages (slots.ts). A server it can't set up is told
 // to ops, and the bot runs on without its Cup until the next start. Off in the sandbox, whose
-// fresh database each start would run a second Cup beside `pnpm dev`'s.
+// fresh database each start would run a second Cup beside `pnpm dev`'s, unless it was started
+// with `--cup` (SANDBOX_WEEKLY_CUP), which runs it in the sandbox's server.
 import { ChannelType, type Client, type TextChannel } from "discord.js";
 import { Cause, Config, Effect, Layer, Option, Ref } from "effect";
 import { MigratorLive } from "../db.js";
@@ -62,7 +63,9 @@ const make = Effect.gen(function* () {
   const registry = WeeklyCups.of({
     in: (guildId) => Effect.map(Ref.get(running), (m) => Option.fromNullable(m.get(guildId))),
   });
-  const sandbox = yield* Config.boolean("MULTIBALLS_SANDBOX").pipe(Config.withDefault(false));
+  const sandbox =
+    (yield* Config.boolean("MULTIBALLS_SANDBOX").pipe(Config.withDefault(false))) &&
+    !(yield* Config.boolean("SANDBOX_WEEKLY_CUP").pipe(Config.withDefault(false)));
   const ids = (yield* Config.array(Config.string(), "WEEKLY_CUP_GUILD_IDS").pipe(
     Config.withDefault([]),
   ))
@@ -100,7 +103,7 @@ const make = Effect.gen(function* () {
     }
     yield* discord.answerIn(channelId);
     const cup = yield* makeWeeklyCup(guildId).pipe(
-      Effect.provideService(CupChannel, cupChannelOver(sinkOn(client, channelId))),
+      Effect.provideService(CupChannel, cupChannelOver(sinkOn(client, channelId), guildId)),
       Effect.provideService(CupLog, log),
       Effect.provideService(OpsAlerts, alerts),
       Effect.provideService(CupLinks, links),

@@ -4,6 +4,7 @@
 // enforces, so a send repeated after a restart is dropped; an edit is made only where a message
 // would change; a message someone deleted (Unknown Message) is posted afresh; and a view that now
 // takes more or fewer messages posts or drops the difference.
+import { createHash } from "node:crypto";
 import { Effect } from "effect";
 import {
   describeDiscordError,
@@ -39,14 +40,23 @@ export interface MessageSink {
 }
 
 /**
- * A one-time post with a nonce of its week and kind that Discord enforces: sent again within a few
- * minutes, as a restart between the send and its record would, Discord returns the first message
- * instead of posting a second. At most 25 characters, Discord's limit, for any kind up to
- * "results-10".
+ * A one-time post with a nonce of its server, week and kind that Discord enforces: sent again
+ * within a few minutes, as a restart between the send and its record would, Discord returns the
+ * first message instead of posting a second. Discord matches a nonce across every channel the bot
+ * posts in, so the server is part of it, or two servers' posts at the same moment would be one;
+ * a hash keeps it within Discord's 25 characters.
  */
-export const sentOnce = (payload: Payload, week: string, kind: string): SentPayload => ({
+export const sentOnce = (
+  payload: Payload,
+  guildId: string,
+  week: string,
+  kind: string,
+): SentPayload => ({
   ...payload,
-  nonce: `cup-${week}-${kind}`,
+  nonce: createHash("sha256")
+    .update(`cup:${guildId}:${week}:${kind}`)
+    .digest("base64url")
+    .slice(0, 25),
   enforceNonce: true,
 });
 
@@ -68,8 +78,8 @@ const ONCE: Readonly<Record<Slot, boolean>> = {
 const refused = (e: DiscordError) => new CupPostFailed({ reason: describeDiscordError(e) });
 const gone = (e: DiscordError) => hasCode(e, UNKNOWN_MESSAGE);
 
-/** The CupChannel port over a channel's messages. */
-export const cupChannelOver = (sink: MessageSink) => {
+/** The CupChannel port over a channel's messages, in server `guildId`. */
+export const cupChannelOver = (sink: MessageSink, guildId: string) => {
   /** What each message shows (its fingerprint), so an unchanged one isn't edited. */
   const drawn = new Map<string, string>();
 
@@ -83,7 +93,7 @@ export const cupChannelOver = (sink: MessageSink) => {
     for (const [i, part] of parts.entries()) {
       const kind = slot === "results" ? `results-${i + 1}` : slot;
       const id = yield* sink
-        .send(once ? sentOnce(part, week, kind) : part)
+        .send(once ? sentOnce(part, guildId, week, kind) : part)
         .pipe(Effect.mapError(refused));
       drawn.set(id, fingerprint(part));
       ids.push(id);
@@ -151,7 +161,11 @@ export const cupChannelOver = (sink: MessageSink) => {
     say: Effect.fn("cupChannel.say")(function* (notice: CupNotice) {
       const message = cupNoticeMessage(notice);
       yield* sink
-        .send(notice._tag === "CupMaps" ? sentOnce(message, notice.week.week, "cupmaps") : message)
+        .send(
+          notice._tag === "CupMaps"
+            ? sentOnce(message, guildId, notice.week.week, "cupmaps")
+            : message,
+        )
         .pipe(Effect.mapError(refused));
     }),
   });

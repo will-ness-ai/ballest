@@ -39,6 +39,8 @@ describe("the Weekly Cup's post", () => {
     );
   const words = (p: Payload) => JSON.stringify(p.components);
   const cup = { guildId: "g-racing", week: "2026-10-26" };
+  /** A real server id: the longest a nonce has to fit. */
+  const GUILD = "1552729776165486602";
 
   it("offers Sign up, Withdraw and Skip while open, each for its server's week", () => {
     const open = post("open");
@@ -295,18 +297,22 @@ describe("the Weekly Cup's post", () => {
     });
   });
 
-  it("sends each one-time Cup post with a nonce of its week and kind, which Discord enforces", () => {
+  it("sends each one-time Cup post with a nonce of its server, week and kind, which Discord enforces", () => {
     const kinds = ["post", "shortlist", "cupmaps", "results-1", "results-10"];
-    const nonces = kinds.map((kind) => sentOnce(post("open"), cup.week, kind).nonce);
-    expect(nonces[0]).toBe("cup-2026-10-26-post");
+    const nonces = kinds.map((kind) => sentOnce(post("open"), GUILD, cup.week, kind).nonce);
     for (const n of nonces) expect((n ?? "").length).toBeLessThanOrEqual(25);
 
     expect(new Set(nonces).size).toBe(kinds.length);
-    expect(sentOnce(post("open"), cup.week, "post")).toMatchObject({
-      nonce: "cup-2026-10-26-post",
+    expect(sentOnce(post("open"), GUILD, cup.week, "post")).toMatchObject({
+      nonce: nonces[0],
       enforceNonce: true,
     });
-    expect(sentOnce(post("open"), "2026-11-02", "post").nonce).not.toBe(nonces[0]);
+    expect(sentOnce(post("open"), GUILD, "2026-11-02", "post").nonce).not.toBe(nonces[0]);
+    // Discord matches a nonce across every channel the bot posts in, so two servers' posts of the
+    // same week and kind, sent at the same moment, must not share one.
+    expect(sentOnce(post("open"), "1552729776165486603", cup.week, "post").nonce).not.toBe(
+      nonces[0],
+    );
   });
 
   it("asks a server admin to confirm a skip, privately", () => {

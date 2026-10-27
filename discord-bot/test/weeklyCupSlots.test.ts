@@ -6,7 +6,7 @@ import { DiscordError, UNKNOWN_MESSAGE } from "../src/discord/client.js";
 import type { Payload } from "../src/discord/messages.js";
 import type { CupMap, CupPostView, StandingsView } from "../src/weeklyCup/model.js";
 import { cupStandings } from "../src/weeklyCup/points.js";
-import { cupChannelOver, type SentPayload } from "../src/weeklyCup/slots.js";
+import { cupChannelOver, type SentPayload, sentOnce } from "../src/weeklyCup/slots.js";
 import { weekAt } from "../src/weeklyCup/week.js";
 import { ticks } from "./harness.js";
 
@@ -74,13 +74,16 @@ describe("the Weekly Cup's slots", () => {
   it.effect("posts a one-time slot first with its nonce, and edits it only when it changes", () =>
     Effect.gen(function* () {
       const fake = fakeSink();
-      const channel = cupChannelOver(fake.sink);
+      const channel = cupChannelOver(fake.sink, "g-racing");
       const ids = yield* channel.show("post", [], postView([]));
       expect(ids).toEqual(["d1"]);
-      expect(fake.sent[0]?.payload).toMatchObject({
-        nonce: "cup-2026-10-26-post",
-        enforceNonce: true,
-      });
+      expect(fake.sent[0]?.payload).toMatchObject({ enforceNonce: true });
+      const nonce = fake.sent[0]?.payload.nonce;
+      expect(nonce).toBeDefined();
+      // Another server's post of the same week goes with a nonce of its own.
+      const other = fakeSink();
+      yield* cupChannelOver(other.sink, "g-other").show("post", [], postView([]));
+      expect(other.sent[0]?.payload.nonce).not.toBe(nonce);
       expect(yield* channel.show("post", ids, postView([]))).toEqual(ids);
       expect(fake.edited).toEqual([]);
       expect(yield* channel.show("post", ids, postView(["111"]))).toEqual(ids);
@@ -92,7 +95,7 @@ describe("the Weekly Cup's slots", () => {
   it.effect("posts the standings without a nonce, as they are redrawn every read", () =>
     Effect.gen(function* () {
       const fake = fakeSink();
-      yield* cupChannelOver(fake.sink).show("standings", [], standingsView(3));
+      yield* cupChannelOver(fake.sink, "g-racing").show("standings", [], standingsView(3));
       expect(fake.sent[0]?.payload.nonce).toBeUndefined();
     }),
   );
@@ -100,7 +103,7 @@ describe("the Weekly Cup's slots", () => {
   it.effect("posts a deleted slot afresh, without the nonce, and hands back the new ids", () =>
     Effect.gen(function* () {
       const fake = fakeSink();
-      const channel = cupChannelOver(fake.sink);
+      const channel = cupChannelOver(fake.sink, "g-racing");
       const ids = yield* channel.show("post", [], postView([]));
       fake.deleted.add("d1");
       expect(yield* channel.show("post", ids, postView(["111"]))).toEqual(["d2"]);
@@ -111,7 +114,7 @@ describe("the Weekly Cup's slots", () => {
   it.effect("refuses, posting nothing, over a deleted message when asked not to repost", () =>
     Effect.gen(function* () {
       const fake = fakeSink();
-      const channel = cupChannelOver(fake.sink);
+      const channel = cupChannelOver(fake.sink, "g-racing");
       const ids = yield* channel.show("post", [], postView([]));
       fake.deleted.add("d1");
       const shown = yield* Effect.either(
@@ -125,7 +128,7 @@ describe("the Weekly Cup's slots", () => {
   it.effect("posts or drops the messages a view now takes more or fewer of", () =>
     Effect.gen(function* () {
       const fake = fakeSink();
-      const channel = cupChannelOver(fake.sink);
+      const channel = cupChannelOver(fake.sink, "g-racing");
       const one = yield* channel.show("standings", [], standingsView(3));
       expect(one).toHaveLength(1);
       const many = yield* channel.show("standings", one, standingsView(60));
@@ -141,7 +144,7 @@ describe("the Weekly Cup's slots", () => {
   it.effect("puts a Shortlist's pictures up again in place of the old when it is edited", () =>
     Effect.gen(function* () {
       const fake = fakeSink();
-      const channel = cupChannelOver(fake.sink);
+      const channel = cupChannelOver(fake.sink, "g-racing");
       const shortlist = (closed: boolean) => ({
         guildId: "g-racing",
         week,
@@ -161,7 +164,7 @@ describe("the Weekly Cup's slots", () => {
   it.effect("tells the Cup Maps once, with a nonce, and other notices plainly", () =>
     Effect.gen(function* () {
       const fake = fakeSink();
-      const channel = cupChannelOver(fake.sink);
+      const channel = cupChannelOver(fake.sink, "g-racing");
       yield* channel.say({
         _tag: "CupMaps",
         week,
@@ -169,7 +172,10 @@ describe("the Weekly Cup's slots", () => {
         maps: [{ map: cupMap(1), votes: 1 }],
       });
       yield* channel.say({ _tag: "Skipped", week: week.week, entrants: ["1"] });
-      expect(fake.sent.map((s) => s.payload.nonce)).toEqual(["cup-2026-10-26-cupmaps", undefined]);
+      expect(fake.sent.map((s) => s.payload.nonce)).toEqual([
+        sentOnce({}, "g-racing", "2026-10-26", "cupmaps").nonce,
+        undefined,
+      ]);
     }),
   );
 });
