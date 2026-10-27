@@ -989,6 +989,22 @@ describe("the Weekly Cup's racing and results", () => {
     }),
   );
 
+  it.scoped("closes the live standings once the results are up, pointing to them", () =>
+    Effect.gen(function* () {
+      const { t, bot } = yield* racing();
+      const again = yield* lastMinutes(t, bot);
+      yield* TestClock.adjust(2 * MINUTE);
+      expect((yield* Ref.get(t.results)).map((r) => r.at)).toEqual([SUNDAY_EIGHT]);
+      const all = yield* Ref.get(t.standings);
+      const last = all[all.length - 1];
+      expect(last).toMatchObject({ at: SUNDAY_EIGHT, messageId: "st1" });
+      expect(last?.view.final).toBe(true);
+      // Only the live standings before it were shown live.
+      expect(all.slice(0, -1).every((s) => !s.view.final)).toBe(true);
+      yield* again.stop;
+    }),
+  );
+
   it.scoped("posts the results once at Sunday 20:00, from a final read, through a restart", () =>
     Effect.gen(function* () {
       const { t, bot, boards } = yield* racing();

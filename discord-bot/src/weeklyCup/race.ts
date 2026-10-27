@@ -4,7 +4,7 @@
 // and a PB seen more than 30 minutes after their first counted time on that Map is a Flag, told to
 // ops once per Entrant per Map. The standings are shown after each read; at Sunday 20:00 a final
 // read of each Map (tried each minute for the ones Steam missed, up to 30 minutes) makes the
-// results, posted once.
+// results, posted once, and the live standings then say racing has closed.
 import { Effect, Option } from "effect";
 import { formatTime } from "../domain.js";
 import { mapName } from "../links.js";
@@ -207,6 +207,20 @@ export const makeRace = (kit: CupKit) => {
       );
       if (Option.isNone(posted)) return now + RETRY_EVERY;
       current = posted.value;
+    }
+    // The live standings stop saying they are read every 5 minutes, and point to the results:
+    // best effort (ops told if refused), and one someone deleted isn't posted again below them.
+    if (current.shown.standings.length > 0) {
+      const view = yield* standingsOf(week, yield* raceOf(week.week), true, current.finalReads);
+      const closed = yield* kit.show(
+        week,
+        current,
+        "standings",
+        view,
+        "close the Weekly Cup's live standings",
+        "closeStandings",
+      );
+      if (Option.isSome(closed)) current = closed.value;
     }
     yield* kit.enter(week, current, "final");
     return week.nextOpensAt;

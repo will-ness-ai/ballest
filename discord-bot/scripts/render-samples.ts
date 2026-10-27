@@ -7,6 +7,10 @@ import { Effect } from "effect";
 import { type Player, SCORE_TICKS_PER_SECOND, type Standing } from "../src/domain.js";
 import type { CardView } from "../src/ports.js";
 import { Renderer } from "../src/render/renderer.js";
+import { cupStandingsImage } from "../src/weeklyCup/messages.js";
+import type { CupMap, StandingsView } from "../src/weeklyCup/model.js";
+import { cupStandings } from "../src/weeklyCup/points.js";
+import { weekAt } from "../src/weeklyCup/week.js";
 
 const out = process.argv[2] ?? ".logs/samples";
 const T = SCORE_TICKS_PER_SECOND;
@@ -136,6 +140,76 @@ const race = pbs([
   [728, chkn, 13.2],
   [870, tilt, 14.02],
 ]);
+
+// The Weekly Cup's sample week (from claude/prototype-cup-standings): eight Entrants, by name, on
+// the three Cup Maps the sandbox's live check voted; a name missing on a Map has no time.
+const CUP_NAMES = [
+  "marblequeen",
+  "rollo",
+  "pebblewright",
+  "sprocket",
+  "tumbler",
+  "QuickSilver",
+  "nightowl",
+  "Zed",
+];
+const cupMap = (pfid: string, title: string, creator: string): CupMap => ({
+  pfid,
+  title,
+  creator,
+  previewUrl: "",
+  authorSeconds: 60,
+  boardId: 1,
+  worldRecordTicks: 1,
+});
+const CUP_MAPS = [
+  cupMap("3810099846", "Crimson Flux", "CoS"),
+  cupMap("3796494598", "the drop", "AvgRon"),
+  cupMap("3762695115", "AJC4", "Action Jackson"),
+];
+const CUP_SECONDS: Record<string, Record<string, number>> = {
+  "3810099846": {
+    marblequeen: 38.214,
+    rollo: 38.902,
+    pebblewright: 39.551,
+    sprocket: 41.003,
+    tumbler: 41.003,
+    QuickSilver: 44.87,
+  },
+  "3796494598": {
+    rollo: 26.118,
+    marblequeen: 26.54,
+    QuickSilver: 27.002,
+    pebblewright: 27.99,
+    nightowl: 29.431,
+    tumbler: 31.25,
+  },
+  "3762695115": {
+    pebblewright: 49.877,
+    marblequeen: 50.105,
+    nightowl: 51.66,
+    rollo: 52.3,
+    Zed: 58.004,
+  },
+};
+const cupView = (final: boolean): StandingsView => ({
+  guildId: "sample",
+  week: weekAt(Date.parse("2026-10-30T15:00:00Z")),
+  maps: CUP_MAPS,
+  final,
+  lateReads: [],
+  standings: cupStandings(
+    CUP_MAPS,
+    CUP_NAMES,
+    Object.fromEntries(
+      Object.entries(CUP_SECONDS).map(([pfid, byName]) => [
+        pfid,
+        Object.fromEntries(Object.entries(byName).map(([n, sec]) => [n, Math.round(sec * T)])),
+      ]),
+    ),
+  ),
+});
+const cupNames = new Map(CUP_NAMES.map((n) => [n, n]));
 
 const program = Effect.gen(function* () {
   const renderer = yield* Renderer;
@@ -306,6 +380,14 @@ const program = Effect.gen(function* () {
   yield* save(
     "lead-graph-at-close",
     yield* renderer.leadGraph({ ...graph, leads: [lead(24, ["snayK"], 17.585)], now: null }),
+  );
+  yield* save(
+    "cup-standings-live",
+    yield* renderer.cupStandings(cupStandingsImage(cupView(false), cupNames)),
+  );
+  yield* save(
+    "cup-standings-results",
+    yield* renderer.cupStandings(cupStandingsImage(cupView(true), cupNames)),
   );
   yield* Effect.log(`wrote samples to ${out}`);
 });
