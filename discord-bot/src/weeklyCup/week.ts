@@ -33,8 +33,9 @@ const parts = new Intl.DateTimeFormat("en-US", {
 
 /** The Central wall clock at `ms`, read as if it were UTC. */
 const wallClock = (ms: number) => {
-  const p = Object.fromEntries(parts.formatToParts(ms).map((x) => [x.type, Number(x.value)]));
-  return Date.UTC(p.year!, p.month! - 1, p.day!, p.hour!, p.minute!, p.second!);
+  const p = new Map(parts.formatToParts(ms).map((x) => [x.type, Number(x.value)]));
+  const n = (type: Intl.DateTimeFormatPartTypes) => p.get(type) ?? 0;
+  return Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"), n("second"));
 };
 
 /** How far Central's wall clock is from UTC at `ms` (negative: behind). */
