@@ -10,7 +10,12 @@ import { ChannelType, type Client, type TextChannel } from "discord.js";
 import { Cause, Config, Effect, Layer, Option, Ref, Schema } from "effect";
 import { MigratorLive } from "../db.js";
 import { describeDiscordError, Discord, type DiscordError, tryDiscord } from "../discord/client.js";
-import { cupNoticeMessage, shortlistMessage, weeklyCupMessage } from "../discord/messages.js";
+import {
+  cupNoticeMessage,
+  cupStandingsMessage,
+  shortlistMessage,
+  weeklyCupMessage,
+} from "../discord/messages.js";
 import { setupGuildOn } from "../discord/setupGuild.js";
 import { OpsAlerts } from "../ops.js";
 import { Steam, Store } from "../ports.js";
@@ -69,6 +74,43 @@ const cupChannelOn = (client: Client<true>, channelId: string) => {
       channel.pipe(
         Effect.flatMap((c) =>
           tryDiscord("post the Shortlist", () => c.send(shortlistMessage(view))).pipe(failed),
+        ),
+        Effect.map((m) => m.id),
+      ),
+    // The pictures go up again in place of the old ones (`attachments: []`).
+    editShortlist: (messageId, view) =>
+      channel.pipe(
+        Effect.flatMap((c) =>
+          tryDiscord("close the Shortlist's vote", async () => {
+            const m = await c.messages.fetch(messageId);
+            await m.edit({ ...shortlistMessage(view), attachments: [] });
+          }).pipe(failed),
+        ),
+      ),
+    postStandings: (view) =>
+      channel.pipe(
+        Effect.flatMap((c) =>
+          tryDiscord("post the Weekly Cup's standings", () =>
+            c.send(cupStandingsMessage(view)),
+          ).pipe(failed),
+        ),
+        Effect.map((m) => m.id),
+      ),
+    editStandings: (messageId, view) =>
+      channel.pipe(
+        Effect.flatMap((c) =>
+          tryDiscord("update the Weekly Cup's standings", async () => {
+            const m = await c.messages.fetch(messageId);
+            await m.edit(cupStandingsMessage(view));
+          }).pipe(failed),
+        ),
+      ),
+    postResults: (view) =>
+      channel.pipe(
+        Effect.flatMap((c) =>
+          tryDiscord("post the Weekly Cup's results", () => c.send(cupStandingsMessage(view))).pipe(
+            failed,
+          ),
         ),
         Effect.map((m) => m.id),
       ),

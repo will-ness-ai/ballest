@@ -169,6 +169,37 @@ const MIGRATIONS: Migrations = {
       )`;
     yield* sql`ALTER TABLE weekly_cups ADD COLUMN shortlist_message_id TEXT`;
   }),
+  // The Weekly Cup's racing (spec #353, #358): each late Entrant's PB on each Cup Map when the
+  // bar was taken (a time counts only once it beats it); each Entrant's counted best on each Cup
+  // Map, with when their first counted time on it was seen, when this one was, and whether its
+  // Flag was told; and on the Cup, its standings message with what it last showed (JSON), its
+  // results message, and when the Friday bars were taken.
+  "0018_weekly_cup_races": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE weekly_cup_baselines (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        pfid TEXT NOT NULL,
+        discord_id TEXT NOT NULL,
+        ticks INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, week, pfid, discord_id)
+      )`;
+    yield* sql`CREATE TABLE weekly_cup_times (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        pfid TEXT NOT NULL,
+        discord_id TEXT NOT NULL,
+        ticks INTEGER NOT NULL,
+        first_at INTEGER NOT NULL,
+        seen_at INTEGER NOT NULL,
+        flagged INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, week, pfid, discord_id)
+      )`;
+    yield* sql`ALTER TABLE weekly_cups ADD COLUMN standings_message_id TEXT`;
+    yield* sql`ALTER TABLE weekly_cups ADD COLUMN standings_shown TEXT`;
+    yield* sql`ALTER TABLE weekly_cups ADD COLUMN results_message_id TEXT`;
+    yield* sql`ALTER TABLE weekly_cups ADD COLUMN baselines_at INTEGER`;
+  }),
 };
 
 /** The migrations a build had before the one with this id (`"0010"`): tests start a database from an older build. */

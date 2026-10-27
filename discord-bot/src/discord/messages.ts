@@ -51,6 +51,7 @@ import {
   type CupNotice,
   type CupPostView,
   type ShortlistView,
+  type StandingsView,
 } from "../weeklyCup/schedule.js";
 import { CUP_TIME_ZONE } from "../weeklyCup/week.js";
 import { type Action, type Control, controlId } from "./controls.js";
@@ -271,7 +272,9 @@ export const shortlistMessage = (v: ShortlistView): V2Payload => {
   const n = v.maps.length;
   const intro = [
     `## Shortlist · week of ${shortDate(v.week.opensAt)}`,
-    `Vote for up to ${Math.min(CUP_MAPS, n)} by <t:${unix(v.week.voteClosesAt)}:F>: the most-voted are the Cup Maps, a tie drawn at random. Only Entrants can vote, and voting again changes your pick.`,
+    v.closed === true
+      ? `**Vote closed** <t:${unix(v.week.voteClosesAt)}:F>: this week's Cup Maps are announced below.`
+      : `Vote for up to ${Math.min(CUP_MAPS, n)} by <t:${unix(v.week.voteClosesAt)}:F>: the most-voted are the Cup Maps, a tie drawn at random. Only Entrants can vote, and voting again changes your pick.`,
     ...(n < v.wanted
       ? [
           `Only ${n} ${n === 1 ? "Map fits" : "Maps fit"} this week (none of the Entrants has Played them), so the Shortlist is shorter.`,
@@ -298,26 +301,94 @@ export const shortlistMessage = (v: ShortlistView): V2Payload => {
         .setThumbnailAccessory(new ThumbnailBuilder().setURL(`attachment://${name}`)),
     );
   });
-  container.addActionRowComponents(
-    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId(controlId({ _tag: "CupVote", ...cup }))
-        .setPlaceholder(`Vote for up to ${Math.min(CUP_MAPS, n)} Maps`)
-        .setMinValues(1)
-        .setMaxValues(Math.min(CUP_MAPS, n))
-        .addOptions(
-          v.maps.map(({ map }) => ({
-            label: mapName(map).slice(0, 100),
-            value: map.pfid,
-            description: `by ${map.creator}`.slice(0, 100),
-          })),
-        ),
-    ),
-  );
+  if (v.closed !== true)
+    container.addActionRowComponents(
+      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(controlId({ _tag: "CupVote", ...cup }))
+          .setPlaceholder(`Vote for up to ${Math.min(CUP_MAPS, n)} Maps`)
+          .setMinValues(1)
+          .setMaxValues(Math.min(CUP_MAPS, n))
+          .addOptions(
+            v.maps.map(({ map }) => ({
+              label: mapName(map).slice(0, 100),
+              value: map.pfid,
+              description: `by ${map.creator}`.slice(0, 100),
+            })),
+          ),
+      ),
+    );
   return { flags: MessageFlags.IsComponentsV2, components: [container], files, ...quiet };
 };
 
+/** Discord's limit on a message's text. */
+const CONTENT_LIMIT = 2000;
+/** Most timed rows shown under each Cup Map. */
+const MAP_ROWS = 10;
+
+const points = (n: number) => n.toLocaleString("en-US");
+
+/**
+ * The Cup's standings as plain text (spec #353, #358), live while racing and the results at the
+ * end: overall by points, then each Cup Map's times. The one place their look lives, so the look
+ * the organisers choose replaces this alone. Live standings ping nobody; the results ping the
+ * Entrants.
+ */
+export const cupStandingsMessage = (v: StandingsView): Payload => {
+  const { overall, maps } = v.standings;
+  const head = v.final
+    ? [
+        `## Weekly Cup Results · week of ${shortDate(v.week.opensAt)}`,
+        ...(overall[0] !== undefined && overall[0].total > 0
+          ? [
+              `${overall
+                .filter((o) => o.place === 1)
+                .map((o) => who(o.discordId))
+                .join(
+                  " and ",
+                )} ${overall.filter((o) => o.place === 1).length === 1 ? "wins" : "share"} this week's Weekly Cup.`,
+            ]
+          : ["Nobody set a time on a Cup Map this week."]),
+      ]
+    : [
+        `## Live standings · Weekly Cup, week of ${shortDate(v.week.opensAt)}`,
+        `Read every 5 minutes until <t:${unix(v.week.endsAt)}:F>. Last change <t:${unix(v.readAt)}:R>.`,
+      ];
+  const table = [
+    "**Overall**",
+    ...overall.map(
+      (o) =>
+        `${o.place}. ${who(o.discordId)} · ${points(o.total)} pts${o.wins > 0 ? ` · ${o.wins} ${o.wins === 1 ? "win" : "wins"}` : ""}`,
+    ),
+  ];
+  const perMap = maps.flatMap((m, i) => {
+    const map = v.maps.find((c) => c.pfid === m.pfid);
+    const timed = m.rows.flatMap((r) =>
+      r.ticks === null || r.rank === null ? [] : [{ ...r, ticks: r.ticks, rank: r.rank }],
+    );
+    const untimed = m.rows.filter((r) => r.ticks === null).map((r) => who(r.discordId));
+    return [
+      "",
+      `**${i + 1}. ${map === undefined ? escape(m.title) : mapLink(map)}**`,
+      ...timed
+        .slice(0, MAP_ROWS)
+        .map(
+          (r) => `${r.rank}. ${who(r.discordId)} **${formatTime(r.ticks)}** · ${points(r.points)}`,
+        ),
+      ...(timed.length > MAP_ROWS ? [`and ${timed.length - MAP_ROWS} more`] : []),
+      ...(untimed.length > 0 ? [`No time yet: ${untimed.join(", ")}`] : []),
+    ];
+  });
+  const lines = [...head, "", ...table, ...perMap];
+  let content = lines.join("\n");
+  if (content.length > CONTENT_LIMIT) content = `${content.slice(0, CONTENT_LIMIT - 2)}\n…`;
+  return v.final
+    ? { content, components: [], allowedMentions: { users: overall.map((o) => o.discordId) } }
+    : { content, components: [], ...quiet };
+};
+
 /** A server admin's private Skip: asks first. */
+
 export const cupConfirmSkipMessage = (guildId: string, week: string): Payload => ({
   content:
     "Skip this week's Weekly Cup? Its Entrants are told, and it can't be undone: the next Cup opens on Monday.",

@@ -17,6 +17,7 @@ import {
   type CupPostView,
   makeWeeklyCup,
   type ShortlistView,
+  type StandingsView,
 } from "../src/weeklyCup/schedule.js";
 import { makeFakeSteam, makeMap } from "./harness.js";
 
@@ -52,6 +53,14 @@ const setup = Effect.gen(function* () {
   const edits = yield* Ref.make<Array<{ at: number; messageId: string; view: CupPostView }>>([]);
   const notices = yield* Ref.make<Array<{ at: number; notice: CupNotice }>>([]);
   const shortlists = yield* Ref.make<Array<{ at: number; view: ShortlistView }>>([]);
+  const shortlistEdits = yield* Ref.make<
+    Array<{ at: number; messageId: string; view: ShortlistView }>
+  >([]);
+  /** The standings message: its post and each edit, in order. */
+  const standings = yield* Ref.make<Array<{ at: number; messageId: string; view: StandingsView }>>(
+    [],
+  );
+  const results = yield* Ref.make<Array<{ at: number; view: StandingsView }>>([]);
   const alerts = yield* Ref.make<Array<string>>([]);
   const refused = Effect.flatMap(Ref.get(channelDown), (down) =>
     down ? Effect.fail(new CupPostFailed({ reason: "Missing Permissions" })) : Effect.void,
@@ -114,6 +123,32 @@ const setup = Effect.gen(function* () {
             const at = yield* Clock.currentTimeMillis;
             yield* Ref.update(notices, (n) => [...n, { at, notice }]);
           }),
+        editShortlist: (messageId, view) =>
+          Effect.gen(function* () {
+            yield* refused;
+            const at = yield* Clock.currentTimeMillis;
+            yield* Ref.update(shortlistEdits, (e) => [...e, { at, messageId, view }]);
+          }),
+        postStandings: (view) =>
+          Effect.gen(function* () {
+            yield* refused;
+            const at = yield* Clock.currentTimeMillis;
+            yield* Ref.update(standings, (s) => [...s, { at, messageId: "st1", view }]);
+            return "st1";
+          }),
+        editStandings: (messageId, view) =>
+          Effect.gen(function* () {
+            yield* refused;
+            const at = yield* Clock.currentTimeMillis;
+            yield* Ref.update(standings, (s) => [...s, { at, messageId, view }]);
+          }),
+        postResults: (view) =>
+          Effect.gen(function* () {
+            yield* refused;
+            const at = yield* Clock.currentTimeMillis;
+            yield* Ref.update(results, (r) => [...r, { at, view }]);
+            return `r${(yield* Ref.get(results)).length}`;
+          }),
       }),
     ),
     Layer.succeed(
@@ -175,6 +210,9 @@ const setup = Effect.gen(function* () {
     edits,
     notices,
     shortlists,
+    shortlistEdits,
+    standings,
+    results,
     alerts,
     start,
     startWith,
@@ -281,14 +319,18 @@ describe("the Weekly Cup's schedule", () => {
       yield* TestClock.adjust(FRIDAY_NINE - THURSDAY_NOON + HOUR);
       expect(yield* bot.signUp("carol")).toContain("You're signed up");
       expect((yield* t.lastView)?.state).toBe("racing");
-      yield* TestClock.adjust(SUNDAY_EIGHT - FRIDAY_NINE - HOUR);
+      // Down over the weekend (5-minute reads are slow on the TestClock), up for its close.
+      yield* bot.stop;
+      yield* TestClock.setTime(SUNDAY_EIGHT - HOUR);
+      const again = yield* t.start;
+      yield* TestClock.adjust(HOUR);
       const closed = (yield* Ref.get(t.edits)).at(-1);
       expect(closed).toMatchObject({
         at: SUNDAY_EIGHT,
         view: { state: "final", entrants: ["alice", "bob", "carol"] },
       });
-      expect(yield* bot.signUp("dave")).toBe("This week's Weekly Cup is over.");
-      yield* bot.stop;
+      expect(yield* again.signUp("dave")).toBe("This week's Weekly Cup is over.");
+      yield* again.stop;
     }),
   );
 
@@ -394,8 +436,13 @@ describe("the Weekly Cup's schedule", () => {
           if (end !== "cancelled") yield* bot.signUp("bob");
           if (end === "skipped") yield* bot.skip("admin", true);
           const until = end === "final" ? SUNDAY_EIGHT : THURSDAY_NOON;
-          yield* TestClock.adjust(until - MONDAY);
+          yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
           yield* bot.stop;
+          if (end === "final") {
+            yield* t.runFor(FRIDAY_NINE - THURSDAY_NOON);
+            yield* TestClock.setTime(SUNDAY_EIGHT);
+            yield* t.runFor(1);
+          }
           const before = {
             posts: (yield* Ref.get(t.posts)).length,
             edits: (yield* Ref.get(t.edits)).length,
@@ -422,7 +469,8 @@ describe("the Weekly Cup's schedule", () => {
         yield* bot.signUp("bob");
         yield* TestClock.adjust(FRIDAY_NINE - MONDAY + HOUR);
         yield* bot.stop;
-        yield* t.runFor(SUNDAY_EIGHT - FRIDAY_NINE);
+        yield* TestClock.setTime(SUNDAY_EIGHT - 10 * MINUTE);
+        yield* t.runFor(HOUR);
         expect((yield* Ref.get(t.posts)).length).toBe(1);
         expect((yield* t.lastView)?.state).toBe("final");
       }),
@@ -656,6 +704,233 @@ describe("the Weekly Cup's Shortlist and vote", () => {
       const first = yield* announced(99);
       expect(first).toHaveLength(3);
       expect(yield* announced(5)).toEqual(first);
+    }),
+  );
+
+  it.scoped("closes the Shortlist's vote on its post at Friday 09:00", () =>
+    Effect.gen(function* () {
+      const { t, bot } = yield* signedUp();
+      yield* TestClock.adjust(FRIDAY_NINE - MONDAY);
+      const closed = yield* Ref.get(t.shortlistEdits);
+      expect(closed.map((e) => [e.at, e.messageId, e.view.closed])).toEqual([
+        [FRIDAY_NINE, "s1", true],
+      ]);
+      expect(closed[0]?.view.maps).toHaveLength(10);
+      yield* bot.stop;
+    }),
+  );
+});
+
+describe("the Weekly Cup's racing and results", () => {
+  /** Seconds as the board's ticks. */
+  const tk = (s: number) => Math.round(s * 100_000);
+  /**
+   * A world at Friday 09:00 with alice and bob signed up from Monday and the Cup Maps announced:
+   * their board ids, in rank order.
+   */
+  type World = Effect.Effect.Success<typeof setup>;
+  type Bot = Effect.Effect.Success<World["start"]>;
+  const racing = (before?: (t: World, bot: Bot) => Effect.Effect<void>) =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* TestClock.setTime(MONDAY);
+      const bot = yield* t.start;
+      yield* bot.signUp("alice");
+      yield* bot.signUp("bob");
+      yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+      if (before !== undefined) yield* before(t, bot);
+      yield* TestClock.setTime(FRIDAY_NINE);
+      const notice = (yield* Ref.get(t.notices)).find((n) => n.notice._tag === "CupMaps")?.notice;
+      const boards = notice?._tag === "CupMaps" ? notice.maps.map((m) => m.map.boardId) : [];
+      return { t, bot, boards: [boards[0] ?? 0, boards[1] ?? 0, boards[2] ?? 0] as const };
+    });
+  /**
+   * Stop the bot and start it again at Sunday 19:58, where it reads at once and next at 20:00:
+   * the weekend's 5-minute reads are slow on the TestClock.
+   */
+  const lastMinutes = (t: World, bot: Bot) =>
+    Effect.gen(function* () {
+      yield* bot.stop;
+      yield* TestClock.setTime(SUNDAY_EIGHT - 2 * MINUTE);
+      return yield* t.start;
+    });
+  /** What the standings message shows now: each Map's rows as [who, ticks, points]. */
+
+  const shown = (t: Effect.Effect.Success<typeof setup>) =>
+    Effect.map(Ref.get(t.standings), (all) => {
+      const view = all.at(-1)?.view;
+      return {
+        maps: view?.standings.maps.map((m) => m.rows.map((r) => [r.discordId, r.ticks, r.points])),
+        overall: view?.standings.overall.map((o) => [o.discordId, o.total]),
+      };
+    });
+
+  it.scoped("reads each Cup Map every 5 minutes, one read each, for the Entrants", () =>
+    Effect.gen(function* () {
+      const { t, bot } = yield* racing();
+      const before = yield* t.steam.reads;
+      yield* TestClock.adjust(30 * MINUTE);
+      expect((yield* t.steam.reads) - before).toBe(6 * 3);
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("keeps one standings message, edited only when a read changes it", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      yield* TestClock.adjust(20 * MINUTE);
+      expect((yield* Ref.get(t.standings)).map((s) => [s.at, s.messageId])).toEqual([
+        [FRIDAY_NINE, "st1"],
+      ]);
+      yield* t.steam.setTime(boards[0], steamIdOf("bob"), 14);
+      yield* t.steam.setTime(boards[0], steamIdOf("alice"), 12);
+      yield* TestClock.adjust(5 * MINUTE);
+      const all = yield* Ref.get(t.standings);
+      expect(all.map((s) => [s.at, s.messageId])).toEqual([
+        [FRIDAY_NINE, "st1"],
+        [FRIDAY_NINE + 25 * MINUTE, "st1"],
+      ]);
+      expect((yield* shown(t)).maps?.[0]).toEqual([
+        ["alice", tk(12), 40000],
+        ["bob", tk(14), 20000],
+      ]);
+      expect((yield* shown(t)).overall).toEqual([
+        ["alice", 40000],
+        ["bob", 20000],
+      ]);
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("counts a late Entrant's time held before signing up only once they beat it", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      yield* TestClock.adjust(HOUR);
+      yield* t.steam.setTime(boards[0], steamIdOf("carol"), 20);
+      expect(yield* bot.signUp("carol")).toContain("You're signed up");
+      yield* TestClock.adjust(10 * MINUTE);
+      expect((yield* shown(t)).maps?.[0]).toContainEqual(["carol", null, 0]);
+      yield* t.steam.setTime(boards[0], steamIdOf("carol"), 19);
+      yield* TestClock.adjust(5 * MINUTE);
+      expect((yield* shown(t)).maps?.[0]).toContainEqual(["carol", tk(19), 40000]);
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("takes the PB at Friday 09:00 as the bar for one who signed up after the draw", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing((t, bot) =>
+        Effect.gen(function* () {
+          yield* TestClock.adjust(HOUR);
+          // dave signs up after the draw and plays every Shortlist Map before Friday.
+          expect(yield* bot.signUp("dave")).toContain("You're signed up");
+          const listed = (yield* Ref.get(t.shortlists)).at(-1)?.view.maps ?? [];
+          for (const { map } of listed) yield* t.steam.setTime(map.boardId, steamIdOf("dave"), 20);
+        }),
+      );
+      yield* TestClock.adjust(10 * MINUTE);
+      expect((yield* shown(t)).maps?.[0]).toContainEqual(["dave", null, 0]);
+      yield* t.steam.setTime(boards[0], steamIdOf("dave"), 18);
+      yield* TestClock.adjust(5 * MINUTE);
+      expect((yield* shown(t)).maps?.[0]).toContainEqual(["dave", tk(18), 40000]);
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("flags a PB seen over 30 minutes after a first time on that Map, once", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      const pb = (s: number) => t.steam.setTime(boards[1], steamIdOf("alice"), s);
+      yield* pb(30); // first seen at 09:05
+      yield* TestClock.adjust(20 * MINUTE);
+      yield* pb(29); // seen at 09:30, 25 minutes on
+      yield* TestClock.adjust(15 * MINUTE);
+      expect(yield* Ref.get(t.alerts)).toEqual([]);
+      yield* pb(28); // seen at 09:45, 40 minutes on: a Flag
+      yield* TestClock.adjust(10 * MINUTE);
+      yield* pb(27); // seen at 09:55: no second Flag
+      yield* TestClock.adjust(10 * MINUTE);
+      const flags = (yield* Ref.get(t.alerts)).filter((a) => a.includes("Flag"));
+      expect(flags).toHaveLength(1);
+      expect(flags[0]).toContain("<@alice>");
+      expect(flags[0]).toContain("0:28.000");
+      // It still counts.
+      expect((yield* shown(t)).maps?.[1]?.[0]).toEqual(["alice", tk(27), 40000]);
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("keeps the last standings through a failed read, and picks the time up next", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      yield* t.steam.setTime(boards[2], steamIdOf("bob"), 40);
+      yield* t.steam.failNextReads(3);
+      yield* TestClock.adjust(5 * MINUTE);
+      expect((yield* shown(t)).maps?.[2]).toContainEqual(["bob", null, 0]);
+      expect(yield* Ref.get(t.alerts)).toEqual([
+        `Multiballs couldn't read a Weekly Cup Map for ${WEEK} in ${GUILD}: reply dropped`,
+      ]);
+      yield* TestClock.adjust(5 * MINUTE);
+      expect((yield* shown(t)).maps?.[2]).toContainEqual(["bob", tk(40), 40000]);
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("posts the results once at Sunday 20:00, from a final read, through a restart", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      yield* t.steam.setTime(boards[0], steamIdOf("alice"), 12);
+      const again = yield* lastMinutes(t, bot);
+      // Set after the last live read: only the final read sees it.
+      yield* t.steam.setTime(boards[1], steamIdOf("bob"), 22);
+      yield* TestClock.adjust(2 * MINUTE);
+      const results = yield* Ref.get(t.results);
+      expect(results.map((r) => r.at)).toEqual([SUNDAY_EIGHT]);
+      expect(results[0]?.view.final).toBe(true);
+      expect(
+        results[0]?.view.standings.overall.map((o) => [o.discordId, o.total, o.place]),
+      ).toEqual([
+        ["alice", 40000, 1],
+        ["bob", 40000, 1],
+      ]);
+      expect((yield* t.lastView)?.state).toBe("final");
+      yield* again.stop;
+      yield* t.runFor(HOUR);
+      expect(yield* Ref.get(t.results)).toHaveLength(1);
+    }),
+  );
+
+  it.scoped("waits up to 30 minutes for Steam at the end, then stands on the last reads", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      yield* t.steam.setTime(boards[0], steamIdOf("alice"), 12);
+      const again = yield* lastMinutes(t, bot);
+      yield* t.steam.setTime(boards[0], steamIdOf("bob"), 11);
+      yield* t.steam.failNextReads(1_000_000);
+      yield* TestClock.adjust(31 * MINUTE); // 20:29
+      expect(yield* Ref.get(t.results)).toEqual([]);
+      yield* TestClock.adjust(2 * MINUTE);
+      const results = yield* Ref.get(t.results);
+      expect(results.map((r) => r.at)).toEqual([SUNDAY_EIGHT + 30 * MINUTE]);
+      // bob's last-minute time was never read.
+      expect(results[0]?.view.standings.overall[0]).toMatchObject({ discordId: "alice" });
+      yield* again.stop;
+    }),
+  );
+
+  it.scoped("posts the results as soon as Steam answers within the 30 minutes", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      const again = yield* lastMinutes(t, bot);
+      yield* t.steam.setTime(boards[0], steamIdOf("bob"), 11);
+      yield* t.steam.failNextReads(1_000_000);
+      yield* TestClock.adjust(12 * MINUTE); // 20:10
+      yield* t.steam.failNextReads(0);
+      yield* TestClock.adjust(MINUTE);
+      const results = yield* Ref.get(t.results);
+      expect(results.map((r) => r.at)).toEqual([SUNDAY_EIGHT + 11 * MINUTE]);
+      expect(results[0]?.view.standings.overall[0]).toMatchObject({ discordId: "bob" });
+      yield* again.stop;
     }),
   );
 });

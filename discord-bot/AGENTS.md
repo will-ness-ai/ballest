@@ -502,16 +502,36 @@ again; a Steam failure retries the draw each minute, ops told once; fewer than 1
 Shortlist that says so, and none cancels the week. Its post is a Components V2 message: each Map's
 Workshop picture (`MapPreviews`, attached as a thumbnail), its name linked to its page on
 ballestrecords.com, its maker and author time, and a string select for up to 3. A vote
-(`weekly_cup_votes`, the latest per Entrant) is Entrants' only and changeable until Friday 09:00;
-the post itself is not edited, and a pick after that is told the vote has closed. At Friday 09:00
-the votes of the Entrants still signed up are counted, the Shortlist shuffled and sorted by votes
-(so a tie falls at random), and the top 3 recorded as Cup Maps with their ranks, votes and board
-ids before the announcement, which lists them with their pages and pings the Entrants; a refused
-announcement is tried again each minute with the same Maps.
+(`weekly_cup_votes`, the latest per Entrant) is Entrants' only and changeable until Friday 09:00,
+and a pick after that is told the vote has closed. At Friday 09:00 the votes of the Entrants still
+signed up are counted, the Shortlist shuffled and sorted by votes (so a tie falls at random), and
+the top 3 recorded as Cup Maps with their ranks, votes and board ids before the announcement,
+which lists them with their pages and pings the Entrants; a refused announcement is tried again
+each minute with the same Maps. Once it is out, the Shortlist's post is edited to say "Vote
+closed", without its select (best effort, ops told if refused).
+
+Racing (Friday 09:00 to Sunday 20:00) reads each Cup Map every 5 minutes, one `readPlayers` call
+per Map for the current Entrants' Links. A late Entrant has a bar (`weekly_cup_baselines`): one who
+signed up after Thursday 12:00 and before the vote closed gets their PBs at Friday 09:00 (read
+once, before the announcement; `weekly_cups.baselines_at`), and one who signs up after that gets
+their PBs as they sign up (read before they are added; Steam down refuses the sign-up, to try
+again). A time counts once it beats the bar. Each counted best is kept (`weekly_cup_times`) with
+when the Entrant's first counted time on that Map was seen; a PB seen more than 30 minutes after
+that is a Flag, told to ops once per Entrant per Map (`flagged`), and still counts. A failed read
+keeps that Map's last times, ops told once until the reads land, and the next tick reads again.
+`points.ts` ranks each Map (equal times share a place), pays the site's `trackPoints` (pinned by
+`test/weeklyCupPoints.test.ts`, which imports `web/lib/rules.ts`), totals them and breaks a tie
+on more Map wins. The live standings are one plain-text message, posted at the first read and
+edited only when the standings change (`standings_message_id`, `standings_shown`). At Sunday
+20:00 a final read is tried each minute while Steam fails, up to 20:30, when the results stand on
+the last reads; the results are posted once (`results_message_id`, recorded as they go up) and
+ping the Entrants. Both texts come from `cupStandingsMessage` in `src/discord/messages.ts`, the one
+place their look lives.
 
 The schedule runs over ports on the TestClock (`test/weeklyCup.test.ts`), the week in
 `test/weeklyCupWeek.test.ts`, the channel over a fake server (`test/weeklyCupChannel.test.ts`),
-the post's buttons and the Shortlist's vote in `test/messages.test.ts`, and the presses and votes
+the post's buttons, the Shortlist's vote and the standings text in `test/messages.test.ts`, the points in
+`test/weeklyCupPoints.test.ts`, and the presses and votes
 through `interactions.ts` in `test/driver.test.ts` (the driver's `manageServer` press field stands
 for Manage Server; a `select` press reaches a user or a string select by its custom id). The
 discord.js calls (`live.ts`) are checked with `pnpm dev` and `WEEKLY_CUP_GUILD_IDS` set to the test

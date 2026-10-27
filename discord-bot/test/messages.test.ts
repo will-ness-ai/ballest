@@ -19,6 +19,7 @@ import {
   confirmLeaveMessage,
   cupConfirmSkipMessage,
   cupNoticeMessage,
+  cupStandingsMessage,
   shortlistMessage,
   weeklyCupMessage,
   fingerprint,
@@ -35,6 +36,7 @@ import {
 } from "../src/discord/messages.js";
 import { ThreadPost } from "../src/ports.js";
 import { reportButtons } from "../src/report/messages.js";
+import { cupStandings } from "../src/weeklyCup/points.js";
 import type { CupMap, CupState } from "../src/weeklyCup/schedule.js";
 import { weekAt } from "../src/weeklyCup/week.js";
 import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js";
@@ -739,6 +741,59 @@ describe("the Weekly Cup's post", () => {
     expect(told.content).toContain(`<t:${week.endsAt / 1000}:F>`);
     expect(told.content).toContain("<@1> <@2>");
     expect(pinged(told)).toEqual(["1", "2"]);
+  });
+
+  it("keeps the Shortlist's Maps once the vote closes, with no vote and saying so", () => {
+    const closed = shortlistMessage({
+      guildId: cup.guildId,
+      week,
+      wanted: 10,
+      closed: true,
+      maps: [1, 2, 3].map((n) => ({ map: cupMap(n), picture: null })),
+    });
+    const text = words(closed);
+    expect(text).toContain("Vote closed");
+    expect(text).toContain("[Map 2](<https://ballestrecords.com/map/pf2>)");
+    expect(text).not.toContain("custom_id");
+    expect(text).not.toContain("Vote for up to");
+  });
+
+  const standingsOf = (final: boolean) =>
+    cupStandingsMessage({
+      guildId: cup.guildId,
+      week,
+      maps: [cupMap(3), cupMap(1)],
+      readAt: week.voteClosesAt + 3_600_000,
+      final,
+      standings: cupStandings([cupMap(3), cupMap(1)], ["111", "222", "333"], {
+        pf3: { "222": ticks(12.5), "111": ticks(13) },
+        pf1: { "111": ticks(40) },
+      }),
+    });
+
+  it("shows the live standings as plain text: overall, then each Cup Map, pinging nobody", () => {
+    const live = standingsOf(false);
+    expect(live.components ?? []).toEqual([]);
+    const text = live.content ?? "";
+    expect(text).toContain("Live standings");
+    expect(text).toContain("1. <@111> · 60,000 pts");
+    expect(text).toContain("2. <@222> · 40,000 pts");
+    expect(text).toContain("3. <@333> · 0 pts");
+    expect(text).toContain("[Map 3](<https://ballestrecords.com/map/pf3>)");
+    expect(text).toContain("1. <@222> **0:12.500** · 40,000");
+    expect(text).toContain("2. <@111> **0:13.000** · 20,000");
+    expect(text).toContain("No time yet: <@333>");
+    expect(text).toContain(`<t:${week.endsAt / 1000}:F>`);
+    pingsNobody(live);
+  });
+
+  it("posts the results with the winner, pinging the Entrants", () => {
+    const results = standingsOf(true);
+    const text = results.content ?? "";
+    expect(text).toContain("Results");
+    expect(text).toContain("<@111> wins this week's Weekly Cup");
+    expect(text).not.toContain("Live standings");
+    expect(pinged(results)).toEqual(["111", "222", "333"]);
   });
 
   it("asks a server admin to confirm a skip, privately", () => {
