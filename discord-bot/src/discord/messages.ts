@@ -35,6 +35,8 @@ import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js";
 import { RESULT_HUE, START_HUE } from "../render/art.js";
 import type { CardView, KeptReason, ThreadPost } from "../ports.js";
 import type { StatsAnswer } from "../seeMyStats.js";
+import type { CupNotice, CupPostView } from "../weeklyCup/schedule.js";
+import { CUP_TIME_ZONE } from "../weeklyCup/week.js";
 import { type Action, type Control, controlId } from "./controls.js";
 import type { MarbleEmojis } from "./marbles.js";
 
@@ -129,6 +131,104 @@ export const myStatsPanelMessage = (): V2Payload => ({
       .addActionRowComponents(
         row(button("See my stats", { _tag: "SeeMyStats" }, ButtonStyle.Primary)),
       ),
+  ],
+  ...quiet,
+});
+
+// ---------------------------------------------------------------- the Weekly Cup
+
+const CUP_GOLD = 0xf2c14e;
+
+/** What a Cup's post says it is doing, by state, under its title. */
+const cupStanding = (v: CupPostView): string => {
+  const w = v.week;
+  switch (v.state) {
+    case "open":
+      return `**Sign-up is open.** The Shortlist of 10 Maps nobody signed up has played is drawn <t:${unix(w.shortlistAt)}:F>. A week with fewer than 2 Entrants by then is cancelled.`;
+    case "voting":
+      return `**Voting** on the Shortlist until <t:${unix(w.voteClosesAt)}:F>. Late sign-ups are welcome until the Cup ends.`;
+    case "racing":
+      return `**Racing** until <t:${unix(w.endsAt)}:F>. Late sign-ups are welcome until then.`;
+    case "final":
+      return "**This week's Cup is over.** Sign-up is closed.";
+    case "cancelled":
+      return "**Cancelled: fewer than 2 Players signed up** by Thursday 12:00. The next Cup opens on Monday.";
+    case "skipped":
+      return "**Skipped this week** by a server admin. The next Cup opens on Monday.";
+  }
+};
+
+const CUP_RULES =
+  "**The rules**\n" +
+  "- Play each Cup Map for 30 minutes at most, from your first run on it.\n" +
+  "- Use no Ghosts.\n" +
+  "It's an honour system: the bot blocks nothing, but late PBs are looked at.";
+
+const shortDate = (ms: number) =>
+  new Date(ms).toLocaleDateString("en-US", {
+    timeZone: CUP_TIME_ZONE,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+
+/** The week's Cup post (spec #353): where it stands, its schedule, the rules and its Entrants. */
+export const weeklyCupMessage = (v: CupPostView): V2Payload => {
+  const w = v.week;
+  const cup = { guildId: v.guildId, week: w.week };
+  const entrants =
+    v.entrants.length === 0
+      ? "No Entrants yet."
+      : `**${v.entrants.length} ${v.entrants.length === 1 ? "Entrant" : "Entrants"}:** ${v.entrants.map(who).join(", ")}`;
+  const schedule =
+    `**This week** (US Central)\n` +
+    `- Sign up until <t:${unix(w.endsAt)}:F>\n` +
+    `- Shortlist drawn <t:${unix(w.shortlistAt)}:F>, vote for up to 3\n` +
+    `- Racing <t:${unix(w.voteClosesAt)}:F> to <t:${unix(w.endsAt)}:F>`;
+  const container = new ContainerBuilder()
+    .setAccentColor(
+      v.state === "open" || v.state === "voting" || v.state === "racing" ? CUP_GOLD : QUIET_GREY,
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `## Weekly Cup · week of ${shortDate(w.opensAt)}\n${cupStanding(v)}`,
+      ),
+      new TextDisplayBuilder().setContent(schedule),
+      new TextDisplayBuilder().setContent(CUP_RULES),
+      new TextDisplayBuilder().setContent(entrants),
+    );
+  const buttons =
+    v.state === "open" || v.state === "voting" || v.state === "racing"
+      ? [
+          button("Sign up", { _tag: "CupSignUp", ...cup }, ButtonStyle.Primary),
+          button("Withdraw", { _tag: "CupWithdraw", ...cup }),
+          ...(v.state === "open"
+            ? [button("Skip this week", { _tag: "CupSkip", ...cup }, ButtonStyle.Danger)]
+            : []),
+        ]
+      : [];
+  if (buttons.length > 0) container.addActionRowComponents(row(...buttons));
+  return { flags: MessageFlags.IsComponentsV2, components: [container], ...quiet };
+};
+
+/** The message beside the post when a week is cancelled or skipped: it pings its Entrants. */
+export const cupNoticeMessage = (n: CupNotice): Payload => {
+  const pings = n.entrants.map(who).join(" ");
+  const content =
+    n._tag === "Cancelled"
+      ? `This week's Weekly Cup is cancelled: fewer than 2 Players signed up by Thursday 12:00. ${pings}`.trim()
+      : n.entrants.length === 0
+        ? "A server admin skipped this week's Weekly Cup. The next one opens on Monday."
+        : `A server admin skipped this week's Weekly Cup. ${pings}, you were signed up: the next one opens on Monday.`;
+  return { content, allowedMentions: { users: [...n.entrants] } };
+};
+
+/** A server admin's private Skip: asks first. */
+export const cupConfirmSkipMessage = (guildId: string, week: string): Payload => ({
+  content:
+    "Skip this week's Weekly Cup? Its Entrants are told, and it can't be undone: the next Cup opens on Monday.",
+  components: [
+    row(button("Skip this week", { _tag: "CupConfirmSkip", guildId, week }, ButtonStyle.Danger)),
   ],
   ...quiet,
 });

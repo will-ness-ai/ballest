@@ -17,6 +17,9 @@ import {
   cardMessage,
   closedCardMessage,
   confirmLeaveMessage,
+  cupConfirmSkipMessage,
+  cupNoticeMessage,
+  weeklyCupMessage,
   fingerprint,
   footerMessage,
   myStatsPanelMessage,
@@ -31,6 +34,8 @@ import {
 } from "../src/discord/messages.js";
 import { ThreadPost } from "../src/ports.js";
 import { reportButtons } from "../src/report/messages.js";
+import type { CupState } from "../src/weeklyCup/schedule.js";
+import { weekAt } from "../src/weeklyCup/week.js";
 import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js";
 
 const marbles: MarbleEmojis = { forHue: () => "", forPlayer: () => "" };
@@ -584,5 +589,78 @@ describe("a Daily Post's thread line", () => {
   it("pings nobody and notifies nobody", () => {
     expect(line.allowed_mentions).toEqual({ parse: [] });
     expect(line.flags).toBe(MessageFlags.SuppressNotifications);
+  });
+});
+
+describe("the Weekly Cup's post", () => {
+  const week = weekAt(Date.parse("2026-10-27T15:00:00Z"));
+  const post = (state: CupState, entrants: ReadonlyArray<string> = []) =>
+    weeklyCupMessage({ guildId: "g-racing", week, state, entrants });
+  /** Each button's label and what it does: Components V2 puts the rows inside the container. */
+  const cupButtons = (p: Payload) =>
+    [...JSON.stringify(p.components).matchAll(/"custom_id":"([^"]+)","label":"([^"]+)"/g)].map(
+      ([, id, label]) => ({ label, does: parseControl(id ?? "") }),
+    );
+  const words = (p: Payload) => JSON.stringify(p.components);
+  const cup = { guildId: "g-racing", week: "2026-10-26" };
+
+  it("offers Sign up, Withdraw and Skip while open, each for its server's week", () => {
+    const open = post("open");
+    expect(open.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(cupButtons(open)).toEqual([
+      { label: "Sign up", does: { _tag: "CupSignUp", ...cup } },
+      { label: "Withdraw", does: { _tag: "CupWithdraw", ...cup } },
+      { label: "Skip this week", does: { _tag: "CupSkip", ...cup } },
+    ]);
+    pingsNobody(open);
+  });
+
+  it("writes the rules and every boundary, in each reader's own time", () => {
+    const text = words(post("open"));
+    expect(text).toContain("30 minutes");
+    expect(text).toContain("no Ghosts");
+    expect(text).toContain("honour system");
+    for (const at of [week.shortlistAt, week.voteClosesAt, week.endsAt])
+      expect(text).toContain(`<t:${at / 1000}:F>`);
+  });
+
+  it("names its Entrants without pinging them", () => {
+    expect(words(post("open"))).toContain("No Entrants yet");
+    const two = post("open", ["111", "222"]);
+    expect(words(two)).toContain("**2 Entrants:** <@111>, <@222>");
+    pingsNobody(two);
+  });
+
+  it("keeps sign-up open once the week is under way, without Skip", () => {
+    for (const state of ["voting", "racing"] as const)
+      expect(cupButtons(post(state)).map((b) => b.label)).toEqual(["Sign up", "Withdraw"]);
+  });
+
+  it("has no buttons once the week is over, cancelled or skipped, and says which", () => {
+    expect(cupButtons(post("final"))).toEqual([]);
+    expect(words(post("final"))).toContain("Sign-up is closed");
+    expect(cupButtons(post("cancelled"))).toEqual([]);
+    expect(words(post("cancelled"))).toContain("Cancelled: fewer than 2 Players signed up");
+    expect(cupButtons(post("skipped"))).toEqual([]);
+    expect(words(post("skipped"))).toContain("Skipped this week");
+  });
+
+  it("pings the week's Entrants when it is cancelled or skipped", () => {
+    const cancelled = cupNoticeMessage({ _tag: "Cancelled", week: cup.week, entrants: ["111"] });
+    expect(cancelled.content).toContain("<@111>");
+    expect(cancelled.content).toContain("cancelled");
+    expect(pinged(cancelled)).toEqual(["111"]);
+    const skipped = cupNoticeMessage({ _tag: "Skipped", week: cup.week, entrants: ["1", "2"] });
+    expect(skipped.content).toContain("skipped");
+    expect(pinged(skipped)).toEqual(["1", "2"]);
+  });
+
+  it("asks a server admin to confirm a skip, privately", () => {
+    const ask = cupConfirmSkipMessage(cup.guildId, cup.week);
+    expect(buttons(ask)).toEqual([
+      { label: "Skip this week", does: { _tag: "CupConfirmSkip", ...cup } },
+    ]);
+    expect(ask.content).toContain("can't be undone");
+    pingsNobody(ask);
   });
 });
