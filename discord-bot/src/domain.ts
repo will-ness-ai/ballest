@@ -229,9 +229,12 @@ export const medalFor = (ticks: number, medals: Medals): MedalKind | null => {
   return null;
 };
 
+/** A Match's Eligible Map limit on author time, in seconds: a tenth of its duration. */
+export const authorLimitOf = (minutes: Minutes): number => (minutes * 60) / 10;
+
 /** Eligible Map rule from the Workshop list alone: author time at most a tenth of the duration. */
 export const authorTimeFits = (map: MapInfo, minutes: Minutes): boolean =>
-  map.medals.author <= (minutes * 60) / 10;
+  map.medals.author <= authorLimitOf(minutes);
 
 /** Eligible Map rule from the board: world record between 5 s and 5 min, inclusive. */
 export const worldRecordFits = (worldRecordTicks: number): boolean => {

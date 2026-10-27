@@ -470,6 +470,109 @@ In production the bot's role needs, where #my-stats is made (the Match channel's
 server), Manage Channels, Manage Roles, View Channel, Send Messages, Embed Links, Read Message
 History, both Create Threads, Send Messages in Threads and Add Reactions (`NEEDED_TO_CREATE`).
 
+## The Weekly Cup
+
+`src/weeklyCup/` runs the Weekly Cup (CONTEXT.md, spec #353) in each server `WEEKLY_CUP_GUILD_IDS`
+names (comma-separated, `fly.toml`: Ballest Racing); unset, or in the sandbox, it is off. At
+startup, in the background, it keeps `#weekly-cup` there (`channel.ts`): the stored one by id
+(`weekly_cup_channels`), else a text channel of that name with the Match channel's overwrites set
+(Manage Roles), else a new one with them (Manage Channels); a server it can't set up is told to
+ops, and its Cup waits for the next start. Presses there reach `interactions.ts` through
+`Discord.answerIn`, as #my-stats's do, never through a Venue's "being repaired".
+
+The code is split by stage. `model.ts` holds the views, constants and ports (`CupChannel`,
+`CupLinks`); `record.ts` the SQLite record (`CupLog`, one migration, `0016_weekly_cup`); `kit.ts`
+what every stage shares (the lock, `attempt`, which tells ops once and retries in a minute, and
+`show`/`enter`/`callOff`); `vote.ts` the draw and the vote; `race.ts` the reads, standings and
+results; `presses.ts` the buttons; `slots.ts` how each view is kept on Discord; `messages.ts`
+every Cup message. The two one-shots, never retried (the call-off notice and the Shortlist's
+close), each tell ops every time under a kind of their own, so neither hides a later failure of
+something that is. The migration was 0016-0019 before the Cup shipped: a local dev database
+that ran those must be deleted, since the migrator skips the new 0016 there.
+
+`schedule.ts` is one state machine per server, every boundary US Central (`week.ts`, through
+`Intl`, so daylight saving holds): Monday 00:00 the week's post goes up (Components V2, with the
+rules, the schedule as Discord timestamps and the Entrants; a skipped week's says only that) with Sign up, Withdraw and Skip this
+week; Thursday 12:00 a week with fewer than 2 Entrants is cancelled (post redrawn, Entrants pinged
+in a notice), else it moves to voting, Friday 09:00 to racing, Sunday 20:00 to final (sign-up
+closes). Sign up needs a Link (an unlinked member gets Link Steam first, then is signed up); Skip
+asks a member with Manage Server to confirm, only while the week is open, and pings its Entrants.
+Every press is answered privately, for the week its button names: an earlier week's post says
+it's over. Each week (`weekly_cups`) and its Entrants (`weekly_cup_entrants`, with when each
+signed up) are in SQLite, and each step works from that and the clock, so a restart resumes
+without posting again and acts at once on a boundary passed while it was down; a week the bot
+first starts in after Thursday 12:00 gets no post, and an earlier week still racing (the bot was
+down over its close) is finished as the bot starts. A failed post is retried every minute and a
+failed edit at the next change, each told to ops once until it lands (OpsAlerts' `post` with a
+key, and `forget`). Each one-time post (the week's post, the Shortlist, the Cup Maps, each part of
+the results) goes with a nonce of its server, week and kind that Discord enforces (`sentOnce` in
+`slots.ts`), so a send repeated after a restart is dropped, and its record is written straight
+after it. Discord matches a nonce across every channel the bot posts in, which is why the server
+is part of it. Each message is kept as one of four slots of the week's record (post, Shortlist,
+standings, results: `weekly_cups.messages`): `CupChannel.show` posts a slot with no messages yet,
+edits only the parts that change, posts or drops parts when a view takes more or fewer, and
+reposts a slot whose message someone deleted (Unknown Message), handing back the ids it now has.
+Sign up and Withdraw close at Sunday 20:00.
+
+The Shortlist (Thursday 12:00) is the engine's Eligible Map search (`src/eligibleMaps.ts`, shared
+with a Match's draw) with an author limit of 3:00, drawing until 10 Maps none of the Entrants
+signed up by then has Played (their Links' Steam accounts) are found, at most 100 board checks.
+It is recorded (`weekly_cup_maps`) before it is posted, so a restart or a refused post never draws
+again; a Steam failure retries the draw each minute, ops told once; fewer than 10 make a shorter
+Shortlist that says so, and none cancels the week. Its post is a Components V2 message: each Map's
+Workshop picture (`MapPreviews`, attached as a thumbnail), its name linked to its page on
+ballestrecords.com, its maker and author time, and a string select for up to 3. A vote
+(`weekly_cup_votes`, the latest per Entrant) is Entrants' only and changeable until Friday 09:00,
+and a pick after that is told the vote has closed. At Friday 09:00 the votes of the Entrants still
+signed up are counted, the Shortlist shuffled and sorted by votes (so a tie falls at random), and
+the top 3 recorded as Cup Maps with their ranks, votes and board ids before the announcement,
+which lists them with their pages and pings the Entrants; a refused announcement is tried again
+each minute with the same Maps. Once it is out, the Shortlist's post is edited to say "Vote
+closed", without its select (best effort, ops told if refused; a Shortlist someone deleted is not
+posted again).
+
+Racing (Friday 09:00 to Sunday 20:00) reads each Cup Map every 5 minutes, one `readPlayers` call
+per Map for the current Entrants' Links. Every Entrant has a bar (`weekly_cup_baselines`): their
+PBs on the Cup Maps as racing opens (read once, before the announcement;
+`weekly_cups.bars_at`), or, for one who signs up later, as they sign up (read before they are
+added; Steam down refuses the sign-up, to try again). A time counts once it beats the bar, so
+practice on the Shortlist during the vote counts not. Each counted best is kept
+(`weekly_cup_times`) with when the Entrant's first counted time on that Map was seen; a PB seen
+more than 30 minutes after that is a Flag (approximate: both are measured between reads), told
+to ops once per Entrant per Map (`flagged`), and still counts. A failed read keeps that Map's
+last times, ops told once until the reads land, and the next tick reads again.
+`points.ts` ranks each Map (equal times share a place), pays the site's `trackPoints` (pinned by
+`test/weeklyCupPoints.test.ts`, which imports `web/lib/rules.ts`), totals them and breaks a tie
+on more Map wins. The live standings are a picture the Renderer draws (`cupStandingsScene`, from
+`cupStandingsImage` in `src/weeklyCup/messages.ts`, with each Entrant's name in the server): a row
+per Entrant with their place, points and Map wins, and each Cup Map's place. **Times stay secret
+until the Cup ends**: the live picture shows a place alone ("#1"), and nothing posted in the
+channel before the results (the picture, its words and alt text) holds an Entrant's time, which
+`test/weeklyCupSlots.test.ts` checks over every pre-results post; ops' Flags keep theirs. The
+standings are posted at the first read and edited only when they change (the slot compares what
+it last drew, and draws the picture again only when what it shows changed); a picture that can't
+be drawn fails the show, ops told, and the next read tries again. At Sunday 20:00 each Cup
+Map's final read is recorded as it lands (`final_reads`), and a retry each minute while Steam
+fails reads only the Maps still missing, up to 20:30, when those stand on their last reads; the
+results, which say which Maps were read late or not at all, are posted once (their slot, recorded
+as they go up) with the same picture, each time beside its place, and ping each Entrant once
+(past 2,000 characters of mentions, in more messages). Then the live standings are edited to say
+racing has closed and the results are below, their picture dropped.
+
+The schedule runs over ports on the TestClock (`test/weeklyCup.test.ts`), the week in
+`test/weeklyCupWeek.test.ts`, the channel over a fake server (`test/weeklyCupChannel.test.ts`),
+the slots over a fake channel (`test/weeklyCupSlots.test.ts`), the post's buttons, the
+Shortlist's vote and the standings' picture and words in `test/weeklyCupMessages.test.ts`, the points in
+
+`test/weeklyCupPoints.test.ts`, and the presses and votes
+through `interactions.ts` in `test/driver.test.ts` (the driver's `manageServer` press field stands
+for Manage Server; a `select` press reaches a user or a string select by its custom id). The
+discord.js calls (`live.ts`) are checked in the sandbox: `pnpm sandbox --cup` runs the Cup in the
+test server's #weekly-cup on a clock `pnpm --silent axi clock <time>` moves forward (so a week
+plays out in minutes), `axi run <map> <seconds> --as <member>` sets a time on any Map, and
+`pnpm sandbox --cup --keep` restarts on the same database and clock, to check a restart resumes.
+Its catalogue is twelve real Workshop Maps, so the Shortlist shows Steam's pictures.
+
 ## Production
 
 Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,

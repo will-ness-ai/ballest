@@ -122,6 +122,73 @@ const MIGRATIONS: Migrations = {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE venue_restarts (at INTEGER NOT NULL)`;
   }),
+  // The Weekly Cup (spec #353): each server's #weekly-cup the bot made or reused, found by id at
+  // each start; each week's Cup by its server and Monday (Central), with its state, the messages
+  // each of its slots shows (JSON: post, shortlist, standings, results), when its bars were taken
+  // as racing opened, and when each Cup Map's final read landed (JSON, pfid to ms); its Entrants,
+  // with when each signed up; its Shortlist in draw order, each Map as JSON with its board id and,
+  // once the vote closes, its rank (ties settled at random, kept so a restart never redraws) and
+  // votes; each Entrant's latest vote (a JSON array of pfids); each Entrant's bar on each Cup Map
+  // (their PB when it was taken: a time counts only once it beats it); and each Entrant's counted
+  // best there, with when their first counted time on it was seen, when this one was, and whether
+  // its Flag was told.
+  "0016_weekly_cup": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE weekly_cup_channels (guild_id TEXT PRIMARY KEY, channel_id TEXT NOT NULL)`;
+    yield* sql`CREATE TABLE weekly_cups (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        state TEXT NOT NULL,
+        messages TEXT NOT NULL,
+        bars_at INTEGER,
+        final_reads TEXT NOT NULL,
+        PRIMARY KEY (guild_id, week)
+      )`;
+    yield* sql`CREATE TABLE weekly_cup_entrants (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        discord_id TEXT NOT NULL,
+        signed_up_at INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, week, discord_id)
+      )`;
+    yield* sql`CREATE TABLE weekly_cup_maps (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        pfid TEXT NOT NULL,
+        board_id INTEGER NOT NULL,
+        data TEXT NOT NULL,
+        cup_rank INTEGER,
+        votes INTEGER,
+        PRIMARY KEY (guild_id, week, position)
+      )`;
+    yield* sql`CREATE TABLE weekly_cup_votes (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        discord_id TEXT NOT NULL,
+        picks TEXT NOT NULL,
+        PRIMARY KEY (guild_id, week, discord_id)
+      )`;
+    yield* sql`CREATE TABLE weekly_cup_baselines (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        pfid TEXT NOT NULL,
+        discord_id TEXT NOT NULL,
+        ticks INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, week, pfid, discord_id)
+      )`;
+    yield* sql`CREATE TABLE weekly_cup_times (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        pfid TEXT NOT NULL,
+        discord_id TEXT NOT NULL,
+        ticks INTEGER NOT NULL,
+        first_at INTEGER NOT NULL,
+        seen_at INTEGER NOT NULL,
+        flagged INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, week, pfid, discord_id)
+      )`;
+  }),
 };
 
 /** The migrations a build had before the one with this id (`"0010"`): tests start a database from an older build. */

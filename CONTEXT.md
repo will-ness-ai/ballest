@@ -272,3 +272,38 @@ length, as its creator, and the finished Match's other Players who didn't leave 
 the finished Match's thread, once. Everyone who presses it after that joins the same Lobby until
 its time is up. Any Player may press it. Once that Lobby is gone, the next press opens a fresh one.
 _Avoid_: rematch, replay (a replay is a Ghost)
+
+### The Weekly Cup
+
+**Weekly Cup**:
+A competition the bot runs by itself every week in a server where it is switched on (Ballest
+Racing), in that server's `weekly-cup` channel, on US Central time: sign-up from Monday 00:00 to
+Sunday 20:00, the Shortlist drawn Thursday 12:00 and voted on until Friday 09:00, then racing on
+the Cup Maps until Sunday 20:00, scored with the Circuit's place points. A week with fewer than 2
+Entrants at Thursday 12:00 is cancelled; a server admin can skip a week before then. Each Entrant
+plays each Cup Map for 30 minutes at most and uses no Ghosts, on their honour.
+_Avoid_: tournament, event
+
+**Entrant**:
+A Player signed up for a Weekly Cup. Signing up needs a Link; "sign up" is the verb, so it
+doesn't collide with Link. An Entrant can withdraw until the Cup ends. Only times set while racing
+count: an Entrant's PB on each Cup Map when racing opens (Friday 09:00), or when they sign up if
+that is later, is their bar, and a time counts only once it beats it.
+_Avoid_: registrant, participant
+
+**Shortlist**:
+The 10 Maps the bot draws for a Weekly Cup on Thursday 12:00, none Played by any Entrant: each an
+Eligible Map with an author time of at most 3 minutes. Entrants vote on it for the Cup Maps.
+_Avoid_: pool, ballot
+
+**Cup Map**:
+One of the 3 Shortlist Maps with the most votes, a tie settled at random: the Maps a Weekly Cup
+is raced on.
+_Avoid_: track (a Track is a Circuit board)
+
+**Flag**:
+A PB first seen more than 30 minutes after the first counted time the bot saw from that Entrant
+on that Cup Map (reads are 5 minutes apart, so it is approximate). It still counts; the bot tells
+the ops channel, once per Entrant per Map, to follow up by hand.
+
+_Avoid_: strike, violation

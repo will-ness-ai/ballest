@@ -1,8 +1,9 @@
 // The Match engine: every Match rule, with Discord, Steam and storage behind ports.
 // Inputs are Player actions (the methods below) and the clock; outputs go to Surface.
-import { Chunk, Clock, Data, Effect, FiberMap, Option, Random, Ref } from "effect";
+import { Clock, Data, Effect, FiberMap, Option, Ref } from "effect";
+import { searchEligible } from "./eligibleMaps.js";
 import {
-  authorTimeFits,
+  authorLimitOf,
   timeIsUp,
   expiresAt,
   inMatch,
@@ -12,7 +13,6 @@ import {
   progress,
   racing,
   standings,
-  worldRecordFits,
   type DrawnMap,
   type Match,
   type MatchType,
@@ -289,31 +289,14 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * the start.
      */
     const pickMap = Effect.fn("pickMap")(function* (m: Match) {
-      const catalogue = yield* steam.catalogue;
-      const shuffled = yield* Random.shuffle(
-        catalogue.filter((map) => authorTimeFits(map, m.minutes)),
-      );
-      const steamIds = m.players.map((p) => p.steamId);
-      let fallback: DrawnMap | null = null;
-      for (const map of Chunk.take(shuffled, MAP_CHECKS)) {
-        const c = yield* steam.check(map, steamIds).pipe(Effect.retry({ times: READ_RETRIES }));
-        if (
-          c.boardId === null ||
-          c.worldRecordTicks === null ||
-          !worldRecordFits(c.worldRecordTicks)
-        )
-          continue;
-        const drawn: DrawnMap = {
-          ...map,
-          boardId: c.boardId,
-          worldRecordTicks: c.worldRecordTicks,
-          personalBests: Object.fromEntries(c.played.map((e) => [e.steamId, e.ticks])),
-        };
-        if (c.played.length === 0) return drawn;
-        if (fallback === null || c.played.length < Object.keys(fallback.personalBests).length)
-          fallback = drawn;
-      }
-      return fallback ?? (yield* new NoEligibleMap({ matchId: m.id }));
+      const { unplayed, fallback } = yield* searchEligible({
+        authorLimitSeconds: authorLimitOf(m.minutes),
+        steamIds: m.players.map((p) => p.steamId),
+        want: 1,
+        maxChecks: MAP_CHECKS,
+        retries: READ_RETRIES,
+      }).pipe(Effect.provideService(Steam, steam));
+      return unplayed[0] ?? fallback ?? (yield* new NoEligibleMap({ matchId: m.id }));
     });
 
     // ---------------------------------------------------------------- the live Match

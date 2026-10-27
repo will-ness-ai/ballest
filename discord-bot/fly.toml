@@ -23,6 +23,9 @@ kill_timeout = 30
   # Ballest Racing, Bombzaway's server, where Multiballs makes and keeps #my-stats
   # (src/discord/myStats.ts); unset, it would be the game Discord's
   MY_STATS_GUILD_ID = "1562131107795832974"
+  # the servers that run the Weekly Cup in their own #weekly-cup (src/weeklyCup/), comma-separated:
+  # Ballest Racing
+  WEEKLY_CUP_GUILD_IDS = "1562131107795832974"
   # the site's Plausible, which the Traffic Report reads (src/traffic/); its key is a secret
   PLAUSIBLE_URL = "https://plausible-analytics-ce-production-d9c9.up.railway.app"
 
