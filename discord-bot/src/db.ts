@@ -122,6 +122,27 @@ const MIGRATIONS: Migrations = {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE venue_restarts (at INTEGER NOT NULL)`;
   }),
+  // The Weekly Cup (spec #353): each server's #weekly-cup the bot made or reused, found by id at
+  // each start; each week's Cup by its server and Monday (Central), with its state and post; and
+  // its Entrants, with when each signed up (late sign-ups count only times set after it).
+  "0016_weekly_cups": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE weekly_cup_channels (guild_id TEXT PRIMARY KEY, channel_id TEXT NOT NULL)`;
+    yield* sql`CREATE TABLE weekly_cups (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        state TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        PRIMARY KEY (guild_id, week)
+      )`;
+    yield* sql`CREATE TABLE weekly_cup_entrants (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        discord_id TEXT NOT NULL,
+        signed_up_at INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, week, discord_id)
+      )`;
+  }),
 };
 
 /** The migrations a build had before the one with this id (`"0010"`): tests start a database from an older build. */
