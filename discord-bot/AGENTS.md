@@ -505,9 +505,10 @@ first starts in after Thursday 12:00 gets no post, and an earlier week still rac
 down over its close) is finished as the bot starts. A failed post is retried every minute and a
 failed edit at the next change, each told to ops once until it lands (OpsAlerts' `post` with a
 key, and `forget`). Each one-time post (the week's post, the Shortlist, the Cup Maps, each part of
-the results) goes with a nonce of its week and kind that Discord enforces (`sentOnce` in
+the results) goes with a nonce of its server, week and kind that Discord enforces (`sentOnce` in
 `slots.ts`), so a send repeated after a restart is dropped, and its record is written straight
-after it. Each message is kept as one of four slots of the week's record (post, Shortlist,
+after it. Discord matches a nonce across every channel the bot posts in, which is why the server
+is part of it. Each message is kept as one of four slots of the week's record (post, Shortlist,
 standings, results: `weekly_cups.messages`): `CupChannel.show` posts a slot with no messages yet,
 edits only the parts that change, posts or drops parts when a view takes more or fewer, and
 reposts a slot whose message someone deleted (Unknown Message), handing back the ids it now has.
@@ -559,8 +560,11 @@ Shortlist's vote and the standings text in `test/weeklyCupMessages.test.ts`, the
 `test/weeklyCupPoints.test.ts`, and the presses and votes
 through `interactions.ts` in `test/driver.test.ts` (the driver's `manageServer` press field stands
 for Manage Server; a `select` press reaches a user or a string select by its custom id). The
-discord.js calls (`live.ts`) are checked with `pnpm dev` and `WEEKLY_CUP_GUILD_IDS` set to the test
-server's id.
+discord.js calls (`live.ts`) are checked in the sandbox: `pnpm sandbox --cup` runs the Cup in the
+test server's #weekly-cup on a clock `pnpm --silent axi clock <time>` moves forward (so a week
+plays out in minutes), `axi run <map> <seconds> --as <member>` sets a time on any Map, and
+`pnpm sandbox --cup --keep` restarts on the same database and clock, to check a restart resumes.
+Its catalogue is twelve real Workshop Maps, so the Shortlist shows Steam's pictures.
 
 ## Production
 
