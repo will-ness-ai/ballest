@@ -234,6 +234,10 @@ describe("the Weekly Cup's buttons", () => {
                     Effect.as(said(`signed up ${who}`)),
                   ),
                 withdraw: (_week, who) => Effect.succeed(said(`withdrew ${who}`)),
+                vote: (week, who, picks) =>
+                  Effect.sync(
+                    () => void pressed.push(`vote ${week} ${who} ${picks.join(",")}`),
+                  ).pipe(Effect.as(said(`voted ${picks.join(", ")}`))),
                 askSkip: (week, _who, manageServer) =>
                   Effect.succeed<CupAnswer>(
                     manageServer ? { _tag: "ConfirmSkip", week } : said("admins only"),
@@ -332,6 +336,26 @@ describe("the Weekly Cup's buttons", () => {
         expect(done.map((a) => a.method)).toEqual(["deferUpdate", "editReply"]);
         expect(contentOf(done)).toBe("skipped");
         expect(cup.pressed).toEqual([`skip ${CUP.week} ${ALICE.discordId} true`]);
+      }).pipe(Effect.scoped),
+    30_000,
+  );
+
+  it.live(
+    "passes on a vote's picks and answers privately",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ maps: [makeMap(1)] });
+        const cup = fakeCups();
+        const press = yield* driven(h, Renderer.Default, cup.cups);
+        const answers = yield* press({
+          kind: "select",
+          customId: controlId({ _tag: "CupVote", ...CUP }),
+          as: BOB.discordId,
+          values: ["pf3", "pf7"],
+        });
+        expect(answers.map((a) => a.method)).toEqual(["deferReply", "editReply"]);
+        expect(contentOf(answers)).toBe("voted pf3, pf7");
+        expect(cup.pressed).toEqual([`vote ${CUP.week} ${BOB.discordId} pf3,pf7`]);
       }).pipe(Effect.scoped),
     30_000,
   );

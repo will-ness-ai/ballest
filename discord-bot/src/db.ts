@@ -143,6 +143,32 @@ const MIGRATIONS: Migrations = {
         PRIMARY KEY (guild_id, week, discord_id)
       )`;
   }),
+  // The Weekly Cup's Shortlist (spec #353, #357): each week's drawn Maps in draw order, the Map
+  // as JSON with its board id, and, once the vote closes, each Cup Map's rank (ties settled at
+  // random, kept so a restart never redraws) and votes; each Entrant's latest vote (a JSON array
+  // of pfids); and the Shortlist's message.
+  "0017_weekly_cup_shortlists": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE weekly_cup_maps (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        pfid TEXT NOT NULL,
+        board_id INTEGER NOT NULL,
+        data TEXT NOT NULL,
+        cup_rank INTEGER,
+        votes INTEGER,
+        PRIMARY KEY (guild_id, week, position)
+      )`;
+    yield* sql`CREATE TABLE weekly_cup_votes (
+        guild_id TEXT NOT NULL,
+        week TEXT NOT NULL,
+        discord_id TEXT NOT NULL,
+        picks TEXT NOT NULL,
+        PRIMARY KEY (guild_id, week, discord_id)
+      )`;
+    yield* sql`ALTER TABLE weekly_cups ADD COLUMN shortlist_message_id TEXT`;
+  }),
 };
 
 /** The migrations a build had before the one with this id (`"0010"`): tests start a database from an older build. */

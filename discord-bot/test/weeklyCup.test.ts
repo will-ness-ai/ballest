@@ -3,17 +3,22 @@
 // The week of Monday 26 October 2026 runs across the November clock change.
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
-import { Clock, Effect, Fiber, Layer, Ref, TestClock } from "effect";
+import { Clock, Effect, Fiber, Layer, Option, Random, Ref, TestClock } from "effect";
 import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
+import { Steam, SteamUnavailable } from "../src/ports.js";
+import { MapPreviews, PreviewSource } from "../src/previews.js";
 import {
   type CupAnswer,
   CupChannel,
+  CupLinks,
   CupLogLive,
   type CupNotice,
   CupPostFailed,
   type CupPostView,
   makeWeeklyCup,
+  type ShortlistView,
 } from "../src/weeklyCup/schedule.js";
+import { makeFakeSteam, makeMap } from "./harness.js";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -32,6 +37,10 @@ const NEXT_MONDAY = Date.parse("2026-11-02T06:00:00Z");
 
 const text = (a: CupAnswer) => (a._tag === "Text" ? a.text : a._tag);
 
+const steamIdOf = (discordId: string) => `s-${discordId}`;
+/** Twelve Workshop Maps that fit the Cup: author time 20 s, world record 15 s. */
+const ELIGIBLE = Array.from({ length: 12 }, (_, i) => makeMap(i + 1));
+
 /**
  * The Cup's world: a channel that records each post, edit and notice (or refuses while
  * `channelDown`), and the ops channel. One database for the whole test, so a restart finds what
@@ -42,14 +51,50 @@ const setup = Effect.gen(function* () {
   const posts = yield* Ref.make<Array<{ at: number; view: CupPostView }>>([]);
   const edits = yield* Ref.make<Array<{ at: number; messageId: string; view: CupPostView }>>([]);
   const notices = yield* Ref.make<Array<{ at: number; notice: CupNotice }>>([]);
+  const shortlists = yield* Ref.make<Array<{ at: number; view: ShortlistView }>>([]);
   const alerts = yield* Ref.make<Array<string>>([]);
   const refused = Effect.flatMap(Ref.get(channelDown), (down) =>
     down ? Effect.fail(new CupPostFailed({ reason: "Missing Permissions" })) : Effect.void,
   );
+  // The Workshop: 12 Eligible Maps unless a test sets its own; every member linked as s-<id>.
+  const steam = yield* makeFakeSteam({});
+  yield* steam.control.setCatalogue(ELIGIBLE);
+  const unlinked = new Set<string>();
+  const steamDown = yield* Ref.make(false);
   const fakes = Layer.mergeAll(
+    Layer.succeed(Steam, {
+      ...steam.port,
+      catalogue: Effect.flatMap(Ref.get(steamDown), (down) =>
+        down ? Effect.fail(new SteamUnavailable({ reason: "no reply" })) : steam.port.catalogue,
+      ),
+    }),
+    Layer.succeed(
+      CupLinks,
+      CupLinks.of({
+        steamIdOf: (id) =>
+          Effect.succeed(unlinked.has(id) ? Option.none() : Option.some(steamIdOf(id))),
+      }),
+    ),
+    MapPreviews.Default.pipe(
+      Layer.provide(
+        Layer.succeed(
+          PreviewSource,
+          PreviewSource.of({
+            fetch: () => Effect.succeed({ type: "image/png", body: new Uint8Array([1]) }),
+          }),
+        ),
+      ),
+    ),
     Layer.succeed(
       CupChannel,
       CupChannel.of({
+        postShortlist: (view) =>
+          Effect.gen(function* () {
+            yield* refused;
+            const at = yield* Clock.currentTimeMillis;
+            yield* Ref.update(shortlists, (s) => [...s, { at, view }]);
+            return `s${(yield* Ref.get(shortlists)).length}`;
+          }),
         post: (view) =>
           Effect.gen(function* () {
             yield* refused;
@@ -84,28 +129,34 @@ const setup = Effect.gen(function* () {
   const log = yield* Layer.build(
     CupLogLive.pipe(Layer.provide(SqliteClient.layer({ filename: ":memory:" }))),
   );
-  /** Start the bot: the Cup's schedule runs until `stop`, as a deploy would end it. */
-  const start = Effect.gen(function* () {
-    const cup = yield* makeWeeklyCup(GUILD);
-    const fiber = yield* Effect.fork(cup.run);
-    yield* TestClock.adjust(1);
-    const within = <A, E>(effect: Effect.Effect<A, E, CupChannel | OpsAlerts>) =>
-      effect.pipe(Effect.provide(fakes));
-    return {
-      signUp: (who: string) => within(cup.signUp(WEEK, who)).pipe(Effect.map(text)),
-      withdraw: (who: string) => within(cup.withdraw(WEEK, who)).pipe(Effect.map(text)),
-      askSkip: (who: string, manageServer: boolean) =>
-        within(cup.askSkip(WEEK, who, manageServer)).pipe(Effect.map(text)),
-      skip: (who: string, manageServer: boolean) =>
-        within(cup.skip(WEEK, who, manageServer)).pipe(Effect.map(text)),
-      press: cup,
-      stop: Fiber.interrupt(fiber),
-    };
-  }).pipe(Effect.provide(fakes), Effect.provide(log));
-  /** Start the bot, run it for `ms`, then stop it. */
-  const runFor = (ms: number) =>
+  /**
+   * Start the bot: the Cup's schedule runs until `stop`, as a deploy would end it. Its draws and
+   * tie-breaks come from a Random seeded with `seed`, so two worlds started alike draw alike.
+   */
+  const startWith = (seed: number) =>
     Effect.gen(function* () {
-      const bot = yield* start;
+      const cup = yield* makeWeeklyCup(GUILD);
+      const fiber = yield* Effect.fork(cup.run.pipe(Effect.withRandom(Random.make(seed))));
+      yield* TestClock.adjust(1);
+      const within = <A, E>(effect: Effect.Effect<A, E, Layer.Layer.Success<typeof fakes>>) =>
+        effect.pipe(Effect.provide(fakes));
+      return {
+        signUp: (who: string) => within(cup.signUp(WEEK, who)).pipe(Effect.map(text)),
+        withdraw: (who: string) => within(cup.withdraw(WEEK, who)).pipe(Effect.map(text)),
+        askSkip: (who: string, manageServer: boolean) =>
+          within(cup.askSkip(WEEK, who, manageServer)).pipe(Effect.map(text)),
+        skip: (who: string, manageServer: boolean) =>
+          within(cup.skip(WEEK, who, manageServer)).pipe(Effect.map(text)),
+        vote: (who: string, picks: ReadonlyArray<string>) =>
+          within(cup.vote(WEEK, who, picks)).pipe(Effect.map(text)),
+        stop: Fiber.interrupt(fiber),
+      };
+    }).pipe(Effect.provide(fakes), Effect.provide(log));
+  const start = startWith(1);
+  /** Start the bot, run it for `ms`, then stop it. */
+  const runFor = (ms: number, seed = 1) =>
+    Effect.gen(function* () {
+      const bot = yield* startWith(seed);
       yield* TestClock.adjust(ms);
       yield* bot.stop;
     });
@@ -115,7 +166,21 @@ const setup = Effect.gen(function* () {
     );
     return shown.at(-1)?.view;
   });
-  return { channelDown, posts, edits, notices, alerts, start, runFor, lastView };
+  return {
+    channelDown,
+    steamDown,
+    steam: steam.control,
+    unlinked,
+    posts,
+    edits,
+    notices,
+    shortlists,
+    alerts,
+    start,
+    startWith,
+    runFor,
+    lastView,
+  };
 });
 
 describe("the Weekly Cup's schedule", () => {
@@ -187,10 +252,13 @@ describe("the Weekly Cup's schedule", () => {
       expect((yield* t.lastView)?.state).toBe("cancelled");
       const notices = yield* Ref.get(t.notices);
       expect(notices).toEqual([
-        { at: THURSDAY_NOON, notice: { _tag: "Cancelled", week: WEEK, entrants: ["alice"] } },
+        {
+          at: THURSDAY_NOON,
+          notice: { _tag: "Cancelled", reason: "entrants", week: WEEK, entrants: ["alice"] },
+        },
       ]);
       expect(yield* bot.signUp("bob")).toBe(
-        "This week's Weekly Cup was cancelled: fewer than 2 Players signed up. The next one opens on Monday.",
+        "This week's Weekly Cup was cancelled. The next one opens on Monday.",
       );
       // Nothing more that week; the next week's Cup goes up on its Monday.
       yield* TestClock.adjust(NEXT_MONDAY - THURSDAY_NOON);
@@ -387,6 +455,207 @@ describe("the Weekly Cup's schedule", () => {
       yield* bot.signUp("bob");
       expect((yield* t.lastView)?.entrants).toEqual(["alice", "bob"]);
       yield* bot.stop;
+    }),
+  );
+});
+
+describe("the Weekly Cup's Shortlist and vote", () => {
+  /** A world at Monday 00:00 with alice and bob signed up, its bot running. */
+  const signedUp = (seed = 1) =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* TestClock.setTime(MONDAY);
+      const bot = yield* t.startWith(seed);
+      yield* bot.signUp("alice");
+      yield* bot.signUp("bob");
+      return { t, bot };
+    });
+  const pfidsOf = (t: Effect.Effect.Success<typeof setup>) =>
+    Effect.map(Ref.get(t.shortlists), (s) => s.at(-1)?.view.maps.map((m) => m.map.pfid) ?? []);
+
+  it.scoped(
+    "draws 10 Maps no Entrant has Played at Thursday 12:00, and posts them with their pictures",
+    () =>
+      Effect.gen(function* () {
+        const { t, bot } = yield* signedUp();
+        const longAuthor = makeMap(21, {
+          medals: { bronze: 400, silver: 300, gold: 250, author: 181 },
+        });
+        const quickRecord = makeMap(22, { worldRecordTicks: 300_000 });
+        yield* t.steam.setCatalogue([...ELIGIBLE, longAuthor, quickRecord]);
+        yield* t.steam.setTime(1, steamIdOf("alice"), 30);
+        yield* t.steam.setTime(2, steamIdOf("bob"), 30);
+        yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+        const shortlists = yield* Ref.get(t.shortlists);
+        expect(shortlists.map((s) => s.at)).toEqual([THURSDAY_NOON]);
+        const maps = shortlists[0]?.view.maps ?? [];
+        expect(maps.map((m) => m.map.pfid).sort()).toEqual(
+          ELIGIBLE.slice(2)
+            .map((m) => m.pfid)
+            .sort(),
+        );
+        expect(maps[0]).toMatchObject({
+          picture: { type: "image/png", body: new Uint8Array([1]) },
+          map: { authorSeconds: 20, creator: "pebblewright" },
+        });
+        for (const m of maps) expect(m.map.boardId).toBe(Number(m.map.pfid.slice(2)));
+        expect((yield* t.lastView)?.state).toBe("voting");
+        yield* bot.stop;
+      }),
+  );
+
+  it.scoped("posts a shorter Shortlist when fewer than 10 Maps are eligible", () =>
+    Effect.gen(function* () {
+      const { t, bot } = yield* signedUp();
+      yield* t.steam.setCatalogue(ELIGIBLE.slice(0, 4));
+      yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+      expect(yield* pfidsOf(t)).toHaveLength(4);
+      expect((yield* t.lastView)?.state).toBe("voting");
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("cancels the week when no Map is eligible, and says why", () =>
+    Effect.gen(function* () {
+      const { t, bot } = yield* signedUp();
+      yield* t.steam.setCatalogue([]);
+      yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+      expect(yield* Ref.get(t.shortlists)).toEqual([]);
+      expect((yield* Ref.get(t.notices)).map((n) => n.notice)).toEqual([
+        { _tag: "Cancelled", reason: "maps", week: WEEK, entrants: ["alice", "bob"] },
+      ]);
+      expect((yield* t.lastView)?.state).toBe("cancelled");
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("tries the draw again each minute while Steam is down, telling ops once", () =>
+    Effect.gen(function* () {
+      const { t, bot } = yield* signedUp();
+      yield* Ref.set(t.steamDown, true);
+      yield* TestClock.adjust(THURSDAY_NOON - MONDAY + 10 * MINUTE);
+      expect(yield* Ref.get(t.shortlists)).toEqual([]);
+      expect(yield* Ref.get(t.alerts)).toEqual([
+        `Multiballs couldn't draw the Weekly Cup's Shortlist for ${WEEK} in ${GUILD}: no reply`,
+      ]);
+      yield* Ref.set(t.steamDown, false);
+      yield* TestClock.adjust(MINUTE);
+      expect((yield* Ref.get(t.shortlists)).map((s) => s.at)).toEqual([
+        THURSDAY_NOON + 11 * MINUTE,
+      ]);
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("takes up to 3 votes from each Entrant, changeable until Friday 09:00", () =>
+    Effect.gen(function* () {
+      const { t, bot } = yield* signedUp();
+      expect(yield* bot.vote("alice", ["pf1"])).toBe(
+        `The Shortlist isn't drawn yet: it comes <t:${THURSDAY_NOON / 1000}:F>.`,
+      );
+      yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+      const [a, b, c, d] = yield* pfidsOf(t);
+      expect(yield* bot.vote("carol", [a ?? ""])).toBe(
+        "Only Entrants can vote. Sign up on the Cup's post first.",
+      );
+      expect(yield* bot.vote("alice", [a, b, c, d].map(String))).toBe("Pick up to 3 Maps.");
+      expect(yield* bot.vote("alice", ["pf99"])).toBe("That Map isn't on this week's Shortlist.");
+      expect(yield* bot.vote("alice", [a, b].map(String))).toContain("Your vote:");
+      expect(yield* bot.vote("alice", [c].map(String))).toBe(
+        `Your vote: **Map ${(c ?? "").slice(2)}**. You can change it until <t:${FRIDAY_NINE / 1000}:F>.`,
+      );
+      yield* TestClock.adjust(FRIDAY_NINE - THURSDAY_NOON);
+      expect(yield* bot.vote("alice", [a].map(String))).toBe("The vote has closed.");
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped(
+    "makes the 3 most-voted the Cup Maps at Friday 09:00, announced with a ping for Entrants",
+    () =>
+      Effect.gen(function* () {
+        const { t, bot } = yield* signedUp();
+        yield* TestClock.adjust(THURSDAY_NOON - MONDAY + HOUR);
+        const [m0, m1, m2, m3, m4, m5] = (yield* pfidsOf(t)).map(String);
+        yield* bot.signUp("carol");
+        yield* bot.signUp("dave");
+        yield* bot.vote("alice", [m0, m1, m2].map(String));
+        yield* bot.vote("alice", [m0, m1].map(String));
+        yield* bot.vote("bob", [m0, m1, m3].map(String));
+        yield* bot.vote("carol", [m0, m4].map(String));
+        // A vote from someone who withdrew no longer counts.
+        yield* bot.vote("dave", [m5, m3, m4].map(String));
+        yield* bot.withdraw("dave");
+        yield* TestClock.adjust(FRIDAY_NINE - THURSDAY_NOON - HOUR);
+        const notices = yield* Ref.get(t.notices);
+        expect(notices.map((n) => n.at)).toEqual([FRIDAY_NINE]);
+        const notice = notices[0]?.notice;
+        if (notice?._tag !== "CupMaps") throw new Error("no Cup Maps announced");
+        expect(notice.entrants).toEqual(["alice", "bob", "carol"]);
+        expect(notice.maps.map((m) => [m.map.pfid, m.votes]).slice(0, 2)).toEqual([
+          [m0, 3],
+          [m1, 2],
+        ]);
+        expect([m3, m4]).toContain(notice.maps[2]?.map.pfid);
+        expect(notice.maps[2]?.votes).toBe(1);
+        for (const m of notice.maps) expect(typeof m.map.boardId).toBe("number");
+        expect((yield* t.lastView)?.state).toBe("racing");
+        yield* bot.stop;
+      }),
+  );
+
+  it.scoped("refuses a vote naming the same Map twice", () =>
+    Effect.gen(function* () {
+      const { t, bot } = yield* signedUp();
+      yield* TestClock.adjust(THURSDAY_NOON - MONDAY);
+      const [a] = yield* pfidsOf(t);
+      expect(yield* bot.vote("alice", [a, a].map(String))).toBe("Pick each Map once.");
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("keeps the Shortlist through a restart, drawing and posting it once", () =>
+    Effect.gen(function* () {
+      const { t, bot } = yield* signedUp();
+      yield* TestClock.adjust(THURSDAY_NOON - MONDAY + HOUR);
+      const drawn = yield* pfidsOf(t);
+      yield* bot.vote("alice", [drawn[0] ?? ""]);
+      yield* bot.stop;
+      const again = yield* t.startWith(42);
+      expect(yield* again.vote("alice", [drawn[1] ?? ""])).toContain("Your vote:");
+      yield* TestClock.adjust(HOUR);
+      expect(yield* Ref.get(t.shortlists)).toHaveLength(1);
+      yield* again.stop;
+    }),
+  );
+
+  it.scoped("records the Cup Maps, tie-break and all, so a restart never redraws them", () =>
+    Effect.gen(function* () {
+      /** Up to Friday 09:00 with no votes (every Map tied), the announcement refused. */
+      const tallied = Effect.gen(function* () {
+        const { t, bot } = yield* signedUp(7);
+        yield* TestClock.adjust(FRIDAY_NINE - MONDAY - MINUTE);
+        yield* Ref.set(t.channelDown, true);
+        yield* TestClock.adjust(10 * MINUTE);
+        yield* bot.stop;
+        expect(yield* Ref.get(t.alerts)).toContain(
+          `Multiballs couldn't announce the Weekly Cup's Cup Maps for ${WEEK} in ${GUILD}: Missing Permissions`,
+        );
+        yield* Ref.set(t.channelDown, false);
+        return t;
+      });
+      const announced = (seed: number) =>
+        Effect.gen(function* () {
+          yield* TestClock.setTime(MONDAY);
+          const t = yield* tallied;
+          yield* t.runFor(5 * MINUTE, seed);
+          const notices = (yield* Ref.get(t.notices)).map((n) => n.notice);
+          expect(notices.map((n) => n._tag)).toEqual(["CupMaps"]);
+          return notices[0]?._tag === "CupMaps" ? notices[0].maps.map((m) => m.map.pfid) : [];
+        });
+      const first = yield* announced(99);
+      expect(first).toHaveLength(3);
+      expect(yield* announced(5)).toEqual(first);
     }),
   );
 });

@@ -7,6 +7,7 @@ import {
   type ButtonInteraction,
   type Interaction,
   type ModalSubmitInteraction,
+  type StringSelectMenuInteraction,
   type UserSelectMenuInteraction,
 } from "discord.js";
 import { Context, Effect, Layer, Match, Option, Ref, Stream } from "effect";
@@ -223,9 +224,9 @@ export const InteractionsLive = Layer.scopedDiscard(
       // Only Skip asks to confirm; anything else is words.
       return answer._tag === "Text" ? answer.text : CUP_NOT_HERE;
     });
-    /** Answer a Cup press privately, deferred first: it redraws the post. */
+    /** Answer a Cup press or vote privately, deferred first: it may redraw the post. */
     const cupReply = Effect.fn("cupReply")(function* (
-      i: ButtonInteraction,
+      i: ButtonInteraction | StringSelectMenuInteraction,
       guildId: string,
       press: (cup: CupPresses) => Effect.Effect<CupAnswer>,
     ) {
@@ -451,6 +452,11 @@ export const InteractionsLive = Layer.scopedDiscard(
       if (i.isButton()) return Effect.asVoid(onButton(i, venue));
       if (i.isUserSelectMenu() && parseControl(i.customId)?._tag === "PickTarget")
         return onPickTarget(i);
+      if (i.isStringSelectMenu()) {
+        const control = parseControl(i.customId);
+        if (control?._tag === "CupVote")
+          return cupReply(i, control.guildId, (cup) => cup.vote(control.week, i.user.id, i.values));
+      }
       if (i.isModalSubmit() && parseControl(i.customId)?._tag === "LinkForm")
         return Effect.asVoid(onLinkForm(i));
       return Effect.void;

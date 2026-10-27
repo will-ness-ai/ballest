@@ -38,9 +38,11 @@ export type Control =
   | CupControl<"CupWithdraw">
   /** Skip on the post: asks a server admin to confirm, privately. */
   | CupControl<"CupSkip">
-  | CupControl<"CupConfirmSkip">;
+  | CupControl<"CupConfirmSkip">
+  /** The Shortlist's vote: a pick of up to 3 of its Maps. */
+  | CupControl<"CupVote">;
 
-type CupTag = "CupSignUp" | "CupWithdraw" | "CupSkip" | "CupConfirmSkip";
+type CupTag = "CupSignUp" | "CupWithdraw" | "CupSkip" | "CupConfirmSkip" | "CupVote";
 interface CupControl<K extends CupTag> {
   readonly _tag: K;
   readonly guildId: string;
@@ -112,6 +114,7 @@ const CODECS: { readonly [K in Tag]: Codec<K> } = {
   CupWithdraw: forCup("cupout", "CupWithdraw"),
   CupSkip: forCup("cupskip", "CupSkip"),
   CupConfirmSkip: forCup("cupskipyes", "CupConfirmSkip"),
+  CupVote: forCup("cupvote", "CupVote"),
   NewMatch: bare("new", { _tag: "NewMatch" }),
   LinkSteam: bare("link", { _tag: "LinkSteam" }),
   PickTarget: bare("target", { _tag: "PickTarget" }),

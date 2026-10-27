@@ -73,7 +73,9 @@ export const fakeInteraction = (press: Press, channelId: string) => {
       },
     },
     isButton: () => press.kind === "button",
+    // A select is either kind: the bot tells them apart by the custom id.
     isUserSelectMenu: () => press.kind === "select",
+    isStringSelectMenu: () => press.kind === "select",
     isModalSubmit: () => press.kind === "modal",
     isRepliable: () => true,
     reply: record("reply"),

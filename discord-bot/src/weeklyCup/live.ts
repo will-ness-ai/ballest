@@ -10,12 +10,15 @@ import { ChannelType, type Client, type TextChannel } from "discord.js";
 import { Cause, Config, Effect, Layer, Option, Ref, Schema } from "effect";
 import { MigratorLive } from "../db.js";
 import { describeDiscordError, Discord, type DiscordError, tryDiscord } from "../discord/client.js";
-import { cupNoticeMessage, weeklyCupMessage } from "../discord/messages.js";
+import { cupNoticeMessage, shortlistMessage, weeklyCupMessage } from "../discord/messages.js";
 import { setupGuildOn } from "../discord/setupGuild.js";
 import { OpsAlerts } from "../ops.js";
+import { Steam, Store } from "../ports.js";
+import { MapPreviews } from "../previews.js";
 import { keepCupChannel } from "./channel.js";
 import {
   CupChannel,
+  CupLinks,
   CupLog,
   CupLogLive,
   CupPostFailed,
@@ -62,6 +65,13 @@ const cupChannelOn = (client: Client<true>, channelId: string) => {
         ),
         Effect.asVoid,
       ),
+    postShortlist: (view) =>
+      channel.pipe(
+        Effect.flatMap((c) =>
+          tryDiscord("post the Shortlist", () => c.send(shortlistMessage(view))).pipe(failed),
+        ),
+        Effect.map((m) => m.id),
+      ),
   });
 };
 
@@ -90,6 +100,16 @@ const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const log = yield* CupLog;
   const alerts = yield* OpsAlerts;
+  const steam = yield* Steam;
+  const previews = yield* MapPreviews;
+  const store = yield* Store;
+  const links = CupLinks.of({
+    steamIdOf: (discordId) =>
+      Effect.map(
+        store.getLink(discordId),
+        Option.map((link) => link.steamId),
+      ),
+  });
 
   const storedChannel = (guildId: string) =>
     sql`SELECT channel_id FROM weekly_cup_channels WHERE guild_id = ${guildId}`.pipe(
@@ -109,11 +129,16 @@ const make = Effect.gen(function* () {
       yield* Effect.logInfo(`weekly cup: #weekly-cup in ${guild.name} is ${channelId}`);
     }
     yield* discord.answerIn(channelId);
-    const ports = <A, E>(effect: Effect.Effect<A, E, CupChannel | CupLog | OpsAlerts>) =>
+    const ports = <A, E>(
+      effect: Effect.Effect<A, E, CupChannel | CupLog | OpsAlerts | CupLinks | Steam | MapPreviews>,
+    ) =>
       effect.pipe(
         Effect.provideService(CupChannel, cupChannelOn(client, channelId)),
         Effect.provideService(CupLog, log),
         Effect.provideService(OpsAlerts, alerts),
+        Effect.provideService(CupLinks, links),
+        Effect.provideService(Steam, steam),
+        Effect.provideService(MapPreviews, previews),
       );
     const cup = yield* ports(makeWeeklyCup(guildId));
     const presses = yield* ports(pressesOf(cup));

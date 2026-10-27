@@ -11,13 +11,23 @@ import {
   LabelBuilder,
   MessageFlags,
   ModalBuilder,
+  SectionBuilder,
+  StringSelectMenuBuilder,
   TextDisplayBuilder,
+  ThumbnailBuilder,
   TextInputBuilder,
   TextInputStyle,
   UserSelectMenuBuilder,
   type BaseMessageOptions,
 } from "discord.js";
-import { DURATIONS, formatTime, MATCH_TYPE_NAME, type MatchType, type Minutes } from "../domain.js";
+import {
+  DURATIONS,
+  formatTime,
+  MATCH_TYPE_NAME,
+  type MatchType,
+  type Minutes,
+  SCORE_TICKS_PER_SECOND,
+} from "../domain.js";
 import {
   DECLINE_PING,
   getPing,
@@ -35,7 +45,13 @@ import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js";
 import { RESULT_HUE, START_HUE } from "../render/art.js";
 import type { CardView, KeptReason, ThreadPost } from "../ports.js";
 import type { StatsAnswer } from "../seeMyStats.js";
-import type { CupNotice, CupPostView } from "../weeklyCup/schedule.js";
+import type { Preview } from "../previews.js";
+import {
+  CUP_MAPS,
+  type CupNotice,
+  type CupPostView,
+  type ShortlistView,
+} from "../weeklyCup/schedule.js";
 import { CUP_TIME_ZONE } from "../weeklyCup/week.js";
 import { type Action, type Control, controlId } from "./controls.js";
 import type { MarbleEmojis } from "./marbles.js";
@@ -152,7 +168,7 @@ const cupStanding = (v: CupPostView): string => {
     case "final":
       return "**This week's Cup is over.** Sign-up is closed.";
     case "cancelled":
-      return "**Cancelled: fewer than 2 Players signed up** by Thursday 12:00. The next Cup opens on Monday.";
+      return "**This week's Cup is cancelled.** The next Cup opens on Monday.";
     case "skipped":
       return "**Skipped this week** by a server admin. The next Cup opens on Monday.";
   }
@@ -211,16 +227,94 @@ export const weeklyCupMessage = (v: CupPostView): V2Payload => {
   return { flags: MessageFlags.IsComponentsV2, components: [container], ...quiet };
 };
 
-/** The message beside the post when a week is cancelled or skipped: it pings its Entrants. */
-export const cupNoticeMessage = (n: CupNotice): Payload => {
-  const pings = n.entrants.map(who).join(" ");
-  const content =
-    n._tag === "Cancelled"
-      ? `This week's Weekly Cup is cancelled: fewer than 2 Players signed up by Thursday 12:00. ${pings}`.trim()
-      : n.entrants.length === 0
+/** The words of a notice beside the post. */
+const cupNoticeText = (n: CupNotice, pings: string): string => {
+  switch (n._tag) {
+    case "Cancelled":
+      return (
+        n.reason === "entrants"
+          ? `This week's Weekly Cup is cancelled: fewer than 2 Players signed up by Thursday 12:00. ${pings}`
+          : `This week's Weekly Cup is cancelled: there's no Map that none of its Entrants has Played. ${pings}`
+      ).trim();
+    case "Skipped":
+      return n.entrants.length === 0
         ? "A server admin skipped this week's Weekly Cup. The next one opens on Monday."
         : `A server admin skipped this week's Weekly Cup. ${pings}, you were signed up: the next one opens on Monday.`;
-  return { content, allowedMentions: { users: [...n.entrants] } };
+    case "CupMaps":
+      return [
+        `## This week's Cup Maps`,
+        ...n.maps.map(
+          ({ map, votes }, i) =>
+            `${i + 1}. ${mapLink(map)} · ${votes} ${votes === 1 ? "vote" : "votes"}`,
+        ),
+        `Racing is on until <t:${unix(n.week.endsAt)}:F>: each Cup Map for 30 minutes at most, no Ghosts. ${pings}`.trim(),
+      ].join("\n");
+  }
+};
+
+/** A message beside the post: the week cancelled, skipped or its Cup Maps. It pings its Entrants. */
+export const cupNoticeMessage = (n: CupNotice): Payload => ({
+  content: cupNoticeText(n, n.entrants.map(who).join(" ")),
+  allowedMentions: { users: [...n.entrants] },
+});
+
+/** A Map's Workshop picture on the Shortlist, by its place there. */
+const pictureName = (place: number, picture: Preview) =>
+  `map-${place}.${picture.type === "image/png" ? "png" : picture.type === "image/gif" ? "gif" : "jpg"}`;
+
+/**
+ * The Shortlist (spec #353): each Map with its Workshop picture, its name linked to its page on
+ * the site, its maker and author time, and the vote under them, up to 3 picks.
+ */
+export const shortlistMessage = (v: ShortlistView): V2Payload => {
+  const cup = { guildId: v.guildId, week: v.week.week };
+  const n = v.maps.length;
+  const intro = [
+    `## Shortlist · week of ${shortDate(v.week.opensAt)}`,
+    `Vote for up to ${Math.min(CUP_MAPS, n)} by <t:${unix(v.week.voteClosesAt)}:F>: the most-voted are the Cup Maps, a tie drawn at random. Only Entrants can vote, and voting again changes your pick.`,
+    ...(n < v.wanted
+      ? [
+          `Only ${n} ${n === 1 ? "Map fits" : "Maps fit"} this week (none of the Entrants has Played them), so the Shortlist is shorter.`,
+        ]
+      : []),
+  ].join("\n");
+  const container = new ContainerBuilder()
+    .setAccentColor(CUP_GOLD)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(intro));
+  const files: Array<AttachmentBuilder> = [];
+  v.maps.forEach(({ map, picture }, i) => {
+    const words = new TextDisplayBuilder().setContent(
+      `**${i + 1}. ${mapLink(map)}**\nby ${escape(map.creator)} · author **${formatTime(Math.round(map.authorSeconds * SCORE_TICKS_PER_SECOND))}**`,
+    );
+    if (picture === null) {
+      container.addTextDisplayComponents(words);
+      return;
+    }
+    const name = pictureName(i + 1, picture);
+    files.push(new AttachmentBuilder(Buffer.from(picture.body), { name }));
+    container.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(words)
+        .setThumbnailAccessory(new ThumbnailBuilder().setURL(`attachment://${name}`)),
+    );
+  });
+  container.addActionRowComponents(
+    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(controlId({ _tag: "CupVote", ...cup }))
+        .setPlaceholder(`Vote for up to ${Math.min(CUP_MAPS, n)} Maps`)
+        .setMinValues(1)
+        .setMaxValues(Math.min(CUP_MAPS, n))
+        .addOptions(
+          v.maps.map(({ map }) => ({
+            label: mapName(map).slice(0, 100),
+            value: map.pfid,
+            description: `by ${map.creator}`.slice(0, 100),
+          })),
+        ),
+    ),
+  );
+  return { flags: MessageFlags.IsComponentsV2, components: [container], files, ...quiet };
 };
 
 /** A server admin's private Skip: asks first. */

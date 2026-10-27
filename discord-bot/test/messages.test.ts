@@ -19,6 +19,7 @@ import {
   confirmLeaveMessage,
   cupConfirmSkipMessage,
   cupNoticeMessage,
+  shortlistMessage,
   weeklyCupMessage,
   fingerprint,
   footerMessage,
@@ -34,7 +35,7 @@ import {
 } from "../src/discord/messages.js";
 import { ThreadPost } from "../src/ports.js";
 import { reportButtons } from "../src/report/messages.js";
-import type { CupState } from "../src/weeklyCup/schedule.js";
+import type { CupMap, CupState } from "../src/weeklyCup/schedule.js";
 import { weekAt } from "../src/weeklyCup/week.js";
 import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js";
 
@@ -640,19 +641,104 @@ describe("the Weekly Cup's post", () => {
     expect(cupButtons(post("final"))).toEqual([]);
     expect(words(post("final"))).toContain("Sign-up is closed");
     expect(cupButtons(post("cancelled"))).toEqual([]);
-    expect(words(post("cancelled"))).toContain("Cancelled: fewer than 2 Players signed up");
+    expect(words(post("cancelled"))).toContain("This week's Cup is cancelled");
     expect(cupButtons(post("skipped"))).toEqual([]);
     expect(words(post("skipped"))).toContain("Skipped this week");
   });
 
   it("pings the week's Entrants when it is cancelled or skipped", () => {
-    const cancelled = cupNoticeMessage({ _tag: "Cancelled", week: cup.week, entrants: ["111"] });
+    const cancelled = cupNoticeMessage({
+      _tag: "Cancelled",
+      reason: "entrants",
+      week: cup.week,
+      entrants: ["111"],
+    });
     expect(cancelled.content).toContain("<@111>");
-    expect(cancelled.content).toContain("cancelled");
+    expect(cancelled.content).toContain("cancelled: fewer than 2 Players signed up");
     expect(pinged(cancelled)).toEqual(["111"]);
+    const noMaps = cupNoticeMessage({
+      _tag: "Cancelled",
+      reason: "maps",
+      week: cup.week,
+      entrants: ["111", "222"],
+    });
+    expect(noMaps.content).toContain("no Map that none of its Entrants has Played");
+    expect(pinged(noMaps)).toEqual(["111", "222"]);
     const skipped = cupNoticeMessage({ _tag: "Skipped", week: cup.week, entrants: ["1", "2"] });
     expect(skipped.content).toContain("skipped");
     expect(pinged(skipped)).toEqual(["1", "2"]);
+  });
+
+  const cupMap = (n: number): CupMap => ({
+    pfid: `pf${n}`,
+    title: `Map ${n}`,
+    creator: "pebblewright",
+    previewUrl: `https://example.invalid/${n}.jpg`,
+    authorSeconds: 20.5,
+    boardId: 100 + n,
+    worldRecordTicks: ticks(15),
+  });
+  const shortlist = (n: number, pictures = true) =>
+    shortlistMessage({
+      guildId: cup.guildId,
+      week,
+      wanted: 10,
+      maps: Array.from({ length: n }, (_, i) => ({
+        map: cupMap(i + 1),
+        picture: pictures ? { type: "image/jpeg", body: new Uint8Array([i]) } : null,
+      })),
+    });
+
+  it("posts the Shortlist with each Map's picture, name, author time and page", () => {
+    const list = shortlist(10);
+    expect(list.flags).toBe(MessageFlags.IsComponentsV2);
+    const text = words(list);
+    for (let n = 1; n <= 10; n++) {
+      expect(text).toContain(`[Map ${n}](<https://ballestrecords.com/map/pf${n}>)`);
+      expect(text).toContain(`attachment://map-${n}.jpg`);
+    }
+    expect(text).toContain("by pebblewright · author **0:20.500**");
+    expect(text).toContain(`<t:${week.voteClosesAt / 1000}:F>`);
+    expect(text).not.toContain("the Shortlist is shorter");
+    expect((list.files ?? []).length).toBe(10);
+    pingsNobody(list);
+  });
+
+  it("puts a vote for up to 3 of its Maps under the Shortlist", () => {
+    const select = JSON.parse(words(shortlist(10))).flatMap((c: { components?: Array<unknown> }) =>
+      (c.components ?? []).flatMap((r) => (r as { components?: Array<unknown> }).components ?? []),
+    ) as Array<{
+      custom_id?: string;
+      max_values?: number;
+      min_values?: number;
+      options?: Array<{ label: string; value: string }>;
+    }>;
+    const vote = select.find((c) => c.custom_id !== undefined);
+    expect(parseControl(vote?.custom_id ?? "")).toEqual({ _tag: "CupVote", ...cup });
+    expect(vote).toMatchObject({ min_values: 1, max_values: 3 });
+    expect(vote?.options).toHaveLength(10);
+    expect(vote?.options?.[0]).toMatchObject({ label: "Map 1", value: "pf1" });
+  });
+
+  it("says when the Shortlist is short, and lets fewer be picked when fewer than 3", () => {
+    const two = shortlist(2, false);
+    expect(words(two)).toContain("Only 2 Maps fit this week");
+    expect(words(two)).toContain('"max_values":2');
+    expect(two.files ?? []).toEqual([]);
+  });
+
+  it("announces the Cup Maps with their votes and pages, pinging the Entrants", () => {
+    const maps = [
+      { map: cupMap(3), votes: 4 },
+      { map: cupMap(1), votes: 2 },
+      { map: cupMap(7), votes: 2 },
+    ];
+    const told = cupNoticeMessage({ _tag: "CupMaps", week, entrants: ["1", "2"], maps });
+    expect(told.content).toContain("1. [Map 3](<https://ballestrecords.com/map/pf3>) · 4 votes");
+    expect(told.content).toContain("3. [Map 7](<https://ballestrecords.com/map/pf7>) · 2 votes");
+    expect(told.content).toContain(`<t:${week.endsAt / 1000}:F>`);
+    expect(told.content).toContain("<@1> <@2>");
+    expect(pinged(told)).toEqual(["1", "2"]);
   });
 
   it("asks a server admin to confirm a skip, privately", () => {
