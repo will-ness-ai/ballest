@@ -3,6 +3,7 @@
 // is handled in its Venue: New Match opens the Invite there, and Pings is that server's role.
 import {
   MessageFlags,
+  PermissionFlagsBits,
   type ButtonInteraction,
   type Interaction,
   type ModalSubmitInteraction,
@@ -16,6 +17,7 @@ import { roleNamed } from "../pingWords.js";
 import { ChosenSkins, chosenSkinOf, MatchLinks, Store, type ProfilePreview } from "../ports.js";
 import { Renderer, type RenderError } from "../render/renderer.js";
 import { type Member, SeeMyStats, type StatsAnswer } from "../seeMyStats.js";
+import { type CupAnswer, type CupPresses, WeeklyCups } from "../weeklyCup/schedule.js";
 import {
   describeDiscordError,
   Discord,
@@ -28,6 +30,7 @@ import {
 import { type Action, parseControl } from "./controls.js";
 import {
   confirmLeaveMessage,
+  cupConfirmSkipMessage,
   LEFT_TEXT,
   linkForm,
   linkPreviewMessage,
@@ -50,7 +53,11 @@ import {
 type Pending =
   | { readonly _tag: "NewMatch" }
   | { readonly _tag: "Act"; readonly action: Action; readonly matchId: string }
-  | { readonly _tag: "PlayAgain"; readonly matchId: string };
+  | { readonly _tag: "PlayAgain"; readonly matchId: string }
+  /** Sign up for a server's Weekly Cup. */
+  | { readonly _tag: "CupSignUp"; readonly guildId: string; readonly week: string };
+
+const CUP_NOT_HERE = "The Weekly Cup isn't running in this server right now.";
 
 const ephemeral = { flags: MessageFlags.Ephemeral } as const;
 
@@ -76,6 +83,7 @@ export const InteractionsLive = Layer.scopedDiscard(
     const links = yield* MatchLinks;
     const pings = yield* Pings;
     const stats = yield* SeeMyStats;
+    const cups = yield* WeeklyCups;
     /** A Venue's @Multiplayer ping role, as the words mention and name it. */
     const pingRoleIn = (venue: DiscordVenue) => ({
       id: venue.pingRoleId,
@@ -198,6 +206,37 @@ export const InteractionsLive = Layer.scopedDiscard(
       if (joinedNow && !creator) yield* offerPings(i, venue, "join");
     });
 
+    /** A press on a server's Weekly Cup post, answered in words; none there if it isn't running. */
+    const cupAnswer = Effect.fn("cupAnswer")(function* (
+      guildId: string,
+      press: (cup: CupPresses) => Effect.Effect<CupAnswer>,
+    ) {
+      const cup = yield* cups.in(guildId);
+      if (Option.isNone(cup)) return { _tag: "Text", text: CUP_NOT_HERE } satisfies CupAnswer;
+      return yield* press(cup.value);
+    });
+    const cupText = Effect.fn("cupText")(function* (
+      guildId: string,
+      press: (cup: CupPresses) => Effect.Effect<CupAnswer>,
+    ) {
+      const answer = yield* cupAnswer(guildId, press);
+      // Only Skip asks to confirm; anything else is words.
+      return answer._tag === "Text" ? answer.text : CUP_NOT_HERE;
+    });
+    /** Answer a Cup press privately, deferred first: it redraws the post. */
+    const cupReply = Effect.fn("cupReply")(function* (
+      i: ButtonInteraction,
+      guildId: string,
+      press: (cup: CupPresses) => Effect.Effect<CupAnswer>,
+    ) {
+      yield* tryDiscord("defer", () => i.deferReply(ephemeral));
+      const content = yield* cupText(guildId, press);
+      yield* tryDiscord("edit reply", () => i.editReply({ content, ...quiet }));
+    });
+    /** Whether the member who pressed holds Manage Server where they pressed. */
+    const managesServer = (i: ButtonInteraction) =>
+      i.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ?? false;
+
     const confirmLink = Effect.fn("confirmLink")(function* (
       i: ButtonInteraction,
       venue: DiscordVenue,
@@ -229,6 +268,13 @@ export const InteractionsLive = Layer.scopedDiscard(
           i.followUp({ ...pickTypeMessage(), ...ephemeral }),
         );
       if (next.value._tag === "PlayAgain") return yield* playAgain(i, venue, next.value.matchId);
+      if (next.value._tag === "CupSignUp") {
+        const { guildId, week } = next.value;
+        const text = yield* cupText(guildId, (cup) => cup.signUp(week, self));
+        return yield* tryDiscord("follow up", () =>
+          i.followUp({ content: text, ...ephemeral, ...quiet }),
+        );
+      }
       yield* act(i, venue, next.value.action, next.value.matchId);
     });
 
@@ -342,6 +388,31 @@ export const InteractionsLive = Layer.scopedDiscard(
           // The card's own answer becomes the sign-in link, and the card again once paired.
           yield* tryDiscord("defer", () => i.deferUpdate());
           return yield* stats.pairAgain(memberOf(i), statsAnswer(i));
+        case "CupSignUp":
+          if (yield* linkFirst(i, control)) return;
+          return yield* cupReply(i, control.guildId, (cup) => cup.signUp(control.week, self));
+        case "CupWithdraw":
+          return yield* cupReply(i, control.guildId, (cup) => cup.withdraw(control.week, self));
+        case "CupSkip": {
+          const answer = yield* cupAnswer(control.guildId, (cup) =>
+            cup.askSkip(control.week, self, managesServer(i)),
+          );
+          const message =
+            answer._tag === "ConfirmSkip"
+              ? cupConfirmSkipMessage(control.guildId, answer.week)
+              : { content: answer.text, ...quiet };
+          return yield* tryDiscord("reply", () => i.reply({ ...message, ...ephemeral }));
+        }
+        case "CupConfirmSkip": {
+          // The confirmation becomes the answer.
+          yield* tryDiscord("defer", () => i.deferUpdate());
+          const content = yield* cupText(control.guildId, (cup) =>
+            cup.skip(control.week, self, managesServer(i)),
+          );
+          return yield* tryDiscord("edit reply", () =>
+            i.editReply({ content, components: [], ...quiet }),
+          );
+        }
         default:
           return;
       }

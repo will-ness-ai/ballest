@@ -470,6 +470,37 @@ In production the bot's role needs, where #my-stats is made (the Match channel's
 server), Manage Channels, Manage Roles, View Channel, Send Messages, Embed Links, Read Message
 History, both Create Threads, Send Messages in Threads and Add Reactions (`NEEDED_TO_CREATE`).
 
+## The Weekly Cup
+
+`src/weeklyCup/` runs the Weekly Cup (CONTEXT.md, spec #353) in each server `WEEKLY_CUP_GUILD_IDS`
+names (comma-separated, `fly.toml`: Ballest Racing); unset, or in the sandbox, it is off. At
+startup, in the background, it keeps `#weekly-cup` there (`channel.ts`): the stored one by id
+(`weekly_cup_channels`), else a text channel of that name with the Match channel's overwrites set
+(Manage Roles), else a new one with them (Manage Channels); a server it can't set up is told to
+ops, and its Cup waits for the next start. Presses there reach `interactions.ts` through
+`Discord.answerIn`, as #my-stats's do, never through a Venue's "being repaired".
+
+`schedule.ts` is one state machine per server, every boundary US Central (`week.ts`, through
+`Intl`, so daylight saving holds): Monday 00:00 the week's post goes up (Components V2, with the
+rules, the schedule as Discord timestamps and the Entrants) with Sign up, Withdraw and Skip this
+week; Thursday 12:00 a week with fewer than 2 Entrants is cancelled (post redrawn, Entrants pinged
+in a notice), else it moves to voting, Friday 09:00 to racing, Sunday 20:00 to final (sign-up
+closes). Sign up needs a Link (an unlinked member gets Link Steam first, then is signed up); Skip
+asks a member with Manage Server to confirm, only while the week is open, and pings its Entrants.
+Every press is answered privately, for the week its button names: an earlier week's post says
+it's over. Each week (`weekly_cups`) and its Entrants (`weekly_cup_entrants`, with when each
+signed up) are in SQLite, and each step works from that and the clock, so a restart resumes
+without posting again and acts at once on a boundary passed while it was down; a week the bot
+first starts in after Thursday 12:00 gets no post. A failed post is retried every minute and a
+failed edit at the next change, each told to ops once until it lands.
+
+The schedule runs over ports on the TestClock (`test/weeklyCup.test.ts`), the week in
+`test/weeklyCupWeek.test.ts`, the channel over a fake server (`test/weeklyCupChannel.test.ts`),
+the post's buttons in `test/messages.test.ts`, and the presses through `interactions.ts` in
+`test/driver.test.ts` (the driver's `manageServer` press field stands for Manage Server). The
+discord.js calls (`live.ts`) are checked with `pnpm dev` and `WEEKLY_CUP_GUILD_IDS` set to the test
+server's id.
+
 ## Production
 
 Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,

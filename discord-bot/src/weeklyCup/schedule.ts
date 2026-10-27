@@ -422,3 +422,39 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
 });
 
 export type WeeklyCup = Effect.Effect.Success<ReturnType<typeof makeWeeklyCup>>;
+
+/** The presses on one server's Cup post, each for the week its button names. */
+export interface CupPresses {
+  readonly signUp: (week: string, discordId: string) => Effect.Effect<CupAnswer>;
+  readonly withdraw: (week: string, discordId: string) => Effect.Effect<CupAnswer>;
+  /** `manageServer`: whether the member holds Manage Server there. */
+  readonly askSkip: (
+    week: string,
+    discordId: string,
+    manageServer: boolean,
+  ) => Effect.Effect<CupAnswer>;
+  readonly skip: (
+    week: string,
+    discordId: string,
+    manageServer: boolean,
+  ) => Effect.Effect<CupAnswer>;
+}
+
+/** A Cup's presses, with the channel and ops it runs with. */
+export const pressesOf = Effect.fn("pressesOf")(function* (cup: WeeklyCup) {
+  const context = yield* Effect.context<CupChannel | OpsAlerts>();
+  const within = <A>(effect: Effect.Effect<A, never, CupChannel | OpsAlerts>) =>
+    Effect.provide(effect, context);
+  return {
+    signUp: (week, who) => within(cup.signUp(week, who)),
+    withdraw: (week, who) => within(cup.withdraw(week, who)),
+    askSkip: (week, who, manageServer) => within(cup.askSkip(week, who, manageServer)),
+    skip: (week, who, manageServer) => within(cup.skip(week, who, manageServer)),
+  } satisfies CupPresses;
+});
+
+/** Every server's Weekly Cup that is running, by server id (WEEKLY_CUP_GUILD_IDS, live.ts). */
+export class WeeklyCups extends Context.Tag("multiballs/WeeklyCups")<
+  WeeklyCups,
+  { readonly in: (guildId: string) => Effect.Effect<Option.Option<CupPresses>> }
+>() {}

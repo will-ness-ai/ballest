@@ -28,6 +28,8 @@ export interface Press {
   readonly values?: ReadonlyArray<string>;
   /** A form's fields, by input custom id. */
   readonly fields?: Readonly<Record<string, string>>;
+  /** Whether the member holds Manage Server (the Weekly Cup's Skip); no unless told. */
+  readonly manageServer?: boolean;
 }
 
 /** One call the bot made on the interaction, in order. */
@@ -60,6 +62,8 @@ export const fakeInteraction = (press: Press, channelId: string) => {
     user: { id: press.as, username: press.as },
     channelId,
     channel: null,
+    guildId: null,
+    memberPermissions: { has: () => press.manageServer === true },
     values: press.values ?? [],
     fields: {
       getTextInputValue: (id: string) => {

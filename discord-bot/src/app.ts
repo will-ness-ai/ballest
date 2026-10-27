@@ -32,6 +32,7 @@ import { Restart, RestartLive } from "./restart.js";
 import { SkinPictures } from "./render/skins.js";
 import { SqliteStoreLive } from "./sqliteStore.js";
 import { VenueRecordsLive } from "./venues.js";
+import { WeeklyCupsLive } from "./weeklyCup/live.js";
 
 /**
  * The real environment first, then .env for anything it leaves out. Read when the bot starts,
@@ -153,7 +154,7 @@ export const app = <E, R, E2 = never>(
     (sandbox === undefined
       ? InteractionsLive
       : InteractionsLive.pipe(Layer.provide(sandbox.feed))
-    ).pipe(Layer.provide(SeeMyStatsLive)),
+    ).pipe(Layer.provide(SeeMyStatsLive), Layer.provide(WeeklyCupsLive)),
     OpsLive,
     DailyReportLive,
     DailyPostLive,
