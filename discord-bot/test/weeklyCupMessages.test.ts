@@ -1,12 +1,20 @@
 // The Weekly Cup's messages (spec #353): its post, Shortlist, standings, results and notices.
-import { type ActionRowBuilder, type ButtonBuilder, MessageFlags } from "discord.js";
+import {
+  type ActionRowBuilder,
+  type AttachmentBuilder,
+  type ButtonBuilder,
+  MessageFlags,
+} from "discord.js";
 import { describe, expect, it } from "vitest";
 import { parseControl } from "../src/discord/controls.js";
 import type { Payload } from "../src/discord/messages.js";
 import {
   cupConfirmSkipMessage,
   cupNoticeMessage,
-  cupStandingsMessages,
+  cupResultsMessages,
+  cupStandingsClosedMessage,
+  cupStandingsImage,
+  cupStandingsMessage,
   shortlistMessage,
   weeklyCupMessage,
 } from "../src/weeklyCup/messages.js";
@@ -73,6 +81,15 @@ describe("the Weekly Cup's post", () => {
   it("keeps sign-up open once the week is under way, without Skip", () => {
     for (const state of ["voting", "racing"] as const)
       expect(cupButtons(post(state)).map((b) => b.label)).toEqual(["Sign up", "Withdraw"]);
+  });
+
+  it("trims a skipped week's post to the skipped notice, without schedule, rules or Entrants", () => {
+    const text = words(post("skipped", ["111"]));
+    expect(text).toContain("Weekly Cup · week of");
+    expect(text).toContain("Skipped this week");
+    expect(text).not.toContain("This week** (US Central)");
+    expect(text).not.toContain("The rules");
+    expect(text).not.toContain("<@111>");
   });
 
   it("has no buttons once the week is over, cancelled or skipped, and says which", () => {
@@ -195,109 +212,154 @@ describe("the Weekly Cup's post", () => {
     expect(text).not.toContain("Vote for up to");
   });
 
-  const standingsOf = (final: boolean, lateReads: StandingsView["lateReads"] = []) => {
-    const parts = cupStandingsMessages({
-      guildId: cup.guildId,
-      week,
-      maps: [cupMap(3), cupMap(1)],
-      final,
-      lateReads,
-      standings: cupStandings([cupMap(3), cupMap(1)], ["111", "222", "333"], {
-        pf3: { "222": ticks(12.5), "111": ticks(13) },
-        pf1: { "111": ticks(40) },
-      }),
+  const standingsView = (
+    final: boolean,
+    lateReads: StandingsView["lateReads"] = [],
+  ): StandingsView => ({
+    guildId: cup.guildId,
+    week,
+    maps: [cupMap(3), cupMap(1)],
+    final,
+    lateReads,
+    standings: cupStandings([cupMap(3), cupMap(1)], ["111", "222", "333"], {
+      pf3: { "222": ticks(12.5), "111": ticks(13) },
+      pf1: { "111": ticks(40) },
+    }),
+  });
+  const NAMES = new Map([
+    ["111", "Alice"],
+    ["222", "Bob"],
+    ["333", "Cara"],
+  ]);
+  const PNG = new Uint8Array([1, 2, 3]);
+  /** Each attachment's name, alt text and bytes. */
+  const filesOf = (p: Payload) =>
+    (p.files ?? []).map((f) => {
+      const a = f as AttachmentBuilder;
+      return { name: a.name, alt: a.description, bytes: [...(a.attachment as Buffer)] };
     });
-    // Three Entrants fit one message.
-    expect(parts).toHaveLength(1);
-    return parts[0] ?? {};
-  };
+  /** Every way a time of these Entrants could be written. */
+  const TIMES = ["12.500", "12.5", "13.000", "40.000", "0:12", "0:13", "0:40"];
 
-  it("shows the live standings as plain text: overall, then each Cup Map, pinging nobody", () => {
-    const live = standingsOf(false);
+  it("draws the live standings' picture with each Entrant's places and points, and no time", () => {
+    const image = cupStandingsImage(standingsView(false), NAMES);
+    expect(image.maps).toEqual(["Map 3", "Map 1"]);
+    expect(image.rows.map((r) => [r.place, r.name, r.total, r.wins, r.cells])).toEqual([
+      [
+        1,
+        "Alice",
+        60000,
+        1,
+        [
+          { rank: 2, time: null },
+          { rank: 1, time: null },
+        ],
+      ],
+      [2, "Bob", 40000, 1, [{ rank: 1, time: null }, null]],
+      [3, "Cara", 0, 0, [null, null]],
+    ]);
+    const all = JSON.stringify(image);
+    for (const t of TIMES) expect(all).not.toContain(t);
+  });
+
+  it("draws the results' picture with each time beside its place", () => {
+    const image = cupStandingsImage(standingsView(true), NAMES);
+    expect(image.subtitle).toContain("results");
+    expect(image.rows.map((r) => r.cells)).toEqual([
+      [
+        { rank: 2, time: "13.000" },
+        { rank: 1, time: "40.000" },
+      ],
+      [{ rank: 1, time: "12.500" }, null],
+      [null, null],
+    ]);
+  });
+
+  it("posts the live standings as that picture, with the Cup Maps' pages and no time, pinging nobody", () => {
+    const live = cupStandingsMessage(standingsView(false), PNG);
     expect(live.components ?? []).toEqual([]);
+    expect(filesOf(live)).toEqual([
+      { name: "cup-standings.png", alt: expect.any(String), bytes: [1, 2, 3] },
+    ]);
     const text = live.content ?? "";
     expect(text).toContain("Live standings");
-    expect(text).toContain("1. <@111> · 60,000 pts");
-    expect(text).toContain("2. <@222> · 40,000 pts");
-    expect(text).toContain("3. <@333> · 0 pts");
-    expect(text).toContain("[Map 3](<https://ballestrecords.com/map/pf3>)");
-    expect(text).toContain("1. <@222> **0:12.500** · 40,000");
-    expect(text).toContain("2. <@111> **0:13.000** · 20,000");
-    expect(text).toContain("No time yet: <@333>");
     expect(text).toContain(`<t:${week.endsAt / 1000}:F>`);
+    expect(text).toContain("[Map 3](<https://ballestrecords.com/map/pf3>)");
+    expect(text).toContain("[Map 1](<https://ballestrecords.com/map/pf1>)");
+    for (const t of TIMES) {
+      expect(text).not.toContain(t);
+      expect(filesOf(live)[0]?.alt).not.toContain(t);
+    }
     pingsNobody(live);
   });
 
-  it("posts the results with the winner, pinging the Entrants", () => {
-    const results = standingsOf(true);
+  it("says on the live standings, once the results are up, that racing closed, and drops its picture", () => {
+    const closed = cupStandingsClosedMessage(standingsView(true));
+    const text = closed.content ?? "";
+    expect(text).toContain("Racing closed");
+    expect(text).toContain("results");
+    expect(text).not.toContain("Read every 5 minutes");
+    expect(closed.files ?? []).toEqual([]);
+    expect(closed.attachments).toEqual([]);
+    pingsNobody(closed);
+  });
+
+  it("posts the results with the winner and the picture with every time, pinging the Entrants", () => {
+    const parts = cupResultsMessages(standingsView(true), PNG);
+    expect(parts).toHaveLength(1);
+    const results = parts[0] ?? {};
     const text = results.content ?? "";
     expect(text).toContain("Results");
     expect(text).toContain("<@111> wins this week's Weekly Cup");
     expect(text).not.toContain("Live standings");
-    // The week is over: an Entrant with no time has none, not none "yet".
-    expect(text).toContain("No time: <@333>");
-    expect(text).not.toContain("No time yet");
+    expect(filesOf(results)).toEqual([
+      { name: "cup-results.png", alt: expect.any(String), bytes: [1, 2, 3] },
+    ]);
     expect(pinged(results)).toEqual(["111", "222", "333"]);
   });
 
   it("says in the results which Cup Maps were read late, or not at the end", () => {
     const late = week.endsAt + 600_000;
-    const text =
-      standingsOf(true, [
-        { pfid: "pf3", at: late },
-        { pfid: "pf1", at: null },
-      ]).content ?? "";
+    const textOf = (lateReads: StandingsView["lateReads"]) =>
+      cupResultsMessages(standingsView(true, lateReads), PNG)[0]?.content ?? "";
+    const text = textOf([
+      { pfid: "pf3", at: late },
+      { pfid: "pf1", at: null },
+    ]);
     expect(text).toContain(`Map 3 was read late, at <t:${late / 1000}:t>`);
     expect(text).toContain("Map 1 couldn't be read at the end");
-    expect(standingsOf(true).content).not.toContain("read late");
+    expect(textOf([])).not.toContain("read late");
   });
 
-  describe("with 60 Entrants", () => {
-    const entrants = Array.from({ length: 60 }, (_, i) =>
+  it("pings each of 100 Entrants once across the results' messages, the picture on the first", () => {
+    const entrants = Array.from({ length: 100 }, (_, i) =>
       String(100_000_000_000_000_000n + BigInt(i)),
     );
     const maps = [cupMap(1), cupMap(2), cupMap(3)];
     const times = Object.fromEntries(
-      maps.map((m, k) => [
-        m.pfid,
-        Object.fromEntries(entrants.slice(0, 20 + 10 * k).map((id, i) => [id, ticks(20 + i)])),
-      ]),
+      maps.map((m) => [m.pfid, Object.fromEntries(entrants.map((id, i) => [id, ticks(20 + i)]))]),
     );
-    const partsOf = (final: boolean) =>
-      cupStandingsMessages({
+    const parts = cupResultsMessages(
+      {
         guildId: cup.guildId,
         week,
         maps,
-        final,
+        final: true,
         lateReads: [],
         standings: cupStandings(maps, entrants, times),
-      });
-    const linesOf = (parts: ReadonlyArray<Payload>) =>
-      parts.flatMap((p) => (p.content ?? "").split("\n"));
-
-    it("splits the standings across messages under 2,000 characters, at line breaks", () => {
-      const parts = partsOf(false);
-      expect(parts.length).toBeGreaterThan(1);
-      for (const p of parts) {
-        const text = p.content ?? "";
-        expect(text.length).toBeLessThanOrEqual(2000);
-        // Every mention whole within its message.
-        expect(text.split("<@").length - 1).toBe([...text.matchAll(/<@\d+>/g)].length);
-        pingsNobody(p);
-      }
-      const lines = linesOf(parts);
-      // Every Entrant's overall line, once.
-      const overall = lines.filter((l) => /^\d+\. <@\d+> · [\d,]+ pts/.test(l));
-      expect(overall.map((l) => /<@(\d+)>/.exec(l)?.[1]).sort()).toEqual([...entrants].sort());
-    });
-
-    it("pings each Entrant once across the results' messages", () => {
-      const parts = partsOf(true);
-      expect(parts.length).toBeGreaterThan(1);
-      const pings = parts.flatMap((p) => pinged(p));
-      expect([...pings].sort()).toEqual([...entrants].sort());
-      for (const p of parts) expect((p.content ?? "").length).toBeLessThanOrEqual(2000);
-    });
+      },
+      PNG,
+    );
+    expect(parts.length).toBeGreaterThan(1);
+    expect(parts.map((p) => filesOf(p).length)).toEqual([1, ...parts.slice(1).map(() => 0)]);
+    const pings = parts.flatMap((p) => pinged(p));
+    expect([...pings].sort()).toEqual([...entrants].sort());
+    for (const p of parts) {
+      const text = p.content ?? "";
+      expect(text.length).toBeLessThanOrEqual(2000);
+      // Every mention whole within its message.
+      expect(text.split("<@").length - 1).toBe([...text.matchAll(/<@\d+>/g)].length);
+    }
   });
 
   it("sends each one-time Cup post with a nonce of its server, week and kind, which Discord enforces", () => {

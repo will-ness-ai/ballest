@@ -1,6 +1,6 @@
 // The Weekly Cup's messages (spec #353): its post, the notices beside it, the Shortlist with its
-// vote, the standings and results, and Skip's confirmation, as discord.js payloads. The standings
-// and results text lives in `cupStandingsMessages` alone, so their look can be swapped there.
+// vote, the live standings and the results (a picture the Renderer draws, from
+// `cupStandingsImage`), and Skip's confirmation, as discord.js payloads.
 import {
   ActionRowBuilder,
   AttachmentBuilder,
@@ -26,6 +26,7 @@ import {
 import { formatTime, SCORE_TICKS_PER_SECOND } from "../domain.js";
 import { escape, mapLink, mapName } from "../links.js";
 import type { Preview } from "../previews.js";
+import type { CupStandingsImage } from "../render/scenes.js";
 import {
   CUP_MAPS,
   type CupNotice,
@@ -92,6 +93,10 @@ export const weeklyCupMessage = (v: CupPostView): V2Payload => {
       new TextDisplayBuilder().setContent(
         `## Weekly Cup · week of ${shortDate(w.opensAt)}\n${cupStanding(v)}`,
       ),
+    );
+  // A skipped week never ran: its post says so and nothing more.
+  if (v.state !== "skipped")
+    container.addTextDisplayComponents(
       new TextDisplayBuilder().setContent(schedule),
       new TextDisplayBuilder().setContent(CUP_RULES),
       new TextDisplayBuilder().setContent(entrants),
@@ -205,77 +210,118 @@ export const shortlistMessage = (v: ShortlistView): V2Payload => {
 
 /** Discord's limit on a message's text. */
 const CONTENT_LIMIT = 2000;
-/** Most timed rows shown under each Cup Map. */
-const MAP_ROWS = 10;
 
-const points = (n: number) => n.toLocaleString("en-US");
+/** A time in the results' picture: seconds, with minutes only past one. */
+const shortTime = (ticks: number) => formatTime(ticks).replace(/^0:/, "");
 
 /**
- * The Cup's standings as plain text (spec #353, #358), live while racing and the results at the
- * end: overall by points, then each Cup Map's times, as one message or, past Discord's 2,000
- * characters, several in order, split between sections or lines (never inside a mention). The
- * one place their look lives, so the look the organisers choose replaces this alone. Live
- * standings ping nobody; the results ping each Entrant once, in the first message naming them.
+ * The standings' picture (spec #353): a row per Entrant, best first, with their place, points and
+ * Map wins, and each Cup Map's place. Live, a place goes alone: no Entrant's time is shown before
+ * the results, which put each time beside its place. `names` are the Entrants' names in the server.
  */
-export const cupStandingsMessages = (v: StandingsView): ReadonlyArray<Payload> => {
-  const { overall, maps } = v.standings;
-  const head = v.final
-    ? [
-        `## Weekly Cup Results · week of ${shortDate(v.week.opensAt)}`,
-        ...(overall[0] !== undefined && overall[0].total > 0
-          ? [
-              `${overall
-                .filter((o) => o.place === 1)
-                .map((o) => who(o.discordId))
-                .join(
-                  " and ",
-                )} ${overall.filter((o) => o.place === 1).length === 1 ? "wins" : "share"} this week's Weekly Cup.`,
-            ]
-          : ["Nobody set a time on a Cup Map this week."]),
-        ...v.lateReads.map(({ pfid, at }) => {
-          const name = escape(mapName(v.maps.find((m) => m.pfid === pfid) ?? { pfid, title: "" }));
-          return at === null
-            ? `${name} couldn't be read at the end (Steam didn't answer), so it stands on its last read before <t:${unix(v.week.endsAt)}:t>.`
-            : `${name} was read late, at <t:${unix(at)}:t> (Steam was slow), so a time set after <t:${unix(v.week.endsAt)}:t> may count.`;
-        }),
-      ]
-    : [
-        `## Live standings · Weekly Cup, week of ${shortDate(v.week.opensAt)}`,
-        `Read every 5 minutes until <t:${unix(v.week.endsAt)}:F>.`,
-      ];
-  const overallLines = [
-    "**Overall**",
-    ...overall.map(
-      (o) =>
-        `${o.place}. ${who(o.discordId)} · ${points(o.total)} pts${o.wins > 0 ? ` · ${o.wins} ${o.wins === 1 ? "win" : "wins"}` : ""}`,
-    ),
+export const cupStandingsImage = (
+  v: StandingsView,
+  names: ReadonlyMap<string, string>,
+): CupStandingsImage => ({
+  title: "Weekly Cup",
+  subtitle: `Week of ${shortDate(v.week.opensAt)} · ${v.final ? "results" : "live standings"}`,
+  maps: v.standings.maps.map((m) => mapName(v.maps.find((c) => c.pfid === m.pfid) ?? m)),
+  rows: v.standings.overall.map((o) => ({
+    place: o.place,
+    name: names.get(o.discordId) ?? "Someone",
+    total: o.total,
+    wins: o.wins,
+    cells: v.standings.maps.map((m) => {
+      const r = m.rows.find((x) => x.discordId === o.discordId);
+      return r?.ticks == null || r.rank === null
+        ? null
+        : { rank: r.rank, time: v.final ? shortTime(r.ticks) : null };
+    }),
+  })),
+});
+
+const cupMapLinks = (v: StandingsView) =>
+  `Cup Maps: ${v.maps.map((m, i) => `${i + 1}. ${mapLink(m)}`).join(" · ")}`;
+
+/**
+ * The live standings (spec #353, #358): their picture, read every 5 minutes, with the Cup Maps'
+ * pages, pinging nobody. No Entrant's time is in it, its words or its alt text: times stay secret
+ * until the results.
+ */
+export const cupStandingsMessage = (v: StandingsView, png: Uint8Array): Payload => ({
+  content: [
+    `## Live standings · Weekly Cup, week of ${shortDate(v.week.opensAt)}`,
+    `Read every 5 minutes until <t:${unix(v.week.endsAt)}:F>. Times stay secret until the results: each Cup Map shows your place on it.`,
+    cupMapLinks(v),
+  ].join("\n"),
+  files: [
+    new AttachmentBuilder(Buffer.from(png), {
+      name: "cup-standings.png",
+      description:
+        "The Weekly Cup's live standings: each Entrant's place, points and Map wins, and their place on each Cup Map.",
+    }),
+  ],
+  components: [],
+  ...quiet,
+});
+
+/** The live standings once the results are up: racing has closed, and the results are below. */
+export const cupStandingsClosedMessage = (v: StandingsView): Payload => ({
+  content: `**Racing closed** <t:${unix(v.week.endsAt)}:F>. This week's results, with every time, are below.`,
+  components: [],
+  // An edit drops the live picture.
+  attachments: [],
+  ...quiet,
+});
+
+/**
+ * The results (spec #353): who won, which Cup Maps were read late, and the picture with every
+ * time, pinging each Entrant once. Past Discord's 2,000 characters the Entrants' mentions go on
+ * in more messages, split between mentions; the picture is on the first.
+ */
+export const cupResultsMessages = (v: StandingsView, png: Uint8Array): ReadonlyArray<Payload> => {
+  const { overall } = v.standings;
+  const winners = overall.filter((o) => o.place === 1);
+  const head = [
+    `## Weekly Cup Results · week of ${shortDate(v.week.opensAt)}`,
+    overall[0] !== undefined && overall[0].total > 0
+      ? `${winners.map((o) => who(o.discordId)).join(" and ")} ${winners.length === 1 ? "wins" : "share"} this week's Weekly Cup.`
+      : "Nobody set a time on a Cup Map this week.",
+    ...v.lateReads.map(({ pfid, at }) => {
+      const name = escape(mapName(v.maps.find((m) => m.pfid === pfid) ?? { pfid, title: "" }));
+      return at === null
+        ? `${name} couldn't be read at the end (Steam didn't answer), so it stands on its last read before <t:${unix(v.week.endsAt)}:t>.`
+        : `${name} was read late, at <t:${unix(at)}:t> (Steam was slow), so a time set after <t:${unix(v.week.endsAt)}:t> may count.`;
+    }),
+    cupMapLinks(v),
   ];
-  const perMap = maps.map((m, i) => {
-    const map = v.maps.find((c) => c.pfid === m.pfid);
-    const timed = m.rows.flatMap((r) =>
-      r.ticks === null || r.rank === null ? [] : [{ ...r, ticks: r.ticks, rank: r.rank }],
-    );
-    const untimed = m.rows.filter((r) => r.ticks === null).map((r) => who(r.discordId));
-    return [
-      `**${i + 1}. ${map === undefined ? escape(m.title) : mapLink(map)}**`,
-      ...timed
-        .slice(0, MAP_ROWS)
-        .map(
-          (r) => `${r.rank}. ${who(r.discordId)} **${formatTime(r.ticks)}** · ${points(r.points)}`,
-        ),
-      ...(timed.length > MAP_ROWS ? [`and ${timed.length - MAP_ROWS} more`] : []),
-      ...listLines(v.final ? "No time: " : "No time yet: ", untimed),
-    ];
-  });
-  const parts = packed([head, overallLines, ...perMap]);
-  if (!v.final) return parts.map((content) => ({ content, components: [], ...quiet }));
+  const entrants = listLines(
+    "Thanks for racing, ",
+    overall.map((o) => who(o.discordId)),
+  );
+  const parts = packed([head, entrants]);
   const pinged = new Set<string>();
-  return parts.map((content) => {
+  return parts.map((content, i) => {
     const named = [...content.matchAll(/<@(\d+)>/g)].flatMap(([, id]) =>
       id === undefined || pinged.has(id) ? [] : [id],
     );
     for (const id of named) pinged.add(id);
-    return { content, components: [], allowedMentions: { users: [...new Set(named)] } };
+    return {
+      content,
+      components: [],
+      allowedMentions: { users: [...new Set(named)] },
+      ...(i === 0
+        ? {
+            files: [
+              new AttachmentBuilder(Buffer.from(png), {
+                name: "cup-results.png",
+                description:
+                  "The Weekly Cup's results: each Entrant's place, points and Map wins, and their time and place on each Cup Map.",
+              }),
+            ],
+          }
+        : {}),
+    };
   });
 };
 

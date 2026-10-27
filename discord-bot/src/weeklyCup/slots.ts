@@ -3,7 +3,9 @@
 // drawn as one or more messages: a first post of a one-time slot goes with a nonce Discord
 // enforces, so a send repeated after a restart is dropped; an edit is made only where a message
 // would change; a message someone deleted (Unknown Message) is posted afresh; and a view that now
-// takes more or fewer messages posts or drops the difference.
+// takes more or fewer messages posts or drops the difference. The standings and results carry a
+// picture (CupPictures: the Renderer, with the Entrants' names), drawn again only when what it
+// shows changes.
 import { createHash } from "node:crypto";
 import { Effect } from "effect";
 import {
@@ -13,9 +15,14 @@ import {
   UNKNOWN_MESSAGE,
 } from "../discord/client.js";
 import { fingerprint, type Payload } from "../discord/messages.js";
+import type { RenderError } from "../render/renderer.js";
+import type { CupStandingsImage } from "../render/scenes.js";
 import {
   cupNoticeMessage,
-  cupStandingsMessages,
+  cupResultsMessages,
+  cupStandingsClosedMessage,
+  cupStandingsImage,
+  cupStandingsMessage,
   shortlistMessage,
   weeklyCupMessage,
 } from "./messages.js";
@@ -26,6 +33,7 @@ import {
   type ShowOptions,
   type Slot,
   type SlotViews,
+  type StandingsView,
 } from "./model.js";
 
 /** A payload as it is first sent: perhaps with a nonce Discord enforces. */
@@ -60,13 +68,11 @@ export const sentOnce = (
   enforceNonce: true,
 });
 
-/** Each slot's messages for its view. */
-const DRAW: { readonly [S in Slot]: (view: SlotViews[S]) => ReadonlyArray<Payload> } = {
-  post: (v) => [weeklyCupMessage(v)],
-  shortlist: (v) => [shortlistMessage(v)],
-  standings: cupStandingsMessages,
-  results: cupStandingsMessages,
-};
+/** How the standings' picture is drawn: the Entrants' names in the server, and the Renderer. */
+export interface CupPictures {
+  readonly nameOf: (discordId: string) => Effect.Effect<string>;
+  readonly standings: (image: CupStandingsImage) => Effect.Effect<Uint8Array, RenderError>;
+}
 /** The slots whose first post goes once; the standings are redrawn every read, and need none. */
 const ONCE: Readonly<Record<Slot, boolean>> = {
   post: true,
@@ -79,9 +85,55 @@ const refused = (e: DiscordError) => new CupPostFailed({ reason: describeDiscord
 const gone = (e: DiscordError) => hasCode(e, UNKNOWN_MESSAGE);
 
 /** The CupChannel port over a channel's messages, in server `guildId`. */
-export const cupChannelOver = (sink: MessageSink, guildId: string) => {
+export const cupChannelOver = (sink: MessageSink, guildId: string, pictures: CupPictures) => {
   /** What each message shows (its fingerprint), so an unchanged one isn't edited. */
   const drawn = new Map<string, string>();
+  /** Each slot's last picture, by what it shows, so an unchanged one isn't drawn again. */
+  const painted = new Map<Slot, { readonly shows: string; readonly png: Uint8Array }>();
+
+  /** The standings' or results' picture for this view. */
+  const picture = Effect.fn("cupChannel.picture")(function* (slot: Slot, view: StandingsView) {
+    const names = new Map<string, string>();
+    for (const o of view.standings.overall)
+      names.set(o.discordId, yield* pictures.nameOf(o.discordId));
+    const image = cupStandingsImage(view, names);
+    const shows = JSON.stringify(image);
+    const last = painted.get(slot);
+    if (last?.shows === shows) return last.png;
+    const png = yield* pictures
+      .standings(image)
+      .pipe(
+        Effect.mapError(
+          (e) => new CupPostFailed({ reason: `couldn't draw the standings: ${String(e.cause)}` }),
+        ),
+      );
+    painted.set(slot, { shows, png });
+    return png;
+  });
+
+  /** Each slot's messages for its view. */
+  const draw = (
+    slot: Slot,
+    view: SlotViews[Slot],
+  ): Effect.Effect<ReadonlyArray<Payload>, CupPostFailed> => {
+    switch (slot) {
+      case "post":
+        return Effect.succeed([weeklyCupMessage(view as SlotViews["post"])]);
+      case "shortlist":
+        return Effect.succeed([shortlistMessage(view as SlotViews["shortlist"])]);
+      case "standings": {
+        const v = view as SlotViews["standings"];
+        // Shown final, once the results are up, they only point to them: no picture.
+        return v.final
+          ? Effect.succeed([cupStandingsClosedMessage(v)])
+          : Effect.map(picture(slot, v), (png) => [cupStandingsMessage(v, png)]);
+      }
+      case "results": {
+        const v = view as SlotViews["results"];
+        return Effect.map(picture(slot, v), (png) => cupResultsMessages(v, png));
+      }
+    }
+  };
 
   const post = Effect.fn("cupChannel.post")(function* (
     slot: Slot,
@@ -147,7 +199,7 @@ export const cupChannelOver = (sink: MessageSink, guildId: string) => {
       view: SlotViews[S],
       options?: ShowOptions,
     ) {
-      const parts = DRAW[slot](view);
+      const parts = yield* draw(slot, view);
       const week = view.week.week;
       if (shown.length === 0) return yield* post(slot, week, parts, ONCE[slot]);
       const redrawn = yield* redraw(slot, week, shown, parts);

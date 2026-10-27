@@ -117,7 +117,7 @@ export interface VenueInteraction {
 }
 
 /** NFKC turns "fancy text" (𝐁𝐨𝐥𝐝, Ｗｉｄｅ, ⓒⓘⓡⓒⓛⓔⓓ letters) into the plain letters the image fonts have. */
-const plainName = (name: string) => name.normalize("NFKC");
+export const plainName = (name: string) => name.normalize("NFKC");
 
 /**
  * Check one Venue as the bot needs it, or say in one line what is wrong: its channel is a text
