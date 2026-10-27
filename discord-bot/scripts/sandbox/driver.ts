@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 // Forward slashes on Windows too: the paths are printed for agents, and Node takes them as they are.
 import { posix } from "node:path";
-import type { Interaction } from "discord.js";
+import { type Guild, type Interaction, PermissionFlagsBits } from "discord.js";
 import { Effect, Layer, Option, Queue, Runtime, Stream } from "effect";
 import { Discord } from "../../src/discord/client.js";
 import { DriverInteractions } from "../../src/discord/interactions.js";
@@ -31,7 +31,7 @@ export interface Press {
   readonly values?: ReadonlyArray<string>;
   /** A form's fields, by input custom id. */
   readonly fields?: Readonly<Record<string, string>>;
-  /** Whether the member holds Manage Server (the Weekly Cup's Skip); no unless told. */
+  /** Whether the member holds Manage Server (the Weekly Cup's Skip); unless told, as they do. */
   readonly manageServer?: boolean;
 }
 
@@ -155,14 +155,17 @@ export const makeDriver = (opts: {
   readonly maps: ReadonlyArray<{ readonly title: string; readonly boardId: number | null }>;
 }) => {
   const queue = Effect.runSync(Queue.unbounded<Interaction>());
+  /** The test server, once the bot is logged in: for each member's real permissions. */
+  let guild: Guild | null = null;
   // Its clicks play in the home Venue: the sandbox channel is home's.
   const feed = Layer.effect(
     DriverInteractions,
-    Effect.map(Discord, (discord) =>
-      Stream.fromQueue(queue).pipe(
+    Effect.map(Discord, (discord) => {
+      guild = discord.home.channel.guild;
+      return Stream.fromQueue(queue).pipe(
         Stream.map((interaction) => ({ interaction, venue: discord.home })),
-      ),
-    ),
+      );
+    }),
   );
 
   const server = Layer.scopedDiscard(
@@ -170,8 +173,18 @@ export const makeDriver = (opts: {
       const store = yield* Store;
       const run = Runtime.runPromise(yield* Effect.runtime());
 
+      /** Whether the member holds Manage Server in the test server, as Discord would say. */
+      const managesServer = (memberId: string) =>
+        (guild?.members.fetch(memberId) ?? Promise.reject(new Error("not logged in")))
+          .then((m) => m.permissions.has(PermissionFlagsBits.ManageGuild))
+          .catch(() => false);
+
       const interact = async (press: Press) => {
-        const { interaction, settled } = fakeInteraction(press, opts.channelId);
+        const manageServer = press.manageServer ?? (await managesServer(press.as));
+        const { interaction, settled } = fakeInteraction(
+          { ...press, manageServer },
+          opts.channelId,
+        );
         await run(Queue.offer(queue, interaction));
         return { answers: (await settled).map(answerOf) };
       };
