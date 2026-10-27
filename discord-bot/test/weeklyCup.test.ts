@@ -977,6 +977,33 @@ describe("the Weekly Cup's racing and results", () => {
     }),
   );
 
+  it.scoped("finishes a week left racing while the bot was down from Sunday 19:50 to Monday", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      yield* t.steam.setTime(boards[0], steamIdOf("alice"), 12);
+      yield* bot.stop;
+      yield* TestClock.setTime(SUNDAY_EIGHT - 10 * MINUTE);
+      yield* t.runFor(MINUTE); // reads at 19:50, then goes down
+      yield* TestClock.setTime(NEXT_MONDAY + 10 * MINUTE);
+      yield* t.runFor(MINUTE);
+      const results = yield* Ref.get(t.results);
+      expect(results.map((r) => [r.at, r.view.week.week])).toEqual([
+        [NEXT_MONDAY + 10 * MINUTE, WEEK],
+      ]);
+      expect(results[0]?.view.standings.overall[0]).toMatchObject({ discordId: "alice" });
+      // Read at Monday 00:10: all three late, and the results say so.
+      expect(results[0]?.view.lateReads.map((r) => r.at)).toEqual(
+        Array(3).fill(NEXT_MONDAY + 10 * MINUTE),
+      );
+      const finals = (yield* Ref.get(t.edits)).filter(
+        (e) => e.view.week.week === WEEK && e.view.state === "final",
+      );
+      expect(finals.map((e) => e.at)).toEqual([NEXT_MONDAY + 10 * MINUTE]);
+      // And the new week's Cup goes up as well.
+      expect((yield* Ref.get(t.posts)).map((p) => p.view.week.week)).toEqual([WEEK, "2026-11-02"]);
+    }),
+  );
+
   it.scoped("posts the results as soon as Steam answers within the 30 minutes", () =>
     Effect.gen(function* () {
       const { t, bot, boards } = yield* racing();

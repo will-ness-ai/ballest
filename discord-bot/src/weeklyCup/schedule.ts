@@ -335,6 +335,8 @@ export class CupLog extends Context.Tag("multiballs/CupLog")<
       discordIds: ReadonlyArray<string>,
       bars: ReadonlyArray<Baseline>,
     ) => Effect.Effect<void>;
+    /** Weeks before this one still racing: their results never went up. */
+    readonly unfinished: (guildId: string, before: string) => Effect.Effect<ReadonlyArray<string>>;
     readonly times: (guildId: string, week: string) => Effect.Effect<ReadonlyArray<CupTime>>;
     /** A counted best, replacing the one before. */
     readonly putTime: (guildId: string, week: string, time: CupTime) => Effect.Effect<void>;
@@ -465,6 +467,16 @@ export const CupLogLive = Layer.effect(
           for (const b of bars)
             yield* sql`INSERT OR REPLACE INTO weekly_cup_baselines (guild_id, week, pfid, discord_id, ticks) VALUES (${guildId}, ${week}, ${b.pfid}, ${b.discordId}, ${b.ticks})`;
         }).pipe(sql.withTransaction, Effect.orDie);
+      }),
+      unfinished: Effect.fn("CupLog.unfinished")(function* (guildId: string, before: string) {
+        const rows =
+          yield* sql`SELECT week FROM weekly_cups WHERE guild_id = ${guildId} AND week < ${before} AND state = 'racing' ORDER BY week`.pipe(
+            Effect.flatMap(
+              Schema.decodeUnknown(Schema.Array(Schema.Struct({ week: Schema.String }))),
+            ),
+            Effect.orDie,
+          );
+        return rows.map((r) => r.week);
       }),
       times: Effect.fn("CupLog.times")(function* (guildId: string, week: string) {
         const rows =
@@ -960,11 +972,27 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
   });
 
   /**
-   * Act on the week as it stands at `now`, and say when to look again: post a week with no post
-   * yet, and move a posted one on past each boundary it has reached.
+   * Act at `now`, and say when to look again: finish any earlier week still racing (the bot was
+   * down over its close, so its results never went up), and act on this week.
    */
   const step = Effect.fn("cup.step")(function* (now: number) {
     const week = weekAt(now);
+    let wake = yield* stepWeek(now, week);
+    for (const earlier of yield* log.unfinished(guildId, week.week)) {
+      const was = weekAt(Date.parse(`${earlier}T12:00:00Z`)); // Monday 12:00 UTC is that week
+      const cup = yield* log.get(guildId, earlier);
+      if (Option.isNone(cup)) continue;
+      const next = yield* finish(now, was, cup.value);
+      if (next < was.nextOpensAt) wake = Math.min(wake, next);
+    }
+    return wake;
+  });
+
+  /**
+   * Act on this week as it stands at `now`, and say when to look again: post a week with no post
+   * yet, and move a posted one on past each boundary it has reached.
+   */
+  const stepWeek = Effect.fn("cup.stepWeek")(function* (now: number, week: CupWeek) {
     const found = yield* log.get(guildId, week.week);
     if (Option.isNone(found)) {
       if (now >= week.shortlistAt) return week.nextOpensAt;
