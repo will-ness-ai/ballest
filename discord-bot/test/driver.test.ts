@@ -3,7 +3,8 @@
 // a live Match can be pressed, and what the bot answered privately comes back in Discord's shape.
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Option, Stream } from "effect";
-import { Discord } from "../src/discord/client.js";
+import type { Interaction } from "discord.js";
+import { Discord, type DiscordVenue, type VenueInteraction } from "../src/discord/client.js";
 import { DriverInteractions, InteractionsLive } from "../src/discord/interactions.js";
 import { Engine } from "../src/engine.js";
 import { Pings } from "../src/pings.js";
@@ -17,7 +18,7 @@ import {
   Store,
 } from "../src/ports.js";
 import { Renderer } from "../src/render/renderer.js";
-import { OpsAlerts } from "../src/ops.js";
+import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { makeSeeMyStats, SeeMyStats, StatsLinks, StatsSite } from "../src/seeMyStats.js";
 import { controlsOf, fromPayload } from "../scripts/axi/describe.js";
 import { fakeInteraction, type Press } from "../scripts/sandbox/driver.js";
@@ -42,7 +43,10 @@ const seeMyStats = Layer.scoped(SeeMyStats, makeSeeMyStats).pipe(
         StatsSite,
         StatsSite.of({ url: SITE, card: () => Effect.succeed(Buffer.from("png")) }),
       ),
-      Layer.succeed(OpsAlerts, OpsAlerts.make({ configured: false, post: () => Effect.void })),
+      Layer.succeed(
+        OpsAlerts,
+        OpsAlerts.make(opsAlertsOf({ configured: false, post: () => Effect.void })),
+      ),
     ),
   ),
 );
@@ -54,10 +58,20 @@ const seeMyStats = Layer.scoped(SeeMyStats, makeSeeMyStats).pipe(
 const driven = (h: Harness, renderer: Layer.Layer<Renderer> = Renderer.Default) =>
   Effect.gen(function* () {
     const queue: Array<(i: unknown) => void> = [];
-    const feed = Stream.async<never>(
-      (emit) => void queue.push((i) => void emit.single(i as never)),
+    // The driver's clicks play in the home Venue, as in the sandbox.
+    const home = {
+      name: "home",
+      pingRoleId: "r-ping",
+      pingRoleName: "Multiplayer ping",
+    } as unknown as DiscordVenue;
+    const feed = Stream.async<VenueInteraction>(
+      (emit) =>
+        void queue.push((i) => void emit.single({ interaction: i as Interaction, venue: home })),
     );
-    const discord = Layer.succeed(Discord, Discord.make({ interactions: Stream.empty } as never));
+    const discord = Layer.succeed(
+      Discord,
+      Discord.make({ interactions: Stream.empty, home } as never),
+    );
     yield* Layer.build(
       InteractionsLive.pipe(
         Layer.provide(Layer.succeed(DriverInteractions, feed)),

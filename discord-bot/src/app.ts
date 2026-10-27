@@ -4,13 +4,13 @@ import { appendFileSync } from "node:fs";
 import { PlatformConfigProvider } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
 import { SqliteClient } from "@effect/sql-sqlite-node";
-import { Config, Effect, Layer, Logger, Option } from "effect";
+import { Config, Context, Effect, Layer, Logger, Option } from "effect";
 import { DiscordAuthLive, DiscordMembers, MembersUnavailable } from "./activity/auth.js";
 import { ChosenSkinsLive } from "./chosenSkins.js";
 import { activityServer } from "./activity/server.js";
 import { describeDiscordError, Discord } from "./discord/client.js";
 import { DriverInteractions, InteractionsLive } from "./discord/interactions.js";
-import { DiscordChannelLive } from "./discord/channel.js";
+import { VenueChannelsLive } from "./discord/channel.js";
 import { Marbles } from "./discord/marbles.js";
 import { MyStatsLive } from "./discord/myStats.js";
 import { SeeMyStatsLive } from "./seeMyStats.js";
@@ -23,12 +23,15 @@ import { ChannelSurfaceLive } from "./discord/surface.js";
 import { Engine } from "./engine.js";
 import type { Steam, Store } from "./ports.js";
 import { InstanceLockLive } from "./instanceLock.js";
-import { OpsLive } from "./ops.js";
+import { GuestsLive } from "./guests.js";
+import { OpsAlerts, OpsLive } from "./ops.js";
 import { Pings } from "./pings.js";
 import { MapPreviews, PreviewSourceLive } from "./previews.js";
 import { Renderer } from "./render/renderer.js";
+import { Restart, RestartLive } from "./restart.js";
 import { SkinPictures } from "./render/skins.js";
 import { SqliteStoreLive } from "./sqliteStore.js";
+import { VenueRecordsLive } from "./venues.js";
 
 /**
  * The real environment first, then .env for anything it leaves out. Read when the bot starts,
@@ -67,23 +70,32 @@ const ActivityLive = Layer.unwrapEffect(
     const secret = yield* Config.option(Config.redacted("DISCORD_CLIENT_SECRET"));
     if (Option.isNone(secret)) return Layer.empty;
     const clientId = yield* Config.string("DISCORD_APPLICATION_ID");
-    const guildId = yield* Config.string("DISCORD_GUILD_ID");
-    const channelId = yield* Config.string("DISCORD_CHANNEL_ID");
-    const members = Layer.effect(
+    // Every running Venue's server: a server left out, or being repaired, is turned away like any
+    // other.
+    const discord = yield* Discord;
+    const venues = Effect.map(discord.available, (available) =>
+      available.map((v) => ({
+        name: v.name,
+        guildId: v.channel.guildId,
+        channelId: v.channel.id,
+        pingRoleName: v.pingRoleName,
+      })),
+    );
+    const members = Layer.succeed(
       DiscordMembers,
-      Effect.gen(function* () {
-        const discord = yield* Discord;
-        return DiscordMembers.of({
-          nameOf: (discordId) =>
-            discord
-              .member(discordId)
-              .pipe(
-                Effect.mapError((e) => new MembersUnavailable({ reason: describeDiscordError(e) })),
-              ),
-        });
+      DiscordMembers.of({
+        nameOf: Effect.fn("nameOf")(function* (venue, discordId) {
+          const running = yield* discord.venueNamed(venue);
+          if (Option.isNone(running)) return Option.none<string>();
+          return yield* running.value
+            .member(discordId)
+            .pipe(
+              Effect.mapError((e) => new MembersUnavailable({ reason: describeDiscordError(e) })),
+            );
+        }),
       }),
     );
-    return activityServer({ clientId, guildId, channelId, devUsers: [] }).pipe(
+    return activityServer({ clientId, venues, devUsers: [] }).pipe(
       Layer.provide(DiscordAuthLive),
       Layer.provide(members),
     );
@@ -94,10 +106,12 @@ const SqlLive = SqliteClient.layerConfig({
   filename: Config.string("DB_PATH").pipe(Config.withDefault("multiballs.sqlite")),
 });
 
-// Discord first, so the Footer is in place before the engine's restart recovery redraws Cards.
+// Discord first, so each Venue's Footer is in place before the engine's restart recovery redraws
+// Cards.
 const SurfaceLive = ChannelSurfaceLive.pipe(
-  Layer.provide(DiscordChannelLive),
+  Layer.provide(VenueChannelsLive),
   Layer.provide(Marbles.Default),
+  Layer.provide(OpsAlerts.Default),
 );
 
 // One preview cache for both surfaces: the Card and the Activity show the same Workshop art.
@@ -110,13 +124,20 @@ const portsLive = <E, R>(steam: Layer.Layer<Steam, E, R>) =>
     // The same pictures the Renderer draws, for the Activity to serve.
     Layer.provideMerge(SkinPictures.Default),
     Layer.provideMerge(ChosenSkinsLive),
-    Layer.provideMerge(Discord.Default),
+    // A server that can't be set up as a Venue is left out with a line to ops; the Venues the bot
+    // set up itself are kept in SQLite, and a change to them restarts the bot.
+    Layer.provideMerge(
+      Discord.Default.pipe(Layer.provide(OpsAlerts.Default), Layer.provide(VenueRecordsLive)),
+    ),
+    // Where each guest Venue stands, shared by Discord's clicks and setup and the Surface.
+    Layer.provideMerge(GuestsLive),
+    Layer.provideMerge(RestartLive),
     Layer.provideMerge(SqlLive),
   );
 
 /** What the sandbox (scripts/sandbox.ts) adds: its driver's clicks, and its own server beside the bot. */
 export interface SandboxParts<E> {
-  readonly feed: Layer.Layer<DriverInteractions>;
+  readonly feed: Layer.Layer<DriverInteractions, never, Discord>;
   readonly server: Layer.Layer<never, E, Store>;
 }
 
@@ -145,6 +166,9 @@ export const app = <E, R, E2 = never>(
     Layer.provide(Engine.Default),
     Layer.provide(Pings.Default),
     Layer.provideMerge(portsLive(steam)),
+    // Everything is up (Footers posted, restart recovery done, clicks answered): a restart for
+    // the Venues may go ahead from now on.
+    Layer.tap((ports) => Context.get(ports, Restart).ready),
     Layer.provide(InstanceLockLive),
     Layer.provide(FileLogLive),
     Layer.provide(ConfigLive),

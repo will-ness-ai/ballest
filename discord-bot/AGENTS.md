@@ -40,22 +40,120 @@ with `fly status -a multiballs` and `fly logs -a multiballs`, and bring it back 
 click alongside Fly, so a checkout never holds production's token or starts production, not even
 to restore it while it is down.
 
-One copy runs per channel on a machine: a second start stops with "already running (pid N)".
-Stop the running copy by that pid before starting another. On Windows, stopping a background
+One copy runs per home channel on a machine: a second start stops with "already running (pid
+N)". Stop the running copy by that pid before starting another. On Windows, stopping a background
 shell leaves its Node process running.
 
-At startup the bot refuses to run without its channel permissions. The channel denies Send
-Messages to `@everyone` to stay read-only, so the bot's role needs an explicit Send Messages
-allow on that channel.
+## Venues
 
-It also refuses to run unless it can use the @Multiplayer ping role (Lobby pings, spec #87),
-whose id is `DISCORD_PING_ROLE_ID` (a different role for the dev app's test server and for
-production; set it in the main checkout's `.env` and in `fly secrets`). The role must exist, the
-bot needs Manage Roles with its own role above @Multiplayer ping, and the role must be
-mentionable or the bot allowed to Mention @everyone, @here and All Roles. That is the only
-role the bot ever adds or removes (`src/discord/pingRole.ts`, behind the `PingRole` port), and
-`src/pings.ts` is the one place both surfaces go through for it; its words are in
-`src/pingWords.ts`.
+One process plays in every Venue (CONTEXT.md, spec #315): a server, its Match channel and its
+@Multiplayer ping role. The home Venue, the game Discord, is `DISCORD_GUILD_ID`,
+`DISCORD_CHANNEL_ID` and `DISCORD_PING_ROLE_ID`, and its name is `home`. Every other server the
+bot is in is a Venue it set up itself (spec #321, `src/venues.ts`), named by the server's id,
+which is the key stored on its Matches.
+
+A server becomes a Venue by inviting the bot. The production app is private, so only Will can
+invite it, and any server it is invited to becomes a Venue. The invite link is
+
+```
+https://discord.com/oauth2/authorize?client_id=<DISCORD_APPLICATION_ID>&scope=bot%20applications.commands&permissions=326686198800
+```
+
+(scopes `bot applications.commands`; permissions `326686198800` are the channel permissions the
+bot checks for, Mention @everyone, @here and All Roles, Manage Roles and Manage Channels).
+
+Which servers are wanted (`makeVenueJoiner` in `src/venues.ts`, kept in SQLite's
+`known_servers`): on the first start of this build, every server the bot is already in (other
+than home) and joined before `VENUES_SINCE` (2026-10-22 00:00 UTC, or at an unknown time) is
+recorded as known but not wanted, so a deploy never adds a channel to a server nobody invited it
+to; one it joined since then (invited by hand that day) is wanted. To make one of those a Venue, remove the bot there and invite it again.
+From then on any other server is wanted: one that invites it while it runs (the Guilds intent's
+guild create event), one the bot finds at startup or at a retry without knowing it (invited
+while it was down or starting), or a not-wanted one it joined after the baseline was taken
+(removed and invited again while it was down). Servers recorded under a build that kept no
+baseline time keep what they were recorded as; the time is filled in as that start's, so only a
+later rejoin counts.
+
+**The running Venues are fixed for the life of the process, and home never waits on the
+others.** At startup home is checked; then each wanted server with a stored Venue whose channel
+and role are in discord.js's cache is checked from the cache alone (no Discord calls), and those
+are the guests that run. Home's Surface starts first, then the guests' side by side, each in the
+background: the engine waits on one at most 30 seconds, and a slower one runs once it is up.
+Each try may take a minute; past that it counts as failed, though what it was doing (its Footer's
+post, the write of its id) runs on, never interrupted. One whose Footer can't be put right (it
+can't be posted, or an old one can't be deleted) or that takes too long is left out, ops told
+once, and tried again in place every five minutes, with no setup and no restart. A guest is
+offered (clicks answered, listed in the Activity) only once its Footer is up; until then a click
+there gets "Multiballs is being repaired in this server, try again in a few minutes." Everything that needs Discord calls runs in the background
+once that is under way: setting up a new server, or repairing one (a deleted channel or role, a
+channel deleted while the bot runs), each with a 30-second limit (a setup past it runs on, never
+interrupted, and a retry skips its server till it ends, so it can't make a second channel). It runs 20 seconds
+after startup, every five minutes, and when Discord says a server is available again. Once a
+server sets up, and when a running Venue's server (broken or not) removes the bot, the bot
+restarts (`src/restart.ts`); a retry before that restart sets the server up again, which
+changes nothing, and asking again joins the restart already asked for. The
+restart waits until the app is fully up (home's Footer, recovery, interactions) and has run a
+minute; then its scope closes, every finalizer running, and it exits 0 (after 20 seconds it exits
+anyway); Fly's `[[restart]] policy = "always"` brings it back, and `pnpm dev` just exits. So an
+invite or a fixed permission means a quick restart, about 30 s, and live Matches carry on through
+the engine's restart recovery. A brake kept in SQLite (`venue_restarts`) allows at most three such
+restarts in any hour; one beyond that is logged and waits for the hour's first to age out, so a
+server whose availability flaps can't keep the bot restarting. Re-authorizing an invite with more
+permissions fires no event; the five-minute retry picks it up. The bot listens for invites,
+removals and outages before startup, so none is missed while it starts.
+
+Ops hears each kind of failure once per server, not at every retry: a missing permission, a
+Discord error by its code (50001 Missing Access), Discord down (any 5xx), a timeout, a bug
+("setting it up failed (see the log)"); a server that removes the bot is forgotten, so its next
+failure is news. No ops alert is ever waited on: posts queue up and one background fiber sends
+them in order, each with a 10-second limit; when the bot stops, the post under way is finished
+and what is still queued gets five seconds. Each setup asks only for what it does: Manage Channels to make the channel, Manage
+Roles to make the role or set a reused channel's overwrites.
+
+The bot sets a wanted server up:
+
+- **Channel:** a text channel named `multiballs`, reused if there is one, else created. @everyone
+  is denied Send Messages (members talk in Match Threads), and the bot's own member is allowed
+  every permission it checks for.
+- **Role:** a role named `Multiplayer ping`, reused if there is one below the bot's highest role,
+  else created, mentionable (Discord puts a new role below the bot's, so it can manage it).
+- **Stored:** the ids go in SQLite's `venues` table. At each start a stored Venue whose channel or
+  role is gone is set up again the same way; one with both still there is left as it is.
+
+Where each guest stands (starting, up, or broken) is kept in one place, `src/guests.ts`, which
+clicks, the Activity and the retry all read. Then it is checked as home is. A guest Venue whose channel is deleted while the bot runs
+(Discord's Unknown Channel, told to ops once) is broken, the only way one breaks: it is no longer
+offered (as above), and
+the retry, which no longer counts it as running, repairs it within five minutes and restarts the
+bot to run it, under the brake. Home logs the same and runs, as it always has. A server that removes the
+bot keeps its row, so inviting it again picks it back up.
+The setup rules are tested on a fake server behind the `SetupGuild` port (`test/venues.test.ts`);
+`src/discord/setupGuild.ts` is the port on discord.js, checked live by inviting the dev app to a
+second server while `pnpm dev` runs. The sandbox sets no server up and ignores joins
+(`MULTIBALLS_SANDBOX`), so it and `pnpm dev` never both set one up.
+
+Each Venue has its own Footer, Cards and Match Threads (a `venue_layouts` row each, behind the
+router in `src/discord/surface.ts`), its own queue (a Match's `venue`), its own ping role and its
+own ping-offer answers. Links, Chosen Skins, the Steam session and "one Match at a time" are
+shared. Clicks are handled in the Venue they came from; anywhere else they get "Multiballs only
+works in its own channel." The Daily Report, Daily Posts, #new-tracks and ops stay home's only.
+The Activity serves every running Venue: opened in a Venue's server it shows and opens that
+Venue's Matches only, linked into its channel (#317).
+
+Each Venue is checked as it starts: its channel permissions, and its ping role. Home failing a
+check stops the bot, as before; a server the bot can't set up (it lacks Manage Channels or Manage
+Roles, say) or whose Venue fails a check is left out, and tried again as above. A Match open in a Venue that isn't running still runs to its Result and is stored,
+unseen, but keeps none of its Players Busy (the Surface port's `runs`). Each channel denies Send
+Messages to `@everyone` to stay read-only, so the bot needs an explicit Send Messages allow on
+it: in a Venue it set up, its own overwrite; in home, set by hand on the bot's role.
+
+The ping role (Lobby pings, spec #87) is a different role for the dev app's test server and for
+production; set `DISCORD_PING_ROLE_ID` in the main checkout's `.env` and in `fly secrets`. In
+each Venue the role must exist, the bot needs Manage Roles with its own role above @Multiplayer
+ping, and the role must be mentionable or the bot allowed to Mention @everyone, @here and All
+Roles (a role the bot made is mentionable). That is the only role the bot ever adds or removes
+(`src/discord/pingRole.ts`, behind the `PingRole` port), and `src/pings.ts` is the one place both surfaces go through for it; its words
+are in `src/pingWords.ts`.
 
 ## The sandbox: driving the bot on the test server
 
@@ -123,8 +221,13 @@ running and `pnpm install` in `web/` too; `bot.yml` gives CI both.
 
 `src/activity/` is a Discord Activity (spec #46): the same Matches in a page Discord shows in an
 iframe, from Link Steam to the live standings and the Result. `api.ts` is an HTTP API over the
-Engine, tested in `test/activity.test.ts` like the engine tests; it names Players as the server
-does and refuses anyone outside `DISCORD_GUILD_ID`. `auth.ts` swaps the SDK's OAuth code for an
+Engine, tested in `test/activity.test.ts` like the engine tests. `/api/config` lists the running
+Venues' servers; the page refuses any other, and names its server in the `x-discord-guild`
+header of every request (`GUILD_HEADER`; one without it, from a page loaded before Venues, is
+home's). The API serves that Venue: it checks the member is in that server, names Players as
+that server does, and lists, opens, links and pings that Venue's only, answering another Venue's
+Match as not found. Links, Chosen Skins and Busy are shared (Busy by the engine's `isBusy`, which
+skips a Venue that isn't running). `auth.ts` swaps the SDK's OAuth code for an
 access token and holds the ports for Discord sign-in and server members. `server.ts` serves the
 page, its fonts from `@fontsource`, each Map's Workshop preview (from `src/previews.ts`) and
 each Skin's picture, because Discord's proxy blocks every other host. The page arrives with its
@@ -333,7 +436,7 @@ what the panel needs, and keeps one panel there with a **See my stats** button. 
 the panel's and the panel's fingerprint are in SQLite (`my_stats_channel`), so it is found by id and
 admins may rename or move it; the panel is edited only when this build draws it differently, like
 the Footer, and posted again if deleted. Presses there reach `interactions.ts` through
-`Discord.answerIn`. Before making the channel it checks the bot holds every permission in
+`Discord.answerIn`, as the home Venue's, ahead of the Venue lookup (`routeClick`), wherever its server is. Before making the channel it checks the bot holds every permission in
 `NEEDED_TO_CREATE` where the channel will be, the Match channel's category or else the server
 (in Ballest Racing, Add Reactions and Create Private Threads are beyond its invite's permissions)
 (Discord refuses an overwrite, allow or deny, naming a permission the bot lacks): any missing is

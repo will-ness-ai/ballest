@@ -15,6 +15,8 @@ export interface DiscordClient {
 }
 
 export interface SignedIn {
+  /** The Venue's server the page was opened in: every request names it, and the API serves that Venue. */
+  readonly guild: string;
   /** The token to send now. */
   readonly token: () => string;
   /**
@@ -24,8 +26,9 @@ export interface SignedIn {
   readonly renew: () => Promise<void>;
 }
 
-/** A session whose token never changes: the demo's `dev-<id>`. */
-export const fixedSession = (token: string): SignedIn => ({
+/** A session whose token never changes, in one server: the demo's `dev-<id>`. */
+export const fixedSession = (token: string, guild: string): SignedIn => ({
+  guild,
   token: () => token,
   renew: () => Promise.reject(new Error("the demo's sign-in can't be renewed")),
 });
@@ -33,14 +36,15 @@ export const fixedSession = (token: string): SignedIn => ({
 export const discordSession = async (
   discord: DiscordClient,
   deps: {
-    /** The servers Multiballs runs in. */
+    /** The servers Multiballs runs in: every running Venue's, home's and each guest's. */
     readonly guildIds: ReadonlyArray<string>;
     /** The bot's /api/token: an OAuth code for an access token. */
     readonly exchange: (code: string) => Promise<string>;
   },
 ): Promise<SignedIn | "wrongServer"> => {
   await discord.ready();
-  if (discord.guildId === null || !deps.guildIds.includes(discord.guildId)) return "wrongServer";
+  const guild = discord.guildId;
+  if (guild === null || !deps.guildIds.includes(guild)) return "wrongServer";
 
   const fresh = async () => {
     const token = await deps.exchange(await discord.authorize());
@@ -51,6 +55,7 @@ export const discordSession = async (
   let token = await fresh();
   let renewing: Promise<void> | null = null;
   return {
+    guild,
     token: () => token,
     renew: () => {
       renewing ??= (async () => {
