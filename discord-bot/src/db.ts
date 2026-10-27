@@ -200,6 +200,15 @@ const MIGRATIONS: Migrations = {
     yield* sql`ALTER TABLE weekly_cups ADD COLUMN results_message_id TEXT`;
     yield* sql`ALTER TABLE weekly_cups ADD COLUMN baselines_at INTEGER`;
   }),
+  // The Weekly Cup's close (#358's review): when each Cup Map's final read landed (JSON, pfid to
+  // ms), so a retry reads only the ones still missing; and the standings' messages (JSON array),
+  // which can run to more than one. standings_message_id, from 0018, is read only when this is
+  // unset.
+  "0019_weekly_cup_finish": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE weekly_cups ADD COLUMN final_reads TEXT`;
+    yield* sql`ALTER TABLE weekly_cups ADD COLUMN standings_message_ids TEXT`;
+  }),
 };
 
 /** The migrations a build had before the one with this id (`"0010"`): tests start a database from an older build. */

@@ -946,8 +946,33 @@ describe("the Weekly Cup's racing and results", () => {
       yield* TestClock.adjust(2 * MINUTE);
       const results = yield* Ref.get(t.results);
       expect(results.map((r) => r.at)).toEqual([SUNDAY_EIGHT + 30 * MINUTE]);
-      // bob's last-minute time was never read.
+      // bob's last-minute time was never read, and the results say no Map was.
       expect(results[0]?.view.standings.overall[0]).toMatchObject({ discordId: "alice" });
+      expect(results[0]?.view.lateReads.map((r) => r.at)).toEqual([null, null, null]);
+
+      yield* again.stop;
+    }),
+  );
+
+  it.scoped("retries only the Maps the final read missed, and says which were read late", () =>
+    Effect.gen(function* () {
+      const { t, bot, boards } = yield* racing();
+      const again = yield* lastMinutes(t, bot);
+      // The first of the three reads at 20:00 (the first Cup Map's) is dropped.
+      yield* t.steam.failNextReads(1);
+      yield* TestClock.adjust(2 * MINUTE); // 20:00
+      expect(yield* Ref.get(t.results)).toEqual([]);
+      const before = yield* t.steam.reads;
+      yield* t.steam.setTime(boards[0], steamIdOf("bob"), 11);
+      yield* t.steam.setTime(boards[1], steamIdOf("bob"), 11); // too late: that Map was read
+      yield* TestClock.adjust(MINUTE);
+      expect((yield* t.steam.reads) - before).toBe(1);
+      const results = yield* Ref.get(t.results);
+      expect(results.map((r) => r.at)).toEqual([SUNDAY_EIGHT + MINUTE]);
+      const view = results[0]?.view;
+      expect(view?.lateReads).toEqual([{ pfid: view?.maps[0]?.pfid, at: SUNDAY_EIGHT + MINUTE }]);
+      expect(view?.standings.maps[0]?.rows[0]).toMatchObject({ discordId: "bob", points: 40000 });
+      expect(view?.standings.maps[1]?.rows[0]).toMatchObject({ ticks: null });
       yield* again.stop;
     }),
   );

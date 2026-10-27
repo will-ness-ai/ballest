@@ -350,6 +350,12 @@ export const cupStandingsMessage = (v: StandingsView): Payload => {
                 )} ${overall.filter((o) => o.place === 1).length === 1 ? "wins" : "share"} this week's Weekly Cup.`,
             ]
           : ["Nobody set a time on a Cup Map this week."]),
+        ...v.lateReads.map(({ pfid, at }) => {
+          const name = escape(mapName(v.maps.find((m) => m.pfid === pfid) ?? { pfid, title: "" }));
+          return at === null
+            ? `${name} couldn't be read at the end (Steam didn't answer), so it stands on its last read before <t:${unix(v.week.endsAt)}:t>.`
+            : `${name} was read late, at <t:${unix(at)}:t> (Steam was slow), so a time set after <t:${unix(v.week.endsAt)}:t> may count.`;
+        }),
       ]
     : [
         `## Live standings · Weekly Cup, week of ${shortDate(v.week.opensAt)}`,

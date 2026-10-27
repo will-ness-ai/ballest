@@ -37,7 +37,7 @@ import {
 import { ThreadPost } from "../src/ports.js";
 import { reportButtons } from "../src/report/messages.js";
 import { cupStandings } from "../src/weeklyCup/points.js";
-import type { CupMap, CupState } from "../src/weeklyCup/schedule.js";
+import type { CupMap, CupState, StandingsView } from "../src/weeklyCup/schedule.js";
 import { weekAt } from "../src/weeklyCup/week.js";
 import { ALICE, BOB, CARA, cardView, drawnMap, ticks } from "./harness.js";
 
@@ -759,13 +759,14 @@ describe("the Weekly Cup's post", () => {
     expect(text).not.toContain("Vote for up to");
   });
 
-  const standingsOf = (final: boolean) =>
+  const standingsOf = (final: boolean, lateReads: StandingsView["lateReads"] = []) =>
     cupStandingsMessage({
       guildId: cup.guildId,
       week,
       maps: [cupMap(3), cupMap(1)],
       readAt: week.voteClosesAt + 3_600_000,
       final,
+      lateReads,
       standings: cupStandings([cupMap(3), cupMap(1)], ["111", "222", "333"], {
         pf3: { "222": ticks(12.5), "111": ticks(13) },
         pf1: { "111": ticks(40) },
@@ -795,6 +796,18 @@ describe("the Weekly Cup's post", () => {
     expect(text).toContain("<@111> wins this week's Weekly Cup");
     expect(text).not.toContain("Live standings");
     expect(pinged(results)).toEqual(["111", "222", "333"]);
+  });
+
+  it("says in the results which Cup Maps were read late, or not at the end", () => {
+    const late = week.endsAt + 600_000;
+    const text =
+      standingsOf(true, [
+        { pfid: "pf3", at: late },
+        { pfid: "pf1", at: null },
+      ]).content ?? "";
+    expect(text).toContain(`Map 3 was read late, at <t:${late / 1000}:t>`);
+    expect(text).toContain("Map 1 couldn't be read at the end");
+    expect(standingsOf(true).content).not.toContain("read late");
   });
 
   it("asks a server admin to confirm a skip, privately", () => {

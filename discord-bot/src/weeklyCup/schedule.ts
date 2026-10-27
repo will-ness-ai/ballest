@@ -117,6 +117,11 @@ export interface StandingsView {
   /** When the reads behind it were made. */
   readonly readAt: number;
   readonly final: boolean;
+  /**
+   * In the results, the Cup Maps whose final read came a minute or more after Sunday 20:00 (when
+   * it landed) or never did (null: they stand on the last read before), in rank order.
+   */
+  readonly lateReads: ReadonlyArray<{ readonly pfid: string; readonly at: number | null }>;
 }
 
 /** A message in the Cup's channel beside its post, pinging the week's Entrants. */
@@ -195,6 +200,9 @@ const CupRow = Schema.Struct({
   standings_shown: Schema.NullOr(Schema.String),
   results_message_id: Schema.NullOr(Schema.String),
   baselines_at: Schema.NullOr(Schema.Number),
+  final_reads: Schema.NullOr(
+    Schema.parseJson(Schema.Record({ key: Schema.String, value: Schema.Number })),
+  ),
 });
 const EntrantRow = Schema.Struct({ discord_id: Schema.String, signed_up_at: Schema.Number });
 const MapRow = Schema.Struct({
@@ -232,6 +240,8 @@ export interface CupRecord {
   readonly resultsMessageId: string | null;
   /** When the bars of those who signed up while the vote was open were taken. */
   readonly baselinesAt: number | null;
+  /** When each Cup Map's final read landed, by pfid. */
+  readonly finalReads: Readonly<Record<string, number>>;
 }
 
 /** A new week's record, as its post goes up. */
@@ -243,6 +253,7 @@ const freshCup = (messageId: string): CupRecord => ({
   standingsShown: null,
   resultsMessageId: null,
   baselinesAt: null,
+  finalReads: {},
 });
 export interface Entrant {
   readonly discordId: string;
@@ -338,7 +349,7 @@ export const CupLogLive = Layer.effect(
     return CupLog.of({
       get: Effect.fn("CupLog.get")(function* (guildId: string, week: string) {
         const rows =
-          yield* sql`SELECT state, message_id, shortlist_message_id, standings_message_id, standings_shown, results_message_id, baselines_at FROM weekly_cups WHERE guild_id = ${guildId} AND week = ${week}`.pipe(
+          yield* sql`SELECT state, message_id, shortlist_message_id, standings_message_id, standings_shown, results_message_id, baselines_at, final_reads FROM weekly_cups WHERE guild_id = ${guildId} AND week = ${week}`.pipe(
             Effect.flatMap(Schema.decodeUnknown(Schema.Array(CupRow))),
             Effect.orDie,
           );
@@ -350,10 +361,11 @@ export const CupLogLive = Layer.effect(
           standingsShown: r.standings_shown,
           resultsMessageId: r.results_message_id,
           baselinesAt: r.baselines_at,
+          finalReads: r.final_reads ?? {},
         }));
       }),
       put: Effect.fn("CupLog.put")(function* (guildId: string, week: string, cup: CupRecord) {
-        yield* sql`INSERT OR REPLACE INTO weekly_cups (guild_id, week, state, message_id, shortlist_message_id, standings_message_id, standings_shown, results_message_id, baselines_at) VALUES (${guildId}, ${week}, ${cup.state}, ${cup.messageId}, ${cup.shortlistMessageId}, ${cup.standingsMessageId}, ${cup.standingsShown}, ${cup.resultsMessageId}, ${cup.baselinesAt})`.pipe(
+        yield* sql`INSERT OR REPLACE INTO weekly_cups (guild_id, week, state, message_id, shortlist_message_id, standings_message_id, standings_shown, results_message_id, baselines_at, final_reads) VALUES (${guildId}, ${week}, ${cup.state}, ${cup.messageId}, ${cup.shortlistMessageId}, ${cup.standingsMessageId}, ${cup.standingsShown}, ${cup.resultsMessageId}, ${cup.baselinesAt}, ${JSON.stringify(cup.finalReads)})`.pipe(
           Effect.orDie,
         );
       }),
@@ -723,7 +735,7 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
    * keeps that Map's last times: a time counts when it beats the Entrant's bar (if they have one)
    * and their counted best, and one seen more than 30 minutes after their first counted time on
    * that Map is a Flag, told to ops once per Entrant per Map (it still counts). A failed read
-   * reaches ops once until the reads land again. True when every read landed.
+   * reaches ops once until the reads land again. The pfids of the Maps whose read landed.
    */
   const readTimes = Effect.fn("cup.readTimes")(function* (
     now: number,
@@ -733,12 +745,14 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
     const entrants = yield* entrantIds(week.week);
     const bars = yield* log.baselines(guildId, week.week);
     let failed: SteamUnavailable | null = null;
+    const landed: Array<string> = [];
     for (const map of maps) {
       const read = yield* Effect.either(readCupMaps([map], entrants));
       if (read._tag === "Left") {
         failed = read.left;
         continue;
       }
+      landed.push(map.pfid);
       const held = (yield* log.times(guildId, week.week)).filter((t) => t.pfid === map.pfid);
       for (const entry of read.right) {
         const mine = (t: { readonly discordId: string }) => t.discordId === entry.discordId;
@@ -762,15 +776,13 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
           );
       }
     }
-    if (failed !== null) {
+    if (failed !== null)
       yield* tell(
         "read",
         `Multiballs couldn't read a Weekly Cup Map for ${week.week} in ${guildId}: ${failed.reason}`,
       );
-      return false;
-    }
-    yield* clear("read");
-    return true;
+    else yield* clear("read");
+    return landed;
   });
 
   /** The standings from the counted times, for the week's Entrants now. */
@@ -779,12 +791,20 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
     maps: ReadonlyArray<CupMap>,
     readAt: number,
     final: boolean,
+    finalReads: Readonly<Record<string, number>> = {},
   ) {
     const times: Record<string, Record<string, number>> = {};
     for (const t of yield* log.times(guildId, week.week))
       (times[t.pfid] ??= {})[t.discordId] = t.ticks;
     const standings = cupStandings(maps, yield* entrantIds(week.week), times);
-    return { guildId, week, maps, standings, readAt, final } satisfies StandingsView;
+    const lateReads = final
+      ? maps.flatMap((m): Array<StandingsView["lateReads"][number]> => {
+          const at = finalReads[m.pfid];
+          if (at === undefined) return [{ pfid: m.pfid, at: null }];
+          return at - week.endsAt >= RETRY_EVERY ? [{ pfid: m.pfid, at }] : [];
+        })
+      : [];
+    return { guildId, week, maps, standings, readAt, final, lateReads } satisfies StandingsView;
   });
 
   /**
@@ -826,17 +846,27 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
   });
 
   /**
-   * Sunday 20:00: a final read, tried each minute while Steam fails until 30 minutes on, when the
-   * results stand on the last reads; then the results, posted once (recorded as they go up, so a
-   * restart never posts them again), and the week is final.
+   * Sunday 20:00: a final read of each Cup Map, recorded as it lands (`finalReads`), so a retry
+   * each minute while Steam fails reads only the Maps still missing, until 30 minutes on, when
+   * those stand on their last reads; then the results, saying which Maps were read late, posted
+   * once (recorded as they go up, so a restart never posts them again), and the week is final.
    */
   const finish = Effect.fn("cup.finish")(function* (now: number, week: CupWeek, cup: CupRecord) {
     let current = cup;
     if (current.resultsMessageId === null) {
       const maps = (yield* cupMapsOf(week.week)).map((m) => m.map);
-      const landed = yield* readTimes(now, week, maps);
-      if (!landed && now < week.endsAt + FINAL_WAIT) return now + RETRY_EVERY;
-      const view = yield* standingsOf(week, maps, now, true);
+      const missing = maps.filter((m) => current.finalReads[m.pfid] === undefined);
+      const landed = missing.length === 0 ? [] : yield* readTimes(now, week, missing);
+      if (landed.length > 0) {
+        const finalReads = { ...current.finalReads };
+        for (const pfid of landed) finalReads[pfid] = now;
+        current = { ...current, finalReads };
+        yield* log.put(guildId, week.week, current);
+      }
+      if (landed.length < missing.length && now < week.endsAt + FINAL_WAIT)
+        return now + RETRY_EVERY;
+      const view = yield* standingsOf(week, maps, now, true, current.finalReads);
+
       const posted = yield* Effect.either((yield* CupChannel).postResults(view));
       if (posted._tag === "Left") {
         yield* tell(
