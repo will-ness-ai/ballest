@@ -109,12 +109,14 @@ const setup = Effect.gen(function* () {
     Layer.succeed(
       CupChannel,
       CupChannel.of({
-        show: (slot, shown, view) =>
+        show: (slot, shown, view, options) =>
           Effect.gen(function* () {
             yield* refused;
             const at = yield* Clock.currentTimeMillis;
             const drawn = JSON.stringify(view);
             const first = shown[0];
+            if (first !== undefined && deleted.has(first) && options?.repost === false)
+              return yield* Effect.fail(new CupPostFailed({ reason: "Unknown Message" }));
             if (first === undefined || deleted.has(first)) {
               const messageId = `${PREFIX[slot]}${++counts[slot]}`;
               showing.set(messageId, drawn);
@@ -274,6 +276,30 @@ describe("the Weekly Cup's schedule", () => {
         ["m1", ["alice", "bob"]],
         ["m1", ["alice"]],
       ]);
+      yield* bot.stop;
+    }),
+  );
+
+  it.scoped("tells ops each time a call-off notice is refused, week after week", () =>
+    Effect.gen(function* () {
+      const t = yield* setup;
+      yield* TestClock.setTime(MONDAY);
+      const bot = yield* t.start;
+      /** Thursday 12:00 of the week opening at `monday`, the channel refusing over it. */
+      const refusedAt = (monday: number) =>
+        Effect.gen(function* () {
+          yield* TestClock.setTime(monday + (THURSDAY_NOON - MONDAY) - MINUTE);
+          yield* Ref.set(t.channelDown, true);
+          yield* TestClock.adjust(2 * MINUTE);
+          yield* Ref.set(t.channelDown, false);
+        });
+      yield* refusedAt(MONDAY);
+      yield* TestClock.setTime(NEXT_MONDAY + HOUR);
+      yield* refusedAt(NEXT_MONDAY);
+      const told = (yield* Ref.get(t.alerts)).filter((a) =>
+        a.startsWith("Multiballs couldn't tell the Weekly Cup's Entrants it was cancelled"),
+      );
+      expect(told).toHaveLength(2);
       yield* bot.stop;
     }),
   );
@@ -725,6 +751,22 @@ describe("the Weekly Cup's Shortlist and vote", () => {
       expect(first).toHaveLength(3);
       expect(yield* announced(5)).toEqual(first);
     }),
+  );
+
+  it.scoped(
+    "tells ops when the vote can't close on a deleted Shortlist, and posts it no more",
+    () =>
+      Effect.gen(function* () {
+        const { t, bot } = yield* signedUp();
+        yield* TestClock.adjust(THURSDAY_NOON - MONDAY + HOUR);
+        t.deleted.add("s1");
+        yield* TestClock.adjust(FRIDAY_NINE - THURSDAY_NOON);
+        expect(yield* Ref.get(t.shortlists)).toHaveLength(1);
+        expect(yield* Ref.get(t.alerts)).toContain(
+          `Multiballs couldn't close the vote on the Weekly Cup's Shortlist for ${WEEK} in ${GUILD}: Unknown Message`,
+        );
+        yield* bot.stop;
+      }),
   );
 
   it.scoped("closes the Shortlist's vote on its post at Friday 09:00", () =>

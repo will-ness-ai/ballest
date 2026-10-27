@@ -31,24 +31,24 @@ export const makeKit = Effect.fn("makeCupKit")(function* (guildId: string) {
    * Try something Steam or Discord can refuse. A refusal reaches ops as "Multiballs couldn't
    * <what> for <week> in <server>: <reason>", once per `kind` until one succeeds (across restarts
    * too, OpsAlerts keeping the key), and comes back as none, for the caller to try again (mostly
-   * in a minute: RETRY_EVERY).
+   * in a minute: RETRY_EVERY). A one-shot, never tried again, is told every time instead, under a
+   * kind of its own, so it never silences a later failure of something that is retried.
    */
   const attempt = Effect.fn("cup.attempt")(function* <A, E extends { readonly reason: string }>(
     kind: string,
     what: string,
     week: string,
     effect: Effect.Effect<A, E>,
+    told: "once" | "always" = "once",
   ) {
     const key = `weekly-cup:${guildId}:${kind}`;
     const done = yield* Effect.either(effect);
     if (done._tag === "Left") {
-      yield* alerts.post(
-        `Multiballs couldn't ${what} for ${week} in ${guildId}: ${done.left.reason}`,
-        { key, kind: "failing" },
-      );
+      const alert = `Multiballs couldn't ${what} for ${week} in ${guildId}: ${done.left.reason}`;
+      yield* told === "once" ? alerts.post(alert, { key, kind: "failing" }) : alerts.post(alert);
       return Option.none<A>();
     }
-    yield* alerts.forget(key);
+    if (told === "once") yield* alerts.forget(key);
     return Option.some(done.right);
   });
 
@@ -59,6 +59,8 @@ export const makeKit = Effect.fn("makeCupKit")(function* (guildId: string) {
   /**
    * Show a slot's view over what it showed, and record the messages that show it now, straight
    * after: the record as it then stands, or none when Discord refused (ops told by `attempt`).
+   * A `oneShot` (its kind) is shown once, never tried again: ops is told every time it fails, and
+   * a message of it someone deleted isn't posted afresh.
    */
   const show = Effect.fn("cup.show")(function* <S extends Slot>(
     week: CupWeek,
@@ -66,8 +68,17 @@ export const makeKit = Effect.fn("makeCupKit")(function* (guildId: string) {
     slot: S,
     view: SlotViews[S],
     what: string,
+    oneShot?: string,
   ) {
-    const shown = yield* attempt(slot, what, week.week, channel.show(slot, cup.shown[slot], view));
+    const shown = yield* oneShot === undefined
+      ? attempt(slot, what, week.week, channel.show(slot, cup.shown[slot], view))
+      : attempt(
+          oneShot,
+          what,
+          week.week,
+          channel.show(slot, cup.shown[slot], view, { repost: false }),
+          "always",
+        );
     if (Option.isNone(shown)) return Option.none<CupRecord>();
     const before = cup.shown[slot];
     if (shown.value.length === before.length && shown.value.every((id, i) => id === before[i]))
@@ -104,10 +115,11 @@ export const makeKit = Effect.fn("makeCupKit")(function* (guildId: string) {
     yield* enter(week, cup, state);
     const told: CupNotice = { ...notice, week: week.week, entrants: yield* entrantIds(week.week) };
     yield* attempt(
-      "notice",
+      "callOff",
       `tell the Weekly Cup's Entrants it was ${state}`,
       week.week,
       channel.say(told),
+      "always",
     );
   });
 

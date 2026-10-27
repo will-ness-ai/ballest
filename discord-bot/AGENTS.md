@@ -485,7 +485,10 @@ The code is split by stage. `model.ts` holds the views, constants and ports (`Cu
 what every stage shares (the lock, `attempt`, which tells ops once and retries in a minute, and
 `show`/`enter`/`callOff`); `vote.ts` the draw and the vote; `race.ts` the reads, standings and
 results; `presses.ts` the buttons; `slots.ts` how each view is kept on Discord; `messages.ts`
-every Cup message.
+every Cup message. The two one-shots, never retried (the call-off notice and the Shortlist's
+close), each tell ops every time under a kind of their own, so neither hides a later failure of
+something that is. The migration was 0016-0019 before the Cup shipped: a local dev database
+that ran those must be deleted, since the migrator skips the new 0016 there.
 
 `schedule.ts` is one state machine per server, every boundary US Central (`week.ts`, through
 `Intl`, so daylight saving holds): Monday 00:00 the week's post goes up (Components V2, with the
@@ -524,7 +527,8 @@ signed up are counted, the Shortlist shuffled and sorted by votes (so a tie fall
 the top 3 recorded as Cup Maps with their ranks, votes and board ids before the announcement,
 which lists them with their pages and pings the Entrants; a refused announcement is tried again
 each minute with the same Maps. Once it is out, the Shortlist's post is edited to say "Vote
-closed", without its select (best effort, ops told if refused).
+closed", without its select (best effort, ops told if refused; a Shortlist someone deleted is not
+posted again).
 
 Racing (Friday 09:00 to Sunday 20:00) reads each Cup Map every 5 minutes, one `readPlayers` call
 per Map for the current Entrants' Links. Every Entrant has a bar (`weekly_cup_baselines`): their

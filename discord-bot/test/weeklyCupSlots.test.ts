@@ -108,6 +108,20 @@ describe("the Weekly Cup's slots", () => {
     }),
   );
 
+  it.effect("refuses, posting nothing, over a deleted message when asked not to repost", () =>
+    Effect.gen(function* () {
+      const fake = fakeSink();
+      const channel = cupChannelOver(fake.sink);
+      const ids = yield* channel.show("post", [], postView([]));
+      fake.deleted.add("d1");
+      const shown = yield* Effect.either(
+        channel.show("post", ids, postView(["111"]), { repost: false }),
+      );
+      expect(shown._tag).toBe("Left");
+      expect(fake.sent).toHaveLength(1);
+    }),
+  );
+
   it.effect("posts or drops the messages a view now takes more or fewer of", () =>
     Effect.gen(function* () {
       const fake = fakeSink();

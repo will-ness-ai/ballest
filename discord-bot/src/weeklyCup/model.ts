@@ -148,6 +148,12 @@ export class CupPostFailed extends Data.TaggedError("CupPostFailed")<{
   readonly reason: string;
 }> {}
 
+/** How a slot is shown. */
+export interface ShowOptions {
+  /** Post a slot whose message someone deleted afresh (the default), or refuse. */
+  readonly repost?: boolean;
+}
+
 /** One server's #weekly-cup. */
 export class CupChannel extends Context.Tag("multiballs/CupChannel")<
   CupChannel,
@@ -156,12 +162,14 @@ export class CupChannel extends Context.Tag("multiballs/CupChannel")<
      * Show a slot's view over the messages it showed before (none: post it), and say which
      * messages show it now. The channel decides how: an edit only where the message would change,
      * a fresh post if someone deleted one, as many messages as the view takes, and a first post
-     * Discord drops if it is sent twice (a restart between the send and its record).
+     * Discord drops if it is sent twice (a restart between the send and its record). With
+     * `repost: false`, a deleted message is refused instead of posted afresh.
      */
     readonly show: <S extends Slot>(
       slot: S,
       shown: ReadonlyArray<string>,
       view: SlotViews[S],
+      options?: ShowOptions,
     ) => Effect.Effect<ReadonlyArray<string>, CupPostFailed>;
     readonly say: (notice: CupNotice) => Effect.Effect<void, CupPostFailed>;
   }

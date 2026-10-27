@@ -173,13 +173,17 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
       shortlist.map((s) => s.map),
       true,
     );
-    yield* kit.show(
-      week,
-      current,
-      "shortlist",
-      closed,
-      "close the vote on the Weekly Cup's Shortlist",
-    );
+    // Best effort, once: a Shortlist someone deleted isn't posted again just to say it closed.
+    if (current.shown.shortlist.length > 0)
+      yield* kit.show(
+        week,
+        current,
+        "shortlist",
+        closed,
+        "close the vote on the Weekly Cup's Shortlist",
+        "closeVote",
+      );
+
     return now;
   });
 

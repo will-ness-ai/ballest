@@ -18,7 +18,14 @@ import {
   shortlistMessage,
   weeklyCupMessage,
 } from "./messages.js";
-import { CupChannel, type CupNotice, CupPostFailed, type Slot, type SlotViews } from "./model.js";
+import {
+  CupChannel,
+  type CupNotice,
+  CupPostFailed,
+  type ShowOptions,
+  type Slot,
+  type SlotViews,
+} from "./model.js";
 
 /** A payload as it is first sent: perhaps with a nonce Discord enforces. */
 export type SentPayload = Payload & { readonly nonce?: string; readonly enforceNonce?: boolean };
@@ -92,7 +99,7 @@ export const cupChannelOver = (sink: MessageSink) => {
     );
   });
 
-  /** Redraw `parts` over `shown`: false when a message there was deleted. */
+  /** Redraw `parts` over `shown`: their ids, or Discord's answer when a message there was deleted. */
   const redraw = Effect.fn("cupChannel.redraw")(function* (
     slot: Slot,
     week: string,
@@ -112,7 +119,7 @@ export const cupChannelOver = (sink: MessageSink) => {
         const edit = (part.files?.length ?? 0) > 0 ? { ...part, attachments: [] } : part;
         const edited = yield* Effect.either(sink.edit(id, edit));
         if (edited._tag === "Left") {
-          if (gone(edited.left)) return null;
+          if (gone(edited.left)) return { gone: edited.left };
           return yield* Effect.fail(refused(edited.left));
         }
         drawn.set(id, print);
@@ -120,7 +127,7 @@ export const cupChannelOver = (sink: MessageSink) => {
       ids.push(id);
     }
     for (const id of shown.slice(parts.length)) yield* drop(id);
-    return ids;
+    return { ids };
   });
 
   return CupChannel.of({
@@ -128,12 +135,14 @@ export const cupChannelOver = (sink: MessageSink) => {
       slot: S,
       shown: ReadonlyArray<string>,
       view: SlotViews[S],
+      options?: ShowOptions,
     ) {
       const parts = DRAW[slot](view);
       const week = view.week.week;
       if (shown.length === 0) return yield* post(slot, week, parts, ONCE[slot]);
-      const ids = yield* redraw(slot, week, shown, parts);
-      if (ids !== null) return ids;
+      const redrawn = yield* redraw(slot, week, shown, parts);
+      if ("ids" in redrawn) return redrawn.ids;
+      if (options?.repost === false) return yield* Effect.fail(refused(redrawn.gone));
       // Someone deleted one: the rest go too, and the slot is posted afresh, without the nonce
       // (which would find the first post again).
       for (const id of shown) yield* drop(id).pipe(Effect.ignore);
