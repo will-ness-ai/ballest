@@ -234,6 +234,9 @@ describe("the Weekly Cup's post", () => {
     expect(text).toContain("Results");
     expect(text).toContain("<@111> wins this week's Weekly Cup");
     expect(text).not.toContain("Live standings");
+    // The week is over: an Entrant with no time has none, not none "yet".
+    expect(text).toContain("No time: <@333>");
+    expect(text).not.toContain("No time yet");
     expect(pinged(results)).toEqual(["111", "222", "333"]);
   });
 

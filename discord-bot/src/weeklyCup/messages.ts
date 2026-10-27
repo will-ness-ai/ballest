@@ -264,7 +264,7 @@ export const cupStandingsMessages = (v: StandingsView): ReadonlyArray<Payload> =
           (r) => `${r.rank}. ${who(r.discordId)} **${formatTime(r.ticks)}** · ${points(r.points)}`,
         ),
       ...(timed.length > MAP_ROWS ? [`and ${timed.length - MAP_ROWS} more`] : []),
-      ...listLines("No time yet: ", untimed),
+      ...listLines(v.final ? "No time: " : "No time yet: ", untimed),
     ];
   });
   const parts = packed([head, overallLines, ...perMap]);
