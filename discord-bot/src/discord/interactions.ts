@@ -18,7 +18,9 @@ import { roleNamed } from "../pingWords.js";
 import { ChosenSkins, chosenSkinOf, MatchLinks, Store, type ProfilePreview } from "../ports.js";
 import { Renderer, type RenderError } from "../render/renderer.js";
 import { type Member, SeeMyStats, type StatsAnswer } from "../seeMyStats.js";
-import { type CupAnswer, type CupPresses, WeeklyCups } from "../weeklyCup/schedule.js";
+import { cupConfirmSkipMessage } from "../weeklyCup/messages.js";
+import type { CupPresses } from "../weeklyCup/presses.js";
+import { WeeklyCups } from "../weeklyCup/schedule.js";
 import {
   describeDiscordError,
   Discord,
@@ -31,7 +33,6 @@ import {
 import { type Action, parseControl } from "./controls.js";
 import {
   confirmLeaveMessage,
-  cupConfirmSkipMessage,
   LEFT_TEXT,
   linkForm,
   linkPreviewMessage,
@@ -207,28 +208,27 @@ export const InteractionsLive = Layer.scopedDiscard(
       if (joinedNow && !creator) yield* offerPings(i, venue, "join");
     });
 
-    /** A press on a server's Weekly Cup post, answered in words; none there if it isn't running. */
-    const cupAnswer = Effect.fn("cupAnswer")(function* (
+    /** A press on a server's Weekly Cup post; none there if it isn't running. */
+    const cupAnswer = Effect.fn("cupAnswer")(function* <A>(
       guildId: string,
-      press: (cup: CupPresses) => Effect.Effect<CupAnswer>,
+      press: (cup: CupPresses) => Effect.Effect<A>,
     ) {
       const cup = yield* cups.in(guildId);
-      if (Option.isNone(cup)) return { _tag: "Text", text: CUP_NOT_HERE } satisfies CupAnswer;
-      return yield* press(cup.value);
+      if (Option.isNone(cup)) return Option.none<A>();
+      return Option.some(yield* press(cup.value));
     });
+    /** A press answered in words. */
     const cupText = Effect.fn("cupText")(function* (
       guildId: string,
-      press: (cup: CupPresses) => Effect.Effect<CupAnswer>,
+      press: (cup: CupPresses) => Effect.Effect<string>,
     ) {
-      const answer = yield* cupAnswer(guildId, press);
-      // Only Skip asks to confirm; anything else is words.
-      return answer._tag === "Text" ? answer.text : CUP_NOT_HERE;
+      return Option.getOrElse(yield* cupAnswer(guildId, press), () => CUP_NOT_HERE);
     });
     /** Answer a Cup press or vote privately, deferred first: it may redraw the post. */
     const cupReply = Effect.fn("cupReply")(function* (
       i: ButtonInteraction | StringSelectMenuInteraction,
       guildId: string,
-      press: (cup: CupPresses) => Effect.Effect<CupAnswer>,
+      press: (cup: CupPresses) => Effect.Effect<string>,
     ) {
       yield* tryDiscord("defer", () => i.deferReply(ephemeral));
       const content = yield* cupText(guildId, press);
@@ -400,10 +400,13 @@ export const InteractionsLive = Layer.scopedDiscard(
           const answer = yield* cupAnswer(control.guildId, (cup) =>
             cup.askSkip(control.week, self, managesServer(i)),
           );
-          const message =
-            answer._tag === "ConfirmSkip"
-              ? cupConfirmSkipMessage(control.guildId, answer.week)
-              : { content: answer.text, ...quiet };
+          const message = Option.match(answer, {
+            onNone: () => ({ content: CUP_NOT_HERE, ...quiet }),
+            onSome: (ask) =>
+              ask._tag === "Confirm"
+                ? cupConfirmSkipMessage(control.guildId, ask.week)
+                : { content: ask.text, ...quiet },
+          });
           return yield* tryDiscord("edit reply", () => i.editReply(message));
         }
         case "CupConfirmSkip": {

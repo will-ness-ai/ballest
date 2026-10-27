@@ -20,7 +20,8 @@ import {
 import { Renderer } from "../src/render/renderer.js";
 import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { makeSeeMyStats, SeeMyStats, StatsLinks, StatsSite } from "../src/seeMyStats.js";
-import { type CupAnswer, WeeklyCups } from "../src/weeklyCup/schedule.js";
+import type { SkipAsk } from "../src/weeklyCup/model.js";
+import { WeeklyCups } from "../src/weeklyCup/schedule.js";
 import { controlsOf, fromPayload } from "../scripts/axi/describe.js";
 import { fakeInteraction, type Press } from "../scripts/sandbox/driver.js";
 import { ALICE, BOB, type Harness, makeHarness, makeMap } from "./harness.js";
@@ -219,7 +220,6 @@ describe("the sandbox driver", () => {
 
 describe("the Weekly Cup's buttons", () => {
   const CUP = { guildId: "g-racing", week: "2026-10-26" };
-  const said = (text: string): CupAnswer => ({ _tag: "Text", text });
   /** One server's Cup that answers each press with what it was given. */
   const fakeCups = () => {
     const pressed: Array<string> = [];
@@ -231,20 +231,22 @@ describe("the Weekly Cup's buttons", () => {
             : Option.some({
                 signUp: (week, who) =>
                   Effect.sync(() => void pressed.push(`signUp ${week} ${who}`)).pipe(
-                    Effect.as(said(`signed up ${who}`)),
+                    Effect.as(`signed up ${who}`),
                   ),
-                withdraw: (_week, who) => Effect.succeed(said(`withdrew ${who}`)),
+                withdraw: (_week, who) => Effect.succeed(`withdrew ${who}`),
                 vote: (week, who, picks) =>
                   Effect.sync(
                     () => void pressed.push(`vote ${week} ${who} ${picks.join(",")}`),
-                  ).pipe(Effect.as(said(`voted ${picks.join(", ")}`))),
+                  ).pipe(Effect.as(`voted ${picks.join(", ")}`)),
                 askSkip: (week, _who, manageServer) =>
-                  Effect.succeed<CupAnswer>(
-                    manageServer ? { _tag: "ConfirmSkip", week } : said("admins only"),
+                  Effect.succeed<SkipAsk>(
+                    manageServer
+                      ? { _tag: "Confirm", week }
+                      : { _tag: "Refused", text: "admins only" },
                   ),
                 skip: (week, who, manageServer) =>
                   Effect.sync(() => void pressed.push(`skip ${week} ${who} ${manageServer}`)).pipe(
-                    Effect.as(said("skipped")),
+                    Effect.as("skipped"),
                   ),
               }),
         ),

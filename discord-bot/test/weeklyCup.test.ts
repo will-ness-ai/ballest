@@ -8,17 +8,18 @@ import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { Steam, SteamUnavailable } from "../src/ports.js";
 import { MapPreviews, PreviewSource } from "../src/previews.js";
 import {
-  type CupAnswer,
   CupChannel,
   CupLinks,
-  CupLogLive,
   type CupNotice,
   CupPostFailed,
   type CupPostView,
-  makeWeeklyCup,
   type ShortlistView,
+  type SkipAsk,
+  type Slot,
   type StandingsView,
-} from "../src/weeklyCup/schedule.js";
+} from "../src/weeklyCup/model.js";
+import { CupLogLive } from "../src/weeklyCup/record.js";
+import { makeWeeklyCup } from "../src/weeklyCup/schedule.js";
 import { makeFakeSteam, makeMap } from "./harness.js";
 
 const MINUTE = 60_000;
@@ -36,7 +37,7 @@ const SUNDAY_EIGHT = Date.parse("2026-11-02T02:00:00Z");
 /** Monday 2 November 00:00 Central. */
 const NEXT_MONDAY = Date.parse("2026-11-02T06:00:00Z");
 
-const text = (a: CupAnswer) => (a._tag === "Text" ? a.text : a._tag);
+const asked = (a: SkipAsk) => (a._tag === "Confirm" ? "ConfirmSkip" : a.text);
 
 const steamIdOf = (discordId: string) => `s-${discordId}`;
 /** Twelve Workshop Maps that fit the Cup: author time 20 s, world record 15 s. */
@@ -65,20 +66,22 @@ const setup = Effect.gen(function* () {
   const refused = Effect.flatMap(Ref.get(channelDown), (down) =>
     down ? Effect.fail(new CupPostFailed({ reason: "Missing Permissions" })) : Effect.void,
   );
-  /** Messages someone deleted from the channel: an edit of one fails as Unknown Message. */
+  /**
+   * Messages someone deleted from the channel: the channel shows their slot afresh, as the real one
+   * does on Unknown Message.
+   */
   const deleted = new Set<string>();
-  const there = (messageId: string) =>
-    deleted.has(messageId)
-      ? Effect.fail(new CupPostFailed({ reason: "Unknown Message", gone: true }))
-      : Effect.void;
-  /** Each post's `replacing`, in order: the message it stands in for, if any. */
+  /** Each Cup post's `replacing`, in order: the deleted message it stands in for, if any. */
   const replacing: Array<string | null> = [];
+  /** What each message shows: like the real channel, an edit that changes nothing isn't made. */
+  const showing = new Map<string, string>();
+  const PREFIX: Record<Slot, string> = { post: "m", shortlist: "s", standings: "st", results: "r" };
+  const counts: Record<Slot, number> = { post: 0, shortlist: 0, standings: 0, results: 0 };
   // The Workshop: 12 Eligible Maps unless a test sets its own; every member linked as s-<id>.
   const steam = yield* makeFakeSteam({});
   yield* steam.control.setCatalogue(ELIGIBLE);
   const unlinked = new Set<string>();
   const steamDown = yield* Ref.make(false);
-  let standingsPosted = 0;
   const fakes = Layer.mergeAll(
     Layer.succeed(Steam, {
       ...steam.port,
@@ -106,63 +109,45 @@ const setup = Effect.gen(function* () {
     Layer.succeed(
       CupChannel,
       CupChannel.of({
-        postShortlist: (view) =>
+        show: (slot, shown, view) =>
           Effect.gen(function* () {
             yield* refused;
             const at = yield* Clock.currentTimeMillis;
-            yield* Ref.update(shortlists, (s) => [...s, { at, view }]);
-            return `s${(yield* Ref.get(shortlists)).length}`;
-          }),
-        post: (view, replaces) =>
-          Effect.gen(function* () {
-            yield* refused;
-            replacing.push(replaces);
-            const at = yield* Clock.currentTimeMillis;
-            yield* Ref.update(posts, (p) => [...p, { at, view }]);
-            return `m${(yield* Ref.get(posts)).length}`;
-          }),
-        edit: (messageId, view) =>
-          Effect.gen(function* () {
-            yield* refused;
-            yield* there(messageId);
-            const at = yield* Clock.currentTimeMillis;
-            yield* Ref.update(edits, (e) => [...e, { at, messageId, view }]);
+            const drawn = JSON.stringify(view);
+            const first = shown[0];
+            if (first === undefined || deleted.has(first)) {
+              const messageId = `${PREFIX[slot]}${++counts[slot]}`;
+              showing.set(messageId, drawn);
+              const v = view as never;
+              if (slot === "post") {
+                replacing.push(first ?? null);
+                yield* Ref.update(posts, (p) => [...p, { at, view: v }]);
+              }
+              if (slot === "shortlist")
+                yield* Ref.update(shortlists, (s) => [...s, { at, view: v }]);
+              if (slot === "standings")
+                yield* Ref.update(standings, (s) => [...s, { at, messageId, view: v }]);
+              if (slot === "results") yield* Ref.update(results, (r) => [...r, { at, view: v }]);
+              return [messageId];
+            }
+            if (showing.get(first) !== drawn) {
+              showing.set(first, drawn);
+              const v = view as never;
+              const messageId = first;
+              if (slot === "post")
+                yield* Ref.update(edits, (e) => [...e, { at, messageId, view: v }]);
+              if (slot === "shortlist")
+                yield* Ref.update(shortlistEdits, (e) => [...e, { at, messageId, view: v }]);
+              if (slot === "standings")
+                yield* Ref.update(standings, (s) => [...s, { at, messageId, view: v }]);
+            }
+            return shown;
           }),
         say: (notice) =>
           Effect.gen(function* () {
             yield* refused;
             const at = yield* Clock.currentTimeMillis;
             yield* Ref.update(notices, (n) => [...n, { at, notice }]);
-          }),
-        editShortlist: (messageId, view) =>
-          Effect.gen(function* () {
-            yield* refused;
-            const at = yield* Clock.currentTimeMillis;
-            yield* Ref.update(shortlistEdits, (e) => [...e, { at, messageId, view }]);
-          }),
-        postStandings: (view) =>
-          Effect.gen(function* () {
-            yield* refused;
-            const at = yield* Clock.currentTimeMillis;
-            const messageId = `st${++standingsPosted}`;
-            yield* Ref.update(standings, (s) => [...s, { at, messageId, view }]);
-            return [messageId];
-          }),
-        editStandings: (messageIds, view) =>
-          Effect.gen(function* () {
-            yield* refused;
-            const messageId = messageIds[0] ?? "";
-            yield* there(messageId);
-            const at = yield* Clock.currentTimeMillis;
-            yield* Ref.update(standings, (s) => [...s, { at, messageId, view }]);
-            return messageIds;
-          }),
-        postResults: (view) =>
-          Effect.gen(function* () {
-            yield* refused;
-            const at = yield* Clock.currentTimeMillis;
-            yield* Ref.update(results, (r) => [...r, { at, view }]);
-            return [`r${(yield* Ref.get(results)).length}`];
           }),
       }),
     ),
@@ -188,17 +173,13 @@ const setup = Effect.gen(function* () {
       const cup = yield* makeWeeklyCup(GUILD);
       const fiber = yield* Effect.fork(cup.run.pipe(Effect.withRandom(Random.make(seed))));
       yield* TestClock.adjust(1);
-      const within = <A, E>(effect: Effect.Effect<A, E, Layer.Layer.Success<typeof fakes>>) =>
-        effect.pipe(Effect.provide(fakes));
       return {
-        signUp: (who: string) => within(cup.signUp(WEEK, who)).pipe(Effect.map(text)),
-        withdraw: (who: string) => within(cup.withdraw(WEEK, who)).pipe(Effect.map(text)),
+        signUp: (who: string) => cup.signUp(WEEK, who),
+        withdraw: (who: string) => cup.withdraw(WEEK, who),
         askSkip: (who: string, manageServer: boolean) =>
-          within(cup.askSkip(WEEK, who, manageServer)).pipe(Effect.map(text)),
-        skip: (who: string, manageServer: boolean) =>
-          within(cup.skip(WEEK, who, manageServer)).pipe(Effect.map(text)),
-        vote: (who: string, picks: ReadonlyArray<string>) =>
-          within(cup.vote(WEEK, who, picks)).pipe(Effect.map(text)),
+          cup.askSkip(WEEK, who, manageServer).pipe(Effect.map(asked)),
+        skip: (who: string, manageServer: boolean) => cup.skip(WEEK, who, manageServer),
+        vote: (who: string, picks: ReadonlyArray<string>) => cup.vote(WEEK, who, picks),
         stop: Fiber.interrupt(fiber),
       };
     }).pipe(Effect.provide(fakes), Effect.provide(log));

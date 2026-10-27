@@ -123,16 +123,25 @@ const MIGRATIONS: Migrations = {
     yield* sql`CREATE TABLE venue_restarts (at INTEGER NOT NULL)`;
   }),
   // The Weekly Cup (spec #353): each server's #weekly-cup the bot made or reused, found by id at
-  // each start; each week's Cup by its server and Monday (Central), with its state and post; and
-  // its Entrants, with when each signed up (late sign-ups count only times set after it).
-  "0016_weekly_cups": Effect.gen(function* () {
+  // each start; each week's Cup by its server and Monday (Central), with its state, the messages
+  // each of its slots shows (JSON: post, shortlist, standings, results), when its bars were taken
+  // as racing opened, and when each Cup Map's final read landed (JSON, pfid to ms); its Entrants,
+  // with when each signed up; its Shortlist in draw order, each Map as JSON with its board id and,
+  // once the vote closes, its rank (ties settled at random, kept so a restart never redraws) and
+  // votes; each Entrant's latest vote (a JSON array of pfids); each Entrant's bar on each Cup Map
+  // (their PB when it was taken: a time counts only once it beats it); and each Entrant's counted
+  // best there, with when their first counted time on it was seen, when this one was, and whether
+  // its Flag was told.
+  "0016_weekly_cup": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE weekly_cup_channels (guild_id TEXT PRIMARY KEY, channel_id TEXT NOT NULL)`;
     yield* sql`CREATE TABLE weekly_cups (
         guild_id TEXT NOT NULL,
         week TEXT NOT NULL,
         state TEXT NOT NULL,
-        message_id TEXT NOT NULL,
+        messages TEXT NOT NULL,
+        bars_at INTEGER,
+        final_reads TEXT NOT NULL,
         PRIMARY KEY (guild_id, week)
       )`;
     yield* sql`CREATE TABLE weekly_cup_entrants (
@@ -142,13 +151,6 @@ const MIGRATIONS: Migrations = {
         signed_up_at INTEGER NOT NULL,
         PRIMARY KEY (guild_id, week, discord_id)
       )`;
-  }),
-  // The Weekly Cup's Shortlist (spec #353, #357): each week's drawn Maps in draw order, the Map
-  // as JSON with its board id, and, once the vote closes, each Cup Map's rank (ties settled at
-  // random, kept so a restart never redraws) and votes; each Entrant's latest vote (a JSON array
-  // of pfids); and the Shortlist's message.
-  "0017_weekly_cup_shortlists": Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE weekly_cup_maps (
         guild_id TEXT NOT NULL,
         week TEXT NOT NULL,
@@ -167,15 +169,6 @@ const MIGRATIONS: Migrations = {
         picks TEXT NOT NULL,
         PRIMARY KEY (guild_id, week, discord_id)
       )`;
-    yield* sql`ALTER TABLE weekly_cups ADD COLUMN shortlist_message_id TEXT`;
-  }),
-  // The Weekly Cup's racing (spec #353, #358): each late Entrant's PB on each Cup Map when the
-  // bar was taken (a time counts only once it beats it); each Entrant's counted best on each Cup
-  // Map, with when their first counted time on it was seen, when this one was, and whether its
-  // Flag was told; and on the Cup, its standings message with what it last showed (JSON), its
-  // results message, and when the Friday bars were taken.
-  "0018_weekly_cup_races": Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE weekly_cup_baselines (
         guild_id TEXT NOT NULL,
         week TEXT NOT NULL,
@@ -195,19 +188,6 @@ const MIGRATIONS: Migrations = {
         flagged INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (guild_id, week, pfid, discord_id)
       )`;
-    yield* sql`ALTER TABLE weekly_cups ADD COLUMN standings_message_id TEXT`;
-    yield* sql`ALTER TABLE weekly_cups ADD COLUMN standings_shown TEXT`;
-    yield* sql`ALTER TABLE weekly_cups ADD COLUMN results_message_id TEXT`;
-    yield* sql`ALTER TABLE weekly_cups ADD COLUMN baselines_at INTEGER`;
-  }),
-  // The Weekly Cup's close (#358's review): when each Cup Map's final read landed (JSON, pfid to
-  // ms), so a retry reads only the ones still missing; and the standings' messages (JSON array),
-  // which can run to more than one. standings_message_id, from 0018, is read only when this is
-  // unset.
-  "0019_weekly_cup_finish": Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    yield* sql`ALTER TABLE weekly_cups ADD COLUMN final_reads TEXT`;
-    yield* sql`ALTER TABLE weekly_cups ADD COLUMN standings_message_ids TEXT`;
   }),
 };
 

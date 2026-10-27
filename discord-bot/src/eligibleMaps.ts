@@ -1,5 +1,5 @@
 // The Eligible Map search (CONTEXT.md), shared by a Match's draw (engine.ts) and the Weekly Cup's
-// Shortlist (weeklyCup/schedule.ts). The author-time limit filters the Workshop list for free;
+// Shortlist (weeklyCup/vote.ts). The author-time limit filters the Workshop list for free;
 // each shuffled candidate then costs one board check (world record, who has Played it), so only
 // the Maps actually tried are ever read, and at most `maxChecks` are.
 import { Chunk, Effect, Random } from "effect";
