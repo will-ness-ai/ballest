@@ -623,6 +623,7 @@ describe("the Weekly Cup's post", () => {
     expect(text).toContain("30 minutes");
     expect(text).toContain("no Ghosts");
     expect(text).toContain("honour system");
+    expect(text).toContain("Only times set once racing opens count");
     for (const at of [week.shortlistAt, week.voteClosesAt, week.endsAt])
       expect(text).toContain(`<t:${at / 1000}:F>`);
   });

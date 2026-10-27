@@ -179,6 +179,7 @@ const CUP_RULES =
   "**The rules**\n" +
   "- Play each Cup Map for 30 minutes at most, from your first run on it.\n" +
   "- Use no Ghosts.\n" +
+  "- Only times set once racing opens count: a PB you already hold counts once you beat it.\n" +
   "It's an honour system: the bot blocks nothing, but late PBs are looked at.";
 
 const shortDate = (ms: number) =>

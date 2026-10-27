@@ -25,7 +25,7 @@
 // previews), so it is tested on the TestClock over fakes (test/weeklyCup.test.ts); the channel on
 // discord.js is in live.ts.
 import { SqlClient } from "@effect/sql";
-import { Cause, Clock, Context, Data, Effect, Layer, Option, Random, Ref, Schema } from "effect";
+import { Cause, Clock, Context, Data, Effect, Layer, Option, Random, Schema } from "effect";
 import { MigratorLive } from "../db.js";
 import { type DrawnMap, formatTime } from "../domain.js";
 import { searchEligible } from "../eligibleMaps.js";
@@ -529,25 +529,21 @@ const rank = Effect.fn("cup.rank")(function* (
 export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: string) {
   const log = yield* CupLog;
   const lock = yield* Effect.makeSemaphore(1);
-  const told = yield* Ref.make(new Set<string>());
   const locked = lock.withPermits(1);
 
+  /** Each kind of trouble's key with ops: told once until it clears, across restarts too. */
+  const troubleKey = (kind: string) => `weekly-cup:${guildId}:${kind}`;
   /** Ops hears about each kind of trouble once until it clears. */
   const tell = Effect.fn("cup.tell")(function* (kind: string, content: string) {
-    const first = yield* Ref.modify(told, (s): [boolean, Set<string>] =>
-      s.has(kind) ? [false, s] : [true, new Set(s).add(kind)],
-    );
-    if (first) yield* (yield* OpsAlerts).post(content);
+    yield* (yield* OpsAlerts).post(content, { key: troubleKey(kind), kind: "failing" });
   });
-  const clear = (kind: string) =>
-    Ref.update(told, (s) => {
-      const next = new Set(s);
-      next.delete(kind);
-      return next;
-    });
+  const clear = Effect.fn("cup.clear")(function* (kind: string) {
+    yield* (yield* OpsAlerts).forget(troubleKey(kind));
+  });
 
-  const entrantIds = (week: string) =>
-    Effect.map(log.entrants(guildId, week), (all) => all.map((e) => e.discordId));
+  const entrantIds = Effect.fn("cup.entrantIds")(function* (week: string) {
+    return (yield* log.entrants(guildId, week)).map((e) => e.discordId);
+  });
 
   const viewOf = Effect.fn("cup.viewOf")(function* (week: CupWeek, state: CupState) {
     return { guildId, week, state, entrants: yield* entrantIds(week.week) };
@@ -750,6 +746,9 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
         const before = held.find(mine);
         if (bar !== undefined && entry.ticks >= bar.ticks) continue;
         if (before !== undefined && entry.ticks >= before.ticks) continue;
+        // Measured between reads, not runs: the first counted time was set up to a read gap
+        // (5 minutes, longer while Steam is down) before it was seen, and so was this one, so a
+        // Flag is approximate either way; ops follows it up by hand.
         const flag = before !== undefined && !before.flagged && now - before.firstAt > FLAG_AFTER;
         yield* log.putTime(guildId, week.week, {
           ...entry,
@@ -856,10 +855,10 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
 
   /**
    * Friday 09:00: the most-voted become the Cup Maps, recorded before they are announced, so a
-   * restart or a refused announcement never redraws a tie. Those who signed up after the draw
-   * have their PBs on the Cup Maps taken as their bars (once). Then the announcement, with a ping
-   * for the Entrants, the week is racing, and the Shortlist's vote is closed on its post. A Steam
-   * failure or refused announcement is tried again in a minute.
+   * restart or a refused announcement never redraws a tie. Every Entrant's PBs on the Cup Maps are
+   * taken as their bars (once). Then the announcement, with a ping for the Entrants, the week is
+   * racing, and the Shortlist's vote is closed on its post. A Steam failure or refused
+   * announcement is tried again in a minute.
    */
   const closeVote = Effect.fn("cup.closeVote")(function* (
     now: number,
@@ -883,25 +882,24 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
       shortlist = yield* log.shortlist(guildId, week.week);
     }
     const maps = yield* cupMapsOf(week.week);
+    // Every Entrant's bar is their PB as racing opens, so a time set before (practice on the
+    // Shortlist during the vote, or an old run) counts only once it is beaten.
     if (current.baselinesAt === null) {
-      const late = (yield* log.entrants(guildId, week.week))
-        .filter((e) => e.signedUpAt > week.shortlistAt)
-        .map((e) => e.discordId);
       const bars = yield* Effect.either(
         readCupMaps(
           maps.map((m) => m.map),
-          late,
+          entrants,
         ),
       );
       if (bars._tag === "Left") {
         yield* tell(
           "bars",
-          `Multiballs couldn't read the late Entrants' times on the Weekly Cup's Cup Maps for ${week.week} in ${guildId}: ${bars.left.reason}`,
+          `Multiballs couldn't read the Entrants' times on the Weekly Cup's Cup Maps for ${week.week} in ${guildId}: ${bars.left.reason}`,
         );
         return now + RETRY_EVERY;
       }
       yield* clear("bars");
-      yield* log.putBaselines(guildId, week.week, late, bars.right);
+      yield* log.putBaselines(guildId, week.week, entrants, bars.right);
       current = { ...current, baselinesAt: now };
       yield* log.put(guildId, week.week, current);
     }
@@ -970,8 +968,8 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
   });
 
   /** A step where even a bug is only that step's: ops hears, and it is tried again shortly. */
-  const safeStep = (now: number) =>
-    locked(step(now)).pipe(
+  const safeStep = Effect.fn("cup.safeStep")(function* (now: number) {
+    return yield* locked(step(now)).pipe(
       Effect.catchAllDefect((defect) =>
         Effect.flatMap(OpsAlerts, (alerts) =>
           alerts.post(
@@ -980,6 +978,7 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
         ).pipe(Effect.as(now + RETRY_EVERY)),
       ),
     );
+  });
 
   const run = Effect.gen(function* () {
     while (true) {
@@ -997,18 +996,20 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
     return Option.map(yield* log.get(guildId, pressed), (cup) => ({ week, cup }));
   });
 
-  const signUp = (pressed: string, discordId: string) =>
-    locked(
+  const signUp = Effect.fn("cup.signUp")(function* (pressed: string, discordId: string) {
+    return yield* locked(
       Effect.gen(function* () {
         const found = yield* pressedFor(pressed);
         if (Option.isNone(found) || !signUpOpen(found.value.cup.state))
           return closedBecause(Option.getOrNull(Option.map(found, (f) => f.cup.state)));
         const { week, cup } = found.value;
         const signedUpAt = yield* Clock.currentTimeMillis;
+        // Sunday 20:00 closes sign-up, even while the final read still waits for Steam.
+        if (signedUpAt >= week.endsAt) return closedBecause("final");
         const already = said("You're already signed up for this week's Cup.");
         if ((yield* entrantIds(pressed)).includes(discordId)) return already;
-        // Once the Friday bars are taken, a late Entrant's bar is their PB as they sign up, read
-        // before they are an Entrant, so none signs up without one.
+        // Once the bars are taken as racing opens, a later Entrant's bar is their PB as they sign
+        // up, read before they are an Entrant, so none signs up without one.
         if (cup.baselinesAt !== null) {
           const maps = (yield* cupMapsOf(pressed)).map((m) => m.map);
           const bars = yield* Effect.either(readCupMaps(maps, [discordId]));
@@ -1027,14 +1028,16 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
         );
       }),
     );
+  });
 
-  const withdraw = (pressed: string, discordId: string) =>
-    locked(
+  const withdraw = Effect.fn("cup.withdraw")(function* (pressed: string, discordId: string) {
+    return yield* locked(
       Effect.gen(function* () {
         const found = yield* pressedFor(pressed);
         if (Option.isNone(found) || !signUpOpen(found.value.cup.state))
           return closedBecause(Option.getOrNull(Option.map(found, (f) => f.cup.state)));
         const { week, cup } = found.value;
+        if ((yield* Clock.currentTimeMillis) >= week.endsAt) return closedBecause("final");
         if (!(yield* log.removeEntrant(guildId, pressed, discordId)))
           return said("You're not signed up for this week's Cup.");
         yield* redraw(week, cup);
@@ -1043,10 +1046,15 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
         );
       }),
     );
+  });
 
   /** An Entrant's pick of up to 3 Shortlist Maps, replacing the one before, until Friday 09:00. */
-  const vote = (pressed: string, discordId: string, picks: ReadonlyArray<string>) =>
-    locked(
+  const vote = Effect.fn("cup.vote")(function* (
+    pressed: string,
+    discordId: string,
+    picks: ReadonlyArray<string>,
+  ) {
+    return yield* locked(
       Effect.gen(function* () {
         const found = yield* pressedFor(pressed);
         if (Option.isNone(found)) return closedBecause(null);
@@ -1073,6 +1081,7 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
         );
       }),
     );
+  });
 
   /** Whether the week can be skipped by this member now: none when it can, else why not. */
   const skipRefused = Effect.fn("cup.skipRefused")(function* (
@@ -1092,16 +1101,21 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
     );
   });
 
-  const askSkip = (pressed: string, _discordId: string, manageServer: boolean) =>
-    locked(
-      Effect.map(
-        skipRefused(pressed, manageServer),
-        Option.getOrElse((): CupAnswer => ({ _tag: "ConfirmSkip", week: pressed })),
-      ),
-    );
+  const askSkip = Effect.fn("cup.askSkip")(function* (
+    pressed: string,
+    _discordId: string,
+    manageServer: boolean,
+  ) {
+    const refused = yield* locked(skipRefused(pressed, manageServer));
+    return Option.getOrElse(refused, (): CupAnswer => ({ _tag: "ConfirmSkip", week: pressed }));
+  });
 
-  const skip = (pressed: string, discordId: string, manageServer: boolean) =>
-    locked(
+  const skip = Effect.fn("cup.skip")(function* (
+    pressed: string,
+    discordId: string,
+    manageServer: boolean,
+  ) {
+    return yield* locked(
       Effect.gen(function* () {
         const refused = yield* skipRefused(pressed, manageServer);
         if (Option.isSome(refused)) return refused.value;
@@ -1112,6 +1126,7 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
         return said("Skipped this week's Weekly Cup. Its Entrants have been told.");
       }),
     );
+  });
 
   return { guildId, run, signUp, withdraw, vote, askSkip, skip };
 });

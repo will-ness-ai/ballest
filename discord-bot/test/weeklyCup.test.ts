@@ -837,6 +837,40 @@ describe("the Weekly Cup's racing and results", () => {
     }),
   );
 
+  it.scoped(
+    "takes every Entrant's PB at Friday 09:00 as their bar: practice in the vote counts not",
+    () =>
+      Effect.gen(function* () {
+        const { t, bot, boards } = yield* racing((t) =>
+          Effect.gen(function* () {
+            // alice, signed up from Monday, plays every Shortlist Map during the vote.
+            const listed = (yield* Ref.get(t.shortlists)).at(-1)?.view.maps ?? [];
+            for (const { map } of listed)
+              yield* t.steam.setTime(map.boardId, steamIdOf("alice"), 20);
+          }),
+        );
+        yield* TestClock.adjust(10 * MINUTE);
+        expect((yield* shown(t)).maps?.[0]).toContainEqual(["alice", null, 0]);
+        yield* t.steam.setTime(boards[0], steamIdOf("alice"), 19);
+        yield* TestClock.adjust(5 * MINUTE);
+        expect((yield* shown(t)).maps?.[0]).toContainEqual(["alice", tk(19), 40000]);
+        yield* bot.stop;
+      }),
+  );
+
+  it.scoped("closes sign-up and withdrawal at Sunday 20:00, while the final read still waits", () =>
+    Effect.gen(function* () {
+      const { t, bot } = yield* racing();
+      const again = yield* lastMinutes(t, bot);
+      yield* t.steam.failNextReads(1_000_000);
+      yield* TestClock.adjust(7 * MINUTE); // 20:05
+      expect(yield* Ref.get(t.results)).toEqual([]);
+      expect(yield* again.signUp("carol")).toBe("This week's Weekly Cup is over.");
+      expect(yield* again.withdraw("alice")).toBe("This week's Weekly Cup is over.");
+      yield* again.stop;
+    }),
+  );
+
   it.scoped("flags a PB seen over 30 minutes after a first time on that Map, once", () =>
     Effect.gen(function* () {
       const { t, bot, boards } = yield* racing();

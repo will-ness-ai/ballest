@@ -286,8 +286,9 @@ _Avoid_: tournament, event
 
 **Entrant**:
 A Player signed up for a Weekly Cup. Signing up needs a Link; "sign up" is the verb, so it
-doesn't collide with Link. An Entrant can withdraw until the Cup ends. One who signs up after the
-Shortlist was drawn counts a time they held on a Cup Map before signing up only once they beat it.
+doesn't collide with Link. An Entrant can withdraw until the Cup ends. Only times set while racing
+count: an Entrant's PB on each Cup Map when racing opens (Friday 09:00), or when they sign up if
+that is later, is their bar, and a time counts only once it beats it.
 _Avoid_: registrant, participant
 
 **Shortlist**:
@@ -301,6 +302,8 @@ is raced on.
 _Avoid_: track (a Track is a Circuit board)
 
 **Flag**:
-A PB first seen more than 30 minutes after that Entrant's first time on that Cup Map. It still
-counts; the bot tells the ops channel, once per Entrant per Map, to follow up by hand.
+A PB first seen more than 30 minutes after the first counted time the bot saw from that Entrant
+on that Cup Map (reads are 5 minutes apart, so it is approximate). It still counts; the bot tells
+the ops channel, once per Entrant per Map, to follow up by hand.
+
 _Avoid_: strike, violation
