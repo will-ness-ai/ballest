@@ -52,6 +52,9 @@ const central = (dayUtc: number, hours: number) => {
 const isoDate = (dayUtc: number) => new Date(dayUtc).toISOString().slice(0, 10);
 
 /** The Cup week `ms` falls in: from its Monday 00:00 Central to the next. */
+/** The week a record's key (its Monday, as `CupWeek.week` has it) names. */
+export const weekOf = (key: string): CupWeek => weekAt(Date.parse(`${key}T12:00:00Z`)); // Monday 12:00 UTC is in it
+
 export const weekAt = (ms: number): CupWeek => {
   const wall = wallClock(ms);
   const today = wall - (wall % DAY);

@@ -2,7 +2,7 @@
 // across daylight saving. The week of Monday 26 October 2026 ends after the clocks go back on
 // Sunday 1 November.
 import { describe, expect, it } from "@effect/vitest";
-import { weekAt } from "../src/weeklyCup/week.js";
+import { weekAt, weekOf } from "../src/weeklyCup/week.js";
 
 const at = (iso: string) => Date.parse(iso);
 
@@ -40,5 +40,12 @@ describe("the Weekly Cup's week", () => {
     const monday = weekAt(at("2026-10-26T05:00:00Z"));
     const sundayNight = weekAt(at("2026-11-02T03:00:00Z"));
     expect(sundayNight).toEqual(monday);
+  });
+
+  it("finds a week again from its key", () => {
+    for (const iso of ["2026-10-27T15:00:00Z", "2026-11-02T03:00:00Z", "2026-03-10T12:00:00Z"]) {
+      const week = weekAt(at(iso));
+      expect(weekOf(week.week)).toEqual(week);
+    }
   });
 });
