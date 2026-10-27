@@ -59,25 +59,41 @@ const MIGRATIONS: Migrations = {
     yield* sql`CREATE TABLE daily_leads (date TEXT NOT NULL, at INTEGER NOT NULL, leaders TEXT NOT NULL, ticks INTEGER NOT NULL)`;
     yield* sql`CREATE INDEX daily_leads_date ON daily_leads (date, at)`;
   }),
+  // The My Stats channel (spec #323) the bot made, and its panel with the fingerprint of what
+  // it shows: found by id at each start, so a renamed or moved channel is kept.
+  "0008_my_stats_channel": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE my_stats_channel (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        channel_id TEXT NOT NULL,
+        panel_id TEXT,
+        panel_fingerprint TEXT
+      )`;
+  }),
+  // Each day the Traffic Report was posted (UTC), so it is never posted twice.
+  "0009_traffic_reports": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE traffic_reports (day TEXT PRIMARY KEY)`;
+  }),
   // Venues (spec #315): each Venue's channel has its own Footer and Cards, so the layout is kept
   // per Venue. The one row there was is the home Venue's, so a deploy finds its Footer in place.
   // `discord_layout` stays as it was, so a rollback to the build before Venues still starts.
   // The copy runs once: a redeploy after a rollback picks up the layout from before the rollback.
-  "0008_venue_layouts": Effect.gen(function* () {
+  "0010_venue_layouts": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE venue_layouts (venue TEXT PRIMARY KEY, data TEXT NOT NULL)`;
     yield* sql`INSERT INTO venue_layouts (venue, data) SELECT 'home', data FROM discord_layout WHERE id = 1`;
   }),
   // Each Venue offers its own @Multiplayer ping role, so an answer is kept per Venue; the
   // answers given before were all to the home Venue's offer. `ping_offer_answers` stays, as above.
-  "0009_venue_ping_offer_answers": Effect.gen(function* () {
+  "0011_venue_ping_offer_answers": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE venue_ping_offer_answers (venue TEXT NOT NULL, discord_id TEXT NOT NULL, PRIMARY KEY (venue, discord_id))`;
     yield* sql`INSERT INTO venue_ping_offer_answers (venue, discord_id) SELECT 'home', discord_id FROM ping_offer_answers`;
   }),
   // Each server the bot set up as a Venue itself (spec #321): its name (the server's id), its
   // Match channel and its ping role. The home Venue is never here: it is its three settings.
-  "0010_venues": Effect.gen(function* () {
+  "0012_venues": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE venues (
         name TEXT PRIMARY KEY,
@@ -90,25 +106,25 @@ const MIGRATIONS: Migrations = {
   // one whose setup is still to work), 0 for one it was already in when this build first started,
   // which a deploy must never set up. `known_servers_baseline` has its one row once that first
   // start has listed them.
-  "0011_known_servers": Effect.gen(function* () {
+  "0013_known_servers": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE known_servers (guild_id TEXT PRIMARY KEY, wanted INTEGER NOT NULL)`;
     yield* sql`INSERT INTO known_servers (guild_id, wanted) SELECT guild_id, 1 FROM venues`;
     yield* sql`CREATE TABLE known_servers_baseline (id INTEGER PRIMARY KEY CHECK (id = 1))`;
   }),
   // When the baseline was taken (ms), so a server the bot joined again since counts as invited.
-  "0012_known_servers_baseline_time": Effect.gen(function* () {
+  "0014_known_servers_baseline_time": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE known_servers_baseline ADD COLUMN taken_at INTEGER`;
   }),
   // When the bot restarted to change its Venues (ms), so a brake holds across restarts.
-  "0013_venue_restarts": Effect.gen(function* () {
+  "0015_venue_restarts": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE venue_restarts (at INTEGER NOT NULL)`;
   }),
 };
 
-/** The migrations a build had before the one with this id (`"0008"`): tests start a database from an older build. */
+/** The migrations a build had before the one with this id (`"0010"`): tests start a database from an older build. */
 export const migrationsBefore = (id: string): Migrations =>
   Object.fromEntries(Object.entries(MIGRATIONS).filter(([name]) => name < id));
 

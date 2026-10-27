@@ -28,7 +28,11 @@ export type Control =
   /** Get (on) or Remove (off) the ping role, on the Pings reply or the offer. */
   | { readonly _tag: "SetPing"; readonly on: boolean }
   /** No, on the offer of the ping role. */
-  | { readonly _tag: "DeclinePing" };
+  | { readonly _tag: "DeclinePing" }
+  /** The My Stats panel's button: the member's Stat Card, privately. */
+  | { readonly _tag: "SeeMyStats" }
+  /** "Not you? Pair again", on the Stat Card's private answer: a fresh sign-in link. */
+  | { readonly _tag: "PairAgain" };
 
 type Tag = Control["_tag"];
 type Of<K extends Tag> = Extract<Control, { readonly _tag: K }>;
@@ -87,6 +91,8 @@ const CODECS: { readonly [K in Tag]: Codec<K> } = {
   Stay: bare("stay", { _tag: "Stay" }),
   Pings: bare("pings", { _tag: "Pings" }),
   DeclinePing: bare("pingno", { _tag: "DeclinePing" }),
+  SeeMyStats: bare("stats", { _tag: "SeeMyStats" }),
+  PairAgain: bare("statsagain", { _tag: "PairAgain" }),
   SetPing: {
     prefix: "setping",
     write: (c) => [c.on ? "on" : "off"],

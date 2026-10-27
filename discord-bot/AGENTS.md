@@ -388,6 +388,31 @@ holding that date's Daily, a past date is posted instead as the backfill posts i
 that database. Read it back with `pnpm --silent axi show <id> --in <channel>`, which
 lists and saves the files a Components V2 card shows.
 
+## The Traffic Report
+
+`src/traffic/` posts the Traffic Report in the dev server's #search-analytics at 13:00 UTC, through
+that channel's webhook (`TRAFFIC_WEBHOOK_URL`), apart from the ops channel. It has two halves, each
+on only when its keys are set:
+
+- Visits, yesterday, from the site's Plausible (`plausible.ts`: Stats API v1 at `PLAUSIBLE_URL`,
+  in `fly.toml`, with `PLAUSIBLE_API_KEY` for `PLAUSIBLE_SITE_ID`, default `ballest.willness.dev`,
+  the name the site's script reports under): visitors and pageviews against the week before, visit
+  length, bounce rate, top pages and top sources.
+- Google search, the newest final day Search Console has, about two days back (`searchConsole.ts`:
+  the Domain property `sc-domain:ballestrecords.com`, read as a Google Cloud service account whose
+  JSON key is `GSC_SERVICE_ACCOUNT` and which the property lists as a Restricted user): clicks,
+  impressions, position, the top searches and pages, searches new against the 28 days before, and
+  each sitemap's errors.
+
+A half that can't be read (a revoked key, say) says so in the post and in the ops channel, and a
+post that fails goes to the ops channel. A day counts against the mean of the seven before it, a
+day Search Console has no row for counting as 0.
+The schedule is shared with the Daily Report (`src/everyDay.ts`): a bot that was down at 13:00
+posts once when it starts, and each posted day is recorded in SQLite (`traffic_reports`). What it
+says and the schedule are tested in `test/traffic.test.ts`. `pnpm traffic` builds the report now
+from whichever keys the environment has and prints it, and `pnpm traffic --post` posts it too,
+recording nothing. Plausible's host answers Fly but not a cloud session.
+
 ## New tracks
 
 `src/newTracks.ts` gets a new Workshop Map onto the site within minutes (spec #259). The game
@@ -401,6 +426,50 @@ from the collector. It is off unless both
 settings are set and the bot can view that channel, and then says why in the log; the bot runs on.
 The batching is tested on the TestClock (`test/newTracks.test.ts`).
 
+## My stats
+
+`src/discord/myStats.ts` keeps `#my-stats` (spec #323): at startup the bot makes it in its server,
+beside the Match channel, or at the top of the server `MY_STATS_GUILD_ID` names (production: Ballest
+Racing, `fly.toml`), when it holds none or the one it made is gone, with `@everyone` denied
+Send Messages, both Create Threads, Send Messages in Threads and Add Reactions, and the bot allowed
+what the panel needs, and keeps one panel there with a **See my stats** button. Its id,
+the panel's and the panel's fingerprint are in SQLite (`my_stats_channel`), so it is found by id and
+admins may rename or move it; the panel is edited only when this build draws it differently, like
+the Footer, and posted again if deleted. Presses there reach `interactions.ts` through
+`Discord.answerIn`, as the home Venue's, ahead of the Venue lookup (`routeClick`), wherever its server is. Before making the channel it checks the bot holds every permission in
+`NEEDED_TO_CREATE` where the channel will be, the Match channel's category or else the server
+(in Ballest Racing, Add Reactions and Create Private Threads are beyond its invite's permissions)
+(Discord refuses an overwrite, allow or deny, naming a permission the bot lacks): any missing is
+named to the ops channel, and no channel is made without them. A channel already there needs
+none of them, so it raises no alert. On any
+other failure it tells the ops channel too, and the bot runs on. It is off in the sandbox, whose fresh database would make a channel at every start;
+check the discord.js calls with `pnpm dev`, whose database lasts. The rules are tested over an
+in-memory server in `test/myStats.test.ts`, the panel in `test/messages.test.ts`.
+
+A press of See my stats is `src/seeMyStats.ts`. With a Stats Link in `stats_links` (CONTEXT.md,
+ADR 0014) the private answer is the Stat Card, fetched from the site at `SITE_URL` (default the
+live site) as `/og/stats/<steamid>?v=<the site's /api/refreshed>`, with a Player page link and
+"Not you? Pair again". Without one, or on Pair again, the bot writes a link request to
+`stats_link_requests` (one insert, pruning those past a day: the only rows it writes in the
+leaderboard database) and answers with a Sign in with Steam link to the site's
+`/discord/link?t=<token>`; then it looks every 5 seconds for 14 minutes whether the request has
+been used, and once it has, edits that answer into the card through the interaction's own token
+(which lasts 15). A card the site can't draw answers "Couldn't draw your card, try again" and tells
+the ops channel, at most once an hour (`CARD_ALERT_EVERY`), since a site outage fails every press;
+with no `DATABASE_URL` (or one it can't read) the answer says stats aren't available. The Stats
+Links share one `pg` pool, made at start, which connects only when a call needs it (giving up
+after 5 seconds), so a database that can't be reached fails that press alone. The ops alert of a
+failed draw is posted in the background, never holding up the member's answer. The site and
+the database must be the same one's: for `pnpm dev` against a local database, set `SITE_URL` to a
+local `pnpm dev` of `web/` on it. The rules run over fake ports on the TestClock in
+`test/seeMyStats.test.ts`, the SQL against Postgres in `test/statsLinks.test.ts`, the answers'
+buttons in `test/messages.test.ts`, and the clicks through `interactions.ts` in
+`test/driver.test.ts`.
+
+In production the bot's role needs, where #my-stats is made (the Match channel's category, or the
+server), Manage Channels, Manage Roles, View Channel, Send Messages, Embed Links, Read Message
+History, both Create Threads, Send Messages in Threads and Add Reactions (`NEEDED_TO_CREATE`).
+
 ## Production
 
 Production is the "Multiballs" app on the community server, running on Fly.io (`fly.toml`,
@@ -413,7 +482,8 @@ live in `fly secrets`, and the repo holds only `FLY_API_TOKEN`, a deploy token f
 A deploy stops the old copy before starting the new one (one volume, one machine), and the
 engine's restart recovery resumes live Matches. `src/ops.ts` pings Healthchecks.io every minute
 (`HEALTHCHECK_URL`), which alerts the private `#multiballs-ops` channel when pings stop, and
-posts there daily (`OPS_WEBHOOK_URL`) once the Steam refresh token has 30 days left; renew it
+posts there daily (`OPS_WEBHOOK_URL`) once the Steam refresh token has 30 days left (the Traffic
+Report has its own channel, above); renew it
 with `tools/steampy_mint.py` and `fly secrets set STEAM_REFRESH_TOKEN=...`. Logs: `fly logs`.
 `.github/workflows/bot-cost.yml` posts a weekly cost estimate there for the bot and for the
 collector's app (`scripts/cost_report.py`, once per app with that app's deploy token;

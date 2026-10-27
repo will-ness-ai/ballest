@@ -8,6 +8,9 @@
 // running Venues are then fixed; setting up or repairing the rest runs in the background, and one
 // that sets up, or a removal, restarts the bot (ops told once per kind of reason). The sandbox
 // sets up nothing: `pnpm dev` does that.
+//
+// The one other channel it makes itself is #my-stats (spec #323, myStats.ts), whose panel's
+// presses reach the bot, as the home Venue's, once `answerIn` names it.
 import {
   ChannelType,
   Client,
@@ -221,18 +224,23 @@ const isIn = (venue: DiscordVenue, i: Interaction) =>
   (i.channel?.isThread() === true && i.channel.parentId === venue.channel.id);
 
 /**
- * Where a click goes: to the running Venue whose channel or Match Thread it came from; told the
- * Venue is being repaired, opening nothing, when that Venue isn't on offer (a guest not up yet,
- * or broken); or turned away from anywhere else.
+ * Where a click goes: to the running Venue whose channel or Match Thread it came from; to home
+ * (the first running) from another channel the bot answers in for it (#my-stats, wherever that
+ * server is), ahead of every Venue; told the Venue is being repaired, opening nothing, when that
+ * Venue isn't on offer (a guest not up yet, or broken); or turned away from anywhere else.
  */
 export const routeClick = (
   running: ReadonlyArray<DiscordVenue>,
   unavailable: (name: VenueName) => boolean,
   i: Interaction,
+  homeAlsoIn: ReadonlySet<string> = new Set(),
 ):
   | { readonly _tag: "Venue"; readonly venue: DiscordVenue }
   | { readonly _tag: "Repairing" }
   | { readonly _tag: "Elsewhere" } => {
+  const home = running[0];
+  if (home !== undefined && i.channelId !== null && homeAlsoIn.has(i.channelId))
+    return { _tag: "Venue", venue: home };
   const venue = running.find((v) => isIn(v, i));
   if (venue === undefined) return { _tag: "Elsewhere" };
   return unavailable(venue.name) ? { _tag: "Repairing" } : { _tag: "Venue", venue };
@@ -399,6 +407,9 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     /** The running Venue by this name, if it runs. */
     const venueNamed = (name: VenueName) => Effect.succeed(Option.fromNullable(byName.get(name)));
 
+    /** Other channels whose presses are the home Venue's too: #my-stats, once it is found or made. */
+    const alsoAnswered = new Set<string>();
+
     const interactions = Stream.asyncPush<Interaction>((emit) =>
       Effect.acquireRelease(
         Effect.sync(() => {
@@ -412,7 +423,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       Stream.mapEffect(
         (i) =>
           Effect.gen(function* () {
-            const route = routeClick(running, guests.unavailable, i);
+            const route = routeClick(running, guests.unavailable, i, alsoAnswered);
             if (route._tag === "Venue")
               return Option.some<VenueInteraction>({ interaction: i, venue: route.venue });
             const content =
@@ -495,6 +506,8 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       venueNamed,
       /** Clicks from every running Venue's channel and its Match Threads, each with its Venue. */
       interactions,
+      /** Take presses in another channel too (#my-stats), as the home Venue's. */
+      answerIn: (otherId: string) => Effect.sync(() => void alsoAnswered.add(otherId)),
       postsIn,
       missingIn,
       /** The application's own emojis (usable anywhere the bot posts), name to id. */

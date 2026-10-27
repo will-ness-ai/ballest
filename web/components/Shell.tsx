@@ -25,7 +25,8 @@ export type View =
   | "daily"
   | "prefab"
   | "prefabs"
-  | "you";
+  | "you"
+  | "link";
 
 export async function Shell({ view, children }: { view: View; children: React.ReactNode }) {
   const { site, facts, jumps } = await frameOf();

@@ -15,6 +15,7 @@ import { Pings, warnPingRole } from "../pings.js";
 import { roleNamed } from "../pingWords.js";
 import { ChosenSkins, chosenSkinOf, MatchLinks, Store, type ProfilePreview } from "../ports.js";
 import { Renderer, type RenderError } from "../render/renderer.js";
+import { type Member, SeeMyStats, type StatsAnswer } from "../seeMyStats.js";
 import {
   describeDiscordError,
   Discord,
@@ -40,6 +41,7 @@ import {
   playAgainText,
   PROFILE_FIELD,
   quiet,
+  statsAnswerMessage,
   tryAgainMessage,
   withPingFailure,
 } from "./messages.js";
@@ -73,6 +75,7 @@ export const InteractionsLive = Layer.scopedDiscard(
     const chosenSkins = yield* ChosenSkins;
     const links = yield* MatchLinks;
     const pings = yield* Pings;
+    const stats = yield* SeeMyStats;
     /** A Venue's @Multiplayer ping role, as the words mention and name it. */
     const pingRoleIn = (venue: DiscordVenue) => ({
       id: venue.pingRoleId,
@@ -229,6 +232,11 @@ export const InteractionsLive = Layer.scopedDiscard(
       yield* act(i, venue, next.value.action, next.value.matchId);
     });
 
+    /** See my stats's private answer, on the reply this click deferred: shown, then replaced. */
+    const statsAnswer = (i: ButtonInteraction) => (answer: StatsAnswer) =>
+      tryDiscord("edit reply", () => i.editReply(statsAnswerMessage(answer))).pipe(Effect.asVoid);
+    const memberOf = (i: ButtonInteraction): Member => ({ id: i.user.id, name: i.user.username });
+
     /** A button pressed in `venue`'s channel or one of its Match Threads: it acts there. */
     const onButton = Effect.fn("onButton")(function* (i: ButtonInteraction, venue: DiscordVenue) {
       const pingRole = pingRoleIn(venue);
@@ -326,6 +334,14 @@ export const InteractionsLive = Layer.scopedDiscard(
         case "DeclinePing":
           yield* pings.decline(venue.name, self);
           return yield* tryDiscord("update", () => i.update(pingDeclinedMessage()));
+        case "SeeMyStats":
+          // Deferred first: the card takes the site a few seconds to draw.
+          yield* tryDiscord("defer", () => i.deferReply(ephemeral));
+          return yield* stats.see(memberOf(i), statsAnswer(i));
+        case "PairAgain":
+          // The card's own answer becomes the sign-in link, and the card again once paired.
+          yield* tryDiscord("defer", () => i.deferUpdate());
+          return yield* stats.pairAgain(memberOf(i), statsAnswer(i));
         default:
           return;
       }

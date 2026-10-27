@@ -30,7 +30,7 @@ const beforeVenues = (file: string, write: Effect.Effect<unknown, unknown, SqlCl
   Effect.scoped(
     write.pipe(
       Effect.provide(
-        migratorFor(migrationsBefore("0008")).pipe(
+        migratorFor(migrationsBefore("0010")).pipe(
           Layer.provideMerge(SqliteClient.layer({ filename: file })),
         ),
       ),

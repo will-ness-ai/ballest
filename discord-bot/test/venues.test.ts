@@ -749,7 +749,7 @@ describe("a baseline taken by a build that kept no time", () => {
         yield* Layer.build(VenueRecordsLive.pipe(Layer.provide(Layer.succeedContext(sql)))),
         VenueRecords,
       );
-      // What the build before 0012 wrote: the row with no time, and the server it counted out,
+      // What the build before 0014 wrote: the row with no time, and the server it counted out,
       // which the bot joined after Venues began.
       yield* Effect.flatMap(SqlClient.SqlClient, (db) =>
         Effect.all([
@@ -799,6 +799,17 @@ describe("a click", () => {
     const repairing = (name: string) => name === "g-racing";
     expect(routeClick(running, repairing, click("c-racing"))._tag).toBe("Repairing");
     expect(routeClick(running, repairing, click("c-home"))._tag).toBe("Venue");
+  });
+
+  it("in #my-stats goes to home, even in a guest's server that is being repaired", () => {
+    const myStats = new Set(["c-my-stats"]);
+    const repairing = (name: string) => name === "g-racing";
+    expect(routeClick(running, repairing, click("c-my-stats"), myStats)).toMatchObject({
+      _tag: "Venue",
+      venue: { name: "home" },
+    });
+    expect(routeClick(running, () => false, click("c-my-stats"))._tag).toBe("Elsewhere");
+    expect(routeClick(running, repairing, click("c-racing"), myStats)._tag).toBe("Repairing");
   });
 });
 

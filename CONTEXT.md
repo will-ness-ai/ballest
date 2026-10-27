@@ -55,6 +55,18 @@ run's own Skin first, then their Chosen Skin, then the marble in their hue. Mult
 it too.
 _Avoid_: avatar, icon, profile ball
 
+**Stat Card**:
+The image of one player's standing that Multiballs's See my stats answers with, drawn by the
+site: their ball, their Season 1 and Season 2 Circuit ranks, World records, Medals and Maps
+finished, dated with the Refresh it reads.
+_Avoid_: profile card, share card (a share card is a page's link preview)
+
+**Stats Link**:
+The pairing of one Discord account with the Steam ID it signed in as on the site, made from
+the link Multiballs gives a member who presses See my stats. Verified, unlike the Match bot's
+Link (pasted, unchecked), and kept apart from it. Pairing again replaces it.
+_Avoid_: link (alone, which is the Match bot's), verification, connection
+
 **Race**:
 Two runs' Ghosts played against each other on the site, a run against the leader (the
 leader against 2nd), to show where along the course one gained on the other. A board's

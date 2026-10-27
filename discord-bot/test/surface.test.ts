@@ -210,7 +210,7 @@ const setup = Effect.fn("setup")(function* (
   const racing = makeFakeChannel();
   const sql = yield* Layer.build(SqliteClient.layer({ filename: ":memory:" }));
   if (opts.beforeVenues !== undefined) {
-    yield* Effect.scoped(Layer.build(migratorFor(migrationsBefore("0008")))).pipe(
+    yield* Effect.scoped(Layer.build(migratorFor(migrationsBefore("0010")))).pipe(
       Effect.provide(sql),
       Effect.orDie,
     );

@@ -213,7 +213,7 @@ export class VenueRecords extends Context.Tag("multiballs/VenueRecords")<
     /**
      * On this build's first start only: every server listed is known, but not wanted as a Venue,
      * as of `at` (ms). Later calls change nothing, except to give a baseline taken without a time
-     * (by the build before 0012) this one, so only a rejoin after now counts.
+     * (by the build before 0014) this one, so only a rejoin after now counts.
      */
     readonly takeBaseline: (guildIds: ReadonlyArray<string>, at: number) => Effect.Effect<void>;
     /** When the baseline was taken (ms); none before it is. */

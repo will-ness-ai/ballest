@@ -27,6 +27,8 @@ export {
   COLOURS,
   COLOUR_NAMES,
   PIECE_LIMIT,
+  SPAWN_MOST,
+  spawnsOf,
   rects,
   type Colour,
   type Control,
@@ -34,6 +36,7 @@ export {
   type Values,
 } from "./pieces";
 export { fitText } from "./signs";
+export { PIECE_FONTS, PIECE_FONT_INFO, isPieceFont, type PieceFontName } from "./piece-fonts";
 export { VOXEL_KINDS, voxelBoxes, voxelTree } from "./nature";
 export { MARBLE, PICTURE_MOST, pictureOf, readPicture } from "./useful";
 export { rotOf } from "./pieces";
@@ -94,8 +97,13 @@ export function variationsOf(
   return changes.map(([label, change]) => ({ label, values: { ...g.defaults, ...change } }));
 }
 
+/* whether `key` won't make these values: a sign's text it won't letter */
+export const refuses = (key: string, values: Values) => !!generatorOf(key)?.refuses?.(values);
+
 /* the Prefab file `key` makes from these values, or null when there is nothing to make (no
-   text); a sign in a drawn font takes the lettering that draws it, else the Pixel font's */
+   text, or text it refuses); a sign in a drawn font takes the lettering that draws it, else the
+   Pixel font's */
 export function generate(key: string, values: Values, lettering: Lettering = PIXEL_LETTERING) {
+  if (refuses(key, values)) return null;
   return generatorOf(key)?.build(values, lettering) ?? null;
 }

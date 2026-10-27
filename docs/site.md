@@ -79,7 +79,8 @@ then starts over from its new first rows. Nothing polls while a tab is open.
 Sign in with Steam (ADR 0008) never touches a page's cache: the session cookie is signed
 with `SESSION_SECRET` and only `/api/me` reads it, from the browser, which asks only when
 the readable `ballest-in` cookie says a session exists. Without `SESSION_SECRET` nobody can
-sign in and every page works as before.
+sign in and every page works as before. The one page that reads it while it draws is the
+link page (`/discord/link`, ADR 0014), which is never cached.
 
 Every Circuit board and every Players view is prerendered at build. A player, a Map or a
 head to head is prerendered for a handful of the busiest, and anyone else is served from
@@ -223,6 +224,41 @@ of each `circuit/*.webp`. Regenerate those copies whenever a Track screenshot ch
 with a 3-second timeout, only as PNG, JPEG or GIF and up to 4 MB; a card whose picture
 fails to load, or that Satori can't read, draws without it.
 
+## Stat Card
+
+A player's Stat Card (CONTEXT.md) is the 720×1060 portrait card Multiballs's See my stats
+answers with in Discord (spec #323; grill-design K5 with its date as T1, prototype branch
+`claude/prototype-statcard`). No page names it: `/og/stats/<steam id>?v=<Refresh time>`
+(`app/og/stats/[id]/route.tsx`) serves it, through the player page's cached reads plus
+`getChosenSkins`, `v` being the cache key. Unlike a share image it is kept by the CDN for five
+minutes only (`s-maxage=300`), since the Chosen Skin and the Steam avatar on it change between
+Refreshes, and not at all (`no-store`) when its avatar failed to load only for now (timed out,
+a 5xx or the network failing), so the next press draws it again. A picture that will never
+load (no PNG for the Skin, an avatar address `safeImg` refuses, a 404) leaves the card drawn
+without it and kept as usual. A Steam ID that
+names nobody is a 404. `lib/stat-card.ts` decides what it says, and
+`components/share/StatCard.tsx` loads its pictures and draws it with `Card.tsx`'s colours,
+marble and fonts.
+
+- A frame and glow in the player's hue, and their ball at 400px: their Chosen Skin's
+  picture, else their hue marble, with their Steam avatar as a 130px badge on its lower
+  right (none without an avatar). Then their name, on one line: it steps down from 56px so
+  that 32 characters (Steam's longest persona, counted as graphemes) fit, each at Bungee's
+  widest letter or, for an emoji, CJK or any other script Bungee lacks, at 1.25em, and
+  anything longer is cut with an ellipsis.
+- The rows, in order: Season 1 Circuit and Season 2 Circuit (each season's Overall rank),
+  World records, Author, Gold, Silver and Bronze medals, Maps finished. The counts add the
+  Circuit and the Workshop as the player's share card does (an Author count includes world
+  records at the author time), and the Medals count what each finish's time earned. A
+  missing rank or a zero leaves its row out.
+- The Refresh's date in UTC (`22 OCT 2026`) bottom left, the brand bottom right.
+
+The Skin pictures are 192px WebP, which Satori can't read, so `assets/share/skins/` holds a
+PNG copy of each at the same size, drawn scaled up to the ball until larger shots are taken
+in the game. Run `python web/scripts/skin_pngs.py` (Pillow) after adding or changing a
+picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has its copy.
+`qa`'s `stat-card` page draws it at the widths it fits (`minWidth` in the catalogue).
+
 ## Routes
 
 - `/` — the Workshop homepage: the carousel, the Campaigns' carousel, the shelves and the
@@ -294,6 +330,17 @@ fails to load, or that Satori can't read, draws without it.
   whether anyone is signed in, the strip, those rows and the gains line are drawn unseen,
   out of reach, holding their place, so a signed-out page doesn't jump when they show and
   a signed-in visitor never sees Sign in.
+- `/discord/link?t=<token>`: the Stats Link's page (ADR 0014), where Multiballs sends a member
+  who pressed See my stats to pair their Discord account with their Steam sign-in
+  (`components/discord/LinkView.tsx` over `linkPageOf` in `db/stats-link.ts`). In the shell,
+  lighting no tab, with /you's heading and sign-in strip. A token nobody wrote, one over 15
+  minutes old and one already used each say so and send the reader back to See my stats.
+  Signed out, Sign in with Steam comes back to it; signed in, it asks "Pair Discord account
+  <name> with <persona>?", the persona from the boards, else the Steam profile, with Pair (a
+  POST to `/api/discord/link?t=`, so a link preview can't use the token) and "Not you? Sign in
+  as someone else", which signs out and comes back. Pair answers back to the page, which then
+  says it is done. The one page that reads the session while it draws, so it is never cached
+  and robots.txt keeps crawlers off it. `qa`'s `link` and `link-confirm` draw tiny's request.
 - `/prefabs`: the Prefabs gallery; `/prefab/<slug>`: a Prefab's page; `/prefabs/new`: the
   upload form; `/prefabs/make` and `/prefabs/make/<generator>`: the Generators. The Prefabs
   Section comes last and is lit on all of them. See "Prefabs" and "Generators".
@@ -786,12 +833,19 @@ kept apart from the Generators so a page that only links one never loads them).
   `nature.ts` and `buildings.ts` hold each category's, `pieces.ts` what they share): each is its
   controls, its defaults and its
   builder, and `generate(key, values)` returns its Prefab file (or null with nothing to
-  make). The page draws whatever `controls(values)` returns, so a switch can hide another
+  make, or values it refuses). The page draws whatever `controls(values)` returns, so a switch can hide another
   control (the sign's wall colour with the wall off), and a new Generator is one entry.
   Each kind of tree is a Generator of its own (Tree, Pine, Block tree). Pieces are the editor's
   cube, sphere, cylinder, cone and pyramid, placed by their bottom centre (a box can also be
   placed by its centre at any rotation);
   grids of cells (letters, voxels) are merged into as few boxes as they can be.
+- **Parts** (`spawnsOf`): one spawn of 400 pieces crashed a sandbox game where 289 didn't
+  (its cost grows with the square of the pieces), so a Prefab over `SPAWN_MOST` (240) downloads
+  as Part 1..N, to spawn one after another without moving the camera. spawnprefab keeps a
+  file's origin across and up but slides it along X to sit its nearest face a set way ahead, so
+  a part that doesn't reach the whole's near, low corner gets a 20 cm white marker cube there,
+  and the parts meet. Pixel art goes up to 128 blocks the longer way (`PICTURE_MOST`; a tall
+  picture's Blocks across stops short of 128) on the strength of it.
 - **Colours** (`COLOURS`): each names its material and the `paint` the editor saves beside
   it, a MaterialCategory and an `EBallestMaterialColors` value read from the game's assets
   (Smooth for the colours, Special for the metals). The editor paints nothing gold, so
@@ -802,6 +856,22 @@ kept apart from the Generators so a page that only links one never loads them).
   behind the same `Lettering`, so `lib/` stays pure. The text wraps at whatever line length
   makes the letters biggest inside the wall. Fonts the site doesn't load already come from
   Google Fonts on the sign's page only.
+- **Text the sign won't letter** (`lib/rude-text.ts`, Will asked): the words on `obscenity`'s
+  English list, which reads through l33t, repeated letters and look-alike characters and lets a
+  clean word holding a rude one through (Scunthorpe, assassin, and our Cockpit); the same words
+  spelled out a letter at a time; and swastikas, 1488 and KKK. No rude word is written in our
+  code or tests (Will, 2026-10-24): a missing one goes upstream to `obscenity`, and the tests
+  draw their words from its list. The sign `refuses` such text, so `generate` returns null and
+  the page says "Keep it friendly" with Download off. Signs are download-only, so a list is the
+  whole check: no moderation service. It adds about 16 KB gzipped to the Make your own pages.
+- **Piece fonts** (`lib/generators/piece-fonts.ts`, R23 asked): Graduate (capitals) and Leker
+  (lower case) are alphabets R23 built by hand from track pieces and uploaded as Prefabs. Each
+  glyph is its own pieces, stood up and scaled to fit, not cells, so there is no Detail. Their
+  glyphs live in `piece-fonts.json`, written from the four Prefabs by
+  `scripts/piece-fonts.ts`, whose table says which pieces make each character; run it again if
+  R23 changes them. A character they lack is a `?`; `.`, `:` and `'` reuse the `!`, `÷` and `”`
+  pieces. The letters are as deep as built, about half a capital's height. The font picker
+  credits R23 and links the Prefabs.
 - **Buildings** (House, Tower, Castle) face -X, like signs. A wall is the boxes round its
   openings (`wall`: piers between windows, a piece under and over each). Roofs: gable as two
   pitched slabs (`slopes`) with stepped gable ends kept under the roof line; hip as a ridge with
@@ -810,7 +880,9 @@ kept apart from the Generators so a page that only links one never loads them).
   checked from four angles at six settings on the prototype's `/proto-collage` page.
 - **The collage** (`/prefabs/collage?g=<key>[&only=<control,…>]`, `GeneratorCollage.tsx`): one
   Generator in every variation `variationsOf` lists, from three angles, for an agent to read in
-  one screenshot (`.claude/skills/prefab-generators/collage.mjs`). `proxy.ts` answers 404 for it
+  one screenshot (`pnpm --silent gen collage <key>`, which wraps
+  `.claude/skills/prefab-generators/collage.mjs`). `pnpm --silent gen check` runs the same
+  variations without a browser and prints only faults (`lib/generators/checks.ts`). `proxy.ts` answers 404 for it
   in production.
 - **The page** (`GeneratorEditor.tsx`, grill-design rounds 1 and 4): the controls on the left,
   main ones first and the rest under More options, every number a slider showing its value;
@@ -891,15 +963,23 @@ only visible ones.
   parallel queries, not the code: `npx vercel redeploy <deployment>` once.
 - **Looking at it**: `pnpm --silent qa` from `web/`, run bare, lists the targets (production,
   this branch's preview with its deploy state, a local build) and what it checks. `qa check`
-  draws every page and dialog in `scripts/qa/catalogue.mjs` at 320px with 20px text, 390,
-  820 and 1280, on the preview and on production, and prints only what is wrong: sideways
+  draws the pages and dialogs in `scripts/qa/catalogue.mjs` that the branch's changes from
+  `main` reach, at 320px with 20px text, 390, 820 and 1280, on the preview and on production, and prints only what is wrong: sideways
   scroll, an element past the edge (with the one holding it open), text cut off or drawn
   over other text, page errors, and changed pixels, with one picture per change to read
   (reference | target | changes in red) in `scratch/qa/`. Read those pictures, not
-  screenshots of your own. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
+  screenshots of your own. Which pages a change reaches is `scripts/qa/reach.mjs`: those whose
+  page file or layouts import a changed file, through relative imports. A site file no page
+  imports (the proxy, an API route, a migration, a picture) or one every page does (the root
+  layout, the CSS, `lib/rules.ts`) draws every page; docs, tests, scripts and the other
+  packages draw none, and it names any page a change reaches that the catalogue lacks. The
+  whole catalogue is 176 views and takes 13 minutes from a cloud session, so pass `--all` only
+  for a change that shows everywhere and wasn't caught as one. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
   place of a throwaway Playwright script. `qa shot prefab@1280 --prefab <file.json>` has the
-  Prefab page's viewer draw any file. To work on a stand-in shape, run `qa piece <mesh>`
+  Prefab page's viewer draw any file. `qa render <file.json | generator>` draws a Prefab file, or
+  what a Generator makes (`--set font=Leker`), locally with the share images' rasterizer: no
+  page, no deploy; `--items 0-5` and `--from top` show which pieces make what. To work on a stand-in shape, run `qa piece <mesh>`
   instead: it scores the stand-in's top, front and side outlines against the game mesh's
   renders in `ballest-map-making/references/pieces/` (1.00 is the same outline) and writes a
   game | viewer | outlines sheet; `qa piece --all` lists every mesh, worst first, and
@@ -909,7 +989,7 @@ only visible ones.
   Production's domain may be outside a cloud session's network policy; `prod` is its Vercel
   address. A page or dialog with no row in the catalogue is not checked: add it. Locally,
   serve a build seeded with `stress` (tiny, plus a long name at a five-digit rank, a long
-  Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --against none --assert` on
+  Map title and one Campaign Map), whose IDs the catalogue knows; CI runs `qa check --all --against none --assert` on
   one, and its report is a notice on the build job (`gh api repos/will-ness-ai/ballest/check-runs/<id>/annotations`). A catalogue row with `as` is drawn signed in as that player (the Prefab upload form, an
   owner's Edit and Delete, the admin box): qa signs the cookie itself with the target's
   `SESSION_SECRET` (`scripts/qa/session.mjs`), which it knows only for a local build (from the

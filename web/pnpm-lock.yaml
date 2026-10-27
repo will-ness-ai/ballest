@@ -172,6 +172,9 @@ importers:
       next:
         specifier: 16.3.8
         version: 16.3.8(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      obscenity:
+        specifier: 0.4.6
+        version: 0.4.6
       pg:
         specifier: 8.23.1
         version: 8.23.1
@@ -1346,6 +1349,10 @@ packages:
       sass:
         optional: true
 
+  obscenity@0.4.6:
+    resolution: {integrity: sha512-pHk7kNN7j3L3zGhhGnwxjvXIGsPpLrcZl2r58fqWh/V/rH6b/dafscj2sMmAY+A/9/wPsocLmimgGk2DKeKsFQ==}
+    engines: {node: '>=18.0.0'}
+
   obug@2.2.1:
     resolution: {integrity: sha512-XrsrhT5sybtKI6wakr2SPOlGZWWYbUXZ7a0jT8/QOeAPau+1X/bSegNe5YR75oJmEZQbKningirmGOEJCIk61Q==}
     engines: {node: '>=12.20.0'}
@@ -2357,6 +2364,8 @@ snapshots:
       - '@babel/core'
       - '@types/node'
       - babel-plugin-macros
+
+  obscenity@0.4.6: {}
 
   obug@2.2.1: {}
 
