@@ -124,6 +124,27 @@ describe("changedFiles", () => {
     expect(gone.upTo).toEqual(["web/lib/a.ts", "web/proxy.ts"]);
   });
 
+  it("leaves out a code file whose change is only to its comments, which draws nothing", () => {
+    const files = {
+      "web/lib/rules.ts": "/* a rule */\nexport const a = 1;\n",
+      "web/lib/b.ts": "// b\nexport const b = 1;\n",
+      "web/app/board.css": "/* rows */\n.row {\n  color: red;\n}\n",
+      "web/app/a.tsx": "export const A = <a>see https://a.example</a>;\n",
+    };
+    const said = branch(files, (_git, dir) => {
+      writeFileSync(
+        join(dir, "web/lib/rules.ts"),
+        "/* a rule, said again\n   over two lines */\nexport const a = 1;\n",
+      );
+      writeFileSync(join(dir, "web/lib/b.ts"), "// b\nexport const b = 2; // changed\n");
+      writeFileSync(join(dir, "web/app/board.css"), "/* the rows */\n.row {\n  color: red;\n}\n");
+      writeFileSync(join(dir, "web/app/a.tsx"), "export const A = <a>see https://b.example</a>;\n");
+    });
+    /* a URL in JSX text is what the page shows, not a comment */
+    expect(said.upTo).toEqual(["web/app/a.tsx", "web/lib/b.ts"]);
+    expect(said.tree).toEqual(["web/app/a.tsx", "web/lib/b.ts"]);
+  });
+
   it("stops at the commit a preview holds, before the ones after it", () => {
     const dir = {
       "web/lib/a.ts": "export const a = 1;\n",

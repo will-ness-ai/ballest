@@ -33,6 +33,36 @@ const UNDRAWN = [
   /(^|\/)\.(gitignore|prettierignore|prettierrc[^/]*)$/,
 ];
 const CODE = /\.(ts|tsx|mjs|js|css)$/;
+
+/* a code file's text without its comments, strings kept whole, so two versions that differ
+   only in what they say about the code compare equal. CSS has no line comments, and a //
+   starts one only after a space or a bracket, so a URL in JSX text (https://...) stays
+   code. A slash inside a regex literal can read as a comment's start, which at worst
+   draws a page a comment-only change didn't need. */
+export function withoutComments(text, css = false) {
+  let out = "";
+  for (let i = 0; i < text.length;) {
+    const c = text[i];
+    const two = text.slice(i, i + 2);
+    if (two === "/*") {
+      const end = text.indexOf("*/", i + 2);
+      i = end < 0 ? text.length : end + 2;
+    } else if (two === "//" && !css && (i === 0 || /[\s;,{}()]/.test(text[i - 1]))) {
+      const end = text.indexOf("\n", i);
+      i = end < 0 ? text.length : end;
+    } else if (c === '"' || c === "'" || c === "`") {
+      let j = i + 1;
+      while (j < text.length && text[j] !== c && !(c !== "`" && text[j] === "\n"))
+        j += text[j] === "\\" ? 2 : 1;
+      out += text.slice(i, j + 1);
+      i = j + 1;
+    } else {
+      out += c;
+      i++;
+    }
+  }
+  return out;
+}
 const EXTENSIONS = ["", ".ts", ".tsx", ".mjs", ".js", ".css", "/index.ts", "/index.tsx"];
 /* the paths a file's relative imports name, from the repo's root, before an extension is
    looked for: ./a/b from web/lib/x.ts is web/lib/a/b */
@@ -199,7 +229,18 @@ export function changedFiles(root, { at } = {}) {
       base,
       ...(at ? [at] : []),
     );
-  const kept = diff("d");
+  /* a changed code file whose code is main's, its comments aside, draws nothing new */
+  const said = (f) => {
+    if (!CODE.test(f)) return false;
+    const now = () => (at ? run("show", `${at}:${f}`) : readFileSync(join(root, f), "utf8"));
+    const strip = (t) => withoutComments(t, f.endsWith(".css"));
+    try {
+      return strip(run("show", `${base}:${f}`)) === strip(now());
+    } catch {
+      return false; // new on this branch
+    }
+  };
+  const kept = diff("d").filter((f) => !said(f));
   const deleted = diff("D");
   /* what the changed code files imported on main, as repo paths without their extension */
   const importedOnMain = new Set();
