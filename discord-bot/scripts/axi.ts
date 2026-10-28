@@ -32,48 +32,6 @@ import { devEnvFile } from "./devEnv.js";
 import type { Answer } from "./sandbox/driver.js";
 import { DRIVER_PORT, LOGS, readSandbox, writeSandbox } from "./sandbox/config.js";
 
-const HELP = `usage: pnpm --silent axi [command] [args]
-  (none)                         the test server at a glance: who this is, #ops, the sandbox
-  channels                       the server's channels by name, with their last post's age
-  channel create <name> [--topic t] | channel delete <name>
-                                 make or remove a channel (delete only takes one outside the
-                                 server's categories, unless --force)
-  read [channel|thread] [--limit n] [--full]
-                                 newest messages, oldest first (default: the sandbox channel)
-  show <message> [--in <channel|thread>] [--full]
-                                 one message: text, embeds, images (saved locally), buttons, pings
-  post <channel> [text] [--file <path>]..
-                                 post as the Admin app; pings nobody
-  variants <channel> <label>=<file|text>.. [--title text]
-                                 a design round: the title, then each variant under its label
-  webhook <channel> <name> --out <file>
-                                 a webhook (made once), its URL written to the file, never printed
-  ops [--since 6h] [--limit n]   #ops: the bot's alerts, production's included
-  threads                        the sandbox channel's Match Threads
-  members [query]                server members and their ids, for --as
-  sandbox create [name] | sandbox delete [channel id]
-                                 make or remove the sandbox channel
-  sandbox start [--cup] [--keep] | sandbox stop
-                                 run the sandbox bot in the background, until it has logged in
-  press <custom id|label> --as <member> [--message <id>]
-                                 click a button as a member (labels: the last private answer, the
-                                 newest posts in the sandbox and its Match Threads)
-  pick <custom id> <value..> --as <member>
-                                 choose in a select menu (user picks are member ids or names)
-  submit <custom id> <field=value..> --as <member>
-                                 submit a form
-  time <match> <seconds> --as <member>
-                                 a finished run on the Match's Map (fake Steam)
-  run <map title|board id> <seconds> --as <member>
-                                 a finished run on any Map (fake Steam), for the Weekly Cup
-  clock [time]                   the sandbox's clock, or move it forward to a time
-                                 (ISO, e.g. 2026-11-05T12:00:30-06:00; needs sandbox start --cup)
-  steam down | steam up          make every fake Steam read fail, or stop failing
-  wait <text> [--in <channel|thread>] [--timeout s]
-                                 until a new message whose text or image name has it ("" for any)
-channels: a name (ops, #cup-check) or an id; threads by id.
-members: a numeric id, "admin" (this tool's app), or a name to look up.`;
-
 // ---------------------------------------------------------------- setup
 
 const say = (lines: ReadonlyArray<string> | string) =>
@@ -1022,6 +980,8 @@ const opsCmd = async () => {
 };
 
 interface Command {
+  /** Its arguments, as the usage page shows them. */
+  readonly usage: string;
   readonly run: () => Promise<void> | void;
   /** Its flags, with their defaults where they have one. */
   readonly flags: ReadonlyArray<string>;
@@ -1032,11 +992,13 @@ interface Command {
 const A = "pnpm --silent axi";
 const COMMANDS: Record<string, Command> = {
   channels: {
+    usage: "channels",
     run: channelsCmd,
     flags: [],
     help: ["the server's channels by name, with their last post's age", `${A} channels`],
   },
   channel: {
+    usage: "channel create|delete <name>",
     run: channelCmd,
     flags: ["--topic <text>", "--force"],
     help: [
@@ -1047,6 +1009,7 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   post: {
+    usage: "post <channel> [text]",
     run: postCmd,
     flags: ["--file <path> (repeats)"],
     help: [
@@ -1056,6 +1019,7 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   variants: {
+    usage: "variants <channel> <label>=<file|text>..",
     run: variantsCmd,
     flags: ["--title <text>"],
     help: [
@@ -1065,6 +1029,7 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   webhook: {
+    usage: "webhook <channel> <name>",
     run: webhookCmd,
     flags: ["--out <file> (required)"],
     help: [
@@ -1073,6 +1038,7 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   ops: {
+    usage: "ops",
     run: opsCmd,
     flags: ["--since <30m|6h|2d> (24h)", "--limit <n> (20, at most 100)"],
     help: [
@@ -1082,6 +1048,7 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   read: {
+    usage: "read [channel|thread]",
     run: read,
     flags: ["--in <channel|thread>", "--limit <n> (10)", "--full"],
     help: [
@@ -1091,6 +1058,7 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   show: {
+    usage: "show <message>",
     run: show,
     flags: ["--in <channel|thread> (the sandbox)", "--full"],
     help: [
@@ -1100,16 +1068,19 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   threads: {
+    usage: "threads",
     run: threads,
     flags: [],
     help: ["the sandbox channel's Match Threads", `${A} threads`],
   },
   members: {
+    usage: "members [query]",
     run: members,
     flags: [],
     help: ["server members and their ids, for --as", `${A} members`, `${A} members dev`],
   },
   press: {
+    usage: "press <custom id|label>",
     run: press,
     flags: ["--as <member> (required)", "--message <id>"],
     help: [
@@ -1120,21 +1091,25 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   pick: {
+    usage: "pick <custom id> <value..>",
     run: pick,
     flags: ["--as <member> (required)"],
     help: ["choose in a select menu", `${A} pick mb:target <member id> --as admin`],
   },
   submit: {
+    usage: "submit <custom id> <field=value..>",
     run: submit,
     flags: ["--as <member> (required)"],
     help: ["submit a form", `${A} submit mb:linkform profile=alice --as admin`],
   },
   time: {
+    usage: "time <match> <seconds>",
     run: time,
     flags: ["--as <member> (required)"],
     help: ["a finished run on the Match's Map (fake Steam)", `${A} time m1 18.2 --as admin`],
   },
   run: {
+    usage: "run <map title|board id> <seconds>",
     run: runCmd,
     flags: ["--as <member> (required)"],
     help: [
@@ -1143,6 +1118,7 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   clock: {
+    usage: "clock [time]",
     run: clockCmd,
     flags: [],
     help: [
@@ -1152,11 +1128,13 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   steam: {
+    usage: "steam down|up",
     run: steamCmd,
     flags: [],
     help: ["make every fake Steam read fail, or stop failing", `${A} steam down`, `${A} steam up`],
   },
   wait: {
+    usage: "wait <text>",
     run: wait,
     flags: ["--in <channel|thread> (the sandbox)", "--timeout <s> (30)"],
     help: [
@@ -1166,6 +1144,7 @@ const COMMANDS: Record<string, Command> = {
     ],
   },
   sandbox: {
+    usage: "sandbox create|start|stop|delete",
     run: sandboxCmd,
     flags: ["--cup", "--keep"],
     help: [
@@ -1179,10 +1158,22 @@ const COMMANDS: Record<string, Command> = {
 
 const flagName = (f: string) => f.split(" ")[0] ?? f;
 
+/** The usage page, from each command's own entry, so the two can't disagree. */
+const usagePage = () => [
+  `usage: ${A} [command] [args]   (bare: the test server at a glance)`,
+  ...Object.values(COMMANDS).map(
+    (c) =>
+      `  ${c.usage}${c.flags.length === 0 ? "" : ` [${c.flags.map(flagName).join(" ")}]`}: ${c.help[0] ?? ""}`,
+  ),
+  "channels: a name (ops, #cup-check) or an id; threads by id.",
+  'members: a numeric id, "admin" (this tool\'s app), or a name to look up.',
+  `${A} <command> --help for its flags and examples.`,
+];
+
 const name = args.shift();
 if (name === undefined || name === "help" || name === "--help") {
   if (name === undefined && !has("help")) await home();
-  else say(HELP);
+  else say(usagePage());
 } else {
   const command = COMMANDS[name];
   if (command === undefined) usage(`unknown command "${name}"`, [`${A} --help`]);
