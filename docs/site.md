@@ -677,8 +677,8 @@ A new control takes one of these rather than a style of its own.
 A board's first rows are rendered on the server, with the plates and the card
 across the top. The list starts at 1st, so the plates' three are rows too: players skim the
 list for a name and kept missing the plates (a player's note, 2026-10-28). A Daily's panel
-does the same under its podium steps. The rest of the list is read from `/api/board/<name>` as you scroll, a few
-chunks ahead of what is shown, and a search reads its matches the same way. A link to a
+does the same under its podium steps. The rest of the list is read from `/api/board/<name>`
+as you scroll, a few chunks ahead of what is shown, and a search reads its matches the same way. A link to a
 player's row reads down to that row first. Each row carries the score of the row above it
 (`ahead`, from the query), which is what the interval column is worked out from, so rows
 are never re-sorted on the client.

@@ -52,7 +52,7 @@ describe("a board's list holds its podium too", () => {
     );
     expect(html).toContain('class="leaders"');
     expect(listRanks(html).slice(0, 4)).toEqual([1, 2, 3, 4]);
-    expect(html).toContain(`showing ${String(page.total)}`);
+    expect(html).toContain(`showing ${String(Math.min(page.total, BOARD_CHUNK))}`);
   });
 
   test("podium order: the list starts at 1st, under the plates", async () => {

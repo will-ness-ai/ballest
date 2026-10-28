@@ -364,11 +364,11 @@ function PodiumList(props: Common & Extract<BoardBodyProps, { order: "podiums" }
   const q = query.trim().toLowerCase();
   const filtering = q.length > 0;
   const [limit, setLimit] = useState(BOARD_CHUNK);
-  const visible = players.filter((p) => !filtering || matches(p, q));
+  const visible = filtering ? players.filter((p) => matches(p, q)) : players;
   const shown = visible.slice(0, limit);
   const more = useCallback(() => {
     setLimit((n) => n + BOARD_CHUNK);
-  }, []);
+  }, [setLimit]);
   useScrollMore(more, shown.length >= visible.length, shown.length);
   const n = players.length;
   const meta = filtering
