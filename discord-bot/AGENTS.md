@@ -171,20 +171,30 @@ dev `.env`, which sees the channel and Match Threads as a member does:
 
 ```
 pnpm --silent axi sandbox create                # once: a channel the bot can post in
-pnpm sandbox                                    # in another shell
-pnpm --silent axi press "New Match" --as admin  # labels: the last private answer, then the channel
+pnpm --silent axi sandbox start                 # the bot in the background, back once logged in
+pnpm --silent axi press "New Match" --as admin  # labels: the last private answer, the channel, its threads
 pnpm --silent axi read                          # the channel; `show <id>` saves its images to read
 pnpm --silent axi time <match> 18.2 --as admin  # a finished run, read on the engine's next poll
 pnpm --silent axi wait "Go!" --in <thread>
 pnpm --silent axi steam down                    # every fake Steam read fails until `steam up`
+pnpm --silent axi sandbox stop                  # then `sandbox delete`
 ```
+
+It works the rest of the test server too, by channel name: `channels` lists them (loose ones,
+outside every category, are leftovers to tidy), `ops` reads #ops, where the bot's alerts land
+(production's included), `post` and `variants` post as the Admin app without pinging anyone (a
+design round of a bot post is one `variants <channel> A=a.png B=b.png --title ...`, one link per
+variant for Will), `channel create|delete` and `webhook <channel> <name> --out <file>` make what a
+feature needs, the webhook's URL only ever in that file.
 
 Without `ADMIN_DISCORD_TOKEN` it reads with the dev bot's token: its own messages only, and no
 sandbox setup. `--as` takes a member id, `admin`, or a name; pinging a member pings them for
 real, so play as `admin` and members who expect it.
 
-It needs a machine that reaches Discord, which cloud containers don't: Will's PC, through Remote
-Control. The Admin app is set up there once. In the Developer Portal it has the Message Content
+It needs a machine that reaches Discord with the dev app's tokens: a cloud thread does (the cloud
+environment holds them), and so does Will's PC, through Remote Control, when it can't. The bare
+`pnpm --silent axi` says which: its `as:` line, or that discord.com didn't answer. The Admin app is
+set up once. In the Developer Portal it has the Message Content
 intent (to read other bots' posts) and the Server Members intent (for `axi members`), and it was
 invited to the test server with Administrator, so it can make and delete channels. To make it
 private, set Installation → Install Link to None before turning off Public Bot; Discord refuses

@@ -1012,12 +1012,20 @@ else {
   else {
     const run = COMMANDS[name];
     if (run === undefined) {
-      say(`error: unknown command "${name}"\n${HELP}`);
+      say([
+        `error: unknown command "${name}"`,
+        `commands: ${Object.keys(COMMANDS).join(", ")}`,
+        ...helpLines(["pnpm --silent axi --help"]),
+      ]);
       process.exit(2);
     }
     const unknown = args.find((a) => a.startsWith("--") && !FLAGS.includes(a));
     if (unknown !== undefined) {
-      say(`error: unknown flag ${unknown}\n${HELP}`);
+      say([
+        `error: unknown flag ${unknown}`,
+        `flags: ${FLAGS.join(" ")}`,
+        ...helpLines(["pnpm --silent axi --help"]),
+      ]);
       process.exit(2);
     }
     await run();
