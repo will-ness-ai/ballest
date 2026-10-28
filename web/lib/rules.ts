@@ -79,7 +79,7 @@ export const countText = (b: { name: string; entryCount: number }) =>
     ? plural(b.entryCount, "player", "players")
     : plural(b.entryCount, "run", "runs");
 
-/* rows a board's list adds per scroll step; a page draws the first step under its plates */
+/* rows a board's list adds per scroll step; a page draws the first step on the server */
 export const BOARD_CHUNK = 50;
 
 /* a score in the board's own unit: points on an Overall board, else a time */
