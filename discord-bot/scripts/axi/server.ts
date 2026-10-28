@@ -52,18 +52,31 @@ export const ageOf = (id: string | null | undefined, now: number) => {
 };
 
 /**
- * The channels a message can go in, as `name, kind, last post, loose` rows. Loose ones sit outside
- * every category: where sandboxes, prototypes and design rounds were put, so the ones to tidy.
+ * Loose: outside every category, where sandboxes, prototypes and design rounds were put, so the
+ * channels to tidy. The server's own channels all sit in one.
  */
-export const channelRows = (channels: ReadonlyArray<ApiChannel>, now: number) =>
-  channels
-    .filter((c) => KINDS[c.type] !== undefined)
-    .map((c) => [
-      c.name,
-      KINDS[c.type] ?? "",
-      ageOf(c.last_message_id, now),
-      c.parent_id === undefined || c.parent_id === null,
-    ]);
+export const isLoose = (c: ApiChannel) => c.parent_id === undefined || c.parent_id === null;
+
+export interface ChannelRow {
+  readonly name: string;
+  readonly kind: string;
+  /** How long ago its last post was. */
+  readonly last: string;
+  readonly loose: boolean;
+}
+
+/** The channels a message can go in: text, news and forum channels, not categories or voice. */
+export const channelRows = (channels: ReadonlyArray<ApiChannel>, now: number): Array<ChannelRow> =>
+  channels.flatMap((c) => {
+    const kind = KINDS[c.type];
+    return kind === undefined
+      ? []
+      : [{ name: c.name, kind, last: ageOf(c.last_message_id, now), loose: isLoose(c) }];
+  });
+
+/** The name Discord gives a new text channel: lower case, spaces as dashes. */
+export const channelName = (name: string) =>
+  name.replace(/^#/, "").trim().toLowerCase().replace(/\s+/g, "-");
 
 /** `A=<file or text>` pairs, in order, or the first argument that isn't one. */
 export const parseVariants = (

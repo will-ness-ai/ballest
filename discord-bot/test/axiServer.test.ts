@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ageOf,
+  channelName,
   channelRows,
   findChannel,
   parseSince,
@@ -58,9 +59,14 @@ describe("listing channels", () => {
       now,
     );
     expect(rows).toEqual([
-      ["ops", "text", "21m", false],
-      ["r2-b-forum", "forum", "9d", true],
+      { name: "ops", kind: "text", last: "21m", loose: false },
+      { name: "r2-b-forum", kind: "forum", last: "9d", loose: true },
     ]);
+  });
+
+  it("names a new channel as Discord will, so making it twice finds the first", () => {
+    expect(channelName("Cup Check")).toBe("cup-check");
+    expect(channelName("#axi-scratch")).toBe("axi-scratch");
   });
 });
 
