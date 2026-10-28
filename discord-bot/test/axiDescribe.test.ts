@@ -121,3 +121,24 @@ describe("a Components V2 message's files", () => {
     expect(summary(card)).toContain("[2 files]");
   });
 });
+
+describe("an embed", () => {
+  it("shows its link and its image, which a Map's live Card is about", () => {
+    const live = {
+      id: "9",
+      embeds: [
+        {
+          title: "Pebble Ramp",
+          url: "https://ballestrecords.com/maps/3796933002",
+          description: "Live",
+          image: { url: "https://media.discordapp.net/attachments/1/2/card-live.png?ex=1" },
+        },
+      ],
+    };
+    expect(detail(live)).toContain("embed: **Pebble Ramp** Live");
+    expect(detail(live)).toContain("  link: https://ballestrecords.com/maps/3796933002");
+    expect(detail(live)).toContain(
+      "  card-live.png,https://media.discordapp.net/attachments/1/2/card-live.png?ex=1",
+    );
+  });
+});
