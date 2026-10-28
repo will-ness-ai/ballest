@@ -969,12 +969,14 @@ only visible ones.
   `main` reach, at 320px with 20px text, 390, 820 and 1280, on the preview and on production, and prints only what is wrong: sideways
   scroll, an element past the edge (with the one holding it open), text cut off or drawn
   over other text, page errors, and changed pixels, with one picture per change to read
-  (reference | target | changes in red) in `scratch/qa/`. Read those pictures, not
+  (reference | target | changes in red) in `scratch/qa/`, then a last `summary:` line
+  counting the new faults and changed views, and saying when there are gaps above. Read those pictures, not
   screenshots of your own. Which pages a change reaches is `scripts/qa/reach.mjs`: those whose
   page file or layouts import a changed file, through relative imports. A site file no page
   imports (the proxy, an API route, a migration, a picture) or one every page does (the root
-  layout, the CSS, `lib/rules.ts`) draws every page; docs, tests, scripts and the other
-  packages draw none, and it names any page a change reaches that the catalogue lacks. The
+  layout, the CSS, `lib/rules.ts`) draws every page; a code file whose change is only to its
+  comments (or types) draws none, and neither do docs, tests, scripts or the other
+  packages. It names any page a change reaches that the catalogue lacks. The
   whole catalogue is 176 views and takes 13 minutes from a cloud session, so pass `--all` only
   for a change that shows everywhere and wasn't caught as one. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
