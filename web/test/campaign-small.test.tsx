@@ -72,7 +72,7 @@ async function drawn() {
       where={SMALL.title}
       count={page.total}
       leaders={<ScorePlates name={BOARD} rows={page.rows} focus={null} />}
-      initial={page.total >= 3 ? page.rows.slice(3) : page.rows}
+      initial={page.rows}
       lead={page.rows[0]?.score ?? null}
       pods={null}
       focus={null}

@@ -111,7 +111,7 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
   const name = m.name;
   const [site, page, scores, places, history] = await Promise.all([
     getSite(),
-    getBoardPage(name, 0, BOARD_CHUNK + 3),
+    getBoardPage(name, 0, BOARD_CHUNK),
     getBoardScores(name),
     focus ? getBoardPlaces(name, [focus]) : Promise.resolve(null),
     getBoardHistory(name),
@@ -140,7 +140,7 @@ export async function MapView({ m, focus }: { m: WorkshopMap | undefined; focus:
             count={page.total}
             history={history && <HistoryCard h={history} />}
             leaders={<ScorePlates name={name} rows={rows} focus={focus} />}
-            initial={page.total >= 3 ? rows.slice(3) : rows}
+            initial={rows}
             lead={rows[0]?.score ?? null}
             pods={null}
             focus={focus && at ? { id: focus, rank: at.rank } : null}
