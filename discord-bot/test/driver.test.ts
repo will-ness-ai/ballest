@@ -2,6 +2,7 @@
 // Interaction runs a click exactly as Discord's would, so a Player's whole path from New Match to
 // a live Match can be pressed, and what the bot answered privately comes back in Discord's shape.
 import { describe, expect, it } from "@effect/vitest";
+import { vi } from "vitest";
 import { Effect, Layer, Option, Stream } from "effect";
 import type { Interaction } from "discord.js";
 import { Discord, type DiscordVenue, type VenueInteraction } from "../src/discord/client.js";
@@ -107,6 +108,34 @@ const driven = (
         }));
       });
   });
+
+describe("the driver's stand-in interaction", () => {
+  it.effect("waits for the answer a defer promises, which can take seconds", () =>
+    Effect.promise(async () => {
+      vi.useFakeTimers();
+      try {
+        const { interaction, settled } = fakeInteraction(
+          { kind: "button", customId: "mb:lobby", as: ALICE.discordId },
+          "c1",
+        );
+        const i = interaction as unknown as {
+          deferUpdate: () => Promise<void>;
+          editReply: (p: unknown) => Promise<void>;
+        };
+        // What the driver hands back is what had been called when it settled.
+        const answered = settled.then((calls) => calls.map((c) => c.method));
+        void i.deferUpdate();
+        // Opening a Lobby answers about 4 s after its defer.
+        await vi.advanceTimersByTimeAsync(4000);
+        void i.editReply({ content: "Lobby" });
+        await vi.advanceTimersByTimeAsync(10_000);
+        expect(await answered).toEqual(["deferUpdate", "editReply"]);
+      } finally {
+        vi.useRealTimers();
+      }
+    }),
+  );
+});
 
 describe("the sandbox driver", () => {
   it.live(

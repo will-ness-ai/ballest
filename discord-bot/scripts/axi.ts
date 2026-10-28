@@ -1,10 +1,13 @@
-// `pnpm --silent axi`: the test server, for agents (AXI style: live data first, compact rows, a next
-// step after every answer, errors on stdout with exit code 1). It reads the channel and Match
-// Threads as the Admin app (ADMIN_DISCORD_TOKEN in the dev .env), makes and removes the sandbox
-// channel, and drives the sandbox bot (`pnpm sandbox`) through its local driver: pressing
-// buttons, picking, submitting forms as any member, and setting fake Steam times.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { posix } from "node:path";
+// `pnpm --silent axi`: the test server, for agents. It follows the `agent-tools` skill (AXI style:
+// live data first, compact rows, a next step after every answer, errors on stdout). It works as
+// the Admin app (ADMIN_DISCORD_TOKEN in the dev .env): reads and posts in any channel by name,
+// makes and removes channels and webhooks, reads #ops, and runs and drives the sandbox bot
+// (`pnpm sandbox`) through its local driver: pressing buttons, picking, submitting forms as any
+// member, and setting fake Steam times.
+import { spawn } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs";
+import { hostname } from "node:os";
+import { basename, posix } from "node:path";
 import { ChannelType, OverwriteType, PermissionFlagsBits, REST, Routes } from "discord.js";
 import {
   type ApiMessage,
@@ -15,20 +18,44 @@ import {
   summary,
   table,
 } from "./axi/describe.js";
+import {
+  type ApiChannel,
+  ageOf,
+  channelRows,
+  findChannel,
+  parseSince,
+  parseVariants,
+} from "./axi/server.js";
 import { devEnvFile } from "./devEnv.js";
 import type { Answer } from "./sandbox/driver.js";
 import { DRIVER_PORT, LOGS, readSandbox, writeSandbox } from "./sandbox/config.js";
 
 const HELP = `usage: pnpm --silent axi [command] [args]
-  (none)                         the sandbox at a glance
+  (none)                         the test server at a glance: who this is, #ops, the sandbox
+  channels                       the server's channels by name, with their last post's age
+  channel create <name> [--topic t] | channel delete <name>
+                                 make or remove a channel (delete only takes one outside the
+                                 server's categories, unless --force)
   read [channel|thread] [--limit n] [--full]
                                  newest messages, oldest first (default: the sandbox channel)
   show <message> [--in <channel|thread>] [--full]
-                                 one message: text, images (saved locally), buttons, pings, thread
+                                 one message: text, embeds, images (saved locally), buttons, pings
+  post <channel> [text] [--file <path>]..
+                                 post as the Admin app; pings nobody
+  variants <channel> <label>=<file|text>.. [--title text]
+                                 a design round: the title, then each variant under its label
+  webhook <channel> <name> --out <file>
+                                 a webhook (made once), its URL written to the file, never printed
+  ops [--since 6h] [--limit n]   #ops: the bot's alerts, production's included
   threads                        the sandbox channel's Match Threads
   members [query]                server members and their ids, for --as
+  sandbox create [name] | sandbox delete [channel id]
+                                 make or remove the sandbox channel
+  sandbox start [--cup] [--keep] | sandbox stop
+                                 run the sandbox bot in the background, until it has logged in
   press <custom id|label> --as <member> [--message <id>]
-                                 click a button as a member (sandbox bot must be running)
+                                 click a button as a member (labels: the last private answer, the
+                                 newest posts in the sandbox and its Match Threads)
   pick <custom id> <value..> --as <member>
                                  choose in a select menu (user picks are member ids or names)
   submit <custom id> <field=value..> --as <member>
@@ -38,12 +65,11 @@ const HELP = `usage: pnpm --silent axi [command] [args]
   run <map title|board id> <seconds> --as <member>
                                  a finished run on any Map (fake Steam), for the Weekly Cup
   clock [time]                   the sandbox's clock, or move it forward to a time
-                                 (ISO, e.g. 2026-11-05T12:00:30-06:00; needs pnpm sandbox --cup)
+                                 (ISO, e.g. 2026-11-05T12:00:30-06:00; needs sandbox start --cup)
   steam down | steam up          make every fake Steam read fail, or stop failing
   wait <text> [--in <channel|thread>] [--timeout s]
                                  until a new message whose text or image name has it ("" for any)
-  sandbox create [name] | sandbox delete [channel id]
-                                 make or remove the sandbox channel
+channels: a name (ops, #cup-check) or an id; threads by id.
 members: a numeric id, "admin" (this tool's app), or a name to look up.`;
 
 // ---------------------------------------------------------------- setup
@@ -53,6 +79,11 @@ const say = (lines: ReadonlyArray<string> | string) =>
 const fail = (message: string, help: ReadonlyArray<string> = []): never => {
   say([`error: ${message}`, ...helpLines(help)]);
   process.exit(1);
+};
+/** A usage error: exit 2, as for an unknown command or flag. */
+const usage = (message: string, help: ReadonlyArray<string> = []): never => {
+  say([`error: ${message}`, ...helpLines(help)]);
+  process.exit(2);
 };
 const helpLines = (help: ReadonlyArray<string>) =>
   help.length === 0 ? [] : [`help[${help.length}]:`, ...help.map((h) => `  ${h}`)];
@@ -85,6 +116,12 @@ const flag = (name: string) => {
   args.splice(i, 2);
   return v;
 };
+/** Every value of a flag that may repeat (`--file a --file b`). */
+const flags = (name: string) => {
+  const out: Array<string> = [];
+  for (let v = flag(name); v !== undefined; v = flag(name)) out.push(v);
+  return out;
+};
 const has = (name: string) => {
   const i = args.indexOf(`--${name}`);
   if (i >= 0) args.splice(i, 1);
@@ -99,6 +136,14 @@ const call = async <T>(what: string, run: () => Promise<unknown>): Promise<T> =>
     return (await run()) as T;
   } catch (e) {
     const code = typeof e === "object" && e !== null && "code" in e ? ` [${String(e.code)}]` : "";
+    // No answer at all: this machine can't reach Discord, which is a different next step.
+    if (
+      /fetch failed|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET/.test(String(e)) ||
+      code === " [ENOTFOUND]"
+    )
+      return fail(`${what}: discord.com didn't answer from ${hostname()}`, [
+        "run it on a machine that reaches Discord (Will's PC, through Remote Control)",
+      ]);
     return fail(`${what}: ${e instanceof Error ? e.message : String(e)}${code}`);
   }
 };
@@ -107,14 +152,32 @@ const sandbox = readSandbox();
 const sandboxChannel = () =>
   sandbox?.channelId ?? fail("no sandbox channel yet", ["pnpm --silent axi sandbox create"]);
 
-interface ApiChannel {
-  readonly id: string;
-  readonly name: string;
-  readonly type: number;
-  readonly parent_id?: string;
-  readonly message_count?: number;
-  readonly thread_metadata?: { readonly archived: boolean };
-}
+let channelList: ReadonlyArray<ApiChannel> | undefined;
+const serverChannels = async () =>
+  (channelList ??= await call<ReadonlyArray<ApiChannel>>("list channels", () =>
+    rest.get(Routes.guildChannels(guildId)),
+  ));
+/** A channel by name or id; a thread by id. */
+const channelOf = async (ref: string): Promise<ApiChannel> => {
+  const found = findChannel(ref, /^\d{17,20}$/.test(ref) ? [] : await serverChannels());
+  if ("channel" in found) return found.channel;
+  return fail(
+    `no channel named "${found.missing}"${found.near.length === 0 ? "" : ` (near: ${found.near.join(", ")})`}`,
+    ["pnpm --silent axi channels"],
+  );
+};
+/** The channel a command reads: the one named, or the sandbox. */
+const channelOrSandbox = async (ref: string | undefined) =>
+  ref === undefined ? sandboxChannel() : (await channelOf(ref)).id;
+/** How a later command names this channel: by name where it has one, the sandbox by nothing. */
+const inFlag = (c: ApiChannel | string) => {
+  const id = typeof c === "string" ? c : c.id;
+  if (id === sandbox?.channelId) return "";
+  return ` --in ${typeof c === "string" || c.name === c.id ? id : c.name}`;
+};
+const link = (channelId: string, messageId: string) =>
+  `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+
 interface ApiMember {
   readonly user: { readonly id: string; readonly username: string; readonly bot?: boolean };
   readonly nick?: string | null;
@@ -160,7 +223,7 @@ const driver = async <T>(path: string, body?: unknown): Promise<T> => {
     return (await res.json()) as T;
   } catch {
     return fail(`the sandbox bot isn't running (no driver on port ${DRIVER_PORT})`, [
-      "pnpm sandbox   (in another shell; log in .logs/sandbox.log)",
+      "pnpm --silent axi sandbox start",
     ]);
   }
 };
@@ -209,12 +272,25 @@ const rows = (ms: ReadonlyArray<ApiMessage>, full: boolean) =>
 
 const home = async () => {
   const self = await me();
+  const all = await serverChannels();
+  const ops = all.find((c) => c.name === "ops");
+  const listed = channelRows(all, Date.now());
   const lines = [
     "pnpm --silent axi: the Multiballs test server, for agents",
-    `as: ${self.username}${asAdmin ? " (Admin app)" : " (dev bot's token: read-only, no ADMIN_DISCORD_TOKEN)"}`,
+    `as: ${self.username}${asAdmin ? " (Admin app)" : " (dev bot's token: read-only, no ADMIN_DISCORD_TOKEN)"}, from ${hostname()}`,
+    `channels: ${listed.length}, ${listed.filter((r) => r[3] === true).length} loose`,
+    `ops: last post ${ops?.last_message_id === undefined || ops.last_message_id === null ? "never" : `${ageOf(ops.last_message_id, Date.now())} ago`}`,
   ];
   if (sandbox === null) {
-    say([...lines, "sandbox: none", ...helpLines(["pnpm --silent axi sandbox create"])]);
+    say([
+      ...lines,
+      "sandbox: none",
+      ...helpLines([
+        "pnpm --silent axi sandbox create",
+        "pnpm --silent axi ops",
+        "pnpm --silent axi channels",
+      ]),
+    ]);
     return;
   }
   lines.push(`sandbox: #${sandbox.channelName} (${sandbox.channelId})`);
@@ -232,7 +308,7 @@ const home = async () => {
   say([
     ...lines,
     ...helpLines([
-      ...(h === null ? ["pnpm sandbox   (start the sandbox bot in another shell)"] : []),
+      ...(h === null ? ["pnpm --silent axi sandbox start"] : []),
       "pnpm --silent axi show <message>",
       "pnpm --silent axi press <label|custom id> --as <member>",
     ]),
@@ -243,20 +319,20 @@ const read = async () => {
   // Flags first: they come out of args, so the channel is whatever positional is left.
   const limit = Number(flag("limit") ?? 10);
   const full = has("full");
-  const where = args[0] ?? sandboxChannel();
-  const ms = await messages(where, limit);
+  const ref = flag("in") ?? args[0];
+  const where = ref === undefined ? sandboxChannel() : await channelOf(ref);
+  const id = typeof where === "string" ? where : where.id;
+  const ms = await messages(id, limit);
   say([
-    `channel: ${where}`,
+    `channel: ${typeof where === "string" || where.name === where.id ? id : `#${where.name}`}`,
     ...rows(ms, full),
-    ...helpLines([
-      "pnpm --silent axi show <id>" + (where === sandbox?.channelId ? "" : ` --in ${where}`),
-    ]),
+    ...helpLines([`pnpm --silent axi show <id>${inFlag(where)}`]),
   ]);
 };
 
 const show = async () => {
   const id = args[0] ?? fail("show needs a message id", ["pnpm --silent axi read"]);
-  const where = flag("in") ?? sandboxChannel();
+  const where = await channelOrSandbox(flag("in"));
   const full = has("full");
   const m = await call<ApiMessage>("fetch message", () =>
     rest.get(Routes.channelMessage(where, id)),
@@ -350,7 +426,35 @@ const answered = (answers: ReadonlyArray<Answer>, follow: ReadonlyArray<string>)
   say([...lines, ...helpLines([...formHelp, ...follow])]);
 };
 
-/** A custom id, or a button's label looked up in the given message, the last private reply, or the newest channel messages. */
+/** The sandbox's active Match Threads, newest first. */
+const sandboxThreads = async () => {
+  const parent = sandboxChannel();
+  const active = await call<{ threads: ReadonlyArray<ApiChannel> }>("active threads", () =>
+    rest.get(Routes.guildActiveThreads(guildId)),
+  );
+  return active.threads
+    .filter((t) => t.parent_id === parent)
+    .sort((x, y) => (BigInt(y.id) > BigInt(x.id) ? 1 : -1));
+};
+
+/** A message in the sandbox channel or one of its active Match Threads. */
+const sandboxMessage = async (id: string): Promise<ApiMessage> => {
+  for (const where of [sandboxChannel(), ...(await sandboxThreads()).map((t) => t.id)]) {
+    try {
+      return (await rest.get(Routes.channelMessage(where, id))) as ApiMessage;
+    } catch {
+      // Not in this one: Discord answers Unknown Message for a message in another channel.
+    }
+  }
+  return fail(`no message ${id} in the sandbox or its active Match Threads`, [
+    "pnpm --silent axi threads",
+  ]);
+};
+
+/**
+ * A custom id, or a button's label looked up in the given message, the last private reply, the
+ * newest channel messages, or the newest posts in its active Match Threads.
+ */
 const resolveControl = async (target: string, messageId: string | undefined) => {
   if (target.startsWith("mb:")) return target;
   const norm = (s: string) =>
@@ -358,29 +462,34 @@ const resolveControl = async (target: string, messageId: string | undefined) => 
       .toLowerCase()
       .replace(/\s*\(\d+\)$/, "")
       .trim();
-  const pools: Array<ReadonlyArray<ApiMessage>> = [];
-  if (messageId !== undefined)
-    pools.push([
-      await call<ApiMessage>("fetch message", () =>
-        rest.get(Routes.channelMessage(sandboxChannel(), messageId)),
-      ),
-    ]);
-  else {
-    if (existsSync(LAST_REPLY))
-      pools.push(JSON.parse(readFileSync(LAST_REPLY, "utf8")) as ReadonlyArray<ApiMessage>);
-    pools.push((await messages(sandboxChannel(), 10)).reverse());
-  }
-  for (const pool of pools)
+  const find = (pool: ReadonlyArray<ApiMessage>) => {
     for (const m of pool) {
       const hit = controlsOf(m.components).find(
         (c) => c.kind !== "link" && norm(c.label) === norm(target),
       );
       if (hit !== undefined) return hit.target;
     }
-  return fail(`no button labelled "${target}" in the last private reply or the newest messages`, [
-    "pnpm --silent axi read",
-    "pnpm --silent axi show <message>",
-  ]);
+    return undefined;
+  };
+  if (messageId !== undefined) {
+    const hit = find([await sandboxMessage(messageId)]);
+    if (hit !== undefined) return hit;
+  } else {
+    if (existsSync(LAST_REPLY)) {
+      const hit = find(JSON.parse(readFileSync(LAST_REPLY, "utf8")) as ReadonlyArray<ApiMessage>);
+      if (hit !== undefined) return hit;
+    }
+    const hit = find((await messages(sandboxChannel(), 10)).reverse());
+    if (hit !== undefined) return hit;
+    for (const t of await sandboxThreads()) {
+      const inThread = find((await messages(t.id, 10)).reverse());
+      if (inThread !== undefined) return inThread;
+    }
+  }
+  return fail(
+    `no button labelled "${target}" in ${messageId === undefined ? "the last private reply, the newest messages or the active Match Threads" : `message ${messageId}`}`,
+    ["pnpm --silent axi read", "pnpm --silent axi show <message>"],
+  );
 };
 
 const FOLLOW = [
@@ -496,7 +605,7 @@ const steamCmd = async () => {
 
 const wait = async () => {
   const text = args[0] ?? fail('wait needs the text to wait for ("" for any new message)');
-  const where = flag("in") ?? sandboxChannel();
+  const where = await channelOrSandbox(flag("in"));
   const timeout = Number(flag("timeout") ?? 30) * 1000;
   const seen = new Set((await messages(where, 20)).map((m) => m.id));
   const until = Date.now() + timeout;
@@ -511,9 +620,7 @@ const wait = async () => {
     if (hit !== undefined)
       return say([
         ...detail(hit, { files: await saveFiles(hit) }),
-        ...helpLines([
-          `pnpm --silent axi show ${hit.id}${where === sandbox?.channelId ? "" : ` --in ${where}`}`,
-        ]),
+        ...helpLines([`pnpm --silent axi show ${hit.id}${inFlag(where)}`]),
       ]);
   }
   return fail(`no new message containing "${text}" in ${timeout / 1000} s`, [
@@ -521,8 +628,96 @@ const wait = async () => {
   ]);
 };
 
+const PID_FILE = posix.join(LOGS, "sandbox.pid");
+const SANDBOX_LOG = posix.join(LOGS, "sandbox.log");
+const alive = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+const runningPid = () => {
+  if (!existsSync(PID_FILE)) return null;
+  const pid = Number(readFileSync(PID_FILE, "utf8"));
+  return Number.isInteger(pid) && pid > 0 && alive(pid) ? pid : null;
+};
+const tail = (file: string, n: number) =>
+  existsSync(file) ? readFileSync(file, "utf8").trimEnd().split(/\r?\n/).slice(-n) : [];
+
+/** Start `pnpm sandbox` in the background and return once the bot has logged in and the driver is on. */
+const sandboxStart = async () => {
+  const cup = has("cup");
+  const keep = has("keep");
+  sandboxChannel();
+  const pid = runningPid();
+  if (pid !== null || (await health()) !== null)
+    return say([
+      `bot: running${pid === null ? " (started elsewhere)" : ` (pid ${pid})`} (no-op)`,
+      ...helpLines(["pnpm --silent axi", "pnpm --silent axi sandbox stop"]),
+    ]);
+  mkdirSync(LOGS, { recursive: true });
+  const out = openSync(posix.join(LOGS, "sandbox.out"), "w");
+  const child = spawn(
+    process.execPath,
+    [
+      "--import",
+      "tsx",
+      "scripts/sandbox.ts",
+      ...(cup ? ["--cup"] : []),
+      ...(keep ? ["--keep"] : []),
+    ],
+    { detached: true, stdio: ["ignore", out, out], windowsHide: true },
+  );
+  child.unref();
+  writeFileSync(PID_FILE, String(child.pid));
+  const started = Date.now();
+  // Both: the driver comes up before the bot's Discord login, and a press before the login is lost.
+  const ready = () => {
+    const log = existsSync(SANDBOX_LOG) ? readFileSync(SANDBOX_LOG, "utf8") : "";
+    return log.includes("sandbox driver on") && log.includes("logged in as");
+  };
+  while (Date.now() - started < 90_000) {
+    await new Promise((r) => setTimeout(r, 1000));
+    if (child.pid === undefined || !alive(child.pid))
+      return fail("the sandbox bot stopped while starting", [
+        ...tail(posix.join(LOGS, "sandbox.out"), 5).map((l) => `(out) ${l}`),
+        `less ${SANDBOX_LOG}`,
+      ]);
+    if (ready())
+      return say([
+        `bot: running (pid ${child.pid}), ready in ${Math.round((Date.now() - started) / 1000)} s${cup ? ", Weekly Cup on" : ""}`,
+        ...helpLines([
+          'pnpm --silent axi press "New Match" --as admin',
+          "pnpm --silent axi",
+          "pnpm --silent axi sandbox stop",
+        ]),
+      ]);
+  }
+  return fail("the sandbox bot didn't log in within 90 s", [
+    ...tail(SANDBOX_LOG, 5).map((l) => `(log) ${l}`),
+    "pnpm --silent axi sandbox stop",
+  ]);
+};
+
+const sandboxStop = () => {
+  const pid = runningPid();
+  if (pid === null) return say("bot: not running (no-op)");
+  // The whole group: pnpm/node children die with it.
+  try {
+    process.kill(-pid, "SIGTERM");
+  } catch {
+    process.kill(pid, "SIGTERM");
+  }
+  writeFileSync(PID_FILE, "");
+  return say([`bot: stopped (pid ${pid})`, ...helpLines(["pnpm --silent axi sandbox delete"])]);
+};
+
 const sandboxCmd = async () => {
   const sub = args[0];
+  if (sub === "start") return sandboxStart();
+  if (sub === "stop") return sandboxStop();
   if (!asAdmin)
     return fail("making channels needs the Admin app: set ADMIN_DISCORD_TOKEN in the dev .env");
   if (sub === "create") {
@@ -569,10 +764,7 @@ const sandboxCmd = async () => {
     writeSandbox({ guildId, channelId: created.id, channelName: created.name });
     return say([
       `created: #${created.name} (${created.id})`,
-      ...helpLines([
-        "pnpm sandbox   (start the sandbox bot in another shell)",
-        "pnpm --silent axi",
-      ]),
+      ...helpLines(["pnpm --silent axi sandbox start", "pnpm --silent axi"]),
     ]);
   }
   if (sub === "delete") {
@@ -584,13 +776,220 @@ const sandboxCmd = async () => {
     if (channelId === sandbox?.channelId) writeSandbox(null);
     return say([`deleted: #${gone.name}`, ...helpLines(["pnpm --silent axi sandbox create"])]);
   }
-  return fail(`unknown sandbox command "${sub ?? ""}"`, [
+  return usage(`unknown sandbox command "${sub ?? ""}"`, [
     "pnpm --silent axi sandbox create",
+    "pnpm --silent axi sandbox start",
+    "pnpm --silent axi sandbox stop",
     "pnpm --silent axi sandbox delete",
   ]);
 };
 
+// ---------------------------------------------------------------- the server's channels
+
+const LOOSE_TOPIC = "Made by pnpm axi for agents. Safe to delete.";
+const isLoose = (c: ApiChannel) => c.parent_id === undefined || c.parent_id === null;
+
+const channelsCmd = async () => {
+  const all = await serverChannels();
+  const rows = channelRows(all, Date.now());
+  const loose = rows.filter((r) => r[3] === true).length;
+  say([
+    ...table("channels", ["name", "kind", "last", "loose"], rows),
+    `count: ${rows.length}, ${loose} loose (outside every category: sandboxes, prototypes, design rounds)`,
+    ...helpLines([
+      "pnpm --silent axi read <name>",
+      "pnpm --silent axi channel delete <loose name>",
+      "pnpm --silent axi channel create <name>",
+    ]),
+  ]);
+};
+
+const channelCmd = async () => {
+  const [sub, name] = args;
+  const force = has("force");
+  const topic = flag("topic");
+  if (!asAdmin)
+    return fail("making channels needs the Admin app: set ADMIN_DISCORD_TOKEN in the dev .env");
+  if (name === undefined || (sub !== "create" && sub !== "delete"))
+    return usage("channel needs create or delete and a name", [
+      "pnpm --silent axi channel create <name>",
+      "pnpm --silent axi channel delete <name>",
+    ]);
+  const found = findChannel(name, await serverChannels());
+  if (sub === "create") {
+    if ("channel" in found)
+      return say([
+        `channel: #${found.channel.name} (no-op: it exists)`,
+        ...helpLines([`pnpm --silent axi post ${found.channel.name} <text>`]),
+      ]);
+    const made = await call<ApiChannel>("create channel", () =>
+      rest.post(Routes.guildChannels(guildId), {
+        body: { name, type: ChannelType.GuildText, topic: topic ?? LOOSE_TOPIC },
+      }),
+    );
+    return say([
+      `created: #${made.name}`,
+      ...helpLines([
+        `pnpm --silent axi post ${made.name} <text>`,
+        `pnpm --silent axi channel delete ${made.name}`,
+      ]),
+    ]);
+  }
+  if (!("channel" in found)) return say(`channel: ${name} (no-op: there is none)`);
+  const c = found.channel;
+  if (c.id === sandbox?.channelId)
+    return fail(`#${c.name} is this checkout's sandbox`, ["pnpm --silent axi sandbox delete"]);
+  if (!isLoose(c) && !force)
+    return fail(
+      `#${c.name} sits in one of the server's categories, so it is someone's real channel`,
+      [`pnpm --silent axi channel delete ${c.name} --force   (only if Will asked for it gone)`],
+    );
+  await call("delete channel", () => rest.delete(Routes.channel(c.id)));
+  return say([`deleted: #${c.name}`, ...helpLines(["pnpm --silent axi channels"])]);
+};
+
+const NO_PINGS = { parse: [] as Array<string> };
+
+/** Post as the Admin app: text and files, pinging nobody. */
+const send = async (channelId: string, content: string, files: ReadonlyArray<string>) => {
+  for (const f of files) if (!existsSync(f)) return fail(`no file at ${f}`);
+  return call<ApiMessage>("post", () =>
+    rest.post(Routes.channelMessages(channelId), {
+      body: {
+        content,
+        allowed_mentions: NO_PINGS,
+        attachments: files.map((f, i) => ({ id: i, filename: basename(f) })),
+      },
+      files: files.map((f) => ({ name: basename(f), data: readFileSync(f) })),
+    }),
+  );
+};
+
+const postCmd = async () => {
+  const files = flags("file");
+  const [ref, ...words] = args;
+  if (ref === undefined) return usage("post needs a channel", ["pnpm --silent axi channels"]);
+  const text = words.join(" ");
+  if (text === "" && files.length === 0)
+    return usage("post needs text or --file <path>", [`pnpm --silent axi post ${ref} "<text>"`]);
+  const c = await channelOf(ref);
+  const m = await send(c.id, text, files);
+  say([
+    `posted: ${m.id} in #${c.name}`,
+    `link: ${link(c.id, m.id)}`,
+    ...helpLines([`pnpm --silent axi show ${m.id}${inFlag(c)}`]),
+  ]);
+};
+
+const variantsCmd = async () => {
+  const title = flag("title");
+  const [ref, ...pairs] = args;
+  if (ref === undefined) return usage("variants needs a channel", ["pnpm --silent axi channels"]);
+  const parsed = parseVariants(pairs);
+  if ("bad" in parsed)
+    return usage(
+      parsed.bad === ""
+        ? "variants needs at least one label=<file|text>"
+        : `"${parsed.bad}" isn't label=<file|text>`,
+      [`pnpm --silent axi variants ${ref} A=scratch/a.png B=scratch/b.png --title "Round 1"`],
+    );
+  const c = await channelOf(ref);
+  const posted: Array<[string, string, string]> = [];
+  if (title !== undefined) {
+    const m = await send(c.id, `## ${title}`, []);
+    posted.push(["title", m.id, link(c.id, m.id)]);
+  }
+  for (const v of parsed.variants) {
+    const file = existsSync(v.value);
+    const m = await send(
+      c.id,
+      file ? `**${v.label}**` : `**${v.label}**\n${v.value}`,
+      file ? [v.value] : [],
+    );
+    posted.push([v.label, m.id, link(c.id, m.id)]);
+  }
+  say([
+    ...table("variants", ["label", "id", "link"], posted),
+    ...helpLines([`pnpm --silent axi read ${c.name}`]),
+  ]);
+};
+
+interface ApiWebhook {
+  readonly id: string;
+  readonly name: string | null;
+  readonly token?: string;
+}
+
+const webhookCmd = async () => {
+  const out = flag("out");
+  const [ref, name] = args;
+  if (ref === undefined || name === undefined || out === undefined)
+    return usage("webhook needs a channel, a name and --out <file>", [
+      "pnpm --silent axi webhook <channel> <name> --out scratch/webhook.txt",
+    ]);
+  const c = await channelOf(ref);
+  const existing = await call<ReadonlyArray<ApiWebhook>>("list webhooks", () =>
+    rest.get(Routes.channelWebhooks(c.id)),
+  );
+  const had = existing.find((w) => w.name === name && w.token !== undefined);
+  const hook =
+    had ??
+    (await call<ApiWebhook>("create webhook", () =>
+      rest.post(Routes.channelWebhooks(c.id), { body: { name } }),
+    ));
+  writeFileSync(out, `https://discord.com/api/webhooks/${hook.id}/${hook.token ?? ""}\n`);
+  chmodSync(out, 0o600);
+  say([
+    `webhook: ${name} in #${c.name}${had === undefined ? "" : " (no-op: it exists)"}`,
+    `url: written to ${out} (secret: pass the file, never print it)`,
+  ]);
+};
+
+const opsCmd = async () => {
+  const since = flag("since") ?? "24h";
+  const limit = Number(flag("limit") ?? 20);
+  const window = parseSince(since);
+  if (window === null) return usage(`--since takes 30m, 6h or 2d, not "${since}"`);
+  const c = await channelOf("ops");
+  const from = Date.now() - window;
+  const ms = (await messages(c.id, Math.min(100, limit))).filter(
+    (m) => m.timestamp === undefined || Date.parse(m.timestamp) >= from,
+  );
+  if (ms.length === 0) return say(`ops: nothing in #ops in the last ${since}`);
+  say([
+    ...table(
+      "ops",
+      ["id", "at", "shows"],
+      ms.map((m) => [m.id, (m.timestamp ?? "").slice(0, 16).replace("T", " "), summary(m, 160)]),
+    ),
+    ...helpLines([`pnpm --silent axi show <id> --in ops`, `pnpm --silent axi ops --since 7d`]),
+  ]);
+};
+
+const FLAGS = [
+  "--as",
+  "--in",
+  "--limit",
+  "--full",
+  "--message",
+  "--timeout",
+  "--file",
+  "--title",
+  "--out",
+  "--since",
+  "--topic",
+  "--force",
+  "--cup",
+  "--keep",
+];
+
 const COMMANDS: Record<string, () => Promise<void>> = {
+  channels: channelsCmd,
+  channel: channelCmd,
+  post: postCmd,
+  variants: variantsCmd,
+  webhook: webhookCmd,
+  ops: opsCmd,
   read,
   show,
   threads,
@@ -616,11 +1015,8 @@ else {
       say(`error: unknown command "${name}"\n${HELP}`);
       process.exit(2);
     }
-    const unknown = args.find((a) => a.startsWith("--"));
-    if (
-      unknown !== undefined &&
-      !["--as", "--in", "--limit", "--full", "--message", "--timeout"].includes(unknown)
-    ) {
+    const unknown = args.find((a) => a.startsWith("--") && !FLAGS.includes(a));
+    if (unknown !== undefined) {
       say(`error: unknown flag ${unknown}\n${HELP}`);
       process.exit(2);
     }
