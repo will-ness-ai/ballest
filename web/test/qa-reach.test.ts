@@ -130,6 +130,9 @@ describe("changedFiles", () => {
       "web/lib/b.ts": "// b\nexport const b = 1;\n",
       "web/app/board.css": "/* rows */\n.row {\n  color: red;\n}\n",
       "web/app/a.tsx": "export const A = <a>see https://a.example</a>;\n",
+      "web/app/b.tsx": "export const B = <p>a // b</p>;\n",
+      "web/lib/re.ts": "const r = /^\\/*/;\nexport const x = r && 1;\n",
+      "web/app/c.tsx": "/** @jsxImportSource react */\nexport const C = 1;\n",
     };
     const said = branch(files, (_git, dir) => {
       writeFileSync(
@@ -139,10 +142,24 @@ describe("changedFiles", () => {
       writeFileSync(join(dir, "web/lib/b.ts"), "// b\nexport const b = 2; // changed\n");
       writeFileSync(join(dir, "web/app/board.css"), "/* the rows */\n.row {\n  color: red;\n}\n");
       writeFileSync(join(dir, "web/app/a.tsx"), "export const A = <a>see https://b.example</a>;\n");
+      writeFileSync(join(dir, "web/app/b.tsx"), "export const B = <p>a // c</p>;\n");
+      writeFileSync(join(dir, "web/lib/re.ts"), "const r = /^\\/*/;\nexport const x = r && 2;\n");
+      writeFileSync(
+        join(dir, "web/app/c.tsx"),
+        "/** @jsxImportSource preact */\nexport const C = 1;\n",
+      );
     });
-    /* a URL in JSX text is what the page shows, not a comment */
-    expect(said.upTo).toEqual(["web/app/a.tsx", "web/lib/b.ts"]);
-    expect(said.tree).toEqual(["web/app/a.tsx", "web/lib/b.ts"]);
+    /* JSX text is what the page shows, a regex's slashes are code, and a pragma steers the
+       build: none of them is a comment */
+    const drawn = [
+      "web/app/a.tsx",
+      "web/app/b.tsx",
+      "web/app/c.tsx",
+      "web/lib/b.ts",
+      "web/lib/re.ts",
+    ];
+    expect(said.upTo).toEqual(drawn);
+    expect(said.tree).toEqual(drawn);
   });
 
   it("stops at the commit a preview holds, before the ones after it", () => {

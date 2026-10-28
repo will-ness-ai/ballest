@@ -635,7 +635,7 @@ async function check() {
       : []),
     ...(!diffs.length && !found.length ? ["  nothing to look at"] : []),
     /* last, so the end of a long report still says whether anything is wrong */
-    `summary: ${plural(faultRows.length, "fault")}${ref ? `, ${plural(diffs.length, "view")} changed (${plural(diffRows.length, "picture")} to read)` : ""}`,
+    `summary: ${plural(faultRows.filter((f) => f.ref !== "also").length, ref ? "new fault" : "fault")}${ref ? `, ${plural(diffs.length, "view")} changed (${plural(diffRows.length, "picture")} to read)` : ""}${gaps.length + uncompared.length ? ", and gaps above" : ""}`,
   ];
   say(report);
   // in CI, the job's summary for people, and a notice a cloud session can read, since it
