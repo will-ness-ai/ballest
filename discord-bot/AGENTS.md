@@ -165,19 +165,19 @@ Interaction (`scripts/sandbox/driver.ts`): everything from there inwards runs as
 and what the bot answers privately comes back to the caller. A fresh database each start; log
 in `.logs/sandbox.log`. It leaves clicks in other channels alone, so it runs beside `pnpm dev`.
 
-`pnpm --silent axi` is how an agent uses it (`--silent` keeps pnpm's echo out; AXI style: run it bare for the state of things, every answer
+`pnpm --silent discord` is how an agent uses it (`--silent` keeps pnpm's echo out; AXI style: run it bare for the state of things, every answer
 ends with next steps). It reads as the Admin app ("Multiballs Dev Server Admin"), `ADMIN_DISCORD_TOKEN` in the
 dev `.env`, which sees the channel and Match Threads as a member does:
 
 ```
-pnpm --silent axi sandbox create                # once: a channel the bot can post in
-pnpm --silent axi sandbox start                 # the bot in the background, back once logged in
-pnpm --silent axi press "New Match" --as admin  # labels: the last private answer, the channel, its threads
-pnpm --silent axi read                          # the channel; `show <id>` saves its images to read
-pnpm --silent axi time <match> 18.2 --as admin  # a finished run, read on the engine's next poll
-pnpm --silent axi wait "Go!" --in <thread>
-pnpm --silent axi steam down                    # every fake Steam read fails until `steam up`
-pnpm --silent axi sandbox stop                  # then `sandbox delete`
+pnpm --silent discord sandbox create                # once: a channel the bot can post in
+pnpm --silent discord sandbox start                 # the bot in the background, back once logged in
+pnpm --silent discord press "New Match" --as admin  # labels: the last private answer, the channel, its threads
+pnpm --silent discord read                          # the channel; `show <id>` saves its images to read
+pnpm --silent discord time <match> 18.2 --as admin  # a finished run, read on the engine's next poll
+pnpm --silent discord wait "Go!" --in <thread>
+pnpm --silent discord steam down                    # every fake Steam read fails until `steam up`
+pnpm --silent discord sandbox stop                  # then `sandbox delete`
 ```
 
 It works the rest of the test server too, by channel name: `channels` lists them (loose ones,
@@ -193,9 +193,9 @@ real, so play as `admin` and members who expect it.
 
 It needs a machine that reaches Discord with the dev app's tokens: a cloud thread does (the cloud
 environment holds them), and so does Will's PC, through Remote Control, when it can't. The bare
-`pnpm --silent axi` says which: its `as:` line, or that discord.com didn't answer. The Admin app is
+`pnpm --silent discord` says which: its `as:` line, or that discord.com didn't answer. The Admin app is
 set up once. In the Developer Portal it has the Message Content
-intent (to read other bots' posts) and the Server Members intent (for `axi members`), and it was
+intent (to read other bots' posts) and the Server Members intent (for `discord members`), and it was
 invited to the test server with Administrator, so it can make and delete channels. To make it
 private, set Installation → Install Link to None before turning off Public Bot; Discord refuses
 the other order. The `discord-sandbox` skill is the run, step by step.
@@ -315,9 +315,9 @@ button in `test/messages.test.ts`), the schedule in `daily.ts` over fakes on the
 TestClock (`test/daily.test.ts`). The SQL and the Discord REST calls are checked by posting one:
 
 ```
-pnpm --silent axi sandbox create
+pnpm --silent discord sandbox create
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev pnpm report
-pnpm --silent axi read --full
+pnpm --silent discord read --full
 ```
 
 `pnpm report` posts the report now into the sandbox channel (or `--channel <id>`), skipping the
@@ -395,7 +395,7 @@ nothing. With `--close` it then keeps the card current as the schedule does unti
 end, so a past date is posted and at once closed by the schedule's own final edit (no GIF, ops
 warnings to the log only). With `DATABASE_URL` set to a local Postgres (it refuses any other)
 holding that date's Daily, a past date is posted instead as the backfill posts it, closed, from
-that database. Read it back with `pnpm --silent axi show <id> --in <channel>`, which
+that database. Read it back with `pnpm --silent discord show <id> --in <channel>`, which
 lists and saves the files a Components V2 card shows.
 
 ## The Traffic Report
@@ -578,8 +578,8 @@ Shortlist's vote and the standings' picture and words in `test/weeklyCupMessages
 through `interactions.ts` in `test/driver.test.ts` (the driver's `manageServer` press field stands
 for Manage Server; a `select` press reaches a user or a string select by its custom id). The
 discord.js calls (`live.ts`) are checked in the sandbox: `pnpm sandbox --cup` runs the Cup in the
-test server's #weekly-cup on a clock `pnpm --silent axi clock <time>` moves forward (so a week
-plays out in minutes), `axi run <map> <seconds> --as <member>` sets a time on any Map, and
+test server's #weekly-cup on a clock `pnpm --silent discord clock <time>` moves forward (so a week
+plays out in minutes), `discord run <map> <seconds> --as <member>` sets a time on any Map, and
 `pnpm sandbox --cup --keep` restarts on the same database and clock, to check a restart resumes.
 Its catalogue is twelve real Workshop Maps, so the Shortlist shows Steam's pictures.
 

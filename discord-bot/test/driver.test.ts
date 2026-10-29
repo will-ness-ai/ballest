@@ -23,7 +23,7 @@ import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { makeSeeMyStats, SeeMyStats, StatsLinks, StatsSite } from "../src/seeMyStats.js";
 import type { SkipAsk } from "../src/weeklyCup/model.js";
 import { WeeklyCups } from "../src/weeklyCup/schedule.js";
-import { controlsOf, fromPayload } from "../scripts/axi/describe.js";
+import { controlsOf, fromPayload } from "../scripts/discord/describe.js";
 import { fakeInteraction, type Press } from "../scripts/sandbox/driver.js";
 import { ALICE, BOB, type Harness, makeHarness, makeMap } from "./harness.js";
 

@@ -1,6 +1,6 @@
 ---
 name: discord-sandbox
-description: Play Multiballs in real Discord with `pnpm axi` and the sandbox bot. Use after changing what the bot posts, draws, pings or answers (src/discord/, src/render/, messages.ts), or to reproduce a bot bug seen in Discord.
+description: Play Multiballs in real Discord with `pnpm discord` and the sandbox bot. Use after changing what the bot posts, draws, pings or answers (src/discord/, src/render/, messages.ts), or to reproduce a bot bug seen in Discord.
 ---
 
 # Discord sandbox
@@ -11,7 +11,7 @@ shows. You play a Match as two bots in a channel of your own and read every post
 
 ## 1. Check this machine reaches Discord
 
-Run `pnpm --silent axi` in `discord-bot/`, here first: a cloud thread holds the dev app's tokens
+Run `pnpm --silent discord` in `discord-bot/`, here first: a cloud thread holds the dev app's tokens
 and reaches discord.com. Done when its `as:` line ends in `(Admin app)`. Only when it says
 discord.com didn't answer, or names the dev bot's token instead, go to Will's PC: start a Remote
 Control session and brief it with these steps, in its own worktree of your branch
@@ -19,7 +19,7 @@ Control session and brief it with these steps, in its own worktree of your branc
 
 ## 2. Start a sandbox
 
-`pnpm --silent axi sandbox create`, then `pnpm --silent axi sandbox start` (`--cup` for the Weekly
+`pnpm --silent discord sandbox create`, then `pnpm --silent discord sandbox start` (`--cup` for the Weekly
 Cup's clock). Done when it prints `bot: running`: it returns once the bot has logged in. Another
 copy of the bot (`pnpm dev`) may be running for someone else's test: leave that process and its
 channel alone. If a thread asked for Will's go-ahead before running beside it, that go-ahead is a
@@ -27,7 +27,7 @@ message he types.
 
 ## 3. Play through what changed
 
-Players are `--as admin` and the dev bot's member id (`pnpm --silent axi members`): bots, so
+Players are `--as admin` and the dev bot's member id (`pnpm --silent discord members`): bots, so
 no person is pinged. Follow each answer's `help[]` lines. Cover every surface the change
 touches, from the first click to the Result if the change reaches it:
 
@@ -41,6 +41,6 @@ Done when every post the change affects has been read and its image opened.
 
 ## 4. Clean up and report
 
-`pnpm --silent axi sandbox stop`, then `pnpm --silent axi sandbox delete`. Report what each changed
+`pnpm --silent discord sandbox stop`, then `pnpm --silent discord sandbox delete`. Report what each changed
 post showed (a line per image), anything that looked wrong, and fix any harness bug you hit in
-`scripts/axi.ts` or `scripts/sandbox/` on the same branch.
+`scripts/discord.ts` or `scripts/sandbox/` on the same branch.

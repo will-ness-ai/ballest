@@ -29,7 +29,7 @@ The style is AXI ([axi.md](https://axi.md); the upstream spec is
 adapted to this repo below. Three tools here already work this way; read the closest one before
 starting:
 
-- `pnpm --silent axi` (`discord-bot/scripts/axi.ts`, rows from `scripts/axi/describe.ts`): the
+- `pnpm --silent discord` (`discord-bot/scripts/discord.ts`, rows from `scripts/discord/describe.ts`): the
   Discord test server.
 - `pnpm --silent qa` (`web/scripts/qa.mjs`): every page of the site, preview against production.
 - `python tools/sandbox.py` in `ballest-plugin-manager`, on branch `sandbox-tools` until upstream
@@ -52,7 +52,7 @@ in the part you touch.
 3. **Build it** to the rules below, its decisions in a pure module beside the entry point
    (as `web/scripts/campaign/draft.ts` and `web/scripts/pr/land.mjs` are) and the entry point
    doing only the I/O, with tests for that module's decisions and row formatting (as
-   `discord-bot/test/axiDescribe.test.ts` does). Done when every rule is met or its absence is
+   `discord-bot/test/discordDescribe.test.ts` does). Done when every rule is met or its absence is
    a deliberate choice you can name, and the tests pass.
 4. **Run it as the agent will.** In a fresh shell: the bare run, each command's happy path, an
    empty result, a misspelt flag, a missing argument and a dependency failure (network down,

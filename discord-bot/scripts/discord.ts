@@ -1,4 +1,4 @@
-// `pnpm --silent axi`: the test server, for agents. It follows the `agent-tools` skill (AXI style:
+// `pnpm --silent discord`: the test server, for agents. It follows the `agent-tools` skill (AXI style:
 // live data first, compact rows, a next step after every answer, errors on stdout). It works as
 // the Admin app (ADMIN_DISCORD_TOKEN in the dev .env): reads and posts in any channel by name,
 // makes and removes channels and webhooks, reads #ops, and runs and drives the sandbox bot
@@ -17,7 +17,7 @@ import {
   detail,
   summary,
   table,
-} from "./axi/describe.js";
+} from "./discord/describe.js";
 import {
   type ApiChannel,
   ageOf,
@@ -27,7 +27,7 @@ import {
   isLoose,
   parseSince,
   parseVariants,
-} from "./axi/server.js";
+} from "./discord/server.js";
 import { devEnvFile } from "./devEnv.js";
 import type { Answer } from "./sandbox/driver.js";
 import { DRIVER_PORT, LOGS, readSandbox, writeSandbox } from "./sandbox/config.js";
@@ -88,8 +88,8 @@ const has = (name: string) => {
   return i >= 0;
 };
 
-const AXI_DIR = posix.join(LOGS, "axi");
-const LAST_REPLY = posix.join(AXI_DIR, "last-reply.json");
+const OUT_DIR = posix.join(LOGS, "discord");
+const LAST_REPLY = posix.join(OUT_DIR, "last-reply.json");
 
 const call = async <T>(what: string, run: () => Promise<unknown>): Promise<T> => {
   try {
@@ -110,7 +110,7 @@ const call = async <T>(what: string, run: () => Promise<unknown>): Promise<T> =>
 
 const sandbox = readSandbox();
 const sandboxChannel = () =>
-  sandbox?.channelId ?? fail("no sandbox channel yet", ["pnpm --silent axi sandbox create"]);
+  sandbox?.channelId ?? fail("no sandbox channel yet", ["pnpm --silent discord sandbox create"]);
 
 let channelList: ReadonlyArray<ApiChannel> | undefined;
 const serverChannels = async () =>
@@ -123,7 +123,7 @@ const channelOf = async (ref: string): Promise<ApiChannel> => {
   if ("channel" in found) return found.channel;
   return fail(
     `no channel named "${found.missing}"${found.near.length === 0 ? "" : ` (near: ${found.near.join(", ")})`}`,
-    ["pnpm --silent axi channels"],
+    ["pnpm --silent discord channels"],
   );
 };
 /** The channel a command reads: the one named, or the sandbox. */
@@ -149,7 +149,8 @@ const me = () => call<{ id: string; username: string }>("who am I", () => rest.g
 
 /** A member by id, "admin", or name. */
 const resolveMember = async (who: string | undefined): Promise<string> => {
-  if (who === undefined) return fail("--as <member> is required", ["pnpm --silent axi members"]);
+  if (who === undefined)
+    return fail("--as <member> is required", ["pnpm --silent discord members"]);
   if (/^\d+$/.test(who)) return who;
   if (who === "admin") return (await me()).id;
   const found = await call<ReadonlyArray<ApiMember>>("search members", () =>
@@ -163,7 +164,7 @@ const resolveMember = async (who: string | undefined): Promise<string> => {
   const pick = exact[0] ?? (found.length === 1 ? found[0] : undefined);
   if (pick === undefined)
     return fail(`no single member matches "${who}" (${found.length} found)`, [
-      "pnpm --silent axi members " + who,
+      "pnpm --silent discord members " + who,
     ]);
   return pick.user.id;
 };
@@ -185,7 +186,7 @@ const driver = async <T>(path: string, body?: unknown): Promise<T> => {
     return (await res.json()) as T;
   } catch {
     return fail(`the sandbox bot isn't running (no driver on port ${DRIVER_PORT})`, [
-      "pnpm --silent axi sandbox start",
+      "pnpm --silent discord sandbox start",
     ]);
   }
 };
@@ -209,16 +210,16 @@ const health = async (): Promise<Health | null> => {
   }
 };
 
-/** Save a message's attachments under .logs/axi; name to path. */
+/** Save a message's attachments under .logs/discord; name to path. */
 const saveFiles = async (m: ApiMessage) => {
   const files = new Map<string, string>();
   for (const a of attachmentsOf(m)) {
     if (a.url === undefined) continue;
-    mkdirSync(AXI_DIR, { recursive: true });
-    const path = posix.join(AXI_DIR, `${m.id}-${a.filename}`);
+    mkdirSync(OUT_DIR, { recursive: true });
+    const path = posix.join(OUT_DIR, `${m.id}-${a.filename}`);
     // Always fetched: an edited Card keeps its message id and file name but not its picture.
     // Discord's media host refuses some clients without a browser-like user agent (a 403).
-    const res = await fetch(a.url, { headers: { "user-agent": "Mozilla/5.0 (pnpm axi)" } });
+    const res = await fetch(a.url, { headers: { "user-agent": "Mozilla/5.0 (pnpm discord)" } });
     if (!res.ok) continue;
     writeFileSync(path, Buffer.from(await res.arrayBuffer()));
     files.set(a.filename, path);
@@ -242,7 +243,7 @@ const home = async () => {
   const listed = channelRows(all, Date.now());
   const opsAge = ageOf(ops?.last_message_id, Date.now());
   const lines = [
-    "pnpm --silent axi: the Multiballs test server, for agents",
+    "pnpm --silent discord: the Multiballs test server, for agents",
     `as: ${self.username}${asAdmin ? " (Admin app)" : " (dev bot's token: read-only, no ADMIN_DISCORD_TOKEN)"}, from ${hostname()}`,
     `channels: ${listed.length}, ${listed.filter((r) => r.loose).length} loose`,
     `ops: last post ${opsAge}${opsAge === "never" ? "" : " ago"}`,
@@ -252,9 +253,9 @@ const home = async () => {
       ...lines,
       "sandbox: none",
       ...helpLines([
-        "pnpm --silent axi sandbox create",
-        "pnpm --silent axi ops",
-        "pnpm --silent axi channels",
+        "pnpm --silent discord sandbox create",
+        "pnpm --silent discord ops",
+        "pnpm --silent discord channels",
       ]),
     ]);
     return;
@@ -274,9 +275,9 @@ const home = async () => {
   say([
     ...lines,
     ...helpLines([
-      ...(h === null ? ["pnpm --silent axi sandbox start"] : []),
-      "pnpm --silent axi show <message>",
-      "pnpm --silent axi press <label|custom id> --as <member>",
+      ...(h === null ? ["pnpm --silent discord sandbox start"] : []),
+      "pnpm --silent discord show <message>",
+      "pnpm --silent discord press <label|custom id> --as <member>",
     ]),
   ]);
 };
@@ -292,14 +293,14 @@ const read = async () => {
   say([
     `channel: ${label(where)}`,
     ...rows(ms, full),
-    ...helpLines([`pnpm --silent axi show <id>${inFlag(where)}`]),
+    ...helpLines([`pnpm --silent discord show <id>${inFlag(where)}`]),
   ]);
 };
 
 const show = async () => {
   const where = await channelOrSandbox(flag("in"));
   const full = has("full");
-  const id = args[0] ?? usage("show needs a message id", ["pnpm --silent axi read"]);
+  const id = args[0] ?? usage("show needs a message id", ["pnpm --silent discord read"]);
   const m = await call<ApiMessage>("fetch message", () =>
     rest.get(Routes.channelMessage(where, id)),
   );
@@ -310,9 +311,9 @@ const show = async () => {
     ...helpLines([
       ...(files.size > 0 ? ["Read the saved image to see it"] : []),
       ...(buttons.length > 0
-        ? [`pnpm --silent axi press ${cell(buttons[0]?.target ?? "")} --as <member>`]
+        ? [`pnpm --silent discord press ${cell(buttons[0]?.target ?? "")} --as <member>`]
         : []),
-      ...(m.thread === undefined ? [] : [`pnpm --silent axi read ${m.thread.id}`]),
+      ...(m.thread === undefined ? [] : [`pnpm --silent discord read ${m.thread.id}`]),
     ]),
   ]);
 };
@@ -332,7 +333,7 @@ const threads = async () => {
       ["id", "name", "messages", "archived"],
       all.map((t) => [t.id, t.name, t.message_count ?? 0, t.thread_metadata?.archived ?? false]),
     ),
-    ...helpLines(["pnpm --silent axi read <thread id>"]),
+    ...helpLines(["pnpm --silent discord read <thread id>"]),
   ]);
 };
 
@@ -356,7 +357,7 @@ const members = async () => {
 
 /** Print what the bot answered privately, and remember it so its buttons can be pressed by label. */
 const answered = (answers: ReadonlyArray<Answer>, follow: ReadonlyArray<string>) => {
-  mkdirSync(AXI_DIR, { recursive: true });
+  mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(
     LAST_REPLY,
     JSON.stringify(answers.flatMap((a) => (a.message === null ? [] : [a.message]))),
@@ -382,7 +383,7 @@ const answered = (answers: ReadonlyArray<Answer>, follow: ReadonlyArray<string>)
     form === undefined || form === null
       ? []
       : [
-          `pnpm --silent axi submit ${form.content?.split(" ")[1]?.replace(/:$/, "") ?? "<form id>"} ${controlsOf(
+          `pnpm --silent discord submit ${form.content?.split(" ")[1]?.replace(/:$/, "") ?? "<form id>"} ${controlsOf(
             form.components,
           )
             .filter((c) => c.kind === "input")
@@ -417,7 +418,7 @@ const sandboxMessage = async (id: string): Promise<ApiMessage> => {
     }
   }
   return fail(`no message ${id} in the sandbox or its active Match Threads`, [
-    "pnpm --silent axi threads",
+    "pnpm --silent discord threads",
   ]);
 };
 
@@ -458,13 +459,13 @@ const resolveControl = async (target: string, messageId: string | undefined) => 
   }
   return fail(
     `no button labelled "${target}" in ${messageId === undefined ? "the last private reply, the newest messages or the active Match Threads" : `message ${messageId}`}`,
-    ["pnpm --silent axi read", "pnpm --silent axi show <message>"],
+    ["pnpm --silent discord read", "pnpm --silent discord show <message>"],
   );
 };
 
 const FOLLOW = [
-  "pnpm --silent axi read",
-  "pnpm --silent axi press <label|custom id> --as <member>",
+  "pnpm --silent discord read",
+  "pnpm --silent discord press <label|custom id> --as <member>",
 ];
 
 const press = async () => {
@@ -523,11 +524,11 @@ const time = async () => {
     as,
     seconds: Number(seconds),
   });
-  if (out.error !== undefined) return fail(out.error, ["pnpm --silent axi"]);
+  if (out.error !== undefined) return fail(out.error, ["pnpm --silent discord"]);
   say([
     out.ok ?? "",
     ...helpLines([
-      "pnpm --silent axi wait improved --in <thread>   (an improvement post is improved.png)",
+      "pnpm --silent discord wait improved --in <thread>   (an improvement post is improved.png)",
     ]),
   ]);
 };
@@ -541,10 +542,10 @@ const runCmd = async () => {
     as,
     seconds: Number(seconds),
   });
-  if (out.error !== undefined) return fail(out.error, ["pnpm --silent axi"]);
+  if (out.error !== undefined) return fail(out.error, ["pnpm --silent discord"]);
   say([
     out.ok ?? "",
-    ...helpLines(["pnpm --silent axi read <#weekly-cup id>   (the Cup reads every 5 minutes)"]),
+    ...helpLines(["pnpm --silent discord read <#weekly-cup id>   (the Cup reads every 5 minutes)"]),
   ]);
 };
 
@@ -562,13 +563,13 @@ const steamCmd = async () => {
   const state = args[0];
   if (state !== "down" && state !== "up") return fail("steam needs down or up");
   const out = await driver<{ ok?: string; error?: string }>("/steam", { down: state === "down" });
-  if (out.error !== undefined) return fail(out.error, ["pnpm --silent axi"]);
+  if (out.error !== undefined) return fail(out.error, ["pnpm --silent discord"]);
   say([
     out.ok ?? "",
     ...helpLines(
       state === "down"
-        ? ['pnpm --silent axi wait "Time\'s up" --in <thread>   (when a Match ends while down)']
-        : ['pnpm --silent axi wait "Final result" --in <thread>'],
+        ? ['pnpm --silent discord wait "Time\'s up" --in <thread>   (when a Match ends while down)']
+        : ['pnpm --silent discord wait "Final result" --in <thread>'],
     ),
   ]);
 };
@@ -590,11 +591,11 @@ const wait = async () => {
     if (hit !== undefined)
       return say([
         ...detail(hit, { files: await saveFiles(hit) }),
-        ...helpLines([`pnpm --silent axi show ${hit.id}${inFlag(where)}`]),
+        ...helpLines([`pnpm --silent discord show ${hit.id}${inFlag(where)}`]),
       ]);
   }
   return fail(`no new message containing "${text}" in ${timeout / 1000} s`, [
-    `pnpm --silent axi read ${where}`,
+    `pnpm --silent discord read ${where}`,
   ]);
 };
 
@@ -628,7 +629,7 @@ const sandboxStart = async () => {
   if (pid !== null || (await health()) !== null)
     return say([
       `bot: running${pid === null ? " (started elsewhere)" : ` (pid ${pid})`} (no-op)`,
-      ...helpLines(["pnpm --silent axi", "pnpm --silent axi sandbox stop"]),
+      ...helpLines(["pnpm --silent discord", "pnpm --silent discord sandbox stop"]),
     ]);
   mkdirSync(LOGS, { recursive: true });
   // Emptied here, not only by the bot once it loads: the last run's log says it logged in.
@@ -664,22 +665,25 @@ const sandboxStart = async () => {
       return say([
         `bot: running (pid ${child.pid}), ready in ${Math.round((Date.now() - started) / 1000)} s${cup ? ", Weekly Cup on" : ""}`,
         ...helpLines([
-          'pnpm --silent axi press "New Match" --as admin',
-          "pnpm --silent axi",
-          "pnpm --silent axi sandbox stop",
+          'pnpm --silent discord press "New Match" --as admin',
+          "pnpm --silent discord",
+          "pnpm --silent discord sandbox stop",
         ]),
       ]);
   }
   return fail("the sandbox bot didn't log in within 90 s", [
     ...tail(SANDBOX_LOG, 5).map((l) => `(log) ${l}`),
-    "pnpm --silent axi sandbox stop",
+    "pnpm --silent discord sandbox stop",
   ]);
 };
 
 const sandboxStop = () => {
   const pid = runningPid();
   if (pid === null)
-    return say(["bot: not running (no-op)", ...helpLines(["pnpm --silent axi sandbox delete"])]);
+    return say([
+      "bot: not running (no-op)",
+      ...helpLines(["pnpm --silent discord sandbox delete"]),
+    ]);
   try {
     if (process.platform === "win32") spawn("taskkill", ["/pid", String(pid), "/t", "/f"]);
     // The whole group: its children die with it.
@@ -688,7 +692,7 @@ const sandboxStop = () => {
     // Gone since runningPid looked: the no-op it would have been.
   }
   writeFileSync(PID_FILE, "");
-  return say([`bot: stopped (pid ${pid})`, ...helpLines(["pnpm --silent axi sandbox delete"])]);
+  return say([`bot: stopped (pid ${pid})`, ...helpLines(["pnpm --silent discord sandbox delete"])]);
 };
 
 const sandboxCmd = async () => {
@@ -699,7 +703,7 @@ const sandboxCmd = async () => {
   if (sub === "create") {
     if (sandbox !== null)
       return fail(`a sandbox already exists: #${sandbox.channelName}`, [
-        "pnpm --silent axi sandbox delete",
+        "pnpm --silent discord sandbox delete",
       ]);
     const botId =
       env.DISCORD_APPLICATION_ID ??
@@ -712,7 +716,7 @@ const sandboxCmd = async () => {
         body: {
           name,
           type: ChannelType.GuildText,
-          topic: "Multiballs sandbox for agents (pnpm --silent axi). Safe to delete.",
+          topic: "Multiballs sandbox for agents (pnpm --silent discord). Safe to delete.",
           permission_overwrites: [
             {
               id: everyone,
@@ -740,7 +744,7 @@ const sandboxCmd = async () => {
     writeSandbox({ guildId, channelId: created.id, channelName: created.name });
     return say([
       `created: #${created.name} (${created.id})`,
-      ...helpLines(["pnpm --silent axi sandbox start", "pnpm --silent axi"]),
+      ...helpLines(["pnpm --silent discord sandbox start", "pnpm --silent discord"]),
     ]);
   }
   if (sub === "delete") {
@@ -750,19 +754,19 @@ const sandboxCmd = async () => {
       rest.delete(Routes.channel(channelId)),
     );
     if (channelId === sandbox?.channelId) writeSandbox(null);
-    return say([`deleted: #${gone.name}`, ...helpLines(["pnpm --silent axi sandbox create"])]);
+    return say([`deleted: #${gone.name}`, ...helpLines(["pnpm --silent discord sandbox create"])]);
   }
   return usage(`unknown sandbox command "${sub ?? ""}"`, [
-    "pnpm --silent axi sandbox create",
-    "pnpm --silent axi sandbox start",
-    "pnpm --silent axi sandbox stop",
-    "pnpm --silent axi sandbox delete",
+    "pnpm --silent discord sandbox create",
+    "pnpm --silent discord sandbox start",
+    "pnpm --silent discord sandbox stop",
+    "pnpm --silent discord sandbox delete",
   ]);
 };
 
 // ---------------------------------------------------------------- the server's channels
 
-const LOOSE_TOPIC = "Made by pnpm axi for agents. Safe to delete.";
+const LOOSE_TOPIC = "Made by pnpm discord for agents. Safe to delete.";
 
 /** Posting and making things are the Admin app's: the dev bot's token would post as the bot. */
 const needAdmin = (what: string) => {
@@ -781,9 +785,9 @@ const channelsCmd = async () => {
     ),
     `count: ${rows.length}, ${loose} loose (outside every category: sandboxes, prototypes, design rounds)`,
     ...helpLines([
-      "pnpm --silent axi read <name>",
-      "pnpm --silent axi channel delete <loose name>",
-      "pnpm --silent axi channel create <name>",
+      "pnpm --silent discord read <name>",
+      "pnpm --silent discord channel delete <loose name>",
+      "pnpm --silent discord channel create <name>",
     ]),
   ]);
 };
@@ -795,8 +799,8 @@ const channelCmd = async () => {
   const [sub, given] = args;
   if (given === undefined || (sub !== "create" && sub !== "delete"))
     return usage("channel needs create or delete and a name", [
-      "pnpm --silent axi channel create <name>",
-      "pnpm --silent axi channel delete <name>",
+      "pnpm --silent discord channel create <name>",
+      "pnpm --silent discord channel delete <name>",
     ]);
   needAdmin("making channels");
   // As Discord names it, so asking twice for "Cup Check" finds the cup-check the first made.
@@ -807,7 +811,7 @@ const channelCmd = async () => {
     if ("channel" in found)
       return say([
         `channel: #${found.channel.name} (no-op: it exists)`,
-        ...helpLines([`pnpm --silent axi post ${found.channel.name} <text>`]),
+        ...helpLines([`pnpm --silent discord post ${found.channel.name} <text>`]),
       ]);
     const made = await call<ApiChannel>("create channel", () =>
       rest.post(Routes.guildChannels(guildId), {
@@ -817,30 +821,30 @@ const channelCmd = async () => {
     return say([
       `created: #${made.name}`,
       ...helpLines([
-        `pnpm --silent axi post ${made.name} <text>`,
-        `pnpm --silent axi channel delete ${made.name}`,
+        `pnpm --silent discord post ${made.name} <text>`,
+        `pnpm --silent discord channel delete ${made.name}`,
       ]),
     ]);
   }
   if (!("channel" in found))
     return say([
       `channel: ${name} (no-op: there is none)`,
-      ...helpLines(["pnpm --silent axi channels"]),
+      ...helpLines(["pnpm --silent discord channels"]),
     ]);
   const c = found.channel;
   // An id the server's list doesn't hold (a thread, another server's channel) has no category to check.
   const listed = all.some((x) => x.id === c.id);
   if (c.id === sandbox?.channelId)
-    return fail(`#${c.name} is this checkout's sandbox`, ["pnpm --silent axi sandbox delete"]);
+    return fail(`#${c.name} is this checkout's sandbox`, ["pnpm --silent discord sandbox delete"]);
   if ((!listed || !isLoose(c)) && !force)
     return fail(
       listed
         ? `#${c.name} sits in one of the server's categories, so it is someone's real channel`
         : `${c.id} isn't one of the server's channels, so nothing says it is a leftover`,
-      [`pnpm --silent axi channel delete ${c.name} --force   (only if Will asked for it gone)`],
+      [`pnpm --silent discord channel delete ${c.name} --force   (only if Will asked for it gone)`],
     );
   await call("delete channel", () => rest.delete(Routes.channel(c.id)));
-  return say([`deleted: #${c.name}`, ...helpLines(["pnpm --silent axi channels"])]);
+  return say([`deleted: #${c.name}`, ...helpLines(["pnpm --silent discord channels"])]);
 };
 
 const NO_PINGS = { parse: [] as Array<string> };
@@ -864,16 +868,18 @@ const postCmd = async () => {
   needAdmin("posting");
   const files = flags("file");
   const [ref, ...words] = args;
-  if (ref === undefined) return usage("post needs a channel", ["pnpm --silent axi channels"]);
+  if (ref === undefined) return usage("post needs a channel", ["pnpm --silent discord channels"]);
   const text = words.join(" ");
   if (text === "" && files.length === 0)
-    return usage("post needs text or --file <path>", [`pnpm --silent axi post ${ref} "<text>"`]);
+    return usage("post needs text or --file <path>", [
+      `pnpm --silent discord post ${ref} "<text>"`,
+    ]);
   const c = await channelOf(ref);
   const m = await send(c.id, text, files);
   say([
     `posted: ${m.id} in #${c.name}`,
     `link: ${link(c.id, m.id)}`,
-    ...helpLines([`pnpm --silent axi show ${m.id}${inFlag(c)}`]),
+    ...helpLines([`pnpm --silent discord show ${m.id}${inFlag(c)}`]),
   ]);
 };
 
@@ -885,14 +891,15 @@ const variantsCmd = async () => {
   needAdmin("posting");
   const title = flag("title");
   const [ref, ...pairs] = args;
-  if (ref === undefined) return usage("variants needs a channel", ["pnpm --silent axi channels"]);
+  if (ref === undefined)
+    return usage("variants needs a channel", ["pnpm --silent discord channels"]);
   const parsed = parseVariants(pairs);
   if ("bad" in parsed)
     return usage(
       parsed.bad === ""
         ? "variants needs at least one label=<file|text>"
         : `"${parsed.bad}" isn't label=<file|text>`,
-      [`pnpm --silent axi variants ${ref} A=scratch/a.png B=scratch/b.png --title "Round 1"`],
+      [`pnpm --silent discord variants ${ref} A=scratch/a.png B=scratch/b.png --title "Round 1"`],
     );
   const missing = parsed.variants.find((v) => looksLikeFile(v.value) && !existsSync(v.value));
   if (missing !== undefined) return fail(`no file at ${missing.value} (variant ${missing.label})`);
@@ -913,7 +920,7 @@ const variantsCmd = async () => {
   }
   say([
     ...table("variants", ["label", "id", "link"], posted),
-    ...helpLines([`pnpm --silent axi read ${c.name}`]),
+    ...helpLines([`pnpm --silent discord read ${c.name}`]),
   ]);
 };
 
@@ -928,7 +935,7 @@ const webhookCmd = async () => {
   const [ref, name] = args;
   if (ref === undefined || name === undefined || out === undefined)
     return usage("webhook needs a channel, a name and --out <file>", [
-      "pnpm --silent axi webhook <channel> <name> --out scratch/webhook.txt",
+      "pnpm --silent discord webhook <channel> <name> --out scratch/webhook.txt",
     ]);
   needAdmin("making webhooks");
   const c = await channelOf(ref);
@@ -949,7 +956,7 @@ const webhookCmd = async () => {
   say([
     `webhook: ${name} in #${c.name}${had === undefined ? "" : " (no-op: it exists)"}`,
     `url: written to ${out} (secret: pass the file, never print it)`,
-    ...helpLines([`pnpm --silent axi read ${c.name}   (after the first post through it)`]),
+    ...helpLines([`pnpm --silent discord read ${c.name}   (after the first post through it)`]),
   ]);
 };
 
@@ -975,7 +982,10 @@ const opsCmd = async () => {
       ["id", "at", "shows"],
       ms.map((m) => [m.id, (m.timestamp ?? "").slice(0, 16).replace("T", " "), summary(m, 160)]),
     ),
-    ...helpLines([`pnpm --silent axi show <id> --in ops`, `pnpm --silent axi ops --since 7d`]),
+    ...helpLines([
+      `pnpm --silent discord show <id> --in ops`,
+      `pnpm --silent discord ops --since 7d`,
+    ]),
   ]);
 };
 
@@ -989,7 +999,7 @@ interface Command {
   readonly help: ReadonlyArray<string>;
 }
 
-const A = "pnpm --silent axi";
+const A = "pnpm --silent discord";
 const COMMANDS: Record<string, Command> = {
   channels: {
     usage: "channels",
