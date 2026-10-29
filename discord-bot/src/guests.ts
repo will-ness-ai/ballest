@@ -25,15 +25,26 @@ export interface GuestStates {
 /** The guest states, kept in memory: they last as long as the process. */
 export const makeGuests = (): GuestStates => {
   const states = new Map<VenueName, GuestState>();
-  const move = (venue: VenueName, from: ReadonlyArray<GuestState>, to: GuestState) =>
-    Effect.sync(() => {
+  const move = Effect.fn("Guests.move")(function* (
+    venue: VenueName,
+    from: ReadonlyArray<GuestState>,
+    to: GuestState,
+  ) {
+    yield* Effect.sync(() => {
       const now = states.get(venue);
       if (now !== undefined && from.includes(now)) states.set(venue, to);
     });
+  });
   return {
-    start: (venue) => Effect.sync(() => states.set(venue, "starting")),
-    up: (venue) => move(venue, ["starting"], "up"),
-    broke: (venue) => move(venue, ["starting", "up"], "broken"),
+    start: Effect.fn("Guests.start")(function* (venue: VenueName) {
+      yield* Effect.sync(() => states.set(venue, "starting"));
+    }),
+    up: Effect.fn("Guests.up")(function* (venue: VenueName) {
+      yield* move(venue, ["starting"], "up");
+    }),
+    broke: Effect.fn("Guests.broke")(function* (venue: VenueName) {
+      yield* move(venue, ["starting", "up"], "broken");
+    }),
     state: (venue) => states.get(venue),
     started: (venue) => states.has(venue),
     unavailable: (venue) => {

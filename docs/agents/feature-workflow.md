@@ -25,7 +25,8 @@ throwaway worktree on `claude/prototype-<slug>`, served locally, with the varian
 picker built into the real page (give the worktree its own `pnpm install --prefer-offline`:
 Turbopack rejects a symlinked `node_modules`). Five variants a round, walking from the overall layout
 down to single components. Skip this step for collector, data and bot-engine work with no
-visible surface.
+visible surface. A bot post's variants go to the test server instead: `pnpm --silent devserver variants
+<channel> A=a.png B=b.png --title "Round 1"` in `discord-bot/` posts a round and prints one link per variant.
 
 ## 3. Spec: `/to-spec`, then `/to-tickets`
 
@@ -127,9 +128,9 @@ migration to production, then, once the migration is final, run `.github/workflo
 on the PR's branch (`gh api -X POST repos/will-ness-ai/ballest/actions/workflows/migrate.yml/dispatches -f ref=<branch>`).
 It refuses a branch whose migrations aren't main's plus new ones, so merge main first, or when
 another branch's migration already ran ahead of main. Then redeploy the preview
-(`npx vercel redeploy <preview url> --token "$VERCEL_TOKEN"`). From then on that PR merges
-before any other PR with a migration: Drizzle applies only migrations newer than production's
-newest, so an older one merged after it would be skipped without an error (regenerate it if so). The real fix is a Neon branch per preview.
+(`npx vercel redeploy <preview url> --token "$VERCEL_TOKEN"`). Should another PR's older
+migration merge after it, the deploy's migrate step fails and names it to regenerate
+(`web/scripts/migrations.mjs`). The real fix is a Neon branch per preview.
 
 Merge `main` into the branch before marking it ready and again just before it merges, even
 when GitHub shows no conflict. A long PR outlives conventions: while #152 was open, `main`

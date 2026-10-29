@@ -55,7 +55,7 @@ export const addMapsLive = (url: string) =>
   ).pipe(Layer.provide(FetchHttpClient.layer));
 
 /** For every post, the step a minute later, unless one is already waiting to start. */
-export const newTracksLoop = Effect.fn("newTracksLoop")(function* (posts: Stream.Stream<string>) {
+export const newTracksLoop = Effect.fn("NewTracks.loop")(function* (posts: Stream.Stream<string>) {
   const addMaps = yield* AddMaps;
   const alerts = yield* OpsAlerts;
   const waiting = yield* Ref.make(false);

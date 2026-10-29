@@ -140,7 +140,8 @@ export const STATES = [
 
 // Hidden before every screenshot on both sides: the refresh time differs between two
 // deployments whose caches filled at different moments.
-export const MASK = ["#freshness b"];
+// a grill-design prototype's variant picker and `next dev`'s badge are never part of a page
+export const MASK = ["#freshness b", ".proto-picker", "nextjs-portal"];
 
 // Third-party requests that only add noise: the preview toolbar and analytics are dropped;
 // Steam's images and avatars are answered with one fixed picture, so every run draws the same.

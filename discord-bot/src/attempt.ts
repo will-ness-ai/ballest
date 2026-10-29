@@ -10,7 +10,7 @@ import type { Alerts } from "./ops.js";
  * key busy till it ends. A bug in it is logged; ops hears `tell`'s words for a failure, once per
  * key and kind.
  */
-export const attempt = Effect.fn("attempt")(function* <A, E, R>(
+export const attempt = Effect.fn("Attempt.run")(function* <A, E, R>(
   work: Effect.Effect<A, E, R>,
   opts: {
     readonly key: string;

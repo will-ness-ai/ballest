@@ -26,12 +26,15 @@ const SERVER_PERMISSIONS: ReadonlyArray<readonly [ServerPermission, bigint]> = [
   ["Manage Roles", PermissionFlagsBits.ManageRoles],
 ];
 
-const failed = <A>(effect: Effect.Effect<A, DiscordError>) =>
-  effect.pipe(
+const failed = Effect.fn("SetupGuild.failed")(function* <A>(
+  effect: Effect.Effect<A, DiscordError>,
+) {
+  return yield* effect.pipe(
     Effect.mapError(
       (e) => new VenueSetupFailed({ reason: describeDiscordError(e), kind: discordKind(e) }),
     ),
   );
+});
 
 /** Each flag set to `value`, as discord.js edits overwrites. */
 const flags = (names: ReadonlyArray<string>, value: boolean): PermissionOverwriteOptions =>
@@ -59,8 +62,11 @@ export const setupGuildOn = (client: Client<true>, guild: Guild): SetupGuild => 
         ),
       ),
     ),
-    createTextChannel: (name: string, access: ChannelAccess) =>
-      failed(
+    createTextChannel: Effect.fn("SetupGuild.createTextChannel")(function* (
+      name: string,
+      access: ChannelAccess,
+    ) {
+      const channel = yield* failed(
         tryDiscord("create channel", () =>
           guild.channels.create({
             name,
@@ -76,8 +82,13 @@ export const setupGuildOn = (client: Client<true>, guild: Guild): SetupGuild => 
             ],
           }),
         ),
-      ).pipe(Effect.map((channel) => channel.id)),
-    setAccess: Effect.fn("setAccess")(function* (channelId: string, access: ChannelAccess) {
+      );
+      return channel.id;
+    }),
+    setAccess: Effect.fn("SetupGuild.setAccess")(function* (
+      channelId: string,
+      access: ChannelAccess,
+    ) {
       const channel = yield* failed(
         tryDiscord("fetch channel", () => guild.channels.fetch(channelId)),
       );
@@ -103,11 +114,13 @@ export const setupGuildOn = (client: Client<true>, guild: Guild): SetupGuild => 
       ),
     ),
     // Discord puts a new role just above @everyone, so below the bot's own.
-    createRole: (name: string) =>
-      failed(
+    createRole: Effect.fn("SetupGuild.createRole")(function* (name: string) {
+      const role = yield* failed(
         tryDiscord("create role", () =>
           guild.roles.create({ name, mentionable: true, reason: REASON }),
         ),
-      ).pipe(Effect.map((role) => role.id)),
+      );
+      return role.id;
+    }),
   };
 };

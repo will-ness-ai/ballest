@@ -1,7 +1,12 @@
 // Production health signals, each off unless configured: a heartbeat to Healthchecks.io, which
 // alerts the ops channel when pings stop, and a daily warning to the ops channel's webhook once
 // the Steam refresh token is close to expiring (the bot never renews it).
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "@effect/platform";
+import {
+  FetchHttpClient,
+  HttpClient,
+  type HttpClientError,
+  HttpClientRequest,
+} from "@effect/platform";
 import {
   Clock,
   Config,
@@ -18,6 +23,14 @@ import { Discord } from "./discord/client.js";
 
 const WARN_DAYS = 30;
 const DAY_MS = 86_400_000;
+
+/** A failed request, which is only logged. */
+const requestFailed = Effect.fn("Ops.requestFailed")(function* (
+  what: string,
+  e: HttpClientError.HttpClientError,
+) {
+  yield* Effect.logWarning(`${what} failed: ${e._tag}`);
+});
 
 const TokenClaims = Schema.parseJson(Schema.Struct({ exp: Schema.Number }));
 
@@ -56,18 +69,18 @@ export const opsAlertsOf = (opts: {
   const told = new Map<string, string>();
   return {
     configured: opts.configured,
-    post: (content: string, once?: Once) =>
-      Effect.suspend(() => {
-        if (once !== undefined) {
-          if (told.get(once.key) === once.kind) return Effect.void;
-          told.set(once.key, once.kind);
-        }
-        return opts.post(content);
-      }),
-    forget: (key: string) =>
-      Effect.sync(() => {
+    post: Effect.fn("OpsAlerts.post")(function* (content: string, once?: Once) {
+      if (once !== undefined) {
+        if (told.get(once.key) === once.kind) return;
+        told.set(once.key, once.kind);
+      }
+      yield* opts.post(content);
+    }),
+    forget: Effect.fn("OpsAlerts.forget")(function* (key: string) {
+      yield* Effect.sync(() => {
         told.delete(key);
-      }),
+      });
+    }),
   };
 };
 
@@ -82,14 +95,17 @@ export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts
     const webhookUrl = yield* Config.option(Config.redacted("OPS_WEBHOOK_URL"));
     const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
     const queue = yield* Queue.unbounded<string>();
-    const send = (url: string, content: string) =>
-      http
+    const send = Effect.fn("OpsAlerts.send")(function* (url: string, content: string) {
+      yield* http
         .execute(HttpClientRequest.post(url).pipe(HttpClientRequest.bodyUnsafeJson({ content })))
         .pipe(
           Effect.scoped,
           Effect.timeout("10 seconds"),
-          Effect.catchAll((e) => Effect.logWarning(`ops webhook failed: ${e._tag}`)),
+          Effect.catchTag("RequestError", "ResponseError", "TimeoutException", (e) =>
+            Effect.logWarning(`ops webhook failed: ${e._tag}`),
+          ),
         );
+    });
     if (Option.isSome(webhookUrl)) {
       const url = Redacted.value(webhookUrl.value);
       // Added before the drain is forked, so it runs after the drain stops: what is left is sent.
@@ -112,11 +128,10 @@ export class OpsAlerts extends Effect.Service<OpsAlerts>()("multiballs/OpsAlerts
       ).pipe(Effect.forever, Effect.forkScoped);
     }
     const configured = Option.isSome(webhookUrl);
-    const post = (content: string) =>
-      Effect.logWarning(`ops: ${content}`).pipe(
-        Effect.zipRight(configured ? Queue.offer(queue, content) : Effect.void),
-        Effect.asVoid,
-      );
+    const post = Effect.fn("OpsAlerts.enqueue")(function* (content: string) {
+      yield* Effect.logWarning(`ops: ${content}`);
+      if (configured) yield* Queue.offer(queue, content);
+    });
     return opsAlertsOf({ configured, post });
   }),
   dependencies: [FetchHttpClient.layer],
@@ -131,12 +146,16 @@ export const OpsLive = Layer.scopedDiscard(
     const steamToken = yield* Config.redacted("STEAM_REFRESH_TOKEN");
     const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
 
-    const send = (what: string, request: HttpClientRequest.HttpClientRequest) =>
-      http.execute(request).pipe(
+    const send = Effect.fn("Ops.send")(function* (
+      what: string,
+      request: HttpClientRequest.HttpClientRequest,
+    ) {
+      return yield* http.execute(request).pipe(
         Effect.scoped,
         Effect.asVoid,
-        Effect.catchAll((e) => Effect.logWarning(`${what} failed: ${e._tag}`)),
+        Effect.catchTag("RequestError", "ResponseError", (e) => requestFailed(what, e)),
       );
+    });
 
     if (Option.isSome(heartbeatUrl)) {
       const ping = send("heartbeat", HttpClientRequest.get(Redacted.value(heartbeatUrl.value)));

@@ -139,16 +139,19 @@ export const SearchConsoleLive = Layer.effect(
     const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
     const failed = (what: string) => (e: { _tag: string }) =>
       new TrafficUnavailable({ reason: `Search Console ${what}: ${e._tag}` });
-    const json =
-      <A, I>(what: string, schema: Schema.Schema<A, I>) =>
-      (request: HttpClientRequest.HttpClientRequest) =>
-        http
-          .execute(request)
-          .pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(schema)),
-            Effect.scoped,
-            Effect.mapError(failed(what)),
-          );
+    const json = Effect.fn("SearchSource.json")(function* <A, I>(
+      what: string,
+      schema: Schema.Schema<A, I>,
+      request: HttpClientRequest.HttpClientRequest,
+    ) {
+      return yield* http
+        .execute(request)
+        .pipe(
+          Effect.flatMap(HttpClientResponse.schemaBodyJson(schema)),
+          Effect.scoped,
+          Effect.mapError(failed(what)),
+        );
+    });
 
     return SearchSource.of({
       read: Effect.fn("SearchSource.read")(function* (at: number) {
@@ -164,15 +167,16 @@ export const SearchConsoleLive = Layer.effect(
             grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
             assertion: signed,
           }),
-          json("token", Token),
+          (request) => json("token", Token, request),
         );
-        const query = (body: object) =>
-          HttpClientRequest.post(`${API}/searchAnalytics/query`).pipe(
+        const query = Effect.fn("SearchSource.query")(function* (body: object) {
+          const { rows } = yield* HttpClientRequest.post(`${API}/searchAnalytics/query`).pipe(
             HttpClientRequest.bearerToken(access_token),
             HttpClientRequest.bodyUnsafeJson(body),
-            json("query", Rows),
-            Effect.map((r) => r.rows),
+            (request) => json("query", Rows, request),
           );
+          return rows;
+        });
         const today = dayOf(at);
         const days = yield* query({
           startDate: daysBefore(today, LOOK_BACK),
@@ -180,8 +184,14 @@ export const SearchConsoleLive = Layer.effect(
           dimensions: ["date"],
         });
         const date = newestDate(days);
-        const on = (dimension: string, rowLimit: number) =>
-          query({ startDate: date, endDate: date, dimensions: [dimension], rowLimit });
+        const on = Effect.fn("SearchSource.on")(function* (dimension: string, rowLimit: number) {
+          return yield* query({
+            startDate: date,
+            endDate: date,
+            dimensions: [dimension],
+            rowLimit,
+          });
+        });
         const [queries, pages, seen, sitemaps] = date
           ? yield* Effect.all(
               [
@@ -195,7 +205,7 @@ export const SearchConsoleLive = Layer.effect(
                 }),
                 HttpClientRequest.get(`${API}/sitemaps`).pipe(
                   HttpClientRequest.bearerToken(access_token),
-                  json("sitemaps", Sitemaps),
+                  (request) => json("sitemaps", Sitemaps, request),
                 ),
               ],
               { concurrency: 4 },

@@ -1,7 +1,8 @@
 """
 Ballest campaign leaderboard collector — HEADLESS (the live path, run by runner.py on Fly).
 
-Logs into Steam with a refresh token (no Steam client, no password at runtime),
+`refresh(session)` is one Refresh on the service's Steam session (steam_session.py, logged
+in with a refresh token: no Steam client, no password at runtime). It
 reads every Circuit leaderboard over the Steam CM via steam.py, keeps the Workshop
 Maps' boards current, reading only the ones played since the last run
 (collect_workshop), reads the Dailies the developers' API names (collect_dailies),
@@ -24,54 +25,36 @@ worktree):
                          board (the URL is a prefix the date is appended to); the Daily
                          step is skipped without them. Never printed.
 
-Run it from a feature branch against a local database, never production:
+Run on its own, it logs in for that one Refresh (refresh.yml's fallback does). Run it so
+from a feature branch against a local database, never production:
   DEV_DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev \
     python tools/steampy_collect.py --dev
 Requires: steamio, aiohttp<3.13, psycopg  (see tools/requirements-steampy.txt)
 """
 
 import asyncio
-import logging
 import os
 import sys
 import time
-import traceback
 from datetime import UTC, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import warnings
-
 import campaign_common as cc
 import db_writer
 import ghosts
 import map_files
-
-warnings.filterwarnings("ignore")  # silence steam.py's XML-as-HTML parser warning
-
-import steam  # noqa: E402 (after the warnings filter)
-from steampy_common import (  # noqa: E402
+import steam_session  # first: it silences steam.py's warnings before steampy_common's import
+from steampy_common import (
     board_rows,
     collect_dailies,
     fetch_board,
     find_map_board_id,
 )
 
-logging.basicConfig(level=logging.WARNING)
-logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # hush benign teardown noise
-
-TOKEN = cc.load_refresh_token()
-# --dev writes only DEV_DATABASE_URL (db_writer.database_url), never production
-DEV = "--dev" in sys.argv[1:]
-STARTED_AT = datetime.now(UTC)
-
-client = steam.Client()
-_state = {"done": False, "error": None, "wrote": False, "catalogue": None, "memory": None}
-
-
 WORKSHOP_GIVE_UP = 10
 
 
-async def collect_workshop(catalogue, all_ids, memory):
+async def collect_workshop(session, catalogue, all_ids, memory):
     """Bring the Workshop Maps' boards up to date. Returns what db_writer.Refresh takes as
     `workshop`, or None to count no Map as read this Refresh.
 
@@ -119,11 +102,11 @@ async def collect_workshop(catalogue, all_ids, memory):
             if not m["handle"]:
                 # A board appears on a Map's first finish, and its ID never changes.
                 finds += 1
-                lid = await find_map_board_id(client, c["board"])
+                lid = await find_map_board_id(session, c["board"])
                 m["handle"] = str(lid) if lid else None
             if m["handle"]:
                 reads += 1
-                total, entries = await fetch_board(client, int(m["handle"]))
+                total, entries = await fetch_board(session, int(m["handle"]))
                 rows = board_rows(entries)
                 if not rows and m["rows"]:
                     raise RuntimeError("board came back empty")  # noqa: TRY301 (to the fallback below)
@@ -156,138 +139,129 @@ async def collect_workshop(catalogue, all_ids, memory):
     }
 
 
-@client.event
-async def on_ready():
-    if _state["done"]:
-        return
-    _state["done"] = True
-    try:
-        memory = _state["memory"]
-        all_ids = set()
-
-        async def fetch_rows(lid):
-            total, entries = await fetch_board(client, lid)
-            return total, board_rows(entries)
-
-        circuit = []
-        for name, group in cc.BOARDS:
-            lid = cc.LEADERBOARD_IDS.get(name)
-            if lid:
-                circuit.append((name, lid, group))
-            else:
-                print(f"  [skip] no leaderboard ID for {name}")
-        # A failed read changes nothing: the board's Entries stay as the last good read left
-        # them (db_writer counts it as a failed read).
-        boards_out, failed = await cc.read_boards(fetch_rows, circuit)
-        for b in boards_out:
-            all_ids.update(r["steam_id"] for r in b["rows"])
-
-        # Refuse a Refresh that read nothing: Steam is down, or this login is broken.
-        if not any(b["rows"] for b in boards_out):
-            _state["error"] = RuntimeError("no board data collected")
-            print("ERROR: no board data collected; not writing.")
-            return
-
-        # Each Event board with no good read yet: after the guard, so it never decides the
-        # run. A failed or empty read is a failed read (db_writer); the next Refresh retries.
-        events, events_failed = await cc.read_events(fetch_rows, memory.events_read)
-        for b in events:
-            all_ids.update(r["steam_id"] for r in b["rows"])
-        boards_out += events
-        failed += events_failed
-
-        workshop = None
-        if _state["catalogue"]:
-            try:
-                workshop = await collect_workshop(_state["catalogue"], all_ids, memory)
-            except Exception as e:
-                # The Circuit still writes; no Map counts as read.
-                print(f"  [warn] Workshop step failed: {e!r}")
-        dailies = []
-        try:
-            dailies = await collect_dailies(client, memory.dailies, all_ids)
-        except Exception as e:
-            # Never blocks the Circuit or the Workshop: no Daily counts as read.
-            print(f"  [warn] Daily step failed: {type(e).__name__}")
-        # Plain HTTP that sleeps between batches: run it off the event loop, or a big
-        # lookup (an empty database: 16k names) starves steam.py's heartbeat and Steam
-        # drops the connection mid-run.
-        await asyncio.to_thread(
-            cc.name_rows,
-            [b["rows"] for b in boards_out]
-            + list(workshop["boards"].values() if workshop else [])
-            + [r.rows for r in dailies if r.ok],
-            all_ids,
-            memory,
-        )
-        if failed:
-            print(f"NOTE: {len(failed)} board(s) not read, left as they were: {failed}")
-        rid = await asyncio.to_thread(
-            db_writer.record_refresh,
-            db_writer.Refresh(
-                started_at=STARTED_AT,
-                boards=boards_out,
-                failed=tuple(failed),
-                workshop=workshop,
-                dailies=tuple(dailies),
-            ),
-            scratch=DEV,
-        )
-        if rid is None:
-            _state["error"] = RuntimeError("the database write failed")
-            return
-        _state["wrote"] = True
-        # Each top run's Ghost, for its skin: after the Refresh, so it never holds it up,
-        # and never fails the run.
-        try:
-            await asyncio.to_thread(ghosts.record_ghosts, scratch=DEV)
-        except Exception as e:
-            print(f"::warning::Ghost step failed: {type(e).__name__}")
-        # Each Workshop Map's file, new or changed since the last run, for the site's 3D
-        # view: needs the client, so before it closes; never fails the run.
-        try:
-            await map_files.record_map_files(
-                _state["catalogue"], map_files.steam_download(client), scratch=DEV
-            )
-        except Exception as e:
-            print(f"::warning::Map file step failed: {type(e).__name__}")
-    except Exception as e:
-        _state["error"] = e
-        traceback.print_exc()
-    finally:
-        await client.close()
+def circuit_boards():
+    """Every Circuit board with a leaderboard ID: (name, ID, group)."""
+    circuit = []
+    for name, group in cc.BOARDS:
+        lid = cc.LEADERBOARD_IDS.get(name)
+        if lid:
+            circuit.append((name, lid, group))
+        else:
+            print(f"  [skip] no leaderboard ID for {name}")
+    return circuit
 
 
-def main():
-    if not TOKEN:
+async def refresh(session, *, dev=False):
+    """One Refresh on the Steam `session`: 0 once it is in the database, else 1 (2 without
+    a token). With `dev` it writes only DEV_DATABASE_URL (db_writer.database_url), never
+    production. Everything blocking runs in a thread, so the session's other jobs and its
+    heartbeat go on meanwhile."""
+    if not session.token:
         print("ERROR: STEAM_REFRESH_TOKEN not set. Mint one with tools/steampy_mint.py.")
         return 2
-    _state["memory"] = db_writer.load_memory(scratch=DEV)
-    if _state["memory"] is None:
+    started_at = datetime.now(UTC)
+    memory = await asyncio.to_thread(db_writer.load_memory, scratch=dev)
+    if memory is None:
         return 1
-    # The Workshop catalogue is plain Web API, so it is fetched before logging in.
+    # The Workshop catalogue is plain Web API.
+    catalogue = None
     key = cc.load_key()
     if key:
         try:
-            _state["catalogue"] = cc.workshop_catalogue(key)
+            catalogue = await asyncio.to_thread(cc.workshop_catalogue, key)
         except Exception as e:
             print(f"  [warn] Workshop catalogue unavailable: {e!r}; no Map is read this run")
     try:
-        client.run(refresh_token=TOKEN)
-    except Exception as e:
-        # steam.py commonly raises a ConnectionClosed/ExceptionGroup during the
-        # session teardown that follows client.close(). If the data was already
-        # written to the database, that teardown noise is not a failure.
-        if _state["wrote"]:
-            print("(note: benign Steam session-teardown error after write — ignored)")
-        else:
-            print(f"ERROR: Steam login/run failed: {e!r}")
-            print("If the token is invalid/expired, re-mint with tools/steampy_mint.py.")
-            return 1
-    if _state["error"] or not _state["wrote"]:
-        print("ERROR: collection did not complete (no data written).")
+        await session.ready()
+    except (ConnectionError, TimeoutError) as e:
+        print(f"ERROR: no Steam login ({e!r}); not reading.")
+        print("If the token is invalid/expired, re-mint with tools/steampy_mint.py.")
         return 1
+    all_ids = set()
+
+    async def fetch_rows(lid):
+        total, entries = await fetch_board(session, lid)
+        return total, board_rows(entries)
+
+    # A failed read changes nothing: the board's Entries stay as the last good read left
+    # them (db_writer counts it as a failed read).
+    boards_out, failed = await cc.read_boards(fetch_rows, circuit_boards())
+    for b in boards_out:
+        all_ids.update(r["steam_id"] for r in b["rows"])
+    # Refuse a Refresh that read nothing: Steam is down, or this login is broken.
+    if not any(b["rows"] for b in boards_out):
+        print("ERROR: no board data collected; not writing.")
+        return 1
+
+    # Each Event board with no good read yet: after the guard, so it never decides the
+    # run. A failed or empty read is a failed read (db_writer); the next Refresh retries.
+    events, events_failed = await cc.read_events(fetch_rows, memory.events_read)
+    for b in events:
+        all_ids.update(r["steam_id"] for r in b["rows"])
+    boards_out += events
+    failed += events_failed
+
+    workshop = None
+    if catalogue:
+        try:
+            workshop = await collect_workshop(session, catalogue, all_ids, memory)
+        except Exception as e:
+            # The Circuit still writes; no Map counts as read.
+            print(f"  [warn] Workshop step failed: {e!r}")
+    dailies = []
+    try:
+        dailies = await collect_dailies(session, memory.dailies, all_ids)
+    except Exception as e:
+        # Never blocks the Circuit or the Workshop: no Daily counts as read.
+        print(f"  [warn] Daily step failed: {type(e).__name__}")
+    # Plain HTTP that sleeps between batches: run it off the event loop, or a big
+    # lookup (an empty database: 16k names) starves steam.py's heartbeat and Steam
+    # drops the connection mid-run.
+    await asyncio.to_thread(
+        cc.name_rows,
+        [b["rows"] for b in boards_out]
+        + list(workshop["boards"].values() if workshop else [])
+        + [r.rows for r in dailies if r.ok],
+        all_ids,
+        memory,
+    )
+    if failed:
+        print(f"NOTE: {len(failed)} board(s) not read, left as they were: {failed}")
+    rid = await db_writer.record(
+        db_writer.Refresh(
+            started_at=started_at,
+            boards=boards_out,
+            failed=tuple(failed),
+            workshop=workshop,
+            dailies=tuple(dailies),
+        ),
+        scratch=dev,
+    )
+    if rid is None:
+        print("ERROR: the database write failed.")
+        return 1
+    # Each top run's Ghost, for its skin: after the Refresh, so it never holds it up,
+    # and never fails the run.
+    try:
+        await asyncio.to_thread(ghosts.record_ghosts, scratch=dev)
+    except Exception as e:
+        print(f"::warning::Ghost step failed: {type(e).__name__}")
+    # Each Workshop Map's file, new or changed since the last run, for the site's 3D
+    # view; never fails the run.
+    try:
+        await map_files.record_map_files(catalogue, map_files.steam_download(session), scratch=dev)
+    except Exception as e:
+        print(f"::warning::Map file step failed: {type(e).__name__}")
     return 0
+
+
+def main():
+    """A Refresh on its own: logs in for it and off after. --dev writes DEV_DATABASE_URL."""
+    dev = "--dev" in sys.argv[1:]
+    code = steam_session.run_alone(lambda session: refresh(session, dev=dev))
+    if code == 1:
+        print("ERROR: collection did not complete (no data written).")
+    return code
 
 
 if __name__ == "__main__":

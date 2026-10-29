@@ -10,6 +10,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import effectFn from "./discord-bot/eslint/effect-fn.js";
 import noClientValues from "./web/eslint/no-client-values.js";
 
 export default defineConfig(
@@ -17,7 +18,11 @@ export default defineConfig(
     "**/node_modules/",
     "data/",
     "leth/",
-    ".claude/skills/",
+    ".claude/skills/*",
+    // grill-design is maintained here, and its round pictures are code
+    "!.claude/skills/grill-design/",
+    ".claude/skills/grill-design/*",
+    "!.claude/skills/grill-design/scripts/",
     ".claude/worktrees/",
     "discord-bot/.logs/",
     "web/.next/",
@@ -63,13 +68,31 @@ export default defineConfig(
     },
   },
   {
+    // the bot's Effect rules that reviews kept finding broken (CODING_STANDARDS.md, "Discord bot")
+    files: ["discord-bot/src/**/*.ts"],
+    plugins: { bot: { rules: { "effect-fn": effectFn } } },
+    rules: {
+      "bot/effect-fn": "error",
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "Effect",
+          property: "catchAll",
+          message:
+            "Recover a failure by its tag: Effect.catchTag / catchTags (CODING_STANDARDS.md).",
+        },
+      ],
+    },
+  },
+  {
     files: ["**/*.{js,mjs}"],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
   },
   {
-    // `pnpm qa`'s probes and image comparison are functions Playwright runs in the page
-    files: ["web/scripts/qa/**"],
+    // `pnpm qa`'s probes and image comparison, and grill-design's drawing, are functions
+    // Playwright runs in the page
+    files: ["web/scripts/qa/**", ".claude/skills/grill-design/scripts/**"],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {

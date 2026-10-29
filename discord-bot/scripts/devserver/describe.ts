@@ -23,6 +23,8 @@ export interface ApiComponent {
 
 export interface ApiEmbed {
   readonly title?: string;
+  /** Where the title links to. */
+  readonly url?: string;
   readonly description?: string;
   readonly image?: { readonly url: string };
 }
@@ -171,7 +173,8 @@ const mediaOf = (components: ReadonlyArray<ApiComponent> = []): Array<string> =>
 export const attachmentsOf = (m: ApiMessage): Array<{ filename: string; url?: string }> => {
   const files = new Map<string, { filename: string; url?: string }>();
   for (const a of m.attachments ?? []) files.set(a.filename, a);
-  for (const url of mediaOf(m.components)) {
+  const embedImages = (m.embeds ?? []).flatMap((e) => (e.image === undefined ? [] : [e.image.url]));
+  for (const url of [...mediaOf(m.components), ...embedImages]) {
     const filename = url.startsWith("attachment://")
       ? url.slice("attachment://".length)
       : decodeURIComponent(new URL(url).pathname.split("/").at(-1) ?? "");
@@ -246,6 +249,7 @@ export const detail = (
       .filter((x) => x !== null)
       .join(" ");
     lines.push(`embed: ${indent(cut(body, limit))}`);
+    if (e.url !== undefined) lines.push(`  link: ${e.url}`);
   }
   const files = attachmentsOf(m).map(
     (a) => [a.filename, opts.files?.get(a.filename) ?? a.url ?? "(not saved)"] as const,

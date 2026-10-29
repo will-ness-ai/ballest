@@ -17,7 +17,7 @@ import {
   type PbEvent,
   type VenueName,
 } from "../domain.js";
-import { Engine, type Rejection } from "../engine.js";
+import { Engine, isRejection, type Rejection } from "../engine.js";
 import { explain } from "../explain.js";
 import { pingFailed, roleNamed } from "../pingWords.js";
 import { Pings, warnPingRole } from "../pings.js";
@@ -119,15 +119,15 @@ const OpenBody = Schema.Struct({
   target: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
 });
 
-const isRejection = (e: { readonly _tag: string }): e is Rejection => e._tag in STATUS;
-const isPingRoleUnavailable = (e: { readonly _tag: string }): e is PingRoleUnavailable =>
-  e._tag === "PingRoleUnavailable";
+const isPingRoleUnavailable = <E extends { readonly _tag: string }>(
+  e: E,
+): e is Extract<E, PingRoleUnavailable> => e._tag === "PingRoleUnavailable";
 
 /**
  * `venues` reads the running Venues (fixed until the bot restarts): a page opened in any other
  * server is turned away.
  */
-export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
+export const makeActivityApi = Effect.fn("ActivityApi.make")(function* (
   venues: Effect.Effect<ReadonlyArray<ActivityVenue>>,
 ) {
   const auth = yield* DiscordAuth;
@@ -144,7 +144,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
    * The Venue whose server the page names. A page that names none was loaded before there were
    * Venues (an Activity left open across the deploy), so it is home's, as it was then.
    */
-  const venueOf = Effect.fn("venueOf")(function* (guildId: string | undefined) {
+  const venueOf = Effect.fn("ActivityApi.venueOf")(function* (guildId: string | undefined) {
     const now = yield* venues;
     return guildId === undefined
       ? now.find((v) => v.name === HOME_VENUE)
@@ -186,7 +186,10 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
   });
 
   /** A member's name in the Venue's server, or "Someone" when Discord can't say. */
-  const nameOf = Effect.fn("nameOf")(function* (venue: ActivityVenue, discordId: string) {
+  const nameOf = Effect.fn("ActivityApi.nameOf")(function* (
+    venue: ActivityVenue,
+    discordId: string,
+  ) {
     const name = yield* members
       .nameOf(venue.name, discordId)
       .pipe(Effect.catchTag("MembersUnavailable", () => Effect.succeed(Option.none<string>())));
@@ -194,7 +197,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
   });
 
   /** A rejection as the member who was turned down reads it; another member is named as in the server. */
-  const rejected = Effect.fn("rejected")(function* (e: Rejection, who: Member) {
+  const rejected = Effect.fn("ActivityApi.rejected")(function* (e: Rejection, who: Member) {
     const other =
       "discordId" in e && e.discordId !== who.discordId
         ? yield* nameOf(who.venue, e.discordId)
@@ -212,14 +215,14 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
       /** This Venue's open Invites and live Matches. */
       active: Effect.map(store.activeMatches, (all) => all.filter(ours)),
       /** A Match by id if it is this Venue's. */
-      get: Effect.fn("here.get")(function* (id: string) {
+      get: Effect.fn("ActivityApi.matchHere")(function* (id: string) {
         return Option.filter(yield* store.getMatch(id), ours);
       }),
       /**
        * Fails as not found when the Match is another Venue's, so nothing here can act on it; one
        * that doesn't exist is left to the engine to say so.
        */
-      notElsewhere: Effect.fn("here.notElsewhere")(function* (id: string) {
+      notElsewhere: Effect.fn("ActivityApi.notElsewhere")(function* (id: string) {
         const m = yield* store.getMatch(id);
         if (Option.isSome(m) && !ours(m.value)) return yield* new NotFound({ closed: null });
       }),
@@ -227,7 +230,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
   };
 
   /** A Match of the member's Venue as they see it. */
-  const viewOf = Effect.fn("viewOf")(function* (m: Match, who: Member) {
+  const viewOf = Effect.fn("ActivityApi.viewOf")(function* (m: Match, who: Member) {
     const card = cardView(m, yield* chosenSkins.all);
     const people = card.target === null ? card.players : [...card.players, card.target];
     const names = Object.fromEntries(
@@ -260,7 +263,7 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
    * A Match as it stands (null once it's gone), with the server's clock for the countdowns, and,
    * after a member's own action on it, whether to offer them the ping role.
    */
-  const reply = Effect.fn("reply")(function* (
+  const reply = Effect.fn("ActivityApi.reply")(function* (
     m: Option.Option<Match>,
     who: Member,
     pingOffer?: boolean,
@@ -276,32 +279,28 @@ export const makeActivityApi = Effect.fn("makeActivityApi")(function* (
    * Run a member's action, answering a rejection with its status and words, and a ping role
    * Discord wouldn't change with that Venue's role named.
    */
-  const asMember = <E extends { readonly _tag: string }, R>(
-    action: (who: Member) => Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>,
-  ) =>
-    Effect.gen(function* () {
-      const who = yield* self;
-      return yield* action(who).pipe(
-        Effect.catchIf(
-          (e): e is Extract<E, Rejection | PingRoleUnavailable> =>
-            isRejection(e) || isPingRoleUnavailable(e),
-          (e) =>
-            isRejection(e)
-              ? rejected(e, who)
-              : warnPingRole(e).pipe(
-                  Effect.as(
-                    json(
-                      {
-                        error: "PingRoleUnavailable",
-                        message: pingFailed(roleNamed(who.venue.pingRoleName)),
-                      },
-                      503,
-                    ),
-                  ),
-                ),
+  const asMember = Effect.fn("ActivityApi.asMember")(function* <
+    E extends { readonly _tag: string },
+    R,
+  >(action: (who: Member) => Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>) {
+    const who = yield* self;
+    return yield* action(who).pipe(
+      Effect.catchIf(isRejection, (e) => rejected(e, who)),
+      Effect.catchIf(isPingRoleUnavailable, (e) =>
+        warnPingRole(e).pipe(
+          Effect.as(
+            json(
+              {
+                error: "PingRoleUnavailable",
+                message: pingFailed(roleNamed(who.venue.pingRoleName)),
+              },
+              503,
+            ),
+          ),
         ),
-      );
-    });
+      ),
+    );
+  });
 
   const router = HttpRouter.empty.pipe(
     HttpRouter.post(

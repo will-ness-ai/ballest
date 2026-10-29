@@ -1,5 +1,5 @@
 // `pnpm daily-post <date>`: post that date's Daily Post now as the dev app, into the sandbox
-// channel (`pnpm axi sandbox create`) or the channel given with --channel. It asks the Daily API
+// channel (`pnpm devserver sandbox create`) or the channel given with --channel. It asks the Daily API
 // (BALLEST_DAILY_URL, BALLEST_API_KEY) for the Daily, reads its board with the bot account's Steam
 // session, and posts the live card with its thread, exactly as the schedule would. It records
 // only in memory, so the schedule never sees it. With --close it then keeps the card current as the
@@ -38,7 +38,7 @@ if (date === undefined) {
 }
 if (channel === undefined) {
   console.log(
-    "error: no channel. Make the sandbox one with `pnpm axi sandbox create`, or pass --channel <id>.",
+    "error: no channel. Make the sandbox one with `pnpm devserver sandbox create`, or pass --channel <id>.",
   );
   process.exit(1);
 }
@@ -62,7 +62,7 @@ if (
 }
 
 /** A past Daily from a local leaderboard database, posted closed as the backfill would. */
-const backfilled = Effect.fn("backfilled")(
+const backfilled = Effect.fn("DailyPostScript.backfilled")(
   function* (url: string) {
     const found = yield* (yield* DailyHistory).find(date);
     if (Option.isNone(found)) return false;

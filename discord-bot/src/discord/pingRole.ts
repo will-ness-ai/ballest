@@ -16,7 +16,7 @@ export const PingRoleLive = Layer.effect(
      * Run `use` on a running Venue's server and role, a Discord failure as the role unavailable; a
      * Venue that isn't running has no role to read or change.
      */
-    const withRole = Effect.fn("withRole")(function* <A>(
+    const withRole = Effect.fn("PingRole.withRole")(function* <A>(
       venue: VenueName,
       use: (guild: Guild, role: string) => Effect.Effect<A, DiscordError>,
     ) {
@@ -28,24 +28,27 @@ export const PingRoleLive = Layer.effect(
       );
     });
     return PingRole.of({
-      has: (venue, discordId) =>
-        withRole(venue, (guild, role) =>
+      has: Effect.fn("PingRole.has")(function* (venue, discordId) {
+        return yield* withRole(venue, (guild, role) =>
           tryDiscord("fetch member's roles", () =>
             guild.members.fetch({ user: discordId, force: true }),
           ).pipe(Effect.map((member) => member.roles.cache.has(role))),
-        ),
-      add: (venue, discordId) =>
-        withRole(venue, (guild, role) =>
+        );
+      }),
+      add: Effect.fn("PingRole.add")(function* (venue, discordId) {
+        return yield* withRole(venue, (guild, role) =>
           tryDiscord("add ping role", () =>
             guild.members.addRole({ user: discordId, role, reason: "Lobby pings: on" }),
           ).pipe(Effect.asVoid),
-        ),
-      remove: (venue, discordId) =>
-        withRole(venue, (guild, role) =>
+        );
+      }),
+      remove: Effect.fn("PingRole.remove")(function* (venue, discordId) {
+        return yield* withRole(venue, (guild, role) =>
           tryDiscord("remove ping role", () =>
             guild.members.removeRole({ user: discordId, role, reason: "Lobby pings: off" }),
           ).pipe(Effect.asVoid),
-        ),
+        );
+      }),
     });
   }),
 );
