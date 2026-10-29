@@ -3,7 +3,7 @@
 The site is the Next.js app in `web/`, served by **Vercel** (ADR 0004) and reading a
 Postgres database on Neon (ADR 0005). The data is refreshed by the collector's service on
 **Fly.io** (`tools/runner.py`, app `ballest-collector`, ADR 0012), which logs into Steam once with a
-**refresh token** (via `steam.py`, `tools/steam_session.py`, ADR 0014) and stays logged in, reads the full leaderboards, writes them to the database,
+**refresh token** (via `steam.py`, `tools/steam_session.py`, ADR 0015) and stays logged in, reads the full leaderboards, writes them to the database,
 and tells the site to read fresh (`POST /api/revalidate`). The site's pages are cached until then.
 
 No machine of yours has to be running: the refresh happens entirely on Fly.

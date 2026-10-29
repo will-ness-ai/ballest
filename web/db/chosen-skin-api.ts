@@ -1,4 +1,4 @@
-// The Chosen Skin API (CONTEXT.md): PUT /api/me/skin with { skin } saves the signed-in
+// The Chosen Skin API (GLOSSARY.md): PUT /api/me/skin with { skin } saves the signed-in
 // player's pick, DELETE clears it, from a Request to its Response, so the tests can make the
 // same calls against a throwaway database. `deps` carries the database and what the tests
 // stand in for: the session's secret and clock, and the cache to expire after a save.

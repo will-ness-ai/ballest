@@ -5,14 +5,15 @@
 // further pages from /api/board/<name>; a search reads its matches the same way. A board
 // sorted by podiums holds its few players whole, so it pages and searches them here.
 //
-// Unfiltered, the top three are up on the plates and the list starts at 4th. A board with
-// fewer than three has no plates, so its rows stay in the list: plenty of Maps have one or
-// two.
+// The top three are up on the plates and again at the top of the list, since a reader
+// looking for a name skims the list and can miss the plates. A board with fewer than three
+// has no plates, only its list: plenty of Maps have one or two.
 import { Fragment, memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { QMark } from "./PointsDialog";
 import { RaceDrawer, useRaceOpen } from "./RaceDrawer";
 import { ScoreRow } from "./ScoreRow";
+import { SearchBox } from "../Controls";
 import { Marble } from "../Marble";
 import { MedalCounts } from "../MedalCounts";
 import { PlayerLink } from "../PlayerLink";
@@ -41,7 +42,7 @@ export type BoardBodyProps = Common &
   (
     | {
         order: "score";
-        /* the rows under the plates the server rendered */
+        /* the list's first rows, from 1st, as the server rendered them */
         initial: Array<BoardRow>;
         /* the leader's score, which every row's gap is to */
         lead: number | null;
@@ -106,7 +107,7 @@ const PodRow = memo(function PodRow({ p }: { p: PodiumRow }) {
       </span>
       <span className="c-score">
         <span>{podiumTotal(p)}</span>
-        <i className="pill"></i>
+        <i className="hue-pill"></i>
       </span>
     </div>
   );
@@ -163,9 +164,8 @@ function Frame({
         </div>
         {props.sortsw}
         <div className="search">
-          <input
+          <SearchBox
             id="q"
-            type="search"
             placeholder="Find a player"
             aria-label="Find a player"
             value={query}
@@ -211,15 +211,13 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const race = useRaceOpen(name, "list");
-  /* unfiltered, the list starts under the plates */
-  const base = count >= 3 ? 3 : 0;
   /* `rows` are on screen and `ahead` read but not yet shown: the list reads four steps at a
      time and shows one per scroll step, so a fast scroll rarely waits on the network */
   const [found, setFound] = useState<List>({
     q: "",
     rows: initial,
     ahead: [],
-    total: count - base,
+    total: count,
   });
   const reading = useRef(false);
 
@@ -245,7 +243,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
       search
         ? { q: search.key, rows: search.data.rows, ahead: [], total: search.data.total }
         : f.q
-          ? { q: "", rows: initial, ahead: [], total: count - base }
+          ? { q: "", rows: initial, ahead: [], total: count }
           : f,
     );
   }
@@ -255,7 +253,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
   const [had, setHad] = useState(initial);
   if (had !== initial) {
     setHad(initial);
-    setFound((f) => (f.q ? f : { q: "", rows: initial, ahead: [], total: count - base }));
+    setFound((f) => (f.q ? f : { q: "", rows: initial, ahead: [], total: count }));
   }
 
   const showing = found.q === q ? found : null;
@@ -265,7 +263,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
       const have = l.rows.length + l.ahead.length;
       if (reading.current || l.ahead.length >= BOARD_CHUNK * 2 || have >= l.total) return;
       reading.current = true;
-      void read(l.q, (l.q ? 0 : base) + have, BOARD_CHUNK * 4)
+      void read(l.q, have, BOARD_CHUNK * 4)
         .then((page) => {
           setFound((f) =>
             f.q === l.q && f.rows.length + f.ahead.length === have
@@ -277,7 +275,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
           reading.current = false;
         });
     },
-    [base, read],
+    [read],
   );
   const more = useCallback(() => {
     if (!showing) return;
@@ -301,7 +299,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
   const sought = useRef(false);
   useEffect(() => {
     if (!focus || sought.current) return;
-    const loaded = base + found.rows.length;
+    const loaded = found.rows.length;
     if (focus.rank > loaded && !found.q) {
       if (reading.current) return;
       reading.current = true;
@@ -319,7 +317,7 @@ function ScoreList(props: Common & Extract<BoardBodyProps, { order: "score" }>) 
     }
     sought.current = true;
     document.querySelector(".focus")?.scrollIntoView({ block: "center" });
-  }, [focus, found, base, read]);
+  }, [focus, found, read]);
 
   const noun = count === 1 ? (points ? "player" : "run") : points ? "players" : "runs";
   const meta = showing?.q
@@ -366,14 +364,11 @@ function PodiumList(props: Common & Extract<BoardBodyProps, { order: "podiums" }
   const q = query.trim().toLowerCase();
   const filtering = q.length > 0;
   const [limit, setLimit] = useState(BOARD_CHUNK);
-  const podium = players.length >= 3;
-  const visible = filtering
-    ? players.filter((p) => matches(p, q))
-    : players.filter((_, i) => !podium || i >= 3);
+  const visible = filtering ? players.filter((p) => matches(p, q)) : players;
   const shown = visible.slice(0, limit);
   const more = useCallback(() => {
     setLimit((n) => n + BOARD_CHUNK);
-  }, []);
+  }, [setLimit]);
   useScrollMore(more, shown.length >= visible.length, shown.length);
   const n = players.length;
   const meta = filtering

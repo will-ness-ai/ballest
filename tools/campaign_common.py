@@ -98,7 +98,7 @@ BOARDS = (
     + [(t, "Season 2") for t in S2_TRACKS]
     + []
 )
-# Event boards (CONTEXT.md): a one-off event's board, neither a Track nor a Workshop Map,
+# Event boards (GLOSSARY.md): a one-off event's board, neither a Track nor a Workshop Map,
 # by name, with its leaderboard ID and what the site calls it. Each Refresh reads only those
 # with no successful read yet (events_due), so an event's board, frozen once it ends, is
 # read once and its Entries are never closed. A Campaign on the site can hold one.
@@ -339,7 +339,9 @@ def catalogue_map(it):
     The game records each Map's Steam leaderboard name in the item's metadata
     (ballest_v0_<pfid>_Climb_<title>); key off that, never the Workshop title,
     which a rename changes. lifetime_playtime_sessions and lifetime_subscriptions
-    are what tell the collector a Map was played since it last read the board."""
+    are what tell the collector a Map was played since it last read the board; the plays
+    over the last 7 days (playtime_stats, as _query_files asks) and the Workshop votes are
+    what the homepage's Trending chart ranks by (spec #348)."""
     pfid = it["publishedfileid"]
     try:
         b = json.loads(it.get("metadata") or "{}")["ballest"]
@@ -348,6 +350,7 @@ def catalogue_map(it):
     except (KeyError, TypeError, ValueError, json.JSONDecodeError):
         print(f"  [skip] Map {pfid} {it.get('title')!r}: no usable ballest metadata")
         return None
+    votes = it.get("vote_data") or {}
     return {
         "pfid": pfid,
         "title": it.get("title") or b.get("level_display_name") or pfid,
@@ -359,11 +362,20 @@ def catalogue_map(it):
         "preview": it.get("preview_url") or "",
         "sessions": int(it.get("lifetime_playtime_sessions") or 0),
         "subs": int(it.get("lifetime_subscriptions") or 0),
+        "week_plays": int((it.get("playtime_stats") or {}).get("num_sessions") or 0),
+        "votes_up": int(votes.get("votes_up") or 0),
+        "votes_down": int(votes.get("votes_down") or 0),
+        # Steam's score, discounted for few votes: 0 with none
+        "vote_score": float(votes.get("score") or 0),
         # the file's content handle, which changes with each update: the
         # Map file step's version (map_files.py); file_url is empty here
         "version": str(it.get("hcontent_file") or ""),
         "file_size": int(it.get("file_size") or 0),
     }
+
+
+# the window of a Map's plays this week (catalogue_map's week_plays)
+WEEK_DAYS = 7
 
 
 def _query_files(key, cursor):
@@ -376,7 +388,9 @@ def _query_files(key, cursor):
             "numperpage": 100,
             "cursor": cursor,
             "return_metadata": 1,
-            "return_playtime_stats": 1,
+            # playtime_stats over the last 7 days, beside the lifetime counts
+            "return_playtime_stats": WEEK_DAYS,
+            "return_vote_data": 1,
         }
     )
     with urllib.request.urlopen(

@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { PageHead } from "../../../../components/PageHead";
 import { Shell } from "../../../../components/Shell";
 import { GeneratorEditor } from "../../../../components/prefabs/make/GeneratorEditor";
 import { FONTS_HREF } from "../../../../components/prefabs/make/lettering";
@@ -30,9 +31,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 async function Body({ params }: Props) {
   const { generator } = await params;
+  const g = generatorOf(generator);
   return (
     <>
-      {generatorOf(generator)?.lettered && (
+      {g && <PageHead path={generatorHref(g.key)} title={g.name} />}
+      {g?.lettered && (
         // only a Generator that letters draws in these, so only its page loads them
         <link rel="stylesheet" precedence="default" href={FONTS_HREF} />
       )}

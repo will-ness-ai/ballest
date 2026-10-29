@@ -2,7 +2,7 @@
 
 Status: accepted (2026-10-16). Amends ADR 0006.
 
-The Workshop standings (`CONTEXT.md`) were counted only by Multiballs, inside the Daily
+The Workshop standings (`GLOSSARY.md`) were counted only by Multiballs, inside the Daily
 Report (`discord-bot/src/report/report.ts`). The /you page (spec #221) shows the same four
 lists to every player, with places that the Daily Report's image must agree with, so the
 two can no longer count them apart. The site owns the counting now:

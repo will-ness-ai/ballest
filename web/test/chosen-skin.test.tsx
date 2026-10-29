@@ -1,5 +1,5 @@
 // A player's marble (components/Marble.tsx) draws the Skin their run was rolled with, else
-// the Chosen Skin they picked (CONTEXT.md), else the glass ball in their hue.
+// the Chosen Skin they picked (GLOSSARY.md), else the glass ball in their hue.
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 

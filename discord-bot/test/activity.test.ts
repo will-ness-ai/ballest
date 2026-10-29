@@ -1,12 +1,16 @@
 // The Activity's HTTP API, driven with real Requests over the same engine, fakes and TestClock
 // as the engine tests. Discord is faked too: OAuth knows a few codes and access tokens, the
 // server knows its members' display names, and the channel knows where each Match's Card is.
+import { brotliDecompressSync, gunzipSync } from "node:zlib";
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Fiber, Option } from "effect";
+import { Effect, Fiber, Option, Ref } from "effect";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { makeActivityApi } from "../src/activity/api.js";
-import { skinPictureResponses } from "../src/activity/server.js";
-import { marble } from "../src/activity/web/view.js";
+import { scriptResponses, servedPage, skinPictureResponses } from "../src/activity/server.js";
+import { Logo, Marble } from "../src/activity/web/ui/art.js";
+import { GUILD_HEADER } from "../src/domain.js";
 import {
   AuthFailed,
   DiscordAuth,
@@ -15,15 +19,17 @@ import {
 } from "../src/activity/auth.js";
 import { Engine } from "../src/engine.js";
 import { Pings } from "../src/pings.js";
-import { ChosenSkins, MatchLinks, Store } from "../src/ports.js";
+import { type ChosenSkin, ChosenSkins, MatchLinks, Store } from "../src/ports.js";
 import {
   ALICE,
   advance,
   BOB,
   CARA,
   DAN,
+  HOME,
   makeHarness,
   makeMap,
+  RACING,
   ticks,
   UNLINKED,
 } from "./harness.js";
@@ -42,7 +48,21 @@ const MEMBERS: Record<string, string> = {
   [UNLINKED]: "Nobody",
 };
 
-const WHERE = { guildId: "g1", channelId: "c1" };
+/** Ballest Racing's members: Alice and Bob are in both servers, under other names there. */
+const RACING_MEMBERS: Record<string, string> = {
+  [ALICE.discordId]: "Ally",
+  [BOB.discordId]: "Bobby",
+};
+
+/** The home Venue's server and channel, and Ballest Racing's. */
+const VENUES = [
+  { name: HOME, guildId: "g1", channelId: "c1", pingRoleName: "Multiplayer ping" },
+  { name: RACING, guildId: "g2", channelId: "c2", pingRoleName: "ballest-racing ping" },
+];
+const MEMBERS_IN: Record<string, Record<string, string>> = {
+  [HOME]: MEMBERS,
+  [RACING]: RACING_MEMBERS,
+};
 
 const setup = (opts: Parameters<typeof makeHarness>[0]) =>
   Effect.gen(function* () {
@@ -60,17 +80,29 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
           : Effect.fail(new AuthFailed({ reason: "bad token" })),
     });
     const members = DiscordMembers.of({
-      nameOf: (discordId) =>
+      nameOf: (venue, discordId) =>
         discordId === UNKNOWN
           ? Effect.fail(new MembersUnavailable({ reason: "Discord is down" }))
-          : Effect.succeed(Option.fromNullable(MEMBERS[discordId])),
+          : Effect.succeed(Option.fromNullable(MEMBERS_IN[venue]?.[discordId])),
     });
-    /** Every Match's Card is message `msg-<id>`, and its thread `thread-<id>`. */
+    /** Every Match's Card is message `msg-<id>` in its Venue's channel, and its thread `thread-<id>`. */
     const links = MatchLinks.of({
-      of: (matchId) =>
-        Effect.succeed(Option.some({ messageId: `msg-${matchId}`, threadId: `thread-${matchId}` })),
+      of: (venue, matchId) =>
+        h.store
+          .getMatch(matchId)
+          .pipe(
+            Effect.map(
+              Option.flatMap((m) =>
+                m.venue === venue
+                  ? Option.some({ messageId: `msg-${matchId}`, threadId: `thread-${matchId}` })
+                  : Option.none(),
+              ),
+            ),
+          ),
     });
-    const app = yield* makeActivityApi(WHERE).pipe(
+    /** The running Venues, which start and stop as servers invite and remove the bot. */
+    const running = yield* Ref.make<ReadonlyArray<(typeof VENUES)[number]>>(VENUES);
+    const app = yield* makeActivityApi(Ref.get(running)).pipe(
       Effect.provideService(Engine, h.engine),
       Effect.provideService(Store, h.store),
       Effect.provideService(Pings, h.pings),
@@ -79,16 +111,26 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
       Effect.provideService(MatchLinks, links),
       Effect.provideService(ChosenSkins, h.chosenSkins.port),
     );
-    /** One request as `as` (a Discord id) or with a raw `token`, answered with its status and JSON body. */
+    /**
+     * One request as `as` (a Discord id) or with a raw `token`, from the page opened in `server`
+     * (home's unless told otherwise; null sends none), answered with its status and JSON body.
+     */
     const call = (
       method: string,
       path: string,
-      opts: { readonly as?: string; readonly token?: string; readonly body?: unknown } = {},
+      opts: {
+        readonly as?: string;
+        readonly token?: string;
+        readonly body?: unknown;
+        readonly server?: string | null | undefined;
+      } = {},
     ) =>
       Effect.gen(function* () {
         const headers: Record<string, string> = { "content-type": "application/json" };
         const token = opts.token ?? (opts.as === undefined ? undefined : `token-${opts.as}`);
         if (token !== undefined) headers.authorization = `Bearer ${token}`;
+        const server = opts.server === undefined ? "g1" : opts.server;
+        if (server !== null) headers[GUILD_HEADER] = server;
         const init: RequestInit = { method, headers };
         if (opts.body !== undefined) init.body = JSON.stringify(opts.body);
         const request = new Request(`http://activity.test${path}`, init);
@@ -102,12 +144,12 @@ const setup = (opts: Parameters<typeof makeHarness>[0]) =>
         const text = yield* Effect.promise(() => web.text());
         return { status: web.status, body: text === "" ? null : JSON.parse(text) };
       });
-    /** Open an Invite as `by`; its id. */
-    const open = (by: string, body: unknown) =>
-      call("POST", "/api/matches", { as: by, body }).pipe(
+    /** Open an Invite as `by` (in home's server unless told otherwise); its id. */
+    const open = (by: string, body: unknown, server?: string) =>
+      call("POST", "/api/matches", { as: by, body, server }).pipe(
         Effect.map((r) => r.body.matchId as string),
       );
-    return { h, call, open, revoked };
+    return { h, call, open, revoked, running };
   });
 
 /** The Players on a view's board, by name. */
@@ -144,7 +186,7 @@ describe("signing in", () => {
         status: 403,
         body: {
           error: "NotMember",
-          message: "Multiballs only runs in the Ballest server. Open it from a channel there.",
+          message: "Multiballs doesn't run in this server.",
         },
       });
       expect((yield* call("GET", "/api/matches", { as: OUTSIDER })).status).toBe(403);
@@ -318,6 +360,7 @@ describe("opening a Match", () => {
         matches: [
           {
             matchId,
+            venue: "home",
             state: "invite",
             type: "lobby",
             minutes: 5,
@@ -842,6 +885,189 @@ describe("Lobby pings", () => {
   );
 });
 
+describe("each Venue's Activity", () => {
+  it.scoped(
+    "shows a second Venue's member only that Venue's Matches, linked into its channel",
+    () =>
+      Effect.gen(function* () {
+        const { call, open } = yield* setup({ maps: [MAP] });
+        const home = yield* open(CARA.discordId, lobby);
+        const racing = yield* open(ALICE.discordId, lobby, "g2");
+        const there = (yield* call("GET", "/api/matches", { as: BOB.discordId, server: "g2" }))
+          .body;
+        expect(there.matches.map((m: any) => [m.matchId, m.venue, m.names, m.links])).toEqual([
+          [
+            racing,
+            RACING,
+            { [ALICE.discordId]: "Ally" },
+            {
+              card: `https://discord.com/channels/g2/c2/msg-${racing}`,
+              thread: `https://discord.com/channels/g2/thread-${racing}`,
+            },
+          ],
+        ]);
+        const here = (yield* call("GET", "/api/matches", { as: BOB.discordId })).body;
+        expect(here.matches.map((m: any) => m.matchId)).toEqual([home]);
+      }),
+  );
+
+  it.scoped("won't show or act on another Venue's Match", () =>
+    Effect.gen(function* () {
+      const { call, open } = yield* setup({ maps: [MAP] });
+      const racing = yield* open(ALICE.discordId, lobby, "g2");
+      const notFound = { status: 404, body: { error: "NotFound", closed: null } };
+      expect(yield* call("GET", `/api/matches/${racing}`, { as: BOB.discordId })).toEqual(notFound);
+      expect(yield* call("POST", `/api/matches/${racing}/join`, { as: BOB.discordId })).toEqual(
+        notFound,
+      );
+      expect(yield* call("POST", `/api/matches/${racing}/cancel`, { as: ALICE.discordId })).toEqual(
+        notFound,
+      );
+      expect(yield* call("GET", `/api/matches/${racing}/pb`, { as: BOB.discordId })).toEqual(
+        notFound,
+      );
+      // Still open in its own Venue, with nobody else in it.
+      const there = yield* call("GET", `/api/matches/${racing}`, {
+        as: BOB.discordId,
+        server: "g2",
+      });
+      expect(there.body.match.players).toEqual([ALICE]);
+    }),
+  );
+
+  it.scoped("says why its own Match closed, and nothing of another Venue's", () =>
+    Effect.gen(function* () {
+      const { call, open } = yield* setup({ maps: [MAP] });
+      const racing = yield* open(ALICE.discordId, lobby, "g2");
+      yield* call("POST", `/api/matches/${racing}/cancel`, { as: ALICE.discordId, server: "g2" });
+      expect(
+        yield* call("GET", `/api/matches/${racing}`, { as: BOB.discordId, server: "g2" }),
+      ).toEqual({ status: 404, body: { error: "NotFound", closed: "cancelled" } });
+      expect(yield* call("GET", `/api/matches/${racing}`, { as: BOB.discordId })).toEqual({
+        status: 404,
+        body: { error: "NotFound", closed: null },
+      });
+    }),
+  );
+
+  it.scoped("keeps a Player Busy in every Venue, while showing their Match only in its own", () =>
+    Effect.gen(function* () {
+      const { call, open } = yield* setup({ maps: [MAP] });
+      const racing = yield* open(ALICE.discordId, lobby, "g2");
+      expect(
+        (yield* call("GET", "/api/me", { as: ALICE.discordId, server: "g2" })).body.matchId,
+      ).toBe(racing);
+      expect((yield* call("GET", "/api/me", { as: ALICE.discordId })).body.matchId).toBeNull();
+      expect(yield* call("POST", "/api/matches", { as: ALICE.discordId, body: lobby })).toEqual({
+        status: 409,
+        body: { error: "Busy", message: "You're already in an open Invite or a live Match." },
+      });
+      const players = (yield* call("GET", "/api/players", { as: BOB.discordId })).body.players;
+      expect(players.find((p: any) => p.discordId === ALICE.discordId).busy).toBe(true);
+    }),
+  );
+
+  it.scoped("marks nobody busy for a Match in a Venue left out, as the engine counts it", () =>
+    Effect.gen(function* () {
+      const { call, h, open } = yield* setup({ maps: [MAP] });
+      yield* open(ALICE.discordId, lobby, "g2");
+      const aliceBusy = call("GET", "/api/players", { as: BOB.discordId }).pipe(
+        Effect.map((r) => r.body.players.find((p: any) => p.discordId === ALICE.discordId).busy),
+      );
+      expect(yield* aliceBusy).toBe(true);
+      h.surface.leaveOut(RACING);
+      expect(yield* aliceBusy).toBe(false);
+      expect(
+        (yield* call("POST", "/api/matches", { as: ALICE.discordId, body: lobby })).status,
+      ).toBe(200);
+    }),
+  );
+
+  it.scoped("lists only that server's members to challenge, by their names there", () =>
+    Effect.gen(function* () {
+      const { call } = yield* setup({ maps: [MAP] });
+      const players = (yield* call("GET", "/api/players", { as: BOB.discordId, server: "g2" })).body
+        .players;
+      expect(players.map((p: any) => p.name)).toEqual(["Ally"]);
+    }),
+  );
+
+  it.scoped("refuses a server that isn't a Venue, and a member from another Venue's server", () =>
+    Effect.gen(function* () {
+      const { call } = yield* setup({ maps: [MAP] });
+      const refused = {
+        status: 403,
+        body: {
+          error: "NotMember",
+          message: "Multiballs doesn't run in this server.",
+        },
+      };
+      expect(yield* call("GET", "/api/me", { as: ALICE.discordId, server: "g9" })).toEqual(refused);
+      expect(yield* call("GET", "/api/me", { as: CARA.discordId, server: "g2" })).toEqual(refused);
+      expect((yield* call("GET", "/api/me", { as: CARA.discordId })).status).toBe(200);
+    }),
+  );
+
+  it.scoped("serves a Venue from when it starts, and refuses it once it stops", () =>
+    Effect.gen(function* () {
+      const { call, running } = yield* setup({ maps: [MAP] });
+      yield* Ref.update(running, (all) => all.filter((v) => v.name !== RACING));
+      expect((yield* call("GET", "/api/me", { as: BOB.discordId, server: "g2" })).status).toBe(403);
+      yield* Ref.set(running, VENUES);
+      expect((yield* call("GET", "/api/me", { as: BOB.discordId, server: "g2" })).status).toBe(200);
+    }),
+  );
+
+  it.scoped(
+    "takes a page that names no server as the home Venue's, as before there were others",
+    () =>
+      Effect.gen(function* () {
+        const { call, open } = yield* setup({ maps: [MAP] });
+        const home = yield* open(CARA.discordId, lobby);
+        yield* open(ALICE.discordId, lobby, "g2");
+        const list = (yield* call("GET", "/api/matches", { as: BOB.discordId, server: null })).body;
+        expect(list.matches.map((m: any) => m.matchId)).toEqual([home]);
+      }),
+  );
+
+  it.scoped("turns that Venue's ping role on and off, and offers it there", () =>
+    Effect.gen(function* () {
+      const { call, h, open } = yield* setup({ maps: [MAP] });
+      expect(
+        (yield* call("GET", "/api/me", { as: BOB.discordId, server: "g2" })).body.pingRole,
+      ).toBe("@ballest-racing ping");
+      yield* call("POST", "/api/pings", { as: BOB.discordId, server: "g2", body: { on: true } });
+      expect(yield* h.role.has(BOB.discordId, RACING)).toBe(true);
+      expect(yield* h.role.has(BOB.discordId, HOME)).toBe(false);
+      expect((yield* call("GET", "/api/me", { as: BOB.discordId })).body.pings).toBe(false);
+      // Alice said no at home; Ballest Racing still offers its own role once.
+      yield* call("POST", "/api/pings/decline", { as: ALICE.discordId });
+      const racing = yield* open(BOB.discordId, lobby, "g2");
+      const joined = yield* call("POST", `/api/matches/${racing}/join`, {
+        as: ALICE.discordId,
+        server: "g2",
+      });
+      expect(joined.body.pingOffer).toBe(true);
+    }),
+  );
+
+  it.scoped("names that Venue's role when Discord won't change it", () =>
+    Effect.gen(function* () {
+      const { call, h } = yield* setup({ maps: [MAP] });
+      yield* h.role.setFailing(true);
+      expect(
+        yield* call("POST", "/api/pings", { as: BOB.discordId, server: "g2", body: { on: true } }),
+      ).toEqual({
+        status: 503,
+        body: {
+          error: "PingRoleUnavailable",
+          message: "Discord didn't change @ballest-racing ping. Try again in a moment.",
+        },
+      });
+    }),
+  );
+});
+
 describe("Chosen Skins", () => {
   const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
   const GOLD = "/Game/Art/M_GoldReal.M_GoldReal";
@@ -894,20 +1120,35 @@ describe("Chosen Skins", () => {
   );
 });
 
+/** A Player's marble as the page draws it. */
+const marble = (steamId: string, skin: ChosenSkin) =>
+  renderToStaticMarkup(createElement(Marble, { steamId, size: 24, skin }));
+
+describe("the logo", () => {
+  it("presents the Activity as MULTIBALLS by BALLESTRECORDS", () => {
+    const words = renderToStaticMarkup(createElement(Logo))
+      .replace(/<svg[\s\S]*?<\/svg>/g, "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    expect(words).toBe("MULTIBALLS by BALLESTRECORDS");
+  });
+});
+
 describe("Skin pictures", () => {
   const PINK = "/Game/Art/Materials/Instances/Ball/MI_BallPink.MI_BallPink";
   const UNKNOWN_SKIN = "/Game/Art/Some/Future/Skin.Skin";
   const STEAM_ID = "76561198000000001";
 
   it("draw a Player's Chosen Skin as its picture, served by the Activity", () => {
-    const html = marble(STEAM_ID, 24, PINK);
+    const html = marble(STEAM_ID, PINK);
     expect(html).toContain('<img src="/skins/DA_Skin_Pink.png"');
     expect(html).not.toContain("<svg");
   });
 
   it("draw the hue marble with no Chosen Skin, or one the list doesn't know", () => {
     for (const skin of [null, UNKNOWN_SKIN]) {
-      const html = marble(STEAM_ID, 24, skin);
+      const html = marble(STEAM_ID, skin);
       expect(html).toContain("<svg");
       expect(html).not.toContain("<img");
     }
@@ -925,4 +1166,63 @@ describe("Skin pictures", () => {
       expect(serve("../package.json").status).toBe(404);
     }),
   );
+});
+
+describe("the page", () => {
+  const CONFIG = {
+    clientId: "app",
+    guildIds: ["g1", "g2"],
+    devUsers: [{ id: "x", name: "</script>" }],
+  };
+  const PAGE = "<head><!--script--></head><main id=app><!--splash--></main><!--config-->";
+
+  it("arrives with the signing-in screen and its config, so nothing waits on a request", () => {
+    const html = servedPage(PAGE, "console.log(1)", CONFIG);
+    expect(html).toContain("Signing in…");
+    const json = /<script id="config" type="application\/json">(.*?)<\/script>/.exec(html)?.[1];
+    expect(JSON.parse(json!)).toEqual(CONFIG);
+  });
+
+  it("names its script by the script's hash, so a deploy is never served from a stale cache", () => {
+    const a = servedPage(PAGE, "console.log(1)", CONFIG);
+    const b = servedPage(PAGE, "console.log(2)", CONFIG);
+    const src = (html: string) => /src="(\/app\.js\?v=[0-9a-f]+)"/.exec(html)?.[1];
+    expect(src(a)).toBeDefined();
+    expect(src(a)).not.toBe(src(b));
+  });
+
+  it.effect("sends the script compressed when the browser takes it, and plain when not", () =>
+    Effect.gen(function* () {
+      const script = "const marbles = 'roll';".repeat(200);
+      const serve = scriptResponses(script);
+      const body = (r: HttpServerResponse.HttpServerResponse) =>
+        Effect.promise(() => HttpServerResponse.toWeb(r).arrayBuffer()).pipe(
+          Effect.map((b) => Buffer.from(b)),
+        );
+      const br = serve("gzip, deflate, br", "");
+      expect(br.headers["content-encoding"]).toBe("br");
+      expect(brotliDecompressSync(yield* body(br)).toString()).toBe(script);
+      const gz = serve("br;q=0, gzip", "");
+      expect(gz.headers["content-encoding"]).toBe("gzip");
+      expect(gunzipSync(yield* body(gz)).toString()).toBe(script);
+      const plain = serve("", "");
+      expect(plain.headers["content-encoding"]).toBeUndefined();
+      expect((yield* body(plain)).toString()).toBe(script);
+    }),
+  );
+
+  it("keeps the script for good only under its own version", () => {
+    const script = "console.log(1)";
+    const version = /\?v=([0-9a-f]+)/.exec(servedPage(PAGE, script, CONFIG))?.[1] ?? "";
+    const serve = scriptResponses(script);
+    expect(serve("", version).headers["cache-control"]).toContain("immutable");
+    expect(serve("", "an-old-version").headers["cache-control"]).toBe("no-cache");
+  });
+
+  it("puts a config holding replacement patterns in as it is", () => {
+    const config = { ...CONFIG, devUsers: [{ id: "x", name: "$' $& $$" }] };
+    const html = servedPage(PAGE, "", config);
+    const json = /<script id="config" type="application\/json">(.*?)<\/script>/.exec(html)?.[1];
+    expect(JSON.parse(json!)).toEqual(config);
+  });
 });

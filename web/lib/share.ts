@@ -52,24 +52,36 @@ export function shortAge(created: number, now: number) {
 export const beatAuthor = (scores: ReadonlyArray<number>, medals: ReadonlyArray<number>) =>
   scores.filter((s) => timeMedal(medals, s) === "author").length;
 
-/* A player's card. Every count adds the Circuit's Tracks and the Workshop's Maps together:
-   a world record is rank 1 on either, an Author medal any time at or under the author
-   time (a world record that beats it included), and a Map finished any board with a time
-   on it. A count of zero is left out. */
-export function playerCard(rec: PlayerRecord): ShareCard {
+/* What a player has, counted as their cards count it: every count adds the Circuit's Tracks
+   and the Workshop's Maps together. A world record is rank 1 on either, a Medal what each
+   finish's time earned (so an Author medal includes a world record at the author time), and
+   a Map finished any board with a time on it. The share card and the Stat Card both read it. */
+export function playerCounts(rec: PlayerRecord) {
   const ws = rec.workshop;
   const run = rec.seasons.flatMap((s) => s.tiers.flatMap((t) => t.tracks));
-  const trackAuthors = run.filter((t) => t.finish?.earned === "author").length;
+  const earned = (k: "author" | "gold" | "silver" | "bronze") =>
+    run.filter((t) => t.finish?.earned === k).length +
+    ws.finishes.filter((f) => f.earned === k).length;
+  return {
+    wr: rec.medals.gold + ws.medals.wr,
+    author: earned("author"),
+    gold: earned("gold"),
+    silver: earned("silver"),
+    bronze: earned("bronze"),
+    finished: rec.run + ws.finishes.length,
+    made: rec.made.length,
+  };
+}
+
+/* A player's card: their counts (playerCounts), a zero left out. */
+export function playerCard(rec: PlayerRecord): ShareCard {
+  const n = playerCounts(rec);
   const s2 = rec.seasons.find((s) => s.group === "Season 2")?.overall;
   const counts: Array<[number, string, Tone?]> = [
-    [rec.medals.gold + ws.medals.wr, "World records", "gold"],
-    [
-      trackAuthors + ws.finishes.filter((f) => f.earned === "author").length,
-      "Author medals",
-      "author",
-    ],
-    [rec.run + ws.finishes.length, "Maps finished"],
-    [rec.made.length, "Maps made"],
+    [n.wr, "World records", "gold"],
+    [n.author, "Author medals", "author"],
+    [n.finished, "Maps finished"],
+    [n.made, "Maps made"],
   ];
   return {
     kind: "player",

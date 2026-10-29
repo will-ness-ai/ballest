@@ -117,10 +117,12 @@ export function probe() {
     if (over > 1) add(clipped, el, Math.round(over));
   }
   /* lines of text drawn over other text. Each line is cut to the boxes
-     that clip it (an ellipsis hides the rest), and only the open dialog or popover menu counts
-     while one is. */
+     that clip it (an ellipsis hides the rest), and only the open dialog, popover menu or
+     dropdown drawn over the page (`data-layer`, the site search's results) counts while one is.
+     A control floating over the page on purpose (`data-float`, Get the Maps) is left out: the
+     page scrolls under it by design. */
   function overlaps() {
-    const modal = document.querySelector("dialog[open]:modal, :popover-open");
+    const modal = document.querySelector("dialog[open]:modal, :popover-open, [data-layer]");
     const clips = new Map();
     const clipOf = (el) => {
       if (!el || el === document.body) return null;
@@ -146,7 +148,10 @@ export function probe() {
     for (let n = walk.nextNode(); n; n = walk.nextNode()) {
       const el = n.parentElement;
       if (!n.textContent.trim() || !el) continue;
-      if (el.closest("[hidden], [aria-hidden=true], dialog:not([open]), script, style")) continue;
+      if (
+        el.closest("[hidden], [aria-hidden=true], [data-float], dialog:not([open]), script, style")
+      )
+        continue;
       if (modal && !modal.contains(el)) continue;
       const cs = getComputedStyle(el);
       if (cs.visibility === "hidden" || Number(cs.opacity) === 0) continue;
@@ -187,6 +192,12 @@ export function probe() {
     height: doc.scrollHeight,
     // where the page put itself on load (an entry page scrolls to its row)
     scrolled: Math.round(scrollY),
+    // and where the row it scrolled to sits in the window: the first .focus, the one
+    // BoardBody scrolls to (a plate or a row); null on a page with none
+    landed: (() => {
+      const row = document.querySelector(".focus");
+      return row ? Math.round(row.getBoundingClientRect().top) : null;
+    })(),
     overflow: Math.max(0, doc.scrollWidth - vw),
     offscreen: [...offscreen],
     clipped: [...clipped],

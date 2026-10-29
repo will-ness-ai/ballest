@@ -1,6 +1,6 @@
 """
 The collector's service on Fly.io (app `ballest-collector`, tools/fly.toml; ADR 0012, ADR
-0014): one always-on process that holds one Steam login (steam_session.py) and runs every
+0015): one always-on process that holds one Steam login (steam_session.py) and runs every
 collector job inside itself on it, so no job ever logs another off.
 
 - The Refresh (steampy_collect.refresh) runs at every SLOT_HOURS slot, on the hour in UTC,

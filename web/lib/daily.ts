@@ -1,4 +1,4 @@
-// The Daily's rules the pages share (CONTEXT.md): when one is live, which is today's, how
+// The Daily's rules the pages share (GLOSSARY.md): when one is live, which is today's, how
 // its date and its time left read, the calendar the Daily page lays the days out in, and
 // the all-time standings over final Dailies.
 import type {

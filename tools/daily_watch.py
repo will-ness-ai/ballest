@@ -1,7 +1,7 @@
 """
 The Daily read (runner.py on Fly): the open Dailies read on the service's one Steam session
 every minute (runner.DAILY_EVERY), so the site's Daily pages follow the board within a minute or so,
-between Refreshes (CONTEXT.md, "Daily read").
+between Refreshes (GLOSSARY.md, "Daily read").
 
 Each read that moved a Daily's board, or makes it final, is written as a Daily read
 (db_writer.Refresh with source "daily"): the Dailies only, which counts as no Refresh, and

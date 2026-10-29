@@ -134,13 +134,24 @@ def write(conn, m, data, read_at):
     conn.commit()
 
 
-def steam_download(session):
+def steam_download(session, env=None):
     """The download the collector uses: a Map's file through the Steam session's steam.py
     client (its published file and its manifest, asked of the CM in turn with every other
     request, then each file's bytes from Steam's content servers), as map_file picks it."""
+    env = os.environ if env is None else env
+
+    def trust_proxy(client):
+        if env.get("HTTPS_PROXY"):
+            # steam.py fetches the content servers on its session without its proxy, so
+            # behind one (a cloud agent session) that session must read it from the
+            # environment; set on every Map, since a fresh login builds a new session
+            client.http._session._trust_env = True  # noqa: SLF001 (steam.py has no option for it)
+        return client
 
     async def download(pfid):
-        (found,) = await session.call(lambda c: c.fetch_published_files(int(pfid))) or [None]
+        (found,) = await session.call(
+            lambda c: trust_proxy(c).fetch_published_files(int(pfid))
+        ) or [None]
         if found is None:
             raise LookupError(pfid)
         manifest = await session.call(lambda _c: found.manifest(), cm=False)

@@ -1,5 +1,5 @@
 """
-The collector's one Steam session (ADR 0014): a single login that every job the service runs
+The collector's one Steam session (ADR 0015): a single login that every job the service runs
 shares, the Refresh, the file downloads and the Daily read alike. A second login on the
 account drops the first, so the service never makes one.
 

@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { PageHead } from "../../components/PageHead";
 import { Shell } from "../../components/Shell";
 import { PrefabGallery } from "../../components/prefabs/PrefabGallery";
 import { pageMetadata } from "../../components/metadata";
@@ -24,6 +25,7 @@ async function Body() {
 export default function Page() {
   return (
     <Shell view="prefabs">
+      <PageHead path={prefabsHref()} title="Prefabs" />
       <Suspense fallback={<div className="pfl" />}>
         <Body />
       </Suspense>
