@@ -286,7 +286,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     title: "Ember",
     creator: "It’s RushiN",
     creatorId: "76561198787399085",
-    maps: ["3822796847", "3823858008", "3824394514", "3825066883"],
+    maps: ["3822796847", "3823858008", "3824394514", "3825066883", "3826860369"],
   },
 ];
 
