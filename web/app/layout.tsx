@@ -21,6 +21,7 @@ import "./styles/dialogs.css";
 import "./styles/rail.css";
 import "./styles/workshop.css";
 import "./styles/players.css";
+import "./styles/prototype.css";
 import "./styles/maps.css";
 import "./styles/history.css";
 import "./styles/daily.css";

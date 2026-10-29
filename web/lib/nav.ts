@@ -76,7 +76,7 @@ function sectionsOf(f: NavFacts): Array<Omit<SectionLink, "on"> & { shown: boole
     { key: "daily", label: "Daily", href: dailyHref(), shown: f.daily },
     {
       key: "circuit",
-      label: "Circuit",
+      label: "Official" /* PROTOTYPE: was Circuit */,
       href: newest ? boardHref(newest.overall) : homeHref(),
       shown: !!newest,
     },
@@ -91,6 +91,7 @@ function sectionOf(path: string): SectionKey | null {
   if (/^\/daily(\/|$)/.test(path)) return "daily";
   if (/^\/(players?|you|vs)(\/|$)/.test(path)) return "players";
   if (/^\/prefabs?(\/|$)/.test(path)) return "prefabs";
+  if (/^\/trials(\/|$)/.test(path)) return "circuit"; /* PROTOTYPE */
   const board = /^\/board\/([^/]+)/.exec(path);
   return board && circuitBoard(decodeURIComponent(board[1])) ? "circuit" : null;
 }
@@ -133,8 +134,14 @@ function subsOf(
     case "circuit": {
       const board = circuitBoard(decodeURIComponent(path.split("/")[2] ?? ""));
       return {
-        list: f.seasons.map((s) => ({ label: s.group, href: boardHref(s.overall) })),
-        on: f.seasons.findIndex((s) => s.group === board?.group),
+        /* PROTOTYPE: Trials after the seasons */
+        list: [
+          ...f.seasons.map((s) => ({ label: s.group, href: boardHref(s.overall) })),
+          { label: "Trials", href: "/trials" },
+        ],
+        on: path.startsWith("/trials")
+          ? f.seasons.length
+          : f.seasons.findIndex((s) => s.group === board?.group),
       };
     }
     case "players":
@@ -173,6 +180,7 @@ function kindOf(section: SectionKey | null, path: string): string | null {
     case "daily":
       return path.startsWith(dailyStandingsHref()) ? "Daily standings" : "Daily";
     case "circuit":
+      if (path.startsWith("/trials")) return "Trials"; /* PROTOTYPE */
       return isPoints(path.split("/")[2] ?? "") ? "Circuit standings" : "Circuit Track";
     case "players":
       if (path.startsWith("/player/")) return "Player";
