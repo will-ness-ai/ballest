@@ -11,6 +11,7 @@ discord-bot/.logs/
 discord-bot/assets/
 # Prefab files exactly as the game saved them
 prefabs/samples/
+prefabs/ball-people.json
 
 # Vendored skills (skills-lock.json): kept byte-for-byte so updates diff cleanly; grill-design's
 # scripts are ours
