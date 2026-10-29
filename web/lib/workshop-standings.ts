@@ -1,4 +1,4 @@
-// The Workshop standings (CONTEXT.md): Maps played, Author Medals, world records and top 5s,
+// The Workshop standings (GLOSSARY.md): Maps played, Author Medals, world records and top 5s,
 // counted over the Maps the Workshop lists now, as they stand now and at a baseline, with
 // shared places. The site owns these rules (docs/adr/0011); they moved unchanged from the
 // Daily Report's counting in discord-bot/src/report/report.ts, and Multiballs reads the result

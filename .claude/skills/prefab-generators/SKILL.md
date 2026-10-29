@@ -93,7 +93,7 @@ step 5); otherwise list what is left in the PR.
 
 ## 6. The PR
 
-Open it from the draft branch with the repo's template: Before / After / How, and every Checked
+Open it from the draft branch (call the Skill tool for 'pr' to write the body), with every Checked
 line filled in (the grill-design verdict, tests first, each code-review round, the collage
 rounds and the sandbox spawn under the qa line, and `/codebase-design` as skipped by this
 skill). Ask the user whether to merge in the same reply that says CI is green; merge with a

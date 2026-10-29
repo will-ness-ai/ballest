@@ -76,7 +76,7 @@ export class Steam extends Context.Tag("multiballs/Steam")<
 // ---------------------------------------------------------------- Chosen Skins
 
 /**
- * A Player's Chosen Skin (CONTEXT.md, spec #276): the object path chosen_skins.skin holds, or
+ * A Player's Chosen Skin (GLOSSARY.md, spec #276): the object path chosen_skins.skin holds, or
  * null for none, when they are drawn in their hue marble.
  */
 export type ChosenSkin = string | null;

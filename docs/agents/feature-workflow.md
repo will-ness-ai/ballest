@@ -13,8 +13,7 @@ reaches one, read its `SKILL.md` and follow it directly. Call every other step's
 ## 1. Plan: `/grill-with-docs`
 
 Interview the user about the feature until the design tree is empty (`grilling`), while
-`domain-modeling` keeps the vocabulary straight. This repo's glossary is `CONTEXT.md`, so
-where that skill says `GLOSSARY.md`, read and write `CONTEXT.md`; ADRs go in `docs/adr/`,
+`domain-modeling` keeps the vocabulary straight in `GLOSSARY.md`; ADRs go in `docs/adr/`,
 only for decisions that are hard to reverse, surprising, and a real trade-off. Facts are
 looked up, never asked: the board table, `docs/site.md`, `docs/data.md` and the committed
 data answer most of them.
@@ -105,9 +104,9 @@ in the PR, not part of it.
 
 ## 7. Update the PR
 
-Push, then rewrite the PR description in the shape of `.github/pull_request_template.md` (a body
-passed through `gh` or the API skips the template, so copy its Checked lines in) to match what landed (Before / After, and How,
-including the design verdicts and the prototype branch), and mark it ready for review once
+Push, then call the Skill tool for 'pr' and rewrite the PR description with it to match what
+landed: Summary (with the design verdicts and the prototype branch), Evidence, Merge Danger and
+Checked, the sections of `.github/pull_request_template.md`. Mark it ready for review once
 CI is green and the final commit itself has been checked: the smoke test, its preview
 deploy, and, for a site change, a Refresh's revalidate end to end and the changed pages
 against production with `pnpm --silent qa check` (`docs/site.md`, "Checking a change"). A

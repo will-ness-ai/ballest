@@ -34,7 +34,7 @@ export const refreshSource = pgEnum("refresh_source", ["collector", "backfill", 
 
 // One pass of the collector over Steam. A backfill Refresh is one snapshot of data/ from
 // git, dated at its commit, so what it first saw was first seen no later than that. A
-// `daily` row is a Daily read (CONTEXT.md): the open Dailies only, between Refreshes, so
+// `daily` row is a Daily read (GLOSSARY.md): the open Dailies only, between Refreshes, so
 // what counts Refreshes or says when the boards were refreshed leaves it out.
 export const refreshes = pgTable("refreshes", {
   id: serial("id").primaryKey(),
@@ -258,7 +258,7 @@ export const mapSpins = pgTable("map_spins", {
   drawnAt: timestamp("drawn_at", { withTimezone: true }).notNull(),
 });
 
-// A Prefab (CONTEXT.md): a group of editor pieces a player uploaded, with the file exactly as
+// A Prefab (GLOSSARY.md): a group of editor pieces a player uploaded, with the file exactly as
 // they sent it (ADR 0009, the first table the site itself writes). The slug comes from the
 // first name and never changes, so a link survives a rename. A deleted or taken-down Prefab
 // keeps its row, which still counts against its uploader's hourly limit, and reads as gone. A
@@ -323,7 +323,7 @@ export const prefabLimits = pgTable("prefab_limits", {
   setBy: text("set_by").notNull(),
 });
 
-// A player's Chosen Skin (CONTEXT.md): the Skin a signed-in player picked to stand for them
+// A player's Chosen Skin (GLOSSARY.md): the Skin a signed-in player picked to stand for them
 // wherever no run's Skin is known, written only by the site (PUT /api/me/skin). The Skin is
 // the object path a Ghost names (a key of lib/skins.ts), so every Skin is named one way. No
 // row is no pick: the hue marble.
@@ -344,7 +344,7 @@ export const chosenSkinSaves = pgTable(
   (t) => [index("chosen_skin_saves_player").on(t.steamId, t.savedAt)],
 );
 
-// A Stats Link (CONTEXT.md): the Steam ID a Discord account signed in as on the site, written
+// A Stats Link (GLOSSARY.md): the Steam ID a Discord account signed in as on the site, written
 // only by the site's link page (db/stats-link.ts) and read by Multiballs for See my stats.
 // Pairing again replaces it.
 export const statsLinks = pgTable("stats_links", {

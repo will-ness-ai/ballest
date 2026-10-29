@@ -21,7 +21,7 @@ The database sits in a Neon organization that Vercel manages, not in anyone's ow
 account, so it opens from Vercel: the `ballest` project's Storage tab, the database, then
 Open in Neon.
 
-- `refreshes`: one per collector Refresh, per Daily read (`CONTEXT.md`; `source = 'daily'`),
+- `refreshes`: one per collector Refresh, per Daily read (`GLOSSARY.md`; `source = 'daily'`),
   or per git snapshot replayed by the backfill (`source`, and `commit_sha` for a backfill),
   and `full_sweep`, whether its Workshop step read every Map's board. Everything that counts
   Refreshes or says when the boards were refreshed leaves the Daily reads out.
@@ -45,11 +45,11 @@ Open in Neon.
 - `maps` and `map_history`: what a Map never changes (its board, creator, created time),
   and a row per change of its title, creator name, preview, Medals, sessions,
   subscriptions or entry count.
-- `dailies`: one per Daily (`CONTEXT.md`), by date: its board (`kind = 'daily'`, named
+- `dailies`: one per Daily (`GLOSSARY.md`), by date: its board (`kind = 'daily'`, named
   exactly as the developers' API returns it), the Map's pfid (no foreign key: a Map can
   leave the Workshop) and title, its window (`starts_at`, `ends_at`), and
   `final_refresh`, the first Refresh that read the board ok at or after `ends_at`.
-- `ghosts`: one per Ghost (`CONTEXT.md`) the collector has read, by UGC ID: its state
+- `ghosts`: one per Ghost (`GLOSSARY.md`) the collector has read, by UGC ID: its state
   (`ok`; `empty`, a Ghost with no samples; `gone`, one Steam has no file for), the Skin
   and the hat as the object paths the Ghost names (raw, as `skinMaterial` and `accessory`
   write them, or for a Skin with no material, Snow Globe, its `?SpecialSkinClass`), the
@@ -177,7 +177,7 @@ short drops, and ops hears once only when it has stayed down half an hour.
 ### Chosen Skins
 
 A table the site writes (ADR 0009), which the collector never touches: `chosen_skins` is one
-row per player who picked a Chosen Skin (CONTEXT.md), the Skin as the object path a Ghost
+row per player who picked a Chosen Skin (GLOSSARY.md), the Skin as the object path a Ghost
 names (a key of `web/lib/skins.ts`) and when they chose it; clearing the pick deletes the row.
 `chosen_skin_saves` is one row per save, pick or clear, which the limit of 10 in a rolling hour
 counts (`PUT` and `DELETE /api/me/skin`, `web/db/chosen-skin-api.ts`); each save prunes the rows
@@ -198,7 +198,7 @@ Discord account's ID and name (the name only for the link page to ask about), `c
 link still says it has expired and a reloaded Done page still says done. The bot keeps its own
 copy of both, `REQUEST_FOR` and `REQUEST_KEPT` in `discord-bot/src/seeMyStats.ts`: change them
 together (`discord-bot/test/statsLinks.test.ts` fails while they differ). The bot prunes the
-requests older than a day as it writes, and so does the confirm. `stats_links` is one row per Discord account paired (CONTEXT.md, Stats Link):
+requests older than a day as it writes, and so does the confirm. `stats_links` is one row per Discord account paired (GLOSSARY.md, Stats Link):
 the Steam ID it signed in as and when, written only by the confirm
 (`POST /api/discord/link?t=<token>`), which marks the request used in the same transaction;
 pairing again replaces the row. Multiballs reads it, and watches its request's `used_at`. `tiny`

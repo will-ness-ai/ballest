@@ -1,4 +1,4 @@
-// The Stats Link's site side (CONTEXT.md, ADR 0014): Multiballs writes a link request when an
+// The Stats Link's site side (GLOSSARY.md, ADR 0014): Multiballs writes a link request when an
 // unpaired player presses See my stats, and sends them to /discord/link?t=<token>. The page
 // says what linkPageOf finds, and its confirm button POSTs /api/discord/link?t=<token>
 // (confirmLink), which pairs that Discord account with the signed-in Steam ID. `deps` carries

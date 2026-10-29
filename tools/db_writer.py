@@ -70,7 +70,7 @@ class Refresh:
 
     @property
     def daily_read(self):
-        """Whether this is a Daily read (CONTEXT.md), the open Dailies only, not a Refresh."""
+        """Whether this is a Daily read (GLOSSARY.md), the open Dailies only, not a Refresh."""
         return self.source == "daily"
 
 
