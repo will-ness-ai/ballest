@@ -314,22 +314,9 @@ async function sheet() {
         await page.close();
       }
     })();
-    const known = variantsOf(listed, undefined);
-    const variants = variantsOf(listed, flags.variants);
-    if (!variants)
-      fail(
-        `${urlOf(null)} has no variant picker listing its variants`,
-        "name them: --variants A,B,C, or give ProtoPicker data-variants",
-      );
-    const keys = (known ?? variants).map((v) => v.key);
-    const strange = variants.filter((v) => !keys.includes(v.key) || !/^[\w-]+$/.test(v.key));
-    if (strange.length)
-      fail(
-        `no variant ${strange.map((v) => `"${v.key}"`).join(", ")}`,
-        `variants: ${keys.join(", ")}`,
-      );
-    if (flags.pick && !keys.includes(flags.pick))
-      fail(`no variant "${flags.pick}" to pick`, `variants: ${keys.join(", ")}`);
+    const asked = variantsOf(listed, flags);
+    if ("error" in asked) fail(`${urlOf(null)}: ${asked.error}`, asked.help);
+    const { variants } = asked;
     const draw = async (key, width, options = {}) => {
       try {
         return await render(browser, urlOf(key), { width, text: 16 }, { now, ...options });

@@ -10,13 +10,17 @@ const CARD_MAX = 1100;
 const ROW_MAX = 520;
 
 /**
- * The round's variants: --variants (keys, comma-separated) when given, else the picker's own
- * list, which ProtoPicker publishes as `data-variants`, a JSON array of [key, name, note?].
- * Null when neither names any, so the command can say how to name them.
+ * The round's variants: the picker's own list, which ProtoPicker publishes as
+ * `data-variants`, a JSON array of [key, name, note?], cut to --variants (keys,
+ * comma-separated) when given. A page with no list takes --variants as they are. Every key
+ * asked for, and the pick, must be one the list has; when not, or when nothing names any
+ * variant, it says what is wrong and what to do instead.
  * @param {string | null} published
- * @param {string | undefined} flag
+ * @param {{ variants?: string, pick?: string }} flags
+ * @returns {{ variants: Array<{ key: string, name: string, note: string }> } |
+ *   { error: string, help: string }}
  */
-export function variantsOf(published, flag) {
+export function variantsOf(published, { variants: flag, pick } = {}) {
   let listed;
   try {
     listed = published ? JSON.parse(published) : [];
@@ -32,14 +36,28 @@ export function variantsOf(published, flag) {
           note: String(note),
         }))
     : [];
-  if (flag) {
-    return flag
-      .split(",")
-      .map((key) => key.trim())
-      .filter(Boolean)
-      .map((key) => all.find((v) => v.key === key) ?? { key, name: "", note: "" });
-  }
-  return all.length ? all : null;
+  const asked = (flag ?? "")
+    .split(",")
+    .map((key) => key.trim())
+    .filter(Boolean);
+  const chosen = asked.length
+    ? asked.map((key) => all.find((v) => v.key === key) ?? { key, name: "", note: "" })
+    : all;
+  if (!chosen.length)
+    return {
+      error: "the page has no variant picker listing its variants",
+      help: "name them: --variants A,B,C, or give ProtoPicker data-variants",
+    };
+  const keys = (all.length ? all : chosen).map((v) => v.key);
+  const strange = chosen.filter((v) => !keys.includes(v.key) || !/^[\w-]+$/.test(v.key));
+  if (strange.length)
+    return {
+      error: `no variant ${strange.map((v) => `"${v.key}"`).join(", ")}`,
+      help: `variants: ${keys.join(", ")}`,
+    };
+  if (pick && !keys.includes(pick))
+    return { error: `no variant "${pick}" to pick`, help: `variants: ${keys.join(", ")}` };
+  return { variants: chosen };
 }
 
 const esc = (s) =>

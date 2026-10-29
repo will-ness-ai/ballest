@@ -26,41 +26,54 @@ function jpegSize(b: Buffer) {
 }
 
 describe("variantsOf", () => {
+  const LIST = JSON.stringify([
+    ["A", "Cards", "a card each"],
+    ["B", "Banners"],
+  ]);
+
   it("reads the picker's list, with each variant's note", () => {
-    expect(
-      variantsOf(
-        JSON.stringify([
-          ["A", "Cards", "a card each"],
-          ["B", "Banners"],
-        ]),
-        undefined,
-      ),
-    ).toEqual([
-      { key: "A", name: "Cards", note: "a card each" },
-      { key: "B", name: "Banners", note: "" },
-    ]);
+    expect(variantsOf(LIST)).toEqual({
+      variants: [
+        { key: "A", name: "Cards", note: "a card each" },
+        { key: "B", name: "Banners", note: "" },
+      ],
+    });
   });
 
-  it("takes --variants over the picker, naming each by its key alone", () => {
-    expect(variantsOf(JSON.stringify([["A", "Cards"]]), "A,C")).toEqual([
-      { key: "A", name: "Cards", note: "" },
-      { key: "C", name: "", note: "" },
-    ]);
+  it("cuts it to --variants, trimmed", () => {
+    expect(variantsOf(LIST, { variants: " B," })).toEqual({
+      variants: [{ key: "B", name: "Banners", note: "" }],
+    });
   });
 
-  it("skips entries that aren't [key, name, note] and trims the keys asked for", () => {
-    expect(variantsOf(JSON.stringify([{ key: "A" }, null, ["B", "Banners"]]), undefined)).toEqual([
-      { key: "B", name: "Banners", note: "" },
-    ]);
-    expect(variantsOf(null, "A, B,")).toEqual([
-      { key: "A", name: "", note: "" },
-      { key: "B", name: "", note: "" },
-    ]);
+  it("takes --variants as they are on a page with no list", () => {
+    expect(variantsOf(null, { variants: "A,C" })).toEqual({
+      variants: [
+        { key: "A", name: "", note: "" },
+        { key: "C", name: "", note: "" },
+      ],
+    });
   });
 
-  it("is null with neither, so the command can say how to name them", () => {
-    expect(variantsOf(null, undefined)).toBeNull();
-    expect(variantsOf("not json", undefined)).toBeNull();
+  it("skips entries that aren't [key, name, note]", () => {
+    expect(variantsOf(JSON.stringify([{ key: "A" }, null, ["B", "Banners"]]))).toEqual({
+      variants: [{ key: "B", name: "Banners", note: "" }],
+    });
+  });
+
+  it("refuses a key or a pick the picker doesn't list, naming the ones it does", () => {
+    expect(variantsOf(LIST, { variants: "A,D" })).toEqual({
+      error: 'no variant "D"',
+      help: "variants: A, B",
+    });
+    expect(variantsOf(LIST, { pick: "b" })).toEqual({
+      error: 'no variant "b" to pick',
+      help: "variants: A, B",
+    });
+  });
+
+  it("says how to name them when nothing does", () => {
+    expect(variantsOf("not json")).toHaveProperty("help", expect.stringMatching(/--variants/));
   });
 });
 
