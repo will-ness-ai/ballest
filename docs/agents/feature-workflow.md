@@ -13,8 +13,7 @@ reaches one, read its `SKILL.md` and follow it directly. Call every other step's
 ## 1. Plan: `/grill-with-docs`
 
 Interview the user about the feature until the design tree is empty (`grilling`), while
-`domain-modeling` keeps the vocabulary straight. This repo's glossary is `CONTEXT.md`, so
-where that skill says `GLOSSARY.md`, read and write `CONTEXT.md`; ADRs go in `docs/adr/`,
+`domain-modeling` keeps the vocabulary straight in `GLOSSARY.md`; ADRs go in `docs/adr/`,
 only for decisions that are hard to reverse, surprising, and a real trade-off. Facts are
 looked up, never asked: the board table, `docs/site.md`, `docs/data.md` and the committed
 data answer most of them.

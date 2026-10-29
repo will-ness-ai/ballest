@@ -1,4 +1,4 @@
-// The Generators (CONTEXT.md; specs #299 and #310): useful things, course pieces, decor, trees
+// The Generators (GLOSSARY.md; specs #299 and #310): useful things, course pieces, decor, trees
 // and buildings, each making a Prefab file from a few settings. A Generator is its category,
 // controls, defaults and builder; the page draws whatever controls() returns, so a new
 // Generator is one entry in GENERATORS.

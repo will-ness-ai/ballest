@@ -5,7 +5,7 @@ description: Add a player's Campaign to ballestrecords.com, from their Workshop 
 
 # Add a Campaign
 
-A Campaign (`CONTEXT.md`) is one entry in `CAMPAIGNS` (`web/lib/campaigns.ts`). `docs/site.md`,
+A Campaign (`GLOSSARY.md`) is one entry in `CAMPAIGNS` (`web/lib/campaigns.ts`). `docs/site.md`,
 "Campaigns", is the reference for the entry, the finder, the board, the page and the Refresh after
 merging: read it first. This is the run, from a request to a live page; it takes
 `docs/agents/feature-workflow.md`'s small-change path from step 4, with no spec or tickets.

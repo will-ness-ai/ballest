@@ -1,5 +1,5 @@
 // The Campaigns: player-made runs of Workshop Maps that we curate and rank the way the game
-// ranks a Circuit season (CONTEXT.md, "Campaign"). The game knows nothing of them, so this
+// ranks a Circuit season (GLOSSARY.md, "Campaign"). The game knows nothing of them, so this
 // list is the only place one exists. Adding one is one entry here (docs/site.md); the
 // tests in test/campaigns.test.ts fail on a list that doesn't hold together.
 //
@@ -26,7 +26,7 @@ export interface Campaign {
   collection?: string;
 }
 
-/* An Event board (CONTEXT.md) a Campaign can hold as one of its Maps: a one-off event's
+/* An Event board (GLOSSARY.md) a Campaign can hold as one of its Maps: a one-off event's
    Steam board, which the collector reads once (EVENT_BOARDS in tools/campaign_common.py). */
 export interface EventBoard {
   /* how a Campaign's maps and its paths name it: lowercase words joined by - */

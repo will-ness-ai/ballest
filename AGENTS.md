@@ -11,7 +11,7 @@ from Steam directly and writes the results to a Postgres database the site reads
 database is the only copy: nothing is committed as JSON since phase 5 of
 `docs/nextjs-migration.md`, and `data/`'s git history holds the scores up to then.
 
-`CONTEXT.md` is the domain glossary (Map, Track, Match, ...); use its terms. Decisions
+`GLOSSARY.md` is the domain glossary (Map, Track, Match, ...); use its terms. Decisions
 that shape the repo are recorded in `docs/adr/`; read them before restructuring anything.
 
 ## Layout
@@ -263,7 +263,7 @@ The five canonical roles, each label string equal to its name. See
 
 ### Domain docs
 
-Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
 ### Plugins
 

@@ -1,4 +1,4 @@
-// The Venues (CONTEXT.md, spec #315): the Discord servers the bot plays Matches in. The home
+// The Venues (GLOSSARY.md, spec #315): the Discord servers the bot plays Matches in. The home
 // Venue, the game Discord, is DISCORD_GUILD_ID, DISCORD_CHANNEL_ID and DISCORD_PING_ROLE_ID, as
 // it was before there were others. Every server that invites the bot it sets up as a Venue itself
 // (spec #321), named by the server's id: a `multiballs` channel only it posts in and a
