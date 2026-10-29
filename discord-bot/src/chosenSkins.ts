@@ -1,4 +1,4 @@
-// Each player's Chosen Skin (CONTEXT.md, spec #276), read from the leaderboard database at
+// Each player's Chosen Skin (GLOSSARY.md, spec #276), read from the leaderboard database at
 // DATABASE_URL (ADR 0006) as the Daily Report's reads are (report/source.ts): plain SQL over the
 // chosen_skins table web/ owns and writes. The images and the Match Thread's emojis draw a
 // player's Chosen Skin in place of their hue marble; the bot reads no Ghosts.

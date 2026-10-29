@@ -34,7 +34,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
     the rows it is given; `standing.ts` (You's place, Medal and next Medal on a board) and
     `spread.ts` (the spread chart's columns and where a time falls on it) for You.
-  - `workshop-standings.ts`, the Workshop standings (`CONTEXT.md`) counted now and at a
+  - `workshop-standings.ts`, the Workshop standings (`GLOSSARY.md`) counted now and at a
     baseline with shared places, `youBaseline`, the baseline /you compares against, and
     `baselineOf`, which baselines the route takes (ADR 0011). `GET /api/standings?since=` serves them, for /you and for Multiballs;
     `ladder.ts` is what /you shows of them (a card's rows around You, the line under it,
@@ -120,7 +120,7 @@ know (one a game update added) keep the marble, and so does every derived or Ove
 whose Entries the Ghost step never reads, and the
 marble still turns over to the Steam avatar either way.
 
-Where no run's Skin is known, a player's Chosen Skin (CONTEXT.md) stands in for the marble.
+Where no run's Skin is known, a player's Chosen Skin (GLOSSARY.md) stands in for the marble.
 The root layout reads every pick once (`getChosenSkins`, cached under its own tag, which a
 save expires), each as its object path with any Skin the site doesn't list left out, and hands
 it down through `components/ChosenSkins.tsx`. `Marble` stays a server component: it draws the
@@ -226,7 +226,7 @@ fails to load, or that Satori can't read, draws without it.
 
 ## Stat Card
 
-A player's Stat Card (CONTEXT.md) is the 720×1060 portrait card Multiballs's See my stats
+A player's Stat Card (GLOSSARY.md) is the 720×1060 portrait card Multiballs's See my stats
 answers with in Discord (spec #323; grill-design K5 with its date as T1, prototype branch
 `claude/prototype-statcard`). No page names it: `/og/stats/<steam id>?v=<Refresh time>`
 (`app/og/stats/[id]/route.tsx`) serves it, through the player page's cached reads plus
@@ -261,8 +261,8 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
 
 ## Routes
 
-- `/` — the Workshop homepage: the carousel, the Campaigns' carousel, the shelves and the
-  search.
+- `/` — the Workshop homepage: Trending this week, the Campaigns' carousel, the shelves and
+  the search.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
   (`lib/workshop.ts`). `?q=` narrows it to the Maps whose title or maker contains the query
   (the site search's "All N Maps matching", `mapsSearchHref`); the page is prerendered
@@ -381,7 +381,7 @@ remembered for the tab in `sessionStorage` ("How a page opens").
 
 ## Campaigns
 
-A Campaign (CONTEXT.md) is a player-made run of Workshop Maps that the site ranks the way
+A Campaign (GLOSSARY.md) is a player-made run of Workshop Maps that the site ranks the way
 the game ranks a Circuit season. The game knows nothing of them, so the list in
 `web/lib/campaigns.ts` (`CAMPAIGNS`) is the only place one exists.
 
@@ -408,7 +408,7 @@ off its Campaign's page until a Refresh lists it, so a preview can show fewer Ma
 one fixed Campaign, so look at the new one's page with
 `pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
-**Event boards and pinning.** A Campaign's `maps` may also name an Event board (CONTEXT.md)
+**Event boards and pinning.** A Campaign's `maps` may also name an Event board (GLOSSARY.md)
 by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (the level's own
 screenshot from the game files, committed as `leth/screenshot.jpg` and served from the site,
 since it has no Workshop preview; a JPEG, as the share card can't read WebP; `safeImg` takes a path
@@ -464,10 +464,10 @@ counted and led the same way everywhere. A Campaign's picture is
 with no preview a blank panel; the banners and a player's Campaign cards all draw it. A
 banner (`CampaignBanner`) sets the picture at full strength with a full-height fade behind
 its text only: "Campaign · N maps · N players", the name, the maker and "<leader> leads
-with <points> pts". The homepage's Campaigns carousel (`CampaignCarousel`, under the main
-carousel and hidden with it while there is a search) is a scroll-snap track of banners:
+with <points> pts". The homepage's Campaigns carousel (`CampaignCarousel`, under Trending
+this week and hidden with it while there is a search) is a scroll-snap track of banners:
 a phone shows one with the next peeking in and swipes, a desktop shows two. Its arrows
-step one banner and wrap round as the main carousel's do; the counter names the banners
+step one banner and wrap round; the counter names the banners
 in view ("1 / 5" on a phone, "1–2 / 5" on a desktop), and both hide when every banner
 fits. Its heading's See all opens `/campaigns`. With no Campaign listed (a `tiny` build)
 the homepage leaves the carousel out and `/campaigns` says there are none. Every count of a
@@ -523,7 +523,7 @@ site's name first, then the game it mirrors.
 The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's variant D), one grid:
 
 - **The bar**: the wordmark and You's card, with the site search between them ("Search").
-- **The Sections** (`CONTEXT.md`), as tabs with icons, the current one underlined in lime:
+- **The Sections** (`GLOSSARY.md`), as tabs with icons, the current one underlined in lime:
   Maps (the homepage), Campaigns, Daily, Circuit (its newest season's Overall board),
   Players and Prefabs. One with nothing in it yet (no Workshop, no Daily, no seasons) is left
   out.
@@ -724,9 +724,23 @@ Circuit tiles, Workshop finishes with their Medal (`medalOf`, and `timeMedal` fo
 The rendering is markup over that record. A tab is one entry in `PLAYER_TABS`, which the
 tab bar, each tab's body and the route are all built from.
 
+## Trending this week
+
+The Workshop homepage opens on Trending this week (spec #348): the ten Maps with the most
+heat, their Workshop plays over the last 7 days times (0.5 + the Workshop's vote score), ties
+to more plays and then the newer Map (`trending` in `lib/workshop.ts`). Steam's vote score is
+already discounted for few votes (0 with none), so the plays decide most of the order and the
+votes lift a liked Map over an equally busy disliked one. A Map with no plays this week is
+left out, so before a Refresh recorded them (`map_activity`, `docs/data.md`) the chart is not
+drawn. Each row is one link to the Map: rank, picture, title and maker over the record
+holder's podium line, then its plays this week over its 👍/👎. One column on a phone, two of
+five on a desktop, ranks running down each. It replaced a carousel of five picks whose Most
+played (lifetime sessions) showed the same Map every visit; the design rounds are on
+`claude/prototype-trending`, never merged.
+
 ## Maps kept off the homepage
 
-`HIDDEN` (`lib/workshop.ts`) lists, by pfid, the Maps the Workshop homepage's carousel and
+`HIDDEN` (`lib/workshop.ts`) lists, by pfid, the Maps the Workshop homepage's chart and
 shelves leave out: ones the game can no longer finish, which otherwise top Barely played
 and look like an easy place. Players report one through the link on a Map's page, which
 opens a pre-filled GitHub issue; a Map goes in the list by hand. A listed Map stays in All
@@ -760,7 +774,7 @@ player's page and a head to head.
 
 ## Prefabs
 
-Players' Prefabs (CONTEXT.md), stored in the database by the site itself (ADR 0009; the
+Players' Prefabs (GLOSSARY.md), stored in the database by the site itself (ADR 0009; the
 tables are in `docs/data.md`). Settled in three grill-design rounds on the never-merged
 branch `claude/prototype-prefabs` (spec #213).
 

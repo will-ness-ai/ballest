@@ -91,6 +91,22 @@ A player's score on one board as Steam holds it: a time on a Map or Track, point
 Overall board. A board holds at most one Entry per player; a better run replaces it.
 _Avoid_: row, record (a record is rank 1), run (for the stored score)
 
+**Plays**:
+Steam's count of a Map's Workshop play sessions, lifetime or over a window ("plays this
+week"). A play needs no finish, and Steam misses some, so plays are not runs and say nothing
+about who has Played.
+_Avoid_: sessions (in prose), runs (for plays)
+
+**Votes**:
+The thumbs up and down players give a Map on its Steam Workshop page, with Steam's score
+over them. Not a Prefab's Favorite.
+_Avoid_: likes, rating, favorites
+
+**Trending this week**:
+The Workshop homepage's top ten Maps by their plays over the last 7 days, lifted by their
+Votes.
+_Avoid_: popular, hot, most played (the lifetime shelf)
+
 **Refresh**:
 One pass of the collector over Steam, at a moment in time. It reads every Track and
 Overall board, and only the Maps whose activity moved, so a Map not read in a Refresh
@@ -135,7 +151,7 @@ _Avoid_: daily challenge post, Daily Report (that is the stats post)
 
 **Daily Report**:
 Multiballs' once-a-day post of the Workshop standings (Maps played, Author Medals, world
-records, top 5s), what changed since the day before, Maps nobody has finished, unclaimed
+records, top 5s) and the overall standing over them, what changed since the day before, Maps nobody has finished, unclaimed
 Author Medals and the longest-standing records. A creator counts on their own Map only by
 beating its Author Medal, since the Author time is their publishing run.
 _Avoid_: daily stats, stat report
@@ -147,6 +163,12 @@ Players level on a count share its place: 1 + the players with a strictly higher
 Map whose board was first read after the baseline counts as it stands on both sides.
 _Avoid_: rankings, the report's boards (the Players table is not these lists: it counts the
 Circuit too, and podiums)
+
+**Overall standing**:
+The Daily Report's list over the four Workshop standings, drawn as "Overall" above them: a
+player scores 10 points for 1st on a standing down to 1 for 10th, nothing outside a top 10,
+added across the four (40 at most). Players level on points share a place, as on the four.
+_Avoid_: Overall board (that is Steam's Circuit points board), overall score
 
 ### The site
 

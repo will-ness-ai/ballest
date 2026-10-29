@@ -2,7 +2,7 @@
 
 The unofficial Discord Match bot: TypeScript on Effect 3 with discord.js and steam-user
 (ADR 0003; spec in issue #21, design summary in #20). Domain terms are in the root
-`CONTEXT.md`.
+`GLOSSARY.md`.
 
 ## Checking a change
 
@@ -46,7 +46,7 @@ shell leaves its Node process running.
 
 ## Venues
 
-One process plays in every Venue (CONTEXT.md, spec #315): a server, its Match channel and its
+One process plays in every Venue (GLOSSARY.md, spec #315): a server, its Match channel and its
 @Multiplayer ping role. The home Venue, the game Discord, is `DISCORD_GUILD_ID`,
 `DISCORD_CHANNEL_ID` and `DISCORD_PING_ROLE_ID`, and its name is `home`. Every other server the
 bot is in is a Venue it set up itself (spec #321, `src/venues.ts`), named by the server's id,
@@ -196,7 +196,7 @@ discord.js calls (what Discord actually renders, threads, pings, edits) in the s
 
 ## Chosen Skins
 
-A player's Chosen Skin (CONTEXT.md, spec #276) replaces their hue marble in every image the
+A player's Chosen Skin (GLOSSARY.md, spec #276) replaces their hue marble in every image the
 Renderer draws and in Match Thread lines; the bot reads no Ghosts, so its order is Chosen Skin,
 then hue. `src/chosenSkins.ts` reads `chosen_skins` at `DATABASE_URL` at most once a minute;
 with no database (`pnpm dev`, the sandbox) or one it can't read, everyone keeps their hue. Run
@@ -284,7 +284,8 @@ URL Mapping pointing there.
 
 `src/report/` posts the Daily Report (spec #126, design on branch
 `claude/prototype-daily-report`) in `STATS_CHANNEL_ID` at 16:00 UTC: the day, the counts and
-Since yesterday in the channel with the four Workshop standings as an image and one link button under it,
+Since yesterday in the channel with the four Workshop standings as an image, the overall standing
+over them drawn above the four (spec #373), and one link button under it,
 "Where do I stand?", to the site's `/you` (spec #221), and the map lists and longest-standing
 records in a thread on it. The button and the message's Map links go to the live site whatever
 `SITE_URL` says, so a sandbox post's button opens the real `/you`; the bot never hears a press
@@ -446,7 +447,7 @@ other failure it tells the ops channel too, and the bot runs on. It is off in th
 check the discord.js calls with `pnpm dev`, whose database lasts. The rules are tested over an
 in-memory server in `test/myStats.test.ts`, the panel in `test/messages.test.ts`.
 
-A press of See my stats is `src/seeMyStats.ts`. With a Stats Link in `stats_links` (CONTEXT.md,
+A press of See my stats is `src/seeMyStats.ts`. With a Stats Link in `stats_links` (GLOSSARY.md,
 ADR 0014) the private answer is the Stat Card, fetched from the site at `SITE_URL` (default the
 live site) as `/og/stats/<steamid>?v=<the site's /api/refreshed>`, with a Player page link and
 "Not you? Pair again". Without one, or on Pair again, the bot writes a link request to
@@ -472,7 +473,7 @@ History, both Create Threads, Send Messages in Threads and Add Reactions (`NEEDE
 
 ## The Weekly Cup
 
-`src/weeklyCup/` runs the Weekly Cup (CONTEXT.md, spec #353) in each server `WEEKLY_CUP_GUILD_IDS`
+`src/weeklyCup/` runs the Weekly Cup (GLOSSARY.md, spec #353) in each server `WEEKLY_CUP_GUILD_IDS`
 names (comma-separated, `fly.toml`: Ballest Racing); unset, or in the sandbox, it is off. At
 startup, in the background, it keeps `#weekly-cup` there (`channel.ts`): the stored one by id
 (`weekly_cup_channels`), else a text channel of that name with the Match channel's overwrites set

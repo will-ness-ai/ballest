@@ -1107,7 +1107,22 @@ export interface StandingsRow {
   readonly gain: number;
 }
 
-/** The four boards of the Daily Report (src/report/), two by two, ten rows each. */
+/** A row of the overall standing: points from the player's places on the four standings. */
+export interface OverallRow {
+  readonly steamId: string;
+  readonly skin: ChosenSkin;
+  readonly name: string;
+  readonly points: number;
+  readonly place: number;
+  readonly move: number | "new";
+  /** Their place on each of the four boards ("MP" 1), in the boards' order; null outside its top 10. */
+  readonly places: ReadonlyArray<{ readonly board: string; readonly place: number | null }>;
+}
+
+/**
+ * The Daily Report's boards (src/report/): Overall across the top, then the four two by two, ten
+ * rows each.
+ */
 export interface StandingsImage {
   readonly title: string;
   readonly subtitle: string;
@@ -1117,6 +1132,11 @@ export interface StandingsImage {
     /** Who left the board's top 10 in the last 24 hours. */
     readonly out: ReadonlyArray<string>;
   }>;
+  readonly overall: {
+    readonly rows: ReadonlyArray<OverallRow>;
+    /** Who left Overall's top 10 in the last 24 hours. */
+    readonly out: ReadonlyArray<string>;
+  };
 }
 
 const tone = (up: boolean) =>
@@ -1169,63 +1189,140 @@ const movePill = (move: StandingsRow["move"]) =>
 const clipName = (name: string) =>
   name.length > STANDINGS_NAME ? `${name.slice(0, STANDINGS_NAME - 1)}…` : name;
 
+/** The overall standing's rule, under its heading. */
+export const OVERALL_RULE =
+  "10 points for 1st on a standing down to 1 for 10th, added across all four";
+
+const MEDAL_INK = [C.gold, C.silver, C.bronze];
+
+/** A place on one of the four boards, on an Overall row: a podium place in its medal's colour. */
+const placeChip = ({ board, place }: OverallRow["places"][number]) => {
+  const medal = place === null ? undefined : MEDAL_INK[place - 1];
+  return box(
+    {
+      width: 38,
+      justifyContent: "center",
+      gap: 2,
+      padding: "1px 0",
+      borderRadius: 4,
+      fontFamily: F.hud,
+      fontWeight: 700,
+      fontSize: 10,
+      color: place === null ? C.faint : medal === undefined ? C.text : C.bg,
+      backgroundColor: place === null ? "transparent" : (medal ?? C.surface),
+      border: place === null ? `1px dashed ${C.line}` : "1px solid transparent",
+    },
+    box({ opacity: 0.7 }, board),
+    place === null ? "–" : String(place),
+  );
+};
+
+/** A row on a board: its shared place, its move, the player, then what it counts. */
+const standingsRow = (
+  pictures: SkinPictureUris,
+  first: boolean,
+  row: Pick<StandingsRow, "steamId" | "skin" | "name" | "place" | "move">,
+  ...counts: ReadonlyArray<Child>
+) =>
+  box(
+    {
+      alignItems: "center",
+      gap: STANDINGS_ROW_GAP,
+      fontSize: 15,
+      padding: "3px 8px",
+      borderRadius: 6,
+      backgroundColor: first ? C.upTint : C.surface,
+    },
+    box(
+      { width: 18, color: row.place <= 3 ? C.gold : C.faint, fontFamily: F.hud, fontWeight: 700 },
+      String(row.place),
+    ),
+    box({ width: 30 }, movePill(row.move)),
+    playerMarble(pictures, row.skin, row.steamId, STANDINGS_MARBLE),
+    box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
+    ...counts,
+  );
+
+/** A board: its heading, its rows, then who left its top 10, or "Nobody yet". */
+const standingsBoard = (
+  heading: Child,
+  rows: ReadonlyArray<El>,
+  out: ReadonlyArray<string>,
+  style: Style = {},
+) =>
+  box(
+    { flexDirection: "column", gap: 4, ...style },
+    heading,
+    ...rows,
+    ...out.map((name) =>
+      box(
+        {
+          alignItems: "center",
+          gap: 8,
+          fontSize: 15,
+          padding: "2px 7px",
+          borderRadius: 6,
+          border: `1px dashed ${C.line}`,
+          color: C.dim,
+          opacity: 0.75,
+        },
+        box({ width: 18, color: C.faint, fontFamily: F.hud, fontWeight: 700 }, "–"),
+        box({ width: 46 }, pill(false, triangle(false), "OUT")),
+        box({ flexGrow: 1, overflow: "hidden" }, clipName(name)),
+      ),
+    ),
+    rows.length + out.length === 0 ? box({ color: C.faint, fontSize: 14 }, "Nobody yet") : null,
+  );
+
+const boardTitle = (title: string) =>
+  label(title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 });
+
 export const standingsScene = (
-  { title, subtitle, boards }: StandingsImage,
+  { title, subtitle, boards, overall }: StandingsImage,
   pictures: SkinPictureUris,
 ): El => {
   const column = (board: StandingsImage["boards"][number]) =>
-    box(
-      { flexDirection: "column", width: STANDINGS_COLUMN, gap: 4 },
-      label(board.title, { fontSize: 13, letterSpacing: 1.4, marginBottom: 6 }),
-      ...board.rows.map((row, i) =>
-        box(
-          {
-            alignItems: "center",
-            gap: STANDINGS_ROW_GAP,
-            fontSize: 15,
-            padding: "3px 8px",
-            borderRadius: 6,
-            backgroundColor: i === 0 ? C.upTint : C.surface,
-          },
-          box(
-            {
-              width: 18,
-              color: row.place <= 3 ? C.gold : C.faint,
-              fontFamily: F.hud,
-              fontWeight: 700,
-            },
-            String(row.place),
-          ),
-          box({ width: 30 }, movePill(row.move)),
-          playerMarble(pictures, row.skin, row.steamId, STANDINGS_MARBLE),
-          box({ flexGrow: 1, overflow: "hidden" }, clipName(row.name)),
+    standingsBoard(
+      boardTitle(board.title),
+      board.rows.map((row, i) =>
+        standingsRow(
+          pictures,
+          i === 0,
+          row,
           row.gain === 0
             ? null
             : pill(row.gain > 0, `${row.gain > 0 ? "+" : "−"}${Math.abs(row.gain)}`),
           box({ fontFamily: F.hud, fontWeight: 700, color: C.text }, String(row.n)),
         ),
       ),
-      ...board.out.map((name) =>
+      board.out,
+      { width: STANDINGS_COLUMN },
+    );
+  // Overall runs the full width above the four (spec #373: variant A of the prototype).
+  const overallBoard = standingsBoard(
+    box(
+      { justifyContent: "space-between", alignItems: "flex-end" },
+      boardTitle("Overall"),
+      box({ color: C.faint, fontSize: 11, marginBottom: 6 }, OVERALL_RULE),
+    ),
+    overall.rows.map((row, i) =>
+      standingsRow(
+        pictures,
+        i === 0,
+        row,
+        box({ gap: 4 }, ...row.places.map(placeChip)),
         box(
-          {
-            alignItems: "center",
-            gap: 8,
-            fontSize: 15,
-            padding: "2px 7px",
-            borderRadius: 6,
-            border: `1px dashed ${C.line}`,
-            color: C.dim,
-            opacity: 0.75,
-          },
-          box({ width: 18, color: C.faint, fontFamily: F.hud, fontWeight: 700 }, "–"),
-          box({ width: 46 }, pill(false, triangle(false), "OUT")),
-          box({ flexGrow: 1, overflow: "hidden" }, clipName(name)),
+          { width: 58, justifyContent: "flex-end", fontFamily: F.hud, fontWeight: 700 },
+          String(row.points),
+          box(
+            { color: C.faint, fontSize: 11, marginLeft: 3, marginTop: 3 },
+            row.points === 1 ? "pt" : "pts",
+          ),
         ),
       ),
-      board.rows.length + board.out.length === 0
-        ? box({ color: C.faint, fontSize: 14 }, "Nobody yet")
-        : null,
-    );
+    ),
+    overall.out,
+  );
   const pairs = [boards.slice(0, 2), boards.slice(2, 4)].filter((p) => p.length > 0);
   return backdrop(
     { padding: STANDINGS_PADDING, gap: 20 },
@@ -1234,6 +1331,7 @@ export const standingsScene = (
       box({ fontFamily: F.marquee, fontSize: 28 }, title),
       box({ color: C.dim, fontSize: 14 }, subtitle),
     ),
+    overallBoard,
     ...pairs.map((pair) => box({ gap: STANDINGS_GAP }, ...pair.map(column))),
   );
 };

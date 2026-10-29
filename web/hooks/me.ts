@@ -1,5 +1,5 @@
 "use client";
-// Who is signed in (ADR 0008). The player it names is You (CONTEXT.md): the header's card
+// Who is signed in (ADR 0008). The player it names is You (GLOSSARY.md): the header's card
 // links to their page, a player's page shows the score card against them, and the Players
 // table pins their row. Pages are cached for everyone, so the browser asks /api/me once per
 // page load, and only when the readable hint cookie says a session exists. The hint is read

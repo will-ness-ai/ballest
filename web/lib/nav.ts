@@ -1,4 +1,4 @@
-// The site's navigation, from a path alone: the Section it is in (CONTEXT.md), that
+// The site's navigation, from a path alone: the Section it is in (GLOSSARY.md), that
 // Section's sub-tabs with the lit one, what kind of page it is, and the breadcrumb trail
 // above its title. The header (components/Shell.tsx) draws it.
 import { eventOf } from "./campaigns";
@@ -159,7 +159,7 @@ function subsOf(
   }
 }
 
-/* what kind of page it is, the line above its title, in CONTEXT.md's words */
+/* what kind of page it is, the line above its title, in GLOSSARY.md's words */
 function kindOf(section: SectionKey | null, path: string): string | null {
   switch (section) {
     case "maps":

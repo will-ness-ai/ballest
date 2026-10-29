@@ -1,4 +1,4 @@
-// A Prefab file (CONTEXT.md) read into the shapes
+// A Prefab file (GLOSSARY.md) read into the shapes
 // the viewer draws. A BallestPrefab file names each piece's mesh, material and transform
 // but carries no geometry, so each mesh the editor's pieces use is a stand-in shape here,
 // sized from the mesh's bounds (cm, pivot at the bottom centre). An unknown mesh is a grey box.
