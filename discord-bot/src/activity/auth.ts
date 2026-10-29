@@ -53,7 +53,7 @@ export const DiscordAuthLive = Layer.effect(
     const failed = (what: string, e: { readonly message: string }) =>
       new AuthFailed({ reason: `${what}: ${e.message}` });
     return DiscordAuth.of({
-      exchange: Effect.fn("exchange")(function* (code: string) {
+      exchange: Effect.fn("DiscordAuth.exchange")(function* (code: string) {
         const request = HttpClientRequest.post(`${API}/oauth2/token`).pipe(
           HttpClientRequest.bodyUrlParams({
             client_id: clientId,
@@ -69,7 +69,7 @@ export const DiscordAuthLive = Layer.effect(
         );
         return reply.access_token;
       }),
-      userOf: Effect.fn("userOf")(function* (accessToken: string) {
+      userOf: Effect.fn("DiscordAuth.userOf")(function* (accessToken: string) {
         const request = HttpClientRequest.get(`${API}/users/@me`).pipe(
           HttpClientRequest.bearerToken(accessToken),
         );

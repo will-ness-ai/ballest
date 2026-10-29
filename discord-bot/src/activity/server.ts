@@ -188,7 +188,7 @@ export type ActivityConfig = Omit<PageConfig, "guildIds"> & {
 };
 
 /** The whole app: page, script, fonts, previews, Skin pictures, config, API. */
-export const makeActivityApp = Effect.fn("makeActivityApp")(function* (config: ActivityConfig) {
+export const makeActivityApp = Effect.fn("ActivityApp.make")(function* (config: ActivityConfig) {
   const { venues, ...rest } = config;
   const api = yield* makeActivityApi(venues);
   const store = yield* Store;

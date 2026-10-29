@@ -38,7 +38,7 @@ import { type CupWeek, weekAt, weekOf } from "./week.js";
  * act on the week they were pressed for. One lock keeps a press and the schedule from acting on
  * the same week at once.
  */
-export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: string) {
+export const makeWeeklyCup = Effect.fn("WeeklyCup.make")(function* (guildId: string) {
   const kit = yield* makeKit(guildId);
   const { log } = kit;
   const race = makeRace(kit);
@@ -49,7 +49,7 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
    * Act on this week as it stands at `now`, and say when to look again: post a week with no post
    * yet, and move a posted one on past each boundary it has reached.
    */
-  const stepWeek = Effect.fn("cup.stepWeek")(function* (now: number, week: CupWeek) {
+  const stepWeek = Effect.fn("WeeklyCup.stepWeek")(function* (now: number, week: CupWeek) {
     const found = yield* log.get(guildId, week.week);
     if (Option.isNone(found)) {
       if (now >= week.shortlistAt) return week.nextOpensAt;
@@ -84,7 +84,7 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
    * Act at `now`, and say when to look again: act on this week, and finish any earlier week still
    * racing (the bot was down over its close, so its results never went up).
    */
-  const step = Effect.fn("cup.step")(function* (now: number) {
+  const step = Effect.fn("WeeklyCup.step")(function* (now: number) {
     let wake = yield* stepWeek(now, weekAt(now));
     for (const earlier of yield* log.unfinished(guildId, weekAt(now).week)) {
       const was = weekOf(earlier);
@@ -97,7 +97,7 @@ export const makeWeeklyCup = Effect.fn("makeWeeklyCup")(function* (guildId: stri
   });
 
   /** A step where even a bug is only that step's: ops hears, and it is tried again shortly. */
-  const safeStep = Effect.fn("cup.safeStep")(function* (now: number) {
+  const safeStep = Effect.fn("WeeklyCup.safeStep")(function* (now: number) {
     return yield* kit
       .locked(step(now))
       .pipe(

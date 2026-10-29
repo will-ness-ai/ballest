@@ -45,18 +45,18 @@ const sinkOn = (client: Client<true>, channelId: string): MessageSink => {
     ),
   );
   return {
-    send: Effect.fn("cupSink.send")(function* (payload: SentPayload) {
+    send: Effect.fn("CupSink.send")(function* (payload: SentPayload) {
       const c = yield* channel;
       return (yield* tryDiscord("post in #weekly-cup", () => c.send(payload))).id;
     }),
-    edit: Effect.fn("cupSink.edit")(function* (messageId: string, payload: Payload) {
+    edit: Effect.fn("CupSink.edit")(function* (messageId: string, payload: Payload) {
       const c = yield* channel;
       yield* tryDiscord("update a message in #weekly-cup", async () => {
         const m = await c.messages.fetch(messageId);
         await m.edit(payload);
       });
     }),
-    drop: Effect.fn("cupSink.drop")(function* (messageId: string) {
+    drop: Effect.fn("CupSink.drop")(function* (messageId: string) {
       const c = yield* channel;
       yield* tryDiscord("drop a message in #weekly-cup", async () => {
         const m = await c.messages.fetch(messageId);
@@ -69,7 +69,9 @@ const sinkOn = (client: Client<true>, channelId: string): MessageSink => {
 const make = Effect.gen(function* () {
   const running = yield* Ref.make(new Map<string, CupPresses>());
   const registry = WeeklyCups.of({
-    in: (guildId) => Effect.map(Ref.get(running), (m) => Option.fromNullable(m.get(guildId))),
+    in: Effect.fn("WeeklyCups.in")(function* (guildId) {
+      return Option.fromNullable((yield* Ref.get(running)).get(guildId));
+    }),
   });
   const sandbox =
     (yield* Config.boolean("MULTIBALLS_SANDBOX").pipe(Config.withDefault(false))) &&
@@ -95,14 +97,12 @@ const make = Effect.gen(function* () {
   const store = yield* Store;
   const renderer = yield* Renderer;
   const links = CupLinks.of({
-    steamIdOf: (discordId) =>
-      Effect.map(
-        store.getLink(discordId),
-        Option.map((link) => link.steamId),
-      ),
+    steamIdOf: Effect.fn("CupLinks.steamIdOf")(function* (discordId) {
+      return Option.map(yield* store.getLink(discordId), (link) => link.steamId);
+    }),
   });
 
-  const start = Effect.fn("weeklyCup.start")(function* (guildId: string) {
+  const start = Effect.fn("WeeklyCups.start")(function* (guildId: string) {
     const guild = yield* tryDiscord("fetch the server", () => client.guilds.fetch(guildId));
     const stored = yield* log.channelOf(guildId);
     const channelId = yield* keepCupChannel(setupGuildOn(client, guild), stored);
@@ -113,11 +113,12 @@ const make = Effect.gen(function* () {
     yield* discord.answerIn(channelId);
     const pictures: CupPictures = {
       // A member who left, or a Discord that doesn't answer, is drawn as "Someone".
-      nameOf: (discordId) =>
-        tryDiscord("fetch member", () => guild.members.fetch(discordId)).pipe(
+      nameOf: Effect.fn("CupPictures.nameOf")(function* (discordId) {
+        return yield* tryDiscord("fetch member", () => guild.members.fetch(discordId)).pipe(
           Effect.map((member) => plainName(member.displayName)),
           Effect.orElseSucceed(() => "Someone"),
-        ),
+        );
+      }),
       standings: renderer.cupStandings,
     };
     const cup = yield* makeWeeklyCup(guildId).pipe(
@@ -138,7 +139,7 @@ const make = Effect.gen(function* () {
 
   for (const guildId of ids)
     yield* start(guildId).pipe(
-      Effect.catchAll((e) =>
+      Effect.catchTag("DiscordError", "VenueSetupFailed", (e) =>
         alerts.post(
           `Multiballs couldn't set up the Weekly Cup in ${guildId}: ${e._tag === "DiscordError" ? describeDiscordError(e) : e.reason}`,
         ),

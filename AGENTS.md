@@ -35,13 +35,15 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
 - `docs/data.md` — the database the collector writes and the site reads, table by table,
   and how a Refresh gets there. Read it before changing a table or the write path.
 - `tools/campaign_common.py` — the board table and every shared collector helper.
-- `tools/steampy_collect.py` — the collector, run every three hours on Fly. **This is the live path.** It reads
+- `tools/steampy_collect.py` — the collector's Refresh (`refresh`), run every three hours on Fly. **This is the live path.** It reads
   the Circuit boards and keeps the Workshop boards current (`collect_workshop`).
+- `tools/steam_session.py` — the collector's one Steam login (ADR 0015): every job on Fly shares
+  it, it logs in afresh after any drop, and it sends leaderboard requests one at a time with a timeout.
 - `tools/steampy_common.py` — the steam.py leaderboard requests the collector and the
-  Discord script share: read a board by ID, find a board by name.
+  Discord script share, sent through the session: read a board by ID, find a board by name.
 - `tools/db_writer.py` — the collector's database write (ADR 0005): `write_refresh` puts
   one Refresh into Postgres in one transaction as change-only Score history, and
-  `record_refresh` is the step `on_ready` calls; `load_memory` reads back what the collector
+  `record_refresh` is the step `refresh` ends with; `load_memory` reads back what the collector
   remembers between runs (names, each Map's board ID and counters, the last full sweep).
   `tools/db_backfill.py` replays the git history of `data/` through the same writer. Their
   tests are `tools/tests/`. The tables: `docs/data.md`.
@@ -56,11 +58,11 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   (`docs/data.md`, "New Maps").
 - `tools/workshop_maps.py` — finds a Campaign's Maps (a maker's, a collection's, or a list of
   Workshop links) and prints the `maps:` line; `docs/site.md`, "Campaigns".
-- `tools/runner.py` — the collector's service on Fly.io (app `ballest-collector`, ADR 0012):
-  runs the Refresh every three hours on the hour (UTC), writing the database and revalidating
-  the site's cached reads, and every other job that logs into Steam, one at a time, since two
-  logins on one account drop each other. Between them the Daily watcher (`tools/daily_watch.py`)
-  stays logged in and reads the open Dailies every minute (`docs/data.md`, "Dailies"). Its private HTTP door takes a Refresh, a Map add or a
+- `tools/runner.py` — the collector's service on Fly.io (app `ballest-collector`, ADR 0012, ADR 0015):
+  one process holding one Steam login that every job runs inside, since two logins on one account
+  drop each other. It runs the Refresh every three hours on the hour (UTC), writing the database and
+  revalidating the site's cached reads, and the Daily read (`tools/daily_watch.py`) every minute,
+  through file downloads and all (`docs/data.md`, "Dailies"). Its private HTTP door takes a Refresh, a Map add or a
   file backlog on request (`fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"`),
   and a failure posts to the ops channel. The backlog stops starting downloads `BACKLOG_MARGIN` before a slot. `tools/fly.toml` and `tools/Dockerfile` build it, and
   `collector.yml` deploys it on every push to `main` that touches `tools/*.py`. Logs: `fly logs -a ballest-collector`.

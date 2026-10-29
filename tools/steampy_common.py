@@ -3,10 +3,10 @@ The steam.py leaderboard requests the headless tools share: reading a board by I
 finding a board's ID from its name.
 
 Used by steampy_collect.py and daily_watch.py on Fly, and the Daily step both run
-(collect_dailies). It goes through
-the logged-in client's websocket directly: steam.py's own leaderboard calls fail for this
-app (see find_board_id). Send these one at a time. With several in flight, the CM
-silently drops replies.
+(collect_dailies). Each takes the service's Steam session (steam_session.SteamSession) and
+sends its raw request through it: steam.py's own leaderboard calls fail for this app (see
+find_board_id), and the session sends them one at a time, since with several in flight the
+CM silently drops replies.
 """
 
 import asyncio
@@ -18,7 +18,7 @@ import steam
 from steam.protobufs import leaderboards
 
 
-async def fetch_board(client, lid):
+async def fetch_board(session, lid):
     """Read a leaderboard's ENTIRE entry list directly by ID (LBSGetLBEntries).
     Returns (entry_count, entries). Pages defensively in case a board ever
     exceeds a server-side per-request cap (none observed at ~3000)."""
@@ -26,7 +26,7 @@ async def fetch_board(client, lid):
     entries = []
     start = 1
     while True:
-        msg = await client._state.ws.send_proto_and_wait(  # noqa: SLF001 (steam.py has no public raw-protobuf call)
+        msg = await session.send(
             leaderboards.CMsgClientLbsGetLbEntries(
                 leaderboard_id=lid,
                 app_id=cc.APP_ID,
@@ -73,7 +73,7 @@ def board_rows(entries):
     ]
 
 
-async def find_board_id(client, name):
+async def find_board_id(session, name):
     """Leaderboard name -> id, or 0 if the board doesn't exist (a map nobody has finished).
 
     steam.py's own fetch_leaderboard() fails with InvalidParameter for this app because
@@ -83,26 +83,26 @@ async def find_board_id(client, name):
         app_id=cc.APP_ID, leaderboard_name=name, create_if_not_found=False
     )
     msg.header.routing_app_id = cc.APP_ID
-    resp = await client._state.ws.send_proto_and_wait(msg)  # noqa: SLF001 (steam.py has no public raw-protobuf call)
+    resp = await session.send(msg)
     if resp.result != steam.Result.OK:
         raise RuntimeError(f"LBSFindOrCreateLB result={resp.result!r}")
     return int(resp.leaderboard_id)
 
 
-async def find_map_board_id(client, board):
+async def find_map_board_id(session, board):
     """A map's board id, or 0 if nobody has finished it.
 
     The Workshop metadata's leaderboard name carries the display name whitespace-trimmed,
     but the game names the board from the untrimmed name in the map file, so a title
     typed with a leading or trailing space (seen once: " dfgzdfgg", pfid 3794947252)
     resolves only with the space put back. Try those before calling a map unbeaten."""
-    lid = await find_board_id(client, board)
+    lid = await find_board_id(session, board)
     if lid:
         return lid
     prefix, sep, name = board.partition("_Climb_")
     if sep:
         for cand in (f"{prefix}{sep} {name}", f"{prefix}{sep}{name} "):
-            lid = await find_board_id(client, cand)
+            lid = await find_board_id(session, cand)
             if lid:
                 return lid
     return 0
@@ -114,8 +114,8 @@ async def find_map_board_id(client, board):
 DAILY_API_PACE = 1.0
 
 
-async def collect_dailies(client, known, all_ids, since=daily.FIRST_DAILY):
-    """Read the Dailies that are due (daily.plan) on the logged-in `client`: a list of
+async def collect_dailies(session, known, all_ids, since=daily.FIRST_DAILY):
+    """Read the Dailies that are due (daily.plan) on the Steam `session`: a list of
     daily.DailyRead for db_writer, each with its rows or None for a read that failed, and
     every player read added to `all_ids`. Returns [] when the step is skipped for want of
     the API secrets. `known` is {date: daily.Daily} for the Dailies the database holds, and
@@ -139,7 +139,7 @@ async def collect_dailies(client, known, all_ids, since=daily.FIRST_DAILY):
     async def read(d):
         total, rows = None, None
         try:
-            total, entries = await fetch_board(client, int(d.leaderboard_id))
+            total, entries = await fetch_board(session, int(d.leaderboard_id))
             rows = board_rows(entries)
         except Exception as e:
             print(f"  [warn] Daily {d.date} {d.title!r}: read failed: {e!r}")

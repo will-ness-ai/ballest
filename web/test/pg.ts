@@ -1,16 +1,45 @@
 // A throwaway database per test file, created on the Postgres at TEST_DATABASE_URL and
-// migrated with the same migrations a deploy applies.
+// migrated the way a deploy migrates (scripts/migrations.mjs).
 import { fileURLToPath } from "node:url";
 
-import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 
 import { connect, type Db } from "../db/client";
+import { migrateDatabase } from "../scripts/migrations.mjs";
+
+const migrationsFolder = fileURLToPath(new URL("../db/migrations", import.meta.url));
 
 const base =
   process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/postgres";
 
+// An empty database, for a test that runs the migrate step itself (test/migrate.test.ts).
+export async function emptyDb(): Promise<{ pool: pg.Pool; drop: () => Promise<void> }> {
+  const { url, drop } = await createDb();
+  const pool = new pg.Pool({ connectionString: url, max: 1 });
+  return {
+    pool,
+    drop: async () => {
+      await pool.end();
+      await drop();
+    },
+  };
+}
+
 export async function freshDb(): Promise<{ db: Db; url: string; drop: () => Promise<void> }> {
+  const { url, drop } = await createDb();
+  const db = connect(url);
+  await migrateDatabase(db.$client, migrationsFolder);
+  return {
+    db,
+    url,
+    drop: async () => {
+      await db.$client.end();
+      await drop();
+    },
+  };
+}
+
+async function createDb(): Promise<{ url: string; drop: () => Promise<void> }> {
   const name = `test_${String(process.pid)}_${Math.random().toString(36).slice(2, 8)}`;
   const admin = new pg.Client({ connectionString: base });
   await admin.connect().catch((e: unknown) => {
@@ -26,15 +55,9 @@ export async function freshDb(): Promise<{ db: Db; url: string; drop: () => Prom
   await admin.end();
   const url = new URL(base);
   url.pathname = `/${name}`;
-  const db = connect(url.toString());
-  await migrate(db, {
-    migrationsFolder: fileURLToPath(new URL("../db/migrations", import.meta.url)),
-  });
   return {
-    db,
     url: url.toString(),
     drop: async () => {
-      await db.$client.end();
       const c = new pg.Client({ connectionString: base });
       await c.connect();
       await c.query(`drop database ${name}`);

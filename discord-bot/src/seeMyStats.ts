@@ -164,7 +164,7 @@ export const makeSeeMyStats = Effect.gen(function* () {
       yield* answer(yield* cardOf(steamId.value));
     },
     (effect, member) =>
-      Effect.catchAll(effect, (e) =>
+      Effect.catchTag(effect, "StatsUnavailable", "DiscordError", (e) =>
         Effect.logWarning(
           `see my stats: couldn't show ${member.id} their card after signing in: ${e._tag === "StatsUnavailable" ? e.reason : e._tag}`,
         ),
@@ -338,27 +338,32 @@ export const statsSiteLive = (url: string) =>
         Effect.scoped,
         Effect.mapError(failed("the latest Refresh")),
       );
-      const card = (steamId: string, v: number) =>
-        http.get(`${url}/og/stats/${steamId}?v=${String(v)}`).pipe(
+      const card = Effect.fn("StatsSite.fetchCard")(function* (steamId: string, v: number) {
+        return yield* http.get(`${url}/og/stats/${steamId}?v=${String(v)}`).pipe(
           Effect.flatMap((res) => res.arrayBuffer),
           Effect.map((bytes) => Buffer.from(bytes)),
           Effect.scoped,
-          Effect.catchAll((e): Effect.Effect<never, CardFailed | NoStats> =>
-            e._tag === "ResponseError" && e.response.status === 404
-              ? Effect.fail(new NoStats())
-              : Effect.fail(failed("the card")(e)),
+          Effect.catchTag(
+            "RequestError",
+            "ResponseError",
+            (e): Effect.Effect<never, CardFailed | NoStats> =>
+              e._tag === "ResponseError" && e.response.status === 404
+                ? Effect.fail(new NoStats())
+                : Effect.fail(failed("the card")(e)),
           ),
         );
+      });
       return StatsSite.of({
         url,
-        card: (steamId) =>
-          refreshed.pipe(
+        card: Effect.fn("StatsSite.card")(function* (steamId) {
+          return yield* refreshed.pipe(
             Effect.flatMap((v) => card(steamId, v)),
             Effect.timeoutFail({
               duration: DRAW_TIMEOUT,
               onTimeout: () => new CardFailed({ reason: "the site didn't answer" }),
             }),
-          ),
+          );
+        }),
       });
     }),
   ).pipe(Layer.provide(FetchHttpClient.layer));

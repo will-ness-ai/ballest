@@ -38,20 +38,22 @@ export const makeRace = (kit: CupKit) => {
   const { guildId, log, steam, links } = kit;
 
   /** The week's Cup Maps in rank order, each with its votes; none before the vote closes. */
-  const cupMapsOf = Effect.fn("cup.cupMapsOf")(function* (week: string) {
+  const cupMapsOf = Effect.fn("WeeklyCup.cupMapsOf")(function* (week: string) {
     return (yield* log.shortlist(guildId, week))
       .flatMap((s) => (s.cupRank === null ? [] : [{ ...s, cupRank: s.cupRank }]))
       .sort((a, b) => a.cupRank - b.cupRank)
       .map((s) => ({ map: s.map, votes: s.votes ?? 0 }));
   });
 
-  const raceOf = Effect.fn("cup.raceOf")(function* (week: string) {
+  const raceOf = Effect.fn("WeeklyCup.raceOf")(function* (week: string) {
     const maps = (yield* cupMapsOf(week)).map((m) => m.map);
     return { maps, bars: yield* log.baselines(guildId, week) } satisfies Race;
   });
 
   /** These members' linked Steam accounts; one without a Link is left out. */
-  const accountsOf = Effect.fn("cup.accountsOf")(function* (discordIds: ReadonlyArray<string>) {
+  const accountsOf = Effect.fn("WeeklyCup.accountsOf")(function* (
+    discordIds: ReadonlyArray<string>,
+  ) {
     const found = yield* Effect.forEach(discordIds, (discordId) =>
       Effect.map(
         links.steamIdOf(discordId),
@@ -62,7 +64,7 @@ export const makeRace = (kit: CupKit) => {
   });
 
   /** One Map's entries for these accounts, by whose they are: one readPlayers call. */
-  const readMap = Effect.fn("cup.readMap")(function* (
+  const readMap = Effect.fn("WeeklyCup.readMap")(function* (
     map: CupMap,
     accounts: ReadonlyArray<Account>,
   ) {
@@ -79,7 +81,7 @@ export const makeRace = (kit: CupKit) => {
   });
 
   /** These members' PBs on these Maps now, as their bars; fails as soon as one read does. */
-  const barsOf = Effect.fn("cup.barsOf")(function* (
+  const barsOf = Effect.fn("WeeklyCup.barsOf")(function* (
     maps: ReadonlyArray<CupMap>,
     discordIds: ReadonlyArray<string>,
   ) {
@@ -92,7 +94,11 @@ export const makeRace = (kit: CupKit) => {
    * keeps that Map's last times. A failed read reaches ops once until the reads land again. The
    * pfids of the Maps whose read landed.
    */
-  const readTimes = Effect.fn("cup.readTimes")(function* (now: number, week: CupWeek, race: Race) {
+  const readTimes = Effect.fn("WeeklyCup.readTimes")(function* (
+    now: number,
+    week: CupWeek,
+    race: Race,
+  ) {
     const accounts = yield* accountsOf(yield* kit.entrantIds(week.week));
     const held = new Map(
       (yield* log.times(guildId, week.week)).map((t) => [`${t.pfid} ${t.discordId}`, t]),
@@ -140,7 +146,7 @@ export const makeRace = (kit: CupKit) => {
   });
 
   /** The standings from the counted times, for the week's Entrants now. */
-  const standingsOf = Effect.fn("cup.standingsOf")(function* (
+  const standingsOf = Effect.fn("WeeklyCup.standingsOf")(function* (
     week: CupWeek,
     race: Race,
     final: boolean,
@@ -168,7 +174,7 @@ export const makeRace = (kit: CupKit) => {
   });
 
   /** Racing: read the Cup Maps, show the standings, and read again in 5 minutes. */
-  const live = Effect.fn("cup.live")(function* (now: number, week: CupWeek, cup: CupRecord) {
+  const live = Effect.fn("WeeklyCup.live")(function* (now: number, week: CupWeek, cup: CupRecord) {
     const race = yield* raceOf(week.week);
     yield* readTimes(now, week, race);
     const view = yield* standingsOf(week, race, false);
@@ -182,7 +188,11 @@ export const makeRace = (kit: CupKit) => {
    * those stand on their last reads; then the results, saying which Maps were read late, posted
    * once (recorded as they go up, so a restart never posts them again), and the week is final.
    */
-  const finish = Effect.fn("cup.finish")(function* (now: number, week: CupWeek, cup: CupRecord) {
+  const finish = Effect.fn("WeeklyCup.finish")(function* (
+    now: number,
+    week: CupWeek,
+    cup: CupRecord,
+  ) {
     let current = cup;
     if (current.shown.results.length === 0) {
       const race = yield* raceOf(week.week);

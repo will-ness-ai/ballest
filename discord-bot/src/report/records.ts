@@ -28,7 +28,7 @@ export interface DatedRecord extends RecordCandidate {
 }
 
 /** A record's date, or None when its ghost's stamp is unset or the fetch failed (logged). */
-const date = Effect.fn("date")(function* (record: RecordCandidate) {
+const date = Effect.fn("Records.date")(function* (record: RecordCandidate) {
   const ghosts = yield* GhostDates;
   const setAt = yield* ghosts
     .setAt(record.ugcId)
@@ -43,7 +43,7 @@ const date = Effect.fn("date")(function* (record: RecordCandidate) {
 });
 
 /** The longest-standing Track records, oldest first. */
-export const oldestTrackRecords = Effect.fn("oldestTrackRecords")(function* (
+export const oldestTrackRecords = Effect.fn("Records.oldestTrackRecords")(function* (
   records: ReadonlyArray<RecordCandidate>,
 ) {
   const dated = yield* Effect.forEach(records, date);
@@ -58,7 +58,7 @@ export const oldestTrackRecords = Effect.fn("oldestTrackRecords")(function* (
  * dating every Map's record the walk goes oldest Map first and stops once every remaining Map was
  * published after the third-oldest record found (a record can't be much older than its Map).
  */
-export const oldestMapRecords = Effect.fn("oldestMapRecords")(function* (
+export const oldestMapRecords = Effect.fn("Records.oldestMapRecords")(function* (
   records: ReadonlyArray<RecordCandidate>,
 ) {
   const dated: Array<DatedRecord> = [];

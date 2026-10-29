@@ -63,7 +63,7 @@ if (
 }
 
 /** A past Daily from a local leaderboard database, posted closed. */
-const postedPast = Effect.fn("postedPast")(
+const postedPast = Effect.fn("DailyPostScript.postedPast")(
   function* (url: string) {
     const found = yield* pastDaily(date);
     if (Option.isNone(found)) return false;

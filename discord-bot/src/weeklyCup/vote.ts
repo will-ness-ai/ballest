@@ -28,7 +28,7 @@ import type { CupWeek } from "./week.js";
  * (the Shortlist shuffled, then sorted by votes, which keeps the shuffle's order among equals).
  * Only the votes of `entrants` count.
  */
-export const rank = Effect.fn("cup.rank")(function* (
+export const rank = Effect.fn("WeeklyCup.rank")(function* (
   shortlist: ReadonlyArray<CupMap>,
   votes: ReadonlyArray<Vote>,
   entrants: ReadonlySet<string>,
@@ -48,7 +48,10 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
   const { guildId, log } = kit;
 
   /** Draw the Shortlist from Maps none of these Entrants has Played, and record it. */
-  const draw = Effect.fn("cup.draw")(function* (week: CupWeek, entrants: ReadonlyArray<Entrant>) {
+  const draw = Effect.fn("WeeklyCup.draw")(function* (
+    week: CupWeek,
+    entrants: ReadonlyArray<Entrant>,
+  ) {
     const steamIds = yield* Effect.forEach(entrants, (e) => kit.links.steamIdOf(e.discordId));
     const { unplayed } = yield* searchEligible({
       authorLimitSeconds: CUP_AUTHOR_LIMIT,
@@ -64,7 +67,7 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
   });
 
   /** The Shortlist's post: each Map with its Workshop picture, its vote open or `closed`. */
-  const shortlistView = Effect.fn("cup.shortlistView")(function* (
+  const shortlistView = Effect.fn("WeeklyCup.shortlistView")(function* (
     week: CupWeek,
     shortlist: ReadonlyArray<CupMap>,
     closed: boolean,
@@ -80,7 +83,7 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
    * finds it recorded) and post it, and the week is voting. A draw Steam fails, or a post Discord
    * refuses, is tried again in a minute. Returns when to look again.
    */
-  const openVote = Effect.fn("cup.openVote")(function* (
+  const openVote = Effect.fn("WeeklyCup.openVote")(function* (
     now: number,
     week: CupWeek,
     cup: CupRecord,
@@ -123,7 +126,7 @@ export const makeVote = (kit: CupKit, race: CupRace) => {
    * ping for the Entrants, the week is racing, and the Shortlist's vote is closed on its post. A
    * Steam failure or refused announcement is tried again in a minute.
    */
-  const closeVote = Effect.fn("cup.closeVote")(function* (
+  const closeVote = Effect.fn("WeeklyCup.closeVote")(function* (
     now: number,
     week: CupWeek,
     cup: CupRecord,

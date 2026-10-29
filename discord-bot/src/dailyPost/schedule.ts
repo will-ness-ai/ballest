@@ -240,13 +240,13 @@ const onceUntilCleared = Effect.gen(function* () {
   const told = yield* Ref.make(new Set<string>());
   const alerts = yield* OpsAlerts;
   return {
-    tell: Effect.fn("ops.tell")(function* (kind: string, content: string) {
+    tell: Effect.fn("OpsAlerts.tell")(function* (kind: string, content: string) {
       const first = yield* Ref.modify(told, (s): [boolean, Set<string>] =>
         s.has(kind) ? [false, s] : [true, new Set(s).add(kind)],
       );
       if (first) yield* alerts.post(content);
     }),
-    clear: Effect.fn("ops.clear")(function* (kind: string) {
+    clear: Effect.fn("OpsAlerts.clear")(function* (kind: string) {
       yield* Ref.update(told, (s) => {
         const next = new Set(s);
         next.delete(kind);
@@ -261,7 +261,7 @@ const shownOf = (view: DailyView, leads: ReadonlyArray<Lead>) =>
   `${shownKey(view)}#${leads.length}`;
 
 /** The lead graph as it stands at `at`: "now" marked while the Daily is live. */
-const drawGraph = Effect.fn("drawGraph")(function* (
+const drawGraph = Effect.fn("DailyPost.drawGraph")(function* (
   daily: Daily,
   leads: ReadonlyArray<Lead>,
   at: number,
@@ -280,7 +280,7 @@ const drawGraph = Effect.fn("drawGraph")(function* (
  * `at` when there is a lead. A graph that can't be drawn leaves the card without one until the
  * next change redraws it.
  */
-const pictures = Effect.fn("pictures")(function* (
+const pictures = Effect.fn("DailyPost.pictures")(function* (
   daily: Daily,
   map: DailyMap,
   leads: ReadonlyArray<Lead>,
@@ -311,7 +311,7 @@ const kept = (has: boolean): Picture => (has ? "kept" : null);
  * card whose thread failed is still that day's post, recorded so it isn't posted again. Returns
  * the record and why the thread or a line failed if one did.
  */
-const postCard = Effect.fn("postCard")(function* (
+const postCard = Effect.fn("DailyPost.postCard")(function* (
   view: DailyView,
   card: DailyCard,
   record: Omit<DailyPostRecord, "messageId" | "threadId">,
@@ -351,7 +351,7 @@ const postCard = Effect.fn("postCard")(function* (
  * card shows, so a restart resumes it. Returns the record, and why the thread or its line failed
  * if it did.
  */
-export const postDaily = Effect.fn("postDaily")(function* (daily: Daily) {
+export const postDaily = Effect.fn("DailyPost.postDaily")(function* (daily: Daily) {
   const steam = yield* DailySteam;
   const map = yield* steam.map(daily.pfid);
   const board = yield* steam.board(daily.boardId).pipe(Effect.option);
@@ -387,7 +387,7 @@ export const postDaily = Effect.fn("postDaily")(function* (daily: Daily) {
  * Returns the record (closed, its GIF still to ask for) and why the thread or a line failed if
  * one did.
  */
-export const postPast = Effect.fn("postPast")(function* (past: PastDaily) {
+export const postPast = Effect.fn("DailyPost.postPast")(function* (past: PastDaily) {
   const steam = yield* DailySteam;
   const { daily, board, leads } = past;
   const map = yield* steam.map(daily.pfid);
@@ -428,7 +428,7 @@ const spinPending = (post: DailyPostRecord) =>
  * once it is drawn from the file asked about or since; ops hears once if it's late. A database
  * that can't be read leaves the GIF as it was, to try again next time.
  */
-const keeperOf = Effect.fn("keeperOf")(function* (start: DailyPostRecord) {
+const keeperOf = Effect.fn("DailyPost.keeperOf")(function* (start: DailyPostRecord) {
   const channel = yield* DailyChannel;
   const log = yield* DailyPostLog;
   const spins = yield* DailySpins;
@@ -436,20 +436,24 @@ const keeperOf = Effect.fn("keeperOf")(function* (start: DailyPostRecord) {
   const current = yield* Ref.make(start);
   const { date, pfid } = start.daily;
 
-  const save = Effect.fn("save")(function* (post: DailyPostRecord) {
+  const save = Effect.fn("DailyPostKeeper.save")(function* (post: DailyPostRecord) {
     yield* Ref.set(current, post);
     yield* log.put(post);
   });
-  const setSpin = Effect.fn("setSpin")(function* (spin: Partial<DailyPostRecord["spin"]>) {
+  const setSpin = Effect.fn("DailyPostKeeper.setSpin")(function* (
+    spin: Partial<DailyPostRecord["spin"]>,
+  ) {
     const post = yield* Ref.get(current);
     yield* save({ ...post, spin: { ...post.spin, ...spin } });
   });
-  const unread = Effect.fn("unread")(function* (e: SpinUnavailable) {
+  const unread = Effect.fn("DailyPostKeeper.unread")(function* (e: SpinUnavailable) {
     yield* Effect.logWarning(`daily post: can't read the spinning GIF for ${date}: ${e.reason}`);
   });
 
   /** Edit the card; a refused edit reaches ops once until one lands. Whether it landed. */
-  const edit = Effect.fn("edit")(function* <R>(attempt: Effect.Effect<void, DailyPostFailed, R>) {
+  const edit = Effect.fn("DailyPostKeeper.edit")(function* <R>(
+    attempt: Effect.Effect<void, DailyPostFailed, R>,
+  ) {
     const edited = yield* Effect.either(attempt);
     if (Either.isLeft(edited)) {
       yield* ops.tell(
@@ -514,7 +518,7 @@ type Keeper = Effect.Effect.Success<ReturnType<typeof keeperOf>>;
  * Run `step` at `firstAt`, then again at the moment `nextAfter` gives from each run's start, until
  * a step says it is done.
  */
-const onSchedule = Effect.fn("onSchedule")(function* <E, R>(
+const onSchedule = Effect.fn("DailyPost.onSchedule")(function* <E, R>(
   firstAt: number,
   nextAfter: (at: number) => number,
   step: (at: number) => Effect.Effect<boolean, E, R>,
@@ -535,7 +539,7 @@ const onSchedule = Effect.fn("onSchedule")(function* <E, R>(
  * the next. Its spinning GIF is asked for at once (spin.ts), and edited in at the first read
  * after it is drawn; one still to come at the close is waited for as a closed card's.
  */
-export const keepCurrent = Effect.fn("keepCurrent")(function* (start: DailyPostRecord) {
+export const keepCurrent = Effect.fn("DailyPost.keepCurrent")(function* (start: DailyPostRecord) {
   const steam = yield* DailySteam;
   const k = yield* keeperOf(start);
   const { daily, map } = start;
@@ -628,7 +632,7 @@ export const keepCurrent = Effect.fn("keepCurrent")(function* (start: DailyPostR
  * once, looked for every READ_EVERY, and edited into the card when it comes. It gives up once
  * ops has heard it is late, or when it still couldn't be asked for SPIN_WAIT after the close.
  */
-const untilSpinShown = Effect.fn("untilSpinShown")(function* (k: Keeper) {
+const untilSpinShown = Effect.fn("DailyPost.untilSpinShown")(function* (k: Keeper) {
   const closed = yield* Ref.get(k.current);
   if (!spinPending(closed)) return;
   const { daily, map } = closed;
@@ -657,12 +661,15 @@ const untilSpinShown = Effect.fn("untilSpinShown")(function* (k: Keeper) {
   );
 });
 
-const awaitSpin = Effect.fn("awaitSpin")(function* (post: DailyPostRecord) {
+const awaitSpin = Effect.fn("DailyPost.awaitSpin")(function* (post: DailyPostRecord) {
   yield* untilSpinShown(yield* keeperOf(post));
 });
 
 /** A step where even a bug is only that step's: ops hears, and the schedule goes on. */
-const safely = Effect.fn("safely")(function* <A, E, R>(what: string, step: Effect.Effect<A, E, R>) {
+const safely = Effect.fn("DailyPost.safely")(function* <A, E, R>(
+  what: string,
+  step: Effect.Effect<A, E, R>,
+) {
   return yield* step.pipe(
     Effect.catchAllDefect((defect) =>
       Effect.flatMap(OpsAlerts, (alerts) =>
@@ -675,7 +682,7 @@ const safely = Effect.fn("safely")(function* <A, E, R>(what: string, step: Effec
 });
 
 /** Keep a recorded Daily Post going: a live one current, a closed one's GIF still to come. */
-const tend = Effect.fn("tend")(function* (post: DailyPostRecord) {
+const tend = Effect.fn("DailyPost.tend")(function* (post: DailyPostRecord) {
   yield* safely(
     `updating the Daily Post for ${post.daily.date}`,
     post.state === "live" ? keepCurrent(post) : awaitSpin(post),
@@ -687,7 +694,7 @@ const tend = Effect.fn("tend")(function* (post: DailyPostRecord) {
  * Ops hears once if the API fails, once if there is still no Daily an hour after 01:00, and once
  * if the post fails; each is tried again the next minute.
  */
-const postToday = Effect.fn("postToday")(function* (date: string) {
+const postToday = Effect.fn("DailyPost.postToday")(function* (date: string) {
   const api = yield* DailyApi;
   const ops = yield* onceUntilCleared;
   while (true) {

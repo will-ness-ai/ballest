@@ -85,7 +85,7 @@ const ActivityLive = Layer.unwrapEffect(
     const members = Layer.succeed(
       DiscordMembers,
       DiscordMembers.of({
-        nameOf: Effect.fn("nameOf")(function* (venue, discordId) {
+        nameOf: Effect.fn("DiscordMembers.nameOf")(function* (venue, discordId) {
           const running = yield* discord.venueNamed(venue);
           if (Option.isNone(running)) return Option.none<string>();
           return yield* running.value

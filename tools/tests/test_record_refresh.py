@@ -1,7 +1,10 @@
 """record_refresh, the collector's database step: which database it writes, and that a
 database failure is reported rather than raised."""
 
+import asyncio
+import contextlib
 import threading
+import time
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -108,3 +111,27 @@ def test_a_failed_revalidate_is_only_a_warning(db_url, capsys):
     env = {"DATABASE_URL": db_url, "SITE_URL": "http://127.0.0.1:1", "REVALIDATE_SECRET": "x"}
     assert db_writer.record_refresh(refresh(), env=env) == 1
     assert "::warning::" in capsys.readouterr().out
+
+
+def test_a_job_stopped_mid_write_waits_for_the_write_to_end(monkeypatch):
+    # a write in its thread can't be stopped: the job holds its turn until it commits, so the
+    # next job reads the database as the write left it
+    done = threading.Event()
+
+    def slow(_refresh, **_kw):
+        time.sleep(0.2)
+        done.set()
+        return 7
+
+    monkeypatch.setattr(db_writer, "record_refresh", slow)
+
+    async def go():
+        job = asyncio.create_task(db_writer.record(refresh()))
+        await asyncio.sleep(0.05)
+        job.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await job
+        assert done.is_set()
+
+    asyncio.run(go())
+    assert asyncio.run(db_writer.record(refresh())) == 7

@@ -20,14 +20,16 @@ export const nextAt = (hour: number, now: number) => {
 };
 
 /** Catch up on today if it's past `hour`, then run at every `hour` after, forever. */
-export const everyDayAt = <E, R>(hour: number, run: (at: number) => Effect.Effect<void, E, R>) =>
-  Effect.gen(function* () {
-    const now = yield* Clock.currentTimeMillis;
-    // Past today's hour exactly when the next one falls tomorrow.
-    if (dayOf(nextAt(hour, now)) !== dayOf(now)) yield* run(now);
-    while (true) {
-      const t = yield* Clock.currentTimeMillis;
-      yield* Effect.sleep(nextAt(hour, t) - t);
-      yield* run(yield* Clock.currentTimeMillis);
-    }
-  });
+export const everyDayAt = Effect.fn("EveryDay.at")(function* <E, R>(
+  hour: number,
+  run: (at: number) => Effect.Effect<void, E, R>,
+) {
+  const now = yield* Clock.currentTimeMillis;
+  // Past today's hour exactly when the next one falls tomorrow.
+  if (dayOf(nextAt(hour, now)) !== dayOf(now)) yield* run(now);
+  while (true) {
+    const t = yield* Clock.currentTimeMillis;
+    yield* Effect.sleep(nextAt(hour, t) - t);
+    yield* run(yield* Clock.currentTimeMillis);
+  }
+});

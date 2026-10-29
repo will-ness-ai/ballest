@@ -63,6 +63,23 @@ export type Rejection =
   | SteamUnavailable
   | ProfileNotFound;
 
+/** Every Rejection's tag; the Record makes a new Rejection a type error until it is listed. */
+const REJECTIONS: Record<Rejection["_tag"], true> = {
+  NotLinked: true,
+  Busy: true,
+  MatchNotFound: true,
+  NotOpen: true,
+  NotAllowed: true,
+  NoEligibleMap: true,
+  SteamUnavailable: true,
+  ProfileNotFound: true,
+};
+
+/** A failure that turns an action down, for `Effect.catchIf(isRejection, ...)`. */
+export const isRejection = <E extends { readonly _tag: string }>(
+  e: E,
+): e is Extract<E, Rejection> => e._tag in REJECTIONS;
+
 export interface InviteRequest {
   readonly type: MatchType;
   readonly minutes: Minutes;
@@ -125,7 +142,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     const closed = yield* Ref.make(
       new Map<string, { readonly venue: VenueName; readonly reason: RemovalReason }>(),
     );
-    const noteClosed = Effect.fn("noteClosed")(function* (m: Match, reason: RemovalReason) {
+    const noteClosed = Effect.fn("Engine.noteClosed")(function* (m: Match, reason: RemovalReason) {
       yield* Ref.update(closed, (all) => {
         const next = new Map(all).set(m.id, { venue: m.venue, reason });
         for (const key of next.keys()) if (next.size > CLOSED_KEPT) next.delete(key);
@@ -136,22 +153,25 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     // ---------------------------------------------------------------- helpers
 
     /** A Match's Card view, with its Players' Chosen Skins as they stand now. */
-    const viewOf = Effect.fn("viewOf")(function* (m: Match) {
+    const viewOf = Effect.fn("Engine.viewOf")(function* (m: Match) {
       return cardView(m, yield* chosenSkins.all);
     });
     /** A Player's Chosen Skin as it stands now, for a thread post about them. */
-    const skinOf = Effect.fn("skinOf")(function* (player: Player) {
+    const skinOf = Effect.fn("Engine.skinOf")(function* (player: Player) {
       return chosenSkinOf(yield* chosenSkins.all, player.steamId);
     });
 
     /** Persist a Match and redraw its Card. */
-    const save = Effect.fn("save")(function* (m: Match) {
+    const save = Effect.fn("Engine.save")(function* (m: Match) {
       yield* store.putMatch(m);
       yield* surface.showCard(yield* viewOf(m));
     });
 
-    const orFail = <A, E>(found: Effect.Effect<Option.Option<A>>, missing: () => E) =>
-      found.pipe(
+    const orFail = Effect.fn("Engine.orFail")(function* <A, E>(
+      found: Effect.Effect<Option.Option<A>>,
+      missing: () => E,
+    ) {
+      return yield* found.pipe(
         Effect.flatMap(
           Option.match({
             onNone: () => Effect.fail(missing()),
@@ -159,17 +179,20 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           }),
         ),
       );
+    });
 
-    const playerOf = (discordId: string) =>
-      orFail(store.getLink(discordId), () => new NotLinked({ discordId })).pipe(
+    const playerOf = Effect.fn("Engine.playerOf")(function* (discordId: string) {
+      return yield* orFail(store.getLink(discordId), () => new NotLinked({ discordId })).pipe(
         Effect.map((l): Player => ({ discordId, steamId: l.steamId })),
       );
+    });
 
-    const getMatch = (matchId: string) =>
-      orFail(store.getMatch(matchId), () => new MatchNotFound({ matchId }));
+    const getMatch = Effect.fn("Engine.getMatch")(function* (matchId: string) {
+      return yield* orFail(store.getMatch(matchId), () => new MatchNotFound({ matchId }));
+    });
 
     /** An Invite that is still open and not already starting. */
-    const getInvite = Effect.fn("getInvite")(function* (matchId: string) {
+    const getInvite = Effect.fn("Engine.getInvite")(function* (matchId: string) {
       const m = yield* getMatch(matchId);
       if (m.state !== "invite" || (yield* Ref.get(starting)).has(matchId))
         return yield* new NotOpen({ matchId });
@@ -181,38 +204,41 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * names them and Invites mid-start. A Match in a Venue that isn't running doesn't count: no
      * Player can see or leave it there, though its timers still run it to its Result.
      */
-    const busyIn = Effect.fn("busyIn")(function* () {
+    const busyIn = Effect.fn("Engine.busyIn")(function* () {
       const active = [...(yield* store.activeMatches), ...(yield* Ref.get(starting)).values()];
       return active.filter((m) => surface.runs(m.venue));
     });
-    const assertFree = Effect.fn("assertFree")(function* (discordId: string) {
+    const assertFree = Effect.fn("Engine.assertFree")(function* (discordId: string) {
       if ((yield* busyIn()).some((m) => involves(m, discordId)))
         return yield* new Busy({ discordId });
     });
 
     /** An Invite that never became a Match goes. Its expiry timer is left alone: it may be the caller. */
-    const dropInvite = Effect.fn("dropInvite")(function* (m: Match, reason: RemovalReason) {
+    const dropInvite = Effect.fn("Engine.dropInvite")(function* (m: Match, reason: RemovalReason) {
       yield* noteClosed(m, reason);
       yield* store.deleteMatch(m.id);
       yield* surface.remove(m.id, reason);
     });
 
     /** Drop an Invite from outside its timer, stopping the timer too. */
-    const withdrawInvite = Effect.fn("withdrawInvite")(function* (m: Match, reason: RemovalReason) {
+    const withdrawInvite = Effect.fn("Engine.withdrawInvite")(function* (
+      m: Match,
+      reason: RemovalReason,
+    ) {
       yield* FiberMap.remove(timers, m.id);
       yield* dropInvite(m, reason);
     });
 
     // ---------------------------------------------------------------- Invite expiry
 
-    const expire = Effect.fn("expire")(function* (matchId: string) {
+    const expire = Effect.fn("Engine.expire")(function* (matchId: string) {
       const m = yield* store.getMatch(matchId);
       const isStarting = (yield* Ref.get(starting)).has(matchId);
       if (Option.isSome(m) && m.value.state === "invite" && !isStarting)
         yield* dropInvite(m.value, "expired");
     }, locked);
 
-    const scheduleExpiry = Effect.fn("scheduleExpiry")(function* (m: Match) {
+    const scheduleExpiry = Effect.fn("Engine.scheduleExpiry")(function* (m: Match) {
       const now = yield* Clock.currentTimeMillis;
       yield* FiberMap.run(
         timers,
@@ -227,7 +253,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * A new Invite in `venue`, checked already: its Card, its Opened post (and a Challenge's
      * ping), and its expiry. Called under the lock.
      */
-    const open = Effect.fn("open")(function* (
+    const open = Effect.fn("Engine.open")(function* (
       venue: VenueName,
       creator: Player,
       request: InviteRequest,
@@ -288,7 +314,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * At most MAP_CHECKS are tried, so a Player who has Played nearly everything can't stall
      * the start.
      */
-    const pickMap = Effect.fn("pickMap")(function* (m: Match) {
+    const pickMap = Effect.fn("Engine.pickMap")(function* (m: Match) {
       const { unplayed, fallback } = yield* searchEligible({
         authorLimitSeconds: authorLimitOf(m.minutes),
         steamIds: m.players.map((p) => p.steamId),
@@ -302,7 +328,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     // ---------------------------------------------------------------- the live Match
 
     /** Sends Players off: the start ping with the Map, then the PB each must beat, if any. */
-    const announceStart = Effect.fn("announceStart")(function* (
+    const announceStart = Effect.fn("Engine.announceStart")(function* (
       m: Match,
       map: DrawnMap,
       endsAt: number,
@@ -321,7 +347,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * after the whole read is applied, so two Players improving in the same poll can't
      * both be shown as P1.
      */
-    const applyEntries = Effect.fn("applyEntries")(function* (
+    const applyEntries = Effect.fn("Engine.applyEntries")(function* (
       before: Match,
       entries: ReadonlyArray<Entry>,
     ) {
@@ -380,16 +406,17 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       return after;
     });
 
-    const readMatch = (m: Match) =>
-      m.map === null
+    const readMatch = Effect.fn("Engine.readMatch")(function* (m: Match) {
+      return yield* m.map === null
         ? Effect.succeed<ReadonlyArray<Entry>>([])
         : steam.readPlayers(
             m.map.boardId,
             racing(m).map((p) => p.steamId),
           );
+    });
 
     /** Apply a read to the Match if it is still live. */
-    const applyIfLive = Effect.fn("applyIfLive")(function* (
+    const applyIfLive = Effect.fn("Engine.applyIfLive")(function* (
       matchId: string,
       entries: ReadonlyArray<Entry>,
     ) {
@@ -398,20 +425,24 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     }, locked);
 
     /** One poll. A failed read is logged and the next poll tries again; it never ends the Match. */
-    const poll = Effect.fn("poll")(
+    const poll = Effect.fn("Engine.poll")(
       function* (matchId: string) {
         const entries = yield* readMatch(yield* getMatch(matchId));
         yield* applyIfLive(matchId, entries);
       },
-      (effect, matchId) =>
-        Effect.catchAll(effect, (e) => Effect.logWarning(`poll ${matchId} failed: ${e._tag}`)),
+      // Effect<void>: a failure the handlers don't name is a type error, not a stopped poll
+      (effect, matchId): Effect.Effect<void> =>
+        Effect.catchTags(effect, {
+          MatchNotFound: (e) => Effect.logWarning(`poll ${matchId} failed: ${e._tag}`),
+          SteamUnavailable: (e) => Effect.logWarning(`poll ${matchId} failed: ${e._tag}`),
+        }),
     );
 
     /**
      * Finished: the Result, then the graph if anyone set a time. `steamDown` when the end read
      * never came back, so the times are the last ones polled. Called under the lock.
      */
-    const conclude = Effect.fn("conclude")(function* (
+    const conclude = Effect.fn("Engine.conclude")(function* (
       m: Match,
       { steamDown }: { readonly steamDown: boolean },
     ) {
@@ -429,7 +460,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     });
 
     /** Cancelled: everyone left before anyone set a time. Its Card and thread stay, saying so. Called under the lock. */
-    const abandon = Effect.fn("abandon")(function* (m: Match) {
+    const abandon = Effect.fn("Engine.abandon")(function* (m: Match) {
       yield* surface.post(m.id, ThreadPost.Abandoned());
       yield* noteClosed(m, "abandoned");
       yield* store.deleteMatch(m.id);
@@ -437,7 +468,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     });
 
     /** Time is up and Steam isn't answering: the thread and the Card say so, once. */
-    const startWaiting = Effect.fn("startWaiting")(function* (matchId: string) {
+    const startWaiting = Effect.fn("Engine.startWaiting")(function* (matchId: string) {
       const current = yield* getMatch(matchId);
       if (current.state !== "live" || current.waitingForSteam) return;
       yield* Effect.logWarning(`finish ${matchId}: Steam didn't answer; waiting for it`);
@@ -450,7 +481,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * Result waits for it, until STEAM_WAIT_MS after the end; a restart picks the wait up
      * where it was, and one after that only posts the last polled times.
      */
-    const finish = Effect.fn("finish")(
+    const finish = Effect.fn("Engine.finish")(
       function* (matchId: string) {
         const m = yield* getMatch(matchId);
         const giveUpAt = (m.endsAt ?? 0) + STEAM_WAIT_MS;
@@ -474,12 +505,14 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
           }),
         );
       },
-      (effect, matchId) =>
-        Effect.catchAll(effect, (e) => Effect.logError(`finish ${matchId} failed: ${e._tag}`)),
+      (effect, matchId): Effect.Effect<void> =>
+        Effect.catchTag(effect, "MatchNotFound", (e) =>
+          Effect.logError(`finish ${matchId} failed: ${e._tag}`),
+        ),
     );
 
     /** Poll every 10 s until the duration runs out, then finish. Resumable after a restart. */
-    const runLive = Effect.fn("runLive")(function* (matchId: string) {
+    const runLive = Effect.fn("Engine.runLive")(function* (matchId: string) {
       while (true) {
         const m = yield* store.getMatch(matchId);
         if (Option.isNone(m) || m.value.state !== "live" || m.value.endsAt === null) return;
@@ -496,7 +529,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * outside the lock, with the Invite marked as starting so nothing else changes it;
      * `accepted` is the Player whose Accept started a 1v1.
      */
-    const launch = Effect.fn("launch")(
+    const launch = Effect.fn("Engine.launch")(
       function* (full: Match, accepted: Player | null) {
         const map = yield* pickMap(full).pipe(
           Effect.tapErrorTag("NoEligibleMap", () =>
@@ -543,13 +576,14 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         ),
     );
 
-    const markStarting = (full: Match) =>
-      Ref.update(starting, (s) => new Map(s).set(full.id, full));
+    const markStarting = Effect.fn("Engine.markStarting")(function* (full: Match) {
+      return yield* Ref.update(starting, (s) => new Map(s).set(full.id, full));
+    });
 
     // ---------------------------------------------------------------- joining a Lobby
 
     /** Who may join a Lobby: a linked Player who isn't in it yet and isn't busy elsewhere. */
-    const joiner = Effect.fn("joiner")(function* (m: Match, discordId: string) {
+    const joiner = Effect.fn("Engine.joiner")(function* (m: Match, discordId: string) {
       if (m.type !== "lobby")
         return yield* new NotAllowed({ reason: "Only a Lobby can be joined." });
       const already = m.players.find((p) => p.discordId === discordId);
@@ -564,7 +598,10 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       return player;
     });
 
-    const joinInvite = Effect.fn("joinInvite")(function* (discordId: string, matchId: string) {
+    const joinInvite = Effect.fn("Engine.joinInvite")(function* (
+      discordId: string,
+      matchId: string,
+    ) {
       const m = yield* getInvite(matchId);
       const player = yield* joiner(m, discordId);
       yield* save({ ...m, players: [...m.players, player] });
@@ -572,7 +609,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     });
 
     /** A live Match, with the Map and end it always has once live. Closed once its time is up. */
-    const getLive = Effect.fn("getLive")(function* (matchId: string) {
+    const getLive = Effect.fn("Engine.getLive")(function* (matchId: string) {
       const m = yield* getMatch(matchId);
       if (m.state !== "live" || m.map === null || m.endsAt === null)
         return yield* new NotOpen({ matchId });
@@ -586,7 +623,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * PB they must beat, so a time they set before joining can't count as an Improvement. They
      * get their own start ping with the Map. Nobody joins once time is up.
      */
-    const joinLive = Effect.fn("joinLive")(function* (discordId: string, matchId: string) {
+    const joinLive = Effect.fn("Engine.joinLive")(function* (discordId: string, matchId: string) {
       const { player, boardId } = yield* locked(
         Effect.gen(function* () {
           const { m, map } = yield* getLive(matchId);
@@ -614,7 +651,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * A Lobby takes joins while it is an Invite and while it is live. One whose Map is still
      * being drawn is neither, so a join then is turned down as not open.
      */
-    const join = Effect.fn("join")(function* (discordId: string, matchId: string) {
+    const join = Effect.fn("Engine.join")(function* (discordId: string, matchId: string) {
       yield* locked(joinInvite(discordId, matchId)).pipe(
         Effect.catchTag("NotOpen", () => joinLive(discordId, matchId)),
       );
@@ -623,7 +660,10 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     // ---------------------------------------------------------------- leaving
 
     /** A Lobby Invite: the Player is simply out of it. Its creator cancels instead. */
-    const leaveLobby = Effect.fn("leaveLobby")(function* (discordId: string, matchId: string) {
+    const leaveLobby = Effect.fn("Engine.leaveLobby")(function* (
+      discordId: string,
+      matchId: string,
+    ) {
       const m = yield* getInvite(matchId);
       const player = m.players.find((p) => p.discordId === discordId);
       if (m.type !== "lobby" || player === undefined)
@@ -635,7 +675,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
     }, locked);
 
     /** Who may leave: a Player still racing in a live Match. */
-    const liveRacer = Effect.fn("liveRacer")(function* (matchId: string, discordId: string) {
+    const liveRacer = Effect.fn("Engine.liveRacer")(function* (matchId: string, discordId: string) {
       const m = yield* getMatch(matchId);
       // Once time is up only the end read counts, however long Steam takes to give it.
       if (m.state !== "live" || timeIsUp(m, yield* Clock.currentTimeMillis))
@@ -651,7 +691,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
      * still counts; nothing they set after it does. When the last Player leaves, the Match
      * ends there: with its Result if anyone set a time, cancelled if nobody did.
      */
-    const leaveLive = Effect.fn("leaveLive")(function* (discordId: string, matchId: string) {
+    const leaveLive = Effect.fn("Engine.leaveLive")(function* (discordId: string, matchId: string) {
       const { m, player } = yield* liveRacer(matchId, discordId);
       const entries =
         m.map === null
@@ -691,12 +731,15 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
 
     return {
       /** Link Steam, step 1: find the account that was pasted. Nothing is saved yet. */
-      previewLink: Effect.fn("previewLink")(function* (input: string) {
+      previewLink: Effect.fn("Engine.previewLink")(function* (input: string) {
         return yield* steam.resolveProfile(input);
       }),
 
       /** Link Steam, step 2: the preview was confirmed. Not while the Player is in a Match. */
-      confirmLink: Effect.fn("confirmLink")(function* (discordId: string, preview: ProfilePreview) {
+      confirmLink: Effect.fn("Engine.confirmLink")(function* (
+        discordId: string,
+        preview: ProfilePreview,
+      ) {
         yield* assertFree(discordId);
         yield* store.putLink({
           discordId,
@@ -709,7 +752,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
        * An Invite in `venue`, seen and joined only there. The Player must be free in every
        * Venue, as must a Challenge's opponent.
        */
-      openInvite: Effect.fn("openInvite")(function* (
+      openInvite: Effect.fn("Engine.openInvite")(function* (
         venue: VenueName,
         discordId: string,
         request: InviteRequest,
@@ -729,7 +772,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       }, locked),
 
       /** Public 1v1: anyone but the creator. Challenge: only the named Player. Starts the Match. */
-      accept: Effect.fn("accept")(function* (discordId: string, matchId: string) {
+      accept: Effect.fn("Engine.accept")(function* (discordId: string, matchId: string) {
         const { full, player } = yield* locked(
           Effect.gen(function* () {
             const m = yield* getInvite(matchId);
@@ -749,7 +792,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         yield* launch(full, player);
       }),
 
-      decline: Effect.fn("decline")(function* (discordId: string, matchId: string) {
+      decline: Effect.fn("Engine.decline")(function* (discordId: string, matchId: string) {
         const m = yield* getInvite(matchId);
         if (m.type !== "challenge" || m.target?.discordId !== discordId)
           return yield* new NotAllowed({ reason: "Only the challenged Player can decline." });
@@ -759,7 +802,10 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       join,
 
       /** A member's PB on a live Match's Map, the time a late join would have to beat; null if they haven't Played it. */
-      personalBest: Effect.fn("personalBest")(function* (discordId: string, matchId: string) {
+      personalBest: Effect.fn("Engine.personalBest")(function* (
+        discordId: string,
+        matchId: string,
+      ) {
         const player = yield* playerOf(discordId);
         const { map } = yield* getLive(matchId);
         const pb = (yield* steam
@@ -769,13 +815,13 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       }),
 
       /** Whether each Player is Busy (`assertFree`'s rule), so they can't open, join or be challenged; one read for them all. */
-      busyOf: Effect.fn("busyOf")(function* (discordIds: ReadonlyArray<string>) {
+      busyOf: Effect.fn("Engine.busyOf")(function* (discordIds: ReadonlyArray<string>) {
         const active = yield* busyIn();
         return new Set(discordIds.filter((id) => active.some((m) => involves(m, id))));
       }),
 
       /** Whether this Invite's Map is being drawn right now. */
-      isStarting: Effect.fn("isStarting")(function* (matchId: string) {
+      isStarting: Effect.fn("Engine.isStarting")(function* (matchId: string) {
         return (yield* Ref.get(starting)).has(matchId);
       }),
 
@@ -783,18 +829,18 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
        * Why a Match of `venue` that's gone ended without a Result, if it was recent; null
        * otherwise, and for another Venue's Match.
        */
-      whyClosed: Effect.fn("whyClosed")(function* (venue: VenueName, matchId: string) {
+      whyClosed: Effect.fn("Engine.whyClosed")(function* (venue: VenueName, matchId: string) {
         const found = (yield* Ref.get(closed)).get(matchId);
         return found?.venue === venue ? found.reason : null;
       }),
 
       /** Whether the Player may leave this live Match, asked before the confirm is shown. */
-      mayLeave: Effect.fn("mayLeave")(function* (discordId: string, matchId: string) {
+      mayLeave: Effect.fn("Engine.mayLeave")(function* (discordId: string, matchId: string) {
         yield* liveRacer(matchId, discordId);
       }),
 
       /** Out of a Lobby Invite, or out of a live Match with the best time so far standing. */
-      leave: Effect.fn("leave")(function* (discordId: string, matchId: string) {
+      leave: Effect.fn("Engine.leave")(function* (discordId: string, matchId: string) {
         const m = yield* getMatch(matchId);
         return m.state === "live"
           ? yield* leaveLive(discordId, matchId)
@@ -802,7 +848,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
       }),
 
       /** Lobby only: its creator starts it, alone or with whoever has joined. */
-      start: Effect.fn("start")(function* (discordId: string, matchId: string) {
+      start: Effect.fn("Engine.start")(function* (discordId: string, matchId: string) {
         const full = yield* locked(
           Effect.gen(function* () {
             const m = yield* getInvite(matchId);
@@ -815,7 +861,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
         yield* launch(full, null);
       }),
 
-      cancel: Effect.fn("cancel")(function* (discordId: string, matchId: string) {
+      cancel: Effect.fn("Engine.cancel")(function* (discordId: string, matchId: string) {
         const m = yield* getInvite(matchId);
         if (m.creator.discordId !== discordId)
           return yield* new NotAllowed({ reason: "Only the creator can cancel." });
@@ -829,7 +875,7 @@ export class Engine extends Effect.Service<Engine>()("multiballs/Engine", {
        * opens a fresh one. The finished Match's Players are pinged only the first time.
        * `creator`: the Start is the presser's; `joinedNow`: this press put them in it.
        */
-      playAgain: Effect.fn("playAgain")(function* (discordId: string, matchId: string) {
+      playAgain: Effect.fn("Engine.playAgain")(function* (discordId: string, matchId: string) {
         const found = yield* locked(
           Effect.gen(function* () {
             const finished = yield* getMatch(matchId);
