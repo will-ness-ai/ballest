@@ -1,6 +1,6 @@
 ---
 name: pr
-description: "Use when writing a PR body."
+description: "Use when writing or rewriting a PR body."
 metadata:
   credits:
     skill: show-me
@@ -33,7 +33,12 @@ Use this template for writing the PR body:
 
 ## Checked
 
-<one line per step of docs/agents/feature-workflow.md: what ran and what it found, or "skipped" and why>
+- Plan (`/grill-with-docs`), design (`/grill-design`), spec and tickets:
+- Tests written first:
+- `/code-review` (since which commit):
+- `/codebase-design`:
+- `pnpm --silent qa check` (or `discord-sandbox` for the bot):
+- `main` merged, `pnpm smoke`, the preview and a Refresh's revalidate:
 ```
 
 ## Sections
@@ -178,8 +183,8 @@ The blast radius is the potential impact or scope of the changes introduced by t
 `.github/pull_request_template.md` is this template. A body sent through `gh` or the API skips
 the template, so write all four sections yourself.
 
-- Put `Closes #<spec>, closes #<ticket>.` on the line above Summary, below the attribution lines
-  the session asks for.
+- Put `Closes #<spec>, closes #<ticket>.` on the line above Summary. A project thread's two
+  attribution lines come first, above it; a closing footer stays last.
 - **Summary** replaces the old Before / After / How prose: the visual carries the How, and the
   design verdict and prototype branch from `/grill-design` go in one line under it.
 - **Evidence** for a page change: `pnpm --silent qa check` draws each changed view beside
@@ -191,7 +196,8 @@ the template, so write all four sections yourself.
 - **Merge Danger** one-way doors here: a migration applied to production, anything that rewrites
   or deletes `entries` (the database is the only copy of the scores), a message the bot posts in
   a real server, a Steam or Workshop write. Most site, bot and tooling changes are two-way: a
-  revert redeploys. Name the blast radius in this repo's own surfaces: the site's pages, the
+  revert redeploys. Name the blast radius as a word or short phrase in this repo's own surfaces: the site's pages, the
   Refresh, the Daily watcher, Multiballs in one server or both, an agent's workflow.
-- **Checked** stays: the vendored `code-review` reads it so it doesn't re-report what was
+- **Checked** keeps its six lines, one per step of `docs/agents/feature-workflow.md`, each saying
+  what ran and what it found, or "skipped" and why. It stays: the vendored `code-review` reads it so it doesn't re-report what was
   verified, and it lists any gap left unchecked.

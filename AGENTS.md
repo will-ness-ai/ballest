@@ -227,7 +227,7 @@ maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot 
 Generators to Generate your own, with `pnpm --silent gen` (checks every variation, draws a collage) and a script that spawns one in a sandbox game. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
 `writing-for-agents` (also `mattpocock/skills`) is adapted too: its `SKILL-MECHANICS.md` says how to word a call to another skill, and the vendored skills' calls follow it.
-`pr` writes every PR body (Summary, Evidence, Merge Danger), with this repo's Checked section and evidence tools added; `.github/pull_request_template.md` matches it.
+`pr` writes every PR body (Summary, Evidence, Merge Danger, Checked), with this repo's Checked section and evidence tools added; `.github/pull_request_template.md` matches it.
 `agent-tools` (ours) builds commands for agents; `retro` hands it the call chains it finds.
 `add-campaign` (ours) adds a player's Campaign, from the request to the live page.
 `good-css` (MIT, from `vojtaholik/good-css` at `6d16d2f`, also recorded in `skills-lock.json`) loads on its own whenever you write or
