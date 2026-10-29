@@ -1,5 +1,5 @@
 // See my stats (spec #323): the #my-stats panel's button answers a member privately with their
-// Stat Card, drawn by the site. A member with no Stats Link (CONTEXT.md, ADR 0014) is sent to the
+// Stat Card, drawn by the site. A member with no Stats Link (GLOSSARY.md, ADR 0014) is sent to the
 // site's link page first, by a link request the bot writes to the leaderboard database; the bot
 // watches that request, and once the member has signed in with Steam and confirmed, it edits the
 // same private answer into their card, with no second press.

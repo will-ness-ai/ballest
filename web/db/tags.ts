@@ -3,7 +3,7 @@
 /* every read of the boards, expired by each Refresh (POST /api/revalidate) */
 export const DATA_TAG = "data";
 
-/* the Daily reads, expired as well by each Daily read (CONTEXT.md), which changes only the
+/* the Daily reads, expired as well by each Daily read (GLOSSARY.md), which changes only the
    open Dailies */
 export const DAILY_TAG = "dailies";
 

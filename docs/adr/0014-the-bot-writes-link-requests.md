@@ -5,7 +5,7 @@ Status: accepted (2026-10-22). Amends ADR 0006.
 See my stats (spec #323) answers a Discord member privately with their Stat Card, which
 needs their Steam ID. The Match bot's Link holds whatever profile a member pasted, unchecked,
 so a card drawn from it could show anyone's stats under anyone's name. Will chose the site's
-own Sign in with Steam (ADR 0008) as the proof: a Stats Link (CONTEXT.md) is the Steam ID a
+own Sign in with Steam (ADR 0008) as the proof: a Stats Link (GLOSSARY.md) is the Steam ID a
 Discord account signed in as on the site.
 
 The bot and the site have to agree on which Discord account is signing in. They meet in the
