@@ -1,41 +1,43 @@
 """
-The collector's service on Fly.io (app `ballest-collector`, tools/fly.toml; ADR 0012): one
-always-on process that runs the collector's scripts, each as its own child process, exactly
-as a workflow step ran them.
+The collector's service on Fly.io (app `ballest-collector`, tools/fly.toml; ADR 0012, ADR
+0015): one always-on process that holds one Steam login (steam_session.py) and runs every
+collector job inside itself on it, so no job ever logs another off.
 
-- The Refresh (steampy_collect.py) runs at every SLOT_HOURS slot, on the hour in UTC, and at
-  once on start when the last slot passed with no Refresh after it (a deploy or a crash
-  stopped it; the Refresh is one transaction, so a killed one wrote nothing).
+- The Refresh (steampy_collect.refresh) runs at every SLOT_HOURS slot, on the hour in UTC,
+  and at once on start when the last slot passed with no Refresh after it (a deploy or a
+  crash stopped it; the Refresh is one transaction, so a stopped one wrote nothing).
+- The Daily read (daily_watch.Watcher) reads the open Dailies every DAILY_EVERY seconds,
+  through file downloads and all (Service.watch_dailies). It skips its turn only while a
+  Refresh runs, since the Refresh reads and writes the Dailies itself.
 - `POST /add-maps`, from Multiballs when the game Discord's #new-tracks gets a post, adds the
-  Workshop's newest Maps (add_maps.py, no Steam login), then downloads their files
-  (map_files.py --maps).
+  Workshop's newest Maps (add_maps.add_new), then downloads their files
+  (map_files.download_due).
 - `POST /refresh` runs a Refresh now, in place of the Actions tab's "Run workflow" button:
   `fly ssh console -a ballest-collector -C "python /app/runner.py ask refresh"`.
 - `POST /map-files?budget=SECONDS` downloads every due Map file within the budget, the
-  backlog a Refresh's few minutes don't reach (map_files.py --budget), from
+  backlog a Refresh's few minutes don't reach, from
   `fly ssh console -a ballest-collector -C "python /app/runner.py ask map-files?budget=3600"`.
   It stops starting downloads BACKLOG_MARGIN before the next slot, so a Refresh never waits
   on it for long.
-- The Daily watcher (daily_watch.py) stays logged into Steam whenever no other job needs it,
-  reading the open Dailies every minute (Service.watch_dailies): a job that wants Steam logs
-  it off first (Service.steam_turn), and it logs in again once the job is done.
 - `GET /` says what each job last did and whether one is running or waiting
   (`python /app/runner.py status` prints it a line a job).
 
 Every job is a Job: at most one running and one waiting, and a request while one waits
-folds into it, as an Actions concurrency group did. The jobs that log into Steam (the
-Refresh and both kinds of file download) also take turns on one lock, since a second login on the
-same account drops the first: that is the reason the service exists (ADR 0012).
+folds into it, as an Actions concurrency group did. The Refresh and both kinds of file
+download also take turns (Service.map_file_writers), so two never download one Map's file at
+once. Each job's output goes to the log under its name (JobLog), and a job still running after
+its time is stopped and counts as failed.
 
-A failed Refresh or Map add (or one whose script can't start) posts its last lines to the
-private ops channel (OPS_WEBHOOK_URL), in place of Actions' failure emails; a failed download
-only logs, since the next Refresh's Map file step downloads any file still due. The HTTP door
-listens on Fly's private network only (no public address), so it takes no secret.
+A failed Refresh or Map add posts its last lines to the private ops channel
+(OPS_WEBHOOK_URL), in place of Actions' failure emails. A Steam outage, a dropped connection
+or a refused login alike, reaches it through the Daily read, once reads have failed for
+DAILY_OUTAGE (Steam's short drops pass unremarked); a failed download only logs, since the
+next Refresh's Map file step downloads any file still due. The HTTP door listens on Fly's
+private network only (no public address), so it takes no secret.
 
-REFRESH_SCHEDULE=off leaves the Refresh to `POST /refresh` and starts no Daily watcher: for a
-first deploy while another Refresh could still start elsewhere (the Actions cron did, until
-this service replaced it), or locally, against a local database (the scripts write
-DATABASE_URL, so never with production's in the environment):
+REFRESH_SCHEDULE=off leaves the Refresh to `POST /refresh` and reads no Dailies: for a
+first deploy while another Refresh could still start elsewhere, or locally, against a local
+database (the jobs write DATABASE_URL, so never with production's in the environment):
   REFRESH_SCHEDULE=off DATABASE_URL=postgres://postgres:postgres@localhost:5432/ballest_dev \\
     python tools/runner.py
 """
@@ -43,24 +45,37 @@ DATABASE_URL, so never with production's in the environment):
 import asyncio
 import collections
 import contextlib
+import contextvars
 import json
 import os
 import sys
-import tempfile
 import time
+import traceback
 import urllib.request
-from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import add_maps
+import campaign_common as cc
+import daily_watch
+import map_files
+import steam_session
+import steampy_collect
 from aiohttp import web
 
-TOOLS = os.path.dirname(os.path.abspath(__file__))
 SLOT_HOURS = 3
+# seconds between two Daily reads, counted from each read's start
+DAILY_EVERY = 60
 # a start this close to the next slot leaves the Refresh to that slot
 SLOT_SOON = timedelta(minutes=30)
-# a job still running after this is killed and counts as failed (a Refresh takes 2-6 minutes,
-# a first one on an empty database ~12)
+# seconds a job may run before it is stopped and counts as failed (a Refresh takes 2-6
+# minutes, a first one on an empty database ~12)
 JOB_TIMEOUT = 60 * 60
+# seconds a Daily read may take (one with a lookup at the developers' API takes a few)
+DAILY_TIMEOUT = 5 * 60
+# seconds Daily reads may keep failing before ops hears: Steam drops logins for a few minutes
+# often, and for longer on Tuesdays' maintenance, and the next minute's read rides those out
+DAILY_OUTAGE = 30 * 60
 # the backlog stops starting downloads this long before the next slot
 BACKLOG_MARGIN = timedelta(minutes=15)
 # seconds a backlog's last downloads may run past its budget; inside BACKLOG_MARGIN, so the
@@ -68,13 +83,6 @@ BACKLOG_MARGIN = timedelta(minutes=15)
 DOWNLOAD_GRACE = 10 * 60
 # seconds to keep starting downloads of a new-tracks post's Maps
 NEW_MAP_FILES_BUDGET = 120
-# seconds before a Daily watcher that died is started again
-WATCH_RETRY = 60
-# a watcher that ran this long before dying was working: its outage starts again from that death
-WATCH_HEALTHY = 10 * 60
-# seconds the watcher may stay down before ops hears: Steam drops logins for a few minutes
-# often, and for longer on Tuesdays' maintenance, and a restart rides those out
-WATCH_OUTAGE = 30 * 60
 TAIL_LINES = 15
 PORT = int(os.environ.get("PORT", "8080"))
 
@@ -93,18 +101,54 @@ def due_on_start(last_refresh, now):
     return missed and slot - now > SLOT_SOON
 
 
-@dataclass
-class Result:
-    exit: int
-    tail: list
-    # what the script named in $GITHUB_OUTPUT (add_maps.py's `added`)
-    outputs: dict = field(default_factory=dict)
+class JobLog:
+    """This process's stdout and stderr: each line a job prints goes out under the job's
+    name (`[refresh] ...`), and its last TAIL_LINES are kept for the job's ops alert. The job
+    is the one `job(name)` is open around, in the task or thread that prints (asyncio.to_thread
+    carries it along); anything else passes through as it is."""
 
-    @property
-    def block(self):
-        """The last lines as a code block for the ops channel, within Discord's limit."""
-        lines = "\n".join(self.tail)[-1500:]
-        return f"```\n{lines}\n```"
+    _current = contextvars.ContextVar("job")
+
+    def __init__(self, out):
+        self.out = out
+
+    @classmethod
+    def install(cls):
+        """Puts a JobLog over sys.stdout and sys.stderr, once; returns it."""
+        if not isinstance(sys.stdout, cls):
+            sys.stdout = sys.stderr = cls(sys.stdout)
+        return sys.stdout
+
+    @contextlib.contextmanager
+    def job(self, name):
+        """Tags what is printed inside with `name`; yields the job's last lines."""
+        state = {"name": name, "tail": collections.deque(maxlen=TAIL_LINES), "part": ""}
+        token = self._current.set(state)
+        try:
+            yield state["tail"]
+        finally:
+            if state["part"]:
+                self._line(state, state["part"])
+            self._current.reset(token)
+
+    def _line(self, state, line):
+        state["tail"].append(line)
+        self.out.write(f"[{state['name']}] {line}\n")
+
+    def write(self, text):
+        state = self._current.get(None)
+        if state is None:
+            return self.out.write(text)
+        *lines, state["part"] = (state["part"] + text).split("\n")
+        for line in lines:
+            self._line(state, line.rstrip("\r"))
+        return len(text)
+
+    def flush(self):
+        self.out.flush()
+
+    def __getattr__(self, name):
+        return getattr(self.out, name)
 
 
 class Job:
@@ -146,19 +190,28 @@ class Job:
         return {"running": self.running, "waiting": self.waiting, "last": self.last}
 
 
-class Service:
-    """The jobs and the order they keep. `run(script, args, limit, stop)` runs one script to
-    a Result, ended early when the `stop` event is set; `alert(text)` posts to the ops
-    channel."""
+def _tail(lines):
+    """A job's last lines as a code block for the ops channel, within Discord's limit."""
+    text = "\n".join(lines)[-1500:]
+    return f"```\n{text}\n```"
 
-    def __init__(self, run, alert, now=lambda: datetime.now(UTC)):
-        self.run, self.alert, self.now = run, alert, now
-        self.steam = asyncio.Lock()
-        # the jobs waiting for Steam, and how to ask the Daily watcher to log off for them
-        self.wanted = 0
-        self.watch_stop = None
+
+class Service:
+    """The jobs and the order they keep. `jobs` runs each one (Collector, or a test's fake):
+    `refresh()`, `map_files(maps, budget)` and `read_dailies()` return an exit code, and
+    `add_maps()` the pfids it added; `alert(text)` posts to the ops channel."""
+
+    def __init__(self, jobs, alert, now=lambda: datetime.now(UTC)):
+        self.jobs, self.alert, self.now = jobs, alert, now
+        self.logs = JobLog.install()
+        # held by the Refresh and the file downloads, so two never download one Map's file
+        self.map_file_writers = asyncio.Lock()
+        # held by the Refresh and the Daily read, so one writes the Dailies at a time
+        self.daily_writers = asyncio.Lock()
+        self.daily_running = False
+        self.daily_last = None
         self.new_maps = set()
-        self.jobs = {
+        self.queue = {
             "refresh": Job(self._refresh),
             "add-maps": Job(self._add_maps),
             "new-map-files": Job(self._new_map_files),
@@ -167,154 +220,153 @@ class Service:
         self.backlog_budget = 0
 
     def refresh(self):
-        return self.jobs["refresh"].request()
+        return self.queue["refresh"].request()
 
     def add_maps(self):
-        return self.jobs["add-maps"].request()
+        return self.queue["add-maps"].request()
 
     def map_file_backlog(self, budget):
         """Queue the backlog's downloads; a request while one waits sets its budget."""
         self.backlog_budget = budget
-        return self.jobs["map-files"].request()
+        return self.queue["map-files"].request()
 
-    @contextlib.asynccontextmanager
-    async def steam_turn(self):
-        """Holds Steam for a job: the Daily watcher logs off for it, and starts again after."""
-        self.wanted += 1
-        if self.watch_stop is not None:
-            self.watch_stop.set()
-        try:
-            async with self.steam:
-                yield
-        finally:
-            self.wanted -= 1
+    async def _job(self, what, name, work, *, limit=None):
+        """`_run`'s exit code, alerting the ops channel with the job's last lines when it
+        fails and `what` names it."""
+        code, lines = await self._run(name, work, limit=limit)
+        if code and what:
+            await self.alert(f"Collector: {what} failed (exit {code}).\n{_tail(lines)}")
+        return code
 
-    async def watch_dailies(self, *, sleep=asyncio.sleep, clock=time.monotonic):
-        """Keeps the Daily watcher (daily_watch.py) logged into Steam whenever no other job
-        needs it: stopped when one asks for Steam (steam_turn), started again once Steam is
-        free. One that dies is started again WATCH_RETRY seconds later, and ops hears once it
-        has stayed down WATCH_OUTAGE, until one runs WATCH_HEALTHY."""
-        down_since, told = None, False
-        while True:
-            async with self.steam:
-                if self.wanted:
-                    continue  # a job asked while this waited: it goes first
-                self.watch_stop = asyncio.Event()
-                started = clock()
-                result = await self._script(
-                    None, "daily_watch.py", [], limit=None, stop=self.watch_stop
-                )
-                stopped, self.watch_stop = self.watch_stop.is_set(), None
-            if clock() - started >= WATCH_HEALTHY:
-                down_since, told = None, False
-            if stopped:
-                continue  # a job's turn neither starts an outage nor ends one
-            if down_since is None:
-                down_since = clock()
-            if not told and clock() - down_since >= WATCH_OUTAGE:
-                await self.alert(
-                    f"Collector: the Daily watcher has been down for {WATCH_OUTAGE // 60} minutes"
-                    f" (exit {result.exit}); it starts again every {WATCH_RETRY} s.\n{result.block}"
-                )
-                told = True
-            await sleep(WATCH_RETRY)
-
-    async def _script(self, what, script, args, *, limit=JOB_TIMEOUT, stop=None):
-        """Runs one script and alerts the ops channel when it fails and `what` names it. A
-        script that can't run at all fails with exit -1. A caller whose script logs into Steam
-        holds self.steam around the call."""
-        try:
-            result = await self.run(script, args, limit, stop)
-        except Exception as e:
-            result = Result(-1, [f"couldn't run {script}: {e!r}"])
-        if result.exit and what:
-            await self.alert(f"Collector: {what} failed (exit {result.exit}).\n{result.block}")
-        return result
+    async def _run(self, name, work, *, limit=None):
+        """Runs `work()` under the log name `name`, stopped after `limit` seconds (JOB_TIMEOUT
+        by default): its exit code, -1 when it raises or is stopped, and its last lines."""
+        limit = JOB_TIMEOUT if limit is None else limit
+        with self.logs.job(name) as tail:
+            stop = asyncio.timeout(limit)
+            try:
+                async with stop:
+                    code = await work()
+            except Exception as e:
+                stopped = stop.expired()
+                # a TimeoutError once stopped is taken for the stop's own, which says no more;
+                # anything else does: one before the stop, or what the job raised on its way out
+                if not (stopped and isinstance(e, TimeoutError)):
+                    traceback.print_exc(file=self.logs)
+                if stopped:
+                    print(f"(stopped after {limit / 60:g} minutes)")
+                code = -1
+            return code, list(tail)
 
     async def _refresh(self):
-        async with self.steam_turn():
-            return (await self._script("Refresh", "steampy_collect.py", [])).exit
+        async with self.map_file_writers, self.daily_writers:
+            return await self._job("Refresh", "refresh", self.jobs.refresh)
 
     async def _add_maps(self):
-        result = await self._script("Adding new Maps", "add_maps.py", [])
-        added = [p for p in result.outputs.get("added", "").split(",") if p]
+        added = []
+
+        async def work():
+            added.extend(await self.jobs.add_maps())
+            return 0
+
+        code = await self._job("Adding new Maps", "add-maps", work)
         if added:
             self.new_maps.update(added)
-            self.jobs["new-map-files"].request()
-        return result.exit
+            self.queue["new-map-files"].request()
+        return code
 
     async def _new_map_files(self):
-        # the Maps are taken once the lock is, so Maps added while this waits come along
-        async with self.steam_turn():
+        # the Maps are taken once it is this job's turn, so Maps added while it waits come along
+        async with self.map_file_writers:
             maps, self.new_maps = sorted(self.new_maps), set()
-            args = ["--maps", ",".join(maps), "--budget", str(NEW_MAP_FILES_BUDGET)]
-            return (await self._script(None, "map_files.py", args)).exit
+            return await self._job(
+                None,
+                "new-map-files",
+                lambda: self.jobs.map_files(maps, NEW_MAP_FILES_BUDGET),
+                limit=NEW_MAP_FILES_BUDGET + DOWNLOAD_GRACE,
+            )
 
     async def _map_file_backlog(self):
-        # stops starting downloads BACKLOG_MARGIN before the next slot, counted once it holds
-        # the lock, so the slot's Refresh isn't kept waiting on Steam; the downloads under way
+        # stops starting downloads BACKLOG_MARGIN before the next slot, counted once it is
+        # this job's turn, so the slot's Refresh isn't kept waiting; the downloads under way
         # finish within DOWNLOAD_GRACE
-        async with self.steam_turn():
+        async with self.map_file_writers:
             to_slot = (next_slot(self.now()) - self.now() - BACKLOG_MARGIN).total_seconds()
             budget = min(self.backlog_budget, int(to_slot))
             if budget <= 0:
-                print("Map file backlog: no time left before the slot; not logging in", flush=True)
+                print("Map file backlog: no time left before the slot; downloading nothing")
                 return 0
-            args, limit = ["--budget", str(budget)], budget + DOWNLOAD_GRACE
-            return (await self._script(None, "map_files.py", args, limit=limit)).exit
+            return await self._job(
+                None,
+                "map-files",
+                lambda: self.jobs.map_files(None, budget),
+                limit=budget + DOWNLOAD_GRACE,
+            )
+
+    async def watch_dailies(self, *, sleep=asyncio.sleep, clock=time.monotonic):
+        """Reads the open Dailies every DAILY_EVERY seconds, counted from each read's start,
+        skipping a turn while a Refresh runs. Each read checks the login first
+        (daily_watch.Watcher.read), so this is where a Steam outage of any kind reaches ops:
+        once reads have failed for DAILY_OUTAGE, with the last one's lines, and again only
+        after one has worked. A skipped turn neither starts an outage nor ends one."""
+        failing_since, told = None, False
+        while True:
+            started = clock()
+            if not self.daily_writers.locked():
+                async with self.daily_writers:
+                    self.daily_running = True
+                    try:
+                        code, lines = await self._run(
+                            "daily", self.jobs.read_dailies, limit=DAILY_TIMEOUT
+                        )
+                    finally:
+                        self.daily_running = False
+                self.daily_last = {"started": datetime.now(UTC).isoformat(), "exit": code}
+                if not code:
+                    failing_since, told = None, False
+                elif failing_since is None:
+                    failing_since = started
+                if code and not told and clock() - failing_since >= DAILY_OUTAGE:
+                    told = True
+                    await self.alert(
+                        f"Collector: Daily reads have failed for {DAILY_OUTAGE // 60} minutes"
+                        f" (exit {code}); they go on every {DAILY_EVERY} s, and ops hears"
+                        " nothing more until one works. If Steam itself is up, logins are"
+                        " likely being refused and the token needs re-minting"
+                        f" (tools/steampy_mint.py).\n{_tail(lines)}"
+                    )
+            await sleep(max(0.0, DAILY_EVERY - (clock() - started)))
 
     def status(self):
-        jobs = {name: job.status() for name, job in self.jobs.items()}
-        return jobs | {
-            "daily-watch": {"running": self.watch_stop is not None, "waiting": False, "last": None}
-        }
+        jobs = {name: job.status() for name, job in self.queue.items()}
+        daily = {"running": self.daily_running, "waiting": False, "last": self.daily_last}
+        return jobs | {"daily": daily}
 
 
-async def run_script(script, args, limit=JOB_TIMEOUT, stop=None):
-    """Runs tools/<script> as a child process with this process's environment, its output
-    passed on to the log line by line under the script's name, killed after `limit` seconds
-    (None: never), or as soon as the `stop` event is set."""
-    with tempfile.NamedTemporaryFile("r", suffix=".out") as out:
-        proc = await asyncio.create_subprocess_exec(
-            sys.executable,
-            "-u",
-            os.path.join(TOOLS, script),
-            *args,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-            env={**os.environ, "GITHUB_OUTPUT": out.name},
-            limit=1 << 20,  # the longest line read; a longer one ends the run, killed below
-        )
-        tail = collections.deque(maxlen=TAIL_LINES)
-        name = script.removesuffix(".py")
+class Collector:
+    """The collector's jobs, run in this process on the one Steam `session`."""
 
-        async def relay():
-            async for raw in proc.stdout:
-                line = raw.decode(errors="replace").rstrip()
-                tail.append(line)
-                print(f"[{name}] {line}", flush=True)
+    def __init__(self, session):
+        self.session = session
+        # what the Daily read holds between reads, read again after each Refresh
+        self.watcher = None
 
-        async def until_stopped():
-            await (stop.wait() if stop is not None else asyncio.Event().wait())
-            tail.append("(stopped: another job needs Steam)")
-
-        done = asyncio.ensure_future(asyncio.gather(relay(), proc.wait()))
-        stopped = asyncio.ensure_future(until_stopped())
+    async def refresh(self):
         try:
-            await asyncio.wait_for(
-                asyncio.wait({done, stopped}, return_when=asyncio.FIRST_COMPLETED), limit
-            )
-        except TimeoutError:
-            tail.append(f"(killed after {limit // 60} minutes)")
+            return await steampy_collect.refresh(self.session)
         finally:
-            # never leave a child logged into Steam once its turn on the lock is over
-            stopped.cancel()
-            if proc.returncode is None:
-                proc.kill()
-                await proc.wait()
-            await asyncio.gather(done, return_exceptions=True)
-        outputs = dict(line.split("=", 1) for line in out.read().splitlines() if "=" in line)
-        return Result(proc.returncode, list(tail), outputs)
+            self.watcher = None
+
+    async def map_files(self, maps, budget):
+        return await map_files.download_due(self.session, maps=maps, budget=budget)
+
+    async def add_maps(self):
+        return await asyncio.to_thread(add_maps.add_new)
+
+    async def read_dailies(self):
+        if self.watcher is None:
+            self.watcher = await daily_watch.Watcher.load()
+        return await self.watcher.read(self.session)
 
 
 async def post_ops(text):
@@ -398,7 +450,8 @@ async def schedule(service, *, now=lambda: datetime.now(UTC), sleep=asyncio.slee
 
 
 async def serve():
-    service = Service(run_script, post_ops)
+    session = steam_session.SteamSession(cc.load_refresh_token())
+    service = Service(Collector(session), post_ops)
     site_runner = web.AppRunner(app(service))
     await site_runner.setup()
     # "::" takes Fly's private IPv6 network, where Multiballs reaches it
@@ -407,6 +460,7 @@ async def serve():
     if os.environ.get("REFRESH_SCHEDULE") == "off":
         print("REFRESH_SCHEDULE=off: the Refresh runs only when asked", flush=True)
         await asyncio.Event().wait()
+    # the Daily read logs into Steam at once, and the session stays logged in from then on
     await asyncio.gather(schedule(service), service.watch_dailies())
 
 
