@@ -1,0 +1,57 @@
+name: qa on production
+
+# Once a week, `pnpm qa check` draws every page of production, on its real data, and posts
+# any fault to the private ops channel (OPS_WEBHOOK_URL). CI's qa runs on the stress seed, and
+# a PR's check marks a fault production already has as "also", so a fault only real data
+# shows (Daily standings at 820px, in six PRs from #212 to #289) had no owner. Run it by
+# hand to look now. About 176 page loads, so a week's run is a sliver of the CDN's requests.
+# qa can't sign in on production (it knows only a local build's SESSION_SECRET), so the
+# signed-in views (an owner's Edit, the upload form) are listed as unsigned: CI draws those.
+
+on:
+  schedule:
+    - cron: "0 15 * * 1" # Mondays, 15:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - name: Draw every page of production
+        run: |
+          set +e
+          # stderr too, so a crash's own message is what ops gets
+          pnpm --silent qa check --all --at prod --against none --assert > qa.txt 2>&1
+          echo "status=$?" >> "$GITHUB_ENV"
+          grep -v '^::' qa.txt
+      - name: Post the faults to ops
+        if: env.status != '0'
+        env:
+          OPS_WEBHOOK_URL: ${{ secrets.OPS_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [[ "$OPS_WEBHOOK_URL" == https://* ]] || { echo "::warning::OPS_WEBHOOK_URL is not set"; exit 0; }
+          # the faults' rows (or the error that stopped the run), cut to fit a Discord message
+          report=$(grep -v '^::' qa.txt | awk '/^faults\[/{on=1} on&&!/^(faults\[|  )/{exit} on' | head -c 1500)
+          [[ -n "$report" ]] || report=$(grep -v '^::' qa.txt | head -c 1500)
+          jq -n --arg report "$report" --arg run "$RUN_URL" \
+            '{content: "qa’s weekly check found faults on production, on every page’s real data:\n```\n\($report)\n```\n\($run)", allowed_mentions: {parse: []}}' \
+            | curl -sf --max-time 20 -H "Content-Type: application/json" -d @- "$OPS_WEBHOOK_URL"
+          exit 1

@@ -26,7 +26,7 @@ const UNDRAWN = [
   /^web\/test\//,
   /* but qa's own drawing (what it draws and how it measures) and what sync-site publishes
      show on every page */
-  /^web\/scripts\/(?!qa\/(catalogue|browser|probes|compare|landing|session|targets)\.mjs$|qa\.mjs$|sync-site\.mjs$)/,
+  /^web\/scripts\/(?!qa\/(catalogue|browser|probes|compare|landing|numbers|session|targets)\.mjs$|qa\.mjs$|sync-site\.mjs$)/,
   /^web\/db\/seed\//,
   /^web\/eslint\//,
   /^web\/(vitest|drizzle)\.config\.ts$/,

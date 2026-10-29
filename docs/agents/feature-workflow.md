@@ -110,9 +110,10 @@ landed: Summary (with the design verdicts and the prototype branch), Evidence, M
 Checked, the sections of `.github/pull_request_template.md`. Mark it ready for review once
 CI is green and the final commit itself has been checked: the smoke test, its preview
 deploy, and, for a site change, a Refresh's revalidate end to end and the changed pages
-against production with `pnpm --silent qa check` (`docs/site.md`, "Checking a change"). A
+against production with `pnpm --silent qa check --wait` (`docs/site.md`, "Checking a change"). A
 QA brief for a subagent says the same: run `qa check` first, read only the pictures it
-writes, and add a catalogue row for any page or dialog it does not draw. A gap left unchecked goes in the
+writes, and add a catalogue row for any page or dialog it does not draw. A fault it marks
+`also` is production's own: fix it in the PR if it's small, or list it in Checked. A gap left unchecked goes in the
 PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` left one.
 
 To wait for a PR's CI, run `pnpm --silent pr wait <n>` at the root: it returns when the head's

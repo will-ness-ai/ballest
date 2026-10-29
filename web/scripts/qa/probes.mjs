@@ -205,6 +205,37 @@ export function probe() {
   };
 }
 
+/* each element's own text and its box, rounded, in page order, within the window (the whole
+   page, once qa has grown the window to it): what numbers.mjs reads to tell live data that
+   moved from a page that moved. Coordinates are the screenshot's. */
+export function textLayout() {
+  const lines = [];
+  const seen = new Set();
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+    const el = n.parentElement;
+    if (!el || seen.has(el) || !n.textContent.trim()) continue;
+    seen.add(el);
+    if (el.closest("[hidden], [aria-hidden=true], dialog:not([open]), script, style")) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0 || r.bottom <= 0 || r.top >= innerHeight) continue;
+    const text = [...el.childNodes]
+      .filter((c) => c.nodeType === 3)
+      .map((c) => c.textContent)
+      .join("")
+      .trim()
+      .replace(/\s+/g, " ");
+    lines.push({
+      text,
+      x: Math.round(r.left),
+      y: Math.round(r.top),
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+    });
+  }
+  return lines;
+}
+
 /* each match's box, rounded, with the start of its text */
 export function measure(selector) {
   return [...document.querySelectorAll(selector)].slice(0, 40).map((el) => {
