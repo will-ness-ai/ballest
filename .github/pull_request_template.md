@@ -1,8 +1,17 @@
-Before:
+## Summary
 
-After:
+<!-- The smallest visual that makes the change clear: pseudocode, a call tree, a component or file tree, Mermaid, or a diff sketch. See .claude/skills/pr/SKILL.md. -->
 
-How:
+## Evidence
+
+- **Before:**
+  **After:**
+
+## Merge Danger
+
+**Door:**
+
+**Blast Radius:**
 
 ## Checked
 

@@ -218,7 +218,7 @@ conventions.
 ## Agent skills
 
 Matt Pocock's `grill-with-docs` (with the `grilling` and `domain-modeling` it calls), `to-spec`,
-`to-tickets`, `implement-spec`, `tdd`, `codebase-design`, `code-review`, `wizard`, `retro` (with
+`to-tickets`, `implement-spec`, `tdd`, `codebase-design`, `code-review`, `pr`, `wizard`, `retro` (with
 `writing-for-agents`) and `setup-matt-pocock-skills` are vendored in `.claude/skills/` (MIT, from `mattpocock/skills`
 at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. Their
 `code-review` replaces the built-in `/code-review` here. `grill-design` comes from
@@ -227,6 +227,7 @@ maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot 
 Generators to Generate your own, with `pnpm --silent gen` (checks every variation, draws a collage) and a script that spawns one in a sandbox game. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
 `writing-for-agents` (also `mattpocock/skills`) is adapted too: its `SKILL-MECHANICS.md` says how to word a call to another skill, and the vendored skills' calls follow it.
+`pr` writes every PR body (Summary, Evidence, Merge Danger), with this repo's Checked section and evidence tools added; `.github/pull_request_template.md` matches it.
 `agent-tools` (ours) builds commands for agents; `retro` hands it the call chains it finds.
 `add-campaign` (ours) adds a player's Campaign, from the request to the live page.
 `good-css` (MIT, from `vojtaholik/good-css` at `6d16d2f`, also recorded in `skills-lock.json`) loads on its own whenever you write or
