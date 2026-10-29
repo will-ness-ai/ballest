@@ -325,7 +325,8 @@ async function land(args) {
           closed: ["pnpm --silent pr   # this branch's PR"],
         }[next.on],
       );
-    if (next.do !== "merge" && Date.now() >= deadline)
+    // only waiting runs out of time: a step that can act once CI is green still acts
+    if (next.do === "wait" && Date.now() >= deadline)
       stop(
         sha,
         [`${ciLine(ci)} (still, after ${String(timeout)}s)`, previewLine(pre)],
