@@ -12,8 +12,12 @@ discord-bot/assets/
 # Prefab files exactly as the game saved them
 prefabs/samples/
 
-# Vendored skills (skills-lock.json): kept byte-for-byte so updates diff cleanly
-.claude/skills/
+# Vendored skills (skills-lock.json): kept byte-for-byte so updates diff cleanly; grill-design's
+# scripts are ours
+.claude/skills/*
+!.claude/skills/grill-design/
+.claude/skills/grill-design/*
+!.claude/skills/grill-design/scripts/
 
 # Agent worktrees: each is a full checkout of its own branch
 .claude/worktrees/
