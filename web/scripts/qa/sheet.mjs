@@ -24,11 +24,18 @@ export function variantsOf(published, flag) {
     listed = [];
   }
   const all = Array.isArray(listed)
-    ? listed.map(([key, name = "", note = ""]) => ({ key: String(key), name, note }))
+    ? listed
+        .filter((e) => Array.isArray(e) && e.length > 0)
+        .map(([key, name = "", note = ""]) => ({
+          key: String(key),
+          name: String(name),
+          note: String(note),
+        }))
     : [];
   if (flag) {
     return flag
       .split(",")
+      .map((key) => key.trim())
       .filter(Boolean)
       .map((key) => all.find((v) => v.key === key) ?? { key, name: "", note: "" });
   }
@@ -62,10 +69,12 @@ figcaption{color:#7d85a8;font-size:15px}
 .row.on{background:#17202e}
 `;
 
-/* a shot in a frame `width` wide, cut at `max` px of its own height, the cut said */
-function framed(png, shotWidth, width, max) {
+/* a shot in a frame `width` wide, cut at `max` px of the frame's height (or where the shot's
+   own `upTo` px falls, when that is lower down), the cut said */
+function framed(png, shotWidth, width, max, upTo) {
   const scale = width / shotWidth;
-  return `<div class="frame" style="width:${String(width)}px;max-height:${String(max)}px"><img src="${uri(png)}" data-w="${String(shotWidth)}" data-scale="${String(scale)}"><div class="cut" hidden></div></div>`;
+  const cut = upTo ? Math.max(max, Math.ceil((upTo + 24) * scale)) : max;
+  return `<div class="frame" style="width:${String(width)}px;max-height:${String(cut)}px"><img src="${uri(png)}" data-w="${String(shotWidth)}" data-scale="${String(scale)}"><div class="cut" hidden></div></div>`;
 }
 
 /* marks each frame whose picture runs past it with how much is cut, in the shot's own px */
@@ -83,17 +92,20 @@ function markCuts() {
 /**
  * One variant's card: its name and note, then its desktop and phone shots side by side.
  * @param {{ key: string, name: string, note: string }} v
- * @param {{ desktop: Buffer, phone: Buffer, desktopWidth?: number, phoneWidth?: number }} shots
- * @param {{ pick?: boolean, title?: string }} opts
+ * `badge` replaces the note, for the pick drawn once in the whole page; `upTo` is how far
+ * down each shot must show (the feature's end in that page).
+ * @param {{ desktop: Buffer, phone: Buffer, desktopWidth?: number, phoneWidth?: number,
+ *   desktopUpTo?: number, phoneUpTo?: number }} shots
+ * @param {{ pick?: boolean, title?: string, badge?: string }} opts
  */
-export function cardHtml(v, shots, { pick = false, title = "" } = {}) {
+export function cardHtml(v, shots, { pick = false, title = "", badge = "" } = {}) {
   const dw = shots.desktopWidth ?? 1280;
   const pw = shots.phoneWidth ?? 390;
   return `<!doctype html><style>${STYLE}</style><body>
-<div class="head"><b>${label(v)}</b><span>${esc(v.note || title)}</span>${pick ? '<em class="pick">my pick</em>' : ""}</div>
+<div class="head"><b>${label(v)}</b><span>${esc(badge || v.note || title)}</span>${pick ? '<em class="pick">my pick</em>' : ""}</div>
 <div class="shots">
-<figure><figcaption>Desktop, ${String(dw)} px</figcaption>${framed(shots.desktop, dw, 900, CARD_MAX)}</figure>
-<figure><figcaption>Phone, ${String(pw)} px</figcaption>${framed(shots.phone, pw, 390, CARD_MAX)}</figure>
+<figure><figcaption>Desktop, ${String(dw)} px</figcaption>${framed(shots.desktop, dw, 900, CARD_MAX, shots.desktopUpTo)}</figure>
+<figure><figcaption>Phone, ${String(pw)} px</figcaption>${framed(shots.phone, pw, 390, CARD_MAX, shots.phoneUpTo)}</figure>
 </div>`;
 }
 
@@ -108,7 +120,7 @@ export function overviewHtml(list, { pick, title = "" } = {}) {
     .map(
       (r) => `<div class="row${r.v.key === pick ? " on" : ""}">
 <div><b>${label(r.v)}</b><span>${esc(r.v.note)}</span>${r.v.key === pick ? '<br><em class="pick">my pick</em>' : ""}</div>
-${framed(r.desktop, r.desktopWidth ?? 1280, 884, ROW_MAX)}
+${framed(r.desktop, r.desktopWidth ?? 1280, 860, ROW_MAX)}
 ${framed(r.phone, r.phoneWidth ?? 390, 260, ROW_MAX)}
 </div>`,
     )

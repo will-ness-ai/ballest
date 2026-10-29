@@ -48,6 +48,16 @@ describe("variantsOf", () => {
     ]);
   });
 
+  it("skips entries that aren't [key, name, note] and trims the keys asked for", () => {
+    expect(variantsOf(JSON.stringify([{ key: "A" }, null, ["B", "Banners"]]), undefined)).toEqual([
+      { key: "B", name: "Banners", note: "" },
+    ]);
+    expect(variantsOf(null, "A, B,")).toEqual([
+      { key: "A", name: "", note: "" },
+      { key: "B", name: "", note: "" },
+    ]);
+  });
+
   it("is null with neither, so the command can say how to name them", () => {
     expect(variantsOf(null, undefined)).toBeNull();
     expect(variantsOf("not json", undefined)).toBeNull();
@@ -76,6 +86,22 @@ describe("the pictures", () => {
     expect(size?.w).toBe(1400);
     // a tall phone shot is cut, not drawn at full length
     expect(size?.h).toBeLessThan(1400);
+  });
+
+  it("shows the page down to the feature's end, however far down it sits", async () => {
+    const shots = { desktop: await png(browser, 1280, 3000), phone: await png(browser, 390, 900) };
+    const cut = jpegSize(await compose(browser, cardHtml({ key: "A", name: "", note: "" }, shots)));
+    const down = jpegSize(
+      await compose(
+        browser,
+        cardHtml(
+          { key: "A", name: "", note: "" },
+          { ...shots, desktopUpTo: 2600 },
+          { badge: "in the page" },
+        ),
+      ),
+    );
+    expect(down?.h).toBeGreaterThan((cut?.h ?? Infinity) + 500);
   });
 
   it("draws every variant in one overview, a row each", async () => {

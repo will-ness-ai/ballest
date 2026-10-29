@@ -86,7 +86,7 @@ examples:
   --el        only this element of the page, e.g. the feature's section (default the top of
               the page), plus page.jpg: the pick (or the first) as the whole page, once; a
               tall shot is cut and the cut says by how much
-  --variants  the keys to draw (default every variant the page's picker lists in its
+  --variants  the keys to draw, from those the picker lists (default all of them, from its
               data-variants: [key, name, note] each)
   --pick      the variant to mark as your pick
   --title     the round's question, over the overview
@@ -289,7 +289,7 @@ async function sheet() {
       `this branch's preview is ${t.state}${t.behind ? ", behind HEAD" : ""}`,
       "push and wait for it, or draw a local server: --at local:<port>",
     );
-  if (t.url.includes("localhost") && !(await up(t.url)))
+  if (t.ids === "stress" && !(await up(t.url)))
     fail(`nothing answers on ${t.url}`, `serve the prototype: pnpm dev:up ${new URL(t.url).port}`);
   const now = Date.now();
   const urlOf = (key) => {
@@ -297,47 +297,59 @@ async function sheet() {
     if (key) u.searchParams.set("variant", key);
     return u.href;
   };
-  const LIST = `document.querySelector(".proto-picker")?.dataset.variants ?? null`;
   const browser = await launch();
   try {
-    const draw = async (key, width) => {
+    /* the picker's own list, from one plain load: no settling, no screenshot */
+    const listed = await (async () => {
+      const page = await browser.newPage();
       try {
-        return await render(
-          browser,
-          urlOf(key),
-          { width, text: 16 },
-          {
-            now,
-            element: flags.el,
-            script: LIST,
-          },
+        await page.goto(urlOf(null), { waitUntil: "load", timeout: 45_000 });
+        await page.waitForSelector(".proto-picker", { timeout: 15_000 }).catch(() => null);
+        return await page.evaluate(
+          `document.querySelector(".proto-picker")?.getAttribute("data-variants") ?? null`,
         );
-      } catch (e) {
-        if (/Timeout/.test(String(e)) && flags.el)
-          fail(
-            `no ${flags.el} on ${urlOf(key)} at ${String(width)} px`,
-            "check --el against the page",
-          );
-        throw e;
+      } catch {
+        return fail(`${urlOf(null)} didn't load`, "check the target and the path");
+      } finally {
+        await page.close();
       }
-    };
-    let variants = variantsOf(null, flags.variants);
-    if (!variants) {
-      const first = await draw(null, 1280);
-      variants = variantsOf(first.evaluated ?? null, undefined);
-    }
+    })();
+    const known = variantsOf(listed, undefined);
+    const variants = variantsOf(listed, flags.variants);
     if (!variants)
       fail(
         `${urlOf(null)} has no variant picker listing its variants`,
         "name them: --variants A,B,C, or give ProtoPicker data-variants",
       );
+    const keys = (known ?? variants).map((v) => v.key);
+    const strange = variants.filter((v) => !keys.includes(v.key) || !/^[\w-]+$/.test(v.key));
+    if (strange.length)
+      fail(
+        `no variant ${strange.map((v) => `"${v.key}"`).join(", ")}`,
+        `variants: ${keys.join(", ")}`,
+      );
+    if (flags.pick && !keys.includes(flags.pick))
+      fail(`no variant "${flags.pick}" to pick`, `variants: ${keys.join(", ")}`);
+    const draw = async (key, width, options = {}) => {
+      try {
+        return await render(browser, urlOf(key), { width, text: 16 }, { now, ...options });
+      } catch (e) {
+        if (options.element && /locator/.test(String(e)))
+          fail(
+            `no ${options.element} on ${urlOf(key)} at ${String(width)} px`,
+            "check --el against the page",
+          );
+        fail(`${urlOf(key)} at ${String(width)} px: ${String(e).split("\n")[0]}`);
+      }
+    };
     const drawn = [];
-    /* with --el, the pick (or the first) once as the whole page too, to show where it sits */
-    let inPage = null;
     const found = [];
     const errs = [];
     for (const v of variants) {
-      const [desktop, phone] = [await draw(v.key, 1280), await draw(v.key, 390)];
+      const [desktop, phone] = [
+        await draw(v.key, 1280, { element: flags.el }),
+        await draw(v.key, 390, { element: flags.el }),
+      ];
       for (const [r, width] of [
         [desktop, 1280],
         [phone, 390],
@@ -348,59 +360,61 @@ async function sheet() {
       }
       drawn.push({ v, desktop: desktop.shot, phone: phone.shot });
     }
+    /* with --el, the pick (or the first) once as the whole page too, down to the feature's
+       end, to show where it sits */
+    let inPage = null;
     if (flags.el) {
       const v = variants.find((x) => x.key === flags.pick) ?? variants[0];
-      const whole = async (width) =>
-        (await render(browser, urlOf(v.key), { width, text: 16 }, { now })).shot;
-      inPage = { v, desktop: await whole(1280), phone: await whole(390) };
+      const whole = async (width) => {
+        const r = await draw(v.key, width, { boxes: flags.el });
+        const box = r.measured?.[0];
+        return { shot: r.shot, upTo: box ? box.y + box.h : undefined };
+      };
+      const [d, p] = [await whole(1280), await whole(390)];
+      inPage = { v, desktop: d.shot, phone: p.shot, desktopUpTo: d.upTo, phoneUpTo: p.upTo };
     }
     const dir = OUT + "sheet/";
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
-    const files = [];
-    const write = (name, jpeg) => {
+    const images = [];
+    const write = (variant, name, jpeg) => {
       writeFileSync(dir + name, jpeg);
       if (flags.out) {
         mkdirSync(flags.out, { recursive: true });
         writeFileSync(resolvePath(flags.out, name), jpeg);
       }
-      files.push(flags.out ? resolvePath(flags.out, name) : rel(dir + name));
+      images.push({ variant, file: flags.out ? resolvePath(flags.out, name) : rel(dir + name) });
     };
     const title = flags.title ?? path;
-    write("overview.jpg", await compose(browser, overviewHtml(drawn, { pick: flags.pick, title })));
+    write(
+      "all",
+      "overview.jpg",
+      await compose(browser, overviewHtml(drawn, { pick: flags.pick, title })),
+    );
     if (inPage)
       write(
+        "in page",
         "page.jpg",
         await compose(
           browser,
-          cardHtml(inPage.v, inPage, { pick: inPage.v.key === flags.pick, title: "in the page" }),
+          cardHtml(inPage.v, inPage, { pick: inPage.v.key === flags.pick, badge: "in the page" }),
         ),
       );
     for (const d of drawn)
       write(
-        `${d.v.key}.jpg`,
+        d.v.key,
+        `variant-${d.v.key}.jpg`,
         await compose(browser, cardHtml(d.v, d, { pick: d.v.key === flags.pick, title })),
       );
     say([
       `sheet: ${path} on ${describe(t)}, ${plural(variants.length, "variant")}`,
-      ...rows(
-        "images",
-        ["variant", "file"],
-        files.map((file) => ({
-          variant: /overview/.test(file)
-            ? "all"
-            : /page\.jpg$/.test(file)
-              ? "in page"
-              : basename(file, ".jpg"),
-          file,
-        })),
-      ),
+      ...rows("images", ["variant", "file"], images),
       ...(found.length
         ? rows("faults", ["variant", "width", "kind", "where", "px"], found)
         : [`faults: none in ${plural(variants.length * 2, "view")}`]),
       ...rows("errors", ["variant", "width", "where", "detail"], errs),
       "next:",
-      `  read ${files[0]}   # the overview, to check the shots came out`,
+      `  read ${images[0].file}   # the overview, to check the shots came out`,
       `  attach the overview${inPage ? ", page.jpg" : ""} and the cards to the round's message (6 files a message: the overview first)`,
     ]);
   } finally {
