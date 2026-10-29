@@ -1,7 +1,7 @@
-// What `pnpm axi` shows of a message, from either source: Discord's own message object, and a
+// What `pnpm devserver` shows of a message, from either source: Discord's own message object, and a
 // payload the bot answered privately (read back through fromPayload).
 import { describe, expect, it } from "vitest";
-import { detail, fromPayload, summary, table } from "../scripts/axi/describe.js";
+import { detail, fromPayload, summary, table } from "../scripts/devserver/describe.js";
 import {
   linkForm,
   pickDurationMessage,
@@ -13,7 +13,7 @@ import { ALICE, BOB } from "./harness.js";
 
 const NO_MARBLES = { marbles: { forHue: () => "", forPlayer: () => "" }, png: null };
 
-describe("axi's message reader", () => {
+describe("the devserver tool's message reader", () => {
   it("lists a Card in one line: its clock, its image and its buttons", () => {
     const card = {
       id: "1",
@@ -67,7 +67,7 @@ describe("axi's message reader", () => {
   });
 });
 
-describe("axi's markup reader", () => {
+describe("the devserver tool's markup reader", () => {
   it("shows mentions, emojis and timestamps as a person reads them", () => {
     const m = {
       id: "1",
@@ -85,7 +85,7 @@ describe("axi's markup reader", () => {
   });
 });
 
-describe("axi's private answers", () => {
+describe("the devserver tool's private answers", () => {
   it("reads an acknowledgement with nothing in it as such, not as hidden text", () => {
     expect(summary(fromPayload("deferReply", { flags: 64 }))).toBe(
       "(nothing: an acknowledgement, the answer follows)",
@@ -119,5 +119,26 @@ describe("a Components V2 message's files", () => {
     expect(detail(card)).toContain(`  spin.gif,${url("spin.gif")}`);
     expect(detail(card)).toContain("files[2]{name,path}:");
     expect(summary(card)).toContain("[2 files]");
+  });
+});
+
+describe("an embed", () => {
+  it("shows its link and its image, which a Map's live Card is about", () => {
+    const live = {
+      id: "9",
+      embeds: [
+        {
+          title: "Pebble Ramp",
+          url: "https://ballestrecords.com/maps/3796933002",
+          description: "Live",
+          image: { url: "https://media.discordapp.net/attachments/1/2/card-live.png?ex=1" },
+        },
+      ],
+    };
+    expect(detail(live)).toContain("embed: **Pebble Ramp** Live");
+    expect(detail(live)).toContain("  link: https://ballestrecords.com/maps/3796933002");
+    expect(detail(live)).toContain(
+      "  card-live.png,https://media.discordapp.net/attachments/1/2/card-live.png?ex=1",
+    );
   });
 });
