@@ -2,7 +2,11 @@
 // Each rule here used to live in the old single-file page's script; the reasons stay with
 // them.
 
-export const SITE_TITLE = "Ballest of Them All";
+/* the site's name, one word in two tones wherever it is drawn (BALLEST in the text colour,
+   RECORDS in lime); "Ballest of Them All" is the game's name and stays wherever it means
+   the game */
+export const SITE_WORDMARK = ["BALLEST", "RECORDS"] as const;
+export const SITE_TITLE = SITE_WORDMARK.join("");
 export const SITE_NAME = "ballestrecords.com";
 /* a page's title in the tab: its own name, then the site's (the layout's title template) */
 export const pageTitle = (title: string) => title + " · " + SITE_TITLE;

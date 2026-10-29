@@ -1,4 +1,4 @@
-// The Match domain: plain data and pure rules. Terms follow CONTEXT.md at the repo root.
+// The Match domain: plain data and pure rules. Terms follow GLOSSARY.md at the repo root.
 
 /** Steam scores on Map boards are run times in hundred-thousandths of a second (see CLAUDE.md). */
 export const SCORE_TICKS_PER_SECOND = 100_000;
@@ -62,8 +62,26 @@ export interface Link {
 
 export type MatchState = "invite" | "live" | "finished";
 
+/**
+ * A Venue's name (GLOSSARY.md): the short stable key of a Discord server the bot plays Matches in,
+ * stored on each Match.
+ */
+export type VenueName = string;
+
+/** The game Discord, the Venue every Match was in before there were others. */
+export const HOME_VENUE: VenueName = "home";
+
+/**
+ * The request header the Activity's page names the server it was opened in with (Discord's
+ * guild id), so the API serves that Venue. Here rather than in the API so the page can import it
+ * without bundling the server.
+ */
+export const GUILD_HEADER = "x-discord-guild";
+
 export interface Match {
   readonly id: string;
+  /** The Venue its Invite was opened in: its Card, Match Thread and queue are there. */
+  readonly venue: VenueName;
   readonly type: MatchType;
   readonly minutes: Minutes;
   readonly creator: Player;
@@ -211,9 +229,12 @@ export const medalFor = (ticks: number, medals: Medals): MedalKind | null => {
   return null;
 };
 
+/** A Match's Eligible Map limit on author time, in seconds: a tenth of its duration. */
+export const authorLimitOf = (minutes: Minutes): number => (minutes * 60) / 10;
+
 /** Eligible Map rule from the Workshop list alone: author time at most a tenth of the duration. */
 export const authorTimeFits = (map: MapInfo, minutes: Minutes): boolean =>
-  map.medals.author <= (minutes * 60) / 10;
+  map.medals.author <= authorLimitOf(minutes);
 
 /** Eligible Map rule from the board: world record between 5 s and 5 min, inclusive. */
 export const worldRecordFits = (worldRecordTicks: number): boolean => {

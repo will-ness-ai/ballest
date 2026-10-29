@@ -44,6 +44,7 @@ import psycopg
 
 PATHS = ("data/boards", "data/workshop", "data/workshop.json")
 TABLES = (
+    "map_activity",
     "entries",
     "board_reads",
     "persona_history",

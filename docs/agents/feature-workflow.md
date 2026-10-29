@@ -13,8 +13,7 @@ reaches one, read its `SKILL.md` and follow it directly. Call every other step's
 ## 1. Plan: `/grill-with-docs`
 
 Interview the user about the feature until the design tree is empty (`grilling`), while
-`domain-modeling` keeps the vocabulary straight. This repo's glossary is `CONTEXT.md`, so
-where that skill says `GLOSSARY.md`, read and write `CONTEXT.md`; ADRs go in `docs/adr/`,
+`domain-modeling` keeps the vocabulary straight in `GLOSSARY.md`; ADRs go in `docs/adr/`,
 only for decisions that are hard to reverse, surprising, and a real trade-off. Facts are
 looked up, never asked: the board table, `docs/site.md`, `docs/data.md` and the committed
 data answer most of them.
@@ -55,6 +54,9 @@ Each implementer's brief says:
 - **One plain command per call.** The worktree guard refuses a compound command (`&&`, a
   pipe, `cd` then a command) as too complex to check, so run `git -C <worktree> ...` and
   tools with absolute paths, one per call.
+- **Never check out in the main checkout.** Switch branches only in your own worktree: a
+  checkout in `/home/user/ballest` leaves the session that owns it on someone else's branch or
+  a detached HEAD (#346). The pre-push hook refuses a push from a detached HEAD.
 - **Look at a page** with `qa check` (step 7), or `pnpm --silent qa shot <view> --el <selector>`
   for one element at one width: every image read stays in context for the session.
 
@@ -66,10 +68,12 @@ final review, so it isn't repeated. Fix every finding before moving on, checking
 asks for something the spec never named against `CODING_STANDARDS.md` first: #212 built a
 real 404 the standards rule out, then deleted it. Commits that land
 after it (a fix found while testing, dev tooling) get `/code-review` since the last reviewed
-commit before the merge, unless they are a small follow-up: fewer than `FOLLOW_UP_LINES` (40) changed lines in
-all since both skills last ran, such as the fixes for their own findings, need no new round
-(Will, 2026-10-18). Batch a round's fixes into one commit, and re-run both skills when the
-follow-ups grow past that.
+commit before the merge only when they change a significant part of the PR: as many lines, or
+more, as the commits each skill last saw (half the PR, counted per commit).
+Anything less, the fixes for a review's own findings included, needs no new round (Will,
+2026-10-24: #366's fixes for each round's findings set off three more under a fixed 40 lines).
+Batch a round's fixes into one commit; findings a fix's own new code raises are a judgement
+call to list in the PR, not a reason for another round.
 
 A one-line PR gets the same first review: call the Skill tool for 'code-review', which runs its
 two reviewers as subagents on the diff. Your own read of the diff is implementation, not
@@ -78,9 +82,13 @@ review, and a brief asking for a light workflow trims the planning steps, never 
 A hook holds both steps (`.claude/hooks/review-gate.mjs`): it notes the commit each Skill-tool
 `/code-review` and `/codebase-design` runs on, and refuses an agent's merge, auto-merge or
 mark-ready while the PR has a commit either hasn't seen, unless every such commit together is a
-small follow-up (`FOLLOW_UP_LINES` in `review-gate-rules.mjs`). A commit that changes only
-binary pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. It
-also refuses a merge of this repo's PRs that doesn't squash (`docs/agents/issue-tracker.md`).
+follow-up under that half (`unreviewed` in `review-gate-rules.mjs`). A commit that changes only
+binary pictures (a skin, a screenshot) has nothing to review, so it needs neither skill. When
+the session's Skill tool can't find a missing skill (no `SKILL.md` in the project's or
+`~/.claude/skills`; a project thread's project is `/home/user`, where `session-start.sh` links
+the repo's skills; or its transcript shows the Skill tool calling it unknown, as a project
+thread's linked skills can still be), it only warns: follow that `SKILL.md` by hand and say so
+in the PR. It also refuses a merge of this repo's PRs that doesn't squash (`docs/agents/issue-tracker.md`).
 Its record is the clone's (`.git/claude-reviews`, shared by worktrees and sessions), so run them
 in the clone that merges. When it can't check (gh offline, say) it lets the call through with a
 warning, and it never sees a merge pressed on GitHub.
@@ -96,15 +104,21 @@ in the PR, not part of it.
 
 ## 7. Update the PR
 
-Push, then rewrite the PR description in the shape of `.github/pull_request_template.md` (a body
-passed through `gh` or the API skips the template, so copy its Checked lines in) to match what landed (Before / After, and How,
-including the design verdicts and the prototype branch), and mark it ready for review once
+Push, then call the Skill tool for 'pr' and rewrite the PR description with it to match what
+landed: Summary (with the design verdicts and the prototype branch), Evidence, Merge Danger and
+Checked, the sections of `.github/pull_request_template.md`. Mark it ready for review once
 CI is green and the final commit itself has been checked: the smoke test, its preview
 deploy, and, for a site change, a Refresh's revalidate end to end and the changed pages
 against production with `pnpm --silent qa check` (`docs/site.md`, "Checking a change"). A
 QA brief for a subagent says the same: run `qa check` first, read only the pictures it
 writes, and add a catalogue row for any page or dialog it does not draw. A gap left unchecked goes in the
 PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` left one.
+
+To wait for a PR's CI, run `pnpm --silent pr wait <n>` at the root: it returns when the head's
+checks and preview have finished, with green and the preview's URL, or the checks that went red.
+A red check: run `pnpm --silent pr why <n>` first. It prints each failed
+check's failed step and its annotations, qa's report among them, in one call, where a cloud
+session can't download the job log.
 
 A PR that adds a table can't get a working preview: previews read the production
 database and skip migrations, so a page that reads the table fails to build until production
@@ -123,10 +137,11 @@ dropped `useModalKeys` for native dialogs and moved the CSS to rem type, oklch c
 an em breakpoint, and each catch-up was a port that `check-styles` and `tsc` flagged, not a
 textual conflict.
 
-When Will says "merge", fetch `main` first:
-other threads merge often, and a merge against a stale head fails on conflicts it can't
-show. Merge (`docs/agents/issue-tracker.md`) once the merged head's CI and preview are
-green. The session's permission check can refuse to merge a PR with no approving review;
+When Will says "merge", run `pnpm --silent pr land <n>` at the root. Other threads merge
+often, so it brings `main` in when the head is behind (GitHub's update-branch), waits for that
+head's CI and preview, marks a draft ready and squash-merges, stopping on red CI or a conflict
+with the next command to run. The review gate checks it like any merge. A conflict is yours to
+merge locally, and a later push needs `git pull` first, since update-branch adds a commit. The session's permission check can refuse to merge a PR with no approving review;
 then say so in one line and try again on Will's next word, naming the PR.
 
 Will's "merge" can land on GitHub long before its merged event reaches the session (#237 took

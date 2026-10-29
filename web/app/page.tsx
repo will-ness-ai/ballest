@@ -1,23 +1,26 @@
-// /: the Workshop homepage, a carousel of five picks, the Campaigns' carousel and the
-// shelves, with a search over every Map with a time (/api/maps). The picks and each
+// /: the Workshop homepage, Trending this week, the Campaigns' carousel and the
+// shelves, with a search over every Map with a time (/api/maps). The chart's and each
 // shelf's Maps are chosen here; the browser counts what reads the clock
 // (components/workshop/WorkshopHome).
 import type { Metadata } from "next";
 
-import { Remember } from "../components/BackLink";
+import { PageHead } from "../components/PageHead";
 import { Shell } from "../components/Shell";
+import { Remember } from "../components/Trail";
 import { CampaignBanner } from "../components/campaign/CampaignBanner";
 import { CampaignCarousel } from "../components/campaign/CampaignCarousel";
 import { WorkshopHome } from "../components/workshop/WorkshopHome";
-import { getCampaigns, getMapCards, getSite } from "../db/data";
+import { getCampaigns, getMapCards, getSite, getTrending } from "../db/data";
 import { SITE_ORIGIN, homeHref } from "../lib/routes";
 import { SITE_NAME, SITE_TITLE } from "../lib/rules";
-import { SHELVES, picks, shelfMaps } from "../lib/workshop";
+import { SHELVES, shelfMaps } from "../lib/workshop";
 
 /* The homepage is the one search result for the site's name, so its title says what the
-   site is; the tab keeps the game's name first. */
+   site is: the site's name, then the game whose boards it mirrors. */
 export const metadata: Metadata = {
-  title: { absolute: SITE_TITLE + " Records: Workshop, Circuit and Daily leaderboards" },
+  title: {
+    absolute: SITE_TITLE + ": Ballest of Them All Workshop, Circuit and Daily leaderboards",
+  },
   alternates: { canonical: homeHref() },
 };
 
@@ -26,19 +29,25 @@ export const metadata: Metadata = {
 const WEBSITE = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: "Ballest Records",
-  alternateName: SITE_NAME,
+  name: SITE_TITLE,
+  alternateName: ["Ballest Records", SITE_NAME],
   url: SITE_ORIGIN + homeHref(),
 });
 
 export default async function Page() {
-  const [{ asOf }, maps, campaigns] = await Promise.all([getSite(), getMapCards(), getCampaigns()]);
+  const [{ asOf }, maps, trend, campaigns] = await Promise.all([
+    getSite(),
+    getMapCards(),
+    getTrending(),
+    getCampaigns(),
+  ]);
   return (
     <Shell view="workshop">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: WEBSITE }} />
+      <PageHead path={homeHref()} title="Featured Maps" />
       <section className="ws" id="ws">
         <WorkshopHome
-          picks={picks(maps)}
+          trend={trend}
           campaigns={
             <CampaignCarousel>
               {campaigns.map((k) => (
@@ -50,7 +59,7 @@ export default async function Page() {
           asOf={asOf}
         />
       </section>
-      <Remember trail="maps" href={homeHref()} />
+      <Remember trail="maps" href={homeHref()} label="Featured" />
     </Shell>
   );
 }

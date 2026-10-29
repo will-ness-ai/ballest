@@ -70,7 +70,7 @@ export interface WorkshopFinish {
 
 /* whether a finish counts under one of the Workshop tab's Medal tiles. A world record is
    its rank and a Medal is its time, counted apart: a record at the author time counts
-   under both, and a slower one under the Medal its time earned (CONTEXT.md, Medal) */
+   under both, and a slower one under the Medal its time earned (GLOSSARY.md, Medal) */
 export function countsUnder(f: WorkshopFinish, k: MedalKey) {
   return k === "wr" ? f.rank === 1 : f.earned === k;
 }

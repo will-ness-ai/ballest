@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  FOLLOW_UP_LINES,
   linesChanged,
+  loadable,
+  refusedSkills,
   mergeTargets,
   repoSlug,
   skillName,
@@ -33,6 +34,19 @@ describe("mergeTargets", () => {
       { repo: "will-ness-ai/ballest", number: 7 },
     ]);
     expect(bash("gh -R o/r pr merge 5")).toEqual([{ repo: "o/r", number: 5 }]);
+  });
+
+  test("finds pnpm pr land, which marks ready and squash-merges", () => {
+    expect(bash("pnpm --silent pr land 287")).toEqual(pr(287));
+    expect(bash("pnpm pr land 287 --timeout 300")).toEqual(pr(287));
+    expect(bash("cd /w/ballest && pnpm -s pr land 9")).toEqual(pr(9, { cd: "/w/ballest" }));
+    expect(bash("pnpm --silent pr land --timeout 300 287")).toEqual(pr(287));
+    expect(bash("pnpm run pr land 287")).toEqual(pr(287));
+    expect(bash("pnpm --dir /w/ballest pr land 287")).toEqual(pr(287, { cd: "/w/ballest" }));
+    expect(bash("cd /w && pnpm -C ballest pr land 287")).toEqual(pr(287, { cd: "/w/ballest" }));
+    expect(bash("node web/scripts/pr.mjs land 287")).toEqual(pr(287));
+    expect(bash("pnpm --silent pr land --help")).toEqual([]);
+    expect(bash("pnpm --silent pr wait 287")).toEqual([]);
   });
 
   test("finds them behind prefixes, wrappers and later lines", () => {
@@ -125,10 +139,102 @@ test("a skill's name drops its source", () => {
   expect(skillName("projectSettings:code-review")).toBe("code-review");
 });
 
+test("a skill is loadable from the project's or the user's skills, or built in", () => {
+  const dirs = ["/repo/.claude/skills", "/root/.claude/skills"];
+  const has =
+    (...files: Array<string>) =>
+    (path: string) =>
+      files.includes(path);
+  const design = "codebase-design";
+  expect(loadable(design, dirs, has(`/root/.claude/skills/${design}/SKILL.md`))).toBe(true);
+  expect(loadable(design, dirs, has(`/repo/.claude/skills/${design}/SKILL.md`))).toBe(true);
+  // a thread that started outside the repo, before its skills were linked (PR #336)
+  expect(loadable(design, dirs, has())).toBe(false);
+  // Claude Code has its own /code-review
+  expect(loadable("code-review", dirs, has())).toBe(true);
+});
+
+describe("a skill this session's Skill tool called unknown", () => {
+  /* a transcript's lines: the Skill tool asked for `skill` (id `id`), and its result */
+  const asked = (id: string, skill: string) =>
+    JSON.stringify({
+      type: "assistant",
+      message: { content: [{ type: "tool_use", id, name: "Skill", input: { skill } }] },
+    });
+  const answered = (id: string, text: string, error = true) =>
+    JSON.stringify({
+      type: "user",
+      message: {
+        content: [{ type: "tool_result", tool_use_id: id, content: text, is_error: error }],
+      },
+    });
+  const unknown = (id: string, skill: string) =>
+    answered(id, `<tool_use_error>Unknown skill: ${skill}</tool_use_error>`);
+  const dirs = ["/home/user/.claude/skills"];
+  const all = () => true;
+
+  test("isn't loadable, whatever the files say", () => {
+    // a project thread whose skills were linked, yet its Skill tool never read them (PR #368)
+    const refused = refusedSkills(
+      [
+        asked("a", "tdd"),
+        unknown("a", "tdd"),
+        asked("b", "codebase-design"),
+        unknown("b", "codebase-design"),
+      ].join("\n"),
+    );
+    expect([...refused].sort()).toEqual(["codebase-design", "tdd"]);
+    expect(loadable("codebase-design", dirs, all, refused)).toBe(false);
+    expect(loadable("grill-design", dirs, all, refused)).toBe(true);
+    expect(refusedSkills("")).toEqual(new Set());
+  });
+
+  test("only by the Skill tool's own answer, not text that quotes it", () => {
+    const quoted = JSON.stringify({
+      type: "user",
+      message: {
+        content: [
+          { type: "tool_result", tool_use_id: "r", content: "Unknown skill: codebase-design" },
+        ],
+      },
+    });
+    expect(refusedSkills([quoted, "Unknown skill: codebase-design"].join("\n"))).toEqual(new Set());
+  });
+
+  test("by the bare name the error gives, and not once it has run since", () => {
+    const refused = refusedSkills(
+      [
+        asked("a", "foo:codebase-design"),
+        unknown("a", "foo:codebase-design"),
+        asked("b", "tdd"),
+        unknown("b", "tdd"),
+        asked("c", "ballest:tdd"),
+        answered("c", "Launching skill: tdd", false),
+        asked("d", "/grill-design"),
+        unknown("d", "grill-design"),
+      ].join("\n"),
+    );
+    expect(loadable("codebase-design", dirs, all, refused)).toBe(true);
+    expect(loadable("tdd", dirs, all, refused)).toBe(true);
+    expect(loadable("grill-design", dirs, all, refused)).toBe(false);
+  });
+
+  test("the built-in code-review stays loadable", () => {
+    const refused = refusedSkills(
+      [asked("a", "code-review"), unknown("a", "code-review")].join("\n"),
+    );
+    expect(loadable("code-review", dirs, () => false, refused)).toBe(true);
+  });
+});
+
 describe("unsquashed merges", () => {
   const unsquashed = (tool: string, input: object): boolean =>
     (mergeTargets(tool, input) as Array<{ unsquashed?: boolean }>).some((t) => t.unsquashed);
   const bash = (command: string): boolean => unsquashed("Bash", { command });
+
+  test("pnpm pr land always squashes", () => {
+    expect(bash("pnpm --silent pr land 287")).toBe(false);
+  });
 
   test("finds merges that don't squash", () => {
     expect(bash("gh pr merge 5")).toBe(true);
@@ -191,20 +297,21 @@ describe("unreviewed", () => {
     });
   });
 
-  test("a small follow-up after a review needs no new run", () => {
+  test("follow-ups need no new run until they are half the PR's lines", () => {
     const records = [
       { skill: "code-review", sha: "a" },
       { skill: "codebase-design", sha: "a" },
     ];
-    const small: Record<string, number> = { b: 10, c: FOLLOW_UP_LINES - 11 };
-    expect(unreviewed(["a", "b", "c"], records, isAncestor, (c: string) => small[c] ?? 0)).toEqual({
-      "code-review": [],
-      "codebase-design": [],
-    });
-    const atLimit: Record<string, number> = { b: 10, c: FOLLOW_UP_LINES - 10 };
-    expect(
-      unreviewed(["a", "b", "c"], records, isAncestor, (c: string) => atLimit[c] ?? 0),
-    ).toEqual({
+    /* a reviewed 300-line commit, then fixes */
+    const run = (b: number, c: number) => {
+      const lines: Record<string, number> = { a: 300, b, c };
+      return unreviewed(["a", "b", "c"], records, isAncestor, (x: string) => lines[x]);
+    };
+    expect(run(100, 199)).toEqual({ "code-review": [], "codebase-design": [] });
+    expect(run(100, 200)).toEqual({ "code-review": ["b", "c"], "codebase-design": ["b", "c"] });
+    /* a binary file the run saw makes no follow-up small */
+    const binary: Record<string, number> = { a: Infinity, b: 5000, c: 0 };
+    expect(unreviewed(["a", "b", "c"], records, isAncestor, (x: string) => binary[x])).toEqual({
       "code-review": ["b", "c"],
       "codebase-design": ["b", "c"],
     });

@@ -3,7 +3,13 @@
 // messages, so no extra permission is needed.
 import { type Message, MessageType, type TextChannel } from "discord.js";
 import { Effect } from "effect";
-import { describeDiscordError, isUnknown, tryDiscord } from "./client.js";
+import {
+  describeDiscordError,
+  hasCode,
+  tryDiscord,
+  UNKNOWN_CHANNEL,
+  UNKNOWN_MESSAGE,
+} from "./client.js";
 
 /** How far back the startup sweep reads: pages of PAGE messages. */
 const PAGE = 100;
@@ -24,7 +30,7 @@ export const makeThreadNotices = (channel: TextChannel) => {
     return yield* tryDiscord("delete thread notice", () => m.delete()).pipe(
       Effect.as(true),
       Effect.catchTag("DiscordError", (e) =>
-        isUnknown(e)
+        hasCode(e, UNKNOWN_MESSAGE, UNKNOWN_CHANNEL)
           ? Effect.succeed(false)
           : Effect.logWarning(`thread notice left in place: ${describeDiscordError(e)}`).pipe(
               Effect.as(false),

@@ -3,8 +3,9 @@
 // 16:00 UTC every day. Each posted day is recorded in the bot's SQLite, so a restart after the post
 // never posts it again, and a bot that was down at 16:00 posts once when it starts.
 import { SqlClient } from "@effect/sql";
-import { Cause, Clock, Config, Context, Effect, Layer, Option, Schema } from "effect";
+import { Cause, Config, Context, Effect, Layer, Option, Schema } from "effect";
 import { MigratorLive } from "../db.js";
+import { dayOf, everyDayAt } from "../everyDay.js";
 import { OpsAlerts } from "../ops.js";
 import { ChosenSkins } from "../ports.js";
 import { Renderer } from "../render/renderer.js";
@@ -25,16 +26,6 @@ import { StandingsSource, StandingsSourceLive } from "./standings.js";
 export const REPORT_HOUR_UTC = 16;
 /** No Refresh in this long, and the numbers are too old to post as today's. */
 export const STALE_AFTER = 2 * DAY_MS;
-
-/** The UTC day a moment falls on, "2026-10-04": the key a posted report is recorded under. */
-export const dayOf = (at: number) => new Date(at).toISOString().slice(0, 10);
-
-/** Today's report time, or tomorrow's once today's has passed. */
-export const nextReportAt = (now: number) => {
-  const d = new Date(now);
-  const today = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), REPORT_HOUR_UTC);
-  return today > now ? today : today + DAY_MS;
-};
 
 // ---------------------------------------------------------------- which days were posted
 
@@ -145,16 +136,7 @@ const safely = Effect.fn("DailyReport.safely")(function* (at: number) {
 });
 
 /** Catch up on today if it's past report time, then post at every report time after. */
-export const dailyLoop = Effect.gen(function* () {
-  const now = yield* Clock.currentTimeMillis;
-  // Past today's report time exactly when the next one falls tomorrow.
-  if (dayOf(nextReportAt(now)) !== dayOf(now)) yield* safely(now);
-  while (true) {
-    const t = yield* Clock.currentTimeMillis;
-    yield* Effect.sleep(nextReportAt(t) - t);
-    yield* safely(yield* Clock.currentTimeMillis);
-  }
-});
+export const dailyLoop = everyDayAt(REPORT_HOUR_UTC, safely);
 
 /** The schedule, on when STATS_CHANNEL_ID and DATABASE_URL are both set; otherwise nothing. */
 export const DailyReportLive = Layer.unwrapEffect(

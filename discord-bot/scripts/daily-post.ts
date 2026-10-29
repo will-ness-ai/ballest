@@ -21,7 +21,7 @@ import {
 } from "../src/dailyPost/schedule.js";
 import { DailyHistory, dailyHistoryAt } from "../src/dailyPost/history.js";
 import { DailySpinsOff } from "../src/dailyPost/spin.js";
-import { OpsAlerts } from "../src/ops.js";
+import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { MapPreviews, PreviewSourceLive } from "../src/previews.js";
 import { Renderer } from "../src/render/renderer.js";
 import { devEnvFile } from "./devEnv.js";
@@ -99,7 +99,9 @@ program.pipe(
       DailySpinsOff,
       Layer.succeed(
         OpsAlerts,
-        OpsAlerts.make({ configured: false, post: (content) => Effect.logWarning(content) }),
+        OpsAlerts.make(
+          opsAlertsOf({ configured: false, post: (content) => Effect.logWarning(content) }),
+        ),
       ),
     ),
   ),

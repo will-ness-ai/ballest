@@ -1,6 +1,10 @@
-// The Surface port on a Channel: where each Card, its Match Thread and the Footer sit, kept in
-// SQLite so a restart picks up where it left off. Channel failures are logged, never thrown at
-// the engine: a Card that fails to redraw must not stop a Match.
+// The Surface port on each Venue's Channel: where each Card, its Match Thread and the Footer sit,
+// kept in SQLite (a layout row per Venue) so a restart picks up where it left off. Channel
+// failures are logged, never thrown at the engine: a Card that fails to redraw must not stop a
+// Match.
+//
+// Each Venue's channel follows the same rules on its own (spec #315): a Card goes to its Match's
+// Venue, and everything after it to wherever that Card is.
 //
 // The rules (spec #21, stories 19-22, 31, 38):
 // - The Footer is always the channel's last message.
@@ -26,8 +30,10 @@
 //   A finished Match's place is still kept (the most recent ones), for the Activity's links and
 //   for Play again's post in its thread.
 import { SqlClient, SqlSchema } from "@effect/sql";
-import { Context, Effect, Layer, Option, Ref, Schema } from "effect";
+import { Cause, Context, Effect, Exit, Fiber, Layer, Option, Ref, Schema } from "effect";
+import { attempt } from "../attempt.js";
 import { MigratorLive } from "../db.js";
+import { HOME_VENUE, type VenueName } from "../domain.js";
 import {
   type CardView,
   isKept,
@@ -37,8 +43,10 @@ import {
   Surface,
   type ThreadPost,
 } from "../ports.js";
-import { Channel, type ChannelError, Drawing } from "./channel.js";
-import { describeDiscordError } from "./client.js";
+import { Guests } from "../guests.js";
+import { OpsAlerts } from "../ops.js";
+import { type Channel, type ChannelError, Drawing, VenueChannels } from "./channel.js";
+import { describeDiscordError, DiscordError, hasCode, UNKNOWN_CHANNEL } from "./client.js";
 
 interface CardRef {
   readonly messageId: string;
@@ -53,9 +61,18 @@ interface Layout {
   /** The fingerprint of what the Footer shows; null when unknown, so the next start redraws it. */
   readonly footerFingerprint: string | null;
   readonly cards: ReadonlyMap<string, CardRef>;
-  /** Where finished Matches' Cards and threads are, oldest first. */
+  /** Where finished Matches' Cards and threads are in this channel, oldest first. */
   readonly finished: ReadonlyMap<string, MatchPlace>;
 }
+
+/** How long the engine waits on a guest Venue's channel starting; it runs whenever it does. */
+const START_TIMEOUT = "30 seconds";
+
+/** How soon a guest Venue whose Footer couldn't be put right is tried again, in place. */
+const RETRY_FOOTER = "5 minutes";
+
+/** How long one try at starting a guest Venue's channel may take before it counts as failed. */
+const ATTEMPT_LIMIT = "60 seconds";
 
 /** How many finished Matches' places are kept. */
 const FINISHED_KEPT = 100;
@@ -86,12 +103,20 @@ const LayoutJson = Schema.parseJson(
   }),
 );
 
+/** A channel failure in a few words, for ops. */
+const describeFailure = (e: ChannelError) =>
+  e._tag === "Gone"
+    ? `${e.id} is gone`
+    : e._tag === "RenderError"
+      ? "drawing an image failed"
+      : `discord ${describeDiscordError(e)}`;
+
 const logFailure = Effect.fn("Surface.logFailure")(function* (e: ChannelError) {
   return yield* e._tag === "Gone"
-    ? Effect.logWarning(`${e.id} is gone`)
+    ? Effect.logWarning(describeFailure(e))
     : e._tag === "RenderError"
-      ? Effect.logError("drawing an image failed", e.cause)
-      : Effect.logError(`discord ${describeDiscordError(e)}`);
+      ? Effect.logError(describeFailure(e), e.cause)
+      : Effect.logError(describeFailure(e));
 });
 
 /** Try a Channel call up to twice more, unless what it acts on is gone. */
@@ -101,12 +126,23 @@ const retryUnlessGone = Effect.fn("Surface.retryUnlessGone")(function* <A, E ext
   return yield* effect.pipe(Effect.retry({ times: 2, while: (e: E) => e._tag !== "Gone" }));
 });
 
-/** A Channel call whose failure ends in the log, not in its caller. */
+/** A Channel call whose failure ends in the log (or `log`), not in its caller. */
 const logFailures = Effect.fn("Surface.logFailures")(function* <A, R>(
   effect: Effect.Effect<A, ChannelError, R>,
+  log: (e: ChannelError) => Effect.Effect<void> = logFailure,
+) {
+  return yield* effect.pipe(Effect.catchTag("DiscordError", "RenderError", "Gone", (e) => log(e)));
+});
+
+/** Something already gone counts as done, and any other failure is the caller's. */
+const ignoreGone = Effect.fn("Surface.ignoreGone")(function* <A, E extends ChannelError>(
+  effect: Effect.Effect<A, E>,
 ) {
   return yield* effect.pipe(
-    Effect.catchTag("DiscordError", "RenderError", "Gone", (e) => logFailure(e)),
+    Effect.catchIf(
+      (e) => e._tag === "Gone",
+      () => Effect.void,
+    ),
   );
 });
 
@@ -120,14 +156,27 @@ const unlessGone = Effect.fn("Surface.unlessGone")(function* (
   );
 });
 
-const make = Effect.gen(function* () {
-  const channel = yield* Channel;
+/**
+ * One Venue's channel as a Surface: its Footer, Cards and Match Threads, and its layout row.
+ * `channelGone` reports the channel itself was deleted (Discord's Unknown Channel): ops is told,
+ * and a guest Venue is set up again with a new channel, the bot restarting to run it.
+ */
+const venueSurface = Effect.fn("VenueSurface.make")(function* (
+  venue: VenueName,
+  channel: Channel,
+  channelGone: Effect.Effect<void>,
+) {
   const sql = yield* SqlClient.SqlClient;
+  /** Log a failure that ends a draw, and tell ops when the channel is gone. */
+  const failed = Effect.fn("VenueSurface.failed")(function* (e: ChannelError) {
+    yield* logFailure(e);
+    if (e._tag === "DiscordError" && hasCode(e, UNKNOWN_CHANNEL)) yield* channelGone;
+  });
 
   const loadLayout = SqlSchema.findOne({
     Request: Schema.Void,
     Result: Schema.Struct({ data: LayoutJson }),
-    execute: () => sql`SELECT data FROM discord_layout WHERE id = 1`,
+    execute: () => sql`SELECT data FROM venue_layouts WHERE venue = ${venue}`,
   });
   const saved = yield* loadLayout(undefined).pipe(Effect.orDie);
   const layout = yield* Ref.make<Layout>(
@@ -146,7 +195,9 @@ const make = Effect.gen(function* () {
       }),
     }),
   );
-  const setLayout = Effect.fn("Surface.setLayout")(function* (change: (current: Layout) => Layout) {
+  const setLayout = Effect.fn("VenueSurface.setLayout")(function* (
+    change: (current: Layout) => Layout,
+  ) {
     const next = yield* Ref.updateAndGet(layout, (current) => change(current));
     const data = yield* Schema.encode(LayoutJson)({
       footerId: next.footerId,
@@ -154,12 +205,12 @@ const make = Effect.gen(function* () {
       cards: [...next.cards],
       finished: [...next.finished],
     });
-    yield* sql`INSERT INTO discord_layout (id, data) VALUES (1, ${data}) ON CONFLICT (id) DO UPDATE SET data = excluded.data`;
+    yield* sql`INSERT INTO venue_layouts (venue, data) VALUES (${venue}, ${data}) ON CONFLICT (venue) DO UPDATE SET data = excluded.data`;
   }, Effect.orDie);
-  const setCard = Effect.fn("Surface.setCard")(function* (matchId: string, card: CardRef) {
+  const setCard = Effect.fn("VenueSurface.setCard")(function* (matchId: string, card: CardRef) {
     return yield* setLayout((l) => ({ ...l, cards: new Map(l.cards).set(matchId, card) }));
   });
-  const setFooter = Effect.fn("Surface.setFooter")(function* (
+  const setFooter = Effect.fn("VenueSurface.setFooter")(function* (
     footerId: string | null,
     footerFingerprint: string | null,
   ) {
@@ -171,7 +222,7 @@ const make = Effect.gen(function* () {
     Effect.tapError((e) => logFailure(e)),
     Effect.orElseSucceed(() => null),
   );
-  const postFooter = Effect.fn("Surface.postFooter")(function* () {
+  const postFooter = Effect.fn("VenueSurface.postFooter")(function* () {
     const fingerprint = yield* thisBuildsFooter;
     yield* setFooter(yield* channel.post(Drawing.Footer()), fingerprint);
   });
@@ -182,7 +233,7 @@ const make = Effect.gen(function* () {
   const clocks = yield* Ref.make(new Map<string, string>());
 
   /** Stop tracking a Card; `finished` keeps where it was, for links. */
-  const forget = Effect.fn("Surface.forget")(function* (matchId: string, finished = false) {
+  const forget = Effect.fn("VenueSurface.forget")(function* (matchId: string, finished = false) {
     const without = <V>(m: Map<string, V>) => {
       const next = new Map(m);
       next.delete(matchId);
@@ -209,7 +260,7 @@ const make = Effect.gen(function* () {
   const clockKey = (view: CardView) => `${view.state}:${view.expiresAt}:${view.endsAt}`;
 
   /** Start a Card's Match Thread, retrying twice, and open it with the clock. None if it won't start. */
-  const startThread = Effect.fn("Surface.startThread")(function* (
+  const startThread = Effect.fn("VenueSurface.startThread")(function* (
     matchId: string,
     messageId: string,
     view: CardView,
@@ -234,7 +285,7 @@ const make = Effect.gen(function* () {
   });
 
   /** Redraw a thread's clock when the Match has moved on, or post it if that failed before. */
-  const redrawClock = Effect.fn("Surface.redrawClock")(function* (
+  const redrawClock = Effect.fn("VenueSurface.redrawClock")(function* (
     matchId: string,
     card: CardRef,
     view: CardView,
@@ -259,7 +310,7 @@ const make = Effect.gen(function* () {
    * and the old Footer is deleted; any other Card takes the Footer's place (or is posted fresh if
    * the Footer is gone).
    */
-  const createCard = Effect.fn("Surface.createCard")(function* (view: CardView) {
+  const createCard = Effect.fn("VenueSurface.createCard")(function* (view: CardView) {
     const { footerId } = yield* Ref.get(layout);
     // Forget what the Footer shows before drawing over it: if the bot stops before this Card is
     // recorded, the next start redraws the Footer rather than trusting a fingerprint it no longer has.
@@ -280,7 +331,7 @@ const make = Effect.gen(function* () {
     yield* postFooter();
   });
 
-  const showCard = Effect.fn("Surface.showCard")(
+  const showCard = Effect.fn("VenueSurface.showCard")(
     function* (view: CardView) {
       yield* Ref.update(views, (m) => new Map(m).set(view.matchId, view));
       const card = (yield* Ref.get(layout)).cards.get(view.matchId);
@@ -288,11 +339,14 @@ const make = Effect.gen(function* () {
       yield* channel.redraw(card.messageId, Drawing.Card({ view }));
       yield* redrawClock(view.matchId, card, view);
     },
-    (effect) => logFailures(effect),
+    (effect) => logFailures(effect, failed),
     lock.withPermits(1),
   );
 
-  const remove = Effect.fn("Surface.remove")(function* (matchId: string, reason: RemovalReason) {
+  const remove = Effect.fn("VenueSurface.remove")(function* (
+    matchId: string,
+    reason: RemovalReason,
+  ) {
     const card = (yield* Ref.get(layout)).cards.get(matchId);
     if (card === undefined) return;
     if (isKept(reason)) {
@@ -310,7 +364,10 @@ const make = Effect.gen(function* () {
    * A Match's thread, started now if it couldn't be when its Card was drawn. Only Play again's
    * post (`toFinished`) goes to a finished Match's thread; any other post for it is dropped.
    */
-  const threadOf = Effect.fn("Surface.threadOf")(function* (matchId: string, toFinished: boolean) {
+  const threadOf = Effect.fn("VenueSurface.threadOf")(function* (
+    matchId: string,
+    toFinished: boolean,
+  ) {
     const { cards, finished } = yield* Ref.get(layout);
     const card = cards.get(matchId);
     if (card === undefined)
@@ -324,7 +381,7 @@ const make = Effect.gen(function* () {
       : yield* startThread(matchId, card.messageId, view);
   }, lock.withPermits(1));
 
-  const post = Effect.fn("Surface.post")(
+  const post = Effect.fn("VenueSurface.post")(
     function* (matchId: string, post: ThreadPost) {
       const threadId = yield* threadOf(matchId, post._tag === "PlayingAgain");
       if (Option.isNone(threadId))
@@ -336,49 +393,208 @@ const make = Effect.gen(function* () {
         (post._tag === "Result" && post.standings.every((s) => s.ticks === null));
       if (last) yield* lock.withPermits(1)(forget(matchId, true));
     },
-    (effect) => logFailures(effect),
+    (effect) => logFailures(effect, failed),
   );
 
   // Startup: the Footer must be the channel's last message, with today's wording, and is edited
   // only if this build draws it differently.
   // If the newest message can't be read, the Footer is assumed still last rather than reposted.
-  const { footerId, footerFingerprint } = yield* Ref.get(layout);
-  const last = yield* channel.lastMessageId.pipe(
-    Effect.tapError((e) => logFailure(e)),
-    Effect.orElseSucceed(() => footerId),
-  );
-  if (footerId !== null && footerId === last) {
-    const fingerprint = yield* thisBuildsFooter;
-    if (fingerprint === null || fingerprint !== footerFingerprint)
-      yield* unlessGone(
-        channel
+  // An old Footer that can't be deleted: home logs it and posts anyway, as it always has; another
+  // Venue is left out rather than show two Footers.
+  const startFooter = Effect.gen(function* () {
+    const { footerId, footerFingerprint } = yield* Ref.get(layout);
+    const last = yield* channel.lastMessageId.pipe(
+      Effect.tapError((e) => logFailure(e)),
+      Effect.orElseSucceed(() => footerId),
+    );
+    if (footerId !== null && footerId === last) {
+      const fingerprint = yield* thisBuildsFooter;
+      if (fingerprint === null || fingerprint !== footerFingerprint)
+        yield* channel
           .redraw(footerId, Drawing.Footer())
-          .pipe(Effect.andThen(setFooter(footerId, fingerprint))),
+          .pipe(Effect.andThen(setFooter(footerId, fingerprint)), ignoreGone);
+    } else {
+      if (footerId !== null)
+        yield* venue === HOME_VENUE
+          ? unlessGone(channel.deleteMessage(footerId))
+          : ignoreGone(channel.deleteMessage(footerId));
+      yield* postFooter();
+    }
+  });
+  // Home runs whatever its channel says, as it always has; another Venue whose Footer can't be put
+  // right doesn't start (nobody could open a Match there) until it is repaired.
+  yield* venue === HOME_VENUE
+    ? logFailures(startFooter)
+    : startFooter.pipe(Effect.tapError((e) => logFailure(e)));
+
+  /** Where this channel holds a Match's Card and thread, live or finished. */
+  const placeOf = Effect.fn("VenueSurface.placeOf")(function* (matchId: string) {
+    const { cards, finished } = yield* Ref.get(layout);
+    const card = cards.get(matchId);
+    const spot =
+      card === undefined
+        ? finished.get(matchId)
+        : { messageId: card.messageId, threadId: card.threadId };
+    return Option.fromNullable(spot);
+  });
+
+  /** Whether this channel holds the Match's Card now, so its posts and removal come here. */
+  const holds = Effect.fn("VenueSurface.holds")(function* (matchId: string) {
+    return (yield* Ref.get(layout)).cards.has(matchId);
+  });
+
+  return { showCard, remove, post, placeOf, holds };
+});
+
+/**
+ * Every running Venue's channel Surface behind the one Surface port: a Card goes to its view's
+ * Venue, and a post or removal to the Venue whose channel holds that Match's Card. Each Venue
+ * starts here, home first, before the engine's restart recovery redraws any Card.
+ */
+const make = Effect.gen(function* () {
+  const channels = yield* VenueChannels;
+  const alerts = yield* OpsAlerts;
+  const guests = yield* Guests;
+  const running = new Map<VenueName, Effect.Effect.Success<ReturnType<typeof venueSurface>>>();
+  const surfaces = () => [...running.values()];
+
+  /** Ops hears once that a Venue's channel is gone; a guest's breaks, to be repaired. */
+  const channelGone = Effect.fn("Surface.channelGone")(function* (venue: VenueName) {
+    yield* alerts.post(
+      venue === HOME_VENUE
+        ? "Multiballs can't find its home channel (deleted?). Check DISCORD_CHANNEL_ID."
+        : `Multiballs can't find the Venue ${venue}'s channel (deleted?). It makes a new one within a few minutes and restarts to run it.`,
+      { key: `channel ${venue}`, kind: "gone" },
+    );
+    yield* guests.broke(venue);
+  });
+
+  const scope = yield* Effect.scope;
+  const sql = yield* SqlClient.SqlClient;
+  /** The guest Venues with a start running, even one past its time limit: a retry waits its turn. */
+  const busy = new Set<string>();
+
+  /**
+   * Start a guest Venue on its own, in the background; the engine waits on it at most
+   * START_TIMEOUT, and it runs, and is offered (`Guests.up`), whenever its start succeeds. Each
+   * try may take ATTEMPT_LIMIT: past it the try counts as failed, though what it was doing (its
+   * Footer's post, the write of its id) runs on, never interrupted, and no other try starts till
+   * it ends. One whose Footer can't be put right, that takes too long or hits a bug is told to ops
+   * once and tried again in place every RETRY_FOOTER: setup has nothing to repair there, so it is
+   * not broken and the bot doesn't restart. One whose channel is gone is broken, for setup to
+   * repair.
+   */
+  const startGuest = Effect.fn("Surface.startGuest")(function* (
+    venue: VenueName,
+    channel: Channel,
+  ) {
+    const gone = channelGone(venue);
+    const again: () => Effect.Effect<void> = Effect.fn("Surface.retryGuest")(function* () {
+      yield* Effect.suspend(tryOnce).pipe(Effect.delay(RETRY_FOOTER), Effect.forkIn(scope));
+    });
+    const tryOnce: () => Effect.Effect<void> = Effect.fn("Surface.tryGuest")(
+      function* () {
+        const tried = yield* attempt(venueSurface(venue, channel, gone), {
+          key: venue,
+          busy,
+          limit: ATTEMPT_LIMIT,
+          onTimeout: () =>
+            new DiscordError({ op: "start", cause: `timed out after ${ATTEMPT_LIMIT}` }),
+          alerts,
+          tell: (cause) =>
+            Option.match(Cause.failureOption(cause), {
+              onNone: () => Option.some("a bug, see the log"),
+              onSome: (e) =>
+                e._tag === "DiscordError" && hasCode(e, UNKNOWN_CHANNEL)
+                  ? Option.none()
+                  : Option.some(describeFailure(e)),
+            }).pipe(
+              Option.map((why) => ({
+                kind: "footer",
+                message: `Multiballs left the Venue ${venue} out: its Footer couldn't be put right (${why}). It tries again every five minutes.`,
+              })),
+            ),
+        });
+        // A try still running: wait for the next turn.
+        if (Option.isNone(tried)) return yield* again();
+        const started = tried.value;
+        if (Exit.isSuccess(started)) {
+          running.set(venue, started.value);
+          return yield* guests.up(venue);
+        }
+        const failure = Cause.failureOption(started.cause);
+        if (
+          Option.isSome(failure) &&
+          failure.value._tag === "DiscordError" &&
+          hasCode(failure.value, UNKNOWN_CHANNEL)
+        )
+          return yield* gone;
+        yield* again();
+      },
+      Effect.provideService(SqlClient.SqlClient, sql),
+    );
+    const first = yield* Effect.forkIn(tryOnce(), scope);
+    const settled = yield* Fiber.await(first).pipe(Effect.timeout(START_TIMEOUT), Effect.option);
+    if (Option.isNone(settled))
+      yield* Effect.logWarning(`Venue ${venue}'s channel is slow to start; it runs once it does`);
+  });
+
+  // Home first, as it always has: its start never fails, and a bug in it is the bot's. The guests
+  // then start side by side, so the engine waits at most START_TIMEOUT on them.
+  const home = channels.all.get(HOME_VENUE);
+  if (home !== undefined)
+    running.set(HOME_VENUE, yield* venueSurface(HOME_VENUE, home, channelGone(HOME_VENUE)));
+  yield* Effect.forEach(
+    [...channels.all].filter(([venue]) => venue !== HOME_VENUE),
+    ([venue, channel]) => startGuest(venue, channel),
+    { concurrency: "unbounded", discard: true },
+  );
+
+  /** The Venue Surface holding a Match's Card, if any. */
+  const holding = Effect.fn("Surface.holding")(function* (matchId: string) {
+    return yield* Effect.findFirst(surfaces(), (s) => s.holds(matchId));
+  });
+
+  const showCard = Effect.fn("Surface.showCard")(function* (view: CardView) {
+    const surface = running.get(view.venue);
+    if (surface === undefined)
+      return yield* Effect.logWarning(
+        `Venue ${view.venue} isn't running; ${view.matchId}'s Card isn't drawn`,
       );
-  } else {
-    if (footerId !== null) yield* unlessGone(channel.deleteMessage(footerId));
-    yield* logFailures(postFooter());
-  }
+    yield* surface.showCard(view);
+  });
+  const post = Effect.fn("Surface.post")(function* (matchId: string, threadPost: ThreadPost) {
+    const live = yield* holding(matchId);
+    // Play again's post goes to a finished Match's thread, which only its Venue still places.
+    const surface =
+      Option.isSome(live) || threadPost._tag !== "PlayingAgain"
+        ? live
+        : yield* Effect.findFirst(surfaces(), (s) => Effect.map(s.placeOf(matchId), Option.isSome));
+    if (Option.isNone(surface))
+      return yield* Effect.logWarning(`no Card for ${matchId}; dropped a ${threadPost._tag} post`);
+    yield* surface.value.post(matchId, threadPost);
+  });
+  const remove = Effect.fn("Surface.remove")(function* (matchId: string, reason: RemovalReason) {
+    const surface = yield* holding(matchId);
+    if (Option.isSome(surface)) yield* surface.value.remove(matchId, reason);
+  });
 
   const links = MatchLinks.of({
-    of: Effect.fn("MatchLinks.of")(function* (matchId) {
-      return yield* Ref.get(layout).pipe(
-        Effect.map(({ cards, finished }) => {
-          const card = cards.get(matchId);
-          return Option.fromNullable(
-            card === undefined
-              ? finished.get(matchId)
-              : { messageId: card.messageId, threadId: card.threadId },
-          );
-        }),
-      );
+    of: Effect.fn("MatchLinks.of")(function* (venue: VenueName, matchId: string) {
+      const surface = running.get(venue);
+      return surface === undefined ? Option.none<MatchPlace>() : yield* surface.placeOf(matchId);
     }),
   });
 
-  return Context.make(Surface, Surface.of({ showCard, remove, post })).pipe(
+  const runs = (venue: VenueName) => running.has(venue);
+
+  return Context.make(Surface, Surface.of({ runs, showCard, remove, post })).pipe(
     Context.add(MatchLinks, links),
   );
 });
 
-/** The Surface port on a Channel, and where it put each Match. Needs the Channel and a SqlClient. */
-export const ChannelSurfaceLive = Layer.effectContext(make).pipe(Layer.provide(MigratorLive));
+/**
+ * The Surface port on every running Venue's Channel, and where each put each Match. Needs the
+ * VenueChannels, Guests, OpsAlerts and a SqlClient.
+ */
+export const ChannelSurfaceLive = Layer.scopedContext(make).pipe(Layer.provide(MigratorLive));

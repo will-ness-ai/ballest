@@ -8,7 +8,7 @@ import { NodeRuntime } from "@effect/platform-node";
 import { ConfigProvider, Context, Effect, Layer, Option, Schedule } from "effect";
 import { AuthFailed, DiscordAuth, DiscordMembers } from "../src/activity/auth.js";
 import { activityServer } from "../src/activity/server.js";
-import { seconds as tickSeconds } from "../src/domain.js";
+import { HOME_VENUE, seconds as tickSeconds } from "../src/domain.js";
 import { Engine } from "../src/engine.js";
 import { Pings } from "../src/pings.js";
 import { ChosenSkins, MatchLinks, PingRole, Store, Steam, Surface } from "../src/ports.js";
@@ -55,7 +55,7 @@ const DevAuth = Layer.succeed(
 const DemoMembers = Layer.succeed(
   DiscordMembers,
   DiscordMembers.of({
-    nameOf: (id) =>
+    nameOf: (_venue, id) =>
       Effect.succeed(
         Option.fromNullable(USERS.find((u) => u.id === id)?.name.replace(/ \(.*\)$/, "")),
       ),
@@ -84,6 +84,7 @@ const NoPreviews = MapPreviews.Default.pipe(
 const LogSurface = Layer.succeed(
   Surface,
   Surface.of({
+    runs: () => true,
     showCard: (v) => Effect.log(`card ${v.matchId}: ${v.state}`),
     post: (id, p) => Effect.log(`thread ${id}: ${p._tag}`),
     remove: (id, reason) => Effect.log(`removed ${id}: ${reason}`),
@@ -142,8 +143,10 @@ const Demo = Layer.unwrapScoped(
 
     return activityServer({
       clientId: "demo",
-      guildId: "demo",
-      channelId: "demo",
+      // One Venue, home, in a server that isn't there.
+      venues: Effect.succeed([
+        { name: HOME_VENUE, guildId: "demo", channelId: "demo", pingRoleName: "Multiplayer ping" },
+      ]),
       devUsers: USERS,
     }).pipe(
       Layer.provide(Engine.Default),
