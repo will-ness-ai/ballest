@@ -13,8 +13,7 @@ reaches one, read its `SKILL.md` and follow it directly. Call every other step's
 ## 1. Plan: `/grill-with-docs`
 
 Interview the user about the feature until the design tree is empty (`grilling`), while
-`domain-modeling` keeps the vocabulary straight. This repo's glossary is `CONTEXT.md`, so
-where that skill says `GLOSSARY.md`, read and write `CONTEXT.md`; ADRs go in `docs/adr/`,
+`domain-modeling` keeps the vocabulary straight in `GLOSSARY.md`; ADRs go in `docs/adr/`,
 only for decisions that are hard to reverse, surprising, and a real trade-off. Facts are
 looked up, never asked: the board table, `docs/site.md`, `docs/data.md` and the committed
 data answer most of them.
@@ -106,9 +105,9 @@ in the PR, not part of it.
 
 ## 7. Update the PR
 
-Push, then rewrite the PR description in the shape of `.github/pull_request_template.md` (a body
-passed through `gh` or the API skips the template, so copy its Checked lines in) to match what landed (Before / After, and How,
-including the design verdicts and the prototype branch), and mark it ready for review once
+Push, then call the Skill tool for 'pr' and rewrite the PR description with it to match what
+landed: Summary (with the design verdicts and the prototype branch), Evidence, Merge Danger and
+Checked, the sections of `.github/pull_request_template.md`. Mark it ready for review once
 CI is green and the final commit itself has been checked: the smoke test, its preview
 deploy, and, for a site change, a Refresh's revalidate end to end and the changed pages
 against production with `pnpm --silent qa check` (`docs/site.md`, "Checking a change"). A
@@ -116,7 +115,9 @@ QA brief for a subagent says the same: run `qa check` first, read only the pictu
 writes, and add a catalogue row for any page or dialog it does not draw. A gap left unchecked goes in the
 PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` left one.
 
-A red check on the PR: run `pnpm --silent pr why <n>` at the root first. It prints each failed
+To wait for a PR's CI, run `pnpm --silent pr wait <n>` at the root: it returns when the head's
+checks and preview have finished, with green and the preview's URL, or the checks that went red.
+A red check: run `pnpm --silent pr why <n>` first. It prints each failed
 check's failed step and its annotations, qa's report among them, in one call, where a cloud
 session can't download the job log.
 
@@ -137,10 +138,11 @@ dropped `useModalKeys` for native dialogs and moved the CSS to rem type, oklch c
 an em breakpoint, and each catch-up was a port that `check-styles` and `tsc` flagged, not a
 textual conflict.
 
-When Will says "merge", fetch `main` first:
-other threads merge often, and a merge against a stale head fails on conflicts it can't
-show. Merge (`docs/agents/issue-tracker.md`) once the merged head's CI and preview are
-green. The session's permission check can refuse to merge a PR with no approving review;
+When Will says "merge", run `pnpm --silent pr land <n>` at the root. Other threads merge
+often, so it brings `main` in when the head is behind (GitHub's update-branch), waits for that
+head's CI and preview, marks a draft ready and squash-merges, stopping on red CI or a conflict
+with the next command to run. The review gate checks it like any merge. A conflict is yours to
+merge locally, and a later push needs `git pull` first, since update-branch adds a commit. The session's permission check can refuse to merge a PR with no approving review;
 then say so in one line and try again on Will's next word, naming the PR.
 
 Will's "merge" can land on GitHub long before its merged event reaches the session (#237 took

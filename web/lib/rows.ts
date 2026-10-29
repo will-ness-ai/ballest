@@ -249,7 +249,7 @@ export interface DailyRecord {
   more: number;
 }
 
-/* The four Workshop standings (CONTEXT.md): Maps played, Author Medals, world records and
+/* The four Workshop standings (GLOSSARY.md): Maps played, Author Medals, world records and
    top 5s */
 export type StandingsStat = "played" | "author" | "wr" | "top5";
 

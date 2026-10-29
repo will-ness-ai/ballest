@@ -1,5 +1,5 @@
 // The logged-in Discord client and the Venues the bot plays in: each a server, its Match channel
-// and its @Multiplayer ping role (CONTEXT.md, src/venues.ts).
+// and its @Multiplayer ping role (GLOSSARY.md, src/venues.ts).
 //
 // The home Venue is given by its ids, and at startup the bot checks it can do everything it needs
 // there; failing that stops the bot. Every server that invites the bot it sets up as a Venue itself

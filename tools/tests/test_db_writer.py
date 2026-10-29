@@ -555,7 +555,7 @@ def test_memory_knows_who_set_a_score_in_the_latest_refresh(conn):
     assert db_writer.read_memory(conn).just_scored == {"1002", "1003"}
 
 
-# Daily reads (CONTEXT.md): the open Dailies only, every 15 minutes between Refreshes.
+# Daily reads (GLOSSARY.md): the open Dailies only, every 15 minutes between Refreshes.
 
 
 def daily_only(n, *reads):

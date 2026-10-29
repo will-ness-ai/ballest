@@ -98,7 +98,7 @@ BOARDS = (
     + [(t, "Season 2") for t in S2_TRACKS]
     + []
 )
-# Event boards (CONTEXT.md): a one-off event's board, neither a Track nor a Workshop Map,
+# Event boards (GLOSSARY.md): a one-off event's board, neither a Track nor a Workshop Map,
 # by name, with its leaderboard ID and what the site calls it. Each Refresh reads only those
 # with no successful read yet (events_due), so an event's board, frozen once it ends, is
 # read once and its Entries are never closed. A Campaign on the site can hold one.

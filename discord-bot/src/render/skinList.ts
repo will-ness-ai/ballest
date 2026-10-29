@@ -1,4 +1,4 @@
-// Every ball Skin a player can choose as their Chosen Skin (CONTEXT.md), by the object path the
+// Every ball Skin a player can choose as their Chosen Skin (GLOSSARY.md), by the object path the
 // site stores it under (chosen_skins.skin, the path a run's Ghost names), and the asset name of
 // its picture. A copy of the site's list (web/lib/skins.ts), held to it by test/skins.test.ts.
 // Pure, so the Activity's page (activity/web/) bundles it too; skins.ts reads the pictures.

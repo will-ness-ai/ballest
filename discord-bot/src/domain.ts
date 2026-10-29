@@ -1,4 +1,4 @@
-// The Match domain: plain data and pure rules. Terms follow CONTEXT.md at the repo root.
+// The Match domain: plain data and pure rules. Terms follow GLOSSARY.md at the repo root.
 
 /** Steam scores on Map boards are run times in hundred-thousandths of a second (see CLAUDE.md). */
 export const SCORE_TICKS_PER_SECOND = 100_000;
@@ -63,7 +63,7 @@ export interface Link {
 export type MatchState = "invite" | "live" | "finished";
 
 /**
- * A Venue's name (CONTEXT.md): the short stable key of a Discord server the bot plays Matches in,
+ * A Venue's name (GLOSSARY.md): the short stable key of a Discord server the bot plays Matches in,
  * stored on each Match.
  */
 export type VenueName = string;

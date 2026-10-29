@@ -5,7 +5,7 @@ description: Add a player's Campaign to ballestrecords.com, from their Workshop 
 
 # Add a Campaign
 
-A Campaign (`CONTEXT.md`) is one entry in `CAMPAIGNS` (`web/lib/campaigns.ts`). `docs/site.md`,
+A Campaign (`GLOSSARY.md`) is one entry in `CAMPAIGNS` (`web/lib/campaigns.ts`). `docs/site.md`,
 "Campaigns", is the reference for the entry, the finder, the board, the page and the Refresh after
 merging: read it first. This is the run, from a request to a live page; it takes
 `docs/agents/feature-workflow.md`'s small-change path from step 4, with no spec or tickets.
@@ -41,7 +41,7 @@ to `CAMPAIGNS`.
 
 Run `pnpm check` at the root, then in `web/` `npx tsc --noEmit` and `npx vitest run
 test/campaigns.test.ts`. Push, and open a draft PR titled `Campaigns: add <title> by <maker>` with
-`.github/pull_request_template.md`'s sections. Then review it, a one-entry PR included. Call the
+its body written by calling the Skill tool for 'pr'. Then review it, a one-entry PR included. Call the
 Skill tool for 'code-review' on the branch against `main`. Call the Skill tool for
 'codebase-design' on the code the branch touched. Fix what they find, re-reviewing as
 feature-workflow step 5 says.

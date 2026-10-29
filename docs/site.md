@@ -34,7 +34,7 @@ app reading the database (ADR 0004, ADR 0005); what the database holds is in
   - `player.ts`, `podiums.ts`, `players.ts`, `workshop.ts`: what each view works out from
     the rows it is given; `standing.ts` (You's place, Medal and next Medal on a board) and
     `spread.ts` (the spread chart's columns and where a time falls on it) for You.
-  - `workshop-standings.ts`, the Workshop standings (`CONTEXT.md`) counted now and at a
+  - `workshop-standings.ts`, the Workshop standings (`GLOSSARY.md`) counted now and at a
     baseline with shared places, `youBaseline`, the baseline /you compares against, and
     `baselineOf`, which baselines the route takes (ADR 0011). `GET /api/standings?since=` serves them, for /you and for Multiballs;
     `ladder.ts` is what /you shows of them (a card's rows around You, the line under it,
@@ -120,7 +120,7 @@ know (one a game update added) keep the marble, and so does every derived or Ove
 whose Entries the Ghost step never reads, and the
 marble still turns over to the Steam avatar either way.
 
-Where no run's Skin is known, a player's Chosen Skin (CONTEXT.md) stands in for the marble.
+Where no run's Skin is known, a player's Chosen Skin (GLOSSARY.md) stands in for the marble.
 The root layout reads every pick once (`getChosenSkins`, cached under its own tag, which a
 save expires), each as its object path with any Skin the site doesn't list left out, and hands
 it down through `components/ChosenSkins.tsx`. `Marble` stays a server component: it draws the
@@ -226,7 +226,7 @@ fails to load, or that Satori can't read, draws without it.
 
 ## Stat Card
 
-A player's Stat Card (CONTEXT.md) is the 720×1060 portrait card Multiballs's See my stats
+A player's Stat Card (GLOSSARY.md) is the 720×1060 portrait card Multiballs's See my stats
 answers with in Discord (spec #323; grill-design K5 with its date as T1, prototype branch
 `claude/prototype-statcard`). No page names it: `/og/stats/<steam id>?v=<Refresh time>`
 (`app/og/stats/[id]/route.tsx`) serves it, through the player page's cached reads plus
@@ -381,7 +381,7 @@ remembered for the tab in `sessionStorage` ("How a page opens").
 
 ## Campaigns
 
-A Campaign (CONTEXT.md) is a player-made run of Workshop Maps that the site ranks the way
+A Campaign (GLOSSARY.md) is a player-made run of Workshop Maps that the site ranks the way
 the game ranks a Circuit season. The game knows nothing of them, so the list in
 `web/lib/campaigns.ts` (`CAMPAIGNS`) is the only place one exists.
 
@@ -408,7 +408,7 @@ off its Campaign's page until a Refresh lists it, so a preview can show fewer Ma
 one fixed Campaign, so look at the new one's page with
 `pnpm --silent qa shot /campaign/<slug>@1280` (and `@390`).
 
-**Event boards and pinning.** A Campaign's `maps` may also name an Event board (CONTEXT.md)
+**Event boards and pinning.** A Campaign's `maps` may also name an Event board (GLOSSARY.md)
 by its id in `EVENTS`, beside `CAMPAIGNS`: its Steam board, title, picture (the level's own
 screenshot from the game files, committed as `leth/screenshot.jpg` and served from the site,
 since it has no Workshop preview; a JPEG, as the share card can't read WebP; `safeImg` takes a path
@@ -523,7 +523,7 @@ site's name first, then the game it mirrors.
 The header (`components/Shell.tsx`) is a two-tier hub (spec #339, round 1's variant D), one grid:
 
 - **The bar**: the wordmark and You's card, with the site search between them ("Search").
-- **The Sections** (`CONTEXT.md`), as tabs with icons, the current one underlined in lime:
+- **The Sections** (`GLOSSARY.md`), as tabs with icons, the current one underlined in lime:
   Maps (the homepage), Campaigns, Daily, Circuit (its newest season's Overall board),
   Players and Prefabs. One with nothing in it yet (no Workshop, no Daily, no seasons) is left
   out.
@@ -774,7 +774,7 @@ player's page and a head to head.
 
 ## Prefabs
 
-Players' Prefabs (CONTEXT.md), stored in the database by the site itself (ADR 0009; the
+Players' Prefabs (GLOSSARY.md), stored in the database by the site itself (ADR 0009; the
 tables are in `docs/data.md`). Settled in three grill-design rounds on the never-merged
 branch `claude/prototype-prefabs` (spec #213).
 
