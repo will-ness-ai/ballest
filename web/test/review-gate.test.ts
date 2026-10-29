@@ -382,9 +382,11 @@ describe("linesChanged", () => {
 describe("reviewAsk", () => {
   // a bare SHA reads as that one commit to the built-in code-review: #334's gate asked for
   // "fixed point 143d1e8" and got #331 reviewed instead of the branch
-  test("names the range since the fixed point, not the bare commit", () => {
-    const ask = reviewAsk("143d1e8");
-    expect(ask).toContain("'code-review' with args `143d1e8..HEAD`");
-    expect(ask).not.toMatch(/fixed point 143d1e8[^.]/);
+  test("asks for the commits since the fixed point, up to the PR's own head", () => {
+    const ask = reviewAsk("143d1e8", "9abcdef");
+    expect(ask).toContain("args `since 143d1e8`");
+    expect(ask).toContain("head 9abcdef");
+    expect(ask).not.toContain("fixed point");
+    expect(ask).not.toContain("..HEAD");
   });
 });

@@ -249,8 +249,10 @@ export function unreviewed(commits, records, isAncestor, linesOf) {
   );
 }
 
-/* what the gate asks for when a PR isn't reviewed to its head. The range, not the bare SHA:
-   the built-in code-review reads a lone commit as that one commit (PR #334's retro) */
-export const reviewAsk = (since) =>
-  `Call the Skill tool for 'code-review' with args \`${since}..HEAD\` (every commit since ${since}), ` +
-  "then for 'codebase-design', on the PR's head in this clone, fix what they find, push, and try again.";
+/* what the gate asks for when a PR isn't reviewed to its head: the commits after `since` up to
+   the PR's `head`, worded so both the built-in code-review and the vendored one read a span. A
+   bare SHA read as that one commit to the built-in (PR #334's retro) */
+export const reviewAsk = (since, head) =>
+  `Call the Skill tool for 'code-review' with args \`since ${since}\` (the PR's commits after ${since}, ` +
+  `up to its head ${head}), then for 'codebase-design' on the same commits, on the PR's head in ` +
+  "this clone, fix what they find, push, and try again.";
