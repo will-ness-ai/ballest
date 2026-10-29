@@ -550,3 +550,59 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* round 3: a player's Trials */
+.pt-cards {
+  margin: 10px 12px 12px;
+}
+.pt-cards .tr-card {
+  opacity: 1;
+}
+.pt-cards .tr-card[data-m="1"] {
+  border-color: var(--gold);
+}
+.pt-cards .tr-card[data-m="1"] small {
+  color: var(--gold);
+}
+.pt-rows {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+}
+.pt-rows li {
+  display: grid;
+  grid-template-columns: 1fr 3.2em 5em 6em 5em;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 13px;
+  font-variant-numeric: tabular-nums;
+}
+.pt-rows li + li {
+  border-top: 1px solid var(--line2);
+}
+.pt-rows a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+.pt-rows .pt-of,
+.pt-rows .pt-gap {
+  color: var(--dim);
+  font-size: calc(12rem / 16);
+}
+.pt-rows .pt-rank {
+  font-weight: 700;
+}
+.pt-rows li[data-m="1"] .pt-rank,
+.pt-rows li[data-m="1"] .pt-gap {
+  color: var(--gold);
+}
+@media (max-width: 600px) {
+  .pt-rows li {
+    grid-template-columns: 1fr 3em 5.5em;
+  }
+  .pt-rows .pt-of,
+  .pt-rows .pt-gap {
+    display: none;
+  }
+}

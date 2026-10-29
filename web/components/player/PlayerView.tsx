@@ -11,6 +11,8 @@ import { MadeTab } from "./MadeTab";
 import { ScoreCard, SignOut } from "./Me";
 import { SkinPicker, YourMarble } from "./SkinPicker";
 import { WorkshopTab } from "./WorkshopTab";
+import { ProtoPicker } from "../prototype/Proto";
+import { PlayerTrials, officialStats } from "../prototype/PlayerTrials";
 import { PillLink, Pills } from "../Controls";
 import { MedalCounts } from "../MedalCounts";
 import { SteamMark } from "../SteamMark";
@@ -27,7 +29,11 @@ const TABS: ReadonlyArray<{
   count: (rec: PlayerRecord, daily: PlayerDailies) => number;
   shown?: (rec: PlayerRecord) => boolean;
 }> = [
-  { key: "circuit", label: "Circuit", count: (rec) => rec.run },
+  {
+    key: "circuit",
+    label: "Official",
+    count: (rec) => officialStats(rec).run + officialStats(rec).trialsRun,
+  },
   { key: "workshop", label: "Workshop", count: (rec) => rec.workshop.finishes.length },
   {
     key: "made",
@@ -119,26 +125,27 @@ function Season({ s, id }: { s: SeasonRecord; id: string }) {
 }
 
 function CircuitTab({ rec }: { rec: PlayerRecord }) {
+  const o = officialStats(rec);
   return (
     <>
       <dl className="pstats">
         <div className="pstat">
           <dt>World records</dt>
           <dd>
-            {rec.medals.gold} <small>{rec.golds.length ? rec.golds.join(", ") : "none yet"}</small>
+            {o.medals.gold} <small>{o.golds.length ? o.golds.join(", ") : "none yet"}</small>
           </dd>
         </div>{" "}
         <div className="pstat">
           <dt>Podiums</dt>
           <dd>
-            <MedalCounts p={rec.medals} /> <small>gold, silver, bronze</small>
+            <MedalCounts p={o.medals} /> <small>gold, silver, bronze</small>
           </dd>
         </div>{" "}
         <div className="pstat">
           <dt>Tracks run</dt>
           <dd>
-            {fmtN(rec.run) + " "}
-            <small>{`of ${fmtN(rec.tracks)} on the Circuit`}</small>
+            {fmtN(o.run) + " "}
+            <small>{`of ${fmtN(o.tracks)} on the Circuit`}</small>
           </dd>
         </div>{" "}
         <div className="pstat">
@@ -151,9 +158,14 @@ function CircuitTab({ rec }: { rec: PlayerRecord }) {
           </dd>
         </div>
       </dl>{" "}
-      {rec.seasons.map((s) => (
-        <Season key={s.group} s={s} id={rec.id} />
-      ))}
+      <PlayerTrials rec={rec} at="top" />
+      {rec.seasons
+        .filter((s) => s.group !== "Trials")
+        .map((s) => (
+          <Season key={s.group} s={s} id={rec.id} />
+        ))}
+      <PlayerTrials rec={rec} at="end" />
+      <ProtoPicker />
     </>
   );
 }
