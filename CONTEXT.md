@@ -91,6 +91,22 @@ A player's score on one board as Steam holds it: a time on a Map or Track, point
 Overall board. A board holds at most one Entry per player; a better run replaces it.
 _Avoid_: row, record (a record is rank 1), run (for the stored score)
 
+**Plays**:
+Steam's count of a Map's Workshop play sessions, lifetime or over a window ("plays this
+week"). A play needs no finish, and Steam misses some, so plays are not runs and say nothing
+about who has Played.
+_Avoid_: sessions (in prose), runs (for plays)
+
+**Votes**:
+The thumbs up and down players give a Map on its Steam Workshop page, with Steam's score
+over them. Not a Prefab's Favorite.
+_Avoid_: likes, rating, favorites
+
+**Trending this week**:
+The Workshop homepage's top ten Maps by their plays over the last 7 days, lifted by their
+Votes.
+_Avoid_: popular, hot, most played (the lifetime shelf)
+
 **Refresh**:
 One pass of the collector over Steam, at a moment in time. It reads every Track and
 Overall board, and only the Maps whose activity moved, so a Map not read in a Refresh

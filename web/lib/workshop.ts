@@ -1,13 +1,13 @@
 // The Workshop's three views share these: what a Map card carries, the sorts and the
 // figure each shows, the Refine panel's filters, All maps' ready-made views, the
-// homepage's shelves and carousel picks, and the Maps kept off the homepage. Pure, so the
+// homepage's shelves and Trending this week, and the Maps kept off the homepage. Pure, so the
 // server pages, the client views and the /api/maps search all use one copy. Anything that
 // reads the clock takes `now`, so a cached page never freezes it (hooks/client.ts useNow).
 import type { WorkshopMap } from "./rows";
 import { SITE_ORIGIN, mapHref } from "./routes";
 import { SCORE_TICKS_PER_SECOND, ageDays, ageText, fmtN, fmtSec, plural, secs } from "./rules";
 
-/* what a card, the carousel and All maps need of a Map; the rest of WorkshopMap stays on
+/* what a card, the homepage's chart and All maps need of a Map; the rest of WorkshopMap stays on
    the server */
 export interface MapCard {
   pfid: string;
@@ -282,7 +282,7 @@ export const SHELVES: ReadonlyArray<Shelf> = [
   { title: "Barely played", note: "fewest runs so far", sort: "fewest", all: "quiet" },
 ];
 
-/* Maps kept off the homepage's carousel and shelves, by pfid, with the reason their page
+/* Maps kept off the homepage's chart and shelves, by pfid, with the reason their page
    shows. Players report one through the link on its page; it goes in here by hand. The
    Map stays in All maps, search, and everyone's player page. */
 export const HIDDEN: Record<string, string | undefined> = {
@@ -302,9 +302,12 @@ export const reportHref = (m: { title: string; pfid: string }) =>
     body: `Map: ${SITE_ORIGIN}${mapHref(m.pfid)}\n\nWhat's wrong with it:\n`,
   }).toString();
 
-/* the homepage's Maps: the carousel and every shelf draw from this */
+/* a Map the homepage may show: one not kept off it */
+const onHome = (m: { pfid: string }) => !HIDDEN[m.pfid];
+
+/* the homepage's shelves draw from this */
 const homeSorted = (maps: ReadonlyArray<MapCard>, sort: SortKey, keep?: (m: MapCard) => boolean) =>
-  maps.filter((m) => !HIDDEN[m.pfid] && (!keep || keep(m))).sort(SORTS[sort].cmp);
+  maps.filter((m) => onHome(m) && (!keep || keep(m))).sort(SORTS[sort].cmp);
 
 /* A shelf's Maps, before the week filter: New this week is sorted newest first, so its
    first SHELF_SIZE hold every Map the filter can keep, and onShelf narrows them where the
@@ -314,32 +317,33 @@ export const shelfMaps = (maps: ReadonlyArray<MapCard>, d: Shelf) =>
 export const onShelf = (maps: ReadonlyArray<MapCard>, d: Shelf, now: number) =>
   d.week ? maps.filter((m) => ageDays(m.created, now) <= 7) : maps;
 
-/* five different Maps, each up for a different reason; none depends on the clock */
-export interface Pick {
-  label: string;
-  sort: SortKey;
-  m: MapCard;
+/* Trending this week (spec #348): the homepage's chart, the Maps with the most heat, their
+   Workshop plays over the last 7 days lifted by the Workshop's votes. Steam's vote score is
+   already discounted for few votes (0 with none), so the lift runs from 0.5 to about 1.15
+   and the plays decide most of the order. A tie goes to more plays, then the newer Map. A
+   Map with no plays this week isn't trending, so before a Refresh recorded them the chart
+   is empty. Ranked on the server: only the ten carry their figures to the page. */
+const TRENDING_SIZE = 10;
+type Heat = Pick<WorkshopMap, "pfid" | "created" | "weekPlays" | "voteScore">;
+const heatOf = (m: Heat) => m.weekPlays * (0.5 + m.voteScore);
+export const trending = <T extends Heat>(maps: ReadonlyArray<T>) =>
+  maps
+    .filter((m) => onHome(m) && m.weekPlays > 0)
+    .sort((a, b) => heatOf(b) - heatOf(a) || b.weekPlays - a.weekPlays || b.created - a.created)
+    .slice(0, TRENDING_SIZE);
+
+/* a row of Trending this week: a card, with the plays and votes it shows */
+export interface TrendCard extends MapCard {
+  weekPlays: number;
+  votesUp: number;
+  votesDown: number;
 }
-export function picks(maps: ReadonlyArray<MapCard>): Array<Pick> {
-  const used = new Set<string>();
-  const pick = (label: string, sort: SortKey, keep?: (m: MapCard) => boolean) => {
-    const m = homeSorted(maps, sort, (x) => !used.has(x.pfid) && (!keep || keep(x)))[0] as
-      MapCard | undefined;
-    if (!m) return null;
-    used.add(m.pfid);
-    return { label, sort, m };
-  };
-  return [
-    pick("Most played", "plays"),
-    pick("Newest", "new"),
-    pick("Most runs", "runs"),
-    pick("Barely played", "fewest"),
-    pick("Tightest top three", "tight", (m) => m.gap13 != null),
-  ].filter((p) => p !== null);
-}
-/* why a pick is up, as its eyebrow says */
-export const whyOf = (p: Pick, now: number) =>
-  p.sort === "new" ? "published " + ageText(p.m.created, now) : SORTS[p.sort].stat(p.m, now);
+export const trendCard = (m: WorkshopMap): TrendCard => ({
+  ...mapCard(m),
+  weekPlays: m.weekPlays,
+  votesUp: m.votesUp,
+  votesDown: m.votesDown,
+});
 
 /* the homepage search: every Map with a time whose title or creator contains q, most runs
    first */

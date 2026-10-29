@@ -261,8 +261,8 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
 
 ## Routes
 
-- `/` — the Workshop homepage: the carousel, the Campaigns' carousel, the shelves and the
-  search.
+- `/` — the Workshop homepage: Trending this week, the Campaigns' carousel, the shelves and
+  the search.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
   (`lib/workshop.ts`). `?q=` narrows it to the Maps whose title or maker contains the query
   (the site search's "All N Maps matching", `mapsSearchHref`); the page is prerendered
@@ -464,10 +464,10 @@ counted and led the same way everywhere. A Campaign's picture is
 with no preview a blank panel; the banners and a player's Campaign cards all draw it. A
 banner (`CampaignBanner`) sets the picture at full strength with a full-height fade behind
 its text only: "Campaign · N maps · N players", the name, the maker and "<leader> leads
-with <points> pts". The homepage's Campaigns carousel (`CampaignCarousel`, under the main
-carousel and hidden with it while there is a search) is a scroll-snap track of banners:
+with <points> pts". The homepage's Campaigns carousel (`CampaignCarousel`, under Trending
+this week and hidden with it while there is a search) is a scroll-snap track of banners:
 a phone shows one with the next peeking in and swipes, a desktop shows two. Its arrows
-step one banner and wrap round as the main carousel's do; the counter names the banners
+step one banner and wrap round; the counter names the banners
 in view ("1 / 5" on a phone, "1–2 / 5" on a desktop), and both hide when every banner
 fits. Its heading's See all opens `/campaigns`. With no Campaign listed (a `tiny` build)
 the homepage leaves the carousel out and `/campaigns` says there are none. Every count of a
@@ -724,9 +724,23 @@ Circuit tiles, Workshop finishes with their Medal (`medalOf`, and `timeMedal` fo
 The rendering is markup over that record. A tab is one entry in `PLAYER_TABS`, which the
 tab bar, each tab's body and the route are all built from.
 
+## Trending this week
+
+The Workshop homepage opens on Trending this week (spec #348): the ten Maps with the most
+heat, their Workshop plays over the last 7 days times (0.5 + the Workshop's vote score), ties
+to more plays and then the newer Map (`trending` in `lib/workshop.ts`). Steam's vote score is
+already discounted for few votes (0 with none), so the plays decide most of the order and the
+votes lift a liked Map over an equally busy disliked one. A Map with no plays this week is
+left out, so before a Refresh recorded them (`map_activity`, `docs/data.md`) the chart is not
+drawn. Each row is one link to the Map: rank, picture, title and maker over the record
+holder's podium line, then its plays this week over its 👍/👎. One column on a phone, two of
+five on a desktop, ranks running down each. It replaced a carousel of five picks whose Most
+played (lifetime sessions) showed the same Map every visit; the design rounds are on
+`claude/prototype-trending`, never merged.
+
 ## Maps kept off the homepage
 
-`HIDDEN` (`lib/workshop.ts`) lists, by pfid, the Maps the Workshop homepage's carousel and
+`HIDDEN` (`lib/workshop.ts`) lists, by pfid, the Maps the Workshop homepage's chart and
 shelves leave out: ones the game can no longer finish, which otherwise top Barely played
 and look like an easy place. Players report one through the link on a Map's page, which
 opens a pre-filled GitHub issue; a Map goes in the list by hand. A listed Map stays in All
