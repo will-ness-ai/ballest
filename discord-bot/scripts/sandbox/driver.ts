@@ -17,7 +17,7 @@ import { DriverInteractions } from "../../src/discord/interactions.js";
 import { Store } from "../../src/ports.js";
 import type { FakeSteamControl } from "../../test/harness.js";
 import type { DevClock } from "./clock.js";
-import { type ApiMessage, filesOf, fromPayload } from "../axi/describe.js";
+import { type ApiMessage, filesOf, fromPayload } from "../devserver/describe.js";
 import { LOGS } from "./config.js";
 
 export type Kind = "button" | "select" | "modal";
@@ -43,6 +43,8 @@ export interface Call {
 
 /** How long the bot may stay quiet before an interaction counts as handled. */
 const SETTLE_MS = 1500;
+/** After a defer, the answer is still coming: opening a Lobby takes about 4 s to follow one. */
+const DEFERRED_SETTLE_MS = 8000;
 const FIRST_CALL_MS = 5000;
 const LIMIT_MS = 30_000;
 
@@ -94,9 +96,11 @@ export const fakeInteraction = (press: Press, channelId: string) => {
     let timer = setTimeout(() => resolve(calls), FIRST_CALL_MS);
     poke = () => {
       clearTimeout(timer);
+      const quiet =
+        calls.at(-1)?.method.startsWith("defer") === true ? DEFERRED_SETTLE_MS : SETTLE_MS;
       timer = setTimeout(
         () => resolve(calls),
-        Math.min(SETTLE_MS, Math.max(0, LIMIT_MS - (Date.now() - started))),
+        Math.min(quiet, Math.max(0, LIMIT_MS - (Date.now() - started))),
       );
     };
   });
@@ -123,7 +127,7 @@ export interface Answer {
   readonly files: Readonly<Record<string, string>>;
 }
 
-const REPLIES = posix.join(LOGS, "axi", "replies");
+const REPLIES = posix.join(LOGS, "devserver", "replies");
 let saved = 0;
 
 const answerOf = (call: Call): Answer => {
