@@ -6,41 +6,9 @@ import Link from "next/link";
 
 import { Marble } from "../Marble";
 import { fmtN, fmtTime, plural } from "../../lib/rules";
-import data from "../../lib/proto-trials.json";
-import { ProtoPicker, setParam, useParam, useVariant } from "./Proto";
+import { setParam, useParam } from "./Proto";
 
-type Row = (typeof data)[number]["top"][number];
-interface Trial {
-  board: string;
-  title: string;
-  players: number;
-  top: Array<Row>;
-  href: string;
-  blurb: string;
-  picture: string | null;
-  status: string;
-}
-const EXTRA: Record<string, Pick<Trial, "href" | "blurb" | "picture" | "status">> = {
-  Map_TheTower: {
-    href: "/board/Map_TheTower",
-    blurb: "The climb to the top, no checkpoints.",
-    picture: null,
-    status: "Open",
-  },
-  Map_TheTowerCP: {
-    href: "/board/Map_TheTowerCP",
-    blurb: "The same climb, with checkpoints.",
-    picture: null,
-    status: "Open",
-  },
-  Map_LethTrial_01: {
-    href: "/campaign/leth-trials/leth-trial-1",
-    blurb: "Lethamyr's one-off event board.",
-    picture: "/leth/screenshot.jpg",
-    status: "Closed",
-  },
-};
-const TRIALS: Array<Trial> = data.map((t) => ({ ...t, ...EXTRA[t.board] }));
+import { TRIALS, type Row, type Trial } from "./trials-data";
 const who = (r: Row) => ({ steamId: r.steamId, persona: r.persona, avatar: r.avatar });
 const name = (r: Row) => r.persona ?? r.steamId;
 
@@ -214,7 +182,8 @@ function Board() {
 }
 
 export function TrialsProto() {
-  const v = useVariant();
+  /* round 1 settled on A, Cards; the picker now drives round 2, on a Trial's board */
+  const v = "A";
   return (
     <>
       {/* PROTOTYPE */}
@@ -223,7 +192,6 @@ export function TrialsProto() {
       {v === "C" && <Table />}
       {v === "D" && <Podiums />}
       {v === "E" && <Board />}
-      <ProtoPicker />
     </>
   );
 }

@@ -24,6 +24,15 @@ import {
   getSite,
 } from "../../db/data";
 import { YouBanner } from "./YouBanner";
+import { V } from "../prototype/V";
+import { ProtoPicker } from "../prototype/Proto";
+import {
+  BothRecords,
+  TowerSwitch,
+  TrialCards,
+  TrialRailPics,
+  TrialRailText,
+} from "../prototype/TrialBoard";
 import { YouMarks } from "./YouMarks";
 import { TRACKS, circuitBoard, trackNo } from "../../lib/circuit";
 import { seasonsOf } from "../../lib/player";
@@ -64,7 +73,9 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
   const t = TRACKS[name] as (typeof TRACKS)[string] | undefined;
   const items = <RailItems boards={own} current={name} podiums={site.podiums} />;
   /* the page's title: a season's standings by name, a Track by its in-game number */
-  const title = points ? `${b.group} ${b.display}` : `Track ${b.display}`;
+  /* PROTOTYPE: a Trial is named, not numbered */
+  const trial = b.group === "Trials";
+  const title = points ? `${b.group} ${b.display}` : trial ? b.display : `Track ${b.display}`;
   const here = boardHref(name, podiums ? PODIUM_SORT : null);
 
   return (
@@ -72,16 +83,46 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
       <PageHead path={here} title={title} />
       <div className="main">
         <DocTitle title={`${b.group} ${b.display}`} />
-        <SeasonTabs seasons={seasons} on={b.group} />
-        <aside className="rail">
-          <h2 id="railhead">{b.group}</h2>
-          <nav className="boards" id="boards" aria-label="Leaderboard">
-            {items}
-          </nav>
-        </aside>
+        {!trial && <SeasonTabs seasons={seasons} on={b.group} />}
+        {trial ? (
+          /* PROTOTYPE: round 2 */
+          <>
+            <V k="ACE">
+              <aside className="rail">
+                <h2 id="railhead">Trials</h2>
+                <nav className="boards" id="boards" aria-label="Trials">
+                  <V k="AC">
+                    <TrialRailText current={name} />
+                  </V>
+                  <V k="E">
+                    <TrialRailPics current={name} />
+                  </V>
+                </nav>
+              </aside>
+            </V>
+            <ProtoPicker />
+          </>
+        ) : (
+          <aside className="rail">
+            <h2 id="railhead">{b.group}</h2>
+            <nav className="boards" id="boards" aria-label="Leaderboard">
+              {items}
+            </nav>
+          </aside>
+        )}
 
-        <section className="content">
+        <section className={trial ? "content tr-content" : "content"}>
           <YouMarks name={name} />
+          {trial && (
+            <>
+              <V k="B">
+                <TowerSwitch current={name} />
+              </V>
+              <V k="D">
+                <TrialCards current={name} />
+              </V>
+            </>
+          )}
           <div className="boardrow">
             <SeasonChip seasons={seasons} on={b.group} board={name} />
             <BoardSheet
@@ -96,6 +137,15 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
 
           {points ? (
             <OverallCard b={b} rows={rows} tally={tally} tracks={tracks} podiums={podiums} />
+          ) : trial ? (
+            <>
+              <V k="ABDE">
+                <TrackCard b={b} rows={rows} scores={scores} />
+              </V>
+              <V k="C">
+                <BothRecords current={name} />
+              </V>
+            </>
           ) : (
             <TrackCard b={b} rows={rows} scores={scores} />
           )}

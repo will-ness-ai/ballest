@@ -5,11 +5,23 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 export const VARIANTS = [
-  ["A", "Cards", "A card per Trial, picture on top, three across on desktop"],
-  ["B", "Banners", "Wide banners like /campaigns, the picture behind a fade"],
-  ["C", "Table", "One compact row per Trial: picture, name, record, players"],
-  ["D", "Podiums", "Each Trial with its top 3 and a Full board link"],
-  ["E", "Straight to a board", "No list: Trial chips over a top-10 board"],
+  [
+    "A",
+    "Like a Track",
+    "The Track page as is: a Trials rail beside the board, all three Trials in it",
+  ],
+  [
+    "B",
+    "Two-way switch",
+    "No rail: a No checkpoints / Checkpoints switch over the card, Leth only on /trials",
+  ],
+  ["C", "Both records", "Rail as A; the card holds both Tower records, the other one a link"],
+  [
+    "D",
+    "Card strip",
+    "No rail: the three Trials as small picture cards over the board, this one lit",
+  ],
+  ["E", "Picture rail", "The rail's Trials as picture cards with their record and runs"],
 ] as const;
 export type VariantKey = (typeof VARIANTS)[number][0];
 

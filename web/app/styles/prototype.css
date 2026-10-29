@@ -380,3 +380,173 @@
     width: 240px;
   }
 }
+
+/* round 2: a Trial's board page */
+.tr-strip .lab b {
+  font-size: calc(15rem / 16);
+}
+.tr-pcard {
+  display: grid;
+  overflow: hidden;
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+.tr-pcard[aria-current="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.tr-ppic {
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  object-fit: cover;
+  font-size: calc(11rem / 16);
+}
+.tr-pin {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+}
+.tr-pin small {
+  color: var(--dim);
+}
+.tr-prec {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-family: var(--f-hud);
+}
+.tr-prec .marble,
+.tr-bwho .marble {
+  width: 18px;
+  height: 18px;
+}
+.tr-sw {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.tr-back {
+  color: var(--dim);
+  text-decoration: none;
+}
+.tr-seg {
+  display: flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.tr-seg a {
+  display: grid;
+  padding: 6px 16px;
+  border-radius: 999px;
+  color: var(--dim);
+  text-align: center;
+  text-decoration: none;
+  line-height: 1.2;
+}
+.tr-seg a small {
+  font-size: calc(11rem / 16);
+}
+.tr-seg a[aria-current="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.tr-both {
+  display: grid;
+  overflow: hidden;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.tr-bpic {
+  width: 100%;
+  aspect-ratio: 16 / 5;
+  object-fit: cover;
+}
+.tr-bsides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.tr-bside {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.7;
+}
+.tr-bside + .tr-bside {
+  border-left: 1px solid var(--line);
+}
+.tr-bside.on {
+  background: var(--accent-soft);
+  opacity: 1;
+}
+.tr-btime {
+  font-family: var(--f-hud);
+  font-size: calc(26rem / 16);
+}
+.tr-bwho {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--dim);
+  font-size: calc(13rem / 16);
+}
+.tr-bgo {
+  color: var(--accent);
+  font-size: calc(13rem / 16);
+  font-weight: 600;
+}
+.tr-cards {
+  display: grid;
+  grid-auto-columns: minmax(150px, 1fr);
+  grid-auto-flow: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+.tr-card {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.75;
+}
+.tr-card[aria-current="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  opacity: 1;
+}
+.tr-cpic {
+  width: 100%;
+  aspect-ratio: 16 / 6;
+  object-fit: cover;
+  font-size: calc(10rem / 16);
+}
+.tr-cin {
+  display: grid;
+  padding: 6px 9px;
+}
+.tr-cin b {
+  font-size: calc(13rem / 16);
+}
+.tr-cin small {
+  color: var(--dim);
+  font-family: var(--f-hud);
+}
+@media (min-width: 51.25em) {
+  .main:not(:has(> .rail)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

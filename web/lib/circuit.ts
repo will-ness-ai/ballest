@@ -82,6 +82,15 @@ export const CIRCUIT: ReadonlyArray<CircuitBoard> = [
     display: "Overall",
     origin: "derived",
   },
+  /* PROTOTYPE: the Tower's two boards, as Trials */
+  { name: "Map_TheTower", group: "Trials", tier: null, display: "The Tower", origin: "steam" },
+  {
+    name: "Map_TheTowerCP",
+    group: "Trials",
+    tier: null,
+    display: "The Tower (Checkpoints)",
+    origin: "steam",
+  },
 ];
 
 export const circuitBoard = (name: string) => CIRCUIT.find((b) => b.name === name);

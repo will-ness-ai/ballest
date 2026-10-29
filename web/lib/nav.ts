@@ -139,9 +139,10 @@ function subsOf(
           ...f.seasons.map((s) => ({ label: s.group, href: boardHref(s.overall) })),
           { label: "Trials", href: "/trials" },
         ],
-        on: path.startsWith("/trials")
-          ? f.seasons.length
-          : f.seasons.findIndex((s) => s.group === board?.group),
+        on:
+          path.startsWith("/trials") || board?.group === "Trials"
+            ? f.seasons.length
+            : f.seasons.findIndex((s) => s.group === board?.group),
       };
     }
     case "players":
@@ -181,6 +182,7 @@ function kindOf(section: SectionKey | null, path: string): string | null {
       return path.startsWith(dailyStandingsHref()) ? "Daily standings" : "Daily";
     case "circuit":
       if (path.startsWith("/trials")) return "Trials"; /* PROTOTYPE */
+      if (/^\/board\/Map_TheTower/.test(path)) return "Trial"; /* PROTOTYPE */
       return isPoints(path.split("/")[2] ?? "") ? "Circuit standings" : "Circuit Track";
     case "players":
       if (path.startsWith("/player/")) return "Player";
