@@ -155,6 +155,7 @@ describe("a player's marble", () => {
           },
           { title: "Most authors", rows: [row(ALICE, "Alice", 1)], out: [] },
         ],
+        overall: { rows: [], out: [] },
       },
       PICTURES,
     );
