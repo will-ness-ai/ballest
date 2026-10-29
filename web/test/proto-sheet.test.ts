@@ -1,8 +1,8 @@
 import type { Browser } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { launch } from "../scripts/qa/browser.mjs";
-import { compose, cardHtml, overviewHtml, variantsOf } from "../scripts/qa/sheet.mjs";
+import { launch } from "../scripts/proto/draw.mjs";
+import { compose, cardHtml, overviewHtml, variantsOf } from "../scripts/proto/sheet.mjs";
 
 // a plain PNG of the given size, drawn by the browser, to stand in for a variant's shot
 async function png(browser: Browser, width: number, height: number) {
@@ -99,6 +99,16 @@ describe("the pictures", () => {
     expect(size?.w).toBe(1400);
     // a tall phone shot is cut, not drawn at full length
     expect(size?.h).toBeLessThan(1400);
+  });
+
+  it("draws the desktop shot in a browser with the page's address, the phone shot in a phone", async () => {
+    const html = cardHtml(
+      { key: "A", name: "Cards", note: "" },
+      { desktop: await png(browser, 1280, 600), phone: await png(browser, 390, 600) },
+      { address: "ballestrecords.com/trials" },
+    );
+    expect(html).toMatch(/class="browser"[^]*ballestrecords\.com\/trials/);
+    expect(html).toMatch(/class="phone"[^]*class="status"[^]*class="home"/);
   });
 
   it("shows the page down to the feature's end, however far down it sits", async () => {

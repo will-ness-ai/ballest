@@ -21,6 +21,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "test": "vitest run",
     "qa": "node scripts/qa.mjs",
+    "proto": "node scripts/proto.mjs",
     "gen": "tsx scripts/gen.ts",
     "campaign": "tsx scripts/campaign.ts"
   },

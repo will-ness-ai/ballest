@@ -33,9 +33,9 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
 3. Hand the user the preview URL with the route the feature lives on, e.g.
    `<preview>/players?variant=A`, and post every round as pictures too, so it can be judged
    in the thread without opening the preview:
-   `pnpm --dir web --silent qa sheet <route> --at local:<port> --el <the feature's selector> --pick <key> --title "<the round's question>" --out /mnt/project-files/<feature>/round<N>`
-   draws each variant at 1280 and 390 px into an overview (a row each, desktop beside phone),
-   `page.jpg` (your pick in the whole page) and a card per variant, and lists layout faults.
+   `pnpm --dir web --silent proto sheet http://localhost:<port><route> --el <the feature's selector> --pick <key> --title "<the round's question>" --out /mnt/project-files/<feature>/round<N>`
+   draws each variant at 1280 and 390 px, in a mock browser window and a mock phone, into an
+   overview (a row each), `page.jpg` (your pick in the whole page) and a card per variant.
    It reads the variants from the picker's `data-variants` (`[key, name, note]` each, the
    note saying what the variant changes). Read only the overview, to check the shots came
    out: every image read stays in context for the session. A message takes 6 files: the
@@ -55,7 +55,7 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
   the hash route without disturbing it, so every variant is a link the user can share or
   reload.
 - A floating, draggable picker sits bottom-right, publishing the round's variants as
-  `data-variants` for `qa sheet`. It names the current variant (`B · Sidebar`), and its ←/→ buttons and the ←/→ keys cycle the variants (not while an
+  `data-variants` for `proto sheet`. It names the current variant (`B · Sidebar`), and its ←/→ buttons and the ←/→ keys cycle the variants (not while an
   input has focus), updating `?variant=` with `history.replaceState` so the hash route is
   kept. When the design has meaningful states (a board with 1, 2 or thousands of rows; a
   player with and without Workshop times; an empty search), add picker buttons that

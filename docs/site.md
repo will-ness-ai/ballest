@@ -994,9 +994,7 @@ only visible ones.
   whole catalogue is 176 views and takes 13 minutes from a cloud session, so pass `--all` only
   for a change that shows everywhere and wasn't caught as one. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in
-  place of a throwaway Playwright script. `qa sheet <route> --el <selector>` draws a
-  grill-design round's variants as pictures to post in the thread (`grill-design`'s step 3).
-  `qa shot prefab@1280 --prefab <file.json>` has the
+  place of a throwaway Playwright script. `qa shot prefab@1280 --prefab <file.json>` has the
   Prefab page's viewer draw any file. `qa render <file.json | generator>` draws a Prefab file, or
   what a Generator makes (`--set font=Leker`), locally with the share images' rasterizer: no
   page, no deploy; `--items 0-5` and `--from top` show which pieces make what. To work on a stand-in shape, run `qa piece <mesh>`

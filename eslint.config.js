@@ -68,8 +68,9 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
-    // `pnpm qa`'s probes and image comparison are functions Playwright runs in the page
-    files: ["web/scripts/qa/**"],
+    // `pnpm qa`'s probes and image comparison, and `pnpm proto`'s drawing, are functions
+    // Playwright runs in the page
+    files: ["web/scripts/qa/**", "web/scripts/proto/**"],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
