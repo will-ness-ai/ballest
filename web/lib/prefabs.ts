@@ -1,4 +1,4 @@
-// The rules around Prefabs (CONTEXT.md) the pages and the API share: the fixed tags, the
+// The rules around Prefabs (GLOSSARY.md) the pages and the API share: the fixed tags, the
 // gallery's order, a Prefab's link, and who may do what. The file itself is lib/prefab.ts and
 // the upload check lib/prefab-check.ts.
 

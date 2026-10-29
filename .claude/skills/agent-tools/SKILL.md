@@ -49,7 +49,9 @@ in the part you touch.
    scripts (`pnpm --silent <name>` in a Node package, `python tools/<name>.py` in Python). Write
    each command's `--help` first, from the rules below. Done when each chain from step 1 is one
    command that runs its links inside, and the bare run's output is sketched.
-3. **Build it** to the rules below, with tests for its parsing and row formatting (as
+3. **Build it** to the rules below, its decisions in a pure module beside the entry point
+   (as `web/scripts/campaign/draft.ts` and `web/scripts/pr/land.mjs` are) and the entry point
+   doing only the I/O, with tests for that module's decisions and row formatting (as
    `discord-bot/test/axiDescribe.test.ts` does). Done when every rule is met or its absence is
    a deliberate choice you can name, and the tests pass.
 4. **Run it as the agent will.** In a fresh shell: the bare run, each command's happy path, an

@@ -304,10 +304,13 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
           where u.score <= l.medals[4] * ${SCORE_TICKS_PER_SECOND}
             - case when u.id = m.creator_steam_id then ${CREATOR_BEAT_MARGIN_TICKS} else 0 end), 0)::int
           as "authorBeaten",
-        f.version as "fileVersion"
+        f.version as "fileVersion",
+        coalesce(a.week_plays, 0) as "weekPlays", coalesce(a.votes_up, 0) as "votesUp",
+        coalesce(a.votes_down, 0) as "votesDown", coalesce(a.vote_score, 0) as "voteScore"
       from maps m join latest l on l.pfid = m.pfid
       left join stats s on s.board = m.board
       left join map_files f on f.pfid = m.pfid
+      left join map_activity a on a.pfid = m.pfid
       where l.last_seen_refresh = (select max(last_seen_refresh) from map_history)
       order by m.created_at desc nulls last, m.pfid`,
   );
@@ -502,8 +505,8 @@ export async function chosenSkins(db: Db): Promise<Record<string, string>> {
   );
 }
 
-/* Up to `limit` players on any board whose persona or Steam ID contains q, the names that
-   start with it first: the Compare dialog's search */
+/* Up to `limit` players on any board whose persona or Steam ID contains q, the name that is
+   q first, then the names that start with it: the Compare dialog's search and the site's */
 export async function searchPlayers(
   db: Db,
   q: string,
@@ -519,9 +522,21 @@ export async function searchPlayers(
       where (lower(${personaSql}) like ${contains(term)} or p.steam_id like ${contains(term)})
         and p.steam_id <> ${except}
         and exists (select 1 from entries e where e.steam_id = p.steam_id and e.closed_refresh is null)
-      order by (lower(${personaSql}) like ${starts}) desc, p.steam_id
+      order by lower(${personaSql}) = ${term} desc, (lower(${personaSql}) like ${starts}) desc,
+        p.steam_id
       limit ${limit}`,
   );
+}
+
+/* which of `ids` have a time on a board, an open Entry anywhere: the site search's makers */
+export async function withTimes(db: Db, ids: ReadonlyArray<string>): Promise<Array<string>> {
+  if (!ids.length) return [];
+  const found = await rows<{ steamId: string }>(
+    db,
+    sql`select distinct e.steam_id as "steamId" from entries e
+      where e.steam_id = any(${array(ids)}) and e.closed_refresh is null`,
+  );
+  return found.map((r) => r.steamId);
 }
 
 /* A Track's or a Map's Score history, every Entry it has held with the Refreshes that saw

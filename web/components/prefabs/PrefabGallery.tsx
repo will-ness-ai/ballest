@@ -8,8 +8,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { fetchPrefabFile } from "./file";
 import { Heart } from "./Heart";
-import { PrefabsHead } from "./PrefabTabs";
 import { stillOf } from "./scene";
+import { PillButton, Pills } from "../Controls";
 import type { PrefabCard } from "../../db/prefabs";
 import type { PrefabFile } from "../../lib/prefab";
 import { TAGS, galleryOf, type GallerySort, type PrefabAngle } from "../../lib/prefabs";
@@ -98,42 +98,30 @@ export function PrefabGallery({ cards }: { cards: Array<PrefabCard> }) {
   const shown = galleryOf(cards, sort, tag);
   return (
     <section className="pfl">
-      <PrefabsHead
-        on="shared"
-        blurb="Ready-made pieces for the level editor. Download one, drop it in your Prefabs folder and spawn it into your map."
-        action={
-          <Link className="pf-dl" href={newPrefabHref()}>
-            + Upload
-          </Link>
-        }
-      />
+      <header className="pfl-head">
+        <p>
+          Ready-made pieces for the level editor. Download one, drop it in your Prefabs folder and
+          spawn it into your map.
+        </p>
+        <Link className="btn" href={newPrefabHref()}>
+          + Upload
+        </Link>
+      </header>
       <div className="pfl-bar">
-        <div className="pfl-seg" role="group" aria-label="Sort">
+        <Pills label="Sort">
           {(["popular", "newest"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              aria-pressed={sort === s}
-              className={sort === s ? "on" : ""}
-              onClick={() => setSort(s)}
-            >
+            <PillButton key={s} on={sort === s} onClick={() => setSort(s)}>
               {s === "popular" ? "Popular" : "Newest"}
-            </button>
+            </PillButton>
           ))}
-        </div>
-        <div className="pfl-tags" role="group" aria-label="Tag">
+        </Pills>
+        <Pills label="Tag">
           {TAGS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={"pfl-tag" + (tag === t ? " on" : "")}
-              aria-pressed={tag === t}
-              onClick={() => setTag(tag === t ? null : t)}
-            >
+            <PillButton key={t} on={tag === t} onClick={() => setTag(tag === t ? null : t)}>
               {t}
-            </button>
+            </PillButton>
           ))}
-        </div>
+        </Pills>
       </div>
       <div className="pfl-grid">
         {shown.map((p) => (

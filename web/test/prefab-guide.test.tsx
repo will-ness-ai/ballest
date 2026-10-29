@@ -1,4 +1,4 @@
-// The Prefabs page's How to tab: the guide answers what players ask in the game's Discord
+// How to, in the Prefabs Section: the guide answers what players ask in the game's Discord
 // (how to select, save, spawn, share and ungroup a Prefab, and what a Decal is), and the ? on a
 // Prefab's viewer points to it.
 import { renderToStaticMarkup } from "react-dom/server";
@@ -6,18 +6,10 @@ import { expect, test } from "vitest";
 
 import { HelpDialog } from "../components/prefabs/HowTo";
 import { PrefabGuide } from "../components/prefabs/PrefabGuide";
-import { PrefabsHead } from "../components/prefabs/PrefabTabs";
 import { prefabGuideHref } from "../lib/routes";
 
 /* the markup's text, tags dropped */
 const text = (html: string) => html.replace(/<!--.*?-->/g, "").replace(/<[^>]+>/g, " ");
-
-test("the tabs offer the guide, lit on its own page", () => {
-  const html = renderToStaticMarkup(<PrefabsHead on="guide" blurb="" />);
-  const lit = /<a [^>]*aria-current="page"[^>]*>/.exec(html)?.[0] ?? "";
-  expect(lit).toContain(`href="${prefabGuideHref()}"`);
-  expect(text(html)).toContain("How to");
-});
 
 test("the guide gives the save and spawn commands and the folder both use", () => {
   const t = text(renderToStaticMarkup(<PrefabGuide />));

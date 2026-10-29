@@ -3,7 +3,7 @@
 Status: accepted (2026-10-16).
 
 Until Prefabs, the site only read the database: the collector writes every row (ADR 0005)
-and the bot reads them (ADR 0006). Players asked for a place to share Prefabs (CONTEXT.md),
+and the bot reads them (ADR 0006). Players asked for a place to share Prefabs (GLOSSARY.md),
 and Will chose uploads by anyone signed in with Steam (ADR 0008), live at once, stored in
 the same Postgres (2026-10-16, spec #213).
 

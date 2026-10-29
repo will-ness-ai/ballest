@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { Card } from "./PrefabGallery";
 import { AnglePicker } from "./AnglePicker";
 import { stillOf } from "./scene";
+import { PillButton, Pills } from "../Controls";
 import type { PrefabFile } from "../../lib/prefab";
 import { FOLDER } from "../../lib/prefab-console";
 import { checkPrefab, fileNameOf, type Check } from "../../lib/prefab-check";
@@ -60,15 +61,12 @@ export function UploadForm() {
   return (
     <section className="pfu">
       <header className="pfl-head">
-        <div>
-          <h1>Upload a prefab</h1>
-          <p>Share a prefab you saved in the level editor. It goes live as soon as you publish.</p>
-        </div>
+        <p>Share a prefab you saved in the level editor. It goes live as soon as you publish.</p>
       </header>
       {!quota ? null : !quota.signedIn ? (
         <div className="pfu-gate">
           <p>Sign in with Steam to upload. Your prefab is credited to your Steam name.</p>
-          <a className="pf-dl" href={signInHref(newPrefabHref())}>
+          <a className="btn" href={signInHref(newPrefabHref())}>
             Sign in with Steam
           </a>
         </div>
@@ -185,7 +183,7 @@ function Form({
         <div className="pfu-publish">
           <button
             type="button"
-            className="pf-dl big"
+            className="btn big"
             disabled={!ready}
             onClick={() => void publish()}
           >
@@ -327,19 +325,13 @@ export function Fields({
       </label>
       <fieldset>
         <legend>Tags, up to {MAX_TAGS}</legend>
-        <div className="pfl-tags">
+        <Pills label="Tags">
           {TAGS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={"pfl-tag" + (f.tags.includes(t) ? " on" : "")}
-              aria-pressed={f.tags.includes(t)}
-              onClick={() => toggle(t)}
-            >
+            <PillButton key={t} on={f.tags.includes(t)} onClick={() => toggle(t)}>
               {t}
-            </button>
+            </PillButton>
           ))}
-        </div>
+        </Pills>
       </fieldset>
     </div>
   );

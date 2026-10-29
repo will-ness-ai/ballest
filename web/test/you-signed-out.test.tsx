@@ -195,7 +195,7 @@ describe("when You's cards can't be read", () => {
 describe("while You's record is read", () => {
   test("the header holds a bar for You's name, and Show all stays drawn but can't be pressed", () => {
     draw({ state: "loading", claimed: true, id: "76561198000000004" });
-    expect(el.querySelector("h1 .ys-hold")).not.toBeNull();
+    expect(el.querySelector("h2 .ys-hold")).not.toBeNull();
     const more = [...el.querySelectorAll<HTMLButtonElement>(".yl-more")];
     expect(more).toHaveLength(4);
     expect(more.every((b) => b.disabled)).toBe(true);
@@ -209,7 +209,7 @@ describe("while You's record is read", () => {
   test("a signed-in player on no list gets the plain header, not a bar that never lands", () => {
     draw({ state: "unknown", id: "76561198000000005" });
     expect(el.querySelector(".ys-hold")).toBeNull();
-    expect(el.querySelector("h1")?.textContent).toBe("Where you stand");
+    expect(el.querySelector(".ys-top h2")?.textContent).toBe("Where you stand");
   });
 });
 

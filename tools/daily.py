@@ -1,6 +1,6 @@
 """
 The Daily: the game's one-day challenge on one Workshop Map, with its own Steam board
-(CONTEXT.md). The developers' API names each day's board; this module decides which
+(GLOSSARY.md). The developers' API names each day's board; this module decides which
 Dailies a Refresh looks up and reads (plan), and asks the API (look_up).
 
 The collector learns which Dailies it already holds from the database (known_dailies).

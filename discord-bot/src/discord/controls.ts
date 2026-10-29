@@ -28,7 +28,26 @@ export type Control =
   /** Get (on) or Remove (off) the ping role, on the Pings reply or the offer. */
   | { readonly _tag: "SetPing"; readonly on: boolean }
   /** No, on the offer of the ping role. */
-  | { readonly _tag: "DeclinePing" };
+  | { readonly _tag: "DeclinePing" }
+  /** The My Stats panel's button: the member's Stat Card, privately. */
+  | { readonly _tag: "SeeMyStats" }
+  /** "Not you? Pair again", on the Stat Card's private answer: a fresh sign-in link. */
+  | { readonly _tag: "PairAgain" }
+  /** The Weekly Cup's post (spec #353): each button names its server and its week's Monday. */
+  | CupControl<"CupSignUp">
+  | CupControl<"CupWithdraw">
+  /** Skip on the post: asks a server admin to confirm, privately. */
+  | CupControl<"CupSkip">
+  | CupControl<"CupConfirmSkip">
+  /** The Shortlist's vote: a pick of up to 3 of its Maps. */
+  | CupControl<"CupVote">;
+
+type CupTag = "CupSignUp" | "CupWithdraw" | "CupSkip" | "CupConfirmSkip" | "CupVote";
+interface CupControl<K extends CupTag> {
+  readonly _tag: K;
+  readonly guildId: string;
+  readonly week: string;
+}
 
 type Tag = Control["_tag"];
 type Of<K extends Tag> = Extract<Control, { readonly _tag: K }>;
@@ -78,7 +97,24 @@ const forMatch = <K extends "AskLeave" | "ConfirmLeave" | "PlayAgain">(
   },
 });
 
+const WEEK = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A Weekly Cup Control: its server's id and its week. */
+const forCup = <K extends CupTag>(prefix: string, tag: K): Codec<K> => ({
+  prefix,
+  write: (c: CupControl<CupTag>) => [c.guildId, c.week],
+  read: ([guildId, week]) =>
+    guildId === undefined || guildId === "" || week === undefined || !WEEK.test(week)
+      ? null
+      : ({ _tag: tag, guildId, week } as Of<K>),
+});
+
 const CODECS: { readonly [K in Tag]: Codec<K> } = {
+  CupSignUp: forCup("cupin", "CupSignUp"),
+  CupWithdraw: forCup("cupout", "CupWithdraw"),
+  CupSkip: forCup("cupskip", "CupSkip"),
+  CupConfirmSkip: forCup("cupskipyes", "CupConfirmSkip"),
+  CupVote: forCup("cupvote", "CupVote"),
   NewMatch: bare("new", { _tag: "NewMatch" }),
   LinkSteam: bare("link", { _tag: "LinkSteam" }),
   PickTarget: bare("target", { _tag: "PickTarget" }),
@@ -87,6 +123,8 @@ const CODECS: { readonly [K in Tag]: Codec<K> } = {
   Stay: bare("stay", { _tag: "Stay" }),
   Pings: bare("pings", { _tag: "Pings" }),
   DeclinePing: bare("pingno", { _tag: "DeclinePing" }),
+  SeeMyStats: bare("stats", { _tag: "SeeMyStats" }),
+  PairAgain: bare("statsagain", { _tag: "PairAgain" }),
   SetPing: {
     prefix: "setping",
     write: (c) => [c.on ? "on" : "off"],

@@ -152,26 +152,8 @@
 }
 
 /* What changed */
-.hi-seg {
-  display: inline-flex;
+.hi-show {
   margin: 0 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.hi-seg button {
-  padding: 6px 12px;
-  border: 0;
-  background: none;
-  color: var(--dim);
-  font: 600 calc(12rem / 16) var(--f-hud);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.hi-seg button[aria-pressed="true"] {
-  background: var(--surface2);
-  color: var(--text);
 }
 .hi-none {
   margin: 8px 0 0;

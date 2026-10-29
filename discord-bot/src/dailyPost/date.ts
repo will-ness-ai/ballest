@@ -1,4 +1,4 @@
-// A Daily's date, "2026-10-18": its name (CONTEXT.md), the key its Daily Post is recorded under,
+// A Daily's date, "2026-10-18": its name (GLOSSARY.md), the key its Daily Post is recorded under,
 // and the day its window opens on. The one place that string is read, written and timed.
 
 export const HOUR = 3_600_000;

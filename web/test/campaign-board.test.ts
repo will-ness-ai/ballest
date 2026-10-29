@@ -244,7 +244,7 @@ describe("a Campaign of an Event board", () => {
     expect(data?.maps.map((m) => [m.pfid, m.name, m.title, m.entryCount, m.top3[0]])).toEqual([
       ["leth-trial-1", LETH, "Leth Trial #1", 2, [p(4), "Slowpoke", 2_373_600]],
     ]);
-    expect((await getCampaigns())[0].previews).toEqual(["/leth/preview.jpg"]);
+    expect((await getCampaigns())[0].previews).toEqual(["/leth/screenshot.jpg"]);
   });
 
   test("serves the Event board itself through the board API, as a Map's", async () => {

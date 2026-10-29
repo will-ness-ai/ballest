@@ -27,6 +27,9 @@ const ROUTES = [
   ["/maps/new", 200],
   ["/maps/nope", 404],
   ["/api/maps?q=marble", 200, null, "Marble Run"],
+  // the site search: a player and their Map, and nothing for an empty query
+  ["/api/search?q=tenpin", 200, null, "Marble Run"],
+  ["/api/search?q=", 200, null, "null"],
   ["/board/Map_Track13", 200, null, "Rolling Rae"],
   ["/board/Map_Track13/" + P1, 200],
   ["/board/OverallLeaderboard_EASeason2", 200],
@@ -51,6 +54,8 @@ const ROUTES = [
      list, is only known to the page: a soft 404, the not-found page with a 200 */
   ["/campaigns", 200, null, "Solar Trials"],
   ["/", 200, null, "Solar Trials"],
+  /* Trending this week: stress records plays for Rocky Alpine, Mercury and tiny's Marble Run */
+  ["/", 200, null, "Trending this week"],
   ["/campaign/solar-trials", 200, null, "Twizzle"],
   ["/campaign/solar-trials", 200, null, "/og/campaign/solar-trials?v="],
   ["/campaign/solar-trials/podiums", 200, null, "Twizzle"],
@@ -131,6 +136,10 @@ const ROUTES = [
   ["/og/daily/2026-08-30", 200, null, "PNG"],
   ["/og/daily/2026-07-01", 404],
   ["/og/nope/1", 404],
+  // a player's Stat Card (lib/stat-card.ts), which Multiballs fetches
+  ["/og/stats/" + P1 + "?v=1", 200, null, "PNG"],
+  ["/og/stats/76561199000000099", 404],
+  ["/og/stats/nope", 404],
   [
     "/player/" + P1 + "/circuit",
     200,
@@ -177,16 +186,16 @@ const ROUTES = [
   ["/players/circuit/pod", 200, null, '<link rel="canonical" href="' + ORIGIN + '/players"'],
   ["/daily/2026-08-30", 200, null, '<link rel="canonical" href="' + ORIGIN + '/daily/2026-08-30"'],
   ["/", 200, null, '"@type":"WebSite"'],
-  ["/", 200, null, "<title>Ballest of Them All Records: "],
+  ["/", 200, null, "<title>BALLESTRECORDS: Ballest of Them All "],
   // Prefabs (tiny's two): a page, its file as an attachment, and a gone one
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
   ["/prefabs/new", 200, null, "Upload a prefab"],
-  // the Generators: the Generate your own tab, a Generator, and one that isn't
-  ["/prefabs/make", 200, null, "Generate your own"],
+  // the Generators: Make your own, a Generator, and one that isn't (a key no Generator will
+  // ever take: a real word fails here the day a Generator is named it)
+  ["/prefabs/make", 200, null, '<h1 class="ph-title">Make a prefab</h1>'],
   ["/prefabs/guide", 200, null, "ballest.editor.saveprefab my_prefab"],
   ["/prefabs/guide", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs/guide"'],
-  ["/prefabs/make/qr", 200, null, "QR code"],
   ["/prefabs/make/sign", 200, null, "Sign"],
   ["/prefabs/make/tree", 200, null, "Tree"],
   ["/prefabs/make/bush", 200, null, "Bush"],
@@ -210,7 +219,8 @@ const ROUTES = [
   ["/prefabs/make/trophy", 200, null, "Trophy"],
   ["/prefabs/make/fence", 200, null, "Fence"],
   ["/prefabs/make/finish-arch", 200, null, "Finish arch"],
-  ["/prefabs/make/windmill", 404],
+  ["/prefabs/make/no-such-generator", 404],
+  ["/prefabs/make/qr", 308, "/prefabs/make"],
   // the Generators' collage, for agents: a 404 only in production on Vercel
   ["/prefabs/collage?g=house", 200, null, "Generator collage"],
   ["/api/prefabs", 200, null, '"signedIn":false'],
@@ -234,6 +244,12 @@ const ROUTES = [
   ["/api/prefabs/twin-cubes/favorite", 200, null, '"favorites":0'],
   ["/api/prefabs/nope/favorite", 404],
   ["/api/prefabs/twin-cubes", 405],
+  // the Stats Link's page (tiny's link request, signed out) and its confirm, which only POSTs
+  ["/discord/link?t=5eed0000000000000000000000000001", 200, null, "rae.disc"],
+  ["/discord/link?t=nope", 200, null, "This link doesn&#x27;t work"],
+  ["/discord/link", 200, null, "See my stats"],
+  ["/api/discord/link?t=nope", 405],
+  ["/robots.txt", 200, null, "Disallow: /discord/"],
   ["/no-such-page", 404],
 ];
 

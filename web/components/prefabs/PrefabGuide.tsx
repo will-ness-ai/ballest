@@ -1,10 +1,9 @@
-// The Prefabs page's How to tab: saving pieces of a map as a Prefab, spawning one, what comes
+// How to, in the Prefabs Section: saving pieces of a map as a Prefab, spawning one, what comes
 // out (one group), sharing one here, and Decals. Written from what players asked in the game's
 // Discord, each step checked against the game.
 import Link from "next/link";
 
 import { Code } from "./HowTo";
-import { PrefabsHead } from "./PrefabTabs";
 import { DELETE, FOLDER, LIST, SAVE, SPAWN } from "../../lib/prefab-console";
 import { HOURLY_UPLOADS } from "../../lib/prefabs";
 import { makePrefabHref, newPrefabHref, prefabsHref } from "../../lib/routes";
@@ -12,10 +11,11 @@ import { makePrefabHref, newPrefabHref, prefabsHref } from "../../lib/routes";
 export function PrefabGuide() {
   return (
     <section className="pfl">
-      <PrefabsHead
-        on="guide"
-        blurb="How to save pieces of your map as a prefab, spawn one into another map, and share it here."
-      />
+      <header className="pfl-head">
+        <p>
+          How to save pieces of your map as a prefab, spawn one into another map, and share it here.
+        </p>
+      </header>
       <div className="pfg">
         <section>
           <h2 className="pfu-h2">Save a prefab</h2>
@@ -50,9 +50,8 @@ export function PrefabGuide() {
           <h2 className="pfu-h2">Spawn a prefab</h2>
           <ol className="pf-steps">
             <li>
-              <b>Get the file</b>: download one from{" "}
-              <Link href={prefabsHref()}>Shared by players</Link> or{" "}
-              <Link href={makePrefabHref()}>Generate your own</Link>, or save your own.
+              <b>Get the file</b>: download one from <Link href={prefabsHref()}>Shared</Link> or{" "}
+              <Link href={makePrefabHref()}>Make your own</Link>, or save your own.
             </li>
             <li>
               <b>Put it in</b> the same Prefabs folder, as a <code>.json</code> file.
@@ -89,7 +88,7 @@ export function PrefabGuide() {
               <b>
                 Press <Link href={newPrefabHref()}>Upload</Link>
               </b>{" "}
-              on Shared by players and sign in with Steam.
+              at the top of Prefabs and sign in with Steam.
             </li>
             <li>
               <b>Choose the file</b> from your Prefabs folder. The site checks it the way the game

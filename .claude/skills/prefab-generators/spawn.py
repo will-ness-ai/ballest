@@ -4,11 +4,13 @@
 
 Run from the repo root on Will's PC, with a slot started and its level editor open:
 
-    python <sandbox.py> start 1
+    python <sandbox.py> start 1 --host build/version.dll
     python <sandbox.py> run 1 -c "open Map_LevelEditorMain; sleep 12"
 
-It writes the file into the slot's Prefabs folder, types `ballest.editor.spawnprefab` into the
-game's console (the host's `console` test command doesn't run it) and shoots; Enter closes
+`--host` runs the plugin manager fork's own build (`./build.sh` in that checkout) until a release
+reads several test commands a write, which sandbox.py's `keys` needs. It writes the file into the
+slot's Prefabs folder, types `ballest.editor.spawnprefab` into the game's console in one write
+(the host's `console` test command doesn't run it) and shoots; Enter closes
 the console, and Escape would open the editor's menu. The prefab appears in front of the
 editor's camera, which looks along +X, so a big one fills the view: spawn a small variation
 to see all of it. Prints the screenshot's path.
@@ -59,19 +61,13 @@ subprocess.run(  # noqa: S603 (web's tsx with our own arguments)
 )
 
 
-def keys(text: str):
-    """one posted key a character: letters as their capitals, `.` and space"""
-    return [f"post {190 if c == '.' else 32 if c == ' ' else ord(c.upper())}" for c in text]
-
-
 shot = f"spawn-{name}"
 # `post 192` opens the console; any key posted while it is closed is an editor shortcut
 lines = [
     "post 192",
-    "sleep 1",
-    *keys(f"ballest.editor.spawnprefab {name}"),
+    f"keys ballest.editor.spawnprefab {name}",
     "post 13",
-    "sleep 4",
+    "sleep 2",
     f"shot {shot}",
 ]
 with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:

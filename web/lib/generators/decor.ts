@@ -68,6 +68,7 @@ function lamp(style: string, at: V3, H: number, pole: Colour, light: Colour): Ar
 
 export const lampPost: Generator = {
   key: "lamp",
+  loose: true,
   name: "Lamp post",
   category: "Decor",
   blurb: "A street lamp, lantern, globe or double lamp, one or a row of them.",

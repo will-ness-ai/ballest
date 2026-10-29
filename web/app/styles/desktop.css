@@ -10,15 +10,16 @@
     padding: 30px 24px 90px;
   }
 
+  /* Refreshed moves to the sub-tabs' row, at its end */
   .hdr {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 7px;
-    padding: 0 0 22px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "bar bar" "sections sections" "subs fresh";
+    column-gap: 16px;
+    margin-block-end: 22px;
   }
-  /* the phone's row basis would be a height in this column */
-  .brand {
-    flex: none;
+  .bar {
+    gap: 24px;
+    padding: 0 0 14px;
   }
   .rack .marble {
     width: 24px;
@@ -31,39 +32,48 @@
     font-size: calc(20rem / 16);
     line-height: 1.25;
   }
-  .tagline {
+  /* the site search is a wide field between the brand and You, its button gone */
+  .srch-bar {
     display: block;
-    margin: 0;
-    font-family: var(--f-hud);
-    font-size: calc(11rem / 16);
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: var(--dim);
-    font-weight: 600;
+    flex: 1;
+    max-inline-size: 560px;
+    margin-inline: auto;
+    container-type: inline-size;
+  }
+  /* the "/" hint gives its room to the placeholder in a bar that You's unfolded card squeezes */
+  .srch-field kbd {
+    display: none;
+  }
+  @container (min-width: 17.5rem) {
+    .srch-field kbd {
+      display: inline;
+    }
+  }
+  .srch-btn {
+    display: none;
   }
   .freshness {
-    margin-inline-start: 0;
-    text-align: start;
+    align-self: end;
+    padding: 0 0 7px;
     font-size: calc(12.5rem / 16);
   }
-  /* You's card sits top right, beside the brand, and Refreshed stays where it is */
-  .hdr {
-    position: relative;
-  }
-  .hdr:has(.youcard) .freshness {
-    display: block;
-  }
+  /* You's card unfolds: your name, then your place and Maps under it */
   .youcard {
-    position: absolute;
-    inset-block-start: 0;
-    inset-inline-end: 0;
-    max-inline-size: 290px;
     padding: 6px 14px 6px 6px;
   }
   .youcard .marble,
   .youcard .q {
     inline-size: 34px;
     block-size: 34px;
+  }
+  .youcard > span:last-child {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    inline-size: auto;
+    block-size: auto;
+    min-inline-size: 0;
+    clip-path: none;
   }
   .youcard .yc-wide {
     display: inline;
@@ -74,31 +84,31 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .yc-wait {
+    inline-size: 8em;
+  }
 
-  .groups {
-    gap: 2px;
-    margin: 0 0 20px;
-    padding: 0;
-    background: none;
-    border: 0;
-    border-block-end: 1px solid var(--line);
+  /* every link fits here, and the fade's mask would cut off the lit Section's underline */
+  .sections,
+  .subs {
+    padding-inline: 0;
     overflow: visible;
-    /* every tab fits here, and the fade's mask would cut off the lit tab's underline */
     animation: none;
     mask-image: none;
   }
-  .gtab {
-    flex: 0 0 auto;
-    padding: 10px 15px;
-    border-radius: 0;
-    border-block-end: 2px solid transparent;
-    margin-block-end: -1px;
+  .sections {
+    gap: 6px;
   }
-  .gtab[aria-selected="true"] {
-    background: none;
-    color: var(--accent);
-    border-block-end-color: var(--accent);
-    font-weight: 600;
+  .sections a {
+    padding: 12px 16px 13px;
+  }
+  .subs {
+    flex-wrap: wrap;
+    padding-block-start: 12px;
+  }
+
+  .ph {
+    margin: 0 0 22px;
   }
 
   .main {
@@ -239,12 +249,7 @@
   } /* the standalone meta line is a phone affordance */
   .search {
     padding: 0;
-    flex: 0 0 auto;
-  }
-  .search input {
-    width: 230px;
-    border-radius: 9px;
-    padding: 8px 12px;
+    flex: 0 0 230px;
   }
 
   /* podium, full size */
@@ -391,7 +396,7 @@
     justify-content: flex-end;
     gap: 11px;
   }
-  .pill {
+  .hue-pill {
     width: 17px;
     height: 7px;
   }
@@ -417,7 +422,6 @@
   .app[data-view="vs"] .main {
     grid-template-columns: minmax(0, 1fr);
   }
-  .back,
   .pid,
   .pstats,
   .pseason {
@@ -575,16 +579,16 @@
     width: 34px;
     height: 34px;
   }
-  .car {
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  /* Trending this week: two columns of five, ranks running down each, once it has a sixth */
+  .trend ol:has(> li:nth-child(6)) {
+    grid-auto-flow: column;
+    grid-template-rows: repeat(5, auto);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
   }
-  .car-pic {
-    aspect-ratio: auto;
-    max-height: none;
-    min-height: 360px;
-  }
-  .car-in {
-    padding: 22px;
+  .trend a {
+    grid-template-columns: 1.6rem 96px minmax(0, 1fr) auto;
+    gap: 12px;
   }
   .strip {
     grid-auto-columns: minmax(200px, 220px);
@@ -615,10 +619,6 @@
   }
   .app[data-view="daily"] .content {
     grid-column: 2;
-  }
-  .app[data-view="daily"] .ds-switch {
-    grid-column: 1 / -1;
-    margin: 0;
   }
   /* the standings are one column: the record cards three across over the medal table */
   .app[data-view="daily"] .main.ds {
@@ -681,7 +681,7 @@
   .dp-more {
     margin: 0;
   }
-  .dp-podhead h1 {
+  .dp-podhead h2 {
     font-size: calc(30rem / 16);
   }
   .dp-steps {
@@ -689,16 +689,10 @@
     justify-self: center;
     width: 100%;
   }
-  /* the panel stays put while the board scrolls past it, like the rail; if it is taller
-     than the window it scrolls on its own */
+  /* the panel scrolls with the page: a scroll of its own buried its foot on a short
+     screen (spec #359) */
   .mpanel {
     margin: 0;
-    position: sticky;
-    inset-block-start: 16px;
-    max-height: calc(100dvh - 32px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
   }
   /* a Map in 3D: the record and Medals in a card under the bar, which names the Map; it
      follows the bar in .m3d-top's flow, so it never overlaps it */
@@ -770,16 +764,6 @@
   /* the upload form beside the preview and card it will make */
   .pfu-split {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-  /* the Prefabs tabs' full labels, and room for them without a scroll */
-  .gen-tabs {
-    overflow-x: visible;
-  }
-  .gen-tab-short {
-    display: none;
-  }
-  .gen-tab-long {
-    display: inline;
   }
   /* a Generator's controls beside its model, which fills the height */
   .gen-split {

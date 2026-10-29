@@ -1,6 +1,7 @@
-// /prefabs/guide: the Prefabs page's How to tab (components/prefabs/PrefabGuide).
+// /prefabs/guide: How to, the Prefabs Section's guide (components/prefabs/PrefabGuide).
 import type { Metadata } from "next";
 
+import { PageHead } from "../../../components/PageHead";
 import { Shell } from "../../../components/Shell";
 import { PrefabGuide } from "../../../components/prefabs/PrefabGuide";
 import { pageMetadata } from "../../../components/metadata";
@@ -18,6 +19,7 @@ export function generateMetadata(): Promise<Metadata> {
 export default function Page() {
   return (
     <Shell view="prefabs">
+      <PageHead path={prefabGuideHref()} title="How to use prefabs" />
       <PrefabGuide />
     </Shell>
   );

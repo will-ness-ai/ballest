@@ -1,11 +1,10 @@
 "use client";
-// The Generate your own tab (grill-design round 1 of #310, A · Sections): a heading per category,
+// The Make your own page (grill-design round 1 of #310, A · Sections): a heading per category,
 // in CATEGORIES' order, over a card per Generator, each with a still of what its defaults
 // make, drawn in the browser by the gallery's shared renderer (scene.ts stillOf).
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { PrefabsHead } from "../PrefabTabs";
 import { stillOf } from "../scene";
 import { CATEGORIES, GENERATORS, generate, type Generator } from "../../../lib/generators";
 import { generatorHref } from "../../../lib/routes";
@@ -13,10 +12,9 @@ import { generatorHref } from "../../../lib/routes";
 export function MakeGallery() {
   return (
     <section className="pfl">
-      <PrefabsHead
-        on="make"
-        blurb="Make a prefab from a few settings, then download it and spawn it into your map."
-      />
+      <header className="pfl-head">
+        <p>Make a prefab from a few settings, then download it and spawn it into your map.</p>
+      </header>
       {CATEGORIES.map((c) => (
         <section key={c} className="gen-group">
           <h2 className="pfu-h2">{c}</h2>
