@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
 import { ANSWERS, DROP, MASK, PREFAB_FILE, STAND_IN } from "./catalogue.mjs";
-import { measure, probe } from "./probes.mjs";
+import { measure, probe, textLayout } from "./probes.mjs";
 
 const circuit = fileURLToPath(new URL("../../../circuit/", import.meta.url));
 const PICTURE = readFileSync(circuit + readdirSync(circuit).find((f) => f.endsWith(".webp")));
@@ -36,7 +36,8 @@ export const viewName = ({ page, state, width, text }) =>
 /**
  * Loads `url` at the view's size, opens its state by clicking `control` (then typing `typed`
  * into whatever has the keyboard, for a search), and returns the
- * page's status, its screenshot, what the layout probes found and the errors it raised,
+ * page's status, its screenshot, its text and where each line sits (`layout`), what the
+ * layout probes found and the errors it raised,
  * plus the boxes of the elements `boxes` selects and the value of the expression `script`.
  * `prefab` is a Prefab file's text, served in place of every Prefab's file, so a Prefab's
  * page draws it. `cookies` are set before the page loads (session.mjs's signIn gives the
@@ -154,10 +155,12 @@ export async function render(
     // measured at the view's own viewport, before the screenshot below grows it
     const measured = boxes ? await page.evaluate(measure, boxes) : undefined;
     const evaluated = script ? await page.evaluate(script) : undefined;
-    let shot;
+    let shot, layout;
     // an open dialog or sheet covers the viewport, which is all there is to see
-    if (control) shot = await (element ? page.locator(element).first() : page).screenshot();
-    else {
+    if (control) {
+      layout = await page.evaluate(textLayout, probes.height);
+      shot = await (element ? page.locator(element).first() : page).screenshot();
+    } else {
       // the whole page as one tall viewport rather than Chromium's stitched full-page
       // capture, which moves the fixed background between two runs of the same page
       const height = full ? probes.height : Math.min(probes.height, MAX_HEIGHT);
@@ -174,10 +177,11 @@ export async function render(
       await page.evaluate(() => {
         scrollTo(0, 0);
       });
+      layout = await page.evaluate(textLayout, height);
       shot = await (element ? page.locator(element).first() : page).screenshot();
     }
     const title = await page.title();
-    return { status, me, title, shot, probes, errors, measured, evaluated };
+    return { status, me, title, shot, layout, probes, errors, measured, evaluated };
   } finally {
     await ctx.close();
   }

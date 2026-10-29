@@ -56,6 +56,31 @@ export function preview(branch = sh("git", ["rev-parse", "--abbrev-ref", "HEAD"]
   };
 }
 
+/**
+ * Reads the preview with `read` every `every` ms until it is built at HEAD or its build
+ * failed, for at most about `limit` ms, and returns the last read: qa check --wait, in place of
+ * an agent's own polling loop.
+ * @template {{ state: string, behind?: boolean }} T
+ * @param {() => T} read
+ * @param {{ every?: number, limit?: number, sleep?: (ms: number) => Promise<void> }} [options]
+ * @returns {Promise<T>}
+ */
+export async function settled(
+  read,
+  {
+    every = 15_000,
+    limit = 15 * 60_000,
+    sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
+  } = {},
+) {
+  for (let waited = 0; ; waited += every) {
+    const t = read();
+    if ((t.state === "success" && !t.behind) || ["failure", "error"].includes(t.state)) return t;
+    if (waited >= limit) return t;
+    await sleep(every);
+  }
+}
+
 export function resolve(spec) {
   if (spec === "prod") return { name: "prod", url: PROD, ids: "real" };
   if (spec === "preview") return preview();

@@ -205,6 +205,37 @@ export function probe() {
   };
 }
 
+/* each element's own text and its box, rounded, in page order, down to `bottom` px: what
+   numbers.mjs reads to tell live data that moved from a page that moved */
+export function textLayout(bottom) {
+  const lines = [];
+  const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let last = null;
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+    const el = n.parentElement;
+    if (!el || el === last || !n.textContent.trim()) continue;
+    if (el.closest("[hidden], [aria-hidden=true], dialog:not([open]), script, style")) continue;
+    const r = el.getBoundingClientRect();
+    const top = r.top + scrollY;
+    if (r.width === 0 || r.height === 0 || top >= bottom) continue;
+    last = el;
+    const text = [...el.childNodes]
+      .filter((c) => c.nodeType === 3)
+      .map((c) => c.textContent)
+      .join("")
+      .trim()
+      .replace(/\s+/g, " ");
+    lines.push({
+      text,
+      x: Math.round(r.left),
+      y: Math.round(top),
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+    });
+  }
+  return lines;
+}
+
 /* each match's box, rounded, with the start of its text */
 export function measure(selector) {
   return [...document.querySelectorAll(selector)].slice(0, 40).map((el) => {

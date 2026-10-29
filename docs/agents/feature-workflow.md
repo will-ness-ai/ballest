@@ -110,9 +110,10 @@ passed through `gh` or the API skips the template, so copy its Checked lines in)
 including the design verdicts and the prototype branch), and mark it ready for review once
 CI is green and the final commit itself has been checked: the smoke test, its preview
 deploy, and, for a site change, a Refresh's revalidate end to end and the changed pages
-against production with `pnpm --silent qa check` (`docs/site.md`, "Checking a change"). A
+against production with `pnpm --silent qa check --wait` (`docs/site.md`, "Checking a change"). A
 QA brief for a subagent says the same: run `qa check` first, read only the pictures it
-writes, and add a catalogue row for any page or dialog it does not draw. A gap left unchecked goes in the
+writes, and add a catalogue row for any page or dialog it does not draw. A fault it marks
+`also` is production's own: fix it in the PR if it's small, or list it in Checked. A gap left unchecked goes in the
 PR's Checked section as a gap. Remove the prototype worktree if `/grill-design` left one.
 
 A red check on the PR: run `pnpm --silent pr why <n>` at the root first. It prints each failed

@@ -20,11 +20,12 @@ import { compare } from "./qa/compare.mjs";
 import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
 import { landsElsewhere } from "./qa/landing.mjs";
+import { onlyNumbers } from "./qa/numbers.mjs";
 import { changedFiles, reach } from "./qa/reach.mjs";
 import { REFS, pieces } from "./qa/piece.mjs";
 import { fmt, matching, pagesOf, rankRows } from "./qa/piece-math.mjs";
 import { signIn } from "./qa/session.mjs";
-import { preview, resolve, up } from "./qa/targets.mjs";
+import { preview, resolve, settled, up } from "./qa/targets.mjs";
 
 const OUT = fileURLToPath(new URL("../../scratch/qa/", import.meta.url));
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -40,7 +41,7 @@ views are page[+state][@width[/text]], e.g. player+compare@320/20 (text in px, 1
   a page is a catalogue name or any path, e.g. /campaign/solar-trials@390
 targets are prod, preview (this branch's), local[:port] or a URL
 run \`pnpm --silent qa <command> --help\` for a command's flags`,
-  check: `usage: pnpm --silent qa check [--at preview] [--against prod] [--pages a,b | --all] [--sizes ${SIZES}] [--no-states] [--assert] [--jobs 4]
+  check: `usage: pnpm --silent qa check [--at preview] [--against prod] [--pages a,b | --all] [--sizes ${SIZES}] [--no-states] [--assert] [--wait] [--jobs 4]
   --at        the target (default preview)
   --against   the reference, or "none" to look for faults only (default prod)
   --pages     page or page+state names to keep (default: the pages this branch's changes
@@ -49,6 +50,7 @@ run \`pnpm --silent qa <command> --help\` for a command's flags`,
   --sizes     width[/text] list (default ${SIZES})
   --no-states skip the states a click opens (dialogs, sheets)
   --assert    exit 1 when any fault is found; the CI form, with --against none
+  --wait      wait (up to 15 minutes) for the preview to be built at HEAD, then check it
   --jobs      views drawn at once (default 4)
 fault kinds: overflow (page scrolls sideways), offscreen, clipped (text or placeholder cut),
   overlap (text over text), error (page, console or a failed load), scroll (lands elsewhere
@@ -122,7 +124,7 @@ const FLAGS = {
   "": [],
 };
 const SWITCHES = {
-  check: ["no-states", "assert", "all"],
+  check: ["no-states", "assert", "all", "wait"],
   shot: ["full"],
   piece: ["all", "montage"],
   render: [],
@@ -196,6 +198,7 @@ async function home() {
     `sizes: ${SIZES} (width/text px)`,
     "next:",
     "  pnpm --silent qa check                      # preview against prod, the pages this branch reaches",
+    "  pnpm --silent qa check --wait               # the same, once the preview is built at HEAD",
     "  pnpm --silent qa check --all                # every page and size",
     "  pnpm --silent qa check --pages vs,player    # just those",
     "  pnpm --silent qa shot vs@320/20             # one view, to read",
@@ -408,10 +411,26 @@ function faults(r) {
 }
 
 async function check() {
-  const at = target(flags.at ?? "preview");
+  let at = target(flags.at ?? "preview");
   const ref = flags.against === "none" ? null : target(flags.against ?? "prod");
+  if (flags.wait && at.name === "preview" && (at.state !== "success" || at.behind)) {
+    say(
+      `waiting for the preview of ${at.branch} to be built at HEAD (${at.state}${at.behind ? `, at ${at.sha}` : ""})`,
+    );
+    at = await settled(() => preview());
+    if (at.state === "success" && at.behind)
+      fail(
+        `the preview is still at ${at.sha ?? "?"}, behind HEAD, after 15 minutes`,
+        "push the branch, or check what Vercel built with npx vercel inspect",
+      );
+  }
   if (at.name === "preview" && at.state !== "success")
-    fail(`the preview is ${at.state}`, "push the branch and wait for Vercel, or pass --at local");
+    fail(
+      `the preview is ${at.state}`,
+      flags.wait
+        ? "npx vercel inspect <deployment> --logs reads a failed build's log"
+        : "push the branch and pass --wait, or pass --at local",
+    );
   const sizes = (flags.sizes ?? SIZES).split(",").map((s) => {
     const [w, t] = s.split("/").map(Number);
     if (!w) fail(`not a size: "${s}"`, HELP.check);
@@ -481,15 +500,20 @@ async function check() {
       const expect = pageOf(v.page).status;
       const [signA, signB] = [at, ref].map((t) => t && signIn(v.page, t, started));
       if (!signA) return unsigned.push(name);
-      const draw = (t, signed) =>
-        render(browser, t.url + pageOf(v.page, t.ids).path, v, {
-          control,
-          typed: v.state ? stateOf(v.state).type : undefined,
-          now: started,
-          cookies: signed.cookies,
-        })
+      const draw = (t, signed) => {
+        const once = () =>
+          render(browser, t.url + pageOf(v.page, t.ids).path, v, {
+            control,
+            typed: v.state ? stateOf(v.state).type : undefined,
+            now: started,
+            cookies: signed.cookies,
+          });
+        // a draw that times out once (a 3D view, the search) mostly passes the second time
+        return once()
+          .catch(once)
           .then((r) => ({ ...r, as: signed.as }))
           .catch((e) => ({ failed: String(e.message).split("\n")[0] }));
+      };
       // a reference that can't sign in has nothing to compare against
       const [a, b] = await Promise.all([draw(at, signA), signB ? draw(ref, signB) : null]);
       if (ref && !b) uncompared.push(name);
@@ -549,8 +573,11 @@ async function check() {
       const file = OUT + name.replaceAll("/", "-") + ".png";
       writeFileSync(file, d.image);
       const [[, ha], [, hb]] = d.sizes;
+      // the same words in the same places, other numbers: the two caches a Refresh apart
+      const data = onlyNumbers(before.layout, a.layout) ? "numbers" : "";
       diffs.push({
-        sig: `${String(v.width)}/${String(v.text)} ${d.sig}`,
+        sig: `${String(v.width)}/${String(v.text)} ${d.sig} ${data}`,
+        data,
         view: name,
         px: d.changed,
         box: d.box.join(" "),
@@ -595,12 +622,15 @@ async function check() {
   const faultRows = [...grouped.values()].map((f) => ({ ...f, views: few(f.views) }));
   // one picture per change: views whose changes start the same way share the largest's
   const shared = new Map();
-  for (const d of diffs.sort((x, y) => y.px - x.px)) {
+  // a change in the code first, then the ones only in numbers
+  for (const d of diffs.sort((x, y) => Number(!!x.data) - Number(!!y.data) || y.px - x.px)) {
     const first = shared.get(d.sig);
     if (first) first.alike.push(d.view);
     else shared.set(d.sig, { ...d, alike: [] });
   }
   const diffRows = [...shared.values()].map((d) => ({ ...d, alike: few(d.alike) }));
+  const numbered = diffRows.filter((d) => d.data).length;
+  const also = faultRows.filter((f) => f.ref === "also").length;
   const secs = Math.round((Date.now() - started) / 1000);
   const report = [
     `checked ${String(chosen.length - skipped.length - unsigned.length)} views of ${describe(at)}${ref ? ` against ${describe(ref)}` : ""} in ${String(secs)}s`,
@@ -613,7 +643,11 @@ async function check() {
     ...gaps,
     ...rows("faults", ["kind", "where", "detail", ...(ref ? ["ref"] : []), "views"], faultRows),
     ...(ref
-      ? rows("changed", ["view", "px", "box", "height", "shows", "image", "alike"], diffRows)
+      ? rows(
+          "changed",
+          ["view", "px", "box", "height", "shows", "data", "image", "alike"],
+          diffRows,
+        )
       : []),
     ...(skipped.length
       ? [`skipped[${String(skipped.length)}] (control hidden at that width): ${skipped.join(", ")}`]
@@ -628,6 +662,16 @@ async function check() {
     ...(diffs.length
       ? [
           `  read each image (${ref.name} | ${at.name} | changed pixels in red); the views under "alike" start changing the same way`,
+          ...(numbered
+            ? [
+                `  "numbers" under data: only numbers changed, words and places the same; live data, as ${ref.name} and ${at.name} cache a Refresh apart`,
+              ]
+            : []),
+        ]
+      : []),
+    ...(also
+      ? [
+          `  faults marked "also" are on ${ref.name} too: live bugs, not this branch's; fix one that's small here, or name it in the PR so it gets an owner`,
         ]
       : []),
     ...(found.some((f) => f.ref !== "also")
@@ -635,7 +679,7 @@ async function check() {
       : []),
     ...(!diffs.length && !found.length ? ["  nothing to look at"] : []),
     /* last, so the end of a long report still says whether anything is wrong */
-    `summary: ${plural(faultRows.filter((f) => f.ref !== "also").length, ref ? "new fault" : "fault")}${ref ? `, ${plural(diffs.length, "view")} changed (${plural(diffRows.length, "picture")} to read)` : ""}${gaps.length + uncompared.length ? ", and gaps above" : ""}`,
+    `summary: ${plural(faultRows.length - also, ref ? "new fault" : "fault")}${also ? ` (${String(also)} on ${ref.name} too)` : ""}${ref ? `, ${plural(diffs.length, "view")} changed (${plural(diffRows.length - numbered, "picture")} to read${numbered ? `, ${String(numbered)} only numbers` : ""})` : ""}${gaps.length + uncompared.length ? ", and gaps above" : ""}`,
   ];
   say(report);
   // in CI, the job's summary for people, and a notice a cloud session can read, since it
