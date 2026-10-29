@@ -1,12 +1,13 @@
 // The Campaigns: player-made runs of Workshop Maps that we curate and rank the way the game
-// ranks a Circuit season (CONTEXT.md, "Campaign"). The game knows nothing of them, so this
+// ranks a Circuit season (GLOSSARY.md, "Campaign"). The game knows nothing of them, so this
 // list is the only place one exists. Adding one is one entry here (docs/site.md); the
 // tests in test/campaigns.test.ts fail on a list that doesn't hold together.
 //
 // A Campaign's standings are a derived board, OverallCampaign_<slug>, worked out on every
 // read from its Maps' boards (db/boards.ts). The Overall prefix makes it a points board to
 // isPoints and board_kind with no special case.
-import { isPfid, mapBoard } from "./rules";
+import type { WorkshopMap } from "./rows";
+import { isPfid, mapBoard, safeImg } from "./rules";
 
 export interface Campaign {
   /* its path, /campaign/<slug>: lowercase words joined by - */
@@ -20,9 +21,12 @@ export interface Campaign {
   maps: ReadonlyArray<string>;
   /* listed first wherever Campaigns are, whatever its player count */
   pinned?: boolean;
+  /* the Workshop ID of a public Steam collection holding its Maps, whose Subscribe to all is
+     the one way Steam subscribes to several Maps at once */
+  collection?: string;
 }
 
-/* An Event board (CONTEXT.md) a Campaign can hold as one of its Maps: a one-off event's
+/* An Event board (GLOSSARY.md) a Campaign can hold as one of its Maps: a one-off event's
    Steam board, which the collector reads once (EVENT_BOARDS in tools/campaign_common.py). */
 export interface EventBoard {
   /* how a Campaign's maps and its paths name it: lowercase words joined by - */
@@ -42,7 +46,7 @@ export const EVENTS: ReadonlyArray<EventBoard> = [
     id: "leth-trial-1",
     board: "Map_LethTrial_01",
     title: "Leth Trial #1",
-    picture: "/leth/preview.jpg",
+    picture: "/leth/screenshot.jpg",
     viewer: "leth",
   },
 ];
@@ -63,6 +67,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     slug: "solar-trials",
     title: "Solar Trials",
     ...HABIBAL,
+    collection: "3805419594",
     maps: [
       "3805399883",
       "3805394429",
@@ -79,6 +84,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     slug: "velocity-trials",
     title: "Velocity Trials",
     ...HABIBAL,
+    collection: "3803939147",
     maps: ["3803908791", "3803910868", "3803919944", "3803929459", "3803937353"],
   },
   {
@@ -238,6 +244,7 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     slug: "mind-trials",
     title: "Mind Trials",
     ...HABIBAL,
+    collection: "3821607033",
     maps: ["3821602774", "3821588330", "3821590642", "3821598041", "3821600974"],
   },
   {
@@ -282,6 +289,13 @@ export const CAMPAIGNS: ReadonlyArray<Campaign> = [
     pinned: true,
   },
   {
+    slug: "ball-heaven-hell",
+    title: "Ball Heaven and Hell",
+    creator: "Mountain Dude",
+    creatorId: "76561198143330287",
+    maps: ["3826632790", "3826634012"],
+  },
+  {
     slug: "ember",
     title: "Ember",
     creator: "It’s RushiN",
@@ -301,6 +315,8 @@ export function campaignProblems(list: ReadonlyArray<Campaign>): Array<string> {
     if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.slug))
       out.push(`slug "${c.slug}" is not lowercase words joined by -`);
     if (!c.maps.length) out.push(`"${c.slug}" has no Maps`);
+    if (c.collection !== undefined && !isPfid(c.collection))
+      out.push(`"${c.slug}" names collection "${c.collection}", which is not a Workshop ID`);
     for (const pfid of c.maps) {
       if (!isPfid(pfid) && !eventOf(pfid))
         out.push(`"${c.slug}" lists "${pfid}", which is not a Workshop ID or an Event`);
@@ -316,6 +332,37 @@ export function campaignProblems(list: ReadonlyArray<Campaign>): Array<string> {
    in its order, on its banners and its share card; a Campaign of fewer Maps has a panel
    for each */
 export const CAMPAIGN_MAX_PICTURES = 5;
+
+/* a listed Campaign as a line names it (the header's sub-tabs, the site search and its jump-to
+   links): its slug, title and maker, how many Maps it curates, how many players its board
+   ranks, its first Map's picture, and whether the list pins it */
+export interface CampaignSummary {
+  slug: string;
+  title: string;
+  creator: string;
+  maps: number;
+  players: number;
+  preview: string | null;
+  pinned: boolean;
+}
+
+export const campaignSummary = ({
+  c,
+  players,
+  previews,
+}: {
+  c: Campaign;
+  players: number;
+  previews: ReadonlyArray<string | null>;
+}): CampaignSummary => ({
+  slug: c.slug,
+  title: c.title,
+  creator: c.creator,
+  maps: c.maps.length,
+  players,
+  preview: previews.find(Boolean) ?? null,
+  pinned: !!c.pinned,
+});
 
 const PREFIX = "OverallCampaign_";
 
@@ -375,3 +422,24 @@ export function mapLabel(c: Campaign, pfid: string, title: string) {
   const name = mapName(c, pfid, title);
   return name === null ? mapNo(c, pfid) : `${mapNo(c, pfid)} ${name}`;
 }
+
+/* a row of a Campaign's Get the Maps checklist (components/campaign/GetMaps.tsx) */
+export interface GetMapRow {
+  pfid: string;
+  /* its number and name as the rail gives them */
+  no: string;
+  name: string | null;
+  pic: string;
+}
+
+/* the rows of the checklist: the page's Maps (getCampaign's, in the Campaign's order) that
+   are on the Workshop, since an Event board has no Workshop page to subscribe on */
+export const getMapRows = (c: Campaign, maps: ReadonlyArray<WorkshopMap>): Array<GetMapRow> =>
+  maps
+    .filter((m) => !eventOf(m.pfid))
+    .map((m) => ({
+      pfid: m.pfid,
+      no: mapNo(c, m.pfid),
+      name: mapName(c, m.pfid, m.title),
+      pic: safeImg(m.preview),
+    }));

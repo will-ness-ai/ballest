@@ -1,6 +1,17 @@
 #!/bin/sh
 # Before a push, the format and lint checks CI runs (`pnpm check`, docs/linting.md), so a push
-# never turns CI red on a lint error, and a refusal to stack commits on an already-merged PR
-# (merged-pr.mjs). Turned on by `pnpm install` at the root (its prepare script).
-node "$(dirname "$0")/merged-pr.mjs" || exit 1
+# never turns CI red on a lint error, a refusal to push a detached HEAD (an agent that checked
+# out in the wrong checkout, retro #346), and a refusal to stack commits on an already-merged
+# PR (merged-pr.mjs). Turned on by `pnpm install` at the root (its prepare script).
+# git hands the pushed refs on stdin, one "<local ref> <sha> <remote ref> <sha>" a line: read
+# them once, for both checks.
+refs=$(cat)
+# a pushed local ref of HEAD while HEAD names no branch is a detached push (git also says HEAD
+# for `git push origin HEAD` on a branch, which is fine); named branches, tags and deletes go
+# through
+if printf '%s\n' "$refs" | grep -q '^HEAD ' && ! git symbolic-ref -q HEAD >/dev/null; then
+  echo "error: pushing a detached HEAD; check out your branch (in your own worktree, never the main checkout) and push it by name" >&2
+  exit 1
+fi
+printf '%s\n' "$refs" | node "$(dirname "$0")/merged-pr.mjs" || exit 1
 exec pnpm --silent check

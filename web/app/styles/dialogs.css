@@ -127,9 +127,8 @@
     border-color: var(--accent);
   }
 }
-.cmp .ws-q {
-  max-width: none;
-  width: 100%;
+.cmp .searchbox {
+  inline-size: 100%;
 }
 .hits {
   display: grid;

@@ -1,5 +1,5 @@
 "use client";
-// Picking your Chosen Skin (CONTEXT.md) on your own player page, as the grill-design rounds
+// Picking your Chosen Skin (GLOSSARY.md) on your own player page, as the grill-design rounds
 // settled it (spec #276: round 1 A, round 2 A5). Drawn only when You is the player on screen:
 // the pencil badge on your marble's corner (YourMarble) and "Change your ball" beside Sign out
 // (ChangeBall, in Me.tsx) open the dialog; the marble itself still turns over to your avatar.

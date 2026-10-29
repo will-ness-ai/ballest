@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { Remember } from "../../../components/BackLink";
+import { PageHead } from "../../../components/PageHead";
 import { Shell } from "../../../components/Shell";
+import { Remember } from "../../../components/Trail";
 import { AllMaps } from "../../../components/workshop/AllMaps";
 import { getMapCards, getSite } from "../../../db/data";
 import { mapsHref } from "../../../lib/routes";
@@ -35,7 +36,7 @@ async function Maps({ params }: Props) {
   return (
     <>
       <AllMaps key={v} maps={maps} view={v} asOf={asOf} />
-      <Remember trail="maps" href={mapsHref(v)} />
+      <Remember trail="maps" href={mapsHref(v)} label="All maps" />
     </>
   );
 }
@@ -43,6 +44,7 @@ async function Maps({ params }: Props) {
 export default function Page({ params }: Props) {
   return (
     <Shell view="maps">
+      <PageHead path={mapsHref()} title="All maps" />
       <section className="ws" id="ws">
         <Suspense>
           <Maps params={params} />

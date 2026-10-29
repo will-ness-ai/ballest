@@ -13,6 +13,7 @@
     "lint": "node web/scripts/check-ruff.mjs && eslint --max-warnings=0 . && ruff check && node web/scripts/check-styles.mjs",
     "lint:fix": "node web/scripts/check-ruff.mjs && eslint --fix . && ruff check --fix",
     "check": "pnpm format:check && pnpm lint",
+    "pr": "node web/scripts/pr.mjs",
     "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {

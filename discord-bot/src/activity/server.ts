@@ -1,25 +1,31 @@
 // The Activity's web server: the page Discord shows in its iframe, the page's script (bundled
-// from web/app.ts with the Embedded App SDK when the server starts), its fonts, the Map
-// previews, and the API.
+// from web/main.tsx with React and the Embedded App SDK when the server starts), its fonts, the
+// Map previews, and the API. The page arrives with its config and the signing-in screen already
+// in it, and names the script by its hash, so a browser keeps the script until a deploy changes it.
 //
 // Discord reaches it through the Activity's URL Mapping (`/` → this server's public host), so
 // the page and the API share one origin and every path the page fetches is relative. Nothing
 // loads from any other host: Discord's proxy blocks it. So the fonts come from the @fontsource
 // packages, each Map's Workshop preview is fetched here and passed on, and each Skin's picture
 // (for a Player's Chosen Skin) is the bot's own copy, from SkinPictures.
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform";
+import { brotliCompressSync, constants, gzipSync } from "node:zlib";
+import { HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { NodeHttpServer } from "@effect/platform-node";
 import { build } from "esbuild";
 import { Config, Data, Effect, Layer, Option } from "effect";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { Store } from "../ports.js";
 import { MapPreviews } from "../previews.js";
 import { skinPictureFile } from "../render/skinList.js";
 import { SkinPictures } from "../render/skins.js";
-import { makeActivityApi } from "./api.js";
+import { type ActivityVenue, makeActivityApi } from "./api.js";
+import { SigningIn } from "./web/ui/notice.js";
 
 const WEB = fileURLToPath(new URL("./web/", import.meta.url));
 const require = createRequire(import.meta.url);
@@ -28,8 +34,8 @@ const require = createRequire(import.meta.url);
 export interface PageConfig {
   /** The Discord application's id, for the SDK. */
   readonly clientId: string;
-  /** The Ballest server: opened anywhere else, the page says so. */
-  readonly guildId: string;
+  /** Each running Venue's server: opened anywhere else, the page says so. */
+  readonly guildIds: ReadonlyArray<string>;
   /**
    * Members the page may sign in as without Discord, for trying it in a plain browser. Only the
    * demo sets these, with a DiscordAuth that accepts `dev-<id>` tokens; the real bot never does.
@@ -67,10 +73,13 @@ const loadFonts = Effect.tryPromise({
 const bundle = Effect.tryPromise({
   try: async () => {
     const result = await build({
-      entryPoints: [`${WEB}app.ts`],
+      entryPoints: [`${WEB}main.tsx`],
       bundle: true,
       format: "esm",
       target: "es2022",
+      jsx: "automatic",
+      // React's production build
+      define: { "process.env.NODE_ENV": '"production"' },
       minify: true,
       write: false,
       logLevel: "silent",
@@ -88,6 +97,65 @@ const loadPage = Effect.tryPromise({
 });
 
 const DAY = "public, max-age=86400";
+/** The script's URL carries its hash, so it never changes under a browser that kept it. */
+const FOREVER = "public, max-age=31536000, immutable";
+
+/** The script's version: its hash, which the page names it by. */
+const versionOf = (script: string) =>
+  createHash("sha256").update(script).digest("hex").slice(0, 12);
+
+/** The encodings a browser takes, from its Accept-Encoding; one it gives q=0 it refuses. */
+const accepted = (acceptEncoding: string) =>
+  acceptEncoding.split(",").flatMap((part) => {
+    const [name = "", ...params] = part.split(";").map((p) => p.trim());
+    const refused = params.some((p) => /^q=0(\.0*)?$/.test(p));
+    return name === "" || refused ? [] : [name];
+  });
+
+/**
+ * The script, compressed once at start for each encoding a browser may take (React and the SDK
+ * make it about 460 KB as is, a quarter of that compressed); the plain one for any other. Kept
+ * for good only when asked for by this script's version: a page from before a deploy gets this
+ * script uncached rather than cached under its old name.
+ */
+export const scriptResponses = (script: string) => {
+  const plain = Buffer.from(script);
+  const version = versionOf(script);
+  const encoded = [
+    // Quality 9 compresses nearly as well as the default 11 in a fraction of the time.
+    ["br", brotliCompressSync(plain, { params: { [constants.BROTLI_PARAM_QUALITY]: 9 } })],
+    ["gzip", gzipSync(plain)],
+  ] as const;
+  return (acceptEncoding: string, asked: string): HttpServerResponse.HttpServerResponse => {
+    const takes = accepted(acceptEncoding);
+    const pick = encoded.find(([name]) => takes.includes(name));
+    return HttpServerResponse.uint8Array(pick?.[1] ?? plain, {
+      contentType: "text/javascript",
+      headers: {
+        "cache-control": asked === version ? FOREVER : "no-cache",
+        vary: "accept-encoding",
+        ...(pick === undefined ? {} : { "content-encoding": pick[0] }),
+      },
+    });
+  };
+};
+
+/**
+ * The page as served: the script named by its version, the config the page would otherwise ask
+ * for, and the signing-in screen, so something shows before the script has run.
+ */
+export const servedPage = (html: string, script: string, config: PageConfig) => {
+  // `<` escaped, so nothing in the config can end the script element.
+  const json = JSON.stringify(config).replace(/</g, "\\u003c");
+  // Replacer functions, so a `$` in what goes in is never read as a replacement pattern.
+  return html
+    .replace(
+      "<!--script-->",
+      () => `<script type="module" src="/app.js?v=${versionOf(script)}"></script>`,
+    )
+    .replace("<!--config-->", () => `<script id="config" type="application/json">${json}</script>`)
+    .replace("<!--splash-->", () => renderToStaticMarkup(createElement(SigningIn)));
+};
 
 /**
  * Each Skin's picture by the file the page asks for at /skins/:file (skinPictureFile, from a
@@ -111,16 +179,28 @@ export const skinPictureResponses = (pngs: ReadonlyMap<string, Uint8Array>) => {
   };
 };
 
-/** The whole app: page, script, fonts, previews, Skin pictures, config, API. `channelId` is where the links point. */
-export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
-  config: PageConfig & { readonly channelId: string },
-) {
-  const { channelId, ...page } = config;
-  const api = yield* makeActivityApi({ guildId: config.guildId, channelId });
+/**
+ * What the Activity is started with: the running Venues, read at each request, and the page's
+ * other settings.
+ */
+export type ActivityConfig = Omit<PageConfig, "guildIds"> & {
+  readonly venues: Effect.Effect<ReadonlyArray<ActivityVenue>>;
+};
+
+/** The whole app: page, script, fonts, previews, Skin pictures, config, API. */
+export const makeActivityApp = Effect.fn("makeActivityApp")(function* (config: ActivityConfig) {
+  const { venues, ...rest } = config;
+  const api = yield* makeActivityApi(venues);
   const store = yield* Store;
   const previews = yield* MapPreviews;
   const script = yield* bundle;
   const html = yield* loadPage;
+  /** The config as of now: the Venues on offer change while the bot runs (a guest coming up). */
+  const pageConfig = Effect.map(venues, (now): PageConfig => ({
+    ...rest,
+    guildIds: now.map((v) => v.guildId),
+  }));
+  const scriptFor = scriptResponses(script);
   const fonts = yield* loadFonts;
   /** A Match's Map preview, only for a Match the bot has drawn a Map for: this is no open proxy. */
   const preview = Effect.gen(function* () {
@@ -157,21 +237,37 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
   const skin = Effect.map(HttpRouter.params, ({ file = "" }) => skinPicture(file));
 
   const pages = HttpRouter.empty.pipe(
-    HttpRouter.get("/", Effect.succeed(HttpServerResponse.html(html))),
+    HttpRouter.get(
+      "/",
+      Effect.map(pageConfig, (page) =>
+        HttpServerResponse.text(servedPage(html, script, page), {
+          contentType: "text/html",
+          headers: { "cache-control": "no-cache" },
+        }),
+      ),
+    ),
     HttpRouter.get(
       "/app.js",
-      Effect.succeed(HttpServerResponse.text(script, { contentType: "text/javascript" })),
+      Effect.map(HttpServerRequest.HttpServerRequest, (req) =>
+        scriptFor(
+          req.headers["accept-encoding"] ?? "",
+          new URL(req.url, "http://page").searchParams.get("v") ?? "",
+        ),
+      ),
     ),
     HttpRouter.get("/fonts/:file", font),
     HttpRouter.get("/previews/:id", preview),
     HttpRouter.get("/skins/:file", skin),
-    HttpRouter.get("/api/config", Effect.succeed(HttpServerResponse.unsafeJson(page))),
+    HttpRouter.get(
+      "/api/config",
+      Effect.map(pageConfig, (page) => HttpServerResponse.unsafeJson(page)),
+    ),
   );
   return pages.pipe(Effect.catchTag("RouteNotFound", () => api));
 });
 
 /** Serve the Activity on PORT. Needs the Engine, the Store, Lobby pings, Chosen Skins and their pictures, where Cards are, and Discord's sign-in and members. */
-export const activityServer = (config: PageConfig & { readonly channelId: string }) =>
+export const activityServer = (config: ActivityConfig) =>
   Layer.unwrapEffect(
     Effect.gen(function* () {
       const port = yield* Config.integer("PORT").pipe(Config.withDefault(8080));

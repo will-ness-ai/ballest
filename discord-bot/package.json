@@ -19,7 +19,8 @@
     "sandbox": "node --import tsx scripts/sandbox.ts",
     "axi": "node --no-warnings --import tsx scripts/axi.ts",
     "report": "node --import tsx scripts/report.ts",
-    "daily-post": "node --import tsx scripts/daily-post.ts"
+    "daily-post": "node --import tsx scripts/daily-post.ts",
+    "traffic": "node --import tsx scripts/traffic.ts"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "2.5.0",
@@ -34,15 +35,22 @@
     "@fontsource/noto-sans-jp": "5.3.0",
     "@fontsource/nunito": "5.3.0",
     "@resvg/resvg-wasm": "2.6.2",
+    "@tanstack/react-query": "5.104.1",
     "discord.js": "14.27.0",
     "effect": "3.22.2",
     "esbuild": "0.28.2",
+    "pg": "8.23.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "satori": "0.33.5",
     "steam-user": "5.3.0"
   },
   "devDependencies": {
     "@effect/vitest": "0.30.0",
     "@types/node": "^22.20.4",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@types/steam-user": "^5.1.1",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",

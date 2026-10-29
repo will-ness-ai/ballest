@@ -1,7 +1,7 @@
 """
 The Daily watcher (runner.py on Fly): logs into Steam once and reads the open Dailies every
 DAILY_EVERY seconds, so the site's Daily pages follow the board within a minute or so,
-between Refreshes (CONTEXT.md, "Daily read").
+between Refreshes (GLOSSARY.md, "Daily read").
 
 Each read that moved a Daily's board, or makes it final, is written as a Daily read
 (db_writer.Refresh with source "daily"): the Dailies only, which counts as no Refresh, and

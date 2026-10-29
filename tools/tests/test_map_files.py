@@ -171,12 +171,20 @@ class FakeClient:
 
 def test_the_steam_download_reads_the_map_file_from_the_maps_manifest():
     client = FakeClient([FakePath(), FakePath(JPEG), FakePath(BALLMAP)])
-    assert asyncio.run(map_files.steam_download(client)("3821728582")) == BALLMAP
+    assert asyncio.run(map_files.steam_download(client, env={})("3821728582")) == BALLMAP
     assert client.asked == [3821728582]
     with pytest.raises(map_files.NoMapFileError):
-        asyncio.run(map_files.steam_download(FakeClient([FakePath(JPEG)]))("1"))
+        asyncio.run(map_files.steam_download(FakeClient([FakePath(JPEG)]), env={})("1"))
     with pytest.raises(LookupError):  # Steam has no such published file now
-        asyncio.run(map_files.steam_download(FakeClient(None))("1"))
+        asyncio.run(map_files.steam_download(FakeClient(None), env={})("1"))
+
+
+def test_behind_a_proxy_the_steam_download_has_steam_py_use_it():
+    client = FakeClient([FakePath(BALLMAP)])
+    client.http = type("HTTPClient", (), {"_session": type("Session", (), {})()})()
+    download = map_files.steam_download(client, env={"HTTPS_PROXY": "http://proxy:3128"})
+    assert asyncio.run(download("1")) == BALLMAP
+    assert client.http._session._trust_env is True  # noqa: SLF001
 
 
 def fake_download(files, calls=None):

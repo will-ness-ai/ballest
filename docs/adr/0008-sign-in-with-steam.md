@@ -1,8 +1,8 @@
 # Sign in with Steam
 
-Status: accepted (2026-10-08).
+Status: accepted (2026-10-08). The link page reads the session while it draws (ADR 0014).
 
-You (CONTEXT.md) was first a Steam ID the reader marked with "This is me" on a player's
+You (GLOSSARY.md) was first a Steam ID the reader marked with "This is me" on a player's
 page and kept in their browser. Anyone could claim anyone, and players found the flow
 before they found the button. Will chose to replace it with a real sign-in (2026-10-08).
 

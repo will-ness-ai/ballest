@@ -6,8 +6,10 @@ import {
   AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ContainerBuilder,
   EmbedBuilder,
   LabelBuilder,
+  MessageFlags,
   ModalBuilder,
   TextDisplayBuilder,
   TextInputBuilder,
@@ -28,9 +30,11 @@ import {
   pingsState,
   removePing,
 } from "../pingWords.js";
+import { escape, mapLink, mapName, mapUrl, workshopUrl } from "../links.js";
 import { type HowtoPart, STEAM_LINK_HOWTO } from "../present.js";
 import { RESULT_HUE, START_HUE } from "../render/art.js";
 import type { CardView, KeptReason, ThreadPost } from "../ports.js";
+import type { StatsAnswer } from "../seeMyStats.js";
 import { type Action, type Control, controlId } from "./controls.js";
 import type { MarbleEmojis } from "./marbles.js";
 
@@ -60,22 +64,25 @@ export const PROFILE_FIELD = "profile";
 
 // ---------------------------------------------------------------- formatting
 
-const unix = (ms: number) => Math.floor(ms / 1000);
-const who = (discordId: string) => `<@${discordId}>`;
-const workshopUrl = (pfid: string) =>
-  `https://steamcommunity.com/sharedfiles/filedetails/?id=${pfid}`;
+export const unix = (ms: number) => Math.floor(ms / 1000);
+export const who = (discordId: string) => `<@${discordId}>`;
 
 /** Mentions shown as names without pinging anyone. */
 export const quiet = { allowedMentions: { parse: [] } } as const;
 
-const button = (label: string, control: Control, style = ButtonStyle.Secondary, disabled = false) =>
+export const button = (
+  label: string,
+  control: Control,
+  style = ButtonStyle.Secondary,
+  disabled = false,
+) =>
   new ButtonBuilder()
     .setCustomId(controlId(control))
     .setLabel(label)
     .setStyle(style)
     .setDisabled(disabled);
 
-const row = (...buttons: Array<ButtonBuilder>) =>
+export const row = (...buttons: Array<ButtonBuilder>) =>
   new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons);
 
 const workshopLink = (pfid: string) =>
@@ -107,6 +114,81 @@ export const footerMessage = (png: Buffer): Payload => ({
   ],
   ...quiet,
 });
+
+// ---------------------------------------------------------------- the My Stats panel
+
+/** A Components V2 message: its text lives in its components, and it has no `content`. */
+export type V2Payload = Payload & { readonly flags: MessageFlags.IsComponentsV2 };
+
+/** The one message in #my-stats (spec #323): what the button shows, and the button. */
+export const myStatsPanelMessage = (): V2Payload => ({
+  flags: MessageFlags.IsComponentsV2,
+  components: [
+    new ContainerBuilder()
+      .setAccentColor(LIVE_LIME)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          "## My stats\nSee your Circuit ranks, World records and Medals, drawn from ballestrecords.com.",
+        ),
+      )
+      .addActionRowComponents(
+        row(button("See my stats", { _tag: "SeeMyStats" }, ButtonStyle.Primary)),
+      ),
+  ],
+  ...quiet,
+});
+
+// ---------------------------------------------------------------- See my stats, privately
+
+const linkButton = (label: string, url: string) =>
+  new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(label).setURL(url);
+
+const pairAgain = () => button("Not you? Pair again", { _tag: "PairAgain" });
+
+/** Why there's no card: text alone, replacing whatever the answer showed before. */
+const statsText = (content: string): Payload => ({
+  content,
+  embeds: [],
+  files: [],
+  attachments: [],
+  components: [],
+  ...quiet,
+});
+
+/** A member's private answer to See my stats, and each later version of it. */
+export const statsAnswerMessage = (answer: StatsAnswer): Payload => {
+  switch (answer._tag) {
+    case "Card":
+      return {
+        content: "",
+        embeds: [],
+        ...image(answer.png, "stat-card.png"),
+        components: [row(linkButton("Player page", answer.url), pairAgain())],
+        ...quiet,
+      };
+    case "SignIn":
+      return {
+        content:
+          "**Sign in with Steam** on ballestrecords.com to pair this Discord account with your Steam account. " +
+          "Your card shows up here once you have. The link works once, for 15 minutes.",
+        embeds: [],
+        files: [],
+        attachments: [],
+        components: [row(linkButton("Sign in with Steam", answer.url))],
+        ...quiet,
+      };
+    case "NoStats":
+      // Still a way out for a member who paired the wrong account.
+      return {
+        ...statsText("No runs on the boards yet for the Steam account you paired."),
+        components: [row(pairAgain())],
+      };
+    case "CardFailed":
+      return statsText("Couldn't draw your card, try again.");
+    case "Unavailable":
+      return statsText("Stats aren't available right now. Try again in a while.");
+  }
+};
 
 // ---------------------------------------------------------------- the Match Card
 
@@ -159,7 +241,7 @@ const clockText = (v: CardView): string | null =>
         ? `**Live** · ends <t:${unix(v.endsAt)}:R> (<t:${unix(v.endsAt)}:t>)`
         : null;
 
-const INVITE_GREY = 0x4e5058;
+export const QUIET_GREY = 0x4e5058;
 const LIVE_LIME = 0x8be03c;
 
 /**
@@ -176,22 +258,20 @@ const lobbyLine = (v: CardView, roleId: string) =>
   `<@&${roleId}> **${who(v.creator.discordId)}** opened a ${v.minutes}-minute Lobby`;
 
 /**
- * The Card image, with the clock in an embed below it: the image never shows one. A Lobby's Card
+ * The Card image, with an embed below it: the drawn Map's name, linked to its page on the site,
+ * over the clock, which the image never shows. A Lobby's Card
  * keeps its ping line through live and finished, but only its first post lets the role be
  * mentioned. Public 1v1 and Challenge Cards have no line.
  */
 export const cardMessage = (v: CardView, png: Buffer, ping: CardPing): Payload => {
   const text = clockText(v);
-  const clock =
-    text === null
-      ? null
-      : new EmbedBuilder()
-          .setColor(v.state === "live" ? LIVE_LIME : INVITE_GREY)
-          .setDescription(text);
+  const below = new EmbedBuilder().setColor(v.state === "live" ? LIVE_LIME : QUIET_GREY);
+  if (v.map !== null) below.setTitle(escape(mapName(v.map))).setURL(mapUrl(v.map.pfid));
+  if (text !== null) below.setDescription(text);
   const lobby = v.type === "lobby";
   return {
     content: lobby ? lobbyLine(v, ping.roleId) : "",
-    embeds: clock === null ? [] : [clock],
+    embeds: v.map === null && text === null ? [] : [below],
     ...image(png, `match-${v.matchId}.png`),
     components: cardButtons(v),
     ...(lobby && ping.announce ? { allowedMentions: { parse: [], roles: [ping.roleId] } } : quiet),
@@ -277,7 +357,7 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
       return {
         content: line(
           art.marbles.forHue(START_HUE),
-          `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** Ends <t:${unix(post.endsAt)}:R>`,
+          `${post.players.map((p) => who(p.discordId)).join(" ")} **Go!** on ${mapLink(post.map)} · ends <t:${unix(post.endsAt)}:R>`,
         ),
         ...pic,
         components: [workshopButton(post.map.pfid)],
@@ -299,9 +379,9 @@ export const threadMessage = (matchId: string, post: ThreadPost, art: ThreadArt)
       return {
         content: line(
           art.marbles.forHue(RESULT_HUE),
-          (post.standings.every((s) => s.rank === null)
-            ? "**Final result** · no finishers"
-            : "**Final result**") +
+          "**Final result**" +
+            (post.card.map === null ? "" : ` on ${mapLink(post.card.map)}`) +
+            (post.standings.every((s) => s.rank === null) ? " · no finishers" : "") +
             (post.steamDown
               ? "\n-# Steam never gave the end-of-Match read, so these are the last times read before the end."
               : ""),

@@ -1,112 +1,87 @@
-/* the carousel: picture on one side, the pick on the other. The progress line under
-   the pick is the timer; pointing at the carousel pauses it */
-.car {
-  display: grid;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  overflow: clip;
-  background: var(--solid);
+/* Trending this week (spec #348): the homepage's top ten as a ranked chart, one row a Map,
+   each one link: rank, picture, title and maker over the record holder, then the plays this
+   week over the votes. One column on a phone; two of five on a desktop (desktop.css) */
+.trend {
   margin-block-end: 26px;
 }
-.car-pic {
-  position: relative;
-  aspect-ratio: 400/270;
-  max-height: 340px;
-}
-.car-pic .sl {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.7s var(--ease-out);
-}
-.car-pic .sl.on {
-  opacity: 1;
-}
-.car-in {
-  padding: 16px;
-  display: grid;
-  gap: 10px;
-  animation: fadein 0.3s var(--ease-out);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .car-in {
-    animation: carin 0.3s var(--ease-out);
-  }
-}
-/* the fade on its own, for those who asked for less motion */
-@keyframes fadein {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes carin {
-  from {
-    opacity: 0;
-    transform: translateX(18px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.car-in .why {
-  color: var(--faint);
-  letter-spacing: 0.04em;
-  text-transform: none;
-  font-weight: 500;
-}
-.car-t {
+.trend ol {
+  container-type: inline-size;
+  list-style: none;
   margin: 0;
-  font-family: var(--f-marquee);
-  font-weight: 400;
-  font-size: calc((24rem + 6 * var(--ramp)) / 16);
-  line-height: 1.08;
-  overflow-wrap: anywhere;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--solid);
 }
-.car-by {
-  font-size: calc(13rem / 16);
-  color: var(--dim);
-  margin-block-start: -6px;
-}
-.car-by a {
+.trend a {
+  display: grid;
+  grid-template-columns: 1.2rem 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 10px;
   color: inherit;
   text-decoration: none;
 }
 @media (hover: hover) and (pointer: fine) {
-  .car-by a:hover {
-    color: var(--accent);
+  .trend a:hover {
+    background: var(--surface2);
   }
 }
-.car-stats {
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
-  font-size: calc(12.5rem / 16);
+.tr-n {
+  font-family: var(--f-marquee);
+  color: var(--dim);
+  text-align: center;
+}
+.tr-pic {
+  width: 100%;
+  aspect-ratio: 400/270;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.tr-in {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.tr-in b,
+.tr-by {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tr-by,
+.tr-fig small {
+  font-size: calc(12rem / 16);
   color: var(--dim);
 }
-.car-stats b {
-  display: block;
-  color: var(--text);
-  font-family: var(--f-hud);
-  font-size: calc(17rem / 16);
-  font-variant-numeric: tabular-nums;
+.tr-in .p3 {
+  font-size: calc(12rem / 16);
 }
-.car-pod {
+.tr-fig {
   display: grid;
-  gap: 3px;
-  border-block-start: 1px solid var(--line2);
-  padding-block-start: 9px;
+  justify-items: end;
+  font-family: var(--f-hud);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.car-acts {
+.tr-votes {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 0.5em;
 }
+/* a narrow phone, or big text, stacks the votes so the record holder's time keeps its room */
+@container (width < 20rem) {
+  .tr-votes {
+    flex-direction: column;
+    align-items: end;
+    gap: 0;
+  }
+}
+
+/* the Campaigns' arrows */
 .car-nav {
   display: flex;
   align-items: center;
@@ -127,43 +102,8 @@
     border-color: var(--accent);
   }
 }
-.car-line {
-  height: 2px;
-  background: var(--line2);
-  border-radius: 2px;
-  overflow: clip;
-}
-.car-line .prog {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-}
-/* the line is the autoplay timer, so with reduced motion there is no autoplay: the
-   arrows still work */
-@media (prefers-reduced-motion: no-preference) {
-  .car-line .prog {
-    animation: carfill 6s linear forwards;
-  }
-}
-@keyframes carfill {
-  to {
-    transform: scaleX(1);
-  }
-}
-/* :focus-visible, not :focus-within: Chrome on Android focuses a tapped arrow,
-   and that would pause the carousel for good */
-.car:has(:focus-visible) .prog {
-  animation-play-state: paused;
-}
-@media (hover: hover) and (pointer: fine) {
-  .car:hover .prog {
-    animation-play-state: paused;
-  }
-}
 
-/* one podium line: place, marble, name, time. The carousel and the cards share it */
+/* one podium line: place, marble, name, time. Trending this week and the cards share it */
 .p3 {
   display: grid;
   grid-template-columns: 14px 22px minmax(0, 1fr) auto;
@@ -364,60 +304,17 @@
   white-space: nowrap;
 }
 
-/* All maps: views as tabs, and the Refine panel sliding in from the side */
+/* All maps: the views as pills with Refine at the row's end, and the Refine panel sliding in
+   from the side */
 .views {
   display: flex;
-  gap: 6px;
-  align-items: center;
-  overflow-x: auto;
-  padding-block-end: 4px;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
   margin-block-end: 12px;
 }
-.views a,
-.views button {
-  padding: 7px 13px;
-  border-radius: 99px;
-  font-size: calc(13rem / 16);
-  color: var(--dim);
-  white-space: nowrap;
-  border: 1px solid transparent;
-  text-decoration: none;
-}
-@media (hover: hover) and (pointer: fine) {
-  .views a:hover {
-    color: var(--text);
-  }
-}
-.views a.on {
-  background: var(--surface2);
-  border-color: var(--line);
-  color: var(--text);
-  font-weight: 600;
-}
-.views .sp {
-  flex: 1;
-}
-.views .refine {
-  border-color: var(--line);
-}
-.views .refine.on {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.more-btn {
-  display: block;
-  margin: 18px auto 0;
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  font-size: calc(13.5rem / 16);
-  color: var(--dim);
-}
-@media (hover: hover) and (pointer: fine) {
-  .more-btn:hover {
-    color: var(--text);
-    border-color: var(--faint);
-  }
+.views > .btn {
+  margin-inline-start: auto;
 }
 .drawer {
   inset-block: 0;
@@ -462,29 +359,6 @@
   display: grid;
   gap: 7px;
 }
-.opts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-.opt {
-  padding: 5px 10px;
-  border-radius: 99px;
-  border: 1px solid var(--line);
-  font-size: calc(12.5rem / 16);
-  color: var(--dim);
-}
-@media (hover: hover) and (pointer: fine) {
-  .opt:hover {
-    color: var(--text);
-  }
-}
-.opt.on {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--text);
-  font-weight: 600;
-}
 .dfoot {
   margin-block-start: auto;
   display: flex;
@@ -501,23 +375,12 @@
   align-content: start;
   min-width: 0;
 }
-.mpanel .back {
-  margin: 0;
-}
 .mp-img {
   width: 100%;
   aspect-ratio: 400/270;
   object-fit: cover;
   border-radius: 12px;
   border: 1px solid var(--line);
-}
-.mp-t {
-  margin: 0;
-  font-family: var(--f-hud);
-  font-size: calc(22rem / 16);
-  font-weight: 700;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
 }
 .mp-by {
   font-size: calc(13rem / 16);
@@ -623,8 +486,24 @@
   font-size: calc(11.5rem / 16);
   color: var(--faint);
 }
-.mp-ws {
-  width: 100%;
+/* under the picture: "Get it in Ballest", the Map's Workshop page, beside "See it in 3D"
+   when the Map has a 3D view (whose closed dialog takes no column), and the line saying what
+   to do after subscribing under them */
+.mp-get {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 8px;
+}
+.mp-get .m3d-open {
+  background: var(--surface2);
+  color: var(--text);
+}
+.mp-how {
+  margin: -6px 0 0;
+  font-size: calc(12.5rem / 16);
+  color: var(--dim);
+  text-align: center;
 }
 /* "See it in 3D" under the picture, and the full screen it opens over the page
    (components/workshop/Map3D.tsx): the Map fills it, with its bar, the desktop's facts card
@@ -632,8 +511,13 @@
 .m3d-open {
   inline-size: 100%;
 }
-.m3d-open:active {
-  background: var(--accent-hover);
+.mp-get .m3d-open:active {
+  background: var(--line);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mp-get .m3d-open:hover {
+    background: var(--line);
+  }
 }
 /* the page is hidden under it, so it gives up the scrollbar's gutter (base.css keeps it
    for the other dialogs), which nothing in the top layer can cover */
@@ -786,6 +670,144 @@ html:has(.m3d:modal) {
   color: var(--faint);
 }
 
+/* Get the Maps (components/campaign/GetMaps.tsx): the button floats at the bottom left of
+   a Campaign's every page, above the board, and opens the checklist in the centred dialog */
+.getmaps-open {
+  position: fixed;
+  inset-block-end: 16px;
+  inset-inline-start: 16px;
+  z-index: 40;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 8px 30px oklch(0% 0 none / 0.5);
+  font-family: var(--f-hud);
+  cursor: pointer;
+}
+/* room under the page for it, so the last rows scroll clear of it */
+.main:has(.getmaps-open) {
+  padding-block-end: 64px;
+}
+.ptsx.getmaps {
+  inset-block-start: 8dvh;
+  inline-size: min(520px, calc(100% - 32px));
+  max-block-size: calc(92dvh - 16px);
+}
+.getmaps h3 {
+  margin: 4px 0 0;
+}
+.gm-all {
+  display: grid;
+  gap: 6px;
+}
+.gm-all .go {
+  font-family: var(--f-hud);
+}
+.gm-all p {
+  margin: 0;
+  font-size: calc(13rem / 16);
+  color: var(--dim);
+}
+.gm-prog {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 600 calc(13rem / 16) var(--f-hud);
+}
+.gm-bar {
+  flex: 1;
+  block-size: 6px;
+  border-radius: 3px;
+  background: var(--surface2);
+  overflow: clip;
+}
+.gm-bar i {
+  display: block;
+  block-size: 100%;
+  background: var(--accent);
+}
+.gm-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gm-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border: 1px solid var(--line2);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.gm-list img,
+.gm-nopic {
+  flex: none;
+  inline-size: 64px;
+  block-size: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--surface2);
+}
+.gm-lab {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 8px;
+  min-inline-size: 0;
+}
+.gm-lab b {
+  font: 700 calc(18rem / 16) var(--f-hud);
+}
+.gm-lab span {
+  overflow: hidden;
+  font-size: calc(13.5rem / 16);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gm-list a {
+  flex: none;
+  padding: 7px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: var(--accent);
+  font: 600 calc(13rem / 16) var(--f-hud);
+  text-decoration: none;
+}
+.gm-list li[data-opened] {
+  opacity: 0.6;
+}
+.gm-list li[data-opened] a {
+  border-color: var(--line);
+  color: var(--dim);
+}
+.gm-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: calc(13rem / 16);
+}
+.gm-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gm-steps span {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 22px;
+  block-size: 22px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: 700 calc(12rem / 16) var(--f-hud);
+}
+
 /* Campaigns. A Campaign's picture is its first Maps' previews side by side with a hairline
    between (CampaignPics); a banner sets it at full strength behind the name, maker,
    counts and leader, with the fade, full height, only behind the text. The homepage's carousel is a
@@ -899,11 +921,11 @@ html:has(.m3d:modal) {
   scroll-snap-align: start;
 }
 .call-h {
-  margin-block: 14px 18px;
+  margin-block: 0 18px;
 }
 .call-h p {
   max-width: 60ch;
-  margin-block: 10px 0;
+  margin: 0;
   color: var(--dim);
 }
 .call {

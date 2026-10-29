@@ -11,7 +11,7 @@ from Steam directly and writes the results to a Postgres database the site reads
 database is the only copy: nothing is committed as JSON since phase 5 of
 `docs/nextjs-migration.md`, and `data/`'s git history holds the scores up to then.
 
-`CONTEXT.md` is the domain glossary (Map, Track, Match, ...); use its terms. Decisions
+`GLOSSARY.md` is the domain glossary (Map, Track, Match, ...); use its terms. Decisions
 that shape the repo are recorded in `docs/adr/`; read them before restructuring anything.
 
 ## Layout
@@ -87,7 +87,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   Node 22, pnpm; ADR 0003, spec in issue #21). Not deployed with the site: it runs on
   Fly.io, deployed by `.github/workflows/bot.yml`; its own `AGENTS.md` covers running it
   locally (dev app only) and production. It also posts the Daily Report in #stats-by-will
-  every day, read from the database (ADR 0006, spec #126).
+  every day, read from the database (ADR 0006, spec #126), and the Traffic Report (the
+  site's Plausible visits and Google search) in the dev server's #search-analytics.
 - `multiballs/` — the bot's Terms of Service and Privacy Policy, published with the site at
   `/multiballs/` because the Discord Developer Portal links to them.
 - Everything else under `tools/` is the legacy Steamworks-SDK path or a one-off
@@ -140,7 +141,7 @@ The site's checks are in `web/`: `npx tsc --noEmit`, `pnpm test` (vitest, agains
 local Postgres; each test file builds its own database, and qa's own test needs
 Chromium: the cloud image has one, elsewhere `npx playwright-core install chromium`), and `pnpm smoke <url>` against a
 build seeded with `stress` (as CI does; it holds all of `tiny`). Verify front-end changes
-with `pnpm --silent qa check` (preview against production, every page at phone and desktop sizes; `docs/site.md`), and test a board's
+with `pnpm --silent qa check` (preview against production, the pages the branch reaches at phone and desktop sizes; `docs/site.md`), and test a board's
 infinite scroll with a real wheel scroll: a scripted `scrollTo` does not trigger it in
 the preview pane. Verify collector changes with `python -m pytest tools/tests` (no Steam
 needed), then a live `--dev` run if the read or write path changed.
@@ -217,15 +218,16 @@ conventions.
 ## Agent skills
 
 Matt Pocock's `grill-with-docs` (with the `grilling` and `domain-modeling` it calls), `to-spec`,
-`to-tickets`, `implement-spec`, `tdd`, `codebase-design`, `code-review`, `wizard`, `retro` (with
+`to-tickets`, `implement-spec`, `tdd`, `codebase-design`, `code-review`, `pr`, `wizard`, `retro` (with
 `writing-for-agents`) and `setup-matt-pocock-skills` are vendored in `.claude/skills/` (MIT, from `mattpocock/skills`
 at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. Their
 `code-review` replaces the built-in `/code-review` here. `grill-design` comes from
 `will-ness-ai/skills`, adapted to prototype in the running app on a worktree, and is
 maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `prefab-generators` (ours) adds
-Generators to Generate your own, with scripts that render a collage and spawn one in a sandbox game. `wizard` (also `mattpocock/skills`) is adapted the
+Generators to Generate your own, with `pnpm --silent gen` (checks every variation, draws a collage) and a script that spawns one in a sandbox game. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
 `writing-for-agents` (also `mattpocock/skills`) is adapted too: its `SKILL-MECHANICS.md` says how to word a call to another skill, and the vendored skills' calls follow it.
+`pr` writes every PR body (Summary, Evidence, Merge Danger, Checked), with this repo's Checked section and evidence tools added; `.github/pull_request_template.md` matches it.
 `agent-tools` (ours) builds commands for agents; `retro` hands it the call chains it finds.
 `add-campaign` (ours) adds a player's Campaign, from the request to the live page.
 `good-css` (MIT, from `vojtaholik/good-css` at `6d16d2f`, also recorded in `skills-lock.json`) loads on its own whenever you write or
@@ -262,7 +264,7 @@ The five canonical roles, each label string equal to its name. See
 
 ### Domain docs
 
-Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
 ### Plugins
 

@@ -4,15 +4,19 @@
 // discord.js's Interaction instead: everything from InteractionsLive inwards runs as it would
 // for a real click, and what the bot answers privately is recorded and returned, since nobody
 // else can see an ephemeral reply. What it changes in the channel goes to Discord for real.
+// It also moves the sandbox's clock forward (`/clock`) and sets a time on any Map (`/run`), for
+// the Weekly Cup.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 // Forward slashes on Windows too: the paths are printed for agents, and Node takes them as they are.
 import { posix } from "node:path";
-import type { Interaction } from "discord.js";
+import { type Guild, type Interaction, PermissionFlagsBits } from "discord.js";
 import { Effect, Layer, Option, Queue, Runtime, Stream } from "effect";
+import { Discord } from "../../src/discord/client.js";
 import { DriverInteractions } from "../../src/discord/interactions.js";
 import { Store } from "../../src/ports.js";
 import type { FakeSteamControl } from "../../test/harness.js";
+import type { DevClock } from "./clock.js";
 import { type ApiMessage, filesOf, fromPayload } from "../axi/describe.js";
 import { LOGS } from "./config.js";
 
@@ -27,6 +31,8 @@ export interface Press {
   readonly values?: ReadonlyArray<string>;
   /** A form's fields, by input custom id. */
   readonly fields?: Readonly<Record<string, string>>;
+  /** Whether the member holds Manage Server (the Weekly Cup's Skip); unless told, as they do. */
+  readonly manageServer?: boolean;
 }
 
 /** One call the bot made on the interaction, in order. */
@@ -59,6 +65,8 @@ export const fakeInteraction = (press: Press, channelId: string) => {
     user: { id: press.as, username: press.as },
     channelId,
     channel: null,
+    guildId: null,
+    memberPermissions: { has: () => press.manageServer === true },
     values: press.values ?? [],
     fields: {
       getTextInputValue: (id: string) => {
@@ -68,7 +76,9 @@ export const fakeInteraction = (press: Press, channelId: string) => {
       },
     },
     isButton: () => press.kind === "button",
+    // A select is either kind: the bot tells them apart by the custom id.
     isUserSelectMenu: () => press.kind === "select",
+    isStringSelectMenu: () => press.kind === "select",
     isModalSubmit: () => press.kind === "modal",
     isRepliable: () => true,
     reply: record("reply"),
@@ -140,17 +150,41 @@ export const makeDriver = (opts: {
   readonly port: number;
   readonly channelId: string;
   readonly steam: FakeSteamControl;
+  readonly clock: DevClock;
+  /** The fake catalogue, to find a Map by its title. */
+  readonly maps: ReadonlyArray<{ readonly title: string; readonly boardId: number | null }>;
 }) => {
   const queue = Effect.runSync(Queue.unbounded<Interaction>());
-  const feed = Layer.succeed(DriverInteractions, Stream.fromQueue(queue));
+  /** The test server, once the bot is logged in: for each member's real permissions. */
+  let guild: Guild | null = null;
+  // Its clicks play in the home Venue: the sandbox channel is home's.
+  const feed = Layer.effect(
+    DriverInteractions,
+    Effect.map(Discord, (discord) => {
+      guild = discord.home.channel.guild;
+      return Stream.fromQueue(queue).pipe(
+        Stream.map((interaction) => ({ interaction, venue: discord.home })),
+      );
+    }),
+  );
 
   const server = Layer.scopedDiscard(
     Effect.gen(function* () {
       const store = yield* Store;
       const run = Runtime.runPromise(yield* Effect.runtime());
 
+      /** Whether the member holds Manage Server in the test server, as Discord would say. */
+      const managesServer = (memberId: string) =>
+        (guild?.members.fetch(memberId) ?? Promise.reject(new Error("not logged in")))
+          .then((m) => m.permissions.has(PermissionFlagsBits.ManageGuild))
+          .catch(() => false);
+
       const interact = async (press: Press) => {
-        const { interaction, settled } = fakeInteraction(press, opts.channelId);
+        const manageServer = press.manageServer ?? (await managesServer(press.as));
+        const { interaction, settled } = fakeInteraction(
+          { ...press, manageServer },
+          opts.channelId,
+        );
         await run(Queue.offer(queue, interaction));
         return { answers: (await settled).map(answerOf) };
       };
@@ -168,6 +202,22 @@ export const makeDriver = (opts: {
             ok: `set ${seconds}s for ${link.value.personaName} on ${match.value.map.title}; the engine reads it on its next poll`,
           };
         });
+
+      /** A finished run on any Map (by title or board id), as the member's linked Steam account. */
+      const setRun = (map: string, as: string, seconds: number) =>
+        Effect.gen(function* () {
+          const found = opts.maps.find(
+            (m) => m.title.toLowerCase() === map.toLowerCase() || String(m.boardId) === map,
+          );
+          if (found?.boardId == null)
+            return { error: `no Map "${map}": ${opts.maps.map((m) => m.title).join(", ")}` };
+          const link = yield* store.getLink(as);
+          if (Option.isNone(link)) return { error: `member ${as} has not linked Steam` };
+          yield* opts.steam.setTime(found.boardId, link.value.steamId, seconds);
+          return { ok: `set ${seconds}s for ${link.value.personaName} on ${found.title}` };
+        });
+
+      const clockNow = () => ({ now: new Date(opts.clock.now()).toISOString() });
 
       const handle = async (req: IncomingMessage, res: ServerResponse) => {
         try {
@@ -192,6 +242,20 @@ export const makeDriver = (opts: {
               res,
               200,
               await run(setTime(String(input.matchId), String(input.as), Number(input.seconds))),
+            );
+          if (req.method === "GET" && req.url === "/clock") return send(res, 200, clockNow());
+          if (req.method === "POST" && req.url === "/clock") {
+            const to = Date.parse(String(input.to));
+            if (Number.isNaN(to))
+              return send(res, 400, { error: `not a time: ${String(input.to)}` });
+            opts.clock.jump(to);
+            return send(res, 200, clockNow());
+          }
+          if (req.method === "POST" && req.url === "/run")
+            return send(
+              res,
+              200,
+              await run(setRun(String(input.map), String(input.as), Number(input.seconds))),
             );
           if (req.method === "POST" && req.url === "/steam") {
             const down = input.down === true;

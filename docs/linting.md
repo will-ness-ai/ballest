@@ -57,8 +57,9 @@ which `pnpm --dir web exec next typegen` writes (CI runs it first).
   The bot's tests turn off typescript-eslint's `no-unsafe-*` and `no-explicit-any`: they read
   JSON bodies back as they come.
 - **Index reads are typed as present** (`noUncheckedIndexedAccess` is off), so
-  `no-unnecessary-condition` rejects `m[1] ?? "all"` on a regex group. Type an optional
-  group as what it is first: `(m[1] as string | undefined) ?? "all"`, or `slot.at(1)`.
+  `no-unnecessary-condition` rejects `m[1] ?? "all"` on a regex group, and `if (first)` after
+  `const [first] = list`. Read a value that may be missing with `.at()`: `list.at(0)`,
+  `slot.at(1) ?? "all"`, or type it as what it is: `(m[1] as string | undefined) ?? "all"`.
 - **Not linted**: `leth/` (a frozen snapshot), a local `data/`, the vendored
   `.claude/skills/`. `.prettierignore` and the `globalIgnores` in `eslint.config.js` list them.
 - **The legacy Steamworks-SDK scripts** (`tools/README-hosting.md`) are formatted and linted

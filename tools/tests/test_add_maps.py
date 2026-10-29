@@ -29,6 +29,10 @@ def item(pfid, **kw):
         "preview": "https://example.invalid/p.jpg",
         "sessions": 3,
         "subs": 5,
+        "week_plays": 2,
+        "votes_up": 1,
+        "votes_down": 0,
+        "vote_score": 0.25,
         "version": "1",
         "file_size": 10,
     } | kw
@@ -116,6 +120,15 @@ def test_a_map_already_held_is_left_alone(conn):
     ]
 
 
+def test_a_new_map_gets_its_plays_this_week_and_votes(conn):
+    catalogue_refresh(conn, OLD)
+    db_writer.add_maps(conn, [item(NEW)])
+    assert conn.execute(
+        "select week_plays, votes_up, votes_down, vote_score from map_activity where pfid = %s",
+        (NEW,),
+    ).fetchone() == (2, 1, 0, 0.25)
+
+
 def test_nothing_is_added_before_any_catalogue_was_written(conn):
     assert db_writer.add_maps(conn, [item(NEW)]) == []
     assert conn.execute("select count(*) from maps").fetchone() == (0,)
@@ -148,7 +161,18 @@ def test_the_newest_page_is_one_request_read_as_the_catalogue_reads_it(monkeypat
 
     def urlopen(url, **_):
         urls.append(url)
-        page = {"response": {"total": 1521, "publishedfiledetails": [SLICK_SLIDE]}}
+        page = {
+            "response": {
+                "total": 1521,
+                "publishedfiledetails": [
+                    SLICK_SLIDE
+                    | {
+                        "playtime_stats": {"playtime_seconds": "600", "num_sessions": "5"},
+                        "vote_data": {"score": 0.375, "votes_up": 2, "votes_down": 1},
+                    }
+                ],
+            }
+        }
         return contextlib.nullcontext(io.BytesIO(json.dumps(page).encode()))
 
     monkeypatch.setattr(cc.urllib.request, "urlopen", urlopen)
@@ -162,6 +186,10 @@ def test_the_newest_page_is_one_request_read_as_the_catalogue_reads_it(monkeypat
         "ballest_v0_3821728582_Climb_Slick Slide",
     )
     assert m["medals"] == [39.0, 30.0, 26.0, 24.340808868408203]
+    # its plays this week and votes, which the homepage's Trending chart ranks by
+    assert "return_playtime_stats=7" in urls[0]
+    assert "return_vote_data=1" in urls[0]
+    assert (m["week_plays"], m["votes_up"], m["votes_down"], m["vote_score"]) == (5, 2, 1, 0.375)
 
 
 # The workflow's next step downloads the added Maps' files (map_files.py --maps), so the step

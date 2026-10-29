@@ -96,9 +96,6 @@
 .vsp {
   margin: 0 var(--pad);
 }
-.vsp .back {
-  margin: 0 0 12px;
-}
 .vsp .empty {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -201,32 +198,7 @@
   align-items: center;
   margin-block-end: 10px;
 }
-.seg {
-  display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-/* the end buttons carry the rounding, so no overflow clips their focus rings */
-.seg > :first-child {
-  border-start-start-radius: 9px;
-  border-end-start-radius: 9px;
-}
-.seg > :last-child {
-  border-start-end-radius: 9px;
-  border-end-end-radius: 9px;
-}
-.seg button {
-  padding: 7px 12px;
-  font-family: var(--f-hud);
-  font-size: calc(12.5rem / 16);
-  font-weight: 600;
-  color: var(--dim);
-}
-.seg button[aria-pressed="true"] {
-  background: var(--surface2);
-  color: var(--text);
-}
-.vstools .opts {
+.vs-show {
   flex: 1 1 auto;
 }
 .vlist {

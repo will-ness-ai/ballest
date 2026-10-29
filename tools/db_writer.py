@@ -70,7 +70,7 @@ class Refresh:
 
     @property
     def daily_read(self):
-        """Whether this is a Daily read (CONTEXT.md), the open Dailies only, not a Refresh."""
+        """Whether this is a Daily read (GLOSSARY.md), the open Dailies only, not a Refresh."""
         return self.source == "daily"
 
 
@@ -435,6 +435,10 @@ def workshop_map(c):
         "preview": c["preview"],
         "created": c["created"],
         "medals": c["medals"],
+        "week_plays": c["week_plays"],
+        "votes_up": c["votes_up"],
+        "votes_down": c["votes_down"],
+        "vote_score": c["vote_score"],
     }
 
 
@@ -661,4 +665,38 @@ def _write_maps(cur, rid, maps):
         where l.id is null or not ({same})
         """,  # noqa: S608 (a fixed fragment, no input in it)
         (rid, rid),
+    )
+    _write_activity(cur, rid, maps)
+
+
+def _write_activity(cur, rid, maps):
+    """Each Map's plays this week and votes, as this catalogue listed them, over the last
+    catalogue's (spec #348). A Map with no plays figure (the backfill's, from git snapshots)
+    writes none."""
+    _copy(
+        cur,
+        "in_activity",
+        "pfid text, week_plays integer, votes_up integer, votes_down integer, vote_score float8",
+        [
+            (
+                m["pfid"],
+                m["week_plays"],
+                m.get("votes_up") or 0,
+                m.get("votes_down") or 0,
+                m.get("vote_score") or 0.0,
+            )
+            for m in maps
+            if m.get("week_plays") is not None
+        ],
+    )
+    cur.execute(
+        """
+        insert into map_activity (pfid, week_plays, votes_up, votes_down, vote_score, refresh_id)
+        select pfid, week_plays, votes_up, votes_down, vote_score, %s from in_activity
+        on conflict (pfid) do update set
+          week_plays = excluded.week_plays, votes_up = excluded.votes_up,
+          votes_down = excluded.votes_down, vote_score = excluded.vote_score,
+          refresh_id = excluded.refresh_id
+        """,
+        (rid,),
     )

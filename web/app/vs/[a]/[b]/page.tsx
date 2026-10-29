@@ -6,13 +6,14 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { DocTitle } from "../../../../components/Behaviours";
+import { PageHead } from "../../../../components/PageHead";
 import { Shell } from "../../../../components/Shell";
 import { PlayerSkeleton } from "../../../../components/Skeleton";
 import { VsView } from "../../../../components/player/VsView";
 import { getBoardPage, getPlayer } from "../../../../db/data";
 import { S2_OVERALL_BOARD } from "../../../../lib/circuit";
 import type { PlayerRecord } from "../../../../lib/player";
-import { playerHref } from "../../../../lib/routes";
+import { playerHref, vsHref } from "../../../../lib/routes";
 import { isSteamId, personaOf } from "../../../../lib/rules";
 
 interface Props {
@@ -51,6 +52,12 @@ async function Vs({ params }: Pick<Props, "params">) {
   if (!pair) notFound();
   return (
     <>
+      {/* the head to head is reached from the first player's page, so it leads back there */}
+      <PageHead
+        path={vsHref(p.a, p.b)}
+        title={titleOf(pair)}
+        back={{ label: personaOf(pair.A.who), href: playerHref(pair.A.id) }}
+      />
       <DocTitle title={titleOf(pair)} />
       <VsView key={p.a + "/" + p.b} A={pair.A} B={pair.B} />
     </>

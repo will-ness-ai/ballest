@@ -1,7 +1,7 @@
 import { SqliteClient } from "@effect/sql-sqlite-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Layer, Option, Ref, TestClock } from "effect";
-import { OpsAlerts } from "../src/ops.js";
+import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { NoChosenSkins } from "../src/chosenSkins.js";
 import { Renderer } from "../src/render/renderer.js";
 import { ReportChannel, ReportPostFailed, ThreadPostFailed } from "../src/report/channel.js";
@@ -78,10 +78,12 @@ const setup = Effect.gen(function* () {
     ),
     Layer.succeed(
       OpsAlerts,
-      OpsAlerts.make({
-        configured: true,
-        post: (content) => Ref.update(alerts, (a) => [...a, content]),
-      }),
+      OpsAlerts.make(
+        opsAlertsOf({
+          configured: true,
+          post: (content) => Ref.update(alerts, (a) => [...a, content]),
+        }),
+      ),
     ),
     ReportLogLive.pipe(Layer.provide(SqliteClient.layer({ filename: ":memory:" }))),
     // Drawing runs on a worker, in real time; the schedule is checked on the TestClock.
