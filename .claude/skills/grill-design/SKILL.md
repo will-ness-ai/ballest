@@ -30,14 +30,16 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
    instead (port 8740). Push the branch too: its Vercel preview is a link the user can open
    away from their PC.
 
-3. Hand the user the URL with the route the feature lives on, e.g.
-   `http://localhost:<port>/players?variant=A`. If the session runs in the cloud and the
-   user cannot open its localhost, screenshot each variant and state with Playwright
-   (Chromium is preinstalled) and post the images instead, keeping the URL for when they
-   run it themselves. Shoot each variant twice, on the plain URL (no `?view=`) with a
-   390px viewport and a 1280px one. Shoot at `deviceScaleFactor: 1`, clipped to the feature's element,
-   as JPEG (`quality: 80`) at most 1000px wide. Read one per round to check the shots came
-   out and send the rest unread: every image read stays in context for the session.
+3. Hand the user the preview URL with the route the feature lives on, e.g.
+   `<preview>/players?variant=A`, and post every round as pictures too, so it can be judged
+   in the thread without opening the preview:
+   `pnpm --dir web --silent qa sheet <route> --at local:<port> --el <the feature's selector> --pick <key> --title "<the round's question>" --out /mnt/project-files/<feature>/round<N>`
+   draws each variant at 1280 and 390 px into an overview (a row each, desktop beside phone),
+   `page.jpg` (your pick in the whole page) and a card per variant, and lists layout faults.
+   It reads the variants from the picker's `data-variants` (`[key, name, note]` each, the
+   note saying what the variant changes). Read only the overview, to check the shots came
+   out: every image read stays in context for the session. A message takes 6 files: the
+   overview and `page.jpg` first, then the cards.
 
 ## Each round
 
@@ -52,8 +54,8 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
 - The active variant comes from a `?variant=<key>` search parameter, which sits next to
   the hash route without disturbing it, so every variant is a link the user can share or
   reload.
-- A floating, draggable picker sits bottom-right. It names the current variant
-  (`B · Sidebar`), and its ←/→ buttons and the ←/→ keys cycle the variants (not while an
+- A floating, draggable picker sits bottom-right, publishing the round's variants as
+  `data-variants` for `qa sheet`. It names the current variant (`B · Sidebar`), and its ←/→ buttons and the ←/→ keys cycle the variants (not while an
   input has focus), updating `?variant=` with `history.replaceState` so the hash route is
   kept. When the design has meaningful states (a board with 1, 2 or thousands of rows; a
   player with and without Workshop times; an empty search), add picker buttons that
@@ -64,9 +66,9 @@ Call the Skill tool for 'grilling', and ask each of its questions with prototype
   holding a 390px-wide `<iframe>` of the same URL with `view` removed and `framed=1`
   added, keyed on that URL so it follows the variant (on a variant that changes route,
   re-read the URL after the navigation). A page loaded with `?framed=1` draws no picker,
-  so the one outside drives it. `ProtoPicker` in `web/components/prototype/SkinPick.tsx`
-  and `.proto-frame` in `web/app/styles/prototype.css`, on `claude/prototype-skin-pick`,
-  are a working copy: keep the view switch and the frame, and leave its Skin hooks behind.
+  so the one outside drives it. `ProtoPicker` in `web/components/prototype/Proto.tsx`
+  and `.proto-frame` in `web/app/styles/prototype.css`, on `claude/prototype-official`,
+  are a working copy, `data-variants` included.
 - Put the picker and the variants in one clearly marked `PROTOTYPE` block so they are
   easy to find and never mistaken for production code. Reload the page after each edit
   (a hash change keeps the old script).
