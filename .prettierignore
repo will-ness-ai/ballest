@@ -2,6 +2,7 @@
 data/
 leth/data/
 web/public/
+web/lib/generators/piece-fonts.json
 web/.next/
 web/next-env.d.ts
 web/db/migrations/

@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-import { repoSlug } from "../.claude/hooks/review-gate-rules.mjs";
+import { repoSlug } from "../web/scripts/github.mjs";
 
 const run = (cmd, args) =>
   execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();

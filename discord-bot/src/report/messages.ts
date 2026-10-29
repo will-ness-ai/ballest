@@ -8,6 +8,7 @@ import {
   ComponentType,
 } from "discord.js";
 import { formatTime, SCORE_TICKS_PER_SECOND } from "../domain.js";
+import { escape, mapLink, SITE_URL, siteLink } from "../links.js";
 import { type ChosenSkinPicks, chosenSkinOf } from "../ports.js";
 import type { StandingsImage } from "../render/scenes.js";
 import type { DatedRecord } from "./records.js";
@@ -15,16 +16,14 @@ import {
   CHANGES_SHOWN,
   DAY_MS,
   type Change,
-  type ListedMap,
   type ListedTrack,
   type Report,
   type Stat,
+  STATS,
 } from "./report.js";
 
 /** Discord's cap on a bot message's text. */
 export const MESSAGE_LIMIT = 2000;
-/** Where the links go: each Map's and Track's page on the site, and the button's /you. */
-const SITE_URL = "https://ballestrecords.com";
 
 /** The four Workshop standings' headings, in the image. */
 export const BOARD_TITLE: Record<Stat, string> = {
@@ -34,17 +33,14 @@ export const BOARD_TITLE: Record<Stat, string> = {
   top5: "Most top 5s",
 };
 
-/** Neutralise Discord markdown and mentions in a persona or Map title. */
-export const escape = (s: string) =>
-  s
-    .replace(/[\\*_~`|>[\]]/g, (c) => `\\${c}`)
-    .replaceAll("@", "@​")
-    .replaceAll("<", "<​");
+/** The four standings' short names, on each Overall row's chips. */
+export const BOARD_SHORT: Record<Stat, string> = {
+  played: "MP",
+  author: "AM",
+  wr: "WR",
+  top5: "T5",
+};
 
-/** A masked link; the <> stop Discord unfurling an embed. */
-const siteLink = (text: string, path: string) => `[${escape(text)}](<${SITE_URL}${path}>)`;
-/** The Map's page on the site. */
-const mapLink = (m: ListedMap) => siteLink(m.title || m.pfid, `/map/${m.pfid}`);
 /** The Track's board on the site. */
 const trackLink = (t: ListedTrack) => siteLink(t.label, `/board/${t.board}`);
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -134,6 +130,10 @@ export const reportButtons: ReadonlyArray<APIActionRowComponent<APIButtonCompone
   },
 ];
 
+/** Places climbed since yesterday (negative: fallen), or "new" to a top 10. */
+const moveOf = (row: { readonly place: number; readonly placeBefore: number | null }) =>
+  row.placeBefore === null ? ("new" as const) : row.placeBefore - row.place;
+
 /**
  * What the standings image shows: the day, the counts and the four Workshop standings, each row
  * in its player's Chosen Skin out of `chosen` (every pick, as it stands when the report is built).
@@ -149,11 +149,23 @@ export const standingsImage = (r: Report, chosen: ChosenSkinPicks): StandingsIma
       name: row.persona,
       n: row.n,
       place: row.place,
-      move: row.placeBefore === null ? "new" : row.placeBefore - row.place,
+      move: moveOf(row),
       gain: row.gain,
     })),
     out: b.out.map((o) => o.persona),
   })),
+  overall: {
+    rows: r.overall.rows.map((row) => ({
+      steamId: row.steamId,
+      skin: chosenSkinOf(chosen, row.steamId),
+      name: row.persona,
+      points: row.points,
+      place: row.place,
+      move: moveOf(row),
+      places: STATS.map((stat) => ({ board: BOARD_SHORT[stat], place: row.places[stat] })),
+    })),
+    out: r.overall.out.map((o) => o.persona),
+  },
 });
 
 export const threadName = (r: Report) => `Maps and records · ${shortDate(r.at)}`;

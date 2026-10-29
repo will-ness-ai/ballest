@@ -1,5 +1,5 @@
 "use client";
-// Every player's Chosen Skin (CONTEXT.md), as the object path the site stores, handed down
+// Every player's Chosen Skin (GLOSSARY.md), as the object path the site stores, handed down
 // from the root layout so any marble on any page can find its player's (ChosenBall, drawn by
 // components/Marble where no run Skin is known). Read once per page from the cached map
 // (getChosenSkins in db/data.ts), not in each query that draws a player: some draw one from a

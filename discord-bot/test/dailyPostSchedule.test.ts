@@ -18,7 +18,7 @@ import {
 } from "../src/dailyPost/schedule.js";
 import type { PastDaily } from "../src/dailyPost/history.js";
 import { DailySpins, type Spin, SpinUnavailable } from "../src/dailyPost/spin.js";
-import { OpsAlerts } from "../src/ops.js";
+import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { Renderer } from "../src/render/renderer.js";
 import type { LeadGraphImage } from "../src/render/scenes.js";
 import { SteamUnavailable } from "../src/ports.js";
@@ -182,10 +182,12 @@ const setup = Effect.gen(function* () {
     } as unknown as Renderer),
     Layer.succeed(
       OpsAlerts,
-      OpsAlerts.make({
-        configured: true,
-        post: (content) => Ref.update(alerts, (a) => [...a, content]),
-      }),
+      OpsAlerts.make(
+        opsAlertsOf({
+          configured: true,
+          post: (content) => Ref.update(alerts, (a) => [...a, content]),
+        }),
+      ),
     ),
   );
   // One database for the whole test, so a restart finds what the run before it recorded.

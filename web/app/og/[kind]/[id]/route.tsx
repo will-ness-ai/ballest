@@ -3,10 +3,8 @@
 // pages, so a card for a page someone just opened costs no database read; drawn on the
 // first request and then kept by Vercel's CDN. 404 for an id that names nothing, so no
 // crawler keeps junk.
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
-import { SHARE_ASSETS, drawShare, type SharePicture } from "../../../../components/share/Card";
+import { drawShare, type SharePicture } from "../../../../components/share/Card";
+import { fullAvatar, remote, trackShot } from "../../../../components/share/pictures";
 import { prefabShot } from "../../../../components/share/prefab";
 import {
   getBoardPage,
@@ -20,8 +18,8 @@ import {
 } from "../../../../db/data";
 import { CAMPAIGN_MAX_PICTURES } from "../../../../lib/campaigns";
 import { circuitBoard } from "../../../../lib/circuit";
-import { SITE_ORIGIN, isDailyDate } from "../../../../lib/routes";
-import { isSteamId, safeImg } from "../../../../lib/rules";
+import { isDailyDate } from "../../../../lib/routes";
+import { isSteamId } from "../../../../lib/rules";
 import {
   campaignCard,
   dailyCard,
@@ -35,44 +33,10 @@ import {
   type ShareKind,
 } from "../../../../lib/share";
 
-/* the largest picture a card takes; a Workshop preview is well under it */
-const MAX_PICTURE = 4 * 1024 * 1024;
-
-/* a picture from Steam's CDN, or one of the site's own files as production serves it, as a
-   data: URL; a slow, failed or oversized fetch draws the fallback */
-async function remote(url: string | null | undefined) {
-  const safe = safeImg(url);
-  if (!safe) return null;
-  const u = safe.startsWith("/") ? SITE_ORIGIN + safe : safe;
-  try {
-    const r = await fetch(u, { signal: AbortSignal.timeout(3000) });
-    const type = r.headers.get("content-type") ?? "";
-    const size = Number(r.headers.get("content-length") ?? 0);
-    if (!r.ok || !/^image\/(png|jpeg|gif)/.test(type) || size > MAX_PICTURE) return null;
-    const body = Buffer.from(await r.arrayBuffer());
-    return body.length > MAX_PICTURE ? null : `data:${type};base64,${body.toString("base64")}`;
-  } catch {
-    return null;
-  }
-}
-
-/* a Track's screenshot: the JPEG copy of circuit/<name>.webp, since Satori reads no WebP */
-async function trackShot(board: string) {
-  try {
-    const jpg = await readFile(join(SHARE_ASSETS, "circuit", board + ".jpg"));
-    return "data:image/jpeg;base64," + jpg.toString("base64");
-  } catch {
-    return null;
-  }
-}
-
 async function topOf(board: string): Promise<BoardTop> {
   const [page, scores] = await Promise.all([getBoardPage(board, 0, 1), getBoardScores(board)]);
   return { total: page.total, first: page.rows[0] ?? null, scores };
 }
-
-/* Steam names an avatar's sizes by suffix; the card draws it at 288 px */
-const fullAvatar = (u: string | null | undefined) => u?.replace(/_medium\.jpg$/, "_full.jpg");
 
 async function shareOf(
   kind: ShareKind,

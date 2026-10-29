@@ -7,6 +7,8 @@ export const SKILLS = ["code-review", "codebase-design"];
 // `timeout` or `bash -c` included), so one that only mentions a merge is checked too.
 const GH_PR = /(?<![\w./-])gh\s+(?:(?:-R|--repo)[\s=]+(\S+)\s+)?pr\s+(merge|ready)\b/g;
 const API = /(?<![\w./-])(gh\s+api|curl)\b/g;
+// `pnpm pr land <n>` (web/scripts/pr.mjs) marks ready and squash-merges from inside the script
+const LAND = /(?<![\w./-])(pnpm|node)\s/g;
 const ROUTE =
   /repos\/([^/\s'"]+\/[^/\s'"]+)\/pulls\/(\d+)\/(?:merge|ccr\/ready_for_review|ccr\/auto_merge)\b/;
 const MUTATION =
@@ -44,11 +46,13 @@ export function mergeTargets(tool, input) {
   const found = [
     ...[...command.matchAll(GH_PR)].map((m) => [m.index, ghPr(command, m)]),
     ...[...command.matchAll(API)].map((m) => [m.index, apiCall(command, m)]),
+    ...[...command.matchAll(LAND)].map((m) => [m.index, landCall(command, m)]),
   ];
   return found
     .filter(([, t]) => t)
     .sort(([a], [b]) => a - b)
-    .map(([at, t]) => (t.repo ? t : withCd(t, command, at)));
+    .map(([at, t]) => (t.repo ? t : withCd(t, command, at)))
+    .map(({ dir, ...t }) => (dir ? { ...t, cd: joinCd(t.cd ?? "", dir) } : t));
 }
 
 /* the text with each quoted string as one bare word, so its spaces and separators don't split it */
@@ -103,6 +107,31 @@ function apiCall(command, m) {
   return { repo: placeholder ? null : route[1], number: Number(route[2]), ...marked };
 }
 
+/* `pnpm [--silent|-s|run|--dir <d>] pr land <n>` or `node <..>/scripts/pr.mjs land <n>`: the
+   PR it lands, with `dir` for a --dir or -C (pr.mjs squash-merges, so never unsquashed) */
+function landCall(command, m) {
+  const call = flatten(command.slice(m.index + m[0].length)).split(SEPARATOR)[0];
+  const tokens = call.trim().split(/\s+/).map(unquote).filter(Boolean);
+  let dir = null;
+  let i = 0;
+  if (m[1] === "node") {
+    if (!/(?:^|\/)scripts\/pr\.mjs$/.test(tokens[0] ?? "")) return null;
+    i = 1;
+  } else {
+    for (; i < tokens.length && tokens[i] !== "pr"; i++) {
+      if (/^(?:--dir|-C)$/.test(tokens[i])) dir = tokens[++i];
+      else if (!/^(?:--silent|-s|run|--dir=.*)$/.test(tokens[i])) return null;
+      else if (tokens[i].startsWith("--dir=")) dir = tokens[i].slice(6);
+    }
+    i++;
+  }
+  if (tokens[i] !== "land" || tokens.includes("--help")) return null;
+  const rest = tokens.slice(i + 1).filter((t, j, all) => all[j - 1] !== "--timeout");
+  const n = rest.find((t) => /^#?\d+$/.test(t));
+  if (n === undefined) return null;
+  return { repo: null, number: Number(n.replace("#", "")), ...(dir ? { dir } : {}) };
+}
+
 /* where `cd to` lands from `from`: an absolute path (or ~, $HOME) starts again */
 const joinCd = (from, to) => (/^[/~$]/.test(to) || !from ? to : `${from}/${to}`);
 
@@ -132,9 +161,51 @@ export function repoSlug(text) {
 /* "projectSettings:code-review" and "code-review" are the same skill */
 export const skillName = (name) => String(name).split(":").pop();
 
-// A follow-up this small, after both skills have run on the PR, needs no new run (Will,
-// 2026-10-18: each round of review fixes was costing a whole review round).
-export const FOLLOW_UP_LINES = 40;
+// Claude Code's own skills of the same name: the Skill tool always finds these
+const BUILT_IN = ["code-review"];
+
+/* Whether this session's Skill tool can find `skill`: built in, or a SKILL.md in one of the
+   skill folders it read at its start (`dirs`), unless the tool has called it unknown
+   (`refused`): a project thread's linked skills can still be missing from it (PR #368).
+   `exists(path)` is the file system's. */
+export const loadable = (skill, dirs, exists, refused = new Set()) =>
+  BUILT_IN.includes(skill) ||
+  (!refused.has(skill) && dirs.some((d) => exists(`${d}/${skill}/SKILL.md`)));
+
+/* The skills a session's transcript (JSONL) shows its Skill tool refusing as unknown, and not
+   run since. Only the Skill tool's own results count, so a file or a command's output that
+   quotes the error doesn't; a refusal counts by the bare name the error gives (a prefixed one,
+   "foo:codebase-design", says nothing of the bare one), and any call that runs it clears it. */
+export function refusedSkills(transcript) {
+  const asked = new Map();
+  const refused = new Set();
+  for (const line of transcript.split("\n")) {
+    if (!line.includes('"Skill"') && ![...asked.keys()].some((id) => line.includes(id))) continue;
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const content = entry?.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const part of content)
+      if (part?.type === "tool_use" && part.name === "Skill")
+        asked.set(part.id, skillName(String(part.input?.skill ?? "").replace(/^\//, "")));
+      else if (part?.type === "tool_result" && asked.has(part.tool_use_id)) {
+        const text = typeof part.content === "string" ? part.content : JSON.stringify(part.content);
+        const named = part.is_error && /Unknown skill: \/?([\w-]+)(?![\w:-])/.exec(text)?.[1];
+        if (named) refused.add(named);
+        else if (!part.is_error) refused.delete(asked.get(part.tool_use_id));
+        asked.delete(part.tool_use_id);
+      }
+  }
+  return refused;
+}
+
+// Follow-ups after a skill has run on the PR need no new run until they change as many lines
+// as the commits it saw, half the PR: a significant part of it (Will, 2026-10-24, after #366's
+// review fixes ran four rounds under a fixed 40 lines; 2026-10-18, each round cost a whole one).
 
 // A picture (a skin, a screenshot) has no lines to review (Will, 2026-10-18, after PR #275
 // ran both skills on one .webp). Any other binary file can't be read, so it is never small.
@@ -158,8 +229,8 @@ export function linesChanged(numstat) {
 }
 
 /* Each skill's commits that no run of it has seen: a run on a commit sees it and every
-   commit before it, and once it has run on the PR, later commits that change fewer than
-   FOLLOW_UP_LINES lines in all pass too. A commit of only pictures needs no run. `records`
+   commit before it, and once it has run on the PR, later commits pass too while they change
+   fewer lines than the commits it saw (a binary file it saw counts none). A commit of only pictures needs no run. `records`
    are { skill, sha }, `isAncestor(a, b)` is git's, `linesOf(sha)` is linesChanged's. */
 export function unreviewed(commits, records, isAncestor, linesOf) {
   const linesIn = new Map(commits.map((c) => [c, linesOf(c)]));
@@ -169,9 +240,10 @@ export function unreviewed(commits, records, isAncestor, linesOf) {
       const seen = records.filter((r) => r.skill === skill).map((r) => r.sha);
       const sees = (c) => seen.some((s) => isAncestor(c, s));
       const missing = reviewable.filter((c) => !sees(c));
-      const lines = missing.reduce((sum, c) => sum + linesIn.get(c), 0);
+      const sum = (cs) => cs.reduce((n, c) => n + linesIn.get(c), 0);
+      const seenLines = sum(reviewable.filter(sees).filter((c) => linesIn.get(c) !== Infinity));
       // a run that saw only pictures has reviewed nothing yet
-      const followUp = reviewable.some(sees) && lines < FOLLOW_UP_LINES;
+      const followUp = seenLines > 0 && sum(missing) < seenLines;
       return [skill, followUp ? [] : missing];
     }),
   );

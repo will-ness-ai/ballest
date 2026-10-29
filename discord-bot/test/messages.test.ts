@@ -19,11 +19,13 @@ import {
   confirmLeaveMessage,
   fingerprint,
   footerMessage,
+  myStatsPanelMessage,
   type Payload,
   pingDeclinedMessage,
   pingOfferMessage,
   pingsMessage,
   pingUnreadMessage,
+  statsAnswerMessage,
   threadMessage,
   withPingFailure,
 } from "../src/discord/messages.js";
@@ -53,6 +55,9 @@ const buttons = (p: Payload) =>
 
 const labels = (p: Payload) => buttons(p).map((b) => b.label);
 
+/** Each embed on a message, as Discord gets it. */
+const embeds = (p: Payload) => (p.embeds ?? []).map((e) => ("toJSON" in e ? e.toJSON() : e));
+
 /** Who a message pings: the user ids it lets Discord mention. */
 const pinged = (p: Payload) => p.allowedMentions?.users ?? [];
 
@@ -78,6 +83,78 @@ describe("the Footer", () => {
       { label: "Pings", does: { _tag: "Pings" } },
     ]);
     pingsNobody(footer);
+  });
+});
+
+describe("the My Stats panel", () => {
+  const panel = myStatsPanelMessage();
+  /** The panel's buttons: Components V2 puts its row inside the container. */
+  const panelButtons = () =>
+    JSON.stringify(panel.components).match(/"custom_id":"[^"]+"|"label":"[^"]+"/g);
+
+  it("is a Components V2 message with one See my stats button, and pings nobody", () => {
+    expect(panel.flags).toBe(MessageFlags.IsComponentsV2);
+    expect(panelButtons()).toEqual(['"custom_id":"mb:stats"', '"label":"See my stats"']);
+    expect(parseControl("mb:stats")).toEqual({ _tag: "SeeMyStats" });
+    pingsNobody(panel);
+  });
+
+  it("says what the button shows and where it comes from", () => {
+    const text = JSON.stringify(panel.components);
+    expect(text).toContain("See your Circuit ranks, World records and Medals");
+    expect(text).toContain("ballestrecords.com");
+  });
+
+  it("draws the same every time, so a restart leaves it alone", () => {
+    expect(fingerprint(myStatsPanelMessage())).toBe(fingerprint(panel));
+  });
+});
+
+describe("See my stats's private answer", () => {
+  const CARD_URL = "https://ballestrecords.com/player/76561198000000001";
+
+  it("shows the Stat Card with a Player page link and a quiet Pair again", () => {
+    const answer = statsAnswerMessage({
+      _tag: "Card",
+      steamId: "76561198000000001",
+      png: PNG,
+      url: CARD_URL,
+    });
+    expect(answer.files).toHaveLength(1);
+    expect(buttons(answer)).toEqual([
+      { label: "Player page", does: CARD_URL },
+      { label: "Not you? Pair again", does: { _tag: "PairAgain" } },
+    ]);
+    pingsNobody(answer);
+  });
+
+  it("sends a member with no Stats Link to sign in with Steam, dropping any card", () => {
+    const url = "https://ballestrecords.com/discord/link?t=abc";
+    const answer = statsAnswerMessage({ _tag: "SignIn", url });
+    expect(buttons(answer)).toEqual([{ label: "Sign in with Steam", does: url }]);
+    expect(answer.files).toEqual([]);
+    expect(answer.attachments).toEqual([]);
+    pingsNobody(answer);
+  });
+
+  it("lets a member paired with an account with no runs pair again", () => {
+    const answer = statsAnswerMessage({ _tag: "NoStats" });
+    expect(answer.content).toContain("No runs on the boards yet");
+    expect(buttons(answer)).toEqual([
+      { label: "Not you? Pair again", does: { _tag: "PairAgain" } },
+    ]);
+    expect(answer.files).toEqual([]);
+  });
+
+  it.each([
+    ["CardFailed", "Couldn't draw your card, try again."],
+    ["Unavailable", "Stats aren't available"],
+  ] as const)("says why there's no card (%s), with no buttons", (tag, text) => {
+    const answer = statsAnswerMessage({ _tag: tag });
+    expect(answer.content).toContain(text);
+    expect(buttons(answer)).toEqual([]);
+    expect(answer.files).toEqual([]);
+    pingsNobody(answer);
   });
 });
 
@@ -235,6 +312,20 @@ describe("the Card", () => {
     }
   });
 
+  it("names its Map, linked to the Map's page on the site, once the Map is drawn", () => {
+    for (const state of ["live", "finished"] as const) {
+      const [embed] = embeds(cardMessage(card(state, "public"), PNG, redrawn));
+      expect(embed?.title).toBe("Map 1");
+      expect(embed?.url).toBe("https://ballestrecords.com/map/pf1");
+    }
+    const waiting = cardMessage({ ...card("live", "lobby"), waitingForSteam: true }, PNG, redrawn);
+    expect(embeds(waiting)[0]?.url).toBe("https://ballestrecords.com/map/pf1");
+    // The Invite keeps its Map sealed
+    const [invite] = embeds(cardMessage(card("invite", "lobby"), PNG, redrawn));
+    expect(invite?.title).toBeUndefined();
+    expect(invite?.url).toBeUndefined();
+  });
+
   it("keeps each row within Discord's five buttons", () => {
     for (const state of ["invite", "live", "finished"] as const)
       for (const type of ["public", "challenge", "lobby"] as const)
@@ -291,6 +382,25 @@ describe("thread posts", () => {
     );
     expect(pinged(lateJoin)).toEqual([CARA.discordId]);
     expect(labels(lateJoin)).toEqual([WORKSHOP]);
+  });
+
+  it("the start ping and the Result name the Map, linked to its page on the site", () => {
+    const link = "[Map 1](<https://ballestrecords.com/map/pf1>)";
+    const go = ThreadPost.Started({ players: [ALICE], map: MAP, endsAt: 1, card: live });
+    expect(threadMessage("7", go, art).content).toContain(`**Go!** on ${link}`);
+    const finished = card("finished", "public");
+    for (const standings of [[], [{ player: ALICE, ticks: ticks(20), rank: 1, medal: null }]]) {
+      const result = ThreadPost.Result({ standings, card: finished, steamDown: false });
+      expect(threadMessage("7", result, art).content).toContain(`on ${link}`);
+    }
+  });
+
+  it("escapes a Map title's markdown and mentions in its link", () => {
+    const sly = { ...MAP, title: "*@everyone* [x]" };
+    const go = ThreadPost.Started({ players: [ALICE], map: sly, endsAt: 1, card: live });
+    expect(threadMessage("7", go, art).content).toContain(
+      "[\\*@\u200beveryone\\* \\[x\\]](<https://ballestrecords.com/map/pf1>)",
+    );
   });
 
   it("a Challenge pings only its target, who can answer from the post", () => {

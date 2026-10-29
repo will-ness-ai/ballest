@@ -21,13 +21,14 @@
     "db:seed": "tsx scripts/seed.ts",
     "test": "vitest run",
     "qa": "node scripts/qa.mjs",
+    "gen": "tsx scripts/gen.ts",
     "campaign": "tsx scripts/campaign.ts"
   },
   "dependencies": {
     "drizzle-orm": "0.45.3",
     "next": "16.3.8",
+    "obscenity": "0.4.6",
     "pg": "8.23.1",
-    "qrcode-generator": "1.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "three": "0.180.0"

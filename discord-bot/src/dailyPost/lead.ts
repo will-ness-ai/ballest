@@ -1,6 +1,6 @@
 // The lead through a Daily (spec #268): who led after each read of its board, kept in the bot's
 // SQLite, and the thread line each change of leader gets. Pure, so the schedule and the tests
-// say exactly the same. A lead held by one player is a Reign (CONTEXT.md): it runs from the read
+// say exactly the same. A lead held by one player is a Reign (GLOSSARY.md): it runs from the read
 // that saw it start to the read that saw a faster time take it, through the holder's own faster
 // times, and a matched time does not start a new one.
 import { bold } from "../report/messages.js";

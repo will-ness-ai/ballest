@@ -34,7 +34,7 @@ export const refreshSource = pgEnum("refresh_source", ["collector", "backfill", 
 
 // One pass of the collector over Steam. A backfill Refresh is one snapshot of data/ from
 // git, dated at its commit, so what it first saw was first seen no later than that. A
-// `daily` row is a Daily read (CONTEXT.md): the open Dailies only, between Refreshes, so
+// `daily` row is a Daily read (GLOSSARY.md): the open Dailies only, between Refreshes, so
 // what counts Refreshes or says when the boards were refreshed leaves it out.
 export const refreshes = pgTable("refreshes", {
   id: serial("id").primaryKey(),
@@ -231,6 +231,22 @@ export const mapFiles = pgTable("map_files", {
   readAt: timestamp("read_at", { withTimezone: true }).notNull(),
 });
 
+// A Map's plays over the last 7 days and its Workshop votes, as of the latest catalogue that
+// listed it (spec #348): the homepage's Trending chart ranks by them. One row per Map,
+// overwritten by each Refresh that writes a Workshop result, never history: the plays move
+// every Refresh. `voteScore` is Steam's own score, discounted for few votes (0 with none). No
+// foreign key to `maps`, as `map_files` has none.
+export const mapActivity = pgTable("map_activity", {
+  pfid: text("pfid").primaryKey(),
+  weekPlays: integer("week_plays").notNull(),
+  votesUp: integer("votes_up").notNull(),
+  votesDown: integer("votes_down").notNull(),
+  voteScore: doublePrecision("vote_score").notNull(),
+  refreshId: integer("refresh_id")
+    .notNull()
+    .references(() => refreshes.id),
+});
+
 // A Map's spinning 3D GIF for its Daily Post (spec #268): one full turn of the Map's 3D view on
 // the site, drawn by daily-spin.yml (scripts/map-spin.ts) when Multiballs asks, and read by the
 // bot. Only the latest drawing is kept; `version` is the map_files version it was drawn from,
@@ -242,7 +258,7 @@ export const mapSpins = pgTable("map_spins", {
   drawnAt: timestamp("drawn_at", { withTimezone: true }).notNull(),
 });
 
-// A Prefab (CONTEXT.md): a group of editor pieces a player uploaded, with the file exactly as
+// A Prefab (GLOSSARY.md): a group of editor pieces a player uploaded, with the file exactly as
 // they sent it (ADR 0009, the first table the site itself writes). The slug comes from the
 // first name and never changes, so a link survives a rename. A deleted or taken-down Prefab
 // keeps its row, which still counts against its uploader's hourly limit, and reads as gone. A
@@ -307,7 +323,7 @@ export const prefabLimits = pgTable("prefab_limits", {
   setBy: text("set_by").notNull(),
 });
 
-// A player's Chosen Skin (CONTEXT.md): the Skin a signed-in player picked to stand for them
+// A player's Chosen Skin (GLOSSARY.md): the Skin a signed-in player picked to stand for them
 // wherever no run's Skin is known, written only by the site (PUT /api/me/skin). The Skin is
 // the object path a Ghost names (a key of lib/skins.ts), so every Skin is named one way. No
 // row is no pick: the hue marble.
@@ -327,3 +343,24 @@ export const chosenSkinSaves = pgTable(
   },
   (t) => [index("chosen_skin_saves_player").on(t.steamId, t.savedAt)],
 );
+
+// A Stats Link (GLOSSARY.md): the Steam ID a Discord account signed in as on the site, written
+// only by the site's link page (db/stats-link.ts) and read by Multiballs for See my stats.
+// Pairing again replaces it.
+export const statsLinks = pgTable("stats_links", {
+  discordId: text("discord_id").primaryKey(),
+  steamId: text("steam_id").notNull(),
+  linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// A link request: one press of See my stats with no Stats Link, written by Multiballs
+// (ADR 0014), which sends its token to the link page. It lives 15 minutes and is used once;
+// Multiballs prunes the old ones as it writes, and so does the page's confirm.
+export const statsLinkRequests = pgTable("stats_link_requests", {
+  token: text("token").primaryKey(),
+  discordId: text("discord_id").notNull(),
+  // the Discord name the confirm page asks about
+  discordName: text("discord_name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+});

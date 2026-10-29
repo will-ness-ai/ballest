@@ -2,6 +2,7 @@
 
 Status: accepted (2026-10-04). Amended by ADR 0011: the site counts the Workshop standings and serves them.
 Extended 2026-10-18: the Daily Post reads the database the same way (below).
+Amended by ADR 0014: See my stats writes link requests, the one table the bot writes.
 
 The Daily Report (spec #126) needs every Workshop Map's board, each Map's Author Medal and
 creator, and what changed in the last 24 hours: the Score history that ADR 0005 put in
@@ -26,6 +27,7 @@ A migration that renames or reshapes a table the bot reads must update the file 
 - `dailyPost/history.ts`: `dailies`, `boards`, `entries`, `refreshes`, `players`, `ghosts`,
   `board_reads`.
 - `dailyPost/spin.ts`: `map_files`, `map_spins`.
+- See my stats (ADR 0014): `stats_links`, and `stats_link_requests`, which it also writes.
 
 ## Considered Options
 

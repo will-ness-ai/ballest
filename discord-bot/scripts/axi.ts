@@ -35,6 +35,10 @@ const HELP = `usage: pnpm --silent axi [command] [args]
                                  submit a form
   time <match> <seconds> --as <member>
                                  a finished run on the Match's Map (fake Steam)
+  run <map title|board id> <seconds> --as <member>
+                                 a finished run on any Map (fake Steam), for the Weekly Cup
+  clock [time]                   the sandbox's clock, or move it forward to a time
+                                 (ISO, e.g. 2026-11-05T12:00:30-06:00; needs pnpm sandbox --cup)
   steam down | steam up          make every fake Steam read fail, or stop failing
   wait <text> [--in <channel|thread>] [--timeout s]
                                  until a new message whose text or image name has it ("" for any)
@@ -449,6 +453,32 @@ const time = async () => {
   ]);
 };
 
+const runCmd = async () => {
+  const as = await resolveMember(flag("as"));
+  const [map, seconds] = args;
+  if (map === undefined || seconds === undefined) return fail("run needs a Map and seconds");
+  const out = await driver<{ ok?: string; error?: string }>("/run", {
+    map,
+    as,
+    seconds: Number(seconds),
+  });
+  if (out.error !== undefined) return fail(out.error, ["pnpm --silent axi"]);
+  say([
+    out.ok ?? "",
+    ...helpLines(["pnpm --silent axi read <#weekly-cup id>   (the Cup reads every 5 minutes)"]),
+  ]);
+};
+
+const clockCmd = async () => {
+  const to = args[0];
+  const out =
+    to === undefined
+      ? await driver<{ now?: string; error?: string }>("/clock")
+      : await driver<{ now?: string; error?: string }>("/clock", { to });
+  if (out.error !== undefined) return fail(out.error);
+  say([`now: ${out.now ?? ""}`]);
+};
+
 const steamCmd = async () => {
   const state = args[0];
   if (state !== "down" && state !== "up") return fail("steam needs down or up");
@@ -569,6 +599,8 @@ const COMMANDS: Record<string, () => Promise<void>> = {
   pick,
   submit,
   time,
+  run: runCmd,
+  clock: clockCmd,
   steam: steamCmd,
   wait,
   sandbox: sandboxCmd,

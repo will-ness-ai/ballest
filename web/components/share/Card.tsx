@@ -10,7 +10,7 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
-import { SITE_NAME } from "../../lib/rules";
+import { SITE_WORDMARK } from "../../lib/rules";
 import type { ShareCard, ShareStat, Tone } from "../../lib/share";
 
 export const SHARE_ASSETS = join(process.cwd(), "assets", "share");
@@ -19,12 +19,13 @@ const W = 1200;
 const H = 630;
 
 /* base.css's tokens in sRGB */
-const C = {
+export const C = {
   bg: "#0a1020",
   bg2: "#16244a",
   text: "#eaf0ff",
   dim: "#93a2c8",
   gold: "#ffd447",
+  accent: "#8be03c",
   author: "#5fd4ff",
   line: "rgba(150,175,245,0.18)",
   tile: "rgba(255,255,255,0.05)",
@@ -44,17 +45,20 @@ function ballSrc(h: number) {
   return "data:image/svg+xml;base64," + Buffer.from(svg).toString("base64");
 }
 
-function Ball({ hue, size }: { hue: number; size: number }) {
+export function Ball({ hue, size }: { hue: number; size: number }) {
   return <img src={ballSrc(hue)} width={size} height={size} alt="" />;
 }
 
-/* the brand's lime marble and the address */
+/* the brand's lime marble and the site's two-tone name, as the header draws it */
 function Brand({ size = 24 }: { size?: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
       <Ball hue={96} size={size} />
-      <div style={{ fontFamily: "Bungee", fontSize: size * 0.85, color: C.text, letterSpacing: 1 }}>
-        {SITE_NAME}
+      <div
+        style={{ display: "flex", fontFamily: "Bungee", fontSize: size * 0.85, letterSpacing: 1 }}
+      >
+        <span style={{ color: C.text }}>{SITE_WORDMARK[0]}</span>
+        <span style={{ color: C.accent }}>{SITE_WORDMARK[1]}</span>
       </div>
     </div>
   );
@@ -404,17 +408,26 @@ async function render(card: ShareCard, picture: SharePicture) {
     ) : (
       <Banner card={card} banner={picture} />
     );
-  /* ImageResponse draws as its body streams, so it is read here, where a failure can
-     still be caught */
+  return pngOf(body, W, H, card.kind === "prefab" ? PREFAB_CACHE : CACHE);
+}
+
+/* a drawing as the PNG response every card answers with. ImageResponse draws as its body
+   streams, so it is read here, where a failure can still be caught */
+export async function pngOf(
+  body: React.ReactElement,
+  width: number,
+  height: number,
+  cache = CACHE,
+) {
   const png = await new ImageResponse(body, {
-    width: W,
-    height: H,
+    width,
+    height,
     fonts: await loadFonts(),
   }).arrayBuffer();
   return new Response(png, {
     headers: {
       "content-type": "image/png",
-      "cache-control": card.kind === "prefab" ? PREFAB_CACHE : CACHE,
+      "cache-control": cache,
     },
   });
 }
