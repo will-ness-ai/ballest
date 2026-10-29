@@ -36,8 +36,8 @@ export const viewName = ({ page, state, width, text }) =>
 /**
  * Loads `url` at the view's size, opens its state by clicking `control` (then typing `typed`
  * into whatever has the keyboard, for a search), and returns the
- * page's status, its screenshot, its text and where each line sits (`layout`), what the
- * layout probes found and the errors it raised,
+ * page's status, its screenshot, what the layout probes found and the errors it raised,
+ * its text and where each line sits when `layout` asks (`layout`, for numbers.mjs),
  * plus the boxes of the elements `boxes` selects and the value of the expression `script`.
  * `prefab` is a Prefab file's text, served in place of every Prefab's file, so a Prefab's
  * page draws it. `cookies` are set before the page loads (session.mjs's signIn gives the
@@ -47,13 +47,25 @@ export const viewName = ({ page, state, width, text }) =>
  * @param {string} url
  * @param {{ width: number, text: number }} view
  * @param {{ control?: string, typed?: string, now: number, full?: boolean, element?: string,
- *   boxes?: string, script?: string, prefab?: string, cookies?: Array<object> }} options
+ *   boxes?: string, script?: string, prefab?: string, cookies?: Array<object>,
+ *   layout?: boolean }} options
  */
 export async function render(
   browser,
   url,
   view,
-  { control, typed, now, full = false, element, boxes, script, prefab, cookies },
+  {
+    control,
+    typed,
+    now,
+    full = false,
+    element,
+    boxes,
+    script,
+    prefab,
+    cookies,
+    layout: layout_ = false,
+  },
 ) {
   const phone = view.width < 600;
   const ctx = await browser.newContext({
@@ -158,7 +170,7 @@ export async function render(
     let shot, layout;
     // an open dialog or sheet covers the viewport, which is all there is to see
     if (control) {
-      layout = await page.evaluate(textLayout, probes.height);
+      if (layout_) layout = await page.evaluate(textLayout);
       shot = await (element ? page.locator(element).first() : page).screenshot();
     } else {
       // the whole page as one tall viewport rather than Chromium's stitched full-page
@@ -177,7 +189,7 @@ export async function render(
       await page.evaluate(() => {
         scrollTo(0, 0);
       });
-      layout = await page.evaluate(textLayout, height);
+      if (layout_) layout = await page.evaluate(textLayout);
       shot = await (element ? page.locator(element).first() : page).screenshot();
     }
     const title = await page.title();

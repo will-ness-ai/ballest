@@ -1,6 +1,7 @@
 // Compares two screenshots of one view and draws the picture an agent reads instead of
 // both: the reference, the target and the changes, cropped to where they differ. The
 // pixels are read in Chromium's canvas, so this needs no image library.
+import { numberLines } from "./numbers.mjs";
 
 // a channel differing by more than this counts as changed; text anti-aliasing stays under it
 const TOLERANCE = 24;
@@ -11,29 +12,43 @@ const MARGIN = 24;
 const BAND = 700;
 
 /**
- * `a` is the reference screenshot and `b` the target's, both PNG buffers. Returns how many
- * pixels changed, their bounding box, and when any did, the composite as a PNG buffer
- * labelled with `labels` and the rows of the page it shows (`shown`).
+ * `was` is the reference's draw and `is` the target's (render's `shot`, a PNG buffer, and
+ * `layout`). Returns how many pixels changed, their bounding box, and when any did, the
+ * composite as a PNG buffer labelled with `labels` and the rows of the page it shows
+ * (`shown`). `numbers` says only numbers changed (numbers.mjs): the same words in the same
+ * places, and every changed pixel inside a line whose number changed. It needs both layouts.
+ * @param {import("playwright-core").Browser} browser
+ * @param {{ shot: Buffer, layout?: ReadonlyArray<import("./numbers.mjs").Line> }} was
+ * @param {{ shot: Buffer, layout?: ReadonlyArray<import("./numbers.mjs").Line> }} is
+ * @param {ReadonlyArray<string>} labels
  */
-export async function compare(browser, a, b, labels) {
+export async function compare(browser, was, is, labels) {
+  const [a, b] = [was.shot, is.shot];
+  const inside = numberLines(was.layout, is.layout);
   const page = await browser.newPage();
   try {
     const out = await page.evaluate(diffInPage, {
       a: a.toString("base64"),
       b: b.toString("base64"),
       labels,
+      inside: inside ?? [],
       tolerance: TOLERANCE,
       maxSide: MAX_SIDE,
       margin: MARGIN,
       band: BAND,
     });
-    return { ...out, image: out.image ? Buffer.from(out.image, "base64") : null };
+    const { outside, ...rest } = out;
+    return {
+      ...rest,
+      numbers: !!inside && outside === 0,
+      image: out.image ? Buffer.from(out.image, "base64") : null,
+    };
   } finally {
     await page.close();
   }
 }
 
-async function diffInPage({ a, b, labels, tolerance, maxSide, margin, band }) {
+async function diffInPage({ a, b, labels, inside, tolerance, maxSide, margin, band }) {
   const load = async (src) => {
     const img = new Image();
     img.src = "data:image/png;base64," + src;
@@ -69,7 +84,9 @@ async function diffInPage({ a, b, labels, tolerance, maxSide, margin, band }) {
   const w = Math.max(ia.width, ib.width),
     h = Math.max(ia.height, ib.height);
   const mask = new Uint8Array(w * h);
+  const within = (x, y) => inside.some(([l, t, r, bo]) => x >= l && x < r && y >= t && y < bo);
   let changed = 0,
+    outside = 0,
     x0 = w,
     y0 = h,
     x1 = -1,
@@ -81,6 +98,7 @@ async function diffInPage({ a, b, labels, tolerance, maxSide, margin, band }) {
         continue;
       mask[y * w + x] = 1;
       changed++;
+      if (!within(x, y)) outside++;
       x0 = Math.min(x0, x);
       y0 = Math.min(y0, y);
       x1 = Math.max(x1, x);
@@ -90,7 +108,7 @@ async function diffInPage({ a, b, labels, tolerance, maxSide, margin, band }) {
     [ia.width, ia.height],
     [ib.width, ib.height],
   ];
-  if (!changed) return { changed, box: null, sizes, image: null };
+  if (!changed) return { changed, outside, box: null, sizes, image: null };
 
   // the crop: the first run of changed rows (a gap of `margin` rows ends it), since what
   // follows is often the same change pushing the rest of the page down; at most `band`
@@ -161,6 +179,7 @@ async function diffInPage({ a, b, labels, tolerance, maxSide, margin, band }) {
   const sig = [y0, sx0, sx1].join(" ");
   return {
     changed,
+    outside,
     sig,
     box: [x0, y0, x1 - x0 + 1, y1 - y0 + 1],
     shown: [cy, cy + ch],

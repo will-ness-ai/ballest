@@ -994,7 +994,7 @@ only visible ones.
   listed after the others and left out of the summary's pictures to read
   (`scripts/qa/numbers.mjs`). A fault marked `also` is on the reference too: a live bug, not
   the branch's, so fix it if it's small or name it in the PR. `qa-prod.yml` draws every page of
-  production every Monday and posts its faults to the ops channel, so one only real data shows
+  production every Monday, signed out, and posts its faults to the ops channel, so one only real data shows
   gets an owner. A view whose draw fails is drawn once more before it counts as `failed`.
   `--wait` waits up to 15 minutes for the preview to be built at HEAD, in place of a polling
   loop of your own.

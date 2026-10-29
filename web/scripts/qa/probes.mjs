@@ -205,20 +205,20 @@ export function probe() {
   };
 }
 
-/* each element's own text and its box, rounded, in page order, down to `bottom` px: what
-   numbers.mjs reads to tell live data that moved from a page that moved */
-export function textLayout(bottom) {
+/* each element's own text and its box, rounded, in page order, within the window (the whole
+   page, once qa has grown the window to it): what numbers.mjs reads to tell live data that
+   moved from a page that moved. Coordinates are the screenshot's. */
+export function textLayout() {
   const lines = [];
+  const seen = new Set();
   const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let last = null;
   for (let n = walk.nextNode(); n; n = walk.nextNode()) {
     const el = n.parentElement;
-    if (!el || el === last || !n.textContent.trim()) continue;
+    if (!el || seen.has(el) || !n.textContent.trim()) continue;
+    seen.add(el);
     if (el.closest("[hidden], [aria-hidden=true], dialog:not([open]), script, style")) continue;
     const r = el.getBoundingClientRect();
-    const top = r.top + scrollY;
-    if (r.width === 0 || r.height === 0 || top >= bottom) continue;
-    last = el;
+    if (r.width === 0 || r.height === 0 || r.bottom <= 0 || r.top >= innerHeight) continue;
     const text = [...el.childNodes]
       .filter((c) => c.nodeType === 3)
       .map((c) => c.textContent)
@@ -228,7 +228,7 @@ export function textLayout(bottom) {
     lines.push({
       text,
       x: Math.round(r.left),
-      y: Math.round(top),
+      y: Math.round(r.top),
       w: Math.round(r.width),
       h: Math.round(r.height),
     });

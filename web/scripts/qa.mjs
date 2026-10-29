@@ -20,7 +20,6 @@ import { compare } from "./qa/compare.mjs";
 import { launch, parseView, render, viewName } from "./qa/browser.mjs";
 import { IDS, PAGES, STATES } from "./qa/catalogue.mjs";
 import { landsElsewhere } from "./qa/landing.mjs";
-import { onlyNumbers } from "./qa/numbers.mjs";
 import { changedFiles, reach } from "./qa/reach.mjs";
 import { REFS, pieces } from "./qa/piece.mjs";
 import { fmt, matching, pagesOf, rankRows } from "./qa/piece-math.mjs";
@@ -413,22 +412,26 @@ function faults(r) {
 async function check() {
   let at = target(flags.at ?? "preview");
   const ref = flags.against === "none" ? null : target(flags.against ?? "prod");
-  if (flags.wait && at.name === "preview" && (at.state !== "success" || at.behind)) {
+  if (flags.wait && at.name !== "preview")
+    fail(`--wait waits for this branch's preview, not ${at.name}`, HELP.check);
+  if (flags.wait && (at.state !== "success" || at.behind)) {
     say(
       `waiting for the preview of ${at.branch} to be built at HEAD (${at.state}${at.behind ? `, at ${at.sha}` : ""})`,
     );
     at = await settled(() => preview());
-    if (at.state === "success" && at.behind)
+    // web/vercel.json's ignoreCommand skips a commit that touches no site file, so HEAD may
+    // never get a deployment of its own
+    if (at.behind || !["success", "failure", "error"].includes(at.state))
       fail(
-        `the preview is still at ${at.sha ?? "?"}, behind HEAD, after 15 minutes`,
-        "push the branch, or check what Vercel built with npx vercel inspect",
+        `no preview built at HEAD after 15 minutes: the newest is ${at.sha ?? "none"}, ${at.state}`,
+        "a commit that changes no site file isn't deployed: pass --at local, or --pages to check the older preview without --wait",
       );
   }
   if (at.name === "preview" && at.state !== "success")
     fail(
       `the preview is ${at.state}`,
-      flags.wait
-        ? "npx vercel inspect <deployment> --logs reads a failed build's log"
+      ["failure", "error"].includes(at.state)
+        ? "npx vercel inspect <deployment> --logs reads its build log"
         : "push the branch and pass --wait, or pass --at local",
     );
   const sizes = (flags.sizes ?? SIZES).split(",").map((s) => {
@@ -507,10 +510,11 @@ async function check() {
             typed: v.state ? stateOf(v.state).type : undefined,
             now: started,
             cookies: signed.cookies,
+            layout: !!ref,
           });
         // a draw that times out once (a 3D view, the search) mostly passes the second time
         return once()
-          .catch(once)
+          .catch((e) => (/Timeout/.test(String(e)) ? once() : Promise.reject(e)))
           .then((r) => ({ ...r, as: signed.as }))
           .catch((e) => ({ failed: String(e.message).split("\n")[0] }));
       };
@@ -568,13 +572,13 @@ async function check() {
       const landed = landsElsewhere(before.probes, a.probes);
       if (landed)
         found.push({ view: name, kind: "scroll", where: "page", detail: landed, ref: "new" });
-      const d = await compare(browser, before.shot, a.shot, [ref.name, at.name, "changed"]);
+      const d = await compare(browser, before, a, [ref.name, at.name, "changed"]);
       if (!d.changed) return;
       const file = OUT + name.replaceAll("/", "-") + ".png";
       writeFileSync(file, d.image);
       const [[, ha], [, hb]] = d.sizes;
-      // the same words in the same places, other numbers: the two caches a Refresh apart
-      const data = onlyNumbers(before.layout, a.layout) ? "numbers" : "";
+      // only numbers changed: the two caches a Refresh apart
+      const data = d.numbers ? "numbers" : "";
       diffs.push({
         sig: `${String(v.width)}/${String(v.text)} ${d.sig} ${data}`,
         data,

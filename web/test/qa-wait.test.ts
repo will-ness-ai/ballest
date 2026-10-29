@@ -22,11 +22,16 @@ describe("settled", () => {
     expect(t).toMatchObject({ state: "success", behind: false });
   });
 
-  it("stops at a build that failed", async () => {
-    const read = reads({ state: "pending" }, { state: "failure" }, { state: "success" });
-    expect(await settled(read, { every: 1, limit: 100, sleep: noSleep })).toMatchObject({
-      state: "failure",
-    });
+  it("stops at a build at HEAD that failed, not an older one", async () => {
+    const read = reads(
+      { state: "failure", behind: true },
+      { state: "pending" },
+      { state: "failure" },
+      { state: "success" },
+    );
+    const t = await settled(read, { every: 1, limit: 100, sleep: noSleep });
+    expect(t.state).toBe("failure");
+    expect(t.behind).toBeFalsy();
   });
 
   it("gives up after its limit with the last state it saw", async () => {

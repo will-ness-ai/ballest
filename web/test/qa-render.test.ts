@@ -5,7 +5,8 @@ import type { Browser } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { launch, render } from "../scripts/qa/browser.mjs";
-import { onlyNumbers } from "../scripts/qa/numbers.mjs";
+import { compare } from "../scripts/qa/compare.mjs";
+import { numberLines } from "../scripts/qa/numbers.mjs";
 
 // A board in miniature: rows down the page, and a fetch for more when the window grows, as
 // useScrollMore does when qa stretches the window to the page's height. The fetch answers
@@ -44,14 +45,12 @@ const FLOATS = `<!doctype html><body style="margin:0;font:16px sans-serif">
 <p id="a" style="margin:40px 0 0">One line of text</p>
 <p id="b" style="margin:-19px 0 0">Another line on it</p>`;
 
-// A page of counts, as live data draws it: the same words, other numbers, and a version whose
-// heading sits lower, as a style change would put it.
-const COUNTS = (
-  n: string,
-  gap: string,
-) => `<!doctype html><body style="margin:0;font:16px sans-serif">
-<h1 style="margin:0 0 ${gap}">Players</h1><p style="margin:0">${n} players have a time</p>
-<p style="margin:0">Maps</p>`;
+// A page of counts, as live data draws it: the same words, other numbers; a version whose
+// heading sits lower, and one whose box below changes colour, as a style change would.
+const COUNTS = (n: string, gap: string, colour: string) => `<!doctype html>
+<body style="margin:0;font:16px sans-serif">
+<h1 style="margin:0 0 ${gap}">Players</h1><p style="margin:0">${n} players have a <b>time</b> today</p>
+<p style="margin:0">Maps</p><div style="height:40px;width:200px;background:${colour}"></div>`;
 
 let server: Server;
 let base: string;
@@ -75,8 +74,8 @@ beforeAll(async () => {
     else if (req.url === "/fields") res.setHeader("content-type", "text/html").end(FIELDS);
     else if (req.url === "/floats") res.setHeader("content-type", "text/html").end(FLOATS);
     else if (req.url?.startsWith("/counts/")) {
-      const [, , n, gap] = req.url.split("/");
-      res.setHeader("content-type", "text/html").end(COUNTS(n, gap));
+      const [, , n, gap, colour] = req.url.split("/");
+      res.setHeader("content-type", "text/html").end(COUNTS(n, gap, colour));
     } else if (req.url === "/lands") res.setHeader("content-type", "text/html").end(LANDS);
     else res.setHeader("content-type", "text/html").end(PAGE);
   });
@@ -140,12 +139,37 @@ describe("probes", () => {
 });
 
 describe("text layout", () => {
+  const draw = async (path: string) => {
+    const view = { width: 820, text: 16 };
+    const { shot, layout } = await render(browser, base + path, view, { now: 0, layout: true });
+    if (!shot) throw new Error(`${path} drew nothing`);
+    return { shot, layout };
+  };
+
   it("tells numbers that moved apart from a page that moved", async () => {
-    const draw = (path: string) =>
-      render(browser, base + path, { width: 820, text: 16 }, { now: 0 }).then((r) => r.layout);
-    const was = await draw("/counts/1204/0");
-    expect(was).toHaveLength(3);
-    expect(onlyNumbers(was, await draw("/counts/12,207/0"))).toBe(true);
-    expect(onlyNumbers(was, await draw("/counts/1207/24px"))).toBe(false);
+    const was = (await draw("/counts/1204/0/navy")).layout;
+    // the heading, the counts line (its own text, once, around the time) and Maps
+    expect(was?.map((l: { text: string }) => l.text)).toEqual([
+      "Players",
+      "1204 players have a today",
+      "time",
+      "Maps",
+    ]);
+    expect(numberLines(was, (await draw("/counts/12,207/0/navy")).layout)).not.toBeNull();
+    expect(numberLines(was, (await draw("/counts/1207/24px/navy")).layout)).toBeNull();
+  }, 60_000);
+
+  it("says only numbers changed, not when a style changed too", async () => {
+    const was = await draw("/counts/1204/0/navy");
+    const numbers = async (path: string) =>
+      (await compare(browser, was, await draw(path), ["a", "b", "c"])).numbers;
+    expect(await numbers("/counts/1207/0/navy")).toBe(true);
+    expect(await numbers("/counts/1207/0/teal")).toBe(false);
+  }, 60_000);
+
+  it("isn't read unless asked for", async () => {
+    const view = { width: 820, text: 16 };
+    const r = await render(browser, base + "/counts/1/0/navy", view, { now: 0 });
+    expect(r.layout).toBeUndefined();
   }, 60_000);
 });

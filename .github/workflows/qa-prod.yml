@@ -5,6 +5,8 @@ name: qa on production
 # a PR's check marks a fault production already has as "also", so a fault only real data
 # shows (Daily standings at 820px, in six PRs from #212 to #289) had no owner. Run it by
 # hand to look now. About 176 page loads, so a week's run is a sliver of the CDN's requests.
+# qa can't sign in on production (it knows only a local build's SESSION_SECRET), so the
+# signed-in views (an owner's Edit, the upload form) are listed as unsigned: CI draws those.
 
 on:
   schedule:
@@ -35,7 +37,8 @@ jobs:
       - name: Draw every page of production
         run: |
           set +e
-          pnpm --silent qa check --all --at prod --against none --assert > qa.txt
+          # stderr too, so a crash's own message is what ops gets
+          pnpm --silent qa check --all --at prod --against none --assert > qa.txt 2>&1
           echo "status=$?" >> "$GITHUB_ENV"
           grep -v '^::' qa.txt
       - name: Post the faults to ops
