@@ -6,6 +6,7 @@ import {
   refusedSkills,
   mergeTargets,
   repoSlug,
+  reviewAsk,
   skillName,
   unreviewed,
 } from "../../.claude/hooks/review-gate-rules.mjs";
@@ -375,5 +376,15 @@ describe("linesChanged", () => {
 
   test("any other binary file is too big to skip", () => {
     expect(linesChanged("-\t-\ttools/version.dll\n1\t0\ta.ts\n")).toBe(Infinity);
+  });
+});
+
+describe("reviewAsk", () => {
+  // a bare SHA reads as that one commit to the built-in code-review: #334's gate asked for
+  // "fixed point 143d1e8" and got #331 reviewed instead of the branch
+  test("names the range since the fixed point, not the bare commit", () => {
+    const ask = reviewAsk("143d1e8");
+    expect(ask).toContain("'code-review' with args `143d1e8..HEAD`");
+    expect(ask).not.toMatch(/fixed point 143d1e8[^.]/);
   });
 });

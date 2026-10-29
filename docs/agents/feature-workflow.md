@@ -52,6 +52,9 @@ Each implementer's brief says:
 - **Commit as you go.** Commit and push after each piece that passes its tests. A cloud
   container restart stops a running subagent, and only what it pushed survives for the next
   one to pick up.
+- **Run the tests the change reaches.** Before a push, run `npx vitest related --run <changed
+files>` in `web/`: another page's test can pin the markup you changed (#334 renamed the
+  Prefabs tabs, and `generators.test.tsx` failed in CI).
 - **One plain command per call.** The worktree guard refuses a compound command (`&&`, a
   pipe, `cd` then a command) as too complex to check, so run `git -C <worktree> ...` and
   tools with absolute paths, one per call.
