@@ -1,6 +1,6 @@
 // The bot's API as the page calls it. Every path is relative: Discord's URL Mapping puts the page
 // and the API on one origin. A 401 signs in again once and repeats the request.
-import type { MatchType, Minutes } from "../../domain.js";
+import { GUILD_HEADER, type MatchType, type Minutes } from "../../domain.js";
 import type { Challengeable, LinkPreview, MatchView } from "../api.js";
 import type { Board } from "./nav.js";
 import type { SignedIn } from "./session.js";
@@ -40,7 +40,12 @@ export const makeClient = (session: SignedIn) => {
   const send = (method: string, path: string, body: unknown) =>
     fetch(path, {
       method,
-      headers: { "content-type": "application/json", authorization: `Bearer ${session.token()}` },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${session.token()}`,
+        // The Venue's server it was opened in: the API serves that Venue.
+        [GUILD_HEADER]: session.guild,
+      },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
 

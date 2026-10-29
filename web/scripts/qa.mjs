@@ -159,6 +159,8 @@ const few = (list) =>
   list.length > 4
     ? `${list.slice(0, 3).join(" ")} +${String(list.length - 3)} more`
     : list.join(" ");
+/* "1 fault", "3 faults" */
+const plural = (n, noun) => `${String(n)} ${noun}${n === 1 ? "" : "s"}`;
 const rel = (p) => p.replace(fileURLToPath(new URL("../../", import.meta.url)), "");
 const describe = (t) =>
   t.name === "preview"
@@ -632,6 +634,8 @@ async function check() {
       ? ["  pnpm --silent qa shot <view> --el <where>   # look at a fault"]
       : []),
     ...(!diffs.length && !found.length ? ["  nothing to look at"] : []),
+    /* last, so the end of a long report still says whether anything is wrong */
+    `summary: ${plural(faultRows.filter((f) => f.ref !== "also").length, ref ? "new fault" : "fault")}${ref ? `, ${plural(diffs.length, "view")} changed (${plural(diffRows.length, "picture")} to read)` : ""}${gaps.length + uncompared.length ? ", and gaps above" : ""}`,
   ];
   say(report);
   // in CI, the job's summary for people, and a notice a cloud session can read, since it

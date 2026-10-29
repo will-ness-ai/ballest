@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer, Option, Ref, TestClock } from "effect";
-import { OpsAlerts } from "../src/ops.js";
+import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import {
   CardFailed,
   makeSeeMyStats,
@@ -80,12 +80,14 @@ const setup = Effect.gen(function* () {
     ),
     Layer.succeed(
       OpsAlerts,
-      OpsAlerts.make({
-        configured: true,
-        // The webhook never answers: nothing the member sees may wait on it.
-        post: (content) =>
-          Ref.update(alerts, (a) => [...a, content]).pipe(Effect.zipRight(Effect.never)),
-      }),
+      OpsAlerts.make(
+        opsAlertsOf({
+          configured: true,
+          // The webhook never answers: nothing the member sees may wait on it.
+          post: (content) =>
+            Ref.update(alerts, (a) => [...a, content]).pipe(Effect.zipRight(Effect.never)),
+        }),
+      ),
     ),
   );
   const stats = yield* makeSeeMyStats.pipe(Effect.provide(fakes));

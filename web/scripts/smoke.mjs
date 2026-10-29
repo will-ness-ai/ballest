@@ -54,6 +54,8 @@ const ROUTES = [
      list, is only known to the page: a soft 404, the not-found page with a 200 */
   ["/campaigns", 200, null, "Solar Trials"],
   ["/", 200, null, "Solar Trials"],
+  /* Trending this week: stress records plays for Rocky Alpine, Mercury and tiny's Marble Run */
+  ["/", 200, null, "Trending this week"],
   ["/campaign/solar-trials", 200, null, "Twizzle"],
   ["/campaign/solar-trials", 200, null, "/og/campaign/solar-trials?v="],
   ["/campaign/solar-trials/podiums", 200, null, "Twizzle"],
@@ -189,7 +191,8 @@ const ROUTES = [
   ["/prefabs", 200, null, "Twin cubes"],
   ["/prefabs", 200, null, '<link rel="canonical" href="' + ORIGIN + '/prefabs"'],
   ["/prefabs/new", 200, null, "Upload a prefab"],
-  // the Generators: Make your own, a Generator, and one that isn't
+  // the Generators: Make your own, a Generator, and one that isn't (a key no Generator will
+  // ever take: a real word fails here the day a Generator is named it)
   ["/prefabs/make", 200, null, '<h1 class="ph-title">Make a prefab</h1>'],
   ["/prefabs/make/sign", 200, null, "Sign"],
   ["/prefabs/make/tree", 200, null, "Tree"],
@@ -214,7 +217,7 @@ const ROUTES = [
   ["/prefabs/make/trophy", 200, null, "Trophy"],
   ["/prefabs/make/fence", 200, null, "Fence"],
   ["/prefabs/make/finish-arch", 200, null, "Finish arch"],
-  ["/prefabs/make/windmill", 404],
+  ["/prefabs/make/no-such-generator", 404],
   ["/prefabs/make/qr", 308, "/prefabs/make"],
   // the Generators' collage, for agents: a 404 only in production on Vercel
   ["/prefabs/collage?g=house", 200, null, "Generator collage"],

@@ -10,6 +10,7 @@ import {
   boardReads,
   boards,
   entries,
+  mapActivity,
   mapHistory,
   maps,
   personaHistory,
@@ -195,6 +196,25 @@ export const stress: Dataset = {
         entryCount: 3,
         firstSeenRefresh: r3,
         lastSeenRefresh: r3,
+      },
+    ]);
+    // a long title and maker on Trending this week, ranked above tiny's Marble Run
+    await tx.insert(mapActivity).values([
+      {
+        pfid: "9000000005",
+        weekPlays: 340,
+        votesUp: 41,
+        votesDown: 3,
+        voteScore: 0.62,
+        refreshId: r3,
+      },
+      {
+        pfid: CAMPAIGN_PFID,
+        weekPlays: 75,
+        votesUp: 0,
+        votesDown: 0,
+        voteScore: 0,
+        refreshId: r3,
       },
     ]);
   },

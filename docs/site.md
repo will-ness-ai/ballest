@@ -261,8 +261,8 @@ picture under `skins/`; `test/skins.test.ts` fails until each listed Skin has it
 
 ## Routes
 
-- `/` — the Workshop homepage: the carousel, the Campaigns' carousel, the shelves and the
-  search.
+- `/` — the Workshop homepage: Trending this week, the Campaigns' carousel, the shelves and
+  the search.
 - `/maps`, or `/maps/<view>` — All maps, opened on one of `VIEWS` or `PRESETS`
   (`lib/workshop.ts`). `?q=` narrows it to the Maps whose title or maker contains the query
   (the site search's "All N Maps matching", `mapsSearchHref`); the page is prerendered
@@ -464,10 +464,10 @@ counted and led the same way everywhere. A Campaign's picture is
 with no preview a blank panel; the banners and a player's Campaign cards all draw it. A
 banner (`CampaignBanner`) sets the picture at full strength with a full-height fade behind
 its text only: "Campaign · N maps · N players", the name, the maker and "<leader> leads
-with <points> pts". The homepage's Campaigns carousel (`CampaignCarousel`, under the main
-carousel and hidden with it while there is a search) is a scroll-snap track of banners:
+with <points> pts". The homepage's Campaigns carousel (`CampaignCarousel`, under Trending
+this week and hidden with it while there is a search) is a scroll-snap track of banners:
 a phone shows one with the next peeking in and swipes, a desktop shows two. Its arrows
-step one banner and wrap round as the main carousel's do; the counter names the banners
+step one banner and wrap round; the counter names the banners
 in view ("1 / 5" on a phone, "1–2 / 5" on a desktop), and both hide when every banner
 fits. Its heading's See all opens `/campaigns`. With no Campaign listed (a `tiny` build)
 the homepage leaves the carousel out and `/campaigns` says there are none. Every count of a
@@ -675,8 +675,10 @@ A new control takes one of these rather than a style of its own.
 ## A board
 
 A board's first rows are rendered on the server, with the plates and the card
-across the top. The rest of the list is read from `/api/board/<name>` as you scroll, a few
-chunks ahead of what is shown, and a search reads its matches the same way. A link to a
+across the top. The list starts at 1st, so the plates' three are rows too: players skim the
+list for a name and kept missing the plates (a player's note, 2026-10-28). A Daily's panel
+does the same under its podium steps. The rest of the list is read from `/api/board/<name>`
+as you scroll, a few chunks ahead of what is shown, and a search reads its matches the same way. A link to a
 player's row reads down to that row first. Each row carries the score of the row above it
 (`ahead`, from the query), which is what the interval column is worked out from, so rows
 are never re-sorted on the client.
@@ -722,9 +724,23 @@ Circuit tiles, Workshop finishes with their Medal (`medalOf`, and `timeMedal` fo
 The rendering is markup over that record. A tab is one entry in `PLAYER_TABS`, which the
 tab bar, each tab's body and the route are all built from.
 
+## Trending this week
+
+The Workshop homepage opens on Trending this week (spec #348): the ten Maps with the most
+heat, their Workshop plays over the last 7 days times (0.5 + the Workshop's vote score), ties
+to more plays and then the newer Map (`trending` in `lib/workshop.ts`). Steam's vote score is
+already discounted for few votes (0 with none), so the plays decide most of the order and the
+votes lift a liked Map over an equally busy disliked one. A Map with no plays this week is
+left out, so before a Refresh recorded them (`map_activity`, `docs/data.md`) the chart is not
+drawn. Each row is one link to the Map: rank, picture, title and maker over the record
+holder's podium line, then its plays this week over its 👍/👎. One column on a phone, two of
+five on a desktop, ranks running down each. It replaced a carousel of five picks whose Most
+played (lifetime sessions) showed the same Map every visit; the design rounds are on
+`claude/prototype-trending`, never merged.
+
 ## Maps kept off the homepage
 
-`HIDDEN` (`lib/workshop.ts`) lists, by pfid, the Maps the Workshop homepage's carousel and
+`HIDDEN` (`lib/workshop.ts`) lists, by pfid, the Maps the Workshop homepage's chart and
 shelves leave out: ones the game can no longer finish, which otherwise top Barely played
 and look like an easy place. Players report one through the link on a Map's page, which
 opens a pre-filled GitHub issue; a Map goes in the list by hand. A listed Map stays in All
@@ -833,7 +849,7 @@ kept apart from the Generators so a page that only links one never loads them).
   `nature.ts` and `buildings.ts` hold each category's, `pieces.ts` what they share): each is its
   controls, its defaults and its
   builder, and `generate(key, values)` returns its Prefab file (or null with nothing to
-  make). The page draws whatever `controls(values)` returns, so a switch can hide another
+  make, or values it refuses). The page draws whatever `controls(values)` returns, so a switch can hide another
   control (the sign's wall colour with the wall off), and a new Generator is one entry.
   Each kind of tree is a Generator of its own (Tree, Pine, Block tree). Pieces are the editor's
   cube, sphere, cylinder, cone and pyramid, placed by their bottom centre (a box can also be
@@ -856,6 +872,14 @@ kept apart from the Generators so a page that only links one never loads them).
   behind the same `Lettering`, so `lib/` stays pure. The text wraps at whatever line length
   makes the letters biggest inside the wall. Fonts the site doesn't load already come from
   Google Fonts on the sign's page only.
+- **Text the sign won't letter** (`lib/rude-text.ts`, Will asked): the words on `obscenity`'s
+  English list, which reads through l33t, repeated letters and look-alike characters and lets a
+  clean word holding a rude one through (Scunthorpe, assassin, and our Cockpit); the same words
+  spelled out a letter at a time; and swastikas, 1488 and KKK. No rude word is written in our
+  code or tests (Will, 2026-10-24): a missing one goes upstream to `obscenity`, and the tests
+  draw their words from its list. The sign `refuses` such text, so `generate` returns null and
+  the page says "Keep it friendly" with Download off. Signs are download-only, so a list is the
+  whole check: no moderation service. It adds about 16 KB gzipped to the Make your own pages.
 - **Piece fonts** (`lib/generators/piece-fonts.ts`, R23 asked): Graduate (capitals) and Leker
   (lower case) are alphabets R23 built by hand from track pieces and uploaded as Prefabs. Each
   glyph is its own pieces, stood up and scaled to fit, not cells, so there is no Detail. Their
@@ -872,7 +896,9 @@ kept apart from the Generators so a page that only links one never loads them).
   checked from four angles at six settings on the prototype's `/proto-collage` page.
 - **The collage** (`/prefabs/collage?g=<key>[&only=<control,…>]`, `GeneratorCollage.tsx`): one
   Generator in every variation `variationsOf` lists, from three angles, for an agent to read in
-  one screenshot (`.claude/skills/prefab-generators/collage.mjs`). `proxy.ts` answers 404 for it
+  one screenshot (`pnpm --silent gen collage <key>`, which wraps
+  `.claude/skills/prefab-generators/collage.mjs`). `pnpm --silent gen check` runs the same
+  variations without a browser and prints only faults (`lib/generators/checks.ts`). `proxy.ts` answers 404 for it
   in production.
 - **The page** (`GeneratorEditor.tsx`, grill-design rounds 1 and 4): the controls on the left,
   main ones first and the rest under More options, every number a slider showing its value;
@@ -957,12 +983,14 @@ only visible ones.
   `main` reach, at 320px with 20px text, 390, 820 and 1280, on the preview and on production, and prints only what is wrong: sideways
   scroll, an element past the edge (with the one holding it open), text cut off or drawn
   over other text, page errors, and changed pixels, with one picture per change to read
-  (reference | target | changes in red) in `scratch/qa/`. Read those pictures, not
+  (reference | target | changes in red) in `scratch/qa/`, then a last `summary:` line
+  counting the new faults and changed views, and saying when there are gaps above. Read those pictures, not
   screenshots of your own. Which pages a change reaches is `scripts/qa/reach.mjs`: those whose
   page file or layouts import a changed file, through relative imports. A site file no page
   imports (the proxy, an API route, a migration, a picture) or one every page does (the root
-  layout, the CSS, `lib/rules.ts`) draws every page; docs, tests, scripts and the other
-  packages draw none, and it names any page a change reaches that the catalogue lacks. The
+  layout, the CSS, `lib/rules.ts`) draws every page; a code file whose change is only to its
+  comments (or types) draws none, and neither do docs, tests, scripts or the other
+  packages. It names any page a change reaches that the catalogue lacks. The
   whole catalogue is 176 views and takes 13 minutes from a cloud session, so pass `--all` only
   for a change that shows everywhere and wasn't caught as one. `--pages`, `--sizes` and `--at local:<port>` narrow or move it;
   `qa shot <view>` draws one view, and `--box <selector>` or `--eval <js>` measures it, in

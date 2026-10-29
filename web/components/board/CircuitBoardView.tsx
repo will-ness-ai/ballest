@@ -48,7 +48,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
 
   const none: Promise<Record<string, { rank: number; score: number }>> = Promise.resolve({});
   const [page, scores, places, focus, history] = await Promise.all([
-    getBoardPage(name, 0, BOARD_CHUNK + 3),
+    getBoardPage(name, 0, BOARD_CHUNK),
     points ? Promise.resolve([]) : getBoardScores(name),
     podiums
       ? getPlacesOf(
@@ -126,7 +126,7 @@ export async function CircuitBoardView({ name, slot }: { name: string; slot: str
               sortsw={tally ? <SortSwitch name={name} podiums={false} /> : undefined}
               history={history && <HistoryCard h={history} />}
               leaders={<ScorePlates name={name} rows={rows} focus={focusId} />}
-              initial={page.total >= 3 ? rows.slice(3) : rows}
+              initial={rows}
               lead={rows[0]?.score ?? null}
               pods={
                 tally
