@@ -70,6 +70,8 @@ that shape the repo are recorded in `docs/adr/`; read them before restructuring 
   `backfill.yml`, by hand only, runs the backfill against an empty production (cloud sessions
   can't reach Neon). `migrate.yml`, by hand with Will's OK, applies a branch's migrations to
   production before it merges.
+- `.github/workflows/qa-prod.yml` — every Monday, `pnpm qa check --all` on production's real
+  data, signed out, posting any fault to the private ops channel (`docs/site.md`, "Checking a change").
 - `.github/workflows/vercel-usage.yml` — daily, runs `tools/vercel_usage.py`, which reports the
   Vercel team's plan and renewal, this cycle against Pro's Flat Rate CDN tier, and whether the
   last 30 days would fit Hobby, to the private ops channel (`OPS_WEBHOOK_URL`). It posts on
