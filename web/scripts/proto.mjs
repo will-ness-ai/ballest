@@ -68,6 +68,8 @@ const rel = (p) => p.replace(ROOT, "");
 const argv = process.argv.slice(2);
 const command = argv[0] && !argv[0].startsWith("--") ? argv.shift() : "";
 if (!(command in HELP)) usage(`unknown command "${command}"`, HELP[""]);
+if (command === "" && argv.length && !argv.includes("--help"))
+  usage("name a command first", HELP[""]);
 if (argv.includes("--help") || command === "") {
   say([HELP[command]]);
   process.exit(0);
@@ -90,8 +92,10 @@ async function sheet() {
   try {
     base = new URL(positional[0] ?? "");
   } catch {
-    usage("name the prototype page's URL, like http://localhost:3311/trials", HELP.sheet);
+    base = null;
   }
+  if (!base || !/^https?:$/.test(base.protocol))
+    usage("name the prototype page's URL, like http://localhost:3311/trials", HELP.sheet);
   const urlOf = (key) => {
     const u = new URL(base);
     if (key) u.searchParams.set("variant", key);
@@ -116,20 +120,22 @@ async function sheet() {
     const asked = variantsOf(listed, flags);
     if ("error" in asked) fail(`${urlOf(null)}: ${asked.error}`, asked.help);
     const { variants } = asked;
+    const now = Date.now();
     const view = async (key, width, options) => {
-      const r = await draw(browser, urlOf(key), width, options);
+      const r = await draw(browser, urlOf(key), width, { ...options, now });
+      if (r.failed) fail(`${urlOf(key)} at ${String(width)} px: ${r.failed}`);
+      if (r.status >= 400) fail(`${urlOf(key)} answered ${String(r.status)}`, "check the URL");
       if (r.missing)
         fail(`no ${options.element} on ${urlOf(key)} at ${String(width)} px`, "check --el");
-      if (r.status >= 400) fail(`${urlOf(key)} answered ${String(r.status)}`);
       return r;
     };
     const drawn = [];
     const errors = [];
     for (const v of variants) {
-      const [d, p] = [
-        await view(v.key, 1280, { element: flags.el }),
-        await view(v.key, 390, { element: flags.el }),
-      ];
+      const [d, p] = await Promise.all([
+        view(v.key, 1280, { element: flags.el }),
+        view(v.key, 390, { element: flags.el }),
+      ]);
       for (const [r, width] of [
         [d, 1280],
         [p, 390],
@@ -142,10 +148,10 @@ async function sheet() {
     let inPage = null;
     if (flags.el) {
       const v = variants.find((x) => x.key === flags.pick) ?? variants[0];
-      const [d, p] = [
-        await view(v.key, 1280, { box: flags.el }),
-        await view(v.key, 390, { box: flags.el }),
-      ];
+      const [d, p] = await Promise.all([
+        view(v.key, 1280, { box: flags.el }),
+        view(v.key, 390, { box: flags.el }),
+      ]);
       inPage = { v, desktop: d.shot, phone: p.shot, desktopUpTo: d.ends, phoneUpTo: p.ends };
     }
     const dir = OUT + "sheet/";

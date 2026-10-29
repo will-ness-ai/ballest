@@ -8,6 +8,8 @@ import { chromium } from "playwright-core";
 
 // the tallest stretch of a page drawn; a round's pictures cut far shorter than this anyway
 const MAX_HEIGHT = 4000;
+// the preview toolbar and analytics only keep the network busy
+const DROP = /vercel\.live|plausible|railway\.app/;
 const HIDE = `.proto-picker,.proto-frame,nextjs-portal{display:none!important}
 *,*::before,*::after{transition:none!important;animation:none!important;caret-color:transparent!important}`;
 
@@ -40,13 +42,15 @@ export async function pickerList(browser, url) {
 /**
  * One view of the page: its status, screenshot (of `element` when given, else the page's top),
  * the errors it raised, and, with `box`, where that element ends on the page (px from the top).
- * A missing `element` is reported as `missing`, not thrown.
+ * A missing `element` is reported as `missing` and a page that fails to load or draw as
+ * `failed` (its first line), never thrown. Every view of a round shares the clock at `now`, so
+ * nothing that counts time differs between them.
  * @param {import("playwright-core").Browser} browser
  * @param {string} url
  * @param {number} width
- * @param {{ element?: string, box?: string }} options
+ * @param {{ element?: string, box?: string, now?: number }} options
  */
-export async function draw(browser, url, width, { element, box } = {}) {
+export async function draw(browser, url, width, { element, box, now = Date.now() } = {}) {
   const phone = width < 600;
   const ctx = await browser.newContext({
     viewport: { width, height: phone ? 844 : 900 },
@@ -63,7 +67,11 @@ export async function draw(browser, url, width, { element, box } = {}) {
       errors.push({ where: "console", detail: m.text() });
   });
   try {
+    await page.clock.setFixedTime(now);
+    await page.route(DROP, (r) => r.abort());
     const res = await page.goto(url, { waitUntil: "networkidle", timeout: 60_000 });
+    const status = res?.status() ?? 0;
+    if (status >= 400) return { status, errors };
     await page.addStyleTag({ content: HIDE });
     await page.evaluate(async () => {
       for (const img of document.images) img.loading = "eager";
@@ -73,16 +81,23 @@ export async function draw(browser, url, width, { element, box } = {}) {
     const height = await page.evaluate(() => document.documentElement.scrollHeight);
     await page.setViewportSize({ width, height: Math.min(height, MAX_HEIGHT) });
     await page.waitForTimeout(300);
+    // from the top, as a reader arrives, whatever the page scrolled to on load
+    await page.evaluate(() => {
+      scrollTo(0, 0);
+    });
     const ends = box
       ? await page.evaluate((sel) => {
           const r = document.querySelector(sel)?.getBoundingClientRect();
           return r ? Math.round(r.bottom + scrollY) : undefined;
         }, box)
       : undefined;
-    if (element && !(await page.locator(element).count()))
-      return { status: res?.status() ?? 0, missing: true, errors };
-    const shot = await (element ? page.locator(element).first() : page).screenshot();
-    return { status: res?.status() ?? 0, shot, errors, ends };
+    if (element && !(await page.locator(element).count())) return { status, missing: true, errors };
+    const shot = await (element ? page.locator(element).first() : page).screenshot({
+      timeout: 30_000,
+    });
+    return { status, shot, errors, ends };
+  } catch (e) {
+    return { status: 0, failed: String(e).split("\n")[0], errors };
   } finally {
     await ctx.close();
   }
