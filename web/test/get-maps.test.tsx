@@ -34,6 +34,10 @@ const map = (pfid: string, title: string, preview: string | null): WorkshopMap =
   crowd: 1,
   authorBeaten: 0,
   fileVersion: null,
+  weekPlays: 0,
+  votesUp: 0,
+  votesDown: 0,
+  voteScore: 0,
 });
 
 /* the page's Maps as getCampaign gives them: listed ones in the Campaign's order, an Event
