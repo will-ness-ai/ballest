@@ -263,7 +263,7 @@ const scoringPlace = (n: number, place: number) => (n > 0 && place <= TOP ? plac
 const pointsFor = (place: number) => TOP + 1 - place;
 
 /**
- * The overall standing (CONTEXT.md): each player scores `pointsFor` their shared place on each
+ * The overall standing (GLOSSARY.md): each player scores `pointsFor` their shared place on each
  * standing where it is in the top TOP, added up, now and 24 hours before. Counted from the
  * places the site serves, so it never disagrees with the four boards. Exactly TOP rows, by points
  * then name.
