@@ -64,6 +64,24 @@ const rows = (name, fields, list) =>
         ),
       ];
 const rel = (p) => p.replace(ROOT, "");
+/* one row per distinct error, with the views that raised it: a warning every view raises
+   prints once, cut to its first line */
+const sameErrors = (list) => {
+  const by = new Map();
+  for (const e of list) {
+    const detail = e.detail.split("\n")[0].slice(0, 200);
+    const key = e.where + "\0" + detail;
+    const row = by.get(key) ?? { where: e.where, detail, at: [] };
+    row.at.push(`${e.variant}@${String(e.width)}`);
+    by.set(key, row);
+  }
+  return [...by.values()].map(({ where, detail, at }) => ({
+    where,
+    detail,
+    views:
+      at.length > 3 ? `${at.slice(0, 2).join(" ")} +${String(at.length - 2)} more` : at.join(" "),
+  }));
+};
 
 const argv = process.argv.slice(2);
 const command = argv[0] && !argv[0].startsWith("--") ? argv.shift() : "";
@@ -194,7 +212,7 @@ async function sheet() {
     say([
       `sheet: ${base.href}, ${String(variants.length)} variant${variants.length === 1 ? "" : "s"}`,
       ...rows("images", ["variant", "file"], images),
-      ...rows("errors", ["variant", "width", "where", "detail"], errors),
+      ...rows("errors", ["where", "detail", "views"], sameErrors(errors)),
       "next:",
       `  read ${images[0].file}   # the overview, to check the shots came out`,
       `  attach the overview${inPage ? ", page.jpg" : ""} and the cards to the round's message (6 files a message: the overview first)`,
