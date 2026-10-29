@@ -1,4 +1,4 @@
-// `pnpm proto sheet`'s pictures: a grill-design round's variants drawn so Will can judge them
+// sheet.mjs's pictures: a grill-design round's variants drawn so Will can judge them
 // in the thread without opening the preview. Each variant gets a card (its name and note over
 // its desktop shot in a browser window and its phone shot in a phone, side by side, at a size
 // that reads on a phone), and the round gets an overview (a row per variant, small) to compare

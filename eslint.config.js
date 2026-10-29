@@ -17,7 +17,11 @@ export default defineConfig(
     "**/node_modules/",
     "data/",
     "leth/",
-    ".claude/skills/",
+    ".claude/skills/*",
+    // grill-design is maintained here, and its round pictures are code
+    "!.claude/skills/grill-design/",
+    ".claude/skills/grill-design/*",
+    "!.claude/skills/grill-design/scripts/",
     ".claude/worktrees/",
     "discord-bot/.logs/",
     "web/.next/",
@@ -68,9 +72,9 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
-    // `pnpm qa`'s probes and image comparison, and `pnpm proto`'s drawing, are functions
+    // `pnpm qa`'s probes and image comparison, and grill-design's drawing, are functions
     // Playwright runs in the page
-    files: ["web/scripts/qa/**", "web/scripts/proto/**"],
+    files: ["web/scripts/qa/**", ".claude/skills/grill-design/scripts/**"],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {

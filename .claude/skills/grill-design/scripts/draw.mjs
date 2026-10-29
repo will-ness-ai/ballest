@@ -1,10 +1,14 @@
-// Draws one variant of a grill-design prototype page, for `pnpm proto sheet`. Kept apart from
-// `pnpm qa` on purpose: this belongs to grill-design and is meant to move into that skill, so
-// it needs nothing but playwright-core. What it does is the little a round's pictures need:
+// Draws one variant of a grill-design prototype page, for sheet.mjs. Kept apart from `pnpm qa`
+// on purpose: it needs nothing but playwright-core, borrowed from web/'s install. What it does is the little a round's pictures need:
 // load the page at a width, wait for it to settle, hide the picker and `next dev`'s badge,
 // and screenshot the page's top or one element.
 import { existsSync } from "node:fs";
-import { chromium } from "playwright-core";
+import { createRequire } from "node:module";
+
+// the repo root installs nothing, so resolve playwright-core from web/
+const { chromium } = createRequire(new URL("../../../../web/package.json", import.meta.url))(
+  "playwright-core",
+);
 
 // the tallest stretch of a page drawn; a round's pictures cut far shorter than this anyway
 const MAX_HEIGHT = 4000;

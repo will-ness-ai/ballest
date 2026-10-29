@@ -1,8 +1,17 @@
 import type { Browser } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { launch } from "../scripts/proto/draw.mjs";
-import { compose, cardHtml, overviewHtml, variantsOf } from "../scripts/proto/sheet.mjs";
+import { launch as launchAny } from "../../.claude/skills/grill-design/scripts/draw.mjs";
+import {
+  compose as composeAny,
+  cardHtml,
+  overviewHtml,
+  variantsOf,
+} from "../../.claude/skills/grill-design/scripts/pictures.mjs";
+
+// the scripts live in grill-design, outside web/, where playwright-core's types don't resolve
+const launch = launchAny as () => Promise<Browser>;
+const compose = composeAny as (browser: Browser, html: string) => Promise<Buffer>;
 
 // a plain PNG of the given size, drawn by the browser, to stand in for a variant's shot
 async function png(browser: Browser, width: number, height: number) {
