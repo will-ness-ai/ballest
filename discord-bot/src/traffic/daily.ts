@@ -42,8 +42,8 @@ export const TrafficChannelLive = Layer.effect(
     const webhook = yield* Config.redacted("TRAFFIC_WEBHOOK_URL");
     const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
     return TrafficChannel.of({
-      post: (content) =>
-        http
+      post: Effect.fn("TrafficChannel.post")(function* (content) {
+        yield* http
           .execute(
             HttpClientRequest.post(Redacted.value(webhook)).pipe(
               // no pings, whatever a search or a page name holds
@@ -52,9 +52,9 @@ export const TrafficChannelLive = Layer.effect(
           )
           .pipe(
             Effect.scoped,
-            Effect.asVoid,
             Effect.mapError((e) => new TrafficPostFailed({ reason: e._tag })),
-          ),
+          );
+      }),
     });
   }),
 ).pipe(Layer.provide(FetchHttpClient.layer));
@@ -65,43 +65,44 @@ export const TrafficLogLive = Layer.effect(
     const sql = yield* SqlClient.SqlClient;
     return TrafficLog.of({
       // The bot's own SQLite: a failure there is a defect, which the schedule reports to ops.
-      posted: (day) =>
-        sql`SELECT day FROM traffic_reports WHERE day = ${day}`.pipe(
+      posted: Effect.fn("TrafficLog.posted")(function* (day) {
+        return yield* sql`SELECT day FROM traffic_reports WHERE day = ${day}`.pipe(
           Effect.flatMap(Schema.decodeUnknown(Schema.Array(Day))),
           Effect.map((rows) => rows.length > 0),
           Effect.orDie,
-        ),
-      record: (day) =>
-        sql`INSERT OR REPLACE INTO traffic_reports (day) VALUES (${day})`.pipe(
-          Effect.asVoid,
-          Effect.orDie,
-        ),
+        );
+      }),
+      record: Effect.fn("TrafficLog.record")(function* (day) {
+        yield* sql`INSERT OR REPLACE INTO traffic_reports (day) VALUES (${day})`.pipe(Effect.orDie);
+      }),
     });
   }),
 ).pipe(Layer.provide(MigratorLive));
 
 /** A half from its source, if it has one: Off without, Failed when the read fails. */
-export const half = <A>(
+export const half = Effect.fn("TrafficReport.half")(function* <A>(
   source: Option.Option<Effect.Effect<A, TrafficUnavailable>>,
-): Effect.Effect<Half<A>> =>
-  Option.match(source, {
-    onNone: () => Effect.succeed({ _tag: "Off" } as const),
-    onSome: (read) =>
-      read.pipe(
-        Effect.map((value) => ({ _tag: "Ok", value }) as const),
-        Effect.catchTag("TrafficUnavailable", (e) =>
-          Effect.succeed({ _tag: "Failed", reason: e.reason } as const),
-        ),
-      ),
-  });
+) {
+  if (Option.isNone(source)) {
+    const off: Half<A> = { _tag: "Off" };
+    return off;
+  }
+  return yield* source.value.pipe(
+    Effect.map((value): Half<A> => ({ _tag: "Ok", value })),
+    Effect.catchTag("TrafficUnavailable", (e) =>
+      Effect.succeed<Half<A>>({ _tag: "Failed", reason: e.reason }),
+    ),
+  );
+});
 
 /** Whether an environment variable is set, which is what turns a half on. */
-export const isSet = (name: string) =>
-  Config.option(Config.string(name)).pipe(Effect.map(Option.isSome));
+export const isSet = Effect.fn("TrafficReport.isSet")(function* (name: string) {
+  return Option.isSome(yield* Config.option(Config.string(name)));
+});
 
 /** The day's post, unless it was already posted; a post that fails goes to ops instead, and so
  * does a half that couldn't be read (a key revoked or expired), since the post only notes it. */
-export const runTrafficDay = Effect.fn("runTrafficDay")(function* (at: number) {
+export const runTrafficDay = Effect.fn("TrafficReport.runDay")(function* (at: number) {
   const channel = yield* TrafficChannel;
   const log = yield* TrafficLog;
   const day = dayOf(at);
@@ -134,8 +135,8 @@ export const runTrafficDay = Effect.fn("runTrafficDay")(function* (at: number) {
 });
 
 /** A day's report where even a bug is only that day's: ops hears, and the schedule goes on. */
-const safely = (at: number) =>
-  runTrafficDay(at).pipe(
+const safely = Effect.fn("TrafficReport.safely")(function* (at: number) {
+  yield* runTrafficDay(at).pipe(
     Effect.catchAllDefect((defect) =>
       Effect.flatMap(OpsAlerts, (alerts) =>
         alerts.post(
@@ -144,6 +145,7 @@ const safely = (at: number) =>
       ),
     ),
   );
+});
 
 export const trafficLoop = everyDayAt(TRAFFIC_HOUR_UTC, safely);
 

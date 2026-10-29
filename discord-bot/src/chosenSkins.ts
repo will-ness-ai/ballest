@@ -27,7 +27,7 @@ const readAll = Effect.gen(function* () {
 const NONE: ChosenSkinPicks = new Map();
 
 /** A read that failed: said in the log, and every player keeps their hue marble until the next. */
-const unreadable = Effect.fn("unreadable")(function* (reason: string) {
+const unreadable = Effect.fn("ChosenSkins.unreadable")(function* (reason: string) {
   yield* Effect.logWarning(`chosen skins unreadable, marbles only: ${reason}`);
   return NONE;
 });

@@ -35,7 +35,7 @@ export class Marbles extends Effect.Service<Marbles>()("multiballs/Marbles", {
       const renderer = yield* Renderer;
       const ids = new Map(yield* discord.appEmojis);
       // An emoji Discord won't take is skipped: its Players' lines go without it.
-      const upload = Effect.fn("upload")(function* (
+      const upload = Effect.fn("Marbles.upload")(function* (
         name: string,
         png: Effect.Effect<Buffer, RenderError>,
       ) {

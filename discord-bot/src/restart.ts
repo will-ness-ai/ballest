@@ -55,7 +55,7 @@ export const makeRestart = Effect.gen(function* () {
   const asked = yield* Ref.make(false);
   const scope = yield* Effect.scope;
 
-  const restart = Effect.fn("restart")(function* (why: string) {
+  const restart = Effect.fn("Restart.restart")(function* (why: string) {
     yield* Deferred.await(up);
     const now = yield* Clock.currentTimeMillis;
     const recent = [...(yield* history.since(now - HOUR))].sort((a, b) => a - b);
@@ -96,17 +96,20 @@ export const RestartHistoryLive = Layer.effect(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     return RestartHistory.of({
-      since: (at) =>
-        sql<{ readonly at: number }>`SELECT at FROM venue_restarts WHERE at > ${at}`.pipe(
+      since: Effect.fn("RestartHistory.since")(function* (at) {
+        return yield* sql<{
+          readonly at: number;
+        }>`SELECT at FROM venue_restarts WHERE at > ${at}`.pipe(
           Effect.map((rows) => rows.map((r) => r.at)),
           Effect.orDie,
-        ),
-      add: (at) =>
-        sql`INSERT INTO venue_restarts (at) VALUES (${at})`.pipe(
+        );
+      }),
+      add: Effect.fn("RestartHistory.add")(function* (at) {
+        yield* sql`INSERT INTO venue_restarts (at) VALUES (${at})`.pipe(
           Effect.zipRight(sql`DELETE FROM venue_restarts WHERE at < ${at - 24 * HOUR}`),
-          Effect.asVoid,
           Effect.orDie,
-        ),
+        );
+      }),
     });
   }),
 ).pipe(Layer.provide(MigratorLive));
@@ -124,24 +127,24 @@ const CLOSE_LIMIT = "20 seconds";
  * (Discord logs out, the Activity's server closes), and the process exits 0, even if a socket or
  * timer is still open, or if closing takes over CLOSE_LIMIT. Fly's `always` policy restarts it.
  */
-export const launchUntilShutdown = <ROut, E, RIn>(
-  app: Layer.Layer<ROut, E, RIn>,
-  exit: (code: number) => void = (code) => process.exit(code),
-) =>
-  Effect.gen(function* () {
-    const stop = yield* Deferred.make<undefined>();
-    const shutdown = Layer.succeed(Shutdown, {
-      now: Deferred.succeed(stop, undefined).pipe(Effect.asVoid),
-    });
-    const ending = Deferred.await(stop).pipe(
-      Effect.zipRight(
-        Effect.sleep(CLOSE_LIMIT).pipe(
-          Effect.zipRight(Effect.logError(`closing took over ${CLOSE_LIMIT}; exiting anyway`)),
-          Effect.zipRight(Effect.sync(() => exit(0))),
-          Effect.forkDaemon,
-        ),
-      ),
-    );
-    yield* Effect.raceFirst(Layer.launch(app.pipe(Layer.provide(shutdown))), ending);
-    yield* Effect.sync(() => exit(0));
+export const launchUntilShutdown = Effect.fn("Restart.launchUntilShutdown")(function* <
+  ROut,
+  E,
+  RIn,
+>(app: Layer.Layer<ROut, E, RIn>, exit: (code: number) => void = (code) => process.exit(code)) {
+  const stop = yield* Deferred.make<undefined>();
+  const shutdown = Layer.succeed(Shutdown, {
+    now: Deferred.succeed(stop, undefined).pipe(Effect.asVoid),
   });
+  const ending = Deferred.await(stop).pipe(
+    Effect.zipRight(
+      Effect.sleep(CLOSE_LIMIT).pipe(
+        Effect.zipRight(Effect.logError(`closing took over ${CLOSE_LIMIT}; exiting anyway`)),
+        Effect.zipRight(Effect.sync(() => exit(0))),
+        Effect.forkDaemon,
+      ),
+    ),
+  );
+  yield* Effect.raceFirst(Layer.launch(app.pipe(Layer.provide(shutdown))), ending);
+  yield* Effect.sync(() => exit(0));
+});

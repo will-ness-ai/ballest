@@ -7,7 +7,7 @@ import type { Action, VenueName } from "./domain.js";
 import { PingRole, type PingRoleUnavailable, Store } from "./ports.js";
 
 /** Discord wouldn't read or change the role: one warning line, the same from both surfaces. */
-export const warnPingRole = Effect.fn("warnPingRole")(function* (e: PingRoleUnavailable) {
+export const warnPingRole = Effect.fn("PingRole.warn")(function* (e: PingRoleUnavailable) {
   yield* Effect.logWarning(`ping role: ${e.reason}`);
 });
 

@@ -88,12 +88,17 @@ export const hasCode = (e: DiscordError, ...codes: ReadonlyArray<number>) =>
   typeof e.cause.code === "number" &&
   codes.includes(e.cause.code);
 
-export const tryDiscord = <A>(op: string, run: () => Promise<A>) =>
-  Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
+export const tryDiscord = Effect.fn("Discord.try")(function* <A>(
+  op: string,
+  run: () => Promise<A>,
+) {
+  return yield* Effect.tryPromise({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
+});
 
 /** A synchronous discord.js read that can throw (a cache it expects isn't there). */
-const readDiscord = <A>(op: string, run: () => A) =>
-  Effect.try({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
+const readDiscord = Effect.fn("Discord.read")(function* <A>(op: string, run: () => A) {
+  return yield* Effect.try({ try: run, catch: (cause) => new DiscordError({ op, cause }) });
+});
 
 /** A running Venue on discord.js: checked as it started, so the bot can do everything it needs there. */
 export interface DiscordVenue {
@@ -127,7 +132,7 @@ export const plainName = (name: string) => name.normalize("NFKC");
  * Discord call, as a guest Venue is checked at startup. A discord.js call that throws fails the
  * check too.
  */
-export const checkVenue = Effect.fn("checkVenue")(
+export const checkVenue = Effect.fn("Discord.checkVenue")(
   function* (client: Client<true>, venue: VenueConfig, cached = false) {
     const where =
       venue.name === HOME_VENUE ? "DISCORD_CHANNEL_ID" : `Venue "${venue.name}"'s channel`;
@@ -190,26 +195,29 @@ export const checkVenue = Effect.fn("checkVenue")(
       `Venue ${venue.name}: posting in #${channel.name} (${guild.name}); pinging @${pingRole.name}`,
     );
 
-    const fetchMember = (discordId: string) =>
-      tryDiscord("fetch member", () => guild.members.fetch(discordId));
+    const fetchMember = Effect.fn("DiscordVenue.fetchMember")(function* (discordId: string) {
+      return yield* tryDiscord("fetch member", () => guild.members.fetch(discordId));
+    });
     const running: DiscordVenue = {
       name: venue.name,
       channel,
       pingRoleId: venue.pingRoleId,
       pingRoleName: pingRole.name,
-      displayName: (discordId) =>
-        fetchMember(discordId).pipe(
+      displayName: Effect.fn("DiscordVenue.displayName")(function* (discordId: string) {
+        return yield* fetchMember(discordId).pipe(
           Effect.map((member) => plainName(member.displayName)),
           Effect.orElseSucceed(() => "Someone"),
-        ),
-      member: (discordId) =>
-        fetchMember(discordId).pipe(
+        );
+      }),
+      member: Effect.fn("DiscordVenue.member")(function* (discordId: string) {
+        return yield* fetchMember(discordId).pipe(
           Effect.map((member) => Option.some(plainName(member.displayName))),
           Effect.catchIf(
             (e) => hasCode(e, UNKNOWN_MEMBER, UNKNOWN_USER),
             () => Effect.succeed(Option.none<string>()),
           ),
-        ),
+        );
+      }),
     };
     return running;
   },
@@ -256,10 +264,12 @@ const FIRST_RETRY = "20 seconds";
 const RETRY_EVERY = "5 minutes";
 
 /** Run a retry pass FIRST_RETRY after startup, then every RETRY_EVERY. */
-export const retryPasses = <E, R>(pass: Effect.Effect<unknown, E, R>) =>
-  Effect.sleep(FIRST_RETRY).pipe(
-    Effect.zipRight(pass.pipe(Effect.repeat(Schedule.spaced(RETRY_EVERY)))),
-  );
+export const retryPasses = Effect.fn("Discord.retryPasses")(function* <E, R>(
+  pass: Effect.Effect<unknown, E, R>,
+) {
+  yield* Effect.sleep(FIRST_RETRY);
+  return yield* pass.pipe(Effect.repeat(Schedule.spaced(RETRY_EVERY)));
+});
 
 /**
  * The Venues of the servers other than home the bot is invited to (`makeVenueJoiner`): those
@@ -270,7 +280,7 @@ export const retryPasses = <E, R>(pass: Effect.Effect<unknown, E, R>) =>
  * and following each join, removal and server back from an outage, restarting the bot when that
  * changes the running Venues. Runs in the caller's scope.
  */
-const followServers = Effect.fn("followServers")(function* (
+const followServers = Effect.fn("Discord.followServers")(function* (
   client: Client<true>,
   homeGuildId: string,
   alerts: Alerts,
@@ -283,8 +293,14 @@ const followServers = Effect.fn("followServers")(function* (
   );
   // The joiner tries each server on its own and logs a bug in one; this keeps a bug outside that
   // (its database reads) from ending the event and retry fibers.
-  const guarded = (what: string, effect: Effect.Effect<void>) =>
-    effect.pipe(Effect.catchAllDefect((defect) => Effect.logError(`${what} failed`, defect)));
+  const guarded = Effect.fn("Discord.guarded")(function* (
+    what: string,
+    effect: Effect.Effect<void>,
+  ) {
+    yield* effect.pipe(
+      Effect.catchAllDefect((defect) => Effect.logError(`${what} failed`, defect)),
+    );
+  });
 
   interface ServerEvent {
     readonly _tag: "Invited" | "Available" | "Removed";
@@ -405,7 +421,9 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
     const byName = new Map(running.map((v) => [v.name, v]));
 
     /** The running Venue by this name, if it runs. */
-    const venueNamed = (name: VenueName) => Effect.succeed(Option.fromNullable(byName.get(name)));
+    const venueNamed = Effect.fn("Discord.venueNamed")(function* (name: VenueName) {
+      return yield* Effect.succeed(Option.fromNullable(byName.get(name)));
+    });
 
     /** Other channels whose presses are the home Venue's too: #my-stats, once it is found or made. */
     const alsoAnswered = new Set<string>();
@@ -445,7 +463,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
      * from anyone. It fails at once if that channel isn't one the bot can view, so a listener can
      * say so and stay off.
      */
-    const postsIn = Effect.fn("postsIn")(function* (otherId: string) {
+    const postsIn = Effect.fn("Discord.postsIn")(function* (otherId: string) {
       const other = yield* tryDiscord("fetch channel", () => client.channels.fetch(otherId));
       const viewable =
         other !== null &&
@@ -477,7 +495,7 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
      * Which of these permissions the bot lacks in another text channel of the home Venue's
      * server; it fails when that isn't a channel of that server the bot can see.
      */
-    const missingIn = Effect.fn("missingIn")(function* (
+    const missingIn = Effect.fn("Discord.missingIn")(function* (
       otherId: string,
       required: ReadonlyArray<readonly [string, bigint]>,
     ) {
@@ -507,7 +525,9 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
       /** Clicks from every running Venue's channel and its Match Threads, each with its Venue. */
       interactions,
       /** Take presses in another channel too (#my-stats), as the home Venue's. */
-      answerIn: (otherId: string) => Effect.sync(() => void alsoAnswered.add(otherId)),
+      answerIn: Effect.fn("Discord.answerIn")(function* (otherId: string) {
+        yield* Effect.sync(() => void alsoAnswered.add(otherId));
+      }),
       postsIn,
       missingIn,
       /** The application's own emojis (usable anywhere the bot posts), name to id. */
@@ -515,10 +535,11 @@ export class Discord extends Effect.Service<Discord>()("multiballs/Discord", {
         Effect.map((all) => new Map(all.map((emoji) => [emoji.name, emoji.id]))),
       ),
       /** Upload an application emoji; its id. */
-      createAppEmoji: (name: string, png: Buffer) =>
-        tryDiscord("create app emoji", () =>
+      createAppEmoji: Effect.fn("Discord.createAppEmoji")(function* (name: string, png: Buffer) {
+        return yield* tryDiscord("create app emoji", () =>
           application.emojis.create({ name, attachment: png }),
-        ).pipe(Effect.map((emoji) => emoji.id)),
+        ).pipe(Effect.map((emoji) => emoji.id));
+      }),
     } as const;
   }),
 }) {}

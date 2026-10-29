@@ -68,7 +68,7 @@ export const ReportLogLive = Layer.effect(
  * thread's post, which runs separately so the day is recorded before it: a thread that fails
  * must not bring the whole report back the next day.
  */
-export const postReport = Effect.fn("postReport")(function* (report: Report) {
+export const postReport = Effect.fn("DailyReport.post")(function* (report: Report) {
   const channel = yield* ReportChannel;
   const renderer = yield* Renderer;
   const chosenSkins = yield* ChosenSkins;
@@ -85,13 +85,14 @@ export const postReport = Effect.fn("postReport")(function* (report: Report) {
 });
 
 /** The day's report, unless it was already posted or the data is too old (then ops hears). */
-export const runDay = Effect.fn("runDay")(function* (at: number) {
+export const runDay = Effect.fn("DailyReport.runDay")(function* (at: number) {
   const log = yield* ReportLog;
   const alerts = yield* OpsAlerts;
   const day = dayOf(at);
   if (yield* log.posted(day)) return;
-  const failed = (why: string) =>
-    alerts.post(`Multiballs couldn't post the Daily Report for ${day}: ${why}`);
+  const failed = Effect.fn("DailyReport.failed")(function* (why: string) {
+    return yield* alerts.post(`Multiballs couldn't post the Daily Report for ${day}: ${why}`);
+  });
   yield* Effect.gen(function* () {
     const data = yield* (yield* ReportSource).read(at);
     const { refreshedAt } = data;
@@ -122,8 +123,8 @@ export const runDay = Effect.fn("runDay")(function* (at: number) {
 });
 
 /** A day's report where even a bug is only that day's: ops hears, and the schedule goes on. */
-const safely = (at: number) =>
-  runDay(at).pipe(
+const safely = Effect.fn("DailyReport.safely")(function* (at: number) {
+  return yield* runDay(at).pipe(
     Effect.catchAllDefect((defect) =>
       Effect.flatMap(OpsAlerts, (alerts) =>
         alerts.post(
@@ -132,6 +133,7 @@ const safely = (at: number) =>
       ),
     ),
   );
+});
 
 /** Catch up on today if it's past report time, then post at every report time after. */
 export const dailyLoop = everyDayAt(REPORT_HOUR_UTC, safely);

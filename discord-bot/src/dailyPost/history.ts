@@ -85,7 +85,7 @@ const leadsOf = (held: ReadonlyArray<typeof HeldRow.Type>): Array<PastLead> => {
 };
 
 /** That date's Daily from the database, or None if it holds no Daily for it. Needs a SqlClient. */
-export const pastDaily = Effect.fn("pastDaily")(function* (date: string) {
+export const pastDaily = Effect.fn("DailyHistory.pastDaily")(function* (date: string) {
   const sql = yield* SqlClient.SqlClient;
   const ms = (column: string) => sql.unsafe(`(extract(epoch from ${column}) * 1000)::float8`);
   const found = yield* sql`

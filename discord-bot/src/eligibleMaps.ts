@@ -23,7 +23,7 @@ export interface EligibleSearch {
  * drawn, and, among those tried that some had Played, the one the fewest had (their PBs on it in
  * `personalBests`), or null.
  */
-export const searchEligible = Effect.fn("searchEligible")(function* (search: EligibleSearch) {
+export const searchEligible = Effect.fn("EligibleMaps.search")(function* (search: EligibleSearch) {
   const steam = yield* Steam;
   const catalogue = yield* steam.catalogue;
   const shuffled = yield* Random.shuffle(

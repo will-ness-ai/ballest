@@ -62,7 +62,7 @@ if (
 }
 
 /** A past Daily from a local leaderboard database, posted closed as the backfill would. */
-const backfilled = Effect.fn("backfilled")(
+const backfilled = Effect.fn("DailyPostScript.backfilled")(
   function* (url: string) {
     const found = yield* (yield* DailyHistory).find(date);
     if (Option.isNone(found)) return false;

@@ -136,28 +136,30 @@ export class WebApi extends Effect.Service<WebApi>()("multiballs/WebApi", {
       HttpClient.filterStatusOk,
       HttpClient.retryTransient({ schedule: Schedule.exponential("500 millis"), times: 3 }),
     );
-    const getJson = <A, I>(
+    const getJson = Effect.fn("WebApi.getJson")(function* <A, I>(
       url: string,
       params: Record<string, string>,
       schema: Schema.Schema<A, I>,
-    ) =>
-      http.execute(HttpClientRequest.get(url, { urlParams: params })).pipe(
+    ) {
+      return yield* http.execute(HttpClientRequest.get(url, { urlParams: params })).pipe(
         Effect.flatMap(HttpClientResponse.schemaBodyJson(schema)),
         Effect.scoped,
         Effect.mapError(
           (e) => new SteamUnavailable({ reason: `${new URL(url).pathname}: ${e._tag}` }),
         ),
       );
-    const steamApi = <A, I>(
+    });
+    const steamApi = Effect.fn("WebApi.steamApi")(function* <A, I>(
       path: string,
       params: Record<string, string>,
       schema: Schema.Schema<A, I>,
-    ) =>
-      getJson(
+    ) {
+      return yield* getJson(
         `https://api.steampowered.com${path}`,
         { key: Redacted.value(key), ...params },
         schema,
       );
+    });
 
     const summaries = Effect.fn("WebApi.summaries")(function* (steamIds: ReadonlyArray<string>) {
       const out: Array<Summary> = [];
