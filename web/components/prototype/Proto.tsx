@@ -5,11 +5,11 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 export const VARIANTS = [
-  ["A", "Cards"],
-  ["B", "Banners"],
-  ["C", "Table"],
-  ["D", "Podiums"],
-  ["E", "Straight to a board"],
+  ["A", "Cards", "A card per Trial, picture on top, three across on desktop"],
+  ["B", "Banners", "Wide banners like /campaigns, the picture behind a fade"],
+  ["C", "Table", "One compact row per Trial: picture, name, record, players"],
+  ["D", "Podiums", "Each Trial with its top 3 and a Full board link"],
+  ["E", "Straight to a board", "No list: Trial chips over a top-10 board"],
 ] as const;
 export type VariantKey = (typeof VARIANTS)[number][0];
 
@@ -115,6 +115,7 @@ export function ProtoPicker() {
       <div
         ref={ref}
         className="proto-picker"
+        data-variants={JSON.stringify(VARIANTS)}
         onPointerDown={drag}
         style={pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : undefined}
       >
