@@ -16,7 +16,7 @@ import {
 import { CupLog, type CupRecord } from "./record.js";
 import type { CupWeek } from "./week.js";
 
-export const makeKit = Effect.fn("makeCupKit")(function* (guildId: string) {
+export const makeKit = Effect.fn("WeeklyCup.makeKit")(function* (guildId: string) {
   const log = yield* CupLog;
   const channel = yield* CupChannel;
   const alerts = yield* OpsAlerts;
@@ -34,7 +34,10 @@ export const makeKit = Effect.fn("makeCupKit")(function* (guildId: string) {
    * in a minute: RETRY_EVERY). A one-shot, never tried again, is told every time instead, under a
    * kind of its own, so it never silences a later failure of something that is retried.
    */
-  const attempt = Effect.fn("cup.attempt")(function* <A, E extends { readonly reason: string }>(
+  const attempt = Effect.fn("WeeklyCup.attempt")(function* <
+    A,
+    E extends { readonly reason: string },
+  >(
     kind: string,
     what: string,
     week: string,
@@ -52,7 +55,7 @@ export const makeKit = Effect.fn("makeCupKit")(function* (guildId: string) {
     return Option.some(done.right);
   });
 
-  const entrantIds = Effect.fn("cup.entrantIds")(function* (week: string) {
+  const entrantIds = Effect.fn("WeeklyCup.entrantIds")(function* (week: string) {
     return (yield* log.entrants(guildId, week)).map((e) => e.discordId);
   });
 
@@ -62,7 +65,7 @@ export const makeKit = Effect.fn("makeCupKit")(function* (guildId: string) {
    * A `oneShot` (its kind) is shown once, never tried again: ops is told every time it fails, and
    * a message of it someone deleted isn't posted afresh.
    */
-  const show = Effect.fn("cup.show")(function* <S extends Slot>(
+  const show = Effect.fn("WeeklyCup.show")(function* <S extends Slot>(
     week: CupWeek,
     cup: CupRecord,
     slot: S,
@@ -89,14 +92,18 @@ export const makeKit = Effect.fn("makeCupKit")(function* (guildId: string) {
   });
 
   /** Redraw the week's post as it stands; the record as it then stands. */
-  const redraw = Effect.fn("cup.redraw")(function* (week: CupWeek, cup: CupRecord) {
+  const redraw = Effect.fn("WeeklyCup.redraw")(function* (week: CupWeek, cup: CupRecord) {
     const view = { guildId, week, state: cup.state, entrants: yield* entrantIds(week.week) };
     const shown = yield* show(week, cup, "post", view, "update the Weekly Cup's post");
     return Option.getOrElse(shown, () => cup);
   });
 
   /** Move the week to `state` and redraw its post; the record as it then stands. */
-  const enter = Effect.fn("cup.enter")(function* (week: CupWeek, cup: CupRecord, state: CupState) {
+  const enter = Effect.fn("WeeklyCup.enter")(function* (
+    week: CupWeek,
+    cup: CupRecord,
+    state: CupState,
+  ) {
     const next = { ...cup, state };
     yield* log.put(guildId, week.week, next);
     yield* Effect.logInfo(`weekly cup: ${guildId} ${week.week} is ${state}`);
@@ -104,7 +111,7 @@ export const makeKit = Effect.fn("makeCupKit")(function* (guildId: string) {
   });
 
   /** Call the week off, and tell its Entrants. */
-  const callOff = Effect.fn("cup.callOff")(function* (
+  const callOff = Effect.fn("WeeklyCup.callOff")(function* (
     week: CupWeek,
     cup: CupRecord,
     notice:

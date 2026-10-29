@@ -12,7 +12,7 @@ export const CUP_CHANNEL = "weekly-cup";
  * else a new one with them. Asks only for what it does: Manage Channels to make one, Manage Roles
  * to set a reused one's overwrites. Its id.
  */
-export const keepCupChannel = Effect.fn("keepCupChannel")(function* (
+export const keepCupChannel = Effect.fn("CupChannel.keep")(function* (
   guild: SetupGuild,
   stored: Option.Option<string>,
 ) {

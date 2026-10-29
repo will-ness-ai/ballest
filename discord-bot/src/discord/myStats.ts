@@ -116,10 +116,14 @@ const make = Effect.gen(function* () {
     }
   });
 
-  const failed = (why: string) =>
-    alerts.post(`Multiballs couldn't set up #${MY_STATS_NAME}: ${why}`);
+  const failed = Effect.fn("MyStats.failed")(function* (why: string) {
+    yield* alerts.post(`Multiballs couldn't set up #${MY_STATS_NAME}: ${why}`);
+  });
   yield* keep.pipe(
-    Effect.catchAll((e) => failed(e._tag === "Gone" ? `${e.id} is gone` : describeDiscordError(e))),
+    Effect.catchTags({
+      Gone: (e) => failed(`${e.id} is gone`),
+      DiscordError: (e) => failed(describeDiscordError(e)),
+    }),
     Effect.catchAllDefect((defect) =>
       Effect.logError("my stats: setting up failed", defect).pipe(
         Effect.zipRight(failed("a bug, see the log")),
@@ -185,7 +189,9 @@ export const MyStatsChannelLive = Layer.effect(
     /** The channel if it is still a text channel in this server, else null. */
     const find = Effect.fn("MyStats.find")(function* (channelId: string) {
       const c = yield* tryDiscord("fetch #my-stats", () => client.channels.fetch(channelId)).pipe(
-        Effect.catchAll((e) => (isUnknown(e) ? Effect.succeed(null) : Effect.fail(e))),
+        Effect.catchTag("DiscordError", (e) =>
+          isUnknown(e) ? Effect.succeed(null) : Effect.fail(e),
+        ),
       );
       return c?.type === ChannelType.GuildText && c.guildId === guild.id ? c : null;
     });
@@ -200,7 +206,7 @@ export const MyStatsChannelLive = Layer.effect(
     ) {
       const c = yield* fetchChannel(channelId);
       return yield* tryDiscord("fetch the panel", () => c.messages.fetch(messageId)).pipe(
-        Effect.catchAll((e): Effect.Effect<never, Gone | DiscordError> =>
+        Effect.catchTag("DiscordError", (e): Effect.Effect<never, Gone | DiscordError> =>
           isUnknown(e) ? Effect.fail(new Gone({ id: messageId })) : Effect.fail(e),
         ),
       );
@@ -208,7 +214,9 @@ export const MyStatsChannelLive = Layer.effect(
     const fetchMe = tryDiscord("fetch the bot's member", () => guild.members.fetchMe());
 
     return MyStatsChannel.of({
-      exists: (channelId) => find(channelId).pipe(Effect.map((c) => c !== null)),
+      exists: Effect.fn("MyStats.exists")(function* (channelId) {
+        return (yield* find(channelId)) !== null;
+      }),
       // In the Match channel's category if it is made there: the category's overwrites for the
       // bot count there, not only its roles in the server.
       missingToCreate: Effect.gen(function* () {
@@ -240,25 +248,25 @@ export const MyStatsChannelLive = Layer.effect(
         );
         return made.id;
       }),
-      hasMessage: (channelId, messageId) =>
-        fetchPanel(channelId, messageId).pipe(
+      hasMessage: Effect.fn("MyStats.hasMessage")(function* (channelId, messageId) {
+        return yield* fetchPanel(channelId, messageId).pipe(
           Effect.as(true),
           Effect.catchTag("Gone", () => Effect.succeed(false)),
-        ),
-      postPanel: (channelId) =>
-        fetchChannel(channelId).pipe(
-          Effect.flatMap((c) => tryDiscord("post the panel", () => c.send(myStatsPanelMessage()))),
-          Effect.map((m) => m.id),
-        ),
-      redrawPanel: (channelId, messageId) =>
-        fetchPanel(channelId, messageId).pipe(
-          Effect.flatMap((m) =>
-            tryDiscord("redraw the panel", () => m.edit(myStatsPanelMessage())),
-          ),
-          Effect.asVoid,
-        ),
+        );
+      }),
+      postPanel: Effect.fn("MyStats.postPanel")(function* (channelId) {
+        const c = yield* fetchChannel(channelId);
+        const m = yield* tryDiscord("post the panel", () => c.send(myStatsPanelMessage()));
+        return m.id;
+      }),
+      redrawPanel: Effect.fn("MyStats.redrawPanel")(function* (channelId, messageId) {
+        const m = yield* fetchPanel(channelId, messageId);
+        yield* tryDiscord("redraw the panel", () => m.edit(myStatsPanelMessage()));
+      }),
       panelFingerprint: Effect.sync(() => fingerprint(myStatsPanelMessage())),
-      answerIn: (channelId) => discord.answerIn(channelId),
+      answerIn: Effect.fn("MyStats.answerIn")(function* (channelId) {
+        return yield* discord.answerIn(channelId);
+      }),
     });
   }),
 );

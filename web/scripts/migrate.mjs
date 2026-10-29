@@ -2,11 +2,12 @@
 // `next build`. With no DATABASE_URL (a fork, a local build without a database) there is
 // nothing to migrate and the build goes on. A preview migrates only a database it can tell
 // is not production's (the Neon integration gives previews no branch of their own yet), so
-// a branch's schema reaches production only when it merges.
-import { drizzle } from "drizzle-orm/node-postgres";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
+// a branch's schema reaches production only when it merges. A migration that sorts before
+// one the database already applied fails the build (migrations.mjs), keeping the last deploy.
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+
+import { migrateDatabase } from "./migrations.mjs";
 
 // Neon's pooled URL can't hold the session a migration's lock needs, so prefer the direct one.
 const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
@@ -20,10 +21,8 @@ if (!url) {
 } else {
   const pool = new pg.Pool({ connectionString: url, max: 1 });
   try {
-    await migrate(drizzle(pool), {
-      // fileURLToPath, not .pathname: on Windows that is "/C:/...", which no folder matches.
-      migrationsFolder: fileURLToPath(new URL("../db/migrations", import.meta.url)),
-    });
+    // fileURLToPath, not .pathname: on Windows that is "/C:/...", which no folder matches.
+    await migrateDatabase(pool, fileURLToPath(new URL("../db/migrations", import.meta.url)));
     console.log("migrate: up to date");
   } finally {
     await pool.end();

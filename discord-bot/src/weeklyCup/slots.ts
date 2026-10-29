@@ -92,7 +92,7 @@ export const cupChannelOver = (sink: MessageSink, guildId: string, pictures: Cup
   const painted = new Map<Slot, { readonly shows: string; readonly png: Uint8Array }>();
 
   /** The standings' or results' picture for this view. */
-  const picture = Effect.fn("cupChannel.picture")(function* (slot: Slot, view: StandingsView) {
+  const picture = Effect.fn("CupChannel.picture")(function* (slot: Slot, view: StandingsView) {
     const names = new Map<string, string>();
     for (const o of view.standings.overall)
       names.set(o.discordId, yield* pictures.nameOf(o.discordId));
@@ -112,30 +112,27 @@ export const cupChannelOver = (sink: MessageSink, guildId: string, pictures: Cup
   });
 
   /** Each slot's messages for its view. */
-  const draw = (
-    slot: Slot,
-    view: SlotViews[Slot],
-  ): Effect.Effect<ReadonlyArray<Payload>, CupPostFailed> => {
+  const draw = Effect.fn("CupChannel.draw")(function* (slot: Slot, view: SlotViews[Slot]) {
     switch (slot) {
       case "post":
-        return Effect.succeed([weeklyCupMessage(view as SlotViews["post"])]);
+        return [weeklyCupMessage(view as SlotViews["post"])];
       case "shortlist":
-        return Effect.succeed([shortlistMessage(view as SlotViews["shortlist"])]);
+        return [shortlistMessage(view as SlotViews["shortlist"])];
       case "standings": {
         const v = view as SlotViews["standings"];
         // Shown final, once the results are up, they only point to them: no picture.
         return v.final
-          ? Effect.succeed([cupStandingsClosedMessage(v)])
-          : Effect.map(picture(slot, v), (png) => [cupStandingsMessage(v, png)]);
+          ? [cupStandingsClosedMessage(v)]
+          : [cupStandingsMessage(v, yield* picture(slot, v))];
       }
       case "results": {
         const v = view as SlotViews["results"];
-        return Effect.map(picture(slot, v), (png) => cupResultsMessages(v, png));
+        return cupResultsMessages(v, yield* picture(slot, v));
       }
     }
-  };
+  });
 
-  const post = Effect.fn("cupChannel.post")(function* (
+  const post = Effect.fn("CupChannel.post")(function* (
     slot: Slot,
     week: string,
     parts: ReadonlyArray<Payload>,
@@ -153,7 +150,7 @@ export const cupChannelOver = (sink: MessageSink, guildId: string, pictures: Cup
     return ids;
   });
 
-  const drop = Effect.fn("cupChannel.drop")(function* (messageId: string) {
+  const drop = Effect.fn("CupChannel.drop")(function* (messageId: string) {
     drawn.delete(messageId);
     yield* sink.drop(messageId).pipe(
       Effect.catchIf(gone, () => Effect.void),
@@ -162,7 +159,7 @@ export const cupChannelOver = (sink: MessageSink, guildId: string, pictures: Cup
   });
 
   /** Redraw `parts` over `shown`: their ids, or Discord's answer when a message there was deleted. */
-  const redraw = Effect.fn("cupChannel.redraw")(function* (
+  const redraw = Effect.fn("CupChannel.redraw")(function* (
     slot: Slot,
     week: string,
     shown: ReadonlyArray<string>,
@@ -193,7 +190,7 @@ export const cupChannelOver = (sink: MessageSink, guildId: string, pictures: Cup
   });
 
   return CupChannel.of({
-    show: Effect.fn("cupChannel.show")(function* <S extends Slot>(
+    show: Effect.fn("CupChannel.show")(function* <S extends Slot>(
       slot: S,
       shown: ReadonlyArray<string>,
       view: SlotViews[S],
@@ -210,7 +207,7 @@ export const cupChannelOver = (sink: MessageSink, guildId: string, pictures: Cup
       for (const id of shown) yield* drop(id).pipe(Effect.ignore);
       return yield* post(slot, week, parts, false);
     }),
-    say: Effect.fn("cupChannel.say")(function* (notice: CupNotice) {
+    say: Effect.fn("CupChannel.say")(function* (notice: CupNotice) {
       const message = cupNoticeMessage(notice);
       yield* sink
         .send(

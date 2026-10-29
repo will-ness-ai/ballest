@@ -48,13 +48,13 @@ export const makePresses = (kit: CupKit, race: CupRace): CupPresses => {
   const { guildId, log, locked } = kit;
 
   /** The week a press was for, if it is still this week, with its Cup. */
-  const pressedFor = Effect.fn("cup.pressedFor")(function* (pressed: string) {
+  const pressedFor = Effect.fn("WeeklyCup.pressedFor")(function* (pressed: string) {
     const week = weekAt(yield* Clock.currentTimeMillis);
     if (week.week !== pressed) return Option.none<{ week: CupWeek; cup: CupRecord }>();
     return Option.map(yield* log.get(guildId, pressed), (cup) => ({ week, cup }));
   });
 
-  const signUp = Effect.fn("cup.signUp")(function* (pressed: string, discordId: string) {
+  const signUp = Effect.fn("WeeklyCup.signUp")(function* (pressed: string, discordId: string) {
     return yield* locked(
       Effect.gen(function* () {
         const found = yield* pressedFor(pressed);
@@ -84,7 +84,7 @@ export const makePresses = (kit: CupKit, race: CupRace): CupPresses => {
     );
   });
 
-  const withdraw = Effect.fn("cup.withdraw")(function* (pressed: string, discordId: string) {
+  const withdraw = Effect.fn("WeeklyCup.withdraw")(function* (pressed: string, discordId: string) {
     return yield* locked(
       Effect.gen(function* () {
         const found = yield* pressedFor(pressed);
@@ -101,7 +101,7 @@ export const makePresses = (kit: CupKit, race: CupRace): CupPresses => {
   });
 
   /** An Entrant's pick of up to 3 Shortlist Maps, replacing the one before, until Friday 09:00. */
-  const vote = Effect.fn("cup.vote")(function* (
+  const vote = Effect.fn("WeeklyCup.vote")(function* (
     pressed: string,
     discordId: string,
     picks: ReadonlyArray<string>,
@@ -134,7 +134,10 @@ export const makePresses = (kit: CupKit, race: CupRace): CupPresses => {
   });
 
   /** The week to skip, if this member can skip it now; else why not. */
-  const skippable = Effect.fn("cup.skippable")(function* (pressed: string, manageServer: boolean) {
+  const skippable = Effect.fn("WeeklyCup.skippable")(function* (
+    pressed: string,
+    manageServer: boolean,
+  ) {
     if (!manageServer) return { _tag: "Refused", text: ADMINS_ONLY } as const;
     const found = yield* pressedFor(pressed);
     if (Option.isNone(found)) return { _tag: "Refused", text: closedBecause(null) } as const;
@@ -147,7 +150,7 @@ export const makePresses = (kit: CupKit, race: CupRace): CupPresses => {
     return { _tag: "Refused", text } as const;
   });
 
-  const askSkip = Effect.fn("cup.askSkip")(function* (
+  const askSkip = Effect.fn("WeeklyCup.askSkip")(function* (
     pressed: string,
     _discordId: string,
     manageServer: boolean,
@@ -156,7 +159,7 @@ export const makePresses = (kit: CupKit, race: CupRace): CupPresses => {
     return can._tag === "Refused" ? can : ({ _tag: "Confirm", week: pressed } satisfies SkipAsk);
   });
 
-  const skip = Effect.fn("cup.skip")(function* (
+  const skip = Effect.fn("WeeklyCup.skip")(function* (
     pressed: string,
     discordId: string,
     manageServer: boolean,

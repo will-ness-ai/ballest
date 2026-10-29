@@ -52,8 +52,12 @@ export const PlausibleLive = Layer.effect(
       "ballest.willness.dev",
     );
     const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
-    const get = <A, I>(path: string, params: Record<string, string>, schema: Schema.Schema<A, I>) =>
-      http
+    const get = Effect.fn("VisitsSource.get")(function* <A, I>(
+      path: string,
+      params: Record<string, string>,
+      schema: Schema.Schema<A, I>,
+    ) {
+      return yield* http
         .execute(
           HttpClientRequest.get(`${base}/api/v1/stats/${path}`, {
             urlParams: { site_id: site, ...params },
@@ -66,11 +70,17 @@ export const PlausibleLive = Layer.effect(
             (e) => new TrafficUnavailable({ reason: `Plausible ${path}: ${e._tag}` }),
           ),
         );
+    });
     return VisitsSource.of({
       read: Effect.fn("VisitsSource.read")(function* (date: string) {
         const day = { period: "day", date };
-        const top = (property: string) =>
-          get("breakdown", { ...day, property, metrics: "visitors", limit: "5" }, Breakdown);
+        const top = Effect.fn("VisitsSource.top")(function* (property: string) {
+          return yield* get(
+            "breakdown",
+            { ...day, property, metrics: "visitors", limit: "5" },
+            Breakdown,
+          );
+        });
         const [series, totals, pages, sources] = yield* Effect.all(
           [
             get(
