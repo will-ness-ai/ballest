@@ -14,8 +14,9 @@ import {
   dailyPostLoop,
   DailySteam,
   DailyThreadFailed,
+  postPast,
 } from "../src/dailyPost/schedule.js";
-import { DailyHistory, DailyHistoryUnavailable, type PastDaily } from "../src/dailyPost/history.js";
+import type { PastDaily } from "../src/dailyPost/history.js";
 import { DailySpins, type Spin, SpinUnavailable } from "../src/dailyPost/spin.js";
 import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import { Renderer } from "../src/render/renderer.js";
@@ -88,26 +89,8 @@ const setup = Effect.gen(function* () {
   const drawn = yield* Ref.make<Option.Option<Spin>>(Option.none());
   const githubDown = yield* Ref.make(false);
   const draws = yield* Ref.make<Array<{ at: number; pfid: string }>>([]);
-  // The leaderboard database's past Dailies, for the backfill: none (no DATABASE_URL) unless a
-  // test gives it some, or `historyDown` while it can't be read.
-  const history = yield* Ref.make<Option.Option<ReadonlyMap<string, PastDaily>>>(Option.none());
-  const historyDown = yield* Ref.make(false);
   const sql = SqliteClient.layer({ filename: ":memory:" });
   const fakes = Layer.mergeAll(
-    Layer.effect(
-      DailyHistory,
-      Effect.map(Ref.get(history), (held) =>
-        DailyHistory.of({
-          available: Option.isSome(held),
-          find: (date) =>
-            Effect.gen(function* () {
-              if (yield* Ref.get(historyDown))
-                return yield* new DailyHistoryUnavailable({ reason: "connection refused" });
-              return Option.flatMap(held, (h) => Option.fromNullable(h.get(date)));
-            }),
-        }),
-      ),
-    ),
     Layer.succeed(
       DailyApi,
       DailyApi.of({
@@ -216,6 +199,9 @@ const setup = Effect.gen(function* () {
       yield* TestClock.adjust(ms);
       yield* Fiber.interrupt(fiber);
     }).pipe(Effect.provide(fakes), Effect.provide(log));
+  /** Post a Daily already over, closed, as `pnpm daily-post` does from a local database. */
+  const postClosed = (past: PastDaily) =>
+    postPast(past).pipe(Effect.provide(fakes), Effect.provide(log));
   return {
     opensAt,
     apiDown,
@@ -233,9 +219,8 @@ const setup = Effect.gen(function* () {
     drawn,
     githubDown,
     draws,
-    history,
-    historyDown,
     runFor,
+    postClosed,
   };
 });
 
@@ -698,7 +683,7 @@ describe("the Daily Post's spinning GIF", () => {
   );
 });
 
-describe("the Daily Post's backfill", () => {
+describe("a past Daily, posted closed", () => {
   /** A Daily before today's as the leaderboard database holds it, its lead seen by Refreshes. */
   const past = (date: string, leads: PastDaily["leads"]): PastDaily => {
     const startsAt = Date.parse(`${date}T01:00:00Z`);
@@ -712,30 +697,18 @@ describe("the Daily Post's backfill", () => {
     { at: 2 * HOUR, leaders: ["FEDUS"], ticks: ticks(8.566), exact: false },
     { at: 14 * HOUR, leaders: ["airman"], ticks: ticks(8.532), exact: false },
   ];
-  const held = (...dates: ReadonlyArray<string>) =>
-    Option.some(new Map(dates.map((d) => [d, past(d, steal)])));
-  const threads = (t: Effect.Effect.Success<typeof setup>) =>
-    Ref.get(t.posts).pipe(Effect.map((p) => p.map((x) => x.thread)));
 
-  it.scoped("posts the three Dailies before today's, oldest first and closed, then today's", () =>
+  it.scoped("posts the closed card, its graph stepping at the Refreshes over the whole day", () =>
     Effect.gen(function* () {
       const t = yield* setup;
-      yield* Ref.set(t.history, held("2026-10-15", "2026-10-16", "2026-10-17"));
-      yield* TestClock.setTime(OPENS + 2 * HOUR);
-      yield* t.runFor(MINUTE);
-      expect(yield* threads(t)).toEqual([
-        "Daily #57 · the drop · Thu 15 Oct",
-        "Daily #58 · the drop · Fri 16 Oct",
-        "Daily #59 · the drop · Sat 17 Oct",
-        "Daily #60 · the drop · Sun 18 Oct",
-      ]);
+      yield* TestClock.setTime(OPENS);
+      yield* t.postClosed(past("2026-10-15", steal));
       const posts = yield* Ref.get(t.posts);
+      expect(posts.map((p) => p.thread)).toEqual(["Daily #57 · the drop · Thu 15 Oct"]);
       const closed = words(posts[0]!.message);
       expect(closed).toContain("# 🏆 airman wins\n**0:08.532**, out of **12** players");
       expect(closed).toContain(`-# Closed <t:${Date.UTC(2026, 9, 16, 1) / 1000}:f> · final`);
       expect(posts[0]!.files).toBe(2);
-      expect(words(posts[3]!.message)).not.toContain("🏆");
-      // Each graph steps at the Refreshes, over the whole day.
       const graphs = yield* Ref.get(t.graphs);
       expect(graphs[0]?.leads.map((l) => l.at)).toEqual([
         Date.UTC(2026, 9, 15, 3),
@@ -745,15 +718,14 @@ describe("the Daily Post's backfill", () => {
     }),
   );
 
-  it.scoped("tells each backfilled thread its lead by the Refresh that saw it", () =>
+  it.scoped("tells the thread its lead by the Refresh that saw it", () =>
     Effect.gen(function* () {
       const t = yield* setup;
-      yield* Ref.set(t.history, held("2026-10-17"));
       yield* TestClock.setTime(OPENS);
-      yield* t.runFor(MINUTE);
+      yield* t.postClosed(past("2026-10-17", steal));
       const first = Date.UTC(2026, 9, 17, 3) / 1000;
       const second = Date.UTC(2026, 9, 17, 15) / 1000;
-      expect((yield* Ref.get(t.lines)).filter((l) => l.threadId === "t-m1")).toEqual([
+      expect(yield* Ref.get(t.lines)).toEqual([
         {
           at: OPENS,
           threadId: "t-m1",
@@ -768,106 +740,29 @@ describe("the Daily Post's backfill", () => {
     }),
   );
 
-  it.scoped(
-    "times a backfilled line exactly when the run's Ghost dated it, as a live one reads",
-    () =>
-      Effect.gen(function* () {
-        const t = yield* setup;
-        const date = "2026-10-17";
-        // The first time only by its Refresh; the steal dated by its Ghost.
-        const mixed = past(date, [
-          steal[0]!,
-          { ...steal[1]!, at: 13 * HOUR + 41 * MINUTE, exact: true },
-        ]);
-        yield* Ref.set(t.history, Option.some(new Map([[date, mixed]])));
-        yield* TestClock.setTime(OPENS);
-        yield* t.runFor(MINUTE);
-        expect((yield* Ref.get(t.lines)).map((l) => l.content)).toEqual([
-          `-# by the <t:${Date.UTC(2026, 9, 17, 3) / 1000}:t> Refresh · 🏁 **FEDUS** sets the first time: **0:08.566**`,
-          `-# <t:${Date.UTC(2026, 9, 17, 14, 41) / 1000}:t> · 🏁 **airman** takes the lead from **FEDUS**, who held it for 11h 41m · 0:08.566 → **0:08.532** (−0.034 s)`,
-        ]);
-      }),
-  );
-
-  it.scoped("first started before 01:00, posts the three closed Dailies, then the live one", () =>
+  it.scoped("times a line exactly when the run's Ghost dated it, as a live one reads", () =>
     Effect.gen(function* () {
       const t = yield* setup;
-      yield* Ref.set(t.history, held("2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17"));
-      yield* Ref.set(t.boardNow, topOf(["airman", 8.532]));
-      // 00:30 on the 18th: the 17th's Daily is still live until 01:00.
-      yield* TestClock.setTime(DAY0 + 30 * MINUTE);
-      yield* t.runFor(MINUTE);
-      expect(yield* threads(t)).toEqual([
-        "Daily #56 · the drop · Wed 14 Oct",
-        "Daily #57 · the drop · Thu 15 Oct",
-        "Daily #58 · the drop · Fri 16 Oct",
-        "Daily #59 · the drop · Sat 17 Oct",
+      // The first time only by its Refresh; the steal dated by its Ghost.
+      const mixed = past("2026-10-17", [
+        steal[0]!,
+        { ...steal[1]!, at: 13 * HOUR + 41 * MINUTE, exact: true },
       ]);
-      const posts = yield* Ref.get(t.posts);
-      expect(posts.map((p) => words(p.message).includes("🏆"))).toEqual([true, true, true, false]);
-      yield* t.runFor(HOUR);
-      expect((yield* threads(t)).at(-1)).toBe("Daily #60 · the drop · Sun 18 Oct");
-      // The 17th's card closes at its end.
-      const closing = (yield* Ref.get(t.edits)).filter((e) => e.messageId === "m4");
-      expect(closing.map((e) => e.at)).toEqual([OPENS]);
-      expect(words(closing[0]!.message)).toContain("# 🏆 airman wins");
-      expect(yield* Ref.get(t.alerts)).toEqual([]);
-    }),
-  );
-
-  it.scoped("backfills only once, never across a restart", () =>
-    Effect.gen(function* () {
-      const t = yield* setup;
-      yield* Ref.set(t.history, held("2026-10-15", "2026-10-16", "2026-10-17"));
       yield* TestClock.setTime(OPENS);
-      yield* t.runFor(MINUTE);
-      yield* t.runFor(MINUTE);
-      yield* TestClock.adjust(24 * HOUR);
-      yield* t.runFor(MINUTE);
-      expect((yield* threads(t)).length).toBe(5);
-      // The closed cards are left alone: only the live one's reads edit it.
-      expect((yield* Ref.get(t.edits)).filter((e) => e.messageId !== "m4")).toEqual([]);
-    }),
-  );
-
-  it.scoped("skips a date the database has no Daily for", () =>
-    Effect.gen(function* () {
-      const t = yield* setup;
-      yield* Ref.set(t.history, held("2026-10-15", "2026-10-17"));
-      yield* TestClock.setTime(OPENS);
-      yield* t.runFor(MINUTE);
-      expect(yield* threads(t)).toEqual([
-        "Daily #57 · the drop · Thu 15 Oct",
-        "Daily #59 · the drop · Sat 17 Oct",
-        "Daily #60 · the drop · Sun 18 Oct",
+      yield* t.postClosed(mixed);
+      expect((yield* Ref.get(t.lines)).map((l) => l.content)).toEqual([
+        `-# by the <t:${Date.UTC(2026, 9, 17, 3) / 1000}:t> Refresh · 🏁 **FEDUS** sets the first time: **0:08.566**`,
+        `-# <t:${Date.UTC(2026, 9, 17, 14, 41) / 1000}:t> · 🏁 **airman** takes the lead from **FEDUS**, who held it for 11h 41m · 0:08.566 → **0:08.532** (−0.034 s)`,
       ]);
     }),
   );
 
-  it.scoped("posts only today's without a database, or tells ops when it can't be read", () =>
+  it.scoped("asks for its GIF once the schedule runs, and edits it into the closed card", () =>
     Effect.gen(function* () {
       const t = yield* setup;
-      yield* TestClock.setTime(OPENS);
-      yield* t.runFor(MINUTE);
-      expect(yield* threads(t)).toEqual(["Daily #60 · the drop · Sun 18 Oct"]);
-
-      const down = yield* setup;
-      yield* Ref.set(down.history, held("2026-10-15", "2026-10-16", "2026-10-17"));
-      yield* Ref.set(down.historyDown, true);
-      yield* down.runFor(MINUTE);
-      expect(yield* threads(down)).toEqual(["Daily #60 · the drop · Sun 18 Oct"]);
-      expect(yield* Ref.get(down.alerts)).toEqual([
-        "Multiballs couldn't read the leaderboard database to backfill the Daily Posts before 2026-10-18: connection refused",
-      ]);
-    }),
-  );
-
-  it.scoped("asks for each backfilled card's GIF, and edits it into the closed card", () =>
-    Effect.gen(function* () {
-      const t = yield* setup;
-      yield* Ref.set(t.history, held("2026-10-17"));
       yield* Ref.set(t.mapFile, Option.some("v1"));
       yield* TestClock.setTime(OPENS);
+      yield* t.postClosed(past("2026-10-17", steal));
       yield* t.runFor(MINUTE);
       expect((yield* Ref.get(t.draws)).length).toBeGreaterThan(0);
       yield* Ref.set(
@@ -880,6 +775,7 @@ describe("the Daily Post's backfill", () => {
       expect(JSON.stringify(edit?.message.components)).toContain("attachment://spin.gif");
       expect(words(edit!.message)).toContain("# 🏆 airman wins");
       yield* t.runFor(HOUR);
+      // Only the GIF edits it: a closed card is never read again.
       expect((yield* Ref.get(t.edits)).filter((e) => e.messageId === "m1")).toHaveLength(1);
     }),
   );

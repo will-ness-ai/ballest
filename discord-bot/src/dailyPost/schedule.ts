@@ -36,7 +36,7 @@ import {
   viewOf,
 } from "./card.js";
 import { addDays, dailyDateAt, HOUR, OPENING_HOUR_UTC, openingOf } from "./date.js";
-import { DailyHistory, type PastDaily } from "./history.js";
+import type { PastDaily } from "./history.js";
 import { type Lead, leadChanged, leadLine, leadOf } from "./lead.js";
 import {
   type DailyCard,
@@ -381,7 +381,7 @@ export const postDaily = Effect.fn("DailyPost.postDaily")(function* (daily: Dail
 });
 
 /**
- * Post a Daily that has already closed, from the leaderboard database (the backfill): its closed
+ * Post a Daily that has already closed, from the leaderboard database (`pnpm daily-post`): its closed
  * card, with the lead graph drawn over the whole day, and a thread telling its lead, each line
  * timed by the run's Ghost or else by the Refresh that saw it. Records the post and its lead.
  * Returns the record (closed, its GIF still to ask for) and why the thread or a line failed if
@@ -628,7 +628,7 @@ export const keepCurrent = Effect.fn("DailyPost.keepCurrent")(function* (start: 
 });
 
 /**
- * A closed card's spinning GIF (a backfilled card's, or one the close came before): asked for at
+ * A closed card's spinning GIF (one the close came before, or a past Daily's): asked for at
  * once, looked for every READ_EVERY, and edited into the card when it comes. It gives up once
  * ops has heard it is late, or when it still couldn't be asked for SPIN_WAIT after the close.
  */
@@ -689,63 +689,6 @@ const tend = Effect.fn("DailyPost.tend")(function* (post: DailyPostRecord) {
   );
 });
 
-/** How many Dailies before the one open now the first run posts. */
-export const BACKFILL_DAYS = 3;
-
-/**
- * The backfill, on the first run with no Daily Posts recorded: the BACKFILL_DAYS Dailies before
- * `today`'s (the one open now), oldest first, posted closed from the leaderboard database
- * (postPast) and recorded, each with its lead. Without a database it says why and posts none; a
- * database that can't be read reaches ops and ends it; a date the database has no Daily for, or
- * one still running, is skipped. Returns the posts, whose GIFs are still to come.
- */
-export const backfill = Effect.fn("DailyPost.backfill")(function* (today: string) {
-  const history = yield* DailyHistory;
-  const ops = yield* onceUntilCleared;
-  if (!history.available) {
-    yield* Effect.logInfo("daily post: no backfill (DATABASE_URL not set)");
-    return [];
-  }
-  const posted: Array<DailyPostRecord> = [];
-  for (let n = BACKFILL_DAYS; n >= 1; n--) {
-    const date = addDays(today, -n);
-    const found = yield* Effect.either(history.find(date));
-    if (Either.isLeft(found)) {
-      yield* ops.tell(
-        "backfill",
-        `Multiballs couldn't read the leaderboard database to backfill the Daily Posts before ${today}: ${found.left.reason}`,
-      );
-      return posted;
-    }
-    if (Option.isNone(found.right)) {
-      yield* Effect.logInfo(`daily post: no Daily for ${date} in the database to backfill`);
-      continue;
-    }
-    const past = found.right.value;
-    if (past.daily.endsAt > (yield* Clock.currentTimeMillis)) {
-      yield* Effect.logInfo(`daily post: the Daily for ${date} is still running; not backfilled`);
-      continue;
-    }
-    const result = yield* Effect.either(postPast(past));
-    if (Either.isLeft(result)) {
-      yield* ops.tell(
-        `backfill ${date}`,
-        `Multiballs couldn't backfill the Daily Post for ${date}: ${result.left.reason}`,
-      );
-      continue;
-    }
-    const { post, threadFailed } = result.right;
-    if (Option.isSome(threadFailed))
-      yield* ops.tell(
-        `thread ${date}`,
-        `Multiballs backfilled the Daily Post for ${date}, but not all of its thread: ${threadFailed.value}`,
-      );
-    yield* Effect.logInfo(`daily post: backfilled ${date}`);
-    posted.push(post);
-  }
-  return posted;
-});
-
 /**
  * Find today's Daily from 01:00 UTC, asking every minute until the API answers, and post it.
  * Ops hears once if the API fails, once if there is still no Daily an hour after 01:00, and once
@@ -796,15 +739,6 @@ export const dailyPostLoop = Effect.gen(function* () {
   const posts = yield* log.all;
   for (const post of posts)
     if (post.state === "live" || spinPending(post)) yield* Effect.forkScoped(tend(post));
-  if (posts.length === 0) {
-    // Before 01:00 UTC the Daily still live is yesterday's: the backfill is the three before it.
-    const today = dailyDateAt(yield* Clock.currentTimeMillis);
-    const backfilled = yield* safely(
-      `backfilling the Daily Posts before ${today}`,
-      backfill(today),
-    );
-    for (const post of backfilled ?? []) yield* Effect.forkScoped(tend(post));
-  }
   while (true) {
     const now = yield* Clock.currentTimeMillis;
     // The Daily open now: before 01:00 UTC, yesterday's.
