@@ -74,7 +74,8 @@ describe("the Renderer", () => {
         for (let i = 0; i < 40; i++) yield* renderer.card({ view: live, names, preview: null });
         expect(resident() - before).toBeLessThan(40);
       }).pipe(Effect.provide(Renderer.Default)),
-    60_000,
+    // 45 draws of about 1.3 s each: over 60 s on a slow runner (main's deploy on 2026-10-29).
+    180_000,
   );
 
   it.effect(
