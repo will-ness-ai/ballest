@@ -136,6 +136,12 @@ describe("the lookups", () => {
     expect(name("Solar Trials")).toBe("Solar Trials");
     expect(name("Mercury Solar Trials")).toBe("Mercury Solar Trials");
     expect(mapName(make("a.b", ["5"]), "5", "axb 2")).toBe("axb 2");
+    /* only as a whole word */
+    const ember = (title: string) => mapName(make("Ember", ["5"]), "5", title);
+    expect(ember("Ember Run")).toBe("Run");
+    expect(ember("Embers Edge")).toBe("Embers Edge");
+    expect(ember("Ember's Fury")).toBe("Ember's Fury");
+    expect(ember("Ember’s Paradox")).toBe("Ember’s Paradox");
   });
 
   test("a Map's label is its number, then its title in the Campaign", () => {
