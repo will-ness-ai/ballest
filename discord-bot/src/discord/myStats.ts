@@ -20,8 +20,19 @@ import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 import { MigratorLive } from "../db.js";
 import { OpsAlerts } from "../ops.js";
 import { Gone } from "./channel.js";
-import { describeDiscordError, Discord, DiscordError, isUnknown, tryDiscord } from "./client.js";
+import {
+  describeDiscordError,
+  Discord,
+  DiscordError,
+  hasCode,
+  tryDiscord,
+  UNKNOWN_CHANNEL,
+  UNKNOWN_MESSAGE,
+} from "./client.js";
 import { fingerprint, myStatsPanelMessage } from "./messages.js";
+
+/** The channel or the message was deleted. */
+const isUnknown = (e: DiscordError) => hasCode(e, UNKNOWN_MESSAGE, UNKNOWN_CHANNEL);
 
 export const MY_STATS_NAME = "my-stats";
 
@@ -159,17 +170,17 @@ export const MyStatsChannelLive = Layer.effect(
   MyStatsChannel,
   Effect.gen(function* () {
     const discord = yield* Discord;
-    const client = discord.channel.client;
+    const client = discord.home.channel.client;
     // MY_STATS_GUILD_ID puts it in another server the bot is in (Ballest Racing, fly.toml);
     // unset, it is the Match channel's server, beside the Match channel.
     const elsewhere = yield* Config.option(Config.string("MY_STATS_GUILD_ID")).pipe(Effect.orDie);
-    const home = discord.channel.guild;
+    const home = discord.home.channel.guild;
     const away = Option.filter(elsewhere, (id) => id !== home.id);
     const guild = Option.isSome(away)
       ? yield* tryDiscord("fetch #my-stats's server", () => client.guilds.fetch(away.value))
       : home;
     /** The Match channel's category, where #my-stats is made in its server; none elsewhere. */
-    const parentId = Option.isSome(away) ? null : discord.channel.parentId;
+    const parentId = Option.isSome(away) ? null : discord.home.channel.parentId;
 
     /** The channel if it is still a text channel in this server, else null. */
     const find = Effect.fn("MyStats.find")(function* (channelId: string) {

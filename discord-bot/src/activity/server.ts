@@ -24,7 +24,7 @@ import { Store } from "../ports.js";
 import { MapPreviews } from "../previews.js";
 import { skinPictureFile } from "../render/skinList.js";
 import { SkinPictures } from "../render/skins.js";
-import { makeActivityApi } from "./api.js";
+import { type ActivityVenue, makeActivityApi } from "./api.js";
 import { SigningIn } from "./web/ui/notice.js";
 
 const WEB = fileURLToPath(new URL("./web/", import.meta.url));
@@ -34,8 +34,8 @@ const require = createRequire(import.meta.url);
 export interface PageConfig {
   /** The Discord application's id, for the SDK. */
   readonly clientId: string;
-  /** The Ballest server: opened anywhere else, the page says so. */
-  readonly guildId: string;
+  /** Each running Venue's server: opened anywhere else, the page says so. */
+  readonly guildIds: ReadonlyArray<string>;
   /**
    * Members the page may sign in as without Discord, for trying it in a plain browser. Only the
    * demo sets these, with a DiscordAuth that accepts `dev-<id>` tokens; the real bot never does.
@@ -179,16 +179,27 @@ export const skinPictureResponses = (pngs: ReadonlyMap<string, Uint8Array>) => {
   };
 };
 
-/** The whole app: page, script, fonts, previews, Skin pictures, config, API. `channelId` is where the links point. */
-export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
-  config: PageConfig & { readonly channelId: string },
-) {
-  const { channelId, ...page } = config;
-  const api = yield* makeActivityApi({ guildId: config.guildId, channelId });
+/**
+ * What the Activity is started with: the running Venues, read at each request, and the page's
+ * other settings.
+ */
+export type ActivityConfig = Omit<PageConfig, "guildIds"> & {
+  readonly venues: Effect.Effect<ReadonlyArray<ActivityVenue>>;
+};
+
+/** The whole app: page, script, fonts, previews, Skin pictures, config, API. */
+export const makeActivityApp = Effect.fn("makeActivityApp")(function* (config: ActivityConfig) {
+  const { venues, ...rest } = config;
+  const api = yield* makeActivityApi(venues);
   const store = yield* Store;
   const previews = yield* MapPreviews;
   const script = yield* bundle;
-  const html = servedPage(yield* loadPage, script, page);
+  const html = yield* loadPage;
+  /** The config as of now: the Venues on offer change while the bot runs (a guest coming up). */
+  const pageConfig = Effect.map(venues, (now): PageConfig => ({
+    ...rest,
+    guildIds: now.map((v) => v.guildId),
+  }));
   const scriptFor = scriptResponses(script);
   const fonts = yield* loadFonts;
   /** A Match's Map preview, only for a Match the bot has drawn a Map for: this is no open proxy. */
@@ -228,8 +239,8 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
   const pages = HttpRouter.empty.pipe(
     HttpRouter.get(
       "/",
-      Effect.succeed(
-        HttpServerResponse.text(html, {
+      Effect.map(pageConfig, (page) =>
+        HttpServerResponse.text(servedPage(html, script, page), {
           contentType: "text/html",
           headers: { "cache-control": "no-cache" },
         }),
@@ -247,13 +258,16 @@ export const makeActivityApp = Effect.fn("makeActivityApp")(function* (
     HttpRouter.get("/fonts/:file", font),
     HttpRouter.get("/previews/:id", preview),
     HttpRouter.get("/skins/:file", skin),
-    HttpRouter.get("/api/config", Effect.succeed(HttpServerResponse.unsafeJson(page))),
+    HttpRouter.get(
+      "/api/config",
+      Effect.map(pageConfig, (page) => HttpServerResponse.unsafeJson(page)),
+    ),
   );
   return pages.pipe(Effect.catchTag("RouteNotFound", () => api));
 });
 
 /** Serve the Activity on PORT. Needs the Engine, the Store, Lobby pings, Chosen Skins and their pictures, where Cards are, and Discord's sign-in and members. */
-export const activityServer = (config: PageConfig & { readonly channelId: string }) =>
+export const activityServer = (config: ActivityConfig) =>
   Layer.unwrapEffect(
     Effect.gen(function* () {
       const port = yield* Config.integer("PORT").pipe(Config.withDefault(8080));

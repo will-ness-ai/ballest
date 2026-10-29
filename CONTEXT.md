@@ -91,6 +91,22 @@ A player's score on one board as Steam holds it: a time on a Map or Track, point
 Overall board. A board holds at most one Entry per player; a better run replaces it.
 _Avoid_: row, record (a record is rank 1), run (for the stored score)
 
+**Plays**:
+Steam's count of a Map's Workshop play sessions, lifetime or over a window ("plays this
+week"). A play needs no finish, and Steam misses some, so plays are not runs and say nothing
+about who has Played.
+_Avoid_: sessions (in prose), runs (for plays)
+
+**Votes**:
+The thumbs up and down players give a Map on its Steam Workshop page, with Steam's score
+over them. Not a Prefab's Favorite.
+_Avoid_: likes, rating, favorites
+
+**Trending this week**:
+The Workshop homepage's top ten Maps by their plays over the last 7 days, lifted by their
+Votes.
+_Avoid_: popular, hot, most played (the lifetime shelf)
+
 **Refresh**:
 One pass of the collector over Steam, at a moment in time. It reads every Track and
 Overall board, and only the Maps whose activity moved, so a Map not read in a Refresh
@@ -258,6 +274,15 @@ is posted below; a Lobby's Card is posted as a new message instead, so its menti
 @Multiplayer ping notifies, and the old Footer is deleted.
 _Avoid_: sticky, pinned message
 
+**Venue**:
+A Discord server the bot plays Matches in: its Match channel (Footer, Match Cards, Match
+Threads) and its @Multiplayer ping role. The game Discord is the home Venue. Every other
+server the bot is invited to becomes a Venue by itself: the bot makes (or reuses) its
+`multiballs` channel and `Multiplayer ping` role there. Each Venue has its own queue: an
+Invite opened in one is seen and joined only there. Links, Chosen Skins and the
+one-Match-at-a-time rule span every Venue.
+_Avoid_: guild, instance (one bot serves every Venue)
+
 **Result**:
 Each Player's best time on the Match's Map, read the moment the Match ends, ranked. A
 Player with no time did not finish. If Steam is down then, the Result waits for it (up to 30
@@ -269,3 +294,38 @@ length, as its creator, and the finished Match's other Players who didn't leave 
 the finished Match's thread, once. Everyone who presses it after that joins the same Lobby until
 its time is up. Any Player may press it. Once that Lobby is gone, the next press opens a fresh one.
 _Avoid_: rematch, replay (a replay is a Ghost)
+
+### The Weekly Cup
+
+**Weekly Cup**:
+A competition the bot runs by itself every week in a server where it is switched on (Ballest
+Racing), in that server's `weekly-cup` channel, on US Central time: sign-up from Monday 00:00 to
+Sunday 20:00, the Shortlist drawn Thursday 12:00 and voted on until Friday 09:00, then racing on
+the Cup Maps until Sunday 20:00, scored with the Circuit's place points. A week with fewer than 2
+Entrants at Thursday 12:00 is cancelled; a server admin can skip a week before then. Each Entrant
+plays each Cup Map for 30 minutes at most and uses no Ghosts, on their honour.
+_Avoid_: tournament, event
+
+**Entrant**:
+A Player signed up for a Weekly Cup. Signing up needs a Link; "sign up" is the verb, so it
+doesn't collide with Link. An Entrant can withdraw until the Cup ends. Only times set while racing
+count: an Entrant's PB on each Cup Map when racing opens (Friday 09:00), or when they sign up if
+that is later, is their bar, and a time counts only once it beats it.
+_Avoid_: registrant, participant
+
+**Shortlist**:
+The 10 Maps the bot draws for a Weekly Cup on Thursday 12:00, none Played by any Entrant: each an
+Eligible Map with an author time of at most 3 minutes. Entrants vote on it for the Cup Maps.
+_Avoid_: pool, ballot
+
+**Cup Map**:
+One of the 3 Shortlist Maps with the most votes, a tie settled at random: the Maps a Weekly Cup
+is raced on.
+_Avoid_: track (a Track is a Circuit board)
+
+**Flag**:
+A PB first seen more than 30 minutes after the first counted time the bot saw from that Entrant
+on that Cup Map (reads are 5 minutes apart, so it is approximate). It still counts; the bot tells
+the ops channel, once per Entrant per Map, to follow up by hand.
+
+_Avoid_: strike, violation

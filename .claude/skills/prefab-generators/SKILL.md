@@ -10,6 +10,9 @@ The run that made the House, Tower and Castle (#310), as one sequence. A Generat
 Generator is built. For this work the six steps below are the whole workflow, in place of
 `docs/agents/feature-workflow.md`.
 
+Run `git fetch origin main` before calling this skill: a thread that started before a skill
+merged doesn't list it, and a stale checkout has no `pnpm --silent gen`.
+
 ## 1. Brainstorm
 
 When the ask names the Generators, take those. Otherwise put 5 to 8 ideas to the user, each a
@@ -46,29 +49,40 @@ branch name). Bring the verdict back into the draft branch. Done when the user h
 
 ## 4. Collage review
 
-With the draft branch served (`pnpm --dir web dev`, or its preview), render each Generator in
-every variation `variationsOf` lists, from three angles, one JPEG per Generator, and read each
-once:
+Start with the check, which makes every Generator in every variation the collage lists and
+prints only the faults (nothing made, over the piece limit, under the floor, more separate
+parts than the defaults), so most of what a picture would show costs one line:
 
 ```bash
-node .claude/skills/prefab-generators/collage.mjs http://localhost:3000 scratch/collage house tower
+pnpm --dir web --silent gen check            # all Generators; add keys, or --only control,control
 ```
 
-`<key>:control,control` narrows a collage to those controls. Look for what a player would call
-broken: pieces floating or sunk, overlaps, things poking through walls or roofs, a variation
-that makes nothing, a slider end that looks wrong, a front facing away. Fix in the builder, add
-a test for each fix that is a rule (inside the walls, above the ridge), and render again. Done
-when a round's collages show nothing broken.
+Fix each fault in the builder, with a test where it is a rule. Then look: with the draft
+branch served (`pnpm --dir web dev:up 3000`), draw the collage for each new or changed
+Generator, one JPEG each, and read each once:
+
+```bash
+pnpm --dir web --silent gen collage house        # scratch/collage/house.jpg, then its faults
+```
+
+`--only control,control` narrows a collage to those controls. A Generator whose pieces stand
+apart by design (letters, a row of lamps) sets `loose` so the parts check skips it. Look for
+what a player would call broken and the check can't see: a variation that looks wrong, a
+slider end that looks wrong, a front facing away, colours. Fix, test each rule, and draw
+again. Done when `gen check` prints `faults: none` and a round's collages show nothing broken.
 
 Then, on Will's PC, spawn each Generator once in a sandbox copy of the game, a small variation
-so it fits the editor's camera (the script's docstring says how to start the slot):
+so it fits the editor's camera (the script's docstring says how to start the slot). Spawn the
+ones that tilt or turn pieces (Spiral ramp, Loop, Jump, Plinko board, Stairs' spiral) and any
+new helper's first user; the rest only if their colours or front are in doubt:
 
 ```bash
 python .claude/skills/prefab-generators/spawn.py 1 house '{"width": 4, "floors": 1}'
 ```
 
 Done when each spawned with its front toward the camera and its colours those the site's
-viewer shows. A cloud session skips this and says so in the PR.
+viewer shows. A cloud session starts a Remote Control session on Will's PC for this and
+closes the game itself, and says so in the PR if it cannot.
 
 ## 5. Code review
 
@@ -83,4 +97,5 @@ Open it from the draft branch with the repo's template: Before / After / How, an
 line filled in (the grill-design verdict, tests first, each code-review round, the collage
 rounds and the sandbox spawn under the qa line, and `/codebase-design` as skipped by this
 skill). Ask the user whether to merge in the same reply that says CI is green; merge with a
-squash on their word.
+squash on their word. A session on Will's PC often works the same branch: `git fetch` it
+before each push, and say in the thread which session merges.

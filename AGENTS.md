@@ -224,7 +224,7 @@ at `d81f3a1`, recorded in `skills-lock.json`), so cloud sessions have them too. 
 `code-review` replaces the built-in `/code-review` here. `grill-design` comes from
 `will-ness-ai/skills`, adapted to prototype in the running app on a worktree, and is
 maintained here rather than reinstalled. `discord-sandbox` (ours) plays the bot in real Discord. `prefab-generators` (ours) adds
-Generators to Generate your own, with scripts that render a collage and spawn one in a sandbox game. `wizard` (also `mattpocock/skills`) is adapted the
+Generators to Generate your own, with `pnpm --silent gen` (checks every variation, draws a collage) and a script that spawns one in a sandbox game. `wizard` (also `mattpocock/skills`) is adapted the
 same way: it delivers its scripts to Will's PC and keeps their values out of the repo's `.env`.
 `writing-for-agents` (also `mattpocock/skills`) is adapted too: its `SKILL-MECHANICS.md` says how to word a call to another skill, and the vendored skills' calls follow it.
 `agent-tools` (ours) builds commands for agents; `retro` hands it the call chains it finds.

@@ -27,6 +27,10 @@ const map = (fileVersion: string | null): WorkshopMap => ({
   crowd: 1,
   authorBeaten: 3,
   fileVersion,
+  weekPlays: 0,
+  votesUp: 0,
+  votesDown: 0,
+  voteScore: 0,
 });
 
 /* the markup's text, each element's edge a | */

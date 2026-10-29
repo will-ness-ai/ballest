@@ -6,6 +6,7 @@
 // on every system, as git prints them.
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join, posix } from "node:path";
 
 import { IDS, PAGES } from "./catalogue.mjs";
@@ -33,6 +34,46 @@ const UNDRAWN = [
   /(^|\/)\.(gitignore|prettierignore|prettierrc[^/]*)$/,
 ];
 const CODE = /\.(ts|tsx|mjs|js|css)$/;
+
+/* a code file's text without its comments, so two versions that differ only in what they
+   say about the code compare equal. Script goes through TypeScript's own transpiler, which
+   knows a regex, JSX text and a template from a comment; CSS (no regexes, no line
+   comments) through a scan that keeps strings whole. Comments that steer the build (a
+   @jsx or @ts- pragma, a bundler's magic comment) are kept as code. */
+const STEERING = /(@jsx\w*|@ts-\w+|webpack\w+|[#@]__\w+__)[^\n]*/g;
+export function withoutComments(text, file) {
+  if (file.endsWith(".css")) {
+    let out = "";
+    for (let i = 0; i < text.length;) {
+      if (text.startsWith("/*", i)) {
+        const end = text.indexOf("*/", i + 2);
+        i = end < 0 ? text.length : end + 2;
+      } else if (text[i] === '"' || text[i] === "'") {
+        let j = i + 1;
+        while (j < text.length && text[j] !== text[i] && text[j] !== "\n")
+          j += text[j] === "\\" ? 2 : 1;
+        out += text.slice(i, j + 1);
+        i = j + 1;
+      } else out += text[i++];
+    }
+    return out;
+  }
+  const js = ts().transpileModule(text, {
+    fileName: posix.basename(file),
+    reportDiagnostics: false,
+    compilerOptions: {
+      removeComments: true,
+      jsx: ts().JsxEmit.Preserve,
+      target: ts().ScriptTarget.ESNext,
+      module: ts().ModuleKind.ESNext,
+      verbatimModuleSyntax: false,
+    },
+  }).outputText;
+  return [...(text.match(STEERING) ?? []), js].join("\n");
+}
+/* TypeScript, loaded the first time a script file is compared */
+let typescript;
+const ts = () => (typescript ??= createRequire(import.meta.url)("typescript"));
 const EXTENSIONS = ["", ".ts", ".tsx", ".mjs", ".js", ".css", "/index.ts", "/index.tsx"];
 /* the paths a file's relative imports name, from the repo's root, before an extension is
    looked for: ./a/b from web/lib/x.ts is web/lib/a/b */
@@ -86,8 +127,10 @@ function walk(root, dir, found = []) {
  * and `routes` the page files reached that no catalogue row draws.
  * @param {ReadonlyArray<string>} changed
  * @param {string} root the repo's root
+ * @param {ReadonlyArray<{ name: string, path: string }>} [catalogue] the pages qa draws: the
+ *   catalogue's, or a fixed list a test pins
  */
-export function reach(changed, root) {
+export function reach(changed, root, catalogue = PAGES) {
   const pageFiles = walk(root, "web/app").filter((f) => /\/page\.(tsx|ts|jsx|js)$/.test(f));
   const isFile = (p) => existsSync(join(root, p)) && statSync(join(root, p)).isFile();
   const layoutsOf = (file) => {
@@ -143,7 +186,7 @@ export function reach(changed, root) {
     });
     return hits[0]?.file ?? null;
   };
-  const drawn = PAGES.map((p) => {
+  const drawn = catalogue.map((p) => {
     const file = fileOfPage(p);
     /* a path no page file serves (the 404) draws the root layout alone */
     return {
@@ -170,7 +213,8 @@ export function reach(changed, root) {
     for (const u of others) reached.add(u.file);
   }
   pages.sort(
-    (a, b) => PAGES.findIndex((p) => p.name === a.name) - PAGES.findIndex((p) => p.name === b.name),
+    (a, b) =>
+      catalogue.findIndex((p) => p.name === a.name) - catalogue.findIndex((p) => p.name === b.name),
   );
   return { all: null, pages, routes: [...reached].sort() };
 }
@@ -196,7 +240,19 @@ export function changedFiles(root, { at } = {}) {
       base,
       ...(at ? [at] : []),
     );
-  const kept = diff("d");
+  /* a changed code file whose code is main's, its comments aside, draws nothing new (one
+     that draws nothing anyway isn't read) */
+  const said = (f) => {
+    if (!CODE.test(f)) return false;
+    const now = () => (at ? run("show", `${at}:${f}`) : readFileSync(join(root, f), "utf8"));
+    const strip = (t) => withoutComments(t, f);
+    try {
+      return strip(run("show", `${base}:${f}`)) === strip(now());
+    } catch {
+      return false; // new on this branch
+    }
+  };
+  const kept = diff("d").filter((f) => UNDRAWN.some((re) => re.test(f)) || !said(f));
   const deleted = diff("D");
   /* what the changed code files imported on main, as repo paths without their extension */
   const importedOnMain = new Set();

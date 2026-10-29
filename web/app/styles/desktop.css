@@ -579,16 +579,16 @@
     width: 34px;
     height: 34px;
   }
-  .car {
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  /* Trending this week: two columns of five, ranks running down each, once it has a sixth */
+  .trend ol:has(> li:nth-child(6)) {
+    grid-auto-flow: column;
+    grid-template-rows: repeat(5, auto);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
   }
-  .car-pic {
-    aspect-ratio: auto;
-    max-height: none;
-    min-height: 360px;
-  }
-  .car-in {
-    padding: 22px;
+  .trend a {
+    grid-template-columns: 1.6rem 96px minmax(0, 1fr) auto;
+    gap: 12px;
   }
   .strip {
     grid-auto-columns: minmax(200px, 220px);

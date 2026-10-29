@@ -33,19 +33,23 @@ describe("reach", () => {
     expect(of(["web/scripts/qa/catalogue.mjs"]).all).toBe("web/scripts/qa/catalogue.mjs");
   });
 
+  /* a catalogue pinned here, so a row added to the real one changes neither test (PR #368); two
+     pages, as a file every catalogue page reaches draws everything */
+  const MAKE = [
+    { name: "prefabs-make", path: "/prefabs/make" },
+    { name: "daily", path: "/daily" },
+  ];
+  const pinned = (changed: Array<string>) => reach(changed, ROOT, MAKE);
+
   it("follows a library file's imports up to the pages that use it", () => {
-    const r = of(["web/lib/generators/signs.ts"]);
+    const r = pinned(["web/lib/generators/signs.ts"]);
     expect(r.all).toBeNull();
-    expect(r.pages).toEqual([
-      { name: "prefabs-make", via: "web/lib/generators/signs.ts" },
-      { name: "pixel-art", via: "web/lib/generators/signs.ts" },
-      { name: "prefab-sign", via: "web/lib/generators/signs.ts" },
-    ]);
+    expect(r.pages).toEqual([{ name: "prefabs-make", via: "web/lib/generators/signs.ts" }]);
   });
 
   it("names a page the catalogue doesn't draw, as a gap", () => {
-    expect(of(["web/lib/generators/signs.ts"]).routes).toContain(
-      "web/app/prefabs/collage/page.tsx",
+    expect(pinned(["web/lib/generators/signs.ts"]).routes).toContain(
+      "web/app/prefabs/make/[generator]/page.tsx",
     );
   });
 
@@ -118,6 +122,44 @@ describe("changedFiles", () => {
       git("rm", "-q", "web/lib/b.ts", "web/proxy.ts");
     });
     expect(gone.upTo).toEqual(["web/lib/a.ts", "web/proxy.ts"]);
+  });
+
+  it("leaves out a code file whose change is only to its comments, which draws nothing", () => {
+    const files = {
+      "web/lib/rules.ts": "/* a rule */\nexport const a = 1;\n",
+      "web/lib/b.ts": "// b\nexport const b = 1;\n",
+      "web/app/board.css": "/* rows */\n.row {\n  color: red;\n}\n",
+      "web/app/a.tsx": "export const A = <a>see https://a.example</a>;\n",
+      "web/app/b.tsx": "export const B = <p>a // b</p>;\n",
+      "web/lib/re.ts": "const r = /^\\/*/;\nexport const x = r && 1;\n",
+      "web/app/c.tsx": "/** @jsxImportSource react */\nexport const C = 1;\n",
+    };
+    const said = branch(files, (_git, dir) => {
+      writeFileSync(
+        join(dir, "web/lib/rules.ts"),
+        "/* a rule, said again\n   over two lines */\nexport const a = 1;\n",
+      );
+      writeFileSync(join(dir, "web/lib/b.ts"), "// b\nexport const b = 2; // changed\n");
+      writeFileSync(join(dir, "web/app/board.css"), "/* the rows */\n.row {\n  color: red;\n}\n");
+      writeFileSync(join(dir, "web/app/a.tsx"), "export const A = <a>see https://b.example</a>;\n");
+      writeFileSync(join(dir, "web/app/b.tsx"), "export const B = <p>a // c</p>;\n");
+      writeFileSync(join(dir, "web/lib/re.ts"), "const r = /^\\/*/;\nexport const x = r && 2;\n");
+      writeFileSync(
+        join(dir, "web/app/c.tsx"),
+        "/** @jsxImportSource preact */\nexport const C = 1;\n",
+      );
+    });
+    /* JSX text is what the page shows, a regex's slashes are code, and a pragma steers the
+       build: none of them is a comment */
+    const drawn = [
+      "web/app/a.tsx",
+      "web/app/b.tsx",
+      "web/app/c.tsx",
+      "web/lib/b.ts",
+      "web/lib/re.ts",
+    ];
+    expect(said.upTo).toEqual(drawn);
+    expect(said.tree).toEqual(drawn);
   });
 
   it("stops at the commit a preview holds, before the ones after it", () => {

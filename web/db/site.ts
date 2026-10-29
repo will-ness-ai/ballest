@@ -304,10 +304,13 @@ export async function workshopMaps(db: Db): Promise<Array<WorkshopMap>> {
           where u.score <= l.medals[4] * ${SCORE_TICKS_PER_SECOND}
             - case when u.id = m.creator_steam_id then ${CREATOR_BEAT_MARGIN_TICKS} else 0 end), 0)::int
           as "authorBeaten",
-        f.version as "fileVersion"
+        f.version as "fileVersion",
+        coalesce(a.week_plays, 0) as "weekPlays", coalesce(a.votes_up, 0) as "votesUp",
+        coalesce(a.votes_down, 0) as "votesDown", coalesce(a.vote_score, 0) as "voteScore"
       from maps m join latest l on l.pfid = m.pfid
       left join stats s on s.board = m.board
       left join map_files f on f.pfid = m.pfid
+      left join map_activity a on a.pfid = m.pfid
       where l.last_seen_refresh = (select max(last_seen_refresh) from map_history)
       order by m.created_at desc nulls last, m.pfid`,
   );

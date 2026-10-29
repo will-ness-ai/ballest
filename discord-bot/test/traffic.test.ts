@@ -4,7 +4,7 @@
 import { createVerify, generateKeyPairSync } from "node:crypto";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Layer, Ref, TestClock } from "effect";
-import { OpsAlerts } from "../src/ops.js";
+import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 import {
   TrafficChannel,
   TrafficLog,
@@ -222,10 +222,12 @@ const setup = Effect.gen(function* () {
     ),
     Layer.succeed(
       OpsAlerts,
-      OpsAlerts.make({
-        configured: true,
-        post: (content) => Ref.update(alerts, (a) => [...a, content]),
-      }),
+      OpsAlerts.make(
+        opsAlertsOf({
+          configured: true,
+          post: (content) => Ref.update(alerts, (a) => [...a, content]),
+        }),
+      ),
     ),
   );
   return { posts, alerts, failing, down, asked, fakes };

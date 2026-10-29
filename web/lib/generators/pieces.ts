@@ -334,6 +334,8 @@ export interface Generator {
   category: (typeof CATEGORIES)[number];
   /* the stem of the file Download saves, and so of the spawn command */
   file: string;
+  /* its pieces stand apart by design (letters, a row of lamps): the checks skip its parts */
+  loose?: boolean;
   /* it letters text, so its page loads the drawn fonts and hands build a Lettering */
   lettered?: boolean;
   /* the view its model and card start from; without one, the Prefabs' default */
@@ -341,6 +343,8 @@ export interface Generator {
   defaults: Values;
   /* the controls to show for these values (a switch can hide another's) */
   controls: (v: Values) => Array<Control>;
+  /* true when these values would letter text it won't (lib/rude-text.ts): generate returns null */
+  refuses?: (v: Values) => boolean;
   build: (v: Values, lettering: Lettering) => PrefabFile | null;
 }
 

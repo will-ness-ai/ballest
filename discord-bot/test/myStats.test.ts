@@ -14,7 +14,7 @@ import {
   MyStatsPanelLive,
   NEEDED_TO_CREATE,
 } from "../src/discord/myStats.js";
-import { OpsAlerts } from "../src/ops.js";
+import { OpsAlerts, opsAlertsOf } from "../src/ops.js";
 
 /** A server in memory: its channels by id, each with its messages, and failures on demand. */
 const makeFakeServer = () => {
@@ -104,10 +104,12 @@ const setup = Effect.gen(function* () {
   const server = makeFakeServer();
   const alerts: Array<string> = [];
   const sql = yield* Layer.build(SqliteClient.layer({ filename: ":memory:" }));
-  const ops = OpsAlerts.make({
-    configured: true,
-    post: (content) => Effect.sync(() => void alerts.push(content)),
-  });
+  const ops = OpsAlerts.make(
+    opsAlertsOf({
+      configured: true,
+      post: (content) => Effect.sync(() => void alerts.push(content)),
+    }),
+  );
   const start = Layer.build(MyStatsPanelLive).pipe(
     Effect.provide(Context.add(sql, MyStatsChannel, server.port).pipe(Context.add(OpsAlerts, ops))),
   );
